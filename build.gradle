@@ -61,7 +61,8 @@ dependencies {
 	// HTML 새니타이징 (XSS 서버 측 방어)
 	implementation 'org.jsoup:jsoup:1.18.3'
 
-	// JSP 컴파일러 — WAR 패키징 시 SSO JSP 파일 실행에 필요
+	// JSP 컴파일러 — business.jsp / agentProc.jsp 직접 실행에 필요
+	// SsoWebConfig의 WebServerFactoryCustomizer가 document root를 src/main/webapp으로 설정
 	implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
 
 	// SSO 에이전트 라이브러리 — libs/ 폴더에 JAR 복사 후 주석 해제

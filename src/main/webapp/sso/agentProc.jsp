@@ -1,28 +1,48 @@
-﻿<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page contentType="text/html;charset=UTF-8" %>
 <%--
-  테스트용 SSO 인증 콜백 페이지 — 항상 K140024로 인증 성공 처리
+  SSO 인증 완료 콜백
 
-  역할:
-  - 운영 SSO 제품의 agentProc.jsp가 위치할 URL을 로컬 테스트에서도 동일하게 제공합니다.
-  - 실제 agentProc.jsp는 SSO 서버가 돌려준 인증 결과를 Agent 라이브러리로 검증하고,
-    성공 시 사용자 식별자(사번)를 애플리케이션에 전달합니다.
-  - 이 테스트 JSP는 검증 과정을 생략하고 고정 사번 K140024를 사용해
-    SSO 인증 성공 결과를 재현합니다.
+  [테스트] SSO Agent가 없으면 ?eno=테스트사번 파라미터로 resultData를 대체할 수 있습니다.
 
-  다음 단계:
-  - /api/auth/sso/complete는 전달받은 사번으로 IT Portal 사용자를 조회합니다.
-  - 조회가 성공하면 Access Token, Refresh Token, it-portal-user 쿠키를 발급합니다.
-  - 이후 프론트엔드 원 요청 경로로 돌아가 Nuxt 인증 상태가 복원됩니다.
-
-  주의:
-  - 운영에서는 eno 쿼리 파라미터를 임의로 만들면 안 됩니다.
-    반드시 SSO Agent가 검증한 사용자 식별자만 complete 단계로 전달해야 합니다.
-
-  실제 SSO 연동 시 이 파일을 벤더 제공 agentProc.jsp로 교체합니다.
-  성공 시 /api/auth/sso/complete?eno={사번} 으로 리다이렉트합니다.
+  [실제 SSO 연동 시] 이 파일 전체를 벤더 제공 agentProc.jsp로 교체합니다.
+  벤더 파일 안에서도 성공 시 아래 핵심 흐름은 유지해야 합니다.
+    1. session.resultCode == "000000" 확인
+    2. session.resultData에서 SSO가 검증한 사용자 식별자(행번)를 추출
+    3. session.ssoVerifiedEno에 저장
+    4. /api/auth/sso/complete로 리다이렉트
 --%>
 <%
-    // 테스트용 고정 사번입니다. 실제 SSO에서는 ssoAgent.getUserId(request) 등 검증된 API 결과로 대체합니다.
-    String eno = "K140024";
-    response.sendRedirect(request.getContextPath() + "/api/auth/sso/complete?eno=" + eno);
+    String resultCode = session.getAttribute("resultCode") == null ? "" : session.getAttribute("resultCode").toString();
+    String resultMessage = session.getAttribute("resultMessage") == null ? "" : session.getAttribute("resultMessage").toString();
+    String resultData = session.getAttribute("resultData") == null ? "" : session.getAttribute("resultData").toString();
+    String next   = request.getParameter("next");
+    String origin = request.getParameter("origin");
+
+    // 로컬 SSO Agent 부재 시 테스트 편의를 위해 query eno를 resultData처럼 취급합니다.
+    if (resultCode.isBlank() && resultData.isBlank()) {
+        String testEno = request.getParameter("eno");
+        if (testEno == null || testEno.isBlank()) {
+            testEno = "K130024";
+        }
+        resultCode = "000000";
+        resultData = testEno;
+    }
+
+    StringBuilder redirect = new StringBuilder(request.getContextPath() + "/api/auth/sso/complete");
+    String sep = "?";
+    if (next != null && !next.isBlank()) {
+        redirect.append(sep).append("next=").append(java.net.URLEncoder.encode(next, "UTF-8"));
+        sep = "&";
+    }
+    if (origin != null && !origin.isBlank()) {
+        redirect.append(sep).append("origin=").append(java.net.URLEncoder.encode(origin, "UTF-8"));
+    }
+
+    if (!"000000".equals(resultCode) || resultData.isBlank()) {
+        response.sendRedirect(redirect.toString());
+        return;
+    }
+
+    session.setAttribute("ssoVerifiedEno", resultData);
+    response.sendRedirect(redirect.toString());
 %>
