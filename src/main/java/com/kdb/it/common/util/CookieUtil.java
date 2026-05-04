@@ -1,8 +1,17 @@
 package com.kdb.it.common.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.dto.AuthDto;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * JWT 토큰 쿠키 관리 유틸리티
@@ -22,8 +31,11 @@ import org.springframework.stereotype.Component;
  * <li>{@code path}: Access Token="/", Refresh Token="/api/auth"</li>
  * </ul>
  */
-@Component // Spring 컴포넌트 빈으로 등록
+@Component
+@RequiredArgsConstructor
 public class CookieUtil {
+
+    private final ObjectMapper objectMapper;
 
     /** Access Token 쿠키 이름 */
     public static final String ACCESS_TOKEN_COOKIE = "accessToken";
@@ -119,6 +131,48 @@ public class CookieUtil {
                 .secure(secureCookie)
                 .path("/api/auth")
                 .maxAge(0) // 즉시 만료 → 브라우저에서 삭제
+                .sameSite("Lax")
+                .build();
+    }
+
+    /**
+     * 프론트엔드 인증 상태 복원용 사용자 정보 쿠키를 생성합니다.
+     *
+     * <p>Access Token과 Refresh Token은 httpOnly 쿠키라서 JavaScript가 읽을 수 없습니다.
+     * Nuxt 화면에서는 현재 사용자명, 권한, 부서 코드가 필요하므로 민감 토큰이 아닌 최소 사용자
+     * 표시 정보만 {@code it-portal-user} 쿠키에 별도로 담습니다.</p>
+     *
+     * <p>이 쿠키는 SSO 완료 직후 서버가 직접 내려보내며, 프론트엔드의
+     * {@code useCookie('it-portal-user')}와 {@code stores/auth.ts}가 읽어 Pinia 인증 상태를
+     * 복원합니다. 값 형식은 Nuxt 쿠키 저장 방식과 맞추기 위해 JSON 직렬화 후 URL 인코딩합니다.</p>
+     *
+     * <p>보안상 이 쿠키에는 JWT나 비밀번호 같은 인증 비밀값을 넣으면 안 됩니다.
+     * 실제 API 인증은 별도 httpOnly Access Token 쿠키로 수행됩니다.</p>
+     *
+     * @param loginResponse SSO 토큰 발급 후 사용자/권한 정보가 담긴 응답 DTO
+     * @return Nuxt가 읽을 수 있는 {@code it-portal-user} 쿠키
+     */
+    public ResponseCookie createUserInfoCookie(AuthDto.LoginResponse loginResponse) {
+        Map<String, Object> userMap = new LinkedHashMap<>();
+        userMap.put("eno",    loginResponse.getEno());
+        userMap.put("empNm",  loginResponse.getEmpNm());
+        userMap.put("athIds", loginResponse.getAthIds());
+        userMap.put("bbrC",   loginResponse.getBbrC());
+        userMap.put("temC",   loginResponse.getTemC());
+
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(userMap);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("사용자 정보 쿠키 직렬화 실패", e);
+        }
+
+        String encoded = URLEncoder.encode(json, StandardCharsets.UTF_8);
+        return ResponseCookie.from("it-portal-user", encoded)
+                .httpOnly(false) // 프론트엔드 JavaScript에서 읽어야 함
+                .secure(secureCookie)
+                .path("/")
+                .maxAge(REFRESH_TOKEN_MAX_AGE) // refreshToken 수명과 일치 (7일)
                 .sameSite("Lax")
                 .build();
     }

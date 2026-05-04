@@ -2,6 +2,7 @@ package com.kdb.it.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseCookie;
@@ -19,7 +20,7 @@ class CookieUtilTest {
     @DisplayName("createAccessTokenCookie - Access Token 쿠키는 15분 후 만료된다")
     void createAccessTokenCookie_만료시간_15분() {
         // given
-        CookieUtil cookieUtil = new CookieUtil();
+        CookieUtil cookieUtil = new CookieUtil(new ObjectMapper());
 
         // when
         ResponseCookie cookie = cookieUtil.createAccessTokenCookie("access-token");
@@ -36,7 +37,7 @@ class CookieUtilTest {
     @DisplayName("createRefreshTokenCookie - Refresh Token 쿠키는 인증 경로로만 제한된다")
     void createRefreshTokenCookie_경로제한() {
         // given
-        CookieUtil cookieUtil = new CookieUtil();
+        CookieUtil cookieUtil = new CookieUtil(new ObjectMapper());
 
         // when
         ResponseCookie cookie = cookieUtil.createRefreshTokenCookie("refresh-token");

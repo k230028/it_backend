@@ -122,7 +122,11 @@ public class SecurityConfig {
                                                                 "/api/auth/refresh",
                                                                 "/swagger-ui/**", "/v3/api-docs/**",
                                                                 "/swagger-resources/**", "/webjars/**",
-                                                                "/swagger-ui.html", "/error")
+                                                                "/swagger-ui.html", "/error",
+                                                                // SSO 에이전트 JSP (src/main/webapp/sso/ 하위 전체)
+                                                                "/sso/**",
+                                                                // SSO 브리지 — agentProc.jsp에서 리다이렉트되는 JWT 발급 엔드포인트
+                                                                "/api/auth/sso/complete")
                                                 .permitAll()
                                                 // 관리자 전용 엔드포인트 (ITPAD001만 접근 가능)
                                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

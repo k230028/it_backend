@@ -1,5 +1,6 @@
 plugins {
 	id 'java'
+	id 'war'
 	id 'org.springframework.boot' version '4.0.5'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'org.asciidoctor.jvm.convert' version '4.0.5'
@@ -59,6 +60,12 @@ dependencies {
 	
 	// HTML 새니타이징 (XSS 서버 측 방어)
 	implementation 'org.jsoup:jsoup:1.18.3'
+
+	// JSP 컴파일러 — WAR 패키징 시 SSO JSP 파일 실행에 필요
+	implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
+
+	// SSO 에이전트 라이브러리 — libs/ 폴더에 JAR 복사 후 주석 해제
+	// implementation files('libs/sso-agent.jar')
 
 	// JWT
 	implementation 'io.jsonwebtoken:jjwt-api:0.13.0'

@@ -2,6 +2,8 @@ package com.kdb.it;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 
 /**
  * IT Portal 백엔드 애플리케이션 메인 클래스
@@ -22,7 +24,16 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @version 1.0.0
  */
 @SpringBootApplication // Spring Boot 자동 설정, 컴포넌트 스캔, 빈 등록을 일괄 활성화
-public class ItApplication {
+public class ItApplication extends SpringBootServletInitializer {
+
+	/**
+	 * 외장 WAS 배포 시 서블릿 컨텍스트 초기화 (WAR 배포용)
+	 * java -jar 실행 시에는 호출되지 않으며, 외장 Tomcat/WAS에 WAR 배포 시 사용됩니다.
+	 */
+	@Override
+	protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
+		return application.sources(ItApplication.class);
+	}
 
 	/**
 	 * 애플리케이션 시작 메서드
