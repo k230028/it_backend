@@ -10,6 +10,23 @@
     String next   = request.getParameter("next");
     String origin = request.getParameter("origin");
 
+    if (next != null && !next.isBlank()) {
+        session.setAttribute("ssoNext", next);
+    }
+    if (origin != null && !origin.isBlank()) {
+        session.setAttribute("ssoOrigin", origin);
+    }
+
+    // 로컬 테스트용 SSO 성공 결과입니다. 운영에서는 벤더 SSO Agent가 세션 값을 설정합니다.
+    if (session.getAttribute("resultCode") == null && session.getAttribute("resultData") == null) {
+        String testEno = request.getParameter("eno");
+        if (testEno == null || testEno.isBlank()) {
+            testEno = "K140024";
+        }
+        session.setAttribute("resultCode", "000000");
+        session.setAttribute("resultData", testEno);
+    }
+
     StringBuilder redirect = new StringBuilder(request.getContextPath() + "/sso/agentProc.jsp");
     String sep = "?";
     if (next != null && !next.isBlank()) {

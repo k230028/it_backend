@@ -92,6 +92,23 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("GET /sso/loginProc - agentProc 세션 결과를 complete 단계로 연결")
+    void loginProc_성공세션_complete로연결() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("resultCode", "000000");
+        session.setAttribute("resultData", "K150024");
+        session.setAttribute("ssoNext", "/info/projects");
+        session.setAttribute("ssoOrigin", "http://localhost:3002");
+
+        mockMvc.perform(get("/sso/loginProc").session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/api/auth/sso/complete?next=%2Finfo%2Fprojects&origin=http%3A%2F%2Flocalhost%3A3002"));
+
+        org.assertj.core.api.Assertions.assertThat(session.getAttribute("ssoVerifiedEno"))
+                .isEqualTo("K150024");
+    }
+
+    @Test
     @DisplayName("GET /api/auth/sso/complete - eno 직접 전달은 기본 차단")
     void complete_eno직접전달_차단() throws Exception {
         mockMvc.perform(get("/api/auth/sso/complete")

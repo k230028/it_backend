@@ -21,15 +21,15 @@ import java.util.Optional;
 /**
  * SSO 인증 완료 처리 컨트롤러
  *
- * <p>{@code agentProc.jsp}(JSP 직접 실행)가 SSO Agent 세션에서 인증된 사번을 읽어
- * {@code ssoVerifiedEno} 서버 세션 값으로 넘기면, JWT 쿠키를 발급하고 원래 프론트엔드
- * 경로로 복귀시킵니다.</p>
+ * <p>{@code agentProc.jsp}(JSP 직접 실행)가 SSO Agent 세션에 남긴 인증 결과를
+ * {@code /sso/loginProc}로 넘기면, JWT 쿠키를 발급하고 원래 프론트엔드 경로로 복귀시킵니다.</p>
  *
  * <p>SSO 흐름 (JSP 파일이 직접 실행됨):</p>
  * <ol>
  *   <li>{@code /sso/business.jsp}: SSO 인증 진입점 → agentProc.jsp로 이동 (벤더 교체 대상)</li>
- *   <li>{@code /sso/agentProc.jsp}: 사번 추출 후 complete 호출 (벤더 교체 대상, 테스트 사번 설정 위치)</li>
- *   <li>{@code /api/auth/sso/complete}: JWT 발급 및 프론트엔드 복귀 (이 컨트롤러)</li>
+ *   <li>{@code /sso/agentProc.jsp}: 성공 시 {@code loginProc}로 이동 (벤더 파일 최소 수정)</li>
+ *   <li>{@code /sso/loginProc}: SSO 세션 결과 검증 후 JWT 발급 단계로 연결</li>
+ *   <li>{@code /api/auth/sso/complete}: JWT 발급 및 프론트엔드 복귀</li>
  * </ol>
  */
 @Controller
@@ -37,6 +37,11 @@ import java.util.Optional;
 public class SsoController {
 
     private static final String SSO_VERIFIED_ENO_SESSION_KEY = "ssoVerifiedEno";
+    private static final String SSO_RESULT_CODE_SESSION_KEY = "resultCode";
+    private static final String SSO_RESULT_DATA_SESSION_KEY = "resultData";
+    private static final String SSO_NEXT_SESSION_KEY = "ssoNext";
+    private static final String SSO_ORIGIN_SESSION_KEY = "ssoOrigin";
+    private static final String SSO_SUCCESS_CODE = "000000";
 
     private final AuthService authService;
     private final CookieUtil cookieUtil;
@@ -61,6 +66,38 @@ public class SsoController {
      */
     @Value("${app.sso.allow-direct-eno:false}")
     private boolean allowDirectEno;
+
+    /**
+     * 벤더 {@code agentProc.jsp}의 성공 후처리 URL입니다.
+     *
+     * <p>실제 JSP에서는 기존 TODO의 {@code response.sendRedirect("loginProc"); return;}만
+     * 활성화하면 이 메서드가 SSO 세션의 {@code resultCode/resultData}를 읽어 애플리케이션
+     * 토큰 발급 단계로 연결합니다.</p>
+     *
+     * @param response JWT 발급 완료 엔드포인트로 이동시키는 Servlet 응답
+     * @param request  SSO Agent가 남긴 세션 결과를 읽기 위한 요청
+     * @throws IOException 리다이렉트 응답 작성 실패 시
+     */
+    @GetMapping("/sso/loginProc")
+    public void loginProc(HttpServletResponse response,
+                          HttpServletRequest request) throws IOException {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            response.sendRedirect(buildCompleteRedirect(null, null));
+            return;
+        }
+
+        String resultCode = readSessionString(session, SSO_RESULT_CODE_SESSION_KEY);
+        String resultData = readSessionString(session, SSO_RESULT_DATA_SESSION_KEY);
+        String next = readSessionString(session, SSO_NEXT_SESSION_KEY);
+        String origin = readSessionString(session, SSO_ORIGIN_SESSION_KEY);
+
+        if (SSO_SUCCESS_CODE.equals(resultCode) && !resultData.isBlank()) {
+            session.setAttribute(SSO_VERIFIED_ENO_SESSION_KEY, resultData);
+        }
+
+        response.sendRedirect(buildCompleteRedirect(next, origin));
+    }
 
     /**
      * SSO 인증 완료 후 JWT 쿠키를 발급하고 프론트엔드로 복귀합니다.
@@ -120,11 +157,35 @@ public class SsoController {
                 .findFirst();
     }
 
+    private String buildCompleteRedirect(String next, String origin) {
+        StringBuilder redirect = new StringBuilder("/api/auth/sso/complete");
+        String sep = "?";
+        if (next != null && !next.isBlank()) {
+            redirect.append(sep).append("next=").append(encode(next));
+            sep = "&";
+        }
+        if (origin != null && !origin.isBlank()) {
+            redirect.append(sep).append("origin=").append(encode(origin));
+        }
+        return redirect.toString();
+    }
+
+    private String encode(String value) {
+        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private String readSessionString(HttpSession session, String key) {
+        Object value = session.getAttribute(key);
+        return value == null ? "" : value.toString();
+    }
+
     private String resolveVerifiedEno(HttpServletRequest request, String directEno) {
         HttpSession session = request.getSession(false);
         if (session != null) {
             Object sessionEno = session.getAttribute(SSO_VERIFIED_ENO_SESSION_KEY);
             session.removeAttribute(SSO_VERIFIED_ENO_SESSION_KEY);
+            session.removeAttribute(SSO_NEXT_SESSION_KEY);
+            session.removeAttribute(SSO_ORIGIN_SESSION_KEY);
             if (sessionEno != null && !sessionEno.toString().isBlank()) {
                 return sessionEno.toString();
             }
