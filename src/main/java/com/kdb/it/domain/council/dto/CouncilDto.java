@@ -377,7 +377,9 @@ public class CouncilDto {
         /** 직위명 (팀장, 차장, 과장 등) */
         String ptCNm,
         /** 위원유형 (MAND:당연/CALL:소집/SECR:간사) */
-        String vlrTp
+        String vlrTp,
+        /** 결과서 검토 확인 여부 (N: 미확인, Y: 확인완료) */
+        String cnfmYn
     ) {}
 
     /**
@@ -539,6 +541,21 @@ public class CouncilDto {
         String apfMngNo
     ) {}
 
+    /**
+     * 개최결과서 결재 요청 (IT관리자 → 부장)
+     *
+     * <p>FINAL_APPROVAL 상태에서 IT관리자가 결재자(부장)를 지정하여
+     * 전자결재 시스템에 개최결과서 결재를 신청합니다.</p>
+     */
+    public record ResultApprovalRequest(
+        /** 결재자 1순위 — 팀장 사번 */
+        String teamLeadEno,
+        /** 결재자 2순위 — 부장 사번 */
+        String deptHeadEno,
+        /** 신청의견 (선택) */
+        String rqsOpnn
+    ) {}
+
     // =========================================================================
     // M6: 사전질의응답 관련 (QnaService 사용)
     // =========================================================================
@@ -595,5 +612,21 @@ public class CouncilDto {
         String repCone,
         /** 답변여부 (Y/N) */
         String repYn
+    ) {}
+
+    /**
+     * 추진부서 통보 응답
+     *
+     * <p>통보 완료 후 수신자(추진부서 담당자) 정보를 반환합니다.</p>
+     */
+    public record NotifyResponse(
+        /** 수신자 사번 */
+        String eno,
+        /** 수신자 성명 */
+        String usrNm,
+        /** 수신자 부서명 */
+        String bbrNm,
+        /** 수신자 팀명 */
+        String temNm
     ) {}
 }

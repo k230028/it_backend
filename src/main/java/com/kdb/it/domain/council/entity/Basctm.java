@@ -49,7 +49,7 @@ public class Basctm extends BaseEntity {
     private Integer prjSno;
 
     /** 협의회상태: CCODEM ASCT_STS (DRAFT~COMPLETED, 12단계) */
-    @Column(name = "ASCT_STS", length = 20, nullable = false)
+    @Column(name = "ASCT_STS", length = 30, nullable = false)
     private String asctSts;
 
     /** 심의유형: INFO_SYS(정보시스템) / INFO_SEC(정보보호시스템) / ETC(기타) */

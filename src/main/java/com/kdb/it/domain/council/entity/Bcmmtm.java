@@ -58,11 +58,28 @@ public class Bcmmtm extends BaseEntity {
     private String vlrTp;
 
     /**
+     * 결과서 검토 확인 여부
+     * 평가위원이 RESULT_REVIEW 단계에서 결과서 확인 완료 시 'Y'로 변경됩니다.
+     * 전원 'Y'가 되면 협의회 상태가 FINAL_APPROVAL로 전이됩니다.
+     */
+    @Column(name = "CNFM_YN", length = 1, nullable = false)
+    @lombok.Builder.Default
+    private String cnfmYn = "N";
+
+    /**
      * 위원유형 변경 (소집→당연 또는 간사 재지정 시)
      *
      * @param vlrTp 변경할 위원유형 코드
      */
     public void changeType(String vlrTp) {
         this.vlrTp = vlrTp;
+    }
+
+    /**
+     * 결과서 검토 확인 처리
+     * 평가위원이 결과서를 확인하면 호출됩니다.
+     */
+    public void confirmReview() {
+        this.cnfmYn = "Y";
     }
 }

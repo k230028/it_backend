@@ -3,6 +3,7 @@ package com.kdb.it.domain.council.service;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import lombok.RequiredArgsConstructor;
@@ -165,8 +166,8 @@ public class CommitteeService {
      */
     @Transactional
     public void saveCommittee(String asctId, CouncilDto.CommitteeRequest request) {
-        // 협의회 존재 확인
-        councilService.findActiveCouncil(asctId);
+        // 협의회 존재 확인 및 현재 상태 캡처
+        Basctm council = councilService.findActiveCouncil(asctId);
 
         // 기존 위원 전체 Soft Delete
         List<Bcmmtm> existing = committeeRepository.findByAsctIdAndDelYn(asctId, "N");
@@ -183,7 +184,11 @@ public class CommitteeService {
         }
 
         // 협의회 상태 전이: APPROVED → PREPARING (위원 선정 완료)
-        councilService.changeStatus(asctId, "PREPARING");
+        // 이미 PREPARING 이후 상태(SCHEDULED, IN_PROGRESS 등)이면 상태를 되돌리지 않음
+        // (일정 확정 후 위원 수정 시 SCHEDULED → PREPARING 역전이 방지)
+        if ("APPROVED".equals(council.getAsctSts())) {
+            councilService.changeStatus(asctId, "PREPARING");
+        }
     }
 
     // =========================================================================
@@ -205,6 +210,8 @@ public class CommitteeService {
 
     /**
      * CuserI → CommitteeMemberResponse 변환 (당연위원 후보 조회용)
+     *
+     * <p>후보 조회 시점에는 BCMMTM 레코드가 없으므로 cfdYn은 'N'으로 초기화합니다.</p>
      */
     private CouncilDto.CommitteeMemberResponse toMemberResponse(CuserI user, String vlrTp) {
         return new CouncilDto.CommitteeMemberResponse(
@@ -212,14 +219,16 @@ public class CommitteeService {
                 user.getUsrNm(),
                 user.getBbrNm(),
                 user.getPtCNm(),
-                vlrTp
+                vlrTp,
+                "N"  // 후보 조회 시점에는 항상 미확인
         );
     }
 
     /**
      * Bcmmtm + CuserI → CommitteeMemberResponse 변환 (위원 목록 조회용)
      *
-     * <p>사용자 정보가 없는 경우(탈퇴 등) 사번만 포함합니다.</p>
+     * <p>사용자 정보가 없는 경우(탈퇴 등) 사번만 포함합니다.
+     * cnfmYn은 BCMMTM 엔티티의 실제 값을 반영합니다.</p>
      */
     private CouncilDto.CommitteeMemberResponse toMemberResponseFromEntity(Bcmmtm member, CuserI user) {
         return new CouncilDto.CommitteeMemberResponse(
@@ -227,7 +236,8 @@ public class CommitteeService {
                 user != null ? user.getUsrNm() : null,
                 user != null ? user.getBbrNm() : null,
                 user != null ? user.getPtCNm() : null,
-                member.getVlrTp()
+                member.getVlrTp(),
+                member.getCnfmYn()  // 결과서 검토 확인 여부
         );
     }
 }

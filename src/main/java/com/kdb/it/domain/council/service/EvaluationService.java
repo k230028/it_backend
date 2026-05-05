@@ -5,6 +5,8 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Bevalm;
+import com.kdb.it.domain.council.entity.Bcmmtm;
+import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -43,6 +46,9 @@ public class EvaluationService {
 
     /** 협의회 기본 서비스 — 상태 전이용 */
     private final CouncilService councilService;
+
+    /** 평가위원 리포지토리 — 전원 제출 여부 확인용 */
+    private final CommitteeRepository committeeRepository;
 
     // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM 기준)
     private static final Map<String, String> CHECK_ITEM_NAMES = Map.of(
@@ -189,6 +195,44 @@ public class EvaluationService {
         if ("IN_PROGRESS".equals(currentStatus)) {
             councilService.changeStatus(asctId, "EVALUATING");
         }
+
+        // 전원 제출 완료 시 EVALUATING → RESULT_WRITING 자동 전이
+        // 조건: 현재 상태가 EVALUATING이고, 모든 위원이 6개 항목을 전부 제출한 경우
+        if ("EVALUATING".equals(currentStatus) || "IN_PROGRESS".equals(currentStatus)) {
+            if (isAllMembersSubmitted(asctId)) {
+                councilService.changeStatus(asctId, "RESULT_WRITING");
+            }
+        }
+    }
+
+    /**
+     * 모든 평가위원이 6개 점검항목을 전부 제출했는지 확인
+     *
+     * <p>위원 전원의 사번을 조회한 후, 각 사번에 대해 6개 항목 제출 여부를 검증합니다.
+     * 단 한 명이라도 미제출 항목이 있으면 false를 반환합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return 전원 제출 완료 여부
+     */
+    private boolean isAllMembersSubmitted(String asctId) {
+        // 등록된 평가위원 사번 목록 조회
+        List<Bcmmtm> members = committeeRepository.findByAsctIdAndDelYn(asctId, "N");
+        if (members.isEmpty()) return false;
+
+        Set<String> memberEnos = members.stream()
+                .map(Bcmmtm::getEno)
+                .collect(Collectors.toSet());
+
+        // 제출된 평가의견에서 6개 항목을 모두 제출한 사번 목록 추출
+        List<Bevalm> allEvaluations = evaluationRepository.findByAsctIdAndDelYn(asctId, "N");
+
+        // 사번별 제출 항목 수 집계
+        Map<String, Long> submitCountByEno = allEvaluations.stream()
+                .collect(Collectors.groupingBy(Bevalm::getEno, Collectors.counting()));
+
+        // 전원이 6개 항목을 모두 제출했는지 검사
+        return memberEnos.stream()
+                .allMatch(eno -> submitCountByEno.getOrDefault(eno, 0L) >= CHECK_ITEM_ORDER.size());
     }
 
     // =========================================================================

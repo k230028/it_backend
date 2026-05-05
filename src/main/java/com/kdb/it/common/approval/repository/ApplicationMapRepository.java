@@ -68,6 +68,20 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, String> 
                         String orcTbCd, java.util.List<String> orcPkVls);
 
         /**
+         * 신청관리번호와 원본 테이블 코드로 신청서 관계 목록 조회
+         *
+         * <p>
+         * 특정 신청서(apfMngNo)에 연결된 원본 데이터 중 지정한 테이블(orcTbCd)의 레코드를 반환합니다.
+         * 주로 결재 완료 이벤트에서 연결된 협의회(BASCTM) 레코드를 조회하는 데 사용됩니다.
+         * </p>
+         *
+         * @param apfMngNo 신청관리번호
+         * @param orcTbCd  원본 테이블 코드 (예: 'BASCTM')
+         * @return 조건에 맞는 신청서 관계 목록
+         */
+        java.util.List<Cappla> findByApfMngNoAndOrcTbCd(String apfMngNo, String orcTbCd);
+
+        /**
          * 원본 데이터에 특정 상태의 신청서가 존재하는지 확인
          *
          * <p>
