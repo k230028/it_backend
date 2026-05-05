@@ -1,7 +1,10 @@
 package com.kdb.it.domain.budget.work.repository;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
@@ -11,9 +14,11 @@ import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.QBitemm;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.kdb.it.domain.budget.work.entity.QBbugtm;
 
 import lombok.RequiredArgsConstructor;
 
@@ -191,6 +196,142 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                 .selectFrom(bitemm)
                 .where(builder)
                 .fetch();
+    }
+
+    /**
+     * 정보화사업(BPROJM)별 편성예산(DUP_BG) 합계 일괄 조회
+     *
+     * <p>
+     * ORC_TB='BPROJM' 조건으로 orcPkVl(prjMngNo)별 SUM(DUP_BG)를 집계합니다.
+     * </p>
+     */
+    @Override
+    public Map<String, BigDecimal> sumDupBgByPrjMngNos(List<String> prjMngNos, String bgYy) {
+        if (prjMngNos == null || prjMngNos.isEmpty()) return Map.of();
+        QBbugtm bbugtm = QBbugtm.bbugtm;
+        QBitemm bitemm = QBitemm.bitemm;
+        // 정보화사업 편성은 BITEMM 단위로 저장(ORC_TB='BITEMM', ORC_PK_VL=GCL_MNG_NO)
+        // → BITEMM.PRJ_MNG_NO 기준으로 JOIN 후 GROUP BY
+        List<Tuple> results = queryFactory
+                .select(bitemm.prjMngNo, bbugtm.dupBg.sum())
+                .from(bbugtm)
+                .join(bitemm).on(
+                        bbugtm.orcPkVl.eq(bitemm.gclMngNo),
+                        bbugtm.orcSnoVl.eq(bitemm.gclSno))
+                .where(
+                        bbugtm.bgYy.eq(bgYy),
+                        bbugtm.orcTb.eq("BITEMM"),
+                        bitemm.prjMngNo.in(prjMngNos),
+                        bbugtm.delYn.eq("N"),
+                        bitemm.delYn.eq("N"),
+                        bitemm.lstYn.eq("Y"))
+                .groupBy(bitemm.prjMngNo)
+                .fetch();
+        Map<String, BigDecimal> map = new HashMap<>();
+        for (Tuple t : results) {
+            String key = t.get(bitemm.prjMngNo);
+            BigDecimal sum = t.get(bbugtm.dupBg.sum());
+            if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
+        }
+        return map;
+    }
+
+    /**
+     * 전산업무비(BCOSTM)별 편성예산(DUP_BG) 합계 일괄 조회
+     *
+     * <p>
+     * ORC_TB='BCOSTM' 조건으로 orcPkVl(itMngcNo)별 SUM(DUP_BG)를 집계합니다.
+     * </p>
+     */
+    @Override
+    public Map<String, BigDecimal> sumDupBgByItMngcNos(List<String> itMngcNos, String bgYy) {
+        if (itMngcNos == null || itMngcNos.isEmpty()) return Map.of();
+        QBbugtm bbugtm = QBbugtm.bbugtm;
+        List<Tuple> results = queryFactory
+                .select(bbugtm.orcPkVl, bbugtm.dupBg.sum())
+                .from(bbugtm)
+                .where(
+                        bbugtm.bgYy.eq(bgYy),
+                        bbugtm.orcTb.eq("BCOSTM"),
+                        bbugtm.orcPkVl.in(itMngcNos),
+                        bbugtm.delYn.eq("N"))
+                .groupBy(bbugtm.orcPkVl)
+                .fetch();
+        Map<String, BigDecimal> map = new HashMap<>();
+        for (Tuple t : results) {
+            String key = t.get(bbugtm.orcPkVl);
+            BigDecimal sum = t.get(bbugtm.dupBg.sum());
+            if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
+        }
+        return map;
+    }
+
+    /**
+     * 정보화사업별 자본예산 편성예산(DUP_BG) 합계 조회 (gclDtt 코드 기준)
+     */
+    @Override
+    public Map<String, BigDecimal> sumAssetDupBgByPrjMngNos(List<String> prjMngNos, String bgYy, Set<String> assetGclDttCodes) {
+        if (prjMngNos == null || prjMngNos.isEmpty() || assetGclDttCodes == null || assetGclDttCodes.isEmpty())
+            return Map.of();
+        QBbugtm bbugtm = QBbugtm.bbugtm;
+        QBitemm bitemm = QBitemm.bitemm;
+        List<Tuple> results = queryFactory
+                .select(bitemm.prjMngNo, bbugtm.dupBg.sum())
+                .from(bbugtm)
+                .join(bitemm).on(
+                        bbugtm.orcPkVl.eq(bitemm.gclMngNo),
+                        bbugtm.orcSnoVl.eq(bitemm.gclSno))
+                .where(
+                        bbugtm.bgYy.eq(bgYy),
+                        bbugtm.orcTb.eq("BITEMM"),
+                        bitemm.prjMngNo.in(prjMngNos),
+                        bitemm.gclDtt.in(assetGclDttCodes),
+                        bbugtm.delYn.eq("N"),
+                        bitemm.delYn.eq("N"),
+                        bitemm.lstYn.eq("Y"))
+                .groupBy(bitemm.prjMngNo)
+                .fetch();
+        Map<String, BigDecimal> map = new HashMap<>();
+        for (Tuple t : results) {
+            String key = t.get(bitemm.prjMngNo);
+            BigDecimal sum = t.get(bbugtm.dupBg.sum());
+            if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
+        }
+        return map;
+    }
+
+    /**
+     * 정보화사업별 일반관리비 편성예산(DUP_BG) 합계 조회 (gclDtt 코드 기준)
+     */
+    @Override
+    public Map<String, BigDecimal> sumCostDupBgByPrjMngNos(List<String> prjMngNos, String bgYy, Set<String> costGclDttCodes) {
+        if (prjMngNos == null || prjMngNos.isEmpty() || costGclDttCodes == null || costGclDttCodes.isEmpty())
+            return Map.of();
+        QBbugtm bbugtm = QBbugtm.bbugtm;
+        QBitemm bitemm = QBitemm.bitemm;
+        List<Tuple> results = queryFactory
+                .select(bitemm.prjMngNo, bbugtm.dupBg.sum())
+                .from(bbugtm)
+                .join(bitemm).on(
+                        bbugtm.orcPkVl.eq(bitemm.gclMngNo),
+                        bbugtm.orcSnoVl.eq(bitemm.gclSno))
+                .where(
+                        bbugtm.bgYy.eq(bgYy),
+                        bbugtm.orcTb.eq("BITEMM"),
+                        bitemm.prjMngNo.in(prjMngNos),
+                        bitemm.gclDtt.in(costGclDttCodes),
+                        bbugtm.delYn.eq("N"),
+                        bitemm.delYn.eq("N"),
+                        bitemm.lstYn.eq("Y"))
+                .groupBy(bitemm.prjMngNo)
+                .fetch();
+        Map<String, BigDecimal> map = new HashMap<>();
+        for (Tuple t : results) {
+            String key = t.get(bitemm.prjMngNo);
+            BigDecimal sum = t.get(bbugtm.dupBg.sum());
+            if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
+        }
+        return map;
     }
 
     /**

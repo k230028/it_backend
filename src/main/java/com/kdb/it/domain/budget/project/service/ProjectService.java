@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.project.service;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
@@ -91,6 +92,9 @@ public class ProjectService {
 
     /** 공통코드 서비스: 예산 신청 기간 검증용 */
     private final com.kdb.it.common.code.service.CodeService codeService;
+
+    /** 편성예산(BBUGTM) 리포지토리: 일괄 조회 시 prjMngNo별 DUP_BG 합계 조회용 */
+    private final BbugtmRepository bbugtmRepository;
 
     /**
      * 전체 정보화사업 목록 조회
@@ -567,7 +571,7 @@ public class ProjectService {
      * @return 존재하는 프로젝트의 응답 DTO 목록 (품목 정보 포함, 없는 항목 제외)
      */
     public List<ProjectDto.Response> getProjectsByIds(ProjectDto.BulkGetRequest request) {
-        return request.getPrjMngNos().stream()
+        List<ProjectDto.Response> responses = request.getPrjMngNos().stream()
                 .map(prjMngNo -> {
                     try {
                         return getProject(prjMngNo); // 개별 상세 조회 (품목 포함)
@@ -575,8 +579,35 @@ public class ProjectService {
                         return null; // 존재하지 않는 항목은 null로 처리
                     }
                 })
-                .filter(response -> response != null) // null 제거 (존재하지 않는 항목 제외)
-                .toList();
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        // TAAABB_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
+        String bgYy = request.getBgYy();
+        if (bgYy != null && !bgYy.isBlank() && !responses.isEmpty()) {
+            List<String> prjMngNos = responses.stream()
+                    .map(ProjectDto.Response::getPrjMngNo)
+                    .toList();
+            Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByPrjMngNos(prjMngNos, bgYy);
+
+            // 자본예산/일반관리비 편성예산 분류 (공통코드 기반 gclDtt 코드 집합 조회)
+            Set<String> assetTypes = codeService.findCodeEntitiesByCttTp("IOE_CPIT").stream()
+                    .map(c -> c.getCdId())
+                    .collect(Collectors.toSet());
+            Set<String> costTypes = java.util.stream.Stream.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE")
+                    .flatMap(cttTp -> codeService.findCodeEntitiesByCttTp(cttTp).stream())
+                    .map(c -> c.getCdId())
+                    .collect(Collectors.toSet());
+            Map<String, BigDecimal> assetDupBgMap = bbugtmRepository.sumAssetDupBgByPrjMngNos(prjMngNos, bgYy, assetTypes);
+            Map<String, BigDecimal> costDupBgMap = bbugtmRepository.sumCostDupBgByPrjMngNos(prjMngNos, bgYy, costTypes);
+
+            responses.forEach(r -> {
+                r.setDupBg(dupBgMap.getOrDefault(r.getPrjMngNo(), BigDecimal.ZERO));
+                r.setAssetDupBg(assetDupBgMap.getOrDefault(r.getPrjMngNo(), BigDecimal.ZERO));
+                r.setCostDupBg(costDupBgMap.getOrDefault(r.getPrjMngNo(), BigDecimal.ZERO));
+            });
+        }
+        return responses;
     }
 
     /**

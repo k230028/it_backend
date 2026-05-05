@@ -399,6 +399,18 @@ public class CostDto {
         @Schema(description = "일반관리비")
         private java.math.BigDecimal costBg;
 
+        /** TAAABB_BBUGTM 기준 편성예산 합계 (요청금액 × 편성률/100, 서비스에서 일괄 조회 시 설정) */
+        @Schema(description = "편성예산 (BBUGTM 기준, 편성률 반영)")
+        private java.math.BigDecimal dupBg;
+
+        /** BBUGTM 기준 자본예산 편성예산 (ioeC IOE_CPIT 계열인 경우 dupBg, 아니면 0) */
+        @Schema(description = "자본예산 편성예산 (BBUGTM 기준)")
+        private java.math.BigDecimal assetDupBg;
+
+        /** BBUGTM 기준 일반관리비 편성예산 (ioeC IOE_IDR/SEVS/XPN/LEAFE 계열인 경우 dupBg, 아니면 0) */
+        @Schema(description = "일반관리비 편성예산 (BBUGTM 기준)")
+        private java.math.BigDecimal costDupBg;
+
         /** 삭제여부 (Soft Delete 상태, "Y": 삭제됨, "N": 정상) */
         @Schema(description = "삭제여부", example = "N")
         private String delYn;
@@ -529,6 +541,10 @@ public class CostDto {
         /** 조회할 전산관리비관리번호 목록 */
         @Schema(description = "전산업무비코드 목록", example = "[\"COST_2026_0001\", \"COST_2026_0002\"]")
         private List<String> itMngcNos;
+
+        /** 편성예산 집계용 사업연도 (YYYY, 예: "2026") — TAAABB_BBUGTM 조회 조건 */
+        @Schema(description = "사업연도 (예: 2026). BBUGTM 편성예산 집계에 사용")
+        private String bgYy;
     }
 
     /**

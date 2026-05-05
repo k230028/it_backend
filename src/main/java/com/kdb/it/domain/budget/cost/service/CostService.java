@@ -18,6 +18,7 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 
 import java.math.BigDecimal;
@@ -80,6 +81,9 @@ public class CostService {
 
     /** 공통코드 서비스: 예산 신청 기간 검증용 */
     private final com.kdb.it.common.code.service.CodeService codeService;
+
+    /** 편성예산(BBUGTM) 리포지토리: 일괄 조회 시 itMngcNo별 DUP_BG 합계 조회용 */
+    private final BbugtmRepository bbugtmRepository;
 
     /** 일반관리비 대상 코드값구분 */
     private static final Set<String> COST_CTT_TPS = Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE");
@@ -334,7 +338,7 @@ public class CostService {
      * @return 존재하는 항목의 응답 DTO 목록 (없는 항목 제외)
      */
     public List<CostDto.Response> getCostsByIds(CostDto.BulkGetRequest request) {
-        return request.getItMngcNos().stream()
+        List<CostDto.Response> responses = request.getItMngcNos().stream()
                 .map(itMngcNo -> {
                     try {
                         return getCost(itMngcNo);
@@ -343,7 +347,25 @@ public class CostService {
                     }
                 })
                 .filter(response -> response != null)
-                .toList();
+                .collect(Collectors.toList());
+
+        // TAAABB_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
+        String bgYy = request.getBgYy();
+        if (bgYy != null && !bgYy.isBlank() && !responses.isEmpty()) {
+            List<String> itMngcNos = responses.stream()
+                    .map(CostDto.Response::getItMngcNo)
+                    .toList();
+            Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByItMngcNos(itMngcNos, bgYy);
+            // 전산업무비는 ioeC가 IOE_CPIT이면 자본예산, 나머지면 일반관리비 단일 분류
+            responses.forEach(r -> {
+                BigDecimal dupBg = dupBgMap.getOrDefault(r.getItMngcNo(), BigDecimal.ZERO);
+                r.setDupBg(dupBg);
+                boolean isAsset = r.getAssetBg() != null && r.getAssetBg().compareTo(BigDecimal.ZERO) > 0;
+                r.setAssetDupBg(isAsset ? dupBg : BigDecimal.ZERO);
+                r.setCostDupBg(isAsset ? BigDecimal.ZERO : dupBg);
+            });
+        }
+        return responses;
     }
 
     /**

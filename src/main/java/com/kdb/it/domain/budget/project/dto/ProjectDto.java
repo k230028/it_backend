@@ -681,6 +681,18 @@ public class ProjectDto {
         @Schema(description = "일반관리비")
         private BigDecimal costBg;
 
+        /** TAAABB_BBUGTM 기준 편성예산 합계 (요청금액 × 편성률/100, 서비스에서 일괄 조회 시 설정) */
+        @Schema(description = "편성예산 (BBUGTM 기준, 편성률 반영)")
+        private BigDecimal dupBg;
+
+        /** BBUGTM 기준 자본예산 편성예산 (gclDtt IOE_CPIT 계열 품목의 DUP_BG 합계) */
+        @Schema(description = "자본예산 편성예산 (BBUGTM 기준)")
+        private BigDecimal assetDupBg;
+
+        /** BBUGTM 기준 일반관리비 편성예산 (gclDtt IOE_IDR/SEVS/XPN/LEAFE 계열 품목의 DUP_BG 합계) */
+        @Schema(description = "일반관리비 편성예산 (BBUGTM 기준)")
+        private BigDecimal costDupBg;
+
         /** 예산 합계 일괄 설정 (Lombok 어노테이션 프로세싱 문제 방지용 명시적 메서드) */
         public void setBudgetAmounts(BigDecimal assetBg, BigDecimal devBg, BigDecimal machBg,
                 BigDecimal intanBg, BigDecimal costBg) {
@@ -968,5 +980,9 @@ public class ProjectDto {
         /** 조회할 프로젝트관리번호 목록 (예: ["PRJ-2026-0001", "PRJ-2026-0002"]) */
         @Schema(description = "조회할 프로젝트관리번호 목록")
         private java.util.List<String> prjMngNos;
+
+        /** 편성예산 집계용 사업연도 (YYYY, 예: "2026") — TAAABB_BBUGTM 조회 조건 */
+        @Schema(description = "사업연도 (예: 2026). BBUGTM 편성예산 집계에 사용")
+        private String bgYy;
     }
 }
