@@ -179,6 +179,8 @@ class CommitteeServiceTest {
     @DisplayName("saveCommittee: 위원 선정 후 PREPARING으로 상태를 전이한다")
     void saveCommittee_위원선정후PREPARING전이() {
         Basctm council = mock(Basctm.class);
+        // APPROVED 상태일 때만 PREPARING으로 전이됨
+        given(council.getAsctSts()).willReturn("APPROVED");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 

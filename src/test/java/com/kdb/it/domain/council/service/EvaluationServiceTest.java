@@ -25,6 +25,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bevalm;
+import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
 
 /**
@@ -43,6 +44,9 @@ class EvaluationServiceTest {
 
     @Mock
     private EvaluationRepository evaluationRepository;
+
+    @Mock
+    private CommitteeRepository committeeRepository;
 
     @Mock
     private UserRepository userRepository;
@@ -93,6 +97,7 @@ class EvaluationServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "MGMT_STR", "N"))
                 .willReturn(Optional.empty());
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.saveEvaluation(ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("MGMT_STR", 3, null))),
@@ -111,6 +116,7 @@ class EvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getAsctSts()).willReturn("EVALUATING");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         Bevalm existing = mock(Bevalm.class);
         given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "FIN_EFC", "N"))
@@ -132,6 +138,7 @@ class EvaluationServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "RISK_IMP", "N"))
                 .willReturn(Optional.empty());
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.saveEvaluation(ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("RISK_IMP", 5, null))),
@@ -152,6 +159,7 @@ class EvaluationServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "ETC", "N"))
                 .willReturn(Optional.empty());
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.saveEvaluation(ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("ETC", 5, null))),
@@ -168,6 +176,7 @@ class EvaluationServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "ETC", "N"))
                 .willReturn(Optional.empty());
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.saveEvaluation(ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("ETC", 5, null))),
@@ -200,5 +209,53 @@ class EvaluationServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).ckgItmC()).isEqualTo("MGMT_STR");
         assertThat(result.get(0).ckgRcrd()).isEqualTo(4);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // getAllEvaluations
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getAllEvaluations: 전체 평가의견 목록과 평균점수를 반환한다")
+    void getAllEvaluations_전체평가목록반환() {
+        Basctm council = mock(Basctm.class);
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bevalm eval = mock(Bevalm.class);
+        given(eval.getEno()).willReturn(ENO);
+        given(eval.getCkgItmC()).willReturn("MGMT_STR");
+        given(eval.getCkgRcrd()).willReturn(4);
+        given(eval.getCkgOpnn()).willReturn("좋음");
+        given(evaluationRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
+
+        given(userRepository.findByEno(ENO)).willReturn(java.util.Optional.empty());
+        given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N")).willReturn(List.of());
+
+        CouncilDto.EvaluationSummaryResponse result =
+                evaluationService.getAllEvaluations(ASCT_ID);
+
+        assertThat(result).isNotNull();
+        assertThat(result.evaluations()).hasSize(1);
+        assertThat(result.evaluations().get(0).ckgItmC()).isEqualTo("MGMT_STR");
+        assertThat(result.avgScores()).isEmpty();
+    }
+
+    // ───────────────────────────────────────────────────────
+    // buildAvgScores
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("buildAvgScores: 항목별 평균점수 DTO를 반환한다")
+    void buildAvgScores_평균점수반환() {
+        Object[] row = new Object[]{"MGMT_STR", 4.0};
+        given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N"))
+                .willReturn(java.util.Collections.singletonList(row));
+
+        List<CouncilDto.CheckItemAvgScore> result =
+                evaluationService.buildAvgScores(ASCT_ID);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).ckgItmC()).isEqualTo("MGMT_STR");
+        assertThat(result.get(0).avgScore()).isEqualTo(4.0);
     }
 }

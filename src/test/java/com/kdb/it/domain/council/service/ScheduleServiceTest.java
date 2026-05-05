@@ -20,10 +20,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
+import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bschdm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.ScheduleRepository;
@@ -283,5 +285,72 @@ class ScheduleServiceTest {
 
         // then: save가 2회 호출됨
         verify(scheduleRepository, org.mockito.Mockito.times(2)).save(any(Bschdm.class));
+    }
+
+    // ───────────────────────────────────────────────────────
+    // getScheduleStatus
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getScheduleStatus: 위원 1명이 미응답인 경우 현황 DTO를 반환한다")
+    void getScheduleStatus_위원1명미응답_현황반환() {
+        Basctm council = mock(Basctm.class);
+        given(council.getDbrTp()).willReturn("ETC");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bcmmtm member = mock(Bcmmtm.class);
+        given(member.getEno()).willReturn(ENO);
+        given(member.getVlrTp()).willReturn("MAND");
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+
+        // 아직 일정 응답 없음
+        given(scheduleRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
+        given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(1L);
+        given(userRepository.findByEno(ENO)).willReturn(Optional.empty());
+
+        CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
+
+        assertThat(result).isNotNull();
+        assertThat(result.totalCount()).isEqualTo(1);
+        assertThat(result.respondedCount()).isEqualTo(0);
+        assertThat(result.pendingCount()).isEqualTo(1L);
+        assertThat(result.memberStatuses()).hasSize(1);
+        assertThat(result.allRequiredResponded()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getScheduleStatus: 전원 응답(ETC 타입)이면 allRequiredResponded가 true이다")
+    void getScheduleStatus_전원응답ETC_allRequiredRespondedTrue() {
+        Basctm council = mock(Basctm.class);
+        given(council.getDbrTp()).willReturn("ETC");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bcmmtm member = mock(Bcmmtm.class);
+        given(member.getEno()).willReturn(ENO);
+        given(member.getVlrTp()).willReturn("MAND");
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+
+        // 해당 위원이 일정을 응답함
+        Bschdm slot = mock(Bschdm.class);
+        given(slot.getEno()).willReturn(ENO);
+        given(slot.getDsdDt()).willReturn(TEST_DATE);
+        given(slot.getDsdTm()).willReturn("10:00");
+        given(slot.getPsbYn()).willReturn("Y");
+        given(scheduleRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(slot));
+        given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(0L);
+
+        CuserI user = mock(CuserI.class);
+        given(user.getEno()).willReturn(ENO);
+        given(user.getUsrNm()).willReturn("홍길동");
+        given(user.getBbrNm()).willReturn("IT기획부");
+        given(user.getPtCNm()).willReturn("IT기획팀장");
+        given(userRepository.findByEno(ENO)).willReturn(Optional.of(user));
+
+        CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
+
+        assertThat(result.respondedCount()).isEqualTo(1);
+        assertThat(result.pendingCount()).isEqualTo(0L);
+        assertThat(result.allRequiredResponded()).isTrue();
+        assertThat(result.memberStatuses().get(0).usrNm()).isEqualTo("홍길동");
     }
 }

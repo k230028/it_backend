@@ -125,7 +125,7 @@ class CouncilApprovalServiceTest {
         assertThatThrownBy(() -> councilApprovalService.processApprovalCallback(
                 ASCT_ID, new CouncilDto.ApprovalCallbackRequest(true)))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("APPROVAL_PENDING");
+                .hasMessageContaining("결재대기");
     }
 
     @Test

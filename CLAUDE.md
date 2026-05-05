@@ -88,8 +88,8 @@ src/main/resources/
 
 ### 5.6 인증 및 보안 (전사 SoT)
 - 인증 방식: **httpOnly 쿠키 기반 JWT**(Stateless).
-- Access Token 유효시간: 15분 (`jwt.access-token-expiration=900000`).
-- Refresh Token 유효시간: 7일 (`jwt.refresh-token-expiration=604800000`).
+- Access Token 유효시간: 15분 (`jwt.access-token-validity=900000`).
+- Refresh Token 유효시간: 7일 (`jwt.refresh-token-validity=604800000`).
 - 비밀번호 암호화: `CustomPasswordEncoder` (SHA-256 + Base64).
 - Access/Refresh Token은 `CookieUtil`로 httpOnly 쿠키에 설정.
 - 보호 API는 쿠키 자동 전송 기본. `JwtAuthenticationFilter`는 `Authorization: Bearer`를 폴백으로만 허용.
@@ -99,8 +99,9 @@ src/main/resources/
   - `ITPAD001` = 시스템관리자
   - `ITPZZ001` = 일반사용자
   - `ITPZZ002` = 기획통할담당자
-- CORS: `cors.allowed-origins=http://localhost:3000,http://localhost:3002` (개발 프론트).
+- CORS: `cors.allowed-origins=http://localhost,http://localhost:3000,http://localhost:3002` (개발 프론트 및 E2E).
 - 운영: `app.cookie.secure=true` + HTTPS 필수.
+- 운영 비밀값: `spring.datasource.password`, `jwt.secret`, `gemini.api.key`는 환경변수 또는 프로파일별 비공개 설정에서 주입합니다.
 
 ### 5.7 채번/주요 비즈니스 제약
 - 채번 규칙(관리번호 포맷)은 → [`docs/guides/data-model.md#3-채번-규칙`](docs/guides/data-model.md) 참조.
@@ -110,7 +111,7 @@ src/main/resources/
 - 예산현황 조회는 `BudgetStatusQueryRepository` 집계 쿼리 기준. 화면 요구사항 변경 시 DTO·쿼리 동기 갱신.
 
 ### 5.8 환경 설정 키
-- JWT: `jwt.secret`, `jwt.access-token-expiration`, `jwt.refresh-token-expiration`
+- JWT: `jwt.secret`, `jwt.access-token-validity`, `jwt.refresh-token-validity`
 - CORS: `cors.allowed-origins`
 - 쿠키: `app.cookie.secure`
 - 파일: `app.file.base-path=C:/data/files`, multipart 최대 파일 50MB / 요청 200MB

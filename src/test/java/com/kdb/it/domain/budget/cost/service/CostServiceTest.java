@@ -117,7 +117,7 @@ class CostServiceTest {
         given(costRepository.findByItMngcNoAndDelYn(any(), eq("N"))).willReturn(List.of());
 
         CostDto.BulkGetRequest request = new CostDto.BulkGetRequest(
-                List.of("COST_NOTEXIST1", "COST_NOTEXIST2"));
+                List.of("COST_NOTEXIST1", "COST_NOTEXIST2"), null);
 
         List<CostDto.Response> result = costService.getCostsByIds(request);
 
@@ -320,12 +320,53 @@ class CostServiceTest {
                 .willReturn(List.of());
 
         CostDto.BulkGetRequest request = new CostDto.BulkGetRequest(
-                List.of("COST_2026_0001", "COST_2026_0002"));
+                List.of("COST_2026_0001", "COST_2026_0002"), null);
 
         // when
         List<CostDto.Response> result = costService.getCostsByIds(request);
 
         // then: 2건 모두 반환
         assertThat(result).hasSize(2);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // searchCostList — 검색 조건 조회
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("searchCostList: 검색 조건으로 1건의 전산관리비를 반환한다")
+    void searchCostList_검색조건_1건반환() {
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getItMngcNo()).willReturn(IT_MNGC_NO);
+        given(cost.getItMngcSno()).willReturn(1);
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        given(costRepository.searchByCondition(condition)).willReturn(List.of(cost));
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(any(), any()))
+                .willReturn(List.of());
+
+        List<CostDto.Response> result = costService.searchCostList(condition);
+
+        assertThat(result).hasSize(1);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // getCost — 정상 조회
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getCost: 존재하는 관리번호이면 응답 DTO를 반환한다")
+    void getCost_존재하는관리번호_응답반환() {
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getItMngcNo()).willReturn(IT_MNGC_NO);
+        given(cost.getItMngcSno()).willReturn(1);
+        given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(
+                eq("BCOSTM"), eq(IT_MNGC_NO), eq(1))).willReturn(List.of());
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(IT_MNGC_NO, 1, "N"))
+                .willReturn(List.of());
+
+        CostDto.Response result = costService.getCost(IT_MNGC_NO);
+
+        assertThat(result).isNotNull();
     }
 }

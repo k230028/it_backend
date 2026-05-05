@@ -23,6 +23,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
@@ -355,6 +356,83 @@ class BudgetWorkServiceTest {
         BudgetWorkDto.ApplyResponse result = budgetWorkService.applyItemRates(request);
 
         // then: 1건 처리, save() 호출 확인
+        assertThat(result.totalRecords()).isEqualTo(1);
+        assertThat(result.message()).contains("사업별 편성률 적용 완료");
+        verify(bbugtmRepository).save(any(Bbugtm.class));
+    }
+
+    // =========================================================================
+    // applyRates — BITEMM 경로 검증
+    // =========================================================================
+
+    @Test
+    @DisplayName("applyRates: BITEMM 원본 항목이 있으면 편성금액 계산 후 save 한다")
+    void applyRates_BITEMM항목_save호출() {
+        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("DUP-IOE-237", 80);
+        BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
+
+        // BCOSTM 없음
+        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-237", "2026")).willReturn(List.of());
+
+        // BITEMM 1건 (환율 없음 → xcr=null, 기본 1 적용)
+        Bitemm item = mock(Bitemm.class);
+        given(item.getGclMngNo()).willReturn("GCL-0001");
+        given(item.getGclSno()).willReturn(1);
+        given(item.getGclDtt()).willReturn("IOE-237-0700");
+        given(item.getGclAmt()).willReturn(BigDecimal.valueOf(500_000));
+        given(item.getXcr()).willReturn(null);
+        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026")).willReturn(List.of(item));
+
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
+                any(), any(), any(), any(), any(), any()))
+                .willReturn(Optional.empty());
+
+        // getSummary 내부 호출용 mock
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        mockEmptyDetailCodes();
+
+        BudgetWorkDto.ApplyResponse result = budgetWorkService.applyRates(request);
+
+        assertThat(result.totalRecords()).isEqualTo(1);
+        assertThat(result.message()).contains("편성률 적용 완료");
+        verify(bbugtmRepository).save(any(Bbugtm.class));
+    }
+
+    // =========================================================================
+    // applyItemRates — BPROJM 경로 검증
+    // =========================================================================
+
+    @Test
+    @DisplayName("applyItemRates: BPROJM 사업의 품목에 대해 편성금액 계산 후 save 한다")
+    void applyItemRates_BPROJM사업_save호출() {
+        BudgetWorkDto.ItemRate itemRate = new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 80);
+        BudgetWorkDto.ItemApplyRequest request =
+                new BudgetWorkDto.ItemApplyRequest("2026", List.of(itemRate));
+
+        Bitemm bitemm = mock(Bitemm.class);
+        given(bitemm.getGclMngNo()).willReturn("GCL-0001");
+        given(bitemm.getGclSno()).willReturn(1);
+        given(bitemm.getGclDtt()).willReturn("IOE-351-0100");
+        given(bitemm.getGclAmt()).willReturn(BigDecimal.valueOf(1_000_000));
+        given(bitemm.getXcr()).willReturn(null);
+
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        // 기존 BBUGTM Soft Delete 대상 없음
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        // 자본예산 비목코드 없음 → 경상 처리
+        given(codeRepository.findByCttTpWithValidDate("IOE_CPIT", null)).willReturn(List.of());
+        // BPROJM → BITEMM 목록 반환
+        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+                .willReturn(List.of(bitemm));
+
+        // getSummary 내부 호출용 mock
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        mockEmptyDetailCodes();
+
+        BudgetWorkDto.ApplyResponse result = budgetWorkService.applyItemRates(request);
+
         assertThat(result.totalRecords()).isEqualTo(1);
         assertThat(result.message()).contains("사업별 편성률 적용 완료");
         verify(bbugtmRepository).save(any(Bbugtm.class));

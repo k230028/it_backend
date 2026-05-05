@@ -398,4 +398,46 @@ class ApplicationServiceTest {
         assertThatThrownBy(() -> applicationService.bulkApprove(request))
                 .isInstanceOf(RuntimeException.class);
     }
+
+    // ───────────────────────────────────────────────────────
+    // submit — 신청서 생성
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("submit: 결재자 1명으로 신청서를 생성하면 APF_ 형식의 관리번호를 반환한다")
+    void submit_신청서생성_관리번호반환() {
+        given(applicationRepository.getNextVal()).willReturn(1L);
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("10001");
+        request.setApproverEnos(List.of("10002"));
+
+        String result = applicationService.submit(request);
+
+        assertThat(result).startsWith("APF_");
+        verify(applicationRepository).save(any());
+    }
+
+    // ───────────────────────────────────────────────────────
+    // getDashboard — 대시보드 집계
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getDashboard: 정상 호출 시 집계 결과를 반환한다")
+    void getDashboard_정상호출_집계결과반환() {
+        given(applicationRepository.countPendingByEno("10001")).willReturn(2);
+        given(applicationRepository.countInProgressByEno("10001")).willReturn(1);
+        given(applicationRepository.countMonthlyCompletedByBbrC("BBR001")).willReturn(3);
+        given(applicationRepository.countRejectedByEno("10001")).willReturn(0);
+        given(applicationRepository.findMonthlyTrendByBbrC("BBR001")).willReturn(List.of());
+        given(applicationRepository.findPendingListByEno("10001")).willReturn(List.of());
+
+        ApplicationDto.DashboardResponse result =
+                applicationService.getDashboard("BBR001", "10001");
+
+        assertThat(result.getPendingCount()).isEqualTo(2);
+        assertThat(result.getInProgressCount()).isEqualTo(1);
+        assertThat(result.getMonthlyCompletedCount()).isEqualTo(3);
+    }
 }

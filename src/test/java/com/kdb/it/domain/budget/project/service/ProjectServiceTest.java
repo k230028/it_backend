@@ -365,4 +365,163 @@ class ProjectServiceTest {
                 assertThat(result).hasSize(1);
                 assertThat(result.get(0).getPrjMngNo()).isEqualTo(existingNo);
         }
+
+        // ───────────────────────────────────────────────────────
+        // updateProject — 결재중 예외 경로
+        // ───────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("updateProject: 결재중/결재완료 상태이면 IllegalStateException을 던진다")
+        void updateProject_결재중상태_예외발생() {
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
+
+                given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                                .willReturn(true);
+
+                ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
+                                .prjNm("수정 시도").build();
+
+                assertThatThrownBy(() -> projectService.updateProject(prjMngNo, request))
+                                .isInstanceOf(IllegalStateException.class)
+                                .hasMessageContaining("결재중이거나 결재완료된 프로젝트는 수정할 수 없습니다");
+        }
+
+        // ───────────────────────────────────────────────────────
+        // createProject — 기존 관리번호 중복 예외
+        // ───────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("createProject: 제공된 관리번호가 이미 존재하면 IllegalArgumentException을 던진다")
+        void createProject_기존관리번호_중복예외발생() {
+                String prjMngNo = "PRJ-2026-EXIST";
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .prjMngNo(prjMngNo)
+                                .bgYy("2026")
+                                .build();
+
+                given(projectRepository.existsByPrjMngNoAndDelYn(prjMngNo, "N")).willReturn(true);
+
+                assertThatThrownBy(() -> projectService.createProject(request))
+                                .isInstanceOf(IllegalArgumentException.class)
+                                .hasMessageContaining("Project already exists");
+        }
+
+        // ───────────────────────────────────────────────────────
+        // createProject — 품목 포함 생성
+        // ───────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("createProject: 품목이 포함된 요청이면 품목도 함께 저장한다")
+        void createProject_품목포함_save호출() {
+                // given
+                given(projectRepository.getNextSequenceValue()).willReturn(1L);
+                given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
+                given(codeService.findCodeEntitiesByCttTp(any())).willReturn(List.of());
+
+                ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+                item.setGclDtt("IOE-237-0700");
+                item.setGclNm("소프트웨어 구매");
+                item.setGclAmt(java.math.BigDecimal.valueOf(1_000_000));
+
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .prjNm("품목포함 사업")
+                                .bgYy("2026")
+                                .items(List.of(item))
+                                .build();
+
+                // when
+                String result = projectService.createProject(request);
+
+                // then: 프로젝트 + 품목 각 1회 save
+                assertThat(result).matches("PRJ-2026-\\d{4}");
+                org.mockito.Mockito.verify(projectRepository).save(any(Bprojm.class));
+                org.mockito.Mockito.verify(bitemmRepository).save(any(com.kdb.it.domain.budget.project.entity.Bitemm.class));
+        }
+
+        // ───────────────────────────────────────────────────────
+        // updateProject — 신규 품목 추가
+        // ───────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("updateProject: 신규 품목(gclMngNo=null)이 포함된 요청이면 품목을 save한다")
+        void updateProject_신규품목추가_save호출() {
+                // given
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
+
+                given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of());
+                given(bitemmRepository.getNextSequenceValue()).willReturn(2L);
+                given(codeService.findCodeEntitiesByCttTp(any())).willReturn(List.of());
+
+                ProjectDto.BitemmDto newItem = new ProjectDto.BitemmDto();
+                newItem.setGclDtt("IOE-351-0100");
+                newItem.setGclNm("신규 품목");
+                newItem.setGclAmt(java.math.BigDecimal.valueOf(500_000));
+
+                ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
+                                .prjNm("수정 사업명")
+                                .items(List.of(newItem))
+                                .build();
+
+                // when
+                String result = projectService.updateProject(prjMngNo, request);
+
+                // then: 신규 품목 save 호출
+                assertThat(result).isEqualTo(prjMngNo);
+                org.mockito.Mockito.verify(bitemmRepository).save(any(com.kdb.it.domain.budget.project.entity.Bitemm.class));
+        }
+
+        // ───────────────────────────────────────────────────────
+        // updateProject — 기존 품목 삭제(요청에 없는 항목 soft-delete)
+        // ───────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("updateProject: 요청에 없는 기존 품목은 Soft Delete 된다")
+        void updateProject_기존품목삭제_SoftDelete() {
+                // given
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
+
+                // 기존 품목 1건 (gclMngNo="GCL-0001")
+                com.kdb.it.domain.budget.project.entity.Bitemm existingItem =
+                        com.kdb.it.domain.budget.project.entity.Bitemm.builder()
+                                .gclMngNo("GCL-0001").gclSno(1)
+                                .prjMngNo(prjMngNo).prjSno(1)
+                                .gclDtt("IOE-237-0700").gclNm("기존 품목").delYn("N")
+                                .build();
+
+                given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of(existingItem));
+                given(codeService.findCodeEntitiesByCttTp(any())).willReturn(List.of());
+
+                // 요청에 품목 없음 → 기존 품목 전부 soft-delete
+                ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
+                                .prjNm("수정 사업명")
+                                .items(List.of())
+                                .build();
+
+                // when
+                projectService.updateProject(prjMngNo, request);
+
+                // then: 기존 품목이 DEL_YN='Y'로 soft-delete 됨
+                assertThat(existingItem.getDelYn()).isEqualTo("Y");
+        }
 }
