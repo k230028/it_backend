@@ -1,8 +1,11 @@
 package com.kdb.it.common.admin.controller;
 
 import com.kdb.it.common.admin.dto.AdminDto;
+import com.kdb.it.common.admin.dto.AdminLogDto;
+import com.kdb.it.common.admin.service.AdminLogService;
 import com.kdb.it.common.admin.service.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -10,11 +13,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -38,6 +43,7 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService adminService;
+    private final AdminLogService adminLogService;
 
     // =========================================================================
     // 공통코드 관리 (TAAABB_CCODEM)
@@ -72,6 +78,7 @@ public class AdminController {
      * 공통코드 수정 (인라인 편집 즉시 저장)
      *
      * @param cdId 코드ID
+     * @param sttDt 시작일자
      * @param req  공통코드 수정 요청 DTO
      * @return 200 OK
      */
@@ -79,8 +86,9 @@ public class AdminController {
     @Operation(summary = "공통코드 수정", description = "공통코드 정보를 수정합니다. 인라인 편집 즉시 저장에 사용됩니다.")
     public ResponseEntity<Void> updateCode(
             @PathVariable("cdId") String cdId,
+            @Parameter(description = "시작일자 (yyyy-MM-dd)", required = true) @RequestParam("sttDt") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sttDt,
             @Valid @RequestBody AdminDto.CodeRequest req) {
-        adminService.updateCode(cdId, req);
+        adminService.updateCode(cdId, sttDt, req);
         return ResponseEntity.ok().build();
     }
 
@@ -89,12 +97,15 @@ public class AdminController {
      * DEL_YN='Y' 처리 — 물리 삭제 아님.
      *
      * @param cdId 코드ID
+     * @param sttDt 시작일자
      * @return 204 No Content
      */
     @DeleteMapping("/codes/{cdId}")
     @Operation(summary = "공통코드 삭제(논리)", description = "DEL_YN='Y'로 논리 삭제합니다. 물리 삭제 아님.")
-    public ResponseEntity<Void> deleteCode(@PathVariable("cdId") String cdId) {
-        adminService.deleteCode(cdId);
+    public ResponseEntity<Void> deleteCode(
+            @PathVariable("cdId") String cdId,
+            @Parameter(description = "시작일자 (yyyy-MM-dd)", required = true) @RequestParam("sttDt") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sttDt) {
+        adminService.deleteCode(cdId, sttDt);
         return ResponseEntity.noContent().build();
     }
 
@@ -402,6 +413,51 @@ public class AdminController {
     @Operation(summary = "첨부파일 목록 조회", description = "삭제되지 않은 전체 첨부파일 목록을 반환합니다.")
     public ResponseEntity<List<AdminDto.FileResponse>> getFiles() {
         return ResponseEntity.ok(adminService.getFiles());
+    }
+
+    // =========================================================================
+    // 상세 로그 조회 (TAAABB_*L) — M9
+    // =========================================================================
+
+    /**
+     * 상세 로그 테이블 목록 조회
+     *
+     * @return 조회 가능한 로그 테이블 메타 정보 목록
+     */
+    @GetMapping("/logs/tables")
+    @Operation(summary = "상세 로그 테이블 목록 조회", description = "관리자가 조회할 수 있는 변경 로그 테이블 목록을 반환합니다.")
+    public ResponseEntity<List<AdminLogDto.LogTableResponse>> getLogTables() {
+        return ResponseEntity.ok(adminLogService.getTables());
+    }
+
+    /**
+     * 상세 로그 목록 조회
+     *
+     * @param logKey   로그 테이블 키
+     * @param pageable 페이지 정보 (기본: 100건)
+     * @return 로그 목록과 컬럼 메타 정보
+     */
+    @GetMapping("/logs/{logKey}")
+    @Operation(summary = "상세 로그 목록 조회", description = "선택한 로그 테이블의 변경 이력을 최신순으로 조회합니다.")
+    public ResponseEntity<AdminLogDto.LogPageResponse> getLogs(
+            @PathVariable("logKey") String logKey,
+            @PageableDefault(size = 100) Pageable pageable) {
+        return ResponseEntity.ok(adminLogService.getLogs(logKey, pageable));
+    }
+
+    /**
+     * 상세 로그 단건 조회
+     *
+     * @param logKey 로그 테이블 키
+     * @param logSno 로그 일련번호
+     * @return 로그 상세 스냅샷
+     */
+    @GetMapping("/logs/{logKey}/{logSno}")
+    @Operation(summary = "상세 로그 단건 조회", description = "로그 일련번호에 해당하는 전체 스냅샷을 조회합니다.")
+    public ResponseEntity<AdminLogDto.LogDetailResponse> getLogDetail(
+            @PathVariable("logKey") String logKey,
+            @PathVariable("logSno") String logSno) {
+        return ResponseEntity.ok(adminLogService.getLogDetail(logKey, logSno));
     }
 
     // =========================================================================

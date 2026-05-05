@@ -73,8 +73,12 @@ public class CodeService {
      */
     @Transactional
     public String createCcodem(CodeDto.CreateRequest request) {
-        if (codeRepository.existsByCdId(request.getCdId())) {
-            throw new IllegalArgumentException("이미 존재하는 코드ID 입니다: " + request.getCdId());
+        if (request.getSttDt() == null) {
+            throw new IllegalArgumentException("시작일자는 필수입니다.");
+        }
+
+        if (codeRepository.existsByCdIdAndSttDt(request.getCdId(), request.getSttDt())) {
+            throw new IllegalArgumentException("이미 존재하는 코드ID/시작일자 입니다: " + request.getCdId() + ", " + request.getSttDt());
         }
 
         Ccodem ccodem = request.toEntity();
@@ -86,14 +90,19 @@ public class CodeService {
      * 공통코드 수정
      *
      * @param cdId    수정할 코드ID
+     * @param sttDt   수정할 시작일자
      * @param request 수정 요청 DTO
      * @return 수정된 코드ID
      * @throws IllegalArgumentException 대상 코드ID가 존재하지 않거나 삭제된 경우
      */
     @Transactional
-    public String updateCcodem(String cdId, CodeDto.UpdateRequest request) {
-        Ccodem ccodem = codeRepository.findByCdIdAndDelYn(cdId, "N")
-                .orElseThrow(() -> new IllegalArgumentException("수정할 공통코드를 찾을 수 없습니다: " + cdId));
+    public String updateCcodem(String cdId, LocalDate sttDt, CodeDto.UpdateRequest request) {
+        Ccodem ccodem = codeRepository.findByCdIdAndSttDtAndDelYn(cdId, sttDt, "N")
+                .orElseThrow(() -> new IllegalArgumentException("수정할 공통코드를 찾을 수 없습니다: " + cdId + ", " + sttDt));
+
+        if (request.getSttDt() != null && !request.getSttDt().equals(sttDt)) {
+            throw new IllegalArgumentException("시작일자는 기본키이므로 수정할 수 없습니다.");
+        }
 
         ccodem.update(
                 request.getCdNm(),
@@ -102,7 +111,7 @@ public class CodeService {
                 request.getCttTp(),
                 request.getCttTpDes(),
                 request.getCdSqn(),
-                request.getSttDt(),
+                sttDt,
                 request.getEndDt());
 
         return ccodem.getCdId();
@@ -115,13 +124,14 @@ public class CodeService {
      * DB에서 완전히 삭제하지 않고 DEL_YN 필드를 'Y'로 업데이트합니다.
      * </p>
      *
-     * @param cdId 삭제할 코드ID
+     * @param cdId  삭제할 코드ID
+     * @param sttDt 삭제할 시작일자
      * @throws IllegalArgumentException 대상 코드ID가 존재하지 않거나 이미 삭제된 경우
      */
     @Transactional
-    public void deleteCcodem(String cdId) {
-        Ccodem ccodem = codeRepository.findByCdIdAndDelYn(cdId, "N")
-                .orElseThrow(() -> new IllegalArgumentException("삭제할 공통코드를 찾을 수 없거나 이미 삭제되었습니다: " + cdId));
+    public void deleteCcodem(String cdId, LocalDate sttDt) {
+        Ccodem ccodem = codeRepository.findByCdIdAndSttDtAndDelYn(cdId, sttDt, "N")
+                .orElseThrow(() -> new IllegalArgumentException("삭제할 공통코드를 찾을 수 없거나 이미 삭제되었습니다: " + cdId + ", " + sttDt));
 
         ccodem.delete(); // BaseEntity의 delete() 호출 -> delYn = 'Y'
     }

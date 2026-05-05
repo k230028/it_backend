@@ -54,7 +54,7 @@ public class JwtUtil {
      */
     private final SecretKey secretKey;
 
-    /** Access Token 유효시간 (밀리초, 예: 3600000 = 1시간) */
+    /** Access Token 유효시간 (밀리초, 기본 900000 = 15분) */
     private final long accessTokenValidityMs;
 
     /** Refresh Token 유효시간 (밀리초, 예: 604800000 = 7일) */

@@ -1,5 +1,7 @@
 package com.kdb.it.domain.council.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BevalmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -25,8 +27,9 @@ import lombok.experimental.SuperBuilder;
  *
  * <p>복합키: ({@code ASCT_ID}, {@code ENO}, {@code CKG_ITM_C})</p>
  */
+@LogTarget(entity = BevalmL.class)
 @Entity
-@Table(name = "TAAABB_BEVALM")
+@Table(name = "TAAABB_BEVALM", comment = "평가위원 평가의견")
 @IdClass(BevalmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -36,25 +39,25 @@ public class Bevalm extends BaseEntity {
 
     /** 협의회ID: 복합키 첫 번째 컬럼 */
     @Id
-    @Column(name = "ASCT_ID", length = 32, nullable = false)
+    @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
     /** 사번: 복합키 두 번째 컬럼 (TAAABB_CUSERI.ENO FK, 평가위원) */
     @Id
-    @Column(name = "ENO", length = 32, nullable = false)
+    @Column(name = "ENO", length = 32, nullable = false, comment = "사번")
     private String eno;
 
     /** 점검항목코드: 복합키 세 번째 컬럼 (MGMT_STR/FIN_EFC/RISK_IMP/REP_IMP/DUP_SYS/ETC) */
     @Id
-    @Column(name = "CKG_ITM_C", length = 20, nullable = false)
+    @Column(name = "CKG_ITM_C", length = 20, nullable = false, comment = "점검항목코드")
     private String ckgItmC;
 
     /** 점검점수: 1~5점 척도 */
-    @Column(name = "CKG_RCRD")
+    @Column(name = "CKG_RCRD", comment = "점검점수")
     private Integer ckgRcrd;
 
     /** 점검의견: 1~2점 입력 시 필수, 부정적 평가 사유 기술 (최대 2000자) */
-    @Column(name = "CKG_OPNN", length = 2000)
+    @Column(name = "CKG_OPNN", length = 2000, comment = "점검의견")
     private String ckgOpnn;
 
     /**
@@ -68,3 +71,4 @@ public class Bevalm extends BaseEntity {
         this.ckgOpnn = ckgOpnn;
     }
 }
+

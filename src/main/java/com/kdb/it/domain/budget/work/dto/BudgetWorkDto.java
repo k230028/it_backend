@@ -184,12 +184,14 @@ public class BudgetWorkDto {
      *
      * @param ioePrefix 비목 접두어
      * @param cdNm      비목명
+     * @param cdDes     코드 설명 (예: 전산임차료 편성 비율)
      * @param dupRt     편성률 (0~100)
      */
     @Schema(name = "BudgetWorkProjectSummaryCategory", description = "편성비목 컬럼 정보")
     public record ProjectSummaryCategory(
             @Schema(description = "비목 접두어", example = "IOE-237") String ioePrefix,
-            @Schema(description = "비목명", example = "전산임차료(SW)") String cdNm,
+            @Schema(description = "비목명", example = "전산임차료") String cdNm,
+            @Schema(description = "코드 설명", example = "전산임차료 편성 비율") String cdDes,
             @Schema(description = "편성률 (0~100)") Integer dupRt
     ) {}
 

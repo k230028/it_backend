@@ -263,4 +263,73 @@ public class ServiceRequestDocService {
             document.delete();
         }
     }
+
+    /**
+     * 요구사항 정의서 대시보드 집계 조회
+     *
+     * <p>로그인 사용자의 부서코드(bbrC) 기준으로 KPI, 월별 추이,
+     * 검토 중인 요청 목록을 집계하여 반환합니다.</p>
+     *
+     * @param bbrC 부서코드 (TAAABB_CUSERI.BBR_C)
+     * @return 대시보드 집계 응답 DTO
+     */
+    public ServiceRequestDocDto.DashboardResponse getDashboard(String bbrC) {
+        int totalCount     = serviceRequestDocRepository.countTotalByBbrC(bbrC);
+        int reviewingCount = serviceRequestDocRepository.countReviewingByBbrC(bbrC);
+        int completedCount = serviceRequestDocRepository.countCompletedByBbrC(bbrC);
+        int overdueCount   = serviceRequestDocRepository.countOverdueByBbrC(bbrC);
+
+        List<ServiceRequestDocDto.MonthlyCount> monthlyTrend =
+            serviceRequestDocRepository.findMonthlyTrendByBbrC(bbrC).stream()
+                .map(row -> ServiceRequestDocDto.MonthlyCount.builder()
+                    .month((String) row[0])
+                    .count(((Number) row[1]).intValue())
+                    .build())
+                .toList();
+
+        LocalDate today = LocalDate.now();
+        List<ServiceRequestDocDto.ReviewingItem> recentReviewing =
+            serviceRequestDocRepository.findRecentReviewingByBbrC(bbrC).stream()
+                .map(row -> {
+                    LocalDate fsgTlmDate = null;
+                    if (row[4] != null) {
+                        // Oracle JDBC는 DATE를 java.sql.Date 또는 java.sql.Timestamp로 반환 가능
+                        if (row[4] instanceof java.sql.Timestamp ts) {
+                            fsgTlmDate = ts.toLocalDateTime().toLocalDate();
+                        } else if (row[4] instanceof java.sql.Date d) {
+                            fsgTlmDate = d.toLocalDate();
+                        }
+                    }
+                    boolean delayed = fsgTlmDate != null && fsgTlmDate.isBefore(today);
+                    return ServiceRequestDocDto.ReviewingItem.builder()
+                        .docMngNo((String) row[0])
+                        .title((String) row[1])
+                        .authorName((String) row[2])
+                        .createdAt((String) row[3])
+                        .status(delayed ? "delayed" : "reviewing")
+                        .build();
+                })
+                .toList();
+
+        return ServiceRequestDocDto.DashboardResponse.builder()
+            .totalCount(totalCount)
+            .reviewingCount(reviewingCount)
+            .completedCount(completedCount)
+            .overdueCount(overdueCount)
+            .monthlyTrend(monthlyTrend)
+            .recentReviewing(recentReviewing)
+            .build();
+    }
+
+    /**
+     * 사이드바 배지용 검토 진행 중 문서 수 조회
+     *
+     * @param bbrC 부서코드
+     * @return 배지 건수 응답 DTO
+     */
+    public ServiceRequestDocDto.BadgeCountResponse getBadgeCount(String bbrC) {
+        return ServiceRequestDocDto.BadgeCountResponse.builder()
+            .reviewingCount(serviceRequestDocRepository.countReviewingByBbrC(bbrC))
+            .build();
+    }
 }

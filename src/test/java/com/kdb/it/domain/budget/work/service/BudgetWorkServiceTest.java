@@ -1,10 +1,14 @@
 package com.kdb.it.domain.budget.work.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,10 +16,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
+import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
+import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
@@ -39,12 +48,14 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
  * </p>
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class BudgetWorkServiceTest {
 
-    @Mock
-    private BbugtmRepository bbugtmRepository;
-    @Mock
-    private CodeRepository codeRepository;
+    @Mock private BbugtmRepository bbugtmRepository;
+    @Mock private CodeRepository codeRepository;
+    @Mock private ProjectRepository projectRepository;
+    @Mock private ProjectItemRepository projectItemRepository;
+    @Mock private CostRepository costRepository;
 
     @InjectMocks
     private BudgetWorkService budgetWorkService;
@@ -205,5 +216,147 @@ class BudgetWorkServiceTest {
         // then
         assertThat(result.message()).contains("편성률 적용 완료");
         assertThat(result.totalRecords()).isEqualTo(0);
+    }
+
+    // =========================================================================
+    // applyRates — 기존 레코드 없음 → save 호출 (신규)
+    // =========================================================================
+
+    @Test
+    @DisplayName("applyRates: 기존 BBUGTM 레코드가 없으면 새 레코드를 save 한다")
+    void applyRates_기존레코드없음_save호출() {
+        // given: 비목 1개, BCOSTM 1건, BITEMM 없음
+        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("DUP-IOE-237", 80);
+        BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
+
+        // 결재완료 BCOSTM 1건 (mock으로 protected 생성자 우회)
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getItMngcNo()).willReturn("COST_2026_0001");
+        given(cost.getItMngcSno()).willReturn(1);
+        given(cost.getIoeC()).willReturn("IOE-237-0700");
+        given(cost.getItMngcBg()).willReturn(BigDecimal.valueOf(1_000_000));
+
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-237", "2026"))
+                .willReturn(List.of(cost));
+        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026"))
+                .willReturn(List.of());
+        // 기존 BBUGTM 레코드 없음 → INSERT 경로
+        given(bbugtmRepository.findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
+                any(), any(), any(), any(), any(), any()))
+                .willReturn(Optional.empty());
+
+        // getSummary 내부 호출용 mock
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        mockEmptyDetailCodes();
+
+        // when
+        BudgetWorkDto.ApplyResponse result = budgetWorkService.applyRates(request);
+
+        // then: 1건 처리, bbugtmRepository.save() 호출 확인
+        assertThat(result.totalRecords()).isEqualTo(1);
+        assertThat(result.message()).contains("편성률 적용 완료");
+        verify(bbugtmRepository).save(any(Bbugtm.class));
+    }
+
+    @Test
+    @DisplayName("applyRates: 기존 BBUGTM 레코드가 있으면 update를 호출하고 save는 하지 않는다")
+    void applyRates_기존레코드있음_update호출() {
+        // given: 비목 1개, BCOSTM 1건
+        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("DUP-IOE-237", 80);
+        BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
+
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getItMngcNo()).willReturn("COST_2026_0001");
+        given(cost.getItMngcSno()).willReturn(1);
+        given(cost.getIoeC()).willReturn("IOE-237-0700");
+        given(cost.getItMngcBg()).willReturn(BigDecimal.valueOf(1_000_000));
+
+        // 기존 BBUGTM 레코드 존재 → UPDATE 경로
+        Bbugtm existing = mock(Bbugtm.class);
+
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-237", "2026"))
+                .willReturn(List.of(cost));
+        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026"))
+                .willReturn(List.of());
+        given(bbugtmRepository.findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
+                any(), any(), any(), any(), any(), any()))
+                .willReturn(Optional.of(existing));
+
+        // getSummary 내부 호출용 mock
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        mockEmptyDetailCodes();
+
+        // when
+        BudgetWorkDto.ApplyResponse result = budgetWorkService.applyRates(request);
+
+        // then: 1건 처리, existing.update() 호출 확인 (JPA Dirty Checking)
+        assertThat(result.totalRecords()).isEqualTo(1);
+        verify(existing).update(any(BigDecimal.class), any(Integer.class));
+    }
+
+    // =========================================================================
+    // getProjectSummary — 사업별 편성 결과 조회 (신규)
+    // =========================================================================
+
+    @Test
+    @DisplayName("getProjectSummary: BBUGTM 데이터가 없으면 빈 사업 목록과 합계 0을 반환한다")
+    void getProjectSummary_데이터없음_빈목록반환() {
+        // given: 빈 데이터
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of());
+
+        // when
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        // then
+        assertThat(result.data()).isEmpty();
+        assertThat(result.categories()).isEmpty();
+        assertThat(result.totals().requestAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.totals().dupAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    // =========================================================================
+    // applyItemRates — 사업별 편성률 적용 (신규)
+    // =========================================================================
+
+    @Test
+    @DisplayName("applyItemRates: BCOSTM 항목에 대해 편성금액 계산 후 save 한다")
+    void applyItemRates_BCOSTM항목_save호출() {
+        // given: BCOSTM 원본 1건
+        BudgetWorkDto.ItemRate itemRate = new BudgetWorkDto.ItemRate(
+                "BCOSTM", "COST_2026_0001", 100, 80);
+        BudgetWorkDto.ItemApplyRequest request =
+                new BudgetWorkDto.ItemApplyRequest("2026", List.of(itemRate));
+
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getItMngcNo()).willReturn("COST_2026_0001");
+        given(cost.getItMngcSno()).willReturn(1);
+        given(cost.getIoeC()).willReturn("IOE-237-0700");
+        given(cost.getItMngcBg()).willReturn(BigDecimal.valueOf(500_000));
+
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        // 기존 BBUGTM Soft Delete 대상 없음
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        // 자본예산 비목코드 없음 → 경상 처리
+        given(codeRepository.findByCttTpWithValidDate("IOE_CPIT", null)).willReturn(List.of());
+        // BCOSTM LST_YN='Y' 최신 1건 반환
+        given(costRepository.findByItMngcNoAndDelYnAndLstYn("COST_2026_0001", "N", "Y"))
+                .willReturn(List.of(cost));
+
+        // getSummary 내부 호출용 mock
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        mockEmptyDetailCodes();
+
+        // when
+        BudgetWorkDto.ApplyResponse result = budgetWorkService.applyItemRates(request);
+
+        // then: 1건 처리, save() 호출 확인
+        assertThat(result.totalRecords()).isEqualTo(1);
+        assertThat(result.message()).contains("사업별 편성률 적용 완료");
+        verify(bbugtmRepository).save(any(Bbugtm.class));
     }
 }

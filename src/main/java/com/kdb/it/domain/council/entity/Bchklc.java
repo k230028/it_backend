@@ -1,5 +1,7 @@
 package com.kdb.it.domain.council.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BchklcL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,8 +31,9 @@ import lombok.experimental.SuperBuilder;
  *
  * <p>복합키: ({@code ASCT_ID}, {@code CKG_ITM_C})</p>
  */
+@LogTarget(entity = BchklcL.class)
 @Entity
-@Table(name = "TAAABB_BCHKLC")
+@Table(name = "TAAABB_BCHKLC", comment = "타당성 자체점검")
 @IdClass(BchklcId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -40,20 +43,20 @@ public class Bchklc extends BaseEntity {
 
     /** 협의회ID: 복합키 첫 번째 컬럼 */
     @Id
-    @Column(name = "ASCT_ID", length = 32, nullable = false)
+    @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
     /** 점검항목코드: 복합키 두 번째 컬럼 (MGMT_STR/FIN_EFC/RISK_IMP/REP_IMP/DUP_SYS/ETC) */
     @Id
-    @Column(name = "CKG_ITM_C", length = 20, nullable = false)
+    @Column(name = "CKG_ITM_C", length = 20, nullable = false, comment = "점검항목코드")
     private String ckgItmC;
 
     /** 점검내용: 소관부서 담당자가 입력하는 자체 검토 내용 (최대 2000자) */
-    @Column(name = "CKG_CONE", length = 2000)
+    @Column(name = "CKG_CONE", length = 2000, comment = "점검내용")
     private String ckgCone;
 
     /** 점검점수: 1~5점 척도 */
-    @Column(name = "CKG_RCRD")
+    @Column(name = "CKG_RCRD", comment = "점검점수")
     private Integer ckgRcrd;
 
     /**
@@ -67,3 +70,4 @@ public class Bchklc extends BaseEntity {
         this.ckgRcrd = ckgRcrd;
     }
 }
+

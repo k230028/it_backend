@@ -1,5 +1,7 @@
 package com.kdb.it.common.approval.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.CapplmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -39,8 +41,9 @@ import java.time.LocalDate;
  * 관리번호 형식: {@code APF_{연도}{8자리 시퀀스}} (예: {@code APF_202600000001})
  * </p>
  */
+@LogTarget(entity = CapplmL.class)
 @Entity // JPA 엔티티로 등록
-@Table(name = "TAAABB_CAPPLM") // 매핑할 DB 테이블명
+@Table(name = "TAAABB_CAPPLM", comment = "신청서 마스터") // 매핑할 DB 테이블명
 @Getter // 모든 필드의 getter 자동 생성 (Lombok)
 @SuperBuilder // 상속 구조에서 Builder 패턴 지원
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // protected 기본 생성자 (JPA 요구사항)
@@ -52,18 +55,18 @@ public class Capplm extends BaseEntity {
      * 형식: {@code APF_{연도}{8자리 시퀀스}} (예: {@code APF_202600000001})
      */
     @Id
-    @Column(name = "APF_MNG_NO", length = 32, nullable = false)
+    @Column(name = "APF_MNG_NO", length = 32, nullable = false, comment = "신청서관리번호")
     private String apfMngNo;
 
     /**
      * 신청서상태: 결재 진행 상태
      * 값: "결재중"(기본), "결재완료"(최종 승인), "반려"(중간 반려)
      */
-    @Column(name = "APF_STS", length = 32)
+    @Column(name = "APF_STS", length = 32, comment = "신청서상태")
     private String apfSts;
 
     /** 신청서명: 신청서의 제목 (최대 800자) */
-    @Column(name = "APF_NM", length = 800)
+    @Column(name = "APF_NM", length = 800, comment = "신청서명")
     private String apfNm;
 
     /**
@@ -71,19 +74,19 @@ public class Capplm extends BaseEntity {
      * 결재선 정보가 JSON 형태로 포함될 수 있음
      */
     @jakarta.persistence.Lob
-    @Column(name = "APF_DTL_CONE")
+    @Column(name = "APF_DTL_CONE", comment = "신청서세부내용")
     private String apfDtlCone;
 
     /** 신청 사원번호: 신청서를 작성한 직원의 사번 */
-    @Column(name = "RQS_ENO", length = 32)
+    @Column(name = "RQS_ENO", length = 32, comment = "신청 사원번호")
     private String rqsEno;
 
     /** 신청일자: 신청서를 제출한 날짜 */
-    @Column(name = "RQS_DT")
+    @Column(name = "RQS_DT", comment = "신청일자")
     private LocalDate rqsDt;
 
     /** 신청의견: 신청자가 작성한 의견 또는 요청 사항 (최대 1000자) */
-    @Column(name = "RQS_OPNN", length = 1000)
+    @Column(name = "RQS_OPNN", length = 1000, comment = "신청의견")
     private String rqsOpnn;
 
     /**
@@ -114,3 +117,4 @@ public class Capplm extends BaseEntity {
         this.apfDtlCone = detailContent;
     }
 }
+

@@ -577,7 +577,7 @@ public class BudgetWorkService {
         for (Ccodem code : ioeCodes) {
             String prefix = extractPrefix(code.getCdId());
             Integer dupRt = rateByPrefix.getOrDefault(prefix, 0);
-            categoryHeaders.add(new BudgetWorkDto.ProjectSummaryCategory(prefix, code.getCdDes() != null ? code.getCdDes() : code.getCdNm(), dupRt));
+            categoryHeaders.add(new BudgetWorkDto.ProjectSummaryCategory(prefix, code.getCdNm(), code.getCdDes(), dupRt));
         }
 
         // 2. 사업별 + 비목별 이중 그룹핑

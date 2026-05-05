@@ -1,9 +1,12 @@
 package com.kdb.it.common.code.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.CcodemL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -23,15 +26,17 @@ import java.time.LocalDate;
  * 시스템에서 사용하는 공통코드를 관리합니다.
  * </p>
  */
+@LogTarget(entity = CcodemL.class)
 @Entity
 @Table(name = "TAAABB_CCODEM", comment = "공통코드마스터")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @SuperBuilder
+@IdClass(CcodemId.class)
 public class Ccodem extends BaseEntity {
 
-    /** 코드ID: 기본키 */
+    /** 코드ID: 복합 기본키의 첫 번째 컬럼 */
     @Id
     @Column(name = "C_ID", nullable = false, length = 32, comment = "코드ID")
     private String cdId;
@@ -60,8 +65,9 @@ public class Ccodem extends BaseEntity {
     @Column(name = "C_SQN", comment = "코드순서")
     private Integer cdSqn;
 
-    /** 시작일자 */
-    @Column(name = "STT_DT", comment = "시작일자")
+    /** 시작일자: 복합 기본키의 두 번째 컬럼 */
+    @Id
+    @Column(name = "STT_DT", nullable = false, comment = "시작일자")
     private LocalDate sttDt;
 
     /** 종료일자 */

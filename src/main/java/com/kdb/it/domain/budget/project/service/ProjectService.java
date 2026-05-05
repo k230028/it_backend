@@ -11,8 +11,11 @@ import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.HtmlSanitizer;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -396,32 +399,35 @@ public class ProjectService {
                             .orElse(null);
 
                     if (existingItem != null) {
-                        // 기존 레코드 Soft Delete (이전 버전으로 처리)
-                        existingItem.delete();
-                        // 기존 관리번호 유지 + 일련번호 1 증가하여 신규 레코드 저장
-                        int newGclSno = existingItem.getGclSno() + 1;
-                        com.kdb.it.domain.budget.project.entity.Bitemm updatedItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
-                                .gclMngNo(existingItem.getGclMngNo()) // 품목관리번호 유지 (기존 번호)
-                                .gclSno(newGclSno) // 품목일련번호 1 증가
-                                .prjMngNo(existingItem.getPrjMngNo()) // 프로젝트관리번호 유지
-                                .prjSno(existingItem.getPrjSno()) // 프로젝트순번 유지
-                                .gclDtt(itemDto.getGclDtt()) // 품목구분
-                                .gclNm(itemDto.getGclNm()) // 품목명
-                                .gclQtt(itemDto.getGclQtt()) // 품목수량
-                                .cur(itemDto.getCur()) // 통화
-                                .xcr(itemDto.getXcr()) // 환율
-                                .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
-                                .bgFdtn(itemDto.getBgFdtn()) // 예산근거
-                                .itdDt(itemDto.getItdDt()) // 도입시기
-                                .dfrCle(itemDto.getDfrCle()) // 지급주기
-                                .infPrtYn(itemDto.getInfPrtYn() == null ? "N" : itemDto.getInfPrtYn()) // 정보보호여부
-                                .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
-                                .lstYn("Y") // 최종여부
-                                .gclAmt(itemDto.getGclAmt()) // 품목금액
-                                .build();
-                        bitemmRepository.save(updatedItem);
-                        processedGclMngNos.add(existingItem.getGclMngNo()); // 처리 완료 표시
-                        maxGclSno = Math.max(maxGclSno, newGclSno); // 신규 품목 추가 시 기준 갱신
+                        // 변경된 필드가 있을 때만 버저닝 (변경 없으면 D/C 로그 생성 생략)
+                        if (isItemChanged(existingItem, itemDto)) {
+                            // 기존 레코드 Soft Delete (이전 버전으로 처리)
+                            existingItem.delete();
+                            // 기존 관리번호 유지 + 일련번호 1 증가하여 신규 레코드 저장
+                            int newGclSno = existingItem.getGclSno() + 1;
+                            com.kdb.it.domain.budget.project.entity.Bitemm updatedItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
+                                    .gclMngNo(existingItem.getGclMngNo()) // 품목관리번호 유지 (기존 번호)
+                                    .gclSno(newGclSno) // 품목일련번호 1 증가
+                                    .prjMngNo(existingItem.getPrjMngNo()) // 프로젝트관리번호 유지
+                                    .prjSno(existingItem.getPrjSno()) // 프로젝트순번 유지
+                                    .gclDtt(itemDto.getGclDtt()) // 품목구분
+                                    .gclNm(itemDto.getGclNm()) // 품목명
+                                    .gclQtt(itemDto.getGclQtt()) // 품목수량
+                                    .cur(itemDto.getCur()) // 통화
+                                    .xcr(itemDto.getXcr()) // 환율
+                                    .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
+                                    .bgFdtn(itemDto.getBgFdtn()) // 예산근거
+                                    .itdDt(itemDto.getItdDt()) // 도입시기
+                                    .dfrCle(itemDto.getDfrCle()) // 지급주기
+                                    .infPrtYn(defaultYn(itemDto.getInfPrtYn()))
+                                    .itrInfrYn(defaultYn(itemDto.getItrInfrYn()))
+                                    .lstYn("Y") // 최종여부
+                                    .gclAmt(itemDto.getGclAmt()) // 품목금액
+                                    .build();
+                            bitemmRepository.save(updatedItem);
+                            maxGclSno = Math.max(maxGclSno, newGclSno);
+                        }
+                        processedGclMngNos.add(existingItem.getGclMngNo()); // 변경 여부와 무관하게 처리 완료 표시
                     }
                 } else {
                     // === 신규 품목 추가 ===
@@ -462,6 +468,44 @@ public class ProjectService {
         }
 
         return project.getPrjMngNo(); // 수정된 관리번호 반환
+    }
+
+    /**
+     * 품목 변경 여부 판단
+     *
+     * <p>기존 엔티티와 요청 DTO의 업무 필드를 비교하여, 하나라도 다르면 {@code true}를 반환합니다.</p>
+     * <p>변경이 없는 품목은 버저닝(D→C 로그)을 건너뜁니다.</p>
+     * <p>BigDecimal 필드(xcr, gclQtt, gclAmt)는 scale 무관한 수치 비교를 위해 compareTo를 사용합니다.</p>
+     *
+     * @param existing 현재 활성 품목 엔티티 (DEL_YN='N')
+     * @param dto      클라이언트로부터 전달된 수정 요청 DTO
+     * @return 변경된 필드가 하나라도 있으면 {@code true}
+     */
+    private boolean isItemChanged(Bitemm existing, ProjectDto.BitemmDto dto) {
+        return !Objects.equals(existing.getGclDtt(), dto.getGclDtt())
+                || !Objects.equals(existing.getGclNm(), dto.getGclNm())
+                || bigDecimalChanged(existing.getGclQtt(), dto.getGclQtt())
+                || !Objects.equals(existing.getCur(), dto.getCur())
+                || bigDecimalChanged(existing.getXcr(), dto.getXcr())
+                || !Objects.equals(existing.getXcrBseDt(), dto.getXcrBseDt())
+                || !Objects.equals(existing.getBgFdtn(), dto.getBgFdtn())
+                || !Objects.equals(existing.getItdDt(), dto.getItdDt())
+                || !Objects.equals(existing.getDfrCle(), dto.getDfrCle())
+                || !Objects.equals(existing.getInfPrtYn(), defaultYn(dto.getInfPrtYn()))
+                || !Objects.equals(existing.getItrInfrYn(), defaultYn(dto.getItrInfrYn()))
+                || bigDecimalChanged(existing.getGclAmt(), dto.getGclAmt());
+    }
+
+    /** null이면 "N"으로 정규화 (infPrtYn, itrInfrYn 공통 기본값 처리) */
+    private static String defaultYn(String value) {
+        return value == null ? "N" : value;
+    }
+
+    /** BigDecimal 수치 비교 (scale 무시). 둘 다 null이면 동일, 한쪽만 null이면 변경으로 간주 */
+    private static boolean bigDecimalChanged(BigDecimal a, BigDecimal b) {
+        if (a == null && b == null) return false;
+        if (a == null || b == null) return true;
+        return a.compareTo(b) != 0;
     }
 
     /**

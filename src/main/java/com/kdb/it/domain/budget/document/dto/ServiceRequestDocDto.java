@@ -264,4 +264,62 @@ public class ServiceRequestDocDto {
                     .build();
         }
     }
+
+    /**
+     * 요구사항 정의서 대시보드 응답 DTO
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(name = "DocumentDashboardResponse", description = "요구사항 정의서 대시보드 응답")
+    public static class DashboardResponse {
+        @Schema(description = "전체 문서 수") private int totalCount;
+        @Schema(description = "검토 진행 중 문서 수") private int reviewingCount;
+        @Schema(description = "협의 완료 문서 수") private int completedCount;
+        @Schema(description = "완료기한 초과 문서 수") private int overdueCount;
+        @Schema(description = "최근 6개월 월별 등록 추이") private java.util.List<MonthlyCount> monthlyTrend;
+        @Schema(description = "검토 중인 최근 요청 목록 (최대 3건)") private java.util.List<ReviewingItem> recentReviewing;
+    }
+
+    /**
+     * 월별 건수 DTO
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(name = "DocumentMonthlyCount", description = "월별 등록 건수")
+    public static class MonthlyCount {
+        @Schema(description = "년월 (YYYY-MM)") private String month;
+        @Schema(description = "건수") private int count;
+    }
+
+    /**
+     * 검토 중인 문서 항목 DTO
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(name = "DocumentReviewingItem", description = "검토 중인 문서 항목")
+    public static class ReviewingItem {
+        @Schema(description = "문서관리번호") private String docMngNo;
+        @Schema(description = "요구사항명") private String title;
+        @Schema(description = "작성자명") private String authorName;
+        @Schema(description = "최초 등록 일시 (YYYY-MM-DD)") private String createdAt;
+        @Schema(description = "상태: reviewing(검토중) | delayed(지연)") private String status;
+    }
+
+    /**
+     * 사이드바 배지 건수 응답 DTO
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(name = "DocumentBadgeCountResponse", description = "사이드바 배지 건수 응답")
+    public static class BadgeCountResponse {
+        @Schema(description = "검토 진행 중 문서 수") private int reviewingCount;
+    }
 }

@@ -3,6 +3,7 @@ package com.kdb.it.common.approval.dto;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -365,6 +366,65 @@ public class ApplicationDto {
         /** 전체 미상신 건수 (projectCount + costCount) */
         @Schema(description = "전체 미상신 건수")
         private long totalCount;
+    }
+
+    /**
+     * 전자결재 대시보드 응답 DTO
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(name = "ApprovalDashboardResponse", description = "전자결재 대시보드 응답")
+    public static class DashboardResponse {
+        @Schema(description = "결재 대기 수 (본인)") private int pendingCount;
+        @Schema(description = "내가 기안한 진행 중 수") private int inProgressCount;
+        @Schema(description = "이번달 부서 완료 수") private int monthlyCompletedCount;
+        @Schema(description = "내 반려 수") private int rejectedCount;
+        @Schema(description = "최근 6개월 월별 처리 현황") private List<MonthlyCount> monthlyTrend;
+        @Schema(description = "내 결재 대기 목록 (최대 3건)") private List<PendingItem> pendingList;
+    }
+
+    /**
+     * 월별 건수 DTO (결재 대시보드)
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(name = "ApprovalMonthlyCount", description = "월별 결재 처리 건수")
+    public static class MonthlyCount {
+        @Schema(description = "년월 (YYYY-MM)") private String month;
+        @Schema(description = "건수") private int count;
+    }
+
+    /**
+     * 결재 대기 항목 DTO
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(name = "ApprovalPendingItem", description = "결재 대기 항목")
+    public static class PendingItem {
+        @Schema(description = "신청서관리번호") private String apfMngNo;
+        @Schema(description = "신청서명") private String title;
+        @Schema(description = "신청자명") private String requesterName;
+        @Schema(description = "신청일자 (YYYY-MM-DD)") private String requestedAt;
+        @Schema(description = "긴급여부: urgent(3일 초과) | normal") private String urgency;
+    }
+
+    /**
+     * 사이드바 배지 건수 응답 DTO
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(name = "ApprovalBadgeCountResponse", description = "결재 사이드바 배지 건수 응답")
+    public static class ApprovalBadgeCountResponse {
+        @Schema(description = "결재 대기 수") private int pendingCount;
+        @Schema(description = "기안 진행 중 수") private int inProgressCount;
     }
 
     /**

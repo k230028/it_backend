@@ -3,6 +3,9 @@ package com.kdb.it.common.approval.repository;
 import com.kdb.it.common.approval.entity.Capplm;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
 
 /**
  * 신청서 마스터(Capplm) 데이터 접근 리포지토리
@@ -35,4 +38,78 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      */
     @Query(value = "SELECT S_APF.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextVal();
+
+    /** 본인에게 온 결재 대기 건수 (APF_STS='결재중' AND 결재선 미처리) */
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM TAAABB_CAPPLM a
+        JOIN TAAABB_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
+        WHERE a.APF_STS = '결재중'
+          AND d.DCD_ENO = :eno
+          AND d.DCD_DT IS NULL
+        """, nativeQuery = true)
+    int countPendingByEno(@Param("eno") String eno);
+
+    /** 내가 기안한 진행 중 건수 */
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM TAAABB_CAPPLM a
+        WHERE a.APF_STS = '결재중'
+          AND a.RQS_ENO = :eno
+        """, nativeQuery = true)
+    int countInProgressByEno(@Param("eno") String eno);
+
+    /** 이번달 부서 완료 건수 */
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM TAAABB_CAPPLM a
+        JOIN TAAABB_CUSERI u ON a.RQS_ENO = u.ENO
+        WHERE a.APF_STS = '결재완료'
+          AND u.BBR_C = :bbrC
+          AND a.RQS_DT >= TRUNC(SYSDATE, 'MM')
+        """, nativeQuery = true)
+    int countMonthlyCompletedByBbrC(@Param("bbrC") String bbrC);
+
+    /** 내 반려 건수 */
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM TAAABB_CAPPLM a
+        WHERE a.APF_STS = '반려'
+          AND a.RQS_ENO = :eno
+        """, nativeQuery = true)
+    int countRejectedByEno(@Param("eno") String eno);
+
+    /**
+     * 부서 기준 최근 6개월 월별 결재 처리 건수
+     * 반환 컬럼: [0]=MONTH(YYYY-MM), [1]=CNT
+     */
+    @Query(value = """
+        SELECT TO_CHAR(a.RQS_DT, 'YYYY-MM') AS MONTH,
+               COUNT(*) AS CNT
+        FROM TAAABB_CAPPLM a
+        JOIN TAAABB_CUSERI u ON a.RQS_ENO = u.ENO
+        WHERE u.BBR_C = :bbrC
+          AND a.RQS_DT >= ADD_MONTHS(TRUNC(SYSDATE, 'MM'), -5)
+        GROUP BY TO_CHAR(a.RQS_DT, 'YYYY-MM')
+        ORDER BY 1
+        """, nativeQuery = true)
+    List<Object[]> findMonthlyTrendByBbrC(@Param("bbrC") String bbrC);
+
+    /**
+     * 본인 결재 대기 최근 3건
+     * 반환 컬럼: [0]=APF_MNG_NO, [1]=APF_NM, [2]=USR_NM, [3]=RQS_DT(YYYY-MM-DD)
+     */
+    @Query(value = """
+        SELECT a.APF_MNG_NO, a.APF_NM, u.USR_NM,
+               TO_CHAR(a.RQS_DT, 'YYYY-MM-DD') AS RQS_DT_STR
+        FROM TAAABB_CAPPLM a
+        JOIN TAAABB_CUSERI u ON a.RQS_ENO = u.ENO
+        JOIN TAAABB_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
+        WHERE a.APF_STS = '결재중'
+          AND d.DCD_ENO = :eno
+          AND d.DCD_DT IS NULL
+        ORDER BY a.RQS_DT DESC
+        FETCH FIRST 3 ROWS ONLY
+        """, nativeQuery = true)
+    List<Object[]> findPendingListByEno(@Param("eno") String eno);
 }

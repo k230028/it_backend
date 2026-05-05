@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
  *
  * <p>인증 방식: JWT 기반 Stateless 인증</p>
  * <ul>
- *   <li>Access Token: 단기 유효 (기본 1시간), API 요청 시 Authorization 헤더에 포함</li>
+ *   <li>Access Token: 단기 유효 (기본 15분), httpOnly 쿠키로 자동 전송</li>
  *   <li>Refresh Token: 장기 유효 (기본 7일), DB에 저장, Access Token 갱신에 사용</li>
  * </ul>
  *
@@ -123,14 +123,14 @@ public class AuthService {
      *   <li>Access Token 생성 (단기 유효)</li>
      *   <li>Refresh Token 생성 및 DB 저장 (기존 토큰 삭제 후 신규 저장)</li>
      *   <li>로그인 성공 이력 기록</li>
-     *   <li>토큰 및 사용자 정보 반환</li>
+     *   <li>토큰 및 사용자 정보 반환 (컨트롤러에서 httpOnly 쿠키로 변환)</li>
      * </ol>
      *
      * @param eno       로그인할 사번
      * @param password  입력한 비밀번호 (평문)
      * @param ipAddress 클라이언트 IP 주소 (이력 기록용)
      * @param userAgent 클라이언트 User-Agent 문자열 (이력 기록용)
-     * @return 로그인 응답 DTO (Access Token, Refresh Token, 사번, 사용자명)
+     * @return 로그인 응답 DTO (쿠키 생성에 사용할 토큰, 사번, 사용자명, 자격등급)
      * @throws RuntimeException 사용자 미존재 또는 비밀번호 불일치 시
      */
     @Transactional
@@ -247,15 +247,57 @@ public class AuthService {
     }
 
     /**
-     * 로그인 성공 이력 기록 (내부 헬퍼 메서드)
+     * SSO 인증 완료 후 애플리케이션 JWT와 화면 복원용 사용자 정보를 발급합니다.
      *
-     * <p>{@link Clognh#createLoginSuccess(String, String, String)} 팩토리 메서드를 사용하여
-     * LOGIN_SUCCESS 타입의 이력을 생성하고 저장합니다.</p>
+     * <p>일반 로그인과 달리 비밀번호 검증을 하지 않습니다. 이 메서드는 반드시
+     * SSO Agent 또는 {@code SsoController}가 "이미 외부 SSO 인증이 끝났다"고 판단한 뒤에만
+     * 호출되어야 합니다. 따라서 운영 전환 시에는 사번 파라미터를 그대로 믿지 말고
+     * SSO 서명/세션 검증이 끝난 사용자 식별자만 전달해야 합니다.</p>
      *
-     * @param eno       로그인 성공한 사번
-     * @param ipAddress 접속 IP 주소
-     * @param userAgent 접속 User-Agent
+     * <p>동작 순서:</p>
+     * <ol>
+     *   <li>사번으로 사용자 기본 정보 조회</li>
+     *   <li>사용자 자격등급 목록을 조회해 Access Token 클레임에 포함</li>
+     *   <li>Access Token과 Refresh Token 생성</li>
+     *   <li>기존 Refresh Token을 삭제하고 새 Refresh Token을 저장해 중복 세션을 정리</li>
+     *   <li>SSO 로그인 성공 이력을 남기고 프론트 쿠키 생성에 필요한 응답 DTO 반환</li>
+     * </ol>
+     *
+     * @param eno SSO 인증 결과로 확인된 사번
+     * @return 쿠키 발급에 사용할 로그인 응답 DTO
+     * @throws RuntimeException 사번에 해당하는 사용자가 없거나 토큰 발급/저장에 실패한 경우
      */
+    @Transactional
+    public AuthDto.LoginResponse issueSsoTokens(String eno) {
+        CuserI user = userRepository.findByEno(eno)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + eno));
+
+        List<String> athIds = loadAthIds(eno);
+
+        String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
+        String refreshTokenValue = jwtUtil.generateRefreshToken(eno);
+
+        refreshTokenRepository.deleteByEno(eno);
+        Crtokm refreshToken = Crtokm.builder()
+                .tok(refreshTokenValue)
+                .eno(eno)
+                .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
+                .build();
+        refreshTokenRepository.save(refreshToken);
+
+        recordLoginSuccess(eno, "SSO", "SSO");
+
+        return AuthDto.LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenValue)
+                .eno(eno)
+                .empNm(user.getUsrNm())
+                .athIds(athIds)
+                .bbrC(user.getBbrC())
+                .temC(user.getTemC())
+                .build();
+    }
+
     private List<String> loadAthIds(String eno) {
         List<String> athIds = roleRepository
                 .findAllByIdEnoAndUseYnAndDelYn(eno, "Y", "N")
@@ -265,6 +307,17 @@ public class AuthService {
         return athIds.isEmpty() ? List.of(CustomUserDetails.ATH_USER) : athIds;
     }
 
+    /**
+     * 로그인 성공 이력을 저장합니다.
+     *
+     * <p>일반 로그인과 SSO 로그인 모두 이 메서드를 사용합니다. SSO 로그인은 실제 IP/User-Agent를
+     * 알 수 없는 테스트 흐름에서 {@code "SSO"} 값을 전달해 로그인 이력 화면에서 인증 방식을
+     * 구분할 수 있게 합니다.</p>
+     *
+     * @param eno       로그인 성공한 사번
+     * @param ipAddress 접속 IP 주소 또는 SSO 식별 문자열
+     * @param userAgent 접속 User-Agent 또는 SSO 식별 문자열
+     */
     private void recordLoginSuccess(String eno, String ipAddress, String userAgent) {
         Clognh loginHistory = Clognh.createLoginSuccess(eno, ipAddress, userAgent);
         loginHistoryRepository.save(loginHistory);

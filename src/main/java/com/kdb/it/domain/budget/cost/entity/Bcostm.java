@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.cost.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BcostmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -37,6 +39,7 @@ import lombok.experimental.SuperBuilder;
  * 공통 감사 정보({@link BaseEntity})를 상속하여 생성일시, 수정일시 등을 자동 관리합니다.
  * </p>
  */
+@LogTarget(entity = BcostmL.class)
 @Entity // JPA 엔티티로 등록
 @Table(name = "TAAABB_BCOSTM", comment = "전산관리비(IT 관리비) 마스터") // 매핑할 DB 테이블명
 @IdClass(BcostmId.class) // 복합키 클래스 지정

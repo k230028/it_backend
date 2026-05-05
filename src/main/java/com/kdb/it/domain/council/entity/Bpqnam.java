@@ -1,5 +1,7 @@
 package com.kdb.it.domain.council.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BpqnamL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -22,8 +24,9 @@ import lombok.experimental.SuperBuilder;
  *
  * <p>QTN_ID 형식: QTN-{협의회ID}-{순번} (예: QTN-ASCT-2026-0001-01)</p>
  */
+@LogTarget(entity = BpqnamL.class)
 @Entity
-@Table(name = "TAAABB_BPQNAM")
+@Table(name = "TAAABB_BPQNAM", comment = "사전질의응답")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -32,31 +35,31 @@ public class Bpqnam extends BaseEntity {
 
     /** 질의응답ID: PK (QTN-{협의회ID}-{순번} 형식) */
     @Id
-    @Column(name = "QTN_ID", length = 32, nullable = false)
+    @Column(name = "QTN_ID", length = 32, nullable = false, comment = "질의응답ID")
     private String qtnId;
 
     /** 협의회ID: BASCTM.ASCT_ID FK */
-    @Column(name = "ASCT_ID", length = 32, nullable = false)
+    @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
     /** 질의자사번: 질의를 등록한 평가위원 사번 (CUSERI.ENO FK) */
-    @Column(name = "QTN_ENO", length = 32)
+    @Column(name = "QTN_ENO", length = 32, comment = "질의자사번")
     private String qtnEno;
 
     /** 질의내용: 평가위원이 입력한 사전 질의 (최대 4000자) */
-    @Column(name = "QTN_CONE", length = 4000)
+    @Column(name = "QTN_CONE", length = 4000, comment = "질의내용")
     private String qtnCone;
 
     /** 답변자사번: 답변을 작성한 담당자 사번 (CUSERI.ENO FK) */
-    @Column(name = "REP_ENO", length = 32)
+    @Column(name = "REP_ENO", length = 32, comment = "답변자사번")
     private String repEno;
 
     /** 답변내용: 추진부서 담당자가 작성한 답변 (최대 4000자) */
-    @Column(name = "REP_CONE", length = 4000)
+    @Column(name = "REP_CONE", length = 4000, comment = "답변내용")
     private String repCone;
 
     /** 답변여부: N(미답변) / Y(답변완료), 기본값 N */
-    @Column(name = "REP_YN", length = 1)
+    @Column(name = "REP_YN", length = 1, comment = "답변여부")
     private String repYn;
 
     /**
@@ -80,3 +83,4 @@ public class Bpqnam extends BaseEntity {
         this.qtnCone = qtnCone;
     }
 }
+

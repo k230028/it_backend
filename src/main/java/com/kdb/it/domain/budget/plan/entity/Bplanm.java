@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.plan.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BplanmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -26,6 +28,7 @@ import java.math.BigDecimal;
  * {@code PLN-{대상년도}-{S_PLN_MNG_NO 시퀀스 4자리}} (예: PLN-2026-0001)
  * </p>
  */
+@LogTarget(entity = BplanmL.class)
 @Entity
 @Table(name = "TAAABB_BPLANM", comment = "정보기술부문계획")
 @Getter

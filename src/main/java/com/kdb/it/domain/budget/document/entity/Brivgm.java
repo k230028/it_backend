@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.document.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BrivgmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -33,44 +35,45 @@ import java.util.UUID;
  * <li>{@code G}: 전반(General) 코멘트 — 문서 전체에 대한 의견</li>
  * </ul>
  */
+@LogTarget(entity = BrivgmL.class)
 @Entity
-@Table(name = "TAAABB_BRIVGM")
+@Table(name = "TAAABB_BRIVGM", comment = "문서 검토의견")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Brivgm extends BaseEntity {
 
     /** 의견일련번호: UUID v4 기반 32자 식별자(하이픈 제거) */
     @Id
-    @Column(name = "IVG_SNO", length = 32, nullable = false)
+    @Column(name = "IVG_SNO", length = 32, nullable = false, comment = "의견일련번호")
     private String ivgSno;
 
     /** 문서관리번호: {@link Brdocm#getDocMngNo()} 참조 (예: DOC-2026-0001) */
-    @Column(name = "DOC_MNG_NO", length = 32, nullable = false)
+    @Column(name = "DOC_MNG_NO", length = 32, nullable = false, comment = "문서관리번호")
     private String docMngNo;
 
     /** 문서버전: {@link Brdocm#getDocVrs()} 참조 (Oracle NUMBER(5,2), 예: 1.00, 1.01) */
-    @Column(name = "DOC_VRS", precision = 5, scale = 2, nullable = false)
+    @Column(name = "DOC_VRS", precision = 5, scale = 2, nullable = false, comment = "문서버전")
     private BigDecimal docVrs;
 
     /** 의견유형: {@code I}=인라인, {@code G}=전반 */
-    @Column(name = "IVG_TP", length = 1, nullable = false)
+    @Column(name = "IVG_TP", length = 1, nullable = false, comment = "의견유형")
     private String ivgTp;
 
     /** 의견내용: 리뷰 코멘트 본문 (Oracle CLOB 매핑) */
     @Lob
-    @Column(name = "IVG_CONE")
+    @Column(name = "IVG_CONE", comment = "의견내용")
     private String ivgCone;
 
     /** 인라인 코멘트 전용 - Tiptap Mark ID (에디터 하이라이트 매핑 키) */
-    @Column(name = "MARK_ID", length = 64)
+    @Column(name = "MARK_ID", length = 64, comment = "인라인 코멘트 전용 - Tiptap Mark ID (에디터 하이라이트 매핑 키)")
     private String markId;
 
     /** 인라인 코멘트 전용 - 드래그 선택 텍스트 스냅샷 (문맥 보존용, 최대 4000자) */
-    @Column(name = "QTD_CONE", length = 4000)
+    @Column(name = "QTD_CONE", length = 4000, comment = "인라인 코멘트 전용 - 드래그 선택 텍스트 스냅샷 (문맥 보존용, 최대 4000자)")
     private String qtdCone;
 
     /** 해결여부: {@code N}=미해결(기본값), {@code Y}=해결완료 */
-    @Column(name = "RSLV_YN", length = 1, nullable = false)
+    @Column(name = "RSLV_YN", length = 1, nullable = false, comment = "해결여부")
     private String rslvYn;
 
     /**
@@ -133,3 +136,4 @@ public class Brivgm extends BaseEntity {
         this.rslvYn = "Y";
     }
 }
+

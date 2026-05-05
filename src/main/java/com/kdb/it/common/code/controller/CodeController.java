@@ -80,6 +80,7 @@ public class CodeController {
      * 공통코드 수정
      *
      * @param cdId    수정할 코드ID
+     * @param sttDt   수정할 시작일자
      * @param request 수정 요청 데이터
      * @return HTTP 200 + 수정된 코드ID
      */
@@ -87,22 +88,26 @@ public class CodeController {
     @Operation(summary = "공통코드 수정", description = "기존 공통코드 정보를 수정합니다.")
     public ResponseEntity<String> updateCcodem(
             @PathVariable("cdId") String cdId,
+            @Parameter(description = "시작일자 (yyyy-MM-dd)", required = true) @RequestParam("sttDt") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sttDt,
             @RequestBody CodeDto.UpdateRequest request) {
 
-        String updatedCdId = codeService.updateCcodem(cdId, request);
+        String updatedCdId = codeService.updateCcodem(cdId, sttDt, request);
         return ResponseEntity.ok(updatedCdId);
     }
 
     /**
      * 공통코드 삭제 (논리적 삭제)
      *
-     * @param cdId 삭제할 코드ID
+     * @param cdId  삭제할 코드ID
+     * @param sttDt 삭제할 시작일자
      * @return HTTP 204 No Content
      */
     @DeleteMapping("/{cdId}")
     @Operation(summary = "공통코드 삭제 (논리적 삭제)", description = "공통코드를 삭제 상태(DEL_YN='Y')로 변경합니다.")
-    public ResponseEntity<Void> deleteCcodem(@PathVariable("cdId") String cdId) {
-        codeService.deleteCcodem(cdId);
+    public ResponseEntity<Void> deleteCcodem(
+            @PathVariable("cdId") String cdId,
+            @Parameter(description = "시작일자 (yyyy-MM-dd)", required = true) @RequestParam("sttDt") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sttDt) {
+        codeService.deleteCcodem(cdId, sttDt);
         return ResponseEntity.noContent().build();
     }
 

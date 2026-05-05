@@ -1,8 +1,10 @@
 plugins {
 	id 'java'
+	id 'war'
 	id 'org.springframework.boot' version '4.0.5'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'org.asciidoctor.jvm.convert' version '4.0.5'
+	id 'jacoco'
 }
 
 group = 'com.kdb'
@@ -59,6 +61,13 @@ dependencies {
 	// HTML 새니타이징 (XSS 서버 측 방어)
 	implementation 'org.jsoup:jsoup:1.18.3'
 
+	// JSP 컴파일러 — business.jsp / agentProc.jsp 직접 실행에 필요
+	// SsoWebConfig의 WebServerFactoryCustomizer가 document root를 src/main/webapp으로 설정
+	implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
+
+	// SSO 에이전트 라이브러리 — libs/ 폴더에 JAR 복사 후 주석 해제
+	// implementation files('libs/sso-agent.jar')
+
 	// JWT
 	implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
@@ -84,9 +93,72 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// ── JaCoCo 커버리지 설정 ──────────────────────────────────────────────
+jacoco {
+	// Java 25 바이트코드 지원 버전 — Spring Boot BOM 관리 버전 사용
+	toolVersion = "0.8.13"
+}
+
+// 커버리지 측정 제외 대상 (측정 의미가 낮은 클래스)
+def jacocoExcludes = [
+	'**/Q*.class',                  // QueryDSL 자동 생성 Q클래스
+	'**/ItApplication.class',       // 애플리케이션 진입점
+	'**/*Config*.class',            // Spring 설정 클래스
+	'**/*Properties*.class',        // @ConfigurationProperties
+	'**/*Dto*.class',               // DTO (정적 중첩 포함)
+	'**/*Dto$*.class',              // DTO 정적 중첩 클래스
+	'**/*Entity*.class',            // JPA 엔티티 (Lombok 처리)
+	'**/entity/**',                 // entity 패키지 전체
+	'**/exception/**',              // 예외 클래스 패키지
+	'**/infra/ai/**',               // 외부 Gemini AI 연동
+	'**/repository/**',             // Repository 인터페이스 및 QueryDSL 구현체
+	'**/domain/log/**',             // 감사로그 인프라 (이벤트 기반 — 통합 테스트 대상)
+]
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		xml.required  = true   // CI/CD 파이프라인 통합용
+		html.required = true   // 로컬 리포트: build/reports/jacoco/test/html/index.html
+		csv.required  = false
+	}
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: jacocoExcludes)
+		}))
+	}
+}
+
+jacocoTestCoverageVerification {
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: jacocoExcludes)
+		}))
+	}
+	violationRules {
+		rule {
+			limit {
+				// 현재 단계 목표: 60% (추후 80%로 상향 예정)
+				minimum = 0.60
+			}
+		}
+		rule {
+			element = 'CLASS'
+			limit {
+				counter = 'LINE'
+				value   = 'COVEREDRATIO'
+				minimum = 0.50
+			}
+		}
+	}
+}
+// ─────────────────────────────────────────────────────────────────────
+
 tasks.named('test') {
 	outputs.dir snippetsDir
 	useJUnitPlatform()
+	// 테스트 완료 후 자동으로 커버리지 리포트 생성
+	finalizedBy jacocoTestReport
 }
 
 tasks.named('asciidoctor') {

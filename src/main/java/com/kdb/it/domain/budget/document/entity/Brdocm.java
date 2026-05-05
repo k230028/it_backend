@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.document.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BrdocmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -31,6 +33,7 @@ import java.time.LocalDate;
  * 관리번호 형식: {@code DOC-{연도}-{4자리 시퀀스}} (예: {@code DOC-2026-0001})
  * </p>
  */
+@LogTarget(entity = BrdocmL.class)
 @Entity
 @Table(name = "TAAABB_BRDOCM", comment = "요구사항 정의서")
 @IdClass(BrdocmId.class)

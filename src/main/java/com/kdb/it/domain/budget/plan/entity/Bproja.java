@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 프로젝트관계(TAAABB_BPROJA) 엔티티
+ * 정보화사업 관계(TAAABB_BPROJA) 엔티티
  *
  * <p>
  * 정보화사업(TAAABB_BPROJM)과 정보기술부문계획(TAAABB_BPLANM) 간의
@@ -25,7 +25,7 @@ import lombok.experimental.SuperBuilder;
  * </ul>
  */
 @Entity
-@Table(name = "TAAABB_BPROJA", comment = "프로젝트-계획 관계")
+@Table(name = "TAAABB_BPROJA", comment = "정보화사업 관계")
 @IdClass(BprojaId.class)
 @Getter
 @NoArgsConstructor

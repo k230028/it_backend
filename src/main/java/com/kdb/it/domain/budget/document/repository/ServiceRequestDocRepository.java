@@ -4,6 +4,7 @@ import com.kdb.it.domain.budget.document.entity.Brdocm;
 import com.kdb.it.domain.budget.document.entity.BrdocmId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -117,4 +118,93 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
      */
     @Query(value = "SELECT S_DOC.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
+
+    /** 부서 기준 전체 미삭제 문서 수 (DOC_MNG_NO 기준 distinct) */
+    @Query(value = """
+        SELECT COUNT(DISTINCT b.DOC_MNG_NO)
+        FROM TAAABB_BRDOCM b
+        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
+        WHERE b.DEL_YN = 'N'
+          AND u.BBR_C = :bbrC
+        """, nativeQuery = true)
+    int countTotalByBbrC(@Param("bbrC") String bbrC);
+
+    /** 부서 기준 미해결 검토의견이 존재하는 문서 수 (검토 진행 중) */
+    @Query(value = """
+        SELECT COUNT(DISTINCT b.DOC_MNG_NO)
+        FROM TAAABB_BRDOCM b
+        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
+        JOIN TAAABB_BRIVGM r ON b.DOC_MNG_NO = r.DOC_MNG_NO
+        WHERE b.DEL_YN = 'N'
+          AND u.BBR_C = :bbrC
+          AND r.RSLV_YN = 'N'
+          AND r.DEL_YN = 'N'
+        """, nativeQuery = true)
+    int countReviewingByBbrC(@Param("bbrC") String bbrC);
+
+    /** 부서 기준 협의 완료 문서 수 (검토의견 존재 AND 모두 해결) */
+    @Query(value = """
+        SELECT COUNT(DISTINCT b.DOC_MNG_NO)
+        FROM TAAABB_BRDOCM b
+        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
+        WHERE b.DEL_YN = 'N'
+          AND u.BBR_C = :bbrC
+          AND EXISTS (
+              SELECT 1 FROM TAAABB_BRIVGM r
+              WHERE r.DOC_MNG_NO = b.DOC_MNG_NO AND r.DEL_YN = 'N'
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM TAAABB_BRIVGM r
+              WHERE r.DOC_MNG_NO = b.DOC_MNG_NO AND r.DEL_YN = 'N' AND r.RSLV_YN = 'N'
+          )
+        """, nativeQuery = true)
+    int countCompletedByBbrC(@Param("bbrC") String bbrC);
+
+    /** 부서 기준 완료기한 초과 문서 수 */
+    @Query(value = """
+        SELECT COUNT(DISTINCT b.DOC_MNG_NO)
+        FROM TAAABB_BRDOCM b
+        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
+        WHERE b.DEL_YN = 'N'
+          AND u.BBR_C = :bbrC
+          AND b.FSG_TLM < TRUNC(SYSDATE)
+        """, nativeQuery = true)
+    int countOverdueByBbrC(@Param("bbrC") String bbrC);
+
+    /**
+     * 부서 기준 최근 6개월 월별 문서 등록 건수
+     * 반환 컬럼: [0]=MONTH(YYYY-MM), [1]=CNT
+     */
+    @Query(value = """
+        SELECT TO_CHAR(b.FST_ENR_DTM, 'YYYY-MM') AS MONTH,
+               COUNT(DISTINCT b.DOC_MNG_NO) AS CNT
+        FROM TAAABB_BRDOCM b
+        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
+        WHERE b.DEL_YN = 'N'
+          AND u.BBR_C = :bbrC
+          AND b.FST_ENR_DTM >= ADD_MONTHS(TRUNC(SYSDATE, 'MM'), -5)
+        GROUP BY TO_CHAR(b.FST_ENR_DTM, 'YYYY-MM')
+        ORDER BY 1
+        """, nativeQuery = true)
+    java.util.List<Object[]> findMonthlyTrendByBbrC(@Param("bbrC") String bbrC);
+
+    /**
+     * 부서 기준 검토 중인 최근 문서 3건
+     * 반환 컬럼: [0]=DOC_MNG_NO, [1]=REQ_NM, [2]=USR_NM, [3]=CREATED_AT(YYYY-MM-DD), [4]=FSG_TLM(DATE)
+     */
+    @Query(value = """
+        SELECT DISTINCT b.DOC_MNG_NO, b.REQ_NM, u.USR_NM,
+               TO_CHAR(b.FST_ENR_DTM, 'YYYY-MM-DD') AS CREATED_AT,
+               b.FSG_TLM
+        FROM TAAABB_BRDOCM b
+        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
+        JOIN TAAABB_BRIVGM r ON b.DOC_MNG_NO = r.DOC_MNG_NO
+        WHERE b.DEL_YN = 'N'
+          AND u.BBR_C = :bbrC
+          AND r.RSLV_YN = 'N'
+          AND r.DEL_YN = 'N'
+        ORDER BY b.FST_ENR_DTM DESC
+        FETCH FIRST 3 ROWS ONLY
+        """, nativeQuery = true)
+    java.util.List<Object[]> findRecentReviewingByBbrC(@Param("bbrC") String bbrC);
 }

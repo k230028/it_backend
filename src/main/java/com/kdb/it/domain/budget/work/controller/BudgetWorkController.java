@@ -5,6 +5,7 @@ import com.kdb.it.domain.budget.work.service.BudgetWorkService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -83,13 +84,42 @@ public class BudgetWorkController {
      * @return HTTP 200 + 적용 결과 (처리 메시지, 레코드 수, 요약)
      */
     @Operation(summary = "편성률 일괄 적용",
-            description = "비목별 편성률을 결재완료 원본 데이터에 적용하여 BBUGTM에 저장합니다.")
+            description = """
+                    예산년도와 비목별 편성률을 받아 결재완료 원본 데이터에 적용합니다.
+
+                    - 원본 데이터: 정보화사업 품목(BITEMM) 및 전산업무비(BCOSTM) 중 결재완료 건
+                    - 처리 방식: 기존 편성 데이터가 있으면 수정하고, 없으면 신규 생성합니다.
+                    - 편성률: 0~100 정수이며 비목 코드(DUP_IOE) 기준으로 매칭합니다.
+                    - 저장 대상: TAAABB_BBUGTM
+                    """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "적용 성공",
                     content = @Content(schema = @Schema(implementation = BudgetWorkDto.ApplyResponse.class)))
     })
     @PostMapping("/apply")
     public ResponseEntity<BudgetWorkDto.ApplyResponse> applyRates(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "편성률 일괄 적용 요청. bgYy와 rates 목록을 전달합니다.",
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = BudgetWorkDto.ApplyRequest.class),
+                            examples = @ExampleObject(
+                                    name = "비목별 편성률 적용 예시",
+                                    value = """
+                                            {
+                                              "bgYy": "2026",
+                                              "rates": [
+                                                {
+                                                  "cdId": "DUP-IOE-237",
+                                                  "dupRt": 80
+                                                },
+                                                {
+                                                  "cdId": "DUP-IOE-238",
+                                                  "dupRt": 65
+                                                }
+                                              ]
+                                            }
+                                            """)))
             @RequestBody BudgetWorkDto.ApplyRequest request) {
         return ResponseEntity.ok(budgetWorkService.applyRates(request));
     }
@@ -105,13 +135,46 @@ public class BudgetWorkController {
      * @return HTTP 200 + 적용 결과 (처리 메시지, 레코드 수, 요약)
      */
     @Operation(summary = "사업별 편성률 적용",
-            description = "사업별로 자본예산/일반관리비 편성률을 분리 적용하여 BBUGTM에 저장합니다.")
+            description = """
+                    사업 또는 전산업무비 단위로 자본예산/일반관리비 편성률을 분리 적용합니다.
+
+                    - BPROJM 원본은 자본예산(assetDupRt)과 일반관리비(costDupRt)를 함께 적용할 수 있습니다.
+                    - BCOSTM 원본은 일반관리비(costDupRt) 중심으로 적용합니다.
+                    - 동일 원본 PK의 기존 편성 데이터는 갱신하고, 미존재 시 신규 생성합니다.
+                    - 저장 대상: TAAABB_BBUGTM
+                    """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "적용 성공",
                     content = @Content(schema = @Schema(implementation = BudgetWorkDto.ApplyResponse.class)))
     })
     @PostMapping("/apply-items")
     public ResponseEntity<BudgetWorkDto.ApplyResponse> applyItemRates(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "사업별 편성률 적용 요청. 원본 테이블, 원본 PK, 자본/일반관리비 편성률을 전달합니다.",
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = BudgetWorkDto.ItemApplyRequest.class),
+                            examples = @ExampleObject(
+                                    name = "사업별 편성률 적용 예시",
+                                    value = """
+                                            {
+                                              "bgYy": "2026",
+                                              "items": [
+                                                {
+                                                  "orcTb": "BPROJM",
+                                                  "orcPkVl": "PRJ-2026-0001",
+                                                  "assetDupRt": 90,
+                                                  "costDupRt": 70
+                                                },
+                                                {
+                                                  "orcTb": "BCOSTM",
+                                                  "orcPkVl": "COST-2026-0001",
+                                                  "assetDupRt": null,
+                                                  "costDupRt": 80
+                                                }
+                                              ]
+                                            }
+                                            """)))
             @RequestBody BudgetWorkDto.ItemApplyRequest request) {
         return ResponseEntity.ok(budgetWorkService.applyItemRates(request));
     }

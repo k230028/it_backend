@@ -159,4 +159,136 @@ class ServiceRequestDocServiceTest {
         assertThat(v1.getDelYn()).isEqualTo("Y");
         assertThat(v2.getDelYn()).isEqualTo("Y");
     }
+
+    // ─────────────────────────────────────────────────────────────────
+    // deleteDocument — 특정 버전 삭제 및 미존재 예외
+    // ─────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("특정 버전 삭제 시 해당 버전만 소프트 삭제된다")
+    void deleteDocument_withVersion_deletesSpecificVersion() {
+        // Arrange: 0.02 버전 엔티티 준비
+        Brdocm v2 = Brdocm.builder()
+                .docMngNo("DOC-001")
+                .docVrs(new BigDecimal("0.02"))
+                .build();
+        given(repository.findByDocMngNoAndDocVrsAndDelYn(
+                "DOC-001", new BigDecimal("0.02"), "N"))
+                .willReturn(Optional.of(v2));
+
+        // Act
+        service.deleteDocument("DOC-001", new BigDecimal("0.02"));
+
+        // Assert: 해당 버전만 논리 삭제 (DEL_YN='Y')
+        assertThat(v2.getDelYn()).isEqualTo("Y");
+    }
+
+    @Test
+    @DisplayName("전체 버전 삭제 시 문서가 없으면 예외가 발생한다")
+    void deleteDocument_withoutVersion_throwsWhenNotFound() {
+        // Arrange: 존재하지 않는 문서관리번호
+        given(repository.findAllByDocMngNoAndDelYn("MISSING", "N"))
+                .willReturn(List.of());
+
+        // Act & Assert
+        assertThatThrownBy(() -> service.deleteDocument("MISSING", null))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("특정 버전 삭제 시 해당 버전이 없으면 예외가 발생한다")
+    void deleteDocument_withVersion_throwsWhenNotFound() {
+        // Arrange: 0.99 버전 미존재
+        given(repository.findByDocMngNoAndDocVrsAndDelYn(
+                "DOC-001", new BigDecimal("0.99"), "N"))
+                .willReturn(Optional.empty());
+
+        // Act & Assert
+        assertThatThrownBy(() -> service.deleteDocument("DOC-001", new BigDecimal("0.99")))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // updateDocument
+    // ─────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateDocument: 미존재 문서관리번호이면 예외가 발생한다")
+    void updateDocument_throwsWhenNotFound() {
+        // Arrange
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsDesc("MISSING", "N"))
+                .willReturn(Optional.empty());
+
+        // Act & Assert
+        assertThatThrownBy(() -> service.updateDocument(
+                "MISSING",
+                ServiceRequestDocDto.UpdateRequest.builder()
+                        .reqNm("수정명")
+                        .build()))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("updateDocument: 존재하는 최신 버전 문서의 요구사항명을 수정한다")
+    void updateDocument_updatesLatestVersion() {
+        // Arrange: 최신 버전 존재
+        Brdocm latest = Brdocm.builder()
+                .docMngNo("DOC-001")
+                .docVrs(new BigDecimal("0.02"))
+                .reqNm("기존 문서명")
+                .build();
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsDesc("DOC-001", "N"))
+                .willReturn(Optional.of(latest));
+
+        // Act
+        String result = service.updateDocument(
+                "DOC-001",
+                ServiceRequestDocDto.UpdateRequest.builder()
+                        .reqNm("수정된 문서명")
+                        .build());
+
+        // Assert: 문서관리번호 반환, JPA Dirty Checking으로 reqNm 수정 반영
+        assertThat(result).isEqualTo("DOC-001");
+        assertThat(latest.getReqNm()).isEqualTo("수정된 문서명");
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // getVersionHistory
+    // ─────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getVersionHistory: 동일 문서의 전체 버전 목록을 내림차순으로 반환한다")
+    void getVersionHistory_returnsAllVersionsDescending() {
+        // Arrange: 0.03, 0.02, 0.01 버전 내림차순 반환
+        Brdocm v3 = Brdocm.builder()
+                .docMngNo("DOC-001").docVrs(new BigDecimal("0.03")).reqNm("v3").build();
+        Brdocm v2 = Brdocm.builder()
+                .docMngNo("DOC-001").docVrs(new BigDecimal("0.02")).reqNm("v2").build();
+        Brdocm v1 = Brdocm.builder()
+                .docMngNo("DOC-001").docVrs(new BigDecimal("0.01")).reqNm("v1").build();
+        given(repository.findAllByDocMngNoAndDelYnOrderByDocVrsDesc("DOC-001", "N"))
+                .willReturn(List.of(v3, v2, v1));
+
+        // Act
+        List<ServiceRequestDocDto.VersionResponse> result = service.getVersionHistory("DOC-001");
+
+        // Assert: 3개 버전, 첫 번째가 최신 버전(0.03)
+        assertThat(result).hasSize(3);
+        assertThat(result.get(0).getDocVrs()).isEqualByComparingTo(new BigDecimal("0.03"));
+        assertThat(result.get(2).getDocVrs()).isEqualByComparingTo(new BigDecimal("0.01"));
+    }
+
+    @Test
+    @DisplayName("getVersionHistory: 이력이 없으면 빈 목록을 반환한다")
+    void getVersionHistory_returnsEmptyWhenNoHistory() {
+        // Arrange
+        given(repository.findAllByDocMngNoAndDelYnOrderByDocVrsDesc("NONE", "N"))
+                .willReturn(List.of());
+
+        // Act
+        List<ServiceRequestDocDto.VersionResponse> result = service.getVersionHistory("NONE");
+
+        // Assert
+        assertThat(result).isEmpty();
+    }
 }

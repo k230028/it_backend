@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -187,5 +188,37 @@ public class ApplicationController {
             @RequestBody ApplicationDto.BulkApproveRequest request) {
         ApplicationDto.BulkApproveResponse response = applicationService.bulkApprove(request);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 전자결재 대시보드 집계 조회
+     *
+     * @param bbrC 부서코드 (필수)
+     * @param eno  사원번호 (필수)
+     * @return HTTP 200 + 대시보드 집계 응답
+     */
+    @GetMapping("/dashboard")
+    @Operation(summary = "전자결재 대시보드 조회",
+               description = "부서코드 기준 KPI, 월별 추이, 본인 결재 대기 목록을 반환합니다.")
+    public ResponseEntity<ApplicationDto.DashboardResponse> getDashboard(
+            @RequestParam("bbrC") String bbrC,
+            @RequestParam("eno") String eno) {
+        return ResponseEntity.ok(applicationService.getDashboard(bbrC, eno));
+    }
+
+    /**
+     * 사이드바 배지용 결재 현황 수 조회
+     *
+     * @param bbrC 부서코드 (필수)
+     * @param eno  사원번호 (필수)
+     * @return HTTP 200 + 배지 건수
+     */
+    @GetMapping("/approval-badge")
+    @Operation(summary = "사이드바 배지 건수 조회",
+               description = "결재 대기 수와 기안 진행 중 수를 반환합니다.")
+    public ResponseEntity<ApplicationDto.ApprovalBadgeCountResponse> getApprovalBadgeCount(
+            @RequestParam("bbrC") String bbrC,
+            @RequestParam("eno") String eno) {
+        return ResponseEntity.ok(applicationService.getApprovalBadgeCount(bbrC, eno));
     }
 }

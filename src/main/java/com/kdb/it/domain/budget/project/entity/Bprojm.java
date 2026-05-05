@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.project.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BprojmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -36,6 +38,7 @@ import java.time.LocalDate;
  * 하나는 {@code prjSno}를 포함하고, 다른 하나는 포함하지 않습니다.
  * </p>
  */
+@LogTarget(entity = BprojmL.class)
 @Entity // JPA 엔티티로 등록
 @Table(name = "TAAABB_BPROJM", comment = "정보화사업(IT 프로젝트) 마스터") // 매핑할 DB 테이블명
 @IdClass(BprojmId.class) // 복합키 클래스 지정 (PRJ_MNG_NO + PRJ_SNO)

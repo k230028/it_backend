@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.work.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BbugtL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -33,6 +35,7 @@ import java.math.BigDecimal;
  *
  * // Design Ref: §2.1 — Bbugtm 엔티티 (Option C Pragmatic Balance)
  */
+@LogTarget(entity = BbugtL.class)
 @Entity
 @Table(name = "TAAABB_BBUGTM", comment = "예산")
 @IdClass(BbugtmId.class)

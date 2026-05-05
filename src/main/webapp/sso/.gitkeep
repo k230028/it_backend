@@ -1,0 +1,15 @@
+# SSO 에이전트 파일을 이 폴더에 복사하세요.
+#
+# 복사 대상 파일 (벤더 제공):
+#   - business.jsp      (SSO 로그인 페이지)
+#   - agentProc.jsp     (인증 콜백 — resultCode 검증 후 response.sendRedirect)
+#   - agentInfo.jsp     (AUTH_SSL_URL, agentId 설정값 입력 필요)
+#   - webcrypto/        (암호화 관련 JS 파일)
+#
+# agentProc.jsp의 response.sendRedirect 대상:
+#   운영: https://it-portal.company.com/
+#   개발: http://localhost:3000/
+#
+# SSO JAR 라이브러리는 it_backend/libs/ 폴더에 복사 후
+# build.gradle의 주석 처리된 의존성을 해제하세요:
+#   implementation files('libs/sso-agent.jar')

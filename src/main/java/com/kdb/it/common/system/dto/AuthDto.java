@@ -132,7 +132,7 @@ public class AuthDto {
         /**
          * JWT Access Token
          * <p>
-         * 단기 유효 토큰 (기본 30분). httpOnly 쿠키로 전달됩니다.
+         * 단기 유효 토큰 (기본 15분). httpOnly 쿠키로 전달됩니다.
          * </p>
          * <p>
          * JSON 응답 body에는 포함되지 않습니다 ({@code @JsonIgnore}).
@@ -221,7 +221,7 @@ public class AuthDto {
         /**
          * 새로 발급된 JWT Access Token
          * <p>
-         * 단기 유효 토큰 (기본 1시간). 이후 API 요청에 사용합니다.
+         * 단기 유효 토큰 (기본 15분). 컨트롤러에서 httpOnly 쿠키로 전달됩니다.
          * </p>
          */
         @Schema(description = "새로운 Access Token")

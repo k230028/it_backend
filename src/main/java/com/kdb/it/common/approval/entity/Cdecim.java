@@ -30,7 +30,7 @@ import java.time.LocalDate;
  * 이전 결재자가 승인해야 다음 결재자가 결재할 수 있습니다.</p>
  */
 @Entity                                              // JPA 엔티티로 등록
-@Table(name = "TAAABB_CDECIM")                       // 매핑할 DB 테이블명
+@Table(name = "TAAABB_CDECIM", comment = "결재 정보 관리")                       // 매핑할 DB 테이블명
 @Getter                                              // 모든 필드의 getter 자동 생성 (Lombok)
 @SuperBuilder                                        // 상속 구조에서 Builder 패턴 지원
 @NoArgsConstructor(access = AccessLevel.PROTECTED)   // protected 기본 생성자 (JPA 요구사항)
@@ -43,7 +43,7 @@ public class Cdecim extends BaseEntity {
      * 신청서 관리번호(APF_MNG_NO)와 동일한 값 (예: APF_202600000001)
      */
     @Id
-    @Column(name = "DCD_MNG_NO", length = 32, nullable = false)
+    @Column(name = "DCD_MNG_NO", length = 32, nullable = false, comment = "결재관리번호")
     private String dcdMngNo;
 
     /**
@@ -51,33 +51,33 @@ public class Cdecim extends BaseEntity {
      * 결재 진행 순서 (1부터 시작, 순번이 낮을수록 먼저 결재)
      */
     @Id
-    @Column(name = "DCD_SQN", nullable = false)
+    @Column(name = "DCD_SQN", nullable = false, comment = "결재순서")
     private Integer dcdSqn;
 
     /** 결재직원번호: 이 순서에서 결재를 담당하는 직원의 사번 */
-    @Column(name = "DCD_ENO", length = 10)
+    @Column(name = "DCD_ENO", length = 10, comment = "결재직원번호")
     private String dcdEno;
 
     /**
      * 결재유형: 결재 행위의 구분
      * null = 미결재 (아직 결재 차례가 오지 않음), "결재" = 결재 처리됨
      */
-    @Column(name = "DCD_TP", length = 32)
+    @Column(name = "DCD_TP", length = 32, comment = "결재유형")
     private String dcdTp;
 
     /** 결재일자: 실제 결재(승인/반려)가 이루어진 날짜 (미결재 시 null) */
-    @Column(name = "DCD_DT")
+    @Column(name = "DCD_DT", comment = "결재일자")
     private LocalDate dcdDt;
 
     /** 결재의견: 결재자가 작성한 의견 또는 코멘트 (최대 1000자) */
-    @Column(name = "DCD_OPNN", length = 1000)
+    @Column(name = "DCD_OPNN", length = 1000, comment = "결재의견")
     private String dcdOpnn;
 
     /**
      * 결재상태: 결재 결과
      * null = 미결재, "승인" = 승인 처리, "반려" = 반려 처리
      */
-    @Column(name = "DCD_STS", length = 32)
+    @Column(name = "DCD_STS", length = 32, comment = "결재상태")
     private String dcdSts;
 
     /**
@@ -85,7 +85,7 @@ public class Cdecim extends BaseEntity {
      * 'Y' = 최종 결재자 (이 결재자 승인 시 신청서가 "결재완료"로 변경)
      * 'N' = 중간 결재자
      */
-    @Column(name = "LST_DCD_YN", length = 1)
+    @Column(name = "LST_DCD_YN", length = 1, comment = "최종결재자여부")
     private String lstDcdYn;
 
     /**
@@ -106,3 +106,4 @@ public class Cdecim extends BaseEntity {
         this.dcdOpnn = opinion;        // 결재 의견 기록
     }
 }
+

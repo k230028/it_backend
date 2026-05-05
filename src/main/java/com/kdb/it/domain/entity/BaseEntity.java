@@ -16,6 +16,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.kdb.it.config.JpaAuditConfig;
+import com.kdb.it.domain.log.listener.ChangeLogEntityListener;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -52,7 +53,7 @@ import java.util.UUID;
 @SuperBuilder // 부모-자식 상속 구조에서 Builder 패턴 지원 (Lombok)
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // 기본 생성자를 protected로 제한 (외부 직접 생성 방지)
 @AllArgsConstructor // 모든 필드를 받는 생성자 자동 생성 (Lombok)
-@EntityListeners(AuditingEntityListener.class) // JPA Auditing 이벤트 리스너 등록
+@EntityListeners({AuditingEntityListener.class, ChangeLogEntityListener.class}) // JPA Auditing + 변경 로그 리스너
 public abstract class BaseEntity {
 
     /** 삭제여부: 'N'=미삭제(기본값), 'Y'=삭제 (Soft Delete용 플래그) */

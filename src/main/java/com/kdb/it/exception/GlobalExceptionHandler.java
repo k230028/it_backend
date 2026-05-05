@@ -97,7 +97,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException e) {
-        log.warn("런타임 예외 발생: {}", e.getMessage());
+        log.warn("런타임 예외 발생: {}", e.getMessage(), e);
         return buildErrorResponse(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 

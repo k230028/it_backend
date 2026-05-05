@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.document.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BgdocmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -27,6 +29,7 @@ import lombok.experimental.SuperBuilder;
  * 관리번호 형식: {@code GDOC-{연도}-{4자리 시퀀스}} (예: {@code GDOC-2026-0001})
  * </p>
  */
+@LogTarget(entity = BgdocmL.class)
 @Entity
 @Table(name = "TAAABB_BGDOCM", comment = "가이드 문서")
 @Getter

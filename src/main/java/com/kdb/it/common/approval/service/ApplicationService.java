@@ -566,6 +566,70 @@ public class ApplicationService {
     }
 
     /**
+     * 전자결재 대시보드 집계 조회
+     *
+     * <p>bbrC 기준 부서 통계와 eno 기준 본인 결재 대기 목록을 반환합니다.</p>
+     *
+     * @param bbrC 부서코드 (TAAABB_CUSERI.BBR_C)
+     * @param eno  사원번호 (본인 결재 대기 필터)
+     * @return 대시보드 집계 응답 DTO
+     */
+    public ApplicationDto.DashboardResponse getDashboard(String bbrC, String eno) {
+        int pendingCount          = applicationRepository.countPendingByEno(eno);
+        int inProgressCount       = applicationRepository.countInProgressByEno(eno);
+        int monthlyCompletedCount = applicationRepository.countMonthlyCompletedByBbrC(bbrC);
+        int rejectedCount         = applicationRepository.countRejectedByEno(eno);
+
+        List<ApplicationDto.MonthlyCount> monthlyTrend =
+            applicationRepository.findMonthlyTrendByBbrC(bbrC).stream()
+                .map(row -> ApplicationDto.MonthlyCount.builder()
+                    .month((String) row[0])
+                    .count(((Number) row[1]).intValue())
+                    .build())
+                .toList();
+
+        LocalDate threeDaysAgo = LocalDate.now().minusDays(3);
+        List<ApplicationDto.PendingItem> pendingList =
+            applicationRepository.findPendingListByEno(eno).stream()
+                .map(row -> {
+                    String rqsDtStr = (String) row[3];
+                    LocalDate rqsDt = rqsDtStr != null ? LocalDate.parse(rqsDtStr) : LocalDate.now();
+                    String urgency = rqsDt.isBefore(threeDaysAgo) ? "urgent" : "normal";
+                    return ApplicationDto.PendingItem.builder()
+                        .apfMngNo((String) row[0])
+                        .title((String) row[1])
+                        .requesterName((String) row[2])
+                        .requestedAt(rqsDtStr)
+                        .urgency(urgency)
+                        .build();
+                })
+                .toList();
+
+        return ApplicationDto.DashboardResponse.builder()
+            .pendingCount(pendingCount)
+            .inProgressCount(inProgressCount)
+            .monthlyCompletedCount(monthlyCompletedCount)
+            .rejectedCount(rejectedCount)
+            .monthlyTrend(monthlyTrend)
+            .pendingList(pendingList)
+            .build();
+    }
+
+    /**
+     * 사이드바 배지용 결재 현황 수 조회
+     *
+     * @param bbrC 부서코드 (향후 부서 기준 집계 확장용, 현재 미사용)
+     * @param eno  사원번호
+     * @return 배지 건수 응답 DTO
+     */
+    public ApplicationDto.ApprovalBadgeCountResponse getApprovalBadgeCount(String bbrC, String eno) {
+        return ApplicationDto.ApprovalBadgeCountResponse.builder()
+            .pendingCount(applicationRepository.countPendingByEno(eno))
+            .inProgressCount(applicationRepository.countInProgressByEno(eno))
+            .build();
+    }
+
+    /**
      * 미상신(결재 신청 이력 없음) 건수 집계
      *
      * <p>

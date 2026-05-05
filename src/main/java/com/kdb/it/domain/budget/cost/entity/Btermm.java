@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.cost.entity;
 
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.BtermmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,6 +32,7 @@ import lombok.experimental.SuperBuilder;
  * 금융정보단말기 관련 상세 정보를 관리하며, 전산관리비({@link Bcostm})와 1:N 관계를 가집니다.
  * </p>
  */
+@LogTarget(entity = BtermmL.class)
 @Entity
 @Table(name = "TAAABB_BTERMM", comment = "단말기관리마스터")
 @IdClass(BtermmId.class)

@@ -40,7 +40,7 @@ import java.time.LocalDateTime;
  * </ol>
  */
 @Entity
-@Table(name = "TAAABB_CRTOKM")
+@Table(name = "TAAABB_CRTOKM", comment = "갱신토큰")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -53,28 +53,28 @@ public class Crtokm extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "S_TOK_SNO")
     @SequenceGenerator(name = "S_TOK_SNO", sequenceName = "S_TOK_SNO", allocationSize = 1)
-    @Column(name = "TOK_SNO")
+    @Column(name = "TOK_SNO", comment = "토큰일련번호")
     private Long tokSno;
 
     /**
      * 토큰: JWT Refresh Token 값 (최대 2000자)
      * UNIQUE 제약조건으로 중복 저장 방지
      */
-    @Column(name = "TOK", nullable = false, unique = true, length = 2000)
+    @Column(name = "TOK", nullable = false, unique = true, length = 2000, comment = "토큰")
     private String tok;
 
     /**
      * 사원번호: 이 토큰을 소유한 사용자의 사번
      * 로그아웃 또는 재로그인 시 사번으로 기존 토큰 삭제에 사용
      */
-    @Column(name = "ENO", nullable = false, length = 80)
+    @Column(name = "ENO", nullable = false, length = 80, comment = "사원번호")
     private String eno;
 
     /**
      * 종료일시: 이 Refresh Token이 유효한 마지막 일시
      * 이 시각 이후에는 토큰이 만료된 것으로 간주
      */
-    @Column(name = "END_DTM", nullable = false)
+    @Column(name = "END_DTM", nullable = false, comment = "종료일시")
     private LocalDateTime endDtm;
 
     /**
@@ -87,3 +87,4 @@ public class Crtokm extends BaseEntity {
     }
 
 }
+

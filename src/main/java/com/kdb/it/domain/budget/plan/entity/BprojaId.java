@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 프로젝트관계(BPROJA) 엔티티의 복합 기본키 클래스
+ * 정보화사업 관계(BPROJA) 엔티티의 복합 기본키 클래스
  *
  * <p>
  * JPA의 {@code @IdClass} 방식으로 복합키를 정의합니다.

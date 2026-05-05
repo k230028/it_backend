@@ -96,15 +96,16 @@ public class AdminService {
 
         /**
          * 신규 공통코드를 추가합니다.
-         * C_ID 중복 시 예외를 발생시킵니다.
+         * C_ID와 시작일자가 모두 중복되면 예외를 발생시킵니다.
          *
          * @param req 공통코드 생성 요청 DTO
-         * @throws IllegalArgumentException 코드ID 중복 시
+         * @throws IllegalArgumentException 코드ID/시작일자 중복 시
          */
         @Transactional
         public void createCode(AdminDto.CodeRequest req) {
-                if (codeRepository.existsByCdId(req.cdId())) {
-                        throw new IllegalArgumentException("이미 존재하는 코드ID입니다: " + req.cdId());
+                validateCodeKey(req.cdId(), req.sttDt());
+                if (codeRepository.existsByCdIdAndSttDt(req.cdId(), req.sttDt())) {
+                        throw new IllegalArgumentException("이미 존재하는 코드ID/시작일자입니다: " + req.cdId() + ", " + req.sttDt());
                 }
                 Ccodem code = Ccodem.builder()
                                 .cdId(req.cdId())
@@ -125,16 +126,21 @@ public class AdminService {
          * Dirty Checking을 활용하여 별도 save() 호출 없이 변경사항을 반영합니다.
          *
          * @param cdId 코드ID
+         * @param sttDt 시작일자
          * @param req  공통코드 수정 요청 DTO
          * @throws IllegalArgumentException 코드를 찾을 수 없는 경우
          */
         @Transactional
-        public void updateCode(String cdId, AdminDto.CodeRequest req) {
-                Ccodem code = codeRepository.findByCdIdAndDelYn(cdId, "N")
-                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드ID입니다: " + cdId));
+        public void updateCode(String cdId, LocalDate sttDt, AdminDto.CodeRequest req) {
+                validateCodeKey(cdId, sttDt);
+                Ccodem code = codeRepository.findByCdIdAndSttDtAndDelYn(cdId, sttDt, "N")
+                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드ID/시작일자입니다: " + cdId + ", " + sttDt));
+                if (req.sttDt() != null && !req.sttDt().equals(sttDt)) {
+                        throw new IllegalArgumentException("시작일자는 기본키이므로 수정할 수 없습니다.");
+                }
                 // Dirty Checking — save() 불필요
                 code.update(req.cdNm(), req.cdva(), req.cdDes(), req.cttTp(),
-                                req.cttTpDes(), req.cdSqn(), req.sttDt(), req.endDt());
+                                req.cttTpDes(), req.cdSqn(), sttDt, req.endDt());
         }
 
         /**
@@ -142,13 +148,15 @@ public class AdminService {
          * DEL_YN='Y' 처리 — 물리 삭제 금지.
          *
          * @param cdId 코드ID
+         * @param sttDt 시작일자
          * @throws IllegalArgumentException 코드를 찾을 수 없는 경우
          */
         @Transactional
-        public void deleteCode(String cdId) {
+        public void deleteCode(String cdId, LocalDate sttDt) {
                 // Plan SC: Soft Delete 요구사항 (C-08)
-                Ccodem code = codeRepository.findByCdIdAndDelYn(cdId, "N")
-                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드ID입니다: " + cdId));
+                validateCodeKey(cdId, sttDt);
+                Ccodem code = codeRepository.findByCdIdAndSttDtAndDelYn(cdId, sttDt, "N")
+                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드ID/시작일자입니다: " + cdId + ", " + sttDt));
                 code.delete();
         }
 
@@ -164,8 +172,9 @@ public class AdminService {
                 int created = 0;
                 int updated = 0;
                 for (AdminDto.CodeRequest item : req.codes()) {
-                        if (codeRepository.existsByCdId(item.cdId())) {
-                                Ccodem code = codeRepository.findByCdIdAndDelYn(item.cdId(), "N")
+                        validateCodeKey(item.cdId(), item.sttDt());
+                        if (codeRepository.existsByCdIdAndSttDt(item.cdId(), item.sttDt())) {
+                                Ccodem code = codeRepository.findByCdIdAndSttDtAndDelYn(item.cdId(), item.sttDt(), "N")
                                                 .orElse(null);
                                 if (code != null) {
                                         code.update(item.cdNm(), item.cdva(), item.cdDes(), item.cttTp(),
@@ -189,6 +198,18 @@ public class AdminService {
                         }
                 }
                 return Map.of("created", created, "updated", updated);
+        }
+
+        /**
+         * 공통코드 복합키 필수값을 검증합니다.
+         */
+        private void validateCodeKey(String cdId, LocalDate sttDt) {
+                if (cdId == null || cdId.isBlank()) {
+                        throw new IllegalArgumentException("코드ID는 필수입니다.");
+                }
+                if (sttDt == null) {
+                        throw new IllegalArgumentException("시작일자는 필수입니다.");
+                }
         }
 
         /**

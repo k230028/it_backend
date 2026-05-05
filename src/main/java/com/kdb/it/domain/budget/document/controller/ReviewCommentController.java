@@ -3,6 +3,11 @@ package com.kdb.it.domain.budget.document.controller;
 import com.kdb.it.domain.budget.document.dto.ReviewCommentDto;
 import com.kdb.it.domain.budget.document.service.ReviewCommentService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -52,10 +57,42 @@ public class ReviewCommentController {
      * @param docVrs   문서버전 (필수)
      * @return HTTP 200 + 검토의견 응답 DTO 목록 (생성일시 오름차순)
      */
-    @Operation(summary = "검토의견 목록 조회", description = "특정 문서+버전의 미삭제 검토의견 목록을 조회합니다.")
+    @Operation(summary = "검토의견 목록 조회",
+            description = """
+                    특정 문서와 문서버전에 등록된 미삭제 검토의견 목록을 조회합니다.
+
+                    - 조회 대상: TAAABB_BRIVGM
+                    - 정렬 기준: 생성일시 오름차순
+                    - 의견 유형: I(인라인), G(전반)
+                    - 화면 용도: 문서 편집/검토 화면의 코멘트 패널
+                    """,
+            responses = @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(
+                            schema = @Schema(implementation = ReviewCommentDto.Response.class),
+                            examples = @ExampleObject(
+                                    name = "검토의견 목록 응답 예시",
+                                    value = """
+                                            [
+                                              {
+                                                "ivgSno": "4f7f1fd8623c48eab6d52a789c10e001",
+                                                "docMngNo": "DOC-2026-0001",
+                                                "docVrs": 1.00,
+                                                "ivgTp": "I",
+                                                "ivgCone": "예산 산출 근거를 보완해 주세요.",
+                                                "markId": "mark-budget-001",
+                                                "qtdCone": "예산 산출 근거",
+                                                "rslvYn": "N",
+                                                "authorEno": "123456",
+                                                "authorName": "홍길동",
+                                                "createdAt": "2026-04-28T10:30:00"
+                                              }
+                                            ]
+                                            """))))
     @GetMapping
     public List<ReviewCommentDto.Response> getComments(
+            @Parameter(description = "문서관리번호", required = true, example = "DOC-2026-0001")
             @PathVariable("docMngNo") String docMngNo,
+            @Parameter(description = "문서버전", required = true, example = "1.00")
             @RequestParam("docVrs") BigDecimal docVrs) {
         return reviewCommentService.getComments(docMngNo, docVrs);
     }
@@ -67,11 +104,37 @@ public class ReviewCommentController {
      * @param request  검토의견 생성 요청 DTO
      * @return HTTP 201 Created + 저장된 검토의견 응답 DTO
      */
-    @Operation(summary = "검토의견 추가", description = "특정 문서+버전에 검토의견을 신규 등록합니다.")
+    @Operation(summary = "검토의견 추가",
+            description = """
+                    특정 문서버전에 검토의견을 신규 등록합니다.
+
+                    - 인라인 의견(I): markId와 qtdCone을 함께 전달해 편집기 하이라이트와 연결합니다.
+                    - 전반 의견(G): 문서 전체에 대한 의견이며 markId/qtdCone은 생략할 수 있습니다.
+                    - 의견일련번호는 서버에서 UUID v4 기반 32자 문자열로 생성합니다.
+                    """,
+            responses = @ApiResponse(responseCode = "201", description = "등록 성공",
+                    content = @Content(schema = @Schema(implementation = ReviewCommentDto.Response.class))))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ReviewCommentDto.Response addComment(
+            @Parameter(description = "문서관리번호", required = true, example = "DOC-2026-0001")
             @PathVariable("docMngNo") String docMngNo,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "검토의견 생성 요청. ivgTp가 I이면 markId/qtdCone을 함께 전달합니다.",
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = ReviewCommentDto.CreateRequest.class),
+                            examples = @ExampleObject(
+                                    name = "인라인 검토의견 등록 예시",
+                                    value = """
+                                            {
+                                              "docVrs": 1.00,
+                                              "ivgTp": "I",
+                                              "ivgCone": "예산 산출 근거를 보완해 주세요.",
+                                              "markId": "mark-budget-001",
+                                              "qtdCone": "예산 산출 근거"
+                                            }
+                                            """)))
             @Valid @RequestBody ReviewCommentDto.CreateRequest request) {
         return reviewCommentService.addComment(docMngNo, request);
     }
@@ -86,11 +149,21 @@ public class ReviewCommentController {
      * @param docMngNo 문서관리번호 (코멘트 소속 검증에 사용)
      * @param ivgSno   의견일련번호 (UUID v4 32자)
      */
-    @Operation(summary = "검토의견 해결 처리", description = "검토의견을 해결 상태로 변경합니다 (RSLV_YN='Y').")
+    @Operation(summary = "검토의견 해결 처리",
+            description = """
+                    지정한 의견일련번호의 해결여부를 완료 상태로 변경합니다.
+
+                    - 변경 값: RSLV_YN='Y'
+                    - 문서관리번호와 의견일련번호를 함께 검증하여 다른 문서의 의견이 잘못 처리되지 않게 합니다.
+                    - 응답 본문 없이 204 No Content를 반환합니다.
+                    """,
+            responses = @ApiResponse(responseCode = "204", description = "해결 처리 성공"))
     @PatchMapping("/{ivgSno}/resolve")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void resolveComment(
+            @Parameter(description = "문서관리번호", required = true, example = "DOC-2026-0001")
             @PathVariable("docMngNo") String docMngNo,
+            @Parameter(description = "의견일련번호(UUID v4 32자)", required = true, example = "4f7f1fd8623c48eab6d52a789c10e001")
             @PathVariable("ivgSno") String ivgSno) {
         reviewCommentService.resolveComment(docMngNo, ivgSno);
     }
