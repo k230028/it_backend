@@ -308,6 +308,29 @@ public class CouncilController {
     }
 
     /**
+     * 협의회 완료 처리 (IN_PROGRESS → RESULT_WRITING)
+     *
+     * <p>모든 평가위원의 평가 제출이 확인된 후 IT관리자가 호출합니다.
+     * 협의회 상태를 RESULT_WRITING으로 전이하여 개최결과서 작성 단계로 전환합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return HTTP 200
+     */
+    @Operation(summary = "협의회 완료 처리", description = "IN_PROGRESS 상태의 협의회를 RESULT_WRITING으로 전이합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "완료 처리 성공"),
+            @ApiResponse(responseCode = "400", description = "IN_PROGRESS 상태가 아닌 경우", content = @Content),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @PatchMapping("/{asctId}/complete")
+    public ResponseEntity<Void> completeCouncil(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId) {
+        councilService.completeCouncil(asctId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
      * 정보화실무협의회 생략 처리 (APPROVED → SKIPPED)
      *
      * <p>IT관리자가 타당성검토표 검토 후 협의회 생략 대상으로 판단한 경우 호출합니다.
@@ -538,6 +561,29 @@ public class CouncilController {
     }
 
     /**
+     * 내 평가의견 조회 (로그인한 평가위원 본인)
+     *
+     * <p>로그인한 평가위원이 이미 제출한 6개 항목의 평가의견을 반환합니다.
+     * 아직 제출 이력이 없으면 빈 배열을 반환합니다.</p>
+     *
+     * @param asctId      협의회ID
+     * @param userDetails 로그인한 평가위원
+     * @return 내 평가의견 목록 (최대 6개, 없으면 빈 배열)
+     */
+    @Operation(summary = "내 평가의견 조회", description = "로그인한 평가위원 본인의 평가의견을 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @GetMapping("/{asctId}/evaluation/my")
+    public ResponseEntity<List<CouncilDto.EvaluationItemResponse>> getMyEvaluation(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(evaluationService.getMyEvaluation(asctId, userDetails));
+    }
+
+    /**
      * 평가의견 작성/수정 (평가위원)
      *
      * <p>6개 점검항목에 대한 점수와 의견을 저장합니다.
@@ -660,6 +706,106 @@ public class CouncilController {
             @PathVariable("asctId") String asctId) {
         resultService.confirmResult(asctId);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 평가위원 결과서 검토 확인 (평가위원)
+     *
+     * <p>RESULT_REVIEW 상태에서 평가위원(MAND/CALL)이 결과서 확인 완료를 처리합니다.
+     * 전원 확인 완료 시 협의회 상태가 FINAL_APPROVAL로 자동 전이됩니다.</p>
+     *
+     * @param asctId      협의회ID
+     * @param userDetails 로그인한 평가위원
+     * @return HTTP 200
+     */
+    @Operation(summary = "결과서 검토 확인", description = "평가위원이 결과서를 확인합니다. 전원 완료 시 FINAL_APPROVAL 자동 전이.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "확인 처리 성공"),
+            @ApiResponse(responseCode = "400", description = "RESULT_REVIEW 상태 아님", content = @Content),
+            @ApiResponse(responseCode = "403", description = "평가위원 아님 또는 간사", content = @Content),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @PostMapping("/{asctId}/result/review")
+    public ResponseEntity<Void> reviewResult(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        resultService.reviewResult(asctId, userDetails);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 본인 결과서 검토 확인 여부 조회 (평가위원)
+     *
+     * <p>페이지 진입 시 이미 결과서 확인을 완료했는지 조회합니다.
+     * 완료 시 버튼 대신 완료 UI를 표시하는 데 사용합니다.</p>
+     *
+     * @param asctId      협의회ID
+     * @param userDetails 로그인한 평가위원
+     * @return true: 이미 확인 완료, false: 미확인
+     */
+    @Operation(summary = "본인 결과서 확인 여부 조회", description = "평가위원 본인의 결과서 검토 확인 여부를 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @GetMapping("/{asctId}/result/review/my")
+    public ResponseEntity<Boolean> getMyResultReview(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(resultService.getMyReviewStatus(asctId, userDetails));
+    }
+
+    /**
+     * 개최결과서 결재 요청 (IT관리자)
+     *
+     * <p>FINAL_APPROVAL 상태에서 IT관리자가 부장에게 결재를 요청합니다.
+     * 전자결재 시스템에 신청서를 등록하고 협의회 상태를 RESULT_APPROVAL_PENDING으로 전이합니다.</p>
+     *
+     * @param asctId      협의회ID
+     * @param request     결재 요청 (부장 사번, 신청의견)
+     * @param userDetails 신청자 정보
+     * @return HTTP 200 + 신청관리번호 (APF_... 형식)
+     */
+    @Operation(summary = "개최결과서 결재 요청", description = "부장에게 개최결과서 결재를 요청합니다. FINAL_APPROVAL 상태에서만 가능합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "결재 요청 성공",
+                    content = @Content(schema = @Schema(implementation = CouncilDto.ApprovalResponse.class))),
+            @ApiResponse(responseCode = "400", description = "FINAL_APPROVAL 상태 아님", content = @Content),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @PostMapping("/{asctId}/result/approval")
+    public ResponseEntity<CouncilDto.ApprovalResponse> requestResultApproval(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId,
+            @RequestBody CouncilDto.ResultApprovalRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        CouncilDto.ApprovalResponse response = councilApprovalService.requestResultApproval(asctId, request, userDetails);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 추진부서 통보 처리 (IT관리자)
+     *
+     * <p>협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다.
+     * 사업 상태(BPROJM.PRJ_STS)를 '요건 상세화'로 변경합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return HTTP 200
+     */
+    @Operation(summary = "추진부서 통보", description = "협의회 결과를 추진부서에 통보합니다. COMPLETED 상태에서만 가능합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "통보 성공"),
+            @ApiResponse(responseCode = "400", description = "COMPLETED 상태 아님", content = @Content),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @PostMapping("/{asctId}/notify")
+    public ResponseEntity<CouncilDto.NotifyResponse> notifyCouncil(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId) {
+        CouncilDto.NotifyResponse response = councilService.notifyCouncil(asctId);
+        return ResponseEntity.ok(response);
     }
 
     // =========================================================================

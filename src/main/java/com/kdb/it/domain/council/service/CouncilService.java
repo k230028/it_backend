@@ -3,13 +3,20 @@ package com.kdb.it.domain.council.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.OrganizationRepository;
+import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
+import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bpovwm;
+import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
+import com.kdb.it.domain.council.repository.EvaluationRepository;
 import com.kdb.it.domain.council.repository.ProjectOverviewRepository;
 
 import org.springframework.stereotype.Service;
@@ -56,6 +63,18 @@ public class CouncilService {
 
     /** 정보화사업 리포지토리 — 사업명/전결권자 조회용 */
     private final ProjectRepository projectRepository;
+
+    /** 평가위원 리포지토리 — completeCouncil 완료 검증용 */
+    private final CommitteeRepository committeeRepository;
+
+    /** 평가의견 리포지토리 — completeCouncil 완료 검증용 */
+    private final EvaluationRepository evaluationRepository;
+
+    /** 사용자 리포지토리 — 수신자 정보 조회용 */
+    private final UserRepository userRepository;
+
+    /** 조직 리포지토리 — 부서명 조회용 */
+    private final OrganizationRepository organizationRepository;
 
     // =========================================================================
     // 조회
@@ -190,6 +209,104 @@ public class CouncilService {
         }
 
         council.changeStatus("IN_PROGRESS");
+    }
+
+    /**
+     * 협의회 완료 처리 (IN_PROGRESS/EVALUATING → RESULT_WRITING)
+     *
+     * <p>모든 평가위원의 평가 제출이 확인된 후 IT관리자가 호출합니다.
+     * IN_PROGRESS 또는 EVALUATING 상태에서 호출 가능합니다.</p>
+     *
+     * <p>완료 조건:</p>
+     * <ol>
+     *   <li>평가위원(간사 제외: MAND + CALL)이 1명 이상 존재</li>
+     *   <li>모든 평가위원이 6개 항목 평가의견을 제출 완료</li>
+     * </ol>
+     *
+     * @param asctId 협의회ID
+     * @throws IllegalStateException 진행 중 상태가 아니거나 평가 미완료인 경우
+     */
+    @Transactional
+    public void completeCouncil(String asctId) {
+        Basctm council = findActiveCouncil(asctId);
+        String status = council.getAsctSts();
+
+        // IN_PROGRESS(평가 미시작) 또는 EVALUATING(평가 진행 중) 상태에서만 가능
+        if (!"IN_PROGRESS".equals(status) && !"EVALUATING".equals(status)) {
+            throw new IllegalStateException(
+                "협의회 완료는 진행 중 상태에서만 가능합니다. 현재 상태: " + status);
+        }
+
+        // 평가 대상 위원 조회 (간사 제외: MAND + CALL만 평가 의무)
+        List<Bcmmtm> evaluators = committeeRepository.findByAsctIdAndDelYn(asctId, "N")
+                .stream()
+                .filter(m -> !"SECR".equals(m.getVlrTp()))
+                .collect(Collectors.toList());
+
+        if (evaluators.isEmpty()) {
+            throw new IllegalStateException("평가위원이 선정되지 않았습니다.");
+        }
+
+        // 각 위원별 6개 항목 제출 완료 여부 확인
+        long incompleteCount = evaluators.stream()
+                .filter(m -> evaluationRepository
+                        .findByAsctIdAndEnoAndDelYn(asctId, m.getEno(), "N").size() < 6)
+                .count();
+
+        if (incompleteCount > 0) {
+            throw new IllegalStateException(
+                "아직 평가의견이 입력되지 않은 평가위원이 있습니다. (" + incompleteCount + "명 미완료)");
+        }
+
+        council.changeStatus("RESULT_WRITING");
+    }
+
+    /**
+     * 추진부서 통보 처리 (COMPLETED)
+     *
+     * <p>협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다.
+     * 사업 상태(BPROJM.PRJ_STS)를 '요건 상세화'로 변경하고,
+     * 수신자(협의회 최초 등록자) 정보를 반환합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return 수신자(추진부서 담당자) 정보 DTO
+     * @throws IllegalStateException 현재 상태가 COMPLETED가 아닌 경우
+     */
+    @Transactional
+    public CouncilDto.NotifyResponse notifyCouncil(String asctId) {
+        Basctm council = findActiveCouncil(asctId);
+
+        // COMPLETED 상태에서만 통보 가능
+        if (!"COMPLETED".equals(council.getAsctSts())) {
+            throw new IllegalStateException(
+                "통보는 완료(COMPLETED) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+        }
+
+        // 사업 상태 전이: '정실협 진행중' → '요건 상세화'
+        councilRepository.updateProjectStatus(council.getPrjMngNo(), council.getPrjSno(), "요건 상세화");
+
+        // 수신자(협의회 최초 등록자 = 추진부서 담당자) 정보 조회
+        String recipientEno = council.getFstEnrUsid();
+        String usrNm = null;
+        String bbrNm = null;
+        String temNm = null;
+
+        if (recipientEno != null) {
+            CuserI recipient = userRepository.findByEno(recipientEno).orElse(null);
+            if (recipient != null) {
+                usrNm = recipient.getUsrNm();
+                temNm = recipient.getTemNm();
+                // 부서명은 CorgnI에서 조회
+                if (recipient.getBbrC() != null) {
+                    CorgnI org = organizationRepository.findById(recipient.getBbrC()).orElse(null);
+                    if (org != null) {
+                        bbrNm = org.getBbrNm();
+                    }
+                }
+            }
+        }
+
+        return new CouncilDto.NotifyResponse(recipientEno, usrNm, bbrNm, temNm);
     }
 
     /**
