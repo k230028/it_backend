@@ -411,6 +411,10 @@ public class CostDto {
         @Schema(description = "일반관리비 편성예산 (BBUGTM 기준)")
         private java.math.BigDecimal costDupBg;
 
+        /** 전년도 예산: PUL_DTT_002(계속)이면 bgYy-1 연도 IT_MNGC_BG 합계, 신규(PUL_DTT_001)이면 0 */
+        @Schema(description = "전년도 예산 (계속 항목은 전년도 IT_MNGC_BG 합계, 신규는 0)")
+        private BigDecimal prevBgAmt;
+
         /** 삭제여부 (Soft Delete 상태, "Y": 삭제됨, "N": 정상) */
         @Schema(description = "삭제여부", example = "N")
         private String delYn;

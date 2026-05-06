@@ -189,16 +189,22 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     public List<BudgetStatusDto.CostResponse> findCostStatus(String bgYy) {
         QBcostm c = QBcostm.bcostm;
         QBbugtm b = new QBbugtm("b");
+        // 전년도 편성 조회용 별칭 (동일 IT_MNGC_NO로 전년도 BBUGTM JOIN)
+        QBbugtm bPrev = new QBbugtm("bPrev");
+        QCorgnI dpmOrg = new QCorgnI("dpmOrg");   // 담당부서 조직 조인용
+        QCorgnI temOrg = new QCorgnI("temOrg");    // 담당팀 조직 조인용
 
-        // 편성요청: IOE_C 접두어별 IT_MNGC_BG * COALESCE(XCR, 1) 분배
-        NumberExpression<BigDecimal> reqRent = caseAmtByPrefix(c.ioeC, IOE_RENT, c.itMngcBg, c.xcr);
-        NumberExpression<BigDecimal> reqTravel = caseAmtByPrefix(c.ioeC, IOE_TRAVEL, c.itMngcBg, c.xcr);
-        NumberExpression<BigDecimal> reqService = caseAmtByPrefix(c.ioeC, IOE_SERVICE, c.itMngcBg, c.xcr);
-        NumberExpression<BigDecimal> reqMisc = caseAmtByPrefix(c.ioeC, IOE_MISC, c.itMngcBg, c.xcr);
+        String prevYy = String.valueOf(Integer.parseInt(bgYy) - 1);
+
+        // 전년도 편성금액: 전년도 BBUGTM DUP_BG를 IOE_C 접두어별 분배 (편성 없으면 0)
+        NumberExpression<BigDecimal> reqRent = caseDupBgByPrefix(c.ioeC, bPrev.dupBg, IOE_RENT);
+        NumberExpression<BigDecimal> reqTravel = caseDupBgByPrefix(c.ioeC, bPrev.dupBg, IOE_TRAVEL);
+        NumberExpression<BigDecimal> reqService = caseDupBgByPrefix(c.ioeC, bPrev.dupBg, IOE_SERVICE);
+        NumberExpression<BigDecimal> reqMisc = caseDupBgByPrefix(c.ioeC, bPrev.dupBg, IOE_MISC);
         NumberExpression<BigDecimal> reqTotal = Expressions.numberTemplate(BigDecimal.class,
-                "{0} * COALESCE({1}, 1)", c.itMngcBg, c.xcr);
+                "COALESCE({0}, 0)", bPrev.dupBg);
 
-        // 조정: BBUGTM의 DUP_BG를 IOE_C 접두어별 분배
+        // 금년도 조정: 금년도 BBUGTM의 DUP_BG를 IOE_C 접두어별 분배
         NumberExpression<BigDecimal> adjRent = caseDupBgByPrefix(c.ioeC, b.dupBg, IOE_RENT);
         NumberExpression<BigDecimal> adjTravel = caseDupBgByPrefix(c.ioeC, b.dupBg, IOE_TRAVEL);
         NumberExpression<BigDecimal> adjService = caseDupBgByPrefix(c.ioeC, b.dupBg, IOE_SERVICE);
@@ -209,16 +215,25 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         List<Tuple> tuples = queryFactory
                 .select(
                         c.itMngcNo, c.pulDtt, c.abusC, c.ioeC,
-                        c.biceDpm, c.biceTem, c.cttNm, c.cttOpp, c.infPrtYn, c.itMngcTp,
+                        c.biceDpm, dpmOrg.bbrNm, c.biceTem, temOrg.bbrNm,
+                        c.cttNm, c.cttOpp, c.infPrtYn, c.itMngcTp,
                         reqRent, reqTravel, reqService, reqMisc, reqTotal,
                         adjRent, adjTravel, adjService, adjMisc, adjTotal
                 )
                 .from(c)
+                .leftJoin(dpmOrg).on(dpmOrg.prlmOgzCCone.eq(c.biceDpm))
+                .leftJoin(temOrg).on(temOrg.prlmOgzCCone.eq(c.biceTem))
                 .leftJoin(b).on(
                         b.orcTb.eq("BCOSTM"),
                         b.orcPkVl.eq(c.itMngcNo),
                         b.bgYy.eq(bgYy),
                         b.delYn.eq("N")
+                )
+                .leftJoin(bPrev).on(
+                        bPrev.orcTb.eq("BCOSTM"),
+                        bPrev.orcPkVl.eq(c.itMngcNo),
+                        bPrev.bgYy.eq(prevYy),
+                        bPrev.delYn.eq("N")
                 )
                 .where(
                         c.bgYy.eq(bgYy),
@@ -230,8 +245,8 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         return tuples.stream().map(t -> new BudgetStatusDto.CostResponse(
                 t.get(c.itMngcNo), t.get(c.pulDtt), t.get(c.abusC), t.get(c.ioeC),
-                t.get(c.biceDpm), t.get(c.biceTem), t.get(c.cttNm), t.get(c.cttOpp),
-                t.get(c.infPrtYn), t.get(c.itMngcTp),
+                t.get(c.biceDpm), t.get(dpmOrg.bbrNm), t.get(c.biceTem), t.get(temOrg.bbrNm),
+                t.get(c.cttNm), t.get(c.cttOpp), t.get(c.infPrtYn), t.get(c.itMngcTp),
                 nvl(t.get(reqRent)), nvl(t.get(reqTravel)),
                 nvl(t.get(reqService)), nvl(t.get(reqMisc)), nvl(t.get(reqTotal)),
                 nvl(t.get(adjRent)), nvl(t.get(adjTravel)),

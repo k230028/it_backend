@@ -312,6 +312,9 @@ public class PlanService {
                                 .projects(projectSnapshots)
                                 .byDepartment(byDepartment)
                                 .byProjectType(byProjectType)
+                                .budgetAllocation(request.getBudgetAllocation())
+                                .capitalBudget(request.getCapitalBudget())
+                                .expenseCost(request.getExpenseCost())
                                 .build();
 
                 try {

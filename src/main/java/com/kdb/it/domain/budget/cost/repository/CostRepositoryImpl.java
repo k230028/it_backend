@@ -1,10 +1,14 @@
 package com.kdb.it.domain.budget.cost.repository;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.QBcostm;
+import com.querydsl.core.Tuple;
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.querydsl.core.BooleanBuilder;
@@ -160,5 +164,31 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                 .selectFrom(bcostm)
                 .where(builder)
                 .fetch();
+    }
+
+    /**
+     * 전년도 예산 합계 일괄 조회
+     *
+     * <p>IT_MNGC_NO별 전년도(prevYear) IT_MNGC_BG 합계를 집계하여 반환합니다.</p>
+     */
+    @Override
+    public Map<String, BigDecimal> sumPrevBgByItMngcNos(List<String> itMngcNos, String prevYear) {
+        if (itMngcNos == null || itMngcNos.isEmpty()) return Map.of();
+        QBcostm bcostm = QBcostm.bcostm;
+        List<Tuple> results = queryFactory
+                .select(bcostm.itMngcNo, bcostm.itMngcBg.sum())
+                .from(bcostm)
+                .where(
+                        bcostm.bgYy.eq(prevYear),
+                        bcostm.itMngcNo.in(itMngcNos),
+                        bcostm.delYn.eq("N"))
+                .groupBy(bcostm.itMngcNo)
+                .fetch();
+        return results.stream().collect(Collectors.toMap(
+                t -> t.get(bcostm.itMngcNo),
+                t -> {
+                    BigDecimal sum = t.get(bcostm.itMngcBg.sum());
+                    return sum != null ? sum : BigDecimal.ZERO;
+                }));
     }
 }

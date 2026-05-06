@@ -63,6 +63,18 @@ public class PlanDto {
         /** 대상 전산업무비관리번호 목록 */
         @Schema(description = "대상 전산업무비관리번호 목록")
         private List<String> itMngcNos;
+
+        /** 예산배분 항목 목록 (수익/비용 구분별 배분 금액) */
+        @Schema(description = "예산배분 항목 목록")
+        private List<BudgetAllocationItem> budgetAllocation;
+
+        /** 자본예산 항목 목록 (투자자산 구분별 예산) */
+        @Schema(description = "자본예산 항목 목록")
+        private List<CapitalBudgetItem> capitalBudget;
+
+        /** 경비 항목 목록 (비용 구분별 경비) */
+        @Schema(description = "경비 항목 목록")
+        private List<ExpenseCostItem> expenseCost;
     }
 
     /**
@@ -255,6 +267,15 @@ public class PlanDto {
 
         /** 사업유형(PRJ_TP)별 프로젝트 목록 */
         private List<Map<String, Object>> byProjectType;
+
+        /** 예산배분 항목 목록 */
+        private List<BudgetAllocationItem> budgetAllocation;
+
+        /** 자본예산 항목 목록 */
+        private List<CapitalBudgetItem> capitalBudget;
+
+        /** 경비 항목 목록 */
+        private List<ExpenseCostItem> expenseCost;
     }
 
     /**
@@ -293,6 +314,86 @@ public class PlanDto {
         private BigDecimal assetBg;
 
         /** 일반관리비 */
+        private BigDecimal costBg;
+    }
+
+    /**
+     * 예산배분 항목 — 수익/비용 구분별 배분 금액
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(name = "BudgetAllocationItem")
+    public static class BudgetAllocationItem {
+
+        /** 수익/비용 구분 코드 */
+        @Schema(description = "수익/비용 구분 코드")
+        private String ioeC;
+
+        /** 수익/비용 구분명 */
+        @Schema(description = "수익/비용 구분명")
+        private String ioeCNm;
+
+        /** 배분 금액 */
+        @Schema(description = "배분 금액")
+        private BigDecimal allocBg;
+    }
+
+    /**
+     * 자본예산 항목 — 투자자산 구분별 예산
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(name = "CapitalBudgetItem")
+    public static class CapitalBudgetItem {
+
+        /** 투자자산 구분 코드 */
+        @Schema(description = "투자자산 구분 코드")
+        private String pulDtt;
+
+        /** 투자자산 구분명 */
+        @Schema(description = "투자자산 구분명")
+        private String pulDttNm;
+
+        /** 자산 예산 */
+        @Schema(description = "자산 예산")
+        private BigDecimal assetBg;
+    }
+
+    /**
+     * 경비 항목 — 비용 구분별 경비
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(name = "ExpenseCostItem")
+    public static class ExpenseCostItem {
+
+        /** 중복업무 구분 코드 */
+        @Schema(description = "중복업무 구분 코드")
+        private String dupIoe;
+
+        /** 중복업무 구분명 */
+        @Schema(description = "중복업무 구분명")
+        private String dupIoeNm;
+
+        /** 수익/비용 구분 코드 */
+        @Schema(description = "수익/비용 구분 코드")
+        private String ioeC;
+
+        /** 수익/비용 구분명 */
+        @Schema(description = "수익/비용 구분명")
+        private String ioeCNm;
+
+        /** 경비 금액 */
+        @Schema(description = "경비 금액")
         private BigDecimal costBg;
     }
 }

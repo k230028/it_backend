@@ -2,6 +2,8 @@ package com.kdb.it.common.system.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -50,10 +52,13 @@ public class AuthDto {
     @Schema(name = "LoginRequest", description = "로그인 요청")
     public static class LoginRequest {
         /** 사번 (직원 고유 식별자) */
+        @NotBlank(message = "사번은 필수입니다.")
+        @Size(max = 20, message = "사번은 20자 이내여야 합니다.")
         @Schema(description = "사번")
         private String eno;
 
         /** 비밀번호 (평문, 서버에서 SHA-256+Base64 해싱 후 비교) */
+        @NotBlank(message = "비밀번호는 필수입니다.")
         @Schema(description = "비밀번호")
         private String password;
     }
@@ -77,14 +82,20 @@ public class AuthDto {
     @Schema(name = "SignupRequest", description = "회원가입 요청")
     public static class SignupRequest {
         /** 사번 (중복 불가, PK) */
+        @NotBlank(message = "사번은 필수입니다.")
+        @Size(max = 20, message = "사번은 20자 이내여야 합니다.")
         @Schema(description = "사번")
         private String eno;
 
         /** 직원명 (한국어 이름) */
+        @NotBlank(message = "이름은 필수입니다.")
+        @Size(max = 100, message = "이름은 100자 이내여야 합니다.")
         @Schema(description = "이름")
         private String empNm;
 
         /** 비밀번호 (평문, 저장 시 SHA-256+Base64로 암호화) */
+        @NotBlank(message = "비밀번호는 필수입니다.")
+        @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다.")
         @Schema(description = "비밀번호")
         private String password;
 

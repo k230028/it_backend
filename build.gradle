@@ -56,6 +56,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 	
 	// HTML 새니타이징 (XSS 서버 측 방어)
@@ -138,8 +139,10 @@ jacocoTestCoverageVerification {
 	violationRules {
 		rule {
 			limit {
-				// 현재 단계 목표: 60% (추후 80%로 상향 예정)
-				minimum = 0.60
+				// 현재 단계 목표: 70% (TEST.md 기준)
+				counter = 'LINE'
+				value   = 'COVEREDRATIO'
+				minimum = 0.70
 			}
 		}
 		rule {

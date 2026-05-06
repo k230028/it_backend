@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -53,9 +54,10 @@ import java.util.List;
  * <li>{@code /v3/api-docs/**}: OpenAPI 명세</li>
  * </ul>
  */
-@Configuration // Spring 설정 클래스로 등록
-@EnableWebSecurity // Spring Security 활성화
-@RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity // @PreAuthorize, @PostAuthorize 활성화
+@RequiredArgsConstructor
 public class SecurityConfig {
 
         private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
@@ -107,7 +109,10 @@ public class SecurityConfig {
                                                 // HSTS: HTTPS 강제 (운영 환경 대비, max-age=1년)
                                                 .httpStrictTransportSecurity(hsts -> hsts
                                                                 .includeSubDomains(true)
-                                                                .maxAgeInSeconds(31536000)))
+                                                                .maxAgeInSeconds(31536000))
+                                                // CSP: XSS 2차 방어선
+                                                .contentSecurityPolicy(csp -> csp
+                                                                .policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'")))
                                 // CORS 설정 적용 (corsConfigurationSource 빈 사용)
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 // CSRF 보호 비활성화 (JWT 사용 시 불필요; REST API는 CSRF 공격 대상이 아님)
@@ -118,7 +123,7 @@ public class SecurityConfig {
                                 // URL별 접근 권한 설정
                                 .authorizeHttpRequests(auth -> auth
                                                 // 인증 없이 접근 가능한 엔드포인트
-                                                .requestMatchers("/api/auth/login", "/api/auth/signup",
+                                                .requestMatchers("/api/auth/login",
                                                                 "/api/auth/refresh",
                                                                 "/swagger-ui/**", "/v3/api-docs/**",
                                                                 "/swagger-resources/**", "/webjars/**",
@@ -130,6 +135,10 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 // 관리자 전용 엔드포인트 (ITPAD001만 접근 가능)
                                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                                                // 회원가입 — 관리자만 신규 계정 생성 가능 (임직원 포털 특성상 자유 가입 금지)
+                                                .requestMatchers("/api/auth/signup").hasRole("ADMIN")
+                                                // 정보기술부문계획 — 관리자 전용
+                                                .requestMatchers("/api/plan/**").hasRole("ADMIN")
                                                 // 나머지는 인증 필요 (유효한 JWT 토큰 필수)
                                                 .anyRequest().authenticated())
                                 // 인증/접근 예외 처리 핸들러 설정

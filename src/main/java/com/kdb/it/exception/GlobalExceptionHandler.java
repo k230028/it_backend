@@ -4,9 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+
+import java.util.stream.Collectors;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -95,10 +98,19 @@ public class GlobalExceptionHandler {
      * @param e {@link RuntimeException}
      * @return 400 응답 + 오류 메시지
      */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationException(MethodArgumentNotValidException e) {
+        String message = e.getBindingResult().getFieldErrors().stream()
+                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        log.warn("입력값 검증 실패: {}", message);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, message);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException e) {
         log.warn("런타임 예외 발생: {}", e.getMessage(), e);
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, e.getMessage());
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "요청을 처리할 수 없습니다.");
     }
 
     /**

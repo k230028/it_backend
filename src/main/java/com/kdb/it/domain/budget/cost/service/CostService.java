@@ -531,6 +531,30 @@ public class CostService {
                 attachTerminals(response);
             }
         }
+
+        // --- 7. 전년도 예산(prevBgAmt) 배치 조회 (계속 항목만) ---
+        List<String> continuingNos = responses.stream()
+                .filter(r -> "PUL_DTT_002".equals(r.getPulDtt()))
+                .map(CostDto.Response::getItMngcNo)
+                .distinct()
+                .collect(Collectors.toList());
+        if (!continuingNos.isEmpty()) {
+            String bgYy = responses.stream()
+                    .map(CostDto.Response::getBgYy)
+                    .filter(y -> y != null && !y.isBlank())
+                    .findFirst().orElse(null);
+            if (bgYy != null) {
+                String prevYear = String.valueOf(Integer.parseInt(bgYy) - 1);
+                Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByItMngcNos(continuingNos, prevYear);
+                responses.forEach(r -> {
+                    if ("PUL_DTT_002".equals(r.getPulDtt())) {
+                        r.setPrevBgAmt(prevBgMap.getOrDefault(r.getItMngcNo(), BigDecimal.ZERO));
+                    } else {
+                        r.setPrevBgAmt(BigDecimal.ZERO);
+                    }
+                });
+            }
+        }
     }
 
     /** 응답 DTO에 신청서 정보, 코드명, 예산 구분을 일괄 설정 */

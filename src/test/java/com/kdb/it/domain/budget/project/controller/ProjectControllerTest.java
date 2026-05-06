@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -129,5 +130,50 @@ class ProjectControllerTest {
                 // when & then
                 mockMvc.perform(delete("/api/projects/PRJ-2026-0001"))
                                 .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("PUT /api/projects/{prjMngNo} - 인증된 사용자 → 200 + 수정된 관리번호")
+        @WithMockUser(username = "10001")
+        void updateProject_성공_200반환() throws Exception {
+                ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
+                                .prjNm("수정 사업")
+                                .build();
+                given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
+                                .willReturn("PRJ-2026-0001");
+
+                mockMvc.perform(put("/api/projects/PRJ-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isOk())
+                                .andExpect(content().string("PRJ-2026-0001"));
+        }
+
+        @Test
+        @DisplayName("DELETE /api/projects/{prjMngNo} - 삭제 가능 프로젝트 → 204 반환")
+        @WithMockUser(username = "10001")
+        void deleteProject_성공_204반환() throws Exception {
+                mockMvc.perform(delete("/api/projects/PRJ-2026-0001"))
+                                .andExpect(status().isNoContent());
+        }
+
+        @Test
+        @DisplayName("POST /api/projects/bulk-get - 관리번호 목록 → 200 + 존재하는 프로젝트 목록")
+        @WithMockUser(username = "10001")
+        void bulkGetProjects_성공_200반환() throws Exception {
+                ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+                request.setPrjMngNos(List.of("PRJ-2026-0001", "PRJ-2026-0002"));
+                ProjectDto.Response project = ProjectDto.Response.builder()
+                                .prjMngNo("PRJ-2026-0001")
+                                .prjNm("테스트 사업")
+                                .build();
+                given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
+                                .willReturn(List.of(project));
+
+                mockMvc.perform(post("/api/projects/bulk-get")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].prjMngNo").value("PRJ-2026-0001"));
         }
 }

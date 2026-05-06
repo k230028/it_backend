@@ -11,6 +11,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -76,7 +77,7 @@ public class AuthController {
      */
     @PostMapping("/signup")
     @Operation(summary = "회원가입", description = "회원가입을 합니다.")
-    public ResponseEntity<String> signup(@RequestBody AuthDto.SignupRequest request) {
+    public ResponseEntity<String> signup(@Valid @RequestBody AuthDto.SignupRequest request) {
         authService.signup(request);
         return ResponseEntity.ok("회원가입 성공");
     }
@@ -107,7 +108,7 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "로그인", description = "로그인하여 JWT 토큰을 httpOnly 쿠키로 발급받습니다.")
     public ResponseEntity<AuthDto.LoginResponse> login(
-            @RequestBody AuthDto.LoginRequest request,
+            @Valid @RequestBody AuthDto.LoginRequest request,
             HttpServletRequest httpRequest) {
         // 클라이언트의 실제 IP 주소 추출 (프록시 환경 고려)
         String ipAddress = getClientIp(httpRequest);

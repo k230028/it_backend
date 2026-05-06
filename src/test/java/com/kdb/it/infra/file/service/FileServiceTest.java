@@ -5,18 +5,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import jakarta.persistence.EntityManager;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.dto.FileDto;
@@ -39,6 +46,9 @@ class FileServiceTest {
 
     @Mock
     private FileRepository fileRepository;
+
+    @Mock
+    private EntityManager entityManager;
 
     @InjectMocks
     private FileService fileService;
@@ -131,6 +141,25 @@ class FileServiceTest {
         assertThat(result).hasSize(1);
     }
 
+    @Test
+    @DisplayName("getFiles: orcDtt + orcPkVl + flDtt 입력이면 세 조건으로 필터링한다")
+    void getFiles_파일구분포함_조건필터링반환() {
+        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
+                .orcDtt("요구사항정의서")
+                .orcPkVl("PRJ-2026-0001")
+                .flDtt("이미지")
+                .build();
+        Cfilem file = mockCfilem(FL_MNG_NO);
+        given(fileRepository.findAllByOrcDttAndOrcPkVlAndFlDttAndDelYn(
+                "요구사항정의서", "PRJ-2026-0001", "이미지", "N"))
+                .willReturn(List.of(file));
+
+        List<FileDto.Response> result = fileService.getFiles(condition);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getPreviewUrl()).isEqualTo("/api/files/" + FL_MNG_NO + "/preview");
+    }
+
     // ───────────────────────────────────────────────────────
     // deleteFile
     // ───────────────────────────────────────────────────────
@@ -184,5 +213,125 @@ class FileServiceTest {
         int count = fileService.deleteFilesByOrc("없는구분", "PRJ-9999-9999");
 
         assertThat(count).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("updateFileMeta: 존재하는 파일이면 원본 정보를 변경하고 파일관리번호를 반환한다")
+    void updateFileMeta_존재하는파일_메타수정() {
+        Cfilem cfilem = mock(Cfilem.class);
+        FileDto.UpdateRequest request = FileDto.UpdateRequest.builder()
+                .orcDtt("정보화사업")
+                .orcPkVl("PRJ-2026-0002")
+                .build();
+        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+
+        String result = fileService.updateFileMeta(FL_MNG_NO, request);
+
+        assertThat(result).isEqualTo(FL_MNG_NO);
+        verify(cfilem).updateMeta("PRJ-2026-0002", "정보화사업");
+    }
+
+    @Test
+    @DisplayName("updateFileMeta: 존재하지 않는 파일이면 CustomGeneralException을 던진다")
+    void updateFileMeta_존재하지않는파일_CustomGeneralException발생() {
+        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.empty());
+        FileDto.UpdateRequest request = FileDto.UpdateRequest.builder().orcDtt("정보화사업").build();
+
+        assertThatThrownBy(() -> fileService.updateFileMeta(FL_MNG_NO, request))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining(FL_MNG_NO);
+    }
+
+    @Test
+    @DisplayName("downloadFile: 저장 경로가 기준 경로 밖이면 다운로드를 차단한다")
+    void downloadFile_경로이탈_CustomGeneralException발생(@TempDir java.nio.file.Path tempDir) {
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(cfilem.getFlKpnPth()).willReturn(tempDir.resolveSibling("outside").toString());
+        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+
+        assertThatThrownBy(() -> fileService.downloadFile(FL_MNG_NO))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("허용되지 않는 파일 경로");
+    }
+
+    @Test
+    @DisplayName("downloadFile: 존재하는 파일이면 Resource와 MIME 타입을 반환한다")
+    void downloadFile_존재하는파일_리소스반환(@TempDir java.nio.file.Path tempDir) throws Exception {
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        java.nio.file.Path storageDir = tempDir.resolve("요구사항정의서").resolve("2026").resolve("05");
+        Files.createDirectories(storageDir);
+        java.nio.file.Path filePath = storageDir.resolve("SVR1_test.pdf");
+        Files.writeString(filePath, "PDF", StandardCharsets.UTF_8);
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(cfilem.getFlKpnPth()).willReturn(storageDir.toString());
+        given(cfilem.getSvrFlNm()).willReturn("SVR1_test.pdf");
+        given(cfilem.getOrcFlNm()).willReturn("요구사항정의서.pdf");
+        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+
+        FileService.FileDownloadResult result = fileService.downloadFile(FL_MNG_NO);
+
+        assertThat(result.resource().exists()).isTrue();
+        assertThat(result.originalFilename()).isEqualTo("요구사항정의서.pdf");
+        assertThat(result.contentType()).isEqualTo("application/pdf");
+    }
+
+    @Test
+    @DisplayName("uploadFile: 빈 파일이면 저장소 접근 없이 예외를 던진다")
+    void uploadFile_빈파일_CustomGeneralException발생() {
+        MockMultipartFile emptyFile = new MockMultipartFile("file", "empty.txt", "text/plain", new byte[0]);
+        FileDto.UploadRequest request = FileDto.UploadRequest.builder().orcDtt("요구사항정의서").build();
+
+        assertThatThrownBy(() -> fileService.uploadFile(emptyFile, request))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("업로드할 파일이 비어있습니다");
+        verifyNoInteractions(entityManager);
+    }
+
+    @Test
+    @DisplayName("uploadFileAndGet: 파일을 저장하고 업로드 응답 DTO를 반환한다")
+    void uploadFileAndGet_정상파일_응답반환(@TempDir java.nio.file.Path tempDir) {
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        ReflectionTestUtils.setField(fileService, "instanceId", "SVR1");
+        ReflectionTestUtils.setField(fileService, "entityManager", entityManager);
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "요구사항.pdf", "application/pdf", "PDF".getBytes(StandardCharsets.UTF_8));
+        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
+                .orcDtt("요구사항정의서")
+                .orcPkVl("PRJ-2026-0001")
+                .flDtt("첨부파일")
+                .build();
+
+        FileDto.Response result = fileService.uploadFileAndGet(file, request);
+
+        assertThat(result.getFlMngNo()).isEqualTo("FL_00000001");
+        assertThat(result.getOrcFlNm()).isEqualTo("요구사항.pdf");
+        assertThat(result.getSvrFlNm()).startsWith("SVR1_").endsWith(".pdf");
+        assertThat(result.getDownloadUrl()).isEqualTo("/api/files/FL_00000001/download");
+        org.mockito.Mockito.verify(entityManager).persist(org.mockito.ArgumentMatchers.any(Cfilem.class));
+        org.mockito.Mockito.verify(entityManager).flush();
+    }
+
+    @Test
+    @DisplayName("uploadFiles: 일부 파일 실패 시 성공 목록과 실패 파일명을 함께 반환한다")
+    void uploadFiles_부분실패_결과분리(@TempDir java.nio.file.Path tempDir) {
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        ReflectionTestUtils.setField(fileService, "instanceId", "SVR1");
+        ReflectionTestUtils.setField(fileService, "entityManager", entityManager);
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+        MockMultipartFile okFile = new MockMultipartFile(
+                "files", "ok.txt", "text/plain", "ok".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile emptyFile = new MockMultipartFile("files", "empty.txt", "text/plain", new byte[0]);
+        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
+                .orcDtt("첨부")
+                .flDtt("첨부파일")
+                .build();
+
+        FileDto.BulkUploadResponse result = fileService.uploadFiles(List.of(okFile, emptyFile), request);
+
+        assertThat(result.getSuccessList()).hasSize(1);
+        assertThat(result.getFailList()).hasSize(1);
+        assertThat(result.getFailList().get(0)).contains("empty.txt");
     }
 }
