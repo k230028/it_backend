@@ -5,6 +5,8 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.exception.CustomGeneralException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,6 +74,10 @@ public class CodeService {
      * @throws IllegalArgumentException 코드ID가 중복될 경우
      */
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "budgetPeriod", allEntries = true),
+            @CacheEvict(value = "codesByType", allEntries = true)
+    })
     public String createCcodem(CodeDto.CreateRequest request) {
         if (request.getSttDt() == null) {
             throw new IllegalArgumentException("시작일자는 필수입니다.");
@@ -96,6 +102,10 @@ public class CodeService {
      * @throws IllegalArgumentException 대상 코드ID가 존재하지 않거나 삭제된 경우
      */
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "budgetPeriod", allEntries = true),
+            @CacheEvict(value = "codesByType", allEntries = true)
+    })
     public String updateCcodem(String cdId, LocalDate sttDt, CodeDto.UpdateRequest request) {
         Ccodem ccodem = codeRepository.findByCdIdAndSttDtAndDelYn(cdId, sttDt, "N")
                 .orElseThrow(() -> new IllegalArgumentException("수정할 공통코드를 찾을 수 없습니다: " + cdId + ", " + sttDt));
@@ -129,6 +139,10 @@ public class CodeService {
      * @throws IllegalArgumentException 대상 코드ID가 존재하지 않거나 이미 삭제된 경우
      */
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "budgetPeriod", allEntries = true),
+            @CacheEvict(value = "codesByType", allEntries = true)
+    })
     public void deleteCcodem(String cdId, LocalDate sttDt) {
         Ccodem ccodem = codeRepository.findByCdIdAndSttDtAndDelYn(cdId, sttDt, "N")
                 .orElseThrow(() -> new IllegalArgumentException("삭제할 공통코드를 찾을 수 없거나 이미 삭제되었습니다: " + cdId + ", " + sttDt));
