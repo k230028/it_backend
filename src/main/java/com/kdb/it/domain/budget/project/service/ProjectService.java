@@ -377,7 +377,8 @@ public class ProjectService {
                 request.getBgYy(), // 사업연도
                 request.getSvnHdq(), // 주관본부/부문
                 request.getOrnYn(), // 경상여부
-                request.getPulDtt()); // 사업구분
+                request.getPulDtt(), // 사업구분
+                request.getCncdPrjMngNo()); // 관련프로젝트관리번호
 
         // ===== 품목 정보 동기화 (CUD) =====
         if (request.getItems() != null) {

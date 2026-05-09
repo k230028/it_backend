@@ -69,6 +69,29 @@ class JwtUtilTest {
     }
 
     @Test
+    @DisplayName("Access Token 생성 후 자격등급과 부서코드 클레임 추출")
+    void generateAccessToken_권한부서클레임추출() {
+        // given
+        List<String> athIds = List.of("ITPAD001", "ITPZZ002");
+        String token = jwtUtil.generateAccessToken("10001", athIds, TEST_BBR_C);
+
+        // when & then
+        assertThat(jwtUtil.getAthIdsFromToken(token)).containsExactlyElementsOf(athIds);
+        assertThat(jwtUtil.getBbrCFromToken(token)).isEqualTo(TEST_BBR_C);
+    }
+
+    @Test
+    @DisplayName("Access Token 생성 - 자격등급이 비어 있으면 일반사용자 기본값 적용")
+    void generateAccessToken_빈자격등급_일반사용자기본값() {
+        // given
+        String token = jwtUtil.generateAccessToken("10001", List.of(), TEST_BBR_C);
+
+        // when & then
+        assertThat(jwtUtil.getAthIdsFromToken(token))
+            .containsExactly(CustomUserDetails.ATH_USER);
+    }
+
+    @Test
     @DisplayName("Refresh Token 생성 - 유효한 토큰 반환 및 사번 추출 가능")
     void generateRefreshToken_사번입력_유효한토큰반환() {
         // given

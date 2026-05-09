@@ -135,6 +135,10 @@ public class Bcostm extends BaseEntity {
     @Column(name = "PUL_DTT", length = 100, comment = "전산업무비구분")
     private String pulDtt;
 
+    /** 관련전산업무비번호: 계속항목인 경우 전년도 항목의 관리번호 */
+    @Column(name = "CNCD_IT_MNGC_NO", length = 128, comment = "관련전산업무비번호")
+    private String cncdItMngcNo;
+
     /**
      * 전산관리비 정보 업데이트 메서드
      *
@@ -159,12 +163,13 @@ public class Bcostm extends BaseEntity {
      * @param biceTem  담당팀
      * @param abusC    사업코드
      * @param itMngcTp 전산업무비유형
-     * @param pulDtt   전산업무비구분
-     * @param bgYy     예산연도
+     * @param pulDtt        전산업무비구분
+     * @param bgYy          예산연도
+     * @param cncdItMngcNo  관련전산업무비번호 (계속항목인 경우 전년도 관리번호)
      */
     public void update(String ioeC, String cttNm, String cttOpp, BigDecimal itMngcBg,
             String dfrCle, LocalDate fstDfrDt, String cur, BigDecimal xcr, LocalDate xcrBseDt,
-            String infPrtYn, String indRsn, String cgpr, String biceDpm, String biceTem, String abusC, String itMngcTp, String pulDtt, String bgYy) {
+            String infPrtYn, String indRsn, String cgpr, String biceDpm, String biceTem, String abusC, String itMngcTp, String pulDtt, String bgYy, String cncdItMngcNo) {
         this.ioeC = ioeC;
         this.cttNm = cttNm;
         this.cttOpp = cttOpp;
@@ -183,5 +188,6 @@ public class Bcostm extends BaseEntity {
         this.itMngcTp = itMngcTp;
         this.pulDtt = pulDtt;
         this.bgYy = bgYy;
+        this.cncdItMngcNo = cncdItMngcNo;
     }
 }

@@ -289,9 +289,9 @@ public class Bprojm extends BaseEntity { ... }
 | GET/POST | `/api/documents/**` | 요구사항 정의서 CRUD | 필요 |
 | GET/POST | `/api/documents/{documentId}/review-comments/**` | 요구사항 정의서 검토의견 CRUD | 필요 |
 | GET/POST | `/api/guide-documents/**` | 가이드 문서 CRUD | 필요 |
-| GET/POST | `/api/plans/**` | 정보기술부문 계획 CRUD | 필요 |
-| GET | `/api/budget/status/**` | 예산현황 집계·대시보드 조회 | 필요 |
-| GET/POST | `/api/budget/work/**` | 예산 편성률 적용 (비목조회/적용/결과) | 필요 |
+| GET/POST | `/api/plans/**` | 정보기술부문 계획 CRUD | 필요 (ROLE_ADMIN) |
+| GET | `/api/budget/status/**` | 예산현황 집계·대시보드 조회 | 필요 (ROLE_ADMIN) |
+| GET/POST | `/api/budget/work/**` | 예산 편성률 적용 (비목조회/적용/결과) | 필요 (ROLE_ADMIN) |
 | GET/POST/PUT/PATCH | `/api/council/**` | 정보화실무협의회 (23개 엔드포인트) | 필요 |
 | GET/POST/PUT/DELETE | `/api/admin/**` | 시스템 관리 (ROLE_ADMIN 전용) | 필요 (관리자) |
 | GET/POST | `/api/files/**` | 첨부파일 업로드/다운로드/미리보기 | 필요 |
@@ -300,6 +300,8 @@ public class Bprojm extends BaseEntity { ... }
 | GET | `/api/users/**` | 사용자 조회 | 필요 |
 | GET | `/api/organizations` | 조직 목록 조회 | 필요 |
 | GET | `/api/login-history/**` | 로그인 이력 조회 | 필요 |
+
+> **관리자 전용 API 보호 규칙**: `/api/admin/**`은 SecurityConfig URL 패턴으로 차단되지만, 도메인 컨트롤러(`/api/plans/**`, `/api/budget/status/**`, `/api/budget/work/**` 등)는 SecurityConfig에 등록되지 않으므로 반드시 **컨트롤러 클래스 레벨**에 `@PreAuthorize("hasRole('ADMIN')")` 어노테이션을 적용해야 합니다. 누락 시 인증된 모든 사용자가 API를 직접 호출할 수 있습니다. → 상세 규칙: `CLAUDE.md §5.6`
 
 > Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 
@@ -334,6 +336,7 @@ public class Bprojm extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-05-09 | `PlanController`, `BudgetStatusController`, `BudgetWorkController`에 `@PreAuthorize("hasRole('ADMIN')")` 추가. §7 API 테이블 인증 컬럼 현행화. 관리자 도메인 API 보호 규칙 CLAUDE.md §5.6·README §7에 명문화 |
 | 2026-04-30 | README 로그 체계 섹션 추가: 변경 로그(AuditLog), 로그인 이력, 관리자 로그 조회 구조 문서화 |
 | 2026-04-29 | README 현행화: Spring Boot/JJWT/Springdoc 버전, 15분 Access Token, 예산현황·검토의견·변경로그 도메인, 테스트/환경 설정 반영 |
 | 2026-04-10 | 전체 프로젝트 문서/주석 리프레시 (README/CLAUDE/TASK.md 최신화, AdminController JavaDoc 보강) |

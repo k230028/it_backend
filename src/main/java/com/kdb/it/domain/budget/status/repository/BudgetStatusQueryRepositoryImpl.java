@@ -10,6 +10,7 @@ import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.core.types.dsl.StringExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -191,6 +192,8 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         QBbugtm b = new QBbugtm("b");
         // 전년도 편성 조회용 별칭 (동일 IT_MNGC_NO로 전년도 BBUGTM JOIN)
         QBbugtm bPrev = new QBbugtm("bPrev");
+        // 전년도 편성 최대 순번 서브쿼리용 별칭
+        QBbugtm bMaxPrev = new QBbugtm("bMaxPrev");
         QCorgnI dpmOrg = new QCorgnI("dpmOrg");   // 담당부서 조직 조인용
         QCorgnI temOrg = new QCorgnI("temOrg");    // 담당팀 조직 조인용
 
@@ -231,9 +234,23 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                 )
                 .leftJoin(bPrev).on(
                         bPrev.orcTb.eq("BCOSTM"),
-                        bPrev.orcPkVl.eq(c.itMngcNo),
+                        // 계속항목은 cncdItMngcNo 기준, 신규항목은 itMngcNo 기준으로 전년도 편성 조회
+                        Expressions.booleanTemplate(
+                                "COALESCE({0}, {1}) = {2}",
+                                c.cncdItMngcNo, c.itMngcNo, bPrev.orcPkVl),
                         bPrev.bgYy.eq(prevYy),
-                        bPrev.delYn.eq("N")
+                        bPrev.delYn.eq("N"),
+                        // 동일 관리번호에 여러 편성건이 있을 경우 마지막 편성건(ORC_SNO_VL 최대값)만 선택
+                        bPrev.orcSnoVl.eq(
+                                JPAExpressions.select(bMaxPrev.orcSnoVl.max())
+                                        .from(bMaxPrev)
+                                        .where(
+                                                bMaxPrev.orcTb.eq("BCOSTM"),
+                                                Expressions.booleanTemplate("COALESCE({0}, {1}) = {2}",
+                                                        c.cncdItMngcNo, c.itMngcNo, bMaxPrev.orcPkVl),
+                                                bMaxPrev.bgYy.eq(prevYy),
+                                                bMaxPrev.delYn.eq("N")
+                                        ))
                 )
                 .where(
                         c.bgYy.eq(bgYy),

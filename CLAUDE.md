@@ -95,6 +95,16 @@ src/main/resources/
 - 보호 API는 쿠키 자동 전송 기본. `JwtAuthenticationFilter`는 `Authorization: Bearer`를 폴백으로만 허용.
 - 공개 엔드포인트: `/api/auth/login`, `/api/auth/signup`, `/api/auth/refresh`, `/swagger-ui/**`, `/v3/api-docs/**`.
 - 관리자 전용: `/api/admin/**` — SecurityConfig URL 패턴 + `@PreAuthorize("hasRole('ADMIN')")` 이중 보호.
+- **관리자 전용 도메인 API** (`/api/admin/**` 외 경로라도 관리자만 접근해야 하는 엔드포인트): 컨트롤러 **클래스 레벨**에 반드시 `@PreAuthorize("hasRole('ADMIN')")` 적용. SecurityConfig URL 패턴은 `/api/admin/**`에만 등록되므로 도메인 컨트롤러는 어노테이션으로 보호해야 함. 누락 시 인증된 모든 사용자가 API 직접 호출 가능.
+  ```java
+  // 관리자 전용 컨트롤러 — 클래스 레벨 적용 필수
+  @RestController
+  @RequestMapping("/api/plans")
+  @RequiredArgsConstructor
+  @PreAuthorize("hasRole('ADMIN')")   // ← 누락 금지
+  public class PlanController { ... }
+  ```
+  현재 적용 대상: `PlanController`, `BudgetStatusController`, `BudgetWorkController`.
 - RBAC 모델: 자격등급(`CauthI`) + 역할 매핑(`CroleI`).
   - `ITPAD001` = 시스템관리자
   - `ITPZZ001` = 일반사용자
