@@ -25,7 +25,7 @@
 - `./gradlew test` — 테스트 실행
 - `./gradlew clean test` — 전체 테스트 재검증
 - `./gradlew clean build` — 클린 빌드
-- Swagger UI: http://localhost:8080/swagger-ui/index.html
+- Swagger UI: http://localhost:18080/swagger-ui/index.html
 
 ## 4. 아키텍처
 
@@ -105,12 +105,24 @@ src/main/resources/
   public class PlanController { ... }
   ```
   현재 적용 대상: `PlanController`, `BudgetStatusController`, `BudgetWorkController`.
+- **@PreAuthorize 미적용 위험 컨트롤러** (코드 분석 기준, 2026-05-09): 아래 컨트롤러는 인증된 모든 사용자가 직접 호출 가능. 서비스 요건에 맞게 소유권 검증 또는 `@PreAuthorize` 추가 필요 (`TASK.md` 과제로 추적 중).
+  - `FileController` — 타인 파일 조회·삭제 가능 (HIGH)
+  - `GeminiController` — AI API 무제한 호출로 비용 발생 (HIGH)
+  - `UserController`, `OrganizationController` — 전 직원 연락처·조직 구조 노출 (MEDIUM)
+  - `ProjectController`, `ApplicationController` — 타 부서 CRUD 가능 (MEDIUM)
 - RBAC 모델: 자격등급(`CauthI`) + 역할 매핑(`CroleI`).
   - `ITPAD001` = 시스템관리자
   - `ITPZZ001` = 일반사용자
   - `ITPZZ002` = 기획통할담당자
 - CORS: `cors.allowed-origins=http://localhost,http://localhost:3000,http://localhost:3002` (개발 프론트 및 E2E).
-- 운영: `app.cookie.secure=true` + HTTPS 필수.
+- 운영: `app.cookie.secure=true` + HTTPS 필수. `app.cookie.secure` 기본값이 `false`이므로 운영 프로파일에서 반드시 오버라이드해야 합니다.
+- **`Authorization: Bearer` 헤더 폴백**: Swagger/Postman 편의를 위해 허용되어 있으나 운영 환경에서도 동작합니다. 운영 전환 전 비활성화 여부를 결정하고 이 문서에 명시합니다.
+- **파일 업로드 확장자 검증**: `FileService.uploadFileInternal()`에 허용 확장자 화이트리스트가 없습니다. 업로드 진입 시점에 검증을 추가해야 합니다.
+- **로그인 Brute-force 보호**: 연속 실패 횟수 제한·계정 잠금이 없습니다. `TASK.md` 과제로 추적 중.
+- **X-Forwarded-For 신뢰**: `AuthController.getClientIp()`가 헤더를 무조건 신뢰합니다. 운영 인프라(Nginx 등)에서 헤더를 덮어쓰도록 설정해야 IP 위조를 방지할 수 있습니다.
+- **비밀값 기본값 금지**: `application.properties`의 `${VAR:default}` 형태 기본값은 환경변수 미설정 시 운영에 그대로 사용됩니다. `:default` 부분을 제거하고 구동 시 빈값이면 즉시 실패하도록 해야 합니다.
+- **SHA-256 비밀번호 해시 제한**: `CustomPasswordEncoder`는 Salt 없는 SHA-256을 사용합니다(레거시 SSO 연동 제약). 신규 계정부터 BCrypt 또는 Argon2 적용을 검토하고, 기존 계정은 로그인 성공 시 점진적 업그레이드합니다. 현황은 `TASK.md` 과제로 추적 중.
+- CORS: `cors.allowed-origins`는 `http://localhost,...` (개발값)이 기본입니다. 운영 배포 시 `https://it.kdb.co.kr` 등 실제 오리진으로 환경변수 오버라이드가 필수이며, 구동 시 검증 로직이 없으므로 배포 체크리스트에 포함해야 합니다.
 - 운영 비밀값: `spring.datasource.password`, `jwt.secret`, `gemini.api.key`는 환경변수 또는 프로파일별 비공개 설정에서 주입합니다.
 
 ### 5.7 채번/주요 비즈니스 제약

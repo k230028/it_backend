@@ -11,15 +11,19 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
 import com.kdb.it.domain.budget.plan.entity.Bplanm;
 import com.kdb.it.domain.budget.plan.entity.Bproja;
@@ -45,6 +49,8 @@ class PlanServiceTest {
     private BprojaRepository bprojaRepository;
     @Mock
     private ProjectService projectService;
+    @Mock
+    private CostService costService;
     @Mock
     private ObjectMapper objectMapper;
 
@@ -191,6 +197,98 @@ class PlanServiceTest {
         verify(bplanmRepository, times(1)).save(any(Bplanm.class));
         // 프로젝트-계획 관계도 저장되어야 함
         verify(bprojaRepository, times(1)).save(any(Bproja.class));
+    }
+
+    @Test
+    @DisplayName("createPlan - 전산업무비만 선택해도 예산 합계와 관계를 저장한다")
+    void createPlan_전산업무비만선택_계획생성() throws Exception {
+        PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
+                .plnYy("2026")
+                .plnTp("신규")
+                .itMngcNos(List.of("COST-2026-0001"))
+                .build();
+        CostDto.Response cost = CostDto.Response.builder()
+                .itMngcNo("COST-2026-0001")
+                .cttNm("전산업무비")
+                .itMngcTp("유지보수")
+                .biceDpm("001")
+                .biceDpmNm(null)
+                .itMngcBg(BigDecimal.valueOf(100))
+                .assetBg(BigDecimal.valueOf(70))
+                .costBg(BigDecimal.valueOf(30))
+                .build();
+        given(costService.getCostsByIds(any())).willReturn(List.of(cost));
+        given(bplanmRepository.getNextSequenceValue()).willReturn(2L);
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        String result = planService.createPlan(request);
+
+        assertThat(result).isEqualTo("PLN-2026-0002");
+        ArgumentCaptor<Bplanm> planCaptor = ArgumentCaptor.forClass(Bplanm.class);
+        verify(bplanmRepository).save(planCaptor.capture());
+        assertThat(planCaptor.getValue().getTtlBg()).isEqualByComparingTo("100");
+        assertThat(planCaptor.getValue().getCptBg()).isEqualByComparingTo("70");
+        assertThat(planCaptor.getValue().getMngc()).isEqualByComparingTo("30");
+        verify(bprojaRepository).save(any(Bproja.class));
+    }
+
+    @Test
+    @DisplayName("createPlan - 프로젝트와 전산업무비의 null 예산은 0으로 계산한다")
+    void createPlan_null예산_0으로계산() throws Exception {
+        PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
+                .plnYy("2026")
+                .plnTp("조정")
+                .prjMngNos(List.of("PRJ-2026-0001"))
+                .itMngcNos(List.of("COST-2026-0001"))
+                .build();
+        ProjectDto.Response project = ProjectDto.Response.builder()
+                .prjMngNo("PRJ-2026-0001")
+                .prjNm("정보화사업")
+                .svnHdq(null)
+                .prjTp(null)
+                .prjBg(null)
+                .assetBg(null)
+                .costBg(null)
+                .build();
+        CostDto.Response cost = CostDto.Response.builder()
+                .itMngcNo("COST-2026-0001")
+                .cttNm("전산업무비")
+                .biceDpmNm("IT부")
+                .itMngcBg(null)
+                .assetBg(null)
+                .costBg(null)
+                .build();
+        given(projectService.getProjectsByIds(any())).willReturn(List.of(project));
+        given(costService.getCostsByIds(any())).willReturn(List.of(cost));
+        given(bplanmRepository.getNextSequenceValue()).willReturn(3L);
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        planService.createPlan(request);
+
+        ArgumentCaptor<Bplanm> planCaptor = ArgumentCaptor.forClass(Bplanm.class);
+        verify(bplanmRepository).save(planCaptor.capture());
+        assertThat(planCaptor.getValue().getTtlBg()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(planCaptor.getValue().getCptBg()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(planCaptor.getValue().getMngc()).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(bprojaRepository, times(2)).save(any(Bproja.class));
+    }
+
+    @Test
+    @DisplayName("createPlan - 스냅샷 직렬화 실패 시 500 예외가 발생한다")
+    void createPlan_스냅샷직렬화실패_500예외발생() throws Exception {
+        PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
+                .plnYy("2026")
+                .plnTp("신규")
+                .prjMngNos(List.of("PRJ-2026-0001"))
+                .build();
+        given(projectService.getProjectsByIds(any())).willReturn(List.of(ProjectDto.Response.builder()
+                .prjMngNo("PRJ-2026-0001")
+                .build()));
+        given(objectMapper.writeValueAsString(any())).willThrow(new JsonProcessingException("boom") {});
+
+        assertThatThrownBy(() -> planService.createPlan(request))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("계획 스냅샷 직렬화");
     }
 
     // =========================================================================

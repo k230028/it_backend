@@ -315,6 +315,7 @@ public class FileService {
         try {
             Files.createDirectories(storageDir);
         } catch (IOException e) {
+            // FIXME: IOException을 cause 없이 새 예외로 래핑 — 스택 트레이스 손실. throw new CustomGeneralException("...", e) 로 변경 필요
             throw new CustomGeneralException("파일 저장 디렉토리 생성에 실패했습니다. 경로: " + flKpnPth);
         }
 
@@ -323,6 +324,7 @@ public class FileService {
         try {
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
+            // FIXME: IOException을 cause 없이 새 예외로 래핑 — 스택 트레이스 손실. throw new CustomGeneralException("...", e) 로 변경 필요
             throw new CustomGeneralException("파일 저장에 실패했습니다. 파일명: " + file.getOriginalFilename());
         }
 
@@ -395,6 +397,7 @@ public class FileService {
                 Cfilem saved = uploadFileInternal(file, request);
                 successList.add(toResponse(saved));
             } catch (Exception e) {
+                // TODO: 벌크 업로드 실패 시 스택 트레이스 누락 — log.warn("파일 업로드 실패 - 파일명: {}", file.getOriginalFilename(), e) 추가 필요
                 failList.add(file.getOriginalFilename() + " (" + e.getMessage() + ")");
             }
         }

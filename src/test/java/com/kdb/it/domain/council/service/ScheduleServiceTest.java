@@ -353,4 +353,78 @@ class ScheduleServiceTest {
         assertThat(result.allRequiredResponded()).isTrue();
         assertThat(result.memberStatuses().get(0).usrNm()).isEqualTo("홍길동");
     }
+
+    @Test
+    @DisplayName("getScheduleStatus: INFO_SYS 필수 팀장들이 모두 응답하면 확정 가능하다")
+    void getScheduleStatus_INFO_SYS필수팀장응답_true() {
+        Basctm council = mock(Basctm.class);
+        given(council.getDbrTp()).willReturn("INFO_SYS");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bcmmtm budgetLead = mock(Bcmmtm.class);
+        Bcmmtm itLead = mock(Bcmmtm.class);
+        given(budgetLead.getEno()).willReturn("12004");
+        given(budgetLead.getVlrTp()).willReturn("MAND");
+        given(itLead.getEno()).willReturn("18001");
+        given(itLead.getVlrTp()).willReturn("MAND");
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetLead, itLead));
+
+        Bschdm budgetSlot = mock(Bschdm.class);
+        Bschdm itSlot = mock(Bschdm.class);
+        given(budgetSlot.getEno()).willReturn("12004");
+        given(budgetSlot.getDsdDt()).willReturn(TEST_DATE);
+        given(budgetSlot.getDsdTm()).willReturn("10:00");
+        given(budgetSlot.getPsbYn()).willReturn("Y");
+        given(itSlot.getEno()).willReturn("18001");
+        given(itSlot.getDsdDt()).willReturn(TEST_DATE);
+        given(itSlot.getDsdTm()).willReturn("14:00");
+        given(itSlot.getPsbYn()).willReturn("Y");
+        given(scheduleRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetSlot, itSlot));
+        given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(0L);
+
+        CuserI budgetUser = mock(CuserI.class);
+        CuserI itUser = mock(CuserI.class);
+        given(budgetUser.getEno()).willReturn("12004");
+        given(budgetUser.getTemC()).willReturn("12004");
+        given(itUser.getEno()).willReturn("18001");
+        given(itUser.getTemC()).willReturn("18001");
+        given(userRepository.findByEno("12004")).willReturn(Optional.of(budgetUser));
+        given(userRepository.findByEno("18001")).willReturn(Optional.of(itUser));
+
+        CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
+
+        assertThat(result.allRequiredResponded()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getScheduleStatus: INFO_SYS 필수 팀장 중 한 명이 미응답이면 확정 불가다")
+    void getScheduleStatus_INFO_SYS필수팀장미응답_false() {
+        Basctm council = mock(Basctm.class);
+        given(council.getDbrTp()).willReturn("INFO_SYS");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bcmmtm budgetLead = mock(Bcmmtm.class);
+        Bcmmtm itLead = mock(Bcmmtm.class);
+        given(budgetLead.getEno()).willReturn("12004");
+        given(itLead.getEno()).willReturn("18001");
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetLead, itLead));
+
+        Bschdm budgetSlot = mock(Bschdm.class);
+        given(budgetSlot.getEno()).willReturn("12004");
+        given(scheduleRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetSlot));
+        given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(1L);
+
+        CuserI budgetUser = mock(CuserI.class);
+        CuserI itUser = mock(CuserI.class);
+        given(budgetUser.getEno()).willReturn("12004");
+        given(budgetUser.getTemC()).willReturn("12004");
+        given(itUser.getEno()).willReturn("18001");
+        given(itUser.getTemC()).willReturn("18001");
+        given(userRepository.findByEno("12004")).willReturn(Optional.of(budgetUser));
+        given(userRepository.findByEno("18001")).willReturn(Optional.of(itUser));
+
+        CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
+
+        assertThat(result.allRequiredResponded()).isFalse();
+    }
 }

@@ -9,6 +9,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,12 +27,20 @@ import org.mockito.quality.Strictness;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.AccessDeniedException;
 
+import com.kdb.it.common.approval.entity.Cappla;
+import com.kdb.it.common.approval.entity.Capplm;
+import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.code.entity.Ccodem;
+import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
@@ -70,6 +80,8 @@ class ProjectServiceTest {
         private UserRepository cuserIRepository;
         @Mock
         private ApproverRepository cdecimRepository;
+        @Mock
+        private BbugtmRepository bbugtmRepository;
         @Mock
         private SecurityContext securityContext;
         @Mock
@@ -523,5 +535,518 @@ class ProjectServiceTest {
 
                 // then: 기존 품목이 DEL_YN='Y'로 soft-delete 됨
                 assertThat(existingItem.getDelYn()).isEqualTo("Y");
+        }
+
+        @Test
+        @DisplayName("createProject: 관리번호가 있고 중복이 없으면 제공된 관리번호로 저장한다")
+        void createProject_제공관리번호_중복없음_저장() {
+                String prjMngNo = "PRJ-2026-MANUAL";
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .prjMngNo(prjMngNo)
+                                .prjNm("수기 관리번호 사업")
+                                .prjDes("<script>alert(1)</script><p>설명</p>")
+                                .prjRng("<b>범위</b>")
+                                .build();
+                given(projectRepository.existsByPrjMngNoAndDelYn(prjMngNo, "N")).willReturn(false);
+
+                String result = projectService.createProject(request);
+
+                assertThat(result).isEqualTo(prjMngNo);
+                assertThat(request.getPrjDes()).doesNotContain("<script>");
+                verify(projectRepository).save(any(Bprojm.class));
+        }
+
+        @Test
+        @DisplayName("createProject: 사업연도가 없으면 현재 연도로 채번한다")
+        void createProject_사업연도없음_현재연도채번() {
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .prjNm("연도 기본값 사업")
+                                .build();
+                given(projectRepository.getNextSequenceValue()).willReturn(3L);
+
+                String result = projectService.createProject(request);
+
+                assertThat(result).matches("PRJ-\\d{4}-0003");
+                assertThat(request.getBgYy()).matches("\\d{4}");
+        }
+
+        @Test
+        @DisplayName("updateProject: 기존 품목이 변경되면 이전 품목을 삭제하고 새 버전을 저장한다")
+        void updateProject_기존품목변경_버저닝저장() {
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
+                com.kdb.it.domain.budget.project.entity.Bitemm existingItem =
+                                com.kdb.it.domain.budget.project.entity.Bitemm.builder()
+                                                .gclMngNo("GCL-0001").gclSno(1)
+                                                .prjMngNo(prjMngNo).prjSno(1)
+                                                .gclDtt("IOE-237-0700")
+                                                .gclNm("기존 품목")
+                                                .gclQtt(java.math.BigDecimal.ONE)
+                                                .cur("KRW")
+                                                .xcr(java.math.BigDecimal.ONE)
+                                                .bgFdtn("기존 근거")
+                                                .infPrtYn("N")
+                                                .itrInfrYn("N")
+                                                .gclAmt(java.math.BigDecimal.valueOf(1000))
+                                                .delYn("N")
+                                                .build();
+                ProjectDto.BitemmDto changedItem = ProjectDto.BitemmDto.builder()
+                                .gclMngNo("GCL-0001")
+                                .gclDtt("IOE-237-0700")
+                                .gclNm("변경 품목")
+                                .gclQtt(java.math.BigDecimal.ONE)
+                                .cur("KRW")
+                                .xcr(java.math.BigDecimal.ONE)
+                                .bgFdtn("기존 근거")
+                                .infPrtYn(null)
+                                .itrInfrYn(null)
+                                .gclAmt(java.math.BigDecimal.valueOf(1000))
+                                .build();
+                given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of(existingItem));
+
+                projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
+                                .prjNm("수정 사업")
+                                .items(List.of(changedItem))
+                                .build());
+
+                assertThat(existingItem.getDelYn()).isEqualTo("Y");
+                verify(bitemmRepository).save(any(com.kdb.it.domain.budget.project.entity.Bitemm.class));
+        }
+
+        @Test
+        @DisplayName("updateProject: 기존 품목이 변경되지 않으면 버저닝 저장하지 않는다")
+        void updateProject_기존품목변경없음_저장없음() {
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
+                com.kdb.it.domain.budget.project.entity.Bitemm existingItem =
+                                com.kdb.it.domain.budget.project.entity.Bitemm.builder()
+                                                .gclMngNo("GCL-0001").gclSno(1)
+                                                .prjMngNo(prjMngNo).prjSno(1)
+                                                .gclDtt("IOE-237-0700")
+                                                .gclNm("동일 품목")
+                                                .gclQtt(java.math.BigDecimal.ONE)
+                                                .cur("KRW")
+                                                .xcr(java.math.BigDecimal.ONE)
+                                                .infPrtYn("N")
+                                                .itrInfrYn("N")
+                                                .gclAmt(java.math.BigDecimal.valueOf(1000))
+                                                .delYn("N")
+                                                .build();
+                ProjectDto.BitemmDto sameItem = ProjectDto.BitemmDto.builder()
+                                .gclMngNo("GCL-0001")
+                                .gclDtt("IOE-237-0700")
+                                .gclNm("동일 품목")
+                                .gclQtt(java.math.BigDecimal.ONE)
+                                .cur("KRW")
+                                .xcr(java.math.BigDecimal.ONE)
+                                .infPrtYn(null)
+                                .itrInfrYn(null)
+                                .gclAmt(java.math.BigDecimal.valueOf(1000))
+                                .build();
+                given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of(existingItem));
+
+                projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
+                                .items(List.of(sameItem))
+                                .build());
+
+                assertThat(existingItem.getDelYn()).isEqualTo("N");
+                org.mockito.Mockito.verify(bitemmRepository, org.mockito.Mockito.never())
+                                .save(any(com.kdb.it.domain.budget.project.entity.Bitemm.class));
+        }
+
+        @Test
+        @DisplayName("getProjectsByIds: 배경연도가 있으면 편성예산을 자본/경상으로 분류한다")
+        void getProjectsByIds_배경연도있음_편성예산분류() {
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
+                given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(
+                                anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of());
+                given(codeService.findCodeEntitiesByCttTp("IOE_CPIT"))
+                                .willReturn(List.of(Ccodem.builder().cdId("IOE-ASSET").cdDes("개발비").build()));
+                given(codeService.findCodeEntitiesByCttTp("IOE_IDR"))
+                                .willReturn(List.of(Ccodem.builder().cdId("IOE-COST").build()));
+                given(codeService.findCodeEntitiesByCttTp("IOE_SEVS")).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCttTp("IOE_XPN")).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCttTp("IOE_LEAFE")).willReturn(List.of());
+                given(bbugtmRepository.sumDupBgByPrjMngNos(List.of(prjMngNo), "2026"))
+                                .willReturn(java.util.Map.of(prjMngNo, java.math.BigDecimal.valueOf(1000)));
+                given(bbugtmRepository.sumAssetDupBgByPrjMngNos(eq(List.of(prjMngNo)), eq("2026"), any()))
+                                .willReturn(java.util.Map.of(prjMngNo, java.math.BigDecimal.valueOf(700)));
+                given(bbugtmRepository.sumCostDupBgByPrjMngNos(eq(List.of(prjMngNo)), eq("2026"), any()))
+                                .willReturn(java.util.Map.of(prjMngNo, java.math.BigDecimal.valueOf(300)));
+                ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+                request.setPrjMngNos(List.of(prjMngNo));
+                request.setBgYy("2026");
+
+                List<ProjectDto.Response> result = projectService.getProjectsByIds(request);
+
+                assertThat(result).hasSize(1);
+                assertThat(result.get(0).getDupBg()).isEqualByComparingTo(java.math.BigDecimal.valueOf(1000));
+                assertThat(result.get(0).getAssetDupBg()).isEqualByComparingTo(java.math.BigDecimal.valueOf(700));
+                assertThat(result.get(0).getCostDupBg()).isEqualByComparingTo(java.math.BigDecimal.valueOf(300));
+        }
+
+        @Test
+        @DisplayName("getProject: 신청서, 코드명, 예산 합계를 함께 채운다")
+        void getProject_상세보강정보_함께반환() {
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo(prjMngNo)
+                                .prjSno(1)
+                                .itDpm("101")
+                                .svnDpm("102")
+                                .itDpmCgpr("10001")
+                                .itDpmTlr("10002")
+                                .svnDpmCgpr("10003")
+                                .svnDpmTlr("10004")
+                                .delYn("N")
+                                .build();
+                Cappla cappla = Cappla.builder()
+                                .apfMngNo("APF-001")
+                                .orcPkVl(prjMngNo)
+                                .orcSnoVl(1)
+                                .build();
+                Capplm capplm = Capplm.builder()
+                                .apfMngNo("APF-001")
+                                .apfNm("결재")
+                                .apfSts("결재중")
+                                .build();
+                Cdecim decision = Cdecim.builder()
+                                .dcdMngNo("APF-001")
+                                .dcdSqn(1)
+                                .dcdEno("10002")
+                                .build();
+                Bitemm devItem = Bitemm.builder()
+                                .gclDtt("IOE-DEV")
+                                .gclAmt(BigDecimal.valueOf(100))
+                                .xcr(BigDecimal.TEN)
+                                .build();
+                Bitemm machItem = Bitemm.builder()
+                                .gclDtt("IOE-MACH")
+                                .gclAmt(BigDecimal.valueOf(200))
+                                .xcr(BigDecimal.ZERO)
+                                .build();
+                Bitemm costItem = Bitemm.builder()
+                                .gclDtt("IOE-COST")
+                                .gclAmt(BigDecimal.valueOf(300))
+                                .xcr(null)
+                                .build();
+                given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(
+                                "BPROJM", prjMngNo, 1)).willReturn(List.of(cappla));
+                given(capplmRepository.findById("APF-001")).willReturn(Optional.of(capplm));
+                given(cdecimRepository.findByDcdMngNoOrderByDcdSqnAsc("APF-001")).willReturn(List.of(decision));
+                given(corgnIRepository.findById("101")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("101").bbrNm("IT부").build()));
+                given(corgnIRepository.findById("102")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("102").bbrNm("현업부").build()));
+                given(cuserIRepository.findById("10001")).willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
+                given(cuserIRepository.findById("10002")).willReturn(Optional.of(CuserI.builder().eno("10002").usrNm("팀장").build()));
+                given(cuserIRepository.findById("10003")).willReturn(Optional.of(CuserI.builder().eno("10003").usrNm("현업담당").build()));
+                given(cuserIRepository.findById("10004")).willReturn(Optional.of(CuserI.builder().eno("10004").usrNm("현업팀장").build()));
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of(devItem, machItem, costItem,
+                                                Bitemm.builder().gclDtt(null).gclAmt(BigDecimal.ONE).build(),
+                                                Bitemm.builder().gclDtt("IOE-NULL").gclAmt(null).build()));
+                given(codeService.findCodeEntitiesByCttTp("IOE_CPIT"))
+                                .willReturn(List.of(
+                                                Ccodem.builder().cdId("IOE-DEV").cdDes("개발비").build(),
+                                                Ccodem.builder().cdId("IOE-MACH").cdDes("기계장치").build()));
+                given(codeService.findCodeEntitiesByCttTp("IOE_IDR"))
+                                .willReturn(List.of(Ccodem.builder().cdId("IOE-COST").build()));
+                given(codeService.findCodeEntitiesByCttTp("IOE_SEVS")).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCttTp("IOE_XPN")).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCttTp("IOE_LEAFE")).willReturn(List.of());
+
+                ProjectDto.Response result = projectService.getProject(prjMngNo);
+
+                assertThat(result.getApfMngNo()).isEqualTo("APF-001");
+                assertThat(result.getApfSts()).isEqualTo("결재중");
+                assertThat(result.getItDpmNm()).isEqualTo("IT부");
+                assertThat(result.getSvnDpmNm()).isEqualTo("현업부");
+                assertThat(result.getItDpmCgprNm()).isEqualTo("담당자");
+                assertThat(result.getAssetBg()).isEqualByComparingTo("1200");
+                assertThat(result.getDevBg()).isEqualByComparingTo("1000");
+                assertThat(result.getMachBg()).isEqualByComparingTo("200");
+                assertThat(result.getCostBg()).isEqualByComparingTo("300");
+        }
+
+        @Test
+        @DisplayName("updateProject: 일반사용자가 타인 작성 프로젝트를 수정하면 거부된다")
+        void updateProject_일반사용자_타인작성수정거부() {
+                CustomUserDetails user = new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_USER), "999");
+                given(authentication.getPrincipal()).willReturn(user);
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0001")
+                                .prjSno(1)
+                                .fstEnrUsid("10001")
+                                .svnDpm("101")
+                                .delYn("N")
+                                .build();
+                given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
+                                .willReturn(Optional.of(project));
+
+                assertThatThrownBy(() -> projectService.updateProject("PRJ-2026-0001",
+                                ProjectDto.UpdateRequest.builder().prjNm("수정").build()))
+                                .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("updateProject: 부서관리자가 다른 부서 프로젝트를 수정하면 거부된다")
+        void updateProject_부서관리자_타부서수정거부() {
+                CustomUserDetails manager = new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_DEPT_MGR), "999");
+                given(authentication.getPrincipal()).willReturn(manager);
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0001")
+                                .prjSno(1)
+                                .fstEnrUsid("10001")
+                                .svnDpm("101")
+                                .delYn("N")
+                                .build();
+                given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
+                                .willReturn(Optional.of(project));
+
+                assertThatThrownBy(() -> projectService.updateProject("PRJ-2026-0001",
+                                ProjectDto.UpdateRequest.builder().prjNm("수정").build()))
+                                .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("deleteProject: 품목이 있으면 프로젝트와 품목을 함께 논리삭제한다")
+        void deleteProject_품목포함_함께논리삭제() {
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0001")
+                                .prjSno(1)
+                                .delYn("N")
+                                .build();
+                Bitemm item = Bitemm.builder()
+                                .gclMngNo("GCL-0001")
+                                .gclSno(1)
+                                .delYn("N")
+                                .build();
+                given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                                eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByPrjMngNoAndPrjSno("PRJ-2026-0001", 1)).willReturn(List.of(item));
+
+                projectService.deleteProject("PRJ-2026-0001");
+
+                assertThat(project.getDelYn()).isEqualTo("Y");
+                assertThat(item.getDelYn()).isEqualTo("Y");
+        }
+
+        @Test
+        @DisplayName("getProjectList: 배치 보강으로 신청서, 부서명, 담당자명을 설정한다")
+        void getProjectList_배치보강정보설정() {
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0001")
+                                .prjSno(1)
+                                .itDpm("101")
+                                .svnDpm("102")
+                                .itDpmCgpr("10001")
+                                .itDpmTlr("10002")
+                                .svnDpmCgpr("10003")
+                                .svnDpmTlr("10004")
+                                .delYn("N")
+                                .build();
+                Cappla latest = Cappla.builder()
+                                .apfMngNo("APF-001")
+                                .orcPkVl("PRJ-2026-0001")
+                                .orcSnoVl(1)
+                                .build();
+                Cappla old = Cappla.builder()
+                                .apfMngNo("APF-OLD")
+                                .orcPkVl("PRJ-2026-0001")
+                                .orcSnoVl(1)
+                                .build();
+                Capplm capplm = Capplm.builder()
+                                .apfMngNo("APF-001")
+                                .apfSts("결재중")
+                                .build();
+                given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc("BPROJM", List.of("PRJ-2026-0001")))
+                                .willReturn(List.of(latest, old));
+                given(capplmRepository.findAllById(List.of("APF-001"))).willReturn(List.of(capplm));
+                given(cdecimRepository.findByDcdMngNoInOrderByDcdSqnAsc(List.of("APF-001")))
+                                .willReturn(List.of(Cdecim.builder().dcdMngNo("APF-001").dcdSqn(1).dcdEno("10002").build()));
+                given(corgnIRepository.findAllById(any()))
+                                .willReturn(List.of(
+                                                CorgnI.builder().prlmOgzCCone("101").bbrNm("IT부").build(),
+                                                CorgnI.builder().prlmOgzCCone("102").bbrNm("현업부").build()));
+                given(cuserIRepository.findAllById(any()))
+                                .willReturn(List.of(
+                                                CuserI.builder().eno("10001").usrNm("IT담당").build(),
+                                                CuserI.builder().eno("10002").usrNm("IT팀장").build(),
+                                                CuserI.builder().eno("10003").usrNm("현업담당").build(),
+                                                CuserI.builder().eno("10004").usrNm("현업팀장").build()));
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn("PRJ-2026-0001", 1, "N"))
+                                .willReturn(List.of());
+                given(codeService.findCodeEntitiesByCttTp(anyString())).willReturn(List.of());
+
+                List<ProjectDto.Response> result = projectService.getProjectList();
+
+                assertThat(result).hasSize(1);
+                assertThat(result.get(0).getApfMngNo()).isEqualTo("APF-001");
+                assertThat(result.get(0).getApfSts()).isEqualTo("결재중");
+                assertThat(result.get(0).getItDpmNm()).isEqualTo("IT부");
+                assertThat(result.get(0).getSvnDpmNm()).isEqualTo("현업부");
+                assertThat(result.get(0).getItDpmCgprNm()).isEqualTo("IT담당");
+                assertThat(result.get(0).getSvnDpmTlrNm()).isEqualTo("현업팀장");
+        }
+
+        @Test
+        @DisplayName("updateProject: 인증 주체가 CustomUserDetails가 아니면 거부된다")
+        void updateProject_인증주체비정상_거부() {
+                given(authentication.getPrincipal()).willReturn("anonymous");
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0001")
+                                .prjSno(1)
+                                .delYn("N")
+                                .build();
+                given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
+                                .willReturn(Optional.of(project));
+
+                assertThatThrownBy(() -> projectService.updateProject("PRJ-2026-0001",
+                                ProjectDto.UpdateRequest.builder().build()))
+                                .isInstanceOf(AccessDeniedException.class)
+                                .hasMessageContaining("인증 정보");
+        }
+
+        @Test
+        @DisplayName("updateProject: 부서관리자는 같은 부서 프로젝트를 수정할 수 있다")
+        void updateProject_부서관리자_동일부서허용() {
+                CustomUserDetails manager = new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_DEPT_MGR), "101");
+                given(authentication.getPrincipal()).willReturn(manager);
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0001")
+                                .prjSno(1)
+                                .svnDpm("101")
+                                .delYn("N")
+                                .build();
+                given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                                eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn("PRJ-2026-0001", 1, "N"))
+                                .willReturn(List.of());
+
+                String result = projectService.updateProject("PRJ-2026-0001", ProjectDto.UpdateRequest.builder().build());
+
+                assertThat(result).isEqualTo("PRJ-2026-0001");
+        }
+
+        @Test
+        @DisplayName("updateProject: 일반사용자는 본인 작성 프로젝트를 수정할 수 있다")
+        void updateProject_일반사용자_본인작성허용() {
+                CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "999");
+                given(authentication.getPrincipal()).willReturn(user);
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0001")
+                                .prjSno(1)
+                                .fstEnrUsid("10001")
+                                .svnDpm("101")
+                                .delYn("N")
+                                .build();
+                given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                                eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn("PRJ-2026-0001", 1, "N"))
+                                .willReturn(List.of());
+
+                String result = projectService.updateProject("PRJ-2026-0001", ProjectDto.UpdateRequest.builder().build());
+
+                assertThat(result).isEqualTo("PRJ-2026-0001");
+        }
+
+        @Test
+        @DisplayName("updateProject: 기존 품목의 마지막 금액 필드만 달라도 변경으로 판단한다")
+        void updateProject_기존품목_금액만변경_버저닝저장() {
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo(prjMngNo)
+                                .prjSno(1)
+                                .delYn("N")
+                                .build();
+                Bitemm existingItem = Bitemm.builder()
+                                .gclMngNo("GCL-0001")
+                                .gclSno(1)
+                                .prjMngNo(prjMngNo)
+                                .prjSno(1)
+                                .gclDtt("IOE-237")
+                                .gclNm("동일")
+                                .gclQtt(BigDecimal.ONE)
+                                .cur("KRW")
+                                .xcr(null)
+                                .xcrBseDt(LocalDate.of(2026, 1, 1))
+                                .bgFdtn("근거")
+                                .itdDt("2026-02")
+                                .dfrCle("매월")
+                                .infPrtYn("Y")
+                                .itrInfrYn("Y")
+                                .gclAmt(BigDecimal.valueOf(100))
+                                .delYn("N")
+                                .build();
+                ProjectDto.BitemmDto changed = ProjectDto.BitemmDto.builder()
+                                .gclMngNo("GCL-0001")
+                                .gclDtt("IOE-237")
+                                .gclNm("동일")
+                                .gclQtt(BigDecimal.ONE)
+                                .cur("KRW")
+                                .xcr(null)
+                                .xcrBseDt(LocalDate.of(2026, 1, 1))
+                                .bgFdtn("근거")
+                                .itdDt("2026-02")
+                                .dfrCle("매월")
+                                .infPrtYn("Y")
+                                .itrInfrYn("Y")
+                                .gclAmt(BigDecimal.valueOf(200))
+                                .build();
+                given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of(existingItem));
+
+                projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
+                                .items(List.of(changed))
+                                .build());
+
+                assertThat(existingItem.getDelYn()).isEqualTo("Y");
+                verify(bitemmRepository).save(any(Bitemm.class));
+        }
+
+        @Test
+        @DisplayName("getProjectList: 프로젝트가 없으면 배치 보강 없이 빈 목록을 반환한다")
+        void getProjectList_빈목록_빈목록반환() {
+                given(projectRepository.findAllByDelYn("N")).willReturn(List.of());
+
+                List<ProjectDto.Response> result = projectService.getProjectList();
+
+                assertThat(result).isEmpty();
         }
 }

@@ -24,6 +24,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
+import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bevalm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
@@ -257,5 +258,73 @@ class EvaluationServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).ckgItmC()).isEqualTo("MGMT_STR");
         assertThat(result.get(0).avgScore()).isEqualTo(4.0);
+    }
+
+    @Test
+    @DisplayName("saveEvaluation: 2점 의견이 공백이면 IllegalArgumentException을 던진다")
+    void saveEvaluation_2점공백의견_IllegalArgumentException발생() {
+        Basctm council = mock(Basctm.class);
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        assertThatThrownBy(() -> evaluationService.saveEvaluation(
+                ASCT_ID,
+                new CouncilDto.EvaluationRequest(List.of(item("UNKNOWN", 2, "   "))),
+                mockUser(ENO)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("UNKNOWN");
+    }
+
+    @Test
+    @DisplayName("saveEvaluation: 전원이 6개 항목을 제출하면 RESULT_WRITING으로 전이한다")
+    void saveEvaluation_전원제출완료_RESULT_WRITING전이() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAsctSts()).willReturn("EVALUATING");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "ETC", "N"))
+                .willReturn(Optional.empty());
+
+        Bcmmtm member = mock(Bcmmtm.class);
+        given(member.getEno()).willReturn(ENO);
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        List<Bevalm> submitted = List.of(
+                evalOf("MGMT_STR"), evalOf("FIN_EFC"), evalOf("RISK_IMP"),
+                evalOf("REP_IMP"), evalOf("DUP_SYS"), evalOf("ETC"));
+        given(evaluationRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(submitted);
+
+        evaluationService.saveEvaluation(ASCT_ID,
+                new CouncilDto.EvaluationRequest(List.of(item("ETC", 5, null))),
+                mockUser(ENO));
+
+        verify(councilService).changeStatus(ASCT_ID, "RESULT_WRITING");
+    }
+
+    @Test
+    @DisplayName("getAllEvaluations: 사용자 정보가 있으면 평가 응답에 이름을 포함한다")
+    void getAllEvaluations_사용자정보있음_이름포함() {
+        Basctm council = mock(Basctm.class);
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        Bevalm eval = mock(Bevalm.class);
+        given(eval.getEno()).willReturn(ENO);
+        given(eval.getCkgItmC()).willReturn("UNKNOWN");
+        given(eval.getCkgRcrd()).willReturn(3);
+        given(evaluationRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
+        com.kdb.it.common.iam.entity.CuserI user = mock(com.kdb.it.common.iam.entity.CuserI.class);
+        given(user.getEno()).willReturn(ENO);
+        given(user.getUsrNm()).willReturn("홍길동");
+        given(userRepository.findByEno(ENO)).willReturn(Optional.of(user));
+        given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N"))
+                .willReturn(java.util.Collections.singletonList(new Object[]{"UNKNOWN", 2.5}));
+
+        CouncilDto.EvaluationSummaryResponse result = evaluationService.getAllEvaluations(ASCT_ID);
+
+        assertThat(result.evaluations().get(0).usrNm()).isEqualTo("홍길동");
+        assertThat(result.evaluations().get(0).ckgItmNm()).isEqualTo("UNKNOWN");
+    }
+
+    private Bevalm evalOf(String itemCode) {
+        Bevalm eval = mock(Bevalm.class);
+        given(eval.getEno()).willReturn(ENO);
+        given(eval.getCkgItmC()).willReturn(itemCode);
+        return eval;
     }
 }

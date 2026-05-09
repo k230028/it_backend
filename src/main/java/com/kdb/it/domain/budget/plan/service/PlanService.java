@@ -90,12 +90,13 @@ public class PlanService {
          *
          * <p>
          * [처리 순서]
-         * 1. 대상 프로젝트 목록을 ProjectService에서 조회
-         * 2. 예산 합계(TTL_BG, CPT_BG, MNGC) 계산
-         * 3. 부문(SVN_HDQ)별, 사업유형(PRJ_TP)별 그룹핑 후 JSON 스냅샷 생성
-         * 4. 계획관리번호 채번: PLN-{plnYy}-{seq:04d}
-         * 5. TAAABB_BPLANM 저장
-         * 6. 각 프로젝트에 대해 TAAABB_BPROJA 저장
+         * 1. 대상 정보화사업 목록을 ProjectService에서 조회
+         * 2. 대상 전산업무비 목록을 CostService에서 조회
+         * 3. 예산 합계(TTL_BG, CPT_BG, MNGC) 계산 (정보화사업 + 전산업무비 합산)
+         * 4. JSON 스냅샷 생성
+         * 5. 계획관리번호 채번: PLN-{plnYy}-{seq:04d}
+         * 6. TAAABB_BPLANM 저장
+         * 7. 각 프로젝트·전산업무비에 대해 TAAABB_BPROJA 저장
          * </p>
          *
          * @param request 계획 생성 요청 DTO

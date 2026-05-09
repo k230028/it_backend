@@ -24,6 +24,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 /**
  * AdminLogService 단위 테스트
@@ -103,6 +104,42 @@ class AdminLogServiceTest {
         assertThat(result.row()).containsEntry("logSno", "BASCTM_0001");
         assertThat(result.row()).containsEntry("chgTp", "U");
         assertThat(result.columns()).anyMatch(AdminLogDto.LogColumnResponse::primary);
+    }
+
+    @Test
+    @DisplayName("getLogDetail: 로그가 없으면 IllegalArgumentException을 던진다")
+    void getLogDetail_로그없음_IllegalArgumentException발생() {
+        given(entityManager.find(eq(BasctmL.class), eq("MISSING"))).willReturn(null);
+
+        assertThatThrownBy(() -> adminLogService.getLogDetail("basctm", "MISSING"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("존재하지 않는 로그");
+    }
+
+    @Test
+    @DisplayName("getLogs: 페이지 번호와 크기를 안전 범위로 보정하고 사용자 필드가 없으면 빈 이름 맵을 반환한다")
+    void getLogs_페이지보정_사용자명없음() {
+        TypedQuery<BasctmL> listQuery = mock(TypedQuery.class);
+        TypedQuery<Long> countQuery = mock(TypedQuery.class);
+        given(entityManager.createQuery("select e from BasctmL e order by e.logSno desc", BasctmL.class))
+                .willReturn(listQuery);
+        given(listQuery.setFirstResult(0)).willReturn(listQuery);
+        given(listQuery.setMaxResults(1)).willReturn(listQuery);
+        given(listQuery.getResultList()).willReturn(List.of());
+        given(entityManager.createQuery("select count(e) from BasctmL e", Long.class)).willReturn(countQuery);
+        given(countQuery.getSingleResult()).willReturn(0L);
+
+        Pageable pageable = mock(Pageable.class);
+        given(pageable.getPageNumber()).willReturn(-1);
+        given(pageable.getPageSize()).willReturn(0);
+
+        AdminLogDto.LogPageResponse result = adminLogService.getLogs("basctm", pageable);
+
+        assertThat(result.number()).isZero();
+        assertThat(result.size()).isEqualTo(1);
+        assertThat(result.totalPages()).isZero();
+        assertThat(result.userNames()).isEmpty();
+        verify(listQuery).setMaxResults(1);
     }
 
     @Test

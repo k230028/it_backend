@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.entity.CroleI;
 import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.dto.AuthDto;
@@ -277,5 +279,95 @@ class AuthServiceTest {
                 // then
                 verify(refreshTokenRepository, times(1)).deleteByEno("10001");
                 verify(loginHistoryRepository, times(1)).save(any(Clognh.class));
+        }
+
+        @Test
+        @DisplayName("getUserName - 사용자가 있으면 이름을 반환하고 없으면 Unknown을 반환한다")
+        void getUserName_사용자존재여부에따라반환() {
+                given(userRepository.findByEno("10001"))
+                                .willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("홍길동").build()));
+                given(userRepository.findByEno("99999")).willReturn(Optional.empty());
+
+                assertThat(authService.getUserName("10001")).isEqualTo("홍길동");
+                assertThat(authService.getUserName("99999")).isEqualTo("Unknown");
+        }
+
+        @Test
+        @DisplayName("login - 활성 자격등급이 있으면 해당 자격등급으로 토큰을 발급한다")
+        void login_활성자격등급있음_토큰클레임반영() {
+                CuserI user = CuserI.builder()
+                                .eno("10001").usrNm("홍길동").usrEcyPwd("encodedPwd").bbrC("BBR001").temC("TEM001").build();
+                CroleI role = org.mockito.Mockito.mock(CroleI.class);
+                given(role.getAthId()).willReturn("ITPAD001");
+                given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+                given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
+                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
+                                .willReturn(List.of(role));
+                given(jwtUtil.generateAccessToken("10001", List.of("ITPAD001"), "BBR001")).willReturn("access-token");
+                given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
+
+                AuthDto.LoginResponse response = authService.login("10001", "password", "127.0.0.1", "Agent");
+
+                assertThat(response.getAthIds()).containsExactly("ITPAD001");
+                assertThat(response.getBbrC()).isEqualTo("BBR001");
+                assertThat(response.getTemC()).isEqualTo("TEM001");
+        }
+
+        @Test
+        @DisplayName("refreshAccessToken - DB에 토큰이 없으면 RuntimeException을 던진다")
+        void refreshAccessToken_DB토큰없음_예외발생() {
+                given(jwtUtil.validateToken("missing-refresh")).willReturn(true);
+                given(refreshTokenRepository.findByTok("missing-refresh")).willReturn(Optional.empty());
+
+                assertThatThrownBy(() -> authService.refreshAccessToken("missing-refresh"))
+                                .isInstanceOf(RuntimeException.class)
+                                .hasMessageContaining("Refresh Token을 찾을 수 없습니다");
+        }
+
+        @Test
+        @DisplayName("refreshAccessToken - 토큰 사용자가 없으면 RuntimeException을 던진다")
+        void refreshAccessToken_사용자없음_예외발생() {
+                String tokenValue = "valid-refresh-token";
+                Crtokm refreshToken = Crtokm.builder()
+                                .tok(tokenValue).eno("10001")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                given(jwtUtil.validateToken(tokenValue)).willReturn(true);
+                given(refreshTokenRepository.findByTok(tokenValue)).willReturn(Optional.of(refreshToken));
+                given(userRepository.findByEno("10001")).willReturn(Optional.empty());
+
+                assertThatThrownBy(() -> authService.refreshAccessToken(tokenValue))
+                                .isInstanceOf(RuntimeException.class)
+                                .hasMessageContaining("사용자를 찾을 수 없습니다");
+        }
+
+        @Test
+        @DisplayName("issueSsoTokens - 사용자 존재 시 로그인 응답과 이력을 생성한다")
+        void issueSsoTokens_사용자존재_토큰발급() {
+                CuserI user = CuserI.builder()
+                                .eno("10001").usrNm("홍길동").bbrC("BBR001").temC("TEM001").build();
+                given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
+                                .willReturn(Collections.emptyList());
+                given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("access-token");
+                given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
+
+                AuthDto.LoginResponse response = authService.issueSsoTokens("10001");
+
+                assertThat(response.getEno()).isEqualTo("10001");
+                assertThat(response.getAthIds()).containsExactly("ITPZZ001");
+                verify(refreshTokenRepository).deleteByEno("10001");
+                verify(refreshTokenRepository).save(any(Crtokm.class));
+                verify(loginHistoryRepository).save(any(Clognh.class));
+        }
+
+        @Test
+        @DisplayName("issueSsoTokens - 사용자가 없으면 RuntimeException을 던진다")
+        void issueSsoTokens_사용자없음_예외발생() {
+                given(userRepository.findByEno("99999")).willReturn(Optional.empty());
+
+                assertThatThrownBy(() -> authService.issueSsoTokens("99999"))
+                                .isInstanceOf(RuntimeException.class)
+                                .hasMessageContaining("사용자를 찾을 수 없습니다");
         }
 }

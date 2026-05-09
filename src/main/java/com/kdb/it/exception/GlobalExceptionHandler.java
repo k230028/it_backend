@@ -91,12 +91,13 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 런타임 예외 처리 (400 Bad Request)
+     * Bean Validation 실패 예외 처리 (400 Bad Request)
      *
-     * <p>인증 실패(사번 미존재, 비밀번호 불일치, 토큰 오류 등) 상황에서 발생합니다.</p>
+     * <p>{@code @Valid} 어노테이션이 붙은 요청 DTO의 필드 검증 실패 시 발생합니다.
+     * 실패한 필드명과 오류 메시지를 쉼표로 구분하여 반환합니다.</p>
      *
-     * @param e {@link RuntimeException}
-     * @return 400 응답 + 오류 메시지
+     * @param e {@link MethodArgumentNotValidException} — 필드 검증 실패 정보 포함
+     * @return 400 응답 + "필드명: 오류 메시지" 형식의 문자열
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationException(MethodArgumentNotValidException e) {
@@ -107,6 +108,14 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message);
     }
 
+    /**
+     * 런타임 예외 처리 (400 Bad Request)
+     *
+     * <p>인증 실패(사번 미존재, 비밀번호 불일치, 토큰 오류 등) 상황에서 발생합니다.</p>
+     *
+     * @param e {@link RuntimeException}
+     * @return 400 응답 + 일반 오류 메시지
+     */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException e) {
         log.warn("런타임 예외 발생: {}", e.getMessage(), e);

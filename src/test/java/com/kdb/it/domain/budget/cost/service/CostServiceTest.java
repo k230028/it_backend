@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,18 +22,26 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import com.kdb.it.common.approval.entity.Cappla;
+import com.kdb.it.common.approval.entity.Capplm;
+import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.code.service.CodeService;
+import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
+import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 
 /**
  * CostService 단위 테스트
@@ -58,6 +67,7 @@ class CostServiceTest {
     @Mock private ApproverRepository cdecimRepository;
     @Mock private CodeRepository ccodemRepository;
     @Mock private CodeService codeService;
+    @Mock private BbugtmRepository bbugtmRepository;
 
     @InjectMocks
     private CostService costService;
@@ -368,5 +378,458 @@ class CostServiceTest {
         CostDto.Response result = costService.getCost(IT_MNGC_NO);
 
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("createCost: 단말기 식별자가 없으면 단말기 관리번호와 순번을 채번해 저장한다")
+    void createCost_단말기식별자없음_채번후저장() {
+        CostDto.TerminalDto terminal = CostDto.TerminalDto.builder()
+                .tmnNm("금융단말")
+                .cur("KRW")
+                .tmlAmt(BigDecimal.valueOf(1000))
+                .build();
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
+                .itMngcNo(IT_MNGC_NO)
+                .cttNm("단말기 계약")
+                .terminals(List.of(terminal))
+                .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(2);
+        given(btermmRepository.getNextSequenceValue()).willReturn(7L);
+
+        String result = costService.createCost(request);
+
+        assertThat(result).isEqualTo(IT_MNGC_NO);
+        assertThat(terminal.getTmnMngNo()).matches("TER_\\d{4}_0007");
+        assertThat(terminal.getTmnSno()).isEqualTo("1");
+        verify(btermmRepository).save(any(Btermm.class));
+    }
+
+    @Test
+    @DisplayName("updateCost: 최신 이력이 없으면 첫 번째 항목을 수정하고 단말기를 재등록한다")
+    void updateCost_최신이력없음_첫번째항목수정및단말기재등록() {
+        CustomUserDetails admin = new CustomUserDetails(
+                "10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+
+        try {
+            Bcostm first = mock(Bcostm.class);
+            Bcostm second = mock(Bcostm.class);
+            Btermm oldTerminal = mock(Btermm.class);
+            CostDto.TerminalDto newTerminal = CostDto.TerminalDto.builder()
+                    .tmnNm("교체단말")
+                    .tmlAmt(BigDecimal.valueOf(2000))
+                    .build();
+            CostDto.UpdateRequest request = CostDto.UpdateRequest.builder()
+                    .cttNm("수정 계약")
+                    .terminals(List.of(newTerminal))
+                    .build();
+            given(first.getItMngcNo()).willReturn(IT_MNGC_NO);
+            given(first.getItMngcSno()).willReturn(1);
+            given(first.getLstYn()).willReturn("N");
+            given(first.getFstEnrUsid()).willReturn("10001");
+            given(first.getBiceDpm()).willReturn("BBR001");
+            given(second.getLstYn()).willReturn("N");
+            given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N"))
+                    .willReturn(List.of(first, second));
+            given(btermmRepository.findByItMngcNoAndItMngcSno(IT_MNGC_NO, 1))
+                    .willReturn(List.of(oldTerminal));
+            given(btermmRepository.getNextSequenceValue()).willReturn(8L);
+
+            String result = costService.updateCost(IT_MNGC_NO, request);
+
+            assertThat(result).isEqualTo(IT_MNGC_NO);
+            verify(first).update(any(), eq("수정 계약"), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+            verify(oldTerminal).delete();
+            verify(btermmRepository).save(any(Btermm.class));
+            assertThat(newTerminal.getTmnMngNo()).matches("TER_\\d{4}_0008");
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("deleteCost: 연결된 단말기도 함께 Soft Delete 처리한다")
+    void deleteCost_연결단말기_SoftDelete처리() {
+        CustomUserDetails admin = new CustomUserDetails(
+                "10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+
+        try {
+            Bcostm cost = mock(Bcostm.class);
+            Btermm terminal = mock(Btermm.class);
+            given(cost.getItMngcNo()).willReturn(IT_MNGC_NO);
+            given(cost.getItMngcSno()).willReturn(1);
+            given(cost.getFstEnrUsid()).willReturn("10001");
+            given(cost.getBiceDpm()).willReturn("BBR001");
+            given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N"))
+                    .willReturn(List.of(cost));
+            given(btermmRepository.findByItMngcNoAndItMngcSno(IT_MNGC_NO, 1))
+                    .willReturn(List.of(terminal));
+
+            costService.deleteCost(IT_MNGC_NO);
+
+            verify(cost).delete();
+            verify(terminal).delete();
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("getCostsByIds: 배경연도와 존재 항목이 있으면 편성예산을 자본/경상으로 분류한다")
+    void getCostsByIds_배경연도있음_편성예산분류() {
+        Bcostm assetCost = mock(Bcostm.class);
+        Bcostm costCost = mock(Bcostm.class);
+        given(assetCost.getItMngcNo()).willReturn("COST-ASSET");
+        given(assetCost.getItMngcSno()).willReturn(1);
+        given(assetCost.getIoeC()).willReturn("IOE-ASSET");
+        given(assetCost.getItMngcBg()).willReturn(BigDecimal.valueOf(1000));
+        given(costCost.getItMngcNo()).willReturn("COST-COST");
+        given(costCost.getItMngcSno()).willReturn(1);
+        given(costCost.getIoeC()).willReturn("IOE-COST");
+        given(costCost.getItMngcBg()).willReturn(BigDecimal.valueOf(2000));
+        given(costRepository.findByItMngcNoAndDelYn("COST-ASSET", "N")).willReturn(List.of(assetCost));
+        given(costRepository.findByItMngcNoAndDelYn("COST-COST", "N")).willReturn(List.of(costCost));
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(eq("BCOSTM"), any(), any()))
+                .willReturn(List.of());
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(any(), any(), eq("N")))
+                .willReturn(List.of());
+        given(ccodemRepository.findByCdIdWithValidDate("IOE-ASSET", null))
+                .willReturn(Optional.of(Ccodem.builder().cdId("IOE-ASSET").cttTp("IOE_CPIT").cdDes("개발비").build()));
+        given(ccodemRepository.findByCdIdWithValidDate("IOE-COST", null))
+                .willReturn(Optional.of(Ccodem.builder().cdId("IOE-COST").cttTp("IOE_IDR").build()));
+        given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-ASSET", "COST-COST"), "2026"))
+                .willReturn(java.util.Map.of(
+                        "COST-ASSET", BigDecimal.valueOf(700),
+                        "COST-COST", BigDecimal.valueOf(800)));
+
+        CostDto.BulkGetRequest request = new CostDto.BulkGetRequest(List.of("COST-ASSET", "COST-COST"), "2026");
+
+        List<CostDto.Response> result = costService.getCostsByIds(request);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getAssetDupBg()).isEqualByComparingTo(BigDecimal.valueOf(700));
+        assertThat(result.get(0).getCostDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.get(1).getAssetDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.get(1).getCostDupBg()).isEqualByComparingTo(BigDecimal.valueOf(800));
+    }
+
+    @Test
+    @DisplayName("getCost: 신청서, 코드명, 예산 구분, 단말기 담당자명을 함께 채운다")
+    void getCost_상세보강정보_함께반환() {
+        Bcostm cost = Bcostm.builder()
+                .itMngcNo(IT_MNGC_NO)
+                .itMngcSno(1)
+                .ioeC("IOE-DEV")
+                .cttNm("계약")
+                .itMngcBg(BigDecimal.valueOf(1000))
+                .biceDpm("101")
+                .biceTem("102")
+                .cgpr("10001")
+                .delYn("N")
+                .build();
+        Cappla cappla = Cappla.builder()
+                .apfMngNo("APF-001")
+                .orcPkVl(IT_MNGC_NO)
+                .orcSnoVl(1)
+                .build();
+        Capplm capplm = Capplm.builder()
+                .apfMngNo("APF-001")
+                .apfNm("결재")
+                .apfSts("결재완료")
+                .build();
+        Cdecim decision = Cdecim.builder()
+                .dcdMngNo("APF-001")
+                .dcdSqn(1)
+                .dcdEno("10002")
+                .build();
+        Btermm terminal = Btermm.builder()
+                .tmnMngNo("TER-001")
+                .tmnSno("1")
+                .itMngcNo(IT_MNGC_NO)
+                .itMngcSno(1)
+                .cgpr("10003")
+                .build();
+        given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(
+                "BCOSTM", IT_MNGC_NO, 1)).willReturn(List.of(cappla));
+        given(capplmRepository.findById("APF-001")).willReturn(Optional.of(capplm));
+        given(cdecimRepository.findByDcdMngNoOrderByDcdSqnAsc("APF-001")).willReturn(List.of(decision));
+        given(corgnIRepository.findById("101")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("101").bbrNm("부서").build()));
+        given(corgnIRepository.findById("102")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
+        given(cuserIRepository.findById("10001")).willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
+        given(ccodemRepository.findByCdIdWithValidDate("IOE-DEV", null))
+                .willReturn(Optional.of(Ccodem.builder().cdId("IOE-DEV").cttTp("IOE_CPIT").cdDes("개발비").build()));
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(IT_MNGC_NO, 1, "N"))
+                .willReturn(List.of(terminal));
+        given(cuserIRepository.findByEnoIn(java.util.Set.of("10003")))
+                .willReturn(List.of(CuserI.builder().eno("10003").usrNm("단말담당").build()));
+
+        CostDto.Response result = costService.getCost(IT_MNGC_NO);
+
+        assertThat(result.getApfMngNo()).isEqualTo("APF-001");
+        assertThat(result.getApfSts()).isEqualTo("결재완료");
+        assertThat(result.getBiceDpmNm()).isEqualTo("부서");
+        assertThat(result.getBiceTemNm()).isEqualTo("팀");
+        assertThat(result.getCgprNm()).isEqualTo("담당자");
+        assertThat(result.getAssetBg()).isEqualByComparingTo("1000");
+        assertThat(result.getDevBg()).isEqualByComparingTo("1000");
+        assertThat(result.getCostBg()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.getTerminals()).hasSize(1);
+        assertThat(result.getTerminals().get(0).getCgprNm()).isEqualTo("단말담당");
+    }
+
+    @Test
+    @DisplayName("getCost: 자본예산 코드설명별 세부 분류와 일반관리비를 계산한다")
+    void getCost_예산구분세부분류계산() {
+        Bcostm machCost = Bcostm.builder()
+                .itMngcNo("COST-MACH")
+                .itMngcSno(1)
+                .ioeC("IOE-MACH")
+                .itMngcBg(BigDecimal.valueOf(200))
+                .delYn("N")
+                .build();
+        Bcostm intanCost = Bcostm.builder()
+                .itMngcNo("COST-INTAN")
+                .itMngcSno(1)
+                .ioeC("IOE-INTAN")
+                .itMngcBg(BigDecimal.valueOf(300))
+                .delYn("N")
+                .build();
+        Bcostm costBg = Bcostm.builder()
+                .itMngcNo("COST-GEN")
+                .itMngcSno(1)
+                .ioeC("IOE-GEN")
+                .itMngcBg(null)
+                .delYn("N")
+                .build();
+        given(costRepository.findByItMngcNoAndDelYn("COST-MACH", "N")).willReturn(List.of(machCost));
+        given(costRepository.findByItMngcNoAndDelYn("COST-INTAN", "N")).willReturn(List.of(intanCost));
+        given(costRepository.findByItMngcNoAndDelYn("COST-GEN", "N")).willReturn(List.of(costBg));
+        given(ccodemRepository.findByCdIdWithValidDate("IOE-MACH", null))
+                .willReturn(Optional.of(Ccodem.builder().cttTp("IOE_CPIT").cdDes("기계장치").build()));
+        given(ccodemRepository.findByCdIdWithValidDate("IOE-INTAN", null))
+                .willReturn(Optional.of(Ccodem.builder().cttTp("IOE_CPIT").cdDes("기타무형자산").build()));
+        given(ccodemRepository.findByCdIdWithValidDate("IOE-GEN", null))
+                .willReturn(Optional.of(Ccodem.builder().cttTp("IOE_IDR").build()));
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(any(), eq(1), eq("N"))).willReturn(List.of());
+
+        CostDto.Response mach = costService.getCost("COST-MACH");
+        CostDto.Response intan = costService.getCost("COST-INTAN");
+        CostDto.Response general = costService.getCost("COST-GEN");
+
+        assertThat(mach.getMachBg()).isEqualByComparingTo("200");
+        assertThat(intan.getIntanBg()).isEqualByComparingTo("300");
+        assertThat(general.getCostBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("getCostList: 배치 보강으로 신청서, 부서명, 담당자명, 전년도 예산을 설정한다")
+    void getCostList_배치보강정보설정() {
+        Bcostm cost = Bcostm.builder()
+                .itMngcNo(IT_MNGC_NO)
+                .itMngcSno(1)
+                .ioeC("IOE-COST")
+                .itMngcBg(BigDecimal.valueOf(1000))
+                .itMngcTp("IT_MNGC_TP_002")
+                .pulDtt("PUL_DTT_002")
+                .bgYy("2026")
+                .cncdItMngcNo("COST-2025-0001")
+                .biceDpm("101")
+                .biceTem("102")
+                .cgpr("10001")
+                .delYn("N")
+                .build();
+        Bcostm newCost = Bcostm.builder()
+                .itMngcNo("COST-NEW")
+                .itMngcSno(1)
+                .ioeC(null)
+                .pulDtt("PUL_DTT_001")
+                .bgYy("2026")
+                .delYn("N")
+                .build();
+        Cappla cappla = Cappla.builder()
+                .apfMngNo("APF-001")
+                .orcPkVl(IT_MNGC_NO)
+                .orcSnoVl(1)
+                .build();
+        Capplm capplm = Capplm.builder().apfMngNo("APF-001").apfSts("결재중").build();
+        given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost, newCost));
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc("BCOSTM", List.of(IT_MNGC_NO, "COST-NEW")))
+                .willReturn(List.of(cappla));
+        given(capplmRepository.findAllById(List.of("APF-001"))).willReturn(List.of(capplm));
+        given(cdecimRepository.findByDcdMngNoInOrderByDcdSqnAsc(List.of("APF-001")))
+                .willReturn(List.of(Cdecim.builder().dcdMngNo("APF-001").dcdSqn(1).dcdEno("10002").build()));
+        given(corgnIRepository.findAllById(any()))
+                .willReturn(List.of(
+                        CorgnI.builder().prlmOgzCCone("101").bbrNm("부서").build(),
+                        CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
+        given(cuserIRepository.findAllById(any()))
+                .willReturn(List.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
+        given(ccodemRepository.findByCdIdWithValidDate("IOE-COST", null))
+                .willReturn(Optional.of(Ccodem.builder().cttTp("IOE_IDR").build()));
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(IT_MNGC_NO, 1, "N")).willReturn(List.of());
+        given(costRepository.sumPrevBgByItMngcNos(List.of(IT_MNGC_NO), "2025"))
+                .willReturn(java.util.Map.of(IT_MNGC_NO, BigDecimal.valueOf(900)));
+        given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-2025-0001"), "2025"))
+                .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(800)));
+
+        List<CostDto.Response> result = costService.getCostList();
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getApfMngNo()).isEqualTo("APF-001");
+        assertThat(result.get(0).getBiceDpmNm()).isEqualTo("부서");
+        assertThat(result.get(0).getCgprNm()).isEqualTo("담당자");
+        assertThat(result.get(0).getCostBg()).isEqualByComparingTo("1000");
+        assertThat(result.get(0).getPrevBgAmt()).isEqualByComparingTo("900");
+        assertThat(result.get(0).getPrevDupBg()).isEqualByComparingTo("800");
+        assertThat(result.get(1).getPrevDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("updateCost: 인증 주체가 비정상이면 거부된다")
+    void updateCost_인증주체비정상_거부() {
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn("anonymous");
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+        try {
+            Bcostm cost = Bcostm.builder()
+                    .itMngcNo(IT_MNGC_NO)
+                    .itMngcSno(1)
+                    .delYn("N")
+                    .build();
+            given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+
+            assertThatThrownBy(() -> costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build()))
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                    .hasMessageContaining("인증 정보");
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("updateCost: 부서관리자는 같은 부서 전산업무비를 수정할 수 있다")
+    void updateCost_부서관리자_동일부서허용() {
+        CustomUserDetails manager = new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_DEPT_MGR), "101");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(manager);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+        try {
+            Bcostm cost = Bcostm.builder()
+                    .itMngcNo(IT_MNGC_NO)
+                    .itMngcSno(1)
+                    .biceDpm("101")
+                    .delYn("N")
+                    .build();
+            given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(2);
+            given(btermmRepository.findByItMngcNoAndItMngcSno(IT_MNGC_NO, 1)).willReturn(List.of());
+
+            String result = costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build());
+
+            assertThat(result).isEqualTo(IT_MNGC_NO);
+            verify(btermmRepository).findByItMngcNoAndItMngcSno(IT_MNGC_NO, 1);
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("updateCost: 일반사용자는 본인 작성 전산업무비를 수정할 수 있다")
+    void updateCost_일반사용자_본인작성허용() {
+        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "999");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(user);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+        try {
+            Bcostm cost = Bcostm.builder()
+                    .itMngcNo(IT_MNGC_NO)
+                    .itMngcSno(1)
+                    .fstEnrUsid("10001")
+                    .biceDpm("101")
+                    .delYn("N")
+                    .build();
+            given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(btermmRepository.findByItMngcNoAndItMngcSno(IT_MNGC_NO, 1)).willReturn(List.of());
+
+            String result = costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build());
+
+            assertThat(result).isEqualTo(IT_MNGC_NO);
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("updateCost: 부서관리자가 다른 부서 전산업무비를 수정하면 거부된다")
+    void updateCost_부서관리자_타부서거부() {
+        CustomUserDetails manager = new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_DEPT_MGR), "999");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(manager);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+        try {
+            Bcostm cost = Bcostm.builder()
+                    .itMngcNo(IT_MNGC_NO)
+                    .itMngcSno(1)
+                    .biceDpm("101")
+                    .delYn("N")
+                    .build();
+            given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+
+            assertThatThrownBy(() -> costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build()))
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                    .hasMessageContaining("소속 부서");
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("getCost: 비목코드가 비어 있으면 예산 분류를 0으로 유지한다")
+    void getCost_비목코드없음_예산분류0유지() {
+        Bcostm cost = Bcostm.builder()
+                .itMngcNo("COST-NO-IOE")
+                .itMngcSno(1)
+                .ioeC("")
+                .itMngcBg(BigDecimal.valueOf(1000))
+                .delYn("N")
+                .build();
+        given(costRepository.findByItMngcNoAndDelYn("COST-NO-IOE", "N")).willReturn(List.of(cost));
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-NO-IOE", 1, "N")).willReturn(List.of());
+
+        CostDto.Response result = costService.getCost("COST-NO-IOE");
+
+        assertThat(result.getAssetBg()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.getCostBg()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 }

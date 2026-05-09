@@ -266,6 +266,7 @@ public class GeminiService {
         try {
             fileBytes = Files.readAllBytes(filePath);
         } catch (IOException e) {
+            // TODO: 파일 첨부 실패 시 스택 트레이스 누락 — log.warn("Gemini 파일 첨부 실패 - flMngNo: {}", flMngNo, e) 추가 필요
             return FilePartResult.skip("파일 읽기 실패: " + e.getMessage());
         }
 

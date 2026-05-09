@@ -148,9 +148,22 @@ jacocoTestCoverageVerification {
 		rule {
 			element = 'CLASS'
 			limit {
+				// TEST.md 기준: 클래스별 라인 커버리지 70% 이상
 				counter = 'LINE'
 				value   = 'COVEREDRATIO'
-				minimum = 0.50
+				minimum = 0.70
+			}
+			limit {
+				// TEST.md 기준: 클래스별 분기 커버리지 70% 이상
+				counter = 'BRANCH'
+				value   = 'COVEREDRATIO'
+				minimum = 0.70
+			}
+			limit {
+				// TEST.md 기준: 클래스별 순환복잡도 커버리지 70% 이상
+				counter = 'COMPLEXITY'
+				value   = 'COVEREDRATIO'
+				minimum = 0.70
 			}
 		}
 	}

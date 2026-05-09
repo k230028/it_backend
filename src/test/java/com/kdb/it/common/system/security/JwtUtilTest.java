@@ -92,6 +92,15 @@ class JwtUtilTest {
     }
 
     @Test
+    @DisplayName("Access Token 생성 - 자격등급이 null이면 일반사용자 기본값 적용")
+    void generateAccessToken_null자격등급_일반사용자기본값() {
+        String token = jwtUtil.generateAccessToken("10001", null, TEST_BBR_C);
+
+        assertThat(jwtUtil.getAthIdsFromToken(token))
+            .containsExactly(CustomUserDetails.ATH_USER);
+    }
+
+    @Test
     @DisplayName("Refresh Token 생성 - 유효한 토큰 반환 및 사번 추출 가능")
     void generateRefreshToken_사번입력_유효한토큰반환() {
         // given
@@ -140,6 +149,20 @@ class JwtUtilTest {
     @DisplayName("토큰 유효성 검증 - 빈 문자열은 false 반환")
     void validateToken_빈문자열_false반환() {
         assertThat(jwtUtil.validateToken("")).isFalse();
+    }
+
+    @Test
+    @DisplayName("토큰 유효성 검증 - null 토큰은 false 반환")
+    void validateToken_null_false반환() {
+        assertThat(jwtUtil.validateToken(null)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Refresh Token에는 자격등급 클레임이 없으므로 빈 목록을 반환한다")
+    void getAthIdsFromToken_클레임없음_빈목록반환() {
+        String refreshToken = jwtUtil.generateRefreshToken("10001");
+
+        assertThat(jwtUtil.getAthIdsFromToken(refreshToken)).isEmpty();
     }
 
     @Test

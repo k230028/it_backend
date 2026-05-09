@@ -277,6 +277,92 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("downloadFile: 원본 파일 확장자별 MIME 타입을 반환한다")
+    void downloadFile_확장자별Mime타입반환(@TempDir java.nio.file.Path tempDir) throws Exception {
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        java.nio.file.Path storageDir = tempDir.resolve("첨부");
+        Files.createDirectories(storageDir);
+
+        Object[][] cases = {
+                {"jpg", "image/jpeg"},
+                {"jpeg", "image/jpeg"},
+                {"png", "image/png"},
+                {"gif", "image/gif"},
+                {"webp", "image/webp"},
+                {"svg", "image/svg+xml"},
+                {"bmp", "image/bmp"},
+                {"ico", "image/x-icon"},
+                {"doc", "application/msword"},
+                {"docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+                {"xls", "application/vnd.ms-excel"},
+                {"xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+                {"ppt", "application/vnd.ms-powerpoint"},
+                {"pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+                {"hwp", "application/x-hwp"},
+                {"txt", "text/plain"},
+                {"csv", "text/csv"},
+                {"json", "application/json"},
+                {"zip", "application/zip"},
+                {"bin", "application/octet-stream"}
+        };
+
+        for (Object[] testCase : cases) {
+            String ext = (String) testCase[0];
+            String expected = (String) testCase[1];
+            String flMngNo = "FL_" + ext;
+            String svrFlNm = "server." + ext;
+            Files.writeString(storageDir.resolve(svrFlNm), "data", StandardCharsets.UTF_8);
+            Cfilem cfilem = mockCfilem(flMngNo);
+            given(cfilem.getFlKpnPth()).willReturn(storageDir.toString());
+            given(cfilem.getSvrFlNm()).willReturn(svrFlNm);
+            given(cfilem.getOrcFlNm()).willReturn("origin." + ext);
+            given(fileRepository.findByFlMngNoAndDelYn(flMngNo, "N")).willReturn(Optional.of(cfilem));
+
+            FileService.FileDownloadResult result = fileService.downloadFile(flMngNo);
+
+            assertThat(result.contentType()).isEqualTo(expected);
+        }
+    }
+
+    @Test
+    @DisplayName("downloadFile: 원본 파일명이 없으면 서버 파일명 확장자로 MIME 타입을 판정한다")
+    void downloadFile_원본파일명없음_서버파일명확장자사용(@TempDir java.nio.file.Path tempDir) throws Exception {
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        java.nio.file.Path storageDir = tempDir.resolve("첨부");
+        Files.createDirectories(storageDir);
+        Files.writeString(storageDir.resolve("server.png"), "data", StandardCharsets.UTF_8);
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(cfilem.getFlKpnPth()).willReturn(storageDir.toString());
+        given(cfilem.getSvrFlNm()).willReturn("server.png");
+        given(cfilem.getOrcFlNm()).willReturn(null);
+        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+
+        FileService.FileDownloadResult result = fileService.downloadFile(FL_MNG_NO);
+
+        assertThat(result.contentType()).isEqualTo("image/png");
+    }
+
+    @Test
+    @DisplayName("downloadFile: 메타데이터가 없거나 실제 파일을 읽을 수 없으면 예외가 발생한다")
+    void downloadFile_파일없음_CustomGeneralException발생(@TempDir java.nio.file.Path tempDir) {
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        given(fileRepository.findByFlMngNoAndDelYn("MISSING", "N")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> fileService.downloadFile("MISSING"))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("존재하지 않는 파일");
+
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(cfilem.getFlKpnPth()).willReturn(tempDir.toString());
+        given(cfilem.getSvrFlNm()).willReturn("missing.pdf");
+        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+
+        assertThatThrownBy(() -> fileService.downloadFile(FL_MNG_NO))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("파일을 찾을 수 없습니다");
+    }
+
+    @Test
     @DisplayName("uploadFile: 빈 파일이면 저장소 접근 없이 예외를 던진다")
     void uploadFile_빈파일_CustomGeneralException발생() {
         MockMultipartFile emptyFile = new MockMultipartFile("file", "empty.txt", "text/plain", new byte[0]);

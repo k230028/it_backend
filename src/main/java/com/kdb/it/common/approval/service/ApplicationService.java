@@ -125,6 +125,7 @@ public class ApplicationService {
      * @param allApprovers  해당 신청서의 전체 결재자 목록 (순번 오름차순)
      * @param approvedItems 이번에 승인된 결재 항목 목록 (동일인 연속 승인 포함)
      */
+    // FIXME: private 메서드에 @Transactional은 Spring AOP 프록시를 통하지 않으므로 효과 없음 — public 위임 메서드로 추출 필요
     @Transactional
     private void updateApprovalLineInDetail(Capplm capplm, List<Cdecim> allApprovers, List<Cdecim> approvedItems) {
         String detailJson = capplm.getApfDtlCone(); // 신청서 상세 내용 JSON 문자열
@@ -204,6 +205,7 @@ public class ApplicationService {
                 capplm.updateDetailContent(updatedJson); // 신청서 상세 내용 갱신
             }
 
+        // FIXME: 결재선 업데이트 실패를 경고 로그만으로 삼킴 — @Transactional 컨텍스트에서 롤백 없이 커밋됨. 비즈니스적으로 무시 불가라면 예외 재발생 필요
         } catch (Exception e) {
             // JSON 파싱 실패 시 비즈니스 로직 중단을 막기 위해 예외를 삼키고 경고 로그만 출력
             log.warn("신청서 상세 내용(JSON) 결재선 업데이트 실패 - 신청관리번호: {}", capplm.getApfMngNo(), e);

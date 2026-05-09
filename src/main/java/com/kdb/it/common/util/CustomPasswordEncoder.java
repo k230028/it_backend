@@ -67,7 +67,7 @@ public class CustomPasswordEncoder implements PasswordEncoder {
      *   <li>해싱 결과를 Base64로 인코딩</li>
      * </ol>
      *
-     * Base64 Decode → URL Decode → SHA-256 Hashing (Empty Salt) → Base64 Encode
+     * 평문 입력 → SHA-256 해싱 (빈 Salt 적용) → Base64 인코딩
      *
      * @param plainText 암호화할 평문 문자열
      * @return Base64로 인코딩된 SHA-256 해시 문자열

@@ -21,8 +21,11 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Brsltm;
+import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.ResultRepository;
 
 /**
@@ -47,6 +50,9 @@ class ResultServiceTest {
 
     @Mock
     private EvaluationService evaluationService;
+
+    @Mock
+    private CommitteeRepository committeeRepository;
 
     @InjectMocks
     private ResultService resultService;
@@ -259,5 +265,117 @@ class ResultServiceTest {
         assertThat(result.avgScores().get(0).avgScore()).isEqualTo(4.5);
         // 결과서 미작성이므로 내용 필드는 null
         assertThat(result.synOpnn()).isNull();
+    }
+
+    // ───────────────────────────────────────────────────────
+    // reviewResult / getMyReviewStatus
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("reviewResult: RESULT_REVIEW가 아니면 IllegalStateException을 던진다")
+    void reviewResult_RESULT_REVIEW아님_예외발생() {
+        Basctm council = mock(Basctm.class);
+        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        given(council.getAsctSts()).willReturn("RESULT_WRITING");
+        given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
+
+        assertThatThrownBy(() -> resultService.reviewResult("ASCT-2026-0001", user))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("RESULT_REVIEW");
+    }
+
+    @Test
+    @DisplayName("reviewResult: 협의회 평가위원이 아니면 SecurityException을 던진다")
+    void reviewResult_평가위원아님_예외발생() {
+        Basctm council = mock(Basctm.class);
+        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        given(council.getAsctSts()).willReturn("RESULT_REVIEW");
+        given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
+        given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> resultService.reviewResult("ASCT-2026-0001", user))
+                .isInstanceOf(SecurityException.class)
+                .hasMessageContaining("평가위원");
+    }
+
+    @Test
+    @DisplayName("reviewResult: 간사는 결과서 검토 확인 대상이 아니다")
+    void reviewResult_간사_예외발생() {
+        Basctm council = mock(Basctm.class);
+        Bcmmtm secretary = mock(Bcmmtm.class);
+        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        given(council.getAsctSts()).willReturn("RESULT_REVIEW");
+        given(secretary.getVlrTp()).willReturn("SECR");
+        given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
+        given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
+                .willReturn(Optional.of(secretary));
+
+        assertThatThrownBy(() -> resultService.reviewResult("ASCT-2026-0001", user))
+                .isInstanceOf(SecurityException.class)
+                .hasMessageContaining("간사");
+    }
+
+    @Test
+    @DisplayName("reviewResult: 일부 평가위원이 미확인 상태이면 상태 전이를 하지 않는다")
+    void reviewResult_일부미확인_상태전이없음() {
+        Basctm council = mock(Basctm.class);
+        Bcmmtm currentMember = mock(Bcmmtm.class);
+        Bcmmtm waitingMember = mock(Bcmmtm.class);
+        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        given(council.getAsctSts()).willReturn("RESULT_REVIEW");
+        given(currentMember.getVlrTp()).willReturn("MAND");
+        given(currentMember.getCnfmYn()).willReturn("Y");
+        given(waitingMember.getVlrTp()).willReturn("CALL");
+        given(waitingMember.getCnfmYn()).willReturn("N");
+        given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
+        given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
+                .willReturn(Optional.of(currentMember));
+        given(committeeRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
+                .willReturn(List.of(currentMember, waitingMember));
+
+        resultService.reviewResult("ASCT-2026-0001", user);
+
+        verify(currentMember).confirmReview();
+        verify(councilService, never()).changeStatus("ASCT-2026-0001", "FINAL_APPROVAL");
+    }
+
+    @Test
+    @DisplayName("reviewResult: 모든 평가위원이 확인 완료되면 FINAL_APPROVAL로 전이한다")
+    void reviewResult_전원확인_FINAL_APPROVAL전이() {
+        Basctm council = mock(Basctm.class);
+        Bcmmtm mandMember = mock(Bcmmtm.class);
+        Bcmmtm callMember = mock(Bcmmtm.class);
+        Bcmmtm secretary = mock(Bcmmtm.class);
+        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        given(council.getAsctSts()).willReturn("RESULT_REVIEW");
+        given(mandMember.getVlrTp()).willReturn("MAND");
+        given(mandMember.getCnfmYn()).willReturn("Y");
+        given(callMember.getVlrTp()).willReturn("CALL");
+        given(callMember.getCnfmYn()).willReturn("Y");
+        given(secretary.getVlrTp()).willReturn("SECR");
+        given(secretary.getCnfmYn()).willReturn("N");
+        given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
+        given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
+                .willReturn(Optional.of(mandMember));
+        given(committeeRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
+                .willReturn(List.of(mandMember, callMember, secretary));
+
+        resultService.reviewResult("ASCT-2026-0001", user);
+
+        verify(councilService).changeStatus("ASCT-2026-0001", "FINAL_APPROVAL");
+    }
+
+    @Test
+    @DisplayName("getMyReviewStatus: 본인 확인 여부를 반환하고 없으면 false를 반환한다")
+    void getMyReviewStatus_확인여부반환() {
+        Bcmmtm member = mock(Bcmmtm.class);
+        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        given(member.getCnfmYn()).willReturn("Y");
+        given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
+                .willReturn(Optional.of(member), Optional.empty());
+
+        assertThat(resultService.getMyReviewStatus("ASCT-2026-0001", user)).isTrue();
+        assertThat(resultService.getMyReviewStatus("ASCT-2026-0001", user)).isFalse();
     }
 }
