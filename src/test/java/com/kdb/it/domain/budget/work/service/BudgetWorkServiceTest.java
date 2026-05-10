@@ -13,6 +13,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -24,11 +25,14 @@ import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
+import org.mockito.Mockito;
 
 /**
  * BudgetWorkService 단위 테스트
@@ -57,6 +61,7 @@ class BudgetWorkServiceTest {
     @Mock private ProjectRepository projectRepository;
     @Mock private ProjectItemRepository projectItemRepository;
     @Mock private CostRepository costRepository;
+    @Mock private BudgetWorkQueryRepository budgetWorkQueryRepository;
 
     @InjectMocks
     private BudgetWorkService budgetWorkService;
@@ -155,6 +160,28 @@ class BudgetWorkServiceTest {
     }
 
     @Test
+    @DisplayName("getSummary: budgetWorkQueryRepository를 단 1회씩 호출한다 — DB-01 N+1 제거")
+    void getSummary_집계쿼리_단일호출_N1없음() {
+        // given: DUP_IOE 코드 2개 (N+1이면 각 prefix마다 2회씩 = 4회 호출)
+        Ccodem code1 = Ccodem.builder().cdId("DUP-IOE-237").cdNm("전산임차료").build();
+        Ccodem code2 = Ccodem.builder().cdId("DUP-IOE-238").cdNm("자산비").build();
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of(code1, code2));
+        mockEmptyDetailCodes();
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026")).willReturn(java.util.Map.of());
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026")).willReturn(java.util.Map.of());
+
+        // when
+        budgetWorkService.getSummary("2026");
+
+        // then: 각각 정확히 1회 호출 (N+1 없음)
+        Mockito.verify(budgetWorkQueryRepository, Mockito.times(1)).findApprovedCostAmountByIoeC("2026");
+        Mockito.verify(budgetWorkQueryRepository, Mockito.times(1)).findApprovedItemAmountByGclDtt("2026");
+        Mockito.verify(bbugtmRepository, Mockito.never()).findApprovedCostsByPrefix(any(), any());
+        Mockito.verify(bbugtmRepository, Mockito.never()).findApprovedItemsByPrefix(any(), any());
+    }
+
+    @Test
     @DisplayName("getSummary - 세부 비목 단위로 편성금액 합계를 올바르게 계산한다")
     void getSummary_세부비목_합계계산() {
         // given: DUP_IOE 그룹 코드 1개 + BBUGTM 세부 데이터 1건
@@ -176,10 +203,11 @@ class BudgetWorkServiceTest {
                 given(codeRepository.findByCttTpWithValidDate(cttTp, null)).willReturn(List.of());
             }
         }
-        // 결재완료 원본 데이터: 요청금액 1,000,000
-        Bcostm approvedCost = Bcostm.builder().ioeC("IOE-237-0700").itMngcBg(BigDecimal.valueOf(1000000)).build();
-        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-237", "2026")).willReturn(List.of(approvedCost));
-        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026")).willReturn(List.of());
+        // 결재완료 원본 데이터: 집계 맵으로 단일 조회 (DB-01 N+1 제거)
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026"))
+                .willReturn(java.util.Map.of("IOE-237-0700", BigDecimal.valueOf(1000000)));
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026"))
+                .willReturn(java.util.Map.of());
 
         // when
         BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
@@ -436,5 +464,244 @@ class BudgetWorkServiceTest {
         assertThat(result.totalRecords()).isEqualTo(1);
         assertThat(result.message()).contains("사업별 편성률 적용 완료");
         verify(bbugtmRepository).save(any(Bbugtm.class));
+    }
+
+    @Test
+    @DisplayName("applyRates: 요청금액 또는 편성률이 null이면 편성금액을 0으로 저장한다")
+    void applyRates_null금액또는편성률_0원저장() {
+        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("DUP-IOE-237", null);
+        BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getItMngcNo()).willReturn("COST_2026_0001");
+        given(cost.getItMngcSno()).willReturn(1);
+        given(cost.getIoeC()).willReturn("IOE-237-0700");
+        given(cost.getItMngcBg()).willReturn(null);
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-237", "2026")).willReturn(List.of(cost));
+        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026")).willReturn(List.of());
+        given(bbugtmRepository.findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
+                any(), any(), any(), any(), any(), any())).willReturn(Optional.empty());
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        mockEmptyDetailCodes();
+
+        budgetWorkService.applyRates(request);
+
+        ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
+        verify(bbugtmRepository).save(captor.capture());
+        assertThat(captor.getValue().getDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("applyItemRates: 기존 편성 레코드는 먼저 논리삭제하고 자본/경상 편성률을 구분 적용한다")
+    void applyItemRates_기존삭제와자본경상구분적용() {
+        Bbugtm prior = Bbugtm.builder().bgMngNo("BG-OLD").bgSno(1).delYn("N").build();
+        BudgetWorkDto.ItemApplyRequest request = new BudgetWorkDto.ItemApplyRequest("2026", List.of(
+                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 60, 40),
+                new BudgetWorkDto.ItemRate("BCOSTM", "COST_2026_0001", null, null)
+        ));
+        Ccodem capitalCode = Ccodem.builder().cdId("IOE-351-0100").build();
+        Bitemm capitalItem = mock(Bitemm.class);
+        given(capitalItem.getGclMngNo()).willReturn("GCL-0001");
+        given(capitalItem.getGclSno()).willReturn(1);
+        given(capitalItem.getGclDtt()).willReturn("IOE-351-0100");
+        given(capitalItem.getGclAmt()).willReturn(BigDecimal.valueOf(1000));
+        given(capitalItem.getXcr()).willReturn(BigDecimal.valueOf(2));
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getItMngcNo()).willReturn("COST_2026_0001");
+        given(cost.getItMngcSno()).willReturn(1);
+        given(cost.getIoeC()).willReturn("IOE-999-0100");
+        given(cost.getItMngcBg()).willReturn(BigDecimal.valueOf(500));
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(prior), List.of());
+        given(codeRepository.findByCttTpWithValidDate("IOE_CPIT", null)).willReturn(List.of(capitalCode));
+        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+                .willReturn(List.of(capitalItem));
+        given(costRepository.findByItMngcNoAndDelYnAndLstYn("COST_2026_0001", "N", "Y"))
+                .willReturn(List.of(cost));
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        for (String cttTp : DETAIL_CTT_TPS) {
+            if (!"IOE_CPIT".equals(cttTp)) {
+                given(codeRepository.findByCttTpWithValidDate(cttTp, null)).willReturn(List.of());
+            }
+        }
+
+        BudgetWorkDto.ApplyResponse result = budgetWorkService.applyItemRates(request);
+
+        assertThat(prior.getDelYn()).isEqualTo("Y");
+        assertThat(result.totalRecords()).isEqualTo(2);
+        ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
+        verify(bbugtmRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        assertThat(captor.getAllValues()).extracting(Bbugtm::getDupRt).containsExactly(60, 100);
+        assertThat(captor.getAllValues()).extracting(Bbugtm::getDupBg)
+                .containsExactly(new BigDecimal("1200.00"), new BigDecimal("500.00"));
+    }
+
+    @Test
+    @DisplayName("getSummary: 그룹 접두어가 있는 세부명과 코드 미등록 원본도 요약에 포함한다")
+    void getSummary_세부명접두어제거와미등록원본포함() {
+        Ccodem dupCode = Ccodem.builder().cdId("DUP-IOE-351").cdNm("자본그룹").cdDes("자본그룹명").build();
+        Ccodem detailCode = Ccodem.builder()
+                .cdId("IOE-351-0100")
+                .cdNm("자본그룹 - 개발비")
+                .cdDes("자본그룹 - 개발비")
+                .cttTp("IOE_CPIT")
+                .build();
+        Bbugtm budget = Bbugtm.builder()
+                .ioeC("IOE-351-9999")
+                .dupBg(BigDecimal.valueOf(300))
+                .dupRt(30)
+                .build();
+        Bcostm approvedCost = Bcostm.builder()
+                .ioeC("IOE-351-9999")
+                .itMngcBg(BigDecimal.valueOf(1000))
+                .build();
+        Bitemm approvedItem = mock(Bitemm.class);
+        given(approvedItem.getGclDtt()).willReturn("IOE-351-0100");
+        given(approvedItem.getGclAmt()).willReturn(BigDecimal.valueOf(100));
+        given(approvedItem.getXcr()).willReturn(BigDecimal.TEN);
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCttTpWithValidDate("IOE_CPIT", null)).willReturn(List.of(detailCode));
+        for (String cttTp : DETAIL_CTT_TPS) {
+            if (!"IOE_CPIT".equals(cttTp)) {
+                given(codeRepository.findByCttTpWithValidDate(cttTp, null)).willReturn(List.of());
+            }
+        }
+        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-351", "2026")).willReturn(List.of(approvedCost));
+        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-351", "2026")).willReturn(List.of(approvedItem));
+
+        BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
+
+        assertThat(result.data()).extracting(BudgetWorkDto.SummaryItem::ioeCategory)
+                .contains("개발비", "IOE-351-9999");
+        assertThat(result.data()).anySatisfy(item -> {
+            if ("개발비".equals(item.ioeCategory())) {
+                assertThat(item.capital()).isTrue();
+                assertThat(item.requestAmount()).isEqualByComparingTo("1000");
+            }
+        });
+    }
+
+    @Test
+    @DisplayName("getProjectSummary: BITEMM은 프로젝트로 통합하고 BCOSTM은 계약명으로 표시한다")
+    void getProjectSummary_BITEMM프로젝트통합과BCOSTM계약명표시() {
+        Ccodem dupCode = Ccodem.builder().cdId("DUP-IOE-237").cdNm("임차료").cdDes("임차료").build();
+        Bbugtm itemBudget = Bbugtm.builder()
+                .orcTb("BITEMM")
+                .orcPkVl("GCL-0001")
+                .ioeC("IOE-237-0100")
+                .dupBg(BigDecimal.valueOf(800))
+                .dupRt(80)
+                .build();
+        Bbugtm costBudget = Bbugtm.builder()
+                .orcTb("BCOSTM")
+                .orcPkVl("COST-2026-0001")
+                .ioeC("IOE-237-0200")
+                .dupBg(BigDecimal.valueOf(500))
+                .dupRt(50)
+                .build();
+        Bitemm item = mock(Bitemm.class);
+        given(item.getPrjMngNo()).willReturn("PRJ-2026-0001");
+        Bprojm project = mock(Bprojm.class);
+        given(project.getPrjNm()).willReturn("정보화사업");
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getCttNm()).willReturn("유지보수계약");
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(itemBudget, costBudget));
+        given(projectItemRepository.findByGclMngNoAndDelYn("GCL-0001", "N")).willReturn(List.of(item));
+        given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N")).willReturn(Optional.of(project));
+        given(costRepository.findByItMngcNoAndDelYn("COST-2026-0001", "N")).willReturn(List.of(cost));
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.categories()).hasSize(1);
+        assertThat(result.data()).extracting(BudgetWorkDto.ProjectSummaryItem::name)
+                .containsExactly("정보화사업", "유지보수계약");
+        assertThat(result.totals().requestAmount()).isEqualByComparingTo("2000.00");
+        assertThat(result.totals().dupAmount()).isEqualByComparingTo("1300");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("applyItemRates: 알 수 없는 원본과 null 비목은 처리 건수 0으로 무시한다")
+    void applyItemRates_알수없는원본과Null비목_무시() {
+        BudgetWorkDto.ItemApplyRequest request = new BudgetWorkDto.ItemApplyRequest("2026", List.of(
+                new BudgetWorkDto.ItemRate("UNKNOWN", "UNK-1", 10, 20),
+                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 60, 40)
+        ));
+        Ccodem capitalCodeWithoutDash = Ccodem.builder().cdId("IOE351").build();
+        Bitemm item = mock(Bitemm.class);
+        given(item.getGclDtt()).willReturn(null);
+        given(item.getGclAmt()).willReturn(null);
+        given(item.getGclMngNo()).willReturn("GCL-NULL");
+        given(item.getGclSno()).willReturn(1);
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(), List.of());
+        given(codeRepository.findByCttTpWithValidDate("IOE_CPIT", null)).willReturn(List.of(capitalCodeWithoutDash));
+        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+                .willReturn(List.of(item));
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        for (String cttTp : DETAIL_CTT_TPS) {
+            if (!"IOE_CPIT".equals(cttTp)) {
+                given(codeRepository.findByCttTpWithValidDate(cttTp, null)).willReturn(List.of());
+            }
+        }
+
+        BudgetWorkDto.ApplyResponse result = budgetWorkService.applyItemRates(request);
+
+        assertThat(result.totalRecords()).isEqualTo(1);
+        ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
+        verify(bbugtmRepository).save(captor.capture());
+        assertThat(captor.getValue().getDupRt()).isEqualTo(40);
+        assertThat(captor.getValue().getDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("getProjectSummary: 매핑이 없으면 원본 PK를 이름으로 사용하고 금액 역산은 건너뛴다")
+    void getProjectSummary_이름폴백과금액역산건너뜀() {
+        Ccodem dupCode = Ccodem.builder().cdId("DUP-IOE-237").cdNm("임차료").build();
+        Bbugtm nullPk = Bbugtm.builder()
+                .orcTb("BITEMM")
+                .orcPkVl(null)
+                .ioeC("IOE-237-0000")
+                .dupBg(BigDecimal.TEN)
+                .dupRt(10)
+                .build();
+        Bbugtm itemNoProject = Bbugtm.builder()
+                .orcTb("BITEMM")
+                .orcPkVl("GCL-MISSING")
+                .ioeC("IOE-237-0100")
+                .dupBg(BigDecimal.valueOf(100))
+                .dupRt(0)
+                .build();
+        Bbugtm costNoName = Bbugtm.builder()
+                .orcTb("BCOSTM")
+                .orcPkVl("COST-MISSING")
+                .ioeC("IOE-237-0200")
+                .dupBg(null)
+                .dupRt(null)
+                .build();
+        Bbugtm unknown = Bbugtm.builder()
+                .orcTb("UNKNOWN")
+                .orcPkVl("UNK-1")
+                .ioeC("NO-MATCH")
+                .dupBg(BigDecimal.ONE)
+                .dupRt(50)
+                .build();
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N"))
+                .willReturn(List.of(nullPk, itemNoProject, costNoName, unknown));
+        given(projectItemRepository.findByGclMngNoAndDelYn("GCL-MISSING", "N")).willReturn(List.of());
+        given(projectRepository.findByPrjMngNoAndDelYn("GCL-MISSING", "N")).willReturn(Optional.empty());
+        given(costRepository.findByItMngcNoAndDelYn("COST-MISSING", "N")).willReturn(List.of());
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.data()).extracting(BudgetWorkDto.ProjectSummaryItem::name)
+                .contains("GCL-MISSING", "COST-MISSING", "UNK-1");
+        assertThat(result.totals().requestAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.totals().dupAmount()).isEqualByComparingTo("100");
     }
 }

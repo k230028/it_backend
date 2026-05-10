@@ -269,7 +269,7 @@ public class CostService {
                 request.getCur(), request.getXcr(), request.getXcrBseDt(),
                 request.getInfPrtYn(), request.getIndRsn(), request.getCgpr(),
                 request.getBiceDpm(), request.getBiceTem(), request.getAbusC(),
-                request.getItMngcTp(), request.getPulDtt(), request.getBgYy());
+                request.getItMngcTp(), request.getPulDtt(), request.getBgYy(), request.getCncdItMngcNo());
 
         /* 연관된 단말기 목록 업데이트: 기존 Soft Delete 후 재등록 */
         List<Btermm> existingTerminals = btermmRepository.findByItMngcNoAndItMngcSno(target.getItMngcNo(), target.getItMngcSno());
@@ -554,6 +554,34 @@ public class CostService {
                     }
                 });
             }
+        }
+
+        // --- 8. 전년도 BBUGTM 편성예산(prevDupBg) 배치 조회 (cncdItMngcNo 기준) ---
+        List<String> cncdNos = responses.stream()
+                .filter(r -> r.getCncdItMngcNo() != null && !r.getCncdItMngcNo().isBlank())
+                .map(CostDto.Response::getCncdItMngcNo)
+                .distinct()
+                .collect(Collectors.toList());
+        if (!cncdNos.isEmpty()) {
+            String bgYy8 = responses.stream()
+                    .map(CostDto.Response::getBgYy)
+                    .filter(y -> y != null && !y.isBlank())
+                    .findFirst().orElse(null);
+            if (bgYy8 != null) {
+                String prevYear8 = String.valueOf(Integer.parseInt(bgYy8) - 1);
+                Map<String, BigDecimal> prevDupBgMap = bbugtmRepository.sumDupBgByItMngcNos(cncdNos, prevYear8);
+                responses.forEach(r -> {
+                    if (r.getCncdItMngcNo() != null && !r.getCncdItMngcNo().isBlank()) {
+                        r.setPrevDupBg(prevDupBgMap.getOrDefault(r.getCncdItMngcNo(), BigDecimal.ZERO));
+                    } else {
+                        r.setPrevDupBg(BigDecimal.ZERO);
+                    }
+                });
+            } else {
+                responses.forEach(r -> r.setPrevDupBg(BigDecimal.ZERO));
+            }
+        } else {
+            responses.forEach(r -> r.setPrevDupBg(BigDecimal.ZERO));
         }
     }
 

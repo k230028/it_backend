@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -35,6 +37,8 @@ import java.util.Optional;
 @Controller
 @RequiredArgsConstructor
 public class SsoController {
+
+    private static final Logger log = LoggerFactory.getLogger(SsoController.class);
 
     private static final String SSO_VERIFIED_ENO_SESSION_KEY = "ssoVerifiedEno";
     private static final String SSO_RESULT_CODE_SESSION_KEY = "resultCode";
@@ -139,14 +143,32 @@ public class SsoController {
             String dest = (next != null && next.startsWith("/")) ? next : "/";
             response.sendRedirect(resolveFrontendBaseUrl(origin) + dest);
         } catch (Exception e) {
+            log.error("SSO 인증 실패 - eno: {}, reason: {}", eno, e.getMessage(), e);
             response.sendRedirect(resolveFrontendBaseUrl(origin) + "/login?error=sso");
         }
     }
 
+    /**
+     * 허용된 origin 기반으로 프론트엔드 기준 URL을 결정합니다.
+     *
+     * <p>{@code cors.allowed-origins}에 포함된 origin이면 해당 origin을,
+     * 그렇지 않으면 {@code app.frontend-url} 기본값을 반환합니다.</p>
+     *
+     * @param origin SSO 시작 시 프론트엔드가 전달한 origin
+     * @return 리다이렉트 대상 프론트엔드 기준 URL
+     */
     private String resolveFrontendBaseUrl(String origin) {
         return getAllowedOrigin(origin).orElse(frontendUrl);
     }
 
+    /**
+     * origin이 허용 목록({@code cors.allowed-origins})에 포함되어 있으면 해당 값을 반환합니다.
+     *
+     * <p>오픈 리다이렉트 방지를 위해 허용 목록에 없는 origin은 {@link Optional#empty()}를 반환합니다.</p>
+     *
+     * @param origin 검증할 origin 문자열
+     * @return 허용된 origin (없으면 {@link Optional#empty()})
+     */
     private Optional<String> getAllowedOrigin(String origin) {
         if (origin == null || origin.isBlank()) {
             return Optional.empty();
@@ -157,6 +179,15 @@ public class SsoController {
                 .findFirst();
     }
 
+    /**
+     * {@code /api/auth/sso/complete}로의 리다이렉트 URL을 조립합니다.
+     *
+     * <p>{@code next}와 {@code origin} 파라미터를 URL 인코딩하여 쿼리 스트링으로 추가합니다.</p>
+     *
+     * @param next   SSO 완료 후 복귀할 프론트엔드 내부 경로 (null이면 생략)
+     * @param origin 프론트엔드 origin (null이면 생략)
+     * @return 완성된 리다이렉트 URL 문자열
+     */
     private String buildCompleteRedirect(String next, String origin) {
         StringBuilder redirect = new StringBuilder("/api/auth/sso/complete");
         String sep = "?";
@@ -170,15 +201,39 @@ public class SsoController {
         return redirect.toString();
     }
 
+    /**
+     * 문자열을 URL 안전 형식으로 인코딩합니다 (UTF-8 기반 퍼센트 인코딩).
+     *
+     * @param value 인코딩할 원본 문자열
+     * @return URL 인코딩된 문자열
+     */
     private String encode(String value) {
         return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
     }
 
+    /**
+     * 세션에서 지정 키의 값을 문자열로 반환합니다.
+     *
+     * @param session HTTP 세션
+     * @param key     세션 속성 키
+     * @return 세션 값 (없거나 null이면 빈 문자열 반환)
+     */
     private String readSessionString(HttpSession session, String key) {
         Object value = session.getAttribute(key);
         return value == null ? "" : value.toString();
     }
 
+    /**
+     * SSO 인증 완료된 사번을 결정합니다.
+     *
+     * <p>우선순위: 세션({@code ssoVerifiedEno}) → {@code allowDirectEno=true}이고 {@code directEno} 지정 시.
+     * 세션 값은 사용 즉시 제거합니다(재사용 방지).</p>
+     *
+     * @param request    SSO Agent 세션이 담긴 서블릿 요청
+     * @param directEno  로컬 테스트용 직접 전달 사번 (운영 환경에서는 무시됨)
+     * @return 검증된 사번
+     * @throws IllegalStateException 유효한 SSO 세션이 없고 직접 전달도 허용되지 않는 경우
+     */
     private String resolveVerifiedEno(HttpServletRequest request, String directEno) {
         HttpSession session = request.getSession(false);
         if (session != null) {

@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
  * 인증(Authentication) REST 컨트롤러
  *
  * <p>
- * 사용자 회원가입, 로그인, 로그아웃, JWT 토큰 갱신 기능을 담당합니다.
+ * 관리자 계정 생성, 로그인, 로그아웃, JWT 토큰 갱신 기능을 담당합니다.
  * </p>
  *
  * <p>
@@ -41,7 +41,6 @@ import lombok.RequiredArgsConstructor;
  * </p>
  * <ul>
  * <li>{@code POST /api/auth/login}: 로그인</li>
- * <li>{@code POST /api/auth/signup}: 회원가입</li>
  * <li>{@code POST /api/auth/refresh}: 토큰 갱신</li>
  * </ul>
  *
@@ -50,6 +49,7 @@ import lombok.RequiredArgsConstructor;
  * </p>
  * <ul>
  * <li>{@code POST /api/auth/logout}: 로그아웃 (JWT 토큰 필요)</li>
+ * <li>{@code POST /api/auth/signup}: 관리자 권한으로 신규 사용자 생성</li>
  * </ul>
  */
 @RestController // REST API 컨트롤러로 등록
@@ -143,7 +143,7 @@ public class AuthController {
      * <ol>
      * <li>요청 쿠키에서 Refresh Token 추출</li>
      * <li>JwtUtil로 토큰 서명 검증</li>
-     * <li>DB(REFRESH_TOKEN 테이블)에서 토큰 조회</li>
+     * <li>DB(TAAABB_CRTOKM 테이블)에서 토큰 조회</li>
      * <li>토큰 만료 여부 확인</li>
      * <li>새 Access Token 생성 → httpOnly 쿠키로 전달</li>
      * </ol>
@@ -232,7 +232,8 @@ public class AuthController {
      *
      * <p>
      * 로드밸런서, 리버스 프록시(Nginx, Apache), CDN 등을 경유한
-     * 요청에서 실제 클라이언트 IP를 추출합니다.
+     * 요청에서 실제 클라이언트 IP를 추출합니다. 아래 헤더는 프록시가 신뢰 가능한 방식으로
+     * 덮어쓴다는 전제에서만 안전하며, 직접 인터넷에 노출된 환경에서는 위조될 수 있습니다.
      * </p>
      *
      * <p>

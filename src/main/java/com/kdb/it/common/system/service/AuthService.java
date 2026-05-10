@@ -2,6 +2,7 @@ package com.kdb.it.common.system.service;
 
 import com.kdb.it.common.iam.entity.CroleI;
 import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.service.LoginAttemptService;
 import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.dto.AuthDto;
@@ -45,7 +46,7 @@ public class AuthService {
     /** 사용자 정보 데이터 접근 리포지토리 (TAAABB_CUSERI) */
     private final UserRepository userRepository;
 
-    /** Refresh Token 데이터 접근 리포지토리 (REFRESH_TOKEN) */
+    /** Refresh Token 데이터 접근 리포지토리 (TAAABB_CRTOKM) */
     private final RefreshTokenRepository refreshTokenRepository;
 
     /** 로그인 이력 데이터 접근 리포지토리 (LOGIN_HISTORY) */
@@ -56,6 +57,9 @@ public class AuthService {
 
     /** 역할관리(사용자↔자격등급 매핑) 데이터 접근 리포지토리 (TAAABB_CROLEI) */
     private final RoleRepository roleRepository;
+
+    /** 로그인 Brute-force 감지 서비스 — SEC-03 */
+    private final LoginAttemptService loginAttemptService;
 
     /** JWT Access/Refresh Token 생성 및 검증 유틸리티 */
     private final JwtUtil jwtUtil;
@@ -114,14 +118,15 @@ public class AuthService {
     /**
      * 로그인 및 JWT 토큰 발급
      *
-     * <p>사번과 비밀번호를 검증하고, 성공 시 Access Token과 Refresh Token을 발급합니다.</p>
+     * <p>사번과 비밀번호를 검증하고, 성공 시 Access Token과 Refresh Token을 발급합니다.
+     * 실패 이력은 로그인 이력에 남기고, 10분 내 5회 실패한 사번은 잠금 처리합니다.</p>
      *
      * <p>처리 흐름:</p>
      * <ol>
      *   <li>DB에서 사번으로 사용자 조회 (없으면 로그인 실패 이력 기록 후 예외)</li>
      *   <li>비밀번호 검증 (불일치 시 로그인 실패 이력 기록 후 예외)</li>
      *   <li>Access Token 생성 (단기 유효)</li>
-     *   <li>Refresh Token 생성 및 DB 저장 (기존 토큰 삭제 후 신규 저장)</li>
+     *   <li>Refresh Token 생성 및 DB 저장 (사번 기준 기존 토큰 삭제 후 신규 저장)</li>
      *   <li>로그인 성공 이력 기록</li>
      *   <li>토큰 및 사용자 정보 반환 (컨트롤러에서 httpOnly 쿠키로 변환)</li>
      * </ol>
@@ -131,10 +136,13 @@ public class AuthService {
      * @param ipAddress 클라이언트 IP 주소 (이력 기록용)
      * @param userAgent 클라이언트 User-Agent 문자열 (이력 기록용)
      * @return 로그인 응답 DTO (쿠키 생성에 사용할 토큰, 사번, 사용자명, 자격등급)
-     * @throws RuntimeException 사용자 미존재 또는 비밀번호 불일치 시
+     * @throws RuntimeException 사용자 미존재, 비밀번호 불일치, 실패 횟수 초과 잠금 시
      */
     @Transactional
     public AuthDto.LoginResponse login(String eno, String password, String ipAddress, String userAgent) {
+        // Brute-force 차단 — 10분 내 5회 이상 실패 시 계정 잠금 (SEC-03)
+        loginAttemptService.checkLocked(eno);
+
         // 사용자 조회 — 없으면 실패 이력 기록 후 예외 (메시지 문자열 매칭 없이 타입으로 분기)
         Optional<CuserI> userOpt = userRepository.findByEno(eno);
         if (userOpt.isEmpty()) {

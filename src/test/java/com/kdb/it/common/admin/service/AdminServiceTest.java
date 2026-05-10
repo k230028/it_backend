@@ -33,8 +33,10 @@ import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.entity.Clognh;
+import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
+import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -612,5 +614,145 @@ class AdminServiceTest {
         // then
         assertThat(result.getTotalElements()).isZero();
         assertThat(result.getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("createAuthGrade: useYn이 null이면 기본값 Y로 저장한다")
+    void createAuthGrade_useYnNull_기본값Y저장() {
+        AdminDto.AuthGradeRequest req = new AdminDto.AuthGradeRequest("ITPNEW", "신규", null, null);
+        given(authRepository.existsById("ITPNEW")).willReturn(false);
+
+        adminService.createAuthGrade(req);
+
+        org.mockito.ArgumentCaptor<CauthI> captor = org.mockito.ArgumentCaptor.forClass(CauthI.class);
+        verify(authRepository).save(captor.capture());
+        assertThat(captor.getValue().getUseYn()).isEqualTo("Y");
+    }
+
+    @Test
+    @DisplayName("createRole: useYn이 null이면 기본값 Y로 저장한다")
+    void createRole_useYnNull_기본값Y저장() {
+        AdminDto.RoleRequest req = new AdminDto.RoleRequest("ITPAD001", "10001", null);
+        given(roleRepository.existsById(new CroleIId("ITPAD001", "10001"))).willReturn(false);
+
+        adminService.createRole(req);
+
+        org.mockito.ArgumentCaptor<CroleI> captor = org.mockito.ArgumentCaptor.forClass(CroleI.class);
+        verify(roleRepository).save(captor.capture());
+        assertThat(captor.getValue().getUseYn()).isEqualTo("Y");
+    }
+
+    @Test
+    @DisplayName("updateCode: 시작일자 변경 요청이면 예외가 발생한다")
+    void updateCode_시작일자변경_예외발생() {
+        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        Ccodem code = Ccodem.builder().cdId("CODE001").sttDt(sttDt).build();
+        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
+                "CODE001", "코드명", null, null, null, null, sttDt.plusDays(1), null, 1);
+        given(codeRepository.findByCdIdAndSttDtAndDelYn("CODE001", sttDt, "N"))
+                .willReturn(Optional.of(code));
+
+        assertThatThrownBy(() -> adminService.updateCode("CODE001", sttDt, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("시작일자");
+    }
+
+    @Test
+    @DisplayName("deleteAuthGrade: 삭제된 자격등급이면 예외가 발생한다")
+    void deleteAuthGrade_삭제된항목_예외발생() {
+        CauthI deleted = CauthI.builder().athId("ITPZZ999").delYn("Y").build();
+        given(authRepository.findById("ITPZZ999")).willReturn(Optional.of(deleted));
+
+        assertThatThrownBy(() -> adminService.deleteAuthGrade("ITPZZ999"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("존재하지 않는 자격등급ID");
+    }
+
+    @Test
+    @DisplayName("createUser: password가 있으면 입력 비밀번호를 인코딩한다")
+    void createUser_password있음_입력비밀번호인코딩() {
+        AdminDto.UserRequest req = new AdminDto.UserRequest(
+                "10003", "박테스트", null, null, null, null, null, null, "secret");
+        given(userRepository.existsByEno("10003")).willReturn(false);
+        given(passwordEncoder.encode("secret")).willReturn("encodedSecret");
+
+        adminService.createUser(req);
+
+        verify(passwordEncoder).encode("secret");
+    }
+
+    @Test
+    @DisplayName("updateUser: password가 공백이면 비밀번호를 변경하지 않는다")
+    void updateUser_password공백_비밀번호변경안함() {
+        CuserI user = CuserI.builder().eno("10001").delYn("N").build();
+        AdminDto.UserRequest req = new AdminDto.UserRequest(
+                "10001", "홍길동", null, null, null, null, null, null, " ");
+        given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+
+        adminService.updateUser("10001", req);
+
+        verify(passwordEncoder, times(0)).encode(" ");
+    }
+
+    @Test
+    @DisplayName("getTokens: 긴 토큰은 마스킹하고 짧은 토큰은 그대로 반환한다")
+    void getTokens_토큰마스킹반환() {
+        Crtokm longToken = Crtokm.builder()
+                .eno("10001")
+                .tok("1234567890123456789012345")
+                .endDtm(java.time.LocalDateTime.now().plusDays(1))
+                .build();
+        Crtokm shortToken = Crtokm.builder()
+                .eno("10002")
+                .tok("short")
+                .endDtm(java.time.LocalDateTime.now().plusDays(1))
+                .build();
+        given(refreshTokenRepository.findAll()).willReturn(List.of(longToken, shortToken));
+        given(userRepository.findByEno(any())).willReturn(Optional.empty());
+
+        List<AdminDto.TokenResponse> result = adminService.getTokens();
+
+        assertThat(result).extracting(AdminDto.TokenResponse::tokMasked)
+                .containsExactly("12345678901234567890...", "short");
+    }
+
+    @Test
+    @DisplayName("getFiles: 삭제되지 않은 파일만 사용자명과 함께 반환한다")
+    void getFiles_삭제되지않은파일만반환() {
+        Cfilem active = Cfilem.builder()
+                .flMngNo("FL_00000001")
+                .orcFlNm("문서.pdf")
+                .flDtt("첨부파일")
+                .orcDtt("문서")
+                .fstEnrUsid("10001")
+                .delYn("N")
+                .build();
+        Cfilem deleted = Cfilem.builder()
+                .flMngNo("FL_00000002")
+                .orcFlNm("삭제.pdf")
+                .delYn("Y")
+                .build();
+        given(fileRepository.findAll()).willReturn(List.of(active, deleted));
+        given(userRepository.findByEno("10001")).willReturn(Optional.of(
+                CuserI.builder().eno("10001").usrNm("홍길동").build()));
+
+        List<AdminDto.FileResponse> result = adminService.getFiles();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).flMngNo()).isEqualTo("FL_00000001");
+        assertThat(result.get(0).fstEnrUsNm()).isEqualTo("홍길동");
+    }
+
+    @Test
+    @DisplayName("getLoginStats: 일별 로그인 통계를 날짜와 건수로 변환한다")
+    void getLoginStats_일별통계반환() {
+        given(loginHistoryRepository.findDailyLoginStats())
+                .willReturn(Collections.singletonList(new Object[]{"2026-05-09", 3L}));
+
+        List<AdminDto.LoginStatResponse> result = adminService.getLoginStats();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).date()).isEqualTo(LocalDate.of(2026, 5, 9));
+        assertThat(result.get(0).count()).isEqualTo(3L);
     }
 }

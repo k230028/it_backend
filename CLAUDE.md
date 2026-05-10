@@ -95,12 +95,30 @@ src/main/resources/
 - 보호 API는 쿠키 자동 전송 기본. `JwtAuthenticationFilter`는 `Authorization: Bearer`를 폴백으로만 허용.
 - 공개 엔드포인트: `/api/auth/login`, `/api/auth/signup`, `/api/auth/refresh`, `/swagger-ui/**`, `/v3/api-docs/**`.
 - 관리자 전용: `/api/admin/**` — SecurityConfig URL 패턴 + `@PreAuthorize("hasRole('ADMIN')")` 이중 보호.
+- **관리자 전용 도메인 API** (`/api/admin/**` 외 경로라도 관리자만 접근해야 하는 엔드포인트): 컨트롤러 **클래스 레벨**에 반드시 `@PreAuthorize("hasRole('ADMIN')")` 적용. SecurityConfig URL 패턴은 `/api/admin/**`에만 등록되므로 도메인 컨트롤러는 어노테이션으로 보호해야 함. 누락 시 인증된 모든 사용자가 API 직접 호출 가능.
+  ```java
+  // 관리자 전용 컨트롤러 — 클래스 레벨 적용 필수
+  @RestController
+  @RequestMapping("/api/plans")
+  @RequiredArgsConstructor
+  @PreAuthorize("hasRole('ADMIN')")   // ← 누락 금지
+  public class PlanController { ... }
+  ```
+  현재 적용 대상: `PlanController`, `BudgetStatusController`, `BudgetWorkController`.
+- **권한 검증 보강 현황** (코드 분석 기준, 2026-05-10): `FileController`는 `FileOwnershipChecker`로 조회·삭제 전 소유권을 확인하고, `GeminiController`는 `@PreAuthorize("hasRole('ADMIN')")`로 관리자 전용 처리합니다. `UserController`, `OrganizationController`, `ProjectController`, `ApplicationController`의 부서/소유권 정책은 업무 요건에 맞춰 별도 검토합니다.
 - RBAC 모델: 자격등급(`CauthI`) + 역할 매핑(`CroleI`).
   - `ITPAD001` = 시스템관리자
   - `ITPZZ001` = 일반사용자
   - `ITPZZ002` = 기획통할담당자
 - CORS: `cors.allowed-origins=http://localhost,http://localhost:3000,http://localhost:3002` (개발 프론트 및 E2E).
-- 운영: `app.cookie.secure=true` + HTTPS 필수.
+- 운영: `app.cookie.secure=true` + HTTPS 필수. `app.cookie.secure` 기본값이 `false`이므로 운영 프로파일에서 반드시 오버라이드해야 합니다.
+- **`Authorization: Bearer` 헤더 폴백**: Swagger/Postman 편의를 위해 허용되어 있으나 운영 환경에서도 동작합니다. 운영 전환 전 비활성화 여부를 결정하고 이 문서에 명시합니다.
+- **파일 업로드 확장자 검증**: `FileService.uploadFileInternal()` 진입 시점에 `FileValidator.validateExtension()`을 호출합니다.
+- **로그인 Brute-force 보호**: `LoginAttemptService`가 사번 기준 5회 실패/10분 잠금을 적용합니다.
+- **X-Forwarded-For 신뢰**: `AuthController.getClientIp()`가 헤더를 무조건 신뢰합니다. 운영 인프라(Nginx 등)에서 헤더를 덮어쓰도록 설정해야 IP 위조를 방지할 수 있습니다.
+- **비밀값 기본값 금지**: `application.properties`의 `${VAR:default}` 형태 기본값은 환경변수 미설정 시 운영에 그대로 사용됩니다. `:default` 부분을 제거하고 구동 시 빈값이면 즉시 실패하도록 해야 합니다.
+- **SHA-256 비밀번호 해시 제한**: `CustomPasswordEncoder`는 Salt 없는 SHA-256을 사용합니다(레거시 SSO 연동 제약). 신규 계정부터 BCrypt 또는 Argon2 적용을 검토하고, 기존 계정은 로그인 성공 시 점진적 업그레이드합니다. 현황은 `TASK.md` 과제로 추적 중.
+- CORS: `cors.allowed-origins`는 `http://localhost,...` (개발값)이 기본입니다. 운영 배포 시 `https://it.kdb.co.kr` 등 실제 오리진으로 환경변수 오버라이드가 필수이며, 구동 시 검증 로직이 없으므로 배포 체크리스트에 포함해야 합니다.
 - 운영 비밀값: `spring.datasource.password`, `jwt.secret`, `gemini.api.key`는 환경변수 또는 프로파일별 비공개 설정에서 주입합니다.
 
 ### 5.7 채번/주요 비즈니스 제약
@@ -121,6 +139,41 @@ src/main/resources/
 ### 5.9 테스트 기준
 - 기능 변경 후 최소 `./gradlew test` 실행.
 - 인증/결재/파일/QueryDSL 집계/변경 로그 등 공통 영향 변경은 `./gradlew clean test`로 재검증.
+
+### 5.10 기동 시 환경변수 검증
+- `EnvironmentValidator` (`common/system/EnvironmentValidator.java`): `@PostConstruct`에서 `spring.datasource.password`, `jwt.secret` 프로퍼티 해석 결과를 검사.
+- 해석 결과가 빈값이면 `IllegalStateException`으로 즉시 구동 실패합니다. 다만 현재 `application.properties`에는 `DB_PASSWORD`, `JWT_SECRET` 기본값이 남아 있어 환경변수 미설정도 통과하므로 운영 프로파일에서는 기본값 제거가 필요합니다.
+- 환경변수 추가 시 `EnvironmentValidator` 목록에도 함께 등록.
+
+### 5.11 파일 보안
+- `FileValidator` (`infra/file/FileValidator.java`): 허용 확장자 화이트리스트 검증 — `FileService.uploadFileInternal()` 진입 시점 호출.
+- `FileOwnershipChecker` (`infra/file/FileOwnershipChecker.java`): 파일 소유자 검증 — `FileController` 조회·삭제 전 호출 필수.
+- 허용 확장자 변경 시 `FileValidator.ALLOWED_EXTENSIONS` 상수 수정.
+
+### 5.12 로그인 Brute-force 보호
+- `LoginAttemptService` (`common/iam/service/LoginAttemptService.java`): 인메모리 `ConcurrentHashMap` 기반 실패 횟수 추적.
+- 임계값: 5회 실패 / 10분 잠금. 성공 시 카운터 초기화.
+- `AuthService.login()`: 실패 시 `recordFailure()`, 성공 시 `resetAttempts()` 호출.
+- **주의**: 서버 재시작 또는 인스턴스 스케일아웃 시 카운터 초기화됨 (분산 환경에서는 Redis 기반 전환 필요).
+
+### 5.14 부서 필터링 패턴 (bbrC)
+- 신규 목록 API는 `@RequestParam(required = false) String bbrC` 추가 필수.
+- QueryDSL: `StringUtils.hasText(bbrC)` 체크 후 `builder.and(entity.bbrC.eq(bbrC))` 추가.
+- `bbrC` null·빈 문자열이면 전체 조회 (관리자·SSO 미동기화 계정 모두 동일 경로).
+- **하위 호환**: 기존 `bbrC` 없는 호출자는 전체 조회 그대로 동작. Breaking change 없음.
+- TDD 의무: Repository/Service 변경 시 `bbrC` 지정 케이스와 null 케이스 모두 테스트 추가.
+  ```java
+  // RepositoryImpl 조건 패턴
+  if (StringUtils.hasText(bbrC)) {
+      builder.and(entity.bbrC.eq(bbrC));
+  }
+  ```
+
+### 5.13 사전협의 검토자 API
+- `ReviewerController`: `GET /api/reviews/{docMngNo}/reviewers` — 사전협의 문서 검토자 목록 반환.
+- `ReviewerService.REVIEW_TEAM_MAP`: 팀코드 → 팀명 매핑 (`12004`=계약팀, `18001`=기획팀, `18010`=PMO팀, `18501`=개발/운영팀).
+- 각 팀에서 첫 번째 사용자 1명만 포함. 팀원 없으면 해당 팀은 결과 제외.
+- 검토 팀 추가·변경 시 `ReviewerService.REVIEW_TEAM_MAP`과 프론트엔드 `ReviewerTeam` 타입(`types/review.ts`) 동시 갱신.
 
 ## 6. API 응답 형식
 | 코드 | 의미 |

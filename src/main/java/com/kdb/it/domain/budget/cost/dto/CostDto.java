@@ -137,6 +137,10 @@ public class CostDto {
         @Schema(description = "예산연도", example = "2026")
         private String bgYy;
 
+        /** 관련전산업무비번호 (계속항목인 경우 전년도 항목의 관리번호) */
+        @Schema(description = "관련전산업무비번호")
+        private String cncdItMngcNo;
+
         /** 금융정보단말기 목록 (1:N) */
         @Schema(description = "금융정보단말기 목록 (1:N)")
         private List<TerminalDto> terminals;
@@ -169,6 +173,7 @@ public class CostDto {
                     .itMngcTp(this.itMngcTp) // 전산업무비유형
                     .pulDtt(this.pulDtt) // 전산업무비구분
                     .bgYy(this.bgYy) // 예산연도
+                    .cncdItMngcNo(this.cncdItMngcNo) // 관련전산업무비번호
                     .lstYn("Y") // 최종여부: 신규는 항상 최신
                     .build();
         }
@@ -259,6 +264,10 @@ public class CostDto {
         /** 예산연도 */
         @Schema(description = "예산연도", example = "2026")
         private String bgYy;
+
+        /** 관련전산업무비번호 (계속항목인 경우 전년도 항목의 관리번호) */
+        @Schema(description = "관련전산업무비번호")
+        private String cncdItMngcNo;
 
         /** 금융정보단말기 목록 (1:N) */
         @Schema(description = "금융정보단말기 목록 (1:N)")
@@ -363,6 +372,10 @@ public class CostDto {
         @Schema(description = "예산연도", example = "2026")
         private String bgYy;
 
+        /** 관련전산업무비번호 (계속항목인 경우 전년도 항목의 관리번호) */
+        @Schema(description = "관련전산업무비번호")
+        private String cncdItMngcNo;
+
         /** 금융정보단말기 목록 (1:N) */
         @Schema(description = "금융정보단말기 목록 (1:N)")
         private List<TerminalDto> terminals;
@@ -415,6 +428,10 @@ public class CostDto {
         @Schema(description = "전년도 예산 (계속 항목은 전년도 IT_MNGC_BG 합계, 신규는 0)")
         private BigDecimal prevBgAmt;
 
+        /** 전년도 BBUGTM 편성예산: 계속 항목의 cncdItMngcNo 기준 bgYy-1 DUP_BG 합계, 신규는 0 */
+        @Schema(description = "전년도 편성예산 (계속 항목은 cncdItMngcNo 기준 전년도 BBUGTM DUP_BG 합계, 신규는 0)")
+        private BigDecimal prevDupBg;
+
         /** 삭제여부 (Soft Delete 상태, "Y": 삭제됨, "N": 정상) */
         @Schema(description = "삭제여부", example = "N")
         private String delYn;
@@ -460,6 +477,7 @@ public class CostDto {
                     .itMngcTp(entity.getItMngcTp()) // 전산업무비유형
                     .pulDtt(entity.getPulDtt()) // 전산업무비구분
                     .bgYy(entity.getBgYy()) // 예산연도
+                    .cncdItMngcNo(entity.getCncdItMngcNo()) // 관련전산업무비번호
                     .delYn(entity.getDelYn()) // 삭제여부
                     .build();
         }

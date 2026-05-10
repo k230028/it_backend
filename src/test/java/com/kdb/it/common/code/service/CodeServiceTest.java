@@ -126,6 +126,17 @@ class CodeServiceTest {
     }
 
     @Test
+    @DisplayName("createCcodem: 시작일자가 없으면 IllegalArgumentException을 던진다")
+    void createCcodem_시작일자없음_IllegalArgumentException발생() {
+        CodeDto.CreateRequest request = new CodeDto.CreateRequest();
+        request.setCdId("CD001");
+
+        assertThatThrownBy(() -> codeService.createCcodem(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("시작일자");
+    }
+
+    @Test
     @DisplayName("createCcodem: 신규 코드이면 저장 후 코드ID를 반환한다")
     void createCcodem_신규코드_코드ID반환() {
         // given
@@ -159,6 +170,36 @@ class CodeServiceTest {
         assertThatThrownBy(() -> codeService.updateCcodem("INVALID", sttDt, new CodeDto.UpdateRequest()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("INVALID");
+    }
+
+    @Test
+    @DisplayName("updateCcodem: 시작일자 변경 요청이면 IllegalArgumentException을 던진다")
+    void updateCcodem_시작일자변경요청_IllegalArgumentException발생() {
+        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        Ccodem ccodem = mockCcodem("CD001", "PRJ_TP");
+        CodeDto.UpdateRequest request = new CodeDto.UpdateRequest();
+        request.setSttDt(LocalDate.of(2026, 2, 1));
+        given(codeRepository.findByCdIdAndSttDtAndDelYn("CD001", sttDt, "N")).willReturn(Optional.of(ccodem));
+
+        assertThatThrownBy(() -> codeService.updateCcodem("CD001", sttDt, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("기본키");
+    }
+
+    @Test
+    @DisplayName("updateCcodem: 존재하는 코드이면 update 후 코드ID를 반환한다")
+    void updateCcodem_존재하는코드_update호출() {
+        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        Ccodem ccodem = mockCcodem("CD001", "PRJ_TP");
+        CodeDto.UpdateRequest request = new CodeDto.UpdateRequest();
+        request.setCdNm("수정명");
+        request.setCdva("수정값");
+        given(codeRepository.findByCdIdAndSttDtAndDelYn("CD001", sttDt, "N")).willReturn(Optional.of(ccodem));
+
+        String result = codeService.updateCcodem("CD001", sttDt, request);
+
+        assertThat(result).isEqualTo("CD001");
+        verify(ccodem).update(eq("수정명"), eq("수정값"), any(), any(), any(), any(), eq(sttDt), any());
     }
 
     // ───────────────────────────────────────────────────────
@@ -227,5 +268,42 @@ class CodeServiceTest {
         assertThatThrownBy(() -> codeService.validateBudgetPeriod())
                 .isInstanceOf(CustomGeneralException.class)
                 .hasMessageContaining("예산 신청 기간이 아닙니다");
+    }
+
+    @Test
+    @DisplayName("validateBudgetPeriod: 현재 날짜가 신청기간 이후이면 CustomGeneralException을 던진다")
+    void validateBudgetPeriod_기간이후_CustomGeneralException발생() {
+        Ccodem startCode = mockCcodem("BG-RQS-STA", "BUDGET");
+        given(startCode.getCdva()).willReturn("2000-01-01");
+        Ccodem endCode = mockCcodem("BG-RQS-END", "BUDGET");
+        given(endCode.getCdva()).willReturn("2000-12-31");
+        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-STA"), any())).willReturn(Optional.of(startCode));
+        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-END"), any())).willReturn(Optional.of(endCode));
+
+        assertThatThrownBy(() -> codeService.validateBudgetPeriod())
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("예산 신청 기간이 아닙니다");
+    }
+
+    @Test
+    @DisplayName("getBudgetPeriod: 시작 또는 종료 코드가 없으면 IllegalArgumentException을 던진다")
+    void getBudgetPeriod_코드없음_IllegalArgumentException발생() {
+        Ccodem startCode = mockCcodem("BG-RQS-STA", "BUDGET");
+        given(startCode.getCdva()).willReturn("2026-01-01");
+        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-STA"), any())).willReturn(Optional.of(startCode));
+        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-END"), any())).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> codeService.getBudgetPeriod())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("종료일자");
+    }
+
+    @Test
+    @DisplayName("findCodeEntitiesByCttTp: 코드값구분으로 엔티티 목록을 반환한다")
+    void findCodeEntitiesByCttTp_엔티티목록반환() {
+        Ccodem code = mockCcodem("CD001", "PRJ_TP");
+        given(codeRepository.findByCttTpWithValidDate("PRJ_TP", null)).willReturn(List.of(code));
+
+        assertThat(codeService.findCodeEntitiesByCttTp("PRJ_TP")).containsExactly(code);
     }
 }

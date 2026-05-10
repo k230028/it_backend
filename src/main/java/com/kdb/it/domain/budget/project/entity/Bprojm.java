@@ -194,6 +194,45 @@ public class Bprojm extends BaseEntity {
     @Column(name = "PUL_DTT", length = 32, comment = "사업구분")
     private String pulDtt;
 
+    /** 관련프로젝트관리번호: 계속사업인 경우 전년도 사업의 관리번호 */
+    @Column(name = "CNCD_PRJ_MNG_NO", length = 32, comment = "관련프로젝트관리번호")
+    private String cncdPrjMngNo;
+
+    /**
+     * 프로젝트 수정 파라미터 레코드 (DB-06)
+     *
+     * <p>35+ 개별 파라미터를 하나의 레코드로 압축하여 메서드 시그니처 가독성을 개선합니다.
+     * {@link ProjectService}의 수정 로직에서 사용합니다.</p>
+     */
+    public record UpdateCommand(
+            String prjNm, String prjTp, String svnDpm, String itDpm,
+            BigDecimal prjBg, BigDecimal nyyPrjBg,
+            LocalDate sttDt, LocalDate endDt,
+            String svnDpmCgpr, String itDpmCgpr, String svnDpmTlr, String itDpmTlr,
+            String edrt, String prjDes, String saf, String ncs,
+            String xptEff, String plm, String prjRng, String pulPsg, String hrfPln,
+            String bzDtt, String tchnTp, String mnUsr, String dplYn,
+            LocalDate lblFsgTlm, String rprSts, Integer prjPulPtt, String prjSts,
+            String bgYy, String svnHdq,
+            String ornYn, String pulDtt, String cncdPrjMngNo
+    ) {}
+
+    /**
+     * UpdateCommand 레코드로 프로젝트 정보를 업데이트합니다 (prjSno 제외).
+     *
+     * @param cmd 수정 파라미터 레코드
+     */
+    public void update(UpdateCommand cmd) {
+        update(cmd.prjNm(), cmd.prjTp(), cmd.svnDpm(), cmd.itDpm(),
+                cmd.prjBg(), cmd.nyyPrjBg(), cmd.sttDt(), cmd.endDt(),
+                cmd.svnDpmCgpr(), cmd.itDpmCgpr(), cmd.svnDpmTlr(), cmd.itDpmTlr(),
+                cmd.edrt(), cmd.prjDes(), cmd.saf(), cmd.ncs(),
+                cmd.xptEff(), cmd.plm(), cmd.prjRng(), cmd.pulPsg(), cmd.hrfPln(),
+                cmd.bzDtt(), cmd.tchnTp(), cmd.mnUsr(), cmd.dplYn(),
+                cmd.lblFsgTlm(), cmd.rprSts(), cmd.prjPulPtt(), cmd.prjSts(),
+                cmd.bgYy(), cmd.svnHdq(), cmd.ornYn(), cmd.pulDtt(), cmd.cncdPrjMngNo());
+    }
+
     /**
      * 정보화사업 정보 업데이트 메서드 (prjSno 포함)
      *
@@ -234,8 +273,9 @@ public class Bprojm extends BaseEntity {
      * @param bgYy       예산연도
      * @param svnHdq     주관본부/부문
      * @param prjSno     프로젝트순번
-     * @param ornYn      경상여부 ('Y'=경상사업, 'N'=일반 정보화사업)
-     * @param pulDtt     사업구분 ('신규', '계속')
+     * @param ornYn           경상여부 ('Y'=경상사업, 'N'=일반 정보화사업)
+     * @param pulDtt          사업구분 ('신규', '계속')
+     * @param cncdPrjMngNo    관련프로젝트관리번호 (계속사업인 경우 전년도 관리번호)
      */
     public void update(String prjNm, String prjTp, String svnDpm, String itDpm, BigDecimal prjBg,
             BigDecimal nyyPrjBg, LocalDate sttDt, LocalDate endDt, String svnDpmCgpr, String itDpmCgpr,
@@ -243,10 +283,9 @@ public class Bprojm extends BaseEntity {
             String saf, String ncs, String xptEff, String plm, String prjRng, String pulPsg,
             String hrfPln, String bzDtt, String tchnTp, String mnUsr, String dplYn,
             LocalDate lblFsgTlm, String rprSts, Integer prjPulPtt, String prjSts, String bgYy, String svnHdq,
-            Integer prjSno, String ornYn, String pulDtt) {
+            Integer prjSno, String ornYn, String pulDtt, String cncdPrjMngNo) {
         this.prjSno = prjSno;
         this.prjNm = prjNm;
-        // ... (나머지 필드 업데이트)
         this.prjTp = prjTp;
         this.svnDpm = svnDpm;
         this.itDpm = itDpm;
@@ -279,6 +318,7 @@ public class Bprojm extends BaseEntity {
         this.svnHdq = svnHdq;
         this.ornYn = ornYn;
         this.pulDtt = pulDtt;
+        this.cncdPrjMngNo = cncdPrjMngNo;
     }
 
     /**
@@ -320,8 +360,9 @@ public class Bprojm extends BaseEntity {
      * @param prjSts     프로젝트상태
      * @param bgYy       예산연도
      * @param svnHdq     주관본부/부문
-     * @param ornYn      경상여부 ('Y'=경상사업, 'N'=일반 정보화사업)
-     * @param pulDtt     사업구분 ('신규', '계속')
+     * @param ornYn           경상여부 ('Y'=경상사업, 'N'=일반 정보화사업)
+     * @param pulDtt          사업구분 ('신규', '계속')
+     * @param cncdPrjMngNo    관련프로젝트관리번호 (계속사업인 경우 전년도 관리번호)
      */
     public void update(String prjNm, String prjTp, String svnDpm, String itDpm, BigDecimal prjBg,
             BigDecimal nyyPrjBg, LocalDate sttDt, LocalDate endDt, String svnDpmCgpr, String itDpmCgpr,
@@ -329,7 +370,7 @@ public class Bprojm extends BaseEntity {
             String saf, String ncs, String xptEff, String plm, String prjRng, String pulPsg,
             String hrfPln, String bzDtt, String tchnTp, String mnUsr, String dplYn,
             LocalDate lblFsgTlm, String rprSts, Integer prjPulPtt, String prjSts, String bgYy, String svnHdq,
-            String ornYn, String pulDtt) {
+            String ornYn, String pulDtt, String cncdPrjMngNo) {
         this.prjNm = prjNm;
         this.prjTp = prjTp;
         this.svnDpm = svnDpm;
@@ -363,5 +404,6 @@ public class Bprojm extends BaseEntity {
         this.svnHdq = svnHdq;
         this.ornYn = ornYn;
         this.pulDtt = pulDtt;
+        this.cncdPrjMngNo = cncdPrjMngNo;
     }
 }

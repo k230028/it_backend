@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import java.util.Optional;
+import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -158,5 +159,68 @@ class CouncilApprovalServiceTest {
 
         // then
         verify(councilService).changeStatus(ASCT_ID, "DRAFT");
+    }
+
+    @Test
+    @DisplayName("requestResultApproval: FINAL_APPROVAL이 아니면 IllegalStateException을 던진다")
+    void requestResultApproval_FINAL_APPROVAL아님_예외발생() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAsctSts()).willReturn("RESULT_REVIEW");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        CustomUserDetails userDetails = mock(CustomUserDetails.class);
+
+        assertThatThrownBy(() -> councilApprovalService.requestResultApproval(
+                ASCT_ID,
+                new CouncilDto.ResultApprovalRequest("E20001", "E30001", "개최결과서 결재"),
+                userDetails))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("FINAL_APPROVAL");
+    }
+
+    @Test
+    @DisplayName("requestResultApproval: 사업개요가 없으면 협의회ID로 신청서명을 만들고 결재선을 등록한다")
+    void requestResultApproval_사업개요없음_협의회ID로결재요청() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAsctSts()).willReturn("FINAL_APPROVAL");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
+        given(applicationService.submit(any(ApplicationDto.CreateRequest.class))).willReturn("APF_RESULT_1");
+        CustomUserDetails userDetails = mock(CustomUserDetails.class);
+        given(userDetails.getEno()).willReturn("E10001");
+
+        CouncilDto.ApprovalResponse response = councilApprovalService.requestResultApproval(
+                ASCT_ID,
+                new CouncilDto.ResultApprovalRequest("E20001", "E30001", "개최결과서 결재"),
+                userDetails);
+
+        assertThat(response.apfMngNo()).isEqualTo("APF_RESULT_1");
+        verify(applicationService).submit(org.mockito.ArgumentMatchers.argThat(req ->
+                req.getApfNm().contains(ASCT_ID)
+                        && req.getApproverEnos().equals(List.of("E20001", "E30001"))));
+        verify(councilService).changeStatus(ASCT_ID, "RESULT_APPROVAL_PENDING");
+    }
+
+    @Test
+    @DisplayName("processApprovalCallback: 개최결과서 결재 승인 시 COMPLETED로 전이한다")
+    void processApprovalCallback_결과서승인_COMPLETED전이() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAsctSts()).willReturn("RESULT_APPROVAL_PENDING");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        councilApprovalService.processApprovalCallback(ASCT_ID, new CouncilDto.ApprovalCallbackRequest(true));
+
+        verify(councilService).changeStatus(ASCT_ID, "COMPLETED");
+    }
+
+    @Test
+    @DisplayName("processApprovalCallback: 개최결과서 결재 반려 시 FINAL_APPROVAL로 전이한다")
+    void processApprovalCallback_결과서반려_FINAL_APPROVAL전이() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAsctSts()).willReturn("RESULT_APPROVAL_PENDING");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        councilApprovalService.processApprovalCallback(ASCT_ID, new CouncilDto.ApprovalCallbackRequest(false));
+
+        verify(councilService).changeStatus(ASCT_ID, "FINAL_APPROVAL");
     }
 }

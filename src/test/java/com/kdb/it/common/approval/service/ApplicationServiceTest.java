@@ -6,14 +6,17 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -23,6 +26,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.dto.ApplicationDto;
+import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
@@ -53,10 +57,10 @@ class ApplicationServiceTest {
     @Mock private ApplicationRepository applicationRepository;
     @Mock private ApproverRepository approverRepository;
     @Mock private ApplicationMapRepository applicationMapRepository;
-    @Mock private ObjectMapper objectMapper;
     @Mock private ProjectRepository projectRepository;
     @Mock private CostRepository costRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private ApprovalLineDelegate approvalLineDelegate;
 
     @InjectMocks
     private ApplicationService applicationService;
@@ -87,6 +91,18 @@ class ApplicationServiceTest {
         req.setDcdOpnn("테스트의견");
         req.setDcdSts(sts);
         return req;
+    }
+
+    /** JSON 결재선 갱신까지 검증하기 위한 실제 ObjectMapper 서비스 */
+    private ApplicationService serviceWithRealObjectMapper() {
+        return new ApplicationService(
+                applicationRepository,
+                approverRepository,
+                applicationMapRepository,
+                projectRepository,
+                costRepository,
+                eventPublisher,
+                new ApprovalLineDelegate(new ObjectMapper()));
     }
 
     // ───────────────────────────────────────────────────────
@@ -190,6 +206,87 @@ class ApplicationServiceTest {
 
         verify(capplm, never()).updateStatus(any());
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("approve: 이전 결재가 승인 상태가 아니면 결재 차례 예외가 발생한다")
+    void approve_이전결재미승인_IllegalStateException발생() {
+        Capplm capplm = mockCapplm();
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+
+        Cdecim rejected = Cdecim.builder()
+                .dcdMngNo(APF_MNG_NO)
+                .dcdSqn(1)
+                .dcdEno("E10001")
+                .lstDcdYn("N")
+                .dcdTp("결재")
+                .dcdSts("반려")
+                .build();
+        Cdecim pending = pendingApprover("E10002", 2, "Y");
+        given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO))
+                .willReturn(List.of(rejected, pending));
+
+        assertThatThrownBy(() -> applicationService.approve(APF_MNG_NO, approveRequest("E10002", "승인")))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("approve: 동일 결재자가 연속이면 함께 승인되고 JSON 결재선 날짜도 반영된다")
+    void approve_동일결재자연속_자동승인과Json갱신() throws Exception {
+        ApplicationService realMapperService = serviceWithRealObjectMapper();
+        Capplm capplm = Capplm.builder()
+                .apfMngNo(APF_MNG_NO)
+                .apfDtlCone("{\"approvalLine\":{\"team\":{\"id\":\"E10001\"},\"dept\":{\"id\":\"E10001\"},\"ceo\":{\"id\":\"E10002\"}}}")
+                .build();
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+
+        Cdecim first = pendingApprover("E10001", 1, "N");
+        Cdecim second = pendingApprover("E10001", 2, "N");
+        Cdecim last = pendingApprover("E10002", 3, "Y");
+        given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO))
+                .willReturn(List.of(first, second, last));
+
+        realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
+
+        assertThat(first.getDcdSts()).isEqualTo("승인");
+        assertThat(second.getDcdSts()).isEqualTo("승인");
+        assertThat(capplm.getApfDtlCone()).contains("\"date\"");
+        verify(approverRepository, times(2)).save(any(Cdecim.class));
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("approve: 결재선 JSON이 없는 경우 결재 처리는 정상 완료된다")
+    void approve_결재선Json없음_결재처리완료() {
+        ApplicationService realMapperService = serviceWithRealObjectMapper();
+        Capplm capplm = Capplm.builder()
+                .apfMngNo(APF_MNG_NO)
+                .apfDtlCone(null)
+                .build();
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+        given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
+
+        realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
+
+        assertThat(capplm.getApfSts()).isEqualTo("결재완료");
+        verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
+    }
+
+    @Test
+    @DisplayName("approve: 결재선 JSON이 깨진 경우 CustomGeneralException으로 트랜잭션 롤백 — ERR-03")
+    void approve_결재선Json파싱실패_CustomGeneralException() {
+        ApplicationService realMapperService = serviceWithRealObjectMapper();
+        Capplm capplm = Capplm.builder()
+                .apfMngNo(APF_MNG_NO)
+                .apfDtlCone("{not-json")
+                .build();
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+        given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
+
+        assertThatThrownBy(() -> realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인")))
+                .isInstanceOf(com.kdb.it.exception.CustomGeneralException.class);
     }
 
     // ───────────────────────────────────────────────────────
@@ -419,6 +516,51 @@ class ApplicationServiceTest {
         verify(applicationRepository).save(any());
     }
 
+    @Test
+    @DisplayName("submit: 원본 항목을 연결하고 기안자가 1차 결재자이면 자동 승인한다")
+    void submit_원본항목연결과기안자자동승인() {
+        ApplicationService realMapperService = serviceWithRealObjectMapper();
+        given(applicationRepository.getNextVal()).willReturn(1L);
+        given(applicationMapRepository.getNextVal()).willReturn(10L, 11L);
+
+        ApplicationDto.OrcItem project = new ApplicationDto.OrcItem();
+        project.setOrcTbCd("BPROJM");
+        project.setOrcPkVl("PRJ-001");
+        project.setOrcSnoVl("3");
+        ApplicationDto.OrcItem cost = new ApplicationDto.OrcItem();
+        cost.setOrcTbCd("BCOSTM");
+        cost.setOrcPkVl("COST-001");
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("10001");
+        request.setApfDtlCone("{\"approvalLine\":{\"team\":{\"id\":\"10001\"},\"dept\":{\"id\":\"10002\"}}}");
+        request.setOrcItems(List.of(project, cost));
+        request.setApproverEnos(List.of("10001", "10002"));
+
+        String result = realMapperService.submit(request);
+
+        assertThat(result).startsWith("APF_");
+        ArgumentCaptor<Cappla> capplaCaptor = ArgumentCaptor.forClass(Cappla.class);
+        verify(applicationMapRepository, times(2)).save(capplaCaptor.capture());
+        assertThat(capplaCaptor.getAllValues()).extracting(Cappla::getOrcSnoVl)
+                .containsExactly(3, null);
+        verify(approverRepository, times(3)).save(any(Cdecim.class));
+    }
+
+    @Test
+    @DisplayName("bulkApprove: 승인 목록이 비어 있으면 0건 성공으로 반환한다")
+    void bulkApprove_빈목록_0건반환() {
+        ApplicationDto.BulkApproveRequest request = new ApplicationDto.BulkApproveRequest();
+        request.setApprovals(List.of());
+
+        ApplicationDto.BulkApproveResponse response = applicationService.bulkApprove(request);
+
+        assertThat(response.getTotalCount()).isZero();
+        assertThat(response.getSuccessCount()).isZero();
+        assertThat(response.getResults()).isEmpty();
+    }
+
     // ───────────────────────────────────────────────────────
     // getDashboard — 대시보드 집계
     // ───────────────────────────────────────────────────────
@@ -439,5 +581,27 @@ class ApplicationServiceTest {
         assertThat(result.getPendingCount()).isEqualTo(2);
         assertThat(result.getInProgressCount()).isEqualTo(1);
         assertThat(result.getMonthlyCompletedCount()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("getDashboard: 월별 추이와 오래된 결재 대기 건은 긴급으로 반환한다")
+    void getDashboard_월별추이와긴급상태반환() {
+        given(applicationRepository.countPendingByEno("10001")).willReturn(2);
+        given(applicationRepository.countInProgressByEno("10001")).willReturn(1);
+        given(applicationRepository.countMonthlyCompletedByBbrC("BBR001")).willReturn(4);
+        given(applicationRepository.countRejectedByEno("10001")).willReturn(1);
+        given(applicationRepository.findMonthlyTrendByBbrC("BBR001"))
+                .willReturn(java.util.Collections.singletonList(new Object[]{"2026-05", 4}));
+        given(applicationRepository.findPendingListByEno("10001")).willReturn(List.of(
+                new Object[]{"APF-OLD", "오래된 신청", "홍길동", LocalDate.now().minusDays(4).toString()},
+                new Object[]{"APF-NULL", "날짜 없음", "김길동", null}
+        ));
+
+        ApplicationDto.DashboardResponse result = applicationService.getDashboard("BBR001", "10001");
+
+        assertThat(result.getMonthlyTrend()).extracting(ApplicationDto.MonthlyCount::getCount)
+                .containsExactly(4);
+        assertThat(result.getPendingList()).extracting(ApplicationDto.PendingItem::getUrgency)
+                .containsExactly("urgent", "normal");
     }
 }

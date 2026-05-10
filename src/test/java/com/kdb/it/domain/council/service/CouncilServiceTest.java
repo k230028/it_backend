@@ -8,6 +8,11 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,9 +25,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
@@ -204,6 +212,42 @@ class CouncilServiceTest {
     }
 
     @Test
+    @DisplayName("getCouncilList: 관리자 조회 행은 날짜 타입과 적용 여부를 변환한다")
+    void getCouncilList_관리자_행변환() {
+        CustomUserDetails admin = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
+        Object[] row = new Object[]{
+                "PRJ-2026-0001",
+                BigDecimal.ONE,
+                "정보화사업",
+                ASCT_ID,
+                "DRAFT",
+                "INFO_SYS",
+                Timestamp.valueOf(LocalDateTime.of(2026, 5, 9, 10, 0)),
+                BigDecimal.ONE,
+                "2026",
+                "신규",
+                "101",
+                new BigDecimal("1000.50"),
+                Date.valueOf(LocalDate.of(2026, 1, 1)),
+                LocalDateTime.of(2026, 12, 31, 0, 0),
+                "IT",
+                "설명"
+        };
+        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(java.util.Collections.singletonList(row));
+
+        List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).prjSno()).isEqualTo(1);
+        assertThat(result.get(0).cnrcDt()).isEqualTo(LocalDate.of(2026, 5, 9));
+        assertThat(result.get(0).applied()).isTrue();
+        assertThat(result.get(0).prjBg()).isEqualByComparingTo("1000.50");
+        assertThat(result.get(0).sttDt()).isEqualTo(LocalDate.of(2026, 1, 1));
+        assertThat(result.get(0).endDt()).isEqualTo(LocalDate.of(2026, 12, 31));
+    }
+
+    @Test
     @DisplayName("getCouncilList: 평가위원이면 배정된 협의회 목록을 반환한다")
     void getCouncilList_평가위원_배정협의회반환() {
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "IT001");
@@ -248,6 +292,35 @@ class CouncilServiceTest {
         CouncilDto.DetailResponse result = councilService.getCouncil(ASCT_ID);
 
         assertThat(result.asctId()).isEqualTo(ASCT_ID);
+    }
+
+    @Test
+    @DisplayName("getCouncil: 프로젝트가 있으면 사업 상세 기본값을 함께 반환한다")
+    void getCouncil_프로젝트있음_상세기본값반환() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAsctId()).willReturn(ASCT_ID);
+        given(council.getPrjMngNo()).willReturn("PRJ-2026-0001");
+        given(council.getPrjSno()).willReturn(1);
+        Bprojm project = Bprojm.builder()
+                .prjMngNo("PRJ-2026-0001")
+                .prjSno(1)
+                .prjNm("정보화사업")
+                .edrt("전결권자")
+                .sttDt(LocalDate.of(2026, 1, 1))
+                .endDt(LocalDate.of(2026, 12, 31))
+                .ncs("필요성")
+                .prjBg(BigDecimal.valueOf(1000))
+                .prjDes("사업설명")
+                .xptEff("기대효과")
+                .build();
+        given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+        given(projectRepository.findById(any())).willReturn(Optional.of(project));
+
+        CouncilDto.DetailResponse result = councilService.getCouncil(ASCT_ID);
+
+        assertThat(result.prjNm()).isEqualTo("정보화사업");
+        assertThat(result.edrt()).isEqualTo("전결권자");
+        assertThat(result.prjBg()).isEqualByComparingTo("1000");
     }
 
     // ───────────────────────────────────────────────────────
@@ -334,6 +407,28 @@ class CouncilServiceTest {
         verify(council).changeStatus("RESULT_WRITING");
     }
 
+    @Test
+    @DisplayName("completeCouncil: EVALUATING 상태에서도 간사를 제외한 평가 완료 여부만 확인한다")
+    void completeCouncil_EVALUATING상태_간사제외하고완료() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAsctSts()).willReturn("EVALUATING");
+        given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+        Bcmmtm secretary = mock(Bcmmtm.class);
+        given(secretary.getVlrTp()).willReturn("SECR");
+        given(secretary.getEno()).willReturn("10001");
+        Bcmmtm caller = mock(Bcmmtm.class);
+        given(caller.getVlrTp()).willReturn("CALL");
+        given(caller.getEno()).willReturn("10002");
+        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(secretary, caller));
+        given(evaluationRepository.findByAsctIdAndEnoAndDelYn(ASCT_ID, "10002", "N"))
+                .willReturn(List.of(mock(Bevalm.class), mock(Bevalm.class), mock(Bevalm.class),
+                        mock(Bevalm.class), mock(Bevalm.class), mock(Bevalm.class)));
+
+        councilService.completeCouncil(ASCT_ID);
+
+        verify(council).changeStatus("RESULT_WRITING");
+    }
+
     // ───────────────────────────────────────────────────────
     // notifyCouncil
     // ───────────────────────────────────────────────────────
@@ -364,5 +459,35 @@ class CouncilServiceTest {
 
         verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "요건 상세화");
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("notifyCouncil: 최초 등록자와 부서가 있으면 수신자 정보를 채운다")
+    void notifyCouncil_수신자와부서있음_수신자정보반환() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAsctSts()).willReturn("COMPLETED");
+        given(council.getPrjMngNo()).willReturn("PRJ-2026-0001");
+        given(council.getPrjSno()).willReturn(1);
+        given(council.getFstEnrUsid()).willReturn("10001");
+        CuserI user = CuserI.builder()
+                .eno("10001")
+                .usrNm("홍길동")
+                .temNm("개발팀")
+                .bbrC("101")
+                .build();
+        CorgnI org = CorgnI.builder()
+                .prlmOgzCCone("101")
+                .bbrNm("IT부")
+                .build();
+        given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+        given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+        given(organizationRepository.findById("101")).willReturn(Optional.of(org));
+
+        CouncilDto.NotifyResponse result = councilService.notifyCouncil(ASCT_ID);
+
+        assertThat(result.eno()).isEqualTo("10001");
+        assertThat(result.usrNm()).isEqualTo("홍길동");
+        assertThat(result.bbrNm()).isEqualTo("IT부");
+        assertThat(result.temNm()).isEqualTo("개발팀");
     }
 }

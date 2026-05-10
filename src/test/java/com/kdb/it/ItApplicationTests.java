@@ -1,5 +1,6 @@
 package com.kdb.it;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -23,8 +24,11 @@ import org.springframework.test.context.ActiveProfiles;
  *
  * <p>테스트 실행: {@code ./mvnw test} 또는 IDE에서 직접 실행</p>
  */
-@SpringBootTest // 전체 Spring Application Context 로드
-@ActiveProfiles("test") // application-test.properties 로드 (DB 제외, 더미 환경변수 사용)
+// Oracle DB 접속이 필요한 전체 통합 테스트 — DB_PASSWORD 환경변수 설정 후 로컬에서만 실행
+// CI 환경에서는 Testcontainers Oracle로 대체 예정 (TASK.md 참조)
+@Disabled("Oracle 전체 통합 테스트: DB_PASSWORD 환경변수 설정 후 수동 실행")
+@SpringBootTest
+@ActiveProfiles("test")
 class ItApplicationTests {
 
 	/**

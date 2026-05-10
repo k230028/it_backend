@@ -4,6 +4,8 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
 
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -56,6 +59,9 @@ public class FileController {
 
         /** 공통 첨부파일 비즈니스 로직 서비스 */
         private final FileService fileService;
+
+        /** 파일 소유권 검증 — SEC-02 */
+        private final FileOwnershipChecker fileOwnershipChecker;
 
         // ─────────────────────────────────────────
         // 조회
@@ -225,8 +231,12 @@ public class FileController {
          * @return HTTP 204 No Content
          */
         @DeleteMapping("/{flMngNo}")
-        @Operation(summary = "파일 단건 삭제", description = "파일을 논리 삭제합니다(DEL_YN='Y'). 물리 파일은 서버에 유지됩니다.")
-        public ResponseEntity<Void> deleteFile(@PathVariable("flMngNo") String flMngNo) {
+        @Operation(summary = "파일 단건 삭제", description = "파일을 논리 삭제합니다(DEL_YN='Y'). 본인이 업로드한 파일만 삭제 가능합니다. 물리 파일은 서버에 유지됩니다.")
+        public ResponseEntity<Void> deleteFile(
+                        @PathVariable("flMngNo") String flMngNo,
+                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+                // 소유권 검증 — 업로드자 ≠ 현재 사용자이면 예외 발생 (SEC-02)
+                fileOwnershipChecker.checkOwnership(flMngNo, userDetails.getUsername());
                 fileService.deleteFile(flMngNo);
                 return ResponseEntity.noContent().build();
         }

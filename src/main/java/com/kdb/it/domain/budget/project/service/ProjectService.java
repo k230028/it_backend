@@ -87,9 +87,6 @@ public class ProjectService {
     /** 결재 정보 리포지토�� (TAAABB_CDECIM): 결재선 목록 조회용 */
     private final com.kdb.it.common.approval.repository.ApproverRepository cdecimRepository;
 
-    /** 공통코드 리포지토리 (TAAABB_CCODEM): 비목코드 → 자본예산/일반관리비 구분용 */
-    private final com.kdb.it.common.code.repository.CodeRepository ccodemRepository;
-
     /** 공통코드 서비스: 예산 신청 기간 검증용 */
     private final com.kdb.it.common.code.service.CodeService codeService;
 
@@ -344,40 +341,16 @@ public class ProjectService {
         request.setPrjRng(HtmlSanitizer.sanitize(request.getPrjRng()));
 
         // 프로젝트 기본 정보 수정 (JPA Dirty Checking으로 자동 반영)
-        project.update(
-                request.getPrjNm(), // 프로젝트명
-                request.getPrjTp(), // 프로젝트유형
-                request.getSvnDpm(), // 주관부서
-                request.getItDpm(), // IT부서
-                request.getPrjBg(), // 프로젝트예산
-                request.getNyyPrjBg(), // 익년프로젝트예산
-                request.getSttDt(), // 시작일자
-                request.getEndDt(), // 종료일자
-                request.getSvnDpmCgpr(), // 주관부서담당자
-                request.getItDpmCgpr(), // IT부서담당자
-                request.getSvnDpmTlr(), // 주관부서담당팀장
-                request.getItDpmTlr(), // IT부서담당팀장
-                request.getEdrt(), // 전결권
-                request.getPrjDes(), // 사업설명
-                request.getSaf(), // 현황
-                request.getNcs(), // 필요성
-                request.getXptEff(), // 기대효과
-                request.getPlm(), // 문제
-                request.getPrjRng(), // 사업범위
-                request.getPulPsg(), // 추진경과
-                request.getHrfPln(), // 향후계획
-                request.getBzDtt(), // 업무구분
-                request.getTchnTp(), // 기술유형
-                request.getMnUsr(), // 주요사용자
-                request.getDplYn(), // 중복여부
-                request.getLblFsgTlm(), // 의무완료기한
-                request.getRprSts(), // 보고상태
-                request.getPrjPulPtt(), // 프로젝트추진가능성
-                request.getPrjSts(), // 프로젝트상태
-                request.getBgYy(), // 사업연도
-                request.getSvnHdq(), // 주관본부/부문
-                request.getOrnYn(), // 경상여부
-                request.getPulDtt()); // 사업구분
+        project.update(new Bprojm.UpdateCommand(
+                request.getPrjNm(), request.getPrjTp(), request.getSvnDpm(), request.getItDpm(),
+                request.getPrjBg(), request.getNyyPrjBg(), request.getSttDt(), request.getEndDt(),
+                request.getSvnDpmCgpr(), request.getItDpmCgpr(), request.getSvnDpmTlr(), request.getItDpmTlr(),
+                request.getEdrt(), request.getPrjDes(), request.getSaf(), request.getNcs(),
+                request.getXptEff(), request.getPlm(), request.getPrjRng(), request.getPulPsg(), request.getHrfPln(),
+                request.getBzDtt(), request.getTchnTp(), request.getMnUsr(), request.getDplYn(),
+                request.getLblFsgTlm(), request.getRprSts(), request.getPrjPulPtt(), request.getPrjSts(),
+                request.getBgYy(), request.getSvnHdq(),
+                request.getOrnYn(), request.getPulDtt(), request.getCncdPrjMngNo()));
 
         // ===== 품목 정보 동기화 (CUD) =====
         if (request.getItems() != null) {

@@ -1,8 +1,11 @@
 package com.kdb.it.common.system.controller;
 
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -25,6 +28,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -157,5 +163,121 @@ class AuthControllerTest {
                                 .cookie(new Cookie(CookieUtil.REFRESH_TOKEN_COOKIE, "valid-refresh-token")))
                                 .andExpect(status().isOk())
                                 .andExpect(content().string("토큰 갱신 성공"));
+        }
+
+        @Test
+        @DisplayName("POST /api/auth/login - X-Forwarded-For 헤더를 클라이언트 IP로 사용한다")
+        void login_XForwardedFor_IP전달() throws Exception {
+                AuthDto.LoginRequest request = new AuthDto.LoginRequest();
+                request.setEno("10001");
+                request.setPassword("password123");
+                stubLoginResponseAndCookies();
+
+                mockMvc.perform(post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("X-Forwarded-For", "203.0.113.10")
+                                .header("User-Agent", "TestAgent")
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isOk());
+
+                verify(authService).login("10001", "password123", "203.0.113.10", "TestAgent");
+        }
+
+        @Test
+        @DisplayName("POST /api/auth/login - Proxy-Client-IP 헤더를 클라이언트 IP로 사용한다")
+        void login_ProxyClientIP_IP전달() throws Exception {
+                AuthDto.LoginRequest request = new AuthDto.LoginRequest();
+                request.setEno("10001");
+                request.setPassword("password123");
+                stubLoginResponseAndCookies();
+
+                mockMvc.perform(post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("X-Forwarded-For", "unknown")
+                                .header("Proxy-Client-IP", "203.0.113.20")
+                                .header("User-Agent", "TestAgent")
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isOk());
+
+                verify(authService).login("10001", "password123", "203.0.113.20", "TestAgent");
+        }
+
+        @Test
+        @DisplayName("POST /api/auth/login - 하위 프록시 헤더와 remoteAddr fallback을 순서대로 확인한다")
+        void login_하위프록시헤더와RemoteAddr_IP전달() throws Exception {
+                AuthDto.LoginRequest request = new AuthDto.LoginRequest();
+                request.setEno("10001");
+                request.setPassword("password123");
+                stubLoginResponseAndCookies();
+
+                mockMvc.perform(post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("X-Forwarded-For", "")
+                                .header("Proxy-Client-IP", "unknown")
+                                .header("WL-Proxy-Client-IP", "unknown")
+                                .header("HTTP_CLIENT_IP", "unknown")
+                                .header("HTTP_X_FORWARDED_FOR", "203.0.113.30")
+                                .header("User-Agent", "TestAgent")
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isOk());
+
+                verify(authService).login("10001", "password123", "203.0.113.30", "TestAgent");
+        }
+
+        @Test
+        @WithMockUser(username = "10001")
+        @DisplayName("POST /api/auth/logout - 인증 사용자가 있으면 서비스 로그아웃과 쿠키 삭제를 수행한다")
+        void logout_인증사용자_서비스호출및쿠키삭제() throws Exception {
+                ResponseCookie deleteAccess = ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "")
+                                .maxAge(0).path("/").build();
+                ResponseCookie deleteRefresh = ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "")
+                                .maxAge(0).path("/api/auth").build();
+                given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
+                given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
+
+                mockMvc.perform(post("/api/auth/logout")
+                                .header("User-Agent", "TestAgent")
+                                .with(request -> {
+                                        request.setRemoteAddr("198.51.100.1");
+                                        return request;
+                                }))
+                                .andExpect(status().isOk())
+                                .andExpect(content().string("로그아웃 성공"))
+                                .andExpect(header().exists("Set-Cookie"));
+
+                verify(authService).logout(eq("10001"), eq("198.51.100.1"), eq("TestAgent"));
+        }
+
+        @Test
+        @DisplayName("logout - 인증 정보가 없으면 서비스 호출 없이 쿠키만 삭제한다")
+        void logout_인증정보없음_쿠키만삭제() {
+                SecurityContextHolder.clearContext();
+                ResponseCookie deleteAccess = ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "")
+                                .maxAge(0).path("/").build();
+                ResponseCookie deleteRefresh = ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "")
+                                .maxAge(0).path("/api/auth").build();
+                given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
+                given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
+                AuthController controller = new AuthController(authService, cookieUtil);
+
+                var response = controller.logout(new MockHttpServletRequest());
+
+                assert response.getStatusCode().is2xxSuccessful();
+                verify(authService, never()).logout(anyString(), anyString(), anyString());
+        }
+
+        private void stubLoginResponseAndCookies() {
+                AuthDto.LoginResponse loginResponse = AuthDto.LoginResponse.builder()
+                                .eno("10001").empNm("홍길동")
+                                .accessToken("access-token").refreshToken("refresh-token")
+                                .build();
+                ResponseCookie accessCookie = ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "access-token")
+                                .httpOnly(true).path("/").build();
+                ResponseCookie refreshCookie = ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "refresh-token")
+                                .httpOnly(true).path("/api/auth").build();
+                given(authService.login(anyString(), anyString(), anyString(), anyString()))
+                                .willReturn(loginResponse);
+                given(cookieUtil.createAccessTokenCookie("access-token")).willReturn(accessCookie);
+                given(cookieUtil.createRefreshTokenCookie("refresh-token")).willReturn(refreshCookie);
         }
 }

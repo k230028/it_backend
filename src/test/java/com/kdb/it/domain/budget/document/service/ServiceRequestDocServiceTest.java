@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.document.service;
 
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.document.entity.Brdocm;
 import com.kdb.it.domain.budget.document.repository.ServiceRequestDocRepository;
@@ -14,6 +15,10 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -290,5 +295,160 @@ class ServiceRequestDocServiceTest {
 
         // Assert
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("문서 목록 조회 시 최초생성자명이 있으면 사용자명을 매핑한다")
+    void getDocumentList_mapsCreatorNameWhenUserExists() {
+        Brdocm document = Brdocm.builder()
+                .docMngNo("DOC-001")
+                .docVrs(new BigDecimal("0.01"))
+                .reqNm("문서")
+                .fstEnrUsid("E10001")
+                .build();
+        CuserI user = CuserI.builder()
+                .eno("E10001")
+                .usrNm("홍길동")
+                .build();
+        given(repository.findLatestVersionsAll()).willReturn(List.of(document));
+        given(cuserIRepository.findById("E10001")).willReturn(Optional.of(user));
+
+        List<ServiceRequestDocDto.Response> result = service.getDocumentList();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getFstEnrUsNm()).isEqualTo("홍길동");
+    }
+
+    @Test
+    @DisplayName("문서 목록 조회 시 최초생성자 사번이 없으면 사용자 조회를 하지 않는다")
+    void getDocumentList_skipsUserLookupWhenCreatorEmpty() {
+        Brdocm document = Brdocm.builder()
+                .docMngNo("DOC-001")
+                .docVrs(new BigDecimal("0.01"))
+                .reqNm("문서")
+                .fstEnrUsid("")
+                .build();
+        given(repository.findLatestVersionsAll()).willReturn(List.of(document));
+
+        List<ServiceRequestDocDto.Response> result = service.getDocumentList();
+
+        assertThat(result).hasSize(1);
+        then(cuserIRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("직접 입력한 문서관리번호가 중복이면 생성 예외가 발생한다")
+    void createDocument_throwsWhenManualDocumentNumberDuplicated() {
+        ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
+                .docMngNo("DOC-MANUAL")
+                .reqNm("중복 문서")
+                .build();
+        given(repository.existsByDocMngNoAndDelYn("DOC-MANUAL", "N")).willReturn(true);
+
+        assertThatThrownBy(() -> service.createDocument(req))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("이미 존재");
+    }
+
+    @Test
+    @DisplayName("직접 입력한 문서관리번호가 중복이 아니면 저장하고 HTML을 정제한다")
+    void createDocument_savesManualDocumentNumberAndSanitizesContent() {
+        ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
+                .docMngNo("DOC-MANUAL")
+                .reqNm("직접 문서")
+                .reqCone("<p>본문</p><script>alert(1)</script>")
+                .build();
+        given(repository.existsByDocMngNoAndDelYn("DOC-MANUAL", "N")).willReturn(false);
+        given(repository.save(any(Brdocm.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        String result = service.createDocument(req);
+
+        assertThat(result).isEqualTo("DOC-MANUAL");
+        then(repository).should().save(argThat(entity ->
+                entity.getDocMngNo().equals("DOC-MANUAL")
+                        && new String(entity.getReqCone(), StandardCharsets.UTF_8).contains("본문")
+                        && !new String(entity.getReqCone(), StandardCharsets.UTF_8).contains("script")
+        ));
+    }
+
+    @Test
+    @DisplayName("최신 문서 조회 시 없으면 예외가 발생한다")
+    void getDocument_withoutVersionThrowsWhenMissing() {
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsDesc("MISSING", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getDocument("MISSING", null))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("존재하지 않는 문서관리번호");
+    }
+
+    @Test
+    @DisplayName("특정 버전 문서 조회 시 없으면 예외가 발생한다")
+    void getDocument_withVersionThrowsWhenMissing() {
+        given(repository.findByDocMngNoAndDocVrsAndDelYn("DOC-001", new BigDecimal("0.99"), "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getDocument("DOC-001", new BigDecimal("0.99")))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("해당 버전");
+    }
+
+    @Test
+    @DisplayName("문서 수정 시 내용이 null이면 본문 바이트도 null로 갱신한다")
+    void updateDocument_setsContentNullWhenRequestContentNull() {
+        Brdocm latest = Brdocm.builder()
+                .docMngNo("DOC-001")
+                .docVrs(new BigDecimal("0.02"))
+                .reqNm("기존")
+                .reqCone("기존".getBytes(StandardCharsets.UTF_8))
+                .build();
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsDesc("DOC-001", "N"))
+                .willReturn(Optional.of(latest));
+
+        service.updateDocument("DOC-001", ServiceRequestDocDto.UpdateRequest.builder()
+                .reqNm("수정")
+                .reqCone(null)
+                .reqDtt("REQ")
+                .bzDtt("BZ")
+                .fsgTlm(LocalDate.now().plusDays(3))
+                .build());
+
+        assertThat(latest.getReqNm()).isEqualTo("수정");
+        assertThat(latest.getReqCone()).isNull();
+        assertThat(latest.getReqDtt()).isEqualTo("REQ");
+    }
+
+    @Test
+    @DisplayName("대시보드는 Timestamp, Date, null 완료기한을 상태로 변환한다")
+    void getDashboard_convertsRecentReviewingDateTypes() {
+        given(repository.countTotalByBbrC("101")).willReturn(5);
+        given(repository.countReviewingByBbrC("101")).willReturn(3);
+        given(repository.countCompletedByBbrC("101")).willReturn(1);
+        given(repository.countOverdueByBbrC("101")).willReturn(1);
+        given(repository.findMonthlyTrendByBbrC("101"))
+                .willReturn(java.util.Collections.singletonList(new Object[]{"2026-05", 2}));
+        given(repository.findRecentReviewingByBbrC("101")).willReturn(List.of(
+                new Object[]{"DOC-OLD", "지연", "홍길동", "2026-05-01", Timestamp.valueOf(LocalDate.now().minusDays(1).atStartOfDay())},
+                new Object[]{"DOC-TODAY", "검토", "김길동", "2026-05-02", Date.valueOf(LocalDate.now().plusDays(1))},
+                new Object[]{"DOC-NULL", "미정", "이길동", "2026-05-03", null}
+        ));
+
+        ServiceRequestDocDto.DashboardResponse result = service.getDashboard("101");
+
+        assertThat(result.getTotalCount()).isEqualTo(5);
+        assertThat(result.getMonthlyTrend()).extracting(ServiceRequestDocDto.MonthlyCount::getCount)
+                .containsExactly(2);
+        assertThat(result.getRecentReviewing()).extracting(ServiceRequestDocDto.ReviewingItem::getStatus)
+                .containsExactly("delayed", "reviewing", "reviewing");
+    }
+
+    @Test
+    @DisplayName("배지 건수는 검토 진행 중 건수를 반환한다")
+    void getBadgeCount_returnsReviewingCount() {
+        given(repository.countReviewingByBbrC("101")).willReturn(7);
+
+        ServiceRequestDocDto.BadgeCountResponse result = service.getBadgeCount("101");
+
+        assertThat(result.getReviewingCount()).isEqualTo(7);
     }
 }

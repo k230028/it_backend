@@ -200,6 +200,10 @@ public class ProjectDto {
         @Schema(description = "사업구분")
         private String pulDtt;
 
+        /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */
+        @Schema(description = "관련프로젝트관리번호")
+        private String cncdPrjMngNo;
+
         /**
          * 품목 목록
          * <p>
@@ -257,6 +261,7 @@ public class ProjectDto {
                     .bgYy(bgYy) // 사업연도
                     .ornYn(ornYn) // 경상여부
                     .pulDtt(pulDtt) // 사업구분
+                    .cncdPrjMngNo(cncdPrjMngNo) // 관련프로젝트관리번호
                     .build();
         }
     }
@@ -412,6 +417,10 @@ public class ProjectDto {
         /** 사업구분 ('신규', '계속') */
         @Schema(description = "사업구분")
         private String pulDtt;
+
+        /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */
+        @Schema(description = "관련프로젝트관리번호")
+        private String cncdPrjMngNo;
 
         /**
          * 품목 목록 (동기화 대상)
@@ -592,6 +601,10 @@ public class ProjectDto {
         @Schema(description = "사업구분")
         private String pulDtt;
 
+        /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */
+        @Schema(description = "관련프로젝트관리번호")
+        private String cncdPrjMngNo;
+
         /** 최초 등록 일시 (JPA Auditing) */
         @Schema(description = "최초생성시간")
         private LocalDateTime fstEnrDtm;
@@ -757,6 +770,7 @@ public class ProjectDto {
                     .bgYy(project.getBgYy()) // 사업연도
                     .ornYn(project.getOrnYn()) // 경상여부
                     .pulDtt(project.getPulDtt()) // 사업구분
+                    .cncdPrjMngNo(project.getCncdPrjMngNo()) // 관련프로젝트관리번호
                     .fstEnrDtm(project.getFstEnrDtm()) // 최초 등록 일시
                     .fstEnrUsid(project.getFstEnrUsid()) // 최초 등록자
                     .lstChgDtm(project.getLstChgDtm()) // 마지막 수정 일시

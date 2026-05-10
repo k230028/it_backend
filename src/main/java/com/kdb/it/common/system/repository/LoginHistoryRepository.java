@@ -97,6 +97,19 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
      *
      * @return [날짜 문자열(YYYY-MM-DD), 건수] 쌍의 배열 목록
      */
+    /**
+     * 특정 사용자의 지정 시각 이후 로그인유형별 이력 건수 조회 — SEC-03 Brute-force 감지용
+     *
+     * <p>직전 N분 내 LOGIN_FAILURE 횟수를 집계하여 Brute-force 공격 여부를 판단합니다.
+     * Spring Data JPA 파생 쿼리로 별도 SQL 작성 없이 처리됩니다.</p>
+     *
+     * @param eno    조회할 사용자의 사번
+     * @param lgnTp  로그인 유형 (예: "LOGIN_FAILURE")
+     * @param after  집계 시작 시각 (이 시각 이후 이력만 카운트)
+     * @return 해당 조건에 맞는 이력 건수
+     */
+    long countByEnoAndLgnTpAndLgnDtmAfter(String eno, String lgnTp, LocalDateTime after);
+
     @Query(value = """
             SELECT TO_CHAR(TRUNC(LGN_DTM), 'YYYY-MM-DD') AS LGN_DATE,
                    COUNT(*) AS CNT

@@ -1,6 +1,7 @@
 package com.kdb.it.common.system.controller;
 
 import static org.mockito.BDDMockito.given;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -20,10 +21,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.ResponseCookie;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * SSO 완료 컨트롤러 테스트
@@ -109,6 +113,28 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("GET /sso/loginProc - 세션이 없으면 complete 기본 경로로 이동")
+    void loginProc_세션없음_complete기본경로() throws Exception {
+        mockMvc.perform(get("/sso/loginProc"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/api/auth/sso/complete"));
+    }
+
+    @Test
+    @DisplayName("GET /sso/loginProc - 성공 코드가 아니면 검증 사번을 세션에 저장하지 않는다")
+    void loginProc_실패코드_검증사번저장안함() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("resultCode", "999999");
+        session.setAttribute("resultData", "K150024");
+
+        mockMvc.perform(get("/sso/loginProc").session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/api/auth/sso/complete"));
+
+        assertThat(session.getAttribute("ssoVerifiedEno")).isNull();
+    }
+
+    @Test
     @DisplayName("GET /api/auth/sso/complete - eno 직접 전달은 기본 차단")
     void complete_eno직접전달_차단() throws Exception {
         mockMvc.perform(get("/api/auth/sso/complete")
@@ -118,5 +144,59 @@ class SsoControllerTest {
                 .andExpect(redirectedUrl("http://localhost:3000/login?error=sso"));
 
         verify(authService, never()).issueSsoTokens("ITPAD001");
+    }
+
+    @Test
+    @DisplayName("complete: 허용되지 않은 origin과 외부 next는 기본 프론트 URL 루트로 이동한다")
+    void complete_허용되지않은Origin과외부Next_기본프론트루트() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("ssoVerifiedEno", "K150024");
+        AuthDto.LoginResponse loginResponse = AuthDto.LoginResponse.builder()
+                .eno("K150024")
+                .accessToken("access-token")
+                .refreshToken("refresh-token")
+                .build();
+        given(authService.issueSsoTokens("K150024")).willReturn(loginResponse);
+        given(cookieUtil.createAccessTokenCookie("access-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "access-token").build());
+        given(cookieUtil.createRefreshTokenCookie("refresh-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "refresh-token").build());
+        given(cookieUtil.createUserInfoCookie(loginResponse))
+                .willReturn(ResponseCookie.from("it-portal-user", "user").build());
+
+        mockMvc.perform(get("/api/auth/sso/complete")
+                        .session(session)
+                        .param("next", "https://evil.example")
+                        .param("origin", "https://evil.example"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:3000/"));
+    }
+
+    @Test
+    @DisplayName("complete: 테스트 설정에서 직접 사번 전달이 허용되면 세션 없이 토큰을 발급한다")
+    void complete_직접사번허용_토큰발급() throws Exception {
+        SsoController controller = new SsoController(authService, cookieUtil);
+        ReflectionTestUtils.setField(controller, "frontendUrl", "http://localhost:3000");
+        ReflectionTestUtils.setField(controller, "allowedOrigins", "http://localhost:3000");
+        ReflectionTestUtils.setField(controller, "allowDirectEno", true);
+        AuthDto.LoginResponse loginResponse = AuthDto.LoginResponse.builder()
+                .eno("K150024")
+                .accessToken("access-token")
+                .refreshToken("refresh-token")
+                .build();
+        given(authService.issueSsoTokens("K150024")).willReturn(loginResponse);
+        given(cookieUtil.createAccessTokenCookie("access-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "access-token").build());
+        given(cookieUtil.createRefreshTokenCookie("refresh-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "refresh-token").build());
+        given(cookieUtil.createUserInfoCookie(loginResponse))
+                .willReturn(ResponseCookie.from("it-portal-user", "user").build());
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete("K150024", "/dashboard", "http://localhost:3000", request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/dashboard");
+        assertThat(response.getHeaders("Set-Cookie")).hasSize(3);
     }
 }

@@ -25,12 +25,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 /**
  * FileController @WebMvcTest
@@ -48,6 +52,8 @@ class FileControllerTest {
 
     @MockitoBean
     private FileService fileService;
+    @MockitoBean
+    private FileOwnershipChecker fileOwnershipChecker;
     @MockitoBean
     private JwtUtil jwtUtil;
     @MockitoBean
@@ -134,9 +140,9 @@ class FileControllerTest {
 
     @Test
     @DisplayName("DELETE /api/files/{flMngNo} - 인증된 사용자 → 204 No Content")
-    @WithMockUser(username = "10001")
     void deleteFile_인증_204() throws Exception {
-        mockMvc.perform(delete("/api/files/" + FL_MNG_NO))
+        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        mockMvc.perform(delete("/api/files/" + FL_MNG_NO).with(user(userDetails)))
                 .andExpect(status().isNoContent());
     }
 

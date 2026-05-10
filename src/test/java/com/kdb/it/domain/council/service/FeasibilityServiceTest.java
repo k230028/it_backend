@@ -8,6 +8,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Bpovwm;
@@ -45,6 +48,7 @@ class FeasibilityServiceTest {
     @Mock private FeasibilityCheckRepository feasibilityCheckRepository;
     @Mock private PerformanceRepository performanceRepository;
     @Mock private CouncilService councilService;
+    @Mock private EntityManager entityManager;
 
     @InjectMocks
     private FeasibilityService feasibilityService;
@@ -228,5 +232,52 @@ class FeasibilityServiceTest {
         assertThat(result.checkItems()).hasSize(6);
         assertThat(result.checkItems().get(0).ckgItmC()).isEqualTo("MGMT_STR");
         assertThat(result.checkItems().get(5).ckgItmC()).isEqualTo("ETC");
+    }
+
+    @Test
+    @DisplayName("saveFeasibility: 성과지표가 있으면 기존 성과지표를 삭제하고 새 지표를 persist한다")
+    void saveFeasibility_성과지표있음_교체저장() {
+        given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
+        ReflectionTestUtils.setField(feasibilityService, "entityManager", entityManager);
+        Query deleteQuery = mock(Query.class);
+        given(entityManager.createQuery("DELETE FROM Bperfm b WHERE b.asctId = :asctId")).willReturn(deleteQuery);
+        given(deleteQuery.setParameter("asctId", ASCT_ID)).willReturn(deleteQuery);
+        given(deleteQuery.executeUpdate()).willReturn(1);
+        List<CouncilDto.PerformanceRequest> performances = List.of(
+                new CouncilDto.PerformanceRequest(1, "성과지표", "내용", "측정", "정량", "상", null, null, "분기", "자동"));
+        CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
+                "테스트사업", "2026", null, null, null, null, null, null, null,
+                "TEMP", null, performances, null);
+
+        feasibilityService.saveFeasibility(ASCT_ID, request);
+
+        verify(deleteQuery).executeUpdate();
+        verify(entityManager).persist(any(com.kdb.it.domain.council.entity.Bperfm.class));
+    }
+
+    @Test
+    @DisplayName("getFeasibility: 자체점검과 성과지표 엔티티를 응답 DTO로 변환한다")
+    void getFeasibility_점검성과지표있음_DTO변환() {
+        Bpovwm overview = mock(Bpovwm.class);
+        given(overview.getPrjNm()).willReturn("성과사업");
+        given(overview.getLglRglYn()).willReturn("Y");
+        given(overview.getKpnTp()).willReturn("TEMP");
+        given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
+        com.kdb.it.domain.council.entity.Bchklc check = mock(com.kdb.it.domain.council.entity.Bchklc.class);
+        given(check.getCkgItmC()).willReturn("MGMT_STR");
+        given(check.getCkgCone()).willReturn("검토내용");
+        given(check.getCkgRcrd()).willReturn(5);
+        given(feasibilityCheckRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(check));
+        com.kdb.it.domain.council.entity.Bperfm perf = mock(com.kdb.it.domain.council.entity.Bperfm.class);
+        given(perf.getDtpSno()).willReturn(1);
+        given(perf.getDtpNm()).willReturn("성과지표");
+        given(performanceRepository.findByAsctIdAndDelYnOrderByDtpSnoAsc(ASCT_ID, "N")).willReturn(List.of(perf));
+
+        CouncilDto.FeasibilityResponse result = feasibilityService.getFeasibility(ASCT_ID);
+
+        assertThat(result.checkItems().get(0).ckgCone()).isEqualTo("검토내용");
+        assertThat(result.checkItems().get(0).ckgRcrd()).isEqualTo(5);
+        assertThat(result.performances()).hasSize(1);
+        assertThat(result.performances().get(0).dtpNm()).isEqualTo("성과지표");
     }
 }

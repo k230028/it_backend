@@ -275,7 +275,9 @@ public class ScheduleService {
     // =========================================================================
 
     /**
-     * 위원 목록의 사번으로 사용자 정보 Map 생성 (N+1 방지)
+     * 위원 목록의 사번으로 사용자 정보 Map 생성.
+     *
+     * TODO: 현재는 사번별 findByEno()를 반복하므로 사용자 일괄 조회로 N+1을 제거해야 합니다.
      */
     private Map<String, CuserI> buildUserMap(List<Bcmmtm> members) {
         return members.stream()

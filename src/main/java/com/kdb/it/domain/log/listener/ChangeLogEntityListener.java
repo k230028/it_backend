@@ -89,6 +89,7 @@ public class ChangeLogEntityListener {
             delYnField.setAccessible(true);
             return "Y".equals(delYnField.get(entity)) ? "D" : "U";
         } catch (IllegalAccessException e) {
+            // TODO: delYn 리플렉션 실패 시 경고 로그 없음 — log.warn("[감사로그] delYn 필드 접근 실패 - entity: {}", entity.getClass().getSimpleName(), e) 추가 권장
             return "U";
         }
     }
