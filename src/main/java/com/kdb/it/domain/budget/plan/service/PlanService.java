@@ -101,7 +101,7 @@ public class PlanService {
          *
          * @param request 계획 생성 요청 DTO
          * @return 생성된 계획관리번호
-         * @throws ResponseStatusException 프로젝트 목록이 비어있는 경우 400
+         * @throws ResponseStatusException 정보화사업과 전산업무비가 모두 비어있는 경우 400
          */
         @Transactional
         public String createPlan(PlanDto.CreateRequest request) {
@@ -170,7 +170,7 @@ public class PlanService {
                                 .build();
                 bplanmRepository.save(plan);
 
-                // 7. TAAABB_BPROJA 저장 (프로젝트/전산업무비-계획 관계)
+                // 7. TAAABB_BPROJA 저장 (prjMngNo 컬럼에 프로젝트/전산업무비 관리번호를 함께 저장)
                 for (String prjMngNo : prjMngNos) {
                         Bproja relation = Bproja.builder()
                                         .prjMngNo(prjMngNo)

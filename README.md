@@ -329,7 +329,7 @@ public class Bprojm extends BaseEntity { ... }
 | **HSTS** | SecurityConfig | `max-age=31536000`, `includeSubDomains=true` |
 | **CSP** | SecurityConfig | `default-src 'self'`, `script-src 'self'`, XSS 2차 방어선 |
 | **비밀번호 저장** | SHA-256 + Base64 | `CustomPasswordEncoder` |
-| **환경 비밀값** | 환경변수 주입 | `DB_PASSWORD`, `JWT_SECRET`, `GEMINI_API_KEY` (`.gitignore`에 설정 파일 제외) |
+| **환경 비밀값** | 환경변수 주입 | `DB_PASSWORD`, `JWT_SECRET`, `GEMINI_API_KEY` (`DB_PASSWORD`, `JWT_SECRET`은 현재 개발 기본값이 남아 있어 운영 프로파일에서 제거 필요) |
 
 ## 7. 주요 API 엔드포인트
 
@@ -371,7 +371,7 @@ public class Bprojm extends BaseEntity { ... }
 | **예산현황** | GET | `/api/budget/status/**` | 집계 대시보드 (전체 예산 조회) | **관리자** |
 | **예산작업** | GET/POST | `/api/budget/work/**` | 편성률 조회, Upsert, 결과 조회 | **관리자** |
 
-> **Swagger UI**: http://localhost:18080/swagger-ui/index.html
+> **Swagger UI**: http://localhost:8080/swagger-ui/index.html
 
 ## 8. 빌드 및 실행
 
@@ -384,8 +384,8 @@ public class Bprojm extends BaseEntity { ... }
 
 # 3. 개발 서버 기동 (Hot Reload 지원)
 ./gradlew bootRun
-#   → http://localhost:18080
-#   → Swagger: http://localhost:18080/swagger-ui/index.html
+#   → http://localhost:8080
+#   → Swagger: http://localhost:8080/swagger-ui/index.html
 
 # 4. 테스트 실행 (50개 테스트 파일 / ~350개 케이스)
 ./gradlew test
@@ -411,8 +411,8 @@ public class Bprojm extends BaseEntity { ... }
 | 속성 | 기본값 | 개발 | 운영 | 설명 |
 |------|--------|------|------|------|
 | `spring.datasource.url` | - | `jdbc:oracle:thin:@127.0.0.1:1521/XEPDB1` | 프로덕션 접속 정보 | Oracle 접속 URL |
-| `spring.datasource.password` | `kdb1234!!` | 로컬값 | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선) |
-| `jwt.secret` | `kdb-it-secret-key...` | 로컬값 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 |
+| `spring.datasource.password` | `kdb1234!!` | 로컬값 | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
+| `jwt.secret` | `kdb-it-secret-key...` | 로컬값 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 (운영 기본값 제거 필요) |
 | `jwt.access-token-validity` | `900000` | - | - | Access Token 유효시간 (15분) |
 | `jwt.refresh-token-validity` | `604800000` | - | - | Refresh Token 유효시간 (7일) |
 | `app.cookie.secure` | `false` | 개발: false | 운영: true | 쿠키 Secure 플래그 (HTTPS 필수) |
@@ -432,7 +432,7 @@ public class Bprojm extends BaseEntity { ... }
 | **CORS** | `corsConfigurationSource()` | `allowCredentials(true)`, 쿠키 자동 전송 |
 | **세션** | STATELESS (`SessionCreationPolicy.STATELESS`) | JWT 토큰으로 상태 관리 |
 | **HTTP 헤더** | 보안 헤더 자동 설정 | HSTS, CSP, X-Frame-Options, Content-Type-Options |
-| **환경변수** | 비밀값은 환경변수에서 주입 | Git 리포지토리에 민감정보 저장 금지 |
+| **환경변수** | 비밀값은 환경변수에서 주입 | `application.properties`의 개발 기본값은 운영 프로파일에서 제거 |
 
 ### 9.3 로컬 개발 환경 설정
 
@@ -520,6 +520,29 @@ infra → domain (X, domain 기능 불필요)
 | **infra.file** | Cfilem | FileService | FileRepository | 첨부파일 |
 | **infra.ai** | - | GeminiService | FileRepository | Gemini 프록시 |
 
+### 11.2.1 부서 필터링 패턴 (bbrC) — 재발 방지
+
+신규 목록 API 추가 시 아래 패턴을 반드시 따릅니다.
+
+| 계층 | 추가 내용 |
+|------|----------|
+| Controller | `@RequestParam(required = false) String bbrC` |
+| Service | `getList(@Nullable String bbrC)` 시그니처 |
+| RepositoryImpl | `if (StringUtils.hasText(bbrC)) builder.and(entity.bbrC.eq(bbrC))` |
+
+- `bbrC` null·빈 문자열 → 전체 조회 (관리자 포함, 하위 호환 유지).
+- TDD 의무: `bbrC` 지정·null 두 케이스 모두 JUnit 테스트 추가.
+
+### 11.2.2 TDD 의무 범위
+
+신규 Service / RepositoryImpl 로직은 **RED → GREEN → REFACTOR** 순서로 작성합니다.
+
+```
+RED   — 실패하는 JUnit 테스트 먼저 작성
+GREEN — 테스트를 통과하는 최소 구현 작성
+REFACTOR — 중복 제거, 가독성 개선 (테스트 통과 유지)
+```
+
 ### 11.3 공통 의존성
 
 | 패키지 | 목적 |
@@ -535,6 +558,7 @@ infra → domain (X, domain 기능 불필요)
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-05-10** | 로컬 개발 포트를 실제 설정 기준(백엔드 8080)으로 정정. 비밀값 기본값은 아직 `application.properties`에 남아 있어 운영 프로파일 제거 과제로 재분류 |
 | **2026-05-09** | README.md 대폭 개선: 프로젝트 개요 강화, 설계 결정 이유 추가, 인증/보안 섹션 분리, API 엔드포인트 도메인별 정렬, 환경 설정 테이블화, 외부 연동 문서화, 도메인 의존성 규칙 명시 |
 | 2026-05-09 | `PlanController`, `BudgetStatusController`, `BudgetWorkController`에 `@PreAuthorize("hasRole('ADMIN')")` 추가. API 엔드포인트 테이블 인증 컬럼 현행화. 관리자 도메인 API 보호 규칙 CLAUDE.md §5.6·README §6.2에 명문화 |
 | 2026-04-30 | README 로그 체계 섹션 추가: 변경 로그(AuditLog), 로그인 이력, 관리자 로그 조회 구조 문서화 |
@@ -556,4 +580,3 @@ infra → domain (X, domain 기능 불필요)
 | 2026-03-02 | 추진부서 필드 추가, 응답 필드 확대 |
 
 ---
-

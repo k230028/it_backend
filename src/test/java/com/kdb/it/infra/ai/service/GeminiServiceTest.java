@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import com.kdb.it.infra.ai.dto.GeminiDto;
 import com.kdb.it.infra.file.repository.FileRepository;
@@ -137,5 +138,139 @@ class GeminiServiceTest {
         assertThatThrownBy(() -> geminiService.generate(request))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Gemini API");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // generate — RestClientException (API 호출 실패)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("generate: RestClientException 발생 시 원인 포함 RuntimeException을 던진다")
+    void generate_RestClientException_RuntimeException발생() {
+        // Arrange: API 호출 시 네트워크/서버 오류 모의
+        given(responseSpec.body(GeminiDto.GeminiApiResponse.class))
+                .willThrow(new RestClientException("Connection refused"));
+
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("테스트 프롬프트")
+                .build();
+
+        // Act & Assert: 원본 예외가 cause로 감싸져 RuntimeException 재발생
+        assertThatThrownBy(() -> geminiService.generate(request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Gemini API 호출 중 오류")
+                .hasCauseInstanceOf(RestClientException.class);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // generate — 빈 candidates 배열 (응답 파싱 오류)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("generate: candidates 배열이 비어있으면 RuntimeException을 던진다")
+    void generate_빈candidates배열_RuntimeException발생() {
+        // Arrange: candidates가 비어있는 응답 (정상 HTTP 응답이지만 내용 없음)
+        GeminiDto.GeminiApiResponse emptyResponse =
+                new GeminiDto.GeminiApiResponse(List.of(), null);
+        stubApiResponse(emptyResponse);
+
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("테스트 프롬프트")
+                .build();
+
+        // Act & Assert: 빈 응답 파싱 불가 → 예외 발생
+        assertThatThrownBy(() -> geminiService.generate(request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("비어있습니다");
+    }
+
+    @Test
+    @DisplayName("generate: candidate의 content.parts가 비어있으면 RuntimeException을 던진다")
+    void generate_빈parts배열_RuntimeException발생() {
+        // Arrange: parts 없는 content를 가진 candidate
+        GeminiDto.Content emptyContent = GeminiDto.Content.builder()
+                .role("model")
+                .parts(List.of())
+                .build();
+        GeminiDto.Candidate candidate = new GeminiDto.Candidate(emptyContent, "STOP");
+        GeminiDto.GeminiApiResponse response =
+                new GeminiDto.GeminiApiResponse(List.of(candidate), null);
+        stubApiResponse(response);
+
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("테스트 프롬프트")
+                .build();
+
+        // Act & Assert: content.parts가 비어있어 파싱 불가 → 예외 발생
+        assertThatThrownBy(() -> geminiService.generate(request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("파싱할 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("generate: candidate의 content가 null이면 RuntimeException을 던진다")
+    void generate_content_null_RuntimeException발생() {
+        // Arrange: content가 null인 candidate (API 오류 응답 — SAFETY 필터 등)
+        GeminiDto.Candidate candidateNoContent = new GeminiDto.Candidate(null, "SAFETY");
+        GeminiDto.GeminiApiResponse response =
+                new GeminiDto.GeminiApiResponse(List.of(candidateNoContent), null);
+        stubApiResponse(response);
+
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("테스트 프롬프트")
+                .build();
+
+        // Act & Assert: content==null 분기 → "파싱할 수 없습니다" 메시지와 함께 예외
+        assertThatThrownBy(() -> geminiService.generate(request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("파싱할 수 없습니다");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // generate — systemInstruction 분기
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("generate: systemInstruction이 있으면 결과 DTO에 응답 텍스트가 정상 포함된다")
+    void generate_systemInstruction있음_텍스트응답반환() {
+        // Arrange: 시스템 지시문 포함 요청 — buildApiRequest 내 if 분기 진입
+        stubApiResponse(buildSuccessResponse("시스템 지시 포함 응답"));
+
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("요구사항 분석")
+                .systemInstruction("당신은 IT 프로젝트 분석 전문가입니다.")
+                .build();
+
+        // Act
+        GeminiDto.Response result = geminiService.generate(request);
+
+        // Assert: systemInstruction이 있어도 응답 텍스트는 동일하게 추출
+        assertThat(result.getText()).isEqualTo("시스템 지시 포함 응답");
+        assertThat(result.getModel()).isEqualTo("gemini-test");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // generate — flMngNos 복수 파일 일부 미존재
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("generate: 여러 파일관리번호 중 전부 DB 미존재 시 모두 skippedFiles에 포함된다")
+    void generate_복수파일전부미존재_모두skip() {
+        // Arrange: 두 파일 모두 DB에 없음
+        given(fileRepository.findByFlMngNoAndDelYn("FL_00000010", "N")).willReturn(java.util.Optional.empty());
+        given(fileRepository.findByFlMngNoAndDelYn("FL_00000011", "N")).willReturn(java.util.Optional.empty());
+        stubApiResponse(buildSuccessResponse("응답"));
+
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("분석")
+                .flMngNos(List.of("FL_00000010", "FL_00000011"))
+                .build();
+
+        // Act
+        GeminiDto.Response result = geminiService.generate(request);
+
+        // Assert: 두 파일 모두 skip, 첨부 파일 수 0
+        assertThat(result.getSkippedFiles()).hasSize(2);
+        assertThat(result.getAttachedFileCount()).isEqualTo(0);
     }
 }

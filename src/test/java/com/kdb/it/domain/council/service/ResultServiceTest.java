@@ -367,6 +367,7 @@ class ResultServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     @DisplayName("getMyReviewStatus: 본인 확인 여부를 반환하고 없으면 false를 반환한다")
     void getMyReviewStatus_확인여부반환() {
         Bcmmtm member = mock(Bcmmtm.class);

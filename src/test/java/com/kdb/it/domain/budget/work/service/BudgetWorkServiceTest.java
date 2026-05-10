@@ -7,8 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
-import java.sql.Date;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +31,8 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
+import org.mockito.Mockito;
 
 /**
  * BudgetWorkService 단위 테스트
@@ -61,6 +61,7 @@ class BudgetWorkServiceTest {
     @Mock private ProjectRepository projectRepository;
     @Mock private ProjectItemRepository projectItemRepository;
     @Mock private CostRepository costRepository;
+    @Mock private BudgetWorkQueryRepository budgetWorkQueryRepository;
 
     @InjectMocks
     private BudgetWorkService budgetWorkService;
@@ -159,6 +160,28 @@ class BudgetWorkServiceTest {
     }
 
     @Test
+    @DisplayName("getSummary: budgetWorkQueryRepository를 단 1회씩 호출한다 — DB-01 N+1 제거")
+    void getSummary_집계쿼리_단일호출_N1없음() {
+        // given: DUP_IOE 코드 2개 (N+1이면 각 prefix마다 2회씩 = 4회 호출)
+        Ccodem code1 = Ccodem.builder().cdId("DUP-IOE-237").cdNm("전산임차료").build();
+        Ccodem code2 = Ccodem.builder().cdId("DUP-IOE-238").cdNm("자산비").build();
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of(code1, code2));
+        mockEmptyDetailCodes();
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026")).willReturn(java.util.Map.of());
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026")).willReturn(java.util.Map.of());
+
+        // when
+        budgetWorkService.getSummary("2026");
+
+        // then: 각각 정확히 1회 호출 (N+1 없음)
+        Mockito.verify(budgetWorkQueryRepository, Mockito.times(1)).findApprovedCostAmountByIoeC("2026");
+        Mockito.verify(budgetWorkQueryRepository, Mockito.times(1)).findApprovedItemAmountByGclDtt("2026");
+        Mockito.verify(bbugtmRepository, Mockito.never()).findApprovedCostsByPrefix(any(), any());
+        Mockito.verify(bbugtmRepository, Mockito.never()).findApprovedItemsByPrefix(any(), any());
+    }
+
+    @Test
     @DisplayName("getSummary - 세부 비목 단위로 편성금액 합계를 올바르게 계산한다")
     void getSummary_세부비목_합계계산() {
         // given: DUP_IOE 그룹 코드 1개 + BBUGTM 세부 데이터 1건
@@ -180,10 +203,11 @@ class BudgetWorkServiceTest {
                 given(codeRepository.findByCttTpWithValidDate(cttTp, null)).willReturn(List.of());
             }
         }
-        // 결재완료 원본 데이터: 요청금액 1,000,000
-        Bcostm approvedCost = Bcostm.builder().ioeC("IOE-237-0700").itMngcBg(BigDecimal.valueOf(1000000)).build();
-        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-237", "2026")).willReturn(List.of(approvedCost));
-        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026")).willReturn(List.of());
+        // 결재완료 원본 데이터: 집계 맵으로 단일 조회 (DB-01 N+1 제거)
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026"))
+                .willReturn(java.util.Map.of("IOE-237-0700", BigDecimal.valueOf(1000000)));
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026"))
+                .willReturn(java.util.Map.of());
 
         // when
         BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
@@ -469,6 +493,7 @@ class BudgetWorkServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     @DisplayName("applyItemRates: 기존 편성 레코드는 먼저 논리삭제하고 자본/경상 편성률을 구분 적용한다")
     void applyItemRates_기존삭제와자본경상구분적용() {
         Bbugtm prior = Bbugtm.builder().bgMngNo("BG-OLD").bgSno(1).delYn("N").build();
@@ -599,6 +624,7 @@ class BudgetWorkServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     @DisplayName("applyItemRates: 알 수 없는 원본과 null 비목은 처리 건수 0으로 무시한다")
     void applyItemRates_알수없는원본과Null비목_무시() {
         BudgetWorkDto.ItemApplyRequest request = new BudgetWorkDto.ItemApplyRequest("2026", List.of(

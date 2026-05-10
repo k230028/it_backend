@@ -11,6 +11,7 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -52,6 +53,9 @@ public class BudgetWorkService {
 
     /** 공통코드 리포지토리 (TAAABB_CCODEM): 편성비목(DUP_IOE) 조회용 */
     private final CodeRepository codeRepository;
+
+    /** 결재완료 원본 집계 쿼리 리포지토리: getSummary N+1 제거용 (DB-01) */
+    private final BudgetWorkQueryRepository budgetWorkQueryRepository;
 
     /** 정보화사업 리포지토리 (TAAABB_BPROJM): 사업명 조회용 */
     private final ProjectRepository projectRepository;
@@ -343,14 +347,15 @@ public class BudgetWorkService {
      * 편성 결과 조회 (API-03)
      *
      * <p>
-     * BBUGTM에서 예산년도별 데이터를 조회하고, 비목 접두어 기준으로 그룹핑하여
-     * 요청금액/편성금액 합계를 반환합니다.
+     * BBUGTM에서 예산년도별 편성 데이터를 조회하고, 결재완료 원본 집계 쿼리에서
+     * 요청금액을 계산한 뒤 비목 접두어 기준으로 합계를 반환합니다.
      * </p>
      *
      * [처리 순서]
      * 1. BBUGTM에서 BG_YY = :bgYy AND DEL_YN = 'N' 조회
      * 2. CCODEM에서 DUP_IOE 코드 조회 (비목명 매핑용)
-     * 3. 접두어 기준 GROUP BY → SUM(요청금액), SUM(편성금액) 집계
+     * 3. 결재완료 원본 데이터를 IOE 코드별로 일괄 집계하여 요청금액 계산
+     * 4. 접두어 기준 GROUP BY → SUM(요청금액), SUM(편성금액) 집계
      *
      * @param bgYy 예산년도
      * @return 비목별 요약 목록 + 합계
@@ -391,30 +396,13 @@ public class BudgetWorkService {
             }
         }
 
-        // 결재완료 원본 데이터에서 요청금액을 직접 계산 (BBUGTM 유무와 무관)
-        // BCOSTM: ioeC별 itMngcBg 합계
-        Map<String, BigDecimal> approvedCostAmountByIoeC = new LinkedHashMap<>();
-        // BITEMM: gclDtt별 gclAmt * coalesce(xcr, 1) 합계
-        Map<String, BigDecimal> approvedItemAmountByIoeC = new LinkedHashMap<>();
-
-        for (String prefix : prefixOrder) {
-            // 결재완료 전산업무비 요청금액 집계
-            List<Bcostm> approvedCosts = bbugtmRepository.findApprovedCostsByPrefix(prefix, bgYy);
-            for (Bcostm cost : approvedCosts) {
-                if (cost.getIoeC() != null && cost.getItMngcBg() != null) {
-                    approvedCostAmountByIoeC.merge(cost.getIoeC(), cost.getItMngcBg(), BigDecimal::add);
-                }
-            }
-            // 결재완료 품목 요청금액 집계 (환율 적용)
-            List<Bitemm> approvedItems = bbugtmRepository.findApprovedItemsByPrefix(prefix, bgYy);
-            for (Bitemm item : approvedItems) {
-                if (item.getGclDtt() != null && item.getGclAmt() != null) {
-                    BigDecimal xcrVal = item.getXcr() != null ? item.getXcr() : BigDecimal.ONE;
-                    BigDecimal amountKrw = item.getGclAmt().multiply(xcrVal);
-                    approvedItemAmountByIoeC.merge(item.getGclDtt(), amountKrw, BigDecimal::add);
-                }
-            }
-        }
+        // 결재완료 원본 데이터에서 요청금액을 직접 계산 (DB-01: 단일 집계 쿼리로 N+1 제거)
+        // 기존: 각 prefix별 findApprovedCostsByPrefix / findApprovedItemsByPrefix → N×2 쿼리
+        // 개선: 전체를 한 번에 GROUP BY 집계 → 2 쿼리
+        Map<String, BigDecimal> approvedCostAmountByIoeC =
+                budgetWorkQueryRepository.findApprovedCostAmountByIoeC(bgYy);
+        Map<String, BigDecimal> approvedItemAmountByIoeC =
+                budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(bgYy);
 
         List<BudgetWorkDto.SummaryItem> items = new ArrayList<>();
         BigDecimal totalRequest = BigDecimal.ZERO;

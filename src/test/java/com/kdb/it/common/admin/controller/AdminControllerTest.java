@@ -27,7 +27,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.admin.dto.AdminDto;
-import com.kdb.it.common.admin.dto.AdminLogDto;
 import com.kdb.it.common.admin.service.AdminLogService;
 import com.kdb.it.common.admin.service.AdminService;
 import com.kdb.it.common.system.security.JwtUtil;

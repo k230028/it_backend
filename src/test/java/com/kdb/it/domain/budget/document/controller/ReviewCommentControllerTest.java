@@ -21,12 +21,10 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
-import com.kdb.it.domain.budget.document.dto.ReviewCommentDto;
 import com.kdb.it.domain.budget.document.service.ReviewCommentService;
 
 /**
@@ -40,8 +38,6 @@ class ReviewCommentControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @MockitoBean
     private ReviewCommentService reviewCommentService;

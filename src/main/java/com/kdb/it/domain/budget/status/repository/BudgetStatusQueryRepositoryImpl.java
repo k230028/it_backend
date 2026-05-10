@@ -372,19 +372,6 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     }
 
     /**
-     * 비목코드 접두어별 금액 분배 (비집계, 전산업무비용)
-     *
-     * <p>CASE WHEN ioeC LIKE 'prefix%' THEN amt * COALESCE(xcr, 1) ELSE 0 END</p>
-     */
-    private NumberExpression<BigDecimal> caseAmtByPrefix(StringExpression ioeC, String prefix,
-                                                         NumberExpression<BigDecimal> amt,
-                                                         NumberExpression<BigDecimal> xcr) {
-        return Expressions.numberTemplate(BigDecimal.class,
-                "CASE WHEN {0} LIKE {1} THEN {2} * COALESCE({3}, 1) ELSE 0 END",
-                ioeC, Expressions.constant(prefix + "%"), amt, xcr);
-    }
-
-    /**
      * 비목코드 접두어별 편성예산 분배 (비집계, 전산업무비용)
      *
      * <p>CASE WHEN ioeC LIKE 'prefix%' THEN COALESCE(dupBg, 0) ELSE 0 END</p>

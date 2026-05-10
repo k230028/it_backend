@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import jakarta.persistence.EntityManager;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
@@ -26,6 +27,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.infra.file.FileValidator;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
@@ -49,6 +51,9 @@ class FileServiceTest {
 
     @Mock
     private EntityManager entityManager;
+
+    @Mock
+    private FileValidator fileValidator;
 
     @InjectMocks
     private FileService fileService;
@@ -400,6 +405,31 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("uploadFileInternal: 디렉토리 생성 IOException 발생 시 cause 포함 예외 반환 — ERR-02")
+    void uploadFileInternal_디렉토리생성IOException_cause포함(@TempDir java.nio.file.Path tempDir) throws Exception {
+        // orcDtt 이름으로 파일을 미리 생성 → 같은 이름의 하위 디렉토리 생성 불가 (NotADirectoryException)
+        java.nio.file.Path blockingFile = tempDir.resolve("요구사항정의서");
+        java.nio.file.Files.createFile(blockingFile);
+
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        ReflectionTestUtils.setField(fileService, "instanceId", "SVR1");
+        ReflectionTestUtils.setField(fileService, "entityManager", entityManager);
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "test.pdf", "application/pdf", "content".getBytes(StandardCharsets.UTF_8));
+        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
+                .orcDtt("요구사항정의서")
+                .flDtt("첨부파일")
+                .build();
+
+        // RED: 현재 구현은 IOException을 cause 없이 새 예외로 래핑하므로 hasCauseInstanceOf 검증 실패
+        assertThatThrownBy(() -> fileService.uploadFileInternal(file, request))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasCauseInstanceOf(IOException.class);
+    }
+
+    @Test
     @DisplayName("uploadFiles: 일부 파일 실패 시 성공 목록과 실패 파일명을 함께 반환한다")
     void uploadFiles_부분실패_결과분리(@TempDir java.nio.file.Path tempDir) {
         ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
@@ -419,5 +449,121 @@ class FileServiceTest {
         assertThat(result.getSuccessList()).hasSize(1);
         assertThat(result.getFailList()).hasSize(1);
         assertThat(result.getFailList().get(0)).contains("empty.txt");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // deleteFile — 이미 삭제된 파일(DEL_YN=Y) 재삭제 시도
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("deleteFile: DEL_YN=Y 상태 파일(조회 결과 없음)은 CustomGeneralException을 던진다")
+    void deleteFile_이미삭제된파일_CustomGeneralException발생() {
+        // Arrange: DEL_YN=Y인 파일은 findByFlMngNoAndDelYn("N") 결과에서 제외됨
+        given(fileRepository.findByFlMngNoAndDelYn("FL_DELETED", "N"))
+                .willReturn(java.util.Optional.empty());
+
+        // Act & Assert: 이미 논리 삭제된 파일 재삭제 시도 → 예외 발생
+        assertThatThrownBy(() -> fileService.deleteFile("FL_DELETED"))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("존재하지 않는 파일");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // uploadFile — 0바이트(빈 파일) 업로드
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("uploadFile: getSize()=0인 파일이면 EntityManager 접근 없이 예외를 던진다")
+    void uploadFile_0바이트파일_CustomGeneralException발생() {
+        // Arrange: 내용 없는 MockMultipartFile (isEmpty() == true)
+        MockMultipartFile zeroByteFile = new MockMultipartFile(
+                "file", "zero.pdf", "application/pdf", new byte[0]);
+        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
+                .orcDtt("요구사항정의서")
+                .flDtt("첨부파일")
+                .build();
+
+        // Act & Assert: 빈 파일 → "업로드할 파일이 비어있습니다" 예외, EntityManager 미호출
+        assertThatThrownBy(() -> fileService.uploadFile(zeroByteFile, request))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("업로드할 파일이 비어있습니다");
+        verifyNoInteractions(entityManager);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // uploadFiles — 다중 파일 일괄 업로드, 일부 실패 (null 파일 포함)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("uploadFiles: null 파일이 포함된 경우 해당 파일만 실패 목록에 포함된다")
+    void uploadFiles_null파일포함_해당파일실패목록포함(@TempDir java.nio.file.Path tempDir) {
+        // Arrange: 정상 파일 1개 + null 파일 1개
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        ReflectionTestUtils.setField(fileService, "instanceId", "SVR1");
+        ReflectionTestUtils.setField(fileService, "entityManager", entityManager);
+        given(fileRepository.getNextSequenceValue()).willReturn(2L);
+
+        MockMultipartFile validFile = new MockMultipartFile(
+                "files", "valid.pdf", "application/pdf",
+                "content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // null MultipartFile은 NullPointerException → failList에 포함
+        MockMultipartFile nullContentFile = new MockMultipartFile(
+                "files", "empty.txt", "text/plain", new byte[0]);
+
+        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
+                .orcDtt("요구사항정의서")
+                .flDtt("첨부파일")
+                .build();
+
+        // Act
+        FileDto.BulkUploadResponse result = fileService.uploadFiles(
+                java.util.Arrays.asList(validFile, nullContentFile), request);
+
+        // Assert: 정상 1개 성공, 빈 파일 1개 실패
+        assertThat(result.getSuccessList()).hasSize(1);
+        assertThat(result.getFailList()).hasSize(1);
+        assertThat(result.getFailList().get(0)).contains("empty.txt");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // deleteFilesByOrc — 존재하지 않는 원본구분·원본PK로 일괄 삭제 시도
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("deleteFilesByOrc: 해당 원본구분·원본PK에 파일이 없으면 예외 없이 0을 반환한다")
+    void deleteFilesByOrc_파일없는원본PK_0반환() {
+        // Arrange: DB에 매칭되는 파일 없음
+        given(fileRepository.findAllByOrcDttAndOrcPkVlAndDelYn("없는구분", "PRJ-0000-0000", "N"))
+                .willReturn(java.util.Collections.emptyList());
+
+        // Act
+        int count = fileService.deleteFilesByOrc("없는구분", "PRJ-0000-0000");
+
+        // Assert: 예외 없이 0 반환
+        assertThat(count).isEqualTo(0);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // deleteFilesByOrc — 일부 파일 삭제 (3건 중 Soft Delete 3건)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("deleteFilesByOrc: 3건 파일을 일괄 Soft Delete하고 3을 반환한다")
+    void deleteFilesByOrc_3건일괄삭제_3반환() {
+        // Arrange: 파일 3건
+        Cfilem f1 = mockCfilem("FL_00000011");
+        Cfilem f2 = mockCfilem("FL_00000012");
+        Cfilem f3 = mockCfilem("FL_00000013");
+        given(fileRepository.findAllByOrcDttAndOrcPkVlAndDelYn("정보화사업", "BIZ-2026-0001", "N"))
+                .willReturn(java.util.Arrays.asList(f1, f2, f3));
+
+        // Act
+        int count = fileService.deleteFilesByOrc("정보화사업", "BIZ-2026-0001");
+
+        // Assert: 3건 모두 delete() 호출, 반환값 3
+        assertThat(count).isEqualTo(3);
+        verify(f1).delete();
+        verify(f2).delete();
+        verify(f3).delete();
     }
 }

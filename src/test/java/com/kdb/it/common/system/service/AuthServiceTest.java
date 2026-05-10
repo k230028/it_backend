@@ -26,6 +26,7 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.entity.CroleI;
 import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.iam.service.LoginAttemptService;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.entity.Crtokm;
@@ -56,6 +57,9 @@ class AuthServiceTest {
         private PasswordEncoder passwordEncoder;
         @Mock
         private JwtUtil jwtUtil;
+
+        @Mock
+        private LoginAttemptService loginAttemptService;
 
         @InjectMocks
         private AuthService authService;

@@ -142,7 +142,7 @@ public class BudgetWorkController {
 
                     - BPROJM 원본은 자본예산(assetDupRt)과 일반관리비(costDupRt)를 함께 적용할 수 있습니다.
                     - BCOSTM 원본은 일반관리비(costDupRt) 중심으로 적용합니다.
-                    - 동일 원본 PK의 기존 편성 데이터는 갱신하고, 미존재 시 신규 생성합니다.
+                    - 적용 전 해당 예산연도의 기존 편성 데이터는 Soft Delete 후 요청 항목을 재삽입합니다.
                     - 저장 대상: TAAABB_BBUGTM
                     """)
     @ApiResponses(value = {

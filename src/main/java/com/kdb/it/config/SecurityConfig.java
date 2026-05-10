@@ -36,9 +36,9 @@ import java.util.List;
  * 주요 보안 설정:
  * </p>
  * <ul>
- * <li>CSRF: 비활성화 (JWT 사용으로 불필요)</li>
+ * <li>CSRF: 비활성화 (Stateless API + SameSite/CORS 운영 전제)</li>
  * <li>세션: STATELESS (JWT 토큰으로 인증 상태 유지)</li>
- * <li>CORS: 전체 Origin 허용 (개발 환경)</li>
+ * <li>CORS: {@code cors.allowed-origins}의 명시 Origin만 허용</li>
  * <li>인증 필터: {@link JwtAuthenticationFilter} →
  * {@link UsernamePasswordAuthenticationFilter} 앞에 삽입</li>
  * </ul>
@@ -48,7 +48,6 @@ import java.util.List;
  * </p>
  * <ul>
  * <li>{@code POST /api/auth/login}: 로그인</li>
- * <li>{@code POST /api/auth/signup}: 회원가입</li>
  * <li>{@code POST /api/auth/refresh}: 토큰 갱신</li>
  * <li>{@code /swagger-ui/**}: Swagger UI</li>
  * <li>{@code /v3/api-docs/**}: OpenAPI 명세</li>
@@ -115,7 +114,7 @@ public class SecurityConfig {
                                                                 .policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'")))
                                 // CORS 설정 적용 (corsConfigurationSource 빈 사용)
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                                // CSRF 보호 비활성화 (JWT 사용 시 불필요; REST API는 CSRF 공격 대상이 아님)
+                                // CSRF 보호 비활성화: httpOnly 쿠키를 쓰므로 운영 SameSite/CORS 설정과 함께 관리
                                 .csrf(AbstractHttpConfigurer::disable)
                                 // Stateless 세션 설정 (JWT 사용): 서버가 세션을 생성/유지하지 않음
                                 .sessionManagement(session -> session
@@ -182,7 +181,7 @@ public class SecurityConfig {
          * 현재 설정 (개발 환경):
          * </p>
          * <ul>
-         * <li>허용 Origin: 전체 ({@code *}) - 운영 환경에서는 특정 도메인으로 제한 필요</li>
+         * <li>허용 Origin: {@code cors.allowed-origins}에 지정된 명시 Origin</li>
          * <li>허용 메서드: GET, POST, PUT, DELETE, OPTIONS, PATCH</li>
          * <li>허용 헤더: 전체 ({@code *})</li>
          * <li>자격증명(쿠키 등) 포함 허용: true</li>

@@ -17,8 +17,6 @@ import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import org.springframework.context.ApplicationEventPublisher;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,8 +71,6 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true) // 기본 읽기 전용 트랜잭션
 public class ApplicationService {
 
-    private static final Logger log = LoggerFactory.getLogger(ApplicationService.class);
-
     /** 신청서 마스터 데이터 접근 리포지토리 (TAAABB_CAPPLM) */
     private final ApplicationRepository applicationRepository;
 
@@ -84,9 +80,6 @@ public class ApplicationService {
     /** 신청서-원본 데이터 연결 리포지토리 (TAAABB_CAPPLA) */
     private final ApplicationMapRepository applicationMapRepository;
 
-    /** JSON 직렬화/역직렬화를 위한 Jackson ObjectMapper */
-    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
-
     /** 정보화사업(Bprojm) 리포지토리: 미상신 건수 집계용 */
     private final ProjectRepository projectRepository;
 
@@ -94,123 +87,8 @@ public class ApplicationService {
     private final CostRepository costRepository;
     /** 결재 완료/반려 시 도메인 이벤트 발행 (도메인 간 직접 의존 제거) */
     private final ApplicationEventPublisher eventPublisher;
-
-    /**
-     * 신청서 상세 내용(JSON)의 결재선 정보 업데이트
-     *
-     * <p>
-     * 신청서 본문({@code APF_DTL_CONE})에 저장된 JSON 내의 {@code approvalLine} 객체를 탐색하여
-     * 승인된 결재자 항목에 결재 일자({@code date})를 현재 날짜로 기록합니다.
-     * </p>
-     *
-     * <p>
-     * 동일 결재자(ID)가 결재선에 여러 번 등장할 수 있으므로, 등장 순서(Occurrence Index)를
-     * 추적하여 정확한 위치만 업데이트합니다.
-     * </p>
-     *
-     * <p>
-     * 처리 흐름:
-     * </p>
-     *
-     * <pre>
-     *   1. allApprovers 전체 순회 → 각 사원번호별 등장 횟수(Occurrence) 계산
-     *      → approvedItems에 포함된 항목의 Occurrence를 targetOccurrences에 저장
-     *   2. JSON의 approvalLine 필드 순회
-     *      → id 필드로 사원번호 매칭, JSON 내 등장 횟수 추적
-     *      → targetOccurrences와 일치하는 노드에 date 필드 기록
-     *   3. 변경된 경우 JSON을 문자열로 직렬화하여 엔티티에 반영
-     * </pre>
-     *
-     * @param capplm        결재 처리 중인 신청서 마스터 엔티티
-     * @param allApprovers  해당 신청서의 전체 결재자 목록 (순번 오름차순)
-     * @param approvedItems 이번에 승인된 결재 항목 목록 (동일인 연속 승인 포함)
-     */
-    // FIXME: private 메서드에 @Transactional은 Spring AOP 프록시를 통하지 않으므로 효과 없음 — public 위임 메서드로 추출 필요
-    @Transactional
-    private void updateApprovalLineInDetail(Capplm capplm, List<Cdecim> allApprovers, List<Cdecim> approvedItems) {
-        String detailJson = capplm.getApfDtlCone(); // 신청서 상세 내용 JSON 문자열
-        if (detailJson == null || detailJson.isEmpty()) {
-            return; // JSON이 없으면 업데이트 불필요
-        }
-
-        try {
-            // JSON 파싱: 루트 노드 → approvalLine 객체 추출
-            com.fasterxml.jackson.databind.JsonNode rootNode = objectMapper.readTree(detailJson);
-            com.fasterxml.jackson.databind.JsonNode approvalLineNode = rootNode.path("approvalLine");
-
-            if (approvalLineNode.isMissingNode() || !approvalLineNode.isObject()) {
-                return; // approvalLine 필드가 없거나 객체가 아니면 처리 불필요
-            }
-
-            // ===== 1단계: Target Occurrences 계산 =====
-            // 각 사원번호(ID)별로 승인된 항목이 몇 번째 등장인지(Occurrence Index)를 저장
-            // Map<사원번호, Set<등장순서>>
-            java.util.Map<String, java.util.Set<Integer>> targetOccurrences = new java.util.HashMap<>();
-            // 전체 결재자 목록에서 각 사원번호의 현재까지 등장 횟수를 추적
-            java.util.Map<String, Integer> globalOccurrenceCounters = new java.util.HashMap<>();
-
-            // 전체 결재자 목록을 순회하며 각 항목의 등장 순서를 계산
-            for (Cdecim approver : allApprovers) {
-                String eno = approver.getDcdEno(); // 결재자 사원번호
-                // 이 사원번호의 현재 등장 횟수 (1부터 시작)
-                int currentOccurrence = globalOccurrenceCounters.getOrDefault(eno, 0) + 1;
-                globalOccurrenceCounters.put(eno, currentOccurrence);
-
-                // 현재 항목이 승인 대상 목록에 포함되어 있다면 Target Occurrences에 추가
-                // dcdSqn(결재순번)은 신청서 내에서 유니크하다고 가정
-                boolean isApprovedItem = approvedItems.stream()
-                        .anyMatch(item -> item.getDcdSqn().equals(approver.getDcdSqn()));
-
-                if (isApprovedItem) {
-                    // 해당 사원번호의 이번 등장 순서를 타겟으로 등록
-                    targetOccurrences.computeIfAbsent(eno, k -> new java.util.HashSet<>()).add(currentOccurrence);
-                }
-            }
-
-            boolean updated = false; // JSON 변경 여부 플래그
-            // JSON 순회 시 각 사원번호의 등장 횟수를 추적
-            java.util.Map<String, Integer> jsonOccurrenceCounters = new java.util.HashMap<>();
-
-            // ===== 2단계: JSON approvalLine 순회 및 date 필드 업데이트 =====
-            java.util.Iterator<String> fieldNames = approvalLineNode.fieldNames();
-            while (fieldNames.hasNext()) {
-                String fieldName = fieldNames.next();
-                com.fasterxml.jackson.databind.JsonNode approverNode = approvalLineNode.get(fieldName);
-
-                if (approverNode != null && approverNode.isObject() && approverNode.has("id")) {
-                    String id = approverNode.get("id").asText(); // JSON에서 사원번호(id) 추출
-
-                    // JSON 내에서의 해당 ID 등장 횟수 카운트
-                    int currentJsonOccurrence = jsonOccurrenceCounters.getOrDefault(id, 0) + 1;
-                    jsonOccurrenceCounters.put(id, currentJsonOccurrence);
-
-                    // targetOccurrences와 일치하는 노드에 결재 일자 기록
-                    if (targetOccurrences.containsKey(id)
-                            && targetOccurrences.get(id).contains(currentJsonOccurrence)) {
-                        if (approverNode instanceof com.fasterxml.jackson.databind.node.ObjectNode) {
-                            // date 필드에 현재 날짜·시각을 ISO 형식("yyyy-MM-dd'T'HH:mm:ss")으로 기록
-                            // 프론트엔드 splitDateTime()이 'T' 구분자로 날짜/시간을 분리합니다.
-                            ((com.fasterxml.jackson.databind.node.ObjectNode) approverNode)
-                                    .put("date", java.time.LocalDateTime.now()
-                                            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")));
-                            updated = true;
-                        }
-                    }
-                }
-            }
-
-            // 변경된 경우에만 JSON 재직렬화 및 엔티티 업데이트
-            if (updated) {
-                String updatedJson = objectMapper.writeValueAsString(rootNode);
-                capplm.updateDetailContent(updatedJson); // 신청서 상세 내용 갱신
-            }
-
-        // FIXME: 결재선 업데이트 실패를 경고 로그만으로 삼킴 — @Transactional 컨텍스트에서 롤백 없이 커밋됨. 비즈니스적으로 무시 불가라면 예외 재발생 필요
-        } catch (Exception e) {
-            // JSON 파싱 실패 시 비즈니스 로직 중단을 막기 위해 예외를 삼키고 경고 로그만 출력
-            log.warn("신청서 상세 내용(JSON) 결재선 업데이트 실패 - 신청관리번호: {}", capplm.getApfMngNo(), e);
-        }
-    }
+    /** 결재선 JSON 업데이트 위임 — ERR-03/04: public @Transactional로 AOP 프록시 우회 방지 */
+    private final ApprovalLineDelegate approvalLineDelegate;
 
     /**
      * 신청서 등록 (결재 요청)
@@ -296,13 +174,13 @@ public class ApplicationService {
         // 3. 기안자 == 1차 결재자(팀장) 자동 승인 처리
         //    기안자와 첫 번째 결재자가 동일한 경우, 신청 행위 자체를 묵시적 1차 승인으로 간주합니다.
         //    - Cdecim 레코드를 즉시 승인 상태로 전환하여 이후 2차 결재자(부서장)가 바로 결재 가능하게 합니다.
-        //    - updateApprovalLineInDetail()을 호출하여 JSON 결재선의 팀장 date 필드도 함께 기록합니다.
+        //    - approvalLineDelegate.doUpdate()를 호출하여 JSON 결재선의 팀장 date 필드도 함께 기록합니다.
         //      (이 처리가 없으면 JSON date가 빈 문자열로 남아 PDF 상 팀장 결재 시각이 누락됩니다.)
         if (!approverEnos.isEmpty() && approverEnos.get(0).equals(request.getRqsEno())) {
             Cdecim firstApprover = savedApprovers.get(0);
             firstApprover.approve("기안자 자동 승인", "승인");
             approverRepository.save(firstApprover);
-            updateApprovalLineInDetail(capplm, savedApprovers, java.util.List.of(firstApprover));
+            approvalLineDelegate.doUpdate(capplm, savedApprovers, java.util.List.of(firstApprover));
         }
 
         return apfMngNo; // 생성된 신청관리번호 반환
@@ -407,7 +285,7 @@ public class ApplicationService {
         }
 
         // 신청서 상세 내용(JSON) 내 결재선 정보 업데이트 (결재 일자 기록)
-        updateApprovalLineInDetail(capplm, approvers, approvedList);
+        approvalLineDelegate.doUpdate(capplm, approvers, approvedList);
 
         // 신청서 전체 상태 업데이트
         String newApfSts = null;

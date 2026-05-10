@@ -54,6 +54,7 @@ class AdminLogServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     @DisplayName("getLogs: 로그 행과 사용자명 매핑을 함께 반환한다")
     void getLogs_로그목록_사용자명포함반환() {
         BasctmL log = BasctmL.builder()
@@ -117,6 +118,7 @@ class AdminLogServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     @DisplayName("getLogs: 페이지 번호와 크기를 안전 범위로 보정하고 사용자 필드가 없으면 빈 이름 맵을 반환한다")
     void getLogs_페이지보정_사용자명없음() {
         TypedQuery<BasctmL> listQuery = mock(TypedQuery.class);

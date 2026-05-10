@@ -57,10 +57,10 @@ class ApplicationServiceTest {
     @Mock private ApplicationRepository applicationRepository;
     @Mock private ApproverRepository approverRepository;
     @Mock private ApplicationMapRepository applicationMapRepository;
-    @Mock private ObjectMapper objectMapper;
     @Mock private ProjectRepository projectRepository;
     @Mock private CostRepository costRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private ApprovalLineDelegate approvalLineDelegate;
 
     @InjectMocks
     private ApplicationService applicationService;
@@ -99,10 +99,10 @@ class ApplicationServiceTest {
                 applicationRepository,
                 approverRepository,
                 applicationMapRepository,
-                new ObjectMapper(),
                 projectRepository,
                 costRepository,
-                eventPublisher);
+                eventPublisher,
+                new ApprovalLineDelegate(new ObjectMapper()));
     }
 
     // ───────────────────────────────────────────────────────
@@ -256,12 +256,12 @@ class ApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("approve: approvalLine이 없거나 JSON 파싱이 실패해도 결재 처리는 계속된다")
-    void approve_결재선Json없거나오류_결재처리계속() {
+    @DisplayName("approve: 결재선 JSON이 없는 경우 결재 처리는 정상 완료된다")
+    void approve_결재선Json없음_결재처리완료() {
         ApplicationService realMapperService = serviceWithRealObjectMapper();
         Capplm capplm = Capplm.builder()
                 .apfMngNo(APF_MNG_NO)
-                .apfDtlCone("{not-json")
+                .apfDtlCone(null)
                 .build();
         given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
         given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO))
@@ -271,6 +271,22 @@ class ApplicationServiceTest {
 
         assertThat(capplm.getApfSts()).isEqualTo("결재완료");
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
+    }
+
+    @Test
+    @DisplayName("approve: 결재선 JSON이 깨진 경우 CustomGeneralException으로 트랜잭션 롤백 — ERR-03")
+    void approve_결재선Json파싱실패_CustomGeneralException() {
+        ApplicationService realMapperService = serviceWithRealObjectMapper();
+        Capplm capplm = Capplm.builder()
+                .apfMngNo(APF_MNG_NO)
+                .apfDtlCone("{not-json")
+                .build();
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+        given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
+
+        assertThatThrownBy(() -> realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인")))
+                .isInstanceOf(com.kdb.it.exception.CustomGeneralException.class);
     }
 
     // ───────────────────────────────────────────────────────

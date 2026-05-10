@@ -202,7 +202,8 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      * 정보화사업(BPROJM)별 편성예산(DUP_BG) 합계 일괄 조회
      *
      * <p>
-     * ORC_TB='BPROJM' 조건으로 orcPkVl(prjMngNo)별 SUM(DUP_BG)를 집계합니다.
+     * 정보화사업 편성 데이터는 BITEMM 기준으로 저장되므로 BITEMM 조인 후
+     * prjMngNo별 SUM(DUP_BG)를 집계합니다.
      * </p>
      */
     @Override

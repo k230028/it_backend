@@ -3,6 +3,7 @@ package com.kdb.it.infra.file.service;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.repository.FileRepository;
+import com.kdb.it.infra.file.FileValidator;
 import com.kdb.it.exception.CustomGeneralException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -70,6 +71,9 @@ public class FileService {
 
     /** 공통 첨부파일 데이터 접근 리포지토리 */
     private final FileRepository fileRepository;
+
+    /** 파일 확장자 화이트리스트 검증 — SEC-04 */
+    private final FileValidator fileValidator;
 
     /**
      * JPA EntityManager — 수동 부여 ID 엔티티의 INSERT를 {@code persist()}로 확정적으로 수행하기 위해 사용.
@@ -299,6 +303,9 @@ public class FileService {
             throw new CustomGeneralException("업로드할 파일이 비어있습니다.");
         }
 
+        // 확장자 화이트리스트 검증 — SEC-04
+        fileValidator.validateExtension(file.getOriginalFilename());
+
         // 저장 디렉토리 경로 생성
         Path storageDir = buildStorageDir(request.getOrcDtt());
 
@@ -315,8 +322,7 @@ public class FileService {
         try {
             Files.createDirectories(storageDir);
         } catch (IOException e) {
-            // FIXME: IOException을 cause 없이 새 예외로 래핑 — 스택 트레이스 손실. throw new CustomGeneralException("...", e) 로 변경 필요
-            throw new CustomGeneralException("파일 저장 디렉토리 생성에 실패했습니다. 경로: " + flKpnPth);
+            throw new CustomGeneralException("파일 저장 디렉토리 생성에 실패했습니다. 경로: " + flKpnPth, e);
         }
 
         // 파일 디스크 저장
@@ -324,8 +330,7 @@ public class FileService {
         try {
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
-            // FIXME: IOException을 cause 없이 새 예외로 래핑 — 스택 트레이스 손실. throw new CustomGeneralException("...", e) 로 변경 필요
-            throw new CustomGeneralException("파일 저장에 실패했습니다. 파일명: " + file.getOriginalFilename());
+            throw new CustomGeneralException("파일 저장에 실패했습니다. 파일명: " + file.getOriginalFilename(), e);
         }
 
         // DB 메타데이터 저장
@@ -378,7 +383,8 @@ public class FileService {
      *
      * <p>
      * 개별 파일 업로드를 반복합니다. 특정 파일이 실패해도 나머지는 계속 업로드됩니다.
-     * 결과에 성공·실패 목록을 모두 포함합니다.
+     * 결과에 성공·실패 목록을 모두 포함하며, 개별 실패는 전체 트랜잭션을 롤백하지 않는
+     * 부분 성공 흐름입니다.
      * </p>
      *
      * @param files   업로드할 파일 목록

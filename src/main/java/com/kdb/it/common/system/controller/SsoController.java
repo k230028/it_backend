@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -35,6 +37,8 @@ import java.util.Optional;
 @Controller
 @RequiredArgsConstructor
 public class SsoController {
+
+    private static final Logger log = LoggerFactory.getLogger(SsoController.class);
 
     private static final String SSO_VERIFIED_ENO_SESSION_KEY = "ssoVerifiedEno";
     private static final String SSO_RESULT_CODE_SESSION_KEY = "resultCode";
@@ -139,7 +143,7 @@ public class SsoController {
             String dest = (next != null && next.startsWith("/")) ? next : "/";
             response.sendRedirect(resolveFrontendBaseUrl(origin) + dest);
         } catch (Exception e) {
-            // FIXME: catch 블록에 로그 없음 — log.error("SSO 인증 실패 - eno: {}, reason: {}", eno, e.getMessage(), e) 추가 필요
+            log.error("SSO 인증 실패 - eno: {}, reason: {}", eno, e.getMessage(), e);
             response.sendRedirect(resolveFrontendBaseUrl(origin) + "/login?error=sso");
         }
     }

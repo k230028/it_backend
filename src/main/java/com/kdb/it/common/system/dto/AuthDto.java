@@ -120,17 +120,16 @@ public class AuthDto {
      * 로그인 응답 DTO
      *
      * <p>
-     * 로그인 성공 시 발급되는 JWT 토큰과 기본 사용자 정보를 반환합니다.
+     * 로그인 성공 시 기본 사용자 정보를 반환하고, JWT 토큰은 httpOnly 쿠키로 함께 발급합니다.
      * </p>
      *
      * <p>
-     * 토큰 사용 방법:
+     * 토큰 전달 방식:
      * </p>
      * <ul>
-     * <li>{@code accessToken}: API 요청 시 {@code Authorization: Bearer {accessToken}}
-     * 헤더에 포함</li>
-     * <li>{@code refreshToken}: Access Token 만료 시 {@code /api/auth/refresh} 엔드포인트에
-     * 제출</li>
+     * <li>{@code accessToken}: 응답 본문에는 숨기고 httpOnly 쿠키로 전달</li>
+     * <li>{@code refreshToken}: Access Token 만료 시 {@code /api/auth/refresh}에서 httpOnly 쿠키로 검증</li>
+     * <li>{@code Authorization: Bearer}: API 테스트 도구 호환용 폴백이며 프론트엔드 표준 경로가 아님</li>
      * </ul>
      */
     @Getter
