@@ -18,7 +18,7 @@ public interface CodeRepositoryCustom {
      * @param targetDate 기준일자 (Nullable, null일 경우 시스템 현재 날짜 적용)
      * @return 조회된 공통코드 엔티티
      */
-    Optional<Ccodem> findByCdIdWithValidDate(String cdId, LocalDate targetDate);
+    Optional<Ccodem> findByCIdWithValidDate(String cdId, LocalDate targetDate);
 
     /**
      * 기준일자와 코드값구분을 바탕으로 다건 조회

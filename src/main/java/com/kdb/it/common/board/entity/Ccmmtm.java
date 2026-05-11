@@ -15,7 +15,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = CcmmtmL.class)
 @Entity
-@Table(name = "TAAABB_CCMMTM")
+@Table(name = "TAAABB_CCMMTM", comment = "댓글")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -24,32 +24,32 @@ public class Ccmmtm extends BaseEntity {
 
     /** 댓글관리번호 PK. 형식: CMMT-{YYYY}-{0001} */
     @Id
-    @Column(name = "CMMT_MNG_NO", nullable = false, length = 32)
+    @Column(name = "CMMT_MNG_NO", nullable = false, length = 32, comment = "댓글관리번호")
     private String cmmtMngNo;
 
-    @Column(name = "NAC_MNG_NO", nullable = false, length = 32)
+    @Column(name = "NAC_MNG_NO", nullable = false, length = 32, comment = "게시물관리번호")
     private String nacMngNo;
 
     /** 댓글 본문 — HtmlSanitizer.sanitize() 적용 의무 */
     @Lob
-    @Column(name = "CMMT_CONE", nullable = false)
+    @Column(name = "CMMT_CONE", nullable = false, comment = "댓글내용")
     private String cmmtCone;
 
-    @Column(name = "SRE_YN", nullable = false, length = 1)
+    @Column(name = "SRE_YN", nullable = false, length = 1, comment = "화면여부")
     private String sreYn;
 
     /** 댓글 그룹번호 — 최상위 댓글의 CMMT_MNG_NO */
-    @Column(name = "CMMT_GRP_NO", nullable = false, length = 32)
+    @Column(name = "CMMT_GRP_NO", nullable = false, length = 32, comment = "댓글그룹번호")
     private String cmmtGrpNo;
 
-    @Column(name = "CMMT_GRP_SQN", nullable = false)
+    @Column(name = "CMMT_GRP_SQN", nullable = false, comment = "댓글그룹순서")
     private Integer cmmtGrpSqn;
 
     /** 댓글 트리 깊이 (0=원댓글, 1=대댓글…) */
-    @Column(name = "CMMT_GRP_LEV", nullable = false)
+    @Column(name = "CMMT_GRP_LEV", nullable = false, comment = "댓글그룹레벨")
     private Integer cmmtGrpLev;
 
-    @Column(name = "HRK_CMMT_MNG_NO", length = 32)
+    @Column(name = "HRK_CMMT_MNG_NO", length = 32, comment = "상위댓글관리번호")
     private String hrkCmmtMngNo;
 
     /** 댓글 본문 수정 — sanitize 완료 값을 전달해야 한다 */

@@ -114,8 +114,8 @@ public class BoardPostService {
             .hrkFxnYn(request.getHrkFxnYn() != null ? request.getHrkFxnYn() : "N")
             .sreYn(request.getSreYn() != null ? request.getSreYn() : "Y")
             .bbrC(request.getBbrC())
-            .sttYmd(request.getSttYmd())
-            .endYmd(request.getEndYmd())
+            .sttDt(request.getSttYmd())
+            .endDt(request.getEndYmd())
             .nacInqNbr(0)
             .flApgYn("N")
             .flNbr(0)
@@ -214,8 +214,8 @@ public class BoardPostService {
             .hrkFxnYn("N")
             .sreYn("Y")
             .bbrC(request.getBbrC())
-            .sttYmd(request.getSttYmd())
-            .endYmd(request.getEndYmd())
+            .sttDt(request.getSttYmd())
+            .endDt(request.getEndYmd())
             .nacInqNbr(0)
             .flApgYn("N")
             .flNbr(0)
@@ -269,8 +269,8 @@ public class BoardPostService {
 
         LocalDate today = LocalDate.now();
         boolean visible = "Y".equals(post.getSreYn())
-            && (post.getSttYmd() == null || !post.getSttYmd().isAfter(today))
-            && (post.getEndYmd() == null || !post.getEndYmd().isBefore(today));
+            && (post.getSttDt() == null || !post.getSttDt().isAfter(today))
+            && (post.getEndDt() == null || !post.getEndDt().isBefore(today));
         boolean deptOk = !"Y".equals(board.getBbrLmtnUseYn())
             || post.getBbrC() == null
             || post.getBbrC().equals(user.getBbrC());

@@ -143,7 +143,7 @@ public class ReviewCommentController {
      * 검토의견 해결 처리
      *
      * <p>
-     * 지정한 의견일련번호의 RSLV_YN 값을 'Y'로 변경합니다.
+     * 지정한 의견일련번호의 FSG_YN 값을 'Y'로 변경합니다.
      * </p>
      *
      * @param docMngNo 문서관리번호 (코멘트 소속 검증에 사용)
@@ -153,7 +153,7 @@ public class ReviewCommentController {
             description = """
                     지정한 의견일련번호의 해결여부를 완료 상태로 변경합니다.
 
-                    - 변경 값: RSLV_YN='Y'
+                    - 변경 값: FSG_YN='Y'
                     - 문서관리번호와 의견일련번호를 함께 검증하여 다른 문서의 의견이 잘못 처리되지 않게 합니다.
                     - 응답 본문 없이 204 No Content를 반환합니다.
                     """,

@@ -31,7 +31,7 @@ import java.util.UUID;
  * 의견유형({@code IVG_TP}):
  * </p>
  * <ul>
- * <li>{@code I}: 인라인 코멘트 — Tiptap Mark ID 및 드래그 선택 텍스트 스냅샷({@code MARK_ID}, {@code QTD_CONE})을 사용</li>
+ * <li>{@code I}: 인라인 코멘트 — Tiptap 표시 ID 및 인용내용({@code IDC_ID}, {@code QOT_CONE})을 사용</li>
  * <li>{@code G}: 전반(General) 코멘트 — 문서 전체에 대한 의견</li>
  * </ul>
  */
@@ -64,24 +64,24 @@ public class Brivgm extends BaseEntity {
     @Column(name = "IVG_CONE", comment = "의견내용")
     private String ivgCone;
 
-    /** 인라인 코멘트 전용 - Tiptap Mark ID (에디터 하이라이트 매핑 키) */
-    @Column(name = "MARK_ID", length = 64, comment = "인라인 코멘트 전용 - Tiptap Mark ID (에디터 하이라이트 매핑 키)")
-    private String markId;
+    /** 표시ID: 인라인 코멘트 에디터 하이라이트 매핑 키 */
+    @Column(name = "IDC_ID", length = 64, comment = "표시ID")
+    private String idcId;
 
-    /** 인라인 코멘트 전용 - 드래그 선택 텍스트 스냅샷 (문맥 보존용, 최대 4000자) */
-    @Column(name = "QTD_CONE", length = 4000, comment = "인라인 코멘트 전용 - 드래그 선택 텍스트 스냅샷 (문맥 보존용, 최대 4000자)")
-    private String qtdCone;
+    /** 인용내용: 인라인 코멘트 선택 텍스트 스냅샷 */
+    @Column(name = "QOT_CONE", length = 4000, comment = "인용내용")
+    private String qotCone;
 
-    /** 해결여부: {@code N}=미해결(기본값), {@code Y}=해결완료 */
-    @Column(name = "RSLV_YN", length = 1, nullable = false, comment = "해결여부")
-    private String rslvYn;
+    /** 완료여부: {@code N}=미완료(기본값), {@code Y}=완료 */
+    @Column(name = "FSG_YN", length = 1, nullable = false, comment = "완료여부")
+    private String fsgYn;
 
     /**
      * INSERT 시점 기본값 초기화 콜백
      *
      * <p>
      * {@link BaseEntity#prePersist()}가 {@code delYn}, {@code guid}, {@code guidPrgSno}를
-     * 초기화하는 것과 별개로, 본 엔티티 고유 필드({@code ivgSno}, {@code rslvYn})의 기본값을 설정합니다.
+     * 초기화하는 것과 별개로, 본 엔티티 고유 필드({@code ivgSno}, {@code fsgYn})의 기본값을 설정합니다.
      * </p>
      *
      * <p>
@@ -95,9 +95,9 @@ public class Brivgm extends BaseEntity {
         if (this.ivgSno == null) {
             this.ivgSno = UUID.randomUUID().toString().replace("-", "");
         }
-        // 해결여부 기본값 설정: null이면 'N'(미해결)으로 초기화
-        if (this.rslvYn == null) {
-            this.rslvYn = "N";
+        // 완료여부 기본값 설정: null이면 'N'(미완료)으로 초기화
+        if (this.fsgYn == null) {
+            this.fsgYn = "N";
         }
     }
 
@@ -108,32 +108,32 @@ public class Brivgm extends BaseEntity {
      * @param docVrs   대상 문서버전
      * @param ivgTp    의견유형 ({@code I}=인라인, {@code G}=전반)
      * @param ivgCone  의견내용 (CLOB)
-     * @param markId   인라인 전용 Tiptap Mark ID (전반 코멘트의 경우 {@code null})
-     * @param qtdCone  인라인 전용 드래그 선택 텍스트 스냅샷 (전반 코멘트의 경우 {@code null})
+     * @param idcId    인라인 전용 Tiptap 표시 ID (전반 코멘트의 경우 {@code null})
+     * @param qotCone  인라인 전용 인용내용 (전반 코멘트의 경우 {@code null})
      * @return 영속화 전 상태의 {@link Brivgm} 인스턴스
      */
     public static Brivgm create(String docMngNo, BigDecimal docVrs,
                                 String ivgTp, String ivgCone,
-                                String markId, String qtdCone) {
+                                String idcId, String qotCone) {
         Brivgm b = new Brivgm();
         b.docMngNo = docMngNo;
         b.docVrs = docVrs;
         b.ivgTp = ivgTp;
         b.ivgCone = ivgCone;
-        b.markId = markId;
-        b.qtdCone = qtdCone;
+        b.idcId = idcId;
+        b.qotCone = qotCone;
         return b;
     }
 
     /**
-     * 검토의견 해결 처리
+     * 검토의견 완료 처리
      *
      * <p>
-     * {@code RSLV_YN}을 {@code 'Y'}로 변경합니다. JPA Dirty Checking으로 트랜잭션 커밋 시 반영됩니다.
+     * {@code FSG_YN}을 {@code 'Y'}로 변경합니다. JPA Dirty Checking으로 트랜잭션 커밋 시 반영됩니다.
      * </p>
      */
     public void resolve() {
-        this.rslvYn = "Y";
+        this.fsgYn = "Y";
     }
 }
 

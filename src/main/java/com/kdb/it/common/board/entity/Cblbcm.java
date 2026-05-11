@@ -17,7 +17,7 @@ import java.time.LocalDate;
  */
 @LogTarget(entity = CblbcmL.class)
 @Entity
-@Table(name = "TAAABB_CBLBCM")
+@Table(name = "TAAABB_CBLBCM", comment = "게시물")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -26,66 +26,66 @@ public class Cblbcm extends BaseEntity {
 
     /** 게시물관리번호 PK. 형식: NAC-{YYYY}-{0001} */
     @Id
-    @Column(name = "NAC_MNG_NO", nullable = false, length = 32)
+    @Column(name = "NAC_MNG_NO", nullable = false, length = 32, comment = "게시물관리번호")
     private String nacMngNo;
 
-    @Column(name = "BLB_MNG_NO", nullable = false, length = 32)
+    @Column(name = "BLB_MNG_NO", nullable = false, length = 32, comment = "게시판관리번호")
     private String blbMngNo;
 
-    @Column(name = "NAC_NM", nullable = false, length = 300)
+    @Column(name = "NAC_NM", nullable = false, length = 300, comment = "게시물명")
     private String nacNm;
 
     /** 본문 HTML — HtmlSanitizer.sanitize() 적용 의무 */
     @Lob
-    @Column(name = "NAC_CONE")
+    @Column(name = "NAC_CONE", comment = "게시물내용")
     private String nacCone;
 
-    @Column(name = "NAC_INQ_NBR", nullable = false)
+    @Column(name = "NAC_INQ_NBR", nullable = false, comment = "게시물조회수")
     private Integer nacInqNbr;
 
-    @Column(name = "NAC_TP", length = 32)
+    @Column(name = "NAC_TP", length = 32, comment = "게시물유형")
     private String nacTp;
 
-    @Column(name = "KD_C", length = 32)
+    @Column(name = "KD_C", length = 32, comment = "종류코드")
     private String kdC;
 
-    @Column(name = "PRIT_C", nullable = false, length = 32)
+    @Column(name = "PRIT_C", nullable = false, length = 32, comment = "중요도코드")
     private String pritC;
 
-    @Column(name = "HRK_FXN_YN", nullable = false, length = 1)
+    @Column(name = "HRK_FXN_YN", nullable = false, length = 1, comment = "상위고정여부")
     private String hrkFxnYn;
 
-    @Column(name = "SRE_YN", nullable = false, length = 1)
+    @Column(name = "SRE_YN", nullable = false, length = 1, comment = "화면여부")
     private String sreYn;
 
     /** 공개 대상 부서코드 — NULL이면 전체 */
-    @Column(name = "BBR_C", length = 8)
+    @Column(name = "BBR_C", length = 8, comment = "부점코드")
     private String bbrC;
 
-    @Column(name = "STT_YMD")
-    private LocalDate sttYmd;
+    @Column(name = "STT_DT", comment = "시작일자")
+    private LocalDate sttDt;
 
-    @Column(name = "END_YMD")
-    private LocalDate endYmd;
+    @Column(name = "END_DT", comment = "종료일자")
+    private LocalDate endDt;
 
-    @Column(name = "FL_APG_YN", nullable = false, length = 1)
+    @Column(name = "FL_APG_YN", nullable = false, length = 1, comment = "파일첨부여부")
     private String flApgYn;
 
-    @Column(name = "FL_NBR", nullable = false)
+    @Column(name = "FL_NBR", nullable = false, comment = "파일수")
     private Integer flNbr;
 
     /** 그룹번호 — 최상위 글의 NAC_MNG_NO */
-    @Column(name = "NAC_GRP_NO", nullable = false, length = 32)
+    @Column(name = "NAC_GRP_NO", nullable = false, length = 32, comment = "게시물그룹번호")
     private String nacGrpNo;
 
-    @Column(name = "NAC_GRP_SQN", nullable = false)
+    @Column(name = "NAC_GRP_SQN", nullable = false, comment = "게시물그룹순서")
     private Integer nacGrpSqn;
 
     /** 트리 깊이 (0=원글, 1=답글…) */
-    @Column(name = "NAC_GRP_LEV", nullable = false)
+    @Column(name = "NAC_GRP_LEV", nullable = false, comment = "게시물그룹레벨")
     private Integer nacGrpLev;
 
-    @Column(name = "HRK_NAC_MNG_NO", length = 32)
+    @Column(name = "HRK_NAC_MNG_NO", length = 32, comment = "상위게시물관리번호")
     private String hrkNacMngNo;
 
     /**
@@ -99,13 +99,13 @@ public class Cblbcm extends BaseEntity {
      * @param hrkFxnYn 상위고정여부
      * @param sreYn    화면여부
      * @param bbrC     공개 대상 부서코드
-     * @param sttYmd   공개 시작일
-     * @param endYmd   공개 종료일
+     * @param sttDt    공개 시작일자
+     * @param endDt    공개 종료일자
      */
     public record UpdateCommand(
         String nacNm, String nacCone, String nacTp, String kdC, String pritC,
         String hrkFxnYn, String sreYn, String bbrC,
-        LocalDate sttYmd, LocalDate endYmd
+        LocalDate sttDt, LocalDate endDt
     ) {}
 
     public void update(UpdateCommand cmd) {
@@ -117,8 +117,8 @@ public class Cblbcm extends BaseEntity {
         this.hrkFxnYn = cmd.hrkFxnYn();
         this.sreYn    = cmd.sreYn();
         this.bbrC     = cmd.bbrC();
-        this.sttYmd   = cmd.sttYmd();
-        this.endYmd   = cmd.endYmd();
+        this.sttDt    = cmd.sttDt();
+        this.endDt    = cmd.endDt();
     }
 
     /** 조회수 1 증가 */

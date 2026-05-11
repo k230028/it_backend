@@ -681,9 +681,9 @@ class ProjectServiceTest {
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
                 given(codeService.findCodeEntitiesByCttTp("IOE_CPIT"))
-                                .willReturn(List.of(Ccodem.builder().cdId("IOE-ASSET").cdDes("개발비").build()));
+                                .willReturn(List.of(Ccodem.builder().cId("IOE-ASSET").cDes("개발비").build()));
                 given(codeService.findCodeEntitiesByCttTp("IOE_IDR"))
-                                .willReturn(List.of(Ccodem.builder().cdId("IOE-COST").build()));
+                                .willReturn(List.of(Ccodem.builder().cId("IOE-COST").build()));
                 given(codeService.findCodeEntitiesByCttTp("IOE_SEVS")).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCttTp("IOE_XPN")).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCttTp("IOE_LEAFE")).willReturn(List.of());
@@ -768,10 +768,10 @@ class ProjectServiceTest {
                                                 Bitemm.builder().gclDtt("IOE-NULL").gclAmt(null).build()));
                 given(codeService.findCodeEntitiesByCttTp("IOE_CPIT"))
                                 .willReturn(List.of(
-                                                Ccodem.builder().cdId("IOE-DEV").cdDes("개발비").build(),
-                                                Ccodem.builder().cdId("IOE-MACH").cdDes("기계장치").build()));
+                                                Ccodem.builder().cId("IOE-DEV").cDes("개발비").build(),
+                                                Ccodem.builder().cId("IOE-MACH").cDes("기계장치").build()));
                 given(codeService.findCodeEntitiesByCttTp("IOE_IDR"))
-                                .willReturn(List.of(Ccodem.builder().cdId("IOE-COST").build()));
+                                .willReturn(List.of(Ccodem.builder().cId("IOE-COST").build()));
                 given(codeService.findCodeEntitiesByCttTp("IOE_SEVS")).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCttTp("IOE_XPN")).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCttTp("IOE_LEAFE")).willReturn(List.of());

@@ -97,8 +97,8 @@ public class FileOwnershipChecker {
 
         LocalDate today = LocalDate.now();
         boolean postOk = "Y".equals(post.getSreYn())
-                && (post.getSttYmd() == null || !post.getSttYmd().isAfter(today))
-                && (post.getEndYmd() == null || !post.getEndYmd().isBefore(today));
+                && (post.getSttDt() == null || !post.getSttDt().isAfter(today))
+                && (post.getEndDt() == null || !post.getEndDt().isBefore(today));
         if (!postOk) {
             throw new CustomGeneralException("파일 다운로드 권한이 없습니다.");
         }

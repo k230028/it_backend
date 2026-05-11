@@ -104,19 +104,19 @@ public class AdminService {
         @Transactional
         public void createCode(AdminDto.CodeRequest req) {
                 validateCodeKey(req.cdId(), req.sttDt());
-                if (codeRepository.existsByCdIdAndSttDt(req.cdId(), req.sttDt())) {
+                if (codeRepository.existsByCIdAndSttDt(req.cdId(), req.sttDt())) {
                         throw new IllegalArgumentException("이미 존재하는 코드ID/시작일자입니다: " + req.cdId() + ", " + req.sttDt());
                 }
                 Ccodem code = Ccodem.builder()
-                                .cdId(req.cdId())
-                                .cdNm(req.cdNm())
+                                .cId(req.cdId())
+                                .cNm(req.cdNm())
                                 .cdva(req.cdva())
-                                .cdDes(req.cdDes())
+                                .cDes(req.cdDes())
                                 .cttTp(req.cttTp())
                                 .cttTpDes(req.cttTpDes())
                                 .sttDt(req.sttDt())
                                 .endDt(req.endDt())
-                                .cdSqn(req.cdSqn())
+                                .cSqn(req.cdSqn())
                                 .build();
                 codeRepository.save(code);
         }
@@ -133,7 +133,7 @@ public class AdminService {
         @Transactional
         public void updateCode(String cdId, LocalDate sttDt, AdminDto.CodeRequest req) {
                 validateCodeKey(cdId, sttDt);
-                Ccodem code = codeRepository.findByCdIdAndSttDtAndDelYn(cdId, sttDt, "N")
+                Ccodem code = codeRepository.findByCIdAndSttDtAndDelYn(cdId, sttDt, "N")
                                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드ID/시작일자입니다: " + cdId + ", " + sttDt));
                 if (req.sttDt() != null && !req.sttDt().equals(sttDt)) {
                         throw new IllegalArgumentException("시작일자는 기본키이므로 수정할 수 없습니다.");
@@ -155,7 +155,7 @@ public class AdminService {
         public void deleteCode(String cdId, LocalDate sttDt) {
                 // Plan SC: Soft Delete 요구사항 (C-08)
                 validateCodeKey(cdId, sttDt);
-                Ccodem code = codeRepository.findByCdIdAndSttDtAndDelYn(cdId, sttDt, "N")
+                Ccodem code = codeRepository.findByCIdAndSttDtAndDelYn(cdId, sttDt, "N")
                                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드ID/시작일자입니다: " + cdId + ", " + sttDt));
                 code.delete();
         }
@@ -173,8 +173,8 @@ public class AdminService {
                 int updated = 0;
                 for (AdminDto.CodeRequest item : req.codes()) {
                         validateCodeKey(item.cdId(), item.sttDt());
-                        if (codeRepository.existsByCdIdAndSttDt(item.cdId(), item.sttDt())) {
-                                Ccodem code = codeRepository.findByCdIdAndSttDtAndDelYn(item.cdId(), item.sttDt(), "N")
+                        if (codeRepository.existsByCIdAndSttDt(item.cdId(), item.sttDt())) {
+                                Ccodem code = codeRepository.findByCIdAndSttDtAndDelYn(item.cdId(), item.sttDt(), "N")
                                                 .orElse(null);
                                 if (code != null) {
                                         code.update(item.cdNm(), item.cdva(), item.cdDes(), item.cttTp(),
@@ -183,15 +183,15 @@ public class AdminService {
                                 }
                         } else {
                                 Ccodem code = Ccodem.builder()
-                                                .cdId(item.cdId())
-                                                .cdNm(item.cdNm())
+                                                .cId(item.cdId())
+                                                .cNm(item.cdNm())
                                                 .cdva(item.cdva())
-                                                .cdDes(item.cdDes())
+                                                .cDes(item.cdDes())
                                                 .cttTp(item.cttTp())
                                                 .cttTpDes(item.cttTpDes())
                                                 .sttDt(item.sttDt())
                                                 .endDt(item.endDt())
-                                                .cdSqn(item.cdSqn())
+                                                .cSqn(item.cdSqn())
                                                 .build();
                                 codeRepository.save(code);
                                 created++;

@@ -85,13 +85,13 @@ public class CodeDto {
          */
         public Ccodem toEntity() {
             return Ccodem.builder()
-                    .cdId(this.cdId)
-                    .cdNm(this.cdNm)
+                    .cId(this.cdId)
+                    .cNm(this.cdNm)
                     .cdva(this.cdva)
-                    .cdDes(this.cdDes)
+                    .cDes(this.cdDes)
                     .cttTp(this.cttTp)
                     .cttTpDes(this.cttTpDes)
-                    .cdSqn(this.cdSqn)
+                    .cSqn(this.cdSqn)
                     .sttDt(this.sttDt)
                     .endDt(this.endDt)
                     .build();

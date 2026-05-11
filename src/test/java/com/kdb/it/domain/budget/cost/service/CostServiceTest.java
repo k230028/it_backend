@@ -507,10 +507,10 @@ class CostServiceTest {
                 .willReturn(List.of());
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(any(), any(), eq("N")))
                 .willReturn(List.of());
-        given(ccodemRepository.findByCdIdWithValidDate("IOE-ASSET", null))
-                .willReturn(Optional.of(Ccodem.builder().cdId("IOE-ASSET").cttTp("IOE_CPIT").cdDes("개발비").build()));
-        given(ccodemRepository.findByCdIdWithValidDate("IOE-COST", null))
-                .willReturn(Optional.of(Ccodem.builder().cdId("IOE-COST").cttTp("IOE_IDR").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE-ASSET", null))
+                .willReturn(Optional.of(Ccodem.builder().cId("IOE-ASSET").cttTp("IOE_CPIT").cDes("개발비").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE-COST", null))
+                .willReturn(Optional.of(Ccodem.builder().cId("IOE-COST").cttTp("IOE_IDR").build()));
         given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-ASSET", "COST-COST"), "2026"))
                 .willReturn(java.util.Map.of(
                         "COST-ASSET", BigDecimal.valueOf(700),
@@ -571,8 +571,8 @@ class CostServiceTest {
         given(corgnIRepository.findById("101")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("101").bbrNm("부서").build()));
         given(corgnIRepository.findById("102")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
         given(cuserIRepository.findById("10001")).willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
-        given(ccodemRepository.findByCdIdWithValidDate("IOE-DEV", null))
-                .willReturn(Optional.of(Ccodem.builder().cdId("IOE-DEV").cttTp("IOE_CPIT").cdDes("개발비").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE-DEV", null))
+                .willReturn(Optional.of(Ccodem.builder().cId("IOE-DEV").cttTp("IOE_CPIT").cDes("개발비").build()));
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                 .willReturn(List.of(terminal));
         given(cuserIRepository.findByEnoIn(java.util.Set.of("10003")))
@@ -619,11 +619,11 @@ class CostServiceTest {
         given(costRepository.findByItMngcNoAndDelYn("COST-MACH", "N")).willReturn(List.of(machCost));
         given(costRepository.findByItMngcNoAndDelYn("COST-INTAN", "N")).willReturn(List.of(intanCost));
         given(costRepository.findByItMngcNoAndDelYn("COST-GEN", "N")).willReturn(List.of(costBg));
-        given(ccodemRepository.findByCdIdWithValidDate("IOE-MACH", null))
-                .willReturn(Optional.of(Ccodem.builder().cttTp("IOE_CPIT").cdDes("기계장치").build()));
-        given(ccodemRepository.findByCdIdWithValidDate("IOE-INTAN", null))
-                .willReturn(Optional.of(Ccodem.builder().cttTp("IOE_CPIT").cdDes("기타무형자산").build()));
-        given(ccodemRepository.findByCdIdWithValidDate("IOE-GEN", null))
+        given(ccodemRepository.findByCIdWithValidDate("IOE-MACH", null))
+                .willReturn(Optional.of(Ccodem.builder().cttTp("IOE_CPIT").cDes("기계장치").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE-INTAN", null))
+                .willReturn(Optional.of(Ccodem.builder().cttTp("IOE_CPIT").cDes("기타무형자산").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE-GEN", null))
                 .willReturn(Optional.of(Ccodem.builder().cttTp("IOE_IDR").build()));
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(any(), eq(1), eq("N"))).willReturn(List.of());
 
@@ -679,7 +679,7 @@ class CostServiceTest {
                         CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
         given(cuserIRepository.findAllById(any()))
                 .willReturn(List.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
-        given(ccodemRepository.findByCdIdWithValidDate("IOE-COST", null))
+        given(ccodemRepository.findByCIdWithValidDate("IOE-COST", null))
                 .willReturn(Optional.of(Ccodem.builder().cttTp("IOE_IDR").build()));
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(IT_MNGC_NO, 1, "N")).willReturn(List.of());
         given(costRepository.sumPrevBgByItMngcNos(List.of(IT_MNGC_NO), "2025"))

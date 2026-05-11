@@ -83,11 +83,11 @@ public class ReviewCommentDto {
         private final String ivgTp;
         /** 의견내용 */
         private final String ivgCone;
-        /** Tiptap Mark ID (인라인 전용) */
+        /** Tiptap 표시 ID (인라인 전용) */
         private final String markId;
-        /** 드래그 선택 텍스트 스냅샷 (인라인 전용) */
+        /** 인용내용 (인라인 전용) */
         private final String qtdCone;
-        /** 해결여부 (N=미해결, Y=해결) */
+        /** 완료여부 (N=미완료, Y=완료) */
         private final String rslvYn;
         /** 작성자 사번 (FST_ENR_USID) */
         private final String authorEno;
@@ -108,9 +108,9 @@ public class ReviewCommentDto {
             this.docVrs     = e.getDocVrs();
             this.ivgTp      = e.getIvgTp();
             this.ivgCone    = e.getIvgCone();
-            this.markId     = e.getMarkId();
-            this.qtdCone    = e.getQtdCone();
-            this.rslvYn     = e.getRslvYn();
+            this.markId     = e.getIdcId();
+            this.qtdCone    = e.getQotCone();
+            this.rslvYn     = e.getFsgYn();
             this.authorEno  = e.getFstEnrUsid();
             this.authorName = authorName;
             this.createdAt  = e.getFstEnrDtm() != null

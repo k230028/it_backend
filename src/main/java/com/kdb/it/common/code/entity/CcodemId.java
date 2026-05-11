@@ -17,8 +17,8 @@ import java.time.LocalDate;
 @EqualsAndHashCode
 public class CcodemId implements Serializable {
 
-    /** 코드ID: Ccodem.cdId와 이름/타입 일치 필수 */
-    private String cdId;
+    /** 코드ID: Ccodem.cId와 이름/타입 일치 필수 */
+    private String cId;
 
     /** 시작일자: Ccodem.sttDt와 이름/타입 일치 필수 */
     private LocalDate sttDt;

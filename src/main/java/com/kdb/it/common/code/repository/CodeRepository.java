@@ -26,10 +26,10 @@ public interface CodeRepository extends JpaRepository<Ccodem, CcodemId>, CodeRep
      * @param delYn 삭제 여부 ('N')
      * @return 조회된 공통코드 엔티티
      */
-    Optional<Ccodem> findByCdIdAndSttDtAndDelYn(String cdId, LocalDate sttDt, String delYn);
+    Optional<Ccodem> findByCIdAndSttDtAndDelYn(String cdId, LocalDate sttDt, String delYn);
 
     /**
      * 특정 복합키의 존재 여부 확인 (삭제여부와 무관)
      */
-    boolean existsByCdIdAndSttDt(String cdId, LocalDate sttDt);
+    boolean existsByCIdAndSttDt(String cdId, LocalDate sttDt);
 }

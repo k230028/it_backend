@@ -32,8 +32,8 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
         if (!isAdmin) {
             LocalDate today = LocalDate.now();
             builder.and(p.sreYn.eq("Y"));
-            builder.and(p.sttYmd.isNull().or(p.sttYmd.loe(today)));
-            builder.and(p.endYmd.isNull().or(p.endYmd.goe(today)));
+            builder.and(p.sttDt.isNull().or(p.sttDt.loe(today)));
+            builder.and(p.endDt.isNull().or(p.endDt.goe(today)));
             if ("Y".equals(bbrLmtnUseYn) && StringUtils.hasText(userBbrC)) {
                 builder.and(p.bbrC.isNull().or(p.bbrC.eq(userBbrC)));
             }

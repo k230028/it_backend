@@ -51,13 +51,13 @@ public class CodeRepositoryImpl implements CodeRepositoryCustom {
      * @param targetDate 기준일자 (null이면 시스템 현재 날짜 적용)
      * @return 조회된 공통코드 엔티티 (없으면 {@link java.util.Optional#empty()})
      */
-    public Optional<Ccodem> findByCdIdWithValidDate(String cdId, LocalDate targetDate) {
+    public Optional<Ccodem> findByCIdWithValidDate(String cdId, LocalDate targetDate) {
         QCcodem qCcodem = QCcodem.ccodem;
         LocalDate effectiveDate = (targetDate != null) ? targetDate : LocalDate.now();
 
         Ccodem result = queryFactory.selectFrom(qCcodem)
                 .where(
-                        qCcodem.cdId.eq(cdId),
+                        qCcodem.cId.eq(cdId),
                         qCcodem.delYn.eq("N"),
                         isValidDate(qCcodem, effectiveDate))
                 .fetchOne();
@@ -87,7 +87,7 @@ public class CodeRepositoryImpl implements CodeRepositoryCustom {
                         qCcodem.cttTp.eq(cttTp),
                         qCcodem.delYn.eq("N"),
                         isValidDate(qCcodem, effectiveDate))
-                .orderBy(qCcodem.cdSqn.asc().nullsLast(), qCcodem.cdId.asc())
+                .orderBy(qCcodem.cSqn.asc().nullsLast(), qCcodem.cId.asc())
                 .fetch();
     }
 
@@ -100,7 +100,7 @@ public class CodeRepositoryImpl implements CodeRepositoryCustom {
         QCcodem qCcodem = QCcodem.ccodem;
         return queryFactory.selectFrom(qCcodem)
                 .where(qCcodem.delYn.eq("N"))
-                .orderBy(qCcodem.cdSqn.asc().nullsLast(), qCcodem.cdId.asc())
+                .orderBy(qCcodem.cSqn.asc().nullsLast(), qCcodem.cId.asc())
                 .fetch();
     }
 

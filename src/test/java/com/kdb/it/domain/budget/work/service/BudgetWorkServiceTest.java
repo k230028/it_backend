@@ -88,7 +88,7 @@ class BudgetWorkServiceTest {
     @DisplayName("getIoeCategories - 코드 1개 반환 시 편성률은 null (기존 데이터 없음)")
     void getIoeCategories_기존데이터없음_편성률null() {
         // given: DUP-IOE-237 코드 1개
-        Ccodem code = Ccodem.builder().cdId("DUP-IOE-237").cdNm("자산비").cdva("IOE-237").build();
+        Ccodem code = Ccodem.builder().cId("DUP-IOE-237").cNm("자산비").cdva("IOE-237").build();
         given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
         given(bbugtmRepository.sumApprovedAmountByPrefix("IOE-237", "2026")).willReturn(null);
@@ -108,7 +108,7 @@ class BudgetWorkServiceTest {
     @DisplayName("getIoeCategories - 기존 BBUGTM에 편성률이 있으면 기존 편성률을 반환한다")
     void getIoeCategories_기존편성률있음_편성률반환() {
         // given
-        Ccodem code = Ccodem.builder().cdId("DUP-IOE-237").cdNm("자산비").cdva("IOE-237").build();
+        Ccodem code = Ccodem.builder().cId("DUP-IOE-237").cNm("자산비").cdva("IOE-237").build();
         Bbugtm existing = Bbugtm.builder()
                 .ioeC("IOE-237-0700")
                 .dupRt(80)
@@ -163,8 +163,8 @@ class BudgetWorkServiceTest {
     @DisplayName("getSummary: budgetWorkQueryRepository를 단 1회씩 호출한다 — DB-01 N+1 제거")
     void getSummary_집계쿼리_단일호출_N1없음() {
         // given: DUP_IOE 코드 2개 (N+1이면 각 prefix마다 2회씩 = 4회 호출)
-        Ccodem code1 = Ccodem.builder().cdId("DUP-IOE-237").cdNm("전산임차료").build();
-        Ccodem code2 = Ccodem.builder().cdId("DUP-IOE-238").cdNm("자산비").build();
+        Ccodem code1 = Ccodem.builder().cId("DUP-IOE-237").cNm("전산임차료").build();
+        Ccodem code2 = Ccodem.builder().cId("DUP-IOE-238").cNm("자산비").build();
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCttTpWithValidDate("DUP_IOE", null)).willReturn(List.of(code1, code2));
         mockEmptyDetailCodes();
@@ -185,8 +185,8 @@ class BudgetWorkServiceTest {
     @DisplayName("getSummary - 세부 비목 단위로 편성금액 합계를 올바르게 계산한다")
     void getSummary_세부비목_합계계산() {
         // given: DUP_IOE 그룹 코드 1개 + BBUGTM 세부 데이터 1건
-        Ccodem dupCode = Ccodem.builder().cdId("DUP-IOE-237").cdNm("전산임차료").build();
-        Ccodem detailCode = Ccodem.builder().cdId("IOE-237-0700").cdNm("국외전산임차료").cttTp("IOE_IDR").build();
+        Ccodem dupCode = Ccodem.builder().cId("DUP-IOE-237").cNm("전산임차료").build();
+        Ccodem detailCode = Ccodem.builder().cId("IOE-237-0700").cNm("국외전산임차료").cttTp("IOE_IDR").build();
         Bbugtm bbugtm = Bbugtm.builder()
                 .ioeC("IOE-237-0700")
                 .dupBg(BigDecimal.valueOf(800000))
@@ -501,7 +501,7 @@ class BudgetWorkServiceTest {
                 new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 60, 40),
                 new BudgetWorkDto.ItemRate("BCOSTM", "COST_2026_0001", null, null)
         ));
-        Ccodem capitalCode = Ccodem.builder().cdId("IOE-351-0100").build();
+        Ccodem capitalCode = Ccodem.builder().cId("IOE-351-0100").build();
         Bitemm capitalItem = mock(Bitemm.class);
         given(capitalItem.getGclMngNo()).willReturn("GCL-0001");
         given(capitalItem.getGclSno()).willReturn(1);
@@ -541,11 +541,11 @@ class BudgetWorkServiceTest {
     @Test
     @DisplayName("getSummary: 그룹 접두어가 있는 세부명과 코드 미등록 원본도 요약에 포함한다")
     void getSummary_세부명접두어제거와미등록원본포함() {
-        Ccodem dupCode = Ccodem.builder().cdId("DUP-IOE-351").cdNm("자본그룹").cdDes("자본그룹명").build();
+        Ccodem dupCode = Ccodem.builder().cId("DUP-IOE-351").cNm("자본그룹").cDes("자본그룹명").build();
         Ccodem detailCode = Ccodem.builder()
-                .cdId("IOE-351-0100")
-                .cdNm("자본그룹 - 개발비")
-                .cdDes("자본그룹 - 개발비")
+                .cId("IOE-351-0100")
+                .cNm("자본그룹 - 개발비")
+                .cDes("자본그룹 - 개발비")
                 .cttTp("IOE_CPIT")
                 .build();
         Bbugtm budget = Bbugtm.builder()
@@ -587,7 +587,7 @@ class BudgetWorkServiceTest {
     @Test
     @DisplayName("getProjectSummary: BITEMM은 프로젝트로 통합하고 BCOSTM은 계약명으로 표시한다")
     void getProjectSummary_BITEMM프로젝트통합과BCOSTM계약명표시() {
-        Ccodem dupCode = Ccodem.builder().cdId("DUP-IOE-237").cdNm("임차료").cdDes("임차료").build();
+        Ccodem dupCode = Ccodem.builder().cId("DUP-IOE-237").cNm("임차료").cDes("임차료").build();
         Bbugtm itemBudget = Bbugtm.builder()
                 .orcTb("BITEMM")
                 .orcPkVl("GCL-0001")
@@ -631,7 +631,7 @@ class BudgetWorkServiceTest {
                 new BudgetWorkDto.ItemRate("UNKNOWN", "UNK-1", 10, 20),
                 new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 60, 40)
         ));
-        Ccodem capitalCodeWithoutDash = Ccodem.builder().cdId("IOE351").build();
+        Ccodem capitalCodeWithoutDash = Ccodem.builder().cId("IOE351").build();
         Bitemm item = mock(Bitemm.class);
         given(item.getGclDtt()).willReturn(null);
         given(item.getGclAmt()).willReturn(null);
@@ -661,7 +661,7 @@ class BudgetWorkServiceTest {
     @Test
     @DisplayName("getProjectSummary: 매핑이 없으면 원본 PK를 이름으로 사용하고 금액 역산은 건너뛴다")
     void getProjectSummary_이름폴백과금액역산건너뜀() {
-        Ccodem dupCode = Ccodem.builder().cdId("DUP-IOE-237").cdNm("임차료").build();
+        Ccodem dupCode = Ccodem.builder().cId("DUP-IOE-237").cNm("임차료").build();
         Bbugtm nullPk = Bbugtm.builder()
                 .orcTb("BITEMM")
                 .orcPkVl(null)

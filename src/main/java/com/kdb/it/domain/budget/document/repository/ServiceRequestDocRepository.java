@@ -137,7 +137,7 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
         JOIN TAAABB_BRIVGM r ON b.DOC_MNG_NO = r.DOC_MNG_NO
         WHERE b.DEL_YN = 'N'
           AND u.BBR_C = :bbrC
-          AND r.RSLV_YN = 'N'
+          AND r.FSG_YN = 'N'
           AND r.DEL_YN = 'N'
         """, nativeQuery = true)
     int countReviewingByBbrC(@Param("bbrC") String bbrC);
@@ -155,7 +155,7 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
           )
           AND NOT EXISTS (
               SELECT 1 FROM TAAABB_BRIVGM r
-              WHERE r.DOC_MNG_NO = b.DOC_MNG_NO AND r.DEL_YN = 'N' AND r.RSLV_YN = 'N'
+              WHERE r.DOC_MNG_NO = b.DOC_MNG_NO AND r.DEL_YN = 'N' AND r.FSG_YN = 'N'
           )
         """, nativeQuery = true)
     int countCompletedByBbrC(@Param("bbrC") String bbrC);
@@ -201,7 +201,7 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
         JOIN TAAABB_BRIVGM r ON b.DOC_MNG_NO = r.DOC_MNG_NO
         WHERE b.DEL_YN = 'N'
           AND u.BBR_C = :bbrC
-          AND r.RSLV_YN = 'N'
+          AND r.FSG_YN = 'N'
           AND r.DEL_YN = 'N'
         ORDER BY b.FST_ENR_DTM DESC
         FETCH FIRST 3 ROWS ONLY

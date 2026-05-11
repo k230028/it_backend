@@ -142,7 +142,7 @@ class ReviewCommentServiceTest {
         reviewCommentService.resolveComment("DOC-2026-0010", "some-ivg-sno");
 
         // 검증
-        assertThat(comment.getRslvYn()).isEqualTo("Y");
+        assertThat(comment.getFsgYn()).isEqualTo("Y");
     }
 
     // 헬퍼: CreateRequest 인스턴스를 reflection으로 생성

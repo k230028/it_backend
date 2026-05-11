@@ -43,7 +43,7 @@ public class CodeService {
      * @throws IllegalArgumentException 해당 코드ID의 유효한 공통코드가 없는 경우
      */
     public CodeDto.Response getCcodemById(String cdId, LocalDate targetDate) {
-        Ccodem ccodem = codeRepository.findByCdIdWithValidDate(cdId, targetDate)
+        Ccodem ccodem = codeRepository.findByCIdWithValidDate(cdId, targetDate)
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않거나 존재하지 않는 코드ID 입니다: " + cdId));
         return CodeDto.Response.fromEntity(ccodem);
     }
@@ -83,7 +83,7 @@ public class CodeService {
             throw new IllegalArgumentException("시작일자는 필수입니다.");
         }
 
-        if (codeRepository.existsByCdIdAndSttDt(request.getCdId(), request.getSttDt())) {
+        if (codeRepository.existsByCIdAndSttDt(request.getCdId(), request.getSttDt())) {
             throw new IllegalArgumentException("이미 존재하는 코드ID/시작일자 입니다: " + request.getCdId() + ", " + request.getSttDt());
         }
 
@@ -107,7 +107,7 @@ public class CodeService {
             @CacheEvict(value = "codesByType", allEntries = true)
     })
     public String updateCcodem(String cdId, LocalDate sttDt, CodeDto.UpdateRequest request) {
-        Ccodem ccodem = codeRepository.findByCdIdAndSttDtAndDelYn(cdId, sttDt, "N")
+        Ccodem ccodem = codeRepository.findByCIdAndSttDtAndDelYn(cdId, sttDt, "N")
                 .orElseThrow(() -> new IllegalArgumentException("수정할 공통코드를 찾을 수 없습니다: " + cdId + ", " + sttDt));
 
         if (request.getSttDt() != null && !request.getSttDt().equals(sttDt)) {
@@ -144,7 +144,7 @@ public class CodeService {
             @CacheEvict(value = "codesByType", allEntries = true)
     })
     public void deleteCcodem(String cdId, LocalDate sttDt) {
-        Ccodem ccodem = codeRepository.findByCdIdAndSttDtAndDelYn(cdId, sttDt, "N")
+        Ccodem ccodem = codeRepository.findByCIdAndSttDtAndDelYn(cdId, sttDt, "N")
                 .orElseThrow(() -> new IllegalArgumentException("삭제할 공통코드를 찾을 수 없거나 이미 삭제되었습니다: " + cdId + ", " + sttDt));
 
         ccodem.delete(); // BaseEntity의 delete() 호출 -> delYn = 'Y'
@@ -172,9 +172,9 @@ public class CodeService {
 
     @Cacheable("budgetPeriod")
     public CodeDto.BudgetPeriodResponse getBudgetPeriod() {
-        Ccodem startCode = codeRepository.findByCdIdWithValidDate("BG-RQS-STA", null)
+        Ccodem startCode = codeRepository.findByCIdWithValidDate("BG-RQS-STA", null)
                 .orElseThrow(() -> new IllegalArgumentException("예산 신청기간 시작일자 코드를 찾을 수 없습니다: BG-RQS-STA"));
-        Ccodem endCode = codeRepository.findByCdIdWithValidDate("BG-RQS-END", null)
+        Ccodem endCode = codeRepository.findByCIdWithValidDate("BG-RQS-END", null)
                 .orElseThrow(() -> new IllegalArgumentException("예산 신청기간 종료일자 코드를 찾을 수 없습니다: BG-RQS-END"));
 
         return CodeDto.BudgetPeriodResponse.builder()

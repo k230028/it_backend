@@ -89,7 +89,7 @@ class AdminServiceTest {
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "CODE001", "코드명", "값", "설명", "구분", "구분설명", sttDt, null, 1);
-        given(codeRepository.existsByCdIdAndSttDt("CODE001", sttDt)).willReturn(true);
+        given(codeRepository.existsByCIdAndSttDt("CODE001", sttDt)).willReturn(true);
 
         // when & then
         assertThatThrownBy(() -> adminService.createCode(req))
@@ -104,7 +104,7 @@ class AdminServiceTest {
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "CODE002", "코드명", "값", "설명", "구분", "구분설명", sttDt, null, 1);
-        given(codeRepository.existsByCdIdAndSttDt("CODE002", sttDt)).willReturn(false);
+        given(codeRepository.existsByCIdAndSttDt("CODE002", sttDt)).willReturn(false);
 
         // when
         adminService.createCode(req);
@@ -120,7 +120,7 @@ class AdminServiceTest {
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "NONE", "코드명", "값", "설명", "구분", "구분설명", sttDt, null, 1);
-        given(codeRepository.findByCdIdAndSttDtAndDelYn("NONE", sttDt, "N")).willReturn(Optional.empty());
+        given(codeRepository.findByCIdAndSttDtAndDelYn("NONE", sttDt, "N")).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> adminService.updateCode("NONE", sttDt, req))
@@ -133,8 +133,8 @@ class AdminServiceTest {
     void deleteCode_정상삭제_SoftDelete() {
         // given
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        Ccodem code = Ccodem.builder().cdId("CODE001").sttDt(sttDt).build();
-        given(codeRepository.findByCdIdAndSttDtAndDelYn("CODE001", sttDt, "N")).willReturn(Optional.of(code));
+        Ccodem code = Ccodem.builder().cId("CODE001").sttDt(sttDt).build();
+        given(codeRepository.findByCIdAndSttDtAndDelYn("CODE001", sttDt, "N")).willReturn(Optional.of(code));
 
         // when
         adminService.deleteCode("CODE001", sttDt);
@@ -152,10 +152,10 @@ class AdminServiceTest {
         AdminDto.CodeRequest req2 = new AdminDto.CodeRequest("CODE002", "코드2", null, null, null, null, sttDt, null, 2);
         AdminDto.BulkCodeRequest bulkReq = new AdminDto.BulkCodeRequest(List.of(req1, req2));
 
-        Ccodem existingCode = Ccodem.builder().cdId("CODE001").sttDt(sttDt).build();
-        given(codeRepository.existsByCdIdAndSttDt("CODE001", sttDt)).willReturn(true);
-        given(codeRepository.findByCdIdAndSttDtAndDelYn("CODE001", sttDt, "N")).willReturn(Optional.of(existingCode));
-        given(codeRepository.existsByCdIdAndSttDt("CODE002", sttDt)).willReturn(false);
+        Ccodem existingCode = Ccodem.builder().cId("CODE001").sttDt(sttDt).build();
+        given(codeRepository.existsByCIdAndSttDt("CODE001", sttDt)).willReturn(true);
+        given(codeRepository.findByCIdAndSttDtAndDelYn("CODE001", sttDt, "N")).willReturn(Optional.of(existingCode));
+        given(codeRepository.existsByCIdAndSttDt("CODE002", sttDt)).willReturn(false);
 
         // when
         var result = adminService.bulkUpsertCodes(bulkReq);
@@ -342,7 +342,7 @@ class AdminServiceTest {
     @DisplayName("getCodes - 활성 코드 목록을 반환하며 감사 필드를 이름으로 변환한다")
     void getCodes_활성코드목록반환() {
         // given
-        Ccodem code = Ccodem.builder().cdId("CODE001").cdNm("코드1").build();
+        Ccodem code = Ccodem.builder().cId("CODE001").cNm("코드1").build();
         given(codeRepository.findAllActive()).willReturn(List.of(code));
         given(userRepository.findByEnoIn(any())).willReturn(Collections.emptyList());
 
@@ -646,10 +646,10 @@ class AdminServiceTest {
     @DisplayName("updateCode: 시작일자 변경 요청이면 예외가 발생한다")
     void updateCode_시작일자변경_예외발생() {
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        Ccodem code = Ccodem.builder().cdId("CODE001").sttDt(sttDt).build();
+        Ccodem code = Ccodem.builder().cId("CODE001").sttDt(sttDt).build();
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "CODE001", "코드명", null, null, null, null, sttDt.plusDays(1), null, 1);
-        given(codeRepository.findByCdIdAndSttDtAndDelYn("CODE001", sttDt, "N"))
+        given(codeRepository.findByCIdAndSttDtAndDelYn("CODE001", sttDt, "N"))
                 .willReturn(Optional.of(code));
 
         assertThatThrownBy(() -> adminService.updateCode("CODE001", sttDt, req))

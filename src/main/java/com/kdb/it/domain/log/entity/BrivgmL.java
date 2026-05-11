@@ -39,12 +39,12 @@ public class BrivgmL extends BaseLogEntity {
     @Column(name = "IVG_CONE", comment = "의견내용")
     private String ivgCone;
 
-    @Column(name = "MARK_ID", length = 64, comment = "인라인 코멘트 전용 - Tiptap Mark ID")
-    private String markId;
+    @Column(name = "IDC_ID", length = 64, comment = "표시ID")
+    private String idcId;
 
-    @Column(name = "QTD_CONE", length = 4000, comment = "인라인 코멘트 전용 - 드래그 선택 텍스트 스냅샷")
-    private String qtdCone;
+    @Column(name = "QOT_CONE", length = 4000, comment = "인용내용")
+    private String qotCone;
 
-    @Column(name = "RSLV_YN", length = 1, comment = "해결여부")
-    private String rslvYn;
+    @Column(name = "FSG_YN", length = 1, comment = "완료여부")
+    private String fsgYn;
 }

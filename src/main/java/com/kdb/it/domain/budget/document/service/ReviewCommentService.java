@@ -60,7 +60,7 @@ public class ReviewCommentService {
     }
 
     /**
-     * 검토의견을 해결 처리합니다. RSLV_YN을 'Y'로 변경합니다.
+     * 검토의견을 완료 처리합니다. FSG_YN을 'Y'로 변경합니다.
      *
      * <p>
      * URL path의 {@code docMngNo}와 실제 코멘트가 소속된 문서가 일치하는지 함께 검증하여

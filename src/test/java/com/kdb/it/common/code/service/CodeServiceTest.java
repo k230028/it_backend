@@ -63,7 +63,7 @@ class CodeServiceTest {
     void getCcodemById_유효한코드ID_Response반환() {
         // given
         Ccodem ccodem = mockCcodem("CD001", "PRJ_TP");
-        given(codeRepository.findByCdIdWithValidDate(eq("CD001"), any())).willReturn(Optional.of(ccodem));
+        given(codeRepository.findByCIdWithValidDate(eq("CD001"), any())).willReturn(Optional.of(ccodem));
 
         // when
         CodeDto.Response result = codeService.getCcodemById("CD001", null);
@@ -77,7 +77,7 @@ class CodeServiceTest {
     @DisplayName("getCcodemById: 존재하지 않는 코드ID이면 IllegalArgumentException을 던진다")
     void getCcodemById_존재하지않는코드ID_IllegalArgumentException발생() {
         // given
-        given(codeRepository.findByCdIdWithValidDate(eq("INVALID"), any())).willReturn(Optional.empty());
+        given(codeRepository.findByCIdWithValidDate(eq("INVALID"), any())).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> codeService.getCcodemById("INVALID", null))
@@ -117,7 +117,7 @@ class CodeServiceTest {
         CodeDto.CreateRequest request = new CodeDto.CreateRequest();
         request.setCdId("CD001");
         request.setSttDt(LocalDate.of(2026, 1, 1));
-        given(codeRepository.existsByCdIdAndSttDt("CD001", LocalDate.of(2026, 1, 1))).willReturn(true);
+        given(codeRepository.existsByCIdAndSttDt("CD001", LocalDate.of(2026, 1, 1))).willReturn(true);
 
         // when & then
         assertThatThrownBy(() -> codeService.createCcodem(request))
@@ -145,7 +145,7 @@ class CodeServiceTest {
         request.setCdNm("테스트코드");
         request.setCttTp("PRJ_TP");
         request.setSttDt(LocalDate.of(2026, 1, 1));
-        given(codeRepository.existsByCdIdAndSttDt("CD001", LocalDate.of(2026, 1, 1))).willReturn(false);
+        given(codeRepository.existsByCIdAndSttDt("CD001", LocalDate.of(2026, 1, 1))).willReturn(false);
 
         // when
         String result = codeService.createCcodem(request);
@@ -164,7 +164,7 @@ class CodeServiceTest {
     void updateCcodem_존재하지않는코드ID_IllegalArgumentException발생() {
         // given
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        given(codeRepository.findByCdIdAndSttDtAndDelYn("INVALID", sttDt, "N")).willReturn(Optional.empty());
+        given(codeRepository.findByCIdAndSttDtAndDelYn("INVALID", sttDt, "N")).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> codeService.updateCcodem("INVALID", sttDt, new CodeDto.UpdateRequest()))
@@ -179,7 +179,7 @@ class CodeServiceTest {
         Ccodem ccodem = mockCcodem("CD001", "PRJ_TP");
         CodeDto.UpdateRequest request = new CodeDto.UpdateRequest();
         request.setSttDt(LocalDate.of(2026, 2, 1));
-        given(codeRepository.findByCdIdAndSttDtAndDelYn("CD001", sttDt, "N")).willReturn(Optional.of(ccodem));
+        given(codeRepository.findByCIdAndSttDtAndDelYn("CD001", sttDt, "N")).willReturn(Optional.of(ccodem));
 
         assertThatThrownBy(() -> codeService.updateCcodem("CD001", sttDt, request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -194,7 +194,7 @@ class CodeServiceTest {
         CodeDto.UpdateRequest request = new CodeDto.UpdateRequest();
         request.setCdNm("수정명");
         request.setCdva("수정값");
-        given(codeRepository.findByCdIdAndSttDtAndDelYn("CD001", sttDt, "N")).willReturn(Optional.of(ccodem));
+        given(codeRepository.findByCIdAndSttDtAndDelYn("CD001", sttDt, "N")).willReturn(Optional.of(ccodem));
 
         String result = codeService.updateCcodem("CD001", sttDt, request);
 
@@ -211,7 +211,7 @@ class CodeServiceTest {
     void deleteCcodem_존재하지않는코드ID_IllegalArgumentException발생() {
         // given
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        given(codeRepository.findByCdIdAndSttDtAndDelYn("INVALID", sttDt, "N")).willReturn(Optional.empty());
+        given(codeRepository.findByCIdAndSttDtAndDelYn("INVALID", sttDt, "N")).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> codeService.deleteCcodem("INVALID", sttDt))
@@ -225,7 +225,7 @@ class CodeServiceTest {
         // given
         Ccodem ccodem = mockCcodem("CD001", "PRJ_TP");
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        given(codeRepository.findByCdIdAndSttDtAndDelYn("CD001", sttDt, "N")).willReturn(Optional.of(ccodem));
+        given(codeRepository.findByCIdAndSttDtAndDelYn("CD001", sttDt, "N")).willReturn(Optional.of(ccodem));
 
         // when
         codeService.deleteCcodem("CD001", sttDt);
@@ -246,8 +246,8 @@ class CodeServiceTest {
         given(startCode.getCdva()).willReturn("2020-01-01");
         Ccodem endCode = mockCcodem("BG-RQS-END", "BUDGET");
         given(endCode.getCdva()).willReturn("2099-12-31");
-        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-STA"), any())).willReturn(Optional.of(startCode));
-        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-END"), any())).willReturn(Optional.of(endCode));
+        given(codeRepository.findByCIdWithValidDate(eq("BG-RQS-STA"), any())).willReturn(Optional.of(startCode));
+        given(codeRepository.findByCIdWithValidDate(eq("BG-RQS-END"), any())).willReturn(Optional.of(endCode));
 
         // when & then — 예외 없이 정상 완료
         codeService.validateBudgetPeriod();
@@ -261,8 +261,8 @@ class CodeServiceTest {
         given(startCode.getCdva()).willReturn("2099-01-01");
         Ccodem endCode = mockCcodem("BG-RQS-END", "BUDGET");
         given(endCode.getCdva()).willReturn("2099-12-31");
-        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-STA"), any())).willReturn(Optional.of(startCode));
-        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-END"), any())).willReturn(Optional.of(endCode));
+        given(codeRepository.findByCIdWithValidDate(eq("BG-RQS-STA"), any())).willReturn(Optional.of(startCode));
+        given(codeRepository.findByCIdWithValidDate(eq("BG-RQS-END"), any())).willReturn(Optional.of(endCode));
 
         // when & then
         assertThatThrownBy(() -> codeService.validateBudgetPeriod())
@@ -277,8 +277,8 @@ class CodeServiceTest {
         given(startCode.getCdva()).willReturn("2000-01-01");
         Ccodem endCode = mockCcodem("BG-RQS-END", "BUDGET");
         given(endCode.getCdva()).willReturn("2000-12-31");
-        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-STA"), any())).willReturn(Optional.of(startCode));
-        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-END"), any())).willReturn(Optional.of(endCode));
+        given(codeRepository.findByCIdWithValidDate(eq("BG-RQS-STA"), any())).willReturn(Optional.of(startCode));
+        given(codeRepository.findByCIdWithValidDate(eq("BG-RQS-END"), any())).willReturn(Optional.of(endCode));
 
         assertThatThrownBy(() -> codeService.validateBudgetPeriod())
                 .isInstanceOf(CustomGeneralException.class)
@@ -290,8 +290,8 @@ class CodeServiceTest {
     void getBudgetPeriod_코드없음_IllegalArgumentException발생() {
         Ccodem startCode = mockCcodem("BG-RQS-STA", "BUDGET");
         given(startCode.getCdva()).willReturn("2026-01-01");
-        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-STA"), any())).willReturn(Optional.of(startCode));
-        given(codeRepository.findByCdIdWithValidDate(eq("BG-RQS-END"), any())).willReturn(Optional.empty());
+        given(codeRepository.findByCIdWithValidDate(eq("BG-RQS-STA"), any())).willReturn(Optional.of(startCode));
+        given(codeRepository.findByCIdWithValidDate(eq("BG-RQS-END"), any())).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> codeService.getBudgetPeriod())
                 .isInstanceOf(IllegalArgumentException.class)

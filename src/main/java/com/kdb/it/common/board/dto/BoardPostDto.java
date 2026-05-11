@@ -45,7 +45,7 @@ public class BoardPostDto {
                 .hrkFxnYn(e.getHrkFxnYn()).sreYn(e.getSreYn())
                 .flApgYn(e.getFlApgYn()).flNbr(e.getFlNbr())
                 .nacGrpLev(e.getNacGrpLev())
-                .sttYmd(e.getSttYmd()).endYmd(e.getEndYmd())
+                .sttYmd(e.getSttDt()).endYmd(e.getEndDt())
                 .fstEnrUsid(e.getFstEnrUsid()).fstEnrDtm(e.getFstEnrDtm())
                 .build();
         }
@@ -88,7 +88,7 @@ public class BoardPostDto {
                 .nacInqNbr(e.getNacInqNbr()).nacTp(e.getNacTp())
                 .kdC(e.getKdC()).pritC(e.getPritC())
                 .hrkFxnYn(e.getHrkFxnYn()).sreYn(e.getSreYn())
-                .bbrC(e.getBbrC()).sttYmd(e.getSttYmd()).endYmd(e.getEndYmd())
+                .bbrC(e.getBbrC()).sttYmd(e.getSttDt()).endYmd(e.getEndDt())
                 .flApgYn(e.getFlApgYn()).flNbr(e.getFlNbr())
                 .nacGrpNo(e.getNacGrpNo()).nacGrpSqn(e.getNacGrpSqn()).nacGrpLev(e.getNacGrpLev())
                 .hrkNacMngNo(e.getHrkNacMngNo())
