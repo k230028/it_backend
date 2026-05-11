@@ -68,10 +68,22 @@ src/main/resources/
 - 생성자 주입(`@RequiredArgsConstructor` + `private final`)
 - 한글 주석 원칙은 루트 `../CLAUDE.md` §4.1 참조.
 
+### 5.2 테이블 명칭
+- TAAABB_{1자리 구분값}{4자리 도메인}{1자리 용도}
+- 1자리 구분값 : C (공통), B (비즈니스)
+- 4자리 도메인 : 용도에 따라 지정 ex) BLBC
+- 1자리 용도 : M (마스터), L (로그), H (이력)
+
 ### 5.2 엔티티 설계
 - 모든 업무 엔티티는 **`BaseEntity` 상속** (공통 컬럼: `DEL_YN`, `GUID`, `FST_ENR_DTM/USID`, `LST_CHG_DTM/USID`).
 - 삭제는 항상 **Soft Delete**(`delete()` → `DEL_YN='Y'`). 물리 삭제 금지.
-
+- 엔티티 명칭은 `C:\it\META.md` 반드시 용어사전 기반으로 지정 (필수)
+  (예. 삭제여부 : DEL_YN 등)
+- comment 지정 필수
+```java
+    @Column(name = "ORC_TB_CD", length = 10, comment = "원본테이블코드")
+    private String orcTbCd;
+```
 ### 5.3 DTO 설계
 - 관련 DTO는 **정적 중첩 클래스**로 한 파일에 묶음 (예: `AuthDto.LoginRequest`).
 - Swagger 문서를 위해 `@Schema(name, description)` 필수.
