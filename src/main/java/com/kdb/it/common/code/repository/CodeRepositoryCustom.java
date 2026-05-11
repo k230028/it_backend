@@ -12,27 +12,31 @@ import java.util.Optional;
 public interface CodeRepositoryCustom {
 
     /**
-     * 기준일자와 코드ID를 바탕으로 조회
+     * 코드ID + 코드값 + 기준일자로 단건 조회
      *
-     * @param cdId       조회할 코드ID
-     * @param targetDate 기준일자 (Nullable, null일 경우 시스템 현재 날짜 적용)
-     * @return 조회된 공통코드 엔티티
+     * @param cId        코드ID (예: CUR, PRJ_TP)
+     * @param cdva       코드값 (예: 001, STA)
+     * @param targetDate 기준일자 (null이면 시스템 현재 날짜)
      */
-    Optional<Ccodem> findByCIdWithValidDate(String cdId, LocalDate targetDate);
+    Optional<Ccodem> findByCIdAndCdvaWithValidDate(String cId, String cdva, LocalDate targetDate);
 
     /**
-     * 기준일자와 코드값구분을 바탕으로 다건 조회
+     * 코드ID 기준 다건 조회 (카테고리 전체)
      *
-     * @param cttTp      조회할 코드값구분
-     * @param targetDate 기준일자 (Nullable, null일 경우 시스템 현재 날짜 적용)
-     * @return 조회된 공통코드 엔티티 목록
+     * @param cId        코드ID
+     * @param targetDate 기준일자 (null이면 시스템 현재 날짜)
      */
-    List<Ccodem> findByCttTpWithValidDate(String cttTp, LocalDate targetDate);
+    List<Ccodem> findByCIdWithValidDate(String cId, LocalDate targetDate);
+
+    /**
+     * 상위코드(HRK_C) 기준 자식 코드 역조회
+     *
+     * @param hrkC 상위코드 ({C_ID}_{CDVA} 합성 문자열)
+     */
+    List<Ccodem> findChildrenOfHrkC(String hrkC);
 
     /**
      * 논리 삭제되지 않은 전체 공통코드를 코드순서 오름차순(null 마지막)으로 조회
-     *
-     * @return 활성 공통코드 엔티티 목록 (코드순서 오름차순)
      */
     List<Ccodem> findAllActive();
 }

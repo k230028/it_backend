@@ -82,13 +82,14 @@ public class AdminController {
      * @param req  공통코드 수정 요청 DTO
      * @return 200 OK
      */
-    @PutMapping("/codes/{cdId}")
+    @PutMapping("/codes/{cId}/{cdva}")
     @Operation(summary = "공통코드 수정", description = "공통코드 정보를 수정합니다. 인라인 편집 즉시 저장에 사용됩니다.")
     public ResponseEntity<Void> updateCode(
-            @PathVariable("cdId") String cdId,
+            @PathVariable("cId") String cId,
+            @PathVariable("cdva") String cdva,
             @Parameter(description = "시작일자 (yyyy-MM-dd)", required = true) @RequestParam("sttDt") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sttDt,
             @Valid @RequestBody AdminDto.CodeRequest req) {
-        adminService.updateCode(cdId, sttDt, req);
+        adminService.updateCode(cId, cdva, sttDt, req);
         return ResponseEntity.ok().build();
     }
 
@@ -100,12 +101,13 @@ public class AdminController {
      * @param sttDt 시작일자
      * @return 204 No Content
      */
-    @DeleteMapping("/codes/{cdId}")
+    @DeleteMapping("/codes/{cId}/{cdva}")
     @Operation(summary = "공통코드 삭제(논리)", description = "DEL_YN='Y'로 논리 삭제합니다. 물리 삭제 아님.")
     public ResponseEntity<Void> deleteCode(
-            @PathVariable("cdId") String cdId,
+            @PathVariable("cId") String cId,
+            @PathVariable("cdva") String cdva,
             @Parameter(description = "시작일자 (yyyy-MM-dd)", required = true) @RequestParam("sttDt") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sttDt) {
-        adminService.deleteCode(cdId, sttDt);
+        adminService.deleteCode(cId, cdva, sttDt);
         return ResponseEntity.noContent().build();
     }
 

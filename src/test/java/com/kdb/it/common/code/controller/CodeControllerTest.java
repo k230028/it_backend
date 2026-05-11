@@ -61,20 +61,21 @@ class CodeControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/ccodem/{cdId} - 인증된 사용자 → 200")
+    @DisplayName("GET /api/ccodem/{cId} - 인증된 사용자 → 200 + 배열 반환")
     @WithMockUser(username = "10001")
     void getCode_인증_200() throws Exception {
-        given(codeService.getCcodemById(anyString(), any())).willReturn(CodeDto.Response.builder().build());
+        given(codeService.getCcodemsByCId(anyString(), any())).willReturn(List.of());
         mockMvc.perform(get("/api/ccodem/CODE001"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
     }
 
     @Test
-    @DisplayName("GET /api/ccodem/type/{cttTp} - 인증된 사용자 → 200 + 배열 반환")
+    @DisplayName("GET /api/ccodem/{cId} - 코드ID로 목록 조회 → 200 + 배열 반환")
     @WithMockUser(username = "10001")
-    void getCodesByType_인증_200() throws Exception {
-        given(codeService.getCcodemByCttTp(anyString(), any())).willReturn(List.of());
-        mockMvc.perform(get("/api/ccodem/type/BUDGET"))
+    void getCodesByCId_인증_200() throws Exception {
+        given(codeService.getCcodemsByCId(anyString(), any())).willReturn(List.of());
+        mockMvc.perform(get("/api/ccodem/BUDGET"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
     }
@@ -112,10 +113,10 @@ class CodeControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /api/ccodem/{cdId} - 인증된 사용자 → 200 OK")
+    @DisplayName("PUT /api/ccodem/{cId}/{cdva} - 인증된 사용자 → 200 OK")
     @WithMockUser(username = "10001")
     void updateCode_인증_200() throws Exception {
-        mockMvc.perform(put("/api/ccodem/CODE001")
+        mockMvc.perform(put("/api/ccodem/CODE001/001")
                 .param("sttDt", "2026-01-01")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new CodeDto.UpdateRequest())))
@@ -123,10 +124,10 @@ class CodeControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/ccodem/{cdId} - 인증된 사용자 → 204 No Content")
+    @DisplayName("DELETE /api/ccodem/{cId}/{cdva} - 인증된 사용자 → 204 No Content")
     @WithMockUser(username = "10001")
     void deleteCode_인증_204() throws Exception {
-        mockMvc.perform(delete("/api/ccodem/CODE001")
+        mockMvc.perform(delete("/api/ccodem/CODE001/001")
                 .param("sttDt", "2026-01-01"))
                 .andExpect(status().isNoContent());
     }

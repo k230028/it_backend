@@ -19,12 +19,7 @@ import java.time.LocalDate;
 /**
  * 공통코드마스터 엔티티
  *
- * <p>
- * DB 테이블: {@code TAAABB_CCODEM}
- * </p>
- * <p>
- * 시스템에서 사용하는 공통코드를 관리합니다.
- * </p>
+ * <p>DB 테이블: {@code TAAABB_CCODEM} — PK: (C_ID, CDVA, STT_DT)</p>
  */
 @LogTarget(entity = CcodemL.class)
 @Entity
@@ -36,36 +31,17 @@ import java.time.LocalDate;
 @IdClass(CcodemId.class)
 public class Ccodem extends BaseEntity {
 
-    /** 코드ID: 복합 기본키의 첫 번째 컬럼 */
+    /** 코드ID: 복합 기본키 1 (예: CUR, PRJ_TP) */
     @Id
     @Column(name = "C_ID", nullable = false, length = 32, comment = "코드ID")
     private String cId;
 
-    /** 코드명 */
-    @Column(name = "C_NM", length = 100, comment = "코드명")
-    private String cNm;
-
-    /** 코드값 */
-    @Column(name = "CDVA", length = 100, comment = "코드값")
+    /** 코드값: 복합 기본키 2 (예: 001, STA, END) */
+    @Id
+    @Column(name = "CDVA", nullable = false, length = 32, comment = "코드값")
     private String cdva;
 
-    /** 코드설명 */
-    @Column(name = "C_DES", length = 500, comment = "코드설명")
-    private String cDes;
-
-    /** 코드값구분 */
-    @Column(name = "CTT_TP", length = 100, comment = "코드값구분")
-    private String cttTp;
-
-    /** 코드값구분설명 */
-    @Column(name = "CTT_TP_DES", length = 500, comment = "코드값구분설명")
-    private String cttTpDes;
-
-    /** 코드순서 */
-    @Column(name = "C_SQN", comment = "코드순서")
-    private Integer cSqn;
-
-    /** 시작일자: 복합 기본키의 두 번째 컬럼 */
+    /** 시작일자: 복합 기본키 3 */
     @Id
     @Column(name = "STT_DT", nullable = false, comment = "시작일자")
     private LocalDate sttDt;
@@ -74,44 +50,56 @@ public class Ccodem extends BaseEntity {
     @Column(name = "END_DT", comment = "종료일자")
     private LocalDate endDt;
 
+    /** 코드명 (구 CDVA 값, 예: 1400, 신규개발) */
+    @Column(name = "C_NM", length = 100, comment = "코드명")
+    private String cNm;
+
+    /** 코드설명 (구 CTT_TP_DES, 예: 환율, 사업유형) */
+    @Column(name = "C_DES", length = 500, comment = "코드설명")
+    private String cDes;
+
+    /** 코드값상세 (구 C_NM, 예: USD) */
+    @Column(name = "CDVA_DTL", length = 100, comment = "코드값상세")
+    private String cdvaDtl;
+
+    /** 코드타입 (구 CTT_TP rename, (C_ID,CDVA) 내 추가 구분용) */
+    @Column(name = "C_TP", length = 100, comment = "코드타입")
+    private String cTp;
+
+    /** 코드타입설명 (구 CTT_TP_DES rename) */
+    @Column(name = "C_TP_DES", length = 500, comment = "코드타입설명")
+    private String cTpDes;
+
+    /** 상위코드: {C_ID}_{CDVA} 합성 문자열 */
+    @Column(name = "HRK_C", length = 65, comment = "상위코드")
+    private String hrkC;
+
+    /** 코드순서 */
+    @Column(name = "C_SQN", comment = "코드순서")
+    private Integer cSqn;
+
     /**
-     * 공통코드 정보 업데이트 메서드
+     * 공통코드 정보 업데이트
      *
-     * @param cdNm     코드명
-     * @param cdva     코드값
-     * @param cdDes    코드설명
-     * @param cttTp    코드값구분
-     * @param cttTpDes 코드값구분설명
-     * @param cdSqn    코드순서
-     * @param sttDt    시작일자
-     * @param endDt    종료일자
+     * @param cNm    코드명
+     * @param cDes   코드설명
+     * @param cdvaDtl 코드값상세
+     * @param cTp    코드타입
+     * @param cTpDes 코드타입설명
+     * @param hrkC   상위코드
+     * @param cSqn   코드순서
+     * @param endDt  종료일자
      */
-    public void update(String cdNm, String cdva, String cdDes, String cttTp, String cttTpDes, Integer cdSqn,
-            LocalDate sttDt,
-            LocalDate endDt) {
-        this.cNm = cdNm;
-        this.cdva = cdva;
-        this.cDes = cdDes;
-        this.cttTp = cttTp;
-        this.cttTpDes = cttTpDes;
-        this.cSqn = cdSqn;
-        this.sttDt = sttDt;
-        this.endDt = endDt;
-    }
-
-    public String getCdId() {
-        return cId;
-    }
-
-    public String getCdNm() {
-        return cNm;
-    }
-
-    public String getCdDes() {
-        return cDes;
-    }
-
-    public Integer getCdSqn() {
-        return cSqn;
+    public void update(String cNm, String cDes, String cdvaDtl,
+                       String cTp, String cTpDes, String hrkC,
+                       Integer cSqn, LocalDate endDt) {
+        this.cNm     = cNm;
+        this.cDes    = cDes;
+        this.cdvaDtl = cdvaDtl;
+        this.cTp     = cTp;
+        this.cTpDes  = cTpDes;
+        this.hrkC    = hrkC;
+        this.cSqn    = cSqn;
+        this.endDt   = endDt;
     }
 }

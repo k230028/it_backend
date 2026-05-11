@@ -240,7 +240,7 @@ class ProjectServiceTest {
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
                 // 예산 합계 계산용 코드 조회
-                given(codeService.findCodeEntitiesByCttTp(anyString()))
+                given(codeService.findCodeEntitiesByCId(anyString()))
                                 .willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
@@ -272,7 +272,7 @@ class ProjectServiceTest {
                                 anyString(), anyList())).willReturn(List.of());
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
-                given(codeService.findCodeEntitiesByCttTp(anyString())).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
 
@@ -365,7 +365,7 @@ class ProjectServiceTest {
                                 anyString(), eq(existingNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(existingNo, 1, "N"))
                                 .willReturn(List.of());
-                given(codeService.findCodeEntitiesByCttTp(anyString())).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
 
                 ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
                 request.setPrjMngNos(List.of(existingNo, missingNo));
@@ -433,7 +433,7 @@ class ProjectServiceTest {
                 // given
                 given(projectRepository.getNextSequenceValue()).willReturn(1L);
                 given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
-                given(codeService.findCodeEntitiesByCttTp(any())).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
 
                 ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
                 item.setGclDtt("IOE-237-0700");
@@ -475,7 +475,7 @@ class ProjectServiceTest {
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
                 given(bitemmRepository.getNextSequenceValue()).willReturn(2L);
-                given(codeService.findCodeEntitiesByCttTp(any())).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
 
                 ProjectDto.BitemmDto newItem = new ProjectDto.BitemmDto();
                 newItem.setGclDtt("IOE-351-0100");
@@ -522,7 +522,7 @@ class ProjectServiceTest {
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of(existingItem));
-                given(codeService.findCodeEntitiesByCttTp(any())).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
 
                 // 요청에 품목 없음 → 기존 품목 전부 soft-delete
                 ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
@@ -680,13 +680,13 @@ class ProjectServiceTest {
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
-                given(codeService.findCodeEntitiesByCttTp("IOE_CPIT"))
+                given(codeService.findCodeEntitiesByCId("IOE_CPIT"))
                                 .willReturn(List.of(Ccodem.builder().cId("IOE-ASSET").cDes("개발비").build()));
-                given(codeService.findCodeEntitiesByCttTp("IOE_IDR"))
+                given(codeService.findCodeEntitiesByCId("IOE_IDR"))
                                 .willReturn(List.of(Ccodem.builder().cId("IOE-COST").build()));
-                given(codeService.findCodeEntitiesByCttTp("IOE_SEVS")).willReturn(List.of());
-                given(codeService.findCodeEntitiesByCttTp("IOE_XPN")).willReturn(List.of());
-                given(codeService.findCodeEntitiesByCttTp("IOE_LEAFE")).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId("IOE_SEVS")).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId("IOE_XPN")).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId("IOE_LEAFE")).willReturn(List.of());
                 given(bbugtmRepository.sumDupBgByPrjMngNos(List.of(prjMngNo), "2026"))
                                 .willReturn(java.util.Map.of(prjMngNo, java.math.BigDecimal.valueOf(1000)));
                 given(bbugtmRepository.sumAssetDupBgByPrjMngNos(eq(List.of(prjMngNo)), eq("2026"), any()))
@@ -766,15 +766,15 @@ class ProjectServiceTest {
                                 .willReturn(List.of(devItem, machItem, costItem,
                                                 Bitemm.builder().gclDtt(null).gclAmt(BigDecimal.ONE).build(),
                                                 Bitemm.builder().gclDtt("IOE-NULL").gclAmt(null).build()));
-                given(codeService.findCodeEntitiesByCttTp("IOE_CPIT"))
+                given(codeService.findCodeEntitiesByCId("IOE_CPIT"))
                                 .willReturn(List.of(
-                                                Ccodem.builder().cId("IOE-DEV").cDes("개발비").build(),
-                                                Ccodem.builder().cId("IOE-MACH").cDes("기계장치").build()));
-                given(codeService.findCodeEntitiesByCttTp("IOE_IDR"))
-                                .willReturn(List.of(Ccodem.builder().cId("IOE-COST").build()));
-                given(codeService.findCodeEntitiesByCttTp("IOE_SEVS")).willReturn(List.of());
-                given(codeService.findCodeEntitiesByCttTp("IOE_XPN")).willReturn(List.of());
-                given(codeService.findCodeEntitiesByCttTp("IOE_LEAFE")).willReturn(List.of());
+                                                Ccodem.builder().cdva("IOE-DEV").cDes("개발비").build(),
+                                                Ccodem.builder().cdva("IOE-MACH").cDes("기계장치").build()));
+                given(codeService.findCodeEntitiesByCId("IOE_IDR"))
+                                .willReturn(List.of(Ccodem.builder().cdva("IOE-COST").build()));
+                given(codeService.findCodeEntitiesByCId("IOE_SEVS")).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId("IOE_XPN")).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId("IOE_LEAFE")).willReturn(List.of());
 
                 ProjectDto.Response result = projectService.getProject(prjMngNo);
 
@@ -901,7 +901,7 @@ class ProjectServiceTest {
                                                 CuserI.builder().eno("10004").usrNm("현업팀장").build()));
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn("PRJ-2026-0001", 1, "N"))
                                 .willReturn(List.of());
-                given(codeService.findCodeEntitiesByCttTp(anyString())).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
 
                 List<ProjectDto.Response> result = projectService.getProjectList();
 

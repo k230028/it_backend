@@ -103,20 +103,20 @@ public class AdminService {
          */
         @Transactional
         public void createCode(AdminDto.CodeRequest req) {
-                validateCodeKey(req.cdId(), req.sttDt());
-                if (codeRepository.existsByCIdAndSttDt(req.cdId(), req.sttDt())) {
-                        throw new IllegalArgumentException("이미 존재하는 코드ID/시작일자입니다: " + req.cdId() + ", " + req.sttDt());
+                validateCodeKey(req.cId(), req.cdva(), req.sttDt());
+                if (codeRepository.existsByCIdAndCdvaAndSttDt(req.cId(), req.cdva(), req.sttDt())) {
+                        throw new IllegalArgumentException("이미 존재하는 코드입니다: " + req.cId() + "/" + req.cdva() + ", " + req.sttDt());
                 }
                 Ccodem code = Ccodem.builder()
-                                .cId(req.cdId())
-                                .cNm(req.cdNm())
+                                .cId(req.cId())
+                                .cNm(req.cNm())
                                 .cdva(req.cdva())
-                                .cDes(req.cdDes())
-                                .cttTp(req.cttTp())
-                                .cttTpDes(req.cttTpDes())
+                                .cDes(req.cDes())
+                                .cTp(req.cTp())
+                                .cTpDes(req.cTpDes())
                                 .sttDt(req.sttDt())
                                 .endDt(req.endDt())
-                                .cSqn(req.cdSqn())
+                                .cSqn(req.cSqn())
                                 .build();
                 codeRepository.save(code);
         }
@@ -125,22 +125,20 @@ public class AdminService {
          * 공통코드 정보를 수정합니다.
          * Dirty Checking을 활용하여 별도 save() 호출 없이 변경사항을 반영합니다.
          *
-         * @param cdId 코드ID
+         * @param cId   코드ID
+         * @param cdva  코드값
          * @param sttDt 시작일자
-         * @param req  공통코드 수정 요청 DTO
+         * @param req   공통코드 수정 요청 DTO
          * @throws IllegalArgumentException 코드를 찾을 수 없는 경우
          */
         @Transactional
-        public void updateCode(String cdId, LocalDate sttDt, AdminDto.CodeRequest req) {
-                validateCodeKey(cdId, sttDt);
-                Ccodem code = codeRepository.findByCIdAndSttDtAndDelYn(cdId, sttDt, "N")
-                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드ID/시작일자입니다: " + cdId + ", " + sttDt));
-                if (req.sttDt() != null && !req.sttDt().equals(sttDt)) {
-                        throw new IllegalArgumentException("시작일자는 기본키이므로 수정할 수 없습니다.");
-                }
-                // Dirty Checking — save() 불필요
-                code.update(req.cdNm(), req.cdva(), req.cdDes(), req.cttTp(),
-                                req.cttTpDes(), req.cdSqn(), sttDt, req.endDt());
+        public void updateCode(String cId, String cdva, LocalDate sttDt, AdminDto.CodeRequest req) {
+                validateCodeKey(cId, cdva, sttDt);
+                Ccodem code = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
+                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드입니다: " + cId + "/" + cdva + ", " + sttDt));
+                
+                code.update(req.cNm(), req.cDes(), req.cdvaDtl(), req.cTp(),
+                                req.cTpDes(), req.hrkC(), req.cSqn(), req.endDt());
         }
 
         /**
@@ -152,11 +150,11 @@ public class AdminService {
          * @throws IllegalArgumentException 코드를 찾을 수 없는 경우
          */
         @Transactional
-        public void deleteCode(String cdId, LocalDate sttDt) {
+        public void deleteCode(String cId, String cdva, LocalDate sttDt) {
                 // Plan SC: Soft Delete 요구사항 (C-08)
-                validateCodeKey(cdId, sttDt);
-                Ccodem code = codeRepository.findByCIdAndSttDtAndDelYn(cdId, sttDt, "N")
-                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드ID/시작일자입니다: " + cdId + ", " + sttDt));
+                validateCodeKey(cId, cdva, sttDt);
+                Ccodem code = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
+                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드입니다: " + cId + "/" + cdva + ", " + sttDt));
                 code.delete();
         }
 
@@ -172,26 +170,28 @@ public class AdminService {
                 int created = 0;
                 int updated = 0;
                 for (AdminDto.CodeRequest item : req.codes()) {
-                        validateCodeKey(item.cdId(), item.sttDt());
-                        if (codeRepository.existsByCIdAndSttDt(item.cdId(), item.sttDt())) {
-                                Ccodem code = codeRepository.findByCIdAndSttDtAndDelYn(item.cdId(), item.sttDt(), "N")
+                        validateCodeKey(item.cId(), item.cdva(), item.sttDt());
+                        if (codeRepository.existsByCIdAndCdvaAndSttDt(item.cId(), item.cdva(), item.sttDt())) {
+                                Ccodem code = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(item.cId(), item.cdva(), item.sttDt(), "N")
                                                 .orElse(null);
                                 if (code != null) {
-                                        code.update(item.cdNm(), item.cdva(), item.cdDes(), item.cttTp(),
-                                                        item.cttTpDes(), item.cdSqn(), item.sttDt(), item.endDt());
+                                        code.update(item.cNm(), item.cDes(), item.cdvaDtl(), item.cTp(),
+                                        item.cTpDes(), item.hrkC(), item.cSqn(), item.endDt());
                                         updated++;
                                 }
                         } else {
                                 Ccodem code = Ccodem.builder()
-                                                .cId(item.cdId())
-                                                .cNm(item.cdNm())
+                                                .cId(item.cId())
+                                                .cNm(item.cNm())
                                                 .cdva(item.cdva())
-                                                .cDes(item.cdDes())
-                                                .cttTp(item.cttTp())
-                                                .cttTpDes(item.cttTpDes())
+                                                .cDes(item.cDes())
+                                                .cdvaDtl(item.cdvaDtl())
+                                                .cTp(item.cTp())
+                                                .cTpDes(item.cTpDes())
+                                                .hrkC(item.hrkC())
                                                 .sttDt(item.sttDt())
                                                 .endDt(item.endDt())
-                                                .cSqn(item.cdSqn())
+                                                .cSqn(item.cSqn())
                                                 .build();
                                 codeRepository.save(code);
                                 created++;
@@ -203,9 +203,12 @@ public class AdminService {
         /**
          * 공통코드 복합키 필수값을 검증합니다.
          */
-        private void validateCodeKey(String cdId, LocalDate sttDt) {
-                if (cdId == null || cdId.isBlank()) {
+        private void validateCodeKey(String cId, String cdva, LocalDate sttDt) {
+                if (cId == null || cId.isBlank()) {
                         throw new IllegalArgumentException("코드ID는 필수입니다.");
+                }
+                if (cdva == null || cdva.isBlank()) {
+                        throw new IllegalArgumentException("코드값은 필수입니다.");
                 }
                 if (sttDt == null) {
                         throw new IllegalArgumentException("시작일자는 필수입니다.");
@@ -220,15 +223,17 @@ public class AdminService {
          */
         private AdminDto.CodeResponse toCodeResponse(Ccodem c, Map<String, String> userNameMap) {
                 return new AdminDto.CodeResponse(
-                                c.getCdId(),
-                                c.getCdNm(),
+                                c.getCId(),
                                 c.getCdva(),
-                                c.getCdDes(),
-                                c.getCttTp(),
-                                c.getCttTpDes(),
+                                c.getCNm(),
+                                c.getCDes(),
+                                c.getCdvaDtl(),
+                                c.getCTp(),
+                                c.getCTpDes(),
+                                c.getHrkC(),
                                 c.getSttDt(),
                                 c.getEndDt(),
-                                c.getCdSqn(),
+                                c.getCSqn(),
                                 c.getFstEnrDtm(),
                                 c.getFstEnrUsid(),
                                 userNameMap.getOrDefault(c.getFstEnrUsid(), c.getFstEnrUsid()),
@@ -706,3 +711,5 @@ public class AdminService {
                                 .toList();
         }
 }
+
+

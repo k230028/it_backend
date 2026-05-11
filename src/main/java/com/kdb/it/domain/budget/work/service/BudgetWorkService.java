@@ -85,13 +85,13 @@ public class BudgetWorkService {
      */
     public List<BudgetWorkDto.IoeCategoryResponse> getIoeCategories(String bgYy) {
         // 1. 편성비목 코드 조회 (CTT_TP = 'DUP_IOE')
-        List<Ccodem> ioeCodes = codeRepository.findByCttTpWithValidDate("DUP_IOE", null);
+        List<Ccodem> ioeCodes = codeRepository.findByCIdWithValidDate("DUP_IOE", null);
 
         // 기존 BBUGTM 데이터 조회 (편성률 확인용)
         List<Bbugtm> existingBudgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
 
         return ioeCodes.stream().map(code -> {
-            String prefix = extractPrefix(code.getCdId());
+            String prefix = extractPrefix(code.getCdva());
 
             // 2. 결재완료 요청금액 합계
             BigDecimal requestAmount = bbugtmRepository.sumApprovedAmountByPrefix(prefix, bgYy);
@@ -107,8 +107,8 @@ public class BudgetWorkService {
                     .orElse(null);
 
             return new BudgetWorkDto.IoeCategoryResponse(
-                    code.getCdId(), code.getCdDes() != null ? code.getCdDes() : code.getCdNm(),
-                    code.getCdva(), prefix, dupRt, requestAmount);
+                    code.getCdva(), code.getCDes() != null ? code.getCDes() : code.getCNm(),
+                    code.getCNm(), prefix, dupRt, requestAmount);
         }).toList();
     }
 
@@ -248,16 +248,16 @@ public class BudgetWorkService {
         for (Bbugtm prior : priorBudgets) prior.delete();
 
         /* 자본예산 비목코드(IOE_CPIT) 목록 조회 — 자본/경상 구분용 */
-        List<Ccodem> capitalCodes = codeRepository.findByCttTpWithValidDate("IOE_CPIT", null);
+        List<Ccodem> capitalCodes = codeRepository.findByCIdWithValidDate("IOE_CPIT", null);
         java.util.Set<String> capitalPrefixes = new java.util.HashSet<>();
         for (Ccodem code : capitalCodes) {
             /* IOE-351-0100 → IOE-351 추출 (3세그먼트에서 2세그먼트로 축약) */
-            String cdId = code.getCdId();
-            int lastDash = cdId.lastIndexOf('-');
+            String cdva = code.getCdva();
+            int lastDash = cdva.lastIndexOf('-');
             if (lastDash > 0) {
-                capitalPrefixes.add(cdId.substring(0, lastDash));
+                capitalPrefixes.add(cdva.substring(0, lastDash));
             }
-            capitalPrefixes.add(cdId); // 전체 코드도 추가
+            capitalPrefixes.add(cdva); // 전체 코드도 추가
         }
 
         for (BudgetWorkDto.ItemRate item : request.items()) {
@@ -364,27 +364,27 @@ public class BudgetWorkService {
         List<Bbugtm> budgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
 
         // 편성비목 그룹 코드 조회 (DUP_IOE: 접두어 → 그룹명 매핑)
-        List<Ccodem> dupIoeCodes = codeRepository.findByCttTpWithValidDate("DUP_IOE", null);
+        List<Ccodem> dupIoeCodes = codeRepository.findByCIdWithValidDate("DUP_IOE", null);
 
         // 세부 비목 코드 조회 (IOE_CPIT, IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE)
-        // cdId → cdDes 매핑 (코드설명 기준으로 비목명 표시)
-        List<String> detailCttTps = List.of("IOE_CPIT", "IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE");
+        // cdva → cDes 매핑 (코드설명 기준으로 비목명 표시)
+        List<String> detailCIds = List.of("IOE_CPIT", "IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE");
         Map<String, String> detailCodeNameMap = new LinkedHashMap<>();
         Map<String, Boolean> detailCodeCapitalMap = new LinkedHashMap<>();
-        for (String cttTp : detailCttTps) {
-            boolean isCapital = "IOE_CPIT".equals(cttTp);
-            for (Ccodem code : codeRepository.findByCttTpWithValidDate(cttTp, null)) {
-                detailCodeNameMap.put(code.getCdId(), code.getCdDes() != null ? code.getCdDes() : code.getCdNm());
-                detailCodeCapitalMap.put(code.getCdId(), isCapital);
+        for (String cId : detailCIds) {
+            boolean isCapital = "IOE_CPIT".equals(cId);
+            for (Ccodem code : codeRepository.findByCIdWithValidDate(cId, null)) {
+                detailCodeNameMap.put(code.getCdva(), code.getCDes() != null ? code.getCDes() : code.getCNm());
+                detailCodeCapitalMap.put(code.getCdva(), isCapital);
             }
         }
 
-        // 접두어 → 그룹명 매핑 (DUP_IOE 기반, cdDes 우선 사용)
+        // 접두어 → 그룹명 매핑 (DUP_IOE 기반, cDes 우선 사용)
         Map<String, String> prefixToGroupName = new LinkedHashMap<>();
         List<String> prefixOrder = new ArrayList<>();
         for (Ccodem code : dupIoeCodes) {
-            String prefix = extractPrefix(code.getCdId());
-            prefixToGroupName.put(prefix, code.getCdDes() != null ? code.getCdDes() : code.getCdNm());
+            String prefix = extractPrefix(code.getCdva());
+            prefixToGroupName.put(prefix, code.getCDes() != null ? code.getCDes() : code.getCNm());
             prefixOrder.add(prefix);
         }
 
@@ -543,7 +543,7 @@ public class BudgetWorkService {
      */
     public BudgetWorkDto.ProjectSummaryResponse getProjectSummary(String bgYy) {
         // 1. 편성비목 코드 조회 (컬럼 헤더용)
-        List<Ccodem> ioeCodes = codeRepository.findByCttTpWithValidDate("DUP_IOE", null);
+        List<Ccodem> ioeCodes = codeRepository.findByCIdWithValidDate("DUP_IOE", null);
         List<Bbugtm> budgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
 
         // 비목별 편성률 맵 (prefix → dupRt)
@@ -551,7 +551,7 @@ public class BudgetWorkService {
         for (Bbugtm b : budgets) {
             if (b.getIoeC() != null && b.getDupRt() != null) {
                 for (Ccodem code : ioeCodes) {
-                    String prefix = extractPrefix(code.getCdId());
+                    String prefix = extractPrefix(code.getCdva());
                     if (b.getIoeC().startsWith(prefix)) {
                         rateByPrefix.putIfAbsent(prefix, b.getDupRt());
                         break;
@@ -563,9 +563,9 @@ public class BudgetWorkService {
         // 컬럼 헤더 정보 구성
         List<BudgetWorkDto.ProjectSummaryCategory> categoryHeaders = new ArrayList<>();
         for (Ccodem code : ioeCodes) {
-            String prefix = extractPrefix(code.getCdId());
+            String prefix = extractPrefix(code.getCdva());
             Integer dupRt = rateByPrefix.getOrDefault(prefix, 0);
-            categoryHeaders.add(new BudgetWorkDto.ProjectSummaryCategory(prefix, code.getCdNm(), code.getCdDes(), dupRt));
+            categoryHeaders.add(new BudgetWorkDto.ProjectSummaryCategory(prefix, code.getCNm(), code.getCDes(), dupRt));
         }
 
         // 2. 사업별 + 비목별 이중 그룹핑
@@ -601,7 +601,7 @@ public class BudgetWorkService {
             // ioeC에서 매칭되는 prefix 찾기
             String matchedPrefix = null;
             for (Ccodem code : ioeCodes) {
-                String prefix = extractPrefix(code.getCdId());
+                String prefix = extractPrefix(code.getCdva());
                 if (b.getIoeC() != null && b.getIoeC().startsWith(prefix)) {
                     matchedPrefix = prefix;
                     break;

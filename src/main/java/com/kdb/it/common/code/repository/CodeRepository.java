@@ -10,26 +10,17 @@ import java.util.Optional;
 
 /**
  * 공통코드 데이터 접근 리포지토리
- *
- * <p>
- * Spring Data JPA 기본 CRUD 및 커스텀 조회(QueryDSL) 메서드를 제공합니다.
- * </p>
  */
 @Repository
 public interface CodeRepository extends JpaRepository<Ccodem, CcodemId>, CodeRepositoryCustom {
 
     /**
-     * 특정 복합키를 가진 논리적 삭제가 되지 않은 공통코드 단건 조회
-     *
-     * @param cdId  조회할 코드ID
-     * @param sttDt 조회할 시작일자
-     * @param delYn 삭제 여부 ('N')
-     * @return 조회된 공통코드 엔티티
+     * 복합키(cId, cdva, sttDt) + 삭제여부로 단건 조회
      */
-    Optional<Ccodem> findByCIdAndSttDtAndDelYn(String cdId, LocalDate sttDt, String delYn);
+    Optional<Ccodem> findByCIdAndCdvaAndSttDtAndDelYn(String cId, String cdva, LocalDate sttDt, String delYn);
 
     /**
-     * 특정 복합키의 존재 여부 확인 (삭제여부와 무관)
+     * 복합키 존재 여부 확인 (삭제여부 무관)
      */
-    boolean existsByCIdAndSttDt(String cdId, LocalDate sttDt);
+    boolean existsByCIdAndCdvaAndSttDt(String cId, String cdva, LocalDate sttDt);
 }

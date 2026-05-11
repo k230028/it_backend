@@ -88,13 +88,13 @@ class AdminServiceTest {
         // given: 이미 존재하는 코드ID
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE001", "코드명", "값", "설명", "구분", "구분설명", sttDt, null, 1);
-        given(codeRepository.existsByCIdAndSttDt("CODE001", sttDt)).willReturn(true);
+                "CODE001", "001", "코드명", "설명", "값", "구분", "구분설명", null, sttDt, null, 1);
+        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE001", "001", sttDt)).willReturn(true);
 
         // when & then
         assertThatThrownBy(() -> adminService.createCode(req))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("이미 존재하는 코드ID/시작일자입니다");
+                .hasMessageContaining("이미 존재하는 코드입니다");
     }
 
     @Test
@@ -103,8 +103,8 @@ class AdminServiceTest {
         // given
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE002", "코드명", "값", "설명", "구분", "구분설명", sttDt, null, 1);
-        given(codeRepository.existsByCIdAndSttDt("CODE002", sttDt)).willReturn(false);
+                "CODE002", "001", "코드명", "설명", "값", "구분", "구분설명", null, sttDt, null, 1);
+        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "001", sttDt)).willReturn(false);
 
         // when
         adminService.createCode(req);
@@ -119,13 +119,13 @@ class AdminServiceTest {
         // given
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "NONE", "코드명", "값", "설명", "구분", "구분설명", sttDt, null, 1);
-        given(codeRepository.findByCIdAndSttDtAndDelYn("NONE", sttDt, "N")).willReturn(Optional.empty());
+                "NONE", "001", "코드명", "설명", "값", "구분", "구분설명", null, sttDt, null, 1);
+        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("NONE", "001", sttDt, "N")).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> adminService.updateCode("NONE", sttDt, req))
+        assertThatThrownBy(() -> adminService.updateCode("NONE", "001", sttDt, req))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("존재하지 않는 코드ID/시작일자입니다");
+                .hasMessageContaining("존재하지 않는 코드입니다");
     }
 
     @Test
@@ -133,11 +133,11 @@ class AdminServiceTest {
     void deleteCode_정상삭제_SoftDelete() {
         // given
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        Ccodem code = Ccodem.builder().cId("CODE001").sttDt(sttDt).build();
-        given(codeRepository.findByCIdAndSttDtAndDelYn("CODE001", sttDt, "N")).willReturn(Optional.of(code));
+        Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
+        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N")).willReturn(Optional.of(code));
 
         // when
-        adminService.deleteCode("CODE001", sttDt);
+        adminService.deleteCode("CODE001", "001", sttDt);
 
         // then: DEL_YN='Y' 처리 검증
         assertThat(code.getDelYn()).isEqualTo("Y");
@@ -148,14 +148,14 @@ class AdminServiceTest {
     void bulkUpsertCodes_신규수정건수반환() {
         // given: CODE001은 기존 존재, CODE002는 신규
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        AdminDto.CodeRequest req1 = new AdminDto.CodeRequest("CODE001", "코드1", null, null, null, null, sttDt, null, 1);
-        AdminDto.CodeRequest req2 = new AdminDto.CodeRequest("CODE002", "코드2", null, null, null, null, sttDt, null, 2);
+        AdminDto.CodeRequest req1 = new AdminDto.CodeRequest("CODE001", "001", "코드1", null, null, null, null, null, sttDt, null, 1);
+        AdminDto.CodeRequest req2 = new AdminDto.CodeRequest("CODE002", "002", "코드2", null, null, null, null, null, sttDt, null, 2);
         AdminDto.BulkCodeRequest bulkReq = new AdminDto.BulkCodeRequest(List.of(req1, req2));
 
-        Ccodem existingCode = Ccodem.builder().cId("CODE001").sttDt(sttDt).build();
-        given(codeRepository.existsByCIdAndSttDt("CODE001", sttDt)).willReturn(true);
-        given(codeRepository.findByCIdAndSttDtAndDelYn("CODE001", sttDt, "N")).willReturn(Optional.of(existingCode));
-        given(codeRepository.existsByCIdAndSttDt("CODE002", sttDt)).willReturn(false);
+        Ccodem existingCode = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
+        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE001", "001", sttDt)).willReturn(true);
+        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N")).willReturn(Optional.of(existingCode));
+        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "002", sttDt)).willReturn(false);
 
         // when
         var result = adminService.bulkUpsertCodes(bulkReq);
@@ -351,7 +351,7 @@ class AdminServiceTest {
 
         // then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).cdId()).isEqualTo("CODE001");
+        assertThat(result.get(0).cId()).isEqualTo("CODE001");
     }
 
     // =========================================================================
@@ -640,21 +640,6 @@ class AdminServiceTest {
         org.mockito.ArgumentCaptor<CroleI> captor = org.mockito.ArgumentCaptor.forClass(CroleI.class);
         verify(roleRepository).save(captor.capture());
         assertThat(captor.getValue().getUseYn()).isEqualTo("Y");
-    }
-
-    @Test
-    @DisplayName("updateCode: 시작일자 변경 요청이면 예외가 발생한다")
-    void updateCode_시작일자변경_예외발생() {
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        Ccodem code = Ccodem.builder().cId("CODE001").sttDt(sttDt).build();
-        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE001", "코드명", null, null, null, null, sttDt.plusDays(1), null, 1);
-        given(codeRepository.findByCIdAndSttDtAndDelYn("CODE001", sttDt, "N"))
-                .willReturn(Optional.of(code));
-
-        assertThatThrownBy(() -> adminService.updateCode("CODE001", sttDt, req))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("시작일자");
     }
 
     @Test

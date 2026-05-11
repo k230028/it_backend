@@ -22,15 +22,17 @@ public class AdminDto {
      */
     @Schema(name = "AdminDto.CodeRequest", description = "공통코드 생성/수정 요청")
     public record CodeRequest(
-            @NotBlank @Schema(description = "코드ID") String cdId,
-            @Schema(description = "코드명") String cdNm,
-            @Schema(description = "코드값") String cdva,
-            @Schema(description = "코드설명") String cdDes,
-            @Schema(description = "코드값구분") String cttTp,
-            @Schema(description = "코드값구분설명") String cttTpDes,
+            @NotBlank @Schema(description = "코드ID (prefix, 예: PRJ_TP)") String cId,
+            @NotBlank @Schema(description = "코드값 (예: 001, STA)") String cdva,
+            @Schema(description = "코드명 (구 CDVA, 예: 신규개발)") String cNm,
+            @Schema(description = "코드설명 (구 CTT_TP_DES, 예: 사업유형)") String cDes,
+            @Schema(description = "코드값상세 (구 C_NM, 예: USD)") String cdvaDtl,
+            @Schema(description = "코드타입 (구 CTT_TP)") String cTp,
+            @Schema(description = "코드타입설명") String cTpDes,
+            @Schema(description = "상위코드 {C_ID}_{CDVA}") String hrkC,
             @Schema(description = "시작일자") LocalDate sttDt,
             @Schema(description = "종료일자") LocalDate endDt,
-            @Schema(description = "코드순서") Integer cdSqn
+            @Schema(description = "코드순서") Integer cSqn
     ) {}
 
     /**
@@ -47,21 +49,23 @@ public class AdminDto {
      */
     @Schema(name = "AdminDto.CodeResponse", description = "공통코드 조회 응답")
     public record CodeResponse(
-            String cdId,
-            String cdNm,
+            String cId,
             String cdva,
-            String cdDes,
-            String cttTp,
-            String cttTpDes,
+            String cNm,
+            String cDes,
+            String cdvaDtl,
+            String cTp,
+            String cTpDes,
+            String hrkC,
             LocalDate sttDt,
             LocalDate endDt,
-            Integer cdSqn,
+            Integer cSqn,
             LocalDateTime fstEnrDtm,
             String fstEnrUsid,
-            String fstEnrUsNm,   // 최초생성자 이름 (ENO → 이름 변환)
+            String fstEnrUsNm,
             LocalDateTime lstChgDtm,
             String lstChgUsid,
-            String lstChgUsNm    // 마지막수정자 이름 (ENO → 이름 변환)
+            String lstChgUsNm
     ) {}
 
     // =========================================================================

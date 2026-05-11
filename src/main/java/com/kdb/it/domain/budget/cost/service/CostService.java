@@ -436,23 +436,24 @@ public class CostService {
             return;
         }
 
-        Optional<Ccodem> codeOpt = ccodemRepository.findByCIdWithValidDate(response.getIoeC(), null);
+        Optional<Ccodem> codeOpt = ccodemRepository.findByCIdWithValidDate(response.getIoeC(), null)
+                .stream().findFirst();
 
         if (codeOpt.isPresent()) {
             Ccodem code = codeOpt.get();
-            String cttTp = code.getCttTp();
-            if ("IOE_CPIT".equals(cttTp)) {
+            String cTp = code.getCTp();
+            if ("IOE_CPIT".equals(cTp)) {
                 response.setAssetBg(totalBg);
-                // 코드설명(cdDes) 기준으로 세부 분류
-                String cdDes = code.getCdDes() != null ? code.getCdDes() : "";
-                switch (cdDes) {
+                // 코드설명(cDes) 기준으로 세부 분류
+                String cDes = code.getCDes() != null ? code.getCDes() : "";
+                switch (cDes) {
                     case "개발비" -> response.setDevBg(totalBg);
                     case "기계장치" -> response.setMachBg(totalBg);
                     case "기타무형자산" -> response.setIntanBg(totalBg);
                 }
                 return;
             }
-            if (COST_CTT_TPS.contains(cttTp)) {
+            if (COST_CTT_TPS.contains(cTp)) {
                 response.setCostBg(totalBg);
                 return;
             }
