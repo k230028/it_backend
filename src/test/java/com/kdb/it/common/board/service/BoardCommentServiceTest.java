@@ -13,6 +13,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -34,6 +36,8 @@ class BoardCommentServiceTest {
     @Mock BoardPostService        postService;
 
     @InjectMocks BoardCommentService service;
+
+    @Captor ArgumentCaptor<Ccmmtm> captor;
 
     private Cblbmm boardWithComment;
     private Cblbmm boardNoComment;
@@ -68,6 +72,26 @@ class BoardCommentServiceTest {
         normalUser = new CustomUserDetails("USER001",  List.of("ITPZZ001"), "10002");
     }
 
+    // ── 리플렉션 헬퍼 ──
+
+    /**
+     * BaseEntity.fstEnrUsid 를 리플렉션으로 설정하는 공통 헬퍼.
+     *
+     * @param entity 대상 엔티티 (BaseEntity 하위)
+     * @param userId 설정할 사번
+     */
+    private static void setFstEnrUsid(Object entity, String userId) {
+        try {
+            Field field = entity.getClass().getSuperclass().getDeclaredField("fstEnrUsid");
+            field.setAccessible(true);
+            field.set(entity, userId);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException("fstEnrUsid 리플렉션 설정 실패", e);
+        }
+    }
+
+    // ── 댓글 생성 ──
+
     @Test
     @DisplayName("댓글 미지원 게시판에 댓글을 등록하면 예외가 발생한다")
     void createComment_boardNoComment_throws() {
@@ -86,7 +110,7 @@ class BoardCommentServiceTest {
     }
 
     @Test
-    @DisplayName("댓글 지원 게시판에 댓글을 등록하면 CMMT- 형식의 ID가 반환된다")
+    @DisplayName("댓글 지원 게시판에 댓글을 등록하면 CMMT- 형식의 ID가 반환되고 루트 그룹 정보가 설정된다")
     void createComment_success() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
             .willReturn(Optional.of(boardWithComment));
@@ -101,27 +125,22 @@ class BoardCommentServiceTest {
         String result = service.createComment("BLBM-2026-0001", "NAC-2026-0001", request, normalUser);
 
         assertThat(result).startsWith("CMMT-");
+
+        // 저장된 엔티티의 루트 그룹 필드를 검증
+        verify(commentRepository).save(captor.capture());
+        Ccmmtm saved = captor.getValue();
+        assertThat(saved.getCmmtGrpNo()).isEqualTo(saved.getCmmtMngNo()); // 루트 댓글
+        assertThat(saved.getCmmtGrpSqn()).isZero();
+        assertThat(saved.getCmmtGrpLev()).isZero();
     }
+
+    // ── 댓글 수정 ──
 
     @Test
     @DisplayName("본인 댓글이 아닌 댓글을 수정하려 하면 예외가 발생한다")
-    void updateComment_notOwner_throws() throws Exception {
-        // fstEnrUsid 는 BaseEntity의 @CreatedBy 필드이므로 리플렉션으로 설정
-        Ccmmtm comment = Ccmmtm.builder()
-            .cmmtMngNo("CMMT-2026-0001")
-            .nacMngNo("NAC-2026-0001")
-            .cmmtCone("원본 댓글")
-            .sreYn("Y")
-            .cmmtGrpNo("CMMT-2026-0001")
-            .cmmtGrpSqn(0)
-            .cmmtGrpLev(0)
-            .delYn("N")
-            .build();
-
-        // BaseEntity.fstEnrUsid 를 리플렉션으로 "OTHER_USER" 로 설정
-        Field fstEnrUsidField = comment.getClass().getSuperclass().getDeclaredField("fstEnrUsid");
-        fstEnrUsidField.setAccessible(true);
-        fstEnrUsidField.set(comment, "OTHER_USER");
+    void updateComment_notOwner_throws() {
+        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        setFstEnrUsid(comment, "OTHER_USER");
 
         given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
             .willReturn(Optional.of(comment));
@@ -132,5 +151,123 @@ class BoardCommentServiceTest {
         assertThatThrownBy(() ->
             service.updateComment("CMMT-2026-0001", request, normalUser)
         ).isInstanceOf(CustomGeneralException.class);
+    }
+
+    @Test
+    @DisplayName("본인 댓글을 수정하면 예외 없이 본문이 변경된다")
+    void updateComment_ownerSuccess() {
+        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
+
+        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+            .willReturn(Optional.of(comment));
+
+        var request = new BoardCommentDto.UpdateRequest("수정된 댓글 내용");
+
+        // 예외 없이 완료되어야 한다 (JPA Dirty Checking — 명시적 save() 없음)
+        assertThatCode(() ->
+            service.updateComment("CMMT-2026-0001", request, normalUser)
+        ).doesNotThrowAnyException();
+
+        // 엔티티 본문이 수정되었는지 확인
+        assertThat(comment.getCmmtCone()).isEqualTo("수정된 댓글 내용");
+    }
+
+    // ── 대댓글 생성 ──
+
+    @Test
+    @DisplayName("부모 댓글이 있는 게시판에 대댓글을 등록하면 CMMT- 형식의 ID와 lev=1이 반환된다")
+    void createReply_success() {
+        String parentId = "CMMT-2026-0001";
+
+        // 부모 댓글 (루트, lev=0)
+        Ccmmtm parent = Ccmmtm.builder()
+            .cmmtMngNo(parentId)
+            .nacMngNo("NAC-2026-0001")
+            .cmmtCone("부모 댓글")
+            .sreYn("Y")
+            .cmmtGrpNo(parentId)
+            .cmmtGrpSqn(0)
+            .cmmtGrpLev(0)
+            .delYn("N")
+            .build();
+
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+            .willReturn(Optional.of(boardWithComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+            .willReturn(Optional.of(post));
+        given(commentRepository.findByCmmtMngNoAndDelYn(parentId, "N"))
+            .willReturn(Optional.of(parent));
+        willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
+        given(commentRepository.getNextSequenceValue()).willReturn(2L);
+        given(commentRepository.save(any(Ccmmtm.class))).willAnswer(inv -> inv.getArgument(0));
+
+        var request = new BoardCommentDto.CreateRequest("대댓글 내용");
+        String result = service.createReply(
+            "BLBM-2026-0001", "NAC-2026-0001", parentId, request, normalUser);
+
+        assertThat(result).startsWith("CMMT-");
+
+        // 저장된 대댓글의 그룹 레벨이 부모+1 인지 검증
+        verify(commentRepository).save(captor.capture());
+        Ccmmtm saved = captor.getValue();
+        assertThat(saved.getCmmtGrpLev()).isEqualTo(1); // 부모 lev(0) + 1
+        assertThat(saved.getCmmtGrpNo()).isEqualTo(parentId);
+    }
+
+    // ── 댓글 삭제 ──
+
+    @Test
+    @DisplayName("타인의 댓글을 일반 사용자가 삭제하려 하면 예외가 발생한다")
+    void deleteComment_notOwner_throws() {
+        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        setFstEnrUsid(comment, "OTHER_USER");
+
+        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+            .willReturn(Optional.of(comment));
+
+        // normalUser(USER001)는 OTHER_USER의 댓글을 삭제할 수 없다
+        assertThatThrownBy(() ->
+            service.deleteComment("CMMT-2026-0001", normalUser)
+        ).isInstanceOf(CustomGeneralException.class);
+    }
+
+    @Test
+    @DisplayName("본인 댓글을 삭제하면 예외 없이 소프트 딜리트된다")
+    void deleteComment_owner_success() {
+        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
+
+        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+            .willReturn(Optional.of(comment));
+
+        // 예외 없이 완료되어야 한다 (JPA Dirty Checking — 명시적 save() 없음)
+        assertThatCode(() ->
+            service.deleteComment("CMMT-2026-0001", normalUser)
+        ).doesNotThrowAnyException();
+
+        // Soft Delete: DEL_YN = 'Y' 로 변경되었는지 확인
+        assertThat(comment.getDelYn()).isEqualTo("Y");
+    }
+
+    // ── 내부 헬퍼 ──
+
+    /**
+     * 기본 댓글 엔티티 생성 헬퍼.
+     *
+     * @param cmmtMngNo 댓글관리번호
+     * @return 루트 댓글 엔티티
+     */
+    private Ccmmtm buildComment(String cmmtMngNo) {
+        return Ccmmtm.builder()
+            .cmmtMngNo(cmmtMngNo)
+            .nacMngNo("NAC-2026-0001")
+            .cmmtCone("원본 댓글")
+            .sreYn("Y")
+            .cmmtGrpNo(cmmtMngNo)
+            .cmmtGrpSqn(0)
+            .cmmtGrpLev(0)
+            .delYn("N")
+            .build();
     }
 }
