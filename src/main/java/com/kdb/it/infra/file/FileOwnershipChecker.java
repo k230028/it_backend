@@ -79,14 +79,14 @@ public class FileOwnershipChecker {
      * @throws CustomGeneralException 게시물·게시판을 찾을 수 없거나 권한이 없는 경우
      */
     private void verifyBoardFileAccess(Cfilem file, CustomUserDetails user) {
+        if (user.isAdmin()) return;
+
         String nacMngNo = file.getOrcPkVl();
         Cblbcm post = boardPostRepository.findByNacMngNoAndDelYn(nacMngNo, "N")
                 .orElseThrow(() -> new CustomGeneralException("첨부파일의 게시물을 찾을 수 없습니다."));
 
         Cblbmm board = boardMetaRepository.findByBlbMngNoAndDelYn(post.getBlbMngNo(), "N")
                 .orElseThrow(() -> new CustomGeneralException("첨부파일의 게시판을 찾을 수 없습니다."));
-
-        if (user.isAdmin()) return;
 
         boolean boardOk = "ALL".equals(board.getInqAthC())
                 || user.getAuthorities().stream()
