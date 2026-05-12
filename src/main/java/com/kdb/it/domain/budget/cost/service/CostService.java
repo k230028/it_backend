@@ -436,8 +436,10 @@ public class CostService {
             return;
         }
 
-        Optional<Ccodem> codeOpt = ccodemRepository.findByCIdWithValidDate(response.getIoeC(), null)
-                .stream().findFirst();
+        Optional<Ccodem> codeOpt = ccodemRepository.findByCIdWithValidDate("IOE", null)
+                .stream()
+                .filter(c -> response.getIoeC().equals(c.getCdva()))
+                .findFirst();
 
         if (codeOpt.isPresent()) {
             Ccodem code = codeOpt.get();

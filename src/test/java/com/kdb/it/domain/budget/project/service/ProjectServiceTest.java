@@ -736,17 +736,17 @@ class ProjectServiceTest {
                                 .dcdEno("10002")
                                 .build();
                 Bitemm devItem = Bitemm.builder()
-                                .ioeC("IOE-DEV")
+                                .ioeC("101")
                                 .gclAmt(BigDecimal.valueOf(100))
                                 .xcr(BigDecimal.TEN)
                                 .build();
                 Bitemm machItem = Bitemm.builder()
-                                .ioeC("IOE-MACH")
+                                .ioeC("102")
                                 .gclAmt(BigDecimal.valueOf(200))
                                 .xcr(BigDecimal.ZERO)
                                 .build();
                 Bitemm costItem = Bitemm.builder()
-                                .ioeC("IOE-COST")
+                                .ioeC("103")
                                 .gclAmt(BigDecimal.valueOf(300))
                                 .xcr(null)
                                 .build();
@@ -766,15 +766,11 @@ class ProjectServiceTest {
                                 .willReturn(List.of(devItem, machItem, costItem,
                                                 Bitemm.builder().ioeC(null).gclAmt(BigDecimal.ONE).build(),
                                                 Bitemm.builder().ioeC("IOE-NULL").gclAmt(null).build()));
-                given(codeService.findCodeEntitiesByCId("IOE_CPIT"))
+                given(codeService.findCodeEntitiesByCId("IOE"))
                                 .willReturn(List.of(
-                                                Ccodem.builder().cdva("IOE-DEV").cDes("개발비").build(),
-                                                Ccodem.builder().cdva("IOE-MACH").cDes("기계장치").build()));
-                given(codeService.findCodeEntitiesByCId("IOE_IDR"))
-                                .willReturn(List.of(Ccodem.builder().cdva("IOE-COST").build()));
-                given(codeService.findCodeEntitiesByCId("IOE_SEVS")).willReturn(List.of());
-                given(codeService.findCodeEntitiesByCId("IOE_XPN")).willReturn(List.of());
-                given(codeService.findCodeEntitiesByCId("IOE_LEAFE")).willReturn(List.of());
+                                                Ccodem.builder().cId("IOE").cdva("101").cTp("IOE_CPIT").cDes("개발비").build(),
+                                                Ccodem.builder().cId("IOE").cdva("102").cTp("IOE_CPIT").cDes("기계장치").build(),
+                                                Ccodem.builder().cId("IOE").cdva("103").cTp("IOE_IDR").build()));
 
                 ProjectDto.Response result = projectService.getProject(prjMngNo);
 

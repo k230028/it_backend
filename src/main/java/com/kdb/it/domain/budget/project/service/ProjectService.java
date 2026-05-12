@@ -570,12 +570,14 @@ public class ProjectService {
                     .toList();
             Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByPrjMngNos(prjMngNos, bgYy);
 
-            // 자본예산/일반관리비 편성예산 분류 (공통코드 기반 gclDtt 코드 집합 조회)
-            Set<String> assetTypes = codeService.findCodeEntitiesByCId("IOE_CPIT").stream()
+            // 자본예산/일반관리비 편성예산 분류 (마이그레이션 후 cId="IOE", cTp 필드로 분류)
+            List<com.kdb.it.common.code.entity.Ccodem> allIoeForBugt = codeService.findCodeEntitiesByCId("IOE");
+            Set<String> assetTypes = allIoeForBugt.stream()
+                    .filter(c -> "IOE_CPIT".equals(c.getCTp()))
                     .map(c -> c.getCdva())
                     .collect(Collectors.toSet());
-            Set<String> costTypes = java.util.stream.Stream.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE")
-                    .flatMap(cId -> codeService.findCodeEntitiesByCId(cId).stream())
+            Set<String> costTypes = allIoeForBugt.stream()
+                    .filter(c -> java.util.Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE").contains(c.getCTp()))
                     .map(c -> c.getCdva())
                     .collect(Collectors.toSet());
             Map<String, BigDecimal> assetDupBgMap = bbugtmRepository.sumAssetDupBgByPrjMngNos(prjMngNos, bgYy, assetTypes);
@@ -873,13 +875,17 @@ public class ProjectService {
      */
     private void setBudgetSummaryFromItems(ProjectDto.Response response,
             List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms) {
-        // 공통코드에서 자본예산 대상 비목코드 조회 (cttTp = IOE_CPIT) — 캐시 적용
-        List<com.kdb.it.common.code.entity.Ccodem> assetCodes = codeService.findCodeEntitiesByCId("IOE_CPIT");
+        // 마이그레이션 후: cId="IOE" 단일 그룹, cTp 필드로 자본/관리비 분류
+        // cDes(구 CTT_TP_DES) 기준으로 개발비/기계장치/기타무형자산 세부 분류
+        List<com.kdb.it.common.code.entity.Ccodem> allIoeCodes = codeService.findCodeEntitiesByCId("IOE");
+        List<com.kdb.it.common.code.entity.Ccodem> assetCodes = allIoeCodes.stream()
+                .filter(c -> "IOE_CPIT".equals(c.getCTp()))
+                .collect(java.util.stream.Collectors.toList());
         java.util.Set<String> assetTypes = assetCodes.stream()
                 .map(com.kdb.it.common.code.entity.Ccodem::getCdva)
                 .collect(java.util.stream.Collectors.toSet());
 
-        // 자본예산 비목코드를 코드설명(cDes) 기준으로 세부 분류 (개발비/기계장치/기타무형자산)
+        // 자본예산 비목코드를 코드설명(cDes, 구 CTT_TP_DES) 기준으로 세부 분류
         java.util.Map<String, java.util.Set<String>> assetSubTypes = assetCodes.stream()
                 .collect(java.util.stream.Collectors.groupingBy(
                         c -> c.getCDes() != null ? c.getCDes() : "",
@@ -890,9 +896,9 @@ public class ProjectService {
         java.util.Set<String> machTypes = assetSubTypes.getOrDefault("기계장치", java.util.Collections.emptySet());
         java.util.Set<String> intanTypes = assetSubTypes.getOrDefault("기타무형자산", java.util.Collections.emptySet());
 
-        // 공통코드에서 일반관리비 대상 비목코드(cdva) 조회 (cId = IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE) — 캐시 적용
-        java.util.Set<String> costTypes = java.util.stream.Stream.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE")
-                .flatMap(cId -> codeService.findCodeEntitiesByCId(cId).stream())
+        // 일반관리비: cTp가 IOE_IDR/IOE_SEVS/IOE_XPN/IOE_LEAFE인 코드의 cdva 집합
+        java.util.Set<String> costTypes = allIoeCodes.stream()
+                .filter(c -> java.util.Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE").contains(c.getCTp()))
                 .map(com.kdb.it.common.code.entity.Ccodem::getCdva)
                 .collect(java.util.stream.Collectors.toSet());
 
