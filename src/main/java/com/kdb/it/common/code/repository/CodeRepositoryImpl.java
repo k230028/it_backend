@@ -66,6 +66,19 @@ public class CodeRepositoryImpl implements CodeRepositoryCustom {
                 .fetch();
     }
 
+    @Override
+    public List<Ccodem> findByCTpWithValidDate(String cTp, LocalDate targetDate) {
+        QCcodem q = QCcodem.ccodem;
+        LocalDate date = (targetDate != null) ? targetDate : LocalDate.now();
+
+        return queryFactory.selectFrom(q)
+                .where(q.cTp.eq(cTp),
+                       q.delYn.eq("N"),
+                       isValidDate(q, date))
+                .orderBy(q.cSqn.asc().nullsLast(), q.cdva.asc())
+                .fetch();
+    }
+
     /** 기준일자가 시작~종료 범위 내인지 검증 */
     private BooleanExpression isValidDate(QCcodem ccodem, LocalDate date) {
         BooleanExpression afterStart = ccodem.sttDt.isNull().or(ccodem.sttDt.loe(date));

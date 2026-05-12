@@ -36,6 +36,14 @@ public interface CodeRepositoryCustom {
     List<Ccodem> findChildrenOfHrkC(String hrkC);
 
     /**
+     * 코드타입(C_TP) 기준 다건 조회
+     *
+     * @param cTp        코드타입 (예: IOE_LEAFE, IOE_XPN)
+     * @param targetDate 기준일자 (null이면 시스템 현재 날짜)
+     */
+    List<Ccodem> findByCTpWithValidDate(String cTp, LocalDate targetDate);
+
+    /**
      * 논리 삭제되지 않은 전체 공통코드를 코드순서 오름차순(null 마지막)으로 조회
      */
     List<Ccodem> findAllActive();

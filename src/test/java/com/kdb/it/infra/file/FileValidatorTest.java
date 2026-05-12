@@ -21,7 +21,8 @@ class FileValidatorTest {
     @ParameterizedTest
     @ValueSource(strings = {"문서.pdf", "보고서.hwp", "양식.hwpx", "문서.doc", "문서.docx",
             "표.xls", "표.xlsx", "발표.ppt", "발표.pptx",
-            "사진.jpg", "사진.jpeg", "이미지.png", "gif.gif"})
+            "사진.jpg", "사진.jpeg", "이미지.png", "gif.gif",
+            "excalidraw-scene.lzstr"})
     @DisplayName("허용 확장자 파일 업로드 시 예외 없음")
     void validateExtension_allowedExtension_noException(String filename) {
         assertThatCode(() -> fileValidator.validateExtension(filename)).doesNotThrowAnyException();

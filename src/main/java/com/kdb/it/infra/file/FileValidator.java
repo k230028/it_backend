@@ -11,7 +11,7 @@ import java.util.Set;
  * <p>업로드 허용 확장자만 통과시키고, 실행 가능하거나 위험한 확장자는
  * {@link CustomGeneralException}으로 차단합니다. 대소문자를 무시합니다.</p>
  *
- * <p>허용 확장자: pdf, hwp, hwpx, doc, docx, xls, xlsx, ppt, pptx, jpg, jpeg, png, gif</p>
+ * <p>허용 확장자: pdf, hwp, hwpx, doc, docx, xls, xlsx, ppt, pptx, jpg, jpeg, png, gif, lzstr</p>
  */
 @Component
 public class FileValidator {
@@ -21,7 +21,8 @@ public class FileValidator {
             "doc", "docx",
             "xls", "xlsx",
             "ppt", "pptx",
-            "jpg", "jpeg", "png", "gif"
+            "jpg", "jpeg", "png", "gif",
+            "lzstr"
     );
 
     /**

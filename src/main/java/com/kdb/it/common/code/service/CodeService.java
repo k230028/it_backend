@@ -52,6 +52,18 @@ public class CodeService {
     }
 
     /**
+     * 코드타입 기준 공통코드 다건 조회
+     *
+     * @param cTp        코드타입 (예: IOE_LEAFE, IOE_XPN)
+     * @param targetDate 기준일자 (null이면 현재 날짜)
+     */
+    public List<CodeDto.Response> getCcodemsByCTp(String cTp, LocalDate targetDate) {
+        return codeRepository.findByCTpWithValidDate(cTp, targetDate).stream()
+                .map(CodeDto.Response::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 코드ID로 엔티티 목록 조회 (캐시 적용 — 정적 참조 데이터용)
      */
     @Cacheable(value = "codesByCid", key = "#p0")

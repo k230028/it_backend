@@ -112,6 +112,24 @@ public class CodeController {
     }
 
     /**
+     * 코드타입 기준 공통코드 목록 조회
+     * 소요자원 구분 CascadeSelect에서 IOE 비목 코드 조회에 사용합니다.
+     *
+     * @param cTp        코드타입 (예: IOE_LEAFE, IOE_XPN, IOE_SEVS, IOE_IDR, IOE_CPIT)
+     * @param targetDate 기준일자 (선택)
+     */
+    @GetMapping("/type/{cTp}")
+    @Operation(summary = "코드타입 기준 공통코드 목록 조회")
+    public ResponseEntity<List<CodeDto.Response>> getCcodemsByCTp(
+            @PathVariable("cTp") String cTp,
+            @Parameter(description = "기준일자 (yyyy-MM-dd)")
+            @RequestParam(value = "targetDate", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate targetDate) {
+
+        return ResponseEntity.ok(codeService.getCcodemsByCTp(cTp, targetDate));
+    }
+
+    /**
      * 예산 신청 기간 조회
      */
     @GetMapping("/budget-period")
