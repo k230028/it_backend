@@ -436,7 +436,7 @@ class ProjectServiceTest {
                 given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
 
                 ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
-                item.setGclDtt("IOE-237-0700");
+                item.setIoeC("IOE-237-0700");
                 item.setGclNm("소프트웨어 구매");
                 item.setGclAmt(java.math.BigDecimal.valueOf(1_000_000));
 
@@ -478,7 +478,7 @@ class ProjectServiceTest {
                 given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
 
                 ProjectDto.BitemmDto newItem = new ProjectDto.BitemmDto();
-                newItem.setGclDtt("IOE-351-0100");
+                newItem.setIoeC("IOE-351-0100");
                 newItem.setGclNm("신규 품목");
                 newItem.setGclAmt(java.math.BigDecimal.valueOf(500_000));
 
@@ -512,7 +512,7 @@ class ProjectServiceTest {
                         com.kdb.it.domain.budget.project.entity.Bitemm.builder()
                                 .gclMngNo("GCL-0001").gclSno(1)
                                 .prjMngNo(prjMngNo).prjSno(1)
-                                .gclDtt("IOE-237-0700").gclNm("기존 품목").delYn("N")
+                                .ioeC("IOE-237-0700").gclNm("기존 품목").delYn("N")
                                 .build();
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
@@ -580,7 +580,7 @@ class ProjectServiceTest {
                                 com.kdb.it.domain.budget.project.entity.Bitemm.builder()
                                                 .gclMngNo("GCL-0001").gclSno(1)
                                                 .prjMngNo(prjMngNo).prjSno(1)
-                                                .gclDtt("IOE-237-0700")
+                                                .ioeC("IOE-237-0700")
                                                 .gclNm("기존 품목")
                                                 .gclQtt(java.math.BigDecimal.ONE)
                                                 .cur("KRW")
@@ -593,7 +593,7 @@ class ProjectServiceTest {
                                                 .build();
                 ProjectDto.BitemmDto changedItem = ProjectDto.BitemmDto.builder()
                                 .gclMngNo("GCL-0001")
-                                .gclDtt("IOE-237-0700")
+                                .ioeC("IOE-237-0700")
                                 .gclNm("변경 품목")
                                 .gclQtt(java.math.BigDecimal.ONE)
                                 .cur("KRW")
@@ -630,7 +630,7 @@ class ProjectServiceTest {
                                 com.kdb.it.domain.budget.project.entity.Bitemm.builder()
                                                 .gclMngNo("GCL-0001").gclSno(1)
                                                 .prjMngNo(prjMngNo).prjSno(1)
-                                                .gclDtt("IOE-237-0700")
+                                                .ioeC("IOE-237-0700")
                                                 .gclNm("동일 품목")
                                                 .gclQtt(java.math.BigDecimal.ONE)
                                                 .cur("KRW")
@@ -642,7 +642,7 @@ class ProjectServiceTest {
                                                 .build();
                 ProjectDto.BitemmDto sameItem = ProjectDto.BitemmDto.builder()
                                 .gclMngNo("GCL-0001")
-                                .gclDtt("IOE-237-0700")
+                                .ioeC("IOE-237-0700")
                                 .gclNm("동일 품목")
                                 .gclQtt(java.math.BigDecimal.ONE)
                                 .cur("KRW")
@@ -736,17 +736,17 @@ class ProjectServiceTest {
                                 .dcdEno("10002")
                                 .build();
                 Bitemm devItem = Bitemm.builder()
-                                .gclDtt("IOE-DEV")
+                                .ioeC("IOE-DEV")
                                 .gclAmt(BigDecimal.valueOf(100))
                                 .xcr(BigDecimal.TEN)
                                 .build();
                 Bitemm machItem = Bitemm.builder()
-                                .gclDtt("IOE-MACH")
+                                .ioeC("IOE-MACH")
                                 .gclAmt(BigDecimal.valueOf(200))
                                 .xcr(BigDecimal.ZERO)
                                 .build();
                 Bitemm costItem = Bitemm.builder()
-                                .gclDtt("IOE-COST")
+                                .ioeC("IOE-COST")
                                 .gclAmt(BigDecimal.valueOf(300))
                                 .xcr(null)
                                 .build();
@@ -764,8 +764,8 @@ class ProjectServiceTest {
                 given(cuserIRepository.findById("10004")).willReturn(Optional.of(CuserI.builder().eno("10004").usrNm("현업팀장").build()));
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of(devItem, machItem, costItem,
-                                                Bitemm.builder().gclDtt(null).gclAmt(BigDecimal.ONE).build(),
-                                                Bitemm.builder().gclDtt("IOE-NULL").gclAmt(null).build()));
+                                                Bitemm.builder().ioeC(null).gclAmt(BigDecimal.ONE).build(),
+                                                Bitemm.builder().ioeC("IOE-NULL").gclAmt(null).build()));
                 given(codeService.findCodeEntitiesByCId("IOE_CPIT"))
                                 .willReturn(List.of(
                                                 Ccodem.builder().cdva("IOE-DEV").cDes("개발비").build(),
@@ -995,7 +995,7 @@ class ProjectServiceTest {
                                 .gclSno(1)
                                 .prjMngNo(prjMngNo)
                                 .prjSno(1)
-                                .gclDtt("IOE-237")
+                                .ioeC("IOE-237")
                                 .gclNm("동일")
                                 .gclQtt(BigDecimal.ONE)
                                 .cur("KRW")
@@ -1011,7 +1011,7 @@ class ProjectServiceTest {
                                 .build();
                 ProjectDto.BitemmDto changed = ProjectDto.BitemmDto.builder()
                                 .gclMngNo("GCL-0001")
-                                .gclDtt("IOE-237")
+                                .ioeC("IOE-237")
                                 .gclNm("동일")
                                 .gclQtt(BigDecimal.ONE)
                                 .cur("KRW")

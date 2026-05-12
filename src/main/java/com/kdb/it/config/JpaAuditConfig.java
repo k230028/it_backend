@@ -34,7 +34,7 @@ public class JpaAuditConfig {
     /** 인메모리 캐시 매니저 (공통코드 등 정적 데이터 캐싱용) */
     @Bean
     public CacheManager cacheManager() {
-        return new ConcurrentMapCacheManager("codesByType", "budgetPeriod");
+        return new ConcurrentMapCacheManager("codesByType", "codesByCid", "budgetPeriod");
     }
 
     /**

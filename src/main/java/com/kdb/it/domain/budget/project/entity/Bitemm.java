@@ -66,8 +66,8 @@ public class Bitemm extends BaseEntity {
     private Integer prjSno;
 
     /** 품목구분: 품목의 카테고리 (예: 소프트웨어, 하드웨어, 서비스, 컨설팅) */
-    @Column(name = "GCL_DTT", length = 32, comment = "품목구분")
-    private String gclDtt;
+    @Column(name = "IOE_C", length = 32, comment = "품목구분")
+    private String ioeC;
 
     /** 품목명: 도입할 품목의 명칭 (예: Oracle DB 라이선스, 서버 장비) */
     @Column(name = "GCL_NM", length = 100, comment = "품목명")

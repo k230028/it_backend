@@ -192,7 +192,7 @@ public class BudgetWorkService {
                 Optional<Bbugtm> existing = bbugtmRepository
                         .findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
                                 bgYy, "BITEMM", item.getGclMngNo(),
-                                item.getGclSno(), item.getGclDtt(), "N");
+                                item.getGclSno(), item.getIoeC(), "N");
 
                 if (existing.isPresent()) {
                     existing.get().update(dupBg, dupRt);
@@ -205,7 +205,7 @@ public class BudgetWorkService {
                             .orcTb("BITEMM")
                             .orcPkVl(item.getGclMngNo())
                             .orcSnoVl(item.getGclSno())
-                            .ioeC(item.getGclDtt())
+                            .ioeC(item.getIoeC())
                             .dupBg(dupBg)
                             .dupRt(dupRt)
                             .build();
@@ -270,7 +270,7 @@ public class BudgetWorkService {
                         item.orcPkVl(), "N", "Y");
 
                 for (Bitemm bitemm : items) {
-                    boolean isCapital = isCapitalIoeCode(bitemm.getGclDtt(), capitalPrefixes);
+                    boolean isCapital = isCapitalIoeCode(bitemm.getIoeC(), capitalPrefixes);
                     int dupRt = isCapital ? assetDupRt : costDupRt;
 
                     BigDecimal xcrVal = bitemm.getXcr() != null ? bitemm.getXcr() : BigDecimal.ONE;
@@ -286,7 +286,7 @@ public class BudgetWorkService {
                             .orcTb("BITEMM")
                             .orcPkVl(bitemm.getGclMngNo())
                             .orcSnoVl(bitemm.getGclSno())
-                            .ioeC(bitemm.getGclDtt())
+                            .ioeC(bitemm.getIoeC())
                             .dupBg(dupBg)
                             .dupRt(dupRt)
                             .build();

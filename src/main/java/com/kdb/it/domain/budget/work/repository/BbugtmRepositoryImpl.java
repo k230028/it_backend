@@ -177,7 +177,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         BooleanBuilder builder = new BooleanBuilder();
         builder.and(bitemm.delYn.eq("N"));
         builder.and(bitemm.lstYn.eq("Y"));
-        builder.and(bitemm.gclDtt.startsWith(prefix));
+        builder.and(bitemm.ioeC.startsWith(prefix));
 
         // BITEMM의 상위 BPROJM이 결재완료 상태 + 예산연도 일치 확인
         builder.and(
@@ -286,7 +286,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                         bbugtm.bgYy.eq(bgYy),
                         bbugtm.orcTb.eq("BITEMM"),
                         bitemm.prjMngNo.in(prjMngNos),
-                        bitemm.gclDtt.in(assetGclDttCodes),
+                        bitemm.ioeC.in(assetGclDttCodes),
                         bbugtm.delYn.eq("N"),
                         bitemm.delYn.eq("N"),
                         bitemm.lstYn.eq("Y"))
@@ -320,7 +320,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                         bbugtm.bgYy.eq(bgYy),
                         bbugtm.orcTb.eq("BITEMM"),
                         bitemm.prjMngNo.in(prjMngNos),
-                        bitemm.gclDtt.in(costGclDttCodes),
+                        bitemm.ioeC.in(costGclDttCodes),
                         bbugtm.delYn.eq("N"),
                         bitemm.delYn.eq("N"),
                         bitemm.lstYn.eq("Y"))
@@ -417,7 +417,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         BooleanBuilder builder = new BooleanBuilder();
         builder.and(bitemm.delYn.eq("N"));
         builder.and(bitemm.lstYn.eq("Y"));
-        builder.and(bitemm.gclDtt.startsWith(prefix));
+        builder.and(bitemm.ioeC.startsWith(prefix));
 
         // BITEMM의 상위 BPROJM 결재완료 + 예산연도 서브쿼리
         builder.and(

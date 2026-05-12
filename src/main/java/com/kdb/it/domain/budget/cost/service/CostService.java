@@ -490,13 +490,23 @@ public class CostService {
         Map<String, List<Cdecim>> decisionMap = allDecisions.stream()
                 .collect(Collectors.groupingBy(Cdecim::getDcdMngNo));
 
-        // --- 4. 부서코드·사원번호 수집 ---
+        // --- 4. 부서코드·사원번호·공통코드 CDVA 수집 ---
         Set<String> orgCodes = new java.util.HashSet<>();
         Set<String> userEnos = new java.util.HashSet<>();
+        Set<String> abusCdvas = new java.util.HashSet<>();
+        Set<String> dfrCleCdvas = new java.util.HashSet<>();
+        Set<String> itMngcTpCdvas = new java.util.HashSet<>();
+        Set<String> pulDttCdvas = new java.util.HashSet<>();
+        Set<String> ioeCCdvas = new java.util.HashSet<>();
         for (CostDto.Response r : responses) {
             if (r.getBiceDpm() != null && !r.getBiceDpm().isEmpty()) orgCodes.add(r.getBiceDpm());
             if (r.getBiceTem() != null && !r.getBiceTem().isEmpty()) orgCodes.add(r.getBiceTem());
             if (r.getCgpr() != null && !r.getCgpr().isEmpty()) userEnos.add(r.getCgpr());
+            if (r.getAbusC() != null && !r.getAbusC().isEmpty()) abusCdvas.add(r.getAbusC());
+            if (r.getDfrCle() != null && !r.getDfrCle().isEmpty()) dfrCleCdvas.add(r.getDfrCle());
+            if (r.getItMngcTp() != null && !r.getItMngcTp().isEmpty()) itMngcTpCdvas.add(r.getItMngcTp());
+            if (r.getPulDtt() != null && !r.getPulDtt().isEmpty()) pulDttCdvas.add(r.getPulDtt());
+            if (r.getIoeC() != null && !r.getIoeC().isEmpty()) ioeCCdvas.add(r.getIoeC());
         }
 
         // --- 5. 배치 조회 ---
@@ -504,6 +514,16 @@ public class CostService {
                 .collect(Collectors.toMap(CorgnI::getPrlmOgzCCone, CorgnI::getBbrNm));
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
+        Map<String, String> abusCNameMap = abusCdvas.isEmpty() ? Map.of()
+                : buildCodeNameMap("ABUS_C", abusCdvas);
+        Map<String, String> dfrCleNameMap = dfrCleCdvas.isEmpty() ? Map.of()
+                : buildCodeNameMap("DFR_CLE", dfrCleCdvas);
+        Map<String, String> itMngcTpNameMap = itMngcTpCdvas.isEmpty() ? Map.of()
+                : buildCodeNameMap("IT_MNGC_TP", itMngcTpCdvas);
+        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of()
+                : buildCodeNameMap("PUL_DTT", pulDttCdvas);
+        Map<String, String> ioeCNameMap = ioeCCdvas.isEmpty() ? Map.of()
+                : buildIoeCNameMap(ioeCCdvas);
 
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < costs.size(); i++) {
@@ -525,17 +545,22 @@ public class CostService {
             if (response.getBiceDpm() != null) response.setBiceDpmNm(orgNameMap.get(response.getBiceDpm()));
             if (response.getBiceTem() != null) response.setBiceTemNm(orgNameMap.get(response.getBiceTem()));
             if (response.getCgpr() != null) response.setCgprNm(userNameMap.get(response.getCgpr()));
+            if (response.getAbusC() != null) response.setAbusCNm(abusCNameMap.get(response.getAbusC()));
+            if (response.getDfrCle() != null) response.setDfrCleNm(dfrCleNameMap.get(response.getDfrCle()));
+            if (response.getItMngcTp() != null) response.setItMngcTpNm(itMngcTpNameMap.get(response.getItMngcTp()));
+            if (response.getPulDtt() != null) response.setPulDttNm(pulDttNameMap.get(response.getPulDtt()));
+            if (response.getIoeC() != null) response.setIoeCNm(ioeCNameMap.get(response.getIoeC()));
 
             setBudgetCategory(response);
 
-            if ("IT_MNGC_TP_002".equals(cost.getItMngcTp())) {
+            if ("002".equals(cost.getItMngcTp())) {
                 attachTerminals(response);
             }
         }
 
         // --- 7. 전년도 예산(prevBgAmt) 배치 조회 (계속 항목만) ---
         List<String> continuingNos = responses.stream()
-                .filter(r -> "PUL_DTT_002".equals(r.getPulDtt()))
+                .filter(r -> "002".equals(r.getPulDtt()))
                 .map(CostDto.Response::getItMngcNo)
                 .distinct()
                 .collect(Collectors.toList());
@@ -548,7 +573,7 @@ public class CostService {
                 String prevYear = String.valueOf(Integer.parseInt(bgYy) - 1);
                 Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByItMngcNos(continuingNos, prevYear);
                 responses.forEach(r -> {
-                    if ("PUL_DTT_002".equals(r.getPulDtt())) {
+                    if ("002".equals(r.getPulDtt())) {
                         r.setPrevBgAmt(prevBgMap.getOrDefault(r.getItMngcNo(), BigDecimal.ZERO));
                     } else {
                         r.setPrevBgAmt(BigDecimal.ZERO);
@@ -604,7 +629,7 @@ public class CostService {
         response.setTerminals(dtos);
     }
 
-    /** 부서코드→부서명, 사원번호→사용자명 조회 및 설정 */
+    /** 부서코드→부서명, 사원번호→사용자명, 사업코드→사업코드명 조회 및 설정 */
     private void setCodeNames(CostDto.Response response) {
         if (response.getBiceDpm() != null && !response.getBiceDpm().isEmpty()) {
             corgnIRepository.findById(response.getBiceDpm())
@@ -617,6 +642,26 @@ public class CostService {
         if (response.getCgpr() != null && !response.getCgpr().isEmpty()) {
             cuserIRepository.findById(response.getCgpr())
                     .ifPresent(user -> response.setCgprNm(user.getUsrNm()));
+        }
+        if (response.getAbusC() != null && !response.getAbusC().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_C", response.getAbusC(), null)
+                    .ifPresent(code -> response.setAbusCNm(code.getCNm()));
+        }
+        if (response.getDfrCle() != null && !response.getDfrCle().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE", response.getDfrCle(), null)
+                    .ifPresent(code -> response.setDfrCleNm(code.getCNm()));
+        }
+        if (response.getItMngcTp() != null && !response.getItMngcTp().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", response.getItMngcTp(), null)
+                    .ifPresent(code -> response.setItMngcTpNm(code.getCNm()));
+        }
+        if (response.getPulDtt() != null && !response.getPulDtt().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", response.getPulDtt(), null)
+                    .ifPresent(code -> response.setPulDttNm(code.getCNm()));
+        }
+        if (response.getIoeC() != null && !response.getIoeC().isEmpty()) {
+            String ioeCNm = buildIoeCNameMap(Set.of(response.getIoeC())).get(response.getIoeC());
+            response.setIoeCNm(ioeCNm);
         }
     }
 
@@ -637,6 +682,27 @@ public class CostService {
                 tDto.setCgprNm(nameMap.get(tDto.getCgpr()));
             }
         });
+    }
+
+    /** C_ID 기준 cdva→C_NM 맵 생성 (지정 cdva만 필터링) */
+    private Map<String, String> buildCodeNameMap(String cId, Set<String> cdvas) {
+        return ccodemRepository.findByCIdWithValidDate(cId, null).stream()
+                .filter(c -> cdvas.contains(c.getCdva()))
+                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCNm, (a, b) -> a));
+    }
+
+    /** IOE 코드 cdva → CDVA_DTL 마지막 세그먼트(' - ' 구분) 맵 생성 */
+    private Map<String, String> buildIoeCNameMap(Set<String> cdvas) {
+        return ccodemRepository.findByCIdWithValidDate("IOE", null).stream()
+                .filter(c -> cdvas.contains(c.getCdva()))
+                .collect(Collectors.toMap(
+                        Ccodem::getCdva,
+                        c -> {
+                            String dtl = c.getCdvaDtl() != null ? c.getCdvaDtl() : (c.getCNm() != null ? c.getCNm() : c.getCdva());
+                            String[] parts = dtl.split(" - ");
+                            return parts[parts.length - 1].trim();
+                        },
+                        (a, b) -> a));
     }
 
     /** 단말기관리번호 자동 생성 (형식: TER_{yyyy}_{seq:04d}) */

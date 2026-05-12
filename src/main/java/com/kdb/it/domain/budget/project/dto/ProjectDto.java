@@ -674,7 +674,35 @@ public class ProjectDto {
         @Schema(description = "주관부서담당팀장명")
         private String svnDpmTlrNm;
 
-        /** 자본예산: Bitemm의 gclDtt(비목코드)가 공통코드 코드값구분 IOE_CPIT에 해당하는 항목의 gclAmt 합계 */
+        /** 프로젝트유형명: prjTp 기준 TAAABB_CCODEM C_NM */
+        @Schema(description = "프로젝트유형명")
+        private String prjTpNm;
+
+        /** 업무구분명: bzDtt 기준 TAAABB_CCODEM C_NM */
+        @Schema(description = "업무구분명")
+        private String bzDttNm;
+
+        /** 기술유형명: tchnTp 기준 TAAABB_CCODEM C_NM */
+        @Schema(description = "기술유형명")
+        private String tchnTpNm;
+
+        /** 주요사용자명: mnUsr 기준 TAAABB_CCODEM C_NM */
+        @Schema(description = "주요사용자명")
+        private String mnUsrNm;
+
+        /** 보고상태명: rprSts 기준 TAAABB_CCODEM C_NM */
+        @Schema(description = "보고상태명")
+        private String rprStsNm;
+
+        /** 프로젝트추진가능성명: prjPulPtt 기준 TAAABB_CCODEM C_NM */
+        @Schema(description = "프로젝트추진가능성명")
+        private String prjPulPttNm;
+
+        /** 사업구분명: pulDtt 기준 TAAABB_CCODEM C_NM */
+        @Schema(description = "사업구분명")
+        private String pulDttNm;
+
+        /** 자본예산: Bitemm의 ioeC(비목코드)가 공통코드 코드값구분 IOE_CPIT에 해당하는 항목의 gclAmt 합계 */
         @Schema(description = "자본예산")
         private BigDecimal assetBg;
 
@@ -690,7 +718,7 @@ public class ProjectDto {
         @Schema(description = "기타무형자산")
         private BigDecimal intanBg;
 
-        /** 일반관리비: Bitemm의 gclDtt(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하는 항목의 gclAmt 합계 */
+        /** 일반관리비: Bitemm의 ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하는 항목의 gclAmt 합계 */
         @Schema(description = "일반관리비")
         private BigDecimal costBg;
 
@@ -698,11 +726,11 @@ public class ProjectDto {
         @Schema(description = "편성예산 (BBUGTM 기준, 편성률 반영)")
         private BigDecimal dupBg;
 
-        /** BBUGTM 기준 자본예산 편성예산 (gclDtt IOE_CPIT 계열 품목의 DUP_BG 합계) */
+        /** BBUGTM 기준 자본예산 편성예산 (ioeC IOE_CPIT 계열 품목의 DUP_BG 합계) */
         @Schema(description = "자본예산 편성예산 (BBUGTM 기준)")
         private BigDecimal assetDupBg;
 
-        /** BBUGTM 기준 일반관리비 편성예산 (gclDtt IOE_IDR/SEVS/XPN/LEAFE 계열 품목의 DUP_BG 합계) */
+        /** BBUGTM 기준 일반관리비 편성예산 (ioeC IOE_IDR/SEVS/XPN/LEAFE 계열 품목의 DUP_BG 합계) */
         @Schema(description = "일반관리비 편성예산 (BBUGTM 기준)")
         private BigDecimal costDupBg;
 
@@ -823,7 +851,11 @@ public class ProjectDto {
 
         /** 품목구분 (예: "HW", "SW", "용역") */
         @Schema(description = "품목구분")
-        private String gclDtt;
+        private String ioeC;
+
+        /** 품목구분명 (IOE 코드 표시명, 서비스에서 별도 설정) */
+        @Schema(description = "품목구분명")
+        private String ioeCNm;
 
         /** 품목명 (도입 또는 구매할 품목의 이름) */
         @Schema(description = "품목명")
@@ -883,7 +915,7 @@ public class ProjectDto {
             return BitemmDto.builder()
                     .gclMngNo(bitemm.getGclMngNo()) // 품목관리번호
                     .gclSno(bitemm.getGclSno()) // 품목일련번호
-                    .gclDtt(bitemm.getGclDtt()) // 품목구분
+                    .ioeC(bitemm.getIoeC()) // 품목구분
                     .gclNm(bitemm.getGclNm()) // 품목명
                     .gclQtt(bitemm.getGclQtt()) // 품목수량
                     .cur(bitemm.getCur()) // 통화

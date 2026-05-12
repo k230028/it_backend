@@ -42,7 +42,7 @@ public interface BbugtmRepositoryCustom {
      * <p>
      * [조건]
      * 1. BITEMM.DEL_YN = 'N' AND LST_YN = 'Y'
-     * 2. BITEMM.GCL_DTT LIKE '접두어%'
+     * 2. BITEMM.IOE_C LIKE '접두어%'
      * 3. BITEMM의 상위 BPROJM이 결재완료 상태
      *    (CAPPLA.ORC_TB_CD = 'BPROJM' → 최신 CAPPLM.APF_STS = '결재완료')
      * 4. BPROJM.BG_YY = :bgYy

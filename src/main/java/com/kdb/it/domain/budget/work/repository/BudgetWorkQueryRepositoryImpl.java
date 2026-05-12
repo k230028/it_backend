@@ -112,12 +112,12 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                 BigDecimal.class, "COALESCE({0}, 1.0) * {1}", bitemm.xcr, bitemm.gclAmt);
 
         List<Tuple> rows = queryFactory
-                .select(bitemm.gclDtt, effectiveAmt.sum())
+                .select(bitemm.ioeC, effectiveAmt.sum())
                 .from(bitemm)
                 .where(
                         bitemm.delYn.eq("N"),
                         bitemm.lstYn.eq("Y"),
-                        bitemm.gclDtt.isNotNull(),
+                        bitemm.ioeC.isNotNull(),
                         bitemm.gclAmt.isNotNull(),
                         JPAExpressions.selectOne()
                                 .from(bprojm)
@@ -144,15 +144,15 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                                                                                 cappla2.orcSnoVl.eq(bprojm.prjSno))))
                                                 .exists())
                                 .exists())
-                .groupBy(bitemm.gclDtt)
+                .groupBy(bitemm.ioeC)
                 .fetch();
 
         Map<String, BigDecimal> result = new LinkedHashMap<>();
         for (Tuple row : rows) {
-            String gclDtt = row.get(bitemm.gclDtt);
+            String ioeC = row.get(bitemm.ioeC);
             BigDecimal amount = row.get(effectiveAmt.sum());
-            if (gclDtt != null && amount != null) {
-                result.put(gclDtt, amount);
+            if (ioeC != null && amount != null) {
+                result.put(ioeC, amount);
             }
         }
         return result;

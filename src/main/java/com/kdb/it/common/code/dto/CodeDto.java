@@ -1,5 +1,6 @@
 package com.kdb.it.common.code.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kdb.it.common.code.entity.Ccodem;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
@@ -108,30 +109,36 @@ public class CodeDto {
     @Schema(name = "CodeDto.Response", description = "공통코드 조회 응답")
     public static class Response {
 
+        @JsonProperty("cId")
         @Schema(description = "코드ID")
         private String cId;
 
         @Schema(description = "코드값")
         private String cdva;
 
+        @JsonProperty("cNm")
         @Schema(description = "코드명 (구 CDVA)")
         private String cNm;
 
+        @JsonProperty("cDes")
         @Schema(description = "코드설명 (구 CTT_TP_DES)")
         private String cDes;
 
         @Schema(description = "코드값상세 (구 C_NM)")
         private String cdvaDtl;
 
+        @JsonProperty("cTp")
         @Schema(description = "코드타입")
         private String cTp;
 
+        @JsonProperty("cTpDes")
         @Schema(description = "코드타입설명")
         private String cTpDes;
 
         @Schema(description = "상위코드")
         private String hrkC;
 
+        @JsonProperty("cSqn")
         @Schema(description = "코드순서")
         private Integer cSqn;
 

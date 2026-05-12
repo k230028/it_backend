@@ -361,6 +361,26 @@ public class CostDto {
         @Schema(description = "사업코드", example = "ABUS01")
         private String abusC;
 
+        /** 사업코드명: abusC(사업코드) 기준 TAAABB_CCODEM에서 C_NM 조회 */
+        @Schema(description = "사업코드명")
+        private String abusCNm;
+
+        /** 비목코드명: ioeC(비목코드) 기준 TAAABB_CCODEM CDVA_DTL 마지막 항목 */
+        @Schema(description = "비목코드명")
+        private String ioeCNm;
+
+        /** 지급주기명: dfrCle(지급주기) 기준 TAAABB_CCODEM C_NM */
+        @Schema(description = "지급주기명")
+        private String dfrCleNm;
+
+        /** 전산업무비유형명: itMngcTp 기준 TAAABB_CCODEM C_NM */
+        @Schema(description = "전산업무비유형명")
+        private String itMngcTpNm;
+
+        /** 전산업무비구분명: pulDtt 기준 TAAABB_CCODEM C_NM */
+        @Schema(description = "전산업무비구분명")
+        private String pulDttNm;
+
         /** 전산업무비유형 */
         @Schema(description = "전산업무비유형", example = "TP01")
         private String itMngcTp;

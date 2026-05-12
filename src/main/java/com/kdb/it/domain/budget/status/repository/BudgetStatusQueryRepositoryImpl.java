@@ -291,7 +291,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         // 기계장치 (IOE-238)
         StringExpression machCur = Expressions.stringTemplate(
                 "MAX(CASE WHEN {0} LIKE {1} THEN {2} END)",
-                i.gclDtt, Expressions.constant(IOE_MACH + "%"), i.cur);
+                i.ioeC, Expressions.constant(IOE_MACH + "%"), i.cur);
         NumberExpression<BigDecimal> machQtt = sumFieldByPrefix(i, IOE_MACH, i.gclQtt);
         NumberExpression<BigDecimal> machAmt = sumFieldByPrefix(i, IOE_MACH, i.gclAmt);
         NumberExpression<BigDecimal> machAmtKrw = sumItemAmtByPrefix(i, IOE_MACH);
@@ -299,7 +299,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         // 기타무형자산 (IOE-239)
         StringExpression intanCur = Expressions.stringTemplate(
                 "MAX(CASE WHEN {0} LIKE {1} THEN {2} END)",
-                i.gclDtt, Expressions.constant(IOE_INTAN + "%"), i.cur);
+                i.ioeC, Expressions.constant(IOE_INTAN + "%"), i.cur);
         NumberExpression<BigDecimal> intanQtt = sumFieldByPrefix(i, IOE_INTAN, i.gclQtt);
         NumberExpression<BigDecimal> intanAmt = sumFieldByPrefix(i, IOE_INTAN, i.gclAmt);
         NumberExpression<BigDecimal> intanAmtKrw = sumItemAmtByPrefix(i, IOE_INTAN);
@@ -352,12 +352,12 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     /**
      * BITEMM 품목구분별 원화환산 금액 피벗
      *
-     * <p>SUM(CASE WHEN gclDtt LIKE 'prefix%' THEN gclAmt * COALESCE(xcr, 1) ELSE 0 END)</p>
+     * <p>SUM(CASE WHEN ioeC LIKE 'prefix%' THEN gclAmt * COALESCE(xcr, 1) ELSE 0 END)</p>
      */
     private NumberExpression<BigDecimal> sumItemAmtByPrefix(QBitemm i, String prefix) {
         return Expressions.numberTemplate(BigDecimal.class,
                 "COALESCE(SUM(CASE WHEN {0} LIKE {1} THEN {2} * COALESCE({3}, 1) ELSE 0 END), 0)",
-                i.gclDtt, Expressions.constant(prefix + "%"), i.gclAmt, i.xcr);
+                i.ioeC, Expressions.constant(prefix + "%"), i.gclAmt, i.xcr);
     }
 
     /**
@@ -387,13 +387,13 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     /**
      * BITEMM 품목구분별 단일 필드 합계
      *
-     * <p>SUM(CASE WHEN gclDtt LIKE 'prefix%' THEN field ELSE 0 END)</p>
+     * <p>SUM(CASE WHEN ioeC LIKE 'prefix%' THEN field ELSE 0 END)</p>
      */
     private NumberExpression<BigDecimal> sumFieldByPrefix(QBitemm i, String prefix,
                                                           NumberExpression<BigDecimal> field) {
         return Expressions.numberTemplate(BigDecimal.class,
                 "COALESCE(SUM(CASE WHEN {0} LIKE {1} THEN {2} ELSE 0 END), 0)",
-                i.gclDtt, Expressions.constant(prefix + "%"), field);
+                i.ioeC, Expressions.constant(prefix + "%"), field);
     }
 
     /**

@@ -406,7 +406,7 @@ class BudgetWorkServiceTest {
         Bitemm item = mock(Bitemm.class);
         given(item.getGclMngNo()).willReturn("GCL-0001");
         given(item.getGclSno()).willReturn(1);
-        given(item.getGclDtt()).willReturn("IOE-237-0700");
+        given(item.getIoeC()).willReturn("IOE-237-0700");
         given(item.getGclAmt()).willReturn(BigDecimal.valueOf(500_000));
         given(item.getXcr()).willReturn(null);
         given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026")).willReturn(List.of(item));
@@ -442,7 +442,7 @@ class BudgetWorkServiceTest {
         Bitemm bitemm = mock(Bitemm.class);
         given(bitemm.getGclMngNo()).willReturn("GCL-0001");
         given(bitemm.getGclSno()).willReturn(1);
-        given(bitemm.getGclDtt()).willReturn("IOE-351-0100");
+        given(bitemm.getIoeC()).willReturn("IOE-351-0100");
         given(bitemm.getGclAmt()).willReturn(BigDecimal.valueOf(1_000_000));
         given(bitemm.getXcr()).willReturn(null);
 
@@ -505,7 +505,7 @@ class BudgetWorkServiceTest {
         Bitemm capitalItem = mock(Bitemm.class);
         given(capitalItem.getGclMngNo()).willReturn("GCL-0001");
         given(capitalItem.getGclSno()).willReturn(1);
-        given(capitalItem.getGclDtt()).willReturn("IOE-351-0100");
+        given(capitalItem.getIoeC()).willReturn("IOE-351-0100");
         given(capitalItem.getGclAmt()).willReturn(BigDecimal.valueOf(1000));
         given(capitalItem.getXcr()).willReturn(BigDecimal.valueOf(2));
         Bcostm cost = mock(Bcostm.class);
@@ -558,7 +558,7 @@ class BudgetWorkServiceTest {
                 .itMngcBg(BigDecimal.valueOf(1000))
                 .build();
         Bitemm approvedItem = mock(Bitemm.class);
-        given(approvedItem.getGclDtt()).willReturn("IOE-351-0100");
+        given(approvedItem.getIoeC()).willReturn("IOE-351-0100");
         given(approvedItem.getGclAmt()).willReturn(BigDecimal.valueOf(100));
         given(approvedItem.getXcr()).willReturn(BigDecimal.TEN);
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(budget));
@@ -633,7 +633,7 @@ class BudgetWorkServiceTest {
         ));
         Ccodem capitalCodeWithoutDash = Ccodem.builder().cdva("IOE351").build();
         Bitemm item = mock(Bitemm.class);
-        given(item.getGclDtt()).willReturn(null);
+        given(item.getIoeC()).willReturn(null);
         given(item.getGclAmt()).willReturn(null);
         given(item.getGclMngNo()).willReturn("GCL-NULL");
         given(item.getGclSno()).willReturn(1);

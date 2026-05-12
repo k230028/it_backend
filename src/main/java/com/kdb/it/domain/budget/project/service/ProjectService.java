@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.project.service;
 
+import com.kdb.it.common.code.entity.Ccodem;
+import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
@@ -89,6 +91,9 @@ public class ProjectService {
 
     /** 공통코드 서비스: 예산 신청 기간 검증용 */
     private final com.kdb.it.common.code.service.CodeService codeService;
+
+    /** 공통코드 리포지토리: 코드값→코드명 변환용 (TAAABB_CCODEM) */
+    private final CodeRepository ccodemRepository;
 
     /** 편성예산(BBUGTM) 리포지토리: 일괄 조회 시 prjMngNo별 DUP_BG 합계 조회용 */
     private final BbugtmRepository bbugtmRepository;
@@ -180,7 +185,9 @@ public class ProjectService {
         // 품목 엔티티를 DTO로 변환하여 응답 객체에 설정
         List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
                 .map(ProjectDto.BitemmDto::fromEntity)
-                .toList();
+                .collect(Collectors.toList());
+        // 품목구분명(ioeCNm) IOE 코드 표시명 설정
+        enrichItemIoeCNames(itemDtos);
         response.setItems(itemDtos);
 
         // 품목 기준 자본예산/일반관리비 합계 계산 및 설정 (이미 조회한 bitemms 재활용)
@@ -263,7 +270,7 @@ public class ProjectService {
                         .gclSno(++gclSno) // 품목일련번호
                         .prjMngNo(project.getPrjMngNo()) // 프로젝트관리번호
                         .prjSno(project.getPrjSno()) // 프로젝트순번
-                        .gclDtt(itemDto.getGclDtt()) // 품목구분
+                        .ioeC(itemDto.getIoeC()) // 품목구분
                         .gclNm(itemDto.getGclNm()) // 품목명
                         .gclQtt(itemDto.getGclQtt()) // 품목수량
                         .cur(itemDto.getCur()) // 통화
@@ -387,7 +394,7 @@ public class ProjectService {
                                     .gclSno(newGclSno) // 품목일련번호 1 증가
                                     .prjMngNo(existingItem.getPrjMngNo()) // 프로젝트관리번호 유지
                                     .prjSno(existingItem.getPrjSno()) // 프로젝트순번 유지
-                                    .gclDtt(itemDto.getGclDtt()) // 품목구분
+                                    .ioeC(itemDto.getIoeC()) // 품목구분
                                     .gclNm(itemDto.getGclNm()) // 품목명
                                     .gclQtt(itemDto.getGclQtt()) // 품목수량
                                     .cur(itemDto.getCur()) // 통화
@@ -417,7 +424,7 @@ public class ProjectService {
                             .gclSno(++maxGclSno) // 품목일련번호 (MAX+1)
                             .prjMngNo(prjMngNo) // 프로젝트관리번호
                             .prjSno(project.getPrjSno()) // 프로젝트순번
-                            .gclDtt(itemDto.getGclDtt()) // 품목구분
+                            .ioeC(itemDto.getIoeC()) // 품목구분
                             .gclNm(itemDto.getGclNm()) // 품목명
                             .gclQtt(itemDto.getGclQtt()) // 품목수량
                             .cur(itemDto.getCur()) // 통화
@@ -459,7 +466,7 @@ public class ProjectService {
      * @return 변경된 필드가 하나라도 있으면 {@code true}
      */
     private boolean isItemChanged(Bitemm existing, ProjectDto.BitemmDto dto) {
-        return !Objects.equals(existing.getGclDtt(), dto.getGclDtt())
+        return !Objects.equals(existing.getIoeC(), dto.getIoeC())
                 || !Objects.equals(existing.getGclNm(), dto.getGclNm())
                 || bigDecimalChanged(existing.getGclQtt(), dto.getGclQtt())
                 || !Objects.equals(existing.getCur(), dto.getCur())
@@ -637,9 +644,16 @@ public class ProjectService {
         Map<String, List<Cdecim>> decisionMap = allDecisions.stream()
                 .collect(Collectors.groupingBy(Cdecim::getDcdMngNo));
 
-        // --- 4. 부서코드·사원번호 수집 ---
+        // --- 4. 부서코드·사원번호·공통코드 수집 ---
         Set<String> orgCodes = new java.util.HashSet<>();
         Set<String> userEnos = new java.util.HashSet<>();
+        Set<String> prjTpCdvas = new java.util.HashSet<>();
+        Set<String> bzDttCdvas = new java.util.HashSet<>();
+        Set<String> tchnTpCdvas = new java.util.HashSet<>();
+        Set<String> mnUsrCdvas = new java.util.HashSet<>();
+        Set<String> rprStsCdvas = new java.util.HashSet<>();
+        Set<String> prjPulPttCdvas = new java.util.HashSet<>();
+        Set<String> pulDttCdvas = new java.util.HashSet<>();
         for (ProjectDto.Response r : responses) {
             if (r.getItDpm() != null && !r.getItDpm().isEmpty()) orgCodes.add(r.getItDpm());
             if (r.getSvnDpm() != null && !r.getSvnDpm().isEmpty()) orgCodes.add(r.getSvnDpm());
@@ -647,13 +661,27 @@ public class ProjectService {
             if (r.getItDpmTlr() != null && !r.getItDpmTlr().isEmpty()) userEnos.add(r.getItDpmTlr());
             if (r.getSvnDpmCgpr() != null && !r.getSvnDpmCgpr().isEmpty()) userEnos.add(r.getSvnDpmCgpr());
             if (r.getSvnDpmTlr() != null && !r.getSvnDpmTlr().isEmpty()) userEnos.add(r.getSvnDpmTlr());
+            if (r.getPrjTp() != null && !r.getPrjTp().isEmpty()) prjTpCdvas.add(r.getPrjTp());
+            if (r.getBzDtt() != null && !r.getBzDtt().isEmpty()) bzDttCdvas.add(r.getBzDtt());
+            if (r.getTchnTp() != null && !r.getTchnTp().isEmpty()) tchnTpCdvas.add(r.getTchnTp());
+            if (r.getMnUsr() != null && !r.getMnUsr().isEmpty()) mnUsrCdvas.add(r.getMnUsr());
+            if (r.getRprSts() != null && !r.getRprSts().isEmpty()) rprStsCdvas.add(r.getRprSts());
+            if (r.getPrjPulPtt() != null) prjPulPttCdvas.add(String.valueOf(r.getPrjPulPtt()));
+            if (r.getPulDtt() != null && !r.getPulDtt().isEmpty()) pulDttCdvas.add(r.getPulDtt());
         }
 
-        // --- 5. 부서명·사용자명 배치 조회 ---
+        // --- 5. 부서명·사용자명·공통코드명 배치 조회 ---
         Map<String, String> orgNameMap = corgnIRepository.findAllById(orgCodes).stream()
                 .collect(Collectors.toMap(CorgnI::getPrlmOgzCCone, CorgnI::getBbrNm));
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
+        Map<String, String> prjTpNameMap = prjTpCdvas.isEmpty() ? Map.of() : buildCodeNameMap("PRJ_TP", prjTpCdvas);
+        Map<String, String> bzDttNameMap = bzDttCdvas.isEmpty() ? Map.of() : buildCodeNameMap("BZ_DTT", bzDttCdvas);
+        Map<String, String> tchnTpNameMap = tchnTpCdvas.isEmpty() ? Map.of() : buildCodeNameMap("TCHN_TP", tchnTpCdvas);
+        Map<String, String> mnUsrNameMap = mnUsrCdvas.isEmpty() ? Map.of() : buildCodeNameMap("MN_USR", mnUsrCdvas);
+        Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of() : buildCodeNameMap("RPR_STS", rprStsCdvas);
+        Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : buildCodeNameMap("PRJ_PUL_PTT", prjPulPttCdvas);
+        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : buildCodeNameMap("PUL_DTT", pulDttCdvas);
 
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < projects.size(); i++) {
@@ -677,6 +705,13 @@ public class ProjectService {
             if (response.getItDpmTlr() != null) response.setItDpmTlrNm(userNameMap.get(response.getItDpmTlr()));
             if (response.getSvnDpmCgpr() != null) response.setSvnDpmCgprNm(userNameMap.get(response.getSvnDpmCgpr()));
             if (response.getSvnDpmTlr() != null) response.setSvnDpmTlrNm(userNameMap.get(response.getSvnDpmTlr()));
+            if (response.getPrjTp() != null) response.setPrjTpNm(prjTpNameMap.get(response.getPrjTp()));
+            if (response.getBzDtt() != null) response.setBzDttNm(bzDttNameMap.get(response.getBzDtt()));
+            if (response.getTchnTp() != null) response.setTchnTpNm(tchnTpNameMap.get(response.getTchnTp()));
+            if (response.getMnUsr() != null) response.setMnUsrNm(mnUsrNameMap.get(response.getMnUsr()));
+            if (response.getRprSts() != null) response.setRprStsNm(rprStsNameMap.get(response.getRprSts()));
+            if (response.getPrjPulPtt() != null) response.setPrjPulPttNm(prjPulPttNameMap.get(String.valueOf(response.getPrjPulPtt())));
+            if (response.getPulDtt() != null) response.setPulDttNm(pulDttNameMap.get(response.getPulDtt()));
 
             setBudgetSummary(response, project.getPrjMngNo(), project.getPrjSno());
         }
@@ -763,6 +798,37 @@ public class ProjectService {
             cuserIRepository.findById(response.getSvnDpmTlr())
                     .ifPresent(user -> response.setSvnDpmTlrNm(user.getUsrNm()));
         }
+
+        // === 공통코드 코드값 → 코드명 변환 (TAAABB_CCODEM) ===
+
+        if (response.getPrjTp() != null && !response.getPrjTp().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_TP", response.getPrjTp(), null)
+                    .ifPresent(code -> response.setPrjTpNm(code.getCNm()));
+        }
+        if (response.getBzDtt() != null && !response.getBzDtt().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("BZ_DTT", response.getBzDtt(), null)
+                    .ifPresent(code -> response.setBzDttNm(code.getCNm()));
+        }
+        if (response.getTchnTp() != null && !response.getTchnTp().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("TCHN_TP", response.getTchnTp(), null)
+                    .ifPresent(code -> response.setTchnTpNm(code.getCNm()));
+        }
+        if (response.getMnUsr() != null && !response.getMnUsr().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("MN_USR", response.getMnUsr(), null)
+                    .ifPresent(code -> response.setMnUsrNm(code.getCNm()));
+        }
+        if (response.getRprSts() != null && !response.getRprSts().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("RPR_STS", response.getRprSts(), null)
+                    .ifPresent(code -> response.setRprStsNm(code.getCNm()));
+        }
+        if (response.getPrjPulPtt() != null) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_PUL_PTT", String.valueOf(response.getPrjPulPtt()), null)
+                    .ifPresent(code -> response.setPrjPulPttNm(code.getCNm()));
+        }
+        if (response.getPulDtt() != null && !response.getPulDtt().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", response.getPulDtt(), null)
+                    .ifPresent(code -> response.setPulDttNm(code.getCNm()));
+        }
     }
 
     /**
@@ -781,6 +847,14 @@ public class ProjectService {
         // 삭제되지 않은 품목 목록 조회
         List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository
                 .findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, prjSno, "N");
+        // 목록 조회 시 items 가 아직 설정되지 않은 경우 DTO 변환 및 enrichment 수행
+        if (response.getItems() == null) {
+            List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
+                    .map(ProjectDto.BitemmDto::fromEntity)
+                    .collect(Collectors.toList());
+            enrichItemIoeCNames(itemDtos);
+            response.setItems(itemDtos);
+        }
         setBudgetSummaryFromItems(response, bitemms);
     }
 
@@ -830,34 +904,34 @@ public class ProjectService {
                     return item.getGclAmt().multiply(xcr);
                 };
 
-        // 유효한 품목만 필터링 (gclDtt, gclAmt가 null이 아닌 항목)
+        // 유효한 품목만 필터링 (ioeC, gclAmt가 null이 아닌 항목)
         List<com.kdb.it.domain.budget.project.entity.Bitemm> validItems = bitemms.stream()
-                .filter(item -> item.getGclDtt() != null && item.getGclAmt() != null)
+                .filter(item -> item.getIoeC() != null && item.getGclAmt() != null)
                 .collect(java.util.stream.Collectors.toList());
 
         // 자본예산 합계 계산
         java.math.BigDecimal assetBg = validItems.stream()
-                .filter(item -> assetTypes.contains(item.getGclDtt()))
+                .filter(item -> assetTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
         // 자본예산 세부 분류 합계 계산
         java.math.BigDecimal devBg = validItems.stream()
-                .filter(item -> devTypes.contains(item.getGclDtt()))
+                .filter(item -> devTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
         java.math.BigDecimal machBg = validItems.stream()
-                .filter(item -> machTypes.contains(item.getGclDtt()))
+                .filter(item -> machTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
         java.math.BigDecimal intanBg = validItems.stream()
-                .filter(item -> intanTypes.contains(item.getGclDtt()))
+                .filter(item -> intanTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
         // 일반관리비 합계 계산
         java.math.BigDecimal costBg = validItems.stream()
-                .filter(item -> costTypes.contains(item.getGclDtt()))
+                .filter(item -> costTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
@@ -885,6 +959,86 @@ public class ProjectService {
      * @param resourceBbrC 리소스 소속 부서코드 (부서 단위 권한 범위 결정용)
      * @throws AccessDeniedException 수정 권한이 없는 경우
      */
+    /**
+     * C_ID 기준 cdva→C_NM 맵 생성 (지정 cdva만 필터링)
+     *
+     * @param cId   코드ID (예: PRJ_TP, BZ_DTT)
+     * @param cdvas 조회할 코드값 집합
+     * @return 코드값 → 코드명 맵
+     */
+    private Map<String, String> buildCodeNameMap(String cId, Set<String> cdvas) {
+        return ccodemRepository.findByCIdWithValidDate(cId, null).stream()
+                .filter(c -> cdvas.contains(c.getCdva()))
+                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCNm, (a, b) -> a));
+    }
+
+    /**
+     * IOE 계층 코드(구형 C_ID 형식) 집합을 받아 표시명 맵을 배치 조회합니다.
+     *
+     * <p>
+     * ioeC 값은 구형 IOE C_ID 형식 (예: "IOE-351-1100-1")입니다.
+     * 새 CCODEM 에서는 하이픈을 언더스코어로 치환한 뒤 마지막 세그먼트를 CDVA 로,
+     * 나머지 앞부분을 C_ID 로 사용합니다.
+     * </p>
+     *
+     * @param ioeCodes 조회할 품목구분 코드 집합 (IOE 계층 코드)
+     * @return 원본 코드값 → 표시명 맵
+     */
+    private Map<String, String> buildIoeCNameMap(Set<String> ioeCodes) {
+        Map<String, String> result = new java.util.HashMap<>();
+        // C_ID 별로 그룹화하여 배치 조회
+        Map<String, List<String>> byCId = new java.util.HashMap<>();
+        for (String ioeC : ioeCodes) {
+            if (ioeC == null) continue;
+            String normalized = ioeC.replace('-', '_');
+            int lastUnderscore = normalized.lastIndexOf('_');
+            String cId = lastUnderscore >= 0 ? normalized.substring(0, lastUnderscore) : normalized;
+            byCId.computeIfAbsent(cId, k -> new java.util.ArrayList<>()).add(ioeC);
+        }
+        for (Map.Entry<String, List<String>> entry : byCId.entrySet()) {
+            String cId = entry.getKey();
+            List<Ccodem> codes = ccodemRepository.findByCIdWithValidDate(cId, null);
+            for (Ccodem code : codes) {
+                for (String orig : entry.getValue()) {
+                    String normalized = orig.replace('-', '_');
+                    int lastUnderscore = normalized.lastIndexOf('_');
+                    String cdva = lastUnderscore >= 0 ? normalized.substring(lastUnderscore + 1) : normalized;
+                    if (cdva.equals(code.getCdva())) {
+                        String displayName = code.getCdvaDtl() != null ? code.getCdvaDtl() : code.getCNm();
+                        if (displayName != null) {
+                            String[] parts = displayName.split(" - ");
+                            result.put(orig, parts[parts.length - 1].trim());
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 품목 DTO 목록의 ioeCNm(품목구분명)을 일괄 설정합니다.
+     *
+     * <p>
+     * 품목구분 코드(ioeC)가 IOE 계층 코드인 경우 배치 조회하여
+     * 표시명을 ioeCNm 에 설정합니다.
+     * </p>
+     *
+     * @param items 품목 DTO 목록
+     */
+    private void enrichItemIoeCNames(List<ProjectDto.BitemmDto> items) {
+        if (items == null || items.isEmpty()) return;
+        Set<String> ioeCSet = items.stream()
+                .map(ProjectDto.BitemmDto::getIoeC)
+                .filter(v -> v != null && !v.isEmpty())
+                .collect(Collectors.toSet());
+        if (ioeCSet.isEmpty()) return;
+        Map<String, String> nameMap = buildIoeCNameMap(ioeCSet);
+        items.forEach(item -> {
+            if (item.getIoeC() != null) item.setIoeCNm(nameMap.get(item.getIoeC()));
+        });
+    }
+
     private void validateModifyPermission(String creatorEno, String resourceBbrC) {
         // SecurityContext에서 현재 인증 주체 조회
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
