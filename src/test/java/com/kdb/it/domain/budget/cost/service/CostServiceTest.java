@@ -193,8 +193,8 @@ class CostServiceTest {
         // when
         String result = costService.createCost(request);
 
-        // then: 자동 채번된 관리번호 형식 검증 (COST_{year}_0001)
-        assertThat(result).matches("COST_\\d{4}_0001");
+        // then: 자동 채번된 관리번호 형식 검증 (COST-{year}-0001)
+        assertThat(result).matches("COST-\\d{4}-0001");
         // repository.save() 호출 확인
         verify(costRepository).save(any(Bcostm.class));
     }
@@ -399,7 +399,7 @@ class CostServiceTest {
         String result = costService.createCost(request);
 
         assertThat(result).isEqualTo(IT_MNGC_NO);
-        assertThat(terminal.getTmnMngNo()).matches("TER_\\d{4}_0007");
+        assertThat(terminal.getTmnMngNo()).matches("TER-\\d{4}-0007");
         assertThat(terminal.getTmnSno()).isEqualTo("1");
         verify(btermmRepository).save(any(Btermm.class));
     }
@@ -448,7 +448,7 @@ class CostServiceTest {
                     any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
             verify(oldTerminal).delete();
             verify(btermmRepository).save(any(Btermm.class));
-            assertThat(newTerminal.getTmnMngNo()).matches("TER_\\d{4}_0008");
+            assertThat(newTerminal.getTmnMngNo()).matches("TER-\\d{4}-0008");
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
@@ -509,7 +509,7 @@ class CostServiceTest {
                 .willReturn(List.of());
         given(ccodemRepository.findByCIdWithValidDate("IOE", null))
                 .willReturn(List.of(
-                        Ccodem.builder().cId("IOE").cdva("101").cTp("IOE_CPIT").cDes("개발비").build(),
+                        Ccodem.builder().cId("IOE").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
                         Ccodem.builder().cId("IOE").cdva("102").cTp("IOE_IDR").build()));
         given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-ASSET", "COST-COST"), "2026"))
                 .willReturn(java.util.Map.of(
@@ -572,7 +572,7 @@ class CostServiceTest {
         given(corgnIRepository.findById("102")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
         given(cuserIRepository.findById("10001")).willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
         given(ccodemRepository.findByCIdWithValidDate("IOE", null))
-                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("101").cTp("IOE_CPIT").cDes("개발비").build()));
+                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build()));
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                 .willReturn(List.of(terminal));
         given(cuserIRepository.findByEnoIn(java.util.Set.of("10003")))
@@ -593,7 +593,7 @@ class CostServiceTest {
     }
 
     @Test
-    @DisplayName("getCost: 자본예산 코드설명별 세부 분류와 일반관리비를 계산한다")
+    @DisplayName("getCost: 자본예산 코드타입별 세부 분류와 일반관리비를 계산한다")
     void getCost_예산구분세부분류계산() {
         Bcostm machCost = Bcostm.builder()
                 .itMngcNo("COST-MACH")
@@ -621,8 +621,8 @@ class CostServiceTest {
         given(costRepository.findByItMngcNoAndDelYn("COST-GEN", "N")).willReturn(List.of(costBg));
         given(ccodemRepository.findByCIdWithValidDate("IOE", null))
                 .willReturn(List.of(
-                        Ccodem.builder().cId("IOE").cdva("101").cTp("IOE_CPIT").cDes("기계장치").build(),
-                        Ccodem.builder().cId("IOE").cdva("102").cTp("IOE_CPIT").cDes("기타무형자산").build(),
+                        Ccodem.builder().cId("IOE").cdva("101").cdvaNm("기계장치").cTp("IOE_HW").build(),
+                        Ccodem.builder().cId("IOE").cdva("102").cdvaNm("기타무형자산").cTp("IOE_SW").build(),
                         Ccodem.builder().cId("IOE").cdva("103").cTp("IOE_IDR").build()));
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(any(), eq(1), eq("N"))).willReturn(List.of());
 

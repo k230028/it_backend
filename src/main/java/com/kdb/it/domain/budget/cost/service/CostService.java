@@ -88,6 +88,12 @@ public class CostService {
     /** 일반관리비 대상 코드값구분 */
     private static final Set<String> COST_CTT_TPS = Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE");
 
+    /** 자본예산 세부 코드타입: 개발비/기계장치/기타무형자산 */
+    private static final String IOE_DVC = "IOE_DVC";
+    private static final String IOE_HW = "IOE_HW";
+    private static final String IOE_SW = "IOE_SW";
+    private static final Set<String> CAPITAL_DETAIL_CTPS = Set.of(IOE_DVC, IOE_HW, IOE_SW);
+
     /**
      * 특정 전산관리비 단건 조회
      *
@@ -415,7 +421,7 @@ public class CostService {
      * 비목코드(ioeC)를 공통코드에서 조회하여 코드값구분(cttTp) 기준으로 분류합니다.
      * </p>
      * <ul>
-     * <li>자본예산: cttTp가 IOE_CPIT인 경우 → assetBg = itMngcBg, costBg = 0</li>
+     * <li>자본예산: cttTp가 IOE_DVC/IOE_HW/IOE_SW인 경우 → assetBg = itMngcBg, costBg = 0</li>
      * <li>일반관리비: cttTp가 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE인 경우 → assetBg = 0, costBg = itMngcBg</li>
      * </ul>
      *
@@ -444,14 +450,22 @@ public class CostService {
         if (codeOpt.isPresent()) {
             Ccodem code = codeOpt.get();
             String cTp = code.getCTp();
-            if ("IOE_CPIT".equals(cTp)) {
+            if (CAPITAL_DETAIL_CTPS.contains(cTp) || "IOE_CPIT".equals(cTp)) {
                 response.setAssetBg(totalBg);
-                // 코드설명(cDes) 기준으로 세부 분류
-                String cDes = code.getCDes() != null ? code.getCDes() : "";
-                switch (cDes) {
-                    case "개발비" -> response.setDevBg(totalBg);
-                    case "기계장치" -> response.setMachBg(totalBg);
-                    case "기타무형자산" -> response.setIntanBg(totalBg);
+                // 신규 기준은 C_TP, 구 IOE_CPIT 데이터는 C_DES 한글명으로 보정
+                switch (cTp) {
+                    case IOE_DVC -> response.setDevBg(totalBg);
+                    case IOE_HW -> response.setMachBg(totalBg);
+                    case IOE_SW -> response.setIntanBg(totalBg);
+                    case "IOE_CPIT" -> {
+                        String cDes = code.getCDes() != null ? code.getCDes() : "";
+                        if ("개발비".equals(cDes)) response.setDevBg(totalBg);
+                        else if ("기계장치".equals(cDes)) response.setMachBg(totalBg);
+                        else if ("기타무형자산".equals(cDes)) response.setIntanBg(totalBg);
+                    }
+                    default -> {
+                        // 위 CAPITAL_DETAIL_CTPS 조건과 switch 분기가 어긋나는 경우 금액만 자본예산으로 유지
+                    }
                 }
                 return;
             }
@@ -693,14 +707,15 @@ public class CostService {
                 .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCNm, (a, b) -> a));
     }
 
-    /** IOE 코드 cdva → CDVA_DTL 마지막 세그먼트(' - ' 구분) 맵 생성 */
+    /** IOE 코드 cdva → CDVA_NM 우선 표시명 맵 생성 */
     private Map<String, String> buildIoeCNameMap(Set<String> cdvas) {
         return ccodemRepository.findByCIdWithValidDate("IOE", null).stream()
                 .filter(c -> cdvas.contains(c.getCdva()))
                 .collect(Collectors.toMap(
                         Ccodem::getCdva,
                         c -> {
-                            String dtl = c.getCdvaDtl() != null ? c.getCdvaDtl() : (c.getCNm() != null ? c.getCNm() : c.getCdva());
+                            String dtl = c.getCdvaNm() != null ? c.getCdvaNm()
+                                    : (c.getCdvaDtl() != null ? c.getCdvaDtl() : (c.getCNm() != null ? c.getCNm() : c.getCdva()));
                             String[] parts = dtl.split(" - ");
                             return parts[parts.length - 1].trim();
                         },

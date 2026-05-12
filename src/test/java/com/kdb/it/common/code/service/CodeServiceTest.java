@@ -173,7 +173,7 @@ class CodeServiceTest {
         String result = codeService.updateCcodem("CD001", "001", sttDt, request);
 
         assertThat(result).isEqualTo("CD001");
-        verify(ccodem).update(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(ccodem).update(any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     // ───────────────────────────────────────────────────────

@@ -316,6 +316,12 @@ public class PlanService {
                                 .budgetAllocation(request.getBudgetAllocation())
                                 .capitalBudget(request.getCapitalBudget())
                                 .expenseCost(request.getExpenseCost())
+                                // 카드 원천 데이터(B안): 상세 화면에서 폼과 동일하게 4개 카드를 재현하기 위한 패스스루
+                                .prjSnapshots(request.getPrjSnapshots())
+                                .capitalSummaryItems(request.getCapitalSummaryItems())
+                                .expenseItems(request.getExpenseItems())
+                                .costDetails(request.getCostDetails())
+                                .costPrjNm(request.getCostPrjNm())
                                 .build();
 
                 try {

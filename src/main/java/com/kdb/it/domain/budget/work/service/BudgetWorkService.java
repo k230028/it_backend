@@ -50,6 +50,9 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class BudgetWorkService {
 
+    /** 자본예산 세부 코드타입: 개발비/기계장치/기타무형자산 */
+    private static final Set<String> CAPITAL_CTPS = Set.of("IOE_DVC", "IOE_HW", "IOE_SW", "IOE_CPIT");
+
     /** 예산 데이터 접근 리포지토리 (TAAABB_BBUGTM) */
     private final BbugtmRepository bbugtmRepository;
 
@@ -87,14 +90,14 @@ public class BudgetWorkService {
      */
     public List<BudgetWorkDto.IoeCategoryResponse> getIoeCategories(String bgYy) {
         // 1. 편성비목 코드 조회 (CTT_TP = 'DUP_IOE')
-        List<Ccodem> ioeCodes = codeRepository.findByCIdWithValidDate("DUP_IOE", null);
+        List<Ccodem> ioeCodes = findCodes("DUP_IOE");
 
         // 기존 BBUGTM 데이터 조회 (편성률 확인용)
         List<Bbugtm> existingBudgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
 
         // V003 마이그레이션 후 IOE_C는 단축 cdva("001" 등)를 저장하므로
         // DUP_IOE 접두어("237") → 해당하는 IOE cdva 집합 매핑을 빌드
-        List<Ccodem> allIoeCodes = codeRepository.findByCIdWithValidDate("IOE", null);
+        List<Ccodem> allIoeCodes = findCodes("IOE");
         Map<String, Set<String>> prefixToIoeCValues = buildPrefixToIoeCValuesMap(allIoeCodes);
 
         return ioeCodes.stream().map(code -> {
@@ -151,7 +154,7 @@ public class BudgetWorkService {
         int totalRecords = 0;
 
         // V003 마이그레이션 후 IOE_C는 단축 cdva를 저장하므로 prefix→cdva 집합 매핑 빌드
-        List<Ccodem> allIoeCodes = codeRepository.findByCIdWithValidDate("IOE", null);
+        List<Ccodem> allIoeCodes = findCodes("IOE");
         Map<String, Set<String>> prefixToIoeCValues = buildPrefixToIoeCValuesMap(allIoeCodes);
 
         for (BudgetWorkDto.RateItem rate : request.rates()) {
@@ -260,8 +263,14 @@ public class BudgetWorkService {
         List<Bbugtm> priorBudgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
         for (Bbugtm prior : priorBudgets) prior.delete();
 
-        /* 자본예산 비목코드(IOE_CPIT) 목록 조회 — 자본/경상 구분용 */
-        List<Ccodem> capitalCodes = codeRepository.findByCIdWithValidDate("IOE_CPIT", null);
+        /* 자본예산 비목코드 목록 조회 — C_TP(IOE_DVC/HW/SW) 기준 */
+        List<Ccodem> capitalCodes = findCodes("IOE")
+                .stream()
+                .filter(code -> isCapitalCTp(code.getCTp()))
+                .toList();
+        if (capitalCodes.isEmpty()) {
+            capitalCodes = findCodes("IOE_CPIT");
+        }
         java.util.Set<String> capitalPrefixes = new java.util.HashSet<>();
         for (Ccodem code : capitalCodes) {
             /* IOE-351-0100 → IOE-351 추출 (3세그먼트에서 2세그먼트로 축약) */
@@ -377,20 +386,23 @@ public class BudgetWorkService {
         List<Bbugtm> budgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
 
         // 편성비목 그룹 코드 조회 (DUP_IOE: 접두어 → 그룹명 매핑)
-        List<Ccodem> dupIoeCodes = codeRepository.findByCIdWithValidDate("DUP_IOE", null);
+        List<Ccodem> dupIoeCodes = findCodes("DUP_IOE");
 
         // 세부 비목 코드 조회: 마이그레이션 후 cId="IOE" 단일 그룹으로 통합됨
         // cdva("101") → 계층코드 cNm("304-1100") 매핑으로 DUP_IOE 접두어("304")와 매칭
-        List<Ccodem> allIoeCodes = codeRepository.findByCIdWithValidDate("IOE", null);
+        List<Ccodem> allIoeCodes = findCodes("IOE");
         Map<String, String> cdvaToHierarchyCode = new LinkedHashMap<>();
         Map<String, String> cdvaToDisplayName = new LinkedHashMap<>();
+        Map<String, String> cdvaToGroupName = new LinkedHashMap<>();
         Map<String, Boolean> cdvaToCapital = new LinkedHashMap<>();
         for (Ccodem code : allIoeCodes) {
             String hierarchyCode = code.getCNm();  // 구 CDVA: "304-1100"
             cdvaToHierarchyCode.put(code.getCdva(), hierarchyCode);
-            String displayName = code.getCdvaDtl() != null ? code.getCdvaDtl() : hierarchyCode;
+            String displayName = code.getCdvaNm() != null ? code.getCdvaNm()
+                    : (code.getCdvaDtl() != null ? code.getCdvaDtl() : hierarchyCode);
             cdvaToDisplayName.put(code.getCdva(), displayName);
-            cdvaToCapital.put(code.getCdva(), "IOE_CPIT".equals(code.getCTp()));
+            cdvaToGroupName.put(code.getCdva(), resolveIoeGroupName(code));
+            cdvaToCapital.put(code.getCdva(), isCapitalCTp(code.getCTp()));
         }
 
         // 접두어 → 그룹명 매핑 (DUP_IOE 기반, cDes 우선 사용)
@@ -508,11 +520,13 @@ public class BudgetWorkService {
                         .findFirst()
                         .orElse(null);
 
-                // 자본예산 여부: 대표 코드의 cTp가 IOE_CPIT이면 자본예산
+                // 자본예산 여부: 대표 코드의 C_TP가 IOE_DVC/HW/SW이면 자본예산
                 boolean capital = Boolean.TRUE.equals(cdvaToCapital.get(representativeIoeC));
+                String itemGroupName = cdvaToGroupName.get(representativeIoeC);
+                if (itemGroupName == null || itemGroupName.isBlank()) itemGroupName = groupName;
 
                 items.add(new BudgetWorkDto.SummaryItem(
-                        detailName, representativeIoeC, prefix, groupName, capital,
+                        detailName, representativeIoeC, prefix, itemGroupName, capital,
                         requestAmount, dupAmount, dupRt));
 
                 totalRequest = totalRequest.add(requestAmount);
@@ -543,6 +557,61 @@ public class BudgetWorkService {
     }
 
     /**
+     * 공통코드 목록 조회 결과가 null이어도 빈 목록으로 처리합니다.
+     */
+    private List<Ccodem> findCodes(String cId) {
+        return Optional.ofNullable(codeRepository.findByCIdWithValidDate(cId, null)).orElse(List.of());
+    }
+
+    /**
+     * IOE 코드타입이 자본예산 세부 유형인지 판별합니다.
+     */
+    private boolean isCapitalCTp(String cTp) {
+        if (cTp == null) return false;
+        return CAPITAL_CTPS.contains(cTp);
+    }
+
+    /**
+     * IOE 코드의 그룹명은 C_TP_DES를 우선 사용하고, 없으면 CDVA_DTL 계층의 중분류를 사용합니다.
+     */
+    private String resolveIoeGroupName(Ccodem code) {
+        if (code.getCTpDes() != null && !code.getCTpDes().isBlank()) {
+            return code.getCTpDes();
+        }
+        String detail = code.getCdvaDtl();
+        if (detail != null) {
+            String[] parts = detail.split(" - ");
+            if (parts.length >= 2) return parts[1].trim();
+        }
+        return code.getCDes();
+    }
+
+    /**
+     * 사업별 편성 결과 컬럼명은 IOE 상세코드의 코드타입설명(C_TP_DES)을 우선 사용합니다.
+     */
+    private String resolveProjectSummaryCategoryName(String prefix, Ccodem dupCode, List<Ccodem> ioeDetailCodes) {
+        for (Ccodem ioeCode : ioeDetailCodes) {
+            if (ioeCode.getCNm() != null && ioeCode.getCNm().startsWith(prefix)) {
+                String groupName = resolveIoeGroupName(ioeCode);
+                if (groupName != null && !groupName.isBlank()) {
+                    return groupName;
+                }
+            }
+        }
+
+        if (dupCode.getCdvaNm() != null && !dupCode.getCdvaNm().isBlank()) {
+            return dupCode.getCdvaNm();
+        }
+        if (dupCode.getCNm() != null && !dupCode.getCNm().isBlank()) {
+            return dupCode.getCNm();
+        }
+        if (dupCode.getCDes() != null && !dupCode.getCDes().isBlank()) {
+            return dupCode.getCDes();
+        }
+        return prefix;
+    }
+
+    /**
      * 사업별 편성 결과 조회 (API-04)
      *
      * <p>
@@ -561,11 +630,11 @@ public class BudgetWorkService {
      */
     public BudgetWorkDto.ProjectSummaryResponse getProjectSummary(String bgYy) {
         // 1. 편성비목 코드 조회 (컬럼 헤더용)
-        List<Ccodem> ioeCodes = codeRepository.findByCIdWithValidDate("DUP_IOE", null);
+        List<Ccodem> ioeCodes = findCodes("DUP_IOE");
         List<Bbugtm> budgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
 
         // ioeC(cdva, "101") → 계층코드 cNm("304-1100") 매핑: DUP_IOE 접두어("304") 매칭용
-        List<Ccodem> ioeDetailCodes = codeRepository.findByCIdWithValidDate("IOE", null);
+        List<Ccodem> ioeDetailCodes = findCodes("IOE");
         Map<String, String> ioeCdvaToHierarchyCode = new LinkedHashMap<>();
         for (Ccodem code : ioeDetailCodes) {
             ioeCdvaToHierarchyCode.put(code.getCdva(), code.getCNm());
@@ -593,7 +662,8 @@ public class BudgetWorkService {
         for (Ccodem code : ioeCodes) {
             String prefix = extractPrefix(code.getCdva());
             Integer dupRt = rateByPrefix.getOrDefault(prefix, 0);
-            categoryHeaders.add(new BudgetWorkDto.ProjectSummaryCategory(prefix, code.getCNm(), code.getCDes(), dupRt));
+            String categoryName = resolveProjectSummaryCategoryName(prefix, code, ioeDetailCodes);
+            categoryHeaders.add(new BudgetWorkDto.ProjectSummaryCategory(prefix, categoryName, code.getCDes(), dupRt));
         }
 
         // 2. 사업별 + 비목별 이중 그룹핑

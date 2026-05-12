@@ -75,6 +75,27 @@ public class PlanDto {
         /** 경비 항목 목록 (비용 구분별 경비) */
         @Schema(description = "경비 항목 목록")
         private List<ExpenseCostItem> expenseCost;
+
+        // ── 카드 원천 데이터 (B안: 상세 화면 렌더링용 패스스루) ─────────────────
+        /** 정보화사업 카드 원천 — PlanProjectItem[] (pulDtt 포함) */
+        @Schema(description = "정보화사업 카드 원천 (PlanProjectItem)")
+        private List<Map<String, Object>> prjSnapshots;
+
+        /** 자본예산 카드 원천 — SummaryItem[] (capital=true) */
+        @Schema(description = "자본예산 비목 요약")
+        private List<Map<String, Object>> capitalSummaryItems;
+
+        /** 일반관리비 카드 원천 — SummaryItem[] (capital=false) */
+        @Schema(description = "일반관리비 비목 요약")
+        private List<Map<String, Object>> expenseItems;
+
+        /** 일반관리비 카드 주요내역용 — 전산업무비 상세 목록 */
+        @Schema(description = "전산업무비 상세 (주요내역용)")
+        private List<Map<String, Object>> costDetails;
+
+        /** 일반관리비 카드 — itMngcNo → 부모 사업명 맵 */
+        @Schema(description = "itMngcNo → 부모 사업명 맵")
+        private Map<String, String> costPrjNm;
     }
 
     /**
@@ -276,6 +297,22 @@ public class PlanDto {
 
         /** 경비 항목 목록 */
         private List<ExpenseCostItem> expenseCost;
+
+        // ── 카드 원천 데이터 (B안: 상세 화면 렌더링용 패스스루) ─────────────────
+        /** 정보화사업 카드 원천 — PlanProjectItem[] (pulDtt 포함) */
+        private List<Map<String, Object>> prjSnapshots;
+
+        /** 자본예산 카드 원천 — SummaryItem[] (capital=true) */
+        private List<Map<String, Object>> capitalSummaryItems;
+
+        /** 일반관리비 카드 원천 — SummaryItem[] (capital=false) */
+        private List<Map<String, Object>> expenseItems;
+
+        /** 일반관리비 카드 주요내역용 — 전산업무비 상세 목록 */
+        private List<Map<String, Object>> costDetails;
+
+        /** 일반관리비 카드 — itMngcNo → 부모 사업명 맵 */
+        private Map<String, String> costPrjNm;
     }
 
     /**

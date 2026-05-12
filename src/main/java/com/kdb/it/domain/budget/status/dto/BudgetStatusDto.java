@@ -46,6 +46,7 @@ public class BudgetStatusDto {
             LocalDate sttDt,
             LocalDate endDt,
             String rprSts,
+            String rprStsNm,
             String edrt,
             // 편성요청 금액
             BigDecimal reqDevBg,
@@ -82,6 +83,7 @@ public class BudgetStatusDto {
             String pulDtt,
             String abusC,
             String ioeC,
+            String ioeCNm,
             String biceDpm,
             String biceDpmNm,
             String biceTem,

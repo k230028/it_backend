@@ -227,6 +227,41 @@ class BudgetWorkServiceTest {
         assertThat(result.totals().dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(800000));
     }
 
+    @Test
+    @DisplayName("getSummary: IOE C_TP_DES 기준으로 일반관리비 중분류 그룹을 반환한다")
+    void getSummary_cTpDes기준_일반관리비그룹분류() {
+        List<Ccodem> dupCodes = List.of(
+                Ccodem.builder().cNm("237").cDes("전산제비").cdva("237").build(),
+                Ccodem.builder().cNm("238").cDes("전산제비").cdva("238").build(),
+                Ccodem.builder().cNm("239").cDes("전산제비").cdva("239").build(),
+                Ccodem.builder().cNm("240").cDes("전산제비").cdva("240").build());
+        List<Ccodem> ioeCodes = List.of(
+                Ccodem.builder().cdva("001").cNm("237-0700").cdvaNm("국내전산임차료").cTp("IOE_LEAFE").cTpDes("전산임차료").build(),
+                Ccodem.builder().cdva("003").cNm("238-0100").cdvaNm("국내출장").cTp("IOE_XPN").cTpDes("전산여비").build(),
+                Ccodem.builder().cdva("006").cNm("239-0300").cdvaNm("원고강사심사료").cTp("IOE_SEVS").cTpDes("전산용역비").build(),
+                Ccodem.builder().cdva("010").cNm("240-0100").cdvaNm("회선사용료").cTp("IOE_IDR").cTpDes("전산제비").build());
+
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(dupCodes);
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(ioeCodes);
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026"))
+                .willReturn(java.util.Map.of(
+                        "001", BigDecimal.valueOf(100),
+                        "003", BigDecimal.valueOf(200),
+                        "006", BigDecimal.valueOf(300),
+                        "010", BigDecimal.valueOf(400)));
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026"))
+                .willReturn(java.util.Map.of());
+
+        BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
+
+        assertThat(result.data()).extracting(BudgetWorkDto.SummaryItem::groupName)
+                .contains("전산임차료", "전산여비", "전산용역비", "전산제비");
+        assertThat(result.data()).filteredOn(item -> "전산임차료".equals(item.groupName()))
+                .extracting(BudgetWorkDto.SummaryItem::ioeCategory)
+                .containsExactly("국내전산임차료");
+    }
+
     // =========================================================================
     // applyRates — 편성률 일괄 적용 (경계값/계산 검증)
     // =========================================================================
@@ -632,6 +667,36 @@ class BudgetWorkServiceTest {
                 .containsExactly("정보화사업", "유지보수계약");
         assertThat(result.totals().requestAmount()).isEqualByComparingTo("2000.00");
         assertThat(result.totals().dupAmount()).isEqualByComparingTo("1300");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary: 컬럼명은 편성률 값이 아닌 IOE C_TP_DES를 표시한다")
+    void getProjectSummary_컬럼명은CtpDes표시() {
+        Ccodem dupCode = Ccodem.builder().cNm("70").cDes("전산임차료 편성 비율").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder()
+                .cdva("001")
+                .cNm("237-0700")
+                .cTpDes("전산임차료")
+                .build();
+        Bbugtm budget = Bbugtm.builder()
+                .orcTb("BCOSTM")
+                .orcPkVl("COST-2026-0001")
+                .ioeC("001")
+                .dupBg(BigDecimal.valueOf(70))
+                .dupRt(70)
+                .build();
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getCttNm()).willReturn("임차 계약");
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(costRepository.findByItMngcNoAndDelYn("COST-2026-0001", "N")).willReturn(List.of(cost));
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.categories()).hasSize(1);
+        assertThat(result.categories().get(0).cdNm()).isEqualTo("전산임차료");
+        assertThat(result.categories().get(0).cdNm()).isNotEqualTo("70");
     }
 
     @Test

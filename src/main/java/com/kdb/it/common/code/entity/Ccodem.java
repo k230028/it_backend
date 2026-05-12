@@ -41,6 +41,10 @@ public class Ccodem extends BaseEntity {
     @Column(name = "CDVA", nullable = false, length = 32, comment = "코드값")
     private String cdva;
 
+    /** 코드값명 (예: 개발비, 기계장치, 기타무형자산) */
+    @Column(name = "CDVA_NM", length = 100, comment = "코드값명")
+    private String cdvaNm;
+
     /** 시작일자: 복합 기본키 3 */
     @Id
     @Column(name = "STT_DT", nullable = false, comment = "시작일자")
@@ -93,9 +97,29 @@ public class Ccodem extends BaseEntity {
     public void update(String cNm, String cDes, String cdvaDtl,
                        String cTp, String cTpDes, String hrkC,
                        Integer cSqn, LocalDate endDt) {
+        update(cNm, cDes, cdvaDtl, this.cdvaNm, cTp, cTpDes, hrkC, cSqn, endDt);
+    }
+
+    /**
+     * 공통코드 정보 업데이트
+     *
+     * @param cNm     코드명
+     * @param cDes    코드설명
+     * @param cdvaDtl 코드값상세
+     * @param cdvaNm  코드값명
+     * @param cTp     코드타입
+     * @param cTpDes  코드타입설명
+     * @param hrkC    상위코드
+     * @param cSqn    코드순서
+     * @param endDt   종료일자
+     */
+    public void update(String cNm, String cDes, String cdvaDtl, String cdvaNm,
+                       String cTp, String cTpDes, String hrkC,
+                       Integer cSqn, LocalDate endDt) {
         this.cNm     = cNm;
         this.cDes    = cDes;
         this.cdvaDtl = cdvaDtl;
+        this.cdvaNm  = cdvaNm;
         this.cTp     = cTp;
         this.cTpDes  = cTpDes;
         this.hrkC    = hrkC;

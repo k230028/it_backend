@@ -68,6 +68,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true) // 기본 읽기 전용 트랜잭션
 public class ProjectService {
 
+    /** 자본예산 세부 코드타입: 개발비/기계장치/기타무형자산 */
+    private static final String IOE_DVC = "IOE_DVC";
+    private static final String IOE_HW = "IOE_HW";
+    private static final String IOE_SW = "IOE_SW";
+    private static final Set<String> CAPITAL_DETAIL_CTPS = Set.of(IOE_DVC, IOE_HW, IOE_SW);
+
     /** 정보화사업 데이터 접근 리포지토리 (TAAABB_BPROJM) */
     private final ProjectRepository projectRepository;
 
@@ -876,25 +882,35 @@ public class ProjectService {
     private void setBudgetSummaryFromItems(ProjectDto.Response response,
             List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms) {
         // 마이그레이션 후: cId="IOE" 단일 그룹, cTp 필드로 자본/관리비 분류
-        // cDes(구 CTT_TP_DES) 기준으로 개발비/기계장치/기타무형자산 세부 분류
+        // 개발비/기계장치/기타무형자산은 C_TP 기준(IOE_DVC/IOE_HW/IOE_SW)으로 세부 분류
         List<com.kdb.it.common.code.entity.Ccodem> allIoeCodes = codeService.findCodeEntitiesByCId("IOE");
         List<com.kdb.it.common.code.entity.Ccodem> assetCodes = allIoeCodes.stream()
-                .filter(c -> "IOE_CPIT".equals(c.getCTp()))
+                .filter(c -> CAPITAL_DETAIL_CTPS.contains(c.getCTp()) || "IOE_CPIT".equals(c.getCTp()))
                 .collect(java.util.stream.Collectors.toList());
         java.util.Set<String> assetTypes = assetCodes.stream()
                 .map(com.kdb.it.common.code.entity.Ccodem::getCdva)
                 .collect(java.util.stream.Collectors.toSet());
 
-        // 자본예산 비목코드를 코드설명(cDes, 구 CTT_TP_DES) 기준으로 세부 분류
-        java.util.Map<String, java.util.Set<String>> assetSubTypes = assetCodes.stream()
+        // 자본예산 비목코드를 코드타입(C_TP) 기준으로 세부 분류
+        java.util.Map<String, java.util.Set<String>> assetSubTypesByCTp = assetCodes.stream()
                 .collect(java.util.stream.Collectors.groupingBy(
-                        c -> c.getCDes() != null ? c.getCDes() : "",
+                        c -> c.getCTp() != null ? c.getCTp() : "",
                         java.util.stream.Collectors.mapping(
                                 com.kdb.it.common.code.entity.Ccodem::getCdva,
                                 java.util.stream.Collectors.toSet())));
-        java.util.Set<String> devTypes = assetSubTypes.getOrDefault("개발비", java.util.Collections.emptySet());
-        java.util.Set<String> machTypes = assetSubTypes.getOrDefault("기계장치", java.util.Collections.emptySet());
-        java.util.Set<String> intanTypes = assetSubTypes.getOrDefault("기타무형자산", java.util.Collections.emptySet());
+        java.util.Set<String> devTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_DVC, java.util.Collections.emptySet()));
+        java.util.Set<String> machTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_HW, java.util.Collections.emptySet()));
+        java.util.Set<String> intanTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_SW, java.util.Collections.emptySet()));
+
+        // 구 데이터 호환: IOE_CPIT 행은 C_DES 한글명으로 세부 분류
+        assetCodes.stream()
+                .filter(c -> "IOE_CPIT".equals(c.getCTp()))
+                .forEach(c -> {
+                    String cDes = c.getCDes() != null ? c.getCDes() : "";
+                    if ("개발비".equals(cDes)) devTypes.add(c.getCdva());
+                    else if ("기계장치".equals(cDes)) machTypes.add(c.getCdva());
+                    else if ("기타무형자산".equals(cDes)) intanTypes.add(c.getCdva());
+                });
 
         // 일반관리비: cTp가 IOE_IDR/IOE_SEVS/IOE_XPN/IOE_LEAFE인 코드의 cdva 집합
         java.util.Set<String> costTypes = allIoeCodes.stream()
@@ -998,7 +1014,7 @@ public class ProjectService {
             if (ioeC == null) continue;
             String normalized = ioeC.replace('-', '_');
             int lastUnderscore = normalized.lastIndexOf('_');
-            String cId = lastUnderscore >= 0 ? normalized.substring(0, lastUnderscore) : normalized;
+            String cId = lastUnderscore >= 0 ? normalized.substring(0, lastUnderscore) : "IOE";
             byCId.computeIfAbsent(cId, k -> new java.util.ArrayList<>()).add(ioeC);
         }
         for (Map.Entry<String, List<String>> entry : byCId.entrySet()) {
@@ -1010,7 +1026,8 @@ public class ProjectService {
                     int lastUnderscore = normalized.lastIndexOf('_');
                     String cdva = lastUnderscore >= 0 ? normalized.substring(lastUnderscore + 1) : normalized;
                     if (cdva.equals(code.getCdva())) {
-                        String displayName = code.getCdvaDtl() != null ? code.getCdvaDtl() : code.getCNm();
+                        String displayName = code.getCdvaNm() != null ? code.getCdvaNm()
+                                : (code.getCdvaDtl() != null ? code.getCdvaDtl() : code.getCNm());
                         if (displayName != null) {
                             String[] parts = displayName.split(" - ");
                             result.put(orig, parts[parts.length - 1].trim());

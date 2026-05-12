@@ -118,6 +118,7 @@ public class CodeService {
                 request.getCNm(),
                 request.getCDes(),
                 request.getCdvaDtl(),
+                request.getCdvaNm(),
                 request.getCTp(),
                 request.getCTpDes(),
                 request.getHrkC(),

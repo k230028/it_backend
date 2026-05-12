@@ -28,6 +28,9 @@ public class CodeDto {
         @Schema(description = "코드값", example = "001")
         private String cdva;
 
+        @Schema(description = "코드값명", example = "개발비")
+        private String cdvaNm;
+
         @Schema(description = "코드명 (구 CDVA)", example = "신규개발")
         private String cNm;
 
@@ -59,6 +62,7 @@ public class CodeDto {
             return Ccodem.builder()
                     .cId(this.cId)
                     .cdva(this.cdva)
+                    .cdvaNm(this.cdvaNm)
                     .cNm(this.cNm)
                     .cDes(this.cDes)
                     .cdvaDtl(this.cdvaDtl)
@@ -80,6 +84,9 @@ public class CodeDto {
 
         @Schema(description = "코드명")
         private String cNm;
+
+        @Schema(description = "코드값명")
+        private String cdvaNm;
 
         @Schema(description = "코드설명")
         private String cDes;
@@ -115,6 +122,9 @@ public class CodeDto {
 
         @Schema(description = "코드값")
         private String cdva;
+
+        @Schema(description = "코드값명")
+        private String cdvaNm;
 
         @JsonProperty("cNm")
         @Schema(description = "코드명 (구 CDVA)")
@@ -168,6 +178,7 @@ public class CodeDto {
             return Response.builder()
                     .cId(ccodem.getCId())
                     .cdva(ccodem.getCdva())
+                    .cdvaNm(ccodem.getCdvaNm())
                     .cNm(ccodem.getCNm())
                     .cDes(ccodem.getCDes())
                     .cdvaDtl(ccodem.getCdvaDtl())

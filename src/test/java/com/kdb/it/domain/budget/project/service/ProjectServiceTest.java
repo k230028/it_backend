@@ -768,8 +768,13 @@ class ProjectServiceTest {
                                                 Bitemm.builder().ioeC("IOE-NULL").gclAmt(null).build()));
                 given(codeService.findCodeEntitiesByCId("IOE"))
                                 .willReturn(List.of(
-                                                Ccodem.builder().cId("IOE").cdva("101").cTp("IOE_CPIT").cDes("개발비").build(),
-                                                Ccodem.builder().cId("IOE").cdva("102").cTp("IOE_CPIT").cDes("기계장치").build(),
+                                                Ccodem.builder().cId("IOE").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
+                                                Ccodem.builder().cId("IOE").cdva("102").cdvaNm("기계장치").cTp("IOE_HW").build(),
+                                                Ccodem.builder().cId("IOE").cdva("103").cTp("IOE_IDR").build()));
+                given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+                                .willReturn(List.of(
+                                                Ccodem.builder().cId("IOE").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
+                                                Ccodem.builder().cId("IOE").cdva("102").cdvaNm("기계장치").cTp("IOE_HW").build(),
                                                 Ccodem.builder().cId("IOE").cdva("103").cTp("IOE_IDR").build()));
 
                 ProjectDto.Response result = projectService.getProject(prjMngNo);
@@ -783,6 +788,8 @@ class ProjectServiceTest {
                 assertThat(result.getDevBg()).isEqualByComparingTo("1000");
                 assertThat(result.getMachBg()).isEqualByComparingTo("200");
                 assertThat(result.getCostBg()).isEqualByComparingTo("300");
+                assertThat(result.getItems().get(0).getIoeCNm()).isEqualTo("개발비");
+                assertThat(result.getItems().get(1).getIoeCNm()).isEqualTo("기계장치");
         }
 
         @Test
