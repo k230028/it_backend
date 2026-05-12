@@ -66,7 +66,8 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      * }</pre>
      */
     @Override
-    public List<Bcostm> findApprovedCostsByPrefix(String prefix, String bgYy) {
+    public List<Bcostm> findApprovedCostsByIoeCValues(Set<String> ioeCValues, String bgYy) {
+        if (ioeCValues == null || ioeCValues.isEmpty()) return List.of();
         QBcostm bcostm = QBcostm.bcostm;
         QCappla cappla = new QCappla("cappla");
         QCappla cappla2 = new QCappla("cappla2");
@@ -78,8 +79,8 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         builder.and(bcostm.delYn.eq("N"));
         builder.and(bcostm.lstYn.eq("Y"));
 
-        // 비목코드 접두어 매칭
-        builder.and(bcostm.ioeC.startsWith(prefix));
+        // 비목코드 IN 매칭 (V003 마이그레이션 후 IOE_C는 단축 cdva 저장)
+        builder.and(bcostm.ioeC.in(ioeCValues));
 
         // 예산연도 필터
         builder.and(bcostm.bgYy.eq(bgYy));
@@ -146,7 +147,8 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      * }</pre>
      */
     @Override
-    public List<Bitemm> findApprovedItemsByPrefix(String prefix, String bgYy) {
+    public List<Bitemm> findApprovedItemsByIoeCValues(Set<String> ioeCValues, String bgYy) {
+        if (ioeCValues == null || ioeCValues.isEmpty()) return List.of();
         QBitemm bitemm = QBitemm.bitemm;
         QBprojm bprojm = QBprojm.bprojm;
         QCappla cappla = new QCappla("cappla");
@@ -173,11 +175,11 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                                         cappla2.orcSnoVl.eq(bprojm.prjSno))))
                         .exists());
 
-        // BITEMM 조건: 삭제되지 않은 최종 레코드 + 품목구분 접두어 매칭
+        // BITEMM 조건: 삭제되지 않은 최종 레코드 + 비목코드 IN 매칭
         BooleanBuilder builder = new BooleanBuilder();
         builder.and(bitemm.delYn.eq("N"));
         builder.and(bitemm.lstYn.eq("Y"));
-        builder.and(bitemm.ioeC.startsWith(prefix));
+        builder.and(bitemm.ioeC.in(ioeCValues));
 
         // BITEMM의 상위 BPROJM이 결재완료 상태 + 예산연도 일치 확인
         builder.and(
@@ -343,26 +345,21 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      * </p>
      */
     @Override
-    public BigDecimal sumApprovedAmountByPrefix(String prefix, String bgYy) {
-        // 결재완료 BCOSTM 금액 합계
-        BigDecimal costSum = sumApprovedCostAmountByPrefix(prefix, bgYy);
-        // 결재완료 BITEMM 금액 합계
-        BigDecimal itemSum = sumApprovedItemAmountByPrefix(prefix, bgYy);
+    public BigDecimal sumApprovedAmountByIoeCValues(Set<String> ioeCValues, String bgYy) {
+        if (ioeCValues == null || ioeCValues.isEmpty()) return BigDecimal.ZERO;
+        BigDecimal costSum = sumApprovedCostAmountByIoeCValues(ioeCValues, bgYy);
+        BigDecimal itemSum = sumApprovedItemAmountByIoeCValues(ioeCValues, bgYy);
 
         BigDecimal total = BigDecimal.ZERO;
-        if (costSum != null) {
-            total = total.add(costSum);
-        }
-        if (itemSum != null) {
-            total = total.add(itemSum);
-        }
+        if (costSum != null) total = total.add(costSum);
+        if (itemSum != null) total = total.add(itemSum);
         return total;
     }
 
     /**
-     * 결재완료 BCOSTM의 비목 접두어별 금액 합계
+     * 결재완료 BCOSTM의 비목코드 집합별 금액 합계
      */
-    private BigDecimal sumApprovedCostAmountByPrefix(String prefix, String bgYy) {
+    private BigDecimal sumApprovedCostAmountByIoeCValues(Set<String> ioeCValues, String bgYy) {
         QBcostm bcostm = QBcostm.bcostm;
         QCappla cappla = new QCappla("cappla");
         QCappla cappla2 = new QCappla("cappla2");
@@ -371,7 +368,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         BooleanBuilder builder = new BooleanBuilder();
         builder.and(bcostm.delYn.eq("N"));
         builder.and(bcostm.lstYn.eq("Y"));
-        builder.and(bcostm.ioeC.startsWith(prefix));
+        builder.and(bcostm.ioeC.in(ioeCValues));
         builder.and(bcostm.bgYy.eq(bgYy));
 
         // 결재완료 서브쿼리
@@ -401,13 +398,13 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
     }
 
     /**
-     * 결재완료 BITEMM의 비목 접두어별 금액 합계 (환율 적용)
+     * 결재완료 BITEMM의 비목코드 집합별 금액 합계 (환율 적용)
      *
      * <p>
      * SUM(GCL_AMT * COALESCE(XCR, 1)) — 외화 품목은 환율을 곱하여 원화로 변환합니다.
      * </p>
      */
-    private BigDecimal sumApprovedItemAmountByPrefix(String prefix, String bgYy) {
+    private BigDecimal sumApprovedItemAmountByIoeCValues(Set<String> ioeCValues, String bgYy) {
         QBitemm bitemm = QBitemm.bitemm;
         QBprojm bprojm = QBprojm.bprojm;
         QCappla cappla = new QCappla("cappla");
@@ -417,7 +414,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         BooleanBuilder builder = new BooleanBuilder();
         builder.and(bitemm.delYn.eq("N"));
         builder.and(bitemm.lstYn.eq("Y"));
-        builder.and(bitemm.ioeC.startsWith(prefix));
+        builder.and(bitemm.ioeC.in(ioeCValues));
 
         // BITEMM의 상위 BPROJM 결재완료 + 예산연도 서브쿼리
         builder.and(

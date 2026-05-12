@@ -15,7 +15,7 @@ import java.sql.Statement;
  * Oracle 시퀀스 {@code S_{Postfix}.NEXTVAL}을 조회하여
  * {@code "{Postfix}_{22자리_0패딩}"} 형식의 VARCHAR2 값을 반환한다.</p>
  *
- * <p>예: {@code TAAABB_BPROJL} → {@code BPROJL_0000000000000000000001}</p>
+ * <p>예: {@code TAAABB_BPROJL} → {@code BPROJL-0000000000000000000001}</p>
  *
  * <p>시퀀스는 CYCLE 설정 (최대 22자리, 순환 후 1부터 재시작).</p>
  */
@@ -27,7 +27,7 @@ public class AuditLogIdGenerator implements IdentifierGenerator {
     public Object generate(SharedSessionContractImplementor session, Object object) {
         String postfix = resolvePostfix(object);
         long nextVal = fetchNextVal(session, "S_" + postfix);
-        return postfix + "_" + String.format("%0" + SEQ_PAD_LENGTH + "d", nextVal);
+        return postfix + "-" + String.format("%0" + SEQ_PAD_LENGTH + "d", nextVal);
     }
 
     private String resolvePostfix(Object object) {

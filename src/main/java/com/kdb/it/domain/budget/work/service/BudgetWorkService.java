@@ -20,10 +20,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 예산 작업 서비스
@@ -90,18 +92,24 @@ public class BudgetWorkService {
         // 기존 BBUGTM 데이터 조회 (편성률 확인용)
         List<Bbugtm> existingBudgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
 
+        // V003 마이그레이션 후 IOE_C는 단축 cdva("001" 등)를 저장하므로
+        // DUP_IOE 접두어("237") → 해당하는 IOE cdva 집합 매핑을 빌드
+        List<Ccodem> allIoeCodes = codeRepository.findByCIdWithValidDate("IOE", null);
+        Map<String, Set<String>> prefixToIoeCValues = buildPrefixToIoeCValuesMap(allIoeCodes);
+
         return ioeCodes.stream().map(code -> {
             String prefix = extractPrefix(code.getCdva());
+            Set<String> ioeCValues = prefixToIoeCValues.getOrDefault(prefix, Set.of());
 
-            // 2. 결재완료 요청금액 합계
-            BigDecimal requestAmount = bbugtmRepository.sumApprovedAmountByPrefix(prefix, bgYy);
+            // 2. 결재완료 요청금액 합계 (IN 조건 기반)
+            BigDecimal requestAmount = bbugtmRepository.sumApprovedAmountByIoeCValues(ioeCValues, bgYy);
             if (requestAmount == null) {
                 requestAmount = BigDecimal.ZERO;
             }
 
-            // 3. 기존 편성률 조회
+            // 3. 기존 편성률 조회 (ioeC IN ioeCValues 기반)
             Integer dupRt = existingBudgets.stream()
-                    .filter(b -> b.getIoeC() != null && b.getIoeC().startsWith(prefix))
+                    .filter(b -> b.getIoeC() != null && ioeCValues.contains(b.getIoeC()))
                     .map(Bbugtm::getDupRt)
                     .findFirst()
                     .orElse(null);
@@ -142,12 +150,17 @@ public class BudgetWorkService {
         int snoCounter = 0;
         int totalRecords = 0;
 
+        // V003 마이그레이션 후 IOE_C는 단축 cdva를 저장하므로 prefix→cdva 집합 매핑 빌드
+        List<Ccodem> allIoeCodes = codeRepository.findByCIdWithValidDate("IOE", null);
+        Map<String, Set<String>> prefixToIoeCValues = buildPrefixToIoeCValuesMap(allIoeCodes);
+
         for (BudgetWorkDto.RateItem rate : request.rates()) {
             String prefix = extractPrefix(rate.cdId());
+            Set<String> ioeCValues = prefixToIoeCValues.getOrDefault(prefix, Set.of());
             Integer dupRt = rate.dupRt();
 
             // 결재완료 BCOSTM 처리
-            List<Bcostm> costs = bbugtmRepository.findApprovedCostsByPrefix(prefix, bgYy);
+            List<Bcostm> costs = bbugtmRepository.findApprovedCostsByIoeCValues(ioeCValues, bgYy);
             for (Bcostm cost : costs) {
                 BigDecimal dupBg = calculateDupBg(cost.getItMngcBg(), dupRt);
 
@@ -182,7 +195,7 @@ public class BudgetWorkService {
             // ORC_TB = "BITEMM": BITEMM은 자체 PK(GCL_MNG_NO + GCL_SNO)를 보유하므로
             // 개별 품목 단위로 추적 가능. Plan 설계 문서의 "BPROJM"은 결재 조회 대상을
             // 지칭한 것이며, BBUGTM에 저장 시 실제 원본은 BITEMM임.
-            List<Bitemm> items = bbugtmRepository.findApprovedItemsByPrefix(prefix, bgYy);
+            List<Bitemm> items = bbugtmRepository.findApprovedItemsByIoeCValues(ioeCValues, bgYy);
             for (Bitemm item : items) {
                 // 환율 적용: gclAmt × coalesce(xcr, 1) → 원화 금액
                 BigDecimal xcrVal = item.getXcr() != null ? item.getXcr() : BigDecimal.ONE;
@@ -720,16 +733,37 @@ public class BudgetWorkService {
     }
 
     /**
-     * 편성비목 코드ID에서 접두어 추출
+     * DUP_IOE 접두어 → IOE cdva 값 집합 매핑 빌드
      *
-     * <p>{@code DUP-IOE-237} → {@code "IOE-237"}</p>
-     * <p>실제 IOE_C/GCL_DTT 값이 {@code IOE-237-0700} 형태이므로
-     * {@code "DUP-"} 만 제거하여 {@code "IOE-237"} 접두어로 매칭합니다.</p>
+     * <p>
+     * V003 마이그레이션 후: CCODEM[cId="IOE"]의 cNm이 계층코드("237-0700")를 담고,
+     * cdva가 단축 값("001")을 담습니다. cNm에서 첫 '-' 이전 부분을 DUP_IOE 접두어로 사용합니다.
+     * </p>
      *
-     * @param cdId 편성비목 코드ID (예: DUP-IOE-237)
-     * @return 비목 접두어 (예: IOE-237)
+     * @param allIoeCodes CCODEM[cId="IOE"] 전체 코드 목록
+     * @return 접두어("237") → cdva 집합({"001","002",...}) 맵
      */
-    private String extractPrefix(String cdId) {
-        return cdId.replace("DUP-", "");
+    Map<String, Set<String>> buildPrefixToIoeCValuesMap(List<Ccodem> allIoeCodes) {
+        Map<String, Set<String>> map = new LinkedHashMap<>();
+        for (Ccodem code : allIoeCodes) {
+            String hierarchyCode = code.getCNm(); // 예: "237-0700"
+            if (hierarchyCode == null || code.getCdva() == null) continue;
+            int dashIdx = hierarchyCode.indexOf('-');
+            String prefix = dashIdx > 0 ? hierarchyCode.substring(0, dashIdx) : hierarchyCode;
+            map.computeIfAbsent(prefix, k -> new HashSet<>()).add(code.getCdva());
+        }
+        return map;
+    }
+
+    /**
+     * DUP_IOE cdva에서 편성비목 접두어 추출
+     *
+     * <p>V003 마이그레이션 후 DUP_IOE cdva는 "237" 형태이므로 그대로 반환합니다.</p>
+     *
+     * @param cdva DUP_IOE 코드의 cdva (예: "237")
+     * @return 비목 접두어 (예: "237")
+     */
+    private String extractPrefix(String cdva) {
+        return cdva.replace("DUP-", "");
     }
 }

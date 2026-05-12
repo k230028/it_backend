@@ -121,10 +121,10 @@ public class ApplicationService {
     @Transactional
     public String submit(ApplicationDto.CreateRequest request) {
 
-        // Oracle 시퀀스로 채번하여 신청관리번호 생성 (APF_{yyyy}{seq:08d})
+        // Oracle 시퀀스로 채번하여 신청관리번호 생성 (APF-{yyyy}-{seq:08d})
         Long capplmSeq = applicationRepository.getNextVal();
-        String apfMngNo = "APF_" + String.valueOf(java.time.LocalDate.now().getYear())
-                + String.format("%08d", capplmSeq);
+        String apfMngNo = String.format("APF-%s-%08d",
+                java.time.LocalDate.now().getYear(), capplmSeq);
 
         // 1. 신청서 마스터 생성 (초기 상태: "결재중")
         Capplm capplm = Capplm.builder()
@@ -143,7 +143,7 @@ public class ApplicationService {
         if (request.getOrcItems() != null && !request.getOrcItems().isEmpty()) {
             for (ApplicationDto.OrcItem item : request.getOrcItems()) {
                 Long seq = applicationMapRepository.getNextVal(); // 항목마다 CAPPLA 시퀀스 채번
-                String apfRelSno = "APPL_" + String.format("%028d", seq); // 신청서관계일련번호
+                String apfRelSno = String.format("APPL-%028d", seq); // 신청서관계일련번호
 
                 Cappla cappla = Cappla.builder()
                         .apfRelSno(apfRelSno) // 신청서관계일련번호 (PK)

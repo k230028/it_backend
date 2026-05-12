@@ -9,6 +9,9 @@ import static org.mockito.Mockito.verify;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+
+import static org.mockito.ArgumentMatchers.eq;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -87,36 +90,40 @@ class BudgetWorkServiceTest {
     @Test
     @DisplayName("getIoeCategories - 코드 1개 반환 시 편성률은 null (기존 데이터 없음)")
     void getIoeCategories_기존데이터없음_편성률null() {
-        // given: DUP-IOE-237 코드 1개
-        Ccodem code = Ccodem.builder().cNm("자산비").cdva("DUP-IOE-237").build();
+        // given: V003 이후 DUP_IOE cdva="237", IOE cdva="001" cNm="237-0700"
+        Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
-        given(bbugtmRepository.sumApprovedAmountByPrefix("IOE-237", "2026")).willReturn(null);
+        given(bbugtmRepository.sumApprovedAmountByIoeCValues(any(), eq("2026"))).willReturn(null);
 
         // when
         List<BudgetWorkDto.IoeCategoryResponse> result = budgetWorkService.getIoeCategories("2026");
 
         // then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).cdId()).isEqualTo("DUP-IOE-237");
-        assertThat(result.get(0).prefix()).isEqualTo("IOE-237"); // extractPrefix 검증
-        assertThat(result.get(0).dupRt()).isNull();               // 기존 편성률 없음
+        assertThat(result.get(0).cdId()).isEqualTo("237");
+        assertThat(result.get(0).prefix()).isEqualTo("237"); // extractPrefix 검증
+        assertThat(result.get(0).dupRt()).isNull();           // 기존 편성률 없음
         assertThat(result.get(0).requestAmount()).isEqualTo(BigDecimal.ZERO); // null → ZERO
     }
 
     @Test
     @DisplayName("getIoeCategories - 기존 BBUGTM에 편성률이 있으면 기존 편성률을 반환한다")
     void getIoeCategories_기존편성률있음_편성률반환() {
-        // given
-        Ccodem code = Ccodem.builder().cNm("자산비").cdva("DUP-IOE-237").build();
+        // given: V003 이후 DUP_IOE cdva="237", IOE cdva="001" / BBUGTM ioeC="001"
+        Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
         Bbugtm existing = Bbugtm.builder()
-                .ioeC("IOE-237-0700")
+                .ioeC("001") // V003 이후 단축 cdva 저장
                 .dupRt(80)
                 .build();
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(existing));
-        given(bbugtmRepository.sumApprovedAmountByPrefix("IOE-237", "2026"))
+        given(bbugtmRepository.sumApprovedAmountByIoeCValues(any(), eq("2026")))
                 .willReturn(BigDecimal.valueOf(1000000));
 
         // when
@@ -177,8 +184,8 @@ class BudgetWorkServiceTest {
         // then: 각각 정확히 1회 호출 (N+1 없음)
         Mockito.verify(budgetWorkQueryRepository, Mockito.times(1)).findApprovedCostAmountByIoeC("2026");
         Mockito.verify(budgetWorkQueryRepository, Mockito.times(1)).findApprovedItemAmountByGclDtt("2026");
-        Mockito.verify(bbugtmRepository, Mockito.never()).findApprovedCostsByPrefix(any(), any());
-        Mockito.verify(bbugtmRepository, Mockito.never()).findApprovedItemsByPrefix(any(), any());
+        Mockito.verify(bbugtmRepository, Mockito.never()).findApprovedCostsByIoeCValues(any(), any());
+        Mockito.verify(bbugtmRepository, Mockito.never()).findApprovedItemsByIoeCValues(any(), any());
     }
 
     @Test
@@ -249,21 +256,23 @@ class BudgetWorkServiceTest {
     @Test
     @DisplayName("applyRates: 기존 BBUGTM 레코드가 없으면 새 레코드를 save 한다")
     void applyRates_기존레코드없음_save호출() {
-        // given: 비목 1개, BCOSTM 1건, BITEMM 없음
-        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("DUP-IOE-237", 80);
+        // given: 비목 1개(V003 이후 cdva="237"), BCOSTM 1건, BITEMM 없음
+        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("237", 80);
         BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
 
-        // 결재완료 BCOSTM 1건 (mock으로 protected 생성자 우회)
+        // 결재완료 BCOSTM 1건 (V003 이후 ioeC="001")
         Bcostm cost = mock(Bcostm.class);
         given(cost.getItMngcNo()).willReturn("COST_2026_0001");
         given(cost.getItMngcSno()).willReturn(1);
-        given(cost.getIoeC()).willReturn("IOE-237-0700");
+        given(cost.getIoeC()).willReturn("001");
         given(cost.getItMngcBg()).willReturn(BigDecimal.valueOf(1_000_000));
 
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-237", "2026"))
+        given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of(cost));
-        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026"))
+        given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of());
         // 기존 BBUGTM 레코드 없음 → INSERT 경로
         given(bbugtmRepository.findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
@@ -287,23 +296,25 @@ class BudgetWorkServiceTest {
     @Test
     @DisplayName("applyRates: 기존 BBUGTM 레코드가 있으면 update를 호출하고 save는 하지 않는다")
     void applyRates_기존레코드있음_update호출() {
-        // given: 비목 1개, BCOSTM 1건
-        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("DUP-IOE-237", 80);
+        // given: 비목 1개(V003 이후 cdva="237"), BCOSTM 1건
+        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("237", 80);
         BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
 
         Bcostm cost = mock(Bcostm.class);
         given(cost.getItMngcNo()).willReturn("COST_2026_0001");
         given(cost.getItMngcSno()).willReturn(1);
-        given(cost.getIoeC()).willReturn("IOE-237-0700");
+        given(cost.getIoeC()).willReturn("001");
         given(cost.getItMngcBg()).willReturn(BigDecimal.valueOf(1_000_000));
 
         // 기존 BBUGTM 레코드 존재 → UPDATE 경로
         Bbugtm existing = mock(Bbugtm.class);
 
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-237", "2026"))
+        given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of(cost));
-        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026"))
+        given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of());
         given(bbugtmRepository.findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
                 any(), any(), any(), any(), any(), any()))
@@ -391,20 +402,23 @@ class BudgetWorkServiceTest {
     @Test
     @DisplayName("applyRates: BITEMM 원본 항목이 있으면 편성금액 계산 후 save 한다")
     void applyRates_BITEMM항목_save호출() {
-        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("DUP-IOE-237", 80);
+        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("237", 80);
         BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
 
-        // BCOSTM 없음
-        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-237", "2026")).willReturn(List.of());
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
 
-        // BITEMM 1건 (환율 없음 → xcr=null, 기본 1 적용)
+        // BCOSTM 없음
+        given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026"))).willReturn(List.of());
+
+        // BITEMM 1건 (V003 이후 ioeC="001", 환율 없음 → xcr=null, 기본 1 적용)
         Bitemm item = mock(Bitemm.class);
         given(item.getGclMngNo()).willReturn("GCL-0001");
         given(item.getGclSno()).willReturn(1);
-        given(item.getIoeC()).willReturn("IOE-237-0700");
+        given(item.getIoeC()).willReturn("001");
         given(item.getGclAmt()).willReturn(BigDecimal.valueOf(500_000));
         given(item.getXcr()).willReturn(null);
-        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026")).willReturn(List.of(item));
+        given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026"))).willReturn(List.of(item));
 
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
@@ -464,16 +478,18 @@ class BudgetWorkServiceTest {
     @Test
     @DisplayName("applyRates: 요청금액 또는 편성률이 null이면 편성금액을 0으로 저장한다")
     void applyRates_null금액또는편성률_0원저장() {
-        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("DUP-IOE-237", null);
+        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("237", null);
         BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
         Bcostm cost = mock(Bcostm.class);
         given(cost.getItMngcNo()).willReturn("COST_2026_0001");
         given(cost.getItMngcSno()).willReturn(1);
-        given(cost.getIoeC()).willReturn("IOE-237-0700");
+        given(cost.getIoeC()).willReturn("001");
         given(cost.getItMngcBg()).willReturn(null);
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findApprovedCostsByPrefix("IOE-237", "2026")).willReturn(List.of(cost));
-        given(bbugtmRepository.findApprovedItemsByPrefix("IOE-237", "2026")).willReturn(List.of());
+        given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026"))).willReturn(List.of(cost));
+        given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026"))).willReturn(List.of());
         given(bbugtmRepository.findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
                 any(), any(), any(), any(), any(), any())).willReturn(Optional.empty());
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());

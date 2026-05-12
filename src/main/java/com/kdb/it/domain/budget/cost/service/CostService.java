@@ -198,7 +198,7 @@ public class CostService {
         if (itMngcNo == null || itMngcNo.isEmpty()) {
             Long seq = costRepository.getNextSequenceValue();
             String year = String.valueOf(LocalDate.now().getYear());
-            itMngcNo = String.format("COST_%s_%04d", year, seq);
+            itMngcNo = String.format("COST-%s-%04d", year, seq);
             request.setItMngcNo(itMngcNo);
         }
 
@@ -707,11 +707,11 @@ public class CostService {
                         (a, b) -> a));
     }
 
-    /** 단말기관리번호 자동 생성 (형식: TER_{yyyy}_{seq:04d}) */
+    /** 단말기관리번호 자동 생성 (형식: TER-{yyyy}-{seq:04d}) */
     private String generateTmnMngNo() {
         Long seq = btermmRepository.getNextSequenceValue();
         String year = String.valueOf(LocalDate.now().getYear());
-        return String.format("TER_%s_%04d", year, seq);
+        return String.format("TER-%s-%04d", year, seq);
     }
 
     /**

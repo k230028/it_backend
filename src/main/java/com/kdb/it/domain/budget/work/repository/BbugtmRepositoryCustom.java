@@ -22,37 +22,32 @@ import java.util.Set;
 public interface BbugtmRepositoryCustom {
 
     /**
-     * 결재완료 전산업무비(BCOSTM) 중 비목코드가 접두어와 매칭되는 목록 조회
+     * 결재완료 전산업무비(BCOSTM) 중 비목코드가 ioeCValues 집합에 속하는 목록 조회
      *
      * <p>
-     * [조건]
-     * 1. BCOSTM.DEL_YN = 'N' AND LST_YN = 'Y'
-     * 2. BCOSTM.IOE_C LIKE '접두어%'
-     * 3. CAPPLA-CAPPLM JOIN으로 최신 신청서의 APF_STS = '결재완료'
+     * CCODEM 마이그레이션(V003) 이후 BCOSTM.IOE_C는 단축 cdva 값("001" 등)을 저장하므로
+     * LIKE 접두어 매칭 대신 IN 조건을 사용합니다.
      * </p>
      *
-     * @param prefix 편성비목 접두어 (예: "237")
+     * @param ioeCValues 해당 편성비목에 속하는 IOE cdva 값 집합 (예: {"001", "002"})
+     * @param bgYy       예산연도
      * @return 결재완료된 전산업무비 목록
      */
-    List<Bcostm> findApprovedCostsByPrefix(String prefix, String bgYy);
+    List<Bcostm> findApprovedCostsByIoeCValues(Set<String> ioeCValues, String bgYy);
 
     /**
-     * 결재완료 품목(BITEMM) 중 품목구분이 접두어와 매칭되는 목록 조회
+     * 결재완료 품목(BITEMM) 중 비목코드가 ioeCValues 집합에 속하는 목록 조회
      *
      * <p>
-     * [조건]
-     * 1. BITEMM.DEL_YN = 'N' AND LST_YN = 'Y'
-     * 2. BITEMM.IOE_C LIKE '접두어%'
-     * 3. BITEMM의 상위 BPROJM이 결재완료 상태
-     *    (CAPPLA.ORC_TB_CD = 'BPROJM' → 최신 CAPPLM.APF_STS = '결재완료')
-     * 4. BPROJM.BG_YY = :bgYy
+     * CCODEM 마이그레이션(V003) 이후 BITEMM.IOE_C는 단축 cdva 값을 저장하므로
+     * LIKE 접두어 매칭 대신 IN 조건을 사용합니다.
      * </p>
      *
-     * @param prefix 편성비목 접두어 (예: "237")
-     * @param bgYy   예산연도 (예: 2026)
+     * @param ioeCValues 해당 편성비목에 속하는 IOE cdva 값 집합
+     * @param bgYy       예산연도
      * @return 결재완료된 품목 목록
      */
-    List<Bitemm> findApprovedItemsByPrefix(String prefix, String bgYy);
+    List<Bitemm> findApprovedItemsByIoeCValues(Set<String> ioeCValues, String bgYy);
 
     /**
      * 정보화사업(BPROJM)별 편성예산(DUP_BG) 합계 일괄 조회
@@ -112,16 +107,16 @@ public interface BbugtmRepositoryCustom {
     Map<String, BigDecimal> sumCostDupBgByPrjMngNos(List<String> prjMngNos, String bgYy, Set<String> costGclDttCodes);
 
     /**
-     * 비목 접두어별 결재완료 요청금액 합계 조회
+     * 비목 ioeCValues 집합별 결재완료 요청금액 합계 조회
      *
      * <p>
      * 편성비목 조회(API-01) 시 각 비목별 결재완료 요청금액을 집계합니다.
-     * BCOSTM.IT_MNGC_BG + BITEMM.GCL_AMT를 접두어별로 SUM합니다.
+     * BCOSTM.IT_MNGC_BG + BITEMM.GCL_AMT * XCR 를 ioeCValues 기준으로 SUM합니다.
      * </p>
      *
-     * @param prefix 편성비목 접두어 (예: "237")
-     * @param bgYy   예산연도 (예: 2026)
-     * @return 해당 접두어의 결재완료 요청금액 합계
+     * @param ioeCValues 해당 편성비목에 속하는 IOE cdva 값 집합
+     * @param bgYy       예산연도
+     * @return 결재완료 요청금액 합계 (집합이 비어있으면 ZERO)
      */
-    BigDecimal sumApprovedAmountByPrefix(String prefix, String bgYy);
+    BigDecimal sumApprovedAmountByIoeCValues(Set<String> ioeCValues, String bgYy);
 }
