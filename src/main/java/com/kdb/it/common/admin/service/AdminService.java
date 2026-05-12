@@ -3,6 +3,7 @@ package com.kdb.it.common.admin.service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -112,8 +113,10 @@ public class AdminService {
                                 .cNm(req.cNm())
                                 .cdva(req.cdva())
                                 .cDes(req.cDes())
+                                .cdvaDtl(req.cdvaDtl())
                                 .cTp(req.cTp())
                                 .cTpDes(req.cTpDes())
+                                .hrkC(req.hrkC())
                                 .sttDt(req.sttDt())
                                 .endDt(req.endDt())
                                 .cSqn(req.cSqn())
@@ -145,13 +148,13 @@ public class AdminService {
          * 공통코드를 논리 삭제(Soft Delete)합니다.
          * DEL_YN='Y' 처리 — 물리 삭제 금지.
          *
-         * @param cdId 코드ID
+         * @param cId   코드ID
+         * @param cdva  코드값
          * @param sttDt 시작일자
          * @throws IllegalArgumentException 코드를 찾을 수 없는 경우
          */
         @Transactional
         public void deleteCode(String cId, String cdva, LocalDate sttDt) {
-                // Plan SC: Soft Delete 요구사항 (C-08)
                 validateCodeKey(cId, cdva, sttDt);
                 Ccodem code = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
                                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드입니다: " + cId + "/" + cdva + ", " + sttDt));
@@ -171,14 +174,12 @@ public class AdminService {
                 int updated = 0;
                 for (AdminDto.CodeRequest item : req.codes()) {
                         validateCodeKey(item.cId(), item.cdva(), item.sttDt());
-                        if (codeRepository.existsByCIdAndCdvaAndSttDt(item.cId(), item.cdva(), item.sttDt())) {
-                                Ccodem code = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(item.cId(), item.cdva(), item.sttDt(), "N")
-                                                .orElse(null);
-                                if (code != null) {
-                                        code.update(item.cNm(), item.cDes(), item.cdvaDtl(), item.cTp(),
-                                        item.cTpDes(), item.hrkC(), item.cSqn(), item.endDt());
-                                        updated++;
-                                }
+                        Optional<Ccodem> existing = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(
+                                        item.cId(), item.cdva(), item.sttDt(), "N");
+                        if (existing.isPresent()) {
+                                existing.get().update(item.cNm(), item.cDes(), item.cdvaDtl(), item.cTp(),
+                                                item.cTpDes(), item.hrkC(), item.cSqn(), item.endDt());
+                                updated++;
                         } else {
                                 Ccodem code = Ccodem.builder()
                                                 .cId(item.cId())
@@ -711,5 +712,3 @@ public class AdminService {
                                 .toList();
         }
 }
-
-
