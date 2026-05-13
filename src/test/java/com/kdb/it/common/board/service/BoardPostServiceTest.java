@@ -1,6 +1,5 @@
 package com.kdb.it.common.board.service;
 
-import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
@@ -30,7 +29,6 @@ class BoardPostServiceTest {
 
     private Cblbmm publicBoard;
     private Cblbmm adminOnlyBoard;
-    private CustomUserDetails adminUser;
     private CustomUserDetails normalUser;
 
     @BeforeEach
@@ -48,7 +46,6 @@ class BoardPostServiceTest {
             .bbrLmtnUseYn("N").useYn("Y").delYn("N")
             .build();
 
-        adminUser  = new CustomUserDetails("ADMIN001", List.of("ITPAD001"), "10001");
         normalUser = new CustomUserDetails("USER001",  List.of("ITPZZ001"), "10002");
     }
 

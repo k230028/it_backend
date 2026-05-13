@@ -54,8 +54,8 @@ public class BoardMetaDto {
     @AllArgsConstructor
     @Schema(name = "BoardMetaCreateRequest", description = "게시판 메타 등록 요청")
     public static class CreateRequest {
-        @Schema(description = "게시판명", required = true)         private String  blbNm;
-        @Schema(description = "게시판유형", required = true)       private String  blbTp;
+        @Schema(description = "게시판명", requiredMode = Schema.RequiredMode.REQUIRED)         private String  blbNm;
+        @Schema(description = "게시판유형", requiredMode = Schema.RequiredMode.REQUIRED)       private String  blbTp;
         @Schema(description = "답변사용여부", example = "N")       private String  repUseYn;
         @Schema(description = "댓글사용여부", example = "N")       private String  cmmtUseYn;
         @Schema(description = "첨부필수여부", example = "N")       private String  flEsnYn;

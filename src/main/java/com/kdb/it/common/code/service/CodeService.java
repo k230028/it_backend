@@ -116,14 +116,15 @@ public class CodeService {
                         "수정할 공통코드를 찾을 수 없습니다: " + cId + "/" + cdva + ", " + sttDt));
         ccodem.update(
                 request.getCNm(),
-                request.getCDes(),
+                request.getCdvaDes(),
                 request.getCdvaDtl(),
                 request.getCdvaNm(),
                 request.getCTp(),
                 request.getCTpDes(),
                 request.getHrkC(),
                 request.getCSqn(),
-                request.getEndDt());
+                request.getEndDt(),
+                request.getCdvaDtlC());
         return ccodem.getCId();
     }
 

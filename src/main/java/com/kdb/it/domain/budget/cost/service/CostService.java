@@ -452,16 +452,16 @@ public class CostService {
             String cTp = code.getCTp();
             if (CAPITAL_DETAIL_CTPS.contains(cTp) || "IOE_CPIT".equals(cTp)) {
                 response.setAssetBg(totalBg);
-                // 신규 기준은 C_TP, 구 IOE_CPIT 데이터는 C_DES 한글명으로 보정
+                // 신규 기준은 C_TP, 구 IOE_CPIT 데이터는 CDVA_DES 한글명으로 보정
                 switch (cTp) {
                     case IOE_DVC -> response.setDevBg(totalBg);
                     case IOE_HW -> response.setMachBg(totalBg);
                     case IOE_SW -> response.setIntanBg(totalBg);
                     case "IOE_CPIT" -> {
-                        String cDes = code.getCDes() != null ? code.getCDes() : "";
-                        if ("개발비".equals(cDes)) response.setDevBg(totalBg);
-                        else if ("기계장치".equals(cDes)) response.setMachBg(totalBg);
-                        else if ("기타무형자산".equals(cDes)) response.setIntanBg(totalBg);
+                        String cdvaDes = code.getCdvaDes() != null ? code.getCdvaDes() : "";
+                        if ("개발비".equals(cdvaDes)) response.setDevBg(totalBg);
+                        else if ("기계장치".equals(cdvaDes)) response.setMachBg(totalBg);
+                        else if ("기타무형자산".equals(cdvaDes)) response.setIntanBg(totalBg);
                     }
                     default -> {
                         // 위 CAPITAL_DETAIL_CTPS 조건과 switch 분기가 어긋나는 경우 금액만 자본예산으로 유지

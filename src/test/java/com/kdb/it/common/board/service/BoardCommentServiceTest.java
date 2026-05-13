@@ -42,7 +42,6 @@ class BoardCommentServiceTest {
     private Cblbmm boardWithComment;
     private Cblbmm boardNoComment;
     private Cblbcm post;
-    private CustomUserDetails adminUser;
     private CustomUserDetails normalUser;
 
     @BeforeEach
@@ -68,7 +67,6 @@ class BoardCommentServiceTest {
             .delYn("N")
             .build();
 
-        adminUser  = new CustomUserDetails("ADMIN001", List.of("ITPAD001"), "10001");
         normalUser = new CustomUserDetails("USER001",  List.of("ITPZZ001"), "10002");
     }
 

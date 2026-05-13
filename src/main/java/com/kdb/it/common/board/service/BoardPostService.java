@@ -144,8 +144,8 @@ public class BoardPostService {
             BoardPostDto.UpdateRequest request,
             CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
-        Cblbcm post  = findPost(nacMngNo);
+        findActiveBoard(blbMngNo);
+        Cblbcm post = findPost(nacMngNo);
         verifyCanModify(user, post);
         verifyBbrC(user, request.getBbrC());
 

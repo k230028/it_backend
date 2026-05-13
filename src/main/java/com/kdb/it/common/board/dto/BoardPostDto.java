@@ -104,7 +104,7 @@ public class BoardPostDto {
     @AllArgsConstructor
     @Schema(name = "BoardPostCreateRequest", description = "게시물 등록 요청")
     public static class CreateRequest {
-        @Schema(description = "제목 (최대 300자)", required = true) private String    nacNm;
+        @Schema(description = "제목 (최대 300자)", requiredMode = Schema.RequiredMode.REQUIRED) private String    nacNm;
         @Schema(description = "본문 HTML")                         private String    nacCone;
         @Schema(description = "게시물유형코드")                    private String    nacTp;
         @Schema(description = "종류코드")                          private String    kdC;
@@ -150,7 +150,7 @@ public class BoardPostDto {
     @AllArgsConstructor
     @Schema(name = "BoardPostReplyCreateRequest", description = "답변글 등록 요청")
     public static class ReplyCreateRequest {
-        @Schema(description = "제목", required = true) private String    nacNm;
+        @Schema(description = "제목", requiredMode = Schema.RequiredMode.REQUIRED) private String    nacNm;
         @Schema(description = "본문 HTML")             private String    nacCone;
         @Schema(description = "중요도코드")             private String    pritC;
         @Schema(description = "담당부서코드")           private String    bbrC;

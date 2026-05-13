@@ -182,9 +182,11 @@ tasks.named('asciidoctor') {
 	dependsOn test
 }
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'
-	options.compilerArgs.add("-parameters")
+	// Spring 6.1+는 @PathVariable/@RequestParam의 묵시적 이름 추론을 제거함.
+	// javac에 -parameters를 전달해 메서드 파라미터명을 .class에 보존.
+	options.compilerArgs.add('-parameters')
 }
 
 tasks.withType(Javadoc) {

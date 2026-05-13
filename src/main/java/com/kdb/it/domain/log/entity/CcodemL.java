@@ -37,8 +37,8 @@ public class CcodemL extends BaseLogEntity {
     @Column(name = "C_NM", length = 100, comment = "코드명")
     private String cNm;
 
-    @Column(name = "C_DES", length = 500, comment = "코드설명")
-    private String cDes;
+    @Column(name = "CDVA_DES", length = 500, comment = "코드값설명")
+    private String cdvaDes;
 
     @Column(name = "CDVA_DTL", length = 100, comment = "코드값상세")
     private String cdvaDtl;
@@ -54,4 +54,7 @@ public class CcodemL extends BaseLogEntity {
 
     @Column(name = "C_SQN", comment = "코드순번")
     private Integer cSqn;
+
+    @Column(name = "CDVA_DTL_C", length = 8, comment = "코드값상세코드")
+    private String cdvaDtlC;
 }

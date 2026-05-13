@@ -118,7 +118,7 @@ public class BudgetWorkService {
                     .orElse(null);
 
             return new BudgetWorkDto.IoeCategoryResponse(
-                    code.getCdva(), code.getCDes() != null ? code.getCDes() : code.getCNm(),
+                    code.getCdva(), code.getCdvaDes() != null ? code.getCdvaDes() : code.getCNm(),
                     code.getCNm(), prefix, dupRt, requestAmount);
         }).toList();
     }
@@ -389,14 +389,14 @@ public class BudgetWorkService {
         List<Ccodem> dupIoeCodes = findCodes("DUP_IOE");
 
         // 세부 비목 코드 조회: 마이그레이션 후 cId="IOE" 단일 그룹으로 통합됨
-        // cdva("101") → 계층코드 cNm("304-1100") 매핑으로 DUP_IOE 접두어("304")와 매칭
+        // cdva("101") → 계층코드 cdvaDtlC("304-1100") 매핑으로 DUP_IOE 접두어("304")와 매칭
         List<Ccodem> allIoeCodes = findCodes("IOE");
         Map<String, String> cdvaToHierarchyCode = new LinkedHashMap<>();
         Map<String, String> cdvaToDisplayName = new LinkedHashMap<>();
         Map<String, String> cdvaToGroupName = new LinkedHashMap<>();
         Map<String, Boolean> cdvaToCapital = new LinkedHashMap<>();
         for (Ccodem code : allIoeCodes) {
-            String hierarchyCode = code.getCNm();  // 구 CDVA: "304-1100"
+            String hierarchyCode = code.getCdvaDtlC();  // 마이그레이션 후 계정과목코드: CDVA_DTL_C("304-1100")
             cdvaToHierarchyCode.put(code.getCdva(), hierarchyCode);
             String displayName = code.getCdvaNm() != null ? code.getCdvaNm()
                     : (code.getCdvaDtl() != null ? code.getCdvaDtl() : hierarchyCode);
@@ -405,12 +405,12 @@ public class BudgetWorkService {
             cdvaToCapital.put(code.getCdva(), isCapitalCTp(code.getCTp()));
         }
 
-        // 접두어 → 그룹명 매핑 (DUP_IOE 기반, cDes 우선 사용)
+        // 접두어 → 그룹명 매핑 (DUP_IOE 기반, cdvaDes 우선 사용)
         Map<String, String> prefixToGroupName = new LinkedHashMap<>();
         List<String> prefixOrder = new ArrayList<>();
         for (Ccodem code : dupIoeCodes) {
             String prefix = extractPrefix(code.getCdva());
-            prefixToGroupName.put(prefix, code.getCDes() != null ? code.getCDes() : code.getCNm());
+            prefixToGroupName.put(prefix, code.getCdvaDes() != null ? code.getCdvaDes() : code.getCNm());
             prefixOrder.add(prefix);
         }
 
@@ -583,7 +583,7 @@ public class BudgetWorkService {
             String[] parts = detail.split(" - ");
             if (parts.length >= 2) return parts[1].trim();
         }
-        return code.getCDes();
+        return code.getCdvaDes();
     }
 
     /**
@@ -591,7 +591,7 @@ public class BudgetWorkService {
      */
     private String resolveProjectSummaryCategoryName(String prefix, Ccodem dupCode, List<Ccodem> ioeDetailCodes) {
         for (Ccodem ioeCode : ioeDetailCodes) {
-            if (ioeCode.getCNm() != null && ioeCode.getCNm().startsWith(prefix)) {
+            if (ioeCode.getCdvaDtlC() != null && ioeCode.getCdvaDtlC().startsWith(prefix)) {
                 String groupName = resolveIoeGroupName(ioeCode);
                 if (groupName != null && !groupName.isBlank()) {
                     return groupName;
@@ -605,8 +605,8 @@ public class BudgetWorkService {
         if (dupCode.getCNm() != null && !dupCode.getCNm().isBlank()) {
             return dupCode.getCNm();
         }
-        if (dupCode.getCDes() != null && !dupCode.getCDes().isBlank()) {
-            return dupCode.getCDes();
+        if (dupCode.getCdvaDes() != null && !dupCode.getCdvaDes().isBlank()) {
+            return dupCode.getCdvaDes();
         }
         return prefix;
     }
@@ -633,11 +633,11 @@ public class BudgetWorkService {
         List<Ccodem> ioeCodes = findCodes("DUP_IOE");
         List<Bbugtm> budgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
 
-        // ioeC(cdva, "101") → 계층코드 cNm("304-1100") 매핑: DUP_IOE 접두어("304") 매칭용
+        // ioeC(cdva, "101") → 계층코드 cdvaDtlC("304-1100") 매핑: DUP_IOE 접두어("304") 매칭용
         List<Ccodem> ioeDetailCodes = findCodes("IOE");
         Map<String, String> ioeCdvaToHierarchyCode = new LinkedHashMap<>();
         for (Ccodem code : ioeDetailCodes) {
-            ioeCdvaToHierarchyCode.put(code.getCdva(), code.getCNm());
+            ioeCdvaToHierarchyCode.put(code.getCdva(), code.getCdvaDtlC());
         }
 
         // 비목별 편성률 맵 (prefix → dupRt)
@@ -663,7 +663,7 @@ public class BudgetWorkService {
             String prefix = extractPrefix(code.getCdva());
             Integer dupRt = rateByPrefix.getOrDefault(prefix, 0);
             String categoryName = resolveProjectSummaryCategoryName(prefix, code, ioeDetailCodes);
-            categoryHeaders.add(new BudgetWorkDto.ProjectSummaryCategory(prefix, categoryName, code.getCDes(), dupRt));
+            categoryHeaders.add(new BudgetWorkDto.ProjectSummaryCategory(prefix, categoryName, code.getCdvaDes(), dupRt));
         }
 
         // 2. 사업별 + 비목별 이중 그룹핑
@@ -816,7 +816,7 @@ public class BudgetWorkService {
     Map<String, Set<String>> buildPrefixToIoeCValuesMap(List<Ccodem> allIoeCodes) {
         Map<String, Set<String>> map = new LinkedHashMap<>();
         for (Ccodem code : allIoeCodes) {
-            String hierarchyCode = code.getCNm(); // 예: "237-0700"
+            String hierarchyCode = code.getCdvaDtlC(); // 마이그레이션 후 계정과목코드: CDVA_DTL_C("237-0700")
             if (hierarchyCode == null || code.getCdva() == null) continue;
             int dashIdx = hierarchyCode.indexOf('-');
             String prefix = dashIdx > 0 ? hierarchyCode.substring(0, dashIdx) : hierarchyCode;

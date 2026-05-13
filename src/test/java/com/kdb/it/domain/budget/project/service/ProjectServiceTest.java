@@ -681,7 +681,7 @@ class ProjectServiceTest {
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId("IOE_CPIT"))
-                                .willReturn(List.of(Ccodem.builder().cId("IOE-ASSET").cDes("개발비").build()));
+                                .willReturn(List.of(Ccodem.builder().cId("IOE-ASSET").cdvaDes("개발비").build()));
                 given(codeService.findCodeEntitiesByCId("IOE_IDR"))
                                 .willReturn(List.of(Ccodem.builder().cId("IOE-COST").build()));
                 given(codeService.findCodeEntitiesByCId("IOE_SEVS")).willReturn(List.of());

@@ -17,22 +17,21 @@ public interface BoardCommentRepository
     boolean existsByHrkCmmtMngNoAndDelYn(String hrkCmmtMngNo, String delYn);
 
     /** 댓글 채번 시퀀스 */
-    @Query(value = "SELECT SQ_CMMTMNGNO.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT S_CMMT_MNG_NO.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
     /** 대댓글 삽입을 위한 SQN 밀어내기 */
     @Modifying
     @Query("""
-        UPDATE Ccmmtm c
-           SET c.cmmtGrpSqn = c.cmmtGrpSqn + 1
-         WHERE c.cmmtGrpNo  = :grpNo
-           AND c.cmmtGrpSqn > :parentSqn
-           AND c.cmmtGrpLev > :parentLev
-           AND c.delYn      = 'N'
-        """)
+            UPDATE Ccmmtm c
+               SET c.cmmtGrpSqn = c.cmmtGrpSqn + 1
+             WHERE c.cmmtGrpNo  = :grpNo
+               AND c.cmmtGrpSqn > :parentSqn
+               AND c.cmmtGrpLev > :parentLev
+               AND c.delYn      = 'N'
+            """)
     int shiftGroupSqn(
-        @Param("grpNo")     String grpNo,
-        @Param("parentSqn") int    parentSqn,
-        @Param("parentLev") int    parentLev
-    );
+            @Param("grpNo") String grpNo,
+            @Param("parentSqn") int parentSqn,
+            @Param("parentLev") int parentLev);
 }

@@ -902,14 +902,14 @@ public class ProjectService {
         java.util.Set<String> machTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_HW, java.util.Collections.emptySet()));
         java.util.Set<String> intanTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_SW, java.util.Collections.emptySet()));
 
-        // 구 데이터 호환: IOE_CPIT 행은 C_DES 한글명으로 세부 분류
+        // 구 데이터 호환: IOE_CPIT 행은 CDVA_DES 한글명으로 세부 분류
         assetCodes.stream()
                 .filter(c -> "IOE_CPIT".equals(c.getCTp()))
                 .forEach(c -> {
-                    String cDes = c.getCDes() != null ? c.getCDes() : "";
-                    if ("개발비".equals(cDes)) devTypes.add(c.getCdva());
-                    else if ("기계장치".equals(cDes)) machTypes.add(c.getCdva());
-                    else if ("기타무형자산".equals(cDes)) intanTypes.add(c.getCdva());
+                    String cdvaDes = c.getCdvaDes() != null ? c.getCdvaDes() : "";
+                    if ("개발비".equals(cdvaDes)) devTypes.add(c.getCdva());
+                    else if ("기계장치".equals(cdvaDes)) machTypes.add(c.getCdva());
+                    else if ("기타무형자산".equals(cdvaDes)) intanTypes.add(c.getCdva());
                 });
 
         // 일반관리비: cTp가 IOE_IDR/IOE_SEVS/IOE_XPN/IOE_LEAFE인 코드의 cdva 집합

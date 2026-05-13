@@ -112,8 +112,9 @@ public class AdminService {
                                 .cId(req.cId())
                                 .cNm(req.cNm())
                                 .cdva(req.cdva())
-                                .cDes(req.cDes())
+                                .cdvaDes(req.cdvaDes())
                                 .cdvaDtl(req.cdvaDtl())
+                                .cdvaDtlC(req.cdvaDtlC())
                                 .cTp(req.cTp())
                                 .cTpDes(req.cTpDes())
                                 .hrkC(req.hrkC())
@@ -140,8 +141,8 @@ public class AdminService {
                 Ccodem code = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
                                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드입니다: " + cId + "/" + cdva + ", " + sttDt));
                 
-                code.update(req.cNm(), req.cDes(), req.cdvaDtl(), req.cTp(),
-                                req.cTpDes(), req.hrkC(), req.cSqn(), req.endDt());
+                code.update(req.cNm(), req.cdvaDes(), req.cdvaDtl(), req.cTp(),
+                                req.cTpDes(), req.hrkC(), req.cSqn(), req.endDt(), req.cdvaDtlC());
         }
 
         /**
@@ -177,16 +178,17 @@ public class AdminService {
                         Optional<Ccodem> existing = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(
                                         item.cId(), item.cdva(), item.sttDt(), "N");
                         if (existing.isPresent()) {
-                                existing.get().update(item.cNm(), item.cDes(), item.cdvaDtl(), item.cTp(),
-                                                item.cTpDes(), item.hrkC(), item.cSqn(), item.endDt());
+                                existing.get().update(item.cNm(), item.cdvaDes(), item.cdvaDtl(), item.cTp(),
+                                                item.cTpDes(), item.hrkC(), item.cSqn(), item.endDt(), item.cdvaDtlC());
                                 updated++;
                         } else {
                                 Ccodem code = Ccodem.builder()
                                                 .cId(item.cId())
                                                 .cNm(item.cNm())
                                                 .cdva(item.cdva())
-                                                .cDes(item.cDes())
+                                                .cdvaDes(item.cdvaDes())
                                                 .cdvaDtl(item.cdvaDtl())
+                                                .cdvaDtlC(item.cdvaDtlC())
                                                 .cTp(item.cTp())
                                                 .cTpDes(item.cTpDes())
                                                 .hrkC(item.hrkC())
@@ -227,8 +229,9 @@ public class AdminService {
                                 c.getCId(),
                                 c.getCdva(),
                                 c.getCNm(),
-                                c.getCDes(),
+                                c.getCdvaDes(),
                                 c.getCdvaDtl(),
+                                c.getCdvaDtlC(),
                                 c.getCTp(),
                                 c.getCTpDes(),
                                 c.getHrkC(),

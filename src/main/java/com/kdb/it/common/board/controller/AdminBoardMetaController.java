@@ -47,7 +47,7 @@ public class AdminBoardMetaController {
     @PutMapping("/{blbMngNo}")
     @Operation(summary = "게시판 수정")
     public ResponseEntity<Void> update(
-            @PathVariable String blbMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
             @RequestBody BoardMetaDto.UpdateRequest request) {
         boardMetaService.updateBoard(blbMngNo, request);
         return ResponseEntity.ok().build();
@@ -60,7 +60,7 @@ public class AdminBoardMetaController {
      */
     @DeleteMapping("/{blbMngNo}")
     @Operation(summary = "게시판 삭제 (Soft Delete)")
-    public ResponseEntity<Void> delete(@PathVariable String blbMngNo) {
+    public ResponseEntity<Void> delete(@PathVariable("blbMngNo") String blbMngNo) {
         boardMetaService.deleteBoard(blbMngNo);
         return ResponseEntity.noContent().build();
     }

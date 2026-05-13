@@ -58,9 +58,9 @@ public class Ccodem extends BaseEntity {
     @Column(name = "C_NM", length = 100, comment = "코드명")
     private String cNm;
 
-    /** 코드설명 (구 CTT_TP_DES, 예: 환율, 사업유형) */
-    @Column(name = "C_DES", length = 500, comment = "코드설명")
-    private String cDes;
+    /** 코드값설명 (예: 환율, 사업유형) */
+    @Column(name = "CDVA_DES", length = 500, comment = "코드값설명")
+    private String cdvaDes;
 
     /** 코드값상세 (구 C_NM, 예: USD) */
     @Column(name = "CDVA_DTL", length = 100, comment = "코드값상세")
@@ -82,48 +82,55 @@ public class Ccodem extends BaseEntity {
     @Column(name = "C_SQN", comment = "코드순서")
     private Integer cSqn;
 
+    /** 코드값상세코드 (예: 237-0700, 238-0100 등 비목 계정과목코드) */
+    @Column(name = "CDVA_DTL_C", length = 8, comment = "코드값상세코드")
+    private String cdvaDtlC;
+
     /**
      * 공통코드 정보 업데이트
      *
-     * @param cNm    코드명
-     * @param cDes   코드설명
-     * @param cdvaDtl 코드값상세
-     * @param cTp    코드타입
-     * @param cTpDes 코드타입설명
-     * @param hrkC   상위코드
-     * @param cSqn   코드순서
-     * @param endDt  종료일자
+     * @param cNm      코드명
+     * @param cdvaDes  코드값설명
+     * @param cdvaDtl  코드값상세
+     * @param cTp      코드타입
+     * @param cTpDes   코드타입설명
+     * @param hrkC     상위코드
+     * @param cSqn     코드순서
+     * @param endDt    종료일자
+     * @param cdvaDtlC 코드값상세코드
      */
-    public void update(String cNm, String cDes, String cdvaDtl,
+    public void update(String cNm, String cdvaDes, String cdvaDtl,
                        String cTp, String cTpDes, String hrkC,
-                       Integer cSqn, LocalDate endDt) {
-        update(cNm, cDes, cdvaDtl, this.cdvaNm, cTp, cTpDes, hrkC, cSqn, endDt);
+                       Integer cSqn, LocalDate endDt, String cdvaDtlC) {
+        update(cNm, cdvaDes, cdvaDtl, this.cdvaNm, cTp, cTpDes, hrkC, cSqn, endDt, cdvaDtlC);
     }
 
     /**
      * 공통코드 정보 업데이트
      *
-     * @param cNm     코드명
-     * @param cDes    코드설명
-     * @param cdvaDtl 코드값상세
-     * @param cdvaNm  코드값명
-     * @param cTp     코드타입
-     * @param cTpDes  코드타입설명
-     * @param hrkC    상위코드
-     * @param cSqn    코드순서
-     * @param endDt   종료일자
+     * @param cNm      코드명
+     * @param cdvaDes  코드값설명
+     * @param cdvaDtl  코드값상세
+     * @param cdvaNm   코드값명
+     * @param cTp      코드타입
+     * @param cTpDes   코드타입설명
+     * @param hrkC     상위코드
+     * @param cSqn     코드순서
+     * @param endDt    종료일자
+     * @param cdvaDtlC 코드값상세코드
      */
-    public void update(String cNm, String cDes, String cdvaDtl, String cdvaNm,
+    public void update(String cNm, String cdvaDes, String cdvaDtl, String cdvaNm,
                        String cTp, String cTpDes, String hrkC,
-                       Integer cSqn, LocalDate endDt) {
-        this.cNm     = cNm;
-        this.cDes    = cDes;
-        this.cdvaDtl = cdvaDtl;
-        this.cdvaNm  = cdvaNm;
-        this.cTp     = cTp;
-        this.cTpDes  = cTpDes;
-        this.hrkC    = hrkC;
-        this.cSqn    = cSqn;
-        this.endDt   = endDt;
+                       Integer cSqn, LocalDate endDt, String cdvaDtlC) {
+        this.cNm      = cNm;
+        this.cdvaDes  = cdvaDes;
+        this.cdvaDtl  = cdvaDtl;
+        this.cdvaNm   = cdvaNm;
+        this.cTp      = cTp;
+        this.cTpDes   = cTpDes;
+        this.hrkC     = hrkC;
+        this.cSqn     = cSqn;
+        this.endDt    = endDt;
+        this.cdvaDtlC = cdvaDtlC;
     }
 }

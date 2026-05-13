@@ -35,8 +35,8 @@ public class BoardCommentController {
     @GetMapping
     @Operation(summary = "댓글 목록 조회 (트리 정렬)")
     public ResponseEntity<List<BoardCommentDto.Response>> getComments(
-            @PathVariable String blbMngNo,
-            @PathVariable String nacMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
+            @PathVariable("nacMngNo") String nacMngNo,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(boardCommentService.getComments(blbMngNo, nacMngNo, user));
     }
@@ -53,8 +53,8 @@ public class BoardCommentController {
     @PostMapping
     @Operation(summary = "댓글 등록")
     public ResponseEntity<String> create(
-            @PathVariable String blbMngNo,
-            @PathVariable String nacMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
+            @PathVariable("nacMngNo") String nacMngNo,
             @RequestBody BoardCommentDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         String cmmtMngNo = boardCommentService.createComment(blbMngNo, nacMngNo, request, user);
@@ -76,9 +76,9 @@ public class BoardCommentController {
     @PostMapping("/{cmmtMngNo}/replies")
     @Operation(summary = "대댓글 등록")
     public ResponseEntity<String> createReply(
-            @PathVariable String blbMngNo,
-            @PathVariable String nacMngNo,
-            @PathVariable String cmmtMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
+            @PathVariable("nacMngNo") String nacMngNo,
+            @PathVariable("cmmtMngNo") String cmmtMngNo,
             @RequestBody BoardCommentDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         String replyId = boardCommentService.createReply(blbMngNo, nacMngNo, cmmtMngNo, request, user);
@@ -99,9 +99,9 @@ public class BoardCommentController {
     @PutMapping("/{cmmtMngNo}")
     @Operation(summary = "댓글 수정")
     public ResponseEntity<Void> update(
-            @PathVariable String blbMngNo,
-            @PathVariable String nacMngNo,
-            @PathVariable String cmmtMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
+            @PathVariable("nacMngNo") String nacMngNo,
+            @PathVariable("cmmtMngNo") String cmmtMngNo,
             @RequestBody BoardCommentDto.UpdateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         boardCommentService.updateComment(cmmtMngNo, request, user);
@@ -119,9 +119,9 @@ public class BoardCommentController {
     @DeleteMapping("/{cmmtMngNo}")
     @Operation(summary = "댓글 삭제 (Soft Delete)")
     public ResponseEntity<Void> delete(
-            @PathVariable String blbMngNo,
-            @PathVariable String nacMngNo,
-            @PathVariable String cmmtMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
+            @PathVariable("nacMngNo") String nacMngNo,
+            @PathVariable("cmmtMngNo") String cmmtMngNo,
             @AuthenticationPrincipal CustomUserDetails user) {
         boardCommentService.deleteComment(cmmtMngNo, user);
         return ResponseEntity.noContent().build();

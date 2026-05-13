@@ -104,8 +104,14 @@ public class ApprovalLineDelegate {
 
         Iterator<String> fieldNames = approvalLineNode.fieldNames();
         while (fieldNames.hasNext()) {
-            JsonNode approverNode = approvalLineNode.get(fieldNames.next());
+            String fieldName = fieldNames.next();
+            JsonNode approverNode = approvalLineNode.get(fieldName);
             if (approverNode == null || !approverNode.isObject() || !approverNode.has("id")) {
+                continue;
+            }
+            // 기안자(drafter)는 Cdecim 결재자 레코드가 아니므로 occurrence 카운팅에서 제외.
+            // 포함하면 기안자==결재자인 자동결재 시 JSON occurrence와 Cdecim occurrence 간 1 차이가 발생.
+            if ("drafter".equals(fieldName)) {
                 continue;
             }
             String id = approverNode.get("id").asText();

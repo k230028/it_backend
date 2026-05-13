@@ -35,7 +35,7 @@ public class BoardPostController {
     @GetMapping
     @Operation(summary = "게시물 목록 조회")
     public ResponseEntity<List<BoardPostDto.ListItem>> searchPosts(
-            @PathVariable String blbMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
             @ModelAttribute BoardPostDto.SearchCondition cond,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(boardPostService.searchPosts(blbMngNo, cond, user));
@@ -52,8 +52,8 @@ public class BoardPostController {
     @GetMapping("/{nacMngNo}")
     @Operation(summary = "게시물 상세 조회 (조회수 +1)")
     public ResponseEntity<BoardPostDto.Detail> getDetail(
-            @PathVariable String blbMngNo,
-            @PathVariable String nacMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
+            @PathVariable("nacMngNo") String nacMngNo,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(boardPostService.getPostDetail(blbMngNo, nacMngNo, user));
     }
@@ -69,7 +69,7 @@ public class BoardPostController {
     @PostMapping
     @Operation(summary = "게시물 등록")
     public ResponseEntity<String> create(
-            @PathVariable String blbMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
             @RequestBody BoardPostDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         String nacMngNo = boardPostService.createPost(blbMngNo, request, user);
@@ -89,8 +89,8 @@ public class BoardPostController {
     @PutMapping("/{nacMngNo}")
     @Operation(summary = "게시물 수정")
     public ResponseEntity<Void> update(
-            @PathVariable String blbMngNo,
-            @PathVariable String nacMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
+            @PathVariable("nacMngNo") String nacMngNo,
             @RequestBody BoardPostDto.UpdateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         boardPostService.updatePost(blbMngNo, nacMngNo, request, user);
@@ -107,8 +107,8 @@ public class BoardPostController {
     @DeleteMapping("/{nacMngNo}")
     @Operation(summary = "게시물 삭제 (Soft Delete)")
     public ResponseEntity<Void> delete(
-            @PathVariable String blbMngNo,
-            @PathVariable String nacMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
+            @PathVariable("nacMngNo") String nacMngNo,
             @AuthenticationPrincipal CustomUserDetails user) {
         boardPostService.deletePost(blbMngNo, nacMngNo, user);
         return ResponseEntity.noContent().build();
@@ -126,8 +126,8 @@ public class BoardPostController {
     @PostMapping("/{nacMngNo}/replies")
     @Operation(summary = "답변글 등록")
     public ResponseEntity<String> createReply(
-            @PathVariable String blbMngNo,
-            @PathVariable String nacMngNo,
+            @PathVariable("blbMngNo") String blbMngNo,
+            @PathVariable("nacMngNo") String nacMngNo,
             @RequestBody BoardPostDto.ReplyCreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         String replyId = boardPostService.createReply(blbMngNo, nacMngNo, request, user);

@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.eq;
 
@@ -231,10 +230,10 @@ class BudgetWorkServiceTest {
     @DisplayName("getSummary: IOE C_TP_DES 기준으로 일반관리비 중분류 그룹을 반환한다")
     void getSummary_cTpDes기준_일반관리비그룹분류() {
         List<Ccodem> dupCodes = List.of(
-                Ccodem.builder().cNm("237").cDes("전산제비").cdva("237").build(),
-                Ccodem.builder().cNm("238").cDes("전산제비").cdva("238").build(),
-                Ccodem.builder().cNm("239").cDes("전산제비").cdva("239").build(),
-                Ccodem.builder().cNm("240").cDes("전산제비").cdva("240").build());
+                Ccodem.builder().cNm("237").cdvaDes("전산제비").cdva("237").build(),
+                Ccodem.builder().cNm("238").cdvaDes("전산제비").cdva("238").build(),
+                Ccodem.builder().cNm("239").cdvaDes("전산제비").cdva("239").build(),
+                Ccodem.builder().cNm("240").cdvaDes("전산제비").cdva("240").build());
         List<Ccodem> ioeCodes = List.of(
                 Ccodem.builder().cdva("001").cNm("237-0700").cdvaNm("국내전산임차료").cTp("IOE_LEAFE").cTpDes("전산임차료").build(),
                 Ccodem.builder().cdva("003").cNm("238-0100").cdvaNm("국내출장").cTp("IOE_XPN").cTpDes("전산여비").build(),
@@ -589,7 +588,7 @@ class BudgetWorkServiceTest {
     void getSummary_세부명접두어제거와미등록원본포함() {
         // 마이그레이션 후 CCODEM 구조:
         // DUP_IOE cdva="351" / IOE: cdva="101"(cNm="351-0100", 자본), cdva="102"(cNm="351-9999")
-        Ccodem dupCode = Ccodem.builder().cNm("자본그룹").cDes("자본그룹명").cdva("351").build();
+        Ccodem dupCode = Ccodem.builder().cNm("자본그룹").cdvaDes("자본그룹명").cdva("351").build();
         Ccodem detailCode = Ccodem.builder()
                 .cdva("101").cNm("351-0100").cdvaDtl("자본그룹 - 개발비").cTp("IOE_CPIT")
                 .build();
@@ -630,7 +629,7 @@ class BudgetWorkServiceTest {
     @DisplayName("getProjectSummary: BITEMM은 프로젝트로 통합하고 BCOSTM은 계약명으로 표시한다")
     void getProjectSummary_BITEMM프로젝트통합과BCOSTM계약명표시() {
         // 마이그레이션 후: DUP_IOE cdva="237", IOE cdva="101"(cNm="237-0100"), cdva="102"(cNm="237-0200")
-        Ccodem dupCode = Ccodem.builder().cNm("임차료").cDes("임차료").cdva("237").build();
+        Ccodem dupCode = Ccodem.builder().cNm("임차료").cdvaDes("임차료").cdva("237").build();
         Bbugtm itemBudget = Bbugtm.builder()
                 .orcTb("BITEMM")
                 .orcPkVl("GCL-0001")
@@ -672,7 +671,7 @@ class BudgetWorkServiceTest {
     @Test
     @DisplayName("getProjectSummary: 컬럼명은 편성률 값이 아닌 IOE C_TP_DES를 표시한다")
     void getProjectSummary_컬럼명은CtpDes표시() {
-        Ccodem dupCode = Ccodem.builder().cNm("70").cDes("전산임차료 편성 비율").cdva("237").build();
+        Ccodem dupCode = Ccodem.builder().cNm("70").cdvaDes("전산임차료 편성 비율").cdva("237").build();
         Ccodem ioeCode = Ccodem.builder()
                 .cdva("001")
                 .cNm("237-0700")

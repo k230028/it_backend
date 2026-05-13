@@ -54,7 +54,7 @@ public class BoardCommentDto {
     @AllArgsConstructor
     @Schema(name = "BoardCommentCreateRequest", description = "댓글 등록 요청")
     public static class CreateRequest {
-        @Schema(description = "댓글 내용 (최대 2000자)", required = true) private String cmmtCone;
+        @Schema(description = "댓글 내용 (최대 2000자)", requiredMode = Schema.RequiredMode.REQUIRED) private String cmmtCone;
     }
 
     @Getter
@@ -63,6 +63,6 @@ public class BoardCommentDto {
     @AllArgsConstructor
     @Schema(name = "BoardCommentUpdateRequest", description = "댓글 수정 요청")
     public static class UpdateRequest {
-        @Schema(description = "댓글 내용 (최대 2000자)", required = true) private String cmmtCone;
+        @Schema(description = "댓글 내용 (최대 2000자)", requiredMode = Schema.RequiredMode.REQUIRED) private String cmmtCone;
     }
 }

@@ -40,7 +40,7 @@ public class BoardMetaController {
      */
     @GetMapping("/{blbMngNo}")
     @Operation(summary = "게시판 단건 조회")
-    public ResponseEntity<BoardMetaDto.Response> getOne(@PathVariable String blbMngNo) {
+    public ResponseEntity<BoardMetaDto.Response> getOne(@PathVariable("blbMngNo") String blbMngNo) {
         return ResponseEntity.ok(boardMetaService.getOne(blbMngNo));
     }
 }

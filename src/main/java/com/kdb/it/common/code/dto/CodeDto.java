@@ -34,11 +34,14 @@ public class CodeDto {
         @Schema(description = "코드명 (구 CDVA)", example = "신규개발")
         private String cNm;
 
-        @Schema(description = "코드설명 (구 CTT_TP_DES)", example = "사업유형")
-        private String cDes;
+        @Schema(description = "코드값설명", example = "사업유형")
+        private String cdvaDes;
 
         @Schema(description = "코드값상세 (구 C_NM)", example = "USD")
         private String cdvaDtl;
+
+        @Schema(description = "코드값상세코드 (예: 237-0700)")
+        private String cdvaDtlC;
 
         @Schema(description = "코드타입 (구 CTT_TP)")
         private String cTp;
@@ -64,8 +67,9 @@ public class CodeDto {
                     .cdva(this.cdva)
                     .cdvaNm(this.cdvaNm)
                     .cNm(this.cNm)
-                    .cDes(this.cDes)
+                    .cdvaDes(this.cdvaDes)
                     .cdvaDtl(this.cdvaDtl)
+                    .cdvaDtlC(this.cdvaDtlC)
                     .cTp(this.cTp)
                     .cTpDes(this.cTpDes)
                     .hrkC(this.hrkC)
@@ -88,11 +92,14 @@ public class CodeDto {
         @Schema(description = "코드값명")
         private String cdvaNm;
 
-        @Schema(description = "코드설명")
-        private String cDes;
+        @Schema(description = "코드값설명")
+        private String cdvaDes;
 
         @Schema(description = "코드값상세")
         private String cdvaDtl;
+
+        @Schema(description = "코드값상세코드 (예: 237-0700)")
+        private String cdvaDtlC;
 
         @Schema(description = "코드타입")
         private String cTp;
@@ -130,12 +137,15 @@ public class CodeDto {
         @Schema(description = "코드명 (구 CDVA)")
         private String cNm;
 
-        @JsonProperty("cDes")
-        @Schema(description = "코드설명 (구 CTT_TP_DES)")
-        private String cDes;
+        @JsonProperty("cdvaDes")
+        @Schema(description = "코드값설명")
+        private String cdvaDes;
 
         @Schema(description = "코드값상세 (구 C_NM)")
         private String cdvaDtl;
+
+        @Schema(description = "코드값상세코드 (예: 237-0700)")
+        private String cdvaDtlC;
 
         @JsonProperty("cTp")
         @Schema(description = "코드타입")
@@ -180,8 +190,9 @@ public class CodeDto {
                     .cdva(ccodem.getCdva())
                     .cdvaNm(ccodem.getCdvaNm())
                     .cNm(ccodem.getCNm())
-                    .cDes(ccodem.getCDes())
+                    .cdvaDes(ccodem.getCdvaDes())
                     .cdvaDtl(ccodem.getCdvaDtl())
+                    .cdvaDtlC(ccodem.getCdvaDtlC())
                     .cTp(ccodem.getCTp())
                     .cTpDes(ccodem.getCTpDes())
                     .hrkC(ccodem.getHrkC())
