@@ -77,15 +77,15 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
     List<Cfilem> findAllByOrcDttAndOrcPkVlAndFlDttAndDelYn(String orcDtt, String orcPkVl, String flDtt, String delYn);
 
     /**
-     * Oracle 시퀀스(S_FL) 다음 값 조회
+     * Oracle 시퀀스(SEQ_CFILEM) 다음 값 조회
      *
      * <p>
      * 파일관리번호 채번에 사용합니다.
      * 형식: {@code FL_{8자리 시퀀스}} (예: {@code FL_00000001})
      * </p>
      *
-     * @return Oracle 시퀀스(S_FL)의 다음 값
+     * @return Oracle 시퀀스(SEQ_CFILEM)의 다음 값
      */
-    @Query(value = "SELECT S_FL.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SEQ_CFILEM.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 }

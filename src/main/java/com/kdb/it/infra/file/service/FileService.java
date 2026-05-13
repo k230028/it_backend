@@ -110,7 +110,7 @@ public class FileService {
      * 파일관리번호 채번
      *
      * <p>
-     * Oracle 시퀀스(S_FL) 값을 기반으로 생성합니다.
+     * Oracle 시퀀스(SEQ_CFILEM) 값을 기반으로 생성합니다.
      * </p>
      *
      * @return 파일관리번호 (예: FL_00000001)

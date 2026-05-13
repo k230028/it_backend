@@ -43,7 +43,7 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
     List<Bitemm> findByPrjMngNoAndPrjSnoAndDelYn(String prjMngNo, Integer prjSno, String delYn);
 
     /**
-     * Oracle 시퀀스(S_GCL) 다음 값 조회
+     * Oracle 시퀀스(SEQ_BITEMM) 다음 값 조회
      *
      * <p>신규 품목 생성 시 품목관리번호(GCL_MNG_NO) 채번에 사용합니다.
      * Oracle DB 전용 Native Query입니다.</p>
@@ -86,6 +86,6 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      */
     List<Bitemm> findByPrjMngNoAndDelYnAndLstYn(String prjMngNo, String delYn, String lstYn);
 
-    @org.springframework.data.jpa.repository.Query(value = "SELECT S_GCL.NEXTVAL FROM DUAL", nativeQuery = true)
+    @org.springframework.data.jpa.repository.Query(value = "SELECT SEQ_BITEMM.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 }

@@ -30,7 +30,7 @@ import java.math.BigDecimal;
  *
  * <p>
  * 복합키 구조: ({@code BG_MNG_NO}, {@code BG_SNO})
- * 관리번호 채번 형식: {@code BG-{예산년도}-{S_BG 시퀀스 4자리}} (예: {@code BG-2026-0001})
+ * 관리번호 채번 형식: {@code BG-{예산년도}-{SEQ_BBUGTM 시퀀스 4자리}} (예: {@code BG-2026-0001})
  * </p>
  *
  * // Design Ref: §2.1 — Bbugtm 엔티티 (Option C Pragmatic Balance)

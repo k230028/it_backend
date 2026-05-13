@@ -15,7 +15,7 @@ import java.util.List;
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여
  * 로그인이력 테이블(TAAABB_CLOGNH)에 대한 CRUD 기능을 제공합니다.</p>
  *
- * <p>기본키 타입: {@link Long} (lgnSno: Oracle 시퀀스 S_LGN_SNO)</p>
+ * <p>기본키 타입: {@link Long} (lgnSno: Oracle 시퀀스 SEQ_CLOGNH)</p>
  *
  * <p>보안 감사 목적의 이력 조회 메서드를 제공합니다.</p>
  */

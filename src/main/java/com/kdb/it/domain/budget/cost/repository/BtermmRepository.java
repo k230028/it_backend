@@ -34,11 +34,11 @@ public interface BtermmRepository extends JpaRepository<Btermm, BtermmId> {
     List<Btermm> findByItMngcNoAndItMngcSno(String itMngcNo, Integer itMngcSno);
 
     /**
-     * Oracle 시퀀스(S_PLN_MNG_NO) 다음 값 조회
+     * Oracle 시퀀스(SEQ_BTERMM) 다음 값 조회
      *
      * @return 시퀀스의 다음 값 (Long)
      */
-    @Query(value = "SELECT S_PLN_MNG_NO.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SEQ_BTERMM.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
     /**

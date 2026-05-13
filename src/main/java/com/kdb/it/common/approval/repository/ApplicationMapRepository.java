@@ -27,7 +27,7 @@ import org.springframework.data.jpa.repository.Query;
 public interface ApplicationMapRepository extends JpaRepository<Cappla, String> {
 
         /**
-         * Oracle 시퀀스(S_APF_REL_SNO) 다음 값 조회
+         * Oracle 시퀀스(SEQ_CAPPLA) 다음 값 조회
          *
          * <p>
          * 신청서관계일련번호(APF_REL_SNO) 채번에 사용합니다.
@@ -36,7 +36,7 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, String> 
          *
          * @return 시퀀스의 다음 값 (Long)
          */
-        @Query(value = "SELECT S_APF_REL_SNO.NEXTVAL FROM DUAL", nativeQuery = true)
+        @Query(value = "SELECT SEQ_CAPPLA.NEXTVAL FROM DUAL", nativeQuery = true)
         Long getNextVal();
 
         /**

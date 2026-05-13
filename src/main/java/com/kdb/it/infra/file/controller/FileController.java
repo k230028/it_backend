@@ -134,7 +134,7 @@ public class FileController {
         @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         @Operation(summary = "파일 단건 업로드", description = "multipart/form-data 형식으로 파일 1개를 업로드합니다. " +
                         "서버 파일명은 {서버ID}_{타임스탬프}_{UUID}.{확장자} 형식으로 자동 채번됩니다. " +
-                        "파일관리번호는 Oracle 시퀀스(S_FL) 기반으로 FL_{8자리} 형식으로 생성됩니다. " +
+                        "파일관리번호는 Oracle 시퀀스(SEQ_CFILEM) 기반으로 FL_{8자리} 형식으로 생성됩니다. " +
                         "응답에 previewUrl, downloadUrl이 포함되어 Tiptap 에디터에서 바로 사용 가능합니다.")
         public ResponseEntity<FileDto.Response> uploadFile(
                         @Parameter(description = "업로드할 파일", required = true) @RequestPart("file") MultipartFile file,

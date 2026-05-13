@@ -25,7 +25,7 @@ import java.math.BigDecimal;
  *
  * <p>
  * 계획관리번호({@code plnMngNo}) 채번 규칙:
- * {@code PLN-{대상년도}-{S_PLN_MNG_NO 시퀀스 4자리}} (예: PLN-2026-0001)
+ * {@code PLN-{대상년도}-{SEQ_BPLANM 시퀀스 4자리}} (예: PLN-2026-0001)
  * </p>
  */
 @LogTarget(entity = BplanmL.class)

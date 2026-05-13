@@ -67,7 +67,7 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
     List<Bprojm> findAllByDelYn(String delYn);
 
     /**
-     * Oracle 시퀀스(S_PRJ) 다음 값 조회
+     * Oracle 시퀀스(SEQ_BPROJM) 다음 값 조회
      *
      * <p>
      * 신규 프로젝트 생성 시 관리번호 채번에 사용합니다.
@@ -78,8 +78,8 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
      * Oracle DB 전용 Native Query입니다.
      * </p>
      *
-     * @return Oracle 시퀀스(S_PRJ)의 다음 값(Long)
+     * @return Oracle 시퀀스(SEQ_BPROJM)의 다음 값(Long)
      */
-    @org.springframework.data.jpa.repository.Query(value = "SELECT S_PRJ.NEXTVAL FROM DUAL", nativeQuery = true)
+    @org.springframework.data.jpa.repository.Query(value = "SELECT SEQ_BPROJM.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 }

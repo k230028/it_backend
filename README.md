@@ -10,6 +10,7 @@
   - 예산(전산업무비) 관리
   - 정보화실무협의회 협의 및 평가
   - 요구사항 정의서 검토의견 관리
+  - 공통 게시판(게시판 메타/게시물/댓글/답변글)
   - 변경 이력 추적(Audit Log)
   - 파일 업로드/다운로드
   - Gemini AI 텍스트 생성 보조
@@ -54,6 +55,7 @@ Controller → Service → Repository → DB (Oracle)
 | **JWT httpOnly 쿠키** | Access Token(15분) + Refresh Token(7일), `CookieUtil`로 관리 | XSS 공격 방어(JavaScript 접근 불가), 자동 전송 편의성 |
 | **비밀번호 인코딩** | SHA-256 + Base64 (`CustomPasswordEncoder`) | Oracle 레거시 시스템과의 호환성 |
 | **HTML 새니타이징** | `HtmlSanitizer` (Jsoup 기반) 서버 측 XSS 방어 | 프론트엔드 DOMPurify와 이중 방어, 신뢰할 수 없는 사용자 입력 필터링 |
+| **게시판 권한 정책** | `Cblbmm` 메타 + 서비스 계층 검증 | 조회/등록 권한, 부서 제한, 공개 기간을 백엔드에서 최종 판단 |
 | **Oracle Native Query** | 시퀀스 채번 시 `@Query(nativeQuery=true)` 직접 조회 | 자동 생성 문자열(`BPROJM_0000...`) 포맷 구현 |
 | **정적 중첩 DTO** | `AuthDto.LoginRequest`, `ProjectDto.CreateRequest` 등 한 파일 그룹화 | Swagger 문서 가독성, 관련 DTO 응집도 향상 |
 | **전역 예외 처리** | `@RestControllerAdvice` 기반 `GlobalExceptionHandler` | 표준화된 오류 응답(`{ timestamp, status, message }`) |
@@ -117,6 +119,7 @@ com.kdb.it
 │   ├── iam/                 # 사용자·조직·권한 (UserController, OrganizationController, UserRepository)
 │   ├── approval/            # 신청서·결재 (ApplicationController, ApplicationService, ApplicationMapRepository)
 │   ├── admin/               # 시스템관리 (AdminController, AdminService — ROLE_ADMIN 전용)
+│   ├── board/               # 공통 게시판 (BoardMeta/Post/Comment)
 │   ├── code/                # 공통 코드 (CodeController, CodeService, CodeRepository)
 │   └── util/                # 공통 유틸 (CustomPasswordEncoder, CookieUtil, HtmlSanitizer)
 ├── domain/                  # 비즈니스 도메인 집합
@@ -157,6 +160,7 @@ common → domain (X)   common → infra  (X)
 | 예산작업 | `BudgetWorkController` | `BudgetWorkService` | `BbugtmRepository` + Custom | `Bbugtm` |
 | 정보화실무협의회 | `CouncilController` | `CouncilService` 외 7개 | `CouncilRepository` 외 8개 | `Basctm` 외 13개 |
 | 신청서(결재) | `ApplicationController` | `ApplicationService` | `ApplicationRepository`, `ApplicationMapRepository`, `ApproverRepository` | `Capplm`, `Cappla`, `Cdecim` |
+| 공통게시판 | `BoardMetaController`, `BoardPostController`, `BoardCommentController`, `AdminBoardMetaController` | `BoardMetaService`, `BoardPostService`, `BoardCommentService` | `BoardMetaRepository`, `BoardPostRepository`, `BoardCommentRepository` | `Cblbmm`, `Cblbcm`, `Ccmmtm` |
 | 인증 | `AuthController` | `AuthService` | `UserRepository`, `RefreshTokenRepository`, `LoginHistoryRepository` | `CuserI`, `Crtokm`, `Clognh` |
 | 공통코드 | `CodeController` | `CodeService` | `CodeRepository` + Custom | `Ccodem` |
 | 시스템관리 | `AdminController` | `AdminService` | (기존 Repository 활용) | (기존 Entity 활용) |
@@ -202,7 +206,7 @@ IT Portal의 로그는 **3가지 유형**으로 구성되며, 각각 다른 계�
 public class Bprojm extends BaseEntity { ... }
 ```
 
-**현재 로그 대상 엔티티 (20개)**
+**현재 로그 대상 엔티티 (23개)**
 
 | 키 | 로그 엔티티 | 설명 |
 |----|-----------|------|
@@ -226,6 +230,9 @@ public class Bprojm extends BaseEntity { ... }
 | `btermm` | `BtermmL` | 단말기 상세 |
 | `capplm` | `CapplmL` | 전자결재 |
 | `ccodem` | `CcodemL` | 공통코드 |
+| `cblbcm` | `CblbcmL` | 게시물 |
+| `cblbmm` | `CblbmmL` | 게시판 |
+| `ccmmtm` | `CcmmtmL` | 게시판 댓글 |
 
 **`BaseLogEntity` 공통 필드**
 
@@ -278,6 +285,7 @@ public class Bprojm extends BaseEntity { ... }
 ```
 [로그인] POST /api/auth/login
   → 사번/비밀번호 검증 (SHA-256 + Base64)
+  → TAAABB_CLOGNH LOGIN_FAILURE 이력 기반 5회/10분 Brute-force 잠금 확인
   → Access Token(15분) + Refresh Token(7일) 발급
   → httpOnly 쿠키(Set-Cookie)로 토큰 전달
   → Clognh 테이블에 로그인 이력 기록
@@ -358,6 +366,9 @@ public class Bprojm extends BaseEntity { ... }
 | **요구사항 정의서** | GET/POST | `/api/documents/**` | 문서 CRUD, 버전 관리 | 일반 |
 | | GET/POST/DELETE | `/api/documents/{documentId}/review-comments/**` | 검토의견 추가/삭제 | 일반 |
 | **가이드 문서** | GET/POST | `/api/guide-documents/**` | 가이드 CRUD | 일반 |
+| **공통 게시판** | GET | `/api/boards/meta/**` | 게시판 메타 조회 | 일반 |
+| | GET/POST/PUT/DELETE | `/api/boards/{blbMngNo}/posts/**` | 게시물/답변글 CRUD | 일반 |
+| | GET/POST/PUT/DELETE | `/api/boards/{blbMngNo}/posts/{nacMngNo}/comments/**` | 댓글/대댓글 CRUD | 일반 |
 | **첨부파일** | POST/GET | `/api/files/**` | 업로드(50MB)/다운로드/미리보기 | 일반 |
 | | | | 파일명 생성: `{서버ID}_{UUID}_{원본확장자}` | |
 | **협의회 관리** | GET/POST/PUT/PATCH | `/api/council/**` | 신청, 심의, 평가, 일정 (23 엔드포인트) | 일반 |
@@ -367,6 +378,7 @@ public class Bprojm extends BaseEntity { ... }
 | **사용자** | GET | `/api/users/**` | 사용자/조직 조회 | 일반 |
 | **로그인 이력** | GET | `/api/login-history/**` | 본인 이력 조회 (최대 50건) | 일반 |
 | **관리자** | GET/POST/PUT/DELETE | `/api/admin/**` | 시스템 설정, 로그 조회, 사용자/코드 관리 | **관리자** |
+| **게시판 관리** | GET/POST/PUT/DELETE | `/api/admin/boards/meta/**` | 게시판 메타 생성/수정/삭제 | **관리자** |
 | **계획 관리** | GET/POST | `/api/plan/**` | 정보기술부문 계획 CRUD | **관리자** |
 | **예산현황** | GET | `/api/budget/status/**` | 집계 대시보드 (전체 예산 조회) | **관리자** |
 | **예산작업** | GET/POST | `/api/budget/work/**` | 편성률 조회, Upsert, 결과 조회 | **관리자** |
@@ -465,7 +477,7 @@ export GEMINI_API_KEY=your-gemini-api-key
 ### 10.1 Gemini AI
 
 - **API**: `POST /api/gemini/generate` (인증 필수)
-- **기능**: 텍스트 생성 (파일 첨부 지원)
+- **기능**: 텍스트 생성, 첨부파일 inlineData 변환, 미지원/누락 파일 `skippedFiles` 응답
 - **설정**: `gemini.api.key`, `gemini.api.model=gemini-2.5-flash`, `gemini.api.base-url`
 - **구현**: `GeminiService`, `GeminiController`
 - **보안**: API 키는 환경변수 `GEMINI_API_KEY`에서 주입
@@ -514,6 +526,7 @@ infra → domain (X, domain 기능 불필요)
 | **log** | BaseLogEntity, *L | - | EntityManager 직접 | 자동 감시로그 |
 | **common.system** | CuserI, Crtokm, Clognh | AuthService, CustomUserDetailsService, LoginHistoryService | UserRepository, RefreshTokenRepository, LoginHistoryRepository | 인증 및 사용자 |
 | **common.approval** | Capplm, Cappla, Cdecim | ApplicationService | ApplicationRepository(+Map, Approver) | 신청 및 결재 |
+| **common.board** | Cblbmm, Cblbcm, Ccmmtm | BoardMetaService, BoardPostService, BoardCommentService | BoardMetaRepository, BoardPostRepository, BoardCommentRepository | 공통 게시판 |
 | **common.iam** | CorgnI, CauthI, CroleI | UserService, OrganizationService | UserRepository, OrganizationRepository | 사용자/조직/권한 |
 | **common.code** | Ccodem | CodeService | CodeRepository(+Custom) | 공통코드 (캐싱) |
 | **common.admin** | - (기존 활용) | AdminService, AdminLogService | - | 시스템 관리 및 로그 |
@@ -558,6 +571,7 @@ REFACTOR — 중복 제거, 가독성 개선 (테스트 통과 유지)
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-05-14** | 공통 게시판 모듈(`common/board`)과 게시판 API, 감사로그 대상 23개, DB 로그인 이력 기반 Brute-force 설명을 문서에 반영 |
 | **2026-05-10** | 로컬 개발 포트를 실제 설정 기준(백엔드 8080)으로 정정. 비밀값 기본값은 아직 `application.properties`에 남아 있어 운영 프로파일 제거 과제로 재분류 |
 | **2026-05-09** | README.md 대폭 개선: 프로젝트 개요 강화, 설계 결정 이유 추가, 인증/보안 섹션 분리, API 엔드포인트 도메인별 정렬, 환경 설정 테이블화, 외부 연동 문서화, 도메인 의존성 규칙 명시 |
 | 2026-05-09 | `PlanController`, `BudgetStatusController`, `BudgetWorkController`에 `@PreAuthorize("hasRole('ADMIN')")` 추가. API 엔드포인트 테이블 인증 컬럼 현행화. 관리자 도메인 API 보호 규칙 CLAUDE.md §5.6·README §6.2에 명문화 |

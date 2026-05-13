@@ -42,6 +42,7 @@ src/main/java/com/kdb/it/
 ├── common/        - 공통 도메인
 │   ├── admin/     - 시스템관리 (ROLE_ADMIN 전용)
 │   ├── approval/  - 결재
+│   ├── board/     - 공통 게시판 (메타, 게시물, 댓글)
 │   ├── code/      - 공통코드
 │   ├── iam/       - 사용자/조직/권한
 │   ├── system/    - 인증·보안 (JwtUtil, JwtAuthenticationFilter)
@@ -92,6 +93,7 @@ src/main/resources/
 - 기본 CRUD: `JpaRepository` 상속.
 - 동적·복잡 쿼리: `RepositoryCustom` 인터페이스 + `RepositoryImpl` 구현(QueryDSL).
 - 시퀀스 등 DB 종속 쿼리: `@Query(nativeQuery = true)`.
+- 게시판 목록 검색처럼 공개 기간·권한·부서 조건이 함께 필요한 쿼리는 QueryDSL `BooleanBuilder`로 조립하고, 조건별 의도를 JavaDoc 또는 인접 주석으로 남깁니다.
 
 ### 5.5 Service 트랜잭션
 - 조회: `@Transactional(readOnly = true)` 필수.
@@ -127,6 +129,7 @@ src/main/resources/
 - **`Authorization: Bearer` 헤더 폴백**: Swagger/Postman 편의를 위해 허용되어 있으나 운영 환경에서도 동작합니다. 운영 전환 전 비활성화 여부를 결정하고 이 문서에 명시합니다.
 - **파일 업로드 확장자 검증**: `FileService.uploadFileInternal()` 진입 시점에 `FileValidator.validateExtension()`을 호출합니다.
 - **로그인 Brute-force 보호**: `LoginAttemptService`가 사번 기준 5회 실패/10분 잠금을 적용합니다.
+- Brute-force 판정은 인메모리 카운터가 아니라 `TAAABB_CLOGNH`의 `LOGIN_FAILURE` 이력을 `LoginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter()`로 집계합니다.
 - **X-Forwarded-For 신뢰**: `AuthController.getClientIp()`가 헤더를 무조건 신뢰합니다. 운영 인프라(Nginx 등)에서 헤더를 덮어쓰도록 설정해야 IP 위조를 방지할 수 있습니다.
 - **비밀값 기본값 금지**: `application.properties`의 `${VAR:default}` 형태 기본값은 환경변수 미설정 시 운영에 그대로 사용됩니다. `:default` 부분을 제거하고 구동 시 빈값이면 즉시 실패하도록 해야 합니다.
 - **SHA-256 비밀번호 해시 제한**: `CustomPasswordEncoder`는 Salt 없는 SHA-256을 사용합니다(레거시 SSO 연동 제약). 신규 계정부터 BCrypt 또는 Argon2 적용을 검토하고, 기존 계정은 로그인 성공 시 점진적 업그레이드합니다. 현황은 `TASK.md` 과제로 추적 중.
@@ -163,10 +166,22 @@ src/main/resources/
 - 허용 확장자 변경 시 `FileValidator.ALLOWED_EXTENSIONS` 상수 수정.
 
 ### 5.12 로그인 Brute-force 보호
-- `LoginAttemptService` (`common/iam/service/LoginAttemptService.java`): 인메모리 `ConcurrentHashMap` 기반 실패 횟수 추적.
-- 임계값: 5회 실패 / 10분 잠금. 성공 시 카운터 초기화.
-- `AuthService.login()`: 실패 시 `recordFailure()`, 성공 시 `resetAttempts()` 호출.
-- **주의**: 서버 재시작 또는 인스턴스 스케일아웃 시 카운터 초기화됨 (분산 환경에서는 Redis 기반 전환 필요).
+- `LoginAttemptService` (`common/iam/service/LoginAttemptService.java`): `TAAABB_CLOGNH` 로그인 이력 기반 실패 횟수 집계.
+- 임계값: 5회 실패 / 10분 잠금.
+- `AuthService.login()`: 로그인 검증 전에 `checkLocked(eno)`를 호출하고, 실패 이력은 기존 로그인 이력 저장 흐름을 통해 남깁니다.
+- **주의**: DB 이력 기준이므로 서버 재시작에는 유지되지만, IP·기기 기준 제한은 아직 없습니다.
+
+### 5.13 공통 게시판 패턴
+- 백엔드 패키지: `common/board`.
+- 주요 엔티티: `Cblbmm`(게시판 메타, `TAAABB_CBLBMM`), `Cblbcm`(게시물, `TAAABB_CBLBCM`), `Ccmmtm`(댓글, `TAAABB_CCMMTM`).
+- 주요 API:
+  - `GET /api/boards/meta`, `GET /api/boards/meta/{blbMngNo}` — 인증 사용자 공통 게시판 메타 조회.
+  - `/api/admin/boards/meta/**` — 관리자 전용 게시판 메타 CRUD. `AdminBoardMetaController` 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")` 필수.
+  - `/api/boards/{blbMngNo}/posts/**` — 게시물 목록·상세·등록·수정·삭제·답변글.
+  - `/api/boards/{blbMngNo}/posts/{nacMngNo}/comments/**` — 댓글·대댓글 CRUD.
+- 게시물/댓글 본문은 저장 전 `HtmlSanitizer.sanitize()` 적용 필수.
+- 게시판 권한은 메타의 `inqAthC`, `enrAthC`, `bbrLmtnUseYn`, `bbrLmtnC`와 서비스 계층 검증으로 판단합니다. 프론트 메뉴 숨김은 UX 보조일 뿐 최종 보안 경계가 아닙니다.
+- 게시물/댓글 트리는 그룹번호·그룹순서·그룹레벨(`*_GRP_NO`, `*_GRP_SQN`, `*_GRP_LEV`)로 정렬합니다.
 
 ### 5.14 부서 필터링 패턴 (bbrC)
 - 신규 목록 API는 `@RequestParam(required = false) String bbrC` 추가 필수.
@@ -181,7 +196,7 @@ src/main/resources/
   }
   ```
 
-### 5.13 사전협의 검토자 API
+### 5.15 사전협의 검토자 API
 - `ReviewerController`: `GET /api/reviews/{docMngNo}/reviewers` — 사전협의 문서 검토자 목록 반환.
 - `ReviewerService.REVIEW_TEAM_MAP`: 팀코드 → 팀명 매핑 (`12004`=계약팀, `18001`=기획팀, `18010`=PMO팀, `18501`=개발/운영팀).
 - 각 팀에서 첫 번째 사용자 1명만 포함. 팀원 없으면 해당 팀은 결과 제외.

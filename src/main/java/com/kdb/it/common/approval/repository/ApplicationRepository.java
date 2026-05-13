@@ -26,7 +26,7 @@ import java.util.List;
 public interface ApplicationRepository extends JpaRepository<Capplm, String> {
 
     /**
-     * Oracle 시퀀스(S_APF) 다음 값 조회
+     * Oracle 시퀀스(SEQ_CAPPLM) 다음 값 조회
      *
      * <p>신청서 생성 시 신청서관리번호(APF_MNG_NO) 채번에 사용합니다.
      * 형식: {@code APF_{연도}{String.format("%08d", seq)}}
@@ -34,9 +34,9 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      *
      * <p>Oracle DB 전용 Native Query입니다.</p>
      *
-     * @return Oracle 시퀀스(S_APF)의 다음 값 (Long)
+     * @return Oracle 시퀀스(SEQ_CAPPLM)의 다음 값 (Long)
      */
-    @Query(value = "SELECT S_APF.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SEQ_CAPPLM.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextVal();
 
     /** 본인에게 온 결재 대기 건수 (APF_STS='결재중' AND 결재선 미처리) */

@@ -155,7 +155,7 @@ public class CostController {
      *
      * <p>관리번호 생성 규칙:</p>
      * <ul>
-     *   <li>요청에 itMngcNo 값이 없으면 시퀀스(S_IT_MNGC)로 자동 생성</li>
+     *   <li>요청에 itMngcNo 값이 없으면 시퀀스(SEQ_BCOSTM)로 자동 생성</li>
      *   <li>형식: {@code COST_{연도}_{4자리 시퀀스}} (예: {@code COST_2026_0001})</li>
      * </ul>
      *

@@ -108,6 +108,14 @@ public class Cblbcm extends BaseEntity {
         LocalDate sttDt, LocalDate endDt
     ) {}
 
+    /**
+     * 게시물 내용을 수정합니다.
+     *
+     * <p>{@code nacCone}은 서비스 계층에서 {@code HtmlSanitizer.sanitize()}를 적용한
+     * 값만 전달해야 합니다. JPA Dirty Checking으로 변경사항이 저장됩니다.</p>
+     *
+     * @param cmd 게시물 수정 커맨드
+     */
     public void update(UpdateCommand cmd) {
         this.nacNm    = cmd.nacNm();
         this.nacCone  = cmd.nacCone();

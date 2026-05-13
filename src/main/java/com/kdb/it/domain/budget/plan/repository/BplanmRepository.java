@@ -13,12 +13,12 @@ import java.util.Optional;
 public interface BplanmRepository extends JpaRepository<Bplanm, String> {
 
     /**
-     * Oracle 시퀀스(S_PLN_MNG_NO)에서 다음 채번값을 조회합니다.
+     * Oracle 시퀀스(SEQ_BPLANM)에서 다음 채번값을 조회합니다.
      * 계획관리번호 생성에 사용됩니다. (형식: PLN-{연도}-{seq:04d})
      *
      * @return 다음 시퀀스 값
      */
-    @Query(nativeQuery = true, value = "SELECT S_PLN_MNG_NO.NEXTVAL FROM DUAL")
+    @Query(nativeQuery = true, value = "SELECT SEQ_BPLANM.NEXTVAL FROM DUAL")
     Long getNextSequenceValue();
 
     /**

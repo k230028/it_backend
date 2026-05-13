@@ -12,7 +12,7 @@ import java.sql.Statement;
  * 로그 테이블 PK({@code LOG_SNO}) 생성기.
  *
  * <p>로그 엔티티의 {@code @Table(name)} 값에서 Postfix를 추출하고,
- * Oracle 시퀀스 {@code S_{Postfix}.NEXTVAL}을 조회하여
+ * Oracle 시퀀스 {@code SEQ_{Postfix}.NEXTVAL}을 조회하여
  * {@code "{Postfix}_{22자리_0패딩}"} 형식의 VARCHAR2 값을 반환한다.</p>
  *
  * <p>예: {@code TAAABB_BPROJL} → {@code BPROJL-0000000000000000000001}</p>
@@ -26,7 +26,7 @@ public class AuditLogIdGenerator implements IdentifierGenerator {
     @Override
     public Object generate(SharedSessionContractImplementor session, Object object) {
         String postfix = resolvePostfix(object);
-        long nextVal = fetchNextVal(session, "S_" + postfix);
+        long nextVal = fetchNextVal(session, "SEQ_" + postfix);
         return postfix + "-" + String.format("%0" + SEQ_PAD_LENGTH + "d", nextVal);
     }
 

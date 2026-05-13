@@ -48,11 +48,11 @@ import java.time.LocalDateTime;
 public class Crtokm extends BaseEntity {
 
     /**
-     * 토큰일련번호: 기본키. Oracle 시퀀스(S_TOK_SNO)로 자동 채번
+     * 토큰일련번호: 기본키. Oracle 시퀀스(SEQ_CRTOKM)로 자동 채번
      */
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "S_TOK_SNO")
-    @SequenceGenerator(name = "S_TOK_SNO", sequenceName = "S_TOK_SNO", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SEQ_CRTOKM")
+    @SequenceGenerator(name = "SEQ_CRTOKM", sequenceName = "SEQ_CRTOKM", allocationSize = 1)
     @Column(name = "TOK_SNO", comment = "토큰일련번호")
     private Long tokSno;
 

@@ -40,11 +40,11 @@ import java.time.LocalDateTime;
 public class Clognh extends BaseEntity {
 
     /**
-     * 로그인일련번호: 기본키. Oracle 시퀀스(S_LGN_SNO)로 자동 채번
+     * 로그인일련번호: 기본키. Oracle 시퀀스(SEQ_CLOGNH)로 자동 채번
      */
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "S_LGN_SNO")
-    @SequenceGenerator(name = "S_LGN_SNO", sequenceName = "S_LGN_SNO", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SEQ_CLOGNH")
+    @SequenceGenerator(name = "SEQ_CLOGNH", sequenceName = "SEQ_CLOGNH", allocationSize = 1)
     @Column(name = "LGN_SNO", comment = "로그인일련번호")
     private Long lgnSno;
 

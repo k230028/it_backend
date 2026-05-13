@@ -107,16 +107,16 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
     List<Brdocm> findLatestVersionsAll();
 
     /**
-     * Oracle 시퀀스(S_DOC) 다음 값 조회
+     * Oracle 시퀀스(SEQ_BRDOCM) 다음 값 조회
      *
      * <p>
      * 신규 요구사항 정의서 생성 시 문서관리번호 채번에 사용합니다.
      * 형식: {@code DOC-{연도}-{4자리 시퀀스}} (예: {@code DOC-2026-0001})
      * </p>
      *
-     * @return Oracle 시퀀스(S_DOC)의 다음 값
+     * @return Oracle 시퀀스(SEQ_BRDOCM)의 다음 값
      */
-    @Query(value = "SELECT S_DOC.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SEQ_BRDOCM.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
     /** 부서 기준 전체 미삭제 문서 수 (DOC_MNG_NO 기준 distinct) */

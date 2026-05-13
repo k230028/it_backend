@@ -71,9 +71,10 @@ public class AdminDto {
     ) {}
 
     // =========================================================================
-    // 자격등급 (TAAABB_CAUTHI) — Session 2 구현 예정
+    // 자격등급 (TAAABB_CAUTHI)
     // =========================================================================
 
+    /** 자격등급 생성/수정 요청 DTO */
     @Schema(name = "AdminDto.AuthGradeRequest", description = "자격등급 생성/수정 요청")
     public record AuthGradeRequest(
             @NotBlank String athId,
@@ -82,6 +83,7 @@ public class AdminDto {
             String useYn
     ) {}
 
+    /** 자격등급 조회 응답 DTO */
     @Schema(name = "AdminDto.AuthGradeResponse", description = "자격등급 조회 응답")
     public record AuthGradeResponse(
             String athId,
@@ -97,9 +99,10 @@ public class AdminDto {
     ) {}
 
     // =========================================================================
-    // 사용자 (TAAABB_CUSERI) — Session 2 구현 예정
+    // 사용자 (TAAABB_CUSERI)
     // =========================================================================
 
+    /** 사용자 생성/수정 요청 DTO */
     @Schema(name = "AdminDto.UserRequest", description = "사용자 생성/수정 요청")
     public record UserRequest(
             @NotBlank String eno,
@@ -113,6 +116,7 @@ public class AdminDto {
             String password
     ) {}
 
+    /** 사용자 조회 응답 DTO */
     @Schema(name = "AdminDto.UserResponse", description = "사용자 조회 응답")
     public record UserResponse(
             String eno,
@@ -130,9 +134,10 @@ public class AdminDto {
     ) {}
 
     // =========================================================================
-    // 조직 (TAAABB_CORGNI) — Session 3 구현 예정
+    // 조직 (TAAABB_CORGNI)
     // =========================================================================
 
+    /** 조직 생성/수정 요청 DTO */
     @Schema(name = "AdminDto.OrgRequest", description = "조직 생성/수정 요청")
     public record OrgRequest(
             @NotBlank String prlmOgzCCone,
@@ -158,9 +163,10 @@ public class AdminDto {
     ) {}
 
     // =========================================================================
-    // 역할 (TAAABB_CROLEI) — Session 2 구현 예정
+    // 역할 (TAAABB_CROLEI)
     // =========================================================================
 
+    /** 역할 생성/수정 요청 DTO */
     @Schema(name = "AdminDto.RoleRequest", description = "역할 생성/수정 요청")
     public record RoleRequest(
             @NotBlank String athId,
@@ -168,6 +174,7 @@ public class AdminDto {
             String useYn
     ) {}
 
+    /** 역할 조회 응답 DTO */
     @Schema(name = "AdminDto.RoleResponse", description = "역할 조회 응답")
     public record RoleResponse(
             String athId,
@@ -183,9 +190,10 @@ public class AdminDto {
     ) {}
 
     // =========================================================================
-    // 로그인 이력 (TAAABB_CLOGNH) — Session 3 구현 예정
+    // 로그인 이력 (TAAABB_CLOGNH)
     // =========================================================================
 
+    /** 로그인 이력 조회 응답 DTO */
     @Schema(name = "AdminDto.LoginHistoryResponse", description = "로그인 이력 조회 응답")
     public record LoginHistoryResponse(
             String eno,
@@ -199,9 +207,10 @@ public class AdminDto {
     ) {}
 
     // =========================================================================
-    // JWT 토큰 (TAAABB_CRTOKM) — Session 3 구현 예정
+    // JWT 토큰 (TAAABB_CRTOKM)
     // =========================================================================
 
+    /** Refresh Token 관리 조회 응답 DTO */
     @Schema(name = "AdminDto.TokenResponse", description = "JWT 토큰 조회 응답")
     public record TokenResponse(
             String eno,
@@ -212,9 +221,10 @@ public class AdminDto {
     ) {}
 
     // =========================================================================
-    // 첨부파일 (TAAABB_CFILEM) — Session 3 구현 예정
+    // 첨부파일 (TAAABB_CFILEM)
     // =========================================================================
 
+    /** 첨부파일 관리 조회 응답 DTO */
     @Schema(name = "AdminDto.FileResponse", description = "첨부파일 조회 응답")
     public record FileResponse(
             String flMngNo,
@@ -227,9 +237,10 @@ public class AdminDto {
     ) {}
 
     // =========================================================================
-    // 대시보드 통계 — Session 3 구현 예정
+    // 대시보드 통계
     // =========================================================================
 
+    /** 관리자 대시보드 로그인 통계 응답 DTO */
     @Schema(name = "AdminDto.LoginStatResponse", description = "일별 로그인 통계")
     public record LoginStatResponse(
             LocalDate date,
