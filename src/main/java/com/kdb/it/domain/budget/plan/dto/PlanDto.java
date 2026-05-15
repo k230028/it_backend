@@ -141,15 +141,31 @@ public class PlanDto {
         @Schema(description = "최초생성시간")
         private LocalDateTime fstEnrDtm;
 
-        /** 최초생성자 */
+        /** 최초생성자 사번 */
         @Schema(description = "최초생성자")
         private String fstEnrUsid;
+
+        /** 최초생성자 이름 (CUSERI 조인 결과) */
+        @Schema(description = "최초생성자 이름")
+        private String fstEnrUsNm;
+
+        /** 정보화사업 건수 (경상사업 제외) */
+        @Schema(description = "정보화사업 건수 (경상사업 제외)")
+        private Integer itPrjCnt;
+
+        /** 신규 사업 건수 (정보화사업 중 PUL_DTT=신규) */
+        @Schema(description = "신규 사업 건수 (정보화사업 중 PUL_DTT=신규)")
+        private Integer newPrjCnt;
+
+        /** 계속 사업 건수 (정보화사업 중 PUL_DTT=계속) */
+        @Schema(description = "계속 사업 건수 (정보화사업 중 PUL_DTT=계속)")
+        private Integer contPrjCnt;
 
         /**
          * {@link Bplanm} 엔티티에서 목록 응답 DTO로 변환합니다.
          *
          * @param plan 변환할 Bplanm 엔티티
-         * @return 변환된 ListResponse DTO
+         * @return 변환된 ListResponse DTO (카운트는 0으로 초기화)
          */
         public static ListResponse fromEntity(Bplanm plan) {
             return ListResponse.builder()
@@ -161,6 +177,9 @@ public class PlanDto {
                     .mngc(plan.getMngc())
                     .fstEnrDtm(plan.getFstEnrDtm())
                     .fstEnrUsid(plan.getFstEnrUsid())
+                    .itPrjCnt(0)
+                    .newPrjCnt(0)
+                    .contPrjCnt(0)
                     .build();
         }
     }

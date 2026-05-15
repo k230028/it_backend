@@ -180,9 +180,9 @@ public class ProjectDto {
         @Schema(description = "보고상태")
         private String rprSts;
 
-        /** 프로젝트추진가능성 (0~100 정수, NUMBER(3,0)) */
-        @Schema(description = "프로젝트추진가능성 (0~100)")
-        private Integer prjPulPtt;
+        /** 프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva, VARCHAR2(3)) */
+        @Schema(description = "프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)")
+        private String prjPulPtt;
 
         /** 프로젝트상태 (예: "계획", "진행중", "완료", "취소") */
         @Schema(description = "프로젝트상태")
@@ -398,9 +398,9 @@ public class ProjectDto {
         @Schema(description = "보고상태")
         private String rprSts;
 
-        /** 프로젝트추진가능성 (0~100 정수, NUMBER(3,0)) */
-        @Schema(description = "프로젝트추진가능성 (0~100)")
-        private Integer prjPulPtt;
+        /** 프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva, VARCHAR2(3)) */
+        @Schema(description = "프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)")
+        private String prjPulPtt;
 
         /** 프로젝트상태 */
         @Schema(description = "프로젝트상태")
@@ -577,9 +577,9 @@ public class ProjectDto {
         @Schema(description = "보고상태")
         private String rprSts;
 
-        /** 프로젝트추진가능성 (0~100 정수, NUMBER(3,0)) */
-        @Schema(description = "프로젝트추진가능성 (0~100)")
-        private Integer prjPulPtt;
+        /** 프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva, VARCHAR2(3)) */
+        @Schema(description = "프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)")
+        private String prjPulPtt;
 
         /** 프로젝트상태 */
         @Schema(description = "프로젝트상태")

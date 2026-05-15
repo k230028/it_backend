@@ -42,7 +42,7 @@ public class BudgetStatusDto {
             String itDpmTlrNm,
             String itDpmCgpr,
             String itDpmCgprNm,
-            Integer prjPulPtt,
+            String prjPulPtt,
             LocalDate sttDt,
             LocalDate endDt,
             String rprSts,

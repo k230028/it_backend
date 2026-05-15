@@ -13,6 +13,9 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.code.service.CodeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +23,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.kdb.it.domain.budget.cost.dto.CostDto;
@@ -30,6 +34,7 @@ import com.kdb.it.domain.budget.plan.entity.Bproja;
 import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
 import com.kdb.it.domain.budget.plan.repository.BprojaRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 
 /**
@@ -52,6 +57,12 @@ class PlanServiceTest {
     @Mock
     private CostService costService;
     @Mock
+    private ProjectRepository projectRepository;
+    @Mock
+    private CodeService codeService;
+    @Mock
+    private UserRepository cuserIRepository;
+    @Mock
     private ObjectMapper objectMapper;
 
     @InjectMocks
@@ -70,7 +81,11 @@ class PlanServiceTest {
                 .plnYy("2026")
                 .plnTp("신규")
                 .build();
+        ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER001");
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
+        given(cuserIRepository.findAllById(List.of("USER001"))).willReturn(List.of(
+                CuserI.builder().eno("USER001").usrNm("홍길동").build()));
+        given(codeService.findCodeEntitiesByCId("PUL_DTT")).willReturn(List.of());
 
         // when
         List<PlanDto.ListResponse> result = planService.getPlans();

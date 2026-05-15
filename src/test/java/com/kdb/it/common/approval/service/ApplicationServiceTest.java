@@ -512,7 +512,7 @@ class ApplicationServiceTest {
 
         String result = applicationService.submit(request);
 
-        assertThat(result).startsWith("APF_");
+        assertThat(result).startsWith("APF-");
         verify(applicationRepository).save(any());
     }
 
@@ -540,7 +540,7 @@ class ApplicationServiceTest {
 
         String result = realMapperService.submit(request);
 
-        assertThat(result).startsWith("APF_");
+        assertThat(result).startsWith("APF-");
         ArgumentCaptor<Cappla> capplaCaptor = ArgumentCaptor.forClass(Cappla.class);
         verify(applicationMapRepository, times(2)).save(capplaCaptor.capture());
         assertThat(capplaCaptor.getAllValues()).extracting(Cappla::getOrcSnoVl)

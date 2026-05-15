@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.project.repository;
 
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -65,6 +66,35 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
      * @return 조건에 맞는 정보화사업 목록
      */
     List<Bprojm> findAllByDelYn(String delYn);
+
+    /**
+     * 프로젝트 관리번호 목록 + 삭제여부 + 최종여부로 일괄 조회
+     *
+     * <p>
+     * 계획 목록 화면에서 연결된 정보화사업의 요약 카운트(정보화사업/신규/계속)를
+     * 산출하기 위해 사용합니다.
+     * </p>
+     *
+     * @param prjMngNos 프로젝트 관리번호 목록
+     * @param delYn     삭제 여부 ('N'=미삭제)
+     * @param lstYn     최종 여부 ('Y'=최신 레코드)
+     * @return 조건에 맞는 정보화사업 목록
+     */
+    List<Bprojm> findAllByPrjMngNoInAndDelYnAndLstYn(Collection<String> prjMngNos, String delYn, String lstYn);
+
+    /**
+     * 프로젝트 관리번호 목록 + 삭제여부로 일괄 조회 (lstYn 무관)
+     *
+     * <p>
+     * 계획 목록 카운트 산출 시 lstYn='Y' 조건을 강제하지 않고
+     * 동일 prjMngNo 의 어떤 스냅샷이든 가져오기 위해 사용합니다.
+     * </p>
+     *
+     * @param prjMngNos 프로젝트 관리번호 목록
+     * @param delYn     삭제 여부 ('N'=미삭제)
+     * @return 조건에 맞는 정보화사업 목록 (동일 prjMngNo 의 여러 스냅샷이 포함될 수 있음)
+     */
+    List<Bprojm> findAllByPrjMngNoInAndDelYn(Collection<String> prjMngNos, String delYn);
 
     /**
      * Oracle 시퀀스(SEQ_BPROJM) 다음 값 조회

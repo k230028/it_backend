@@ -674,7 +674,7 @@ public class ProjectService {
             if (r.getTchnTp() != null && !r.getTchnTp().isEmpty()) tchnTpCdvas.add(r.getTchnTp());
             if (r.getMnUsr() != null && !r.getMnUsr().isEmpty()) mnUsrCdvas.add(r.getMnUsr());
             if (r.getRprSts() != null && !r.getRprSts().isEmpty()) rprStsCdvas.add(r.getRprSts());
-            if (r.getPrjPulPtt() != null) prjPulPttCdvas.add(String.valueOf(r.getPrjPulPtt()));
+            if (r.getPrjPulPtt() != null && !r.getPrjPulPtt().isEmpty()) prjPulPttCdvas.add(r.getPrjPulPtt());
             if (r.getPulDtt() != null && !r.getPulDtt().isEmpty()) pulDttCdvas.add(r.getPulDtt());
         }
 
@@ -718,7 +718,7 @@ public class ProjectService {
             if (response.getTchnTp() != null) response.setTchnTpNm(tchnTpNameMap.get(response.getTchnTp()));
             if (response.getMnUsr() != null) response.setMnUsrNm(mnUsrNameMap.get(response.getMnUsr()));
             if (response.getRprSts() != null) response.setRprStsNm(rprStsNameMap.get(response.getRprSts()));
-            if (response.getPrjPulPtt() != null) response.setPrjPulPttNm(prjPulPttNameMap.get(String.valueOf(response.getPrjPulPtt())));
+            if (response.getPrjPulPtt() != null) response.setPrjPulPttNm(prjPulPttNameMap.get(response.getPrjPulPtt()));
             if (response.getPulDtt() != null) response.setPulDttNm(pulDttNameMap.get(response.getPulDtt()));
 
             setBudgetSummary(response, project.getPrjMngNo(), project.getPrjSno());
@@ -829,8 +829,8 @@ public class ProjectService {
             ccodemRepository.findByCIdAndCdvaWithValidDate("RPR_STS", response.getRprSts(), null)
                     .ifPresent(code -> response.setRprStsNm(code.getCNm()));
         }
-        if (response.getPrjPulPtt() != null) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_PUL_PTT", String.valueOf(response.getPrjPulPtt()), null)
+        if (response.getPrjPulPtt() != null && !response.getPrjPulPtt().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_PUL_PTT", response.getPrjPulPtt(), null)
                     .ifPresent(code -> response.setPrjPulPttNm(code.getCNm()));
         }
         if (response.getPulDtt() != null && !response.getPulDtt().isEmpty()) {

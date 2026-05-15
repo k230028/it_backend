@@ -7,6 +7,10 @@ import com.kdb.it.domain.budget.plan.entity.Bplanm;
 import com.kdb.it.domain.budget.plan.entity.Bproja;
 import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
 import com.kdb.it.domain.budget.plan.repository.BprojaRepository;
+import com.kdb.it.common.code.entity.Ccodem;
+import com.kdb.it.common.code.service.CodeService;
+import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -39,6 +43,8 @@ public class PlanService {
         private final BprojaRepository bprojaRepository;
         private final ProjectService projectService;
         private final CostService costService;
+        private final CodeService codeService;
+        private final UserRepository cuserIRepository;
         private final ObjectMapper objectMapper;
 
         /**
@@ -52,9 +58,62 @@ public class PlanService {
          */
         @Transactional(readOnly = true)
         public List<PlanDto.ListResponse> getPlans() {
-                return bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")
-                                .stream()
-                                .map(PlanDto.ListResponse::fromEntity)
+                List<Bplanm> plans = bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N");
+                if (plans.isEmpty()) {
+                        return List.of();
+                }
+
+                // PUL_DTT 공통코드 cdva → cNm 매핑 (신규/계속 구분에 사용)
+                Map<String, String> pulDttNameByCdva = codeService.findCodeEntitiesByCId("PUL_DTT").stream()
+                                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCNm, (a, b) -> a));
+
+                // 최초생성자 사번 → 이름 매핑 (CUSERI 조인)
+                List<String> userEnos = plans.stream()
+                                .map(Bplanm::getFstEnrUsid)
+                                .filter(eno -> eno != null && !eno.isBlank())
+                                .distinct()
+                                .collect(Collectors.toList());
+                Map<String, String> userNameByEno = userEnos.isEmpty()
+                                ? Map.of()
+                                : cuserIRepository.findAllById(userEnos).stream()
+                                                .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm, (a, b) -> a));
+
+                return plans.stream()
+                                .map(plan -> {
+                                        PlanDto.ListResponse dto = PlanDto.ListResponse.fromEntity(plan);
+                                        dto.setFstEnrUsNm(userNameByEno.get(plan.getFstEnrUsid()));
+                                        // 계획 저장 시점의 스냅샷 JSON 의 prjSnapshots 를 그대로 사용한다.
+                                        // - prjSnapshots 는 폼 단계에서 정보화사업(경상사업 제외)만 포함하도록 구성됨
+                                        // - 각 항목의 pulDtt 는 공통코드 cdva (예: "001"=신규, "002"=계속)
+                                        // BPROJM 재조회 시 동일 prjMngNo 의 여러 스냅샷 중 ornYn='Y' 가 선택되어
+                                        // 카운트가 줄어드는 문제를 피하기 위함이다.
+                                        int itCnt = 0;
+                                        int newCnt = 0;
+                                        int contCnt = 0;
+                                        String dtlCone = plan.getPlnDtlCone();
+                                        if (dtlCone != null && !dtlCone.isBlank()) {
+                                                try {
+                                                        Map<String, Object> snapshot = objectMapper.readValue(dtlCone, Map.class);
+                                                        Object snaps = snapshot.get("prjSnapshots");
+                                                        if (snaps instanceof List<?> list) {
+                                                                for (Object item : list) {
+                                                                        if (!(item instanceof Map<?, ?> m)) continue;
+                                                                        itCnt++;
+                                                                        Object pulDtt = m.get("pulDtt");
+                                                                        String pulDttNm = pulDtt == null ? null : pulDttNameByCdva.get(pulDtt.toString());
+                                                                        if ("신규".equals(pulDttNm)) newCnt++;
+                                                                        else if ("계속".equals(pulDttNm)) contCnt++;
+                                                                }
+                                                        }
+                                                } catch (JsonProcessingException e) {
+                                                        // 스냅샷 파싱 실패 시 카운트는 0 으로 유지 (목록 화면은 동작해야 함)
+                                                }
+                                        }
+                                        dto.setItPrjCnt(itCnt);
+                                        dto.setNewPrjCnt(newCnt);
+                                        dto.setContPrjCnt(contCnt);
+                                        return dto;
+                                })
                                 .collect(Collectors.toList());
         }
 

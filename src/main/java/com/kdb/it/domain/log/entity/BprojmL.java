@@ -113,8 +113,8 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
-    @Column(name = "PRJ_PUL_PTT", precision = 3, scale = 0, comment = "프로젝트추진가능성")
-    private Integer prjPulPtt;
+    @Column(name = "PRJ_PUL_PTT", length = 3, comment = "프로젝트추진가능성")
+    private String prjPulPtt;
 
     @Column(name = "PRJ_STS", length = 32, comment = "프로젝트상태")
     private String prjSts;
