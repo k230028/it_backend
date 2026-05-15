@@ -349,6 +349,7 @@ public class CostService {
                     try {
                         return getCost(itMngcNo);
                     } catch (IllegalArgumentException e) {
+                        // FIXME: [B-C-05] B-C-03 참조. 실패 비용 ID warn 로그 및 호출자 통지 필요
                         return null;
                     }
                 })

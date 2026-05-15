@@ -438,6 +438,7 @@ public class ApplicationService {
                     try {
                         return getApplication(apfMngNo); // 개별 신청서 조회
                     } catch (IllegalArgumentException e) {
+                        // FIXME: [B-C-03] null 필터링 대신 실패 ID 목록을 warn 로그에 남기고, 호출자에게 실패 건수 반환 또는 예외 재발생 필요
                         return null; // 존재하지 않는 신청서는 null로 처리
                     }
                 })

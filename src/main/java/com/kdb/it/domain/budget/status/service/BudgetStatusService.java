@@ -18,6 +18,8 @@ import java.util.List;
  * </p>
  *
  * // Design Ref: §3.7 — BudgetStatusService 설계
+ * <p>주의: 클래스 수준 @Transactional(readOnly=true) 적용 중.</p>
+ * <p>향후 쓰기 메서드 추가 시 반드시 @Transactional 오버라이드 필요 (readOnly=false).</p>
  */
 @Service
 @RequiredArgsConstructor

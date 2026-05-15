@@ -6,8 +6,8 @@ package com.kdb.it.exception;
  * <p>{@link RuntimeException}을 상속하는 비검사 예외(Unchecked Exception)로,
  * 애플리케이션의 비즈니스 로직에서 발생하는 일반적인 오류를 표현합니다.</p>
  *
- * <p>현재 사용 위치: {@link com.kdb.it.common.util.CustomPasswordEncoder#encrypt(String)}
- * SHA-256 알고리즘을 찾을 수 없을 때 발생합니다.</p>
+ * <p>사용 범위: 서비스/컨트롤러 전반에서 비즈니스 예외 발생 시 사용 (UserController, GuideDocService, CodeService 등).</p>
+ * <p>HTTP 400으로 변환됩니다 (GlobalExceptionHandler @ControllerAdvice 처리).</p>
  *
  * <p>향후 전역 예외 핸들러({@code @ControllerAdvice})와 연계하여
  * 표준화된 에러 응답 형식으로 변환할 수 있습니다.</p>

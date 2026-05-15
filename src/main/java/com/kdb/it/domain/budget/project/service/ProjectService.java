@@ -562,6 +562,7 @@ public class ProjectService {
                     try {
                         return getProject(prjMngNo); // 개별 상세 조회 (품목 포함)
                     } catch (IllegalArgumentException e) {
+                        // FIXME: [B-C-04] B-C-03 참조. 실패 프로젝트 ID warn 로그 및 호출자 통지 필요
                         return null; // 존재하지 않는 항목은 null로 처리
                     }
                 })

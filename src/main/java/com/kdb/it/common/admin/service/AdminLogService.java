@@ -169,6 +169,8 @@ public class AdminLogService {
                 throw new IllegalStateException("로그 필드 값을 읽을 수 없습니다: " + fieldName, e);
             }
         }
+        // TODO: [B-M-01] 클래스 계층에서 필드 미발견 시 null 반환 — 호출부 null 체크 없이 사용 시 NPE 위험
+        // Optional<Object> 반환 타입 변경 또는 호출부에서 null 체크 보강 권장
         return null;
     }
 

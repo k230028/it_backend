@@ -98,7 +98,19 @@ src/main/resources/
 ### 5.5 Service 트랜잭션
 - 조회: `@Transactional(readOnly = true)` 필수.
 - 쓰기: `@Transactional` (기본 readOnly=false).
+- **클래스 수준 `@Transactional(readOnly=true)` 적용 규칙**: 조회 메서드가 주인 서비스는 클래스 레벨에 `@Transactional(readOnly=true)` 적용. 쓰기 메서드는 반드시 `@Transactional` 또는 `@Transactional(readOnly=false)` 오버라이드 필수.
 - JPA Dirty Checking 활용. 불필요한 `save()` 호출 지양.
+
+### 5.5.1 공통코드(Ccodem) 캐시 관리
+- `CodeService`: 클래스 레벨 `@Transactional(readOnly=true)` 적용.
+- 캐시 전략: `@Cacheable('codesByCid', 'budgetPeriod')` — 정적 참조 데이터 캐시.
+- 쓰기 메서드(생성/수정/삭제): `@CacheEvict(cacheNames = {"codesByCid", "budgetPeriod"}, allEntries = true)` 필수 — 두 캐시 무효화.
+- 캐시 키 구성: `codesByCid`는 코드ID(cId) 기준, `budgetPeriod`는 회계연도 기준.
+
+### 5.5.2 @Valid 검증 일관성
+- 모든 **mutating 컨트롤러 엔드포인트** (POST/PUT/DELETE)는 요청 본문에 `@Valid` 필수.
+- DTO 클래스에 `@Schema(name, description)` 추가 필수 (Swagger 문서화).
+- 검증 실패 시 자동으로 400 Bad Request 응답.
 
 ### 5.6 인증 및 보안 (전사 SoT)
 - 인증 방식: **httpOnly 쿠키 기반 JWT**(Stateless).
@@ -132,7 +144,7 @@ src/main/resources/
 - Brute-force 판정은 인메모리 카운터가 아니라 `TAAABB_CLOGNH`의 `LOGIN_FAILURE` 이력을 `LoginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter()`로 집계합니다.
 - **X-Forwarded-For 신뢰**: `AuthController.getClientIp()`가 헤더를 무조건 신뢰합니다. 운영 인프라(Nginx 등)에서 헤더를 덮어쓰도록 설정해야 IP 위조를 방지할 수 있습니다.
 - **비밀값 기본값 금지**: `application.properties`의 `${VAR:default}` 형태 기본값은 환경변수 미설정 시 운영에 그대로 사용됩니다. `:default` 부분을 제거하고 구동 시 빈값이면 즉시 실패하도록 해야 합니다.
-- **SHA-256 비밀번호 해시 제한**: `CustomPasswordEncoder`는 Salt 없는 SHA-256을 사용합니다(레거시 SSO 연동 제약). 신규 계정부터 BCrypt 또는 Argon2 적용을 검토하고, 기존 계정은 로그인 성공 시 점진적 업그레이드합니다. 현황은 `TASK.md` 과제로 추적 중.
+- **비밀번호 해시 규격(KDB 표준)**: `CustomPasswordEncoder`는 사내 SSO·통합인증 시스템과의 호환을 위해 KDB 표준 암호화 규격(SHA-256 + Base64, 고정 솔트 파라미터)을 적용합니다. 알고리즘·솔트 파라미터는 거버넌스 승인 없이 변경할 수 없으며, 차세대 인증체계 전환은 별도 트랙으로 관리합니다. 클래스에는 정책 예외 표시(`@SuppressWarnings` 4건 + `NOSONAR` 마커)가 부여되어 있으므로 자동화 보안 점검 결과에 재등재하지 않습니다.
 - CORS: `cors.allowed-origins`는 `http://localhost,...` (개발값)이 기본입니다. 운영 배포 시 `https://it.kdb.co.kr` 등 실제 오리진으로 환경변수 오버라이드가 필수이며, 구동 시 검증 로직이 없으므로 배포 체크리스트에 포함해야 합니다.
 - 운영 비밀값: `spring.datasource.password`, `jwt.secret`, `gemini.api.key`는 환경변수 또는 프로파일별 비공개 설정에서 주입합니다.
 
@@ -170,6 +182,20 @@ src/main/resources/
 - 임계값: 5회 실패 / 10분 잠금.
 - `AuthService.login()`: 로그인 검증 전에 `checkLocked(eno)`를 호출하고, 실패 이력은 기존 로그인 이력 저장 흐름을 통해 남깁니다.
 - **주의**: DB 이력 기준이므로 서버 재시작에는 유지되지만, IP·기기 기준 제한은 아직 없습니다.
+
+### 5.12.1 감사 로그(BaseLogEntity) 패턴
+- **로그 엔티티**: 23개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`).
+- **기본 구조**: `BaseLogEntity` 상속 — 기본 컬럼 자동 포함 (GUID, FST_ENR_DTM/USID, LST_CHG_DTM/USID).
+- **로그 리스너**: `ChangeLogEntityListener` → JPA entity lifecycle 후킹 → `AuditLogPersister` → DB 저장.
+- **저장 시점**: UPDATE/DELETE 트랜잭션 커밋 직후 (별도 트랜잭션에서 로그 저장, 실패해도 원본 작업 영향 없음).
+- 로그 조회는 감사 도메인(`domain/audit`) 또는 분석용 view 사용.
+
+### 5.12.2 이벤트 리스너(@EventListener vs @TransactionalEventListener)
+- **`@EventListener`**: 발행자와 동일 트랜잭션에서 **동기 실행**. 리스너 실패 시 원본 트랜잭션 롤백.
+  - 사용 예: `CouncilApprovalEventListener` — 결재 완료 이벤트 → 협의회 상태 자동 전이. 협의회 상태 변경 실패 시 결재 원본 작업도 함께 롤백.
+- **`@TransactionalEventListener`**: 발행자 트랜잭션 커밋 **후** 비동기 실행. 리스너 실패 시 원본 무영향.
+  - 사용 예: 알림 발송, 메일 전송, 별도 시스템 동기화 (부수 효과).
+- 선택 기준: 상태 일관성이 필수 → `@EventListener`, 실패해도 괜찮은 부가 작업 → `@TransactionalEventListener`.
 
 ### 5.13 공통 게시판 패턴
 - 백엔드 패키지: `common/board`.

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -139,5 +140,49 @@ class ApplicationControllerTest {
                 .param("bbrC", "IT001")
                 .param("eno", "E10001"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /api/applications/{apfMngNo}/apfDtlCone - 인증된 사용자 → 200")
+    @WithMockUser(username = "10001")
+    void getApfDtlCone_인증_200() throws Exception {
+        // Arrange
+        given(applicationService.getApfDtlCone("APF_202600000001"))
+                .willReturn(ApplicationDto.ApfDtlConeResponse.builder().build());
+
+        // Act & Assert
+        mockMvc.perform(get("/api/applications/APF_202600000001/apfDtlCone"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /api/applications/{apfMngNo}/apfDtlCone - 비인증 → 401")
+    void getApfDtlCone_비인증_401() throws Exception {
+        mockMvc.perform(get("/api/applications/APF_202600000001/apfDtlCone"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /api/applications - 신규 신청서 생성 → 201 Created + Location 헤더")
+    @WithMockUser(username = "10001")
+    void submit_인증_201() throws Exception {
+        // Arrange
+        given(applicationService.submit(any())).willReturn("APF_202600000001");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/applications")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new ApplicationDto.CreateRequest())))
+                .andExpect(status().isCreated())
+                .andExpect(header().exists("Location"));
+    }
+
+    @Test
+    @DisplayName("POST /api/applications - 비인증 → 401")
+    void submit_비인증_401() throws Exception {
+        mockMvc.perform(post("/api/applications")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andExpect(status().isUnauthorized());
     }
 }

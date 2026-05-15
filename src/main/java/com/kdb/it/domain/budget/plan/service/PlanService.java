@@ -76,7 +76,8 @@ public class PlanService {
                 Map<String, String> userNameByEno = userEnos.isEmpty()
                                 ? Map.of()
                                 : cuserIRepository.findAllById(userEnos).stream()
-                                                .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm, (a, b) -> a));
+                                                .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm,
+                                                                (a, b) -> a));
 
                 return plans.stream()
                                 .map(plan -> {
@@ -93,19 +94,28 @@ public class PlanService {
                                         String dtlCone = plan.getPlnDtlCone();
                                         if (dtlCone != null && !dtlCone.isBlank()) {
                                                 try {
-                                                        Map<String, Object> snapshot = objectMapper.readValue(dtlCone, Map.class);
+                                                        Map<String, Object> snapshot = objectMapper.readValue(dtlCone,
+                                                                        Map.class);
                                                         Object snaps = snapshot.get("prjSnapshots");
                                                         if (snaps instanceof List<?> list) {
                                                                 for (Object item : list) {
-                                                                        if (!(item instanceof Map<?, ?> m)) continue;
+                                                                        if (!(item instanceof Map<?, ?> m))
+                                                                                continue;
                                                                         itCnt++;
                                                                         Object pulDtt = m.get("pulDtt");
-                                                                        String pulDttNm = pulDtt == null ? null : pulDttNameByCdva.get(pulDtt.toString());
-                                                                        if ("신규".equals(pulDttNm)) newCnt++;
-                                                                        else if ("계속".equals(pulDttNm)) contCnt++;
+                                                                        String pulDttNm = pulDtt == null ? null
+                                                                                        : pulDttNameByCdva.get(pulDtt
+                                                                                                        .toString());
+                                                                        if ("신규".equals(pulDttNm))
+                                                                                newCnt++;
+                                                                        else if ("계속".equals(pulDttNm))
+                                                                                contCnt++;
                                                                 }
                                                         }
                                                 } catch (JsonProcessingException e) {
+                                                        // FIXME: [B-H-05] `PlanService.applyExistingPlanSnapshot()` 빈
+                                                        // `catch (JsonProcessingException) {}` — 스냅샷 파싱 실패 시 카운트 0 폴백으로
+                                                        // 잘못된 예산 보고서 산출
                                                         // 스냅샷 파싱 실패 시 카운트는 0 으로 유지 (목록 화면은 동작해야 함)
                                                 }
                                         }

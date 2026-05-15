@@ -168,6 +168,8 @@ public class JwtUtil {
         if (claim instanceof List<?>) {
             return (List<String>) claim;
         }
+        // TODO: [B-M-04] athIds 클레임 타입 불일치 시 빈 권한 목록 반환 (warn 로그 없음)
+        // JWT 토큰 구조 변경 시 모든 권한이 조용히 제거될 수 있음 — log.warn 추가 권장
         return List.of();
     }
 
