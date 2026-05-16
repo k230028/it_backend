@@ -294,6 +294,27 @@ public class PlanService {
         }
 
         /**
+         * 계획의 5개 텍스트 필드를 수정합니다.
+         *
+         * @param plnMngNo 계획관리번호
+         * @param request  수정 요청 DTO (itPrjCone, itBgCone, itPrjRmk, cpitBgRmk, mngcBgRmk)
+         * @throws ResponseStatusException 계획을 찾을 수 없는 경우 404
+         */
+        @Transactional
+        public void updatePlanText(String plnMngNo, PlanDto.UpdateRequest request) {
+                Bplanm plan = bplanmRepository.findByPlnMngNoAndDelYn(plnMngNo, "N")
+                                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                                "존재하지 않는 계획입니다: " + plnMngNo));
+                plan.updateText(
+                                request.getItPrjCone(),
+                                request.getItBgCone(),
+                                request.getItPrjRmk(),
+                                request.getCpitBgRmk(),
+                                request.getMngcBgRmk());
+                bplanmRepository.save(plan);
+        }
+
+        /**
          * 계획 저장 시 PLN_DTL_CONE에 보관할 JSON 스냅샷을 생성합니다.
          *
          * <p>

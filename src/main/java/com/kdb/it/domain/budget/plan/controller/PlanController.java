@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -143,6 +144,28 @@ public class PlanController {
                 String plnMngNo = planService.createPlan(request);
                 URI location = uriBuilder.path("/api/plans/{plnMngNo}").buildAndExpand(plnMngNo).toUri();
                 return ResponseEntity.created(location).build();
+        }
+
+        /**
+         * 계획 텍스트 필드 수정
+         *
+         * <p>
+         * IT프로젝트내용, IT예산내용, IT예산비고, 자본예산비고, 관리비예산비고 5개 CLOB 필드를 수정합니다.
+         * </p>
+         *
+         * @param plnMngNo 계획관리번호
+         * @param request  수정 요청 DTO
+         * @return 204 No Content 또는 404 Not Found
+         */
+        @PatchMapping("/{plnMngNo}")
+        @Operation(summary = "계획 텍스트 수정", description = """
+                        IT프로젝트내용, IT예산내용, IT예산비고, 자본예산비고, 관리비예산비고 5개 CLOB 필드를 수정합니다.
+                        """, responses = @ApiResponse(responseCode = "204", description = "수정 성공"))
+        public ResponseEntity<Void> updatePlanText(
+                        @Parameter(description = "계획관리번호", required = true, example = "PLN-2026-0001") @PathVariable("plnMngNo") String plnMngNo,
+                        @RequestBody PlanDto.UpdateRequest request) {
+                planService.updatePlanText(plnMngNo, request);
+                return ResponseEntity.noContent().build();
         }
 
         /**

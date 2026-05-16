@@ -86,6 +86,18 @@ public class Bplanm extends BaseEntity {
     @Column(name = "MNGC_BG_RMK", comment = "관리비예산비고")
     private String mngcBgRmk;
 
+    /**
+     * 5개 텍스트 필드를 갱신합니다.
+     * null 값은 해당 필드를 null로 초기화합니다.
+     */
+    public void updateText(String itPrjCone, String itBgCone, String itPrjRmk, String cpitBgRmk, String mngcBgRmk) {
+        this.itPrjCone  = itPrjCone;
+        this.itBgCone   = itBgCone;
+        this.itPrjRmk   = itPrjRmk;
+        this.cpitBgRmk  = cpitBgRmk;
+        this.mngcBgRmk  = mngcBgRmk;
+    }
+
     /** 총예산 (전체 대상사업의 프로젝트 예산 합계) */
     @Column(name = "TTL_BG", precision = 15, scale = 2, comment = "총예산")
     private BigDecimal ttlBg;

@@ -119,6 +119,43 @@ public class PlanDto {
     }
 
     /**
+     * 계획 텍스트 필드 수정 요청 DTO
+     *
+     * <p>
+     * IT프로젝트내용, IT예산내용, IT예산비고, 자본예산비고, 관리비예산비고 5개 CLOB 필드를 갱신합니다.
+     * null 값은 해당 필드를 null로 초기화합니다.
+     * </p>
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(name = "PlanUpdateRequest")
+    public static class UpdateRequest {
+
+        /** IT프로젝트내용 */
+        @Schema(description = "IT프로젝트내용")
+        private String itPrjCone;
+
+        /** IT예산내용 */
+        @Schema(description = "IT예산내용")
+        private String itBgCone;
+
+        /** IT예산비고 */
+        @Schema(description = "IT예산비고")
+        private String itPrjRmk;
+
+        /** 자본예산비고 */
+        @Schema(description = "자본예산비고")
+        private String cpitBgRmk;
+
+        /** 관리비예산비고 */
+        @Schema(description = "관리비예산비고")
+        private String mngcBgRmk;
+    }
+
+    /**
      * 계획 목록 조회 응답 DTO
      *
      * <p>
