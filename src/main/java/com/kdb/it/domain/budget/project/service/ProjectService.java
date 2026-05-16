@@ -939,15 +939,15 @@ public class ProjectService {
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
         // 자본예산 세부 분류 합계 계산
-        java.math.BigDecimal devBg = validItems.stream()
+        java.math.BigDecimal dvcBg = validItems.stream()
                 .filter(item -> devTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-        java.math.BigDecimal machBg = validItems.stream()
+        java.math.BigDecimal hwBg = validItems.stream()
                 .filter(item -> machTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-        java.math.BigDecimal intanBg = validItems.stream()
+        java.math.BigDecimal swBg = validItems.stream()
                 .filter(item -> intanTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
@@ -958,7 +958,7 @@ public class ProjectService {
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
-        response.setBudgetAmounts(assetBg, devBg, machBg, intanBg, costBg);
+        response.setBudgetAmounts(assetBg, dvcBg, hwBg, swBg, costBg);
     }
 
     /**

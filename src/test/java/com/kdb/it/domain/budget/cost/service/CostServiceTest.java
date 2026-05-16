@@ -586,7 +586,7 @@ class CostServiceTest {
         assertThat(result.getBiceTemNm()).isEqualTo("팀");
         assertThat(result.getCgprNm()).isEqualTo("담당자");
         assertThat(result.getAssetBg()).isEqualByComparingTo("1000");
-        assertThat(result.getDevBg()).isEqualByComparingTo("1000");
+        assertThat(result.getDvcBg()).isEqualByComparingTo("1000");
         assertThat(result.getCostBg()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getTerminals()).hasSize(1);
         assertThat(result.getTerminals().get(0).getCgprNm()).isEqualTo("단말담당");
@@ -630,8 +630,8 @@ class CostServiceTest {
         CostDto.Response intan = costService.getCost("COST-INTAN");
         CostDto.Response general = costService.getCost("COST-GEN");
 
-        assertThat(mach.getMachBg()).isEqualByComparingTo("200");
-        assertThat(intan.getIntanBg()).isEqualByComparingTo("300");
+        assertThat(mach.getHwBg()).isEqualByComparingTo("200");
+        assertThat(intan.getSwBg()).isEqualByComparingTo("300");
         assertThat(general.getCostBg()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 

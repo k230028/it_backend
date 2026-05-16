@@ -418,15 +418,15 @@ public class CostDto {
 
         /** 개발비: 자본예산 중 코드설명(cdDes)이 '개발비'인 경우 itMngcBg, 아니면 0 */
         @Schema(description = "개발비")
-        private java.math.BigDecimal devBg;
+        private java.math.BigDecimal dvcBg;
 
         /** 기계장치: 자본예산 중 코드설명(cdDes)이 '기계장치'인 경우 itMngcBg, 아니면 0 */
         @Schema(description = "기계장치")
-        private java.math.BigDecimal machBg;
+        private java.math.BigDecimal hwBg;
 
         /** 기타무형자산: 자본예산 중 코드설명(cdDes)이 '기타무형자산'인 경우 itMngcBg, 아니면 0 */
         @Schema(description = "기타무형자산")
-        private java.math.BigDecimal intanBg;
+        private java.math.BigDecimal swBg;
 
         /** 일반관리비: ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하면 itMngcBg, 아니면 0 */
         @Schema(description = "일반관리비")

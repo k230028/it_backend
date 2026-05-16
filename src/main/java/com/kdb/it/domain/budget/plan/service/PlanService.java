@@ -236,6 +236,11 @@ public class PlanService {
                                 .cptBg(cptBg)
                                 .mngc(mngc)
                                 .plnDtlCone(snapshotJson)
+                                .itPrjCone(request.getItPrjCone())
+                                .itBgCone(request.getItBgCone())
+                                .itPrjRmk(request.getItPrjRmk())
+                                .cpitBgRmk(request.getCpitBgRmk())
+                                .mngcBgRmk(request.getMngcBgRmk())
                                 .build();
                 bplanmRepository.save(plan);
 

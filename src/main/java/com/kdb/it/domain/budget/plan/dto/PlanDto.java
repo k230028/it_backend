@@ -64,6 +64,26 @@ public class PlanDto {
         @Schema(description = "대상 전산업무비관리번호 목록")
         private List<String> itMngcNos;
 
+        /** IT프로젝트내용 */
+        @Schema(description = "IT프로젝트내용")
+        private String itPrjCone;
+
+        /** IT예산내용 */
+        @Schema(description = "IT예산내용")
+        private String itBgCone;
+
+        /** IT예산비고 */
+        @Schema(description = "IT예산비고")
+        private String itPrjRmk;
+
+        /** 자본예산비고 */
+        @Schema(description = "자본예산비고")
+        private String cpitBgRmk;
+
+        /** 관리비예산비고 */
+        @Schema(description = "관리비예산비고")
+        private String mngcBgRmk;
+
         /** 예산배분 항목 목록 (수익/비용 구분별 배분 금액) */
         @Schema(description = "예산배분 항목 목록")
         private List<BudgetAllocationItem> budgetAllocation;
@@ -233,6 +253,26 @@ public class PlanDto {
         @Schema(description = "계획세부내용 (JSON)")
         private String plnDtlCone;
 
+        /** IT프로젝트내용 */
+        @Schema(description = "IT프로젝트내용")
+        private String itPrjCone;
+
+        /** IT예산내용 */
+        @Schema(description = "IT예산내용")
+        private String itBgCone;
+
+        /** IT예산비고 */
+        @Schema(description = "IT예산비고")
+        private String itPrjRmk;
+
+        /** 자본예산비고 */
+        @Schema(description = "자본예산비고")
+        private String cpitBgRmk;
+
+        /** 관리비예산비고 */
+        @Schema(description = "관리비예산비고")
+        private String mngcBgRmk;
+
         /** 연결된 프로젝트관리번호 목록 */
         @Schema(description = "연결된 프로젝트관리번호 목록")
         private List<String> prjMngNos;
@@ -261,6 +301,11 @@ public class PlanDto {
                     .cptBg(plan.getCptBg())
                     .mngc(plan.getMngc())
                     .plnDtlCone(plan.getPlnDtlCone())
+                    .itPrjCone(plan.getItPrjCone())
+                    .itBgCone(plan.getItBgCone())
+                    .itPrjRmk(plan.getItPrjRmk())
+                    .cpitBgRmk(plan.getCpitBgRmk())
+                    .mngcBgRmk(plan.getMngcBgRmk())
                     .prjMngNos(prjMngNos)
                     .fstEnrDtm(plan.getFstEnrDtm())
                     .fstEnrUsid(plan.getFstEnrUsid())

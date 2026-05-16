@@ -61,6 +61,31 @@ public class Bplanm extends BaseEntity {
     @Column(name = "PLN_DTL_CONE", comment = "계획세부내용")
     private String plnDtlCone;
 
+    /** IT프로젝트내용 */
+    @Lob
+    @Column(name = "IT_PRJ_CONE", comment = "IT프로젝트내용")
+    private String itPrjCone;
+
+    /** IT예산내용 */
+    @Lob
+    @Column(name = "IT_BG_CONE", comment = "IT예산내용")
+    private String itBgCone;
+
+    /** IT예산비고 */
+    @Lob
+    @Column(name = "IT_PRJ_RMK", comment = "IT예산비고")
+    private String itPrjRmk;
+
+    /** 자본예산비고 */
+    @Lob
+    @Column(name = "CPIT_BG_RMK", comment = "자본예산비고")
+    private String cpitBgRmk;
+
+    /** 관리비예산비고 */
+    @Lob
+    @Column(name = "MNGC_BG_RMK", comment = "관리비예산비고")
+    private String mngcBgRmk;
+
     /** 총예산 (전체 대상사업의 프로젝트 예산 합계) */
     @Column(name = "TTL_BG", precision = 15, scale = 2, comment = "총예산")
     private BigDecimal ttlBg;

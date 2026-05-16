@@ -785,8 +785,8 @@ class ProjectServiceTest {
                 assertThat(result.getSvnDpmNm()).isEqualTo("현업부");
                 assertThat(result.getItDpmCgprNm()).isEqualTo("담당자");
                 assertThat(result.getAssetBg()).isEqualByComparingTo("1200");
-                assertThat(result.getDevBg()).isEqualByComparingTo("1000");
-                assertThat(result.getMachBg()).isEqualByComparingTo("200");
+                assertThat(result.getDvcBg()).isEqualByComparingTo("1000");
+                assertThat(result.getHwBg()).isEqualByComparingTo("200");
                 assertThat(result.getCostBg()).isEqualByComparingTo("300");
                 assertThat(result.getItems().get(0).getIoeCNm()).isEqualTo("개발비");
                 assertThat(result.getItems().get(1).getIoeCNm()).isEqualTo("기계장치");
@@ -1333,8 +1333,8 @@ class ProjectServiceTest {
 
                 // then
                 assertThat(result.getAssetBg()).isEqualByComparingTo("600");
-                assertThat(result.getDevBg()).isEqualByComparingTo("100");
-                assertThat(result.getMachBg()).isEqualByComparingTo("200");
+                assertThat(result.getDvcBg()).isEqualByComparingTo("100");
+                assertThat(result.getHwBg()).isEqualByComparingTo("200");
         }
 
         // ───────────────────────────────────────────────────────
