@@ -1,6 +1,7 @@
 package com.kdb.it.common.system.tiptap.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -36,6 +37,7 @@ public final class TiptapVariableDto {
     @Schema(name = "TiptapVariableResolveRequest", description = "변수 해석 요청")
     public record ResolveRequest(
             @NotNull
+            @NotEmpty(message = "토큰은 1개 이상이어야 합니다")
             @Size(max = 200, message = "토큰은 200개를 초과할 수 없습니다")
             @Schema(description = "해석할 토큰 배열")
             List<String> tokens
@@ -46,7 +48,7 @@ public final class TiptapVariableDto {
 
     @Schema(name = "TiptapVariableResolvedValue", description = "해석된 값")
     public record ResolvedValue(
-            @Schema(description = "표시값 (포맷팅된 문자열)", example = "900억원") String value,
+            @Schema(description = "표시값 (포맷팅된 문자열). 상태가 OK가 아니면 빈 문자열.", example = "900억원") String value,
             @Schema(description = "상태",
                     allowableValues = {"OK", "MISSING", "FORBIDDEN", "INVALID"}) String status
     ) {
