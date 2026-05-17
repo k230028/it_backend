@@ -61,6 +61,9 @@ public class CouncilApprovalEventListener {
      *
      * @param event 결재 완료 이벤트 (신청관리번호, 새 상태 포함)
      */
+    // 설계 주의: @EventListener + @Transactional 조합 사용.
+    // @TransactionalEventListener 대신 @EventListener를 선택해 발행자 트랜잭션 안에서 동기 처리한다.
+    // @TransactionalEventListener(AFTER_COMMIT)로 변경하면 결재 커밋 후 협의회 상태 전이가 별도 후속 작업으로 지연된다.
     @EventListener
     @Transactional
     public void handleApprovalCompleted(ApprovalCompletedEvent event) {

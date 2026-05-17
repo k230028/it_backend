@@ -170,9 +170,9 @@ public class Bprojm extends BaseEntity {
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
-    /** 프로젝트추진가능성: 사업 추진 가능성 평가 결과 (0~100 정수, NUMBER(3,0)) */
-    @Column(name = "PRJ_PUL_PTT", precision = 3, scale = 0, comment = "프로젝트추진가능성")
-    private Integer prjPulPtt;
+    /** 프로젝트추진가능성: 공통코드 PRJ_PUL_PTT cdva 값 (VARCHAR2(3), 예: "001", "002") */
+    @Column(name = "PRJ_PUL_PTT", length = 3, comment = "프로젝트추진가능성")
+    private String prjPulPtt;
 
     /** 프로젝트상태: 사업의 현재 진행 상태 (최대 32자, 예: 계획, 진행중, 완료, 취소) */
     @Column(name = "PRJ_STS", length = 32, comment = "프로젝트상태")
@@ -212,7 +212,7 @@ public class Bprojm extends BaseEntity {
             String edrt, String prjDes, String saf, String ncs,
             String xptEff, String plm, String prjRng, String pulPsg, String hrfPln,
             String bzDtt, String tchnTp, String mnUsr, String dplYn,
-            LocalDate lblFsgTlm, String rprSts, Integer prjPulPtt, String prjSts,
+            LocalDate lblFsgTlm, String rprSts, String prjPulPtt, String prjSts,
             String bgYy, String svnHdq,
             String ornYn, String pulDtt, String cncdPrjMngNo
     ) {}
@@ -268,7 +268,7 @@ public class Bprojm extends BaseEntity {
      * @param dplYn      중복여부
      * @param lblFsgTlm  의무완료기한
      * @param rprSts     보고상태
-     * @param prjPulPtt  프로젝트추진가능성 (0~100 정수)
+     * @param prjPulPtt  프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)
      * @param prjSts     프로젝트상태
      * @param bgYy       예산연도
      * @param svnHdq     주관본부/부문
@@ -282,7 +282,7 @@ public class Bprojm extends BaseEntity {
             String svnDpmTlr, String itDpmTlr, String edrt, String prjDes,
             String saf, String ncs, String xptEff, String plm, String prjRng, String pulPsg,
             String hrfPln, String bzDtt, String tchnTp, String mnUsr, String dplYn,
-            LocalDate lblFsgTlm, String rprSts, Integer prjPulPtt, String prjSts, String bgYy, String svnHdq,
+            LocalDate lblFsgTlm, String rprSts, String prjPulPtt, String prjSts, String bgYy, String svnHdq,
             Integer prjSno, String ornYn, String pulDtt, String cncdPrjMngNo) {
         this.prjSno = prjSno;
         this.prjNm = prjNm;
@@ -356,7 +356,7 @@ public class Bprojm extends BaseEntity {
      * @param dplYn      중복여부
      * @param lblFsgTlm  의무완료기한
      * @param rprSts     보고상태
-     * @param prjPulPtt  프로젝트추진가능성 (0~100 정수)
+     * @param prjPulPtt  프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)
      * @param prjSts     프로젝트상태
      * @param bgYy       예산연도
      * @param svnHdq     주관본부/부문
@@ -369,7 +369,7 @@ public class Bprojm extends BaseEntity {
             String svnDpmTlr, String itDpmTlr, String edrt, String prjDes,
             String saf, String ncs, String xptEff, String plm, String prjRng, String pulPsg,
             String hrfPln, String bzDtt, String tchnTp, String mnUsr, String dplYn,
-            LocalDate lblFsgTlm, String rprSts, Integer prjPulPtt, String prjSts, String bgYy, String svnHdq,
+            LocalDate lblFsgTlm, String rprSts, String prjPulPtt, String prjSts, String bgYy, String svnHdq,
             String ornYn, String pulDtt, String cncdPrjMngNo) {
         this.prjNm = prjNm;
         this.prjTp = prjTp;

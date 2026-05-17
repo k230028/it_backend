@@ -131,4 +131,72 @@ class CodeControllerTest {
                 .param("sttDt", "2026-01-01"))
                 .andExpect(status().isNoContent());
     }
+
+    @Test
+    @DisplayName("GET /api/ccodem/{cId}/{cdva} - 인증된 사용자 → 200 OK")
+    @WithMockUser(username = "10001")
+    void getCcodem_인증_200() throws Exception {
+        // Arrange
+        given(codeService.getCcodem(anyString(), anyString(), any()))
+                .willReturn(CodeDto.Response.builder().build());
+
+        // Act & Assert
+        mockMvc.perform(get("/api/ccodem/PRJ_TP/001"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /api/ccodem/{cId}/{cdva} - 비인증 → 401")
+    void getCcodem_비인증_401() throws Exception {
+        mockMvc.perform(get("/api/ccodem/PRJ_TP/001"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/ccodem/{cId}/{cdva} - targetDate 파라미터 포함 → 200 OK")
+    @WithMockUser(username = "10001")
+    void getCcodem_withTargetDate_200() throws Exception {
+        // Arrange
+        given(codeService.getCcodem(anyString(), anyString(), any()))
+                .willReturn(CodeDto.Response.builder().build());
+
+        // Act & Assert
+        mockMvc.perform(get("/api/ccodem/PRJ_TP/001")
+                .param("targetDate", "2026-01-01"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /api/ccodem/type/{cTp} - 인증된 사용자 → 200 + 배열 반환")
+    @WithMockUser(username = "10001")
+    void getCcodemsByCTp_인증_200() throws Exception {
+        // Arrange
+        given(codeService.getCcodemsByCTp(anyString(), any())).willReturn(List.of());
+
+        // Act & Assert
+        mockMvc.perform(get("/api/ccodem/type/IOE_LEAFE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    @DisplayName("GET /api/ccodem/type/{cTp} - 비인증 → 401")
+    void getCcodemsByCTp_비인증_401() throws Exception {
+        mockMvc.perform(get("/api/ccodem/type/IOE_LEAFE"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/ccodem/type/{cTp} - targetDate 파라미터 포함 → 200 OK")
+    @WithMockUser(username = "10001")
+    void getCcodemsByCTp_withTargetDate_200() throws Exception {
+        // Arrange
+        given(codeService.getCcodemsByCTp(anyString(), any())).willReturn(List.of());
+
+        // Act & Assert
+        mockMvc.perform(get("/api/ccodem/type/IOE_XPN")
+                .param("targetDate", "2026-06-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+    }
 }

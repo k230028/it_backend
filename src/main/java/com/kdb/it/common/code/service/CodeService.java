@@ -17,6 +17,10 @@ import java.util.stream.Collectors;
 
 /**
  * 공통코드(Ccodem) 서비스 클래스
+ *
+ * <p>캐시 전략: @Cacheable('codesByCid', 'budgetPeriod')로 정적 참조 데이터 캐시 적용.</p>
+ * <p>쓰기 메서드(@Transactional)는 @CacheEvict(allEntries=true)로 두 캐시를 무효화합니다.</p>
+ * <p>클래스 수준 @Transactional(readOnly=true) 적용 — 쓰기 메서드는 반드시 @Transactional 오버라이드 필요.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -65,6 +69,12 @@ public class CodeService {
 
     /**
      * 코드ID로 엔티티 목록 조회 (캐시 적용 — 정적 참조 데이터용)
+     *
+     * <p>캐시 키: codesByCid::{cId}. 캐시 히트 시 DB 조회 없이 즉시 반환.</p>
+     * <p>유효일은 null(현재 날짜)로 고정 — 미래 코드가 캐시에 포함될 수 있음.</p>
+     *
+     * @param cId 코드ID (캐시 키로 사용)
+     * @return 유효한 Ccodem 엔티티 목록
      */
     @Cacheable(value = "codesByCid", key = "#p0")
     public List<Ccodem> findCodeEntitiesByCId(String cId) {

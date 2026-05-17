@@ -15,7 +15,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 공통코드(Ccodem) REST 컨트롤러
+ * 공통코드(TAAABB_CCODEM) CRUD REST 컨트롤러.
+ * 기본 URL: /api/ccodem, 보안: JWT 인증 필요, 복합PK(cId, cdva, sttDt) 기반 CRUD.
+ * 쓰기 메서드(POST/PUT/DELETE)는 codesByCid, budgetPeriod 캐시를 자동 무효화합니다.
  */
 @RestController
 @RequestMapping("/api/ccodem")
@@ -63,6 +65,10 @@ public class CodeController {
 
     /**
      * 공통코드 신규 생성
+     *
+     * @param request 생성 요청 DTO (cId, cdva, sttDt 필수)
+     * @return HTTP 201 + 생성된 cId. 중복 시 400 반환.
+     * @implNote TODO: @Valid 미적용 — request 유효성 검증이 서비스 계층에서만 수행됨 (@Valid 추가 권장)
      */
     @PostMapping
     @Operation(summary = "공통코드 신규 생성")
@@ -76,7 +82,10 @@ public class CodeController {
      *
      * @param cId   코드ID
      * @param cdva  코드값
-     * @param sttDt 시작일자 (복합PK)
+     * @param sttDt   시작일자 (복합PK)
+     * @param request 수정 요청 DTO
+     * @return HTTP 200 + 수정된 cId. 미존재 시 400 반환.
+     * @implNote TODO: @Valid 미적용 — request 유효성 검증이 서비스 계층에서만 수행됨 (@Valid 추가 권장)
      */
     @PutMapping("/{cId}/{cdva}")
     @Operation(summary = "공통코드 수정")

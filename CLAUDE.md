@@ -98,7 +98,19 @@ src/main/resources/
 ### 5.5 Service 트랜잭션
 - 조회: `@Transactional(readOnly = true)` 필수.
 - 쓰기: `@Transactional` (기본 readOnly=false).
+- **클래스 수준 `@Transactional(readOnly=true)` 적용 규칙**: 조회 메서드가 주인 서비스는 클래스 레벨에 `@Transactional(readOnly=true)` 적용. 쓰기 메서드는 반드시 `@Transactional` 또는 `@Transactional(readOnly=false)` 오버라이드 필수.
 - JPA Dirty Checking 활용. 불필요한 `save()` 호출 지양.
+
+### 5.5.1 공통코드(Ccodem) 캐시 관리
+- `CodeService`: 클래스 레벨 `@Transactional(readOnly=true)` 적용.
+- 캐시 전략: `@Cacheable('codesByCid', 'budgetPeriod')` — 정적 참조 데이터 캐시.
+- 쓰기 메서드(생성/수정/삭제): `@CacheEvict(cacheNames = {"codesByCid", "budgetPeriod"}, allEntries = true)` 필수 — 두 캐시 무효화.
+- 캐시 키 구성: `codesByCid`는 코드ID(cId) 기준, `budgetPeriod`는 회계연도 기준.
+
+### 5.5.2 @Valid 검증 일관성
+- 모든 **mutating 컨트롤러 엔드포인트** (POST/PUT/DELETE)는 요청 본문에 `@Valid` 필수.
+- DTO 클래스에 `@Schema(name, description)` 추가 필수 (Swagger 문서화).
+- 검증 실패 시 자동으로 400 Bad Request 응답.
 
 ### 5.6 인증 및 보안 (전사 SoT)
 - 인증 방식: **httpOnly 쿠키 기반 JWT**(Stateless).
@@ -107,7 +119,8 @@ src/main/resources/
 - 비밀번호 암호화: `CustomPasswordEncoder` (SHA-256 + Base64).
 - Access/Refresh Token은 `CookieUtil`로 httpOnly 쿠키에 설정.
 - 보호 API는 쿠키 자동 전송 기본. `JwtAuthenticationFilter`는 `Authorization: Bearer`를 폴백으로만 허용.
-- 공개 엔드포인트: `/api/auth/login`, `/api/auth/signup`, `/api/auth/refresh`, `/swagger-ui/**`, `/v3/api-docs/**`.
+- 공개 엔드포인트: `/api/auth/login`, `/api/auth/refresh`, `/swagger-ui/**`, `/v3/api-docs/**`.
+- 회원가입 엔드포인트(`/api/auth/signup`)는 `SecurityConfig`에서 `hasRole("ADMIN")`로 보호합니다. 임직원 포털 특성상 자유 가입 API로 취급하지 않습니다.
 - 관리자 전용: `/api/admin/**` — SecurityConfig URL 패턴 + `@PreAuthorize("hasRole('ADMIN')")` 이중 보호.
 - **관리자 전용 도메인 API** (`/api/admin/**` 외 경로라도 관리자만 접근해야 하는 엔드포인트): 컨트롤러 **클래스 레벨**에 반드시 `@PreAuthorize("hasRole('ADMIN')")` 적용. SecurityConfig URL 패턴은 `/api/admin/**`에만 등록되므로 도메인 컨트롤러는 어노테이션으로 보호해야 함. 누락 시 인증된 모든 사용자가 API 직접 호출 가능.
   ```java
@@ -119,7 +132,7 @@ src/main/resources/
   public class PlanController { ... }
   ```
   현재 적용 대상: `PlanController`, `BudgetStatusController`, `BudgetWorkController`.
-- **권한 검증 보강 현황** (코드 분석 기준, 2026-05-10): `FileController`는 `FileOwnershipChecker`로 조회·삭제 전 소유권을 확인하고, `GeminiController`는 `@PreAuthorize("hasRole('ADMIN')")`로 관리자 전용 처리합니다. `UserController`, `OrganizationController`, `ProjectController`, `ApplicationController`의 부서/소유권 정책은 업무 요건에 맞춰 별도 검토합니다.
+- **권한 검증 보강 현황** (코드 분석 기준, 2026-05-17): `FileController`는 단건 삭제 경로에 `FileOwnershipChecker.checkOwnership()`이 적용되어 있으나 다운로드·미리보기·조회·메타수정·원본 기준 일괄삭제 권한 검증은 후속 과제입니다. `GeminiController`는 `@PreAuthorize("hasRole('ADMIN')")`로 관리자 전용 처리합니다. `UserController`, `OrganizationController`, `ProjectController`, `ApplicationController`의 부서/소유권 정책은 업무 요건에 맞춰 별도 검토합니다.
 - RBAC 모델: 자격등급(`CauthI`) + 역할 매핑(`CroleI`).
   - `ITPAD001` = 시스템관리자
   - `ITPZZ001` = 일반사용자
@@ -132,7 +145,7 @@ src/main/resources/
 - Brute-force 판정은 인메모리 카운터가 아니라 `TAAABB_CLOGNH`의 `LOGIN_FAILURE` 이력을 `LoginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter()`로 집계합니다.
 - **X-Forwarded-For 신뢰**: `AuthController.getClientIp()`가 헤더를 무조건 신뢰합니다. 운영 인프라(Nginx 등)에서 헤더를 덮어쓰도록 설정해야 IP 위조를 방지할 수 있습니다.
 - **비밀값 기본값 금지**: `application.properties`의 `${VAR:default}` 형태 기본값은 환경변수 미설정 시 운영에 그대로 사용됩니다. `:default` 부분을 제거하고 구동 시 빈값이면 즉시 실패하도록 해야 합니다.
-- **SHA-256 비밀번호 해시 제한**: `CustomPasswordEncoder`는 Salt 없는 SHA-256을 사용합니다(레거시 SSO 연동 제약). 신규 계정부터 BCrypt 또는 Argon2 적용을 검토하고, 기존 계정은 로그인 성공 시 점진적 업그레이드합니다. 현황은 `TASK.md` 과제로 추적 중.
+- **비밀번호 해시 규격(KDB 표준)**: `CustomPasswordEncoder`는 사내 SSO·통합인증 시스템과의 호환을 위해 KDB 표준 암호화 규격(SHA-256 + Base64, 고정 솔트 파라미터)을 적용합니다. 알고리즘·솔트 파라미터는 거버넌스 승인 없이 변경할 수 없으며, 차세대 인증체계 전환은 별도 트랙으로 관리합니다. 클래스에는 정책 예외 표시(`@SuppressWarnings` 4건 + `NOSONAR` 마커)가 부여되어 있으므로 자동화 보안 점검 결과에 재등재하지 않습니다.
 - CORS: `cors.allowed-origins`는 `http://localhost,...` (개발값)이 기본입니다. 운영 배포 시 `https://it.kdb.co.kr` 등 실제 오리진으로 환경변수 오버라이드가 필수이며, 구동 시 검증 로직이 없으므로 배포 체크리스트에 포함해야 합니다.
 - 운영 비밀값: `spring.datasource.password`, `jwt.secret`, `gemini.api.key`는 환경변수 또는 프로파일별 비공개 설정에서 주입합니다.
 
@@ -162,14 +175,35 @@ src/main/resources/
 
 ### 5.11 파일 보안
 - `FileValidator` (`infra/file/FileValidator.java`): 허용 확장자 화이트리스트 검증 — `FileService.uploadFileInternal()` 진입 시점 호출.
-- `FileOwnershipChecker` (`infra/file/FileOwnershipChecker.java`): 파일 소유자 검증 — `FileController` 조회·삭제 전 호출 필수.
+- `FileOwnershipChecker` (`infra/file/FileOwnershipChecker.java`): 파일 소유자 및 도메인별 읽기 권한 검증. 현재 코드상 단건 삭제의 `checkOwnership()`은 적용되어 있으나, 다운로드/미리보기/목록/단건조회/메타수정/원본 기준 일괄삭제 경로의 읽기·쓰기 권한 검증은 후속 과제로 관리합니다.
+- `/api/files/**`는 `SecurityConfig`에서 인증만 요구합니다. 새 파일 API를 추가할 때는 `flMngNo` 기반 조회/다운로드/미리보기에는 `FileOwnershipChecker.checkReadAccess()` 또는 `orcDtt`별 권한 검증을 반드시 연결합니다.
+- `FileOwnershipChecker.checkReadAccess()`는 현재 `orcDtt="공통게시판"`만 게시판 권한 정책으로 특수 검증하고, 그 외 원본구분은 읽기를 허용합니다. 새 `orcDtt`를 도입할 때는 파일 권한 정책 등록 여부를 함께 결정합니다.
 - 허용 확장자 변경 시 `FileValidator.ALLOWED_EXTENSIONS` 상수 수정.
+
+### 5.11.1 Gemini AI 보안
+- `GeminiController`는 `@PreAuthorize("hasRole('ADMIN')")`로 관리자 전용입니다.
+- 비관리자에게 Gemini 기능을 개방하기 전에는 첨부 `flMngNo`별 파일 접근 검증, 프롬프트 길이, 첨부 개수, 실제 파일 크기, 비용 상한을 먼저 구현합니다.
+- `GeminiDto.Request` 검증 조건을 변경할 때는 `GeminiService.generate()`의 null/길이 처리와 함께 테스트를 갱신합니다.
 
 ### 5.12 로그인 Brute-force 보호
 - `LoginAttemptService` (`common/iam/service/LoginAttemptService.java`): `TAAABB_CLOGNH` 로그인 이력 기반 실패 횟수 집계.
 - 임계값: 5회 실패 / 10분 잠금.
 - `AuthService.login()`: 로그인 검증 전에 `checkLocked(eno)`를 호출하고, 실패 이력은 기존 로그인 이력 저장 흐름을 통해 남깁니다.
 - **주의**: DB 이력 기준이므로 서버 재시작에는 유지되지만, IP·기기 기준 제한은 아직 없습니다.
+
+### 5.12.1 감사 로그(BaseLogEntity) 패턴
+- **로그 엔티티**: 23개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`).
+- **기본 구조**: `BaseLogEntity` 상속 — 기본 컬럼 자동 포함 (GUID, FST_ENR_DTM/USID, LST_CHG_DTM/USID).
+- **로그 리스너**: `ChangeLogEntityListener` → JPA entity lifecycle 후킹 → `AuditLogPersister` → DB 저장.
+- **저장 시점**: JPA `@PrePersist`/`@PreUpdate` 콜백 중 `ChangeLogEntityListener`가 `AuditLogPersister.persist()`를 직접 호출해 현재 flush 흐름에서 로그를 저장합니다. 로그 저장 실패는 catch 후 warn 처리하여 원본 작업 롤백을 피합니다.
+- 로그 조회는 감사 도메인(`domain/audit`) 또는 분석용 view 사용.
+
+### 5.12.2 이벤트 리스너(@EventListener vs @TransactionalEventListener)
+- **`@EventListener`**: 발행자와 동일 트랜잭션에서 **동기 실행**. 리스너 실패 시 원본 트랜잭션 롤백.
+  - 사용 예: `CouncilApprovalEventListener` — 결재 완료 이벤트 → 협의회 상태 자동 전이. 협의회 상태 변경 실패 시 결재 원본 작업도 함께 롤백.
+- **`@TransactionalEventListener`**: 발행자 트랜잭션 커밋 **후** 비동기 실행. 리스너 실패 시 원본 무영향.
+  - 사용 예: 알림 발송, 메일 전송, 별도 시스템 동기화 (부수 효과).
+- 선택 기준: 상태 일관성이 필수 → `@EventListener`, 실패해도 괜찮은 부가 작업 → `@TransactionalEventListener`.
 
 ### 5.13 공통 게시판 패턴
 - 백엔드 패키지: `common/board`.

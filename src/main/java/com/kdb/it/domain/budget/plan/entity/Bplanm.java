@@ -61,6 +61,43 @@ public class Bplanm extends BaseEntity {
     @Column(name = "PLN_DTL_CONE", comment = "계획세부내용")
     private String plnDtlCone;
 
+    /** IT프로젝트내용 */
+    @Lob
+    @Column(name = "IT_PRJ_CONE", comment = "IT프로젝트내용")
+    private String itPrjCone;
+
+    /** IT예산내용 */
+    @Lob
+    @Column(name = "IT_BG_CONE", comment = "IT예산내용")
+    private String itBgCone;
+
+    /** IT예산비고 */
+    @Lob
+    @Column(name = "IT_PRJ_RMK", comment = "IT예산비고")
+    private String itPrjRmk;
+
+    /** 자본예산비고 */
+    @Lob
+    @Column(name = "CPIT_BG_RMK", comment = "자본예산비고")
+    private String cpitBgRmk;
+
+    /** 관리비예산비고 */
+    @Lob
+    @Column(name = "MNGC_BG_RMK", comment = "관리비예산비고")
+    private String mngcBgRmk;
+
+    /**
+     * 5개 텍스트 필드를 갱신합니다.
+     * null 값은 해당 필드를 null로 초기화합니다.
+     */
+    public void updateText(String itPrjCone, String itBgCone, String itPrjRmk, String cpitBgRmk, String mngcBgRmk) {
+        this.itPrjCone  = itPrjCone;
+        this.itBgCone   = itBgCone;
+        this.itPrjRmk   = itPrjRmk;
+        this.cpitBgRmk  = cpitBgRmk;
+        this.mngcBgRmk  = mngcBgRmk;
+    }
+
     /** 총예산 (전체 대상사업의 프로젝트 예산 합계) */
     @Column(name = "TTL_BG", precision = 15, scale = 2, comment = "총예산")
     private BigDecimal ttlBg;

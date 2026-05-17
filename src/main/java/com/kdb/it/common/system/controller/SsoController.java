@@ -143,6 +143,7 @@ public class SsoController {
             String dest = (next != null && next.startsWith("/")) ? next : "/";
             response.sendRedirect(resolveFrontendBaseUrl(origin) + dest);
         } catch (Exception e) {
+            // TODO: [B-H-06] sendRedirect() IOException을 내부 try-catch로 감싸고 에링 로그 추가 필요
             log.error("SSO 인증 실패 - eno: {}, reason: {}", eno, e.getMessage(), e);
             response.sendRedirect(resolveFrontendBaseUrl(origin) + "/login?error=sso");
         }

@@ -374,4 +374,26 @@ class AuthServiceTest {
                                 .isInstanceOf(RuntimeException.class)
                                 .hasMessageContaining("사용자를 찾을 수 없습니다");
         }
+
+        @Test
+        @DisplayName("login - 활성 자격등급이 없으면 기본값 ITPZZ001을 athIds에 포함하여 반환한다")
+        void login_빈역할목록_ITPZZ001폴백() {
+                // Arrange: 역할 매핑이 없는 사용자
+                CuserI user = CuserI.builder()
+                                .eno("10001").usrNm("홍길동").usrEcyPwd("encodedPwd").delYn("N").build();
+
+                given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+                given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
+                // 역할 조회 결과 빈 목록 → loadAthIds에서 ITPZZ001 폴백 분기 진입
+                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
+                                .willReturn(Collections.emptyList());
+                given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("access-token");
+                given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
+
+                // Act
+                AuthDto.LoginResponse response = authService.login("10001", "password", "127.0.0.1", "Agent");
+
+                // Assert: 기본 자격등급 ITPZZ001이 응답에 포함되어야 한다
+                assertThat(response.getAthIds()).containsExactly("ITPZZ001");
+        }
 }

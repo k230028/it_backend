@@ -562,6 +562,7 @@ public class ProjectService {
                     try {
                         return getProject(prjMngNo); // 개별 상세 조회 (품목 포함)
                     } catch (IllegalArgumentException e) {
+                        // FIXME: [B-C-04] B-C-03 참조. 실패 프로젝트 ID warn 로그 및 호출자 통지 필요
                         return null; // 존재하지 않는 항목은 null로 처리
                     }
                 })
@@ -674,7 +675,7 @@ public class ProjectService {
             if (r.getTchnTp() != null && !r.getTchnTp().isEmpty()) tchnTpCdvas.add(r.getTchnTp());
             if (r.getMnUsr() != null && !r.getMnUsr().isEmpty()) mnUsrCdvas.add(r.getMnUsr());
             if (r.getRprSts() != null && !r.getRprSts().isEmpty()) rprStsCdvas.add(r.getRprSts());
-            if (r.getPrjPulPtt() != null) prjPulPttCdvas.add(String.valueOf(r.getPrjPulPtt()));
+            if (r.getPrjPulPtt() != null && !r.getPrjPulPtt().isEmpty()) prjPulPttCdvas.add(r.getPrjPulPtt());
             if (r.getPulDtt() != null && !r.getPulDtt().isEmpty()) pulDttCdvas.add(r.getPulDtt());
         }
 
@@ -718,7 +719,7 @@ public class ProjectService {
             if (response.getTchnTp() != null) response.setTchnTpNm(tchnTpNameMap.get(response.getTchnTp()));
             if (response.getMnUsr() != null) response.setMnUsrNm(mnUsrNameMap.get(response.getMnUsr()));
             if (response.getRprSts() != null) response.setRprStsNm(rprStsNameMap.get(response.getRprSts()));
-            if (response.getPrjPulPtt() != null) response.setPrjPulPttNm(prjPulPttNameMap.get(String.valueOf(response.getPrjPulPtt())));
+            if (response.getPrjPulPtt() != null) response.setPrjPulPttNm(prjPulPttNameMap.get(response.getPrjPulPtt()));
             if (response.getPulDtt() != null) response.setPulDttNm(pulDttNameMap.get(response.getPulDtt()));
 
             setBudgetSummary(response, project.getPrjMngNo(), project.getPrjSno());
@@ -829,8 +830,8 @@ public class ProjectService {
             ccodemRepository.findByCIdAndCdvaWithValidDate("RPR_STS", response.getRprSts(), null)
                     .ifPresent(code -> response.setRprStsNm(code.getCNm()));
         }
-        if (response.getPrjPulPtt() != null) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_PUL_PTT", String.valueOf(response.getPrjPulPtt()), null)
+        if (response.getPrjPulPtt() != null && !response.getPrjPulPtt().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_PUL_PTT", response.getPrjPulPtt(), null)
                     .ifPresent(code -> response.setPrjPulPttNm(code.getCNm()));
         }
         if (response.getPulDtt() != null && !response.getPulDtt().isEmpty()) {
@@ -938,15 +939,15 @@ public class ProjectService {
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
         // 자본예산 세부 분류 합계 계산
-        java.math.BigDecimal devBg = validItems.stream()
+        java.math.BigDecimal dvcBg = validItems.stream()
                 .filter(item -> devTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-        java.math.BigDecimal machBg = validItems.stream()
+        java.math.BigDecimal hwBg = validItems.stream()
                 .filter(item -> machTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-        java.math.BigDecimal intanBg = validItems.stream()
+        java.math.BigDecimal swBg = validItems.stream()
                 .filter(item -> intanTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
@@ -957,7 +958,7 @@ public class ProjectService {
                 .map(calcAmt)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
-        response.setBudgetAmounts(assetBg, devBg, machBg, intanBg, costBg);
+        response.setBudgetAmounts(assetBg, dvcBg, hwBg, swBg, costBg);
     }
 
     /**

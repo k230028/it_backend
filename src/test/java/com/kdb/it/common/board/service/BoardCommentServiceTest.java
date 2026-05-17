@@ -248,6 +248,171 @@ class BoardCommentServiceTest {
         assertThat(comment.getDelYn()).isEqualTo("Y");
     }
 
+    // ── 댓글 목록 조회 ──
+
+    @Test
+    @DisplayName("getComments — 게시물에 댓글이 없으면 빈 목록을 반환한다")
+    void getComments_emptyList() {
+        // Arrange
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+            .willReturn(Optional.of(boardWithComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+            .willReturn(Optional.of(post));
+        willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
+        given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of());
+
+        // Act
+        var result = service.getComments("BLBM-2026-0001", "NAC-2026-0001", normalUser);
+
+        // Assert
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getComments — 본인 댓글은 canModify=true로 반환된다")
+    void getComments_ownComment_canModifyTrue() {
+        // Arrange
+        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
+
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+            .willReturn(Optional.of(boardWithComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+            .willReturn(Optional.of(post));
+        willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
+        given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of(comment));
+
+        // Act
+        var result = service.getComments("BLBM-2026-0001", "NAC-2026-0001", normalUser);
+
+        // Assert — 본인 댓글이므로 canModify=true
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).isCanModify()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getComments — 타인 댓글은 canModify=false로 반환된다")
+    void getComments_otherComment_canModifyFalse() {
+        // Arrange
+        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        setFstEnrUsid(comment, "OTHER_USER");
+
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+            .willReturn(Optional.of(boardWithComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+            .willReturn(Optional.of(post));
+        willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
+        given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of(comment));
+
+        // Act
+        var result = service.getComments("BLBM-2026-0001", "NAC-2026-0001", normalUser);
+
+        // Assert — 타인 댓글이므로 canModify=false
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).isCanModify()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getComments — 관리자는 타인 댓글도 canModify=true로 반환된다")
+    void getComments_admin_canModifyTrue() {
+        // Arrange
+        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        setFstEnrUsid(comment, "OTHER_USER");
+
+        CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
+
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+            .willReturn(Optional.of(boardWithComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+            .willReturn(Optional.of(post));
+        willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
+        given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of(comment));
+
+        // Act
+        var result = service.getComments("BLBM-2026-0001", "NAC-2026-0001", adminUser);
+
+        // Assert — 관리자는 모든 댓글에 canModify=true
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).isCanModify()).isTrue();
+    }
+
+    // ── verifyCanModify 관리자 경로 ──
+
+    @Test
+    @DisplayName("관리자는 타인의 댓글도 수정할 수 있다")
+    void updateComment_admin_canModifyOthers() {
+        // Arrange
+        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        setFstEnrUsid(comment, "OTHER_USER");
+
+        CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
+
+        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+            .willReturn(Optional.of(comment));
+
+        var request = new BoardCommentDto.UpdateRequest("관리자 수정 내용");
+
+        // Act & Assert — 관리자는 예외 없이 수정 가능
+        assertThatCode(() ->
+            service.updateComment("CMMT-2026-0001", request, adminUser)
+        ).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("관리자는 타인의 댓글도 삭제할 수 있다")
+    void deleteComment_admin_canDeleteOthers() {
+        // Arrange
+        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        setFstEnrUsid(comment, "OTHER_USER");
+
+        CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
+
+        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+            .willReturn(Optional.of(comment));
+
+        // Act & Assert — 관리자는 예외 없이 삭제 가능
+        assertThatCode(() ->
+            service.deleteComment("CMMT-2026-0001", adminUser)
+        ).doesNotThrowAnyException();
+
+        assertThat(comment.getDelYn()).isEqualTo("Y");
+    }
+
+    // ── createReply 댓글 미지원 게시판 경로 ──
+
+    @Test
+    @DisplayName("댓글 미지원 게시판에 대댓글 등록 시 예외가 발생한다")
+    void createReply_boardNoComment_throws() {
+        // Arrange
+        String parentId = "CMMT-2026-0001";
+        Ccmmtm parent = Ccmmtm.builder()
+            .cmmtMngNo(parentId)
+            .nacMngNo("NAC-2026-0001")
+            .cmmtCone("부모 댓글")
+            .sreYn("Y")
+            .cmmtGrpNo(parentId)
+            .cmmtGrpSqn(0)
+            .cmmtGrpLev(0)
+            .delYn("N")
+            .build();
+
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0002", "N"))
+            .willReturn(Optional.of(boardNoComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+            .willReturn(Optional.of(post));
+        given(commentRepository.findByCmmtMngNoAndDelYn(parentId, "N"))
+            .willReturn(Optional.of(parent));
+
+        var request = new BoardCommentDto.CreateRequest("대댓글 내용");
+
+        // Act & Assert
+        assertThatThrownBy(() ->
+            service.createReply("BLBM-2026-0002", "NAC-2026-0001", parentId, request, normalUser)
+        )
+            .isInstanceOf(CustomGeneralException.class)
+            .hasMessageContaining("댓글 기능을 지원하지 않습니다");
+    }
+
     // ── 내부 헬퍼 ──
 
     /**

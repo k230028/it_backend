@@ -586,7 +586,7 @@ class CostServiceTest {
         assertThat(result.getBiceTemNm()).isEqualTo("팀");
         assertThat(result.getCgprNm()).isEqualTo("담당자");
         assertThat(result.getAssetBg()).isEqualByComparingTo("1000");
-        assertThat(result.getDevBg()).isEqualByComparingTo("1000");
+        assertThat(result.getDvcBg()).isEqualByComparingTo("1000");
         assertThat(result.getCostBg()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getTerminals()).hasSize(1);
         assertThat(result.getTerminals().get(0).getCgprNm()).isEqualTo("단말담당");
@@ -630,8 +630,8 @@ class CostServiceTest {
         CostDto.Response intan = costService.getCost("COST-INTAN");
         CostDto.Response general = costService.getCost("COST-GEN");
 
-        assertThat(mach.getMachBg()).isEqualByComparingTo("200");
-        assertThat(intan.getIntanBg()).isEqualByComparingTo("300");
+        assertThat(mach.getHwBg()).isEqualByComparingTo("200");
+        assertThat(intan.getSwBg()).isEqualByComparingTo("300");
         assertThat(general.getCostBg()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
@@ -813,6 +813,49 @@ class CostServiceTest {
         }
     }
 
+    // ───────────────────────────────────────────────────────
+    // setCodeNames — abusC, dfrCle, itMngcTp, pulDtt, ioeC 분기 (lambda 0% → 커버)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getCost: abusC, dfrCle, itMngcTp, pulDtt, ioeC 코드명을 모두 채운다")
+    void getCost_모든코드명필드_조회() {
+        // Arrange: 모든 코드명 관련 필드가 채워진 엔티티
+        Bcostm cost = Bcostm.builder()
+                .itMngcNo("COST-ALL-CODE")
+                .itMngcSno(1)
+                .ioeC("101")
+                .abusC("ABUS01")
+                .dfrCle("DFR01")
+                .itMngcTp("TP01")
+                .pulDtt("PD01")
+                .delYn("N")
+                .build();
+        given(costRepository.findByItMngcNoAndDelYn("COST-ALL-CODE", "N")).willReturn(List.of(cost));
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-ALL-CODE", 1, "N")).willReturn(List.of());
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(any(), any(), any()))
+                .willReturn(List.of());
+        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+                .willReturn(List.of(Ccodem.builder().cdva("101").cTp("IOE_IDR").build()));
+        given(ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_C", "ABUS01", null))
+                .willReturn(java.util.Optional.of(Ccodem.builder().cNm("남용코드명").build()));
+        given(ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE", "DFR01", null))
+                .willReturn(java.util.Optional.of(Ccodem.builder().cNm("납입주기명").build()));
+        given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", "TP01", null))
+                .willReturn(java.util.Optional.of(Ccodem.builder().cNm("유형명").build()));
+        given(ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", "PD01", null))
+                .willReturn(java.util.Optional.of(Ccodem.builder().cNm("지급구분명").build()));
+
+        // Act
+        CostDto.Response result = costService.getCost("COST-ALL-CODE");
+
+        // Assert: 각 코드명 람다가 실행되어 이름이 설정됨
+        assertThat(result.getAbusCNm()).isEqualTo("남용코드명");
+        assertThat(result.getDfrCleNm()).isEqualTo("납입주기명");
+        assertThat(result.getItMngcTpNm()).isEqualTo("유형명");
+        assertThat(result.getPulDttNm()).isEqualTo("지급구분명");
+    }
+
     @Test
     @DisplayName("getCost: 비목코드가 비어 있으면 예산 분류를 0으로 유지한다")
     void getCost_비목코드없음_예산분류0유지() {
@@ -830,5 +873,188 @@ class CostServiceTest {
 
         assertThat(result.getAssetBg()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getCostBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // setBudgetCategory — IOE_CPIT 구코드 cdvaDes 세부 분기 (Branch 69.9% → 개선)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getCost: IOE_CPIT 구코드에서 cdvaDes=개발비이면 dvcBg에 금액이 설정된다")
+    void getCost_IOECPIT개발비_dvcBg설정() {
+        // Arrange: cTp=IOE_CPIT, cdvaDes=개발비 → 구버전 개발비 분기
+        Bcostm cost = Bcostm.builder()
+                .itMngcNo("COST-CPIT-DVC")
+                .itMngcSno(1)
+                .ioeC("OLD_DVC")
+                .itMngcBg(BigDecimal.valueOf(500))
+                .delYn("N")
+                .build();
+        given(costRepository.findByItMngcNoAndDelYn("COST-CPIT-DVC", "N")).willReturn(List.of(cost));
+        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_DVC").cTp("IOE_CPIT").cdvaDes("개발비").build()));
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-CPIT-DVC", 1, "N")).willReturn(List.of());
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(any(), any(), any()))
+                .willReturn(List.of());
+
+        // Act
+        CostDto.Response result = costService.getCost("COST-CPIT-DVC");
+
+        // Assert: 개발비 분기 → dvcBg=500, assetBg=500
+        assertThat(result.getAssetBg()).isEqualByComparingTo("500");
+        assertThat(result.getDvcBg()).isEqualByComparingTo("500");
+        assertThat(result.getHwBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("getCost: IOE_CPIT 구코드에서 cdvaDes=기계장치이면 hwBg에 금액이 설정된다")
+    void getCost_IOECPIT기계장치_hwBg설정() {
+        // Arrange: cTp=IOE_CPIT, cdvaDes=기계장치
+        Bcostm cost = Bcostm.builder()
+                .itMngcNo("COST-CPIT-HW")
+                .itMngcSno(1)
+                .ioeC("OLD_HW")
+                .itMngcBg(BigDecimal.valueOf(300))
+                .delYn("N")
+                .build();
+        given(costRepository.findByItMngcNoAndDelYn("COST-CPIT-HW", "N")).willReturn(List.of(cost));
+        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_HW").cTp("IOE_CPIT").cdvaDes("기계장치").build()));
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-CPIT-HW", 1, "N")).willReturn(List.of());
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(any(), any(), any()))
+                .willReturn(List.of());
+
+        // Act
+        CostDto.Response result = costService.getCost("COST-CPIT-HW");
+
+        // Assert: 기계장치 분기 → hwBg=300
+        assertThat(result.getHwBg()).isEqualByComparingTo("300");
+        assertThat(result.getDvcBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("getCost: IOE_CPIT 구코드에서 cdvaDes=기타무형자산이면 swBg에 금액이 설정된다")
+    void getCost_IOECPIT기타무형자산_swBg설정() {
+        // Arrange: cTp=IOE_CPIT, cdvaDes=기타무형자산
+        Bcostm cost = Bcostm.builder()
+                .itMngcNo("COST-CPIT-SW")
+                .itMngcSno(1)
+                .ioeC("OLD_SW")
+                .itMngcBg(BigDecimal.valueOf(400))
+                .delYn("N")
+                .build();
+        given(costRepository.findByItMngcNoAndDelYn("COST-CPIT-SW", "N")).willReturn(List.of(cost));
+        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_SW").cTp("IOE_CPIT").cdvaDes("기타무형자산").build()));
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-CPIT-SW", 1, "N")).willReturn(List.of());
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(any(), any(), any()))
+                .willReturn(List.of());
+
+        // Act
+        CostDto.Response result = costService.getCost("COST-CPIT-SW");
+
+        // Assert: 기타무형자산 분기 → swBg=400
+        assertThat(result.getSwBg()).isEqualByComparingTo("400");
+        assertThat(result.getDvcBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("getCost: ioeC 코드가 IOE에 없으면 예산 분류 모두 0을 유지한다")
+    void getCost_ioeC코드없음_예산분류0유지() {
+        // Arrange: IOE 코드 목록에 일치하는 cdva 없음 → codeOpt.isEmpty() 분기
+        Bcostm cost = Bcostm.builder()
+                .itMngcNo("COST-UNKNOWN-IOE")
+                .itMngcSno(1)
+                .ioeC("UNKNOWN")
+                .itMngcBg(BigDecimal.valueOf(999))
+                .delYn("N")
+                .build();
+        given(costRepository.findByItMngcNoAndDelYn("COST-UNKNOWN-IOE", "N")).willReturn(List.of(cost));
+        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+                .willReturn(List.of()); // 빈 목록 → codeOpt = empty
+        given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-UNKNOWN-IOE", 1, "N")).willReturn(List.of());
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(any(), any(), any()))
+                .willReturn(List.of());
+
+        // Act
+        CostDto.Response result = costService.getCost("COST-UNKNOWN-IOE");
+
+        // Assert: 코드 미존재 → 모든 예산 분류 0
+        assertThat(result.getAssetBg()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.getCostBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // enrichCostListBatch — buildCodeNameMap lambda (0% 분기 커버)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getCostList: abusC/dfrCle/itMngcTp/pulDtt/ioeC 코드명을 배치 조회하여 설정한다")
+    void getCostList_모든배치코드명설정() {
+        // Arrange: 각 코드명 필드가 채워진 엔티티 (enrichCostListBatch 분기 모두 커버)
+        Bcostm cost = Bcostm.builder()
+                .itMngcNo("COST-BATCH-CODE")
+                .itMngcSno(1)
+                .ioeC("101")
+                .abusC("ABUS01")
+                .dfrCle("DFR01")
+                .itMngcTp("TP01")
+                .pulDtt("PD01")
+                .bgYy("2026")
+                .delYn("N")
+                .build();
+        given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost));
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(eq("BCOSTM"), any()))
+                .willReturn(List.of());
+        given(corgnIRepository.findAllById(any())).willReturn(List.of());
+        given(cuserIRepository.findAllById(any())).willReturn(List.of());
+        // buildCodeNameMap 람다 커버: 각 코드타입 → 코드명 반환
+        given(ccodemRepository.findByCIdWithValidDate("ABUS_C", null))
+                .willReturn(List.of(Ccodem.builder().cId("ABUS_C").cdva("ABUS01").cNm("남용유형").build()));
+        given(ccodemRepository.findByCIdWithValidDate("DFR_CLE", null))
+                .willReturn(List.of(Ccodem.builder().cId("DFR_CLE").cdva("DFR01").cNm("매월").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IT_MNGC_TP", null))
+                .willReturn(List.of(Ccodem.builder().cId("IT_MNGC_TP").cdva("TP01").cNm("유형A").build()));
+        given(ccodemRepository.findByCIdWithValidDate("PUL_DTT", null))
+                .willReturn(List.of(Ccodem.builder().cId("PUL_DTT").cdva("PD01").cNm("지급A").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+                .willReturn(List.of(Ccodem.builder().cdva("101").cdvaNm("전산임차료").cTp("IOE_IDR").build()));
+
+        // Act
+        List<CostDto.Response> result = costService.getCostList();
+
+        // Assert: 코드명 필드가 설정됨
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getAbusCNm()).isEqualTo("남용유형");
+        assertThat(result.get(0).getDfrCleNm()).isEqualTo("매월");
+        assertThat(result.get(0).getItMngcTpNm()).isEqualTo("유형A");
+        assertThat(result.get(0).getPulDttNm()).isEqualTo("지급A");
+        assertThat(result.get(0).getIoeCNm()).isEqualTo("전산임차료");
+    }
+
+    @Test
+    @DisplayName("getCostList: cncdItMngcNo가 있고 bgYy가 없으면 prevDupBg를 0으로 설정한다")
+    void getCostList_cncdItMngcNo있음bgYy없음_prevDupBg0() {
+        // Arrange: cncdItMngcNo 있지만 bgYy 없음 → bgYy=null 분기
+        Bcostm cost = Bcostm.builder()
+                .itMngcNo("COST-CNCD")
+                .itMngcSno(1)
+                .cncdItMngcNo("COST-PREV-001")
+                .bgYy(null) // bgYy 없음
+                .delYn("N")
+                .build();
+        given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost));
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(eq("BCOSTM"), any()))
+                .willReturn(List.of());
+        given(corgnIRepository.findAllById(any())).willReturn(List.of());
+        given(cuserIRepository.findAllById(any())).willReturn(List.of());
+        given(ccodemRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of());
+
+        // Act
+        List<CostDto.Response> result = costService.getCostList();
+
+        // Assert: prevDupBg = 0 (bgYy null 분기)
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getPrevDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 }

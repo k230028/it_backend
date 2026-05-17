@@ -273,4 +273,135 @@ class GeminiServiceTest {
         assertThat(result.getSkippedFiles()).hasSize(2);
         assertThat(result.getAttachedFileCount()).isEqualTo(0);
     }
+
+    // ───────────────────────────────────────────────────────
+    // buildFilePartFromFlMngNo — 파일명에 점(.) 없음 → MIME null → skip
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("generate: 파일명에 확장자(점) 없으면 skippedFiles에 포함된다")
+    void generate_확장자없는파일명_skip(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) throws Exception {
+        // Arrange: 파일명에 점이 없어 detectMimeType이 null 반환 → skip 분기 진입
+        com.kdb.it.infra.file.entity.Cfilem filem = com.kdb.it.infra.file.entity.Cfilem.builder()
+                .flMngNo("FL_00000020")
+                .orcFlNm("확장자없는파일명")
+                .svrFlNm("SVR1_확장자없는파일명")
+                .flKpnPth(tempDir.toString())
+                .build();
+        given(fileRepository.findByFlMngNoAndDelYn("FL_00000020", "N"))
+                .willReturn(java.util.Optional.of(filem));
+        stubApiResponse(buildSuccessResponse("응답"));
+
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("테스트")
+                .flMngNos(List.of("FL_00000020"))
+                .build();
+
+        // Act
+        GeminiDto.Response result = geminiService.generate(request);
+
+        // Assert: 미지원 형식 → skip, 첨부 파일 수 0
+        assertThat(result.getSkippedFiles()).hasSize(1);
+        assertThat(result.getSkippedFiles().get(0)).contains("FL_00000020");
+        assertThat(result.getAttachedFileCount()).isEqualTo(0);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // buildFilePartFromFlMngNo — 미지원 MIME 타입(hwp) → skip
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("generate: 미지원 확장자(hwp) 파일은 skippedFiles에 포함된다")
+    void generate_미지원확장자hwp_skip(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) throws Exception {
+        // Arrange: .hwp는 SUPPORTED_MIME_TYPES에 없으므로 detectMimeType이 null 반환 → skip
+        com.kdb.it.infra.file.entity.Cfilem filem = com.kdb.it.infra.file.entity.Cfilem.builder()
+                .flMngNo("FL_00000021")
+                .orcFlNm("문서.hwp")
+                .svrFlNm("SVR1_문서.hwp")
+                .flKpnPth(tempDir.toString())
+                .build();
+        given(fileRepository.findByFlMngNoAndDelYn("FL_00000021", "N"))
+                .willReturn(java.util.Optional.of(filem));
+        stubApiResponse(buildSuccessResponse("응답"));
+
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("분석")
+                .flMngNos(List.of("FL_00000021"))
+                .build();
+
+        // Act
+        GeminiDto.Response result = geminiService.generate(request);
+
+        // Assert: hwp는 미지원 → skip
+        assertThat(result.getSkippedFiles()).hasSize(1);
+        assertThat(result.getSkippedFiles().get(0)).contains("FL_00000021");
+        assertThat(result.getAttachedFileCount()).isEqualTo(0);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // buildFilePartFromFlMngNo — 디스크에 파일 없음 → skip
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("generate: DB에 경로가 있어도 디스크에 실제 파일이 없으면 skippedFiles에 포함된다")
+    void generate_디스크파일없음_skip(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) {
+        // Arrange: 지원 확장자(pdf)이지만 실제 디스크에는 파일 없음
+        com.kdb.it.infra.file.entity.Cfilem filem = com.kdb.it.infra.file.entity.Cfilem.builder()
+                .flMngNo("FL_00000022")
+                .orcFlNm("계획서.pdf")
+                .svrFlNm("SVR1_계획서.pdf")
+                .flKpnPth(tempDir.toString())  // 디렉토리만 있고 파일 없음
+                .build();
+        given(fileRepository.findByFlMngNoAndDelYn("FL_00000022", "N"))
+                .willReturn(java.util.Optional.of(filem));
+        stubApiResponse(buildSuccessResponse("응답"));
+
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("검토")
+                .flMngNos(List.of("FL_00000022"))
+                .build();
+
+        // Act
+        GeminiDto.Response result = geminiService.generate(request);
+
+        // Assert: 디스크에 없음 → skip
+        assertThat(result.getSkippedFiles()).hasSize(1);
+        assertThat(result.getSkippedFiles().get(0)).contains("FL_00000022");
+        assertThat(result.getAttachedFileCount()).isEqualTo(0);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // buildFilePartFromFlMngNo — 성공 경로: 실제 pdf 파일 읽기 + Base64 첨부
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("generate: 유효한 pdf 파일이 디스크에 있으면 첨부 파일 수가 1이다")
+    void generate_유효pdf파일_첨부성공(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) throws Exception {
+        // Arrange: 실제 파일을 임시 디렉토리에 생성
+        java.nio.file.Path pdfFile = tempDir.resolve("SVR1_계획서.pdf");
+        java.nio.file.Files.write(pdfFile, "PDF content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        com.kdb.it.infra.file.entity.Cfilem filem = com.kdb.it.infra.file.entity.Cfilem.builder()
+                .flMngNo("FL_00000023")
+                .orcFlNm("계획서.pdf")
+                .svrFlNm("SVR1_계획서.pdf")
+                .flKpnPth(tempDir.toString())
+                .build();
+        given(fileRepository.findByFlMngNoAndDelYn("FL_00000023", "N"))
+                .willReturn(java.util.Optional.of(filem));
+        stubApiResponse(buildSuccessResponse("AI 분석 결과"));
+
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("분석해줘")
+                .flMngNos(List.of("FL_00000023"))
+                .build();
+
+        // Act
+        GeminiDto.Response result = geminiService.generate(request);
+
+        // Assert: 파일 첨부 성공 → attachedFileCount = 1, skippedFiles 비어있음
+        assertThat(result.getAttachedFileCount()).isEqualTo(1);
+        assertThat(result.getSkippedFiles()).isEmpty();
+        assertThat(result.getText()).isEqualTo("AI 분석 결과");
+    }
 }

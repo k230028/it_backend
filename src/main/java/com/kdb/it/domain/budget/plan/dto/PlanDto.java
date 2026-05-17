@@ -64,6 +64,26 @@ public class PlanDto {
         @Schema(description = "대상 전산업무비관리번호 목록")
         private List<String> itMngcNos;
 
+        /** IT프로젝트내용 */
+        @Schema(description = "IT프로젝트내용")
+        private String itPrjCone;
+
+        /** IT예산내용 */
+        @Schema(description = "IT예산내용")
+        private String itBgCone;
+
+        /** IT예산비고 */
+        @Schema(description = "IT예산비고")
+        private String itPrjRmk;
+
+        /** 자본예산비고 */
+        @Schema(description = "자본예산비고")
+        private String cpitBgRmk;
+
+        /** 관리비예산비고 */
+        @Schema(description = "관리비예산비고")
+        private String mngcBgRmk;
+
         /** 예산배분 항목 목록 (수익/비용 구분별 배분 금액) */
         @Schema(description = "예산배분 항목 목록")
         private List<BudgetAllocationItem> budgetAllocation;
@@ -96,6 +116,43 @@ public class PlanDto {
         /** 일반관리비 카드 — itMngcNo → 부모 사업명 맵 */
         @Schema(description = "itMngcNo → 부모 사업명 맵")
         private Map<String, String> costPrjNm;
+    }
+
+    /**
+     * 계획 텍스트 필드 수정 요청 DTO
+     *
+     * <p>
+     * IT프로젝트내용, IT예산내용, IT예산비고, 자본예산비고, 관리비예산비고 5개 CLOB 필드를 갱신합니다.
+     * null 값은 해당 필드를 null로 초기화합니다.
+     * </p>
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(name = "PlanUpdateRequest")
+    public static class UpdateRequest {
+
+        /** IT프로젝트내용 */
+        @Schema(description = "IT프로젝트내용")
+        private String itPrjCone;
+
+        /** IT예산내용 */
+        @Schema(description = "IT예산내용")
+        private String itBgCone;
+
+        /** IT예산비고 */
+        @Schema(description = "IT예산비고")
+        private String itPrjRmk;
+
+        /** 자본예산비고 */
+        @Schema(description = "자본예산비고")
+        private String cpitBgRmk;
+
+        /** 관리비예산비고 */
+        @Schema(description = "관리비예산비고")
+        private String mngcBgRmk;
     }
 
     /**
@@ -141,15 +198,31 @@ public class PlanDto {
         @Schema(description = "최초생성시간")
         private LocalDateTime fstEnrDtm;
 
-        /** 최초생성자 */
+        /** 최초생성자 사번 */
         @Schema(description = "최초생성자")
         private String fstEnrUsid;
+
+        /** 최초생성자 이름 (CUSERI 조인 결과) */
+        @Schema(description = "최초생성자 이름")
+        private String fstEnrUsNm;
+
+        /** 정보화사업 건수 (경상사업 제외) */
+        @Schema(description = "정보화사업 건수 (경상사업 제외)")
+        private Integer itPrjCnt;
+
+        /** 신규 사업 건수 (정보화사업 중 PUL_DTT=신규) */
+        @Schema(description = "신규 사업 건수 (정보화사업 중 PUL_DTT=신규)")
+        private Integer newPrjCnt;
+
+        /** 계속 사업 건수 (정보화사업 중 PUL_DTT=계속) */
+        @Schema(description = "계속 사업 건수 (정보화사업 중 PUL_DTT=계속)")
+        private Integer contPrjCnt;
 
         /**
          * {@link Bplanm} 엔티티에서 목록 응답 DTO로 변환합니다.
          *
          * @param plan 변환할 Bplanm 엔티티
-         * @return 변환된 ListResponse DTO
+         * @return 변환된 ListResponse DTO (카운트는 0으로 초기화)
          */
         public static ListResponse fromEntity(Bplanm plan) {
             return ListResponse.builder()
@@ -161,6 +234,9 @@ public class PlanDto {
                     .mngc(plan.getMngc())
                     .fstEnrDtm(plan.getFstEnrDtm())
                     .fstEnrUsid(plan.getFstEnrUsid())
+                    .itPrjCnt(0)
+                    .newPrjCnt(0)
+                    .contPrjCnt(0)
                     .build();
         }
     }
@@ -214,6 +290,26 @@ public class PlanDto {
         @Schema(description = "계획세부내용 (JSON)")
         private String plnDtlCone;
 
+        /** IT프로젝트내용 */
+        @Schema(description = "IT프로젝트내용")
+        private String itPrjCone;
+
+        /** IT예산내용 */
+        @Schema(description = "IT예산내용")
+        private String itBgCone;
+
+        /** IT예산비고 */
+        @Schema(description = "IT예산비고")
+        private String itPrjRmk;
+
+        /** 자본예산비고 */
+        @Schema(description = "자본예산비고")
+        private String cpitBgRmk;
+
+        /** 관리비예산비고 */
+        @Schema(description = "관리비예산비고")
+        private String mngcBgRmk;
+
         /** 연결된 프로젝트관리번호 목록 */
         @Schema(description = "연결된 프로젝트관리번호 목록")
         private List<String> prjMngNos;
@@ -242,6 +338,11 @@ public class PlanDto {
                     .cptBg(plan.getCptBg())
                     .mngc(plan.getMngc())
                     .plnDtlCone(plan.getPlnDtlCone())
+                    .itPrjCone(plan.getItPrjCone())
+                    .itBgCone(plan.getItBgCone())
+                    .itPrjRmk(plan.getItPrjRmk())
+                    .cpitBgRmk(plan.getCpitBgRmk())
+                    .mngcBgRmk(plan.getMngcBgRmk())
                     .prjMngNos(prjMngNos)
                     .fstEnrDtm(plan.getFstEnrDtm())
                     .fstEnrUsid(plan.getFstEnrUsid())

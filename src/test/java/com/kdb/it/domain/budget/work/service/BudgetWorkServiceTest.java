@@ -91,7 +91,7 @@ class BudgetWorkServiceTest {
     void getIoeCategories_기존데이터없음_편성률null() {
         // given: V003 이후 DUP_IOE cdva="237", IOE cdva="001" cNm="237-0700"
         Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
-        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
@@ -113,7 +113,7 @@ class BudgetWorkServiceTest {
     void getIoeCategories_기존편성률있음_편성률반환() {
         // given: V003 이후 DUP_IOE cdva="237", IOE cdva="001" / BBUGTM ioeC="001"
         Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
-        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         Bbugtm existing = Bbugtm.builder()
                 .ioeC("001") // V003 이후 단축 cdva 저장
                 .dupRt(80)
@@ -192,9 +192,9 @@ class BudgetWorkServiceTest {
     void getSummary_세부비목_합계계산() {
         // given: 마이그레이션 후 CCODEM 구조
         // DUP_IOE: cdva="237"(접두어) / IOE: cdva="101", cNm="237-0700"(계층코드), cdvaDtl=표시명
-        Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdva("237").build();
+        Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
         Ccodem detailCode = Ccodem.builder()
-                .cdva("101").cNm("237-0700").cdvaDtl("국외전산임차료").cTp("IOE_IDR")
+                .cdva("101").cNm("237-0700").cdvaDtlC("237-0700").cdvaNm("국외전산임차료").cTp("IOE_IDR")
                 .build();
         Bbugtm bbugtm = Bbugtm.builder()
                 .ioeC("101")
@@ -235,10 +235,10 @@ class BudgetWorkServiceTest {
                 Ccodem.builder().cNm("239").cdvaDes("전산제비").cdva("239").build(),
                 Ccodem.builder().cNm("240").cdvaDes("전산제비").cdva("240").build());
         List<Ccodem> ioeCodes = List.of(
-                Ccodem.builder().cdva("001").cNm("237-0700").cdvaNm("국내전산임차료").cTp("IOE_LEAFE").cTpDes("전산임차료").build(),
-                Ccodem.builder().cdva("003").cNm("238-0100").cdvaNm("국내출장").cTp("IOE_XPN").cTpDes("전산여비").build(),
-                Ccodem.builder().cdva("006").cNm("239-0300").cdvaNm("원고강사심사료").cTp("IOE_SEVS").cTpDes("전산용역비").build(),
-                Ccodem.builder().cdva("010").cNm("240-0100").cdvaNm("회선사용료").cTp("IOE_IDR").cTpDes("전산제비").build());
+                Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").cdvaNm("국내전산임차료").cTp("IOE_LEAFE").cTpDes("전산임차료").build(),
+                Ccodem.builder().cdva("003").cNm("238-0100").cdvaDtlC("238-0100").cdvaNm("국내출장").cTp("IOE_XPN").cTpDes("전산여비").build(),
+                Ccodem.builder().cdva("006").cNm("239-0300").cdvaDtlC("239-0300").cdvaNm("원고강사심사료").cTp("IOE_SEVS").cTpDes("전산용역비").build(),
+                Ccodem.builder().cdva("010").cNm("240-0100").cdvaDtlC("240-0100").cdvaNm("회선사용료").cTp("IOE_IDR").cTpDes("전산제비").build());
 
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(dupCodes);
@@ -301,7 +301,7 @@ class BudgetWorkServiceTest {
         given(cost.getIoeC()).willReturn("001");
         given(cost.getItMngcBg()).willReturn(BigDecimal.valueOf(1_000_000));
 
-        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026")))
@@ -343,7 +343,7 @@ class BudgetWorkServiceTest {
         // 기존 BBUGTM 레코드 존재 → UPDATE 경로
         Bbugtm existing = mock(Bbugtm.class);
 
-        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026")))
@@ -439,7 +439,7 @@ class BudgetWorkServiceTest {
         BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("237", 80);
         BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
 
-        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
 
         // BCOSTM 없음
@@ -519,7 +519,7 @@ class BudgetWorkServiceTest {
         given(cost.getItMngcSno()).willReturn(1);
         given(cost.getIoeC()).willReturn("001");
         given(cost.getItMngcBg()).willReturn(null);
-        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026"))).willReturn(List.of(cost));
@@ -590,11 +590,11 @@ class BudgetWorkServiceTest {
         // DUP_IOE cdva="351" / IOE: cdva="101"(cNm="351-0100", 자본), cdva="102"(cNm="351-9999")
         Ccodem dupCode = Ccodem.builder().cNm("자본그룹").cdvaDes("자본그룹명").cdva("351").build();
         Ccodem detailCode = Ccodem.builder()
-                .cdva("101").cNm("351-0100").cdvaDtl("자본그룹 - 개발비").cTp("IOE_CPIT")
+                .cdva("101").cNm("351-0100").cdvaDtlC("351-0100").cdvaNm("자본그룹 - 개발비").cTp("IOE_CPIT")
                 .build();
         // "102"는 CCODEM에 등록된 코드 (cNm에 계층코드 포함하여 "351" 접두어에 매칭됨)
         Ccodem detailCode2 = Ccodem.builder()
-                .cdva("102").cNm("351-9999")
+                .cdva("102").cNm("351-9999").cdvaDtlC("351-9999")
                 .build();
         // BBUGTM에는 "102"만 있음 (dupBg=300)
         Bbugtm budget = Bbugtm.builder()
@@ -644,8 +644,8 @@ class BudgetWorkServiceTest {
                 .dupBg(BigDecimal.valueOf(500))
                 .dupRt(50)
                 .build();
-        Ccodem ioeCode1 = Ccodem.builder().cdva("101").cNm("237-0100").build();
-        Ccodem ioeCode2 = Ccodem.builder().cdva("102").cNm("237-0200").build();
+        Ccodem ioeCode1 = Ccodem.builder().cdva("101").cNm("237-0100").cdvaDtlC("237-0100").build();
+        Ccodem ioeCode2 = Ccodem.builder().cdva("102").cNm("237-0200").cdvaDtlC("237-0200").build();
         Bitemm item = mock(Bitemm.class);
         given(item.getPrjMngNo()).willReturn("PRJ-2026-0001");
         Bprojm project = mock(Bprojm.class);
@@ -675,6 +675,7 @@ class BudgetWorkServiceTest {
         Ccodem ioeCode = Ccodem.builder()
                 .cdva("001")
                 .cNm("237-0700")
+                .cdvaDtlC("237-0700")
                 .cTpDes("전산임차료")
                 .build();
         Bbugtm budget = Bbugtm.builder()
@@ -696,6 +697,100 @@ class BudgetWorkServiceTest {
         assertThat(result.categories()).hasSize(1);
         assertThat(result.categories().get(0).cdNm()).isEqualTo("전산임차료");
         assertThat(result.categories().get(0).cdNm()).isNotEqualTo("70");
+    }
+
+    // =========================================================================
+    // resolveIoeGroupName / resolveProjectSummaryCategoryName 분기 커버
+    // =========================================================================
+
+    @Test
+    @DisplayName("getProjectSummary: cTpDes 없고 cdvaDtl 있으면 cdvaDtl 중분류를 컬럼명으로 사용한다")
+    void getProjectSummary_cTpDes없고cdvaDtl중분류사용() {
+        // resolveIoeGroupName: cTpDes=null, cdvaDtl="전산임차료 - 국내" → 두 번째 파트 "국내" 반환
+        Ccodem dupCode = Ccodem.builder().cNm("임차료").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder()
+                .cdva("001").cNm("237-0700").cdvaDtlC("237-0700")
+                .cdvaNm(null)
+                .cdvaDtl("전산임차료 - 국내")
+                .cTpDes(null)
+                .build();
+        Bbugtm budget = Bbugtm.builder()
+                .orcTb("BCOSTM").orcPkVl("COST-001")
+                .ioeC("001").dupBg(BigDecimal.valueOf(100)).dupRt(50)
+                .build();
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getCttNm()).willReturn("계약A");
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(costRepository.findByItMngcNoAndDelYn("COST-001", "N")).willReturn(List.of(cost));
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        // resolveProjectSummaryCategoryName → resolveIoeGroupName → "국내"
+        assertThat(result.categories()).hasSize(1);
+        assertThat(result.categories().get(0).cdNm()).isEqualTo("국내");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary: cTpDes/cdvaDtl 없고 cdvaDes 있으면 cdvaDes를 컬럼명으로 사용한다")
+    void getProjectSummary_cdvaDes폴백컬럼명() {
+        // resolveIoeGroupName: cTpDes=null, cdvaDtl=null → cdvaDes 폴백
+        Ccodem dupCode = Ccodem.builder().cNm("제비용").cdva("304").build();
+        Ccodem ioeCode = Ccodem.builder()
+                .cdva("005").cNm("304-0100").cdvaDtlC("304-0100")
+                .cdvaDtl(null).cTpDes(null)
+                .cdvaDes("전산제비용세목")
+                .build();
+        Bbugtm budget = Bbugtm.builder()
+                .orcTb("BCOSTM").orcPkVl("COST-002")
+                .ioeC("005").dupBg(BigDecimal.valueOf(200)).dupRt(80)
+                .build();
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getCttNm()).willReturn("계약B");
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(costRepository.findByItMngcNoAndDelYn("COST-002", "N")).willReturn(List.of(cost));
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.categories()).hasSize(1);
+        assertThat(result.categories().get(0).cdNm()).isEqualTo("전산제비용세목");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary: IOE 세부코드 매칭 없으면 dupCode cdvaNm을 컬럼명으로 사용한다")
+    void getProjectSummary_컬럼명cdvaNm폴백() {
+        // resolveProjectSummaryCategoryName: ioeDetailCodes가 prefix 매칭 안됨 → cdvaNm 폴백
+        Ccodem dupWithCdvaNm = Ccodem.builder().cNm("999").cdva("999").cdvaNm("cdvaNm폴백").build();
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupWithCdvaNm));
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of());
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.categories()).hasSize(1);
+        assertThat(result.categories().get(0).cdNm()).isEqualTo("cdvaNm폴백");
+    }
+
+    @Test
+    @DisplayName("buildPrefixToIoeCValuesMap: cdvaDtlC에 대시가 없으면 전체를 접두어로 사용한다")
+    void buildPrefixToIoeCValuesMap_대시없음_전체접두어() {
+        // cdvaDtlC="237" (대시 없음) → dashIdx=-1 → prefix=hierarchyCode 전체
+        Ccodem codeNoDash = Ccodem.builder().cdva("ABC").cdvaDtlC("237").build();
+        Ccodem dupCode = Ccodem.builder().cNm("임차료").cdva("237").build();
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(codeNoDash));
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(bbugtmRepository.sumApprovedAmountByIoeCValues(any(), eq("2026"))).willReturn(BigDecimal.ZERO);
+
+        // getIoeCategories 내부에서 buildPrefixToIoeCValuesMap 호출됨
+        List<BudgetWorkDto.IoeCategoryResponse> result = budgetWorkService.getIoeCategories("2026");
+
+        // "ABC"가 prefix "237"과 매핑 → ioeCValues에 포함 (cdvaDtlC="237" === prefix "237")
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).prefix()).isEqualTo("237");
     }
 
     @Test
@@ -733,6 +828,157 @@ class BudgetWorkServiceTest {
         assertThat(captor.getValue().getDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
+    // =========================================================================
+    // getSummary — dupBg null 분기 커버 (filter(v -> v != null))
+    // =========================================================================
+
+    @Test
+    @DisplayName("getSummary: dupBg가 null인 BBUGTM은 편성금액 합산에서 제외된다")
+    void getSummary_dupBgNull_합산제외() {
+        // given: ioeC="101" (cNm="237-0100")에 dupBg=null인 레코드 → filter(v -> v != null) 분기 커버
+        Ccodem dupCode = Ccodem.builder().cNm("임차료").cdvaDes("임차료").cdva("237").build();
+        Ccodem detailCode = Ccodem.builder()
+                .cdva("101").cNm("237-0100").cdvaDtlC("237-0100").cdvaNm("국내전산임차료").cTp("IOE_IDR")
+                .build();
+        // dupBg=null 레코드 (null 필터 분기)
+        Bbugtm nullBudget = Bbugtm.builder().ioeC("101").dupBg(null).dupRt(80).build();
+        // dupBg=200 정상 레코드
+        Bbugtm normalBudget = Bbugtm.builder().ioeC("101").dupBg(BigDecimal.valueOf(200)).dupRt(80).build();
+
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(nullBudget, normalBudget));
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(detailCode));
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026"))
+                .willReturn(java.util.Map.of("101", BigDecimal.valueOf(1000)));
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026"))
+                .willReturn(java.util.Map.of());
+
+        // when
+        BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
+
+        // then: null은 필터링되어 200만 합산
+        assertThat(result.data()).hasSize(1);
+        assertThat(result.data().get(0).dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(200));
+        assertThat(result.totals().dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(200));
+    }
+
+    // =========================================================================
+    // applyItemRates — findCodes("IOE") 람다 커버 (lambda$applyItemRates$0)
+    // =========================================================================
+
+    @Test
+    @DisplayName("applyItemRates: IOE 코드에 자본예산 cTp가 있으면 해당 코드를 자본예산으로 분류한다")
+    void applyItemRates_IOE코드에자본예산cTp있음_람다커버() {
+        // given: codeRepository.findByCIdWithValidDate("IOE", null)이 IOE_CPIT cTp 코드 반환
+        // → lambda$applyItemRates$0(isCapitalCTp 필터 람다) 실행
+        BudgetWorkDto.ItemRate itemRate = new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 80, 60);
+        BudgetWorkDto.ItemApplyRequest request =
+                new BudgetWorkDto.ItemApplyRequest("2026", List.of(itemRate));
+
+        // IOE 코드에 자본예산 cTp(IOE_CPIT) 있음 → filter 람다 실행
+        Ccodem capitalIoeCode = Ccodem.builder().cdva("IOE-351-0100").cTp("IOE_CPIT").build();
+        Bitemm bitemm = org.mockito.Mockito.mock(Bitemm.class);
+        given(bitemm.getGclMngNo()).willReturn("GCL-0001");
+        given(bitemm.getGclSno()).willReturn(1);
+        given(bitemm.getIoeC()).willReturn("IOE-351-0100");
+        given(bitemm.getGclAmt()).willReturn(BigDecimal.valueOf(1_000_000));
+        given(bitemm.getXcr()).willReturn(BigDecimal.ONE);
+
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(capitalIoeCode));
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+                .willReturn(List.of(bitemm));
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        mockEmptyDetailCodes();
+
+        // when
+        BudgetWorkDto.ApplyResponse result = budgetWorkService.applyItemRates(request);
+
+        // then: 자본예산 편성률(80) 적용 → 1건 처리
+        assertThat(result.totalRecords()).isEqualTo(1);
+        ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
+        verify(bbugtmRepository).save(captor.capture());
+        // IOE-351-0100 → 자본예산 → assetDupRt=80 적용
+        assertThat(captor.getValue().getDupRt()).isEqualTo(80);
+    }
+
+    // =========================================================================
+    // applyRates — BITEMM existing.isPresent()=true 분기 커버
+    // =========================================================================
+
+    @Test
+    @DisplayName("applyRates: BITEMM 원본에 기존 BBUGTM 레코드가 있으면 update를 호출한다")
+    void applyRates_BITEMM기존레코드있음_update호출() {
+        // given: BITEMM 원본 1건 + 기존 BBUGTM 레코드 존재 → existing.isPresent()=true 분기
+        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("237", 80);
+        BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
+
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bitemm item = org.mockito.Mockito.mock(Bitemm.class);
+        given(item.getGclMngNo()).willReturn("GCL-0001");
+        given(item.getGclSno()).willReturn(1);
+        given(item.getIoeC()).willReturn("001");
+        given(item.getGclAmt()).willReturn(BigDecimal.valueOf(500_000));
+        given(item.getXcr()).willReturn(BigDecimal.ONE);
+
+        // 기존 BBUGTM 레코드 존재 (BITEMM 경로에서 UPDATE 분기)
+        Bbugtm existingBugtm = org.mockito.Mockito.mock(Bbugtm.class);
+
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026"))).willReturn(List.of());
+        given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026"))).willReturn(List.of(item));
+        // BITEMM 경로: existing 있음
+        given(bbugtmRepository.findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
+                eq("2026"), eq("BITEMM"), eq("GCL-0001"), eq(1), eq("001"), eq("N")))
+                .willReturn(Optional.of(existingBugtm));
+
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        mockEmptyDetailCodes();
+
+        // when
+        BudgetWorkDto.ApplyResponse result = budgetWorkService.applyRates(request);
+
+        // then: 1건 처리, existingBugtm.update() 호출 확인
+        assertThat(result.totalRecords()).isEqualTo(1);
+        verify(existingBugtm).update(any(BigDecimal.class), any(Integer.class));
+    }
+
+    // =========================================================================
+    // resolveProjectSummaryCategoryName — 세부코드 matchedGroupName=null/blank 분기
+    // =========================================================================
+
+    @Test
+    @DisplayName("getProjectSummary: IOE 세부코드 groupName이 blank이면 dupCode cNm을 컬럼명으로 사용한다")
+    void getProjectSummary_세부코드groupName_blank_cNm폴백() {
+        // resolveIoeGroupName: cTpDes=null, cdvaDtl=null, cdvaDes=null → null 반환
+        // resolveProjectSummaryCategoryName: groupName null/blank → dupCode.getCNm() 폴백
+        Ccodem dupCode = Ccodem.builder().cNm("전산제비용폴백").cdva("304").build();
+        Ccodem ioeCode = Ccodem.builder()
+                .cdva("007").cNm("304-0100").cdvaDtlC("304-0100")
+                .cTpDes(null).cdvaDtl(null).cdvaDes(null).cdvaNm(null).cdvaNm(null)
+                .build();
+        Bbugtm budget = Bbugtm.builder()
+                .orcTb("BCOSTM").orcPkVl("COST-003")
+                .ioeC("007").dupBg(BigDecimal.valueOf(100)).dupRt(50)
+                .build();
+        Bcostm cost = org.mockito.Mockito.mock(Bcostm.class);
+        given(cost.getCttNm()).willReturn("계약C");
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(costRepository.findByItMngcNoAndDelYn("COST-003", "N")).willReturn(List.of(cost));
+
+        // when
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        // then: resolveProjectSummaryCategoryName → groupName blank → dupCode.getCNm() 반환
+        assertThat(result.categories()).hasSize(1);
+        assertThat(result.categories().get(0).cdNm()).isEqualTo("전산제비용폴백");
+    }
+
     @Test
     @DisplayName("getProjectSummary: 매핑이 없으면 원본 PK를 이름으로 사용하고 금액 역산은 건너뛴다")
     void getProjectSummary_이름폴백과금액역산건너뜀() {
@@ -758,9 +1004,9 @@ class BudgetWorkServiceTest {
                 .orcTb("UNKNOWN").orcPkVl("UNK-1")
                 .ioeC("NO-MATCH").dupBg(BigDecimal.ONE).dupRt(50)
                 .build();
-        Ccodem ioeCode0 = Ccodem.builder().cdva("100").cNm("237-0000").build();
-        Ccodem ioeCode1 = Ccodem.builder().cdva("101").cNm("237-0100").build();
-        Ccodem ioeCode2 = Ccodem.builder().cdva("102").cNm("237-0200").build();
+        Ccodem ioeCode0 = Ccodem.builder().cdva("100").cNm("237-0000").cdvaDtlC("237-0000").build();
+        Ccodem ioeCode1 = Ccodem.builder().cdva("101").cNm("237-0100").cdvaDtlC("237-0100").build();
+        Ccodem ioeCode2 = Ccodem.builder().cdva("102").cNm("237-0200").cdvaDtlC("237-0200").build();
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode0, ioeCode1, ioeCode2));
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N"))
