@@ -4,6 +4,7 @@ import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.MetadataResponse;
 import com.kdb.it.common.system.tiptap.util.TiptapTokenParser;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.status.repository.BudgetStatusQueryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,13 +23,14 @@ import static org.mockito.Mockito.when;
 class TiptapVariableServiceTest {
 
     @Mock private ProjectRepository projectRepository;
+    @Mock private BudgetStatusQueryRepository budgetStatusRepository;
 
     private TiptapVariableService service;
 
     @BeforeEach
     void setUp() {
-        // Task 4에서 budgetStatusRepository 인수 추가됨
-        service = new TiptapVariableService(new TiptapTokenParser(), projectRepository, null);
+        // Task 4 채워질 예정 — 현재 호출 없음
+        service = new TiptapVariableService(new TiptapTokenParser(), projectRepository, budgetStatusRepository);
     }
 
     @Test
