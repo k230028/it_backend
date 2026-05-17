@@ -406,4 +406,7 @@ public class Bprojm extends BaseEntity {
         this.pulDtt = pulDtt;
         this.cncdPrjMngNo = cncdPrjMngNo;
     }
+
+    /** 드롭다운/참조용 경량 DTO. */
+    public record Ref(String code, String name) {}
 }
