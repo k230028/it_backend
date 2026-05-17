@@ -62,4 +62,12 @@ class TiptapTokenParserTest {
         assertThat(parser.parse("2026.capBudget.allocatedAmount").category()).isEqualTo(Category.CAP_BUDGET);
         assertThat(parser.parse("2026.opex.allocatedAmount").category()).isEqualTo(Category.OPEX);
     }
+
+    @Test
+    @DisplayName("null 또는 빈 토큰 → INVALID")
+    void parse_nullOrBlank_returnsInvalid() {
+        assertThat(parser.parse(null).valid()).isFalse();
+        assertThat(parser.parse("   ").valid()).isFalse();
+        assertThat(parser.parse("").valid()).isFalse();
+    }
 }

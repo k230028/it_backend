@@ -2,7 +2,6 @@ package com.kdb.it.common.system.tiptap.util;
 
 import org.springframework.stereotype.Component;
 
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,9 +34,6 @@ public class TiptapTokenParser {
     private static final Pattern PROJ_PATTERN =
             Pattern.compile("^(\\d{4})\\.proj\\.([A-Z0-9_-]+)\\.(requestAmount|allocatedAmount|allocationRate)$");
 
-    private static final Set<String> ALLOWED_ITEMS =
-            Set.of("requestAmount", "allocatedAmount", "allocationRate");
-
     public ParseResult parse(String token) {
         if (token == null || token.isBlank()) {
             return ParseResult.invalid();
@@ -48,7 +44,6 @@ public class TiptapTokenParser {
             int year = Integer.parseInt(nonProj.group(1));
             Category category = mapCategory(nonProj.group(2));
             String item = nonProj.group(3);
-            if (!ALLOWED_ITEMS.contains(item)) return ParseResult.invalid();
             return new ParseResult(true, year, category, null, item);
         }
 
@@ -57,7 +52,6 @@ public class TiptapTokenParser {
             int year = Integer.parseInt(proj.group(1));
             String projectCode = proj.group(2);
             String item = proj.group(3);
-            if (!ALLOWED_ITEMS.contains(item)) return ParseResult.invalid();
             return new ParseResult(true, year, Category.PROJ, projectCode, item);
         }
 
@@ -69,7 +63,7 @@ public class TiptapTokenParser {
             case "itBudget"  -> Category.IT_BUDGET;
             case "capBudget" -> Category.CAP_BUDGET;
             case "opex"      -> Category.OPEX;
-            default          -> Category.PROJ;
+            default          -> throw new IllegalArgumentException("알 수 없는 카테고리 리터럴: " + literal);
         };
     }
 }
