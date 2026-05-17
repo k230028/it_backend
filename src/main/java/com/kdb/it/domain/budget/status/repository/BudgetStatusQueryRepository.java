@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.status.repository;
 
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
+import com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount;
 
 import java.util.List;
 
@@ -45,4 +46,38 @@ public interface BudgetStatusQueryRepository {
      * @return 경상사업별 기계장치/기타무형자산 상세 목록
      */
     List<BudgetStatusDto.OrdinaryResponse> findOrdinaryStatus(String bgYy);
+
+    /**
+     * 카테고리·연도 기준 편성요청액·편성액 합계 조회 (Tiptap 변수 해석 전용)
+     *
+     * <p>
+     * 카테고리 코드별 매핑:
+     * <ul>
+     *   <li>{@code IT_BUDGET} → 정보화사업({@code BPROJM.ORN_YN!='Y'})의 BITEMM 금액 합계 + 매핑된 BBUGTM 편성예산</li>
+     *   <li>{@code CAP_BUDGET} → 경상사업({@code BPROJM.ORN_YN='Y'})의 BITEMM 금액 합계 + 매핑된 BBUGTM 편성예산</li>
+     *   <li>{@code OPEX} → 전산업무비({@code BCOSTM})의 IT_MNGC_BG 합계 + 매핑된 BBUGTM 편성예산</li>
+     * </ul>
+     * 데이터가 전혀 없으면 {@code AggregatedAmount(null, null)}을 반환합니다.
+     * </p>
+     *
+     * @param year         예산년도 (예: 2026)
+     * @param categoryCode 카테고리 코드 ({@code IT_BUDGET} | {@code CAP_BUDGET} | {@code OPEX})
+     * @return 편성요청액·편성액 합계 (원 단위)
+     */
+    AggregatedAmount aggregateByCategory(int year, String categoryCode);
+
+    /**
+     * 사업·연도 기준 편성요청액·편성액 합계 조회 (Tiptap 변수 해석 전용)
+     *
+     * <p>
+     * 특정 정보화사업({@code BPROJM.PRJ_MNG_NO=projectCode}, {@code LST_YN='Y'})의
+     * BITEMM 금액 합계 + 매핑된 BBUGTM 편성예산을 반환합니다.
+     * 데이터가 없으면 {@code AggregatedAmount(null, null)}을 반환합니다.
+     * </p>
+     *
+     * @param year        예산년도 (예: 2026)
+     * @param projectCode 정보화사업 관리번호 (예: {@code PRJ-2026-0001})
+     * @return 편성요청액·편성액 합계 (원 단위)
+     */
+    AggregatedAmount aggregateByProject(int year, String projectCode);
 }

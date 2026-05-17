@@ -6,6 +6,7 @@ import com.kdb.it.domain.budget.cost.entity.QBcostm;
 import com.kdb.it.domain.budget.project.entity.QBitemm;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
+import com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount;
 import com.kdb.it.domain.budget.work.entity.QBbugtm;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -381,6 +382,183 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                     t.get(intanCur), iQtt, iUnitPrice, iAmt, nvl(t.get(intanAmtKrw))
             );
         }).toList();
+    }
+
+    /**
+     * 카테고리·연도 기준 편성요청액·편성액 합계 조회 (Tiptap 변수 해석 전용)
+     *
+     * <p>
+     * 카테고리별 SoT:
+     * <ul>
+     *   <li>{@code IT_BUDGET} / {@code CAP_BUDGET} → {@code BPROJM}({@code ORN_YN!='Y'} 또는 {@code 'Y'}, {@code LST_YN='Y'})
+     *       LEFT JOIN {@code BITEMM} 합산 ({@code GCL_AMT * COALESCE(XCR, 1)}).
+     *       편성액은 {@code BBUGTM}({@code ORC_TB='BITEMM'}) {@code DUP_BG} 합산.</li>
+     *   <li>{@code OPEX} → {@code BCOSTM}({@code LST_YN='Y'}) {@code IT_MNGC_BG} 합산.
+     *       편성액은 {@code BBUGTM}({@code ORC_TB='BCOSTM'}) {@code DUP_BG} 합산.</li>
+     * </ul>
+     * 두 합계 모두 0이거나 null이면 {@code AggregatedAmount(null, null)}을 반환합니다(MISSING 판정용).
+     * </p>
+     *
+     * @param year         예산년도
+     * @param categoryCode 카테고리 코드 ({@code IT_BUDGET} | {@code CAP_BUDGET} | {@code OPEX})
+     * @return 편성요청액·편성액 합계 (원 단위)
+     */
+    @Override
+    public AggregatedAmount aggregateByCategory(int year, String categoryCode) {
+        String bgYy = String.valueOf(year);
+        return switch (categoryCode) {
+            case "IT_BUDGET" -> aggregateProjectsByOrn(bgYy, false);
+            case "CAP_BUDGET" -> aggregateProjectsByOrn(bgYy, true);
+            case "OPEX" -> aggregateCosts(bgYy);
+            default -> new AggregatedAmount(null, null);
+        };
+    }
+
+    /**
+     * 사업·연도 기준 편성요청액·편성액 합계 조회 (Tiptap 변수 해석 전용)
+     *
+     * <p>
+     * 특정 {@code PRJ_MNG_NO}의 {@code BITEMM} 금액 합계와 매핑된 {@code BBUGTM} 편성예산 합계를 반환합니다.
+     * 두 합계 모두 0이거나 null이면 {@code AggregatedAmount(null, null)}을 반환합니다.
+     * </p>
+     *
+     * @param year        예산년도
+     * @param projectCode 정보화사업 관리번호 (예: {@code PRJ-2026-0001})
+     * @return 편성요청액·편성액 합계 (원 단위)
+     */
+    @Override
+    public AggregatedAmount aggregateByProject(int year, String projectCode) {
+        String bgYy = String.valueOf(year);
+        QBprojm p = QBprojm.bprojm;
+        QBitemm i = QBitemm.bitemm;
+        QBbugtm b = QBbugtm.bbugtm;
+
+        // 편성요청액: BITEMM.gclAmt * COALESCE(xcr, 1) 합계 — 해당 사업의 최신 버전·미삭제 품목 대상
+        BigDecimal requestSum = queryFactory
+                .select(Expressions.numberTemplate(BigDecimal.class,
+                        "COALESCE(SUM({0} * COALESCE({1}, 1)), 0)", i.gclAmt, i.xcr))
+                .from(p)
+                .join(i).on(
+                        i.prjMngNo.eq(p.prjMngNo),
+                        i.prjSno.eq(p.prjSno),
+                        i.delYn.eq("N"),
+                        i.lstYn.eq("Y"))
+                .where(
+                        p.prjMngNo.eq(projectCode),
+                        p.bgYy.eq(bgYy),
+                        p.delYn.eq("N"),
+                        p.lstYn.eq("Y"))
+                .fetchOne();
+
+        // 편성액: BBUGTM.dupBg 합계 — 해당 사업의 BITEMM(gclMngNo)을 통해 매핑된 편성예산
+        BigDecimal allocatedSum = queryFactory
+                .select(b.dupBg.sum().coalesce(BigDecimal.ZERO))
+                .from(b)
+                .join(i).on(
+                        i.gclMngNo.eq(b.orcPkVl),
+                        i.delYn.eq("N"),
+                        i.lstYn.eq("Y"))
+                .where(
+                        b.orcTb.eq("BITEMM"),
+                        b.bgYy.eq(bgYy),
+                        b.delYn.eq("N"),
+                        i.prjMngNo.eq(projectCode))
+                .fetchOne();
+
+        return toAggregated(requestSum, allocatedSum);
+    }
+
+    /**
+     * 정보화사업/경상사업 합계 집계 (카테고리 IT_BUDGET/CAP_BUDGET 공용).
+     *
+     * @param bgYy        예산년도 문자열 (예: "2026")
+     * @param ornYnEquals true이면 {@code ORN_YN='Y'}(경상=자본), false이면 {@code ORN_YN!='Y'}(정보화)
+     */
+    private AggregatedAmount aggregateProjectsByOrn(String bgYy, boolean ornYnEquals) {
+        QBprojm p = QBprojm.bprojm;
+        QBitemm i = QBitemm.bitemm;
+        QBbugtm b = QBbugtm.bbugtm;
+
+        BooleanExpression ornFilter = ornYnEquals ? p.ornYn.eq("Y") : p.ornYn.ne("Y");
+
+        BigDecimal requestSum = queryFactory
+                .select(Expressions.numberTemplate(BigDecimal.class,
+                        "COALESCE(SUM({0} * COALESCE({1}, 1)), 0)", i.gclAmt, i.xcr))
+                .from(p)
+                .join(i).on(
+                        i.prjMngNo.eq(p.prjMngNo),
+                        i.prjSno.eq(p.prjSno),
+                        i.delYn.eq("N"),
+                        i.lstYn.eq("Y"))
+                .where(
+                        p.bgYy.eq(bgYy),
+                        ornFilter,
+                        p.delYn.eq("N"),
+                        p.lstYn.eq("Y"))
+                .fetchOne();
+
+        BigDecimal allocatedSum = queryFactory
+                .select(b.dupBg.sum().coalesce(BigDecimal.ZERO))
+                .from(b)
+                .join(i).on(
+                        i.gclMngNo.eq(b.orcPkVl),
+                        i.delYn.eq("N"),
+                        i.lstYn.eq("Y"))
+                .join(p).on(
+                        p.prjMngNo.eq(i.prjMngNo),
+                        p.prjSno.eq(i.prjSno),
+                        p.delYn.eq("N"),
+                        p.lstYn.eq("Y"))
+                .where(
+                        b.orcTb.eq("BITEMM"),
+                        b.bgYy.eq(bgYy),
+                        b.delYn.eq("N"),
+                        ornFilter)
+                .fetchOne();
+
+        return toAggregated(requestSum, allocatedSum);
+    }
+
+    /**
+     * 전산업무비(BCOSTM) 합계 집계 (카테고리 OPEX).
+     */
+    private AggregatedAmount aggregateCosts(String bgYy) {
+        QBcostm c = QBcostm.bcostm;
+        QBbugtm b = QBbugtm.bbugtm;
+
+        BigDecimal requestSum = queryFactory
+                .select(c.itMngcBg.sum().coalesce(BigDecimal.ZERO))
+                .from(c)
+                .where(
+                        c.bgYy.eq(bgYy),
+                        c.delYn.eq("N"),
+                        c.lstYn.eq("Y"))
+                .fetchOne();
+
+        BigDecimal allocatedSum = queryFactory
+                .select(b.dupBg.sum().coalesce(BigDecimal.ZERO))
+                .from(b)
+                .where(
+                        b.orcTb.eq("BCOSTM"),
+                        b.bgYy.eq(bgYy),
+                        b.delYn.eq("N"))
+                .fetchOne();
+
+        return toAggregated(requestSum, allocatedSum);
+    }
+
+    /**
+     * BigDecimal 합계를 Long으로 변환합니다. 두 값 모두 null 또는 0이면 {@code (null, null)}을 반환하여 MISSING으로 분기되도록 합니다.
+     */
+    private AggregatedAmount toAggregated(BigDecimal requestSum, BigDecimal allocatedSum) {
+        boolean requestEmpty = requestSum == null || requestSum.signum() == 0;
+        boolean allocatedEmpty = allocatedSum == null || allocatedSum.signum() == 0;
+        if (requestEmpty && allocatedEmpty) {
+            return new AggregatedAmount(null, null);
+        }
+        return new AggregatedAmount(
+                requestEmpty ? null : requestSum.longValueExact(),
+                allocatedEmpty ? null : allocatedSum.longValueExact());
     }
 
     // ===== 헬퍼 메서드 =====

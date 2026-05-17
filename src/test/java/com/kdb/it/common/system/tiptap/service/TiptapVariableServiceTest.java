@@ -85,4 +85,45 @@ class TiptapVariableServiceTest {
         response.categories().forEach(c ->
                 assertThat(c.years()).containsExactly(now - 2, now - 1, now, now + 1, now + 2));
     }
+
+    @Test
+    @DisplayName("resolve — 잘못된 토큰은 INVALID 반환")
+    void resolve_invalidToken_returnsInvalid() {
+        var response = service.resolve(java.util.List.of("not-a-valid-token"));
+        assertThat(response.results().get("not-a-valid-token").status()).isEqualTo("INVALID");
+    }
+
+    @Test
+    @DisplayName("resolve — 데이터 없으면 MISSING 반환")
+    void resolve_noData_returnsMissing() {
+        when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(null, null));
+
+        var response = service.resolve(java.util.List.of("2026.itBudget.requestAmount"));
+        assertThat(response.results().get("2026.itBudget.requestAmount").status()).isEqualTo("MISSING");
+    }
+
+    @Test
+    @DisplayName("resolve — 정상 토큰은 OK + 포맷된 값 반환 (억원 단위)")
+    void resolve_okToken_returnsFormattedValue() {
+        when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                        90_000_000_000L, 85_000_000_000L));
+
+        var response = service.resolve(java.util.List.of("2026.itBudget.requestAmount"));
+        var resolved = response.results().get("2026.itBudget.requestAmount");
+        assertThat(resolved.status()).isEqualTo("OK");
+        assertThat(resolved.value()).isEqualTo("900억원");
+    }
+
+    @Test
+    @DisplayName("resolve — 편성률은 % 단위로 포맷")
+    void resolve_allocationRate_returnsPercent() {
+        when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                        100_000_000_000L, 85_300_000_000L));
+
+        var response = service.resolve(java.util.List.of("2026.itBudget.allocationRate"));
+        assertThat(response.results().get("2026.itBudget.allocationRate").value()).isEqualTo("85.3%");
+    }
 }

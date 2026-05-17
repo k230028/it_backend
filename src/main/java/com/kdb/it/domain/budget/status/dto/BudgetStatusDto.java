@@ -130,4 +130,15 @@ public class BudgetStatusDto {
             BigDecimal intanAmt,
             BigDecimal intanAmtKrw
     ) {}
+
+    /**
+     * Tiptap 변수 해석용 집계 금액 DTO
+     *
+     * <p>편성요청액과 편성액 합계를 원(KRW) 단위 정수로 표현합니다.
+     * 데이터가 없으면 두 값 모두 {@code null}이 될 수 있습니다.</p>
+     *
+     * @param requestSum   편성요청액 합계 (원). 데이터 없으면 null
+     * @param allocatedSum 편성액 합계 (원). 데이터 없으면 null
+     */
+    public record AggregatedAmount(Long requestSum, Long allocatedSum) {}
 }
