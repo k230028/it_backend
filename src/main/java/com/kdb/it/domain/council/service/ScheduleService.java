@@ -170,7 +170,7 @@ public class ScheduleService {
             Map<String, CuserI> userMap,
             Set<String> respondedEnos) {
 
-        if (!"INFO_SYS".equals(dbrTp)) {
+        if (!"003".equals(dbrTp)) {  // INFO_SYS
             // INFO_SYS 외 타입: 전원 응답 기준
             return !members.isEmpty() && respondedEnos.size() >= members.size();
         }
@@ -267,7 +267,7 @@ public class ScheduleService {
                 .confirmSchedule(request.cnrcDt(), request.cnrcTm(), request.cnrcPlc());
 
         // 협의회 상태 전이: PREPARING → SCHEDULED
-        councilService.changeStatus(asctId, "SCHEDULED");
+        councilService.changeStatus(asctId, "006");
     }
 
     // =========================================================================

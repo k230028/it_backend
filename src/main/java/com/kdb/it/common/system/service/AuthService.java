@@ -255,6 +255,51 @@ public class AuthService {
     }
 
     /**
+     * 개발 편의용 사용자 전환 토큰 발급
+     *
+     * <p>비밀번호 검증 없이 지정 사번으로 Access/Refresh 토큰을 재발급합니다.
+     * {@code DevAuthController}의 사용자 전환 팝업에서만 호출되며, 운영 환경에서는
+     * {@code app.dev.user-switch.enabled=false}로 컨트롤러 자체를 비활성화해야 합니다.</p>
+     *
+     * <p>로그인 이력에는 IP/User-Agent를 {@code "DEV-SWITCH"} 값으로 남겨 일반 로그인,
+     * SSO 로그인과 구분합니다.</p>
+     *
+     * @param eno 전환 대상 사번
+     * @return 쿠키 발급에 사용할 로그인 응답 DTO
+     * @throws RuntimeException 사번에 해당하는 사용자가 없는 경우
+     */
+    @Transactional
+    public AuthDto.LoginResponse issueDevSwitchTokens(String eno) {
+        CuserI user = userRepository.findByEno(eno)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + eno));
+
+        List<String> athIds = loadAthIds(eno);
+
+        String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
+        String refreshTokenValue = jwtUtil.generateRefreshToken(eno);
+
+        refreshTokenRepository.deleteByEno(eno);
+        Crtokm refreshToken = Crtokm.builder()
+                .tok(refreshTokenValue)
+                .eno(eno)
+                .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
+                .build();
+        refreshTokenRepository.save(refreshToken);
+
+        recordLoginSuccess(eno, "DEV-SWITCH", "DEV-SWITCH");
+
+        return AuthDto.LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenValue)
+                .eno(eno)
+                .empNm(user.getUsrNm())
+                .athIds(athIds)
+                .bbrC(user.getBbrC())
+                .temC(user.getTemC())
+                .build();
+    }
+
+    /**
      * SSO 인증 완료 후 애플리케이션 JWT와 화면 복원용 사용자 정보를 발급합니다.
      *
      * <p>일반 로그인과 달리 비밀번호 검증을 하지 않습니다. 이 메서드는 반드시

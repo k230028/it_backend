@@ -61,17 +61,17 @@ public class FeasibilityService {
 
     // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM 기준)
     private static final Map<String, String> CHECK_ITEM_NAMES = Map.of(
-        "MGMT_STR", "경영전략/계획 부합",
-        "FIN_EFC",  "재무 효과",
-        "RISK_IMP", "리스크 개선 효과",
-        "REP_IMP",  "평판/이미지 개선 효과",
-        "DUP_SYS",  "유사/중복 시스템 유무",
-        "ETC",      "기타"
+        "001", "경영전략/계획 부합",
+        "002", "재무 효과",
+        "003", "리스크 개선 효과",
+        "004", "평판/이미지 개선 효과",
+        "005", "유사/중복 시스템 유무",
+        "006", "기타"
     );
 
-    // 6개 고정 점검항목 순서
+    // 6개 고정 점검항목 순서 (CKG_ITM 숫자코드)
     private static final List<String> CHECK_ITEM_ORDER =
-        List.of("MGMT_STR", "FIN_EFC", "RISK_IMP", "REP_IMP", "DUP_SYS", "ETC");
+        List.of("001", "002", "003", "004", "005", "006");
 
     // =========================================================================
     // 조회
@@ -146,7 +146,7 @@ public class FeasibilityService {
 
         // 작성완료 시 상태 전이: DRAFT → SUBMITTED
         if ("COMPLETE".equals(request.kpnTp())) {
-            councilService.changeStatus(asctId, "SUBMITTED");
+            councilService.changeStatus(asctId, "002");
         }
     }
 

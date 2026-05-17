@@ -48,18 +48,18 @@ public class CommitteeService {
 
     // 심의유형별 당연위원 팀코드 매핑 (TEM_C 기준, Design §2.4)
     private static final Map<String, List<String>> MANDATORY_TEM_CODES = Map.of(
-        "INFO_SYS", List.of("12004", "18010", "18501", "18301"),
-        "INFO_SEC", List.of("12004", "18001", "18010", "18501"),
-        "ETC",      List.of("12004", "18010", "18501")
+        "003", List.of("12004", "18010", "18501", "18301"),  // INFO_SYS
+        "004", List.of("12004", "18001", "18010", "18501"),  // INFO_SEC
+        "005", List.of("12004", "18010", "18501")            // ETC
     );
 
     // 심의유형별 간사 팀코드 매핑 (TEM_C 기준)
-    // INFO_SYS / ETC: IT기획(18001) → 간사
-    // INFO_SEC: 정보보호기획(18301) → 간사
+    // 003(INFO_SYS) / 005(ETC): IT기획(18001) → 간사
+    // 004(INFO_SEC): 정보보호기획(18301) → 간사
     private static final Map<String, List<String>> SECRETARY_TEM_CODES = Map.of(
-        "INFO_SYS", List.of("18001"),
-        "INFO_SEC", List.of("18301"),
-        "ETC",      List.of("18001")
+        "003", List.of("18001"),  // INFO_SYS
+        "004", List.of("18301"),  // INFO_SEC
+        "005", List.of("18001")   // ETC
     );
 
     /** INFO_SYS 일정 확정 필수 응답 팀코드 (예산:12004, IT기획:18001) */
@@ -96,7 +96,7 @@ public class CommitteeService {
                     .findFirst()
                     .orElse(users.get(0));
 
-            result.add(toMemberResponse(candidate, "MAND"));
+            result.add(toMemberResponse(candidate, "001"));
         }
 
         // 간사(SECR) 자동 배정
@@ -111,7 +111,7 @@ public class CommitteeService {
                     .findFirst()
                     .orElse(users.get(0));
 
-            result.add(toMemberResponse(candidate, "SECR"));
+            result.add(toMemberResponse(candidate, "003"));
         }
 
         return result;
@@ -142,9 +142,9 @@ public class CommitteeService {
             CouncilDto.CommitteeMemberResponse resp = toMemberResponseFromEntity(m, user);
 
             switch (m.getVlrTp()) {
-                case "MAND" -> mandatory.add(resp);
-                case "CALL" -> call.add(resp);
-                case "SECR" -> secretary.add(resp);
+                case "001" -> mandatory.add(resp);  // MAND
+                case "002" -> call.add(resp);        // CALL
+                case "003" -> secretary.add(resp);   // SECR
             }
         }
 
@@ -186,8 +186,8 @@ public class CommitteeService {
         // 협의회 상태 전이: APPROVED → PREPARING (위원 선정 완료)
         // 이미 PREPARING 이후 상태(SCHEDULED, IN_PROGRESS 등)이면 상태를 되돌리지 않음
         // (일정 확정 후 위원 수정 시 SCHEDULED → PREPARING 역전이 방지)
-        if ("APPROVED".equals(council.getAsctSts())) {
-            councilService.changeStatus(asctId, "PREPARING");
+        if ("004".equals(council.getAsctSts())) {
+            councilService.changeStatus(asctId, "005");
         }
     }
 

@@ -121,8 +121,8 @@ public class ResultService {
         // EVALUATING: 구버전 평가의견 흐름 호환 처리
         // 참고: IN_PROGRESS → RESULT_WRITING 전이는 completeCouncil (PATCH /complete)에서 처리
         String currentStatus = councilService.findActiveCouncil(asctId).getAsctSts();
-        if ("EVALUATING".equals(currentStatus)) {
-            councilService.changeStatus(asctId, "RESULT_WRITING");
+        if ("008".equals(currentStatus)) {
+            councilService.changeStatus(asctId, "009");
         }
     }
 
@@ -145,7 +145,7 @@ public class ResultService {
                     "결과서가 아직 작성되지 않았습니다. 결과서를 먼저 저장해 주세요."));
 
         // 협의회 상태 전이: RESULT_WRITING → RESULT_REVIEW
-        councilService.changeStatus(asctId, "RESULT_REVIEW");
+        councilService.changeStatus(asctId, "010");
     }
 
     /**
@@ -164,9 +164,9 @@ public class ResultService {
     public void reviewResult(String asctId, CustomUserDetails userDetails) {
         // RESULT_REVIEW 상태 검증
         var council = councilService.findActiveCouncil(asctId);
-        if (!"RESULT_REVIEW".equals(council.getAsctSts())) {
+        if (!"010".equals(council.getAsctSts())) {
             throw new IllegalStateException(
-                "결과서 검토 확인은 RESULT_REVIEW 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+                "결과서 검토 확인은 결과서 검토 중(010) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
         }
 
         // 위원 레코드 조회 — SECR 제외 검증
@@ -174,8 +174,8 @@ public class ResultService {
                 .findByAsctIdAndEnoAndDelYn(asctId, userDetails.getEno(), "N")
                 .orElseThrow(() -> new SecurityException("해당 협의회의 평가위원이 아닙니다."));
 
-        if ("SECR".equals(member.getVlrTp())) {
-            throw new SecurityException("간사(SECR)는 결과서 검토 확인 대상이 아닙니다.");
+        if ("003".equals(member.getVlrTp())) {
+            throw new SecurityException("간사(003)는 결과서 검토 확인 대상이 아닙니다.");
         }
 
         // 결과서 확인 완료 처리 (CNFM_YN = 'Y')
@@ -184,14 +184,14 @@ public class ResultService {
         // 전체 MAND+CALL 위원의 CNFM_YN 확인 → 전원 'Y'이면 FINAL_APPROVAL 자동 전이
         List<Bcmmtm> evaluators = committeeRepository.findByAsctIdAndDelYn(asctId, "N")
                 .stream()
-                .filter(m -> !"SECR".equals(m.getVlrTp()))
+                .filter(m -> !"003".equals(m.getVlrTp()))
                 .toList();
 
         boolean allConfirmed = !evaluators.isEmpty()
                 && evaluators.stream().allMatch(m -> "Y".equals(m.getCnfmYn()));
 
         if (allConfirmed) {
-            councilService.changeStatus(asctId, "FINAL_APPROVAL");
+            councilService.changeStatus(asctId, "011");
         }
     }
 

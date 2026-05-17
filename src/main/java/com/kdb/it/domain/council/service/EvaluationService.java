@@ -52,17 +52,17 @@ public class EvaluationService {
 
     // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM 기준)
     private static final Map<String, String> CHECK_ITEM_NAMES = Map.of(
-        "MGMT_STR", "경영전략/계획 부합",
-        "FIN_EFC",  "재무 효과",
-        "RISK_IMP", "리스크 개선 효과",
-        "REP_IMP",  "평판/이미지 개선 효과",
-        "DUP_SYS",  "유사/중복 시스템 유무",
-        "ETC",      "기타"
+        "001", "경영전략/계획 부합",
+        "002", "재무 효과",
+        "003", "리스크 개선 효과",
+        "004", "평판/이미지 개선 효과",
+        "005", "유사/중복 시스템 유무",
+        "006", "기타"
     );
 
-    // 6개 고정 점검항목 순서
+    // 6개 고정 점검항목 순서 (CKG_ITM 숫자코드)
     private static final List<String> CHECK_ITEM_ORDER =
-        List.of("MGMT_STR", "FIN_EFC", "RISK_IMP", "REP_IMP", "DUP_SYS", "ETC");
+        List.of("001", "002", "003", "004", "005", "006");
 
     // =========================================================================
     // 조회
@@ -192,15 +192,14 @@ public class EvaluationService {
         // 협의회 상태 전이: IN_PROGRESS → EVALUATING (첫 제출 시 1회만)
         // Plan SC: 이미 EVALUATING 이상이면 상태 전이 skip
         String currentStatus = councilService.findActiveCouncil(asctId).getAsctSts();
-        if ("IN_PROGRESS".equals(currentStatus)) {
-            councilService.changeStatus(asctId, "EVALUATING");
+        if ("007".equals(currentStatus)) {
+            councilService.changeStatus(asctId, "008");
         }
 
-        // 전원 제출 완료 시 EVALUATING → RESULT_WRITING 자동 전이
-        // 조건: 현재 상태가 EVALUATING이고, 모든 위원이 6개 항목을 전부 제출한 경우
-        if ("EVALUATING".equals(currentStatus) || "IN_PROGRESS".equals(currentStatus)) {
+        // 전원 제출 완료 시 008 → 009 자동 전이
+        if ("008".equals(currentStatus) || "007".equals(currentStatus)) {
             if (isAllMembersSubmitted(asctId)) {
-                councilService.changeStatus(asctId, "RESULT_WRITING");
+                councilService.changeStatus(asctId, "009");
             }
         }
     }
