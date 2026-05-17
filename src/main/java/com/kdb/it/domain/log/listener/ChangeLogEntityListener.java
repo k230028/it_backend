@@ -73,7 +73,7 @@ public class ChangeLogEntityListener {
             AuditLogPersister persister = ApplicationContextHolder.getBean(AuditLogPersister.class);
             persister.persist(entity, logClass, chgTp);
         } catch (Exception e) {
-            // FIXME: [B-C-01] ê°ì¬ë¡ê·¸ ì¤í¨ ì warn ë ë²¨ + ì¤í í¸ë ì´ì¤ íì. ì¸íë¼ ì¤ë¥ë ë³ë ìë ì±ë ê³ ë ¤.
+            // FIXME: [B-C-01] 감사로그 실패 시 warn 로그에 스택 트레이스를 포함하고, 반복 인프라 오류는 별도 알림 채널 연계를 검토한다.
             // 감사로그 실패가 본 업무 트랜잭션을 롤백시키지 않도록 예외를 삼킨다.
             // 시퀀스 미생성(ORA-02289) 등 인프라 오류 시 본 작업은 정상 완료되어야 한다.
             log.warn("[감사로그 기록 실패] entity={}, logClass={}, chgTp={}, reason={}",
@@ -90,7 +90,7 @@ public class ChangeLogEntityListener {
             delYnField.setAccessible(true);
             return "Y".equals(delYnField.get(entity)) ? "D" : "U";
         } catch (IllegalAccessException e) {
-            // FIXME: [B-C-02] delYn 리플렉션 실패 시 반드시 warn 로그 + 원인 예외 포함.
+            // FIXME: [B-C-02] delYn 리플렉션 실패 시 warn 로그에 원인 예외를 포함해 삭제 판정 실패를 추적한다.
             return "U";
         }
     }

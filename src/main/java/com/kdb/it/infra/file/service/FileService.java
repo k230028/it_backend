@@ -403,7 +403,7 @@ public class FileService {
                 Cfilem saved = uploadFileInternal(file, request);
                 successList.add(toResponse(saved));
             } catch (Exception e) {
-                // TODO: [B-H-01] log.warn("파일 업로드 실패: {}", file.getOriginalFilename(), e) �1� 스택 트레이스 포함 필요
+                // TODO: [B-H-01] 파일 업로드 실패 로그에 원본 파일명과 스택 트레이스를 포함해 실패 원인을 추적한다.
                 failList.add(file.getOriginalFilename() + " (" + e.getMessage() + ")");
             }
         }
@@ -526,7 +526,7 @@ public class FileService {
         try {
             resource = new UrlResource(filePath.toUri());
         } catch (MalformedURLException e) {
-                        // FIXME: [B-H-02] CustomGeneralException 생성 시 원본 예외를 cause로 전달 필요: new CustomGeneralException(msg, e)
+            // FIXME: [B-H-02] CustomGeneralException 생성 시 원본 예외를 cause로 전달한다: new CustomGeneralException(msg, e)
             throw new CustomGeneralException("파일 경로가 잘못되었습니다. 파일관리번호: " + flMngNo);
         }
 

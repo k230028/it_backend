@@ -984,6 +984,180 @@ class ProjectServiceTest {
                 assertThat(result).isEqualTo("PRJ-2026-0001");
         }
 
+        // ───────────────────────────────────────────────────────
+        // buildCodeNameMap — cdvas 필터 + merge 람다 커버
+        // ───────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("getProjectList: 배치 보강 시 buildCodeNameMap이 지정 cdvas만 필터링하여 코드명을 반환한다")
+        void buildCodeNameMap_cdvas필터와merge람다커버() {
+                // given: 두 개의 프로젝트 (prjTp="A" 중복 → merge lambda 트리거)
+                Bprojm project1 = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0001").prjSno(1).delYn("N").prjTp("A").build();
+                Bprojm project2 = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0002").prjSno(2).delYn("N").prjTp("A").build();
+
+                given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project1, project2));
+                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(anyString(), anyList()))
+                                .willReturn(List.of());
+                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
+                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
+                // ccodemRepository: prjTp="A" 코드명 반환 (cdva 필터 대상)
+                given(ccodemRepository.findByCIdWithValidDate(anyString(), any()))
+                                .willReturn(List.of(
+                                                Ccodem.builder().cdva("A").cNm("일반사업").build(),
+                                                Ccodem.builder().cdva("B").cNm("제외대상").build()));
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(anyString(), any(), anyString()))
+                                .willReturn(List.of());
+
+                // when
+                List<ProjectDto.Response> result = projectService.getProjectList();
+
+                // then: 두 프로젝트 모두 반환되며 prjTpNm이 "일반사업"으로 설정됨
+                assertThat(result).hasSize(2);
+                assertThat(result.get(0).getPrjTpNm()).isEqualTo("일반사업");
+                assertThat(result.get(1).getPrjTpNm()).isEqualTo("일반사업");
+        }
+
+        // ───────────────────────────────────────────────────────
+        // getProjectsByIds — bgYy 없음 분기 (편성예산 계산 skip)
+        // ───────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("getProjectsByIds: bgYy가 null이면 편성예산 계산을 건너뛰고 응답만 반환한다")
+        void getProjectsByIds_bgYy없음_편성예산skip() {
+                // given
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
+                given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(
+                                anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
+
+                ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+                request.setPrjMngNos(List.of(prjMngNo));
+                request.setBgYy(null); // bgYy 없음 → 편성예산 skip 분기
+
+                // when
+                List<ProjectDto.Response> result = projectService.getProjectsByIds(request);
+
+                // then: 프로젝트 반환, bbugtmRepository.sumDupBgByPrjMngNos 미호출
+                assertThat(result).hasSize(1);
+                assertThat(result.get(0).getPrjMngNo()).isEqualTo(prjMngNo);
+                org.mockito.Mockito.verify(bbugtmRepository, org.mockito.Mockito.never())
+                                .sumDupBgByPrjMngNos(anyList(), anyString());
+        }
+
+        // ───────────────────────────────────────────────────────
+        // enrichProjectListBatch — orgCodes/userEnos 없는 경우 분기 커버
+        // ───────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("getProjectList: cappla 있고 capplm 없으면 apfSts만 설정하지 않고 응답을 반환한다")
+        void getProjectList_cappla있고capplm없음_apfMngNo만설정() {
+                // given: cappla 있음, capplmRepository 반환 없음 → capplm == null 분기 커버
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0001").prjSno(1).delYn("N").build();
+                Cappla cappla = Cappla.builder()
+                                .apfMngNo("APF-NOCAPLM")
+                                .orcPkVl("PRJ-2026-0001")
+                                .orcSnoVl(1)
+                                .build();
+
+                given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(anyString(), anyList()))
+                                .willReturn(List.of(cappla));
+                // capplmRepository.findAllById → 빈 목록 → capplmMap.get() == null → capplm null 분기
+                given(capplmRepository.findAllById(anyList())).willReturn(List.of());
+                given(cdecimRepository.findByDcdMngNoInOrderByDcdSqnAsc(anyList())).willReturn(List.of());
+                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
+                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(anyString(), any(), anyString()))
+                                .willReturn(List.of());
+
+                // when
+                List<ProjectDto.Response> result = projectService.getProjectList();
+
+                // then: apfMngNo는 설정, apfSts는 null
+                assertThat(result).hasSize(1);
+                assertThat(result.get(0).getApfMngNo()).isEqualTo("APF-NOCAPLM");
+                assertThat(result.get(0).getApfSts()).isNull();
+        }
+
+        @Test
+        @DisplayName("getProjectList: bzDtt/tchnTp/mnUsr/rprSts/prjPulPtt/pulDtt 있는 프로젝트의 코드명을 배치 조회한다")
+        void getProjectList_추가코드필드_배치코드명조회() {
+                // given: 코드 필드가 모두 있는 프로젝트 → buildCodeNameMap 분기 다수 커버
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0001").prjSno(1).delYn("N")
+                                .prjTp("A").bzDtt("B1").tchnTp("C1")
+                                .mnUsr("D1").rprSts("E1").prjPulPtt("F1").pulDtt("G1")
+                                .build();
+
+                given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(anyString(), anyList()))
+                                .willReturn(List.of());
+                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
+                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
+                // ccodemRepository: 각 코드 반환
+                given(ccodemRepository.findByCIdWithValidDate(anyString(), any()))
+                                .willReturn(List.of(
+                                                Ccodem.builder().cdva("A").cNm("사업유형A").build(),
+                                                Ccodem.builder().cdva("B1").cNm("업무구분B1").build(),
+                                                Ccodem.builder().cdva("C1").cNm("기술유형C1").build(),
+                                                Ccodem.builder().cdva("D1").cNm("주요사용자D1").build(),
+                                                Ccodem.builder().cdva("E1").cNm("보고상태E1").build(),
+                                                Ccodem.builder().cdva("F1").cNm("추진가능F1").build(),
+                                                Ccodem.builder().cdva("G1").cNm("사업구분G1").build()));
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(anyString(), any(), anyString()))
+                                .willReturn(List.of());
+
+                // when
+                List<ProjectDto.Response> result = projectService.getProjectList();
+
+                // then: 프로젝트 1건 반환
+                assertThat(result).hasSize(1);
+                assertThat(result.get(0).getPrjTpNm()).isEqualTo("사업유형A");
+                assertThat(result.get(0).getBzDttNm()).isEqualTo("업무구분B1");
+        }
+
+        @Test
+        @DisplayName("getProjectList: itDpm/svnDpm 없는 프로젝트도 정상 처리된다")
+        void getProjectList_부서정보없음_정상처리() {
+                // given: 부서/담당자 정보가 null인 프로젝트 (enrichProjectListBatch null-check 분기 커버)
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo("PRJ-2026-0009").prjSno(1).delYn("N")
+                                .itDpm(null).svnDpm(null)
+                                .itDpmCgpr(null).itDpmTlr(null)
+                                .svnDpmCgpr(null).svnDpmTlr(null)
+                                .prjTp(null).bzDtt(null).tchnTp(null).mnUsr(null)
+                                .rprSts(null).prjPulPtt(null).pulDtt(null)
+                                .build();
+
+                given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(anyString(), anyList()))
+                                .willReturn(List.of());
+                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
+                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(anyString(), any(), anyString()))
+                                .willReturn(List.of());
+
+                // when
+                List<ProjectDto.Response> result = projectService.getProjectList();
+
+                // then
+                assertThat(result).hasSize(1);
+                assertThat(result.get(0).getPrjMngNo()).isEqualTo("PRJ-2026-0009");
+        }
+
         @Test
         @DisplayName("updateProject: 기존 품목의 마지막 금액 필드만 달라도 변경으로 판단한다")
         void updateProject_기존품목_금액만변경_버저닝저장() {

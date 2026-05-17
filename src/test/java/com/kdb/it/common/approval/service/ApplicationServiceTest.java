@@ -160,6 +160,21 @@ class ApplicationServiceTest {
                 .hasMessageContaining("결재 상태");
     }
 
+    @Test
+    @DisplayName("approve: 결재 상태가 빈 문자열이면 IllegalArgumentException을 던진다")
+    void approve_결재상태빈문자열_IllegalArgumentException발생() {
+        // Arrange: 결재 상태를 빈 문자열("")로 설정 — isEmpty() 분기를 별도 커버
+        Capplm capplm = mockCapplm();
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+        given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
+
+        // Act & Assert: 빈 문자열도 유효하지 않은 결재 상태
+        assertThatThrownBy(() -> applicationService.approve(APF_MNG_NO, approveRequest("E10001", "")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("결재 상태");
+    }
+
     // ───────────────────────────────────────────────────────
     // approve — 정상 케이스
     // ───────────────────────────────────────────────────────

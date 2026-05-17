@@ -423,7 +423,7 @@ class FileServiceTest {
                 .flDtt("첨부파일")
                 .build();
 
-        // RED: 현재 구현은 IOException을 cause 없이 새 예외로 래핑하므로 hasCauseInstanceOf 검증 실패
+        // 현재 구현: CustomGeneralException(메시지, e)로 IOException을 cause로 포함하여 래핑
         assertThatThrownBy(() -> fileService.uploadFileInternal(file, request))
                 .isInstanceOf(CustomGeneralException.class)
                 .hasCauseInstanceOf(IOException.class);
@@ -546,6 +546,38 @@ class FileServiceTest {
     // ───────────────────────────────────────────────────────
     // deleteFilesByOrc — 일부 파일 삭제 (3건 중 Soft Delete 3건)
     // ───────────────────────────────────────────────────────
+
+    // ───────────────────────────────────────────────────────
+    // uploadFileInternal — Files.copy IOException (파일 디스크 저장 실패)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("uploadFileInternal: getInputStream()이 IOException을 던지면 파일 저장 실패 예외가 cause 포함으로 반환된다")
+    void uploadFileInternal_파일copy실패_cause포함IOException(@TempDir java.nio.file.Path tempDir) throws Exception {
+        // Arrange: MultipartFile.getInputStream()이 IOException을 던지도록 mock 구성
+        // MockMultipartFile은 생성 시 바이트를 미리 읽으므로 mock(MultipartFile)을 사용한다
+        org.springframework.web.multipart.MultipartFile mockFile =
+                mock(org.springframework.web.multipart.MultipartFile.class);
+        given(mockFile.isEmpty()).willReturn(false);
+        given(mockFile.getOriginalFilename()).willReturn("report.pdf");
+        given(mockFile.getInputStream()).willThrow(new IOException("디스크 쓰기 시뮬레이션 오류"));
+
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        ReflectionTestUtils.setField(fileService, "instanceId", "SVR1");
+        ReflectionTestUtils.setField(fileService, "entityManager", entityManager);
+        given(fileRepository.getNextSequenceValue()).willReturn(99L);
+
+        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
+                .orcDtt("파일copy실패")
+                .flDtt("첨부파일")
+                .build();
+
+        // Act & Assert: Files.copy(inputStream, ...) → IOException → CustomGeneralException(메시지, e)
+        assertThatThrownBy(() -> fileService.uploadFileInternal(mockFile, request))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("파일 저장에 실패했습니다")
+                .hasCauseInstanceOf(IOException.class);
+    }
 
     @Test
     @DisplayName("deleteFilesByOrc: 3건 파일을 일괄 Soft Delete하고 3을 반환한다")

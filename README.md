@@ -28,7 +28,7 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 50개 테스트 파일 / ~350개 테스트 케이스 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 69개 테스트 파일 / 기존 결과 기준 787개 테스트 케이스 |
 
 ## 3. 아키텍처
 
@@ -62,7 +62,7 @@ Controller → Service → Repository → DB (Oracle)
 | **Properties 기반 CORS** | `application.properties`의 `cors.allowed-origins` 환경변수 제어 | 운영 배포 시 도메인 재빌드 불필요 |
 | **RBAC (자격등급 + 역할)** | `CauthI`(자격등급) + `CroleI`(역할 매핑) + `@PreAuthorize` | 유연한 권한 관리, 운영 중 권한 추가 가능 |
 | **관리자 이중 보호** | SecurityConfig URL 패턴(`/api/admin/**`) + 컨트롤러 레벨 `@PreAuthorize("hasRole('ADMIN')")` | 깊이 있는 방어(Defense in Depth), 도메인 API도 명시적 보호 |
-| **협의회 통합 컨트롤러** | `CouncilController` 1개 (23 엔드포인트) vs 서비스 8개 분리 | 협의회 업무의 통합 흐름 표현, 서비스 계층은 관심사 분리 |
+| **협의회 통합 컨트롤러** | `CouncilController` 1개 (34개 매핑 메서드) vs 서비스 8개 분리 | 협의회 업무의 통합 흐름 표현, 서비스 계층은 관심사 분리 |
 | **변경 로그 (Audit)** | `@PrePersist/@PreUpdate` JPA 리스너로 자동 스냅샷 기록 | 누가 무엇을 언제 변경했는지 추적, 감사/규정 준수 대응 |
 
 ### 3.3 BaseEntity 상속 구조
@@ -321,7 +321,7 @@ public class Bprojm extends BaseEntity { ... }
 | 보호 범위 | 방식 | 예시 |
 |-----------|------|-----|
 | `/api/admin/**` | `SecurityConfig` URL 패턴 + `@PreAuthorize` | AdminController |
-| `/api/plan/**` | `SecurityConfig` URL 패턴 + `@PreAuthorize` | PlanController |
+| `/api/plans/**` | `PlanController` 클래스 레벨 `@PreAuthorize` | SecurityConfig에는 구 경로 `/api/plan/**`가 남아 있어 정비 필요 |
 | `/api/budget/status/**` | `@PreAuthorize` 컨트롤러 레벨만 | BudgetStatusController |
 | `/api/budget/work/**` | `@PreAuthorize` 컨트롤러 레벨만 | BudgetWorkController |
 
@@ -359,7 +359,7 @@ public class Bprojm extends BaseEntity { ... }
 |--------|--------|------|------|------|
 | **정보화사업** | GET/POST | `/api/projects/**` | 사업 CRUD | 일반 |
 | | | | 복합키: `prjYy`(연도) + `prjSn`(일련번호) | |
-| **전산업무비** | GET/POST | `/api/costs/**` | 비용 항목 CRUD | 일반 |
+| **전산업무비** | GET/POST | `/api/cost/**` | 비용 항목 CRUD | 일반 |
 | | | | 복합키: `costYy` + `costSn` | |
 | **결재 신청서** | GET/POST/PUT | `/api/applications/**` | 신청/승인/반려 | 일반 |
 | | | | 상태: 임시저장→제출→결재중→결재완료 | |
@@ -371,15 +371,15 @@ public class Bprojm extends BaseEntity { ... }
 | | GET/POST/PUT/DELETE | `/api/boards/{blbMngNo}/posts/{nacMngNo}/comments/**` | 댓글/대댓글 CRUD | 일반 |
 | **첨부파일** | POST/GET | `/api/files/**` | 업로드(50MB)/다운로드/미리보기 | 일반 |
 | | | | 파일명 생성: `{서버ID}_{UUID}_{원본확장자}` | |
-| **협의회 관리** | GET/POST/PUT/PATCH | `/api/council/**` | 신청, 심의, 평가, 일정 (23 엔드포인트) | 일반 |
+| **협의회 관리** | GET/POST/PUT/PATCH | `/api/council/**` | 신청, 심의, 평가, 일정 (34개 매핑) | 일반 |
 | | | | CouncilController 통합 (8개 서비스 분리) | |
-| **Gemini AI** | POST | `/api/gemini/generate` | 텍스트 생성 (파일 첨부 가능) | 일반 |
-| **공통코드** | GET | `/api/ccodem/**` | 코드 목록 조회 (캐싱) | 일반 |
+| **Gemini AI** | POST | `/api/gemini/generate` | 텍스트 생성 (파일 첨부 가능) | **관리자** |
+| **공통코드** | GET/POST/PUT/DELETE | `/api/ccodem/**` | 코드 조회 및 CRUD (캐싱) | 일반 |
 | **사용자** | GET | `/api/users/**` | 사용자/조직 조회 | 일반 |
 | **로그인 이력** | GET | `/api/login-history/**` | 본인 이력 조회 (최대 50건) | 일반 |
 | **관리자** | GET/POST/PUT/DELETE | `/api/admin/**` | 시스템 설정, 로그 조회, 사용자/코드 관리 | **관리자** |
 | **게시판 관리** | GET/POST/PUT/DELETE | `/api/admin/boards/meta/**` | 게시판 메타 생성/수정/삭제 | **관리자** |
-| **계획 관리** | GET/POST | `/api/plan/**` | 정보기술부문 계획 CRUD | **관리자** |
+| **계획 관리** | GET/POST | `/api/plans/**` | 정보기술부문 계획 CRUD | **관리자** |
 | **예산현황** | GET | `/api/budget/status/**` | 집계 대시보드 (전체 예산 조회) | **관리자** |
 | **예산작업** | GET/POST | `/api/budget/work/**` | 편성률 조회, Upsert, 결과 조회 | **관리자** |
 
@@ -399,7 +399,7 @@ public class Bprojm extends BaseEntity { ... }
 #   → http://localhost:8080
 #   → Swagger: http://localhost:8080/swagger-ui/index.html
 
-# 4. 테스트 실행 (50개 테스트 파일 / ~350개 케이스)
+# 4. 테스트 실행 (69개 테스트 파일 / 기존 결과 기준 787개 케이스)
 ./gradlew test
 
 # 5. 테스트 커버리지 리포트 생성
@@ -578,7 +578,7 @@ REFACTOR — 중복 제거, 가독성 개선 (테스트 통과 유지)
 | 2026-04-30 | README 로그 체계 섹션 추가: 변경 로그(AuditLog), 로그인 이력, 관리자 로그 조회 구조 문서화 |
 | 2026-04-29 | README 현행화: Spring Boot/JJWT/Springdoc 버전, 15분 Access Token, 예산현황·검토의견·변경로그 도메인, 테스트/환경 설정 반영 |
 | 2026-04-10 | 전체 프로젝트 문서/주석 리프레시 (README/CLAUDE/TASK.md 최신화, AdminController JavaDoc 보강) |
-| 2026-04-05 | 정보화실무협의회(council) 도메인 구현: CouncilController(23 엔드포인트), 8개 서비스, 14개 엔티티, 9개 Repository |
+| 2026-04-05 | 정보화실무협의회(council) 도메인 구현: CouncilController(현재 34개 매핑), 8개 서비스, 14개 엔티티, 9개 Repository |
 | 2026-04-04 | 시스템관리(admin) 모듈 구현: AdminController/AdminService, @PreAuthorize ROLE_ADMIN 이중 보호 |
 | 2026-04-04 | 예산작업(budget/work) 구현: BudgetWorkController(3 API), Bbugtm 엔티티, 편성률 Upsert |
 | 2026-04-02 | 정보기술부문 계획(budget/plan) 구현: PlanController, Bplanm/Bproja 엔티티, JSON 스냅샷 저장 |

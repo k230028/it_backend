@@ -220,6 +220,21 @@ class QnaServiceTest {
     }
 
     @Test
+    @DisplayName("replyQna: 협의회ID가 일치하지 않으면 IllegalArgumentException을 던진다")
+    void replyQna_협의회ID불일치_IllegalArgumentException발생() {
+        // Arrange: qna는 다른 협의회 소속
+        Bpqnam qna = mockQna(QTN_ID, "ASCT-2026-9999", "E10001");
+        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        CustomUserDetails userDetails = mock(CustomUserDetails.class);
+
+        // Act & Assert: 협의회ID 불일치 분기 진입
+        assertThatThrownBy(() -> qnaService.replyQna(ASCT_ID, QTN_ID,
+                new CouncilDto.QnaReplyRequest("답변내용"), userDetails))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("협의회ID");
+    }
+
+    @Test
     @DisplayName("replyQna: 정상 요청이면 답변을 등록한다")
     void replyQna_정상요청_답변등록() {
         // given
@@ -235,5 +250,45 @@ class QnaServiceTest {
 
         // then
         verify(qna).reply("E20001", "답변내용");
+    }
+
+    @Test
+    @DisplayName("updateQna: 관리자이면 본인 질의가 아니어도 수정할 수 있다")
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void updateQna_관리자_타인질의수정가능() {
+        // Arrange: qna 등록자는 OTHER_ENO, 로그인 사용자는 관리자
+        Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "OTHER_ENO");
+        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+
+        CustomUserDetails admin = mock(CustomUserDetails.class);
+        given(admin.getEno()).willReturn("E_ADMIN");
+        // 관리자 권한 부여 — Collection<? extends GrantedAuthority> 타입 맞춤
+        org.springframework.security.core.GrantedAuthority adminAuth = () -> "ROLE_ITPAD001";
+        java.util.Collection<org.springframework.security.core.GrantedAuthority> authorities =
+                java.util.Collections.singletonList(adminAuth);
+        given(admin.getAuthorities()).willReturn(
+                (java.util.Collection) authorities);
+
+        // Act: 예외 없이 수정 완료
+        qnaService.updateQna(ASCT_ID, QTN_ID,
+                new CouncilDto.QnaUpdateRequest("관리자수정내용"), admin);
+
+        // Assert
+        verify(qna).updateQuestion("관리자수정내용");
+    }
+
+    @Test
+    @DisplayName("getQnaList: 빈 목록인 협의회도 정상적으로 빈 리스트를 반환한다")
+    void getQnaList_빈목록_빈리스트반환() {
+        // Arrange
+        given(councilRepository.existsById(ASCT_ID)).willReturn(true);
+        given(qnaRepository.findByAsctIdAndDelYnOrderByFstEnrDtmAsc(ASCT_ID, "N"))
+                .willReturn(List.of());
+
+        // Act
+        List<CouncilDto.QnaResponse> result = qnaService.getQnaList(ASCT_ID);
+
+        // Assert
+        assertThat(result).isEmpty();
     }
 }

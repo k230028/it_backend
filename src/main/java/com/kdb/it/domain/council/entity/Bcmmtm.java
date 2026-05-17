@@ -65,7 +65,7 @@ public class Bcmmtm extends BaseEntity {
      * 평가위원이 RESULT_REVIEW 단계에서 결과서 확인 완료 시 'Y'로 변경됩니다.
      * 전원 'Y'가 되면 협의회 상태가 FINAL_APPROVAL로 전이됩니다.
      */
-    @Column(name = "CNFM_YN", length = 1, nullable = false)
+    @Column(name = "CNFM_YN", length = 1, nullable = false, comment = "확인여부")
     @lombok.Builder.Default
     private String cnfmYn = "N";
 

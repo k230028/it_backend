@@ -119,7 +119,8 @@ src/main/resources/
 - 비밀번호 암호화: `CustomPasswordEncoder` (SHA-256 + Base64).
 - Access/Refresh Token은 `CookieUtil`로 httpOnly 쿠키에 설정.
 - 보호 API는 쿠키 자동 전송 기본. `JwtAuthenticationFilter`는 `Authorization: Bearer`를 폴백으로만 허용.
-- 공개 엔드포인트: `/api/auth/login`, `/api/auth/signup`, `/api/auth/refresh`, `/swagger-ui/**`, `/v3/api-docs/**`.
+- 공개 엔드포인트: `/api/auth/login`, `/api/auth/refresh`, `/swagger-ui/**`, `/v3/api-docs/**`.
+- 회원가입 엔드포인트(`/api/auth/signup`)는 `SecurityConfig`에서 `hasRole("ADMIN")`로 보호합니다. 임직원 포털 특성상 자유 가입 API로 취급하지 않습니다.
 - 관리자 전용: `/api/admin/**` — SecurityConfig URL 패턴 + `@PreAuthorize("hasRole('ADMIN')")` 이중 보호.
 - **관리자 전용 도메인 API** (`/api/admin/**` 외 경로라도 관리자만 접근해야 하는 엔드포인트): 컨트롤러 **클래스 레벨**에 반드시 `@PreAuthorize("hasRole('ADMIN')")` 적용. SecurityConfig URL 패턴은 `/api/admin/**`에만 등록되므로 도메인 컨트롤러는 어노테이션으로 보호해야 함. 누락 시 인증된 모든 사용자가 API 직접 호출 가능.
   ```java
@@ -131,7 +132,7 @@ src/main/resources/
   public class PlanController { ... }
   ```
   현재 적용 대상: `PlanController`, `BudgetStatusController`, `BudgetWorkController`.
-- **권한 검증 보강 현황** (코드 분석 기준, 2026-05-10): `FileController`는 `FileOwnershipChecker`로 조회·삭제 전 소유권을 확인하고, `GeminiController`는 `@PreAuthorize("hasRole('ADMIN')")`로 관리자 전용 처리합니다. `UserController`, `OrganizationController`, `ProjectController`, `ApplicationController`의 부서/소유권 정책은 업무 요건에 맞춰 별도 검토합니다.
+- **권한 검증 보강 현황** (코드 분석 기준, 2026-05-17): `FileController`는 단건 삭제 경로에 `FileOwnershipChecker.checkOwnership()`이 적용되어 있으나 다운로드·미리보기·조회·메타수정·원본 기준 일괄삭제 권한 검증은 후속 과제입니다. `GeminiController`는 `@PreAuthorize("hasRole('ADMIN')")`로 관리자 전용 처리합니다. `UserController`, `OrganizationController`, `ProjectController`, `ApplicationController`의 부서/소유권 정책은 업무 요건에 맞춰 별도 검토합니다.
 - RBAC 모델: 자격등급(`CauthI`) + 역할 매핑(`CroleI`).
   - `ITPAD001` = 시스템관리자
   - `ITPZZ001` = 일반사용자
@@ -174,8 +175,15 @@ src/main/resources/
 
 ### 5.11 파일 보안
 - `FileValidator` (`infra/file/FileValidator.java`): 허용 확장자 화이트리스트 검증 — `FileService.uploadFileInternal()` 진입 시점 호출.
-- `FileOwnershipChecker` (`infra/file/FileOwnershipChecker.java`): 파일 소유자 검증 — `FileController` 조회·삭제 전 호출 필수.
+- `FileOwnershipChecker` (`infra/file/FileOwnershipChecker.java`): 파일 소유자 및 도메인별 읽기 권한 검증. 현재 코드상 단건 삭제의 `checkOwnership()`은 적용되어 있으나, 다운로드/미리보기/목록/단건조회/메타수정/원본 기준 일괄삭제 경로의 읽기·쓰기 권한 검증은 후속 과제로 관리합니다.
+- `/api/files/**`는 `SecurityConfig`에서 인증만 요구합니다. 새 파일 API를 추가할 때는 `flMngNo` 기반 조회/다운로드/미리보기에는 `FileOwnershipChecker.checkReadAccess()` 또는 `orcDtt`별 권한 검증을 반드시 연결합니다.
+- `FileOwnershipChecker.checkReadAccess()`는 현재 `orcDtt="공통게시판"`만 게시판 권한 정책으로 특수 검증하고, 그 외 원본구분은 읽기를 허용합니다. 새 `orcDtt`를 도입할 때는 파일 권한 정책 등록 여부를 함께 결정합니다.
 - 허용 확장자 변경 시 `FileValidator.ALLOWED_EXTENSIONS` 상수 수정.
+
+### 5.11.1 Gemini AI 보안
+- `GeminiController`는 `@PreAuthorize("hasRole('ADMIN')")`로 관리자 전용입니다.
+- 비관리자에게 Gemini 기능을 개방하기 전에는 첨부 `flMngNo`별 파일 접근 검증, 프롬프트 길이, 첨부 개수, 실제 파일 크기, 비용 상한을 먼저 구현합니다.
+- `GeminiDto.Request` 검증 조건을 변경할 때는 `GeminiService.generate()`의 null/길이 처리와 함께 테스트를 갱신합니다.
 
 ### 5.12 로그인 Brute-force 보호
 - `LoginAttemptService` (`common/iam/service/LoginAttemptService.java`): `TAAABB_CLOGNH` 로그인 이력 기반 실패 횟수 집계.
@@ -187,7 +195,7 @@ src/main/resources/
 - **로그 엔티티**: 23개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`).
 - **기본 구조**: `BaseLogEntity` 상속 — 기본 컬럼 자동 포함 (GUID, FST_ENR_DTM/USID, LST_CHG_DTM/USID).
 - **로그 리스너**: `ChangeLogEntityListener` → JPA entity lifecycle 후킹 → `AuditLogPersister` → DB 저장.
-- **저장 시점**: UPDATE/DELETE 트랜잭션 커밋 직후 (별도 트랜잭션에서 로그 저장, 실패해도 원본 작업 영향 없음).
+- **저장 시점**: JPA `@PrePersist`/`@PreUpdate` 콜백 중 `ChangeLogEntityListener`가 `AuditLogPersister.persist()`를 직접 호출해 현재 flush 흐름에서 로그를 저장합니다. 로그 저장 실패는 catch 후 warn 처리하여 원본 작업 롤백을 피합니다.
 - 로그 조회는 감사 도메인(`domain/audit`) 또는 분석용 view 사용.
 
 ### 5.12.2 이벤트 리스너(@EventListener vs @TransactionalEventListener)

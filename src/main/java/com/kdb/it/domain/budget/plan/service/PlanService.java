@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.plan.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
 import com.kdb.it.domain.budget.plan.entity.Bplanm;
@@ -95,7 +96,7 @@ public class PlanService {
                                         if (dtlCone != null && !dtlCone.isBlank()) {
                                                 try {
                                                         Map<String, Object> snapshot = objectMapper.readValue(dtlCone,
-                                                                        Map.class);
+                                                                        new TypeReference<Map<String, Object>>() {});
                                                         Object snaps = snapshot.get("prjSnapshots");
                                                         if (snaps instanceof List<?> list) {
                                                                 for (Object item : list) {
