@@ -384,18 +384,24 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         }).toList();
     }
 
+    /** 자본예산(CAP_BUDGET) 대상 비목 cTpC 목록 — 개발비/기계장치/기타무형자산. */
+    private static final List<String> CAP_BUDGET_CTP_CODES = List.of(CTP_DEV, CTP_MACH, CTP_INTAN);
+
+    /** 일반관리비(OPEX) 대상 비목 cTpC 목록 — 전산제비/전산용역비/전산여비/전산임차료. */
+    private static final List<String> OPEX_CTP_CODES = List.of(CTP_MISC, CTP_SERVICE, CTP_TRAVEL, CTP_RENT);
+
     /**
      * 카테고리·연도 기준 편성요청액·편성액 합계 조회 (Tiptap 변수 해석 전용)
      *
      * <p>
-     * 카테고리별 SoT:
+     * 카테고리별 SoT (Bitemm 비목구분 {@code Ccodem.C_TP} 기준 필터링):
      * <ul>
-     *   <li>{@code IT_BUDGET} / {@code CAP_BUDGET} → {@code BPROJM}({@code ORN_YN!='Y'} 또는 {@code 'Y'}, {@code LST_YN='Y'})
-     *       LEFT JOIN {@code BITEMM} 합산 ({@code GCL_AMT * COALESCE(XCR, 1)}).
-     *       편성액은 {@code BBUGTM}({@code ORC_TB='BITEMM'}) {@code DUP_BG} 합산.</li>
-     *   <li>{@code OPEX} → {@code BCOSTM}({@code LST_YN='Y'}) {@code IT_MNGC_BG} 합산.
-     *       편성액은 {@code BBUGTM}({@code ORC_TB='BCOSTM'}) {@code DUP_BG} 합산.</li>
+     *   <li>{@code IT_BUDGET} → 전체 Bitemm 합계 (정보화사업·경상사업·일반관리비 포함, 비목 필터 없음)</li>
+     *   <li>{@code CAP_BUDGET} → {@code Ccodem.cTp ∈ ('IOE_DVC','IOE_HW','IOE_SW')} 자본예산 항목 합계</li>
+     *   <li>{@code OPEX} → {@code Ccodem.cTp ∈ ('IOE_IDR','IOE_SEVS','IOE_XPN','IOE_LEAFE')} 일반관리비 항목 합계</li>
      * </ul>
+     * 편성요청액은 {@code BITEMM.gclAmt * COALESCE(xcr,1)} 합산,
+     * 편성액은 {@code BBUGTM.dupBg}({@code orcTb='BITEMM'}) 합산입니다.
      * 두 합계 모두 0이거나 null이면 {@code AggregatedAmount(null, null)}을 반환합니다(MISSING 판정용).
      * </p>
      *
@@ -407,9 +413,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     public AggregatedAmount aggregateByCategory(int year, String categoryCode) {
         String bgYy = String.valueOf(year);
         return switch (categoryCode) {
-            case "IT_BUDGET" -> aggregateProjectsByOrn(bgYy, false);
-            case "CAP_BUDGET" -> aggregateProjectsByOrn(bgYy, true);
-            case "OPEX" -> aggregateCosts(bgYy);
+            case "IT_BUDGET" -> aggregateItemsByCTp(bgYy, null);
+            case "CAP_BUDGET" -> aggregateItemsByCTp(bgYy, CAP_BUDGET_CTP_CODES);
+            case "OPEX" -> aggregateItemsByCTp(bgYy, OPEX_CTP_CODES);
             default -> new AggregatedAmount(null, null);
         };
     }
@@ -469,18 +475,29 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     }
 
     /**
-     * 정보화사업/경상사업 합계 집계 (카테고리 IT_BUDGET/CAP_BUDGET 공용).
+     * Bitemm 비목구분({@code Ccodem.cTp}) 기준 편성요청액·편성액 합계 집계.
      *
-     * @param bgYy        예산년도 문자열 (예: "2026")
-     * @param ornYnEquals true이면 {@code ORN_YN='Y'}(경상=자본), false이면 {@code ORN_YN!='Y'}(정보화)
+     * <p>
+     * Bprojm({@code lstYn='Y'}, {@code delYn='N'}) ⨝ Bitemm({@code lstYn='Y'}, {@code delYn='N'})
+     * ⨝ Ccodem({@code cId='IOE'}, {@code cdva=ioeC})에 대해
+     * {@code cTpCodes}가 비어있지 않으면 {@code Ccodem.cTp IN (cTpCodes)} 필터를 추가합니다.
+     * {@code ornYn} 필터는 적용하지 않습니다(전체 Bitemm 대상).
+     * </p>
+     *
+     * @param bgYy     예산년도 문자열 (예: "2026")
+     * @param cTpCodes 비목 cTpC 화이트리스트. {@code null} 또는 빈 리스트이면 비목 필터 없이 전체 합산.
      */
-    private AggregatedAmount aggregateProjectsByOrn(String bgYy, boolean ornYnEquals) {
+    private AggregatedAmount aggregateItemsByCTp(String bgYy, List<String> cTpCodes) {
         QBprojm p = QBprojm.bprojm;
         QBitemm i = QBitemm.bitemm;
         QBbugtm b = QBbugtm.bbugtm;
+        QCcodem itemCode = new QCcodem("aggItemCode");
 
-        BooleanExpression ornFilter = ornYnEquals ? p.ornYn.eq("Y") : p.ornYn.ne("Y");
+        BooleanExpression cTpFilter = (cTpCodes == null || cTpCodes.isEmpty())
+                ? null
+                : itemCode.cTp.in(cTpCodes);
 
+        // 편성요청액: BITEMM.gclAmt * COALESCE(xcr, 1) 합계 — 최신 버전·미삭제 사업/품목 대상
         BigDecimal requestSum = queryFactory
                 .select(Expressions.numberTemplate(BigDecimal.class,
                         "COALESCE(SUM({0} * COALESCE({1}, 1)), 0)", i.gclAmt, i.xcr))
@@ -490,13 +507,18 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         i.prjSno.eq(p.prjSno),
                         i.delYn.eq("N"),
                         i.lstYn.eq("Y"))
+                .leftJoin(itemCode).on(
+                        itemCode.cId.eq(C_ID_IOE),
+                        itemCode.cdva.eq(i.ioeC),
+                        codeIsActive(itemCode))
                 .where(
                         p.bgYy.eq(bgYy),
-                        ornFilter,
                         p.delYn.eq("N"),
-                        p.lstYn.eq("Y"))
+                        p.lstYn.eq("Y"),
+                        cTpFilter)
                 .fetchOne();
 
+        // 편성액: BBUGTM.dupBg 합계 — BITEMM(gclMngNo)을 통해 매핑된 편성예산
         BigDecimal allocatedSum = queryFactory
                 .select(b.dupBg.sum().coalesce(BigDecimal.ZERO))
                 .from(b)
@@ -509,39 +531,15 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         p.prjSno.eq(i.prjSno),
                         p.delYn.eq("N"),
                         p.lstYn.eq("Y"))
+                .leftJoin(itemCode).on(
+                        itemCode.cId.eq(C_ID_IOE),
+                        itemCode.cdva.eq(i.ioeC),
+                        codeIsActive(itemCode))
                 .where(
                         b.orcTb.eq("BITEMM"),
                         b.bgYy.eq(bgYy),
                         b.delYn.eq("N"),
-                        ornFilter)
-                .fetchOne();
-
-        return toAggregated(requestSum, allocatedSum);
-    }
-
-    /**
-     * 전산업무비(BCOSTM) 합계 집계 (카테고리 OPEX).
-     */
-    private AggregatedAmount aggregateCosts(String bgYy) {
-        QBcostm c = QBcostm.bcostm;
-        QBbugtm b = QBbugtm.bbugtm;
-
-        BigDecimal requestSum = queryFactory
-                .select(c.itMngcBg.sum().coalesce(BigDecimal.ZERO))
-                .from(c)
-                .where(
-                        c.bgYy.eq(bgYy),
-                        c.delYn.eq("N"),
-                        c.lstYn.eq("Y"))
-                .fetchOne();
-
-        BigDecimal allocatedSum = queryFactory
-                .select(b.dupBg.sum().coalesce(BigDecimal.ZERO))
-                .from(b)
-                .where(
-                        b.orcTb.eq("BCOSTM"),
-                        b.bgYy.eq(bgYy),
-                        b.delYn.eq("N"))
+                        cTpFilter)
                 .fetchOne();
 
         return toAggregated(requestSum, allocatedSum);
