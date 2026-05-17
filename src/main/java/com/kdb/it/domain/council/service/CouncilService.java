@@ -156,7 +156,7 @@ public class CouncilService {
                 .asctId(asctId)
                 .prjMngNo(request.prjMngNo())
                 .prjSno(request.prjSno())
-                .asctSts("DRAFT")
+                .asctSts("001")
                 .dbrTp(request.dbrTp())
                 .build();
 
@@ -203,12 +203,12 @@ public class CouncilService {
     public void startCouncil(String asctId) {
         Basctm council = findActiveCouncil(asctId);
 
-        if (!"SCHEDULED".equals(council.getAsctSts())) {
+        if (!"006".equals(council.getAsctSts())) {
             throw new IllegalStateException(
-                "협의회 개최 시작은 SCHEDULED 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+                "협의회 개최 시작은 SCHEDULED(006) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
         }
 
-        council.changeStatus("IN_PROGRESS");
+        council.changeStatus("007");
     }
 
     /**
@@ -232,15 +232,15 @@ public class CouncilService {
         String status = council.getAsctSts();
 
         // IN_PROGRESS(평가 미시작) 또는 EVALUATING(평가 진행 중) 상태에서만 가능
-        if (!"IN_PROGRESS".equals(status) && !"EVALUATING".equals(status)) {
+        if (!"007".equals(status) && !"008".equals(status)) {
             throw new IllegalStateException(
                 "협의회 완료는 진행 중 상태에서만 가능합니다. 현재 상태: " + status);
         }
 
-        // 평가 대상 위원 조회 (간사 제외: MAND + CALL만 평가 의무)
+        // 평가 대상 위원 조회 (간사 제외: MAND(001) + CALL(002)만 평가 의무)
         List<Bcmmtm> evaluators = committeeRepository.findByAsctIdAndDelYn(asctId, "N")
                 .stream()
-                .filter(m -> !"SECR".equals(m.getVlrTp()))
+                .filter(m -> !"003".equals(m.getVlrTp()))
                 .collect(Collectors.toList());
 
         if (evaluators.isEmpty()) {
@@ -258,7 +258,7 @@ public class CouncilService {
                 "아직 평가의견이 입력되지 않은 평가위원이 있습니다. (" + incompleteCount + "명 미완료)");
         }
 
-        council.changeStatus("RESULT_WRITING");
+        council.changeStatus("009");
     }
 
     /**
@@ -277,9 +277,9 @@ public class CouncilService {
         Basctm council = findActiveCouncil(asctId);
 
         // COMPLETED 상태에서만 통보 가능
-        if (!"COMPLETED".equals(council.getAsctSts())) {
+        if (!"012".equals(council.getAsctSts())) {
             throw new IllegalStateException(
-                "통보는 완료(COMPLETED) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+                "통보는 완료(012) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
         }
 
         // 사업 상태 전이: '정실협 진행중' → '요건 상세화'
@@ -328,9 +328,9 @@ public class CouncilService {
         Basctm council = findActiveCouncil(asctId);
 
         // APPROVED 상태에서만 생략 가능
-        if (!"APPROVED".equals(council.getAsctSts())) {
+        if (!"004".equals(council.getAsctSts())) {
             throw new IllegalStateException(
-                "생략 처리는 결재완료(APPROVED) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+                "생략 처리는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
         }
 
         // 협의회 상태 전이: APPROVED → SKIPPED

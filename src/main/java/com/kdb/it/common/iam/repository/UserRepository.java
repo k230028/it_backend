@@ -88,6 +88,17 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
     boolean existsByEno(String eno);
 
     /**
+     * 전체 사용자 목록 조회 (조직 정보 즉시 로딩) — 개발 편의용
+     *
+     * <p>{@code DevAuthController.listUsers()}에서만 사용합니다.
+     * 운영 환경에서는 컨트롤러를 비활성화하므로 일반 API 흐름에서는 호출되지 않습니다.</p>
+     *
+     * @return 전체 사용자 목록 (조직 정보 포함)
+     */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "organization")
+    java.util.List<CuserI> findAllByOrderByUsrNmAsc();
+
+    /**
      * 팀코드(TEM_C)로 사용자 목록 조회
      *
      * <p>
