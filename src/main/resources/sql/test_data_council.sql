@@ -4,10 +4,9 @@
 -- 비밀번호: 1q2w3e4r! (SHA-256 + Base64)
 -- 해시값: /r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=
 --
--- [주의] 아래 TEM_C/BBR_C 중 (* 추정) 표시 항목은 PRD에 코드 미제공으로
---        패턴 기반 추정값을 사용하였습니다. 실제 코드 확인 후 수정 필요.
---   - 미래전략팀:  BBR_C=120, TEM_C=12001 (* 추정, 종합기획부 산하 가정)
---   - 조직·평가팀: BBR_C=060, TEM_C=06001 (* 추정, 조직관리부 산하 가정)
+-- [팀코드 확정값]
+--   - 미래전략팀:  BBR_C=140(미래전략개발부), TEM_C=14011
+--   - 조직·평가팀: BBR_C=120(종합기획부),    TEM_C=12003
 -- ============================================================
 
 -- ── TAAABB_CORGNI: 부점정보 (없으면 INSERT, 있으면 무시) ─────────────────
@@ -47,21 +46,13 @@ WHEN NOT MATCHED THEN
     INSERT (PRLM_OGZ_C_CONE, BBR_NM, BBR_WREN_NM, ITM_SQN_SNO, PRLM_HRK_OGZ_C_CONE, DEL_YN, GUID, GUID_PRG_SNO, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID)
     VALUES ('185', 'AI·디지털전략부', 'AI Digital Strategy', '1', '013', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230028', SYSTIMESTAMP, 'K230028');
 
--- (* 추정) 미래전략팀 소속 부서
+-- 미래전략개발부 (BBR_C=140)
 MERGE INTO TAAABB_CORGNI T
-USING (SELECT '120' AS PRLM_OGZ_C_CONE FROM DUAL) S
+USING (SELECT '140' AS PRLM_OGZ_C_CONE FROM DUAL) S
 ON (T.PRLM_OGZ_C_CONE = S.PRLM_OGZ_C_CONE)
 WHEN NOT MATCHED THEN
     INSERT (PRLM_OGZ_C_CONE, BBR_NM, BBR_WREN_NM, ITM_SQN_SNO, PRLM_HRK_OGZ_C_CONE, DEL_YN, GUID, GUID_PRG_SNO, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID)
-    VALUES ('120', '종합기획부', 'General Planning', '1', '013', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230028', SYSTIMESTAMP, 'K230028');
-
--- (* 추정) 조직·평가팀 소속 부서
-MERGE INTO TAAABB_CORGNI T
-USING (SELECT '060' AS PRLM_OGZ_C_CONE FROM DUAL) S
-ON (T.PRLM_OGZ_C_CONE = S.PRLM_OGZ_C_CONE)
-WHEN NOT MATCHED THEN
-    INSERT (PRLM_OGZ_C_CONE, BBR_NM, BBR_WREN_NM, ITM_SQN_SNO, PRLM_HRK_OGZ_C_CONE, DEL_YN, GUID, GUID_PRG_SNO, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID)
-    VALUES ('060', '조직관리부', 'HR & Organization', '1', '013', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230028', SYSTIMESTAMP, 'K230028');
+    VALUES ('140', '미래전략개발부', 'Future Strategy', '1', '013', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230028', SYSTIMESTAMP, 'K230028');
 
 
 -- ── TAAABB_CUSERI: 존재하면 UPDATE, 없으면 INSERT ─────────────────────────
@@ -276,16 +267,16 @@ WHEN NOT MATCHED THEN
     INSERT (ENO, USR_ECY_PWD, BBR_C, PT_C_NM, TEM_C, TEM_NM, USR_NM, DEL_YN, GUID, GUID_PRG_SNO, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID)
     VALUES ('K230037', '/r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=', '185', '팀장', '18501', 'AI·디지털전략팀', '김에이아이', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230037', SYSTIMESTAMP, 'K230037');
 
--- [12] 미래전략팀 팀장 (K230038) (* TEM_C=12001, BBR_C=120 추정)
+-- [12] 미래전략팀 팀장 (K230038)
 MERGE INTO TAAABB_CUSERI T
 USING (SELECT 'K230038' AS ENO FROM DUAL) S
 ON (T.ENO = S.ENO)
 WHEN MATCHED THEN
     UPDATE SET
         USR_ECY_PWD  = '/r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=',
-        BBR_C        = '120',
+        BBR_C        = '140',
         PT_C_NM      = '팀장',
-        TEM_C        = '12001',
+        TEM_C        = '14011',
         TEM_NM       = '미래전략팀',
         USR_NM       = '김미래팀장',
         GUID         = SYS_GUID(),
@@ -293,18 +284,18 @@ WHEN MATCHED THEN
         LST_CHG_USID = 'K230038'
 WHEN NOT MATCHED THEN
     INSERT (ENO, USR_ECY_PWD, BBR_C, PT_C_NM, TEM_C, TEM_NM, USR_NM, DEL_YN, GUID, GUID_PRG_SNO, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID)
-    VALUES ('K230038', '/r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=', '120', '팀장', '12001', '미래전략팀', '김미래팀장', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230038', SYSTIMESTAMP, 'K230038');
+    VALUES ('K230038', '/r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=', '140', '팀장', '14011', '미래전략팀', '김미래팀장', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230038', SYSTIMESTAMP, 'K230038');
 
--- [13] 조직·평가팀 팀장 (K230039) (* TEM_C=06001, BBR_C=060 추정)
+-- [13] 조직·평가팀 팀장 (K230039)
 MERGE INTO TAAABB_CUSERI T
 USING (SELECT 'K230039' AS ENO FROM DUAL) S
 ON (T.ENO = S.ENO)
 WHEN MATCHED THEN
     UPDATE SET
         USR_ECY_PWD  = '/r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=',
-        BBR_C        = '060',
+        BBR_C        = '120',
         PT_C_NM      = '팀장',
-        TEM_C        = '06001',
+        TEM_C        = '12003',
         TEM_NM       = '조직·평가팀',
         USR_NM       = '김조평팀장',
         GUID         = SYS_GUID(),
@@ -312,18 +303,18 @@ WHEN MATCHED THEN
         LST_CHG_USID = 'K230039'
 WHEN NOT MATCHED THEN
     INSERT (ENO, USR_ECY_PWD, BBR_C, PT_C_NM, TEM_C, TEM_NM, USR_NM, DEL_YN, GUID, GUID_PRG_SNO, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID)
-    VALUES ('K230039', '/r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=', '060', '팀장', '06001', '조직·평가팀', '김조평팀장', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230039', SYSTIMESTAMP, 'K230039');
+    VALUES ('K230039', '/r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=', '120', '팀장', '12003', '조직·평가팀', '김조평팀장', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230039', SYSTIMESTAMP, 'K230039');
 
--- [14] 조직·평가팀 과장 (K230040) (* TEM_C=06001, BBR_C=060 추정)
+-- [14] 조직·평가팀 과장 (K230040)
 MERGE INTO TAAABB_CUSERI T
 USING (SELECT 'K230040' AS ENO FROM DUAL) S
 ON (T.ENO = S.ENO)
 WHEN MATCHED THEN
     UPDATE SET
         USR_ECY_PWD  = '/r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=',
-        BBR_C        = '060',
+        BBR_C        = '120',
         PT_C_NM      = '과장',
-        TEM_C        = '06001',
+        TEM_C        = '12003',
         TEM_NM       = '조직·평가팀',
         USR_NM       = '김조평',
         GUID         = SYS_GUID(),
@@ -331,7 +322,7 @@ WHEN MATCHED THEN
         LST_CHG_USID = 'K230040'
 WHEN NOT MATCHED THEN
     INSERT (ENO, USR_ECY_PWD, BBR_C, PT_C_NM, TEM_C, TEM_NM, USR_NM, DEL_YN, GUID, GUID_PRG_SNO, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID)
-    VALUES ('K230040', '/r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=', '060', '과장', '06001', '조직·평가팀', '김조평', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230040', SYSTIMESTAMP, 'K230040');
+    VALUES ('K230040', '/r2T8EvaGuwNN0+P0BTQYlJZNP6x8bge58ZNYfZrhLE=', '120', '과장', '12003', '조직·평가팀', '김조평', 'N', SYS_GUID(), 1, SYSTIMESTAMP, 'K230040', SYSTIMESTAMP, 'K230040');
 
 
 -- ── TAAABB_CROLEI: 일반사용자 권한 부여 (없으면 INSERT, 있으면 무시) ────────
