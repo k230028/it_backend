@@ -92,7 +92,7 @@ public class ProjectService {
     /** 사용자 정보 리포지토리 (TAAABB_CUSERI): 사원번호→사용자명 조회용 */
     private final com.kdb.it.common.iam.repository.UserRepository cuserIRepository;
 
-    /** 결재 정보 리포지토�� (TAAABB_CDECIM): 결재선 목록 조회용 */
+    /** 결재 정보 리포지토리 (TAAABB_CDECIM): 결재선 목록 조회용 */
     private final com.kdb.it.common.approval.repository.ApproverRepository cdecimRepository;
 
     /** 공통코드 서비스: 예산 신청 기간 검증용 */
@@ -871,13 +871,13 @@ public class ProjectService {
      * 품목 목록으로부터 자본예산/일반관리비 합계를 계산하여 응답 DTO에 설정
      *
      * <p>
-     * 자본예���(assetBg): 품목구분(gclDtt)이 공통코드 코드값구분 IOE_CPIT에 해당하는 품목의 gclAmt 합계
+     * 자본예산(assetBg): 품목구분(gclDtt)이 공통코드 코드값구분 IOE_CPIT에 해당하는 품목의 gclAmt 합계
      * </p>
      * <p>
      * 일반관리비(costBg): 품목구분(gclDtt)이 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하는 품목의 gclAmt 합계
      * </p>
      *
-     * @param response 예산 ���계를 설정할 응답 DTO
+     * @param response 예산 합계를 설정할 응답 DTO
      * @param bitemms  합계 계산 대상 품목 목록
      */
     private void setBudgetSummaryFromItems(ProjectDto.Response response,

@@ -211,9 +211,9 @@ public class AdminLogService {
         String normalized = fieldName.toLowerCase(Locale.ROOT);
         return normalized.equals("eno")
                 || normalized.equals("mnusr")
-                || normalized.equals("cgprEno")
+                || normalized.equals("cgpreno")
                 || normalized.endsWith("usid")
-                || normalized.endsWith("cgprEno")
+                || normalized.endsWith("cgpreno")
                 || normalized.endsWith("tlr");
     }
 

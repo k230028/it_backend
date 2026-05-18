@@ -114,9 +114,8 @@ public class PlanService {
                                                                 }
                                                         }
                                                 } catch (JsonProcessingException e) {
-                                                        // FIXME: [B-H-05] `PlanService.applyExistingPlanSnapshot()` 빈
-                                                        // `catch (JsonProcessingException) {}` — 스냅샷 파싱 실패 시 카운트 0 폴백으로
-                                                        // 잘못된 예산 보고서 산출
+                                                        // FIXME: [B-H-05] 스냅샷 파싱 실패 시 카운트 0 폴백으로
+                                                        // 잘못된 예산 보고서가 산출될 수 있으므로 실패 로그와 보정 정책이 필요합니다.
                                                         // 스냅샷 파싱 실패 시 카운트는 0 으로 유지 (목록 화면은 동작해야 함)
                                                 }
                                         }

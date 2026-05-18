@@ -29,6 +29,11 @@ import java.util.Set;
  * </p>
  *
  * <p>
+ * 첨부파일 메타데이터는 단건 조회로만 사용하고, 파일 시스템 I/O와 외부 Gemini API 호출은
+ * 트랜잭션으로 감싸지 않습니다. 긴 외부 호출이 DB 트랜잭션을 점유하지 않도록 경계를 분리합니다.
+ * </p>
+ *
+ * <p>
  * API 키는 {@code application.properties}의 {@code gemini.api.key}로 관리합니다.
  * </p>
  */

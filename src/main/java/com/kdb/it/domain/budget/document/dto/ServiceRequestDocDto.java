@@ -142,8 +142,8 @@ public class ServiceRequestDocDto {
         @Schema(description = "요구사항명")
         private String reqNm;
 
-        /** 요구사항내용 (BLOB → UTF-8 문자열 변환) */
-        @Schema(description = "요구사항내용")
+        /** 요구사항정보 (CLOB, HTML 포함 가능) */
+        @Schema(description = "요구사항정보")
         private String reqInf;
 
         /** 요구사항구분 */

@@ -101,8 +101,8 @@ public class GuideDocDto {
         @Schema(description = "문서명")
         private String docNm;
 
-        /** 문서내용 (BLOB → UTF-8 문자열 변환) */
-        @Schema(description = "문서내용")
+        /** 문서정보 (CLOB, HTML 포함 가능) */
+        @Schema(description = "문서정보")
         private String docInf;
 
         /** 삭제여부 */

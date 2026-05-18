@@ -182,6 +182,7 @@ src/main/resources/
 
 ### 5.11.1 Gemini AI 보안
 - `GeminiController`는 `@PreAuthorize("hasRole('ADMIN')")`로 관리자 전용입니다.
+- `GeminiService`는 파일 메타 조회, 파일 시스템 I/O, 외부 API 호출을 한 흐름에서 처리하지만 긴 외부 호출이 DB 트랜잭션을 점유하지 않도록 별도 `@Transactional` 경계를 두지 않습니다.
 - 비관리자에게 Gemini 기능을 개방하기 전에는 첨부 `flMngNo`별 파일 접근 검증, 프롬프트 길이, 첨부 개수, 실제 파일 크기, 비용 상한을 먼저 구현합니다.
 - `GeminiDto.Request` 검증 조건을 변경할 때는 `GeminiService.generate()`의 null/길이 처리와 함께 테스트를 갱신합니다.
 

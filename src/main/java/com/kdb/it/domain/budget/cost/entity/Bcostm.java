@@ -71,7 +71,7 @@ public class Bcostm extends BaseEntity {
     @Column(name = "CTT_NM", length = 800, comment = "계약명")
     private String cttNm;
 
-    /** 계약상대처: 계약 상대방 업체�� (예: (주)IT���루션) */
+    /** 계약상대처: 계약 상대방 업체명 (예: (주)IT솔루션) */
     @Column(name = "CTT_OPP_NM", length = 100, comment = "계약상대처명")
     private String cttOppNm;
 
