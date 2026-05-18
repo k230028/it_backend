@@ -4,9 +4,9 @@ import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BplanmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -20,7 +20,7 @@ import java.math.BigDecimal;
  *
  * <p>
  * 연도별 IT 부문 계획을 저장하는 마스터 엔티티입니다.
- * 계획에 포함된 전체 프로젝트 데이터는 {@code plnDtlCone}에 JSON 형태로 스냅샷 저장됩니다.
+ * 계획에 포함된 전체 프로젝트 데이터는 {@code plnDtlInf}에 JSON 형태로 스냅샷 저장됩니다.
  * </p>
  *
  * <p>
@@ -58,32 +58,27 @@ public class Bplanm extends BaseEntity {
      * </p>
      */
     @Lob
-    @Column(name = "PLN_DTL_CONE", comment = "계획세부내용")
-    private String plnDtlCone;
+    @Column(name = "PLN_DTL_INF", comment = "계획상세정보")
+    private String plnDtlInf;
 
     /** IT프로젝트내용 */
-    @Lob
-    @Column(name = "IT_PRJ_CONE", comment = "IT프로젝트내용")
+    @Column(name = "IT_PRJ_CONE", length = 4000, comment = "IT프로젝트내용")
     private String itPrjCone;
 
     /** IT예산내용 */
-    @Lob
-    @Column(name = "IT_BG_CONE", comment = "IT예산내용")
+    @Column(name = "IT_BG_CONE", length = 4000, comment = "IT예산내용")
     private String itBgCone;
 
     /** IT예산비고 */
-    @Lob
-    @Column(name = "IT_PRJ_RMK", comment = "IT예산비고")
+    @Column(name = "IT_PRJ_RMK", length = 600, comment = "IT예산비고")
     private String itPrjRmk;
 
     /** 자본예산비고 */
-    @Lob
-    @Column(name = "CPIT_BG_RMK", comment = "자본예산비고")
+    @Column(name = "CPIT_BG_RMK", length = 600, comment = "자본예산비고")
     private String cpitBgRmk;
 
     /** 관리비예산비고 */
-    @Lob
-    @Column(name = "MNGC_BG_RMK", comment = "관리비예산비고")
+    @Column(name = "MNGC_BG_RMK", length = 600, comment = "관리비예산비고")
     private String mngcBgRmk;
 
     /**

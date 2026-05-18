@@ -1,8 +1,8 @@
 package com.kdb.it.domain.log.entity;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
 import jakarta.persistence.Lob;
+import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -33,27 +33,22 @@ public class BplanmL extends BaseLogEntity {
     private String plnYy;
 
     @Lob
-    @Column(name = "PLN_DTL_CONE", comment = "계획세부내용")
-    private String plnDtlCone;
+    @Column(name = "PLN_DTL_INF", comment = "계획상세정보")
+    private String plnDtlInf;
 
-    @Lob
-    @Column(name = "IT_PRJ_CONE", comment = "IT프로젝트내용")
+    @Column(name = "IT_PRJ_CONE", length = 4000, comment = "IT프로젝트내용")
     private String itPrjCone;
 
-    @Lob
-    @Column(name = "IT_BG_CONE", comment = "IT예산내용")
+    @Column(name = "IT_BG_CONE", length = 4000, comment = "IT예산내용")
     private String itBgCone;
 
-    @Lob
-    @Column(name = "IT_PRJ_RMK", comment = "IT예산비고")
+    @Column(name = "IT_PRJ_RMK", length = 600, comment = "IT예산비고")
     private String itPrjRmk;
 
-    @Lob
-    @Column(name = "CPIT_BG_RMK", comment = "자본예산비고")
+    @Column(name = "CPIT_BG_RMK", length = 600, comment = "자본예산비고")
     private String cpitBgRmk;
 
-    @Lob
-    @Column(name = "MNGC_BG_RMK", comment = "관리비예산비고")
+    @Column(name = "MNGC_BG_RMK", length = 600, comment = "관리비예산비고")
     private String mngcBgRmk;
 
     @Column(name = "TTL_BG", precision = 15, scale = 2, comment = "총예산")

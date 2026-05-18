@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -80,7 +79,7 @@ public class GuideDocService {
      * </p>
      *
      * <p>
-     * 문서내용({@code docCone})은 XSS 방지를 위해 HTML 새니타이징을 적용합니다.
+     * 문서내용({@code docInf})은 XSS 방지를 위해 HTML 새니타이징을 적용합니다.
      * </p>
      *
      * @param request 가이드 문서 생성 요청 DTO
@@ -105,7 +104,7 @@ public class GuideDocService {
         }
 
         // 문서내용 XSS 새니타이징
-        request.setDocCone(HtmlSanitizer.sanitize(request.getDocCone()));
+        request.setDocInf(HtmlSanitizer.sanitize(request.getDocInf()));
 
         Bgdocm document = request.toEntity();
         guideDocRepository.save(document);
@@ -117,7 +116,7 @@ public class GuideDocService {
      *
      * <p>
      * 문서관리번호로 가이드 문서를 조회하여 정보를 수정합니다.
-     * 문서내용({@code docCone})은 XSS 방지를 위해 HTML 새니타이징을 적용합니다.
+     * 문서내용({@code docInf})은 XSS 방지를 위해 HTML 새니타이징을 적용합니다.
      * </p>
      *
      * @param docMngNo 수정할 문서관리번호
@@ -130,12 +129,11 @@ public class GuideDocService {
         Bgdocm document = guideDocRepository.findByDocMngNoAndDelYn(docMngNo, "N")
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 문서관리번호입니다: " + docMngNo));
 
-        // 문서내용 XSS 새니타이징
-        String sanitizedCone = HtmlSanitizer.sanitize(request.getDocCone());
-        byte[] docConeBytes = sanitizedCone != null ? sanitizedCone.getBytes(StandardCharsets.UTF_8) : null;
+        // 문서정보 XSS 새니타이징
+        String sanitizedCone = HtmlSanitizer.sanitize(request.getDocInf());
 
         // JPA Dirty Checking으로 자동 반영
-        document.update(request.getDocNm(), docConeBytes);
+        document.update(request.getDocNm(), sanitizedCone);
 
         return docMngNo;
     }

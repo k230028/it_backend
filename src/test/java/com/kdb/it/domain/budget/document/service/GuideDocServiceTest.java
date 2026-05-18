@@ -46,7 +46,7 @@ class GuideDocServiceTest {
         Bgdocm doc = mock(Bgdocm.class);
         given(doc.getDocMngNo()).willReturn(docMngNo);
         given(doc.getDocNm()).willReturn(docNm);
-        given(doc.getDocCone()).willReturn(null);
+        given(doc.getDocInf()).willReturn(null);
         given(doc.getDelYn()).willReturn("N");
         return doc;
     }
@@ -125,7 +125,7 @@ class GuideDocServiceTest {
         given(guideDocRepository.getNextSequenceValue()).willReturn(1L);
         GuideDocDto.CreateRequest request = GuideDocDto.CreateRequest.builder()
                 .docNm("가이드문서")
-                .docCone("<p>내용</p>")
+                .docInf("<p>내용</p>")
                 .build();
 
         // when

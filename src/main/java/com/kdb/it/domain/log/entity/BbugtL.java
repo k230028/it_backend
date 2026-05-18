@@ -40,11 +40,11 @@ public class BbugtL extends BaseLogEntity {
     @Column(name = "ORC_SNO_VL", comment = "원본일련번호값")
     private Integer orcSnoVl;
 
-    @Column(name = "IOE_C", length = 100, comment = "비목코드")
+    @Column(name = "IOE_C", length = 3, comment = "비목코드")
     private String ioeC;
 
-    @Column(name = "DUP_BG", precision = 15, scale = 2, comment = "편성예산")
-    private BigDecimal dupBg;
+    @Column(name = "DUP_BG_AMT", precision = 18, scale = 3, comment = "편성예산금액")
+    private BigDecimal dupBgAmt;
 
     @Column(name = "DUP_RT", precision = 3, scale = 0, comment = "편성률")
     private Integer dupRt;

@@ -72,7 +72,7 @@ public class Cblbmm extends BaseEntity {
     @Column(name = "USE_YN", nullable = false, length = 1, comment = "사용여부")
     private String useYn;
 
-    @Column(name = "RMK", length = 500, comment = "비고")
+    @Column(name = "RMK", length = 300, comment = "비고")
     private String rmk;
 
     /**

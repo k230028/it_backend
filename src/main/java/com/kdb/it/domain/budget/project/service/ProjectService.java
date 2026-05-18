@@ -278,13 +278,13 @@ public class ProjectService {
                         .prjSno(project.getPrjSno()) // 프로젝트순번
                         .ioeC(itemDto.getIoeC()) // 품목구분
                         .gclNm(itemDto.getGclNm()) // 품목명
-                        .gclQtt(itemDto.getGclQtt()) // 품목수량
-                        .cur(itemDto.getCur()) // 통화
+                        .gclQty(itemDto.getGclQty()) // 품목수량
+                        .curC(itemDto.getCurC()) // 통화
                         .xcr(itemDto.getXcr()) // 환율
                         .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
-                        .bgFdtn(itemDto.getBgFdtn()) // 예산근거
-                        .itdDt(itemDto.getItdDt()) // 도입시기
-                        .dfrCle(itemDto.getDfrCle()) // 지급주기
+                        .bgFdtnCone(itemDto.getBgFdtnCone()) // 예산근거
+                        .itdYm(itemDto.getItdYm()) // 도입시기
+                        .dfrCleC(itemDto.getDfrCleC()) // 지급주기
                         .infPrtYn(itemDto.getInfPrtYn() == null ? "N" : itemDto.getInfPrtYn()) // 정보보호여부
                         .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
                         .lstYn("Y") // 최종여부
@@ -402,13 +402,13 @@ public class ProjectService {
                                     .prjSno(existingItem.getPrjSno()) // 프로젝트순번 유지
                                     .ioeC(itemDto.getIoeC()) // 품목구분
                                     .gclNm(itemDto.getGclNm()) // 품목명
-                                    .gclQtt(itemDto.getGclQtt()) // 품목수량
-                                    .cur(itemDto.getCur()) // 통화
+                                    .gclQty(itemDto.getGclQty()) // 품목수량
+                                    .curC(itemDto.getCurC()) // 통화
                                     .xcr(itemDto.getXcr()) // 환율
                                     .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
-                                    .bgFdtn(itemDto.getBgFdtn()) // 예산근거
-                                    .itdDt(itemDto.getItdDt()) // 도입시기
-                                    .dfrCle(itemDto.getDfrCle()) // 지급주기
+                                    .bgFdtnCone(itemDto.getBgFdtnCone()) // 예산근거
+                                    .itdYm(itemDto.getItdYm()) // 도입시기
+                                    .dfrCleC(itemDto.getDfrCleC()) // 지급주기
                                     .infPrtYn(defaultYn(itemDto.getInfPrtYn()))
                                     .itrInfrYn(defaultYn(itemDto.getItrInfrYn()))
                                     .lstYn("Y") // 최종여부
@@ -432,13 +432,13 @@ public class ProjectService {
                             .prjSno(project.getPrjSno()) // 프로젝트순번
                             .ioeC(itemDto.getIoeC()) // 품목구분
                             .gclNm(itemDto.getGclNm()) // 품목명
-                            .gclQtt(itemDto.getGclQtt()) // 품목수량
-                            .cur(itemDto.getCur()) // 통화
+                            .gclQty(itemDto.getGclQty()) // 품목수량
+                            .curC(itemDto.getCurC()) // 통화
                             .xcr(itemDto.getXcr()) // 환율
                             .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
-                            .bgFdtn(itemDto.getBgFdtn()) // 예산근거
-                            .itdDt(itemDto.getItdDt()) // 도입시기
-                            .dfrCle(itemDto.getDfrCle()) // 지급주기
+                            .bgFdtnCone(itemDto.getBgFdtnCone()) // 예산근거
+                            .itdYm(itemDto.getItdYm()) // 도입시기
+                            .dfrCleC(itemDto.getDfrCleC()) // 지급주기
                             .infPrtYn(itemDto.getInfPrtYn() == null ? "N" : itemDto.getInfPrtYn()) // 정보보호여부
                             .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
                             .lstYn("Y") // 최종여부
@@ -465,7 +465,7 @@ public class ProjectService {
      *
      * <p>기존 엔티티와 요청 DTO의 업무 필드를 비교하여, 하나라도 다르면 {@code true}를 반환합니다.</p>
      * <p>변경이 없는 품목은 버저닝(D→C 로그)을 건너뜁니다.</p>
-     * <p>BigDecimal 필드(xcr, gclQtt, gclAmt)는 scale 무관한 수치 비교를 위해 compareTo를 사용합니다.</p>
+     * <p>BigDecimal 필드(xcr, gclQty, gclAmt)는 scale 무관한 수치 비교를 위해 compareTo를 사용합니다.</p>
      *
      * @param existing 현재 활성 품목 엔티티 (DEL_YN='N')
      * @param dto      클라이언트로부터 전달된 수정 요청 DTO
@@ -474,13 +474,13 @@ public class ProjectService {
     private boolean isItemChanged(Bitemm existing, ProjectDto.BitemmDto dto) {
         return !Objects.equals(existing.getIoeC(), dto.getIoeC())
                 || !Objects.equals(existing.getGclNm(), dto.getGclNm())
-                || bigDecimalChanged(existing.getGclQtt(), dto.getGclQtt())
-                || !Objects.equals(existing.getCur(), dto.getCur())
+                || bigDecimalChanged(existing.getGclQty(), dto.getGclQty())
+                || !Objects.equals(existing.getCurC(), dto.getCurC())
                 || bigDecimalChanged(existing.getXcr(), dto.getXcr())
                 || !Objects.equals(existing.getXcrBseDt(), dto.getXcrBseDt())
-                || !Objects.equals(existing.getBgFdtn(), dto.getBgFdtn())
-                || !Objects.equals(existing.getItdDt(), dto.getItdDt())
-                || !Objects.equals(existing.getDfrCle(), dto.getDfrCle())
+                || !Objects.equals(existing.getBgFdtnCone(), dto.getBgFdtnCone())
+                || !Objects.equals(existing.getItdYm(), dto.getItdYm())
+                || !Objects.equals(existing.getDfrCleC(), dto.getDfrCleC())
                 || !Objects.equals(existing.getInfPrtYn(), defaultYn(dto.getInfPrtYn()))
                 || !Objects.equals(existing.getItrInfrYn(), defaultYn(dto.getItrInfrYn()))
                 || bigDecimalChanged(existing.getGclAmt(), dto.getGclAmt());
@@ -591,7 +591,7 @@ public class ProjectService {
             Map<String, BigDecimal> costDupBgMap = bbugtmRepository.sumCostDupBgByPrjMngNos(prjMngNos, bgYy, costTypes);
 
             responses.forEach(r -> {
-                r.setDupBg(dupBgMap.getOrDefault(r.getPrjMngNo(), BigDecimal.ZERO));
+                r.setDupBgAmt(dupBgMap.getOrDefault(r.getPrjMngNo(), BigDecimal.ZERO));
                 r.setAssetDupBg(assetDupBgMap.getOrDefault(r.getPrjMngNo(), BigDecimal.ZERO));
                 r.setCostDupBg(costDupBgMap.getOrDefault(r.getPrjMngNo(), BigDecimal.ZERO));
             });

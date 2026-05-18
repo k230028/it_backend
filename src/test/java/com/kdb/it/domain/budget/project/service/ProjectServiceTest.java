@@ -582,10 +582,10 @@ class ProjectServiceTest {
                                                 .prjMngNo(prjMngNo).prjSno(1)
                                                 .ioeC("IOE-237-0700")
                                                 .gclNm("기존 품목")
-                                                .gclQtt(java.math.BigDecimal.ONE)
-                                                .cur("KRW")
+                                                .gclQty(java.math.BigDecimal.ONE)
+                                                .curC("KRW")
                                                 .xcr(java.math.BigDecimal.ONE)
-                                                .bgFdtn("기존 근거")
+                                                .bgFdtnCone("기존 근거")
                                                 .infPrtYn("N")
                                                 .itrInfrYn("N")
                                                 .gclAmt(java.math.BigDecimal.valueOf(1000))
@@ -595,10 +595,10 @@ class ProjectServiceTest {
                                 .gclMngNo("GCL-0001")
                                 .ioeC("IOE-237-0700")
                                 .gclNm("변경 품목")
-                                .gclQtt(java.math.BigDecimal.ONE)
-                                .cur("KRW")
+                                .gclQty(java.math.BigDecimal.ONE)
+                                .curC("KRW")
                                 .xcr(java.math.BigDecimal.ONE)
-                                .bgFdtn("기존 근거")
+                                .bgFdtnCone("기존 근거")
                                 .infPrtYn(null)
                                 .itrInfrYn(null)
                                 .gclAmt(java.math.BigDecimal.valueOf(1000))
@@ -632,8 +632,8 @@ class ProjectServiceTest {
                                                 .prjMngNo(prjMngNo).prjSno(1)
                                                 .ioeC("IOE-237-0700")
                                                 .gclNm("동일 품목")
-                                                .gclQtt(java.math.BigDecimal.ONE)
-                                                .cur("KRW")
+                                                .gclQty(java.math.BigDecimal.ONE)
+                                                .curC("KRW")
                                                 .xcr(java.math.BigDecimal.ONE)
                                                 .infPrtYn("N")
                                                 .itrInfrYn("N")
@@ -644,8 +644,8 @@ class ProjectServiceTest {
                                 .gclMngNo("GCL-0001")
                                 .ioeC("IOE-237-0700")
                                 .gclNm("동일 품목")
-                                .gclQtt(java.math.BigDecimal.ONE)
-                                .cur("KRW")
+                                .gclQty(java.math.BigDecimal.ONE)
+                                .curC("KRW")
                                 .xcr(java.math.BigDecimal.ONE)
                                 .infPrtYn(null)
                                 .itrInfrYn(null)
@@ -700,7 +700,7 @@ class ProjectServiceTest {
                 List<ProjectDto.Response> result = projectService.getProjectsByIds(request);
 
                 assertThat(result).hasSize(1);
-                assertThat(result.get(0).getDupBg()).isEqualByComparingTo(java.math.BigDecimal.valueOf(1000));
+                assertThat(result.get(0).getDupBgAmt()).isEqualByComparingTo(java.math.BigDecimal.valueOf(1000));
                 assertThat(result.get(0).getAssetDupBg()).isEqualByComparingTo(java.math.BigDecimal.valueOf(700));
                 assertThat(result.get(0).getCostDupBg()).isEqualByComparingTo(java.math.BigDecimal.valueOf(300));
         }
@@ -1174,13 +1174,13 @@ class ProjectServiceTest {
                                 .prjSno(1)
                                 .ioeC("IOE-237")
                                 .gclNm("동일")
-                                .gclQtt(BigDecimal.ONE)
-                                .cur("KRW")
+                                .gclQty(BigDecimal.ONE)
+                                .curC("KRW")
                                 .xcr(null)
                                 .xcrBseDt(LocalDate.of(2026, 1, 1))
-                                .bgFdtn("근거")
-                                .itdDt("2026-02")
-                                .dfrCle("매월")
+                                .bgFdtnCone("근거")
+                                .itdYm("2026-02")
+                                .dfrCleC("매월")
                                 .infPrtYn("Y")
                                 .itrInfrYn("Y")
                                 .gclAmt(BigDecimal.valueOf(100))
@@ -1190,13 +1190,13 @@ class ProjectServiceTest {
                                 .gclMngNo("GCL-0001")
                                 .ioeC("IOE-237")
                                 .gclNm("동일")
-                                .gclQtt(BigDecimal.ONE)
-                                .cur("KRW")
+                                .gclQty(BigDecimal.ONE)
+                                .curC("KRW")
                                 .xcr(null)
                                 .xcrBseDt(LocalDate.of(2026, 1, 1))
-                                .bgFdtn("근거")
-                                .itdDt("2026-02")
-                                .dfrCle("매월")
+                                .bgFdtnCone("근거")
+                                .itdYm("2026-02")
+                                .dfrCleC("매월")
                                 .infPrtYn("Y")
                                 .itrInfrYn("Y")
                                 .gclAmt(BigDecimal.valueOf(200))
@@ -1805,8 +1805,8 @@ class ProjectServiceTest {
                                 .gclMngNo("GCL-0001").gclSno(1)
                                 .prjMngNo(prjMngNo).prjSno(1)
                                 .ioeC("IOE-OLD")
-                                .gclNm("동일").gclQtt(BigDecimal.ONE)
-                                .cur("KRW").xcr(BigDecimal.ONE)
+                                .gclNm("동일").gclQty(BigDecimal.ONE)
+                                .curC("KRW").xcr(BigDecimal.ONE)
                                 .infPrtYn("N").itrInfrYn("N")
                                 .gclAmt(BigDecimal.valueOf(100)).delYn("N").build();
 
@@ -1821,8 +1821,8 @@ class ProjectServiceTest {
                 ProjectDto.BitemmDto changedItem = ProjectDto.BitemmDto.builder()
                                 .gclMngNo("GCL-0001")
                                 .ioeC("IOE-NEW") // ioeC만 변경
-                                .gclNm("동일").gclQtt(BigDecimal.ONE)
-                                .cur("KRW").xcr(BigDecimal.ONE)
+                                .gclNm("동일").gclQty(BigDecimal.ONE)
+                                .curC("KRW").xcr(BigDecimal.ONE)
                                 .infPrtYn(null).itrInfrYn(null)
                                 .gclAmt(BigDecimal.valueOf(100)).build();
 
@@ -1845,8 +1845,8 @@ class ProjectServiceTest {
                 Bitemm existingItem = Bitemm.builder()
                                 .gclMngNo("GCL-0002").gclSno(1)
                                 .prjMngNo(prjMngNo).prjSno(1)
-                                .ioeC("IOE-001").gclNm("동일").gclQtt(BigDecimal.ONE)
-                                .cur("KRW") // 기존 KRW
+                                .ioeC("IOE-001").gclNm("동일").gclQty(BigDecimal.ONE)
+                                .curC("KRW") // 기존 KRW
                                 .xcr(BigDecimal.ONE).infPrtYn("N").itrInfrYn("N")
                                 .gclAmt(BigDecimal.valueOf(100)).delYn("N").build();
 
@@ -1860,8 +1860,8 @@ class ProjectServiceTest {
 
                 ProjectDto.BitemmDto changedItem = ProjectDto.BitemmDto.builder()
                                 .gclMngNo("GCL-0002")
-                                .ioeC("IOE-001").gclNm("동일").gclQtt(BigDecimal.ONE)
-                                .cur("USD") // cur 변경
+                                .ioeC("IOE-001").gclNm("동일").gclQty(BigDecimal.ONE)
+                                .curC("USD") // curC 변경
                                 .xcr(BigDecimal.ONE).infPrtYn(null).itrInfrYn(null)
                                 .gclAmt(BigDecimal.valueOf(100)).build();
 
@@ -1884,8 +1884,8 @@ class ProjectServiceTest {
                 Bitemm existingItem = Bitemm.builder()
                                 .gclMngNo("GCL-0003").gclSno(1)
                                 .prjMngNo(prjMngNo).prjSno(1)
-                                .ioeC("IOE-001").gclNm("동일").gclQtt(BigDecimal.ONE)
-                                .cur("KRW").xcr(BigDecimal.ONE)
+                                .ioeC("IOE-001").gclNm("동일").gclQty(BigDecimal.ONE)
+                                .curC("KRW").xcr(BigDecimal.ONE)
                                 .xcrBseDt(java.time.LocalDate.of(2026, 1, 1)) // 기존 날짜
                                 .infPrtYn("N").itrInfrYn("N")
                                 .gclAmt(BigDecimal.valueOf(100)).delYn("N").build();
@@ -1900,8 +1900,8 @@ class ProjectServiceTest {
 
                 ProjectDto.BitemmDto changedItem = ProjectDto.BitemmDto.builder()
                                 .gclMngNo("GCL-0003")
-                                .ioeC("IOE-001").gclNm("동일").gclQtt(BigDecimal.ONE)
-                                .cur("KRW").xcr(BigDecimal.ONE)
+                                .ioeC("IOE-001").gclNm("동일").gclQty(BigDecimal.ONE)
+                                .curC("KRW").xcr(BigDecimal.ONE)
                                 .xcrBseDt(java.time.LocalDate.of(2026, 6, 1)) // 날짜 변경
                                 .infPrtYn(null).itrInfrYn(null)
                                 .gclAmt(BigDecimal.valueOf(100)).build();
@@ -1916,8 +1916,8 @@ class ProjectServiceTest {
         }
 
         @Test
-        @DisplayName("updateProject: bgFdtn만 변경되면 버저닝이 발생한다")
-        void updateProject_bgFdtn변경_버저닝() {
+        @DisplayName("updateProject: bgFdtnCone만 변경되면 버저닝이 발생한다")
+        void updateProject_bgFdtnCone변경_버저닝() {
                 // given
                 String prjMngNo = "PRJ-2026-0001";
                 Bprojm project = Bprojm.builder()
@@ -1925,9 +1925,9 @@ class ProjectServiceTest {
                 Bitemm existingItem = Bitemm.builder()
                                 .gclMngNo("GCL-0004").gclSno(1)
                                 .prjMngNo(prjMngNo).prjSno(1)
-                                .ioeC("IOE-001").gclNm("동일").gclQtt(BigDecimal.ONE)
-                                .cur("KRW").xcr(BigDecimal.ONE)
-                                .bgFdtn("기존근거")
+                                .ioeC("IOE-001").gclNm("동일").gclQty(BigDecimal.ONE)
+                                .curC("KRW").xcr(BigDecimal.ONE)
+                                .bgFdtnCone("기존근거")
                                 .infPrtYn("N").itrInfrYn("N")
                                 .gclAmt(BigDecimal.valueOf(100)).delYn("N").build();
 
@@ -1941,9 +1941,9 @@ class ProjectServiceTest {
 
                 ProjectDto.BitemmDto changedItem = ProjectDto.BitemmDto.builder()
                                 .gclMngNo("GCL-0004")
-                                .ioeC("IOE-001").gclNm("동일").gclQtt(BigDecimal.ONE)
-                                .cur("KRW").xcr(BigDecimal.ONE)
-                                .bgFdtn("변경근거") // bgFdtn 변경
+                                .ioeC("IOE-001").gclNm("동일").gclQty(BigDecimal.ONE)
+                                .curC("KRW").xcr(BigDecimal.ONE)
+                                .bgFdtnCone("변경근거") // bgFdtnCone 변경
                                 .infPrtYn(null).itrInfrYn(null)
                                 .gclAmt(BigDecimal.valueOf(100)).build();
 

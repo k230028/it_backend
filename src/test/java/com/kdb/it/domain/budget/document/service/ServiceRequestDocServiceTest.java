@@ -15,7 +15,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -356,7 +355,7 @@ class ServiceRequestDocServiceTest {
         ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
                 .docMngNo("DOC-MANUAL")
                 .reqNm("직접 문서")
-                .reqCone("<p>본문</p><script>alert(1)</script>")
+                .reqInf("<p>본문</p><script>alert(1)</script>")
                 .build();
         given(repository.existsByDocMngNoAndDelYn("DOC-MANUAL", "N")).willReturn(false);
         given(repository.save(any(Brdocm.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -366,8 +365,8 @@ class ServiceRequestDocServiceTest {
         assertThat(result).isEqualTo("DOC-MANUAL");
         then(repository).should().save(argThat(entity ->
                 entity.getDocMngNo().equals("DOC-MANUAL")
-                        && new String(entity.getReqCone(), StandardCharsets.UTF_8).contains("본문")
-                        && !new String(entity.getReqCone(), StandardCharsets.UTF_8).contains("script")
+                        && entity.getReqInf().contains("본문")
+                        && !entity.getReqInf().contains("script")
         ));
     }
 
@@ -400,21 +399,21 @@ class ServiceRequestDocServiceTest {
                 .docMngNo("DOC-001")
                 .docVrs(new BigDecimal("0.02"))
                 .reqNm("기존")
-                .reqCone("기존".getBytes(StandardCharsets.UTF_8))
+                .reqInf("기존")
                 .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsDesc("DOC-001", "N"))
                 .willReturn(Optional.of(latest));
 
         service.updateDocument("DOC-001", ServiceRequestDocDto.UpdateRequest.builder()
                 .reqNm("수정")
-                .reqCone(null)
+                .reqInf(null)
                 .reqDtt("REQ")
                 .bzDtt("BZ")
                 .fsgTlm(LocalDate.now().plusDays(3))
                 .build());
 
         assertThat(latest.getReqNm()).isEqualTo("수정");
-        assertThat(latest.getReqCone()).isNull();
+        assertThat(latest.getReqInf()).isNull();
         assertThat(latest.getReqDtt()).isEqualTo("REQ");
     }
 

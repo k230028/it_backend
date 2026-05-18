@@ -32,28 +32,28 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "LST_YN", length = 4, comment = "최종여부")
     private String lstYn;
 
-    @Column(name = "IOE_C", length = 400, comment = "비목코드")
+    @Column(name = "IOE_C", length = 3, comment = "비목코드")
     private String ioeC;
 
     @Column(name = "CTT_NM", length = 800, comment = "계약명")
     private String cttNm;
 
-    @Column(name = "CTT_OPP", length = 400, comment = "계약상대처")
-    private String cttOpp;
+    @Column(name = "CTT_OPP_NM", length = 100, comment = "계약상대처명")
+    private String cttOppNm;
 
-    @Column(name = "IT_MNGC_BG", precision = 15, scale = 2, comment = "전산업무비예산")
-    private BigDecimal itMngcBg;
+    @Column(name = "IT_MNGC_BG_AMT", precision = 18, scale = 3, comment = "전산업무비예산금액")
+    private BigDecimal itMngcBgAmt;
 
-    @Column(name = "DFR_CLE", length = 40, comment = "지급주기")
-    private String dfrCle;
+    @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
+    private String dfrCleC;
 
     @Column(name = "FST_DFR_DT", comment = "지급예정월")
     private LocalDate fstDfrDt;
 
-    @Column(name = "CUR", length = 40, comment = "통화")
-    private String cur;
+    @Column(name = "CUR_C", length = 3, comment = "통화코드")
+    private String curC;
 
-    @Column(name = "XCR", precision = 9, comment = "환율")
+    @Column(name = "XCR", precision = 9, scale = 4, comment = "환율")
     private BigDecimal xcr;
 
     @Column(name = "XCR_BSE_DT", comment = "환율기준일자")
@@ -62,17 +62,17 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "INF_PRT_YN", length = 4, comment = "정보보호여부")
     private String infPrtYn;
 
-    @Column(name = "IND_RSN", length = 4000, comment = "증감사유")
+    @Column(name = "IND_RSN", length = 600, comment = "증감사유")
     private String indRsn;
 
-    @Column(name = "CGPR", length = 128, comment = "담당자")
-    private String cgpr;
+    @Column(name = "CGPR_ENO", length = 32, comment = "담당자행번")
+    private String cgprEno;
 
-    @Column(name = "BICE_DPM", length = 100, comment = "담당부서")
-    private String biceDpm;
+    @Column(name = "BICE_DPM_C", length = 3, comment = "담당부서코드")
+    private String biceDpmC;
 
-    @Column(name = "BICE_TEM", length = 100, comment = "담당팀")
-    private String biceTem;
+    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    private String biceTemC;
 
     @Column(name = "BG_YY", length = 4, comment = "예산연도")
     private String bgYy;

@@ -34,8 +34,8 @@ public class BrdocmL extends BaseLogEntity {
     private String reqNm;
 
     @Lob
-    @Column(name = "REQ_CONE", comment = "요구사항내용")
-    private byte[] reqCone;
+    @Column(name = "REQ_INF", comment = "요구사항정보")
+    private String reqInf;
 
     @Column(name = "REQ_DTT", length = 32, comment = "요구사항구분")
     private String reqDtt;

@@ -156,7 +156,7 @@ public class CostService {
      * <li>null/미입력: 결재상태 필터 없음</li>
      * </ul>
      *
-     * @param condition 검색 조건 DTO (apfSts, biceDpm, biceTem, infPrtYn)
+     * @param condition 검색 조건 DTO (apfSts, biceDpmC, biceTemC, infPrtYn)
      * @return 조건에 맞는 전산관리비 응답 DTO 목록
      */
     public List<CostDto.Response> searchCostList(CostDto.SearchCondition condition) {
@@ -267,14 +267,14 @@ public class CostService {
                 .findFirst()
                 .orElse(costs.get(0));
 
-        validateModifyPermission(target.getFstEnrUsid(), target.getBiceDpm());
+        validateModifyPermission(target.getFstEnrUsid(), target.getBiceDpmC());
 
         target.update(
-                request.getIoeC(), request.getCttNm(), request.getCttOpp(),
-                request.getItMngcBg(), request.getDfrCle(), request.getFstDfrDt(),
-                request.getCur(), request.getXcr(), request.getXcrBseDt(),
-                request.getInfPrtYn(), request.getIndRsn(), request.getCgpr(),
-                request.getBiceDpm(), request.getBiceTem(), request.getAbusC(),
+                request.getIoeC(), request.getCttNm(), request.getCttOppNm(),
+                request.getItMngcBgAmt(), request.getDfrCleC(), request.getFstDfrDt(),
+                request.getCurC(), request.getXcr(), request.getXcrBseDt(),
+                request.getInfPrtYn(), request.getIndRsn(), request.getCgprEno(),
+                request.getBiceDpmC(), request.getBiceTemC(), request.getAbusC(),
                 request.getItMngcTp(), request.getPulDtt(), request.getBgYy(), request.getCncdItMngcNo());
 
         /* 연관된 단말기 목록 업데이트: 기존 Soft Delete 후 재등록 */
@@ -322,7 +322,7 @@ public class CostService {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
 
-        validateModifyPermission(costs.get(0).getFstEnrUsid(), costs.get(0).getBiceDpm());
+        validateModifyPermission(costs.get(0).getFstEnrUsid(), costs.get(0).getBiceDpmC());
 
         for (Bcostm cost : costs) {
             cost.delete();
@@ -365,11 +365,11 @@ public class CostService {
             Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByItMngcNos(itMngcNos, bgYy);
             // 전산업무비는 ioeC가 IOE_CPIT이면 자본예산, 나머지면 일반관리비 단일 분류
             responses.forEach(r -> {
-                BigDecimal dupBg = dupBgMap.getOrDefault(r.getItMngcNo(), BigDecimal.ZERO);
-                r.setDupBg(dupBg);
+                BigDecimal dupBgAmt = dupBgMap.getOrDefault(r.getItMngcNo(), BigDecimal.ZERO);
+                r.setDupBgAmt(dupBgAmt);
                 boolean isAsset = r.getAssetBg() != null && r.getAssetBg().compareTo(BigDecimal.ZERO) > 0;
-                r.setAssetDupBg(isAsset ? dupBg : BigDecimal.ZERO);
-                r.setCostDupBg(isAsset ? BigDecimal.ZERO : dupBg);
+                r.setAssetDupBg(isAsset ? dupBgAmt : BigDecimal.ZERO);
+                r.setCostDupBg(isAsset ? BigDecimal.ZERO : dupBgAmt);
             });
         }
         return responses;
@@ -422,14 +422,14 @@ public class CostService {
      * 비목코드(ioeC)를 공통코드에서 조회하여 코드값구분(cttTp) 기준으로 분류합니다.
      * </p>
      * <ul>
-     * <li>자본예산: cttTp가 IOE_DVC/IOE_HW/IOE_SW인 경우 → assetBg = itMngcBg, costBg = 0</li>
-     * <li>일반관리비: cttTp가 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE인 경우 → assetBg = 0, costBg = itMngcBg</li>
+     * <li>자본예산: cttTp가 IOE_DVC/IOE_HW/IOE_SW인 경우 → assetBg = itMngcBgAmt, costBg = 0</li>
+     * <li>일반관리비: cttTp가 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE인 경우 → assetBg = 0, costBg = itMngcBgAmt</li>
      * </ul>
      *
      * @param response 예산 구분을 설정할 응답 DTO
      */
     private void setBudgetCategory(CostDto.Response response) {
-        BigDecimal totalBg = response.getItMngcBg() != null ? response.getItMngcBg() : BigDecimal.ZERO;
+        BigDecimal totalBg = response.getItMngcBgAmt() != null ? response.getItMngcBgAmt() : BigDecimal.ZERO;
         BigDecimal zero = BigDecimal.ZERO;
 
         // 세부 자본예산 필드 초기화
@@ -511,16 +511,16 @@ public class CostService {
         Set<String> orgCodes = new java.util.HashSet<>();
         Set<String> userEnos = new java.util.HashSet<>();
         Set<String> abusCdvas = new java.util.HashSet<>();
-        Set<String> dfrCleCdvas = new java.util.HashSet<>();
+        Set<String> dfrCleCCdvas = new java.util.HashSet<>();
         Set<String> itMngcTpCdvas = new java.util.HashSet<>();
         Set<String> pulDttCdvas = new java.util.HashSet<>();
         Set<String> ioeCCdvas = new java.util.HashSet<>();
         for (CostDto.Response r : responses) {
-            if (r.getBiceDpm() != null && !r.getBiceDpm().isEmpty()) orgCodes.add(r.getBiceDpm());
-            if (r.getBiceTem() != null && !r.getBiceTem().isEmpty()) orgCodes.add(r.getBiceTem());
-            if (r.getCgpr() != null && !r.getCgpr().isEmpty()) userEnos.add(r.getCgpr());
+            if (r.getBiceDpmC() != null && !r.getBiceDpmC().isEmpty()) orgCodes.add(r.getBiceDpmC());
+            if (r.getBiceTemC() != null && !r.getBiceTemC().isEmpty()) orgCodes.add(r.getBiceTemC());
+            if (r.getCgprEno() != null && !r.getCgprEno().isEmpty()) userEnos.add(r.getCgprEno());
             if (r.getAbusC() != null && !r.getAbusC().isEmpty()) abusCdvas.add(r.getAbusC());
-            if (r.getDfrCle() != null && !r.getDfrCle().isEmpty()) dfrCleCdvas.add(r.getDfrCle());
+            if (r.getDfrCleC() != null && !r.getDfrCleC().isEmpty()) dfrCleCCdvas.add(r.getDfrCleC());
             if (r.getItMngcTp() != null && !r.getItMngcTp().isEmpty()) itMngcTpCdvas.add(r.getItMngcTp());
             if (r.getPulDtt() != null && !r.getPulDtt().isEmpty()) pulDttCdvas.add(r.getPulDtt());
             if (r.getIoeC() != null && !r.getIoeC().isEmpty()) ioeCCdvas.add(r.getIoeC());
@@ -533,8 +533,8 @@ public class CostService {
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
         Map<String, String> abusCNameMap = abusCdvas.isEmpty() ? Map.of()
                 : buildCodeNameMap("ABUS_C", abusCdvas);
-        Map<String, String> dfrCleNameMap = dfrCleCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap("DFR_CLE", dfrCleCdvas);
+        Map<String, String> dfrCleCNameMap = dfrCleCCdvas.isEmpty() ? Map.of()
+                : buildCodeNameMap("DFR_CLE", dfrCleCCdvas);
         Map<String, String> itMngcTpNameMap = itMngcTpCdvas.isEmpty() ? Map.of()
                 : buildCodeNameMap("IT_MNGC_TP", itMngcTpCdvas);
         Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of()
@@ -559,11 +559,11 @@ public class CostService {
                 }
             }
 
-            if (response.getBiceDpm() != null) response.setBiceDpmNm(orgNameMap.get(response.getBiceDpm()));
-            if (response.getBiceTem() != null) response.setBiceTemNm(orgNameMap.get(response.getBiceTem()));
-            if (response.getCgpr() != null) response.setCgprNm(userNameMap.get(response.getCgpr()));
+            if (response.getBiceDpmC() != null) response.setBiceDpmNm(orgNameMap.get(response.getBiceDpmC()));
+            if (response.getBiceTemC() != null) response.setBiceTemNm(orgNameMap.get(response.getBiceTemC()));
+            if (response.getCgprEno() != null) response.setCgprNm(userNameMap.get(response.getCgprEno()));
             if (response.getAbusC() != null) response.setAbusCNm(abusCNameMap.get(response.getAbusC()));
-            if (response.getDfrCle() != null) response.setDfrCleNm(dfrCleNameMap.get(response.getDfrCle()));
+            if (response.getDfrCleC() != null) response.setDfrCleCNm(dfrCleCNameMap.get(response.getDfrCleC()));
             if (response.getItMngcTp() != null) response.setItMngcTpNm(itMngcTpNameMap.get(response.getItMngcTp()));
             if (response.getPulDtt() != null) response.setPulDttNm(pulDttNameMap.get(response.getPulDtt()));
             if (response.getIoeC() != null) response.setIoeCNm(ioeCNameMap.get(response.getIoeC()));
@@ -648,25 +648,25 @@ public class CostService {
 
     /** 부서코드→부서명, 사원번호→사용자명, 사업코드→사업코드명 조회 및 설정 */
     private void setCodeNames(CostDto.Response response) {
-        if (response.getBiceDpm() != null && !response.getBiceDpm().isEmpty()) {
-            corgnIRepository.findById(response.getBiceDpm())
+        if (response.getBiceDpmC() != null && !response.getBiceDpmC().isEmpty()) {
+            corgnIRepository.findById(response.getBiceDpmC())
                     .ifPresent(org -> response.setBiceDpmNm(org.getBbrNm()));
         }
-        if (response.getBiceTem() != null && !response.getBiceTem().isEmpty()) {
-            corgnIRepository.findById(response.getBiceTem())
+        if (response.getBiceTemC() != null && !response.getBiceTemC().isEmpty()) {
+            corgnIRepository.findById(response.getBiceTemC())
                     .ifPresent(org -> response.setBiceTemNm(org.getBbrNm()));
         }
-        if (response.getCgpr() != null && !response.getCgpr().isEmpty()) {
-            cuserIRepository.findById(response.getCgpr())
+        if (response.getCgprEno() != null && !response.getCgprEno().isEmpty()) {
+            cuserIRepository.findById(response.getCgprEno())
                     .ifPresent(user -> response.setCgprNm(user.getUsrNm()));
         }
         if (response.getAbusC() != null && !response.getAbusC().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_C", response.getAbusC(), null)
                     .ifPresent(code -> response.setAbusCNm(code.getCNm()));
         }
-        if (response.getDfrCle() != null && !response.getDfrCle().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE", response.getDfrCle(), null)
-                    .ifPresent(code -> response.setDfrCleNm(code.getCNm()));
+        if (response.getDfrCleC() != null && !response.getDfrCleC().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE", response.getDfrCleC(), null)
+                    .ifPresent(code -> response.setDfrCleCNm(code.getCNm()));
         }
         if (response.getItMngcTp() != null && !response.getItMngcTp().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", response.getItMngcTp(), null)
@@ -685,8 +685,8 @@ public class CostService {
     /** 단말기 DTO 목록에 담당자명(cgprNm) 일괄 설정 (배치 조회로 N+1 방지) */
     private void setTerminalCodeNames(List<CostDto.TerminalDto> terminalDtos) {
         Set<String> enos = terminalDtos.stream()
-                .map(CostDto.TerminalDto::getCgpr)
-                .filter(cgpr -> cgpr != null && !cgpr.isEmpty())
+                .map(CostDto.TerminalDto::getCgprEno)
+                .filter(cgprEno -> cgprEno != null && !cgprEno.isEmpty())
                 .collect(Collectors.toSet());
         if (enos.isEmpty()) return;
 
@@ -695,8 +695,8 @@ public class CostService {
                         CuserI::getEno,
                         CuserI::getUsrNm));
         terminalDtos.forEach(tDto -> {
-            if (tDto.getCgpr() != null) {
-                tDto.setCgprNm(nameMap.get(tDto.getCgpr()));
+            if (tDto.getCgprEno() != null) {
+                tDto.setCgprNm(nameMap.get(tDto.getCgprEno()));
             }
         });
     }

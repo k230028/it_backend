@@ -30,9 +30,8 @@ public class Ccmmtm extends BaseEntity {
     @Column(name = "NAC_MNG_NO", nullable = false, length = 32, comment = "게시물관리번호")
     private String nacMngNo;
 
-    /** 댓글 본문 — HtmlSanitizer.sanitize() 적용 의무 */
-    @Lob
-    @Column(name = "CMMT_CONE", nullable = false, comment = "댓글내용")
+    /** 댓글 본문 — HtmlSanitizer.sanitize() 적용 의무, VARCHAR2(4000) */
+    @Column(name = "CMMT_CONE", nullable = false, length = 4000, comment = "댓글내용")
     private String cmmtCone;
 
     @Column(name = "SRE_YN", nullable = false, length = 1, comment = "화면여부")

@@ -51,7 +51,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      * [처리 순서]
      * 1. DEL_YN='N' 기본 조건 설정
      * 2. apfSts 조건 분기 처리 (none / 특정값 / null)
-     * 3. 나머지 단순 필드 조건 추가 (biceDpm, biceTem, infPrtYn)
+     * 3. 나머지 단순 필드 조건 추가 (biceDpmC, biceTemC, infPrtYn)
      * 4. BooleanBuilder로 조합된 WHERE 절로 쿼리 실행
      * </p>
      *
@@ -144,12 +144,12 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         // === 단순 필드 조건 처리 (null이면 해당 조건 미적용) ===
 
         // 연관부서 필터
-        if (condition.getBiceDpm() != null && !condition.getBiceDpm().isBlank()) {
-            builder.and(bcostm.biceDpm.eq(condition.getBiceDpm()));
+        if (condition.getBiceDpmC() != null && !condition.getBiceDpmC().isBlank()) {
+            builder.and(bcostm.biceDpmC.eq(condition.getBiceDpmC()));
         }
         // 연관팀 필터
-        if (condition.getBiceTem() != null && !condition.getBiceTem().isBlank()) {
-            builder.and(bcostm.biceTem.eq(condition.getBiceTem()));
+        if (condition.getBiceTemC() != null && !condition.getBiceTemC().isBlank()) {
+            builder.and(bcostm.biceTemC.eq(condition.getBiceTemC()));
         }
         // 정보보호여부 필터
         if (condition.getInfPrtYn() != null && !condition.getInfPrtYn().isBlank()) {
@@ -176,7 +176,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         if (itMngcNos == null || itMngcNos.isEmpty()) return Map.of();
         QBcostm bcostm = QBcostm.bcostm;
         List<Tuple> results = queryFactory
-                .select(bcostm.itMngcNo, bcostm.itMngcBg.sum())
+                .select(bcostm.itMngcNo, bcostm.itMngcBgAmt.sum())
                 .from(bcostm)
                 .where(
                         bcostm.bgYy.eq(prevYear),
@@ -187,7 +187,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         return results.stream().collect(Collectors.toMap(
                 t -> t.get(bcostm.itMngcNo),
                 t -> {
-                    BigDecimal sum = t.get(bcostm.itMngcBg.sum());
+                    BigDecimal sum = t.get(bcostm.itMngcBgAmt.sum());
                     return sum != null ? sum : BigDecimal.ZERO;
                 }));
     }

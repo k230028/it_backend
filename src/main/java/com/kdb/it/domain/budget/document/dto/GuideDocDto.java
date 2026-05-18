@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 /**
@@ -47,7 +46,7 @@ public class GuideDocDto {
 
         /** 문서내용 (HTML 포함 가능) */
         @Schema(description = "문서내용")
-        private String docCone;
+        private String docInf;
 
         /**
          * CreateRequest를 {@link Bgdocm} 엔티티로 변환합니다.
@@ -58,7 +57,7 @@ public class GuideDocDto {
             return Bgdocm.builder()
                     .docMngNo(this.docMngNo)
                     .docNm(this.docNm)
-                    .docCone(this.docCone != null ? this.docCone.getBytes(StandardCharsets.UTF_8) : null)
+                    .docInf(this.docInf)
                     .build();
         }
     }
@@ -80,7 +79,7 @@ public class GuideDocDto {
 
         /** 문서내용 (HTML 포함 가능) */
         @Schema(description = "문서내용")
-        private String docCone;
+        private String docInf;
     }
 
     /**
@@ -104,7 +103,7 @@ public class GuideDocDto {
 
         /** 문서내용 (BLOB → UTF-8 문자열 변환) */
         @Schema(description = "문서내용")
-        private String docCone;
+        private String docInf;
 
         /** 삭제여부 */
         @Schema(description = "삭제여부")
@@ -133,16 +132,10 @@ public class GuideDocDto {
          * @return 변환된 Response DTO
          */
         public static Response fromEntity(Bgdocm entity) {
-            // BLOB → UTF-8 문자열 변환
-            String docConeStr = null;
-            if (entity.getDocCone() != null) {
-                docConeStr = new String(entity.getDocCone(), StandardCharsets.UTF_8);
-            }
-
             return Response.builder()
                     .docMngNo(entity.getDocMngNo())
                     .docNm(entity.getDocNm())
-                    .docCone(docConeStr)
+                    .docInf(entity.getDocInf())
                     .delYn(entity.getDelYn())
                     .fstEnrDtm(entity.getFstEnrDtm())
                     .fstEnrUsid(entity.getFstEnrUsid())

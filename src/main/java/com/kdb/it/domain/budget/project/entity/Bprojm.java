@@ -13,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.Imported;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -406,4 +407,16 @@ public class Bprojm extends BaseEntity {
         this.pulDtt = pulDtt;
         this.cncdPrjMngNo = cncdPrjMngNo;
     }
+
+    /**
+     * 드롭다운/참조용 경량 DTO.
+     *
+     * <p>{@link Imported} 어노테이션은 JPQL {@code new} 생성자 표현식에서
+     * 짧은 이름({@code new Ref(...)})으로 참조하기 위해 필요합니다.
+     * Hibernate HQL 파서는 nested class를 FQN의 점 표기로 해석하지 못하므로,
+     * {@code Bprojm.Ref}를 그대로 사용하려면 {@code Bprojm$Ref} 표기 또는
+     * {@code @Imported} 등록이 필요합니다.</p>
+     */
+    @Imported
+    public record Ref(String code, String name) {}
 }

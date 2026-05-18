@@ -6,7 +6,6 @@ import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -59,9 +58,8 @@ public class Brivgm extends BaseEntity {
     @Column(name = "IVG_TP", length = 1, nullable = false, comment = "의견유형")
     private String ivgTp;
 
-    /** 의견내용: 리뷰 코멘트 본문 (Oracle CLOB 매핑) */
-    @Lob
-    @Column(name = "IVG_CONE", comment = "의견내용")
+    /** 의견내용: 리뷰 코멘트 본문 (VARCHAR2(4000)) */
+    @Column(name = "IVG_CONE", length = 4000, comment = "의견내용")
     private String ivgCone;
 
     /** 표시ID: 인라인 코멘트 에디터 하이라이트 매핑 키 */

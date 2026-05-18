@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -49,7 +48,7 @@ public class ServiceRequestDocDto {
 
         /** 요구사항내용 (HTML 포함 가능) */
         @Schema(description = "요구사항내용")
-        private String reqCone;
+        private String reqInf;
 
         /** 요구사항구분 코드 */
         @Schema(description = "요구사항구분")
@@ -80,7 +79,7 @@ public class ServiceRequestDocDto {
                     .docMngNo(docMngNo)
                     .docVrs(docVrs)
                     .reqNm(this.reqNm)
-                    .reqCone(this.reqCone != null ? this.reqCone.getBytes(StandardCharsets.UTF_8) : null)
+                    .reqInf(this.reqInf)
                     .reqDtt(this.reqDtt)
                     .bzDtt(this.bzDtt)
                     .fsgTlm(this.fsgTlm)
@@ -105,7 +104,7 @@ public class ServiceRequestDocDto {
 
         /** 요구사항내용 (HTML 포함 가능) */
         @Schema(description = "요구사항내용")
-        private String reqCone;
+        private String reqInf;
 
         /** 요구사항구분 코드 */
         @Schema(description = "요구사항구분")
@@ -145,7 +144,7 @@ public class ServiceRequestDocDto {
 
         /** 요구사항내용 (BLOB → UTF-8 문자열 변환) */
         @Schema(description = "요구사항내용")
-        private String reqCone;
+        private String reqInf;
 
         /** 요구사항구분 */
         @Schema(description = "요구사항구분")
@@ -190,17 +189,11 @@ public class ServiceRequestDocDto {
          * @return 변환된 Response DTO
          */
         public static Response fromEntity(Brdocm entity) {
-            // BLOB → UTF-8 문자열 변환
-            String reqConeStr = null;
-            if (entity.getReqCone() != null) {
-                reqConeStr = new String(entity.getReqCone(), StandardCharsets.UTF_8);
-            }
-
             return Response.builder()
                     .docMngNo(entity.getDocMngNo())
                     .docVrs(entity.getDocVrs())
                     .reqNm(entity.getReqNm())
-                    .reqCone(reqConeStr)
+                    .reqInf(entity.getReqInf())
                     .reqDtt(entity.getReqDtt())
                     .bzDtt(entity.getBzDtt())
                     .fsgTlm(entity.getFsgTlm())

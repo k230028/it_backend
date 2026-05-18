@@ -59,7 +59,7 @@ public interface BbugtmRepositoryCustom {
      *
      * @param prjMngNos 조회할 프로젝트관리번호 목록
      * @param bgYy      예산연도 (YYYY)
-     * @return prjMngNo → SUM(dupBg) 맵
+     * @return prjMngNo → SUM(dupBgAmt) 맵
      */
     Map<String, BigDecimal> sumDupBgByPrjMngNos(List<String> prjMngNos, String bgYy);
 
@@ -72,7 +72,7 @@ public interface BbugtmRepositoryCustom {
      *
      * @param itMngcNos 조회할 전산관리비관리번호 목록
      * @param bgYy      예산연도 (YYYY)
-     * @return itMngcNo → SUM(dupBg) 맵
+     * @return itMngcNo → SUM(dupBgAmt) 맵
      */
     Map<String, BigDecimal> sumDupBgByItMngcNos(List<String> itMngcNos, String bgYy);
 
@@ -87,7 +87,7 @@ public interface BbugtmRepositoryCustom {
      * @param prjMngNos        프로젝트관리번호 목록
      * @param bgYy             예산연도
      * @param assetGclDttCodes 자본예산 품목구분 코드 집합 (IOE_CPIT 계열)
-     * @return prjMngNo → SUM(dupBg) 맵
+     * @return prjMngNo → SUM(dupBgAmt) 맵
      */
     Map<String, BigDecimal> sumAssetDupBgByPrjMngNos(List<String> prjMngNos, String bgYy, Set<String> assetGclDttCodes);
 
@@ -102,7 +102,7 @@ public interface BbugtmRepositoryCustom {
      * @param prjMngNos       프로젝트관리번호 목록
      * @param bgYy            예산연도
      * @param costGclDttCodes 일반관리비 품목구분 코드 집합
-     * @return prjMngNo → SUM(dupBg) 맵
+     * @return prjMngNo → SUM(dupBgAmt) 맵
      */
     Map<String, BigDecimal> sumCostDupBgByPrjMngNos(List<String> prjMngNos, String bgYy, Set<String> costGclDttCodes);
 

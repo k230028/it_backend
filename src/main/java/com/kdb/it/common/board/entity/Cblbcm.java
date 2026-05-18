@@ -35,9 +35,8 @@ public class Cblbcm extends BaseEntity {
     @Column(name = "NAC_NM", nullable = false, length = 300, comment = "게시물명")
     private String nacNm;
 
-    /** 본문 HTML — HtmlSanitizer.sanitize() 적용 의무 */
-    @Lob
-    @Column(name = "NAC_CONE", comment = "게시물내용")
+    /** 본문 HTML — HtmlSanitizer.sanitize() 적용 의무, VARCHAR2(4000) */
+    @Column(name = "NAC_CONE", length = 4000, comment = "게시물내용")
     private String nacCone;
 
     @Column(name = "NAC_INQ_NBR", nullable = false, comment = "게시물조회수")

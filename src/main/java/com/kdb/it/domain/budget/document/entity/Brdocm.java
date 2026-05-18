@@ -57,10 +57,10 @@ public class Brdocm extends BaseEntity {
     @Column(name = "REQ_NM", length = 200, comment = "요구사항명")
     private String reqNm;
 
-    /** 요구사항내용: 요구사항 상세 내용 (BLOB, HTML 포함 가능) */
+    /** 요구사항정보: 요구사항 상세 내용 (CLOB, HTML 포함 가능) */
     @Lob
-    @Column(name = "REQ_CONE", comment = "요구사항내용")
-    private byte[] reqCone;
+    @Column(name = "REQ_INF", comment = "요구사항정보")
+    private String reqInf;
 
     /** 요구사항구분: 요구사항 분류 코드 (최대 32자) */
     @Column(name = "REQ_DTT", length = 32, comment = "요구사항구분")
@@ -82,14 +82,14 @@ public class Brdocm extends BaseEntity {
      * </p>
      *
      * @param reqNm  요구사항명
-     * @param reqCone 요구사항내용 (BLOB)
+     * @param reqInf 요구사항정보 (CLOB)
      * @param reqDtt 요구사항구분
      * @param bzDtt  업무구분
      * @param fsgTlm 완료기한
      */
-    public void update(String reqNm, byte[] reqCone, String reqDtt, String bzDtt, LocalDate fsgTlm) {
+    public void update(String reqNm, String reqInf, String reqDtt, String bzDtt, LocalDate fsgTlm) {
         this.reqNm = reqNm;
-        this.reqCone = reqCone;
+        this.reqInf = reqInf;
         this.reqDtt = reqDtt;
         this.bzDtt = bzDtt;
         this.fsgTlm = fsgTlm;
@@ -99,7 +99,7 @@ public class Brdocm extends BaseEntity {
      * 새 버전 엔티티 생성 메서드
      *
      * <p>
-     * 현재 엔티티의 업무 필드({@code reqNm}, {@code reqCone}, {@code reqDtt},
+     * 현재 엔티티의 업무 필드({@code reqNm}, {@code reqInf}, {@code reqDtt},
      * {@code bzDtt}, {@code fsgTlm})를 복제하여 지정된 버전({@code nextVrs})의
      * 새 {@link Brdocm} 인스턴스를 반환합니다.
      * </p>
@@ -119,7 +119,7 @@ public class Brdocm extends BaseEntity {
             .docMngNo(this.docMngNo)
             .docVrs(nextVrs)
             .reqNm(this.reqNm)
-            .reqCone(this.reqCone)
+            .reqInf(this.reqInf)
             .reqDtt(this.reqDtt)
             .bzDtt(this.bzDtt)
             .fsgTlm(this.fsgTlm)

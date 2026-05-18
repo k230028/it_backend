@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -112,4 +113,23 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
      */
     @org.springframework.data.jpa.repository.Query(value = "SELECT SEQ_BPROJM.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
+
+    /**
+     * 활성 정보화사업의 경량 참조 목록 조회 (Tiptap 변수 카탈로그용)
+     *
+     * <p>
+     * 동일 prjMngNo 의 여러 버전 중 최신({@code LST_YN='Y'}) 레코드만 반환하여
+     * 드롭다운에서 중복 사업이 나타나지 않도록 합니다.
+     * </p>
+     *
+     * @return 활성 사업의 (관리번호, 사업명) 참조 목록 (사업명 오름차순)
+     */
+    @Query("""
+            SELECT new com.kdb.it.domain.budget.project.entity.Bprojm$Ref(p.prjMngNo, p.prjNm)
+              FROM Bprojm p
+             WHERE p.delYn = 'N'
+               AND p.lstYn = 'Y'
+             ORDER BY p.prjNm ASC
+            """)
+    List<Bprojm.Ref> findActiveProjectRefs();
 }

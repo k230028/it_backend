@@ -288,7 +288,7 @@ public class PlanDto {
          * </p>
          */
         @Schema(description = "계획세부내용 (JSON)")
-        private String plnDtlCone;
+        private String plnDtlInf;
 
         /** IT프로젝트내용 */
         @Schema(description = "IT프로젝트내용")
@@ -337,7 +337,7 @@ public class PlanDto {
                     .ttlBg(plan.getTtlBg())
                     .cptBg(plan.getCptBg())
                     .mngc(plan.getMngc())
-                    .plnDtlCone(plan.getPlnDtlCone())
+                    .plnDtlInf(plan.getPlnDtlInf())
                     .itPrjCone(plan.getItPrjCone())
                     .itBgCone(plan.getItBgCone())
                     .itPrjRmk(plan.getItPrjRmk())
@@ -351,7 +351,7 @@ public class PlanDto {
     }
 
     /**
-     * PLN_DTL_CONE 컬럼에 저장되는 JSON 스냅샷 구조
+     * PLN_DTL_INF 컬럼에 저장되는 JSON 스냅샷 구조
      *
      * <p>
      * 계획 저장 시점의 전체 프로젝트 데이터를 보관합니다.

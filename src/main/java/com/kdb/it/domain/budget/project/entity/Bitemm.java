@@ -66,40 +66,40 @@ public class Bitemm extends BaseEntity {
     private Integer prjSno;
 
     /** 품목구분: 품목의 카테고리 (예: 소프트웨어, 하드웨어, 서비스, 컨설팅) */
-    @Column(name = "IOE_C", length = 32, comment = "품목구분")
+    @Column(name = "IOE_C", length = 3, comment = "품목구분")
     private String ioeC;
 
     /** 품목명: 도입할 품목의 명칭 (예: Oracle DB 라이선스, 서버 장비) */
     @Column(name = "GCL_NM", length = 100, comment = "품목명")
     private String gclNm;
 
-    /** 품목수량: 도입 수량 (최대 9자리 숫자) */
-    @Column(name = "GCL_QTT", precision = 9, comment = "품목수량")
-    private BigDecimal gclQtt;
+    /** 품목수량: 도입 수량 (최대 10자리 숫자) */
+    @Column(name = "GCL_QTY", precision = 10, comment = "품목수량")
+    private BigDecimal gclQty;
 
-    /** 통화: 가격 통화 코드 (예: KRW, USD, EUR) */
-    @Column(name = "CUR", length = 10, comment = "통화")
-    private String cur;
+    /** 통화코드: 가격 통화 코드 (예: KRW, USD, EUR) */
+    @Column(name = "CUR_C", length = 3, comment = "통화코드")
+    private String curC;
 
-    /** 환율: 외화 품목의 적용 환율 (최대 15자리 수, 소수점 이하 4자리) */
-    @Column(name = "XCR", precision = 15, scale = 4, comment = "환율")
+    /** 환율: 외화 품목의 적용 환율 (최대 9자리 수, 소수점 이하 4자리) */
+    @Column(name = "XCR", precision = 9, scale = 4, comment = "환율")
     private BigDecimal xcr;
 
     /** 환율기준일자: 환율 적용 기준일 */
     @Column(name = "XCR_BSE_DT", comment = "환율기준일자")
     private LocalDate xcrBseDt;
 
-    /** 예산근거: 이 품목의 예산 산정 근거 또는 참고 자료 */
-    @Column(name = "BG_FDTN", length = 100, comment = "예산근거")
-    private String bgFdtn;
+    /** 예산근거내용: 이 품목의 예산 산정 근거 또는 참고 자료 */
+    @Column(name = "BG_FDTN_CONE", length = 300, comment = "예산근거내용")
+    private String bgFdtnCone;
 
-    /** 도입시기: 품목 도입 예정 시기 (예: 2026년 1분기) */
-    @Column(name = "ITD_DT", length = 32, comment = "도입시기")
-    private String itdDt;
+    /** 추진년월: 품목 도입 예정 년월 (YYYYMM, 6자리) */
+    @Column(name = "ITD_YM", length = 6, comment = "추진년월")
+    private String itdYm;
 
-    /** 지급주기: 비용 지급 주기 (예: 일시, 매월, 분기) */
-    @Column(name = "DFR_CLE", length = 10, comment = "지급주기")
-    private String dfrCle;
+    /** 지급주기코드: 비용 지급 주기 코드 (예: 일시, 매월, 분기) */
+    @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
+    private String dfrCleC;
 
     /** 정보보호여부: 이 품목이 정보보호 관련 항목인지 여부 (Y/N) */
     @Column(name = "INF_PRT_YN", length = 1, comment = "정보보호여부")
@@ -114,7 +114,7 @@ public class Bitemm extends BaseEntity {
     private String lstYn;
 
     /** 품목금액: 이 품목의 총 금액 (수량 × 단가, 최대 15자리) */
-    @Column(name = "GCL_AMT", precision = 15, comment = "품목금액")
+    @Column(name = "GCL_AMT", precision = 18, scale = 3, comment = "품목금액")
     private BigDecimal gclAmt;
 }
 

@@ -216,7 +216,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         // 정보화사업 편성은 BITEMM 단위로 저장(ORC_TB='BITEMM', ORC_PK_VL=GCL_MNG_NO)
         // → BITEMM.PRJ_MNG_NO 기준으로 JOIN 후 GROUP BY
         List<Tuple> results = queryFactory
-                .select(bitemm.prjMngNo, bbugtm.dupBg.sum())
+                .select(bitemm.prjMngNo, bbugtm.dupBgAmt.sum())
                 .from(bbugtm)
                 .join(bitemm).on(
                         bbugtm.orcPkVl.eq(bitemm.gclMngNo),
@@ -233,7 +233,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
             String key = t.get(bitemm.prjMngNo);
-            BigDecimal sum = t.get(bbugtm.dupBg.sum());
+            BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
         return map;
@@ -251,7 +251,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         if (itMngcNos == null || itMngcNos.isEmpty()) return Map.of();
         QBbugtm bbugtm = QBbugtm.bbugtm;
         List<Tuple> results = queryFactory
-                .select(bbugtm.orcPkVl, bbugtm.dupBg.sum())
+                .select(bbugtm.orcPkVl, bbugtm.dupBgAmt.sum())
                 .from(bbugtm)
                 .where(
                         bbugtm.bgYy.eq(bgYy),
@@ -263,7 +263,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
             String key = t.get(bbugtm.orcPkVl);
-            BigDecimal sum = t.get(bbugtm.dupBg.sum());
+            BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
         return map;
@@ -279,7 +279,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         QBbugtm bbugtm = QBbugtm.bbugtm;
         QBitemm bitemm = QBitemm.bitemm;
         List<Tuple> results = queryFactory
-                .select(bitemm.prjMngNo, bbugtm.dupBg.sum())
+                .select(bitemm.prjMngNo, bbugtm.dupBgAmt.sum())
                 .from(bbugtm)
                 .join(bitemm).on(
                         bbugtm.orcPkVl.eq(bitemm.gclMngNo),
@@ -297,7 +297,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
             String key = t.get(bitemm.prjMngNo);
-            BigDecimal sum = t.get(bbugtm.dupBg.sum());
+            BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
         return map;
@@ -313,7 +313,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         QBbugtm bbugtm = QBbugtm.bbugtm;
         QBitemm bitemm = QBitemm.bitemm;
         List<Tuple> results = queryFactory
-                .select(bitemm.prjMngNo, bbugtm.dupBg.sum())
+                .select(bitemm.prjMngNo, bbugtm.dupBgAmt.sum())
                 .from(bbugtm)
                 .join(bitemm).on(
                         bbugtm.orcPkVl.eq(bitemm.gclMngNo),
@@ -331,7 +331,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
             String key = t.get(bitemm.prjMngNo);
-            BigDecimal sum = t.get(bbugtm.dupBg.sum());
+            BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
         return map;
@@ -391,7 +391,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                         .exists());
 
         return queryFactory
-                .select(bcostm.itMngcBg.sum())
+                .select(bcostm.itMngcBgAmt.sum())
                 .from(bcostm)
                 .where(builder)
                 .fetchOne();
