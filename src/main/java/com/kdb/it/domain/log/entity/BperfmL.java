@@ -25,8 +25,8 @@ public class BperfmL extends BaseLogEntity {
     @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
     private String asctId;
 
-    @Column(name = "DTP_SNO", comment = "지표순번")
-    private Integer dtpSno;
+    @Column(name = "DTP_SNO", length = 32, comment = "지표순번")
+    private String dtpSno;
 
     @Column(name = "DTP_NM", length = 200, comment = "성과지표명")
     private String dtpNm;
@@ -34,13 +34,13 @@ public class BperfmL extends BaseLogEntity {
     @Column(name = "DTP_CONE", length = 1000, comment = "성과지표정의")
     private String dtpCone;
 
-    @Column(name = "MSM_MANR", length = 1000, comment = "측정방법")
+    @Column(name = "MSM_MANR_CONE", length = 1000, comment = "측정방법내용")
     private String msmManr;
 
     @Column(name = "CLF", length = 1000, comment = "산식")
     private String clf;
 
-    @Column(name = "GL_NV", length = 200, comment = "목표치")
+    @Column(name = "GL_NV_CONE", length = 200, comment = "목표수치내용")
     private String glNv;
 
     @Column(name = "MSM_STT_DT", comment = "측정시작일")
@@ -49,7 +49,7 @@ public class BperfmL extends BaseLogEntity {
     @Column(name = "MSM_END_DT", comment = "측정종료일")
     private LocalDate msmEndDt;
 
-    @Column(name = "MSM_TPM", length = 100, comment = "측정시점")
+    @Column(name = "MSM_PTM_CONE", length = 100, comment = "측정시점내용")
     private String msmTpm;
 
     @Column(name = "MSM_CLE", length = 100, comment = "측정주기")

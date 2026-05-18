@@ -56,8 +56,8 @@ public class Bcmmtm extends BaseEntity {
     @Column(name = "ENO", length = 32, nullable = false, comment = "사번")
     private String eno;
 
-    /** 위원유형: MAND(당연위원) / CALL(소집위원) / SECR(간사), CCODEM VLR_TP 기준 */
-    @Column(name = "VLR_TP", length = 32, nullable = false, comment = "위원유형")
+    /** 위원유형구분코드: MAND(당연위원) / CALL(소집위원) / SECR(간사), CCODEM VLR_TC 기준 */
+    @Column(name = "VLR_TC", length = 32, nullable = false, comment = "위원유형구분코드")
     private String vlrTp;
 
     /**

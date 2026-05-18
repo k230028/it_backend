@@ -41,10 +41,10 @@ public class Bperfm extends BaseEntity {
     @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
-    /** 지표순번: 복합키 두 번째 컬럼 (1부터 시작, 클라이언트 관리) */
+    /** 지표순번: 복합키 두 번째 컬럼 (1부터 시작, 클라이언트 관리, VARCHAR2(32)) */
     @Id
-    @Column(name = "DTP_SNO", nullable = false, comment = "지표순번")
-    private Integer dtpSno;
+    @Column(name = "DTP_SNO", length = 32, nullable = false, comment = "지표순번")
+    private String dtpSno;
 
     /** 성과지표명: 지표를 식별하는 명칭 (최대 200자) */
     @Column(name = "DTP_NM", length = 200, comment = "성과지표명")
@@ -54,28 +54,28 @@ public class Bperfm extends BaseEntity {
     @Column(name = "DTP_CONE", length = 1000, comment = "성과지표정의")
     private String dtpCone;
 
-    /** 측정방법: 지표 측정 방법론 설명 (최대 1000자) */
-    @Column(name = "MSM_MANR", length = 1000, comment = "측정방법")
+    /** 측정방법내용: 지표 측정 방법론 설명 (최대 1000자) */
+    @Column(name = "MSM_MANR_CONE", length = 1000, comment = "측정방법내용")
     private String msmManr;
 
     /** 산식: 지표 계산 공식 (최대 1000자) */
     @Column(name = "CLF", length = 1000, comment = "산식")
     private String clf;
 
-    /** 목표치: 달성 목표값 (예: 95% 이상, 최대 200자) */
-    @Column(name = "GL_NV", length = 200, comment = "목표치")
+    /** 목표수치내용: 달성 목표값 (예: 95% 이상, 최대 200자) */
+    @Column(name = "GL_NV_CONE", length = 200, comment = "목표수치내용")
     private String glNv;
 
-    /** 측정시작일: 지표 측정 시작 날짜 */
+    /** 측정시작일: 지표 측정 시작 날짜 (TODO: DT 도메인 String 전환 보류) */
     @Column(name = "MSM_STT_DT", comment = "측정시작일")
     private LocalDate msmSttDt;
 
-    /** 측정종료일: 지표 측정 종료 날짜 */
+    /** 측정종료일: 지표 측정 종료 날짜 (TODO: DT 도메인 String 전환 보류) */
     @Column(name = "MSM_END_DT", comment = "측정종료일")
     private LocalDate msmEndDt;
 
-    /** 측정시점: 측정 시점 설명 (예: 시스템 오픈 후, 최대 100자) */
-    @Column(name = "MSM_TPM", length = 100, comment = "측정시점")
+    /** 측정시점내용: 측정 시점 설명 (예: 시스템 오픈 후, 최대 100자) PTM 도메인 */
+    @Column(name = "MSM_PTM_CONE", length = 100, comment = "측정시점내용")
     private String msmTpm;
 
     /** 측정주기: 측정 반복 주기 (예: 매년말, 반기별, 최대 100자) */
@@ -96,7 +96,7 @@ public class Bperfm extends BaseEntity {
      * @param msmCle   측정주기
      */
     public void update(String dtpNm, String dtpCone, String msmManr, String clf, String glNv,
-                       LocalDate msmSttDt, LocalDate msmEndDt, String msmTpm, String msmCle) {
+                       LocalDate msmSttDt, LocalDate msmEndDt, String msmTpm, String msmCle) { // dtpSno PK은 별도
         this.dtpNm = dtpNm;
         this.dtpCone = dtpCone;
         this.msmManr = msmManr;
