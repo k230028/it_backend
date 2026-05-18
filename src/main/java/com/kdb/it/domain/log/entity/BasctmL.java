@@ -31,18 +31,18 @@ public class BasctmL extends BaseLogEntity {
     @Column(name = "PRJ_SNO", comment = "프로젝트순번")
     private Integer prjSno;
 
-    @Column(name = "ASCT_STS", length = 20, comment = "협의회상태")
+    @Column(name = "ASCT_STS_C", length = 3, comment = "협의회상태코드")
     private String asctSts;
 
-    @Column(name = "DBR_TP", length = 20, comment = "심의유형")
+    @Column(name = "DBR_TC", length = 20, comment = "심의유형구분코드")
     private String dbrTp;
 
     @Column(name = "CNRC_DT", comment = "회의일자")
     private LocalDate cnrcDt;
 
-    @Column(name = "CNRC_TM", length = 10, comment = "회의시간")
+    @Column(name = "CNRC_TM", length = 6, comment = "회의시간")
     private String cnrcTm;
 
-    @Column(name = "CNRC_PLC", length = 200, comment = "회의장소")
+    @Column(name = "CNRC_PLC_NM", length = 100, comment = "회의장소명")
     private String cnrcPlc;
 }

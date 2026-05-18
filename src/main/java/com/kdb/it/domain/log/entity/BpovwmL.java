@@ -26,16 +26,16 @@ public class BpovwmL extends BaseLogEntity {
     @Column(name = "PRJ_NM", length = 200, comment = "사업명")
     private String prjNm;
 
-    @Column(name = "PRJ_TRM", length = 100, comment = "사업기간")
+    @Column(name = "PRJ_TRM_CONE", length = 100, comment = "사업기간내용")
     private String prjTrm;
 
-    @Column(name = "NCS", length = 1000, comment = "필요성")
+    @Column(name = "NCS_CONE", length = 1000, comment = "필요성내용")
     private String ncs;
 
-    @Column(name = "PRJ_BG", comment = "소요예산")
-    private Long prjBg;
+    @Column(name = "PRJ_BG_AMR", precision = 18, scale = 3, comment = "소요예산금액")
+    private java.math.BigDecimal prjBg;
 
-    @Column(name = "EDRT", length = 32, comment = "전결권자")
+    @Column(name = "EDRT_NM", length = 100, comment = "전결권자명")
     private String edrt;
 
     @Column(name = "PRJ_DES", length = 1000, comment = "사업내용")
@@ -47,10 +47,10 @@ public class BpovwmL extends BaseLogEntity {
     @Column(name = "LGL_RGL_NM", length = 500, comment = "관련법률규제명")
     private String lglRglNm;
 
-    @Column(name = "XPT_EFF", length = 1000, comment = "기대효과")
+    @Column(name = "XPT_EFF_CONE", length = 1000, comment = "기대효과내용")
     private String xptEff;
 
-    @Column(name = "KPN_TP", length = 10, comment = "저장유형")
+    @Column(name = "KPN_TC", length = 10, comment = "저장구분코드")
     private String kpnTp;
 
     @Column(name = "FL_MNG_NO", length = 32, comment = "첨부파일관리번호")

@@ -26,6 +26,6 @@ public class BcmmtmL extends BaseLogEntity {
     @Column(name = "ENO", length = 32, comment = "사번")
     private String eno;
 
-    @Column(name = "VLR_TP", length = 32, comment = "위원유형")
+    @Column(name = "VLR_TC", length = 32, comment = "위원유형구분코드")
     private String vlrTp;
 }

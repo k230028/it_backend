@@ -158,4 +158,33 @@ WHEN NOT MATCHED THEN
             'N', SYSDATE, 'SYSTEM', SYSDATE, 'SYSTEM',
             RAWTOHEX(SYS_GUID()), 1);
 
+-- ------------------------------------------------------------
+-- 5. 저장구분코드 (KPN_TC) — 2건  (Bpovwm.KPN_TC 신규 도메인)
+-- ------------------------------------------------------------
+MERGE INTO TAAABB_CCODEM t
+USING (
+    SELECT 'KPN_TC' AS C_ID, '001' AS CDVA, '임시저장' AS CDVA_NM, 1 AS C_SQN FROM DUAL UNION ALL
+    SELECT 'KPN_TC',          '002',          '저장',              2 FROM DUAL
+) s ON (t.C_ID = s.C_ID AND t.CDVA = s.CDVA AND t.STT_DT = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
+WHEN MATCHED THEN
+    UPDATE SET
+        t.CDVA_NM      = s.CDVA_NM,
+        t.CDVA_DTL     = s.CDVA_NM,
+        t.C_NM         = '저장구분코드',
+        t.CDVA_DES     = '저장구분코드',
+        t.C_TP         = 'KPN_TC',
+        t.C_TP_DES     = '저장구분코드',
+        t.C_SQN        = s.C_SQN,
+        t.LST_CHG_DTM  = SYSDATE,
+        t.LST_CHG_USID = 'SYSTEM'
+WHEN NOT MATCHED THEN
+    INSERT (C_ID, CDVA, CDVA_NM, CDVA_DTL, C_NM, CDVA_DES, C_TP, C_TP_DES, C_SQN,
+            STT_DT, END_DT,
+            DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
+            GUID, GUID_PRG_SNO)
+    VALUES (s.C_ID, s.CDVA, s.CDVA_NM, s.CDVA_NM, '저장구분코드', '저장구분코드', 'KPN_TC', '저장구분코드', s.C_SQN,
+            TO_DATE('2026-04-12', 'YYYY-MM-DD'), TO_DATE('9999-12-31', 'YYYY-MM-DD'),
+            'N', SYSDATE, 'SYSTEM', SYSDATE, 'SYSTEM',
+            RAWTOHEX(SYS_GUID()), 1);
+
 COMMIT;

@@ -13,6 +13,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.math.BigDecimal;
+
 /**
  * 협의회 사업개요 엔티티 (타당성검토표의 사업개요 섹션)
  *
@@ -41,20 +43,20 @@ public class Bpovwm extends BaseEntity {
     @Column(name = "PRJ_NM", length = 200, comment = "사업명")
     private String prjNm;
 
-    /** 사업기간: 예) 2026.01 ~ 2026.12 */
-    @Column(name = "PRJ_TRM", length = 100, comment = "사업기간")
+    /** 사업기간내용: 예) 2026.01 ~ 2026.12 */
+    @Column(name = "PRJ_TRM_CONE", length = 100, comment = "사업기간내용")
     private String prjTrm;
 
-    /** 필요성: BPROJM.NCS와 동일 스키마 (최대 1000자) */
-    @Column(name = "NCS", length = 1000, comment = "필요성")
+    /** 필요성내용: BPROJM.NCS와 동일 스키마 (최대 1000자) */
+    @Column(name = "NCS_CONE", length = 1000, comment = "필요성내용")
     private String ncs;
 
-    /** 소요예산: BPROJM.PRJ_BG와 동일 (숫자형, 단위: 원) */
-    @Column(name = "PRJ_BG", comment = "소요예산")
-    private Long prjBg;
+    /** 소요예산금액: BPROJM.PRJ_BG와 동일 (BG 도메인 NUMBER(18,3)) */
+    @Column(name = "PRJ_BG_AMR", precision = 18, scale = 3, comment = "소요예산금액")
+    private BigDecimal prjBg;
 
-    /** 전결권자: BPROJM.EDRT와 동일 (부점장/본부장 등 코드 또는 직급명) */
-    @Column(name = "EDRT", length = 32, comment = "전결권자")
+    /** 전결권자명: BPROJM.EDRT와 동일 (부점장/본부장 등 직급명) */
+    @Column(name = "EDRT_NM", length = 100, comment = "전결권자명")
     private String edrt;
 
     /** 사업내용: BPROJM.PRJ_DES와 동일 스키마 (최대 1000자) */
@@ -69,12 +71,12 @@ public class Bpovwm extends BaseEntity {
     @Column(name = "LGL_RGL_NM", length = 500, comment = "관련법률규제명")
     private String lglRglNm;
 
-    /** 기대효과: BPROJM.XPT_EFF와 동일 스키마 (최대 1000자) */
-    @Column(name = "XPT_EFF", length = 1000, comment = "기대효과")
+    /** 기대효과내용: BPROJM.XPT_EFF와 동일 스키마 (최대 1000자) */
+    @Column(name = "XPT_EFF_CONE", length = 1000, comment = "기대효과내용")
     private String xptEff;
 
-    /** 저장유형: TEMP(임시저장) / COMPLETE(작성완료), CCODEM KPN_TP 기준 */
-    @Column(name = "KPN_TP", length = 10, comment = "저장유형")
+    /** 저장구분코드: TEMP(임시저장) / COMPLETE(작성완료), CCODEM KPN_TC 기준 */
+    @Column(name = "KPN_TC", length = 10, comment = "저장구분코드")
     private String kpnTp;
 
     /** 첨부파일관리번호: TAAABB_CFILEM.FL_MNG_NO (FK, hwp/hwpx/pdf만 허용) */
@@ -96,7 +98,7 @@ public class Bpovwm extends BaseEntity {
      * @param kpnTp     저장유형 (TEMP/COMPLETE)
      * @param flMngNo   첨부파일관리번호
      */
-    public void update(String prjNm, String prjTrm, String ncs, Long prjBg, String edrt,
+    public void update(String prjNm, String prjTrm, String ncs, BigDecimal prjBg, String edrt,
                        String prjDes, String lglRglYn, String lglRglNm, String xptEff,
                        String kpnTp, String flMngNo) {
         this.prjNm = prjNm;
