@@ -142,9 +142,9 @@ public class CouncilDto {
         String prjTrm,
         /** 필요성 (최대 1000자) */
         String ncs,
-        /** 소요예산 (숫자형) */
-        Long prjBg,
-        /** 전결권자 */
+        /** 소요예산금액 (NUMBER(18,3) → BigDecimal) */
+        java.math.BigDecimal prjBg,
+        /** 전결권자명 */
         String edrt,
         /** 사업내용 (최대 1000자) */
         String prjDes,
@@ -154,7 +154,7 @@ public class CouncilDto {
         String lglRglNm,
         /** 기대효과 (최대 1000자) */
         String xptEff,
-        /** 저장유형 (TEMP:임시저장 / COMPLETE:작성완료) */
+        /** 저장구분코드 (TEMP:임시저장 / COMPLETE:작성완료) */
         String kpnTp,
         /** 타당성 자체점검 6개 항목 */
         List<CheckItemRequest> checkItems,
@@ -174,9 +174,9 @@ public class CouncilDto {
         String prjTrm,
         /** 필요성 */
         String ncs,
-        /** 소요예산 */
-        Long prjBg,
-        /** 전결권자 */
+        /** 소요예산금액 (BigDecimal) */
+        java.math.BigDecimal prjBg,
+        /** 전결권자명 */
         String edrt,
         /** 사업내용 */
         String prjDes,
@@ -226,8 +226,8 @@ public class CouncilDto {
      * 성과지표 요청 (추가/수정 공통)
      */
     public record PerformanceRequest(
-        /** 지표순번 (클라이언트 관리, 1부터 시작) */
-        Integer dtpSno,
+        /** 지표순번 (클라이언트 관리, 1부터 시작, SNO=VARCHAR2) */
+        String dtpSno,
         /** 성과지표명 */
         String dtpNm,
         /** 성과지표정의 */
@@ -252,7 +252,7 @@ public class CouncilDto {
      * 성과지표 응답
      */
     public record PerformanceResponse(
-        Integer dtpSno,
+        String dtpSno,
         String dtpNm,
         String dtpCone,
         String msmManr,

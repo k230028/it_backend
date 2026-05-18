@@ -23,10 +23,10 @@ public class BrsltmL extends BaseLogEntity {
     @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
     private String asctId;
 
-    @Column(name = "SYN_OPNN", length = 4000, comment = "종합의견")
+    @Column(name = "SYN_OPNN_CONE", length = 4000, comment = "종합의견내용")
     private String synOpnn;
 
-    @Column(name = "CKG_OPNN", length = 4000, comment = "타당성검토의견")
+    @Column(name = "CKG_OPNN_CONE", length = 4000, comment = "타당성검토의견내용")
     private String ckgOpnn;
 
     @Column(name = "FL_MNG_NO", length = 32, comment = "관련자료 첨부파일관리번호")

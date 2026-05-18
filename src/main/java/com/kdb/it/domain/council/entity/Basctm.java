@@ -51,24 +51,24 @@ public class Basctm extends BaseEntity {
     @Column(name = "PRJ_SNO", comment = "프로젝트순번")
     private Integer prjSno;
 
-    /** 협의회상태: CCODEM ASCT_STS (DRAFT~COMPLETED, 12단계) */
-    @Column(name = "ASCT_STS", length = 20, nullable = false, comment = "협의회상태")
+    /** 협의회상태: CCODEM ASCT_STS (3자리 코드, 001~013) */
+    @Column(name = "ASCT_STS_C", length = 3, nullable = false, comment = "협의회상태코드")
     private String asctSts;
 
-    /** 심의유형: INFO_SYS(정보시스템) / INFO_SEC(정보보호시스템) / ETC(기타) */
-    @Column(name = "DBR_TP", length = 20, comment = "심의유형")
+    /** 심의유형구분코드: CCODEM DBR_TP (3자리 코드) */
+    @Column(name = "DBR_TC", length = 20, comment = "심의유형구분코드")
     private String dbrTp;
 
-    /** 회의일자: 일정 확정 시 설정 */
+    /** 회의일자: 일정 확정 시 설정 (TODO: DT 도메인 String 전환 보류) */
     @Column(name = "CNRC_DT", comment = "회의일자")
     private LocalDate cnrcDt;
 
-    /** 회의시간: 10:00 / 14:00 / 15:00 / 16:00 중 선택 */
-    @Column(name = "CNRC_TM", length = 10, comment = "회의시간")
+    /** 회의시간: 10:00 / 14:00 / 15:00 / 16:00 중 선택 (TM 도메인 VARCHAR2(6)) */
+    @Column(name = "CNRC_TM", length = 6, comment = "회의시간")
     private String cnrcTm;
 
-    /** 회의장소: 일정 확정 시 입력 */
-    @Column(name = "CNRC_PLC", length = 200, comment = "회의장소")
+    /** 회의장소명: 일정 확정 시 입력 */
+    @Column(name = "CNRC_PLC_NM", length = 100, comment = "회의장소명")
     private String cnrcPlc;
 
     /**
