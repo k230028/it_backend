@@ -2,7 +2,6 @@ package com.kdb.it.domain.log.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -35,8 +34,7 @@ public class BrivgmL extends BaseLogEntity {
     @Column(name = "IVG_TP", length = 1, comment = "의견유형")
     private String ivgTp;
 
-    @Lob
-    @Column(name = "IVG_CONE", comment = "의견내용")
+    @Column(name = "IVG_CONE", length = 4000, comment = "의견내용")
     private String ivgCone;
 
     @Column(name = "IDC_ID", length = 64, comment = "표시ID")

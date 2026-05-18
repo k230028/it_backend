@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -132,7 +131,7 @@ public class ServiceRequestDocService {
      * </p>
      *
      * <p>
-     * 요구사항내용({@code reqCone})은 XSS 방지를 위해 HTML 새니타이징을 적용합니다.
+     * 요구사항내용({@code reqInf})은 XSS 방지를 위해 HTML 새니타이징을 적용합니다.
      * </p>
      *
      * @param request 요구사항 정의서 생성 요청 DTO
@@ -157,7 +156,7 @@ public class ServiceRequestDocService {
         }
 
         // 요구사항내용 XSS 새니타이징
-        request.setReqCone(HtmlSanitizer.sanitize(request.getReqCone()));
+        request.setReqInf(HtmlSanitizer.sanitize(request.getReqInf()));
 
         // 복합키 (docMngNo, 0.01)로 엔티티 생성
         Brdocm document = request.toEntity(docMngNo, INITIAL_VERSION);
@@ -170,7 +169,7 @@ public class ServiceRequestDocService {
      *
      * <p>
      * 최신 버전 레코드를 대상으로 정보를 수정합니다(버전 번호는 변경되지 않음).
-     * 요구사항내용({@code reqCone})은 XSS 방지를 위해 HTML 새니타이징을 적용합니다.
+     * 요구사항내용({@code reqInf})은 XSS 방지를 위해 HTML 새니타이징을 적용합니다.
      * </p>
      *
      * @param docMngNo 수정할 문서관리번호
@@ -186,14 +185,13 @@ public class ServiceRequestDocService {
                 .orElseThrow(() -> new CustomGeneralException(
                         "존재하지 않는 문서관리번호입니다: " + docMngNo));
 
-        // 요구사항내용 XSS 새니타이징
-        String sanitizedCone = HtmlSanitizer.sanitize(request.getReqCone());
-        byte[] reqConeBytes = sanitizedCone != null ? sanitizedCone.getBytes(StandardCharsets.UTF_8) : null;
+        // 요구사항정보 XSS 새니타이징
+        String sanitizedCone = HtmlSanitizer.sanitize(request.getReqInf());
 
         // JPA Dirty Checking으로 자동 반영
         document.update(
                 request.getReqNm(),
-                reqConeBytes,
+                sanitizedCone,
                 request.getReqDtt(),
                 request.getBzDtt(),
                 request.getFsgTlm());

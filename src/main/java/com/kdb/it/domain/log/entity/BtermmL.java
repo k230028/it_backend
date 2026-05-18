@@ -47,33 +47,33 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "TMN_SVC", length = 100, comment = "단말기서비스")
     private String tmnSvc;
 
-    @Column(name = "TML_AMT", precision = 15, scale = 0, comment = "단말기금액")
+    @Column(name = "TML_AMT", precision = 18, scale = 3, comment = "단말기금액")
     private BigDecimal tmlAmt;
 
-    @Column(name = "CUR", length = 10, comment = "통화")
-    private String cur;
+    @Column(name = "CUR_C", length = 3, comment = "통화코드")
+    private String curC;
 
-    @Column(name = "XCR", precision = 9, comment = "환율")
+    @Column(name = "XCR", precision = 9, scale = 4, comment = "환율")
     private BigDecimal xcr;
 
     @Column(name = "XCR_BSE_DT", comment = "환율기준일자")
     private LocalDate xcrBseDt;
 
-    @Column(name = "DFR_CLE", length = 100, comment = "지급주기")
-    private String dfrCle;
+    @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
+    private String dfrCleC;
 
-    @Column(name = "IND_RSN", length = 1000, comment = "증감사유")
+    @Column(name = "IND_RSN", length = 600, comment = "증감사유")
     private String indRsn;
 
-    @Column(name = "CGPR", length = 32, comment = "담당자")
-    private String cgpr;
+    @Column(name = "CGPR_ENO", length = 32, comment = "담당자행번")
+    private String cgprEno;
 
-    @Column(name = "BICE_TEM", length = 100, comment = "담당팀")
-    private String biceTem;
+    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    private String biceTemC;
 
-    @Column(name = "BICE_DPM", length = 100, comment = "담당부서")
-    private String biceDpm;
+    @Column(name = "BICE_DPM_C", length = 3, comment = "담당부서코드")
+    private String biceDpmC;
 
-    @Column(name = "RMK", length = 1000, comment = "비고")
+    @Column(name = "RMK", length = 300, comment = "비고")
     private String rmk;
 }

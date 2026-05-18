@@ -64,7 +64,7 @@ public class Bcostm extends BaseEntity {
     private String lstYn;
 
     /** 비목코드 */
-    @Column(name = "IOE_C", length = 400, comment = "비목코드")
+    @Column(name = "IOE_C", length = 3, comment = "비목코드")
     private String ioeC;
 
     /** 계약명: 실제 계약서상의 명칭 (예: 2026년 서버 유지보수 계약) */
@@ -72,27 +72,27 @@ public class Bcostm extends BaseEntity {
     private String cttNm;
 
     /** 계약상대처: 계약 상대방 업체�� (예: (주)IT���루션) */
-    @Column(name = "CTT_OPP", length = 400, comment = "계약상대처")
-    private String cttOpp;
+    @Column(name = "CTT_OPP_NM", length = 100, comment = "계약상대처명")
+    private String cttOppNm;
 
     /** 전산업무비예산: 해당 항목의 연간 예산 금액 (최대 15자리, 소수점 2자리) */
-    @Column(name = "IT_MNGC_BG", precision = 15, scale = 2, comment = "전산업무비예산")
-    private BigDecimal itMngcBg;
+    @Column(name = "IT_MNGC_BG_AMT", precision = 18, scale = 3, comment = "전산업무비예산금액")
+    private BigDecimal itMngcBgAmt;
 
-    /** 지급주기: 비용 지급 주기 (예: 매월, 분기, 반기, 연간) */
-    @Column(name = "DFR_CLE", length = 40, comment = "지급주기")
-    private String dfrCle;
+    /** 지급주기코드: 비용 지급 주기 코드 (예: 매월, 분기, 반기, 연간) */
+    @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
+    private String dfrCleC;
 
     /** 지급예정월(최초지급일자): 첫 번째 지급 예정 날짜 */
     @Column(name = "FST_DFR_DT", comment = "지급예정월")
     private LocalDate fstDfrDt;
 
     /** 통화: 비용 통화 코드 (예: KRW, USD, EUR) */
-    @Column(name = "CUR", length = 40, comment = "통화")
-    private String cur;
+    @Column(name = "CUR_C", length = 3, comment = "통화코드")
+    private String curC;
 
     /** 환율: 외화 계약 시 적용 환율 (최대 9자리) */
-    @Column(name = "XCR", precision = 9, comment = "환율")
+    @Column(name = "XCR", precision = 9, scale = 4, comment = "환율")
     private BigDecimal xcr;
 
     /** 환율기준일자: 환율을 적용한 기준 날짜 */
@@ -104,20 +104,20 @@ public class Bcostm extends BaseEntity {
     private String infPrtYn;
 
     /** 증감사유: 전년 대비 예산 증감 이유 (최대 4000자) */
-    @Column(name = "IND_RSN", length = 4000, comment = "증감사유")
+    @Column(name = "IND_RSN", length = 600, comment = "증감사유")
     private String indRsn;
 
     /** 담당자: 해당 비용 항목의 담당자 사번 또는 이름 */
-    @Column(name = "CGPR", length = 128, comment = "담당자")
-    private String cgpr;
+    @Column(name = "CGPR_ENO", length = 32, comment = "담당자행번")
+    private String cgprEno;
 
     /** 담당부서: 해당 비용 항목의 담당 부서 코드 */
-    @Column(name = "BICE_DPM", length = 100, comment = "담당부서")
-    private String biceDpm;
+    @Column(name = "BICE_DPM_C", length = 3, comment = "담당부서코드")
+    private String biceDpmC;
 
     /** 담당팀: 해당 비용 항목의 담당 팀 코드 */
-    @Column(name = "BICE_TEM", length = 100, comment = "담당팀")
-    private String biceTem;
+    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    private String biceTemC;
 
     /** 예산연도 (4자리 숫자, 예: 2026) */
     @Column(name = "BG_YY", length = 4, comment = "예산연도")
@@ -149,41 +149,41 @@ public class Bcostm extends BaseEntity {
      *
      * @param ioeC     비목코드
      * @param cttNm    계약명
-     * @param cttOpp   계약상대처
-     * @param itMngcBg 전산업무비예산
-     * @param dfrCle   지급주기
+     * @param cttOppNm   계약상대처
+     * @param itMngcBgAmt 전산업무비예산
+     * @param dfrCleC   지급주기
      * @param fstDfrDt 지급예정월(최초지급일자)
-     * @param cur      통화
+     * @param curC      통화
      * @param xcr      환율
      * @param xcrBseDt 환율기준일자
      * @param infPrtYn 정보보호여부
      * @param indRsn   증감사유
-     * @param cgpr     담당자
-     * @param biceDpm  담당부서
-     * @param biceTem  담당팀
+     * @param cgprEno     담당자
+     * @param biceDpmC  담당부서
+     * @param biceTemC  담당팀
      * @param abusC    사업코드
      * @param itMngcTp 전산업무비유형
      * @param pulDtt        전산업무비구분
      * @param bgYy          예산연도
      * @param cncdItMngcNo  관련전산업무비번호 (계속항목인 경우 전년도 관리번호)
      */
-    public void update(String ioeC, String cttNm, String cttOpp, BigDecimal itMngcBg,
-            String dfrCle, LocalDate fstDfrDt, String cur, BigDecimal xcr, LocalDate xcrBseDt,
-            String infPrtYn, String indRsn, String cgpr, String biceDpm, String biceTem, String abusC, String itMngcTp, String pulDtt, String bgYy, String cncdItMngcNo) {
+    public void update(String ioeC, String cttNm, String cttOppNm, BigDecimal itMngcBgAmt,
+            String dfrCleC, LocalDate fstDfrDt, String curC, BigDecimal xcr, LocalDate xcrBseDt,
+            String infPrtYn, String indRsn, String cgprEno, String biceDpmC, String biceTemC, String abusC, String itMngcTp, String pulDtt, String bgYy, String cncdItMngcNo) {
         this.ioeC = ioeC;
         this.cttNm = cttNm;
-        this.cttOpp = cttOpp;
-        this.itMngcBg = itMngcBg;
-        this.dfrCle = dfrCle;
+        this.cttOppNm = cttOppNm;
+        this.itMngcBgAmt = itMngcBgAmt;
+        this.dfrCleC = dfrCleC;
         this.fstDfrDt = fstDfrDt;
-        this.cur = cur;
+        this.curC = curC;
         this.xcr = xcr;
         this.xcrBseDt = xcrBseDt;
         this.infPrtYn = infPrtYn;
         this.indRsn = indRsn;
-        this.cgpr = cgpr;
-        this.biceDpm = biceDpm;
-        this.biceTem = biceTem;
+        this.cgprEno = cgprEno;
+        this.biceDpmC = biceDpmC;
+        this.biceTemC = biceTemC;
         this.abusC = abusC;
         this.itMngcTp = itMngcTp;
         this.pulDtt = pulDtt;

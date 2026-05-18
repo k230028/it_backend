@@ -76,15 +76,15 @@ public class CostDto {
 
         /** 계약상대처 (계약 업체명) */
         @Schema(description = "계약상대처", example = "(주)IT솔루션")
-        private String cttOpp;
+        private String cttOppNm;
 
         /** 전산관리비예산 (금액, 소수점 포함 가능) */
         @Schema(description = "전산업무비예산", example = "10000000")
-        private BigDecimal itMngcBg;
+        private BigDecimal itMngcBgAmt;
 
         /** 지급주기 (예: "매월", "분기", "연") */
         @Schema(description = "지급주기", example = "매월")
-        private String dfrCle;
+        private String dfrCleC;
 
         /** 지급예정월 / 최초지급일자 */
         @Schema(description = "지급예정월(최초지급일자)", example = "2026-01-25")
@@ -92,7 +92,7 @@ public class CostDto {
 
         /** 통화 코드 (예: "KRW", "USD") */
         @Schema(description = "통화", example = "KRW")
-        private String cur;
+        private String curC;
 
         /** 환율 (외화인 경우 원화 환산 기준) */
         @Schema(description = "환율", example = "1300")
@@ -112,15 +112,15 @@ public class CostDto {
 
         /** 담당자 (담당자명) */
         @Schema(description = "담당자", example = "홍길동")
-        private String cgpr;
+        private String cgprEno;
 
         /** 담당부서 (부서코드) */
         @Schema(description = "담당부서", example = "001")
-        private String biceDpm;
+        private String biceDpmC;
 
         /** 담당팀 (팀코드) */
         @Schema(description = "담당팀", example = "00101")
-        private String biceTem;
+        private String biceTemC;
 
         /** 사업코드 */
         @Schema(description = "사업코드", example = "ABUS01")
@@ -157,18 +157,18 @@ public class CostDto {
                     .itMngcSno(nextSno) // 전산관리비일련번호
                     .ioeC(this.ioeC) // 비목코드
                     .cttNm(this.cttNm) // 계약명
-                    .cttOpp(this.cttOpp) // 계약상대처
-                    .itMngcBg(this.itMngcBg) // 전산관리비예산
-                    .dfrCle(this.dfrCle) // 지급주기
+                    .cttOppNm(this.cttOppNm) // 계약상대처
+                    .itMngcBgAmt(this.itMngcBgAmt) // 전산관리비예산
+                    .dfrCleC(this.dfrCleC) // 지급주기
                     .fstDfrDt(this.fstDfrDt) // 최초지급일자
-                    .cur(this.cur) // 통화
+                    .curC(this.curC) // 통화
                     .xcr(this.xcr) // 환율
                     .xcrBseDt(this.xcrBseDt) // 환율기준일자
                     .infPrtYn(this.infPrtYn == null ? "N" : this.infPrtYn) // 정보보호여부 (기본값 "N")
                     .indRsn(this.indRsn) // 증감사유
-                    .cgpr(this.cgpr) // 담당자
-                    .biceDpm(this.biceDpm) // 담당부서
-                    .biceTem(this.biceTem) // 담당팀
+                    .cgprEno(this.cgprEno) // 담당자
+                    .biceDpmC(this.biceDpmC) // 담당부서
+                    .biceTemC(this.biceTemC) // 담당팀
                     .abusC(this.abusC) // 사업코드
                     .itMngcTp(this.itMngcTp) // 전산업무비유형
                     .pulDtt(this.pulDtt) // 전산업무비구분
@@ -204,15 +204,15 @@ public class CostDto {
 
         /** 계약상대처 */
         @Schema(description = "계약상대처", example = "(주)IT솔루션")
-        private String cttOpp;
+        private String cttOppNm;
 
         /** 전산관리비예산 */
         @Schema(description = "전산업무비예산", example = "10000000")
-        private BigDecimal itMngcBg;
+        private BigDecimal itMngcBgAmt;
 
         /** 지급주기 */
         @Schema(description = "지급주기", example = "매월")
-        private String dfrCle;
+        private String dfrCleC;
 
         /** 지급예정월 / 최초지급일자 */
         @Schema(description = "지급예정월(최초지급일자)", example = "2026-01-25")
@@ -220,7 +220,7 @@ public class CostDto {
 
         /** 통화 코드 */
         @Schema(description = "통화", example = "KRW")
-        private String cur;
+        private String curC;
 
         /** 환율 */
         @Schema(description = "환율", example = "1300")
@@ -240,15 +240,15 @@ public class CostDto {
 
         /** 담당자 */
         @Schema(description = "담당자", example = "홍길동")
-        private String cgpr;
+        private String cgprEno;
 
         /** 담당부서 */
         @Schema(description = "담당부서", example = "001")
-        private String biceDpm;
+        private String biceDpmC;
 
         /** 담당팀 */
         @Schema(description = "담당팀", example = "00101")
-        private String biceTem;
+        private String biceTemC;
 
         /** 사업코드 */
         @Schema(description = "사업코드", example = "ABUS01")
@@ -311,15 +311,15 @@ public class CostDto {
 
         /** 계약상대처 */
         @Schema(description = "계약상대처", example = "(주)IT솔루션")
-        private String cttOpp;
+        private String cttOppNm;
 
         /** 전산관리비예산 */
         @Schema(description = "전산업무비예산", example = "10000000")
-        private BigDecimal itMngcBg;
+        private BigDecimal itMngcBgAmt;
 
         /** 지급주기 */
         @Schema(description = "지급주기", example = "매월")
-        private String dfrCle;
+        private String dfrCleC;
 
         /** 지급예정월 / 최초지급일자 */
         @Schema(description = "지급예정월(최초지급일자)", example = "2026-01-25")
@@ -327,7 +327,7 @@ public class CostDto {
 
         /** 통화 코드 */
         @Schema(description = "통화", example = "KRW")
-        private String cur;
+        private String curC;
 
         /** 환율 */
         @Schema(description = "환율", example = "1300")
@@ -347,15 +347,15 @@ public class CostDto {
 
         /** 담당자 */
         @Schema(description = "담당자", example = "홍길동")
-        private String cgpr;
+        private String cgprEno;
 
         /** 담당부서 */
         @Schema(description = "담당부서", example = "001")
-        private String biceDpm;
+        private String biceDpmC;
 
         /** 담당팀 */
         @Schema(description = "담당팀", example = "00101")
-        private String biceTem;
+        private String biceTemC;
 
         /** 사업코드 */
         @Schema(description = "사업코드", example = "ABUS01")
@@ -369,9 +369,9 @@ public class CostDto {
         @Schema(description = "비목코드명")
         private String ioeCNm;
 
-        /** 지급주기명: dfrCle(지급주기) 기준 TAAABB_CCODEM C_NM */
+        /** 지급주기명: dfrCleC(지급주기) 기준 TAAABB_CCODEM C_NM */
         @Schema(description = "지급주기명")
-        private String dfrCleNm;
+        private String dfrCleCNm;
 
         /** 전산업무비유형명: itMngcTp 기준 TAAABB_CCODEM C_NM */
         @Schema(description = "전산업무비유형명")
@@ -400,47 +400,47 @@ public class CostDto {
         @Schema(description = "금융정보단말기 목록 (1:N)")
         private List<TerminalDto> terminals;
 
-        /** 담당부서명: biceDpm(부서코드) 기준 TAAABB_CORGNI에서 BBR_NM 조회 */
+        /** 담당부서명: biceDpmC(부서코드) 기준 TAAABB_CORGNI에서 BBR_NM 조회 */
         @Schema(description = "담당부서명")
         private String biceDpmNm;
 
-        /** 담당팀명: biceTem(팀코드) 기준 TAAABB_CORGNI에서 BBR_NM 조회 */
+        /** 담당팀명: biceTemC(팀코드) 기준 TAAABB_CORGNI에서 BBR_NM 조회 */
         @Schema(description = "담당팀명")
         private String biceTemNm;
 
-        /** 담당자명: cgpr(사번) 기준 TAAABB_CUSERI에서 USR_NM 조회 */
+        /** 담당자명: cgprEno(사번) 기준 TAAABB_CUSERI에서 USR_NM 조회 */
         @Schema(description = "담당자명")
         private String cgprNm;
 
-        /** 자본예산: ioeC(비목코드)가 공통코드 코드값구분 IOE_CPIT에 해당하면 itMngcBg, 아니면 0 */
+        /** 자본예산: ioeC(비목코드)가 공통코드 코드값구분 IOE_CPIT에 해당하면 itMngcBgAmt, 아니면 0 */
         @Schema(description = "자본예산")
         private java.math.BigDecimal assetBg;
 
-        /** 개발비: 자본예산 중 코드설명(cdDes)이 '개발비'인 경우 itMngcBg, 아니면 0 */
+        /** 개발비: 자본예산 중 코드설명(cdDes)이 '개발비'인 경우 itMngcBgAmt, 아니면 0 */
         @Schema(description = "개발비")
         private java.math.BigDecimal dvcBg;
 
-        /** 기계장치: 자본예산 중 코드설명(cdDes)이 '기계장치'인 경우 itMngcBg, 아니면 0 */
+        /** 기계장치: 자본예산 중 코드설명(cdDes)이 '기계장치'인 경우 itMngcBgAmt, 아니면 0 */
         @Schema(description = "기계장치")
         private java.math.BigDecimal hwBg;
 
-        /** 기타무형자산: 자본예산 중 코드설명(cdDes)이 '기타무형자산'인 경우 itMngcBg, 아니면 0 */
+        /** 기타무형자산: 자본예산 중 코드설명(cdDes)이 '기타무형자산'인 경우 itMngcBgAmt, 아니면 0 */
         @Schema(description = "기타무형자산")
         private java.math.BigDecimal swBg;
 
-        /** 일반관리비: ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하면 itMngcBg, 아니면 0 */
+        /** 일반관리비: ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하면 itMngcBgAmt, 아니면 0 */
         @Schema(description = "일반관리비")
         private java.math.BigDecimal costBg;
 
         /** TAAABB_BBUGTM 기준 편성예산 합계 (요청금액 × 편성률/100, 서비스에서 일괄 조회 시 설정) */
         @Schema(description = "편성예산 (BBUGTM 기준, 편성률 반영)")
-        private java.math.BigDecimal dupBg;
+        private java.math.BigDecimal dupBgAmt;
 
-        /** BBUGTM 기준 자본예산 편성예산 (ioeC IOE_CPIT 계열인 경우 dupBg, 아니면 0) */
+        /** BBUGTM 기준 자본예산 편성예산 (ioeC IOE_CPIT 계열인 경우 dupBgAmt, 아니면 0) */
         @Schema(description = "자본예산 편성예산 (BBUGTM 기준)")
         private java.math.BigDecimal assetDupBg;
 
-        /** BBUGTM 기준 일반관리비 편성예산 (ioeC IOE_IDR/SEVS/XPN/LEAFE 계열인 경우 dupBg, 아니면 0) */
+        /** BBUGTM 기준 일반관리비 편성예산 (ioeC IOE_IDR/SEVS/XPN/LEAFE 계열인 경우 dupBgAmt, 아니면 0) */
         @Schema(description = "일반관리비 편성예산 (BBUGTM 기준)")
         private java.math.BigDecimal costDupBg;
 
@@ -481,18 +481,18 @@ public class CostDto {
                     .lstYn(entity.getLstYn()) // 최종여부
                     .ioeC(entity.getIoeC()) // 비목코드
                     .cttNm(entity.getCttNm()) // 계약명
-                    .cttOpp(entity.getCttOpp()) // 계약상대처
-                    .itMngcBg(entity.getItMngcBg()) // 전산관리비예산
-                    .dfrCle(entity.getDfrCle()) // 지급주기
+                    .cttOppNm(entity.getCttOppNm()) // 계약상대처
+                    .itMngcBgAmt(entity.getItMngcBgAmt()) // 전산관리비예산
+                    .dfrCleC(entity.getDfrCleC()) // 지급주기
                     .fstDfrDt(entity.getFstDfrDt()) // 최초지급일자
-                    .cur(entity.getCur()) // 통화
+                    .curC(entity.getCurC()) // 통화
                     .xcr(entity.getXcr()) // 환율
                     .xcrBseDt(entity.getXcrBseDt()) // 환율기준일자
                     .infPrtYn(entity.getInfPrtYn()) // 정보보호여부
                     .indRsn(entity.getIndRsn()) // 증감사유
-                    .cgpr(entity.getCgpr()) // 담당자
-                    .biceDpm(entity.getBiceDpm()) // 담당부서
-                    .biceTem(entity.getBiceTem()) // 담당팀
+                    .cgprEno(entity.getCgprEno()) // 담당자
+                    .biceDpmC(entity.getBiceDpmC()) // 담당부서
+                    .biceTemC(entity.getBiceTemC()) // 담당팀
                     .abusC(entity.getAbusC()) // 사업코드
                     .itMngcTp(entity.getItMngcTp()) // 전산업무비유형
                     .pulDtt(entity.getPulDtt()) // 전산업무비구분
@@ -538,11 +538,11 @@ public class CostDto {
 
         /** 연관부서 코드 필터. null이면 전체 조회 */
         @Schema(description = "연관부서 코드. 미입력 시 전체 조회")
-        private String biceDpm;
+        private String biceDpmC;
 
         /** 연관팀 코드 필터. null이면 전체 조회 */
         @Schema(description = "연관팀 코드. 미입력 시 전체 조회")
-        private String biceTem;
+        private String biceTemC;
 
         /** 정보보호여부 필터 ('Y'=정보보호, 'N'=일반). null이면 전체 조회 */
         @Schema(description = "정보보호여부 (Y/N). 미입력 시 전체 조회")
@@ -558,7 +558,7 @@ public class CostDto {
          * @return 모든 필드가 null 또는 빈 문자열이면 true
          */
         public boolean isEmpty() {
-            return isBlank(apfSts) && isBlank(biceDpm) && isBlank(biceTem) && isBlank(infPrtYn) && isBlank(bgYy);
+            return isBlank(apfSts) && isBlank(biceDpmC) && isBlank(biceTemC) && isBlank(infPrtYn) && isBlank(bgYy);
         }
 
         private boolean isBlank(String value) {
@@ -621,7 +621,7 @@ public class CostDto {
         private BigDecimal tmlAmt;
 
         @Schema(description = "통화", example = "KRW")
-        private String cur;
+        private String curC;
 
         @Schema(description = "환율", example = "1")
         private BigDecimal xcr;
@@ -630,23 +630,23 @@ public class CostDto {
         private LocalDate xcrBseDt;
 
         @Schema(description = "지급주기", example = "매월")
-        private String dfrCle;
+        private String dfrCleC;
 
         @Schema(description = "증감사유", example = "노후 교체에 따른 한시적 인상")
         private String indRsn;
 
         @Schema(description = "담당자", example = "홍길동")
-        private String cgpr;
+        private String cgprEno;
 
-        /** 담당자명: cgpr(사번) 기준 TAAABB_CUSERI에서 USR_NM 조회 (응답 전용) */
+        /** 담당자명: cgprEno(사번) 기준 TAAABB_CUSERI에서 USR_NM 조회 (응답 전용) */
         @Schema(description = "담당자명")
         private String cgprNm;
 
         @Schema(description = "담당팀", example = "00101")
-        private String biceTem;
+        private String biceTemC;
 
         @Schema(description = "담당부서", example = "001")
-        private String biceDpm;
+        private String biceDpmC;
 
         @Schema(description = "비고", example = "특이사항 없음")
         private String rmk;
@@ -661,14 +661,14 @@ public class CostDto {
                     .tmnUsg(this.tmnUsg)
                     .tmnSvc(this.tmnSvc)
                     .tmlAmt(this.tmlAmt)
-                    .cur(this.cur)
+                    .curC(this.curC)
                     .xcr(this.xcr)
                     .xcrBseDt(this.xcrBseDt)
-                    .dfrCle(this.dfrCle)
+                    .dfrCleC(this.dfrCleC)
                     .indRsn(this.indRsn)
-                    .cgpr(this.cgpr)
-                    .biceTem(this.biceTem)
-                    .biceDpm(this.biceDpm)
+                    .cgprEno(this.cgprEno)
+                    .biceTemC(this.biceTemC)
+                    .biceDpmC(this.biceDpmC)
                     .rmk(this.rmk)
                     .delYn("N")
                     .build();
@@ -684,14 +684,14 @@ public class CostDto {
                     .tmnUsg(entity.getTmnUsg())
                     .tmnSvc(entity.getTmnSvc())
                     .tmlAmt(entity.getTmlAmt())
-                    .cur(entity.getCur())
+                    .curC(entity.getCurC())
                     .xcr(entity.getXcr())
                     .xcrBseDt(entity.getXcrBseDt())
-                    .dfrCle(entity.getDfrCle())
+                    .dfrCleC(entity.getDfrCleC())
                     .indRsn(entity.getIndRsn())
-                    .cgpr(entity.getCgpr())
-                    .biceTem(entity.getBiceTem())
-                    .biceDpm(entity.getBiceDpm())
+                    .cgprEno(entity.getCgprEno())
+                    .biceTemC(entity.getBiceTemC())
+                    .biceDpmC(entity.getBiceDpmC())
                     .rmk(entity.getRmk())
                     .build();
         }

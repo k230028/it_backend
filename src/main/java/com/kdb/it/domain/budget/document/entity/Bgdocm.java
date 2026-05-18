@@ -47,10 +47,10 @@ public class Bgdocm extends BaseEntity {
     @Column(name = "DOC_NM", length = 200, comment = "문서명")
     private String docNm;
 
-    /** 문서내용: 가이드 문서 상세 내용 (BLOB, HTML 포함 가능) */
+    /** 문서정보: 가이드 문서 상세 내용 (CLOB, HTML 포함 가능) */
     @Lob
-    @Column(name = "DOC_CONE", comment = "문서내용")
-    private byte[] docCone;
+    @Column(name = "DOC_INF", comment = "문서정보")
+    private String docInf;
 
     /**
      * 가이드 문서 정보 업데이트 메서드
@@ -60,10 +60,10 @@ public class Bgdocm extends BaseEntity {
      * </p>
      *
      * @param docNm  문서명
-     * @param docCone 문서내용 (BLOB)
+     * @param docInf 문서정보 (CLOB)
      */
-    public void update(String docNm, byte[] docCone) {
+    public void update(String docNm, String docInf) {
         this.docNm = docNm;
-        this.docCone = docCone;
+        this.docInf = docInf;
     }
 }

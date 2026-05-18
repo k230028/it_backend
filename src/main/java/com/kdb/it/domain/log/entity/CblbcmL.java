@@ -19,8 +19,7 @@ public class CblbcmL extends BaseLogEntity {
     @Column(name = "NAC_MNG_NO",     length = 32, comment = "게시물관리번호")  private String    nacMngNo;
     @Column(name = "BLB_MNG_NO",     length = 32, comment = "게시판관리번호")  private String    blbMngNo;
     @Column(name = "NAC_NM",         length = 300, comment = "게시물명") private String    nacNm;
-    @Lob
-    @Column(name = "NAC_CONE", comment = "게시물내용")                     private String    nacCone;
+    @Column(name = "NAC_CONE", length = 4000, comment = "게시물내용")     private String    nacCone;
     @Column(name = "NAC_INQ_NBR", comment = "게시물조회수")                  private Integer   nacInqNbr;
     @Column(name = "NAC_TP",         length = 32, comment = "게시물유형")  private String    nacTp;
     @Column(name = "KD_C",           length = 32, comment = "종류코드")  private String    kdC;

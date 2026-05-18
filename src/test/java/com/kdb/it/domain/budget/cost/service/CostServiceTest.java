@@ -183,7 +183,7 @@ class CostServiceTest {
         // given: 관리번호 미입력
         CostDto.CreateRequest request = CostDto.CreateRequest.builder()
                 .cttNm("서버 유지보수 계약")
-                .itMngcBg(BigDecimal.valueOf(10_000_000))
+                .itMngcBgAmt(BigDecimal.valueOf(10_000_000))
                 .build();
 
         given(costRepository.getNextSequenceValue()).willReturn(1L);
@@ -242,7 +242,7 @@ class CostServiceTest {
             given(cost.getItMngcSno()).willReturn(1);
             given(cost.getLstYn()).willReturn("Y");
             given(cost.getFstEnrUsid()).willReturn("10001");
-            given(cost.getBiceDpm()).willReturn("BBR001");
+            given(cost.getBiceDpmC()).willReturn("BBR001");
 
             given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N"))
                     .willReturn(List.of(cost));
@@ -284,7 +284,7 @@ class CostServiceTest {
             given(cost.getItMngcNo()).willReturn(IT_MNGC_NO);
             given(cost.getItMngcSno()).willReturn(1);
             given(cost.getFstEnrUsid()).willReturn("10001");
-            given(cost.getBiceDpm()).willReturn("BBR001");
+            given(cost.getBiceDpmC()).willReturn("BBR001");
 
             given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N"))
                     .willReturn(List.of(cost));
@@ -385,7 +385,7 @@ class CostServiceTest {
     void createCost_단말기식별자없음_채번후저장() {
         CostDto.TerminalDto terminal = CostDto.TerminalDto.builder()
                 .tmnNm("금융단말")
-                .cur("KRW")
+                .curC("KRW")
                 .tmlAmt(BigDecimal.valueOf(1000))
                 .build();
         CostDto.CreateRequest request = CostDto.CreateRequest.builder()
@@ -433,7 +433,7 @@ class CostServiceTest {
             given(first.getItMngcSno()).willReturn(1);
             given(first.getLstYn()).willReturn("N");
             given(first.getFstEnrUsid()).willReturn("10001");
-            given(first.getBiceDpm()).willReturn("BBR001");
+            given(first.getBiceDpmC()).willReturn("BBR001");
             given(second.getLstYn()).willReturn("N");
             given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N"))
                     .willReturn(List.of(first, second));
@@ -473,7 +473,7 @@ class CostServiceTest {
             given(cost.getItMngcNo()).willReturn(IT_MNGC_NO);
             given(cost.getItMngcSno()).willReturn(1);
             given(cost.getFstEnrUsid()).willReturn("10001");
-            given(cost.getBiceDpm()).willReturn("BBR001");
+            given(cost.getBiceDpmC()).willReturn("BBR001");
             given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N"))
                     .willReturn(List.of(cost));
             given(btermmRepository.findByItMngcNoAndItMngcSno(IT_MNGC_NO, 1))
@@ -496,11 +496,11 @@ class CostServiceTest {
         given(assetCost.getItMngcNo()).willReturn("COST-ASSET");
         given(assetCost.getItMngcSno()).willReturn(1);
         given(assetCost.getIoeC()).willReturn("101");
-        given(assetCost.getItMngcBg()).willReturn(BigDecimal.valueOf(1000));
+        given(assetCost.getItMngcBgAmt()).willReturn(BigDecimal.valueOf(1000));
         given(costCost.getItMngcNo()).willReturn("COST-COST");
         given(costCost.getItMngcSno()).willReturn(1);
         given(costCost.getIoeC()).willReturn("102");
-        given(costCost.getItMngcBg()).willReturn(BigDecimal.valueOf(2000));
+        given(costCost.getItMngcBgAmt()).willReturn(BigDecimal.valueOf(2000));
         given(costRepository.findByItMngcNoAndDelYn("COST-ASSET", "N")).willReturn(List.of(assetCost));
         given(costRepository.findByItMngcNoAndDelYn("COST-COST", "N")).willReturn(List.of(costCost));
         given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(eq("BCOSTM"), any(), any()))
@@ -535,10 +535,10 @@ class CostServiceTest {
                 .itMngcSno(1)
                 .ioeC("101")
                 .cttNm("계약")
-                .itMngcBg(BigDecimal.valueOf(1000))
-                .biceDpm("101")
-                .biceTem("102")
-                .cgpr("10001")
+                .itMngcBgAmt(BigDecimal.valueOf(1000))
+                .biceDpmC("101")
+                .biceTemC("102")
+                .cgprEno("10001")
                 .delYn("N")
                 .build();
         Cappla cappla = Cappla.builder()
@@ -561,7 +561,7 @@ class CostServiceTest {
                 .tmnSno("1")
                 .itMngcNo(IT_MNGC_NO)
                 .itMngcSno(1)
-                .cgpr("10003")
+                .cgprEno("10003")
                 .build();
         given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
         given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(
@@ -599,21 +599,21 @@ class CostServiceTest {
                 .itMngcNo("COST-MACH")
                 .itMngcSno(1)
                 .ioeC("101")
-                .itMngcBg(BigDecimal.valueOf(200))
+                .itMngcBgAmt(BigDecimal.valueOf(200))
                 .delYn("N")
                 .build();
         Bcostm intanCost = Bcostm.builder()
                 .itMngcNo("COST-INTAN")
                 .itMngcSno(1)
                 .ioeC("102")
-                .itMngcBg(BigDecimal.valueOf(300))
+                .itMngcBgAmt(BigDecimal.valueOf(300))
                 .delYn("N")
                 .build();
         Bcostm costBg = Bcostm.builder()
                 .itMngcNo("COST-GEN")
                 .itMngcSno(1)
                 .ioeC("103")
-                .itMngcBg(null)
+                .itMngcBgAmt(null)
                 .delYn("N")
                 .build();
         given(costRepository.findByItMngcNoAndDelYn("COST-MACH", "N")).willReturn(List.of(machCost));
@@ -642,14 +642,14 @@ class CostServiceTest {
                 .itMngcNo(IT_MNGC_NO)
                 .itMngcSno(1)
                 .ioeC("101")
-                .itMngcBg(BigDecimal.valueOf(1000))
+                .itMngcBgAmt(BigDecimal.valueOf(1000))
                 .itMngcTp("002")
                 .pulDtt("002")
                 .bgYy("2026")
                 .cncdItMngcNo("COST-2025-0001")
-                .biceDpm("101")
-                .biceTem("102")
-                .cgpr("10001")
+                .biceDpmC("101")
+                .biceTemC("102")
+                .cgprEno("10001")
                 .delYn("N")
                 .build();
         Bcostm newCost = Bcostm.builder()
@@ -739,7 +739,7 @@ class CostServiceTest {
             Bcostm cost = Bcostm.builder()
                     .itMngcNo(IT_MNGC_NO)
                     .itMngcSno(1)
-                    .biceDpm("101")
+                    .biceDpmC("101")
                     .delYn("N")
                     .build();
             given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
@@ -771,7 +771,7 @@ class CostServiceTest {
                     .itMngcNo(IT_MNGC_NO)
                     .itMngcSno(1)
                     .fstEnrUsid("10001")
-                    .biceDpm("101")
+                    .biceDpmC("101")
                     .delYn("N")
                     .build();
             given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
@@ -800,7 +800,7 @@ class CostServiceTest {
             Bcostm cost = Bcostm.builder()
                     .itMngcNo(IT_MNGC_NO)
                     .itMngcSno(1)
-                    .biceDpm("101")
+                    .biceDpmC("101")
                     .delYn("N")
                     .build();
             given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
@@ -814,11 +814,11 @@ class CostServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
-    // setCodeNames — abusC, dfrCle, itMngcTp, pulDtt, ioeC 분기 (lambda 0% → 커버)
+    // setCodeNames — abusC, dfrCleC, itMngcTp, pulDtt, ioeC 분기 (lambda 0% → 커버)
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("getCost: abusC, dfrCle, itMngcTp, pulDtt, ioeC 코드명을 모두 채운다")
+    @DisplayName("getCost: abusC, dfrCleC, itMngcTp, pulDtt, ioeC 코드명을 모두 채운다")
     void getCost_모든코드명필드_조회() {
         // Arrange: 모든 코드명 관련 필드가 채워진 엔티티
         Bcostm cost = Bcostm.builder()
@@ -826,7 +826,7 @@ class CostServiceTest {
                 .itMngcSno(1)
                 .ioeC("101")
                 .abusC("ABUS01")
-                .dfrCle("DFR01")
+                .dfrCleC("DFR01")
                 .itMngcTp("TP01")
                 .pulDtt("PD01")
                 .delYn("N")
@@ -851,7 +851,7 @@ class CostServiceTest {
 
         // Assert: 각 코드명 람다가 실행되어 이름이 설정됨
         assertThat(result.getAbusCNm()).isEqualTo("남용코드명");
-        assertThat(result.getDfrCleNm()).isEqualTo("납입주기명");
+        assertThat(result.getDfrCleCNm()).isEqualTo("납입주기명");
         assertThat(result.getItMngcTpNm()).isEqualTo("유형명");
         assertThat(result.getPulDttNm()).isEqualTo("지급구분명");
     }
@@ -863,7 +863,7 @@ class CostServiceTest {
                 .itMngcNo("COST-NO-IOE")
                 .itMngcSno(1)
                 .ioeC("")
-                .itMngcBg(BigDecimal.valueOf(1000))
+                .itMngcBgAmt(BigDecimal.valueOf(1000))
                 .delYn("N")
                 .build();
         given(costRepository.findByItMngcNoAndDelYn("COST-NO-IOE", "N")).willReturn(List.of(cost));
@@ -887,7 +887,7 @@ class CostServiceTest {
                 .itMngcNo("COST-CPIT-DVC")
                 .itMngcSno(1)
                 .ioeC("OLD_DVC")
-                .itMngcBg(BigDecimal.valueOf(500))
+                .itMngcBgAmt(BigDecimal.valueOf(500))
                 .delYn("N")
                 .build();
         given(costRepository.findByItMngcNoAndDelYn("COST-CPIT-DVC", "N")).willReturn(List.of(cost));
@@ -914,7 +914,7 @@ class CostServiceTest {
                 .itMngcNo("COST-CPIT-HW")
                 .itMngcSno(1)
                 .ioeC("OLD_HW")
-                .itMngcBg(BigDecimal.valueOf(300))
+                .itMngcBgAmt(BigDecimal.valueOf(300))
                 .delYn("N")
                 .build();
         given(costRepository.findByItMngcNoAndDelYn("COST-CPIT-HW", "N")).willReturn(List.of(cost));
@@ -940,7 +940,7 @@ class CostServiceTest {
                 .itMngcNo("COST-CPIT-SW")
                 .itMngcSno(1)
                 .ioeC("OLD_SW")
-                .itMngcBg(BigDecimal.valueOf(400))
+                .itMngcBgAmt(BigDecimal.valueOf(400))
                 .delYn("N")
                 .build();
         given(costRepository.findByItMngcNoAndDelYn("COST-CPIT-SW", "N")).willReturn(List.of(cost));
@@ -966,7 +966,7 @@ class CostServiceTest {
                 .itMngcNo("COST-UNKNOWN-IOE")
                 .itMngcSno(1)
                 .ioeC("UNKNOWN")
-                .itMngcBg(BigDecimal.valueOf(999))
+                .itMngcBgAmt(BigDecimal.valueOf(999))
                 .delYn("N")
                 .build();
         given(costRepository.findByItMngcNoAndDelYn("COST-UNKNOWN-IOE", "N")).willReturn(List.of(cost));
@@ -989,7 +989,7 @@ class CostServiceTest {
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("getCostList: abusC/dfrCle/itMngcTp/pulDtt/ioeC 코드명을 배치 조회하여 설정한다")
+    @DisplayName("getCostList: abusC/dfrCleC/itMngcTp/pulDtt/ioeC 코드명을 배치 조회하여 설정한다")
     void getCostList_모든배치코드명설정() {
         // Arrange: 각 코드명 필드가 채워진 엔티티 (enrichCostListBatch 분기 모두 커버)
         Bcostm cost = Bcostm.builder()
@@ -997,7 +997,7 @@ class CostServiceTest {
                 .itMngcSno(1)
                 .ioeC("101")
                 .abusC("ABUS01")
-                .dfrCle("DFR01")
+                .dfrCleC("DFR01")
                 .itMngcTp("TP01")
                 .pulDtt("PD01")
                 .bgYy("2026")
@@ -1026,7 +1026,7 @@ class CostServiceTest {
         // Assert: 코드명 필드가 설정됨
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getAbusCNm()).isEqualTo("남용유형");
-        assertThat(result.get(0).getDfrCleNm()).isEqualTo("매월");
+        assertThat(result.get(0).getDfrCleCNm()).isEqualTo("매월");
         assertThat(result.get(0).getItMngcTpNm()).isEqualTo("유형A");
         assertThat(result.get(0).getPulDttNm()).isEqualTo("지급A");
         assertThat(result.get(0).getIoeCNm()).isEqualTo("전산임차료");

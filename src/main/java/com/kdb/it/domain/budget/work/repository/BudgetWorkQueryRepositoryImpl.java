@@ -50,14 +50,14 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
         QCapplm capplm = QCapplm.capplm;
 
         List<Tuple> rows = queryFactory
-                .select(bcostm.ioeC, bcostm.itMngcBg.sum())
+                .select(bcostm.ioeC, bcostm.itMngcBgAmt.sum())
                 .from(bcostm)
                 .where(
                         bcostm.delYn.eq("N"),
                         bcostm.lstYn.eq("Y"),
                         bcostm.bgYy.eq(bgYy),
                         bcostm.ioeC.isNotNull(),
-                        bcostm.itMngcBg.isNotNull(),
+                        bcostm.itMngcBgAmt.isNotNull(),
                         JPAExpressions.selectOne()
                                 .from(cappla, capplm)
                                 .where(
@@ -80,7 +80,7 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
         Map<String, BigDecimal> result = new LinkedHashMap<>();
         for (Tuple row : rows) {
             String ioeC = row.get(bcostm.ioeC);
-            BigDecimal amount = row.get(bcostm.itMngcBg.sum());
+            BigDecimal amount = row.get(bcostm.itMngcBgAmt.sum());
             if (ioeC != null && amount != null) {
                 result.put(ioeC, amount);
             }

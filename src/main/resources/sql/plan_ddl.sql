@@ -14,7 +14,7 @@ CREATE TABLE TAAABB_BPLANM (
     PLN_MNG_NO   VARCHAR2(32)   NOT NULL,   -- 계획관리번호 (PK)
     PLN_TP       VARCHAR2(16),              -- 계획구분 (신규, 조정)
     PLN_YY       VARCHAR2(4),              -- 대상년도 (YYYY)
-    PLN_DTL_CONE CLOB,                     -- 계획세부내용 (JSON 스냅샷)
+    PLN_DTL_INF CLOB,                     -- 계획세부내용 (JSON 스냅샷)
     IT_PRJ_CONE  CLOB,                     -- IT프로젝트내용
     IT_BG_CONE   CLOB,                     -- IT예산내용
     IT_PRJ_RMK   CLOB,                     -- IT예산비고

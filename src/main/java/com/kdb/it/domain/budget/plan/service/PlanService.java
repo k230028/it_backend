@@ -92,7 +92,7 @@ public class PlanService {
                                         int itCnt = 0;
                                         int newCnt = 0;
                                         int contCnt = 0;
-                                        String dtlCone = plan.getPlnDtlCone();
+                                        String dtlCone = plan.getPlnDtlInf();
                                         if (dtlCone != null && !dtlCone.isBlank()) {
                                                 try {
                                                         Map<String, Object> snapshot = objectMapper.readValue(dtlCone,
@@ -204,7 +204,7 @@ public class PlanService {
                                 .map(p -> p.getPrjBg() != null ? p.getPrjBg() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
                 ttlBg = costs.stream()
-                                .map(c -> c.getItMngcBg() != null ? c.getItMngcBg() : BigDecimal.ZERO)
+                                .map(c -> c.getItMngcBgAmt() != null ? c.getItMngcBgAmt() : BigDecimal.ZERO)
                                 .reduce(ttlBg, BigDecimal::add);
 
                 BigDecimal cptBg = projects.stream()
@@ -236,7 +236,7 @@ public class PlanService {
                                 .ttlBg(ttlBg)
                                 .cptBg(cptBg)
                                 .mngc(mngc)
-                                .plnDtlCone(snapshotJson)
+                                .plnDtlInf(snapshotJson)
                                 .itPrjCone(request.getItPrjCone())
                                 .itBgCone(request.getItBgCone())
                                 .itPrjRmk(request.getItPrjRmk())
@@ -360,9 +360,9 @@ public class PlanService {
                                                 .prjNm(c.getCttNm())
                                                 .prjTp(c.getItMngcTp())
                                                 .svnHdq("미분류")
-                                                .svnDpm(c.getBiceDpm())
+                                                .svnDpm(c.getBiceDpmC())
                                                 .svnDpmNm(c.getBiceDpmNm() != null ? c.getBiceDpmNm() : "")
-                                                .prjBg(c.getItMngcBg())
+                                                .prjBg(c.getItMngcBgAmt())
                                                 .assetBg(c.getAssetBg())
                                                 .costBg(c.getCostBg())
                                                 .build())

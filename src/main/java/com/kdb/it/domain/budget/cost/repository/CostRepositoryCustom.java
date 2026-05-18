@@ -36,7 +36,7 @@ public interface CostRepositoryCustom {
      *
      * <p>구현: {@link CostRepositoryImpl#searchByCondition(CostDto.SearchCondition)}</p>
      *
-     * @param condition 검색 조건 DTO (apfSts, biceDpm, biceTem, infPrtYn)
+     * @param condition 검색 조건 DTO (apfSts, biceDpmC, biceTemC, infPrtYn)
      * @return 조건에 맞는 전산관리비 목록 (DEL_YN='N' 필터 항상 적용)
      */
     List<Bcostm> searchByCondition(CostDto.SearchCondition condition);

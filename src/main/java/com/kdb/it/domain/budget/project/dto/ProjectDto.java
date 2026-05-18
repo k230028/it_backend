@@ -724,7 +724,7 @@ public class ProjectDto {
 
         /** TAAABB_BBUGTM 기준 편성예산 합계 (요청금액 × 편성률/100, 서비스에서 일괄 조회 시 설정) */
         @Schema(description = "편성예산 (BBUGTM 기준, 편성률 반영)")
-        private BigDecimal dupBg;
+        private BigDecimal dupBgAmt;
 
         /** BBUGTM 기준 자본예산 편성예산 (ioeC IOE_CPIT 계열 품목의 DUP_BG 합계) */
         @Schema(description = "자본예산 편성예산 (BBUGTM 기준)")
@@ -863,11 +863,11 @@ public class ProjectDto {
 
         /** 품목수량 */
         @Schema(description = "품목수량")
-        private BigDecimal gclQtt;
+        private BigDecimal gclQty;
 
         /** 통화 코드 (예: "KRW", "USD") */
         @Schema(description = "통화")
-        private String cur;
+        private String curC;
 
         /** 환율 */
         @Schema(description = "환율")
@@ -879,15 +879,15 @@ public class ProjectDto {
 
         /** 예산근거 (예산 산정 근거 설명) */
         @Schema(description = "예산근거")
-        private String bgFdtn;
+        private String bgFdtnCone;
 
         /** 도입시기 (예: "2026년 1분기") */
         @Schema(description = "도입시기")
-        private String itdDt;
+        private String itdYm;
 
         /** 지급주기 (예: "일시불", "매월") */
         @Schema(description = "지급주기")
-        private String dfrCle;
+        private String dfrCleC;
 
         /** 정보보호여부 ("Y" 또는 "N", 기본값 "N") */
         @Schema(description = "정보보호여부")
@@ -917,13 +917,13 @@ public class ProjectDto {
                     .gclSno(bitemm.getGclSno()) // 품목일련번호
                     .ioeC(bitemm.getIoeC()) // 품목구분
                     .gclNm(bitemm.getGclNm()) // 품목명
-                    .gclQtt(bitemm.getGclQtt()) // 품목수량
-                    .cur(bitemm.getCur()) // 통화
+                    .gclQty(bitemm.getGclQty()) // 품목수량
+                    .curC(bitemm.getCurC()) // 통화
                     .xcr(bitemm.getXcr()) // 환율
                     .xcrBseDt(bitemm.getXcrBseDt()) // 환율기준일자
-                    .bgFdtn(bitemm.getBgFdtn()) // 예산근거
-                    .itdDt(bitemm.getItdDt()) // 도입시기
-                    .dfrCle(bitemm.getDfrCle()) // 지급주기
+                    .bgFdtnCone(bitemm.getBgFdtnCone()) // 예산근거
+                    .itdYm(bitemm.getItdYm()) // 도입시기
+                    .dfrCleC(bitemm.getDfrCleC()) // 지급주기
                     .infPrtYn(bitemm.getInfPrtYn()) // 정보보호여부
                     .itrInfrYn(bitemm.getItrInfrYn()) // 통합인프라여부
                     .lstYn(bitemm.getLstYn()) // 최종여부

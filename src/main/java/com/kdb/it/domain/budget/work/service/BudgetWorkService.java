@@ -165,7 +165,7 @@ public class BudgetWorkService {
             // 결재완료 BCOSTM 처리
             List<Bcostm> costs = bbugtmRepository.findApprovedCostsByIoeCValues(ioeCValues, bgYy);
             for (Bcostm cost : costs) {
-                BigDecimal dupBg = calculateDupBg(cost.getItMngcBg(), dupRt);
+                BigDecimal dupBgAmt = calculateDupBg(cost.getItMngcBgAmt(), dupRt);
 
                 Optional<Bbugtm> existing = bbugtmRepository
                         .findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
@@ -174,7 +174,7 @@ public class BudgetWorkService {
 
                 if (existing.isPresent()) {
                     // Upsert: UPDATE (JPA Dirty Checking)
-                    existing.get().update(dupBg, dupRt);
+                    existing.get().update(dupBgAmt, dupRt);
                 } else {
                     // Upsert: INSERT
                     snoCounter++;
@@ -186,7 +186,7 @@ public class BudgetWorkService {
                             .orcPkVl(cost.getItMngcNo())
                             .orcSnoVl(cost.getItMngcSno())
                             .ioeC(cost.getIoeC())
-                            .dupBg(dupBg)
+                            .dupBgAmt(dupBgAmt)
                             .dupRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
@@ -203,7 +203,7 @@ public class BudgetWorkService {
                 // 환율 적용: gclAmt × coalesce(xcr, 1) → 원화 금액
                 BigDecimal xcrVal = item.getXcr() != null ? item.getXcr() : BigDecimal.ONE;
                 BigDecimal amountKrw = item.getGclAmt() != null ? item.getGclAmt().multiply(xcrVal) : BigDecimal.ZERO;
-                BigDecimal dupBg = calculateDupBg(amountKrw, dupRt);
+                BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
                 Optional<Bbugtm> existing = bbugtmRepository
                         .findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
@@ -211,7 +211,7 @@ public class BudgetWorkService {
                                 item.getGclSno(), item.getIoeC(), "N");
 
                 if (existing.isPresent()) {
-                    existing.get().update(dupBg, dupRt);
+                    existing.get().update(dupBgAmt, dupRt);
                 } else {
                     snoCounter++;
                     Bbugtm bbugtm = Bbugtm.builder()
@@ -222,7 +222,7 @@ public class BudgetWorkService {
                             .orcPkVl(item.getGclMngNo())
                             .orcSnoVl(item.getGclSno())
                             .ioeC(item.getIoeC())
-                            .dupBg(dupBg)
+                            .dupBgAmt(dupBgAmt)
                             .dupRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
@@ -297,7 +297,7 @@ public class BudgetWorkService {
 
                     BigDecimal xcrVal = bitemm.getXcr() != null ? bitemm.getXcr() : BigDecimal.ONE;
                     BigDecimal amountKrw = bitemm.getGclAmt() != null ? bitemm.getGclAmt().multiply(xcrVal) : BigDecimal.ZERO;
-                    BigDecimal dupBg = calculateDupBg(amountKrw, dupRt);
+                    BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
                     /* 선 Soft Delete 후 전체 재삽입 방식이므로 Upsert 불필요 (항상 INSERT) */
                     snoCounter++;
@@ -309,7 +309,7 @@ public class BudgetWorkService {
                             .orcPkVl(bitemm.getGclMngNo())
                             .orcSnoVl(bitemm.getGclSno())
                             .ioeC(bitemm.getIoeC())
-                            .dupBg(dupBg)
+                            .dupBgAmt(dupBgAmt)
                             .dupRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
@@ -323,7 +323,7 @@ public class BudgetWorkService {
                 for (Bcostm cost : costList) {
                     boolean isCapital = isCapitalIoeCode(cost.getIoeC(), capitalPrefixes);
                     int dupRt = isCapital ? assetDupRt : costDupRt;
-                    BigDecimal dupBg = calculateDupBg(cost.getItMngcBg(), dupRt);
+                    BigDecimal dupBgAmt = calculateDupBg(cost.getItMngcBgAmt(), dupRt);
 
                     /* 선 Soft Delete 후 전체 재삽입 방식이므로 Upsert 불필요 (항상 INSERT) */
                     snoCounter++;
@@ -335,7 +335,7 @@ public class BudgetWorkService {
                             .orcPkVl(cost.getItMngcNo())
                             .orcSnoVl(cost.getItMngcSno())
                             .ioeC(cost.getIoeC())
-                            .dupBg(dupBg)
+                            .dupBgAmt(dupBgAmt)
                             .dupRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
@@ -501,7 +501,7 @@ public class BudgetWorkService {
 
                 // 편성금액 합계 (BBUGTM 기반)
                 BigDecimal dupAmount = allRecords.stream()
-                        .map(Bbugtm::getDupBg)
+                        .map(Bbugtm::getDupBgAmt)
                         .filter(v -> v != null)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -714,15 +714,15 @@ public class BudgetWorkService {
             catMap.computeIfAbsent(matchedPrefix, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
 
             BigDecimal[] amounts = catMap.get(matchedPrefix);
-            // 요청금액 역산: dupBg / (dupRt / 100)
-            if (b.getDupBg() != null && b.getDupRt() != null && b.getDupRt() > 0) {
-                BigDecimal requestAmt = b.getDupBg()
+            // 요청금액 역산: dupBgAmt / (dupRt / 100)
+            if (b.getDupBgAmt() != null && b.getDupRt() != null && b.getDupRt() > 0) {
+                BigDecimal requestAmt = b.getDupBgAmt()
                         .multiply(BigDecimal.valueOf(100))
                         .divide(BigDecimal.valueOf(b.getDupRt()), 2, RoundingMode.HALF_UP);
                 amounts[0] = amounts[0].add(requestAmt);
             }
-            if (b.getDupBg() != null) {
-                amounts[1] = amounts[1].add(b.getDupBg());
+            if (b.getDupBgAmt() != null) {
+                amounts[1] = amounts[1].add(b.getDupBgAmt());
             }
         }
 

@@ -15,7 +15,7 @@ public interface BudgetWorkQueryRepository {
      * 결재완료 전산업무비(BCOSTM) 요청금액을 비목코드(ioeC)별로 집계합니다.
      *
      * @param bgYy 예산연도
-     * @return ioeC → itMngcBg 합계 맵
+     * @return ioeC → itMngcBgAmt 합계 맵
      */
     Map<String, BigDecimal> findApprovedCostAmountByIoeC(String bgYy);
 

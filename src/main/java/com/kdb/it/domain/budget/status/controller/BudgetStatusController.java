@@ -99,7 +99,7 @@ public class BudgetStatusController {
                                               {
                                                 "itMngcNo": "COST-2026-0001",
                                                 "cttNm": "2026년 서버 유지보수 계약",
-                                                "biceDpm": "D001",
+                                                "biceDpmC": "D001",
                                                 "reqTotalBg": 300000000,
                                                 "adjTotalBg": 240000000
                                               }

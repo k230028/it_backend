@@ -226,9 +226,9 @@ class PlanServiceTest {
                 .itMngcNo("COST-2026-0001")
                 .cttNm("전산업무비")
                 .itMngcTp("유지보수")
-                .biceDpm("001")
+                .biceDpmC("001")
                 .biceDpmNm(null)
-                .itMngcBg(BigDecimal.valueOf(100))
+                .itMngcBgAmt(BigDecimal.valueOf(100))
                 .assetBg(BigDecimal.valueOf(70))
                 .costBg(BigDecimal.valueOf(30))
                 .build();
@@ -269,7 +269,7 @@ class PlanServiceTest {
                 .itMngcNo("COST-2026-0001")
                 .cttNm("전산업무비")
                 .biceDpmNm("IT부")
-                .itMngcBg(null)
+                .itMngcBgAmt(null)
                 .assetBg(null)
                 .costBg(null)
                 .build();

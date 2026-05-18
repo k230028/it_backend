@@ -28,6 +28,6 @@ public class BgdocmL extends BaseLogEntity {
     private String docNm;
 
     @Lob
-    @Column(name = "DOC_CONE", comment = "문서내용")
-    private byte[] docCone;
+    @Column(name = "DOC_INF", comment = "문서정보")
+    private String docInf;
 }

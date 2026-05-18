@@ -226,32 +226,32 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         String prevYy = String.valueOf(Integer.parseInt(bgYy) - 1);
 
         // 전년도 편성금액: 전년도 BBUGTM DUP_BG를 IOE_C 접두어별 분배 (편성 없으면 0)
-        NumberExpression<BigDecimal> reqRent = caseDupBgByCTp(costCode.cTp, bPrev.dupBg, CTP_RENT);
-        NumberExpression<BigDecimal> reqTravel = caseDupBgByCTp(costCode.cTp, bPrev.dupBg, CTP_TRAVEL);
-        NumberExpression<BigDecimal> reqService = caseDupBgByCTp(costCode.cTp, bPrev.dupBg, CTP_SERVICE);
-        NumberExpression<BigDecimal> reqMisc = caseDupBgByCTp(costCode.cTp, bPrev.dupBg, CTP_MISC);
+        NumberExpression<BigDecimal> reqRent = caseDupBgByCTp(costCode.cTp, bPrev.dupBgAmt, CTP_RENT);
+        NumberExpression<BigDecimal> reqTravel = caseDupBgByCTp(costCode.cTp, bPrev.dupBgAmt, CTP_TRAVEL);
+        NumberExpression<BigDecimal> reqService = caseDupBgByCTp(costCode.cTp, bPrev.dupBgAmt, CTP_SERVICE);
+        NumberExpression<BigDecimal> reqMisc = caseDupBgByCTp(costCode.cTp, bPrev.dupBgAmt, CTP_MISC);
         NumberExpression<BigDecimal> reqTotal = Expressions.numberTemplate(BigDecimal.class,
-                "COALESCE({0}, 0)", bPrev.dupBg);
+                "COALESCE({0}, 0)", bPrev.dupBgAmt);
 
         // 금년도 조정: 금년도 BBUGTM의 DUP_BG를 IOE_C 접두어별 분배
-        NumberExpression<BigDecimal> adjRent = caseDupBgByCTp(costCode.cTp, b.dupBg, CTP_RENT);
-        NumberExpression<BigDecimal> adjTravel = caseDupBgByCTp(costCode.cTp, b.dupBg, CTP_TRAVEL);
-        NumberExpression<BigDecimal> adjService = caseDupBgByCTp(costCode.cTp, b.dupBg, CTP_SERVICE);
-        NumberExpression<BigDecimal> adjMisc = caseDupBgByCTp(costCode.cTp, b.dupBg, CTP_MISC);
+        NumberExpression<BigDecimal> adjRent = caseDupBgByCTp(costCode.cTp, b.dupBgAmt, CTP_RENT);
+        NumberExpression<BigDecimal> adjTravel = caseDupBgByCTp(costCode.cTp, b.dupBgAmt, CTP_TRAVEL);
+        NumberExpression<BigDecimal> adjService = caseDupBgByCTp(costCode.cTp, b.dupBgAmt, CTP_SERVICE);
+        NumberExpression<BigDecimal> adjMisc = caseDupBgByCTp(costCode.cTp, b.dupBgAmt, CTP_MISC);
         NumberExpression<BigDecimal> adjTotal = Expressions.numberTemplate(BigDecimal.class,
-                "COALESCE({0}, 0)", b.dupBg);
+                "COALESCE({0}, 0)", b.dupBgAmt);
 
         List<Tuple> tuples = queryFactory
                 .select(
                         c.itMngcNo, c.pulDtt, c.abusC, c.ioeC, costCode.cdvaNm,
-                        c.biceDpm, dpmOrg.bbrNm, c.biceTem, temOrg.bbrNm,
-                        c.cttNm, c.cttOpp, c.infPrtYn, c.itMngcTp,
+                        c.biceDpmC, dpmOrg.bbrNm, c.biceTemC, temOrg.bbrNm,
+                        c.cttNm, c.cttOppNm, c.infPrtYn, c.itMngcTp,
                         reqRent, reqTravel, reqService, reqMisc, reqTotal,
                         adjRent, adjTravel, adjService, adjMisc, adjTotal
                 )
                 .from(c)
-                .leftJoin(dpmOrg).on(dpmOrg.prlmOgzCCone.eq(c.biceDpm))
-                .leftJoin(temOrg).on(temOrg.prlmOgzCCone.eq(c.biceTem))
+                .leftJoin(dpmOrg).on(dpmOrg.prlmOgzCCone.eq(c.biceDpmC))
+                .leftJoin(temOrg).on(temOrg.prlmOgzCCone.eq(c.biceTemC))
                 .leftJoin(costCode).on(
                         costCode.cId.eq(C_ID_IOE),
                         costCode.cdva.eq(c.ioeC),
@@ -293,8 +293,8 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         return tuples.stream().map(t -> new BudgetStatusDto.CostResponse(
                 t.get(c.itMngcNo), t.get(c.pulDtt), t.get(c.abusC), t.get(c.ioeC), t.get(costCode.cdvaNm),
-                t.get(c.biceDpm), t.get(dpmOrg.bbrNm), t.get(c.biceTem), t.get(temOrg.bbrNm),
-                t.get(c.cttNm), t.get(c.cttOpp), t.get(c.infPrtYn), t.get(c.itMngcTp),
+                t.get(c.biceDpmC), t.get(dpmOrg.bbrNm), t.get(c.biceTemC), t.get(temOrg.bbrNm),
+                t.get(c.cttNm), t.get(c.cttOppNm), t.get(c.infPrtYn), t.get(c.itMngcTp),
                 nvl(t.get(reqRent)), nvl(t.get(reqTravel)),
                 nvl(t.get(reqService)), nvl(t.get(reqMisc)), nvl(t.get(reqTotal)),
                 nvl(t.get(adjRent)), nvl(t.get(adjTravel)),
@@ -323,16 +323,16 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         // 기계장치 (IOE-238)
         StringExpression machCur = Expressions.stringTemplate(
                 "MAX(CASE WHEN {0} = {1} THEN {2} END)",
-                itemCode.cTp, Expressions.constant(CTP_MACH), i.cur);
-        NumberExpression<BigDecimal> machQtt = sumFieldByCTp(itemCode.cTp, CTP_MACH, i.gclQtt);
+                itemCode.cTp, Expressions.constant(CTP_MACH), i.curC);
+        NumberExpression<BigDecimal> machQtt = sumFieldByCTp(itemCode.cTp, CTP_MACH, i.gclQty);
         NumberExpression<BigDecimal> machAmt = sumFieldByCTp(itemCode.cTp, CTP_MACH, i.gclAmt);
         NumberExpression<BigDecimal> machAmtKrw = sumItemAmtByCTp(itemCode.cTp, i, CTP_MACH);
 
         // 기타무형자산 (IOE-239)
         StringExpression intanCur = Expressions.stringTemplate(
                 "MAX(CASE WHEN {0} = {1} THEN {2} END)",
-                itemCode.cTp, Expressions.constant(CTP_INTAN), i.cur);
-        NumberExpression<BigDecimal> intanQtt = sumFieldByCTp(itemCode.cTp, CTP_INTAN, i.gclQtt);
+                itemCode.cTp, Expressions.constant(CTP_INTAN), i.curC);
+        NumberExpression<BigDecimal> intanQtt = sumFieldByCTp(itemCode.cTp, CTP_INTAN, i.gclQty);
         NumberExpression<BigDecimal> intanAmt = sumFieldByCTp(itemCode.cTp, CTP_INTAN, i.gclAmt);
         NumberExpression<BigDecimal> intanAmtKrw = sumItemAmtByCTp(itemCode.cTp, i, CTP_INTAN);
 
@@ -401,7 +401,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
      *   <li>{@code OPEX} → {@code Ccodem.cTp ∈ ('IOE_IDR','IOE_SEVS','IOE_XPN','IOE_LEAFE')} 일반관리비 항목 합계</li>
      * </ul>
      * 편성요청액은 {@code BITEMM.gclAmt * COALESCE(xcr,1)} 합산,
-     * 편성액은 {@code BBUGTM.dupBg}({@code orcTb='BITEMM'}) 합산입니다.
+     * 편성액은 {@code BBUGTM.dupBgAmt}({@code orcTb='BITEMM'}) 합산입니다.
      * 두 합계 모두 0이거나 null이면 {@code AggregatedAmount(null, null)}을 반환합니다(MISSING 판정용).
      * </p>
      *
@@ -456,9 +456,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         p.lstYn.eq("Y"))
                 .fetchOne();
 
-        // 편성액: BBUGTM.dupBg 합계 — 해당 사업의 BITEMM(gclMngNo)을 통해 매핑된 편성예산
+        // 편성액: BBUGTM.dupBgAmt 합계 — 해당 사업의 BITEMM(gclMngNo)을 통해 매핑된 편성예산
         BigDecimal allocatedSum = queryFactory
-                .select(b.dupBg.sum().coalesce(BigDecimal.ZERO))
+                .select(b.dupBgAmt.sum().coalesce(BigDecimal.ZERO))
                 .from(b)
                 .join(i).on(
                         i.gclMngNo.eq(b.orcPkVl),
@@ -518,9 +518,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         cTpFilter)
                 .fetchOne();
 
-        // 편성액: BBUGTM.dupBg 합계 — BITEMM(gclMngNo)을 통해 매핑된 편성예산
+        // 편성액: BBUGTM.dupBgAmt 합계 — BITEMM(gclMngNo)을 통해 매핑된 편성예산
         BigDecimal allocatedSum = queryFactory
-                .select(b.dupBg.sum().coalesce(BigDecimal.ZERO))
+                .select(b.dupBgAmt.sum().coalesce(BigDecimal.ZERO))
                 .from(b)
                 .join(i).on(
                         i.gclMngNo.eq(b.orcPkVl),
@@ -585,25 +585,25 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     /**
      * BBUGTM 비목코드별 편성예산 피벗
      *
-     * <p>SUM(CASE WHEN C_TP = 'codeType' THEN dupBg ELSE 0 END)</p>
+     * <p>SUM(CASE WHEN C_TP = 'codeType' THEN dupBgAmt ELSE 0 END)</p>
      */
     private NumberExpression<BigDecimal> sumDupBgByCTp(StringExpression cTp, QBbugtm b, String codeType) {
         return Expressions.numberTemplate(BigDecimal.class,
                 "COALESCE(SUM(CASE WHEN {0} = {1} THEN {2} ELSE 0 END), 0)",
-                cTp, Expressions.constant(codeType), b.dupBg);
+                cTp, Expressions.constant(codeType), b.dupBgAmt);
     }
 
     /**
      * 비목코드 접두어별 편성예산 분배 (비집계, 전산업무비용)
      *
-     * <p>CASE WHEN C_TP = 'codeType' THEN COALESCE(dupBg, 0) ELSE 0 END</p>
+     * <p>CASE WHEN C_TP = 'codeType' THEN COALESCE(dupBgAmt, 0) ELSE 0 END</p>
      */
     private NumberExpression<BigDecimal> caseDupBgByCTp(StringExpression cTp,
-                                                        NumberExpression<BigDecimal> dupBg,
+                                                        NumberExpression<BigDecimal> dupBgAmt,
                                                         String codeType) {
         return Expressions.numberTemplate(BigDecimal.class,
                 "CASE WHEN {0} = {1} THEN COALESCE({2}, 0) ELSE 0 END",
-                cTp, Expressions.constant(codeType), dupBg);
+                cTp, Expressions.constant(codeType), dupBgAmt);
     }
 
     /**

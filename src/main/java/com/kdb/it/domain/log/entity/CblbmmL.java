@@ -33,5 +33,5 @@ public class CblbmmL extends BaseLogEntity {
     @Column(name = "BBR_LMTN_C",      length = 8, comment = "부점한정코드")   private String  bbrLmtnC;
     @Column(name = "SRE_SQN_NO", comment = "화면순서번호")                    private Integer sreSqnNo;
     @Column(name = "USE_YN",          length = 1, comment = "사용여부")   private String  useYn;
-    @Column(name = "RMK",             length = 500, comment = "비고") private String  rmk;
+    @Column(name = "RMK",             length = 300, comment = "비고") private String  rmk;
 }

@@ -72,12 +72,12 @@ public class Bbugtm extends BaseEntity {
     private Integer orcSnoVl;
 
     /** 비목코드: 편성비목에 매칭된 비목코드 */
-    @Column(name = "IOE_C", length = 100, comment = "비목코드")
+    @Column(name = "IOE_C", length = 3, comment = "비목코드")
     private String ioeC;
 
     /** 편성예산: 요청금액 × (편성률 / 100) */
-    @Column(name = "DUP_BG", precision = 15, scale = 2, comment = "편성예산")
-    private BigDecimal dupBg;
+    @Column(name = "DUP_BG_AMT", precision = 18, scale = 3, comment = "편성예산금액")
+    private BigDecimal dupBgAmt;
 
     /** 편성률: 0~100 사이의 정수 */
     @Column(name = "DUP_RT", precision = 3, scale = 0, comment = "편성률")
@@ -91,11 +91,11 @@ public class Bbugtm extends BaseEntity {
      * Upsert 시 기존 레코드가 존재하면 이 메서드로 UPDATE 처리합니다.
      * </p>
      *
-     * @param dupBg 편성예산 (요청금액 × 편성률/100)
+     * @param dupBgAmt 편성예산 (요청금액 × 편성률/100)
      * @param dupRt 편성률 (0~100)
      */
-    public void update(BigDecimal dupBg, Integer dupRt) {
-        this.dupBg = dupBg;
+    public void update(BigDecimal dupBgAmt, Integer dupRt) {
+        this.dupBgAmt = dupBgAmt;
         this.dupRt = dupRt;
     }
 }
