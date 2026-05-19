@@ -7,15 +7,19 @@ import com.kdb.it.common.board.entity.Ccmmtm;
 import com.kdb.it.common.board.repository.BoardCommentRepository;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
+import com.kdb.it.common.notification.event.NotificationEvent;
+import com.kdb.it.common.notification.util.MentionExtractor;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -32,6 +36,7 @@ public class BoardCommentService {
     private final BoardPostRepository    postRepository;
     private final BoardCommentRepository commentRepository;
     private final BoardPostService       postService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 게시물의 댓글 목록 조회 (트리 정렬)
@@ -91,6 +96,7 @@ public class BoardCommentService {
             .build();
         comment.initGroupAsRoot();
         commentRepository.save(comment);
+        publishMentionNotifications(comment, post, user.getEno());
         return cmmtMngNo;
     }
 
@@ -145,6 +151,7 @@ public class BoardCommentService {
             parent.getCmmtMngNo()
         );
         commentRepository.save(reply);
+        publishMentionNotifications(reply, post, user.getEno());
         return cmmtMngNo;
     }
 
@@ -165,6 +172,8 @@ public class BoardCommentService {
         Ccmmtm comment = findComment(cmmtMngNo);
         verifyCanModify(user, comment);
         comment.updateContent(HtmlSanitizer.sanitize(request.getCmmtCone()));
+        Cblbcm post = findPost(comment.getNacMngNo());
+        publishMentionNotifications(comment, post, user.getEno());
     }
 
     /**
@@ -213,5 +222,41 @@ public class BoardCommentService {
     private String generateCmmtId() {
         Long seq = commentRepository.getNextSequenceValue();
         return String.format("CMMT-%d-%04d", LocalDate.now().getYear(), seq);
+    }
+
+    /**
+     * 댓글 본문의 {@code @사번} 멘션을 추출하여 수신자별 알림 이벤트를 발행한다.
+     *
+     * <p>발행은 {@code @TransactionalEventListener(AFTER_COMMIT)} 리스너가 처리하므로
+     * 본 트랜잭션은 차단되지 않는다. 멘션이 없으면 아무 동작도 하지 않는다.</p>
+     *
+     * @param comment   저장 직후의 댓글 엔티티
+     * @param post      댓글이 속한 게시물 (linkUrl 구성에 필요)
+     * @param authorEno 작성자 사번 (자기 멘션 제외용)
+     */
+    private void publishMentionNotifications(Ccmmtm comment, Cblbcm post, String authorEno) {
+        Set<String> recipients = MentionExtractor.extractEnos(comment.getCmmtCone(), authorEno);
+        if (recipients.isEmpty()) return;
+        String title   = "댓글 멘션: " + safe(post.getNacNm());
+        String linkUrl = "/board/" + post.getBlbMngNo()
+            + "?postId=" + post.getNacMngNo()
+            + "&commentId=" + comment.getCmmtMngNo();
+        for (String eno : recipients) {
+            eventPublisher.publishEvent(
+                NotificationEvent.builder()
+                    .recipientEno(eno)
+                    .infTpC(NotificationEvent.TYPE_MENTION_COMMENT)
+                    .infTtl(abbreviate(title, 100))
+                    .infCone(abbreviate(safe(post.getNacNm()), 300))
+                    .infLnkUrl(linkUrl)
+                    .build()
+            );
+        }
+    }
+
+    private static String safe(String s) { return s == null ? "" : s; }
+    private static String abbreviate(String s, int max) {
+        if (s == null) return null;
+        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
     }
 }

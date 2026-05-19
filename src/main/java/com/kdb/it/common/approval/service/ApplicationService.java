@@ -11,6 +11,7 @@ import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -183,7 +184,46 @@ public class ApplicationService {
             approvalLineDelegate.doUpdate(capplm, savedApprovers, java.util.List.of(firstApprover));
         }
 
+        // 4. 다음 결재 차례인 결재자에게 알림 발행 (자동 승인 적용 후 미결재 항목 중 가장 앞)
+        //    AFTER_COMMIT 리스너가 처리하므로 본 트랜잭션은 차단되지 않는다.
+        publishApprovalRequestNotification(capplm);
+
         return apfMngNo; // 생성된 신청관리번호 반환
+    }
+
+    /**
+     * 결재선에서 다음 차례인 결재자에게 결재요청 알림을 발행한다.
+     *
+     * <p>{@code DCD_TP IS NULL}인 결재 항목 중 가장 작은 {@code DCD_SQN}의 결재자가 대상.
+     * 발견되지 않으면(=결재선 모두 처리됨) 알림을 발행하지 않는다.</p>
+     */
+    private void publishApprovalRequestNotification(Capplm capplm) {
+        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcdSqnAsc(capplm.getApfMngNo());
+        Cdecim next = approvers.stream()
+            .filter(a -> a.getDcdTp() == null)
+            .findFirst()
+            .orElse(null);
+        if (next == null || next.getDcdEno() == null || next.getDcdEno().isBlank()) {
+            return;
+        }
+        eventPublisher.publishEvent(
+            NotificationEvent.builder()
+                .recipientEno(next.getDcdEno())
+                .infTpC(NotificationEvent.TYPE_APPROVAL_REQUEST)
+                .infTtl(abbreviateText("결재요청: " + safeText(capplm.getApfNm()), 100))
+                .infCone(abbreviateText(safeText(capplm.getApfNm()), 300))
+                .infLnkUrl("/approval/" + capplm.getApfMngNo())
+                .build()
+        );
+    }
+
+    private static String safeText(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static String abbreviateText(String s, int max) {
+        if (s == null) return null;
+        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
     }
 
     /**
@@ -303,8 +343,12 @@ public class ApplicationService {
 
         // 신청서 상태가 종결(결재완료/반려)된 경우, 도메인 이벤트 발행
         // 구독 리스너(예: CouncilApprovalEventListener)가 도메인별 후처리를 담당합니다.
+        // 알림 측면: NotificationEventListener.onApprovalCompleted가 신청자에게 결재결과 알림을 발행합니다.
         if (newApfSts != null) {
             eventPublisher.publishEvent(new ApprovalCompletedEvent(apfMngNo, newApfSts));
+        } else if ("승인".equals(status)) {
+            // 중간 승인 → 다음 결재자에게 결재요청 알림 발행
+            publishApprovalRequestNotification(capplm);
         }
     }
 

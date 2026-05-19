@@ -5,15 +5,19 @@ import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
+import com.kdb.it.common.notification.event.NotificationEvent;
+import com.kdb.it.common.notification.util.MentionExtractor;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -28,6 +32,7 @@ public class BoardPostService {
 
     private final BoardMetaRepository metaRepository;
     private final BoardPostRepository postRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 게시물 목록 조회
@@ -125,6 +130,7 @@ public class BoardPostService {
             .build();
         post.initGroupAsRoot();
         postRepository.save(post);
+        publishMentionNotifications(post, user.getEno(), false);
         return nacMngNo;
     }
 
@@ -151,6 +157,7 @@ public class BoardPostService {
 
         String sanitizedCone = HtmlSanitizer.sanitize(request.getNacCone());
         post.update(request.toUpdateCommand(sanitizedCone));
+        publishMentionNotifications(post, user.getEno(), false);
     }
 
     /**
@@ -230,7 +237,43 @@ public class BoardPostService {
             parent.getNacMngNo()
         );
         postRepository.save(reply);
+        publishMentionNotifications(reply, user.getEno(), false);
         return newNacMngNo;
+    }
+
+    /**
+     * 게시물 본문의 {@code @사번} 멘션을 추출하여 수신자별 알림 이벤트를 발행한다.
+     *
+     * <p>발행은 {@code @TransactionalEventListener(AFTER_COMMIT)} 리스너가 처리하므로
+     * 본 트랜잭션은 차단되지 않는다. 멘션이 없으면 아무 동작도 하지 않는다.</p>
+     *
+     * @param post      저장 직후의 게시물 엔티티
+     * @param authorEno 작성자 사번 (자기 멘션 제외용)
+     * @param isComment true=댓글, false=게시물 — 알림 종류 분기에 사용
+     */
+    private void publishMentionNotifications(Cblbcm post, String authorEno, boolean isComment) {
+        Set<String> recipients = MentionExtractor.extractEnos(post.getNacCone(), authorEno);
+        if (recipients.isEmpty()) return;
+        String type    = isComment ? NotificationEvent.TYPE_MENTION_COMMENT : NotificationEvent.TYPE_MENTION_POST;
+        String title   = (isComment ? "댓글 멘션: " : "게시물 멘션: ") + safe(post.getNacNm());
+        String linkUrl = "/board/" + post.getBlbMngNo() + "?postId=" + post.getNacMngNo();
+        for (String eno : recipients) {
+            eventPublisher.publishEvent(
+                NotificationEvent.builder()
+                    .recipientEno(eno)
+                    .infTpC(type)
+                    .infTtl(abbreviate(title, 100))
+                    .infCone(abbreviate(safe(post.getNacNm()), 300))
+                    .infLnkUrl(linkUrl)
+                    .build()
+            );
+        }
+    }
+
+    private static String safe(String s) { return s == null ? "" : s; }
+    private static String abbreviate(String s, int max) {
+        if (s == null) return null;
+        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
     }
 
     // ── 권한 검증 (패키지 접근 허용 — BoardCommentService에서 위임 호출) ──
