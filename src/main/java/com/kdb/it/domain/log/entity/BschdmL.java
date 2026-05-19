@@ -9,8 +9,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDate;
-
 /**
  * 협의회 일정(TAAABB_BSCHDM) 변경 로그 엔티티.
  */
@@ -28,8 +26,8 @@ public class BschdmL extends BaseLogEntity {
     @Column(name = "ENO", length = 32, comment = "사번")
     private String eno;
 
-    @Column(name = "DSD_DT", comment = "일정일자")
-    private LocalDate dsdDt;
+    @Column(name = "DSD_DT", length = 8, comment = "일정일자")
+    private String dsdDt;
 
     @Column(name = "DSD_TM", length = 10, comment = "일정시간")
     private String dsdTm;

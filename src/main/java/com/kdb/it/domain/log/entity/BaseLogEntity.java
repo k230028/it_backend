@@ -36,13 +36,8 @@ public abstract class BaseLogEntity {
     @Column(name = "LOG_SNO", length = 32, nullable = false, updatable = false, comment = "로그일련번호")
     private String logSno;
 
-    /**
-     * 변경유형구분코드: C(생성) / U(수정) / D(논리삭제).
-     * NOT NULL이 적절하나 ALTER 시점 기존 *L 데이터에 컬럼이 비어 있어 ORA-01758이 나므로
-     * 일단 nullable로 두고 신규 INSERT 시점 ChangeLogEntityListener가 채워줍니다.
-     * TODO(스키마 정합화 안정화 후 NOT NULL 회복)
-     */
-    @Column(name = "CHG_TC", length = 1, comment = "변경유형구분코드")
+    /** 변경유형구분코드: C(생성) / U(수정) / D(논리삭제) */
+    @Column(name = "CHG_TC", length = 1, nullable = false, comment = "변경유형구분코드")
     private String chgTp;
 
     /** 변경일시: 로그 INSERT 시각 */

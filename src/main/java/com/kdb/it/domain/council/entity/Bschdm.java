@@ -14,8 +14,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDate;
-
 /**
  * 협의회 일정 엔티티
  *
@@ -49,10 +47,10 @@ public class Bschdm extends BaseEntity {
     @Column(name = "ENO", length = 32, nullable = false, comment = "사번")
     private String eno;
 
-    /** 일정일자: 복합키 세 번째 컬럼 (후보 날짜) */
+    /** 일정일자: 복합키 세 번째 컬럼 (DT 도메인 VARCHAR2(8) yyyyMMdd, @Id라 컨버터 불가로 String 직접 사용) */
     @Id
-    @Column(name = "DSD_DT", nullable = false, comment = "일정일자")
-    private LocalDate dsdDt;
+    @Column(name = "DSD_DT", length = 8, nullable = false, comment = "일정일자")
+    private String dsdDt;
 
     /** 일정시간: 복합키 네 번째 컬럼 (10:00/14:00/15:00/16:00) */
     @Id

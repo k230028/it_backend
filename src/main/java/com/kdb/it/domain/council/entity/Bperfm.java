@@ -1,9 +1,11 @@
 package com.kdb.it.domain.council.entity;
 
+import com.kdb.it.common.util.Yyyymmdd8DateConverter;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BperfmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
@@ -66,12 +68,14 @@ public class Bperfm extends BaseEntity {
     @Column(name = "GL_NV_CONE", length = 200, comment = "목표수치내용")
     private String glNv;
 
-    /** 측정시작일: 지표 측정 시작 날짜 (TODO: DT 도메인 String 전환 보류) */
-    @Column(name = "MSM_STT_DT", comment = "측정시작일")
+    /** 측정시작일: 지표 측정 시작 날짜 (DT 도메인 VARCHAR2(8) yyyyMMdd / 자바는 LocalDate) */
+    @Column(name = "MSM_STT_DT", length = 8, comment = "측정시작일")
+    @Convert(converter = Yyyymmdd8DateConverter.class)
     private LocalDate msmSttDt;
 
-    /** 측정종료일: 지표 측정 종료 날짜 (TODO: DT 도메인 String 전환 보류) */
-    @Column(name = "MSM_END_DT", comment = "측정종료일")
+    /** 측정종료일: 지표 측정 종료 날짜 (DT 도메인 VARCHAR2(8) yyyyMMdd / 자바는 LocalDate) */
+    @Column(name = "MSM_END_DT", length = 8, comment = "측정종료일")
+    @Convert(converter = Yyyymmdd8DateConverter.class)
     private LocalDate msmEndDt;
 
     /** 측정시점내용: 측정 시점 설명 (예: 시스템 오픈 후, 최대 100자) PTM 도메인 */

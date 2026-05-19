@@ -85,6 +85,29 @@ src/main/resources/
     @Column(name = "ORC_TB_CD", length = 10, comment = "원본테이블코드")
     private String orcTbCd;
 ```
+#### 5.2.1 컬럼명/타입 변경 가이드
+`spring.jpa.hibernate.ddl-auto=update`는 컬럼 RENAME과 타입 변경을 지원하지 않습니다.
+엔티티에서 `@Column(name=...)`만 바꾸면 옛 컬럼이 그대로 남고 새 컬럼이 추가되며,
+타입이 다르면 ALTER 자체가 실패합니다. 마이그레이션 SQL을 함께 작성합니다.
+
+| 변경 유형 | 처리 패턴 |
+|---|---|
+| 컬럼명만 변경 | `ALTER TABLE T RENAME COLUMN OLD TO NEW;` |
+| 타입 변경 (DATE → VARCHAR2 등) | 임시 컬럼 추가 → `UPDATE`로 변환 복사 → 옛 컬럼 `DROP` → 임시 컬럼 `RENAME` |
+| PK 컬럼 타입 변경 | 단일 컬럼은 위 패턴, PK 제약 포함 시 `DROP TABLE` 후 ddl-auto 재생성 (테스트 환경) |
+| NOT NULL 신규 추가 | 기존 데이터 백필 → `MODIFY ... NOT NULL` |
+
+`DROP TABLE ... CASCADE CONSTRAINTS`는 관련 시퀀스를 함께 삭제하므로
+`app_sequences_ddl.sql` + `audit_log_sequences_ddl.sql`을 재실행해 비즈니스/로그 시퀀스를 복구합니다.
+
+참고 스크립트(`it_backend/src/main/resources/sql/`):
+- `migrate_dt_to_varchar2.sql` — DATE → VARCHAR2(8) 변환 (DT 도메인)
+- `backfill_chg_tc.sql` + `enforce_chg_tc_notnull.sql` — NOT NULL 신규 추가 (CHG_TC)
+- `app_sequences_ddl.sql` — 비즈니스 채번 시퀀스 (S_ASCT/S_QTN/S_APF/S_APF_REL_SNO/S_FL)
+- `audit_log_sequences_ddl.sql` — 로그 시퀀스 (S_{POSTFIX} 22개)
+
+운영 환경 권장: Flyway/Liquibase 도입 검토 (TASK.md 백로그).
+
 ### 5.3 DTO 설계
 - 관련 DTO는 **정적 중첩 클래스**로 한 파일에 묶음 (예: `AuthDto.LoginRequest`).
 - Swagger 문서를 위해 `@Schema(name, description)` 필수.

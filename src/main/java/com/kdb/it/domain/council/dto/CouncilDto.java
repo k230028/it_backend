@@ -300,8 +300,8 @@ public class CouncilDto {
      * 일정 항목
      */
     public record ScheduleItem(
-        /** 일정일자 */
-        LocalDate dsdDt,
+        /** 일정일자 (DT 도메인 VARCHAR2(8) yyyyMMdd) */
+        String dsdDt,
         /** 일정시간 (10:00/14:00/15:00/16:00) */
         String dsdTm,
         /** 가능여부 (Y/N) */
@@ -398,8 +398,8 @@ public class CouncilDto {
      * 일정 슬롯별 응답 현황 (위원별)
      */
     public record ScheduleSlotResponse(
-        /** 일정일자 */
-        LocalDate dsdDt,
+        /** 일정일자 (DT 도메인 VARCHAR2(8) yyyyMMdd) */
+        String dsdDt,
         /** 일정시간 (10:00/14:00/15:00/16:00) */
         String dsdTm,
         /** 가능여부 (Y/N) */

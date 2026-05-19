@@ -1,7 +1,6 @@
 package com.kdb.it.domain.council.entity;
 
 import java.io.Serializable;
-import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -33,8 +32,8 @@ public class BschdmId implements Serializable {
     /** 사번: Bschdm.eno와 이름/타입 일치 필수 */
     private String eno;
 
-    /** 일정일자: Bschdm.dsdDt와 이름/타입 일치 필수 */
-    private LocalDate dsdDt;
+    /** 일정일자: Bschdm.dsdDt와 이름/타입 일치 필수 (DT 도메인 VARCHAR2(8) yyyyMMdd) */
+    private String dsdDt;
 
     /** 일정시간: Bschdm.dsdTm와 이름/타입 일치 필수 */
     private String dsdTm;

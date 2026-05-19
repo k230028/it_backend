@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
  *
  * <p>저장 방식:</p>
  * <ul>
- *   <li>KPN_TP=TEMP: 임시저장 — 상태 DRAFT 유지, 빈 값 허용</li>
- *   <li>KPN_TP=COMPLETE: 작성완료 — 상태 SUBMITTED 전이, 첨부파일 필수</li>
+ *   <li>KPN_TC=001(임시저장): 상태 DRAFT 유지, 빈 값 허용</li>
+ *   <li>KPN_TC=002(저장/작성완료): 상태 SUBMITTED 전이, 첨부파일 필수</li>
  * </ul>
  *
  * <p>성과지표 저장 전략: 요청에 포함된 전체 목록으로 교체 (기존 삭제 + 신규 저장)</p>
@@ -112,7 +112,7 @@ public class FeasibilityService {
      *
      * <p>신규 작성이면 INSERT, 기존 데이터가 있으면 UPDATE합니다.</p>
      *
-     * <p>작성완료(KPN_TP=COMPLETE) 시 처리:</p>
+     * <p>작성완료(KPN_TC=002) 시 처리:</p>
      * <ul>
      *   <li>첨부파일(hwp/hwpx/pdf) 필수 확인</li>
      *   <li>협의회 상태를 SUBMITTED로 전이</li>
@@ -127,7 +127,7 @@ public class FeasibilityService {
         councilService.findActiveCouncil(asctId);
 
         // 작성완료 시 첨부파일 필수 검증
-        if ("COMPLETE".equals(request.kpnTp())) {
+        if ("002".equals(request.kpnTp())) { // KPN_TC 002 = 저장(작성완료)
             validateAttachment(request.flMngNo());
         }
 
@@ -145,7 +145,7 @@ public class FeasibilityService {
         }
 
         // 작성완료 시 상태 전이: DRAFT → SUBMITTED
-        if ("COMPLETE".equals(request.kpnTp())) {
+        if ("002".equals(request.kpnTp())) { // KPN_TC 002 = 저장(작성완료)
             councilService.changeStatus(asctId, "002");
         }
     }

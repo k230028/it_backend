@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,7 +50,7 @@ public interface ScheduleRepository extends JpaRepository<Bschdm, BschdmId> {
      * @return 일정 응답 (없으면 empty)
      */
     Optional<Bschdm> findByAsctIdAndEnoAndDsdDtAndDsdTmAndDelYn(
-            String asctId, String eno, LocalDate dsdDt, String dsdTm, String delYn);
+            String asctId, String eno, String dsdDt, String dsdTm, String delYn);
 
     /**
      * 아직 일정을 입력하지 않은 위원 수 조회

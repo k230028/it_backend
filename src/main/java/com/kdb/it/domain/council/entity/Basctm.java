@@ -1,9 +1,11 @@
 package com.kdb.it.domain.council.entity;
 
+import com.kdb.it.common.util.Yyyymmdd8DateConverter;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BasctmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -59,8 +61,9 @@ public class Basctm extends BaseEntity {
     @Column(name = "DBR_TC", length = 20, comment = "심의유형구분코드")
     private String dbrTp;
 
-    /** 회의일자: 일정 확정 시 설정 (TODO: DT 도메인 String 전환 보류) */
-    @Column(name = "CNRC_DT", comment = "회의일자")
+    /** 회의일자: 일정 확정 시 설정 (DT 도메인 VARCHAR2(8), yyyyMMdd 저장 / 자바는 LocalDate) */
+    @Column(name = "CNRC_DT", length = 8, comment = "회의일자")
+    @Convert(converter = Yyyymmdd8DateConverter.class)
     private LocalDate cnrcDt;
 
     /** 회의시간: 10:00 / 14:00 / 15:00 / 16:00 중 선택 (TM 도메인 VARCHAR2(6)) */

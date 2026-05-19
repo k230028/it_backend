@@ -1,6 +1,8 @@
 package com.kdb.it.domain.log.entity;
 
+import com.kdb.it.common.util.Yyyymmdd8DateConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -37,7 +39,8 @@ public class BasctmL extends BaseLogEntity {
     @Column(name = "DBR_TC", length = 20, comment = "심의유형구분코드")
     private String dbrTp;
 
-    @Column(name = "CNRC_DT", comment = "회의일자")
+    @Column(name = "CNRC_DT", length = 8, comment = "회의일자")
+    @Convert(converter = Yyyymmdd8DateConverter.class)
     private LocalDate cnrcDt;
 
     @Column(name = "CNRC_TM", length = 6, comment = "회의시간")
