@@ -55,6 +55,13 @@ public class BoardCommentDto {
     @Schema(name = "BoardCommentCreateRequest", description = "댓글 등록 요청")
     public static class CreateRequest {
         @Schema(description = "댓글 내용 (최대 2000자)", requiredMode = Schema.RequiredMode.REQUIRED) private String cmmtCone;
+        @Schema(description = "프론트 자동완성에서 선택한 멘션 사용자 사번 목록")
+        private java.util.List<String> mentionedEnos;
+
+        // 멘션 정보가 없는 단순 댓글 생성 요청용 편의 생성자
+        public CreateRequest(String cmmtCone) {
+            this.cmmtCone = cmmtCone;
+        }
     }
 
     @Getter
@@ -64,5 +71,12 @@ public class BoardCommentDto {
     @Schema(name = "BoardCommentUpdateRequest", description = "댓글 수정 요청")
     public static class UpdateRequest {
         @Schema(description = "댓글 내용 (최대 2000자)", requiredMode = Schema.RequiredMode.REQUIRED) private String cmmtCone;
+        @Schema(description = "프론트 자동완성에서 선택한 멘션 사용자 사번 목록")
+        private java.util.List<String> mentionedEnos;
+
+        // 멘션 정보가 없는 단순 댓글 수정 요청용 편의 생성자
+        public UpdateRequest(String cmmtCone) {
+            this.cmmtCone = cmmtCone;
+        }
     }
 }

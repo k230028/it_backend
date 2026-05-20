@@ -34,10 +34,15 @@ public class NotificationEventListener {
     /** 일반 알림 이벤트 처리. 발행자 트랜잭션 커밋 이후 비동기 발송. */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onNotificationEvent(NotificationEvent event) {
+        log.info("[알림 진단] onNotificationEvent 진입: recipient={}, type={}, ttl={}",
+            event.recipientEno(), event.infTpC(), event.infTtl());
         try {
             notificationService.send(event);
+            log.info("[알림 진단] onNotificationEvent 완료: recipient={}, type={}",
+                event.recipientEno(), event.infTpC());
         } catch (Exception ex) {
-            log.warn("Notification send failed: recipient={}, type={}", event.recipientEno(), event.infTpC(), ex);
+            log.warn("[알림 진단] onNotificationEvent 예외: recipient={}, type={}, cause={}",
+                event.recipientEno(), event.infTpC(), ex.toString(), ex);
         }
     }
 
@@ -63,7 +68,9 @@ public class NotificationEventListener {
                     .infTpC(NotificationEvent.TYPE_APPROVAL_RESULT)
                     .infTtl(abbreviate(title, 100))
                     .infCone(abbreviate(body, 300))
-                    .infLnkUrl("/approval/" + capplm.getApfMngNo())
+                    // 결재 결과 알림도 결재 대기 목록 화면으로 고정 (사용자 정책).
+                    // 상대 path 사용 — Nuxt navigateTo가 내부 라우팅으로 처리하며 운영 호스트와 무관.
+                    .infLnkUrl("/approval/list?tab=pending")
                     .build()
             );
         } catch (Exception ex) {

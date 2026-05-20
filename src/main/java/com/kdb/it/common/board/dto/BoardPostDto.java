@@ -114,6 +114,8 @@ public class BoardPostDto {
         @Schema(description = "담당부서코드")                       private String   bbrC;
         @Schema(description = "공개시작일")                         private LocalDate sttYmd;
         @Schema(description = "공개종료일")                         private LocalDate endYmd;
+        @Schema(description = "프론트 자동완성에서 선택한 멘션 사용자 사번 목록")
+        private java.util.List<String> mentionedEnos;
     }
 
     @Getter
@@ -132,6 +134,8 @@ public class BoardPostDto {
         @Schema(description = "담당부서코드")  private String    bbrC;
         @Schema(description = "공개시작일")    private LocalDate sttYmd;
         @Schema(description = "공개종료일")    private LocalDate endYmd;
+        @Schema(description = "프론트 자동완성에서 선택한 멘션 사용자 사번 목록")
+        private java.util.List<String> mentionedEnos;
 
         public Cblbcm.UpdateCommand toUpdateCommand(String sanitizedCone) {
             return new Cblbcm.UpdateCommand(
@@ -156,6 +160,8 @@ public class BoardPostDto {
         @Schema(description = "담당부서코드")           private String    bbrC;
         @Schema(description = "공개시작일")             private LocalDate sttYmd;
         @Schema(description = "공개종료일")             private LocalDate endYmd;
+        @Schema(description = "프론트 자동완성에서 선택한 멘션 사용자 사번 목록")
+        private java.util.List<String> mentionedEnos;
     }
 
     @Getter

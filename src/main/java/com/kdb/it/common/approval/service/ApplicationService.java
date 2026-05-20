@@ -12,6 +12,8 @@ import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -71,6 +73,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
 @Transactional(readOnly = true) // 기본 읽기 전용 트랜잭션
 public class ApplicationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ApplicationService.class);
 
     /** 신청서 마스터 데이터 접근 리포지토리 (TAAABB_CAPPLM) */
     private final ApplicationRepository applicationRepository;
@@ -204,15 +208,24 @@ public class ApplicationService {
             .findFirst()
             .orElse(null);
         if (next == null || next.getDcdEno() == null || next.getDcdEno().isBlank()) {
+            log.info("[알림 진단] APPROVAL_REQUEST publishEvent 건너뜀: apfMngNo={}, approvers={}, nextNull={}, nextEnoBlank={}",
+                capplm.getApfMngNo(),
+                approvers.size(),
+                next == null,
+                next != null && (next.getDcdEno() == null || next.getDcdEno().isBlank()));
             return;
         }
+        log.info("[알림 진단] APPROVAL_REQUEST publishEvent: apfMngNo={}, recipientEno={}, dcdSqn={}",
+            capplm.getApfMngNo(), next.getDcdEno(), next.getDcdSqn());
         eventPublisher.publishEvent(
             NotificationEvent.builder()
                 .recipientEno(next.getDcdEno())
                 .infTpC(NotificationEvent.TYPE_APPROVAL_REQUEST)
                 .infTtl(abbreviateText("결재요청: " + safeText(capplm.getApfNm()), 100))
                 .infCone(abbreviateText(safeText(capplm.getApfNm()), 300))
-                .infLnkUrl("/approval/" + capplm.getApfMngNo())
+                // 결재 알림은 결재 대기 목록 화면으로 고정 (사용자 정책).
+                // 상대 path 사용 — Nuxt navigateTo가 내부 라우팅으로 처리하며 운영 호스트와 무관.
+                .infLnkUrl("/approval/list?tab=pending")
                 .build()
         );
     }

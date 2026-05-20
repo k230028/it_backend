@@ -29,7 +29,7 @@ public final class NotificationDto {
         @Schema(description = "알림관리번호", example = "INF-2026-00000001")
         private String infMngNo;
 
-        @Schema(description = "알림종류구분코드", example = "APPROVAL_REQUEST")
+        @Schema(description = "알림종류구분코드 (Ccodem cId='INF_TP' cdva, 예: '002'=결재요청)", example = "002")
         private String infTpC;
 
         @Schema(description = "알림 제목")

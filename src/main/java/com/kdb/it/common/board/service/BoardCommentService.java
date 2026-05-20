@@ -7,12 +7,16 @@ import com.kdb.it.common.board.entity.Ccmmtm;
 import com.kdb.it.common.board.repository.BoardCommentRepository;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
+import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.util.MentionExtractor;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,10 +36,13 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class BoardCommentService {
 
+    private static final Logger log = LoggerFactory.getLogger(BoardCommentService.class);
+
     private final BoardMetaRepository    metaRepository;
     private final BoardPostRepository    postRepository;
     private final BoardCommentRepository commentRepository;
     private final BoardPostService       postService;
+    private final UserRepository         userRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     /**
@@ -96,7 +103,7 @@ public class BoardCommentService {
             .build();
         comment.initGroupAsRoot();
         commentRepository.save(comment);
-        publishMentionNotifications(comment, post, user.getEno());
+        publishMentionNotifications(comment, post, user.getEno(), request.getMentionedEnos());
         return cmmtMngNo;
     }
 
@@ -151,7 +158,7 @@ public class BoardCommentService {
             parent.getCmmtMngNo()
         );
         commentRepository.save(reply);
-        publishMentionNotifications(reply, post, user.getEno());
+        publishMentionNotifications(reply, post, user.getEno(), request.getMentionedEnos());
         return cmmtMngNo;
     }
 
@@ -173,7 +180,7 @@ public class BoardCommentService {
         verifyCanModify(user, comment);
         comment.updateContent(HtmlSanitizer.sanitize(request.getCmmtCone()));
         Cblbcm post = findPost(comment.getNacMngNo());
-        publishMentionNotifications(comment, post, user.getEno());
+        publishMentionNotifications(comment, post, user.getEno(), request.getMentionedEnos());
     }
 
     /**
@@ -234,9 +241,43 @@ public class BoardCommentService {
      * @param post      댓글이 속한 게시물 (linkUrl 구성에 필요)
      * @param authorEno 작성자 사번 (자기 멘션 제외용)
      */
-    private void publishMentionNotifications(Ccmmtm comment, Cblbcm post, String authorEno) {
-        Set<String> recipients = MentionExtractor.extractEnos(comment.getCmmtCone(), authorEno);
-        if (recipients.isEmpty()) return;
+    private void publishMentionNotifications(Ccmmtm comment, Cblbcm post, String authorEno,
+                                             java.util.List<String> explicitEnos) {
+        log.info("[멘션 진단] 댓글 publishMentionNotifications 진입: cmmtMngNo={}, nacMngNo={}, author={}, contentLen={}, explicitEnos={}",
+            comment.getCmmtMngNo(), post.getNacMngNo(), authorEno,
+            comment.getCmmtCone() == null ? 0 : comment.getCmmtCone().length(), explicitEnos);
+        // 1) 본문 정규식 추출
+        Set<String> rawEnos = new java.util.LinkedHashSet<>(
+            MentionExtractor.extractEnos(comment.getCmmtCone(), authorEno));
+        // 2) 프론트 자동완성에서 명시 선택된 사번 union (자기 멘션 제외)
+        if (explicitEnos != null) {
+            for (String eno : explicitEnos) {
+                if (eno != null && !eno.isBlank() && !eno.equals(authorEno)) {
+                    rawEnos.add(eno);
+                }
+            }
+        }
+        log.info("[멘션 진단] 댓글 union 결과: cmmtMngNo={}, rawEnos={}", comment.getCmmtMngNo(), rawEnos);
+        if (rawEnos.isEmpty()) {
+            log.info("[멘션 진단] 댓글 추출+명시 union 0건 → 종료. content snippet={}",
+                comment.getCmmtCone() == null ? "<null>" :
+                    comment.getCmmtCone().substring(0, Math.min(120, comment.getCmmtCone().length())));
+            return;
+        }
+        // 실제 TAAABB_CUSERI 에 존재하는 사번만 통과 (batch existence check, 순서 보존)
+        Set<String> existingEnos = userRepository.findByEnoIn(rawEnos).stream()
+            .map(CuserI::getEno)
+            .collect(java.util.stream.Collectors.toSet());
+        log.info("[멘션 진단] 댓글 CUSERI 검증: existingEnos={}", existingEnos);
+        Set<String> recipients = new java.util.LinkedHashSet<>();
+        for (String eno : rawEnos) {
+            if (existingEnos.contains(eno)) recipients.add(eno);
+        }
+        if (recipients.isEmpty()) {
+            log.info("[멘션 진단] 댓글 검증 후 수신자 0건 → 종료. rawEnos={}, existingEnos={}", rawEnos, existingEnos);
+            return;
+        }
+        log.info("[멘션 진단] 댓글 최종 수신자: {}", recipients);
         String title   = "댓글 멘션: " + safe(post.getNacNm());
         String linkUrl = "/board/" + post.getBlbMngNo()
             + "?postId=" + post.getNacMngNo()

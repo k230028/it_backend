@@ -127,22 +127,70 @@ public class AdminService {
 
         /**
          * 공통코드 정보를 수정합니다.
-         * Dirty Checking을 활용하여 별도 save() 호출 없이 변경사항을 반영합니다.
          *
-         * @param cId   코드ID
-         * @param cdva  코드값
-         * @param sttDt 시작일자
-         * @param req   공통코드 수정 요청 DTO
-         * @throws IllegalArgumentException 코드를 찾을 수 없는 경우
+         * <p>요청의 PK(cId/cdva/sttDt)가 path PK와 동일하면 Dirty Checking으로 비PK 필드만 갱신합니다.
+         * PK가 다르면 PK rename 으로 간주하여 다음 절차로 처리합니다:</p>
+         * <ol>
+         *   <li>새 PK 충돌 검증 — 동일 PK의 활성 행이 이미 있으면 거절</li>
+         *   <li>기존 행 soft delete ({@code DEL_YN='Y'})</li>
+         *   <li>새 PK + 새 비PK 값으로 신규 행 생성·저장</li>
+         * </ol>
+         * <p>두 단계 모두 {@code ChangeLogEntityListener}가 자동 기록하므로 변경 이력은 보존됩니다.</p>
+         *
+         * @param cId   path 원본 코드ID
+         * @param cdva  path 원본 코드값
+         * @param sttDt path 원본 시작일자
+         * @param req   공통코드 수정 요청 DTO (req 안의 PK는 새 값, path와 다르면 rename)
+         * @throws IllegalArgumentException 원본 코드를 찾을 수 없거나, 새 PK가 이미 존재하는 경우
          */
         @Transactional
         public void updateCode(String cId, String cdva, LocalDate sttDt, AdminDto.CodeRequest req) {
                 validateCodeKey(cId, cdva, sttDt);
                 Ccodem code = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
                                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드입니다: " + cId + "/" + cdva + ", " + sttDt));
-                
-                code.update(req.cNm(), req.cdvaDes(), req.cdvaDtl(), req.cTp(),
-                                req.cTpDes(), req.hrkC(), req.cSqn(), req.endDt(), req.cdvaDtlC());
+
+                // 요청 PK 결정: req에 값이 있으면 새 PK, 없으면 path PK 유지
+                String newCId    = (req.cId()  != null && !req.cId().isBlank())  ? req.cId()  : cId;
+                String newCdva   = (req.cdva() != null && !req.cdva().isBlank()) ? req.cdva() : cdva;
+                LocalDate newSttDt = (req.sttDt() != null) ? req.sttDt() : sttDt;
+
+                boolean pkChanged = !Objects.equals(newCId, cId)
+                                || !Objects.equals(newCdva, cdva)
+                                || !Objects.equals(newSttDt, sttDt);
+
+                if (!pkChanged) {
+                        // PK 동일 — 기존 setter 기반 update (Dirty Checking)
+                        code.update(req.cNm(), req.cdvaDes(), req.cdvaDtl(), req.cTp(),
+                                        req.cTpDes(), req.hrkC(), req.cSqn(), req.endDt(), req.cdvaDtlC());
+                        return;
+                }
+
+                // PK rename — 새 PK 충돌 검증
+                validateCodeKey(newCId, newCdva, newSttDt);
+                if (codeRepository.existsByCIdAndCdvaAndSttDt(newCId, newCdva, newSttDt)) {
+                        throw new IllegalArgumentException(
+                                "이미 존재하는 코드입니다: " + newCId + "/" + newCdva + ", " + newSttDt);
+                }
+
+                // 기존 행 soft delete
+                code.delete();
+
+                // 새 PK로 신규 행 생성·저장
+                Ccodem renamed = Ccodem.builder()
+                                .cId(newCId)
+                                .cdva(newCdva)
+                                .sttDt(newSttDt)
+                                .cNm(req.cNm())
+                                .cdvaDes(req.cdvaDes())
+                                .cdvaDtl(req.cdvaDtl())
+                                .cdvaDtlC(req.cdvaDtlC())
+                                .cTp(req.cTp())
+                                .cTpDes(req.cTpDes())
+                                .hrkC(req.hrkC())
+                                .endDt(req.endDt())
+                                .cSqn(req.cSqn())
+                                .build();
+                codeRepository.save(renamed);
         }
 
         /**

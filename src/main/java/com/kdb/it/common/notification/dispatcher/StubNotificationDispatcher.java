@@ -22,8 +22,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class StubNotificationDispatcher implements NotificationDispatcher {
 
-    /** 인앱 채널 코드 — Ccodem cId=CEAI_SD_TP / CDVA=INAPP 시드와 일치 */
-    private static final String CHANNEL_INAPP = "INAPP";
+    /**
+     * 인앱 채널 코드 — Ccodem cId='EAI_SD_TP' / CDVA='001' (사내 인앱 알림) 시드와 일치.
+     * EAI_SD_TP_C 컬럼이 VARCHAR2(3)이므로 3자리 숫자 코드 유지.
+     */
+    private static final String CHANNEL_INAPP = "001";
 
     @Override
     public void dispatch(Cinfmm notification, String eaiPayload) {

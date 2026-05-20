@@ -29,10 +29,15 @@ public record NotificationEvent(
     String infLnkUrl,
     String eaiPayload
 ) {
-    /** 알림 종류 상수 — 호출자 측 오타 방지용 */
-    public static final String TYPE_APPROVAL_REQUEST = "APPROVAL_REQUEST";
-    public static final String TYPE_APPROVAL_RESULT  = "APPROVAL_RESULT";
-    public static final String TYPE_MENTION_POST     = "MENTION_POST";
-    public static final String TYPE_MENTION_COMMENT  = "MENTION_COMMENT";
-    public static final String TYPE_SYSTEM           = "SYSTEM";
+    /**
+     * 알림 종류 상수 — 호출자 측 오타 방지용.
+     *
+     * <p>{@code Ccodem.cId='INF_TP'} 시드의 CDVA 값과 1:1 매칭. INF_TP_C 컬럼이
+     * VARCHAR2(3)이므로 3자리 숫자 코드로 유지한다.</p>
+     */
+    public static final String TYPE_SYSTEM           = "001"; // 시스템 알림
+    public static final String TYPE_APPROVAL_REQUEST = "002"; // 결재요청 알림
+    public static final String TYPE_APPROVAL_RESULT  = "003"; // 결재결과 알림
+    public static final String TYPE_MENTION_POST     = "004"; // 게시물 멘션 알림
+    public static final String TYPE_MENTION_COMMENT  = "005"; // 댓글 멘션 알림
 }
