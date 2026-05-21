@@ -14,7 +14,7 @@ import lombok.experimental.SuperBuilder;
 import java.time.LocalDateTime;
 
 /**
- * 알림 마스터 엔티티 — {@code TAAABB_CINFMM}
+ * 알림 마스터 엔티티 — {@code TPRMPP_CINFMM}
  *
  * <p>
  * 결재요청·결재결과·게시판 멘션 등 사내 알림을 1행 = 1수신자 구조로 보관한다.
@@ -27,7 +27,7 @@ import java.time.LocalDateTime;
  * 적재 시점에 동기 기록되고, 나머지 채널(EMAIL/SMS/TALK)은 Phase 2에서 활성화된다.</p>
  */
 @Entity
-@Table(name = "TAAABB_CINFMM", comment = "알림 마스터")
+@Table(name = "TPRMPP_CINFMM", comment = "알림 마스터")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

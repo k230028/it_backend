@@ -36,7 +36,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ResultService {
 
-    /** 결과서 리포지토리 (TAAABB_BRSLTM) */
+    /** 결과서 리포지토리 (TPRMPP_BRSLTM) */
     private final ResultRepository resultRepository;
 
     /** 협의회 기본 서비스 — 상태 전이용 */

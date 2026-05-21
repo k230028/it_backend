@@ -14,10 +14,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * 요구사항 정의서(TAAABB_BRDOCM) 변경 로그 엔티티.
+ * 요구사항 정의서(TPRMPP_BRDOCM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BRDOCL", comment = "요구사항 정의서 변경 로그")
+@Table(name = "TPRMPP_BRDOCL", comment = "요구사항 정의서 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

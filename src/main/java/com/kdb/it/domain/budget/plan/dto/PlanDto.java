@@ -18,7 +18,7 @@ import java.util.Map;
  * 정보기술부문 계획 관련 DTO 클래스 모음
  *
  * <p>
- * 정보기술부문계획(TAAABB_BPLANM) 엔티티의 생성, 조회에 사용되는 DTO를
+ * 정보기술부문계획(TPRMPP_BPLANM) 엔티티의 생성, 조회에 사용되는 DTO를
  * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  * </p>
  *

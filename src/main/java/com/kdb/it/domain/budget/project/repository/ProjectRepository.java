@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
  *
  * <p>
  * Spring Data JPA의 {@link JpaRepository}를 상속하여
- * 정보화사업 테이블(TAAABB_BPROJM)의 기본 CRUD 기능을 제공합니다.
+ * 정보화사업 테이블(TPRMPP_BPROJM)의 기본 CRUD 기능을 제공합니다.
  * </p>
  *
  * <p>

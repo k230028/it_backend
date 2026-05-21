@@ -43,10 +43,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
 public class AuthService {
 
-    /** 사용자 정보 데이터 접근 리포지토리 (TAAABB_CUSERI) */
+    /** 사용자 정보 데이터 접근 리포지토리 (TPRMPP_CUSERI) */
     private final UserRepository userRepository;
 
-    /** Refresh Token 데이터 접근 리포지토리 (TAAABB_CRTOKM) */
+    /** Refresh Token 데이터 접근 리포지토리 (TPRMPP_CRTOKM) */
     private final RefreshTokenRepository refreshTokenRepository;
 
     /** 로그인 이력 데이터 접근 리포지토리 (LOGIN_HISTORY) */
@@ -55,7 +55,7 @@ public class AuthService {
     /** 비밀번호 암호화 및 검증 (SHA-256 + Base64) */
     private final PasswordEncoder passwordEncoder;
 
-    /** 역할관리(사용자↔자격등급 매핑) 데이터 접근 리포지토리 (TAAABB_CROLEI) */
+    /** 역할관리(사용자↔자격등급 매핑) 데이터 접근 리포지토리 (TPRMPP_CROLEI) */
     private final RoleRepository roleRepository;
 
     /** 로그인 Brute-force 감지 서비스 — SEC-03 */
@@ -166,7 +166,7 @@ public class AuthService {
         // 기존 Refresh Token 삭제 후 새 토큰 저장 (1인 1토큰 정책)
         refreshTokenRepository.deleteByEno(eno);
         Crtokm refreshToken = Crtokm.builder()
-                .tok(refreshTokenValue)
+                .tokCone(refreshTokenValue)
                 .eno(eno)
                 .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
                 .build();
@@ -211,7 +211,7 @@ public class AuthService {
         }
 
         // DB에서 Refresh Token 조회 (2차 검증: DB 존재 여부)
-        Crtokm refreshToken = refreshTokenRepository.findByTok(refreshTokenValue)
+        Crtokm refreshToken = refreshTokenRepository.findByTokCone(refreshTokenValue)
                 .orElseThrow(() -> new RuntimeException("Refresh Token을 찾을 수 없습니다."));
 
         // DB 저장 만료일 기준 만료 여부 확인 (3차 검증: endDtm 필드)
@@ -280,7 +280,7 @@ public class AuthService {
 
         refreshTokenRepository.deleteByEno(eno);
         Crtokm refreshToken = Crtokm.builder()
-                .tok(refreshTokenValue)
+                .tokCone(refreshTokenValue)
                 .eno(eno)
                 .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
                 .build();
@@ -332,7 +332,7 @@ public class AuthService {
 
         refreshTokenRepository.deleteByEno(eno);
         Crtokm refreshToken = Crtokm.builder()
-                .tok(refreshTokenValue)
+                .tokCone(refreshTokenValue)
                 .eno(eno)
                 .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
                 .build();

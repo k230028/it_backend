@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
  * <p>모든 로그 엔티티({@code BprojmL}, {@code BitemlL} 등)가 상속한다.</p>
  *
  * <p>PK({@code LOG_SNO})는 {@link AuditLogIdGenerator}가
- * {@code S_{Postfix}.NEXTVAL}을 조회하여 생성하는 22자리 패딩 복합 문자열이다.</p>
+ * {@code SEQ_{Postfix}.NEXTVAL}을 조회하여 Long 값으로 생성한다.</p>
  *
  * <p>BaseEntity 스냅샷 필드(DEL_YN, GUID, FST_ENR_DTM 등)는
  * INSERT 시점 원본 엔티티의 값을 리플렉션으로 복사하여 저장한다.</p>
@@ -30,11 +30,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public abstract class BaseLogEntity {
 
-    /** 로그일련번호: PK. {Postfix}_{22자리_0패딩_시퀀스} 형식 */
+    /** 로그일련번호: PK. Oracle 시퀀스 SEQ_{테이블Postfix}에서 발급 */
     @Id
     @AuditLogId
-    @Column(name = "LOG_SNO", length = 32, nullable = false, updatable = false, comment = "로그일련번호")
-    private String logSno;
+    @Column(name = "LOG_SNO", nullable = false, updatable = false, comment = "로그일련번호")
+    private Long logSno;
 
     /**
      * 변경유형구분코드: C(생성) / U(수정) / D(논리삭제).

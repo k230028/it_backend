@@ -6,10 +6,10 @@ import lombok.experimental.SuperBuilder;
 import java.time.LocalDate;
 
 /**
- * 게시물 변경 로그 엔티티 — TAAABB_CBLBCL
+ * 게시물 변경 로그 엔티티 — TPRMPP_CBLBCL
  */
 @Entity
-@Table(name = "TAAABB_CBLBCL", comment = "게시물 변경 로그")
+@Table(name = "TPRMPP_CBLBCL", comment = "게시물 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

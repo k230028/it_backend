@@ -18,7 +18,7 @@ import lombok.experimental.SuperBuilder;
  * 가이드 문서 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_BGDOCM}
+ * DB 테이블: {@code TPRMPP_BGDOCM}
  * </p>
  *
  * <p>
@@ -31,7 +31,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BgdocmL.class)
 @Entity
-@Table(name = "TAAABB_BGDOCM", comment = "가이드 문서")
+@Table(name = "TPRMPP_BGDOCM", comment = "가이드 문서")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

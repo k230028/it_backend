@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 정보기술부문계획(TAAABB_BPLANM) JPA 리포지토리
+ * 정보기술부문계획(TPRMPP_BPLANM) JPA 리포지토리
  */
 public interface BplanmRepository extends JpaRepository<Bplanm, String> {
 

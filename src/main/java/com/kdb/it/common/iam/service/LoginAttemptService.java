@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 /**
  * 로그인 Brute-force 감지 서비스 — SEC-03
  *
- * <p>TAAABB_CLOGNH 이력을 조회하여 10분 이내 로그인 실패 횟수가 5회 이상이면
+ * <p>TPRMPP_CLOGNH 이력을 조회하여 10분 이내 로그인 실패 횟수가 5회 이상이면
  * 계정 잠금 예외를 발생시킵니다. 별도 DDL 없이 기존 로그인 이력 테이블을 활용합니다.</p>
  *
  * <p>잠금 기준: 직전 10분 내 LOGIN_FAILURE 이력 5회 이상</p>

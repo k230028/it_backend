@@ -19,7 +19,7 @@ import java.time.LocalDate;
 /**
  * 성과관리 자체계획(성과지표) 엔티티
  *
- * <p>DB 테이블: {@code TAAABB_BPERFM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BPERFM}</p>
  *
  * <p>협의회 1건당 1개 이상의 성과지표를 등록하며, 담당자가 동적으로 추가/삭제할 수 있습니다.
  * DTP_SNO는 클라이언트 측에서 순번을 관리합니다 (1부터 시작).</p>
@@ -28,7 +28,7 @@ import java.time.LocalDate;
  */
 @LogTarget(entity = BperfmL.class)
 @Entity
-@Table(name = "TAAABB_BPERFM", comment = "성과관리 자체계획(성과지표)")
+@Table(name = "TPRMPP_BPERFM", comment = "성과관리 자체계획(성과지표)")
 @IdClass(BperfmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -41,10 +41,10 @@ public class Bperfm extends BaseEntity {
     @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
-    /** 지표순번: 복합키 두 번째 컬럼 (1부터 시작, 클라이언트 관리, VARCHAR2(32)) */
+    /** 지표순번: 복합키 두 번째 컬럼 (1부터 시작, 클라이언트 관리) */
     @Id
-    @Column(name = "DTP_SNO", length = 32, nullable = false, comment = "지표순번")
-    private String dtpSno;
+    @Column(name = "DTP_SNO", nullable = false, comment = "지표순번")
+    private Integer dtpSno;
 
     /** 성과지표명: 지표를 식별하는 명칭 (최대 200자) */
     @Column(name = "DTP_NM", length = 200, comment = "성과지표명")

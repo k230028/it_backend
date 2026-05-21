@@ -98,7 +98,13 @@ public class AdminLogService {
      */
     public AdminLogDto.LogDetailResponse getLogDetail(String key, String logSno) {
         LogDefinition def = getDefinition(key);
-        Object entity = entityManager.find(def.entityClass(), logSno);
+        Long id;
+        try {
+            id = Long.parseLong(logSno);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("유효하지 않은 로그 일련번호: " + logSno);
+        }
+        Object entity = entityManager.find(def.entityClass(), id);
         if (entity == null) {
             throw new IllegalArgumentException("존재하지 않는 로그입니다: " + logSno);
         }

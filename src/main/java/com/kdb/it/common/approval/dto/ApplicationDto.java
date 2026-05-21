@@ -65,7 +65,7 @@ public class ApplicationDto {
      * 신청서 본문, 결재자 목록을 포함합니다.</p>
      *
      * <p>한 번의 상신으로 복수의 원본 레코드(정보화사업, 전산관리비 등)를 하나의 신청서로 묶어
-     * 처리합니다. {@code orcItems}의 각 항목에 대해 {@code TAAABB_CAPPLA} 행이 생성됩니다.</p>
+     * 처리합니다. {@code orcItems}의 각 항목에 대해 {@code TPRMPP_CAPPLA} 행이 생성됩니다.</p>
      */
     @Getter
     @Setter
@@ -87,7 +87,7 @@ public class ApplicationDto {
 
         /**
          * 원본 데이터 연결 항목 목록 (복수 원본 지원)
-         * <p>각 항목마다 {@code TAAABB_CAPPLA} 행이 생성됩니다.
+         * <p>각 항목마다 {@code TPRMPP_CAPPLA} 행이 생성됩니다.
          * null 또는 빈 리스트인 경우 Cappla를 저장하지 않습니다.</p>
          */
         @Schema(description = "원본 데이터 연결 항목 목록")

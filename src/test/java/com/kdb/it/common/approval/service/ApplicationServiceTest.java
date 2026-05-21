@@ -536,7 +536,6 @@ class ApplicationServiceTest {
     void submit_원본항목연결과기안자자동승인() {
         ApplicationService realMapperService = serviceWithRealObjectMapper();
         given(applicationRepository.getNextVal()).willReturn(1L);
-        given(applicationMapRepository.getNextVal()).willReturn(10L, 11L);
 
         ApplicationDto.OrcItem project = new ApplicationDto.OrcItem();
         project.setOrcTbCd("BPROJM");

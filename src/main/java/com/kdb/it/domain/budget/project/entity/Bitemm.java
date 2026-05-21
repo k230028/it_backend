@@ -21,7 +21,7 @@ import lombok.experimental.SuperBuilder;
  * 정보화사업 품목 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_BITEMM}
+ * DB 테이블: {@code TPRMPP_BITEMM}
  * </p>
  *
  * <p>
@@ -39,7 +39,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BitemmL.class)
 @Entity // JPA 엔티티로 등록
-@Table(name = "TAAABB_BITEMM", comment = "정보화사업 품목") // 매핑할 DB 테이블명
+@Table(name = "TPRMPP_BITEMM", comment = "정보화사업 품목") // 매핑할 DB 테이블명
 @IdClass(BitemmId.class) // 복합키 클래스 지정
 @Getter // 모든 필드의 getter 자동 생성 (Lombok)
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // protected 기본 생성자 (JPA 요구사항)

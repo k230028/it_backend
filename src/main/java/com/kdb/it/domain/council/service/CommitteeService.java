@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class CommitteeService {
 
-    /** 평가위원 리포지토리 (TAAABB_BCMMTM) */
+    /** 평가위원 리포지토리 (TPRMPP_BCMMTM) */
     private final CommitteeRepository committeeRepository;
 
     /** 사용자 리포지토리 — 위원 정보 조회 및 당연위원 매핑용 */

@@ -1,11 +1,11 @@
-# 백엔드 데이터 모델
+﻿# 백엔드 데이터 모델
 
 > IT Portal 백엔드 도메인 엔티티 ↔ Oracle 테이블 매핑.
 > 이 문서는 `it_backend/CLAUDE.md`에서 분리된 참조 자료입니다. SoT는 실제 엔티티 클래스(`@Table` 주석)이며, 본 문서는 빠른 조회용 인덱스입니다.
 
 ## 1. 명명 규칙
 
-- 테이블 prefix: `TAAABB_`
+- 테이블 prefix: `TPRMPP_`
 - 마스터 테이블: `*M` (예: `BPROJM`, `BCOSTM`)
 - 로그 테이블: `*L` (예: `BPROJML`, `BCOSTML`) — `BaseLogEntity` 상속, `ChangeLogEntityListener`가 자동 기록
 - 연결/매핑: `*A` (예: `CAPPLA`, `BPROJA`)
@@ -17,51 +17,51 @@
 
 | 엔티티   | 테이블명         | 역할              |
 |---------|-----------------|------------------|
-| Bprojm  | TAAABB_BPROJM   | 정보화사업 마스터 |
-| Bitemm  | TAAABB_BITEMM   | 프로젝트 품목     |
-| Bcostm  | TAAABB_BCOSTM   | 전산관리비        |
-| Btermm  | TAAABB_BTERMM   | 단말기            |
-| Bplanm  | TAAABB_BPLANM   | 정보기술부문 계획 |
-| Bproja  | TAAABB_BPROJA   | 계획-사업 연결    |
-| Bbugtm  | TAAABB_BBUGTM   | 예산 편성률       |
-| Bgdocm  | TAAABB_BGDOCM   | 가이드 문서       |
-| Brdocm  | TAAABB_BRDOCM   | 요구사항 정의서   |
-| Brivgm  | TAAABB_BRIVGM   | 요구사항 검토의견 |
+| Bprojm  | TPRMPP_BPROJM   | 정보화사업 마스터 |
+| Bitemm  | TPRMPP_BITEMM   | 프로젝트 품목     |
+| Bcostm  | TPRMPP_BCOSTM   | 전산관리비        |
+| Btermm  | TPRMPP_BTERMM   | 단말기            |
+| Bplanm  | TPRMPP_BPLANM   | 정보기술부문 계획 |
+| Bproja  | TPRMPP_BPROJA   | 계획-사업 연결    |
+| Bbugtm  | TPRMPP_BBUGTM   | 예산 편성률       |
+| Bgdocm  | TPRMPP_BGDOCM   | 가이드 문서       |
+| Brdocm  | TPRMPP_BRDOCM   | 요구사항 정의서   |
+| Brivgm  | TPRMPP_BRIVGM   | 요구사항 검토의견 |
 
 ### 2.2 협의회 (council)
 
 | 엔티티   | 테이블명         | 역할              |
 |---------|-----------------|------------------|
-| Basctm  | TAAABB_BASCTM   | 협의회 심의과제   |
-| Bchklc  | TAAABB_BCHKLC   | 타당성 검토항목   |
-| Bcmmtm  | TAAABB_BCMMTM   | 평가위원          |
-| Bevalm  | TAAABB_BEVALM   | 평가의견          |
-| Bperfm  | TAAABB_BPERFM   | 성과지표          |
-| Bpovwm  | TAAABB_BPOVWM   | 사업개요          |
-| Bpqnam  | TAAABB_BPQNAM   | 사전질의응답      |
-| Brsltm  | TAAABB_BRSLTM   | 결과서            |
-| Bschdm  | TAAABB_BSCHDM   | 일정              |
+| Basctm  | TPRMPP_BASCTM   | 협의회 심의과제   |
+| Bchklc  | TPRMPP_BCHKLC   | 타당성 검토항목   |
+| Bcmmtm  | TPRMPP_BCMMTM   | 평가위원          |
+| Bevalm  | TPRMPP_BEVALM   | 평가의견          |
+| Bperfm  | TPRMPP_BPERFM   | 성과지표          |
+| Bpovwm  | TPRMPP_BPOVWM   | 사업개요          |
+| Bpqnam  | TPRMPP_BPQNAM   | 사전질의응답      |
+| Brsltm  | TPRMPP_BRSLTM   | 결과서            |
+| Bschdm  | TPRMPP_BSCHDM   | 일정              |
 
 ### 2.3 IAM / 인증 / 결재
 
 | 엔티티   | 테이블명         | 역할              |
 |---------|-----------------|------------------|
-| CuserI  | TAAABB_CUSERI   | 사용자/직원 정보  |
-| CorgnI  | TAAABB_CORGNI   | 조직/부점 정보    |
-| CauthI  | TAAABB_CAUTHI   | 자격등급          |
-| CroleI  | TAAABB_CROLEI   | 역할 매핑         |
-| Capplm  | TAAABB_CAPPLM   | 신청서 마스터     |
-| Cappla  | TAAABB_CAPPLA   | 신청서-원본 연결  |
-| Cdecim  | TAAABB_CDECIM   | 결재선 정보       |
-| Clognh  | TAAABB_CLOGNH   | 로그인이력        |
-| Crtokm  | TAAABB_CRTOKM   | 갱신토큰          |
+| CuserI  | TPRMPP_CUSERI   | 사용자/직원 정보  |
+| CorgnI  | TPRMPP_CORGNI   | 조직/부점 정보    |
+| CauthI  | TPRMPP_CAUTHI   | 자격등급          |
+| CroleI  | TPRMPP_CROLEI   | 역할 매핑         |
+| Capplm  | TPRMPP_CAPPLM   | 신청서 마스터     |
+| Cappla  | TPRMPP_CAPPLA   | 신청서-원본 연결  |
+| Cdecim  | TPRMPP_CDECIM   | 결재선 정보       |
+| Clognh  | TPRMPP_CLOGNH   | 로그인이력        |
+| Crtokm  | TPRMPP_CRTOKM   | 갱신토큰          |
 
 ### 2.4 공통 / 인프라
 
 | 엔티티   | 테이블명         | 역할         |
 |---------|-----------------|-------------|
-| Ccodem  | TAAABB_CCODEM   | 코드 마스터  |
-| Cfilem  | TAAABB_CFILEM   | 첨부파일     |
+| Ccodem  | TPRMPP_CCODEM   | 코드 마스터  |
+| Cfilem  | TPRMPP_CFILEM   | 첨부파일     |
 
 ## 3. 채번 규칙
 

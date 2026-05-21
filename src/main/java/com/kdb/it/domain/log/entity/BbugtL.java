@@ -12,10 +12,10 @@ import lombok.experimental.SuperBuilder;
 import java.math.BigDecimal;
 
 /**
- * 예산(TAAABB_BBUGTM) 변경 로그 엔티티.
+ * 예산(TPRMPP_BBUGTM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BBUGTL", comment = "예산 변경 로그")
+@Table(name = "TPRMPP_BBUGTL", comment = "예산 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

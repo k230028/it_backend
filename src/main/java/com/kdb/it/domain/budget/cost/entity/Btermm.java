@@ -25,7 +25,7 @@ import lombok.experimental.SuperBuilder;
  * 단말기관리마스터 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_BTERMM}
+ * DB 테이블: {@code TPRMPP_BTERMM}
  * </p>
  *
  * <p>
@@ -34,7 +34,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BtermmL.class)
 @Entity
-@Table(name = "TAAABB_BTERMM", comment = "단말기관리마스터")
+@Table(name = "TPRMPP_BTERMM", comment = "단말기관리마스터")
 @IdClass(BtermmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -49,8 +49,8 @@ public class Btermm extends BaseEntity {
 
     /** 단말기일련번호 */
     @Id
-    @Column(name = "TMN_SNO", nullable = false, length = 32, comment = "단말기일련번호")
-    private String tmnSno;
+    @Column(name = "TMN_SNO", nullable = false, comment = "단말기일련번호")
+    private Integer tmnSno;
 
     /** IT관리비관리번호 (조인용 필드) */
     @Column(name = "IT_MNGC_NO", length = 32, comment = "IT관리비관리번호")

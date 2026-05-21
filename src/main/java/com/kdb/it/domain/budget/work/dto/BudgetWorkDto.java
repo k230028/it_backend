@@ -10,7 +10,7 @@ import java.util.Map;
  * 예산 작업 관련 DTO 클래스 모음
  *
  * <p>
- * 예산 편성률 적용(TAAABB_BBUGTM)의 요청/응답 DTO를
+ * 예산 편성률 적용(TPRMPP_BBUGTM)의 요청/응답 DTO를
  * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  * </p>
  *
@@ -70,7 +70,7 @@ public class BudgetWorkDto {
     /**
      * 개별 사업 편성률 DTO (자본예산/일반관리비 분리)
      *
-     * @param orcTb      원본 테이블 (TAAABB_BPROJM / TAAABB_BCOSTM)
+     * @param orcTb      원본 테이블 (TPRMPP_BPROJM / TPRMPP_BCOSTM)
      * @param orcPkVl    원본 PK (prjMngNo / itMngcNo)
      * @param assetDupRt 자본예산 편성률 (0~100, null=해당없음)
      * @param costDupRt  일반관리비 편성률 (0~100)

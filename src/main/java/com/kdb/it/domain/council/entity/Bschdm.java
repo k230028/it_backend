@@ -19,7 +19,7 @@ import java.time.LocalDate;
 /**
  * 협의회 일정 엔티티
  *
- * <p>DB 테이블: {@code TAAABB_BSCHDM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BSCHDM}</p>
  *
  * <p>평가위원별 가능 일정을 수집합니다.
  * IT관리자가 후보 날짜/시간대를 설정하면, 각 위원이 PSB_YN으로 가능 여부를 응답합니다.
@@ -31,7 +31,7 @@ import java.time.LocalDate;
  */
 @LogTarget(entity = BschdmL.class)
 @Entity
-@Table(name = "TAAABB_BSCHDM", comment = "협의회 일정")
+@Table(name = "TPRMPP_BSCHDM", comment = "협의회 일정")
 @IdClass(BschdmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -44,7 +44,7 @@ public class Bschdm extends BaseEntity {
     @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
-    /** 사번: 복합키 두 번째 컬럼 (TAAABB_CUSERI.ENO FK, 평가위원) */
+    /** 사번: 복합키 두 번째 컬럼 (TPRMPP_CUSERI.ENO FK, 평가위원) */
     @Id
     @Column(name = "ENO", length = 32, nullable = false, comment = "사번")
     private String eno;

@@ -16,7 +16,7 @@ import lombok.experimental.SuperBuilder;
 import java.math.BigDecimal;
 
 /**
- * 정보기술부문계획(TAAABB_BPLANM) 엔티티
+ * 정보기술부문계획(TPRMPP_BPLANM) 엔티티
  *
  * <p>
  * 연도별 IT 부문 계획을 저장하는 마스터 엔티티입니다.
@@ -30,7 +30,7 @@ import java.math.BigDecimal;
  */
 @LogTarget(entity = BplanmL.class)
 @Entity
-@Table(name = "TAAABB_BPLANM", comment = "정보기술부문계획")
+@Table(name = "TPRMPP_BPLANM", comment = "정보기술부문계획")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

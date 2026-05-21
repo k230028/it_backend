@@ -17,7 +17,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 협의회 평가위원 엔티티
  *
- * <p>DB 테이블: {@code TAAABB_BCMMTM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BCMMTM}</p>
  *
  * <p>IT관리자(ITPAD001)가 심의유형에 따라 위원을 선정합니다.
  * 위원유형(VLR_TP) 분류:</p>
@@ -38,7 +38,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BcmmtmL.class)
 @Entity
-@Table(name = "TAAABB_BCMMTM", comment = "협의회 평가위원")
+@Table(name = "TPRMPP_BCMMTM", comment = "협의회 평가위원")
 @IdClass(BcmmtmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -51,7 +51,7 @@ public class Bcmmtm extends BaseEntity {
     @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
-    /** 사번: 복합키 두 번째 컬럼 (TAAABB_CUSERI.ENO FK) */
+    /** 사번: 복합키 두 번째 컬럼 (TPRMPP_CUSERI.ENO FK) */
     @Id
     @Column(name = "ENO", length = 32, nullable = false, comment = "사번")
     private String eno;

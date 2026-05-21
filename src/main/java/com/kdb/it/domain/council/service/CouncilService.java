@@ -55,10 +55,10 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional(readOnly = true)
 public class CouncilService {
 
-    /** 협의회 기본정보 리포지토리 (TAAABB_BASCTM) */
+    /** 협의회 기본정보 리포지토리 (TPRMPP_BASCTM) */
     private final CouncilRepository councilRepository;
 
-    /** 사업개요 리포지토리 (TAAABB_BPOVWM) — 사업명 조회용 */
+    /** 사업개요 리포지토리 (TPRMPP_BPOVWM) — 사업명 조회용 */
     private final ProjectOverviewRepository projectOverviewRepository;
 
     /** 정보화사업 리포지토리 — 사업명/전결권자 조회용 */

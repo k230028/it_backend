@@ -47,6 +47,6 @@ public interface BtermmRepository extends JpaRepository<Btermm, BtermmId> {
      * @param tmnMngNo 단말기 관리번호
      * @return 다음 일련번호 (기존 레코드가 없으면 1)
      */
-    @Query(value = "SELECT NVL(MAX(TO_NUMBER(TMN_SNO)), 0) + 1 FROM TAAABB_BTERMM WHERE TMN_MNG_NO = :tmnMngNo", nativeQuery = true)
+    @Query(value = "SELECT NVL(MAX(TMN_SNO), 0) + 1 FROM TPRMPP_BTERMM WHERE TMN_MNG_NO = :tmnMngNo", nativeQuery = true)
     Integer getNextSnoValue(@Param("tmnMngNo") String tmnMngNo);
 }

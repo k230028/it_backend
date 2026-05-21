@@ -48,7 +48,7 @@ public class BudgetStatusController {
             description = """
                     예산년도 기준 정보화사업의 편성요청 금액과 조정(편성) 금액을 함께 조회합니다.
 
-                    - 조회 대상: TAAABB_BPROJM, TAAABB_BITEMM, TAAABB_BBUGTM
+                    - 조회 대상: TPRMPP_BPROJM, TPRMPP_BITEMM, TPRMPP_BBUGTM
                     - 금액 구분: 개발비/기계장치/기타무형자산/임차료/여비/용역비/기타/합계
                     - 화면 용도: 예산 현황 화면의 '정보화사업' 탭
                     """,
@@ -85,7 +85,7 @@ public class BudgetStatusController {
             description = """
                     예산년도 기준 전산업무비의 편성요청 금액과 조정(편성) 금액을 조회합니다.
 
-                    - 조회 대상: TAAABB_BCOSTM, TAAABB_BBUGTM
+                    - 조회 대상: TPRMPP_BCOSTM, TPRMPP_BBUGTM
                     - 금액 구분: 임차료/여비/용역비/기타/합계
                     - 화면 용도: 예산 현황 화면의 '전산업무비' 탭
                     """,
@@ -122,7 +122,7 @@ public class BudgetStatusController {
             description = """
                     예산년도 기준 경상사업의 품목별 기계장치/기타무형자산 금액을 조회합니다.
 
-                    - 조회 대상: TAAABB_BPROJM 중 경상사업, TAAABB_BITEMM
+                    - 조회 대상: TPRMPP_BPROJM 중 경상사업, TPRMPP_BITEMM
                     - 금액 구분: 수량, 단가, 원화 환산금액
                     - 화면 용도: 예산 현황 화면의 '경상사업' 탭
                     """,

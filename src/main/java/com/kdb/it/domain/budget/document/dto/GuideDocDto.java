@@ -11,7 +11,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * 가이드 문서(TAAABB_BGDOCM) 관련 DTO 클래스 모음
+ * 가이드 문서(TPRMPP_BGDOCM) 관련 DTO 클래스 모음
  *
  * <p>
  * 가이드 문서 엔티티의 생성, 수정, 조회에 사용되는 DTO를

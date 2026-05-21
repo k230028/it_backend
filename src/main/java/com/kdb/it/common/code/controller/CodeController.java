@@ -15,7 +15,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 공통코드(TAAABB_CCODEM) CRUD REST 컨트롤러.
+ * 공통코드(TPRMPP_CCODEM) CRUD REST 컨트롤러.
  * 기본 URL: /api/ccodem, 보안: JWT 인증 필요, 복합PK(cId, cdva, sttDt) 기반 CRUD.
  * 쓰기 메서드(POST/PUT/DELETE)는 codesByCid, budgetPeriod 캐시를 자동 무효화합니다.
  */

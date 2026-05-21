@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * 조직(부점) 관리 서비스
  *
- * <p>조직 정보(TAAABB_CORGNI) 조회 비즈니스 로직을 처리합니다.</p>
+ * <p>조직 정보(TPRMPP_CORGNI) 조회 비즈니스 로직을 처리합니다.</p>
  *
  * <p>조직 데이터는 외부 시스템(HR 시스템 등)에서 동기화되는 마스터 데이터이므로
  * 현재는 조회 기능만 제공합니다.</p>

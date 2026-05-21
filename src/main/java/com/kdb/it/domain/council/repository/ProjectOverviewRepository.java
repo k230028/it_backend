@@ -8,7 +8,7 @@ import java.util.Optional;
 /**
  * 협의회 사업개요(Bpovwm) 리포지토리
  *
- * <p>DB 테이블: {@code TAAABB_BPOVWM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BPOVWM}</p>
  *
  * <p>BASCTM과 1:1 관계. 타당성검토표 Step 1 작성 시 함께 생성됩니다.</p>
  */

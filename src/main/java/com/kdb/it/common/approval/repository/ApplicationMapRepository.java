@@ -13,7 +13,7 @@ import org.springframework.data.jpa.repository.Query;
  * </p>
  *
  * <p>
- * 기본키 타입: {@link String} (apfRelSno: 신청서관계일련번호)
+ * 기본키 타입: {@link Long} (apfRelSno: 신청서관계일련번호, SEQ_CAPPLA 자동 채번)
  * </p>
  *
  * <p>
@@ -24,20 +24,7 @@ import org.springframework.data.jpa.repository.Query;
  * <li>결재중/결재완료 상태의 신청서 존재 여부 확인 (수정/삭제 제약)</li>
  * </ul>
  */
-public interface ApplicationMapRepository extends JpaRepository<Cappla, String> {
-
-        /**
-         * Oracle 시퀀스(SEQ_CAPPLA) 다음 값 조회
-         *
-         * <p>
-         * 신청서관계일련번호(APF_REL_SNO) 채번에 사용합니다.
-         * Oracle DB 전용 Native Query입니다.
-         * </p>
-         *
-         * @return 시퀀스의 다음 값 (Long)
-         */
-        @Query(value = "SELECT SEQ_CAPPLA.NEXTVAL FROM DUAL", nativeQuery = true)
-        Long getNextVal();
+public interface ApplicationMapRepository extends JpaRepository<Cappla, Long> {
 
         /**
          * 원본 테이블 코드, PK값, SNO값으로 신청서 관계 목록 조회 (최신순)

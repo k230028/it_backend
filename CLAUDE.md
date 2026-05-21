@@ -1,4 +1,4 @@
----
+﻿---
 [ 백엔드 가이드 ]
 본 파일은 IT Portal 백엔드의 SoT(Single Source of Truth)입니다.
 기술 스택, 아키텍처, 보안 정책의 원본은 여기에 있습니다.
@@ -70,7 +70,7 @@ src/main/resources/
 - 한글 주석 원칙은 루트 `../CLAUDE.md` §4.1 참조.
 
 ### 5.2 테이블 명칭
-- TAAABB_{1자리 구분값}{4자리 도메인}{1자리 용도}
+- TPRMPP_{1자리 구분값}{4자리 도메인}{1자리 용도}
 - 1자리 구분값 : C (공통), B (비즈니스)
 - 4자리 도메인 : 용도에 따라 지정 ex) BLBC
 - 1자리 용도 : M (마스터), L (로그), H (이력)
@@ -142,7 +142,7 @@ src/main/resources/
 - **`Authorization: Bearer` 헤더 폴백**: Swagger/Postman 편의를 위해 허용되어 있으나 운영 환경에서도 동작합니다. 운영 전환 전 비활성화 여부를 결정하고 이 문서에 명시합니다.
 - **파일 업로드 확장자 검증**: `FileService.uploadFileInternal()` 진입 시점에 `FileValidator.validateExtension()`을 호출합니다.
 - **로그인 Brute-force 보호**: `LoginAttemptService`가 사번 기준 5회 실패/10분 잠금을 적용합니다.
-- Brute-force 판정은 인메모리 카운터가 아니라 `TAAABB_CLOGNH`의 `LOGIN_FAILURE` 이력을 `LoginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter()`로 집계합니다.
+- Brute-force 판정은 인메모리 카운터가 아니라 `TPRMPP_CLOGNH`의 `LOGIN_FAILURE` 이력을 `LoginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter()`로 집계합니다.
 - **X-Forwarded-For 신뢰**: `AuthController.getClientIp()`가 헤더를 무조건 신뢰합니다. 운영 인프라(Nginx 등)에서 헤더를 덮어쓰도록 설정해야 IP 위조를 방지할 수 있습니다.
 - **비밀값 기본값 금지**: `application.properties`의 `${VAR:default}` 형태 기본값은 환경변수 미설정 시 운영에 그대로 사용됩니다. `:default` 부분을 제거하고 구동 시 빈값이면 즉시 실패하도록 해야 합니다.
 - **비밀번호 해시 규격(KDB 표준)**: `CustomPasswordEncoder`는 사내 SSO·통합인증 시스템과의 호환을 위해 KDB 표준 암호화 규격(SHA-256 + Base64, 고정 솔트 파라미터)을 적용합니다. 알고리즘·솔트 파라미터는 거버넌스 승인 없이 변경할 수 없으며, 차세대 인증체계 전환은 별도 트랙으로 관리합니다. 클래스에는 정책 예외 표시(`@SuppressWarnings` 4건 + `NOSONAR` 마커)가 부여되어 있으므로 자동화 보안 점검 결과에 재등재하지 않습니다.
@@ -187,7 +187,7 @@ src/main/resources/
 - `GeminiDto.Request` 검증 조건을 변경할 때는 `GeminiService.generate()`의 null/길이 처리와 함께 테스트를 갱신합니다.
 
 ### 5.12 로그인 Brute-force 보호
-- `LoginAttemptService` (`common/iam/service/LoginAttemptService.java`): `TAAABB_CLOGNH` 로그인 이력 기반 실패 횟수 집계.
+- `LoginAttemptService` (`common/iam/service/LoginAttemptService.java`): `TPRMPP_CLOGNH` 로그인 이력 기반 실패 횟수 집계.
 - 임계값: 5회 실패 / 10분 잠금.
 - `AuthService.login()`: 로그인 검증 전에 `checkLocked(eno)`를 호출하고, 실패 이력은 기존 로그인 이력 저장 흐름을 통해 남깁니다.
 - **주의**: DB 이력 기준이므로 서버 재시작에는 유지되지만, IP·기기 기준 제한은 아직 없습니다.
@@ -208,7 +208,7 @@ src/main/resources/
 
 ### 5.13 공통 게시판 패턴
 - 백엔드 패키지: `common/board`.
-- 주요 엔티티: `Cblbmm`(게시판 메타, `TAAABB_CBLBMM`), `Cblbcm`(게시물, `TAAABB_CBLBCM`), `Ccmmtm`(댓글, `TAAABB_CCMMTM`).
+- 주요 엔티티: `Cblbmm`(게시판 메타, `TPRMPP_CBLBMM`), `Cblbcm`(게시물, `TPRMPP_CBLBCM`), `Ccmmtm`(댓글, `TPRMPP_CCMMTM`).
 - 주요 API:
   - `GET /api/boards/meta`, `GET /api/boards/meta/{blbMngNo}` — 인증 사용자 공통 게시판 메타 조회.
   - `/api/admin/boards/meta/**` — 관리자 전용 게시판 메타 CRUD. `AdminBoardMetaController` 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")` 필수.

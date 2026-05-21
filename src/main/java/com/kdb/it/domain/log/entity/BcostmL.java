@@ -13,10 +13,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * 전산관리비(TAAABB_BCOSTM) 변경 로그 엔티티.
+ * 전산관리비(TPRMPP_BCOSTM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BCOSTL", comment = "전산관리비 변경 로그")
+@Table(name = "TPRMPP_BCOSTL", comment = "전산관리비 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

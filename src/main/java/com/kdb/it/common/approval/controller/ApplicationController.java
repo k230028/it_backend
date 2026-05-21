@@ -130,9 +130,9 @@ public class ApplicationController {
      * <p>생성 흐름:</p>
      * <ol>
      *   <li>시퀀스로 신청서 관리번호 생성 (예: {@code APF_202600000001})</li>
-     *   <li>신청서 마스터(TAAABB_CAPPLM) 저장</li>
-     *   <li>원본 데이터 연결(TAAABB_CAPPLA) 저장</li>
-     *   <li>결재선 목록(TAAABB_CDECIM) 저장</li>
+     *   <li>신청서 마스터(TPRMPP_CAPPLM) 저장</li>
+     *   <li>원본 데이터 연결(TPRMPP_CAPPLA) 저장</li>
+     *   <li>결재선 목록(TPRMPP_CDECIM) 저장</li>
      * </ol>
      *
      * @param request 신청서 생성 요청 ({@link ApplicationDto.CreateRequest})

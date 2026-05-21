@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * 사용자 관리 REST 컨트롤러
  *
- * <p>사용자(TAAABB_CUSERI 테이블) 정보를 조회합니다.</p>
+ * <p>사용자(TPRMPP_CUSERI 테이블) 정보를 조회합니다.</p>
  *
  * <p>기본 URL: {@code /api/users}</p>
  *

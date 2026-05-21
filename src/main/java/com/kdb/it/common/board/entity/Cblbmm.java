@@ -8,14 +8,14 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 게시판 메타 엔티티 — TAAABB_CBLBMM
+ * 게시판 메타 엔티티 — TPRMPP_CBLBMM
  *
  * <p>게시판 단위 정책(답변·댓글·첨부필수·권한 등)을 관리한다.
  * 변경 시 {@link CblbmmL}에 이력이 자동 적재된다.</p>
  */
 @LogTarget(entity = CblbmmL.class)
 @Entity
-@Table(name = "TAAABB_CBLBMM", comment = "게시판")
+@Table(name = "TPRMPP_CBLBMM", comment = "게시판")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

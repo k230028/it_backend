@@ -264,7 +264,7 @@ public class BoardCommentService {
                     comment.getCmmtCone().substring(0, Math.min(120, comment.getCmmtCone().length())));
             return;
         }
-        // 실제 TAAABB_CUSERI 에 존재하는 사번만 통과 (batch existence check, 순서 보존)
+        // 실제 TPRMPP_CUSERI 에 존재하는 사번만 통과 (batch existence check, 순서 보존)
         Set<String> existingEnos = userRepository.findByEnoIn(rawEnos).stream()
             .map(CuserI::getEno)
             .collect(java.util.stream.Collectors.toSet());

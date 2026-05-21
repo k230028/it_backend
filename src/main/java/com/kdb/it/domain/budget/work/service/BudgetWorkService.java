@@ -32,7 +32,7 @@ import java.util.Set;
  *
  * <p>
  * 편성비목 조회, 편성률 일괄 적용, 편성 결과 조회 등
- * 예산 편성 작업(TAAABB_BBUGTM)의 비즈니스 로직을 처리합니다.
+ * 예산 편성 작업(TPRMPP_BBUGTM)의 비즈니스 로직을 처리합니다.
  * </p>
  *
  * <p>
@@ -53,22 +53,22 @@ public class BudgetWorkService {
     /** 자본예산 세부 코드타입: 개발비/기계장치/기타무형자산 */
     private static final Set<String> CAPITAL_CTPS = Set.of("IOE_DVC", "IOE_HW", "IOE_SW", "IOE_CPIT");
 
-    /** 예산 데이터 접근 리포지토리 (TAAABB_BBUGTM) */
+    /** 예산 데이터 접근 리포지토리 (TPRMPP_BBUGTM) */
     private final BbugtmRepository bbugtmRepository;
 
-    /** 공통코드 리포지토리 (TAAABB_CCODEM): 편성비목(DUP_IOE) 조회용 */
+    /** 공통코드 리포지토리 (TPRMPP_CCODEM): 편성비목(DUP_IOE) 조회용 */
     private final CodeRepository codeRepository;
 
     /** 결재완료 원본 집계 쿼리 리포지토리: getSummary N+1 제거용 (DB-01) */
     private final BudgetWorkQueryRepository budgetWorkQueryRepository;
 
-    /** 정보화사업 리포지토리 (TAAABB_BPROJM): 사업명 조회용 */
+    /** 정보화사업 리포지토리 (TPRMPP_BPROJM): 사업명 조회용 */
     private final ProjectRepository projectRepository;
 
-    /** 품목 리포지토리 (TAAABB_BITEMM): 품목→프로젝트 매핑용 */
+    /** 품목 리포지토리 (TPRMPP_BITEMM): 품목→프로젝트 매핑용 */
     private final ProjectItemRepository projectItemRepository;
 
-    /** 전산업무비 리포지토리 (TAAABB_BCOSTM): 계약명 조회용 */
+    /** 전산업무비 리포지토리 (TPRMPP_BCOSTM): 계약명 조회용 */
     private final CostRepository costRepository;
 
     /**

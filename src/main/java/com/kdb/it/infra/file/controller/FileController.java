@@ -35,7 +35,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>
  * 시스템 전역에서 사용하는 첨부파일·이미지를 관리하는 엔드포인트입니다.
- * TAAABB_CFILEM 테이블과 연동됩니다.
+ * TPRMPP_CFILEM 테이블과 연동됩니다.
  * </p>
  *
  * <p>

@@ -10,7 +10,7 @@ import java.util.Optional;
 /**
  * 타당성 자체점검(Bchklc) 리포지토리
  *
- * <p>DB 테이블: {@code TAAABB_BCHKLC}</p>
+ * <p>DB 테이블: {@code TPRMPP_BCHKLC}</p>
  *
  * <p>협의회 1건당 6개 고정 항목 (CCODEM CKG_ITM 기준)이 관리됩니다.</p>
  */

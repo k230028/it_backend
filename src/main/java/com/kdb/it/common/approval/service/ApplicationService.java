@@ -76,13 +76,13 @@ public class ApplicationService {
 
     private static final Logger log = LoggerFactory.getLogger(ApplicationService.class);
 
-    /** 신청서 마스터 데이터 접근 리포지토리 (TAAABB_CAPPLM) */
+    /** 신청서 마스터 데이터 접근 리포지토리 (TPRMPP_CAPPLM) */
     private final ApplicationRepository applicationRepository;
 
-    /** 결재(승인) 데이터 접근 리포지토리 (TAAABB_CDECIM) */
+    /** 결재(승인) 데이터 접근 리포지토리 (TPRMPP_CDECIM) */
     private final ApproverRepository approverRepository;
 
-    /** 신청서-원본 데이터 연결 리포지토리 (TAAABB_CAPPLA) */
+    /** 신청서-원본 데이터 연결 리포지토리 (TPRMPP_CAPPLA) */
     private final ApplicationMapRepository applicationMapRepository;
 
     /** 정보화사업(Bprojm) 리포지토리: 미상신 건수 집계용 */
@@ -147,15 +147,11 @@ public class ApplicationService {
         // 하나의 신청서가 복수의 원본 레코드(정보화사업, 전산관리비 등)를 연결할 수 있습니다.
         if (request.getOrcItems() != null && !request.getOrcItems().isEmpty()) {
             for (ApplicationDto.OrcItem item : request.getOrcItems()) {
-                Long seq = applicationMapRepository.getNextVal(); // 항목마다 CAPPLA 시퀀스 채번
-                String apfRelSno = String.format("APPL-%028d", seq); // 신청서관계일련번호
-
                 Cappla cappla = Cappla.builder()
-                        .apfRelSno(apfRelSno) // 신청서관계일련번호 (PK)
-                        .apfMngNo(apfMngNo) // 신청관리번호 (FK)
-                        .orcTbCd(item.getOrcTbCd()) // 원본 테이블코드
-                        .orcPkVl(item.getOrcPkVl()) // 원본 PK값
-                        .orcSnoVl(item.getOrcSnoVl() != null ? Integer.parseInt(item.getOrcSnoVl()) : null) // 원본 SNO
+                        .apfMngNo(apfMngNo)
+                        .orcTbCd(item.getOrcTbCd())
+                        .orcPkVl(item.getOrcPkVl())
+                        .orcSnoVl(item.getOrcSnoVl() != null ? Integer.parseInt(item.getOrcSnoVl()) : null)
                         .build();
                 applicationMapRepository.save(cappla);
             }
@@ -508,7 +504,7 @@ public class ApplicationService {
      *
      * <p>bbrC 기준 부서 통계와 eno 기준 본인 결재 대기 목록을 반환합니다.</p>
      *
-     * @param bbrC 부서코드 (TAAABB_CUSERI.BBR_C)
+     * @param bbrC 부서코드 (TPRMPP_CUSERI.BBR_C)
      * @param eno  사원번호 (본인 결재 대기 필터)
      * @return 대시보드 집계 응답 DTO
      */

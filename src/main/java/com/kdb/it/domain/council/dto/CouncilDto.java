@@ -226,8 +226,8 @@ public class CouncilDto {
      * 성과지표 요청 (추가/수정 공통)
      */
     public record PerformanceRequest(
-        /** 지표순번 (클라이언트 관리, 1부터 시작, SNO=VARCHAR2) */
-        String dtpSno,
+        /** 지표순번 (클라이언트 관리, 1부터 시작) */
+        Integer dtpSno,
         /** 성과지표명 */
         String dtpNm,
         /** 성과지표정의 */
@@ -252,7 +252,7 @@ public class CouncilDto {
      * 성과지표 응답
      */
     public record PerformanceResponse(
-        String dtpSno,
+        Integer dtpSno,
         String dtpNm,
         String dtpCone,
         String msmManr,

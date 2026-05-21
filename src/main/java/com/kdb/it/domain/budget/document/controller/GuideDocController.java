@@ -22,7 +22,7 @@ import java.util.List;
  * 가이드 문서 관리 REST 컨트롤러
  *
  * <p>
- * 가이드 문서(TAAABB_BGDOCM)의 CRUD 기능을 담당합니다.
+ * 가이드 문서(TPRMPP_BGDOCM)의 CRUD 기능을 담당합니다.
  * </p>
  *
  * <p>

@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
  *   <li>작성자 본인 멘션은 자동 제외</li>
  *   <li>중복 사번은 제거 (입력 순서 보존)</li>
  *   <li>HTML 태그 안의 영숫자 토큰은 속성 구분자(공백·따옴표 등)로 끊기므로 sanitize된 HTML에 직접 적용해도 안전</li>
- *   <li>본 클래스는 패턴 추출만 담당. 추출된 사번이 실제 {@code TAAABB_CUSERI}에 존재하는지는
+ *   <li>본 클래스는 패턴 추출만 담당. 추출된 사번이 실제 {@code TPRMPP_CUSERI}에 존재하는지는
  *       호출자(예: BoardPostService.publishMentionNotifications)가 UserRepository로 별도 검증한다.</li>
  * </ul>
  */

@@ -11,7 +11,7 @@ import com.kdb.it.domain.entity.BaseEntity;
  * 사용자(직원) 정보 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_CUSERI}
+ * DB 테이블: {@code TPRMPP_CUSERI}
  * </p>
  *
  * <p>
@@ -30,7 +30,7 @@ import com.kdb.it.domain.entity.BaseEntity;
  * </ul>
  */
 @Entity // JPA 엔티티로 등록
-@Table(name = "TAAABB_CUSERI", comment = "사용자(직원) 정보") // 매핑할 DB 테이블명
+@Table(name = "TPRMPP_CUSERI", comment = "사용자(직원) 정보") // 매핑할 DB 테이블명
 @Getter // 모든 필드의 getter 자동 생성 (Lombok)
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // protected 기본 생성자 (JPA 요구사항)
 @AllArgsConstructor // 전체 필드 생성자 자동 생성
@@ -120,32 +120,32 @@ public class CuserI extends BaseEntity {
         return null;
     }
 
-    /** 회사번호: 사내 직통 전화번호 */
-    @Column(name = "CADR_TPN", length = 20, comment = "회사번호")
+    /** 연락처전화번호 */
+    @Column(name = "CADR_TPN", length = 20, comment = "연락처전화번호")
     private String cadrTpn;
 
-    /** 상위조직코드: 소속 부점의 상위 조직 코드 */
-    @Column(name = "DTC_BBR_C", length = 3, comment = "상위조직코드")
+    /** 파견부점코드 */
+    @Column(name = "DTC_BBR_C", length = 3, comment = "파견부점코드")
     private String dtcBbrC;
 
-    /** 상세직무내용: 직원의 담당 업무 상세 설명 (최대 2000자) */
-    @Column(name = "DTS_DTL_CONE", length = 2000, comment = "상세직무내용")
+    /** 직무상세내용: 직원의 담당 업무 상세 설명 (최대 2000자) */
+    @Column(name = "DTS_DTL_CONE", length = 2000, comment = "직무상세내용")
     private String dtsDtlCone;
 
-    /** 전자우편주소: 직원 이메일 주소 (최대 200자) */
-    @Column(name = "ETR_MIL_ADDR_NM", length = 200, comment = "전자우편주소")
+    /** 전자우편주소명: 직원 이메일 주소 (최대 200자) */
+    @Column(name = "ETR_MIL_ADDR_NM", length = 200, comment = "전자우편주소명")
     private String etrMilAddrNm;
 
     /** 내선번호: 사내 내선 전화번호 */
     @Column(name = "INLE_NO", length = 20, comment = "내선번호")
     private String inleNo;
 
-    /** 직위: 직위 코드 (최대 5자) */
-    @Column(name = "PT_C", length = 5, comment = "직위")
+    /** 직위코드 */
+    @Column(name = "PT_C", length = 5, comment = "직위코드")
     private String ptC;
 
-    /** 직위명: 직위 명칭 (예: 팀장, 차장, 과장, 대리, 주임) */
-    @Column(name = "PT_C_NM", length = 200, comment = "직위명")
+    /** 직위코드명 */
+    @Column(name = "PT_C_NM", length = 200, comment = "직위코드명")
     private String ptCNm;
 
     /** 팀코드: 소속 팀의 코드 (최대 5자) */
@@ -164,8 +164,8 @@ public class CuserI extends BaseEntity {
     @Column(name = "USR_WREN_NM", length = 100, comment = "사용자영문명")
     private String usrWrenNm;
 
-    /** 휴대폰번호: 직원 개인 휴대폰 번호 (최대 100자) */
-    @Column(name = "CPN_TPN", length = 100, comment = "휴대폰번호")
+    /** 회사전화번호 */
+    @Column(name = "CPN_TPN", length = 100, comment = "회사전화번호")
     private String cpnTpn;
 
     /**

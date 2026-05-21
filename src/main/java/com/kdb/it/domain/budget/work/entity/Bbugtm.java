@@ -20,7 +20,7 @@ import java.math.BigDecimal;
  * 예산 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_BBUGTM}
+ * DB 테이블: {@code TPRMPP_BBUGTM}
  * </p>
  *
  * <p>
@@ -37,7 +37,7 @@ import java.math.BigDecimal;
  */
 @LogTarget(entity = BbugtL.class)
 @Entity
-@Table(name = "TAAABB_BBUGTM", comment = "예산")
+@Table(name = "TPRMPP_BBUGTM", comment = "예산")
 @IdClass(BbugtmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

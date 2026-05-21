@@ -5,10 +5,10 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 게시판 댓글 변경 로그 엔티티 — TAAABB_CCMMTL
+ * 게시판 댓글 변경 로그 엔티티 — TPRMPP_CCMMTL
  */
 @Entity
-@Table(name = "TAAABB_CCMMTL", comment = "댓글 변경 로그")
+@Table(name = "TPRMPP_CCMMTL", comment = "댓글 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

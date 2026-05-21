@@ -36,7 +36,7 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
      *
      * <p>생성되는 SQL (예시):</p>
      * <pre>{@code
-     * SELECT * FROM TAAABB_CUSERI WHERE USR_NM LIKE '%홍%'
+     * SELECT * FROM TPRMPP_CUSERI WHERE USR_NM LIKE '%홍%'
      * }</pre>
      *
      * @param name 검색할 사용자명 (부분 일치)
@@ -47,7 +47,7 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
         // Q 타입: QueryDSL이 컴파일 시 CuserI 엔티티로부터 자동 생성한 메타 클래스
         QCuserI cuserI = QCuserI.cuserI;
 
-        return queryFactory.selectFrom(cuserI)    // SELECT * FROM TAAABB_CUSERI
+        return queryFactory.selectFrom(cuserI)    // SELECT * FROM TPRMPP_CUSERI
                 .where(cuserI.usrNm.contains(name)) // WHERE USR_NM LIKE '%name%'
                 .fetch();                            // 결과 목록 반환 (비어있으면 빈 리스트)
     }

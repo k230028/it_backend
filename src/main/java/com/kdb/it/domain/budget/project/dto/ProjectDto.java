@@ -17,8 +17,8 @@ import java.time.LocalDateTime;
  * 정보화사업(IT 프로젝트) 관련 DTO 클래스 모음
  *
  * <p>
- * 정보화사업(TAAABB_BPROJM) 엔티티의 생성, 수정, 조회, 일괄 조회 및
- * 연관 품목(TAAABB_BITEMM) 정보 전달에 사용되는 DTO를
+ * 정보화사업(TPRMPP_BPROJM) 엔티티의 생성, 수정, 조회, 일괄 조회 및
+ * 연관 품목(TPRMPP_BITEMM) 정보 전달에 사용되는 DTO를
  * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  * </p>
  *
@@ -650,55 +650,55 @@ public class ProjectDto {
         @Schema(description = "품목 목록")
         private java.util.List<BitemmDto> items;
 
-        /** IT부서명: itDpm(부서코드) 기준 TAAABB_CORGNI에서 BBR_NM 조회 */
+        /** IT부서명: itDpm(부서코드) 기준 TPRMPP_CORGNI에서 BBR_NM 조회 */
         @Schema(description = "IT부서명")
         private String itDpmNm;
 
-        /** 주관부서명: svnDpm(부서코드) 기준 TAAABB_CORGNI에서 BBR_NM 조회 */
+        /** 주관부서명: svnDpm(부서코드) 기준 TPRMPP_CORGNI에서 BBR_NM 조회 */
         @Schema(description = "주관부서명")
         private String svnDpmNm;
 
-        /** IT담당자명: itDpmCgpr(사번) 기준 TAAABB_CUSERI에서 USR_NM 조회 */
+        /** IT담당자명: itDpmCgpr(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
         @Schema(description = "IT담당자명")
         private String itDpmCgprNm;
 
-        /** IT담당팀장명: itDpmTlr(사번) 기준 TAAABB_CUSERI에서 USR_NM 조회 */
+        /** IT담당팀장명: itDpmTlr(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
         @Schema(description = "IT담당팀장명")
         private String itDpmTlrNm;
 
-        /** 주관부서담당자명: svnDpmCgpr(사번) 기준 TAAABB_CUSERI에서 USR_NM 조회 */
+        /** 주관부서담당자명: svnDpmCgpr(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
         @Schema(description = "주관부서담당자명")
         private String svnDpmCgprNm;
 
-        /** 주관부서담당팀장명: svnDpmTlr(사번) 기준 TAAABB_CUSERI에서 USR_NM 조회 */
+        /** 주관부서담당팀장명: svnDpmTlr(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
         @Schema(description = "주관부서담당팀장명")
         private String svnDpmTlrNm;
 
-        /** 프로젝트유형명: prjTp 기준 TAAABB_CCODEM C_NM */
+        /** 프로젝트유형명: prjTp 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "프로젝트유형명")
         private String prjTpNm;
 
-        /** 업무구분명: bzDtt 기준 TAAABB_CCODEM C_NM */
+        /** 업무구분명: bzDtt 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "업무구분명")
         private String bzDttNm;
 
-        /** 기술유형명: tchnTp 기준 TAAABB_CCODEM C_NM */
+        /** 기술유형명: tchnTp 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "기술유형명")
         private String tchnTpNm;
 
-        /** 주요사용자명: mnUsr 기준 TAAABB_CCODEM C_NM */
+        /** 주요사용자명: mnUsr 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "주요사용자명")
         private String mnUsrNm;
 
-        /** 보고상태명: rprSts 기준 TAAABB_CCODEM C_NM */
+        /** 보고상태명: rprSts 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "보고상태명")
         private String rprStsNm;
 
-        /** 프로젝트추진가능성명: prjPulPtt 기준 TAAABB_CCODEM C_NM */
+        /** 프로젝트추진가능성명: prjPulPtt 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "프로젝트추진가능성명")
         private String prjPulPttNm;
 
-        /** 사업구분명: pulDtt 기준 TAAABB_CCODEM C_NM */
+        /** 사업구분명: pulDtt 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "사업구분명")
         private String pulDttNm;
 
@@ -722,7 +722,7 @@ public class ProjectDto {
         @Schema(description = "일반관리비")
         private BigDecimal costBg;
 
-        /** TAAABB_BBUGTM 기준 편성예산 합계 (요청금액 × 편성률/100, 서비스에서 일괄 조회 시 설정) */
+        /** TPRMPP_BBUGTM 기준 편성예산 합계 (요청금액 × 편성률/100, 서비스에서 일괄 조회 시 설정) */
         @Schema(description = "편성예산 (BBUGTM 기준, 편성률 반영)")
         private BigDecimal dupBgAmt;
 
@@ -1027,7 +1027,7 @@ public class ProjectDto {
         @Schema(description = "조회할 프로젝트관리번호 목록")
         private java.util.List<String> prjMngNos;
 
-        /** 편성예산 집계용 사업연도 (YYYY, 예: "2026") — TAAABB_BBUGTM 조회 조건 */
+        /** 편성예산 집계용 사업연도 (YYYY, 예: "2026") — TPRMPP_BBUGTM 조회 조건 */
         @Schema(description = "사업연도 (예: 2026). BBUGTM 편성예산 집계에 사용")
         private String bgYy;
     }

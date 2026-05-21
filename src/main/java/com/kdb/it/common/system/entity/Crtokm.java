@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  * 갱신토큰 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_CRTOKM}
+ * DB 테이블: {@code TPRMPP_CRTOKM}
  * </p>
  *
  * <p>
@@ -40,7 +40,7 @@ import java.time.LocalDateTime;
  * </ol>
  */
 @Entity
-@Table(name = "TAAABB_CRTOKM", comment = "갱신토큰")
+@Table(name = "TPRMPP_CRTOKM", comment = "갱신토큰")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -57,17 +57,17 @@ public class Crtokm extends BaseEntity {
     private Long tokSno;
 
     /**
-     * 토큰: JWT Refresh Token 값 (최대 2000자)
+     * 토큰내용: JWT Refresh Token 값 (최대 2000자)
      * UNIQUE 제약조건으로 중복 저장 방지
      */
-    @Column(name = "TOK", nullable = false, unique = true, length = 2000, comment = "토큰")
-    private String tok;
+    @Column(name = "TOK_CONE", nullable = false, unique = true, length = 2000, comment = "토큰내용")
+    private String tokCone;
 
     /**
      * 사원번호: 이 토큰을 소유한 사용자의 사번
      * 로그아웃 또는 재로그인 시 사번으로 기존 토큰 삭제에 사용
      */
-    @Column(name = "ENO", nullable = false, length = 80, comment = "사원번호")
+    @Column(name = "ENO", nullable = false, length = 32, comment = "사원번호")
     private String eno;
 
     /**

@@ -11,7 +11,7 @@ import java.util.List;
  * 신청서 마스터(Capplm) 데이터 접근 리포지토리
  *
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여
- * 신청서 마스터 테이블(TAAABB_CAPPLM)에 대한 CRUD 기능을 제공합니다.</p>
+ * 신청서 마스터 테이블(TPRMPP_CAPPLM)에 대한 CRUD 기능을 제공합니다.</p>
  *
  * <p>기본키 타입: {@link String} (apfMngNo: 신청서관리번호)</p>
  *
@@ -42,8 +42,8 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     /** 본인에게 온 결재 대기 건수 (APF_STS='결재중' AND 결재선 미처리) */
     @Query(value = """
         SELECT COUNT(*)
-        FROM TAAABB_CAPPLM a
-        JOIN TAAABB_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
+        FROM TPRMPP_CAPPLM a
+        JOIN TPRMPP_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
         WHERE a.APF_STS = '결재중'
           AND d.DCD_ENO = :eno
           AND d.DCD_DT IS NULL
@@ -53,7 +53,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     /** 내가 기안한 진행 중 건수 */
     @Query(value = """
         SELECT COUNT(*)
-        FROM TAAABB_CAPPLM a
+        FROM TPRMPP_CAPPLM a
         WHERE a.APF_STS = '결재중'
           AND a.RQS_ENO = :eno
         """, nativeQuery = true)
@@ -62,8 +62,8 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     /** 이번달 부서 완료 건수 */
     @Query(value = """
         SELECT COUNT(*)
-        FROM TAAABB_CAPPLM a
-        JOIN TAAABB_CUSERI u ON a.RQS_ENO = u.ENO
+        FROM TPRMPP_CAPPLM a
+        JOIN TPRMPP_CUSERI u ON a.RQS_ENO = u.ENO
         WHERE a.APF_STS = '결재완료'
           AND u.BBR_C = :bbrC
           AND a.RQS_DT >= TRUNC(SYSDATE, 'MM')
@@ -73,7 +73,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     /** 내 반려 건수 */
     @Query(value = """
         SELECT COUNT(*)
-        FROM TAAABB_CAPPLM a
+        FROM TPRMPP_CAPPLM a
         WHERE a.APF_STS = '반려'
           AND a.RQS_ENO = :eno
         """, nativeQuery = true)
@@ -86,8 +86,8 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT TO_CHAR(a.RQS_DT, 'YYYY-MM') AS MONTH,
                COUNT(*) AS CNT
-        FROM TAAABB_CAPPLM a
-        JOIN TAAABB_CUSERI u ON a.RQS_ENO = u.ENO
+        FROM TPRMPP_CAPPLM a
+        JOIN TPRMPP_CUSERI u ON a.RQS_ENO = u.ENO
         WHERE u.BBR_C = :bbrC
           AND a.RQS_DT >= ADD_MONTHS(TRUNC(SYSDATE, 'MM'), -5)
         GROUP BY TO_CHAR(a.RQS_DT, 'YYYY-MM')
@@ -102,9 +102,9 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT a.APF_MNG_NO, a.APF_NM, u.USR_NM,
                TO_CHAR(a.RQS_DT, 'YYYY-MM-DD') AS RQS_DT_STR
-        FROM TAAABB_CAPPLM a
-        JOIN TAAABB_CUSERI u ON a.RQS_ENO = u.ENO
-        JOIN TAAABB_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
+        FROM TPRMPP_CAPPLM a
+        JOIN TPRMPP_CUSERI u ON a.RQS_ENO = u.ENO
+        JOIN TPRMPP_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
         WHERE a.APF_STS = '결재중'
           AND d.DCD_ENO = :eno
           AND d.DCD_DT IS NULL

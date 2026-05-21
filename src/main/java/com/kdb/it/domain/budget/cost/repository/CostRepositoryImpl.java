@@ -61,7 +61,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      *
      * <pre>{@code
      * WHERE NOT EXISTS (
-     *   SELECT 1 FROM TAAABB_CAPPLA ca
+     *   SELECT 1 FROM TPRMPP_CAPPLA ca
      *   WHERE ca.ORC_TB_CD = 'BCOSTM'
      *     AND ca.ORC_PK_VL = c.IT_MNGC_NO
      *     AND ca.ORC_SNO_VL = c.IT_MNGC_SNO
@@ -74,14 +74,14 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      *
      * <pre>{@code
      * WHERE EXISTS (
-     *   SELECT 1 FROM TAAABB_CAPPLA ca
-     *   JOIN TAAABB_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
+     *   SELECT 1 FROM TPRMPP_CAPPLA ca
+     *   JOIN TPRMPP_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
      *   WHERE ca.ORC_TB_CD = 'BCOSTM'
      *     AND ca.ORC_PK_VL = c.IT_MNGC_NO
      *     AND ca.ORC_SNO_VL = c.IT_MNGC_SNO
      *     AND cm.APF_STS = '결재중'
      *     AND ca.APF_REL_SNO = (
-     *       SELECT MAX(ca2.APF_REL_SNO) FROM TAAABB_CAPPLA ca2
+     *       SELECT MAX(ca2.APF_REL_SNO) FROM TPRMPP_CAPPLA ca2
      *       WHERE ca2.ORC_TB_CD = 'BCOSTM'
      *         AND ca2.ORC_PK_VL = c.IT_MNGC_NO
      *         AND ca2.ORC_SNO_VL = c.IT_MNGC_SNO

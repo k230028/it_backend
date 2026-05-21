@@ -12,7 +12,7 @@ import lombok.Setter;
  * 사용자(직원) 관련 DTO 클래스 모음
  *
  * <p>
- * 사용자 정보(TAAABB_CUSERI) 조회에 사용되는 Response DTO를
+ * 사용자 정보(TPRMPP_CUSERI) 조회에 사용되는 Response DTO를
  * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  * </p>
  *

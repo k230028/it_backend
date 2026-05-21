@@ -8,7 +8,7 @@ import java.util.Optional;
 /**
  * 협의회 결과서(Brsltm) 리포지토리
  *
- * <p>DB 테이블: {@code TAAABB_BRSLTM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BRSLTM}</p>
  *
  * <p>BASCTM과 1:1 관계. Step 3(결과서 작성) 단계에서 IT관리자가 작성합니다.</p>
  */

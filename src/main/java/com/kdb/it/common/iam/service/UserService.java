@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 /**
  * 사용자(직원) 조회 서비스
  *
- * <p>사용자 정보(TAAABB_CUSERI) 조회 비즈니스 로직을 처리합니다.</p>
+ * <p>사용자 정보(TPRMPP_CUSERI) 조회 비즈니스 로직을 처리합니다.</p>
  *
  * <p>부점코드({@code BBR_C})별 사용자 목록과 사번({@code ENO})별 사용자 상세 정보를
  * 제공합니다.</p>
@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)       // 읽기 전용 트랜잭션
 public class UserService {
 
-    /** 사용자 정보 데이터 접근 리포지토리 (TAAABB_CUSERI) */
+    /** 사용자 정보 데이터 접근 리포지토리 (TPRMPP_CUSERI) */
     private final UserRepository userRepository;
 
     /**

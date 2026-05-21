@@ -314,7 +314,7 @@ class AdminServiceTest {
     @DisplayName("createOrganization - 중복 조직코드 존재 시 IllegalArgumentException 발생")
     void createOrganization_중복조직코드_예외발생() {
         // given
-        AdminDto.OrgRequest req = new AdminDto.OrgRequest("BBR001", "IT부문", "IT Division", "1", null);
+        AdminDto.OrgRequest req = new AdminDto.OrgRequest("BBR001", "IT부문", "IT Division", 1, null);
         given(orgRepository.existsById("BBR001")).willReturn(true);
 
         // when & then
@@ -547,7 +547,7 @@ class AdminServiceTest {
     void updateOrganization_정상요청_수정성공() {
         // given
         CorgnI org = CorgnI.builder().prlmOgzCCone("BBR001").bbrNm("IT부문").delYn("N").build();
-        AdminDto.OrgRequest req = new AdminDto.OrgRequest("BBR001", "수정된부문명", "Updated Division", "2", null);
+        AdminDto.OrgRequest req = new AdminDto.OrgRequest("BBR001", "수정된부문명", "Updated Division", 2, null);
         given(orgRepository.findById("BBR001")).willReturn(java.util.Optional.of(org));
 
         // when
@@ -684,12 +684,12 @@ class AdminServiceTest {
     void getTokens_토큰마스킹반환() {
         Crtokm longToken = Crtokm.builder()
                 .eno("10001")
-                .tok("1234567890123456789012345")
+                .tokCone("1234567890123456789012345")
                 .endDtm(java.time.LocalDateTime.now().plusDays(1))
                 .build();
         Crtokm shortToken = Crtokm.builder()
                 .eno("10002")
-                .tok("short")
+                .tokCone("short")
                 .endDtm(java.time.LocalDateTime.now().plusDays(1))
                 .build();
         given(refreshTokenRepository.findAll()).willReturn(List.of(longToken, shortToken));

@@ -26,5 +26,5 @@ public class BtermmId implements Serializable {
 
     /** 단말기일련번호: Btermm.tmnSno와 이름/타입 일치 필수 */
     @Column(name = "TMN_SNO", comment = "단말기일련번호")
-    private String tmnSno;
+    private Integer tmnSno;
 }

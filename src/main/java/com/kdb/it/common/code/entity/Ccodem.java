@@ -19,11 +19,11 @@ import java.time.LocalDate;
 /**
  * 공통코드마스터 엔티티
  *
- * <p>DB 테이블: {@code TAAABB_CCODEM} — PK: (C_ID, CDVA, STT_DT)</p>
+ * <p>DB 테이블: {@code TPRMPP_CCODEM} — PK: (C_ID, CDVA, STT_DT)</p>
  */
 @LogTarget(entity = CcodemL.class)
 @Entity
-@Table(name = "TAAABB_CCODEM", comment = "공통코드마스터")
+@Table(name = "TPRMPP_CCODEM", comment = "공통코드마스터")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

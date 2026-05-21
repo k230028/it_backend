@@ -244,7 +244,7 @@ class FeasibilityServiceTest {
         given(deleteQuery.setParameter("asctId", ASCT_ID)).willReturn(deleteQuery);
         given(deleteQuery.executeUpdate()).willReturn(1);
         List<CouncilDto.PerformanceRequest> performances = List.of(
-                new CouncilDto.PerformanceRequest("1", "성과지표", "내용", "측정", "정량", "상", null, null, "분기", "자동"));
+                new CouncilDto.PerformanceRequest(1, "성과지표", "내용", "측정", "정량", "상", null, null, "분기", "자동"));
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "테스트사업", "2026", null, null, null, null, null, null, null,
                 "TEMP", null, performances, null);
@@ -269,7 +269,7 @@ class FeasibilityServiceTest {
         given(check.getCkgRcrd()).willReturn(5);
         given(feasibilityCheckRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(check));
         com.kdb.it.domain.council.entity.Bperfm perf = mock(com.kdb.it.domain.council.entity.Bperfm.class);
-        given(perf.getDtpSno()).willReturn("1");
+        given(perf.getDtpSno()).willReturn(1);
         given(perf.getDtpNm()).willReturn("성과지표");
         given(performanceRepository.findByAsctIdAndDelYnOrderByDtpSnoAsc(ASCT_ID, "N")).willReturn(List.of(perf));
 

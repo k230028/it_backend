@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
  * 조직(부점) 정보(CorgnI) 데이터 접근 리포지토리
  *
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여
- * 조직 테이블(TAAABB_CORGNI)에 대한 CRUD 기능을 제공합니다.</p>
+ * 조직 테이블(TPRMPP_CORGNI)에 대한 CRUD 기능을 제공합니다.</p>
  *
  * <p>기본키 타입: {@link String} (prlmOgzCCone: 조직코드)</p>
  *

@@ -12,10 +12,10 @@ import lombok.experimental.SuperBuilder;
 import java.time.LocalDate;
 
 /**
- * 정보화실무협의회 기본정보(TAAABB_BASCTM) 변경 로그 엔티티.
+ * 정보화실무협의회 기본정보(TPRMPP_BASCTM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BASCTL", comment = "정보화실무협의회 기본정보 변경 로그")
+@Table(name = "TPRMPP_BASCTL", comment = "정보화실무협의회 기본정보 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

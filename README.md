@@ -1,4 +1,4 @@
-# 개발 노트 (Development Notes)
+﻿# 개발 노트 (Development Notes)
 
 ## 1. 프로젝트 개요
 
@@ -202,7 +202,7 @@ IT Portal의 로그는 **3가지 유형**으로 구성되며, 각각 다른 계�
 ```java
 @LogTarget(entity = BprojmL.class)
 @Entity
-@Table(name = "TAAABB_BPROJM")
+@Table(name = "TPRMPP_BPROJM")
 public class Bprojm extends BaseEntity { ... }
 ```
 
@@ -262,7 +262,7 @@ public class Bprojm extends BaseEntity { ... }
 | `LOGOUT` | 로그아웃 처리 후 |
 
 - **조회**: `LoginHistoryService` — 본인 이력 최대 50건(`getLoginHistory`) 또는 최근 10건(`getRecentLoginHistory`)
-- **테이블**: `TAAABB_CLOGNH`
+- **테이블**: `TPRMPP_CLOGNH`
 
 ### 5.3 관리자 로그 조회 (`AdminLogService`) — ROLE_ADMIN 전용
 
@@ -285,7 +285,7 @@ public class Bprojm extends BaseEntity { ... }
 ```
 [로그인] POST /api/auth/login
   → 사번/비밀번호 검증 (SHA-256 + Base64)
-  → TAAABB_CLOGNH LOGIN_FAILURE 이력 기반 5회/10분 Brute-force 잠금 확인
+  → TPRMPP_CLOGNH LOGIN_FAILURE 이력 기반 5회/10분 Brute-force 잠금 확인
   → Access Token(15분) + Refresh Token(7일) 발급
   → httpOnly 쿠키(Set-Cookie)로 토큰 전달
   → Clognh 테이블에 로그인 이력 기록

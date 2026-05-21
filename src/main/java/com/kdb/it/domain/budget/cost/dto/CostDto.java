@@ -18,7 +18,7 @@ import lombok.Setter;
  * 전산관리비(IT 관리비) 관련 DTO 클래스 모음
  *
  * <p>
- * 전산관리비(TAAABB_BCOSTM) 엔티티의 생성, 수정, 조회, 일괄 조회에 사용되는
+ * 전산관리비(TPRMPP_BCOSTM) 엔티티의 생성, 수정, 조회, 일괄 조회에 사용되는
  * Request/Response DTO를 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  * </p>
  *
@@ -361,23 +361,23 @@ public class CostDto {
         @Schema(description = "사업코드", example = "ABUS01")
         private String abusC;
 
-        /** 사업코드명: abusC(사업코드) 기준 TAAABB_CCODEM에서 C_NM 조회 */
+        /** 사업코드명: abusC(사업코드) 기준 TPRMPP_CCODEM에서 C_NM 조회 */
         @Schema(description = "사업코드명")
         private String abusCNm;
 
-        /** 비목코드명: ioeC(비목코드) 기준 TAAABB_CCODEM CDVA_DTL 마지막 항목 */
+        /** 비목코드명: ioeC(비목코드) 기준 TPRMPP_CCODEM CDVA_DTL 마지막 항목 */
         @Schema(description = "비목코드명")
         private String ioeCNm;
 
-        /** 지급주기명: dfrCleC(지급주기) 기준 TAAABB_CCODEM C_NM */
+        /** 지급주기명: dfrCleC(지급주기) 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "지급주기명")
         private String dfrCleCNm;
 
-        /** 전산업무비유형명: itMngcTp 기준 TAAABB_CCODEM C_NM */
+        /** 전산업무비유형명: itMngcTp 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "전산업무비유형명")
         private String itMngcTpNm;
 
-        /** 전산업무비구분명: pulDtt 기준 TAAABB_CCODEM C_NM */
+        /** 전산업무비구분명: pulDtt 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "전산업무비구분명")
         private String pulDttNm;
 
@@ -400,15 +400,15 @@ public class CostDto {
         @Schema(description = "금융정보단말기 목록 (1:N)")
         private List<TerminalDto> terminals;
 
-        /** 담당부서명: biceDpmC(부서코드) 기준 TAAABB_CORGNI에서 BBR_NM 조회 */
+        /** 담당부서명: biceDpmC(부서코드) 기준 TPRMPP_CORGNI에서 BBR_NM 조회 */
         @Schema(description = "담당부서명")
         private String biceDpmNm;
 
-        /** 담당팀명: biceTemC(팀코드) 기준 TAAABB_CORGNI에서 BBR_NM 조회 */
+        /** 담당팀명: biceTemC(팀코드) 기준 TPRMPP_CORGNI에서 BBR_NM 조회 */
         @Schema(description = "담당팀명")
         private String biceTemNm;
 
-        /** 담당자명: cgprEno(사번) 기준 TAAABB_CUSERI에서 USR_NM 조회 */
+        /** 담당자명: cgprEno(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
         @Schema(description = "담당자명")
         private String cgprNm;
 
@@ -432,7 +432,7 @@ public class CostDto {
         @Schema(description = "일반관리비")
         private java.math.BigDecimal costBg;
 
-        /** TAAABB_BBUGTM 기준 편성예산 합계 (요청금액 × 편성률/100, 서비스에서 일괄 조회 시 설정) */
+        /** TPRMPP_BBUGTM 기준 편성예산 합계 (요청금액 × 편성률/100, 서비스에서 일괄 조회 시 설정) */
         @Schema(description = "편성예산 (BBUGTM 기준, 편성률 반영)")
         private java.math.BigDecimal dupBgAmt;
 
@@ -584,7 +584,7 @@ public class CostDto {
         @Schema(description = "전산업무비코드 목록", example = "[\"COST_2026_0001\", \"COST_2026_0002\"]")
         private List<String> itMngcNos;
 
-        /** 편성예산 집계용 사업연도 (YYYY, 예: "2026") — TAAABB_BBUGTM 조회 조건 */
+        /** 편성예산 집계용 사업연도 (YYYY, 예: "2026") — TPRMPP_BBUGTM 조회 조건 */
         @Schema(description = "사업연도 (예: 2026). BBUGTM 편성예산 집계에 사용")
         private String bgYy;
     }
@@ -603,7 +603,7 @@ public class CostDto {
         private String tmnMngNo;
 
         @Schema(description = "단말기일련번호", example = "1")
-        private String tmnSno;
+        private Integer tmnSno;
 
         @Schema(description = "단말기명", example = "대면업무용 단말기")
         private String tmnNm;
@@ -638,7 +638,7 @@ public class CostDto {
         @Schema(description = "담당자", example = "홍길동")
         private String cgprEno;
 
-        /** 담당자명: cgprEno(사번) 기준 TAAABB_CUSERI에서 USR_NM 조회 (응답 전용) */
+        /** 담당자명: cgprEno(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 (응답 전용) */
         @Schema(description = "담당자명")
         private String cgprNm;
 

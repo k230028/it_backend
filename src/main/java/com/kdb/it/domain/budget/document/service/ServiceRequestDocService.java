@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 요구사항 정의서(TAAABB_BRDOCM) 서비스
+ * 요구사항 정의서(TPRMPP_BRDOCM) 서비스
  *
  * <p>
  * 요구사항 정의서 엔티티의 CRUD 및 버전 관리 비즈니스 로직을 처리합니다.
@@ -37,10 +37,10 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ServiceRequestDocService {
 
-    /** 요구사항 정의서 데이터 접근 리포지토리 (TAAABB_BRDOCM) */
+    /** 요구사항 정의서 데이터 접근 리포지토리 (TPRMPP_BRDOCM) */
     private final ServiceRequestDocRepository serviceRequestDocRepository;
 
-    /** 사용자 정보 리포지토리 (TAAABB_CUSERI): 사번→사용자명 조회용 */
+    /** 사용자 정보 리포지토리 (TPRMPP_CUSERI): 사번→사용자명 조회용 */
     private final UserRepository cuserIRepository;
 
     /** 신규 문서 최초 버전 */
@@ -268,7 +268,7 @@ public class ServiceRequestDocService {
      * <p>로그인 사용자의 부서코드(bbrC) 기준으로 KPI, 월별 추이,
      * 검토 중인 요청 목록을 집계하여 반환합니다.</p>
      *
-     * @param bbrC 부서코드 (TAAABB_CUSERI.BBR_C)
+     * @param bbrC 부서코드 (TPRMPP_CUSERI.BBR_C)
      * @return 대시보드 집계 응답 DTO
      */
     public ServiceRequestDocDto.DashboardResponse getDashboard(String bbrC) {

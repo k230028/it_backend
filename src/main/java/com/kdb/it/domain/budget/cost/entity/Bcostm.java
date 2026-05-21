@@ -21,7 +21,7 @@ import lombok.experimental.SuperBuilder;
  * 전산관리비(IT 관리비) 마스터 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_BCOSTM}
+ * DB 테이블: {@code TPRMPP_BCOSTM}
  * </p>
  *
  * <p>
@@ -41,7 +41,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BcostmL.class)
 @Entity // JPA 엔티티로 등록
-@Table(name = "TAAABB_BCOSTM", comment = "전산관리비(IT 관리비) 마스터") // 매핑할 DB 테이블명
+@Table(name = "TPRMPP_BCOSTM", comment = "전산관리비(IT 관리비) 마스터") // 매핑할 DB 테이블명
 @IdClass(BcostmId.class) // 복합키 클래스 지정
 @Getter // 모든 필드의 getter 자동 생성 (Lombok)
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // protected 기본 생성자 (JPA 요구사항)

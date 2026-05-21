@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 전산관리비(IT 관리비) 관리 REST 컨트롤러
  *
- * <p>전산관리비(TAAABB_BCOSTM 테이블)의 CRUD 및 일괄 조회 기능을 담당합니다.</p>
+ * <p>전산관리비(TPRMPP_BCOSTM 테이블)의 CRUD 및 일괄 조회 기능을 담당합니다.</p>
  *
  * <p>기본 URL: {@code /api/cost}</p>
  *

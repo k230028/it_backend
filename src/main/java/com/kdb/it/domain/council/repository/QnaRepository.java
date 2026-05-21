@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * 사전질의응답(Bpqnam) 리포지토리
  *
- * <p>DB 테이블: {@code TAAABB_BPQNAM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BPQNAM}</p>
  *
  * <p>평가위원 질의 등록 및 추진부서 담당자 답변 관리.</p>
  */
@@ -46,7 +46,7 @@ public interface QnaRepository extends JpaRepository<Bpqnam, String> {
      * @param asctId 협의회ID
      * @return 다음 순번 (기존 항목 없으면 1)
      */
-    @Query(value = "SELECT NVL(COUNT(*), 0) + 1 FROM TAAABB_BPQNAM WHERE ASCT_ID = :asctId",
+    @Query(value = "SELECT NVL(COUNT(*), 0) + 1 FROM TPRMPP_BPQNAM WHERE ASCT_ID = :asctId",
            nativeQuery = true)
     Integer getNextQtnSeq(@Param("asctId") String asctId);
 }

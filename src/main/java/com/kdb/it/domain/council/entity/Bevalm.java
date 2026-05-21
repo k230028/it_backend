@@ -17,7 +17,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 평가위원 평가의견 엔티티
  *
- * <p>DB 테이블: {@code TAAABB_BEVALM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BEVALM}</p>
  *
  * <p>협의회 당일 또는 이후 각 평가위원이 6개 점검항목에 대해
  * 점수(1~5)와 의견을 작성합니다.
@@ -29,7 +29,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BevalmL.class)
 @Entity
-@Table(name = "TAAABB_BEVALM", comment = "평가위원 평가의견")
+@Table(name = "TPRMPP_BEVALM", comment = "평가위원 평가의견")
 @IdClass(BevalmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -42,7 +42,7 @@ public class Bevalm extends BaseEntity {
     @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
-    /** 사번: 복합키 두 번째 컬럼 (TAAABB_CUSERI.ENO FK, 평가위원) */
+    /** 사번: 복합키 두 번째 컬럼 (TPRMPP_CUSERI.ENO FK, 평가위원) */
     @Id
     @Column(name = "ENO", length = 32, nullable = false, comment = "사번")
     private String eno;

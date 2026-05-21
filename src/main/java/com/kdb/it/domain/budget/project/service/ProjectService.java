@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 정보화사업(IT 프로젝트) 서비스
  *
  * <p>
- * 정보화사업(TAAABB_BPROJM) 엔티티의 CRUD 및 품목({@link com.kdb.it.domain.budget.project.entity.Bitemm})
+ * 정보화사업(TPRMPP_BPROJM) 엔티티의 CRUD 및 품목({@link com.kdb.it.domain.budget.project.entity.Bitemm})
  * 동기화
  * 비즈니스 로직을 처리합니다.
  * </p>
@@ -74,31 +74,31 @@ public class ProjectService {
     private static final String IOE_SW = "IOE_SW";
     private static final Set<String> CAPITAL_DETAIL_CTPS = Set.of(IOE_DVC, IOE_HW, IOE_SW);
 
-    /** 정보화사업 데이터 접근 리포지토리 (TAAABB_BPROJM) */
+    /** 정보화사업 데이터 접근 리포지토리 (TPRMPP_BPROJM) */
     private final ProjectRepository projectRepository;
 
-    /** 신청서-원본 데이터 연결 리포지토리 (TAAABB_CAPPLA): 결재 상태 확인용 */
+    /** 신청서-원본 데이터 연결 리포지토리 (TPRMPP_CAPPLA): 결재 상태 확인용 */
     private final com.kdb.it.common.approval.repository.ApplicationMapRepository capplaRepository;
 
-    /** 신청서 마스터 리포지토리 (TAAABB_CAPPLM): 결재 상태 조회용 */
+    /** 신청서 마스터 리포지토리 (TPRMPP_CAPPLM): 결재 상태 조회용 */
     private final com.kdb.it.common.approval.repository.ApplicationRepository capplmRepository;
 
-    /** 품목 데이터 접근 리포지토리 (TAAABB_BITEMM) */
+    /** 품목 데이터 접근 리포지토리 (TPRMPP_BITEMM) */
     private final com.kdb.it.domain.budget.project.repository.ProjectItemRepository bitemmRepository;
 
-    /** 조직(부점) 정보 리포지토리 (TAAABB_CORGNI): 부서코드→부서명 조회용 */
+    /** 조직(부점) 정보 리포지토리 (TPRMPP_CORGNI): 부서코드→부서명 조회용 */
     private final com.kdb.it.common.iam.repository.OrganizationRepository corgnIRepository;
 
-    /** 사용자 정보 리포지토리 (TAAABB_CUSERI): 사원번호→사용자명 조회용 */
+    /** 사용자 정보 리포지토리 (TPRMPP_CUSERI): 사원번호→사용자명 조회용 */
     private final com.kdb.it.common.iam.repository.UserRepository cuserIRepository;
 
-    /** 결재 정보 리포지토리 (TAAABB_CDECIM): 결재선 목록 조회용 */
+    /** 결재 정보 리포지토리 (TPRMPP_CDECIM): 결재선 목록 조회용 */
     private final com.kdb.it.common.approval.repository.ApproverRepository cdecimRepository;
 
     /** 공통코드 서비스: 예산 신청 기간 검증용 */
     private final com.kdb.it.common.code.service.CodeService codeService;
 
-    /** 공통코드 리포지토리: 코드값→코드명 변환용 (TAAABB_CCODEM) */
+    /** 공통코드 리포지토리: 코드값→코드명 변환용 (TPRMPP_CCODEM) */
     private final CodeRepository ccodemRepository;
 
     /** 편성예산(BBUGTM) 리포지토리: 일괄 조회 시 prjMngNo별 DUP_BG 합계 조회용 */
@@ -569,7 +569,7 @@ public class ProjectService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-        // TAAABB_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
+        // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
         String bgYy = request.getBgYy();
         if (bgYy != null && !bgYy.isBlank() && !responses.isEmpty()) {
             List<String> prjMngNos = responses.stream()
@@ -755,9 +755,9 @@ public class ProjectService {
      * 프로젝트 응답 DTO에 부서명/사용자명 설정 (내부 헬퍼 메서드)
      *
      * <p>
-     * 부서코드(itDpm, svnDpm)로 TAAABB_CORGNI에서 부서명(BBR_NM)을 조회하고,
+     * 부서코드(itDpm, svnDpm)로 TPRMPP_CORGNI에서 부서명(BBR_NM)을 조회하고,
      * 사원번호(itDpmCgpr, itDpmTlr, svnDpmCgpr, svnDpmTlr)로
-     * TAAABB_CUSERI에서 사용자명(USR_NM)을 조회하여 응답 DTO에 설정합니다.
+     * TPRMPP_CUSERI에서 사용자명(USR_NM)을 조회하여 응답 DTO에 설정합니다.
      * </p>
      *
      * <p>
@@ -768,7 +768,7 @@ public class ProjectService {
      * @param response 코드명을 설정할 응답 DTO
      */
     private void setCodeNames(ProjectDto.Response response) {
-        // === 부서코드 → 부서명 변환 (TAAABB_CORGNI) ===
+        // === 부서코드 → 부서명 변환 (TPRMPP_CORGNI) ===
 
         // IT부서코드 → IT부서명
         if (response.getItDpm() != null && !response.getItDpm().isEmpty()) {
@@ -782,7 +782,7 @@ public class ProjectService {
                     .ifPresent(org -> response.setSvnDpmNm(org.getBbrNm()));
         }
 
-        // === 사원번호 → 사용자명 변환 (TAAABB_CUSERI) ===
+        // === 사원번호 → 사용자명 변환 (TPRMPP_CUSERI) ===
 
         // IT담당자 사번 → IT담당자명
         if (response.getItDpmCgpr() != null && !response.getItDpmCgpr().isEmpty()) {
@@ -808,7 +808,7 @@ public class ProjectService {
                     .ifPresent(user -> response.setSvnDpmTlrNm(user.getUsrNm()));
         }
 
-        // === 공통코드 코드값 → 코드명 변환 (TAAABB_CCODEM) ===
+        // === 공통코드 코드값 → 코드명 변환 (TPRMPP_CCODEM) ===
 
         if (response.getPrjTp() != null && !response.getPrjTp().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_TP", response.getPrjTp(), null)

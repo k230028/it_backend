@@ -46,7 +46,7 @@ public class GeminiDto {
          * 첨부파일 관리번호 목록 (선택)
          *
          * <p>
-         * TAAABB_CFILEM에 저장된 파일의 관리번호를 전달하면
+         * TPRMPP_CFILEM에 저장된 파일의 관리번호를 전달하면
          * 해당 파일을 Base64로 인코딩하여 Gemini에 함께 전송합니다.
          * </p>
          *

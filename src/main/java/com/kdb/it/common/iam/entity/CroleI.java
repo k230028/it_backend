@@ -9,7 +9,7 @@ import com.kdb.it.domain.entity.BaseEntity;
  * 역할관리(사용자↔자격등급 매핑) 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_CROLEI}
+ * DB 테이블: {@code TPRMPP_CROLEI}
  * </p>
  *
  * <p>
@@ -26,7 +26,7 @@ import com.kdb.it.domain.entity.BaseEntity;
  * </ul>
  */
 @Entity
-@Table(name = "TAAABB_CROLEI", comment = "역할관리(사용자↔자격등급 매핑)")
+@Table(name = "TPRMPP_CROLEI", comment = "역할관리(사용자↔자격등급 매핑)")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

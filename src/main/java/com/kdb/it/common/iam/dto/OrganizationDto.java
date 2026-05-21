@@ -11,7 +11,7 @@ import lombok.Setter;
 /**
  * 조직(부점) 관련 DTO 클래스 모음
  *
- * <p>조직 정보(TAAABB_CORGNI) 조회에 사용되는 Response DTO를
+ * <p>조직 정보(TPRMPP_CORGNI) 조회에 사용되는 Response DTO를
  * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.</p>
  *
  * <p>조직 구조는 {@code prlmHrkOgzCCone}(상위조직코드)로 계층 구조를 형성합니다.</p>

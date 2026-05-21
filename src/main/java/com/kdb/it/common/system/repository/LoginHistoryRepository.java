@@ -13,9 +13,9 @@ import java.util.List;
  * 로그인이력(Clognh) 데이터 접근 리포지토리
  *
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여
- * 로그인이력 테이블(TAAABB_CLOGNH)에 대한 CRUD 기능을 제공합니다.</p>
+ * 로그인이력 테이블(TPRMPP_CLOGNH)에 대한 CRUD 기능을 제공합니다.</p>
  *
- * <p>기본키 타입: {@link Long} (lgnSno: Oracle 시퀀스 SEQ_CLOGNH)</p>
+ * <p>기본키 타입: {@link Long} (lgnHisSno: Oracle 시퀀스 SEQ_CLOGNH)</p>
  *
  * <p>보안 감사 목적의 이력 조회 메서드를 제공합니다.</p>
  */
@@ -105,7 +105,7 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
     /**
      * 최근 30일 일별 로그인 건수 집계 (대시보드용)
      *
-     * <p>TAAABB_CLOGNH에서 LGN_TP='LOGIN_SUCCESS' 조건으로 최근 30일간의
+     * <p>TPRMPP_CLOGNH에서 LGN_TP='LOGIN_SUCCESS' 조건으로 최근 30일간의
      * 날짜별 로그인 성공 건수를 집계합니다. Oracle TRUNC 함수로 날짜 단위 그룹화.</p>
      *
      * @return [날짜 문자열(YYYY-MM-DD), 건수] 쌍의 배열 목록
@@ -113,7 +113,7 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
     @Query(value = """
             SELECT TO_CHAR(TRUNC(LGN_DTM), 'YYYY-MM-DD') AS LGN_DATE,
                    COUNT(*) AS CNT
-            FROM TAAABB_CLOGNH
+            FROM TPRMPP_CLOGNH
             WHERE LGN_TP = 'LOGIN_SUCCESS'
               AND LGN_DTM >= TRUNC(SYSDATE) - 30
             GROUP BY TRUNC(LGN_DTM)

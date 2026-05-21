@@ -39,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 전산관리비(IT 관리비) 서비스
  *
  * <p>
- * 전산관리비(TAAABB_BCOSTM) 엔티티의 생성, 조회, 수정, 삭제(Soft Delete)
+ * 전산관리비(TPRMPP_BCOSTM) 엔티티의 생성, 조회, 수정, 삭제(Soft Delete)
  * 비즈니스 로직을 처리합니다.
  * </p>
  *
@@ -221,8 +221,8 @@ public class CostService {
                 if (tDto.getTmnMngNo() == null || tDto.getTmnMngNo().isEmpty()) {
                     tDto.setTmnMngNo(generateTmnMngNo());
                 }
-                if (tDto.getTmnSno() == null || tDto.getTmnSno().isEmpty()) {
-                    tDto.setTmnSno("1");
+                if (tDto.getTmnSno() == null) {
+                    tDto.setTmnSno(1);
                 }
 
                 Btermm btermm = tDto.toEntity();
@@ -287,7 +287,7 @@ public class CostService {
             for (CostDto.TerminalDto tDto : request.getTerminals()) {
                 /* 새 PK를 발급하여 Soft Delete된 기존 레코드와 충돌 방지 */
                 tDto.setTmnMngNo(generateTmnMngNo());
-                tDto.setTmnSno("1");
+                tDto.setTmnSno(1);
 
                 Btermm btermm = tDto.toEntity();
                 btermm.setBcostmInfo(target.getItMngcNo(), target.getItMngcSno());
@@ -356,7 +356,7 @@ public class CostService {
                 .filter(response -> response != null)
                 .collect(Collectors.toList());
 
-        // TAAABB_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
+        // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
         String bgYy = request.getBgYy();
         if (bgYy != null && !bgYy.isBlank() && !responses.isEmpty()) {
             List<String> itMngcNos = responses.stream()

@@ -11,7 +11,7 @@ import java.util.Optional;
  * 문서 검토의견(Brivgm) JPA 리포지토리
  *
  * <p>
- * 테이블: {@code TAAABB_BRIVGM}
+ * 테이블: {@code TPRMPP_BRIVGM}
  * </p>
  *
  * <p>
@@ -19,7 +19,7 @@ import java.util.Optional;
  * 복잡한 동적 쿼리가 필요해지면 별도의 {@code BrivgmRepositoryCustom} + QueryDSL 구현체로 분리합니다.
  * </p>
  */
-public interface BrivgmRepository extends JpaRepository<Brivgm, String> {
+public interface BrivgmRepository extends JpaRepository<Brivgm, Long> {
 
     /**
      * 특정 문서+버전의 미삭제 코멘트 전체 조회 (생성일 오름차순)
@@ -35,11 +35,11 @@ public interface BrivgmRepository extends JpaRepository<Brivgm, String> {
     /**
      * 코멘트 단건 조회 (미삭제 건만 대상)
      *
-     * @param ivgSno 의견일련번호 (UUID v4 기반 32자)
+     * @param ivgSno 의견일련번호
      * @param delYn  삭제여부 ('N'=미삭제, 'Y'=삭제)
      * @return 조건에 해당하는 검토의견 (없으면 {@link Optional#empty()})
      */
-    Optional<Brivgm> findByIvgSnoAndDelYn(String ivgSno, String delYn);
+    Optional<Brivgm> findByIvgSnoAndDelYn(Long ivgSno, String delYn);
 
     /**
      * 코멘트 단건 조회 (문서관리번호 + 의견일련번호 + 미삭제 조건)
@@ -49,10 +49,10 @@ public interface BrivgmRepository extends JpaRepository<Brivgm, String> {
      * 이를 통해 다른 문서의 {@code ivgSno}를 이용한 교차 접근을 차단합니다.
      * </p>
      *
-     * @param ivgSno   의견일련번호 (UUID v4 기반 32자)
+     * @param ivgSno   의견일련번호
      * @param docMngNo 문서관리번호 (예: DOC-2026-0001)
      * @param delYn    삭제여부 ('N'=미삭제, 'Y'=삭제)
      * @return 조건에 해당하는 검토의견 (없으면 {@link Optional#empty()})
      */
-    Optional<Brivgm> findByIvgSnoAndDocMngNoAndDelYn(String ivgSno, String docMngNo, String delYn);
+    Optional<Brivgm> findByIvgSnoAndDocMngNoAndDelYn(Long ivgSno, String docMngNo, String delYn);
 }

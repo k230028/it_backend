@@ -19,7 +19,7 @@ import java.time.LocalDate;
  * 신청서 마스터 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_CAPPLM}
+ * DB 테이블: {@code TPRMPP_CAPPLM}
  * </p>
  *
  * <p>
@@ -43,7 +43,7 @@ import java.time.LocalDate;
  */
 @LogTarget(entity = CapplmL.class)
 @Entity // JPA 엔티티로 등록
-@Table(name = "TAAABB_CAPPLM", comment = "신청서 마스터") // 매핑할 DB 테이블명
+@Table(name = "TPRMPP_CAPPLM", comment = "신청서 마스터") // 매핑할 DB 테이블명
 @Getter // 모든 필드의 getter 자동 생성 (Lombok)
 @SuperBuilder // 상속 구조에서 Builder 패턴 지원
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // protected 기본 생성자 (JPA 요구사항)

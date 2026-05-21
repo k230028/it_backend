@@ -558,7 +558,7 @@ class CostServiceTest {
                 .build();
         Btermm terminal = Btermm.builder()
                 .tmnMngNo("TER-001")
-                .tmnSno("1")
+                .tmnSno(1)
                 .itMngcNo(IT_MNGC_NO)
                 .itMngcSno(1)
                 .cgprEno("10003")

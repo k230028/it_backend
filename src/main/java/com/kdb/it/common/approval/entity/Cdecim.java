@@ -13,7 +13,7 @@ import java.time.LocalDate;
 /**
  * 결재 정보 관리 엔티티
  *
- * <p>DB 테이블: {@code TAAABB_CDECIM}</p>
+ * <p>DB 테이블: {@code TPRMPP_CDECIM}</p>
  *
  * <p>신청서({@link Capplm})에 대한 결재선(결재자 목록)과
  * 각 결재자의 결재 처리 정보를 관리합니다.</p>
@@ -30,7 +30,7 @@ import java.time.LocalDate;
  * 이전 결재자가 승인해야 다음 결재자가 결재할 수 있습니다.</p>
  */
 @Entity                                              // JPA 엔티티로 등록
-@Table(name = "TAAABB_CDECIM", comment = "결재 정보 관리")                       // 매핑할 DB 테이블명
+@Table(name = "TPRMPP_CDECIM", comment = "결재 정보 관리")                       // 매핑할 DB 테이블명
 @Getter                                              // 모든 필드의 getter 자동 생성 (Lombok)
 @SuperBuilder                                        // 상속 구조에서 Builder 패턴 지원
 @NoArgsConstructor(access = AccessLevel.PROTECTED)   // protected 기본 생성자 (JPA 요구사항)

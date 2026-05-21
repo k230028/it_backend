@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
  * 정보기술부문 계획 서비스
  *
  * <p>
- * 정보기술부문계획(TAAABB_BPLANM)과 정보화사업 관계(TAAABB_BPROJA)의
+ * 정보기술부문계획(TPRMPP_BPLANM)과 정보화사업 관계(TPRMPP_BPROJA)의
  * 등록, 조회, 삭제 비즈니스 로직을 담당합니다.
  * </p>
  */
@@ -164,8 +164,8 @@ public class PlanService {
          * 3. 예산 합계(TTL_BG, CPT_BG, MNGC) 계산 (정보화사업 + 전산업무비 합산)
          * 4. JSON 스냅샷 생성
          * 5. 계획관리번호 채번: PLN-{plnYy}-{seq:04d}
-         * 6. TAAABB_BPLANM 저장
-         * 7. 각 프로젝트·전산업무비에 대해 TAAABB_BPROJA 저장
+         * 6. TPRMPP_BPLANM 저장
+         * 7. 각 프로젝트·전산업무비에 대해 TPRMPP_BPROJA 저장
          * </p>
          *
          * @param request 계획 생성 요청 DTO
@@ -227,7 +227,7 @@ public class PlanService {
                 Long seq = bplanmRepository.getNextSequenceValue();
                 String plnMngNo = String.format("PLN-%s-%04d", request.getPlnYy(), seq);
 
-                // 6. TAAABB_BPLANM 저장
+                // 6. TPRMPP_BPLANM 저장
                 Bplanm plan = Bplanm.builder()
                                 .plnMngNo(plnMngNo)
                                 .plnTp(request.getPlnTp())
@@ -244,7 +244,7 @@ public class PlanService {
                                 .build();
                 bplanmRepository.save(plan);
 
-                // 7. TAAABB_BPROJA 저장 (prjMngNo 컬럼에 프로젝트/전산업무비 관리번호를 함께 저장)
+                // 7. TPRMPP_BPROJA 저장 (prjMngNo 컬럼에 프로젝트/전산업무비 관리번호를 함께 저장)
                 for (String prjMngNo : prjMngNos) {
                         Bproja relation = Bproja.builder()
                                         .prjMngNo(prjMngNo)

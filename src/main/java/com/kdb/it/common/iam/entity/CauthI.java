@@ -9,7 +9,7 @@ import com.kdb.it.domain.entity.BaseEntity;
  * 자격등급 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_CAUTHI}
+ * DB 테이블: {@code TPRMPP_CAUTHI}
  * </p>
  *
  * <p>
@@ -23,7 +23,7 @@ import com.kdb.it.domain.entity.BaseEntity;
  * </ul>
  */
 @Entity
-@Table(name = "TAAABB_CAUTHI", comment = "자격등급")
+@Table(name = "TPRMPP_CAUTHI", comment = "자격등급")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

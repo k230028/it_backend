@@ -8,7 +8,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * 정보화사업 관계(TAAABB_BPROJA) JPA 리포지토리
+ * 정보화사업 관계(TPRMPP_BPROJA) JPA 리포지토리
  */
 public interface BprojaRepository extends JpaRepository<Bproja, BprojaId> {
 

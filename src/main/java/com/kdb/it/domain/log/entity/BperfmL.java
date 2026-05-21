@@ -12,10 +12,10 @@ import lombok.experimental.SuperBuilder;
 import java.time.LocalDate;
 
 /**
- * 성과관리 자체계획(TAAABB_BPERFM) 변경 로그 엔티티.
+ * 성과관리 자체계획(TPRMPP_BPERFM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BPERFL", comment = "성과관리 자체계획 변경 로그")
+@Table(name = "TPRMPP_BPERFL", comment = "성과관리 자체계획 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -25,8 +25,8 @@ public class BperfmL extends BaseLogEntity {
     @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
     private String asctId;
 
-    @Column(name = "DTP_SNO", length = 32, comment = "지표순번")
-    private String dtpSno;
+    @Column(name = "DTP_SNO", comment = "지표순번")
+    private Integer dtpSno;
 
     @Column(name = "DTP_NM", length = 200, comment = "성과지표명")
     private String dtpNm;

@@ -13,7 +13,7 @@ import java.util.Optional;
 /**
  * 협의회 일정(Bschdm) 리포지토리
  *
- * <p>DB 테이블: {@code TAAABB_BSCHDM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BSCHDM}</p>
  *
  * <p>평가위원별 가능 일정을 수집하고, IT관리자가 최종 일정을 확정합니다.</p>
  */
@@ -63,10 +63,10 @@ public interface ScheduleRepository extends JpaRepository<Bschdm, BschdmId> {
      * @return 미응답 위원 수
      */
     @Query(value = """
-            SELECT COUNT(*) FROM TAAABB_BCMMTM c
+            SELECT COUNT(*) FROM TPRMPP_BCMMTM c
             WHERE c.ASCT_ID = :asctId AND c.DEL_YN = 'N'
             AND NOT EXISTS (
-                SELECT 1 FROM TAAABB_BSCHDM s
+                SELECT 1 FROM TPRMPP_BSCHDM s
                 WHERE s.ASCT_ID = c.ASCT_ID AND s.ENO = c.ENO AND s.DEL_YN = 'N'
             )
             """, nativeQuery = true)

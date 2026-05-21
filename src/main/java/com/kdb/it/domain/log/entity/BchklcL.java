@@ -10,10 +10,10 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 타당성 자체점검(TAAABB_BCHKLC) 변경 로그 엔티티.
+ * 타당성 자체점검(TPRMPP_BCHKLC) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BCHKLL", comment = "타당성 자체점검 변경 로그")
+@Table(name = "TPRMPP_BCHKLL", comment = "타당성 자체점검 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
