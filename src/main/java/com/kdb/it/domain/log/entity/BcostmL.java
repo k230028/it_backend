@@ -23,7 +23,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class BcostmL extends BaseLogEntity {
 
-    @Column(name = "IT_MNGC_NO", length = 128, comment = "전산업무비코드")
+    @Column(name = "IT_MNGC_NO", length = 32, comment = "전산업무비코드")
     private String itMngcNo;
 
     @Column(name = "IT_MNGC_SNO", comment = "전산업무비일련번호")

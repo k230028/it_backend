@@ -51,7 +51,7 @@ public class Bcostm extends BaseEntity {
 
     /** 전산업무비코드(IT관리비관리번호): 복합 기본키의 첫 번째 컬럼 (예: COST_2026_0001) */
     @Id
-    @Column(name = "IT_MNGC_NO", nullable = false, length = 128, comment = "전산업무비코드")
+    @Column(name = "IT_MNGC_NO", nullable = false, length = 32, comment = "전산업무비코드")
     private String itMngcNo;
 
     /** 전산업무비일련번호(IT관리비일련번호): 복합 기본키의 두 번째 컬럼 (버전 구분용, 1부터 시작) */
@@ -136,7 +136,7 @@ public class Bcostm extends BaseEntity {
     private String pulDtt;
 
     /** 관련전산업무비번호: 계속항목인 경우 전년도 항목의 관리번호 */
-    @Column(name = "CNCD_IT_MNGC_NO", length = 128, comment = "관련전산업무비번호")
+    @Column(name = "CNCD_IT_MNGC_NO", length = 32, comment = "관련전산업무비번호")
     private String cncdItMngcNo;
 
     /**
