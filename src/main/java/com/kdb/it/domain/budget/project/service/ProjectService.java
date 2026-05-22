@@ -283,7 +283,7 @@ public class ProjectService {
                         .xcr(itemDto.getXcr()) // 환율
                         .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
                         .bgFdtnCone(itemDto.getBgFdtnCone()) // 예산근거
-                        .itdYm(itemDto.getItdYm()) // 도입시기
+                        .itdYm(toItdYm(itemDto.getItdYm())) // 도입시기
                         .dfrCleC(itemDto.getDfrCleC()) // 지급주기
                         .infPrtYn(itemDto.getInfPrtYn() == null ? "N" : itemDto.getInfPrtYn()) // 정보보호여부
                         .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
@@ -407,7 +407,7 @@ public class ProjectService {
                                     .xcr(itemDto.getXcr()) // 환율
                                     .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
                                     .bgFdtnCone(itemDto.getBgFdtnCone()) // 예산근거
-                                    .itdYm(itemDto.getItdYm()) // 도입시기
+                                    .itdYm(toItdYm(itemDto.getItdYm())) // 도입시기
                                     .dfrCleC(itemDto.getDfrCleC()) // 지급주기
                                     .infPrtYn(defaultYn(itemDto.getInfPrtYn()))
                                     .itrInfrYn(defaultYn(itemDto.getItrInfrYn()))
@@ -437,7 +437,7 @@ public class ProjectService {
                             .xcr(itemDto.getXcr()) // 환율
                             .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
                             .bgFdtnCone(itemDto.getBgFdtnCone()) // 예산근거
-                            .itdYm(itemDto.getItdYm()) // 도입시기
+                            .itdYm(toItdYm(itemDto.getItdYm())) // 도입시기
                             .dfrCleC(itemDto.getDfrCleC()) // 지급주기
                             .infPrtYn(itemDto.getInfPrtYn() == null ? "N" : itemDto.getInfPrtYn()) // 정보보호여부
                             .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
@@ -489,6 +489,19 @@ public class ProjectService {
     /** null이면 "N"으로 정규화 (infPrtYn, itrInfrYn 공통 기본값 처리) */
     private static String defaultYn(String value) {
         return value == null ? "N" : value;
+    }
+
+    /**
+     * 도입시기를 DB 컬럼 형식(YYYYMM, 6자)으로 변환.
+     * 프론트에서 "YYYY-MM-DD" 또는 "YYYY-MM" 형식이 올 수 있으므로
+     * 하이픈을 제거한 뒤 앞 6자만 사용한다. 빈값/null은 그대로 반환.
+     */
+    private static String toItdYm(String itdYm) {
+        if (itdYm == null || itdYm.isBlank()) {
+            return itdYm;
+        }
+        String normalized = itdYm.replace("-", "");
+        return normalized.length() > 6 ? normalized.substring(0, 6) : normalized;
     }
 
     /** BigDecimal 수치 비교 (scale 무시). 둘 다 null이면 동일, 한쪽만 null이면 변경으로 간주 */
