@@ -400,7 +400,7 @@ class CostServiceTest {
 
         assertThat(result).isEqualTo(IT_MNGC_NO);
         assertThat(terminal.getTmnMngNo()).matches("TER-\\d{4}-0007");
-        assertThat(terminal.getTmnSno()).isEqualTo("1");
+        assertThat(terminal.getTmnSno()).isEqualTo(1);
         verify(btermmRepository).save(any(Btermm.class));
     }
 

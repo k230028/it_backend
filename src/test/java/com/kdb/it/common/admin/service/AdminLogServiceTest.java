@@ -110,9 +110,9 @@ class AdminLogServiceTest {
     @Test
     @DisplayName("getLogDetail: 로그가 없으면 IllegalArgumentException을 던진다")
     void getLogDetail_로그없음_IllegalArgumentException발생() {
-        given(entityManager.find(eq(BasctmL.class), eq("MISSING"))).willReturn(null);
+        given(entityManager.find(eq(BasctmL.class), eq(999L))).willReturn(null);
 
-        assertThatThrownBy(() -> adminLogService.getLogDetail("basctm", "MISSING"))
+        assertThatThrownBy(() -> adminLogService.getLogDetail("basctm", "999"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("존재하지 않는 로그");
     }

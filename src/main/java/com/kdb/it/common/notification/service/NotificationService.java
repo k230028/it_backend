@@ -34,12 +34,6 @@ public class NotificationService {
     private final NotificationDispatcher dispatcher;
 
     /**
-     * 알림 1건 적재 + 디스패처 호출.
-     *
-     * @param event 발송 이벤트
-     * @return 적재된 알림 엔티티 (테스트·로깅용)
-     */
-    /**
      * 알림 1건 적재.
      *
      * <p><b>Propagation.REQUIRES_NEW 필수.</b> 본 메서드는

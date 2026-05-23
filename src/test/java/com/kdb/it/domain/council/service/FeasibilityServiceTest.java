@@ -119,7 +119,7 @@ class FeasibilityServiceTest {
 
         feasibilityService.saveFeasibility(ASCT_ID, request);
 
-        verify(councilService).changeStatus(ASCT_ID, "SUBMITTED");
+        verify(councilService).changeStatus(ASCT_ID, "002");
     }
 
     @Test
@@ -168,8 +168,8 @@ class FeasibilityServiceTest {
                 .willReturn(Optional.empty());
 
         List<CouncilDto.CheckItemRequest> checkItems = List.of(
-                new CouncilDto.CheckItemRequest("MGMT_STR", "경영전략 부합 검토", 4),
-                new CouncilDto.CheckItemRequest("FIN_EFC", "재무 효과 검토", 3)
+                new CouncilDto.CheckItemRequest("001", "경영전략 부합 검토", 4),
+                new CouncilDto.CheckItemRequest("002", "재무 효과 검토", 3)
         );
 
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
@@ -180,8 +180,8 @@ class FeasibilityServiceTest {
         feasibilityService.saveFeasibility(ASCT_ID, request);
 
         // then: 각 항목 코드별로 upsert 조회 호출 확인
-        verify(feasibilityCheckRepository).findByAsctIdAndCkgItmCAndDelYn(ASCT_ID, "MGMT_STR", "N");
-        verify(feasibilityCheckRepository).findByAsctIdAndCkgItmCAndDelYn(ASCT_ID, "FIN_EFC", "N");
+        verify(feasibilityCheckRepository).findByAsctIdAndCkgItmCAndDelYn(ASCT_ID, "001", "N");
+        verify(feasibilityCheckRepository).findByAsctIdAndCkgItmCAndDelYn(ASCT_ID, "002", "N");
     }
 
     @Test
@@ -193,11 +193,11 @@ class FeasibilityServiceTest {
 
         com.kdb.it.domain.council.entity.Bchklc existingCheck =
                 mock(com.kdb.it.domain.council.entity.Bchklc.class);
-        given(feasibilityCheckRepository.findByAsctIdAndCkgItmCAndDelYn(ASCT_ID, "MGMT_STR", "N"))
+        given(feasibilityCheckRepository.findByAsctIdAndCkgItmCAndDelYn(ASCT_ID, "001", "N"))
                 .willReturn(Optional.of(existingCheck));
 
         List<CouncilDto.CheckItemRequest> checkItems = List.of(
-                new CouncilDto.CheckItemRequest("MGMT_STR", "수정된검토내용", 5)
+                new CouncilDto.CheckItemRequest("001", "수정된검토내용", 5)
         );
 
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
@@ -209,7 +209,7 @@ class FeasibilityServiceTest {
 
         // then: 기존 점검항목 update() 호출 및 SUBMITTED 상태 전이
         verify(existingCheck).update("수정된검토내용", 5);
-        verify(councilService).changeStatus(ASCT_ID, "SUBMITTED");
+        verify(councilService).changeStatus(ASCT_ID, "002");
     }
 
     @Test
@@ -230,8 +230,8 @@ class FeasibilityServiceTest {
 
         // then: 6개 항목이 고정 순서(MGMT_STR → ETC)로 반환
         assertThat(result.checkItems()).hasSize(6);
-        assertThat(result.checkItems().get(0).ckgItmC()).isEqualTo("MGMT_STR");
-        assertThat(result.checkItems().get(5).ckgItmC()).isEqualTo("ETC");
+        assertThat(result.checkItems().get(0).ckgItmC()).isEqualTo("001");
+        assertThat(result.checkItems().get(5).ckgItmC()).isEqualTo("006");
     }
 
     @Test
@@ -264,7 +264,7 @@ class FeasibilityServiceTest {
         given(overview.getKpnTp()).willReturn("TEMP");
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
         com.kdb.it.domain.council.entity.Bchklc check = mock(com.kdb.it.domain.council.entity.Bchklc.class);
-        given(check.getCkgItmC()).willReturn("MGMT_STR");
+        given(check.getCkgItmC()).willReturn("001");
         given(check.getCkgCone()).willReturn("검토내용");
         given(check.getCkgRcrd()).willReturn(5);
         given(feasibilityCheckRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(check));

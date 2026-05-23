@@ -131,6 +131,7 @@ public class ProjectController {
      */
     @PostMapping
     @Operation(summary = "신규 정보화사업 생성", description = "신규 정보화사업을 생성합니다.")
+        // FIXME: @Valid 추가 필요 — Bean Validation이 동작하지 않아 미검증 입력이 서비스 레이어로 전달됨 (CLAUDE.md §5.5.2)
     public ResponseEntity<String> createProject(@RequestBody ProjectDto.CreateRequest request) {
         String prjMngNo = projectService.createProject(request);
         // 201 Created 응답 + Location 헤더에 생성된 리소스 URL 포함
@@ -164,6 +165,7 @@ public class ProjectController {
     @PutMapping("/{prjMngNo}")
     @Operation(summary = "정보화사업 수정", description = "정보화사업을 수정합니다.")
     public ResponseEntity<String> updateProject(@PathVariable("prjMngNo") String prjMngNo,
+        // FIXME: @Valid 추가 필요 — Bean Validation이 동작하지 않아 미검증 입력이 서비스 레이어로 전달됨 (CLAUDE.md §5.5.2)
             @RequestBody ProjectDto.UpdateRequest request) {
         String updatedPrjMngNo = projectService.updateProject(prjMngNo, request);
         return ResponseEntity.ok(updatedPrjMngNo);

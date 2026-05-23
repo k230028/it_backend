@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
  * 등록, 조회, 삭제 비즈니스 로직을 담당합니다.
  * </p>
  */
+// TODO: 클래스 레벨 @Transactional(readOnly=true) 추가 필요 — 조회 위주 서비스이므로 메서드별 어노테이션 누락 방지 (CLAUDE.md §5.5)
 @Service
 @RequiredArgsConstructor
 public class PlanService {

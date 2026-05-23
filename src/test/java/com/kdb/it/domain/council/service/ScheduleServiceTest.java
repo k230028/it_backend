@@ -154,7 +154,7 @@ class ScheduleServiceTest {
         scheduleService.confirmSchedule(ASCT_ID, request);
 
         verify(council).confirmSchedule(TEST_DATE, "10:00", "본관 1층");
-        verify(councilService).changeStatus(ASCT_ID, "SCHEDULED");
+        verify(councilService).changeStatus(ASCT_ID, "006");
     }
 
     // ───────────────────────────────────────────────────────
@@ -295,12 +295,12 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: 위원 1명이 미응답인 경우 현황 DTO를 반환한다")
     void getScheduleStatus_위원1명미응답_현황반환() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTp()).willReturn("ETC");
+        given(council.getDbrTp()).willReturn("005");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
-        given(member.getVlrTp()).willReturn("MAND");
+        given(member.getVlrTp()).willReturn("001");
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
 
         // 아직 일정 응답 없음
@@ -322,12 +322,12 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: 전원 응답(ETC 타입)이면 allRequiredResponded가 true이다")
     void getScheduleStatus_전원응답ETC_allRequiredRespondedTrue() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTp()).willReturn("ETC");
+        given(council.getDbrTp()).willReturn("005");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
-        given(member.getVlrTp()).willReturn("MAND");
+        given(member.getVlrTp()).willReturn("001");
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
 
         // 해당 위원이 일정을 응답함
@@ -358,15 +358,15 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: INFO_SYS 필수 팀장들이 모두 응답하면 확정 가능하다")
     void getScheduleStatus_INFO_SYS필수팀장응답_true() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTp()).willReturn("INFO_SYS");
+        given(council.getDbrTp()).willReturn("003");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm budgetLead = mock(Bcmmtm.class);
         Bcmmtm itLead = mock(Bcmmtm.class);
         given(budgetLead.getEno()).willReturn("12004");
-        given(budgetLead.getVlrTp()).willReturn("MAND");
+        given(budgetLead.getVlrTp()).willReturn("001");
         given(itLead.getEno()).willReturn("18001");
-        given(itLead.getVlrTp()).willReturn("MAND");
+        given(itLead.getVlrTp()).willReturn("001");
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetLead, itLead));
 
         Bschdm budgetSlot = mock(Bschdm.class);
@@ -400,7 +400,7 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: INFO_SYS 필수 팀장 중 한 명이 미응답이면 확정 불가다")
     void getScheduleStatus_INFO_SYS필수팀장미응답_false() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTp()).willReturn("INFO_SYS");
+        given(council.getDbrTp()).willReturn("003");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm budgetLead = mock(Bcmmtm.class);

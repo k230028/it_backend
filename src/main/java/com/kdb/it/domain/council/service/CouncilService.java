@@ -97,6 +97,7 @@ public class CouncilService {
         if (userDetails.isAdmin()) {
             // 관리자: 전체 부서 대상으로 결재완료 사업(미신청 포함) + 기신청 협의회 통합 조회
             List<Object[]> rows = councilRepository.findProjectsForCouncilAll(
+                    // TODO: 유니코드 이스케이프를 한글 리터럴로 교체 필요 — 가독성 심각 저해 (예: "정실협..." -> "정실협 진행중...")
                     "\uc815\uc2e4\ud611 \uc9c4\ud589\uc911", "\uc608\uc0b0 \uc791\uc131", "\uacc4\ud68d \uc791\uc131",
                     "\uacb0\uc7ac\uc644\ub8cc");
             log.info("[CouncilList] admin query result count={}", rows.size());
@@ -112,6 +113,7 @@ public class CouncilService {
 
         // 일반사용자: SVN_DPM = 사용자 BBR_C 조건으로 결재완료 사업 + 기신청 협의회 통합 조회
         List<Object[]> rows = councilRepository.findProjectsForCouncilByDepartment(
+                // TODO: 유니코드 이스케이프를 한글 리터럴로 교체 필요 — 가독성 심각 저해 (예: "정실협..." -> "정실협 진행중...")
                 userDetails.getBbrC(), "\uc815\uc2e4\ud611 \uc9c4\ud589\uc911", "\uc608\uc0b0 \uc791\uc131",
                 "\uacc4\ud68d \uc791\uc131", "\uacb0\uc7ac\uc644\ub8cc");
         log.info("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());

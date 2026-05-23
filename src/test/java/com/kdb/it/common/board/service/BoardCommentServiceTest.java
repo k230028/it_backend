@@ -159,6 +159,8 @@ class BoardCommentServiceTest {
 
         given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
             .willReturn(Optional.of(comment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+            .willReturn(Optional.of(post));
 
         var request = new BoardCommentDto.UpdateRequest("수정된 댓글 내용");
 
@@ -349,6 +351,8 @@ class BoardCommentServiceTest {
 
         given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
             .willReturn(Optional.of(comment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+            .willReturn(Optional.of(post));
 
         var request = new BoardCommentDto.UpdateRequest("관리자 수정 내용");
 

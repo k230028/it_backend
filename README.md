@@ -222,7 +222,7 @@ common → domain (X)   common → infra  (X)
    → NotificationDispatcher.dispatch() — EAI 메타 기록
 
 4. NotificationDispatcher (전략 인터페이스)
-   → 현 Phase: INAPP만 처리 (EAI_SD_TP_C='INAPP')
+   → 현 Phase: INAPP만 처리 (EAI_SD_TP_C='001')
    → Phase 2: EMAIL/SMS/TALK 채널 추가
 ```
 
@@ -246,7 +246,7 @@ public interface NotificationDispatcher {
 // Phase 1 (현재): 인앱만
 public class StubNotificationDispatcher implements NotificationDispatcher {
     public void dispatch(Cinfmm notification, String eaiPayload) {
-        notification.markDispatched("INAPP", null);
+        notification.markDispatched("001", null); // EAI_SD_TP='001' = INAPP 채널 코드
     }
 }
 
@@ -310,16 +310,19 @@ public class MultiChannelDispatcher implements NotificationDispatcher {
 
 #### 토큰 형식 및 해석
 
-**토큰 형식**: `{CATEGORY}:{YEAR}:{ITEM}` 또는 `{CATEGORY}:{YEAR}:{PROJECT_CODE}:{ITEM}`
+**토큰 형식**: `<YEAR>.<CATEGORY>[.<PROJECT_CODE>].<ITEM>` (점 구분, 카테고리는 camelCase)
+
+- 비사업 카테고리: `{연도}.{itBudget|capBudget|opex}.{항목}`
+- 사업 카테고리: `{연도}.proj.{사업코드}.{항목}`
 
 예시 요청 (`/resolve`):
 
 ```json
 {
   "tokens": [
-    "IT_BUDGET:2026:requestAmount",
-    "PROJ:2026:PRJ-2026-0001:allocatedAmount",
-    "CAP_BUDGET:2026:allocationRate"
+    "2026.itBudget.requestAmount",
+    "2026.proj.PRJ-2026-0001.allocatedAmount",
+    "2026.capBudget.allocationRate"
   ]
 }
 ```
@@ -329,15 +332,15 @@ public class MultiChannelDispatcher implements NotificationDispatcher {
 ```json
 {
   "results": {
-    "IT_BUDGET:2026:requestAmount": {
+    "2026.itBudget.requestAmount": {
       "status": "OK",
       "value": "500억원"
     },
-    "PROJ:2026:PRJ-2026-0001:allocatedAmount": {
+    "2026.proj.PRJ-2026-0001.allocatedAmount": {
       "status": "MISSING",
       "value": null
     },
-    "CAP_BUDGET:2026:allocationRate": {
+    "2026.capBudget.allocationRate": {
       "status": "OK",
       "value": "85.3%"
     }

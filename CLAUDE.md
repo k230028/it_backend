@@ -247,5 +247,178 @@ src/main/resources/
 | `401 Unauthorized` | 인증 실패 (토큰 없음/만료) |
 | `403 Forbidden` | 접근 권한 없음 |
 
+### 5.16 알림 시스템 (common/notification)
+
+#### 목적 및 아키텍처
+- **목적**: 앱 내 알림(인앱), 이메일, SMS, 알림톡 등 다중 채널 알림 발송 통합 관리.
+- **패턴**: Event-driven 이벤트 발행 → 비동기 리스너 → DB 적재 → 채널별 디스패처 호출.
+
+#### 알림 발송 흐름
+1. 비즈니스 로직(결재, 게시판, 시스템 등)에서 `ApplicationEventPublisher.publishEvent(new NotificationEvent(...))` 호출.
+2. `NotificationEventListener`가 `@TransactionalEventListener(phase=AFTER_COMMIT)` 콜백으로 `NotificationService.send(event)` 호출.
+3. `NotificationService.send()`:
+   - `@Transactional(propagation=Propagation.REQUIRES_NEW)` 필수 — Spring 7.0에서 AFTER_COMMIT 페이즈는 outer 트랜잭션 종료 후 non-transactional synchronization 컨텍스트에서 호출되므로, `REQUIRED`만으로는 `TransactionRequiredException`이 발생. `REQUIRES_NEW`로 항상 새 트랜잭션을 강제 시작.
+   - 채번 → `INF-{YYYY}-{8자리 시퀀스}` 생성 (예: `INF-2026-00000001`).
+   - 엔티티 빌드 후 `saveAndFlush()` — 즉시 INSERT 실행 (flush 스킵 회피).
+   - `NotificationDispatcher.dispatch(notification, eaiPayload)` 호출 (부수 효과).
+
+#### 알림 채번 규칙
+- 형식: `INF-{YYYY}-{NEXTVAL:08d}`
+  - 예: `INF-2026-00000001`, `INF-2026-00000002`
+- 시퀀스는 `CINFMM` 테이블 스키마 기반 `NEXTVAL()` 호출로 생성 (Repository).
+
+#### 알림 종류 상수 (Ccodem cId='INF_TP')
+```
+001 — 시스템 알림 (TYPE_SYSTEM)
+002 — 결재요청 (TYPE_APPROVAL_REQUEST)
+003 — 결재결과 (TYPE_APPROVAL_RESULT)
+004 — 게시물 멘션 (TYPE_MENTION_POST)
+005 — 댓글 멘션 (TYPE_MENTION_COMMENT)
+```
+호출자는 `NotificationEvent.TYPE_*` 상수 사용 권장 (오타 방지).
+
+#### API 엔드포인트 (`/api/notifications`)
+1. **`GET /api/notifications`** — 본인 알림 목록 페이지 조회.
+   - 쿼리 파라미터: `unreadOnly` (true=미읽음만), `page` (기본값 0), `size` (기본값 20).
+   - 응답: `Page<NotificationDto.Item>` (최신순 FST_ENR_DTM DESC).
+
+2. **`GET /api/notifications/unread-count`** — 본인 미읽음 카운트.
+   - 응답: `NotificationDto.UnreadCount { count: long }`.
+   - 용도: AppHeader 배지 표시.
+
+3. **`PATCH /api/notifications/{infMngNo}/read`** — 단건 읽음 처리.
+   - 경로 파라미터: `infMngNo`.
+   - 응답: 204 No Content.
+   - 소유자 검증: 본인 알림만 가능 (AccessDeniedException 발생).
+
+4. **`PATCH /api/notifications/read-all`** — 본인 미읽음 일괄 읽음.
+   - 응답: `NotificationDto.MarkAllReadResponse { updated: long }`.
+
+5. **`DELETE /api/notifications/{infMngNo}`** — 단건 Soft Delete.
+   - 경로 파라미터: `infMngNo`.
+   - 응답: 204 No Content.
+   - 소유자 검증: 본인 알림만 가능.
+
+모든 엔드포인트는 인증 필수 (`@AuthenticationPrincipal CustomUserDetails`).
+
+#### 보안 — 소유권 검증
+- 본인만 자신의 알림에 접근 가능 (조회/읽음/삭제).
+- 타인 알림 조회/수정/삭제 시도 → `AccessDeniedException` 발생.
+- `NotificationService.loadOwned(infMngNo, currentEno)` 내부 헬퍼로 검증.
+
+#### 디스패처 패턴 (NotificationDispatcher SPI)
+- **인터페이스**: `NotificationDispatcher.dispatch(Cinfmm notification, String eaiPayload)`.
+- **현재 구현**: `StubNotificationDispatcher` — 인앱(INAPP) 채널만 처리.
+  - `notification.markDispatched("001", eaiPayload)` 호출 (EAI_SD_TP_C='001' + EAI_SD_DTM=now).
+  - 외부 채널 실연동 없음 (Phase 2 예정).
+- **향후 확장**: 이메일, SMS, 카톡(알림톡) 어댑터 추가 시 채널별 구현체 분리 + 라우터 도입.
+  - 각 구현체는 `NotificationDispatcher` 인터페이스 구현.
+  - `dispatch()` 내에서 발송 실패 처리: 예외 발생 금지, 로깅만 수행 (부수 효과로 취급).
+
+### 5.17 Tiptap 변수 시스템 (common/system/tiptap)
+
+#### 목적 및 설계
+- **목적**: Tiptap 리치 에디터 문서에 변수 토큰 삽입 → 런타임에 실제 데이터값(예산액, 편성률)으로 해석 및 표시.
+- **사용 사례**: 템플릿 문서(결재문, 제안문 등)에 `2026.itBudget.requestAmount` 같은 토큰 삽입 → 조회 시 실제 편성요청액 숫자로 치환 표시.
+
+#### 토큰 형식 및 파서 (TiptapTokenParser)
+**구조**: `<YEAR>.<CATEGORY>[.<PROJECT_CODE>].<ITEM>`
+
+예시:
+- `2026.itBudget.requestAmount` → 2026 전산예산 편성요청액.
+- `2026.capBudget.allocatedAmount` → 2026 자본예산 편성액.
+- `2026.proj.P001.allocationRate` → 2026 사업 P001의 편성률.
+
+**정규식**:
+- 비사업 (itBudget/capBudget/opex): `^(\d{4})\.(itBudget|capBudget|opex)\.(requestAmount|allocatedAmount|allocationRate)$`
+- 사업 (proj): `^(\d{4})\.proj\.([A-Z0-9_-]+)\.(requestAmount|allocatedAmount|allocationRate)$`
+
+**파서 결과** (ParseResult):
+```java
+record ParseResult(boolean valid, Integer year, Category category, 
+                   String projectCode, String item)
+```
+- `valid=false` → 형식 오류.
+- `projectCode` — 사업 카테고리일 때만 null 아님.
+
+#### 변수 카탈로그 구조 (MetadataResponse)
+```
+categories: [
+  {
+    code: "IT_BUDGET",
+    label: "전산예산",
+    years: [2024, 2025, 2026, 2027, 2028],
+    projects: null,           // 비사업 카테고리는 projects=null
+    items: [
+      { key: "requestAmount", label: "편성요청액" },
+      { key: "allocatedAmount", label: "편성액" },
+      { key: "allocationRate", label: "편성률" }
+    ]
+  },
+  {
+    code: "PROJ",
+    label: "사업별",
+    years: [2024, 2025, 2026, 2027, 2028],
+    projects: [
+      { code: "P001", name: "클라우드 전환" },
+      ...
+    ],
+    items: [...]
+  },
+  ...
+]
+```
+**카테고리**:
+- `IT_BUDGET` — 전산예산.
+- `CAP_BUDGET` — 자본예산.
+- `OPEX` — 일반관리비.
+- `PROJ` — 사업별 (project 목록 포함).
+
+#### 해석 결과 상태 (ResolvedValue)
+```java
+record ResolvedValue(String value, String status)
+```
+
+상태 값:
+- **`OK`** — 정상 해석, `value`에 포맷팅된 표시값 포함.
+  - 예: `"900억원"`, `"85.3%"`.
+- **`INVALID`** — 토큰 형식 오류 (정규식 불일치), `value=""`.
+- **`MISSING`** — 해당 카테고리/사업/년도에 데이터 없음, `value=""`.
+  - 또는 편성요청액이 0 또는 null (편성률 계산 불가).
+- **`FORBIDDEN`** — 권한 없음 (향후 SecurityContext 기준 필터링), `value=""`.
+
+#### 포맷팅 규칙
+**금액 (formatAmount)**:
+- 1억 이상: `"900억원"` (100_000_000 단위).
+- 1만 이상: `"5000만원"` (10_000 단위).
+- 그 외: `"123원"`.
+
+**편성률 (formatRate)**:
+- 계산: `편성액 / 편성요청액 × 100` (소수점 한 자리).
+- 예: `"85.3%"`.
+- null/0 조건 → `MISSING`.
+
+#### API 엔드포인트 (`/api/tiptap-variables`)
+1. **`GET /api/tiptap-variables/metadata`** — 변수 카탈로그 조회.
+   - 응답: `TiptapVariableDto.MetadataResponse` (위 구조 참조).
+   - Tiptap 변수 드롭다운(UI) 초기화 시 호출.
+   - 권한별 필터링: 서비스 계층에서 SecurityContext 기준 적용 (향후 Task).
+
+2. **`POST /api/tiptap-variables/resolve`** — 토큰 배열 해석.
+   - 요청 본문: `TiptapVariableDto.ResolveRequest { tokens: List<String> }`.
+   - 토큰 개수 제약: 1~200개 (JPA 검증).
+   - 응답: `TiptapVariableDto.ResolveResponse { results: Map<String, ResolvedValue> }`.
+     - `results`는 LinkedHashMap (삽입 순서 유지) → 프론트 표시 순서 보장.
+   - 각 토큰별 해석 결과: `{ "2026.itBudget.requestAmount": { "value": "900억원", "status": "OK" }, ... }`.
+
+#### 데이터 쿼리 (BudgetStatusQueryRepository)
+- **카테고리 집계**: `aggregateByCategory(year, category)` → `AggregatedAmount { requestSum, allocatedSum }`.
+- **사업 집계**: `aggregateByProject(year, projectCode)` → `AggregatedAmount { requestSum, allocatedSum }`.
+- null/결과 없음 → `ResolvedValue.missing()`.
+
+#### 권한 필터링 (향후 Task)
+- 현재: 권한 검증 없음 (모든 인증 사용자 접근 가능).
+- 향후: `SecurityContext` 기준 사용자 권한/부서별 카탈로그 및 해석 결과 필터링 (§4.5 Design Ref).
+
 ## 7. 주석 작성 예시
 JavaDoc 표준 양식과 코드 예제는 → [`docs/guides/comment-style.md`](docs/guides/comment-style.md) 참조.
