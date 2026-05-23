@@ -39,9 +39,16 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = "SELECT SEQ_CAPPLM.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextVal();
 
-    /** 본인에게 온 결재 대기 건수 (APF_STS='결재중' AND 결재선 미처리) */
+    /**
+     * 본인에게 온 결재 대기 건수 (APF_STS='결재중' AND 결재선 미처리)
+     *
+     * <p>신청서 단위 카운트입니다. 동일 신청서에서 같은 결재자가 1차·2차에 모두
+     * 지정된 경우 결재선(TPRMPP_CDECIM) 행은 2건이지만, "동일 결재자 연속 등장 시
+     * 일괄 승인" 규칙에 따라 결재 행위는 1건이므로 신청서(APF_MNG_NO) 기준으로
+     * DISTINCT 집계합니다.</p>
+     */
     @Query(value = """
-        SELECT COUNT(*)
+        SELECT COUNT(DISTINCT a.APF_MNG_NO)
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
         WHERE a.APF_STS = '결재중'
