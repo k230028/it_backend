@@ -68,7 +68,7 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "CGPR_ENO", length = 32, comment = "담당자행번")
     private String cgprEno;
 
-    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
     @Column(name = "BICE_DPM_C", length = 3, comment = "담당부서코드")

@@ -71,7 +71,7 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "BICE_DPM_C", length = 3, comment = "담당부서코드")
     private String biceDpmC;
 
-    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
     @Column(name = "BG_YY", length = 4, comment = "예산연도")

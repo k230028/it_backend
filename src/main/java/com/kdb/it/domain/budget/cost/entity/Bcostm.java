@@ -116,7 +116,7 @@ public class Bcostm extends BaseEntity {
     private String biceDpmC;
 
     /** 담당팀: 해당 비용 항목의 담당 팀 코드 */
-    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
     /** 예산연도 (4자리 숫자, 예: 2026) */

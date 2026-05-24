@@ -113,7 +113,7 @@ public class Btermm extends BaseEntity {
     private String cgprEno;
 
     /** 담당팀 */
-    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
     /** 담당부서 */
