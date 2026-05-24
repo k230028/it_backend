@@ -76,4 +76,8 @@ public class BtermmL extends BaseLogEntity {
 
     @Column(name = "RMK", length = 300, comment = "비고")
     private String rmk;
+
+    /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
 }

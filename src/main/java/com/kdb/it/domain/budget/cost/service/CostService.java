@@ -18,6 +18,8 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 
@@ -84,6 +86,9 @@ public class CostService {
 
     /** 편성예산(BBUGTM) 리포지토리: 일괄 조회 시 itMngcNo별 DUP_BG 합계 조회용 */
     private final BbugtmRepository bbugtmRepository;
+
+    /** 환율 표준 조회 헬퍼: 외화 저장 전 Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7) */
+    private final XcrLookupService xcrLookupService;
 
     /** 일반관리비 대상 코드값구분 */
     private static final Set<String> COST_CTT_TPS = Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE");
@@ -213,6 +218,15 @@ public class CostService {
             nextSno = 1;
         }
 
+        // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+        request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
+
+        // 외화 재계산: 클라 itMngcBgAmt를 fcAmt × xcr로 덮어씀 (CONTEXT.md 결정 C)
+        BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
+                request.getFcAmt(), request.getItMngcBgAmt(), request.getCurC(), request.getXcr());
+        request.setItMngcBgAmt(reconciled[0]);
+        request.setFcAmt(reconciled[1]);
+
         Bcostm bcostm = request.toEntity(nextSno);
         costRepository.save(bcostm);
 
@@ -224,6 +238,15 @@ public class CostService {
                 if (tDto.getTmnSno() == null) {
                     tDto.setTmnSno(1);
                 }
+
+                // XCR 표준 조회 (단말기): Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+                tDto.setXcr(xcrLookupService.resolveXcr(tDto.getCurC(), LocalDate.now()));
+
+                // 단말기 외화 재계산 (CONTEXT.md 결정 C)
+                BigDecimal[] tReconciled = BudgetAmountCalculator.reconcileAmount(
+                        tDto.getFcAmt(), tDto.getTmlAmt(), tDto.getCurC(), tDto.getXcr());
+                tDto.setTmlAmt(tReconciled[0]);
+                tDto.setFcAmt(tReconciled[1]);
 
                 Btermm btermm = tDto.toEntity();
                 btermm.setBcostmInfo(bcostm.getItMngcNo(), bcostm.getItMngcSno());
@@ -269,13 +292,23 @@ public class CostService {
 
         validateModifyPermission(target.getFstEnrUsid(), target.getBiceDpmC());
 
+        // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+        request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
+
+        // 외화 재계산: 클라 itMngcBgAmt를 fcAmt × xcr로 덮어씀 (CONTEXT.md 결정 C)
+        BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
+                request.getFcAmt(), request.getItMngcBgAmt(), request.getCurC(), request.getXcr());
+        request.setItMngcBgAmt(reconciled[0]);
+        request.setFcAmt(reconciled[1]);
+
         target.update(
                 request.getIoeC(), request.getCttNm(), request.getCttOppNm(),
                 request.getItMngcBgAmt(), request.getDfrCleC(), request.getFstDfrDt(),
                 request.getCurC(), request.getXcr(), request.getXcrBseDt(),
                 request.getInfPrtYn(), request.getIndRsn(), request.getCgprEno(),
                 request.getBiceDpmC(), request.getBiceTemC(), request.getAbusC(),
-                request.getItMngcTp(), request.getPulDtt(), request.getBgYy(), request.getCncdItMngcNo());
+                request.getItMngcTp(), request.getPulDtt(), request.getBgYy(), request.getCncdItMngcNo(),
+                request.getFcAmt());
 
         /* 연관된 단말기 목록 업데이트: 기존 Soft Delete 후 재등록 */
         List<Btermm> existingTerminals = btermmRepository.findByItMngcNoAndItMngcSno(target.getItMngcNo(), target.getItMngcSno());
@@ -288,6 +321,15 @@ public class CostService {
                 /* 새 PK를 발급하여 Soft Delete된 기존 레코드와 충돌 방지 */
                 tDto.setTmnMngNo(generateTmnMngNo());
                 tDto.setTmnSno(1);
+
+                // XCR 표준 조회 (단말기): Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+                tDto.setXcr(xcrLookupService.resolveXcr(tDto.getCurC(), LocalDate.now()));
+
+                // 단말기 외화 재계산 (CONTEXT.md 결정 C)
+                BigDecimal[] tReconciled = BudgetAmountCalculator.reconcileAmount(
+                        tDto.getFcAmt(), tDto.getTmlAmt(), tDto.getCurC(), tDto.getXcr());
+                tDto.setTmlAmt(tReconciled[0]);
+                tDto.setFcAmt(tReconciled[1]);
 
                 Btermm btermm = tDto.toEntity();
                 btermm.setBcostmInfo(target.getItMngcNo(), target.getItMngcSno());

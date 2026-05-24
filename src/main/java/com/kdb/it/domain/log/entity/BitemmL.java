@@ -73,4 +73,8 @@ public class BitemmL extends BaseLogEntity {
 
     @Column(name = "GCL_AMT", precision = 18, scale = 3, comment = "품목금액")
     private BigDecimal gclAmt;
+
+    /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
 }

@@ -124,10 +124,25 @@ public class Btermm extends BaseEntity {
     @Column(name = "RMK", length = 300, comment = "비고")
     private String rmk;
 
-    /** 정보 업데이트 메서드 */
+    /**
+     * 외화금액(단말기 외화 원금 — 환율 적용 전).
+     * <p>
+     * 원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며,
+     * 서버 재계산 로직(plan 03/04)에서 {@code tmlAmt = fcAmt × xcr}로 환산된다.
+     * 참고: CONTEXT.md 결정 B (KRW 행 FC_AMT = NULL).
+     * </p>
+     */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
+
+    /**
+     * 정보 업데이트 메서드
+     *
+     * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
+     */
     public void update(String tmnNm, String tmnTuzManr, String tmnUsg, String tmnSvc, BigDecimal tmlAmt,
             String curC, BigDecimal xcr, LocalDate xcrBseDt, String dfrCleC, String indRsn,
-            String cgprEno, String biceTemC, String biceDpmC, String rmk) {
+            String cgprEno, String biceTemC, String biceDpmC, String rmk, BigDecimal fcAmt) {
         this.tmnNm = tmnNm;
         this.tmnTuzManr = tmnTuzManr;
         this.tmnUsg = tmnUsg;
@@ -142,6 +157,7 @@ public class Btermm extends BaseEntity {
         this.biceTemC = biceTemC;
         this.biceDpmC = biceDpmC;
         this.rmk = rmk;
+        this.fcAmt = fcAmt;
     }
 
     /** 외래키 설정을 위한 편의 메서드 */

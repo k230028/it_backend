@@ -14,6 +14,9 @@ import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.HtmlSanitizer;
+import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
+import java.time.LocalDate;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import java.math.BigDecimal;
 import java.util.List;
@@ -103,6 +106,9 @@ public class ProjectService {
 
     /** 편성예산(BBUGTM) 리포지토리: 일괄 조회 시 prjMngNo별 DUP_BG 합계 조회용 */
     private final BbugtmRepository bbugtmRepository;
+
+    /** 환율 표준 조회 헬퍼: 외화 품목 저장 전 Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7) */
+    private final XcrLookupService xcrLookupService;
 
     /**
      * 전체 정보화사업 목록 조회
@@ -271,6 +277,13 @@ public class ProjectService {
                 Long gclSeq = bitemmRepository.getNextSequenceValue(); // Oracle 시퀀스 채번
                 String gclMngNo = String.format("GCL-%s-%04d", java.time.LocalDate.now().getYear(), gclSeq);
 
+                // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+                itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
+
+                // 외화 재계산: gclAmt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
+                BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
+                        itemDto.getFcAmt(), itemDto.getGclAmt(), itemDto.getCurC(), itemDto.getXcr());
+
                 com.kdb.it.domain.budget.project.entity.Bitemm newItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
                         .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
                         .gclSno(++gclSno) // 품목일련번호
@@ -288,7 +301,8 @@ public class ProjectService {
                         .infPrtYn(itemDto.getInfPrtYn() == null ? "N" : itemDto.getInfPrtYn()) // 정보보호여부
                         .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
                         .lstYn("Y") // 최종여부
-                        .gclAmt(itemDto.getGclAmt()) // 품목금액
+                        .gclAmt(reconciled[0]) // 품목금액 (서버 재계산)
+                        .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
                         .build();
                 bitemmRepository.save(newItem);
             }
@@ -395,6 +409,11 @@ public class ProjectService {
                             existingItem.delete();
                             // 기존 관리번호 유지 + 일련번호 1 증가하여 신규 레코드 저장
                             int newGclSno = existingItem.getGclSno() + 1;
+                            // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+                            itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
+                            // 외화 재계산: gclAmt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
+                            BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
+                                    itemDto.getFcAmt(), itemDto.getGclAmt(), itemDto.getCurC(), itemDto.getXcr());
                             com.kdb.it.domain.budget.project.entity.Bitemm updatedItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
                                     .gclMngNo(existingItem.getGclMngNo()) // 품목관리번호 유지 (기존 번호)
                                     .gclSno(newGclSno) // 품목일련번호 1 증가
@@ -412,7 +431,8 @@ public class ProjectService {
                                     .infPrtYn(defaultYn(itemDto.getInfPrtYn()))
                                     .itrInfrYn(defaultYn(itemDto.getItrInfrYn()))
                                     .lstYn("Y") // 최종여부
-                                    .gclAmt(itemDto.getGclAmt()) // 품목금액
+                                    .gclAmt(reconciled[0]) // 품목금액 (서버 재계산)
+                                    .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
                                     .build();
                             bitemmRepository.save(updatedItem);
                             maxGclSno = Math.max(maxGclSno, newGclSno);
@@ -424,6 +444,13 @@ public class ProjectService {
                     // Oracle 시퀀스로 품목관리번호 채번
                     Long gclSeq = bitemmRepository.getNextSequenceValue();
                     String gclMngNo = String.format("GCL-%s-%04d", java.time.LocalDate.now().getYear(), gclSeq);
+
+                    // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+                    itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
+
+                    // 외화 재계산: gclAmt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
+                    BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
+                            itemDto.getFcAmt(), itemDto.getGclAmt(), itemDto.getCurC(), itemDto.getXcr());
 
                     com.kdb.it.domain.budget.project.entity.Bitemm newItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
                             .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
@@ -442,7 +469,8 @@ public class ProjectService {
                             .infPrtYn(itemDto.getInfPrtYn() == null ? "N" : itemDto.getInfPrtYn()) // 정보보호여부
                             .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
                             .lstYn("Y") // 최종여부
-                            .gclAmt(itemDto.getGclAmt()) // 품목금액
+                            .gclAmt(reconciled[0]) // 품목금액 (서버 재계산)
+                            .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
                             .build();
                     bitemmRepository.save(newItem);
                 }
@@ -483,7 +511,9 @@ public class ProjectService {
                 || !Objects.equals(existing.getDfrCleC(), dto.getDfrCleC())
                 || !Objects.equals(existing.getInfPrtYn(), defaultYn(dto.getInfPrtYn()))
                 || !Objects.equals(existing.getItrInfrYn(), defaultYn(dto.getItrInfrYn()))
-                || bigDecimalChanged(existing.getGclAmt(), dto.getGclAmt());
+                || bigDecimalChanged(existing.getGclAmt(), dto.getGclAmt())
+                // fcAmt 변경 시 D/C 이력 생성 (null-safe 비교)
+                || bigDecimalChanged(existing.getFcAmt(), dto.getFcAmt());
     }
 
     /** null이면 "N"으로 정규화 (infPrtYn, itrInfrYn 공통 기본값 처리) */

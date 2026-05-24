@@ -140,6 +140,17 @@ public class Bcostm extends BaseEntity {
     private String cncdItMngcNo;
 
     /**
+     * 외화금액(외화 통화 원금 — 환율 적용 전 값).
+     * <p>
+     * 원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며,
+     * 서버 재계산 로직(plan 03/04)에서 {@code itMngcBgAmt = fcAmt × xcr}로 환산된다.
+     * 참고: CONTEXT.md 결정 B (KRW 행 FC_AMT = NULL).
+     * </p>
+     */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
+
+    /**
      * 전산관리비 정보 업데이트 메서드
      *
      * <p>
@@ -166,10 +177,11 @@ public class Bcostm extends BaseEntity {
      * @param pulDtt        전산업무비구분
      * @param bgYy          예산연도
      * @param cncdItMngcNo  관련전산업무비번호 (계속항목인 경우 전년도 관리번호)
+     * @param fcAmt         외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
     public void update(String ioeC, String cttNm, String cttOppNm, BigDecimal itMngcBgAmt,
             String dfrCleC, LocalDate fstDfrDt, String curC, BigDecimal xcr, LocalDate xcrBseDt,
-            String infPrtYn, String indRsn, String cgprEno, String biceDpmC, String biceTemC, String abusC, String itMngcTp, String pulDtt, String bgYy, String cncdItMngcNo) {
+            String infPrtYn, String indRsn, String cgprEno, String biceDpmC, String biceTemC, String abusC, String itMngcTp, String pulDtt, String bgYy, String cncdItMngcNo, BigDecimal fcAmt) {
         this.ioeC = ioeC;
         this.cttNm = cttNm;
         this.cttOppNm = cttOppNm;
@@ -189,5 +201,6 @@ public class Bcostm extends BaseEntity {
         this.pulDtt = pulDtt;
         this.bgYy = bgYy;
         this.cncdItMngcNo = cncdItMngcNo;
+        this.fcAmt = fcAmt;
     }
 }

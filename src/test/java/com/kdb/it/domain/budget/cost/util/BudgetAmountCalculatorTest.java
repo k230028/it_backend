@@ -1,0 +1,74 @@
+package com.kdb.it.domain.budget.cost.util;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.math.BigDecimal;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/**
+ * BudgetAmountCalculator 단위 테스트.
+ *
+ * <p>CONTEXT.md 결정 B / C / D 4개 케이스 + isForeignRow 보조 검증.</p>
+ */
+class BudgetAmountCalculatorTest {
+
+    @Test
+    @DisplayName("외화 정상: USD fcAmt=1000.000 × xcr=1300.5000 → krw=1300500.0000, fcAmt=1000.000 (클라 위조 999.999 무시)")
+    void reconcileAmount_외화정상_서버재계산() {
+        BigDecimal fcAmt = new BigDecimal("1000.000");
+        BigDecimal krwClient = new BigDecimal("999.999"); // 클라 위조
+        String curC = "USD";
+        BigDecimal xcr = new BigDecimal("1300.5000");
+
+        BigDecimal[] result = BudgetAmountCalculator.reconcileAmount(fcAmt, krwClient, curC, xcr);
+
+        assertThat(result).hasSize(2);
+        assertThat(result[0]).isEqualByComparingTo(new BigDecimal("1300500.0000"));
+        assertThat(result[1]).isEqualByComparingTo(new BigDecimal("1000.000"));
+    }
+
+    @Test
+    @DisplayName("원화 KRW: krwAmt=5000000 그대로 보존, fcAmt=null (결정 B)")
+    void reconcileAmount_원화KRW_클라값보존_fcAmtNull() {
+        BigDecimal krwClient = new BigDecimal("5000000");
+
+        BigDecimal[] result = BudgetAmountCalculator.reconcileAmount(null, krwClient, "KRW", null);
+
+        assertThat(result[0]).isEqualByComparingTo(new BigDecimal("5000000"));
+        assertThat(result[1]).isNull();
+    }
+
+    @Test
+    @DisplayName("외화이나 xcr=0: krw 클라값 보존, fcAmt=null (결정 D — 데이터 불완전)")
+    void reconcileAmount_외화xcr0_클라값보존_fcAmtNull() {
+        BigDecimal fcAmt = new BigDecimal("1000");
+        BigDecimal krwClient = new BigDecimal("999");
+
+        BigDecimal[] result = BudgetAmountCalculator.reconcileAmount(fcAmt, krwClient, "USD", BigDecimal.ZERO);
+
+        assertThat(result[0]).isEqualByComparingTo(new BigDecimal("999"));
+        assertThat(result[1]).isNull();
+    }
+
+    @Test
+    @DisplayName("외화이나 fcAmt=null: krw 클라값 보존, fcAmt=null (결정 D)")
+    void reconcileAmount_외화fcAmtNull_클라값보존_fcAmtNull() {
+        BigDecimal krwClient = new BigDecimal("12345");
+
+        BigDecimal[] result = BudgetAmountCalculator.reconcileAmount(null, krwClient, "USD", new BigDecimal("1300"));
+
+        assertThat(result[0]).isEqualByComparingTo(new BigDecimal("12345"));
+        assertThat(result[1]).isNull();
+    }
+
+    @Test
+    @DisplayName("isForeignRow: null/KRW이면 false, 그 외 통화코드면 true")
+    void isForeignRow_판정() {
+        assertThat(BudgetAmountCalculator.isForeignRow(null)).isFalse();
+        assertThat(BudgetAmountCalculator.isForeignRow("KRW")).isFalse();
+        assertThat(BudgetAmountCalculator.isForeignRow("USD")).isTrue();
+        assertThat(BudgetAmountCalculator.isForeignRow("JPY")).isTrue();
+    }
+}

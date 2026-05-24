@@ -98,6 +98,13 @@ public class CostDto {
         @Schema(description = "환율", example = "1300")
         private BigDecimal xcr;
 
+        /**
+         * 외화금액(외화 통화 원금 — 원화(KRW) 행은 null.
+         * 외화 행은 서버에서 itMngcBgAmt = fcAmt × xcr 재계산)
+         */
+        @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000")
+        private BigDecimal fcAmt;
+
         /** 환율기준일자 (환율 적용 기준 날짜) */
         @Schema(description = "환율기준일자", example = "2026-01-01")
         private LocalDate xcrBseDt;
@@ -174,6 +181,7 @@ public class CostDto {
                     .pulDtt(this.pulDtt) // 전산업무비구분
                     .bgYy(this.bgYy) // 예산연도
                     .cncdItMngcNo(this.cncdItMngcNo) // 관련전산업무비번호
+                    .fcAmt(this.fcAmt) // 외화금액 (plan 04 서버 재계산 결과로 itMngcBgAmt와 동기화)
                     .lstYn("Y") // 최종여부: 신규는 항상 최신
                     .build();
         }
@@ -225,6 +233,13 @@ public class CostDto {
         /** 환율 */
         @Schema(description = "환율", example = "1300")
         private BigDecimal xcr;
+
+        /**
+         * 외화금액(외화 통화 원금 — 원화(KRW) 행은 null.
+         * 외화 행은 서버에서 itMngcBgAmt = fcAmt × xcr 재계산)
+         */
+        @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000")
+        private BigDecimal fcAmt;
 
         /** 환율기준일자 */
         @Schema(description = "환율기준일자", example = "2026-01-01")
@@ -332,6 +347,13 @@ public class CostDto {
         /** 환율 */
         @Schema(description = "환율", example = "1300")
         private BigDecimal xcr;
+
+        /**
+         * 외화금액(외화 원금. 원화 행은 null.
+         * 프론트는 curC === 'KRW' ? itMngcBgAmt : fcAmt 분기로 표시)
+         */
+        @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000")
+        private BigDecimal fcAmt;
 
         /** 환율기준일자 */
         @Schema(description = "환율기준일자", example = "2026-01-01")
@@ -498,6 +520,7 @@ public class CostDto {
                     .pulDtt(entity.getPulDtt()) // 전산업무비구분
                     .bgYy(entity.getBgYy()) // 예산연도
                     .cncdItMngcNo(entity.getCncdItMngcNo()) // 관련전산업무비번호
+                    .fcAmt(entity.getFcAmt()) // 외화금액
                     .delYn(entity.getDelYn()) // 삭제여부
                     .build();
         }
@@ -620,6 +643,10 @@ public class CostDto {
         @Schema(description = "단말기금액", example = "1500000")
         private BigDecimal tmlAmt;
 
+        /** 외화금액(단말기 외화 원금. 원화 행은 null) */
+        @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000")
+        private BigDecimal fcAmt;
+
         @Schema(description = "통화", example = "KRW")
         private String curC;
 
@@ -670,6 +697,7 @@ public class CostDto {
                     .biceTemC(this.biceTemC)
                     .biceDpmC(this.biceDpmC)
                     .rmk(this.rmk)
+                    .fcAmt(this.fcAmt)
                     .delYn("N")
                     .build();
         }
@@ -693,6 +721,7 @@ public class CostDto {
                     .biceTemC(entity.getBiceTemC())
                     .biceDpmC(entity.getBiceDpmC())
                     .rmk(entity.getRmk())
+                    .fcAmt(entity.getFcAmt())
                     .build();
         }
     }

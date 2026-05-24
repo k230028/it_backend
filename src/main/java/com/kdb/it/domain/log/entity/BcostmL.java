@@ -85,4 +85,8 @@ public class BcostmL extends BaseLogEntity {
 
     @Column(name = "PUL_DTT", length = 100, comment = "전산업무비구분")
     private String pulDtt;
+
+    /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
 }

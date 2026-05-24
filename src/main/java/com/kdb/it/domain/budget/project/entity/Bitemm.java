@@ -116,5 +116,16 @@ public class Bitemm extends BaseEntity {
     /** 품목금액: 이 품목의 총 금액 (수량 × 단가, 최대 15자리) */
     @Column(name = "GCL_AMT", precision = 18, scale = 3, comment = "품목금액")
     private BigDecimal gclAmt;
+
+    /**
+     * 외화금액(품목 외화 원금 — 환율 적용 전).
+     * <p>
+     * 원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며,
+     * Service에서 {@code gclAmt = fcAmt × xcr}로 재계산한다 (수량 무관).
+     * 참고: CONTEXT.md 결정 B/C.
+     * </p>
+     */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
 }
 

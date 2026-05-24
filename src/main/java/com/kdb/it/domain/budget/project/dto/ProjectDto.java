@@ -901,6 +901,13 @@ public class ProjectDto {
         @Schema(description = "최종여부")
         private String lstYn;
 
+        /**
+         * 외화금액(품목 외화 원금 — 원화 행은 null.
+         * Service에서 gclAmt = fcAmt × xcr 재계산)
+         */
+        @Schema(description = "외화금액 (외화 원금. 원화 행은 null. 서버에서 gclAmt 재계산)", example = "1000")
+        private BigDecimal fcAmt;
+
         /** 품목금액 (단가 × 수량) */
         @Schema(description = "품목금액")
         private BigDecimal gclAmt;
@@ -928,6 +935,7 @@ public class ProjectDto {
                     .itrInfrYn(bitemm.getItrInfrYn()) // 통합인프라여부
                     .lstYn(bitemm.getLstYn()) // 최종여부
                     .gclAmt(bitemm.getGclAmt()) // 품목금액
+                    .fcAmt(bitemm.getFcAmt()) // 외화금액
                     .build();
         }
     }

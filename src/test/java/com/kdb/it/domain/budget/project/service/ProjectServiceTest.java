@@ -19,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -82,6 +83,9 @@ class ProjectServiceTest {
         private ApproverRepository cdecimRepository;
         @Mock
         private BbugtmRepository bbugtmRepository;
+        /** 환율 표준 조회 헬퍼 (CONTEXT.md 결정 E / R3.7 — Wave 5 추가 의존성) */
+        @Mock
+        private com.kdb.it.domain.budget.cost.util.XcrLookupService xcrLookupService;
         @Mock
         private SecurityContext securityContext;
         @Mock
@@ -1992,5 +1996,146 @@ class ProjectServiceTest {
                 org.mockito.Mockito.verify(projectRepository).save(any(Bprojm.class));
                 org.mockito.Mockito.verify(bitemmRepository, org.mockito.Mockito.times(2))
                                 .save(any(Bitemm.class));
+        }
+
+        // ───────────────────────────────────────────────────────
+        // plan 03-04: 외화 서버 재계산 (Bitemm) — 신규 3건
+        // ───────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("createProject: 외화 품목 입력 시 gclAmt = fcAmt × xcr로 서버 재계산되어 저장된다")
+        void createProject_외화품목_gclAmt_서버재계산() {
+                // given
+                given(projectRepository.getNextSequenceValue()).willReturn(1L);
+                given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
+                given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
+
+                ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+                item.setIoeC("IOE-237-0700");
+                item.setGclNm("외화 라이선스");
+                item.setCurC("USD");
+                item.setFcAmt(new BigDecimal("500.000"));
+                item.setXcr(new BigDecimal("1300.0000"));
+                item.setGclAmt(new BigDecimal("999")); // 클라 위조 — 무시되어야 함
+
+                // Wave 5: 서버가 Ccodem 환율로 클라 xcr를 덮어쓴다 (CONTEXT.md 결정 E)
+                given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
+                                .willReturn(new BigDecimal("1300.0000"));
+
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .prjNm("외화 품목 사업")
+                                .bgYy("2026")
+                                .items(List.of(item))
+                                .build();
+
+                // when
+                projectService.createProject(request);
+
+                // then: 저장된 Bitemm 캡처 — 서버 재계산값 검증
+                ArgumentCaptor<Bitemm> captor = ArgumentCaptor.forClass(Bitemm.class);
+                org.mockito.Mockito.verify(bitemmRepository).save(captor.capture());
+                assertThat(captor.getValue().getGclAmt())
+                                .as("서버 재계산: 500.000 × 1300.0000 = 650000.0000")
+                                .isEqualByComparingTo(new BigDecimal("650000.0000"));
+                assertThat(captor.getValue().getFcAmt())
+                                .isEqualByComparingTo(new BigDecimal("500.000"));
+        }
+
+        @Test
+        @DisplayName("createProject: 원화(KRW) 품목 입력 시 fcAmt=null로 강제되고 gclAmt는 클라값 그대로 저장된다")
+        void createProject_원화품목_fcAmt_null_저장() {
+                given(projectRepository.getNextSequenceValue()).willReturn(1L);
+                given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
+                given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
+
+                ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+                item.setIoeC("IOE-237-0700");
+                item.setGclNm("원화 소프트웨어");
+                item.setCurC("KRW");
+                item.setGclAmt(new BigDecimal("1000000"));
+                item.setFcAmt(null);
+                item.setXcr(null);
+
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .prjNm("원화 품목 사업")
+                                .bgYy("2026")
+                                .items(List.of(item))
+                                .build();
+
+                projectService.createProject(request);
+
+                ArgumentCaptor<Bitemm> captor = ArgumentCaptor.forClass(Bitemm.class);
+                org.mockito.Mockito.verify(bitemmRepository).save(captor.capture());
+                assertThat(captor.getValue().getFcAmt()).isNull();
+                assertThat(captor.getValue().getGclAmt())
+                                .isEqualByComparingTo(new BigDecimal("1000000"));
+        }
+
+        @Test
+        @DisplayName("updateProject: 기존 품목의 fcAmt만 변경되어도 isItemChanged가 true로 판정되어 신규 버전 저장된다 (null-safe 포함)")
+        void updateProject_fcAmt만변경_변경검출_신규버전저장() {
+                // given
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
+
+                // 기존 품목: 외화 USD 500.000 (fcAmt 있음)
+                Bitemm existingItem = Bitemm.builder()
+                                .gclMngNo("GCL-2026-0001")
+                                .gclSno(1)
+                                .prjMngNo(prjMngNo)
+                                .prjSno(1)
+                                .ioeC("IOE-237-0700")
+                                .gclNm("외화 라이선스")
+                                .curC("USD")
+                                .fcAmt(new BigDecimal("500.000"))
+                                .xcr(new BigDecimal("1300.0000"))
+                                .gclAmt(new BigDecimal("650000.000"))
+                                .infPrtYn("N")
+                                .itrInfrYn("N")
+                                .delYn("N")
+                                .lstYn("Y")
+                                .build();
+
+                given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of(existingItem));
+                given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
+
+                // 동일 품목, fcAmt만 500.000 → 600.000으로 변경 (xcr 동일)
+                ProjectDto.BitemmDto changed = new ProjectDto.BitemmDto();
+                changed.setGclMngNo("GCL-2026-0001"); // 기존 식별자
+                changed.setIoeC("IOE-237-0700");
+                changed.setGclNm("외화 라이선스");
+                changed.setCurC("USD");
+                changed.setFcAmt(new BigDecimal("600.000")); // 변경
+                changed.setXcr(new BigDecimal("1300.0000"));
+                changed.setGclAmt(new BigDecimal("650000.000")); // 클라가 동일하게 보냄 — 서버 재계산
+
+                // Wave 5: 서버가 Ccodem 환율로 클라 xcr를 덮어쓴다 (CONTEXT.md 결정 E)
+                given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
+                                .willReturn(new BigDecimal("1300.0000"));
+
+                ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
+                                .prjNm("외화 품목 사업")
+                                .bgYy("2026")
+                                .items(List.of(changed))
+                                .build();
+
+                // when
+                projectService.updateProject(prjMngNo, request);
+
+                // then: isItemChanged → true 판정되어 신규 Bitemm 저장 + 서버 재계산
+                ArgumentCaptor<Bitemm> captor = ArgumentCaptor.forClass(Bitemm.class);
+                org.mockito.Mockito.verify(bitemmRepository).save(captor.capture());
+                assertThat(captor.getValue().getFcAmt())
+                                .isEqualByComparingTo(new BigDecimal("600.000"));
+                assertThat(captor.getValue().getGclAmt())
+                                .as("서버 재계산: 600.000 × 1300.0000 = 780000.0000")
+                                .isEqualByComparingTo(new BigDecimal("780000.0000"));
         }
 }

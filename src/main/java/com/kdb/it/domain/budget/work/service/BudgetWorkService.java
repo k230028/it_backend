@@ -4,6 +4,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -58,6 +60,9 @@ public class BudgetWorkService {
 
     /** 공통코드 리포지토리 (TPRMPP_CCODEM): 편성비목(DUP_IOE) 조회용 */
     private final CodeRepository codeRepository;
+
+    /** 환율 표준 조회 헬퍼: 외화 항목 amountKrw 계산 시 Ccodem 단일 원천 (CONTEXT.md 결정 E / R3.7) */
+    private final XcrLookupService xcrLookupService;
 
     /** 결재완료 원본 집계 쿼리 리포지토리: getSummary N+1 제거용 (DB-01) */
     private final BudgetWorkQueryRepository budgetWorkQueryRepository;
@@ -200,8 +205,10 @@ public class BudgetWorkService {
             // 지칭한 것이며, BBUGTM에 저장 시 실제 원본은 BITEMM임.
             List<Bitemm> items = bbugtmRepository.findApprovedItemsByIoeCValues(ioeCValues, bgYy);
             for (Bitemm item : items) {
-                // 환율 적용: gclAmt × coalesce(xcr, 1) → 원화 금액
-                BigDecimal xcrVal = item.getXcr() != null ? item.getXcr() : BigDecimal.ONE;
+                // XCR 표준 조회: 외화는 Ccodem 단일 원천, KRW/null은 1 fallback (CONTEXT.md 결정 E / R3.7)
+                // 외화이며 환율 미등록 시 resolveXcr가 IllegalStateException → @Transactional 경계에서 자연 롤백
+                BigDecimal serverXcr = xcrLookupService.resolveXcr(item.getCurC(), LocalDate.now());
+                BigDecimal xcrVal = serverXcr != null ? serverXcr : BigDecimal.ONE;
                 BigDecimal amountKrw = item.getGclAmt() != null ? item.getGclAmt().multiply(xcrVal) : BigDecimal.ZERO;
                 BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
@@ -295,7 +302,10 @@ public class BudgetWorkService {
                     boolean isCapital = isCapitalIoeCode(bitemm.getIoeC(), capitalPrefixes);
                     int dupRt = isCapital ? assetDupRt : costDupRt;
 
-                    BigDecimal xcrVal = bitemm.getXcr() != null ? bitemm.getXcr() : BigDecimal.ONE;
+                    // XCR 표준 조회: 외화는 Ccodem 단일 원천, KRW/null은 1 fallback (CONTEXT.md 결정 E / R3.7)
+                    // 외화이며 환율 미등록 시 resolveXcr가 IllegalStateException → @Transactional 경계에서 자연 롤백
+                    BigDecimal serverXcr = xcrLookupService.resolveXcr(bitemm.getCurC(), LocalDate.now());
+                    BigDecimal xcrVal = serverXcr != null ? serverXcr : BigDecimal.ONE;
                     BigDecimal amountKrw = bitemm.getGclAmt() != null ? bitemm.getGclAmt().multiply(xcrVal) : BigDecimal.ZERO;
                     BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 

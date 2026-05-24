@@ -16,6 +16,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -41,6 +42,7 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 
 /**
@@ -68,6 +70,8 @@ class CostServiceTest {
     @Mock private CodeRepository ccodemRepository;
     @Mock private CodeService codeService;
     @Mock private BbugtmRepository bbugtmRepository;
+    /** 환율 표준 조회 헬퍼 (CONTEXT.md 결정 E / R3.7 — Wave 5 추가 의존성) */
+    @Mock private XcrLookupService xcrLookupService;
 
     @InjectMocks
     private CostService costService;
@@ -445,7 +449,7 @@ class CostServiceTest {
 
             assertThat(result).isEqualTo(IT_MNGC_NO);
             verify(first).update(any(), eq("수정 계약"), any(), any(), any(), any(), any(), any(), any(),
-                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
             verify(oldTerminal).delete();
             verify(btermmRepository).save(any(Btermm.class));
             assertThat(newTerminal.getTmnMngNo()).matches("TER-\\d{4}-0008");
@@ -1056,5 +1060,151 @@ class CostServiceTest {
         // Assert: prevDupBg = 0 (bgYy null 분기)
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getPrevDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // plan 03-04: 외화 서버 재계산 (BudgetAmountCalculator) — 신규 4건
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("createCost: 외화 입력 시 itMngcBgAmt = fcAmt × xcr로 서버 재계산되어 저장된다 (클라 위조 무시)")
+    void createCost_외화입력_itMngcBgAmt_서버재계산() {
+        // given: 외화 USD, 클라가 itMngcBgAmt를 위조한 케이스
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
+                .itMngcNo(IT_MNGC_NO)
+                .cttNm("외화 라이선스 계약")
+                .curC("USD")
+                .fcAmt(new BigDecimal("1000.000"))
+                .xcr(new BigDecimal("1300.5000"))
+                .itMngcBgAmt(new BigDecimal("999.999")) // 클라 위조 — 무시되어야 함
+                .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+        // Wave 5: 서버가 Ccodem 환율로 클라 xcr를 덮어쓴다 (CONTEXT.md 결정 E)
+        given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
+                .willReturn(new BigDecimal("1300.5000"));
+
+        // when
+        costService.createCost(request);
+
+        // then: 저장된 Bcostm 캡처 후 서버 재계산값 검증
+        ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
+        verify(costRepository).save(captor.capture());
+        assertThat(captor.getValue().getItMngcBgAmt())
+                .as("서버 재계산: 1000.000 × 1300.5000 = 1300500.0000")
+                .isEqualByComparingTo(new BigDecimal("1300500.0000"));
+        assertThat(captor.getValue().getFcAmt())
+                .isEqualByComparingTo(new BigDecimal("1000.000"));
+    }
+
+    @Test
+    @DisplayName("createCost: 원화(KRW) 입력 시 fcAmt=null로 강제되고 itMngcBgAmt는 클라값 그대로 저장된다")
+    void createCost_원화입력_fcAmt_null_저장() {
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
+                .itMngcNo(IT_MNGC_NO)
+                .cttNm("원화 소프트웨어 라이선스")
+                .curC("KRW")
+                .itMngcBgAmt(new BigDecimal("5000000"))
+                .fcAmt(null)
+                .xcr(null)
+                .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+
+        costService.createCost(request);
+
+        ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
+        verify(costRepository).save(captor.capture());
+        assertThat(captor.getValue().getFcAmt()).isNull();
+        assertThat(captor.getValue().getItMngcBgAmt())
+                .isEqualByComparingTo(new BigDecimal("5000000"));
+    }
+
+    @Test
+    @DisplayName("createCost: 단말기 외화 입력 시 tmlAmt = fcAmt × xcr로 서버 재계산되어 저장된다")
+    void createCost_단말기외화입력_tmlAmt_서버재계산() {
+        // given: 외화 단말기 1건 포함
+        CostDto.TerminalDto terminal = CostDto.TerminalDto.builder()
+                .tmnNm("외화 단말기")
+                .curC("USD")
+                .fcAmt(new BigDecimal("500.000"))
+                .xcr(new BigDecimal("1300.0000"))
+                .tmlAmt(new BigDecimal("999")) // 클라 위조 — 무시되어야 함
+                .build();
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
+                .itMngcNo(IT_MNGC_NO)
+                .cttNm("외화 단말기 계약")
+                .curC("KRW") // Bcostm 본체는 원화
+                .itMngcBgAmt(new BigDecimal("1000000"))
+                .terminals(List.of(terminal))
+                .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+        given(btermmRepository.getNextSequenceValue()).willReturn(1L);
+        // Wave 5: Bcostm 본체 KRW → null, 단말기 USD → Ccodem 1300.0000
+        given(xcrLookupService.resolveXcr(eq("KRW"), any(java.time.LocalDate.class))).willReturn(null);
+        given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
+                .willReturn(new BigDecimal("1300.0000"));
+
+        costService.createCost(request);
+
+        ArgumentCaptor<Btermm> captor = ArgumentCaptor.forClass(Btermm.class);
+        verify(btermmRepository).save(captor.capture());
+        assertThat(captor.getValue().getTmlAmt())
+                .as("단말기 서버 재계산: 500.000 × 1300.0000 = 650000.0000")
+                .isEqualByComparingTo(new BigDecimal("650000.0000"));
+        assertThat(captor.getValue().getFcAmt())
+                .isEqualByComparingTo(new BigDecimal("500.000"));
+    }
+
+    @Test
+    @DisplayName("updateCost: 외화 수정 시 itMngcBgAmt = fcAmt × xcr로 서버 재계산되어 target.update에 전달된다")
+    void updateCost_외화수정_itMngcBgAmt_서버재계산() {
+        // given: 관리자 인증
+        CustomUserDetails admin = new CustomUserDetails(
+                "10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+
+        try {
+            Bcostm target = mock(Bcostm.class);
+            given(target.getItMngcNo()).willReturn(IT_MNGC_NO);
+            given(target.getItMngcSno()).willReturn(1);
+            given(target.getLstYn()).willReturn("Y");
+            given(target.getFstEnrUsid()).willReturn("10001");
+            given(target.getBiceDpmC()).willReturn("BBR001");
+
+            given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(target));
+            given(btermmRepository.findByItMngcNoAndItMngcSno(IT_MNGC_NO, 1)).willReturn(List.of());
+
+            CostDto.UpdateRequest request = CostDto.UpdateRequest.builder()
+                    .curC("USD")
+                    .fcAmt(new BigDecimal("1000.000"))
+                    .xcr(new BigDecimal("1300.5000"))
+                    .itMngcBgAmt(new BigDecimal("999")) // 클라 위조
+                    .build();
+            // Wave 5: 서버가 Ccodem 환율로 클라 xcr를 덮어쓴다
+            given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
+                    .willReturn(new BigDecimal("1300.5000"));
+
+            // when
+            costService.updateCost(IT_MNGC_NO, request);
+
+            // then: target.update의 itMngcBgAmt 인자(4번째) 및 fcAmt 인자(마지막)를 캡처해 검증
+            ArgumentCaptor<BigDecimal> itMngcBgCaptor = ArgumentCaptor.forClass(BigDecimal.class);
+            ArgumentCaptor<BigDecimal> fcAmtCaptor = ArgumentCaptor.forClass(BigDecimal.class);
+            verify(target).update(
+                    any(), any(), any(), itMngcBgCaptor.capture(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), fcAmtCaptor.capture());
+            assertThat(itMngcBgCaptor.getValue())
+                    .as("서버 재계산: 1000.000 × 1300.5000 = 1300500.0000")
+                    .isEqualByComparingTo(new BigDecimal("1300500.0000"));
+            assertThat(fcAmtCaptor.getValue()).isEqualByComparingTo(new BigDecimal("1000.000"));
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
     }
 }
