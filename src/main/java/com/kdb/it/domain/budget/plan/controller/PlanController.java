@@ -116,7 +116,7 @@ public class PlanController {
          *
          * @param request    계획 생성 요청 DTO
          * @param uriBuilder URI 빌더 (Location 헤더 생성용)
-         * @return 201 Created (Location: /api/plans/{plnMngNo})
+         * @return 201 Created (Location: /api/plans/{plnMngNo}, body: plnMngNo)
          */
         @PostMapping
         @Operation(summary = "계획 등록", description = """
@@ -125,9 +125,10 @@ public class PlanController {
                         - 계획관리번호는 서버에서 자동 채번합니다.
                         - 대상 프로젝트와 전산업무비의 예산을 집계하여 총예산/자본예산/일반관리비를 산출합니다.
                         - 생성된 리소스 경로는 Location 헤더(/api/plans/{plnMngNo})로 반환합니다.
+                        - 생성된 계획관리번호는 응답 본문으로도 반환합니다.
                         """, responses = @ApiResponse(responseCode = "201", description = "등록 성공"))
         // FIXME: @Valid 추가 필요 — Bean Validation이 동작하지 않아 미검증 입력이 서비스 레이어로 전달됨 (CLAUDE.md §5.5.2)
-        public ResponseEntity<Void> createPlan(
+        public ResponseEntity<String> createPlan(
                         @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "계획 생성 요청. 대상년도, 계획구분, 프로젝트/전산업무비 관리번호 목록을 전달합니다.", required = true, content = @Content(schema = @Schema(implementation = PlanDto.CreateRequest.class), examples = @ExampleObject(name = "계획 등록 요청 예시", value = """
                                         {
                                           "plnYy": "2026",
@@ -144,7 +145,7 @@ public class PlanController {
                         UriComponentsBuilder uriBuilder) {
                 String plnMngNo = planService.createPlan(request);
                 URI location = uriBuilder.path("/api/plans/{plnMngNo}").buildAndExpand(plnMngNo).toUri();
-                return ResponseEntity.created(location).build();
+                return ResponseEntity.created(location).body(plnMngNo);
         }
 
         /**

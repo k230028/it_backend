@@ -4,6 +4,8 @@ import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -78,10 +80,15 @@ class PlanControllerTest {
     @DisplayName("POST /api/plans - 인증된 사용자 → 201 Created")
     @WithMockUser(username = "10001")
     void createPlan_인증_201() throws Exception {
+        given(planService.createPlan(org.mockito.ArgumentMatchers.any(PlanDto.CreateRequest.class)))
+                .willReturn("PLN-2026-0405");
+
         mockMvc.perform(post("/api/plans")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new PlanDto.CreateRequest())))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "http://localhost/api/plans/PLN-2026-0405"))
+                .andExpect(content().string("PLN-2026-0405"));
     }
 
     @Test
