@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.entity;
 
+import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.CapplmL;
 import com.kdb.it.domain.entity.BaseEntity;
@@ -65,6 +66,10 @@ public class Capplm extends BaseEntity {
     @Column(name = "APF_STS", length = 32, comment = "신청서상태")
     private String apfSts;
 
+    /** 신청서상태코드: Ccodem APF_STS 참조 (001:결재중, 002:결재완료, 003:반려, 004:회수) */
+    @Column(name = "APF_STS_C", length = 3, nullable = false, comment = "신청서상태코드")
+    private String apfStsC;
+
     /** 신청서명: 신청서의 제목 (최대 800자) */
     @Column(name = "APF_NM", length = 800, comment = "신청서명")
     private String apfNm;
@@ -99,8 +104,9 @@ public class Capplm extends BaseEntity {
      *
      * @param status 변경할 상태 값 ("결재완료" | "반려")
      */
-    public void updateStatus(String status) {
-        this.apfSts = status;
+    public void updateStatus(ApprovalStatus status) {
+        this.apfStsC = status.code();
+        this.apfSts  = status.label();
     }
 
     /**
