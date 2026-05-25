@@ -12,6 +12,8 @@ import com.querydsl.core.Tuple;
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
@@ -109,15 +111,23 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         String apfSts = condition.getApfSts();
         if (apfSts != null && !apfSts.isBlank()) {
             if ("none".equals(apfSts)) {
-                // 신청서가 없는 전산관리비: CAPPLA에 연결 레코드가 없는 경우
-                builder.and(
-                        JPAExpressions.selectOne()
-                                .from(cappla)
-                                .where(
-                                        cappla.orcTbCd.eq("BCOSTM"),
-                                        cappla.orcPkVl.eq(bcostm.itMngcNo),
-                                        cappla.orcSnoVl.eq(bcostm.itMngcSno))
-                                .notExists());
+                // 미상신: CAPPLA 연결 없음 OR 최신 CAPPLM의 APF_STS_C가 반려(003)/회수(004)
+                BooleanExpression notLinked = JPAExpressions.selectOne()
+                        .from(cappla)
+                        .where(
+                                cappla.orcTbCd.eq("BCOSTM"),
+                                cappla.orcPkVl.eq(bcostm.itMngcNo),
+                                cappla.orcSnoVl.eq(bcostm.itMngcSno))
+                        .notExists();
+
+                BooleanExpression latestTerminatedNonComplete = Expressions.numberTemplate(Integer.class,
+                        "(SELECT CASE WHEN c.APF_STS_C IN ('003','004') THEN 1 ELSE 0 END " +
+                        "  FROM TPRMPP_CAPPLM c JOIN TPRMPP_CAPPLA m ON c.APF_MNG_NO = m.APF_MNG_NO " +
+                        "  WHERE m.ORC_TB_CD = 'BCOSTM' AND m.ORC_PK_VL = {0} AND m.ORC_SNO_VL = {1} " +
+                        "  ORDER BY c.RQS_DT DESC FETCH FIRST 1 ROWS ONLY)",
+                        bcostm.itMngcNo, bcostm.itMngcSno).eq(1);
+
+                builder.and(notLinked.or(latestTerminatedNonComplete));
             } else {
                 // 특정 결재상태: 최신 신청서(APF_REL_SNO 최대값)의 결재상태가 일치하는 경우
                 builder.and(
