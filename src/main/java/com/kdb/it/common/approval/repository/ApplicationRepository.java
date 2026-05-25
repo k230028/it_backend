@@ -51,9 +51,9 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         SELECT COUNT(DISTINCT a.APF_MNG_NO)
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
-        WHERE a.APF_STS = '결재중'
+        WHERE a.APF_STS_C = '001'
           AND d.DCD_ENO = :eno
-          AND d.DCD_DT IS NULL
+          AND d.DCD_STS_C = '001'
         """, nativeQuery = true)
     int countPendingByEno(@Param("eno") String eno);
 
@@ -61,7 +61,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
-        WHERE a.APF_STS = '결재중'
+        WHERE a.APF_STS_C = '001'
           AND a.RQS_ENO = :eno
         """, nativeQuery = true)
     int countInProgressByEno(@Param("eno") String eno);
@@ -71,7 +71,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CUSERI u ON a.RQS_ENO = u.ENO
-        WHERE a.APF_STS = '결재완료'
+        WHERE a.APF_STS_C = '002'
           AND u.BBR_C = :bbrC
           AND a.RQS_DT >= TRUNC(SYSDATE, 'MM')
         """, nativeQuery = true)
@@ -81,7 +81,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
-        WHERE a.APF_STS = '반려'
+        WHERE a.APF_STS_C = '003'
           AND a.RQS_ENO = :eno
         """, nativeQuery = true)
     int countRejectedByEno(@Param("eno") String eno);
@@ -112,9 +112,9 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CUSERI u ON a.RQS_ENO = u.ENO
         JOIN TPRMPP_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
-        WHERE a.APF_STS = '결재중'
+        WHERE a.APF_STS_C = '001'
           AND d.DCD_ENO = :eno
-          AND d.DCD_DT IS NULL
+          AND d.DCD_STS_C = '001'
         ORDER BY a.RQS_DT DESC
         FETCH FIRST 3 ROWS ONLY
         """, nativeQuery = true)
