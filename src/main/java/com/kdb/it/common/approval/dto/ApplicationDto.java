@@ -3,6 +3,8 @@ package com.kdb.it.common.approval.dto;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -138,6 +140,23 @@ public class ApplicationDto {
     }
 
     /**
+     * 신청서 회수 요청 DTO
+     *
+     * <p>신청자가 결재 진행 중인 신청서를 회수(상신 취소)할 때 사용합니다.</p>
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @Schema(name = "RecallRequest", description = "신청서 회수 요청")
+    public static class RecallRequest {
+        /** 회수 사유 (필수, 최대 1000자) */
+        @NotBlank
+        @Size(max = 1000)
+        @Schema(description = "회수 사유 (필수)", example = "결재선 오기재로 인한 회수")
+        private String recallOpnn;
+    }
+
+    /**
      * 일괄 결재 요청 DTO
      *
      * <p>여러 신청서를 한 번에 결재 처리할 때 사용합니다.
@@ -269,6 +288,10 @@ public class ApplicationDto {
         @Schema(description = "신청상태")
         private String apfSts;
 
+        /** 신청상태코드 (Ccodem cId='APF_STS' 기반 코드값) */
+        @Schema(description = "신청상태코드")
+        private String apfStsC;
+
         /** 신청자 사원번호 */
         @Schema(description = "신청자 사원번호")
         private String rqsEno;
@@ -298,6 +321,7 @@ public class ApplicationDto {
                     .apfNm(capplm.getApfNm())             // 신청서명
                     .apfDtlCone(capplm.getApfDtlCone())   // 신청서세부내용
                     .apfSts(capplm.getApfSts())           // 신청상태
+                    .apfStsC(capplm.getApfStsC())         // 신청상태코드
                     .rqsEno(capplm.getRqsEno())           // 신청자 사원번호
                     .rqsDt(capplm.getRqsDt())             // 신청일자
                     .rqsOpnn(capplm.getRqsOpnn())         // 신청의견
