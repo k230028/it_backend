@@ -179,20 +179,9 @@ public class ApplicationService {
             savedApprovers.add(cdecim);
         }
 
-        // 3. 기안자 == 1차 결재자(팀장) 자동 승인 처리
-        //    기안자와 첫 번째 결재자가 동일한 경우, 신청 행위 자체를 묵시적 1차 승인으로 간주합니다.
-        //    - Cdecim 레코드를 즉시 승인 상태로 전환하여 이후 2차 결재자(부서장)가 바로 결재 가능하게 합니다.
-        //    - approvalLineDelegate.doUpdate()를 호출하여 JSON 결재선의 팀장 date 필드도 함께 기록합니다.
-        //      (이 처리가 없으면 JSON date가 빈 문자열로 남아 PDF 상 팀장 결재 시각이 누락됩니다.)
-        if (!approverEnos.isEmpty() && approverEnos.get(0).equals(request.getRqsEno())) {
-            Cdecim firstApprover = savedApprovers.get(0);
-            firstApprover.approve("기안자 자동 승인", DecisionStatus.APPROVED);
-            approverRepository.save(firstApprover);
-            approvalLineDelegate.doUpdate(capplm, savedApprovers, java.util.List.of(firstApprover));
-        }
-
-        // 4. 다음 결재 차례인 결재자에게 알림 발행 (자동 승인 적용 후 미결재 항목 중 가장 앞)
+        // 3. 다음 결재 차례인 결재자에게 알림 발행 (결재선의 가장 앞 순번 결재자)
         //    AFTER_COMMIT 리스너가 처리하므로 본 트랜잭션은 차단되지 않는다.
+        //    참고: 기안자와 1차 결재자가 동일하더라도 자동 승인하지 않고 명시적 결재를 요구합니다.
         publishApprovalRequestNotification(capplm);
 
         return apfMngNo; // 생성된 신청관리번호 반환

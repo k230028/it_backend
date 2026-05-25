@@ -534,8 +534,8 @@ class ApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("submit: 원본 항목을 연결하고 기안자가 1차 결재자이면 자동 승인한다")
-    void submit_원본항목연결과기안자자동승인() {
+    @DisplayName("submit: 원본 항목을 연결하고 기안자가 1차 결재자여도 자동 승인하지 않는다")
+    void submit_원본항목연결_기안자1차결재자도_자동승인없음() {
         ApplicationService realMapperService = serviceWithRealObjectMapper();
         given(applicationRepository.getNextVal()).willReturn(1L);
 
@@ -561,7 +561,8 @@ class ApplicationServiceTest {
         verify(applicationMapRepository, times(2)).save(capplaCaptor.capture());
         assertThat(capplaCaptor.getAllValues()).extracting(Cappla::getOrcSnoVl)
                 .containsExactly(3, null);
-        verify(approverRepository, times(3)).save(any(Cdecim.class));
+        // 결재선 2건 초기 저장만 발생 (자동 승인 분기 제거됨)
+        verify(approverRepository, times(2)).save(any(Cdecim.class));
     }
 
     @Test
