@@ -681,7 +681,7 @@ public class ProjectService {
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
         List<String> prjMngNos = projects.stream().map(Bprojm::getPrjMngNo).collect(Collectors.toList());
-        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc("BPROJM", prjMngNos);
+        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc("BPROJM", prjMngNos);
 
         // prjMngNo → 최신 Cappla (이미 DESC 정렬이므로 첫 번째가 최신)
         Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();
@@ -777,7 +777,7 @@ public class ProjectService {
     private void setApplicationInfo(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // BPROJM 테이블 코드와 프로젝트 관리번호/순번으로 연결된 신청서 목록 조회 (최신순)
         List<com.kdb.it.common.approval.entity.Cappla> capplas = capplaRepository
-                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc("BPROJM", prjMngNo, prjSno);
+                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc("BPROJM", prjMngNo, prjSno);
 
         if (!capplas.isEmpty()) {
             com.kdb.it.common.approval.entity.Cappla cappla = capplas.get(0); // 가장 최신 신청서

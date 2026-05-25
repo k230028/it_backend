@@ -66,8 +66,8 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                                         cappla.orcPkVl.eq(bcostm.itMngcNo),
                                         cappla.orcSnoVl.eq(bcostm.itMngcSno),
                                         capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
-                                        cappla.apfRelSno.eq(
-                                                JPAExpressions.select(cappla2.apfRelSno.max())
+                                        cappla.apfMngNo.eq(
+                                                JPAExpressions.select(cappla2.apfMngNo.max())
                                                         .from(cappla2)
                                                         .where(
                                                                 cappla2.orcTbCd.eq("BCOSTM"),
@@ -135,8 +135,8 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                                                         cappla.orcPkVl.eq(bprojm.prjMngNo),
                                                         cappla.orcSnoVl.eq(bprojm.prjSno),
                                                         capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
-                                                        cappla.apfRelSno.eq(
-                                                                JPAExpressions.select(cappla2.apfRelSno.max())
+                                                        cappla.apfMngNo.eq(
+                                                                JPAExpressions.select(cappla2.apfMngNo.max())
                                                                         .from(cappla2)
                                                                         .where(
                                                                                 cappla2.orcTbCd.eq("BPROJM"),

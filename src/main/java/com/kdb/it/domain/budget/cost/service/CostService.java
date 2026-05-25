@@ -441,7 +441,7 @@ public class CostService {
      */
     private void setApplicationInfo(CostDto.Response response, String itMngcNo, Integer itMngcSno) {
         List<Cappla> capplas = capplaRepository
-                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc("BCOSTM", itMngcNo, itMngcSno);
+                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc("BCOSTM", itMngcNo, itMngcSno);
 
         if (!capplas.isEmpty()) {
             Cappla cappla = capplas.get(0);
@@ -530,7 +530,7 @@ public class CostService {
 
         // --- 1. CAPPLA 배치 조회 ---
         List<String> itMngcNos = costs.stream().map(Bcostm::getItMngcNo).distinct().collect(Collectors.toList());
-        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc("BCOSTM", itMngcNos);
+        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc("BCOSTM", itMngcNos);
 
         // itMngcNo+sno 복합키 → 최신 Cappla
         Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();

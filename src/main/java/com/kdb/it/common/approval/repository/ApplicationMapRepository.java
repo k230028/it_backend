@@ -28,31 +28,31 @@ import org.springframework.data.repository.query.Param;
 public interface ApplicationMapRepository extends JpaRepository<Cappla, Long> {
 
         /**
-         * 원본 테이블 코드, PK값, SNO값으로 신청서 관계 목록 조회 (최신순)
+         * 원본 테이블 코드, PK값, SNO값으로 신청서 관계 목록 조회 (최신 신청서 우선).
          *
-         * <p>
-         * 특정 원본 데이터에 연결된 신청서 목록을 최신순으로 반환합니다.
-         * 주로 프로젝트의 최신 신청서 정보를 조회하는 데 사용됩니다.
-         * </p>
+         * <p>정렬 기준은 {@code APF_MNG_NO DESC}. 신청관리번호 포맷이
+         * {@code APF-{YYYY}-{8자리 시퀀스}}이므로 사전식 내림차순이 시간 역순과 일치합니다.
+         * (Task 20 이후 {@code APF_REL_SNO}는 신청서 단위 1~N로 의미가 바뀌어 시간 정렬 기준이 될 수 없습니다.)</p>
          *
          * @param orcTbCd  원본 테이블 코드 (예: 'BPROJM'=프로젝트)
-         * @param orcPkVl  원본 데이터의 PK 값 (예: 프로젝트 관리번호)
-         * @param orcSnoVl 원본 데이터의 순번 값 (예: 프로젝트 순번)
-         * @return 관련 신청서 관계 목록 (APF_REL_SNO 역순 정렬, 즉 최신 신청서가 첫 번째)
+         * @param orcPkVl  원본 데이터의 PK 값
+         * @param orcSnoVl 원본 데이터의 순번 값
+         * @return 관련 신청서 관계 목록 (최신 신청서가 첫 번째)
          */
-        java.util.List<Cappla> findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(String orcTbCd, String orcPkVl,
+        java.util.List<Cappla> findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(String orcTbCd, String orcPkVl,
                         Integer orcSnoVl);
 
         /**
-         * 여러 원본 데이터 PK에 대해 신청서 관계 목록 일괄 조회 (최신순)
+         * 여러 원본 데이터 PK에 대해 신청서 관계 목록 일괄 조회 (최신 신청서 우선).
          *
-         * <p>N개의 프로젝트/비용 목록 조회 시 N+1 문제를 방지하기 위한 배치 조회 메서드입니다.</p>
+         * <p>정렬 기준은 {@code APF_MNG_NO DESC}.
+         * {@link #findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc} 참조.</p>
          *
          * @param orcTbCd  원본 테이블 코드 (예: 'BPROJM', 'BCOSTM')
          * @param orcPkVls 원본 데이터 PK 값 목록
-         * @return 관련 신청서 관계 목록 (APF_REL_SNO 역순 정렬)
+         * @return 관련 신청서 관계 목록 (최신 신청서가 첫 번째)
          */
-        java.util.List<Cappla> findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(
+        java.util.List<Cappla> findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(
                         String orcTbCd, java.util.List<String> orcPkVls);
 
         /**
