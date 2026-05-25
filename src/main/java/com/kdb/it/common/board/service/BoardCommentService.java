@@ -237,9 +237,14 @@ public class BoardCommentService {
      * <p>발행은 {@code @TransactionalEventListener(AFTER_COMMIT)} 리스너가 처리하므로
      * 본 트랜잭션은 차단되지 않는다. 멘션이 없으면 아무 동작도 하지 않는다.</p>
      *
-     * @param comment   저장 직후의 댓글 엔티티
-     * @param post      댓글이 속한 게시물 (linkUrl 구성에 필요)
-     * @param authorEno 작성자 사번 (자기 멘션 제외용)
+     * <p><strong>임시 진단 로그 주의</strong>: 메서드 내부에 [멘션 진단] 접두사 INFO 로그 5건이 존재합니다.
+     * 운영 환경에서 사용자 사번(PII)이 로그에 기록될 수 있으므로, 진단 완료 후 제거해야 합니다.</p>
+     * <!-- FIXME: 운영 배포 전 [멘션 진단] INFO 로그 5건 제거 필요 (PII 사번 노출 위험) -->
+     *
+     * @param comment      저장 직후의 댓글 엔티티
+     * @param post         댓글이 속한 게시물 (linkUrl 구성에 필요)
+     * @param authorEno    작성자 사번 (자기 멘션 제외용)
+     * @param explicitEnos 프론트 자동완성에서 명시 선택된 사번 목록 (null 허용)
      */
     private void publishMentionNotifications(Ccmmtm comment, Cblbcm post, String authorEno,
                                              java.util.List<String> explicitEnos) {
@@ -295,7 +300,23 @@ public class BoardCommentService {
         }
     }
 
+    /**
+     * null-safe 문자열 반환 헬퍼.
+     *
+     * @param s 대상 문자열
+     * @return null이면 빈 문자열, 아니면 원본 문자열
+     */
     private static String safe(String s) { return s == null ? "" : s; }
+
+    /**
+     * 문자열을 최대 길이로 말줄임합니다.
+     *
+     * <p>{@code s}의 길이가 {@code max}를 초과하면 {@code max-1}자로 자르고 {@code "…"}를 추가합니다.</p>
+     *
+     * @param s   대상 문자열 (null 허용, null이면 null 반환)
+     * @param max 최대 허용 길이 (이 길이를 초과하면 말줄임 처리)
+     * @return max 이하로 줄인 문자열 (null 입력 시 null)
+     */
     private static String abbreviate(String s, int max) {
         if (s == null) return null;
         return s.length() <= max ? s : s.substring(0, max - 1) + "…";

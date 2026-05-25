@@ -166,6 +166,71 @@ class AdminServiceTest {
         verify(codeRepository, times(1)).save(any(Ccodem.class));
     }
 
+    @Test
+    @DisplayName("updateCode - 복합키가 같으면 기존 코드의 일반 필드만 수정한다")
+    void updateCode_동일키_기존항목수정() {
+        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).cNm("기존").build();
+        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
+                "CODE001", "001", "수정", "설명", "값", "상세", "타입", "타입설명", null, sttDt, null, 2);
+        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
+                .willReturn(Optional.of(code));
+
+        adminService.updateCode("CODE001", "001", sttDt, req);
+
+        assertThat(code.getCNm()).isEqualTo("수정");
+    }
+
+    @Test
+    @DisplayName("updateCode - 복합키 변경 시 기존 코드를 삭제하고 새 코드를 저장한다")
+    void updateCode_키변경_새항목저장() {
+        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        LocalDate newSttDt = LocalDate.of(2026, 2, 1);
+        Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
+        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
+                "CODE002", "002", "신규키", null, null, null, null, null, null, newSttDt, null, 1);
+        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
+                .willReturn(Optional.of(code));
+
+        adminService.updateCode("CODE001", "001", sttDt, req);
+
+        assertThat(code.getDelYn()).isEqualTo("Y");
+        verify(codeRepository).save(any(Ccodem.class));
+    }
+
+    @Test
+    @DisplayName("updateCode - 변경 대상 복합키가 이미 있으면 저장을 거절한다")
+    void updateCode_변경키중복_예외발생() {
+        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        LocalDate newSttDt = LocalDate.of(2026, 2, 1);
+        Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
+        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
+                "CODE002", "002", "신규키", null, null, null, null, null, null, newSttDt, null, 1);
+        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
+                .willReturn(Optional.of(code));
+        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "002", newSttDt)).willReturn(true);
+
+        assertThatThrownBy(() -> adminService.updateCode("CODE001", "001", sttDt, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("이미 존재하는 코드입니다");
+    }
+
+    @Test
+    @DisplayName("createCode - 코드 키 필수값이 없으면 각각 예외를 반환한다")
+    void createCode_필수키누락_예외발생() {
+        LocalDate date = LocalDate.of(2026, 1, 1);
+        AdminDto.CodeRequest noId = new AdminDto.CodeRequest(
+                " ", "001", null, null, null, null, null, null, null, date, null, 1);
+        AdminDto.CodeRequest noValue = new AdminDto.CodeRequest(
+                "CODE", null, null, null, null, null, null, null, null, date, null, 1);
+        AdminDto.CodeRequest noDate = new AdminDto.CodeRequest(
+                "CODE", "001", null, null, null, null, null, null, null, null, null, 1);
+
+        assertThatThrownBy(() -> adminService.createCode(noId)).hasMessageContaining("코드ID");
+        assertThatThrownBy(() -> adminService.createCode(noValue)).hasMessageContaining("코드값");
+        assertThatThrownBy(() -> adminService.createCode(noDate)).hasMessageContaining("시작일자");
+    }
+
     // =========================================================================
     // 자격등급 (CauthI)
     // =========================================================================

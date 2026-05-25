@@ -7,6 +7,8 @@ import com.kdb.it.common.board.entity.Ccmmtm;
 import com.kdb.it.common.board.repository.BoardCommentRepository;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +20,7 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -34,6 +37,8 @@ class BoardCommentServiceTest {
     @Mock BoardPostRepository    postRepository;
     @Mock BoardCommentRepository commentRepository;
     @Mock BoardPostService        postService;
+    @Mock UserRepository           userRepository;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     @InjectMocks BoardCommentService service;
 
@@ -130,6 +135,39 @@ class BoardCommentServiceTest {
         assertThat(saved.getCmmtGrpNo()).isEqualTo(saved.getCmmtMngNo()); // 루트 댓글
         assertThat(saved.getCmmtGrpSqn()).isZero();
         assertThat(saved.getCmmtGrpLev()).isZero();
+    }
+
+    @Test
+    @DisplayName("명시 멘션이 유효한 사용자이면 댓글 등록 시 알림 이벤트를 발행한다")
+    void createComment_유효멘션_알림발행() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+            .willReturn(Optional.of(boardWithComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+            .willReturn(Optional.of(post));
+        given(commentRepository.getNextSequenceValue()).willReturn(2L);
+        given(userRepository.findByEnoIn(anySet())).willReturn(List.of(
+            com.kdb.it.common.iam.entity.CuserI.builder().eno("E002").build()));
+
+        var request = new BoardCommentDto.CreateRequest("멘션 댓글", List.of("E002", "USER001", " "));
+        service.createComment("BLBM-2026-0001", "NAC-2026-0001", request, normalUser);
+
+        verify(eventPublisher).publishEvent(any(NotificationEvent.class));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 멘션 사용자이면 댓글 등록 시 알림을 발행하지 않는다")
+    void createComment_없는멘션_알림미발행() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+            .willReturn(Optional.of(boardWithComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+            .willReturn(Optional.of(post));
+        given(commentRepository.getNextSequenceValue()).willReturn(3L);
+        given(userRepository.findByEnoIn(anySet())).willReturn(List.of());
+
+        var request = new BoardCommentDto.CreateRequest("멘션 댓글", List.of("E404"));
+        service.createComment("BLBM-2026-0001", "NAC-2026-0001", request, normalUser);
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     // ── 댓글 수정 ──

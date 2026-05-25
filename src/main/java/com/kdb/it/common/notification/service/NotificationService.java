@@ -90,7 +90,12 @@ public class NotificationService {
         return cinfmmRepository.findInbox(currentEno, unreadOnly, pageable);
     }
 
-    /** 본인 미읽음 카운트 조회. */
+    /**
+     * 본인 미읽음 알림 건수 조회.
+     *
+     * @param currentEno 현재 인증된 사용자 사번 (RCV_USID)
+     * @return 미읽음 알림 건수
+     */
     public long unreadCount(String currentEno) {
         long count = cinfmmRepository.countUnread(currentEno);
         log.info("[알림 진단] unreadCount 조회: currentEno={}, count={}", currentEno, count);
@@ -100,8 +105,10 @@ public class NotificationService {
     /**
      * 단건 읽음 처리. 소유자 검증 포함.
      *
+     * @param infMngNo   읽음 처리할 알림관리번호
+     * @param currentEno 현재 인증된 사용자 사번
      * @throws AccessDeniedException    본인 소유 알림이 아닌 경우
-     * @throws IllegalArgumentException 알림이 존재하지 않거나 삭제된 경우
+     * @throws IllegalArgumentException 알림이 존재하지 않거나 이미 삭제된 경우
      */
     @Transactional(readOnly = false)
     public void markRead(String infMngNo, String currentEno) {
@@ -109,13 +116,25 @@ public class NotificationService {
         notification.markRead();
     }
 
-    /** 본인 미읽음 알림 일괄 읽음. */
+    /**
+     * 본인 미읽음 알림 일괄 읽음 처리.
+     *
+     * @param currentEno 현재 인증된 사용자 사번
+     * @return 읽음 처리된 알림 건수
+     */
     @Transactional(readOnly = false)
     public long markAllRead(String currentEno) {
         return cinfmmRepository.markAllReadByRcvUsid(currentEno);
     }
 
-    /** 단건 Soft Delete. 소유자 검증 포함. */
+    /**
+     * 단건 알림 Soft Delete. 소유자 검증 포함.
+     *
+     * @param infMngNo   삭제할 알림관리번호
+     * @param currentEno 현재 인증된 사용자 사번
+     * @throws AccessDeniedException    본인 소유 알림이 아닌 경우
+     * @throws IllegalArgumentException 알림이 존재하지 않거나 이미 삭제된 경우
+     */
     @Transactional(readOnly = false)
     public void softDelete(String infMngNo, String currentEno) {
         Cinfmm notification = loadOwned(infMngNo, currentEno);
@@ -130,7 +149,17 @@ public class NotificationService {
         return String.format("INF-%d-%08d", LocalDate.now().getYear(), seq);
     }
 
-    /** 알림 조회 + 소유자/삭제여부 검증 */
+    /**
+     * 알림 조회 및 소유자·삭제여부 검증 헬퍼.
+     *
+     * <p>알림관리번호로 엔티티를 조회하고 현재 사용자 소유 여부와 삭제 여부를 검증합니다.</p>
+     *
+     * @param infMngNo   조회할 알림관리번호
+     * @param currentEno 소유권 검증에 사용할 현재 사용자 사번
+     * @return 검증을 통과한 알림 엔티티
+     * @throws IllegalArgumentException 알림이 존재하지 않거나 이미 삭제된 경우
+     * @throws AccessDeniedException    본인 소유 알림이 아닌 경우
+     */
     private Cinfmm loadOwned(String infMngNo, String currentEno) {
         Cinfmm notification = cinfmmRepository.findById(infMngNo)
             .orElseThrow(() -> new IllegalArgumentException("알림을 찾을 수 없습니다: " + infMngNo));

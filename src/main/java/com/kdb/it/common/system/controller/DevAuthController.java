@@ -43,6 +43,8 @@ import java.util.List;
  *   <li>{@code POST /api/auth/dev/switch-user} — 선택한 사번으로 JWT 쿠키 재발급</li>
  * </ul>
  */
+// ⚠️ 주의: matchIfMissing=true 이므로 환경변수(app.dev.user-switch.enabled) 미설정 시 이 컨트롤러가 기본 활성화됩니다.
+// 운영 배포 전 반드시 app.dev.user-switch.enabled=false 설정 필수 (미설정 시 보안 취약점 발생)
 @RestController
 @RequestMapping("/api/auth/dev")
 @RequiredArgsConstructor

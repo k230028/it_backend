@@ -20,6 +20,13 @@ public enum DecisionStatus {
     public String code()  { return code; }
     public String label() { return label; }
 
+    /**
+     * DCD_STS 코드값으로 enum 상수를 조회합니다.
+     *
+     * @param code DCD_STS 코드값 (예: "001"=미결재, "002"=승인, "003"=반려, "004"=회수무효)
+     * @return 해당 코드의 {@link DecisionStatus}
+     * @throws IllegalArgumentException 등록되지 않은 코드값이 입력된 경우 (null 포함)
+     */
     public static DecisionStatus ofCode(String code) {
         for (DecisionStatus s : values()) if (s.code.equals(code)) return s;
         throw new IllegalArgumentException("Unknown DCD_STS code: " + code);

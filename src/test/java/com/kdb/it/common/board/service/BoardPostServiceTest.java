@@ -4,6 +4,8 @@ import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -28,6 +31,8 @@ class BoardPostServiceTest {
 
     @Mock BoardMetaRepository metaRepository;
     @Mock BoardPostRepository postRepository;
+    @Mock UserRepository userRepository;
+    @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks BoardPostService service;
 
     private Cblbmm publicBoard;
@@ -519,6 +524,43 @@ class BoardPostServiceTest {
 
         // Assert
         assertThat(result).startsWith("NAC-");
+    }
+
+    @Test
+    @DisplayName("createPost: 명시 멘션 사용자가 존재하면 알림 이벤트를 발행한다")
+    void createPost_유효멘션_알림발행() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+            .willReturn(Optional.of(writableBoard()));
+        given(postRepository.getNextSequenceValue()).willReturn(15L);
+        given(userRepository.findByEnoIn(anySet())).willReturn(List.of(
+            com.kdb.it.common.iam.entity.CuserI.builder().eno("E002").build()));
+
+        var req = new com.kdb.it.common.board.dto.BoardPostDto.CreateRequest();
+        req.setNacNm("멘션 게시물");
+        req.setNacCone("본문");
+        req.setMentionedEnos(List.of("E002", "USER001", ""));
+
+        service.createPost("BLBM-2026-0003", req, normalUser);
+
+        verify(eventPublisher).publishEvent(any(NotificationEvent.class));
+    }
+
+    @Test
+    @DisplayName("createPost: 존재하지 않는 멘션만 있으면 알림 이벤트를 발행하지 않는다")
+    void createPost_없는멘션_알림미발행() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+            .willReturn(Optional.of(writableBoard()));
+        given(postRepository.getNextSequenceValue()).willReturn(17L);
+        given(userRepository.findByEnoIn(anySet())).willReturn(List.of());
+
+        var req = new com.kdb.it.common.board.dto.BoardPostDto.CreateRequest();
+        req.setNacNm("멘션 게시물");
+        req.setNacCone("본문");
+        req.setMentionedEnos(List.of("E404"));
+
+        service.createPost("BLBM-2026-0003", req, normalUser);
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

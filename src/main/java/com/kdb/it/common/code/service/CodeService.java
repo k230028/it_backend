@@ -32,8 +32,11 @@ public class CodeService {
     /**
      * 공통코드 다건 조회 (코드ID 기준 카테고리 전체)
      *
+     * <p>캐시 없는 직접 조회 메서드입니다. 캐시 적용이 필요하면 {@link #findCodeEntitiesByCId(String)} 사용.</p>
+     *
      * @param cId        코드ID (예: PRJ_TP, CUR)
      * @param targetDate 기준일자 (null이면 현재 날짜)
+     * @return 해당 코드ID의 유효한 공통코드 응답 DTO 목록 (없으면 빈 리스트)
      */
     public List<CodeDto.Response> getCcodemsByCId(String cId, LocalDate targetDate) {
         return codeRepository.findByCIdWithValidDate(cId, targetDate).stream()
@@ -47,6 +50,8 @@ public class CodeService {
      * @param cId        코드ID
      * @param cdva       코드값
      * @param targetDate 기준일자 (null이면 현재 날짜)
+     * @return 해당 코드ID·코드값의 공통코드 응답 DTO
+     * @throws IllegalArgumentException 코드가 존재하지 않거나 유효기간을 벗어난 경우
      */
     public CodeDto.Response getCcodem(String cId, String cdva, LocalDate targetDate) {
         Ccodem ccodem = codeRepository.findByCIdAndCdvaWithValidDate(cId, cdva, targetDate)
@@ -60,6 +65,7 @@ public class CodeService {
      *
      * @param cTp        코드타입 (예: IOE_LEAFE, IOE_XPN)
      * @param targetDate 기준일자 (null이면 현재 날짜)
+     * @return 해당 코드타입의 유효한 공통코드 응답 DTO 목록 (없으면 빈 리스트)
      */
     public List<CodeDto.Response> getCcodemsByCTp(String cTp, LocalDate targetDate) {
         return codeRepository.findByCTpWithValidDate(cTp, targetDate).stream()
@@ -173,7 +179,13 @@ public class CodeService {
     }
 
     /**
-     * 예산 신청 기간 내인지 검증
+     * 예산 신청 기간 내인지 검증합니다.
+     *
+     * <p>현재 날짜가 BG_RQS/STA ~ BG_RQS/END 범위 안에 있는지 확인합니다.
+     * 범위를 벗어나면 즉시 예외를 발생시킵니다.</p>
+     *
+     * @throws com.kdb.it.exception.CustomGeneralException 예산 신청 기간이 아닌 경우 (400 반환)
+     * @throws IllegalArgumentException 예산 신청 기간 코드({@code BG_RQS/STA, BG_RQS/END})가 미등록된 경우
      */
     public void validateBudgetPeriod() {
         CodeDto.BudgetPeriodResponse period = getBudgetPeriod();

@@ -100,6 +100,7 @@ public class GeminiService {
         this.apiKey = apiKey;
         this.model = model;
         this.fileRepository = fileRepository;
+        // FIXME: [B-H-06] connectTimeout/readTimeout 설정 필요, 미설정시 스레드풀 고갈 위험
         // FIXME: [B-H-04] RestClient 타임아웃 미설정 — Gemini API 응답 지연 시 스레드 무한 대기 가능
         // HttpClient.newBuilder().connectTimeout(5s)/readTimeout(60s) 설정 후 .httpClient() 주입 필요
         this.restClient = RestClient.builder()
@@ -273,6 +274,7 @@ public class GeminiService {
         try {
             fileBytes = Files.readAllBytes(filePath);
         } catch (IOException e) {
+            // TODO: [B-M-05] IOException 발생시 warn 로그 추가 후 skip 처리 필요
             // TODO: [B-H-03] log.warn("AI 분석 파일 읽기 실패, 스킵: {}", filePath, e) 최소한 warn 로그 필요
             return FilePartResult.skip("파일 읽기 실패: " + e.getMessage());
         }

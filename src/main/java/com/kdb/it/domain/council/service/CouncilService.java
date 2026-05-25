@@ -87,6 +87,11 @@ public class CouncilService {
      * Plan SC: Step 1~3 전 과정 온라인 처리 기반 목록 제공
      * </p>
      *
+     * <p><strong>유니코드 이스케이프 주의</strong>: 쿼리 파라미터에 한글 리터럴 대신
+     * 유니코드 이스케이프({@code &#92;uXXXX})를 사용하는 이유는 Oracle 소스 파일 인코딩(EUC-KR) 환경에서
+     * 한글 직접 삽입 시 문자 깨짐이 발생하는 문제를 방지하기 위함입니다.
+     * 빌드 환경 인코딩 표준화 후 한글 리터럴로 교체할 예정입니다.</p>
+     *
      * @param userDetails 현재 로그인한 사용자 정보
      * @return 권한에 맞는 협의회 목록
      */

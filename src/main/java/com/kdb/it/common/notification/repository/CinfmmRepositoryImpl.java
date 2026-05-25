@@ -24,6 +24,17 @@ public class CinfmmRepositoryImpl implements CinfmmRepositoryCustom {
 
     private static final QCinfmm c = QCinfmm.cinfmm;
 
+    /**
+     * 수신자 기준 알림 목록을 페이지 단위로 조회합니다.
+     *
+     * <p>삭제된 알림({@code DEL_YN='Y'})은 항상 제외됩니다.
+     * {@code unreadOnly=true}이면 미읽음({@code RDD_YN='N'})만 추가 필터링합니다.</p>
+     *
+     * @param rcvUsid    수신자 사번 (RCV_USID)
+     * @param unreadOnly true=미읽음 알림만 조회, false 또는 null=전체 조회 (읽음 포함)
+     * @param pageable   페이지 정보 (정렬은 FST_ENR_DTM DESC 고정)
+     * @return 알림 페이지 결과
+     */
     @Override
     public Page<Cinfmm> findInbox(String rcvUsid, Boolean unreadOnly, Pageable pageable) {
         var where = c.rcvUsid.eq(rcvUsid)

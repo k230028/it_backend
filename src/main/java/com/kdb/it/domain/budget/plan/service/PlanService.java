@@ -38,16 +38,24 @@ import java.util.stream.Collectors;
  * </p>
  */
 // TODO: 클래스 레벨 @Transactional(readOnly=true) 추가 필요 — 조회 위주 서비스이므로 메서드별 어노테이션 누락 방지 (CLAUDE.md §5.5)
+// 누락 배경: 초기 개발 시 트랜잭션 전략 미수립. 쓰기 메서드에 @Transactional(readOnly=false) 오버라이드 후 클래스 레벨 적용 예정.
 @Service
 @RequiredArgsConstructor
 public class PlanService {
 
+        /** 정보기술부문계획(TPRMPP_BPLANM) CRUD 리포지토리 */
         private final BplanmRepository bplanmRepository;
+        /** 정보화사업 계획 연결(TPRMPP_BPROJA) 리포지토리 */
         private final BprojaRepository bprojaRepository;
+        /** 정보화사업 서비스: 프로젝트 목록·상세 조회 위임 */
         private final ProjectService projectService;
+        /** 전산관리비 서비스: 비용 목록·상세 조회 위임 */
         private final CostService costService;
+        /** 공통코드 서비스: 예산 신청 기간 검증 및 코드명 조회용 */
         private final CodeService codeService;
+        /** 사용자(TPRMPP_CUSERI) 리포지토리: 작성자명 조회용 */
         private final UserRepository cuserIRepository;
+        /** JSON 직렬화/역직렬화: 계획 스냅샷 파싱용 */
         private final ObjectMapper objectMapper;
 
         /**

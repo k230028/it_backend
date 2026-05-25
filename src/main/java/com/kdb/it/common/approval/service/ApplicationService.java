@@ -495,6 +495,8 @@ public class ApplicationService {
                     try {
                         return getApplication(apfMngNo); // 개별 신청서 조회
                     } catch (IllegalArgumentException e) {
+                        // FIXME: [B-H-02] null 반환 대신 Optional 또는 예외 전파로 변경, 최소 warn 로그 추가 필요
+                        // 현재 null → filter(Objects::nonNull) 패턴으로 실패 건이 silently 손실됨. 사용자 인지 불가.
                         // FIXME: [B-C-03] null 필터링 대신 실패 ID 목록을 warn 로그에 남기고, 호출자에게 실패 건수 반환 또는 예외 재발생 필요
                         return null; // 존재하지 않는 신청서는 null로 처리
                     }
@@ -511,6 +513,7 @@ public class ApplicationService {
      * @param bbrC 부서코드 (TPRMPP_CUSERI.BBR_C)
      * @param eno  사원번호 (본인 결재 대기 필터)
      * @return 대시보드 집계 응답 DTO
+     * @throws org.springframework.dao.DataAccessException DB 조회 실패 시 (GlobalExceptionHandler에서 500 응답으로 처리)
      */
     public ApplicationDto.DashboardResponse getDashboard(String bbrC, String eno) {
         int pendingCount          = applicationRepository.countPendingByEno(eno);
@@ -657,7 +660,26 @@ public class ApplicationService {
         eventPublisher.publishEvent(new ApprovalRecalledEvent(apfMngNo, currentEno, approvedMiddle));
     }
 
-    /** 회수 권한 검증 헬퍼 */
+    /**
+     * 결재 회수 가능 여부 검증 헬퍼
+     *
+     * <p>
+     * 결재중 상태인 신청서에 대해 관리자·신청자·중간결재자 세 가지 분기로 회수 권한을 판단합니다.
+     * </p>
+     *
+     * <ul>
+     * <li>결재중({@code APF_STS_C = IN_PROGRESS}) 상태가 아니면 무조건 false 반환</li>
+     * <li>시스템관리자({@code isAdmin=true}): 항상 허용</li>
+     * <li>신청자({@code currentEno == capplm.rqsEno}): 허용</li>
+     * <li>중간결재자(최종결재자 아닌 결재선 중 현재 사용자): 허용</li>
+     * </ul>
+     *
+     * @param capplm      대상 신청서 마스터 엔티티
+     * @param approvers   결재선 목록 (중간결재자 여부 판단용, {@code LST_DCD_YN} 기준)
+     * @param currentEno  현재 요청 사용자 사번
+     * @param isAdmin     관리자 여부 플래그
+     * @return 회수 가능 여부 (true=허용, false=거부)
+     */
     private boolean canRecall(Capplm capplm, List<Cdecim> approvers, String currentEno, boolean isAdmin) {
         if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfStsC())) return false;
         if (isAdmin) return true;

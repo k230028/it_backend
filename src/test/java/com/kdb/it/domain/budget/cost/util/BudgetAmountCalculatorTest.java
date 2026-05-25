@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.cost.util;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.lang.reflect.InvocationTargetException;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,17 @@ import org.junit.jupiter.api.Test;
  * <p>CONTEXT.md 결정 B / C / D 4개 케이스 + isForeignRow 보조 검증.</p>
  */
 class BudgetAmountCalculatorTest {
+
+    @Test
+    @DisplayName("생성자는 유틸 클래스 인스턴스 생성을 차단한다")
+    void constructor_인스턴스화시_예외발생() throws Exception {
+        var constructor = BudgetAmountCalculator.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(constructor::newInstance))
+                .isInstanceOf(InvocationTargetException.class)
+                .hasCauseInstanceOf(UnsupportedOperationException.class);
+    }
 
     @Test
     @DisplayName("외화 정상: USD fcAmt=1000.000 × xcr=1300.5000 → krw=1300500.0000, fcAmt=1000.000 (클라 위조 999.999 무시)")
@@ -60,6 +72,16 @@ class BudgetAmountCalculatorTest {
         BigDecimal[] result = BudgetAmountCalculator.reconcileAmount(null, krwClient, "USD", new BigDecimal("1300"));
 
         assertThat(result[0]).isEqualByComparingTo(new BigDecimal("12345"));
+        assertThat(result[1]).isNull();
+    }
+
+    @Test
+    @DisplayName("외화이나 환율이 null이면 원화 입력값을 보존한다")
+    void reconcileAmount_외화환율Null_클라값보존() {
+        BigDecimal[] result = BudgetAmountCalculator.reconcileAmount(
+                new BigDecimal("10"), new BigDecimal("999"), "USD", null);
+
+        assertThat(result[0]).isEqualByComparingTo("999");
         assertThat(result[1]).isNull();
     }
 

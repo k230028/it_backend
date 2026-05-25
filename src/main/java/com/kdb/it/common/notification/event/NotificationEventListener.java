@@ -32,7 +32,15 @@ public class NotificationEventListener {
     private final NotificationService notificationService;
     private final ApplicationRepository applicationRepository;
 
-    /** 일반 알림 이벤트 처리. 발행자 트랜잭션 커밋 이후 비동기 발송. */
+    /**
+     * 일반 알림 이벤트 처리. 발행자 트랜잭션 커밋 이후 비동기 발송.
+     *
+     * <p><strong>임시 진단 로그 주의</strong>: 메서드 내부에 [알림 진단] 접두사 INFO 로그 3건이 존재합니다.
+     * 운영 환경에서 수신자 사번(PII)이 로그에 기록될 수 있으므로, 진단 완료 후 제거해야 합니다.</p>
+     * <!-- FIXME: 운영 배포 전 [알림 진단] INFO 로그 제거 필요 (PII 사번 노출 위험) -->
+     *
+     * @param event 알림 이벤트 (수신자 사번, 알림 유형, 제목 포함)
+     */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onNotificationEvent(NotificationEvent event) {
         log.info("[알림 진단] onNotificationEvent 진입: recipient={}, type={}, ttl={}",

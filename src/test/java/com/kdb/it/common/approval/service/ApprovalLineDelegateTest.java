@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.util.List;
 
@@ -173,5 +174,48 @@ class ApprovalLineDelegateTest {
         // Assert: updated=false → updateDetailContent 미호출
         org.mockito.Mockito.verify(capplm, org.mockito.Mockito.never())
                 .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("applyRecallInfo: 빈 상세 JSON에는 회수 정보를 새로 기록한다")
+    void applyRecallInfo_빈JSON_회수정보기록() {
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getApfDtlCone()).willReturn("");
+
+        delegate.applyRecallInfo(capplm, "E001", "재작성 필요");
+
+        verify(capplm).updateDetailContent(org.mockito.ArgumentMatchers.argThat(json ->
+                json.contains("\"recallerEno\":\"E001\"") && json.contains("\"recallOpnn\":\"재작성 필요\"")));
+    }
+
+    @Test
+    @DisplayName("applyRecallInfo: 잘못된 JSON이면 IllegalStateException을 던진다")
+    void applyRecallInfo_잘못된JSON_예외발생() {
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getApfDtlCone()).willReturn("{");
+
+        assertThatThrownBy(() -> delegate.applyRecallInfo(capplm, "E001", "회수"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("회수 정보 JSON 갱신 실패");
+    }
+
+    @Test
+    @DisplayName("doUpdate: 기안자 노드는 결재 횟수 계산에서 제외하고 승인자만 갱신한다")
+    void doUpdate_기안자제외_승인자갱신() {
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getApfDtlCone()).willReturn(
+                "{\"approvalLine\":{\"drafter\":{\"id\":\"E001\"},\"step1\":{\"id\":\"E001\"},\"caption\":\"text\"}}");
+        Cdecim approver = mock(Cdecim.class);
+        given(approver.getDcdEno()).willReturn("E001");
+        given(approver.getDcdSqn()).willReturn(1);
+
+        delegate.doUpdate(capplm, List.of(approver), List.of(approver));
+
+        verify(capplm).updateDetailContent(org.mockito.ArgumentMatchers.argThat(json ->
+                json.contains("\"step1\":{\"id\":\"E001\",\"date\"")
+                        && !json.contains("\"drafter\":{\"id\":\"E001\",\"date\"")));
     }
 }

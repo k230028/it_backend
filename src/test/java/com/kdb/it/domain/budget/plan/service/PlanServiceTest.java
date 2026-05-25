@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.code.service.CodeService;
+import com.kdb.it.common.code.entity.Ccodem;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -106,6 +107,52 @@ class PlanServiceTest {
 
         // then
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getPlans - 스냅샷 사업유형으로 신규와 계속 건수를 계산한다")
+    void getPlans_스냅샷사업유형_건수계산() {
+        PlanService service = new PlanService(
+                bplanmRepository, bprojaRepository, projectService, costService,
+                codeService, cuserIRepository, new ObjectMapper());
+        Bplanm plan = Bplanm.builder()
+                .plnMngNo("PLN-2026-0002")
+                .plnYy("2026")
+                .plnTp("신규")
+                .plnDtlInf("{\"prjSnapshots\":[{\"pulDtt\":\"001\"},{\"pulDtt\":\"002\"},{\"pulDtt\":\"001\"}]}")
+                .build();
+        ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER002");
+        given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
+        given(cuserIRepository.findAllById(List.of("USER002"))).willReturn(List.of());
+        given(codeService.findCodeEntitiesByCId("PUL_DTT")).willReturn(List.of(
+                Ccodem.builder().cdva("001").cNm("신규").build(),
+                Ccodem.builder().cdva("002").cNm("계속").build()));
+
+        List<PlanDto.ListResponse> result = service.getPlans();
+
+        assertThat(result.get(0).getItPrjCnt()).isEqualTo(3);
+        assertThat(result.get(0).getNewPrjCnt()).isEqualTo(2);
+        assertThat(result.get(0).getContPrjCnt()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("getPlans - 손상된 스냅샷은 사업 건수를 0으로 유지한다")
+    void getPlans_손상된스냅샷_건수0유지() {
+        PlanService service = new PlanService(
+                bplanmRepository, bprojaRepository, projectService, costService,
+                codeService, cuserIRepository, new ObjectMapper());
+        Bplanm plan = Bplanm.builder()
+                .plnMngNo("PLN-2026-0003")
+                .plnDtlInf("{")
+                .build();
+        ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER003");
+        given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
+        given(cuserIRepository.findAllById(List.of("USER003"))).willReturn(List.of());
+        given(codeService.findCodeEntitiesByCId("PUL_DTT")).willReturn(List.of());
+
+        List<PlanDto.ListResponse> result = service.getPlans();
+
+        assertThat(result.get(0).getItPrjCnt()).isZero();
     }
 
     // =========================================================================

@@ -205,4 +205,24 @@ class UserServiceTest {
         // then
         assertThat(result).isEmpty();
     }
+
+    @Test
+    @DisplayName("searchUsersByName: 키워드와 부점코드가 모두 비어 있으면 조회 없이 빈 목록을 반환한다")
+    void searchUsersByName_키워드부점모두없음_빈목록반환() {
+        List<UserDto.ListResponse> result = userService.searchUsersByName(" ", null);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("searchUsersByName: 키워드가 없고 부점코드가 있으면 부점 목록을 반환한다")
+    void searchUsersByName_키워드없고부점있음_부점목록반환() {
+        CuserI user = mockUserEntity("E10001", "001", "홍길동");
+        given(userRepository.findByBbrC("001")).willReturn(List.of(user));
+
+        List<UserDto.ListResponse> result = userService.searchUsersByName(null, "001");
+
+        assertThat(result).singleElement().satisfies(item -> assertThat(item.getEno()).isEqualTo("E10001"));
+        verify(userRepository).findByBbrC("001");
+    }
 }

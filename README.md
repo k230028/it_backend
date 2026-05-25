@@ -13,8 +13,11 @@
   - 공통 게시판(게시판 메타/게시물/댓글/답변글)
   - 변경 이력 추적(Audit Log)
   - 파일 업로드/다운로드
+  - Tiptap 에디터 변수 토큰 시스템
+  - 실시간 알림 (인앱, Phase 2 예정: 이메일/SMS/알림톡)
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
+- **소스 코드**: 257개 자바 파일, 86개 테스트 파일, 61개 엔티티
 
 ## 2. 기술 스택
 
@@ -28,7 +31,52 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 69개 테스트 파일 / 기존 결과 기준 787개 테스트 케이스 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 86개 테스트 파일 / 기존 결과 기준 787개 테스트 케이스 |
+
+## 2.5 빠른 시작 (Quick Start)
+
+### 환경 준비
+
+```bash
+# 1. 로컬 Oracle DB 접속 확인
+.\it_database\connect-db.ps1
+
+# 2. 환경변수 설정 (Windows PowerShell)
+$env:DB_PASSWORD = "your-db-password"
+$env:JWT_SECRET = "your-jwt-secret-key"
+$env:GEMINI_API_KEY = "your-gemini-api-key"  # 필요시
+
+# 3. 빌드 및 실행
+cd it_backend
+./gradlew clean build
+./gradlew bootRun
+#   → http://localhost:8080
+#   → Swagger: http://localhost:8080/swagger-ui/index.html
+```
+
+### 테스트 실행
+
+```bash
+# 전체 테스트
+./gradlew test
+
+# 특정 테스트 클래스
+./gradlew test --tests "com.kdb.it.domain.budget.project.service.ProjectServiceTest"
+
+# 커버리지 리포트
+./gradlew jacocoTestReport
+# 리포트 확인: build/reports/jacoco/test/html/index.html
+```
+
+### IDE 설정 (IntelliJ IDEA 권장)
+
+1. QueryDSL Q클래스 자동 생성 설정:
+   - Build, Execution, Deployment → Compiler → Annotation Processors
+   - Enable annotation processing 체크
+2. Lombok 플러그인 설치 (IntelliJ Lombok 플러그인)
+3. 파일 인코딩: File → Settings → Editor → File Encodings → UTF-8
+
+---
 
 ## 3. 아키텍처
 
@@ -568,6 +616,8 @@ public class Bprojm extends BaseEntity { ... }
 | GET | `/v3/api-docs/**` | OpenAPI 명세 |
 
 > **회원가입**: `/api/auth/signup` — 관리자 권한 필요 (임직원 포털 특성상 자유 가입 금지)
+>
+> **개발 전용**: `/api/auth/dev/**` — 개발자 사용자 전환 API (app.dev.user-switch.enabled=true 시에만 활성화, 운영 배포 전 반드시 비활성화)
 
 ### 8.2 비즈니스 API (인증 필수)
 
@@ -617,7 +667,7 @@ public class Bprojm extends BaseEntity { ... }
 #   → http://localhost:8080
 #   → Swagger: http://localhost:8080/swagger-ui/index.html
 
-# 4. 테스트 실행 (69개 테스트 파일 / 기존 결과 기준 787개 케이스)
+# 4. 테스트 실행 (86개 테스트 파일 / 기존 결과 기준 787개 케이스)
 ./gradlew test
 
 # 5. 테스트 커버리지 리포트 생성
@@ -641,8 +691,8 @@ public class Bprojm extends BaseEntity { ... }
 | 속성 | 기본값 | 개발 | 운영 | 설명 |
 |------|--------|------|------|------|
 | `spring.datasource.url` | - | `jdbc:oracle:thin:@127.0.0.1:1521/XEPDB1` | 프로덕션 접속 정보 | Oracle 접속 URL |
-| `spring.datasource.password` | `kdb1234!!` | 로컬값 | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
-| `jwt.secret` | `kdb-it-secret-key...` | 로컬값 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 (운영 기본값 제거 필요) |
+| `spring.datasource.password` | `your-db-password` | 로컬값 | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
+| `jwt.secret` | `your-jwt-secret-key` | 로컬값 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 (운영 기본값 제거 필요) |
 | `jwt.access-token-validity` | `900000` | - | - | Access Token 유효시간 (15분) |
 | `jwt.refresh-token-validity` | `604800000` | - | - | Refresh Token 유효시간 (7일) |
 | `app.cookie.secure` | `false` | 개발: false | 운영: true | 쿠키 Secure 플래그 (HTTPS 필수) |
@@ -668,13 +718,13 @@ public class Bprojm extends BaseEntity { ... }
 
 ```bash
 # Windows (PowerShell)
-$env:DB_PASSWORD = "kdb1234!!"
-$env:JWT_SECRET = "your-256-bit-secret-key-at-least-32-characters"
+$env:DB_PASSWORD = "your-db-password"
+$env:JWT_SECRET = "your-jwt-secret-key"
 $env:GEMINI_API_KEY = "your-gemini-api-key"
 
 # macOS/Linux (bash)
-export DB_PASSWORD=kdb1234!!
-export JWT_SECRET=your-256-bit-secret-key-at-least-32-characters
+export DB_PASSWORD=your-db-password
+export JWT_SECRET=your-jwt-secret-key
 export GEMINI_API_KEY=your-gemini-api-key
 ```
 
@@ -785,10 +835,90 @@ REFACTOR — 중복 제거, 가독성 개선 (테스트 통과 유지)
 
 ---
 
-## 13. 변경 이력
+## 13. 개발자 가이드
+
+### 13.1 신규 기능 구현 패턴
+
+#### 목록 API에 부서 필터링 추가
+신규 목록 조회 API는 반드시 부서코드(`bbrC`) 필터링을 지원해야 합니다.
+
+```
+1. Controller: @RequestParam(required = false) String bbrC 추가
+2. Service: getList(@Nullable String bbrC) 시그니처 변경
+3. RepositoryImpl: if (StringUtils.hasText(bbrC)) builder.and(entity.bbrC.eq(bbrC))
+4. Test: bbrC 지정/null 두 케이스 모두 테스트
+```
+
+#### 관리자 전용 컨트롤러 작성
+관리자만 접근 가능한 도메인 API는 **클래스 레벨 `@PreAuthorize` 필수**:
+
+```java
+@RestController
+@RequestMapping("/api/plans")
+@RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")  // SecurityConfig URL 패턴 외 도메인 컨트롤러는 반드시 명시
+public class PlanController { ... }
+```
+
+#### 알림 발송
+결재/게시판 완료 후 사용자에게 알림:
+
+```java
+applicationEventPublisher.publishEvent(
+    new NotificationEvent(
+        Cinfmm.newInAppNotification(
+            recipient.getEno(),
+            "002",  // NotificationEvent.TYPE_APPROVAL_REQUEST
+            applId
+        )
+    )
+);
+// NotificationEventListener(AFTER_COMMIT)가 자동으로 처리
+```
+
+#### JPA Auditing 로그 자동 기록
+새 엔티티에 변경 로그 추가:
+
+```java
+@LogTarget(entity = BnewentL.class)  // 로그 대상 등록
+@Entity
+public class Bnewent extends BaseEntity { ... }
+```
+
+그 후:
+1. `BaseLogEntity` 상속하는 `BnewentL` 생성
+2. Oracle 시퀀스 `S_BNEWENT` 생성
+3. `AdminLogService.buildDefinitions()`에 항목 추가
+
+### 13.2 테스트 작성 의무
+
+| 대상 | 테스트 케이스 | 필수 |
+|------|-------------|------|
+| 신규 Service 메서드 | RED→GREEN→REFACTOR | O |
+| 신규 RepositoryImpl | 정상/null/부서필터 케이스 | O |
+| 신규 Controller 엔드포인트 | MockMvc + 권한 테스트 | O |
+| @Valid 검증 | 유효/무효 요청 | O |
+| QueryDSL 집계 쿼리 | 결과 정확도 | O |
+
+### 13.3 보안 체크리스트
+
+신규 API 또는 수정 후:
+
+- [ ] 인증 필수 엔드포인트는 SecurityConfig 또는 `@PreAuthorize` 보호
+- [ ] `@Valid` 요청 검증 적용
+- [ ] SQL Injection: 모든 동적 쿼리는 QueryDSL 또는 파라미터 바인딩
+- [ ] XSS: 사용자 HTML 입력은 `HtmlSanitizer.sanitize()` 적용
+- [ ] 파일 업로드: `FileValidator.validateExtension()` 호출
+- [ ] 소유권 검증: 파일/알림/게시물은 `FileOwnershipChecker` 또는 권한 검증
+- [ ] 부서 필터링: 목록 API는 `bbrC` 지원
+
+---
+
+## 14. 변경 이력
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-05-26** | README.md 전체 분석 및 업데이트: 소스 코드 통계(257 Java 파일, 84 테스트, 61 엔티티) 추가, 개발자 가이드 섹션(신규 기능 패턴, 테스트 의무, 보안 체크리스트) 신규 작성, 28개 컨트롤러 API 현행화 |
 | **2026-05-22** | 알림 시스템(Notification) 및 Tiptap 변수 시스템 문서화: `common/notification` 모듈(Cinfmm, NotificationService, NotificationDispatcher, @TransactionalEventListener 패턴), `common/system/tiptap` 모듈(TiptapVariableService, TiptapVariableController, 토큰 형식, 금액 포맷팅) 상세 기술 |
 | **2026-05-19** | REVIEW 재점검 결과 반영: 로그인 이력 JavaDoc 위치, `Bcostm` 깨진 한글 주석, Gemini 트랜잭션 경계 설명, 게시판 QueryDSL 구현체 조회 의도 주석 보강 |
 | **2026-05-14** | 공통 게시판 모듈(`common/board`)과 게시판 API, 감사로그 대상 23개, DB 로그인 이력 기반 Brute-force 설명을 문서에 반영 |

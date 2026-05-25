@@ -609,6 +609,8 @@ public class ProjectService {
                     try {
                         return getProject(prjMngNo); // 개별 상세 조회 (품목 포함)
                     } catch (IllegalArgumentException e) {
+                        // FIXME: [B-H-03] null 필터 패턴 제거, 조회 실패시 예외 전파 또는 warn 로그 필요
+                        // 현재 null → filter(Objects::nonNull) 패턴으로 실패 프로젝트가 silently 손실됨.
                         // FIXME: [B-C-04] B-C-03 참조. 실패 프로젝트 ID warn 로그 및 호출자 통지 필요
                         return null; // 존재하지 않는 항목은 null로 처리
                     }
@@ -646,28 +648,6 @@ public class ProjectService {
         return responses;
     }
 
-    /**
-     * 프로젝트 응답 DTO에 신청서 정보 설정 (내부 헬퍼 메서드)
-     *
-     * <p>
-     * 프로젝트관리번호와 순번으로 연결된 신청서(CAPPLA) 중 가장 최신 신청서를 조회하여
-     * 응답 DTO에 신청관리번호({@code apfMngNo})와 결재상태({@code apfSts})를 설정합니다.
-     * </p>
-     *
-     * <p>
-     * 조회 기준:
-     * </p>
-     * <ul>
-     * <li>{@code ORC_TB_CD = 'BPROJM'}: 프로젝트 원본 테이블 코드</li>
-     * <li>{@code ORC_PK_VL = prjMngNo}: 프로젝트관리번호</li>
-     * <li>{@code ORC_SNO_VL = prjSno}: 프로젝트순번</li>
-     * <li>최신순 정렬 ({@code APF_REL_SNO DESC})</li>
-     * </ul>
-     *
-     * @param response 신청서 정보를 설정할 응답 DTO
-     * @param prjMngNo 프로젝트관리번호
-     * @param prjSno   프로젝트순번
-     */
     /**
      * 프로젝트 목록 응답에 신청서 정보·코드명·예산 합계를 배치로 주입 (N+1 방지)
      *
@@ -774,6 +754,28 @@ public class ProjectService {
         }
     }
 
+    /**
+     * 프로젝트 응답 DTO에 신청서 정보 설정 (내부 헬퍼 메서드)
+     *
+     * <p>
+     * 프로젝트관리번호와 순번으로 연결된 신청서(CAPPLA) 중 가장 최신 신청서를 조회하여
+     * 응답 DTO에 신청관리번호({@code apfMngNo})와 결재상태({@code apfSts})를 설정합니다.
+     * </p>
+     *
+     * <p>
+     * 조회 기준:
+     * </p>
+     * <ul>
+     * <li>{@code ORC_TB_CD = 'BPROJM'}: 프로젝트 원본 테이블 코드</li>
+     * <li>{@code ORC_PK_VL = prjMngNo}: 프로젝트관리번호</li>
+     * <li>{@code ORC_SNO_VL = prjSno}: 프로젝트순번</li>
+     * <li>최신순 정렬 ({@code APF_REL_SNO DESC})</li>
+     * </ul>
+     *
+     * @param response 신청서 정보를 설정할 응답 DTO
+     * @param prjMngNo 프로젝트관리번호
+     * @param prjSno   프로젝트순번
+     */
     private void setApplicationInfo(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // BPROJM 테이블 코드와 프로젝트 관리번호/순번으로 연결된 신청서 목록 조회 (최신순)
         List<com.kdb.it.common.approval.entity.Cappla> capplas = capplaRepository
@@ -1011,27 +1013,6 @@ public class ProjectService {
     }
 
     /**
-     * RBAC 수정/삭제 권한 검증 헬퍼 (내부 메서드)
-     *
-     * <p>
-     * SecurityContext에서 현재 인증된 사용자({@link CustomUserDetails})를 조회하고,
-     * 자격등급 기반으로 리소스 수정 권한을 3단계로 검증합니다.
-     * </p>
-     *
-     * <p>
-     * 권한 계층:
-     * </p>
-     * <ol>
-     * <li>시스템관리자(ITPAD001): 모든 리소스 수정 허용</li>
-     * <li>기획통할담당자(ITPZZ002): 소속 부서(bbrC) == 리소스 부서(resourceBbrC) 인 경우 허용</li>
-     * <li>일반사용자(ITPZZ001): 본인 작성 리소스(creatorEno == 요청자 eno) 인 경우만 허용</li>
-     * </ol>
-     *
-     * @param creatorEno   리소스 최초 작성자 사번 (FST_ENR_USID)
-     * @param resourceBbrC 리소스 소속 부서코드 (부서 단위 권한 범위 결정용)
-     * @throws AccessDeniedException 수정 권한이 없는 경우
-     */
-    /**
      * C_ID 기준 cdva→C_NM 맵 생성 (지정 cdva만 필터링)
      *
      * @param cId   코드ID (예: PRJ_TP, BZ_DTT)
@@ -1112,6 +1093,27 @@ public class ProjectService {
         });
     }
 
+    /**
+     * RBAC 수정/삭제 권한 검증 헬퍼 (내부 메서드)
+     *
+     * <p>
+     * SecurityContext에서 현재 인증된 사용자({@link CustomUserDetails})를 조회하고,
+     * 자격등급 기반으로 리소스 수정 권한을 3단계로 검증합니다.
+     * </p>
+     *
+     * <p>
+     * 권한 계층:
+     * </p>
+     * <ol>
+     * <li>시스템관리자(ITPAD001): 모든 리소스 수정 허용</li>
+     * <li>기획통할담당자(ITPZZ002): 소속 부서(bbrC) == 리소스 부서(resourceBbrC) 인 경우 허용</li>
+     * <li>일반사용자(ITPZZ001): 본인 작성 리소스(creatorEno == 요청자 eno) 인 경우만 허용</li>
+     * </ol>
+     *
+     * @param creatorEno   리소스 최초 작성자 사번 (FST_ENR_USID)
+     * @param resourceBbrC 리소스 소속 부서코드 (부서 단위 권한 범위 결정용)
+     * @throws AccessDeniedException 수정 권한이 없는 경우
+     */
     private void validateModifyPermission(String creatorEno, String resourceBbrC) {
         // SecurityContext에서 현재 인증 주체 조회
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();

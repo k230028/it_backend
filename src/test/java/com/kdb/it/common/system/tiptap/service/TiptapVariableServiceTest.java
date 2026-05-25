@@ -126,4 +126,48 @@ class TiptapVariableServiceTest {
         var response = service.resolve(java.util.List.of("2026.itBudget.allocationRate"));
         assertThat(response.results().get("2026.itBudget.allocationRate").value()).isEqualTo("85.3%");
     }
+
+    @Test
+    @DisplayName("resolve — 사업별 편성액은 프로젝트 집계에서 만원 단위로 포맷한다")
+    void resolve_projectAllocatedAmount_formatsManWon() {
+        when(budgetStatusRepository.aggregateByProject(2026, "PRJ001"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(50_000L, 20_000L));
+
+        var response = service.resolve(List.of("2026.proj.PRJ001.allocatedAmount"));
+
+        assertThat(response.results().get("2026.proj.PRJ001.allocatedAmount").value()).isEqualTo("2만원");
+    }
+
+    @Test
+    @DisplayName("resolve — 천원 단위 요청액은 원 단위로 포맷한다")
+    void resolve_smallRequestAmount_formatsWon() {
+        when(budgetStatusRepository.aggregateByCategory(2026, "OPEX"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(9_999L, 1L));
+
+        var response = service.resolve(List.of("2026.opex.requestAmount"));
+
+        assertThat(response.results().get("2026.opex.requestAmount").value()).isEqualTo("9999원");
+    }
+
+    @Test
+    @DisplayName("resolve — 편성액이 없으면 MISSING을 반환한다")
+    void resolve_allocatedAmountNull_returnsMissing() {
+        when(budgetStatusRepository.aggregateByCategory(2026, "CAP_BUDGET"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(100L, null));
+
+        var response = service.resolve(List.of("2026.capBudget.allocatedAmount"));
+
+        assertThat(response.results().get("2026.capBudget.allocatedAmount").status()).isEqualTo("MISSING");
+    }
+
+    @Test
+    @DisplayName("resolve — 요청액이 0인 편성률은 MISSING을 반환한다")
+    void resolve_zeroRequestRate_returnsMissing() {
+        when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(0L, 10L));
+
+        var response = service.resolve(List.of("2026.itBudget.allocationRate"));
+
+        assertThat(response.results().get("2026.itBudget.allocationRate").status()).isEqualTo("MISSING");
+    }
 }
