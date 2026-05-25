@@ -72,9 +72,11 @@ public class ApplicationController {
      */
     @GetMapping("/pending-count")
     @Operation(summary = "미상신 건수 조회",
-            description = "결재 상신 대기 중인 정보화사업/전산업무비 건수를 집계합니다. 사이드바 배지용.")
-    public ResponseEntity<ApplicationDto.PendingCountResponse> getPendingCount() {
-        return ResponseEntity.ok(applicationService.getPendingCount());
+            description = "결재 상신 대기 중인 정보화사업/전산업무비 건수를 집계합니다. 사이드바 배지용. "
+                        + "bgYy 미지정 시 모든 연도 합산, 지정 시 해당 회계연도 항목만 카운트.")
+    public ResponseEntity<ApplicationDto.PendingCountResponse> getPendingCount(
+            @RequestParam(value = "bgYy", required = false) String bgYy) {
+        return ResponseEntity.ok(applicationService.getPendingCount(bgYy));
     }
 
     /**

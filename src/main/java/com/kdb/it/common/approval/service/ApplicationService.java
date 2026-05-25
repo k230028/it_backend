@@ -583,15 +583,18 @@ public class ApplicationService {
      *
      * @return 미상신 건수 응답 DTO (정보화사업/전산업무비 개별 건수 + 총합)
      */
-    public ApplicationDto.PendingCountResponse getPendingCount() {
-        // 미상신 정보화사업 건수: CAPPLA에 연결되지 않은 BPROJM
+    public ApplicationDto.PendingCountResponse getPendingCount(String bgYy) {
+        // 미상신 정보화사업 건수: 활성/완료 신청서 없는 BPROJM (필요 시 연도 필터 적용).
+        // 사이드바 배지가 [결재 상신] 화면(예산연도 필터링)과 동일한 카운트를 보이도록 bgYy 일치 필요.
         ProjectDto.SearchCondition projectCondition = new ProjectDto.SearchCondition();
         projectCondition.setApfSts("none");
+        if (bgYy != null && !bgYy.isBlank()) projectCondition.setBgYy(bgYy);
         long projectCount = projectRepository.searchByCondition(projectCondition).size();
 
-        // 미상신 전산업무비 건수: CAPPLA에 연결되지 않은 BCOSTM
+        // 미상신 전산업무비 건수
         CostDto.SearchCondition costCondition = new CostDto.SearchCondition();
         costCondition.setApfSts("none");
+        if (bgYy != null && !bgYy.isBlank()) costCondition.setBgYy(bgYy);
         long costCount = costRepository.searchByCondition(costCondition).size();
 
         return ApplicationDto.PendingCountResponse.builder()
