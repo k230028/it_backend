@@ -332,7 +332,7 @@ class ApplicationServiceTest {
         given(costRepository.searchByCondition(any())).willReturn(List.of(
                 mock(Bcostm.class), mock(Bcostm.class)));
 
-        ApplicationDto.PendingCountResponse result = applicationService.getPendingCount();
+        ApplicationDto.PendingCountResponse result = applicationService.getPendingCount(null);
 
         assertThat(result.getProjectCount()).isEqualTo(3L);
         assertThat(result.getCostCount()).isEqualTo(2L);
@@ -345,7 +345,7 @@ class ApplicationServiceTest {
         given(projectRepository.searchByCondition(any())).willReturn(List.of());
         given(costRepository.searchByCondition(any())).willReturn(List.of());
 
-        ApplicationDto.PendingCountResponse result = applicationService.getPendingCount();
+        ApplicationDto.PendingCountResponse result = applicationService.getPendingCount(null);
 
         assertThat(result.getTotalCount()).isEqualTo(0L);
     }

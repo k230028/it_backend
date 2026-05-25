@@ -289,6 +289,57 @@ class PlanServiceTest {
     }
 
     @Test
+    @DisplayName("createPlan - 스냅샷 그룹 목록에서는 경상사업과 전산업무비를 제외한다")
+    void createPlan_스냅샷그룹목록_경상사업과전산업무비제외() throws Exception {
+        PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
+                .plnYy("2026")
+                .plnTp("신규")
+                .prjMngNos(List.of("PRJ-GENERAL", "PRJ-ORDINARY"))
+                .itMngcNos(List.of("COST-001"))
+                .build();
+        ProjectDto.Response generalProject = ProjectDto.Response.builder()
+                .prjMngNo("PRJ-GENERAL")
+                .prjNm("일반 정보화사업")
+                .prjTp("개발")
+                .svnHdq("IT부문")
+                .ornYn("N")
+                .build();
+        ProjectDto.Response ordinaryProject = ProjectDto.Response.builder()
+                .prjMngNo("PRJ-ORDINARY")
+                .prjNm("경상사업")
+                .prjTp("운영")
+                .svnHdq("IT부문")
+                .ornYn("Y")
+                .build();
+        CostDto.Response cost = CostDto.Response.builder()
+                .itMngcNo("COST-001")
+                .cttNm("전산업무비")
+                .itMngcTp("관리비")
+                .build();
+        given(projectService.getProjectsByIds(any())).willReturn(List.of(generalProject, ordinaryProject));
+        given(costService.getCostsByIds(any())).willReturn(List.of(cost));
+        given(bplanmRepository.getNextSequenceValue()).willReturn(4L);
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        planService.createPlan(request);
+
+        ArgumentCaptor<PlanDto.SnapshotDto> snapshotCaptor = ArgumentCaptor.forClass(PlanDto.SnapshotDto.class);
+        verify(objectMapper).writeValueAsString(snapshotCaptor.capture());
+        PlanDto.SnapshotDto snapshot = snapshotCaptor.getValue();
+        List<String> departmentIds = snapshot.getByDepartment().stream()
+                .flatMap(group -> ((List<?>) group.get("projects")).stream())
+                .map(item -> ((PlanDto.ProjectSnapshot) item).getPrjMngNo())
+                .toList();
+        List<String> projectTypeIds = snapshot.getByProjectType().stream()
+                .flatMap(group -> ((List<?>) group.get("projects")).stream())
+                .map(item -> ((PlanDto.ProjectSnapshot) item).getPrjMngNo())
+                .toList();
+
+        assertThat(departmentIds).containsExactly("PRJ-GENERAL");
+        assertThat(projectTypeIds).containsExactly("PRJ-GENERAL");
+    }
+
+    @Test
     @DisplayName("createPlan - 스냅샷 직렬화 실패 시 500 예외가 발생한다")
     void createPlan_스냅샷직렬화실패_500예외발생() throws Exception {
         PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
