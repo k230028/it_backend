@@ -3,6 +3,7 @@ package com.kdb.it.common.approval.repository;
 import com.kdb.it.common.approval.entity.Cappla;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * 신청서-원본 데이터 관계(Cappla) 데이터 접근 리포지토리
@@ -95,4 +96,17 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, Long> {
                         @org.springframework.data.repository.query.Param("orcPkVl") String orcPkVl,
                         @org.springframework.data.repository.query.Param("orcSnoVl") Integer orcSnoVl,
                         @org.springframework.data.repository.query.Param("statuses") java.util.List<String> statuses);
+
+        /**
+         * 신청 관리번호 기준 최대 신청관계일련번호 조회
+         *
+         * <p>회수 후 재신청 등 신규 Cappla 레코드 채번 시 다음 SNO 산출용.
+         * 결과가 없으면 0 반환.</p>
+         *
+         * @param apfMngNo 신청서 관리번호
+         * @return 해당 신청서의 최대 APF_REL_SNO (없으면 0)
+         */
+        @Query(value = "SELECT COALESCE(MAX(APF_REL_SNO), 0) FROM TPRMPP_CAPPLA WHERE APF_MNG_NO = :apfMngNo",
+               nativeQuery = true)
+        Long findMaxRelSnoByApfMngNo(@Param("apfMngNo") String apfMngNo);
 }
