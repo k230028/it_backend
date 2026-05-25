@@ -172,6 +172,7 @@ public class ApplicationService {
                     .dcdMngNo(apfMngNo) // 결재관리번호 (FK)
                     .dcdSqn(i + 1) // 결재순번 (1부터 시작)
                     .dcdEno(approverEnos.get(i)) // 결재자 사원번호
+                    .dcdStsC(DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(001) — NOT NULL
                     .lstDcdYn(i == approverEnos.size() - 1 ? "Y" : "N") // 마지막 결재자 여부
                     .build();
             approverRepository.save(cdecim);
