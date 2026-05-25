@@ -129,7 +129,7 @@ class ApplicationServiceTest {
 
         Cdecim completed = Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO).dcdSqn(1).dcdEno("E10001")
-                .lstDcdYn("Y").dcdTp("결재").dcdSts("승인")
+                .lstDcdYn("Y")
                 .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code()).build();
         given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO)).willReturn(List.of(completed));
 
@@ -237,8 +237,6 @@ class ApplicationServiceTest {
                 .dcdSqn(1)
                 .dcdEno("E10001")
                 .lstDcdYn("N")
-                .dcdTp("결재")
-                .dcdSts("반려")
                 .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.REJECTED.code())
                 .build();
         Cdecim pending = pendingApprover("E10002", 2, "Y");
@@ -267,8 +265,8 @@ class ApplicationServiceTest {
 
         realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
 
-        assertThat(first.getDcdSts()).isEqualTo("승인");
-        assertThat(second.getDcdSts()).isEqualTo("승인");
+        assertThat(first.getDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
+        assertThat(second.getDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
         assertThat(capplm.getApfDtlCone()).contains("\"date\"");
         verify(approverRepository, times(2)).save(any(Cdecim.class));
         verify(eventPublisher, never()).publishEvent(any());
@@ -288,7 +286,7 @@ class ApplicationServiceTest {
 
         realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
 
-        assertThat(capplm.getApfSts()).isEqualTo("결재완료");
+        assertThat(capplm.getApfStsC()).isEqualTo(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code());
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
     }
 

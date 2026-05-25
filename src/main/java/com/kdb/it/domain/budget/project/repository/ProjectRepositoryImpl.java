@@ -100,7 +100,9 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                         cappla.orcTbCd.eq("BPROJM"),
                                         cappla.orcPkVl.eq(bprojm.prjMngNo),
                                         cappla.orcSnoVl.eq(bprojm.prjSno),
-                                        capplm.apfSts.eq(apfSts),
+                                        capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
+                                                ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
+                                                : apfSts),
                                         // 해당 프로젝트에 연결된 신청서 중 가장 최신(APF_REL_SNO 최대)인 것만 검사
                                         cappla.apfRelSno.eq(
                                                 JPAExpressions.select(cappla2.apfRelSno.max())

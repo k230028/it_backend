@@ -79,7 +79,7 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, Long> {
          * @param orcTbCd  원본 테이블 코드 (예: 'BPROJM')
          * @param orcPkVl  원본 데이터의 PK 값
          * @param orcSnoVl 원본 데이터의 순번 값
-         * @param statuses 확인할 신청서 상태 목록 (예: ["결재중", "결재완료"])
+         * @param statuses 확인할 신청서 상태코드 목록 (예: ["001"(결재중), "002"(결재완료)])
          * @return 해당 조건의 신청서가 존재하면 true, 없으면 false
          */
         @Query("""
@@ -89,7 +89,7 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, Long> {
                         WHERE c.orcTbCd = :orcTbCd
                         AND c.orcPkVl = :orcPkVl
                         AND c.orcSnoVl = :orcSnoVl
-                        AND m.apfSts IN :statuses
+                        AND m.apfStsC IN :statuses
                         """)
         boolean existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
                         @org.springframework.data.repository.query.Param("orcTbCd") String orcTbCd,

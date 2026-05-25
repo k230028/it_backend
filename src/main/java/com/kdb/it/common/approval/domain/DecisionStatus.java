@@ -24,4 +24,10 @@ public enum DecisionStatus {
         for (DecisionStatus s : values()) if (s.code.equals(code)) return s;
         throw new IllegalArgumentException("Unknown DCD_STS code: " + code);
     }
+
+    /** 라벨(한글명)로 enum 조회. (예: "승인" → APPROVED) */
+    public static DecisionStatus ofLabel(String label) {
+        for (DecisionStatus s : values()) if (s.label.equals(label)) return s;
+        throw new IllegalArgumentException("Unknown DCD_STS label: " + label);
+    }
 }

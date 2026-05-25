@@ -94,7 +94,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.orcTbCd.eq("BCOSTM"),
                                 cappla.orcPkVl.eq(bcostm.itMngcNo),
                                 cappla.orcSnoVl.eq(bcostm.itMngcSno),
-                                capplm.apfSts.eq("결재완료"),
+                                capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                 cappla.apfRelSno.eq(
                                         JPAExpressions.select(cappla2.apfRelSno.max())
                                                 .from(cappla2)
@@ -165,7 +165,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.orcTbCd.eq("BPROJM"),
                                 cappla.orcPkVl.eq(bprojm.prjMngNo),
                                 cappla.orcSnoVl.eq(bprojm.prjSno),
-                                capplm.apfSts.eq("결재완료"),
+                                capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                 cappla.apfRelSno.eq(
                                         JPAExpressions.select(cappla2.apfRelSno.max())
                                                 .from(cappla2)
@@ -380,7 +380,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.orcTbCd.eq("BCOSTM"),
                                 cappla.orcPkVl.eq(bcostm.itMngcNo),
                                 cappla.orcSnoVl.eq(bcostm.itMngcSno),
-                                capplm.apfSts.eq("결재완료"),
+                                capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                 cappla.apfRelSno.eq(
                                         JPAExpressions.select(cappla2.apfRelSno.max())
                                                 .from(cappla2)
@@ -433,7 +433,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                                 cappla.orcTbCd.eq("BPROJM"),
                                                 cappla.orcPkVl.eq(bprojm.prjMngNo),
                                                 cappla.orcSnoVl.eq(bprojm.prjSno),
-                                                capplm.apfSts.eq("결재완료"),
+                                                capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                                 cappla.apfRelSno.eq(
                                                         JPAExpressions.select(cappla2.apfRelSno.max())
                                                                 .from(cappla2)

@@ -138,7 +138,9 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                         cappla.orcTbCd.eq("BCOSTM"),
                                         cappla.orcPkVl.eq(bcostm.itMngcNo),
                                         cappla.orcSnoVl.eq(bcostm.itMngcSno),
-                                        capplm.apfSts.eq(apfSts),
+                                        capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
+                                                ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
+                                                : apfSts),
                                         // 해당 전산관리비에 연결된 신청서 중 가장 최신(APF_REL_SNO 최대)인 것만 검사
                                         cappla.apfRelSno.eq(
                                                 JPAExpressions.select(cappla2.apfRelSno.max())

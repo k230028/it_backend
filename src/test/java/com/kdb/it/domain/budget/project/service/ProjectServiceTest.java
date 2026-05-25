@@ -732,7 +732,7 @@ class ProjectServiceTest {
                 Capplm capplm = Capplm.builder()
                                 .apfMngNo("APF-001")
                                 .apfNm("결재")
-                                .apfSts("결재중")
+                                .apfStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
                                 .build();
                 Cdecim decision = Cdecim.builder()
                                 .dcdMngNo("APF-001")
@@ -888,7 +888,7 @@ class ProjectServiceTest {
                                 .build();
                 Capplm capplm = Capplm.builder()
                                 .apfMngNo("APF-001")
-                                .apfSts("결재중")
+                                .apfStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
                                 .build();
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
                 given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc("BPROJM", List.of("PRJ-2026-0001")))

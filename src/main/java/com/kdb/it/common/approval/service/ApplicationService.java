@@ -140,7 +140,6 @@ public class ApplicationService {
                 .apfMngNo(apfMngNo) // 신청관리번호 (PK)
                 .apfNm(request.getApfNm()) // 신청서명
                 .apfDtlCone(request.getApfDtlCone()) // 신청서세부내용 (JSON)
-                .apfSts(ApprovalStatus.IN_PROGRESS.label())   // legacy 동기화 (V005에서 DROP 예정)
                 .apfStsC(ApprovalStatus.IN_PROGRESS.code())
                 .rqsEno(request.getRqsEno()) // 신청자 사원번호
                 .rqsDt(LocalDate.now()) // 신청일자 = 오늘
@@ -201,13 +200,13 @@ public class ApplicationService {
     /**
      * 결재선에서 다음 차례인 결재자에게 결재요청 알림을 발행한다.
      *
-     * <p>{@code DCD_TP IS NULL}인 결재 항목 중 가장 작은 {@code DCD_SQN}의 결재자가 대상.
+     * <p>{@code DCD_STS_C = '001'(미결재)}인 결재 항목 중 가장 작은 {@code DCD_SQN}의 결재자가 대상.
      * 발견되지 않으면(=결재선 모두 처리됨) 알림을 발행하지 않는다.</p>
      */
     private void publishApprovalRequestNotification(Capplm capplm) {
         List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcdSqnAsc(capplm.getApfMngNo());
         Cdecim next = approvers.stream()
-            .filter(a -> a.getDcdTp() == null)
+            .filter(a -> DecisionStatus.PENDING.code().equals(a.getDcdStsC()))
             .findFirst()
             .orElse(null);
         if (next == null || next.getDcdEno() == null || next.getDcdEno().isBlank()) {
