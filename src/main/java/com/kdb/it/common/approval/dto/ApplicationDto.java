@@ -485,6 +485,10 @@ public class ApplicationDto {
         @Schema(description = "결재상태")
         private String dcdSts;
 
+        /** 최종결재자여부 ("Y"/"N", 프론트엔드 회수(중간결재자 회수) 분기 판단에 사용) */
+        @Schema(description = "최종결재자여부 (Y/N)")
+        private String lstDcdYn;
+
         /**
          * 결재 엔티티를 응답 DTO로 변환하는 정적 팩토리 메서드
          *
@@ -506,6 +510,7 @@ public class ApplicationDto {
                             || com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code().equals(cdecim.getDcdStsC())
                                 ? null
                                 : com.kdb.it.common.approval.domain.DecisionStatus.ofCode(cdecim.getDcdStsC()).label())
+                    .lstDcdYn(cdecim.getLstDcdYn()) // 최종결재자여부
                     .build();
         }
     }
