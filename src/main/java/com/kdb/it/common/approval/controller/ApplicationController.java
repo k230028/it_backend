@@ -6,6 +6,8 @@ import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -69,9 +72,11 @@ public class ApplicationController {
      */
     @GetMapping("/pending-count")
     @Operation(summary = "미상신 건수 조회",
-            description = "결재 상신 대기 중인 정보화사업/전산업무비 건수를 집계합니다. 사이드바 배지용.")
-    public ResponseEntity<ApplicationDto.PendingCountResponse> getPendingCount() {
-        return ResponseEntity.ok(applicationService.getPendingCount());
+            description = "결재 상신 대기 중인 정보화사업/전산업무비 건수를 집계합니다. 사이드바 배지용. "
+                        + "bgYy 미지정 시 모든 연도 합산, 지정 시 해당 회계연도 항목만 카운트.")
+    public ResponseEntity<ApplicationDto.PendingCountResponse> getPendingCount(
+            @RequestParam(value = "bgYy", required = false) String bgYy) {
+        return ResponseEntity.ok(applicationService.getPendingCount(bgYy));
     }
 
     /**
@@ -190,6 +195,28 @@ public class ApplicationController {
             @RequestBody ApplicationDto.BulkApproveRequest request) {
         ApplicationDto.BulkApproveResponse response = applicationService.bulkApprove(request);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 신청서 회수
+     *
+     * <p>결재중 신청서를 회수합니다. 신청자/중간결재자/관리자만 가능, 최종 결재자 승인 전까지.</p>
+     *
+     * @param apfMngNo 신청서 관리번호
+     * @param request  회수 요청 ({@link ApplicationDto.RecallRequest})
+     * @return HTTP 204 No Content
+     */
+    @PostMapping("/{apfMngNo}/recall")
+    @Operation(summary = "신청서 회수",
+               description = "결재중 신청서를 회수합니다. 신청자/중간결재자/관리자만 가능, 최종 결재자 승인 전까지.")
+    public ResponseEntity<Void> recall(@PathVariable("apfMngNo") String apfMngNo,
+                                       @Valid @RequestBody ApplicationDto.RecallRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentEno = auth.getName();
+        boolean isAdmin = auth.getAuthorities().stream()
+            .anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
+        applicationService.recall(apfMngNo, request, currentEno, isAdmin);
+        return ResponseEntity.noContent().build();
     }
 
     /**

@@ -40,4 +40,5 @@ public record NotificationEvent(
     public static final String TYPE_APPROVAL_RESULT  = "003"; // 결재결과 알림
     public static final String TYPE_MENTION_POST     = "004"; // 게시물 멘션 알림
     public static final String TYPE_MENTION_COMMENT  = "005"; // 댓글 멘션 알림
+    public static final String TYPE_APPROVAL_RECALLED = "006"; // 결재회수 알림
 }

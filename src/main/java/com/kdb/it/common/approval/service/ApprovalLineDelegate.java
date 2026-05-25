@@ -78,6 +78,35 @@ public class ApprovalLineDelegate {
         }
     }
 
+    /**
+     * 신청서 상세 JSON에 회수 정보를 기록한다.
+     *
+     * <p>JSON 루트에 {@code recallInfo} 노드를 추가/갱신합니다.
+     * 기존 JSON이 없거나 빈 문자열이면 새 ObjectNode로 시작합니다.</p>
+     *
+     * @param capplm      회수 대상 신청서
+     * @param recallerEno 회수자 사번
+     * @param recallOpnn  회수 사유
+     * @throws IllegalStateException JSON 직렬화/역직렬화 실패 시
+     */
+    @Transactional
+    public void applyRecallInfo(Capplm capplm, String recallerEno, String recallOpnn) {
+        String json = capplm.getApfDtlCone();
+        try {
+            ObjectNode root = (json == null || json.isBlank())
+                ? objectMapper.createObjectNode()
+                : (ObjectNode) objectMapper.readTree(json);
+            ObjectNode recallNode = objectMapper.createObjectNode();
+            recallNode.put("recallerEno", recallerEno);
+            recallNode.put("recallDtm", LocalDateTime.now().toString());
+            recallNode.put("recallOpnn", recallOpnn);
+            root.set("recallInfo", recallNode);
+            capplm.updateDetailContent(objectMapper.writeValueAsString(root));
+        } catch (Exception e) {
+            throw new IllegalStateException("회수 정보 JSON 갱신 실패", e);
+        }
+    }
+
     private Map<String, Set<Integer>> buildTargetOccurrences(
             List<Cdecim> allApprovers, List<Cdecim> approvedItems) {
         Map<String, Set<Integer>> targetOccurrences = new HashMap<>();

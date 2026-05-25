@@ -357,7 +357,9 @@ public class ProjectService {
         // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
         // 결재중 또는 결재완료 상태인 경우 수정 불가
         boolean isProcessingOrApproved = capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
-                "BPROJM", prjMngNo, project.getPrjSno(), java.util.List.of("결재중", "결재완료"));
+                "BPROJM", prjMngNo, project.getPrjSno(), java.util.List.of(
+                        com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
+                        com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
 
         if (isProcessingOrApproved) {
             throw new IllegalStateException("결재중이거나 결재완료된 프로젝트는 수정할 수 없습니다.");
@@ -571,7 +573,9 @@ public class ProjectService {
 
         // 결재 상태 확인 (결재중/결재완료이면 삭제 불가)
         boolean isProcessingOrApproved = capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
-                "BPROJM", prjMngNo, project.getPrjSno(), java.util.List.of("결재중", "결재완료"));
+                "BPROJM", prjMngNo, project.getPrjSno(), java.util.List.of(
+                        com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
+                        com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
 
         if (isProcessingOrApproved) {
             throw new IllegalStateException("결재중이거나 결재완료된 프로젝트는 삭제할 수 없습니다.");
@@ -677,7 +681,7 @@ public class ProjectService {
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
         List<String> prjMngNos = projects.stream().map(Bprojm::getPrjMngNo).collect(Collectors.toList());
-        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc("BPROJM", prjMngNos);
+        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc("BPROJM", prjMngNos);
 
         // prjMngNo → 최신 Cappla (이미 DESC 정렬이므로 첫 번째가 최신)
         Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();
@@ -745,7 +749,8 @@ public class ProjectService {
                 response.setApfMngNo(cappla.getApfMngNo());
                 Capplm capplm = capplmMap.get(cappla.getApfMngNo());
                 if (capplm != null) {
-                    response.setApfSts(capplm.getApfSts());
+                    response.setApfSts(capplm.getApfStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label());
                     List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfMngNo(), List.of());
                     response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
                 }
@@ -772,7 +777,7 @@ public class ProjectService {
     private void setApplicationInfo(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // BPROJM 테이블 코드와 프로젝트 관리번호/순번으로 연결된 신청서 목록 조회 (최신순)
         List<com.kdb.it.common.approval.entity.Cappla> capplas = capplaRepository
-                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc("BPROJM", prjMngNo, prjSno);
+                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc("BPROJM", prjMngNo, prjSno);
 
         if (!capplas.isEmpty()) {
             com.kdb.it.common.approval.entity.Cappla cappla = capplas.get(0); // 가장 최신 신청서
@@ -781,7 +786,8 @@ public class ProjectService {
             // 신청서 마스터에서 결재상태 및 상세 정보 조회
             capplmRepository.findById(cappla.getApfMngNo())
                     .ifPresent(capplm -> {
-                        response.setApfSts(capplm.getApfSts()); // 결재상태 설정 (하위 호환)
+                        response.setApfSts(capplm.getApfStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label()); // 결재상태 설정 (코드→라벨)
 
                         // 결재자 목록 조회 (결재순서 오름차순)
                         List<com.kdb.it.common.approval.entity.Cdecim> decisions = cdecimRepository

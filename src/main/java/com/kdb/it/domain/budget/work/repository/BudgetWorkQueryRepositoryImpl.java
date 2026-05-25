@@ -65,9 +65,9 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                                         cappla.orcTbCd.eq("BCOSTM"),
                                         cappla.orcPkVl.eq(bcostm.itMngcNo),
                                         cappla.orcSnoVl.eq(bcostm.itMngcSno),
-                                        capplm.apfSts.eq("결재완료"),
-                                        cappla.apfRelSno.eq(
-                                                JPAExpressions.select(cappla2.apfRelSno.max())
+                                        capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                        cappla.apfMngNo.eq(
+                                                JPAExpressions.select(cappla2.apfMngNo.max())
                                                         .from(cappla2)
                                                         .where(
                                                                 cappla2.orcTbCd.eq("BCOSTM"),
@@ -134,9 +134,9 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                                                         cappla.orcTbCd.eq("BPROJM"),
                                                         cappla.orcPkVl.eq(bprojm.prjMngNo),
                                                         cappla.orcSnoVl.eq(bprojm.prjSno),
-                                                        capplm.apfSts.eq("결재완료"),
-                                                        cappla.apfRelSno.eq(
-                                                                JPAExpressions.select(cappla2.apfRelSno.max())
+                                                        capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                                        cappla.apfMngNo.eq(
+                                                                JPAExpressions.select(cappla2.apfMngNo.max())
                                                                         .from(cappla2)
                                                                         .where(
                                                                                 cappla2.orcTbCd.eq("BPROJM"),

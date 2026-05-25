@@ -2,6 +2,7 @@ package com.kdb.it.common.notification.event;
 
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
+import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -76,6 +77,58 @@ public class NotificationEventListener {
         } catch (Exception ex) {
             log.warn("Approval result notification failed: apfMngNo={}, status={}",
                 event.apfMngNo(), event.newStatus(), ex);
+        }
+    }
+
+    /**
+     * 결재회수 이벤트 → 신청자 및 기승인 중간결재자에게 결재회수 알림 발송.
+     *
+     * <p>회수자가 신청자 본인인 경우 신청자 알림은 생략한다. 기승인 중간결재자
+     * 목록은 회수 시점 스냅샷 기준이며, 각 대상에게 동일 본문이 전달된다.</p>
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onApprovalRecalled(ApprovalRecalledEvent event) {
+        try {
+            Capplm capplm = applicationRepository.findById(event.apfMngNo()).orElse(null);
+            if (capplm == null) {
+                log.warn("Approval recall notification skipped: capplm not found. apfMngNo={}", event.apfMngNo());
+                return;
+            }
+            String apfNm = safe(capplm.getApfNm());
+            String title = abbreviate("결재회수: " + apfNm, 100);
+            String linkUrl = "/approval/list?tab=pending";
+
+            // 신청자 알림 (회수자가 신청자 본인이 아닌 경우만)
+            if (capplm.getRqsEno() != null && !capplm.getRqsEno().equals(event.recallerEno())) {
+                notificationService.send(
+                    NotificationEvent.builder()
+                        .recipientEno(capplm.getRqsEno())
+                        .infTpC(NotificationEvent.TYPE_APPROVAL_RECALLED)
+                        .infTtl(title)
+                        .infCone(abbreviate("신청서가 회수되었습니다: " + apfNm, 300))
+                        .infLnkUrl(linkUrl)
+                        .build()
+                );
+            }
+
+            // 기승인 중간결재자 알림
+            if (event.approvedMiddleApproverEnos() != null) {
+                for (String eno : event.approvedMiddleApproverEnos()) {
+                    if (eno == null || eno.isBlank()) continue;
+                    notificationService.send(
+                        NotificationEvent.builder()
+                            .recipientEno(eno)
+                            .infTpC(NotificationEvent.TYPE_APPROVAL_RECALLED)
+                            .infTtl(title)
+                            .infCone(abbreviate("귀하가 결재한 신청서가 회수되었습니다: " + apfNm, 300))
+                            .infLnkUrl(linkUrl)
+                            .build()
+                    );
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Approval recall notification failed: apfMngNo={}, recaller={}",
+                event.apfMngNo(), event.recallerEno(), ex);
         }
     }
 

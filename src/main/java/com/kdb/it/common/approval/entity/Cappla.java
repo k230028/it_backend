@@ -8,8 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import static jakarta.persistence.GenerationType.SEQUENCE;
-
 /**
  * 신청서-원본 데이터 관계 관리 엔티티
  *
@@ -28,23 +26,23 @@ import static jakarta.persistence.GenerationType.SEQUENCE;
  */
 @Entity                                              // JPA 엔티티로 등록
 @Table(name = "TPRMPP_CAPPLA", comment = "신청서-원본 데이터 관계")                       // 매핑할 DB 테이블명
+@IdClass(CapplaId.class)                             // 복합 PK: (apfMngNo, apfRelSno)
 @Getter                                              // 모든 필드의 getter 자동 생성 (Lombok)
 @SuperBuilder                                        // 상속 구조에서 Builder 패턴 지원
 @NoArgsConstructor(access = AccessLevel.PROTECTED)   // protected 기본 생성자 (JPA 요구사항)
 @AllArgsConstructor                                  // 전체 필드 생성자 자동 생성
 public class Cappla extends BaseEntity {
 
-    /** 신청서관계일련번호: 기본키. Oracle 시퀀스 SEQ_CAPPLA에서 자동 채번 */
+    /** 신청서관계일련번호: 복합 PK 일부. 서비스 계층에서 신청서 단위 1~N 명시 채번 */
     @Id
-    @GeneratedValue(strategy = SEQUENCE, generator = "cappla_seq")
-    @SequenceGenerator(name = "cappla_seq", sequenceName = "SEQ_CAPPLA", allocationSize = 1)
-    @Column(name = "APF_REL_SNO", nullable = false, comment = "신청서관계일련번호")
+    @Column(name = "APF_REL_SNO", nullable = false, comment = "신청서관계일련번호 (신청서 단위 1~N)")
     private Long apfRelSno;
 
     /**
-     * 신청서관리번호: 연결된 신청서의 관리번호 (Capplm.apfMngNo 참조)
+     * 신청서관리번호: 복합 PK 일부. 연결된 신청서의 관리번호 (Capplm.apfMngNo 참조)
      * 형식: APF_{연도}{8자리 시퀀스} (예: APF_202600000001)
      */
+    @Id
     @Column(name = "APF_MNG_NO", length = 32, nullable = false, comment = "신청서관리번호")
     private String apfMngNo;
 

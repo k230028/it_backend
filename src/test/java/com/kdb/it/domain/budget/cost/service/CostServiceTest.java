@@ -155,7 +155,7 @@ class CostServiceTest {
 
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost1, cost2));
         // 배치 조회용 Cappla 빈 목록 반환
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(eq("BCOSTM"), any()))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(eq("BCOSTM"), any()))
                 .willReturn(List.of());
 
         // when
@@ -328,7 +328,7 @@ class CostServiceTest {
                 .willReturn(List.of(cost2));
 
         // 단건 조회 경로에서 호출되는 cappla/termm mock
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
                 eq("BCOSTM"), any(), any())).willReturn(List.of());
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(any(), any(), eq("N")))
                 .willReturn(List.of());
@@ -355,7 +355,7 @@ class CostServiceTest {
         given(cost.getItMngcSno()).willReturn(1);
         CostDto.SearchCondition condition = new CostDto.SearchCondition();
         given(costRepository.searchByCondition(condition)).willReturn(List.of(cost));
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(any(), any()))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(any(), any()))
                 .willReturn(List.of());
 
         List<CostDto.Response> result = costService.searchCostList(condition);
@@ -374,7 +374,7 @@ class CostServiceTest {
         given(cost.getItMngcNo()).willReturn(IT_MNGC_NO);
         given(cost.getItMngcSno()).willReturn(1);
         given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
                 eq("BCOSTM"), eq(IT_MNGC_NO), eq(1))).willReturn(List.of());
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                 .willReturn(List.of());
@@ -507,7 +507,7 @@ class CostServiceTest {
         given(costCost.getItMngcBgAmt()).willReturn(BigDecimal.valueOf(2000));
         given(costRepository.findByItMngcNoAndDelYn("COST-ASSET", "N")).willReturn(List.of(assetCost));
         given(costRepository.findByItMngcNoAndDelYn("COST-COST", "N")).willReturn(List.of(costCost));
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(eq("BCOSTM"), any(), any()))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(eq("BCOSTM"), any(), any()))
                 .willReturn(List.of());
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn(any(), any(), eq("N")))
                 .willReturn(List.of());
@@ -553,7 +553,7 @@ class CostServiceTest {
         Capplm capplm = Capplm.builder()
                 .apfMngNo("APF-001")
                 .apfNm("결재")
-                .apfSts("결재완료")
+                .apfStsC(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code())
                 .build();
         Cdecim decision = Cdecim.builder()
                 .dcdMngNo("APF-001")
@@ -568,7 +568,7 @@ class CostServiceTest {
                 .cgprEno("10003")
                 .build();
         given(costRepository.findByItMngcNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
                 "BCOSTM", IT_MNGC_NO, 1)).willReturn(List.of(cappla));
         given(capplmRepository.findById("APF-001")).willReturn(Optional.of(capplm));
         given(cdecimRepository.findByDcdMngNoOrderByDcdSqnAsc("APF-001")).willReturn(List.of(decision));
@@ -669,9 +669,9 @@ class CostServiceTest {
                 .orcPkVl(IT_MNGC_NO)
                 .orcSnoVl(1)
                 .build();
-        Capplm capplm = Capplm.builder().apfMngNo("APF-001").apfSts("결재중").build();
+        Capplm capplm = Capplm.builder().apfMngNo("APF-001").apfStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code()).build();
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost, newCost));
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc("BCOSTM", List.of(IT_MNGC_NO, "COST-NEW")))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc("BCOSTM", List.of(IT_MNGC_NO, "COST-NEW")))
                 .willReturn(List.of(cappla));
         given(capplmRepository.findAllById(List.of("APF-001"))).willReturn(List.of(capplm));
         given(cdecimRepository.findByDcdMngNoInOrderByDcdSqnAsc(List.of("APF-001")))
@@ -837,7 +837,7 @@ class CostServiceTest {
                 .build();
         given(costRepository.findByItMngcNoAndDelYn("COST-ALL-CODE", "N")).willReturn(List.of(cost));
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-ALL-CODE", 1, "N")).willReturn(List.of());
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(any(), any(), any()))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(any(), any(), any()))
                 .willReturn(List.of());
         given(ccodemRepository.findByCIdWithValidDate("IOE", null))
                 .willReturn(List.of(Ccodem.builder().cdva("101").cTp("IOE_IDR").build()));
@@ -898,7 +898,7 @@ class CostServiceTest {
         given(ccodemRepository.findByCIdWithValidDate("IOE", null))
                 .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_DVC").cTp("IOE_CPIT").cdvaDes("개발비").build()));
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-CPIT-DVC", 1, "N")).willReturn(List.of());
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(any(), any(), any()))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(any(), any(), any()))
                 .willReturn(List.of());
 
         // Act
@@ -925,7 +925,7 @@ class CostServiceTest {
         given(ccodemRepository.findByCIdWithValidDate("IOE", null))
                 .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_HW").cTp("IOE_CPIT").cdvaDes("기계장치").build()));
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-CPIT-HW", 1, "N")).willReturn(List.of());
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(any(), any(), any()))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(any(), any(), any()))
                 .willReturn(List.of());
 
         // Act
@@ -951,7 +951,7 @@ class CostServiceTest {
         given(ccodemRepository.findByCIdWithValidDate("IOE", null))
                 .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_SW").cTp("IOE_CPIT").cdvaDes("기타무형자산").build()));
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-CPIT-SW", 1, "N")).willReturn(List.of());
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(any(), any(), any()))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(any(), any(), any()))
                 .willReturn(List.of());
 
         // Act
@@ -977,7 +977,7 @@ class CostServiceTest {
         given(ccodemRepository.findByCIdWithValidDate("IOE", null))
                 .willReturn(List.of()); // 빈 목록 → codeOpt = empty
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-UNKNOWN-IOE", 1, "N")).willReturn(List.of());
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc(any(), any(), any()))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(any(), any(), any()))
                 .willReturn(List.of());
 
         // Act
@@ -1008,7 +1008,7 @@ class CostServiceTest {
                 .delYn("N")
                 .build();
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost));
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(eq("BCOSTM"), any()))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(eq("BCOSTM"), any()))
                 .willReturn(List.of());
         given(corgnIRepository.findAllById(any())).willReturn(List.of());
         given(cuserIRepository.findAllById(any())).willReturn(List.of());
@@ -1048,7 +1048,7 @@ class CostServiceTest {
                 .delYn("N")
                 .build();
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost));
-        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc(eq("BCOSTM"), any()))
+        given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(eq("BCOSTM"), any()))
                 .willReturn(List.of());
         given(corgnIRepository.findAllById(any())).willReturn(List.of());
         given(cuserIRepository.findAllById(any())).willReturn(List.of());

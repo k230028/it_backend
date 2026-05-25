@@ -441,7 +441,7 @@ public class CostService {
      */
     private void setApplicationInfo(CostDto.Response response, String itMngcNo, Integer itMngcSno) {
         List<Cappla> capplas = capplaRepository
-                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc("BCOSTM", itMngcNo, itMngcSno);
+                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc("BCOSTM", itMngcNo, itMngcSno);
 
         if (!capplas.isEmpty()) {
             Cappla cappla = capplas.get(0);
@@ -449,7 +449,8 @@ public class CostService {
 
             capplmRepository.findById(cappla.getApfMngNo())
                     .ifPresent(capplm -> {
-                        response.setApfSts(capplm.getApfSts());
+                        response.setApfSts(capplm.getApfStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label());
                         List<Cdecim> decisions = cdecimRepository
                                 .findByDcdMngNoOrderByDcdSqnAsc(cappla.getApfMngNo());
                         response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
@@ -529,7 +530,7 @@ public class CostService {
 
         // --- 1. CAPPLA 배치 조회 ---
         List<String> itMngcNos = costs.stream().map(Bcostm::getItMngcNo).distinct().collect(Collectors.toList());
-        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc("BCOSTM", itMngcNos);
+        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc("BCOSTM", itMngcNos);
 
         // itMngcNo+sno 복합키 → 최신 Cappla
         Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();
@@ -595,7 +596,8 @@ public class CostService {
                 response.setApfMngNo(cappla.getApfMngNo());
                 Capplm capplm = capplmMap.get(cappla.getApfMngNo());
                 if (capplm != null) {
-                    response.setApfSts(capplm.getApfSts());
+                    response.setApfSts(capplm.getApfStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label());
                     List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfMngNo(), List.of());
                     response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
                 }

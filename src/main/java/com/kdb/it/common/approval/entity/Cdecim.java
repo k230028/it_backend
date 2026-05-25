@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.entity;
 
+import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -58,13 +59,6 @@ public class Cdecim extends BaseEntity {
     @Column(name = "DCD_ENO", length = 10, comment = "결재직원번호")
     private String dcdEno;
 
-    /**
-     * 결재유형: 결재 행위의 구분
-     * null = 미결재 (아직 결재 차례가 오지 않음), "결재" = 결재 처리됨
-     */
-    @Column(name = "DCD_TP", length = 32, comment = "결재유형")
-    private String dcdTp;
-
     /** 결재일자: 실제 결재(승인/반려)가 이루어진 날짜 (미결재 시 null) */
     @Column(name = "DCD_DT", comment = "결재일자")
     private LocalDate dcdDt;
@@ -73,12 +67,9 @@ public class Cdecim extends BaseEntity {
     @Column(name = "DCD_OPNN", length = 1000, comment = "결재의견")
     private String dcdOpnn;
 
-    /**
-     * 결재상태: 결재 결과
-     * null = 미결재, "승인" = 승인 처리, "반려" = 반려 처리
-     */
-    @Column(name = "DCD_STS", length = 32, comment = "결재상태")
-    private String dcdSts;
+    /** 결재선상태코드: Ccodem DCD_STS 참조 (001:미결재, 002:승인, 003:반려, 004:회수무효) */
+    @Column(name = "DCD_STS_C", length = 3, nullable = false, comment = "결재선상태코드")
+    private String dcdStsC;
 
     /**
      * 최종결재자여부: 이 결재자가 결재선의 마지막 결재자인지 여부
@@ -89,21 +80,25 @@ public class Cdecim extends BaseEntity {
     private String lstDcdYn;
 
     /**
-     * 결재 처리 메서드 (승인 또는 반려)
+     * 결재 처리 (코드 기반 API).
      *
      * <p>결재자가 승인 또는 반려 처리할 때 호출됩니다.
-     * 결재 유형, 상태, 일자, 의견을 업데이트합니다.</p>
+     * 결재 상태 코드, 일자, 의견을 업데이트합니다.</p>
      *
      * <p>JPA Dirty Checking에 의해 트랜잭션 종료 시 자동으로 DB에 반영됩니다.</p>
      *
      * @param opinion 결재 의견 (결재자 코멘트)
-     * @param status  결재 상태 ("승인" 또는 "반려")
+     * @param status  결재 상태 ({@link DecisionStatus#APPROVED} 또는 {@link DecisionStatus#REJECTED})
      */
-    public void approve(String opinion, String status) {
-        this.dcdTp = "결재";          // 결재 행위 자체는 완료됨
-        this.dcdSts = status;          // 승인 or 반려
-        this.dcdDt = LocalDate.now();  // 현재 날짜로 결재일자 설정
-        this.dcdOpnn = opinion;        // 결재 의견 기록
+    public void approve(String opinion, DecisionStatus status) {
+        this.dcdStsC = status.code();
+        this.dcdDt   = LocalDate.now();
+        this.dcdOpnn = opinion;
+    }
+
+    /** 회수로 인한 미결재 항목 무효화 */
+    public void invalidateByRecall() {
+        this.dcdStsC = DecisionStatus.INVALIDATED.code();
     }
 }
 
