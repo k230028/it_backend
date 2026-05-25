@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.entity;
 
+import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -80,6 +81,10 @@ public class Cdecim extends BaseEntity {
     @Column(name = "DCD_STS", length = 32, comment = "결재상태")
     private String dcdSts;
 
+    /** 결재선상태코드: Ccodem DCD_STS 참조 (001:미결재, 002:승인, 003:반려, 004:회수무효) */
+    @Column(name = "DCD_STS_C", length = 3, nullable = false, comment = "결재선상태코드")
+    private String dcdStsC;
+
     /**
      * 최종결재자여부: 이 결재자가 결재선의 마지막 결재자인지 여부
      * 'Y' = 최종 결재자 (이 결재자 승인 시 신청서가 "결재완료"로 변경)
@@ -104,6 +109,24 @@ public class Cdecim extends BaseEntity {
         this.dcdSts = status;          // 승인 or 반려
         this.dcdDt = LocalDate.now();  // 현재 날짜로 결재일자 설정
         this.dcdOpnn = opinion;        // 결재 의견 기록
+    }
+
+    /**
+     * 결재 처리 (코드 기반 API).
+     * 회수 정책 도입 후 신규 코드는 이 시그니처를 사용한다.
+     */
+    public void approve(String opinion, DecisionStatus status) {
+        this.dcdTp   = "결재";
+        this.dcdSts  = status.label();
+        this.dcdStsC = status.code();
+        this.dcdDt   = java.time.LocalDate.now();
+        this.dcdOpnn = opinion;
+    }
+
+    /** 회수로 인한 미결재 항목 무효화 */
+    public void invalidateByRecall() {
+        this.dcdStsC = DecisionStatus.INVALIDATED.code();
+        this.dcdSts  = DecisionStatus.INVALIDATED.label();
     }
 }
 
