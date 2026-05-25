@@ -25,6 +25,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
@@ -189,7 +190,7 @@ class ApplicationServiceTest {
 
         applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
 
-        verify(capplm).updateStatus("결재완료");
+        verify(capplm).updateStatus(ApprovalStatus.COMPLETED);
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
     }
 
@@ -203,7 +204,7 @@ class ApplicationServiceTest {
 
         applicationService.approve(APF_MNG_NO, approveRequest("E10001", "반려"));
 
-        verify(capplm).updateStatus("반려");
+        verify(capplm).updateStatus(ApprovalStatus.REJECTED);
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
     }
 
@@ -560,6 +561,50 @@ class ApplicationServiceTest {
         assertThat(capplaCaptor.getAllValues()).extracting(Cappla::getOrcSnoVl)
                 .containsExactly(3, null);
         verify(approverRepository, times(3)).save(any(Cdecim.class));
+    }
+
+    @Test
+    @DisplayName("submit: APF_STS_C='001'로 저장된다")
+    void submit_setsApfStsCToInProgressCode() {
+        given(applicationRepository.getNextVal()).willReturn(1L);
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("E001");
+        request.setApproverEnos(List.of("E002"));
+
+        applicationService.submit(request);
+
+        ArgumentCaptor<Capplm> captor = ArgumentCaptor.forClass(Capplm.class);
+        verify(applicationRepository).save(captor.capture());
+        assertThat(captor.getValue().getApfStsC()).isEqualTo("001");
+    }
+
+    @Test
+    @DisplayName("submit: orcItems N건이면 APF_REL_SNO 1~N으로 부여")
+    void submit_assignsApfRelSnoSequentiallyFromOne() {
+        given(applicationRepository.getNextVal()).willReturn(1L);
+
+        java.util.List<ApplicationDto.OrcItem> items = new java.util.ArrayList<>();
+        for (int i = 1; i <= 3; i++) {
+            ApplicationDto.OrcItem item = new ApplicationDto.OrcItem();
+            item.setOrcTbCd("BPROJM");
+            item.setOrcPkVl("PRJ-2026-000" + i);
+            items.add(item);
+        }
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("E001");
+        request.setApproverEnos(List.of("E002"));
+        request.setOrcItems(items);
+
+        applicationService.submit(request);
+
+        ArgumentCaptor<Cappla> captor = ArgumentCaptor.forClass(Cappla.class);
+        verify(applicationMapRepository, times(3)).save(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(Cappla::getApfRelSno)
+                .containsExactly(1L, 2L, 3L);
     }
 
     @Test

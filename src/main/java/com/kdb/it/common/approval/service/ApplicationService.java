@@ -3,6 +3,8 @@ package com.kdb.it.common.approval.service;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.kdb.it.common.approval.domain.ApprovalStatus;
+import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cappla;
@@ -136,7 +138,8 @@ public class ApplicationService {
                 .apfMngNo(apfMngNo) // 신청관리번호 (PK)
                 .apfNm(request.getApfNm()) // 신청서명
                 .apfDtlCone(request.getApfDtlCone()) // 신청서세부내용 (JSON)
-                .apfSts("결재중") // 초기 결재상태
+                .apfSts(ApprovalStatus.IN_PROGRESS.label())   // legacy 동기화 (V005에서 DROP 예정)
+                .apfStsC(ApprovalStatus.IN_PROGRESS.code())
                 .rqsEno(request.getRqsEno()) // 신청자 사원번호
                 .rqsDt(LocalDate.now()) // 신청일자 = 오늘
                 .rqsOpnn(request.getRqsOpnn()) // 신청의견
@@ -146,8 +149,10 @@ public class ApplicationService {
         // 1-1. 원본 데이터 연결 저장 (orcItems 각각에 대해 Cappla 생성)
         // 하나의 신청서가 복수의 원본 레코드(정보화사업, 전산관리비 등)를 연결할 수 있습니다.
         if (request.getOrcItems() != null && !request.getOrcItems().isEmpty()) {
+            long sno = 1L;
             for (ApplicationDto.OrcItem item : request.getOrcItems()) {
                 Cappla cappla = Cappla.builder()
+                        .apfRelSno(sno++)
                         .apfMngNo(apfMngNo)
                         .orcTbCd(item.getOrcTbCd())
                         .orcPkVl(item.getOrcPkVl())
@@ -179,7 +184,7 @@ public class ApplicationService {
         //      (이 처리가 없으면 JSON date가 빈 문자열로 남아 PDF 상 팀장 결재 시각이 누락됩니다.)
         if (!approverEnos.isEmpty() && approverEnos.get(0).equals(request.getRqsEno())) {
             Cdecim firstApprover = savedApprovers.get(0);
-            firstApprover.approve("기안자 자동 승인", "승인");
+            firstApprover.approve("기안자 자동 승인", DecisionStatus.APPROVED);
             approverRepository.save(firstApprover);
             approvalLineDelegate.doUpdate(capplm, savedApprovers, java.util.List.of(firstApprover));
         }
@@ -340,12 +345,12 @@ public class ApplicationService {
         String newApfSts = null;
         if ("반려".equals(status)) {
             // 반려인 경우 신청서 상태도 "반려"로 변경
-            capplm.updateStatus("반려");
+            capplm.updateStatus(ApprovalStatus.REJECTED);
             newApfSts = "반려";
         } else if ("승인".equals(status)) {
             // 마지막 결재자(lstDcdYn='Y')가 승인한 경우 "결재완료"로 변경
             if ("Y".equals(lastApproved.getLstDcdYn())) {
-                capplm.updateStatus("결재완료");
+                capplm.updateStatus(ApprovalStatus.COMPLETED);
                 newApfSts = "결재완료";
             }
         }
