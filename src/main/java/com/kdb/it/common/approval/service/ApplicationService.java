@@ -10,6 +10,7 @@ import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
+import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
@@ -21,6 +22,7 @@ import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -608,5 +610,68 @@ public class ApplicationService {
                 .costCount(costCount)
                 .totalCount(projectCount + costCount)
                 .build();
+    }
+
+    /**
+     * 신청서 회수.
+     *
+     * @param apfMngNo   회수할 신청서 관리번호
+     * @param request    회수 요청 (사유)
+     * @param currentEno 회수 요청자 사번
+     * @param isAdmin    관리자(ROLE_ADMIN) 여부
+     * @throws IllegalArgumentException 신청서 없음
+     * @throws IllegalStateException    회수 가능 상태 아님 / 최종승인 후
+     * @throws AccessDeniedException    회수 권한 없음
+     */
+    @Transactional
+    public void recall(String apfMngNo, ApplicationDto.RecallRequest request,
+                       String currentEno, boolean isAdmin) {
+        Capplm capplm = applicationRepository.findById(apfMngNo)
+            .orElseThrow(() -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
+
+        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfStsC())) {
+            throw new IllegalStateException("회수 가능한 상태가 아닙니다. 현재 상태: " + capplm.getApfStsC());
+        }
+
+        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcdSqnAsc(apfMngNo);
+        boolean lastApproved = approvers.stream()
+            .anyMatch(a -> "Y".equals(a.getLstDcdYn())
+                        && DecisionStatus.APPROVED.code().equals(a.getDcdStsC()));
+        if (lastApproved) {
+            throw new IllegalStateException("최종 결재자 승인 후에는 회수할 수 없습니다.");
+        }
+
+        if (!canRecall(capplm, approvers, currentEno, isAdmin)) {
+            throw new AccessDeniedException("회수 권한이 없습니다.");
+        }
+
+        capplm.updateStatus(ApprovalStatus.RECALLED);
+        approvalLineDelegate.applyRecallInfo(capplm, currentEno, request.getRecallOpnn());
+
+        for (Cdecim a : approvers) {
+            if (DecisionStatus.PENDING.code().equals(a.getDcdStsC())) {
+                a.invalidateByRecall();
+                approverRepository.save(a);
+            }
+        }
+
+        List<String> approvedMiddle = approvers.stream()
+            .filter(a -> "N".equals(a.getLstDcdYn())
+                      && DecisionStatus.APPROVED.code().equals(a.getDcdStsC()))
+            .map(Cdecim::getDcdEno)
+            .distinct()
+            .toList();
+
+        eventPublisher.publishEvent(new ApprovalRecalledEvent(apfMngNo, currentEno, approvedMiddle));
+    }
+
+    /** 회수 권한 검증 헬퍼 */
+    private boolean canRecall(Capplm capplm, List<Cdecim> approvers, String currentEno, boolean isAdmin) {
+        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfStsC())) return false;
+        if (isAdmin) return true;
+        if (currentEno.equals(capplm.getRqsEno())) return true;
+        return approvers.stream()
+            .filter(a -> !"Y".equals(a.getLstDcdYn()))
+            .anyMatch(a -> currentEno.equals(a.getDcdEno()));
     }
 }
