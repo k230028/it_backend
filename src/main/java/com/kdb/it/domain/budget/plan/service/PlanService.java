@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -368,11 +369,20 @@ public class PlanService {
                                                 .build())
                                 .collect(Collectors.toList());
 
+                // 부문별/사업유형별 사업목록에는 일반 정보화사업만 표시합니다.
+                Set<String> ordinaryProjectIds = projects.stream()
+                                .filter(p -> "Y".equals(p.getOrnYn()))
+                                .map(ProjectDto.Response::getPrjMngNo)
+                                .collect(Collectors.toSet());
+                List<PlanDto.ProjectSnapshot> businessListSnapshots = projectSnapshots.stream()
+                                .filter(p -> !ordinaryProjectIds.contains(p.getPrjMngNo()))
+                                .collect(Collectors.toList());
+
                 // 통합 스냅샷 목록
                 projectSnapshots.addAll(costSnapshots);
 
                 // 부문(SVN_HDQ)별 그룹핑
-                Map<String, List<PlanDto.ProjectSnapshot>> byDeptMap = projectSnapshots.stream()
+                Map<String, List<PlanDto.ProjectSnapshot>> byDeptMap = businessListSnapshots.stream()
                                 .collect(Collectors.groupingBy(
                                                 p -> p.getSvnHdq() != null ? p.getSvnHdq() : "미분류"));
 
@@ -386,7 +396,7 @@ public class PlanService {
                                 .collect(Collectors.toList());
 
                 // 사업유형(PRJ_TP)별 그룹핑
-                Map<String, List<PlanDto.ProjectSnapshot>> byTypeMap = projectSnapshots.stream()
+                Map<String, List<PlanDto.ProjectSnapshot>> byTypeMap = businessListSnapshots.stream()
                                 .collect(Collectors.groupingBy(
                                                 p -> p.getPrjTp() != null ? p.getPrjTp() : "미분류"));
 
