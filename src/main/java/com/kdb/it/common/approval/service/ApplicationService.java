@@ -281,17 +281,17 @@ public class ApplicationService {
         boolean isPreviousApproved = true; // 이전 결재자가 모두 승인했는지 여부
 
         for (Cdecim approver : approvers) {
-            String dcdTp = approver.getDcdTp(); // 결재유형 (null이면 미결재)
-            String dcdSts = approver.getDcdSts(); // 결재상태
+            String stsC = approver.getDcdStsC(); // 결재상태 코드 (DCD_STS_C)
 
-            if (dcdTp == null) {
-                // 아직 결재하지 않은 항목: 이전이 모두 승인되었을 때만 현재 차례
+            if (DecisionStatus.PENDING.code().equals(stsC)) {
+                // 미결재 항목: 이전이 모두 승인되었을 때만 현재 차례
                 if (isPreviousApproved) {
                     currentApprover = approver;
                 }
-                break; // 미결재 항목 발견 시 탐색 종료
-            } else if ("결재".equals(dcdTp) && !"승인".equals(dcdSts)) {
-                isPreviousApproved = false; // 이전 결재자가 반려 또는 기타 상태
+                break;
+            } else if (!DecisionStatus.APPROVED.code().equals(stsC)) {
+                // 반려/회수/무효 등 — 이전 결재자가 승인하지 않은 상태
+                isPreviousApproved = false;
                 break;
             }
         }
@@ -312,8 +312,18 @@ public class ApplicationService {
             throw new IllegalArgumentException("결재 상태(승인/반려)는 필수입니다.");
         }
 
+        // 상태 문자열(label 또는 code)을 DecisionStatus enum으로 매핑
+        DecisionStatus decision;
+        if ("승인".equals(status) || DecisionStatus.APPROVED.code().equals(status)) {
+            decision = DecisionStatus.APPROVED;
+        } else if ("반려".equals(status) || DecisionStatus.REJECTED.code().equals(status)) {
+            decision = DecisionStatus.REJECTED;
+        } else {
+            throw new IllegalArgumentException("결재 상태(승인/반려)는 필수입니다.");
+        }
+
         // 현재 결재자의 결재 처리 및 저장
-        currentApprover.approve(request.getDcdOpnn(), status);
+        currentApprover.approve(request.getDcdOpnn(), decision);
         approverRepository.save(currentApprover);
 
         // ===== 연속된 동일 결재자 일괄 승인 처리 =====
@@ -322,13 +332,13 @@ public class ApplicationService {
         List<Cdecim> approvedList = new java.util.ArrayList<>();
         approvedList.add(currentApprover);
 
-        if ("승인".equals(status)) {
+        if (decision == DecisionStatus.APPROVED) {
             int currentIndex = approvers.indexOf(currentApprover);
             for (int i = currentIndex + 1; i < approvers.size(); i++) {
                 Cdecim nextApprover = approvers.get(i);
                 if (nextApprover.getDcdEno().equals(currentApprover.getDcdEno())) {
                     // 같은 결재자가 연속으로 등장하면 자동 승인
-                    nextApprover.approve(request.getDcdOpnn(), status);
+                    nextApprover.approve(request.getDcdOpnn(), decision);
                     approverRepository.save(nextApprover);
                     lastApproved = nextApprover;
                     approvedList.add(nextApprover);
@@ -343,16 +353,14 @@ public class ApplicationService {
 
         // 신청서 전체 상태 업데이트
         String newApfSts = null;
-        if ("반려".equals(status)) {
+        if (decision == DecisionStatus.REJECTED) {
             // 반려인 경우 신청서 상태도 "반려"로 변경
             capplm.updateStatus(ApprovalStatus.REJECTED);
-            newApfSts = "반려";
-        } else if ("승인".equals(status)) {
+            newApfSts = ApprovalStatus.REJECTED.label();
+        } else if (decision == DecisionStatus.APPROVED && "Y".equals(lastApproved.getLstDcdYn())) {
             // 마지막 결재자(lstDcdYn='Y')가 승인한 경우 "결재완료"로 변경
-            if ("Y".equals(lastApproved.getLstDcdYn())) {
-                capplm.updateStatus(ApprovalStatus.COMPLETED);
-                newApfSts = "결재완료";
-            }
+            capplm.updateStatus(ApprovalStatus.COMPLETED);
+            newApfSts = ApprovalStatus.COMPLETED.label();
         }
 
         // 신청서 상태가 종결(결재완료/반려)된 경우, 도메인 이벤트 발행
@@ -360,7 +368,7 @@ public class ApplicationService {
         // 알림 측면: NotificationEventListener.onApprovalCompleted가 신청자에게 결재결과 알림을 발행합니다.
         if (newApfSts != null) {
             eventPublisher.publishEvent(new ApprovalCompletedEvent(apfMngNo, newApfSts));
-        } else if ("승인".equals(status)) {
+        } else if (decision == DecisionStatus.APPROVED) {
             // 중간 승인 → 다음 결재자에게 결재요청 알림 발행
             publishApprovalRequestNotification(capplm);
         }

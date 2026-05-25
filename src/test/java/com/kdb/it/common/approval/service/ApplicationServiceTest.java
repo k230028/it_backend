@@ -75,13 +75,14 @@ class ApplicationServiceTest {
         return capplm;
     }
 
-    /** 미결재(dcdTp=null) 상태의 Cdecim 생성 */
+    /** 미결재(dcdStsC="001") 상태의 Cdecim 생성 */
     private Cdecim pendingApprover(String eno, int sqn, String lstDcdYn) {
         return Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO)
                 .dcdSqn(sqn)
                 .dcdEno(eno)
                 .lstDcdYn(lstDcdYn)
+                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code())
                 .build();
     }
 
@@ -128,7 +129,8 @@ class ApplicationServiceTest {
 
         Cdecim completed = Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO).dcdSqn(1).dcdEno("E10001")
-                .lstDcdYn("Y").dcdTp("결재").dcdSts("승인").build();
+                .lstDcdYn("Y").dcdTp("결재").dcdSts("승인")
+                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code()).build();
         given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO)).willReturn(List.of(completed));
 
         assertThatThrownBy(() -> applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인")))
@@ -237,6 +239,7 @@ class ApplicationServiceTest {
                 .lstDcdYn("N")
                 .dcdTp("결재")
                 .dcdSts("반려")
+                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.REJECTED.code())
                 .build();
         Cdecim pending = pendingApprover("E10002", 2, "Y");
         given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO))
