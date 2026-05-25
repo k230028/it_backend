@@ -111,23 +111,20 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         String apfSts = condition.getApfSts();
         if (apfSts != null && !apfSts.isBlank()) {
             if ("none".equals(apfSts)) {
-                // 미상신: CAPPLA 연결 없음 OR 최신 CAPPLM의 APF_STS_C가 반려(003)/회수(004)
-                BooleanExpression notLinked = JPAExpressions.selectOne()
-                        .from(cappla)
-                        .where(
-                                cappla.orcTbCd.eq("BCOSTM"),
-                                cappla.orcPkVl.eq(bcostm.itMngcNo),
-                                cappla.orcSnoVl.eq(bcostm.itMngcSno))
-                        .notExists();
-
-                BooleanExpression latestTerminatedNonComplete = Expressions.numberTemplate(Integer.class,
-                        "(SELECT CASE WHEN c.APF_STS_C IN ('003','004') THEN 1 ELSE 0 END " +
-                        "  FROM TPRMPP_CAPPLM c JOIN TPRMPP_CAPPLA m ON c.APF_MNG_NO = m.APF_MNG_NO " +
-                        "  WHERE m.ORC_TB_CD = 'BCOSTM' AND m.ORC_PK_VL = {0} AND m.ORC_SNO_VL = {1} " +
-                        "  ORDER BY c.RQS_DT DESC FETCH FIRST 1 ROWS ONLY)",
-                        bcostm.itMngcNo, bcostm.itMngcSno).eq(1);
-
-                builder.and(notLinked.or(latestTerminatedNonComplete));
+                // 미상신(재상신 가능 포함): 활성(001 결재중) 또는 완료(002 결재완료)인 CAPPLM이 없는 경우.
+                // - 한 번도 상신 안 한 경우 → CAPPLA 자체 없음 → 자동 매칭
+                // - 반려(003)/회수(004)만 존재하는 경우 → 활성/완료가 없으므로 매칭 (재상신 허용)
+                // - 진행 중(001) 또는 완료(002)가 있으면 → 차단
+                builder.and(
+                        JPAExpressions.selectOne()
+                                .from(cappla, capplm)
+                                .where(
+                                        cappla.apfMngNo.eq(capplm.apfMngNo),
+                                        cappla.orcTbCd.eq("BCOSTM"),
+                                        cappla.orcPkVl.eq(bcostm.itMngcNo),
+                                        cappla.orcSnoVl.eq(bcostm.itMngcSno),
+                                        capplm.apfStsC.in("001", "002"))
+                                .notExists());
             } else {
                 // 특정 결재상태: 최신 신청서(APF_REL_SNO 최대값)의 결재상태가 일치하는 경우
                 builder.and(
