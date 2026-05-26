@@ -120,7 +120,7 @@ public class ResultService {
         // RESULT_WRITING: 이미 '협의회 완료' 버튼으로 전이된 정상 흐름 (전이 skip)
         // EVALUATING: 구버전 평가의견 흐름 호환 처리
         // 참고: IN_PROGRESS → RESULT_WRITING 전이는 completeCouncil (PATCH /complete)에서 처리
-        String currentStatus = councilService.findActiveCouncil(asctId).getAsctSts();
+        String currentStatus = councilService.findActiveCouncil(asctId).getAsctStsC();
         if ("008".equals(currentStatus)) {
             councilService.changeStatus(asctId, "009");
         }
@@ -164,9 +164,9 @@ public class ResultService {
     public void reviewResult(String asctId, CustomUserDetails userDetails) {
         // RESULT_REVIEW 상태 검증
         var council = councilService.findActiveCouncil(asctId);
-        if (!"010".equals(council.getAsctSts())) {
+        if (!"010".equals(council.getAsctStsC())) {
             throw new IllegalStateException(
-                "결과서 검토 확인은 결과서 검토 중(010) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+                "결과서 검토 확인은 결과서 검토 중(010) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
         }
 
         // 위원 레코드 조회 — SECR 제외 검증
@@ -174,7 +174,7 @@ public class ResultService {
                 .findByAsctIdAndEnoAndDelYn(asctId, userDetails.getEno(), "N")
                 .orElseThrow(() -> new SecurityException("해당 협의회의 평가위원이 아닙니다."));
 
-        if ("003".equals(member.getVlrTp())) {
+        if ("003".equals(member.getVlrTc())) {
             throw new SecurityException("간사(003)는 결과서 검토 확인 대상이 아닙니다.");
         }
 
@@ -184,7 +184,7 @@ public class ResultService {
         // 전체 MAND+CALL 위원의 CNFM_YN 확인 → 전원 'Y'이면 FINAL_APPROVAL 자동 전이
         List<Bcmmtm> evaluators = committeeRepository.findByAsctIdAndDelYn(asctId, "N")
                 .stream()
-                .filter(m -> !"003".equals(m.getVlrTp()))
+                .filter(m -> !"003".equals(m.getVlrTc()))
                 .toList();
 
         boolean allConfirmed = !evaluators.isEmpty()
@@ -193,6 +193,37 @@ public class ResultService {
         if (allConfirmed) {
             councilService.changeStatus(asctId, "011");
         }
+    }
+
+    /**
+     * 결과서 검토 진행상황 동기화 (010 → 011 자동 전이 트리거)
+     *
+     * <p>평가위원(간사 003 제외) 전원의 CNFM_YN이 'Y'이면 협의회 상태를
+     * RESULT_REVIEW(010) → FINAL_APPROVAL(011)로 전이합니다.
+     * 데이터를 직접 SQL로 변경한 경우나 화면 진입 시점 등 reviewResult API 흐름 외에서도
+     * 자동 전이를 수동으로 보장하기 위해 사용합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return 전이가 발생했으면 true
+     */
+    @Transactional
+    public boolean syncReviewStatus(String asctId) {
+        var council = councilService.findActiveCouncil(asctId);
+        if (!"010".equals(council.getAsctStsC())) return false;
+
+        List<Bcmmtm> evaluators = committeeRepository.findByAsctIdAndDelYn(asctId, "N")
+                .stream()
+                .filter(m -> !"003".equals(m.getVlrTc()))
+                .toList();
+
+        boolean allConfirmed = !evaluators.isEmpty()
+                && evaluators.stream().allMatch(m -> "Y".equals(m.getCnfmYn()));
+
+        if (allConfirmed) {
+            councilService.changeStatus(asctId, "011");
+            return true;
+        }
+        return false;
     }
 
     /**

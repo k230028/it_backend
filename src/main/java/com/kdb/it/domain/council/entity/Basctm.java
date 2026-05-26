@@ -53,13 +53,13 @@ public class Basctm extends BaseEntity {
     @Column(name = "PRJ_SNO", comment = "프로젝트순번")
     private Integer prjSno;
 
-    /** 협의회상태: CCODEM ASCT_STS (3자리 코드, 001~013) */
+    /** 협의회상태: CCODEM ASCT_STS_C (3자리 코드, 001~013) */
     @Column(name = "ASCT_STS_C", length = 3, nullable = false, comment = "협의회상태코드")
-    private String asctSts;
+    private String asctStsC;
 
-    /** 심의유형구분코드: CCODEM DBR_TP (3자리 코드) */
+    /** 심의유형구분코드: CCODEM DBR_TC (3자리 코드) */
     @Column(name = "DBR_TC", length = 20, comment = "심의유형구분코드")
-    private String dbrTp;
+    private String dbrTc;
 
     /** 회의일자: 일정 확정 시 설정 (DT 도메인 VARCHAR2(8), yyyyMMdd 저장 / 자바는 LocalDate) */
     @Column(name = "CNRC_DT", length = 8, comment = "회의일자")
@@ -79,10 +79,10 @@ public class Basctm extends BaseEntity {
      *
      * <p>상태 전이 시 사용합니다. JPA Dirty Checking으로 자동 반영됩니다.</p>
      *
-     * @param asctSts 변경할 상태 코드 (CCODEM ASCT_STS 기준)
+     * @param asctStsC 변경할 상태 코드 (CCODEM ASCT_STS_C 기준)
      */
-    public void changeStatus(String asctSts) {
-        this.asctSts = asctSts;
+    public void changeStatus(String asctStsC) {
+        this.asctStsC = asctStsC;
     }
 
     /**

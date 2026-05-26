@@ -12,7 +12,7 @@ import java.util.Optional;
  *
  * <p>DB 테이블: {@code TAAABB_BCHKLC}</p>
  *
- * <p>협의회 1건당 6개 고정 항목 (CCODEM CKG_ITM 기준)이 관리됩니다.</p>
+ * <p>협의회 1건당 6개 고정 항목 (CCODEM CKG_ITM_C 기준)이 관리됩니다.</p>
  */
 public interface FeasibilityCheckRepository extends JpaRepository<Bchklc, BchklcId> {
 

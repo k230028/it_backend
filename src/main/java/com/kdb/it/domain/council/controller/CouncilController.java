@@ -7,6 +7,7 @@ import com.kdb.it.domain.council.service.CouncilService;
 import com.kdb.it.domain.council.service.CommitteeService;
 import com.kdb.it.domain.council.service.EvaluationService;
 import com.kdb.it.domain.council.service.FeasibilityService;
+import com.kdb.it.domain.council.service.MainQnaService;
 import com.kdb.it.domain.council.service.QnaService;
 import com.kdb.it.domain.council.service.ResultService;
 import com.kdb.it.domain.council.service.ScheduleService;
@@ -17,8 +18,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -77,6 +80,9 @@ public class CouncilController {
 
     /** 사전질의응답 서비스 (Step 2) */
     private final QnaService qnaService;
+
+    /** 본회의 질의응답 서비스 (PRD §26) */
+    private final MainQnaService mainQnaService;
 
     // =========================================================================
     // M3: 협의회 목록/기본
@@ -178,8 +184,8 @@ public class CouncilController {
     /**
      * 타당성검토표 신규 저장 (임시저장 / 작성완료)
      *
-     * <p>kpnTp=TEMP: 임시저장, 상태 DRAFT 유지</p>
-     * <p>kpnTp=COMPLETE: 작성완료, 첨부파일 필수, 상태 SUBMITTED 전이</p>
+     * <p>kpnTc=001: 임시저장, 상태 DRAFT 유지</p>
+     * <p>kpnTc=002: 작성완료, 첨부파일 필수, 상태 SUBMITTED 전이</p>
      *
      * @param asctId  협의회ID
      * @param request 타당성검토표 저장 요청
@@ -360,7 +366,7 @@ public class CouncilController {
     /**
      * 심의유형별 당연위원 후보 조회 (IT관리자)
      *
-     * <p>협의회 심의유형(dbrTp)을 기반으로 당연위원 대상 팀에서 위원 후보를 반환합니다.
+     * <p>협의회 심의유형(dbrTc)을 기반으로 당연위원 대상 팀에서 위원 후보를 반환합니다.
      * IT관리자가 평가위원 선정 화면에서 당연위원을 자동표출하는 데 사용합니다.</p>
      *
      * @param asctId 협의회ID
@@ -480,6 +486,80 @@ public class CouncilController {
             @PathVariable("asctId") String asctId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.ok(scheduleService.getMySchedule(asctId, userDetails.getEno()));
+    }
+
+    // =========================================================================
+    // §26: 본회의 질의응답 (BMQNAM)
+    // =========================================================================
+    // 평가위원·관리자 모두 목록 조회 가능. 등록/수정/답변은 IT관리자 전용.
+    // =========================================================================
+
+    /**
+     * 본회의 질의응답 목록 조회 (PRD §26)
+     *
+     * <p>평가위원은 평가의견 작성 시 참고용으로 사용합니다.</p>
+     */
+    @Operation(summary = "본회의 질의응답 목록", description = "협의회의 본회의 Q&A 목록을 반환합니다.")
+    @GetMapping("/{asctId}/main-qna")
+    public ResponseEntity<List<CouncilDto.QnaResponse>> getMainQnaList(
+            @PathVariable("asctId") String asctId) {
+        return ResponseEntity.ok(mainQnaService.getMainQnaList(asctId));
+    }
+
+    /**
+     * 본회의 질의 등록 (IT관리자 전용, PRD §26)
+     */
+    @Operation(summary = "본회의 질의 등록", description = "IT관리자가 본회의에서 나온 질의를 정리해 등록합니다.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{asctId}/main-qna")
+    public ResponseEntity<String> createMainQna(
+            @PathVariable("asctId") String asctId,
+            @RequestBody @Valid CouncilDto.QnaCreateRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        String qtnId = mainQnaService.createMainQna(asctId, request, userDetails);
+        return ResponseEntity.ok(qtnId);
+    }
+
+    /**
+     * 본회의 질의 수정 (IT관리자 전용, PRD §26)
+     */
+    @Operation(summary = "본회의 질의 수정", description = "IT관리자가 본회의 질의 내용을 수정합니다.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PatchMapping("/{asctId}/main-qna/{qtnId}")
+    public ResponseEntity<Void> updateMainQna(
+            @PathVariable("asctId") String asctId,
+            @PathVariable("qtnId") String qtnId,
+            @RequestBody @Valid CouncilDto.QnaUpdateRequest request) {
+        mainQnaService.updateMainQna(asctId, qtnId, request);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 본회의 답변 등록/수정 (IT관리자 전용, PRD §26)
+     */
+    @Operation(summary = "본회의 답변", description = "IT관리자가 본회의 질의에 대한 답변을 정리해 등록·수정합니다.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{asctId}/main-qna/{qtnId}")
+    public ResponseEntity<Void> replyMainQna(
+            @PathVariable("asctId") String asctId,
+            @PathVariable("qtnId") String qtnId,
+            @RequestBody @Valid CouncilDto.QnaReplyRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        mainQnaService.replyMainQna(asctId, qtnId, request, userDetails);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 본회의 질의응답 삭제 (Soft Delete, IT관리자 전용, PRD §26)
+     */
+    @Operation(summary = "본회의 질의응답 삭제", description = "IT관리자가 본회의 Q&A 항목을 삭제(Soft)합니다.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.web.bind.annotation.DeleteMapping("/{asctId}/main-qna/{qtnId}")
+    public ResponseEntity<Void> deleteMainQna(
+            @PathVariable("asctId") String asctId,
+            @PathVariable("qtnId") String qtnId) {
+        mainQnaService.deleteMainQna(asctId, qtnId);
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -732,6 +812,20 @@ public class CouncilController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         resultService.reviewResult(asctId, userDetails);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 결과서 검토 진행상황 동기화 (010 → 011 자동 전이 트리거)
+     *
+     * <p>평가위원(간사 제외) 전원의 CNFM_YN이 'Y'면 협의회 상태를
+     * RESULT_REVIEW → FINAL_APPROVAL로 전이합니다. 데이터를 직접 수정한 경우
+     * 또는 화면 진입 시점에 호출해 자동 전이가 누락되지 않도록 보장합니다.</p>
+     */
+    @Operation(summary = "검토 진행상황 동기화", description = "위원 전원 확인 시 010→011 전이를 보장합니다.")
+    @PostMapping("/{asctId}/result/review/sync")
+    public ResponseEntity<Boolean> syncReviewStatus(
+            @PathVariable("asctId") String asctId) {
+        return ResponseEntity.ok(resultService.syncReviewStatus(asctId));
     }
 
     /**

@@ -94,7 +94,7 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: 3점 이상이면 의견이 없어도 정상 저장된다")
     void saveEvaluation_3점의견없음_정상저장() {
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("IN_PROGRESS");
+        given(council.getAsctStsC()).willReturn("IN_PROGRESS");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "MGMT_STR", "N"))
                 .willReturn(Optional.empty());
@@ -115,7 +115,7 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: 기존 평가의견이 있으면 update()를 호출한다")
     void saveEvaluation_기존평가있으면_update호출() {
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("EVALUATING");
+        given(council.getAsctStsC()).willReturn("EVALUATING");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
@@ -135,7 +135,7 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: 기존 평가의견이 없으면 신규 저장한다")
     void saveEvaluation_기존평가없으면_save호출() {
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("IN_PROGRESS");
+        given(council.getAsctStsC()).willReturn("IN_PROGRESS");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "RISK_IMP", "N"))
                 .willReturn(Optional.empty());
@@ -156,7 +156,7 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: IN_PROGRESS 상태이면 EVALUATING으로 전이한다")
     void saveEvaluation_IN_PROGRESS상태이면_EVALUATING전이() {
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("IN_PROGRESS");
+        given(council.getAsctStsC()).willReturn("IN_PROGRESS");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "ETC", "N"))
                 .willReturn(Optional.empty());
@@ -173,7 +173,7 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: 이미 EVALUATING 상태이면 상태 전이를 건너뛴다")
     void saveEvaluation_EVALUATING상태이면_전이skip() {
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("EVALUATING");
+        given(council.getAsctStsC()).willReturn("EVALUATING");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "ETC", "N"))
                 .willReturn(Optional.empty());
@@ -278,7 +278,7 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: 전원이 6개 항목을 제출하면 RESULT_WRITING으로 전이한다")
     void saveEvaluation_전원제출완료_RESULT_WRITING전이() {
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("EVALUATING");
+        given(council.getAsctStsC()).willReturn("EVALUATING");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "ETC", "N"))
                 .willReturn(Optional.empty());

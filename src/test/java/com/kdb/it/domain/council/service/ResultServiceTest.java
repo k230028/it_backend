@@ -114,7 +114,7 @@ class ResultServiceTest {
         // given
         Basctm council = mock(Basctm.class);
         Brsltm existingResult = mock(Brsltm.class);
-        given(council.getAsctSts()).willReturn("RESULT_WRITING");
+        given(council.getAsctStsC()).willReturn("RESULT_WRITING");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
                 .willReturn(Optional.of(existingResult));
@@ -133,7 +133,7 @@ class ResultServiceTest {
     void saveResult_결과서없음_신규저장() {
         // given
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("RESULT_WRITING");
+        given(council.getAsctStsC()).willReturn("RESULT_WRITING");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N")).willReturn(Optional.empty());
 
@@ -150,7 +150,7 @@ class ResultServiceTest {
     void saveResult_EVALUATING상태_RESULT_WRITING전이() {
         // given
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("EVALUATING");
+        given(council.getAsctStsC()).willReturn("EVALUATING");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N")).willReturn(Optional.empty());
 
@@ -206,7 +206,7 @@ class ResultServiceTest {
     void saveResult_RESULT_WRITING상태_상태전이없음() {
         // given: 이미 RESULT_WRITING 상태 — 중복 전이 방지 시나리오
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("RESULT_WRITING");
+        given(council.getAsctStsC()).willReturn("RESULT_WRITING");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
                 .willReturn(Optional.empty());
@@ -224,7 +224,7 @@ class ResultServiceTest {
     void saveResult_신규저장시_save호출() {
         // given
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("EVALUATING");
+        given(council.getAsctStsC()).willReturn("EVALUATING");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
                 .willReturn(Optional.empty());
@@ -276,7 +276,7 @@ class ResultServiceTest {
     void reviewResult_RESULT_REVIEW아님_예외발생() {
         Basctm council = mock(Basctm.class);
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
-        given(council.getAsctSts()).willReturn("RESULT_WRITING");
+        given(council.getAsctStsC()).willReturn("RESULT_WRITING");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
 
         assertThatThrownBy(() -> resultService.reviewResult("ASCT-2026-0001", user))
@@ -289,7 +289,7 @@ class ResultServiceTest {
     void reviewResult_평가위원아님_예외발생() {
         Basctm council = mock(Basctm.class);
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
-        given(council.getAsctSts()).willReturn("RESULT_REVIEW");
+        given(council.getAsctStsC()).willReturn("RESULT_REVIEW");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
                 .willReturn(Optional.empty());
@@ -305,8 +305,8 @@ class ResultServiceTest {
         Basctm council = mock(Basctm.class);
         Bcmmtm secretary = mock(Bcmmtm.class);
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
-        given(council.getAsctSts()).willReturn("RESULT_REVIEW");
-        given(secretary.getVlrTp()).willReturn("SECR");
+        given(council.getAsctStsC()).willReturn("RESULT_REVIEW");
+        given(secretary.getVlrTc()).willReturn("SECR");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
                 .willReturn(Optional.of(secretary));
@@ -323,10 +323,10 @@ class ResultServiceTest {
         Bcmmtm currentMember = mock(Bcmmtm.class);
         Bcmmtm waitingMember = mock(Bcmmtm.class);
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
-        given(council.getAsctSts()).willReturn("RESULT_REVIEW");
-        given(currentMember.getVlrTp()).willReturn("MAND");
+        given(council.getAsctStsC()).willReturn("RESULT_REVIEW");
+        given(currentMember.getVlrTc()).willReturn("MAND");
         given(currentMember.getCnfmYn()).willReturn("Y");
-        given(waitingMember.getVlrTp()).willReturn("CALL");
+        given(waitingMember.getVlrTc()).willReturn("CALL");
         given(waitingMember.getCnfmYn()).willReturn("N");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
@@ -348,12 +348,12 @@ class ResultServiceTest {
         Bcmmtm callMember = mock(Bcmmtm.class);
         Bcmmtm secretary = mock(Bcmmtm.class);
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
-        given(council.getAsctSts()).willReturn("RESULT_REVIEW");
-        given(mandMember.getVlrTp()).willReturn("MAND");
+        given(council.getAsctStsC()).willReturn("RESULT_REVIEW");
+        given(mandMember.getVlrTc()).willReturn("MAND");
         given(mandMember.getCnfmYn()).willReturn("Y");
-        given(callMember.getVlrTp()).willReturn("CALL");
+        given(callMember.getVlrTc()).willReturn("CALL");
         given(callMember.getCnfmYn()).willReturn("Y");
-        given(secretary.getVlrTp()).willReturn("SECR");
+        given(secretary.getVlrTc()).willReturn("SECR");
         given(secretary.getCnfmYn()).willReturn("N");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))

@@ -19,7 +19,7 @@ import lombok.experimental.SuperBuilder;
  *
  * <p>DB 테이블: {@code TAAABB_BCHKLC}</p>
  *
- * <p>협의회 1건당 6개 고정 항목이 생성됩니다 (CCODEM CKG_ITM 기준):</p>
+ * <p>협의회 1건당 6개 고정 항목이 생성됩니다 (CCODEM CKG_ITM_C 기준):</p>
  * <ol>
  *   <li>MGMT_STR — 경영전략/계획 부합</li>
  *   <li>FIN_EFC — 재무 효과</li>

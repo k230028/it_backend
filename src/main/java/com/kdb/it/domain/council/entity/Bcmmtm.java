@@ -20,7 +20,7 @@ import lombok.experimental.SuperBuilder;
  * <p>DB 테이블: {@code TAAABB_BCMMTM}</p>
  *
  * <p>IT관리자(ITPAD001)가 심의유형에 따라 위원을 선정합니다.
- * 위원유형(VLR_TP) 분류:</p>
+ * 위원유형(VLR_TC) 분류:</p>
  * <ul>
  *   <li>MAND — 당연위원 (심의유형별 고정 부서 자동 매핑)</li>
  *   <li>CALL — 소집위원 (IT관리자가 추가 지정)</li>
@@ -58,7 +58,7 @@ public class Bcmmtm extends BaseEntity {
 
     /** 위원유형구분코드: MAND(당연위원) / CALL(소집위원) / SECR(간사), CCODEM VLR_TC 기준 */
     @Column(name = "VLR_TC", length = 32, nullable = false, comment = "위원유형구분코드")
-    private String vlrTp;
+    private String vlrTc;
 
     /**
      * 결과서 검토 확인 여부
@@ -72,10 +72,10 @@ public class Bcmmtm extends BaseEntity {
     /**
      * 위원유형 변경 (소집→당연 또는 간사 재지정 시)
      *
-     * @param vlrTp 변경할 위원유형 코드
+     * @param vlrTc 변경할 위원유형 코드
      */
-    public void changeType(String vlrTp) {
-        this.vlrTp = vlrTp;
+    public void changeType(String vlrTc) {
+        this.vlrTc = vlrTc;
     }
 
     /**

@@ -9,6 +9,8 @@ import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bschdm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.ScheduleRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +47,15 @@ public class ScheduleService {
 
     /** 일정 리포지토리 (TAAABB_BSCHDM) */
     private final ScheduleRepository scheduleRepository;
+
+    /**
+     * JPA EntityManager — 신규 일정 INSERT 전용 persist() 호출용.
+     *
+     * <p>JpaRepository.save()는 ID 채워진 detached entity에 대해 merge()를 호출해
+     * BaseEntity 필드(특히 delYn)를 null로 덮어쓰는 회귀가 있어 직접 persist를 사용합니다(PRD §15/§17).</p>
+     */
+    @PersistenceContext
+    private EntityManager entityManager;
 
     /** 평가위원 리포지토리 — 위원 목록 조회용 */
     private final CommitteeRepository committeeRepository;
@@ -109,7 +120,7 @@ public class ScheduleService {
                             user != null ? user.getUsrNm() : null,
                             user != null ? user.getBbrNm() : null,
                             user != null ? user.getPtCNm() : null,
-                            m.getVlrTp(),
+                            m.getVlrTc(),
                             responded,
                             slots
                     );
@@ -124,7 +135,7 @@ public class ScheduleService {
         // INFO_SYS: 필수 위원(예산팀장:12004, IT기획팀장:18001) 응답 완료 시 true
         // 기타 타입: 전원 응답 완료 시 true
         boolean allRequiredResponded = calcAllRequiredResponded(
-                council.getDbrTp(), members, userMap, respondedEnos);
+                council.getDbrTc(), members, userMap, respondedEnos);
 
         return new CouncilDto.ScheduleStatusResponse(
                 members.size(),
@@ -158,19 +169,19 @@ public class ScheduleService {
      * <p>INFO_SYS 타입: 예산팀장(TEM_C=12004), IT기획팀장(TEM_C=18001)이 모두 응답했는지 확인
      * <br>기타 타입: 전원이 응답했는지 확인</p>
      *
-     * @param dbrTp         심의유형
+     * @param dbrTc         심의유형
      * @param members       전체 위원 목록
      * @param userMap       위원 사번 → 사용자 정보 Map
      * @param respondedEnos 응답 완료한 위원 사번 Set
      * @return 일정 확정 가능 여부
      */
     private boolean calcAllRequiredResponded(
-            String dbrTp,
+            String dbrTc,
             List<Bcmmtm> members,
             Map<String, CuserI> userMap,
             Set<String> respondedEnos) {
 
-        if (!"003".equals(dbrTp)) {  // INFO_SYS
+        if (!"003".equals(dbrTc)) {  // INFO_SYS
             // INFO_SYS 외 타입: 전원 응답 기준
             return !members.isEmpty() && respondedEnos.size() >= members.size();
         }
@@ -221,26 +232,46 @@ public class ScheduleService {
                     "허용되지 않은 시간대입니다: " + item.dsdTm() + ". 허용값: " + ALLOWED_TIMES);
             }
 
+            /*
+             * PRD §17 — DT 도메인 정규화
+             *   - 백엔드 DSD_DT 표준: VARCHAR2(8), yyyyMMdd
+             *   - 프론트가 yyyy-MM-dd(10자)로 전송하면 BSCHDL(로그 테이블) INSERT에서 ORA-12899 발생
+             *   - 하이픈 제거로 8자 정규화
+             */
+            String dsdDtNorm = normalizeYyyymmdd(item.dsdDt());
+
             // upsert: 기존 데이터 있으면 update, 없으면 신규 INSERT
+            final String dsdDtFinal = dsdDtNorm;
             scheduleRepository
                     .findByAsctIdAndEnoAndDsdDtAndDsdTmAndDelYn(
-                            asctId, eno, item.dsdDt(), item.dsdTm(), "N")
+                            asctId, eno, dsdDtFinal, item.dsdTm(), "N")
                     .ifPresentOrElse(
                         // 기존 응답 update
                         existing -> existing.respond(item.psbYn()),
-                        // 신규 INSERT
+                        // 신규 INSERT — persist()로 직접 @PrePersist 발화 (PRD §15 회귀 방지)
                         () -> {
                             Bschdm schedule = Bschdm.builder()
                                     .asctId(asctId)
                                     .eno(eno)
-                                    .dsdDt(item.dsdDt())
+                                    .dsdDt(dsdDtFinal)
                                     .dsdTm(item.dsdTm())
                                     .psbYn(item.psbYn())
                                     .build();
-                            scheduleRepository.save(schedule);
+                            entityManager.persist(schedule);
                         }
                     );
         }
+    }
+
+    /**
+     * yyyy-MM-dd / yyyy/MM/dd 등 구분자 포함 날짜 문자열 → yyyyMMdd 8자 정규화 (PRD §17)
+     *
+     * <p>이미 8자 yyyyMMdd 형식이거나 null이면 그대로 반환합니다.</p>
+     */
+    private String normalizeYyyymmdd(String dt) {
+        if (dt == null) return null;
+        String digits = dt.replaceAll("[^0-9]", "");
+        return digits.length() >= 8 ? digits.substring(0, 8) : digits;
     }
 
     /**

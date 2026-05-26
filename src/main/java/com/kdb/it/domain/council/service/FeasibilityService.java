@@ -59,7 +59,7 @@ public class FeasibilityService {
     @PersistenceContext
     private EntityManager entityManager;
 
-    // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM 기준)
+    // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM_C 기준)
     private static final Map<String, String> CHECK_ITEM_NAMES = Map.of(
         "001", "경영전략/계획 부합",
         "002", "재무 효과",
@@ -69,7 +69,7 @@ public class FeasibilityService {
         "006", "기타"
     );
 
-    // 6개 고정 점검항목 순서 (CKG_ITM 숫자코드)
+    // 6개 고정 점검항목 순서 (CKG_ITM_C 숫자코드)
     private static final List<String> CHECK_ITEM_ORDER =
         List.of("001", "002", "003", "004", "005", "006");
 
@@ -127,7 +127,7 @@ public class FeasibilityService {
         councilService.findActiveCouncil(asctId);
 
         // 작성완료 시 첨부파일 필수 검증
-        if ("002".equals(request.kpnTp())) { // KPN_TC 002 = 저장(작성완료)
+        if ("002".equals(request.kpnTc())) { // KPN_TC 002 = 저장(작성완료)
             validateAttachment(request.flMngNo());
         }
 
@@ -145,7 +145,7 @@ public class FeasibilityService {
         }
 
         // 작성완료 시 상태 전이: DRAFT → SUBMITTED
-        if ("002".equals(request.kpnTp())) { // KPN_TC 002 = 저장(작성완료)
+        if ("002".equals(request.kpnTc())) { // KPN_TC 002 = 저장(작성완료)
             councilService.changeStatus(asctId, "002");
         }
     }
@@ -164,7 +164,7 @@ public class FeasibilityService {
                     existing -> existing.update(
                             req.prjNm(), req.prjTrm(), req.ncs(), req.prjBg(), req.edrt(),
                             req.prjDes(), req.lglRglYn(), req.lglRglNm(), req.xptEff(),
-                            req.kpnTp(), req.flMngNo()),
+                            req.kpnTc(), req.flMngNo()),
                     // 없으면 신규 INSERT
                     () -> {
                         Bpovwm overview = Bpovwm.builder()
@@ -178,7 +178,7 @@ public class FeasibilityService {
                                 .lglRglYn(req.lglRglYn() != null ? req.lglRglYn() : "N")
                                 .lglRglNm(req.lglRglNm())
                                 .xptEff(req.xptEff())
-                                .kpnTp(req.kpnTp())
+                                .kpnTc(req.kpnTc())
                                 .flMngNo(req.flMngNo())
                                 .build();
                         projectOverviewRepository.save(overview);
@@ -298,7 +298,7 @@ public class FeasibilityService {
                 overview.getPrjNm(), overview.getPrjTrm(), overview.getNcs(),
                 overview.getPrjBg(), overview.getEdrt(), overview.getPrjDes(),
                 overview.getLglRglYn(), overview.getLglRglNm(), overview.getXptEff(),
-                overview.getKpnTp(), checkResponses, perfResponses, overview.getFlMngNo()
+                overview.getKpnTc(), checkResponses, perfResponses, overview.getFlMngNo()
         );
     }
 }

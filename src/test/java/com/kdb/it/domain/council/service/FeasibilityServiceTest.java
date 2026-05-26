@@ -76,7 +76,7 @@ class FeasibilityServiceTest {
         given(overview.getPrjNm()).willReturn("테스트사업");
         given(overview.getPrjTrm()).willReturn("2026");
         given(overview.getLglRglYn()).willReturn("N");
-        given(overview.getKpnTp()).willReturn("COMPLETE");
+        given(overview.getKpnTc()).willReturn("COMPLETE");
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
         given(feasibilityCheckRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
         given(performanceRepository.findByAsctIdAndDelYnOrderByDtpSnoAsc(ASCT_ID, "N")).willReturn(List.of());
@@ -218,7 +218,7 @@ class FeasibilityServiceTest {
         // given
         Bpovwm overview = mock(Bpovwm.class);
         given(overview.getPrjNm()).willReturn("순서확인사업");
-        given(overview.getKpnTp()).willReturn("TEMP");
+        given(overview.getKpnTc()).willReturn("TEMP");
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(overview));
         given(feasibilityCheckRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
@@ -261,7 +261,7 @@ class FeasibilityServiceTest {
         Bpovwm overview = mock(Bpovwm.class);
         given(overview.getPrjNm()).willReturn("성과사업");
         given(overview.getLglRglYn()).willReturn("Y");
-        given(overview.getKpnTp()).willReturn("TEMP");
+        given(overview.getKpnTc()).willReturn("TEMP");
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
         com.kdb.it.domain.council.entity.Bchklc check = mock(com.kdb.it.domain.council.entity.Bchklc.class);
         given(check.getCkgItmC()).willReturn("MGMT_STR");

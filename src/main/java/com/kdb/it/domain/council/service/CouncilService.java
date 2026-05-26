@@ -156,8 +156,8 @@ public class CouncilService {
                 .asctId(asctId)
                 .prjMngNo(request.prjMngNo())
                 .prjSno(request.prjSno())
-                .asctSts("001")
-                .dbrTp(request.dbrTp())
+                .asctStsC("001")
+                .dbrTc(request.dbrTc())
                 .build();
 
         councilRepository.save(council);
@@ -181,7 +181,7 @@ public class CouncilService {
      * </p>
      *
      * @param asctId    협의회ID
-     * @param targetSts 변경할 상태 코드 (CCODEM ASCT_STS 기준)
+     * @param targetSts 변경할 상태 코드 (CCODEM ASCT_STS_C 기준)
      */
     @Transactional
     public void changeStatus(String asctId, String targetSts) {
@@ -203,9 +203,9 @@ public class CouncilService {
     public void startCouncil(String asctId) {
         Basctm council = findActiveCouncil(asctId);
 
-        if (!"006".equals(council.getAsctSts())) {
+        if (!"006".equals(council.getAsctStsC())) {
             throw new IllegalStateException(
-                "협의회 개최 시작은 SCHEDULED(006) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+                "협의회 개최 시작은 SCHEDULED(006) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
         }
 
         council.changeStatus("007");
@@ -229,7 +229,7 @@ public class CouncilService {
     @Transactional
     public void completeCouncil(String asctId) {
         Basctm council = findActiveCouncil(asctId);
-        String status = council.getAsctSts();
+        String status = council.getAsctStsC();
 
         // IN_PROGRESS(평가 미시작) 또는 EVALUATING(평가 진행 중) 상태에서만 가능
         if (!"007".equals(status) && !"008".equals(status)) {
@@ -240,7 +240,7 @@ public class CouncilService {
         // 평가 대상 위원 조회 (간사 제외: MAND(001) + CALL(002)만 평가 의무)
         List<Bcmmtm> evaluators = committeeRepository.findByAsctIdAndDelYn(asctId, "N")
                 .stream()
-                .filter(m -> !"003".equals(m.getVlrTp()))
+                .filter(m -> !"003".equals(m.getVlrTc()))
                 .collect(Collectors.toList());
 
         if (evaluators.isEmpty()) {
@@ -276,10 +276,10 @@ public class CouncilService {
     public CouncilDto.NotifyResponse notifyCouncil(String asctId) {
         Basctm council = findActiveCouncil(asctId);
 
-        // COMPLETED 상태에서만 통보 가능
-        if (!"012".equals(council.getAsctSts())) {
+        // COMPLETED 상태에서만 통보 가능 (PRD §31: 완료 = 013)
+        if (!"013".equals(council.getAsctStsC())) {
             throw new IllegalStateException(
-                "통보는 완료(012) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+                "통보는 완료(013) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
         }
 
         // 사업 상태 전이: '정실협 진행중' → '요건 상세화'
@@ -328,9 +328,9 @@ public class CouncilService {
         Basctm council = findActiveCouncil(asctId);
 
         // APPROVED 상태에서만 생략 가능
-        if (!"004".equals(council.getAsctSts())) {
+        if (!"004".equals(council.getAsctStsC())) {
             throw new IllegalStateException(
-                "생략 처리는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+                "생략 처리는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
         }
 
         // 협의회 상태 전이: APPROVED → SKIPPED
@@ -394,30 +394,43 @@ public class CouncilService {
     }
 
     /**
-     * Basctm 엔티티 → ListResponse 변환 (평가위원용)
+     * Basctm 엔티티 → ListResponse 변환 (평가위원용, PRD §16)
      *
-     * <p>
-     * 사업명은 BPOVWM에서 조회합니다. 타당성검토표가 없으면 null을 반환합니다.
-     * 사업 상세 필드(prjYy 등)는 평가위원 뷰에서 불필요하므로 null로 처리합니다.
-     * </p>
+     * <p>사업명은 BPOVWM 우선, 없으면 BPROJM에서 가져옵니다.
+     * 평가위원 사업카드도 일반사용자/관리자와 동일하게 사업 상세 필드를 채워야 하므로
+     * BPROJM에서 prjYy/prjTp/svnDpm/prjBg/sttDt/endDt/itDpm/prjDes를 함께 매핑합니다.</p>
      */
     private CouncilDto.ListResponse toListResponseFromEntity(Basctm council) {
-        // 사업명 조회 (BPOVWM 선택적 존재)
+        // BPROJM 조회 — 사업 상세 정보 원천
+        var projectOpt = projectRepository.findById(new BprojmId(council.getPrjMngNo(), council.getPrjSno()));
+
+        // 사업명: BPOVWM(타당성검토표) 우선, 없으면 BPROJM
         String prjNm = projectOverviewRepository
                 .findByAsctIdAndDelYn(council.getAsctId(), "N")
                 .map(Bpovwm::getPrjNm)
-                .orElse(null);
+                .orElseGet(() -> projectOpt.map(p -> p.getPrjNm()).orElse(null));
+
+        // 사업 상세 (BPROJM 기반)
+        String prjYy   = projectOpt.map(p -> p.getBgYy()).orElse(null);
+        String prjTp   = projectOpt.map(p -> p.getPrjTp()).orElse(null);
+        String svnDpm  = projectOpt.map(p -> p.getSvnDpm()).orElse(null);
+        java.math.BigDecimal prjBg = projectOpt.map(p -> p.getPrjBg()).orElse(null);
+        java.time.LocalDate sttDt  = projectOpt.map(p -> p.getSttDt()).orElse(null);
+        java.time.LocalDate endDt  = projectOpt.map(p -> p.getEndDt()).orElse(null);
+        String itDpm   = projectOpt.map(p -> p.getItDpm()).orElse(null);
+        String prjDes  = projectOpt.map(p -> p.getPrjDes()).orElse(null);
 
         return new CouncilDto.ListResponse(
                 council.getAsctId(),
                 council.getPrjMngNo(),
                 council.getPrjSno(),
                 prjNm,
-                council.getAsctSts(),
-                council.getDbrTp(),
+                council.getAsctStsC(),
+                council.getDbrTc(),
                 council.getCnrcDt(),
-                true, // 이미 신청된 건
-                null, null, null, null, null, null, null, null // 사업 상세 (평가위원 뷰 미사용)
+                council.getCnrcTm(),
+                true,
+                prjYy, prjTp, svnDpm, prjBg, sttDt, endDt, itDpm, prjDes
         );
     }
 
@@ -425,41 +438,43 @@ public class CouncilService {
      * Native Query Object[] 행 → ListResponse 변환 (관리자/일반사용자용)
      *
      * <p>
-     * 컬럼 순서: prjMngNo(0), prjSno(1), prjNm(2), asctId(3), asctSts(4),
-     * dbrTp(5), cnrcDt(6), applied(7), prjYy(8), prjTp(9), svnDpm(10),
-     * prjBg(11), sttDt(12), endDt(13), itDpm(14), prjDes(15)
+     * 컬럼 순서: prjMngNo(0), prjSno(1), prjNm(2), asctId(3), asctStsC(4),
+     * dbrTc(5), cnrcDt(6), cnrcTm(7), applied(8), prjYy(9), prjTp(10), svnDpm(11),
+     * prjBg(12), sttDt(13), endDt(14), itDpm(15), prjDes(16) — PRD §25 cnrcTm 추가
      * </p>
      */
     private CouncilDto.ListResponse toListResponseFromRow(Object[] row) {
         String asctId = (String) row[3];
-        String asctSts = (String) row[4];
-        String dbrTp = (String) row[5];
-        // Oracle JDBC 버전에 따라 DATE → java.sql.Date 또는 java.time.LocalDateTime으로 반환
+        String asctStsC = (String) row[4];
+        String dbrTc = (String) row[5];
+        // Oracle JDBC 버전에 따라 DATE → java.sql.Date 또는 java.time.LocalDateTime / String(yyyyMMdd)으로 반환
         java.time.LocalDate cnrcDt = toLocalDate(row[6]);
-        java.time.LocalDate sttDt = toLocalDate(row[12]);
-        java.time.LocalDate endDt = toLocalDate(row[13]);
+        String cnrcTm = (String) row[7];
+        java.time.LocalDate sttDt = toLocalDate(row[13]);
+        java.time.LocalDate endDt = toLocalDate(row[14]);
         // Oracle NUMBER(1) → BigDecimal 등으로 반환되므로 intValue() 처리
-        boolean applied = row[7] != null && ((Number) row[7]).intValue() == 1;
+        boolean applied = row[8] != null && ((Number) row[8]).intValue() == 1;
         // Oracle NUMBER(15,2) → BigDecimal
-        java.math.BigDecimal prjBg = row[11] != null ? new java.math.BigDecimal(row[11].toString()) : null;
+        java.math.BigDecimal prjBg = row[12] != null ? new java.math.BigDecimal(row[12].toString()) : null;
 
         return new CouncilDto.ListResponse(
                 asctId,
                 (String) row[0],
                 row[1] != null ? ((Number) row[1]).intValue() : null,
                 (String) row[2],
-                asctSts,
-                dbrTp,
+                asctStsC,
+                dbrTc,
                 cnrcDt,
+                cnrcTm,
                 applied,
-                (String) row[8], // prjYy
-                (String) row[9], // prjTp
-                (String) row[10], // svnDpm
-                prjBg, // prjBg
-                sttDt, // sttDt
-                endDt, // endDt
-                (String) row[14], // itDpm
-                (String) row[15] // prjDes
+                (String) row[9],  // prjYy
+                (String) row[10], // prjTp
+                (String) row[11], // svnDpm
+                prjBg,            // prjBg
+                sttDt,            // sttDt
+                endDt,            // endDt
+                (String) row[15], // itDpm
+                (String) row[16]  // prjDes
         );
     }
 
@@ -486,6 +501,21 @@ public class CouncilService {
             return ((java.sql.Date) val).toLocalDate();
         if (val instanceof java.sql.Timestamp)
             return ((java.sql.Timestamp) val).toLocalDateTime().toLocalDate();
+        // PRD §25 — DT 도메인 VARCHAR2(8) yyyyMMdd / yyyy-MM-dd String 케이스 처리
+        // (BASCTM.CNRC_DT 등이 String으로 반환되면 기존엔 null로 떨어져 카드에 회의일자 표시 안 됨)
+        if (val instanceof String s) {
+            String digits = s.replaceAll("[^0-9]", "");
+            if (digits.length() >= 8) {
+                try {
+                    return java.time.LocalDate.of(
+                            Integer.parseInt(digits.substring(0, 4)),
+                            Integer.parseInt(digits.substring(4, 6)),
+                            Integer.parseInt(digits.substring(6, 8)));
+                } catch (NumberFormatException | java.time.DateTimeException ignored) {
+                    return null;
+                }
+            }
+        }
         return null;
     }
 
@@ -520,8 +550,8 @@ public class CouncilService {
                 council.getAsctId(),
                 council.getPrjMngNo(),
                 council.getPrjSno(),
-                council.getAsctSts(),
-                council.getDbrTp(),
+                council.getAsctStsC(),
+                council.getDbrTc(),
                 council.getCnrcDt(),
                 council.getCnrcTm(),
                 council.getCnrcPlc(),

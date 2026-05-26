@@ -23,7 +23,7 @@ import java.math.BigDecimal;
  * <p>BASCTM과 1:1 관계이며, Step 1(타당성검토표 작성) 단계에서 입력됩니다.
  * 주요 필드는 TAAABB_BPROJM 스키마와 동일하게 맞춰 데이터 일관성을 유지합니다.</p>
  *
- * <p>KPN_TP(저장유형): TEMP(임시저장) / COMPLETE(작성완료)</p>
+ * <p>KPN_TC(저장유형): TEMP(임시저장) / COMPLETE(작성완료)</p>
  */
 @LogTarget(entity = BpovwmL.class)
 @Entity
@@ -77,7 +77,7 @@ public class Bpovwm extends BaseEntity {
 
     /** 저장구분코드: TEMP(임시저장) / COMPLETE(작성완료), CCODEM KPN_TC 기준 */
     @Column(name = "KPN_TC", length = 10, comment = "저장구분코드")
-    private String kpnTp;
+    private String kpnTc;
 
     /** 첨부파일관리번호: TAAABB_CFILEM.FL_MNG_NO (FK, hwp/hwpx/pdf만 허용) */
     @Column(name = "FL_MNG_NO", length = 32, comment = "첨부파일관리번호")
@@ -95,12 +95,12 @@ public class Bpovwm extends BaseEntity {
      * @param lglRglYn  법률규제대응여부
      * @param lglRglNm  관련법률규제명
      * @param xptEff    기대효과
-     * @param kpnTp     저장유형 (TEMP/COMPLETE)
+     * @param kpnTc     저장유형 (TEMP/COMPLETE)
      * @param flMngNo   첨부파일관리번호
      */
     public void update(String prjNm, String prjTrm, String ncs, BigDecimal prjBg, String edrt,
                        String prjDes, String lglRglYn, String lglRglNm, String xptEff,
-                       String kpnTp, String flMngNo) {
+                       String kpnTc, String flMngNo) {
         this.prjNm = prjNm;
         this.prjTrm = prjTrm;
         this.ncs = ncs;
@@ -110,7 +110,7 @@ public class Bpovwm extends BaseEntity {
         this.lglRglYn = lglRglYn;
         this.lglRglNm = lglRglNm;
         this.xptEff = xptEff;
-        this.kpnTp = kpnTp;
+        this.kpnTc = kpnTc;
         this.flMngNo = flMngNo;
     }
 }

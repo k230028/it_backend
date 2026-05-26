@@ -50,7 +50,7 @@ public class EvaluationService {
     /** 평가위원 리포지토리 — 전원 제출 여부 확인용 */
     private final CommitteeRepository committeeRepository;
 
-    // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM 기준)
+    // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM_C 기준)
     private static final Map<String, String> CHECK_ITEM_NAMES = Map.of(
         "001", "경영전략/계획 부합",
         "002", "재무 효과",
@@ -60,7 +60,7 @@ public class EvaluationService {
         "006", "기타"
     );
 
-    // 6개 고정 점검항목 순서 (CKG_ITM 숫자코드)
+    // 6개 고정 점검항목 순서 (CKG_ITM_C 숫자코드)
     private static final List<String> CHECK_ITEM_ORDER =
         List.of("001", "002", "003", "004", "005", "006");
 
@@ -191,7 +191,7 @@ public class EvaluationService {
 
         // 협의회 상태 전이: IN_PROGRESS → EVALUATING (첫 제출 시 1회만)
         // Plan SC: 이미 EVALUATING 이상이면 상태 전이 skip
-        String currentStatus = councilService.findActiveCouncil(asctId).getAsctSts();
+        String currentStatus = councilService.findActiveCouncil(asctId).getAsctStsC();
         if ("007".equals(currentStatus)) {
             councilService.changeStatus(asctId, "008");
         }

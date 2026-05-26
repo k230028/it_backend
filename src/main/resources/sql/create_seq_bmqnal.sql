@@ -1,0 +1,14 @@
+-- BMQNAL 시퀀스 신규 생성 (PRD §26)
+-- AuditLogIdGenerator는 SEQ_{POSTFIX} 형식으로 시퀀스 조회 (코드 line 29)
+-- 이전에 잘못 만든 S_BMQNAL은 미사용이므로 같이 정리합니다.
+CREATE SEQUENCE SEQ_BMQNAL
+    START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE;
+
+-- 미사용 S_BMQNAL 제거 (PRD §26 — 첫 시도에서 잘못된 접두사로 만든 잔재)
+DROP SEQUENCE S_BMQNAL;
+
+COMMIT;
+
+SELECT SEQUENCE_NAME FROM USER_SEQUENCES WHERE SEQUENCE_NAME IN ('SEQ_BMQNAL','S_BMQNAL');
+
+EXIT;

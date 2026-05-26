@@ -115,8 +115,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      *   <li>협의회 신청된 건: PRJ_STS = '정실협 진행중'</li>
      * </ul>
      *
-     * @return prjMngNo, prjSno, prjNm, asctId(null 가능), asctSts(null 가능),
-     *         dbrTp(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
+     * @return prjMngNo, prjSno, prjNm, asctId(null 가능), asctStsC(null 가능),
+     *         dbrTc(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
      */
     @Query(value = """
             SELECT
@@ -124,9 +124,10 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.PRJ_SNO       AS prjSno,
                 p.PRJ_NM        AS prjNm,
                 a.ASCT_ID       AS asctId,
-                a.ASCT_STS_C      AS asctSts,
-                a.DBR_TC        AS dbrTp,
+                a.ASCT_STS_C      AS asctStsC,
+                a.DBR_TC        AS dbrTc,
                 a.CNRC_DT       AS cnrcDt,
+                a.CNRC_TM       AS cnrcTm,
                 CASE WHEN a.ASCT_ID IS NOT NULL THEN 1 ELSE 0 END AS applied,
                 p.BG_YY         AS prjYy,
                 p.PRJ_TP        AS prjTp,
@@ -181,8 +182,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * </ul>
      *
      * @param svnDpm 사용자 소속부서코드 (CustomUserDetails.getBbrC())
-     * @return prjMngNo, prjSno, prjNm, asctId(null 가능), asctSts(null 가능),
-     *         dbrTp(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
+     * @return prjMngNo, prjSno, prjNm, asctId(null 가능), asctStsC(null 가능),
+     *         dbrTc(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
      */
     @Query(value = """
             SELECT
@@ -190,9 +191,10 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.PRJ_SNO       AS prjSno,
                 p.PRJ_NM        AS prjNm,
                 a.ASCT_ID       AS asctId,
-                a.ASCT_STS_C      AS asctSts,
-                a.DBR_TC        AS dbrTp,
+                a.ASCT_STS_C      AS asctStsC,
+                a.DBR_TC        AS dbrTc,
                 a.CNRC_DT       AS cnrcDt,
+                a.CNRC_TM       AS cnrcTm,
                 CASE WHEN a.ASCT_ID IS NOT NULL THEN 1 ELSE 0 END AS applied,
                 p.BG_YY         AS prjYy,
                 p.PRJ_TP        AS prjTp,

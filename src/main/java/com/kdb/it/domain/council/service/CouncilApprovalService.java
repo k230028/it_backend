@@ -82,9 +82,9 @@ public class CouncilApprovalService {
         Basctm council = councilService.findActiveCouncil(asctId);
 
         // SUBMITTED 상태 확인 (작성완료 후에만 결재 요청 가능)
-        if (!"002".equals(council.getAsctSts())) {
+        if (!"002".equals(council.getAsctStsC())) {
             throw new IllegalStateException(
-                "결재 요청은 작성완료(002) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+                "결재 요청은 작성완료(002) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
         }
 
         // 신청서명 생성: "협의회 타당성검토표 결재 요청 - {사업명}"
@@ -133,9 +133,9 @@ public class CouncilApprovalService {
         Basctm council = councilService.findActiveCouncil(asctId);
 
         // FINAL_APPROVAL 상태 확인 (전원 결과서 확인 완료 후에만 결재 요청 가능)
-        if (!"011".equals(council.getAsctSts())) {
+        if (!"011".equals(council.getAsctStsC())) {
             throw new IllegalStateException(
-                "개최결과서 결재 요청은 결재 요청 가능(011) 상태에서만 가능합니다. 현재 상태: " + council.getAsctSts());
+                "개최결과서 결재 요청은 결재 요청 가능(011) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
         }
 
         // 신청서명 생성: "협의회 개최결과서 결재 요청 - {사업명}"
@@ -152,8 +152,8 @@ public class CouncilApprovalService {
 
         String apfMngNo = applicationService.submit(createRequest);
 
-        // 협의회 상태 전이: FINAL_APPROVAL → RESULT_APPROVAL_PENDING
-        councilService.changeStatus(asctId, "013");
+        // 협의회 상태 전이: FINAL_APPROVAL → RESULT_APPROVAL_PENDING (PRD §31: 결재 중 = 012)
+        councilService.changeStatus(asctId, "012");
 
         return new CouncilDto.ApprovalResponse(apfMngNo);
     }
@@ -183,7 +183,7 @@ public class CouncilApprovalService {
     public void processApprovalCallback(String asctId, CouncilDto.ApprovalCallbackRequest request) {
         // 협의회 존재 확인
         Basctm council = councilService.findActiveCouncil(asctId);
-        String currentStatus = council.getAsctSts();
+        String currentStatus = council.getAsctStsC();
 
         if ("003".equals(currentStatus)) {
             // 타당성검토표 결재 콜백 (APPROVAL_PENDING)
@@ -194,13 +194,13 @@ public class CouncilApprovalService {
                 // 반려: 003 → 001 (타당성검토표 재작성)
                 councilService.changeStatus(asctId, "001");
             }
-        } else if ("013".equals(currentStatus)) {
-            // 개최결과서 결재 콜백 (RESULT_APPROVAL_PENDING)
+        } else if ("012".equals(currentStatus)) {
+            // 개최결과서 결재 콜백 (RESULT_APPROVAL_PENDING, PRD §31: 결재 중 = 012)
             if (request.approved()) {
-                // 승인: 013 → 012
-                councilService.changeStatus(asctId, "012");
+                // 승인: 012(결재 중) → 013(완료)
+                councilService.changeStatus(asctId, "013");
             } else {
-                // 반려: 013 → 011 (재결재 요청 가능)
+                // 반려: 012 → 011 (재결재 요청 가능)
                 councilService.changeStatus(asctId, "011");
             }
         } else {

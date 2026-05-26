@@ -45,11 +45,13 @@ public class CouncilDto {
         /** 사업명 (BPROJM.PRJ_NM 또는 BPOVWM.PRJ_NM) */
         String prjNm,
         /** 협의회상태 코드 (DRAFT~COMPLETED). 협의회 신청 전이면 null */
-        String asctSts,
+        String asctStsC,
         /** 심의유형 (INFO_SYS/INFO_SEC/ETC). 협의회 신청 전이면 null */
-        String dbrTp,
+        String dbrTc,
         /** 회의일자 (SCHEDULED 이후 설정). 협의회 신청 전이면 null */
         LocalDate cnrcDt,
+        /** 회의시간 (예: '10:00', SCHEDULED 이후 설정). 미확정이면 null (PRD §25) */
+        String cnrcTm,
         /** 협의회 신청 여부 (false = 결재완료 사업이지만 아직 신청 전) */
         boolean applied,
         // ── 사업 상세 정보 (BPROJM) ──────────────────────────────────────
@@ -82,7 +84,7 @@ public class CouncilDto {
         /** 프로젝트순번 (BPROJM FK) */
         Integer prjSno,
         /** 심의유형 (INFO_SYS/INFO_SEC/ETC) */
-        String dbrTp
+        String dbrTc
     ) {}
 
     /**
@@ -98,9 +100,9 @@ public class CouncilDto {
         /** 프로젝트순번 */
         Integer prjSno,
         /** 협의회상태 코드 */
-        String asctSts,
+        String asctStsC,
         /** 심의유형 */
-        String dbrTp,
+        String dbrTc,
         /** 회의일자 */
         LocalDate cnrcDt,
         /** 회의시간 */
@@ -133,7 +135,7 @@ public class CouncilDto {
      * 타당성검토표 전체 저장 요청 (사업개요 + 자체점검 + 성과지표)
      *
      * <p>임시저장(TEMP)과 작성완료(COMPLETE) 모두 이 요청을 사용합니다.
-     * kpnTp 값에 따라 서비스 로직이 분기됩니다.</p>
+     * kpnTc 값에 따라 서비스 로직이 분기됩니다.</p>
      */
     public record FeasibilityRequest(
         /** 사업명 */
@@ -155,7 +157,7 @@ public class CouncilDto {
         /** 기대효과 (최대 1000자) */
         String xptEff,
         /** 저장구분코드 (TEMP:임시저장 / COMPLETE:작성완료) */
-        String kpnTp,
+        String kpnTc,
         /** 타당성 자체점검 6개 항목 */
         List<CheckItemRequest> checkItems,
         /** 성과지표 목록 (1개 이상) */
@@ -187,7 +189,7 @@ public class CouncilDto {
         /** 기대효과 */
         String xptEff,
         /** 저장유형 */
-        String kpnTp,
+        String kpnTc,
         /** 자체점검 항목 목록 */
         List<CheckItemResponse> checkItems,
         /** 성과지표 목록 */
@@ -273,7 +275,7 @@ public class CouncilDto {
      */
     public record CommitteeRequest(
         /** 심의유형 (당연위원 자동 배치 기준) */
-        String dbrTp,
+        String dbrTc,
         /** 위원 목록 (당연+소집+간사 전체) */
         List<CommitteeMemberRequest> members
     ) {}
@@ -285,7 +287,7 @@ public class CouncilDto {
         /** 사번 */
         String eno,
         /** 위원유형 (MAND:당연/CALL:소집/SECR:간사) */
-        String vlrTp
+        String vlrTc
     ) {}
 
     /**
@@ -377,7 +379,7 @@ public class CouncilDto {
         /** 직위명 (팀장, 차장, 과장 등) */
         String ptCNm,
         /** 위원유형 (MAND:당연/CALL:소집/SECR:간사) */
-        String vlrTp,
+        String vlrTc,
         /** 결과서 검토 확인 여부 (N: 미확인, Y: 확인완료) */
         String cnfmYn
     ) {}
@@ -419,7 +421,7 @@ public class CouncilDto {
         /** 직책명 (화면 표출용) */
         String ptCNm,
         /** 위원유형 */
-        String vlrTp,
+        String vlrTc,
         /** 응답 완료 여부 */
         boolean responded,
         /** 위원의 일정 응답 목록 */
@@ -629,4 +631,12 @@ public class CouncilDto {
         /** 수신자 팀명 */
         String temNm
     ) {}
+
+    // =========================================================================
+    // §26: 본회의 질의응답 (BMQNAM)
+    // =========================================================================
+    // 본회의 질의응답은 사전질의응답({@link QnaCreateRequest}/{@link QnaUpdateRequest}/
+    // {@link QnaReplyRequest}/{@link QnaResponse})과 동일한 DTO 스키마를 재사용합니다.
+    // 권한과 라이프사이클만 다르고 컬럼 구조는 동일하기 때문입니다.
+    // =========================================================================
 }

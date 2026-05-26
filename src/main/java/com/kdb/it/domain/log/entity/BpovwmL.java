@@ -51,7 +51,7 @@ public class BpovwmL extends BaseLogEntity {
     private String xptEff;
 
     @Column(name = "KPN_TC", length = 10, comment = "저장구분코드")
-    private String kpnTp;
+    private String kpnTc;
 
     @Column(name = "FL_MNG_NO", length = 32, comment = "첨부파일관리번호")
     private String flMngNo;

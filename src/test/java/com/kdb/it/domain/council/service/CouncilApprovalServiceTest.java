@@ -64,7 +64,7 @@ class CouncilApprovalServiceTest {
     void requestApproval_SUBMITTED아닌상태_IllegalStateException발생() {
         // given
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("DRAFT");
+        given(council.getAsctStsC()).willReturn("DRAFT");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
@@ -84,7 +84,7 @@ class CouncilApprovalServiceTest {
     void requestApproval_SUBMITTED상태_신청서등록후APPROVAL_PENDING전이() {
         // given
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("SUBMITTED");
+        given(council.getAsctStsC()).willReturn("SUBMITTED");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bpovwm overview = mock(Bpovwm.class);
@@ -119,7 +119,7 @@ class CouncilApprovalServiceTest {
     void processApprovalCallback_APPROVAL_PENDING아닌상태_IllegalStateException발생() {
         // given
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("APPROVED");
+        given(council.getAsctStsC()).willReturn("APPROVED");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         // when & then
@@ -134,7 +134,7 @@ class CouncilApprovalServiceTest {
     void processApprovalCallback_승인_APPROVED전이() {
         // given
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("APPROVAL_PENDING");
+        given(council.getAsctStsC()).willReturn("APPROVAL_PENDING");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         // when
@@ -150,7 +150,7 @@ class CouncilApprovalServiceTest {
     void processApprovalCallback_반려_DRAFT전이() {
         // given
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("APPROVAL_PENDING");
+        given(council.getAsctStsC()).willReturn("APPROVAL_PENDING");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         // when
@@ -165,7 +165,7 @@ class CouncilApprovalServiceTest {
     @DisplayName("requestResultApproval: FINAL_APPROVAL이 아니면 IllegalStateException을 던진다")
     void requestResultApproval_FINAL_APPROVAL아님_예외발생() {
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("RESULT_REVIEW");
+        given(council.getAsctStsC()).willReturn("RESULT_REVIEW");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
 
@@ -181,7 +181,7 @@ class CouncilApprovalServiceTest {
     @DisplayName("requestResultApproval: 사업개요가 없으면 협의회ID로 신청서명을 만들고 결재선을 등록한다")
     void requestResultApproval_사업개요없음_협의회ID로결재요청() {
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("FINAL_APPROVAL");
+        given(council.getAsctStsC()).willReturn("FINAL_APPROVAL");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
         given(applicationService.submit(any(ApplicationDto.CreateRequest.class))).willReturn("APF_RESULT_1");
@@ -204,7 +204,7 @@ class CouncilApprovalServiceTest {
     @DisplayName("processApprovalCallback: 개최결과서 결재 승인 시 COMPLETED로 전이한다")
     void processApprovalCallback_결과서승인_COMPLETED전이() {
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("RESULT_APPROVAL_PENDING");
+        given(council.getAsctStsC()).willReturn("RESULT_APPROVAL_PENDING");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         councilApprovalService.processApprovalCallback(ASCT_ID, new CouncilDto.ApprovalCallbackRequest(true));
@@ -216,7 +216,7 @@ class CouncilApprovalServiceTest {
     @DisplayName("processApprovalCallback: 개최결과서 결재 반려 시 FINAL_APPROVAL로 전이한다")
     void processApprovalCallback_결과서반려_FINAL_APPROVAL전이() {
         Basctm council = mock(Basctm.class);
-        given(council.getAsctSts()).willReturn("RESULT_APPROVAL_PENDING");
+        given(council.getAsctStsC()).willReturn("RESULT_APPROVAL_PENDING");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         councilApprovalService.processApprovalCallback(ASCT_ID, new CouncilDto.ApprovalCallbackRequest(false));

@@ -34,10 +34,10 @@ public class BasctmL extends BaseLogEntity {
     private Integer prjSno;
 
     @Column(name = "ASCT_STS_C", length = 3, comment = "협의회상태코드")
-    private String asctSts;
+    private String asctStsC;
 
     @Column(name = "DBR_TC", length = 20, comment = "심의유형구분코드")
-    private String dbrTp;
+    private String dbrTc;
 
     @Column(name = "CNRC_DT", length = 8, comment = "회의일자")
     @Convert(converter = Yyyymmdd8DateConverter.class)
