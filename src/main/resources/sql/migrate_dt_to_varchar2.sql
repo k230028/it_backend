@@ -1,10 +1,10 @@
 -- ============================================================
 -- DT 도메인 컬럼: DATE → VARCHAR2(8) 마이그레이션
 -- 대상 컬럼:
---   TAAABB_BASCTM.CNRC_DT, TAAABB_BASCTL.CNRC_DT
---   TAAABB_BSCHDM.DSD_DT,  TAAABB_BSCHDL.DSD_DT
---   TAAABB_BPERFM.MSM_STT_DT, TAAABB_BPERFL.MSM_STT_DT
---   TAAABB_BPERFM.MSM_END_DT, TAAABB_BPERFL.MSM_END_DT
+--   TPRMPP_BASCTM.CNRC_DT, TPRMPP_BASCTL.CNRC_DT
+--   TPRMPP_BSCHDM.DSD_DT,  TPRMPP_BSCHDL.DSD_DT
+--   TPRMPP_BPERFM.MSM_STT_DT, TPRMPP_BPERFL.MSM_STT_DT
+--   TPRMPP_BPERFM.MSM_END_DT, TPRMPP_BPERFL.MSM_END_DT
 -- 형식: 임시 컬럼 추가 → TO_CHAR(.., 'YYYYMMDD') 변환 → 원본 DROP → RENAME
 -- BSCHDM.DSD_DT는 PK 일부지만 ALTER 시 데이터 손실 회피 위해 동일 방식 적용
 -- ============================================================
@@ -16,14 +16,14 @@ DECLARE
     TYPE t_target IS RECORD (tbl VARCHAR2(64), col VARCHAR2(64));
     TYPE t_arr    IS TABLE OF t_target;
     targets t_arr := t_arr(
-        t_target('TAAABB_BASCTM','CNRC_DT'),
-        t_target('TAAABB_BASCTL','CNRC_DT'),
-        t_target('TAAABB_BSCHDM','DSD_DT'),
-        t_target('TAAABB_BSCHDL','DSD_DT'),
-        t_target('TAAABB_BPERFM','MSM_STT_DT'),
-        t_target('TAAABB_BPERFL','MSM_STT_DT'),
-        t_target('TAAABB_BPERFM','MSM_END_DT'),
-        t_target('TAAABB_BPERFL','MSM_END_DT')
+        t_target('TPRMPP_BASCTM','CNRC_DT'),
+        t_target('TPRMPP_BASCTL','CNRC_DT'),
+        t_target('TPRMPP_BSCHDM','DSD_DT'),
+        t_target('TPRMPP_BSCHDL','DSD_DT'),
+        t_target('TPRMPP_BPERFM','MSM_STT_DT'),
+        t_target('TPRMPP_BPERFL','MSM_STT_DT'),
+        t_target('TPRMPP_BPERFM','MSM_END_DT'),
+        t_target('TPRMPP_BPERFL','MSM_END_DT')
     );
     v_type VARCHAR2(30);
 BEGIN

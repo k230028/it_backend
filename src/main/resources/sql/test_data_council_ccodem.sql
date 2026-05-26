@@ -1,5 +1,5 @@
 -- ============================================================
--- 정보화실무협의회 공통코드 (TAAABB_CCODEM) 초기 데이터
+-- 정보화실무협의회 공통코드 (TPRMPP_CCODEM) 초기 데이터
 -- 대상: ASCT_STS_C(협의회상태 13건), DBR_TC(심의유형 5건),
 --        VLR_TC(평가자유형 3건), CKG_ITM_C(점검항목 6건)
 --
@@ -16,7 +16,7 @@
 -- ------------------------------------------------------------
 -- 0. 구 시맨틱 CDVA 행 정리 (숫자 체계 전환 전 잔여 데이터)
 -- ------------------------------------------------------------
-DELETE FROM TAAABB_CCODEM
+DELETE FROM TPRMPP_CCODEM
 WHERE C_ID IN ('ASCT_STS', 'ASCT_STS_C')
   AND CDVA = 'RESULT_APPROVAL_PENDING'
   AND STT_DT = TO_DATE('2026-04-12', 'YYYY-MM-DD');
@@ -25,10 +25,10 @@ WHERE C_ID IN ('ASCT_STS', 'ASCT_STS_C')
 -- 0-2. 구 C_ID 행 정리 (접미사 표준화 전환: _C/_TC)
 --     - 기존 데이터 잔존 시 신규 C_ID와 충돌하지 않도록 삭제
 -- ------------------------------------------------------------
-DELETE FROM TAAABB_CCODEM WHERE C_ID = 'ASCT_STS';
-DELETE FROM TAAABB_CCODEM WHERE C_ID = 'DBR_TP';
-DELETE FROM TAAABB_CCODEM WHERE C_ID = 'VLR_TP';
-DELETE FROM TAAABB_CCODEM WHERE C_ID = 'CKG_ITM';
+DELETE FROM TPRMPP_CCODEM WHERE C_ID = 'ASCT_STS';
+DELETE FROM TPRMPP_CCODEM WHERE C_ID = 'DBR_TP';
+DELETE FROM TPRMPP_CCODEM WHERE C_ID = 'VLR_TP';
+DELETE FROM TPRMPP_CCODEM WHERE C_ID = 'CKG_ITM';
 
 -- ------------------------------------------------------------
 -- 1. 협의회상태 (ASCT_STS_C) — 13건
@@ -36,7 +36,7 @@ DELETE FROM TAAABB_CCODEM WHERE C_ID = 'CKG_ITM';
 --    012: 결과보고 결재 중 (결재 진행 중) — PRD §31 라벨 스왑
 --    013: 완료                          — PRD §31 라벨 스왑
 -- ------------------------------------------------------------
-MERGE INTO TAAABB_CCODEM t
+MERGE INTO TPRMPP_CCODEM t
 USING (
     SELECT 'ASCT_STS_C' AS C_ID, '001' AS CDVA, '작성 중'           AS CDVA_NM,  1 AS C_SQN FROM DUAL UNION ALL
     SELECT 'ASCT_STS_C',          '002',          '작성 완료',                     2 FROM DUAL UNION ALL
@@ -76,7 +76,7 @@ WHEN NOT MATCHED THEN
 -- ------------------------------------------------------------
 -- 2. 심의유형 (DBR_TC) — 5건
 -- ------------------------------------------------------------
-MERGE INTO TAAABB_CCODEM t
+MERGE INTO TPRMPP_CCODEM t
 USING (
     SELECT 'DBR_TC' AS C_ID, '001' AS CDVA, '중장기 계획'                  AS CDVA_NM, 1 AS C_SQN FROM DUAL UNION ALL
     SELECT 'DBR_TC',          '002',          '정보부문기술계획',              2 FROM DUAL UNION ALL
@@ -108,7 +108,7 @@ WHEN NOT MATCHED THEN
 -- ------------------------------------------------------------
 -- 3. 평가자유형 (VLR_TC) — 3건
 -- ------------------------------------------------------------
-MERGE INTO TAAABB_CCODEM t
+MERGE INTO TPRMPP_CCODEM t
 USING (
     SELECT 'VLR_TC' AS C_ID, '001' AS CDVA, '당연위원' AS CDVA_NM, 1 AS C_SQN FROM DUAL UNION ALL
     SELECT 'VLR_TC',          '002',          '소집위원',          2 FROM DUAL UNION ALL
@@ -138,7 +138,7 @@ WHEN NOT MATCHED THEN
 -- ------------------------------------------------------------
 -- 4. 점검항목 (CKG_ITM_C) — 6건
 -- ------------------------------------------------------------
-MERGE INTO TAAABB_CCODEM t
+MERGE INTO TPRMPP_CCODEM t
 USING (
     SELECT 'CKG_ITM_C' AS C_ID, '001' AS CDVA, '경영전략 부합성'   AS CDVA_NM, 1 AS C_SQN FROM DUAL UNION ALL
     SELECT 'CKG_ITM_C',          '002',          '재무적 효과',        2 FROM DUAL UNION ALL
@@ -171,7 +171,7 @@ WHEN NOT MATCHED THEN
 -- ------------------------------------------------------------
 -- 5. 저장구분코드 (KPN_TC) — 2건  (Bpovwm.KPN_TC 신규 도메인)
 -- ------------------------------------------------------------
-MERGE INTO TAAABB_CCODEM t
+MERGE INTO TPRMPP_CCODEM t
 USING (
     SELECT 'KPN_TC' AS C_ID, '001' AS CDVA, '임시저장' AS CDVA_NM, 1 AS C_SQN FROM DUAL UNION ALL
     SELECT 'KPN_TC',          '002',          '저장',              2 FROM DUAL

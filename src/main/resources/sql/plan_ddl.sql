@@ -9,8 +9,8 @@ CREATE SEQUENCE S_PLN_MNG_NO
     NOCACHE
     NOCYCLE;
 
--- TAAABB_BPLANM: 정보기술부문계획 마스터
-CREATE TABLE TAAABB_BPLANM (
+-- TPRMPP_BPLANM: 정보기술부문계획 마스터
+CREATE TABLE TPRMPP_BPLANM (
     PLN_MNG_NO   VARCHAR2(32)   NOT NULL,   -- 계획관리번호 (PK)
     PLN_TP       VARCHAR2(16),              -- 계획구분 (신규, 조정)
     PLN_YY       VARCHAR2(4),              -- 대상년도 (YYYY)
@@ -30,13 +30,13 @@ CREATE TABLE TAAABB_BPLANM (
     GUID_PRG_SNO NUMBER(4, 0),             -- GUID진행일련번호
     LST_CHG_DTM  DATE,                     -- 마지막수정시간
     LST_CHG_USID VARCHAR2(14),             -- 마지막수정자
-    CONSTRAINT PK_TAAABB_BPLANM PRIMARY KEY (PLN_MNG_NO)
+    CONSTRAINT PK_TPRMPP_BPLANM PRIMARY KEY (PLN_MNG_NO)
 );
 
--- TAAABB_BPROJA: 정보화사업 관계 (BPROJM ↔ BPLANM N:N 매핑)
-CREATE TABLE TAAABB_BPROJA (
-    PRJ_MNG_NO   VARCHAR2(32)   NOT NULL,  -- 프로젝트관리번호 (FK → TAAABB_BPROJM)
-    BZ_MNG_NO    VARCHAR2(32)   NOT NULL,  -- 업무관리번호 (FK → TAAABB_BPLANM)
+-- TPRMPP_BPROJA: 정보화사업 관계 (BPROJM ↔ BPLANM N:N 매핑)
+CREATE TABLE TPRMPP_BPROJA (
+    PRJ_MNG_NO   VARCHAR2(32)   NOT NULL,  -- 프로젝트관리번호 (FK → TPRMPP_BPROJM)
+    BZ_MNG_NO    VARCHAR2(32)   NOT NULL,  -- 업무관리번호 (FK → TPRMPP_BPLANM)
     DEL_YN       VARCHAR2(1)  DEFAULT 'N', -- 삭제여부
     FST_ENR_DTM  DATE,                     -- 최초생성시간
     FST_ENR_USID VARCHAR2(14),             -- 최초생성자
@@ -44,5 +44,5 @@ CREATE TABLE TAAABB_BPROJA (
     GUID_PRG_SNO NUMBER(4, 0),             -- GUID진행일련번호
     LST_CHG_DTM  DATE,                     -- 마지막수정시간
     LST_CHG_USID VARCHAR2(14),             -- 마지막수정자
-    CONSTRAINT PK_TAAABB_BPROJA PRIMARY KEY (PRJ_MNG_NO, BZ_MNG_NO)
+    CONSTRAINT PK_TPRMPP_BPROJA PRIMARY KEY (PRJ_MNG_NO, BZ_MNG_NO)
 );

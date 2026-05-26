@@ -1,5 +1,5 @@
 -- BMQNAL 시퀀스 신규 생성 (PRD §26)
--- 본회의 질의응답 변경 로그(TAAABB_BMQNAL)의 LOG_SNO 채번용
+-- 본회의 질의응답 변경 로그(TPRMPP_BMQNAL)의 LOG_SNO 채번용
 CREATE SEQUENCE S_BMQNAL
     START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE;
 

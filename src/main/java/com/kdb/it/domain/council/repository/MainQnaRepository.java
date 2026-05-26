@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * 본회의질의응답(Bmqnam) 리포지토리 (PRD §26)
  *
- * <p>DB 테이블: {@code TAAABB_BMQNAM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BMQNAM}</p>
  *
  * <p>IT관리자가 본회의 동안 오간 Q&A를 정리·관리합니다.
  * 사전질의응답({@link QnaRepository})과 동일 메서드 시그니처를 유지합니다.</p>
@@ -34,7 +34,7 @@ public interface MainQnaRepository extends JpaRepository<Bmqnam, String> {
      * @param asctId 협의회ID
      * @return 다음 순번 (기존 항목 없으면 1)
      */
-    @Query(value = "SELECT NVL(COUNT(*), 0) + 1 FROM TAAABB_BMQNAM WHERE ASCT_ID = :asctId",
+    @Query(value = "SELECT NVL(COUNT(*), 0) + 1 FROM TPRMPP_BMQNAM WHERE ASCT_ID = :asctId",
            nativeQuery = true)
     Integer getNextQtnSeq(@Param("asctId") String asctId);
 }

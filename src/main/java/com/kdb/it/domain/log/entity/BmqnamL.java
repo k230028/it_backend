@@ -10,10 +10,10 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 본회의질의응답(TAAABB_BMQNAM) 변경 로그 엔티티 (PRD §26).
+ * 본회의질의응답(TPRMPP_BMQNAM) 변경 로그 엔티티 (PRD §26).
  */
 @Entity
-@Table(name = "TAAABB_BMQNAL", comment = "본회의질의응답 변경 로그")
+@Table(name = "TPRMPP_BMQNAL", comment = "본회의질의응답 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

@@ -16,7 +16,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 본회의 질의응답 엔티티 (PRD §26)
  *
- * <p>DB 테이블: {@code TAAABB_BMQNAM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BMQNAM}</p>
  *
  * <p>협의회 본회의 동안 오간 질의를 IT관리자(ITPAD001)가 정리해 등록하고,
  * 같은 IT관리자가 답변까지 함께 정리합니다.
@@ -30,7 +30,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BmqnamL.class)
 @Entity
-@Table(name = "TAAABB_BMQNAM", comment = "본회의질의응답")
+@Table(name = "TPRMPP_BMQNAM", comment = "본회의질의응답")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
