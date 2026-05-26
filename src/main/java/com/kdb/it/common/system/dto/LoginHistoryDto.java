@@ -13,15 +13,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 로그인 이력 관련 DTO 클래스 모음
+ * 공통로그인이력 관련 DTO 클래스 모음
  *
- * <p>로그인/로그아웃 이력(LOGIN_HISTORY) 조회에 사용되는 Response DTO를
+ * <p>로그인/로그아웃 이력(TPRMPP_CLOGNH) 조회에 사용되는 Response DTO를
  * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.</p>
- *
- * <p>포함된 DTO:</p>
- * <ul>
- *   <li>{@link Response}: 로그인 이력 조회 응답 (단건 및 목록 변환 지원)</li>
- * </ul>
  */
 public class LoginHistoryDto {
 
@@ -30,15 +25,12 @@ public class LoginHistoryDto {
      *
      * <p>{@link Clognh} 엔티티의 정보를 클라이언트에 전달합니다.</p>
      *
-     * <p>로그인 유형({@code loginType}) 종류:</p>
+     * <p>로그인구분코드({@code lgnTc})는 공통코드 {@code C_ID='LGN_TC'} 기반 1자리 값입니다.</p>
      * <ul>
-     *   <li>{@code LOGIN_SUCCESS}: 로그인 성공</li>
-     *   <li>{@code LOGIN_FAILURE}: 로그인 실패 (비밀번호 불일치, 사번 없음 등)</li>
-     *   <li>{@code LOGOUT}: 로그아웃</li>
+     *   <li>{@code 1}: 로그인 성공</li>
+     *   <li>{@code 2}: 로그인 실패</li>
+     *   <li>{@code 3}: 로그아웃</li>
      * </ul>
-     *
-     * <p>{@link #fromEntity(Clognh)}: 단건 변환</p>
-     * <p>{@link #fromEntities(List)}: 목록 변환</p>
      */
     @Getter
     @Setter
@@ -56,61 +48,52 @@ public class LoginHistoryDto {
         private String eno;
 
         /**
-         * 로그인 타입
-         * <p>허용값: {@code LOGIN_SUCCESS}, {@code LOGIN_FAILURE}, {@code LOGOUT}</p>
+         * 로그인구분코드
+         * <p>공통코드 C_ID='LGN_TC' 기반 1자리 값. 1=성공, 2=실패, 3=로그아웃</p>
          */
-        @Schema(description = "로그인 타입 (LOGIN_SUCCESS, LOGIN_FAILURE, LOGOUT)")
-        private String loginType;
+        @Schema(description = "로그인구분코드 (공통코드 LGN_TC; 1=성공, 2=실패, 3=로그아웃)")
+        private String lgnTc;
 
-        /** 클라이언트 IP 주소 (X-Forwarded-For, X-Real-IP 헤더 우선 적용) */
+        /** 클라이언트 IP 주소 */
         @Schema(description = "IP 주소")
         private String ipAddress;
 
         /** 클라이언트 브라우저/앱 정보 (User-Agent 헤더 값) */
-        @Schema(description = "User Agent")
-        private String userAgent;
+        @Schema(description = "에이전트버전내용 (User-Agent)")
+        private String agtVrsCone;
 
         /** 이벤트 발생 시각 (로그인/로그아웃 시각) */
         @Schema(description = "로그인 시간")
         private LocalDateTime loginTime;
 
         /**
-         * 로그인 실패 사유
-         * <p>loginType이 {@code LOGIN_FAILURE}인 경우에만 값이 있습니다.
-         * (예: "비밀번호 불일치", "존재하지 않는 사번")</p>
+         * 로그인 오류 사유
+         * <p>lgnTc가 {@code "2"}(로그인 실패)인 경우에만 값이 있습니다.</p>
          */
-        @Schema(description = "실패 사유")
-        private String failureReason;
+        @Schema(description = "로그인 오류 사유")
+        private String lgnErrRsn;
 
         /**
-         * {@link Clognh} 엔티티를 단건 응답 DTO로 변환하는 정적 팩토리 메서드
-         *
-         * @param clognh 변환할 Clognh 엔티티
-         * @return 변환된 응답 DTO
+         * {@link Clognh} 엔티티를 단건 응답 DTO로 변환합니다.
          */
         public static Response fromEntity(Clognh clognh) {
             return Response.builder()
-                    .id(clognh.getLgnHisSno())                  // 로그인이력일련번호 → id 키 유지
-                    .eno(clognh.getEno())                       // 사원번호
-                    .loginType(clognh.getLgnTp())               // 로그인유형 → JSON 키 유지
-                    .ipAddress(clognh.getIpAddr())              // IP주소 → JSON 키 유지
-                    .userAgent(clognh.getUstAgt())              // 사용자에이전트 → JSON 키 유지
-                    .loginTime(clognh.getLgnDtm())              // 로그인일시 → JSON 키 유지
-                    .failureReason(clognh.getFlurRsn())         // 실패사유 → JSON 키 유지
+                    .id(clognh.getLgnLogSno())
+                    .eno(clognh.getEno())
+                    .lgnTc(clognh.getLgnTc())
+                    .ipAddress(clognh.getIpAddr())
+                    .agtVrsCone(clognh.getAgtVrsCone())
+                    .loginTime(clognh.getLgnDtm())
+                    .lgnErrRsn(clognh.getLgnErrRsn())
                     .build();
         }
 
         /**
-         * {@link Clognh} 엔티티 목록을 응답 DTO 목록으로 변환하는 정적 팩토리 메서드
-         *
-         * <p>{@link com.kdb.it.common.system.service.LoginHistoryService}에서 목록 변환 시 사용합니다.</p>
-         *
-         * @param clognhs 변환할 Clognh 엔티티 목록
-         * @return 변환된 응답 DTO 목록
+         * {@link Clognh} 엔티티 목록을 응답 DTO 목록으로 변환합니다.
          */
         public static List<Response> fromEntities(List<Clognh> clognhs) {
             return clognhs.stream()
-                    .map(Response::fromEntity) // 각 엔티티를 DTO로 변환
+                    .map(Response::fromEntity)
                     .collect(Collectors.toList());
         }
     }

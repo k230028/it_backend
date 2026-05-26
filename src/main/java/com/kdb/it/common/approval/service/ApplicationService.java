@@ -212,12 +212,12 @@ public class ApplicationService {
         eventPublisher.publishEvent(
             NotificationEvent.builder()
                 .recipientEno(next.getDcdEno())
-                .infTpC(NotificationEvent.TYPE_APPROVAL_REQUEST)
-                .infTtl(abbreviateText("결재요청: " + safeText(capplm.getApfNm()), 100))
-                .infCone(abbreviateText(safeText(capplm.getApfNm()), 300))
+                .infmSvcTc(NotificationEvent.TYPE_APPROVAL_REQUEST)
+                .ttl(abbreviateText("결재요청: " + safeText(capplm.getApfNm()), 100))
+                .infmMsgCone(abbreviateText(safeText(capplm.getApfNm()), 4000))
                 // 결재 알림은 결재 대기 목록 화면으로 고정 (사용자 정책).
                 // 상대 path 사용 — Nuxt navigateTo가 내부 라우팅으로 처리하며 운영 호스트와 무관.
-                .infLnkUrl("/approval/list?tab=pending")
+                .infmRcdUrl("/approval/list?tab=pending")
                 .build()
         );
     }

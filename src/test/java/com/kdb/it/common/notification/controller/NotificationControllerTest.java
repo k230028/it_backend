@@ -62,10 +62,11 @@ class NotificationControllerTest {
     @DisplayName("GET /api/notifications: 조회 결과를 알림 DTO 페이지로 반환한다")
     void list_인증사용자_페이지반환() throws Exception {
         Cinfmm notification = Cinfmm.builder()
-                .infMngNo("INF-1")
-                .infTpC("001")
-                .infTtl("공지")
-                .rddYn("N")
+                .infmMsgNo("INF-1")
+                .infmSvcTc("01")
+                .ttl("공지")
+                .infmMsgCone("내용")
+                .inqYn("N")
                 .build();
         given(notificationService.listForCurrentUser("10001", true, PageRequest.of(1, 5)))
                 .willReturn(new PageImpl<>(List.of(notification), PageRequest.of(1, 5), 1));
@@ -76,8 +77,8 @@ class NotificationControllerTest {
                         .param("page", "1")
                         .param("size", "5"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].infMngNo").value("INF-1"))
-                .andExpect(jsonPath("$.content[0].infTtl").value("공지"));
+                .andExpect(jsonPath("$.content[0].infmMsgNo").value("INF-1"))
+                .andExpect(jsonPath("$.content[0].ttl").value("공지"));
     }
 
     @Test

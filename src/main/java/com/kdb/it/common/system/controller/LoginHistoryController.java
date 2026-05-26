@@ -27,7 +27,7 @@ import java.util.List;
  *
  * <p>이력 유형 ({@code LOGIN_TYPE}):</p>
  * <ul>
- *   <li>{@code LOGIN_SUCCESS}: 로그인 성공</li>
+ *   <li>{@code 1=성공}: 로그인 성공</li>
  *   <li>{@code LOGIN_FAILURE}: 로그인 실패 (비밀번호 불일치 등)</li>
  *   <li>{@code LOGOUT}: 로그아웃</li>
  * </ul>
@@ -50,7 +50,7 @@ public class LoginHistoryController {
      * <p>반환 데이터:</p>
      * <ul>
      *   <li>이력 ID</li>
-     *   <li>로그인 유형 (LOGIN_SUCCESS / LOGIN_FAILURE / LOGOUT)</li>
+     *   <li>로그인 유형 (1=성공 / LOGIN_FAILURE / LOGOUT)</li>
      *   <li>접속 IP 주소</li>
      *   <li>User-Agent (브라우저/기기 정보)</li>
      *   <li>로그인 시각</li>

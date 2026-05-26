@@ -62,13 +62,13 @@ class FileServiceTest {
 
     private Cfilem mockCfilem(String flMngNo) {
         Cfilem f = mock(Cfilem.class);
-        given(f.getFlMngNo()).willReturn(flMngNo);
-        given(f.getOrcFlNm()).willReturn("테스트파일.pdf");
-        given(f.getSvrFlNm()).willReturn("SVR1_20260101120000_abc.pdf");
+        given(f.getFlMpnId()).willReturn(flMngNo);
+        given(f.getFlNm()).willReturn("테스트파일.pdf");
+        given(f.getFlPysNm()).willReturn("SVR1_20260101120000_abc.pdf");
         given(f.getFlKpnPth()).willReturn("/data/files/요구사항정의서/2026/01");
-        given(f.getFlDtt()).willReturn("첨부파일");
-        given(f.getOrcPkVl()).willReturn("PRJ-2026-0001");
-        given(f.getOrcDtt()).willReturn("요구사항정의서");
+        given(f.getFlTpCone()).willReturn("첨부파일");
+        given(f.getPkCone()).willReturn("PRJ-2026-0001");
+        given(f.getPkColNm()).willReturn("요구사항정의서");
         return f;
     }
 
@@ -80,20 +80,20 @@ class FileServiceTest {
     @DisplayName("getFile: 존재하는 파일관리번호이면 응답 DTO를 반환한다")
     void getFile_존재하는파일_DTO반환() {
         Cfilem file = mockCfilem(FL_MNG_NO);
-        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N"))
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N"))
                 .willReturn(Optional.of(file));
 
         FileDto.Response result = fileService.getFile(FL_MNG_NO);
 
-        assertThat(result.getFlMngNo()).isEqualTo(FL_MNG_NO);
-        assertThat(result.getOrcFlNm()).isEqualTo("테스트파일.pdf");
+        assertThat(result.getFlMpnId()).isEqualTo(FL_MNG_NO);
+        assertThat(result.getFlNm()).isEqualTo("테스트파일.pdf");
         assertThat(result.getDownloadUrl()).isEqualTo("/api/files/" + FL_MNG_NO + "/download");
     }
 
     @Test
     @DisplayName("getFile: 존재하지 않는 파일관리번호이면 CustomGeneralException을 던진다")
     void getFile_존재하지않는파일_CustomGeneralException발생() {
-        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.empty());
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> fileService.getFile(FL_MNG_NO))
                 .isInstanceOf(CustomGeneralException.class)
@@ -118,27 +118,27 @@ class FileServiceTest {
     @DisplayName("getFiles: orcDtt만 입력하면 해당 원본구분의 전체 파일 목록을 반환한다")
     void getFiles_orcDtt만있을때_전체목록반환() {
         FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
-                .orcDtt("요구사항정의서")
+                .pkColNm("요구사항정의서")
                 .build();
         Cfilem file = mockCfilem(FL_MNG_NO);
-        given(fileRepository.findAllByOrcDttAndDelYn("요구사항정의서", "N"))
+        given(fileRepository.findAllByPkColNmAndDelYn("요구사항정의서", "N"))
                 .willReturn(List.of(file));
 
         List<FileDto.Response> result = fileService.getFiles(condition);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getFlMngNo()).isEqualTo(FL_MNG_NO);
+        assertThat(result.get(0).getFlMpnId()).isEqualTo(FL_MNG_NO);
     }
 
     @Test
     @DisplayName("getFiles: orcDtt + orcPkVl 입력이면 해당 원본구분·원본PK 파일 목록을 반환한다")
     void getFiles_orcDttAndPkVl_조건필터링반환() {
         FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
-                .orcDtt("요구사항정의서")
-                .orcPkVl("PRJ-2026-0001")
+                .pkColNm("요구사항정의서")
+                .pkCone("PRJ-2026-0001")
                 .build();
         Cfilem file = mockCfilem(FL_MNG_NO);
-        given(fileRepository.findAllByOrcDttAndOrcPkVlAndDelYn("요구사항정의서", "PRJ-2026-0001", "N"))
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "PRJ-2026-0001", "N"))
                 .willReturn(List.of(file));
 
         List<FileDto.Response> result = fileService.getFiles(condition);
@@ -150,12 +150,12 @@ class FileServiceTest {
     @DisplayName("getFiles: orcDtt + orcPkVl + flDtt 입력이면 세 조건으로 필터링한다")
     void getFiles_파일구분포함_조건필터링반환() {
         FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
-                .orcDtt("요구사항정의서")
-                .orcPkVl("PRJ-2026-0001")
-                .flDtt("이미지")
+                .pkColNm("요구사항정의서")
+                .pkCone("PRJ-2026-0001")
+                .flTpCone("이미지")
                 .build();
         Cfilem file = mockCfilem(FL_MNG_NO);
-        given(fileRepository.findAllByOrcDttAndOrcPkVlAndFlDttAndDelYn(
+        given(fileRepository.findAllByPkColNmAndPkConeAndFlTpConeAndDelYn(
                 "요구사항정의서", "PRJ-2026-0001", "이미지", "N"))
                 .willReturn(List.of(file));
 
@@ -172,7 +172,7 @@ class FileServiceTest {
     @Test
     @DisplayName("deleteFile: 존재하지 않는 파일이면 CustomGeneralException을 던진다")
     void deleteFile_존재하지않는파일_CustomGeneralException발생() {
-        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.empty());
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> fileService.deleteFile(FL_MNG_NO))
                 .isInstanceOf(CustomGeneralException.class)
@@ -183,7 +183,7 @@ class FileServiceTest {
     @DisplayName("deleteFile: 존재하는 파일이면 delete()를 호출하여 Soft Delete한다")
     void deleteFile_존재하는파일_SoftDelete호출() {
         Cfilem cfilem = mockCfilem(FL_MNG_NO);
-        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
 
         fileService.deleteFile(FL_MNG_NO);
 
@@ -199,7 +199,7 @@ class FileServiceTest {
     void deleteFilesByOrc_파일2건_2반환() {
         Cfilem f1 = mockCfilem("FL_00000001");
         Cfilem f2 = mockCfilem("FL_00000002");
-        given(fileRepository.findAllByOrcDttAndOrcPkVlAndDelYn("요구사항정의서", "PRJ-2026-0001", "N"))
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "PRJ-2026-0001", "N"))
                 .willReturn(List.of(f1, f2));
 
         int count = fileService.deleteFilesByOrc("요구사항정의서", "PRJ-2026-0001");
@@ -212,7 +212,7 @@ class FileServiceTest {
     @Test
     @DisplayName("deleteFilesByOrc: 연관 파일이 없으면 0을 반환한다")
     void deleteFilesByOrc_파일없음_0반환() {
-        given(fileRepository.findAllByOrcDttAndOrcPkVlAndDelYn("없는구분", "PRJ-9999-9999", "N"))
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("없는구분", "PRJ-9999-9999", "N"))
                 .willReturn(List.of());
 
         int count = fileService.deleteFilesByOrc("없는구분", "PRJ-9999-9999");
@@ -225,10 +225,10 @@ class FileServiceTest {
     void updateFileMeta_존재하는파일_메타수정() {
         Cfilem cfilem = mock(Cfilem.class);
         FileDto.UpdateRequest request = FileDto.UpdateRequest.builder()
-                .orcDtt("정보화사업")
-                .orcPkVl("PRJ-2026-0002")
+                .pkColNm("정보화사업")
+                .pkCone("PRJ-2026-0002")
                 .build();
-        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
 
         String result = fileService.updateFileMeta(FL_MNG_NO, request);
 
@@ -239,8 +239,8 @@ class FileServiceTest {
     @Test
     @DisplayName("updateFileMeta: 존재하지 않는 파일이면 CustomGeneralException을 던진다")
     void updateFileMeta_존재하지않는파일_CustomGeneralException발생() {
-        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.empty());
-        FileDto.UpdateRequest request = FileDto.UpdateRequest.builder().orcDtt("정보화사업").build();
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.empty());
+        FileDto.UpdateRequest request = FileDto.UpdateRequest.builder().pkColNm("정보화사업").build();
 
         assertThatThrownBy(() -> fileService.updateFileMeta(FL_MNG_NO, request))
                 .isInstanceOf(CustomGeneralException.class)
@@ -253,7 +253,7 @@ class FileServiceTest {
         ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
         Cfilem cfilem = mockCfilem(FL_MNG_NO);
         given(cfilem.getFlKpnPth()).willReturn(tempDir.resolveSibling("outside").toString());
-        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
 
         assertThatThrownBy(() -> fileService.downloadFile(FL_MNG_NO))
                 .isInstanceOf(CustomGeneralException.class)
@@ -270,9 +270,9 @@ class FileServiceTest {
         Files.writeString(filePath, "PDF", StandardCharsets.UTF_8);
         Cfilem cfilem = mockCfilem(FL_MNG_NO);
         given(cfilem.getFlKpnPth()).willReturn(storageDir.toString());
-        given(cfilem.getSvrFlNm()).willReturn("SVR1_test.pdf");
-        given(cfilem.getOrcFlNm()).willReturn("요구사항정의서.pdf");
-        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+        given(cfilem.getFlPysNm()).willReturn("SVR1_test.pdf");
+        given(cfilem.getFlNm()).willReturn("요구사항정의서.pdf");
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
 
         FileService.FileDownloadResult result = fileService.downloadFile(FL_MNG_NO);
 
@@ -319,9 +319,9 @@ class FileServiceTest {
             Files.writeString(storageDir.resolve(svrFlNm), "data", StandardCharsets.UTF_8);
             Cfilem cfilem = mockCfilem(flMngNo);
             given(cfilem.getFlKpnPth()).willReturn(storageDir.toString());
-            given(cfilem.getSvrFlNm()).willReturn(svrFlNm);
-            given(cfilem.getOrcFlNm()).willReturn("origin." + ext);
-            given(fileRepository.findByFlMngNoAndDelYn(flMngNo, "N")).willReturn(Optional.of(cfilem));
+            given(cfilem.getFlPysNm()).willReturn(svrFlNm);
+            given(cfilem.getFlNm()).willReturn("origin." + ext);
+            given(fileRepository.findByFlMpnIdAndDelYn(flMngNo, "N")).willReturn(Optional.of(cfilem));
 
             FileService.FileDownloadResult result = fileService.downloadFile(flMngNo);
 
@@ -338,9 +338,9 @@ class FileServiceTest {
         Files.writeString(storageDir.resolve("server.png"), "data", StandardCharsets.UTF_8);
         Cfilem cfilem = mockCfilem(FL_MNG_NO);
         given(cfilem.getFlKpnPth()).willReturn(storageDir.toString());
-        given(cfilem.getSvrFlNm()).willReturn("server.png");
-        given(cfilem.getOrcFlNm()).willReturn(null);
-        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+        given(cfilem.getFlPysNm()).willReturn("server.png");
+        given(cfilem.getFlNm()).willReturn(null);
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
 
         FileService.FileDownloadResult result = fileService.downloadFile(FL_MNG_NO);
 
@@ -351,7 +351,7 @@ class FileServiceTest {
     @DisplayName("downloadFile: 메타데이터가 없거나 실제 파일을 읽을 수 없으면 예외가 발생한다")
     void downloadFile_파일없음_CustomGeneralException발생(@TempDir java.nio.file.Path tempDir) {
         ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
-        given(fileRepository.findByFlMngNoAndDelYn("MISSING", "N")).willReturn(Optional.empty());
+        given(fileRepository.findByFlMpnIdAndDelYn("MISSING", "N")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> fileService.downloadFile("MISSING"))
                 .isInstanceOf(CustomGeneralException.class)
@@ -359,8 +359,8 @@ class FileServiceTest {
 
         Cfilem cfilem = mockCfilem(FL_MNG_NO);
         given(cfilem.getFlKpnPth()).willReturn(tempDir.toString());
-        given(cfilem.getSvrFlNm()).willReturn("missing.pdf");
-        given(fileRepository.findByFlMngNoAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+        given(cfilem.getFlPysNm()).willReturn("missing.pdf");
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
 
         assertThatThrownBy(() -> fileService.downloadFile(FL_MNG_NO))
                 .isInstanceOf(CustomGeneralException.class)
@@ -371,7 +371,7 @@ class FileServiceTest {
     @DisplayName("uploadFile: 빈 파일이면 저장소 접근 없이 예외를 던진다")
     void uploadFile_빈파일_CustomGeneralException발생() {
         MockMultipartFile emptyFile = new MockMultipartFile("file", "empty.txt", "text/plain", new byte[0]);
-        FileDto.UploadRequest request = FileDto.UploadRequest.builder().orcDtt("요구사항정의서").build();
+        FileDto.UploadRequest request = FileDto.UploadRequest.builder().pkColNm("요구사항정의서").build();
 
         assertThatThrownBy(() -> fileService.uploadFile(emptyFile, request))
                 .isInstanceOf(CustomGeneralException.class)
@@ -389,16 +389,16 @@ class FileServiceTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "요구사항.pdf", "application/pdf", "PDF".getBytes(StandardCharsets.UTF_8));
         FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .orcDtt("요구사항정의서")
-                .orcPkVl("PRJ-2026-0001")
-                .flDtt("첨부파일")
+                .pkColNm("요구사항정의서")
+                .pkCone("PRJ-2026-0001")
+                .flTpCone("첨부파일")
                 .build();
 
         FileDto.Response result = fileService.uploadFileAndGet(file, request);
 
-        assertThat(result.getFlMngNo()).isEqualTo("FL_00000001");
-        assertThat(result.getOrcFlNm()).isEqualTo("요구사항.pdf");
-        assertThat(result.getSvrFlNm()).startsWith("SVR1_").endsWith(".pdf");
+        assertThat(result.getFlMpnId()).isEqualTo("FL_00000001");
+        assertThat(result.getFlNm()).isEqualTo("요구사항.pdf");
+        assertThat(result.getFlPysNm()).startsWith("SVR1_").endsWith(".pdf");
         assertThat(result.getDownloadUrl()).isEqualTo("/api/files/FL_00000001/download");
         org.mockito.Mockito.verify(entityManager).persist(org.mockito.ArgumentMatchers.any(Cfilem.class));
         org.mockito.Mockito.verify(entityManager).flush();
@@ -419,8 +419,8 @@ class FileServiceTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "test.pdf", "application/pdf", "content".getBytes(StandardCharsets.UTF_8));
         FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .orcDtt("요구사항정의서")
-                .flDtt("첨부파일")
+                .pkColNm("요구사항정의서")
+                .flTpCone("첨부파일")
                 .build();
 
         // 현재 구현: CustomGeneralException(메시지, e)로 IOException을 cause로 포함하여 래핑
@@ -440,8 +440,8 @@ class FileServiceTest {
                 "files", "ok.txt", "text/plain", "ok".getBytes(StandardCharsets.UTF_8));
         MockMultipartFile emptyFile = new MockMultipartFile("files", "empty.txt", "text/plain", new byte[0]);
         FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .orcDtt("첨부")
-                .flDtt("첨부파일")
+                .pkColNm("첨부")
+                .flTpCone("첨부파일")
                 .build();
 
         FileDto.BulkUploadResponse result = fileService.uploadFiles(List.of(okFile, emptyFile), request);
@@ -458,8 +458,8 @@ class FileServiceTest {
     @Test
     @DisplayName("deleteFile: DEL_YN=Y 상태 파일(조회 결과 없음)은 CustomGeneralException을 던진다")
     void deleteFile_이미삭제된파일_CustomGeneralException발생() {
-        // Arrange: DEL_YN=Y인 파일은 findByFlMngNoAndDelYn("N") 결과에서 제외됨
-        given(fileRepository.findByFlMngNoAndDelYn("FL_DELETED", "N"))
+        // Arrange: DEL_YN=Y인 파일은 findByFlMpnIdAndDelYn("N") 결과에서 제외됨
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_DELETED", "N"))
                 .willReturn(java.util.Optional.empty());
 
         // Act & Assert: 이미 논리 삭제된 파일 재삭제 시도 → 예외 발생
@@ -479,8 +479,8 @@ class FileServiceTest {
         MockMultipartFile zeroByteFile = new MockMultipartFile(
                 "file", "zero.pdf", "application/pdf", new byte[0]);
         FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .orcDtt("요구사항정의서")
-                .flDtt("첨부파일")
+                .pkColNm("요구사항정의서")
+                .flTpCone("첨부파일")
                 .build();
 
         // Act & Assert: 빈 파일 → "업로드할 파일이 비어있습니다" 예외, EntityManager 미호출
@@ -511,8 +511,8 @@ class FileServiceTest {
                 "files", "empty.txt", "text/plain", new byte[0]);
 
         FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .orcDtt("요구사항정의서")
-                .flDtt("첨부파일")
+                .pkColNm("요구사항정의서")
+                .flTpCone("첨부파일")
                 .build();
 
         // Act
@@ -533,7 +533,7 @@ class FileServiceTest {
     @DisplayName("deleteFilesByOrc: 해당 원본구분·원본PK에 파일이 없으면 예외 없이 0을 반환한다")
     void deleteFilesByOrc_파일없는원본PK_0반환() {
         // Arrange: DB에 매칭되는 파일 없음
-        given(fileRepository.findAllByOrcDttAndOrcPkVlAndDelYn("없는구분", "PRJ-0000-0000", "N"))
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("없는구분", "PRJ-0000-0000", "N"))
                 .willReturn(java.util.Collections.emptyList());
 
         // Act
@@ -568,8 +568,8 @@ class FileServiceTest {
         given(fileRepository.getNextSequenceValue()).willReturn(99L);
 
         FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .orcDtt("파일copy실패")
-                .flDtt("첨부파일")
+                .pkColNm("파일copy실패")
+                .flTpCone("첨부파일")
                 .build();
 
         // Act & Assert: Files.copy(inputStream, ...) → IOException → CustomGeneralException(메시지, e)
@@ -586,7 +586,7 @@ class FileServiceTest {
         Cfilem f1 = mockCfilem("FL_00000011");
         Cfilem f2 = mockCfilem("FL_00000012");
         Cfilem f3 = mockCfilem("FL_00000013");
-        given(fileRepository.findAllByOrcDttAndOrcPkVlAndDelYn("정보화사업", "BIZ-2026-0001", "N"))
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("정보화사업", "BIZ-2026-0001", "N"))
                 .willReturn(java.util.Arrays.asList(f1, f2, f3));
 
         // Act

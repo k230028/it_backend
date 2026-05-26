@@ -59,13 +59,13 @@ public class NotificationController {
     }
 
     /** 단건 읽음 처리. */
-    @PatchMapping("/{infMngNo}/read")
+    @PatchMapping("/{infmMsgNo}/read")
     @Operation(summary = "단건 읽음 처리", description = "본인 알림 1건을 읽음으로 표시한다.")
     public ResponseEntity<Void> markRead(
         @AuthenticationPrincipal CustomUserDetails currentUser,
-        @PathVariable("infMngNo") String infMngNo
+        @PathVariable("infmMsgNo") String infmMsgNo
     ) {
-        notificationService.markRead(infMngNo, currentUser.getEno());
+        notificationService.markRead(infmMsgNo, currentUser.getEno());
         return ResponseEntity.noContent().build();
     }
 
@@ -80,13 +80,13 @@ public class NotificationController {
     }
 
     /** 단건 Soft Delete. */
-    @DeleteMapping("/{infMngNo}")
+    @DeleteMapping("/{infmMsgNo}")
     @Operation(summary = "알림 삭제", description = "본인 알림 1건을 논리 삭제한다.")
     public ResponseEntity<Void> remove(
         @AuthenticationPrincipal CustomUserDetails currentUser,
-        @PathVariable("infMngNo") String infMngNo
+        @PathVariable("infmMsgNo") String infmMsgNo
     ) {
-        notificationService.softDelete(infMngNo, currentUser.getEno());
+        notificationService.softDelete(infmMsgNo, currentUser.getEno());
         return ResponseEntity.noContent().build();
     }
 }

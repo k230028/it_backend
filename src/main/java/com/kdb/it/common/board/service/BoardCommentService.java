@@ -291,10 +291,10 @@ public class BoardCommentService {
             eventPublisher.publishEvent(
                 NotificationEvent.builder()
                     .recipientEno(eno)
-                    .infTpC(NotificationEvent.TYPE_MENTION_COMMENT)
-                    .infTtl(abbreviate(title, 100))
-                    .infCone(abbreviate(safe(post.getNacNm()), 300))
-                    .infLnkUrl(linkUrl)
+                    .infmSvcTc(NotificationEvent.TYPE_MENTION_COMMENT)
+                    .ttl(abbreviate(title, 100))
+                    .infmMsgCone(abbreviate(safe(post.getNacNm()), 4000))
+                    .infmRcdUrl(linkUrl)
                     .build()
             );
         }

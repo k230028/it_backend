@@ -52,11 +52,11 @@ class NotificationServiceTest {
     void send_유효한수신자_저장및발송() {
         NotificationEvent event = NotificationEvent.builder()
                 .recipientEno("10001")
-                .infTpC(NotificationEvent.TYPE_SYSTEM)
-                .infTtl("공지")
-                .infCone("내용")
-                .infLnkUrl("/notifications")
-                .eaiPayload("{\"id\":1}")
+                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
+                .ttl("공지")
+                .infmMsgCone("내용")
+                .infmRcdUrl("/notifications")
+                .sdPayload("{\"id\":1}")
                 .build();
         given(cinfmmRepository.getNextVal()).willReturn(7L);
 
@@ -65,10 +65,10 @@ class NotificationServiceTest {
         ArgumentCaptor<Cinfmm> captor = ArgumentCaptor.forClass(Cinfmm.class);
         verify(cinfmmRepository).saveAndFlush(captor.capture());
         assertThat(result).isSameAs(captor.getValue());
-        assertThat(result.getInfMngNo())
+        assertThat(result.getInfmMsgNo())
                 .isEqualTo("INF-" + LocalDate.now().getYear() + "-00000007");
-        assertThat(result.getRcvUsid()).isEqualTo("10001");
-        assertThat(result.getRddYn()).isEqualTo("N");
+        assertThat(result.getRmsEno()).isEqualTo("10001");
+        assertThat(result.getInqYn()).isEqualTo("N");
         verify(dispatcher).dispatch(result, "{\"id\":1}");
     }
 
@@ -79,7 +79,7 @@ class NotificationServiceTest {
     void send_수신자없음_저장하지않음(String recipientEno) {
         NotificationEvent event = NotificationEvent.builder()
                 .recipientEno(recipientEno)
-                .infTpC(NotificationEvent.TYPE_SYSTEM)
+                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
                 .build();
 
         Cinfmm result = notificationService.send(event);
@@ -94,7 +94,7 @@ class NotificationServiceTest {
     @DisplayName("listForCurrentUser: 조회 조건과 페이지 정보를 리포지토리에 전달한다")
     void listForCurrentUser_조건전달() {
         PageRequest pageable = PageRequest.of(1, 5);
-        Page<Cinfmm> page = new PageImpl<>(java.util.List.of(Cinfmm.builder().infMngNo("INF-1").build()));
+        Page<Cinfmm> page = new PageImpl<>(java.util.List.of(Cinfmm.builder().infmMsgNo("INF-1").build()));
         given(cinfmmRepository.findInbox("10001", true, pageable)).willReturn(page);
 
         Page<Cinfmm> result = notificationService.listForCurrentUser("10001", true, pageable);
@@ -121,8 +121,8 @@ class NotificationServiceTest {
 
         notificationService.markRead("INF-1", "10001");
 
-        assertThat(notification.getRddYn()).isEqualTo("Y");
-        assertThat(notification.getRddDtm()).isNotNull();
+        assertThat(notification.getInqYn()).isEqualTo("Y");
+        assertThat(notification.getInqDtm()).isNotNull();
     }
 
     @Test
@@ -158,7 +158,7 @@ class NotificationServiceTest {
     @Test
     @DisplayName("markAllRead: 일괄 읽음 처리 건수를 반환한다")
     void markAllRead_처리건수반환() {
-        given(cinfmmRepository.markAllReadByRcvUsid("10001")).willReturn(2L);
+        given(cinfmmRepository.markAllReadByRmsEno("10001")).willReturn(2L);
 
         long result = notificationService.markAllRead("10001");
 
@@ -178,9 +178,9 @@ class NotificationServiceTest {
 
     private Cinfmm notification(String recipientEno, String readYn, String deletedYn) {
         return Cinfmm.builder()
-                .infMngNo("INF-1")
-                .rcvUsid(recipientEno)
-                .rddYn(readYn)
+                .infmMsgNo("INF-1")
+                .rmsEno(recipientEno)
+                .inqYn(readYn)
                 .delYn(deletedYn)
                 .build();
     }

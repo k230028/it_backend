@@ -199,10 +199,10 @@ public class AdminDto {
             String eno,
             String usrNm,    // ENO → 이름 변환
             LocalDateTime lgnDtm,
-            String lgnTp,
+            String lgnTc,        // 공통코드 C_ID='LGN_TC' (1=성공, 2=실패, 3=로그아웃)
             String ipAddr,
-            String flurRsn,
-            String ustAgt,
+            String lgnErrRsn,    // 로그인오류사유
+            String agtVrsCone,   // 에이전트버전내용 (User-Agent)
             LocalDateTime fstEnrDtm
     ) {}
 
@@ -227,10 +227,10 @@ public class AdminDto {
     /** 첨부파일 관리 조회 응답 DTO */
     @Schema(name = "AdminDto.FileResponse", description = "첨부파일 조회 응답")
     public record FileResponse(
-            String flMngNo,
-            String orcFlNm,
-            String flDtt,
-            String orcDtt,
+            String flMpnId,
+            String flNm,
+            String flTpCone,
+            String pkColNm,
             LocalDateTime fstEnrDtm,
             String fstEnrUsid,
             String fstEnrUsNm

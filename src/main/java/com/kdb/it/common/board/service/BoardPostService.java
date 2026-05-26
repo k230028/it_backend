@@ -301,10 +301,10 @@ public class BoardPostService {
             eventPublisher.publishEvent(
                 NotificationEvent.builder()
                     .recipientEno(eno)
-                    .infTpC(type)
-                    .infTtl(abbreviate(title, 100))
-                    .infCone(abbreviate(safe(post.getNacNm()), 300))
-                    .infLnkUrl(linkUrl)
+                    .infmSvcTc(type)
+                    .ttl(abbreviate(title, 100))
+                    .infmMsgCone(abbreviate(safe(post.getNacNm()), 4000))
+                    .infmRcdUrl(linkUrl)
                     .build()
             );
         }

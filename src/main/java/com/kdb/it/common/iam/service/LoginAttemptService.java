@@ -1,6 +1,7 @@
 package com.kdb.it.common.iam.service;
 
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,8 +36,8 @@ public class LoginAttemptService {
      */
     public void checkLocked(String eno) {
         LocalDateTime windowStart = LocalDateTime.now().minusMinutes(WINDOW_MINUTES);
-        long failureCount = loginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter(
-                eno, "LOGIN_FAILURE", windowStart);
+        long failureCount = loginHistoryRepository.countByEnoAndLgnTcAndLgnDtmAfter(
+                eno, Clognh.LOGIN_FAILURE, windowStart);
 
         if (failureCount >= MAX_FAILURES) {
             throw new CustomGeneralException(
