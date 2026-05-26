@@ -4,6 +4,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -32,7 +34,7 @@ import java.util.Set;
  *
  * <p>
  * 편성비목 조회, 편성률 일괄 적용, 편성 결과 조회 등
- * 예산 편성 작업(TAAABB_BBUGTM)의 비즈니스 로직을 처리합니다.
+ * 예산 편성 작업(TPRMPP_BBUGTM)의 비즈니스 로직을 처리합니다.
  * </p>
  *
  * <p>
@@ -53,22 +55,25 @@ public class BudgetWorkService {
     /** 자본예산 세부 코드타입: 개발비/기계장치/기타무형자산 */
     private static final Set<String> CAPITAL_CTPS = Set.of("IOE_DVC", "IOE_HW", "IOE_SW", "IOE_CPIT");
 
-    /** 예산 데이터 접근 리포지토리 (TAAABB_BBUGTM) */
+    /** 예산 데이터 접근 리포지토리 (TPRMPP_BBUGTM) */
     private final BbugtmRepository bbugtmRepository;
 
-    /** 공통코드 리포지토리 (TAAABB_CCODEM): 편성비목(DUP_IOE) 조회용 */
+    /** 공통코드 리포지토리 (TPRMPP_CCODEM): 편성비목(DUP_IOE) 조회용 */
     private final CodeRepository codeRepository;
+
+    /** 환율 표준 조회 헬퍼: 외화 항목 amountKrw 계산 시 Ccodem 단일 원천 (CONTEXT.md 결정 E / R3.7) */
+    private final XcrLookupService xcrLookupService;
 
     /** 결재완료 원본 집계 쿼리 리포지토리: getSummary N+1 제거용 (DB-01) */
     private final BudgetWorkQueryRepository budgetWorkQueryRepository;
 
-    /** 정보화사업 리포지토리 (TAAABB_BPROJM): 사업명 조회용 */
+    /** 정보화사업 리포지토리 (TPRMPP_BPROJM): 사업명 조회용 */
     private final ProjectRepository projectRepository;
 
-    /** 품목 리포지토리 (TAAABB_BITEMM): 품목→프로젝트 매핑용 */
+    /** 품목 리포지토리 (TPRMPP_BITEMM): 품목→프로젝트 매핑용 */
     private final ProjectItemRepository projectItemRepository;
 
-    /** 전산업무비 리포지토리 (TAAABB_BCOSTM): 계약명 조회용 */
+    /** 전산업무비 리포지토리 (TPRMPP_BCOSTM): 계약명 조회용 */
     private final CostRepository costRepository;
 
     /**
@@ -200,8 +205,10 @@ public class BudgetWorkService {
             // 지칭한 것이며, BBUGTM에 저장 시 실제 원본은 BITEMM임.
             List<Bitemm> items = bbugtmRepository.findApprovedItemsByIoeCValues(ioeCValues, bgYy);
             for (Bitemm item : items) {
-                // 환율 적용: gclAmt × coalesce(xcr, 1) → 원화 금액
-                BigDecimal xcrVal = item.getXcr() != null ? item.getXcr() : BigDecimal.ONE;
+                // XCR 표준 조회: 외화는 Ccodem 단일 원천, KRW/null은 1 fallback (CONTEXT.md 결정 E / R3.7)
+                // 외화이며 환율 미등록 시 resolveXcr가 IllegalStateException → @Transactional 경계에서 자연 롤백
+                BigDecimal serverXcr = xcrLookupService.resolveXcr(item.getCurC(), LocalDate.now());
+                BigDecimal xcrVal = serverXcr != null ? serverXcr : BigDecimal.ONE;
                 BigDecimal amountKrw = item.getGclAmt() != null ? item.getGclAmt().multiply(xcrVal) : BigDecimal.ZERO;
                 BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
@@ -295,7 +302,10 @@ public class BudgetWorkService {
                     boolean isCapital = isCapitalIoeCode(bitemm.getIoeC(), capitalPrefixes);
                     int dupRt = isCapital ? assetDupRt : costDupRt;
 
-                    BigDecimal xcrVal = bitemm.getXcr() != null ? bitemm.getXcr() : BigDecimal.ONE;
+                    // XCR 표준 조회: 외화는 Ccodem 단일 원천, KRW/null은 1 fallback (CONTEXT.md 결정 E / R3.7)
+                    // 외화이며 환율 미등록 시 resolveXcr가 IllegalStateException → @Transactional 경계에서 자연 롤백
+                    BigDecimal serverXcr = xcrLookupService.resolveXcr(bitemm.getCurC(), LocalDate.now());
+                    BigDecimal xcrVal = serverXcr != null ? serverXcr : BigDecimal.ONE;
                     BigDecimal amountKrw = bitemm.getGclAmt() != null ? bitemm.getGclAmt().multiply(xcrVal) : BigDecimal.ZERO;
                     BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 

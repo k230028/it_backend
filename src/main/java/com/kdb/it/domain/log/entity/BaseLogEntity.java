@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
  * <p>모든 로그 엔티티({@code BprojmL}, {@code BitemlL} 등)가 상속한다.</p>
  *
  * <p>PK({@code LOG_SNO})는 {@link AuditLogIdGenerator}가
- * {@code S_{Postfix}.NEXTVAL}을 조회하여 생성하는 22자리 패딩 복합 문자열이다.</p>
+ * {@code SEQ_{Postfix}.NEXTVAL}을 조회하여 Long 값으로 생성한다.</p>
  *
  * <p>BaseEntity 스냅샷 필드(DEL_YN, GUID, FST_ENR_DTM 등)는
  * INSERT 시점 원본 엔티티의 값을 리플렉션으로 복사하여 저장한다.</p>
@@ -30,14 +30,28 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public abstract class BaseLogEntity {
 
-    /** 로그일련번호: PK. {Postfix}_{22자리_0패딩_시퀀스} 형식 */
+    /** 로그일련번호: PK. Oracle 시퀀스 SEQ_{테이블Postfix}에서 발급 */
     @Id
     @AuditLogId
-    @Column(name = "LOG_SNO", length = 32, nullable = false, updatable = false, comment = "로그일련번호")
-    private String logSno;
+    @Column(name = "LOG_SNO", nullable = false, updatable = false, comment = "로그일련번호")
+    private Long logSno;
 
+<<<<<<< HEAD
     /** 변경유형구분코드: C(생성) / U(수정) / D(논리삭제) */
     @Column(name = "CHG_TC", length = 1, nullable = false, comment = "변경유형구분코드")
+=======
+    /**
+     * 변경유형구분코드: C(생성) / U(수정) / D(논리삭제).
+     *
+     * <p>DB 실제 컬럼은 {@code CHG_TP} (VARCHAR2(4), 대부분 *L 테이블에서 NOT NULL).
+     * 과거 매핑은 {@code CHG_TC}로 잘못 지정되어 있었으며, 이로 인해 INSERT 시
+     * {@code CHG_TP}에 값이 들어가지 않아 ORA-01400이 발생했습니다 (예: CCODEL update).
+     * {@link com.kdb.it.domain.log.listener.AuditLogPersister#persist}가
+     * {@code setField(logEntity, "chgTp", chgTp)}로 'C'/'U'/'D'를 채우므로
+     * 본 매핑 변경만으로 모든 *L 테이블의 NOT NULL 제약을 통과합니다.</p>
+     */
+    @Column(name = "CHG_TP", length = 1, comment = "변경유형구분코드")
+>>>>>>> 465654f1157d180678d7fea83de660a442903a55
     private String chgTp;
 
     /** 변경일시: 로그 INSERT 시각 */

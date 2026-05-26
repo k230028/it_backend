@@ -41,7 +41,7 @@ import java.time.LocalDate;
  */
 @LogTarget(entity = BprojmL.class)
 @Entity // JPA 엔티티로 등록
-@Table(name = "TAAABB_BPROJM", comment = "정보화사업(IT 프로젝트) 마스터") // 매핑할 DB 테이블명
+@Table(name = "TPRMPP_BPROJM", comment = "정보화사업(IT 프로젝트) 마스터") // 매핑할 DB 테이블명
 @IdClass(BprojmId.class) // 복합키 클래스 지정 (PRJ_MNG_NO + PRJ_SNO)
 @Getter // 모든 필드의 getter 자동 생성 (Lombok)
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // protected 기본 생성자 (JPA 요구사항)

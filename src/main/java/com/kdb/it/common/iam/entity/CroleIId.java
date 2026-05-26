@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 
 /**
- * 역할관리(TAAABB_CROLEI) 복합키 클래스
+ * 역할관리(TPRMPP_CROLEI) 복합키 클래스
  *
  * <p>
  * ATH_ID(권한ID) + ENO(사원번호)로 구성된 복합 기본키입니다.

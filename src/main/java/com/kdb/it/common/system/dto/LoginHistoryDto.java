@@ -90,7 +90,7 @@ public class LoginHistoryDto {
          */
         public static Response fromEntity(Clognh clognh) {
             return Response.builder()
-                    .id(clognh.getLgnSno())                     // 로그인일련번호 → id 키 유지
+                    .id(clognh.getLgnHisSno())                  // 로그인이력일련번호 → id 키 유지
                     .eno(clognh.getEno())                       // 사원번호
                     .loginType(clognh.getLgnTp())               // 로그인유형 → JSON 키 유지
                     .ipAddress(clognh.getIpAddr())              // IP주소 → JSON 키 유지

@@ -10,7 +10,7 @@ import java.util.Optional;
 /**
  * 평가위원(Bcmmtm) 리포지토리
  *
- * <p>DB 테이블: {@code TAAABB_BCMMTM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BCMMTM}</p>
  *
  * <p>IT관리자가 심의유형에 따라 당연위원/소집위원/간사를 선정합니다.</p>
  */

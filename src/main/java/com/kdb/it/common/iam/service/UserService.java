@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 /**
  * 사용자(직원) 조회 서비스
  *
- * <p>사용자 정보(TAAABB_CUSERI) 조회 비즈니스 로직을 처리합니다.</p>
+ * <p>사용자 정보(TPRMPP_CUSERI) 조회 비즈니스 로직을 처리합니다.</p>
  *
  * <p>부점코드({@code BBR_C})별 사용자 목록과 사번({@code ENO})별 사용자 상세 정보를
  * 제공합니다.</p>
@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)       // 읽기 전용 트랜잭션
 public class UserService {
 
-    /** 사용자 정보 데이터 접근 리포지토리 (TAAABB_CUSERI) */
+    /** 사용자 정보 데이터 접근 리포지토리 (TPRMPP_CUSERI) */
     private final UserRepository userRepository;
 
     /**
@@ -78,16 +78,34 @@ public class UserService {
     /**
      * 이름으로 사용자 검색 (자동완성용)
      *
-     * @param keyword 검색할 사용자명 (부분 일치)
+     * <p>분기:</p>
+     * <ul>
+     *   <li>keyword 비어있고 orgCode 지정 → 해당 부서 사용자 전체 (멘션 default 목록용)</li>
+     *   <li>keyword 비어있고 orgCode도 비어있음 → 빈 리스트 (전체 사용자 dump 방지)</li>
+     *   <li>keyword 있음 → 사용자명 LIKE 검색 + orgCode 있으면 부서 필터링</li>
+     * </ul>
+     *
+     * @param keyword 검색할 사용자명 (부분 일치, null/blank 허용)
      * @param orgCode 부서코드 (null이면 전체 부서 대상)
      * @return 검색 결과 사용자 목록 DTO
      */
     public List<UserDto.ListResponse> searchUsersByName(String keyword, String orgCode) {
+        boolean keywordBlank = keyword == null || keyword.isBlank();
+        boolean orgBlank     = orgCode == null || orgCode.isBlank();
+
+        if (keywordBlank) {
+            if (orgBlank) {
+                return List.of();
+            }
+            return getUsersByOrganization(orgCode);
+        }
+
         List<CuserI> users = userRepository.searchByName(keyword);
-        // orgCode가 지정된 경우 해당 부서만 필터링
-        if (orgCode != null && !orgCode.isBlank()) {
+        if (!orgBlank) {
+            // 람다 캡처용 final 지역 변수로 좁혀 NPE false positive 제거
+            final String orgFilter = orgCode;
             users = users.stream()
-                    .filter(u -> orgCode.equals(u.getBbrC()))
+                    .filter(u -> orgFilter.equals(u.getBbrC()))
                     .toList();
         }
         return users.stream()

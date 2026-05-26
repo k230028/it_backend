@@ -26,6 +26,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -64,6 +65,8 @@ class BudgetWorkServiceTest {
     @Mock private ProjectItemRepository projectItemRepository;
     @Mock private CostRepository costRepository;
     @Mock private BudgetWorkQueryRepository budgetWorkQueryRepository;
+    /** 환율 표준 조회 헬퍼 (CONTEXT.md 결정 E / R3.7 — Wave 5 추가 의존성) */
+    @Mock private XcrLookupService xcrLookupService;
 
     @InjectMocks
     private BudgetWorkService budgetWorkService;
@@ -552,7 +555,10 @@ class BudgetWorkServiceTest {
         given(capitalItem.getGclSno()).willReturn(1);
         given(capitalItem.getIoeC()).willReturn("IOE-351-0100");
         given(capitalItem.getGclAmt()).willReturn(BigDecimal.valueOf(1000));
-        given(capitalItem.getXcr()).willReturn(BigDecimal.valueOf(2));
+        // Wave 5: Ccodem 단일 원천으로 환율 조회 — item.xcr 무시 (CONTEXT.md 결정 E)
+        given(capitalItem.getCurC()).willReturn("USD");
+        given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
+                .willReturn(BigDecimal.valueOf(2));
         Bcostm cost = mock(Bcostm.class);
         given(cost.getItMngcNo()).willReturn("COST_2026_0001");
         given(cost.getItMngcSno()).willReturn(1);

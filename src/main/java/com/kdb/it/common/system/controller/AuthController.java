@@ -143,7 +143,7 @@ public class AuthController {
      * <ol>
      * <li>요청 쿠키에서 Refresh Token 추출</li>
      * <li>JwtUtil로 토큰 서명 검증</li>
-     * <li>DB(TAAABB_CRTOKM 테이블)에서 토큰 조회</li>
+     * <li>DB(TPRMPP_CRTOKM 테이블)에서 토큰 조회</li>
      * <li>토큰 만료 여부 확인</li>
      * <li>새 Access Token 생성 → httpOnly 쿠키로 전달</li>
      * </ol>

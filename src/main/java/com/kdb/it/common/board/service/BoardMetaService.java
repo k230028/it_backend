@@ -34,7 +34,9 @@ public class BoardMetaService {
     /**
      * 게시판 단건 조회
      *
-     * @throws CustomGeneralException 게시판을 찾을 수 없는 경우
+     * @param blbMngNo 게시판관리번호 (예: BLBM-2026-0001)
+     * @return 게시판 메타 응답 DTO
+     * @throws com.kdb.it.exception.CustomGeneralException 게시판을 찾을 수 없거나 삭제된 경우 (DEL_YN='Y')
      */
     public BoardMetaDto.Response getOne(String blbMngNo) {
         return BoardMetaDto.Response.from(findActiveBoard(blbMngNo));

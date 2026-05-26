@@ -22,7 +22,7 @@ import java.time.LocalDate;
  * 요구사항 정의서 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_BRDOCM}
+ * DB 테이블: {@code TPRMPP_BRDOCM}
  * </p>
  *
  * <p>
@@ -35,7 +35,7 @@ import java.time.LocalDate;
  */
 @LogTarget(entity = BrdocmL.class)
 @Entity
-@Table(name = "TAAABB_BRDOCM", comment = "요구사항 정의서")
+@Table(name = "TPRMPP_BRDOCM", comment = "요구사항 정의서")
 @IdClass(BrdocmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

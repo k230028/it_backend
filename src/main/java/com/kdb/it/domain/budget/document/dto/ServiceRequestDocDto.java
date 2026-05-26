@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * 요구사항 정의서(TAAABB_BRDOCM) 관련 DTO 클래스 모음
+ * 요구사항 정의서(TPRMPP_BRDOCM) 관련 DTO 클래스 모음
  *
  * <p>
  * 요구사항 정의서 엔티티의 생성, 수정, 조회에 사용되는 DTO를
@@ -142,8 +142,8 @@ public class ServiceRequestDocDto {
         @Schema(description = "요구사항명")
         private String reqNm;
 
-        /** 요구사항내용 (BLOB → UTF-8 문자열 변환) */
-        @Schema(description = "요구사항내용")
+        /** 요구사항정보 (CLOB, HTML 포함 가능) */
+        @Schema(description = "요구사항정보")
         private String reqInf;
 
         /** 요구사항구분 */
@@ -170,7 +170,7 @@ public class ServiceRequestDocDto {
         @Schema(description = "최초생성자")
         private String fstEnrUsid;
 
-        /** 최초생성자 이름 (TAAABB_CUSERI JOIN) */
+        /** 최초생성자 이름 (TPRMPP_CUSERI JOIN) */
         @Schema(description = "최초생성자 이름")
         private String fstEnrUsNm;
 

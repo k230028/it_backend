@@ -13,7 +13,7 @@ import java.util.Optional;
  *
  * <p>
  * Spring Data JPA의 {@link JpaRepository}를 상속하여
- * 첨부파일 테이블(TAAABB_CFILEM)의 기본 CRUD 기능을 제공합니다.
+ * 첨부파일 테이블(TPRMPP_CFILEM)의 기본 CRUD 기능을 제공합니다.
  * </p>
  *
  * <p>

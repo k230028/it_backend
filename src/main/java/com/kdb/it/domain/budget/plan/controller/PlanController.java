@@ -29,7 +29,7 @@ import java.util.List;
  * 정보기술부문 계획 컨트롤러
  *
  * <p>
- * 정보기술부문 계획(TAAABB_BPLANM) 등록, 조회, 삭제 API를 제공합니다.
+ * 정보기술부문 계획(TPRMPP_BPLANM) 등록, 조회, 삭제 API를 제공합니다.
  * </p>
  *
  * <p>
@@ -64,7 +64,7 @@ public class PlanController {
         @Operation(summary = "계획 목록 조회", description = """
                         삭제되지 않은 IT 부문 연도별 계획 목록을 등록일시 내림차순으로 조회합니다.
 
-                        - 조회 대상: TAAABB_BPLANM
+                        - 조회 대상: TPRMPP_BPLANM
                         - 포함 정보: 계획관리번호, 계획구분, 대상년도, 총예산, 자본예산, 일반관리비
                         - 화면 용도: 계획 관리 목록 화면
                         """, responses = @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(implementation = PlanDto.ListResponse.class), examples = @ExampleObject(name = "계획 목록 응답 예시", value = """
@@ -97,7 +97,7 @@ public class PlanController {
         @Operation(summary = "계획 상세 조회", description = """
                         계획관리번호로 단건 계획 상세와 저장 시점의 JSON 스냅샷을 조회합니다.
 
-                        - 조회 대상: TAAABB_BPLANM, TAAABB_BPROJA
+                        - 조회 대상: TPRMPP_BPLANM, TPRMPP_BPROJA
                         - 스냅샷: 계획 생성 당시 프로젝트 목록과 예산 집계 정보를 JSON 문자열로 보관합니다.
                         - 존재하지 않는 계획관리번호는 서비스 계층에서 404로 처리됩니다.
                         """, responses = @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(implementation = PlanDto.DetailResponse.class))))
@@ -116,7 +116,7 @@ public class PlanController {
          *
          * @param request    계획 생성 요청 DTO
          * @param uriBuilder URI 빌더 (Location 헤더 생성용)
-         * @return 201 Created (Location: /api/plans/{plnMngNo})
+         * @return 201 Created (Location: /api/plans/{plnMngNo}, body: plnMngNo)
          */
         @PostMapping
         @Operation(summary = "계획 등록", description = """
@@ -125,8 +125,10 @@ public class PlanController {
                         - 계획관리번호는 서버에서 자동 채번합니다.
                         - 대상 프로젝트와 전산업무비의 예산을 집계하여 총예산/자본예산/일반관리비를 산출합니다.
                         - 생성된 리소스 경로는 Location 헤더(/api/plans/{plnMngNo})로 반환합니다.
+                        - 생성된 계획관리번호는 응답 본문으로도 반환합니다.
                         """, responses = @ApiResponse(responseCode = "201", description = "등록 성공"))
-        public ResponseEntity<Void> createPlan(
+        // FIXME: @Valid 추가 필요 — Bean Validation이 동작하지 않아 미검증 입력이 서비스 레이어로 전달됨 (CLAUDE.md §5.5.2)
+        public ResponseEntity<String> createPlan(
                         @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "계획 생성 요청. 대상년도, 계획구분, 프로젝트/전산업무비 관리번호 목록을 전달합니다.", required = true, content = @Content(schema = @Schema(implementation = PlanDto.CreateRequest.class), examples = @ExampleObject(name = "계획 등록 요청 예시", value = """
                                         {
                                           "plnYy": "2026",
@@ -143,7 +145,7 @@ public class PlanController {
                         UriComponentsBuilder uriBuilder) {
                 String plnMngNo = planService.createPlan(request);
                 URI location = uriBuilder.path("/api/plans/{plnMngNo}").buildAndExpand(plnMngNo).toUri();
-                return ResponseEntity.created(location).build();
+                return ResponseEntity.created(location).body(plnMngNo);
         }
 
         /**
@@ -184,7 +186,7 @@ public class PlanController {
                         계획과 연결 정보화사업 관계를 논리 삭제합니다.
 
                         - 삭제 방식: DEL_YN='Y'로 변경
-                        - 대상 테이블: TAAABB_BPLANM, TAAABB_BPROJA
+                        - 대상 테이블: TPRMPP_BPLANM, TPRMPP_BPROJA
                         - 실제 레코드는 제거하지 않아 이력 추적이 가능합니다.
                         """, responses = @ApiResponse(responseCode = "204", description = "삭제 성공"))
         public ResponseEntity<Void> deletePlan(

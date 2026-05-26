@@ -67,7 +67,7 @@ public interface BbugtmRepositoryCustom {
      * 전산업무비(BCOSTM)별 편성예산(DUP_BG) 합계 일괄 조회
      *
      * <p>
-     * TAAABB_BBUGTM에서 ORC_TB='BCOSTM' 조건으로 itMngcNo별 SUM(DUP_BG)를 집계합니다.
+     * TPRMPP_BBUGTM에서 ORC_TB='BCOSTM' 조건으로 itMngcNo별 SUM(DUP_BG)를 집계합니다.
      * </p>
      *
      * @param itMngcNos 조회할 전산관리비관리번호 목록

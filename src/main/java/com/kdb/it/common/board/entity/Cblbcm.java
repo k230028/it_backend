@@ -10,14 +10,14 @@ import lombok.experimental.SuperBuilder;
 import java.time.LocalDate;
 
 /**
- * 게시물 엔티티 — TAAABB_CBLBCM
+ * 게시물 엔티티 — TPRMPP_CBLBCM
  *
  * <p>답변글 트리는 NAC_GRP_NO / NAC_GRP_SQN / NAC_GRP_LEV 3컬럼으로 표현한다.
  * 변경 시 {@link CblbcmL}에 이력이 자동 적재된다.</p>
  */
 @LogTarget(entity = CblbcmL.class)
 @Entity
-@Table(name = "TAAABB_CBLBCM", comment = "게시물")
+@Table(name = "TPRMPP_CBLBCM", comment = "게시물")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

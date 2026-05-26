@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ScheduleService {
 
-    /** 일정 리포지토리 (TAAABB_BSCHDM) */
+    /** 일정 리포지토리 (TPRMPP_BSCHDM) */
     private final ScheduleRepository scheduleRepository;
 
     /**

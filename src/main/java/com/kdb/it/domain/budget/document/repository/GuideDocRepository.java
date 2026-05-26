@@ -13,7 +13,7 @@ import java.util.Optional;
  *
  * <p>
  * Spring Data JPA의 {@link JpaRepository}를 상속하여
- * 가이드 문서 테이블(TAAABB_BGDOCM)의 기본 CRUD 기능을 제공합니다.
+ * 가이드 문서 테이블(TPRMPP_BGDOCM)의 기본 CRUD 기능을 제공합니다.
  * </p>
  *
  * <p>

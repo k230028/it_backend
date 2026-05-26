@@ -3,6 +3,8 @@ package com.kdb.it.common.approval.dto;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -65,7 +67,7 @@ public class ApplicationDto {
      * 신청서 본문, 결재자 목록을 포함합니다.</p>
      *
      * <p>한 번의 상신으로 복수의 원본 레코드(정보화사업, 전산관리비 등)를 하나의 신청서로 묶어
-     * 처리합니다. {@code orcItems}의 각 항목에 대해 {@code TAAABB_CAPPLA} 행이 생성됩니다.</p>
+     * 처리합니다. {@code orcItems}의 각 항목에 대해 {@code TPRMPP_CAPPLA} 행이 생성됩니다.</p>
      */
     @Getter
     @Setter
@@ -87,7 +89,7 @@ public class ApplicationDto {
 
         /**
          * 원본 데이터 연결 항목 목록 (복수 원본 지원)
-         * <p>각 항목마다 {@code TAAABB_CAPPLA} 행이 생성됩니다.
+         * <p>각 항목마다 {@code TPRMPP_CAPPLA} 행이 생성됩니다.
          * null 또는 빈 리스트인 경우 Cappla를 저장하지 않습니다.</p>
          */
         @Schema(description = "원본 데이터 연결 항목 목록")
@@ -135,6 +137,23 @@ public class ApplicationDto {
         /** 결재상태 (허용값: "승인" 또는 "반려") */
         @Schema(description = "결재상태 (승인/반려)")
         private String dcdSts;
+    }
+
+    /**
+     * 신청서 회수 요청 DTO
+     *
+     * <p>신청자가 결재 진행 중인 신청서를 회수(상신 취소)할 때 사용합니다.</p>
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @Schema(name = "RecallRequest", description = "신청서 회수 요청")
+    public static class RecallRequest {
+        /** 회수 사유 (필수, 최대 1000자) */
+        @NotBlank
+        @Size(max = 1000)
+        @Schema(description = "회수 사유 (필수)", example = "결재선 오기재로 인한 회수")
+        private String recallOpnn;
     }
 
     /**
@@ -269,6 +288,10 @@ public class ApplicationDto {
         @Schema(description = "신청상태")
         private String apfSts;
 
+        /** 신청상태코드 (Ccodem cId='APF_STS' 기반 코드값) */
+        @Schema(description = "신청상태코드")
+        private String apfStsC;
+
         /** 신청자 사원번호 */
         @Schema(description = "신청자 사원번호")
         private String rqsEno;
@@ -297,7 +320,9 @@ public class ApplicationDto {
                     .apfMngNo(capplm.getApfMngNo())       // 신청관리번호
                     .apfNm(capplm.getApfNm())             // 신청서명
                     .apfDtlCone(capplm.getApfDtlCone())   // 신청서세부내용
-                    .apfSts(capplm.getApfSts())           // 신청상태
+                    .apfSts(capplm.getApfStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label()) // 신청상태(라벨, 코드에서 파생)
+                    .apfStsC(capplm.getApfStsC())         // 신청상태코드
                     .rqsEno(capplm.getRqsEno())           // 신청자 사원번호
                     .rqsDt(capplm.getRqsDt())             // 신청일자
                     .rqsOpnn(capplm.getRqsOpnn())         // 신청의견
@@ -460,6 +485,10 @@ public class ApplicationDto {
         @Schema(description = "결재상태")
         private String dcdSts;
 
+        /** 최종결재자여부 ("Y"/"N", 프론트엔드 회수(중간결재자 회수) 분기 판단에 사용) */
+        @Schema(description = "최종결재자여부 (Y/N)")
+        private String lstDcdYn;
+
         /**
          * 결재 엔티티를 응답 DTO로 변환하는 정적 팩토리 메서드
          *
@@ -470,10 +499,18 @@ public class ApplicationDto {
             return ApproverResponse.builder()
                     .dcdSqn(cdecim.getDcdSqn())   // 결재순번
                     .dcdEno(cdecim.getDcdEno())   // 결재자 사원번호
-                    .dcdTp(cdecim.getDcdTp())     // 결재유형
+                    // 결재유형: 미결재(001) 또는 null이면 null, 그 외는 "결재"로 표시
+                    .dcdTp(cdecim.getDcdStsC() == null
+                            || com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code().equals(cdecim.getDcdStsC())
+                                ? null : "결재")
                     .dcdDt(cdecim.getDcdDt())     // 결재일자
                     .dcdOpnn(cdecim.getDcdOpnn()) // 결재의견
-                    .dcdSts(cdecim.getDcdSts())   // 결재상태
+                    // 결재상태: 코드 → 라벨 변환 (미결재/null이면 null)
+                    .dcdSts(cdecim.getDcdStsC() == null
+                            || com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code().equals(cdecim.getDcdStsC())
+                                ? null
+                                : com.kdb.it.common.approval.domain.DecisionStatus.ofCode(cdecim.getDcdStsC()).label())
+                    .lstDcdYn(cdecim.getLstDcdYn()) // 최종결재자여부
                     .build();
         }
     }

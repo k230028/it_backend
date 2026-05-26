@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
  * 정보화사업(프로젝트) 관리 REST 컨트롤러
  *
  * <p>
- * 정보화사업(TAAABB_BPROJM 테이블)의 CRUD 및 일괄 조회 기능을 담당합니다.
+ * 정보화사업(TPRMPP_BPROJM 테이블)의 CRUD 및 일괄 조회 기능을 담당합니다.
  * </p>
  *
  * <p>
@@ -34,7 +34,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>
  * 정보화사업은 IT 부문의 신규 사업/시스템 도입 프로젝트를 관리하는 도메인으로,
- * 품목 정보(TAAABB_BITEMM)와 신청서 정보(TAAABB_CAPPLM)와 연관됩니다.
+ * 품목 정보(TPRMPP_BITEMM)와 신청서 정보(TPRMPP_CAPPLM)와 연관됩니다.
  * </p>
  *
  * <p>
@@ -98,7 +98,7 @@ public class ProjectController {
      *
      * <p>
      * 프로젝트 관리번호(PRJ_MNG_NO)로 정보화사업 상세 정보를 조회합니다.
-     * 품목 목록(TAAABB_BITEMM)과 최신 신청서 정보도 함께 반환됩니다.
+     * 품목 목록(TPRMPP_BITEMM)과 최신 신청서 정보도 함께 반환됩니다.
      * </p>
      *
      * @param prjMngNo 프로젝트 관리번호 (예: {@code PRJ-2026-0001})
@@ -131,6 +131,7 @@ public class ProjectController {
      */
     @PostMapping
     @Operation(summary = "신규 정보화사업 생성", description = "신규 정보화사업을 생성합니다.")
+        // FIXME: @Valid 추가 필요 — Bean Validation이 동작하지 않아 미검증 입력이 서비스 레이어로 전달됨 (CLAUDE.md §5.5.2)
     public ResponseEntity<String> createProject(@RequestBody ProjectDto.CreateRequest request) {
         String prjMngNo = projectService.createProject(request);
         // 201 Created 응답 + Location 헤더에 생성된 리소스 URL 포함
@@ -164,6 +165,7 @@ public class ProjectController {
     @PutMapping("/{prjMngNo}")
     @Operation(summary = "정보화사업 수정", description = "정보화사업을 수정합니다.")
     public ResponseEntity<String> updateProject(@PathVariable("prjMngNo") String prjMngNo,
+        // FIXME: @Valid 추가 필요 — Bean Validation이 동작하지 않아 미검증 입력이 서비스 레이어로 전달됨 (CLAUDE.md §5.5.2)
             @RequestBody ProjectDto.UpdateRequest request) {
         String updatedPrjMngNo = projectService.updateProject(prjMngNo, request);
         return ResponseEntity.ok(updatedPrjMngNo);

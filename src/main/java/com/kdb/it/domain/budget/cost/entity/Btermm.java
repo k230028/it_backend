@@ -25,7 +25,7 @@ import lombok.experimental.SuperBuilder;
  * 단말기관리마스터 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_BTERMM}
+ * DB 테이블: {@code TPRMPP_BTERMM}
  * </p>
  *
  * <p>
@@ -34,7 +34,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BtermmL.class)
 @Entity
-@Table(name = "TAAABB_BTERMM", comment = "단말기관리마스터")
+@Table(name = "TPRMPP_BTERMM", comment = "단말기관리마스터")
 @IdClass(BtermmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -49,8 +49,8 @@ public class Btermm extends BaseEntity {
 
     /** 단말기일련번호 */
     @Id
-    @Column(name = "TMN_SNO", nullable = false, length = 32, comment = "단말기일련번호")
-    private String tmnSno;
+    @Column(name = "TMN_SNO", nullable = false, comment = "단말기일련번호")
+    private Integer tmnSno;
 
     /** IT관리비관리번호 (조인용 필드) */
     @Column(name = "IT_MNGC_NO", length = 32, comment = "IT관리비관리번호")
@@ -113,7 +113,7 @@ public class Btermm extends BaseEntity {
     private String cgprEno;
 
     /** 담당팀 */
-    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
     /** 담당부서 */
@@ -124,10 +124,25 @@ public class Btermm extends BaseEntity {
     @Column(name = "RMK", length = 300, comment = "비고")
     private String rmk;
 
-    /** 정보 업데이트 메서드 */
+    /**
+     * 외화금액(단말기 외화 원금 — 환율 적용 전).
+     * <p>
+     * 원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며,
+     * 서버 재계산 로직(plan 03/04)에서 {@code tmlAmt = fcAmt × xcr}로 환산된다.
+     * 참고: CONTEXT.md 결정 B (KRW 행 FC_AMT = NULL).
+     * </p>
+     */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
+
+    /**
+     * 정보 업데이트 메서드
+     *
+     * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
+     */
     public void update(String tmnNm, String tmnTuzManr, String tmnUsg, String tmnSvc, BigDecimal tmlAmt,
             String curC, BigDecimal xcr, LocalDate xcrBseDt, String dfrCleC, String indRsn,
-            String cgprEno, String biceTemC, String biceDpmC, String rmk) {
+            String cgprEno, String biceTemC, String biceDpmC, String rmk, BigDecimal fcAmt) {
         this.tmnNm = tmnNm;
         this.tmnTuzManr = tmnTuzManr;
         this.tmnUsg = tmnUsg;
@@ -142,6 +157,7 @@ public class Btermm extends BaseEntity {
         this.biceTemC = biceTemC;
         this.biceDpmC = biceDpmC;
         this.rmk = rmk;
+        this.fcAmt = fcAmt;
     }
 
     /** 외래키 설정을 위한 편의 메서드 */

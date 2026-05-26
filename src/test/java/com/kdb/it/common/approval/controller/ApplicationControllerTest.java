@@ -71,7 +71,7 @@ class ApplicationControllerTest {
     @DisplayName("GET /api/applications/pending-count - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void getPendingCount_인증_200() throws Exception {
-        given(applicationService.getPendingCount()).willReturn(ApplicationDto.PendingCountResponse.builder().build());
+        given(applicationService.getPendingCount(null)).willReturn(ApplicationDto.PendingCountResponse.builder().build());
         mockMvc.perform(get("/api/applications/pending-count"))
                 .andExpect(status().isOk());
     }

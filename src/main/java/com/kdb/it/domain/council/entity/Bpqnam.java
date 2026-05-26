@@ -16,7 +16,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 사전질의응답 엔티티
  *
- * <p>DB 테이블: {@code TAAABB_BPQNAM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BPQNAM}</p>
  *
  * <p>협의회 개최 전 평가위원이 사전 질의를 등록하고,
  * 추진부서 담당자(ITPZZ001)가 답변합니다.
@@ -26,7 +26,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BpqnamL.class)
 @Entity
-@Table(name = "TAAABB_BPQNAM", comment = "사전질의응답")
+@Table(name = "TPRMPP_BPQNAM", comment = "사전질의응답")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

@@ -29,7 +29,7 @@ import java.util.List;
  * 문서 검토의견 REST 컨트롤러
  *
  * <p>
- * 문서(TAAABB_BRDOCM) 특정 버전에 달린 검토의견(TAAABB_BRIVGM)의
+ * 문서(TPRMPP_BRDOCM) 특정 버전에 달린 검토의견(TPRMPP_BRIVGM)의
  * 조회·등록·해결처리 엔드포인트를 제공합니다.
  * </p>
  *
@@ -61,7 +61,7 @@ public class ReviewCommentController {
             description = """
                     특정 문서와 문서버전에 등록된 미삭제 검토의견 목록을 조회합니다.
 
-                    - 조회 대상: TAAABB_BRIVGM
+                    - 조회 대상: TPRMPP_BRIVGM
                     - 정렬 기준: 생성일시 오름차순
                     - 의견 유형: I(인라인), G(전반)
                     - 화면 용도: 문서 편집/검토 화면의 코멘트 패널
@@ -110,7 +110,7 @@ public class ReviewCommentController {
 
                     - 인라인 의견(I): markId와 qtdCone을 함께 전달해 편집기 하이라이트와 연결합니다.
                     - 전반 의견(G): 문서 전체에 대한 의견이며 markId/qtdCone은 생략할 수 있습니다.
-                    - 의견일련번호는 서버에서 UUID v4 기반 32자 문자열로 생성합니다.
+                    - 의견일련번호는 서버에서 SEQ_BRIVGM 시퀀스로 자동 채번합니다.
                     """,
             responses = @ApiResponse(responseCode = "201", description = "등록 성공",
                     content = @Content(schema = @Schema(implementation = ReviewCommentDto.Response.class))))
@@ -163,8 +163,8 @@ public class ReviewCommentController {
     public void resolveComment(
             @Parameter(description = "문서관리번호", required = true, example = "DOC-2026-0001")
             @PathVariable("docMngNo") String docMngNo,
-            @Parameter(description = "의견일련번호(UUID v4 32자)", required = true, example = "4f7f1fd8623c48eab6d52a789c10e001")
-            @PathVariable("ivgSno") String ivgSno) {
+            @Parameter(description = "의견일련번호", required = true, example = "1")
+            @PathVariable("ivgSno") Long ivgSno) {
         reviewCommentService.resolveComment(docMngNo, ivgSno);
     }
 }

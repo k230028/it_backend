@@ -25,6 +25,6 @@ public class BperfmId implements Serializable {
     /** 협의회ID: Bperfm.asctId와 이름/타입 일치 필수 */
     private String asctId;
 
-    /** 지표순번: Bperfm.dtpSno와 이름/타입 일치 필수 (SNO=VARCHAR2) */
-    private String dtpSno;
+    /** 지표순번: Bperfm.dtpSno와 이름/타입 일치 필수 */
+    private Integer dtpSno;
 }

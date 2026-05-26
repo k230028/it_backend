@@ -46,18 +46,18 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      * [생성 SQL 예시]
      * </p>
      * <pre>{@code
-     * SELECT * FROM TAAABB_BCOSTM c
+     * SELECT * FROM TPRMPP_BCOSTM c
      * WHERE c.DEL_YN = 'N' AND c.LST_YN = 'Y'
      *   AND c.IOE_C LIKE '237%'
      *   AND EXISTS (
-     *     SELECT 1 FROM TAAABB_CAPPLA ca
-     *     JOIN TAAABB_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
+     *     SELECT 1 FROM TPRMPP_CAPPLA ca
+     *     JOIN TPRMPP_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
      *     WHERE ca.ORC_TB_CD = 'BCOSTM'
      *       AND ca.ORC_PK_VL = c.IT_MNGC_NO
      *       AND ca.ORC_SNO_VL = c.IT_MNGC_SNO
      *       AND cm.APF_STS = '결재완료'
      *       AND ca.APF_REL_SNO = (
-     *         SELECT MAX(ca2.APF_REL_SNO) FROM TAAABB_CAPPLA ca2
+     *         SELECT MAX(ca2.APF_REL_SNO) FROM TPRMPP_CAPPLA ca2
      *         WHERE ca2.ORC_TB_CD = 'BCOSTM'
      *           AND ca2.ORC_PK_VL = c.IT_MNGC_NO
      *           AND ca2.ORC_SNO_VL = c.IT_MNGC_SNO
@@ -94,9 +94,9 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.orcTbCd.eq("BCOSTM"),
                                 cappla.orcPkVl.eq(bcostm.itMngcNo),
                                 cappla.orcSnoVl.eq(bcostm.itMngcSno),
-                                capplm.apfSts.eq("결재완료"),
-                                cappla.apfRelSno.eq(
-                                        JPAExpressions.select(cappla2.apfRelSno.max())
+                                capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                cappla.apfMngNo.eq(
+                                        JPAExpressions.select(cappla2.apfMngNo.max())
                                                 .from(cappla2)
                                                 .where(
                                                         cappla2.orcTbCd.eq("BCOSTM"),
@@ -122,22 +122,22 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      * [생성 SQL 예시]
      * </p>
      * <pre>{@code
-     * SELECT i.* FROM TAAABB_BITEMM i
+     * SELECT i.* FROM TPRMPP_BITEMM i
      * WHERE i.DEL_YN = 'N' AND i.LST_YN = 'Y'
      *   AND i.GCL_DTT LIKE '237%'
      *   AND EXISTS (
-     *     SELECT 1 FROM TAAABB_BPROJM p
+     *     SELECT 1 FROM TPRMPP_BPROJM p
      *     WHERE p.PRJ_MNG_NO = i.PRJ_MNG_NO AND p.PRJ_SNO = i.PRJ_SNO
      *       AND p.DEL_YN = 'N' AND p.LST_YN = 'Y'
      *       AND EXISTS (
-     *         SELECT 1 FROM TAAABB_CAPPLA ca
-     *         JOIN TAAABB_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
+     *         SELECT 1 FROM TPRMPP_CAPPLA ca
+     *         JOIN TPRMPP_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
      *         WHERE ca.ORC_TB_CD = 'BPROJM'
      *           AND ca.ORC_PK_VL = p.PRJ_MNG_NO
      *           AND ca.ORC_SNO_VL = p.PRJ_SNO
      *           AND cm.APF_STS = '결재완료'
      *           AND ca.APF_REL_SNO = (
-     *             SELECT MAX(ca2.APF_REL_SNO) FROM TAAABB_CAPPLA ca2
+     *             SELECT MAX(ca2.APF_REL_SNO) FROM TPRMPP_CAPPLA ca2
      *             WHERE ca2.ORC_TB_CD = 'BPROJM'
      *               AND ca2.ORC_PK_VL = p.PRJ_MNG_NO
      *               AND ca2.ORC_SNO_VL = p.PRJ_SNO
@@ -165,9 +165,9 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.orcTbCd.eq("BPROJM"),
                                 cappla.orcPkVl.eq(bprojm.prjMngNo),
                                 cappla.orcSnoVl.eq(bprojm.prjSno),
-                                capplm.apfSts.eq("결재완료"),
-                                cappla.apfRelSno.eq(
-                                        JPAExpressions.select(cappla2.apfRelSno.max())
+                                capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                cappla.apfMngNo.eq(
+                                        JPAExpressions.select(cappla2.apfMngNo.max())
                                                 .from(cappla2)
                                                 .where(
                                                         cappla2.orcTbCd.eq("BPROJM"),
@@ -380,9 +380,9 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.orcTbCd.eq("BCOSTM"),
                                 cappla.orcPkVl.eq(bcostm.itMngcNo),
                                 cappla.orcSnoVl.eq(bcostm.itMngcSno),
-                                capplm.apfSts.eq("결재완료"),
-                                cappla.apfRelSno.eq(
-                                        JPAExpressions.select(cappla2.apfRelSno.max())
+                                capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                cappla.apfMngNo.eq(
+                                        JPAExpressions.select(cappla2.apfMngNo.max())
                                                 .from(cappla2)
                                                 .where(
                                                         cappla2.orcTbCd.eq("BCOSTM"),
@@ -433,9 +433,9 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                                 cappla.orcTbCd.eq("BPROJM"),
                                                 cappla.orcPkVl.eq(bprojm.prjMngNo),
                                                 cappla.orcSnoVl.eq(bprojm.prjSno),
-                                                capplm.apfSts.eq("결재완료"),
-                                                cappla.apfRelSno.eq(
-                                                        JPAExpressions.select(cappla2.apfRelSno.max())
+                                                capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                                cappla.apfMngNo.eq(
+                                                        JPAExpressions.select(cappla2.apfMngNo.max())
                                                                 .from(cappla2)
                                                                 .where(
                                                                         cappla2.orcTbCd.eq("BPROJM"),

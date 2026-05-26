@@ -55,10 +55,10 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional(readOnly = true)
 public class CouncilService {
 
-    /** 협의회 기본정보 리포지토리 (TAAABB_BASCTM) */
+    /** 협의회 기본정보 리포지토리 (TPRMPP_BASCTM) */
     private final CouncilRepository councilRepository;
 
-    /** 사업개요 리포지토리 (TAAABB_BPOVWM) — 사업명 조회용 */
+    /** 사업개요 리포지토리 (TPRMPP_BPOVWM) — 사업명 조회용 */
     private final ProjectOverviewRepository projectOverviewRepository;
 
     /** 정보화사업 리포지토리 — 사업명/전결권자 조회용 */
@@ -87,6 +87,11 @@ public class CouncilService {
      * Plan SC: Step 1~3 전 과정 온라인 처리 기반 목록 제공
      * </p>
      *
+     * <p><strong>유니코드 이스케이프 주의</strong>: 쿼리 파라미터에 한글 리터럴 대신
+     * 유니코드 이스케이프({@code &#92;uXXXX})를 사용하는 이유는 Oracle 소스 파일 인코딩(EUC-KR) 환경에서
+     * 한글 직접 삽입 시 문자 깨짐이 발생하는 문제를 방지하기 위함입니다.
+     * 빌드 환경 인코딩 표준화 후 한글 리터럴로 교체할 예정입니다.</p>
+     *
      * @param userDetails 현재 로그인한 사용자 정보
      * @return 권한에 맞는 협의회 목록
      */
@@ -97,6 +102,7 @@ public class CouncilService {
         if (userDetails.isAdmin()) {
             // 관리자: 전체 부서 대상으로 결재완료 사업(미신청 포함) + 기신청 협의회 통합 조회
             List<Object[]> rows = councilRepository.findProjectsForCouncilAll(
+                    // TODO: 유니코드 이스케이프를 한글 리터럴로 교체 필요 — 가독성 심각 저해 (예: "정실협..." -> "정실협 진행중...")
                     "\uc815\uc2e4\ud611 \uc9c4\ud589\uc911", "\uc608\uc0b0 \uc791\uc131", "\uacc4\ud68d \uc791\uc131",
                     "\uacb0\uc7ac\uc644\ub8cc");
             log.info("[CouncilList] admin query result count={}", rows.size());
@@ -112,6 +118,7 @@ public class CouncilService {
 
         // 일반사용자: SVN_DPM = 사용자 BBR_C 조건으로 결재완료 사업 + 기신청 협의회 통합 조회
         List<Object[]> rows = councilRepository.findProjectsForCouncilByDepartment(
+                // TODO: 유니코드 이스케이프를 한글 리터럴로 교체 필요 — 가독성 심각 저해 (예: "정실협..." -> "정실협 진행중...")
                 userDetails.getBbrC(), "\uc815\uc2e4\ud611 \uc9c4\ud589\uc911", "\uc608\uc0b0 \uc791\uc131",
                 "\uacc4\ud68d \uc791\uc131", "\uacb0\uc7ac\uc644\ub8cc");
         log.info("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());

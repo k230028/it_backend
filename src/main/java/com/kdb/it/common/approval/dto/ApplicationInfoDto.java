@@ -84,7 +84,8 @@ public class ApplicationInfoDto {
 
         return ApplicationInfoDto.builder()
                 .apfMngNo(capplm.getApfMngNo()) // 신청서관리번호
-                .apfSts(capplm.getApfSts()) // 신청서상태
+                .apfSts(capplm.getApfStsC() == null ? null
+                        : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label()) // 신청서상태(코드→라벨)
                 .apfNm(capplm.getApfNm()) // 신청서명
                 .rqsEno(capplm.getRqsEno()) // 신청자 사번
                 .rqsDt(capplm.getRqsDt()) // 신청일자
@@ -139,11 +140,15 @@ public class ApplicationInfoDto {
          * @return 변환된 결재자 DTO
          */
         public static ApproverDto fromEntity(Cdecim cdecim) {
+            String dcdStsC = cdecim.getDcdStsC();
+            boolean pending = dcdStsC == null
+                    || com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code().equals(dcdStsC);
             return ApproverDto.builder()
                     .dcdSqn(cdecim.getDcdSqn()) // 결재순서
                     .dcdEno(cdecim.getDcdEno()) // 결재자 사번
-                    .dcdTp(cdecim.getDcdTp()) // 결재유형
-                    .dcdSts(cdecim.getDcdSts()) // 결재상태
+                    .dcdTp(pending ? null : "결재") // 결재유형(미결재면 null)
+                    .dcdSts(pending ? null
+                            : com.kdb.it.common.approval.domain.DecisionStatus.ofCode(dcdStsC).label())
                     .dcdDt(cdecim.getDcdDt()) // 결재일자
                     .dcdOpnn(cdecim.getDcdOpnn()) // 결재의견
                     .build();

@@ -3,19 +3,26 @@ package com.kdb.it.common.approval.service;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.kdb.it.common.approval.domain.ApprovalStatus;
+import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
+import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.notification.event.NotificationEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,13 +78,15 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true) // 기본 읽기 전용 트랜잭션
 public class ApplicationService {
 
-    /** 신청서 마스터 데이터 접근 리포지토리 (TAAABB_CAPPLM) */
+    private static final Logger log = LoggerFactory.getLogger(ApplicationService.class);
+
+    /** 신청서 마스터 데이터 접근 리포지토리 (TPRMPP_CAPPLM) */
     private final ApplicationRepository applicationRepository;
 
-    /** 결재(승인) 데이터 접근 리포지토리 (TAAABB_CDECIM) */
+    /** 결재(승인) 데이터 접근 리포지토리 (TPRMPP_CDECIM) */
     private final ApproverRepository approverRepository;
 
-    /** 신청서-원본 데이터 연결 리포지토리 (TAAABB_CAPPLA) */
+    /** 신청서-원본 데이터 연결 리포지토리 (TPRMPP_CAPPLA) */
     private final ApplicationMapRepository applicationMapRepository;
 
     /** 정보화사업(Bprojm) 리포지토리: 미상신 건수 집계용 */
@@ -131,7 +140,7 @@ public class ApplicationService {
                 .apfMngNo(apfMngNo) // 신청관리번호 (PK)
                 .apfNm(request.getApfNm()) // 신청서명
                 .apfDtlCone(request.getApfDtlCone()) // 신청서세부내용 (JSON)
-                .apfSts("결재중") // 초기 결재상태
+                .apfStsC(ApprovalStatus.IN_PROGRESS.code())
                 .rqsEno(request.getRqsEno()) // 신청자 사원번호
                 .rqsDt(LocalDate.now()) // 신청일자 = 오늘
                 .rqsOpnn(request.getRqsOpnn()) // 신청의견
@@ -141,16 +150,14 @@ public class ApplicationService {
         // 1-1. 원본 데이터 연결 저장 (orcItems 각각에 대해 Cappla 생성)
         // 하나의 신청서가 복수의 원본 레코드(정보화사업, 전산관리비 등)를 연결할 수 있습니다.
         if (request.getOrcItems() != null && !request.getOrcItems().isEmpty()) {
+            long sno = 1L;
             for (ApplicationDto.OrcItem item : request.getOrcItems()) {
-                Long seq = applicationMapRepository.getNextVal(); // 항목마다 CAPPLA 시퀀스 채번
-                String apfRelSno = String.format("APPL-%028d", seq); // 신청서관계일련번호
-
                 Cappla cappla = Cappla.builder()
-                        .apfRelSno(apfRelSno) // 신청서관계일련번호 (PK)
-                        .apfMngNo(apfMngNo) // 신청관리번호 (FK)
-                        .orcTbCd(item.getOrcTbCd()) // 원본 테이블코드
-                        .orcPkVl(item.getOrcPkVl()) // 원본 PK값
-                        .orcSnoVl(item.getOrcSnoVl() != null ? Integer.parseInt(item.getOrcSnoVl()) : null) // 원본 SNO
+                        .apfRelSno(sno++)
+                        .apfMngNo(apfMngNo)
+                        .orcTbCd(item.getOrcTbCd())
+                        .orcPkVl(item.getOrcPkVl())
+                        .orcSnoVl(item.getOrcSnoVl() != null ? Integer.parseInt(item.getOrcSnoVl()) : null)
                         .build();
                 applicationMapRepository.save(cappla);
             }
@@ -165,25 +172,63 @@ public class ApplicationService {
                     .dcdMngNo(apfMngNo) // 결재관리번호 (FK)
                     .dcdSqn(i + 1) // 결재순번 (1부터 시작)
                     .dcdEno(approverEnos.get(i)) // 결재자 사원번호
+                    .dcdStsC(DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(001) — NOT NULL
                     .lstDcdYn(i == approverEnos.size() - 1 ? "Y" : "N") // 마지막 결재자 여부
                     .build();
             approverRepository.save(cdecim);
             savedApprovers.add(cdecim);
         }
 
-        // 3. 기안자 == 1차 결재자(팀장) 자동 승인 처리
-        //    기안자와 첫 번째 결재자가 동일한 경우, 신청 행위 자체를 묵시적 1차 승인으로 간주합니다.
-        //    - Cdecim 레코드를 즉시 승인 상태로 전환하여 이후 2차 결재자(부서장)가 바로 결재 가능하게 합니다.
-        //    - approvalLineDelegate.doUpdate()를 호출하여 JSON 결재선의 팀장 date 필드도 함께 기록합니다.
-        //      (이 처리가 없으면 JSON date가 빈 문자열로 남아 PDF 상 팀장 결재 시각이 누락됩니다.)
-        if (!approverEnos.isEmpty() && approverEnos.get(0).equals(request.getRqsEno())) {
-            Cdecim firstApprover = savedApprovers.get(0);
-            firstApprover.approve("기안자 자동 승인", "승인");
-            approverRepository.save(firstApprover);
-            approvalLineDelegate.doUpdate(capplm, savedApprovers, java.util.List.of(firstApprover));
-        }
+        // 3. 다음 결재 차례인 결재자에게 알림 발행 (결재선의 가장 앞 순번 결재자)
+        //    AFTER_COMMIT 리스너가 처리하므로 본 트랜잭션은 차단되지 않는다.
+        //    참고: 기안자와 1차 결재자가 동일하더라도 자동 승인하지 않고 명시적 결재를 요구합니다.
+        publishApprovalRequestNotification(capplm);
 
         return apfMngNo; // 생성된 신청관리번호 반환
+    }
+
+    /**
+     * 결재선에서 다음 차례인 결재자에게 결재요청 알림을 발행한다.
+     *
+     * <p>{@code DCD_STS_C = '001'(미결재)}인 결재 항목 중 가장 작은 {@code DCD_SQN}의 결재자가 대상.
+     * 발견되지 않으면(=결재선 모두 처리됨) 알림을 발행하지 않는다.</p>
+     */
+    private void publishApprovalRequestNotification(Capplm capplm) {
+        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcdSqnAsc(capplm.getApfMngNo());
+        Cdecim next = approvers.stream()
+            .filter(a -> DecisionStatus.PENDING.code().equals(a.getDcdStsC()))
+            .findFirst()
+            .orElse(null);
+        if (next == null || next.getDcdEno() == null || next.getDcdEno().isBlank()) {
+            log.info("[알림 진단] APPROVAL_REQUEST publishEvent 건너뜀: apfMngNo={}, approvers={}, nextNull={}, nextEnoBlank={}",
+                capplm.getApfMngNo(),
+                approvers.size(),
+                next == null,
+                next != null && (next.getDcdEno() == null || next.getDcdEno().isBlank()));
+            return;
+        }
+        log.info("[알림 진단] APPROVAL_REQUEST publishEvent: apfMngNo={}, recipientEno={}, dcdSqn={}",
+            capplm.getApfMngNo(), next.getDcdEno(), next.getDcdSqn());
+        eventPublisher.publishEvent(
+            NotificationEvent.builder()
+                .recipientEno(next.getDcdEno())
+                .infTpC(NotificationEvent.TYPE_APPROVAL_REQUEST)
+                .infTtl(abbreviateText("결재요청: " + safeText(capplm.getApfNm()), 100))
+                .infCone(abbreviateText(safeText(capplm.getApfNm()), 300))
+                // 결재 알림은 결재 대기 목록 화면으로 고정 (사용자 정책).
+                // 상대 path 사용 — Nuxt navigateTo가 내부 라우팅으로 처리하며 운영 호스트와 무관.
+                .infLnkUrl("/approval/list?tab=pending")
+                .build()
+        );
+    }
+
+    private static String safeText(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static String abbreviateText(String s, int max) {
+        if (s == null) return null;
+        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
     }
 
     /**
@@ -227,17 +272,17 @@ public class ApplicationService {
         boolean isPreviousApproved = true; // 이전 결재자가 모두 승인했는지 여부
 
         for (Cdecim approver : approvers) {
-            String dcdTp = approver.getDcdTp(); // 결재유형 (null이면 미결재)
-            String dcdSts = approver.getDcdSts(); // 결재상태
+            String stsC = approver.getDcdStsC(); // 결재상태 코드 (DCD_STS_C)
 
-            if (dcdTp == null) {
-                // 아직 결재하지 않은 항목: 이전이 모두 승인되었을 때만 현재 차례
+            if (DecisionStatus.PENDING.code().equals(stsC)) {
+                // 미결재 항목: 이전이 모두 승인되었을 때만 현재 차례
                 if (isPreviousApproved) {
                     currentApprover = approver;
                 }
-                break; // 미결재 항목 발견 시 탐색 종료
-            } else if ("결재".equals(dcdTp) && !"승인".equals(dcdSts)) {
-                isPreviousApproved = false; // 이전 결재자가 반려 또는 기타 상태
+                break;
+            } else if (!DecisionStatus.APPROVED.code().equals(stsC)) {
+                // 반려/회수/무효 등 — 이전 결재자가 승인하지 않은 상태
+                isPreviousApproved = false;
                 break;
             }
         }
@@ -258,8 +303,18 @@ public class ApplicationService {
             throw new IllegalArgumentException("결재 상태(승인/반려)는 필수입니다.");
         }
 
+        // 상태 문자열(label 또는 code)을 DecisionStatus enum으로 매핑
+        DecisionStatus decision;
+        if ("승인".equals(status) || DecisionStatus.APPROVED.code().equals(status)) {
+            decision = DecisionStatus.APPROVED;
+        } else if ("반려".equals(status) || DecisionStatus.REJECTED.code().equals(status)) {
+            decision = DecisionStatus.REJECTED;
+        } else {
+            throw new IllegalArgumentException("결재 상태(승인/반려)는 필수입니다.");
+        }
+
         // 현재 결재자의 결재 처리 및 저장
-        currentApprover.approve(request.getDcdOpnn(), status);
+        currentApprover.approve(request.getDcdOpnn(), decision);
         approverRepository.save(currentApprover);
 
         // ===== 연속된 동일 결재자 일괄 승인 처리 =====
@@ -268,13 +323,13 @@ public class ApplicationService {
         List<Cdecim> approvedList = new java.util.ArrayList<>();
         approvedList.add(currentApprover);
 
-        if ("승인".equals(status)) {
+        if (decision == DecisionStatus.APPROVED) {
             int currentIndex = approvers.indexOf(currentApprover);
             for (int i = currentIndex + 1; i < approvers.size(); i++) {
                 Cdecim nextApprover = approvers.get(i);
                 if (nextApprover.getDcdEno().equals(currentApprover.getDcdEno())) {
                     // 같은 결재자가 연속으로 등장하면 자동 승인
-                    nextApprover.approve(request.getDcdOpnn(), status);
+                    nextApprover.approve(request.getDcdOpnn(), decision);
                     approverRepository.save(nextApprover);
                     lastApproved = nextApprover;
                     approvedList.add(nextApprover);
@@ -289,22 +344,24 @@ public class ApplicationService {
 
         // 신청서 전체 상태 업데이트
         String newApfSts = null;
-        if ("반려".equals(status)) {
+        if (decision == DecisionStatus.REJECTED) {
             // 반려인 경우 신청서 상태도 "반려"로 변경
-            capplm.updateStatus("반려");
-            newApfSts = "반려";
-        } else if ("승인".equals(status)) {
+            capplm.updateStatus(ApprovalStatus.REJECTED);
+            newApfSts = ApprovalStatus.REJECTED.label();
+        } else if (decision == DecisionStatus.APPROVED && "Y".equals(lastApproved.getLstDcdYn())) {
             // 마지막 결재자(lstDcdYn='Y')가 승인한 경우 "결재완료"로 변경
-            if ("Y".equals(lastApproved.getLstDcdYn())) {
-                capplm.updateStatus("결재완료");
-                newApfSts = "결재완료";
-            }
+            capplm.updateStatus(ApprovalStatus.COMPLETED);
+            newApfSts = ApprovalStatus.COMPLETED.label();
         }
 
         // 신청서 상태가 종결(결재완료/반려)된 경우, 도메인 이벤트 발행
         // 구독 리스너(예: CouncilApprovalEventListener)가 도메인별 후처리를 담당합니다.
+        // 알림 측면: NotificationEventListener.onApprovalCompleted가 신청자에게 결재결과 알림을 발행합니다.
         if (newApfSts != null) {
             eventPublisher.publishEvent(new ApprovalCompletedEvent(apfMngNo, newApfSts));
+        } else if (decision == DecisionStatus.APPROVED) {
+            // 중간 승인 → 다음 결재자에게 결재요청 알림 발행
+            publishApprovalRequestNotification(capplm);
         }
     }
 
@@ -438,6 +495,8 @@ public class ApplicationService {
                     try {
                         return getApplication(apfMngNo); // 개별 신청서 조회
                     } catch (IllegalArgumentException e) {
+                        // FIXME: [B-H-02] null 반환 대신 Optional 또는 예외 전파로 변경, 최소 warn 로그 추가 필요
+                        // 현재 null → filter(Objects::nonNull) 패턴으로 실패 건이 silently 손실됨. 사용자 인지 불가.
                         // FIXME: [B-C-03] null 필터링 대신 실패 ID 목록을 warn 로그에 남기고, 호출자에게 실패 건수 반환 또는 예외 재발생 필요
                         return null; // 존재하지 않는 신청서는 null로 처리
                     }
@@ -451,9 +510,10 @@ public class ApplicationService {
      *
      * <p>bbrC 기준 부서 통계와 eno 기준 본인 결재 대기 목록을 반환합니다.</p>
      *
-     * @param bbrC 부서코드 (TAAABB_CUSERI.BBR_C)
+     * @param bbrC 부서코드 (TPRMPP_CUSERI.BBR_C)
      * @param eno  사원번호 (본인 결재 대기 필터)
      * @return 대시보드 집계 응답 DTO
+     * @throws org.springframework.dao.DataAccessException DB 조회 실패 시 (GlobalExceptionHandler에서 500 응답으로 처리)
      */
     public ApplicationDto.DashboardResponse getDashboard(String bbrC, String eno) {
         int pendingCount          = applicationRepository.countPendingByEno(eno);
@@ -526,15 +586,18 @@ public class ApplicationService {
      *
      * @return 미상신 건수 응답 DTO (정보화사업/전산업무비 개별 건수 + 총합)
      */
-    public ApplicationDto.PendingCountResponse getPendingCount() {
-        // 미상신 정보화사업 건수: CAPPLA에 연결되지 않은 BPROJM
+    public ApplicationDto.PendingCountResponse getPendingCount(String bgYy) {
+        // 미상신 정보화사업 건수: 활성/완료 신청서 없는 BPROJM (필요 시 연도 필터 적용).
+        // 사이드바 배지가 [결재 상신] 화면(예산연도 필터링)과 동일한 카운트를 보이도록 bgYy 일치 필요.
         ProjectDto.SearchCondition projectCondition = new ProjectDto.SearchCondition();
         projectCondition.setApfSts("none");
+        if (bgYy != null && !bgYy.isBlank()) projectCondition.setBgYy(bgYy);
         long projectCount = projectRepository.searchByCondition(projectCondition).size();
 
-        // 미상신 전산업무비 건수: CAPPLA에 연결되지 않은 BCOSTM
+        // 미상신 전산업무비 건수
         CostDto.SearchCondition costCondition = new CostDto.SearchCondition();
         costCondition.setApfSts("none");
+        if (bgYy != null && !bgYy.isBlank()) costCondition.setBgYy(bgYy);
         long costCount = costRepository.searchByCondition(costCondition).size();
 
         return ApplicationDto.PendingCountResponse.builder()
@@ -542,5 +605,87 @@ public class ApplicationService {
                 .costCount(costCount)
                 .totalCount(projectCount + costCount)
                 .build();
+    }
+
+    /**
+     * 신청서 회수.
+     *
+     * @param apfMngNo   회수할 신청서 관리번호
+     * @param request    회수 요청 (사유)
+     * @param currentEno 회수 요청자 사번
+     * @param isAdmin    관리자(ROLE_ADMIN) 여부
+     * @throws IllegalArgumentException 신청서 없음
+     * @throws IllegalStateException    회수 가능 상태 아님 / 최종승인 후
+     * @throws AccessDeniedException    회수 권한 없음
+     */
+    @Transactional
+    public void recall(String apfMngNo, ApplicationDto.RecallRequest request,
+                       String currentEno, boolean isAdmin) {
+        Capplm capplm = applicationRepository.findById(apfMngNo)
+            .orElseThrow(() -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
+
+        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfStsC())) {
+            throw new IllegalStateException("회수 가능한 상태가 아닙니다. 현재 상태: " + capplm.getApfStsC());
+        }
+
+        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcdSqnAsc(apfMngNo);
+        boolean lastApproved = approvers.stream()
+            .anyMatch(a -> "Y".equals(a.getLstDcdYn())
+                        && DecisionStatus.APPROVED.code().equals(a.getDcdStsC()));
+        if (lastApproved) {
+            throw new IllegalStateException("최종 결재자 승인 후에는 회수할 수 없습니다.");
+        }
+
+        if (!canRecall(capplm, approvers, currentEno, isAdmin)) {
+            throw new AccessDeniedException("회수 권한이 없습니다.");
+        }
+
+        capplm.updateStatus(ApprovalStatus.RECALLED);
+        approvalLineDelegate.applyRecallInfo(capplm, currentEno, request.getRecallOpnn());
+
+        for (Cdecim a : approvers) {
+            if (DecisionStatus.PENDING.code().equals(a.getDcdStsC())) {
+                a.invalidateByRecall();
+                approverRepository.save(a);
+            }
+        }
+
+        List<String> approvedMiddle = approvers.stream()
+            .filter(a -> "N".equals(a.getLstDcdYn())
+                      && DecisionStatus.APPROVED.code().equals(a.getDcdStsC()))
+            .map(Cdecim::getDcdEno)
+            .distinct()
+            .toList();
+
+        eventPublisher.publishEvent(new ApprovalRecalledEvent(apfMngNo, currentEno, approvedMiddle));
+    }
+
+    /**
+     * 결재 회수 가능 여부 검증 헬퍼
+     *
+     * <p>
+     * 결재중 상태인 신청서에 대해 관리자·신청자·중간결재자 세 가지 분기로 회수 권한을 판단합니다.
+     * </p>
+     *
+     * <ul>
+     * <li>결재중({@code APF_STS_C = IN_PROGRESS}) 상태가 아니면 무조건 false 반환</li>
+     * <li>시스템관리자({@code isAdmin=true}): 항상 허용</li>
+     * <li>신청자({@code currentEno == capplm.rqsEno}): 허용</li>
+     * <li>중간결재자(최종결재자 아닌 결재선 중 현재 사용자): 허용</li>
+     * </ul>
+     *
+     * @param capplm      대상 신청서 마스터 엔티티
+     * @param approvers   결재선 목록 (중간결재자 여부 판단용, {@code LST_DCD_YN} 기준)
+     * @param currentEno  현재 요청 사용자 사번
+     * @param isAdmin     관리자 여부 플래그
+     * @return 회수 가능 여부 (true=허용, false=거부)
+     */
+    private boolean canRecall(Capplm capplm, List<Cdecim> approvers, String currentEno, boolean isAdmin) {
+        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfStsC())) return false;
+        if (isAdmin) return true;
+        if (currentEno.equals(capplm.getRqsEno())) return true;
+        return approvers.stream()
+            .filter(a -> !"Y".equals(a.getLstDcdYn()))
+            .anyMatch(a -> currentEno.equals(a.getDcdEno()));
     }
 }

@@ -26,7 +26,7 @@ public class ReviewCommentService {
 
     private final BrivgmRepository brivgmRepository;
 
-    /** 사용자 정보 리포지토리 (TAAABB_CUSERI): 사번→사용자명 조회용 */
+    /** 사용자 정보 리포지토리 (TPRMPP_CUSERI): 사번→사용자명 조회용 */
     private final UserRepository userRepository;
 
     /**
@@ -72,7 +72,7 @@ public class ReviewCommentService {
      * @throws ResponseStatusException 해당 의견이 존재하지 않거나 다른 문서에 속한 경우 (404 NOT_FOUND)
      */
     @Transactional
-    public void resolveComment(String docMngNo, String ivgSno) {
+    public void resolveComment(String docMngNo, Long ivgSno) {
         var comment = brivgmRepository.findByIvgSnoAndDocMngNoAndDelYn(ivgSno, docMngNo, "N")
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "검토의견을 찾을 수 없습니다: " + ivgSno));

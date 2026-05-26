@@ -17,7 +17,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 타당성 자체점검 엔티티
  *
- * <p>DB 테이블: {@code TAAABB_BCHKLC}</p>
+ * <p>DB 테이블: {@code TPRMPP_BCHKLC}</p>
  *
  * <p>협의회 1건당 6개 고정 항목이 생성됩니다 (CCODEM CKG_ITM_C 기준):</p>
  * <ol>
@@ -33,7 +33,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BchklcL.class)
 @Entity
-@Table(name = "TAAABB_BCHKLC", comment = "타당성 자체점검")
+@Table(name = "TPRMPP_BCHKLC", comment = "타당성 자체점검")
 @IdClass(BchklcId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

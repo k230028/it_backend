@@ -18,6 +18,8 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 
@@ -39,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 전산관리비(IT 관리비) 서비스
  *
  * <p>
- * 전산관리비(TAAABB_BCOSTM) 엔티티의 생성, 조회, 수정, 삭제(Soft Delete)
+ * 전산관리비(TPRMPP_BCOSTM) 엔티티의 생성, 조회, 수정, 삭제(Soft Delete)
  * 비즈니스 로직을 처리합니다.
  * </p>
  *
@@ -70,13 +72,21 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class CostService {
 
+    /** 전산관리비 엔티티(TPRMPP_BITEMC) CRUD 리포지토리 */
     private final CostRepository costRepository;
+    /** 단말기 관리(TPRMPP_BTERMM) 리포지토리: 단말기 연결 비용 조회용 */
     private final BtermmRepository btermmRepository;
+    /** 신청서 연결 맵(TPRMPP_CAPPLA) 리포지토리: 결재 연결 조회용 */
     private final ApplicationMapRepository capplaRepository;
+    /** 신청서 마스터(TPRMPP_CAPPLM) 리포지토리: 결재상태 조회용 */
     private final ApplicationRepository capplmRepository;
+    /** 조직(TPRMPP_CORGNI) 리포지토리: 부서명 조회용 */
     private final OrganizationRepository corgnIRepository;
+    /** 사용자(TPRMPP_CUSERI) 리포지토리: 담당자명 조회용 */
     private final UserRepository cuserIRepository;
+    /** 결재자(TPRMPP_CDECIM) 리포지토리: 결재선 조회용 */
     private final ApproverRepository cdecimRepository;
+    /** 공통코드(TPRMPP_CCODEM) 리포지토리: 코드명 배치 조회용 */
     private final CodeRepository ccodemRepository;
 
     /** 공통코드 서비스: 예산 신청 기간 검증용 */
@@ -84,6 +94,9 @@ public class CostService {
 
     /** 편성예산(BBUGTM) 리포지토리: 일괄 조회 시 itMngcNo별 DUP_BG 합계 조회용 */
     private final BbugtmRepository bbugtmRepository;
+
+    /** 환율 표준 조회 헬퍼: 외화 저장 전 Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7) */
+    private final XcrLookupService xcrLookupService;
 
     /** 일반관리비 대상 코드값구분 */
     private static final Set<String> COST_CTT_TPS = Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE");
@@ -213,6 +226,15 @@ public class CostService {
             nextSno = 1;
         }
 
+        // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+        request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
+
+        // 외화 재계산: 클라 itMngcBgAmt를 fcAmt × xcr로 덮어씀 (CONTEXT.md 결정 C)
+        BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
+                request.getFcAmt(), request.getItMngcBgAmt(), request.getCurC(), request.getXcr());
+        request.setItMngcBgAmt(reconciled[0]);
+        request.setFcAmt(reconciled[1]);
+
         Bcostm bcostm = request.toEntity(nextSno);
         costRepository.save(bcostm);
 
@@ -221,9 +243,18 @@ public class CostService {
                 if (tDto.getTmnMngNo() == null || tDto.getTmnMngNo().isEmpty()) {
                     tDto.setTmnMngNo(generateTmnMngNo());
                 }
-                if (tDto.getTmnSno() == null || tDto.getTmnSno().isEmpty()) {
-                    tDto.setTmnSno("1");
+                if (tDto.getTmnSno() == null) {
+                    tDto.setTmnSno(1);
                 }
+
+                // XCR 표준 조회 (단말기): Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+                tDto.setXcr(xcrLookupService.resolveXcr(tDto.getCurC(), LocalDate.now()));
+
+                // 단말기 외화 재계산 (CONTEXT.md 결정 C)
+                BigDecimal[] tReconciled = BudgetAmountCalculator.reconcileAmount(
+                        tDto.getFcAmt(), tDto.getTmlAmt(), tDto.getCurC(), tDto.getXcr());
+                tDto.setTmlAmt(tReconciled[0]);
+                tDto.setFcAmt(tReconciled[1]);
 
                 Btermm btermm = tDto.toEntity();
                 btermm.setBcostmInfo(bcostm.getItMngcNo(), bcostm.getItMngcSno());
@@ -269,13 +300,23 @@ public class CostService {
 
         validateModifyPermission(target.getFstEnrUsid(), target.getBiceDpmC());
 
+        // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+        request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
+
+        // 외화 재계산: 클라 itMngcBgAmt를 fcAmt × xcr로 덮어씀 (CONTEXT.md 결정 C)
+        BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
+                request.getFcAmt(), request.getItMngcBgAmt(), request.getCurC(), request.getXcr());
+        request.setItMngcBgAmt(reconciled[0]);
+        request.setFcAmt(reconciled[1]);
+
         target.update(
                 request.getIoeC(), request.getCttNm(), request.getCttOppNm(),
                 request.getItMngcBgAmt(), request.getDfrCleC(), request.getFstDfrDt(),
                 request.getCurC(), request.getXcr(), request.getXcrBseDt(),
                 request.getInfPrtYn(), request.getIndRsn(), request.getCgprEno(),
                 request.getBiceDpmC(), request.getBiceTemC(), request.getAbusC(),
-                request.getItMngcTp(), request.getPulDtt(), request.getBgYy(), request.getCncdItMngcNo());
+                request.getItMngcTp(), request.getPulDtt(), request.getBgYy(), request.getCncdItMngcNo(),
+                request.getFcAmt());
 
         /* 연관된 단말기 목록 업데이트: 기존 Soft Delete 후 재등록 */
         List<Btermm> existingTerminals = btermmRepository.findByItMngcNoAndItMngcSno(target.getItMngcNo(), target.getItMngcSno());
@@ -287,7 +328,16 @@ public class CostService {
             for (CostDto.TerminalDto tDto : request.getTerminals()) {
                 /* 새 PK를 발급하여 Soft Delete된 기존 레코드와 충돌 방지 */
                 tDto.setTmnMngNo(generateTmnMngNo());
-                tDto.setTmnSno("1");
+                tDto.setTmnSno(1);
+
+                // XCR 표준 조회 (단말기): Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+                tDto.setXcr(xcrLookupService.resolveXcr(tDto.getCurC(), LocalDate.now()));
+
+                // 단말기 외화 재계산 (CONTEXT.md 결정 C)
+                BigDecimal[] tReconciled = BudgetAmountCalculator.reconcileAmount(
+                        tDto.getFcAmt(), tDto.getTmlAmt(), tDto.getCurC(), tDto.getXcr());
+                tDto.setTmlAmt(tReconciled[0]);
+                tDto.setFcAmt(tReconciled[1]);
 
                 Btermm btermm = tDto.toEntity();
                 btermm.setBcostmInfo(target.getItMngcNo(), target.getItMngcSno());
@@ -349,6 +399,8 @@ public class CostService {
                     try {
                         return getCost(itMngcNo);
                     } catch (IllegalArgumentException e) {
+                        // FIXME: [B-H-04] null 필터 패턴 제거, 조회 실패시 예외 전파 또는 warn 로그 필요
+                        // 현재 null → filter(Objects::nonNull) 패턴으로 실패 비용 항목이 silently 손실됨.
                         // FIXME: [B-C-05] B-C-03 참조. 실패 비용 ID warn 로그 및 호출자 통지 필요
                         return null;
                     }
@@ -356,7 +408,7 @@ public class CostService {
                 .filter(response -> response != null)
                 .collect(Collectors.toList());
 
-        // TAAABB_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
+        // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
         String bgYy = request.getBgYy();
         if (bgYy != null && !bgYy.isBlank() && !responses.isEmpty()) {
             List<String> itMngcNos = responses.stream()
@@ -399,7 +451,7 @@ public class CostService {
      */
     private void setApplicationInfo(CostDto.Response response, String itMngcNo, Integer itMngcSno) {
         List<Cappla> capplas = capplaRepository
-                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfRelSnoDesc("BCOSTM", itMngcNo, itMngcSno);
+                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc("BCOSTM", itMngcNo, itMngcSno);
 
         if (!capplas.isEmpty()) {
             Cappla cappla = capplas.get(0);
@@ -407,7 +459,8 @@ public class CostService {
 
             capplmRepository.findById(cappla.getApfMngNo())
                     .ifPresent(capplm -> {
-                        response.setApfSts(capplm.getApfSts());
+                        response.setApfSts(capplm.getApfStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label());
                         List<Cdecim> decisions = cdecimRepository
                                 .findByDcdMngNoOrderByDcdSqnAsc(cappla.getApfMngNo());
                         response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
@@ -487,7 +540,7 @@ public class CostService {
 
         // --- 1. CAPPLA 배치 조회 ---
         List<String> itMngcNos = costs.stream().map(Bcostm::getItMngcNo).distinct().collect(Collectors.toList());
-        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfRelSnoDesc("BCOSTM", itMngcNos);
+        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc("BCOSTM", itMngcNos);
 
         // itMngcNo+sno 복합키 → 최신 Cappla
         Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();
@@ -553,7 +606,8 @@ public class CostService {
                 response.setApfMngNo(cappla.getApfMngNo());
                 Capplm capplm = capplmMap.get(cappla.getApfMngNo());
                 if (capplm != null) {
-                    response.setApfSts(capplm.getApfSts());
+                    response.setApfSts(capplm.getApfStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label());
                     List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfMngNo(), List.of());
                     response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
                 }
@@ -731,13 +785,19 @@ public class CostService {
     }
 
     /**
-     * 수정/삭제 권한 검증 (ProjectService.validateModifyPermission과 동일 규칙)
+     * RBAC 수정/삭제 권한 검증 헬퍼 ({@link com.kdb.it.domain.budget.project.service.ProjectService}와 동일 규칙)
+     *
+     * <p>SecurityContext에서 현재 인증된 사용자를 조회하고 자격등급 기반 3단계 권한을 검증합니다.</p>
      *
      * <ol>
-     *   <li>시스템관리자(ITPAD001): 전체 허용</li>
-     *   <li>기획통할담당자(ITPZZ002): 소속 부서 리소스 허용</li>
-     *   <li>일반사용자(ITPZZ001): 본인 작성 리소스만 허용</li>
+     *   <li>시스템관리자(ITPAD001): 모든 리소스 수정 허용</li>
+     *   <li>기획통할담당자(ITPZZ002): 소속 부서(bbrC) == 리소스 부서(resourceBbrC)인 경우 허용</li>
+     *   <li>일반사용자(ITPZZ001): 본인 작성 리소스(creatorEno == 요청자 eno)만 허용</li>
      * </ol>
+     *
+     * @param creatorEno   리소스 최초 작성자 사번 (FST_ENR_USID)
+     * @param resourceBbrC 리소스 소속 부서코드 (부서 단위 권한 범위 결정용)
+     * @throws org.springframework.security.access.AccessDeniedException 수정 권한이 없는 경우
      */
     private void validateModifyPermission(String creatorEno, String resourceBbrC) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();

@@ -98,7 +98,13 @@ public class AdminLogService {
      */
     public AdminLogDto.LogDetailResponse getLogDetail(String key, String logSno) {
         LogDefinition def = getDefinition(key);
-        Object entity = entityManager.find(def.entityClass(), logSno);
+        Long id;
+        try {
+            id = Long.parseLong(logSno);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("유효하지 않은 로그 일련번호: " + logSno);
+        }
+        Object entity = entityManager.find(def.entityClass(), id);
         if (entity == null) {
             throw new IllegalArgumentException("존재하지 않는 로그입니다: " + logSno);
         }
@@ -109,6 +115,16 @@ public class AdminLogService {
         return new AdminLogDto.LogDetailResponse(toTableResponse(def), columns, row, userNames);
     }
 
+    /**
+     * 로그 테이블 키로 {@link LogDefinition}을 조회합니다.
+     *
+     * <p>로그 테이블 종류(프로젝트, 비용, 결재 등)에 따라 등록된 정의를 반환합니다.
+     * 미등록 키 입력 시 즉시 예외를 발생시켜 잘못된 테이블 접근을 방지합니다.</p>
+     *
+     * @param key 로그 테이블 식별 키 (예: "project", "cost")
+     * @return 해당 키의 {@link LogDefinition}
+     * @throws IllegalArgumentException 등록되지 않은 키인 경우
+     */
     private LogDefinition getDefinition(String key) {
         LogDefinition def = definitions.get(key);
         if (def == null) {
@@ -117,6 +133,15 @@ public class AdminLogService {
         return def;
     }
 
+    /**
+     * 페이지 요청값을 안전한 범위로 보정합니다.
+     *
+     * <p>음수 페이지번호는 0으로, 페이지크기는 1~{@code MAX_PAGE_SIZE} 범위로 클리핑합니다.
+     * null {@code pageable} 입력 시 {@link NullPointerException}이 발생할 수 있습니다.</p>
+     *
+     * @param pageable 원본 페이지 요청
+     * @return 범위 보정된 {@link Pageable}
+     */
     private Pageable safePageable(Pageable pageable) {
         int page = Math.max(pageable.getPageNumber(), 0);
         int size = Math.min(Math.max(pageable.getPageSize(), 1), MAX_PAGE_SIZE);
@@ -156,6 +181,16 @@ public class AdminLogService {
         return row;
     }
 
+    /**
+     * 엔티티 인스턴스에서 지정된 필드 값을 리플렉션으로 읽습니다.
+     *
+     * <p>현재 클래스부터 상위 클래스 계층을 순서대로 탐색합니다.</p>
+     *
+     * @param entity    대상 엔티티 인스턴스
+     * @param fieldName 읽을 필드명 (camelCase)
+     * @return 필드 값 (클래스 계층 전체에서 필드 미발견 시 {@code null} 반환)
+     * @throws IllegalStateException 필드 접근 불가 시 ({@link IllegalAccessException} 래핑)
+     */
     private Object readField(Object entity, String fieldName) {
         Class<?> current = entity.getClass();
         while (current != null) {
@@ -207,13 +242,25 @@ public class AdminLogService {
         );
     }
 
+    /**
+     * 필드명이 사용자 사번을 담는 필드인지 판별합니다.
+     *
+     * <p>판별 대상 패턴 (대소문자 무시):</p>
+     * <ul>
+     * <li>정확히 일치: {@code eno}, {@code mnusr}, {@code cgpreno}</li>
+     * <li>접미사 일치: {@code *usid}, {@code *cgpreno}, {@code *tlr}</li>
+     * </ul>
+     *
+     * @param fieldName 판별할 필드명 (camelCase)
+     * @return 사용자 사번 필드이면 true
+     */
     private boolean isUserField(String fieldName) {
         String normalized = fieldName.toLowerCase(Locale.ROOT);
         return normalized.equals("eno")
                 || normalized.equals("mnusr")
-                || normalized.equals("cgprEno")
+                || normalized.equals("cgpreno")
                 || normalized.endsWith("usid")
-                || normalized.endsWith("cgprEno")
+                || normalized.endsWith("cgpreno")
                 || normalized.endsWith("tlr");
     }
 

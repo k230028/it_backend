@@ -1,4 +1,4 @@
----
+﻿---
 [ 백엔드 가이드 ]
 본 파일은 IT Portal 백엔드의 SoT(Single Source of Truth)입니다.
 기술 스택, 아키텍처, 보안 정책의 원본은 여기에 있습니다.
@@ -70,17 +70,22 @@ src/main/resources/
 - 한글 주석 원칙은 루트 `../CLAUDE.md` §4.1 참조.
 
 ### 5.2 테이블 명칭
-- TAAABB_{1자리 구분값}{4자리 도메인}{1자리 용도}
+- TPRMPP_{1자리 구분값}{4자리 도메인}{1자리 용도}
 - 1자리 구분값 : C (공통), B (비즈니스)
-- 4자리 도메인 : 용도에 따라 지정 ex) BLBC
+- 4자리 도메인 : 용도에 따라 지정
+  - 예: `BLBC` (사업), `CBLB` (게시판), `CINFM` (알림), `CLOGN` (로그인), `BBLG` (변경로그)
 - 1자리 용도 : M (마스터), L (로그), H (이력)
 
 ### 5.2 엔티티 설계
 - 모든 업무 엔티티는 **`BaseEntity` 상속** (공통 컬럼: `DEL_YN`, `GUID`, `FST_ENR_DTM/USID`, `LST_CHG_DTM/USID`).
+- 감사 로그 필요 엔티티: **`BaseLogEntity` 상속** (기본 컬럼 + `BLG` 로그 엔티티 자동 동기화).
+  - 현재 적용: 23개 엔티티 (`Bprojm`, `Bitemm`, `Bbugtm`, `Cblbmm`, `Cblbcm`, `Ccmmtm`, `Capplm`, `Cappla` 등 *L 접미사).
+  - 로그 생성 메커니즘: JPA `@PrePersist`/`@PreUpdate` → `ChangeLogEntityListener` → `AuditLogPersister.persist()`.
 - 삭제는 항상 **Soft Delete**(`delete()` → `DEL_YN='Y'`). 물리 삭제 금지.
-- 엔티티 명칭은 `C:\it\META.md` 반드시 용어사전 기반으로 지정 (필수)
-  (예. 삭제여부 : DEL_YN 등)
-- comment 지정 필수
+- 엔티티 명칭은 메타 문서 반드시 용어사전 기반으로 지정 (필수).
+  - 예: 삭제여부=`DEL_YN`, 생성자사번=`FST_ENR_USID`, 변경자사번=`LST_CHG_USID`.
+- `@Column` 주석(comment) 필수 지정.
+- 복합 기본키: `@IdClass` 또는 `@EmbeddedId` 패턴 사용 (예: `CcodemId`, `CapplaId`).
 ```java
     @Column(name = "ORC_TB_CD", length = 10, comment = "원본테이블코드")
     private String orcTbCd;
@@ -118,6 +123,34 @@ src/main/resources/
 - 시퀀스 등 DB 종속 쿼리: `@Query(nativeQuery = true)`.
 - 게시판 목록 검색처럼 공개 기간·권한·부서 조건이 함께 필요한 쿼리는 QueryDSL `BooleanBuilder`로 조립하고, 조건별 의도를 JavaDoc 또는 인접 주석으로 남깁니다.
 
+#### 5.4.1 QueryDSL 작성 규칙
+- `BooleanBuilder` 사용: 동적 조건 조립용.
+- 조건 추가 패턴: `if (StringUtils.hasText(filterValue)) { builder.and(...); }`.
+- 페이지네이션: `.offset()` 및 `.limit()`로 구현.
+- 정렬: `.orderBy()`에 QueryDSL `OrderSpecifier` 사용.
+- 에러 핸들링: 쿼리 오류 시 상위 계층으로 예외 전파 (Repository는 DB 예외 변환 X).
+- 예시:
+  ```java
+  BooleanBuilder builder = new BooleanBuilder();
+  
+  // 선택적 조건들
+  if (StringUtils.hasText(bbrC)) {
+      builder.and(entity.bbrC.eq(bbrC));
+  }
+  if (status != null) {
+      builder.and(entity.status.eq(status));
+  }
+  
+  // 쿼리 실행
+  List<Entity> results = queryFactory
+      .selectFrom(entity)
+      .where(builder)
+      .orderBy(entity.createdAt.desc())
+      .offset(offset)
+      .limit(limit)
+      .fetch();
+  ```
+
 ### 5.5 Service 트랜잭션
 - 조회: `@Transactional(readOnly = true)` 필수.
 - 쓰기: `@Transactional` (기본 readOnly=false).
@@ -136,41 +169,128 @@ src/main/resources/
 - 검증 실패 시 자동으로 400 Bad Request 응답.
 
 ### 5.6 인증 및 보안 (전사 SoT)
-- 인증 방식: **httpOnly 쿠키 기반 JWT**(Stateless).
-- Access Token 유효시간: 15분 (`jwt.access-token-validity=900000`).
-- Refresh Token 유효시간: 7일 (`jwt.refresh-token-validity=604800000`).
-- 비밀번호 암호화: `CustomPasswordEncoder` (SHA-256 + Base64).
-- Access/Refresh Token은 `CookieUtil`로 httpOnly 쿠키에 설정.
-- 보호 API는 쿠키 자동 전송 기본. `JwtAuthenticationFilter`는 `Authorization: Bearer`를 폴백으로만 허용.
-- 공개 엔드포인트: `/api/auth/login`, `/api/auth/refresh`, `/swagger-ui/**`, `/v3/api-docs/**`.
-- 회원가입 엔드포인트(`/api/auth/signup`)는 `SecurityConfig`에서 `hasRole("ADMIN")`로 보호합니다. 임직원 포털 특성상 자유 가입 API로 취급하지 않습니다.
-- 관리자 전용: `/api/admin/**` — SecurityConfig URL 패턴 + `@PreAuthorize("hasRole('ADMIN')")` 이중 보호.
-- **관리자 전용 도메인 API** (`/api/admin/**` 외 경로라도 관리자만 접근해야 하는 엔드포인트): 컨트롤러 **클래스 레벨**에 반드시 `@PreAuthorize("hasRole('ADMIN')")` 적용. SecurityConfig URL 패턴은 `/api/admin/**`에만 등록되므로 도메인 컨트롤러는 어노테이션으로 보호해야 함. 누락 시 인증된 모든 사용자가 API 직접 호출 가능.
-  ```java
-  // 관리자 전용 컨트롤러 — 클래스 레벨 적용 필수
-  @RestController
-  @RequestMapping("/api/plans")
-  @RequiredArgsConstructor
-  @PreAuthorize("hasRole('ADMIN')")   // ← 누락 금지
-  public class PlanController { ... }
-  ```
-  현재 적용 대상: `PlanController`, `BudgetStatusController`, `BudgetWorkController`.
-- **권한 검증 보강 현황** (코드 분석 기준, 2026-05-17): `FileController`는 단건 삭제 경로에 `FileOwnershipChecker.checkOwnership()`이 적용되어 있으나 다운로드·미리보기·조회·메타수정·원본 기준 일괄삭제 권한 검증은 후속 과제입니다. `GeminiController`는 `@PreAuthorize("hasRole('ADMIN')")`로 관리자 전용 처리합니다. `UserController`, `OrganizationController`, `ProjectController`, `ApplicationController`의 부서/소유권 정책은 업무 요건에 맞춰 별도 검토합니다.
-- RBAC 모델: 자격등급(`CauthI`) + 역할 매핑(`CroleI`).
-  - `ITPAD001` = 시스템관리자
-  - `ITPZZ001` = 일반사용자
-  - `ITPZZ002` = 기획통할담당자
-- CORS: `cors.allowed-origins=http://localhost,http://localhost:3000,http://localhost:3002` (개발 프론트 및 E2E).
-- 운영: `app.cookie.secure=true` + HTTPS 필수. `app.cookie.secure` 기본값이 `false`이므로 운영 프로파일에서 반드시 오버라이드해야 합니다.
-- **`Authorization: Bearer` 헤더 폴백**: Swagger/Postman 편의를 위해 허용되어 있으나 운영 환경에서도 동작합니다. 운영 전환 전 비활성화 여부를 결정하고 이 문서에 명시합니다.
-- **파일 업로드 확장자 검증**: `FileService.uploadFileInternal()` 진입 시점에 `FileValidator.validateExtension()`을 호출합니다.
-- **로그인 Brute-force 보호**: `LoginAttemptService`가 사번 기준 5회 실패/10분 잠금을 적용합니다.
-- Brute-force 판정은 인메모리 카운터가 아니라 `TAAABB_CLOGNH`의 `LOGIN_FAILURE` 이력을 `LoginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter()`로 집계합니다.
-- **X-Forwarded-For 신뢰**: `AuthController.getClientIp()`가 헤더를 무조건 신뢰합니다. 운영 인프라(Nginx 등)에서 헤더를 덮어쓰도록 설정해야 IP 위조를 방지할 수 있습니다.
-- **비밀값 기본값 금지**: `application.properties`의 `${VAR:default}` 형태 기본값은 환경변수 미설정 시 운영에 그대로 사용됩니다. `:default` 부분을 제거하고 구동 시 빈값이면 즉시 실패하도록 해야 합니다.
-- **비밀번호 해시 규격(KDB 표준)**: `CustomPasswordEncoder`는 사내 SSO·통합인증 시스템과의 호환을 위해 KDB 표준 암호화 규격(SHA-256 + Base64, 고정 솔트 파라미터)을 적용합니다. 알고리즘·솔트 파라미터는 거버넌스 승인 없이 변경할 수 없으며, 차세대 인증체계 전환은 별도 트랙으로 관리합니다. 클래스에는 정책 예외 표시(`@SuppressWarnings` 4건 + `NOSONAR` 마커)가 부여되어 있으므로 자동화 보안 점검 결과에 재등재하지 않습니다.
-- CORS: `cors.allowed-origins`는 `http://localhost,...` (개발값)이 기본입니다. 운영 배포 시 `https://it.kdb.co.kr` 등 실제 오리진으로 환경변수 오버라이드가 필수이며, 구동 시 검증 로직이 없으므로 배포 체크리스트에 포함해야 합니다.
-- 운영 비밀값: `spring.datasource.password`, `jwt.secret`, `gemini.api.key`는 환경변수 또는 프로파일별 비공개 설정에서 주입합니다.
+
+#### JWT 토큰 정책 (JwtUtil 코드 기준)
+- 인증 방식: **httpOnly 쿠키 기반 JWT**(Stateless). DB 세션 없음.
+- Access Token 유효시간: **15분** (`jwt.access-token-validity=900000` ms).
+- Refresh Token 유효시간: **7일** (`jwt.refresh-token-validity=604800000` ms).
+- JWT 서명 알고리즘: HMAC-SHA (JJWT `Keys.hmacShaKeyFor()`, 키 길이 최소 256비트 필수).
+- JWT 클레임 구성 (`JwtUtil.generateAccessToken()`):
+  - `sub` — 사번 (eno)
+  - `athIds` — 자격등급 ID 목록 (JSON 배열, 예: `["ITPAD001"]`)
+  - `bbrC` — 소속 부서코드
+  - `iat` — 발급 시각, `exp` — 만료 시각
+- Refresh Token은 `athIds`/`bbrC` 클레임 없이 `sub`+`iat`+`exp`만 포함.
+- Refresh Token 갱신 시 최신 자격등급을 DB에서 재조회하여 Access Token 생성 (`AuthService.refreshAccessToken()`).
+- **1인 1 Refresh Token 정책**: 로그인 시 기존 Refresh Token을 삭제 후 신규 저장 (`refreshTokenRepository.deleteByEno(eno)` → save).
+- Refresh Token 검증은 3단계: JWT 서명 검증 → DB 존재 여부 → DB `endDtm` 만료 여부.
+- **`athIds` 클레임 타입 불일치 시**: 빈 리스트 반환 → `CustomUserDetails`가 기본값 `ITPZZ001`(일반사용자) 적용. warn 로그 없음 — 권한 강등 탐지 어려움 (TASK.md 등록).
+
+#### 쿠키 정책 (CookieUtil 코드 기준)
+- Access/Refresh Token은 `CookieUtil`로 httpOnly 쿠키에 설정. JavaScript 접근 불가.
+- Access Token 쿠키: `path="/"`, `maxAge=900초(15분)`, `sameSite=Lax`.
+- Refresh Token 쿠키: `path="/api/auth"` (인증 경로 전송 제한), `maxAge=604800초(7일)`, `sameSite=Lax`.
+- `it-portal-user` 쿠키: `httpOnly=false` — Nuxt 화면 인증 상태 복원용. 사번/이름/권한만 포함. JWT나 비밀값 삽입 금지.
+- `app.cookie.secure` 기본값: `false`. 운영 프로파일에서 반드시 `true`로 오버라이드 필수.
+
+#### 토큰 추출 우선순위 (JwtAuthenticationFilter 코드 기준)
+1. `accessToken` httpOnly 쿠키 (브라우저 기본)
+2. `Authorization: Bearer {token}` 헤더 (Swagger/Postman 폴백)
+
+**`Authorization: Bearer` 헤더 폴백 주의**: Swagger/Postman 편의용이나 운영에서도 동작합니다. httpOnly 쿠키 전략을 우회할 수 있어 XSS 이후 2차 공격 경로가 됩니다. 운영 전환 전 비활성화 여부를 결정하고 이 문서에 명시해야 합니다.
+
+#### @PreAuthorize 표준 패턴 (컨트롤러 코드 기준)
+- `hasRole('ADMIN')` — 클래스 레벨 적용 필수. 메서드 레벨 개별 적용 금지 (누락 방지).
+- `SecurityConfig`의 URL 패턴 보호는 `/api/admin/**`에만 적용됨. 도메인 컨트롤러는 어노테이션으로 이중 보호해야 함.
+
+```java
+// 관리자 전용 컨트롤러 — 클래스 레벨 적용 필수
+@RestController
+@RequestMapping("/api/plans")
+@RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")   // ← 누락 금지
+public class PlanController { ... }
+```
+
+**현재 적용 대상** (코드 분석 2026-05-26):
+- `AdminController` (`common/admin`) — 시스템 관리
+- `GeminiController` (`infra/ai`) — Gemini AI
+- `AdminBoardMetaController` (`common/board`) — 게시판 메타 관리
+- `BudgetStatusController` (`domain/budget/status`) — 예산 현황
+- `BudgetWorkController` (`domain/budget/work`) — 예산 작업
+- `PlanController` (`domain/budget/plan`) — 정보기술부문 계획
+
+**SecurityConfig URL 패턴 보호 대상** (코드 분석 2026-05-26):
+- `/api/admin/**` → `hasRole("ADMIN")`
+- `/api/auth/signup` → `hasRole("ADMIN")`
+- `/api/plan/**` → `hasRole("ADMIN")` (SecurityConfig 직접 적용)
+
+#### 부서 필터링(bbrC) 적용 규칙 (§5.14와 동일, 여기에 보안 관점 요약)
+- `bbrC`는 JWT `athIds` 클레임의 소속 부서코드. Access Token 발급 시 DB에서 읽은 `user.getBbrC()`를 포함.
+- 서비스 계층에서 `isAdmin()` 체크 후 관리자는 전체 조회, 일반 사용자는 `bbrC` 일치 항목만 반환. 프론트 필터링은 UX 보조일 뿐 최종 보안 경계가 아님.
+- `bbrC` null인 경우 전체 조회. 관리자·SSO 미동기화 계정 동일 처리.
+
+#### RBAC 모델 (CustomUserDetails 코드 기준)
+| 자격등급 ID | Spring Security Role | 설명 |
+|-----------|---------------------|------|
+| `ITPAD001` | `ROLE_ADMIN` | 시스템관리자 — 전체 조회/수정/삭제, 관리자 메뉴 |
+| `ITPZZ002` | `ROLE_DEPT_MANAGER` | 기획통할담당자 — 소속 부서 조회/수정/삭제 |
+| `ITPZZ001` | `ROLE_USER` | 일반사용자 — 소속 부서 조회, 본인 작성 수정 (기본값) |
+
+- 다중 자격등급 지원: 한 사용자가 여러 `athIds` 보유 가능. 모든 등급에 대응하는 `GrantedAuthority` 등록.
+- `isDeptManager()` 편의 메서드: `ITPZZ002` 또는 `ITPAD001`이면 `true` (관리자 포함).
+- `athIds` null/빈 리스트이면 `ITPZZ001` 자동 적용 (방어 기본값).
+
+#### 공개/비공개 엔드포인트 (SecurityConfig 코드 기준)
+- 인증 불필요: `/api/auth/login`, `/api/auth/refresh`, `/api/auth/sso/complete`, `/sso/**`, `/swagger-ui/**`, `/v3/api-docs/**`, `/error`
+- 인증 필요 + ADMIN 전용: `/api/admin/**`, `/api/auth/signup`, `/api/plan/**`
+- 나머지: 인증 필요 (`anyRequest().authenticated()`)
+
+#### 개발 전용 API 보안 주의사항 (DevAuthController, SsoController 코드 기준)
+- **`DevAuthController`**: `app.dev.user-switch.enabled=true`(기본값)이면 비밀번호 없이 임의 사번으로 JWT 발급 가능. `matchIfMissing=true`이므로 설정 누락 시 자동 활성화됨. **운영 배포 전 `app.dev.user-switch.enabled=false` 설정 필수.**
+- **`SsoController`**: `app.sso.allow-direct-eno=false`(기본값). `true`이면 GET 파라미터 `eno=`로 SSO 없이 JWT 발급 가능. 기본값 유지 필수.
+- SSO 리다이렉트 URL은 `cors.allowed-origins` 화이트리스트로 오픈 리다이렉트 방지 (`SsoController.getAllowedOrigin()`).
+- SSO 완료 후 세션 키(`ssoVerifiedEno`)는 사용 즉시 `session.removeAttribute()`로 삭제 (재사용 방지).
+
+#### 로그인 Brute-force 보호 (LoginAttemptService, AuthService 코드 기준)
+- 임계값: **사번 기준 5회 실패 / 10분 잠금** (`LoginAttemptService.checkLocked(eno)`).
+- 판정: `TPRMPP_CLOGNH` DB 이력 기반 (`LoginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter()`). 서버 재시작에도 유지됨.
+- 잠금 판정은 로그인 검증 전 선행 호출 (`AuthService.login()` 진입 시 checkLocked 먼저).
+- **IP/기기 기준 잠금 없음** — Credential stuffing 방어 미적용. TASK.md 등록 대상.
+- **로그인 에러 메시지**: "사용자를 찾을 수 없습니다"와 "비밀번호가 일치하지 않습니다"로 분리됨 — 사번 열거 가능. 개선 대상.
+
+#### 보안 헤더 설정 (SecurityConfig.headers() 코드 기준)
+- `X-Content-Type-Options: nosniff` — MIME 스니핑 방지
+- `X-Frame-Options: DENY` — 클릭재킹 방지
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains` — HSTS
+- `Content-Security-Policy`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'`
+  - `style-src 'unsafe-inline'` 포함 — CSS injection 벡터 존재. 개선 대상.
+
+#### CORS 설정 (SecurityConfig.corsConfigurationSource() 코드 기준)
+- 개발: `cors.allowed-origins=http://localhost,http://localhost:3000,http://localhost:3002`
+- 운영 배포 시 `https://it.kdb.co.kr` 등 실제 오리진으로 환경변수 오버라이드 필수.
+- `allowCredentials=true`이므로 와일드카드(`*`) 불가. 반드시 명시적 도메인 나열.
+- 구동 시 CORS 오리진 운영값 검증 로직 없음 — 배포 체크리스트에 포함 필수.
+
+#### 비밀값 관리 (application.properties, EnvironmentValidator 코드 기준)
+- 운영 비밀값: `spring.datasource.password`, `jwt.secret`, `gemini.api.key`는 환경변수 주입 필수.
+- `EnvironmentValidator`는 `DB_PASSWORD`, `JWT_SECRET` 프로퍼티 해석 결과가 빈값이면 구동 차단.
+- **현재 `application.properties`에 `${DB_PASSWORD:kdb1234!!}`, `${JWT_SECRET:...}` 기본값이 남아 있어 환경변수 미설정 시 기본값으로 통과됨. 운영 프로파일에서 기본값 제거 필수.**
+- `gemini.api.key`는 `${GEMINI_API_KEY:}` (빈 기본값)이므로 `EnvironmentValidator` 검증 대상에 추가 권장.
+
+#### X-Forwarded-For 헤더 신뢰 (AuthController.getClientIp() 코드 기준)
+- `X-Forwarded-For` → `Proxy-Client-IP` → `WL-Proxy-Client-IP` 순서로 IP 추출.
+- 헤더를 무조건 신뢰함. 운영 인프라(Nginx)에서 신뢰된 프록시만 헤더를 설정하도록 구성해야 IP 위조 방지.
+
+#### 비밀번호 해시 규격 (CustomPasswordEncoder 코드 기준)
+- SHA-256 + Base64 (고정 빈 솔트). KDB 사내 SSO 표준 규격이므로 거버넌스 승인 없이 변경 불가.
+- `@SuppressWarnings` 4건 + `NOSONAR` 마커로 자동화 보안 점검 정책 예외 처리됨. 보안 검토 결과에 재등재 금지.
+
+#### 권한 검증 보강 현황 (코드 분석 2026-05-26)
+- `FileController`: 단건 삭제 — `FileOwnershipChecker.checkOwnership()` 적용. 다운로드·미리보기·조회·메타수정·원본 기준 일괄삭제 권한 검증은 후속 과제.
+- `GeminiController`: `@PreAuthorize("hasRole('ADMIN')")` 관리자 전용.
+- `UserController`, `OrganizationController`, `ProjectController`, `ApplicationController`: 부서/소유권 정책은 업무 요건에 맞춰 별도 검토.
+- **파일 업로드 확장자 검증**: `FileService.uploadFileInternal()` 진입 시점에 `FileValidator.validateExtension()` 호출.
 
 ### 5.7 채번/주요 비즈니스 제약
 - 채번 규칙(관리번호 포맷)은 → [`docs/guides/data-model.md#3-채번-규칙`](docs/guides/data-model.md) 참조.
@@ -193,7 +313,8 @@ src/main/resources/
 
 ### 5.10 기동 시 환경변수 검증
 - `EnvironmentValidator` (`common/system/EnvironmentValidator.java`): `@PostConstruct`에서 `spring.datasource.password`, `jwt.secret` 프로퍼티 해석 결과를 검사.
-- 해석 결과가 빈값이면 `IllegalStateException`으로 즉시 구동 실패합니다. 다만 현재 `application.properties`에는 `DB_PASSWORD`, `JWT_SECRET` 기본값이 남아 있어 환경변수 미설정도 통과하므로 운영 프로파일에서는 기본값 제거가 필요합니다.
+- 해석 결과가 빈값이면 `IllegalStateException`으로 즉시 구동 실패.
+- **현재 `application.properties`의 기본값(`kdb1234!!`, 기본 JWT 시크릿)으로 인해 환경변수 미설정 시 검증 통과 → 운영 프로파일에서 기본값 제거 필수.** (§5.6 비밀값 관리 참조)
 - 환경변수 추가 시 `EnvironmentValidator` 목록에도 함께 등록.
 
 ### 5.11 파일 보안
@@ -205,14 +326,15 @@ src/main/resources/
 
 ### 5.11.1 Gemini AI 보안
 - `GeminiController`는 `@PreAuthorize("hasRole('ADMIN')")`로 관리자 전용입니다.
+- `GeminiService`는 파일 메타 조회, 파일 시스템 I/O, 외부 API 호출을 한 흐름에서 처리하지만 긴 외부 호출이 DB 트랜잭션을 점유하지 않도록 별도 `@Transactional` 경계를 두지 않습니다.
 - 비관리자에게 Gemini 기능을 개방하기 전에는 첨부 `flMngNo`별 파일 접근 검증, 프롬프트 길이, 첨부 개수, 실제 파일 크기, 비용 상한을 먼저 구현합니다.
 - `GeminiDto.Request` 검증 조건을 변경할 때는 `GeminiService.generate()`의 null/길이 처리와 함께 테스트를 갱신합니다.
 
 ### 5.12 로그인 Brute-force 보호
-- `LoginAttemptService` (`common/iam/service/LoginAttemptService.java`): `TAAABB_CLOGNH` 로그인 이력 기반 실패 횟수 집계.
-- 임계값: 5회 실패 / 10분 잠금.
-- `AuthService.login()`: 로그인 검증 전에 `checkLocked(eno)`를 호출하고, 실패 이력은 기존 로그인 이력 저장 흐름을 통해 남깁니다.
-- **주의**: DB 이력 기준이므로 서버 재시작에는 유지되지만, IP·기기 기준 제한은 아직 없습니다.
+- `LoginAttemptService` (`common/iam/service/LoginAttemptService.java`): `TPRMPP_CLOGNH` 로그인 이력 기반 실패 횟수 집계.
+- 임계값: 사번 기준 5회 실패 / 10분 잠금. DB 이력 기준이므로 서버 재시작에도 유지.
+- `AuthService.login()`: 로그인 검증 전에 `checkLocked(eno)` 선행 호출.
+- **IP·기기 기준 잠금 없음** — Credential stuffing 방어 미적용 (§5.6 Brute-force 보호 참조).
 
 ### 5.12.1 감사 로그(BaseLogEntity) 패턴
 - **로그 엔티티**: 23개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`).
@@ -230,7 +352,7 @@ src/main/resources/
 
 ### 5.13 공통 게시판 패턴
 - 백엔드 패키지: `common/board`.
-- 주요 엔티티: `Cblbmm`(게시판 메타, `TAAABB_CBLBMM`), `Cblbcm`(게시물, `TAAABB_CBLBCM`), `Ccmmtm`(댓글, `TAAABB_CCMMTM`).
+- 주요 엔티티: `Cblbmm`(게시판 메타, `TPRMPP_CBLBMM`), `Cblbcm`(게시물, `TPRMPP_CBLBCM`), `Ccmmtm`(댓글, `TPRMPP_CCMMTM`).
 - 주요 API:
   - `GET /api/boards/meta`, `GET /api/boards/meta/{blbMngNo}` — 인증 사용자 공통 게시판 메타 조회.
   - `/api/admin/boards/meta/**` — 관리자 전용 게시판 메타 CRUD. `AdminBoardMetaController` 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")` 필수.
@@ -268,6 +390,179 @@ src/main/resources/
 | `400 Bad Request` | 비즈니스 로직 오류 |
 | `401 Unauthorized` | 인증 실패 (토큰 없음/만료) |
 | `403 Forbidden` | 접근 권한 없음 |
+
+### 5.16 알림 시스템 (common/notification)
+
+#### 목적 및 아키텍처
+- **목적**: 앱 내 알림(인앱), 이메일, SMS, 알림톡 등 다중 채널 알림 발송 통합 관리.
+- **패턴**: Event-driven 이벤트 발행 → 비동기 리스너 → DB 적재 → 채널별 디스패처 호출.
+
+#### 알림 발송 흐름
+1. 비즈니스 로직(결재, 게시판, 시스템 등)에서 `ApplicationEventPublisher.publishEvent(new NotificationEvent(...))` 호출.
+2. `NotificationEventListener`가 `@TransactionalEventListener(phase=AFTER_COMMIT)` 콜백으로 `NotificationService.send(event)` 호출.
+3. `NotificationService.send()`:
+   - `@Transactional(propagation=Propagation.REQUIRES_NEW)` 필수 — Spring 7.0에서 AFTER_COMMIT 페이즈는 outer 트랜잭션 종료 후 non-transactional synchronization 컨텍스트에서 호출되므로, `REQUIRED`만으로는 `TransactionRequiredException`이 발생. `REQUIRES_NEW`로 항상 새 트랜잭션을 강제 시작.
+   - 채번 → `INF-{YYYY}-{8자리 시퀀스}` 생성 (예: `INF-2026-00000001`).
+   - 엔티티 빌드 후 `saveAndFlush()` — 즉시 INSERT 실행 (flush 스킵 회피).
+   - `NotificationDispatcher.dispatch(notification, eaiPayload)` 호출 (부수 효과).
+
+#### 알림 채번 규칙
+- 형식: `INF-{YYYY}-{NEXTVAL:08d}`
+  - 예: `INF-2026-00000001`, `INF-2026-00000002`
+- 시퀀스는 `CINFMM` 테이블 스키마 기반 `NEXTVAL()` 호출로 생성 (Repository).
+
+#### 알림 종류 상수 (Ccodem cId='INF_TP')
+```
+001 — 시스템 알림 (TYPE_SYSTEM)
+002 — 결재요청 (TYPE_APPROVAL_REQUEST)
+003 — 결재결과 (TYPE_APPROVAL_RESULT)
+004 — 게시물 멘션 (TYPE_MENTION_POST)
+005 — 댓글 멘션 (TYPE_MENTION_COMMENT)
+```
+호출자는 `NotificationEvent.TYPE_*` 상수 사용 권장 (오타 방지).
+
+#### API 엔드포인트 (`/api/notifications`)
+1. **`GET /api/notifications`** — 본인 알림 목록 페이지 조회.
+   - 쿼리 파라미터: `unreadOnly` (true=미읽음만), `page` (기본값 0), `size` (기본값 20).
+   - 응답: `Page<NotificationDto.Item>` (최신순 FST_ENR_DTM DESC).
+
+2. **`GET /api/notifications/unread-count`** — 본인 미읽음 카운트.
+   - 응답: `NotificationDto.UnreadCount { count: long }`.
+   - 용도: AppHeader 배지 표시.
+
+3. **`PATCH /api/notifications/{infMngNo}/read`** — 단건 읽음 처리.
+   - 경로 파라미터: `infMngNo`.
+   - 응답: 204 No Content.
+   - 소유자 검증: 본인 알림만 가능 (AccessDeniedException 발생).
+
+4. **`PATCH /api/notifications/read-all`** — 본인 미읽음 일괄 읽음.
+   - 응답: `NotificationDto.MarkAllReadResponse { updated: long }`.
+
+5. **`DELETE /api/notifications/{infMngNo}`** — 단건 Soft Delete.
+   - 경로 파라미터: `infMngNo`.
+   - 응답: 204 No Content.
+   - 소유자 검증: 본인 알림만 가능.
+
+모든 엔드포인트는 인증 필수 (`@AuthenticationPrincipal CustomUserDetails`).
+
+#### 보안 — 소유권 검증
+- 본인만 자신의 알림에 접근 가능 (조회/읽음/삭제).
+- 타인 알림 조회/수정/삭제 시도 → `AccessDeniedException` 발생.
+- `NotificationService.loadOwned(infMngNo, currentEno)` 내부 헬퍼로 검증.
+
+#### 디스패처 패턴 (NotificationDispatcher SPI)
+- **인터페이스**: `NotificationDispatcher.dispatch(Cinfmm notification, String eaiPayload)`.
+- **현재 구현**: `StubNotificationDispatcher` — 인앱(INAPP) 채널만 처리.
+  - `notification.markDispatched("001", eaiPayload)` 호출 (EAI_SD_TP_C='001' + EAI_SD_DTM=now).
+  - 현재 구현: INAPP 채널만 처리 (StubNotificationDispatcher 사용).
+- **향후 확장**: 이메일, SMS, 카톡(알림톡) 어댑터 추가 시 채널별 구현체 분리 + 라우터 도입.
+  - 각 구현체는 `NotificationDispatcher` 인터페이스 구현.
+  - `dispatch()` 내에서 발송 실패 처리: 예외 발생 금지, 로깅만 수행 (부수 효과로 취급).
+
+### 5.17 Tiptap 변수 시스템 (common/system/tiptap)
+
+#### 목적 및 설계
+- **목적**: Tiptap 리치 에디터 문서에 변수 토큰 삽입 → 런타임에 실제 데이터값(예산액, 편성률)으로 해석 및 표시.
+- **사용 사례**: 템플릿 문서(결재문, 제안문 등)에 `2026.itBudget.requestAmount` 같은 토큰 삽입 → 조회 시 실제 편성요청액 숫자로 치환 표시.
+
+#### 토큰 형식 및 파서 (TiptapTokenParser)
+**구조**: `<YEAR>.<CATEGORY>[.<PROJECT_CODE>].<ITEM>`
+
+예시:
+- `2026.itBudget.requestAmount` → 2026 전산예산 편성요청액.
+- `2026.capBudget.allocatedAmount` → 2026 자본예산 편성액.
+- `2026.proj.P001.allocationRate` → 2026 사업 P001의 편성률.
+
+**정규식**:
+- 비사업 (itBudget/capBudget/opex): `^(\d{4})\.(itBudget|capBudget|opex)\.(requestAmount|allocatedAmount|allocationRate)$`
+- 사업 (proj): `^(\d{4})\.proj\.([A-Z0-9_-]+)\.(requestAmount|allocatedAmount|allocationRate)$`
+
+**파서 결과** (ParseResult):
+```java
+record ParseResult(boolean valid, Integer year, Category category, 
+                   String projectCode, String item)
+```
+- `valid=false` → 형식 오류.
+- `projectCode` — 사업 카테고리일 때만 null 아님.
+
+#### 변수 카탈로그 구조 (MetadataResponse)
+```
+categories: [
+  {
+    code: "IT_BUDGET",
+    label: "전산예산",
+    years: [2024, 2025, 2026, 2027, 2028],
+    projects: null,           // 비사업 카테고리는 projects=null
+    items: [
+      { key: "requestAmount", label: "편성요청액" },
+      { key: "allocatedAmount", label: "편성액" },
+      { key: "allocationRate", label: "편성률" }
+    ]
+  },
+  {
+    code: "PROJ",
+    label: "사업별",
+    years: [2024, 2025, 2026, 2027, 2028],
+    projects: [
+      { code: "P001", name: "클라우드 전환" },
+      ...
+    ],
+    items: [...]
+  },
+  ...
+]
+```
+**카테고리**:
+- `IT_BUDGET` — 전산예산.
+- `CAP_BUDGET` — 자본예산.
+- `OPEX` — 일반관리비.
+- `PROJ` — 사업별 (project 목록 포함).
+
+#### 해석 결과 상태 (ResolvedValue)
+```java
+record ResolvedValue(String value, String status)
+```
+
+상태 값:
+- **`OK`** — 정상 해석, `value`에 포맷팅된 표시값 포함.
+  - 예: `"900억원"`, `"85.3%"`.
+- **`INVALID`** — 토큰 형식 오류 (정규식 불일치), `value=""`.
+- **`MISSING`** — 해당 카테고리/사업/년도에 데이터 없음, `value=""`.
+  - 또는 편성요청액이 0 또는 null (편성률 계산 불가).
+- **`FORBIDDEN`** — 권한 없음 (향후 SecurityContext 기준 필터링), `value=""`.
+
+#### 포맷팅 규칙
+**금액 (formatAmount)**:
+- 1억 이상: `"900억원"` (100_000_000 단위).
+- 1만 이상: `"5000만원"` (10_000 단위).
+- 그 외: `"123원"`.
+
+**편성률 (formatRate)**:
+- 계산: `편성액 / 편성요청액 × 100` (소수점 한 자리).
+- 예: `"85.3%"`.
+- null/0 조건 → `MISSING`.
+
+#### API 엔드포인트 (`/api/tiptap-variables`)
+1. **`GET /api/tiptap-variables/metadata`** — 변수 카탈로그 조회.
+   - 응답: `TiptapVariableDto.MetadataResponse` (위 구조 참조).
+   - Tiptap 변수 드롭다운(UI) 초기화 시 호출.
+   - 권한별 필터링: 서비스 계층에서 SecurityContext 기준 적용 (향후 Task).
+
+2. **`POST /api/tiptap-variables/resolve`** — 토큰 배열 해석.
+   - 요청 본문: `TiptapVariableDto.ResolveRequest { tokens: List<String> }`.
+   - 토큰 개수 제약: 1~200개 (JPA 검증).
+   - 응답: `TiptapVariableDto.ResolveResponse { results: Map<String, ResolvedValue> }`.
+     - `results`는 LinkedHashMap (삽입 순서 유지) → 프론트 표시 순서 보장.
+   - 각 토큰별 해석 결과: `{ "2026.itBudget.requestAmount": { "value": "900억원", "status": "OK" }, ... }`.
+
+#### 데이터 쿼리 (BudgetStatusQueryRepository)
+- **카테고리 집계**: `aggregateByCategory(year, category)` → `AggregatedAmount { requestSum, allocatedSum }`.
+- **사업 집계**: `aggregateByProject(year, projectCode)` → `AggregatedAmount { requestSum, allocatedSum }`.
+- null/결과 없음 → `ResolvedValue.missing()`.
+
+#### 권한 필터링 (향후 Task)
+- 현재: 권한 검증 없음 (모든 인증 사용자 접근 가능).
+- 향후: `SecurityContext` 기준 사용자 권한/부서별 카탈로그 및 해석 결과 필터링 (§4.5 Design Ref).
 
 ## 7. 주석 작성 예시
 JavaDoc 표준 양식과 코드 예제는 → [`docs/guides/comment-style.md`](docs/guides/comment-style.md) 참조.

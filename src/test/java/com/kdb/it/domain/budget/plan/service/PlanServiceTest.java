@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.code.service.CodeService;
+import com.kdb.it.common.code.entity.Ccodem;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -106,6 +107,52 @@ class PlanServiceTest {
 
         // then
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getPlans - 스냅샷 사업유형으로 신규와 계속 건수를 계산한다")
+    void getPlans_스냅샷사업유형_건수계산() {
+        PlanService service = new PlanService(
+                bplanmRepository, bprojaRepository, projectService, costService,
+                codeService, cuserIRepository, new ObjectMapper());
+        Bplanm plan = Bplanm.builder()
+                .plnMngNo("PLN-2026-0002")
+                .plnYy("2026")
+                .plnTp("신규")
+                .plnDtlInf("{\"prjSnapshots\":[{\"pulDtt\":\"001\"},{\"pulDtt\":\"002\"},{\"pulDtt\":\"001\"}]}")
+                .build();
+        ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER002");
+        given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
+        given(cuserIRepository.findAllById(List.of("USER002"))).willReturn(List.of());
+        given(codeService.findCodeEntitiesByCId("PUL_DTT")).willReturn(List.of(
+                Ccodem.builder().cdva("001").cNm("신규").build(),
+                Ccodem.builder().cdva("002").cNm("계속").build()));
+
+        List<PlanDto.ListResponse> result = service.getPlans();
+
+        assertThat(result.get(0).getItPrjCnt()).isEqualTo(3);
+        assertThat(result.get(0).getNewPrjCnt()).isEqualTo(2);
+        assertThat(result.get(0).getContPrjCnt()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("getPlans - 손상된 스냅샷은 사업 건수를 0으로 유지한다")
+    void getPlans_손상된스냅샷_건수0유지() {
+        PlanService service = new PlanService(
+                bplanmRepository, bprojaRepository, projectService, costService,
+                codeService, cuserIRepository, new ObjectMapper());
+        Bplanm plan = Bplanm.builder()
+                .plnMngNo("PLN-2026-0003")
+                .plnDtlInf("{")
+                .build();
+        ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER003");
+        given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
+        given(cuserIRepository.findAllById(List.of("USER003"))).willReturn(List.of());
+        given(codeService.findCodeEntitiesByCId("PUL_DTT")).willReturn(List.of());
+
+        List<PlanDto.ListResponse> result = service.getPlans();
+
+        assertThat(result.get(0).getItPrjCnt()).isZero();
     }
 
     // =========================================================================
@@ -286,6 +333,57 @@ class PlanServiceTest {
         assertThat(planCaptor.getValue().getCptBg()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(planCaptor.getValue().getMngc()).isEqualByComparingTo(BigDecimal.ZERO);
         verify(bprojaRepository, times(2)).save(any(Bproja.class));
+    }
+
+    @Test
+    @DisplayName("createPlan - 스냅샷 그룹 목록에서는 경상사업과 전산업무비를 제외한다")
+    void createPlan_스냅샷그룹목록_경상사업과전산업무비제외() throws Exception {
+        PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
+                .plnYy("2026")
+                .plnTp("신규")
+                .prjMngNos(List.of("PRJ-GENERAL", "PRJ-ORDINARY"))
+                .itMngcNos(List.of("COST-001"))
+                .build();
+        ProjectDto.Response generalProject = ProjectDto.Response.builder()
+                .prjMngNo("PRJ-GENERAL")
+                .prjNm("일반 정보화사업")
+                .prjTp("개발")
+                .svnHdq("IT부문")
+                .ornYn("N")
+                .build();
+        ProjectDto.Response ordinaryProject = ProjectDto.Response.builder()
+                .prjMngNo("PRJ-ORDINARY")
+                .prjNm("경상사업")
+                .prjTp("운영")
+                .svnHdq("IT부문")
+                .ornYn("Y")
+                .build();
+        CostDto.Response cost = CostDto.Response.builder()
+                .itMngcNo("COST-001")
+                .cttNm("전산업무비")
+                .itMngcTp("관리비")
+                .build();
+        given(projectService.getProjectsByIds(any())).willReturn(List.of(generalProject, ordinaryProject));
+        given(costService.getCostsByIds(any())).willReturn(List.of(cost));
+        given(bplanmRepository.getNextSequenceValue()).willReturn(4L);
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        planService.createPlan(request);
+
+        ArgumentCaptor<PlanDto.SnapshotDto> snapshotCaptor = ArgumentCaptor.forClass(PlanDto.SnapshotDto.class);
+        verify(objectMapper).writeValueAsString(snapshotCaptor.capture());
+        PlanDto.SnapshotDto snapshot = snapshotCaptor.getValue();
+        List<String> departmentIds = snapshot.getByDepartment().stream()
+                .flatMap(group -> ((List<?>) group.get("projects")).stream())
+                .map(item -> ((PlanDto.ProjectSnapshot) item).getPrjMngNo())
+                .toList();
+        List<String> projectTypeIds = snapshot.getByProjectType().stream()
+                .flatMap(group -> ((List<?>) group.get("projects")).stream())
+                .map(item -> ((PlanDto.ProjectSnapshot) item).getPrjMngNo())
+                .toList();
+
+        assertThat(departmentIds).containsExactly("PRJ-GENERAL");
+        assertThat(projectTypeIds).containsExactly("PRJ-GENERAL");
     }
 
     @Test

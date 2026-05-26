@@ -8,14 +8,14 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 게시판 댓글 엔티티 — TAAABB_CCMMTM
+ * 게시판 댓글 엔티티 — TPRMPP_CCMMTM
  *
  * <p>댓글 트리는 게시물과 동일한 GRP_NO / GRP_SQN / GRP_LEV 패턴을 사용한다.
  * 변경 시 {@link CcmmtmL}에 이력 자동 적재.</p>
  */
 @LogTarget(entity = CcmmtmL.class)
 @Entity
-@Table(name = "TAAABB_CCMMTM", comment = "댓글")
+@Table(name = "TPRMPP_CCMMTM", comment = "댓글")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

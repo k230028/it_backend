@@ -20,7 +20,7 @@ import java.time.LocalDate;
 /**
  * 정보화실무협의회 기본정보 엔티티
  *
- * <p>DB 테이블: {@code TAAABB_BASCTM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BASCTM}</p>
  *
  * <p>협의회 전체 프로세스의 루트 엔티티입니다.
  * 타당성검토표(Bpovwm), 결과서(Brsltm)가 이 엔티티를 FK로 참조합니다.</p>
@@ -33,7 +33,7 @@ import java.time.LocalDate;
  */
 @LogTarget(entity = BasctmL.class)
 @Entity
-@Table(name = "TAAABB_BASCTM", comment = "정보화실무협의회 기본정보")
+@Table(name = "TPRMPP_BASCTM", comment = "정보화실무협의회 기본정보")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -45,11 +45,11 @@ public class Basctm extends BaseEntity {
     @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
-    /** 프로젝트관리번호: TAAABB_BPROJM.PRJ_MNG_NO (FK, 협의회 대상 사업) */
+    /** 프로젝트관리번호: TPRMPP_BPROJM.PRJ_MNG_NO (FK, 협의회 대상 사업) */
     @Column(name = "PRJ_MNG_NO", length = 32, comment = "프로젝트관리번호")
     private String prjMngNo;
 
-    /** 프로젝트순번: TAAABB_BPROJM.PRJ_SNO (FK) */
+    /** 프로젝트순번: TPRMPP_BPROJM.PRJ_SNO (FK) */
     @Column(name = "PRJ_SNO", comment = "프로젝트순번")
     private Integer prjSno;
 

@@ -12,18 +12,18 @@ import lombok.experimental.SuperBuilder;
 import java.math.BigDecimal;
 
 /**
- * 문서 검토의견(TAAABB_BRIVGM) 변경 로그 엔티티.
+ * 문서 검토의견(TPRMPP_BRIVGM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BRIVGL", comment = "문서 검토의견 변경 로그")
+@Table(name = "TPRMPP_BRIVGL", comment = "문서 검토의견 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class BrivgmL extends BaseLogEntity {
 
-    @Column(name = "IVG_SNO", length = 32, comment = "의견일련번호")
-    private String ivgSno;
+    @Column(name = "IVG_SNO", comment = "의견일련번호")
+    private Long ivgSno;
 
     @Column(name = "DOC_MNG_NO", length = 32, comment = "문서관리번호")
     private String docMngNo;

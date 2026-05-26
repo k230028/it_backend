@@ -12,6 +12,8 @@ import com.querydsl.core.Tuple;
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
@@ -61,7 +63,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      *
      * <pre>{@code
      * WHERE NOT EXISTS (
-     *   SELECT 1 FROM TAAABB_CAPPLA ca
+     *   SELECT 1 FROM TPRMPP_CAPPLA ca
      *   WHERE ca.ORC_TB_CD = 'BCOSTM'
      *     AND ca.ORC_PK_VL = c.IT_MNGC_NO
      *     AND ca.ORC_SNO_VL = c.IT_MNGC_SNO
@@ -74,14 +76,14 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      *
      * <pre>{@code
      * WHERE EXISTS (
-     *   SELECT 1 FROM TAAABB_CAPPLA ca
-     *   JOIN TAAABB_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
+     *   SELECT 1 FROM TPRMPP_CAPPLA ca
+     *   JOIN TPRMPP_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
      *   WHERE ca.ORC_TB_CD = 'BCOSTM'
      *     AND ca.ORC_PK_VL = c.IT_MNGC_NO
      *     AND ca.ORC_SNO_VL = c.IT_MNGC_SNO
      *     AND cm.APF_STS = '결재중'
      *     AND ca.APF_REL_SNO = (
-     *       SELECT MAX(ca2.APF_REL_SNO) FROM TAAABB_CAPPLA ca2
+     *       SELECT MAX(ca2.APF_REL_SNO) FROM TPRMPP_CAPPLA ca2
      *       WHERE ca2.ORC_TB_CD = 'BCOSTM'
      *         AND ca2.ORC_PK_VL = c.IT_MNGC_NO
      *         AND ca2.ORC_SNO_VL = c.IT_MNGC_SNO
@@ -109,14 +111,19 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         String apfSts = condition.getApfSts();
         if (apfSts != null && !apfSts.isBlank()) {
             if ("none".equals(apfSts)) {
-                // 신청서가 없는 전산관리비: CAPPLA에 연결 레코드가 없는 경우
+                // 미상신(재상신 가능 포함): 활성(001 결재중) 또는 완료(002 결재완료)인 CAPPLM이 없는 경우.
+                // - 한 번도 상신 안 한 경우 → CAPPLA 자체 없음 → 자동 매칭
+                // - 반려(003)/회수(004)만 존재하는 경우 → 활성/완료가 없으므로 매칭 (재상신 허용)
+                // - 진행 중(001) 또는 완료(002)가 있으면 → 차단
                 builder.and(
                         JPAExpressions.selectOne()
-                                .from(cappla)
+                                .from(cappla, capplm)
                                 .where(
+                                        cappla.apfMngNo.eq(capplm.apfMngNo),
                                         cappla.orcTbCd.eq("BCOSTM"),
                                         cappla.orcPkVl.eq(bcostm.itMngcNo),
-                                        cappla.orcSnoVl.eq(bcostm.itMngcSno))
+                                        cappla.orcSnoVl.eq(bcostm.itMngcSno),
+                                        capplm.apfStsC.in("001", "002"))
                                 .notExists());
             } else {
                 // 특정 결재상태: 최신 신청서(APF_REL_SNO 최대값)의 결재상태가 일치하는 경우
@@ -128,10 +135,12 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                         cappla.orcTbCd.eq("BCOSTM"),
                                         cappla.orcPkVl.eq(bcostm.itMngcNo),
                                         cappla.orcSnoVl.eq(bcostm.itMngcSno),
-                                        capplm.apfSts.eq(apfSts),
+                                        capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
+                                                ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
+                                                : apfSts),
                                         // 해당 전산관리비에 연결된 신청서 중 가장 최신(APF_REL_SNO 최대)인 것만 검사
-                                        cappla.apfRelSno.eq(
-                                                JPAExpressions.select(cappla2.apfRelSno.max())
+                                        cappla.apfMngNo.eq(
+                                                JPAExpressions.select(cappla2.apfMngNo.max())
                                                         .from(cappla2)
                                                         .where(
                                                                 cappla2.orcTbCd.eq("BCOSTM"),

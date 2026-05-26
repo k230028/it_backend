@@ -7,15 +7,23 @@ import com.kdb.it.common.board.entity.Ccmmtm;
 import com.kdb.it.common.board.repository.BoardCommentRepository;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
+import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.notification.event.NotificationEvent;
+import com.kdb.it.common.notification.util.MentionExtractor;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -28,10 +36,14 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class BoardCommentService {
 
+    private static final Logger log = LoggerFactory.getLogger(BoardCommentService.class);
+
     private final BoardMetaRepository    metaRepository;
     private final BoardPostRepository    postRepository;
     private final BoardCommentRepository commentRepository;
     private final BoardPostService       postService;
+    private final UserRepository         userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 게시물의 댓글 목록 조회 (트리 정렬)
@@ -91,6 +103,7 @@ public class BoardCommentService {
             .build();
         comment.initGroupAsRoot();
         commentRepository.save(comment);
+        publishMentionNotifications(comment, post, user.getEno(), request.getMentionedEnos());
         return cmmtMngNo;
     }
 
@@ -145,6 +158,7 @@ public class BoardCommentService {
             parent.getCmmtMngNo()
         );
         commentRepository.save(reply);
+        publishMentionNotifications(reply, post, user.getEno(), request.getMentionedEnos());
         return cmmtMngNo;
     }
 
@@ -165,6 +179,8 @@ public class BoardCommentService {
         Ccmmtm comment = findComment(cmmtMngNo);
         verifyCanModify(user, comment);
         comment.updateContent(HtmlSanitizer.sanitize(request.getCmmtCone()));
+        Cblbcm post = findPost(comment.getNacMngNo());
+        publishMentionNotifications(comment, post, user.getEno(), request.getMentionedEnos());
     }
 
     /**
@@ -213,5 +229,96 @@ public class BoardCommentService {
     private String generateCmmtId() {
         Long seq = commentRepository.getNextSequenceValue();
         return String.format("CMMT-%d-%04d", LocalDate.now().getYear(), seq);
+    }
+
+    /**
+     * 댓글 본문의 {@code @사번} 멘션을 추출하여 수신자별 알림 이벤트를 발행한다.
+     *
+     * <p>발행은 {@code @TransactionalEventListener(AFTER_COMMIT)} 리스너가 처리하므로
+     * 본 트랜잭션은 차단되지 않는다. 멘션이 없으면 아무 동작도 하지 않는다.</p>
+     *
+     * <p><strong>임시 진단 로그 주의</strong>: 메서드 내부에 [멘션 진단] 접두사 INFO 로그 5건이 존재합니다.
+     * 운영 환경에서 사용자 사번(PII)이 로그에 기록될 수 있으므로, 진단 완료 후 제거해야 합니다.</p>
+     * <!-- FIXME: 운영 배포 전 [멘션 진단] INFO 로그 5건 제거 필요 (PII 사번 노출 위험) -->
+     *
+     * @param comment      저장 직후의 댓글 엔티티
+     * @param post         댓글이 속한 게시물 (linkUrl 구성에 필요)
+     * @param authorEno    작성자 사번 (자기 멘션 제외용)
+     * @param explicitEnos 프론트 자동완성에서 명시 선택된 사번 목록 (null 허용)
+     */
+    private void publishMentionNotifications(Ccmmtm comment, Cblbcm post, String authorEno,
+                                             java.util.List<String> explicitEnos) {
+        log.info("[멘션 진단] 댓글 publishMentionNotifications 진입: cmmtMngNo={}, nacMngNo={}, author={}, contentLen={}, explicitEnos={}",
+            comment.getCmmtMngNo(), post.getNacMngNo(), authorEno,
+            comment.getCmmtCone() == null ? 0 : comment.getCmmtCone().length(), explicitEnos);
+        // 1) 본문 정규식 추출
+        Set<String> rawEnos = new java.util.LinkedHashSet<>(
+            MentionExtractor.extractEnos(comment.getCmmtCone(), authorEno));
+        // 2) 프론트 자동완성에서 명시 선택된 사번 union (자기 멘션 제외)
+        if (explicitEnos != null) {
+            for (String eno : explicitEnos) {
+                if (eno != null && !eno.isBlank() && !eno.equals(authorEno)) {
+                    rawEnos.add(eno);
+                }
+            }
+        }
+        log.info("[멘션 진단] 댓글 union 결과: cmmtMngNo={}, rawEnos={}", comment.getCmmtMngNo(), rawEnos);
+        if (rawEnos.isEmpty()) {
+            log.info("[멘션 진단] 댓글 추출+명시 union 0건 → 종료. content snippet={}",
+                comment.getCmmtCone() == null ? "<null>" :
+                    comment.getCmmtCone().substring(0, Math.min(120, comment.getCmmtCone().length())));
+            return;
+        }
+        // 실제 TPRMPP_CUSERI 에 존재하는 사번만 통과 (batch existence check, 순서 보존)
+        Set<String> existingEnos = userRepository.findByEnoIn(rawEnos).stream()
+            .map(CuserI::getEno)
+            .collect(java.util.stream.Collectors.toSet());
+        log.info("[멘션 진단] 댓글 CUSERI 검증: existingEnos={}", existingEnos);
+        Set<String> recipients = new java.util.LinkedHashSet<>();
+        for (String eno : rawEnos) {
+            if (existingEnos.contains(eno)) recipients.add(eno);
+        }
+        if (recipients.isEmpty()) {
+            log.info("[멘션 진단] 댓글 검증 후 수신자 0건 → 종료. rawEnos={}, existingEnos={}", rawEnos, existingEnos);
+            return;
+        }
+        log.info("[멘션 진단] 댓글 최종 수신자: {}", recipients);
+        String title   = "댓글 멘션: " + safe(post.getNacNm());
+        String linkUrl = "/board/" + post.getBlbMngNo()
+            + "?postId=" + post.getNacMngNo()
+            + "&commentId=" + comment.getCmmtMngNo();
+        for (String eno : recipients) {
+            eventPublisher.publishEvent(
+                NotificationEvent.builder()
+                    .recipientEno(eno)
+                    .infTpC(NotificationEvent.TYPE_MENTION_COMMENT)
+                    .infTtl(abbreviate(title, 100))
+                    .infCone(abbreviate(safe(post.getNacNm()), 300))
+                    .infLnkUrl(linkUrl)
+                    .build()
+            );
+        }
+    }
+
+    /**
+     * null-safe 문자열 반환 헬퍼.
+     *
+     * @param s 대상 문자열
+     * @return null이면 빈 문자열, 아니면 원본 문자열
+     */
+    private static String safe(String s) { return s == null ? "" : s; }
+
+    /**
+     * 문자열을 최대 길이로 말줄임합니다.
+     *
+     * <p>{@code s}의 길이가 {@code max}를 초과하면 {@code max-1}자로 자르고 {@code "…"}를 추가합니다.</p>
+     *
+     * @param s   대상 문자열 (null 허용, null이면 null 반환)
+     * @param max 최대 허용 길이 (이 길이를 초과하면 말줄임 처리)
+     * @return max 이하로 줄인 문자열 (null 입력 시 null)
+     */
+    private static String abbreviate(String s, int max) {
+        if (s == null) return null;
+        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
     }
 }

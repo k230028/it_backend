@@ -12,7 +12,7 @@ import java.util.Optional;
 /**
  * 평가위원 평가의견(Bevalm) 리포지토리
  *
- * <p>DB 테이블: {@code TAAABB_BEVALM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BEVALM}</p>
  *
  * <p>평가위원별 6개 점검항목에 대한 점수 및 의견을 관리합니다.</p>
  */
@@ -62,7 +62,7 @@ public interface EvaluationRepository extends JpaRepository<Bevalm, BevalmId> {
      */
     @Query(value = """
             SELECT CKG_ITM_C, AVG(CKG_RCRD)
-            FROM TAAABB_BEVALM
+            FROM TPRMPP_BEVALM
             WHERE ASCT_ID = :asctId AND DEL_YN = :delYn
             GROUP BY CKG_ITM_C
             ORDER BY CKG_ITM_C

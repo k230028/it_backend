@@ -201,6 +201,8 @@ public class SecurityConfig {
                 configuration.setAllowedHeaders(List.of("*"));
                 // 쿠키, Authorization 헤더 등 자격증명 포함 허용
                 configuration.setAllowCredentials(true);
+                // 브라우저가 읽을 수 있도록 노출할 응답 헤더 (201 Created 시 신규 리소스 경로 추출용)
+                configuration.setExposedHeaders(List.of("Location"));
 
                 // 모든 URL 경로에 CORS 설정 적용
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

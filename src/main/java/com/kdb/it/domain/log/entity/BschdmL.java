@@ -10,10 +10,10 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 협의회 일정(TAAABB_BSCHDM) 변경 로그 엔티티.
+ * 협의회 일정(TPRMPP_BSCHDM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BSCHDL", comment = "협의회 일정 변경 로그")
+@Table(name = "TPRMPP_BSCHDL", comment = "협의회 일정 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

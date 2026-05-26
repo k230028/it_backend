@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 /**
- * 역할관리(TAAABB_CROLEI) JPA 리포지토리
+ * 역할관리(TPRMPP_CROLEI) JPA 리포지토리
  *
  * <p>
  * 사용자(ENO)와 자격등급(ATH_ID) 매핑 데이터를 조회합니다.

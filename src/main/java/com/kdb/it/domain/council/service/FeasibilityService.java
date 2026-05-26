@@ -43,13 +43,13 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class FeasibilityService {
 
-    /** 사업개요 리포지토리 (TAAABB_BPOVWM) */
+    /** 사업개요 리포지토리 (TPRMPP_BPOVWM) */
     private final ProjectOverviewRepository projectOverviewRepository;
 
-    /** 타당성 자체점검 리포지토리 (TAAABB_BCHKLC) */
+    /** 타당성 자체점검 리포지토리 (TPRMPP_BCHKLC) */
     private final FeasibilityCheckRepository feasibilityCheckRepository;
 
-    /** 성과지표 리포지토리 (TAAABB_BPERFM) */
+    /** 성과지표 리포지토리 (TPRMPP_BPERFM) */
     private final PerformanceRepository performanceRepository;
 
     /** 협의회 기본 서비스 — 상태 전이 및 협의회 존재 확인용 */

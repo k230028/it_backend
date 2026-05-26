@@ -1,4 +1,4 @@
-# 개발 노트 (Development Notes)
+﻿# 개발 노트 (Development Notes)
 
 ## 1. 프로젝트 개요
 
@@ -13,8 +13,11 @@
   - 공통 게시판(게시판 메타/게시물/댓글/답변글)
   - 변경 이력 추적(Audit Log)
   - 파일 업로드/다운로드
+  - Tiptap 에디터 변수 토큰 시스템
+  - 실시간 알림 (인앱, Phase 2 예정: 이메일/SMS/알림톡)
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
+- **소스 코드**: 257개 자바 파일, 86개 테스트 파일, 61개 엔티티
 
 ## 2. 기술 스택
 
@@ -28,7 +31,52 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 69개 테스트 파일 / 기존 결과 기준 787개 테스트 케이스 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 86개 테스트 파일 / 기존 결과 기준 787개 테스트 케이스 |
+
+## 2.5 빠른 시작 (Quick Start)
+
+### 환경 준비
+
+```bash
+# 1. 로컬 Oracle DB 접속 확인
+.\it_database\connect-db.ps1
+
+# 2. 환경변수 설정 (Windows PowerShell)
+$env:DB_PASSWORD = "your-db-password"
+$env:JWT_SECRET = "your-jwt-secret-key"
+$env:GEMINI_API_KEY = "your-gemini-api-key"  # 필요시
+
+# 3. 빌드 및 실행
+cd it_backend
+./gradlew clean build
+./gradlew bootRun
+#   → http://localhost:8080
+#   → Swagger: http://localhost:8080/swagger-ui/index.html
+```
+
+### 테스트 실행
+
+```bash
+# 전체 테스트
+./gradlew test
+
+# 특정 테스트 클래스
+./gradlew test --tests "com.kdb.it.domain.budget.project.service.ProjectServiceTest"
+
+# 커버리지 리포트
+./gradlew jacocoTestReport
+# 리포트 확인: build/reports/jacoco/test/html/index.html
+```
+
+### IDE 설정 (IntelliJ IDEA 권장)
+
+1. QueryDSL Q클래스 자동 생성 설정:
+   - Build, Execution, Deployment → Compiler → Annotation Processors
+   - Enable annotation processing 체크
+2. Lombok 플러그인 설치 (IntelliJ Lombok 플러그인)
+3. 파일 인코딩: File → Settings → Editor → File Encodings → UTF-8
+
+---
 
 ## 3. 아키텍처
 
@@ -161,6 +209,8 @@ common → domain (X)   common → infra  (X)
 | 정보화실무협의회 | `CouncilController` | `CouncilService` 외 7개 | `CouncilRepository` 외 8개 | `Basctm` 외 13개 |
 | 신청서(결재) | `ApplicationController` | `ApplicationService` | `ApplicationRepository`, `ApplicationMapRepository`, `ApproverRepository` | `Capplm`, `Cappla`, `Cdecim` |
 | 공통게시판 | `BoardMetaController`, `BoardPostController`, `BoardCommentController`, `AdminBoardMetaController` | `BoardMetaService`, `BoardPostService`, `BoardCommentService` | `BoardMetaRepository`, `BoardPostRepository`, `BoardCommentRepository` | `Cblbmm`, `Cblbcm`, `Ccmmtm` |
+| 알림 | `NotificationController` | `NotificationService` | `CinfmmRepository` + Custom | `Cinfmm` |
+| Tiptap 변수 | `TiptapVariableController` | `TiptapVariableService` | - | - |
 | 인증 | `AuthController` | `AuthService` | `UserRepository`, `RefreshTokenRepository`, `LoginHistoryRepository` | `CuserI`, `Crtokm`, `Clognh` |
 | 공통코드 | `CodeController` | `CodeService` | `CodeRepository` + Custom | `Ccodem` |
 | 시스템관리 | `AdminController` | `AdminService` | (기존 Repository 활용) | (기존 Entity 활용) |
@@ -171,11 +221,225 @@ common → domain (X)   common → infra  (X)
 | 로그인이력 | `LoginHistoryController` | `LoginHistoryService` | `LoginHistoryRepository` | `Clognh` |
 | 변경로그 | - | `ChangeLogEntityListener`, `AuditLogPersister` | `EntityManager` 직접 저장 | `BaseLogEntity` 하위 `*L` 엔티티 |
 
-## 5. 로그 체계
+## 5. 알림 및 Tiptap 변수 시스템
+
+### 5.0 알림 시스템 (Notification)
+
+**결재요청, 게시판 멘션, 시스템 알림 등을 사용자에게 실시간으로 전달하는 모듈**
+
+#### 엔티티 구조
+
+- **Cinfmm** (`TPRMPP_CINFMM`): 알림 마스터 — 1행 = 1수신자
+  - `infMngNo` (PK): 형식 `INF-{YYYY}-{8자리 시퀀스}` (예: `INF-2026-00000001`)
+  - `infTpC`: 알림종류구분코드 (Ccodem cId=CINF_TP)
+    - `001` = 시스템 알림
+    - `002` = 결재요청 알림
+    - `003` = 결재결과 알림
+    - `004` = 게시물 멘션 알림
+    - `005` = 댓글 멘션 알림
+  - `rcvUsid`: 수신자 사번 (1행 = 1수신자)
+  - `rddYn` / `rddDtm`: 읽음여부 및 읽음일시
+  - `eaiSdTpC` / `eaiSdDtm` / `eaiSdCone`: EAI 발송 채널·일시·페이로드 (Phase 2에서 EMAIL/SMS/TALK 활성화)
+
+#### API 엔드포인트
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/api/notifications` | 본인 알림 목록 페이지 조회 (unreadOnly 필터 가능) |
+| GET | `/api/notifications/unread-count` | 본인 미읽음 카운트 (헤더 뱃지용) |
+| PATCH | `/api/notifications/{infMngNo}/read` | 단건 읽음 처리 |
+| PATCH | `/api/notifications/read-all` | 본인 미읽음 일괄 읽음 |
+| DELETE | `/api/notifications/{infMngNo}` | 단건 Soft Delete |
+
+모든 엔드포인트는 인증 필수이며, 호출자 본인 데이터에만 접근 가능합니다.
+
+#### 발송 흐름
+
+```
+1. 결재/게시판/시스템 도메인에서 NotificationEvent 발행
+   → ApplicationEventPublisher.publishEvent(new NotificationEvent(...))
+
+2. NotificationEventListener (Spring @TransactionalEventListener(AFTER_COMMIT))
+   → 발행자 트랜잭션 커밋 후 비동기 호출
+   → NotificationService.send(event)
+
+3. NotificationService.send()
+   → 채번(INF-{YYYY}-{8자리})
+   → Cinfmm 엔티티 빌드
+   → saveAndFlush() — 즉시 INSERT
+   → NotificationDispatcher.dispatch() — EAI 메타 기록
+
+4. NotificationDispatcher (전략 인터페이스)
+   → 현 Phase: INAPP만 처리 (EAI_SD_TP_C='001')
+   → Phase 2: EMAIL/SMS/TALK 채널 추가
+```
+
+#### 주요 특징
+
+- **@TransactionalEventListener(AFTER_COMMIT)**: 알림 발행이 원본 트랜잭션을 차단하지 않음
+- **Propagation.REQUIRES_NEW**: 이벤트 리스너 내 새 트랜잭션 강제 시작 (Spring 7.0 호환성)
+- **Soft Delete**: 논리 삭제로 이력 추적
+- **소유자 검증**: 모든 조회/수정/삭제는 `rcvUsid==currentEno` 검증
+- **채번**: 시퀀스 기반 연도별 자동 생성
+
+#### NotificationDispatcher 패턴
+
+현재 `StubNotificationDispatcher` 구현체가 기본 처리합니다. Phase 2에서는 다음을 추가합니다:
+
+```java
+public interface NotificationDispatcher {
+    void dispatch(Cinfmm notification, String eaiPayload);
+}
+
+// Phase 1 (현재): 인앱만
+public class StubNotificationDispatcher implements NotificationDispatcher {
+    public void dispatch(Cinfmm notification, String eaiPayload) {
+        notification.markDispatched("001", null); // EAI_SD_TP='001' = INAPP 채널 코드
+    }
+}
+
+// Phase 2 (예정):
+public class MultiChannelDispatcher implements NotificationDispatcher {
+    void dispatch(Cinfmm notification, String eaiPayload) {
+        // EMAIL/SMS/TALK 어댑터 호출
+    }
+}
+```
+
+---
+
+### 5.0.1 Tiptap 변수 시스템
+
+**Tiptap 에디터 문서에 동적 변수를 삽입 및 해석하는 모듈**
+
+#### 목적
+
+요구사항 정의서, 계획, 가이드 등 편집 가능 문서에 "편성요청액", "편성액", "편성률" 등 예산 변수를 삽입 가능하게 합니다.
+
+#### API 엔드포인트
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/api/tiptap-variables/metadata` | 변수 카탈로그 조회 (카테고리·연도·사업·항목 목록) |
+| POST | `/api/tiptap-variables/resolve` | 토큰 배열 해석 (표시값 및 상태 반환) |
+
+#### 카탈로그 구조
+
+`/metadata` 응답:
+
+```json
+{
+  "categories": [
+    {
+      "code": "IT_BUDGET",
+      "label": "전산예산",
+      "years": [2024, 2025, 2026, 2027, 2028],
+      "projects": null,
+      "items": [
+        { "code": "requestAmount", "label": "편성요청액" },
+        { "code": "allocatedAmount", "label": "편성액" },
+        { "code": "allocationRate", "label": "편성률" }
+      ]
+    },
+    {
+      "code": "PROJ",
+      "label": "사업별",
+      "years": [2024, 2025, 2026, 2027, 2028],
+      "projects": [
+        { "code": "PRJ-2026-0001", "name": "시스템 개선" },
+        ...
+      ],
+      "items": [...]
+    },
+    ...
+  ]
+}
+```
+
+#### 토큰 형식 및 해석
+
+**토큰 형식**: `<YEAR>.<CATEGORY>[.<PROJECT_CODE>].<ITEM>` (점 구분, 카테고리는 camelCase)
+
+- 비사업 카테고리: `{연도}.{itBudget|capBudget|opex}.{항목}`
+- 사업 카테고리: `{연도}.proj.{사업코드}.{항목}`
+
+예시 요청 (`/resolve`):
+
+```json
+{
+  "tokens": [
+    "2026.itBudget.requestAmount",
+    "2026.proj.PRJ-2026-0001.allocatedAmount",
+    "2026.capBudget.allocationRate"
+  ]
+}
+```
+
+**응답**:
+
+```json
+{
+  "results": {
+    "2026.itBudget.requestAmount": {
+      "status": "OK",
+      "value": "500억원"
+    },
+    "2026.proj.PRJ-2026-0001.allocatedAmount": {
+      "status": "MISSING",
+      "value": null
+    },
+    "2026.capBudget.allocationRate": {
+      "status": "OK",
+      "value": "85.3%"
+    }
+  }
+}
+```
+
+#### 해석 상태
+
+| 상태 | 의미 |
+|------|------|
+| `OK` | 성공적으로 해석됨 (value 포함) |
+| `INVALID` | 토큰 형식 불일치 또는 카테고리/항목 미존재 |
+| `MISSING` | 카테고리/연도/사업은 존재하나 해당 금액 데이터 없음 |
+
+#### 구현 상세
+
+**TiptapTokenParser**
+- 토큰 정규식 검증
+- 카테고리·연도·항목·사업코드 추출
+- ParseResult 반환 (valid 플래그 포함)
+
+**TiptapVariableService**
+- 클래스 레벨 `@Transactional(readOnly=true)` 적용
+- `getMetadata()`: ProjectRepository(활성 사업만) + 현재 연도±2 범위
+- `resolve(List<String> tokens)`: 1~200개 토큰 (DTO 검증)
+  - 각 토큰마다 `resolveOne()` 호출
+  - BudgetStatusQueryRepository.aggregateByCategory() 또는 aggregateByProject() 호출
+  - 금액 포맷팅: 억원/만원/원 자동 변환
+  - 편성률: (편성액 / 편성요청액 × 100) 소수점 한 자리
+
+**금액 포맷팅 규칙**
+
+| 범위 | 포맷 |
+|------|------|
+| ≥ 1억 원 | `{n}억원` (예: 90000000000 → "900억원") |
+| 1만 원 ~ 1억 원 미만 | `{n}만원` |
+| < 1만 원 | `{n}원` |
+
+#### 권한 및 필터링
+
+- 현 Phase: 권한 필터링 없음 (모든 인증 사용자 동일 카탈로그)
+- Phase 2: SecurityContext 기반 부서/권한별 사업 필터링 (후속 Task)
+
+---
+
+## 6. 로그 체계
 
 IT Portal의 로그는 **3가지 유형**으로 구성되며, 각각 다른 계층에서 처리됩니다.
 
-### 5.1 변경 로그 (Audit Log) — 자동 기록
+### 6.1 변경 로그 (Audit Log) — 자동 기록
 
 엔티티 CUD 이벤트를 JPA 리스너로 자동 캡처하여 `*L` 로그 테이블에 스냅샷을 남깁니다.
 
@@ -202,7 +466,7 @@ IT Portal의 로그는 **3가지 유형**으로 구성되며, 각각 다른 계�
 ```java
 @LogTarget(entity = BprojmL.class)
 @Entity
-@Table(name = "TAAABB_BPROJM")
+@Table(name = "TPRMPP_BPROJM")
 public class Bprojm extends BaseEntity { ... }
 ```
 
@@ -251,7 +515,7 @@ public class Bprojm extends BaseEntity { ... }
 3. 원본 엔티티에 `@LogTarget(entity = {엔티티명}L.class)` 추가
 4. `AdminLogService.buildDefinitions()`에 항목 추가 (관리자 화면 노출)
 
-### 5.2 로그인 이력 (Login History) — 명시적 기록
+### 6.2 로그인 이력 (Login History) — 명시적 기록
 
 인증 흐름 중 `AuthService`가 `Clognh` 엔티티에 직접 저장합니다. 변경 로그와 달리 AOP/리스너 없이 서비스 코드에서 명시적으로 기록합니다.
 
@@ -262,9 +526,9 @@ public class Bprojm extends BaseEntity { ... }
 | `LOGOUT` | 로그아웃 처리 후 |
 
 - **조회**: `LoginHistoryService` — 본인 이력 최대 50건(`getLoginHistory`) 또는 최근 10건(`getRecentLoginHistory`)
-- **테이블**: `TAAABB_CLOGNH`
+- **테이블**: `TPRMPP_CLOGNH`
 
-### 5.3 관리자 로그 조회 (`AdminLogService`) — ROLE_ADMIN 전용
+### 6.3 관리자 로그 조회 (`AdminLogService`) — ROLE_ADMIN 전용
 
 변경 로그 20개 테이블을 관리자 화면에서 페이징·상세 조회합니다.
 
@@ -278,14 +542,14 @@ public class Bprojm extends BaseEntity { ... }
 
 ---
 
-## 6. 인증/인가 및 보안
+## 7. 인증/인가 및 보안
 
-### 6.1 JWT 인증 흐름
+### 7.1 JWT 인증 흐름
 
 ```
 [로그인] POST /api/auth/login
   → 사번/비밀번호 검증 (SHA-256 + Base64)
-  → TAAABB_CLOGNH LOGIN_FAILURE 이력 기반 5회/10분 Brute-force 잠금 확인
+  → TPRMPP_CLOGNH LOGIN_FAILURE 이력 기반 5회/10분 Brute-force 잠금 확인
   → Access Token(15분) + Refresh Token(7일) 발급
   → httpOnly 쿠키(Set-Cookie)로 토큰 전달
   → Clognh 테이블에 로그인 이력 기록
@@ -310,7 +574,7 @@ public class Bprojm extends BaseEntity { ... }
   → Clognh 테이블에 로그아웃 이력 기록
 ```
 
-### 6.2 인가 (Authorization) 모델
+### 7.2 인가 (Authorization) 모델
 
 **RBAC (Role-Based Access Control)**
 - **자격등급** (`CauthI` 엔티티): 시스템관리자(ITPAD001), 일반사용자(ITPZZ001), 기획담당(ITPZZ002)
@@ -327,7 +591,7 @@ public class Bprojm extends BaseEntity { ... }
 
 > **주의**: SecurityConfig에 등록되지 않은 관리자 API는 반드시 컨트롤러 **클래스 레벨**에 `@PreAuthorize("hasRole('ADMIN')")` 적용. 누락 시 인증된 모든 사용자 접근 가능 → CLAUDE.md §5.6 참조
 
-### 6.3 보안 조치
+### 7.3 보안 조치
 
 | 항목 | 기술 | 설명 |
 |------|------|------|
@@ -339,9 +603,9 @@ public class Bprojm extends BaseEntity { ... }
 | **비밀번호 저장** | SHA-256 + Base64 | `CustomPasswordEncoder` |
 | **환경 비밀값** | 환경변수 주입 | `DB_PASSWORD`, `JWT_SECRET`, `GEMINI_API_KEY` (`DB_PASSWORD`, `JWT_SECRET`은 현재 개발 기본값이 남아 있어 운영 프로파일에서 제거 필요) |
 
-## 7. 주요 API 엔드포인트
+## 8. 주요 API 엔드포인트
 
-### 7.1 공개 엔드포인트 (인증 불필요)
+### 8.1 공개 엔드포인트 (인증 불필요)
 
 | Method | Path | 설명 |
 |--------|------|------|
@@ -352,8 +616,10 @@ public class Bprojm extends BaseEntity { ... }
 | GET | `/v3/api-docs/**` | OpenAPI 명세 |
 
 > **회원가입**: `/api/auth/signup` — 관리자 권한 필요 (임직원 포털 특성상 자유 가입 금지)
+>
+> **개발 전용**: `/api/auth/dev/**` — 개발자 사용자 전환 API (app.dev.user-switch.enabled=true 시에만 활성화, 운영 배포 전 반드시 비활성화)
 
-### 7.2 비즈니스 API (인증 필수)
+### 8.2 비즈니스 API (인증 필수)
 
 | 도메인 | Method | Path | 설명 | 권한 |
 |--------|--------|------|------|------|
@@ -374,6 +640,8 @@ public class Bprojm extends BaseEntity { ... }
 | **협의회 관리** | GET/POST/PUT/PATCH | `/api/council/**` | 신청, 심의, 평가, 일정 (34개 매핑) | 일반 |
 | | | | CouncilController 통합 (8개 서비스 분리) | |
 | **Gemini AI** | POST | `/api/gemini/generate` | 텍스트 생성 (파일 첨부 가능) | **관리자** |
+| **알림** | GET/PATCH/DELETE | `/api/notifications/**` | 알림 목록/읽음/삭제 (본인 데이터만) | 일반 |
+| **Tiptap 변수** | GET/POST | `/api/tiptap-variables/**` | 변수 카탈로그, 토큰 해석 | 일반 |
 | **공통코드** | GET/POST/PUT/DELETE | `/api/ccodem/**` | 코드 조회 및 CRUD (캐싱) | 일반 |
 | **사용자** | GET | `/api/users/**` | 사용자/조직 조회 | 일반 |
 | **로그인 이력** | GET | `/api/login-history/**` | 본인 이력 조회 (최대 50건) | 일반 |
@@ -385,7 +653,7 @@ public class Bprojm extends BaseEntity { ... }
 
 > **Swagger UI**: http://localhost:8080/swagger-ui/index.html
 
-## 8. 빌드 및 실행
+## 9. 빌드 및 실행
 
 ```bash
 # 1. QueryDSL Q클래스 생성 (필요시)
@@ -399,7 +667,7 @@ public class Bprojm extends BaseEntity { ... }
 #   → http://localhost:8080
 #   → Swagger: http://localhost:8080/swagger-ui/index.html
 
-# 4. 테스트 실행 (69개 테스트 파일 / 기존 결과 기준 787개 케이스)
+# 4. 테스트 실행 (86개 테스트 파일 / 기존 결과 기준 787개 케이스)
 ./gradlew test
 
 # 5. 테스트 커버리지 리포트 생성
@@ -416,15 +684,15 @@ public class Bprojm extends BaseEntity { ... }
 #   → Tomcat 기동
 ```
 
-## 9. 환경 설정
+## 10. 환경 설정
 
-### 9.1 application.properties 주요 항목
+### 10.1 application.properties 주요 항목
 
 | 속성 | 기본값 | 개발 | 운영 | 설명 |
 |------|--------|------|------|------|
 | `spring.datasource.url` | - | `jdbc:oracle:thin:@127.0.0.1:1521/XEPDB1` | 프로덕션 접속 정보 | Oracle 접속 URL |
-| `spring.datasource.password` | `kdb1234!!` | 로컬값 | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
-| `jwt.secret` | `kdb-it-secret-key...` | 로컬값 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 (운영 기본값 제거 필요) |
+| `spring.datasource.password` | `your-db-password` | 로컬값 | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
+| `jwt.secret` | `your-jwt-secret-key` | 로컬값 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 (운영 기본값 제거 필요) |
 | `jwt.access-token-validity` | `900000` | - | - | Access Token 유효시간 (15분) |
 | `jwt.refresh-token-validity` | `604800000` | - | - | Refresh Token 유효시간 (7일) |
 | `app.cookie.secure` | `false` | 개발: false | 운영: true | 쿠키 Secure 플래그 (HTTPS 필수) |
@@ -436,7 +704,7 @@ public class Bprojm extends BaseEntity { ... }
 | `gemini.api.key` | - | 환경변수 `GEMINI_API_KEY` | 환경변수 | Google Gemini API 키 |
 | `gemini.api.model` | `gemini-2.5-flash` | - | - | Gemini 모델 선택 |
 
-### 9.2 보안 설정
+### 10.2 보안 설정
 
 | 항목 | 설정 | 비고 |
 |------|------|------|
@@ -446,21 +714,21 @@ public class Bprojm extends BaseEntity { ... }
 | **HTTP 헤더** | 보안 헤더 자동 설정 | HSTS, CSP, X-Frame-Options, Content-Type-Options |
 | **환경변수** | 비밀값은 환경변수에서 주입 | `application.properties`의 개발 기본값은 운영 프로파일에서 제거 |
 
-### 9.3 로컬 개발 환경 설정
+### 10.3 로컬 개발 환경 설정
 
 ```bash
 # Windows (PowerShell)
-$env:DB_PASSWORD = "kdb1234!!"
-$env:JWT_SECRET = "your-256-bit-secret-key-at-least-32-characters"
+$env:DB_PASSWORD = "your-db-password"
+$env:JWT_SECRET = "your-jwt-secret-key"
 $env:GEMINI_API_KEY = "your-gemini-api-key"
 
 # macOS/Linux (bash)
-export DB_PASSWORD=kdb1234!!
-export JWT_SECRET=your-256-bit-secret-key-at-least-32-characters
+export DB_PASSWORD=your-db-password
+export JWT_SECRET=your-jwt-secret-key
 export GEMINI_API_KEY=your-gemini-api-key
 ```
 
-### 9.4 운영 배포 설정
+### 10.4 운영 배포 설정
 
 1. **application.properties** 운영값 적용
 2. **환경변수** 주입:
@@ -472,9 +740,9 @@ export GEMINI_API_KEY=your-gemini-api-key
 5. **파일 저장 경로**: NAS 공유 폴더 지정 (`/mnt/nas/files` 등)
 6. **WAR 배포**: Tomcat CATALINA_HOME/webapps 디렉토리에 복사
 
-## 10. 외부 연동
+## 11. 외부 연동
 
-### 10.1 Gemini AI
+### 11.1 Gemini AI
 
 - **API**: `POST /api/gemini/generate` (인증 필수)
 - **기능**: 텍스트 생성, 첨부파일 inlineData 변환, 미지원/누락 파일 `skippedFiles` 응답
@@ -482,14 +750,14 @@ export GEMINI_API_KEY=your-gemini-api-key
 - **구현**: `GeminiService`, `GeminiController`
 - **보안**: API 키는 환경변수 `GEMINI_API_KEY`에서 주입
 
-### 10.2 SSO (Single Sign-On) 에이전트
+### 11.2 SSO (Single Sign-On) 에이전트
 
 - **상태**: 선택적 (JSP 에이전트 라이브러리 libs/ 폴더에 복사 후 주석 해제)
 - **엔드포인트**: `/api/auth/sso/complete` (JWT 발급)
 - **구성**: `SsoWebConfig`, `SsoController`
 - **기능**: 사내 SSO 시스템과 연동하여 JWT 토큰 발급
 
-### 10.3 Oracle Database
+### 11.3 Oracle Database
 
 - **버전**: XEPDB1 (Oracle Database 21c XE)
 - **사용자**: `ITPAPP`
@@ -498,9 +766,9 @@ export GEMINI_API_KEY=your-gemini-api-key
 
 ---
 
-## 11. 핵심 도메인 및 의존성
+## 12. 핵심 도메인 및 의존성
 
-### 11.1 도메인 의존성 규칙
+### 12.1 도메인 의존성 규칙
 
 ```
 domain → common (O)
@@ -512,7 +780,7 @@ common → infra (X)
 infra → domain (X, domain 기능 불필요)
 ```
 
-### 11.2 도메인별 핵심 클래스
+### 12.2 도메인별 핵심 클래스
 
 | 도메인 | Entity | Service | Repository | 설명 |
 |--------|--------|---------|------------|------|
@@ -533,7 +801,7 @@ infra → domain (X, domain 기능 불필요)
 | **infra.file** | Cfilem | FileService | FileRepository | 첨부파일 |
 | **infra.ai** | - | GeminiService | FileRepository | Gemini 프록시 |
 
-### 11.2.1 부서 필터링 패턴 (bbrC) — 재발 방지
+### 12.2.1 부서 필터링 패턴 (bbrC) — 재발 방지
 
 신규 목록 API 추가 시 아래 패턴을 반드시 따릅니다.
 
@@ -546,7 +814,7 @@ infra → domain (X, domain 기능 불필요)
 - `bbrC` null·빈 문자열 → 전체 조회 (관리자 포함, 하위 호환 유지).
 - TDD 의무: `bbrC` 지정·null 두 케이스 모두 JUnit 테스트 추가.
 
-### 11.2.2 TDD 의무 범위
+### 12.2.2 TDD 의무 범위
 
 신규 Service / RepositoryImpl 로직은 **RED → GREEN → REFACTOR** 순서로 작성합니다.
 
@@ -556,7 +824,7 @@ GREEN — 테스트를 통과하는 최소 구현 작성
 REFACTOR — 중복 제거, 가독성 개선 (테스트 통과 유지)
 ```
 
-### 11.3 공통 의존성
+### 12.3 공통 의존성
 
 | 패키지 | 목적 |
 |--------|------|
@@ -567,10 +835,92 @@ REFACTOR — 중복 제거, 가독성 개선 (테스트 통과 유지)
 
 ---
 
-## 12. 변경 이력
+## 13. 개발자 가이드
+
+### 13.1 신규 기능 구현 패턴
+
+#### 목록 API에 부서 필터링 추가
+신규 목록 조회 API는 반드시 부서코드(`bbrC`) 필터링을 지원해야 합니다.
+
+```
+1. Controller: @RequestParam(required = false) String bbrC 추가
+2. Service: getList(@Nullable String bbrC) 시그니처 변경
+3. RepositoryImpl: if (StringUtils.hasText(bbrC)) builder.and(entity.bbrC.eq(bbrC))
+4. Test: bbrC 지정/null 두 케이스 모두 테스트
+```
+
+#### 관리자 전용 컨트롤러 작성
+관리자만 접근 가능한 도메인 API는 **클래스 레벨 `@PreAuthorize` 필수**:
+
+```java
+@RestController
+@RequestMapping("/api/plans")
+@RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")  // SecurityConfig URL 패턴 외 도메인 컨트롤러는 반드시 명시
+public class PlanController { ... }
+```
+
+#### 알림 발송
+결재/게시판 완료 후 사용자에게 알림:
+
+```java
+applicationEventPublisher.publishEvent(
+    new NotificationEvent(
+        Cinfmm.newInAppNotification(
+            recipient.getEno(),
+            "002",  // NotificationEvent.TYPE_APPROVAL_REQUEST
+            applId
+        )
+    )
+);
+// NotificationEventListener(AFTER_COMMIT)가 자동으로 처리
+```
+
+#### JPA Auditing 로그 자동 기록
+새 엔티티에 변경 로그 추가:
+
+```java
+@LogTarget(entity = BnewentL.class)  // 로그 대상 등록
+@Entity
+public class Bnewent extends BaseEntity { ... }
+```
+
+그 후:
+1. `BaseLogEntity` 상속하는 `BnewentL` 생성
+2. Oracle 시퀀스 `S_BNEWENT` 생성
+3. `AdminLogService.buildDefinitions()`에 항목 추가
+
+### 13.2 테스트 작성 의무
+
+| 대상 | 테스트 케이스 | 필수 |
+|------|-------------|------|
+| 신규 Service 메서드 | RED→GREEN→REFACTOR | O |
+| 신규 RepositoryImpl | 정상/null/부서필터 케이스 | O |
+| 신규 Controller 엔드포인트 | MockMvc + 권한 테스트 | O |
+| @Valid 검증 | 유효/무효 요청 | O |
+| QueryDSL 집계 쿼리 | 결과 정확도 | O |
+
+### 13.3 보안 체크리스트
+
+신규 API 또는 수정 후:
+
+- [ ] 인증 필수 엔드포인트는 SecurityConfig 또는 `@PreAuthorize` 보호
+- [ ] `@Valid` 요청 검증 적용
+- [ ] SQL Injection: 모든 동적 쿼리는 QueryDSL 또는 파라미터 바인딩
+- [ ] XSS: 사용자 HTML 입력은 `HtmlSanitizer.sanitize()` 적용
+- [ ] 파일 업로드: `FileValidator.validateExtension()` 호출
+- [ ] 소유권 검증: 파일/알림/게시물은 `FileOwnershipChecker` 또는 권한 검증
+- [ ] 부서 필터링: 목록 API는 `bbrC` 지원
+
+---
+
+## 14. 변경 이력
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-05-26** | README.md 전체 분석 및 업데이트: 소스 코드 통계(257 Java 파일, 84 테스트, 61 엔티티) 추가, 개발자 가이드 섹션(신규 기능 패턴, 테스트 의무, 보안 체크리스트) 신규 작성, 28개 컨트롤러 API 현행화 |
+| **2026-05-22** | 알림 시스템(Notification) 및 Tiptap 변수 시스템 문서화: `common/notification` 모듈(Cinfmm, NotificationService, NotificationDispatcher, @TransactionalEventListener 패턴), `common/system/tiptap` 모듈(TiptapVariableService, TiptapVariableController, 토큰 형식, 금액 포맷팅) 상세 기술 |
+| **2026-05-19** | REVIEW 재점검 결과 반영: 로그인 이력 JavaDoc 위치, `Bcostm` 깨진 한글 주석, Gemini 트랜잭션 경계 설명, 게시판 QueryDSL 구현체 조회 의도 주석 보강 |
 | **2026-05-14** | 공통 게시판 모듈(`common/board`)과 게시판 API, 감사로그 대상 23개, DB 로그인 이력 기반 Brute-force 설명을 문서에 반영 |
 | **2026-05-10** | 로컬 개발 포트를 실제 설정 기준(백엔드 8080)으로 정정. 비밀값 기본값은 아직 `application.properties`에 남아 있어 운영 프로파일 제거 과제로 재분류 |
 | **2026-05-09** | README.md 대폭 개선: 프로젝트 개요 강화, 설계 결정 이유 추가, 인증/보안 섹션 분리, API 엔드포인트 도메인별 정렬, 환경 설정 테이블화, 외부 연동 문서화, 도메인 의존성 규칙 명시 |

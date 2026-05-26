@@ -219,12 +219,12 @@ class AuthServiceTest {
                 // given
                 String refreshTokenValue = "valid-refresh-token";
                 Crtokm refreshToken = Crtokm.builder()
-                                .tok(refreshTokenValue).eno("10001")
+                                .tokCone(refreshTokenValue).eno("10001")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
 
                 given(jwtUtil.validateToken(refreshTokenValue)).willReturn(true);
-                given(refreshTokenRepository.findByTok(refreshTokenValue)).willReturn(Optional.of(refreshToken));
+                given(refreshTokenRepository.findByTokCone(refreshTokenValue)).willReturn(Optional.of(refreshToken));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
                 given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
@@ -256,12 +256,12 @@ class AuthServiceTest {
                 // given
                 String tokenValue = "expired-refresh-token";
                 Crtokm expiredToken = Crtokm.builder()
-                                .tok(tokenValue).eno("10001")
+                                .tokCone(tokenValue).eno("10001")
                                 .endDtm(LocalDateTime.now().minusDays(1)) // 이미 만료
                                 .build();
 
                 given(jwtUtil.validateToken(tokenValue)).willReturn(true);
-                given(refreshTokenRepository.findByTok(tokenValue)).willReturn(Optional.of(expiredToken));
+                given(refreshTokenRepository.findByTokCone(tokenValue)).willReturn(Optional.of(expiredToken));
 
                 // when & then
                 assertThatThrownBy(() -> authService.refreshAccessToken(tokenValue))
@@ -321,7 +321,7 @@ class AuthServiceTest {
         @DisplayName("refreshAccessToken - DB에 토큰이 없으면 RuntimeException을 던진다")
         void refreshAccessToken_DB토큰없음_예외발생() {
                 given(jwtUtil.validateToken("missing-refresh")).willReturn(true);
-                given(refreshTokenRepository.findByTok("missing-refresh")).willReturn(Optional.empty());
+                given(refreshTokenRepository.findByTokCone("missing-refresh")).willReturn(Optional.empty());
 
                 assertThatThrownBy(() -> authService.refreshAccessToken("missing-refresh"))
                                 .isInstanceOf(RuntimeException.class)
@@ -333,11 +333,11 @@ class AuthServiceTest {
         void refreshAccessToken_사용자없음_예외발생() {
                 String tokenValue = "valid-refresh-token";
                 Crtokm refreshToken = Crtokm.builder()
-                                .tok(tokenValue).eno("10001")
+                                .tokCone(tokenValue).eno("10001")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
                 given(jwtUtil.validateToken(tokenValue)).willReturn(true);
-                given(refreshTokenRepository.findByTok(tokenValue)).willReturn(Optional.of(refreshToken));
+                given(refreshTokenRepository.findByTokCone(tokenValue)).willReturn(Optional.of(refreshToken));
                 given(userRepository.findByEno("10001")).willReturn(Optional.empty());
 
                 assertThatThrownBy(() -> authService.refreshAccessToken(tokenValue))

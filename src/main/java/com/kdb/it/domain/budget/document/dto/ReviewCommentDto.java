@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 
 /**
- * 검토의견(TAAABB_BRIVGM) 관련 DTO 클래스 모음
+ * 검토의견(TPRMPP_BRIVGM) 관련 DTO 클래스 모음
  *
  * <p>
  * 문서 검토의견({@link Brivgm})의 생성 요청 및 조회 응답 DTO를
@@ -66,15 +66,15 @@ public class ReviewCommentDto {
      *
      * <p>
      * 작성자 사번({@code authorEno})은 {@link Brivgm}의 {@code FST_ENR_USID}에서 가져오며,
-     * 작성자 이름({@code authorName})은 별도 조회(TAAABB_CUSERI JOIN)하여 주입합니다.
+     * 작성자 이름({@code authorName})은 별도 조회(TPRMPP_CUSERI JOIN)하여 주입합니다.
      * TODO: 프론트엔드의 {@code ReviewComment.authorTeam} 임시값을 제거할 수 있도록
-     *       조직 테이블(TAAABB_CORGNI) 조인 기반 작성자 팀명 응답 필드를 추가해야 합니다.
+     *       조직 테이블(TPRMPP_CORGNI) 조인 기반 작성자 팀명 응답 필드를 추가해야 합니다.
      * </p>
      */
     @Getter
     public static class Response {
-        /** 의견일련번호 (UUID v4 32자) */
-        private final String ivgSno;
+        /** 의견일련번호 */
+        private final Long ivgSno;
         /** 문서관리번호 */
         private final String docMngNo;
         /** 문서버전 */

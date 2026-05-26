@@ -13,10 +13,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * 정보화사업 품목(TAAABB_BITEMM) 변경 로그 엔티티.
+ * 정보화사업 품목(TPRMPP_BITEMM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BITEML", comment = "정보화사업 품목 변경 로그")
+@Table(name = "TPRMPP_BITEML", comment = "정보화사업 품목 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -73,4 +73,8 @@ public class BitemmL extends BaseLogEntity {
 
     @Column(name = "GCL_AMT", precision = 18, scale = 3, comment = "품목금액")
     private BigDecimal gclAmt;
+
+    /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
 }

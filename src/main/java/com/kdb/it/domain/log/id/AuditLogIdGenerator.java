@@ -12,22 +12,32 @@ import java.sql.Statement;
  * 로그 테이블 PK({@code LOG_SNO}) 생성기.
  *
  * <p>로그 엔티티의 {@code @Table(name)} 값에서 Postfix를 추출하고,
- * Oracle 시퀀스 {@code SEQ_{Postfix}.NEXTVAL}을 조회하여
- * {@code "{Postfix}_{22자리_0패딩}"} 형식의 VARCHAR2 값을 반환한다.</p>
+ * Oracle 시퀀스 {@code SEQ_{Postfix}.NEXTVAL}을 조회하여 {@code Long} 값을 반환한다.</p>
  *
- * <p>예: {@code TAAABB_BPROJL} → {@code BPROJL-0000000000000000000001}</p>
- *
- * <p>시퀀스는 CYCLE 설정 (최대 22자리, 순환 후 1부터 재시작).</p>
+ * <p>예: {@code TPRMPP_BPROJL} → {@code SEQ_BPROJL.NEXTVAL} (숫자)</p>
  */
 public class AuditLogIdGenerator implements IdentifierGenerator {
 
-    private static final int SEQ_PAD_LENGTH = 22;
-
+    /**
+     * 로그 엔티티의 PK({@code LOG_SNO})를 Oracle 시퀀스로 채번합니다.
+     *
+     * <p>채번 흐름: {@code @Table(name)} 추출 → Postfix 분리 → {@code SEQ_{Postfix}.NEXTVAL} 조회</p>
+     * <p>예: {@code TPRMPP_BPROJL} → {@code SEQ_BPROJL.NEXTVAL} → Long 값 반환</p>
+     *
+     * <p>시퀀스 미존재(ORA-02289) 등 DB 오류 발생 시 {@link RuntimeException}으로 래핑하여 전파합니다.
+     * 해당 예외는 {@link com.kdb.it.domain.log.listener.ChangeLogEntityListener}가 삼켜
+     * 원본 트랜잭션 롤백을 방지합니다.</p>
+     *
+     * @param session 현재 Hibernate 세션 (JDBC 커넥션 획득용)
+     * @param object  채번 대상 엔티티 인스턴스 ({@code @Table} 어노테이션 필수)
+     * @return 채번된 시퀀스 값 ({@link Long})
+     * @throws RuntimeException      시퀀스 조회 실패 시 (ORA-02289 등 포함)
+     * @throws IllegalStateException {@code @Table} 어노테이션 누락 또는 NEXTVAL 결과 없음
+     */
     @Override
     public Object generate(SharedSessionContractImplementor session, Object object) {
         String postfix = resolvePostfix(object);
-        long nextVal = fetchNextVal(session, "SEQ_" + postfix);
-        return postfix + "-" + String.format("%0" + SEQ_PAD_LENGTH + "d", nextVal);
+        return fetchNextVal(session, "SEQ_" + postfix);
     }
 
     private String resolvePostfix(Object object) {
@@ -35,7 +45,7 @@ public class AuditLogIdGenerator implements IdentifierGenerator {
         if (ann == null) {
             throw new IllegalStateException("@Table 누락: " + object.getClass().getName());
         }
-        // "TAAABB_BPROJL" → "BPROJL"
+        // "TPRMPP_BPROJL" → "BPROJL"
         String tbl = ann.name().toUpperCase();
         int idx = tbl.indexOf('_');
         return idx >= 0 ? tbl.substring(idx + 1) : tbl;

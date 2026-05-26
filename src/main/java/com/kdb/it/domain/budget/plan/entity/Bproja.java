@@ -12,10 +12,10 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 정보화사업 관계(TAAABB_BPROJA) 엔티티
+ * 정보화사업 관계(TPRMPP_BPROJA) 엔티티
  *
  * <p>
- * 정보화사업(TAAABB_BPROJM)과 정보기술부문계획(TAAABB_BPLANM) 간의
+ * 정보화사업(TPRMPP_BPROJM)과 정보기술부문계획(TPRMPP_BPLANM) 간의
  * N:N 관계를 매핑하는 중간 테이블입니다.
  * </p>
  *
@@ -25,7 +25,7 @@ import lombok.experimental.SuperBuilder;
  * </ul>
  */
 @Entity
-@Table(name = "TAAABB_BPROJA", comment = "정보화사업 관계")
+@Table(name = "TPRMPP_BPROJA", comment = "정보화사업 관계")
 @IdClass(BprojaId.class)
 @Getter
 @NoArgsConstructor

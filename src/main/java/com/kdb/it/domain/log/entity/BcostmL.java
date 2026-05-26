@@ -13,17 +13,17 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * 전산관리비(TAAABB_BCOSTM) 변경 로그 엔티티.
+ * 전산관리비(TPRMPP_BCOSTM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BCOSTL", comment = "전산관리비 변경 로그")
+@Table(name = "TPRMPP_BCOSTL", comment = "전산관리비 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class BcostmL extends BaseLogEntity {
 
-    @Column(name = "IT_MNGC_NO", length = 128, comment = "전산업무비코드")
+    @Column(name = "IT_MNGC_NO", length = 32, comment = "전산업무비코드")
     private String itMngcNo;
 
     @Column(name = "IT_MNGC_SNO", comment = "전산업무비일련번호")
@@ -71,7 +71,7 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "BICE_DPM_C", length = 3, comment = "담당부서코드")
     private String biceDpmC;
 
-    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
     @Column(name = "BG_YY", length = 4, comment = "예산연도")
@@ -85,4 +85,8 @@ public class BcostmL extends BaseLogEntity {
 
     @Column(name = "PUL_DTT", length = 100, comment = "전산업무비구분")
     private String pulDtt;
+
+    /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
 }

@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class EvaluationService {
 
-    /** 평가의견 리포지토리 (TAAABB_BEVALM) */
+    /** 평가의견 리포지토리 (TPRMPP_BEVALM) */
     private final EvaluationRepository evaluationRepository;
 
     /** 사용자 리포지토리 — 위원 이름 조회용 */

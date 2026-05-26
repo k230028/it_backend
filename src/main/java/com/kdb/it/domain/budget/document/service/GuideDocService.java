@@ -12,7 +12,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 가이드 문서(TAAABB_BGDOCM) 서비스
+ * 가이드 문서(TPRMPP_BGDOCM) 서비스
  *
  * <p>
  * 가이드 문서 엔티티의 CRUD 비즈니스 로직을 처리합니다.
@@ -32,7 +32,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class GuideDocService {
 
-    /** 가이드 문서 데이터 접근 리포지토리 (TAAABB_BGDOCM) */
+    /** 가이드 문서 데이터 접근 리포지토리 (TPRMPP_BGDOCM) */
     private final GuideDocRepository guideDocRepository;
 
     /**

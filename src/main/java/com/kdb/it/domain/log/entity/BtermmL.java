@@ -13,10 +13,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * 단말기관리마스터(TAAABB_BTERMM) 변경 로그 엔티티.
+ * 단말기관리마스터(TPRMPP_BTERMM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BTERML", comment = "단말기관리마스터 변경 로그")
+@Table(name = "TPRMPP_BTERML", comment = "단말기관리마스터 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -26,8 +26,8 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "TMN_MNG_NO", length = 32, comment = "단말기관리번호")
     private String tmnMngNo;
 
-    @Column(name = "TMN_SNO", length = 32, comment = "단말기일련번호")
-    private String tmnSno;
+    @Column(name = "TMN_SNO", comment = "단말기일련번호")
+    private Integer tmnSno;
 
     @Column(name = "IT_MNGC_NO", length = 32, comment = "IT관리비관리번호")
     private String itMngcNo;
@@ -68,7 +68,7 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "CGPR_ENO", length = 32, comment = "담당자행번")
     private String cgprEno;
 
-    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
     @Column(name = "BICE_DPM_C", length = 3, comment = "담당부서코드")
@@ -76,4 +76,8 @@ public class BtermmL extends BaseLogEntity {
 
     @Column(name = "RMK", length = 300, comment = "비고")
     private String rmk;
+
+    /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
 }

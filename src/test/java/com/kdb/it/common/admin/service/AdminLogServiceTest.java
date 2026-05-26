@@ -50,7 +50,7 @@ class AdminLogServiceTest {
 
         assertThat(tables).isNotEmpty();
         assertThat(tables.get(0).key()).isEqualTo("basctm");
-        assertThat(tables.get(0).tableName()).isEqualTo("TAAABB_BASCTL");
+        assertThat(tables.get(0).tableName()).isEqualTo("TPRMPP_BASCTL");
     }
 
     @Test
@@ -58,7 +58,7 @@ class AdminLogServiceTest {
     @DisplayName("getLogs: 로그 행과 사용자명 매핑을 함께 반환한다")
     void getLogs_로그목록_사용자명포함반환() {
         BasctmL log = BasctmL.builder()
-                .logSno("BASCTM_0001")
+                .logSno(1L)
                 .chgTp("C")
                 .chgDtm(LocalDateTime.of(2026, 5, 6, 9, 0))
                 .chgUsid("10001")
@@ -83,7 +83,7 @@ class AdminLogServiceTest {
         assertThat(result.table().key()).isEqualTo("basctm");
         assertThat(result.size()).isEqualTo(500);
         assertThat(result.content()).hasSize(1);
-        assertThat(result.content().get(0)).containsEntry("logSno", "BASCTM_0001");
+        assertThat(result.content().get(0)).containsEntry("logSno", 1L);
         assertThat(result.content().get(0)).containsEntry("asctId", "ASCT-1");
         assertThat(result.userNames()).containsEntry("10001", "홍길동");
         verify(listQuery).setMaxResults(500);
@@ -93,16 +93,16 @@ class AdminLogServiceTest {
     @DisplayName("getLogDetail: 로그 일련번호로 단건 상세 스냅샷을 반환한다")
     void getLogDetail_존재하는로그_상세반환() {
         BasctmL log = BasctmL.builder()
-                .logSno("BASCTM_0001")
+                .logSno(1L)
                 .chgTp("U")
                 .chgUsid("10001")
                 .asctId("ASCT-1")
                 .build();
-        given(entityManager.find(eq(BasctmL.class), eq("BASCTM_0001"))).willReturn(log);
+        given(entityManager.find(eq(BasctmL.class), eq(1L))).willReturn(log);
 
-        AdminLogDto.LogDetailResponse result = adminLogService.getLogDetail("basctm", "BASCTM_0001");
+        AdminLogDto.LogDetailResponse result = adminLogService.getLogDetail("basctm", "1");
 
-        assertThat(result.row()).containsEntry("logSno", "BASCTM_0001");
+        assertThat(result.row()).containsEntry("logSno", 1L);
         assertThat(result.row()).containsEntry("chgTp", "U");
         assertThat(result.columns()).anyMatch(AdminLogDto.LogColumnResponse::primary);
     }
@@ -110,9 +110,9 @@ class AdminLogServiceTest {
     @Test
     @DisplayName("getLogDetail: 로그가 없으면 IllegalArgumentException을 던진다")
     void getLogDetail_로그없음_IllegalArgumentException발생() {
-        given(entityManager.find(eq(BasctmL.class), eq("MISSING"))).willReturn(null);
+        given(entityManager.find(eq(BasctmL.class), eq(999L))).willReturn(null);
 
-        assertThatThrownBy(() -> adminLogService.getLogDetail("basctm", "MISSING"))
+        assertThatThrownBy(() -> adminLogService.getLogDetail("basctm", "999"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("존재하지 않는 로그");
     }

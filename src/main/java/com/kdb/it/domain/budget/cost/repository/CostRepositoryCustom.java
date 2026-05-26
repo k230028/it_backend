@@ -45,7 +45,7 @@ public interface CostRepositoryCustom {
      * 전년도 예산 합계 일괄 조회 (계속 항목 전용)
      *
      * <p>
-     * 주어진 관리번호 목록과 전년도 연도로 TAAABB_BCOSTM에서 IT_MNGC_BG 합계를
+     * 주어진 관리번호 목록과 전년도 연도로 TPRMPP_BCOSTM에서 IT_MNGC_BG 합계를
      * IT_MNGC_NO별로 집계하여 반환합니다.
      * </p>
      *

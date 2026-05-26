@@ -18,16 +18,16 @@ import java.math.BigDecimal;
 /**
  * 협의회 사업개요 엔티티 (타당성검토표의 사업개요 섹션)
  *
- * <p>DB 테이블: {@code TAAABB_BPOVWM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BPOVWM}</p>
  *
  * <p>BASCTM과 1:1 관계이며, Step 1(타당성검토표 작성) 단계에서 입력됩니다.
- * 주요 필드는 TAAABB_BPROJM 스키마와 동일하게 맞춰 데이터 일관성을 유지합니다.</p>
+ * 주요 필드는 TPRMPP_BPROJM 스키마와 동일하게 맞춰 데이터 일관성을 유지합니다.</p>
  *
  * <p>KPN_TC(저장유형): TEMP(임시저장) / COMPLETE(작성완료)</p>
  */
 @LogTarget(entity = BpovwmL.class)
 @Entity
-@Table(name = "TAAABB_BPOVWM", comment = "협의회 사업개요")
+@Table(name = "TPRMPP_BPOVWM", comment = "협의회 사업개요")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -79,7 +79,7 @@ public class Bpovwm extends BaseEntity {
     @Column(name = "KPN_TC", length = 10, comment = "저장구분코드")
     private String kpnTc;
 
-    /** 첨부파일관리번호: TAAABB_CFILEM.FL_MNG_NO (FK, hwp/hwpx/pdf만 허용) */
+    /** 첨부파일관리번호: TPRMPP_CFILEM.FL_MNG_NO (FK, hwp/hwpx/pdf만 허용) */
     @Column(name = "FL_MNG_NO", length = 32, comment = "첨부파일관리번호")
     private String flMngNo;
 

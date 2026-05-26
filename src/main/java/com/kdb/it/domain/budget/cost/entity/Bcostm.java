@@ -21,7 +21,7 @@ import lombok.experimental.SuperBuilder;
  * 전산관리비(IT 관리비) 마스터 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_BCOSTM}
+ * DB 테이블: {@code TPRMPP_BCOSTM}
  * </p>
  *
  * <p>
@@ -41,7 +41,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BcostmL.class)
 @Entity // JPA 엔티티로 등록
-@Table(name = "TAAABB_BCOSTM", comment = "전산관리비(IT 관리비) 마스터") // 매핑할 DB 테이블명
+@Table(name = "TPRMPP_BCOSTM", comment = "전산관리비(IT 관리비) 마스터") // 매핑할 DB 테이블명
 @IdClass(BcostmId.class) // 복합키 클래스 지정
 @Getter // 모든 필드의 getter 자동 생성 (Lombok)
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // protected 기본 생성자 (JPA 요구사항)
@@ -51,7 +51,7 @@ public class Bcostm extends BaseEntity {
 
     /** 전산업무비코드(IT관리비관리번호): 복합 기본키의 첫 번째 컬럼 (예: COST_2026_0001) */
     @Id
-    @Column(name = "IT_MNGC_NO", nullable = false, length = 128, comment = "전산업무비코드")
+    @Column(name = "IT_MNGC_NO", nullable = false, length = 32, comment = "전산업무비코드")
     private String itMngcNo;
 
     /** 전산업무비일련번호(IT관리비일련번호): 복합 기본키의 두 번째 컬럼 (버전 구분용, 1부터 시작) */
@@ -71,7 +71,7 @@ public class Bcostm extends BaseEntity {
     @Column(name = "CTT_NM", length = 800, comment = "계약명")
     private String cttNm;
 
-    /** 계약상대처: 계약 상대방 업체�� (예: (주)IT���루션) */
+    /** 계약상대처: 계약 상대방 업체명 (예: (주)IT솔루션) */
     @Column(name = "CTT_OPP_NM", length = 100, comment = "계약상대처명")
     private String cttOppNm;
 
@@ -116,7 +116,7 @@ public class Bcostm extends BaseEntity {
     private String biceDpmC;
 
     /** 담당팀: 해당 비용 항목의 담당 팀 코드 */
-    @Column(name = "BICE_TEM_C", length = 3, comment = "담당팀코드")
+    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
     /** 예산연도 (4자리 숫자, 예: 2026) */
@@ -136,8 +136,19 @@ public class Bcostm extends BaseEntity {
     private String pulDtt;
 
     /** 관련전산업무비번호: 계속항목인 경우 전년도 항목의 관리번호 */
-    @Column(name = "CNCD_IT_MNGC_NO", length = 128, comment = "관련전산업무비번호")
+    @Column(name = "CNCD_IT_MNGC_NO", length = 32, comment = "관련전산업무비번호")
     private String cncdItMngcNo;
+
+    /**
+     * 외화금액(외화 통화 원금 — 환율 적용 전 값).
+     * <p>
+     * 원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며,
+     * 서버 재계산 로직(plan 03/04)에서 {@code itMngcBgAmt = fcAmt × xcr}로 환산된다.
+     * 참고: CONTEXT.md 결정 B (KRW 행 FC_AMT = NULL).
+     * </p>
+     */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    private BigDecimal fcAmt;
 
     /**
      * 전산관리비 정보 업데이트 메서드
@@ -166,10 +177,11 @@ public class Bcostm extends BaseEntity {
      * @param pulDtt        전산업무비구분
      * @param bgYy          예산연도
      * @param cncdItMngcNo  관련전산업무비번호 (계속항목인 경우 전년도 관리번호)
+     * @param fcAmt         외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
     public void update(String ioeC, String cttNm, String cttOppNm, BigDecimal itMngcBgAmt,
             String dfrCleC, LocalDate fstDfrDt, String curC, BigDecimal xcr, LocalDate xcrBseDt,
-            String infPrtYn, String indRsn, String cgprEno, String biceDpmC, String biceTemC, String abusC, String itMngcTp, String pulDtt, String bgYy, String cncdItMngcNo) {
+            String infPrtYn, String indRsn, String cgprEno, String biceDpmC, String biceTemC, String abusC, String itMngcTp, String pulDtt, String bgYy, String cncdItMngcNo, BigDecimal fcAmt) {
         this.ioeC = ioeC;
         this.cttNm = cttNm;
         this.cttOppNm = cttOppNm;
@@ -189,5 +201,6 @@ public class Bcostm extends BaseEntity {
         this.pulDtt = pulDtt;
         this.bgYy = bgYy;
         this.cncdItMngcNo = cncdItMngcNo;
+        this.fcAmt = fcAmt;
     }
 }

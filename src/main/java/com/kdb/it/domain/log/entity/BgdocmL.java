@@ -11,10 +11,10 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 가이드 문서(TAAABB_BGDOCM) 변경 로그 엔티티.
+ * 가이드 문서(TPRMPP_BGDOCM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_BGDOCL", comment = "가이드 문서 변경 로그")
+@Table(name = "TPRMPP_BGDOCL", comment = "가이드 문서 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

@@ -19,7 +19,7 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * @LogTarget(entity = BprojmL.class)
  * @Entity
- * @Table(name = "TAAABB_BPROJM")
+ * @Table(name = "TPRMPP_BPROJM")
  * public class Bprojm extends BaseEntity { ... }
  * }</pre>
  */

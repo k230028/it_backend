@@ -11,7 +11,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * 가이드 문서(TAAABB_BGDOCM) 관련 DTO 클래스 모음
+ * 가이드 문서(TPRMPP_BGDOCM) 관련 DTO 클래스 모음
  *
  * <p>
  * 가이드 문서 엔티티의 생성, 수정, 조회에 사용되는 DTO를
@@ -101,8 +101,8 @@ public class GuideDocDto {
         @Schema(description = "문서명")
         private String docNm;
 
-        /** 문서내용 (BLOB → UTF-8 문자열 변환) */
-        @Schema(description = "문서내용")
+        /** 문서정보 (CLOB, HTML 포함 가능) */
+        @Schema(description = "문서정보")
         private String docInf;
 
         /** 삭제여부 */

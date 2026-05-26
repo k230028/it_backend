@@ -14,7 +14,7 @@ import java.util.List;
  * 공통 첨부파일 관리 DTO 모음
  *
  * <p>
- * TAAABB_CFILEM 테이블의 CRUD 및 다운로드 API 요청/응답에 사용되는
+ * TPRMPP_CFILEM 테이블의 CRUD 및 다운로드 API 요청/응답에 사용되는
  * 정적 중첩 클래스 방식 DTO입니다.
  * </p>
  */

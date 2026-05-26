@@ -26,26 +26,36 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * 정보기술부문 계획 서비스
  *
  * <p>
- * 정보기술부문계획(TAAABB_BPLANM)과 정보화사업 관계(TAAABB_BPROJA)의
+ * 정보기술부문계획(TPRMPP_BPLANM)과 정보화사업 관계(TPRMPP_BPROJA)의
  * 등록, 조회, 삭제 비즈니스 로직을 담당합니다.
  * </p>
  */
+// TODO: 클래스 레벨 @Transactional(readOnly=true) 추가 필요 — 조회 위주 서비스이므로 메서드별 어노테이션 누락 방지 (CLAUDE.md §5.5)
+// 누락 배경: 초기 개발 시 트랜잭션 전략 미수립. 쓰기 메서드에 @Transactional(readOnly=false) 오버라이드 후 클래스 레벨 적용 예정.
 @Service
 @RequiredArgsConstructor
 public class PlanService {
 
+        /** 정보기술부문계획(TPRMPP_BPLANM) CRUD 리포지토리 */
         private final BplanmRepository bplanmRepository;
+        /** 정보화사업 계획 연결(TPRMPP_BPROJA) 리포지토리 */
         private final BprojaRepository bprojaRepository;
+        /** 정보화사업 서비스: 프로젝트 목록·상세 조회 위임 */
         private final ProjectService projectService;
+        /** 전산관리비 서비스: 비용 목록·상세 조회 위임 */
         private final CostService costService;
+        /** 공통코드 서비스: 예산 신청 기간 검증 및 코드명 조회용 */
         private final CodeService codeService;
+        /** 사용자(TPRMPP_CUSERI) 리포지토리: 작성자명 조회용 */
         private final UserRepository cuserIRepository;
+        /** JSON 직렬화/역직렬화: 계획 스냅샷 파싱용 */
         private final ObjectMapper objectMapper;
 
         /**
@@ -114,9 +124,8 @@ public class PlanService {
                                                                 }
                                                         }
                                                 } catch (JsonProcessingException e) {
-                                                        // FIXME: [B-H-05] `PlanService.applyExistingPlanSnapshot()` 빈
-                                                        // `catch (JsonProcessingException) {}` — 스냅샷 파싱 실패 시 카운트 0 폴백으로
-                                                        // 잘못된 예산 보고서 산출
+                                                        // FIXME: [B-H-05] 스냅샷 파싱 실패 시 카운트 0 폴백으로
+                                                        // 잘못된 예산 보고서가 산출될 수 있으므로 실패 로그와 보정 정책이 필요합니다.
                                                         // 스냅샷 파싱 실패 시 카운트는 0 으로 유지 (목록 화면은 동작해야 함)
                                                 }
                                         }
@@ -165,8 +174,8 @@ public class PlanService {
          * 3. 예산 합계(TTL_BG, CPT_BG, MNGC) 계산 (정보화사업 + 전산업무비 합산)
          * 4. JSON 스냅샷 생성
          * 5. 계획관리번호 채번: PLN-{plnYy}-{seq:04d}
-         * 6. TAAABB_BPLANM 저장
-         * 7. 각 프로젝트·전산업무비에 대해 TAAABB_BPROJA 저장
+         * 6. TPRMPP_BPLANM 저장
+         * 7. 각 프로젝트·전산업무비에 대해 TPRMPP_BPROJA 저장
          * </p>
          *
          * @param request 계획 생성 요청 DTO
@@ -228,7 +237,7 @@ public class PlanService {
                 Long seq = bplanmRepository.getNextSequenceValue();
                 String plnMngNo = String.format("PLN-%s-%04d", request.getPlnYy(), seq);
 
-                // 6. TAAABB_BPLANM 저장
+                // 6. TPRMPP_BPLANM 저장
                 Bplanm plan = Bplanm.builder()
                                 .plnMngNo(plnMngNo)
                                 .plnTp(request.getPlnTp())
@@ -245,7 +254,7 @@ public class PlanService {
                                 .build();
                 bplanmRepository.save(plan);
 
-                // 7. TAAABB_BPROJA 저장 (prjMngNo 컬럼에 프로젝트/전산업무비 관리번호를 함께 저장)
+                // 7. TPRMPP_BPROJA 저장 (prjMngNo 컬럼에 프로젝트/전산업무비 관리번호를 함께 저장)
                 for (String prjMngNo : prjMngNos) {
                         Bproja relation = Bproja.builder()
                                         .prjMngNo(prjMngNo)
@@ -368,11 +377,20 @@ public class PlanService {
                                                 .build())
                                 .collect(Collectors.toList());
 
+                // 부문별/사업유형별 사업목록에는 일반 정보화사업만 표시합니다.
+                Set<String> ordinaryProjectIds = projects.stream()
+                                .filter(p -> "Y".equals(p.getOrnYn()))
+                                .map(ProjectDto.Response::getPrjMngNo)
+                                .collect(Collectors.toSet());
+                List<PlanDto.ProjectSnapshot> businessListSnapshots = projectSnapshots.stream()
+                                .filter(p -> !ordinaryProjectIds.contains(p.getPrjMngNo()))
+                                .collect(Collectors.toList());
+
                 // 통합 스냅샷 목록
                 projectSnapshots.addAll(costSnapshots);
 
                 // 부문(SVN_HDQ)별 그룹핑
-                Map<String, List<PlanDto.ProjectSnapshot>> byDeptMap = projectSnapshots.stream()
+                Map<String, List<PlanDto.ProjectSnapshot>> byDeptMap = businessListSnapshots.stream()
                                 .collect(Collectors.groupingBy(
                                                 p -> p.getSvnHdq() != null ? p.getSvnHdq() : "미분류"));
 
@@ -386,7 +404,7 @@ public class PlanService {
                                 .collect(Collectors.toList());
 
                 // 사업유형(PRJ_TP)별 그룹핑
-                Map<String, List<PlanDto.ProjectSnapshot>> byTypeMap = projectSnapshots.stream()
+                Map<String, List<PlanDto.ProjectSnapshot>> byTypeMap = businessListSnapshots.stream()
                                 .collect(Collectors.groupingBy(
                                                 p -> p.getPrjTp() != null ? p.getPrjTp() : "미분류"));
 

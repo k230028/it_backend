@@ -24,7 +24,7 @@ import java.util.List;
  * 요구사항 정의서 관리 REST 컨트롤러
  *
  * <p>
- * 요구사항 정의서(TAAABB_BRDOCM)의 CRUD 및 버전 관리 기능을 담당합니다.
+ * 요구사항 정의서(TPRMPP_BRDOCM)의 CRUD 및 버전 관리 기능을 담당합니다.
  * </p>
  *
  * <p>

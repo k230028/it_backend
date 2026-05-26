@@ -5,21 +5,24 @@ import com.kdb.it.domain.log.entity.BrivgmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.util.UUID;
+
+import static jakarta.persistence.GenerationType.SEQUENCE;
 
 /**
  * 문서 검토의견 엔티티
  *
  * <p>
- * DB 테이블: {@code TAAABB_BRIVGM}
+ * DB 테이블: {@code TPRMPP_BRIVGM}
  * </p>
  *
  * <p>
@@ -36,15 +39,17 @@ import java.util.UUID;
  */
 @LogTarget(entity = BrivgmL.class)
 @Entity
-@Table(name = "TAAABB_BRIVGM", comment = "문서 검토의견")
+@Table(name = "TPRMPP_BRIVGM", comment = "문서 검토의견")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Brivgm extends BaseEntity {
 
-    /** 의견일련번호: UUID v4 기반 32자 식별자(하이픈 제거) */
+    /** 의견일련번호: Oracle 시퀀스 SEQ_BRIVGM에서 자동 채번 */
     @Id
-    @Column(name = "IVG_SNO", length = 32, nullable = false, comment = "의견일련번호")
-    private String ivgSno;
+    @GeneratedValue(strategy = SEQUENCE, generator = "brivgm_seq")
+    @SequenceGenerator(name = "brivgm_seq", sequenceName = "SEQ_BRIVGM", allocationSize = 1)
+    @Column(name = "IVG_SNO", nullable = false, comment = "의견일련번호")
+    private Long ivgSno;
 
     /** 문서관리번호: {@link Brdocm#getDocMngNo()} 참조 (예: DOC-2026-0001) */
     @Column(name = "DOC_MNG_NO", length = 32, nullable = false, comment = "문서관리번호")
@@ -89,18 +94,13 @@ public class Brivgm extends BaseEntity {
      */
     @PrePersist
     private void prePersistBrivgm() {
-        // 의견일련번호 자동 생성: null이면 UUID v4 기반 32자 문자열로 초기화 (하이픈 제거)
-        if (this.ivgSno == null) {
-            this.ivgSno = UUID.randomUUID().toString().replace("-", "");
-        }
-        // 완료여부 기본값 설정: null이면 'N'(미완료)으로 초기화
         if (this.fsgYn == null) {
             this.fsgYn = "N";
         }
     }
 
     /**
-     * 검토의견 생성 팩토리 메서드
+     * 검토의견 생성 팩토리 메서드. 의견일련번호는 영속화 시 SEQ_BRIVGM에서 자동 채번됩니다.
      *
      * @param docMngNo 대상 문서관리번호
      * @param docVrs   대상 문서버전

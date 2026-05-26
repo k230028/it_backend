@@ -56,16 +56,17 @@ public class JpaAuditConfig {
     @Bean
     public AuditorAware<String> auditorProvider() {
         return () -> {
-            // SecurityContextHolder에서 현재 요청의 인증 정보 가져오기
+            // SecurityContextHolder에서 현재 요청의 인증 정보 조회
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
             if (authentication == null || !authentication.isAuthenticated()) {
-                // 로그인되지 않은 경우 null 또는 기본값 반환
-                // 필요시 "SYSTEM" 등의 기본값을 설정할 수 있습니다.
+                // 로그인되지 않은 경우(비인증 요청): Optional.empty() 반환
+                // → JPA Auditing이 FST_ENR_USID/LST_CHG_USID 필드를 기록하지 않음 (null 유지)
+                // 배치/스케줄러 등 비HTTP 컨텍스트에서는 "SYSTEM" 등 기본값 설정을 검토할 수 있습니다.
                 return Optional.empty();
             }
 
-            // JWT 필터가 principal/name에 설정한 사번(eno)을 반환
+            // JWT 필터가 authentication.name에 설정한 사번(eno)을 반환
             return Optional.ofNullable(authentication.getName());
         };
     }

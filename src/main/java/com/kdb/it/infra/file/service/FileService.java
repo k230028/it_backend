@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  * 공통 첨부파일 서비스
  *
  * <p>
- * TAAABB_CFILEM 테이블의 파일 업로드·조회·수정·삭제·다운로드 비즈니스 로직을 처리합니다.
+ * TPRMPP_CFILEM 테이블의 파일 업로드·조회·수정·삭제·다운로드 비즈니스 로직을 처리합니다.
  * </p>
  *
  * <p>

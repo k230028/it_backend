@@ -25,7 +25,7 @@ import java.util.List;
 /**
  * 예산 작업 REST 컨트롤러
  *
- * <p>예산 편성률 적용(TAAABB_BBUGTM)의 CRUD 기능을 담당합니다.</p>
+ * <p>예산 편성률 적용(TPRMPP_BBUGTM)의 CRUD 기능을 담당합니다.</p>
  *
  * <p>기본 URL: {@code /api/budget/work}</p>
  *
@@ -92,7 +92,7 @@ public class BudgetWorkController {
                     - 원본 데이터: 정보화사업 품목(BITEMM) 및 전산업무비(BCOSTM) 중 결재완료 건
                     - 처리 방식: 기존 편성 데이터가 있으면 수정하고, 없으면 신규 생성합니다.
                     - 편성률: 0~100 정수이며 비목 코드(DUP_IOE) 기준으로 매칭합니다.
-                    - 저장 대상: TAAABB_BBUGTM
+                    - 저장 대상: TPRMPP_BBUGTM
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "적용 성공",
@@ -143,7 +143,7 @@ public class BudgetWorkController {
                     - BPROJM 원본은 자본예산(assetDupRt)과 일반관리비(costDupRt)를 함께 적용할 수 있습니다.
                     - BCOSTM 원본은 일반관리비(costDupRt) 중심으로 적용합니다.
                     - 적용 전 해당 예산연도의 기존 편성 데이터는 Soft Delete 후 요청 항목을 재삽입합니다.
-                    - 저장 대상: TAAABB_BBUGTM
+                    - 저장 대상: TPRMPP_BBUGTM
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "적용 성공",

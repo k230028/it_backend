@@ -16,7 +16,7 @@ import java.util.Optional;
  *
  * <p>
  * Spring Data JPA의 {@link JpaRepository}를 상속하여
- * 요구사항 정의서 테이블(TAAABB_BRDOCM)의 기본 CRUD 기능을 제공합니다.
+ * 요구사항 정의서 테이블(TPRMPP_BRDOCM)의 기본 CRUD 기능을 제공합니다.
  * </p>
  *
  * <p>
@@ -96,10 +96,10 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
      * @return 문서별 최신 버전 목록
      */
     @Query(value = """
-        SELECT * FROM TAAABB_BRDOCM d
+        SELECT * FROM TPRMPP_BRDOCM d
         WHERE d.DEL_YN = 'N'
           AND d.DOC_VRS = (
-              SELECT MAX(d2.DOC_VRS) FROM TAAABB_BRDOCM d2
+              SELECT MAX(d2.DOC_VRS) FROM TPRMPP_BRDOCM d2
               WHERE d2.DOC_MNG_NO = d.DOC_MNG_NO AND d2.DEL_YN = 'N'
           )
         ORDER BY d.FST_ENR_DTM DESC
@@ -122,8 +122,8 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
     /** 부서 기준 전체 미삭제 문서 수 (DOC_MNG_NO 기준 distinct) */
     @Query(value = """
         SELECT COUNT(DISTINCT b.DOC_MNG_NO)
-        FROM TAAABB_BRDOCM b
-        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
+        FROM TPRMPP_BRDOCM b
+        JOIN TPRMPP_CUSERI u ON b.FST_ENR_USID = u.ENO
         WHERE b.DEL_YN = 'N'
           AND u.BBR_C = :bbrC
         """, nativeQuery = true)
@@ -132,9 +132,9 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
     /** 부서 기준 미해결 검토의견이 존재하는 문서 수 (검토 진행 중) */
     @Query(value = """
         SELECT COUNT(DISTINCT b.DOC_MNG_NO)
-        FROM TAAABB_BRDOCM b
-        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
-        JOIN TAAABB_BRIVGM r ON b.DOC_MNG_NO = r.DOC_MNG_NO
+        FROM TPRMPP_BRDOCM b
+        JOIN TPRMPP_CUSERI u ON b.FST_ENR_USID = u.ENO
+        JOIN TPRMPP_BRIVGM r ON b.DOC_MNG_NO = r.DOC_MNG_NO
         WHERE b.DEL_YN = 'N'
           AND u.BBR_C = :bbrC
           AND r.FSG_YN = 'N'
@@ -145,16 +145,16 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
     /** 부서 기준 협의 완료 문서 수 (검토의견 존재 AND 모두 해결) */
     @Query(value = """
         SELECT COUNT(DISTINCT b.DOC_MNG_NO)
-        FROM TAAABB_BRDOCM b
-        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
+        FROM TPRMPP_BRDOCM b
+        JOIN TPRMPP_CUSERI u ON b.FST_ENR_USID = u.ENO
         WHERE b.DEL_YN = 'N'
           AND u.BBR_C = :bbrC
           AND EXISTS (
-              SELECT 1 FROM TAAABB_BRIVGM r
+              SELECT 1 FROM TPRMPP_BRIVGM r
               WHERE r.DOC_MNG_NO = b.DOC_MNG_NO AND r.DEL_YN = 'N'
           )
           AND NOT EXISTS (
-              SELECT 1 FROM TAAABB_BRIVGM r
+              SELECT 1 FROM TPRMPP_BRIVGM r
               WHERE r.DOC_MNG_NO = b.DOC_MNG_NO AND r.DEL_YN = 'N' AND r.FSG_YN = 'N'
           )
         """, nativeQuery = true)
@@ -163,8 +163,8 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
     /** 부서 기준 완료기한 초과 문서 수 */
     @Query(value = """
         SELECT COUNT(DISTINCT b.DOC_MNG_NO)
-        FROM TAAABB_BRDOCM b
-        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
+        FROM TPRMPP_BRDOCM b
+        JOIN TPRMPP_CUSERI u ON b.FST_ENR_USID = u.ENO
         WHERE b.DEL_YN = 'N'
           AND u.BBR_C = :bbrC
           AND b.FSG_TLM < TRUNC(SYSDATE)
@@ -178,8 +178,8 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
     @Query(value = """
         SELECT TO_CHAR(b.FST_ENR_DTM, 'YYYY-MM') AS MONTH,
                COUNT(DISTINCT b.DOC_MNG_NO) AS CNT
-        FROM TAAABB_BRDOCM b
-        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
+        FROM TPRMPP_BRDOCM b
+        JOIN TPRMPP_CUSERI u ON b.FST_ENR_USID = u.ENO
         WHERE b.DEL_YN = 'N'
           AND u.BBR_C = :bbrC
           AND b.FST_ENR_DTM >= ADD_MONTHS(TRUNC(SYSDATE, 'MM'), -5)
@@ -196,9 +196,9 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
         SELECT DISTINCT b.DOC_MNG_NO, b.REQ_NM, u.USR_NM,
                TO_CHAR(b.FST_ENR_DTM, 'YYYY-MM-DD') AS CREATED_AT,
                b.FSG_TLM
-        FROM TAAABB_BRDOCM b
-        JOIN TAAABB_CUSERI u ON b.FST_ENR_USID = u.ENO
-        JOIN TAAABB_BRIVGM r ON b.DOC_MNG_NO = r.DOC_MNG_NO
+        FROM TPRMPP_BRDOCM b
+        JOIN TPRMPP_CUSERI u ON b.FST_ENR_USID = u.ENO
+        JOIN TPRMPP_BRIVGM r ON b.DOC_MNG_NO = r.DOC_MNG_NO
         WHERE b.DEL_YN = 'N'
           AND u.BBR_C = :bbrC
           AND r.FSG_YN = 'N'

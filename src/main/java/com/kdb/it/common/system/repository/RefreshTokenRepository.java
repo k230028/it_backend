@@ -9,7 +9,7 @@ import java.util.Optional;
  * 갱신토큰(Crtokm) 데이터 접근 리포지토리
  *
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여
- * 갱신토큰 테이블(TAAABB_CRTOKM)에 대한 CRUD 기능을 제공합니다.</p>
+ * 갱신토큰 테이블(TPRMPP_CRTOKM)에 대한 CRUD 기능을 제공합니다.</p>
  *
  * <p>기본키 타입: {@link Long} (tokSno: Oracle 시퀀스 SEQ_CRTOKM)</p>
  *
@@ -23,15 +23,15 @@ import java.util.Optional;
 public interface RefreshTokenRepository extends JpaRepository<Crtokm, Long> {
 
     /**
-     * 토큰 문자열로 갱신토큰 조회
+     * 토큰내용으로 갱신토큰 조회
      *
      * <p>클라이언트가 전달한 Refresh Token 값으로 DB에서 토큰 정보를 조회합니다.
      * Access Token 갱신 시 토큰 유효성 검사에 사용됩니다.</p>
      *
-     * @param tok Refresh Token 문자열 (JWT 형식)
+     * @param tokCone Refresh Token 문자열 (JWT 형식)
      * @return 해당 토큰 엔티티 (없으면 {@link Optional#empty()})
      */
-    Optional<Crtokm> findByTok(String tok);
+    Optional<Crtokm> findByTokCone(String tokCone);
 
     /**
      * 사번으로 갱신토큰 조회
@@ -55,11 +55,11 @@ public interface RefreshTokenRepository extends JpaRepository<Crtokm, Long> {
     void deleteByEno(String eno);
 
     /**
-     * 토큰 문자열로 갱신토큰 삭제
+     * 토큰내용으로 갱신토큰 삭제
      *
      * <p>특정 토큰 값을 직접 삭제합니다. (현재 직접 사용하지 않으나 예비 메서드)</p>
      *
-     * @param tok 삭제할 Refresh Token 문자열
+     * @param tokCone 삭제할 Refresh Token 문자열
      */
-    void deleteByTok(String tok);
+    void deleteByTokCone(String tokCone);
 }

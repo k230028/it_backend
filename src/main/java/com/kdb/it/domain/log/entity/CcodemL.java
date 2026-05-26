@@ -12,10 +12,10 @@ import lombok.experimental.SuperBuilder;
 import java.time.LocalDate;
 
 /**
- * 코드 마스터(TAAABB_CCODEM) 변경 로그 엔티티.
+ * 코드 마스터(TPRMPP_CCODEM) 변경 로그 엔티티.
  */
 @Entity
-@Table(name = "TAAABB_CCODEL", comment = "코드 마스터 변경 로그")
+@Table(name = "TPRMPP_CCODEL", comment = "코드 마스터 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

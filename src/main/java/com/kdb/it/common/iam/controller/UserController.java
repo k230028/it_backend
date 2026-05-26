@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * 사용자 관리 REST 컨트롤러
  *
- * <p>사용자(TAAABB_CUSERI 테이블) 정보를 조회합니다.</p>
+ * <p>사용자(TPRMPP_CUSERI 테이블) 정보를 조회합니다.</p>
  *
  * <p>기본 URL: {@code /api/users}</p>
  *
@@ -84,9 +84,10 @@ public class UserController {
      * @return HTTP 200 + 검색 결과 사용자 목록
      */
     @GetMapping("/search")
-    @Operation(summary = "사용자 이름 검색", description = "사용자명으로 검색합니다. orgCode 입력 시 해당 부서만 필터링합니다.")
+    @Operation(summary = "사용자 이름 검색",
+            description = "사용자명으로 검색합니다. keyword 비어있고 orgCode 지정 시 해당 부서 사용자 전체 반환. 둘 다 비어있으면 빈 리스트.")
     public ResponseEntity<List<UserDto.ListResponse>> searchUsers(
-            @RequestParam("keyword") String keyword,
+            @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "orgCode", required = false) String orgCode) {
         return ResponseEntity.ok(userService.searchUsersByName(keyword, orgCode));
     }

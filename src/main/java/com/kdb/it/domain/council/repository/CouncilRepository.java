@@ -12,7 +12,7 @@ import java.util.Optional;
 /**
  * 협의회 기본정보(Basctm) 리포지토리
  *
- * <p>DB 테이블: {@code TAAABB_BASCTM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BASCTM}</p>
  *
  * <p>Soft Delete 패턴 적용: 조회 시 항상 {@code delYn='N'} 조건을 사용합니다.</p>
  */
@@ -65,7 +65,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * @param prjSts   변경할 상태값
      */
     @Modifying
-    @Query(value = "UPDATE TAAABB_BPROJM SET PRJ_STS = :prjSts WHERE PRJ_MNG_NO = :prjMngNo AND PRJ_SNO = :prjSno",
+    @Query(value = "UPDATE TPRMPP_BPROJM SET PRJ_STS = :prjSts WHERE PRJ_MNG_NO = :prjMngNo AND PRJ_SNO = :prjSno",
             nativeQuery = true)
     int updateProjectStatus(@Param("prjMngNo") String prjMngNo,
                             @Param("prjSno") Integer prjSno,
@@ -82,8 +82,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * @return 해당 부서의 협의회 목록
      */
     @Query(value = """
-            SELECT a.* FROM TAAABB_BASCTM a
-            JOIN TAAABB_BPROJM p ON a.PRJ_MNG_NO = p.PRJ_MNG_NO AND a.PRJ_SNO = p.PRJ_SNO
+            SELECT a.* FROM TPRMPP_BASCTM a
+            JOIN TPRMPP_BPROJM p ON a.PRJ_MNG_NO = p.PRJ_MNG_NO AND a.PRJ_SNO = p.PRJ_SNO
             WHERE p.BBR_C = :bbrC AND a.DEL_YN = :delYn
             ORDER BY a.FST_ENR_DTM DESC
             """, nativeQuery = true)
@@ -99,8 +99,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * @return 해당 위원이 배정된 협의회 목록
      */
     @Query(value = """
-            SELECT a.* FROM TAAABB_BASCTM a
-            JOIN TAAABB_BCMMTM c ON a.ASCT_ID = c.ASCT_ID
+            SELECT a.* FROM TPRMPP_BASCTM a
+            JOIN TPRMPP_BCMMTM c ON a.ASCT_ID = c.ASCT_ID
             WHERE c.ENO = :eno AND a.DEL_YN = :delYn AND c.DEL_YN = :delYn
             ORDER BY a.FST_ENR_DTM DESC
             """, nativeQuery = true)
@@ -137,8 +137,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.END_DT        AS endDt,
                 p.IT_DPM        AS itDpm,
                 p.PRJ_DES       AS prjDes
-            FROM TAAABB_BPROJM p
-            LEFT JOIN TAAABB_BASCTM a
+            FROM TPRMPP_BPROJM p
+            LEFT JOIN TPRMPP_BASCTM a
                 ON p.PRJ_MNG_NO = a.PRJ_MNG_NO
                AND p.PRJ_SNO    = a.PRJ_SNO
                AND a.DEL_YN     = 'N'
@@ -149,15 +149,15 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                   (a.ASCT_ID IS NULL AND p.PRJ_STS IN (:stsPending1, :stsPending2)
                   AND EXISTS (
                       SELECT 1
-                      FROM TAAABB_CAPPLA ca
-                      JOIN TAAABB_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
+                      FROM TPRMPP_CAPPLA ca
+                      JOIN TPRMPP_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
                       WHERE ca.ORC_TB_CD  = 'BPROJM'
                         AND ca.ORC_PK_VL  = p.PRJ_MNG_NO
                         AND ca.ORC_SNO_VL = p.PRJ_SNO
                         AND cm.APF_STS    = :apfSts
                         AND ca.APF_REL_SNO = (
                             SELECT MAX(ca2.APF_REL_SNO)
-                            FROM TAAABB_CAPPLA ca2
+                            FROM TPRMPP_CAPPLA ca2
                             WHERE ca2.ORC_TB_CD  = 'BPROJM'
                               AND ca2.ORC_PK_VL  = p.PRJ_MNG_NO
                               AND ca2.ORC_SNO_VL = p.PRJ_SNO
@@ -204,8 +204,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.END_DT        AS endDt,
                 p.IT_DPM        AS itDpm,
                 p.PRJ_DES       AS prjDes
-            FROM TAAABB_BPROJM p
-            LEFT JOIN TAAABB_BASCTM a
+            FROM TPRMPP_BPROJM p
+            LEFT JOIN TPRMPP_BASCTM a
                 ON p.PRJ_MNG_NO = a.PRJ_MNG_NO
                AND p.PRJ_SNO    = a.PRJ_SNO
                AND a.DEL_YN     = 'N'
@@ -217,15 +217,15 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                   (a.ASCT_ID IS NULL AND p.PRJ_STS IN (:stsPending1, :stsPending2)
                   AND EXISTS (
                       SELECT 1
-                      FROM TAAABB_CAPPLA ca
-                      JOIN TAAABB_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
+                      FROM TPRMPP_CAPPLA ca
+                      JOIN TPRMPP_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
                       WHERE ca.ORC_TB_CD  = 'BPROJM'
                         AND ca.ORC_PK_VL  = p.PRJ_MNG_NO
                         AND ca.ORC_SNO_VL = p.PRJ_SNO
                         AND cm.APF_STS    = :apfSts
                         AND ca.APF_REL_SNO = (
                             SELECT MAX(ca2.APF_REL_SNO)
-                            FROM TAAABB_CAPPLA ca2
+                            FROM TPRMPP_CAPPLA ca2
                             WHERE ca2.ORC_TB_CD  = 'BPROJM'
                               AND ca2.ORC_PK_VL  = p.PRJ_MNG_NO
                               AND ca2.ORC_SNO_VL = p.PRJ_SNO

@@ -549,14 +549,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
      * BigDecimal 합계를 Long으로 변환합니다. 두 값 모두 null 또는 0이면 {@code (null, null)}을 반환하여 MISSING으로 분기되도록 합니다.
      */
     private AggregatedAmount toAggregated(BigDecimal requestSum, BigDecimal allocatedSum) {
-        boolean requestEmpty = requestSum == null || requestSum.signum() == 0;
-        boolean allocatedEmpty = allocatedSum == null || allocatedSum.signum() == 0;
-        if (requestEmpty && allocatedEmpty) {
-            return new AggregatedAmount(null, null);
-        }
-        return new AggregatedAmount(
-                requestEmpty ? null : requestSum.longValueExact(),
-                allocatedEmpty ? null : allocatedSum.longValueExact());
+        Long request = (requestSum == null || requestSum.signum() == 0) ? null : requestSum.longValueExact();
+        Long allocated = (allocatedSum == null || allocatedSum.signum() == 0) ? null : allocatedSum.longValueExact();
+        return new AggregatedAmount(request, allocated);
     }
 
     // ===== 헬퍼 메서드 =====

@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * 조직(부점) 관리 REST 컨트롤러
  *
- * <p>조직 정보(TAAABB_CORGNI 테이블)를 조회합니다.
+ * <p>조직 정보(TPRMPP_CORGNI 테이블)를 조회합니다.
  * 부점 코드, 상위 조직 코드, 부점명을 반환합니다.</p>
  *
  * <p>기본 URL: {@code /api/organizations}</p>

@@ -82,7 +82,7 @@ class EvaluationServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         CouncilDto.EvaluationRequest request = new CouncilDto.EvaluationRequest(
-                List.of(item("MGMT_STR", 1, null)));
+                List.of(item("001", 1, null)));
 
         assertThatThrownBy(() -> evaluationService.saveEvaluation(
                 ASCT_ID, request, mockUser(ENO)))
@@ -94,14 +94,18 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: 3점 이상이면 의견이 없어도 정상 저장된다")
     void saveEvaluation_3점의견없음_정상저장() {
         Basctm council = mock(Basctm.class);
+<<<<<<< HEAD
         given(council.getAsctStsC()).willReturn("IN_PROGRESS");
+=======
+        given(council.getAsctSts()).willReturn("007");
+>>>>>>> 465654f1157d180678d7fea83de660a442903a55
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "MGMT_STR", "N"))
+        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "001", "N"))
                 .willReturn(Optional.empty());
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.saveEvaluation(ASCT_ID,
-                new CouncilDto.EvaluationRequest(List.of(item("MGMT_STR", 3, null))),
+                new CouncilDto.EvaluationRequest(List.of(item("001", 3, null))),
                 mockUser(ENO));
 
         verify(evaluationRepository).save(any(Bevalm.class));
@@ -115,16 +119,20 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: 기존 평가의견이 있으면 update()를 호출한다")
     void saveEvaluation_기존평가있으면_update호출() {
         Basctm council = mock(Basctm.class);
+<<<<<<< HEAD
         given(council.getAsctStsC()).willReturn("EVALUATING");
+=======
+        given(council.getAsctSts()).willReturn("008");
+>>>>>>> 465654f1157d180678d7fea83de660a442903a55
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         Bevalm existing = mock(Bevalm.class);
-        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "FIN_EFC", "N"))
+        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "002", "N"))
                 .willReturn(Optional.of(existing));
 
         evaluationService.saveEvaluation(ASCT_ID,
-                new CouncilDto.EvaluationRequest(List.of(item("FIN_EFC", 4, "좋음"))),
+                new CouncilDto.EvaluationRequest(List.of(item("002", 4, "좋음"))),
                 mockUser(ENO));
 
         verify(existing).update(4, "좋음");
@@ -135,14 +143,18 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: 기존 평가의견이 없으면 신규 저장한다")
     void saveEvaluation_기존평가없으면_save호출() {
         Basctm council = mock(Basctm.class);
+<<<<<<< HEAD
         given(council.getAsctStsC()).willReturn("IN_PROGRESS");
+=======
+        given(council.getAsctSts()).willReturn("007");
+>>>>>>> 465654f1157d180678d7fea83de660a442903a55
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "RISK_IMP", "N"))
+        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "003", "N"))
                 .willReturn(Optional.empty());
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.saveEvaluation(ASCT_ID,
-                new CouncilDto.EvaluationRequest(List.of(item("RISK_IMP", 5, null))),
+                new CouncilDto.EvaluationRequest(List.of(item("003", 5, null))),
                 mockUser(ENO));
 
         verify(evaluationRepository).save(any(Bevalm.class));
@@ -156,31 +168,39 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: IN_PROGRESS 상태이면 EVALUATING으로 전이한다")
     void saveEvaluation_IN_PROGRESS상태이면_EVALUATING전이() {
         Basctm council = mock(Basctm.class);
+<<<<<<< HEAD
         given(council.getAsctStsC()).willReturn("IN_PROGRESS");
+=======
+        given(council.getAsctSts()).willReturn("007");
+>>>>>>> 465654f1157d180678d7fea83de660a442903a55
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "ETC", "N"))
+        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "006", "N"))
                 .willReturn(Optional.empty());
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.saveEvaluation(ASCT_ID,
-                new CouncilDto.EvaluationRequest(List.of(item("ETC", 5, null))),
+                new CouncilDto.EvaluationRequest(List.of(item("006", 5, null))),
                 mockUser(ENO));
 
-        verify(councilService).changeStatus(ASCT_ID, "EVALUATING");
+        verify(councilService).changeStatus(ASCT_ID, "008");
     }
 
     @Test
     @DisplayName("saveEvaluation: 이미 EVALUATING 상태이면 상태 전이를 건너뛴다")
     void saveEvaluation_EVALUATING상태이면_전이skip() {
         Basctm council = mock(Basctm.class);
+<<<<<<< HEAD
         given(council.getAsctStsC()).willReturn("EVALUATING");
+=======
+        given(council.getAsctSts()).willReturn("008");
+>>>>>>> 465654f1157d180678d7fea83de660a442903a55
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "ETC", "N"))
+        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "006", "N"))
                 .willReturn(Optional.empty());
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.saveEvaluation(ASCT_ID,
-                new CouncilDto.EvaluationRequest(List.of(item("ETC", 5, null))),
+                new CouncilDto.EvaluationRequest(List.of(item("006", 5, null))),
                 mockUser(ENO));
 
         verify(councilService, never()).changeStatus(any(), any());
@@ -198,7 +218,7 @@ class EvaluationServiceTest {
 
         Bevalm eval = mock(Bevalm.class);
         given(eval.getEno()).willReturn(ENO);
-        given(eval.getCkgItmC()).willReturn("MGMT_STR");
+        given(eval.getCkgItmC()).willReturn("001");
         given(eval.getCkgRcrd()).willReturn(4);
         given(eval.getCkgOpnn()).willReturn("의견");
         given(evaluationRepository.findByAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
@@ -208,7 +228,7 @@ class EvaluationServiceTest {
                 evaluationService.getMyEvaluation(ASCT_ID, mockUser(ENO));
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).ckgItmC()).isEqualTo("MGMT_STR");
+        assertThat(result.get(0).ckgItmC()).isEqualTo("001");
         assertThat(result.get(0).ckgRcrd()).isEqualTo(4);
     }
 
@@ -224,7 +244,7 @@ class EvaluationServiceTest {
 
         Bevalm eval = mock(Bevalm.class);
         given(eval.getEno()).willReturn(ENO);
-        given(eval.getCkgItmC()).willReturn("MGMT_STR");
+        given(eval.getCkgItmC()).willReturn("001");
         given(eval.getCkgRcrd()).willReturn(4);
         given(eval.getCkgOpnn()).willReturn("좋음");
         given(evaluationRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
@@ -237,7 +257,7 @@ class EvaluationServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(result.evaluations()).hasSize(1);
-        assertThat(result.evaluations().get(0).ckgItmC()).isEqualTo("MGMT_STR");
+        assertThat(result.evaluations().get(0).ckgItmC()).isEqualTo("001");
         assertThat(result.avgScores()).isEmpty();
     }
 
@@ -248,7 +268,7 @@ class EvaluationServiceTest {
     @Test
     @DisplayName("buildAvgScores: 항목별 평균점수 DTO를 반환한다")
     void buildAvgScores_평균점수반환() {
-        Object[] row = new Object[]{"MGMT_STR", 4.0};
+        Object[] row = new Object[]{"001", 4.0};
         given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N"))
                 .willReturn(java.util.Collections.singletonList(row));
 
@@ -256,7 +276,7 @@ class EvaluationServiceTest {
                 evaluationService.buildAvgScores(ASCT_ID);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).ckgItmC()).isEqualTo("MGMT_STR");
+        assertThat(result.get(0).ckgItmC()).isEqualTo("001");
         assertThat(result.get(0).avgScore()).isEqualTo(4.0);
     }
 
@@ -278,24 +298,28 @@ class EvaluationServiceTest {
     @DisplayName("saveEvaluation: 전원이 6개 항목을 제출하면 RESULT_WRITING으로 전이한다")
     void saveEvaluation_전원제출완료_RESULT_WRITING전이() {
         Basctm council = mock(Basctm.class);
+<<<<<<< HEAD
         given(council.getAsctStsC()).willReturn("EVALUATING");
+=======
+        given(council.getAsctSts()).willReturn("008");
+>>>>>>> 465654f1157d180678d7fea83de660a442903a55
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "ETC", "N"))
+        given(evaluationRepository.findByAsctIdAndEnoAndCkgItmCAndDelYn(ASCT_ID, ENO, "006", "N"))
                 .willReturn(Optional.empty());
 
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
         List<Bevalm> submitted = List.of(
-                evalOf("MGMT_STR"), evalOf("FIN_EFC"), evalOf("RISK_IMP"),
-                evalOf("REP_IMP"), evalOf("DUP_SYS"), evalOf("ETC"));
+                evalOf("001"), evalOf("002"), evalOf("003"),
+                evalOf("004"), evalOf("005"), evalOf("006"));
         given(evaluationRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(submitted);
 
         evaluationService.saveEvaluation(ASCT_ID,
-                new CouncilDto.EvaluationRequest(List.of(item("ETC", 5, null))),
+                new CouncilDto.EvaluationRequest(List.of(item("006", 5, null))),
                 mockUser(ENO));
 
-        verify(councilService).changeStatus(ASCT_ID, "RESULT_WRITING");
+        verify(councilService).changeStatus(ASCT_ID, "009");
     }
 
     @Test

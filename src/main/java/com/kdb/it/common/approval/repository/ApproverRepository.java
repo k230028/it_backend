@@ -11,7 +11,7 @@ import java.util.Optional;
  * 결재 정보(Cdecim) 데이터 접근 리포지토리
  *
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여
- * 결재 테이블(TAAABB_CDECIM)에 대한 CRUD 기능을 제공합니다.</p>
+ * 결재 테이블(TPRMPP_CDECIM)에 대한 CRUD 기능을 제공합니다.</p>
  *
  * <p>복합키 타입: {@link CdecimId} (dcdMngNo + dcdSqn)</p>
  *

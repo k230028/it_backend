@@ -78,6 +78,45 @@ public class ApprovalLineDelegate {
         }
     }
 
+    /**
+     * 신청서 상세 JSON에 회수 정보를 기록한다.
+     *
+     * <p>JSON 루트에 {@code recallInfo} 노드를 추가/갱신합니다.
+     * 기존 JSON이 없거나 빈 문자열이면 새 ObjectNode로 시작합니다.</p>
+     *
+     * @param capplm      회수 대상 신청서
+     * @param recallerEno 회수자 사번
+     * @param recallOpnn  회수 사유
+     * @throws IllegalStateException JSON 직렬화/역직렬화 실패 시
+     */
+    @Transactional
+    public void applyRecallInfo(Capplm capplm, String recallerEno, String recallOpnn) {
+        String json = capplm.getApfDtlCone();
+        try {
+            ObjectNode root = (json == null || json.isBlank())
+                ? objectMapper.createObjectNode()
+                : (ObjectNode) objectMapper.readTree(json);
+            ObjectNode recallNode = objectMapper.createObjectNode();
+            recallNode.put("recallerEno", recallerEno);
+            recallNode.put("recallDtm", LocalDateTime.now().toString());
+            recallNode.put("recallOpnn", recallOpnn);
+            root.set("recallInfo", recallNode);
+            capplm.updateDetailContent(objectMapper.writeValueAsString(root));
+        } catch (Exception e) {
+            throw new IllegalStateException("회수 정보 JSON 갱신 실패", e);
+        }
+    }
+
+    /**
+     * 결재선에서 승인된 결재자의 occurrence(등장 순서) 맵을 생성합니다.
+     *
+     * <p>동일 사번이 결재선에 여러 번 등장할 경우 순서를 구분하기 위해
+     * occurrence(1-based 등장 횟수)를 key로 사용합니다.</p>
+     *
+     * @param allApprovers  전체 결재선 목록 (결재 순서 오름차순)
+     * @param approvedItems 이미 승인 처리된 결재 항목 목록
+     * @return 사번 → 해당 사번의 승인된 occurrence 집합 맵
+     */
     private Map<String, Set<Integer>> buildTargetOccurrences(
             List<Cdecim> allApprovers, List<Cdecim> approvedItems) {
         Map<String, Set<Integer>> targetOccurrences = new HashMap<>();
@@ -97,6 +136,18 @@ public class ApprovalLineDelegate {
         return targetOccurrences;
     }
 
+    /**
+     * 결재선 JSON 노드에서 대상 occurrence에 해당하는 결재자 노드에 날짜를 설정합니다.
+     *
+     * <p><strong>부수 효과</strong>: {@code approvalLineNode}의 대상 {@link ObjectNode}를
+     * 직접 수정합니다({@code date} 필드 추가). 호출자는 원본 객체가 변경됨을 인지해야 합니다.</p>
+     *
+     * <p>기안자 노드({@code drafter})는 occurrence 카운팅에서 제외합니다.</p>
+     *
+     * @param approvalLineNode  결재선 정보를 담은 JSON 노드
+     * @param targetOccurrences 날짜를 설정할 사번 → occurrence 집합 맵
+     * @return 하나 이상의 노드가 실제로 수정되었으면 true
+     */
     private boolean applyDateToMatchingNodes(JsonNode approvalLineNode,
                                              Map<String, Set<Integer>> targetOccurrences) {
         Map<String, Integer> jsonCounters = new HashMap<>();

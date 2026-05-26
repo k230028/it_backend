@@ -5,13 +5,13 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 게시판 메타 변경 로그 엔티티 — TAAABB_CBLBML
+ * 게시판 메타 변경 로그 엔티티 — TPRMPP_CBLBML
  *
  * <p>{@link com.kdb.it.common.board.entity.Cblbmm}의 CUD 이벤트 발생 시
  * {@link com.kdb.it.domain.log.listener.ChangeLogEntityListener}가 자동 적재한다.</p>
  */
 @Entity
-@Table(name = "TAAABB_CBLBML", comment = "게시판 변경 로그")
+@Table(name = "TPRMPP_CBLBML", comment = "게시판 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

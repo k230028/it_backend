@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * 성과관리 자체계획(Bperfm) 리포지토리
  *
- * <p>DB 테이블: {@code TAAABB_BPERFM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BPERFM}</p>
  *
  * <p>협의회 1건당 1개 이상의 성과지표를 동적으로 관리합니다.</p>
  */
@@ -35,7 +35,7 @@ public interface PerformanceRepository extends JpaRepository<Bperfm, BperfmId> {
      * @param asctId 협의회ID
      * @return 다음 순번 (기존 항목 없으면 1)
      */
-    @Query(value = "SELECT NVL(MAX(DTP_SNO), 0) + 1 FROM TAAABB_BPERFM WHERE ASCT_ID = :asctId AND DEL_YN = 'N'",
+    @Query(value = "SELECT NVL(MAX(DTP_SNO), 0) + 1 FROM TPRMPP_BPERFM WHERE ASCT_ID = :asctId AND DEL_YN = 'N'",
            nativeQuery = true)
     Integer getNextDtpSno(@Param("asctId") String asctId);
 }

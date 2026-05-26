@@ -25,6 +25,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
@@ -74,13 +75,14 @@ class ApplicationServiceTest {
         return capplm;
     }
 
-    /** 미결재(dcdTp=null) 상태의 Cdecim 생성 */
+    /** 미결재(dcdStsC="001") 상태의 Cdecim 생성 */
     private Cdecim pendingApprover(String eno, int sqn, String lstDcdYn) {
         return Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO)
                 .dcdSqn(sqn)
                 .dcdEno(eno)
                 .lstDcdYn(lstDcdYn)
+                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code())
                 .build();
     }
 
@@ -127,7 +129,8 @@ class ApplicationServiceTest {
 
         Cdecim completed = Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO).dcdSqn(1).dcdEno("E10001")
-                .lstDcdYn("Y").dcdTp("결재").dcdSts("승인").build();
+                .lstDcdYn("Y")
+                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code()).build();
         given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO)).willReturn(List.of(completed));
 
         assertThatThrownBy(() -> applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인")))
@@ -189,7 +192,7 @@ class ApplicationServiceTest {
 
         applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
 
-        verify(capplm).updateStatus("결재완료");
+        verify(capplm).updateStatus(ApprovalStatus.COMPLETED);
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
     }
 
@@ -203,7 +206,7 @@ class ApplicationServiceTest {
 
         applicationService.approve(APF_MNG_NO, approveRequest("E10001", "반려"));
 
-        verify(capplm).updateStatus("반려");
+        verify(capplm).updateStatus(ApprovalStatus.REJECTED);
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
     }
 
@@ -234,8 +237,7 @@ class ApplicationServiceTest {
                 .dcdSqn(1)
                 .dcdEno("E10001")
                 .lstDcdYn("N")
-                .dcdTp("결재")
-                .dcdSts("반려")
+                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.REJECTED.code())
                 .build();
         Cdecim pending = pendingApprover("E10002", 2, "Y");
         given(approverRepository.findByDcdMngNoOrderByDcdSqnAsc(APF_MNG_NO))
@@ -263,8 +265,8 @@ class ApplicationServiceTest {
 
         realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
 
-        assertThat(first.getDcdSts()).isEqualTo("승인");
-        assertThat(second.getDcdSts()).isEqualTo("승인");
+        assertThat(first.getDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
+        assertThat(second.getDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
         assertThat(capplm.getApfDtlCone()).contains("\"date\"");
         verify(approverRepository, times(2)).save(any(Cdecim.class));
         verify(eventPublisher, never()).publishEvent(any());
@@ -284,7 +286,7 @@ class ApplicationServiceTest {
 
         realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
 
-        assertThat(capplm.getApfSts()).isEqualTo("결재완료");
+        assertThat(capplm.getApfStsC()).isEqualTo(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code());
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
     }
 
@@ -330,7 +332,7 @@ class ApplicationServiceTest {
         given(costRepository.searchByCondition(any())).willReturn(List.of(
                 mock(Bcostm.class), mock(Bcostm.class)));
 
-        ApplicationDto.PendingCountResponse result = applicationService.getPendingCount();
+        ApplicationDto.PendingCountResponse result = applicationService.getPendingCount(null);
 
         assertThat(result.getProjectCount()).isEqualTo(3L);
         assertThat(result.getCostCount()).isEqualTo(2L);
@@ -343,7 +345,7 @@ class ApplicationServiceTest {
         given(projectRepository.searchByCondition(any())).willReturn(List.of());
         given(costRepository.searchByCondition(any())).willReturn(List.of());
 
-        ApplicationDto.PendingCountResponse result = applicationService.getPendingCount();
+        ApplicationDto.PendingCountResponse result = applicationService.getPendingCount(null);
 
         assertThat(result.getTotalCount()).isEqualTo(0L);
     }
@@ -532,11 +534,10 @@ class ApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("submit: 원본 항목을 연결하고 기안자가 1차 결재자이면 자동 승인한다")
-    void submit_원본항목연결과기안자자동승인() {
+    @DisplayName("submit: 원본 항목을 연결하고 기안자가 1차 결재자여도 자동 승인하지 않는다")
+    void submit_원본항목연결_기안자1차결재자도_자동승인없음() {
         ApplicationService realMapperService = serviceWithRealObjectMapper();
         given(applicationRepository.getNextVal()).willReturn(1L);
-        given(applicationMapRepository.getNextVal()).willReturn(10L, 11L);
 
         ApplicationDto.OrcItem project = new ApplicationDto.OrcItem();
         project.setOrcTbCd("BPROJM");
@@ -560,7 +561,52 @@ class ApplicationServiceTest {
         verify(applicationMapRepository, times(2)).save(capplaCaptor.capture());
         assertThat(capplaCaptor.getAllValues()).extracting(Cappla::getOrcSnoVl)
                 .containsExactly(3, null);
-        verify(approverRepository, times(3)).save(any(Cdecim.class));
+        // 결재선 2건 초기 저장만 발생 (자동 승인 분기 제거됨)
+        verify(approverRepository, times(2)).save(any(Cdecim.class));
+    }
+
+    @Test
+    @DisplayName("submit: APF_STS_C='001'로 저장된다")
+    void submit_setsApfStsCToInProgressCode() {
+        given(applicationRepository.getNextVal()).willReturn(1L);
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("E001");
+        request.setApproverEnos(List.of("E002"));
+
+        applicationService.submit(request);
+
+        ArgumentCaptor<Capplm> captor = ArgumentCaptor.forClass(Capplm.class);
+        verify(applicationRepository).save(captor.capture());
+        assertThat(captor.getValue().getApfStsC()).isEqualTo("001");
+    }
+
+    @Test
+    @DisplayName("submit: orcItems N건이면 APF_REL_SNO 1~N으로 부여")
+    void submit_assignsApfRelSnoSequentiallyFromOne() {
+        given(applicationRepository.getNextVal()).willReturn(1L);
+
+        java.util.List<ApplicationDto.OrcItem> items = new java.util.ArrayList<>();
+        for (int i = 1; i <= 3; i++) {
+            ApplicationDto.OrcItem item = new ApplicationDto.OrcItem();
+            item.setOrcTbCd("BPROJM");
+            item.setOrcPkVl("PRJ-2026-000" + i);
+            items.add(item);
+        }
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("E001");
+        request.setApproverEnos(List.of("E002"));
+        request.setOrcItems(items);
+
+        applicationService.submit(request);
+
+        ArgumentCaptor<Cappla> captor = ArgumentCaptor.forClass(Cappla.class);
+        verify(applicationMapRepository, times(3)).save(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(Cappla::getApfRelSno)
+                .containsExactly(1L, 2L, 3L);
     }
 
     @Test
