@@ -138,11 +138,7 @@ class CouncilServiceTest {
     void startCouncil_SCHEDULED아닌상태_IllegalStateException발생() {
         // given
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("PREPARING");
-=======
-        given(council.getAsctSts()).willReturn("005");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("005");
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
 
         // when & then
@@ -156,11 +152,7 @@ class CouncilServiceTest {
     void startCouncil_SCHEDULED상태_IN_PROGRESS전이() {
         // given
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("SCHEDULED");
-=======
-        given(council.getAsctSts()).willReturn("006");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("006");
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
 
         // when
@@ -179,11 +171,7 @@ class CouncilServiceTest {
     void skipCouncil_APPROVED아닌상태_IllegalStateException발생() {
         // given
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("DRAFT");
-=======
-        given(council.getAsctSts()).willReturn("001");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("001");
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
 
         // when & then
@@ -196,11 +184,7 @@ class CouncilServiceTest {
     @DisplayName("skipCouncil: APPROVED 상태이면 SKIPPED로 전이하고 사업 상태를 업데이트한다")
     void skipCouncil_APPROVED상태_SKIPPED전이() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("APPROVED");
-=======
-        given(council.getAsctSts()).willReturn("004");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("004");
         given(council.getPrjMngNo()).willReturn("PRJ-2026-0001");
         given(council.getPrjSno()).willReturn(1);
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
@@ -239,6 +223,7 @@ class CouncilServiceTest {
                 "001",
                 "003",
                 Timestamp.valueOf(LocalDateTime.of(2026, 5, 9, 10, 0)),
+                "10:00",                                    // cnrcTm (PRD §25 추가)
                 BigDecimal.ONE,
                 "2026",
                 "신규",
@@ -364,11 +349,7 @@ class CouncilServiceTest {
     @DisplayName("completeCouncil: IN_PROGRESS가 아닌 상태이면 IllegalStateException을 던진다")
     void completeCouncil_IN_PROGRESS아닌상태_IllegalStateException발생() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("DRAFT");
-=======
-        given(council.getAsctSts()).willReturn("001");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("001");
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
 
         assertThatThrownBy(() -> councilService.completeCouncil(ASCT_ID))
@@ -380,11 +361,7 @@ class CouncilServiceTest {
     @DisplayName("completeCouncil: 평가위원이 없으면 IllegalStateException을 던진다")
     void completeCouncil_평가위원없음_IllegalStateException발생() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("IN_PROGRESS");
-=======
-        given(council.getAsctSts()).willReturn("007");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("007");
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
@@ -397,19 +374,11 @@ class CouncilServiceTest {
     @DisplayName("completeCouncil: 평가 미완료 위원이 있으면 IllegalStateException을 던진다")
     void completeCouncil_평가미완료위원있음_IllegalStateException발생() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("IN_PROGRESS");
+        given(council.getAsctStsC()).willReturn("007");
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
 
         Bcmmtm evaluator = mock(Bcmmtm.class);
-        given(evaluator.getVlrTc()).willReturn("MAND");
-=======
-        given(council.getAsctSts()).willReturn("007");
-        given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
-
-        Bcmmtm evaluator = mock(Bcmmtm.class);
-        given(evaluator.getVlrTp()).willReturn("001");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(evaluator.getVlrTc()).willReturn("001");
         given(evaluator.getEno()).willReturn("10002");
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(evaluator));
         given(evaluationRepository.findByAsctIdAndEnoAndDelYn(ASCT_ID, "10002", "N")).willReturn(List.of());
@@ -423,19 +392,11 @@ class CouncilServiceTest {
     @DisplayName("completeCouncil: 모든 평가위원이 6항목 제출 완료이면 RESULT_WRITING으로 전이한다")
     void completeCouncil_정상완료_RESULT_WRITING전이() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("IN_PROGRESS");
+        given(council.getAsctStsC()).willReturn("007");
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
 
         Bcmmtm evaluator = mock(Bcmmtm.class);
-        given(evaluator.getVlrTc()).willReturn("MAND");
-=======
-        given(council.getAsctSts()).willReturn("007");
-        given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
-
-        Bcmmtm evaluator = mock(Bcmmtm.class);
-        given(evaluator.getVlrTp()).willReturn("001");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(evaluator.getVlrTc()).willReturn("001");
         given(evaluator.getEno()).willReturn("10002");
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(evaluator));
         given(evaluationRepository.findByAsctIdAndEnoAndDelYn(ASCT_ID, "10002", "N"))
@@ -451,23 +412,13 @@ class CouncilServiceTest {
     @DisplayName("completeCouncil: EVALUATING 상태에서도 간사를 제외한 평가 완료 여부만 확인한다")
     void completeCouncil_EVALUATING상태_간사제외하고완료() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("EVALUATING");
+        given(council.getAsctStsC()).willReturn("008");
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
         Bcmmtm secretary = mock(Bcmmtm.class);
-        given(secretary.getVlrTc()).willReturn("SECR");
+        given(secretary.getVlrTc()).willReturn("003");
         given(secretary.getEno()).willReturn("10001");
         Bcmmtm caller = mock(Bcmmtm.class);
-        given(caller.getVlrTc()).willReturn("CALL");
-=======
-        given(council.getAsctSts()).willReturn("008");
-        given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
-        Bcmmtm secretary = mock(Bcmmtm.class);
-        given(secretary.getVlrTp()).willReturn("003");
-        given(secretary.getEno()).willReturn("10001");
-        Bcmmtm caller = mock(Bcmmtm.class);
-        given(caller.getVlrTp()).willReturn("002");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(caller.getVlrTc()).willReturn("002");
         given(caller.getEno()).willReturn("10002");
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(secretary, caller));
         given(evaluationRepository.findByAsctIdAndEnoAndDelYn(ASCT_ID, "10002", "N"))
@@ -487,27 +438,19 @@ class CouncilServiceTest {
     @DisplayName("notifyCouncil: COMPLETED가 아닌 상태이면 IllegalStateException을 던진다")
     void notifyCouncil_COMPLETED아닌상태_IllegalStateException발생() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("RESULT_WRITING");
-=======
-        given(council.getAsctSts()).willReturn("009");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("009");
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
 
         assertThatThrownBy(() -> councilService.notifyCouncil(ASCT_ID))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("012");
+                .hasMessageContaining("013");
     }
 
     @Test
     @DisplayName("notifyCouncil: COMPLETED 상태이면 사업 상태를 갱신하고 수신자 정보를 반환한다")
     void notifyCouncil_정상통보_NotifyResponse반환() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("COMPLETED");
-=======
-        given(council.getAsctSts()).willReturn("012");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("013");
         given(council.getPrjMngNo()).willReturn("PRJ-2026-0001");
         given(council.getPrjSno()).willReturn(1);
         given(council.getFstEnrUsid()).willReturn(null);
@@ -523,11 +466,7 @@ class CouncilServiceTest {
     @DisplayName("notifyCouncil: 최초 등록자와 부서가 있으면 수신자 정보를 채운다")
     void notifyCouncil_수신자와부서있음_수신자정보반환() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("COMPLETED");
-=======
-        given(council.getAsctSts()).willReturn("012");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("013");
         given(council.getPrjMngNo()).willReturn("PRJ-2026-0001");
         given(council.getPrjSno()).willReturn(1);
         given(council.getFstEnrUsid()).willReturn("10001");

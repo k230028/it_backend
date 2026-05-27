@@ -33,6 +33,7 @@ import com.kdb.it.domain.council.service.CouncilService;
 import com.kdb.it.domain.council.service.CommitteeService;
 import com.kdb.it.domain.council.service.EvaluationService;
 import com.kdb.it.domain.council.service.FeasibilityService;
+import com.kdb.it.domain.council.service.MainQnaService;
 import com.kdb.it.domain.council.service.QnaService;
 import com.kdb.it.domain.council.service.ResultService;
 import com.kdb.it.domain.council.service.ScheduleService;
@@ -67,6 +68,8 @@ class CouncilControllerTest {
     private ResultService resultService;
     @MockitoBean
     private QnaService qnaService;
+    @MockitoBean
+    private MainQnaService mainQnaService;
     @MockitoBean
     private JwtUtil jwtUtil;
     @MockitoBean

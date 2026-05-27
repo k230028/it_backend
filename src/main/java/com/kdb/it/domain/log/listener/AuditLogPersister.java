@@ -36,15 +36,15 @@ public class AuditLogPersister {
      *
      * @param sourceEntity 원본 엔티티 (CUD 이벤트 발생 엔티티)
      * @param logClass     대응하는 로그 엔티티 클래스
-     * @param chgTp        변경유형 ('C'=생성, 'U'=수정, 'D'=논리삭제)
+     * @param chgTc        변경유형 ('C'=생성, 'U'=수정, 'D'=논리삭제)
      */
-    public void persist(Object sourceEntity, Class<? extends BaseLogEntity> logClass, String chgTp) {
+    public void persist(Object sourceEntity, Class<? extends BaseLogEntity> logClass, String chgTc) {
         try {
             var ctor = logClass.getDeclaredConstructor();
             ctor.setAccessible(true);
             BaseLogEntity logEntity = (BaseLogEntity) ctor.newInstance();
 
-            setField(logEntity, "chgTp", chgTp);
+            setField(logEntity, "chgTc", chgTc);
             setField(logEntity, "chgDtm", LocalDateTime.now());
             setField(logEntity, "chgUsid", resolveCurrentUserId());
 
@@ -122,7 +122,7 @@ public class AuditLogPersister {
      * 리플렉션으로 대상 객체의 특정 필드 값을 설정합니다.
      *
      * <p>클래스 계층 전체를 탐색하여 필드를 찾습니다.
-     * 주로 {@link BaseLogEntity}의 {@code chgTp}, {@code chgDtm}, {@code chgUsid} 설정에 사용됩니다.</p>
+     * 주로 {@link BaseLogEntity}의 {@code chgTc}, {@code chgDtm}, {@code chgUsid} 설정에 사용됩니다.</p>
      *
      * @param target    값을 설정할 대상 객체
      * @param fieldName 설정할 필드명

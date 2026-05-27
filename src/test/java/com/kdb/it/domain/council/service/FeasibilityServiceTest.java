@@ -76,7 +76,7 @@ class FeasibilityServiceTest {
         given(overview.getPrjNm()).willReturn("테스트사업");
         given(overview.getPrjTrm()).willReturn("2026");
         given(overview.getLglRglYn()).willReturn("N");
-        given(overview.getKpnTc()).willReturn("COMPLETE");
+        given(overview.getKpnTc()).willReturn("002");
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
         given(feasibilityCheckRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
         given(performanceRepository.findByAsctIdAndDelYnOrderByDtpSnoAsc(ASCT_ID, "N")).willReturn(List.of());
@@ -98,7 +98,7 @@ class FeasibilityServiceTest {
     void saveFeasibility_COMPLETE_첨부파일없음_IllegalArgumentException발생() {
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "테스트사업", "2026", null, null, null, null, "N", null, null,
-                "COMPLETE", null, null, null);
+                "002", null, null, null);
 
         assertThatThrownBy(() -> feasibilityService.saveFeasibility(ASCT_ID, request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -114,7 +114,7 @@ class FeasibilityServiceTest {
     void saveFeasibility_COMPLETE_정상요청_SUBMITTED전이() {
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "테스트사업", "2026", null, null, null, null, "N", null, null,
-                "COMPLETE", null, null, "FL_00000001");
+                "002", null, null, "FL_00000001");
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
 
         feasibilityService.saveFeasibility(ASCT_ID, request);
@@ -127,7 +127,7 @@ class FeasibilityServiceTest {
     void saveFeasibility_TEMP_상태전이없음() {
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "테스트사업", "2026", null, null, null, null, "N", null, null,
-                "TEMP", null, null, null);
+                "001", null, null, null);
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
 
         feasibilityService.saveFeasibility(ASCT_ID, request);
@@ -149,14 +149,14 @@ class FeasibilityServiceTest {
 
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "수정된사업명", "2027", null, null, null, null, "N", null, null,
-                "TEMP", null, null, null);
+                "001", null, null, null);
 
         // when
         feasibilityService.saveFeasibility(ASCT_ID, request);
 
         // then: 신규 INSERT가 아닌 update() 호출, save()는 호출되지 않음
         verify(existing).update(
-                "수정된사업명", "2027", null, null, null, null, "N", null, null, "TEMP", null);
+                "수정된사업명", "2027", null, null, null, null, "N", null, null, "001", null);
         verify(projectOverviewRepository, never()).save(any());
     }
 
@@ -174,7 +174,7 @@ class FeasibilityServiceTest {
 
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "테스트사업", "2026", null, null, null, null, "N", null, null,
-                "TEMP", checkItems, null, null);
+                "001", checkItems, null, null);
 
         // when
         feasibilityService.saveFeasibility(ASCT_ID, request);
@@ -202,7 +202,7 @@ class FeasibilityServiceTest {
 
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "테스트사업", "2026", null, null, null, null, "N", null, null,
-                "COMPLETE", checkItems, null, "FL_00000001");
+                "002", checkItems, null, "FL_00000001");
 
         // when
         feasibilityService.saveFeasibility(ASCT_ID, request);
@@ -218,7 +218,7 @@ class FeasibilityServiceTest {
         // given
         Bpovwm overview = mock(Bpovwm.class);
         given(overview.getPrjNm()).willReturn("순서확인사업");
-        given(overview.getKpnTc()).willReturn("TEMP");
+        given(overview.getKpnTc()).willReturn("001");
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(overview));
         given(feasibilityCheckRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
@@ -247,7 +247,7 @@ class FeasibilityServiceTest {
                 new CouncilDto.PerformanceRequest(1, "성과지표", "내용", "측정", "정량", "상", null, null, "분기", "자동"));
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "테스트사업", "2026", null, null, null, null, null, null, null,
-                "TEMP", null, performances, null);
+                "001", null, performances, null);
 
         feasibilityService.saveFeasibility(ASCT_ID, request);
 
@@ -261,7 +261,7 @@ class FeasibilityServiceTest {
         Bpovwm overview = mock(Bpovwm.class);
         given(overview.getPrjNm()).willReturn("성과사업");
         given(overview.getLglRglYn()).willReturn("Y");
-        given(overview.getKpnTc()).willReturn("TEMP");
+        given(overview.getKpnTc()).willReturn("001");
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
         com.kdb.it.domain.council.entity.Bchklc check = mock(com.kdb.it.domain.council.entity.Bchklc.class);
         given(check.getCkgItmC()).willReturn("001");

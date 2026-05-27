@@ -114,11 +114,7 @@ class ResultServiceTest {
         // given
         Basctm council = mock(Basctm.class);
         Brsltm existingResult = mock(Brsltm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("RESULT_WRITING");
-=======
-        given(council.getAsctSts()).willReturn("009");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("009");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
                 .willReturn(Optional.of(existingResult));
@@ -137,11 +133,7 @@ class ResultServiceTest {
     void saveResult_결과서없음_신규저장() {
         // given
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("RESULT_WRITING");
-=======
-        given(council.getAsctSts()).willReturn("009");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("009");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N")).willReturn(Optional.empty());
 
@@ -158,11 +150,7 @@ class ResultServiceTest {
     void saveResult_EVALUATING상태_RESULT_WRITING전이() {
         // given
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("EVALUATING");
-=======
-        given(council.getAsctSts()).willReturn("008");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("008");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N")).willReturn(Optional.empty());
 
@@ -218,11 +206,7 @@ class ResultServiceTest {
     void saveResult_RESULT_WRITING상태_상태전이없음() {
         // given: 이미 RESULT_WRITING 상태 — 중복 전이 방지 시나리오
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("RESULT_WRITING");
-=======
-        given(council.getAsctSts()).willReturn("009");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("009");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
                 .willReturn(Optional.empty());
@@ -240,11 +224,7 @@ class ResultServiceTest {
     void saveResult_신규저장시_save호출() {
         // given
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("EVALUATING");
-=======
-        given(council.getAsctSts()).willReturn("008");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("008");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
                 .willReturn(Optional.empty());
@@ -296,11 +276,7 @@ class ResultServiceTest {
     void reviewResult_RESULT_REVIEW아님_예외발생() {
         Basctm council = mock(Basctm.class);
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("RESULT_WRITING");
-=======
-        given(council.getAsctSts()).willReturn("009");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("009");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
 
         assertThatThrownBy(() -> resultService.reviewResult("ASCT-2026-0001", user))
@@ -313,11 +289,7 @@ class ResultServiceTest {
     void reviewResult_평가위원아님_예외발생() {
         Basctm council = mock(Basctm.class);
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("RESULT_REVIEW");
-=======
-        given(council.getAsctSts()).willReturn("010");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("010");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
                 .willReturn(Optional.empty());
@@ -333,13 +305,8 @@ class ResultServiceTest {
         Basctm council = mock(Basctm.class);
         Bcmmtm secretary = mock(Bcmmtm.class);
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("RESULT_REVIEW");
-        given(secretary.getVlrTc()).willReturn("SECR");
-=======
-        given(council.getAsctSts()).willReturn("010");
-        given(secretary.getVlrTp()).willReturn("003");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getAsctStsC()).willReturn("010");
+        given(secretary.getVlrTc()).willReturn("003");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
                 .willReturn(Optional.of(secretary));
@@ -356,17 +323,10 @@ class ResultServiceTest {
         Bcmmtm currentMember = mock(Bcmmtm.class);
         Bcmmtm waitingMember = mock(Bcmmtm.class);
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("RESULT_REVIEW");
-        given(currentMember.getVlrTc()).willReturn("MAND");
+        given(council.getAsctStsC()).willReturn("010");
+        given(currentMember.getVlrTc()).willReturn("001");
         given(currentMember.getCnfmYn()).willReturn("Y");
-        given(waitingMember.getVlrTc()).willReturn("CALL");
-=======
-        given(council.getAsctSts()).willReturn("010");
-        given(currentMember.getVlrTp()).willReturn("001");
-        given(currentMember.getCnfmYn()).willReturn("Y");
-        given(waitingMember.getVlrTp()).willReturn("002");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(waitingMember.getVlrTc()).willReturn("002");
         given(waitingMember.getCnfmYn()).willReturn("N");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
@@ -388,21 +348,12 @@ class ResultServiceTest {
         Bcmmtm callMember = mock(Bcmmtm.class);
         Bcmmtm secretary = mock(Bcmmtm.class);
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
-<<<<<<< HEAD
-        given(council.getAsctStsC()).willReturn("RESULT_REVIEW");
-        given(mandMember.getVlrTc()).willReturn("MAND");
+        given(council.getAsctStsC()).willReturn("010");
+        given(mandMember.getVlrTc()).willReturn("001");
         given(mandMember.getCnfmYn()).willReturn("Y");
-        given(callMember.getVlrTc()).willReturn("CALL");
+        given(callMember.getVlrTc()).willReturn("002");
         given(callMember.getCnfmYn()).willReturn("Y");
-        given(secretary.getVlrTc()).willReturn("SECR");
-=======
-        given(council.getAsctSts()).willReturn("010");
-        given(mandMember.getVlrTp()).willReturn("001");
-        given(mandMember.getCnfmYn()).willReturn("Y");
-        given(callMember.getVlrTp()).willReturn("002");
-        given(callMember.getCnfmYn()).willReturn("Y");
-        given(secretary.getVlrTp()).willReturn("003");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(secretary.getVlrTc()).willReturn("003");
         given(secretary.getCnfmYn()).willReturn("N");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(committeeRepository.findByAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))

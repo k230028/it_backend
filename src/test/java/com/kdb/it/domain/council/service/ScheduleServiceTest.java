@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
@@ -29,6 +31,8 @@ import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bschdm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.ScheduleRepository;
+
+import jakarta.persistence.EntityManager;
 
 /**
  * ScheduleService 단위 테스트
@@ -56,12 +60,23 @@ class ScheduleServiceTest {
     @Mock
     private CouncilService councilService;
 
+    @Mock
+    private EntityManager entityManager;
+
     @InjectMocks
     private ScheduleService scheduleService;
 
+    @BeforeEach
+    void injectEntityManager() {
+        // @PersistenceContext 필드는 @InjectMocks가 constructor 주입 후 건너뛰므로 명시적 주입
+        ReflectionTestUtils.setField(scheduleService, "entityManager", entityManager);
+    }
+
     private static final String ASCT_ID = "ASCT-2026-0001";
     private static final String ENO = "E10001";
-    private static final LocalDate TEST_DATE = LocalDate.of(2026, 5, 1);
+    private static final String TEST_DATE = "20260501";
+    /** ScheduleConfirmRequest 등 일부 시그니처는 아직 LocalDate를 요구함 — 임시 변환용 */
+    private static final LocalDate TEST_DATE_LD = LocalDate.of(2026, 5, 1);
 
     private CustomUserDetails mockUser(String eno) {
         CustomUserDetails user = mock(CustomUserDetails.class);
@@ -124,7 +139,7 @@ class ScheduleServiceTest {
 
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
-        verify(scheduleRepository).save(any(Bschdm.class));
+        verify(entityManager).persist(any(Bschdm.class));
     }
 
     // ───────────────────────────────────────────────────────
@@ -135,7 +150,7 @@ class ScheduleServiceTest {
     @DisplayName("confirmSchedule: 허용되지 않은 회의시간이면 IllegalArgumentException을 던진다")
     void confirmSchedule_허용되지않은회의시간_IllegalArgumentException발생() {
         CouncilDto.ScheduleConfirmRequest request =
-                new CouncilDto.ScheduleConfirmRequest(TEST_DATE, "13:00", "본관 1층");
+                new CouncilDto.ScheduleConfirmRequest(TEST_DATE_LD, "13:00", "본관 1층");
 
         assertThatThrownBy(() -> scheduleService.confirmSchedule(ASCT_ID, request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -149,11 +164,12 @@ class ScheduleServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         CouncilDto.ScheduleConfirmRequest request =
-                new CouncilDto.ScheduleConfirmRequest(TEST_DATE, "10:00", "본관 1층");
+                new CouncilDto.ScheduleConfirmRequest(TEST_DATE_LD, "10:00", "본관 1층");
 
         scheduleService.confirmSchedule(ASCT_ID, request);
 
-        verify(council).confirmSchedule(TEST_DATE, "10:00", "본관 1층");
+        verify(council).confirmSchedule(TEST_DATE_LD, "10:00", "본관 1층");
+        verify(councilService).changeStatus(ASCT_ID, "006");
         verify(councilService).changeStatus(ASCT_ID, "006");
     }
 
@@ -259,7 +275,7 @@ class ScheduleServiceTest {
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
         // then: 신규 저장 호출
-        verify(scheduleRepository).save(any(Bschdm.class));
+        verify(entityManager).persist(any(Bschdm.class));
     }
 
     @Test
@@ -283,8 +299,8 @@ class ScheduleServiceTest {
         // when
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
-        // then: save가 2회 호출됨
-        verify(scheduleRepository, org.mockito.Mockito.times(2)).save(any(Bschdm.class));
+        // then: persist가 2회 호출됨 (PRD §15 패턴)
+        verify(entityManager, org.mockito.Mockito.times(2)).persist(any(Bschdm.class));
     }
 
     // ───────────────────────────────────────────────────────
@@ -295,20 +311,12 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: 위원 1명이 미응답인 경우 현황 DTO를 반환한다")
     void getScheduleStatus_위원1명미응답_현황반환() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getDbrTc()).willReturn("ETC");
-=======
-        given(council.getDbrTp()).willReturn("005");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getDbrTc()).willReturn("005");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
-<<<<<<< HEAD
-        given(member.getVlrTc()).willReturn("MAND");
-=======
-        given(member.getVlrTp()).willReturn("001");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(member.getVlrTc()).willReturn("001");
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
 
         // 아직 일정 응답 없음
@@ -330,20 +338,12 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: 전원 응답(ETC 타입)이면 allRequiredResponded가 true이다")
     void getScheduleStatus_전원응답ETC_allRequiredRespondedTrue() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getDbrTc()).willReturn("ETC");
-=======
-        given(council.getDbrTp()).willReturn("005");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getDbrTc()).willReturn("005");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
-<<<<<<< HEAD
-        given(member.getVlrTc()).willReturn("MAND");
-=======
-        given(member.getVlrTp()).willReturn("001");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(member.getVlrTc()).willReturn("001");
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
 
         // 해당 위원이 일정을 응답함
@@ -374,25 +374,15 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: INFO_SYS 필수 팀장들이 모두 응답하면 확정 가능하다")
     void getScheduleStatus_INFO_SYS필수팀장응답_true() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getDbrTc()).willReturn("INFO_SYS");
-=======
-        given(council.getDbrTp()).willReturn("003");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getDbrTc()).willReturn("003");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm budgetLead = mock(Bcmmtm.class);
         Bcmmtm itLead = mock(Bcmmtm.class);
         given(budgetLead.getEno()).willReturn("12004");
-<<<<<<< HEAD
-        given(budgetLead.getVlrTc()).willReturn("MAND");
+        given(budgetLead.getVlrTc()).willReturn("001");
         given(itLead.getEno()).willReturn("18001");
-        given(itLead.getVlrTc()).willReturn("MAND");
-=======
-        given(budgetLead.getVlrTp()).willReturn("001");
-        given(itLead.getEno()).willReturn("18001");
-        given(itLead.getVlrTp()).willReturn("001");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(itLead.getVlrTc()).willReturn("001");
         given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetLead, itLead));
 
         Bschdm budgetSlot = mock(Bschdm.class);
@@ -426,11 +416,7 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: INFO_SYS 필수 팀장 중 한 명이 미응답이면 확정 불가다")
     void getScheduleStatus_INFO_SYS필수팀장미응답_false() {
         Basctm council = mock(Basctm.class);
-<<<<<<< HEAD
-        given(council.getDbrTc()).willReturn("INFO_SYS");
-=======
-        given(council.getDbrTp()).willReturn("003");
->>>>>>> 465654f1157d180678d7fea83de660a442903a55
+        given(council.getDbrTc()).willReturn("003");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm budgetLead = mock(Bcmmtm.class);
