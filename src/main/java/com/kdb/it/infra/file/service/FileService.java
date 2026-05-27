@@ -316,8 +316,8 @@ public class FileService {
         // 파일물리명 채번
         String flPysNm = generateFlPysNm(file.getOriginalFilename());
 
-        // 파일매핑ID 채번
-        String flMpnId = generateFlMpnId();
+        // 파일관리번호 채번
+        String flMpnId = generateFlMngNo();
 
         // 저장 경로 문자열 (DB 저장용)
         String flKpnPth = storageDir.toString();

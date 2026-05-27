@@ -80,11 +80,11 @@ public class LoginHistoryDto {
             return Response.builder()
                     .id(clognh.getLgnHisSno())                  // 로그인이력일련번호 → id 키 유지
                     .eno(clognh.getEno())                       // 사원번호
-                    .loginType(clognh.getLgnTp())               // 로그인유형 → JSON 키 유지
+                    .lgnTc(clognh.getLgnTc())                   // 로그인구분코드
                     .ipAddress(clognh.getIpAddr())              // IP주소 → JSON 키 유지
-                    .userAgent(clognh.getUstAgt())              // 사용자에이전트 → JSON 키 유지
+                    .agtVrsCone(clognh.getAgtVrsCone())         // 에이전트버전내용
                     .loginTime(clognh.getLgnDtm())              // 로그인일시 → JSON 키 유지
-                    .failureReason(clognh.getFlurRsn())         // 실패사유 → JSON 키 유지
+                    .lgnErrRsn(clognh.getLgnErrRsn())           // 로그인오류사유
                     .build();
         }
 

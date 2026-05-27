@@ -84,7 +84,7 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
      * @param after  집계 시작 시각 (이 시각 이후 이력만 카운트)
      * @return 해당 조건에 맞는 이력 건수
      */
-    long countByEnoAndLgnTpAndLgnDtmAfter(String eno, String lgnTp, LocalDateTime after);
+    long countByEnoAndLgnTcAndLgnDtmAfter(String eno, String lgnTc, LocalDateTime after);
 
     /**
      * 최근 30일 일별 로그인 건수 집계 (대시보드용)
