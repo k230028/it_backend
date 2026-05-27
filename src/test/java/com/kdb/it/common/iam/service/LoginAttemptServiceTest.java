@@ -34,8 +34,8 @@ class LoginAttemptServiceTest {
     @Test
     @DisplayName("10분 내 실패 4회 — 잠금 없음, 예외 없음")
     void checkLocked_under5Failures_noException() {
-        given(loginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter(
-                eq("E001"), eq("LOGIN_FAILURE"), any(LocalDateTime.class)))
+        given(loginHistoryRepository.countByEnoAndLgnTcAndLgnDtmAfter(
+                eq("E001"), eq("2"), any(LocalDateTime.class)))
                 .willReturn(4L);
 
         assertThatCode(() -> loginAttemptService.checkLocked("E001"))
@@ -45,8 +45,8 @@ class LoginAttemptServiceTest {
     @Test
     @DisplayName("10분 내 실패 5회 — CustomGeneralException 발생 (423 계정 잠금)")
     void checkLocked_exactly5Failures_throwsException() {
-        given(loginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter(
-                eq("E001"), eq("LOGIN_FAILURE"), any(LocalDateTime.class)))
+        given(loginHistoryRepository.countByEnoAndLgnTcAndLgnDtmAfter(
+                eq("E001"), eq("2"), any(LocalDateTime.class)))
                 .willReturn(5L);
 
         assertThatThrownBy(() -> loginAttemptService.checkLocked("E001"))
@@ -57,8 +57,8 @@ class LoginAttemptServiceTest {
     @Test
     @DisplayName("10분 내 실패 6회 — CustomGeneralException 발생")
     void checkLocked_over5Failures_throwsException() {
-        given(loginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter(
-                eq("E001"), eq("LOGIN_FAILURE"), any(LocalDateTime.class)))
+        given(loginHistoryRepository.countByEnoAndLgnTcAndLgnDtmAfter(
+                eq("E001"), eq("2"), any(LocalDateTime.class)))
                 .willReturn(6L);
 
         assertThatThrownBy(() -> loginAttemptService.checkLocked("E001"))
@@ -68,8 +68,8 @@ class LoginAttemptServiceTest {
     @Test
     @DisplayName("최초 로그인 시도(이력 없음) — 예외 없음")
     void checkLocked_noHistory_noException() {
-        given(loginHistoryRepository.countByEnoAndLgnTpAndLgnDtmAfter(
-                eq("NEWUSER"), eq("LOGIN_FAILURE"), any(LocalDateTime.class)))
+        given(loginHistoryRepository.countByEnoAndLgnTcAndLgnDtmAfter(
+                eq("NEWUSER"), eq("2"), any(LocalDateTime.class)))
                 .willReturn(0L);
 
         assertThatCode(() -> loginAttemptService.checkLocked("NEWUSER"))

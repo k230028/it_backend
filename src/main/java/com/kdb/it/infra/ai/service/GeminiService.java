@@ -126,23 +126,23 @@ public class GeminiService {
      */
     public GeminiDto.Response generate(GeminiDto.Request request) {
         // 요청 정보 로그 (첨부파일 포함 여부 확인용)
-        List<String> requestedFlMngNos = (request.getFlMngNos() != null) ? request.getFlMngNos() : Collections.emptyList();
+        List<String> requestedFlMpnIds = (request.getFlMpnIds() != null) ? request.getFlMpnIds() : Collections.emptyList();
         log.info("Gemini 요청 - 모델: {}, 프롬프트 길이: {}, 요청 첨부파일 수: {}",
-                model, request.getPrompt().length(), requestedFlMngNos.size());
-        if (!requestedFlMngNos.isEmpty()) {
-            log.info("Gemini 요청 - 첨부파일 flMngNos: {}", requestedFlMngNos);
+                model, request.getPrompt().length(), requestedFlMpnIds.size());
+        if (!requestedFlMpnIds.isEmpty()) {
+            log.info("Gemini 요청 - 첨부파일 flMpnIds: {}", requestedFlMpnIds);
         }
 
         // 파일 첨부 처리 (결과 추적)
         List<GeminiDto.Part> fileParts = new ArrayList<>();
         List<String> skippedFiles = new ArrayList<>();
 
-        for (String flMngNo : requestedFlMngNos) {
-            FilePartResult result = buildFilePartFromFlMngNo(flMngNo);
+        for (String flMpnId : requestedFlMpnIds) {
+            FilePartResult result = buildFilePartFromFlMngNo(flMpnId);
             if (result.part() != null) {
                 fileParts.add(result.part());
             } else {
-                skippedFiles.add(flMngNo + ": " + result.skipReason());
+                skippedFiles.add(flMpnId + ": " + result.skipReason());
             }
         }
 
@@ -246,25 +246,25 @@ public class GeminiService {
      * 호출자가 건너뜀 사유를 로그/응답에 포함할 수 있습니다.
      * </p>
      *
-     * @param flMngNo 파일관리번호 (예: FL_00000001)
+     * @param flMpnId 파일매핑ID (예: FL_00000001)
      * @return FilePartResult (성공 시 part 포함, 실패 시 skipReason 포함)
      */
-    private FilePartResult buildFilePartFromFlMngNo(String flMngNo) {
+    private FilePartResult buildFilePartFromFlMngNo(String flMpnId) {
         // 1. DB에서 파일 메타데이터 조회
-        Cfilem cfilem = fileRepository.findByFlMngNoAndDelYn(flMngNo, "N").orElse(null);
+        Cfilem cfilem = fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N").orElse(null);
         if (cfilem == null) {
             return FilePartResult.skip("DB에서 파일을 찾을 수 없음 (삭제되었거나 존재하지 않는 번호)");
         }
 
-        // 2. 원본 파일명 기반 MIME 타입 감지
-        String mimeType = detectMimeType(cfilem.getOrcFlNm());
+        // 2. 파일명 기반 MIME 타입 감지
+        String mimeType = detectMimeType(cfilem.getFlNm());
         if (mimeType == null) {
-            return FilePartResult.skip("Gemini 미지원 형식: " + cfilem.getOrcFlNm()
+            return FilePartResult.skip("Gemini 미지원 형식: " + cfilem.getFlNm()
                     + " (지원: jpg/png/gif/webp/pdf/txt/csv)");
         }
 
         // 3. 디스크에서 파일 읽기
-        Path filePath = Paths.get(cfilem.getFlKpnPth()).resolve(cfilem.getSvrFlNm());
+        Path filePath = Paths.get(cfilem.getFlKpnPth()).resolve(cfilem.getFlPysNm());
         if (!Files.exists(filePath)) {
             return FilePartResult.skip("디스크에 파일 없음: " + filePath
                     + " (저장 경로와 실제 파일 위치가 다를 수 있음)");
@@ -282,8 +282,8 @@ public class GeminiService {
         // 4. Base64 인코딩
         String base64Data = Base64.getEncoder().encodeToString(fileBytes);
 
-        log.info("Gemini 파일 첨부 성공 - flMngNo: {}, 파일명: {}, MIME: {}, 크기: {}KB",
-                flMngNo, cfilem.getOrcFlNm(), mimeType, fileBytes.length / 1024);
+        log.info("Gemini 파일 첨부 성공 - flMpnId: {}, 파일명: {}, MIME: {}, 크기: {}KB",
+                flMpnId, cfilem.getFlNm(), mimeType, fileBytes.length / 1024);
 
         return FilePartResult.success(
                 GeminiDto.Part.builder()

@@ -14,91 +14,91 @@ import lombok.experimental.SuperBuilder;
 import java.time.LocalDateTime;
 
 /**
- * 알림 마스터 엔티티 — {@code TPRMPP_CINFMM}
+ * 공통알림기본 엔티티 — {@code TPRMPP_CINFMM}
  *
  * <p>
- * 결재요청·결재결과·게시판 멘션 등 사내 알림을 1행 = 1수신자 구조로 보관한다.
- * BaseEntity 상속을 통해 공통 컬럼(DEL_YN, GUID, FST_ENR_*, LST_CHG_*)을 자동 포함한다.
+ * 결재요청·결재결과·게시판 멘션·시스템 알림 등 사내 알림을 1행 = 1수신자 구조로 보관한다.
+ * BaseEntity 상속으로 공통 컬럼(DEL_YN, GUID, FST_ENR_*, LST_CHG_*)을 자동 포함한다.
  * </p>
  *
  * <p>채번 규칙: {@code INF-{YYYY}-{8자리 시퀀스}} (예: {@code INF-2026-00000001})</p>
  *
- * <p>EAI 컬럼은 외부 시스템 발송 채널·이력을 표현한다. 본 페이즈에서는 인앱(INAPP)만
- * 적재 시점에 동기 기록되고, 나머지 채널(EMAIL/SMS/TALK)은 Phase 2에서 활성화된다.</p>
+ * <p>알림서비스구분({@code INFM_SVC_TC})은 공통코드 {@code C_ID='INFM_SVC'} 2자리 값.
+ * 발송구분({@code SD_TC})은 공통코드 {@code C_ID='SD'} 2자리 값.</p>
  */
 @Entity
-@Table(name = "TPRMPP_CINFMM", comment = "알림 마스터")
+@Table(name = "TPRMPP_CINFMM", comment = "공통알림기본")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class Cinfmm extends BaseEntity {
 
-    /** 알림관리번호: 기본키. 형식 {@code INF-{YYYY}-{NEXTVAL:08}} */
+    /** 알림메시지번호: 기본키. 형식 {@code INF-{YYYY}-{NEXTVAL:08}} */
     @Id
-    @Column(name = "INF_MNG_NO", length = 32, nullable = false, comment = "알림관리번호")
-    private String infMngNo;
+    @Column(name = "INFM_MSG_NO", length = 30, nullable = false, comment = "알림메시지번호")
+    private String infmMsgNo;
 
-    /** 알림종류구분코드 — Ccodem cId=CINF_TP */
-    @Column(name = "INF_TP_C", length = 3, nullable = false, comment = "알림종류구분코드")
-    private String infTpC;
+    /** 알림서비스구분코드 — 공통코드 {@code C_ID='INFM_SVC'} (01=시스템, 02=결재요청, 03=결재결과, 04=게시물멘션, 05=댓글멘션, 06=결재회수) */
+    @Column(name = "INFM_SVC_TC", length = 2, nullable = false, comment = "알림서비스구분코드")
+    private String infmSvcTc;
 
-    /** 알림 제목 */
-    @Column(name = "INF_TTL", length = 100, comment = "알림제목")
-    private String infTtl;
+    /** 제목 (최대 100자) */
+    @Column(name = "TTL", length = 100, comment = "제목")
+    private String ttl;
 
-    /** 알림 내용 미리보기 */
-    @Column(name = "INF_CONE", length = 300, comment = "알림내용")
-    private String infCone;
+    /** 알림메시지내용: 알림 본문 (최대 4000자) */
+    @Column(name = "INFM_MSG_CONE", length = 4000, comment = "알림메시지내용")
+    private String infmMsgCone;
 
-    /** 클릭 시 이동할 앱 내부 라우트 */
-    @Column(name = "INF_LNK_URL", length = 300, comment = "알림연결URL")
-    private String infLnkUrl;
+    /** 알림추천URL: 클릭 시 이동할 앱 내부 라우트 (최대 300자) */
+    @Column(name = "INFM_RCD_URL", length = 300, comment = "알림추천URL")
+    private String infmRcdUrl;
 
-    /** 수신자 사번 (1행 = 1수신자) */
-    @Column(name = "RCV_USID", length = 14, nullable = false, comment = "수신자사번")
-    private String rcvUsid;
+    /** 수신자사원번호 (1행 = 1수신자) */
+    @Column(name = "RMS_ENO", length = 14, nullable = false, comment = "수신자사원번호")
+    private String rmsEno;
 
-    /** 읽음여부: 'N' 미읽음(기본), 'Y' 읽음 */
-    @Column(name = "RDD_YN", length = 1, nullable = false, comment = "읽음여부")
-    private String rddYn;
+    /** 조회여부: 'N' 미조회(기본), 'Y' 조회(=읽음) */
+    @Column(name = "INQ_YN", length = 1, nullable = false, comment = "조회여부")
+    private String inqYn;
 
-    /** 읽음일시 (미읽음 상태에서는 null) */
-    @Column(name = "RDD_DTM", comment = "읽음일시")
-    private LocalDateTime rddDtm;
+    /** 조회일시: 알림을 처음 조회(=읽음 처리)한 시각 (미조회 상태에서는 null) */
+    @Column(name = "INQ_DTM", comment = "조회일시")
+    private LocalDateTime inqDtm;
 
-    /** EAI 발송구분코드 — Ccodem cId=CEAI_SD_TP (INAPP/EMAIL/SMS/TALK) */
-    @Column(name = "EAI_SD_TP_C", length = 3, comment = "EAI발송구분코드")
-    private String eaiSdTpC;
+    /** 발송구분코드 — 공통코드 {@code C_ID='SD'} (01=인앱, 02=알림톡, 03=SMS, 04=이메일) */
+    @Column(name = "SD_TC", length = 2, comment = "발송구분코드")
+    private String sdTc;
 
-    /** EAI 발송일시 (null=미발송) */
-    @Column(name = "EAI_SD_DTM", comment = "EAI발송일시")
-    private LocalDateTime eaiSdDtm;
+    /** 발송일시 (null=미발송) */
+    @Column(name = "SD_DTM", comment = "발송일시")
+    private LocalDateTime sdDtm;
 
-    /** EAI 발송내용 페이로드 (JSON 권장) */
-    @Column(name = "EAI_SD_CONE", length = 4000, comment = "EAI발송내용")
-    private String eaiSdCone;
+    /** 발송문서내용: 외부 발송 페이로드 (JSON 권장, 최대 4000자) */
+    @Column(name = "SD_DOC_CONE", length = 4000, comment = "발송문서내용")
+    private String sdDocCone;
 
     // ── 비즈니스 메서드 ─────────────────────────────────────────────────────
 
-    /** 읽음 처리 — RDD_YN='Y', RDD_DTM=now (이미 읽음 상태면 변경 없음) */
+    /** 조회(읽음) 처리 — INQ_YN='Y', INQ_DTM=now (이미 조회 상태면 변경 없음) */
     public void markRead() {
-        if ("Y".equals(this.rddYn)) {
+        if ("Y".equals(this.inqYn)) {
             return;
         }
-        this.rddYn = "Y";
-        this.rddDtm = LocalDateTime.now();
+        this.inqYn = "Y";
+        this.inqDtm = LocalDateTime.now();
     }
 
     /**
-     * EAI 발송 완료 메타 기록.
+     * 발송 완료 메타 기록.
      *
-     * @param eaiSdTpC 발송 채널 코드 (INAPP/EMAIL/SMS/TALK)
+     * @param sdTc     발송 채널 코드 (공통코드 SD; 01=인앱, 02=알림톡, 03=SMS, 04=이메일)
      * @param payload  외부 발송 페이로드 (JSON 또는 null)
      */
-    public void markDispatched(String eaiSdTpC, String payload) {
-        this.eaiSdTpC = eaiSdTpC;
-        this.eaiSdDtm = LocalDateTime.now();
-        this.eaiSdCone = payload;
+    public void markDispatched(String sdTc, String payload) {
+        this.sdTc = sdTc;
+        this.sdDtm = LocalDateTime.now();
+        this.sdDocCone = payload;
     }
 }

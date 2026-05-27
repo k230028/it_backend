@@ -646,7 +646,7 @@ class AdminServiceTest {
         // given
         Clognh log = Clognh.builder()
                 .eno("10001")
-                .lgnTp("LOGIN_SUCCESS")
+                .lgnTc("1")
                 .ipAddr("127.0.0.1")
                 .lgnDtm(java.time.LocalDateTime.of(2026, 4, 1, 9, 0))
                 .build();
@@ -662,7 +662,7 @@ class AdminServiceTest {
         // then: 1건 반환, ENO와 로그인 타입 검증
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().get(0).eno()).isEqualTo("10001");
-        assertThat(result.getContent().get(0).lgnTp()).isEqualTo("LOGIN_SUCCESS");
+        assertThat(result.getContent().get(0).lgnTc()).isEqualTo("1");
     }
 
     @Test
@@ -770,16 +770,16 @@ class AdminServiceTest {
     @DisplayName("getFiles: 삭제되지 않은 파일만 사용자명과 함께 반환한다")
     void getFiles_삭제되지않은파일만반환() {
         Cfilem active = Cfilem.builder()
-                .flMngNo("FL_00000001")
-                .orcFlNm("문서.pdf")
-                .flDtt("첨부파일")
-                .orcDtt("문서")
+                .flMpnId("FL_00000001")
+                .flNm("문서.pdf")
+                .flTpCone("첨부파일")
+                .pkColNm("문서")
                 .fstEnrUsid("10001")
                 .delYn("N")
                 .build();
         Cfilem deleted = Cfilem.builder()
-                .flMngNo("FL_00000002")
-                .orcFlNm("삭제.pdf")
+                .flMpnId("FL_00000002")
+                .flNm("삭제.pdf")
                 .delYn("Y")
                 .build();
         given(fileRepository.findAll()).willReturn(List.of(active, deleted));
@@ -789,7 +789,7 @@ class AdminServiceTest {
         List<AdminDto.FileResponse> result = adminService.getFiles();
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).flMngNo()).isEqualTo("FL_00000001");
+        assertThat(result.get(0).flMpnId()).isEqualTo("FL_00000001");
         assertThat(result.get(0).fstEnrUsNm()).isEqualTo("홍길동");
     }
 

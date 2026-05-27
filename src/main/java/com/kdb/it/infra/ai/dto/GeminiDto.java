@@ -56,8 +56,8 @@ public class GeminiDto {
          * 파일당 최대 20MB 제한.
          * </p>
          */
-        @Schema(description = "첨부파일 관리번호 목록 (선택, 예: [\"FL_00000001\", \"FL_00000002\"])")
-        private List<String> flMngNos;
+        @Schema(description = "첨부파일 매핑ID 목록 (선택, 예: [\"FL_00000001\", \"FL_00000002\"])")
+        private List<String> flMpnIds;
     }
 
     /**

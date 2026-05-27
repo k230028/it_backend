@@ -26,39 +26,39 @@ public final class NotificationDto {
     @Schema(name = "NotificationItem", description = "알림 단건")
     public static class Item {
 
-        @Schema(description = "알림관리번호", example = "INF-2026-00000001")
-        private String infMngNo;
+        @Schema(description = "알림메시지번호", example = "INF-2026-00000001")
+        private String infmMsgNo;
 
-        @Schema(description = "알림종류구분코드 (Ccodem cId='INF_TP' cdva, 예: '002'=결재요청)", example = "002")
-        private String infTpC;
+        @Schema(description = "알림서비스구분코드 (Ccodem cId='INFM_SVC' cdva, 예: '02'=결재요청)", example = "02")
+        private String infmSvcTc;
 
-        @Schema(description = "알림 제목")
-        private String infTtl;
+        @Schema(description = "제목 (최대 100자)")
+        private String ttl;
 
-        @Schema(description = "알림 내용 (미리보기)")
-        private String infCone;
+        @Schema(description = "알림메시지내용 (본문)")
+        private String infmMsgCone;
 
-        @Schema(description = "클릭 시 이동할 앱 내부 경로")
-        private String infLnkUrl;
+        @Schema(description = "알림추천URL (클릭 시 이동할 앱 내부 경로)")
+        private String infmRcdUrl;
 
-        @Schema(description = "읽음여부 (Y/N)")
-        private String rddYn;
+        @Schema(description = "조회여부 (Y/N) — Y=읽음")
+        private String inqYn;
 
-        @Schema(description = "읽음일시")
-        private LocalDateTime rddDtm;
+        @Schema(description = "조회일시 (읽은 시각)")
+        private LocalDateTime inqDtm;
 
         @Schema(description = "최초 등록 일시")
         private LocalDateTime fstEnrDtm;
 
         public static Item fromEntity(Cinfmm e) {
             return Item.builder()
-                .infMngNo(e.getInfMngNo())
-                .infTpC(e.getInfTpC())
-                .infTtl(e.getInfTtl())
-                .infCone(e.getInfCone())
-                .infLnkUrl(e.getInfLnkUrl())
-                .rddYn(e.getRddYn())
-                .rddDtm(e.getRddDtm())
+                .infmMsgNo(e.getInfmMsgNo())
+                .infmSvcTc(e.getInfmSvcTc())
+                .ttl(e.getTtl())
+                .infmMsgCone(e.getInfmMsgCone())
+                .infmRcdUrl(e.getInfmRcdUrl())
+                .inqYn(e.getInqYn())
+                .inqDtm(e.getInqDtm())
                 .fstEnrDtm(e.getFstEnrDtm())
                 .build();
         }
@@ -69,10 +69,10 @@ public final class NotificationDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "NotificationUnreadCount", description = "미읽음 알림 건수")
+    @Schema(name = "NotificationUnreadCount", description = "미조회(미읽음) 알림 건수")
     public static class UnreadCount {
 
-        @Schema(description = "미읽음 건수", example = "5")
+        @Schema(description = "미조회 건수", example = "5")
         private long count;
     }
 
@@ -81,10 +81,10 @@ public final class NotificationDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "NotificationMarkAllReadResponse", description = "일괄 읽음 처리 응답")
+    @Schema(name = "NotificationMarkAllReadResponse", description = "일괄 조회(읽음) 처리 응답")
     public static class MarkAllReadResponse {
 
-        @Schema(description = "읽음으로 갱신된 건수", example = "5")
+        @Schema(description = "조회로 갱신된 건수", example = "5")
         private long updated;
     }
 }

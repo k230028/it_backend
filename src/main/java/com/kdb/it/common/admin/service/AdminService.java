@@ -656,10 +656,10 @@ public class AdminService {
                                 h.getEno(),
                                 resolveUserName(h.getEno()),
                                 h.getLgnDtm(),
-                                h.getLgnTp(),
+                                h.getLgnTc(),
                                 h.getIpAddr(),
-                                h.getFlurRsn(),
-                                h.getUstAgt(),
+                                h.getLgnErrRsn(),
+                                h.getAgtVrsCone(),
                                 h.getFstEnrDtm());
         }
 
@@ -716,10 +716,10 @@ public class AdminService {
          */
         private AdminDto.FileResponse toFileResponse(Cfilem f) {
                 return new AdminDto.FileResponse(
-                                f.getFlMngNo(),
-                                f.getOrcFlNm(),
-                                f.getFlDtt(),
-                                f.getOrcDtt(),
+                                f.getFlMpnId(),
+                                f.getFlNm(),
+                                f.getFlTpCone(),
+                                f.getPkColNm(),
                                 f.getFstEnrDtm(),
                                 f.getFstEnrUsid(),
                                 resolveUserName(f.getFstEnrUsid()));
