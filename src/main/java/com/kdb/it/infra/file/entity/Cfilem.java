@@ -35,7 +35,7 @@ import lombok.experimental.SuperBuilder;
  * </p>
  */
 @Entity
-@Table(name = "TPRMPP_CFILEM", comment = "공통 첨부파일 관리")
+@Table(name = "TPRMPP_CFILEM", comment = "공통첨부파일기본")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

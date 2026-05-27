@@ -18,12 +18,12 @@ public interface NotificationDispatcher {
      *
      * <p>
      * 구현체는 발송이 완료되면 {@link Cinfmm#markDispatched(String, String)}을 호출하여
-     * EAI 메타를 기록할 책임이 있다. 발송 실패는 예외로 던지지 않고 로깅 후 무시한다
-     * (호출자 알림 트랜잭션과 분리된 부수 효과로 취급).
+     * 발송 메타(SD_TC, SD_DTM, SD_DOC_CONE)를 기록할 책임이 있다.
+     * 발송 실패는 예외로 던지지 않고 로깅 후 무시한다 (부수 효과로 취급).
      * </p>
      *
      * @param notification 적재 직후의 알림 엔티티 (영속 상태)
-     * @param eaiPayload   외부 발송 페이로드 (JSON 문자열, null 가능)
+     * @param sdPayload    발송 페이로드 (JSON 문자열, null 가능)
      */
-    void dispatch(Cinfmm notification, String eaiPayload);
+    void dispatch(Cinfmm notification, String sdPayload);
 }

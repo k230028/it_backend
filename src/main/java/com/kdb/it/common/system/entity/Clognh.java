@@ -32,7 +32,7 @@ import java.time.LocalDateTime;
  * </ul>
  */
 @Entity
-@Table(name = "TPRMPP_CLOGNH", comment = "로그인이력")
+@Table(name = "TPRMPP_CLOGNH", comment = "공통로그인이력")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -40,13 +40,13 @@ import java.time.LocalDateTime;
 public class Clognh extends BaseEntity {
 
     /**
-     * 로그인이력일련번호: 기본키. Oracle 시퀀스(SEQ_CLOGNH)로 자동 채번
+     * 로그인로그일련번호: 기본키. Oracle 시퀀스(SEQ_CLOGNH)로 자동 채번
      */
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SEQ_CLOGNH")
     @SequenceGenerator(name = "SEQ_CLOGNH", sequenceName = "SEQ_CLOGNH", allocationSize = 1)
-    @Column(name = "LGN_HIS_SNO", comment = "로그인이력일련번호")
-    private Long lgnHisSno;
+    @Column(name = "LGN_LOG_SNO", comment = "로그인로그일련번호")
+    private Long lgnLogSno;
 
     /**
      * 사원번호: 로그인을 시도한 사용자의 사번

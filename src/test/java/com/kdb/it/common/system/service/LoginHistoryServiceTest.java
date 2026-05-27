@@ -40,7 +40,7 @@ class LoginHistoryServiceTest {
 
     private Clognh mockClognh(Long sno, String eno, String lgnTc) {
         Clognh history = mock(Clognh.class);
-        given(history.getLgnHisSno()).willReturn(sno);
+        given(history.getLgnLogSno()).willReturn(sno);
         given(history.getEno()).willReturn(eno);
         given(history.getLgnTc()).willReturn(lgnTc);
         given(history.getIpAddr()).willReturn("127.0.0.1");

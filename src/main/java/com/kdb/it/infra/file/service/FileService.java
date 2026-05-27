@@ -107,9 +107,9 @@ public class FileService {
     // ─────────────────────────────────────────
 
     /**
-     * 파일관리번호 채번.
+     * 파일매핑ID 채번
      *
-     * <p>Oracle 시퀀스({@code S_FL}) NEXTVAL을 8자리 zero-padded 문자열로 변환합니다.</p>
+     * <p>Oracle 시퀀스(SEQ_CFILEM) 값을 기반으로 생성합니다.</p>
      *
      * <p>시퀀스가 기존 데이터의 최대값보다 작게 재설정되면 PK 충돌(ORA-00001)이
      * 발생할 수 있으므로, INSERT 충돌 시 최대 {@value #FL_MNG_NO_RETRY}회까지
@@ -117,19 +117,9 @@ public class FileService {
      *
      * @return 파일매핑ID (예: FL_00000001)
      */
-    private String generateFlMngNo() {
-        // S_FL이 기존 데이터 최대값보다 작게 재설정된 환경에서도 PK 충돌 없이 빈 ID를 얻도록
-        // 최대 FL_MNG_NO_RETRY회까지 NEXTVAL을 시도해 미사용 ID를 확보합니다.
-        for (int i = 0; i < FL_MNG_NO_RETRY; i++) {
-            Long seq = fileRepository.getNextSequenceValue();
-            String candidate = String.format("FL_%08d", seq);
-            if (!fileRepository.existsById(candidate)) {
-                return candidate;
-            }
-        }
-        // 5회 안에도 빈 ID를 못 찾으면 시퀀스/데이터 정합성 점검이 필요한 상태 — 명시적 실패
-        throw new CustomGeneralException(
-                "FL_MNG_NO 채번 실패: 시퀀스가 기존 데이터와 충돌합니다. S_FL을 MAX(FL_MNG_NO)+1로 재설정하세요.");
+    private String generateFlMpnId() {
+        Long seq = fileRepository.getNextSequenceValue();
+        return String.format("FL_%08d", seq);
     }
 
     /** PK 충돌 회복 시 최대 재시도 횟수 (시퀀스가 기존 최대값보다 작게 재설정된 경우 대비) */
@@ -316,8 +306,8 @@ public class FileService {
         // 파일물리명 채번
         String flPysNm = generateFlPysNm(file.getOriginalFilename());
 
-        // 파일관리번호 채번
-        String flMpnId = generateFlMngNo();
+        // 파일매핑ID 채번
+        String flMpnId = generateFlMpnId();
 
         // 저장 경로 문자열 (DB 저장용)
         String flKpnPth = storageDir.toString();

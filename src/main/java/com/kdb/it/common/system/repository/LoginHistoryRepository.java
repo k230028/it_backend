@@ -15,7 +15,7 @@ import java.util.List;
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여
  * 로그인이력 테이블(TPRMPP_CLOGNH)에 대한 CRUD 기능을 제공합니다.</p>
  *
- * <p>기본키 타입: {@link Long} (lgnHisSno: Oracle 시퀀스 SEQ_CLOGNH)</p>
+ * <p>기본키 타입: {@link Long} (lgnLogSno: Oracle 시퀀스 SEQ_CLOGNH)</p>
  *
  * <p>로그인구분코드({@code LGN_TC})는 공통코드 {@code C_ID='LGN_TC'} 기반 1자리 값입니다.
  * (1=성공, 2=실패, 3=로그아웃)</p>
@@ -74,22 +74,21 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
     Page<Clognh> findAllByOrderByLgnDtmDesc(Pageable pageable);
 
     /**
-     * 특정 사용자의 지정 시각 이후 로그인유형별 이력 건수 조회 — SEC-03 Brute-force 감지용
+     * 특정 사용자의 지정 시각 이후 로그인구분코드별 이력 건수 조회 — SEC-03 Brute-force 감지용
      *
-     * <p>직전 N분 내 LOGIN_FAILURE 횟수를 집계하여 Brute-force 공격 여부를 판단합니다.
-     * Spring Data JPA 파생 쿼리로 별도 SQL 작성 없이 처리됩니다.</p>
+     * <p>직전 N분 내 로그인 실패({@code LGN_TC='2'}) 횟수를 집계하여 Brute-force 공격 여부를 판단합니다.</p>
      *
      * @param eno    조회할 사용자의 사번
-     * @param lgnTp  로그인 유형 (예: "LOGIN_FAILURE")
+     * @param lgnTc  로그인구분코드 (예: "2"=로그인 실패)
      * @param after  집계 시작 시각 (이 시각 이후 이력만 카운트)
      * @return 해당 조건에 맞는 이력 건수
      */
     long countByEnoAndLgnTcAndLgnDtmAfter(String eno, String lgnTc, LocalDateTime after);
 
     /**
-     * 최근 30일 일별 로그인 건수 집계 (대시보드용)
+     * 최근 30일 일별 로그인 성공 건수 집계 (대시보드용)
      *
-     * <p>TPRMPP_CLOGNH에서 LGN_TP='LOGIN_SUCCESS' 조건으로 최근 30일간의
+     * <p>TPRMPP_CLOGNH에서 {@code LGN_TC='1'} 조건으로 최근 30일간의
      * 날짜별 로그인 성공 건수를 집계합니다. Oracle TRUNC 함수로 날짜 단위 그룹화.</p>
      *
      * @return [날짜 문자열(YYYY-MM-DD), 건수] 쌍의 배열 목록
@@ -98,7 +97,7 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
             SELECT TO_CHAR(TRUNC(LGN_DTM), 'YYYY-MM-DD') AS LGN_DATE,
                    COUNT(*) AS CNT
             FROM TPRMPP_CLOGNH
-            WHERE LGN_TP = 'LOGIN_SUCCESS'
+            WHERE LGN_TC = '1'
               AND LGN_DTM >= TRUNC(SYSDATE) - 30
             GROUP BY TRUNC(LGN_DTM)
             ORDER BY TRUNC(LGN_DTM)
