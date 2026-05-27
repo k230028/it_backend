@@ -14,12 +14,12 @@ public class AuditLogEvent {
 
     private final Object sourceEntity;
     private final Class<? extends BaseLogEntity> logClass;
-    private final String chgTc;
+    private final String chgTp;
 
-    public AuditLogEvent(Object sourceEntity, Class<? extends BaseLogEntity> logClass, String chgTc) {
+    public AuditLogEvent(Object sourceEntity, Class<? extends BaseLogEntity> logClass, String chgTp) {
         this.sourceEntity = sourceEntity;
         this.logClass = logClass;
-        this.chgTc = chgTc;
+        this.chgTp = chgTp;
     }
 
     public Object getSourceEntity() {
@@ -31,6 +31,6 @@ public class AuditLogEvent {
     }
 
     public String getChgTc() {
-        return chgTc;
+        return chgTp;
     }
 }

@@ -59,7 +59,7 @@ class AdminLogServiceTest {
     void getLogs_로그목록_사용자명포함반환() {
         BasctmL log = BasctmL.builder()
                 .logSno(1L)
-                .chgTc("C")
+                .chgTp("C")
                 .chgDtm(LocalDateTime.of(2026, 5, 6, 9, 0))
                 .chgUsid("10001")
                 .asctId("ASCT-1")
@@ -94,7 +94,7 @@ class AdminLogServiceTest {
     void getLogDetail_존재하는로그_상세반환() {
         BasctmL log = BasctmL.builder()
                 .logSno(1L)
-                .chgTc("U")
+                .chgTp("U")
                 .chgUsid("10001")
                 .asctId("ASCT-1")
                 .build();
@@ -103,7 +103,7 @@ class AdminLogServiceTest {
         AdminLogDto.LogDetailResponse result = adminLogService.getLogDetail("basctm", "1");
 
         assertThat(result.row()).containsEntry("logSno", 1L);
-        assertThat(result.row()).containsEntry("chgTc", "U");
+        assertThat(result.row()).containsEntry("chgTp", "U");
         assertThat(result.columns()).anyMatch(AdminLogDto.LogColumnResponse::primary);
     }
 

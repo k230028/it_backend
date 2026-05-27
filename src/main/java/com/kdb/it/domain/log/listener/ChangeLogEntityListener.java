@@ -72,8 +72,8 @@ public class ChangeLogEntityListener {
             return;
         }
         // DEL_YN='Y'이면 논리삭제(D), 그 외 수정(U)
-        String chgTc = resolveUpdateType(entity);
-        persistLog(entity, chgTc);
+        String chgTp = resolveUpdateType(entity);
+        persistLog(entity, chgTp);
     }
 
     /**
@@ -96,20 +96,20 @@ public class ChangeLogEntityListener {
      * 로그 저장 실패 시 예외를 삼켜 원본 트랜잭션 롤백을 방지합니다.</p>
      *
      * @param entity 로그 대상 엔티티
-     * @param chgTc  변경 유형 코드 (C=생성, U=수정, D=논리삭제)
+     * @param chgTp  변경 유형 코드 (C=생성, U=수정, D=논리삭제)
      */
-    private void persistLog(Object entity, String chgTc) {
+    private void persistLog(Object entity, String chgTp) {
         LogTarget ann = entity.getClass().getAnnotation(LogTarget.class);
         Class<? extends BaseLogEntity> logClass = ann.entity();
         try {
             AuditLogPersister persister = ApplicationContextHolder.getBean(AuditLogPersister.class);
-            persister.persist(entity, logClass, chgTc);
+            persister.persist(entity, logClass, chgTp);
         } catch (Exception e) {
             // FIXME: [B-H-01] e.getMessage() 대신 e를 마지막 인자로 전달하여 스택트레이스 포함 필요
             // 감사로그 실패가 본 업무 트랜잭션을 롤백시키지 않도록 예외를 삼킨다.
             // 시퀀스 미생성(ORA-02289) 등 인프라 오류 시 본 작업은 정상 완료되어야 한다.
-            log.warn("[감사로그 기록 실패] entity={}, logClass={}, chgTc={}, reason={}",
-                    entity.getClass().getSimpleName(), logClass.getSimpleName(), chgTc, e.getMessage());
+            log.warn("[감사로그 기록 실패] entity={}, logClass={}, chgTp={}, reason={}",
+                    entity.getClass().getSimpleName(), logClass.getSimpleName(), chgTp, e.getMessage());
         }
     }
 

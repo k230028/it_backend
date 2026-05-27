@@ -39,15 +39,15 @@ public abstract class BaseLogEntity {
     /**
      * 변경유형구분코드: C(생성) / U(수정) / D(논리삭제).
      *
-     * <p>DB 실제 컬럼은 {@code CHG_TC} (VARCHAR2(4), 대부분 *L 테이블에서 NOT NULL).
-     * 과거 매핑은 {@code CHG_TC}로 잘못 지정되어 있었으며, 이로 인해 INSERT 시
-     * {@code CHG_TC}에 값이 들어가지 않아 ORA-01400이 발생했습니다 (예: CCODEL update).
+     * <p>DB 실제 컬럼은 {@code CHG_TP} (VARCHAR2(4), 대부분 *L 테이블에서 NOT NULL).
+     * 과거 매핑은 {@code CHG_TP}로 잘못 지정되어 있었으며, 이로 인해 INSERT 시
+     * {@code CHG_TP}에 값이 들어가지 않아 ORA-01400이 발생했습니다 (예: CCODEL update).
      * {@link com.kdb.it.domain.log.listener.AuditLogPersister#persist}가
-     * {@code setField(logEntity, "chgTc", chgTc)}로 'C'/'U'/'D'를 채우므로
+     * {@code setField(logEntity, "chgTp", chgTp)}로 'C'/'U'/'D'를 채우므로
      * 본 매핑 변경만으로 모든 *L 테이블의 NOT NULL 제약을 통과합니다.</p>
      */
-    @Column(name = "CHG_TC", length = 1, comment = "변경유형구분코드")
-    private String chgTc;
+    @Column(name = "CHG_TP", length = 1, comment = "변경유형구분코드")
+    private String chgTp;
 
     /** 변경일시: 로그 INSERT 시각 */
     @Column(name = "CHG_DTM", nullable = false, comment = "변경일시")
