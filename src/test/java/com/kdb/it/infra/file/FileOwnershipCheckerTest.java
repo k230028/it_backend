@@ -52,7 +52,7 @@ class FileOwnershipCheckerTest {
     void checkOwnership_sameUser_noException() {
         Cfilem file = mock(Cfilem.class);
         when(file.getFstEnrUsid()).thenReturn("E001");
-        given(fileRepository.findByFlMngNoAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
 
         assertThatCode(() -> fileOwnershipChecker.checkOwnership("FL_00000001", "E001"))
                 .doesNotThrowAnyException();
@@ -63,7 +63,7 @@ class FileOwnershipCheckerTest {
     void checkOwnership_differentUser_throwsException() {
         Cfilem file = mock(Cfilem.class);
         when(file.getFstEnrUsid()).thenReturn("E001");
-        given(fileRepository.findByFlMngNoAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
 
         assertThatThrownBy(() -> fileOwnershipChecker.checkOwnership("FL_00000001", "E002"))
                 .isInstanceOf(CustomGeneralException.class)
@@ -73,7 +73,7 @@ class FileOwnershipCheckerTest {
     @Test
     @DisplayName("존재하지 않는 파일 ID 시 CustomGeneralException 발생")
     void checkOwnership_fileNotFound_throwsException() {
-        given(fileRepository.findByFlMngNoAndDelYn("FL_99999999", "N")).willReturn(Optional.empty());
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_99999999", "N")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> fileOwnershipChecker.checkOwnership("FL_99999999", "E001"))
                 .isInstanceOf(CustomGeneralException.class);
@@ -90,8 +90,8 @@ class FileOwnershipCheckerTest {
         void checkReadAccess_nonBoardFile_alwaysPasses() {
             // Arrange
             Cfilem file = mock(Cfilem.class);
-            when(file.getOrcDtt()).thenReturn("정보화사업");
-            given(fileRepository.findByFlMngNoAndDelYn("FL_00000002", "N"))
+            when(file.getPkColNm()).thenReturn("정보화사업");
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000002", "N"))
                     .willReturn(Optional.of(file));
 
             CustomUserDetails normalUser = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
@@ -105,7 +105,7 @@ class FileOwnershipCheckerTest {
         @DisplayName("파일이 없으면 CustomGeneralException 발생")
         void checkReadAccess_fileNotFound_throws() {
             // Arrange
-            given(fileRepository.findByFlMngNoAndDelYn("FL_00000099", "N"))
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000099", "N"))
                     .willReturn(Optional.empty());
 
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
@@ -121,8 +121,8 @@ class FileOwnershipCheckerTest {
         void checkReadAccess_boardFile_adminBypass() {
             // Arrange
             Cfilem file = mock(Cfilem.class);
-            when(file.getOrcDtt()).thenReturn("공통게시판");
-            given(fileRepository.findByFlMngNoAndDelYn("FL_BOARD_01", "N"))
+            when(file.getPkColNm()).thenReturn("공통게시판");
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_BOARD_01", "N"))
                     .willReturn(Optional.of(file));
 
             CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
@@ -142,9 +142,9 @@ class FileOwnershipCheckerTest {
         @BeforeEach
         void setUp() {
             Cfilem boardFile = mock(Cfilem.class);
-            when(boardFile.getOrcDtt()).thenReturn("공통게시판");
-            when(boardFile.getOrcPkVl()).thenReturn("NAC-2026-0001");
-            given(fileRepository.findByFlMngNoAndDelYn("FL_BOARD_01", "N"))
+            when(boardFile.getPkColNm()).thenReturn("공통게시판");
+            when(boardFile.getPkCone()).thenReturn("NAC-2026-0001");
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_BOARD_01", "N"))
                     .willReturn(Optional.of(boardFile));
         }
 

@@ -38,15 +38,15 @@ class LoginHistoryServiceTest {
     @InjectMocks
     private LoginHistoryService loginHistoryService;
 
-    private Clognh mockClognh(Long sno, String eno, String loginType) {
+    private Clognh mockClognh(Long sno, String eno, String lgnTc) {
         Clognh history = mock(Clognh.class);
         given(history.getLgnHisSno()).willReturn(sno);
         given(history.getEno()).willReturn(eno);
-        given(history.getLgnTp()).willReturn(loginType);
+        given(history.getLgnTc()).willReturn(lgnTc);
         given(history.getIpAddr()).willReturn("127.0.0.1");
-        given(history.getUstAgt()).willReturn("Mozilla/5.0");
+        given(history.getAgtVrsCone()).willReturn("Mozilla/5.0");
         given(history.getLgnDtm()).willReturn(LocalDateTime.of(2026, 4, 25, 9, 0));
-        given(history.getFlurRsn()).willReturn(null);
+        given(history.getLgnErrRsn()).willReturn(null);
         return history;
     }
 
@@ -59,8 +59,8 @@ class LoginHistoryServiceTest {
     void getLoginHistory_이력있음_DTO목록반환() {
         // given
         String eno = "E10001";
-        Clognh h1 = mockClognh(1L, eno, "LOGIN_SUCCESS");
-        Clognh h2 = mockClognh(2L, eno, "LOGOUT");
+        Clognh h1 = mockClognh(1L, eno, "1");
+        Clognh h2 = mockClognh(2L, eno, "3");
         given(loginHistoryRepository.findTop50ByEnoOrderByLgnDtmDesc(eno)).willReturn(List.of(h1, h2));
 
         // when
@@ -69,8 +69,8 @@ class LoginHistoryServiceTest {
         // then
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getEno()).isEqualTo(eno);
-        assertThat(result.get(0).getLoginType()).isEqualTo("LOGIN_SUCCESS");
-        assertThat(result.get(1).getLoginType()).isEqualTo("LOGOUT");
+        assertThat(result.get(0).getLgnTc()).isEqualTo("1");
+        assertThat(result.get(1).getLgnTc()).isEqualTo("3");
         verify(loginHistoryRepository).findTop50ByEnoOrderByLgnDtmDesc(eno);
     }
 
@@ -96,7 +96,7 @@ class LoginHistoryServiceTest {
     void getRecentLoginHistory_이력있음_DTO목록반환() {
         // given
         String eno = "E10001";
-        Clognh h1 = mockClognh(10L, eno, "LOGIN_SUCCESS");
+        Clognh h1 = mockClognh(10L, eno, "1");
         given(loginHistoryRepository.findTop10ByEnoOrderByLgnDtmDesc(eno)).willReturn(List.of(h1));
 
         // when

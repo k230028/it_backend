@@ -11,7 +11,7 @@ import lombok.experimental.SuperBuilder;
 import java.time.LocalDateTime;
 
 /**
- * 로그인이력 엔티티
+ * 공통로그인이력 엔티티
  *
  * <p>
  * DB 테이블: {@code TPRMPP_CLOGNH}
@@ -23,12 +23,12 @@ import java.time.LocalDateTime;
  * </p>
  *
  * <p>
- * 이력 유형({@code LGN_TP}):
+ * 로그인구분코드({@code LGN_TC})는 공통코드 {@code C_ID='LGN_TC'} 기반 1자리 값입니다.
  * </p>
  * <ul>
- * <li>{@code LOGIN_SUCCESS}: 로그인 성공</li>
- * <li>{@code LOGIN_FAILURE}: 로그인 실패 (비밀번호 불일치, 존재하지 않는 사번 등)</li>
- * <li>{@code LOGOUT}: 로그아웃</li>
+ * <li>{@code 1}: 로그인 성공</li>
+ * <li>{@code 2}: 로그인 실패 (비밀번호 불일치, 존재하지 않는 사번 등)</li>
+ * <li>{@code 3}: 로그아웃</li>
  * </ul>
  */
 @Entity
@@ -56,50 +56,53 @@ public class Clognh extends BaseEntity {
     private String eno;
 
     /**
-     * 로그인유형: 이력의 종류
-     * 값: "LOGIN_SUCCESS", "LOGIN_FAILURE", "LOGOUT"
+     * 로그인오류사유: 로그인 실패 시 실패 원인 메시지 (최대 600자)
+     * 성공(1), 로그아웃(3)의 경우 null
+     * 예: "비밀번호 불일치", "존재하지 않는 사번"
      */
-    @Column(name = "LGN_TP", nullable = false, length = 80, comment = "로그인유형")
-    private String lgnTp;
+    @Column(name = "LGN_ERR_RSN", length = 600, comment = "로그인오류사유")
+    private String lgnErrRsn;
 
-    /** IP주소: 클라이언트의 실제 IP 주소 (프록시 환경 고려, 최대 200자) */
-    @Column(name = "IP_ADDR", length = 200, comment = "IP주소")
+    /** IP주소: 클라이언트의 실제 IP 주소 (최대 20자) */
+    @Column(name = "IP_ADDR", length = 20, comment = "IP주소")
     private String ipAddr;
-
-    /** 사용자에이전트: 클라이언트 브라우저/기기 정보 (최대 2000자) */
-    @Column(name = "UST_AGT", length = 2000, comment = "사용자에이전트")
-    private String ustAgt;
 
     /** 로그인일시: 이벤트 발생 일시 (서버 기준 시각) */
     @Column(name = "LGN_DTM", nullable = false, comment = "로그인일시")
     private LocalDateTime lgnDtm;
 
     /**
-     * 실패사유: 로그인 실패 시 실패 원인 메시지 (최대 200자)
-     * LOGIN_SUCCESS, LOGOUT의 경우 null
-     * 예: "비밀번호 불일치", "존재하지 않는 사번"
+     * 로그인구분코드: 공통코드 {@code C_ID='LGN_TC'} 기반 1자리 값.
+     * 1=로그인 성공, 2=로그인 실패, 3=로그아웃
      */
-    @Column(name = "FLUR_RSN", length = 200, comment = "실패사유")
-    private String flurRsn;
+    @Column(name = "LGN_TC", nullable = false, length = 1, comment = "로그인구분코드")
+    private String lgnTc;
 
-    public static final String LOGIN_SUCCESS = "LOGIN_SUCCESS";
-    public static final String LOGIN_FAILURE = "LOGIN_FAILURE";
-    public static final String LOGOUT        = "LOGOUT";
+    /** 에이전트버전내용: 클라이언트 브라우저/기기 정보 (최대 2000자) */
+    @Column(name = "AGT_VRS_CONE", length = 2000, comment = "에이전트버전내용")
+    private String agtVrsCone;
+
+    /** 로그인 성공 코드값 (공통코드 LGN_TC) */
+    public static final String LOGIN_SUCCESS = "1";
+    /** 로그인 실패 코드값 (공통코드 LGN_TC) */
+    public static final String LOGIN_FAILURE = "2";
+    /** 로그아웃 코드값 (공통코드 LGN_TC) */
+    public static final String LOGOUT        = "3";
 
     /**
      * 로그인 성공 이력 생성 정적 팩토리 메서드
      *
-     * @param eno    로그인에 성공한 사용자의 사번
-     * @param ipAddr 접속 IP 주소
-     * @param ustAgt 접속 브라우저/기기 정보
-     * @return 로그인 성공 이력 엔티티 ({@code lgnTp = "LOGIN_SUCCESS"})
+     * @param eno        로그인에 성공한 사용자의 사번
+     * @param ipAddr     접속 IP 주소
+     * @param agtVrsCone 접속 브라우저/기기 정보
+     * @return 로그인 성공 이력 엔티티 ({@code lgnTc = "1"})
      */
-    public static Clognh createLoginSuccess(String eno, String ipAddr, String ustAgt) {
+    public static Clognh createLoginSuccess(String eno, String ipAddr, String agtVrsCone) {
         return Clognh.builder()
                 .eno(eno)
-                .lgnTp(LOGIN_SUCCESS)
+                .lgnTc(LOGIN_SUCCESS)
                 .ipAddr(ipAddr)
-                .ustAgt(ustAgt)
+                .agtVrsCone(agtVrsCone)
                 .lgnDtm(LocalDateTime.now())
                 .build();
     }
@@ -107,37 +110,37 @@ public class Clognh extends BaseEntity {
     /**
      * 로그인 실패 이력 생성 정적 팩토리 메서드
      *
-     * @param eno      로그인을 시도한 사번 (DB에 없는 사번일 수 있음)
-     * @param ipAddr   접속 IP 주소
-     * @param ustAgt   접속 브라우저/기기 정보
-     * @param flurRsn  실패 사유 (예: "비밀번호 불일치", "존재하지 않는 사번")
-     * @return 로그인 실패 이력 엔티티 ({@code lgnTp = "LOGIN_FAILURE"})
+     * @param eno        로그인을 시도한 사번 (DB에 없는 사번일 수 있음)
+     * @param ipAddr     접속 IP 주소
+     * @param agtVrsCone 접속 브라우저/기기 정보
+     * @param lgnErrRsn  실패 사유 (예: "비밀번호 불일치", "존재하지 않는 사번")
+     * @return 로그인 실패 이력 엔티티 ({@code lgnTc = "2"})
      */
-    public static Clognh createLoginFailure(String eno, String ipAddr, String ustAgt, String flurRsn) {
+    public static Clognh createLoginFailure(String eno, String ipAddr, String agtVrsCone, String lgnErrRsn) {
         return Clognh.builder()
                 .eno(eno)
-                .lgnTp(LOGIN_FAILURE)
+                .lgnTc(LOGIN_FAILURE)
                 .ipAddr(ipAddr)
-                .ustAgt(ustAgt)
+                .agtVrsCone(agtVrsCone)
                 .lgnDtm(LocalDateTime.now())
-                .flurRsn(flurRsn)
+                .lgnErrRsn(lgnErrRsn)
                 .build();
     }
 
     /**
      * 로그아웃 이력 생성 정적 팩토리 메서드
      *
-     * @param eno    로그아웃한 사용자의 사번
-     * @param ipAddr 접속 IP 주소
-     * @param ustAgt 접속 브라우저/기기 정보
-     * @return 로그아웃 이력 엔티티 ({@code lgnTp = "LOGOUT"})
+     * @param eno        로그아웃한 사용자의 사번
+     * @param ipAddr     접속 IP 주소
+     * @param agtVrsCone 접속 브라우저/기기 정보
+     * @return 로그아웃 이력 엔티티 ({@code lgnTc = "3"})
      */
-    public static Clognh createLogout(String eno, String ipAddr, String ustAgt) {
+    public static Clognh createLogout(String eno, String ipAddr, String agtVrsCone) {
         return Clognh.builder()
                 .eno(eno)
-                .lgnTp(LOGOUT)
+                .lgnTc(LOGOUT)
                 .ipAddr(ipAddr)
-                .ustAgt(ustAgt)
+                .agtVrsCone(agtVrsCone)
                 .lgnDtm(LocalDateTime.now())
                 .build();
     }

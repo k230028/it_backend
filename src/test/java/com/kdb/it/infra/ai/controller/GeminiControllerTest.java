@@ -93,7 +93,7 @@ class GeminiControllerTest {
         // Arrange
         GeminiDto.Request request = GeminiDto.Request.builder()
                 .prompt("이 파일들을 분석해줘")
-                .flMngNos(List.of("FL_00000001", "FL_00000002"))
+                .flMpnIds(List.of("FL_00000001", "FL_00000002"))
                 .build();
         GeminiDto.Response response = GeminiDto.Response.builder()
                 .text("파일 분석 결과입니다.")
@@ -119,7 +119,7 @@ class GeminiControllerTest {
         // Arrange
         GeminiDto.Request request = GeminiDto.Request.builder()
                 .prompt("분석 요청")
-                .flMngNos(List.of("FL_00000001", "FL_INVALID"))
+                .flMpnIds(List.of("FL_00000001", "FL_INVALID"))
                 .build();
         GeminiDto.Response response = GeminiDto.Response.builder()
                 .text("부분 분석 결과입니다.")

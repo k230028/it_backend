@@ -115,7 +115,7 @@ public class FileService {
      * 발생할 수 있으므로, INSERT 충돌 시 최대 {@value #FL_MNG_NO_RETRY}회까지
      * 다음 NEXTVAL을 시도하여 자동 회복합니다(`uploadFileInternal`에서 활용).</p>
      *
-     * @return 파일관리번호 (예: FL_00000001)
+     * @return 파일매핑ID (예: FL_00000001)
      */
     private String generateFlMngNo() {
         // S_FL이 기존 데이터 최대값보다 작게 재설정된 환경에서도 PK 충돌 없이 빈 ID를 얻도록
@@ -136,20 +136,14 @@ public class FileService {
     private static final int FL_MNG_NO_RETRY = 5;
 
     /**
-     * 서버 저장 파일명 생성
+     * 파일물리명 생성
      *
-     * <p>
-     * 형식: {@code {서버ID}_{yyyyMMddHHmmss}_{UUID}.{확장자}}
-     * </p>
-     *
-     * <p>
-     * UUID를 포함하여 멀티 서버 환경(SVR1/SVR2)에서 파일명 충돌이 발생하지 않습니다.
-     * </p>
+     * <p>형식: {@code {서버ID}_{yyyyMMddHHmmss}_{UUID}.{확장자}}</p>
      *
      * @param originalFilename 원본 파일명 (확장자 추출용)
-     * @return 서버 저장용 고유 파일명
+     * @return 서버 저장용 고유 파일물리명
      */
-    private String generateSvrFlNm(String originalFilename) {
+    private String generateFlPysNm(String originalFilename) {
         // 확장자 추출 (.pdf, .jpg 등 - 없으면 빈 문자열)
         String ext = "";
         if (StringUtils.hasText(originalFilename)) {
@@ -167,43 +161,38 @@ public class FileService {
     /**
      * 파일 저장 디렉토리 경로 생성
      *
-     * <p>
-     * 형식: {@code {basePath}/{원본구분}/{년도}/{월}}
-     * </p>
+     * <p>형식: {@code {basePath}/{주식별자컬럼명}/{년도}/{월}}</p>
      *
-     * @param orcDtt 원본구분 (디렉토리 명으로 사용)
+     * @param pkColNm 주식별자컬럼명 (디렉토리 명으로 사용)
      * @return 저장 디렉토리 Path 객체
      */
-    private Path buildStorageDir(String orcDtt) {
+    private Path buildStorageDir(String pkColNm) {
         LocalDate today = LocalDate.now();
         return Paths.get(
                 basePath,
-                orcDtt,
+                pkColNm,
                 String.valueOf(today.getYear()),
                 String.format("%02d", today.getMonthValue()));
     }
 
     /**
      * 엔티티 → 응답 DTO 변환
-     *
-     * @param cfilem 첨부파일 엔티티
-     * @return 조회 응답 DTO
      */
     private FileDto.Response toResponse(Cfilem cfilem) {
-        String flMngNo = cfilem.getFlMngNo();
+        String flMpnId = cfilem.getFlMpnId();
         return FileDto.Response.builder()
-                .flMngNo(flMngNo)
-                .orcFlNm(cfilem.getOrcFlNm())
-                .svrFlNm(cfilem.getSvrFlNm())
+                .flMpnId(flMpnId)
+                .flNm(cfilem.getFlNm())
+                .flPysNm(cfilem.getFlPysNm())
                 .flKpnPth(cfilem.getFlKpnPth())
-                .flDtt(cfilem.getFlDtt())
-                .orcPkVl(cfilem.getOrcPkVl())
-                .orcDtt(cfilem.getOrcDtt())
+                .flTpCone(cfilem.getFlTpCone())
+                .pkCone(cfilem.getPkCone())
+                .pkColNm(cfilem.getPkColNm())
                 .fstEnrDtm(cfilem.getFstEnrDtm())
                 .fstEnrUsid(cfilem.getFstEnrUsid())
                 // 프론트엔드에서 URL 조합 불필요하도록 직접 제공
-                .previewUrl("/api/files/" + flMngNo + "/preview")
-                .downloadUrl("/api/files/" + flMngNo + "/download")
+                .previewUrl("/api/files/" + flMpnId + "/preview")
+                .downloadUrl("/api/files/" + flMpnId + "/download")
                 .build();
     }
 
@@ -218,9 +207,9 @@ public class FileService {
      * @return 파일 조회 응답 DTO
      * @throws CustomGeneralException 파일이 존재하지 않는 경우
      */
-    public FileDto.Response getFile(String flMngNo) {
-        Cfilem cfilem = fileRepository.findByFlMngNoAndDelYn(flMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("존재하지 않는 파일입니다. 파일관리번호: " + flMngNo));
+    public FileDto.Response getFile(String flMpnId) {
+        Cfilem cfilem = fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")
+                .orElseThrow(() -> new CustomGeneralException("존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
         return toResponse(cfilem);
     }
 
@@ -241,23 +230,23 @@ public class FileService {
      * @throws CustomGeneralException orcDtt 미입력 시
      */
     public List<FileDto.Response> getFiles(FileDto.SearchCondition condition) {
-        if (!StringUtils.hasText(condition.getOrcDtt())) {
-            throw new CustomGeneralException("원본구분(orcDtt)은 필수입니다.");
+        if (!StringUtils.hasText(condition.getPkColNm())) {
+            throw new CustomGeneralException("주식별자컬럼명(pkColNm)은 필수입니다.");
         }
 
         List<Cfilem> list;
 
-        if (StringUtils.hasText(condition.getOrcPkVl()) && StringUtils.hasText(condition.getFlDtt())) {
-            // 원본구분 + 원본PK값 + 파일구분 필터링
-            list = fileRepository.findAllByOrcDttAndOrcPkVlAndFlDttAndDelYn(
-                    condition.getOrcDtt(), condition.getOrcPkVl(), condition.getFlDtt(), "N");
-        } else if (StringUtils.hasText(condition.getOrcPkVl())) {
-            // 원본구분 + 원본PK값 필터링
-            list = fileRepository.findAllByOrcDttAndOrcPkVlAndDelYn(
-                    condition.getOrcDtt(), condition.getOrcPkVl(), "N");
+        if (StringUtils.hasText(condition.getPkCone()) && StringUtils.hasText(condition.getFlTpCone())) {
+            // 주식별자컬럼명 + 주식별자내용 + 파일유형내용 필터링
+            list = fileRepository.findAllByPkColNmAndPkConeAndFlTpConeAndDelYn(
+                    condition.getPkColNm(), condition.getPkCone(), condition.getFlTpCone(), "N");
+        } else if (StringUtils.hasText(condition.getPkCone())) {
+            // 주식별자컬럼명 + 주식별자내용 필터링
+            list = fileRepository.findAllByPkColNmAndPkConeAndDelYn(
+                    condition.getPkColNm(), condition.getPkCone(), "N");
         } else {
-            // 원본구분 전체 조회
-            list = fileRepository.findAllByOrcDttAndDelYn(condition.getOrcDtt(), "N");
+            // 주식별자컬럼명 전체 조회
+            list = fileRepository.findAllByPkColNmAndDelYn(condition.getPkColNm(), "N");
         }
 
         return list.stream().map(this::toResponse).collect(Collectors.toList());
@@ -288,7 +277,7 @@ public class FileService {
      */
     @Transactional
     public String uploadFile(MultipartFile file, FileDto.UploadRequest request) {
-        return uploadFileInternal(file, request).getFlMngNo();
+        return uploadFileInternal(file, request).getFlMpnId();
     }
 
     /**
@@ -322,13 +311,13 @@ public class FileService {
         fileValidator.validateExtension(file.getOriginalFilename());
 
         // 저장 디렉토리 경로 생성
-        Path storageDir = buildStorageDir(request.getOrcDtt());
+        Path storageDir = buildStorageDir(request.getPkColNm());
 
-        // 서버 파일명 채번
-        String svrFlNm = generateSvrFlNm(file.getOriginalFilename());
+        // 파일물리명 채번
+        String flPysNm = generateFlPysNm(file.getOriginalFilename());
 
-        // 파일관리번호 채번
-        String flMngNo = generateFlMngNo();
+        // 파일매핑ID 채번
+        String flMpnId = generateFlMpnId();
 
         // 저장 경로 문자열 (DB 저장용)
         String flKpnPth = storageDir.toString();
@@ -341,7 +330,7 @@ public class FileService {
         }
 
         // 파일 디스크 저장
-        Path targetPath = storageDir.resolve(svrFlNm);
+        Path targetPath = storageDir.resolve(flPysNm);
         try {
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
@@ -350,13 +339,13 @@ public class FileService {
 
         // DB 메타데이터 저장
         Cfilem cfilem = Cfilem.builder()
-                .flMngNo(flMngNo)
-                .orcFlNm(file.getOriginalFilename())
-                .svrFlNm(svrFlNm)
+                .flMpnId(flMpnId)
+                .flNm(file.getOriginalFilename())
+                .flPysNm(flPysNm)
                 .flKpnPth(flKpnPth)
-                .flDtt(request.getFlDtt())
-                .orcPkVl(request.getOrcPkVl())
-                .orcDtt(request.getOrcDtt())
+                .flTpCone(request.getFlTpCone())
+                .pkCone(request.getPkCone())
+                .pkColNm(request.getPkColNm())
                 .build();
 
         // 수동 부여 ID 엔티티는 persist()로 명시적 INSERT → save() 위임 시 merge() 세만틱으로
@@ -448,13 +437,13 @@ public class FileService {
      * @throws CustomGeneralException 파일이 존재하지 않는 경우
      */
     @Transactional
-    public String updateFileMeta(String flMngNo, FileDto.UpdateRequest request) {
-        Cfilem cfilem = fileRepository.findByFlMngNoAndDelYn(flMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("존재하지 않는 파일입니다. 파일관리번호: " + flMngNo));
+    public String updateFileMeta(String flMpnId, FileDto.UpdateRequest request) {
+        Cfilem cfilem = fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")
+                .orElseThrow(() -> new CustomGeneralException("존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
         // JPA Dirty Checking으로 자동 UPDATE
-        cfilem.updateMeta(request.getOrcPkVl(), request.getOrcDtt());
-        return flMngNo;
+        cfilem.updateMeta(request.getPkCone(), request.getPkColNm());
+        return flMpnId;
     }
 
     // ─────────────────────────────────────────
@@ -473,9 +462,9 @@ public class FileService {
      * @throws CustomGeneralException 파일이 존재하지 않는 경우
      */
     @Transactional
-    public void deleteFile(String flMngNo) {
-        Cfilem cfilem = fileRepository.findByFlMngNoAndDelYn(flMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("존재하지 않는 파일입니다. 파일관리번호: " + flMngNo));
+    public void deleteFile(String flMpnId) {
+        Cfilem cfilem = fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")
+                .orElseThrow(() -> new CustomGeneralException("존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
         // Soft Delete (DEL_YN = 'Y')
         cfilem.delete();
@@ -495,8 +484,8 @@ public class FileService {
      * @return 논리 삭제된 파일 수
      */
     @Transactional
-    public int deleteFilesByOrc(String orcDtt, String orcPkVl) {
-        List<Cfilem> files = fileRepository.findAllByOrcDttAndOrcPkVlAndDelYn(orcDtt, orcPkVl, "N");
+    public int deleteFilesByOrc(String pkColNm, String pkCone) {
+        List<Cfilem> files = fileRepository.findAllByPkColNmAndPkConeAndDelYn(pkColNm, pkCone, "N");
         files.forEach(Cfilem::delete);
         return files.size();
     }
@@ -521,19 +510,19 @@ public class FileService {
      * @return 파일 Resource (스트림으로 클라이언트에 전송)
      * @throws CustomGeneralException 파일이 존재하지 않거나 디스크에서 찾을 수 없는 경우
      */
-    public FileDownloadResult downloadFile(String flMngNo) {
+    public FileDownloadResult downloadFile(String flMpnId) {
         // DB에서 메타데이터 조회
-        Cfilem cfilem = fileRepository.findByFlMngNoAndDelYn(flMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("존재하지 않는 파일입니다. 파일관리번호: " + flMngNo));
+        Cfilem cfilem = fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")
+                .orElseThrow(() -> new CustomGeneralException("존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
         // 실제 파일 경로 생성 및 Directory Traversal 방지 검증
         Path base = Paths.get(basePath).normalize().toAbsolutePath();
         Path filePath = Paths.get(cfilem.getFlKpnPth())
-                .resolve(cfilem.getSvrFlNm())
+                .resolve(cfilem.getFlPysNm())
                 .normalize()
                 .toAbsolutePath();
         if (!filePath.startsWith(base)) {
-            throw new CustomGeneralException("허용되지 않는 파일 경로입니다. 파일관리번호: " + flMngNo);
+            throw new CustomGeneralException("허용되지 않는 파일 경로입니다. 파일매핑ID: " + flMpnId);
         }
 
         // 파일 Resource 로드
@@ -541,18 +530,17 @@ public class FileService {
         try {
             resource = new UrlResource(filePath.toUri());
         } catch (MalformedURLException e) {
-            // FIXME: [B-H-02] CustomGeneralException 생성 시 원본 예외를 cause로 전달한다: new CustomGeneralException(msg, e)
-            throw new CustomGeneralException("파일 경로가 잘못되었습니다. 파일관리번호: " + flMngNo);
+            throw new CustomGeneralException("파일 경로가 잘못되었습니다. 파일매핑ID: " + flMpnId);
         }
 
         if (!resource.exists() || !resource.isReadable()) {
-            throw new CustomGeneralException("파일을 찾을 수 없습니다. 파일관리번호: " + flMngNo);
+            throw new CustomGeneralException("파일을 찾을 수 없습니다. 파일매핑ID: " + flMpnId);
         }
 
-        // 원본 파일명 기준으로 MIME 타입 감지
-        String contentType = detectContentType(cfilem.getOrcFlNm(), filePath);
+        // 파일명 기준으로 MIME 타입 감지
+        String contentType = detectContentType(cfilem.getFlNm(), filePath);
 
-        return new FileDownloadResult(resource, cfilem.getOrcFlNm(), contentType);
+        return new FileDownloadResult(resource, cfilem.getFlNm(), contentType);
     }
 
     /**

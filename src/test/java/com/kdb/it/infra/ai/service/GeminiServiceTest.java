@@ -107,12 +107,12 @@ class GeminiServiceTest {
     @Test
     @DisplayName("generate: DB에 없는 파일관리번호는 skippedFiles에 포함되고 첨부 파일 수는 0이다")
     void generate_DB미존재파일_skippedFiles에포함() {
-        given(fileRepository.findByFlMngNoAndDelYn("FL_NOTEXIST", "N")).willReturn(Optional.empty());
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_NOTEXIST", "N")).willReturn(Optional.empty());
         stubApiResponse(buildSuccessResponse("응답"));
 
         GeminiDto.Request request = GeminiDto.Request.builder()
                 .prompt("테스트")
-                .flMngNos(List.of("FL_NOTEXIST"))
+                .flMpnIds(List.of("FL_NOTEXIST"))
                 .build();
 
         GeminiDto.Response result = geminiService.generate(request);
@@ -250,20 +250,20 @@ class GeminiServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
-    // generate — flMngNos 복수 파일 일부 미존재
+    // generate — flMpnIds 복수 파일 일부 미존재
     // ───────────────────────────────────────────────────────
 
     @Test
     @DisplayName("generate: 여러 파일관리번호 중 전부 DB 미존재 시 모두 skippedFiles에 포함된다")
     void generate_복수파일전부미존재_모두skip() {
         // Arrange: 두 파일 모두 DB에 없음
-        given(fileRepository.findByFlMngNoAndDelYn("FL_00000010", "N")).willReturn(java.util.Optional.empty());
-        given(fileRepository.findByFlMngNoAndDelYn("FL_00000011", "N")).willReturn(java.util.Optional.empty());
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_00000010", "N")).willReturn(java.util.Optional.empty());
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_00000011", "N")).willReturn(java.util.Optional.empty());
         stubApiResponse(buildSuccessResponse("응답"));
 
         GeminiDto.Request request = GeminiDto.Request.builder()
                 .prompt("분석")
-                .flMngNos(List.of("FL_00000010", "FL_00000011"))
+                .flMpnIds(List.of("FL_00000010", "FL_00000011"))
                 .build();
 
         // Act
@@ -283,18 +283,18 @@ class GeminiServiceTest {
     void generate_확장자없는파일명_skip(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) throws Exception {
         // Arrange: 파일명에 점이 없어 detectMimeType이 null 반환 → skip 분기 진입
         com.kdb.it.infra.file.entity.Cfilem filem = com.kdb.it.infra.file.entity.Cfilem.builder()
-                .flMngNo("FL_00000020")
-                .orcFlNm("확장자없는파일명")
-                .svrFlNm("SVR1_확장자없는파일명")
+                .flMpnId("FL_00000020")
+                .flNm("확장자없는파일명")
+                .flPysNm("SVR1_확장자없는파일명")
                 .flKpnPth(tempDir.toString())
                 .build();
-        given(fileRepository.findByFlMngNoAndDelYn("FL_00000020", "N"))
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_00000020", "N"))
                 .willReturn(java.util.Optional.of(filem));
         stubApiResponse(buildSuccessResponse("응답"));
 
         GeminiDto.Request request = GeminiDto.Request.builder()
                 .prompt("테스트")
-                .flMngNos(List.of("FL_00000020"))
+                .flMpnIds(List.of("FL_00000020"))
                 .build();
 
         // Act
@@ -315,18 +315,18 @@ class GeminiServiceTest {
     void generate_미지원확장자hwp_skip(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) throws Exception {
         // Arrange: .hwp는 SUPPORTED_MIME_TYPES에 없으므로 detectMimeType이 null 반환 → skip
         com.kdb.it.infra.file.entity.Cfilem filem = com.kdb.it.infra.file.entity.Cfilem.builder()
-                .flMngNo("FL_00000021")
-                .orcFlNm("문서.hwp")
-                .svrFlNm("SVR1_문서.hwp")
+                .flMpnId("FL_00000021")
+                .flNm("문서.hwp")
+                .flPysNm("SVR1_문서.hwp")
                 .flKpnPth(tempDir.toString())
                 .build();
-        given(fileRepository.findByFlMngNoAndDelYn("FL_00000021", "N"))
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_00000021", "N"))
                 .willReturn(java.util.Optional.of(filem));
         stubApiResponse(buildSuccessResponse("응답"));
 
         GeminiDto.Request request = GeminiDto.Request.builder()
                 .prompt("분석")
-                .flMngNos(List.of("FL_00000021"))
+                .flMpnIds(List.of("FL_00000021"))
                 .build();
 
         // Act
@@ -347,18 +347,18 @@ class GeminiServiceTest {
     void generate_디스크파일없음_skip(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) {
         // Arrange: 지원 확장자(pdf)이지만 실제 디스크에는 파일 없음
         com.kdb.it.infra.file.entity.Cfilem filem = com.kdb.it.infra.file.entity.Cfilem.builder()
-                .flMngNo("FL_00000022")
-                .orcFlNm("계획서.pdf")
-                .svrFlNm("SVR1_계획서.pdf")
+                .flMpnId("FL_00000022")
+                .flNm("계획서.pdf")
+                .flPysNm("SVR1_계획서.pdf")
                 .flKpnPth(tempDir.toString())  // 디렉토리만 있고 파일 없음
                 .build();
-        given(fileRepository.findByFlMngNoAndDelYn("FL_00000022", "N"))
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_00000022", "N"))
                 .willReturn(java.util.Optional.of(filem));
         stubApiResponse(buildSuccessResponse("응답"));
 
         GeminiDto.Request request = GeminiDto.Request.builder()
                 .prompt("검토")
-                .flMngNos(List.of("FL_00000022"))
+                .flMpnIds(List.of("FL_00000022"))
                 .build();
 
         // Act
@@ -382,18 +382,18 @@ class GeminiServiceTest {
         java.nio.file.Files.write(pdfFile, "PDF content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         com.kdb.it.infra.file.entity.Cfilem filem = com.kdb.it.infra.file.entity.Cfilem.builder()
-                .flMngNo("FL_00000023")
-                .orcFlNm("계획서.pdf")
-                .svrFlNm("SVR1_계획서.pdf")
+                .flMpnId("FL_00000023")
+                .flNm("계획서.pdf")
+                .flPysNm("SVR1_계획서.pdf")
                 .flKpnPth(tempDir.toString())
                 .build();
-        given(fileRepository.findByFlMngNoAndDelYn("FL_00000023", "N"))
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_00000023", "N"))
                 .willReturn(java.util.Optional.of(filem));
         stubApiResponse(buildSuccessResponse("AI 분석 결과"));
 
         GeminiDto.Request request = GeminiDto.Request.builder()
                 .prompt("분석해줘")
-                .flMngNos(List.of("FL_00000023"))
+                .flMpnIds(List.of("FL_00000023"))
                 .build();
 
         // Act

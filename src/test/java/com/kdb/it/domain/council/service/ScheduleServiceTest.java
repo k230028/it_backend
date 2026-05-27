@@ -168,8 +168,7 @@ class ScheduleServiceTest {
 
         scheduleService.confirmSchedule(ASCT_ID, request);
 
-        verify(council).confirmSchedule(TEST_DATE_LD, "10:00", "본관 1층");
-        verify(councilService).changeStatus(ASCT_ID, "006");
+        verify(council).confirmSchedule(TEST_DATE, "10:00", "본관 1층");
         verify(councilService).changeStatus(ASCT_ID, "006");
     }
 
@@ -311,7 +310,7 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: 위원 1명이 미응답인 경우 현황 DTO를 반환한다")
     void getScheduleStatus_위원1명미응답_현황반환() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTc()).willReturn("005");
+        given(council.getDbrTp()).willReturn("005");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm member = mock(Bcmmtm.class);
