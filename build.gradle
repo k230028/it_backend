@@ -30,10 +30,16 @@ repositories {
 // Snyk 취약점 대응 — 전이 의존성 강제 버전 업그레이드
 configurations.all {
 	resolutionStrategy.eachDependency { details ->
-		// com.fasterxml.jackson.core: 강제 버전 지정 제거 — Gradle 자연 해소에 위임
-		// tools.jackson:jackson-bom:3.1.0이 선언한 버전(2.19+)이 JsonSerializeAs 등 신규 클래스를 포함
-		// 강제 다운그레이드 시 tools.jackson.databind:3.1.0 런타임 NoClassDefFoundError 발생
-		// jjwt-jackson 2.12.7.1은 swagger-core가 요구하는 상위 버전으로 자동 업그레이드됨 (Snyk 대응)
+		// jackson 2.x 라인: jjwt-jackson 0.13.0 POM의 requested 버전(2.12.7.1)을 강제로
+		// 2.21.2로 끌어올려 Snyk의 jackson-core@2.12.7 거짓 양성(CWE-770/CWE-400) 제거.
+		// jackson-bom 2.21.2가 spring-boot-dependencies BOM에서 관리되므로 호환 안전.
+		// (tools.jackson 3.x 라인은 spring-boot 4.0.5가 별도 관리 — 본 strategy 영향 없음)
+		if (details.requested.group == 'com.fasterxml.jackson.core'
+				&& (details.requested.name == 'jackson-core'
+					|| details.requested.name == 'jackson-databind')) {
+			details.useVersion '2.21.2'
+			details.because 'Snyk SNYK-JAVA-COMFASTERXMLJACKSONCORE-* (DoS/Resource Allocation) — jjwt-jackson 전이 강제 업그레이드'
+		}
 		// logback 1.5.22 → 1.5.32 (Low 1건)
 		if (details.requested.group == 'ch.qos.logback') {
 			details.useVersion '1.5.32'
