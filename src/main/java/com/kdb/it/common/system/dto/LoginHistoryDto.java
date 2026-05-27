@@ -78,7 +78,7 @@ public class LoginHistoryDto {
          */
         public static Response fromEntity(Clognh clognh) {
             return Response.builder()
-                    .id(clognh.getLgnHisSno())                  // 로그인이력일련번호 → id 키 유지
+                    .id(clognh.getLgnLogSno())                  // 로그인이로그일련번호 → id 키 유지
                     .eno(clognh.getEno())                       // 사원번호
                     .lgnTc(clognh.getLgnTc())                   // 로그인구분코드
                     .ipAddress(clognh.getIpAddr())              // IP주소 → JSON 키 유지
