@@ -4,6 +4,7 @@
     "files.autoSaveDelay": 1000,
     "java.compile.nullAnalysis.mode": "automatic",
     "java.configuration.updateBuildConfiguration": "automatic",
+    "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx2G -Xms100m -Xlog:disable -javaagent:C:/it/it_backend/lib/lombok.jar",
     "java.debug.settings.onBuildFailureProceed": true,
     "files.exclude": {
         "**/bin": true // vscode에서 build와 bin 영역 class가 충돌(already defined)나는 문제 해결

@@ -105,13 +105,13 @@ class FileServiceTest {
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("getFiles: orcDtt 미입력이면 CustomGeneralException을 던진다")
-    void getFiles_orcDtt없음_CustomGeneralException발생() {
+    @DisplayName("getFiles: pkColNm 미입력이면 CustomGeneralException을 던진다")
+    void getFiles_pkColNm없음_CustomGeneralException발생() {
         FileDto.SearchCondition condition = FileDto.SearchCondition.builder().build();
 
         assertThatThrownBy(() -> fileService.getFiles(condition))
                 .isInstanceOf(CustomGeneralException.class)
-                .hasMessageContaining("orcDtt");
+                .hasMessageContaining("pkColNm");
     }
 
     @Test

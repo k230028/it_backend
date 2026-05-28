@@ -64,7 +64,7 @@ class FileControllerTest {
     @Test
     @DisplayName("GET /api/files - 비인증 → 401")
     void getFiles_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/files").param("orcDtt", "요구사항정의서"))
+        mockMvc.perform(get("/api/files").param("pkColNm", "요구사항정의서"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -73,7 +73,7 @@ class FileControllerTest {
     @WithMockUser(username = "10001")
     void getFiles_인증_200() throws Exception {
         given(fileService.getFiles(any())).willReturn(List.of());
-        mockMvc.perform(get("/api/files").param("orcDtt", "요구사항정의서"))
+        mockMvc.perform(get("/api/files").param("pkColNm", "요구사항정의서"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
     }
@@ -95,15 +95,15 @@ class FileControllerTest {
 
         MockMultipartFile file = new MockMultipartFile("file", "test.pdf",
                 MediaType.APPLICATION_PDF_VALUE, "pdf content".getBytes());
-        MockMultipartFile flDtt = new MockMultipartFile("flDtt", "", MediaType.TEXT_PLAIN_VALUE,
+        MockMultipartFile flTpCone = new MockMultipartFile("flTpCone", "", MediaType.TEXT_PLAIN_VALUE,
                 "첨부파일".getBytes());
-        MockMultipartFile orcDtt = new MockMultipartFile("orcDtt", "", MediaType.TEXT_PLAIN_VALUE,
+        MockMultipartFile pkColNm = new MockMultipartFile("pkColNm", "", MediaType.TEXT_PLAIN_VALUE,
                 "요구사항정의서".getBytes());
 
         mockMvc.perform(multipart("/api/files")
                 .file(file)
-                .file(flDtt)
-                .file(orcDtt))
+                .file(flTpCone)
+                .file(pkColNm))
                 .andExpect(status().isCreated());
     }
 
@@ -115,15 +115,15 @@ class FileControllerTest {
 
         MockMultipartFile file1 = new MockMultipartFile("files", "a.pdf",
                 MediaType.APPLICATION_PDF_VALUE, "a".getBytes());
-        MockMultipartFile flDtt = new MockMultipartFile("flDtt", "", MediaType.TEXT_PLAIN_VALUE,
+        MockMultipartFile flTpCone = new MockMultipartFile("flTpCone", "", MediaType.TEXT_PLAIN_VALUE,
                 "첨부파일".getBytes());
-        MockMultipartFile orcDtt = new MockMultipartFile("orcDtt", "", MediaType.TEXT_PLAIN_VALUE,
+        MockMultipartFile pkColNm = new MockMultipartFile("pkColNm", "", MediaType.TEXT_PLAIN_VALUE,
                 "요구사항정의서".getBytes());
 
         mockMvc.perform(multipart("/api/files/bulk")
                 .file(file1)
-                .file(flDtt)
-                .file(orcDtt))
+                .file(flTpCone)
+                .file(pkColNm))
                 .andExpect(status().isOk());
     }
 
