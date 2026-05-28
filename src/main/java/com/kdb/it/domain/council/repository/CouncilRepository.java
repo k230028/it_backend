@@ -150,17 +150,17 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                   AND EXISTS (
                       SELECT 1
                       FROM TPRMPP_CAPPLA ca
-                      JOIN TPRMPP_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
-                      WHERE ca.ORC_TB_CD  = 'BPROJM'
-                        AND ca.ORC_PK_VL  = p.PRJ_MNG_NO
-                        AND ca.ORC_SNO_VL = p.PRJ_SNO
-                        AND cm.APF_STS    = :apfSts
-                        AND ca.APF_REL_SNO = (
-                            SELECT MAX(ca2.APF_REL_SNO)
+                      JOIN TPRMPP_CAPPLM cm ON ca.APF_DCM_NO = cm.APF_DCM_NO
+                      WHERE ca.FNT_TB_NM   = 'BPROJM'
+                        AND ca.PK_COL_NM   = p.PRJ_MNG_NO
+                        AND ca.FNT_TB_CRY_SNO = p.PRJ_SNO
+                        AND cm.APF_PRG_STS_C = :apfSts
+                        AND ca.APF_SNO = (
+                            SELECT MAX(ca2.APF_SNO)
                             FROM TPRMPP_CAPPLA ca2
-                            WHERE ca2.ORC_TB_CD  = 'BPROJM'
-                              AND ca2.ORC_PK_VL  = p.PRJ_MNG_NO
-                              AND ca2.ORC_SNO_VL = p.PRJ_SNO
+                            WHERE ca2.FNT_TB_NM   = 'BPROJM'
+                              AND ca2.PK_COL_NM   = p.PRJ_MNG_NO
+                              AND ca2.FNT_TB_CRY_SNO = p.PRJ_SNO
                         )
                   ))
               )
@@ -218,17 +218,17 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                   AND EXISTS (
                       SELECT 1
                       FROM TPRMPP_CAPPLA ca
-                      JOIN TPRMPP_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
-                      WHERE ca.ORC_TB_CD  = 'BPROJM'
-                        AND ca.ORC_PK_VL  = p.PRJ_MNG_NO
-                        AND ca.ORC_SNO_VL = p.PRJ_SNO
-                        AND cm.APF_STS    = :apfSts
-                        AND ca.APF_REL_SNO = (
-                            SELECT MAX(ca2.APF_REL_SNO)
+                      JOIN TPRMPP_CAPPLM cm ON ca.APF_DCM_NO = cm.APF_DCM_NO
+                      WHERE ca.FNT_TB_NM   = 'BPROJM'
+                        AND ca.PK_COL_NM   = p.PRJ_MNG_NO
+                        AND ca.FNT_TB_CRY_SNO = p.PRJ_SNO
+                        AND cm.APF_PRG_STS_C = :apfSts
+                        AND ca.APF_SNO = (
+                            SELECT MAX(ca2.APF_SNO)
                             FROM TPRMPP_CAPPLA ca2
-                            WHERE ca2.ORC_TB_CD  = 'BPROJM'
-                              AND ca2.ORC_PK_VL  = p.PRJ_MNG_NO
-                              AND ca2.ORC_SNO_VL = p.PRJ_SNO
+                            WHERE ca2.FNT_TB_NM   = 'BPROJM'
+                              AND ca2.PK_COL_NM   = p.PRJ_MNG_NO
+                              AND ca2.FNT_TB_CRY_SNO = p.PRJ_SNO
                         )
                   ))
               )

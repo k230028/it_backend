@@ -51,7 +51,7 @@ public class ApprovalLineDelegate {
      */
     @Transactional
     public void doUpdate(Capplm capplm, List<Cdecim> allApprovers, List<Cdecim> approvedItems) {
-        String detailJson = capplm.getApfDtlCone();
+        String detailJson = capplm.getDcdReqInf();
         if (detailJson == null || detailJson.isEmpty()) {
             return;
         }
@@ -91,7 +91,7 @@ public class ApprovalLineDelegate {
      */
     @Transactional
     public void applyRecallInfo(Capplm capplm, String recallerEno, String recallOpnn) {
-        String json = capplm.getApfDtlCone();
+        String json = capplm.getDcdReqInf();
         try {
             ObjectNode root = (json == null || json.isBlank())
                 ? objectMapper.createObjectNode()
@@ -123,12 +123,12 @@ public class ApprovalLineDelegate {
         Map<String, Integer> globalCounters = new HashMap<>();
 
         for (Cdecim approver : allApprovers) {
-            String eno = approver.getDcdEno();
+            String eno = approver.getDcrEno();
             int occurrence = globalCounters.getOrDefault(eno, 0) + 1;
             globalCounters.put(eno, occurrence);
 
             boolean isApproved = approvedItems.stream()
-                    .anyMatch(item -> item.getDcdSqn().equals(approver.getDcdSqn()));
+                    .anyMatch(item -> item.getDcrSqnSno().equals(approver.getDcrSqnSno()));
             if (isApproved) {
                 targetOccurrences.computeIfAbsent(eno, k -> new HashSet<>()).add(occurrence);
             }

@@ -3,6 +3,8 @@ package com.kdb.it.common.admin.service;
 import com.kdb.it.common.admin.dto.AdminLogDto;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.log.entity.*;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Table;
@@ -149,18 +151,47 @@ public class AdminLogService {
     }
 
     private List<AdminLogDto.LogColumnResponse> getColumns(LogDefinition def) {
+        // 엔티티에 선언된 @AttributeOverride를 수집하여 BaseLogEntity 컬럼 오버라이드 적용
+        Map<String, Column> overrideMap = buildAttributeOverrideMap(def.entityClass());
+
         List<Field> fields = new ArrayList<>();
         fields.addAll(List.of(BaseLogEntity.class.getDeclaredFields()));
         fields.addAll(List.of(def.entityClass().getDeclaredFields()));
 
         return fields.stream()
                 .filter(field -> field.isAnnotationPresent(Column.class))
-                .map(this::toColumnResponse)
+                .map(field -> toColumnResponse(field, overrideMap))
                 .toList();
     }
 
-    private AdminLogDto.LogColumnResponse toColumnResponse(Field field) {
-        Column column = field.getAnnotation(Column.class);
+    /**
+     * 엔티티 클래스의 {@code @AttributeOverride(s)} 어노테이션을 파싱하여
+     * 필드명 → 오버라이드된 {@code @Column}의 맵을 반환합니다.
+     *
+     * <p>BaseLogEntity 공통 컬럼이 특정 로그 테이블에서 다른 컬럼명으로
+     * 매핑될 때 관리자 로그 화면에서도 올바른 컬럼 정보를 표시하기 위해 사용합니다.</p>
+     *
+     * @param entityClass 조회 대상 엔티티 클래스
+     * @return 필드명을 키, 오버라이드 Column 어노테이션을 값으로 하는 맵
+     */
+    private Map<String, Column> buildAttributeOverrideMap(Class<?> entityClass) {
+        Map<String, Column> map = new LinkedHashMap<>();
+        AttributeOverrides multi = entityClass.getAnnotation(AttributeOverrides.class);
+        if (multi != null) {
+            for (AttributeOverride ao : multi.value()) {
+                map.put(ao.name(), ao.column());
+            }
+        }
+        AttributeOverride single = entityClass.getAnnotation(AttributeOverride.class);
+        if (single != null) {
+            map.put(single.name(), single.column());
+        }
+        return map;
+    }
+
+    private AdminLogDto.LogColumnResponse toColumnResponse(Field field, Map<String, Column> overrideMap) {
+        // @AttributeOverride가 있으면 오버라이드된 Column 사용
+        Column column = overrideMap.getOrDefault(field.getName(), field.getAnnotation(Column.class));
         String header = column.comment() == null || column.comment().isBlank()
                 ? camelToLabel(field.getName())
                 : column.comment();

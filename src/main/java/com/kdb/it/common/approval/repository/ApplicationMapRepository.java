@@ -6,69 +6,65 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * 신청서-원본 데이터 관계(Cappla) 데이터 접근 리포지토리
+ * 신청서-원천 데이터 관계(Cappla) 데이터 접근 리포지토리
  *
  * <p>
  * Spring Data JPA의 {@link JpaRepository}를 상속하여 기본 CRUD 기능을 제공하며,
- * 신청서와 원본 데이터 간의 연결 관계를 조회하는 특화 메서드를 제공합니다.
+ * 신청서와 원천 데이터 간의 연결 관계를 조회하는 특화 메서드를 제공합니다.
  * </p>
  *
  * <p>
- * 기본키 타입: {@link Long} (apfRelSno: 신청서관계일련번호, SEQ_CAPPLA 자동 채번)
+ * 기본키 타입: {@link Long} (apfSno: 신청서일련번호, SEQ_CAPPLA 자동 채번)
  * </p>
  *
  * <p>
  * 주요 활용:
  * </p>
  * <ul>
- * <li>특정 원본 데이터(프로젝트, 전산관리비 등)에 연결된 신청서 조회</li>
+ * <li>특정 원천 데이터(프로젝트, 전산관리비 등)에 연결된 신청서 조회</li>
  * <li>결재중/결재완료 상태의 신청서 존재 여부 확인 (수정/삭제 제약)</li>
  * </ul>
  */
 public interface ApplicationMapRepository extends JpaRepository<Cappla, Long> {
 
         /**
-         * 원본 테이블 코드, PK값, SNO값으로 신청서 관계 목록 조회 (최신 신청서 우선).
+         * 원천 테이블명, PK컬럼명, 적재SNO로 신청서 관계 목록 조회 (최신 신청서 우선).
          *
-         * <p>정렬 기준은 {@code APF_MNG_NO DESC}. 신청관리번호 포맷이
-         * {@code APF-{YYYY}-{8자리 시퀀스}}이므로 사전식 내림차순이 시간 역순과 일치합니다.
-         * (Task 20 이후 {@code APF_REL_SNO}는 신청서 단위 1~N로 의미가 바뀌어 시간 정렬 기준이 될 수 없습니다.)</p>
+         * <p>정렬 기준은 {@code APF_DCM_NO DESC}. 신청식별번호 포맷이
+         * {@code APF-{YYYY}-{8자리 시퀀스}}이므로 사전식 내림차순이 시간 역순과 일치합니다.</p>
          *
-         * @param orcTbCd  원본 테이블 코드 (예: 'BPROJM'=프로젝트)
-         * @param orcPkVl  원본 데이터의 PK 값
-         * @param orcSnoVl 원본 데이터의 순번 값
+         * @param fntTbNm      원천 테이블명 (예: 'BPROJM'=정보화사업)
+         * @param pkColNm      원천 데이터의 PK 컬럼명
+         * @param fntTbCrySno  원천 데이터의 적재 일련번호
          * @return 관련 신청서 관계 목록 (최신 신청서가 첫 번째)
          */
-        java.util.List<Cappla> findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(String orcTbCd, String orcPkVl,
-                        Integer orcSnoVl);
+        java.util.List<Cappla> findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                        String fntTbNm, String pkColNm, Integer fntTbCrySno);
 
         /**
-         * 여러 원본 데이터 PK에 대해 신청서 관계 목록 일괄 조회 (최신 신청서 우선).
+         * 여러 원천 데이터 PK에 대해 신청서 관계 목록 일괄 조회 (최신 신청서 우선).
          *
-         * <p>정렬 기준은 {@code APF_MNG_NO DESC}.
-         * {@link #findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc} 참조.</p>
-         *
-         * @param orcTbCd  원본 테이블 코드 (예: 'BPROJM', 'BCOSTM')
-         * @param orcPkVls 원본 데이터 PK 값 목록
+         * @param fntTbNm   원천 테이블명 (예: 'BPROJM', 'BCOSTM')
+         * @param pkColNms  원천 데이터 PK 컬럼명 목록
          * @return 관련 신청서 관계 목록 (최신 신청서가 첫 번째)
          */
-        java.util.List<Cappla> findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(
-                        String orcTbCd, java.util.List<String> orcPkVls);
+        java.util.List<Cappla> findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                        String fntTbNm, java.util.List<String> pkColNms);
 
         /**
-         * 신청서 관리번호와 원본 테이블 코드로 신청서 관계 목록 조회
+         * 신청서 식별번호와 원천 테이블명으로 신청서 관계 목록 조회
          *
-         * @param apfMngNo 신청서 관리번호
-         * @param orcTbCd  원본 테이블 코드
-         * @return 해당 신청서에 연결된 원본 데이터 목록
+         * @param apfDcmNo 신청서 식별번호
+         * @param fntTbNm  원천 테이블명
+         * @return 해당 신청서에 연결된 원천 데이터 목록
          */
-        java.util.List<Cappla> findByApfMngNoAndOrcTbCd(String apfMngNo, String orcTbCd);
+        java.util.List<Cappla> findByApfDcmNoAndFntTbNm(String apfDcmNo, String fntTbNm);
 
         /**
-         * 원본 데이터에 특정 상태의 신청서가 존재하는지 확인
+         * 원천 데이터에 특정 상태의 신청서가 존재하는지 확인
          *
          * <p>
-         * 원본 테이블 코드, PK, SNO 조건으로 Cappla와 Capplm을 조인하여
+         * 원천 테이블명, PK컬럼명, 적재SNO 조건으로 Cappla와 Capplm을 조인하여
          * 지정한 상태 목록({@code statuses})에 해당하는 신청서가 존재하는지 확인합니다.
          * </p>
          *
@@ -76,37 +72,24 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, Long> {
          * 주요 사용처: 프로젝트/전산관리비 수정·삭제 전 결재중 또는 결재완료 여부 검사
          * </p>
          *
-         * @param orcTbCd  원본 테이블 코드 (예: 'BPROJM')
-         * @param orcPkVl  원본 데이터의 PK 값
-         * @param orcSnoVl 원본 데이터의 순번 값
-         * @param statuses 확인할 신청서 상태코드 목록 (예: ["001"(결재중), "002"(결재완료)])
+         * @param fntTbNm     원천 테이블명 (예: 'BPROJM')
+         * @param pkColNm     원천 데이터의 PK 컬럼명
+         * @param fntTbCrySno 원천 데이터의 적재 일련번호
+         * @param statuses    확인할 신청서 상태코드 목록 (예: ["01"(결재중), "02"(결재완료)])
          * @return 해당 조건의 신청서가 존재하면 true, 없으면 false
          */
         @Query("""
                         SELECT COUNT(c) > 0
                         FROM Cappla c
-                        JOIN Capplm m ON c.apfMngNo = m.apfMngNo
-                        WHERE c.orcTbCd = :orcTbCd
-                        AND c.orcPkVl = :orcPkVl
-                        AND c.orcSnoVl = :orcSnoVl
-                        AND m.apfStsC IN :statuses
+                        JOIN Capplm m ON c.apfDcmNo = m.apfMngNo
+                        WHERE c.fntTbNm = :fntTbNm
+                        AND c.pkColNm = :pkColNm
+                        AND c.fntTbCrySno = :fntTbCrySno
+                        AND m.apfPrgStsC IN :statuses
                         """)
-        boolean existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
-                        @org.springframework.data.repository.query.Param("orcTbCd") String orcTbCd,
-                        @org.springframework.data.repository.query.Param("orcPkVl") String orcPkVl,
-                        @org.springframework.data.repository.query.Param("orcSnoVl") Integer orcSnoVl,
-                        @org.springframework.data.repository.query.Param("statuses") java.util.List<String> statuses);
-
-        /**
-         * 신청 관리번호 기준 최대 신청관계일련번호 조회
-         *
-         * <p>회수 후 재신청 등 신규 Cappla 레코드 채번 시 다음 SNO 산출용.
-         * 결과가 없으면 0 반환.</p>
-         *
-         * @param apfMngNo 신청서 관리번호
-         * @return 해당 신청서의 최대 APF_REL_SNO (없으면 0)
-         */
-        @Query(value = "SELECT COALESCE(MAX(APF_REL_SNO), 0) FROM TPRMPP_CAPPLA WHERE APF_MNG_NO = :apfMngNo",
-               nativeQuery = true)
-        Long findMaxRelSnoByApfMngNo(@Param("apfMngNo") String apfMngNo);
+        boolean existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        @Param("fntTbNm") String fntTbNm,
+                        @Param("pkColNm") String pkColNm,
+                        @Param("fntTbCrySno") Integer fntTbCrySno,
+                        @Param("statuses") java.util.List<String> statuses);
 }

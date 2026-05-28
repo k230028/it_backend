@@ -81,33 +81,33 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                         JPAExpressions.selectOne()
                                 .from(cappla, capplm)
                                 .where(
-                                        cappla.apfMngNo.eq(capplm.apfMngNo),
-                                        cappla.orcTbCd.eq("BPROJM"),
-                                        cappla.orcPkVl.eq(bprojm.prjMngNo),
-                                        cappla.orcSnoVl.eq(bprojm.prjSno),
-                                        capplm.apfStsC.in("001", "002"))
+                                        cappla.apfDcmNo.eq(capplm.apfMngNo),
+                                        cappla.fntTbNm.eq("BPROJM"),
+                                        cappla.pkColNm.eq(bprojm.prjMngNo),
+                                        cappla.fntTbCrySno.eq(bprojm.prjSno),
+                                        capplm.apfPrgStsC.in("01", "02"))
                                 .notExists());
             } else {
-                // 특정 결재상태: 최신 신청서(APF_REL_SNO 최대값)의 결재상태가 일치하는 경우
+                // 특정 결재상태: 최신 신청서(APF_DCM_NO 최대값)의 결재상태가 일치하는 경우
                 builder.and(
                         JPAExpressions.selectOne()
                                 .from(cappla, capplm)
                                 .where(
-                                        cappla.apfMngNo.eq(capplm.apfMngNo),
-                                        cappla.orcTbCd.eq("BPROJM"),
-                                        cappla.orcPkVl.eq(bprojm.prjMngNo),
-                                        cappla.orcSnoVl.eq(bprojm.prjSno),
-                                        capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
+                                        cappla.apfDcmNo.eq(capplm.apfMngNo),
+                                        cappla.fntTbNm.eq("BPROJM"),
+                                        cappla.pkColNm.eq(bprojm.prjMngNo),
+                                        cappla.fntTbCrySno.eq(bprojm.prjSno),
+                                        capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
                                                 ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
                                                 : apfSts),
-                                        // 해당 프로젝트에 연결된 신청서 중 가장 최신(APF_REL_SNO 최대)인 것만 검사
-                                        cappla.apfMngNo.eq(
-                                                JPAExpressions.select(cappla2.apfMngNo.max())
+                                        // 해당 프로젝트에 연결된 신청서 중 가장 최신(APF_DCM_NO 최대)인 것만 검사
+                                        cappla.apfDcmNo.eq(
+                                                JPAExpressions.select(cappla2.apfDcmNo.max())
                                                         .from(cappla2)
                                                         .where(
-                                                                cappla2.orcTbCd.eq("BPROJM"),
-                                                                cappla2.orcPkVl.eq(bprojm.prjMngNo),
-                                                                cappla2.orcSnoVl.eq(bprojm.prjSno))))
+                                                                cappla2.fntTbNm.eq("BPROJM"),
+                                                                cappla2.pkColNm.eq(bprojm.prjMngNo),
+                                                                cappla2.fntTbCrySno.eq(bprojm.prjSno))))
                                 .exists());
             }
         }

@@ -45,19 +45,19 @@ public class ApplicationDto {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Schema(name = "ApplicationOrcItem", description = "원본 데이터 연결 항목")
+    @Schema(name = "ApplicationOrcItem", description = "원천 데이터 연결 항목")
     public static class OrcItem {
-        /** 원본 테이블코드 (예: "BPRJTM"=정보화사업, "BITCOST"=전산관리비) */
-        @Schema(description = "원본 테이블코드")
-        private String orcTbCd;
+        /** 원천 테이블명 (예: "BPROJM"=정보화사업, "BCOSTM"=전산관리비) */
+        @Schema(description = "원천 테이블명")
+        private String fntTbNm;
 
-        /** 원본 테이블의 PK값 (예: 프로젝트관리번호 "PRJ-2026-0001") */
-        @Schema(description = "원본 PK값")
-        private String orcPkVl;
+        /** 주식별자 컬럼명 (예: 프로젝트관리번호 컬럼명 "PRJ_MNG_NO") */
+        @Schema(description = "주식별자 컬럼명")
+        private String pkColNm;
 
-        /** 원본 테이블의 SNO(일련번호)값 (nullable, 예: "1") */
-        @Schema(description = "원본 SNO값")
-        private String orcSnoVl;
+        /** 원천테이블 적재일련번호 (nullable, 예: "1") */
+        @Schema(description = "원천테이블 적재일련번호")
+        private String fntTbCrySno;
     }
 
     /**
@@ -318,14 +318,14 @@ public class ApplicationDto {
         public static Response fromEntity(Capplm capplm, List<Cdecim> approvers) {
             return Response.builder()
                     .apfMngNo(capplm.getApfMngNo())       // 신청관리번호
-                    .apfNm(capplm.getApfNm())             // 신청서명
-                    .apfDtlCone(capplm.getApfDtlCone())   // 신청서세부내용
-                    .apfSts(capplm.getApfStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label()) // 신청상태(라벨, 코드에서 파생)
-                    .apfStsC(capplm.getApfStsC())         // 신청상태코드
-                    .rqsEno(capplm.getRqsEno())           // 신청자 사원번호
-                    .rqsDt(capplm.getRqsDt())             // 신청일자
-                    .rqsOpnn(capplm.getRqsOpnn())         // 신청의견
+                    .apfNm(capplm.getDcdReqTtl())          // 신청서명(결재요청제목에서 파생)
+                    .apfDtlCone(capplm.getDcdReqInf())    // 신청서세부내용(결재요청정보에서 파생)
+                    .apfSts(capplm.getApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label()) // 신청상태(라벨, 코드에서 파생)
+                    .apfStsC(capplm.getApfPrgStsC())      // 신청상태코드
+                    .rqsEno(capplm.getDcdReqUsid())       // 신청자 사원번호(결재요청사용자ID에서 파생)
+                    .rqsDt(capplm.getDcdReqDtm())         // 신청일자(결재요청일시에서 파생)
+                    .rqsOpnn(capplm.getRgprDcdReqCone())  // 신청의견(등록자결재요청내용에서 파생)
                     .approvers(approvers.stream()
                             .map(ApproverResponse::fromEntity) // 각 결재자 엔티티를 DTO로 변환
                             .collect(Collectors.toList()))
@@ -363,7 +363,7 @@ public class ApplicationDto {
         public static ApfDtlConeResponse fromEntity(Capplm capplm) {
             return ApfDtlConeResponse.builder()
                     .apfMngNo(capplm.getApfMngNo())       // 신청관리번호
-                    .apfDtlCone(capplm.getApfDtlCone())   // 세부내용
+                    .apfDtlCone(capplm.getDcdReqInf())    // 세부내용(결재요청정보에서 파생)
                     .build();
         }
     }
@@ -497,14 +497,14 @@ public class ApplicationDto {
          */
         public static ApproverResponse fromEntity(Cdecim cdecim) {
             return ApproverResponse.builder()
-                    .dcdSqn(cdecim.getDcdSqn())   // 결재순번
-                    .dcdEno(cdecim.getDcdEno())   // 결재자 사원번호
+                    .dcdSqn(cdecim.getDcrSqnSno())   // 결재순번
+                    .dcdEno(cdecim.getDcrEno())       // 결재자 사원번호
                     // 결재유형: 미결재(001) 또는 null이면 null, 그 외는 "결재"로 표시
                     .dcdTp(cdecim.getDcdStsC() == null
                             || com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code().equals(cdecim.getDcdStsC())
                                 ? null : "결재")
-                    .dcdDt(cdecim.getDcdDt())     // 결재일자
-                    .dcdOpnn(cdecim.getDcdOpnn()) // 결재의견
+                    .dcdDt(cdecim.getDcdDtm())        // 결재일자
+                    .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
                     // 결재상태: 코드 → 라벨 변환 (미결재/null이면 null)
                     .dcdSts(cdecim.getDcdStsC() == null
                             || com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code().equals(cdecim.getDcdStsC())

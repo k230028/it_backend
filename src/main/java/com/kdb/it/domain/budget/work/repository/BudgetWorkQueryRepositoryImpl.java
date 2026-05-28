@@ -61,18 +61,18 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                         JPAExpressions.selectOne()
                                 .from(cappla, capplm)
                                 .where(
-                                        cappla.apfMngNo.eq(capplm.apfMngNo),
-                                        cappla.orcTbCd.eq("BCOSTM"),
-                                        cappla.orcPkVl.eq(bcostm.itMngcNo),
-                                        cappla.orcSnoVl.eq(bcostm.itMngcSno),
-                                        capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
-                                        cappla.apfMngNo.eq(
-                                                JPAExpressions.select(cappla2.apfMngNo.max())
+                                        cappla.apfDcmNo.eq(capplm.apfMngNo),
+                                        cappla.fntTbNm.eq("BCOSTM"),
+                                        cappla.pkColNm.eq(bcostm.itMngcNo),
+                                        cappla.fntTbCrySno.eq(bcostm.itMngcSno),
+                                        capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                        cappla.apfDcmNo.eq(
+                                                JPAExpressions.select(cappla2.apfDcmNo.max())
                                                         .from(cappla2)
                                                         .where(
-                                                                cappla2.orcTbCd.eq("BCOSTM"),
-                                                                cappla2.orcPkVl.eq(bcostm.itMngcNo),
-                                                                cappla2.orcSnoVl.eq(bcostm.itMngcSno))))
+                                                                cappla2.fntTbNm.eq("BCOSTM"),
+                                                                cappla2.pkColNm.eq(bcostm.itMngcNo),
+                                                                cappla2.fntTbCrySno.eq(bcostm.itMngcSno))))
                                 .exists())
                 .groupBy(bcostm.ioeC)
                 .fetch();
@@ -130,18 +130,18 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                                         JPAExpressions.selectOne()
                                                 .from(cappla, capplm)
                                                 .where(
-                                                        cappla.apfMngNo.eq(capplm.apfMngNo),
-                                                        cappla.orcTbCd.eq("BPROJM"),
-                                                        cappla.orcPkVl.eq(bprojm.prjMngNo),
-                                                        cappla.orcSnoVl.eq(bprojm.prjSno),
-                                                        capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
-                                                        cappla.apfMngNo.eq(
-                                                                JPAExpressions.select(cappla2.apfMngNo.max())
+                                                        cappla.apfDcmNo.eq(capplm.apfMngNo),
+                                                        cappla.fntTbNm.eq("BPROJM"),
+                                                        cappla.pkColNm.eq(bprojm.prjMngNo),
+                                                        cappla.fntTbCrySno.eq(bprojm.prjSno),
+                                                        capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                                        cappla.apfDcmNo.eq(
+                                                                JPAExpressions.select(cappla2.apfDcmNo.max())
                                                                         .from(cappla2)
                                                                         .where(
-                                                                                cappla2.orcTbCd.eq("BPROJM"),
-                                                                                cappla2.orcPkVl.eq(bprojm.prjMngNo),
-                                                                                cappla2.orcSnoVl.eq(bprojm.prjSno))))
+                                                                                cappla2.fntTbNm.eq("BPROJM"),
+                                                                                cappla2.pkColNm.eq(bprojm.prjMngNo),
+                                                                                cappla2.fntTbCrySno.eq(bprojm.prjSno))))
                                                 .exists())
                                 .exists())
                 .groupBy(bitemm.ioeC)

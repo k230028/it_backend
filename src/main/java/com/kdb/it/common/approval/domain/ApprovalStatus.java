@@ -4,10 +4,10 @@ package com.kdb.it.common.approval.domain;
  * 신청서 결재상태 (Ccodem cId='APF_STS').
  */
 public enum ApprovalStatus {
-    IN_PROGRESS("001", "결재중"),
-    COMPLETED  ("002", "결재완료"),
-    REJECTED   ("003", "반려"),
-    RECALLED   ("004", "회수");
+    IN_PROGRESS("01", "결재중"),
+    COMPLETED  ("02", "결재완료"),
+    REJECTED   ("03", "반려"),
+    RECALLED   ("04", "회수");
 
     private final String code;
     private final String label;
@@ -23,7 +23,7 @@ public enum ApprovalStatus {
     /**
      * APF_STS 코드값으로 enum 상수를 조회합니다.
      *
-     * @param code APF_STS 코드값 (예: "001"=결재중, "002"=결재완료)
+     * @param code APF_STS 코드값 (예: "01"=결재중, "02"=결재완료)
      * @return 해당 코드의 {@link ApprovalStatus}
      * @throws IllegalArgumentException 등록되지 않은 코드값이 입력된 경우 (null 포함)
      */

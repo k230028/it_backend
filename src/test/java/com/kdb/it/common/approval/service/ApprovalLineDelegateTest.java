@@ -1,4 +1,4 @@
-package com.kdb.it.common.approval.service;
+﻿package com.kdb.it.common.approval.service;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,7 +43,7 @@ class ApprovalLineDelegateTest {
     @DisplayName("doUpdate: 상세 JSON이 null이면 아무 작업 없이 정상 종료")
     void doUpdate_JSON없음_정상종료() {
         Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfDtlCone()).willReturn(null);
+        given(capplm.getDcdReqInf()).willReturn(null);
 
         assertThatCode(() -> approvalLineDelegate.doUpdate(capplm, List.of(), List.of()))
                 .doesNotThrowAnyException();
@@ -53,7 +53,7 @@ class ApprovalLineDelegateTest {
     @DisplayName("doUpdate: 상세 JSON이 빈 문자열이면 아무 작업 없이 정상 종료")
     void doUpdate_빈JSON_정상종료() {
         Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfDtlCone()).willReturn("");
+        given(capplm.getDcdReqInf()).willReturn("");
 
         assertThatCode(() -> approvalLineDelegate.doUpdate(capplm, List.of(), List.of()))
                 .doesNotThrowAnyException();
@@ -65,7 +65,7 @@ class ApprovalLineDelegateTest {
         // Arrange
         Capplm capplm = mock(Capplm.class);
         given(capplm.getApfMngNo()).willReturn("APF-202600000001");
-        given(capplm.getApfDtlCone()).willReturn("{\"approvalLine\": {}}");
+        given(capplm.getDcdReqInf()).willReturn("{\"approvalLine\": {}}");
         given(objectMapper.readTree(anyString()))
                 .willThrow(new JsonProcessingException("테스트용 JSON 파싱 오류") {});
 
@@ -86,7 +86,7 @@ class ApprovalLineDelegateTest {
         ObjectMapper realMapper = new ObjectMapper();
         ApprovalLineDelegate delegateWithRealMapper = new ApprovalLineDelegate(realMapper);
         Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfDtlCone()).willReturn("{\"title\":\"테스트\"}");
+        given(capplm.getDcdReqInf()).willReturn("{\"title\":\"테스트\"}");
         given(capplm.getApfMngNo()).willReturn("APF-202600000002");
 
         // Act & Assert: approvalLine 없으면 updateDetailContent 미호출 → 정상 종료
@@ -105,7 +105,7 @@ class ApprovalLineDelegateTest {
         ObjectMapper realMapper = new ObjectMapper();
         ApprovalLineDelegate delegateWithRealMapper = new ApprovalLineDelegate(realMapper);
         Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfDtlCone()).willReturn("{\"approvalLine\":[\"item1\"]}");
+        given(capplm.getDcdReqInf()).willReturn("{\"approvalLine\":[\"item1\"]}");
         given(capplm.getApfMngNo()).willReturn("APF-202600000003");
 
         // Act & Assert: isObject()==false → early return
@@ -126,15 +126,15 @@ class ApprovalLineDelegateTest {
 
         String json = "{\"approvalLine\":{\"step1\":{\"id\":\"E001\",\"name\":\"홍길동\"}}}";
         Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfDtlCone()).willReturn(json);
+        given(capplm.getDcdReqInf()).willReturn(json);
         given(capplm.getApfMngNo()).willReturn("APF-202600000004");
 
         Cdecim approver = mock(Cdecim.class);
-        given(approver.getDcdEno()).willReturn("E001");
-        given(approver.getDcdSqn()).willReturn(1);
+        given(approver.getDcrEno()).willReturn("E001");
+        given(approver.getDcrSqnSno()).willReturn(1);
 
         Cdecim approved = mock(Cdecim.class);
-        given(approved.getDcdSqn()).willReturn(1);
+        given(approved.getDcrSqnSno()).willReturn(1);
 
         // Act
         delegateWithRealMapper.doUpdate(capplm, List.of(approver), List.of(approved));
@@ -158,15 +158,15 @@ class ApprovalLineDelegateTest {
 
         String json = "{\"approvalLine\":{\"step1\":{\"id\":\"E001\",\"name\":\"홍길동\"}}}";
         Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfDtlCone()).willReturn(json);
+        given(capplm.getDcdReqInf()).willReturn(json);
         given(capplm.getApfMngNo()).willReturn("APF-202600000005");
 
         Cdecim approver = mock(Cdecim.class);
-        given(approver.getDcdEno()).willReturn("E001");
-        given(approver.getDcdSqn()).willReturn(1);
+        given(approver.getDcrEno()).willReturn("E001");
+        given(approver.getDcrSqnSno()).willReturn(1);
 
         Cdecim notApproved = mock(Cdecim.class);
-        given(notApproved.getDcdSqn()).willReturn(2);
+        given(notApproved.getDcrSqnSno()).willReturn(2);
 
         // Act
         delegateWithRealMapper.doUpdate(capplm, List.of(approver), List.of(notApproved));
@@ -181,7 +181,7 @@ class ApprovalLineDelegateTest {
     void applyRecallInfo_빈JSON_회수정보기록() {
         ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
         Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfDtlCone()).willReturn("");
+        given(capplm.getDcdReqInf()).willReturn("");
 
         delegate.applyRecallInfo(capplm, "E001", "재작성 필요");
 
@@ -194,7 +194,7 @@ class ApprovalLineDelegateTest {
     void applyRecallInfo_잘못된JSON_예외발생() {
         ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
         Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfDtlCone()).willReturn("{");
+        given(capplm.getDcdReqInf()).willReturn("{");
 
         assertThatThrownBy(() -> delegate.applyRecallInfo(capplm, "E001", "회수"))
                 .isInstanceOf(IllegalStateException.class)
@@ -206,11 +206,11 @@ class ApprovalLineDelegateTest {
     void doUpdate_기안자제외_승인자갱신() {
         ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
         Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfDtlCone()).willReturn(
+        given(capplm.getDcdReqInf()).willReturn(
                 "{\"approvalLine\":{\"drafter\":{\"id\":\"E001\"},\"step1\":{\"id\":\"E001\"},\"caption\":\"text\"}}");
         Cdecim approver = mock(Cdecim.class);
-        given(approver.getDcdEno()).willReturn("E001");
-        given(approver.getDcdSqn()).willReturn(1);
+        given(approver.getDcrEno()).willReturn("E001");
+        given(approver.getDcrSqnSno()).willReturn(1);
 
         delegate.doUpdate(capplm, List.of(approver), List.of(approver));
 

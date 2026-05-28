@@ -60,7 +60,7 @@ class CouncilApprovalEventListenerTest {
     @DisplayName("handleApprovalCompleted: BASCTM 연결이 없으면 councilApprovalService를 호출하지 않는다")
     void handleApprovalCompleted_연결없음_처리건너뜀() {
         // given: BASCTM 연결 없음
-        given(applicationMapRepository.findByApfMngNoAndOrcTbCd(APF_MNG_NO, "BASCTM"))
+        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, "BASCTM"))
                 .willReturn(List.of());
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, "결재완료");
@@ -82,8 +82,8 @@ class CouncilApprovalEventListenerTest {
     void handleApprovalCompleted_결재완료_approved_true콜백() {
         // given: BASCTM 연결 1건 설정
         Cappla link = mock(Cappla.class);
-        given(link.getOrcPkVl()).willReturn(ASCT_ID);
-        given(applicationMapRepository.findByApfMngNoAndOrcTbCd(APF_MNG_NO, "BASCTM"))
+        given(link.getPkColNm()).willReturn(ASCT_ID);
+        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, "BASCTM"))
                 .willReturn(List.of(link));
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, "결재완료");
@@ -102,8 +102,8 @@ class CouncilApprovalEventListenerTest {
     void handleApprovalCompleted_반려_approved_false콜백() {
         // given: BASCTM 연결 1건 설정
         Cappla link = mock(Cappla.class);
-        given(link.getOrcPkVl()).willReturn(ASCT_ID);
-        given(applicationMapRepository.findByApfMngNoAndOrcTbCd(APF_MNG_NO, "BASCTM"))
+        given(link.getPkColNm()).willReturn(ASCT_ID);
+        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, "BASCTM"))
                 .willReturn(List.of(link));
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, "반려");
@@ -126,8 +126,8 @@ class CouncilApprovalEventListenerTest {
     void handleApprovalCompleted_콜백실패_예외전파() {
         // given: BASCTM 연결 1건, 콜백 시 예외 발생
         Cappla link = mock(Cappla.class);
-        given(link.getOrcPkVl()).willReturn(ASCT_ID);
-        given(applicationMapRepository.findByApfMngNoAndOrcTbCd(APF_MNG_NO, "BASCTM"))
+        given(link.getPkColNm()).willReturn(ASCT_ID);
+        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, "BASCTM"))
                 .willReturn(List.of(link));
         // void 메서드는 given(...).willThrow(...) 대신 willThrow(...).given(...) 형태로 스텁합니다.
         willThrow(new RuntimeException("상태 전이 실패"))

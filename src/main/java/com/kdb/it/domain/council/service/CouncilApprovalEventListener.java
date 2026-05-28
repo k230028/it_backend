@@ -42,7 +42,7 @@ public class CouncilApprovalEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(CouncilApprovalEventListener.class);
 
-    /** 협의회 원본 데이터 테이블 코드 (CAPPLA.ORC_TB_CD) */
+    /** 협의회 원본 데이터 테이블명 (CAPPLA.FNT_TB_NM) */
     private static final String COUNCIL_ORC_TB_CD = "BASCTM";
 
     /** 신청서-원본 연결 조회용 */
@@ -69,7 +69,7 @@ public class CouncilApprovalEventListener {
     public void handleApprovalCompleted(ApprovalCompletedEvent event) {
         // BASCTM(협의회)에 연결된 Cappla 레코드 조회
         List<Cappla> links = applicationMapRepository
-                .findByApfMngNoAndOrcTbCd(event.apfMngNo(), COUNCIL_ORC_TB_CD);
+                .findByApfDcmNoAndFntTbNm(event.apfMngNo(), COUNCIL_ORC_TB_CD);
 
         if (links.isEmpty()) {
             // 협의회와 무관한 신청서 — 처리 불필요
@@ -81,7 +81,7 @@ public class CouncilApprovalEventListener {
 
         // 연결된 협의회 각각에 대해 상태 전이 처리
         for (Cappla link : links) {
-            String asctId = link.getOrcPkVl();
+            String asctId = link.getPkColNm();
             try {
                 councilApprovalService.processApprovalCallback(
                         asctId,

@@ -37,7 +37,7 @@ import lombok.RequiredArgsConstructor;
  * </p>
  * <ul>
  * <li>{@code "none"}: NOT EXISTS — CAPPLA에 연결 레코드가 없는 전산관리비</li>
- * <li>그 외 값: EXISTS — 최신 CAPPLA(APF_REL_SNO MAX)의 CAPPLM 결재상태가 일치하는 전산관리비</li>
+ * <li>그 외 값: EXISTS — 최신 CAPPLA(APF_SNO MAX)의 CAPPLM 결재상태가 일치하는 전산관리비</li>
  * </ul>
  */
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
@@ -64,9 +64,9 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      * <pre>{@code
      * WHERE NOT EXISTS (
      *   SELECT 1 FROM TPRMPP_CAPPLA ca
-     *   WHERE ca.ORC_TB_CD = 'BCOSTM'
-     *     AND ca.ORC_PK_VL = c.IT_MNGC_NO
-     *     AND ca.ORC_SNO_VL = c.IT_MNGC_SNO
+     *   WHERE ca.FNT_TB_NM = 'BCOSTM'
+     *     AND ca.PK_COL_NM = c.IT_MNGC_NO
+     *     AND ca.FNT_TB_CRY_SNO = c.IT_MNGC_SNO
      * )
      * }</pre>
      *
@@ -77,16 +77,16 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      * <pre>{@code
      * WHERE EXISTS (
      *   SELECT 1 FROM TPRMPP_CAPPLA ca
-     *   JOIN TPRMPP_CAPPLM cm ON ca.APF_MNG_NO = cm.APF_MNG_NO
-     *   WHERE ca.ORC_TB_CD = 'BCOSTM'
-     *     AND ca.ORC_PK_VL = c.IT_MNGC_NO
-     *     AND ca.ORC_SNO_VL = c.IT_MNGC_SNO
-     *     AND cm.APF_STS = '결재중'
-     *     AND ca.APF_REL_SNO = (
-     *       SELECT MAX(ca2.APF_REL_SNO) FROM TPRMPP_CAPPLA ca2
-     *       WHERE ca2.ORC_TB_CD = 'BCOSTM'
-     *         AND ca2.ORC_PK_VL = c.IT_MNGC_NO
-     *         AND ca2.ORC_SNO_VL = c.IT_MNGC_SNO
+     *   JOIN TPRMPP_CAPPLM cm ON ca.APF_DCM_NO = cm.APF_DCM_NO
+     *   WHERE ca.FNT_TB_NM = 'BCOSTM'
+     *     AND ca.PK_COL_NM = c.IT_MNGC_NO
+     *     AND ca.FNT_TB_CRY_SNO = c.IT_MNGC_SNO
+     *     AND cm.APF_PRG_STS_C = '001'
+     *     AND ca.APF_SNO = (
+     *       SELECT MAX(ca2.APF_SNO) FROM TPRMPP_CAPPLA ca2
+     *       WHERE ca2.FNT_TB_NM = 'BCOSTM'
+     *         AND ca2.PK_COL_NM = c.IT_MNGC_NO
+     *         AND ca2.FNT_TB_CRY_SNO = c.IT_MNGC_SNO
      *     )
      * )
      * }</pre>
@@ -119,33 +119,33 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                         JPAExpressions.selectOne()
                                 .from(cappla, capplm)
                                 .where(
-                                        cappla.apfMngNo.eq(capplm.apfMngNo),
-                                        cappla.orcTbCd.eq("BCOSTM"),
-                                        cappla.orcPkVl.eq(bcostm.itMngcNo),
-                                        cappla.orcSnoVl.eq(bcostm.itMngcSno),
-                                        capplm.apfStsC.in("001", "002"))
+                                        cappla.apfDcmNo.eq(capplm.apfMngNo),
+                                        cappla.fntTbNm.eq("BCOSTM"),
+                                        cappla.pkColNm.eq(bcostm.itMngcNo),
+                                        cappla.fntTbCrySno.eq(bcostm.itMngcSno),
+                                        capplm.apfPrgStsC.in("01", "02"))
                                 .notExists());
             } else {
-                // 특정 결재상태: 최신 신청서(APF_REL_SNO 최대값)의 결재상태가 일치하는 경우
+                // 특정 결재상태: 최신 신청서(APF_DCM_NO 최대값)의 결재상태가 일치하는 경우
                 builder.and(
                         JPAExpressions.selectOne()
                                 .from(cappla, capplm)
                                 .where(
-                                        cappla.apfMngNo.eq(capplm.apfMngNo),
-                                        cappla.orcTbCd.eq("BCOSTM"),
-                                        cappla.orcPkVl.eq(bcostm.itMngcNo),
-                                        cappla.orcSnoVl.eq(bcostm.itMngcSno),
-                                        capplm.apfStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
+                                        cappla.apfDcmNo.eq(capplm.apfMngNo),
+                                        cappla.fntTbNm.eq("BCOSTM"),
+                                        cappla.pkColNm.eq(bcostm.itMngcNo),
+                                        cappla.fntTbCrySno.eq(bcostm.itMngcSno),
+                                        capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
                                                 ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
                                                 : apfSts),
-                                        // 해당 전산관리비에 연결된 신청서 중 가장 최신(APF_REL_SNO 최대)인 것만 검사
-                                        cappla.apfMngNo.eq(
-                                                JPAExpressions.select(cappla2.apfMngNo.max())
+                                        // 해당 전산관리비에 연결된 신청서 중 가장 최신(APF_DCM_NO 최대)인 것만 검사
+                                        cappla.apfDcmNo.eq(
+                                                JPAExpressions.select(cappla2.apfDcmNo.max())
                                                         .from(cappla2)
                                                         .where(
-                                                                cappla2.orcTbCd.eq("BCOSTM"),
-                                                                cappla2.orcPkVl.eq(bcostm.itMngcNo),
-                                                                cappla2.orcSnoVl.eq(bcostm.itMngcSno))))
+                                                                cappla2.fntTbNm.eq("BCOSTM"),
+                                                                cappla2.pkColNm.eq(bcostm.itMngcNo),
+                                                                cappla2.fntTbCrySno.eq(bcostm.itMngcSno))))
                                 .exists());
             }
         }

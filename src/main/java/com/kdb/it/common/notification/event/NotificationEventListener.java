@@ -56,11 +56,11 @@ public class NotificationEventListener {
                 log.warn("Approval result notification skipped: capplm not found. apfMngNo={}", event.apfMngNo());
                 return;
             }
-            String title = "결재 " + event.newStatus() + ": " + safe(capplm.getApfNm());
+            String title = "결재 " + event.newStatus() + ": " + safe(capplm.getDcdReqTtl());
             String body  = "신청서가 " + event.newStatus() + " 처리되었습니다.";
             notificationService.send(
                 NotificationEvent.builder()
-                    .recipientEno(capplm.getRqsEno())
+                    .recipientEno(capplm.getDcdReqUsid())
                     .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RESULT)
                     .ttl(abbreviate(title, 100))
                     .infmMsgCone(abbreviate(body, 4000))
@@ -85,15 +85,15 @@ public class NotificationEventListener {
                 log.warn("Approval recall notification skipped: capplm not found. apfMngNo={}", event.apfMngNo());
                 return;
             }
-            String apfNm   = safe(capplm.getApfNm());
+            String apfNm   = safe(capplm.getDcdReqTtl());
             String title   = abbreviate("결재회수: " + apfNm, 100);
             String linkUrl = "/approval/list?tab=pending";
 
             // 신청자 알림 (회수자가 신청자 본인이 아닌 경우만)
-            if (capplm.getRqsEno() != null && !capplm.getRqsEno().equals(event.recallerEno())) {
+            if (capplm.getDcdReqUsid() != null && !capplm.getDcdReqUsid().equals(event.recallerEno())) {
                 notificationService.send(
                     NotificationEvent.builder()
-                        .recipientEno(capplm.getRqsEno())
+                        .recipientEno(capplm.getDcdReqUsid())
                         .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RECALLED)
                         .ttl(title)
                         .infmMsgCone(abbreviate("신청서가 회수되었습니다: " + apfNm, 4000))

@@ -1,4 +1,4 @@
-package com.kdb.it.common.notification.event;
+﻿package com.kdb.it.common.notification.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -78,8 +78,8 @@ class NotificationEventListenerTest {
     void onApprovalCompleted_완료_알림변환() {
         Capplm application = Capplm.builder()
                 .apfMngNo("APF-1")
-                .apfNm("가".repeat(120))
-                .rqsEno("10001")
+                .dcdReqTtl("가".repeat(120))
+                .dcdReqUsid("10001")
                 .build();
         given(applicationRepository.findById("APF-1")).willReturn(Optional.of(application));
 
@@ -108,8 +108,8 @@ class NotificationEventListenerTest {
     void onApprovalRecalled_다중대상_유효수신자발송() {
         Capplm application = Capplm.builder()
                 .apfMngNo("APF-1")
-                .apfNm("회수 신청서")
-                .rqsEno("REQUESTER")
+                .dcdReqTtl("회수 신청서")
+                .dcdReqUsid("REQUESTER")
                 .build();
         given(applicationRepository.findById("APF-1")).willReturn(Optional.of(application));
         ApprovalRecalledEvent event = new ApprovalRecalledEvent(
@@ -128,7 +128,7 @@ class NotificationEventListenerTest {
     @Test
     @DisplayName("onApprovalRecalled: 신청자 본인 회수이며 기승인자가 없으면 발송하지 않는다")
     void onApprovalRecalled_본인회수_발송하지않음() {
-        Capplm application = Capplm.builder().apfMngNo("APF-1").apfNm(null).rqsEno("10001").build();
+        Capplm application = Capplm.builder().apfMngNo("APF-1").dcdReqTtl(null).dcdReqUsid("10001").build();
         given(applicationRepository.findById("APF-1")).willReturn(Optional.of(application));
 
         listener.onApprovalRecalled(new ApprovalRecalledEvent("APF-1", "10001", null));
@@ -149,7 +149,7 @@ class NotificationEventListenerTest {
     @Test
     @DisplayName("onApprovalRecalled: 발송 중 실패가 발생해도 예외를 전파하지 않는다")
     void onApprovalRecalled_발송실패_예외흡수() {
-        Capplm application = Capplm.builder().apfMngNo("APF-1").apfNm("신청서").rqsEno("10001").build();
+        Capplm application = Capplm.builder().apfMngNo("APF-1").dcdReqTtl("신청서").dcdReqUsid("10001").build();
         given(applicationRepository.findById("APF-1")).willReturn(Optional.of(application));
         doThrow(new IllegalStateException("발송 실패")).when(notificationService).send(any());
 

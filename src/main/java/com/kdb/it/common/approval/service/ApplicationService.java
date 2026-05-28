@@ -63,9 +63,9 @@ import lombok.RequiredArgsConstructor;
  * </p>
  * <ul>
  * <li>신청서는 원본 테이블(예: BPROJM)과 {@link Cappla}로 연결</li>
- * <li>{@code orcTbCd}: 원본 테이블 코드 (예: "BPROJM")</li>
- * <li>{@code orcPkVl}: 원본 테이블의 PK 값 (예: 프로젝트관리번호)</li>
- * <li>{@code orcSnoVl}: 원본 테이블의 SNO 값 (예: 프로젝트순번)</li>
+ * <li>{@code fntTbNm}: 원천 테이블명 (예: "BPROJM")</li>
+ * <li>{@code pkColNm}: 원천 테이블의 PK 값 (예: 프로젝트관리번호)</li>
+ * <li>{@code fntTbCrySno}: 원천 테이블의 SNO 값 (예: 프로젝트순번)</li>
  * </ul>
  *
  * <p>
@@ -120,7 +120,7 @@ public class ApplicationService {
      * <ol>
      * <li>Oracle 시퀀스로 신청관리번호 채번</li>
      * <li>신청서 마스터 저장 (상태: "결재중")</li>
-     * <li>원본 데이터 연결 저장 (orcTbCd가 있는 경우)</li>
+     * <li>원본 데이터 연결 저장 (fntTbNm이 있는 경우)</li>
      * <li>결재선 생성 (승인자 순서대로, 마지막 승인자는 lstDcdYn='Y')</li>
      * </ol>
      *
@@ -137,27 +137,25 @@ public class ApplicationService {
 
         // 1. 신청서 마스터 생성 (초기 상태: "결재중")
         Capplm capplm = Capplm.builder()
-                .apfMngNo(apfMngNo) // 신청관리번호 (PK)
-                .apfNm(request.getApfNm()) // 신청서명
-                .apfDtlCone(request.getApfDtlCone()) // 신청서세부내용 (JSON)
-                .apfStsC(ApprovalStatus.IN_PROGRESS.code())
-                .rqsEno(request.getRqsEno()) // 신청자 사원번호
-                .rqsDt(LocalDate.now()) // 신청일자 = 오늘
-                .rqsOpnn(request.getRqsOpnn()) // 신청의견
+                .apfMngNo(apfMngNo)                        // 신청관리번호 (PK)
+                .dcdReqTtl(request.getApfNm())             // 결재요청제목
+                .dcdReqInf(request.getApfDtlCone())        // 결재요청정보 (JSON)
+                .apfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
+                .dcdReqUsid(request.getRqsEno())           // 결재요청사용자ID
+                .dcdReqDtm(LocalDate.now())                // 결재요청일시 = 오늘
+                .rgprDcdReqCone(request.getRqsOpnn())      // 등록자결재요청내용
                 .build();
         applicationRepository.save(capplm);
 
-        // 1-1. 원본 데이터 연결 저장 (orcItems 각각에 대해 Cappla 생성)
-        // 하나의 신청서가 복수의 원본 레코드(정보화사업, 전산관리비 등)를 연결할 수 있습니다.
+        // 1-1. 원천 데이터 연결 저장 (orcItems 각각에 대해 Cappla 생성)
+        // 하나의 신청서가 복수의 원천 레코드(정보화사업, 전산관리비 등)를 연결할 수 있습니다.
         if (request.getOrcItems() != null && !request.getOrcItems().isEmpty()) {
-            long sno = 1L;
             for (ApplicationDto.OrcItem item : request.getOrcItems()) {
                 Cappla cappla = Cappla.builder()
-                        .apfRelSno(sno++)
-                        .apfMngNo(apfMngNo)
-                        .orcTbCd(item.getOrcTbCd())
-                        .orcPkVl(item.getOrcPkVl())
-                        .orcSnoVl(item.getOrcSnoVl() != null ? Integer.parseInt(item.getOrcSnoVl()) : null)
+                        .apfDcmNo(apfMngNo)
+                        .fntTbNm(item.getFntTbNm())
+                        .pkColNm(item.getPkColNm())
+                        .fntTbCrySno(item.getFntTbCrySno() != null ? Integer.parseInt(item.getFntTbCrySno()) : null)
                         .build();
                 applicationMapRepository.save(cappla);
             }
@@ -170,8 +168,8 @@ public class ApplicationService {
         for (int i = 0; i < approverEnos.size(); i++) {
             Cdecim cdecim = Cdecim.builder()
                     .dcdMngNo(apfMngNo) // 결재관리번호 (FK)
-                    .dcdSqn(i + 1) // 결재순번 (1부터 시작)
-                    .dcdEno(approverEnos.get(i)) // 결재자 사원번호
+                    .dcrSqnSno(i + 1) // 결재순번 (1부터 시작)
+                    .dcrEno(approverEnos.get(i)) // 결재자 사원번호
                     .dcdStsC(DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(001) — NOT NULL
                     .lstDcdYn(i == approverEnos.size() - 1 ? "Y" : "N") // 마지막 결재자 여부
                     .build();
@@ -194,27 +192,27 @@ public class ApplicationService {
      * 발견되지 않으면(=결재선 모두 처리됨) 알림을 발행하지 않는다.</p>
      */
     private void publishApprovalRequestNotification(Capplm capplm) {
-        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcdSqnAsc(capplm.getApfMngNo());
+        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(capplm.getApfMngNo());
         Cdecim next = approvers.stream()
             .filter(a -> DecisionStatus.PENDING.code().equals(a.getDcdStsC()))
             .findFirst()
             .orElse(null);
-        if (next == null || next.getDcdEno() == null || next.getDcdEno().isBlank()) {
+        if (next == null || next.getDcrEno() == null || next.getDcrEno().isBlank()) {
             log.info("[알림 진단] APPROVAL_REQUEST publishEvent 건너뜀: apfMngNo={}, approvers={}, nextNull={}, nextEnoBlank={}",
                 capplm.getApfMngNo(),
                 approvers.size(),
                 next == null,
-                next != null && (next.getDcdEno() == null || next.getDcdEno().isBlank()));
+                next != null && (next.getDcrEno() == null || next.getDcrEno().isBlank()));
             return;
         }
-        log.info("[알림 진단] APPROVAL_REQUEST publishEvent: apfMngNo={}, recipientEno={}, dcdSqn={}",
-            capplm.getApfMngNo(), next.getDcdEno(), next.getDcdSqn());
+        log.info("[알림 진단] APPROVAL_REQUEST publishEvent: apfMngNo={}, recipientEno={}, dcrSqnSno={}",
+            capplm.getApfMngNo(), next.getDcrEno(), next.getDcrSqnSno());
         eventPublisher.publishEvent(
             NotificationEvent.builder()
-                .recipientEno(next.getDcdEno())
+                .recipientEno(next.getDcrEno())
                 .infmSvcTc(NotificationEvent.TYPE_APPROVAL_REQUEST)
-                .ttl(abbreviateText("결재요청: " + safeText(capplm.getApfNm()), 100))
-                .infmMsgCone(abbreviateText(safeText(capplm.getApfNm()), 4000))
+                .ttl(abbreviateText("결재요청: " + safeText(capplm.getDcdReqTtl()), 100))
+                .infmMsgCone(abbreviateText(safeText(capplm.getDcdReqTtl()), 4000))
                 // 결재 알림은 결재 대기 목록 화면으로 고정 (사용자 정책).
                 // 상대 path 사용 — Nuxt navigateTo가 내부 라우팅으로 처리하며 운영 호스트와 무관.
                 .infmRcdUrl("/approval/list?tab=pending")
@@ -265,7 +263,7 @@ public class ApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
 
         // 해당 신청서의 전체 결재자 목록 조회 (순번 오름차순)
-        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcdSqnAsc(apfMngNo);
+        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
 
         // ===== 현재 결재 차례 탐색 =====
         Cdecim currentApprover = null; // 현재 결재해야 할 결재자
@@ -293,7 +291,7 @@ public class ApplicationService {
         }
 
         // 요청한 결재자가 현재 차례의 결재자인지 확인
-        if (!currentApprover.getDcdEno().equals(request.getDcdEno())) {
+        if (!currentApprover.getDcrEno().equals(request.getDcdEno())) {
             throw new IllegalArgumentException("현재 결재자가 아닙니다.");
         }
 
@@ -327,7 +325,7 @@ public class ApplicationService {
             int currentIndex = approvers.indexOf(currentApprover);
             for (int i = currentIndex + 1; i < approvers.size(); i++) {
                 Cdecim nextApprover = approvers.get(i);
-                if (nextApprover.getDcdEno().equals(currentApprover.getDcdEno())) {
+                if (nextApprover.getDcrEno().equals(currentApprover.getDcrEno())) {
                     // 같은 결재자가 연속으로 등장하면 자동 승인
                     nextApprover.approve(request.getDcdOpnn(), decision);
                     approverRepository.save(nextApprover);
@@ -455,7 +453,7 @@ public class ApplicationService {
         Capplm capplm = applicationRepository.findById(apfMngNo)
                 .orElseThrow(() -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
         // 결재자 목록 조회 (순번 오름차순)
-        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcdSqnAsc(apfMngNo);
+        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
         return ApplicationDto.Response.fromEntity(capplm, approvers);
     }
 
@@ -472,7 +470,7 @@ public class ApplicationService {
         return applicationRepository.findAll().stream()
                 .map(capplm -> {
                     // 각 신청서의 결재자 목록을 별도 조회하여 DTO에 포함
-                    List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcdSqnAsc(capplm.getApfMngNo());
+                    List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(capplm.getApfMngNo());
                     return ApplicationDto.Response.fromEntity(capplm, approvers);
                 })
                 .toList();
@@ -624,11 +622,11 @@ public class ApplicationService {
         Capplm capplm = applicationRepository.findById(apfMngNo)
             .orElseThrow(() -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
 
-        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfStsC())) {
-            throw new IllegalStateException("회수 가능한 상태가 아닙니다. 현재 상태: " + capplm.getApfStsC());
+        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfPrgStsC())) {
+            throw new IllegalStateException("회수 가능한 상태가 아닙니다. 현재 상태: " + capplm.getApfPrgStsC());
         }
 
-        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcdSqnAsc(apfMngNo);
+        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
         boolean lastApproved = approvers.stream()
             .anyMatch(a -> "Y".equals(a.getLstDcdYn())
                         && DecisionStatus.APPROVED.code().equals(a.getDcdStsC()));
@@ -653,7 +651,7 @@ public class ApplicationService {
         List<String> approvedMiddle = approvers.stream()
             .filter(a -> "N".equals(a.getLstDcdYn())
                       && DecisionStatus.APPROVED.code().equals(a.getDcdStsC()))
-            .map(Cdecim::getDcdEno)
+            .map(Cdecim::getDcrEno)
             .distinct()
             .toList();
 
@@ -681,11 +679,11 @@ public class ApplicationService {
      * @return 회수 가능 여부 (true=허용, false=거부)
      */
     private boolean canRecall(Capplm capplm, List<Cdecim> approvers, String currentEno, boolean isAdmin) {
-        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfStsC())) return false;
+        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfPrgStsC())) return false;
         if (isAdmin) return true;
-        if (currentEno.equals(capplm.getRqsEno())) return true;
+        if (currentEno.equals(capplm.getDcdReqUsid())) return true;
         return approvers.stream()
             .filter(a -> !"Y".equals(a.getLstDcdYn()))
-            .anyMatch(a -> currentEno.equals(a.getDcdEno()));
+            .anyMatch(a -> currentEno.equals(a.getDcrEno()));
     }
 }

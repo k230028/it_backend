@@ -84,12 +84,12 @@ public class ApplicationInfoDto {
 
         return ApplicationInfoDto.builder()
                 .apfMngNo(capplm.getApfMngNo()) // 신청서관리번호
-                .apfSts(capplm.getApfStsC() == null ? null
-                        : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label()) // 신청서상태(코드→라벨)
-                .apfNm(capplm.getApfNm()) // 신청서명
-                .rqsEno(capplm.getRqsEno()) // 신청자 사번
-                .rqsDt(capplm.getRqsDt()) // 신청일자
-                .rqsOpnn(capplm.getRqsOpnn()) // 신청의견
+                .apfSts(capplm.getApfPrgStsC() == null ? null
+                        : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label()) // 신청서상태(코드→라벨)
+                .apfNm(capplm.getDcdReqTtl())       // 신청서명(결재요청제목에서 파생)
+                .rqsEno(capplm.getDcdReqUsid())     // 신청자 사번(결재요청사용자ID에서 파생)
+                .rqsDt(capplm.getDcdReqDtm())       // 신청일자(결재요청일시에서 파생)
+                .rqsOpnn(capplm.getRgprDcdReqCone()) // 신청의견(등록자결재요청내용에서 파생)
                 .approvers(approverDtos) // 결재자 목록
                 .build();
     }
@@ -144,13 +144,13 @@ public class ApplicationInfoDto {
             boolean pending = dcdStsC == null
                     || com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code().equals(dcdStsC);
             return ApproverDto.builder()
-                    .dcdSqn(cdecim.getDcdSqn()) // 결재순서
-                    .dcdEno(cdecim.getDcdEno()) // 결재자 사번
-                    .dcdTp(pending ? null : "결재") // 결재유형(미결재면 null)
+                    .dcdSqn(cdecim.getDcrSqnSno())   // 결재순서
+                    .dcdEno(cdecim.getDcrEno())       // 결재자 사번
+                    .dcdTp(pending ? null : "결재")   // 결재유형(미결재면 null)
                     .dcdSts(pending ? null
                             : com.kdb.it.common.approval.domain.DecisionStatus.ofCode(dcdStsC).label())
-                    .dcdDt(cdecim.getDcdDt()) // 결재일자
-                    .dcdOpnn(cdecim.getDcdOpnn()) // 결재의견
+                    .dcdDt(cdecim.getDcdDtm())        // 결재일자
+                    .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
                     .build();
         }
     }

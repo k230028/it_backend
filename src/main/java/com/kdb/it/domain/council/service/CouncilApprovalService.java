@@ -52,7 +52,7 @@ public class CouncilApprovalService {
     /** 공통 전자결재 서비스 */
     private final ApplicationService applicationService;
 
-    // 원본 테이블 코드 (CAPPLA.ORC_TB_CD)
+    // 원천 테이블명 (CAPPLA.FNT_TB_NM)
     private static final String ORC_TB_CD = "BASCTM";
 
     // =========================================================================
@@ -225,9 +225,9 @@ public class CouncilApprovalService {
 
         // 원본 데이터 연결 항목: BASCTM → asctId
         ApplicationDto.OrcItem orcItem = new ApplicationDto.OrcItem();
-        orcItem.setOrcTbCd(ORC_TB_CD);
-        orcItem.setOrcPkVl(asctId);
-        orcItem.setOrcSnoVl(null); // BASCTM은 SNO 없음
+        orcItem.setFntTbNm(ORC_TB_CD);
+        orcItem.setPkColNm(asctId);
+        orcItem.setFntTbCrySno(null); // BASCTM은 SNO 없음
 
         ApplicationDto.CreateRequest createRequest = new ApplicationDto.CreateRequest();
         createRequest.setApfNm(apfNm);

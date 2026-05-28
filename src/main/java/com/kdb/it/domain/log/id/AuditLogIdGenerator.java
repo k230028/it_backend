@@ -9,7 +9,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 
 /**
- * 로그 테이블 PK({@code LOG_SNO}) 생성기.
+ * 로그 테이블 PK({@code LOG_HIS_TGR_SNO}) 생성기.
  *
  * <p>로그 엔티티의 {@code @Table(name)} 값에서 Postfix를 추출하고,
  * Oracle 시퀀스 {@code SEQ_{Postfix}.NEXTVAL}을 조회하여 {@code Long} 값을 반환한다.</p>
@@ -19,7 +19,7 @@ import java.sql.Statement;
 public class AuditLogIdGenerator implements IdentifierGenerator {
 
     /**
-     * 로그 엔티티의 PK({@code LOG_SNO})를 Oracle 시퀀스로 채번합니다.
+     * 로그 엔티티의 PK({@code LOG_HIS_TGR_SNO})를 Oracle 시퀀스로 채번합니다.
      *
      * <p>채번 흐름: {@code @Table(name)} 추출 → Postfix 분리 → {@code SEQ_{Postfix}.NEXTVAL} 조회</p>
      * <p>예: {@code TPRMPP_BPROJL} → {@code SEQ_BPROJL.NEXTVAL} → Long 값 반환</p>

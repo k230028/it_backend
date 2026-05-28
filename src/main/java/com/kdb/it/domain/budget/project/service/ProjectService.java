@@ -356,7 +356,7 @@ public class ProjectService {
 
         // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
         // 결재중 또는 결재완료 상태인 경우 수정 불가
-        boolean isProcessingOrApproved = capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+        boolean isProcessingOrApproved = capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                 "BPROJM", prjMngNo, project.getPrjSno(), java.util.List.of(
                         com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
                         com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
@@ -572,7 +572,7 @@ public class ProjectService {
         validateModifyPermission(project.getFstEnrUsid(), project.getSvnDpm());
 
         // 결재 상태 확인 (결재중/결재완료이면 삭제 불가)
-        boolean isProcessingOrApproved = capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+        boolean isProcessingOrApproved = capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                 "BPROJM", prjMngNo, project.getPrjSno(), java.util.List.of(
                         com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
                         com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
@@ -661,22 +661,22 @@ public class ProjectService {
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
         List<String> prjMngNos = projects.stream().map(Bprojm::getPrjMngNo).collect(Collectors.toList());
-        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc("BPROJM", prjMngNos);
+        List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", prjMngNos);
 
         // prjMngNo → 최신 Cappla (이미 DESC 정렬이므로 첫 번째가 최신)
         Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();
         for (Cappla c : allCapplas) {
-            latestCappla.putIfAbsent(c.getOrcPkVl(), c);
+            latestCappla.putIfAbsent(c.getPkColNm(), c);
         }
 
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
-                .map(Cappla::getApfMngNo).collect(Collectors.toList());
+                .map(Cappla::getApfDcmNo).collect(Collectors.toList());
         Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
                 .collect(Collectors.toMap(Capplm::getApfMngNo, m -> m));
 
         // --- 3. CDECIM 배치 조회 ---
-        List<Cdecim> allDecisions = cdecimRepository.findByDcdMngNoInOrderByDcdSqnAsc(apfMngNos);
+        List<Cdecim> allDecisions = cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
         Map<String, List<Cdecim>> decisionMap = allDecisions.stream()
                 .collect(Collectors.groupingBy(Cdecim::getDcdMngNo));
 
@@ -726,12 +726,12 @@ public class ProjectService {
 
             Cappla cappla = latestCappla.get(project.getPrjMngNo());
             if (cappla != null) {
-                response.setApfMngNo(cappla.getApfMngNo());
-                Capplm capplm = capplmMap.get(cappla.getApfMngNo());
+                response.setApfMngNo(cappla.getApfDcmNo());
+                Capplm capplm = capplmMap.get(cappla.getApfDcmNo());
                 if (capplm != null) {
-                    response.setApfSts(capplm.getApfStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label());
-                    List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfMngNo(), List.of());
+                    response.setApfSts(capplm.getApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label());
+                    List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
                     response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
                 }
             }
@@ -779,21 +779,21 @@ public class ProjectService {
     private void setApplicationInfo(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // BPROJM 테이블 코드와 프로젝트 관리번호/순번으로 연결된 신청서 목록 조회 (최신순)
         List<com.kdb.it.common.approval.entity.Cappla> capplas = capplaRepository
-                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc("BPROJM", prjMngNo, prjSno);
+                .findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BPROJM", prjMngNo, prjSno);
 
         if (!capplas.isEmpty()) {
             com.kdb.it.common.approval.entity.Cappla cappla = capplas.get(0); // 가장 최신 신청서
-            response.setApfMngNo(cappla.getApfMngNo()); // 신청관리번호 설정
+            response.setApfMngNo(cappla.getApfDcmNo()); // 신청관리번호 설정
 
             // 신청서 마스터에서 결재상태 및 상세 정보 조회
-            capplmRepository.findById(cappla.getApfMngNo())
+            capplmRepository.findById(cappla.getApfDcmNo())
                     .ifPresent(capplm -> {
-                        response.setApfSts(capplm.getApfStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label()); // 결재상태 설정 (코드→라벨)
+                        response.setApfSts(capplm.getApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label()); // 결재상태 설정 (코드→라벨)
 
                         // 결재자 목록 조회 (결재순서 오름차순)
                         List<com.kdb.it.common.approval.entity.Cdecim> decisions = cdecimRepository
-                                .findByDcdMngNoOrderByDcdSqnAsc(cappla.getApfMngNo());
+                                .findByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
 
                         // ApplicationInfoDto 생성 및 설정
                         response.setApplicationInfo(
@@ -959,7 +959,7 @@ public class ProjectService {
                 .filter(c -> "IOE_CPIT".equals(c.getCTp()))
                 .forEach(c -> {
                     String cdvaDes = c.getCdvaDes() != null ? c.getCdvaDes() : "";
-                    if ("개발비".equals(cdvaDes)) devTypes.add(c.getCdva());
+                    if ("단말기".equals(cdvaDes)) devTypes.add(c.getCdva());
                     else if ("기계장치".equals(cdvaDes)) machTypes.add(c.getCdva());
                     else if ("기타무형자산".equals(cdvaDes)) intanTypes.add(c.getCdva());
                 });

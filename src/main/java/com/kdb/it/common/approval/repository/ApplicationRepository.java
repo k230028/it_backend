@@ -48,11 +48,11 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      * DISTINCT 집계합니다.</p>
      */
     @Query(value = """
-        SELECT COUNT(DISTINCT a.APF_MNG_NO)
+        SELECT COUNT(DISTINCT a.APF_DCM_NO)
         FROM TPRMPP_CAPPLM a
-        JOIN TPRMPP_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
-        WHERE a.APF_STS_C = '001'
-          AND d.DCD_ENO = :eno
+        JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
+        WHERE a.APF_PRG_STS_C = '01'
+          AND d.DCR_ENO = :eno
           AND d.DCD_STS_C = '001'
         """, nativeQuery = true)
     int countPendingByEno(@Param("eno") String eno);
@@ -61,8 +61,8 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
-        WHERE a.APF_STS_C = '001'
-          AND a.RQS_ENO = :eno
+        WHERE a.APF_PRG_STS_C = '01'
+          AND a.DCD_REQ_USID = :eno
         """, nativeQuery = true)
     int countInProgressByEno(@Param("eno") String eno);
 
@@ -70,10 +70,10 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
-        JOIN TPRMPP_CUSERI u ON a.RQS_ENO = u.ENO
-        WHERE a.APF_STS_C = '002'
+        JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
+        WHERE a.APF_PRG_STS_C = '02'
           AND u.BBR_C = :bbrC
-          AND a.RQS_DT >= TRUNC(SYSDATE, 'MM')
+          AND a.DCD_REQ_DTM >= TRUNC(SYSDATE, 'MM')
         """, nativeQuery = true)
     int countMonthlyCompletedByBbrC(@Param("bbrC") String bbrC);
 
@@ -81,8 +81,8 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
-        WHERE a.APF_STS_C = '003'
-          AND a.RQS_ENO = :eno
+        WHERE a.APF_PRG_STS_C = '03'
+          AND a.DCD_REQ_USID = :eno
         """, nativeQuery = true)
     int countRejectedByEno(@Param("eno") String eno);
 
@@ -91,13 +91,13 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      * 반환 컬럼: [0]=MONTH(YYYY-MM), [1]=CNT
      */
     @Query(value = """
-        SELECT TO_CHAR(a.RQS_DT, 'YYYY-MM') AS MONTH,
+        SELECT TO_CHAR(a.DCD_REQ_DTM, 'YYYY-MM') AS MONTH,
                COUNT(*) AS CNT
         FROM TPRMPP_CAPPLM a
-        JOIN TPRMPP_CUSERI u ON a.RQS_ENO = u.ENO
+        JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
         WHERE u.BBR_C = :bbrC
-          AND a.RQS_DT >= ADD_MONTHS(TRUNC(SYSDATE, 'MM'), -5)
-        GROUP BY TO_CHAR(a.RQS_DT, 'YYYY-MM')
+          AND a.DCD_REQ_DTM >= ADD_MONTHS(TRUNC(SYSDATE, 'MM'), -5)
+        GROUP BY TO_CHAR(a.DCD_REQ_DTM, 'YYYY-MM')
         ORDER BY 1
         """, nativeQuery = true)
     List<Object[]> findMonthlyTrendByBbrC(@Param("bbrC") String bbrC);
@@ -107,15 +107,15 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      * 반환 컬럼: [0]=APF_MNG_NO, [1]=APF_NM, [2]=USR_NM, [3]=RQS_DT(YYYY-MM-DD)
      */
     @Query(value = """
-        SELECT a.APF_MNG_NO, a.APF_NM, u.USR_NM,
-               TO_CHAR(a.RQS_DT, 'YYYY-MM-DD') AS RQS_DT_STR
+        SELECT a.APF_DCM_NO, a.DCD_REQ_TTL, u.USR_NM,
+               TO_CHAR(a.DCD_REQ_DTM, 'YYYY-MM-DD') AS RQS_DT_STR
         FROM TPRMPP_CAPPLM a
-        JOIN TPRMPP_CUSERI u ON a.RQS_ENO = u.ENO
-        JOIN TPRMPP_CDECIM d ON a.APF_MNG_NO = d.DCD_MNG_NO
-        WHERE a.APF_STS_C = '001'
-          AND d.DCD_ENO = :eno
+        JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
+        JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
+        WHERE a.APF_PRG_STS_C = '01'
+          AND d.DCR_ENO = :eno
           AND d.DCD_STS_C = '001'
-        ORDER BY a.RQS_DT DESC
+        ORDER BY a.DCD_REQ_DTM DESC
         FETCH FIRST 3 ROWS ONLY
         """, nativeQuery = true)
     List<Object[]> findPendingListByEno(@Param("eno") String eno);

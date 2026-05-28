@@ -25,9 +25,9 @@ import java.io.Serializable;
 @EqualsAndHashCode  // equals(), hashCode() 자동 생성 (JPA 1차 캐시 동등성 비교에 필수)
 public class CdecimId implements Serializable {
 
-    /** 결재관리번호: Cdecim.dcdMngNo와 이름/타입 일치 필수 */
+    /** 신청서식별번호: Cdecim.dcdMngNo와 이름/타입 일치 필수 */
     private String dcdMngNo;
 
-    /** 결재순서: Cdecim.dcdSqn과 이름/타입 일치 필수 */
-    private Integer dcdSqn;
+    /** 결재자순서일련번호: Cdecim.dcrSqnSno와 이름/타입 일치 필수 */
+    private Integer dcrSqnSno;
 }

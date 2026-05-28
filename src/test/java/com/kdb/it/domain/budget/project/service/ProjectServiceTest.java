@@ -1,4 +1,4 @@
-package com.kdb.it.domain.budget.project.service;
+﻿package com.kdb.it.domain.budget.project.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -117,7 +117,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
                 // setApplicationInfo 내부의 findBy... 호출 → Mockito 기본값(빈 리스트) 자동 처리
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), anyString(), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(anyString(), eq(1), anyString()))
                                 .willReturn(List.of());
@@ -140,7 +140,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
@@ -177,7 +177,7 @@ class ProjectServiceTest {
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
                 // 결재중 신청서 존재
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(true);
 
@@ -198,7 +198,7 @@ class ProjectServiceTest {
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
                 // 결재중 신청서 없음
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSno(prjMngNo, 1)).willReturn(List.of());
@@ -239,7 +239,7 @@ class ProjectServiceTest {
                 given(projectRepository.findAllByDelYn("N"))
                                 .willReturn(List.of(project1, project2));
                 // 배치 조회: 신청서·부서·사용자 없음
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                                 anyString(), anyList())).willReturn(List.of());
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
@@ -272,7 +272,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.searchByCondition(condition))
                                 .willReturn(List.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                                 anyString(), anyList())).willReturn(List.of());
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
@@ -327,7 +327,7 @@ class ProjectServiceTest {
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
                 // 결재중/결재완료 신청서 없음 → 수정 허용
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 // 기존 품목 없음
@@ -365,7 +365,7 @@ class ProjectServiceTest {
                                 .willReturn(Optional.empty());
 
                 // 단건 조회 경로 내부 mock
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(existingNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(existingNo, 1, "N"))
                                 .willReturn(List.of());
@@ -395,7 +395,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(true);
 
@@ -473,7 +473,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -521,7 +521,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -609,7 +609,7 @@ class ProjectServiceTest {
                                 .build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -657,7 +657,7 @@ class ProjectServiceTest {
                                 .build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -680,7 +680,7 @@ class ProjectServiceTest {
                                 .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
@@ -725,19 +725,19 @@ class ProjectServiceTest {
                                 .delYn("N")
                                 .build();
                 Cappla cappla = Cappla.builder()
-                                .apfMngNo("APF-001")
-                                .orcPkVl(prjMngNo)
-                                .orcSnoVl(1)
+                                .apfDcmNo("APF-001")
+                                .pkColNm(prjMngNo)
+                                .fntTbCrySno(1)
                                 .build();
                 Capplm capplm = Capplm.builder()
                                 .apfMngNo("APF-001")
-                                .apfNm("결재")
-                                .apfStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
+                                .dcdReqTtl("결재")
+                                .apfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
                                 .build();
                 Cdecim decision = Cdecim.builder()
                                 .dcdMngNo("APF-001")
-                                .dcdSqn(1)
-                                .dcdEno("10002")
+                                .dcrSqnSno(1)
+                                .dcrEno("10002")
                                 .build();
                 Bitemm devItem = Bitemm.builder()
                                 .ioeC("101")
@@ -756,10 +756,10 @@ class ProjectServiceTest {
                                 .build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 "BPROJM", prjMngNo, 1)).willReturn(List.of(cappla));
                 given(capplmRepository.findById("APF-001")).willReturn(Optional.of(capplm));
-                given(cdecimRepository.findByDcdMngNoOrderByDcdSqnAsc("APF-001")).willReturn(List.of(decision));
+                given(cdecimRepository.findByDcdMngNoOrderByDcrSqnSnoAsc("APF-001")).willReturn(List.of(decision));
                 given(corgnIRepository.findById("101")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("101").bbrNm("IT부").build()));
                 given(corgnIRepository.findById("102")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("102").bbrNm("현업부").build()));
                 given(cuserIRepository.findById("10001")).willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
@@ -851,7 +851,7 @@ class ProjectServiceTest {
                                 .build();
                 given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSno("PRJ-2026-0001", 1)).willReturn(List.of(item));
@@ -877,25 +877,25 @@ class ProjectServiceTest {
                                 .delYn("N")
                                 .build();
                 Cappla latest = Cappla.builder()
-                                .apfMngNo("APF-001")
-                                .orcPkVl("PRJ-2026-0001")
-                                .orcSnoVl(1)
+                                .apfDcmNo("APF-001")
+                                .pkColNm("PRJ-2026-0001")
+                                .fntTbCrySno(1)
                                 .build();
                 Cappla old = Cappla.builder()
-                                .apfMngNo("APF-OLD")
-                                .orcPkVl("PRJ-2026-0001")
-                                .orcSnoVl(1)
+                                .apfDcmNo("APF-OLD")
+                                .pkColNm("PRJ-2026-0001")
+                                .fntTbCrySno(1)
                                 .build();
                 Capplm capplm = Capplm.builder()
                                 .apfMngNo("APF-001")
-                                .apfStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
+                                .apfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
                                 .build();
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc("BPROJM", List.of("PRJ-2026-0001")))
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", List.of("PRJ-2026-0001")))
                                 .willReturn(List.of(latest, old));
                 given(capplmRepository.findAllById(List.of("APF-001"))).willReturn(List.of(capplm));
-                given(cdecimRepository.findByDcdMngNoInOrderByDcdSqnAsc(List.of("APF-001")))
-                                .willReturn(List.of(Cdecim.builder().dcdMngNo("APF-001").dcdSqn(1).dcdEno("10002").build()));
+                given(cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(List.of("APF-001")))
+                                .willReturn(List.of(Cdecim.builder().dcdMngNo("APF-001").dcrSqnSno(1).dcrEno("10002").build()));
                 given(corgnIRepository.findAllById(any()))
                                 .willReturn(List.of(
                                                 CorgnI.builder().prlmOgzCCone("101").bbrNm("IT부").build(),
@@ -952,7 +952,7 @@ class ProjectServiceTest {
                                 .build();
                 given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn("PRJ-2026-0001", 1, "N"))
@@ -977,7 +977,7 @@ class ProjectServiceTest {
                                 .build();
                 given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn("PRJ-2026-0001", 1, "N"))
@@ -1002,7 +1002,7 @@ class ProjectServiceTest {
                                 .prjMngNo("PRJ-2026-0002").prjSno(2).delYn("N").prjTp("A").build();
 
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project1, project2));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(anyString(), anyList()))
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
                                 .willReturn(List.of());
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
@@ -1037,7 +1037,7 @@ class ProjectServiceTest {
                                 .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
@@ -1068,17 +1068,17 @@ class ProjectServiceTest {
                 Bprojm project = Bprojm.builder()
                                 .prjMngNo("PRJ-2026-0001").prjSno(1).delYn("N").build();
                 Cappla cappla = Cappla.builder()
-                                .apfMngNo("APF-NOCAPLM")
-                                .orcPkVl("PRJ-2026-0001")
-                                .orcSnoVl(1)
+                                .apfDcmNo("APF-NOCAPLM")
+                                .pkColNm("PRJ-2026-0001")
+                                .fntTbCrySno(1)
                                 .build();
 
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(anyString(), anyList()))
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
                                 .willReturn(List.of(cappla));
                 // capplmRepository.findAllById → 빈 목록 → capplmMap.get() == null → capplm null 분기
                 given(capplmRepository.findAllById(anyList())).willReturn(List.of());
-                given(cdecimRepository.findByDcdMngNoInOrderByDcdSqnAsc(anyList())).willReturn(List.of());
+                given(cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(anyList())).willReturn(List.of());
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
@@ -1105,7 +1105,7 @@ class ProjectServiceTest {
                                 .build();
 
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(anyString(), anyList()))
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
                                 .willReturn(List.of());
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
@@ -1146,7 +1146,7 @@ class ProjectServiceTest {
                                 .build();
 
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(anyString(), anyList()))
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
                                 .willReturn(List.of());
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
@@ -1207,7 +1207,7 @@ class ProjectServiceTest {
                                 .build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -1244,7 +1244,7 @@ class ProjectServiceTest {
                                 .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
@@ -1272,7 +1272,7 @@ class ProjectServiceTest {
                                 .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
@@ -1329,7 +1329,7 @@ class ProjectServiceTest {
                                 .svnDpm("101").delYn("N").build();
                 given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSno("PRJ-2026-0001", 1))
@@ -1373,7 +1373,7 @@ class ProjectServiceTest {
                                 .delYn("N").build();
                 given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSno("PRJ-2026-0001", 1))
@@ -1434,7 +1434,7 @@ class ProjectServiceTest {
                                 .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of()); // 신청서 없음
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
@@ -1456,11 +1456,11 @@ class ProjectServiceTest {
                 Bprojm project = Bprojm.builder()
                                 .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
                 Cappla cappla = Cappla.builder()
-                                .apfMngNo("APF-001").orcPkVl(prjMngNo).orcSnoVl(1).build();
+                                .apfDcmNo("APF-001").pkColNm(prjMngNo).fntTbCrySno(1).build();
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of(cappla));
                 given(capplmRepository.findById("APF-001")).willReturn(Optional.empty()); // CAPPLM 없음
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -1495,7 +1495,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of(devItem, machItem, intanItem));
@@ -1546,7 +1546,7 @@ class ProjectServiceTest {
                                 .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
 
@@ -1582,7 +1582,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -1641,7 +1641,7 @@ class ProjectServiceTest {
                                 .prjMngNo(prjMngNo).prjSno(1).delYn("N").build();
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -1682,7 +1682,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
@@ -1746,7 +1746,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of());
@@ -1777,7 +1777,7 @@ class ProjectServiceTest {
                                 .xcr(BigDecimal.ONE).build();
 
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
-                given(capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc(
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                                 anyString(), anyList())).willReturn(List.of());
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
@@ -1816,7 +1816,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -1856,7 +1856,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -1896,7 +1896,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -1937,7 +1937,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
@@ -2099,7 +2099,7 @@ class ProjectServiceTest {
 
                 given(projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
-                given(capplaRepository.existsByOrcTbCdAndOrcPkVlAndOrcSnoVlAndApfStsIn(
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                                 .willReturn(false);
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))

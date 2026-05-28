@@ -14,6 +14,9 @@ import java.time.LocalDate;
 
 /**
  * 신청서 마스터(TPRMPP_CAPPLM) 변경 로그 엔티티.
+ *
+ * <p>공통 컬럼(LOG_HIS_TGR_SNO, CHG_DTT_YN 등)은 {@link BaseLogEntity}에서 상속합니다.
+ * 이 테이블 전용으로 {@code CHG_TP}(변경유형구분코드) 컬럼이 추가됩니다.</p>
  */
 @Entity
 @Table(name = "TPRMPP_CAPPLL", comment = "신청서 마스터 변경 로그")
@@ -23,25 +26,26 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class CapplmL extends BaseLogEntity {
 
-    @Column(name = "APF_MNG_NO", length = 32, comment = "신청서관리번호")
+    @Column(name = "APF_DCM_NO", length = 64, comment = "신청서식별번호")
     private String apfMngNo;
 
-    @Column(name = "APF_STS", length = 32, comment = "신청서상태")
-    private String apfSts;
+    @Column(name = "APF_PRG_STS_C", length = 3, comment = "신청서진행상태코드")
+    private String apfPrgStsC;
 
-    @Column(name = "APF_NM", length = 800, comment = "신청서명")
-    private String apfNm;
+    @Column(name = "DCD_REQ_TTL", length = 255, comment = "결재요청제목")
+    private String dcdReqTtl;
 
     @Lob
-    @Column(name = "APF_DTL_CONE", comment = "신청서상세내용")
-    private String apfDtlCone;
+    @Column(name = "DCD_REQ_INF", comment = "결재요청정보")
+    private String dcdReqInf;
 
-    @Column(name = "RQS_ENO", length = 32, comment = "요청자사번")
-    private String rqsEno;
+    @Column(name = "DCD_REQ_USID", length = 14, comment = "결재요청사용자ID")
+    private String dcdReqUsid;
 
-    @Column(name = "RQS_DT", comment = "요청일자")
-    private LocalDate rqsDt;
+    @Column(name = "DCD_REQ_DTM", comment = "결재요청일시")
+    private LocalDate dcdReqDtm;
 
-    @Column(name = "RQS_OPNN", length = 1000, comment = "요청의견")
-    private String rqsOpnn;
+    @Column(name = "RGPR_DCD_REQ_CONE", length = 1000, comment = "등록자결재요청내용")
+    private String rgprDcdReqCone;
+
 }

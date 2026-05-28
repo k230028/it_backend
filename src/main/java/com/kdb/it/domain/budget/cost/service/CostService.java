@@ -451,18 +451,18 @@ public class CostService {
      */
     private void setApplicationInfo(CostDto.Response response, String itMngcNo, Integer itMngcSno) {
         List<Cappla> capplas = capplaRepository
-                .findByOrcTbCdAndOrcPkVlAndOrcSnoVlOrderByApfMngNoDesc("BCOSTM", itMngcNo, itMngcSno);
+                .findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BCOSTM", itMngcNo, itMngcSno);
 
         if (!capplas.isEmpty()) {
             Cappla cappla = capplas.get(0);
-            response.setApfMngNo(cappla.getApfMngNo());
+            response.setApfMngNo(cappla.getApfDcmNo());
 
-            capplmRepository.findById(cappla.getApfMngNo())
+            capplmRepository.findById(cappla.getApfDcmNo())
                     .ifPresent(capplm -> {
-                        response.setApfSts(capplm.getApfStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label());
+                        response.setApfSts(capplm.getApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label());
                         List<Cdecim> decisions = cdecimRepository
-                                .findByDcdMngNoOrderByDcdSqnAsc(cappla.getApfMngNo());
+                                .findByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
                         response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
                     });
         }
@@ -513,7 +513,7 @@ public class CostService {
                     case IOE_SW -> response.setSwBg(totalBg);
                     case "IOE_CPIT" -> {
                         String cdvaDes = code.getCdvaDes() != null ? code.getCdvaDes() : "";
-                        if ("개발비".equals(cdvaDes)) response.setDvcBg(totalBg);
+                        if ("단말기".equals(cdvaDes)) response.setDvcBg(totalBg);
                         else if ("기계장치".equals(cdvaDes)) response.setHwBg(totalBg);
                         else if ("기타무형자산".equals(cdvaDes)) response.setSwBg(totalBg);
                     }
@@ -540,23 +540,23 @@ public class CostService {
 
         // --- 1. CAPPLA 배치 조회 ---
         List<String> itMngcNos = costs.stream().map(Bcostm::getItMngcNo).distinct().collect(Collectors.toList());
-        List<Cappla> allCapplas = capplaRepository.findByOrcTbCdAndOrcPkVlInOrderByApfMngNoDesc("BCOSTM", itMngcNos);
+        List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", itMngcNos);
 
         // itMngcNo+sno 복합키 → 최신 Cappla
         Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();
         for (Cappla c : allCapplas) {
-            String key = c.getOrcPkVl() + "_" + c.getOrcSnoVl();
+            String key = c.getPkColNm() + "_" + c.getFntTbCrySno();
             latestCappla.putIfAbsent(key, c);
         }
 
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
-                .map(Cappla::getApfMngNo).collect(Collectors.toList());
+                .map(Cappla::getApfDcmNo).collect(Collectors.toList());
         Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
                 .collect(Collectors.toMap(Capplm::getApfMngNo, m -> m));
 
         // --- 3. CDECIM 배치 조회 ---
-        List<Cdecim> allDecisions = cdecimRepository.findByDcdMngNoInOrderByDcdSqnAsc(apfMngNos);
+        List<Cdecim> allDecisions = cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
         Map<String, List<Cdecim>> decisionMap = allDecisions.stream()
                 .collect(Collectors.groupingBy(Cdecim::getDcdMngNo));
 
@@ -603,12 +603,12 @@ public class CostService {
             String key = cost.getItMngcNo() + "_" + cost.getItMngcSno();
             Cappla cappla = latestCappla.get(key);
             if (cappla != null) {
-                response.setApfMngNo(cappla.getApfMngNo());
-                Capplm capplm = capplmMap.get(cappla.getApfMngNo());
+                response.setApfMngNo(cappla.getApfDcmNo());
+                Capplm capplm = capplmMap.get(cappla.getApfDcmNo());
                 if (capplm != null) {
-                    response.setApfSts(capplm.getApfStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfStsC()).label());
-                    List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfMngNo(), List.of());
+                    response.setApfSts(capplm.getApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label());
+                    List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
                     response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
                 }
             }

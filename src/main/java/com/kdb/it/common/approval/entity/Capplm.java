@@ -7,6 +7,7 @@ import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -30,7 +31,7 @@ import java.time.LocalDate;
  * </p>
  *
  * <p>
- * 신청서 상태({@code APF_STS}) 흐름:
+ * 신청서 상태({@code APF_PRG_STS_C}) 흐름:
  * </p>
  *
  * <pre>
@@ -39,53 +40,54 @@ import java.time.LocalDate;
  * </pre>
  *
  * <p>
- * 관리번호 형식: {@code APF_{연도}{8자리 시퀀스}} (예: {@code APF_202600000001})
+ * 관리번호 형식: {@code APF-{연도}-{8자리 시퀀스}} (예: {@code APF-2026-00000001})
  * </p>
  */
 @LogTarget(entity = CapplmL.class)
-@Entity // JPA 엔티티로 등록
-@Table(name = "TPRMPP_CAPPLM", comment = "신청서 마스터") // 매핑할 DB 테이블명
-@Getter // 모든 필드의 getter 자동 생성 (Lombok)
-@SuperBuilder // 상속 구조에서 Builder 패턴 지원
-@NoArgsConstructor(access = AccessLevel.PROTECTED) // protected 기본 생성자 (JPA 요구사항)
-@AllArgsConstructor // 전체 필드 생성자 자동 생성
+@Entity
+@Table(name = "TPRMPP_CAPPLM", comment = "신청서 마스터")
+@Getter
+@SuperBuilder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class Capplm extends BaseEntity {
 
     /**
-     * 신청서관리번호: 기본키
-     * 형식: {@code APF_{연도}{8자리 시퀀스}} (예: {@code APF_202600000001})
+     * 신청서식별번호: 기본키
+     * 형식: {@code APF-{연도}-{8자리 시퀀스}} (예: {@code APF-2026-00000001})
      */
     @Id
-    @Column(name = "APF_MNG_NO", length = 32, nullable = false, comment = "신청서관리번호")
+    @Column(name = "APF_DCM_NO", length = 64, nullable = false, comment = "신청서식별번호")
     private String apfMngNo;
 
-    /** 신청서상태코드: Ccodem APF_STS 참조 (001:결재중, 002:결재완료, 003:반려, 004:회수) */
-    @Column(name = "APF_STS_C", length = 3, nullable = false, comment = "신청서상태코드")
-    private String apfStsC;
+    /** 신청서진행상태코드: Ccodem APF_STS 참조 (01:결재중, 02:결재완료, 03:반려, 04:회수) */
+    @Column(name = "APF_PRG_STS_C", length = 3, nullable = false, comment = "신청서진행상태코드")
+    private String apfPrgStsC;
 
-    /** 신청서명: 신청서의 제목 (최대 800자) */
-    @Column(name = "APF_NM", length = 800, comment = "신청서명")
-    private String apfNm;
+    /** 결재요청제목: 신청서의 제목 (최대 255자) */
+    @Column(name = "DCD_REQ_TTL", length = 255, comment = "결재요청제목")
+    private String dcdReqTtl;
 
-    /**
-     * 신청서세부내용: 신청서 상세 내용 (LOB 타입, 대용량 텍스트)
-     * 결재선 정보가 JSON 형태로 포함될 수 있음
-     */
-    @jakarta.persistence.Lob
-    @Column(name = "APF_DTL_CONE", comment = "신청서세부내용")
-    private String apfDtlCone;
+    /** 결재요청정보: 신청서 상세 내용 (LOB 타입, 대용량 텍스트) */
+    @Lob
+    @Column(name = "DCD_REQ_INF", comment = "결재요청정보")
+    private String dcdReqInf;
 
-    /** 신청 사원번호: 신청서를 작성한 직원의 사번 */
-    @Column(name = "RQS_ENO", length = 32, comment = "신청 사원번호")
-    private String rqsEno;
+    /** 결재요청사용자ID: 신청서를 작성한 직원의 사번 (최대 14자) */
+    @Column(name = "DCD_REQ_USID", length = 14, comment = "결재요청사용자ID")
+    private String dcdReqUsid;
 
-    /** 신청일자: 신청서를 제출한 날짜 */
-    @Column(name = "RQS_DT", comment = "신청일자")
-    private LocalDate rqsDt;
+    /** 결재요청일시: 신청서를 제출한 날짜 */
+    @Column(name = "DCD_REQ_DTM", comment = "결재요청일시")
+    private LocalDate dcdReqDtm;
 
-    /** 신청의견: 신청자가 작성한 의견 또는 요청 사항 (최대 1000자) */
-    @Column(name = "RQS_OPNN", length = 1000, comment = "신청의견")
-    private String rqsOpnn;
+    /** 등록자결재요청내용: 신청자가 작성한 의견 또는 요청 사항 (최대 1000자) */
+    @Column(name = "RGPR_DCD_REQ_CONE", length = 1000, comment = "등록자결재요청내용")
+    private String rgprDcdReqCone;
+
+    /** 결재요청부점코드: 신청서 요청 부점 코드 (최대 3자) */
+    @Column(name = "DCD_REQ_BBR_C", length = 3, comment = "결재요청부점코드")
+    private String dcdReqBbrC;
 
     /**
      * 신청서 상태 변경 메서드
@@ -95,24 +97,22 @@ public class Capplm extends BaseEntity {
      * (예: "결재중" → "결재완료" 또는 "반려")
      * </p>
      *
-     * @param status 변경할 상태 값 ("결재완료" | "반려")
+     * @param status 변경할 상태
      */
     public void updateStatus(ApprovalStatus status) {
-        this.apfStsC = status.code();
+        this.apfPrgStsC = status.code();
     }
 
     /**
      * 신청서 세부내용 업데이트 메서드
      *
      * <p>
-     * 결재 처리 후 신청서 세부내용(JSON) 내의 결재 정보를 갱신합니다.
-     * 결재일자 등의 정보가 JSON 내 approvalLine 항목에 반영됩니다.
+     * 결재 처리 후 신청서 결재요청정보(JSON) 내의 결재 정보를 갱신합니다.
      * </p>
      *
-     * @param detailContent 업데이트할 신청서 세부내용 JSON 문자열
+     * @param detailContent 업데이트할 결재요청정보 JSON 문자열
      */
     public void updateDetailContent(String detailContent) {
-        this.apfDtlCone = detailContent;
+        this.dcdReqInf = detailContent;
     }
 }
-
