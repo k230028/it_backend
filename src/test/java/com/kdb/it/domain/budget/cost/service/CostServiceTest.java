@@ -1,4 +1,4 @@
-﻿package com.kdb.it.domain.budget.cost.service;
+package com.kdb.it.domain.budget.cost.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -884,9 +884,9 @@ class CostServiceTest {
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("getCost: IOE_CPIT 구코드에서 cdvaDes=개발비이면 dvcBg에 금액이 설정된다")
+    @DisplayName("getCost: IOE_CPIT 구코드에서 cdvaDes=단말기이면 dvcBg에 금액이 설정된다")
     void getCost_IOECPIT개발비_dvcBg설정() {
-        // Arrange: cTp=IOE_CPIT, cdvaDes=개발비 → 구버전 개발비 분기
+        // Arrange: cTp=IOE_CPIT, cdvaDes=단말기 → 구버전 개발비 분기
         Bcostm cost = Bcostm.builder()
                 .itMngcNo("COST-CPIT-DVC")
                 .itMngcSno(1)
@@ -896,7 +896,7 @@ class CostServiceTest {
                 .build();
         given(costRepository.findByItMngcNoAndDelYn("COST-CPIT-DVC", "N")).willReturn(List.of(cost));
         given(ccodemRepository.findByCIdWithValidDate("IOE", null))
-                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_DVC").cTp("IOE_CPIT").cdvaDes("개발비").build()));
+                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_DVC").cTp("IOE_CPIT").cdvaDes("단말기").build()));
         given(btermmRepository.findByItMngcNoAndItMngcSnoAndDelYn("COST-CPIT-DVC", 1, "N")).willReturn(List.of());
         given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(any(), any(), any()))
                 .willReturn(List.of());

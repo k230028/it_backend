@@ -1,4 +1,4 @@
-﻿package com.kdb.it.common.notification.event;
+package com.kdb.it.common.notification.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;

@@ -367,6 +367,80 @@ class ResultServiceTest {
     }
 
     @Test
+    @DisplayName("syncReviewStatus: RESULT_REVIEW가 아니면 전이하지 않고 false를 반환한다")
+    void syncReviewStatus_RESULT_REVIEW아님_false반환() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAsctStsC()).willReturn("009");
+        given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
+
+        boolean result = resultService.syncReviewStatus("ASCT-2026-0001");
+
+        assertThat(result).isFalse();
+        verify(councilService, never()).changeStatus(any(), any());
+    }
+
+    @Test
+    @DisplayName("syncReviewStatus: 평가위원이 없으면 전이하지 않고 false를 반환한다")
+    void syncReviewStatus_평가위원없음_false반환() {
+        Basctm council = mock(Basctm.class);
+        Bcmmtm secretary = mock(Bcmmtm.class);
+        given(council.getAsctStsC()).willReturn("010");
+        given(secretary.getVlrTc()).willReturn("003");
+        given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
+        given(committeeRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
+                .willReturn(List.of(secretary));
+
+        boolean result = resultService.syncReviewStatus("ASCT-2026-0001");
+
+        assertThat(result).isFalse();
+        verify(councilService, never()).changeStatus(any(), any());
+    }
+
+    @Test
+    @DisplayName("syncReviewStatus: 일부 평가위원이 미확인 상태이면 false를 반환한다")
+    void syncReviewStatus_일부미확인_false반환() {
+        Basctm council = mock(Basctm.class);
+        Bcmmtm confirmed = mock(Bcmmtm.class);
+        Bcmmtm waiting = mock(Bcmmtm.class);
+        given(council.getAsctStsC()).willReturn("010");
+        given(confirmed.getVlrTc()).willReturn("001");
+        given(confirmed.getCnfmYn()).willReturn("Y");
+        given(waiting.getVlrTc()).willReturn("002");
+        given(waiting.getCnfmYn()).willReturn("N");
+        given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
+        given(committeeRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
+                .willReturn(List.of(confirmed, waiting));
+
+        boolean result = resultService.syncReviewStatus("ASCT-2026-0001");
+
+        assertThat(result).isFalse();
+        verify(councilService, never()).changeStatus(any(), any());
+    }
+
+    @Test
+    @DisplayName("syncReviewStatus: 전체 평가위원 확인 완료이면 FINAL_APPROVAL로 전이하고 true를 반환한다")
+    void syncReviewStatus_전원확인_true반환() {
+        Basctm council = mock(Basctm.class);
+        Bcmmtm mandMember = mock(Bcmmtm.class);
+        Bcmmtm callMember = mock(Bcmmtm.class);
+        Bcmmtm secretary = mock(Bcmmtm.class);
+        given(council.getAsctStsC()).willReturn("010");
+        given(mandMember.getVlrTc()).willReturn("001");
+        given(mandMember.getCnfmYn()).willReturn("Y");
+        given(callMember.getVlrTc()).willReturn("002");
+        given(callMember.getCnfmYn()).willReturn("Y");
+        given(secretary.getVlrTc()).willReturn("003");
+        given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
+        given(committeeRepository.findByAsctIdAndDelYn("ASCT-2026-0001", "N"))
+                .willReturn(List.of(mandMember, callMember, secretary));
+
+        boolean result = resultService.syncReviewStatus("ASCT-2026-0001");
+
+        assertThat(result).isTrue();
+        verify(councilService).changeStatus("ASCT-2026-0001", "011");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     @DisplayName("getMyReviewStatus: 본인 확인 여부를 반환하고 없으면 false를 반환한다")
     void getMyReviewStatus_확인여부반환() {

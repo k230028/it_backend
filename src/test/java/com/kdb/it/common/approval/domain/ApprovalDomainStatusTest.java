@@ -30,9 +30,9 @@ class ApprovalDomainStatusTest {
     @Test
     @DisplayName("ApprovalStatus: 변환과 라벨 존재 여부를 판단한다")
     void approvalStatus_변환및라벨검증() {
-        assertThat(ApprovalStatus.ofCode("001")).isEqualTo(ApprovalStatus.IN_PROGRESS);
+        assertThat(ApprovalStatus.ofCode("01")).isEqualTo(ApprovalStatus.IN_PROGRESS);
         assertThat(ApprovalStatus.ofLabel("반려")).isEqualTo(ApprovalStatus.REJECTED);
-        assertThat(ApprovalStatus.RECALLED.code()).isEqualTo("004");
+        assertThat(ApprovalStatus.RECALLED.code()).isEqualTo("04");
         assertThat(ApprovalStatus.RECALLED.label()).isEqualTo("회수");
         assertThat(ApprovalStatus.hasLabel("결재완료")).isTrue();
         assertThat(ApprovalStatus.hasLabel("미지정")).isFalse();

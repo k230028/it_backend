@@ -1,4 +1,4 @@
-﻿package com.kdb.it.domain.budget.project.service;
+package com.kdb.it.domain.budget.project.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -1480,7 +1480,7 @@ class ProjectServiceTest {
         // ───────────────────────────────────────────────────────
 
         @Test
-        @DisplayName("getProject: IOE_CPIT 코드의 cdvaDes에 따라 개발비/기계장치/기타무형자산으로 분류된다")
+        @DisplayName("getProject: IOE_CPIT 코드의 cdvaDes에 따라 단말기/기계장치/기타무형자산으로 분류된다")
         void getProject_ioeCpit_cdvaDes분류() {
                 // given
                 String prjMngNo = "PRJ-2026-0001";
@@ -1500,7 +1500,7 @@ class ProjectServiceTest {
                 given(bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of(devItem, machItem, intanItem));
                 given(codeService.findCodeEntitiesByCId("IOE")).willReturn(List.of(
-                                Ccodem.builder().cId("IOE").cdva("DEV-001").cTp("IOE_CPIT").cdvaDes("개발비").build(),
+                                Ccodem.builder().cId("IOE").cdva("DEV-001").cTp("IOE_CPIT").cdvaDes("단말기").build(),
                                 Ccodem.builder().cId("IOE").cdva("MACH-001").cTp("IOE_CPIT").cdvaDes("기계장치").build(),
                                 Ccodem.builder().cId("IOE").cdva("INTAN-001").cTp("IOE_CPIT").cdvaDes("기타무형자산").build()
                 ));

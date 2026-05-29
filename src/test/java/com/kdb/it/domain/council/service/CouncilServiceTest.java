@@ -36,6 +36,7 @@ import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bevalm;
+import com.kdb.it.domain.council.entity.Bpovwm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
@@ -249,6 +250,43 @@ class CouncilServiceTest {
     }
 
     @Test
+    @DisplayName("getCouncilList: 행 변환 시 문자열 날짜와 null 값을 방어적으로 처리한다")
+    void getCouncilList_관리자_문자열날짜와null변환() {
+        CustomUserDetails admin = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
+        Object[] row = new Object[]{
+                "PRJ-2026-0001",
+                null,
+                "정보화사업",
+                ASCT_ID,
+                "001",
+                "003",
+                "2026-05-09",
+                "10:00",
+                null,
+                "2026",
+                "신규",
+                "101",
+                null,
+                "20260101",
+                "invalid",
+                "IT",
+                "설명"
+        };
+        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(java.util.Collections.singletonList(row));
+
+        List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).prjSno()).isNull();
+        assertThat(result.get(0).cnrcDt()).isEqualTo(LocalDate.of(2026, 5, 9));
+        assertThat(result.get(0).applied()).isFalse();
+        assertThat(result.get(0).prjBg()).isNull();
+        assertThat(result.get(0).sttDt()).isEqualTo(LocalDate.of(2026, 1, 1));
+        assertThat(result.get(0).endDt()).isNull();
+    }
+
+    @Test
     @DisplayName("getCouncilList: 평가위원이면 배정된 협의회 목록을 반환한다")
     void getCouncilList_평가위원_배정협의회반환() {
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "IT001");
@@ -260,6 +298,54 @@ class CouncilServiceTest {
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(user);
 
         assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("getCouncilList: 평가위원 조회는 사업개요명을 우선하고 사업 상세 필드를 함께 채운다")
+    void getCouncilList_평가위원_사업개요명우선반환() {
+        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "IT001");
+        Basctm council = mock(Basctm.class);
+        given(council.getAsctId()).willReturn(ASCT_ID);
+        given(council.getPrjMngNo()).willReturn("PRJ-2026-0001");
+        given(council.getPrjSno()).willReturn(1);
+        given(council.getAsctStsC()).willReturn("006");
+        given(council.getDbrTc()).willReturn("003");
+        given(council.getCnrcDt()).willReturn(LocalDate.of(2026, 5, 9));
+        given(council.getCnrcTm()).willReturn("10:00");
+        Bpovwm overview = Bpovwm.builder()
+                .asctId(ASCT_ID)
+                .prjNm("사업개요명")
+                .build();
+        Bprojm project = Bprojm.builder()
+                .prjMngNo("PRJ-2026-0001")
+                .prjSno(1)
+                .prjNm("사업마스터명")
+                .bgYy("2026")
+                .prjTp("신규")
+                .svnDpm("101")
+                .prjBg(BigDecimal.valueOf(1000))
+                .sttDt(LocalDate.of(2026, 1, 1))
+                .endDt(LocalDate.of(2026, 12, 31))
+                .itDpm("IT")
+                .prjDes("사업설명")
+                .build();
+        given(councilRepository.findByCommitteeMember("10001", "N")).willReturn(List.of(council));
+        given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
+        given(projectRepository.findById(any())).willReturn(Optional.of(project));
+
+        List<CouncilDto.ListResponse> result = councilService.getCouncilList(user);
+
+        assertThat(result).singleElement()
+                .satisfies(item -> {
+                    assertThat(item.prjNm()).isEqualTo("사업개요명");
+                    assertThat(item.prjYy()).isEqualTo("2026");
+                    assertThat(item.prjTp()).isEqualTo("신규");
+                    assertThat(item.prjBg()).isEqualByComparingTo("1000");
+                    assertThat(item.sttDt()).isEqualTo(LocalDate.of(2026, 1, 1));
+                    assertThat(item.endDt()).isEqualTo(LocalDate.of(2026, 12, 31));
+                    assertThat(item.itDpm()).isEqualTo("IT");
+                    assertThat(item.prjDes()).isEqualTo("사업설명");
+                });
     }
 
     @Test

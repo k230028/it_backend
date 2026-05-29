@@ -1,4 +1,4 @@
-﻿package com.kdb.it.common.approval.service;
+package com.kdb.it.common.approval.service;
 
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.entity.Capplm;
@@ -82,7 +82,7 @@ class ApplicationServiceRecallTest {
     @Test
     @DisplayName("신청자 본인이 결재중 신청서를 회수하면 RECALLED로 전환되고 이벤트 발행")
     void recall_byRequester_setsStatusToRecalled() {
-        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("001")));
+        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("01")));
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
             .thenReturn(List.of(approver(1, "E001", "002", "N"), approver(2, "E002", "001", "Y")));
 
@@ -95,7 +95,7 @@ class ApplicationServiceRecallTest {
     @Test
     @DisplayName("최종결재자가 이미 승인했으면 IllegalStateException")
     void recall_whenLastApproverApproved_throws() {
-        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("001")));
+        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("01")));
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
             .thenReturn(List.of(approver(1, "E002", "002", "Y")));
 
@@ -107,7 +107,7 @@ class ApplicationServiceRecallTest {
     @Test
     @DisplayName("종결 상태(반려) 신청서 회수 시 IllegalStateException")
     void recall_terminatedApplication_throws() {
-        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("003")));
+        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("03")));
 
         assertThatThrownBy(() -> service.recall(APF, req(), "E001", false))
             .isInstanceOf(IllegalStateException.class);
@@ -116,7 +116,7 @@ class ApplicationServiceRecallTest {
     @Test
     @DisplayName("무관계 사용자 회수 시 AccessDeniedException")
     void recall_byUnrelatedUser_throwsAccessDenied() {
-        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("001")));
+        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("01")));
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
             .thenReturn(List.of(approver(1, "E002", "001", "Y")));
 
@@ -127,7 +127,7 @@ class ApplicationServiceRecallTest {
     @Test
     @DisplayName("관리자는 무관계자라도 회수 가능")
     void recall_byAdmin_succeeds() {
-        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("001")));
+        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("01")));
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
             .thenReturn(List.of(approver(1, "E002", "001", "Y")));
 
@@ -138,7 +138,7 @@ class ApplicationServiceRecallTest {
     @Test
     @DisplayName("중간결재자 회수 — 기승인 이력 보존, 미결재만 회수무효")
     void recall_byMiddleApprover_preservesApprovedHistory() {
-        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("001")));
+        when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("01")));
         Cdecim a1 = approver(1, "E001", "002", "N");
         Cdecim a2 = approver(2, "E002", "001", "N");
         Cdecim a3 = approver(3, "E003", "001", "Y");

@@ -1,4 +1,4 @@
-﻿package com.kdb.it.common.approval.service;
+package com.kdb.it.common.approval.service;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

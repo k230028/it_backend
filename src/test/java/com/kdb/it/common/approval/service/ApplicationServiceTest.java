@@ -1,4 +1,4 @@
-﻿package com.kdb.it.common.approval.service;
+package com.kdb.it.common.approval.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -566,7 +566,7 @@ class ApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("submit: APF_STS_C='001'로 저장된다")
+    @DisplayName("submit: APF_STS_C='01'로 저장된다")
     void submit_setsApfStsCToInProgressCode() {
         given(applicationRepository.getNextVal()).willReturn(1L);
 
@@ -579,7 +579,7 @@ class ApplicationServiceTest {
 
         ArgumentCaptor<Capplm> captor = ArgumentCaptor.forClass(Capplm.class);
         verify(applicationRepository).save(captor.capture());
-        assertThat(captor.getValue().getApfPrgStsC()).isEqualTo("001");
+        assertThat(captor.getValue().getApfPrgStsC()).isEqualTo("01");
     }
 
     @Test
