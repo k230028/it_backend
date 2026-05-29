@@ -98,12 +98,12 @@ public class AuthController {
      * <li>AuthService에서 사용자 인증 수행</li>
      * <li>Access Token → httpOnly 쿠키 (Set-Cookie 헤더)</li>
      * <li>Refresh Token → httpOnly 쿠키 (Set-Cookie 헤더)</li>
-     * <li>응답 body에는 사번, 이름만 포함 (토큰 미포함)</li>
+     * <li>응답 body에는 eno, empNm, athIds, bbrC, temC 포함 (accessToken/refreshToken은 @JsonIgnore로 제외)</li>
      * </ol>
      *
      * @param request     로그인 요청 (사번, 비밀번호)
      * @param httpRequest HTTP 요청 객체 (IP, User-Agent 추출용)
-     * @return HTTP 200 + Set-Cookie(accessToken, refreshToken) + body(eno, empNm)
+     * @return HTTP 200 + Set-Cookie(accessToken, refreshToken) + body(eno, empNm, athIds, bbrC, temC)
      */
     @PostMapping("/login")
     @Operation(summary = "로그인", description = "로그인하여 JWT 토큰을 httpOnly 쿠키로 발급받습니다.")
@@ -126,7 +126,7 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
-                .body(response); // body에는 eno, empNm만 포함 (@JsonIgnore로 토큰 제외)
+                .body(response); // body에는 eno, empNm, athIds, bbrC, temC 포함 (accessToken/refreshToken만 @JsonIgnore로 제외)
     }
 
     /**

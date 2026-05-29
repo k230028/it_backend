@@ -48,7 +48,7 @@ src/main/java/com/kdb/it/
 │   ├── system/    - 인증·보안 (JwtUtil, JwtAuthenticationFilter)
 │   └── util/      - 공통 유틸 (CookieUtil, HtmlSanitizer 등)
 ├── domain/        - 비즈니스 도메인
-│   ├── budget/    - 예산 관리 (project, cost, document, plan, status, work)
+│   ├── budget/    - 예산 관리 (it, project, cost, document, plan, status, work)
 │   ├── council/   - 정보화실무협의회
 │   ├── log/       - 변경 로그 (BaseLogEntity, *L 엔티티)
 │   ├── cdp/       - 경력개발
@@ -212,6 +212,11 @@ src/main/resources/
 public class PlanController { ... }
 ```
 
+#### IT부문 예산 API (ItBudgetController, domain/budget/it)
+- URL: `/api/budget/it`
+- 메서드: `GET /summary` (비목별 편성요청액·편성액), `GET /comparison` (전년도 대비 비교)
+- **권한**: `@PreAuthorize("hasRole('ADMIN')")` — 클래스 레벨 적용, ADMIN 전용.
+
 **현재 적용 대상** (코드 분석 2026-05-26):
 - `AdminController` (`common/admin`) — 시스템 관리
 - `GeminiController` (`infra/ai`) — Gemini AI
@@ -219,6 +224,7 @@ public class PlanController { ... }
 - `BudgetStatusController` (`domain/budget/status`) — 예산 현황
 - `BudgetWorkController` (`domain/budget/work`) — 예산 작업
 - `PlanController` (`domain/budget/plan`) — 정보기술부문 계획
+- `ItBudgetController` (`domain/budget/it`) — IT부문 예산 조회/비교
 
 **SecurityConfig URL 패턴 보호 대상** (코드 분석 2026-05-26):
 - `/api/admin/**` → `hasRole("ADMIN")`

@@ -7,7 +7,7 @@
 - **구현 기간**: 2026년 초
 - **핵심 기능**:
   - 정보화 사업 CRUD 및 결재 프로세스
-  - 예산(전산업무비) 관리
+  - 예산(전산업무비, IT부문 예산) 관리
   - 정보화실무협의회 협의 및 평가
   - 요구사항 정의서 검토의견 관리
   - 공통 게시판(게시판 메타/게시물/댓글/답변글)
@@ -17,7 +17,7 @@
   - 실시간 알림 (인앱, Phase 2 예정: 이메일/SMS/알림톡)
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
-- **소스 코드**: 257개 자바 파일, 86개 테스트 파일, 61개 엔티티
+- **소스 코드**: 266개 자바 파일, 84개 테스트 파일, 59개 엔티티
 
 ## 2. 기술 스택
 
@@ -203,8 +203,10 @@ common → domain (X)   common → infra  (X)
 | 가이드문서 | `GuideDocController` | `GuideDocService` | `GuideDocRepository` | `Bgdocm` |
 | 요구사항정의서 | `ServiceRequestDocController` | `ServiceRequestDocService` | `ServiceRequestDocRepository` | `Brdocm` |
 | 검토의견 | `ReviewCommentController` | `ReviewCommentService` | `BrivgmRepository` | `Brivgm` |
+| 사전협의 검토자 | `ReviewerController` | `ReviewerService` | - | - |
 | 정보기술부문계획 | `PlanController` | `PlanService` | `BplanmRepository`, `BprojaRepository` | `Bplanm`, `Bproja` |
 | 예산현황 | `BudgetStatusController` | `BudgetStatusService` | `BudgetStatusQueryRepository` | - |
+| IT부문 예산 | `ItBudgetController` | `ItBudgetService` | `ItBudgetQueryRepository` + Custom | - |
 | 예산작업 | `BudgetWorkController` | `BudgetWorkService` | `BbugtmRepository` + Custom | `Bbugtm` |
 | 정보화실무협의회 | `CouncilController` | `CouncilService` 외 7개 | `CouncilRepository` 외 8개 | `Basctm` 외 13개 |
 | 신청서(결재) | `ApplicationController` | `ApplicationService` | `ApplicationRepository`, `ApplicationMapRepository`, `ApproverRepository` | `Capplm`, `Cappla`, `Cdecim` |
@@ -649,7 +651,9 @@ public class Bprojm extends BaseEntity { ... }
 | **게시판 관리** | GET/POST/PUT/DELETE | `/api/admin/boards/meta/**` | 게시판 메타 생성/수정/삭제 | **관리자** |
 | **계획 관리** | GET/POST | `/api/plans/**` | 정보기술부문 계획 CRUD | **관리자** |
 | **예산현황** | GET | `/api/budget/status/**` | 집계 대시보드 (전체 예산 조회) | **관리자** |
+| **IT부문 예산** | GET | `/api/budget/it/**` | 비목별 IT/정보보호 예산 요약, 전년 대비 비교 | **관리자** |
 | **예산작업** | GET/POST | `/api/budget/work/**` | 편성률 조회, Upsert, 결과 조회 | **관리자** |
+| **사전협의 검토자** | GET | `/api/reviews/{docMngNo}/reviewers` | 사전협의 문서별 검토자 목록 조회 | 일반 |
 
 > **Swagger UI**: http://localhost:8080/swagger-ui/index.html
 
@@ -667,7 +671,7 @@ public class Bprojm extends BaseEntity { ... }
 #   → http://localhost:8080
 #   → Swagger: http://localhost:8080/swagger-ui/index.html
 
-# 4. 테스트 실행 (86개 테스트 파일 / 기존 결과 기준 787개 케이스)
+# 4. 테스트 실행 (84개 테스트 파일)
 ./gradlew test
 
 # 5. 테스트 커버리지 리포트 생성
@@ -918,6 +922,7 @@ public class Bnewent extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-05-29** | README.md 현행화: 소스 코드 통계 정정(266 Java 파일, 84 테스트, 59 엔티티), IT부문 예산(`ItBudgetController`/`ItBudgetService`) 도메인 추가, 사전협의 검토자(`ReviewerController`) API 추가 |
 | **2026-05-26** | README.md 전체 분석 및 업데이트: 소스 코드 통계(257 Java 파일, 84 테스트, 61 엔티티) 추가, 개발자 가이드 섹션(신규 기능 패턴, 테스트 의무, 보안 체크리스트) 신규 작성, 28개 컨트롤러 API 현행화 |
 | **2026-05-22** | 알림 시스템(Notification) 및 Tiptap 변수 시스템 문서화: `common/notification` 모듈(Cinfmm, NotificationService, NotificationDispatcher, @TransactionalEventListener 패턴), `common/system/tiptap` 모듈(TiptapVariableService, TiptapVariableController, 토큰 형식, 금액 포맷팅) 상세 기술 |
 | **2026-05-19** | REVIEW 재점검 결과 반영: 로그인 이력 JavaDoc 위치, `Bcostm` 깨진 한글 주석, Gemini 트랜잭션 경계 설명, 게시판 QueryDSL 구현체 조회 의도 주석 보강 |

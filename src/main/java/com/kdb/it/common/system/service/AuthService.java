@@ -49,7 +49,7 @@ public class AuthService {
     /** Refresh Token 데이터 접근 리포지토리 (TPRMPP_CRTOKM) */
     private final RefreshTokenRepository refreshTokenRepository;
 
-    /** 로그인 이력 데이터 접근 리포지토리 (LOGIN_HISTORY) */
+    /** 로그인 이력 데이터 접근 리포지토리 (TPRMPP_CLOGNH) */
     private final LoginHistoryRepository loginHistoryRepository;
 
     /** 비밀번호 암호화 및 검증 (SHA-256 + Base64) */

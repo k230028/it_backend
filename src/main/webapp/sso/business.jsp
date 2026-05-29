@@ -21,7 +21,7 @@
     if (session.getAttribute("resultCode") == null && session.getAttribute("resultData") == null) {
         String testEno = request.getParameter("eno");
         if (testEno == null || testEno.isBlank()) {
-            testEno = "K140025";
+            testEno = "K140024";
         }
         session.setAttribute("resultCode", "000000");
         session.setAttribute("resultData", testEno);

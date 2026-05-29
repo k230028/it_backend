@@ -116,8 +116,10 @@ public class QnaService {
             throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
         }
 
-        /* 본인 또는 관리자(ITPAD001)만 수정 가능 */
+        /* 본인 또는 관리자만 수정 가능 */
         boolean isOwner = qna.getQtnEno().equals(userDetails.getEno());
+        // FIXME: 권한 문자열 불일치 — ITPAD001은 CustomUserDetails에서 ROLE_ADMIN으로 매핑되므로
+        //        "ROLE_ITPAD001" 비교는 항상 false가 되어 관리자 수정이 동작하지 않음. "ROLE_ADMIN" 또는 userDetails.isAdmin()으로 교정 필요 (TASK.md 등록).
         boolean isAdmin = userDetails.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ITPAD001"));
         if (!isOwner && !isAdmin) {
