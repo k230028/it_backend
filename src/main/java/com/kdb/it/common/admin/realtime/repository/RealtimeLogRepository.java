@@ -72,17 +72,26 @@ public class RealtimeLogRepository {
         List<RealtimeLogDto.FeedRow> out = new ArrayList<>(rows.size());
         for (Object[] r : rows) {
             out.add(new RealtimeLogDto.FeedRow(
-                    (String) r[0],
-                    (String) r[1],
+                    toStr(r[0]),
+                    toStr(r[1]),
                     ((Number) r[2]).longValue(),
-                    (String) r[3],
+                    toStr(r[3]),                    // CHG_DTT_YN — VARCHAR2(1), Oracle JDBC가 Character 반환 가능
                     ((Timestamp) r[4]).toLocalDateTime(),
-                    (String) r[5],
-                    (String) r[6],
-                    (String) r[7]
+                    toStr(r[5]),
+                    toStr(r[6]),
+                    toStr(r[7])                     // DEL_YN — VARCHAR2(1), Oracle JDBC가 Character 반환 가능
             ));
         }
         return out;
+    }
+
+    /**
+     * Oracle JDBC가 VARCHAR2(1) 컬럼을 {@code Character}로 반환하는 경우가 있어
+     * 직접 {@code (String)} 캐스트 시 ClassCastException이 발생한다.
+     * 모든 텍스트 컬럼을 안전하게 String으로 변환한다.
+     */
+    private static String toStr(Object v) {
+        return v == null ? null : v.toString();
     }
 
     /**
