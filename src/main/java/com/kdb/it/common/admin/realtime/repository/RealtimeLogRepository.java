@@ -76,7 +76,7 @@ public class RealtimeLogRepository {
                     toStr(r[1]),
                     ((Number) r[2]).longValue(),
                     toStr(r[3]),                    // CHG_DTT_YN — VARCHAR2(1), Oracle JDBC가 Character 반환 가능
-                    ((Timestamp) r[4]).toLocalDateTime(),
+                    toLdt(r[4]),                    // CHG_DTM — TIMESTAMP, Hibernate 6/Spring Boot 4가 LocalDateTime로 매핑하기도 함
                     toStr(r[5]),
                     toStr(r[6]),
                     toStr(r[7])                     // DEL_YN — VARCHAR2(1), Oracle JDBC가 Character 반환 가능
@@ -95,6 +95,17 @@ public class RealtimeLogRepository {
     }
 
     /**
+     * Oracle TIMESTAMP 컬럼은 환경에 따라 {@link Timestamp} 또는 {@link LocalDateTime}로
+     * 반환된다. 어느 쪽이든 안전하게 LocalDateTime으로 변환한다.
+     */
+    private static LocalDateTime toLdt(Object v) {
+        if (v == null) return null;
+        if (v instanceof LocalDateTime ldt) return ldt;
+        if (v instanceof Timestamp ts) return ts.toLocalDateTime();
+        throw new IllegalStateException("지원하지 않는 시각 타입: " + v.getClass());
+    }
+
+    /**
      * 최근 5분간 LOG_KEY별 발생량.
      */
     public Map<String, Long> countByTableSince(LocalDateTime since) {
@@ -109,7 +120,7 @@ public class RealtimeLogRepository {
                 .getResultList();
         Map<String, Long> out = new LinkedHashMap<>();
         for (Object[] r : rows) {
-            out.put((String) r[0], ((Number) r[1]).longValue());
+            out.put(toStr(r[0]), ((Number) r[1]).longValue());
         }
         return out;
     }
@@ -130,7 +141,7 @@ public class RealtimeLogRepository {
 
         Map<LocalDateTime, Long> byBucket = new HashMap<>();
         for (Object[] r : rows) {
-            byBucket.put(((Timestamp) r[0]).toLocalDateTime(), ((Number) r[1]).longValue());
+            byBucket.put(toLdt(r[0]), ((Number) r[1]).longValue());
         }
 
         List<Long> out = new ArrayList<>(30);
