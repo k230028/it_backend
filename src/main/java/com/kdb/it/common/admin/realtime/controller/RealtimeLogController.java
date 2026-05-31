@@ -44,13 +44,13 @@ public class RealtimeLogController {
     @Operation(summary = "통합 실시간 로그 조회",
             description = "since/복합 커서 기반 증분 조회와 최근 5분/30분 집계를 함께 반환합니다.")
     public RealtimeLogDto.Snapshot get(
-            @RequestParam(required = false)
+            @RequestParam(name = "since", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime since,
-            @RequestParam(required = false) String cursorLogTbl,
-            @RequestParam(required = false) Long cursorLogSno,
-            @RequestParam(defaultValue = "200") int limit,
-            @RequestParam(required = false) String tables,
-            @RequestParam(required = false) String chgTypes
+            @RequestParam(name = "cursorLogTbl", required = false) String cursorLogTbl,
+            @RequestParam(name = "cursorLogSno", required = false) Long cursorLogSno,
+            @RequestParam(name = "limit", defaultValue = "200") int limit,
+            @RequestParam(name = "tables", required = false) String tables,
+            @RequestParam(name = "chgTypes", required = false) String chgTypes
     ) {
         return service.snapshot(since, cursorLogTbl, cursorLogSno, limit,
                 split(tables), split(chgTypes));
