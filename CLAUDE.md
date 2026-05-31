@@ -40,7 +40,7 @@ Controller Layer  →  Service Layer  →  Repository Layer  →  Oracle DB
 src/main/java/com/kdb/it/
 ├── config/        - Spring Security, JPA Auditing, QueryDSL, Swagger, Web 설정
 ├── common/        - 공통 도메인
-│   ├── admin/     - 시스템관리 (ROLE_ADMIN 전용)
+│   ├── admin/     - 시스템관리, 관리자 로그, 실시간 로그 모니터링(ROLE_ADMIN 전용)
 │   ├── approval/  - 결재
 │   ├── board/     - 공통 게시판 (메타, 게시물, 댓글)
 │   ├── code/      - 공통코드
@@ -168,6 +168,64 @@ src/main/resources/
 - DTO 클래스에 `@Schema(name, description)` 추가 필수 (Swagger 문서화).
 - 검증 실패 시 자동으로 400 Bad Request 응답.
 
+### 5.5.3 `@RequestParam` / `@PathVariable` name 명시 필수 (반복 발생 함정)
+**모든 `@RequestParam`, `@PathVariable`, `@RequestHeader`에 `name`(또는 `value`)을 명시합니다.**
+Java 25 / Spring Boot 4 환경에서 컴파일러 `-parameters` 옵션이 누락되거나 Hibernate/Spring
+proxy가 파라미터명을 reflection으로 못 읽으면 다음 예외가 모든 요청마다 발생합니다:
+
+```
+IllegalArgumentException: Name for argument of type [java.time.LocalDateTime] not specified,
+  and parameter name information not available via reflection.
+  Ensure that the compiler uses the '-parameters' flag.
+```
+
+WebMvcTest 환경에서는 잘 통과하는데 실제 `bootRun`에서만 깨지는 경우가 있어 발견이 늦습니다.
+
+**필수 패턴:**
+```java
+public Snapshot get(
+        @RequestParam(name = "since", required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime since,
+        @RequestParam(name = "limit", defaultValue = "200") int limit,
+        @RequestParam(name = "tables", required = false) String tables
+) { ... }
+
+public Detail get(@PathVariable(name = "id") Long id) { ... }
+```
+
+**금지:**
+```java
+public Snapshot get(
+        @RequestParam(required = false) LocalDateTime since,   // ❌ name 누락
+        @RequestParam(defaultValue = "200") int limit          // ❌ name 누락
+) { ... }
+```
+
+### 5.5.4 네이티브 쿼리 결과 매핑 시 환경별 타입 차이 (Hibernate 6 / Oracle JDBC)
+`createNativeQuery`의 `Object[]` 결과를 직접 캐스트하면 환경에 따라 ClassCastException이 발생합니다.
+
+| 컬럼 타입 | Oracle JDBC가 반환하는 실제 타입 | 안전 변환 |
+|-----------|--------------------------------|----------|
+| `VARCHAR2(1)` | `Character` 또는 `String` | `v == null ? null : v.toString()` |
+| `TIMESTAMP` | `java.sql.Timestamp` 또는 `LocalDateTime` (Hibernate 6+) | `instanceof` 분기로 변환 |
+| `NUMBER` | `BigDecimal`, `Long`, `Integer` 등 | `((Number) v).longValue()` |
+
+**필수 헬퍼 패턴 (`RealtimeLogRepository` 참고):**
+```java
+private static String toStr(Object v) {
+    return v == null ? null : v.toString();
+}
+private static LocalDateTime toLdt(Object v) {
+    if (v == null) return null;
+    if (v instanceof LocalDateTime ldt) return ldt;
+    if (v instanceof Timestamp ts) return ts.toLocalDateTime();
+    throw new IllegalStateException("지원하지 않는 시각 타입: " + v.getClass());
+}
+```
+
+직접 `(String) r[3]`, `(Timestamp) r[4]` 캐스트는 금지. QueryDSL/JPQL은 자동 매핑되므로 본 규칙은
+네이티브 쿼리 한정.
+
 ### 5.6 인증 및 보안 (전사 SoT)
 
 #### JWT 토큰 정책 (JwtUtil 코드 기준)
@@ -217,8 +275,9 @@ public class PlanController { ... }
 - 메서드: `GET /summary` (비목별 편성요청액·편성액), `GET /comparison` (전년도 대비 비교)
 - **권한**: `@PreAuthorize("hasRole('ADMIN')")` — 클래스 레벨 적용, ADMIN 전용.
 
-**현재 적용 대상** (코드 분석 2026-05-26):
+**현재 적용 대상** (코드 분석 2026-06-01):
 - `AdminController` (`common/admin`) — 시스템 관리
+- `RealtimeLogController` (`common/admin/realtime`) — V_ITPAPP_LOG_FEED 기반 실시간 로그 모니터링
 - `GeminiController` (`infra/ai`) — Gemini AI
 - `AdminBoardMetaController` (`common/board`) — 게시판 메타 관리
 - `BudgetStatusController` (`domain/budget/status`) — 예산 현황
@@ -226,10 +285,10 @@ public class PlanController { ... }
 - `PlanController` (`domain/budget/plan`) — 정보기술부문 계획
 - `ItBudgetController` (`domain/budget/it`) — IT부문 예산 조회/비교
 
-**SecurityConfig URL 패턴 보호 대상** (코드 분석 2026-05-26):
-- `/api/admin/**` → `hasRole("ADMIN")`
+**SecurityConfig URL 패턴 보호 대상** (코드 분석 2026-06-01):
+- `/api/admin/**` → `hasRole("ADMIN")` (`AdminController`, `AdminBoardMetaController`, `RealtimeLogController` 포함)
 - `/api/auth/signup` → `hasRole("ADMIN")`
-- `/api/plan/**` → `hasRole("ADMIN")` (SecurityConfig 직접 적용)
+- `/api/plan/**` → `hasRole("ADMIN")` (현재 실제 `PlanController` 경로 `/api/plans/**`와 불일치, `TASK.md`에서 정비 과제로 추적)
 
 #### 부서 필터링(bbrC) 적용 규칙 (§5.14와 동일, 여기에 보안 관점 요약)
 - `bbrC`는 JWT `athIds` 클레임의 소속 부서코드. Access Token 발급 시 DB에서 읽은 `user.getBbrC()`를 포함.
@@ -355,6 +414,14 @@ public class PlanController { ... }
 - **`@TransactionalEventListener`**: 발행자 트랜잭션 커밋 **후** 비동기 실행. 리스너 실패 시 원본 무영향.
   - 사용 예: 알림 발송, 메일 전송, 별도 시스템 동기화 (부수 효과).
 - 선택 기준: 상태 일관성이 필수 → `@EventListener`, 실패해도 괜찮은 부가 작업 → `@TransactionalEventListener`.
+
+### 5.12.3 실시간 로그 모니터링
+- `RealtimeLogController`는 `/api/admin/realtime-logs` 단일 GET 엔드포인트를 제공하며 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")`를 적용합니다.
+- `RealtimeLogRepository`는 `V_ITPAPP_LOG_FEED` View를 `EntityManager` 네이티브 쿼리로 조회합니다.
+- 클라이언트 입력 `tables`는 `AdminLogService.getTables()`의 허용 `LOG_KEY` 집합으로 검증합니다.
+- `chgTypes`는 `C`/`U`/`D`만 허용합니다.
+- `limit`은 최대 200으로 제한합니다.
+- 실시간 목록 응답에는 표준 로그 컬럼만 포함하고 BEFORE/AFTER 변경 본문은 포함하지 않습니다.
 
 ### 5.13 공통 게시판 패턴
 - 백엔드 패키지: `common/board`.
