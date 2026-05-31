@@ -519,6 +519,7 @@ public class CouncilService {
                             Integer.parseInt(digits.substring(4, 6)),
                             Integer.parseInt(digits.substring(6, 8)));
                 } catch (NumberFormatException | java.time.DateTimeException ignored) {
+                    // TODO: 회의일자 문자열 파싱 실패 시 원본 값을 warn 로그로 남겨 데이터 정합성 점검이 가능하게 합니다.
                     return null;
                 }
             }

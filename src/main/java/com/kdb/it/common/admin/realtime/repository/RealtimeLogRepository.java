@@ -1,4 +1,4 @@
-package com.kdb.it.common.admin.realtime.repository;
+﻿package com.kdb.it.common.admin.realtime.repository;
 
 import com.kdb.it.common.admin.realtime.dto.RealtimeLogDto;
 import jakarta.persistence.EntityManager;

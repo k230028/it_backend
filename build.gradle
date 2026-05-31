@@ -108,7 +108,7 @@ jacoco {
 
 // 커버리지 측정 제외 대상 (측정 의미가 낮은 클래스)
 def jacocoExcludes = [
-	'**/Q*.class',                  // QueryDSL 자동 생성 Q클래스
+	'**/entity/Q*.class',           // QueryDSL 자동 생성 Q클래스(entity 패키지 한정). '**/Q*.class'는 QnaService 등 정상 클래스까지 오제외하므로 금지
 	'**/ItApplication.class',       // 애플리케이션 진입점
 	'**/*Config*.class',            // Spring 설정 클래스
 	'**/*Properties*.class',        // @ConfigurationProperties

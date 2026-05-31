@@ -1,4 +1,4 @@
-package com.kdb.it.common.notification.event;
+﻿package com.kdb.it.common.notification.event;
 
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
@@ -14,7 +14,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 /**
  * 알림 이벤트 리스너.
  *
- * <p>두 종류의 이벤트를 구독한다:</p>
+ * <p>세 종류의 이벤트를 구독한다:</p>
  * <ul>
  *   <li>{@link NotificationEvent} — 명시적 발송 이벤트 (결재요청·멘션 등 도메인 호출자가 발행)</li>
  *   <li>{@link ApprovalCompletedEvent} — 결재 완료/반려 이벤트 (신청자에게 결재결과 알림으로 변환)</li>
@@ -56,6 +56,7 @@ public class NotificationEventListener {
                 log.warn("Approval result notification skipped: capplm not found. apfMngNo={}", event.apfMngNo());
                 return;
             }
+            // getDcdReqTtl()이 null이면 빈 문자열로 대체 — 결재제목 미기재 건 방어
             String title = "결재 " + event.newStatus() + ": " + safe(capplm.getDcdReqTtl());
             String body  = "신청서가 " + event.newStatus() + " 처리되었습니다.";
             notificationService.send(

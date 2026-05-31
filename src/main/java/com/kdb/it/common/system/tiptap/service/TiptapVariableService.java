@@ -1,4 +1,4 @@
-package com.kdb.it.common.system.tiptap.service;
+﻿package com.kdb.it.common.system.tiptap.service;
 
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.CategoryMetadata;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ItemRef;
@@ -30,6 +30,10 @@ import java.util.stream.IntStream;
 @Transactional(readOnly = true)
 public class TiptapVariableService {
 
+    /**
+     * 전 카테고리 공통 항목 목록.
+     * 순서(requestAmount→allocatedAmount→allocationRate)는 UI 드롭다운 표시 순서와 일치.
+     */
     private static final List<ItemRef> ITEMS = List.of(
             new ItemRef("requestAmount",   "편성요청액"),
             new ItemRef("allocatedAmount", "편성액"),
@@ -40,7 +44,11 @@ public class TiptapVariableService {
     private final ProjectRepository projectRepository;
     private final BudgetStatusQueryRepository budgetStatusRepository;
 
-    /** 드롭다운용 카탈로그 반환. 권한 필터링은 후속 Task에서 SecurityContext 기준 적용. */
+    /**
+     * 드롭다운용 카탈로그 반환. 권한 필터링은 후속 Task에서 SecurityContext 기준 적용.
+     *
+     * @return 카테고리 메타데이터 응답 (IT_BUDGET, CAP_BUDGET, OPEX, PROJ 4개 카테고리)
+     */
     public MetadataResponse getMetadata() {
         List<Integer> years = currentPlusMinusTwo();
         List<ProjectRef> projects = projectRepository.findActiveProjectRefs().stream()
@@ -79,7 +87,11 @@ public class TiptapVariableService {
         return new ResolveResponse(results);
     }
 
-    /** 단일 토큰 해석. INVALID/MISSING/OK 분기. */
+    /**
+     * 단일 토큰 해석. INVALID/MISSING/OK 분기.
+     * FORBIDDEN 반환 경로는 현재 미구현 — 향후 SecurityContext 기준 권한 검증 추가 시 이 분기에서 처리.
+     * // TODO: 권한 검증 구현 후 FORBIDDEN 분기 추가 (TASK.md)
+     */
     private ResolvedValue resolveOne(String token) {
         ParseResult parsed = tokenParser.parse(token);
         if (!parsed.valid()) {
@@ -143,6 +155,10 @@ public class TiptapVariableService {
         return ResolvedValue.ok(String.format("%.1f%%", rate));
     }
 
+    /**
+     * 현재 연도 ±2 범위의 연도 목록 반환. 총 5개 원소.
+     * 범위 변경 시 UI 드롭다운 동시 갱신 필요.
+     */
     private List<Integer> currentPlusMinusTwo() {
         int now = Year.now().getValue();
         return IntStream.rangeClosed(now - 2, now + 2).boxed().toList();

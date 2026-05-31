@@ -17,7 +17,7 @@
   - 실시간 알림 (인앱, Phase 2 예정: 이메일/SMS/알림톡)
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
-- **소스 코드**: 266개 자바 파일, 84개 테스트 파일, 59개 엔티티
+- **소스 코드**: 271개 메인 Java 파일, 92개 테스트 파일, 63개 JPA 엔티티(`@Entity` 기준)
 
 ## 2. 기술 스택
 
@@ -31,7 +31,7 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 86개 테스트 파일 / 기존 결과 기준 787개 테스트 케이스 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 92개 테스트 파일 |
 
 ## 2.5 빠른 시작 (Quick Start)
 
@@ -166,7 +166,7 @@ com.kdb.it
 │   ├── system/              # 인증·로그인 (AuthController, AuthService, JwtUtil, JwtAuthenticationFilter)
 │   ├── iam/                 # 사용자·조직·권한 (UserController, OrganizationController, UserRepository)
 │   ├── approval/            # 신청서·결재 (ApplicationController, ApplicationService, ApplicationMapRepository)
-│   ├── admin/               # 시스템관리 (AdminController, AdminService — ROLE_ADMIN 전용)
+│   ├── admin/               # 시스템관리, 관리자 로그, 실시간 로그 모니터링(ROLE_ADMIN 전용)
 │   ├── board/               # 공통 게시판 (BoardMeta/Post/Comment)
 │   ├── code/                # 공통 코드 (CodeController, CodeService, CodeRepository)
 │   └── util/                # 공통 유틸 (CustomPasswordEncoder, CookieUtil, HtmlSanitizer)
@@ -213,6 +213,7 @@ common → domain (X)   common → infra  (X)
 | 공통게시판 | `BoardMetaController`, `BoardPostController`, `BoardCommentController`, `AdminBoardMetaController` | `BoardMetaService`, `BoardPostService`, `BoardCommentService` | `BoardMetaRepository`, `BoardPostRepository`, `BoardCommentRepository` | `Cblbmm`, `Cblbcm`, `Ccmmtm` |
 | 알림 | `NotificationController` | `NotificationService` | `CinfmmRepository` + Custom | `Cinfmm` |
 | Tiptap 변수 | `TiptapVariableController` | `TiptapVariableService` | - | - |
+| 실시간 로그 | `RealtimeLogController` | `RealtimeLogService` | `RealtimeLogRepository` | - |
 | 인증 | `AuthController` | `AuthService` | `UserRepository`, `RefreshTokenRepository`, `LoginHistoryRepository` | `CuserI`, `Crtokm`, `Clognh` |
 | 공통코드 | `CodeController` | `CodeService` | `CodeRepository` + Custom | `Ccodem` |
 | 시스템관리 | `AdminController` | `AdminService` | (기존 Repository 활용) | (기존 Entity 활용) |
@@ -542,6 +543,22 @@ public class Bprojm extends BaseEntity { ... }
 
 사번 필드(`*USID`, `ENO` 등)는 자동으로 사용자명으로 변환하여 응답에 포함합니다.
 
+### 6.4 실시간 로그 모니터링 (`RealtimeLogController`) — ROLE_ADMIN 전용
+
+`common/admin/realtime` 패키지는 `V_ITPAPP_LOG_FEED` 통합 View를 기반으로 관리자용 변경 로그 스냅샷을 제공합니다.
+
+| 항목 | 내용 |
+|------|------|
+| API | `GET /api/admin/realtime-logs` |
+| 구현 | `RealtimeLogController`, `RealtimeLogService`, `RealtimeLogRepository` |
+| 응답 | `rows`, `serverTime`, `tableCounts`(최근 5분), `perMinute`(최근 30분) |
+| 조회 조건 | `since`, `cursorLogTbl`, `cursorLogSno`, `limit`, `tables`, `chgTypes` |
+
+- `limit`은 서비스 계층에서 1~200 범위로 보정합니다.
+- `tables`는 `AdminLogService.getTables()`가 반환하는 허용 `LOG_KEY`만 사용합니다.
+- `chgTypes`는 `C`/`U`/`D`만 허용합니다.
+- 응답 본문은 표준 로그 컬럼만 포함하며 BEFORE/AFTER 변경 본문은 포함하지 않습니다.
+
 ---
 
 ## 7. 인증/인가 및 보안
@@ -648,6 +665,7 @@ public class Bprojm extends BaseEntity { ... }
 | **사용자** | GET | `/api/users/**` | 사용자/조직 조회 | 일반 |
 | **로그인 이력** | GET | `/api/login-history/**` | 본인 이력 조회 (최대 50건) | 일반 |
 | **관리자** | GET/POST/PUT/DELETE | `/api/admin/**` | 시스템 설정, 로그 조회, 사용자/코드 관리 | **관리자** |
+| **실시간 로그** | GET | `/api/admin/realtime-logs` | 통합 변경 로그 스냅샷, 최근 5분/30분 집계 | **관리자** |
 | **게시판 관리** | GET/POST/PUT/DELETE | `/api/admin/boards/meta/**` | 게시판 메타 생성/수정/삭제 | **관리자** |
 | **계획 관리** | GET/POST | `/api/plans/**` | 정보기술부문 계획 CRUD | **관리자** |
 | **예산현황** | GET | `/api/budget/status/**` | 집계 대시보드 (전체 예산 조회) | **관리자** |
@@ -922,6 +940,7 @@ public class Bnewent extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-06-01** | README.md 현행화: 소스 코드 통계 정정(271개 메인 Java 파일, 92개 테스트 파일, 63개 JPA 엔티티), 실시간 로그 모니터링(`common/admin/realtime`, `/api/admin/realtime-logs`) 구조와 API 제약 반영 |
 | **2026-05-29** | README.md 현행화: 소스 코드 통계 정정(266 Java 파일, 84 테스트, 59 엔티티), IT부문 예산(`ItBudgetController`/`ItBudgetService`) 도메인 추가, 사전협의 검토자(`ReviewerController`) API 추가 |
 | **2026-05-26** | README.md 전체 분석 및 업데이트: 소스 코드 통계(257 Java 파일, 84 테스트, 61 엔티티) 추가, 개발자 가이드 섹션(신규 기능 패턴, 테스트 의무, 보안 체크리스트) 신규 작성, 28개 컨트롤러 API 현행화 |
 | **2026-05-22** | 알림 시스템(Notification) 및 Tiptap 변수 시스템 문서화: `common/notification` 모듈(Cinfmm, NotificationService, NotificationDispatcher, @TransactionalEventListener 패턴), `common/system/tiptap` 모듈(TiptapVariableService, TiptapVariableController, 토큰 형식, 금액 포맷팅) 상세 기술 |

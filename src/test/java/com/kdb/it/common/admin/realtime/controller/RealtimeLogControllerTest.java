@@ -68,6 +68,40 @@ class RealtimeLogControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("ADMIN — since/커서/limit/tables/chgTypes 전체 쿼리 파라미터 전달 (split CSV 분기 커버)")
+    void admin_withAllQueryParams_passesSplitValues() throws Exception {
+        // Arrange: 서비스는 mock — 컨트롤러의 split()·파라미터 바인딩 경로만 검증한다.
+        when(service.snapshot(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), any(), any()))
+                .thenReturn(new RealtimeLogDto.Snapshot(
+                        List.of(),
+                        LocalDateTime.of(2026, 5, 31, 23, 14, 7),
+                        Map.of(),
+                        List.of()));
+
+        // Act: tables에 빈 세그먼트(", ,")를 포함시켜 split()의 trim + !isEmpty 필터 분기를 커버한다.
+        mvc.perform(get("/api/admin/realtime-logs")
+                        .param("since", "2026-05-31T23:00:00")
+                        .param("cursorLogTbl", "BPROJM")
+                        .param("cursorLogSno", "42")
+                        .param("limit", "50")
+                        .param("tables", "BPROJM, ,CCODEM")
+                        .param("chgTypes", "C,U,D"))
+                // Assert
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serverTime").exists());
+
+        // split()이 CSV를 trim·필터링한 결과(빈 세그먼트 제거)를 서비스에 전달했는지 검증한다.
+        org.mockito.Mockito.verify(service).snapshot(
+                org.mockito.ArgumentMatchers.eq(LocalDateTime.of(2026, 5, 31, 23, 0, 0)),
+                org.mockito.ArgumentMatchers.eq("BPROJM"),
+                org.mockito.ArgumentMatchers.eq(42L),
+                org.mockito.ArgumentMatchers.eq(50),
+                org.mockito.ArgumentMatchers.eq(List.of("BPROJM", "CCODEM")),
+                org.mockito.ArgumentMatchers.eq(List.of("C", "U", "D")));
+    }
+
+    @Test
     @WithMockUser(roles = "USER")
     @DisplayName("비-ADMIN 차단 (GlobalExceptionHandler가 AccessDeniedException → 400 매핑)")
     void user_forbidden() throws Exception {

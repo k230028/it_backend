@@ -1,4 +1,4 @@
-package com.kdb.it.common.admin.realtime.dto;
+﻿package com.kdb.it.common.admin.realtime.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
