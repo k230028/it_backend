@@ -29,6 +29,9 @@ public class CcodemL extends BaseLogEntity {
     @Column(name = "CDVA_ID", length = 40, comment = "코드값ID")
     private String cdva;
 
+    @Column(name = "CDVA_NM", length = 500, comment = "코드값명")
+    private String cdvaNm;
+
     @Column(name = "STT_DTM", comment = "시작일시")
     private LocalDate sttDt;
 
