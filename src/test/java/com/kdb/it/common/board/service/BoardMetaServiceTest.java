@@ -12,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -66,7 +65,7 @@ class BoardMetaServiceTest {
     }
 
     @Test
-    @DisplayName("게시판을 생성하면 연도 기반 관리번호를 채번하고 저장한다")
+    @DisplayName("게시판을 생성하면 연도 없는 관리번호를 채번하고 저장한다")
     void createBoard_savesEntityWithGeneratedId() {
         given(boardMetaRepository.getNextSequenceValue()).willReturn(7L);
         ArgumentCaptor<Cblbmm> captor = ArgumentCaptor.forClass(Cblbmm.class);
@@ -74,7 +73,7 @@ class BoardMetaServiceTest {
 
         String result = service.createBoard(request);
 
-        assertThat(result).isEqualTo("BLBM-" + LocalDate.now().getYear() + "-0007");
+        assertThat(result).isEqualTo("BLBM-0007");
         verify(boardMetaRepository).save(captor.capture());
         assertThat(captor.getValue().getBlbMngNo()).isEqualTo(result);
         assertThat(captor.getValue().getBlbNm()).isEqualTo("공지사항");
@@ -109,14 +108,13 @@ class BoardMetaServiceTest {
         return Cblbmm.builder()
             .blbMngNo(id)
             .blbNm(name)
-            .blbTp("NOTICE")
+            .blbTp("001")
             .inqAthC("ALL")
             .enrAthC("ALL")
             .repUseYn("Y")
             .cmmtUseYn("Y")
             .flEsnYn("N")
             .hrkFxnUseYn("Y")
-            .bbrLmtnUseYn("N")
             .sreSqnNo(1)
             .useYn("Y")
             .delYn("N")
@@ -125,7 +123,7 @@ class BoardMetaServiceTest {
 
     private static BoardMetaDto.CreateRequest createRequest() {
         BoardMetaDto.CreateRequest request = new BoardMetaDto.CreateRequest();
-        request.setBlbTp("NOTICE");
+        request.setBlbTp("001");
         request.setBlbNm("공지사항");
         request.setInqAthC("ALL");
         request.setEnrAthC("ALL");
@@ -133,7 +131,6 @@ class BoardMetaServiceTest {
         request.setCmmtUseYn("Y");
         request.setFlEsnYn("N");
         request.setHrkFxnUseYn("Y");
-        request.setBbrLmtnUseYn("N");
         request.setSreSqnNo(1);
         return request;
     }
@@ -147,7 +144,6 @@ class BoardMetaServiceTest {
         request.setCmmtUseYn("Y");
         request.setFlEsnYn("N");
         request.setHrkFxnUseYn("Y");
-        request.setBbrLmtnUseYn("N");
         request.setSreSqnNo(2);
         request.setUseYn("Y");
         return request;

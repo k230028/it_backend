@@ -432,7 +432,7 @@ public class PlanController { ... }
   - `/api/boards/{blbMngNo}/posts/**` — 게시물 목록·상세·등록·수정·삭제·답변글.
   - `/api/boards/{blbMngNo}/posts/{nacMngNo}/comments/**` — 댓글·대댓글 CRUD.
 - 게시물/댓글 본문은 저장 전 `HtmlSanitizer.sanitize()` 적용 필수.
-- 게시판 권한은 메타의 `inqAthC`, `enrAthC`, `bbrLmtnUseYn`, `bbrLmtnC`와 서비스 계층 검증으로 판단합니다. 프론트 메뉴 숨김은 UX 보조일 뿐 최종 보안 경계가 아닙니다.
+- 게시판 권한은 메타의 `inqAthC`, `enrAthC`와 서비스 계층 검증으로 판단합니다. 프론트 메뉴 숨김은 UX 보조일 뿐 최종 보안 경계가 아닙니다.
 - 게시물/댓글 트리는 그룹번호·그룹순서·그룹레벨(`*_GRP_NO`, `*_GRP_SQN`, `*_GRP_LEV`)로 정렬합니다.
 
 ### 5.14 부서 필터링 패턴 (bbrC)

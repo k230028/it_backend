@@ -190,7 +190,7 @@ class FileOwnershipCheckerTest {
                     .blbMngNo("BLBM-2026-0001").blbNm("관리자게시판")
                     .inqAthC("ROLE_ADMIN").enrAthC("ROLE_ADMIN")
                     .repUseYn("N").cmmtUseYn("N")
-                    .bbrLmtnUseYn("N").useYn("Y").delYn("N")
+                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
@@ -215,7 +215,7 @@ class FileOwnershipCheckerTest {
                     .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
                     .inqAthC("ALL").enrAthC("ALL")
                     .repUseYn("N").cmmtUseYn("Y")
-                    .bbrLmtnUseYn("N").useYn("Y").delYn("N")
+                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
@@ -249,7 +249,7 @@ class FileOwnershipCheckerTest {
                     .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
                     .inqAthC("ALL").enrAthC("ALL")
                     .repUseYn("N").cmmtUseYn("Y")
-                    .bbrLmtnUseYn("N").useYn("Y").delYn("N")
+                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
@@ -285,7 +285,7 @@ class FileOwnershipCheckerTest {
                     .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
                     .inqAthC("ALL").enrAthC("ALL")
                     .repUseYn("N").cmmtUseYn("Y")
-                    .bbrLmtnUseYn("N").useYn("Y").delYn("N")
+                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
@@ -321,7 +321,7 @@ class FileOwnershipCheckerTest {
                     .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
                     .inqAthC("ALL").enrAthC("ALL")
                     .repUseYn("N").cmmtUseYn("Y")
-                    .bbrLmtnUseYn("N").useYn("Y").delYn("N")
+                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
@@ -357,7 +357,7 @@ class FileOwnershipCheckerTest {
                     .blbMngNo("BLBM-2026-0001").blbNm("사용자게시판")
                     .inqAthC("ROLE_USER").enrAthC("ROLE_USER")
                     .repUseYn("N").cmmtUseYn("Y")
-                    .bbrLmtnUseYn("N").useYn("Y").delYn("N")
+                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
@@ -382,7 +382,7 @@ class FileOwnershipCheckerTest {
                     .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
                     .inqAthC("ALL").enrAthC("ALL")
                     .repUseYn("N").cmmtUseYn("Y")
-                    .bbrLmtnUseYn("N").useYn("Y").delYn("N")
+                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))

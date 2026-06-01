@@ -55,14 +55,14 @@ class BoardCommentServiceTest {
             .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
             .inqAthC("ALL").enrAthC("ALL")
             .repUseYn("N").cmmtUseYn("Y")
-            .bbrLmtnUseYn("N").useYn("Y").delYn("N")
+            .useYn("Y").delYn("N")
             .build();
 
         boardNoComment = Cblbmm.builder()
             .blbMngNo("BLBM-2026-0002").blbNm("공지사항")
             .inqAthC("ALL").enrAthC("ROLE_ADMIN")
             .repUseYn("N").cmmtUseYn("N")
-            .bbrLmtnUseYn("N").useYn("Y").delYn("N")
+            .useYn("Y").delYn("N")
             .build();
 
         post = Cblbcm.builder()
