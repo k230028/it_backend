@@ -1,4 +1,4 @@
-﻿package com.kdb.it.common.admin.realtime.service;
+package com.kdb.it.common.admin.realtime.service;
 
 import com.kdb.it.common.admin.dto.AdminLogDto;
 import com.kdb.it.common.admin.realtime.dto.RealtimeLogDto;

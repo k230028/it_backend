@@ -22,39 +22,40 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class CcodemL extends BaseLogEntity {
 
-    @Column(name = "C_ID", length = 32, comment = "코드ID")
+    // 변경로그 복사는 @Column(name)으로 매칭하므로 마스터(Ccodem)와 컬럼명이 일치해야 한다.
+    @Column(name = "CO_C_ID", length = 20, comment = "공통코드ID")
     private String cId;
 
-    @Column(name = "CDVA", length = 32, comment = "코드값")
+    @Column(name = "CDVA_ID", length = 40, comment = "코드값ID")
     private String cdva;
 
-    @Column(name = "STT_DT", comment = "시작일자")
+    @Column(name = "STT_DTM", comment = "시작일시")
     private LocalDate sttDt;
 
-    @Column(name = "END_DT", comment = "종료일자")
+    @Column(name = "END_DTM", comment = "종료일시")
     private LocalDate endDt;
 
-    @Column(name = "C_NM", length = 100, comment = "코드명")
+    @Column(name = "CO_C_ID_NM", length = 100, comment = "공통코드ID명")
     private String cNm;
 
-    @Column(name = "CDVA_DES", length = 500, comment = "코드값설명")
+    @Column(name = "CO_CDVA_ABV_NM", length = 100, comment = "공통코드값약어명")
     private String cdvaDes;
 
-    @Column(name = "CDVA_DTL", length = 100, comment = "코드값상세")
+    @Column(name = "CO_CDVA_SPS", length = 2000, comment = "공통코드값적요")
     private String cdvaDtl;
 
-    @Column(name = "C_TP", length = 100, comment = "코드타입")
+    @Column(name = "CO_C_INTN_NM", length = 200, comment = "공통코드인스턴스명")
     private String cTp;
 
-    @Column(name = "C_TP_DES", length = 500, comment = "코드타입설명")
+    @Column(name = "CO_C_INTN_CONE", length = 500, comment = "공통코드인스턴스내용")
     private String cTpDes;
 
-    @Column(name = "HRK_C", length = 65, comment = "상위코드")
+    @Column(name = "HRK_CDVA_ID", length = 40, comment = "상위코드값ID")
     private String hrkC;
 
-    @Column(name = "C_SQN", comment = "코드순번")
+    @Column(name = "C_SQN_SNO", comment = "코드순서일련번호")
     private Integer cSqn;
 
-    @Column(name = "CDVA_DTL_C", length = 8, comment = "코드값상세코드")
+    @Column(name = "CO_C_NM", length = 100, comment = "공통코드명")
     private String cdvaDtlC;
 }

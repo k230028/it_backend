@@ -1,4 +1,4 @@
-﻿package com.kdb.it.common.system.tiptap.service;
+package com.kdb.it.common.system.tiptap.service;
 
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.CategoryMetadata;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ItemRef;
