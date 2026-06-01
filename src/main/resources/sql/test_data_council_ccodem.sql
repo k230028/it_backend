@@ -7,9 +7,9 @@
 --   CO_C_ID        = 코드 타입  (예: ASCT_STS_C)
 --   CDVA_ID        = 코드 식별자 — 숫자 3자리 (예: 001, 013)
 --   CDVA_NM        = 한글 표시명 (예: 작성 중)  ← 프론트 표시 기준
---   CO_C_ID_NM     = 타입 설명   (예: 협의회상태)   [구 C_NM]
+--   CO_C_NM     = 타입 설명   (예: 협의회상태)   [구 C_NM]
 --   CO_CDVA_SPS    = CDVA_NM 복사                  [구 CDVA_DTL]
---   CO_CDVA_ABV_NM = CO_C_ID_NM 복사               [구 CDVA_DES]
+--   CO_CDVA_ABV_NM = CO_C_NM 복사               [구 CDVA_DES]
 --   CO_C_INTN_NM   = 코드 타입 복사                [구 C_TP]
 --   CO_C_INTN_CONE = 타입 설명 복사                [구 C_TP_DES]
 --   C_SQN_SNO      = 정렬 순서                     [구 C_SQN]
@@ -59,7 +59,7 @@ WHEN MATCHED THEN
     UPDATE SET
         t.CDVA_NM        = s.CDVA_NM,
         t.CO_CDVA_SPS    = s.CDVA_NM,
-        t.CO_C_ID_NM     = '협의회상태',
+        t.CO_C_NM     = '협의회상태',
         t.CO_CDVA_ABV_NM = '협의회상태',
         t.CO_C_INTN_NM   = 'ASCT_STS_C',
         t.CO_C_INTN_CONE = '협의회상태',
@@ -67,7 +67,7 @@ WHEN MATCHED THEN
         t.LST_CHG_DTM    = SYSDATE,
         t.LST_CHG_USID   = 'SYSTEM'
 WHEN NOT MATCHED THEN
-    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_ID_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
+    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
             STT_DTM, END_DTM,
             DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
             GUID, GUID_PRG_SNO)
@@ -91,7 +91,7 @@ WHEN MATCHED THEN
     UPDATE SET
         t.CDVA_NM        = s.CDVA_NM,
         t.CO_CDVA_SPS    = s.CDVA_NM,
-        t.CO_C_ID_NM     = '심의유형',
+        t.CO_C_NM     = '심의유형',
         t.CO_CDVA_ABV_NM = '심의유형',
         t.CO_C_INTN_NM   = 'DBR_TC',
         t.CO_C_INTN_CONE = '심의유형',
@@ -99,7 +99,7 @@ WHEN MATCHED THEN
         t.LST_CHG_DTM    = SYSDATE,
         t.LST_CHG_USID   = 'SYSTEM'
 WHEN NOT MATCHED THEN
-    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_ID_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
+    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
             STT_DTM, END_DTM,
             DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
             GUID, GUID_PRG_SNO)
@@ -121,7 +121,7 @@ WHEN MATCHED THEN
     UPDATE SET
         t.CDVA_NM        = s.CDVA_NM,
         t.CO_CDVA_SPS    = s.CDVA_NM,
-        t.CO_C_ID_NM     = '평가자유형',
+        t.CO_C_NM     = '평가자유형',
         t.CO_CDVA_ABV_NM = '평가자유형',
         t.CO_C_INTN_NM   = 'VLR_TC',
         t.CO_C_INTN_CONE = '평가자유형',
@@ -129,7 +129,7 @@ WHEN MATCHED THEN
         t.LST_CHG_DTM    = SYSDATE,
         t.LST_CHG_USID   = 'SYSTEM'
 WHEN NOT MATCHED THEN
-    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_ID_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
+    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
             STT_DTM, END_DTM,
             DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
             GUID, GUID_PRG_SNO)
@@ -154,7 +154,7 @@ WHEN MATCHED THEN
     UPDATE SET
         t.CDVA_NM        = s.CDVA_NM,
         t.CO_CDVA_SPS    = s.CDVA_NM,
-        t.CO_C_ID_NM     = '점검항목',
+        t.CO_C_NM     = '점검항목',
         t.CO_CDVA_ABV_NM = '점검항목',
         t.CO_C_INTN_NM   = 'CKG_ITM_C',
         t.CO_C_INTN_CONE = '점검항목',
@@ -162,7 +162,7 @@ WHEN MATCHED THEN
         t.LST_CHG_DTM    = SYSDATE,
         t.LST_CHG_USID   = 'SYSTEM'
 WHEN NOT MATCHED THEN
-    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_ID_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
+    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
             STT_DTM, END_DTM,
             DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
             GUID, GUID_PRG_SNO)
@@ -183,7 +183,7 @@ WHEN MATCHED THEN
     UPDATE SET
         t.CDVA_NM        = s.CDVA_NM,
         t.CO_CDVA_SPS    = s.CDVA_NM,
-        t.CO_C_ID_NM     = '저장구분코드',
+        t.CO_C_NM     = '저장구분코드',
         t.CO_CDVA_ABV_NM = '저장구분코드',
         t.CO_C_INTN_NM   = 'KPN_TC',
         t.CO_C_INTN_CONE = '저장구분코드',
@@ -191,7 +191,7 @@ WHEN MATCHED THEN
         t.LST_CHG_DTM    = SYSDATE,
         t.LST_CHG_USID   = 'SYSTEM'
 WHEN NOT MATCHED THEN
-    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_ID_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
+    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
             STT_DTM, END_DTM,
             DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
             GUID, GUID_PRG_SNO)

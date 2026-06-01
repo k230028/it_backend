@@ -55,8 +55,8 @@ public class Ccodem extends BaseEntity {
     @Column(name = "END_DTM", comment = "종료일시")
     private LocalDate endDt;
 
-    /** 공통코드ID명 (Java 필드명 cNm 유지). 컬럼 CO_C_ID_NM */
-    @Column(name = "CO_C_ID_NM", length = 100, comment = "공통코드ID명")
+    /** 공통코드명 (Java 필드명 cNm 유지). 컬럼 CO_C_NM */
+    @Column(name = "CO_C_NM", length = 100, comment = "공통코드명")
     private String cNm;
 
     /** 공통코드값약어명 (Java 필드명 cdvaDes 유지). 컬럼 CO_CDVA_ABV_NM */
@@ -83,8 +83,8 @@ public class Ccodem extends BaseEntity {
     @Column(name = "C_SQN_SNO", comment = "코드순서일련번호")
     private Integer cSqn;
 
-    /** 공통코드명 (Java 필드명 cdvaDtlC 유지). 컬럼 CO_C_NM */
-    @Column(name = "CO_C_NM", length = 100, comment = "공통코드명")
+    /** 공통코드값명 (Java 필드명 cdvaDtlC 유지). 컬럼 CO_CDVA_NM */
+    @Column(name = "CO_CDVA_NM", length = 500, comment = "공통코드값명")
     private String cdvaDtlC;
 
     /**

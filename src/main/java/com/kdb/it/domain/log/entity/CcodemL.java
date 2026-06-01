@@ -35,7 +35,7 @@ public class CcodemL extends BaseLogEntity {
     @Column(name = "END_DTM", comment = "종료일시")
     private LocalDate endDt;
 
-    @Column(name = "CO_C_ID_NM", length = 100, comment = "공통코드ID명")
+    @Column(name = "CO_C_NM", length = 100, comment = "공통코드명")
     private String cNm;
 
     @Column(name = "CO_CDVA_ABV_NM", length = 100, comment = "공통코드값약어명")
@@ -56,6 +56,6 @@ public class CcodemL extends BaseLogEntity {
     @Column(name = "C_SQN_SNO", comment = "코드순서일련번호")
     private Integer cSqn;
 
-    @Column(name = "CO_C_NM", length = 100, comment = "공통코드명")
+    @Column(name = "CO_CDVA_NM", length = 500, comment = "공통코드값명")
     private String cdvaDtlC;
 }

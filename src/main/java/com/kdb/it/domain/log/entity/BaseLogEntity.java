@@ -15,13 +15,19 @@ import java.time.LocalDateTime;
 /**
  * 변경 로그 엔티티의 공통 필드를 정의하는 추상 기반 클래스.
  *
- * <p>모든 로그 엔티티({@code BprojmL}, {@code BitemlL} 등)가 상속한다.</p>
+ * <p>
+ * 모든 로그 엔티티({@code BprojmL}, {@code BitemlL} 등)가 상속한다.
+ * </p>
  *
- * <p>PK({@code LOG_HIS_TGR_SNO})는 {@link AuditLogIdGenerator}가
- * {@code SEQ_{Postfix}.NEXTVAL}을 조회하여 Long 값으로 생성한다.</p>
+ * <p>
+ * PK({@code LOG_HIS_TGR_SNO})는 {@link AuditLogIdGenerator}가
+ * {@code SEQ_{Postfix}.NEXTVAL}을 조회하여 Long 값으로 생성한다.
+ * </p>
  *
- * <p>BaseEntity 스냅샷 필드(DEL_YN, GUID, FST_ENR_DTM 등)는
- * INSERT 시점 원본 엔티티의 값을 리플렉션으로 복사하여 저장한다.</p>
+ * <p>
+ * BaseEntity 스냅샷 필드(DEL_YN, GUID, FST_ENR_DTM 등)는
+ * INSERT 시점 원본 엔티티의 값을 리플렉션으로 복사하여 저장한다.
+ * </p>
  */
 @MappedSuperclass
 @Getter
@@ -39,9 +45,11 @@ public abstract class BaseLogEntity {
     /**
      * 변경구분여부: C(생성) / U(수정) / D(논리삭제).
      *
-     * <p>모든 *L 테이블에서 {@code CHG_DTT_YN} 컬럼으로 매핑됩니다.
+     * <p>
+     * 모든 *L 테이블에서 {@code CHG_DTT_YN} 컬럼으로 매핑됩니다.
      * {@link com.kdb.it.domain.log.listener.AuditLogPersister#persist}가
-     * {@code setField(logEntity, "chgTp", chgTp)}로 'C'/'U'/'D'를 채웁니다.</p>
+     * {@code setField(logEntity, "chgTp", chgTp)}로 'C'/'U'/'D'를 채웁니다.
+     * </p>
      */
     @Column(name = "CHG_DTT_YN", length = 1, comment = "변경구분여부")
     private String chgTp;
@@ -51,7 +59,7 @@ public abstract class BaseLogEntity {
     private LocalDateTime chgDtm;
 
     /** 변경자사번: SecurityContext에서 추출한 현재 사용자 사번 */
-    @Column(name = "CHG_USID", length = 14, comment = "변경자사번")
+    @Column(name = "CHG_USID", length = 14, comment = "변경사용자ID")
     private String chgUsid;
 
     /* ── BaseEntity 스냅샷 필드 ── */
