@@ -18,14 +18,14 @@ public class BoardCommentDto {
     @AllArgsConstructor
     @Schema(name = "BoardCommentResponse", description = "댓글 응답")
     public static class Response {
-        @Schema(description = "댓글관리번호")   private String        cmmtMngNo;
+        @Schema(description = "댓글관리번호")   private Long        cmmtMngNo;
         @Schema(description = "게시물관리번호") private String        nacMngNo;
         @Schema(description = "댓글내용")       private String        cmmtCone;
         @Schema(description = "화면여부")       private String        sreYn;
-        @Schema(description = "그룹번호")       private String        cmmtGrpNo;
+        @Schema(description = "그룹번호")       private Long        cmmtGrpNo;
         @Schema(description = "그룹순서")       private Integer       cmmtGrpSqn;
         @Schema(description = "그룹레벨 (들여쓰기 계산용)") private Integer cmmtGrpLev;
-        @Schema(description = "상위댓글번호")   private String        hrkCmmtMngNo;
+        @Schema(description = "상위댓글번호")   private Long        hrkCmmtMngNo;
         @Schema(description = "삭제여부")       private String        delYn;
         @Schema(description = "작성자사번")     private String        fstEnrUsid;
         @Schema(description = "등록일시")       private LocalDateTime fstEnrDtm;

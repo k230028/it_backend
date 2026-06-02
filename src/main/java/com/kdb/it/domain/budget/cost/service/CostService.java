@@ -50,7 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
  * </p>
  * <ul>
  * <li>{@code IT_MNGC_NO} (전산관리비관리번호): 논리적 식별자</li>
- * <li>{@code IT_MNGC_SNO} (전산관리비일련번호): 동일 관리번호 내의 이력 순번</li>
+ * <li>{@code BG_SNO} (예산일련번호): 동일 관리번호 내의 이력 순번</li>
  * </ul>
  *
  * <p>
@@ -186,7 +186,7 @@ public class CostService {
      *
      * <p>
      * 전산관리비관리번호({@code IT_MNGC_NO})가 없으면 Oracle 시퀀스로 자동 채번합니다.
-     * 일련번호({@code IT_MNGC_SNO})는 기존 데이터 기준 MAX+1로 설정합니다.
+     * 일련번호({@code BG_SNO})는 기존 데이터 기준 MAX+1로 설정합니다.
      * </p>
      *
      * <p>
@@ -201,7 +201,7 @@ public class CostService {
      * </p>
      * <ul>
      * <li>기존 데이터가 없으면 1</li>
-     * <li>기존 데이터가 있으면 MAX(IT_MNGC_SNO) + 1</li>
+     * <li>기존 데이터가 있으면 MAX(BG_SNO) + 1</li>
      * </ul>
      *
      * @param request 전산관리비 생성 요청 DTO (관리번호, 비목명, 계약 정보 등)

@@ -22,51 +22,42 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 public class Cblbmm extends BaseEntity {
 
-    /** 게시판관리번호 PK. 형식: BLBM-{YYYY}-{0001} */
+    /** 게시판관리번호 PK. 형식: BLBM-{0001} */
     @Id
-    @Column(name = "BLB_MNG_NO", nullable = false, length = 32, comment = "게시판관리번호")
+    @Column(name = "BLB_ID", nullable = false, length = 32, comment = "게시판관리번호")
     private String blbMngNo;
 
     @Column(name = "BLB_NM", nullable = false, length = 100, comment = "게시판명")
     private String blbNm;
 
-    @Column(name = "BLB_TP", nullable = false, length = 32, comment = "게시판유형")
+    /** 게시판구분코드 (공통코드 BLB_TC: 001=공지사항, 002=자료실). Java 필드명 blbTp 유지. 컬럼 BLB_TC */
+    @Column(name = "BLB_TC", nullable = false, length = 3, comment = "게시판구분코드")
     private String blbTp;
 
-    @Column(name = "REP_USE_YN", nullable = false, length = 1, comment = "답변사용여부")
+    @Column(name = "REP_FNC_USE_YN", nullable = false, length = 1, comment = "답변사용여부")
     private String repUseYn;
 
     @Column(name = "CMMT_USE_YN", nullable = false, length = 1, comment = "댓글사용여부")
     private String cmmtUseYn;
 
-    @Column(name = "FL_ESN_YN", nullable = false, length = 1, comment = "파일필수여부")
+    @Column(name = "APG_FL_USE_YN", nullable = false, length = 1, comment = "파일필수여부")
     private String flEsnYn;
 
-    @Column(name = "HRK_FXN_USE_YN", nullable = false, length = 1, comment = "상위고정사용여부")
+    @Column(name = "IOA_TC", nullable = false, length = 1, comment = "상위고정사용여부")
     private String hrkFxnUseYn;
 
-    @Column(name = "NAC_TP_USE_YN", nullable = false, length = 1, comment = "게시물유형사용여부")
-    private String nacTpUseYn;
-
-    @Column(name = "KD_USE_YN", nullable = false, length = 1, comment = "종류사용여부")
-    private String kdUseYn;
+    @Column(name = "HED_TAG_USE_YN", nullable = false, length = 1, comment = "머리말태그사용여부")
+    private String hedTagUseYn;
 
     /** 조회권한코드 (ALL / ROLE_ADMIN / ROLE_USER / ROLE_DEPT_MANAGER) */
-    @Column(name = "INQ_ATH_C", nullable = false, length = 32, comment = "조회권한코드")
+    @Column(name = "INQ_DWN_ATH_TC", nullable = false, length = 32, comment = "조회권한코드")
     private String inqAthC;
 
     /** 등록권한코드 */
-    @Column(name = "ENR_ATH_C", nullable = false, length = 32, comment = "등록권한코드")
+    @Column(name = "WRT_DWN_ATH_TC", nullable = false, length = 32, comment = "등록권한코드")
     private String enrAthC;
 
-    @Column(name = "BBR_LMTN_USE_YN", nullable = false, length = 1, comment = "부점한정사용여부")
-    private String bbrLmtnUseYn;
-
-    /** 담당부서한정코드 — Y일 때 해당 부서만 접근 가능 */
-    @Column(name = "BBR_LMTN_C", length = 8, comment = "부점한정코드")
-    private String bbrLmtnC;
-
-    @Column(name = "SRE_SQN_NO", nullable = false, comment = "화면순서번호")
+    @Column(name = "SRE_SQN_SNO", nullable = false, comment = "화면순서번호")
     private Integer sreSqnNo;
 
     @Column(name = "USE_YN", nullable = false, length = 1, comment = "사용여부")
@@ -83,21 +74,17 @@ public class Cblbmm extends BaseEntity {
      * @param cmmtUseYn     댓글사용여부
      * @param flEsnYn       첨부필수여부
      * @param hrkFxnUseYn   상위고정사용여부
-     * @param nacTpUseYn    게시물유형사용여부
-     * @param kdUseYn       종류사용여부
+     * @param hedTagUseYn   머리말태그사용여부
      * @param inqAthC       조회권한코드
      * @param enrAthC       등록권한코드
-     * @param bbrLmtnUseYn  담당부서한정사용여부
-     * @param bbrLmtnC      담당부서한정코드
      * @param sreSqnNo      화면순서번호
      * @param useYn         사용여부
      * @param rmk           비고
      */
     public record UpdateCommand(
         String blbNm, String repUseYn, String cmmtUseYn,
-        String flEsnYn, String hrkFxnUseYn, String nacTpUseYn, String kdUseYn,
+        String flEsnYn, String hrkFxnUseYn, String hedTagUseYn,
         String inqAthC, String enrAthC,
-        String bbrLmtnUseYn, String bbrLmtnC,
         Integer sreSqnNo, String useYn, String rmk
     ) {}
 
@@ -108,12 +95,9 @@ public class Cblbmm extends BaseEntity {
         this.cmmtUseYn    = cmd.cmmtUseYn();
         this.flEsnYn      = cmd.flEsnYn();
         this.hrkFxnUseYn  = cmd.hrkFxnUseYn();
-        this.nacTpUseYn   = cmd.nacTpUseYn();
-        this.kdUseYn      = cmd.kdUseYn();
+        this.hedTagUseYn  = cmd.hedTagUseYn();
         this.inqAthC      = cmd.inqAthC();
         this.enrAthC      = cmd.enrAthC();
-        this.bbrLmtnUseYn = cmd.bbrLmtnUseYn();
-        this.bbrLmtnC     = cmd.bbrLmtnC();
         this.sreSqnNo     = cmd.sreSqnNo();
         this.useYn        = cmd.useYn();
         this.rmk          = cmd.rmk();

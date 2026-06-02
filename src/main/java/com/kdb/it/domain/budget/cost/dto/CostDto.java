@@ -88,7 +88,7 @@ public class CostDto {
 
         /** 지급예정월 / 최초지급일자 */
         @Schema(description = "지급예정월(최초지급일자)", example = "2026-01-25")
-        private LocalDate fstDfrDt;
+        private String fstDfrDt;
 
         /** 통화 코드 (예: "KRW", "USD") */
         @Schema(description = "통화", example = "KRW")
@@ -107,7 +107,7 @@ public class CostDto {
 
         /** 환율기준일자 (환율 적용 기준 날짜) */
         @Schema(description = "환율기준일자", example = "2026-01-01")
-        private LocalDate xcrBseDt;
+        private String xcrBseDt;
 
         /** 정보보호여부 ("Y" 또는 "N", 기본값 "N") */
         @Schema(description = "정보보호여부", example = "N")
@@ -224,7 +224,7 @@ public class CostDto {
 
         /** 지급예정월 / 최초지급일자 */
         @Schema(description = "지급예정월(최초지급일자)", example = "2026-01-25")
-        private LocalDate fstDfrDt;
+        private String fstDfrDt;
 
         /** 통화 코드 */
         @Schema(description = "통화", example = "KRW")
@@ -243,7 +243,7 @@ public class CostDto {
 
         /** 환율기준일자 */
         @Schema(description = "환율기준일자", example = "2026-01-01")
-        private LocalDate xcrBseDt;
+        private String xcrBseDt;
 
         /** 정보보호여부 ("Y" 또는 "N") */
         @Schema(description = "정보보호여부", example = "N")
@@ -308,7 +308,7 @@ public class CostDto {
         @Schema(description = "전산업무비코드 (IT관리비관리번호)", example = "COST_2026_0001")
         private String itMngcNo;
 
-        /** 전산관리비일련번호 (IT_MNGC_SNO, 이력 순번) */
+        /** 전산관리비일련번호 (BG_SNO, 이력 순번) */
         @Schema(description = "전산업무비일련번호 (IT관리비일련번호)", example = "1")
         private Integer itMngcSno;
 
@@ -338,7 +338,7 @@ public class CostDto {
 
         /** 지급예정월 / 최초지급일자 */
         @Schema(description = "지급예정월(최초지급일자)", example = "2026-01-25")
-        private LocalDate fstDfrDt;
+        private String fstDfrDt;
 
         /** 통화 코드 */
         @Schema(description = "통화", example = "KRW")
@@ -357,7 +357,7 @@ public class CostDto {
 
         /** 환율기준일자 */
         @Schema(description = "환율기준일자", example = "2026-01-01")
-        private LocalDate xcrBseDt;
+        private String xcrBseDt;
 
         /** 정보보호여부 ("Y" 또는 "N") */
         @Schema(description = "정보보호여부", example = "N")
@@ -654,7 +654,7 @@ public class CostDto {
         private BigDecimal xcr;
 
         @Schema(description = "환율기준일자", example = "2026-04-03")
-        private LocalDate xcrBseDt;
+        private String xcrBseDt;
 
         @Schema(description = "지급주기", example = "매월")
         private String dfrCleC;

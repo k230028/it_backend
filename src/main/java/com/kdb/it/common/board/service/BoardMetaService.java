@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,7 +33,7 @@ public class BoardMetaService {
     /**
      * 게시판 단건 조회
      *
-     * @param blbMngNo 게시판관리번호 (예: BLBM-2026-0001)
+     * @param blbMngNo 게시판관리번호 (예: BLBM-0001)
      * @return 게시판 메타 응답 DTO
      * @throws com.kdb.it.exception.CustomGeneralException 게시판을 찾을 수 없거나 삭제된 경우 (DEL_YN='Y')
      */
@@ -51,7 +50,7 @@ public class BoardMetaService {
     @Transactional
     public String createBoard(BoardMetaDto.CreateRequest request) {
         Long seq = boardMetaRepository.getNextSequenceValue();
-        String blbMngNo = String.format("BLBM-%d-%04d", LocalDate.now().getYear(), seq);
+        String blbMngNo = String.format("BLBM-%04d", seq);
 
         Cblbmm entity = Cblbmm.builder()
             .blbMngNo(blbMngNo)

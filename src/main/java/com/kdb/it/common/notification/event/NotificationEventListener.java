@@ -1,4 +1,4 @@
-﻿package com.kdb.it.common.notification.event;
+package com.kdb.it.common.notification.event;
 
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;

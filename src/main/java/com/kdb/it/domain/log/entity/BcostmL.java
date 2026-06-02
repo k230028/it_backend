@@ -23,10 +23,10 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class BcostmL extends BaseLogEntity {
 
-    @Column(name = "IT_MNGC_NO", length = 32, comment = "전산업무비코드")
+    @Column(name = "BG_NO", length = 32, comment = "전산업무비코드")
     private String itMngcNo;
 
-    @Column(name = "IT_MNGC_SNO", comment = "전산업무비일련번호")
+    @Column(name = "BG_SNO", precision = 9, comment = "예산일련번호")
     private Integer itMngcSno;
 
     @Column(name = "LST_YN", length = 4, comment = "최종여부")
@@ -41,14 +41,14 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "CTT_OPP_NM", length = 100, comment = "계약상대처명")
     private String cttOppNm;
 
-    @Column(name = "IT_MNGC_BG_AMT", precision = 18, scale = 3, comment = "전산업무비예산금액")
+    @Column(name = "TOT_XP_AMT", precision = 18, scale = 3, comment = "전산업무비예산금액")
     private BigDecimal itMngcBgAmt;
 
     @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
     private String dfrCleC;
 
     @Column(name = "FST_DFR_DT", comment = "지급예정월")
-    private LocalDate fstDfrDt;
+    private String fstDfrDt;
 
     @Column(name = "CUR_C", length = 3, comment = "통화코드")
     private String curC;
@@ -57,33 +57,33 @@ public class BcostmL extends BaseLogEntity {
     private BigDecimal xcr;
 
     @Column(name = "XCR_BSE_DT", comment = "환율기준일자")
-    private LocalDate xcrBseDt;
+    private String xcrBseDt;
 
-    @Column(name = "INF_PRT_YN", length = 4, comment = "정보보호여부")
+    @Column(name = "SECT_SYS_UTZ_YN", length = 4, comment = "정보보호여부")
     private String infPrtYn;
 
     @Column(name = "IND_RSN", length = 600, comment = "증감사유")
     private String indRsn;
 
-    @Column(name = "CGPR_ENO", length = 32, comment = "담당자행번")
+    @Column(name = "CGPR_ID", length = 32, comment = "담당자행번")
     private String cgprEno;
 
-    @Column(name = "BICE_DPM_C", length = 3, comment = "담당부서코드")
+    @Column(name = "SVN_DPM_C", length = 3, comment = "담당부서코드")
     private String biceDpmC;
 
-    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
+    @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
-    @Column(name = "BG_YY", length = 4, comment = "예산연도")
+    @Column(name = "BSE_YY", length = 4, comment = "예산연도")
     private String bgYy;
 
-    @Column(name = "ABUS_C", length = 100, comment = "사업코드")
+    @Column(name = "BG_UNT_ABUS_C", length = 100, comment = "사업코드")
     private String abusC;
 
-    @Column(name = "IT_MNGC_TP", length = 100, comment = "전산업무비유형")
+    @Column(name = "BG_XP_TC", length = 100, comment = "전산업무비유형")
     private String itMngcTp;
 
-    @Column(name = "PUL_DTT", length = 100, comment = "전산업무비구분")
+    @Column(name = "ABUS_TC", length = 100, comment = "전산업무비구분")
     private String pulDtt;
 
     /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */

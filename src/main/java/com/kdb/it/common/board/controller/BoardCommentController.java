@@ -52,12 +52,12 @@ public class BoardCommentController {
      */
     @PostMapping
     @Operation(summary = "댓글 등록")
-    public ResponseEntity<String> create(
+    public ResponseEntity<Long> create(
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
             @RequestBody BoardCommentDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
-        String cmmtMngNo = boardCommentService.createComment(blbMngNo, nacMngNo, request, user);
+        Long cmmtMngNo = boardCommentService.createComment(blbMngNo, nacMngNo, request, user);
         return ResponseEntity.created(
             URI.create("/api/boards/" + blbMngNo + "/posts/" + nacMngNo + "/comments/" + cmmtMngNo)
         ).body(cmmtMngNo);
@@ -75,13 +75,13 @@ public class BoardCommentController {
      */
     @PostMapping("/{cmmtMngNo}/replies")
     @Operation(summary = "대댓글 등록")
-    public ResponseEntity<String> createReply(
+    public ResponseEntity<Long> createReply(
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
-            @PathVariable("cmmtMngNo") String cmmtMngNo,
+            @PathVariable("cmmtMngNo") Long cmmtMngNo,
             @RequestBody BoardCommentDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
-        String replyId = boardCommentService.createReply(blbMngNo, nacMngNo, cmmtMngNo, request, user);
+        Long replyId = boardCommentService.createReply(blbMngNo, nacMngNo, cmmtMngNo, request, user);
         return ResponseEntity.created(
             URI.create("/api/boards/" + blbMngNo + "/posts/" + nacMngNo + "/comments/" + replyId)
         ).body(replyId);
@@ -101,7 +101,7 @@ public class BoardCommentController {
     public ResponseEntity<Void> update(
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
-            @PathVariable("cmmtMngNo") String cmmtMngNo,
+            @PathVariable("cmmtMngNo") Long cmmtMngNo,
             @RequestBody BoardCommentDto.UpdateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         boardCommentService.updateComment(cmmtMngNo, request, user);
@@ -121,7 +121,7 @@ public class BoardCommentController {
     public ResponseEntity<Void> delete(
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
-            @PathVariable("cmmtMngNo") String cmmtMngNo,
+            @PathVariable("cmmtMngNo") Long cmmtMngNo,
             @AuthenticationPrincipal CustomUserDetails user) {
         boardCommentService.deleteComment(cmmtMngNo, user);
         return ResponseEntity.noContent().build();

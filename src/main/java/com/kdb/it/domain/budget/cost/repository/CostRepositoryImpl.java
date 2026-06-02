@@ -66,7 +66,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      *   SELECT 1 FROM TPRMPP_CAPPLA ca
      *   WHERE ca.FNT_TB_NM = 'BCOSTM'
      *     AND ca.PK_COL_NM = c.IT_MNGC_NO
-     *     AND ca.FNT_TB_CRY_SNO = c.IT_MNGC_SNO
+     *     AND ca.FNT_TB_CRY_SNO = c.BG_SNO
      * )
      * }</pre>
      *
@@ -80,13 +80,13 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      *   JOIN TPRMPP_CAPPLM cm ON ca.APF_DCM_NO = cm.APF_DCM_NO
      *   WHERE ca.FNT_TB_NM = 'BCOSTM'
      *     AND ca.PK_COL_NM = c.IT_MNGC_NO
-     *     AND ca.FNT_TB_CRY_SNO = c.IT_MNGC_SNO
+     *     AND ca.FNT_TB_CRY_SNO = c.BG_SNO
      *     AND cm.APF_PRG_STS_C = '001'
      *     AND ca.APF_SNO = (
      *       SELECT MAX(ca2.APF_SNO) FROM TPRMPP_CAPPLA ca2
      *       WHERE ca2.FNT_TB_NM = 'BCOSTM'
      *         AND ca2.PK_COL_NM = c.IT_MNGC_NO
-     *         AND ca2.FNT_TB_CRY_SNO = c.IT_MNGC_SNO
+     *         AND ca2.FNT_TB_CRY_SNO = c.BG_SNO
      *     )
      * )
      * }</pre>

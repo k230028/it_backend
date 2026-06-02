@@ -174,7 +174,7 @@ public class ProjectDto {
 
         /** 의무완료기한 (법령 등에 따른 의무 완료 기한) */
         @Schema(description = "의무완료기한")
-        private LocalDate lblFsgTlm;
+        private String lblFsgTlm;
 
         /** 보고상태 (보고 진행 상태) */
         @Schema(description = "보고상태")
@@ -392,7 +392,7 @@ public class ProjectDto {
 
         /** 의무완료기한 */
         @Schema(description = "의무완료기한")
-        private LocalDate lblFsgTlm;
+        private String lblFsgTlm;
 
         /** 보고상태 */
         @Schema(description = "보고상태")
@@ -571,7 +571,7 @@ public class ProjectDto {
 
         /** 의무완료기한 */
         @Schema(description = "의무완료기한")
-        private LocalDate lblFsgTlm;
+        private String lblFsgTlm;
 
         /** 보고상태 */
         @Schema(description = "보고상태")
@@ -841,7 +841,7 @@ public class ProjectDto {
         private String gclMngNo;
 
         /**
-         * 품목일련번호 (GCL_SNO, PK 일부)
+         * 품목일련번호 (SNO, PK 일부)
          * <p>
          * 동일 관리번호 내의 순번. 신규는 MAX+1로 자동 설정.
          * </p>
@@ -875,7 +875,7 @@ public class ProjectDto {
 
         /** 환율기준일자 */
         @Schema(description = "환율기준일자")
-        private LocalDate xcrBseDt;
+        private String xcrBseDt;
 
         /** 예산근거 (예산 산정 근거 설명) */
         @Schema(description = "예산근거")

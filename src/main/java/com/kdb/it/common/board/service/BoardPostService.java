@@ -60,9 +60,7 @@ public class BoardPostService {
 
         return postRepository.searchPosts(
             blbMngNo, cond,
-            user.isAdmin(),
-            user.getBbrC(),
-            board.getBbrLmtnUseYn()
+            user.isAdmin()
         ).stream()
          .map(BoardPostDto.ListItem::from)
          .collect(Collectors.toList());
@@ -120,10 +118,9 @@ public class BoardPostService {
             .blbMngNo(blbMngNo)
             .nacNm(request.getNacNm())
             .nacCone(sanitizedCone)
-            .nacTp(request.getNacTp())
             .kdC(request.getKdC())
             .pritC(request.getPritC() != null ? request.getPritC() : "PRIT_C_001")
-            .hrkFxnYn(request.getHrkFxnYn() != null ? request.getHrkFxnYn() : "N")
+            .ancYn(request.getAncYn() != null ? request.getAncYn() : "N")
             .sreYn(request.getSreYn() != null ? request.getSreYn() : "Y")
             .bbrC(request.getBbrC())
             .sttDt(request.getSttYmd())
@@ -131,7 +128,6 @@ public class BoardPostService {
             .nacInqNbr(0)
             .flApgYn("N")
             .flNbr(0)
-            .nacGrpNo(nacMngNo)
             .nacGrpSqn(0)
             .nacGrpLev(0)
             .build();
@@ -210,7 +206,7 @@ public class BoardPostService {
         verifyCanWrite(user, board);
 
         postRepository.shiftGroupSqn(
-            parent.getNacGrpNo(),
+            parent.getNacId(),
             parent.getNacGrpSqn(),
             parent.getNacGrpLev()
         );
@@ -225,7 +221,7 @@ public class BoardPostService {
             .nacNm(request.getNacNm())
             .nacCone(sanitizedCone)
             .pritC(request.getPritC() != null ? request.getPritC() : "PRIT_C_001")
-            .hrkFxnYn("N")
+            .ancYn("N")
             .sreYn("Y")
             .bbrC(request.getBbrC())
             .sttDt(request.getSttYmd())
@@ -233,12 +229,11 @@ public class BoardPostService {
             .nacInqNbr(0)
             .flApgYn("N")
             .flNbr(0)
-            .nacGrpNo(parent.getNacGrpNo())
             .nacGrpSqn(0)
             .nacGrpLev(0)
             .build();
         reply.initGroupAsReply(
-            parent.getNacGrpNo(),
+            parent.getNacId(),
             parent.getNacGrpSqn(),
             parent.getNacGrpLev(),
             parent.getNacMngNo()
@@ -330,10 +325,8 @@ public class BoardPostService {
 
         boolean roleOk = "ALL".equals(board.getInqAthC())
             || hasSpringRole(user, board.getInqAthC());
-        boolean deptOk = board.getBbrLmtnC() == null
-            || board.getBbrLmtnC().equals(user.getBbrC());
 
-        if (!roleOk || !deptOk) {
+        if (!roleOk) {
             throw new CustomGeneralException("게시판 접근 권한이 없습니다.");
         }
     }
@@ -354,11 +347,8 @@ public class BoardPostService {
         boolean visible = "Y".equals(post.getSreYn())
             && (post.getSttDt() == null || !post.getSttDt().isAfter(today))
             && (post.getEndDt() == null || !post.getEndDt().isBefore(today));
-        boolean deptOk = !"Y".equals(board.getBbrLmtnUseYn())
-            || post.getBbrC() == null
-            || post.getBbrC().equals(user.getBbrC());
 
-        if (!visible || !deptOk) {
+        if (!visible) {
             throw new CustomGeneralException("게시물에 접근할 권한이 없습니다.");
         }
     }

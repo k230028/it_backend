@@ -33,10 +33,10 @@ import lombok.NoArgsConstructor;
 public class BbugtmId implements Serializable {
 
     /** 예산관리번호: Bbugtm.bgMngNo와 이름/타입 일치 필수 (예: BG-2026-0001) */
-    @Column(name = "BG_MNG_NO", comment = "예산관리번호")
+    @Column(name = "BG_NO", comment = "예산관리번호")
     private String bgMngNo;
 
     /** 예산일련번호: Bbugtm.bgSno와 이름/타입 일치 필수 */
-    @Column(name = "BG_SNO", comment = "예산일련번호")
+    @Column(name = "SNO", comment = "예산일련번호")
     private Integer bgSno;
 }

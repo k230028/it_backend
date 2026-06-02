@@ -1181,7 +1181,7 @@ class ProjectServiceTest {
                                 .gclQty(BigDecimal.ONE)
                                 .curC("KRW")
                                 .xcr(null)
-                                .xcrBseDt(LocalDate.of(2026, 1, 1))
+                                .xcrBseDt("20260101")
                                 .bgFdtnCone("근거")
                                 .itdYm("2026-02")
                                 .dfrCleC("매월")
@@ -1197,7 +1197,7 @@ class ProjectServiceTest {
                                 .gclQty(BigDecimal.ONE)
                                 .curC("KRW")
                                 .xcr(null)
-                                .xcrBseDt(LocalDate.of(2026, 1, 1))
+                                .xcrBseDt("20260101")
                                 .bgFdtnCone("근거")
                                 .itdYm("2026-02")
                                 .dfrCleC("매월")
@@ -1890,7 +1890,7 @@ class ProjectServiceTest {
                                 .prjMngNo(prjMngNo).prjSno(1)
                                 .ioeC("IOE-001").gclNm("동일").gclQty(BigDecimal.ONE)
                                 .curC("KRW").xcr(BigDecimal.ONE)
-                                .xcrBseDt(java.time.LocalDate.of(2026, 1, 1)) // 기존 날짜
+                                .xcrBseDt("20260101") // 기존 날짜
                                 .infPrtYn("N").itrInfrYn("N")
                                 .gclAmt(BigDecimal.valueOf(100)).delYn("N").build();
 
@@ -1906,7 +1906,7 @@ class ProjectServiceTest {
                                 .gclMngNo("GCL-0003")
                                 .ioeC("IOE-001").gclNm("동일").gclQty(BigDecimal.ONE)
                                 .curC("KRW").xcr(BigDecimal.ONE)
-                                .xcrBseDt(java.time.LocalDate.of(2026, 6, 1)) // 날짜 변경
+                                .xcrBseDt("20260601") // 날짜 변경
                                 .infPrtYn(null).itrInfrYn(null)
                                 .gclAmt(BigDecimal.valueOf(100)).build();
 

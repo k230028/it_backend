@@ -50,29 +50,29 @@ public class Brdocm extends BaseEntity {
 
     /** 문서버전: 복합 기본키의 두 번째 컬럼 (Oracle NUMBER(4,2), 예: 1.00, 1.01, 2.00) */
     @Id
-    @Column(name = "DOC_VRS", nullable = false, precision = 4, scale = 2, comment = "문서버전")
+    @Column(name = "DOC_VRS_SNO", nullable = false, precision = 4, scale = 2, comment = "문서버전")
     private BigDecimal docVrs;
 
     /** 요구사항명: 요구사항의 제목 (최대 200자) */
-    @Column(name = "REQ_NM", length = 200, comment = "요구사항명")
+    @Column(name = "REQ_TTL", length = 200, comment = "요구사항명")
     private String reqNm;
 
     /** 요구사항정보: 요구사항 상세 내용 (CLOB, HTML 포함 가능) */
     @Lob
-    @Column(name = "REQ_INF", comment = "요구사항정보")
+    @Column(name = "REDT_CONE_INF", comment = "요구사항정보")
     private String reqInf;
 
     /** 요구사항구분: 요구사항 분류 코드 (최대 32자) */
-    @Column(name = "REQ_DTT", length = 32, comment = "요구사항구분")
+    @Column(name = "REQ_DTT_NO", length = 32, comment = "요구사항구분")
     private String reqDtt;
 
     /** 업무구분: 업무 영역 분류 코드 (최대 32자) */
-    @Column(name = "BZ_DTT", length = 32, comment = "업무구분")
+    @Column(name = "BZ_DTT_NM", length = 32, comment = "업무구분")
     private String bzDtt;
 
     /** 완료기한: 요구사항 처리 완료 기한 */
-    @Column(name = "FSG_TLM", comment = "완료기한")
-    private LocalDate fsgTlm;
+    @Column(name = "RVW_FSG_TLM_DT", comment = "완료기한")
+    private String fsgTlm;
 
     /**
      * 요구사항 정의서 정보 업데이트 메서드
@@ -87,7 +87,7 @@ public class Brdocm extends BaseEntity {
      * @param bzDtt  업무구분
      * @param fsgTlm 완료기한
      */
-    public void update(String reqNm, String reqInf, String reqDtt, String bzDtt, LocalDate fsgTlm) {
+    public void update(String reqNm, String reqInf, String reqDtt, String bzDtt, String fsgTlm) {
         this.reqNm = reqNm;
         this.reqInf = reqInf;
         this.reqDtt = reqDtt;

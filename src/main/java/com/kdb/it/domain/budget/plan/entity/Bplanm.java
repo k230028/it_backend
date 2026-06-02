@@ -39,15 +39,15 @@ public class Bplanm extends BaseEntity {
 
     /** 계획관리번호 (PK, 형식: PLN-{연도}-{seq:04d}) */
     @Id
-    @Column(name = "PLN_MNG_NO", length = 32, comment = "계획관리번호")
+    @Column(name = "REQ_DOC_NO", length = 32, comment = "계획관리번호")
     private String plnMngNo;
 
     /** 계획구분 (신규, 조정) */
-    @Column(name = "PLN_TP", length = 16, comment = "계획구분")
+    @Column(name = "PLN_TP_C", length = 16, comment = "계획구분")
     private String plnTp;
 
     /** 대상년도 (형식: YYYY) */
-    @Column(name = "PLN_YY", length = 4, comment = "대상년도")
+    @Column(name = "BSE_YY", length = 4, comment = "대상년도")
     private String plnYy;
 
     /**
@@ -58,11 +58,11 @@ public class Bplanm extends BaseEntity {
      * </p>
      */
     @Lob
-    @Column(name = "PLN_DTL_INF", comment = "계획상세정보")
+    @Column(name = "REDT_CONE_INF", comment = "계획상세정보")
     private String plnDtlInf;
 
     /** IT프로젝트내용 */
-    @Column(name = "IT_PRJ_CONE", length = 4000, comment = "IT프로젝트내용")
+    @Column(name = "PRJ_DVM_CONE", length = 4000, comment = "IT프로젝트내용")
     private String itPrjCone;
 
     /** IT예산내용 */
@@ -94,14 +94,14 @@ public class Bplanm extends BaseEntity {
     }
 
     /** 총예산 (전체 대상사업의 프로젝트 예산 합계) */
-    @Column(name = "TTL_BG", precision = 15, scale = 2, comment = "총예산")
+    @Column(name = "ADU_TOT_AMT", precision = 15, scale = 2, comment = "총예산")
     private BigDecimal ttlBg;
 
     /** 자본예산 (전체 대상사업의 자본예산 합계) */
-    @Column(name = "CPT_BG", precision = 15, scale = 2, comment = "자본예산")
+    @Column(name = "CPIT_BG_APV_AMT", precision = 15, scale = 2, comment = "자본예산")
     private BigDecimal cptBg;
 
     /** 일반관리비 (전체 대상사업의 일반관리비 합계) */
-    @Column(name = "MNGC", precision = 15, scale = 2, comment = "일반관리비")
+    @Column(name = "TOT_XP_AMT", precision = 15, scale = 2, comment = "일반관리비")
     private BigDecimal mngc;
 }

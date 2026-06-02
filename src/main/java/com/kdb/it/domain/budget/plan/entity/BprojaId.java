@@ -23,10 +23,10 @@ import lombok.NoArgsConstructor;
 public class BprojaId implements Serializable {
 
     /** 프로젝트관리번호 (예: PRJ-2026-0001) */
-    @Column(name = "PRJ_MNG_NO", comment = "프로젝트관리번호")
+    @Column(name = "ABUS_MNG_NO", comment = "프로젝트관리번호")
     private String prjMngNo;
 
     /** 업무관리번호 (예: PLN-2026-0001) */
-    @Column(name = "BZ_MNG_NO", comment = "업무관리번호")
+    @Column(name = "DOC_MNG_NO", comment = "업무관리번호")
     private String bzMngNo;
 }

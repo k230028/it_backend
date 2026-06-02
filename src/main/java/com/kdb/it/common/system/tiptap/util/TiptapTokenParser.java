@@ -1,4 +1,4 @@
-﻿package com.kdb.it.common.system.tiptap.util;
+package com.kdb.it.common.system.tiptap.util;
 
 import org.springframework.stereotype.Component;
 

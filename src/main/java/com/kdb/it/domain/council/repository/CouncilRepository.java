@@ -65,7 +65,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * @param prjSts   변경할 상태값
      */
     @Modifying
-    @Query(value = "UPDATE TPRMPP_BPROJM SET PRJ_STS = :prjSts WHERE PRJ_MNG_NO = :prjMngNo AND PRJ_SNO = :prjSno",
+    @Query(value = "UPDATE TPRMPP_BPROJM SET STS_TC = :prjSts WHERE ABUS_MNG_NO = :prjMngNo AND SNO = :prjSno",
             nativeQuery = true)
     int updateProjectStatus(@Param("prjMngNo") String prjMngNo,
                             @Param("prjSno") Integer prjSno,
@@ -83,7 +83,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      */
     @Query(value = """
             SELECT a.* FROM TPRMPP_BASCTM a
-            JOIN TPRMPP_BPROJM p ON a.PRJ_MNG_NO = p.PRJ_MNG_NO AND a.PRJ_SNO = p.PRJ_SNO
+            JOIN TPRMPP_BPROJM p ON a.PRJ_MNG_NO = p.ABUS_MNG_NO AND a.PRJ_SNO = p.SNO
             WHERE p.BBR_C = :bbrC AND a.DEL_YN = :delYn
             ORDER BY a.FST_ENR_DTM DESC
             """, nativeQuery = true)
@@ -120,8 +120,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      */
     @Query(value = """
             SELECT
-                p.PRJ_MNG_NO    AS prjMngNo,
-                p.PRJ_SNO       AS prjSno,
+                p.ABUS_MNG_NO    AS prjMngNo,
+                p.SNO       AS prjSno,
                 p.PRJ_NM        AS prjNm,
                 a.ASCT_ID       AS asctId,
                 a.ASCT_STS_C      AS asctStsC,
@@ -129,38 +129,38 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 a.CNRC_DT       AS cnrcDt,
                 a.CNRC_TM       AS cnrcTm,
                 CASE WHEN a.ASCT_ID IS NOT NULL THEN 1 ELSE 0 END AS applied,
-                p.BG_YY         AS prjYy,
-                p.PRJ_TP        AS prjTp,
-                p.SVN_DPM       AS svnDpm,
-                p.PRJ_BG        AS prjBg,
-                p.STT_DT        AS sttDt,
-                p.END_DT        AS endDt,
-                p.IT_DPM        AS itDpm,
-                p.PRJ_DES       AS prjDes
+                p.BSE_YY         AS prjYy,
+                p.PRJ_BZ_TC        AS prjTp,
+                p.SVN_DPM_C       AS svnDpm,
+                p.RQM_BG_AMT        AS prjBg,
+                p.STT_DTM        AS sttDt,
+                p.END_DTM        AS endDt,
+                p.DVM_DPM_C        AS itDpm,
+                p.ABUS_CONE       AS prjDes
             FROM TPRMPP_BPROJM p
             LEFT JOIN TPRMPP_BASCTM a
-                ON p.PRJ_MNG_NO = a.PRJ_MNG_NO
-               AND p.PRJ_SNO    = a.PRJ_SNO
+                ON p.ABUS_MNG_NO = a.PRJ_MNG_NO
+               AND p.SNO    = a.PRJ_SNO
                AND a.DEL_YN     = 'N'
             WHERE p.DEL_YN = 'N'
               AND (
-                  (a.ASCT_ID IS NOT NULL AND p.PRJ_STS = :stsInProgress)
+                  (a.ASCT_ID IS NOT NULL AND p.STS_TC = :stsInProgress)
                   OR
-                  (a.ASCT_ID IS NULL AND p.PRJ_STS IN (:stsPending1, :stsPending2)
+                  (a.ASCT_ID IS NULL AND p.STS_TC IN (:stsPending1, :stsPending2)
                   AND EXISTS (
                       SELECT 1
                       FROM TPRMPP_CAPPLA ca
                       JOIN TPRMPP_CAPPLM cm ON ca.APF_DCM_NO = cm.APF_DCM_NO
                       WHERE ca.FNT_TB_NM   = 'BPROJM'
-                        AND ca.PK_COL_NM   = p.PRJ_MNG_NO
-                        AND ca.FNT_TB_CRY_SNO = p.PRJ_SNO
+                        AND ca.PK_COL_NM   = p.ABUS_MNG_NO
+                        AND ca.FNT_TB_CRY_SNO = p.SNO
                         AND cm.APF_PRG_STS_C = :apfSts
                         AND ca.APF_SNO = (
                             SELECT MAX(ca2.APF_SNO)
                             FROM TPRMPP_CAPPLA ca2
                             WHERE ca2.FNT_TB_NM   = 'BPROJM'
-                              AND ca2.PK_COL_NM   = p.PRJ_MNG_NO
-                              AND ca2.FNT_TB_CRY_SNO = p.PRJ_SNO
+                              AND ca2.PK_COL_NM   = p.ABUS_MNG_NO
+                              AND ca2.FNT_TB_CRY_SNO = p.SNO
                         )
                   ))
               )
@@ -187,8 +187,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      */
     @Query(value = """
             SELECT
-                p.PRJ_MNG_NO    AS prjMngNo,
-                p.PRJ_SNO       AS prjSno,
+                p.ABUS_MNG_NO    AS prjMngNo,
+                p.SNO       AS prjSno,
                 p.PRJ_NM        AS prjNm,
                 a.ASCT_ID       AS asctId,
                 a.ASCT_STS_C      AS asctStsC,
@@ -196,39 +196,39 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 a.CNRC_DT       AS cnrcDt,
                 a.CNRC_TM       AS cnrcTm,
                 CASE WHEN a.ASCT_ID IS NOT NULL THEN 1 ELSE 0 END AS applied,
-                p.BG_YY         AS prjYy,
-                p.PRJ_TP        AS prjTp,
-                p.SVN_DPM       AS svnDpm,
-                p.PRJ_BG        AS prjBg,
-                p.STT_DT        AS sttDt,
-                p.END_DT        AS endDt,
-                p.IT_DPM        AS itDpm,
-                p.PRJ_DES       AS prjDes
+                p.BSE_YY         AS prjYy,
+                p.PRJ_BZ_TC        AS prjTp,
+                p.SVN_DPM_C       AS svnDpm,
+                p.RQM_BG_AMT        AS prjBg,
+                p.STT_DTM        AS sttDt,
+                p.END_DTM        AS endDt,
+                p.DVM_DPM_C        AS itDpm,
+                p.ABUS_CONE       AS prjDes
             FROM TPRMPP_BPROJM p
             LEFT JOIN TPRMPP_BASCTM a
-                ON p.PRJ_MNG_NO = a.PRJ_MNG_NO
-               AND p.PRJ_SNO    = a.PRJ_SNO
+                ON p.ABUS_MNG_NO = a.PRJ_MNG_NO
+               AND p.SNO    = a.PRJ_SNO
                AND a.DEL_YN     = 'N'
-            WHERE p.SVN_DPM = :svnDpm
+            WHERE p.SVN_DPM_C = :svnDpm
               AND p.DEL_YN  = 'N'
               AND (
-                  (a.ASCT_ID IS NOT NULL AND p.PRJ_STS = :stsInProgress)
+                  (a.ASCT_ID IS NOT NULL AND p.STS_TC = :stsInProgress)
                   OR
-                  (a.ASCT_ID IS NULL AND p.PRJ_STS IN (:stsPending1, :stsPending2)
+                  (a.ASCT_ID IS NULL AND p.STS_TC IN (:stsPending1, :stsPending2)
                   AND EXISTS (
                       SELECT 1
                       FROM TPRMPP_CAPPLA ca
                       JOIN TPRMPP_CAPPLM cm ON ca.APF_DCM_NO = cm.APF_DCM_NO
                       WHERE ca.FNT_TB_NM   = 'BPROJM'
-                        AND ca.PK_COL_NM   = p.PRJ_MNG_NO
-                        AND ca.FNT_TB_CRY_SNO = p.PRJ_SNO
+                        AND ca.PK_COL_NM   = p.ABUS_MNG_NO
+                        AND ca.FNT_TB_CRY_SNO = p.SNO
                         AND cm.APF_PRG_STS_C = :apfSts
                         AND ca.APF_SNO = (
                             SELECT MAX(ca2.APF_SNO)
                             FROM TPRMPP_CAPPLA ca2
                             WHERE ca2.FNT_TB_NM   = 'BPROJM'
-                              AND ca2.PK_COL_NM   = p.PRJ_MNG_NO
-                              AND ca2.FNT_TB_CRY_SNO = p.PRJ_SNO
+                              AND ca2.PK_COL_NM   = p.ABUS_MNG_NO
+                              AND ca2.FNT_TB_CRY_SNO = p.SNO
                         )
                   ))
               )

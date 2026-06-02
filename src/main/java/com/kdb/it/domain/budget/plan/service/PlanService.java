@@ -1,4 +1,4 @@
-﻿package com.kdb.it.domain.budget.plan.service;
+package com.kdb.it.domain.budget.plan.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;

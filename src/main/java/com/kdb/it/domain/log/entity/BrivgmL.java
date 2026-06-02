@@ -22,25 +22,25 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class BrivgmL extends BaseLogEntity {
 
-    @Column(name = "IVG_SNO", comment = "의견일련번호")
+    @Column(name = "IPM_OPNN_SNO", comment = "의견일련번호")
     private Long ivgSno;
 
     @Column(name = "DOC_MNG_NO", length = 32, comment = "문서관리번호")
     private String docMngNo;
 
-    @Column(name = "DOC_VRS", precision = 5, scale = 2, comment = "문서버전")
+    @Column(name = "DOC_VRS_SNO", precision = 5, scale = 2, comment = "문서버전")
     private BigDecimal docVrs;
 
-    @Column(name = "IVG_TP", length = 1, comment = "의견유형")
+    @Column(name = "RPL_OPNN_TC", length = 1, comment = "의견유형")
     private String ivgTp;
 
-    @Column(name = "IVG_CONE", length = 4000, comment = "의견내용")
+    @Column(name = "IVG_OPNN_CONE", length = 4000, comment = "의견내용")
     private String ivgCone;
 
-    @Column(name = "IDC_ID", length = 64, comment = "표시ID")
+    @Column(name = "RFR_ID", length = 64, comment = "표시ID")
     private String idcId;
 
-    @Column(name = "QOT_CONE", length = 4000, comment = "인용내용")
+    @Column(name = "RFR_CONE", length = 4000, comment = "인용내용")
     private String qotCone;
 
     @Column(name = "FSG_YN", length = 1, comment = "완료여부")

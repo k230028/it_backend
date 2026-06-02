@@ -12,14 +12,10 @@ public interface BoardPostRepositoryCustom {
      * @param blbMngNo      게시판관리번호
      * @param cond          검색 조건
      * @param isAdmin       관리자 여부 (삭제·숨김 게시물도 포함)
-     * @param userBbrC      사용자 부서코드 (부서 한정 필터용)
-     * @param bbrLmtnUseYn  게시판 담당부서한정 사용 여부
      */
     List<Cblbcm> searchPosts(
         String blbMngNo,
         BoardPostDto.SearchCondition cond,
-        boolean isAdmin,
-        String userBbrC,
-        String bbrLmtnUseYn
+        boolean isAdmin
     );
 }

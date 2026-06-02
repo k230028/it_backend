@@ -47,28 +47,28 @@ public class Bbugtm extends BaseEntity {
 
     /** 예산관리번호: 기본키 (예: BG-2026-0001) */
     @Id
-    @Column(name = "BG_MNG_NO", nullable = false, length = 32, comment = "예산관리번호")
+    @Column(name = "BG_NO", nullable = false, length = 32, comment = "예산관리번호")
     private String bgMngNo;
 
     /** 예산일련번호: 복합 기본키의 두 번째 컬럼 */
     @Id
-    @Column(name = "BG_SNO", nullable = false, comment = "예산일련번호")
+    @Column(name = "SNO", nullable = false, comment = "예산일련번호")
     private Integer bgSno;
 
     /** 예산년도 (예: "2026") */
-    @Column(name = "BG_YY", length = 4, comment = "예산년도")
+    @Column(name = "BSE_YY", length = 4, comment = "예산년도")
     private String bgYy;
 
     /** 원본테이블: 집계 대상 테이블 (BPROJM 또는 BCOSTM) */
-    @Column(name = "ORC_TB", length = 10, comment = "원본테이블")
+    @Column(name = "FNT_TB_NM", length = 10, comment = "원본테이블")
     private String orcTb;
 
     /** 원본PK값: 원본 레코드의 관리번호 */
-    @Column(name = "ORC_PK_VL", length = 32, comment = "원본PK값")
+    @Column(name = "PK_COL_NM", length = 32, comment = "원본PK값")
     private String orcPkVl;
 
     /** 원본일련번호값: 원본 레코드의 일련번호 */
-    @Column(name = "ORC_SNO_VL", comment = "원본일련번호값")
+    @Column(name = "FNT_TB_CRY_SNO", comment = "원본일련번호값")
     private Integer orcSnoVl;
 
     /** 비목코드: 편성비목에 매칭된 비목코드 */
@@ -76,11 +76,11 @@ public class Bbugtm extends BaseEntity {
     private String ioeC;
 
     /** 편성예산: 요청금액 × (편성률 / 100) */
-    @Column(name = "DUP_BG_AMT", precision = 18, scale = 3, comment = "편성예산금액")
+    @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "편성예산금액")
     private BigDecimal dupBgAmt;
 
     /** 편성률: 0~100 사이의 정수 */
-    @Column(name = "DUP_RT", precision = 3, scale = 0, comment = "편성률")
+    @Column(name = "ASG_RT", precision = 3, scale = 0, comment = "편성률")
     private Integer dupRt;
 
     /**

@@ -3,32 +3,35 @@
 -- 대상: ASCT_STS_C(협의회상태 13건), DBR_TC(심의유형 5건),
 --        VLR_TC(평가자유형 3건), CKG_ITM_C(점검항목 6건)
 --
--- [컬럼 역할]
---   C_ID     = 코드 타입  (예: ASCT_STS_C)
---   CDVA     = 코드 식별자 — 숫자 3자리 (예: 001, 013)
---   CDVA_NM  = 한글 표시명 (예: 작성 중)  ← 프론트 표시 기준
---   C_NM     = 타입 설명   (예: 협의회상태)
---   CDVA_DTL = CDVA_NM 복사
---   CDVA_DES = C_NM 복사
--- MERGE INTO — 멱등성 보장 (재실행 가능)
+-- [컬럼 역할] (TPRMPP_CCODEM 신규 스키마)
+--   CO_C_ID        = 코드 타입  (예: ASCT_STS_C)
+--   CDVA_ID        = 코드 식별자 — 숫자 3자리 (예: 001, 013)
+--   CDVA_NM        = 한글 표시명 (예: 작성 중)  ← 프론트 표시 기준
+--   CO_C_NM     = 타입 설명   (예: 협의회상태)   [구 C_NM]
+--   CO_CDVA_SPS    = CDVA_NM 복사                  [구 CDVA_DTL]
+--   CO_CDVA_ABV_NM = CO_C_NM 복사               [구 CDVA_DES]
+--   CO_C_INTN_NM   = 코드 타입 복사                [구 C_TP]
+--   CO_C_INTN_CONE = 타입 설명 복사                [구 C_TP_DES]
+--   C_SQN_SNO      = 정렬 순서                     [구 C_SQN]
+-- MERGE INTO — 멱등성 보장 (재실행 가능). 소스 서브쿼리 별칭(s.*)은 유지.
 -- ============================================================
 
 -- ------------------------------------------------------------
 -- 0. 구 시맨틱 CDVA 행 정리 (숫자 체계 전환 전 잔여 데이터)
 -- ------------------------------------------------------------
 DELETE FROM TPRMPP_CCODEM
-WHERE C_ID IN ('ASCT_STS', 'ASCT_STS_C')
-  AND CDVA = 'RESULT_APPROVAL_PENDING'
-  AND STT_DT = TO_DATE('2026-04-12', 'YYYY-MM-DD');
+WHERE CO_C_ID IN ('ASCT_STS', 'ASCT_STS_C')
+  AND CDVA_ID = 'RESULT_APPROVAL_PENDING'
+  AND STT_DTM = TO_DATE('2026-04-12', 'YYYY-MM-DD');
 
 -- ------------------------------------------------------------
--- 0-2. 구 C_ID 행 정리 (접미사 표준화 전환: _C/_TC)
---     - 기존 데이터 잔존 시 신규 C_ID와 충돌하지 않도록 삭제
+-- 0-2. 구 CO_C_ID 행 정리 (접미사 표준화 전환: _C/_TC)
+--     - 기존 데이터 잔존 시 신규 CO_C_ID와 충돌하지 않도록 삭제
 -- ------------------------------------------------------------
-DELETE FROM TPRMPP_CCODEM WHERE C_ID = 'ASCT_STS';
-DELETE FROM TPRMPP_CCODEM WHERE C_ID = 'DBR_TP';
-DELETE FROM TPRMPP_CCODEM WHERE C_ID = 'VLR_TP';
-DELETE FROM TPRMPP_CCODEM WHERE C_ID = 'CKG_ITM';
+DELETE FROM TPRMPP_CCODEM WHERE CO_C_ID = 'ASCT_STS';
+DELETE FROM TPRMPP_CCODEM WHERE CO_C_ID = 'DBR_TP';
+DELETE FROM TPRMPP_CCODEM WHERE CO_C_ID = 'VLR_TP';
+DELETE FROM TPRMPP_CCODEM WHERE CO_C_ID = 'CKG_ITM';
 
 -- ------------------------------------------------------------
 -- 1. 협의회상태 (ASCT_STS_C) — 13건
@@ -51,21 +54,21 @@ USING (
     SELECT 'ASCT_STS_C',          '011',          '결재 요청 가능',               11 FROM DUAL UNION ALL
     SELECT 'ASCT_STS_C',          '012',          '결과보고 결재 중',             12 FROM DUAL UNION ALL
     SELECT 'ASCT_STS_C',          '013',          '완료',                         13 FROM DUAL
-) s ON (t.C_ID = s.C_ID AND t.CDVA = s.CDVA AND t.STT_DT = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
+) s ON (t.CO_C_ID = s.C_ID AND t.CDVA_ID = s.CDVA AND t.STT_DTM = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
 WHEN MATCHED THEN
     UPDATE SET
-        t.CDVA_NM      = s.CDVA_NM,
-        t.CDVA_DTL     = s.CDVA_NM,
-        t.C_NM         = '협의회상태',
-        t.CDVA_DES     = '협의회상태',
-        t.C_TP         = 'ASCT_STS_C',
-        t.C_TP_DES     = '협의회상태',
-        t.C_SQN        = s.C_SQN,
-        t.LST_CHG_DTM  = SYSDATE,
-        t.LST_CHG_USID = 'SYSTEM'
+        t.CDVA_NM        = s.CDVA_NM,
+        t.CO_CDVA_SPS    = s.CDVA_NM,
+        t.CO_C_NM     = '협의회상태',
+        t.CO_CDVA_ABV_NM = '협의회상태',
+        t.CO_C_INTN_NM   = 'ASCT_STS_C',
+        t.CO_C_INTN_CONE = '협의회상태',
+        t.C_SQN_SNO      = s.C_SQN,
+        t.LST_CHG_DTM    = SYSDATE,
+        t.LST_CHG_USID   = 'SYSTEM'
 WHEN NOT MATCHED THEN
-    INSERT (C_ID, CDVA, CDVA_NM, CDVA_DTL, C_NM, CDVA_DES, C_TP, C_TP_DES, C_SQN,
-            STT_DT, END_DT,
+    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
+            STT_DTM, END_DTM,
             DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
             GUID, GUID_PRG_SNO)
     VALUES (s.C_ID, s.CDVA, s.CDVA_NM, s.CDVA_NM, '협의회상태', '협의회상태', 'ASCT_STS_C', '협의회상태', s.C_SQN,
@@ -83,21 +86,21 @@ USING (
     SELECT 'DBR_TC',          '003',          '정보시스템 사업',               3 FROM DUAL UNION ALL
     SELECT 'DBR_TC',          '004',          '정보보호시스템 사업',           4 FROM DUAL UNION ALL
     SELECT 'DBR_TC',          '005',          '기타',                         5 FROM DUAL
-) s ON (t.C_ID = s.C_ID AND t.CDVA = s.CDVA AND t.STT_DT = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
+) s ON (t.CO_C_ID = s.C_ID AND t.CDVA_ID = s.CDVA AND t.STT_DTM = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
 WHEN MATCHED THEN
     UPDATE SET
-        t.CDVA_NM      = s.CDVA_NM,
-        t.CDVA_DTL     = s.CDVA_NM,
-        t.C_NM         = '심의유형',
-        t.CDVA_DES     = '심의유형',
-        t.C_TP         = 'DBR_TC',
-        t.C_TP_DES     = '심의유형',
-        t.C_SQN        = s.C_SQN,
-        t.LST_CHG_DTM  = SYSDATE,
-        t.LST_CHG_USID = 'SYSTEM'
+        t.CDVA_NM        = s.CDVA_NM,
+        t.CO_CDVA_SPS    = s.CDVA_NM,
+        t.CO_C_NM     = '심의유형',
+        t.CO_CDVA_ABV_NM = '심의유형',
+        t.CO_C_INTN_NM   = 'DBR_TC',
+        t.CO_C_INTN_CONE = '심의유형',
+        t.C_SQN_SNO      = s.C_SQN,
+        t.LST_CHG_DTM    = SYSDATE,
+        t.LST_CHG_USID   = 'SYSTEM'
 WHEN NOT MATCHED THEN
-    INSERT (C_ID, CDVA, CDVA_NM, CDVA_DTL, C_NM, CDVA_DES, C_TP, C_TP_DES, C_SQN,
-            STT_DT, END_DT,
+    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
+            STT_DTM, END_DTM,
             DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
             GUID, GUID_PRG_SNO)
     VALUES (s.C_ID, s.CDVA, s.CDVA_NM, s.CDVA_NM, '심의유형', '심의유형', 'DBR_TC', '심의유형', s.C_SQN,
@@ -113,21 +116,21 @@ USING (
     SELECT 'VLR_TC' AS C_ID, '001' AS CDVA, '당연위원' AS CDVA_NM, 1 AS C_SQN FROM DUAL UNION ALL
     SELECT 'VLR_TC',          '002',          '소집위원',          2 FROM DUAL UNION ALL
     SELECT 'VLR_TC',          '003',          '간사',              3 FROM DUAL
-) s ON (t.C_ID = s.C_ID AND t.CDVA = s.CDVA AND t.STT_DT = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
+) s ON (t.CO_C_ID = s.C_ID AND t.CDVA_ID = s.CDVA AND t.STT_DTM = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
 WHEN MATCHED THEN
     UPDATE SET
-        t.CDVA_NM      = s.CDVA_NM,
-        t.CDVA_DTL     = s.CDVA_NM,
-        t.C_NM         = '평가자유형',
-        t.CDVA_DES     = '평가자유형',
-        t.C_TP         = 'VLR_TC',
-        t.C_TP_DES     = '평가자유형',
-        t.C_SQN        = s.C_SQN,
-        t.LST_CHG_DTM  = SYSDATE,
-        t.LST_CHG_USID = 'SYSTEM'
+        t.CDVA_NM        = s.CDVA_NM,
+        t.CO_CDVA_SPS    = s.CDVA_NM,
+        t.CO_C_NM     = '평가자유형',
+        t.CO_CDVA_ABV_NM = '평가자유형',
+        t.CO_C_INTN_NM   = 'VLR_TC',
+        t.CO_C_INTN_CONE = '평가자유형',
+        t.C_SQN_SNO      = s.C_SQN,
+        t.LST_CHG_DTM    = SYSDATE,
+        t.LST_CHG_USID   = 'SYSTEM'
 WHEN NOT MATCHED THEN
-    INSERT (C_ID, CDVA, CDVA_NM, CDVA_DTL, C_NM, CDVA_DES, C_TP, C_TP_DES, C_SQN,
-            STT_DT, END_DT,
+    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
+            STT_DTM, END_DTM,
             DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
             GUID, GUID_PRG_SNO)
     VALUES (s.C_ID, s.CDVA, s.CDVA_NM, s.CDVA_NM, '평가자유형', '평가자유형', 'VLR_TC', '평가자유형', s.C_SQN,
@@ -146,21 +149,21 @@ USING (
     SELECT 'CKG_ITM_C',          '004',          '평판 영향도',        4 FROM DUAL UNION ALL
     SELECT 'CKG_ITM_C',          '005',          '중복 시스템 여부',   5 FROM DUAL UNION ALL
     SELECT 'CKG_ITM_C',          '006',          '기타',               6 FROM DUAL
-) s ON (t.C_ID = s.C_ID AND t.CDVA = s.CDVA AND t.STT_DT = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
+) s ON (t.CO_C_ID = s.C_ID AND t.CDVA_ID = s.CDVA AND t.STT_DTM = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
 WHEN MATCHED THEN
     UPDATE SET
-        t.CDVA_NM      = s.CDVA_NM,
-        t.CDVA_DTL     = s.CDVA_NM,
-        t.C_NM         = '점검항목',
-        t.CDVA_DES     = '점검항목',
-        t.C_TP         = 'CKG_ITM_C',
-        t.C_TP_DES     = '점검항목',
-        t.C_SQN        = s.C_SQN,
-        t.LST_CHG_DTM  = SYSDATE,
-        t.LST_CHG_USID = 'SYSTEM'
+        t.CDVA_NM        = s.CDVA_NM,
+        t.CO_CDVA_SPS    = s.CDVA_NM,
+        t.CO_C_NM     = '점검항목',
+        t.CO_CDVA_ABV_NM = '점검항목',
+        t.CO_C_INTN_NM   = 'CKG_ITM_C',
+        t.CO_C_INTN_CONE = '점검항목',
+        t.C_SQN_SNO      = s.C_SQN,
+        t.LST_CHG_DTM    = SYSDATE,
+        t.LST_CHG_USID   = 'SYSTEM'
 WHEN NOT MATCHED THEN
-    INSERT (C_ID, CDVA, CDVA_NM, CDVA_DTL, C_NM, CDVA_DES, C_TP, C_TP_DES, C_SQN,
-            STT_DT, END_DT,
+    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
+            STT_DTM, END_DTM,
             DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
             GUID, GUID_PRG_SNO)
     VALUES (s.C_ID, s.CDVA, s.CDVA_NM, s.CDVA_NM, '점검항목', '점검항목', 'CKG_ITM_C', '점검항목', s.C_SQN,
@@ -175,21 +178,21 @@ MERGE INTO TPRMPP_CCODEM t
 USING (
     SELECT 'KPN_TC' AS C_ID, '001' AS CDVA, '임시저장' AS CDVA_NM, 1 AS C_SQN FROM DUAL UNION ALL
     SELECT 'KPN_TC',          '002',          '저장',              2 FROM DUAL
-) s ON (t.C_ID = s.C_ID AND t.CDVA = s.CDVA AND t.STT_DT = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
+) s ON (t.CO_C_ID = s.C_ID AND t.CDVA_ID = s.CDVA AND t.STT_DTM = TO_DATE('2026-04-12', 'YYYY-MM-DD'))
 WHEN MATCHED THEN
     UPDATE SET
-        t.CDVA_NM      = s.CDVA_NM,
-        t.CDVA_DTL     = s.CDVA_NM,
-        t.C_NM         = '저장구분코드',
-        t.CDVA_DES     = '저장구분코드',
-        t.C_TP         = 'KPN_TC',
-        t.C_TP_DES     = '저장구분코드',
-        t.C_SQN        = s.C_SQN,
-        t.LST_CHG_DTM  = SYSDATE,
-        t.LST_CHG_USID = 'SYSTEM'
+        t.CDVA_NM        = s.CDVA_NM,
+        t.CO_CDVA_SPS    = s.CDVA_NM,
+        t.CO_C_NM     = '저장구분코드',
+        t.CO_CDVA_ABV_NM = '저장구분코드',
+        t.CO_C_INTN_NM   = 'KPN_TC',
+        t.CO_C_INTN_CONE = '저장구분코드',
+        t.C_SQN_SNO      = s.C_SQN,
+        t.LST_CHG_DTM    = SYSDATE,
+        t.LST_CHG_USID   = 'SYSTEM'
 WHEN NOT MATCHED THEN
-    INSERT (C_ID, CDVA, CDVA_NM, CDVA_DTL, C_NM, CDVA_DES, C_TP, C_TP_DES, C_SQN,
-            STT_DT, END_DT,
+    INSERT (CO_C_ID, CDVA_ID, CDVA_NM, CO_CDVA_SPS, CO_C_NM, CO_CDVA_ABV_NM, CO_C_INTN_NM, CO_C_INTN_CONE, C_SQN_SNO,
+            STT_DTM, END_DTM,
             DEL_YN, FST_ENR_DTM, FST_ENR_USID, LST_CHG_DTM, LST_CHG_USID,
             GUID, GUID_PRG_SNO)
     VALUES (s.C_ID, s.CDVA, s.CDVA_NM, s.CDVA_NM, '저장구분코드', '저장구분코드', 'KPN_TC', '저장구분코드', s.C_SQN,
