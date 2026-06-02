@@ -30,7 +30,7 @@ import lombok.experimental.SuperBuilder;
  * </p>
  *
  * <p>
- * 복합키 구조: ({@code IT_MNGC_NO}, {@code IT_MNGC_SNO})
+ * 복합키 구조: ({@code BG_NO}, {@code BG_SNO})
  * 동일 관리번호에 여러 버전(일련번호)이 존재할 수 있으며, {@code LST_YN='Y'}인
  * 레코드가 현재 유효한 버전입니다.
  * </p>
@@ -56,7 +56,7 @@ public class Bcostm extends BaseEntity {
 
     /** 전산업무비일련번호(IT관리비일련번호): 복합 기본키의 두 번째 컬럼 (버전 구분용, 1부터 시작) */
     @Id
-    @Column(name = "SNO", nullable = false, comment = "전산업무비일련번호")
+    @Column(name = "BG_SNO", nullable = false, precision = 9, comment = "예산일련번호")
     private Integer itMngcSno;
 
     /** 최종여부: 'Y'=현재 유효한 레코드, 'N'=이전 버전 레코드 */

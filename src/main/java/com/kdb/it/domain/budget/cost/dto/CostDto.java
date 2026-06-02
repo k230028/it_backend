@@ -308,7 +308,7 @@ public class CostDto {
         @Schema(description = "전산업무비코드 (IT관리비관리번호)", example = "COST_2026_0001")
         private String itMngcNo;
 
-        /** 전산관리비일련번호 (IT_MNGC_SNO, 이력 순번) */
+        /** 전산관리비일련번호 (BG_SNO, 이력 순번) */
         @Schema(description = "전산업무비일련번호 (IT관리비일련번호)", example = "1")
         private Integer itMngcSno;
 

@@ -23,16 +23,16 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class BitemmL extends BaseLogEntity {
 
-    @Column(name = "GCL_MNG_NO", length = 32, comment = "품목관리번호")
+    @Column(name = "GCL_MNG_NO", length = 16, comment = "품목관리번호")
     private String gclMngNo;
 
-    @Column(name = "GCL_SNO", comment = "품목일련번호")
+    @Column(name = "SNO", precision = 9, comment = "일련번호")
     private Integer gclSno;
 
     @Column(name = "ABUS_MNG_NO", length = 32, comment = "사업관리번호")
     private String prjMngNo;
 
-    @Column(name = "PRJ_SNO", comment = "사업일련번호")
+    @Column(name = "FNT_TB_CRY_SNO", comment = "원천테이블적재일련번호")
     private Integer prjSno;
 
     @Column(name = "IOE_C", length = 3, comment = "품목구분")

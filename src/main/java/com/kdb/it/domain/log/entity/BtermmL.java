@@ -32,7 +32,7 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "BG_NO", length = 32, comment = "IT관리비관리번호")
     private String itMngcNo;
 
-    @Column(name = "IT_MNGC_SNO", comment = "IT관리비일련번호")
+    @Column(name = "BG_SNO", precision = 9, comment = "예산일련번호")
     private Integer itMngcSno;
 
     @Column(name = "SPF_TMN_NM", length = 100, comment = "단말기명")
@@ -41,7 +41,7 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "TMN_KD_TC", length = 100, comment = "단말기이용방법")
     private String tmnTuzManr;
 
-    @Column(name = "TMN_USG", length = 100, comment = "단말기용도")
+    @Column(name = "NSF_USG_CONE", length = 200, comment = "소요자금용도내용")
     private String tmnUsg;
 
     @Column(name = "TMN_CLSF_C", length = 100, comment = "단말기서비스")

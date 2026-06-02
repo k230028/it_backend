@@ -118,10 +118,9 @@ public class BoardPostService {
             .blbMngNo(blbMngNo)
             .nacNm(request.getNacNm())
             .nacCone(sanitizedCone)
-            .nacTp(request.getNacTp())
             .kdC(request.getKdC())
             .pritC(request.getPritC() != null ? request.getPritC() : "PRIT_C_001")
-            .hrkFxnYn(request.getHrkFxnYn() != null ? request.getHrkFxnYn() : "N")
+            .ancYn(request.getAncYn() != null ? request.getAncYn() : "N")
             .sreYn(request.getSreYn() != null ? request.getSreYn() : "Y")
             .bbrC(request.getBbrC())
             .sttDt(request.getSttYmd())
@@ -129,7 +128,6 @@ public class BoardPostService {
             .nacInqNbr(0)
             .flApgYn("N")
             .flNbr(0)
-            .nacGrpNo(nacMngNo)
             .nacGrpSqn(0)
             .nacGrpLev(0)
             .build();
@@ -208,7 +206,7 @@ public class BoardPostService {
         verifyCanWrite(user, board);
 
         postRepository.shiftGroupSqn(
-            parent.getNacGrpNo(),
+            parent.getNacId(),
             parent.getNacGrpSqn(),
             parent.getNacGrpLev()
         );
@@ -223,7 +221,7 @@ public class BoardPostService {
             .nacNm(request.getNacNm())
             .nacCone(sanitizedCone)
             .pritC(request.getPritC() != null ? request.getPritC() : "PRIT_C_001")
-            .hrkFxnYn("N")
+            .ancYn("N")
             .sreYn("Y")
             .bbrC(request.getBbrC())
             .sttDt(request.getSttYmd())
@@ -231,12 +229,11 @@ public class BoardPostService {
             .nacInqNbr(0)
             .flApgYn("N")
             .flNbr(0)
-            .nacGrpNo(parent.getNacGrpNo())
             .nacGrpSqn(0)
             .nacGrpLev(0)
             .build();
         reply.initGroupAsReply(
-            parent.getNacGrpNo(),
+            parent.getNacId(),
             parent.getNacGrpSqn(),
             parent.getNacGrpLev(),
             parent.getNacMngNo()

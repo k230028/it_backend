@@ -25,8 +25,7 @@ public class CblbmmL extends BaseLogEntity {
     @Column(name = "CMMT_USE_YN",     length = 1, comment = "댓글사용여부")   private String  cmmtUseYn;
     @Column(name = "APG_FL_USE_YN",       length = 1, comment = "파일필수여부")   private String  flEsnYn;
     @Column(name = "IOA_TC",  length = 1, comment = "상위고정사용여부")   private String  hrkFxnUseYn;
-    @Column(name = "HED_TAG_USE_YN",   length = 1, comment = "게시물유형사용여부")   private String  nacTpUseYn;
-    @Column(name = "KD_USE_YN",       length = 1, comment = "종류사용여부")   private String  kdUseYn;
+    @Column(name = "HED_TAG_USE_YN",   length = 1, comment = "머리말태그사용여부")   private String  hedTagUseYn;
     @Column(name = "INQ_DWN_ATH_TC",       length = 32, comment = "조회권한코드")  private String  inqAthC;
     @Column(name = "WRT_DWN_ATH_TC",       length = 32, comment = "등록권한코드")  private String  enrAthC;
     @Column(name = "SRE_SQN_SNO", comment = "화면순서번호")                    private Integer sreSqnNo;

@@ -200,7 +200,7 @@ public class BudgetWorkService {
             }
 
             // 결재완료 BITEMM 처리
-            // ORC_TB = "BITEMM": BITEMM은 자체 PK(GCL_MNG_NO + GCL_SNO)를 보유하므로
+            // ORC_TB = "BITEMM": BITEMM은 자체 PK(GCL_MNG_NO + SNO)를 보유하므로
             // 개별 품목 단위로 추적 가능. Plan 설계 문서의 "BPROJM"은 결재 조회 대상을
             // 지칭한 것이며, BBUGTM에 저장 시 실제 원본은 BITEMM임.
             List<Bitemm> items = bbugtmRepository.findApprovedItemsByIoeCValues(ioeCValues, bgYy);

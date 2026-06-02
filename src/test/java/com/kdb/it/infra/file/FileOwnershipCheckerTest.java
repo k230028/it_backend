@@ -241,8 +241,8 @@ class FileOwnershipCheckerTest {
                     .sreYn("N")
                     .sttDt(null).endDt(null)
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
-                    .pritC("01").hrkFxnYn("N")
-                    .nacGrpNo("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
+                    .pritC("01").ancYn("N")
+                    .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
                     .build();
             Cblbmm board = Cblbmm.builder()
@@ -277,8 +277,8 @@ class FileOwnershipCheckerTest {
                     .sttDt(LocalDate.now().plusDays(1))
                     .endDt(null)
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
-                    .pritC("01").hrkFxnYn("N")
-                    .nacGrpNo("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
+                    .pritC("01").ancYn("N")
+                    .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
                     .build();
             Cblbmm board = Cblbmm.builder()
@@ -313,8 +313,8 @@ class FileOwnershipCheckerTest {
                     .sttDt(null)
                     .endDt(LocalDate.now().minusDays(1))
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
-                    .pritC("01").hrkFxnYn("N")
-                    .nacGrpNo("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
+                    .pritC("01").ancYn("N")
+                    .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
                     .build();
             Cblbmm board = Cblbmm.builder()
@@ -349,8 +349,8 @@ class FileOwnershipCheckerTest {
                     .sttDt(LocalDate.now().minusDays(1))
                     .endDt(LocalDate.now().plusDays(1))
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
-                    .pritC("01").hrkFxnYn("N")
-                    .nacGrpNo("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
+                    .pritC("01").ancYn("N")
+                    .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
                     .build();
             Cblbmm board = Cblbmm.builder()
@@ -412,8 +412,8 @@ class FileOwnershipCheckerTest {
                 .sttDt(null)
                 .endDt(null)
                 .nacInqNbr(0).flNbr(0).flApgYn("N")
-                .pritC("01").hrkFxnYn("N")
-                .nacGrpNo(nacMngNo).nacGrpSqn(0).nacGrpLev(0)
+                .pritC("01").ancYn("N")
+                .nacId(nacMngNo).nacGrpSqn(0).nacGrpLev(0)
                 .delYn("N")
                 .build();
     }

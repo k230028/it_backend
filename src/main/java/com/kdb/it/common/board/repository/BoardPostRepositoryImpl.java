@@ -58,7 +58,6 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
                 .or(p.fstEnrUsid.containsIgnoreCase(cond.getKeyword()))
             );
         }
-        if (StringUtils.hasText(cond.getNacTp()))  builder.and(p.nacTp.eq(cond.getNacTp()));
         if (StringUtils.hasText(cond.getKdC()))    builder.and(p.kdC.eq(cond.getKdC()));
         if (StringUtils.hasText(cond.getPritC()))  builder.and(p.pritC.eq(cond.getPritC()));
         if (StringUtils.hasText(cond.getBbrC()))   builder.and(p.bbrC.eq(cond.getBbrC()));
@@ -67,7 +66,7 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
 
         return queryFactory.selectFrom(p)
             .where(builder)
-            .orderBy(p.hrkFxnYn.desc(), p.nacGrpNo.desc(), p.nacGrpSqn.asc())
+            .orderBy(p.ancYn.desc(), p.nacId.desc(), p.nacGrpSqn.asc())
             .offset(offset)
             .limit(cond.getSize())
             .fetch();

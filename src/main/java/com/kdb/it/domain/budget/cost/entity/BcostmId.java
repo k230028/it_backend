@@ -32,6 +32,6 @@ public class BcostmId implements Serializable {
     private String itMngcNo;
 
     /** 전산업무비일련번호(IT관리비일련번호): Bcostm.itMngcSno와 이름/타입 일치 필수 */
-    @Column(name = "SNO", comment = "전산업무비일련번호")
+    @Column(name = "BG_SNO", precision = 9, comment = "예산일련번호")
     private Integer itMngcSno;
 }

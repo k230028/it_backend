@@ -30,11 +30,11 @@ import lombok.experimental.SuperBuilder;
  * </p>
  *
  * <p>
- * 복합키 구조: ({@code GCL_MNG_NO}, {@code GCL_SNO})
+ * 복합키 구조: ({@code GCL_MNG_NO}, {@code SNO})
  * </p>
  *
  * <p>
- * 연관 관계: {@code PRJ_MNG_NO} + {@code PRJ_SNO}로 {@link Bprojm}와 연결됩니다.
+ * 연관 관계: {@code PRJ_MNG_NO} + {@code FNT_TB_CRY_SNO}로 {@link Bprojm}와 연결됩니다.
  * </p>
  */
 @LogTarget(entity = BitemmL.class)
@@ -49,20 +49,20 @@ public class Bitemm extends BaseEntity {
 
     /** 품목관리번호: 복합 기본키의 첫 번째 컬럼 (형식: GCL-{연도}-{4자리 시퀀스}, 예: GCL-2026-0001) */
     @Id
-    @Column(name = "GCL_MNG_NO", nullable = false, length = 32, comment = "품목관리번호")
+    @Column(name = "GCL_MNG_NO", nullable = false, length = 16, comment = "품목관리번호")
     private String gclMngNo;
 
     /** 품목일련번호: 복합 기본키의 두 번째 컬럼 (같은 관리번호 내 순번) */
     @Id
-    @Column(name = "GCL_SNO", nullable = false, comment = "품목일련번호")
+    @Column(name = "SNO", nullable = false, precision = 9, comment = "일련번호")
     private Integer gclSno;
 
     /** 사업관리번호: 이 품목이 속한 정보화사업의 관리번호 (Bprojm.prjMngNo 참조) */
     @Column(name = "ABUS_MNG_NO", nullable = false, length = 32, comment = "사업관리번호")
     private String prjMngNo;
 
-    /** 사업일련번호: 이 품목이 속한 정보화사업의 순번 (Bprojm.prjSno 참조) */
-    @Column(name = "PRJ_SNO", comment = "사업일련번호")
+    /** 원천테이블적재일련번호 (FNT_TB_CRY_SNO). 현재 품목↔정보화사업 연관(Bprojm.prjSno)을 잇는 순번 용도로 사용 */
+    @Column(name = "FNT_TB_CRY_SNO", comment = "원천테이블적재일련번호")
     private Integer prjSno;
 
     /** 품목구분: 품목의 카테고리 (예: 소프트웨어, 하드웨어, 서비스, 컨설팅) */

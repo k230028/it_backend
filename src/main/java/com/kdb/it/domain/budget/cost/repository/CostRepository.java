@@ -89,6 +89,6 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      * @param itMngcNo 전산관리비 관리번호
      * @return 다음 일련번호 (기존 레코드가 없으면 1)
      */
-    @Query(value = "SELECT NVL(MAX(SNO), 0) + 1 FROM TPRMPP_BCOSTM WHERE BG_NO = :itMngcNo", nativeQuery = true)
+    @Query(value = "SELECT NVL(MAX(BG_SNO), 0) + 1 FROM TPRMPP_BCOSTM WHERE BG_NO = :itMngcNo", nativeQuery = true)
     Integer getNextSnoValue(@Param("itMngcNo") String itMngcNo);
 }

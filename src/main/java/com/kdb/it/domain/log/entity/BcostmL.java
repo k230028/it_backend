@@ -26,7 +26,7 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "BG_NO", length = 32, comment = "전산업무비코드")
     private String itMngcNo;
 
-    @Column(name = "SNO", comment = "전산업무비일련번호")
+    @Column(name = "BG_SNO", precision = 9, comment = "예산일련번호")
     private Integer itMngcSno;
 
     @Column(name = "LST_YN", length = 4, comment = "최종여부")

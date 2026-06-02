@@ -44,27 +44,27 @@ public class Btermm extends BaseEntity {
 
     /** 단말기관리번호 */
     @Id
-    @Column(name = "TMN_MNG_NO", nullable = false, length = 32, comment = "단말기관리번호")
+    @Column(name = "TMN_MNG_NO", nullable = false, length = 32, comment = "단말관리번호")
     private String tmnMngNo;
 
     /** 단말기일련번호 */
     @Id
-    @Column(name = "TMN_SNO", nullable = false, comment = "단말기일련번호")
+    @Column(name = "TMN_SNO", nullable = false, comment = "단말일련번호")
     private Integer tmnSno;
 
-    /** IT관리비관리번호 (조인용 필드) */
-    @Column(name = "BG_NO", length = 32, comment = "IT관리비관리번호")
+    /** 예산번호 (조인용 필드) */
+    @Column(name = "BG_NO", length = 32, comment = "예산번호")
     private String itMngcNo;
 
-    /** IT관리비일련번호 (조인용 필드) */
-    @Column(name = "IT_MNGC_SNO", comment = "IT관리비일련번호")
+    /** 예산일련번호 (조인용 필드) */
+    @Column(name = "BG_SNO", precision = 9, comment = "예산일련번호")
     private Integer itMngcSno;
 
     /** 전산관리비와의 연관관계 */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumns({
-        @JoinColumn(name = "BG_NO", referencedColumnName = "BG_NO", insertable = false, updatable = false),
-        @JoinColumn(name = "IT_MNGC_SNO", referencedColumnName = "SNO", insertable = false, updatable = false)
+            @JoinColumn(name = "BG_NO", referencedColumnName = "BG_NO", insertable = false, updatable = false),
+            @JoinColumn(name = "BG_SNO", referencedColumnName = "BG_SNO", insertable = false, updatable = false)
     })
     private Bcostm bcostm;
 
@@ -76,8 +76,8 @@ public class Btermm extends BaseEntity {
     @Column(name = "TMN_KD_TC", length = 100, comment = "단말기이용방법")
     private String tmnTuzManr;
 
-    /** 단말기용도 */
-    @Column(name = "TMN_USG", length = 100, comment = "단말기용도")
+    /** 소요자금용도내용 */
+    @Column(name = "NSF_USG_CONE", length = 200, comment = "소요자금용도내용")
     private String tmnUsg;
 
     /** 단말기서비스 */

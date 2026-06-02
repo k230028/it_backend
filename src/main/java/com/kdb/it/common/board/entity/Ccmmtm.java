@@ -24,7 +24,7 @@ public class Ccmmtm extends BaseEntity {
 
     /** 댓글관리번호 PK. 형식: CMMT-{YYYY}-{0001} */
     @Id
-    @Column(name = "CMMT_SNO", nullable = false, length = 32, comment = "댓글관리번호")
+    @Column(name = "CMMT_SNO", nullable = false, precision = 9, comment = "댓글관리번호")
     private Long cmmtMngNo;
 
     @Column(name = "NAC_NO", nullable = false, length = 32, comment = "게시물관리번호")
@@ -38,7 +38,7 @@ public class Ccmmtm extends BaseEntity {
     private String sreYn;
 
     /** 댓글 그룹번호 — 최상위 댓글의 CMMT_MNG_NO */
-    @Column(name = "CMMT_TGT_SNO", nullable = false, length = 32, comment = "댓글그룹번호")
+    @Column(name = "CMMT_TGT_SNO", nullable = false, precision = 9, comment = "댓글그룹번호")
     private Long cmmtGrpNo;
 
     @Column(name = "CMMT_SQN_SNO", nullable = false, comment = "댓글그룹순서")
@@ -48,7 +48,7 @@ public class Ccmmtm extends BaseEntity {
     @Column(name = "CMMT_DEP_NBR", nullable = false, comment = "댓글그룹레벨")
     private Integer cmmtGrpLev;
 
-    @Column(name = "HRK_CMMT_SNO", length = 32, comment = "상위댓글관리번호")
+    @Column(name = "HRK_CMMT_SNO", precision = 9, comment = "상위댓글관리번호")
     private Long hrkCmmtMngNo;
 
     /** 댓글 본문 수정 — sanitize 완료 값을 전달해야 한다 */

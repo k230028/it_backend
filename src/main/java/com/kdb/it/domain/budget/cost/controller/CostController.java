@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>전산관리비는 IT 인프라 유지보수 계약, 라이선스 비용 등
  * IT 관련 지출 항목을 관리하는 도메인입니다.</p>
  *
- * <p>복합키 구조: {@code IT_MNGC_NO} (관리번호) + {@code IT_MNGC_SNO} (일련번호)</p>
+ * <p>복합키 구조: {@code BG_NO} (관리번호) + {@code BG_SNO} (일련번호)</p>
  */
 @RestController                         // REST API 컨트롤러로 등록
 @RequestMapping("/api/cost")            // 기본 URL 경로 설정

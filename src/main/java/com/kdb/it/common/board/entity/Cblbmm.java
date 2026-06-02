@@ -46,11 +46,8 @@ public class Cblbmm extends BaseEntity {
     @Column(name = "IOA_TC", nullable = false, length = 1, comment = "상위고정사용여부")
     private String hrkFxnUseYn;
 
-    @Column(name = "HED_TAG_USE_YN", nullable = false, length = 1, comment = "게시물유형사용여부")
-    private String nacTpUseYn;
-
-    @Column(name = "KD_USE_YN", nullable = false, length = 1, comment = "종류사용여부")
-    private String kdUseYn;
+    @Column(name = "HED_TAG_USE_YN", nullable = false, length = 1, comment = "머리말태그사용여부")
+    private String hedTagUseYn;
 
     /** 조회권한코드 (ALL / ROLE_ADMIN / ROLE_USER / ROLE_DEPT_MANAGER) */
     @Column(name = "INQ_DWN_ATH_TC", nullable = false, length = 32, comment = "조회권한코드")
@@ -77,8 +74,7 @@ public class Cblbmm extends BaseEntity {
      * @param cmmtUseYn     댓글사용여부
      * @param flEsnYn       첨부필수여부
      * @param hrkFxnUseYn   상위고정사용여부
-     * @param nacTpUseYn    게시물유형사용여부
-     * @param kdUseYn       종류사용여부
+     * @param hedTagUseYn   머리말태그사용여부
      * @param inqAthC       조회권한코드
      * @param enrAthC       등록권한코드
      * @param sreSqnNo      화면순서번호
@@ -87,7 +83,7 @@ public class Cblbmm extends BaseEntity {
      */
     public record UpdateCommand(
         String blbNm, String repUseYn, String cmmtUseYn,
-        String flEsnYn, String hrkFxnUseYn, String nacTpUseYn, String kdUseYn,
+        String flEsnYn, String hrkFxnUseYn, String hedTagUseYn,
         String inqAthC, String enrAthC,
         Integer sreSqnNo, String useYn, String rmk
     ) {}
@@ -99,8 +95,7 @@ public class Cblbmm extends BaseEntity {
         this.cmmtUseYn    = cmd.cmmtUseYn();
         this.flEsnYn      = cmd.flEsnYn();
         this.hrkFxnUseYn  = cmd.hrkFxnUseYn();
-        this.nacTpUseYn   = cmd.nacTpUseYn();
-        this.kdUseYn      = cmd.kdUseYn();
+        this.hedTagUseYn  = cmd.hedTagUseYn();
         this.inqAthC      = cmd.inqAthC();
         this.enrAthC      = cmd.enrAthC();
         this.sreSqnNo     = cmd.sreSqnNo();

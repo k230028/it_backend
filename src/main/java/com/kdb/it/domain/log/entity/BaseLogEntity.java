@@ -68,27 +68,27 @@ public abstract class BaseLogEntity {
     @Column(name = "DEL_YN", length = 1, comment = "삭제여부")
     private String delYn;
 
-    /** 전역고유식별자 스냅샷 */
-    @Column(name = "GUID", length = 38, comment = "전역고유식별자")
+    /** GUID 스냅샷 */
+    @Column(name = "GUID", length = 38, comment = "GUID")
     private String guid;
 
-    /** 진행일련번호 스냅샷 */
-    @Column(name = "GUID_PRG_SNO", comment = "진행일련번호")
+    /** GUID진행일련번호 스냅샷 */
+    @Column(name = "GUID_PRG_SNO", comment = "GUID진행일련번호")
     private Integer guidPrgSno;
 
     /** 최초등록일시 스냅샷 */
     @Column(name = "FST_ENR_DTM", comment = "최초등록일시")
     private LocalDateTime fstEnrDtm;
 
-    /** 최초등록자사번 스냅샷 */
-    @Column(name = "FST_ENR_USID", length = 14, comment = "최초등록자사번")
+    /** 최초등록사용자ID 스냅샷 */
+    @Column(name = "FST_ENR_USID", length = 14, comment = "최초등록사용자ID")
     private String fstEnrUsid;
 
     /** 최종변경일시 스냅샷 */
     @Column(name = "LST_CHG_DTM", comment = "최종변경일시")
     private LocalDateTime lstChgDtm;
 
-    /** 최종변경자사번 스냅샷 */
-    @Column(name = "LST_CHG_USID", length = 14, comment = "최종변경자사번")
+    /** 최종변경사용자ID 스냅샷 */
+    @Column(name = "LST_CHG_USID", length = 14, comment = "최종변경사용자ID")
     private String lstChgUsid;
 }

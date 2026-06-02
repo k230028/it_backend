@@ -119,7 +119,7 @@ class BoardPostServiceTest {
         verify(postRepository).save(argThat(post ->
             "제목".equals(post.getNacNm())
                 && "10002".equals(post.getBbrC())
-                && "N".equals(post.getHrkFxnYn())
+                && "N".equals(post.getAncYn())
                 && "Y".equals(post.getSreYn())
         ));
     }
@@ -153,7 +153,7 @@ class BoardPostServiceTest {
         ok.setNacNm("수정 제목");
         ok.setNacCone("<p>수정</p>");
         ok.setPritC("PRIT_C_002");
-        ok.setHrkFxnYn("N");
+        ok.setAncYn("N");
         ok.setSreYn("Y");
         ok.setBbrC("10002");
 
@@ -202,7 +202,7 @@ class BoardPostServiceTest {
         String result = service.createReply("BLBM-2026-0003", "NAC-2026-0001", req, normalUser);
 
         assertThat(result).startsWith("NAC-");
-        verify(postRepository).shiftGroupSqn(parent.getNacGrpNo(), parent.getNacGrpSqn(), parent.getNacGrpLev());
+        verify(postRepository).shiftGroupSqn(parent.getNacId(), parent.getNacGrpSqn(), parent.getNacGrpLev());
         verify(postRepository).save(argThat(reply -> reply.getNacGrpLev() == parent.getNacGrpLev() + 1));
 
         Cblbmm noReplyBoard = Cblbmm.builder()
@@ -227,8 +227,8 @@ class BoardPostServiceTest {
             .build();
         Cblbcm hidden = post("NAC-2026-0002", "OTHER");
         hidden.update(new Cblbcm.UpdateCommand(
-            hidden.getNacNm(), hidden.getNacCone(), hidden.getNacTp(), hidden.getKdC(),
-            hidden.getPritC(), hidden.getHrkFxnYn(), "N", hidden.getBbrC(),
+            hidden.getNacNm(), hidden.getNacCone(), hidden.getKdC(),
+            hidden.getPritC(), hidden.getAncYn(), "N", hidden.getBbrC(),
             LocalDate.now().plusDays(1), null
         ));
 
@@ -279,8 +279,8 @@ class BoardPostServiceTest {
         Cblbmm board = writableBoard();
         Cblbcm expiredPost = post("NAC-2026-0011", "OTHER");
         expiredPost.update(new Cblbcm.UpdateCommand(
-            expiredPost.getNacNm(), expiredPost.getNacCone(), expiredPost.getNacTp(), expiredPost.getKdC(),
-            expiredPost.getPritC(), expiredPost.getHrkFxnYn(), "Y", expiredPost.getBbrC(),
+            expiredPost.getNacNm(), expiredPost.getNacCone(), expiredPost.getKdC(),
+            expiredPost.getPritC(), expiredPost.getAncYn(), "Y", expiredPost.getBbrC(),
             null, LocalDate.now().minusDays(1)
         ));
 
@@ -297,8 +297,8 @@ class BoardPostServiceTest {
         Cblbmm board = writableBoard();
         Cblbcm hiddenPost = post("NAC-2026-0012", "OTHER");
         hiddenPost.update(new Cblbcm.UpdateCommand(
-            hiddenPost.getNacNm(), hiddenPost.getNacCone(), hiddenPost.getNacTp(), hiddenPost.getKdC(),
-            hiddenPost.getPritC(), hiddenPost.getHrkFxnYn(), "N", hiddenPost.getBbrC(),
+            hiddenPost.getNacNm(), hiddenPost.getNacCone(), hiddenPost.getKdC(),
+            hiddenPost.getPritC(), hiddenPost.getAncYn(), "N", hiddenPost.getBbrC(),
             null, null
         ));
 
@@ -314,8 +314,8 @@ class BoardPostServiceTest {
         Cblbmm board = writableBoard();
         Cblbcm futurePost = post("NAC-2026-0013", "OTHER");
         futurePost.update(new Cblbcm.UpdateCommand(
-            futurePost.getNacNm(), futurePost.getNacCone(), futurePost.getNacTp(), futurePost.getKdC(),
-            futurePost.getPritC(), futurePost.getHrkFxnYn(), "N", futurePost.getBbrC(),
+            futurePost.getNacNm(), futurePost.getNacCone(), futurePost.getKdC(),
+            futurePost.getPritC(), futurePost.getAncYn(), "N", futurePost.getBbrC(),
             LocalDate.now().plusDays(5), null
         ));
 
@@ -394,7 +394,7 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("createPost: pritC/hrkFxnYn/sreYn이 null인 경우 기본값이 적용된다")
+    @DisplayName("createPost: pritC/ancYn/sreYn이 null인 경우 기본값이 적용된다")
     void createPost_nullOptions_defaultsApplied() {
         // Arrange
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
@@ -407,7 +407,7 @@ class BoardPostServiceTest {
         req.setNacCone("<p>본문</p>");
         req.setBbrC("10002");
         req.setPritC(null);    // → 기본값 PRIT_C_001
-        req.setHrkFxnYn(null); // → 기본값 N
+        req.setAncYn(null); // → 기본값 N
         req.setSreYn(null);    // → 기본값 Y
 
         // Act
@@ -417,13 +417,13 @@ class BoardPostServiceTest {
         assertThat(result).startsWith("NAC-");
         verify(postRepository).save(argThat(savedPost ->
             "PRIT_C_001".equals(savedPost.getPritC())
-                && "N".equals(savedPost.getHrkFxnYn())
+                && "N".equals(savedPost.getAncYn())
                 && "Y".equals(savedPost.getSreYn())
         ));
     }
 
     @Test
-    @DisplayName("createPost: pritC/hrkFxnYn/sreYn이 명시된 경우 해당 값이 사용된다")
+    @DisplayName("createPost: pritC/ancYn/sreYn이 명시된 경우 해당 값이 사용된다")
     void createPost_explicitOptions_usedAsProvided() {
         // Arrange
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
@@ -436,7 +436,7 @@ class BoardPostServiceTest {
         req.setNacCone("<p>본문</p>");
         req.setBbrC("10002");
         req.setPritC("PRIT_C_002");
-        req.setHrkFxnYn("Y");
+        req.setAncYn("Y");
         req.setSreYn("N");
 
         // Act
@@ -446,7 +446,7 @@ class BoardPostServiceTest {
         assertThat(result).startsWith("NAC-");
         verify(postRepository).save(argThat(savedPost ->
             "PRIT_C_002".equals(savedPost.getPritC())
-                && "Y".equals(savedPost.getHrkFxnYn())
+                && "Y".equals(savedPost.getAncYn())
                 && "N".equals(savedPost.getSreYn())
         ));
     }
@@ -647,11 +647,11 @@ class BoardPostServiceTest {
             .nacNm("테스트 게시물")
             .nacCone("<p>본문</p>")
             .pritC("PRIT_C_001")
-            .hrkFxnYn("N")
+            .ancYn("N")
             .sreYn("Y")
             .bbrC("10002")
             .nacInqNbr(0)
-            .nacGrpNo(id)
+            .nacId(id)
             .nacGrpSqn(0)
             .nacGrpLev(0)
             .flApgYn("N")
