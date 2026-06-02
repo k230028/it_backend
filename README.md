@@ -15,6 +15,7 @@
   - 파일 업로드/다운로드
   - Tiptap 에디터 변수 토큰 시스템
   - 실시간 알림 (인앱, Phase 2 예정: 이메일/SMS/알림톡)
+  - 실시간 로그 모니터링(관리자용)
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
 - **소스 코드**: 271개 메인 Java 파일, 92개 테스트 파일, 63개 JPA 엔티티(`@Entity` 기준)
@@ -166,7 +167,9 @@ com.kdb.it
 │   ├── system/              # 인증·로그인 (AuthController, AuthService, JwtUtil, JwtAuthenticationFilter)
 │   ├── iam/                 # 사용자·조직·권한 (UserController, OrganizationController, UserRepository)
 │   ├── approval/            # 신청서·결재 (ApplicationController, ApplicationService, ApplicationMapRepository)
-│   ├── admin/               # 시스템관리, 관리자 로그, 실시간 로그 모니터링(ROLE_ADMIN 전용)
+│   ├── admin/               # 시스템관리, 관리자 로그 (AdminController, AdminLogService)
+│   │   └── realtime/        # 실시간 로그 모니터링(ROLE_ADMIN 전용): RealtimeLogController, V_ITPAPP_LOG_FEED 기반
+│   ├── notification/        # 알림 시스템 (NotificationService, NotificationDispatcher, Cinfmm 엔티티)
 │   ├── board/               # 공통 게시판 (BoardMeta/Post/Comment)
 │   ├── code/                # 공통 코드 (CodeController, CodeService, CodeRepository)
 │   └── util/                # 공통 유틸 (CustomPasswordEncoder, CookieUtil, HtmlSanitizer)
@@ -213,7 +216,7 @@ common → domain (X)   common → infra  (X)
 | 공통게시판 | `BoardMetaController`, `BoardPostController`, `BoardCommentController`, `AdminBoardMetaController` | `BoardMetaService`, `BoardPostService`, `BoardCommentService` | `BoardMetaRepository`, `BoardPostRepository`, `BoardCommentRepository` | `Cblbmm`, `Cblbcm`, `Ccmmtm` |
 | 알림 | `NotificationController` | `NotificationService` | `CinfmmRepository` + Custom | `Cinfmm` |
 | Tiptap 변수 | `TiptapVariableController` | `TiptapVariableService` | - | - |
-| 실시간 로그 | `RealtimeLogController` | `RealtimeLogService` | `RealtimeLogRepository` | - |
+| 실시간 로그 | `RealtimeLogController` | `RealtimeLogService` | `RealtimeLogRepository` | - (V_ITPAPP_LOG_FEED View 기반) |
 | 인증 | `AuthController` | `AuthService` | `UserRepository`, `RefreshTokenRepository`, `LoginHistoryRepository` | `CuserI`, `Crtokm`, `Clognh` |
 | 공통코드 | `CodeController` | `CodeService` | `CodeRepository` + Custom | `Ccodem` |
 | 시스템관리 | `AdminController` | `AdminService` | (기존 Repository 활용) | (기존 Entity 활용) |
@@ -224,13 +227,76 @@ common → domain (X)   common → infra  (X)
 | 로그인이력 | `LoginHistoryController` | `LoginHistoryService` | `LoginHistoryRepository` | `Clognh` |
 | 변경로그 | - | `ChangeLogEntityListener`, `AuditLogPersister` | `EntityManager` 직접 저장 | `BaseLogEntity` 하위 `*L` 엔티티 |
 
-## 5. 알림 및 Tiptap 변수 시스템
+## 5. 실시간 로그 모니터링
 
-### 5.0 알림 시스템 (Notification)
+### 5.0 실시간 로그 (Realtime Log) — ROLE_ADMIN 전용
+
+**`common/admin/realtime` 패키지는 `V_ITPAPP_LOG_FEED` 통합 View를 기반으로 관리자용 변경 로그 스냅샷을 제공합니다.**
+
+#### API 엔드포인트
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/api/admin/realtime-logs` | 실시간 변경 로그 조회 (커서 기반 페이징) |
+
+#### 요청 파라미터
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|---------|------|--------|------|
+| `since` | LocalDateTime | null | 조회 시작 시각 (ISO-8601, 예: `2026-06-01T10:30:00`) |
+| `cursorLogTbl` | String | null | 커서 시작 로그 테이블 KEY (마지막 행 기준, 페이지네이션용) |
+| `cursorLogSno` | String | null | 커서 시작 로그 일련번호 (마지막 행 기준, 페이지네이션용) |
+| `limit` | int | 100 | 한 번에 반환할 행 수 (1~200 범위로 서비스 계층에서 보정) |
+| `tables` | String | null | 조회할 로그 테이블 KEY 쉼표 구분 (예: `bprojl,bcostml`), `AdminLogService.getTables()`의 허용 KEY만 사용 |
+| `chgTypes` | String | null | 변경 유형 필터 쉼표 구분 (허용값: `C`/`U`/`D`만) |
+
+#### 응답 구조
+
+```json
+{
+  "rows": [
+    {
+      "logTbl": "BPROJL",
+      "logSno": "BPROJL_0000000000000000000001",
+      "chgTp": "C",
+      "chgDtm": "2026-06-01T10:30:45",
+      "chgUsid": "S12345",
+      "... 표준 로그 컬럼": "..."
+    }
+  ],
+  "serverTime": "2026-06-01T10:31:00",
+  "tableCounts": {
+    "BPROJL": 45,
+    "BCOSTML": 12,
+    ...
+  },
+  "perMinute": [
+    { "minute": "2026-06-01T10:30:00", "count": 15 },
+    { "minute": "2026-06-01T10:31:00", "count": 8 }
+  ]
+}
+```
+
+#### 주요 특징
+
+- **V_ITPAPP_LOG_FEED 기반**: 모든 로그 테이블(`*L`)을 통합한 Oracle View 조회. 표준화된 컬럼만 반환.
+- **표준 로그 컬럼**: `LOG_TBL`, `LOG_SNO`, `CHG_TP`, `CHG_DTM`, `CHG_USID`, `DEL_YN`, `GUID`, `FST_ENR_DTM/USID`, `LST_CHG_DTM/USID` 등.
+- **BEFORE/AFTER 변경 본문 제외**: 실시간 스냅샷이므로 상세 비교는 `/api/admin/logs/{key}/{logSno}` 상세 조회 엔드포인트 사용.
+- **커서 기반 페이징**: `cursorLogTbl` + `cursorLogSno`로 "마지막 행 다음부터" 조회 → 무한 스크롤 가능.
+- **테이블 필터링**: `tables` 파라미터로 특정 로그만 조회 (예: `bprojl,bcostml`). 허용 목록 외 key는 서비스 계층에서 거부.
+- **변경 유형 필터**: `chgTypes=C,U` → 생성/수정만, `chgTypes=D` → 삭제만.
+- **집계 정보**: 최근 5분, 최근 30분의 분단위 변경 수(perMinute) 제공.
+- **권한**: `@PreAuthorize("hasRole('ADMIN')")` 클래스 레벨 적용.
+
+---
+
+## 6. 알림 및 Tiptap 변수 시스템
+
+### 6.0 알림 시스템 (Notification)
 
 **결재요청, 게시판 멘션, 시스템 알림 등을 사용자에게 실시간으로 전달하는 모듈**
 
-#### 엔티티 구조
+#### 엔티티 구조 (common/notification)
 
 - **Cinfmm** (`TPRMPP_CINFMM`): 알림 마스터 — 1행 = 1수신자
   - `infMngNo` (PK): 형식 `INF-{YYYY}-{8자리 시퀀스}` (예: `INF-2026-00000001`)
@@ -311,7 +377,7 @@ public class MultiChannelDispatcher implements NotificationDispatcher {
 
 ---
 
-### 5.0.1 Tiptap 변수 시스템
+### 6.1 Tiptap 변수 시스템 (common/system/tiptap)
 
 **Tiptap 에디터 문서에 동적 변수를 삽입 및 해석하는 모듈**
 
@@ -438,11 +504,11 @@ public class MultiChannelDispatcher implements NotificationDispatcher {
 
 ---
 
-## 6. 로그 체계
+## 7. 로그 체계
 
 IT Portal의 로그는 **3가지 유형**으로 구성되며, 각각 다른 계층에서 처리됩니다.
 
-### 6.1 변경 로그 (Audit Log) — 자동 기록
+### 7.1 변경 로그 (Audit Log) — 자동 기록
 
 엔티티 CUD 이벤트를 JPA 리스너로 자동 캡처하여 `*L` 로그 테이블에 스냅샷을 남깁니다.
 
@@ -518,7 +584,7 @@ public class Bprojm extends BaseEntity { ... }
 3. 원본 엔티티에 `@LogTarget(entity = {엔티티명}L.class)` 추가
 4. `AdminLogService.buildDefinitions()`에 항목 추가 (관리자 화면 노출)
 
-### 6.2 로그인 이력 (Login History) — 명시적 기록
+### 7.2 로그인 이력 (Login History) — 명시적 기록
 
 인증 흐름 중 `AuthService`가 `Clognh` 엔티티에 직접 저장합니다. 변경 로그와 달리 AOP/리스너 없이 서비스 코드에서 명시적으로 기록합니다.
 
@@ -531,7 +597,7 @@ public class Bprojm extends BaseEntity { ... }
 - **조회**: `LoginHistoryService` — 본인 이력 최대 50건(`getLoginHistory`) 또는 최근 10건(`getRecentLoginHistory`)
 - **테이블**: `TPRMPP_CLOGNH`
 
-### 6.3 관리자 로그 조회 (`AdminLogService`) — ROLE_ADMIN 전용
+### 7.3 관리자 로그 조회 (`AdminLogService`) — ROLE_ADMIN 전용
 
 변경 로그 20개 테이블을 관리자 화면에서 페이징·상세 조회합니다.
 
@@ -543,27 +609,11 @@ public class Bprojm extends BaseEntity { ... }
 
 사번 필드(`*USID`, `ENO` 등)는 자동으로 사용자명으로 변환하여 응답에 포함합니다.
 
-### 6.4 실시간 로그 모니터링 (`RealtimeLogController`) — ROLE_ADMIN 전용
-
-`common/admin/realtime` 패키지는 `V_ITPAPP_LOG_FEED` 통합 View를 기반으로 관리자용 변경 로그 스냅샷을 제공합니다.
-
-| 항목 | 내용 |
-|------|------|
-| API | `GET /api/admin/realtime-logs` |
-| 구현 | `RealtimeLogController`, `RealtimeLogService`, `RealtimeLogRepository` |
-| 응답 | `rows`, `serverTime`, `tableCounts`(최근 5분), `perMinute`(최근 30분) |
-| 조회 조건 | `since`, `cursorLogTbl`, `cursorLogSno`, `limit`, `tables`, `chgTypes` |
-
-- `limit`은 서비스 계층에서 1~200 범위로 보정합니다.
-- `tables`는 `AdminLogService.getTables()`가 반환하는 허용 `LOG_KEY`만 사용합니다.
-- `chgTypes`는 `C`/`U`/`D`만 허용합니다.
-- 응답 본문은 표준 로그 컬럼만 포함하며 BEFORE/AFTER 변경 본문은 포함하지 않습니다.
-
 ---
 
-## 7. 인증/인가 및 보안
+## 8. 인증/인가 및 보안
 
-### 7.1 JWT 인증 흐름
+### 8.1 JWT 인증 흐름
 
 ```
 [로그인] POST /api/auth/login
@@ -593,7 +643,7 @@ public class Bprojm extends BaseEntity { ... }
   → Clognh 테이블에 로그아웃 이력 기록
 ```
 
-### 7.2 인가 (Authorization) 모델
+### 8.2 인가 (Authorization) 모델
 
 **RBAC (Role-Based Access Control)**
 - **자격등급** (`CauthI` 엔티티): 시스템관리자(ITPAD001), 일반사용자(ITPZZ001), 기획담당(ITPZZ002)
@@ -610,7 +660,7 @@ public class Bprojm extends BaseEntity { ... }
 
 > **주의**: SecurityConfig에 등록되지 않은 관리자 API는 반드시 컨트롤러 **클래스 레벨**에 `@PreAuthorize("hasRole('ADMIN')")` 적용. 누락 시 인증된 모든 사용자 접근 가능 → CLAUDE.md §5.6 참조
 
-### 7.3 보안 조치
+### 8.3 보안 조치
 
 | 항목 | 기술 | 설명 |
 |------|------|------|
@@ -622,9 +672,9 @@ public class Bprojm extends BaseEntity { ... }
 | **비밀번호 저장** | SHA-256 + Base64 | `CustomPasswordEncoder` |
 | **환경 비밀값** | 환경변수 주입 | `DB_PASSWORD`, `JWT_SECRET`, `GEMINI_API_KEY` (`DB_PASSWORD`, `JWT_SECRET`은 현재 개발 기본값이 남아 있어 운영 프로파일에서 제거 필요) |
 
-## 8. 주요 API 엔드포인트
+## 9. 주요 API 엔드포인트
 
-### 8.1 공개 엔드포인트 (인증 불필요)
+### 9.1 공개 엔드포인트 (인증 불필요)
 
 | Method | Path | 설명 |
 |--------|------|------|
@@ -638,7 +688,7 @@ public class Bprojm extends BaseEntity { ... }
 >
 > **개발 전용**: `/api/auth/dev/**` — 개발자 사용자 전환 API (app.dev.user-switch.enabled=true 시에만 활성화, 운영 배포 전 반드시 비활성화)
 
-### 8.2 비즈니스 API (인증 필수)
+### 9.2 비즈니스 API (인증 필수)
 
 | 도메인 | Method | Path | 설명 | 권한 |
 |--------|--------|------|------|------|
@@ -675,7 +725,7 @@ public class Bprojm extends BaseEntity { ... }
 
 > **Swagger UI**: http://localhost:8080/swagger-ui/index.html
 
-## 9. 빌드 및 실행
+## 10. 빌드 및 실행
 
 ```bash
 # 1. QueryDSL Q클래스 생성 (필요시)
@@ -706,9 +756,9 @@ public class Bprojm extends BaseEntity { ... }
 #   → Tomcat 기동
 ```
 
-## 10. 환경 설정
+## 11. 환경 설정
 
-### 10.1 application.properties 주요 항목
+### 11.1 application.properties 주요 항목
 
 | 속성 | 기본값 | 개발 | 운영 | 설명 |
 |------|--------|------|------|------|
@@ -726,7 +776,7 @@ public class Bprojm extends BaseEntity { ... }
 | `gemini.api.key` | - | 환경변수 `GEMINI_API_KEY` | 환경변수 | Google Gemini API 키 |
 | `gemini.api.model` | `gemini-2.5-flash` | - | - | Gemini 모델 선택 |
 
-### 10.2 보안 설정
+### 11.2 보안 설정
 
 | 항목 | 설정 | 비고 |
 |------|------|------|
@@ -736,7 +786,7 @@ public class Bprojm extends BaseEntity { ... }
 | **HTTP 헤더** | 보안 헤더 자동 설정 | HSTS, CSP, X-Frame-Options, Content-Type-Options |
 | **환경변수** | 비밀값은 환경변수에서 주입 | `application.properties`의 개발 기본값은 운영 프로파일에서 제거 |
 
-### 10.3 로컬 개발 환경 설정
+### 11.3 로컬 개발 환경 설정
 
 ```bash
 # Windows (PowerShell)
@@ -750,7 +800,7 @@ export JWT_SECRET=your-jwt-secret-key
 export GEMINI_API_KEY=your-gemini-api-key
 ```
 
-### 10.4 운영 배포 설정
+### 11.4 운영 배포 설정
 
 1. **application.properties** 운영값 적용
 2. **환경변수** 주입:
@@ -762,9 +812,9 @@ export GEMINI_API_KEY=your-gemini-api-key
 5. **파일 저장 경로**: NAS 공유 폴더 지정 (`/mnt/nas/files` 등)
 6. **WAR 배포**: Tomcat CATALINA_HOME/webapps 디렉토리에 복사
 
-## 11. 외부 연동
+## 12. 외부 연동
 
-### 11.1 Gemini AI
+### 12.1 Gemini AI
 
 - **API**: `POST /api/gemini/generate` (인증 필수)
 - **기능**: 텍스트 생성, 첨부파일 inlineData 변환, 미지원/누락 파일 `skippedFiles` 응답
@@ -772,14 +822,14 @@ export GEMINI_API_KEY=your-gemini-api-key
 - **구현**: `GeminiService`, `GeminiController`
 - **보안**: API 키는 환경변수 `GEMINI_API_KEY`에서 주입
 
-### 11.2 SSO (Single Sign-On) 에이전트
+### 12.2 SSO (Single Sign-On) 에이전트
 
 - **상태**: 선택적 (JSP 에이전트 라이브러리 libs/ 폴더에 복사 후 주석 해제)
 - **엔드포인트**: `/api/auth/sso/complete` (JWT 발급)
 - **구성**: `SsoWebConfig`, `SsoController`
 - **기능**: 사내 SSO 시스템과 연동하여 JWT 토큰 발급
 
-### 11.3 Oracle Database
+### 12.3 Oracle Database
 
 - **버전**: XEPDB1 (Oracle Database 21c XE)
 - **사용자**: `ITPAPP`
@@ -788,9 +838,9 @@ export GEMINI_API_KEY=your-gemini-api-key
 
 ---
 
-## 12. 핵심 도메인 및 의존성
+## 13. 핵심 도메인 및 의존성
 
-### 12.1 도메인 의존성 규칙
+### 13.1 도메인 의존성 규칙
 
 ```
 domain → common (O)
@@ -802,7 +852,7 @@ common → infra (X)
 infra → domain (X, domain 기능 불필요)
 ```
 
-### 12.2 도메인별 핵심 클래스
+### 13.2 도메인별 핵심 클래스
 
 | 도메인 | Entity | Service | Repository | 설명 |
 |--------|--------|---------|------------|------|
@@ -823,7 +873,7 @@ infra → domain (X, domain 기능 불필요)
 | **infra.file** | Cfilem | FileService | FileRepository | 첨부파일 |
 | **infra.ai** | - | GeminiService | FileRepository | Gemini 프록시 |
 
-### 12.2.1 부서 필터링 패턴 (bbrC) — 재발 방지
+### 13.2.1 부서 필터링 패턴 (bbrC) — 재발 방지
 
 신규 목록 API 추가 시 아래 패턴을 반드시 따릅니다.
 
@@ -836,7 +886,7 @@ infra → domain (X, domain 기능 불필요)
 - `bbrC` null·빈 문자열 → 전체 조회 (관리자 포함, 하위 호환 유지).
 - TDD 의무: `bbrC` 지정·null 두 케이스 모두 JUnit 테스트 추가.
 
-### 12.2.2 TDD 의무 범위
+### 13.2.2 TDD 의무 범위
 
 신규 Service / RepositoryImpl 로직은 **RED → GREEN → REFACTOR** 순서로 작성합니다.
 
@@ -846,7 +896,7 @@ GREEN — 테스트를 통과하는 최소 구현 작성
 REFACTOR — 중복 제거, 가독성 개선 (테스트 통과 유지)
 ```
 
-### 12.3 공통 의존성
+### 13.3 공통 의존성
 
 | 패키지 | 목적 |
 |--------|------|
@@ -857,9 +907,9 @@ REFACTOR — 중복 제거, 가독성 개선 (테스트 통과 유지)
 
 ---
 
-## 13. 개발자 가이드
+## 14. 개발자 가이드
 
-### 13.1 신규 기능 구현 패턴
+### 14.1 신규 기능 구현 패턴
 
 #### 목록 API에 부서 필터링 추가
 신규 목록 조회 API는 반드시 부서코드(`bbrC`) 필터링을 지원해야 합니다.
@@ -912,7 +962,7 @@ public class Bnewent extends BaseEntity { ... }
 2. Oracle 시퀀스 `S_BNEWENT` 생성
 3. `AdminLogService.buildDefinitions()`에 항목 추가
 
-### 13.2 테스트 작성 의무
+### 14.2 테스트 작성 의무
 
 | 대상 | 테스트 케이스 | 필수 |
 |------|-------------|------|
@@ -922,7 +972,7 @@ public class Bnewent extends BaseEntity { ... }
 | @Valid 검증 | 유효/무효 요청 | O |
 | QueryDSL 집계 쿼리 | 결과 정확도 | O |
 
-### 13.3 보안 체크리스트
+### 14.3 보안 체크리스트
 
 신규 API 또는 수정 후:
 
@@ -936,11 +986,11 @@ public class Bnewent extends BaseEntity { ... }
 
 ---
 
-## 14. 변경 이력
+## 15. 변경 이력
 
 | 날짜 | 변경 내용 |
 |------|----------|
-| **2026-06-01** | README.md 현행화: 소스 코드 통계 정정(271개 메인 Java 파일, 92개 테스트 파일, 63개 JPA 엔티티), 실시간 로그 모니터링(`common/admin/realtime`, `/api/admin/realtime-logs`) 구조와 API 제약 반영 |
+| **2026-06-01** | README.md 현행화: (1) 소스 통계 확정(271개 메인 Java, 92개 테스트, 63개 @Entity), (2) 실시간 로그 모니터링 섹션 신규 추가(§5, `common/admin/realtime`, RealtimeLogController, V_ITPAPP_LOG_FEED View, 커서 페이징, 테이블·변경유형 필터, 집계 정보), (3) 알림·Tiptap 변수 섹션을 §6으로 이동, (4) 로그 체계 섹션을 §7로 이동, (5) 모듈 패키지 구조에 `common/notification`, `common/admin/realtime` 명시 |
 | **2026-05-29** | README.md 현행화: 소스 코드 통계 정정(266 Java 파일, 84 테스트, 59 엔티티), IT부문 예산(`ItBudgetController`/`ItBudgetService`) 도메인 추가, 사전협의 검토자(`ReviewerController`) API 추가 |
 | **2026-05-26** | README.md 전체 분석 및 업데이트: 소스 코드 통계(257 Java 파일, 84 테스트, 61 엔티티) 추가, 개발자 가이드 섹션(신규 기능 패턴, 테스트 의무, 보안 체크리스트) 신규 작성, 28개 컨트롤러 API 현행화 |
 | **2026-05-22** | 알림 시스템(Notification) 및 Tiptap 변수 시스템 문서화: `common/notification` 모듈(Cinfmm, NotificationService, NotificationDispatcher, @TransactionalEventListener 패턴), `common/system/tiptap` 모듈(TiptapVariableService, TiptapVariableController, 토큰 형식, 금액 포맷팅) 상세 기술 |

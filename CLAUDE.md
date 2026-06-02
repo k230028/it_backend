@@ -332,9 +332,11 @@ public class PlanController { ... }
   - `style-src 'unsafe-inline'` 포함 — CSS injection 벡터 존재. 개선 대상.
 
 #### CORS 설정 (SecurityConfig.corsConfigurationSource() 코드 기준)
-- 개발: `cors.allowed-origins=http://localhost,http://localhost:3000,http://localhost:3002`
+- `cors.allowed-origins` 기본값: `*` (`@Value("${cors.allowed-origins:*}")` 코드 기준). 개발 환경 설정 파일에서 `http://localhost,http://localhost:3000,http://localhost:3002`로 재정의.
+- `allowCredentials=true` + `allowedOrigins="*"` 조합: 브라우저는 이를 거부하나, 환경변수 미설정 시 `*`로 구동되어 오설정 위험 존재.
 - 운영 배포 시 `https://it.kdb.co.kr` 등 실제 오리진으로 환경변수 오버라이드 필수.
 - `allowCredentials=true`이므로 와일드카드(`*`) 불가. 반드시 명시적 도메인 나열.
+- `allowedHeaders`는 `List.of("*")`로 전체 허용 — 운영 환경에서 실제 필요 헤더(`Content-Type`, `Authorization` 등)로 제한 권장 (TASK.md 등록).
 - 구동 시 CORS 오리진 운영값 검증 로직 없음 — 배포 체크리스트에 포함 필수.
 
 #### 비밀값 관리 (application.properties, EnvironmentValidator 코드 기준)
@@ -415,13 +417,37 @@ public class PlanController { ... }
   - 사용 예: 알림 발송, 메일 전송, 별도 시스템 동기화 (부수 효과).
 - 선택 기준: 상태 일관성이 필수 → `@EventListener`, 실패해도 괜찮은 부가 작업 → `@TransactionalEventListener`.
 
-### 5.12.3 실시간 로그 모니터링
-- `RealtimeLogController`는 `/api/admin/realtime-logs` 단일 GET 엔드포인트를 제공하며 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")`를 적용합니다.
-- `RealtimeLogRepository`는 `V_ITPAPP_LOG_FEED` View를 `EntityManager` 네이티브 쿼리로 조회합니다.
-- 클라이언트 입력 `tables`는 `AdminLogService.getTables()`의 허용 `LOG_KEY` 집합으로 검증합니다.
-- `chgTypes`는 `C`/`U`/`D`만 허용합니다.
-- `limit`은 최대 200으로 제한합니다.
-- 실시간 목록 응답에는 표준 로그 컬럼만 포함하고 BEFORE/AFTER 변경 본문은 포함하지 않습니다.
+### 5.12.3 실시간 로그 모니터링 (최종 구현, 2026-06-01)
+**컨트롤러 & API**
+- `RealtimeLogController` (`common/admin/realtime`): `/api/admin/realtime-logs` 단일 GET 엔드포인트, 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")` 적용.
+- 쿼리 파라미터:
+  - `since` (LocalDateTime, 선택): 이 시각 이후 로그 조회. null이면 최신 `limit`건 스냅샷.
+  - `cursorLogTbl`, `cursorLogSno` (복합 커서): since와 함께 사용하여 중복 조회 회피.
+  - `limit` (기본값 200): 최대 200으로 제한.
+  - `tables` (쉼표 구분): 허용 LOG_KEY 목록. null/공백이면 제약 없음.
+  - `chgTypes` (쉼표 구분): C/U/D 부분집합만 허용. null/공백이면 제약 없음.
+- 응답: `RealtimeLogDto.Snapshot` — 증분 로그 목록(`FeedRow[]`) + 최근 5분(`tableCountSince`) / 30분(`perMinuteBuckets`) 발생량 집계.
+
+**Repository 구현**
+- `RealtimeLogRepository`: `V_ITPAPP_LOG_FEED` View를 EntityManager 네이티브 쿼리로 조회.
+  - **증분 조회 로직**: `findFeed(QueryCondition)` — since가 null이면 최신 limit건, 비-null이면 복합 커서 조건:
+    ```
+    CHG_DTM > since
+    OR (CHG_DTM = since AND LOG_TBL > cursorLogTbl)
+    OR (CHG_DTM = since AND LOG_TBL = cursorLogTbl AND LOG_HIS_TGR_SNO > cursorLogSno)
+    ```
+  - **네이티브 쿼리 결과 매핑** (§5.5.4 참조): 환경별 타입 차이 처리 헬퍼 함수 사용:
+    - `toStr(Object)` — VARCHAR2(1) 컬럼이 Character/String 혼용으로 반환되는 경우 안전하게 String으로 변환.
+    - `toLdt(Object)` — TIMESTAMP 컬럼이 LocalDateTime/Timestamp 둘 다 가능한 경우 LocalDateTime으로 변환.
+  - **집계 쿼리**:
+    - `countByTableSince(since)` → Map<LOG_KEY, 발생건수> (최근 5분).
+    - `perMinuteSince(since30, serverTime)` → List<Long> (최근 30개 분 슬라이딩 윈도우, 0으로 채움).
+
+**클라이언트 입력 검증 & 응답**
+- `tables` → 쉼표로 구분하여 공백 trim 후, `AdminLogService.getTables()`의 허용 LOG_KEY 집합과 교집합.
+- `chgTypes` → 쉼표로 구분하여 C/U/D만 필터링.
+- `limit` → 200 이상이면 200으로 조정.
+- 응답 컬럼: LOG_TBL, LOG_KEY, LOG_HIS_TGR_SNO, CHG_DTT_YN, CHG_DTM, CHG_USID, GUID, DEL_YN. BEFORE/AFTER 변경 본문 미포함.
 
 ### 5.13 공통 게시판 패턴
 - 백엔드 패키지: `common/board`.
@@ -470,14 +496,15 @@ public class PlanController { ... }
 - **목적**: 앱 내 알림(인앱), 이메일, SMS, 알림톡 등 다중 채널 알림 발송 통합 관리.
 - **패턴**: Event-driven 이벤트 발행 → 비동기 리스너 → DB 적재 → 채널별 디스패처 호출.
 
-#### 알림 발송 흐름
+#### 알림 발송 흐름 (최종 구현, 2026-06-01)
 1. 비즈니스 로직(결재, 게시판, 시스템 등)에서 `ApplicationEventPublisher.publishEvent(new NotificationEvent(...))` 호출.
 2. `NotificationEventListener`가 `@TransactionalEventListener(phase=AFTER_COMMIT)` 콜백으로 `NotificationService.send(event)` 호출.
-3. `NotificationService.send()`:
-   - `@Transactional(propagation=Propagation.REQUIRES_NEW)` 필수 — Spring 7.0에서 AFTER_COMMIT 페이즈는 outer 트랜잭션 종료 후 non-transactional synchronization 컨텍스트에서 호출되므로, `REQUIRED`만으로는 `TransactionRequiredException`이 발생. `REQUIRES_NEW`로 항상 새 트랜잭션을 강제 시작.
-   - 채번 → `INF-{YYYY}-{8자리 시퀀스}` 생성 (예: `INF-2026-00000001`).
-   - 엔티티 빌드 후 `saveAndFlush()` — 즉시 INSERT 실행 (flush 스킵 회피).
-   - `NotificationDispatcher.dispatch(notification, eaiPayload)` 호출 (부수 효과).
+3. `NotificationService.send()` — **`@Transactional(propagation=Propagation.REQUIRES_NEW)` 반드시 필수**:
+   - Spring 7.0+ 환경에서 AFTER_COMMIT 페이즈는 outer 트랜잭션 종료 후 non-transactional synchronization 컨텍스트에서 호출되므로, `Propagation.REQUIRED`만으로는 `TransactionRequiredException` 발생 가능. `REQUIRES_NEW`로 항상 독립된 새 트랜잭션을 강제 시작.
+   - Recipient 검증: `event.recipientEno()` 비어있으면 warn 로그 후 발행 건너뜀 (null return).
+   - 채번: `INF-{YYYY}-{NEXTVAL:08d}` (예: `INF-2026-00000001`).
+   - 엔티티 빌드 후 `saveAndFlush()` — 즉시 INSERT 발행 (flush 스킵 회피, 실패 시 즉시 ORA 예외 진단 가능).
+   - `NotificationDispatcher.dispatch(notification, event.sdPayload())` 호출 (부수 효과로 취급).
 
 #### 알림 채번 규칙
 - 형식: `INF-{YYYY}-{NEXTVAL:08d}`
@@ -523,14 +550,18 @@ public class PlanController { ... }
 - 타인 알림 조회/수정/삭제 시도 → `AccessDeniedException` 발생.
 - `NotificationService.loadOwned(infMngNo, currentEno)` 내부 헬퍼로 검증.
 
-#### 디스패처 패턴 (NotificationDispatcher SPI)
+#### 디스패처 패턴 (NotificationDispatcher SPI, 현재 구현 2026-06-01)
 - **인터페이스**: `NotificationDispatcher.dispatch(Cinfmm notification, String eaiPayload)`.
-- **현재 구현**: `StubNotificationDispatcher` — 인앱(INAPP) 채널만 처리.
+  - 목적: 알림 엔티티 저장 후 채널별 발송 처리 분리 (부수 효과 SPI).
+  
+- **현재 구현**: `StubNotificationDispatcher` — INAPP(인앱) 채널만 처리.
   - `notification.markDispatched("001", eaiPayload)` 호출 (EAI_SD_TP_C='001' + EAI_SD_DTM=now).
-  - 현재 구현: INAPP 채널만 처리 (StubNotificationDispatcher 사용).
-- **향후 확장**: 이메일, SMS, 카톡(알림톡) 어댑터 추가 시 채널별 구현체 분리 + 라우터 도입.
+  - 발송 실패 처리: 예외 발생 금지, warn 로그만 수행 (원본 알림 저장 작업 무영향 유지).
+  
+- **향후 확장 패턴** (TASK.md 등록):
+  - 이메일, SMS, 카톡(알림톡) 어댑터 추가 시 채널별 구현체 분리 + 라우터 도입.
   - 각 구현체는 `NotificationDispatcher` 인터페이스 구현.
-  - `dispatch()` 내에서 발송 실패 처리: 예외 발생 금지, 로깅만 수행 (부수 효과로 취급).
+  - `dispatch()` 내에서 발송 실패는 예외 발생 금지, 로깅만 수행 (부수 효과로 취급).
 
 ### 5.17 Tiptap 변수 시스템 (common/system/tiptap)
 
@@ -615,18 +646,22 @@ record ResolvedValue(String value, String status)
 - 예: `"85.3%"`.
 - null/0 조건 → `MISSING`.
 
-#### API 엔드포인트 (`/api/tiptap-variables`)
+#### API 엔드포인트 (`/api/tiptap-variables`, 현재 구현 2026-06-01)
 1. **`GET /api/tiptap-variables/metadata`** — 변수 카탈로그 조회.
    - 응답: `TiptapVariableDto.MetadataResponse` (위 구조 참조).
-   - Tiptap 변수 드롭다운(UI) 초기화 시 호출.
-   - 권한별 필터링: 서비스 계층에서 SecurityContext 기준 적용 (향후 Task).
+   - 호출처: Tiptap 변수 드롭다운(UI) 초기화 시.
+   - 인증 요구: Yes (인증된 모든 사용자).
+   - 권한별 필터링: 서비스 계층에서 SecurityContext 기준 적용 (향후 Task, 현재 미구현).
 
-2. **`POST /api/tiptap-variables/resolve`** — 토큰 배열 해석.
+2. **`POST /api/tiptap-variables/resolve`** — 토큰 배열 일괄 해석.
    - 요청 본문: `TiptapVariableDto.ResolveRequest { tokens: List<String> }`.
-   - 토큰 개수 제약: 1~200개 (JPA 검증).
+   - 토큰 개수 제약: `@Size(min=1, max=200)` (Bean Validation).
    - 응답: `TiptapVariableDto.ResolveResponse { results: Map<String, ResolvedValue> }`.
      - `results`는 LinkedHashMap (삽입 순서 유지) → 프론트 표시 순서 보장.
-   - 각 토큰별 해석 결과: `{ "2026.itBudget.requestAmount": { "value": "900억원", "status": "OK" }, ... }`.
+   - 응답 구조 예시: `{ "2026.itBudget.requestAmount": { "value": "900억원", "status": "OK" }, "2026.proj.P001.allocationRate": { "value": "85.3%", "status": "OK" }, ... }`.
+   - 토큰 개수 = 0 → 빈 Map 반환 (API 호출 스킵 권장).
+   - 인증 요구: Yes (인증된 모든 사용자).
+   - 권한별 필터링: 구현 예정 (현재 미구현).
 
 #### 데이터 쿼리 (BudgetStatusQueryRepository)
 - **카테고리 집계**: `aggregateByCategory(year, category)` → `AggregatedAmount { requestSum, allocatedSum }`.
