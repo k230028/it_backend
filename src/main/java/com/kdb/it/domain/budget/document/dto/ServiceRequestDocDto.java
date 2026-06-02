@@ -60,7 +60,7 @@ public class ServiceRequestDocDto {
 
         /** 완료기한 */
         @Schema(description = "완료기한 (yyyy-MM-dd)")
-        private LocalDate fsgTlm;
+        private String fsgTlm;
 
         /**
          * CreateRequest를 {@link Brdocm} 엔티티로 변환합니다.
@@ -116,7 +116,7 @@ public class ServiceRequestDocDto {
 
         /** 완료기한 */
         @Schema(description = "완료기한 (yyyy-MM-dd)")
-        private LocalDate fsgTlm;
+        private String fsgTlm;
     }
 
     /**
@@ -156,7 +156,7 @@ public class ServiceRequestDocDto {
 
         /** 완료기한 */
         @Schema(description = "완료기한")
-        private LocalDate fsgTlm;
+        private String fsgTlm;
 
         /** 삭제여부 */
         @Schema(description = "삭제여부")

@@ -44,12 +44,12 @@ public class Bgdocm extends BaseEntity {
     private String docMngNo;
 
     /** 문서명: 가이드 문서의 제목 (최대 200자) */
-    @Column(name = "DOC_NM", length = 200, comment = "문서명")
+    @Column(name = "DOC_TTL_CONE", length = 200, comment = "문서명")
     private String docNm;
 
     /** 문서정보: 가이드 문서 상세 내용 (CLOB, HTML 포함 가능) */
     @Lob
-    @Column(name = "DOC_INF", comment = "문서정보")
+    @Column(name = "NAC_TXT_INF", comment = "문서정보")
     private String docInf;
 
     /**

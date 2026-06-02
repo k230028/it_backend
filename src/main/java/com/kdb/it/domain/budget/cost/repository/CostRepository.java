@@ -45,7 +45,7 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
     /**
      * 관리번호별 전산관리비 목록 조회 (삭제되지 않은 항목)
      *
-     * <p>동일한 IT_MNGC_NO를 가진 여러 일련번호(SNO) 레코드를 모두 조회합니다.
+     * <p>동일한 BG_NO를 가진 여러 일련번호(SNO) 레코드를 모두 조회합니다.
      * 주로 수정·삭제 시 해당 관리번호의 모든 유효 레코드를 찾는 데 사용됩니다.</p>
      *
      * @param itMngcNo 전산관리비 관리번호 (예: COST_2026_0001)
@@ -81,7 +81,7 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
     /**
      * 특정 관리번호 내 다음 일련번호(SNO) 계산
      *
-     * <p>동일한 IT_MNGC_NO에서 현재 최대 일련번호 + 1을 반환합니다.
+     * <p>동일한 BG_NO에서 현재 최대 일련번호 + 1을 반환합니다.
      * 새로운 버전의 레코드 저장 시 SNO를 채번하는 데 사용됩니다.</p>
      *
      * <p>Oracle DB 전용 Native Query (NVL로 첫 번째 항목인 경우 1 반환)</p>
@@ -89,6 +89,6 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      * @param itMngcNo 전산관리비 관리번호
      * @return 다음 일련번호 (기존 레코드가 없으면 1)
      */
-    @Query(value = "SELECT NVL(MAX(IT_MNGC_SNO), 0) + 1 FROM TPRMPP_BCOSTM WHERE IT_MNGC_NO = :itMngcNo", nativeQuery = true)
+    @Query(value = "SELECT NVL(MAX(SNO), 0) + 1 FROM TPRMPP_BCOSTM WHERE BG_NO = :itMngcNo", nativeQuery = true)
     Integer getNextSnoValue(@Param("itMngcNo") String itMngcNo);
 }

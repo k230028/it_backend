@@ -24,10 +24,10 @@ public class BgdocmL extends BaseLogEntity {
     @Column(name = "DOC_MNG_NO", length = 32, comment = "문서관리번호")
     private String docMngNo;
 
-    @Column(name = "DOC_NM", length = 200, comment = "문서명")
+    @Column(name = "DOC_TTL_CONE", length = 200, comment = "문서명")
     private String docNm;
 
     @Lob
-    @Column(name = "DOC_INF", comment = "문서정보")
+    @Column(name = "NAC_TXT_INF", comment = "문서정보")
     private String docInf;
 }

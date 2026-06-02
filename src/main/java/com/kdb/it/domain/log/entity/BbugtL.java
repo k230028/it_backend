@@ -22,30 +22,30 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class BbugtL extends BaseLogEntity {
 
-    @Column(name = "BG_MNG_NO", length = 32, comment = "예산관리번호")
+    @Column(name = "BG_NO", length = 32, comment = "예산관리번호")
     private String bgMngNo;
 
-    @Column(name = "BG_SNO", comment = "예산일련번호")
+    @Column(name = "SNO", comment = "예산일련번호")
     private Integer bgSno;
 
-    @Column(name = "BG_YY", length = 4, comment = "예산년도")
+    @Column(name = "BSE_YY", length = 4, comment = "예산년도")
     private String bgYy;
 
-    @Column(name = "ORC_TB", length = 10, comment = "원본테이블")
+    @Column(name = "FNT_TB_NM", length = 10, comment = "원본테이블")
     private String orcTb;
 
-    @Column(name = "ORC_PK_VL", length = 32, comment = "원본PK값")
+    @Column(name = "PK_COL_NM", length = 32, comment = "원본PK값")
     private String orcPkVl;
 
-    @Column(name = "ORC_SNO_VL", comment = "원본일련번호값")
+    @Column(name = "FNT_TB_CRY_SNO", comment = "원본일련번호값")
     private Integer orcSnoVl;
 
     @Column(name = "IOE_C", length = 3, comment = "비목코드")
     private String ioeC;
 
-    @Column(name = "DUP_BG_AMT", precision = 18, scale = 3, comment = "편성예산금액")
+    @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "편성예산금액")
     private BigDecimal dupBgAmt;
 
-    @Column(name = "DUP_RT", precision = 3, scale = 0, comment = "편성률")
+    @Column(name = "ASG_RT", precision = 3, scale = 0, comment = "편성률")
     private Integer dupRt;
 }

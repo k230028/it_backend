@@ -24,7 +24,7 @@ public class Cblbmm extends BaseEntity {
 
     /** 게시판관리번호 PK. 형식: BLBM-{0001} */
     @Id
-    @Column(name = "BLB_MNG_NO", nullable = false, length = 32, comment = "게시판관리번호")
+    @Column(name = "BLB_ID", nullable = false, length = 32, comment = "게시판관리번호")
     private String blbMngNo;
 
     @Column(name = "BLB_NM", nullable = false, length = 100, comment = "게시판명")
@@ -34,33 +34,33 @@ public class Cblbmm extends BaseEntity {
     @Column(name = "BLB_TC", nullable = false, length = 3, comment = "게시판구분코드")
     private String blbTp;
 
-    @Column(name = "REP_USE_YN", nullable = false, length = 1, comment = "답변사용여부")
+    @Column(name = "REP_FNC_USE_YN", nullable = false, length = 1, comment = "답변사용여부")
     private String repUseYn;
 
     @Column(name = "CMMT_USE_YN", nullable = false, length = 1, comment = "댓글사용여부")
     private String cmmtUseYn;
 
-    @Column(name = "FL_ESN_YN", nullable = false, length = 1, comment = "파일필수여부")
+    @Column(name = "APG_FL_USE_YN", nullable = false, length = 1, comment = "파일필수여부")
     private String flEsnYn;
 
-    @Column(name = "HRK_FXN_USE_YN", nullable = false, length = 1, comment = "상위고정사용여부")
+    @Column(name = "IOA_TC", nullable = false, length = 1, comment = "상위고정사용여부")
     private String hrkFxnUseYn;
 
-    @Column(name = "NAC_TP_USE_YN", nullable = false, length = 1, comment = "게시물유형사용여부")
+    @Column(name = "HED_TAG_USE_YN", nullable = false, length = 1, comment = "게시물유형사용여부")
     private String nacTpUseYn;
 
     @Column(name = "KD_USE_YN", nullable = false, length = 1, comment = "종류사용여부")
     private String kdUseYn;
 
     /** 조회권한코드 (ALL / ROLE_ADMIN / ROLE_USER / ROLE_DEPT_MANAGER) */
-    @Column(name = "INQ_ATH_C", nullable = false, length = 32, comment = "조회권한코드")
+    @Column(name = "INQ_DWN_ATH_TC", nullable = false, length = 32, comment = "조회권한코드")
     private String inqAthC;
 
     /** 등록권한코드 */
-    @Column(name = "ENR_ATH_C", nullable = false, length = 32, comment = "등록권한코드")
+    @Column(name = "WRT_DWN_ATH_TC", nullable = false, length = 32, comment = "등록권한코드")
     private String enrAthC;
 
-    @Column(name = "SRE_SQN_NO", nullable = false, comment = "화면순서번호")
+    @Column(name = "SRE_SQN_SNO", nullable = false, comment = "화면순서번호")
     private Integer sreSqnNo;
 
     @Column(name = "USE_YN", nullable = false, length = 1, comment = "사용여부")

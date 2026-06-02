@@ -98,8 +98,8 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
     @Query(value = """
         SELECT * FROM TPRMPP_BRDOCM d
         WHERE d.DEL_YN = 'N'
-          AND d.DOC_VRS = (
-              SELECT MAX(d2.DOC_VRS) FROM TPRMPP_BRDOCM d2
+          AND d.DOC_VRS_SNO = (
+              SELECT MAX(d2.DOC_VRS_SNO) FROM TPRMPP_BRDOCM d2
               WHERE d2.DOC_MNG_NO = d.DOC_MNG_NO AND d2.DEL_YN = 'N'
           )
         ORDER BY d.FST_ENR_DTM DESC
@@ -167,7 +167,7 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
         JOIN TPRMPP_CUSERI u ON b.FST_ENR_USID = u.ENO
         WHERE b.DEL_YN = 'N'
           AND u.BBR_C = :bbrC
-          AND b.FSG_TLM < TRUNC(SYSDATE)
+          AND b.RVW_FSG_TLM_DT < TRUNC(SYSDATE)
         """, nativeQuery = true)
     int countOverdueByBbrC(@Param("bbrC") String bbrC);
 
@@ -193,9 +193,9 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
      * 반환 컬럼: [0]=DOC_MNG_NO, [1]=REQ_NM, [2]=USR_NM, [3]=CREATED_AT(YYYY-MM-DD), [4]=FSG_TLM(DATE)
      */
     @Query(value = """
-        SELECT DISTINCT b.DOC_MNG_NO, b.REQ_NM, u.USR_NM,
+        SELECT DISTINCT b.DOC_MNG_NO, b.REQ_TTL, u.USR_NM,
                TO_CHAR(b.FST_ENR_DTM, 'YYYY-MM-DD') AS CREATED_AT,
-               b.FSG_TLM
+               b.RVW_FSG_TLM_DT
         FROM TPRMPP_BRDOCM b
         JOIN TPRMPP_CUSERI u ON b.FST_ENR_USID = u.ENO
         JOIN TPRMPP_BRIVGM r ON b.DOC_MNG_NO = r.DOC_MNG_NO

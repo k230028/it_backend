@@ -26,13 +26,13 @@ public class Cblbcm extends BaseEntity {
 
     /** 게시물관리번호 PK. 형식: NAC-{YYYY}-{0001} */
     @Id
-    @Column(name = "NAC_MNG_NO", nullable = false, length = 32, comment = "게시물관리번호")
+    @Column(name = "NAC_NO", nullable = false, length = 32, comment = "게시물관리번호")
     private String nacMngNo;
 
-    @Column(name = "BLB_MNG_NO", nullable = false, length = 32, comment = "게시판관리번호")
+    @Column(name = "BLB_ID", nullable = false, length = 32, comment = "게시판관리번호")
     private String blbMngNo;
 
-    @Column(name = "NAC_NM", nullable = false, length = 300, comment = "게시물명")
+    @Column(name = "NAC_TTL", nullable = false, length = 300, comment = "게시물명")
     private String nacNm;
 
     /** 본문 HTML — HtmlSanitizer.sanitize() 적용 의무, VARCHAR2(4000) */
@@ -42,46 +42,46 @@ public class Cblbcm extends BaseEntity {
     @Column(name = "NAC_INQ_NBR", nullable = false, comment = "게시물조회수")
     private Integer nacInqNbr;
 
-    @Column(name = "NAC_TP", length = 32, comment = "게시물유형")
+    @Column(name = "NAC_ID", length = 32, comment = "게시물유형")
     private String nacTp;
 
-    @Column(name = "KD_C", length = 32, comment = "종류코드")
+    @Column(name = "NAC_KD_TC", length = 32, comment = "종류코드")
     private String kdC;
 
-    @Column(name = "PRIT_C", nullable = false, length = 32, comment = "중요도코드")
+    @Column(name = "MRL_PRIT_TC", nullable = false, length = 32, comment = "중요도코드")
     private String pritC;
 
-    @Column(name = "HRK_FXN_YN", nullable = false, length = 1, comment = "상위고정여부")
+    @Column(name = "ANC_YN", nullable = false, length = 1, comment = "상위고정여부")
     private String hrkFxnYn;
 
-    @Column(name = "SRE_YN", nullable = false, length = 1, comment = "화면여부")
+    @Column(name = "SRE_USE_YN", nullable = false, length = 1, comment = "화면여부")
     private String sreYn;
 
     /** 공개 대상 부서코드 — NULL이면 전체 */
     @Column(name = "BBR_C", length = 8, comment = "부점코드")
     private String bbrC;
 
-    @Column(name = "STT_DT", comment = "시작일자")
+    @Column(name = "STT_DTM", comment = "시작일자")
     private LocalDate sttDt;
 
-    @Column(name = "END_DT", comment = "종료일자")
+    @Column(name = "END_DTM", comment = "종료일자")
     private LocalDate endDt;
 
     @Column(name = "FL_APG_YN", nullable = false, length = 1, comment = "파일첨부여부")
     private String flApgYn;
 
-    @Column(name = "FL_NBR", nullable = false, comment = "파일수")
+    @Column(name = "APG_FL_NBR", nullable = false, comment = "파일수")
     private Integer flNbr;
 
     /** 그룹번호 — 최상위 글의 NAC_MNG_NO */
     @Column(name = "NAC_GRP_NO", nullable = false, length = 32, comment = "게시물그룹번호")
     private String nacGrpNo;
 
-    @Column(name = "NAC_GRP_SQN", nullable = false, comment = "게시물그룹순서")
+    @Column(name = "GRP_SQN_SNO", nullable = false, comment = "게시물그룹순서")
     private Integer nacGrpSqn;
 
     /** 트리 깊이 (0=원글, 1=답글…) */
-    @Column(name = "NAC_GRP_LEV", nullable = false, comment = "게시물그룹레벨")
+    @Column(name = "NAC_LEV_MNG_SNO", nullable = false, comment = "게시물그룹레벨")
     private Integer nacGrpLev;
 
     @Column(name = "HRK_NAC_MNG_NO", length = 32, comment = "상위게시물관리번호")

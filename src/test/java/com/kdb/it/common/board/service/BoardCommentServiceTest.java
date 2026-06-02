@@ -125,9 +125,9 @@ class BoardCommentServiceTest {
         given(commentRepository.save(any(Ccmmtm.class))).willAnswer(inv -> inv.getArgument(0));
 
         var request = new BoardCommentDto.CreateRequest("테스트 댓글 내용");
-        String result = service.createComment("BLBM-2026-0001", "NAC-2026-0001", request, normalUser);
+        Long result = service.createComment("BLBM-2026-0001", "NAC-2026-0001", request, normalUser);
 
-        assertThat(result).startsWith("CMMT-");
+        assertThat(result).isNotNull();
 
         // 저장된 엔티티의 루트 그룹 필드를 검증
         verify(commentRepository).save(captor.capture());
@@ -175,27 +175,27 @@ class BoardCommentServiceTest {
     @Test
     @DisplayName("본인 댓글이 아닌 댓글을 수정하려 하면 예외가 발생한다")
     void updateComment_notOwner_throws() {
-        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
 
-        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
             .willReturn(Optional.of(comment));
 
         var request = new BoardCommentDto.UpdateRequest("수정 내용");
 
         // normalUser(USER001)는 OTHER_USER가 작성한 댓글을 수정할 수 없다
         assertThatThrownBy(() ->
-            service.updateComment("CMMT-2026-0001", request, normalUser)
+            service.updateComment(1L, request, normalUser)
         ).isInstanceOf(CustomGeneralException.class);
     }
 
     @Test
     @DisplayName("본인 댓글을 수정하면 예외 없이 본문이 변경된다")
     void updateComment_ownerSuccess() {
-        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
 
-        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
             .willReturn(Optional.of(comment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
             .willReturn(Optional.of(post));
@@ -204,7 +204,7 @@ class BoardCommentServiceTest {
 
         // 예외 없이 완료되어야 한다 (JPA Dirty Checking — 명시적 save() 없음)
         assertThatCode(() ->
-            service.updateComment("CMMT-2026-0001", request, normalUser)
+            service.updateComment(1L, request, normalUser)
         ).doesNotThrowAnyException();
 
         // 엔티티 본문이 수정되었는지 확인
@@ -216,7 +216,7 @@ class BoardCommentServiceTest {
     @Test
     @DisplayName("부모 댓글이 있는 게시판에 대댓글을 등록하면 CMMT- 형식의 ID와 lev=1이 반환된다")
     void createReply_success() {
-        String parentId = "CMMT-2026-0001";
+        Long parentId = 1L;
 
         // 부모 댓글 (루트, lev=0)
         Ccmmtm parent = Ccmmtm.builder()
@@ -241,10 +241,10 @@ class BoardCommentServiceTest {
         given(commentRepository.save(any(Ccmmtm.class))).willAnswer(inv -> inv.getArgument(0));
 
         var request = new BoardCommentDto.CreateRequest("대댓글 내용");
-        String result = service.createReply(
+        Long result = service.createReply(
             "BLBM-2026-0001", "NAC-2026-0001", parentId, request, normalUser);
 
-        assertThat(result).startsWith("CMMT-");
+        assertThat(result).isNotNull();
 
         // 저장된 대댓글의 그룹 레벨이 부모+1 인지 검증
         verify(commentRepository).save(captor.capture());
@@ -258,30 +258,30 @@ class BoardCommentServiceTest {
     @Test
     @DisplayName("타인의 댓글을 일반 사용자가 삭제하려 하면 예외가 발생한다")
     void deleteComment_notOwner_throws() {
-        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
 
-        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
             .willReturn(Optional.of(comment));
 
         // normalUser(USER001)는 OTHER_USER의 댓글을 삭제할 수 없다
         assertThatThrownBy(() ->
-            service.deleteComment("CMMT-2026-0001", normalUser)
+            service.deleteComment(1L, normalUser)
         ).isInstanceOf(CustomGeneralException.class);
     }
 
     @Test
     @DisplayName("본인 댓글을 삭제하면 예외 없이 소프트 딜리트된다")
     void deleteComment_owner_success() {
-        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
 
-        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
             .willReturn(Optional.of(comment));
 
         // 예외 없이 완료되어야 한다 (JPA Dirty Checking — 명시적 save() 없음)
         assertThatCode(() ->
-            service.deleteComment("CMMT-2026-0001", normalUser)
+            service.deleteComment(1L, normalUser)
         ).doesNotThrowAnyException();
 
         // Soft Delete: DEL_YN = 'Y' 로 변경되었는지 확인
@@ -312,7 +312,7 @@ class BoardCommentServiceTest {
     @DisplayName("getComments — 본인 댓글은 canModify=true로 반환된다")
     void getComments_ownComment_canModifyTrue() {
         // Arrange
-        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
 
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
@@ -334,7 +334,7 @@ class BoardCommentServiceTest {
     @DisplayName("getComments — 타인 댓글은 canModify=false로 반환된다")
     void getComments_otherComment_canModifyFalse() {
         // Arrange
-        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
 
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
@@ -356,7 +356,7 @@ class BoardCommentServiceTest {
     @DisplayName("getComments — 관리자는 타인 댓글도 canModify=true로 반환된다")
     void getComments_admin_canModifyTrue() {
         // Arrange
-        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
 
         CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
@@ -382,12 +382,12 @@ class BoardCommentServiceTest {
     @DisplayName("관리자는 타인의 댓글도 수정할 수 있다")
     void updateComment_admin_canModifyOthers() {
         // Arrange
-        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
 
         CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
 
-        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
             .willReturn(Optional.of(comment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
             .willReturn(Optional.of(post));
@@ -396,7 +396,7 @@ class BoardCommentServiceTest {
 
         // Act & Assert — 관리자는 예외 없이 수정 가능
         assertThatCode(() ->
-            service.updateComment("CMMT-2026-0001", request, adminUser)
+            service.updateComment(1L, request, adminUser)
         ).doesNotThrowAnyException();
     }
 
@@ -404,17 +404,17 @@ class BoardCommentServiceTest {
     @DisplayName("관리자는 타인의 댓글도 삭제할 수 있다")
     void deleteComment_admin_canDeleteOthers() {
         // Arrange
-        Ccmmtm comment = buildComment("CMMT-2026-0001");
+        Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
 
         CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
 
-        given(commentRepository.findByCmmtMngNoAndDelYn("CMMT-2026-0001", "N"))
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
             .willReturn(Optional.of(comment));
 
         // Act & Assert — 관리자는 예외 없이 삭제 가능
         assertThatCode(() ->
-            service.deleteComment("CMMT-2026-0001", adminUser)
+            service.deleteComment(1L, adminUser)
         ).doesNotThrowAnyException();
 
         assertThat(comment.getDelYn()).isEqualTo("Y");
@@ -426,7 +426,7 @@ class BoardCommentServiceTest {
     @DisplayName("댓글 미지원 게시판에 대댓글 등록 시 예외가 발생한다")
     void createReply_boardNoComment_throws() {
         // Arrange
-        String parentId = "CMMT-2026-0001";
+        Long parentId = 1L;
         Ccmmtm parent = Ccmmtm.builder()
             .cmmtMngNo(parentId)
             .nacMngNo("NAC-2026-0001")
@@ -463,7 +463,7 @@ class BoardCommentServiceTest {
      * @param cmmtMngNo 댓글관리번호
      * @return 루트 댓글 엔티티
      */
-    private Ccmmtm buildComment(String cmmtMngNo) {
+    private Ccmmtm buildComment(Long cmmtMngNo) {
         return Ccmmtm.builder()
             .cmmtMngNo(cmmtMngNo)
             .nacMngNo("NAC-2026-0001")

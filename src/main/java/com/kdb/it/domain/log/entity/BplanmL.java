@@ -23,20 +23,20 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class BplanmL extends BaseLogEntity {
 
-    @Column(name = "PLN_MNG_NO", length = 32, comment = "계획관리번호")
+    @Column(name = "REQ_DOC_NO", length = 32, comment = "계획관리번호")
     private String plnMngNo;
 
-    @Column(name = "PLN_TP", length = 16, comment = "계획구분")
+    @Column(name = "PLN_TP_C", length = 16, comment = "계획구분")
     private String plnTp;
 
-    @Column(name = "PLN_YY", length = 4, comment = "대상년도")
+    @Column(name = "BSE_YY", length = 4, comment = "대상년도")
     private String plnYy;
 
     @Lob
-    @Column(name = "PLN_DTL_INF", comment = "계획상세정보")
+    @Column(name = "REDT_CONE_INF", comment = "계획상세정보")
     private String plnDtlInf;
 
-    @Column(name = "IT_PRJ_CONE", length = 4000, comment = "IT프로젝트내용")
+    @Column(name = "PRJ_DVM_CONE", length = 4000, comment = "IT프로젝트내용")
     private String itPrjCone;
 
     @Column(name = "IT_BG_CONE", length = 4000, comment = "IT예산내용")
@@ -51,12 +51,12 @@ public class BplanmL extends BaseLogEntity {
     @Column(name = "MNGC_BG_RMK", length = 600, comment = "관리비예산비고")
     private String mngcBgRmk;
 
-    @Column(name = "TTL_BG", precision = 15, scale = 2, comment = "총예산")
+    @Column(name = "ADU_TOT_AMT", precision = 15, scale = 2, comment = "총예산")
     private BigDecimal ttlBg;
 
-    @Column(name = "CPT_BG", precision = 15, scale = 2, comment = "자본예산")
+    @Column(name = "CPIT_BG_APV_AMT", precision = 15, scale = 2, comment = "자본예산")
     private BigDecimal cptBg;
 
-    @Column(name = "MNGC", precision = 15, scale = 2, comment = "일반관리비")
+    @Column(name = "TOT_XP_AMT", precision = 15, scale = 2, comment = "일반관리비")
     private BigDecimal mngc;
 }

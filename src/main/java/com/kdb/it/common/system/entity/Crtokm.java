@@ -53,14 +53,14 @@ public class Crtokm extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SEQ_CRTOKM")
     @SequenceGenerator(name = "SEQ_CRTOKM", sequenceName = "SEQ_CRTOKM", allocationSize = 1)
-    @Column(name = "TOK_SNO", comment = "토큰일련번호")
+    @Column(name = "LGN_LOG_SNO", comment = "토큰일련번호")
     private Long tokSno;
 
     /**
      * 토큰내용: JWT Refresh Token 값 (최대 2000자)
      * UNIQUE 제약조건으로 중복 저장 방지
      */
-    @Column(name = "TOK_CONE", nullable = false, unique = true, length = 2000, comment = "토큰내용")
+    @Column(name = "API_TOK_CONE", nullable = false, unique = true, length = 2000, comment = "토큰내용")
     private String tokCone;
 
     /**

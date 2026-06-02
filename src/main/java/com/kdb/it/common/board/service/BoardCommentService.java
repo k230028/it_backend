@@ -76,7 +76,7 @@ public class BoardCommentService {
      * @throws CustomGeneralException 게시판이 댓글 미지원 / 게시물 접근 불가
      */
     @Transactional
-    public String createComment(
+    public Long createComment(
             String blbMngNo, String nacMngNo,
             BoardCommentDto.CreateRequest request,
             CustomUserDetails user) {
@@ -90,7 +90,7 @@ public class BoardCommentService {
         postService.verifyCanReadPost(user, post, board);
 
         String sanitized = HtmlSanitizer.sanitize(request.getCmmtCone());
-        String cmmtMngNo = generateCmmtId();
+        Long cmmtMngNo = generateCmmtId();
 
         Ccmmtm comment = Ccmmtm.builder()
             .cmmtMngNo(cmmtMngNo)
@@ -119,8 +119,8 @@ public class BoardCommentService {
      * @throws CustomGeneralException 게시판이 댓글 미지원 / 게시물 접근 불가
      */
     @Transactional
-    public String createReply(
-            String blbMngNo, String nacMngNo, String hrkCmmtMngNo,
+    public Long createReply(
+            String blbMngNo, String nacMngNo, Long hrkCmmtMngNo,
             BoardCommentDto.CreateRequest request,
             CustomUserDetails user) {
 
@@ -140,7 +140,7 @@ public class BoardCommentService {
         );
 
         String sanitized = HtmlSanitizer.sanitize(request.getCmmtCone());
-        String cmmtMngNo = generateCmmtId();
+        Long cmmtMngNo = generateCmmtId();
 
         Ccmmtm reply = Ccmmtm.builder()
             .cmmtMngNo(cmmtMngNo)
@@ -172,7 +172,7 @@ public class BoardCommentService {
      */
     @Transactional
     public void updateComment(
-            String cmmtMngNo,
+            Long cmmtMngNo,
             BoardCommentDto.UpdateRequest request,
             CustomUserDetails user) {
 
@@ -193,7 +193,7 @@ public class BoardCommentService {
      * @throws CustomGeneralException 삭제 권한 없음
      */
     @Transactional
-    public void deleteComment(String cmmtMngNo, CustomUserDetails user) {
+    public void deleteComment(Long cmmtMngNo, CustomUserDetails user) {
         Ccmmtm comment = findComment(cmmtMngNo);
         verifyCanModify(user, comment);
         comment.delete();
@@ -211,7 +211,7 @@ public class BoardCommentService {
             .orElseThrow(() -> new CustomGeneralException("게시물을 찾을 수 없습니다: " + nacMngNo));
     }
 
-    private Ccmmtm findComment(String cmmtMngNo) {
+    private Ccmmtm findComment(Long cmmtMngNo) {
         return commentRepository.findByCmmtMngNoAndDelYn(cmmtMngNo, "N")
             .orElseThrow(() -> new CustomGeneralException("댓글을 찾을 수 없습니다: " + cmmtMngNo));
     }
@@ -226,9 +226,9 @@ public class BoardCommentService {
         return user.isAdmin() || user.getEno().equals(comment.getFstEnrUsid());
     }
 
-    private String generateCmmtId() {
-        Long seq = commentRepository.getNextSequenceValue();
-        return String.format("CMMT-%d-%04d", LocalDate.now().getYear(), seq);
+    /** 댓글 식별자 채번 — SEQ_CCMMTM 시퀀스 기반 숫자 일련번호(CMMT_SNO). */
+    private Long generateCmmtId() {
+        return commentRepository.getNextSequenceValue();
     }
 
     /**

@@ -53,7 +53,7 @@ public class Btermm extends BaseEntity {
     private Integer tmnSno;
 
     /** IT관리비관리번호 (조인용 필드) */
-    @Column(name = "IT_MNGC_NO", length = 32, comment = "IT관리비관리번호")
+    @Column(name = "BG_NO", length = 32, comment = "IT관리비관리번호")
     private String itMngcNo;
 
     /** IT관리비일련번호 (조인용 필드) */
@@ -63,17 +63,17 @@ public class Btermm extends BaseEntity {
     /** 전산관리비와의 연관관계 */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumns({
-        @JoinColumn(name = "IT_MNGC_NO", referencedColumnName = "IT_MNGC_NO", insertable = false, updatable = false),
-        @JoinColumn(name = "IT_MNGC_SNO", referencedColumnName = "IT_MNGC_SNO", insertable = false, updatable = false)
+        @JoinColumn(name = "BG_NO", referencedColumnName = "BG_NO", insertable = false, updatable = false),
+        @JoinColumn(name = "IT_MNGC_SNO", referencedColumnName = "SNO", insertable = false, updatable = false)
     })
     private Bcostm bcostm;
 
     /** 단말기명 */
-    @Column(name = "TMN_NM", length = 100, comment = "단말기명")
+    @Column(name = "SPF_TMN_NM", length = 100, comment = "단말기명")
     private String tmnNm;
 
     /** 단말기이용방법 */
-    @Column(name = "TMN_TUZ_MANR", length = 100, comment = "단말기이용방법")
+    @Column(name = "TMN_KD_TC", length = 100, comment = "단말기이용방법")
     private String tmnTuzManr;
 
     /** 단말기용도 */
@@ -81,11 +81,11 @@ public class Btermm extends BaseEntity {
     private String tmnUsg;
 
     /** 단말기서비스 */
-    @Column(name = "TMN_SVC", length = 100, comment = "단말기서비스")
+    @Column(name = "TMN_CLSF_C", length = 100, comment = "단말기서비스")
     private String tmnSvc;
 
     /** 단말기금액 */
-    @Column(name = "TML_AMT", precision = 18, scale = 3, comment = "단말기금액")
+    @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "단말기금액")
     private BigDecimal tmlAmt;
 
     /** 통화 */
@@ -98,7 +98,7 @@ public class Btermm extends BaseEntity {
 
     /** 환율기준일자 */
     @Column(name = "XCR_BSE_DT", comment = "환율기준일자")
-    private LocalDate xcrBseDt;
+    private String xcrBseDt;
 
     /** 지급주기코드 */
     @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
@@ -109,15 +109,15 @@ public class Btermm extends BaseEntity {
     private String indRsn;
 
     /** 담당자 */
-    @Column(name = "CGPR_ENO", length = 32, comment = "담당자행번")
+    @Column(name = "CGPR_ID", length = 32, comment = "담당자행번")
     private String cgprEno;
 
     /** 담당팀 */
-    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
+    @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
     /** 담당부서 */
-    @Column(name = "BICE_DPM_C", length = 3, comment = "담당부서코드")
+    @Column(name = "SVN_DPM_C", length = 3, comment = "담당부서코드")
     private String biceDpmC;
 
     /** 비고 */
@@ -141,7 +141,7 @@ public class Btermm extends BaseEntity {
      * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
     public void update(String tmnNm, String tmnTuzManr, String tmnUsg, String tmnSvc, BigDecimal tmlAmt,
-            String curC, BigDecimal xcr, LocalDate xcrBseDt, String dfrCleC, String indRsn,
+            String curC, BigDecimal xcr, String xcrBseDt, String dfrCleC, String indRsn,
             String cgprEno, String biceTemC, String biceDpmC, String rmk, BigDecimal fcAmt) {
         this.tmnNm = tmnNm;
         this.tmnTuzManr = tmnTuzManr;

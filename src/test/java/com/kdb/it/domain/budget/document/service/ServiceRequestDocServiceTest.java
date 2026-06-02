@@ -409,7 +409,7 @@ class ServiceRequestDocServiceTest {
                 .reqInf(null)
                 .reqDtt("REQ")
                 .bzDtt("BZ")
-                .fsgTlm(LocalDate.now().plusDays(3))
+                .fsgTlm(LocalDate.now().plusDays(3).format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE))
                 .build());
 
         assertThat(latest.getReqNm()).isEqualTo("수정");

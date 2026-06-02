@@ -51,12 +51,12 @@ public class Bcostm extends BaseEntity {
 
     /** 전산업무비코드(IT관리비관리번호): 복합 기본키의 첫 번째 컬럼 (예: COST_2026_0001) */
     @Id
-    @Column(name = "IT_MNGC_NO", nullable = false, length = 32, comment = "전산업무비코드")
+    @Column(name = "BG_NO", nullable = false, length = 32, comment = "전산업무비코드")
     private String itMngcNo;
 
     /** 전산업무비일련번호(IT관리비일련번호): 복합 기본키의 두 번째 컬럼 (버전 구분용, 1부터 시작) */
     @Id
-    @Column(name = "IT_MNGC_SNO", nullable = false, comment = "전산업무비일련번호")
+    @Column(name = "SNO", nullable = false, comment = "전산업무비일련번호")
     private Integer itMngcSno;
 
     /** 최종여부: 'Y'=현재 유효한 레코드, 'N'=이전 버전 레코드 */
@@ -76,7 +76,7 @@ public class Bcostm extends BaseEntity {
     private String cttOppNm;
 
     /** 전산업무비예산: 해당 항목의 연간 예산 금액 (최대 15자리, 소수점 2자리) */
-    @Column(name = "IT_MNGC_BG_AMT", precision = 18, scale = 3, comment = "전산업무비예산금액")
+    @Column(name = "TOT_XP_AMT", precision = 18, scale = 3, comment = "전산업무비예산금액")
     private BigDecimal itMngcBgAmt;
 
     /** 지급주기코드: 비용 지급 주기 코드 (예: 매월, 분기, 반기, 연간) */
@@ -85,7 +85,7 @@ public class Bcostm extends BaseEntity {
 
     /** 지급예정월(최초지급일자): 첫 번째 지급 예정 날짜 */
     @Column(name = "FST_DFR_DT", comment = "지급예정월")
-    private LocalDate fstDfrDt;
+    private String fstDfrDt;
 
     /** 통화: 비용 통화 코드 (예: KRW, USD, EUR) */
     @Column(name = "CUR_C", length = 3, comment = "통화코드")
@@ -97,10 +97,10 @@ public class Bcostm extends BaseEntity {
 
     /** 환율기준일자: 환율을 적용한 기준 날짜 */
     @Column(name = "XCR_BSE_DT", comment = "환율기준일자")
-    private LocalDate xcrBseDt;
+    private String xcrBseDt;
 
     /** 정보보호여부: 정보보호 관련 항목 여부 (Y/N) */
-    @Column(name = "INF_PRT_YN", length = 4, comment = "정보보호여부")
+    @Column(name = "SECT_SYS_UTZ_YN", length = 4, comment = "정보보호여부")
     private String infPrtYn;
 
     /** 증감사유: 전년 대비 예산 증감 이유 (최대 4000자) */
@@ -108,35 +108,35 @@ public class Bcostm extends BaseEntity {
     private String indRsn;
 
     /** 담당자: 해당 비용 항목의 담당자 사번 또는 이름 */
-    @Column(name = "CGPR_ENO", length = 32, comment = "담당자행번")
+    @Column(name = "CGPR_ID", length = 32, comment = "담당자행번")
     private String cgprEno;
 
     /** 담당부서: 해당 비용 항목의 담당 부서 코드 */
-    @Column(name = "BICE_DPM_C", length = 3, comment = "담당부서코드")
+    @Column(name = "SVN_DPM_C", length = 3, comment = "담당부서코드")
     private String biceDpmC;
 
     /** 담당팀: 해당 비용 항목의 담당 팀 코드 */
-    @Column(name = "BICE_TEM_C", length = 5, comment = "담당팀코드")
+    @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드")
     private String biceTemC;
 
     /** 예산연도 (4자리 숫자, 예: 2026) */
-    @Column(name = "BG_YY", length = 4, comment = "예산연도")
+    @Column(name = "BSE_YY", length = 4, comment = "예산연도")
     private String bgYy;
 
     /** 사업코드 */
-    @Column(name = "ABUS_C", length = 100, comment = "사업코드")
+    @Column(name = "BG_UNT_ABUS_C", length = 100, comment = "사업코드")
     private String abusC;
 
     /** 전산업무비유형 */
-    @Column(name = "IT_MNGC_TP", length = 100, comment = "전산업무비유형")
+    @Column(name = "BG_XP_TC", length = 100, comment = "전산업무비유형")
     private String itMngcTp;
 
     /** 전산업무비구분 */
-    @Column(name = "PUL_DTT", length = 100, comment = "전산업무비구분")
+    @Column(name = "ABUS_TC", length = 100, comment = "전산업무비구분")
     private String pulDtt;
 
     /** 관련전산업무비번호: 계속항목인 경우 전년도 항목의 관리번호 */
-    @Column(name = "CNCD_IT_MNGC_NO", length = 32, comment = "관련전산업무비번호")
+    @Column(name = "CNCD_RFR_NO", length = 32, comment = "관련전산업무비번호")
     private String cncdItMngcNo;
 
     /**
@@ -180,7 +180,7 @@ public class Bcostm extends BaseEntity {
      * @param fcAmt         외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
     public void update(String ioeC, String cttNm, String cttOppNm, BigDecimal itMngcBgAmt,
-            String dfrCleC, LocalDate fstDfrDt, String curC, BigDecimal xcr, LocalDate xcrBseDt,
+            String dfrCleC, String fstDfrDt, String curC, BigDecimal xcr, String xcrBseDt,
             String infPrtYn, String indRsn, String cgprEno, String biceDpmC, String biceTemC, String abusC, String itMngcTp, String pulDtt, String bgYy, String cncdItMngcNo, BigDecimal fcAmt) {
         this.ioeC = ioeC;
         this.cttNm = cttNm;

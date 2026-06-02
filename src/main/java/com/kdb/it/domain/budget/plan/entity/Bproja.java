@@ -35,11 +35,11 @@ public class Bproja extends BaseEntity {
 
     /** 프로젝트관리번호 (복합 PK의 첫 번째 키) */
     @Id
-    @Column(name = "PRJ_MNG_NO", length = 32, comment = "프로젝트관리번호")
+    @Column(name = "ABUS_MNG_NO", length = 32, comment = "프로젝트관리번호")
     private String prjMngNo;
 
     /** 업무관리번호 (복합 PK의 두 번째 키, BPLANM의 PLN_MNG_NO에 대응) */
     @Id
-    @Column(name = "BZ_MNG_NO", length = 32, comment = "업무관리번호")
+    @Column(name = "DOC_MNG_NO", length = 32, comment = "업무관리번호")
     private String bzMngNo;
 }

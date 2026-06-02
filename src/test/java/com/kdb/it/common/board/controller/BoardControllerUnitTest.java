@@ -102,22 +102,22 @@ class BoardControllerUnitTest {
         BoardCommentDto.UpdateRequest updateRequest = new BoardCommentDto.UpdateRequest("수정");
         BoardCommentDto.Response response = new BoardCommentDto.Response();
         given(service.getComments("BLBM-2026-0001", "NAC-1", user)).willReturn(List.of(response));
-        given(service.createComment("BLBM-2026-0001", "NAC-1", createRequest, user)).willReturn("CMMT-1");
-        given(service.createReply("BLBM-2026-0001", "NAC-1", "CMMT-1", createRequest, user)).willReturn("CMMT-2");
+        given(service.createComment("BLBM-2026-0001", "NAC-1", createRequest, user)).willReturn(1L);
+        given(service.createReply("BLBM-2026-0001", "NAC-1", 1L, createRequest, user)).willReturn(2L);
 
         assertThat(controller.getComments("BLBM-2026-0001", "NAC-1", user).getBody()).containsExactly(response);
         var created = controller.create("BLBM-2026-0001", "NAC-1", createRequest, user);
-        var replied = controller.createReply("BLBM-2026-0001", "NAC-1", "CMMT-1", createRequest, user);
-        var updated = controller.update("BLBM-2026-0001", "NAC-1", "CMMT-1", updateRequest, user);
-        var deleted = controller.delete("BLBM-2026-0001", "NAC-1", "CMMT-1", user);
+        var replied = controller.createReply("BLBM-2026-0001", "NAC-1", 1L, createRequest, user);
+        var updated = controller.update("BLBM-2026-0001", "NAC-1", 1L, updateRequest, user);
+        var deleted = controller.delete("BLBM-2026-0001", "NAC-1", 1L, user);
 
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(created.getHeaders().getLocation()).hasToString("/api/boards/BLBM-2026-0001/posts/NAC-1/comments/CMMT-1");
-        assertThat(replied.getBody()).isEqualTo("CMMT-2");
+        assertThat(created.getHeaders().getLocation()).hasToString("/api/boards/BLBM-2026-0001/posts/NAC-1/comments/1");
+        assertThat(replied.getBody()).isEqualTo(2L);
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        verify(service).updateComment("CMMT-1", updateRequest, user);
-        verify(service).deleteComment("CMMT-1", user);
+        verify(service).updateComment(1L, updateRequest, user);
+        verify(service).deleteComment(1L, user);
     }
 
     private static com.kdb.it.common.board.entity.Cblbmm board(String id, String name) {

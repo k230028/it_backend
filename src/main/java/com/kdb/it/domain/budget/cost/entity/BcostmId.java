@@ -28,10 +28,10 @@ import lombok.NoArgsConstructor;
 public class BcostmId implements Serializable {
 
     /** 전산업무비코드(IT관리비관리번호): Bcostm.itMngcNo와 이름/타입 일치 필수 */
-    @Column(name = "IT_MNGC_NO", comment = "전산업무비코드")
+    @Column(name = "BG_NO", comment = "전산업무비코드")
     private String itMngcNo;
 
     /** 전산업무비일련번호(IT관리비일련번호): Bcostm.itMngcSno와 이름/타입 일치 필수 */
-    @Column(name = "IT_MNGC_SNO", comment = "전산업무비일련번호")
+    @Column(name = "SNO", comment = "전산업무비일련번호")
     private Integer itMngcSno;
 }
