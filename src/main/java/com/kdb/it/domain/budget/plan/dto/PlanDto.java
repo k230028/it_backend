@@ -37,7 +37,7 @@ public class PlanDto {
      * <p>
      * 신규 계획 등록 시 대상년도, 계획구분, 대상 프로젝트 목록을 전달합니다.
      * 계획관리번호는 서비스에서 Oracle 시퀀스로 자동 채번됩니다.
-     * (형식: {@code PLN-{plnYy}-{seq:04d}})
+     * (형식: {@code PLN-{bseYy}-{seq:04d}})
      * </p>
      */
     @Getter
@@ -50,11 +50,11 @@ public class PlanDto {
 
         /** 대상년도 (형식: YYYY, 예: "2026") */
         @Schema(description = "대상년도 (YYYY)")
-        private String plnYy;
+        private String bseYy;
 
         /** 계획구분 (신규, 조정) */
         @Schema(description = "계획구분 (신규/조정)")
-        private String plnTp;
+        private String plnTpC;
 
         /** 대상 프로젝트관리번호 목록 */
         @Schema(description = "대상 프로젝트관리번호 목록")
@@ -66,7 +66,7 @@ public class PlanDto {
 
         /** IT프로젝트내용 */
         @Schema(description = "IT프로젝트내용")
-        private String itPrjCone;
+        private String prjDvmCone;
 
         /** IT예산내용 */
         @Schema(description = "IT예산내용")
@@ -136,7 +136,7 @@ public class PlanDto {
 
         /** IT프로젝트내용 */
         @Schema(description = "IT프로젝트내용")
-        private String itPrjCone;
+        private String prjDvmCone;
 
         /** IT예산내용 */
         @Schema(description = "IT예산내용")
@@ -172,27 +172,27 @@ public class PlanDto {
 
         /** 계획관리번호 (PK) */
         @Schema(description = "계획관리번호")
-        private String plnMngNo;
+        private String reqDocNo;
 
         /** 계획구분 (신규, 조정) */
         @Schema(description = "계획구분")
-        private String plnTp;
+        private String plnTpC;
 
         /** 대상년도 (YYYY) */
         @Schema(description = "대상년도")
-        private String plnYy;
+        private String bseYy;
 
         /** 총예산 */
         @Schema(description = "총예산")
-        private BigDecimal ttlBg;
+        private BigDecimal aduTotAmt;
 
         /** 자본예산 */
         @Schema(description = "자본예산")
-        private BigDecimal cptBg;
+        private BigDecimal cpitBgApvAmt;
 
         /** 일반관리비 */
         @Schema(description = "일반관리비")
-        private BigDecimal mngc;
+        private BigDecimal totXpAmt;
 
         /** 최초생성시간 */
         @Schema(description = "최초생성시간")
@@ -226,12 +226,12 @@ public class PlanDto {
          */
         public static ListResponse fromEntity(Bplanm plan) {
             return ListResponse.builder()
-                    .plnMngNo(plan.getPlnMngNo())
-                    .plnTp(plan.getPlnTp())
-                    .plnYy(plan.getPlnYy())
-                    .ttlBg(plan.getTtlBg())
-                    .cptBg(plan.getCptBg())
-                    .mngc(plan.getMngc())
+                    .reqDocNo(plan.getReqDocNo())
+                    .plnTpC(plan.getPlnTpC())
+                    .bseYy(plan.getBseYy())
+                    .aduTotAmt(plan.getAduTotAmt())
+                    .cpitBgApvAmt(plan.getCpitBgApvAmt())
+                    .totXpAmt(plan.getTotXpAmt())
                     .fstEnrDtm(plan.getFstEnrDtm())
                     .fstEnrUsid(plan.getFstEnrUsid())
                     .itPrjCnt(0)
@@ -258,27 +258,27 @@ public class PlanDto {
 
         /** 계획관리번호 (PK) */
         @Schema(description = "계획관리번호")
-        private String plnMngNo;
+        private String reqDocNo;
 
         /** 계획구분 (신규, 조정) */
         @Schema(description = "계획구분")
-        private String plnTp;
+        private String plnTpC;
 
         /** 대상년도 (YYYY) */
         @Schema(description = "대상년도")
-        private String plnYy;
+        private String bseYy;
 
         /** 총예산 */
         @Schema(description = "총예산")
-        private BigDecimal ttlBg;
+        private BigDecimal aduTotAmt;
 
         /** 자본예산 */
         @Schema(description = "자본예산")
-        private BigDecimal cptBg;
+        private BigDecimal cpitBgApvAmt;
 
         /** 일반관리비 */
         @Schema(description = "일반관리비")
-        private BigDecimal mngc;
+        private BigDecimal totXpAmt;
 
         /**
          * 계획세부내용 JSON 스냅샷 문자열
@@ -288,11 +288,11 @@ public class PlanDto {
          * </p>
          */
         @Schema(description = "계획세부내용 (JSON)")
-        private String plnDtlInf;
+        private String redtConeInf;
 
         /** IT프로젝트내용 */
         @Schema(description = "IT프로젝트내용")
-        private String itPrjCone;
+        private String prjDvmCone;
 
         /** IT예산내용 */
         @Schema(description = "IT예산내용")
@@ -331,14 +331,14 @@ public class PlanDto {
          */
         public static DetailResponse fromEntity(Bplanm plan, List<String> prjMngNos) {
             return DetailResponse.builder()
-                    .plnMngNo(plan.getPlnMngNo())
-                    .plnTp(plan.getPlnTp())
-                    .plnYy(plan.getPlnYy())
-                    .ttlBg(plan.getTtlBg())
-                    .cptBg(plan.getCptBg())
-                    .mngc(plan.getMngc())
-                    .plnDtlInf(plan.getPlnDtlInf())
-                    .itPrjCone(plan.getItPrjCone())
+                    .reqDocNo(plan.getReqDocNo())
+                    .plnTpC(plan.getPlnTpC())
+                    .bseYy(plan.getBseYy())
+                    .aduTotAmt(plan.getAduTotAmt())
+                    .cpitBgApvAmt(plan.getCpitBgApvAmt())
+                    .totXpAmt(plan.getTotXpAmt())
+                    .redtConeInf(plan.getRedtConeInf())
+                    .prjDvmCone(plan.getPrjDvmCone())
                     .itBgCone(plan.getItBgCone())
                     .itPrjRmk(plan.getItPrjRmk())
                     .cpitBgRmk(plan.getCpitBgRmk())
@@ -367,19 +367,19 @@ public class PlanDto {
     public static class SnapshotDto {
 
         /** 대상년도 */
-        private String plnYy;
+        private String bseYy;
 
         /** 계획구분 */
-        private String plnTp;
+        private String plnTpC;
 
         /** 총예산 합계 */
-        private BigDecimal ttlBg;
+        private BigDecimal aduTotAmt;
 
         /** 자본예산 합계 */
-        private BigDecimal cptBg;
+        private BigDecimal cpitBgApvAmt;
 
         /** 일반관리비 합계 */
-        private BigDecimal mngc;
+        private BigDecimal totXpAmt;
 
         /** 전체 대상 프로젝트 목록 */
         private List<ProjectSnapshot> projects;

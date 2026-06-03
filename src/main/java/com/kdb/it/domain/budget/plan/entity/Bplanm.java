@@ -20,11 +20,11 @@ import java.math.BigDecimal;
  *
  * <p>
  * 연도별 IT 부문 계획을 저장하는 마스터 엔티티입니다.
- * 계획에 포함된 전체 프로젝트 데이터는 {@code plnDtlInf}에 JSON 형태로 스냅샷 저장됩니다.
+ * 계획에 포함된 전체 프로젝트 데이터는 {@code redtConeInf}에 JSON 형태로 스냅샷 저장됩니다.
  * </p>
  *
  * <p>
- * 계획관리번호({@code plnMngNo}) 채번 규칙:
+ * 계획관리번호({@code reqDocNo}) 채번 규칙:
  * {@code PLN-{대상년도}-{SEQ_BPLANM 시퀀스 4자리}} (예: PLN-2026-0001)
  * </p>
  */
@@ -40,15 +40,15 @@ public class Bplanm extends BaseEntity {
     /** 계획관리번호 (PK, 형식: PLN-{연도}-{seq:04d}) */
     @Id
     @Column(name = "REQ_DOC_NO", length = 30, comment = "계획관리번호 (물리컬럼 REQ_DOC_NO=요청문서번호)")
-    private String plnMngNo;
+    private String reqDocNo;
 
     /** 계획구분 (신규, 조정) */
     @Column(name = "PLN_TP_C", length = 2, comment = "계획구분 (물리컬럼 PLN_TP_C=계획유형코드)")
-    private String plnTp;
+    private String plnTpC;
 
     /** 대상년도 (형식: YYYY) */
     @Column(name = "BSE_YY", length = 4, comment = "대상년도 (물리컬럼 BSE_YY=기준연도)")
-    private String plnYy;
+    private String bseYy;
 
     /**
      * 계획세부내용 (JSON 스냅샷)
@@ -59,11 +59,11 @@ public class Bplanm extends BaseEntity {
      */
     @Lob
     @Column(name = "REDT_CONE_INF", comment = "계획상세정보 (물리컬럼 REDT_CONE_INF=보고서내용정보)")
-    private String plnDtlInf;
+    private String redtConeInf;
 
     /** IT프로젝트내용 */
     @Column(name = "PRJ_DVM_CONE", length = 300, comment = "IT프로젝트내용 (물리컬럼 PRJ_DVM_CONE=프로젝트개발내용)")
-    private String itPrjCone;
+    private String prjDvmCone;
 
     /** IT예산내용 */
     @Column(name = "IT_BG_CONE", length = 4000, comment = "IT예산내용")
@@ -85,8 +85,8 @@ public class Bplanm extends BaseEntity {
      * 5개 텍스트 필드를 갱신합니다.
      * null 값은 해당 필드를 null로 초기화합니다.
      */
-    public void updateText(String itPrjCone, String itBgCone, String itPrjRmk, String cpitBgRmk, String mngcBgRmk) {
-        this.itPrjCone  = itPrjCone;
+    public void updateText(String prjDvmCone, String itBgCone, String itPrjRmk, String cpitBgRmk, String mngcBgRmk) {
+        this.prjDvmCone = prjDvmCone;
         this.itBgCone   = itBgCone;
         this.itPrjRmk   = itPrjRmk;
         this.cpitBgRmk  = cpitBgRmk;
@@ -95,13 +95,13 @@ public class Bplanm extends BaseEntity {
 
     /** 총예산 (전체 대상사업의 프로젝트 예산 합계) */
     @Column(name = "ADU_TOT_AMT", precision = 18, scale = 3, comment = "총예산 (물리컬럼 ADU_TOT_AMT=합계총금액)")
-    private BigDecimal ttlBg;
+    private BigDecimal aduTotAmt;
 
     /** 자본예산 (전체 대상사업의 자본예산 합계) */
     @Column(name = "CPIT_BG_APV_AMT", precision = 18, scale = 3, comment = "자본예산 (물리컬럼 CPIT_BG_APV_AMT=자본예산승인금액)")
-    private BigDecimal cptBg;
+    private BigDecimal cpitBgApvAmt;
 
     /** 일반관리비 (전체 대상사업의 일반관리비 합계) */
     @Column(name = "TOT_XP_AMT", precision = 18, scale = 3, comment = "일반관리비 (물리컬럼 TOT_XP_AMT=총비용금액)")
-    private BigDecimal mngc;
+    private BigDecimal totXpAmt;
 }

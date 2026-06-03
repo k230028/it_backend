@@ -24,20 +24,20 @@ import java.math.BigDecimal;
 public class BplanmL extends BaseLogEntity {
 
     @Column(name = "REQ_DOC_NO", length = 32, comment = "계획관리번호")
-    private String plnMngNo;
+    private String reqDocNo;
 
     @Column(name = "PLN_TP_C", length = 16, comment = "계획구분")
-    private String plnTp;
+    private String plnTpC;
 
     @Column(name = "BSE_YY", length = 4, comment = "대상년도")
-    private String plnYy;
+    private String bseYy;
 
     @Lob
     @Column(name = "REDT_CONE_INF", comment = "계획상세정보")
-    private String plnDtlInf;
+    private String redtConeInf;
 
     @Column(name = "PRJ_DVM_CONE", length = 4000, comment = "IT프로젝트내용")
-    private String itPrjCone;
+    private String prjDvmCone;
 
     @Column(name = "IT_BG_CONE", length = 4000, comment = "IT예산내용")
     private String itBgCone;
@@ -52,11 +52,11 @@ public class BplanmL extends BaseLogEntity {
     private String mngcBgRmk;
 
     @Column(name = "ADU_TOT_AMT", precision = 15, scale = 2, comment = "총예산")
-    private BigDecimal ttlBg;
+    private BigDecimal aduTotAmt;
 
     @Column(name = "CPIT_BG_APV_AMT", precision = 15, scale = 2, comment = "자본예산")
-    private BigDecimal cptBg;
+    private BigDecimal cpitBgApvAmt;
 
     @Column(name = "TOT_XP_AMT", precision = 15, scale = 2, comment = "일반관리비")
-    private BigDecimal mngc;
+    private BigDecimal totXpAmt;
 }

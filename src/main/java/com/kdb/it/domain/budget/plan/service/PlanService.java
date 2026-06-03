@@ -102,7 +102,7 @@ public class PlanService {
                                         int itCnt = 0;
                                         int newCnt = 0;
                                         int contCnt = 0;
-                                        String dtlCone = plan.getPlnDtlInf();
+                                        String dtlCone = plan.getRedtConeInf();
                                         if (dtlCone != null && !dtlCone.isBlank()) {
                                                 try {
                                                         Map<String, Object> snapshot = objectMapper.readValue(dtlCone,
@@ -144,19 +144,19 @@ public class PlanService {
          * 계획 정보와 연결된 프로젝트관리번호 목록, JSON 스냅샷을 함께 반환합니다.
          * </p>
          *
-         * @param plnMngNo 계획관리번호 (예: PLN-2026-0001)
+         * @param reqDocNo 계획관리번호 (예: PLN-2026-0001)
          * @return 계획 상세 응답 DTO
          * @throws ResponseStatusException 계획을 찾을 수 없는 경우 404
          */
         @Transactional(readOnly = true)
-        public PlanDto.DetailResponse getPlan(String plnMngNo) {
+        public PlanDto.DetailResponse getPlan(String reqDocNo) {
                 // 계획 조회
-                Bplanm plan = bplanmRepository.findByPlnMngNoAndDelYn(plnMngNo, "N")
+                Bplanm plan = bplanmRepository.findByReqDocNoAndDelYn(reqDocNo, "N")
                                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                                                "존재하지 않는 계획입니다: " + plnMngNo));
+                                                "존재하지 않는 계획입니다: " + reqDocNo));
 
                 // 연결된 프로젝트관리번호 목록 조회
-                List<String> prjMngNos = bprojaRepository.findAllByBzMngNoAndDelYn(plnMngNo, "N")
+                List<String> prjMngNos = bprojaRepository.findAllByBzMngNoAndDelYn(reqDocNo, "N")
                                 .stream()
                                 .map(Bproja::getPrjMngNo)
                                 .collect(Collectors.toList());
@@ -171,9 +171,9 @@ public class PlanService {
          * [처리 순서]
          * 1. 대상 정보화사업 목록을 ProjectService에서 조회
          * 2. 대상 전산업무비 목록을 CostService에서 조회
-         * 3. 예산 합계(TTL_BG, CPT_BG, MNGC) 계산 (정보화사업 + 전산업무비 합산)
+         * 3. 예산 합계(ADU_TOT_AMT, CPIT_BG_APV_AMT, TOT_XP_AMT) 계산 (정보화사업 + 전산업무비 합산)
          * 4. JSON 스냅샷 생성
-         * 5. 계획관리번호 채번: PLN-{plnYy}-{seq:04d}
+         * 5. 계획관리번호 채번: PLN-{bseYy}-{seq:04d}
          * 6. TPRMPP_BPLANM 저장
          * 7. 각 프로젝트·전산업무비에 대해 TPRMPP_BPROJA 저장
          * </p>
@@ -209,44 +209,44 @@ public class PlanService {
                 }
 
                 // 3. 예산 합계 계산 (정보화사업 + 전산업무비)
-                BigDecimal ttlBg = projects.stream()
+                BigDecimal aduTotAmt = projects.stream()
                                 .map(p -> p.getRqmBgAmt() != null ? p.getRqmBgAmt() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-                ttlBg = costs.stream()
+                aduTotAmt = costs.stream()
                                 .map(c -> c.getCostTotXpAmt() != null ? c.getCostTotXpAmt() : BigDecimal.ZERO)
-                                .reduce(ttlBg, BigDecimal::add);
+                                .reduce(aduTotAmt, BigDecimal::add);
 
-                BigDecimal cptBg = projects.stream()
+                BigDecimal cpitBgApvAmt = projects.stream()
                                 .map(p -> p.getAssetBg() != null ? p.getAssetBg() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-                cptBg = costs.stream()
+                cpitBgApvAmt = costs.stream()
                                 .map(c -> c.getAssetBg() != null ? c.getAssetBg() : BigDecimal.ZERO)
-                                .reduce(cptBg, BigDecimal::add);
+                                .reduce(cpitBgApvAmt, BigDecimal::add);
 
-                BigDecimal mngc = projects.stream()
+                BigDecimal totXpAmt = projects.stream()
                                 .map(p -> p.getCostBg() != null ? p.getCostBg() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-                mngc = costs.stream()
+                totXpAmt = costs.stream()
                                 .map(c -> c.getCostBg() != null ? c.getCostBg() : BigDecimal.ZERO)
-                                .reduce(mngc, BigDecimal::add);
+                                .reduce(totXpAmt, BigDecimal::add);
 
                 // 4. JSON 스냅샷 생성
-                String snapshotJson = buildSnapshot(request, projects, costs, ttlBg, cptBg, mngc);
+                String snapshotJson = buildSnapshot(request, projects, costs, aduTotAmt, cpitBgApvAmt, totXpAmt);
 
                 // 5. 계획관리번호 채번
                 Long seq = bplanmRepository.getNextSequenceValue();
-                String plnMngNo = String.format("PLN-%s-%04d", request.getPlnYy(), seq);
+                String reqDocNo = String.format("PLN-%s-%04d", request.getBseYy(), seq);
 
                 // 6. TPRMPP_BPLANM 저장
                 Bplanm plan = Bplanm.builder()
-                                .plnMngNo(plnMngNo)
-                                .plnTp(request.getPlnTp())
-                                .plnYy(request.getPlnYy())
-                                .ttlBg(ttlBg)
-                                .cptBg(cptBg)
-                                .mngc(mngc)
-                                .plnDtlInf(snapshotJson)
-                                .itPrjCone(request.getItPrjCone())
+                                .reqDocNo(reqDocNo)
+                                .plnTpC(request.getPlnTpC())
+                                .bseYy(request.getBseYy())
+                                .aduTotAmt(aduTotAmt)
+                                .cpitBgApvAmt(cpitBgApvAmt)
+                                .totXpAmt(totXpAmt)
+                                .redtConeInf(snapshotJson)
+                                .prjDvmCone(request.getPrjDvmCone())
                                 .itBgCone(request.getItBgCone())
                                 .itPrjRmk(request.getItPrjRmk())
                                 .cpitBgRmk(request.getCpitBgRmk())
@@ -258,19 +258,19 @@ public class PlanService {
                 for (String prjMngNo : prjMngNos) {
                         Bproja relation = Bproja.builder()
                                         .prjMngNo(prjMngNo)
-                                        .bzMngNo(plnMngNo)
+                                        .bzMngNo(reqDocNo)
                                         .build();
                         bprojaRepository.save(relation);
                 }
                 for (String itMngcNo : itMngcNos) {
                         Bproja relation = Bproja.builder()
                                         .prjMngNo(itMngcNo)
-                                        .bzMngNo(plnMngNo)
+                                        .bzMngNo(reqDocNo)
                                         .build();
                         bprojaRepository.save(relation);
                 }
 
-                return plnMngNo;
+                return reqDocNo;
         }
 
         /**
@@ -281,22 +281,22 @@ public class PlanService {
          * 연결된 정보화사업 관계(BPROJA) 레코드도 함께 논리 삭제합니다.
          * </p>
          *
-         * @param plnMngNo 계획관리번호
+         * @param reqDocNo 계획관리번호
          * @throws ResponseStatusException 계획을 찾을 수 없는 경우 404
          */
         @Transactional
-        public void deletePlan(String plnMngNo) {
+        public void deletePlan(String reqDocNo) {
                 // 계획 존재 여부 확인
-                Bplanm plan = bplanmRepository.findByPlnMngNoAndDelYn(plnMngNo, "N")
+                Bplanm plan = bplanmRepository.findByReqDocNoAndDelYn(reqDocNo, "N")
                                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                                                "존재하지 않는 계획입니다: " + plnMngNo));
+                                                "존재하지 않는 계획입니다: " + reqDocNo));
 
                 // 계획 논리 삭제
                 plan.delete();
                 bplanmRepository.save(plan);
 
                 // 연결된 정보화사업 관계 논리 삭제
-                List<Bproja> relations = bprojaRepository.findAllByBzMngNoAndDelYn(plnMngNo, "N");
+                List<Bproja> relations = bprojaRepository.findAllByBzMngNoAndDelYn(reqDocNo, "N");
                 for (Bproja relation : relations) {
                         relation.delete();
                         bprojaRepository.save(relation);
@@ -306,17 +306,17 @@ public class PlanService {
         /**
          * 계획의 5개 텍스트 필드를 수정합니다.
          *
-         * @param plnMngNo 계획관리번호
-         * @param request  수정 요청 DTO (itPrjCone, itBgCone, itPrjRmk, cpitBgRmk, mngcBgRmk)
+         * @param reqDocNo 계획관리번호
+         * @param request  수정 요청 DTO (prjDvmCone, itBgCone, itPrjRmk, cpitBgRmk, mngcBgRmk)
          * @throws ResponseStatusException 계획을 찾을 수 없는 경우 404
          */
         @Transactional
-        public void updatePlanText(String plnMngNo, PlanDto.UpdateRequest request) {
-                Bplanm plan = bplanmRepository.findByPlnMngNoAndDelYn(plnMngNo, "N")
+        public void updatePlanText(String reqDocNo, PlanDto.UpdateRequest request) {
+                Bplanm plan = bplanmRepository.findByReqDocNoAndDelYn(reqDocNo, "N")
                                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                                                "존재하지 않는 계획입니다: " + plnMngNo));
+                                                "존재하지 않는 계획입니다: " + reqDocNo));
                 plan.updateText(
-                                request.getItPrjCone(),
+                                request.getPrjDvmCone(),
                                 request.getItBgCone(),
                                 request.getItPrjRmk(),
                                 request.getCpitBgRmk(),
@@ -325,28 +325,28 @@ public class PlanService {
         }
 
         /**
-         * 계획 저장 시 PLN_DTL_CONE에 보관할 JSON 스냅샷을 생성합니다.
+         * 계획 저장 시 REDT_CONE_INF에 보관할 JSON 스냅샷을 생성합니다.
          *
          * <p>
          * 스냅샷 구조:
-         * - 기본 정보(plnYy, plnTp, 예산 합계)
+         * - 기본 정보(bseYy, plnTpC, 예산 합계)
          * - 전체 프로젝트 목록(projects)
          * - 부문(SVN_HDQ)별 그룹 목록(byDepartment)
          * - 사업유형(PRJ_TP)별 그룹 목록(byProjectType)
          * </p>
          *
-         * @param request  계획 생성 요청
-         * @param projects 대상 정보화사업 목록
-         * @param costs    대상 전산업무비 목록
-         * @param ttlBg    총예산 합계
-         * @param cptBg    자본예산 합계
-         * @param mngc     일반관리비 합계
+         * @param request     계획 생성 요청
+         * @param projects    대상 정보화사업 목록
+         * @param costs       대상 전산업무비 목록
+         * @param aduTotAmt   총예산 합계
+         * @param cpitBgApvAmt 자본예산 합계
+         * @param totXpAmt    일반관리비 합계
          * @return JSON 직렬화 문자열
          */
         private String buildSnapshot(PlanDto.CreateRequest request,
                         List<ProjectDto.Response> projects,
                         List<CostDto.Response> costs,
-                        BigDecimal ttlBg, BigDecimal cptBg, BigDecimal mngc) {
+                        BigDecimal aduTotAmt, BigDecimal cpitBgApvAmt, BigDecimal totXpAmt) {
                 // 정보화사업 스냅샷 변환
                 List<PlanDto.ProjectSnapshot> projectSnapshots = projects.stream()
                                 .map(p -> PlanDto.ProjectSnapshot.builder()
@@ -419,11 +419,11 @@ public class PlanService {
 
                 // 스냅샷 DTO 생성
                 PlanDto.SnapshotDto snapshot = PlanDto.SnapshotDto.builder()
-                                .plnYy(request.getPlnYy())
-                                .plnTp(request.getPlnTp())
-                                .ttlBg(ttlBg)
-                                .cptBg(cptBg)
-                                .mngc(mngc)
+                                .bseYy(request.getBseYy())
+                                .plnTpC(request.getPlnTpC())
+                                .aduTotAmt(aduTotAmt)
+                                .cpitBgApvAmt(cpitBgApvAmt)
+                                .totXpAmt(totXpAmt)
                                 .projects(projectSnapshots)
                                 .byDepartment(byDepartment)
                                 .byProjectType(byProjectType)

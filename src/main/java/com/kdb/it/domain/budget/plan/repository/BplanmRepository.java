@@ -32,9 +32,9 @@ public interface BplanmRepository extends JpaRepository<Bplanm, String> {
     /**
      * 계획관리번호와 삭제여부로 단건 조회합니다.
      *
-     * @param plnMngNo 계획관리번호
+     * @param reqDocNo 계획관리번호
      * @param delYn    삭제여부 ('N'=미삭제)
      * @return 계획 엔티티 (Optional)
      */
-    Optional<Bplanm> findByPlnMngNoAndDelYn(String plnMngNo, String delYn);
+    Optional<Bplanm> findByReqDocNoAndDelYn(String reqDocNo, String delYn);
 }

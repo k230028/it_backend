@@ -78,9 +78,9 @@ class PlanServiceTest {
     void getPlans_목록반환() {
         // given
         Bplanm plan = Bplanm.builder()
-                .plnMngNo("PLN-2026-0001")
-                .plnYy("2026")
-                .plnTp("신규")
+                .reqDocNo("PLN-2026-0001")
+                .bseYy("2026")
+                .plnTpC("신규")
                 .build();
         ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER001");
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
@@ -93,7 +93,7 @@ class PlanServiceTest {
 
         // then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getPlnMngNo()).isEqualTo("PLN-2026-0001");
+        assertThat(result.get(0).getReqDocNo()).isEqualTo("PLN-2026-0001");
     }
 
     @Test
@@ -116,10 +116,10 @@ class PlanServiceTest {
                 bplanmRepository, bprojaRepository, projectService, costService,
                 codeService, cuserIRepository, new ObjectMapper());
         Bplanm plan = Bplanm.builder()
-                .plnMngNo("PLN-2026-0002")
-                .plnYy("2026")
-                .plnTp("신규")
-                .plnDtlInf("{\"prjSnapshots\":[{\"pulDtt\":\"001\"},{\"pulDtt\":\"002\"},{\"pulDtt\":\"001\"}]}")
+                .reqDocNo("PLN-2026-0002")
+                .bseYy("2026")
+                .plnTpC("신규")
+                .redtConeInf("{\"prjSnapshots\":[{\"pulDtt\":\"001\"},{\"pulDtt\":\"002\"},{\"pulDtt\":\"001\"}]}")
                 .build();
         ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER002");
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
@@ -142,8 +142,8 @@ class PlanServiceTest {
                 bplanmRepository, bprojaRepository, projectService, costService,
                 codeService, cuserIRepository, new ObjectMapper());
         Bplanm plan = Bplanm.builder()
-                .plnMngNo("PLN-2026-0003")
-                .plnDtlInf("{")
+                .reqDocNo("PLN-2026-0003")
+                .redtConeInf("{")
                 .build();
         ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER003");
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
@@ -163,30 +163,30 @@ class PlanServiceTest {
     @DisplayName("getPlan - 존재하는 계획관리번호 조회 시 DetailResponse 반환")
     void getPlan_존재하는번호_반환() {
         // given
-        String plnMngNo = "PLN-2026-0001";
+        String reqDocNo = "PLN-2026-0001";
         Bplanm plan = Bplanm.builder()
-                .plnMngNo(plnMngNo)
-                .plnYy("2026")
-                .plnTp("신규")
-                .ttlBg(BigDecimal.valueOf(100000000))
+                .reqDocNo(reqDocNo)
+                .bseYy("2026")
+                .plnTpC("신규")
+                .aduTotAmt(BigDecimal.valueOf(100000000))
                 .build();
 
-        given(bplanmRepository.findByPlnMngNoAndDelYn(plnMngNo, "N")).willReturn(Optional.of(plan));
-        given(bprojaRepository.findAllByBzMngNoAndDelYn(plnMngNo, "N")).willReturn(List.of());
+        given(bplanmRepository.findByReqDocNoAndDelYn(reqDocNo, "N")).willReturn(Optional.of(plan));
+        given(bprojaRepository.findAllByBzMngNoAndDelYn(reqDocNo, "N")).willReturn(List.of());
 
         // when
-        PlanDto.DetailResponse result = planService.getPlan(plnMngNo);
+        PlanDto.DetailResponse result = planService.getPlan(reqDocNo);
 
         // then
         assertThat(result).isNotNull();
-        assertThat(result.getPlnMngNo()).isEqualTo(plnMngNo);
+        assertThat(result.getReqDocNo()).isEqualTo(reqDocNo);
     }
 
     @Test
     @DisplayName("getPlan - 미존재 계획관리번호 조회 시 ResponseStatusException(404) 발생")
     void getPlan_미존재번호_404예외발생() {
         // given
-        given(bplanmRepository.findByPlnMngNoAndDelYn("INVALID", "N")).willReturn(Optional.empty());
+        given(bplanmRepository.findByReqDocNoAndDelYn("INVALID", "N")).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> planService.getPlan("INVALID"))
@@ -203,8 +203,8 @@ class PlanServiceTest {
     void createPlan_빈프로젝트목록_400예외발생() {
         // given: 프로젝트 목록이 빈 요청
         PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
-                .plnYy("2026")
-                .plnTp("신규")
+                .bseYy("2026")
+                .plnTpC("신규")
                 .prjMngNos(List.of()) // 빈 목록
                 .build();
 
@@ -219,8 +219,8 @@ class PlanServiceTest {
     void createPlan_null프로젝트목록_400예외발생() {
         // given
         PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
-                .plnYy("2026")
-                .plnTp("신규")
+                .bseYy("2026")
+                .plnTpC("신규")
                 .prjMngNos(null)
                 .build();
 
@@ -235,8 +235,8 @@ class PlanServiceTest {
     void createPlan_정상요청_계획관리번호반환() throws Exception {
         // given
         PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
-                .plnYy("2026")
-                .plnTp("신규")
+                .bseYy("2026")
+                .plnTpC("신규")
                 .prjMngNos(List.of("PRJ-2026-0001"))
                 .build();
 
@@ -265,8 +265,8 @@ class PlanServiceTest {
     @DisplayName("createPlan - 전산업무비만 선택해도 예산 합계와 관계를 저장한다")
     void createPlan_전산업무비만선택_계획생성() throws Exception {
         PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
-                .plnYy("2026")
-                .plnTp("신규")
+                .bseYy("2026")
+                .plnTpC("신규")
                 .itMngcNos(List.of("COST-2026-0001"))
                 .build();
         CostDto.Response cost = CostDto.Response.builder()
@@ -288,9 +288,9 @@ class PlanServiceTest {
         assertThat(result).isEqualTo("PLN-2026-0002");
         ArgumentCaptor<Bplanm> planCaptor = ArgumentCaptor.forClass(Bplanm.class);
         verify(bplanmRepository).save(planCaptor.capture());
-        assertThat(planCaptor.getValue().getTtlBg()).isEqualByComparingTo("100");
-        assertThat(planCaptor.getValue().getCptBg()).isEqualByComparingTo("70");
-        assertThat(planCaptor.getValue().getMngc()).isEqualByComparingTo("30");
+        assertThat(planCaptor.getValue().getAduTotAmt()).isEqualByComparingTo("100");
+        assertThat(planCaptor.getValue().getCpitBgApvAmt()).isEqualByComparingTo("70");
+        assertThat(planCaptor.getValue().getTotXpAmt()).isEqualByComparingTo("30");
         verify(bprojaRepository).save(any(Bproja.class));
     }
 
@@ -298,8 +298,8 @@ class PlanServiceTest {
     @DisplayName("createPlan - 프로젝트와 전산업무비의 null 예산은 0으로 계산한다")
     void createPlan_null예산_0으로계산() throws Exception {
         PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
-                .plnYy("2026")
-                .plnTp("조정")
+                .bseYy("2026")
+                .plnTpC("조정")
                 .prjMngNos(List.of("PRJ-2026-0001"))
                 .itMngcNos(List.of("COST-2026-0001"))
                 .build();
@@ -329,9 +329,9 @@ class PlanServiceTest {
 
         ArgumentCaptor<Bplanm> planCaptor = ArgumentCaptor.forClass(Bplanm.class);
         verify(bplanmRepository).save(planCaptor.capture());
-        assertThat(planCaptor.getValue().getTtlBg()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(planCaptor.getValue().getCptBg()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(planCaptor.getValue().getMngc()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(planCaptor.getValue().getAduTotAmt()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(planCaptor.getValue().getCpitBgApvAmt()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(planCaptor.getValue().getTotXpAmt()).isEqualByComparingTo(BigDecimal.ZERO);
         verify(bprojaRepository, times(2)).save(any(Bproja.class));
     }
 
@@ -339,8 +339,8 @@ class PlanServiceTest {
     @DisplayName("createPlan - 스냅샷 그룹 목록에서는 경상사업과 전산업무비를 제외한다")
     void createPlan_스냅샷그룹목록_경상사업과전산업무비제외() throws Exception {
         PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
-                .plnYy("2026")
-                .plnTp("신규")
+                .bseYy("2026")
+                .plnTpC("신규")
                 .prjMngNos(List.of("PRJ-GENERAL", "PRJ-ORDINARY"))
                 .itMngcNos(List.of("COST-001"))
                 .build();
@@ -390,8 +390,8 @@ class PlanServiceTest {
     @DisplayName("createPlan - 스냅샷 직렬화 실패 시 500 예외가 발생한다")
     void createPlan_스냅샷직렬화실패_500예외발생() throws Exception {
         PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
-                .plnYy("2026")
-                .plnTp("신규")
+                .bseYy("2026")
+                .plnTpC("신규")
                 .prjMngNos(List.of("PRJ-2026-0001"))
                 .build();
         given(projectService.getProjectsByIds(any())).willReturn(List.of(ProjectDto.Response.builder()
@@ -412,7 +412,7 @@ class PlanServiceTest {
     @DisplayName("deletePlan - 미존재 계획관리번호 삭제 시 ResponseStatusException(404) 발생")
     void deletePlan_미존재번호_404예외발생() {
         // given
-        given(bplanmRepository.findByPlnMngNoAndDelYn("INVALID", "N")).willReturn(Optional.empty());
+        given(bplanmRepository.findByReqDocNoAndDelYn("INVALID", "N")).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> planService.deletePlan("INVALID"))
@@ -424,18 +424,18 @@ class PlanServiceTest {
     @DisplayName("deletePlan - 정상 삭제 시 plan.delete() 호출 및 관계 레코드도 삭제")
     void deletePlan_정상삭제_SoftDelete() {
         // given
-        String plnMngNo = "PLN-2026-0001";
-        Bplanm plan = Bplanm.builder().plnMngNo(plnMngNo).build();
+        String reqDocNo = "PLN-2026-0001";
+        Bplanm plan = Bplanm.builder().reqDocNo(reqDocNo).build();
         Bproja relation = Bproja.builder()
                 .prjMngNo("PRJ-2026-0001")
-                .bzMngNo(plnMngNo)
+                .bzMngNo(reqDocNo)
                 .build();
 
-        given(bplanmRepository.findByPlnMngNoAndDelYn(plnMngNo, "N")).willReturn(Optional.of(plan));
-        given(bprojaRepository.findAllByBzMngNoAndDelYn(plnMngNo, "N")).willReturn(List.of(relation));
+        given(bplanmRepository.findByReqDocNoAndDelYn(reqDocNo, "N")).willReturn(Optional.of(plan));
+        given(bprojaRepository.findAllByBzMngNoAndDelYn(reqDocNo, "N")).willReturn(List.of(relation));
 
         // when
-        planService.deletePlan(plnMngNo);
+        planService.deletePlan(reqDocNo);
 
         // then: 계획 Soft Delete 확인
         assertThat(plan.getDelYn()).isEqualTo("Y");
