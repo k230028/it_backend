@@ -25,9 +25,9 @@ public class BgdocmL extends BaseLogEntity {
     private String docMngNo;
 
     @Column(name = "DOC_TTL_CONE", length = 200, comment = "문서명")
-    private String docNm;
+    private String docTtlCone;
 
     @Lob
     @Column(name = "NAC_TXT_INF", comment = "문서정보")
-    private String docInf;
+    private String nacTxtInf;
 }

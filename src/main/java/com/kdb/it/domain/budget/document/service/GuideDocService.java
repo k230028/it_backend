@@ -104,7 +104,7 @@ public class GuideDocService {
         }
 
         // 문서내용 XSS 새니타이징
-        request.setDocInf(HtmlSanitizer.sanitize(request.getDocInf()));
+        request.setNacTxtInf(HtmlSanitizer.sanitize(request.getNacTxtInf()));
 
         Bgdocm document = request.toEntity();
         guideDocRepository.save(document);
@@ -130,10 +130,10 @@ public class GuideDocService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 문서관리번호입니다: " + docMngNo));
 
         // 문서정보 XSS 새니타이징
-        String sanitizedCone = HtmlSanitizer.sanitize(request.getDocInf());
+        String sanitizedCone = HtmlSanitizer.sanitize(request.getNacTxtInf());
 
         // JPA Dirty Checking으로 자동 반영
-        document.update(request.getDocNm(), sanitizedCone);
+        document.update(request.getDocTtlCone(), sanitizedCone);
 
         return docMngNo;
     }

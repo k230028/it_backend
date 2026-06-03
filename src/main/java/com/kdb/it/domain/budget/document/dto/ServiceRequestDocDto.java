@@ -44,45 +44,45 @@ public class ServiceRequestDocDto {
 
         /** 요구사항명 */
         @Schema(description = "요구사항명")
-        private String reqNm;
+        private String reqTtl;
 
         /** 요구사항내용 (HTML 포함 가능) */
         @Schema(description = "요구사항내용")
-        private String reqInf;
+        private String redtConeInf;
 
         /** 요구사항구분 코드 */
         @Schema(description = "요구사항구분")
-        private String reqDtt;
+        private String reqDttNo;
 
         /** 업무구분 코드 */
         @Schema(description = "업무구분")
-        private String bzDtt;
+        private String bzDttNm;
 
         /** 완료기한 */
         @Schema(description = "완료기한 (yyyy-MM-dd)")
-        private String fsgTlm;
+        private String rvwFsgTlmDt;
 
         /**
          * CreateRequest를 {@link Brdocm} 엔티티로 변환합니다.
          *
          * <p>
-         * 복합 기본키({@code docMngNo}, {@code docVrs})를 구성하기 위해
+         * 복합 기본키({@code docMngNo}, {@code docVrsSno})를 구성하기 위해
          * 서비스 레이어에서 채번된 문서관리번호와 최초 문서버전을 파라미터로 전달받습니다.
          * </p>
          *
-         * @param docMngNo 채번된 문서관리번호 (예: DOC-2026-0001)
-         * @param docVrs   문서버전 (최초 생성 시 일반적으로 0.01)
+         * @param docMngNo  채번된 문서관리번호 (예: DOC-2026-0001)
+         * @param docVrsSno 문서버전 (최초 생성 시 일반적으로 0.01)
          * @return 변환된 Brdocm 엔티티
          */
-        public Brdocm toEntity(String docMngNo, BigDecimal docVrs) {
+        public Brdocm toEntity(String docMngNo, BigDecimal docVrsSno) {
             return Brdocm.builder()
                     .docMngNo(docMngNo)
-                    .docVrs(docVrs)
-                    .reqNm(this.reqNm)
-                    .reqInf(this.reqInf)
-                    .reqDtt(this.reqDtt)
-                    .bzDtt(this.bzDtt)
-                    .fsgTlm(this.fsgTlm)
+                    .docVrsSno(docVrsSno)
+                    .reqTtl(this.reqTtl)
+                    .redtConeInf(this.redtConeInf)
+                    .reqDttNo(this.reqDttNo)
+                    .bzDttNm(this.bzDttNm)
+                    .rvwFsgTlmDt(this.rvwFsgTlmDt)
                     .build();
         }
     }
@@ -100,23 +100,23 @@ public class ServiceRequestDocDto {
 
         /** 요구사항명 */
         @Schema(description = "요구사항명")
-        private String reqNm;
+        private String reqTtl;
 
         /** 요구사항내용 (HTML 포함 가능) */
         @Schema(description = "요구사항내용")
-        private String reqInf;
+        private String redtConeInf;
 
         /** 요구사항구분 코드 */
         @Schema(description = "요구사항구분")
-        private String reqDtt;
+        private String reqDttNo;
 
         /** 업무구분 코드 */
         @Schema(description = "업무구분")
-        private String bzDtt;
+        private String bzDttNm;
 
         /** 완료기한 */
         @Schema(description = "완료기한 (yyyy-MM-dd)")
-        private String fsgTlm;
+        private String rvwFsgTlmDt;
     }
 
     /**
@@ -136,27 +136,27 @@ public class ServiceRequestDocDto {
 
         /** 문서버전 */
         @Schema(description = "문서버전")
-        private BigDecimal docVrs;
+        private BigDecimal docVrsSno;
 
         /** 요구사항명 */
         @Schema(description = "요구사항명")
-        private String reqNm;
+        private String reqTtl;
 
         /** 요구사항정보 (CLOB, HTML 포함 가능) */
         @Schema(description = "요구사항정보")
-        private String reqInf;
+        private String redtConeInf;
 
         /** 요구사항구분 */
         @Schema(description = "요구사항구분")
-        private String reqDtt;
+        private String reqDttNo;
 
         /** 업무구분 */
         @Schema(description = "업무구분")
-        private String bzDtt;
+        private String bzDttNm;
 
         /** 완료기한 */
         @Schema(description = "완료기한")
-        private String fsgTlm;
+        private String rvwFsgTlmDt;
 
         /** 삭제여부 */
         @Schema(description = "삭제여부")
@@ -191,12 +191,12 @@ public class ServiceRequestDocDto {
         public static Response fromEntity(Brdocm entity) {
             return Response.builder()
                     .docMngNo(entity.getDocMngNo())
-                    .docVrs(entity.getDocVrs())
-                    .reqNm(entity.getReqNm())
-                    .reqInf(entity.getReqInf())
-                    .reqDtt(entity.getReqDtt())
-                    .bzDtt(entity.getBzDtt())
-                    .fsgTlm(entity.getFsgTlm())
+                    .docVrsSno(entity.getDocVrsSno())
+                    .reqTtl(entity.getReqTtl())
+                    .redtConeInf(entity.getRedtConeInf())
+                    .reqDttNo(entity.getReqDttNo())
+                    .bzDttNm(entity.getBzDttNm())
+                    .rvwFsgTlmDt(entity.getRvwFsgTlmDt())
                     .delYn(entity.getDelYn())
                     .fstEnrDtm(entity.getFstEnrDtm())
                     .fstEnrUsid(entity.getFstEnrUsid())
@@ -227,7 +227,7 @@ public class ServiceRequestDocDto {
 
         /** 문서버전 */
         @Schema(description = "문서버전")
-        private BigDecimal docVrs;
+        private BigDecimal docVrsSno;
 
         /** 최초생성시간 */
         @Schema(description = "최초생성시간")
@@ -250,7 +250,7 @@ public class ServiceRequestDocDto {
         public static VersionResponse fromEntity(Brdocm entity) {
             return VersionResponse.builder()
                     .docMngNo(entity.getDocMngNo())
-                    .docVrs(entity.getDocVrs())
+                    .docVrsSno(entity.getDocVrsSno())
                     .fstEnrDtm(entity.getFstEnrDtm())
                     .lstChgDtm(entity.getLstChgDtm())
                     .delYn(entity.getDelYn())

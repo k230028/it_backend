@@ -49,31 +49,31 @@ public class Brivgm extends BaseEntity {
     @GeneratedValue(strategy = SEQUENCE, generator = "brivgm_seq")
     @SequenceGenerator(name = "brivgm_seq", sequenceName = "SEQ_BRIVGM", allocationSize = 1)
     @Column(name = "IPM_OPNN_SNO", nullable = false, precision = 9, comment = "의견일련번호 (물리컬럼 IPM_OPNN_SNO=개선의견일련번호)")
-    private Long ivgSno;
+    private Long ipmOpnnSno;
 
     /** 문서관리번호: {@link Brdocm#getDocMngNo()} 참조 (예: DOC-2026-0001) */
     @Column(name = "DOC_MNG_NO", length = 20, nullable = false, comment = "문서관리번호")
     private String docMngNo;
 
-    /** 문서버전: {@link Brdocm#getDocVrs()} 참조 (Oracle NUMBER(9,2), 예: 1.00, 1.01) */
+    /** 문서버전: {@link Brdocm#getDocVrsSno()} 참조 (Oracle NUMBER(9,2), 예: 1.00, 1.01) */
     @Column(name = "DOC_VRS_SNO", precision = 9, scale = 2, nullable = false, comment = "문서버전 (물리컬럼 DOC_VRS_SNO=문서버전일련번호)")
-    private BigDecimal docVrs;
+    private BigDecimal docVrsSno;
 
     /** 의견유형: {@code I}=인라인, {@code G}=전반 */
     @Column(name = "RPL_OPNN_TC", length = 2, nullable = false, comment = "의견유형 (물리컬럼 RPL_OPNN_TC=회신의견구분코드)")
-    private String ivgTp;
+    private String rplOpnnTc;
 
     /** 의견내용: 리뷰 코멘트 본문 (VARCHAR2(2000)) */
     @Column(name = "IVG_OPNN_CONE", length = 2000, comment = "의견내용 (물리컬럼 IVG_OPNN_CONE=검토의견내용)")
-    private String ivgCone;
+    private String ivgOpnnCone;
 
     /** 표시ID: 인라인 코멘트 에디터 하이라이트 매핑 키 (최대 14자) */
     @Column(name = "RFR_ID", length = 14, comment = "표시ID (물리컬럼 RFR_ID=참조ID)")
-    private String idcId;
+    private String rfrId;
 
     /** 인용내용: 인라인 코멘트 선택 텍스트 스냅샷 */
     @Column(name = "RFR_CONE", length = 4000, comment = "인용내용 (물리컬럼 RFR_CONE=참조내용)")
-    private String qotCone;
+    private String rfrCone;
 
     /** 완료여부: {@code N}=미완료(기본값), {@code Y}=완료 */
     @Column(name = "FSG_YN", length = 1, nullable = false, comment = "완료여부")
@@ -102,24 +102,24 @@ public class Brivgm extends BaseEntity {
     /**
      * 검토의견 생성 팩토리 메서드. 의견일련번호는 영속화 시 SEQ_BRIVGM에서 자동 채번됩니다.
      *
-     * @param docMngNo 대상 문서관리번호
-     * @param docVrs   대상 문서버전
-     * @param ivgTp    의견유형 ({@code I}=인라인, {@code G}=전반)
-     * @param ivgCone  의견내용 (CLOB)
-     * @param idcId    인라인 전용 Tiptap 표시 ID (전반 코멘트의 경우 {@code null})
-     * @param qotCone  인라인 전용 인용내용 (전반 코멘트의 경우 {@code null})
+     * @param docMngNo    대상 문서관리번호
+     * @param docVrsSno   대상 문서버전
+     * @param rplOpnnTc   의견유형 ({@code I}=인라인, {@code G}=전반)
+     * @param ivgOpnnCone 의견내용 (CLOB)
+     * @param rfrId       인라인 전용 Tiptap 표시 ID (전반 코멘트의 경우 {@code null})
+     * @param rfrCone     인라인 전용 인용내용 (전반 코멘트의 경우 {@code null})
      * @return 영속화 전 상태의 {@link Brivgm} 인스턴스
      */
-    public static Brivgm create(String docMngNo, BigDecimal docVrs,
-                                String ivgTp, String ivgCone,
-                                String idcId, String qotCone) {
+    public static Brivgm create(String docMngNo, BigDecimal docVrsSno,
+                                String rplOpnnTc, String ivgOpnnCone,
+                                String rfrId, String rfrCone) {
         Brivgm b = new Brivgm();
         b.docMngNo = docMngNo;
-        b.docVrs = docVrs;
-        b.ivgTp = ivgTp;
-        b.ivgCone = ivgCone;
-        b.idcId = idcId;
-        b.qotCone = qotCone;
+        b.docVrsSno = docVrsSno;
+        b.rplOpnnTc = rplOpnnTc;
+        b.ivgOpnnCone = ivgOpnnCone;
+        b.rfrId = rfrId;
+        b.rfrCone = rfrCone;
         return b;
     }
 

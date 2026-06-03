@@ -90,13 +90,13 @@ public class ServiceRequestDocService {
         if (version == null) {
             // 최신 버전 조회
             document = serviceRequestDocRepository
-                    .findTopByDocMngNoAndDelYnOrderByDocVrsDesc(docMngNo, "N")
+                    .findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N")
                     .orElseThrow(() -> new CustomGeneralException(
                             "존재하지 않는 문서관리번호입니다: " + docMngNo));
         } else {
             // 특정 버전 조회
             document = serviceRequestDocRepository
-                    .findByDocMngNoAndDocVrsAndDelYn(docMngNo, version, "N")
+                    .findByDocMngNoAndDocVrsSnoAndDelYn(docMngNo, version, "N")
                     .orElseThrow(() -> new CustomGeneralException(
                             "해당 버전의 문서를 찾을 수 없습니다: " + docMngNo + " (v" + version + ")"));
         }
@@ -116,7 +116,7 @@ public class ServiceRequestDocService {
      */
     public List<ServiceRequestDocDto.VersionResponse> getVersionHistory(String docMngNo) {
         return serviceRequestDocRepository
-                .findAllByDocMngNoAndDelYnOrderByDocVrsDesc(docMngNo, "N").stream()
+                .findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N").stream()
                 .map(ServiceRequestDocDto.VersionResponse::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -156,7 +156,7 @@ public class ServiceRequestDocService {
         }
 
         // 요구사항내용 XSS 새니타이징
-        request.setReqInf(HtmlSanitizer.sanitize(request.getReqInf()));
+        request.setRedtConeInf(HtmlSanitizer.sanitize(request.getRedtConeInf()));
 
         // 복합키 (docMngNo, 0.01)로 엔티티 생성
         Brdocm document = request.toEntity(docMngNo, INITIAL_VERSION);
@@ -181,20 +181,20 @@ public class ServiceRequestDocService {
     public String updateDocument(String docMngNo, ServiceRequestDocDto.UpdateRequest request) {
         // 최신 버전 조회
         Brdocm document = serviceRequestDocRepository
-                .findTopByDocMngNoAndDelYnOrderByDocVrsDesc(docMngNo, "N")
+                .findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N")
                 .orElseThrow(() -> new CustomGeneralException(
                         "존재하지 않는 문서관리번호입니다: " + docMngNo));
 
         // 요구사항정보 XSS 새니타이징
-        String sanitizedCone = HtmlSanitizer.sanitize(request.getReqInf());
+        String sanitizedCone = HtmlSanitizer.sanitize(request.getRedtConeInf());
 
         // JPA Dirty Checking으로 자동 반영
         document.update(
-                request.getReqNm(),
+                request.getReqTtl(),
                 sanitizedCone,
-                request.getReqDtt(),
-                request.getBzDtt(),
-                request.getFsgTlm());
+                request.getReqDttNo(),
+                request.getBzDttNm(),
+                request.getRvwFsgTlmDt());
 
         return docMngNo;
     }
@@ -215,12 +215,12 @@ public class ServiceRequestDocService {
     public BigDecimal createNewVersion(String docMngNo) {
         // 최신 버전 조회
         Brdocm latest = serviceRequestDocRepository
-                .findTopByDocMngNoAndDelYnOrderByDocVrsDesc(docMngNo, "N")
+                .findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N")
                 .orElseThrow(() -> new CustomGeneralException(
                         "존재하지 않는 문서관리번호입니다: " + docMngNo));
 
         // 새 버전 번호 계산 (최신 + 0.01)
-        BigDecimal nextVrs = latest.getDocVrs().add(VERSION_INCREMENT);
+        BigDecimal nextVrs = latest.getDocVrsSno().add(VERSION_INCREMENT);
 
         // 기존 업무 필드 복제 + 새 버전 번호 지정
         Brdocm newEntity = latest.newVersion(nextVrs);
@@ -255,7 +255,7 @@ public class ServiceRequestDocService {
         } else {
             // 특정 버전만 소프트 삭제
             Brdocm document = serviceRequestDocRepository
-                    .findByDocMngNoAndDocVrsAndDelYn(docMngNo, version, "N")
+                    .findByDocMngNoAndDocVrsSnoAndDelYn(docMngNo, version, "N")
                     .orElseThrow(() -> new CustomGeneralException(
                             "해당 버전의 문서를 찾을 수 없습니다: " + docMngNo + " (v" + version + ")"));
             document.delete();

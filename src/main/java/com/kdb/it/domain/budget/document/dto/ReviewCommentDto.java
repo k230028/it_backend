@@ -41,10 +41,10 @@ public class ReviewCommentDto {
         /** 의견유형: I=인라인, G=전반 */
         @NotBlank
         @Pattern(regexp = "^[IG]$", message = "의견유형은 I(인라인) 또는 G(전반)이어야 합니다")
-        private String ivgTp;
+        private String rplOpnnTc;
         /** 의견내용 (CLOB) */
         @NotBlank
-        private String ivgCone;
+        private String ivgOpnnCone;
         /** 인라인 전용 - Tiptap Mark ID */
         private String markId;
         /** 인라인 전용 - 드래그 선택 텍스트 스냅샷 */
@@ -57,7 +57,7 @@ public class ReviewCommentDto {
          * @return 영속화 전 상태의 Brivgm 엔티티
          */
         public Brivgm toEntity(String docMngNo) {
-            return Brivgm.create(docMngNo, docVrs, ivgTp, ivgCone, markId, qtdCone);
+            return Brivgm.create(docMngNo, docVrs, rplOpnnTc, ivgOpnnCone, markId, qtdCone);
         }
     }
 
@@ -74,19 +74,19 @@ public class ReviewCommentDto {
     @Getter
     public static class Response {
         /** 의견일련번호 */
-        private final Long ivgSno;
+        private final Long ipmOpnnSno;
         /** 문서관리번호 */
         private final String docMngNo;
         /** 문서버전 */
-        private final BigDecimal docVrs;
+        private final BigDecimal docVrsSno;
         /** 의견유형 (I=인라인, G=전반) */
-        private final String ivgTp;
+        private final String rplOpnnTc;
         /** 의견내용 */
-        private final String ivgCone;
+        private final String ivgOpnnCone;
         /** Tiptap 표시 ID (인라인 전용) */
-        private final String markId;
+        private final String rfrId;
         /** 인용내용 (인라인 전용) */
-        private final String qtdCone;
+        private final String rfrCone;
         /** 완료여부 (N=미완료, Y=완료) */
         private final String rslvYn;
         /** 작성자 사번 (FST_ENR_USID) */
@@ -103,13 +103,13 @@ public class ReviewCommentDto {
          * @param authorName 작성자 이름 (미조회 시 null 허용)
          */
         public Response(Brivgm e, String authorName) {
-            this.ivgSno     = e.getIvgSno();
+            this.ipmOpnnSno = e.getIpmOpnnSno();
             this.docMngNo   = e.getDocMngNo();
-            this.docVrs     = e.getDocVrs();
-            this.ivgTp      = e.getIvgTp();
-            this.ivgCone    = e.getIvgCone();
-            this.markId     = e.getIdcId();
-            this.qtdCone    = e.getQotCone();
+            this.docVrsSno  = e.getDocVrsSno();
+            this.rplOpnnTc  = e.getRplOpnnTc();
+            this.ivgOpnnCone = e.getIvgOpnnCone();
+            this.rfrId      = e.getRfrId();
+            this.rfrCone    = e.getRfrCone();
             this.rslvYn     = e.getFsgYn();
             this.authorEno  = e.getFstEnrUsid();
             this.authorName = authorName;

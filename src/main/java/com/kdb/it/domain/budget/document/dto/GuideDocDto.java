@@ -42,11 +42,11 @@ public class GuideDocDto {
 
         /** 문서명 */
         @Schema(description = "문서명")
-        private String docNm;
+        private String docTtlCone;
 
         /** 문서내용 (HTML 포함 가능) */
         @Schema(description = "문서내용")
-        private String docInf;
+        private String nacTxtInf;
 
         /**
          * CreateRequest를 {@link Bgdocm} 엔티티로 변환합니다.
@@ -56,8 +56,8 @@ public class GuideDocDto {
         public Bgdocm toEntity() {
             return Bgdocm.builder()
                     .docMngNo(this.docMngNo)
-                    .docNm(this.docNm)
-                    .docInf(this.docInf)
+                    .docTtlCone(this.docTtlCone)
+                    .nacTxtInf(this.nacTxtInf)
                     .build();
         }
     }
@@ -75,11 +75,11 @@ public class GuideDocDto {
 
         /** 문서명 */
         @Schema(description = "문서명")
-        private String docNm;
+        private String docTtlCone;
 
         /** 문서내용 (HTML 포함 가능) */
         @Schema(description = "문서내용")
-        private String docInf;
+        private String nacTxtInf;
     }
 
     /**
@@ -99,11 +99,11 @@ public class GuideDocDto {
 
         /** 문서명 */
         @Schema(description = "문서명")
-        private String docNm;
+        private String docTtlCone;
 
         /** 문서정보 (CLOB, HTML 포함 가능) */
         @Schema(description = "문서정보")
-        private String docInf;
+        private String nacTxtInf;
 
         /** 삭제여부 */
         @Schema(description = "삭제여부")
@@ -134,8 +134,8 @@ public class GuideDocDto {
         public static Response fromEntity(Bgdocm entity) {
             return Response.builder()
                     .docMngNo(entity.getDocMngNo())
-                    .docNm(entity.getDocNm())
-                    .docInf(entity.getDocInf())
+                    .docTtlCone(entity.getDocTtlCone())
+                    .nacTxtInf(entity.getNacTxtInf())
                     .delYn(entity.getDelYn())
                     .fstEnrDtm(entity.getFstEnrDtm())
                     .fstEnrUsid(entity.getFstEnrUsid())

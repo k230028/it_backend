@@ -54,7 +54,7 @@ public class ReviewCommentController {
      * 특정 문서+버전의 검토의견 목록 조회
      *
      * @param docMngNo 문서관리번호 (예: DOC-2026-0001)
-     * @param docVrs   문서버전 (필수)
+     * @param docVrsSno 문서버전 (필수)
      * @return HTTP 200 + 검토의견 응답 DTO 목록 (생성일시 오름차순)
      */
     @Operation(summary = "검토의견 목록 조회",
@@ -93,8 +93,8 @@ public class ReviewCommentController {
             @Parameter(description = "문서관리번호", required = true, example = "DOC-2026-0001")
             @PathVariable("docMngNo") String docMngNo,
             @Parameter(description = "문서버전", required = true, example = "1.00")
-            @RequestParam("docVrs") BigDecimal docVrs) {
-        return reviewCommentService.getComments(docMngNo, docVrs);
+            @RequestParam("docVrs") BigDecimal docVrsSno) {
+        return reviewCommentService.getComments(docMngNo, docVrsSno);
     }
 
     /**

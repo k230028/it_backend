@@ -34,8 +34,8 @@ public class BrdocmId implements Serializable {
     /** 문서관리번호: Brdocm.docMngNo와 이름/타입 일치 필수 */
     private String docMngNo;
 
-    /** 문서버전: Brdocm.docVrs와 이름/타입 일치 필수 (Oracle NUMBER(4,2)) */
-    private BigDecimal docVrs;
+    /** 문서버전: Brdocm.docVrsSno와 이름/타입 일치 필수 (Oracle NUMBER(4,2)) */
+    private BigDecimal docVrsSno;
 
     /**
      * 값 동등성 비교
@@ -48,7 +48,7 @@ public class BrdocmId implements Serializable {
         if (!(o instanceof BrdocmId)) return false;
         BrdocmId that = (BrdocmId) o;
         return Objects.equals(docMngNo, that.docMngNo)
-            && (docVrs == null ? that.docVrs == null : (that.docVrs != null && docVrs.compareTo(that.docVrs) == 0));
+            && (docVrsSno == null ? that.docVrsSno == null : (that.docVrsSno != null && docVrsSno.compareTo(that.docVrsSno) == 0));
     }
 
     /**
@@ -58,7 +58,7 @@ public class BrdocmId implements Serializable {
     @Override
     public int hashCode() {
         int result = Objects.hashCode(docMngNo);
-        result = 31 * result + (docVrs == null ? 0 : docVrs.stripTrailingZeros().hashCode());
+        result = 31 * result + (docVrsSno == null ? 0 : docVrsSno.stripTrailingZeros().hashCode());
         return result;
     }
 }

@@ -37,17 +37,17 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
      * @param delYn    삭제여부 ('N'=미삭제)
      * @return 최신 버전의 요구사항 정의서
      */
-    Optional<Brdocm> findTopByDocMngNoAndDelYnOrderByDocVrsDesc(String docMngNo, String delYn);
+    Optional<Brdocm> findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc(String docMngNo, String delYn);
 
     /**
      * 문서관리번호 + 특정 버전 단건 조회
      *
      * @param docMngNo 문서관리번호
-     * @param docVrs   문서 버전
+     * @param docVrsSno 문서 버전
      * @param delYn    삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 요구사항 정의서
      */
-    Optional<Brdocm> findByDocMngNoAndDocVrsAndDelYn(String docMngNo, BigDecimal docVrs, String delYn);
+    Optional<Brdocm> findByDocMngNoAndDocVrsSnoAndDelYn(String docMngNo, BigDecimal docVrsSno, String delYn);
 
     /**
      * 문서관리번호로 전체 버전 히스토리 조회 (버전 내림차순)
@@ -56,7 +56,7 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
      * @param delYn    삭제여부 ('N'=미삭제)
      * @return 전체 버전 목록 (버전 내림차순)
      */
-    List<Brdocm> findAllByDocMngNoAndDelYnOrderByDocVrsDesc(String docMngNo, String delYn);
+    List<Brdocm> findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc(String docMngNo, String delYn);
 
     /**
      * 문서관리번호의 전체 버전 조회 (소프트 삭제 일괄 처리용, 순서 무관)

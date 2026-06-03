@@ -28,21 +28,21 @@ public class BrdocmL extends BaseLogEntity {
     private String docMngNo;
 
     @Column(name = "DOC_VRS_SNO", precision = 4, scale = 2, comment = "문서버전")
-    private BigDecimal docVrs;
+    private BigDecimal docVrsSno;
 
     @Column(name = "REQ_TTL", length = 200, comment = "요구사항명")
-    private String reqNm;
+    private String reqTtl;
 
     @Lob
     @Column(name = "REDT_CONE_INF", comment = "요구사항정보")
-    private String reqInf;
+    private String redtConeInf;
 
     @Column(name = "REQ_DTT_NO", length = 32, comment = "요구사항구분")
-    private String reqDtt;
+    private String reqDttNo;
 
     @Column(name = "BZ_DTT_NM", length = 32, comment = "업무구분")
-    private String bzDtt;
+    private String bzDttNm;
 
     @Column(name = "RVW_FSG_TLM_DT", comment = "완료기한")
-    private String fsgTlm;
+    private String rvwFsgTlmDt;
 }

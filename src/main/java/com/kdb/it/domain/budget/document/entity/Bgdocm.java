@@ -45,12 +45,12 @@ public class Bgdocm extends BaseEntity {
 
     /** 문서명: 가이드 문서의 제목 (최대 300자) */
     @Column(name = "DOC_TTL_CONE", length = 300, comment = "문서명 (물리컬럼 DOC_TTL_CONE=문서제목내용)")
-    private String docNm;
+    private String docTtlCone;
 
     /** 문서정보: 가이드 문서 상세 내용 (CLOB, HTML 포함 가능) */
     @Lob
     @Column(name = "NAC_TXT_INF", comment = "문서정보 (물리컬럼 NAC_TXT_INF=게시물본문정보)")
-    private String docInf;
+    private String nacTxtInf;
 
     /**
      * 가이드 문서 정보 업데이트 메서드
@@ -59,11 +59,11 @@ public class Bgdocm extends BaseEntity {
      * JPA Dirty Checking을 활용하여 트랜잭션 내에서 필드를 변경합니다.
      * </p>
      *
-     * @param docNm  문서명
-     * @param docInf 문서정보 (CLOB)
+     * @param docTtlCone 문서명
+     * @param nacTxtInf  문서정보 (CLOB)
      */
-    public void update(String docNm, String docInf) {
-        this.docNm = docNm;
-        this.docInf = docInf;
+    public void update(String docTtlCone, String nacTxtInf) {
+        this.docTtlCone = docTtlCone;
+        this.nacTxtInf = nacTxtInf;
     }
 }

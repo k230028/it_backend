@@ -51,7 +51,7 @@ class ReviewCommentServiceTest {
         // 준비
         var comment = Brivgm.create("DOC-2026-0010", new BigDecimal("1.01"),
                 "G", "전반 코멘트", null, null);
-        given(brivgmRepository.findByDocMngNoAndDocVrsAndDelYnOrderByFstEnrDtmAsc(
+        given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
                 "DOC-2026-0010", new BigDecimal("1.01"), "N"))
                 .willReturn(List.of(comment));
 
@@ -76,7 +76,7 @@ class ReviewCommentServiceTest {
             throw new RuntimeException(e);
         }
 
-        given(brivgmRepository.findByDocMngNoAndDocVrsAndDelYnOrderByFstEnrDtmAsc(
+        given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
                 "DOC-2026-0010", new BigDecimal("1.01"), "N"))
                 .willReturn(List.of(comment));
 
@@ -105,7 +105,7 @@ class ReviewCommentServiceTest {
             throw new RuntimeException(e);
         }
 
-        given(brivgmRepository.findByDocMngNoAndDocVrsAndDelYnOrderByFstEnrDtmAsc(
+        given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
                 "DOC-2026-0010", new BigDecimal("1.01"), "N"))
                 .willReturn(List.of(comment));
         given(userRepository.findById("UNKNOWN_ENO")).willReturn(Optional.empty());
@@ -122,7 +122,7 @@ class ReviewCommentServiceTest {
     @Test
     void 존재하지_않는_코멘트_해결처리시_예외가_발생한다() {
         // 준비: 빈 Optional 반환 (docMngNo 검증 포함)
-        given(brivgmRepository.findByIvgSnoAndDocMngNoAndDelYn(anyLong(), eq("DOC-2026-0010"), eq("N")))
+        given(brivgmRepository.findByIpmOpnnSnoAndDocMngNoAndDelYn(anyLong(), eq("DOC-2026-0010"), eq("N")))
                 .willReturn(Optional.empty());
 
         // 실행 & 검증: 404 응답을 위해 ResponseStatusException 이 발생해야 한다
@@ -135,7 +135,7 @@ class ReviewCommentServiceTest {
         // 준비
         var comment = Brivgm.create("DOC-2026-0010", new BigDecimal("1.01"),
                 "G", "코멘트", null, null);
-        given(brivgmRepository.findByIvgSnoAndDocMngNoAndDelYn(anyLong(), anyString(), eq("N")))
+        given(brivgmRepository.findByIpmOpnnSnoAndDocMngNoAndDelYn(anyLong(), anyString(), eq("N")))
                 .willReturn(Optional.of(comment));
 
         // 실행
@@ -147,13 +147,13 @@ class ReviewCommentServiceTest {
 
     // 헬퍼: CreateRequest 인스턴스를 reflection으로 생성
     private ReviewCommentDto.CreateRequest createRequest(
-            BigDecimal docVrs, String ivgTp, String ivgCone,
+            BigDecimal docVrs, String rplOpnnTc, String ivgOpnnCone,
             String markId, String qtdCone) {
         try {
             var req = new ReviewCommentDto.CreateRequest();
             setField(req, "docVrs", docVrs);
-            setField(req, "ivgTp", ivgTp);
-            setField(req, "ivgCone", ivgCone);
+            setField(req, "rplOpnnTc", rplOpnnTc);
+            setField(req, "ivgOpnnCone", ivgOpnnCone);
             setField(req, "markId", markId);
             setField(req, "qtdCone", qtdCone);
             return req;

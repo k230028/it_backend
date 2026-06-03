@@ -45,8 +45,8 @@ class GuideDocServiceTest {
     private Bgdocm mockDocument(String docMngNo, String docNm) {
         Bgdocm doc = mock(Bgdocm.class);
         given(doc.getDocMngNo()).willReturn(docMngNo);
-        given(doc.getDocNm()).willReturn(docNm);
-        given(doc.getDocInf()).willReturn(null);
+        given(doc.getDocTtlCone()).willReturn(docNm);
+        given(doc.getNacTxtInf()).willReturn(null);
         given(doc.getDelYn()).willReturn("N");
         return doc;
     }
@@ -124,8 +124,8 @@ class GuideDocServiceTest {
         // given
         given(guideDocRepository.getNextSequenceValue()).willReturn(1L);
         GuideDocDto.CreateRequest request = GuideDocDto.CreateRequest.builder()
-                .docNm("가이드문서")
-                .docInf("<p>내용</p>")
+                .docTtlCone("가이드문서")
+                .nacTxtInf("<p>내용</p>")
                 .build();
 
         // when
@@ -143,7 +143,7 @@ class GuideDocServiceTest {
         given(guideDocRepository.existsByDocMngNoAndDelYn("GDOC-2026-0001", "N")).willReturn(true);
         GuideDocDto.CreateRequest request = GuideDocDto.CreateRequest.builder()
                 .docMngNo("GDOC-2026-0001")
-                .docNm("가이드문서")
+                .docTtlCone("가이드문서")
                 .build();
 
         // when & then
@@ -208,20 +208,20 @@ class GuideDocServiceTest {
         // given: 실제 Bgdocm 엔티티 사용 (update() 호출 후 필드 변경 검증)
         Bgdocm doc = Bgdocm.builder()
                 .docMngNo("GDOC-2026-0001")
-                .docNm("기존 가이드문서")
+                .docTtlCone("기존 가이드문서")
                 .build();
         given(guideDocRepository.findByDocMngNoAndDelYn("GDOC-2026-0001", "N"))
                 .willReturn(Optional.of(doc));
 
         GuideDocDto.UpdateRequest req = new GuideDocDto.UpdateRequest();
-        req.setDocNm("수정된 가이드문서");
+        req.setDocTtlCone("수정된 가이드문서");
 
         // when
         String result = guideDocService.updateDocument("GDOC-2026-0001", req);
 
         // then: 반환값은 문서관리번호, 문서명이 수정됨
         assertThat(result).isEqualTo("GDOC-2026-0001");
-        assertThat(doc.getDocNm()).isEqualTo("수정된 가이드문서");
+        assertThat(doc.getDocTtlCone()).isEqualTo("수정된 가이드문서");
     }
 
     @Test
@@ -251,7 +251,7 @@ class GuideDocServiceTest {
                 .willReturn(false);
         GuideDocDto.CreateRequest request = GuideDocDto.CreateRequest.builder()
                 .docMngNo("GDOC-2026-9999")
-                .docNm("직접지정 가이드문서")
+                .docTtlCone("직접지정 가이드문서")
                 .build();
 
         // when

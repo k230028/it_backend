@@ -32,14 +32,14 @@ public class ReviewCommentService {
     /**
      * 특정 문서+버전의 미삭제 검토의견 목록을 조회합니다.
      *
-     * @param docMngNo 문서관리번호
-     * @param docVrs   문서버전
+     * @param docMngNo  문서관리번호
+     * @param docVrsSno 문서버전
      * @return 검토의견 응답 DTO 목록 (생성일시 오름차순)
      */
     @Transactional(readOnly = true)
-    public List<ReviewCommentDto.Response> getComments(String docMngNo, BigDecimal docVrs) {
+    public List<ReviewCommentDto.Response> getComments(String docMngNo, BigDecimal docVrsSno) {
         return brivgmRepository
-                .findByDocMngNoAndDocVrsAndDelYnOrderByFstEnrDtmAsc(docMngNo, docVrs, "N")
+                .findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(docMngNo, docVrsSno, "N")
                 .stream()
                 .map(e -> new ReviewCommentDto.Response(e, resolveAuthorName(e.getFstEnrUsid())))
                 .collect(Collectors.toList());
@@ -73,7 +73,7 @@ public class ReviewCommentService {
      */
     @Transactional
     public void resolveComment(String docMngNo, Long ivgSno) {
-        var comment = brivgmRepository.findByIvgSnoAndDocMngNoAndDelYn(ivgSno, docMngNo, "N")
+        var comment = brivgmRepository.findByIpmOpnnSnoAndDocMngNoAndDelYn(ivgSno, docMngNo, "N")
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "검토의견을 찾을 수 없습니다: " + ivgSno));
         comment.resolve();

@@ -25,34 +25,34 @@ public interface BrivgmRepository extends JpaRepository<Brivgm, Long> {
      * 특정 문서+버전의 미삭제 코멘트 전체 조회 (생성일 오름차순)
      *
      * @param docMngNo 문서관리번호 (예: DOC-2026-0001)
-     * @param docVrs   문서버전 (Oracle NUMBER(5,2))
+     * @param docVrsSno 문서버전 (Oracle NUMBER(5,2))
      * @param delYn    삭제여부 ('N'=미삭제, 'Y'=삭제)
      * @return 조건에 해당하는 검토의견 목록 (생성일시 오름차순 정렬)
      */
-    List<Brivgm> findByDocMngNoAndDocVrsAndDelYnOrderByFstEnrDtmAsc(
-            String docMngNo, BigDecimal docVrs, String delYn);
+    List<Brivgm> findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
+            String docMngNo, BigDecimal docVrsSno, String delYn);
 
     /**
      * 코멘트 단건 조회 (미삭제 건만 대상)
      *
-     * @param ivgSno 의견일련번호
-     * @param delYn  삭제여부 ('N'=미삭제, 'Y'=삭제)
+     * @param ipmOpnnSno 의견일련번호
+     * @param delYn      삭제여부 ('N'=미삭제, 'Y'=삭제)
      * @return 조건에 해당하는 검토의견 (없으면 {@link Optional#empty()})
      */
-    Optional<Brivgm> findByIvgSnoAndDelYn(Long ivgSno, String delYn);
+    Optional<Brivgm> findByIpmOpnnSnoAndDelYn(Long ipmOpnnSno, String delYn);
 
     /**
      * 코멘트 단건 조회 (문서관리번호 + 의견일련번호 + 미삭제 조건)
      *
      * <p>
      * URL 상의 {@code docMngNo}와 실제 코멘트의 소속 문서가 일치하는지 함께 검증합니다.
-     * 이를 통해 다른 문서의 {@code ivgSno}를 이용한 교차 접근을 차단합니다.
+     * 이를 통해 다른 문서의 {@code ipmOpnnSno}를 이용한 교차 접근을 차단합니다.
      * </p>
      *
-     * @param ivgSno   의견일련번호
-     * @param docMngNo 문서관리번호 (예: DOC-2026-0001)
-     * @param delYn    삭제여부 ('N'=미삭제, 'Y'=삭제)
+     * @param ipmOpnnSno 의견일련번호
+     * @param docMngNo   문서관리번호 (예: DOC-2026-0001)
+     * @param delYn      삭제여부 ('N'=미삭제, 'Y'=삭제)
      * @return 조건에 해당하는 검토의견 (없으면 {@link Optional#empty()})
      */
-    Optional<Brivgm> findByIvgSnoAndDocMngNoAndDelYn(Long ivgSno, String docMngNo, String delYn);
+    Optional<Brivgm> findByIpmOpnnSnoAndDocMngNoAndDelYn(Long ipmOpnnSno, String docMngNo, String delYn);
 }
