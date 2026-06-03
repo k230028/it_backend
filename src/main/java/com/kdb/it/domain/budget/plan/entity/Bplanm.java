@@ -39,15 +39,15 @@ public class Bplanm extends BaseEntity {
 
     /** 계획관리번호 (PK, 형식: PLN-{연도}-{seq:04d}) */
     @Id
-    @Column(name = "REQ_DOC_NO", length = 32, comment = "계획관리번호")
+    @Column(name = "REQ_DOC_NO", length = 30, comment = "계획관리번호 (물리컬럼 REQ_DOC_NO=요청문서번호)")
     private String plnMngNo;
 
     /** 계획구분 (신규, 조정) */
-    @Column(name = "PLN_TP_C", length = 16, comment = "계획구분")
+    @Column(name = "PLN_TP_C", length = 2, comment = "계획구분 (물리컬럼 PLN_TP_C=계획유형코드)")
     private String plnTp;
 
     /** 대상년도 (형식: YYYY) */
-    @Column(name = "BSE_YY", length = 4, comment = "대상년도")
+    @Column(name = "BSE_YY", length = 4, comment = "대상년도 (물리컬럼 BSE_YY=기준연도)")
     private String plnYy;
 
     /**
@@ -58,19 +58,19 @@ public class Bplanm extends BaseEntity {
      * </p>
      */
     @Lob
-    @Column(name = "REDT_CONE_INF", comment = "계획상세정보")
+    @Column(name = "REDT_CONE_INF", comment = "계획상세정보 (물리컬럼 REDT_CONE_INF=보고서내용정보)")
     private String plnDtlInf;
 
     /** IT프로젝트내용 */
-    @Column(name = "PRJ_DVM_CONE", length = 4000, comment = "IT프로젝트내용")
+    @Column(name = "PRJ_DVM_CONE", length = 300, comment = "IT프로젝트내용 (물리컬럼 PRJ_DVM_CONE=프로젝트개발내용)")
     private String itPrjCone;
 
     /** IT예산내용 */
     @Column(name = "IT_BG_CONE", length = 4000, comment = "IT예산내용")
     private String itBgCone;
 
-    /** IT예산비고 */
-    @Column(name = "IT_PRJ_RMK", length = 600, comment = "IT예산비고")
+    /** IT프로젝트비고 */
+    @Column(name = "IT_PRJ_RMK", length = 600, comment = "IT프로젝트비고")
     private String itPrjRmk;
 
     /** 자본예산비고 */
@@ -94,14 +94,14 @@ public class Bplanm extends BaseEntity {
     }
 
     /** 총예산 (전체 대상사업의 프로젝트 예산 합계) */
-    @Column(name = "ADU_TOT_AMT", precision = 15, scale = 2, comment = "총예산")
+    @Column(name = "ADU_TOT_AMT", precision = 18, scale = 3, comment = "총예산 (물리컬럼 ADU_TOT_AMT=합계총금액)")
     private BigDecimal ttlBg;
 
     /** 자본예산 (전체 대상사업의 자본예산 합계) */
-    @Column(name = "CPIT_BG_APV_AMT", precision = 15, scale = 2, comment = "자본예산")
+    @Column(name = "CPIT_BG_APV_AMT", precision = 18, scale = 3, comment = "자본예산 (물리컬럼 CPIT_BG_APV_AMT=자본예산승인금액)")
     private BigDecimal cptBg;
 
     /** 일반관리비 (전체 대상사업의 일반관리비 합계) */
-    @Column(name = "TOT_XP_AMT", precision = 15, scale = 2, comment = "일반관리비")
+    @Column(name = "TOT_XP_AMT", precision = 18, scale = 3, comment = "일반관리비 (물리컬럼 TOT_XP_AMT=총비용금액)")
     private BigDecimal mngc;
 }

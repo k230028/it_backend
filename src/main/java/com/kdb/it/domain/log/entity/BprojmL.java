@@ -86,7 +86,7 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "PRJ_TGT_RNG_CONE", length = 1000, comment = "사업범위")
     private String prjRng;
 
-    @Column(name = "PUL_PSG_CONE", length = 1000, comment = "추진경과")
+    @Column(name = "MN_PRG_CONE", length = 2000, comment = "주요진행내용")
     private String pulPsg;
 
     @Column(name = "HRF_PLN_CONE", length = 1000, comment = "향후계획")
@@ -125,7 +125,7 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "PRLM_HRK_OGZ_C_CONE", length = 32, comment = "주관본부")
     private String svnHdq;
 
-    @Column(name = "ORN_YN", length = 1, comment = "경상여부")
+    @Column(name = "ODN_YN", length = 1, comment = "경상여부")
     private String ornYn;
 
     @Column(name = "ABUS_TC", length = 32, comment = "사업구분")

@@ -26,7 +26,7 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "TMN_MNG_NO", length = 32, comment = "단말기관리번호")
     private String tmnMngNo;
 
-    @Column(name = "TMN_SNO", comment = "단말기일련번호")
+    @Column(name = "SNO", comment = "일련번호")
     private Integer tmnSno;
 
     @Column(name = "BG_NO", length = 32, comment = "IT관리비관리번호")

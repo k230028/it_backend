@@ -128,7 +128,7 @@ class ProjectRepositoryImplTest {
     // -----------------------------------------------------------------------
 
     @Test
-    @DisplayName("ornYn=Y 이면 경상사업 조건(ORN_YN=Y)이 추가되어 쿼리가 실행된다")
+    @DisplayName("ornYn=Y 이면 경상사업 조건(ODN_YN=Y)이 추가되어 쿼리가 실행된다")
     void searchByCondition_ornYnY_executesQuery() {
         // Arrange
         ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();

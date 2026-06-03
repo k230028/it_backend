@@ -49,7 +49,7 @@ public class Btermm extends BaseEntity {
 
     /** 단말기일련번호 */
     @Id
-    @Column(name = "TMN_SNO", nullable = false, comment = "단말일련번호")
+    @Column(name = "SNO", nullable = false, comment = "일련번호")
     private Integer tmnSno;
 
     /** 예산번호 (조인용 필드) */

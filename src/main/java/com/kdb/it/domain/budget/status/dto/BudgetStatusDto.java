@@ -109,7 +109,7 @@ public class BudgetStatusDto {
     /**
      * 경상사업 예산 현황 응답 DTO
      *
-     * <p>BPROJM(ORN_YN='Y') + BITEMM 조인 (기계장치/기타무형자산 분리)</p>
+     * <p>BPROJM(ODN_YN='Y') + BITEMM 조인 (기계장치/기타무형자산 분리)</p>
      */
     @Schema(name = "BudgetStatusOrdinaryResponse", description = "예산 현황 - 경상사업 응답")
     public record OrdinaryResponse(

@@ -136,8 +136,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
         }
 
         // 경상여부 필터
-        // 'Y': 경상사업만 조회 (ORN_YN='Y')
-        // 'N': 일반 정보화사업만 조회 (ORN_YN IS NULL 또는 ORN_YN != 'Y')
+        // 'Y': 경상사업만 조회 (ODN_YN='Y')
+        // 'N': 일반 정보화사업만 조회 (ODN_YN IS NULL 또는 ODN_YN != 'Y')
         if (condition.getOrnYn() != null && !condition.getOrnYn().isBlank()) {
             if ("Y".equals(condition.getOrnYn())) {
                 builder.and(bprojm.ornYn.eq("Y"));

@@ -996,7 +996,7 @@ public class ProjectDto {
         /**
          * 경상여부 필터
          * <p>
-         * "Y" → 경상사업만 조회, "N" → 일반 정보화사업만 조회 (ORN_YN IS NULL 또는 'N')
+         * "Y" → 경상사업만 조회, "N" → 일반 정보화사업만 조회 (ODN_YN IS NULL 또는 'N')
          * null 또는 미입력 → 필터 없음 (전체 조회)
          * </p>
          */

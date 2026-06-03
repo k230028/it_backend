@@ -135,8 +135,8 @@ public class Bprojm extends BaseEntity {
     @Column(name = "PRJ_TGT_RNG_CONE", length = 1000, comment = "사업범위")
     private String prjRng;
 
-    /** 추진경과: 사업 추진 진행 상황 및 경과 내용 (최대 1000자) */
-    @Column(name = "PUL_PSG_CONE", length = 1000, comment = "추진경과")
+    /** 주요진행내용: 사업 추진 진행 상황 및 경과 내용 (최대 2000자) */
+    @Column(name = "MN_PRG_CONE", length = 2000, comment = "주요진행내용")
     private String pulPsg;
 
     /** 향후계획: 앞으로의 추진 계획 (최대 1000자) */
@@ -188,7 +188,7 @@ public class Bprojm extends BaseEntity {
     private String svnHdq;
 
     /** 경상여부: 경상사업 여부 ('Y'=경상사업, null 또는 'N'=일반 정보화사업) */
-    @Column(name = "ORN_YN", length = 1, comment = "경상여부")
+    @Column(name = "ODN_YN", length = 1, comment = "경상여부")
     private String ornYn;
 
     /** 사업구분: 사업의 신규/계속 여부 (최대 32자, 예: '신규', '계속') */

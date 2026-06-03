@@ -306,7 +306,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
      * 경상사업 예산 현황 조회
      *
      * <p>
-     * BPROJM(ORN_YN='Y') LEFT JOIN BITEMM으로 기계장치(IOE-238)과
+     * BPROJM(ODN_YN='Y') LEFT JOIN BITEMM으로 기계장치(IOE-238)과
      * 기타무형자산(IOE-239)을 분리하여 조회합니다.
      * 단가(unitPrice = amt / qtt)는 후계산합니다.
      * </p>

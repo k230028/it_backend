@@ -20,7 +20,7 @@ public interface BudgetStatusQueryRepository {
     /**
      * 정보화사업 예산 현황 조회
      *
-     * <p>BPROJM(ORN_YN!='Y', LST_YN='Y') LEFT JOIN BITEMM(품목구분별 피벗) LEFT JOIN BBUGTM(비목별 피벗)</p>
+     * <p>BPROJM(ODN_YN!='Y', LST_YN='Y') LEFT JOIN BITEMM(품목구분별 피벗) LEFT JOIN BBUGTM(비목별 피벗)</p>
      *
      * @param bgYy 예산년도
      * @return 정보화사업별 편성요청/조정 금액 목록
@@ -40,7 +40,7 @@ public interface BudgetStatusQueryRepository {
     /**
      * 경상사업 예산 현황 조회
      *
-     * <p>BPROJM(ORN_YN='Y', LST_YN='Y') LEFT JOIN BITEMM(기계장치/기타무형자산 분리)</p>
+     * <p>BPROJM(ODN_YN='Y', LST_YN='Y') LEFT JOIN BITEMM(기계장치/기타무형자산 분리)</p>
      *
      * @param bgYy 예산년도
      * @return 경상사업별 기계장치/기타무형자산 상세 목록
