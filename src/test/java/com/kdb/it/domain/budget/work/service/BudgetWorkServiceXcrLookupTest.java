@@ -76,7 +76,7 @@ class BudgetWorkServiceXcrLookupTest {
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0001");
         given(bitemm.getSno()).willReturn(1);
-        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn(eq("PRJ-2026-0001"), eq("N"), eq("Y")))
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(eq("PRJ-2026-0001"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
 
         // XcrLookupService → Ccodem 1400 환율 반환
@@ -114,7 +114,7 @@ class BudgetWorkServiceXcrLookupTest {
         given(bitemm.getCurC()).willReturn("XYZ");
         given(bitemm.getAmt()).willReturn(new BigDecimal("1000"));
         given(bitemm.getIoeC()).willReturn("001");
-        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn(eq("PRJ-2026-0001"), eq("N"), eq("Y")))
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(eq("PRJ-2026-0001"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
 
         given(xcrLookupService.resolveXcr(eq("XYZ"), any(LocalDate.class)))
@@ -145,7 +145,7 @@ class BudgetWorkServiceXcrLookupTest {
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0002");
         given(bitemm.getSno()).willReturn(1);
-        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn(eq("PRJ-2026-0002"), eq("N"), eq("Y")))
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(eq("PRJ-2026-0002"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
 
         // KRW → null 반환 (Ccodem 조회 우회)

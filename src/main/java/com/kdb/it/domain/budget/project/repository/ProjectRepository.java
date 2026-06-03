@@ -40,7 +40,7 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
      * @param delYn    삭제 여부 ('N'=미삭제)
      * @return 조건에 맞는 프로젝트 (없으면 {@link Optional#empty()})
      */
-    Optional<Bprojm> findByPrjMngNoAndDelYn(String prjMngNo, String delYn);
+    Optional<Bprojm> findByAbusMngNoAndDelYn(String prjMngNo, String delYn);
 
     /**
      * 프로젝트 관리번호와 삭제여부로 존재 여부 확인
@@ -54,7 +54,7 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
      * @param delYn    삭제 여부 ('N'=미삭제)
      * @return 존재하면 {@code true}
      */
-    boolean existsByPrjMngNoAndDelYn(String prjMngNo, String delYn);
+    boolean existsByAbusMngNoAndDelYn(String prjMngNo, String delYn);
 
     /**
      * 전체 정보화사업 목록 조회 (삭제 여부 조건)
@@ -81,7 +81,7 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
      * @param lstYn     최종 여부 ('Y'=최신 레코드)
      * @return 조건에 맞는 정보화사업 목록
      */
-    List<Bprojm> findAllByPrjMngNoInAndDelYnAndLstYn(Collection<String> prjMngNos, String delYn, String lstYn);
+    List<Bprojm> findAllByAbusMngNoInAndDelYnAndLstYn(Collection<String> prjMngNos, String delYn, String lstYn);
 
     /**
      * 프로젝트 관리번호 목록 + 삭제여부로 일괄 조회 (lstYn 무관)
@@ -95,7 +95,7 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
      * @param delYn     삭제 여부 ('N'=미삭제)
      * @return 조건에 맞는 정보화사업 목록 (동일 prjMngNo 의 여러 스냅샷이 포함될 수 있음)
      */
-    List<Bprojm> findAllByPrjMngNoInAndDelYn(Collection<String> prjMngNos, String delYn);
+    List<Bprojm> findAllByAbusMngNoInAndDelYn(Collection<String> prjMngNos, String delYn);
 
     /**
      * Oracle 시퀀스(SEQ_BPROJM) 다음 값 조회
@@ -125,7 +125,7 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
      * @return 활성 사업의 (관리번호, 사업명) 참조 목록 (사업명 오름차순)
      */
     @Query("""
-            SELECT new com.kdb.it.domain.budget.project.entity.Bprojm$Ref(p.prjMngNo, p.prjNm)
+            SELECT new com.kdb.it.domain.budget.project.entity.Bprojm$Ref(p.abusMngNo, p.prjNm)
               FROM Bprojm p
              WHERE p.delYn = 'N'
                AND p.lstYn = 'Y'

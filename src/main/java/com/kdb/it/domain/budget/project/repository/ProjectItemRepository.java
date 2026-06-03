@@ -27,7 +27,7 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      * @param prjSno   프로젝트 순번
      * @return 해당 프로젝트의 모든 품목 목록 (삭제된 항목 포함)
      */
-    List<Bitemm> findByPrjMngNoAndPrjSno(String prjMngNo, Integer prjSno);
+    List<Bitemm> findByAbusMngNoAndFntTbCrySno(String prjMngNo, Integer prjSno);
 
     /**
      * 프로젝트 관리번호, 순번, 삭제여부로 품목 목록 조회
@@ -40,7 +40,7 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      * @param delYn    삭제 여부 ('N'=미삭제, 'Y'=삭제)
      * @return 조건에 맞는 품목 엔티티 목록
      */
-    List<Bitemm> findByPrjMngNoAndPrjSnoAndDelYn(String prjMngNo, Integer prjSno, String delYn);
+    List<Bitemm> findByAbusMngNoAndFntTbCrySnoAndDelYn(String prjMngNo, Integer prjSno, String delYn);
 
     /**
      * Oracle 시퀀스(SEQ_BITEMM) 다음 값 조회
@@ -71,7 +71,7 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      * @param delYn    삭제 여부 ('N'=미삭제)
      * @return 해당 프로젝트의 유효 품목 목록
      */
-    List<Bitemm> findByPrjMngNoAndDelYn(String prjMngNo, String delYn);
+    List<Bitemm> findByAbusMngNoAndDelYn(String prjMngNo, String delYn);
 
     /**
      * 프로젝트 관리번호의 최신 버전 품목 목록 조회
@@ -84,7 +84,7 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      * @param lstYn    최종 여부 ('Y'=최신 버전)
      * @return 최신 버전 유효 품목 목록
      */
-    List<Bitemm> findByPrjMngNoAndDelYnAndLstYn(String prjMngNo, String delYn, String lstYn);
+    List<Bitemm> findByAbusMngNoAndDelYnAndLstYn(String prjMngNo, String delYn, String lstYn);
 
     @org.springframework.data.jpa.repository.Query(value = "SELECT SEQ_BITEMM.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();

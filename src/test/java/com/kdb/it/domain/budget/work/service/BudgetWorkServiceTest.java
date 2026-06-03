@@ -498,7 +498,7 @@ class BudgetWorkServiceTest {
         // 자본예산 비목코드 없음 → 경상 처리
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
         // BPROJM → BITEMM 목록 반환
-        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
                 .willReturn(List.of(bitemm));
 
         // getSummary 내부 호출용 mock
@@ -567,7 +567,7 @@ class BudgetWorkServiceTest {
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(prior), List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of(capitalCode));
-        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
                 .willReturn(List.of(capitalItem));
         given(costRepository.findByItMngcNoAndDelYnAndLstYn("COST_2026_0001", "N", "Y"))
                 .willReturn(List.of(cost));
@@ -662,7 +662,7 @@ class BudgetWorkServiceTest {
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(ioeCode1, ioeCode2));
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(itemBudget, costBudget));
         given(projectItemRepository.findByGclMngNoAndDelYn("GCL-0001", "N")).willReturn(List.of(item));
-        given(projectRepository.findByPrjMngNoAndDelYn("PRJ-2026-0001", "N")).willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N")).willReturn(Optional.of(project));
         given(costRepository.findByItMngcNoAndDelYn("COST-2026-0001", "N")).willReturn(List.of(cost));
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
@@ -816,7 +816,7 @@ class BudgetWorkServiceTest {
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(), List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of(capitalCodeWithoutDash));
-        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
                 .willReturn(List.of(item));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
         for (String cttTp : DETAIL_CTT_TPS) {
@@ -893,7 +893,7 @@ class BudgetWorkServiceTest {
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(capitalIoeCode));
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
-        given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
                 .willReturn(List.of(bitemm));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
         mockEmptyDetailCodes();
@@ -1018,7 +1018,7 @@ class BudgetWorkServiceTest {
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N"))
                 .willReturn(List.of(nullPk, itemNoProject, costNoName, unknown));
         given(projectItemRepository.findByGclMngNoAndDelYn("GCL-MISSING", "N")).willReturn(List.of());
-        given(projectRepository.findByPrjMngNoAndDelYn("GCL-MISSING", "N")).willReturn(Optional.empty());
+        given(projectRepository.findByAbusMngNoAndDelYn("GCL-MISSING", "N")).willReturn(Optional.empty());
         given(costRepository.findByItMngcNoAndDelYn("COST-MISSING", "N")).willReturn(List.of());
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");

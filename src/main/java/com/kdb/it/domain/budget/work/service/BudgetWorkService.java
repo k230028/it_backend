@@ -295,7 +295,7 @@ public class BudgetWorkService {
 
             if ("BPROJM".equals(item.orcTb())) {
                 /* 정보화사업: BITEMM에서 해당 프로젝트의 최신 버전 품목(LST_YN='Y')만 조회 */
-                List<Bitemm> items = projectItemRepository.findByPrjMngNoAndDelYnAndLstYn(
+                List<Bitemm> items = projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(
                         item.orcPkVl(), "N", "Y");
 
                 for (Bitemm bitemm : items) {
@@ -781,7 +781,7 @@ public class BudgetWorkService {
      */
     private String resolveProjectName(String orcTb, String orcPkVl) {
         if ("BPROJM".equals(orcTb)) {
-            return projectRepository.findByPrjMngNoAndDelYn(orcPkVl, "N")
+            return projectRepository.findByAbusMngNoAndDelYn(orcPkVl, "N")
                     .map(Bprojm::getPrjNm)
                     .orElse(orcPkVl);
         } else if ("BCOSTM".equals(orcTb)) {

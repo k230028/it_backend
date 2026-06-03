@@ -180,7 +180,7 @@ public class ProjectService {
      */
     public ProjectDto.Response getProject(String prjMngNo) {
         // 프로젝트 조회 (삭제되지 않은 항목만)
-        Bprojm project = projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N")
+        Bprojm project = projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
                 .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
 
         ProjectDto.Response response = ProjectDto.Response.fromEntity(project);
@@ -191,7 +191,7 @@ public class ProjectService {
 
         // 품목 정보 조회 및 설정 (삭제되지 않은 항목만)
         // ABUS_MNG_NO(프로젝트관리번호), SNO(프로젝트일련번호) 기준, DEL_YN='N'인 품목 조회
-        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo,
+        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo,
                 project.getSno(), "N");
 
         // 품목 엔티티를 DTO로 변환하여 응답 객체에 설정
@@ -256,7 +256,7 @@ public class ProjectService {
 
         } else {
             // 제공된 관리번호 중복 확인 (복합키이므로 abusMngNo 기준으로 존재 여부 확인)
-            if (projectRepository.existsByPrjMngNoAndDelYn(prjMngNo, "N")) {
+            if (projectRepository.existsByAbusMngNoAndDelYn(prjMngNo, "N")) {
                 throw new IllegalArgumentException("Project already exists with id: " + prjMngNo);
             }
         }
@@ -348,7 +348,7 @@ public class ProjectService {
         codeService.validateBudgetPeriod();
 
         // 프로젝트 조회 (삭제되지 않은 항목만)
-        Bprojm project = projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N")
+        Bprojm project = projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
                 .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
 
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
@@ -385,7 +385,7 @@ public class ProjectService {
         if (request.getItems() != null) {
             // 1. 기존 품목 조회 (DEL_YN='N')
             List<com.kdb.it.domain.budget.project.entity.Bitemm> existingItems = bitemmRepository
-                    .findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, project.getSno(), "N");
+                    .findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, project.getSno(), "N");
 
             // 처리된 품목 관리번호 추적 (삭제 대상 식별용)
             java.util.Set<String> processedGclMngNos = new java.util.HashSet<>();
@@ -565,7 +565,7 @@ public class ProjectService {
         codeService.validateBudgetPeriod();
 
         // 프로젝트 조회 (삭제되지 않은 항목만)
-        Bprojm project = projectRepository.findByPrjMngNoAndDelYn(prjMngNo, "N")
+        Bprojm project = projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
                 .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
 
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
@@ -585,7 +585,7 @@ public class ProjectService {
         project.delete();
 
         // 2. 관련 품목 전체 Soft Delete (DEL_YN 무관하게 모든 품목 조회 후 삭제)
-        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository.findByPrjMngNoAndPrjSno(prjMngNo,
+        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo,
                 project.getSno());
         for (com.kdb.it.domain.budget.project.entity.Bitemm bitemm : bitemms) {
             bitemm.delete(); // BaseEntity.delete() 호출 (DEL_YN='Y')
@@ -906,7 +906,7 @@ public class ProjectService {
     private void setBudgetSummary(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // 삭제되지 않은 품목 목록 조회
         List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository
-                .findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, (Integer) prjSno, "N");
+                .findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, (Integer) prjSno, "N");
         // 목록 조회 시 items 가 아직 설정되지 않은 경우 DTO 변환 및 enrichment 수행
         if (response.getItems() == null) {
             List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
