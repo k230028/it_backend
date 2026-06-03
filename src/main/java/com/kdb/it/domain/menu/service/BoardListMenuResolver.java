@@ -34,14 +34,17 @@ public class BoardListMenuResolver implements MenuChildrenResolver {
     }
 
     private MenuDto.Node toNode(BoardMetaDto.Response b) {
+        String childMnuId = "MBRD-" + b.getBlbMngNo();
         return MenuDto.Node.builder()
-                .mnuId("MBRD-" + b.getBlbMngNo())
+                .mnuId(childMnuId)
                 .hrkMnuId(BOARD_DYN_MNU_ID)
                 .sreTc("04")
                 .mnuNm(b.getBlbNm())
                 .mnuTpC("LNK")
                 .srePth("/board/" + b.getBlbMngNo())
                 .mnuDep(2)
+                // Breadcrumb가 조상(게시판 그룹)을 해석할 수 있도록 전체 경로를 채운다(부모 MBRD0001 = '/MBRD0001').
+                .whlMnuPth("/" + BOARD_DYN_MNU_ID + "/" + childMnuId)
                 // 가변 리스트 필수: MenuQueryService.sortRecursive가 children을 in-place 정렬한다.
                 .children(new ArrayList<>())
                 .build();
