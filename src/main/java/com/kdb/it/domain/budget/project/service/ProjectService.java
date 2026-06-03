@@ -13,6 +13,7 @@ import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
@@ -294,7 +295,7 @@ public class ProjectService {
                         .qty(itemDto.getQty()) // 품목수량
                         .curC(itemDto.getCurC()) // 통화
                         .xcr(itemDto.getXcr()) // 환율
-                        .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
+                        .xcrBseDt(DateFormatUtil.toYmd8(itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
                         .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
                         .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
                         .dfrCleC(itemDto.getDfrCleC()) // 지급주기
@@ -426,7 +427,7 @@ public class ProjectService {
                                     .qty(itemDto.getQty()) // 품목수량
                                     .curC(itemDto.getCurC()) // 통화
                                     .xcr(itemDto.getXcr()) // 환율
-                                    .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
+                                    .xcrBseDt(DateFormatUtil.toYmd8(itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
                                     .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
                                     .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
                                     .dfrCleC(itemDto.getDfrCleC()) // 지급주기
@@ -464,7 +465,7 @@ public class ProjectService {
                             .qty(itemDto.getQty()) // 품목수량
                             .curC(itemDto.getCurC()) // 통화
                             .xcr(itemDto.getXcr()) // 환율
-                            .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
+                            .xcrBseDt(DateFormatUtil.toYmd8(itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
                             .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
                             .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
                             .dfrCleC(itemDto.getDfrCleC()) // 지급주기

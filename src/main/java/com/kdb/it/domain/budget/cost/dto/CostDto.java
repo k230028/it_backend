@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.cost.dto;
 
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
+import com.kdb.it.common.util.DateFormatUtil;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -170,7 +171,7 @@ public class CostDto {
                     .fstDfrDt(this.fstDfrDt) // 최초지급일자
                     .curC(this.curC) // 통화
                     .xcr(this.xcr) // 환율
-                    .xcrBseDt(this.xcrBseDt) // 환율기준일자
+                    .xcrBseDt(DateFormatUtil.toYmd8(this.xcrBseDt)) // 환율기준일자
                     .sectSysUtzYn(this.sectSysUtzYn == null ? "N" : this.sectSysUtzYn) // 정보보호여부 (기본값 "N")
                     .indRsn(this.indRsn) // 증감사유
                     .cgprId(this.cgprId) // 담당자
@@ -690,7 +691,7 @@ public class CostDto {
                     .termRqmBgAmt(this.termRqmBgAmt)
                     .curC(this.curC)
                     .xcr(this.xcr)
-                    .xcrBseDt(this.xcrBseDt)
+                    .xcrBseDt(DateFormatUtil.toYmd8(this.xcrBseDt))
                     .dfrCleC(this.dfrCleC)
                     .indRsn(this.indRsn)
                     .cgprId(this.cgprId)
