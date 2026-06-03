@@ -121,8 +121,8 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                 .where(
                                         cappla.apfDcmNo.eq(capplm.apfMngNo),
                                         cappla.fntTbNm.eq("BCOSTM"),
-                                        cappla.pkColNm.eq(bcostm.itMngcNo),
-                                        cappla.fntTbCrySno.eq(bcostm.itMngcSno),
+                                        cappla.pkColNm.eq(bcostm.costBgNo),
+                                        cappla.fntTbCrySno.eq(bcostm.bgSno),
                                         capplm.apfPrgStsC.in("01", "02"))
                                 .notExists());
             } else {
@@ -133,8 +133,8 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                 .where(
                                         cappla.apfDcmNo.eq(capplm.apfMngNo),
                                         cappla.fntTbNm.eq("BCOSTM"),
-                                        cappla.pkColNm.eq(bcostm.itMngcNo),
-                                        cappla.fntTbCrySno.eq(bcostm.itMngcSno),
+                                        cappla.pkColNm.eq(bcostm.costBgNo),
+                                        cappla.fntTbCrySno.eq(bcostm.bgSno),
                                         capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
                                                 ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
                                                 : apfSts),
@@ -144,8 +144,8 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                                         .from(cappla2)
                                                         .where(
                                                                 cappla2.fntTbNm.eq("BCOSTM"),
-                                                                cappla2.pkColNm.eq(bcostm.itMngcNo),
-                                                                cappla2.fntTbCrySno.eq(bcostm.itMngcSno))))
+                                                                cappla2.pkColNm.eq(bcostm.costBgNo),
+                                                                cappla2.fntTbCrySno.eq(bcostm.bgSno))))
                                 .exists());
             }
         }
@@ -153,20 +153,20 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         // === 단순 필드 조건 처리 (null이면 해당 조건 미적용) ===
 
         // 연관부서 필터
-        if (condition.getBiceDpmC() != null && !condition.getBiceDpmC().isBlank()) {
-            builder.and(bcostm.biceDpmC.eq(condition.getBiceDpmC()));
+        if (condition.getCostSvnDpmC() != null && !condition.getCostSvnDpmC().isBlank()) {
+            builder.and(bcostm.costSvnDpmC.eq(condition.getCostSvnDpmC()));
         }
         // 연관팀 필터
-        if (condition.getBiceTemC() != null && !condition.getBiceTemC().isBlank()) {
-            builder.and(bcostm.biceTemC.eq(condition.getBiceTemC()));
+        if (condition.getSvnTemC() != null && !condition.getSvnTemC().isBlank()) {
+            builder.and(bcostm.svnTemC.eq(condition.getSvnTemC()));
         }
         // 정보보호여부 필터
-        if (condition.getInfPrtYn() != null && !condition.getInfPrtYn().isBlank()) {
-            builder.and(bcostm.infPrtYn.eq(condition.getInfPrtYn()));
+        if (condition.getSectSysUtzYn() != null && !condition.getSectSysUtzYn().isBlank()) {
+            builder.and(bcostm.sectSysUtzYn.eq(condition.getSectSysUtzYn()));
         }
         // 예산연도 필터
-        if (condition.getBgYy() != null && !condition.getBgYy().isBlank()) {
-            builder.and(bcostm.bgYy.eq(condition.getBgYy()));
+        if (condition.getBseYy() != null && !condition.getBseYy().isBlank()) {
+            builder.and(bcostm.bseYy.eq(condition.getBseYy()));
         }
 
         return queryFactory
@@ -178,25 +178,25 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
     /**
      * 전년도 예산 합계 일괄 조회
      *
-     * <p>IT_MNGC_NO별 전년도(prevYear) IT_MNGC_BG 합계를 집계하여 반환합니다.</p>
+     * <p>costBgNo별 전년도(prevYear) TOT_XP_AMT 합계를 집계하여 반환합니다.</p>
      */
     @Override
-    public Map<String, BigDecimal> sumPrevBgByItMngcNos(List<String> itMngcNos, String prevYear) {
-        if (itMngcNos == null || itMngcNos.isEmpty()) return Map.of();
+    public Map<String, BigDecimal> sumPrevBgByCostBgNos(List<String> costBgNos, String prevYear) {
+        if (costBgNos == null || costBgNos.isEmpty()) return Map.of();
         QBcostm bcostm = QBcostm.bcostm;
         List<Tuple> results = queryFactory
-                .select(bcostm.itMngcNo, bcostm.itMngcBgAmt.sum())
+                .select(bcostm.costBgNo, bcostm.costTotXpAmt.sum())
                 .from(bcostm)
                 .where(
-                        bcostm.bgYy.eq(prevYear),
-                        bcostm.itMngcNo.in(itMngcNos),
+                        bcostm.bseYy.eq(prevYear),
+                        bcostm.costBgNo.in(costBgNos),
                         bcostm.delYn.eq("N"))
-                .groupBy(bcostm.itMngcNo)
+                .groupBy(bcostm.costBgNo)
                 .fetch();
         return results.stream().collect(Collectors.toMap(
-                t -> t.get(bcostm.itMngcNo),
+                t -> t.get(bcostm.costBgNo),
                 t -> {
-                    BigDecimal sum = t.get(bcostm.itMngcBgAmt.sum());
+                    BigDecimal sum = t.get(bcostm.costTotXpAmt.sum());
                     return sum != null ? sum : BigDecimal.ZERO;
                 }));
     }

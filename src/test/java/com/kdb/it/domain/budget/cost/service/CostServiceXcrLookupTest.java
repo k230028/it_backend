@@ -71,12 +71,12 @@ class CostServiceXcrLookupTest {
         given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
 
         CostDto.CreateRequest request = CostDto.CreateRequest.builder()
-                .itMngcNo(IT_MNGC_NO)
+                .costBgNo(IT_MNGC_NO)
                 .cttNm("외화 라이선스")
                 .curC("USD")
                 .fcAmt(new BigDecimal("1000.000"))
                 .xcr(new BigDecimal("999"))         // 클라이언트 위조값
-                .itMngcBgAmt(new BigDecimal("0"))   // 클라이언트 위조값
+                .costTotXpAmt(new BigDecimal("0"))   // 클라이언트 위조값
                 .build();
 
         // when
@@ -86,7 +86,7 @@ class CostServiceXcrLookupTest {
         ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
         verify(costRepository).save(captor.capture());
         Bcostm saved = captor.getValue();
-        assertThat(saved.getItMngcBgAmt()).isEqualByComparingTo(new BigDecimal("1400000.000"));
+        assertThat(saved.getCostTotXpAmt()).isEqualByComparingTo(new BigDecimal("1400000.000"));
         assertThat(saved.getXcr()).isEqualByComparingTo(new BigDecimal("1400"));
         assertThat(saved.getFcAmt()).isEqualByComparingTo(new BigDecimal("1000.000"));
         assertThat(saved.getCurC()).isEqualTo("USD");
@@ -101,12 +101,12 @@ class CostServiceXcrLookupTest {
         given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
 
         CostDto.CreateRequest request = CostDto.CreateRequest.builder()
-                .itMngcNo(IT_MNGC_NO)
+                .costBgNo(IT_MNGC_NO)
                 .cttNm("미등록 통화")
                 .curC("XYZ")
                 .fcAmt(new BigDecimal("1000"))
                 .xcr(new BigDecimal("999"))
-                .itMngcBgAmt(new BigDecimal("0"))
+                .costTotXpAmt(new BigDecimal("0"))
                 .build();
 
         // when / then
@@ -124,10 +124,10 @@ class CostServiceXcrLookupTest {
         given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
 
         CostDto.CreateRequest request = CostDto.CreateRequest.builder()
-                .itMngcNo(IT_MNGC_NO)
+                .costBgNo(IT_MNGC_NO)
                 .cttNm("원화 계약")
                 .curC("KRW")
-                .itMngcBgAmt(new BigDecimal("5000000"))
+                .costTotXpAmt(new BigDecimal("5000000"))
                 .fcAmt(null)
                 .build();
 
@@ -140,6 +140,6 @@ class CostServiceXcrLookupTest {
         Bcostm saved = captor.getValue();
         assertThat(saved.getXcr()).isNull();
         assertThat(saved.getFcAmt()).isNull();
-        assertThat(saved.getItMngcBgAmt()).isEqualByComparingTo(new BigDecimal("5000000"));
+        assertThat(saved.getCostTotXpAmt()).isEqualByComparingTo(new BigDecimal("5000000"));
     }
 }

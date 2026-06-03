@@ -124,7 +124,7 @@ public class CostService {
      * @throws IllegalArgumentException 해당 관리번호의 항목이 없는 경우
      */
     public CostDto.Response getCost(String itMngcNo) {
-        List<Bcostm> costs = costRepository.findByItMngcNoAndDelYn(itMngcNo, "N");
+        List<Bcostm> costs = costRepository.findByCostBgNoAndDelYn(itMngcNo, "N");
         if (costs.isEmpty()) {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
@@ -212,16 +212,16 @@ public class CostService {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
         codeService.validateBudgetPeriod();
 
-        String itMngcNo = request.getItMngcNo();
+        String costBgNo = request.getCostBgNo();
 
-        if (itMngcNo == null || itMngcNo.isEmpty()) {
+        if (costBgNo == null || costBgNo.isEmpty()) {
             Long seq = costRepository.getNextSequenceValue();
             String year = String.valueOf(LocalDate.now().getYear());
-            itMngcNo = String.format("COST-%s-%04d", year, seq);
-            request.setItMngcNo(itMngcNo);
+            costBgNo = String.format("COST-%s-%04d", year, seq);
+            request.setCostBgNo(costBgNo);
         }
 
-        Integer nextSno = costRepository.getNextSnoValue(itMngcNo);
+        Integer nextSno = costRepository.getNextSnoValue(costBgNo);
         if (nextSno == null) {
             nextSno = 1;
         }
@@ -229,10 +229,10 @@ public class CostService {
         // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
         request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
 
-        // 외화 재계산: 클라 itMngcBgAmt를 fcAmt × xcr로 덮어씀 (CONTEXT.md 결정 C)
+        // 외화 재계산: 클라 costTotXpAmt를 fcAmt × xcr로 덮어씀 (CONTEXT.md 결정 C)
         BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
-                request.getFcAmt(), request.getItMngcBgAmt(), request.getCurC(), request.getXcr());
-        request.setItMngcBgAmt(reconciled[0]);
+                request.getFcAmt(), request.getCostTotXpAmt(), request.getCurC(), request.getXcr());
+        request.setCostTotXpAmt(reconciled[0]);
         request.setFcAmt(reconciled[1]);
 
         Bcostm bcostm = request.toEntity(nextSno);
@@ -243,8 +243,8 @@ public class CostService {
                 if (tDto.getTmnMngNo() == null || tDto.getTmnMngNo().isEmpty()) {
                     tDto.setTmnMngNo(generateTmnMngNo());
                 }
-                if (tDto.getTmnSno() == null) {
-                    tDto.setTmnSno(1);
+                if (tDto.getSno() == null) {
+                    tDto.setSno(1);
                 }
 
                 // XCR 표준 조회 (단말기): Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
@@ -252,17 +252,17 @@ public class CostService {
 
                 // 단말기 외화 재계산 (CONTEXT.md 결정 C)
                 BigDecimal[] tReconciled = BudgetAmountCalculator.reconcileAmount(
-                        tDto.getFcAmt(), tDto.getTmlAmt(), tDto.getCurC(), tDto.getXcr());
-                tDto.setTmlAmt(tReconciled[0]);
+                        tDto.getFcAmt(), tDto.getTermRqmBgAmt(), tDto.getCurC(), tDto.getXcr());
+                tDto.setTermRqmBgAmt(tReconciled[0]);
                 tDto.setFcAmt(tReconciled[1]);
 
                 Btermm btermm = tDto.toEntity();
-                btermm.setBcostmInfo(bcostm.getItMngcNo(), bcostm.getItMngcSno());
+                btermm.setBcostmInfo(bcostm.getCostBgNo(), bcostm.getBgSno());
                 btermmRepository.save(btermm);
             }
         }
 
-        return bcostm.getItMngcNo();
+        return bcostm.getCostBgNo();
     }
 
     /**
@@ -288,7 +288,7 @@ public class CostService {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
         codeService.validateBudgetPeriod();
 
-        List<Bcostm> costs = costRepository.findByItMngcNoAndDelYn(itMngcNo, "N");
+        List<Bcostm> costs = costRepository.findByCostBgNoAndDelYn(itMngcNo, "N");
         if (costs.isEmpty()) {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
@@ -298,28 +298,28 @@ public class CostService {
                 .findFirst()
                 .orElse(costs.get(0));
 
-        validateModifyPermission(target.getFstEnrUsid(), target.getBiceDpmC());
+        validateModifyPermission(target.getFstEnrUsid(), target.getCostSvnDpmC());
 
         // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
         request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
 
-        // 외화 재계산: 클라 itMngcBgAmt를 fcAmt × xcr로 덮어씀 (CONTEXT.md 결정 C)
+        // 외화 재계산: 클라 costTotXpAmt를 fcAmt × xcr로 덮어씀 (CONTEXT.md 결정 C)
         BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
-                request.getFcAmt(), request.getItMngcBgAmt(), request.getCurC(), request.getXcr());
-        request.setItMngcBgAmt(reconciled[0]);
+                request.getFcAmt(), request.getCostTotXpAmt(), request.getCurC(), request.getXcr());
+        request.setCostTotXpAmt(reconciled[0]);
         request.setFcAmt(reconciled[1]);
 
         target.update(
                 request.getIoeC(), request.getCttNm(), request.getCttOppNm(),
-                request.getItMngcBgAmt(), request.getDfrCleC(), request.getFstDfrDt(),
+                request.getCostTotXpAmt(), request.getDfrCleC(), request.getFstDfrDt(),
                 request.getCurC(), request.getXcr(), request.getXcrBseDt(),
-                request.getInfPrtYn(), request.getIndRsn(), request.getCgprEno(),
-                request.getBiceDpmC(), request.getBiceTemC(), request.getAbusC(),
-                request.getItMngcTp(), request.getPulDtt(), request.getBgYy(), request.getCncdItMngcNo(),
+                request.getSectSysUtzYn(), request.getIndRsn(), request.getCgprId(),
+                request.getCostSvnDpmC(), request.getSvnTemC(), request.getBgUntAbusC(),
+                request.getBgXpTc(), request.getAbusTc(), request.getBseYy(), request.getCncdRfrNo(),
                 request.getFcAmt());
 
         /* 연관된 단말기 목록 업데이트: 기존 Soft Delete 후 재등록 */
-        List<Btermm> existingTerminals = btermmRepository.findByItMngcNoAndItMngcSno(target.getItMngcNo(), target.getItMngcSno());
+        List<Btermm> existingTerminals = btermmRepository.findByTermBgNoAndTermBgSno(target.getCostBgNo(), target.getBgSno());
         for (Btermm et : existingTerminals) {
             et.delete();
         }
@@ -328,24 +328,24 @@ public class CostService {
             for (CostDto.TerminalDto tDto : request.getTerminals()) {
                 /* 새 PK를 발급하여 Soft Delete된 기존 레코드와 충돌 방지 */
                 tDto.setTmnMngNo(generateTmnMngNo());
-                tDto.setTmnSno(1);
+                tDto.setSno(1);
 
                 // XCR 표준 조회 (단말기): Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
                 tDto.setXcr(xcrLookupService.resolveXcr(tDto.getCurC(), LocalDate.now()));
 
                 // 단말기 외화 재계산 (CONTEXT.md 결정 C)
                 BigDecimal[] tReconciled = BudgetAmountCalculator.reconcileAmount(
-                        tDto.getFcAmt(), tDto.getTmlAmt(), tDto.getCurC(), tDto.getXcr());
-                tDto.setTmlAmt(tReconciled[0]);
+                        tDto.getFcAmt(), tDto.getTermRqmBgAmt(), tDto.getCurC(), tDto.getXcr());
+                tDto.setTermRqmBgAmt(tReconciled[0]);
                 tDto.setFcAmt(tReconciled[1]);
 
                 Btermm btermm = tDto.toEntity();
-                btermm.setBcostmInfo(target.getItMngcNo(), target.getItMngcSno());
+                btermm.setBcostmInfo(target.getCostBgNo(), target.getBgSno());
                 btermmRepository.save(btermm);
             }
         }
 
-        return target.getItMngcNo();
+        return target.getCostBgNo();
     }
 
     /**
@@ -367,16 +367,16 @@ public class CostService {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
         codeService.validateBudgetPeriod();
 
-        List<Bcostm> costs = costRepository.findByItMngcNoAndDelYn(itMngcNo, "N");
+        List<Bcostm> costs = costRepository.findByCostBgNoAndDelYn(itMngcNo, "N");
         if (costs.isEmpty()) {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
 
-        validateModifyPermission(costs.get(0).getFstEnrUsid(), costs.get(0).getBiceDpmC());
+        validateModifyPermission(costs.get(0).getFstEnrUsid(), costs.get(0).getCostSvnDpmC());
 
         for (Bcostm cost : costs) {
             cost.delete();
-            List<Btermm> terminals = btermmRepository.findByItMngcNoAndItMngcSno(cost.getItMngcNo(), cost.getItMngcSno());
+            List<Btermm> terminals = btermmRepository.findByTermBgNoAndTermBgSno(cost.getCostBgNo(), cost.getBgSno());
             for (Btermm t : terminals) {
                 t.delete();
             }
@@ -394,10 +394,10 @@ public class CostService {
      * @return 존재하는 항목의 응답 DTO 목록 (없는 항목 제외)
      */
     public List<CostDto.Response> getCostsByIds(CostDto.BulkGetRequest request) {
-        List<CostDto.Response> responses = request.getItMngcNos().stream()
-                .map(itMngcNo -> {
+        List<CostDto.Response> responses = request.getCostBgNos().stream()
+                .map(costBgNo -> {
                     try {
-                        return getCost(itMngcNo);
+                        return getCost(costBgNo);
                     } catch (IllegalArgumentException e) {
                         // FIXME: [B-H-04] null 필터 패턴 제거, 조회 실패시 예외 전파 또는 warn 로그 필요
                         // 현재 null → filter(Objects::nonNull) 패턴으로 실패 비용 항목이 silently 손실됨.
@@ -409,15 +409,15 @@ public class CostService {
                 .collect(Collectors.toList());
 
         // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
-        String bgYy = request.getBgYy();
-        if (bgYy != null && !bgYy.isBlank() && !responses.isEmpty()) {
-            List<String> itMngcNos = responses.stream()
-                    .map(CostDto.Response::getItMngcNo)
+        String bseYy = request.getBseYy();
+        if (bseYy != null && !bseYy.isBlank() && !responses.isEmpty()) {
+            List<String> costBgNos = responses.stream()
+                    .map(CostDto.Response::getCostBgNo)
                     .toList();
-            Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByItMngcNos(itMngcNos, bgYy);
+            Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByItMngcNos(costBgNos, bseYy);
             // 전산업무비는 ioeC가 IOE_CPIT이면 자본예산, 나머지면 일반관리비 단일 분류
             responses.forEach(r -> {
-                BigDecimal dupBgAmt = dupBgMap.getOrDefault(r.getItMngcNo(), BigDecimal.ZERO);
+                BigDecimal dupBgAmt = dupBgMap.getOrDefault(r.getCostBgNo(), BigDecimal.ZERO);
                 r.setDupBgAmt(dupBgAmt);
                 boolean isAsset = r.getAssetBg() != null && r.getAssetBg().compareTo(BigDecimal.ZERO) > 0;
                 r.setAssetDupBg(isAsset ? dupBgAmt : BigDecimal.ZERO);
@@ -449,9 +449,9 @@ public class CostService {
      * @param itMngcNo  전산관리비관리번호
      * @param itMngcSno 전산관리비일련번호
      */
-    private void setApplicationInfo(CostDto.Response response, String itMngcNo, Integer itMngcSno) {
+    private void setApplicationInfo(CostDto.Response response, String costBgNo, Integer bgSno) {
         List<Cappla> capplas = capplaRepository
-                .findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BCOSTM", itMngcNo, itMngcSno);
+                .findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BCOSTM", costBgNo, bgSno);
 
         if (!capplas.isEmpty()) {
             Cappla cappla = capplas.get(0);
@@ -482,7 +482,7 @@ public class CostService {
      * @param response 예산 구분을 설정할 응답 DTO
      */
     private void setBudgetCategory(CostDto.Response response) {
-        BigDecimal totalBg = response.getItMngcBgAmt() != null ? response.getItMngcBgAmt() : BigDecimal.ZERO;
+        BigDecimal totalBg = response.getCostTotXpAmt() != null ? response.getCostTotXpAmt() : BigDecimal.ZERO;
         BigDecimal zero = BigDecimal.ZERO;
 
         // 세부 자본예산 필드 초기화
@@ -539,10 +539,10 @@ public class CostService {
         if (costs.isEmpty()) return;
 
         // --- 1. CAPPLA 배치 조회 ---
-        List<String> itMngcNos = costs.stream().map(Bcostm::getItMngcNo).distinct().collect(Collectors.toList());
-        List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", itMngcNos);
+        List<String> costBgNos = costs.stream().map(Bcostm::getCostBgNo).distinct().collect(Collectors.toList());
+        List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", costBgNos);
 
-        // itMngcNo+sno 복합키 → 최신 Cappla
+        // costBgNo+sno 복합키 → 최신 Cappla
         Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();
         for (Cappla c : allCapplas) {
             String key = c.getPkColNm() + "_" + c.getFntTbCrySno();
@@ -563,19 +563,19 @@ public class CostService {
         // --- 4. 부서코드·사원번호·공통코드 CDVA 수집 ---
         Set<String> orgCodes = new java.util.HashSet<>();
         Set<String> userEnos = new java.util.HashSet<>();
-        Set<String> abusCdvas = new java.util.HashSet<>();
+        Set<String> bgUntAbusCdvas = new java.util.HashSet<>();
         Set<String> dfrCleCCdvas = new java.util.HashSet<>();
-        Set<String> itMngcTpCdvas = new java.util.HashSet<>();
-        Set<String> pulDttCdvas = new java.util.HashSet<>();
+        Set<String> bgXpTcCdvas = new java.util.HashSet<>();
+        Set<String> abusTcCdvas = new java.util.HashSet<>();
         Set<String> ioeCCdvas = new java.util.HashSet<>();
         for (CostDto.Response r : responses) {
-            if (r.getBiceDpmC() != null && !r.getBiceDpmC().isEmpty()) orgCodes.add(r.getBiceDpmC());
-            if (r.getBiceTemC() != null && !r.getBiceTemC().isEmpty()) orgCodes.add(r.getBiceTemC());
-            if (r.getCgprEno() != null && !r.getCgprEno().isEmpty()) userEnos.add(r.getCgprEno());
-            if (r.getAbusC() != null && !r.getAbusC().isEmpty()) abusCdvas.add(r.getAbusC());
+            if (r.getCostSvnDpmC() != null && !r.getCostSvnDpmC().isEmpty()) orgCodes.add(r.getCostSvnDpmC());
+            if (r.getSvnTemC() != null && !r.getSvnTemC().isEmpty()) orgCodes.add(r.getSvnTemC());
+            if (r.getCgprId() != null && !r.getCgprId().isEmpty()) userEnos.add(r.getCgprId());
+            if (r.getBgUntAbusC() != null && !r.getBgUntAbusC().isEmpty()) bgUntAbusCdvas.add(r.getBgUntAbusC());
             if (r.getDfrCleC() != null && !r.getDfrCleC().isEmpty()) dfrCleCCdvas.add(r.getDfrCleC());
-            if (r.getItMngcTp() != null && !r.getItMngcTp().isEmpty()) itMngcTpCdvas.add(r.getItMngcTp());
-            if (r.getPulDtt() != null && !r.getPulDtt().isEmpty()) pulDttCdvas.add(r.getPulDtt());
+            if (r.getBgXpTc() != null && !r.getBgXpTc().isEmpty()) bgXpTcCdvas.add(r.getBgXpTc());
+            if (r.getAbusTc() != null && !r.getAbusTc().isEmpty()) abusTcCdvas.add(r.getAbusTc());
             if (r.getIoeC() != null && !r.getIoeC().isEmpty()) ioeCCdvas.add(r.getIoeC());
         }
 
@@ -584,14 +584,14 @@ public class CostService {
                 .collect(Collectors.toMap(CorgnI::getPrlmOgzCCone, CorgnI::getBbrNm));
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
-        Map<String, String> abusCNameMap = abusCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap("ABUS_C", abusCdvas);
+        Map<String, String> bgUntAbusCNameMap = bgUntAbusCdvas.isEmpty() ? Map.of()
+                : buildCodeNameMap("ABUS_C", bgUntAbusCdvas);
         Map<String, String> dfrCleCNameMap = dfrCleCCdvas.isEmpty() ? Map.of()
                 : buildCodeNameMap("DFR_CLE", dfrCleCCdvas);
-        Map<String, String> itMngcTpNameMap = itMngcTpCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap("IT_MNGC_TP", itMngcTpCdvas);
-        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap("PUL_DTT", pulDttCdvas);
+        Map<String, String> bgXpTcNameMap = bgXpTcCdvas.isEmpty() ? Map.of()
+                : buildCodeNameMap("IT_MNGC_TP", bgXpTcCdvas);
+        Map<String, String> abusTcNameMap = abusTcCdvas.isEmpty() ? Map.of()
+                : buildCodeNameMap("PUL_DTT", abusTcCdvas);
         Map<String, String> ioeCNameMap = ioeCCdvas.isEmpty() ? Map.of()
                 : buildIoeCNameMap(ioeCCdvas);
 
@@ -600,7 +600,7 @@ public class CostService {
             Bcostm cost = costs.get(i);
             CostDto.Response response = responses.get(i);
 
-            String key = cost.getItMngcNo() + "_" + cost.getItMngcSno();
+            String key = cost.getCostBgNo() + "_" + cost.getBgSno();
             Cappla cappla = latestCappla.get(key);
             if (cappla != null) {
                 response.setApfMngNo(cappla.getApfDcmNo());
@@ -613,39 +613,39 @@ public class CostService {
                 }
             }
 
-            if (response.getBiceDpmC() != null) response.setBiceDpmNm(orgNameMap.get(response.getBiceDpmC()));
-            if (response.getBiceTemC() != null) response.setBiceTemNm(orgNameMap.get(response.getBiceTemC()));
-            if (response.getCgprEno() != null) response.setCgprNm(userNameMap.get(response.getCgprEno()));
-            if (response.getAbusC() != null) response.setAbusCNm(abusCNameMap.get(response.getAbusC()));
+            if (response.getCostSvnDpmC() != null) response.setCostSvnDpmNm(orgNameMap.get(response.getCostSvnDpmC()));
+            if (response.getSvnTemC() != null) response.setSvnTemNm(orgNameMap.get(response.getSvnTemC()));
+            if (response.getCgprId() != null) response.setCgprNm(userNameMap.get(response.getCgprId()));
+            if (response.getBgUntAbusC() != null) response.setBgUntAbusCNm(bgUntAbusCNameMap.get(response.getBgUntAbusC()));
             if (response.getDfrCleC() != null) response.setDfrCleCNm(dfrCleCNameMap.get(response.getDfrCleC()));
-            if (response.getItMngcTp() != null) response.setItMngcTpNm(itMngcTpNameMap.get(response.getItMngcTp()));
-            if (response.getPulDtt() != null) response.setPulDttNm(pulDttNameMap.get(response.getPulDtt()));
+            if (response.getBgXpTc() != null) response.setBgXpTcNm(bgXpTcNameMap.get(response.getBgXpTc()));
+            if (response.getAbusTc() != null) response.setAbusTcNm(abusTcNameMap.get(response.getAbusTc()));
             if (response.getIoeC() != null) response.setIoeCNm(ioeCNameMap.get(response.getIoeC()));
 
             setBudgetCategory(response);
 
-            if ("002".equals(cost.getItMngcTp())) {
+            if ("002".equals(cost.getBgXpTc())) {
                 attachTerminals(response);
             }
         }
 
         // --- 7. 전년도 예산(prevBgAmt) 배치 조회 (계속 항목만) ---
         List<String> continuingNos = responses.stream()
-                .filter(r -> "002".equals(r.getPulDtt()))
-                .map(CostDto.Response::getItMngcNo)
+                .filter(r -> "002".equals(r.getAbusTc()))
+                .map(CostDto.Response::getCostBgNo)
                 .distinct()
                 .collect(Collectors.toList());
         if (!continuingNos.isEmpty()) {
-            String bgYy = responses.stream()
-                    .map(CostDto.Response::getBgYy)
+            String bseYy = responses.stream()
+                    .map(CostDto.Response::getBseYy)
                     .filter(y -> y != null && !y.isBlank())
                     .findFirst().orElse(null);
-            if (bgYy != null) {
-                String prevYear = String.valueOf(Integer.parseInt(bgYy) - 1);
-                Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByItMngcNos(continuingNos, prevYear);
+            if (bseYy != null) {
+                String prevYear = String.valueOf(Integer.parseInt(bseYy) - 1);
+                Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByCostBgNos(continuingNos, prevYear);
                 responses.forEach(r -> {
-                    if ("002".equals(r.getPulDtt())) {
-                        r.setPrevBgAmt(prevBgMap.getOrDefault(r.getItMngcNo(), BigDecimal.ZERO));
+                    if ("002".equals(r.getAbusTc())) {
+                        r.setPrevBgAmt(prevBgMap.getOrDefault(r.getCostBgNo(), BigDecimal.ZERO));
                     } else {
                         r.setPrevBgAmt(BigDecimal.ZERO);
                     }
@@ -653,23 +653,23 @@ public class CostService {
             }
         }
 
-        // --- 8. 전년도 BBUGTM 편성예산(prevDupBg) 배치 조회 (cncdItMngcNo 기준) ---
+        // --- 8. 전년도 BBUGTM 편성예산(prevDupBg) 배치 조회 (cncdRfrNo 기준) ---
         List<String> cncdNos = responses.stream()
-                .filter(r -> r.getCncdItMngcNo() != null && !r.getCncdItMngcNo().isBlank())
-                .map(CostDto.Response::getCncdItMngcNo)
+                .filter(r -> r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank())
+                .map(CostDto.Response::getCncdRfrNo)
                 .distinct()
                 .collect(Collectors.toList());
         if (!cncdNos.isEmpty()) {
-            String bgYy8 = responses.stream()
-                    .map(CostDto.Response::getBgYy)
+            String bseYy8 = responses.stream()
+                    .map(CostDto.Response::getBseYy)
                     .filter(y -> y != null && !y.isBlank())
                     .findFirst().orElse(null);
-            if (bgYy8 != null) {
-                String prevYear8 = String.valueOf(Integer.parseInt(bgYy8) - 1);
+            if (bseYy8 != null) {
+                String prevYear8 = String.valueOf(Integer.parseInt(bseYy8) - 1);
                 Map<String, BigDecimal> prevDupBgMap = bbugtmRepository.sumDupBgByItMngcNos(cncdNos, prevYear8);
                 responses.forEach(r -> {
-                    if (r.getCncdItMngcNo() != null && !r.getCncdItMngcNo().isBlank()) {
-                        r.setPrevDupBg(prevDupBgMap.getOrDefault(r.getCncdItMngcNo(), BigDecimal.ZERO));
+                    if (r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank()) {
+                        r.setPrevDupBg(prevDupBgMap.getOrDefault(r.getCncdRfrNo(), BigDecimal.ZERO));
                     } else {
                         r.setPrevDupBg(BigDecimal.ZERO);
                     }
@@ -684,7 +684,7 @@ public class CostService {
 
     /** 응답 DTO에 신청서 정보, 코드명, 예산 구분을 일괄 설정 */
     private void enrichResponse(CostDto.Response response, Bcostm cost) {
-        setApplicationInfo(response, cost.getItMngcNo(), cost.getItMngcSno());
+        setApplicationInfo(response, cost.getCostBgNo(), cost.getBgSno());
         setCodeNames(response);
         setBudgetCategory(response);
     }
@@ -694,7 +694,7 @@ public class CostService {
      */
     private void attachTerminals(CostDto.Response response) {
         List<Btermm> terminals = btermmRepository
-                .findByItMngcNoAndItMngcSnoAndDelYn(response.getItMngcNo(), response.getItMngcSno(), "N");
+                .findByTermBgNoAndTermBgSnoAndDelYn(response.getCostBgNo(), response.getBgSno(), "N");
         List<CostDto.TerminalDto> dtos = terminals.stream().map(CostDto.TerminalDto::fromEntity).toList();
         setTerminalCodeNames(dtos);
         response.setTerminals(dtos);
@@ -702,33 +702,33 @@ public class CostService {
 
     /** 부서코드→부서명, 사원번호→사용자명, 사업코드→사업코드명 조회 및 설정 */
     private void setCodeNames(CostDto.Response response) {
-        if (response.getBiceDpmC() != null && !response.getBiceDpmC().isEmpty()) {
-            corgnIRepository.findById(response.getBiceDpmC())
-                    .ifPresent(org -> response.setBiceDpmNm(org.getBbrNm()));
+        if (response.getCostSvnDpmC() != null && !response.getCostSvnDpmC().isEmpty()) {
+            corgnIRepository.findById(response.getCostSvnDpmC())
+                    .ifPresent(org -> response.setCostSvnDpmNm(org.getBbrNm()));
         }
-        if (response.getBiceTemC() != null && !response.getBiceTemC().isEmpty()) {
-            corgnIRepository.findById(response.getBiceTemC())
-                    .ifPresent(org -> response.setBiceTemNm(org.getBbrNm()));
+        if (response.getSvnTemC() != null && !response.getSvnTemC().isEmpty()) {
+            corgnIRepository.findById(response.getSvnTemC())
+                    .ifPresent(org -> response.setSvnTemNm(org.getBbrNm()));
         }
-        if (response.getCgprEno() != null && !response.getCgprEno().isEmpty()) {
-            cuserIRepository.findById(response.getCgprEno())
+        if (response.getCgprId() != null && !response.getCgprId().isEmpty()) {
+            cuserIRepository.findById(response.getCgprId())
                     .ifPresent(user -> response.setCgprNm(user.getUsrNm()));
         }
-        if (response.getAbusC() != null && !response.getAbusC().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_C", response.getAbusC(), null)
-                    .ifPresent(code -> response.setAbusCNm(code.getCNm()));
+        if (response.getBgUntAbusC() != null && !response.getBgUntAbusC().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_C", response.getBgUntAbusC(), null)
+                    .ifPresent(code -> response.setBgUntAbusCNm(code.getCNm()));
         }
         if (response.getDfrCleC() != null && !response.getDfrCleC().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE", response.getDfrCleC(), null)
                     .ifPresent(code -> response.setDfrCleCNm(code.getCNm()));
         }
-        if (response.getItMngcTp() != null && !response.getItMngcTp().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", response.getItMngcTp(), null)
-                    .ifPresent(code -> response.setItMngcTpNm(code.getCNm()));
+        if (response.getBgXpTc() != null && !response.getBgXpTc().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", response.getBgXpTc(), null)
+                    .ifPresent(code -> response.setBgXpTcNm(code.getCNm()));
         }
-        if (response.getPulDtt() != null && !response.getPulDtt().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", response.getPulDtt(), null)
-                    .ifPresent(code -> response.setPulDttNm(code.getCNm()));
+        if (response.getAbusTc() != null && !response.getAbusTc().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", response.getAbusTc(), null)
+                    .ifPresent(code -> response.setAbusTcNm(code.getCNm()));
         }
         if (response.getIoeC() != null && !response.getIoeC().isEmpty()) {
             String ioeCNm = buildIoeCNameMap(Set.of(response.getIoeC())).get(response.getIoeC());
@@ -739,8 +739,8 @@ public class CostService {
     /** 단말기 DTO 목록에 담당자명(cgprNm) 일괄 설정 (배치 조회로 N+1 방지) */
     private void setTerminalCodeNames(List<CostDto.TerminalDto> terminalDtos) {
         Set<String> enos = terminalDtos.stream()
-                .map(CostDto.TerminalDto::getCgprEno)
-                .filter(cgprEno -> cgprEno != null && !cgprEno.isEmpty())
+                .map(CostDto.TerminalDto::getCgprId)
+                .filter(cgprId -> cgprId != null && !cgprId.isEmpty())
                 .collect(Collectors.toSet());
         if (enos.isEmpty()) return;
 
@@ -749,8 +749,8 @@ public class CostService {
                         CuserI::getEno,
                         CuserI::getUsrNm));
         terminalDtos.forEach(tDto -> {
-            if (tDto.getCgprEno() != null) {
-                tDto.setCgprNm(nameMap.get(tDto.getCgprEno()));
+            if (tDto.getCgprId() != null) {
+                tDto.setCgprNm(nameMap.get(tDto.getCgprId()));
             }
         });
     }

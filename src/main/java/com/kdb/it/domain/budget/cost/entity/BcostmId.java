@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
  * 전산관리비(Bcostm) 엔티티의 복합 기본키 클래스
  *
  * <p>JPA의 {@code @IdClass} 방식으로 복합키를 정의합니다.
- * {@link Bcostm} 엔티티의 {@code @Id} 필드({@code itMngcNo}, {@code itMngcSno})와
+ * {@link Bcostm} 엔티티의 {@code @Id} 필드({@code costBgNo}, {@code bgSno})와
  * 동일한 이름과 타입을 가져야 합니다.</p>
  *
  * <p>JPA 복합키 클래스 요구사항:</p>
@@ -27,11 +27,11 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode  // equals(), hashCode() 자동 생성 (JPA 요구사항: 동등성 비교)
 public class BcostmId implements Serializable {
 
-    /** 전산업무비코드(IT관리비관리번호): Bcostm.itMngcNo와 이름/타입 일치 필수 */
+    /** 전산업무비코드(IT관리비관리번호): Bcostm.costBgNo와 이름/타입 일치 필수 */
     @Column(name = "BG_NO", comment = "전산업무비코드")
-    private String itMngcNo;
+    private String costBgNo;
 
-    /** 전산업무비일련번호(IT관리비일련번호): Bcostm.itMngcSno와 이름/타입 일치 필수 */
+    /** 전산업무비일련번호(IT관리비일련번호): Bcostm.bgSno와 이름/타입 일치 필수 */
     @Column(name = "BG_SNO", precision = 9, comment = "예산일련번호")
-    private Integer itMngcSno;
+    private Integer bgSno;
 }

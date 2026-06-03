@@ -243,15 +243,15 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         List<Tuple> tuples = queryFactory
                 .select(
-                        c.itMngcNo, c.pulDtt, c.abusC, c.ioeC, costCode.cdvaNm,
-                        c.biceDpmC, dpmOrg.bbrNm, c.biceTemC, temOrg.bbrNm,
-                        c.cttNm, c.cttOppNm, c.infPrtYn, c.itMngcTp,
+                        c.costBgNo, c.abusTc, c.bgUntAbusC, c.ioeC, costCode.cdvaNm,
+                        c.costSvnDpmC, dpmOrg.bbrNm, c.svnTemC, temOrg.bbrNm,
+                        c.cttNm, c.cttOppNm, c.sectSysUtzYn, c.bgXpTc,
                         reqRent, reqTravel, reqService, reqMisc, reqTotal,
                         adjRent, adjTravel, adjService, adjMisc, adjTotal
                 )
                 .from(c)
-                .leftJoin(dpmOrg).on(dpmOrg.prlmOgzCCone.eq(c.biceDpmC))
-                .leftJoin(temOrg).on(temOrg.prlmOgzCCone.eq(c.biceTemC))
+                .leftJoin(dpmOrg).on(dpmOrg.prlmOgzCCone.eq(c.costSvnDpmC))
+                .leftJoin(temOrg).on(temOrg.prlmOgzCCone.eq(c.svnTemC))
                 .leftJoin(costCode).on(
                         costCode.cId.eq(C_ID_IOE),
                         costCode.cdva.eq(c.ioeC),
@@ -259,16 +259,16 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                 )
                 .leftJoin(b).on(
                         b.orcTb.eq("BCOSTM"),
-                        b.orcPkVl.eq(c.itMngcNo),
+                        b.orcPkVl.eq(c.costBgNo),
                         b.bgYy.eq(bgYy),
                         b.delYn.eq("N")
                 )
                 .leftJoin(bPrev).on(
                         bPrev.orcTb.eq("BCOSTM"),
-                        // 계속항목은 cncdItMngcNo 기준, 신규항목은 itMngcNo 기준으로 전년도 편성 조회
+                        // 계속항목은 cncdRfrNo 기준, 신규항목은 costBgNo 기준으로 전년도 편성 조회
                         Expressions.booleanTemplate(
                                 "COALESCE({0}, {1}) = {2}",
-                                c.cncdItMngcNo, c.itMngcNo, bPrev.orcPkVl),
+                                c.cncdRfrNo, c.costBgNo, bPrev.orcPkVl),
                         bPrev.bgYy.eq(prevYy),
                         bPrev.delYn.eq("N"),
                         // 동일 관리번호에 여러 편성건이 있을 경우 마지막 편성건(ORC_SNO_VL 최대값)만 선택
@@ -278,23 +278,23 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                         .where(
                                                 bMaxPrev.orcTb.eq("BCOSTM"),
                                                 Expressions.booleanTemplate("COALESCE({0}, {1}) = {2}",
-                                                        c.cncdItMngcNo, c.itMngcNo, bMaxPrev.orcPkVl),
+                                                        c.cncdRfrNo, c.costBgNo, bMaxPrev.orcPkVl),
                                                 bMaxPrev.bgYy.eq(prevYy),
                                                 bMaxPrev.delYn.eq("N")
                                         ))
                 )
                 .where(
-                        c.bgYy.eq(bgYy),
+                        c.bseYy.eq(bgYy),
                         c.delYn.eq("N"),
                         c.lstYn.eq("Y")
                 )
-                .orderBy(c.itMngcNo.asc())
+                .orderBy(c.costBgNo.asc())
                 .fetch();
 
         return tuples.stream().map(t -> new BudgetStatusDto.CostResponse(
-                t.get(c.itMngcNo), t.get(c.pulDtt), t.get(c.abusC), t.get(c.ioeC), t.get(costCode.cdvaNm),
-                t.get(c.biceDpmC), t.get(dpmOrg.bbrNm), t.get(c.biceTemC), t.get(temOrg.bbrNm),
-                t.get(c.cttNm), t.get(c.cttOppNm), t.get(c.infPrtYn), t.get(c.itMngcTp),
+                t.get(c.costBgNo), t.get(c.abusTc), t.get(c.bgUntAbusC), t.get(c.ioeC), t.get(costCode.cdvaNm),
+                t.get(c.costSvnDpmC), t.get(dpmOrg.bbrNm), t.get(c.svnTemC), t.get(temOrg.bbrNm),
+                t.get(c.cttNm), t.get(c.cttOppNm), t.get(c.sectSysUtzYn), t.get(c.bgXpTc),
                 nvl(t.get(reqRent)), nvl(t.get(reqTravel)),
                 nvl(t.get(reqService)), nvl(t.get(reqMisc)), nvl(t.get(reqTotal)),
                 nvl(t.get(adjRent)), nvl(t.get(adjTravel)),

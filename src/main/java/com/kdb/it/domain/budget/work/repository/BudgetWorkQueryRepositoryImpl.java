@@ -50,29 +50,29 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
         QCapplm capplm = QCapplm.capplm;
 
         List<Tuple> rows = queryFactory
-                .select(bcostm.ioeC, bcostm.itMngcBgAmt.sum())
+                .select(bcostm.ioeC, bcostm.costTotXpAmt.sum())
                 .from(bcostm)
                 .where(
                         bcostm.delYn.eq("N"),
                         bcostm.lstYn.eq("Y"),
-                        bcostm.bgYy.eq(bgYy),
+                        bcostm.bseYy.eq(bgYy),
                         bcostm.ioeC.isNotNull(),
-                        bcostm.itMngcBgAmt.isNotNull(),
+                        bcostm.costTotXpAmt.isNotNull(),
                         JPAExpressions.selectOne()
                                 .from(cappla, capplm)
                                 .where(
                                         cappla.apfDcmNo.eq(capplm.apfMngNo),
                                         cappla.fntTbNm.eq("BCOSTM"),
-                                        cappla.pkColNm.eq(bcostm.itMngcNo),
-                                        cappla.fntTbCrySno.eq(bcostm.itMngcSno),
+                                        cappla.pkColNm.eq(bcostm.costBgNo),
+                                        cappla.fntTbCrySno.eq(bcostm.bgSno),
                                         capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                         cappla.apfDcmNo.eq(
                                                 JPAExpressions.select(cappla2.apfDcmNo.max())
                                                         .from(cappla2)
                                                         .where(
                                                                 cappla2.fntTbNm.eq("BCOSTM"),
-                                                                cappla2.pkColNm.eq(bcostm.itMngcNo),
-                                                                cappla2.fntTbCrySno.eq(bcostm.itMngcSno))))
+                                                                cappla2.pkColNm.eq(bcostm.costBgNo),
+                                                                cappla2.fntTbCrySno.eq(bcostm.bgSno))))
                                 .exists())
                 .groupBy(bcostm.ioeC)
                 .fetch();
@@ -80,7 +80,7 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
         Map<String, BigDecimal> result = new LinkedHashMap<>();
         for (Tuple row : rows) {
             String ioeC = row.get(bcostm.ioeC);
-            BigDecimal amount = row.get(bcostm.itMngcBgAmt.sum());
+            BigDecimal amount = row.get(bcostm.costTotXpAmt.sum());
             if (ioeC != null && amount != null) {
                 result.put(ioeC, amount);
             }

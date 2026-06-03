@@ -25,12 +25,12 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      *
      * <p>관리번호 + 일련번호 + 삭제여부의 조합으로 단 하나의 레코드를 조회합니다.</p>
      *
-     * @param itMngcNo  전산관리비 관리번호 (예: COST_2026_0001)
-     * @param itMngcSno 전산관리비 일련번호 (예: 1)
+     * @param costBgNo  전산관리비 관리번호 (예: COST_2026_0001)
+     * @param bgSno     전산관리비 일련번호 (예: 1)
      * @param delYn     삭제 여부 ('N'=미삭제, 'Y'=삭제)
      * @return 조건에 맞는 전산관리비 (없으면 {@link Optional#empty()})
      */
-    Optional<Bcostm> findByItMngcNoAndItMngcSnoAndDelYn(String itMngcNo, Integer itMngcSno, String delYn);
+    Optional<Bcostm> findByCostBgNoAndBgSnoAndDelYn(String costBgNo, Integer bgSno, String delYn);
 
     /**
      * 전체 전산관리비 목록 조회 (삭제되지 않은 항목)
@@ -48,11 +48,11 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      * <p>동일한 BG_NO를 가진 여러 일련번호(SNO) 레코드를 모두 조회합니다.
      * 주로 수정·삭제 시 해당 관리번호의 모든 유효 레코드를 찾는 데 사용됩니다.</p>
      *
-     * @param itMngcNo 전산관리비 관리번호 (예: COST_2026_0001)
+     * @param costBgNo 전산관리비 관리번호 (예: COST_2026_0001)
      * @param delYn    삭제 여부 ('N'=미삭제)
      * @return 해당 관리번호의 삭제되지 않은 전산관리비 목록
      */
-    List<Bcostm> findByItMngcNoAndDelYn(String itMngcNo, String delYn);
+    List<Bcostm> findByCostBgNoAndDelYn(String costBgNo, String delYn);
 
     /**
      * 관리번호별 전산관리비 최신 버전 목록 조회
@@ -60,12 +60,12 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      * <p>동일 관리번호의 여러 버전 중 최신({@code LST_YN='Y'}) 레코드만 조회합니다.
      * 예산 편성 작업 시 최신 버전 금액에만 편성률을 적용해야 하므로 사용됩니다.</p>
      *
-     * @param itMngcNo 전산관리비 관리번호
+     * @param costBgNo 전산관리비 관리번호
      * @param delYn    삭제 여부 ('N'=미삭제)
      * @param lstYn    최종 여부 ('Y'=최신 버전)
      * @return 최신 버전의 전산관리비 목록
      */
-    List<Bcostm> findByItMngcNoAndDelYnAndLstYn(String itMngcNo, String delYn, String lstYn);
+    List<Bcostm> findByCostBgNoAndDelYnAndLstYn(String costBgNo, String delYn, String lstYn);
 
     /**
      * Oracle 시퀀스(SEQ_BCOSTM) 다음 값 조회
@@ -86,9 +86,9 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      *
      * <p>Oracle DB 전용 Native Query (NVL로 첫 번째 항목인 경우 1 반환)</p>
      *
-     * @param itMngcNo 전산관리비 관리번호
+     * @param costBgNo 전산관리비 관리번호
      * @return 다음 일련번호 (기존 레코드가 없으면 1)
      */
-    @Query(value = "SELECT NVL(MAX(BG_SNO), 0) + 1 FROM TPRMPP_BCOSTM WHERE BG_NO = :itMngcNo", nativeQuery = true)
-    Integer getNextSnoValue(@Param("itMngcNo") String itMngcNo);
+    @Query(value = "SELECT NVL(MAX(BG_SNO), 0) + 1 FROM TPRMPP_BCOSTM WHERE BG_NO = :costBgNo", nativeQuery = true)
+    Integer getNextSnoValue(@Param("costBgNo") String costBgNo);
 }

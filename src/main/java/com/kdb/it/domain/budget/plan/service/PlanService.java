@@ -204,7 +204,7 @@ public class PlanService {
                 List<CostDto.Response> costs = List.of();
                 if (!itMngcNos.isEmpty()) {
                         CostDto.BulkGetRequest costBulkRequest = new CostDto.BulkGetRequest();
-                        costBulkRequest.setItMngcNos(itMngcNos);
+                        costBulkRequest.setCostBgNos(itMngcNos);
                         costs = costService.getCostsByIds(costBulkRequest);
                 }
 
@@ -213,7 +213,7 @@ public class PlanService {
                                 .map(p -> p.getRqmBgAmt() != null ? p.getRqmBgAmt() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
                 ttlBg = costs.stream()
-                                .map(c -> c.getItMngcBgAmt() != null ? c.getItMngcBgAmt() : BigDecimal.ZERO)
+                                .map(c -> c.getCostTotXpAmt() != null ? c.getCostTotXpAmt() : BigDecimal.ZERO)
                                 .reduce(ttlBg, BigDecimal::add);
 
                 BigDecimal cptBg = projects.stream()
@@ -365,13 +365,13 @@ public class PlanService {
                 // 전산업무비 스냅샷 변환 (정보화사업과 동일한 형식으로 매핑)
                 List<PlanDto.ProjectSnapshot> costSnapshots = costs.stream()
                                 .map(c -> PlanDto.ProjectSnapshot.builder()
-                                                .prjMngNo(c.getItMngcNo())
+                                                .prjMngNo(c.getCostBgNo())
                                                 .prjNm(c.getCttNm())
-                                                .prjTp(c.getItMngcTp())
+                                                .prjTp(c.getBgXpTc())
                                                 .svnHdq("미분류")
-                                                .svnDpm(c.getBiceDpmC())
-                                                .svnDpmNm(c.getBiceDpmNm() != null ? c.getBiceDpmNm() : "")
-                                                .prjBg(c.getItMngcBgAmt())
+                                                .svnDpm(c.getCostSvnDpmC())
+                                                .svnDpmNm(c.getCostSvnDpmNm() != null ? c.getCostSvnDpmNm() : "")
+                                                .prjBg(c.getCostTotXpAmt())
                                                 .assetBg(c.getAssetBg())
                                                 .costBg(c.getCostBg())
                                                 .build())

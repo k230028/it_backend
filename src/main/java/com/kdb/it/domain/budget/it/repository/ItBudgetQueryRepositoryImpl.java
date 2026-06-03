@@ -141,21 +141,21 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         QBcostm c = QBcostm.bcostm;
 
         List<Tuple> rows = queryFactory
-                .select(c.ioeC, c.infPrtYn, c.itMngcBgAmt.sum())
+                .select(c.ioeC, c.sectSysUtzYn, c.costTotXpAmt.sum())
                 .from(c)
                 .where(
                         c.delYn.eq("N"),
                         c.lstYn.eq("Y"),
-                        c.bgYy.eq(bgYy),
+                        c.bseYy.eq(bgYy),
                         c.ioeC.isNotNull(),
-                        c.itMngcBgAmt.isNotNull())
-                .groupBy(c.ioeC, c.infPrtYn)
+                        c.costTotXpAmt.isNotNull())
+                .groupBy(c.ioeC, c.sectSysUtzYn)
                 .fetch();
 
         for (Tuple row : rows) {
             String ioeC = row.get(c.ioeC);
-            String prtYn = row.get(c.infPrtYn);
-            BigDecimal amt = row.get(c.itMngcBgAmt.sum());
+            String prtYn = row.get(c.sectSysUtzYn);
+            BigDecimal amt = row.get(c.costTotXpAmt.sum());
             if (ioeC == null || amt == null) continue;
             long[] v = acc.computeIfAbsent(ioeC, k -> new long[4]);
             if (INF_PRT_Y.equals(prtYn)) {
@@ -207,24 +207,24 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         QBcostm bc = new QBcostm("bc");
 
         List<Tuple> rows = queryFactory
-                .select(bg.ioeC, bc.infPrtYn, bg.dupBgAmt.sum())
+                .select(bg.ioeC, bc.sectSysUtzYn, bg.dupBgAmt.sum())
                 .from(bg)
                 .join(bc).on(
                         bg.orcTb.eq(ORC_TB_COST),
-                        bg.orcPkVl.eq(bc.itMngcNo),
-                        bg.orcSnoVl.eq(bc.itMngcSno),
+                        bg.orcPkVl.eq(bc.costBgNo),
+                        bg.orcSnoVl.eq(bc.bgSno),
                         bc.delYn.eq("N"),
                         bc.lstYn.eq("Y"))
                 .where(
                         bg.bgYy.eq(bgYy),
                         bg.delYn.eq("N"),
                         bg.orcTb.eq(ORC_TB_COST))
-                .groupBy(bg.ioeC, bc.infPrtYn)
+                .groupBy(bg.ioeC, bc.sectSysUtzYn)
                 .fetch();
 
         for (Tuple row : rows) {
             String ioeC = row.get(bg.ioeC);
-            String prtYn = row.get(bc.infPrtYn);
+            String prtYn = row.get(bc.sectSysUtzYn);
             BigDecimal amt = row.get(bg.dupBgAmt.sum());
             if (ioeC == null || amt == null) continue;
             long[] v = acc.computeIfAbsent(ioeC, k -> new long[4]);

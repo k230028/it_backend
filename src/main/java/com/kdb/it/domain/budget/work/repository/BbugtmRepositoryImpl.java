@@ -83,7 +83,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         builder.and(bcostm.ioeC.in(ioeCValues));
 
         // 예산연도 필터
-        builder.and(bcostm.bgYy.eq(bgYy));
+        builder.and(bcostm.bseYy.eq(bgYy));
 
         // 결재완료 서브쿼리 (CostRepositoryImpl 패턴 동일)
         builder.and(
@@ -92,16 +92,16 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                         .where(
                                 cappla.apfDcmNo.eq(capplm.apfMngNo),
                                 cappla.fntTbNm.eq("BCOSTM"),
-                                cappla.pkColNm.eq(bcostm.itMngcNo),
-                                cappla.fntTbCrySno.eq(bcostm.itMngcSno),
+                                cappla.pkColNm.eq(bcostm.costBgNo),
+                                cappla.fntTbCrySno.eq(bcostm.bgSno),
                                 capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                 cappla.apfDcmNo.eq(
                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                 .from(cappla2)
                                                 .where(
                                                         cappla2.fntTbNm.eq("BCOSTM"),
-                                                        cappla2.pkColNm.eq(bcostm.itMngcNo),
-                                                        cappla2.fntTbCrySno.eq(bcostm.itMngcSno))))
+                                                        cappla2.pkColNm.eq(bcostm.costBgNo),
+                                                        cappla2.fntTbCrySno.eq(bcostm.bgSno))))
                         .exists());
 
         return queryFactory
@@ -369,7 +369,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         builder.and(bcostm.delYn.eq("N"));
         builder.and(bcostm.lstYn.eq("Y"));
         builder.and(bcostm.ioeC.in(ioeCValues));
-        builder.and(bcostm.bgYy.eq(bgYy));
+        builder.and(bcostm.bseYy.eq(bgYy));
 
         // 결재완료 서브쿼리
         builder.and(
@@ -378,20 +378,20 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                         .where(
                                 cappla.apfDcmNo.eq(capplm.apfMngNo),
                                 cappla.fntTbNm.eq("BCOSTM"),
-                                cappla.pkColNm.eq(bcostm.itMngcNo),
-                                cappla.fntTbCrySno.eq(bcostm.itMngcSno),
+                                cappla.pkColNm.eq(bcostm.costBgNo),
+                                cappla.fntTbCrySno.eq(bcostm.bgSno),
                                 capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                 cappla.apfDcmNo.eq(
                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                 .from(cappla2)
                                                 .where(
                                                         cappla2.fntTbNm.eq("BCOSTM"),
-                                                        cappla2.pkColNm.eq(bcostm.itMngcNo),
-                                                        cappla2.fntTbCrySno.eq(bcostm.itMngcSno))))
+                                                        cappla2.pkColNm.eq(bcostm.costBgNo),
+                                                        cappla2.fntTbCrySno.eq(bcostm.bgSno))))
                         .exists());
 
         return queryFactory
-                .select(bcostm.itMngcBgAmt.sum())
+                .select(bcostm.costTotXpAmt.sum())
                 .from(bcostm)
                 .where(builder)
                 .fetchOne();

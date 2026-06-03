@@ -170,12 +170,12 @@ public class BudgetWorkService {
             // 결재완료 BCOSTM 처리
             List<Bcostm> costs = bbugtmRepository.findApprovedCostsByIoeCValues(ioeCValues, bgYy);
             for (Bcostm cost : costs) {
-                BigDecimal dupBgAmt = calculateDupBg(cost.getItMngcBgAmt(), dupRt);
+                BigDecimal dupBgAmt = calculateDupBg(cost.getCostTotXpAmt(), dupRt);
 
                 Optional<Bbugtm> existing = bbugtmRepository
                         .findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
-                                bgYy, "BCOSTM", cost.getItMngcNo(),
-                                cost.getItMngcSno(), cost.getIoeC(), "N");
+                                bgYy, "BCOSTM", cost.getCostBgNo(),
+                                cost.getBgSno(), cost.getIoeC(), "N");
 
                 if (existing.isPresent()) {
                     // Upsert: UPDATE (JPA Dirty Checking)
@@ -188,8 +188,8 @@ public class BudgetWorkService {
                             .bgSno(snoCounter)
                             .bgYy(bgYy)
                             .orcTb("BCOSTM")
-                            .orcPkVl(cost.getItMngcNo())
-                            .orcSnoVl(cost.getItMngcSno())
+                            .orcPkVl(cost.getCostBgNo())
+                            .orcSnoVl(cost.getBgSno())
                             .ioeC(cost.getIoeC())
                             .dupBgAmt(dupBgAmt)
                             .dupRt(dupRt)
@@ -327,13 +327,13 @@ public class BudgetWorkService {
                 }
             } else if ("BCOSTM".equals(item.orcTb())) {
                 /* 전산업무비: 해당 전산업무비의 최신 버전(LST_YN='Y')만 처리 */
-                List<Bcostm> costList = costRepository.findByItMngcNoAndDelYnAndLstYn(
+                List<Bcostm> costList = costRepository.findByCostBgNoAndDelYnAndLstYn(
                         item.orcPkVl(), "N", "Y");
 
                 for (Bcostm cost : costList) {
                     boolean isCapital = isCapitalIoeCode(cost.getIoeC(), capitalPrefixes);
                     int dupRt = isCapital ? assetDupRt : costDupRt;
-                    BigDecimal dupBgAmt = calculateDupBg(cost.getItMngcBgAmt(), dupRt);
+                    BigDecimal dupBgAmt = calculateDupBg(cost.getCostTotXpAmt(), dupRt);
 
                     /* 선 Soft Delete 후 전체 재삽입 방식이므로 Upsert 불필요 (항상 INSERT) */
                     snoCounter++;
@@ -342,8 +342,8 @@ public class BudgetWorkService {
                             .bgSno(snoCounter)
                             .bgYy(bgYy)
                             .orcTb("BCOSTM")
-                            .orcPkVl(cost.getItMngcNo())
-                            .orcSnoVl(cost.getItMngcSno())
+                            .orcPkVl(cost.getCostBgNo())
+                            .orcSnoVl(cost.getBgSno())
                             .ioeC(cost.getIoeC())
                             .dupBgAmt(dupBgAmt)
                             .dupRt(dupRt)
@@ -785,7 +785,7 @@ public class BudgetWorkService {
                     .map(Bprojm::getPrjNm)
                     .orElse(orcPkVl);
         } else if ("BCOSTM".equals(orcTb)) {
-            List<Bcostm> costs = costRepository.findByItMngcNoAndDelYn(orcPkVl, "N");
+            List<Bcostm> costs = costRepository.findByCostBgNoAndDelYn(orcPkVl, "N");
             if (!costs.isEmpty()) {
                 return costs.get(0).getCttNm();
             }

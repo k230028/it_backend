@@ -52,12 +52,12 @@ public class Bcostm extends BaseEntity {
     /** 전산업무비코드(IT관리비관리번호): 복합 기본키의 첫 번째 컬럼 (예: COST_2026_0001) */
     @Id
     @Column(name = "BG_NO", nullable = false, length = 15, comment = "전산업무비코드 (물리컬럼 BG_NO=예산번호)")
-    private String itMngcNo;
+    private String costBgNo;
 
     /** 전산업무비일련번호(IT관리비일련번호): 복합 기본키의 두 번째 컬럼 (버전 구분용, 1부터 시작) */
     @Id
     @Column(name = "BG_SNO", nullable = false, precision = 9, comment = "예산일련번호")
-    private Integer itMngcSno;
+    private Integer bgSno;
 
     /** 최종여부: 'Y'=현재 유효한 레코드, 'N'=이전 버전 레코드 */
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
@@ -77,7 +77,7 @@ public class Bcostm extends BaseEntity {
 
     /** 전산업무비예산: 해당 항목의 연간 예산 금액 (최대 18자리, 소수점 3자리) */
     @Column(name = "TOT_XP_AMT", precision = 18, scale = 3, comment = "전산업무비예산금액 (물리컬럼 TOT_XP_AMT=총비용금액)")
-    private BigDecimal itMngcBgAmt;
+    private BigDecimal costTotXpAmt;
 
     /** 지급주기코드: 비용 지급 주기 코드 (예: 매월, 분기, 반기, 연간) */
     @Column(name = "DFR_CLE_C", length = 1, comment = "지급주기코드")
@@ -101,7 +101,7 @@ public class Bcostm extends BaseEntity {
 
     /** 정보보호여부: 정보보호 관련 항목 여부 (Y/N) */
     @Column(name = "SECT_SYS_UTZ_YN", length = 1, comment = "정보보호여부 (물리컬럼 SECT_SYS_UTZ_YN=보안시스템운용여부)")
-    private String infPrtYn;
+    private String sectSysUtzYn;
 
     /** 증감사유: 전년 대비 예산 증감 이유 (최대 200자) */
     @Column(name = "IND_RSN", length = 200, comment = "증감사유")
@@ -109,41 +109,41 @@ public class Bcostm extends BaseEntity {
 
     /** 담당자: 해당 비용 항목의 담당자 사번 또는 이름 (최대 14자) */
     @Column(name = "CGPR_ID", length = 14, comment = "담당자행번 (물리컬럼 CGPR_ID=담당자ID)")
-    private String cgprEno;
+    private String cgprId;
 
     /** 담당부서: 해당 비용 항목의 담당 부서 코드 (최대 20자) */
     @Column(name = "SVN_DPM_C", length = 20, comment = "담당부서코드 (물리컬럼 SVN_DPM_C=주관부서코드)")
-    private String biceDpmC;
+    private String costSvnDpmC;
 
     /** 담당팀: 해당 비용 항목의 담당 팀 코드 (최대 5자) */
     @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드 (물리컬럼 SVN_TEM_C=주관팀코드)")
-    private String biceTemC;
+    private String svnTemC;
 
     /** 예산연도 (4자리 숫자, 예: 2026) */
     @Column(name = "BSE_YY", length = 4, comment = "예산연도 (물리컬럼 BSE_YY=기준연도)")
-    private String bgYy;
+    private String bseYy;
 
     /** 사업코드 (최대 3자) */
     @Column(name = "BG_UNT_ABUS_C", length = 3, comment = "사업코드 (물리컬럼 BG_UNT_ABUS_C=예산단위사업코드)")
-    private String abusC;
+    private String bgUntAbusC;
 
     /** 전산업무비유형 (최대 2자) */
     @Column(name = "BG_XP_TC", length = 2, comment = "전산업무비유형 (물리컬럼 BG_XP_TC=예산비용구분코드)")
-    private String itMngcTp;
+    private String bgXpTc;
 
     /** 전산업무비구분 (최대 2자) */
     @Column(name = "ABUS_TC", length = 2, comment = "전산업무비구분 (물리컬럼 ABUS_TC=사업구분코드)")
-    private String pulDtt;
+    private String abusTc;
 
     /** 관련전산업무비번호: 계속항목인 경우 전년도 항목의 관리번호 (최대 30자) */
     @Column(name = "CNCD_RFR_NO", length = 30, comment = "관련전산업무비번호 (물리컬럼 CNCD_RFR_NO=관련참조번호)")
-    private String cncdItMngcNo;
+    private String cncdRfrNo;
 
     /**
      * 외화금액(외화 통화 원금 — 환율 적용 전 값).
      * <p>
      * 원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며,
-     * 서버 재계산 로직(plan 03/04)에서 {@code itMngcBgAmt = fcAmt × xcr}로 환산된다.
+     * 서버 재계산 로직(plan 03/04)에서 {@code costTotXpAmt = fcAmt × xcr}로 환산된다.
      * 참고: CONTEXT.md 결정 B (KRW 행 FC_AMT = NULL).
      * </p>
      */
@@ -158,49 +158,50 @@ public class Bcostm extends BaseEntity {
      * 변경된 필드는 트랜잭션 종료 시 자동으로 DB에 반영됩니다.
      * </p>
      *
-     * @param ioeC     비목코드
-     * @param cttNm    계약명
-     * @param cttOppNm   계약상대처
-     * @param itMngcBgAmt 전산업무비예산
-     * @param dfrCleC   지급주기
-     * @param fstDfrDt 지급예정월(최초지급일자)
-     * @param curC      통화
-     * @param xcr      환율
-     * @param xcrBseDt 환율기준일자
-     * @param infPrtYn 정보보호여부
-     * @param indRsn   증감사유
-     * @param cgprEno     담당자
-     * @param biceDpmC  담당부서
-     * @param biceTemC  담당팀
-     * @param abusC    사업코드
-     * @param itMngcTp 전산업무비유형
-     * @param pulDtt        전산업무비구분
-     * @param bgYy          예산연도
-     * @param cncdItMngcNo  관련전산업무비번호 (계속항목인 경우 전년도 관리번호)
+     * @param ioeC          비목코드
+     * @param cttNm         계약명
+     * @param cttOppNm      계약상대처
+     * @param costTotXpAmt  전산업무비예산
+     * @param dfrCleC       지급주기
+     * @param fstDfrDt      지급예정월(최초지급일자)
+     * @param curC          통화
+     * @param xcr           환율
+     * @param xcrBseDt      환율기준일자
+     * @param sectSysUtzYn  정보보호여부
+     * @param indRsn        증감사유
+     * @param cgprId        담당자
+     * @param costSvnDpmC   담당부서
+     * @param svnTemC       담당팀
+     * @param bgUntAbusC    사업코드
+     * @param bgXpTc        전산업무비유형
+     * @param abusTc        전산업무비구분
+     * @param bseYy         예산연도
+     * @param cncdRfrNo     관련전산업무비번호 (계속항목인 경우 전년도 관리번호)
      * @param fcAmt         외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
-    public void update(String ioeC, String cttNm, String cttOppNm, BigDecimal itMngcBgAmt,
+    public void update(String ioeC, String cttNm, String cttOppNm, BigDecimal costTotXpAmt,
             String dfrCleC, String fstDfrDt, String curC, BigDecimal xcr, String xcrBseDt,
-            String infPrtYn, String indRsn, String cgprEno, String biceDpmC, String biceTemC, String abusC, String itMngcTp, String pulDtt, String bgYy, String cncdItMngcNo, BigDecimal fcAmt) {
+            String sectSysUtzYn, String indRsn, String cgprId, String costSvnDpmC, String svnTemC,
+            String bgUntAbusC, String bgXpTc, String abusTc, String bseYy, String cncdRfrNo, BigDecimal fcAmt) {
         this.ioeC = ioeC;
         this.cttNm = cttNm;
         this.cttOppNm = cttOppNm;
-        this.itMngcBgAmt = itMngcBgAmt;
+        this.costTotXpAmt = costTotXpAmt;
         this.dfrCleC = dfrCleC;
         this.fstDfrDt = fstDfrDt;
         this.curC = curC;
         this.xcr = xcr;
         this.xcrBseDt = xcrBseDt;
-        this.infPrtYn = infPrtYn;
+        this.sectSysUtzYn = sectSysUtzYn;
         this.indRsn = indRsn;
-        this.cgprEno = cgprEno;
-        this.biceDpmC = biceDpmC;
-        this.biceTemC = biceTemC;
-        this.abusC = abusC;
-        this.itMngcTp = itMngcTp;
-        this.pulDtt = pulDtt;
-        this.bgYy = bgYy;
-        this.cncdItMngcNo = cncdItMngcNo;
+        this.cgprId = cgprId;
+        this.costSvnDpmC = costSvnDpmC;
+        this.svnTemC = svnTemC;
+        this.bgUntAbusC = bgUntAbusC;
+        this.bgXpTc = bgXpTc;
+        this.abusTc = abusTc;
+        this.bseYy = bseYy;
+        this.cncdRfrNo = cncdRfrNo;
         this.fcAmt = fcAmt;
     }
 }

@@ -24,10 +24,10 @@ import java.time.LocalDate;
 public class BcostmL extends BaseLogEntity {
 
     @Column(name = "BG_NO", length = 32, comment = "전산업무비코드")
-    private String itMngcNo;
+    private String costBgNo;
 
     @Column(name = "BG_SNO", precision = 9, comment = "예산일련번호")
-    private Integer itMngcSno;
+    private Integer bgSno;
 
     @Column(name = "LST_YN", length = 4, comment = "최종여부")
     private String lstYn;
@@ -42,7 +42,7 @@ public class BcostmL extends BaseLogEntity {
     private String cttOppNm;
 
     @Column(name = "TOT_XP_AMT", precision = 18, scale = 3, comment = "전산업무비예산금액")
-    private BigDecimal itMngcBgAmt;
+    private BigDecimal costTotXpAmt;
 
     @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
     private String dfrCleC;
@@ -60,31 +60,31 @@ public class BcostmL extends BaseLogEntity {
     private String xcrBseDt;
 
     @Column(name = "SECT_SYS_UTZ_YN", length = 4, comment = "정보보호여부")
-    private String infPrtYn;
+    private String sectSysUtzYn;
 
     @Column(name = "IND_RSN", length = 600, comment = "증감사유")
     private String indRsn;
 
     @Column(name = "CGPR_ID", length = 32, comment = "담당자행번")
-    private String cgprEno;
+    private String cgprId;
 
     @Column(name = "SVN_DPM_C", length = 3, comment = "담당부서코드")
-    private String biceDpmC;
+    private String costSvnDpmC;
 
     @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드")
-    private String biceTemC;
+    private String svnTemC;
 
     @Column(name = "BSE_YY", length = 4, comment = "예산연도")
-    private String bgYy;
+    private String bseYy;
 
     @Column(name = "BG_UNT_ABUS_C", length = 100, comment = "사업코드")
-    private String abusC;
+    private String bgUntAbusC;
 
     @Column(name = "BG_XP_TC", length = 100, comment = "전산업무비유형")
-    private String itMngcTp;
+    private String bgXpTc;
 
     @Column(name = "ABUS_TC", length = 100, comment = "전산업무비구분")
-    private String pulDtt;
+    private String abusTc;
 
     /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */
     @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")

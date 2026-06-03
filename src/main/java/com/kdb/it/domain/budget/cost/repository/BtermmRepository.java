@@ -17,21 +17,21 @@ public interface BtermmRepository extends JpaRepository<Btermm, BtermmId> {
     /**
      * 특정 전산관리비와 연관된 모든 단말기 목록 조회
      *
-     * @param itMngcNo  전산관리비 관리번호
-     * @param itMngcSno 전산관리비 일련번호
+     * @param termBgNo  전산관리비 관리번호
+     * @param termBgSno 전산관리비 일련번호
      * @param delYn     삭제 여부 ('N'=미삭제)
      * @return 연관된 단말기 목록
      */
-    List<Btermm> findByItMngcNoAndItMngcSnoAndDelYn(String itMngcNo, Integer itMngcSno, String delYn);
+    List<Btermm> findByTermBgNoAndTermBgSnoAndDelYn(String termBgNo, Integer termBgSno, String delYn);
 
     /**
      * 특정 전산관리비와 연관된 모든 단말기 일괄 삭제(Soft Delete) 처리를 위해 목록 조회
      *
-     * @param itMngcNo  전산관리비 관리번호
-     * @param itMngcSno 전산관리비 일련번호
+     * @param termBgNo  전산관리비 관리번호
+     * @param termBgSno 전산관리비 일련번호
      * @return 연관된 모든 단말기 목록
      */
-    List<Btermm> findByItMngcNoAndItMngcSno(String itMngcNo, Integer itMngcSno);
+    List<Btermm> findByTermBgNoAndTermBgSno(String termBgNo, Integer termBgSno);
 
     /**
      * Oracle 시퀀스(SEQ_BTERMM) 다음 값 조회

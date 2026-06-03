@@ -270,12 +270,12 @@ class PlanServiceTest {
                 .itMngcNos(List.of("COST-2026-0001"))
                 .build();
         CostDto.Response cost = CostDto.Response.builder()
-                .itMngcNo("COST-2026-0001")
+                .costBgNo("COST-2026-0001")
                 .cttNm("전산업무비")
-                .itMngcTp("유지보수")
-                .biceDpmC("001")
-                .biceDpmNm(null)
-                .itMngcBgAmt(BigDecimal.valueOf(100))
+                .bgXpTc("유지보수")
+                .costSvnDpmC("001")
+                .costSvnDpmNm(null)
+                .costTotXpAmt(BigDecimal.valueOf(100))
                 .assetBg(BigDecimal.valueOf(70))
                 .costBg(BigDecimal.valueOf(30))
                 .build();
@@ -313,10 +313,10 @@ class PlanServiceTest {
                 .costBg(null)
                 .build();
         CostDto.Response cost = CostDto.Response.builder()
-                .itMngcNo("COST-2026-0001")
+                .costBgNo("COST-2026-0001")
                 .cttNm("전산업무비")
-                .biceDpmNm("IT부")
-                .itMngcBgAmt(null)
+                .costSvnDpmNm("IT부")
+                .costTotXpAmt(null)
                 .assetBg(null)
                 .costBg(null)
                 .build();
@@ -359,9 +359,9 @@ class PlanServiceTest {
                 .odnYn("Y")
                 .build();
         CostDto.Response cost = CostDto.Response.builder()
-                .itMngcNo("COST-001")
+                .costBgNo("COST-001")
                 .cttNm("전산업무비")
-                .itMngcTp("관리비")
+                .bgXpTc("관리비")
                 .build();
         given(projectService.getProjectsByIds(any())).willReturn(List.of(generalProject, ordinaryProject));
         given(costService.getCostsByIds(any())).willReturn(List.of(cost));

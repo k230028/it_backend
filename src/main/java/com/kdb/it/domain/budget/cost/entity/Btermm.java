@@ -50,15 +50,15 @@ public class Btermm extends BaseEntity {
     /** 단말기일련번호 */
     @Id
     @Column(name = "SNO", nullable = false, precision = 9, comment = "일련번호")
-    private Integer tmnSno;
+    private Integer sno;
 
     /** 예산번호 (조인용 필드) */
     @Column(name = "BG_NO", length = 15, comment = "예산번호")
-    private String itMngcNo;
+    private String termBgNo;
 
     /** 예산일련번호 (조인용 필드) */
     @Column(name = "BG_SNO", precision = 9, comment = "예산일련번호")
-    private Integer itMngcSno;
+    private Integer termBgSno;
 
     /** 전산관리비와의 연관관계 */
     @ManyToOne(fetch = FetchType.LAZY)
@@ -70,23 +70,23 @@ public class Btermm extends BaseEntity {
 
     /** 단말기명 */
     @Column(name = "SPF_TMN_NM", length = 100, comment = "단말기명 (물리컬럼 SPF_TMN_NM=특정단말명)")
-    private String tmnNm;
+    private String spfTmnNm;
 
     /** 단말기이용방법 (최대 2자) */
     @Column(name = "TMN_KD_TC", length = 2, comment = "단말기이용방법 (물리컬럼 TMN_KD_TC=단말종류구분코드)")
-    private String tmnTuzManr;
+    private String tmnKdTc;
 
     /** 소요자금용도내용 */
     @Column(name = "NSF_USG_CONE", length = 200, comment = "소요자금용도내용")
-    private String tmnUsg;
+    private String nsfUsgCone;
 
     /** 단말기서비스 (최대 1자) */
     @Column(name = "TMN_CLSF_C", length = 1, comment = "단말기서비스 (물리컬럼 TMN_CLSF_C=단말분류코드)")
-    private String tmnSvc;
+    private String tmnClsfC;
 
     /** 단말기금액 (최대 18자리, 소수점 3자리) */
     @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "단말기금액 (물리컬럼 RQM_BG_AMT=소요예산금액)")
-    private BigDecimal tmlAmt;
+    private BigDecimal termRqmBgAmt;
 
     /** 통화 */
     @Column(name = "CUR_C", length = 3, comment = "통화코드")
@@ -110,15 +110,15 @@ public class Btermm extends BaseEntity {
 
     /** 담당자 (최대 14자) */
     @Column(name = "CGPR_ID", length = 14, comment = "담당자행번 (물리컬럼 CGPR_ID=담당자ID)")
-    private String cgprEno;
+    private String cgprId;
 
     /** 담당팀 (최대 5자) */
     @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드 (물리컬럼 SVN_TEM_C=주관팀코드)")
-    private String biceTemC;
+    private String termSvnTemC;
 
     /** 담당부서 (최대 20자) */
     @Column(name = "SVN_DPM_C", length = 20, comment = "담당부서코드 (물리컬럼 SVN_DPM_C=주관부서코드)")
-    private String biceDpmC;
+    private String termSvnDpmC;
 
     /** 비고 */
     @Column(name = "RMK", length = 300, comment = "비고")
@@ -128,7 +128,7 @@ public class Btermm extends BaseEntity {
      * 외화금액(단말기 외화 원금 — 환율 적용 전).
      * <p>
      * 원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며,
-     * 서버 재계산 로직(plan 03/04)에서 {@code tmlAmt = fcAmt × xcr}로 환산된다.
+     * 서버 재계산 로직(plan 03/04)에서 {@code termRqmBgAmt = fcAmt × xcr}로 환산된다.
      * 참고: CONTEXT.md 결정 B (KRW 행 FC_AMT = NULL).
      * </p>
      */
@@ -140,29 +140,29 @@ public class Btermm extends BaseEntity {
      *
      * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
-    public void update(String tmnNm, String tmnTuzManr, String tmnUsg, String tmnSvc, BigDecimal tmlAmt,
+    public void update(String spfTmnNm, String tmnKdTc, String nsfUsgCone, String tmnClsfC, BigDecimal termRqmBgAmt,
             String curC, BigDecimal xcr, String xcrBseDt, String dfrCleC, String indRsn,
-            String cgprEno, String biceTemC, String biceDpmC, String rmk, BigDecimal fcAmt) {
-        this.tmnNm = tmnNm;
-        this.tmnTuzManr = tmnTuzManr;
-        this.tmnUsg = tmnUsg;
-        this.tmnSvc = tmnSvc;
-        this.tmlAmt = tmlAmt;
+            String cgprId, String termSvnTemC, String termSvnDpmC, String rmk, BigDecimal fcAmt) {
+        this.spfTmnNm = spfTmnNm;
+        this.tmnKdTc = tmnKdTc;
+        this.nsfUsgCone = nsfUsgCone;
+        this.tmnClsfC = tmnClsfC;
+        this.termRqmBgAmt = termRqmBgAmt;
         this.curC = curC;
         this.xcr = xcr;
         this.xcrBseDt = xcrBseDt;
         this.dfrCleC = dfrCleC;
         this.indRsn = indRsn;
-        this.cgprEno = cgprEno;
-        this.biceTemC = biceTemC;
-        this.biceDpmC = biceDpmC;
+        this.cgprId = cgprId;
+        this.termSvnTemC = termSvnTemC;
+        this.termSvnDpmC = termSvnDpmC;
         this.rmk = rmk;
         this.fcAmt = fcAmt;
     }
 
     /** 외래키 설정을 위한 편의 메서드 */
-    public void setBcostmInfo(String itMngcNo, Integer itMngcSno) {
-        this.itMngcNo = itMngcNo;
-        this.itMngcSno = itMngcSno;
+    public void setBcostmInfo(String termBgNo, Integer termBgSno) {
+        this.termBgNo = termBgNo;
+        this.termBgSno = termBgSno;
     }
 }

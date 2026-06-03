@@ -595,7 +595,7 @@ public class ApplicationService {
         // 미상신 전산업무비 건수
         CostDto.SearchCondition costCondition = new CostDto.SearchCondition();
         costCondition.setApfSts("none");
-        if (bgYy != null && !bgYy.isBlank()) costCondition.setBgYy(bgYy);
+        if (bgYy != null && !bgYy.isBlank()) costCondition.setBseYy(bgYy);
         long costCount = costRepository.searchByCondition(costCondition).size();
 
         return ApplicationDto.PendingCountResponse.builder()
