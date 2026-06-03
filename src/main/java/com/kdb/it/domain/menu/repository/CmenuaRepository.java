@@ -4,6 +4,7 @@ import com.kdb.it.domain.menu.entity.Cmenua;
 import com.kdb.it.domain.menu.entity.CmenuaId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,5 +16,5 @@ public interface CmenuaRepository extends JpaRepository<Cmenua, CmenuaId> {
     List<Cmenua> findAllActive();
 
     @Query("SELECT a FROM Cmenua a WHERE a.mnuId = :mnuId AND a.delYn = 'N'")
-    List<Cmenua> findActiveByMnuId(String mnuId);
+    List<Cmenua> findActiveByMnuId(@Param("mnuId") String mnuId);
 }

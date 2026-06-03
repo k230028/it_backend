@@ -3,6 +3,7 @@ package com.kdb.it.domain.menu.repository;
 import com.kdb.it.domain.menu.entity.Cmenum;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,5 +18,5 @@ public interface CmenumRepository extends JpaRepository<Cmenum, String>, CmenumR
     Optional<Cmenum> findByMnuIdAndDelYn(String mnuId, String delYn);
 
     @Query("SELECT COUNT(m) FROM Cmenum m WHERE m.hrkMnuId = :mnuId AND m.delYn = 'N'")
-    long countActiveChildren(String mnuId);
+    long countActiveChildren(@Param("mnuId") String mnuId);
 }
