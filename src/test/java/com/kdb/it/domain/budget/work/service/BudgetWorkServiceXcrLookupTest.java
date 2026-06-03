@@ -64,7 +64,7 @@ class BudgetWorkServiceXcrLookupTest {
     void applyItemRates_외화품목_Ccodem환율로amountKrw계산() {
         // given: applyItemRates 진입 mocks
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
 
@@ -96,9 +96,9 @@ class BudgetWorkServiceXcrLookupTest {
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
         Bbugtm saved = captor.getValue();
-        assertThat(saved.getDupBgAmt()).isEqualByComparingTo(new BigDecimal("1400000.00"));
-        assertThat(saved.getOrcTb()).isEqualTo("BITEMM");
-        assertThat(saved.getOrcPkVl()).isEqualTo("GCL-2026-0001");
+        assertThat(saved.getBugRqmBgAmt()).isEqualByComparingTo(new BigDecimal("1400000.00"));
+        assertThat(saved.getFntTbNm()).isEqualTo("BITEMM");
+        assertThat(saved.getPkColNm()).isEqualTo("GCL-2026-0001");
     }
 
     @Test
@@ -106,7 +106,7 @@ class BudgetWorkServiceXcrLookupTest {
     void applyItemRates_외화미등록_IllegalStateException발생() {
         // given
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
 
@@ -135,7 +135,7 @@ class BudgetWorkServiceXcrLookupTest {
     void applyItemRates_KRW항목_BigDecimalONE으로계산() {
         // given
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
 
@@ -163,6 +163,6 @@ class BudgetWorkServiceXcrLookupTest {
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
         Bbugtm saved = captor.getValue();
-        assertThat(saved.getDupBgAmt()).isEqualByComparingTo(new BigDecimal("5000000.00"));
+        assertThat(saved.getBugRqmBgAmt()).isEqualByComparingTo(new BigDecimal("5000000.00"));
     }
 }

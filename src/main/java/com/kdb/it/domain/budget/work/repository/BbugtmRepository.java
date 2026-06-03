@@ -44,7 +44,7 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
      * @param delYn 삭제여부 ('N')
      * @return 해당 연도의 편성 데이터 목록
      */
-    List<Bbugtm> findByBgYyAndDelYn(String bgYy, String delYn);
+    List<Bbugtm> findByBseYyAndDelYn(String bseYy, String delYn);
 
     /**
      * Upsert용: 원본 기준으로 기존 편성 데이터 조회
@@ -65,8 +65,8 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
      * @param delYn    삭제여부 ('N')
      * @return 기존 편성 데이터 (없으면 Optional.empty)
      */
-    Optional<Bbugtm> findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
-        String bgYy, String orcTb, String orcPkVl, Integer orcSnoVl,
+    Optional<Bbugtm> findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(
+        String bseYy, String fntTbNm, String pkColNm, Integer fntTbCrySno,
         String ioeC, String delYn);
 
     /**
@@ -75,8 +75,8 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
      * @param bgMngNo 예산관리번호
      * @return 최대 일련번호 (없으면 null)
      */
-    @Query("SELECT MAX(b.bgSno) FROM Bbugtm b WHERE b.bgMngNo = :bgMngNo")
-    Integer findMaxBgSnoByBgMngNo(@Param("bgMngNo") String bgMngNo);
+    @Query("SELECT MAX(b.sno) FROM Bbugtm b WHERE b.bgNo = :bgNo")
+    Integer findMaxSnoByBgNo(@Param("bgNo") String bgNo);
 
     /**
      * 특정 연도 + 원본테이블 + 원본PK 기준 편성 데이터 목록 조회
@@ -90,6 +90,6 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
      * @param delYn   삭제여부 ('N')
      * @return 해당 조건의 편성 데이터 목록
      */
-    List<Bbugtm> findByBgYyAndOrcTbAndOrcPkVlAndDelYn(
-        String bgYy, String orcTb, String orcPkVl, String delYn);
+    List<Bbugtm> findByBseYyAndFntTbNmAndPkColNmAndDelYn(
+        String bseYy, String fntTbNm, String pkColNm, String delYn);
 }

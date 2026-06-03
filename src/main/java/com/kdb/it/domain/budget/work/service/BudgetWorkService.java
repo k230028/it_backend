@@ -98,7 +98,7 @@ public class BudgetWorkService {
         List<Ccodem> ioeCodes = findCodes("DUP_IOE");
 
         // 기존 BBUGTM 데이터 조회 (편성률 확인용)
-        List<Bbugtm> existingBudgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
+        List<Bbugtm> existingBudgets = bbugtmRepository.findByBseYyAndDelYn(bgYy, "N");
 
         // V003 마이그레이션 후 IOE_C는 단축 cdva("001" 등)를 저장하므로
         // DUP_IOE 접두어("237") → 해당하는 IOE cdva 집합 매핑을 빌드
@@ -118,7 +118,7 @@ public class BudgetWorkService {
             // 3. 기존 편성률 조회 (ioeC IN ioeCValues 기반)
             Integer dupRt = existingBudgets.stream()
                     .filter(b -> b.getIoeC() != null && ioeCValues.contains(b.getIoeC()))
-                    .map(Bbugtm::getDupRt)
+                    .map(Bbugtm::getAsgRt)
                     .findFirst()
                     .orElse(null);
 
@@ -173,7 +173,7 @@ public class BudgetWorkService {
                 BigDecimal dupBgAmt = calculateDupBg(cost.getCostTotXpAmt(), dupRt);
 
                 Optional<Bbugtm> existing = bbugtmRepository
-                        .findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
+                        .findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(
                                 bgYy, "BCOSTM", cost.getCostBgNo(),
                                 cost.getBgSno(), cost.getIoeC(), "N");
 
@@ -184,15 +184,15 @@ public class BudgetWorkService {
                     // Upsert: INSERT
                     snoCounter++;
                     Bbugtm bbugtm = Bbugtm.builder()
-                            .bgMngNo(bgMngNo)
-                            .bgSno(snoCounter)
-                            .bgYy(bgYy)
-                            .orcTb("BCOSTM")
-                            .orcPkVl(cost.getCostBgNo())
-                            .orcSnoVl(cost.getBgSno())
+                            .bgNo(bgMngNo)
+                            .sno(snoCounter)
+                            .bseYy(bgYy)
+                            .fntTbNm("BCOSTM")
+                            .pkColNm(cost.getCostBgNo())
+                            .fntTbCrySno(cost.getBgSno())
                             .ioeC(cost.getIoeC())
-                            .dupBgAmt(dupBgAmt)
-                            .dupRt(dupRt)
+                            .bugRqmBgAmt(dupBgAmt)
+                            .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
                 }
@@ -213,7 +213,7 @@ public class BudgetWorkService {
                 BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
                 Optional<Bbugtm> existing = bbugtmRepository
-                        .findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
+                        .findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(
                                 bgYy, "BITEMM", item.getGclMngNo(),
                                 item.getSno(), item.getIoeC(), "N");
 
@@ -222,15 +222,15 @@ public class BudgetWorkService {
                 } else {
                     snoCounter++;
                     Bbugtm bbugtm = Bbugtm.builder()
-                            .bgMngNo(bgMngNo)
-                            .bgSno(snoCounter)
-                            .bgYy(bgYy)
-                            .orcTb("BITEMM")
-                            .orcPkVl(item.getGclMngNo())
-                            .orcSnoVl(item.getSno())
+                            .bgNo(bgMngNo)
+                            .sno(snoCounter)
+                            .bseYy(bgYy)
+                            .fntTbNm("BITEMM")
+                            .pkColNm(item.getGclMngNo())
+                            .fntTbCrySno(item.getSno())
                             .ioeC(item.getIoeC())
-                            .dupBgAmt(dupBgAmt)
-                            .dupRt(dupRt)
+                            .bugRqmBgAmt(dupBgAmt)
+                            .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
                 }
@@ -267,7 +267,7 @@ public class BudgetWorkService {
          * 비목별 편성 결과의 편성금액을 부풀리는 문제를 원천 차단합니다.
          * 또한 BITEMM 구버전(LST_YN='N')이 과거 버그로 저장된 고아 레코드도 함께 제거됩니다.
          */
-        List<Bbugtm> priorBudgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
+        List<Bbugtm> priorBudgets = bbugtmRepository.findByBseYyAndDelYn(bgYy, "N");
         for (Bbugtm prior : priorBudgets) prior.delete();
 
         /* 자본예산 비목코드 목록 조회 — C_TP(IOE_DVC/HW/SW) 기준 */
@@ -312,15 +312,15 @@ public class BudgetWorkService {
                     /* 선 Soft Delete 후 전체 재삽입 방식이므로 Upsert 불필요 (항상 INSERT) */
                     snoCounter++;
                     Bbugtm bbugtm = Bbugtm.builder()
-                            .bgMngNo(bgMngNo)
-                            .bgSno(snoCounter)
-                            .bgYy(bgYy)
-                            .orcTb("BITEMM")
-                            .orcPkVl(bitemm.getGclMngNo())
-                            .orcSnoVl(bitemm.getSno())
+                            .bgNo(bgMngNo)
+                            .sno(snoCounter)
+                            .bseYy(bgYy)
+                            .fntTbNm("BITEMM")
+                            .pkColNm(bitemm.getGclMngNo())
+                            .fntTbCrySno(bitemm.getSno())
                             .ioeC(bitemm.getIoeC())
-                            .dupBgAmt(dupBgAmt)
-                            .dupRt(dupRt)
+                            .bugRqmBgAmt(dupBgAmt)
+                            .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
                     totalRecords++;
@@ -338,15 +338,15 @@ public class BudgetWorkService {
                     /* 선 Soft Delete 후 전체 재삽입 방식이므로 Upsert 불필요 (항상 INSERT) */
                     snoCounter++;
                     Bbugtm bbugtm = Bbugtm.builder()
-                            .bgMngNo(bgMngNo)
-                            .bgSno(snoCounter)
-                            .bgYy(bgYy)
-                            .orcTb("BCOSTM")
-                            .orcPkVl(cost.getCostBgNo())
-                            .orcSnoVl(cost.getBgSno())
+                            .bgNo(bgMngNo)
+                            .sno(snoCounter)
+                            .bseYy(bgYy)
+                            .fntTbNm("BCOSTM")
+                            .pkColNm(cost.getCostBgNo())
+                            .fntTbCrySno(cost.getBgSno())
                             .ioeC(cost.getIoeC())
-                            .dupBgAmt(dupBgAmt)
-                            .dupRt(dupRt)
+                            .bugRqmBgAmt(dupBgAmt)
+                            .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
                     totalRecords++;
@@ -393,7 +393,7 @@ public class BudgetWorkService {
      * @return 비목별 요약 목록 + 합계
      */
     public BudgetWorkDto.SummaryResponse getSummary(String bgYy) {
-        List<Bbugtm> budgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
+        List<Bbugtm> budgets = bbugtmRepository.findByBseYyAndDelYn(bgYy, "N");
 
         // 편성비목 그룹 코드 조회 (DUP_IOE: 접두어 → 그룹명 매핑)
         List<Ccodem> dupIoeCodes = findCodes("DUP_IOE");
@@ -511,7 +511,7 @@ public class BudgetWorkService {
 
                 // 편성금액 합계 (BBUGTM 기반)
                 BigDecimal dupAmount = allRecords.stream()
-                        .map(Bbugtm::getDupBgAmt)
+                        .map(Bbugtm::getBugRqmBgAmt)
                         .filter(v -> v != null)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -526,7 +526,7 @@ public class BudgetWorkService {
 
                 // 편성률 (BBUGTM 레코드가 있으면 해당 값, 없으면 null)
                 Integer dupRt = allRecords.stream()
-                        .map(Bbugtm::getDupRt)
+                        .map(Bbugtm::getAsgRt)
                         .findFirst()
                         .orElse(null);
 
@@ -641,7 +641,7 @@ public class BudgetWorkService {
     public BudgetWorkDto.ProjectSummaryResponse getProjectSummary(String bgYy) {
         // 1. 편성비목 코드 조회 (컬럼 헤더용)
         List<Ccodem> ioeCodes = findCodes("DUP_IOE");
-        List<Bbugtm> budgets = bbugtmRepository.findByBgYyAndDelYn(bgYy, "N");
+        List<Bbugtm> budgets = bbugtmRepository.findByBseYyAndDelYn(bgYy, "N");
 
         // ioeC(cdva, "101") → 계층코드 cdvaDtlC("304-1100") 매핑: DUP_IOE 접두어("304") 매칭용
         List<Ccodem> ioeDetailCodes = findCodes("IOE");
@@ -654,13 +654,13 @@ public class BudgetWorkService {
         // ioeC("101") → cNm("304-1100") → startsWith("304") 방식으로 DUP_IOE 접두어 매칭
         Map<String, Integer> rateByPrefix = new LinkedHashMap<>();
         for (Bbugtm b : budgets) {
-            if (b.getIoeC() != null && b.getDupRt() != null) {
+            if (b.getIoeC() != null && b.getAsgRt() != null) {
                 String ioeHierarchyCode = ioeCdvaToHierarchyCode.get(b.getIoeC());
                 if (ioeHierarchyCode == null) continue;
                 for (Ccodem code : ioeCodes) {
                     String prefix = extractPrefix(code.getCdva());
                     if (ioeHierarchyCode.startsWith(prefix)) {
-                        rateByPrefix.putIfAbsent(prefix, b.getDupRt());
+                        rateByPrefix.putIfAbsent(prefix, b.getAsgRt());
                         break;
                     }
                 }
@@ -686,21 +686,21 @@ public class BudgetWorkService {
         Map<String, String> itemToPrjCache = new LinkedHashMap<>();
 
         for (Bbugtm b : budgets) {
-            if (b.getOrcPkVl() == null) continue;
+            if (b.getPkColNm() == null) continue;
 
             // 그룹핑 키 결정: BITEMM은 프로젝트 단위로 통합
             String groupKey;
             String groupOrcTb;
-            if ("BITEMM".equals(b.getOrcTb())) {
+            if ("BITEMM".equals(b.getFntTbNm())) {
                 // gclMngNo → prjMngNo 변환
-                groupKey = itemToPrjCache.computeIfAbsent(b.getOrcPkVl(), gclMngNo -> {
+                groupKey = itemToPrjCache.computeIfAbsent(b.getPkColNm(), gclMngNo -> {
                     List<Bitemm> items = projectItemRepository.findByGclMngNoAndDelYn(gclMngNo, "N");
                     return items.isEmpty() ? gclMngNo : items.get(0).getAbusMngNo();
                 });
                 groupOrcTb = "BPROJM";
             } else {
-                groupKey = b.getOrcPkVl();
-                groupOrcTb = b.getOrcTb();
+                groupKey = b.getPkColNm();
+                groupOrcTb = b.getFntTbNm();
             }
 
             orcTbMap.putIfAbsent(groupKey, groupOrcTb);
@@ -725,14 +725,14 @@ public class BudgetWorkService {
 
             BigDecimal[] amounts = catMap.get(matchedPrefix);
             // 요청금액 역산: dupBgAmt / (dupRt / 100)
-            if (b.getDupBgAmt() != null && b.getDupRt() != null && b.getDupRt() > 0) {
-                BigDecimal requestAmt = b.getDupBgAmt()
+            if (b.getBugRqmBgAmt() != null && b.getAsgRt() != null && b.getAsgRt() > 0) {
+                BigDecimal requestAmt = b.getBugRqmBgAmt()
                         .multiply(BigDecimal.valueOf(100))
-                        .divide(BigDecimal.valueOf(b.getDupRt()), 2, RoundingMode.HALF_UP);
+                        .divide(BigDecimal.valueOf(b.getAsgRt()), 2, RoundingMode.HALF_UP);
                 amounts[0] = amounts[0].add(requestAmt);
             }
-            if (b.getDupBgAmt() != null) {
-                amounts[1] = amounts[1].add(b.getDupBgAmt());
+            if (b.getBugRqmBgAmt() != null) {
+                amounts[1] = amounts[1].add(b.getBugRqmBgAmt());
             }
         }
 

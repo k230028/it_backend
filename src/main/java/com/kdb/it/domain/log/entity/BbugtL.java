@@ -23,29 +23,29 @@ import java.math.BigDecimal;
 public class BbugtL extends BaseLogEntity {
 
     @Column(name = "BG_NO", length = 32, comment = "예산관리번호")
-    private String bgMngNo;
+    private String bgNo;
 
     @Column(name = "SNO", comment = "예산일련번호")
-    private Integer bgSno;
+    private Integer sno;
 
     @Column(name = "BSE_YY", length = 4, comment = "예산년도")
-    private String bgYy;
+    private String bseYy;
 
     @Column(name = "FNT_TB_NM", length = 10, comment = "원본테이블")
-    private String orcTb;
+    private String fntTbNm;
 
     @Column(name = "PK_COL_NM", length = 32, comment = "원본PK값")
-    private String orcPkVl;
+    private String pkColNm;
 
     @Column(name = "FNT_TB_CRY_SNO", comment = "원본일련번호값")
-    private Integer orcSnoVl;
+    private Integer fntTbCrySno;
 
     @Column(name = "IOE_C", length = 3, comment = "비목코드")
     private String ioeC;
 
     @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "편성예산금액")
-    private BigDecimal dupBgAmt;
+    private BigDecimal bugRqmBgAmt;
 
     @Column(name = "ASG_RT", precision = 3, scale = 0, comment = "편성률")
-    private Integer dupRt;
+    private Integer asgRt;
 }

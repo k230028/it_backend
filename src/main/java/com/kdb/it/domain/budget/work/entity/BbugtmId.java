@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
  *
  * <p>
  * JPA의 {@code @IdClass} 방식으로 복합키를 정의합니다.
- * {@link Bbugtm} 엔티티의 {@code @Id} 필드({@code bgMngNo}, {@code bgSno})와
+ * {@link Bbugtm} 엔티티의 {@code @Id} 필드({@code bgNo}, {@code sno})와
  * 동일한 이름과 타입을 가져야 합니다.
  * </p>
  *
@@ -32,11 +32,11 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode  // equals(), hashCode() 자동 생성 (JPA 요구사항: 동등성 비교)
 public class BbugtmId implements Serializable {
 
-    /** 예산관리번호: Bbugtm.bgMngNo와 이름/타입 일치 필수 (예: BG-2026-0001) */
+    /** 예산관리번호: Bbugtm.bgNo와 이름/타입 일치 필수 (예: BG-2026-0001) */
     @Column(name = "BG_NO", comment = "예산관리번호")
-    private String bgMngNo;
+    private String bgNo;
 
-    /** 예산일련번호: Bbugtm.bgSno와 이름/타입 일치 필수 */
+    /** 예산일련번호: Bbugtm.sno와 이름/타입 일치 필수 */
     @Column(name = "SNO", comment = "예산일련번호")
-    private Integer bgSno;
+    private Integer sno;
 }

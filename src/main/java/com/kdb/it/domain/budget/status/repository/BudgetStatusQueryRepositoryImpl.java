@@ -131,9 +131,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         codeIsActive(itemCode)
                 )
                 .leftJoin(b).on(
-                        b.orcTb.eq("BITEMM"),
-                        b.orcPkVl.eq(i.gclMngNo),
-                        b.bgYy.eq(bgYy),
+                        b.fntTbNm.eq("BITEMM"),
+                        b.pkColNm.eq(i.gclMngNo),
+                        b.bseYy.eq(bgYy),
                         b.delYn.eq("N")
                 )
                 .leftJoin(budgetCode).on(
@@ -226,20 +226,20 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         String prevYy = String.valueOf(Integer.parseInt(bgYy) - 1);
 
         // 전년도 편성금액: 전년도 BBUGTM DUP_BG를 IOE_C 접두어별 분배 (편성 없으면 0)
-        NumberExpression<BigDecimal> reqRent = caseDupBgByCTp(costCode.cTp, bPrev.dupBgAmt, CTP_RENT);
-        NumberExpression<BigDecimal> reqTravel = caseDupBgByCTp(costCode.cTp, bPrev.dupBgAmt, CTP_TRAVEL);
-        NumberExpression<BigDecimal> reqService = caseDupBgByCTp(costCode.cTp, bPrev.dupBgAmt, CTP_SERVICE);
-        NumberExpression<BigDecimal> reqMisc = caseDupBgByCTp(costCode.cTp, bPrev.dupBgAmt, CTP_MISC);
+        NumberExpression<BigDecimal> reqRent = caseDupBgByCTp(costCode.cTp, bPrev.bugRqmBgAmt, CTP_RENT);
+        NumberExpression<BigDecimal> reqTravel = caseDupBgByCTp(costCode.cTp, bPrev.bugRqmBgAmt, CTP_TRAVEL);
+        NumberExpression<BigDecimal> reqService = caseDupBgByCTp(costCode.cTp, bPrev.bugRqmBgAmt, CTP_SERVICE);
+        NumberExpression<BigDecimal> reqMisc = caseDupBgByCTp(costCode.cTp, bPrev.bugRqmBgAmt, CTP_MISC);
         NumberExpression<BigDecimal> reqTotal = Expressions.numberTemplate(BigDecimal.class,
-                "COALESCE({0}, 0)", bPrev.dupBgAmt);
+                "COALESCE({0}, 0)", bPrev.bugRqmBgAmt);
 
         // 금년도 조정: 금년도 BBUGTM의 DUP_BG를 IOE_C 접두어별 분배
-        NumberExpression<BigDecimal> adjRent = caseDupBgByCTp(costCode.cTp, b.dupBgAmt, CTP_RENT);
-        NumberExpression<BigDecimal> adjTravel = caseDupBgByCTp(costCode.cTp, b.dupBgAmt, CTP_TRAVEL);
-        NumberExpression<BigDecimal> adjService = caseDupBgByCTp(costCode.cTp, b.dupBgAmt, CTP_SERVICE);
-        NumberExpression<BigDecimal> adjMisc = caseDupBgByCTp(costCode.cTp, b.dupBgAmt, CTP_MISC);
+        NumberExpression<BigDecimal> adjRent = caseDupBgByCTp(costCode.cTp, b.bugRqmBgAmt, CTP_RENT);
+        NumberExpression<BigDecimal> adjTravel = caseDupBgByCTp(costCode.cTp, b.bugRqmBgAmt, CTP_TRAVEL);
+        NumberExpression<BigDecimal> adjService = caseDupBgByCTp(costCode.cTp, b.bugRqmBgAmt, CTP_SERVICE);
+        NumberExpression<BigDecimal> adjMisc = caseDupBgByCTp(costCode.cTp, b.bugRqmBgAmt, CTP_MISC);
         NumberExpression<BigDecimal> adjTotal = Expressions.numberTemplate(BigDecimal.class,
-                "COALESCE({0}, 0)", b.dupBgAmt);
+                "COALESCE({0}, 0)", b.bugRqmBgAmt);
 
         List<Tuple> tuples = queryFactory
                 .select(
@@ -258,28 +258,28 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         codeIsActive(costCode)
                 )
                 .leftJoin(b).on(
-                        b.orcTb.eq("BCOSTM"),
-                        b.orcPkVl.eq(c.costBgNo),
-                        b.bgYy.eq(bgYy),
+                        b.fntTbNm.eq("BCOSTM"),
+                        b.pkColNm.eq(c.costBgNo),
+                        b.bseYy.eq(bgYy),
                         b.delYn.eq("N")
                 )
                 .leftJoin(bPrev).on(
-                        bPrev.orcTb.eq("BCOSTM"),
+                        bPrev.fntTbNm.eq("BCOSTM"),
                         // 계속항목은 cncdRfrNo 기준, 신규항목은 costBgNo 기준으로 전년도 편성 조회
                         Expressions.booleanTemplate(
                                 "COALESCE({0}, {1}) = {2}",
-                                c.cncdRfrNo, c.costBgNo, bPrev.orcPkVl),
-                        bPrev.bgYy.eq(prevYy),
+                                c.cncdRfrNo, c.costBgNo, bPrev.pkColNm),
+                        bPrev.bseYy.eq(prevYy),
                         bPrev.delYn.eq("N"),
                         // 동일 관리번호에 여러 편성건이 있을 경우 마지막 편성건(ORC_SNO_VL 최대값)만 선택
-                        bPrev.orcSnoVl.eq(
-                                JPAExpressions.select(bMaxPrev.orcSnoVl.max())
+                        bPrev.fntTbCrySno.eq(
+                                JPAExpressions.select(bMaxPrev.fntTbCrySno.max())
                                         .from(bMaxPrev)
                                         .where(
-                                                bMaxPrev.orcTb.eq("BCOSTM"),
+                                                bMaxPrev.fntTbNm.eq("BCOSTM"),
                                                 Expressions.booleanTemplate("COALESCE({0}, {1}) = {2}",
-                                                        c.cncdRfrNo, c.costBgNo, bMaxPrev.orcPkVl),
-                                                bMaxPrev.bgYy.eq(prevYy),
+                                                        c.cncdRfrNo, c.costBgNo, bMaxPrev.pkColNm),
+                                                bMaxPrev.bseYy.eq(prevYy),
                                                 bMaxPrev.delYn.eq("N")
                                         ))
                 )
@@ -458,15 +458,15 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         // 편성액: BBUGTM.dupBgAmt 합계 — 해당 사업의 BITEMM(gclMngNo)을 통해 매핑된 편성예산
         BigDecimal allocatedSum = queryFactory
-                .select(b.dupBgAmt.sum().coalesce(BigDecimal.ZERO))
+                .select(b.bugRqmBgAmt.sum().coalesce(BigDecimal.ZERO))
                 .from(b)
                 .join(i).on(
-                        i.gclMngNo.eq(b.orcPkVl),
+                        i.gclMngNo.eq(b.pkColNm),
                         i.delYn.eq("N"),
                         i.lstYn.eq("Y"))
                 .where(
-                        b.orcTb.eq("BITEMM"),
-                        b.bgYy.eq(bgYy),
+                        b.fntTbNm.eq("BITEMM"),
+                        b.bseYy.eq(bgYy),
                         b.delYn.eq("N"),
                         i.abusMngNo.eq(projectCode))
                 .fetchOne();
@@ -520,10 +520,10 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         // 편성액: BBUGTM.dupBgAmt 합계 — BITEMM(gclMngNo)을 통해 매핑된 편성예산
         BigDecimal allocatedSum = queryFactory
-                .select(b.dupBgAmt.sum().coalesce(BigDecimal.ZERO))
+                .select(b.bugRqmBgAmt.sum().coalesce(BigDecimal.ZERO))
                 .from(b)
                 .join(i).on(
-                        i.gclMngNo.eq(b.orcPkVl),
+                        i.gclMngNo.eq(b.pkColNm),
                         i.delYn.eq("N"),
                         i.lstYn.eq("Y"))
                 .join(p).on(
@@ -536,8 +536,8 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         itemCode.cdva.eq(i.ioeC),
                         codeIsActive(itemCode))
                 .where(
-                        b.orcTb.eq("BITEMM"),
-                        b.bgYy.eq(bgYy),
+                        b.fntTbNm.eq("BITEMM"),
+                        b.bseYy.eq(bgYy),
                         b.delYn.eq("N"),
                         cTpFilter)
                 .fetchOne();
@@ -585,7 +585,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     private NumberExpression<BigDecimal> sumDupBgByCTp(StringExpression cTp, QBbugtm b, String codeType) {
         return Expressions.numberTemplate(BigDecimal.class,
                 "COALESCE(SUM(CASE WHEN {0} = {1} THEN {2} ELSE 0 END), 0)",
-                cTp, Expressions.constant(codeType), b.dupBgAmt);
+                cTp, Expressions.constant(codeType), b.bugRqmBgAmt);
     }
 
     /**

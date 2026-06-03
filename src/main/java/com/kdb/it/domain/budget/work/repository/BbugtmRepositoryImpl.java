@@ -216,14 +216,14 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         // 정보화사업 편성은 BITEMM 단위로 저장(ORC_TB='BITEMM', ORC_PK_VL=GCL_MNG_NO)
         // → BITEMM.PRJ_MNG_NO 기준으로 JOIN 후 GROUP BY
         List<Tuple> results = queryFactory
-                .select(bitemm.abusMngNo, bbugtm.dupBgAmt.sum())
+                .select(bitemm.abusMngNo, bbugtm.bugRqmBgAmt.sum())
                 .from(bbugtm)
                 .join(bitemm).on(
-                        bbugtm.orcPkVl.eq(bitemm.gclMngNo),
-                        bbugtm.orcSnoVl.eq(bitemm.sno))
+                        bbugtm.pkColNm.eq(bitemm.gclMngNo),
+                        bbugtm.fntTbCrySno.eq(bitemm.sno))
                 .where(
-                        bbugtm.bgYy.eq(bgYy),
-                        bbugtm.orcTb.eq("BITEMM"),
+                        bbugtm.bseYy.eq(bgYy),
+                        bbugtm.fntTbNm.eq("BITEMM"),
                         bitemm.abusMngNo.in(prjMngNos),
                         bbugtm.delYn.eq("N"),
                         bitemm.delYn.eq("N"),
@@ -233,7 +233,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
             String key = t.get(bitemm.abusMngNo);
-            BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
+            BigDecimal sum = t.get(bbugtm.bugRqmBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
         return map;
@@ -251,19 +251,19 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         if (itMngcNos == null || itMngcNos.isEmpty()) return Map.of();
         QBbugtm bbugtm = QBbugtm.bbugtm;
         List<Tuple> results = queryFactory
-                .select(bbugtm.orcPkVl, bbugtm.dupBgAmt.sum())
+                .select(bbugtm.pkColNm, bbugtm.bugRqmBgAmt.sum())
                 .from(bbugtm)
                 .where(
-                        bbugtm.bgYy.eq(bgYy),
-                        bbugtm.orcTb.eq("BCOSTM"),
-                        bbugtm.orcPkVl.in(itMngcNos),
+                        bbugtm.bseYy.eq(bgYy),
+                        bbugtm.fntTbNm.eq("BCOSTM"),
+                        bbugtm.pkColNm.in(itMngcNos),
                         bbugtm.delYn.eq("N"))
-                .groupBy(bbugtm.orcPkVl)
+                .groupBy(bbugtm.pkColNm)
                 .fetch();
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
-            String key = t.get(bbugtm.orcPkVl);
-            BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
+            String key = t.get(bbugtm.pkColNm);
+            BigDecimal sum = t.get(bbugtm.bugRqmBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
         return map;
@@ -279,14 +279,14 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         QBbugtm bbugtm = QBbugtm.bbugtm;
         QBitemm bitemm = QBitemm.bitemm;
         List<Tuple> results = queryFactory
-                .select(bitemm.abusMngNo, bbugtm.dupBgAmt.sum())
+                .select(bitemm.abusMngNo, bbugtm.bugRqmBgAmt.sum())
                 .from(bbugtm)
                 .join(bitemm).on(
-                        bbugtm.orcPkVl.eq(bitemm.gclMngNo),
-                        bbugtm.orcSnoVl.eq(bitemm.sno))
+                        bbugtm.pkColNm.eq(bitemm.gclMngNo),
+                        bbugtm.fntTbCrySno.eq(bitemm.sno))
                 .where(
-                        bbugtm.bgYy.eq(bgYy),
-                        bbugtm.orcTb.eq("BITEMM"),
+                        bbugtm.bseYy.eq(bgYy),
+                        bbugtm.fntTbNm.eq("BITEMM"),
                         bitemm.abusMngNo.in(prjMngNos),
                         bitemm.ioeC.in(assetGclDttCodes),
                         bbugtm.delYn.eq("N"),
@@ -297,7 +297,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
             String key = t.get(bitemm.abusMngNo);
-            BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
+            BigDecimal sum = t.get(bbugtm.bugRqmBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
         return map;
@@ -313,14 +313,14 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         QBbugtm bbugtm = QBbugtm.bbugtm;
         QBitemm bitemm = QBitemm.bitemm;
         List<Tuple> results = queryFactory
-                .select(bitemm.abusMngNo, bbugtm.dupBgAmt.sum())
+                .select(bitemm.abusMngNo, bbugtm.bugRqmBgAmt.sum())
                 .from(bbugtm)
                 .join(bitemm).on(
-                        bbugtm.orcPkVl.eq(bitemm.gclMngNo),
-                        bbugtm.orcSnoVl.eq(bitemm.sno))
+                        bbugtm.pkColNm.eq(bitemm.gclMngNo),
+                        bbugtm.fntTbCrySno.eq(bitemm.sno))
                 .where(
-                        bbugtm.bgYy.eq(bgYy),
-                        bbugtm.orcTb.eq("BITEMM"),
+                        bbugtm.bseYy.eq(bgYy),
+                        bbugtm.fntTbNm.eq("BITEMM"),
                         bitemm.abusMngNo.in(prjMngNos),
                         bitemm.ioeC.in(costGclDttCodes),
                         bbugtm.delYn.eq("N"),
@@ -331,7 +331,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
             String key = t.get(bitemm.abusMngNo);
-            BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
+            BigDecimal sum = t.get(bbugtm.bugRqmBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
         return map;

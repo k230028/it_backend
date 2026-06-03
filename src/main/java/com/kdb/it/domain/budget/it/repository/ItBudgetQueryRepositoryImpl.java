@@ -172,25 +172,25 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         QBitemm bi = new QBitemm("bi");
 
         List<Tuple> rows = queryFactory
-                .select(bg.ioeC, bi.sectSysUtzYn, bg.dupBgAmt.sum())
+                .select(bg.ioeC, bi.sectSysUtzYn, bg.bugRqmBgAmt.sum())
                 .from(bg)
                 .join(bi).on(
-                        bg.orcTb.eq(ORC_TB_ITEM),
-                        bg.orcPkVl.eq(bi.gclMngNo),
-                        bg.orcSnoVl.eq(bi.sno),
+                        bg.fntTbNm.eq(ORC_TB_ITEM),
+                        bg.pkColNm.eq(bi.gclMngNo),
+                        bg.fntTbCrySno.eq(bi.sno),
                         bi.delYn.eq("N"),
                         bi.lstYn.eq("Y"))
                 .where(
-                        bg.bgYy.eq(bgYy),
+                        bg.bseYy.eq(bgYy),
                         bg.delYn.eq("N"),
-                        bg.orcTb.eq(ORC_TB_ITEM))
+                        bg.fntTbNm.eq(ORC_TB_ITEM))
                 .groupBy(bg.ioeC, bi.sectSysUtzYn)
                 .fetch();
 
         for (Tuple row : rows) {
             String ioeC = row.get(bg.ioeC);
             String prtYn = row.get(bi.sectSysUtzYn);
-            BigDecimal amt = row.get(bg.dupBgAmt.sum());
+            BigDecimal amt = row.get(bg.bugRqmBgAmt.sum());
             if (ioeC == null || amt == null) continue;
             long[] v = acc.computeIfAbsent(ioeC, k -> new long[4]);
             if (INF_PRT_Y.equals(prtYn)) {
@@ -207,25 +207,25 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         QBcostm bc = new QBcostm("bc");
 
         List<Tuple> rows = queryFactory
-                .select(bg.ioeC, bc.sectSysUtzYn, bg.dupBgAmt.sum())
+                .select(bg.ioeC, bc.sectSysUtzYn, bg.bugRqmBgAmt.sum())
                 .from(bg)
                 .join(bc).on(
-                        bg.orcTb.eq(ORC_TB_COST),
-                        bg.orcPkVl.eq(bc.costBgNo),
-                        bg.orcSnoVl.eq(bc.bgSno),
+                        bg.fntTbNm.eq(ORC_TB_COST),
+                        bg.pkColNm.eq(bc.costBgNo),
+                        bg.fntTbCrySno.eq(bc.bgSno),
                         bc.delYn.eq("N"),
                         bc.lstYn.eq("Y"))
                 .where(
-                        bg.bgYy.eq(bgYy),
+                        bg.bseYy.eq(bgYy),
                         bg.delYn.eq("N"),
-                        bg.orcTb.eq(ORC_TB_COST))
+                        bg.fntTbNm.eq(ORC_TB_COST))
                 .groupBy(bg.ioeC, bc.sectSysUtzYn)
                 .fetch();
 
         for (Tuple row : rows) {
             String ioeC = row.get(bg.ioeC);
             String prtYn = row.get(bc.sectSysUtzYn);
-            BigDecimal amt = row.get(bg.dupBgAmt.sum());
+            BigDecimal amt = row.get(bg.bugRqmBgAmt.sum());
             if (ioeC == null || amt == null) continue;
             long[] v = acc.computeIfAbsent(ioeC, k -> new long[4]);
             if (INF_PRT_Y.equals(prtYn)) {
