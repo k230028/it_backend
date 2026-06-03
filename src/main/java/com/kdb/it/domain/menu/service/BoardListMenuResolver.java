@@ -6,6 +6,7 @@ import com.kdb.it.domain.menu.dto.MenuDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,7 +42,8 @@ public class BoardListMenuResolver implements MenuChildrenResolver {
                 .mnuTpC("LNK")
                 .srePth("/board/" + b.getBlbMngNo())
                 .mnuDep(2)
-                .children(List.of())
+                // 가변 리스트 필수: MenuQueryService.sortRecursive가 children을 in-place 정렬한다.
+                .children(new ArrayList<>())
                 .build();
     }
 }

@@ -76,8 +76,10 @@ class MenuQueryServiceTest {
         MenuChildrenResolver fake = new MenuChildrenResolver() {
             public String mnuId() { return "MBRD0001"; }
             public List<MenuDto.Node> resolveChildren(List<String> athIds) {
+                // 실제 BoardListMenuResolver처럼 자식 노드의 children을 불변 빈 리스트로 설정해
+                // sortRecursive의 in-place 정렬이 UnsupportedOperationException을 던지지 않는지 회귀 검증.
                 return List.of(MenuDto.Node.builder().mnuId("MBRD-B1").mnuNm("공지").mnuTpC("LNK")
-                        .srePth("/board/BLBM-0001").build());
+                        .srePth("/board/BLBM-0001").children(List.of()).build());
             }
         };
         MenuQueryService svc = new MenuQueryService(cmenumRepository, cmenuaRepository, List.of(fake));

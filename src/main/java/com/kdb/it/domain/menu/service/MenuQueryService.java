@@ -100,7 +100,8 @@ public class MenuQueryService {
     }
 
     private void sortRecursive(List<MenuDto.Node> nodes) {
-        if (nodes == null) return;
+        // 빈 리스트는 정렬을 건너뛴다: 불변 빈 리스트(List.of())도 sort() 호출 시 UnsupportedOperationException을 던지므로 방어.
+        if (nodes == null || nodes.isEmpty()) return;
         nodes.sort(Comparator.comparingInt(n -> n.getMnuSotSqnSno() == null ? 0 : n.getMnuSotSqnSno()));
         for (MenuDto.Node n : nodes) sortRecursive(n.getChildren());
     }
