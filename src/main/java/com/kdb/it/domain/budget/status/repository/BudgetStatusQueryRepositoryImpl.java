@@ -182,14 +182,19 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
             BigDecimal aTotal = aAsset.add(aCost);
 
             return new BudgetStatusDto.ProjectResponse(
+                    // abusMngNo, prjBzTc, abusTc, prjNm, abusCone
                     t.get(p.abusMngNo), t.get(p.prjBzTc), t.get(p.abusTc),
                     t.get(p.prjNm), t.get(p.abusCone),
+                    // prlmHrkOgzCCone, svnDpmC, svnDpmCNm
                     t.get(p.prlmHrkOgzCCone), t.get(p.svnDpmC), t.get(svnOrg.bbrNm),
+                    // svnDpmDcdUsid, svnDpmDcdUsidNm, svnDpmUsid, svnDpmUsidNm
                     t.get(p.svnDpmDcdUsid), t.get(svnDpmTlrNm),
                     t.get(p.svnDpmUsid), t.get(svnDpmCgprNm),
+                    // dvmDpmC, dvmDpmCNm, tlrUsid, tlrUsidNm, dvmUsid, dvmUsidNm
                     t.get(p.dvmDpmC), t.get(itOrg.bbrNm),
                     t.get(p.tlrUsid), t.get(itDpmTlrNm),
                     t.get(p.dvmUsid), t.get(itDpmCgprNm),
+                    // exePttYn, sttDt, endDt, rprSts, rprStsNm, edrt
                     t.get(p.exePttYn), t.get(p.sttDtm), t.get(p.endDtm),
                     t.get(p.rprStsTc), t.get(rprStsCode.cNm), t.get(p.edrtTc),
                     rDev, rMach, rIntan, rAsset,

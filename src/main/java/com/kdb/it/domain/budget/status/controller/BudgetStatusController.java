@@ -60,9 +60,9 @@ public class BudgetStatusController {
                                     value = """
                                             [
                                               {
-                                                "prjMngNo": "PRJ-2026-0001",
+                                                "abusMngNo": "PRJ-2026-0001",
                                                 "prjNm": "차세대 IT 포털 구축",
-                                                "svnDpmNm": "디지털기획부",
+                                                "svnDpmCNm": "디지털기획부",
                                                 "reqTotalBg": 1200000000,
                                                 "adjTotalBg": 960000000
                                               }
@@ -97,9 +97,9 @@ public class BudgetStatusController {
                                     value = """
                                             [
                                               {
-                                                "itMngcNo": "COST-2026-0001",
+                                                "costBgNo": "COST-2026-0001",
                                                 "cttNm": "2026년 서버 유지보수 계약",
-                                                "biceDpmC": "D001",
+                                                "costSvnDpmC": "D001",
                                                 "reqTotalBg": 300000000,
                                                 "adjTotalBg": 240000000
                                               }
