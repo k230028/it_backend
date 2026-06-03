@@ -104,27 +104,27 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         QBprojm p = QBprojm.bprojm;
 
         NumberExpression<BigDecimal> effectiveAmt = Expressions.numberTemplate(
-                BigDecimal.class, "COALESCE({0}, 1.0) * {1}", i.xcr, i.gclAmt);
+                BigDecimal.class, "COALESCE({0}, 1.0) * {1}", i.xcr, i.amt);
 
         List<Tuple> rows = queryFactory
-                .select(i.ioeC, i.infPrtYn, effectiveAmt.sum())
+                .select(i.ioeC, i.sectSysUtzYn, effectiveAmt.sum())
                 .from(i)
                 .join(p).on(
-                        p.prjMngNo.eq(i.prjMngNo),
-                        p.prjSno.eq(i.prjSno))
+                        p.abusMngNo.eq(i.abusMngNo),
+                        p.sno.eq(i.fntTbCrySno))
                 .where(
                         i.delYn.eq("N"),
                         i.lstYn.eq("Y"),
-                        i.gclAmt.isNotNull(),
+                        i.amt.isNotNull(),
                         p.delYn.eq("N"),
                         p.lstYn.eq("Y"),
-                        p.bgYy.eq(bgYy))
-                .groupBy(i.ioeC, i.infPrtYn)
+                        p.bseYy.eq(bgYy))
+                .groupBy(i.ioeC, i.sectSysUtzYn)
                 .fetch();
 
         for (Tuple row : rows) {
             String ioeC = row.get(i.ioeC);
-            String prtYn = row.get(i.infPrtYn);
+            String prtYn = row.get(i.sectSysUtzYn);
             BigDecimal amt = row.get(effectiveAmt.sum());
             if (ioeC == null || amt == null) continue;
             long[] v = acc.computeIfAbsent(ioeC, k -> new long[4]);
@@ -172,24 +172,24 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         QBitemm bi = new QBitemm("bi");
 
         List<Tuple> rows = queryFactory
-                .select(bg.ioeC, bi.infPrtYn, bg.dupBgAmt.sum())
+                .select(bg.ioeC, bi.sectSysUtzYn, bg.dupBgAmt.sum())
                 .from(bg)
                 .join(bi).on(
                         bg.orcTb.eq(ORC_TB_ITEM),
                         bg.orcPkVl.eq(bi.gclMngNo),
-                        bg.orcSnoVl.eq(bi.gclSno),
+                        bg.orcSnoVl.eq(bi.sno),
                         bi.delYn.eq("N"),
                         bi.lstYn.eq("Y"))
                 .where(
                         bg.bgYy.eq(bgYy),
                         bg.delYn.eq("N"),
                         bg.orcTb.eq(ORC_TB_ITEM))
-                .groupBy(bg.ioeC, bi.infPrtYn)
+                .groupBy(bg.ioeC, bi.sectSysUtzYn)
                 .fetch();
 
         for (Tuple row : rows) {
             String ioeC = row.get(bg.ioeC);
-            String prtYn = row.get(bi.infPrtYn);
+            String prtYn = row.get(bi.sectSysUtzYn);
             BigDecimal amt = row.get(bg.dupBgAmt.sum());
             if (ioeC == null || amt == null) continue;
             long[] v = acc.computeIfAbsent(ioeC, k -> new long[4]);

@@ -241,8 +241,8 @@ class PlanServiceTest {
                 .build();
 
         ProjectDto.Response mockProject = ProjectDto.Response.builder()
-                .prjMngNo("PRJ-2026-0001")
-                .prjBg(BigDecimal.valueOf(50000000))
+                .abusMngNo("PRJ-2026-0001")
+                .rqmBgAmt(BigDecimal.valueOf(50000000))
                 .assetBg(BigDecimal.valueOf(30000000))
                 .costBg(BigDecimal.valueOf(20000000))
                 .build();
@@ -304,11 +304,11 @@ class PlanServiceTest {
                 .itMngcNos(List.of("COST-2026-0001"))
                 .build();
         ProjectDto.Response project = ProjectDto.Response.builder()
-                .prjMngNo("PRJ-2026-0001")
+                .abusMngNo("PRJ-2026-0001")
                 .prjNm("정보화사업")
-                .svnHdq(null)
-                .prjTp(null)
-                .prjBg(null)
+                .prlmHrkOgzCCone(null)
+                .prjBzTc(null)
+                .rqmBgAmt(null)
                 .assetBg(null)
                 .costBg(null)
                 .build();
@@ -345,18 +345,18 @@ class PlanServiceTest {
                 .itMngcNos(List.of("COST-001"))
                 .build();
         ProjectDto.Response generalProject = ProjectDto.Response.builder()
-                .prjMngNo("PRJ-GENERAL")
+                .abusMngNo("PRJ-GENERAL")
                 .prjNm("일반 정보화사업")
-                .prjTp("개발")
-                .svnHdq("IT부문")
-                .ornYn("N")
+                .prjBzTc("개발")
+                .prlmHrkOgzCCone("IT부문")
+                .odnYn("N")
                 .build();
         ProjectDto.Response ordinaryProject = ProjectDto.Response.builder()
-                .prjMngNo("PRJ-ORDINARY")
+                .abusMngNo("PRJ-ORDINARY")
                 .prjNm("경상사업")
-                .prjTp("운영")
-                .svnHdq("IT부문")
-                .ornYn("Y")
+                .prjBzTc("운영")
+                .prlmHrkOgzCCone("IT부문")
+                .odnYn("Y")
                 .build();
         CostDto.Response cost = CostDto.Response.builder()
                 .itMngcNo("COST-001")
@@ -395,7 +395,7 @@ class PlanServiceTest {
                 .prjMngNos(List.of("PRJ-2026-0001"))
                 .build();
         given(projectService.getProjectsByIds(any())).willReturn(List.of(ProjectDto.Response.builder()
-                .prjMngNo("PRJ-2026-0001")
+                .abusMngNo("PRJ-2026-0001")
                 .build()));
         given(objectMapper.writeValueAsString(any())).willThrow(new JsonProcessingException("boom") {});
 

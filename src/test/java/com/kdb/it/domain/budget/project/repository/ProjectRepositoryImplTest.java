@@ -80,8 +80,8 @@ class ProjectRepositoryImplTest {
     void searchByCondition_fetchHasData_returnsData() {
         // Arrange
         Bprojm dummy = Bprojm.builder()
-                .prjMngNo("PRJ-2026-0001")
-                .prjSno(1)
+                .abusMngNo("PRJ-2026-0001")
+                .sno(1)
                 .build();
         given(mockQuery.fetch()).willReturn(List.of(dummy));
         ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
@@ -89,7 +89,7 @@ class ProjectRepositoryImplTest {
         List<Bprojm> result = sut.searchByCondition(condition);
         // Assert
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getPrjMngNo()).isEqualTo("PRJ-2026-0001");
+        assertThat(result.get(0).getAbusMngNo()).isEqualTo("PRJ-2026-0001");
     }
 
     // -----------------------------------------------------------------------
@@ -101,7 +101,7 @@ class ProjectRepositoryImplTest {
     void searchByCondition_withBgYy_executesQuery() {
         // Arrange
         ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
-        condition.setBgYy("2026");
+        condition.setBseYy("2026");
         // Act
         List<Bprojm> result = sut.searchByCondition(condition);
         // Assert
@@ -113,10 +113,10 @@ class ProjectRepositoryImplTest {
     void searchByCondition_multipleConditions_executesQuery() {
         // Arrange
         ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
-        condition.setBgYy("2026");
-        condition.setPrjSts("계획");
-        condition.setItDpm("IT001");
-        condition.setSvnDpm("BIZ001");
+        condition.setBseYy("2026");
+        condition.setStsTc("계획");
+        condition.setDvmDpmC("IT001");
+        condition.setSvnDpmC("BIZ001");
         // Act
         List<Bprojm> result = sut.searchByCondition(condition);
         // Assert
@@ -132,7 +132,7 @@ class ProjectRepositoryImplTest {
     void searchByCondition_ornYnY_executesQuery() {
         // Arrange
         ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
-        condition.setOrnYn("Y");
+        condition.setOdnYn("Y");
         // Act
         List<Bprojm> result = sut.searchByCondition(condition);
         // Assert
@@ -144,7 +144,7 @@ class ProjectRepositoryImplTest {
     void searchByCondition_ornYnN_executesQuery() {
         // Arrange
         ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
-        condition.setOrnYn("N");
+        condition.setOdnYn("N");
         // Act
         List<Bprojm> result = sut.searchByCondition(condition);
         // Assert
@@ -188,7 +188,7 @@ class ProjectRepositoryImplTest {
     void searchByCondition_bgYyBlank_treatedAsNoCondition() {
         // Arrange
         ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
-        condition.setBgYy("");
+        condition.setBseYy("");
         // Act
         List<Bprojm> result = sut.searchByCondition(condition);
         // Assert

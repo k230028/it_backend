@@ -109,7 +109,7 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
         QCapplm capplm = QCapplm.capplm;
 
         NumberTemplate<BigDecimal> effectiveAmt = Expressions.numberTemplate(
-                BigDecimal.class, "COALESCE({0}, 1.0) * {1}", bitemm.xcr, bitemm.gclAmt);
+                BigDecimal.class, "COALESCE({0}, 1.0) * {1}", bitemm.xcr, bitemm.amt);
 
         List<Tuple> rows = queryFactory
                 .select(bitemm.ioeC, effectiveAmt.sum())
@@ -118,30 +118,30 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                         bitemm.delYn.eq("N"),
                         bitemm.lstYn.eq("Y"),
                         bitemm.ioeC.isNotNull(),
-                        bitemm.gclAmt.isNotNull(),
+                        bitemm.amt.isNotNull(),
                         JPAExpressions.selectOne()
                                 .from(bprojm)
                                 .where(
-                                        bprojm.prjMngNo.eq(bitemm.prjMngNo),
-                                        bprojm.prjSno.eq(bitemm.prjSno),
+                                        bprojm.abusMngNo.eq(bitemm.abusMngNo),
+                                        bprojm.sno.eq(bitemm.fntTbCrySno),
                                         bprojm.delYn.eq("N"),
                                         bprojm.lstYn.eq("Y"),
-                                        bprojm.bgYy.eq(bgYy),
+                                        bprojm.bseYy.eq(bgYy),
                                         JPAExpressions.selectOne()
                                                 .from(cappla, capplm)
                                                 .where(
                                                         cappla.apfDcmNo.eq(capplm.apfMngNo),
                                                         cappla.fntTbNm.eq("BPROJM"),
-                                                        cappla.pkColNm.eq(bprojm.prjMngNo),
-                                                        cappla.fntTbCrySno.eq(bprojm.prjSno),
+                                                        cappla.pkColNm.eq(bprojm.abusMngNo),
+                                                        cappla.fntTbCrySno.eq(bprojm.sno),
                                                         capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                                         cappla.apfDcmNo.eq(
                                                                 JPAExpressions.select(cappla2.apfDcmNo.max())
                                                                         .from(cappla2)
                                                                         .where(
                                                                                 cappla2.fntTbNm.eq("BPROJM"),
-                                                                                cappla2.pkColNm.eq(bprojm.prjMngNo),
-                                                                                cappla2.fntTbCrySno.eq(bprojm.prjSno))))
+                                                                                cappla2.pkColNm.eq(bprojm.abusMngNo),
+                                                                                cappla2.fntTbCrySno.eq(bprojm.sno))))
                                                 .exists())
                                 .exists())
                 .groupBy(bitemm.ioeC)

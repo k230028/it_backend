@@ -418,14 +418,14 @@ public class CouncilService {
                 .orElseGet(() -> projectOpt.map(p -> p.getPrjNm()).orElse(null));
 
         // 사업 상세 (BPROJM 기반)
-        String prjYy   = projectOpt.map(p -> p.getBgYy()).orElse(null);
-        String prjTp   = projectOpt.map(p -> p.getPrjTp()).orElse(null);
-        String svnDpm  = projectOpt.map(p -> p.getSvnDpm()).orElse(null);
-        java.math.BigDecimal prjBg = projectOpt.map(p -> p.getPrjBg()).orElse(null);
-        java.time.LocalDate sttDt  = projectOpt.map(p -> p.getSttDt()).orElse(null);
-        java.time.LocalDate endDt  = projectOpt.map(p -> p.getEndDt()).orElse(null);
-        String itDpm   = projectOpt.map(p -> p.getItDpm()).orElse(null);
-        String prjDes  = projectOpt.map(p -> p.getPrjDes()).orElse(null);
+        String prjYy   = projectOpt.map(p -> p.getBseYy()).orElse(null);
+        String prjTp   = projectOpt.map(p -> p.getPrjBzTc()).orElse(null);
+        String svnDpm  = projectOpt.map(p -> p.getSvnDpmC()).orElse(null);
+        java.math.BigDecimal prjBg = projectOpt.map(p -> p.getRqmBgAmt()).orElse(null);
+        java.time.LocalDate sttDt  = projectOpt.map(p -> p.getSttDtm()).orElse(null);
+        java.time.LocalDate endDt  = projectOpt.map(p -> p.getEndDtm()).orElse(null);
+        String itDpm   = projectOpt.map(p -> p.getDvmDpmC()).orElse(null);
+        String prjDes  = projectOpt.map(p -> p.getAbusCone()).orElse(null);
 
         return new CouncilDto.ListResponse(
                 council.getAsctId(),
@@ -545,13 +545,13 @@ public class CouncilService {
         if (projectOpt.isPresent()) {
             var p = projectOpt.get();
             prjNm = p.getPrjNm();
-            edrt = p.getEdrt();
-            sttDt = p.getSttDt();
-            endDt = p.getEndDt();
-            ncs = p.getNcs();
-            prjBg = p.getPrjBg();
-            prjDes = p.getPrjDes();
-            xptEff = p.getXptEff();
+            edrt = p.getEdrtTc();
+            sttDt = p.getSttDtm();
+            endDt = p.getEndDtm();
+            ncs = p.getAbusNcsCone();
+            prjBg = p.getRqmBgAmt();
+            prjDes = p.getAbusCone();
+            xptEff = p.getDgogPpoCone();
         }
 
         return new CouncilDto.DetailResponse(

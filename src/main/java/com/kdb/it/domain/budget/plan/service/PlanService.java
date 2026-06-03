@@ -210,7 +210,7 @@ public class PlanService {
 
                 // 3. 예산 합계 계산 (정보화사업 + 전산업무비)
                 BigDecimal ttlBg = projects.stream()
-                                .map(p -> p.getPrjBg() != null ? p.getPrjBg() : BigDecimal.ZERO)
+                                .map(p -> p.getRqmBgAmt() != null ? p.getRqmBgAmt() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
                 ttlBg = costs.stream()
                                 .map(c -> c.getItMngcBgAmt() != null ? c.getItMngcBgAmt() : BigDecimal.ZERO)
@@ -350,13 +350,13 @@ public class PlanService {
                 // 정보화사업 스냅샷 변환
                 List<PlanDto.ProjectSnapshot> projectSnapshots = projects.stream()
                                 .map(p -> PlanDto.ProjectSnapshot.builder()
-                                                .prjMngNo(p.getPrjMngNo())
+                                                .prjMngNo(p.getAbusMngNo())
                                                 .prjNm(p.getPrjNm())
-                                                .prjTp(p.getPrjTp())
-                                                .svnHdq(p.getSvnHdq())
-                                                .svnDpm(p.getSvnDpm())
-                                                .svnDpmNm(p.getSvnDpmNm())
-                                                .prjBg(p.getPrjBg())
+                                                .prjTp(p.getPrjBzTc())
+                                                .svnHdq(p.getPrlmHrkOgzCCone())
+                                                .svnDpm(p.getSvnDpmC())
+                                                .svnDpmNm(p.getSvnDpmCNm())
+                                                .prjBg(p.getRqmBgAmt())
                                                 .assetBg(p.getAssetBg())
                                                 .costBg(p.getCostBg())
                                                 .build())
@@ -379,8 +379,8 @@ public class PlanService {
 
                 // 부문별/사업유형별 사업목록에는 일반 정보화사업만 표시합니다.
                 Set<String> ordinaryProjectIds = projects.stream()
-                                .filter(p -> "Y".equals(p.getOrnYn()))
-                                .map(ProjectDto.Response::getPrjMngNo)
+                                .filter(p -> "Y".equals(p.getOdnYn()))
+                                .map(ProjectDto.Response::getAbusMngNo)
                                 .collect(Collectors.toSet());
                 List<PlanDto.ProjectSnapshot> businessListSnapshots = projectSnapshots.stream()
                                 .filter(p -> !ordinaryProjectIds.contains(p.getPrjMngNo()))

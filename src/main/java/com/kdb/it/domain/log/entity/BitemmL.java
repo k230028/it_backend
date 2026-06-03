@@ -27,13 +27,13 @@ public class BitemmL extends BaseLogEntity {
     private String gclMngNo;
 
     @Column(name = "SNO", precision = 9, comment = "일련번호")
-    private Integer gclSno;
+    private Integer sno;
 
     @Column(name = "ABUS_MNG_NO", length = 32, comment = "사업관리번호")
-    private String prjMngNo;
+    private String abusMngNo;
 
     @Column(name = "FNT_TB_CRY_SNO", comment = "원천테이블적재일련번호")
-    private Integer prjSno;
+    private Integer fntTbCrySno;
 
     @Column(name = "IOE_C", length = 3, comment = "품목구분")
     private String ioeC;
@@ -42,7 +42,7 @@ public class BitemmL extends BaseLogEntity {
     private String gclNm;
 
     @Column(name = "QTY", precision = 10, comment = "품목수량")
-    private BigDecimal gclQty;
+    private BigDecimal qty;
 
     @Column(name = "CUR_C", length = 3, comment = "통화코드")
     private String curC;
@@ -54,16 +54,16 @@ public class BitemmL extends BaseLogEntity {
     private String xcrBseDt;
 
     @Column(name = "CNCD_FDTN_CONE", length = 300, comment = "예산근거내용")
-    private String bgFdtnCone;
+    private String cncdFdtnCone;
 
     @Column(name = "BSE_YM", length = 6, comment = "추진년월")
-    private String itdYm;
+    private String bseYm;
 
     @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
     private String dfrCleC;
 
     @Column(name = "SECT_SYS_UTZ_YN", length = 1, comment = "정보보호여부")
-    private String infPrtYn;
+    private String sectSysUtzYn;
 
     @Column(name = "ITR_INFR_YN", length = 1, comment = "통합인프라여부")
     private String itrInfrYn;
@@ -72,7 +72,7 @@ public class BitemmL extends BaseLogEntity {
     private String lstYn;
 
     @Column(name = "AMT", precision = 18, scale = 3, comment = "품목금액")
-    private BigDecimal gclAmt;
+    private BigDecimal amt;
 
     /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */
     @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")

@@ -24,110 +24,110 @@ import java.time.LocalDate;
 public class BprojmL extends BaseLogEntity {
 
     @Column(name = "ABUS_MNG_NO", length = 32, comment = "프로젝트관리번호")
-    private String prjMngNo;
+    private String abusMngNo;
 
     @Column(name = "SNO", comment = "프로젝트순번")
-    private Integer prjSno;
+    private Integer sno;
 
     @Column(name = "PRJ_NM", length = 200, comment = "프로젝트명")
     private String prjNm;
 
     @Column(name = "PRJ_BZ_TC", length = 100, comment = "프로젝트유형")
-    private String prjTp;
+    private String prjBzTc;
 
     @Column(name = "SVN_DPM_C", length = 100, comment = "주관부서")
-    private String svnDpm;
+    private String svnDpmC;
 
     @Column(name = "DVM_DPM_C", length = 100, comment = "IT부서")
-    private String itDpm;
+    private String dvmDpmC;
 
     @Column(name = "RQM_BG_AMT", precision = 15, scale = 2, comment = "프로젝트예산")
-    private BigDecimal prjBg;
+    private BigDecimal rqmBgAmt;
 
     @Column(name = "MPL_AMT", precision = 15, scale = 2, comment = "익년프로젝트예산")
-    private BigDecimal nyyPrjBg;
+    private BigDecimal mplAmt;
 
     @Column(name = "STT_DTM", comment = "시작일자")
-    private LocalDate sttDt;
+    private LocalDate sttDtm;
 
     @Column(name = "END_DTM", comment = "종료일자")
-    private LocalDate endDt;
+    private LocalDate endDtm;
 
     @Column(name = "SVN_DPM_USID", length = 32, comment = "주관부서담당자")
-    private String svnDpmCgpr;
+    private String svnDpmUsid;
 
     @Column(name = "DVM_USID", length = 32, comment = "IT부서담당자")
-    private String itDpmCgpr;
+    private String dvmUsid;
 
     @Column(name = "SVN_DPM_DCD_USID", length = 32, comment = "주관부서담당팀장")
-    private String svnDpmTlr;
+    private String svnDpmDcdUsid;
 
     @Column(name = "TLR_USID", length = 32, comment = "IT부서담당팀장")
-    private String itDpmTlr;
+    private String tlrUsid;
 
     @Column(name = "EDRT_TC", length = 32, comment = "전결권")
-    private String edrt;
+    private String edrtTc;
 
     @Column(name = "ABUS_CONE", length = 1000, comment = "사업설명")
-    private String prjDes;
+    private String abusCone;
 
     @Column(name = "CPN_SAF_CONE", length = 1000, comment = "현황")
-    private String saf;
+    private String cpnSafCone;
 
     @Column(name = "ABUS_NCS_CONE", length = 1000, comment = "필요성")
-    private String ncs;
+    private String abusNcsCone;
 
     @Column(name = "DGOG_PPO_CONE", length = 1000, comment = "기대효과")
-    private String xptEff;
+    private String dgogPpoCone;
 
     @Column(name = "PLM_DES", length = 1000, comment = "문제")
-    private String plm;
+    private String plmDes;
 
     @Column(name = "PRJ_TGT_RNG_CONE", length = 1000, comment = "사업범위")
-    private String prjRng;
+    private String prjTgtRngCone;
 
     @Column(name = "MN_PRG_CONE", length = 2000, comment = "주요진행내용")
-    private String pulPsg;
+    private String mnPrgCone;
 
     @Column(name = "HRF_PLN_CONE", length = 1000, comment = "향후계획")
-    private String hrfPln;
+    private String hrfPlnCone;
 
     @Column(name = "BZ_DTT_NM", length = 32, comment = "업무구분")
-    private String bzDtt;
+    private String bzDttNm;
 
     @Column(name = "SKL_TP_TC", length = 32, comment = "기술유형")
-    private String tchnTp;
+    private String sklTpTc;
 
     @Column(name = "CST_TP_TC", length = 32, comment = "주요사용자")
-    private String mnUsr;
+    private String cstTpTc;
 
     @Column(name = "DPL_YN", length = 1, comment = "중복여부")
     private String dplYn;
 
     @Column(name = "FLF_FSG_DT", comment = "의무완료기한")
-    private String lblFsgTlm;
+    private String flfFsgDt;
 
     @Column(name = "RPR_STS_TC", length = 32, comment = "보고상태")
-    private String rprSts;
+    private String rprStsTc;
 
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
     @Column(name = "EXE_PTT_YN", length = 3, comment = "프로젝트추진가능성")
-    private String prjPulPtt;
+    private String exePttYn;
 
     @Column(name = "STS_TC", length = 32, comment = "프로젝트상태")
-    private String prjSts;
+    private String stsTc;
 
     @Column(name = "BSE_YY", length = 4, comment = "예산연도")
-    private String bgYy;
+    private String bseYy;
 
     @Column(name = "PRLM_HRK_OGZ_C_CONE", length = 32, comment = "주관본부")
-    private String svnHdq;
+    private String prlmHrkOgzCCone;
 
     @Column(name = "ODN_YN", length = 1, comment = "경상여부")
-    private String ornYn;
+    private String odnYn;
 
     @Column(name = "ABUS_TC", length = 32, comment = "사업구분")
-    private String pulDtt;
+    private String abusTc;
 }

@@ -20,7 +20,7 @@ class BprojmUpdateCommandTest {
     @DisplayName("UpdateCommand: 레코드로 Bprojm.update()를 호출하면 모든 필드가 올바르게 반영된다")
     void updateCommand_모든필드_올바르게설정() {
         Bprojm project = Bprojm.builder()
-                .prjMngNo("PRJ-2026-0001")
+                .abusMngNo("PRJ-2026-0001")
                 .build();
 
         Bprojm.UpdateCommand cmd = new Bprojm.UpdateCommand(
@@ -37,17 +37,17 @@ class BprojmUpdateCommandTest {
         project.update(cmd);
 
         assertThat(project.getPrjNm()).isEqualTo("신규 프로젝트명");
-        assertThat(project.getPrjTp()).isEqualTo("신규개발");
-        assertThat(project.getSvnDpm()).isEqualTo("주관부서A");
-        assertThat(project.getItDpm()).isEqualTo("IT부서B");
-        assertThat(project.getPrjBg()).isEqualByComparingTo(BigDecimal.valueOf(50_000_000));
-        assertThat(project.getSttDt()).isEqualTo(LocalDate.of(2026, 1, 1));
-        assertThat(project.getEndDt()).isEqualTo(LocalDate.of(2026, 12, 31));
-        assertThat(project.getBgYy()).isEqualTo("2026");
+        assertThat(project.getPrjBzTc()).isEqualTo("신규개발");
+        assertThat(project.getSvnDpmC()).isEqualTo("주관부서A");
+        assertThat(project.getDvmDpmC()).isEqualTo("IT부서B");
+        assertThat(project.getRqmBgAmt()).isEqualByComparingTo(BigDecimal.valueOf(50_000_000));
+        assertThat(project.getSttDtm()).isEqualTo(LocalDate.of(2026, 1, 1));
+        assertThat(project.getEndDtm()).isEqualTo(LocalDate.of(2026, 12, 31));
+        assertThat(project.getBseYy()).isEqualTo("2026");
         assertThat(project.getDplYn()).isEqualTo("N");
-        assertThat(project.getOrnYn()).isEqualTo("N");
-        assertThat(project.getPulDtt()).isEqualTo("신규");
-        assertThat(project.getCncdPrjMngNo()).isNull();
-        assertThat(project.getPrjPulPtt()).isEqualTo("80");
+        assertThat(project.getOdnYn()).isEqualTo("N");
+        assertThat(project.getAbusTc()).isEqualTo("신규");
+        assertThat(project.getCncdRfrNo()).isNull();
+        assertThat(project.getExePttYn()).isEqualTo("80");
     }
 }

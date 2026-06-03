@@ -71,11 +71,11 @@ class BudgetWorkServiceXcrLookupTest {
         // 외화 Bitemm 1건 (item.xcr=0 위조)
         Bitemm bitemm = mock(Bitemm.class);
         given(bitemm.getCurC()).willReturn("USD");
-        given(bitemm.getGclAmt()).willReturn(new BigDecimal("1000"));
+        given(bitemm.getAmt()).willReturn(new BigDecimal("1000"));
         given(bitemm.getXcr()).willReturn(BigDecimal.ZERO);  // 클라가 0으로 위조해도 무시
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0001");
-        given(bitemm.getGclSno()).willReturn(1);
+        given(bitemm.getSno()).willReturn(1);
         given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn(eq("PRJ-2026-0001"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
 
@@ -112,7 +112,7 @@ class BudgetWorkServiceXcrLookupTest {
 
         Bitemm bitemm = mock(Bitemm.class);
         given(bitemm.getCurC()).willReturn("XYZ");
-        given(bitemm.getGclAmt()).willReturn(new BigDecimal("1000"));
+        given(bitemm.getAmt()).willReturn(new BigDecimal("1000"));
         given(bitemm.getIoeC()).willReturn("001");
         given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn(eq("PRJ-2026-0001"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
@@ -141,10 +141,10 @@ class BudgetWorkServiceXcrLookupTest {
 
         Bitemm bitemm = mock(Bitemm.class);
         given(bitemm.getCurC()).willReturn("KRW");
-        given(bitemm.getGclAmt()).willReturn(new BigDecimal("5000000"));
+        given(bitemm.getAmt()).willReturn(new BigDecimal("5000000"));
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0002");
-        given(bitemm.getGclSno()).willReturn(1);
+        given(bitemm.getSno()).willReturn(1);
         given(projectItemRepository.findByPrjMngNoAndDelYnAndLstYn(eq("PRJ-2026-0002"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
 

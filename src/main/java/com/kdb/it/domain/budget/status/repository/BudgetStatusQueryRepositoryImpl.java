@@ -76,13 +76,13 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         // 담당자 행번 → 이름 변환용 스칼라 서브쿼리 (JPQL 엔티티명 사용)
         StringExpression svnDpmTlrNm = Expressions.stringTemplate(
-                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.svnDpmTlr);
+                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.svnDpmDcdUsid);
         StringExpression svnDpmCgprNm = Expressions.stringTemplate(
-                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.svnDpmCgpr);
+                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.svnDpmUsid);
         StringExpression itDpmTlrNm = Expressions.stringTemplate(
-                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.itDpmTlr);
+                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.tlrUsid);
         StringExpression itDpmCgprNm = Expressions.stringTemplate(
-                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.itDpmCgpr);
+                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.dvmUsid);
 
         // 편성요청 금액: BITEMM의 GCL_AMT * COALESCE(XCR, 1)를 품목구분별로 피벗
         NumberExpression<BigDecimal> reqDev = sumItemAmtByCTp(itemCode.cTp, i, CTP_DEV);
@@ -104,24 +104,24 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         List<Tuple> tuples = queryFactory
                 .select(
-                        p.prjMngNo, p.prjTp, p.pulDtt, p.prjNm, p.prjDes,
-                        p.svnHdq, p.svnDpm, svnOrg.bbrNm, p.svnDpmTlr, svnDpmTlrNm, p.svnDpmCgpr, svnDpmCgprNm,
-                        p.itDpm, itOrg.bbrNm, p.itDpmTlr, itDpmTlrNm, p.itDpmCgpr, itDpmCgprNm,
-                        p.prjPulPtt, p.sttDt, p.endDt, p.rprSts, rprStsCode.cNm, p.edrt,
+                        p.abusMngNo, p.prjBzTc, p.abusTc, p.prjNm, p.abusCone,
+                        p.prlmHrkOgzCCone, p.svnDpmC, svnOrg.bbrNm, p.svnDpmDcdUsid, svnDpmTlrNm, p.svnDpmUsid, svnDpmCgprNm,
+                        p.dvmDpmC, itOrg.bbrNm, p.tlrUsid, itDpmTlrNm, p.dvmUsid, itDpmCgprNm,
+                        p.exePttYn, p.sttDtm, p.endDtm, p.rprStsTc, rprStsCode.cNm, p.edrtTc,
                         reqDev, reqMach, reqIntan, reqRent, reqTravel, reqService, reqMisc,
                         adjDev, adjMach, adjIntan, adjRent, adjTravel, adjService, adjMisc
                 )
                 .from(p)
-                .leftJoin(svnOrg).on(svnOrg.prlmOgzCCone.eq(p.svnDpm))
-                .leftJoin(itOrg).on(itOrg.prlmOgzCCone.eq(p.itDpm))
+                .leftJoin(svnOrg).on(svnOrg.prlmOgzCCone.eq(p.svnDpmC))
+                .leftJoin(itOrg).on(itOrg.prlmOgzCCone.eq(p.dvmDpmC))
                 .leftJoin(rprStsCode).on(
                         rprStsCode.cId.eq("RPR_STS"),
-                        rprStsCode.cdva.eq(p.rprSts),
+                        rprStsCode.cdva.eq(p.rprStsTc),
                         codeIsActive(rprStsCode)
                 )
                 .leftJoin(i).on(
-                        i.prjMngNo.eq(p.prjMngNo),
-                        i.prjSno.eq(p.prjSno),
+                        i.abusMngNo.eq(p.abusMngNo),
+                        i.fntTbCrySno.eq(p.sno),
                         i.delYn.eq("N"),
                         i.lstYn.eq("Y")
                 )
@@ -142,18 +142,18 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         codeIsActive(budgetCode)
                 )
                 .where(
-                        p.bgYy.eq(bgYy),
-                        p.ornYn.ne("Y"),
+                        p.bseYy.eq(bgYy),
+                        p.odnYn.ne("Y"),
                         p.delYn.eq("N"),
                         p.lstYn.eq("Y")
                 )
                 .groupBy(
-                        p.prjMngNo, p.prjSno, p.prjTp, p.pulDtt, p.prjNm, p.prjDes,
-                        p.svnHdq, p.svnDpm, svnOrg.bbrNm, p.svnDpmTlr, p.svnDpmCgpr,
-                        p.itDpm, itOrg.bbrNm, p.itDpmTlr, p.itDpmCgpr,
-                        p.prjPulPtt, p.sttDt, p.endDt, p.rprSts, rprStsCode.cNm, p.edrt
+                        p.abusMngNo, p.sno, p.prjBzTc, p.abusTc, p.prjNm, p.abusCone,
+                        p.prlmHrkOgzCCone, p.svnDpmC, svnOrg.bbrNm, p.svnDpmDcdUsid, p.svnDpmUsid,
+                        p.dvmDpmC, itOrg.bbrNm, p.tlrUsid, p.dvmUsid,
+                        p.exePttYn, p.sttDtm, p.endDtm, p.rprStsTc, rprStsCode.cNm, p.edrtTc
                 )
-                .orderBy(p.prjMngNo.asc())
+                .orderBy(p.abusMngNo.asc())
                 .fetch();
 
         return tuples.stream().map(t -> {
@@ -182,16 +182,16 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
             BigDecimal aTotal = aAsset.add(aCost);
 
             return new BudgetStatusDto.ProjectResponse(
-                    t.get(p.prjMngNo), t.get(p.prjTp), t.get(p.pulDtt),
-                    t.get(p.prjNm), t.get(p.prjDes),
-                    t.get(p.svnHdq), t.get(p.svnDpm), t.get(svnOrg.bbrNm),
-                    t.get(p.svnDpmTlr), t.get(svnDpmTlrNm),
-                    t.get(p.svnDpmCgpr), t.get(svnDpmCgprNm),
-                    t.get(p.itDpm), t.get(itOrg.bbrNm),
-                    t.get(p.itDpmTlr), t.get(itDpmTlrNm),
-                    t.get(p.itDpmCgpr), t.get(itDpmCgprNm),
-                    t.get(p.prjPulPtt), t.get(p.sttDt), t.get(p.endDt),
-                    t.get(p.rprSts), t.get(rprStsCode.cNm), t.get(p.edrt),
+                    t.get(p.abusMngNo), t.get(p.prjBzTc), t.get(p.abusTc),
+                    t.get(p.prjNm), t.get(p.abusCone),
+                    t.get(p.prlmHrkOgzCCone), t.get(p.svnDpmC), t.get(svnOrg.bbrNm),
+                    t.get(p.svnDpmDcdUsid), t.get(svnDpmTlrNm),
+                    t.get(p.svnDpmUsid), t.get(svnDpmCgprNm),
+                    t.get(p.dvmDpmC), t.get(itOrg.bbrNm),
+                    t.get(p.tlrUsid), t.get(itDpmTlrNm),
+                    t.get(p.dvmUsid), t.get(itDpmCgprNm),
+                    t.get(p.exePttYn), t.get(p.sttDtm), t.get(p.endDtm),
+                    t.get(p.rprStsTc), t.get(rprStsCode.cNm), t.get(p.edrtTc),
                     rDev, rMach, rIntan, rAsset,
                     rRent, rTravel, rService, rMisc, rCost, rTotal,
                     aDev, aMach, aIntan, aAsset,
@@ -324,28 +324,28 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         StringExpression machCur = Expressions.stringTemplate(
                 "MAX(CASE WHEN {0} = {1} THEN {2} END)",
                 itemCode.cTp, Expressions.constant(CTP_MACH), i.curC);
-        NumberExpression<BigDecimal> machQtt = sumFieldByCTp(itemCode.cTp, CTP_MACH, i.gclQty);
-        NumberExpression<BigDecimal> machAmt = sumFieldByCTp(itemCode.cTp, CTP_MACH, i.gclAmt);
+        NumberExpression<BigDecimal> machQtt = sumFieldByCTp(itemCode.cTp, CTP_MACH, i.qty);
+        NumberExpression<BigDecimal> machAmt = sumFieldByCTp(itemCode.cTp, CTP_MACH, i.amt);
         NumberExpression<BigDecimal> machAmtKrw = sumItemAmtByCTp(itemCode.cTp, i, CTP_MACH);
 
         // 기타무형자산 (IOE-239)
         StringExpression intanCur = Expressions.stringTemplate(
                 "MAX(CASE WHEN {0} = {1} THEN {2} END)",
                 itemCode.cTp, Expressions.constant(CTP_INTAN), i.curC);
-        NumberExpression<BigDecimal> intanQtt = sumFieldByCTp(itemCode.cTp, CTP_INTAN, i.gclQty);
-        NumberExpression<BigDecimal> intanAmt = sumFieldByCTp(itemCode.cTp, CTP_INTAN, i.gclAmt);
+        NumberExpression<BigDecimal> intanQtt = sumFieldByCTp(itemCode.cTp, CTP_INTAN, i.qty);
+        NumberExpression<BigDecimal> intanAmt = sumFieldByCTp(itemCode.cTp, CTP_INTAN, i.amt);
         NumberExpression<BigDecimal> intanAmtKrw = sumItemAmtByCTp(itemCode.cTp, i, CTP_INTAN);
 
         List<Tuple> tuples = queryFactory
                 .select(
-                        p.prjMngNo, p.pulDtt, p.prjNm, p.prjDes,
+                        p.abusMngNo, p.abusTc, p.prjNm, p.abusCone,
                         machCur, machQtt, machAmt, machAmtKrw,
                         intanCur, intanQtt, intanAmt, intanAmtKrw
                 )
                 .from(p)
                 .leftJoin(i).on(
-                        i.prjMngNo.eq(p.prjMngNo),
-                        i.prjSno.eq(p.prjSno),
+                        i.abusMngNo.eq(p.abusMngNo),
+                        i.fntTbCrySno.eq(p.sno),
                         i.delYn.eq("N"),
                         i.lstYn.eq("Y")
                 )
@@ -355,13 +355,13 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         codeIsActive(itemCode)
                 )
                 .where(
-                        p.bgYy.eq(bgYy),
-                        p.ornYn.eq("Y"),
+                        p.bseYy.eq(bgYy),
+                        p.odnYn.eq("Y"),
                         p.delYn.eq("N"),
                         p.lstYn.eq("Y")
                 )
-                .groupBy(p.prjMngNo, p.prjSno, p.pulDtt, p.prjNm, p.prjDes)
-                .orderBy(p.prjMngNo.asc())
+                .groupBy(p.abusMngNo, p.sno, p.abusTc, p.prjNm, p.abusCone)
+                .orderBy(p.abusMngNo.asc())
                 .fetch();
 
         return tuples.stream().map(t -> {
@@ -377,7 +377,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                     ? iAmt.divide(iQtt, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
             return new BudgetStatusDto.OrdinaryResponse(
-                    t.get(p.prjMngNo), t.get(p.pulDtt), t.get(p.prjNm), t.get(p.prjDes),
+                    t.get(p.abusMngNo), t.get(p.abusTc), t.get(p.prjNm), t.get(p.abusCone),
                     t.get(machCur), mQtt, mUnitPrice, mAmt, nvl(t.get(machAmtKrw)),
                     t.get(intanCur), iQtt, iUnitPrice, iAmt, nvl(t.get(intanAmtKrw))
             );
@@ -442,16 +442,16 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         // 편성요청액: BITEMM.gclAmt * COALESCE(xcr, 1) 합계 — 해당 사업의 최신 버전·미삭제 품목 대상
         BigDecimal requestSum = queryFactory
                 .select(Expressions.numberTemplate(BigDecimal.class,
-                        "COALESCE(SUM({0} * COALESCE({1}, 1)), 0)", i.gclAmt, i.xcr))
+                        "COALESCE(SUM({0} * COALESCE({1}, 1)), 0)", i.amt, i.xcr))
                 .from(p)
                 .join(i).on(
-                        i.prjMngNo.eq(p.prjMngNo),
-                        i.prjSno.eq(p.prjSno),
+                        i.abusMngNo.eq(p.abusMngNo),
+                        i.fntTbCrySno.eq(p.sno),
                         i.delYn.eq("N"),
                         i.lstYn.eq("Y"))
                 .where(
-                        p.prjMngNo.eq(projectCode),
-                        p.bgYy.eq(bgYy),
+                        p.abusMngNo.eq(projectCode),
+                        p.bseYy.eq(bgYy),
                         p.delYn.eq("N"),
                         p.lstYn.eq("Y"))
                 .fetchOne();
@@ -468,7 +468,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         b.orcTb.eq("BITEMM"),
                         b.bgYy.eq(bgYy),
                         b.delYn.eq("N"),
-                        i.prjMngNo.eq(projectCode))
+                        i.abusMngNo.eq(projectCode))
                 .fetchOne();
 
         return toAggregated(requestSum, allocatedSum);
@@ -500,11 +500,11 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         // 편성요청액: BITEMM.gclAmt * COALESCE(xcr, 1) 합계 — 최신 버전·미삭제 사업/품목 대상
         BigDecimal requestSum = queryFactory
                 .select(Expressions.numberTemplate(BigDecimal.class,
-                        "COALESCE(SUM({0} * COALESCE({1}, 1)), 0)", i.gclAmt, i.xcr))
+                        "COALESCE(SUM({0} * COALESCE({1}, 1)), 0)", i.amt, i.xcr))
                 .from(p)
                 .join(i).on(
-                        i.prjMngNo.eq(p.prjMngNo),
-                        i.prjSno.eq(p.prjSno),
+                        i.abusMngNo.eq(p.abusMngNo),
+                        i.fntTbCrySno.eq(p.sno),
                         i.delYn.eq("N"),
                         i.lstYn.eq("Y"))
                 .leftJoin(itemCode).on(
@@ -512,7 +512,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         itemCode.cdva.eq(i.ioeC),
                         codeIsActive(itemCode))
                 .where(
-                        p.bgYy.eq(bgYy),
+                        p.bseYy.eq(bgYy),
                         p.delYn.eq("N"),
                         p.lstYn.eq("Y"),
                         cTpFilter)
@@ -527,8 +527,8 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         i.delYn.eq("N"),
                         i.lstYn.eq("Y"))
                 .join(p).on(
-                        p.prjMngNo.eq(i.prjMngNo),
-                        p.prjSno.eq(i.prjSno),
+                        p.abusMngNo.eq(i.abusMngNo),
+                        p.sno.eq(i.fntTbCrySno),
                         p.delYn.eq("N"),
                         p.lstYn.eq("Y"))
                 .leftJoin(itemCode).on(
@@ -574,7 +574,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     private NumberExpression<BigDecimal> sumItemAmtByCTp(StringExpression cTp, QBitemm i, String codeType) {
         return Expressions.numberTemplate(BigDecimal.class,
                 "COALESCE(SUM(CASE WHEN {0} = {1} THEN {2} * COALESCE({3}, 1) ELSE 0 END), 0)",
-                cTp, Expressions.constant(codeType), i.gclAmt, i.xcr);
+                cTp, Expressions.constant(codeType), i.amt, i.xcr);
     }
 
     /**

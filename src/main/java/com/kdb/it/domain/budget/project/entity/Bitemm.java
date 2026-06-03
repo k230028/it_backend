@@ -55,15 +55,15 @@ public class Bitemm extends BaseEntity {
     /** 품목일련번호: 복합 기본키의 두 번째 컬럼 (같은 관리번호 내 순번) */
     @Id
     @Column(name = "SNO", nullable = false, precision = 9, comment = "일련번호")
-    private Integer gclSno;
+    private Integer sno;
 
-    /** 사업관리번호: 이 품목이 속한 정보화사업의 관리번호 (Bprojm.prjMngNo 참조) */
+    /** 사업관리번호: 이 품목이 속한 정보화사업의 관리번호 (Bprojm.abusMngNo 참조) */
     @Column(name = "ABUS_MNG_NO", nullable = false, length = 30, comment = "사업관리번호")
-    private String prjMngNo;
+    private String abusMngNo;
 
-    /** 원천테이블적재일련번호 (FNT_TB_CRY_SNO). 현재 품목↔정보화사업 연관(Bprojm.prjSno)을 잇는 순번 용도로 사용 */
+    /** 원천테이블적재일련번호 (FNT_TB_CRY_SNO). 현재 품목↔정보화사업 연관(Bprojm.sno)을 잇는 순번 용도로 사용 */
     @Column(name = "FNT_TB_CRY_SNO", precision = 10, comment = "원천테이블적재일련번호")
-    private Integer prjSno;
+    private Integer fntTbCrySno;
 
     /** 품목구분: 품목의 카테고리 (예: 소프트웨어, 하드웨어, 서비스, 컨설팅) */
     @Column(name = "IOE_C", length = 7, comment = "품목구분 (물리컬럼 IOE_C=비목코드)")
@@ -75,7 +75,7 @@ public class Bitemm extends BaseEntity {
 
     /** 품목수량: 도입 수량 (최대 10자리 숫자) */
     @Column(name = "QTY", precision = 10, comment = "품목수량 (물리컬럼 QTY=수량)")
-    private BigDecimal gclQty;
+    private BigDecimal qty;
 
     /** 통화코드: 가격 통화 코드 (예: KRW, USD, EUR) */
     @Column(name = "CUR_C", length = 3, comment = "통화코드")
@@ -91,11 +91,11 @@ public class Bitemm extends BaseEntity {
 
     /** 예산근거내용: 이 품목의 예산 산정 근거 또는 참고 자료 (최대 600자) */
     @Column(name = "CNCD_FDTN_CONE", length = 600, comment = "예산근거내용 (물리컬럼 CNCD_FDTN_CONE=관련근거내용)")
-    private String bgFdtnCone;
+    private String cncdFdtnCone;
 
     /** 추진년월: 품목 도입 예정 년월 (YYYYMM, 6자리) */
     @Column(name = "BSE_YM", length = 6, comment = "추진년월 (물리컬럼 BSE_YM=기준년월)")
-    private String itdYm;
+    private String bseYm;
 
     /** 지급주기코드: 비용 지급 주기 코드 (예: 일시, 매월, 분기) */
     @Column(name = "DFR_CLE_C", length = 1, comment = "지급주기코드")
@@ -103,7 +103,7 @@ public class Bitemm extends BaseEntity {
 
     /** 정보보호여부: 이 품목이 정보보호 관련 항목인지 여부 (Y/N) */
     @Column(name = "SECT_SYS_UTZ_YN", length = 1, comment = "정보보호여부 (물리컬럼 SECT_SYS_UTZ_YN=보안시스템운용여부)")
-    private String infPrtYn;
+    private String sectSysUtzYn;
 
     /** 통합인프라여부: 통합인프라(공동 인프라) 관련 항목인지 여부 (Y/N) */
     @Column(name = "ITR_INFR_YN", length = 1, comment = "통합인프라여부")
@@ -115,7 +115,7 @@ public class Bitemm extends BaseEntity {
 
     /** 품목금액: 이 품목의 총 금액 (수량 × 단가, 최대 15자리) */
     @Column(name = "AMT", precision = 18, scale = 3, comment = "품목금액 (물리컬럼 AMT=금액)")
-    private BigDecimal gclAmt;
+    private BigDecimal amt;
 
     /**
      * 외화금액(품목 외화 원금 — 환율 적용 전).

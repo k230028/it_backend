@@ -97,11 +97,11 @@ class ProjectServiceXcrLookupTest {
         item.setCurC("USD");
         item.setFcAmt(new BigDecimal("500.000"));
         item.setXcr(new BigDecimal("999"));            // 클라이언트 위조값
-        item.setGclAmt(new BigDecimal("0"));           // 클라이언트 위조값
+        item.setAmt(new BigDecimal("0"));           // 클라이언트 위조값
 
         ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
                 .prjNm("외화 사업")
-                .bgYy("2026")
+                .bseYy("2026")
                 .items(List.of(item))
                 .build();
 
@@ -112,7 +112,7 @@ class ProjectServiceXcrLookupTest {
         ArgumentCaptor<Bitemm> captor = ArgumentCaptor.forClass(Bitemm.class);
         verify(bitemmRepository).save(captor.capture());
         Bitemm saved = captor.getValue();
-        assertThat(saved.getGclAmt()).isEqualByComparingTo(new BigDecimal("700000.000"));
+        assertThat(saved.getAmt()).isEqualByComparingTo(new BigDecimal("700000.000"));
         assertThat(saved.getXcr()).isEqualByComparingTo(new BigDecimal("1400"));
         assertThat(saved.getFcAmt()).isEqualByComparingTo(new BigDecimal("500.000"));
         assertThat(saved.getCurC()).isEqualTo("USD");
@@ -133,11 +133,11 @@ class ProjectServiceXcrLookupTest {
         item.setCurC("XYZ");
         item.setFcAmt(new BigDecimal("500"));
         item.setXcr(new BigDecimal("999"));
-        item.setGclAmt(new BigDecimal("0"));
+        item.setAmt(new BigDecimal("0"));
 
         ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
                 .prjNm("미등록 통화 사업")
-                .bgYy("2026")
+                .bseYy("2026")
                 .items(List.of(item))
                 .build();
 
@@ -160,12 +160,12 @@ class ProjectServiceXcrLookupTest {
         item.setIoeC("IOE-237-0700");
         item.setGclNm("원화 품목");
         item.setCurC("KRW");
-        item.setGclAmt(new BigDecimal("1000000"));
+        item.setAmt(new BigDecimal("1000000"));
         item.setFcAmt(null);
 
         ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
                 .prjNm("원화 사업")
-                .bgYy("2026")
+                .bseYy("2026")
                 .items(List.of(item))
                 .build();
 
@@ -178,6 +178,6 @@ class ProjectServiceXcrLookupTest {
         Bitemm saved = captor.getValue();
         assertThat(saved.getXcr()).isNull();
         assertThat(saved.getFcAmt()).isNull();
-        assertThat(saved.getGclAmt()).isEqualByComparingTo(new BigDecimal("1000000"));
+        assertThat(saved.getAmt()).isEqualByComparingTo(new BigDecimal("1000000"));
     }
 }

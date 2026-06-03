@@ -62,7 +62,7 @@ class ProjectControllerTest {
         void getProjects_인증된사용자_200반환() throws Exception {
                 // given
                 ProjectDto.Response project = ProjectDto.Response.builder()
-                                .prjMngNo("PRJ-2026-0001")
+                                .abusMngNo("PRJ-2026-0001")
                                 .prjNm("테스트 사업")
                                 .build();
                 given(projectService.searchProjectList(any(ProjectDto.SearchCondition.class)))
@@ -71,7 +71,7 @@ class ProjectControllerTest {
                 // when & then
                 mockMvc.perform(get("/api/projects"))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$[0].prjMngNo").value("PRJ-2026-0001"))
+                                .andExpect(jsonPath("$[0].abusMngNo").value("PRJ-2026-0001"))
                                 .andExpect(jsonPath("$[0].prjNm").value("테스트 사업"));
         }
 
@@ -88,7 +88,7 @@ class ProjectControllerTest {
         void getProject_존재하는프로젝트_200반환() throws Exception {
                 // given
                 ProjectDto.Response detail = ProjectDto.Response.builder()
-                                .prjMngNo("PRJ-2026-0001")
+                                .abusMngNo("PRJ-2026-0001")
                                 .prjNm("테스트 사업")
                                 .build();
                 given(projectService.getProject("PRJ-2026-0001")).willReturn(detail);
@@ -96,7 +96,7 @@ class ProjectControllerTest {
                 // when & then
                 mockMvc.perform(get("/api/projects/PRJ-2026-0001"))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.prjMngNo").value("PRJ-2026-0001"));
+                                .andExpect(jsonPath("$.abusMngNo").value("PRJ-2026-0001"));
         }
 
         @Test
@@ -164,7 +164,7 @@ class ProjectControllerTest {
                 ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
                 request.setPrjMngNos(List.of("PRJ-2026-0001", "PRJ-2026-0002"));
                 ProjectDto.Response project = ProjectDto.Response.builder()
-                                .prjMngNo("PRJ-2026-0001")
+                                .abusMngNo("PRJ-2026-0001")
                                 .prjNm("테스트 사업")
                                 .build();
                 given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
@@ -174,6 +174,6 @@ class ProjectControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$[0].prjMngNo").value("PRJ-2026-0001"));
+                                .andExpect(jsonPath("$[0].abusMngNo").value("PRJ-2026-0001"));
         }
 }

@@ -163,16 +163,16 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                         .where(
                                 cappla.apfDcmNo.eq(capplm.apfMngNo),
                                 cappla.fntTbNm.eq("BPROJM"),
-                                cappla.pkColNm.eq(bprojm.prjMngNo),
-                                cappla.fntTbCrySno.eq(bprojm.prjSno),
+                                cappla.pkColNm.eq(bprojm.abusMngNo),
+                                cappla.fntTbCrySno.eq(bprojm.sno),
                                 capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                 cappla.apfDcmNo.eq(
                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                 .from(cappla2)
                                                 .where(
                                                         cappla2.fntTbNm.eq("BPROJM"),
-                                                        cappla2.pkColNm.eq(bprojm.prjMngNo),
-                                                        cappla2.fntTbCrySno.eq(bprojm.prjSno))))
+                                                        cappla2.pkColNm.eq(bprojm.abusMngNo),
+                                                        cappla2.fntTbCrySno.eq(bprojm.sno))))
                         .exists());
 
         // BITEMM 조건: 삭제되지 않은 최종 레코드 + 비목코드 IN 매칭
@@ -186,11 +186,11 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                 JPAExpressions.selectOne()
                         .from(bprojm)
                         .where(
-                                bprojm.prjMngNo.eq(bitemm.prjMngNo),
-                                bprojm.prjSno.eq(bitemm.prjSno),
+                                bprojm.abusMngNo.eq(bitemm.abusMngNo),
+                                bprojm.sno.eq(bitemm.fntTbCrySno),
                                 bprojm.delYn.eq("N"),
                                 bprojm.lstYn.eq("Y"),
-                                bprojm.bgYy.eq(bgYy),
+                                bprojm.bseYy.eq(bgYy),
                                 projApprovalBuilder)
                         .exists());
 
@@ -216,23 +216,23 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         // 정보화사업 편성은 BITEMM 단위로 저장(ORC_TB='BITEMM', ORC_PK_VL=GCL_MNG_NO)
         // → BITEMM.PRJ_MNG_NO 기준으로 JOIN 후 GROUP BY
         List<Tuple> results = queryFactory
-                .select(bitemm.prjMngNo, bbugtm.dupBgAmt.sum())
+                .select(bitemm.abusMngNo, bbugtm.dupBgAmt.sum())
                 .from(bbugtm)
                 .join(bitemm).on(
                         bbugtm.orcPkVl.eq(bitemm.gclMngNo),
-                        bbugtm.orcSnoVl.eq(bitemm.gclSno))
+                        bbugtm.orcSnoVl.eq(bitemm.sno))
                 .where(
                         bbugtm.bgYy.eq(bgYy),
                         bbugtm.orcTb.eq("BITEMM"),
-                        bitemm.prjMngNo.in(prjMngNos),
+                        bitemm.abusMngNo.in(prjMngNos),
                         bbugtm.delYn.eq("N"),
                         bitemm.delYn.eq("N"),
                         bitemm.lstYn.eq("Y"))
-                .groupBy(bitemm.prjMngNo)
+                .groupBy(bitemm.abusMngNo)
                 .fetch();
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
-            String key = t.get(bitemm.prjMngNo);
+            String key = t.get(bitemm.abusMngNo);
             BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
@@ -279,24 +279,24 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         QBbugtm bbugtm = QBbugtm.bbugtm;
         QBitemm bitemm = QBitemm.bitemm;
         List<Tuple> results = queryFactory
-                .select(bitemm.prjMngNo, bbugtm.dupBgAmt.sum())
+                .select(bitemm.abusMngNo, bbugtm.dupBgAmt.sum())
                 .from(bbugtm)
                 .join(bitemm).on(
                         bbugtm.orcPkVl.eq(bitemm.gclMngNo),
-                        bbugtm.orcSnoVl.eq(bitemm.gclSno))
+                        bbugtm.orcSnoVl.eq(bitemm.sno))
                 .where(
                         bbugtm.bgYy.eq(bgYy),
                         bbugtm.orcTb.eq("BITEMM"),
-                        bitemm.prjMngNo.in(prjMngNos),
+                        bitemm.abusMngNo.in(prjMngNos),
                         bitemm.ioeC.in(assetGclDttCodes),
                         bbugtm.delYn.eq("N"),
                         bitemm.delYn.eq("N"),
                         bitemm.lstYn.eq("Y"))
-                .groupBy(bitemm.prjMngNo)
+                .groupBy(bitemm.abusMngNo)
                 .fetch();
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
-            String key = t.get(bitemm.prjMngNo);
+            String key = t.get(bitemm.abusMngNo);
             BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
@@ -313,24 +313,24 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         QBbugtm bbugtm = QBbugtm.bbugtm;
         QBitemm bitemm = QBitemm.bitemm;
         List<Tuple> results = queryFactory
-                .select(bitemm.prjMngNo, bbugtm.dupBgAmt.sum())
+                .select(bitemm.abusMngNo, bbugtm.dupBgAmt.sum())
                 .from(bbugtm)
                 .join(bitemm).on(
                         bbugtm.orcPkVl.eq(bitemm.gclMngNo),
-                        bbugtm.orcSnoVl.eq(bitemm.gclSno))
+                        bbugtm.orcSnoVl.eq(bitemm.sno))
                 .where(
                         bbugtm.bgYy.eq(bgYy),
                         bbugtm.orcTb.eq("BITEMM"),
-                        bitemm.prjMngNo.in(prjMngNos),
+                        bitemm.abusMngNo.in(prjMngNos),
                         bitemm.ioeC.in(costGclDttCodes),
                         bbugtm.delYn.eq("N"),
                         bitemm.delYn.eq("N"),
                         bitemm.lstYn.eq("Y"))
-                .groupBy(bitemm.prjMngNo)
+                .groupBy(bitemm.abusMngNo)
                 .fetch();
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
-            String key = t.get(bitemm.prjMngNo);
+            String key = t.get(bitemm.abusMngNo);
             BigDecimal sum = t.get(bbugtm.dupBgAmt.sum());
             if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
@@ -421,33 +421,33 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                 JPAExpressions.selectOne()
                         .from(bprojm)
                         .where(
-                                bprojm.prjMngNo.eq(bitemm.prjMngNo),
-                                bprojm.prjSno.eq(bitemm.prjSno),
+                                bprojm.abusMngNo.eq(bitemm.abusMngNo),
+                                bprojm.sno.eq(bitemm.fntTbCrySno),
                                 bprojm.delYn.eq("N"),
                                 bprojm.lstYn.eq("Y"),
-                                bprojm.bgYy.eq(bgYy),
+                                bprojm.bseYy.eq(bgYy),
                                 JPAExpressions.selectOne()
                                         .from(cappla, capplm)
                                         .where(
                                                 cappla.apfDcmNo.eq(capplm.apfMngNo),
                                                 cappla.fntTbNm.eq("BPROJM"),
-                                                cappla.pkColNm.eq(bprojm.prjMngNo),
-                                                cappla.fntTbCrySno.eq(bprojm.prjSno),
+                                                cappla.pkColNm.eq(bprojm.abusMngNo),
+                                                cappla.fntTbCrySno.eq(bprojm.sno),
                                                 capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                                 cappla.apfDcmNo.eq(
                                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                                 .from(cappla2)
                                                                 .where(
                                                                         cappla2.fntTbNm.eq("BPROJM"),
-                                                                        cappla2.pkColNm.eq(bprojm.prjMngNo),
-                                                                        cappla2.fntTbCrySno.eq(bprojm.prjSno))))
+                                                                        cappla2.pkColNm.eq(bprojm.abusMngNo),
+                                                                        cappla2.fntTbCrySno.eq(bprojm.sno))))
                                         .exists())
                         .exists());
 
         // SUM(GCL_AMT * COALESCE(XCR, 1)) — 환율 적용된 원화 금액 합산
         return queryFactory
                 .select(Expressions.numberTemplate(BigDecimal.class,
-                        "SUM({0} * COALESCE({1}, 1))", bitemm.gclAmt, bitemm.xcr))
+                        "SUM({0} * COALESCE({1}, 1))", bitemm.amt, bitemm.xcr))
                 .from(bitemm)
                 .where(builder)
                 .fetchOne();

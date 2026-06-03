@@ -83,8 +83,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                 .where(
                                         cappla.apfDcmNo.eq(capplm.apfMngNo),
                                         cappla.fntTbNm.eq("BPROJM"),
-                                        cappla.pkColNm.eq(bprojm.prjMngNo),
-                                        cappla.fntTbCrySno.eq(bprojm.prjSno),
+                                        cappla.pkColNm.eq(bprojm.abusMngNo),
+                                        cappla.fntTbCrySno.eq(bprojm.sno),
                                         capplm.apfPrgStsC.in("01", "02"))
                                 .notExists());
             } else {
@@ -95,8 +95,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                 .where(
                                         cappla.apfDcmNo.eq(capplm.apfMngNo),
                                         cappla.fntTbNm.eq("BPROJM"),
-                                        cappla.pkColNm.eq(bprojm.prjMngNo),
-                                        cappla.fntTbCrySno.eq(bprojm.prjSno),
+                                        cappla.pkColNm.eq(bprojm.abusMngNo),
+                                        cappla.fntTbCrySno.eq(bprojm.sno),
                                         capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
                                                 ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
                                                 : apfSts),
@@ -106,8 +106,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                                         .from(cappla2)
                                                         .where(
                                                                 cappla2.fntTbNm.eq("BPROJM"),
-                                                                cappla2.pkColNm.eq(bprojm.prjMngNo),
-                                                                cappla2.fntTbCrySno.eq(bprojm.prjSno))))
+                                                                cappla2.pkColNm.eq(bprojm.abusMngNo),
+                                                                cappla2.fntTbCrySno.eq(bprojm.sno))))
                                 .exists());
             }
         }
@@ -115,34 +115,34 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
         // === 단순 필드 조건 처리 (null이면 해당 조건 미적용) ===
 
         // 사업연도 필터
-        if (condition.getBgYy() != null && !condition.getBgYy().isBlank()) {
-            builder.and(bprojm.bgYy.eq(condition.getBgYy()));
+        if (condition.getBseYy() != null && !condition.getBseYy().isBlank()) {
+            builder.and(bprojm.bseYy.eq(condition.getBseYy()));
         }
         // 프로젝트상태 필터
-        if (condition.getPrjSts() != null && !condition.getPrjSts().isBlank()) {
-            builder.and(bprojm.prjSts.eq(condition.getPrjSts()));
+        if (condition.getStsTc() != null && !condition.getStsTc().isBlank()) {
+            builder.and(bprojm.stsTc.eq(condition.getStsTc()));
         }
         // 프로젝트유형 필터
-        if (condition.getPrjTp() != null && !condition.getPrjTp().isBlank()) {
-            builder.and(bprojm.prjTp.eq(condition.getPrjTp()));
+        if (condition.getPrjBzTc() != null && !condition.getPrjBzTc().isBlank()) {
+            builder.and(bprojm.prjBzTc.eq(condition.getPrjBzTc()));
         }
         // IT부서 필터
-        if (condition.getItDpm() != null && !condition.getItDpm().isBlank()) {
-            builder.and(bprojm.itDpm.eq(condition.getItDpm()));
+        if (condition.getDvmDpmC() != null && !condition.getDvmDpmC().isBlank()) {
+            builder.and(bprojm.dvmDpmC.eq(condition.getDvmDpmC()));
         }
         // 주관부서 필터
-        if (condition.getSvnDpm() != null && !condition.getSvnDpm().isBlank()) {
-            builder.and(bprojm.svnDpm.eq(condition.getSvnDpm()));
+        if (condition.getSvnDpmC() != null && !condition.getSvnDpmC().isBlank()) {
+            builder.and(bprojm.svnDpmC.eq(condition.getSvnDpmC()));
         }
 
         // 경상여부 필터
         // 'Y': 경상사업만 조회 (ODN_YN='Y')
         // 'N': 일반 정보화사업만 조회 (ODN_YN IS NULL 또는 ODN_YN != 'Y')
-        if (condition.getOrnYn() != null && !condition.getOrnYn().isBlank()) {
-            if ("Y".equals(condition.getOrnYn())) {
-                builder.and(bprojm.ornYn.eq("Y"));
+        if (condition.getOdnYn() != null && !condition.getOdnYn().isBlank()) {
+            if ("Y".equals(condition.getOdnYn())) {
+                builder.and(bprojm.odnYn.eq("Y"));
             } else {
-                builder.and(bprojm.ornYn.isNull().or(bprojm.ornYn.ne("Y")));
+                builder.and(bprojm.odnYn.isNull().or(bprojm.odnYn.ne("Y")));
             }
         }
 

@@ -589,7 +589,7 @@ public class ApplicationService {
         // 사이드바 배지가 [결재 상신] 화면(예산연도 필터링)과 동일한 카운트를 보이도록 bgYy 일치 필요.
         ProjectDto.SearchCondition projectCondition = new ProjectDto.SearchCondition();
         projectCondition.setApfSts("none");
-        if (bgYy != null && !bgYy.isBlank()) projectCondition.setBgYy(bgYy);
+        if (bgYy != null && !bgYy.isBlank()) projectCondition.setBseYy(bgYy);
         long projectCount = projectRepository.searchByCondition(projectCondition).size();
 
         // 미상신 전산업무비 건수

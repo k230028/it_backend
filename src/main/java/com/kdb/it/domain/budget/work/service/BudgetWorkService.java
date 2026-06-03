@@ -209,13 +209,13 @@ public class BudgetWorkService {
                 // 외화이며 환율 미등록 시 resolveXcr가 IllegalStateException → @Transactional 경계에서 자연 롤백
                 BigDecimal serverXcr = xcrLookupService.resolveXcr(item.getCurC(), LocalDate.now());
                 BigDecimal xcrVal = serverXcr != null ? serverXcr : BigDecimal.ONE;
-                BigDecimal amountKrw = item.getGclAmt() != null ? item.getGclAmt().multiply(xcrVal) : BigDecimal.ZERO;
+                BigDecimal amountKrw = item.getAmt() != null ? item.getAmt().multiply(xcrVal) : BigDecimal.ZERO;
                 BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
                 Optional<Bbugtm> existing = bbugtmRepository
                         .findByBgYyAndOrcTbAndOrcPkVlAndOrcSnoVlAndIoeCAndDelYn(
                                 bgYy, "BITEMM", item.getGclMngNo(),
-                                item.getGclSno(), item.getIoeC(), "N");
+                                item.getSno(), item.getIoeC(), "N");
 
                 if (existing.isPresent()) {
                     existing.get().update(dupBgAmt, dupRt);
@@ -227,7 +227,7 @@ public class BudgetWorkService {
                             .bgYy(bgYy)
                             .orcTb("BITEMM")
                             .orcPkVl(item.getGclMngNo())
-                            .orcSnoVl(item.getGclSno())
+                            .orcSnoVl(item.getSno())
                             .ioeC(item.getIoeC())
                             .dupBgAmt(dupBgAmt)
                             .dupRt(dupRt)
@@ -306,7 +306,7 @@ public class BudgetWorkService {
                     // 외화이며 환율 미등록 시 resolveXcr가 IllegalStateException → @Transactional 경계에서 자연 롤백
                     BigDecimal serverXcr = xcrLookupService.resolveXcr(bitemm.getCurC(), LocalDate.now());
                     BigDecimal xcrVal = serverXcr != null ? serverXcr : BigDecimal.ONE;
-                    BigDecimal amountKrw = bitemm.getGclAmt() != null ? bitemm.getGclAmt().multiply(xcrVal) : BigDecimal.ZERO;
+                    BigDecimal amountKrw = bitemm.getAmt() != null ? bitemm.getAmt().multiply(xcrVal) : BigDecimal.ZERO;
                     BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
                     /* 선 Soft Delete 후 전체 재삽입 방식이므로 Upsert 불필요 (항상 INSERT) */
@@ -317,7 +317,7 @@ public class BudgetWorkService {
                             .bgYy(bgYy)
                             .orcTb("BITEMM")
                             .orcPkVl(bitemm.getGclMngNo())
-                            .orcSnoVl(bitemm.getGclSno())
+                            .orcSnoVl(bitemm.getSno())
                             .ioeC(bitemm.getIoeC())
                             .dupBgAmt(dupBgAmt)
                             .dupRt(dupRt)
@@ -695,7 +695,7 @@ public class BudgetWorkService {
                 // gclMngNo → prjMngNo 변환
                 groupKey = itemToPrjCache.computeIfAbsent(b.getOrcPkVl(), gclMngNo -> {
                     List<Bitemm> items = projectItemRepository.findByGclMngNoAndDelYn(gclMngNo, "N");
-                    return items.isEmpty() ? gclMngNo : items.get(0).getPrjMngNo();
+                    return items.isEmpty() ? gclMngNo : items.get(0).getAbusMngNo();
                 });
                 groupOrcTb = "BPROJM";
             } else {

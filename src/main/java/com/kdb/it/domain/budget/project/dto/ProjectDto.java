@@ -44,8 +44,8 @@ public class ProjectDto {
      * </p>
      *
      * <p>
-     * {@code prjMngNo}가 null 또는 빈 문자열이면 서비스에서 Oracle 시퀀스로 자동 채번합니다.
-     * 형식: {@code PRJ-{bgYy}-{seq:04d}} (예: "PRJ-2026-0001")
+     * {@code abusMngNo}가 null 또는 빈 문자열이면 서비스에서 Oracle 시퀀스로 자동 채번합니다.
+     * 형식: {@code PRJ-{bseYy}-{seq:04d}} (예: "PRJ-2026-0001")
      * </p>
      *
      * <p>
@@ -60,13 +60,13 @@ public class ProjectDto {
     @Schema(name = "ProjectCreateRequest")
     public static class CreateRequest {
         /**
-         * 프로젝트관리번호 (PRJ_MNG_NO, PK)
+         * 프로젝트관리번호 (ABUS_MNG_NO, PK)
          * <p>
-         * null 또는 빈 문자열이면 자동 채번됩니다. 형식: {@code PRJ-{bgYy}-{seq:04d}}
+         * null 또는 빈 문자열이면 자동 채번됩니다. 형식: {@code PRJ-{bseYy}-{seq:04d}}
          * </p>
          */
         @Schema(description = "프로젝트관리번호")
-        private String prjMngNo;
+        private String abusMngNo;
 
         /** 프로젝트명 */
         @Schema(description = "프로젝트명")
@@ -74,99 +74,99 @@ public class ProjectDto {
 
         /** 프로젝트유형 (예: "신규", "유지보수", "고도화") */
         @Schema(description = "프로젝트유형")
-        private String prjTp;
+        private String prjBzTc;
 
         /** 주관부서 코드 또는 명칭 */
         @Schema(description = "주관부서")
-        private String svnDpm;
+        private String svnDpmC;
 
         /** IT부서 코드 또는 명칭 */
         @Schema(description = "IT부서")
-        private String itDpm;
+        private String dvmDpmC;
 
         /** 프로젝트예산 (금액) */
         @Schema(description = "프로젝트예산")
-        private BigDecimal prjBg;
+        private BigDecimal rqmBgAmt;
 
         /** 익년프로젝트예산 (다음 해 예산 금액) */
         @Schema(description = "익년프로젝트예산")
-        private BigDecimal nyyPrjBg;
+        private BigDecimal mplAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
-        private LocalDate sttDt;
+        private LocalDate sttDtm;
 
         /** 종료일자 */
         @Schema(description = "종료일자")
-        private LocalDate endDt;
+        private LocalDate endDtm;
 
         /** 주관부서담당자 (담당자명 또는 사번) */
         @Schema(description = "주관부서담당자")
-        private String svnDpmCgpr;
+        private String svnDpmUsid;
 
         /** IT부서담당자 (담당자명 또는 사번) */
         @Schema(description = "IT부서담당자")
-        private String itDpmCgpr;
+        private String dvmUsid;
 
         /** 주관부서담당팀장 */
         @Schema(description = "주관부서담당팀장")
-        private String svnDpmTlr;
+        private String svnDpmDcdUsid;
 
         /** IT부서담당팀장 */
         @Schema(description = "IT부서담당팀장")
-        private String itDpmTlr;
+        private String tlrUsid;
 
         /** 주관본부/부문 */
         @Schema(description = "주관본부/부문")
-        private String svnHdq;
+        private String prlmHrkOgzCCone;
 
         /** 전결권 (결재 권한 범위) */
         @Schema(description = "전결권")
-        private String edrt;
+        private String edrtTc;
 
         /** 사업설명 */
         @Schema(description = "사업설명")
-        private String prjDes;
+        private String abusCone;
 
         /** 현황 (현재 사업 진행 현황) */
         @Schema(description = "현황")
-        private String saf;
+        private String cpnSafCone;
 
         /** 필요성 (사업 추진 필요성) */
         @Schema(description = "필요성")
-        private String ncs;
+        private String abusNcsCone;
 
         /** 기대효과 (사업 완료 후 기대 효과) */
         @Schema(description = "기대효과")
-        private String xptEff;
+        private String dgogPpoCone;
 
         /** 문제 (현재 문제점 또는 이슈) */
         @Schema(description = "문제")
-        private String plm;
+        private String plmDes;
 
         /** 사업범위 (프로젝트 적용 범위) */
         @Schema(description = "사업범위")
-        private String prjRng;
+        private String prjTgtRngCone;
 
         /** 추진경과 (현재까지의 진행 경과) */
         @Schema(description = "추진경과")
-        private String pulPsg;
+        private String mnPrgCone;
 
         /** 향후계획 (앞으로의 추진 계획) */
         @Schema(description = "향후계획")
-        private String hrfPln;
+        private String hrfPlnCone;
 
         /** 업무구분 (예: "개발", "운영", "기획") */
         @Schema(description = "업무구분")
-        private String bzDtt;
+        private String bzDttNm;
 
         /** 기술유형 (예: "Java", "Python", "클라우드") */
         @Schema(description = "기술유형")
-        private String tchnTp;
+        private String sklTpTc;
 
         /** 주요사용자 (시스템 주요 사용 부서 또는 역할) */
         @Schema(description = "주요사용자")
-        private String mnUsr;
+        private String cstTpTc;
 
         /** 중복여부 ("Y": 타 사업과 중복, "N": 비중복, 기본값 "N") */
         @Schema(description = "중복여부")
@@ -174,35 +174,35 @@ public class ProjectDto {
 
         /** 의무완료기한 (법령 등에 따른 의무 완료 기한) */
         @Schema(description = "의무완료기한")
-        private String lblFsgTlm;
+        private String flfFsgDt;
 
         /** 보고상태 (보고 진행 상태) */
         @Schema(description = "보고상태")
-        private String rprSts;
+        private String rprStsTc;
 
         /** 프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva, VARCHAR2(3)) */
         @Schema(description = "프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)")
-        private String prjPulPtt;
+        private String exePttYn;
 
         /** 프로젝트상태 (예: "계획", "진행중", "완료", "취소") */
         @Schema(description = "프로젝트상태")
-        private String prjSts;
+        private String stsTc;
 
         /** 사업연도 (YYYY 형식, 예: "2026") */
         @Schema(description = "사업연도")
-        private String bgYy;
+        private String bseYy;
 
         /** 경상여부 ('Y'=경상사업, 'N'=일반 정보화사업) */
         @Schema(description = "경상여부")
-        private String ornYn;
+        private String odnYn;
 
         /** 사업구분 ('신규', '계속') */
         @Schema(description = "사업구분")
-        private String pulDtt;
+        private String abusTc;
 
         /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */
         @Schema(description = "관련프로젝트관리번호")
-        private String cncdPrjMngNo;
+        private String cncdRfrNo;
 
         /**
          * 품목 목록
@@ -225,43 +225,43 @@ public class ProjectDto {
          */
         public Bprojm toEntity() {
             return Bprojm.builder()
-                    .prjMngNo(prjMngNo) // 프로젝트관리번호
-                    .prjSno(1) // 프로젝트순번 (신규 생성 시 1로 고정)
+                    .abusMngNo(abusMngNo) // 프로젝트관리번호
+                    .sno(1) // 프로젝트순번 (신규 생성 시 1로 고정)
                     .prjNm(prjNm) // 프로젝트명
-                    .prjTp(prjTp) // 프로젝트유형
-                    .svnDpm(svnDpm) // 주관부서
-                    .itDpm(itDpm) // IT부서
-                    .prjBg(prjBg) // 프로젝트예산
-                    .nyyPrjBg(nyyPrjBg) // 익년프로젝트예산
-                    .sttDt(sttDt) // 시작일자
-                    .endDt(endDt) // 종료일자
-                    .svnDpmCgpr(svnDpmCgpr) // 주관부서담당자
-                    .itDpmCgpr(itDpmCgpr) // IT부서담당자
-                    .svnHdq(svnHdq) // 주관본부/부문
-                    .svnDpmTlr(svnDpmTlr) // 주관부서담당팀장
-                    .itDpmTlr(itDpmTlr) // IT부서담당팀장
-                    .edrt(edrt) // 전결권
-                    .prjDes(prjDes) // 사업설명
-                    .saf(saf) // 현황
-                    .ncs(ncs) // 필요성
-                    .xptEff(xptEff) // 기대효과
-                    .plm(plm) // 문제
-                    .prjRng(prjRng) // 사업범위
-                    .pulPsg(pulPsg) // 추진경과
-                    .hrfPln(hrfPln) // 향후계획
-                    .bzDtt(bzDtt) // 업무구분
-                    .tchnTp(tchnTp) // 기술유형
-                    .mnUsr(mnUsr) // 주요사용자
+                    .prjBzTc(prjBzTc) // 프로젝트유형
+                    .svnDpmC(svnDpmC) // 주관부서
+                    .dvmDpmC(dvmDpmC) // IT부서
+                    .rqmBgAmt(rqmBgAmt) // 프로젝트예산
+                    .mplAmt(mplAmt) // 익년프로젝트예산
+                    .sttDtm(sttDtm) // 시작일자
+                    .endDtm(endDtm) // 종료일자
+                    .svnDpmUsid(svnDpmUsid) // 주관부서담당자
+                    .dvmUsid(dvmUsid) // IT부서담당자
+                    .prlmHrkOgzCCone(prlmHrkOgzCCone) // 주관본부/부문
+                    .svnDpmDcdUsid(svnDpmDcdUsid) // 주관부서담당팀장
+                    .tlrUsid(tlrUsid) // IT부서담당팀장
+                    .edrtTc(edrtTc) // 전결권
+                    .abusCone(abusCone) // 사업설명
+                    .cpnSafCone(cpnSafCone) // 현황
+                    .abusNcsCone(abusNcsCone) // 필요성
+                    .dgogPpoCone(dgogPpoCone) // 기대효과
+                    .plmDes(plmDes) // 문제
+                    .prjTgtRngCone(prjTgtRngCone) // 사업범위
+                    .mnPrgCone(mnPrgCone) // 추진경과
+                    .hrfPlnCone(hrfPlnCone) // 향후계획
+                    .bzDttNm(bzDttNm) // 업무구분
+                    .sklTpTc(sklTpTc) // 기술유형
+                    .cstTpTc(cstTpTc) // 주요사용자
                     .dplYn(dplYn == null ? "N" : dplYn) // 중복여부 (기본값 "N")
-                    .lblFsgTlm(lblFsgTlm) // 의무완료기한
-                    .rprSts(rprSts) // 보고상태
+                    .flfFsgDt(flfFsgDt) // 의무완료기한
+                    .rprStsTc(rprStsTc) // 보고상태
                     .lstYn("Y") // 최종여부: 신규 등록은 항상 최신 레코드
-                    .prjPulPtt(prjPulPtt) // 프로젝트추진가능성
-                    .prjSts(prjSts) // 프로젝트상태
-                    .bgYy(bgYy) // 사업연도
-                    .ornYn(ornYn) // 경상여부
-                    .pulDtt(pulDtt) // 사업구분
-                    .cncdPrjMngNo(cncdPrjMngNo) // 관련프로젝트관리번호
+                    .exePttYn(exePttYn) // 프로젝트추진가능성
+                    .stsTc(stsTc) // 프로젝트상태
+                    .bseYy(bseYy) // 사업연도
+                    .odnYn(odnYn) // 경상여부
+                    .abusTc(abusTc) // 사업구분
+                    .cncdRfrNo(cncdRfrNo) // 관련프로젝트관리번호
                     .build();
         }
     }
@@ -271,7 +271,7 @@ public class ProjectDto {
      *
      * <p>
      * 기존 정보화사업 정보를 수정할 때 사용합니다.
-     * {@code prjMngNo}는 URL PathVariable로 받으므로 이 DTO에는 포함하지 않습니다.
+     * {@code abusMngNo}는 URL PathVariable로 받으므로 이 DTO에는 포함하지 않습니다.
      * </p>
      *
      * <p>
@@ -292,99 +292,99 @@ public class ProjectDto {
 
         /** 프로젝트유형 */
         @Schema(description = "프로젝트유형")
-        private String prjTp;
+        private String prjBzTc;
 
         /** 주관부서 */
         @Schema(description = "주관부서")
-        private String svnDpm;
+        private String svnDpmC;
 
         /** IT부서 */
         @Schema(description = "IT부서")
-        private String itDpm;
+        private String dvmDpmC;
 
         /** 프로젝트예산 */
         @Schema(description = "프로젝트예산")
-        private BigDecimal prjBg;
+        private BigDecimal rqmBgAmt;
 
         /** 익년프로젝트예산 (다음 해 예산 금액) */
         @Schema(description = "익년프로젝트예산")
-        private BigDecimal nyyPrjBg;
+        private BigDecimal mplAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
-        private LocalDate sttDt;
+        private LocalDate sttDtm;
 
         /** 종료일자 */
         @Schema(description = "종료일자")
-        private LocalDate endDt;
+        private LocalDate endDtm;
 
         /** 주관부서담당자 */
         @Schema(description = "주관부서담당자")
-        private String svnDpmCgpr;
+        private String svnDpmUsid;
 
         /** IT부서담당자 */
         @Schema(description = "IT부서담당자")
-        private String itDpmCgpr;
+        private String dvmUsid;
 
         /** 주관부서담당팀장 */
         @Schema(description = "주관부서담당팀장")
-        private String svnDpmTlr;
+        private String svnDpmDcdUsid;
 
         /** 주관본부/부문 */
         @Schema(description = "주관본부/부문")
-        private String svnHdq;
+        private String prlmHrkOgzCCone;
 
         /** IT부서담당팀장 */
         @Schema(description = "IT부서담당팀장")
-        private String itDpmTlr;
+        private String tlrUsid;
 
         /** 전결권 */
         @Schema(description = "전결권")
-        private String edrt;
+        private String edrtTc;
 
         /** 사업설명 */
         @Schema(description = "사업설명")
-        private String prjDes;
+        private String abusCone;
 
         /** 현황 */
         @Schema(description = "현황")
-        private String saf;
+        private String cpnSafCone;
 
         /** 필요성 */
         @Schema(description = "필요성")
-        private String ncs;
+        private String abusNcsCone;
 
         /** 기대효과 */
         @Schema(description = "기대효과")
-        private String xptEff;
+        private String dgogPpoCone;
 
         /** 문제 */
         @Schema(description = "문제")
-        private String plm;
+        private String plmDes;
 
         /** 사업범위 */
         @Schema(description = "사업범위")
-        private String prjRng;
+        private String prjTgtRngCone;
 
         /** 추진경과 */
         @Schema(description = "추진경과")
-        private String pulPsg;
+        private String mnPrgCone;
 
         /** 향후계획 */
         @Schema(description = "향후계획")
-        private String hrfPln;
+        private String hrfPlnCone;
 
         /** 업무구분 */
         @Schema(description = "업무구분")
-        private String bzDtt;
+        private String bzDttNm;
 
         /** 기술유형 */
         @Schema(description = "기술유형")
-        private String tchnTp;
+        private String sklTpTc;
 
         /** 주요사용자 */
         @Schema(description = "주요사용자")
-        private String mnUsr;
+        private String cstTpTc;
 
         /** 중복여부 */
         @Schema(description = "중복여부")
@@ -392,35 +392,35 @@ public class ProjectDto {
 
         /** 의무완료기한 */
         @Schema(description = "의무완료기한")
-        private String lblFsgTlm;
+        private String flfFsgDt;
 
         /** 보고상태 */
         @Schema(description = "보고상태")
-        private String rprSts;
+        private String rprStsTc;
 
         /** 프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva, VARCHAR2(3)) */
         @Schema(description = "프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)")
-        private String prjPulPtt;
+        private String exePttYn;
 
         /** 프로젝트상태 */
         @Schema(description = "프로젝트상태")
-        private String prjSts;
+        private String stsTc;
 
         /** 사업연도 */
         @Schema(description = "사업연도")
-        private String bgYy;
+        private String bseYy;
 
         /** 경상여부 ('Y'=경상사업, 'N'=일반 정보화사업) */
         @Schema(description = "경상여부")
-        private String ornYn;
+        private String odnYn;
 
         /** 사업구분 ('신규', '계속') */
         @Schema(description = "사업구분")
-        private String pulDtt;
+        private String abusTc;
 
         /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */
         @Schema(description = "관련프로젝트관리번호")
-        private String cncdPrjMngNo;
+        private String cncdRfrNo;
 
         /**
          * 품목 목록 (동기화 대상)
@@ -459,11 +459,11 @@ public class ProjectDto {
     public static class Response {
         /** 프로젝트관리번호 (PK) */
         @Schema(description = "프로젝트관리번호")
-        private String prjMngNo;
+        private String abusMngNo;
 
-        /** 프로젝트순번 (PRJ_SNO, Oracle 트리거로 자동 증가) */
+        /** 프로젝트순번 (SNO, Oracle 트리거로 자동 증가) */
         @Schema(description = "프로젝트순번")
-        private Integer prjSno;
+        private Integer sno;
 
         /** 프로젝트명 */
         @Schema(description = "프로젝트명")
@@ -471,99 +471,99 @@ public class ProjectDto {
 
         /** 프로젝트유형 */
         @Schema(description = "프로젝트유형")
-        private String prjTp;
+        private String prjBzTc;
 
         /** 주관부서 */
         @Schema(description = "주관부서")
-        private String svnDpm;
+        private String svnDpmC;
 
         /** IT부서 */
         @Schema(description = "IT부서")
-        private String itDpm;
+        private String dvmDpmC;
 
         /** 프로젝트예산 */
         @Schema(description = "프로젝트예산")
-        private BigDecimal prjBg;
+        private BigDecimal rqmBgAmt;
 
         /** 익년프로젝트예산 (다음 해 예산 금액) */
         @Schema(description = "익년프로젝트예산")
-        private BigDecimal nyyPrjBg;
+        private BigDecimal mplAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
-        private LocalDate sttDt;
+        private LocalDate sttDtm;
 
         /** 종료일자 */
         @Schema(description = "종료일자")
-        private LocalDate endDt;
+        private LocalDate endDtm;
 
         /** 주관부서담당자 */
         @Schema(description = "주관부서담당자")
-        private String svnDpmCgpr;
+        private String svnDpmUsid;
 
         /** IT부서담당자 */
         @Schema(description = "IT부서담당자")
-        private String itDpmCgpr;
+        private String dvmUsid;
 
         /** 주관본부/부문 */
         @Schema(description = "주관본부/부문")
-        private String svnHdq;
+        private String prlmHrkOgzCCone;
 
         /** 주관부서담당팀장 */
         @Schema(description = "주관부서담당팀장")
-        private String svnDpmTlr;
+        private String svnDpmDcdUsid;
 
         /** IT부서담당팀장 */
         @Schema(description = "IT부서담당팀장")
-        private String itDpmTlr;
+        private String tlrUsid;
 
         /** 전결권 */
         @Schema(description = "전결권")
-        private String edrt;
+        private String edrtTc;
 
         /** 사업설명 */
         @Schema(description = "사업설명")
-        private String prjDes;
+        private String abusCone;
 
         /** 현황 */
         @Schema(description = "현황")
-        private String saf;
+        private String cpnSafCone;
 
         /** 필요성 */
         @Schema(description = "필요성")
-        private String ncs;
+        private String abusNcsCone;
 
         /** 기대효과 */
         @Schema(description = "기대효과")
-        private String xptEff;
+        private String dgogPpoCone;
 
         /** 문제 */
         @Schema(description = "문제")
-        private String plm;
+        private String plmDes;
 
         /** 사업범위 */
         @Schema(description = "사업범위")
-        private String prjRng;
+        private String prjTgtRngCone;
 
         /** 추진경과 */
         @Schema(description = "추진경과")
-        private String pulPsg;
+        private String mnPrgCone;
 
         /** 향후계획 */
         @Schema(description = "향후계획")
-        private String hrfPln;
+        private String hrfPlnCone;
 
         /** 업무구분 */
         @Schema(description = "업무구분")
-        private String bzDtt;
+        private String bzDttNm;
 
         /** 기술유형 */
         @Schema(description = "기술유형")
-        private String tchnTp;
+        private String sklTpTc;
 
         /** 주요사용자 */
         @Schema(description = "주요사용자")
-        private String mnUsr;
+        private String cstTpTc;
 
         /** 중복여부 ("Y" 또는 "N") */
         @Schema(description = "중복여부")
@@ -571,19 +571,19 @@ public class ProjectDto {
 
         /** 의무완료기한 */
         @Schema(description = "의무완료기한")
-        private String lblFsgTlm;
+        private String flfFsgDt;
 
         /** 보고상태 */
         @Schema(description = "보고상태")
-        private String rprSts;
+        private String rprStsTc;
 
         /** 프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva, VARCHAR2(3)) */
         @Schema(description = "프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)")
-        private String prjPulPtt;
+        private String exePttYn;
 
         /** 프로젝트상태 */
         @Schema(description = "프로젝트상태")
-        private String prjSts;
+        private String stsTc;
 
         /** 삭제여부 (Soft Delete 상태, "Y": 삭제됨, "N": 정상) */
         @Schema(description = "삭제여부")
@@ -591,19 +591,19 @@ public class ProjectDto {
 
         /** 사업연도 (YYYY 형식) */
         @Schema(description = "사업연도")
-        private String bgYy;
+        private String bseYy;
 
         /** 경상여부 ('Y'=경상사업, 'N'=일반 정보화사업) */
         @Schema(description = "경상여부")
-        private String ornYn;
+        private String odnYn;
 
         /** 사업구분 ('신규', '계속') */
         @Schema(description = "사업구분")
-        private String pulDtt;
+        private String abusTc;
 
         /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */
         @Schema(description = "관련프로젝트관리번호")
-        private String cncdPrjMngNo;
+        private String cncdRfrNo;
 
         /** 최초 등록 일시 (JPA Auditing) */
         @Schema(description = "최초생성시간")
@@ -650,75 +650,75 @@ public class ProjectDto {
         @Schema(description = "품목 목록")
         private java.util.List<BitemmDto> items;
 
-        /** IT부서명: itDpm(부서코드) 기준 TPRMPP_CORGNI에서 BBR_NM 조회 */
+        /** IT부서명: dvmDpmC(부서코드) 기준 TPRMPP_CORGNI에서 BBR_NM 조회 */
         @Schema(description = "IT부서명")
-        private String itDpmNm;
+        private String dvmDpmCNm;
 
-        /** 주관부서명: svnDpm(부서코드) 기준 TPRMPP_CORGNI에서 BBR_NM 조회 */
+        /** 주관부서명: svnDpmC(부서코드) 기준 TPRMPP_CORGNI에서 BBR_NM 조회 */
         @Schema(description = "주관부서명")
-        private String svnDpmNm;
+        private String svnDpmCNm;
 
-        /** IT담당자명: itDpmCgpr(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
+        /** IT담당자명: dvmUsid(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
         @Schema(description = "IT담당자명")
-        private String itDpmCgprNm;
+        private String dvmUsidNm;
 
-        /** IT담당팀장명: itDpmTlr(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
+        /** IT담당팀장명: tlrUsid(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
         @Schema(description = "IT담당팀장명")
-        private String itDpmTlrNm;
+        private String tlrUsidNm;
 
-        /** 주관부서담당자명: svnDpmCgpr(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
+        /** 주관부서담당자명: svnDpmUsid(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
         @Schema(description = "주관부서담당자명")
-        private String svnDpmCgprNm;
+        private String svnDpmUsidNm;
 
-        /** 주관부서담당팀장명: svnDpmTlr(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
+        /** 주관부서담당팀장명: svnDpmDcdUsid(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
         @Schema(description = "주관부서담당팀장명")
-        private String svnDpmTlrNm;
+        private String svnDpmDcdUsidNm;
 
-        /** 프로젝트유형명: prjTp 기준 TPRMPP_CCODEM C_NM */
+        /** 프로젝트유형명: prjBzTc 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "프로젝트유형명")
-        private String prjTpNm;
+        private String prjBzTcNm;
 
-        /** 업무구분명: bzDtt 기준 TPRMPP_CCODEM C_NM */
+        /** 업무구분명: bzDttNm 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "업무구분명")
-        private String bzDttNm;
+        private String bzDttNmNm;
 
-        /** 기술유형명: tchnTp 기준 TPRMPP_CCODEM C_NM */
+        /** 기술유형명: sklTpTc 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "기술유형명")
-        private String tchnTpNm;
+        private String sklTpTcNm;
 
-        /** 주요사용자명: mnUsr 기준 TPRMPP_CCODEM C_NM */
+        /** 주요사용자명: cstTpTc 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "주요사용자명")
-        private String mnUsrNm;
+        private String cstTpTcNm;
 
-        /** 보고상태명: rprSts 기준 TPRMPP_CCODEM C_NM */
+        /** 보고상태명: rprStsTc 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "보고상태명")
-        private String rprStsNm;
+        private String rprStsTcNm;
 
-        /** 프로젝트추진가능성명: prjPulPtt 기준 TPRMPP_CCODEM C_NM */
+        /** 프로젝트추진가능성명: exePttYn 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "프로젝트추진가능성명")
-        private String prjPulPttNm;
+        private String exePttYnNm;
 
-        /** 사업구분명: pulDtt 기준 TPRMPP_CCODEM C_NM */
+        /** 사업구분명: abusTc 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "사업구분명")
-        private String pulDttNm;
+        private String abusTcNm;
 
-        /** 자본예산: Bitemm의 ioeC(비목코드)가 공통코드 코드값구분 IOE_CPIT에 해당하는 항목의 gclAmt 합계 */
+        /** 자본예산: Bitemm의 ioeC(비목코드)가 공통코드 코드값구분 IOE_CPIT에 해당하는 항목의 amt 합계 */
         @Schema(description = "자본예산")
         private BigDecimal assetBg;
 
-        /** 개발비: 자본예산 중 코드설명(cdDes)이 '개발비'인 품목의 gclAmt 합계 (IOE-351-*) */
+        /** 개발비: 자본예산 중 코드설명(cdDes)이 '개발비'인 품목의 amt 합계 (IOE-351-*) */
         @Schema(description = "개발비")
         private BigDecimal dvcBg;
 
-        /** 기계장치: 자본예산 중 코드설명(cdDes)이 '기계장치'인 품목의 gclAmt 합계 (IOE-304-*) */
+        /** 기계장치: 자본예산 중 코드설명(cdDes)이 '기계장치'인 품목의 amt 합계 (IOE-304-*) */
         @Schema(description = "기계장치")
         private BigDecimal hwBg;
 
-        /** 기타무형자산: 자본예산 중 코드설명(cdDes)이 '기타무형자산'인 품목의 gclAmt 합계 (IOE-359-*) */
+        /** 기타무형자산: 자본예산 중 코드설명(cdDes)이 '기타무형자산'인 품목의 amt 합계 (IOE-359-*) */
         @Schema(description = "기타무형자산")
         private BigDecimal swBg;
 
-        /** 일반관리비: Bitemm의 ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하는 항목의 gclAmt 합계 */
+        /** 일반관리비: Bitemm의 ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하는 항목의 amt 합계 */
         @Schema(description = "일반관리비")
         private BigDecimal costBg;
 
@@ -762,43 +762,43 @@ public class ProjectDto {
          */
         public static Response fromEntity(Bprojm project) {
             return Response.builder()
-                    .prjMngNo(project.getPrjMngNo()) // 프로젝트관리번호
-                    .prjSno(project.getPrjSno()) // 프로젝트순번
+                    .abusMngNo(project.getAbusMngNo()) // 프로젝트관리번호
+                    .sno(project.getSno()) // 프로젝트순번
                     .prjNm(project.getPrjNm()) // 프로젝트명
-                    .prjTp(project.getPrjTp()) // 프로젝트유형
-                    .svnDpm(project.getSvnDpm()) // 주관부서
-                    .itDpm(project.getItDpm()) // IT부서
-                    .prjBg(project.getPrjBg()) // 프로젝트예산
-                    .nyyPrjBg(project.getNyyPrjBg()) // 익년프로젝트예산
-                    .sttDt(project.getSttDt()) // 시작일자
-                    .endDt(project.getEndDt()) // 종료일자
-                    .svnHdq(project.getSvnHdq()) // 주관본부/부문
-                    .svnDpmCgpr(project.getSvnDpmCgpr()) // 주관부서담당자
-                    .itDpmCgpr(project.getItDpmCgpr()) // IT부서담당자
-                    .svnDpmTlr(project.getSvnDpmTlr()) // 주관부서담당팀장
-                    .itDpmTlr(project.getItDpmTlr()) // IT부서담당팀장
-                    .edrt(project.getEdrt()) // 전결권
-                    .prjDes(project.getPrjDes()) // 사업설명
-                    .saf(project.getSaf()) // 현황
-                    .ncs(project.getNcs()) // 필요성
-                    .xptEff(project.getXptEff()) // 기대효과
-                    .plm(project.getPlm()) // 문제
-                    .prjRng(project.getPrjRng()) // 사업범위
-                    .pulPsg(project.getPulPsg()) // 추진경과
-                    .hrfPln(project.getHrfPln()) // 향후계획
-                    .bzDtt(project.getBzDtt()) // 업무구분
-                    .tchnTp(project.getTchnTp()) // 기술유형
-                    .mnUsr(project.getMnUsr()) // 주요사용자
+                    .prjBzTc(project.getPrjBzTc()) // 프로젝트유형
+                    .svnDpmC(project.getSvnDpmC()) // 주관부서
+                    .dvmDpmC(project.getDvmDpmC()) // IT부서
+                    .rqmBgAmt(project.getRqmBgAmt()) // 프로젝트예산
+                    .mplAmt(project.getMplAmt()) // 익년프로젝트예산
+                    .sttDtm(project.getSttDtm()) // 시작일자
+                    .endDtm(project.getEndDtm()) // 종료일자
+                    .prlmHrkOgzCCone(project.getPrlmHrkOgzCCone()) // 주관본부/부문
+                    .svnDpmUsid(project.getSvnDpmUsid()) // 주관부서담당자
+                    .dvmUsid(project.getDvmUsid()) // IT부서담당자
+                    .svnDpmDcdUsid(project.getSvnDpmDcdUsid()) // 주관부서담당팀장
+                    .tlrUsid(project.getTlrUsid()) // IT부서담당팀장
+                    .edrtTc(project.getEdrtTc()) // 전결권
+                    .abusCone(project.getAbusCone()) // 사업설명
+                    .cpnSafCone(project.getCpnSafCone()) // 현황
+                    .abusNcsCone(project.getAbusNcsCone()) // 필요성
+                    .dgogPpoCone(project.getDgogPpoCone()) // 기대효과
+                    .plmDes(project.getPlmDes()) // 문제
+                    .prjTgtRngCone(project.getPrjTgtRngCone()) // 사업범위
+                    .mnPrgCone(project.getMnPrgCone()) // 추진경과
+                    .hrfPlnCone(project.getHrfPlnCone()) // 향후계획
+                    .bzDttNm(project.getBzDttNm()) // 업무구분
+                    .sklTpTc(project.getSklTpTc()) // 기술유형
+                    .cstTpTc(project.getCstTpTc()) // 주요사용자
                     .dplYn(project.getDplYn()) // 중복여부
-                    .lblFsgTlm(project.getLblFsgTlm()) // 의무완료기한
-                    .rprSts(project.getRprSts()) // 보고상태
-                    .prjPulPtt(project.getPrjPulPtt()) // 프로젝트추진가능성
-                    .prjSts(project.getPrjSts()) // 프로젝트상태
+                    .flfFsgDt(project.getFlfFsgDt()) // 의무완료기한
+                    .rprStsTc(project.getRprStsTc()) // 보고상태
+                    .exePttYn(project.getExePttYn()) // 프로젝트추진가능성
+                    .stsTc(project.getStsTc()) // 프로젝트상태
                     .delYn(project.getDelYn()) // 삭제여부
-                    .bgYy(project.getBgYy()) // 사업연도
-                    .ornYn(project.getOrnYn()) // 경상여부
-                    .pulDtt(project.getPulDtt()) // 사업구분
-                    .cncdPrjMngNo(project.getCncdPrjMngNo()) // 관련프로젝트관리번호
+                    .bseYy(project.getBseYy()) // 사업연도
+                    .odnYn(project.getOdnYn()) // 경상여부
+                    .abusTc(project.getAbusTc()) // 사업구분
+                    .cncdRfrNo(project.getCncdRfrNo()) // 관련프로젝트관리번호
                     .fstEnrDtm(project.getFstEnrDtm()) // 최초 등록 일시
                     .fstEnrUsid(project.getFstEnrUsid()) // 최초 등록자
                     .lstChgDtm(project.getLstChgDtm()) // 마지막 수정 일시
@@ -847,7 +847,7 @@ public class ProjectDto {
          * </p>
          */
         @Schema(description = "품목일련번호")
-        private Integer gclSno;
+        private Integer sno;
 
         /** 품목구분 (예: "HW", "SW", "용역") */
         @Schema(description = "품목구분")
@@ -863,7 +863,7 @@ public class ProjectDto {
 
         /** 품목수량 */
         @Schema(description = "품목수량")
-        private BigDecimal gclQty;
+        private BigDecimal qty;
 
         /** 통화 코드 (예: "KRW", "USD") */
         @Schema(description = "통화")
@@ -879,11 +879,11 @@ public class ProjectDto {
 
         /** 예산근거 (예산 산정 근거 설명) */
         @Schema(description = "예산근거")
-        private String bgFdtnCone;
+        private String cncdFdtnCone;
 
         /** 도입시기 (예: "2026년 1분기") */
         @Schema(description = "도입시기")
-        private String itdYm;
+        private String bseYm;
 
         /** 지급주기 (예: "일시불", "매월") */
         @Schema(description = "지급주기")
@@ -891,7 +891,7 @@ public class ProjectDto {
 
         /** 정보보호여부 ("Y" 또는 "N", 기본값 "N") */
         @Schema(description = "정보보호여부")
-        private String infPrtYn;
+        private String sectSysUtzYn;
 
         /** 통합인프라여부 ("Y" 또는 "N", 기본값 "N") */
         @Schema(description = "통합인프라여부")
@@ -903,14 +903,14 @@ public class ProjectDto {
 
         /**
          * 외화금액(품목 외화 원금 — 원화 행은 null.
-         * Service에서 gclAmt = fcAmt × xcr 재계산)
+         * Service에서 amt = fcAmt × xcr 재계산)
          */
-        @Schema(description = "외화금액 (외화 원금. 원화 행은 null. 서버에서 gclAmt 재계산)", example = "1000")
+        @Schema(description = "외화금액 (외화 원금. 원화 행은 null. 서버에서 amt 재계산)", example = "1000")
         private BigDecimal fcAmt;
 
         /** 품목금액 (단가 × 수량) */
         @Schema(description = "품목금액")
-        private BigDecimal gclAmt;
+        private BigDecimal amt;
 
         /**
          * {@link com.kdb.it.domain.budget.project.entity.Bitemm} 엔티티를 DTO로 변환하는 정적 팩토리 메서드
@@ -921,20 +921,20 @@ public class ProjectDto {
         public static BitemmDto fromEntity(com.kdb.it.domain.budget.project.entity.Bitemm bitemm) {
             return BitemmDto.builder()
                     .gclMngNo(bitemm.getGclMngNo()) // 품목관리번호
-                    .gclSno(bitemm.getGclSno()) // 품목일련번호
+                    .sno(bitemm.getSno()) // 품목일련번호
                     .ioeC(bitemm.getIoeC()) // 품목구분
                     .gclNm(bitemm.getGclNm()) // 품목명
-                    .gclQty(bitemm.getGclQty()) // 품목수량
+                    .qty(bitemm.getQty()) // 품목수량
                     .curC(bitemm.getCurC()) // 통화
                     .xcr(bitemm.getXcr()) // 환율
                     .xcrBseDt(bitemm.getXcrBseDt()) // 환율기준일자
-                    .bgFdtnCone(bitemm.getBgFdtnCone()) // 예산근거
-                    .itdYm(bitemm.getItdYm()) // 도입시기
+                    .cncdFdtnCone(bitemm.getCncdFdtnCone()) // 예산근거
+                    .bseYm(bitemm.getBseYm()) // 도입시기
                     .dfrCleC(bitemm.getDfrCleC()) // 지급주기
-                    .infPrtYn(bitemm.getInfPrtYn()) // 정보보호여부
+                    .sectSysUtzYn(bitemm.getSectSysUtzYn()) // 정보보호여부
                     .itrInfrYn(bitemm.getItrInfrYn()) // 통합인프라여부
                     .lstYn(bitemm.getLstYn()) // 최종여부
-                    .gclAmt(bitemm.getGclAmt()) // 품목금액
+                    .amt(bitemm.getAmt()) // 품목금액
                     .fcAmt(bitemm.getFcAmt()) // 외화금액
                     .build();
         }
@@ -975,23 +975,23 @@ public class ProjectDto {
 
         /** 사업연도 필터 (예: "2026"). null이면 전체 연도 조회 */
         @Schema(description = "사업연도 (예: 2026). 미입력 시 전체 조회")
-        private String bgYy;
+        private String bseYy;
 
         /** 프로젝트상태 필터 (예: "계획", "진행중", "완료"). null이면 전체 상태 조회 */
         @Schema(description = "프로젝트상태 (예: 계획, 진행중, 완료). 미입력 시 전체 조회")
-        private String prjSts;
+        private String stsTc;
 
         /** 프로젝트유형 필터 (예: "신규", "유지보수", "고도화"). null이면 전체 유형 조회 */
         @Schema(description = "프로젝트유형 (예: 신규, 유지보수, 고도화). 미입력 시 전체 조회")
-        private String prjTp;
+        private String prjBzTc;
 
         /** IT부서 코드 필터. null이면 전체 부서 조회 */
         @Schema(description = "IT부서 코드. 미입력 시 전체 조회")
-        private String itDpm;
+        private String dvmDpmC;
 
         /** 주관부서 코드 필터. null이면 전체 부서 조회 */
         @Schema(description = "주관부서 코드. 미입력 시 전체 조회")
-        private String svnDpm;
+        private String svnDpmC;
 
         /**
          * 경상여부 필터
@@ -1001,7 +1001,7 @@ public class ProjectDto {
          * </p>
          */
         @Schema(description = "경상여부 (Y=경상사업만, N=일반사업만). 미입력 시 전체 조회")
-        private String ornYn;
+        private String odnYn;
 
         /**
          * 모든 조건이 비어있는지 확인 (전체 조회 여부 판단용)
@@ -1009,8 +1009,8 @@ public class ProjectDto {
          * @return 모든 필드가 null 또는 빈 문자열이면 true
          */
         public boolean isEmpty() {
-            return isBlank(apfSts) && isBlank(bgYy) && isBlank(prjSts)
-                    && isBlank(prjTp) && isBlank(itDpm) && isBlank(svnDpm) && isBlank(ornYn);
+            return isBlank(apfSts) && isBlank(bseYy) && isBlank(stsTc)
+                    && isBlank(prjBzTc) && isBlank(dvmDpmC) && isBlank(svnDpmC) && isBlank(odnYn);
         }
 
         private boolean isBlank(String value) {
@@ -1037,6 +1037,6 @@ public class ProjectDto {
 
         /** 편성예산 집계용 사업연도 (YYYY, 예: "2026") — TPRMPP_BBUGTM 조회 조건 */
         @Schema(description = "사업연도 (예: 2026). BBUGTM 편성예산 집계에 사용")
-        private String bgYy;
+        private String bseYy;
     }
 }

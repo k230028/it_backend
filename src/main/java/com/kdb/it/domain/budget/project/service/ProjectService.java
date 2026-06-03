@@ -185,14 +185,14 @@ public class ProjectService {
 
         ProjectDto.Response response = ProjectDto.Response.fromEntity(project);
         // 최신 신청서 정보 조회 및 설정
-        setApplicationInfo(response, prjMngNo, project.getPrjSno());
+        setApplicationInfo(response, prjMngNo, project.getSno());
         // 부서코드→부서명, 사원번호→사용자명 조회 및 설정
         setCodeNames(response);
 
         // 품목 정보 조회 및 설정 (삭제되지 않은 항목만)
-        // PRJ_MNG_NO(프로젝트관리번호), PRJ_SNO(프로젝트일련번호) 기준, DEL_YN='N'인 품목 조회
+        // ABUS_MNG_NO(프로젝트관리번호), SNO(프로젝트일련번호) 기준, DEL_YN='N'인 품목 조회
         List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository.findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo,
-                project.getPrjSno(), "N");
+                project.getSno(), "N");
 
         // 품목 엔티티를 DTO로 변환하여 응답 객체에 설정
         List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
@@ -237,33 +237,33 @@ public class ProjectService {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
         codeService.validateBudgetPeriod();
 
-        String prjMngNo = request.getPrjMngNo();
+        String prjMngNo = request.getAbusMngNo();
 
         // 프로젝트관리번호가 없으면 자동 채번
         if (prjMngNo == null || prjMngNo.isEmpty()) {
             Long nextVal = projectRepository.getNextSequenceValue(); // Oracle 시퀀스 채번
 
             // 사업연도 결정 (요청값 없으면 현재 연도 사용)
-            String year = request.getBgYy();
+            String year = request.getBseYy();
             if (year == null || year.isEmpty()) {
                 year = String.valueOf(java.time.LocalDate.now().getYear());
-                request.setBgYy(year);
+                request.setBseYy(year);
             }
 
-            // 형식: PRJ-{bgYy}-{seq:04d}
+            // 형식: PRJ-{bseYy}-{seq:04d}
             prjMngNo = String.format("PRJ-%s-%04d", year, nextVal);
-            request.setPrjMngNo(prjMngNo);
+            request.setAbusMngNo(prjMngNo);
 
         } else {
-            // 제공된 관리번호 중복 확인 (복합키이므로 prjMngNo 기준으로 존재 여부 확인)
+            // 제공된 관리번호 중복 확인 (복합키이므로 abusMngNo 기준으로 존재 여부 확인)
             if (projectRepository.existsByPrjMngNoAndDelYn(prjMngNo, "N")) {
                 throw new IllegalArgumentException("Project already exists with id: " + prjMngNo);
             }
         }
 
         // Rich Text 필드 XSS 새니타이징 (서버 측 방어)
-        request.setPrjDes(HtmlSanitizer.sanitize(request.getPrjDes()));
-        request.setPrjRng(HtmlSanitizer.sanitize(request.getPrjRng()));
+        request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
+        request.setPrjTgtRngCone(HtmlSanitizer.sanitize(request.getPrjTgtRngCone()));
 
         // 엔티티 생성 및 저장
         Bprojm project = request.toEntity();
@@ -282,33 +282,33 @@ public class ProjectService {
 
                 // 외화 재계산: gclAmt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
                 BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
-                        itemDto.getFcAmt(), itemDto.getGclAmt(), itemDto.getCurC(), itemDto.getXcr());
+                        itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
 
                 com.kdb.it.domain.budget.project.entity.Bitemm newItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
                         .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
-                        .gclSno(++gclSno) // 품목일련번호
-                        .prjMngNo(project.getPrjMngNo()) // 프로젝트관리번호
-                        .prjSno(project.getPrjSno()) // 프로젝트순번
+                        .sno(++gclSno) // 품목일련번호
+                        .abusMngNo(project.getAbusMngNo()) // 프로젝트관리번호
+                        .fntTbCrySno(project.getSno()) // 프로젝트순번
                         .ioeC(itemDto.getIoeC()) // 품목구분
                         .gclNm(itemDto.getGclNm()) // 품목명
-                        .gclQty(itemDto.getGclQty()) // 품목수량
+                        .qty(itemDto.getQty()) // 품목수량
                         .curC(itemDto.getCurC()) // 통화
                         .xcr(itemDto.getXcr()) // 환율
                         .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
-                        .bgFdtnCone(itemDto.getBgFdtnCone()) // 예산근거
-                        .itdYm(toItdYm(itemDto.getItdYm())) // 도입시기
+                        .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
+                        .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
                         .dfrCleC(itemDto.getDfrCleC()) // 지급주기
-                        .infPrtYn(itemDto.getInfPrtYn() == null ? "N" : itemDto.getInfPrtYn()) // 정보보호여부
+                        .sectSysUtzYn(itemDto.getSectSysUtzYn() == null ? "N" : itemDto.getSectSysUtzYn()) // 정보보호여부
                         .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
                         .lstYn("Y") // 최종여부
-                        .gclAmt(reconciled[0]) // 품목금액 (서버 재계산)
+                        .amt(reconciled[0]) // 품목금액 (서버 재계산)
                         .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
                         .build();
                 bitemmRepository.save(newItem);
             }
         }
 
-        return project.getPrjMngNo(); // 저장된 관리번호 반환
+        return project.getAbusMngNo(); // 저장된 관리번호 반환
     }
 
     /**
@@ -352,12 +352,12 @@ public class ProjectService {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
 
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
-        validateModifyPermission(project.getFstEnrUsid(), project.getSvnDpm());
+        validateModifyPermission(project.getFstEnrUsid(), project.getSvnDpmC());
 
         // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
         // 결재중 또는 결재완료 상태인 경우 수정 불가
         boolean isProcessingOrApproved = capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                "BPROJM", prjMngNo, project.getPrjSno(), java.util.List.of(
+                "BPROJM", prjMngNo, project.getSno(), java.util.List.of(
                         com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
                         com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
 
@@ -366,32 +366,32 @@ public class ProjectService {
         }
 
         // Rich Text 필드 XSS 새니타이징 (서버 측 방어)
-        request.setPrjDes(HtmlSanitizer.sanitize(request.getPrjDes()));
-        request.setPrjRng(HtmlSanitizer.sanitize(request.getPrjRng()));
+        request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
+        request.setPrjTgtRngCone(HtmlSanitizer.sanitize(request.getPrjTgtRngCone()));
 
         // 프로젝트 기본 정보 수정 (JPA Dirty Checking으로 자동 반영)
         project.update(new Bprojm.UpdateCommand(
-                request.getPrjNm(), request.getPrjTp(), request.getSvnDpm(), request.getItDpm(),
-                request.getPrjBg(), request.getNyyPrjBg(), request.getSttDt(), request.getEndDt(),
-                request.getSvnDpmCgpr(), request.getItDpmCgpr(), request.getSvnDpmTlr(), request.getItDpmTlr(),
-                request.getEdrt(), request.getPrjDes(), request.getSaf(), request.getNcs(),
-                request.getXptEff(), request.getPlm(), request.getPrjRng(), request.getPulPsg(), request.getHrfPln(),
-                request.getBzDtt(), request.getTchnTp(), request.getMnUsr(), request.getDplYn(),
-                request.getLblFsgTlm(), request.getRprSts(), request.getPrjPulPtt(), request.getPrjSts(),
-                request.getBgYy(), request.getSvnHdq(),
-                request.getOrnYn(), request.getPulDtt(), request.getCncdPrjMngNo()));
+                request.getPrjNm(), request.getPrjBzTc(), request.getSvnDpmC(), request.getDvmDpmC(),
+                request.getRqmBgAmt(), request.getMplAmt(), request.getSttDtm(), request.getEndDtm(),
+                request.getSvnDpmUsid(), request.getDvmUsid(), request.getSvnDpmDcdUsid(), request.getTlrUsid(),
+                request.getEdrtTc(), request.getAbusCone(), request.getCpnSafCone(), request.getAbusNcsCone(),
+                request.getDgogPpoCone(), request.getPlmDes(), request.getPrjTgtRngCone(), request.getMnPrgCone(), request.getHrfPlnCone(),
+                request.getBzDttNm(), request.getSklTpTc(), request.getCstTpTc(), request.getDplYn(),
+                request.getFlfFsgDt(), request.getRprStsTc(), request.getExePttYn(), request.getStsTc(),
+                request.getBseYy(), request.getPrlmHrkOgzCCone(),
+                request.getOdnYn(), request.getAbusTc(), request.getCncdRfrNo()));
 
         // ===== 품목 정보 동기화 (CUD) =====
         if (request.getItems() != null) {
             // 1. 기존 품목 조회 (DEL_YN='N')
             List<com.kdb.it.domain.budget.project.entity.Bitemm> existingItems = bitemmRepository
-                    .findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, project.getPrjSno(), "N");
+                    .findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, project.getSno(), "N");
 
             // 처리된 품목 관리번호 추적 (삭제 대상 식별용)
             java.util.Set<String> processedGclMngNos = new java.util.HashSet<>();
             // 현재 최대 SNO 계산 (신규 추가 시 MAX+1로 설정)
             int maxGclSno = existingItems.stream()
-                    .mapToInt(com.kdb.it.domain.budget.project.entity.Bitemm::getGclSno)
+                    .mapToInt(com.kdb.it.domain.budget.project.entity.Bitemm::getSno)
                     .max().orElse(0);
 
             // 2. 요청 품목 처리 (수정 또는 신규 추가)
@@ -410,30 +410,30 @@ public class ProjectService {
                             // 기존 레코드 Soft Delete (이전 버전으로 처리)
                             existingItem.delete();
                             // 기존 관리번호 유지 + 일련번호 1 증가하여 신규 레코드 저장
-                            int newGclSno = existingItem.getGclSno() + 1;
+                            int newGclSno = existingItem.getSno() + 1;
                             // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
                             itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
-                            // 외화 재계산: gclAmt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
+                            // 외화 재계산: amt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
                             BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
-                                    itemDto.getFcAmt(), itemDto.getGclAmt(), itemDto.getCurC(), itemDto.getXcr());
+                                    itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
                             com.kdb.it.domain.budget.project.entity.Bitemm updatedItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
                                     .gclMngNo(existingItem.getGclMngNo()) // 품목관리번호 유지 (기존 번호)
-                                    .gclSno(newGclSno) // 품목일련번호 1 증가
-                                    .prjMngNo(existingItem.getPrjMngNo()) // 프로젝트관리번호 유지
-                                    .prjSno(existingItem.getPrjSno()) // 프로젝트순번 유지
+                                    .sno(newGclSno) // 품목일련번호 1 증가
+                                    .abusMngNo(existingItem.getAbusMngNo()) // 프로젝트관리번호 유지
+                                    .fntTbCrySno(existingItem.getFntTbCrySno()) // 프로젝트순번 유지
                                     .ioeC(itemDto.getIoeC()) // 품목구분
                                     .gclNm(itemDto.getGclNm()) // 품목명
-                                    .gclQty(itemDto.getGclQty()) // 품목수량
+                                    .qty(itemDto.getQty()) // 품목수량
                                     .curC(itemDto.getCurC()) // 통화
                                     .xcr(itemDto.getXcr()) // 환율
                                     .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
-                                    .bgFdtnCone(itemDto.getBgFdtnCone()) // 예산근거
-                                    .itdYm(toItdYm(itemDto.getItdYm())) // 도입시기
+                                    .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
+                                    .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
                                     .dfrCleC(itemDto.getDfrCleC()) // 지급주기
-                                    .infPrtYn(defaultYn(itemDto.getInfPrtYn()))
+                                    .sectSysUtzYn(defaultYn(itemDto.getSectSysUtzYn()))
                                     .itrInfrYn(defaultYn(itemDto.getItrInfrYn()))
                                     .lstYn("Y") // 최종여부
-                                    .gclAmt(reconciled[0]) // 품목금액 (서버 재계산)
+                                    .amt(reconciled[0]) // 품목금액 (서버 재계산)
                                     .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
                                     .build();
                             bitemmRepository.save(updatedItem);
@@ -450,28 +450,28 @@ public class ProjectService {
                     // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
                     itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
 
-                    // 외화 재계산: gclAmt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
+                    // 외화 재계산: amt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
                     BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
-                            itemDto.getFcAmt(), itemDto.getGclAmt(), itemDto.getCurC(), itemDto.getXcr());
+                            itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
 
                     com.kdb.it.domain.budget.project.entity.Bitemm newItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
                             .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
-                            .gclSno(++maxGclSno) // 품목일련번호 (MAX+1)
-                            .prjMngNo(prjMngNo) // 프로젝트관리번호
-                            .prjSno(project.getPrjSno()) // 프로젝트순번
+                            .sno(++maxGclSno) // 품목일련번호 (MAX+1)
+                            .abusMngNo(prjMngNo) // 프로젝트관리번호
+                            .fntTbCrySno(project.getSno()) // 프로젝트순번
                             .ioeC(itemDto.getIoeC()) // 품목구분
                             .gclNm(itemDto.getGclNm()) // 품목명
-                            .gclQty(itemDto.getGclQty()) // 품목수량
+                            .qty(itemDto.getQty()) // 품목수량
                             .curC(itemDto.getCurC()) // 통화
                             .xcr(itemDto.getXcr()) // 환율
                             .xcrBseDt(itemDto.getXcrBseDt()) // 환율기준일자
-                            .bgFdtnCone(itemDto.getBgFdtnCone()) // 예산근거
-                            .itdYm(toItdYm(itemDto.getItdYm())) // 도입시기
+                            .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
+                            .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
                             .dfrCleC(itemDto.getDfrCleC()) // 지급주기
-                            .infPrtYn(itemDto.getInfPrtYn() == null ? "N" : itemDto.getInfPrtYn()) // 정보보호여부
+                            .sectSysUtzYn(itemDto.getSectSysUtzYn() == null ? "N" : itemDto.getSectSysUtzYn()) // 정보보호여부
                             .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
                             .lstYn("Y") // 최종여부
-                            .gclAmt(reconciled[0]) // 품목금액 (서버 재계산)
+                            .amt(reconciled[0]) // 품목금액 (서버 재계산)
                             .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
                             .build();
                     bitemmRepository.save(newItem);
@@ -487,7 +487,7 @@ public class ProjectService {
             }
         }
 
-        return project.getPrjMngNo(); // 수정된 관리번호 반환
+        return project.getAbusMngNo(); // 수정된 관리번호 반환
     }
 
     /**
@@ -504,16 +504,16 @@ public class ProjectService {
     private boolean isItemChanged(Bitemm existing, ProjectDto.BitemmDto dto) {
         return !Objects.equals(existing.getIoeC(), dto.getIoeC())
                 || !Objects.equals(existing.getGclNm(), dto.getGclNm())
-                || bigDecimalChanged(existing.getGclQty(), dto.getGclQty())
+                || bigDecimalChanged(existing.getQty(), dto.getQty())
                 || !Objects.equals(existing.getCurC(), dto.getCurC())
                 || bigDecimalChanged(existing.getXcr(), dto.getXcr())
                 || !Objects.equals(existing.getXcrBseDt(), dto.getXcrBseDt())
-                || !Objects.equals(existing.getBgFdtnCone(), dto.getBgFdtnCone())
-                || !Objects.equals(existing.getItdYm(), dto.getItdYm())
+                || !Objects.equals(existing.getCncdFdtnCone(), dto.getCncdFdtnCone())
+                || !Objects.equals(existing.getBseYm(), dto.getBseYm())
                 || !Objects.equals(existing.getDfrCleC(), dto.getDfrCleC())
-                || !Objects.equals(existing.getInfPrtYn(), defaultYn(dto.getInfPrtYn()))
+                || !Objects.equals(existing.getSectSysUtzYn(), defaultYn(dto.getSectSysUtzYn()))
                 || !Objects.equals(existing.getItrInfrYn(), defaultYn(dto.getItrInfrYn()))
-                || bigDecimalChanged(existing.getGclAmt(), dto.getGclAmt())
+                || bigDecimalChanged(existing.getAmt(), dto.getAmt())
                 // fcAmt 변경 시 D/C 이력 생성 (null-safe 비교)
                 || bigDecimalChanged(existing.getFcAmt(), dto.getFcAmt());
     }
@@ -569,11 +569,11 @@ public class ProjectService {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
 
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
-        validateModifyPermission(project.getFstEnrUsid(), project.getSvnDpm());
+        validateModifyPermission(project.getFstEnrUsid(), project.getSvnDpmC());
 
         // 결재 상태 확인 (결재중/결재완료이면 삭제 불가)
         boolean isProcessingOrApproved = capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                "BPROJM", prjMngNo, project.getPrjSno(), java.util.List.of(
+                "BPROJM", prjMngNo, project.getSno(), java.util.List.of(
                         com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
                         com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
 
@@ -586,7 +586,7 @@ public class ProjectService {
 
         // 2. 관련 품목 전체 Soft Delete (DEL_YN 무관하게 모든 품목 조회 후 삭제)
         List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository.findByPrjMngNoAndPrjSno(prjMngNo,
-                project.getPrjSno());
+                project.getSno());
         for (com.kdb.it.domain.budget.project.entity.Bitemm bitemm : bitemms) {
             bitemm.delete(); // BaseEntity.delete() 호출 (DEL_YN='Y')
         }
@@ -619,10 +619,10 @@ public class ProjectService {
                 .collect(Collectors.toList());
 
         // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
-        String bgYy = request.getBgYy();
+        String bgYy = request.getBseYy();
         if (bgYy != null && !bgYy.isBlank() && !responses.isEmpty()) {
             List<String> prjMngNos = responses.stream()
-                    .map(ProjectDto.Response::getPrjMngNo)
+                    .map(ProjectDto.Response::getAbusMngNo)
                     .toList();
             Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByPrjMngNos(prjMngNos, bgYy);
 
@@ -640,9 +640,9 @@ public class ProjectService {
             Map<String, BigDecimal> costDupBgMap = bbugtmRepository.sumCostDupBgByPrjMngNos(prjMngNos, bgYy, costTypes);
 
             responses.forEach(r -> {
-                r.setDupBgAmt(dupBgMap.getOrDefault(r.getPrjMngNo(), BigDecimal.ZERO));
-                r.setAssetDupBg(assetDupBgMap.getOrDefault(r.getPrjMngNo(), BigDecimal.ZERO));
-                r.setCostDupBg(costDupBgMap.getOrDefault(r.getPrjMngNo(), BigDecimal.ZERO));
+                r.setDupBgAmt(dupBgMap.getOrDefault(r.getAbusMngNo(), BigDecimal.ZERO));
+                r.setAssetDupBg(assetDupBgMap.getOrDefault(r.getAbusMngNo(), BigDecimal.ZERO));
+                r.setCostDupBg(costDupBgMap.getOrDefault(r.getAbusMngNo(), BigDecimal.ZERO));
             });
         }
         return responses;
@@ -660,7 +660,7 @@ public class ProjectService {
         if (projects.isEmpty()) return;
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
-        List<String> prjMngNos = projects.stream().map(Bprojm::getPrjMngNo).collect(Collectors.toList());
+        List<String> prjMngNos = projects.stream().map(Bprojm::getAbusMngNo).collect(Collectors.toList());
         List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", prjMngNos);
 
         // prjMngNo → 최신 Cappla (이미 DESC 정렬이므로 첫 번째가 최신)
@@ -691,19 +691,19 @@ public class ProjectService {
         Set<String> prjPulPttCdvas = new java.util.HashSet<>();
         Set<String> pulDttCdvas = new java.util.HashSet<>();
         for (ProjectDto.Response r : responses) {
-            if (r.getItDpm() != null && !r.getItDpm().isEmpty()) orgCodes.add(r.getItDpm());
-            if (r.getSvnDpm() != null && !r.getSvnDpm().isEmpty()) orgCodes.add(r.getSvnDpm());
-            if (r.getItDpmCgpr() != null && !r.getItDpmCgpr().isEmpty()) userEnos.add(r.getItDpmCgpr());
-            if (r.getItDpmTlr() != null && !r.getItDpmTlr().isEmpty()) userEnos.add(r.getItDpmTlr());
-            if (r.getSvnDpmCgpr() != null && !r.getSvnDpmCgpr().isEmpty()) userEnos.add(r.getSvnDpmCgpr());
-            if (r.getSvnDpmTlr() != null && !r.getSvnDpmTlr().isEmpty()) userEnos.add(r.getSvnDpmTlr());
-            if (r.getPrjTp() != null && !r.getPrjTp().isEmpty()) prjTpCdvas.add(r.getPrjTp());
-            if (r.getBzDtt() != null && !r.getBzDtt().isEmpty()) bzDttCdvas.add(r.getBzDtt());
-            if (r.getTchnTp() != null && !r.getTchnTp().isEmpty()) tchnTpCdvas.add(r.getTchnTp());
-            if (r.getMnUsr() != null && !r.getMnUsr().isEmpty()) mnUsrCdvas.add(r.getMnUsr());
-            if (r.getRprSts() != null && !r.getRprSts().isEmpty()) rprStsCdvas.add(r.getRprSts());
-            if (r.getPrjPulPtt() != null && !r.getPrjPulPtt().isEmpty()) prjPulPttCdvas.add(r.getPrjPulPtt());
-            if (r.getPulDtt() != null && !r.getPulDtt().isEmpty()) pulDttCdvas.add(r.getPulDtt());
+            if (r.getDvmDpmC() != null && !r.getDvmDpmC().isEmpty()) orgCodes.add(r.getDvmDpmC());
+            if (r.getSvnDpmC() != null && !r.getSvnDpmC().isEmpty()) orgCodes.add(r.getSvnDpmC());
+            if (r.getDvmUsid() != null && !r.getDvmUsid().isEmpty()) userEnos.add(r.getDvmUsid());
+            if (r.getTlrUsid() != null && !r.getTlrUsid().isEmpty()) userEnos.add(r.getTlrUsid());
+            if (r.getSvnDpmUsid() != null && !r.getSvnDpmUsid().isEmpty()) userEnos.add(r.getSvnDpmUsid());
+            if (r.getSvnDpmDcdUsid() != null && !r.getSvnDpmDcdUsid().isEmpty()) userEnos.add(r.getSvnDpmDcdUsid());
+            if (r.getPrjBzTc() != null && !r.getPrjBzTc().isEmpty()) prjTpCdvas.add(r.getPrjBzTc());
+            if (r.getBzDttNm() != null && !r.getBzDttNm().isEmpty()) bzDttCdvas.add(r.getBzDttNm());
+            if (r.getSklTpTc() != null && !r.getSklTpTc().isEmpty()) tchnTpCdvas.add(r.getSklTpTc());
+            if (r.getCstTpTc() != null && !r.getCstTpTc().isEmpty()) mnUsrCdvas.add(r.getCstTpTc());
+            if (r.getRprStsTc() != null && !r.getRprStsTc().isEmpty()) rprStsCdvas.add(r.getRprStsTc());
+            if (r.getExePttYn() != null && !r.getExePttYn().isEmpty()) prjPulPttCdvas.add(r.getExePttYn());
+            if (r.getAbusTc() != null && !r.getAbusTc().isEmpty()) pulDttCdvas.add(r.getAbusTc());
         }
 
         // --- 5. 부서명·사용자명·공통코드명 배치 조회 ---
@@ -724,7 +724,7 @@ public class ProjectService {
             Bprojm project = projects.get(i);
             ProjectDto.Response response = responses.get(i);
 
-            Cappla cappla = latestCappla.get(project.getPrjMngNo());
+            Cappla cappla = latestCappla.get(project.getAbusMngNo());
             if (cappla != null) {
                 response.setApfMngNo(cappla.getApfDcmNo());
                 Capplm capplm = capplmMap.get(cappla.getApfDcmNo());
@@ -736,21 +736,21 @@ public class ProjectService {
                 }
             }
 
-            if (response.getItDpm() != null) response.setItDpmNm(orgNameMap.get(response.getItDpm()));
-            if (response.getSvnDpm() != null) response.setSvnDpmNm(orgNameMap.get(response.getSvnDpm()));
-            if (response.getItDpmCgpr() != null) response.setItDpmCgprNm(userNameMap.get(response.getItDpmCgpr()));
-            if (response.getItDpmTlr() != null) response.setItDpmTlrNm(userNameMap.get(response.getItDpmTlr()));
-            if (response.getSvnDpmCgpr() != null) response.setSvnDpmCgprNm(userNameMap.get(response.getSvnDpmCgpr()));
-            if (response.getSvnDpmTlr() != null) response.setSvnDpmTlrNm(userNameMap.get(response.getSvnDpmTlr()));
-            if (response.getPrjTp() != null) response.setPrjTpNm(prjTpNameMap.get(response.getPrjTp()));
-            if (response.getBzDtt() != null) response.setBzDttNm(bzDttNameMap.get(response.getBzDtt()));
-            if (response.getTchnTp() != null) response.setTchnTpNm(tchnTpNameMap.get(response.getTchnTp()));
-            if (response.getMnUsr() != null) response.setMnUsrNm(mnUsrNameMap.get(response.getMnUsr()));
-            if (response.getRprSts() != null) response.setRprStsNm(rprStsNameMap.get(response.getRprSts()));
-            if (response.getPrjPulPtt() != null) response.setPrjPulPttNm(prjPulPttNameMap.get(response.getPrjPulPtt()));
-            if (response.getPulDtt() != null) response.setPulDttNm(pulDttNameMap.get(response.getPulDtt()));
+            if (response.getDvmDpmC() != null) response.setDvmDpmCNm(orgNameMap.get(response.getDvmDpmC()));
+            if (response.getSvnDpmC() != null) response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC()));
+            if (response.getDvmUsid() != null) response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
+            if (response.getTlrUsid() != null) response.setTlrUsidNm(userNameMap.get(response.getTlrUsid()));
+            if (response.getSvnDpmUsid() != null) response.setSvnDpmUsidNm(userNameMap.get(response.getSvnDpmUsid()));
+            if (response.getSvnDpmDcdUsid() != null) response.setSvnDpmDcdUsidNm(userNameMap.get(response.getSvnDpmDcdUsid()));
+            if (response.getPrjBzTc() != null) response.setPrjBzTcNm(prjTpNameMap.get(response.getPrjBzTc()));
+            if (response.getBzDttNm() != null) response.setBzDttNmNm(bzDttNameMap.get(response.getBzDttNm()));
+            if (response.getSklTpTc() != null) response.setSklTpTcNm(tchnTpNameMap.get(response.getSklTpTc()));
+            if (response.getCstTpTc() != null) response.setCstTpTcNm(mnUsrNameMap.get(response.getCstTpTc()));
+            if (response.getRprStsTc() != null) response.setRprStsTcNm(rprStsNameMap.get(response.getRprStsTc()));
+            if (response.getExePttYn() != null) response.setExePttYnNm(prjPulPttNameMap.get(response.getExePttYn()));
+            if (response.getAbusTc() != null) response.setAbusTcNm(pulDttNameMap.get(response.getAbusTc()));
 
-            setBudgetSummary(response, project.getPrjMngNo(), project.getPrjSno());
+            setBudgetSummary(response, project.getAbusMngNo(), project.getSno());
         }
     }
 
@@ -779,7 +779,7 @@ public class ProjectService {
     private void setApplicationInfo(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // BPROJM 테이블 코드와 프로젝트 관리번호/순번으로 연결된 신청서 목록 조회 (최신순)
         List<com.kdb.it.common.approval.entity.Cappla> capplas = capplaRepository
-                .findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BPROJM", prjMngNo, prjSno);
+                .findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BPROJM", prjMngNo, (Integer) prjSno);
 
         if (!capplas.isEmpty()) {
             com.kdb.it.common.approval.entity.Cappla cappla = capplas.get(0); // 가장 최신 신청서
@@ -822,72 +822,72 @@ public class ProjectService {
         // === 부서코드 → 부서명 변환 (TPRMPP_CORGNI) ===
 
         // IT부서코드 → IT부서명
-        if (response.getItDpm() != null && !response.getItDpm().isEmpty()) {
-            corgnIRepository.findById(response.getItDpm())
-                    .ifPresent(org -> response.setItDpmNm(org.getBbrNm()));
+        if (response.getDvmDpmC() != null && !response.getDvmDpmC().isEmpty()) {
+            corgnIRepository.findById(response.getDvmDpmC())
+                    .ifPresent(org -> response.setDvmDpmCNm(org.getBbrNm()));
         }
 
         // 주관부서코드 → 주관부서명
-        if (response.getSvnDpm() != null && !response.getSvnDpm().isEmpty()) {
-            corgnIRepository.findById(response.getSvnDpm())
-                    .ifPresent(org -> response.setSvnDpmNm(org.getBbrNm()));
+        if (response.getSvnDpmC() != null && !response.getSvnDpmC().isEmpty()) {
+            corgnIRepository.findById(response.getSvnDpmC())
+                    .ifPresent(org -> response.setSvnDpmCNm(org.getBbrNm()));
         }
 
         // === 사원번호 → 사용자명 변환 (TPRMPP_CUSERI) ===
 
         // IT담당자 사번 → IT담당자명
-        if (response.getItDpmCgpr() != null && !response.getItDpmCgpr().isEmpty()) {
-            cuserIRepository.findById(response.getItDpmCgpr())
-                    .ifPresent(user -> response.setItDpmCgprNm(user.getUsrNm()));
+        if (response.getDvmUsid() != null && !response.getDvmUsid().isEmpty()) {
+            cuserIRepository.findById(response.getDvmUsid())
+                    .ifPresent(user -> response.setDvmUsidNm(user.getUsrNm()));
         }
 
         // IT담당팀장 사번 → IT담당팀장명
-        if (response.getItDpmTlr() != null && !response.getItDpmTlr().isEmpty()) {
-            cuserIRepository.findById(response.getItDpmTlr())
-                    .ifPresent(user -> response.setItDpmTlrNm(user.getUsrNm()));
+        if (response.getTlrUsid() != null && !response.getTlrUsid().isEmpty()) {
+            cuserIRepository.findById(response.getTlrUsid())
+                    .ifPresent(user -> response.setTlrUsidNm(user.getUsrNm()));
         }
 
         // 주관부서담당자 사번 → 주관부서담당자명
-        if (response.getSvnDpmCgpr() != null && !response.getSvnDpmCgpr().isEmpty()) {
-            cuserIRepository.findById(response.getSvnDpmCgpr())
-                    .ifPresent(user -> response.setSvnDpmCgprNm(user.getUsrNm()));
+        if (response.getSvnDpmUsid() != null && !response.getSvnDpmUsid().isEmpty()) {
+            cuserIRepository.findById(response.getSvnDpmUsid())
+                    .ifPresent(user -> response.setSvnDpmUsidNm(user.getUsrNm()));
         }
 
         // 주관부서담당팀장 사번 → 주관부서담당팀장명
-        if (response.getSvnDpmTlr() != null && !response.getSvnDpmTlr().isEmpty()) {
-            cuserIRepository.findById(response.getSvnDpmTlr())
-                    .ifPresent(user -> response.setSvnDpmTlrNm(user.getUsrNm()));
+        if (response.getSvnDpmDcdUsid() != null && !response.getSvnDpmDcdUsid().isEmpty()) {
+            cuserIRepository.findById(response.getSvnDpmDcdUsid())
+                    .ifPresent(user -> response.setSvnDpmDcdUsidNm(user.getUsrNm()));
         }
 
         // === 공통코드 코드값 → 코드명 변환 (TPRMPP_CCODEM) ===
 
-        if (response.getPrjTp() != null && !response.getPrjTp().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_TP", response.getPrjTp(), null)
-                    .ifPresent(code -> response.setPrjTpNm(code.getCNm()));
+        if (response.getPrjBzTc() != null && !response.getPrjBzTc().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_TP", response.getPrjBzTc(), null)
+                    .ifPresent(code -> response.setPrjBzTcNm(code.getCNm()));
         }
-        if (response.getBzDtt() != null && !response.getBzDtt().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("BZ_DTT", response.getBzDtt(), null)
-                    .ifPresent(code -> response.setBzDttNm(code.getCNm()));
+        if (response.getBzDttNm() != null && !response.getBzDttNm().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("BZ_DTT", response.getBzDttNm(), null)
+                    .ifPresent(code -> response.setBzDttNmNm(code.getCNm()));
         }
-        if (response.getTchnTp() != null && !response.getTchnTp().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("TCHN_TP", response.getTchnTp(), null)
-                    .ifPresent(code -> response.setTchnTpNm(code.getCNm()));
+        if (response.getSklTpTc() != null && !response.getSklTpTc().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("TCHN_TP", response.getSklTpTc(), null)
+                    .ifPresent(code -> response.setSklTpTcNm(code.getCNm()));
         }
-        if (response.getMnUsr() != null && !response.getMnUsr().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("MN_USR", response.getMnUsr(), null)
-                    .ifPresent(code -> response.setMnUsrNm(code.getCNm()));
+        if (response.getCstTpTc() != null && !response.getCstTpTc().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("MN_USR", response.getCstTpTc(), null)
+                    .ifPresent(code -> response.setCstTpTcNm(code.getCNm()));
         }
-        if (response.getRprSts() != null && !response.getRprSts().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("RPR_STS", response.getRprSts(), null)
-                    .ifPresent(code -> response.setRprStsNm(code.getCNm()));
+        if (response.getRprStsTc() != null && !response.getRprStsTc().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("RPR_STS", response.getRprStsTc(), null)
+                    .ifPresent(code -> response.setRprStsTcNm(code.getCNm()));
         }
-        if (response.getPrjPulPtt() != null && !response.getPrjPulPtt().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_PUL_PTT", response.getPrjPulPtt(), null)
-                    .ifPresent(code -> response.setPrjPulPttNm(code.getCNm()));
+        if (response.getExePttYn() != null && !response.getExePttYn().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_PUL_PTT", response.getExePttYn(), null)
+                    .ifPresent(code -> response.setExePttYnNm(code.getCNm()));
         }
-        if (response.getPulDtt() != null && !response.getPulDtt().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", response.getPulDtt(), null)
-                    .ifPresent(code -> response.setPulDttNm(code.getCNm()));
+        if (response.getAbusTc() != null && !response.getAbusTc().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", response.getAbusTc(), null)
+                    .ifPresent(code -> response.setAbusTcNm(code.getCNm()));
         }
     }
 
@@ -906,7 +906,7 @@ public class ProjectService {
     private void setBudgetSummary(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // 삭제되지 않은 품목 목록 조회
         List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository
-                .findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, prjSno, "N");
+                .findByPrjMngNoAndPrjSnoAndDelYn(prjMngNo, (Integer) prjSno, "N");
         // 목록 조회 시 items 가 아직 설정되지 않은 경우 DTO 변환 및 enrichment 수행
         if (response.getItems() == null) {
             List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
@@ -975,12 +975,12 @@ public class ProjectService {
                 item -> {
                     java.math.BigDecimal xcr = (item.getXcr() != null && item.getXcr().compareTo(java.math.BigDecimal.ZERO) != 0)
                             ? item.getXcr() : java.math.BigDecimal.ONE;
-                    return item.getGclAmt().multiply(xcr);
+                    return item.getAmt().multiply(xcr);
                 };
 
         // 유효한 품목만 필터링 (ioeC, gclAmt가 null이 아닌 항목)
         List<com.kdb.it.domain.budget.project.entity.Bitemm> validItems = bitemms.stream()
-                .filter(item -> item.getIoeC() != null && item.getGclAmt() != null)
+                .filter(item -> item.getIoeC() != null && item.getAmt() != null)
                 .collect(java.util.stream.Collectors.toList());
 
         // 자본예산 합계 계산

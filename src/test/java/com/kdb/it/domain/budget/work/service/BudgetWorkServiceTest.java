@@ -451,9 +451,9 @@ class BudgetWorkServiceTest {
         // BITEMM 1건 (V003 이후 ioeC="001", 환율 없음 → xcr=null, 기본 1 적용)
         Bitemm item = mock(Bitemm.class);
         given(item.getGclMngNo()).willReturn("GCL-0001");
-        given(item.getGclSno()).willReturn(1);
+        given(item.getSno()).willReturn(1);
         given(item.getIoeC()).willReturn("001");
-        given(item.getGclAmt()).willReturn(BigDecimal.valueOf(500_000));
+        given(item.getAmt()).willReturn(BigDecimal.valueOf(500_000));
         given(item.getXcr()).willReturn(null);
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026"))).willReturn(List.of(item));
 
@@ -487,9 +487,9 @@ class BudgetWorkServiceTest {
 
         Bitemm bitemm = mock(Bitemm.class);
         given(bitemm.getGclMngNo()).willReturn("GCL-0001");
-        given(bitemm.getGclSno()).willReturn(1);
+        given(bitemm.getSno()).willReturn(1);
         given(bitemm.getIoeC()).willReturn("IOE-351-0100");
-        given(bitemm.getGclAmt()).willReturn(BigDecimal.valueOf(1_000_000));
+        given(bitemm.getAmt()).willReturn(BigDecimal.valueOf(1_000_000));
         given(bitemm.getXcr()).willReturn(null);
 
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
@@ -552,9 +552,9 @@ class BudgetWorkServiceTest {
         Ccodem capitalCode = Ccodem.builder().cdva("IOE-351-0100").build();
         Bitemm capitalItem = mock(Bitemm.class);
         given(capitalItem.getGclMngNo()).willReturn("GCL-0001");
-        given(capitalItem.getGclSno()).willReturn(1);
+        given(capitalItem.getSno()).willReturn(1);
         given(capitalItem.getIoeC()).willReturn("IOE-351-0100");
-        given(capitalItem.getGclAmt()).willReturn(BigDecimal.valueOf(1000));
+        given(capitalItem.getAmt()).willReturn(BigDecimal.valueOf(1000));
         // Wave 5: Ccodem 단일 원천으로 환율 조회 — item.xcr 무시 (CONTEXT.md 결정 E)
         given(capitalItem.getCurC()).willReturn("USD");
         given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
@@ -653,7 +653,7 @@ class BudgetWorkServiceTest {
         Ccodem ioeCode1 = Ccodem.builder().cdva("101").cNm("237-0100").cdvaDtlC("237-0100").build();
         Ccodem ioeCode2 = Ccodem.builder().cdva("102").cNm("237-0200").cdvaDtlC("237-0200").build();
         Bitemm item = mock(Bitemm.class);
-        given(item.getPrjMngNo()).willReturn("PRJ-2026-0001");
+        given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
         Bprojm project = mock(Bprojm.class);
         given(project.getPrjNm()).willReturn("정보화사업");
         Bcostm cost = mock(Bcostm.class);
@@ -810,9 +810,9 @@ class BudgetWorkServiceTest {
         Ccodem capitalCodeWithoutDash = Ccodem.builder().cdva("IOE351").build();
         Bitemm item = mock(Bitemm.class);
         given(item.getIoeC()).willReturn(null);
-        given(item.getGclAmt()).willReturn(null);
+        given(item.getAmt()).willReturn(null);
         given(item.getGclMngNo()).willReturn("GCL-NULL");
-        given(item.getGclSno()).willReturn(1);
+        given(item.getSno()).willReturn(1);
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBgYyAndDelYn("2026", "N")).willReturn(List.of(), List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of(capitalCodeWithoutDash));
@@ -885,9 +885,9 @@ class BudgetWorkServiceTest {
         Ccodem capitalIoeCode = Ccodem.builder().cdva("IOE-351-0100").cTp("IOE_CPIT").build();
         Bitemm bitemm = org.mockito.Mockito.mock(Bitemm.class);
         given(bitemm.getGclMngNo()).willReturn("GCL-0001");
-        given(bitemm.getGclSno()).willReturn(1);
+        given(bitemm.getSno()).willReturn(1);
         given(bitemm.getIoeC()).willReturn("IOE-351-0100");
-        given(bitemm.getGclAmt()).willReturn(BigDecimal.valueOf(1_000_000));
+        given(bitemm.getAmt()).willReturn(BigDecimal.valueOf(1_000_000));
         given(bitemm.getXcr()).willReturn(BigDecimal.ONE);
 
         given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of(capitalIoeCode));
@@ -923,9 +923,9 @@ class BudgetWorkServiceTest {
         Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         Bitemm item = org.mockito.Mockito.mock(Bitemm.class);
         given(item.getGclMngNo()).willReturn("GCL-0001");
-        given(item.getGclSno()).willReturn(1);
+        given(item.getSno()).willReturn(1);
         given(item.getIoeC()).willReturn("001");
-        given(item.getGclAmt()).willReturn(BigDecimal.valueOf(500_000));
+        given(item.getAmt()).willReturn(BigDecimal.valueOf(500_000));
         given(item.getXcr()).willReturn(BigDecimal.ONE);
 
         // 기존 BBUGTM 레코드 존재 (BITEMM 경로에서 UPDATE 분기)

@@ -317,17 +317,17 @@ class CouncilServiceTest {
                 .prjNm("사업개요명")
                 .build();
         Bprojm project = Bprojm.builder()
-                .prjMngNo("PRJ-2026-0001")
-                .prjSno(1)
+                .abusMngNo("PRJ-2026-0001")
+                .sno(1)
                 .prjNm("사업마스터명")
-                .bgYy("2026")
-                .prjTp("신규")
-                .svnDpm("101")
-                .prjBg(BigDecimal.valueOf(1000))
-                .sttDt(LocalDate.of(2026, 1, 1))
-                .endDt(LocalDate.of(2026, 12, 31))
-                .itDpm("IT")
-                .prjDes("사업설명")
+                .bseYy("2026")
+                .prjBzTc("신규")
+                .svnDpmC("101")
+                .rqmBgAmt(BigDecimal.valueOf(1000))
+                .sttDtm(LocalDate.of(2026, 1, 1))
+                .endDtm(LocalDate.of(2026, 12, 31))
+                .dvmDpmC("IT")
+                .abusCone("사업설명")
                 .build();
         given(councilRepository.findByCommitteeMember("10001", "N")).willReturn(List.of(council));
         given(projectOverviewRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
@@ -389,16 +389,16 @@ class CouncilServiceTest {
         given(council.getPrjMngNo()).willReturn("PRJ-2026-0001");
         given(council.getPrjSno()).willReturn(1);
         Bprojm project = Bprojm.builder()
-                .prjMngNo("PRJ-2026-0001")
-                .prjSno(1)
+                .abusMngNo("PRJ-2026-0001")
+                .sno(1)
                 .prjNm("정보화사업")
-                .edrt("전결권자")
-                .sttDt(LocalDate.of(2026, 1, 1))
-                .endDt(LocalDate.of(2026, 12, 31))
-                .ncs("필요성")
-                .prjBg(BigDecimal.valueOf(1000))
-                .prjDes("사업설명")
-                .xptEff("기대효과")
+                .edrtTc("전결권자")
+                .sttDtm(LocalDate.of(2026, 1, 1))
+                .endDtm(LocalDate.of(2026, 12, 31))
+                .abusNcsCone("필요성")
+                .rqmBgAmt(BigDecimal.valueOf(1000))
+                .abusCone("사업설명")
+                .dgogPpoCone("기대효과")
                 .build();
         given(councilRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
         given(projectRepository.findById(any())).willReturn(Optional.of(project));

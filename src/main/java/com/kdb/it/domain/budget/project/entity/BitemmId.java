@@ -29,6 +29,6 @@ public class BitemmId implements Serializable {
     /** 품목관리번호: Bitemm.gclMngNo와 이름/타입 일치 필수 */
     private String gclMngNo;
 
-    /** 품목일련번호: Bitemm.gclSno와 이름/타입 일치 필수 */
-    private Integer gclSno;
+    /** 품목일련번호: Bitemm.sno와 이름/타입 일치 필수 */
+    private Integer sno;
 }
