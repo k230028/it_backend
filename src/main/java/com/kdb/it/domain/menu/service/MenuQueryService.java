@@ -26,8 +26,8 @@ public class MenuQueryService {
 
     private final CmenumRepository cmenumRepository;
     private final CmenuaRepository cmenuaRepository;
-    /** Plan 2에서 게시판 resolver 주입. Plan 1에서는 빈 리스트(하드코딩). */
-    private final List<MenuChildrenResolver> resolvers = List.of();
+    /** Spring이 모든 MenuChildrenResolver 빈을 주입(없으면 빈 리스트). Plan 2에서 게시판 resolver 등록. */
+    private final List<MenuChildrenResolver> resolvers;
 
     /** 사용자용: ROLE 필터 + HID_YN='N' + 빈 GRP/DYN 가지치기. */
     public List<MenuDto.Node> getMenuTree(List<String> athIds) {
@@ -89,10 +89,13 @@ public class MenuQueryService {
     }
 
     private List<MenuDto.Node> resolveDyn(String mnuId, List<String> athIds) {
+        if (resolvers == null) return new ArrayList<>();
         return resolvers.stream()
                 .filter(r -> r.mnuId().equals(mnuId))
                 .findFirst()
-                .map(r -> r.resolveChildren(athIds))
+                // resolver가 불변 리스트를 반환해도 이후 정렬/가지치기에서 in-place 변형이 가능하도록 복사.
+                .map(r -> new ArrayList<>(r.resolveChildren(athIds)))
+                .map(list -> (List<MenuDto.Node>) list)
                 .orElseGet(ArrayList::new);
     }
 

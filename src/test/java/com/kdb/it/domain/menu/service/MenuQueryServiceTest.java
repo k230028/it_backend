@@ -5,9 +5,9 @@ import com.kdb.it.domain.menu.entity.Cmenua;
 import com.kdb.it.domain.menu.entity.Cmenum;
 import com.kdb.it.domain.menu.repository.CmenuaRepository;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -21,7 +21,12 @@ class MenuQueryServiceTest {
 
     @Mock CmenumRepository cmenumRepository;
     @Mock CmenuaRepository cmenuaRepository;
-    @InjectMocks MenuQueryService service;
+    MenuQueryService service;   // resolvers가 테스트마다 달라 per-test로 생성
+
+    @BeforeEach
+    void setUp() {
+        service = new MenuQueryService(cmenumRepository, cmenuaRepository, List.of());
+    }
 
     private Cmenum node(String id, String parent, String type, int dep, String path) {
         return Cmenum.builder().mnuId(id).hrkMnuId(parent).sreTc("01").mnuNm(id)
@@ -59,5 +64,26 @@ class MenuQueryServiceTest {
         // getAdminMenuTree does not consult permissions
         List<MenuDto.Node> all = service.getAdminMenuTree();
         assertThat(all).extracting(MenuDto.Node::getMnuId).containsExactly("H");
+    }
+
+    @Test
+    void dynNode_getsChildrenFromMatchingResolver() {
+        Cmenum dyn = Cmenum.builder().mnuId("MBRD0001").hrkMnuId(null).sreTc("04").mnuNm("게시판")
+                .mnuTpC("DYN").mnuSotSqnSno(10).hidYn("N").mnuDep(1).whlMnuPth("/MBRD0001").delYn("N").build();
+        given(cmenumRepository.findAllActive()).willReturn(List.of(dyn));
+        given(cmenuaRepository.findAllActive()).willReturn(List.of());
+
+        MenuChildrenResolver fake = new MenuChildrenResolver() {
+            public String mnuId() { return "MBRD0001"; }
+            public List<MenuDto.Node> resolveChildren(List<String> athIds) {
+                return List.of(MenuDto.Node.builder().mnuId("MBRD-B1").mnuNm("공지").mnuTpC("LNK")
+                        .srePth("/board/BLBM-0001").build());
+            }
+        };
+        MenuQueryService svc = new MenuQueryService(cmenumRepository, cmenuaRepository, List.of(fake));
+        List<MenuDto.Node> tree = svc.getMenuTree(List.of("ITPZZ001"));
+
+        assertThat(tree).extracting(MenuDto.Node::getMnuId).containsExactly("MBRD0001");
+        assertThat(tree.get(0).getChildren()).extracting(MenuDto.Node::getMnuId).containsExactly("MBRD-B1");
     }
 }
