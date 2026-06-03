@@ -48,19 +48,21 @@ import java.time.LocalDateTime;
 public class Crtokm extends BaseEntity {
 
     /**
-     * 토큰일련번호: 기본키. Oracle 시퀀스(SEQ_CRTOKM)로 자동 채번
+     * 토큰일련번호: 기본키. Oracle 시퀀스(SEQ_CRTOKM)로 자동 채번.
+     * 물리 컬럼명은 LGN_LOG_SNO(메타표준 의미=로그인로그일련번호)이나, 이 테이블에서는 갱신토큰의 일련번호로 사용함
      */
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SEQ_CRTOKM")
     @SequenceGenerator(name = "SEQ_CRTOKM", sequenceName = "SEQ_CRTOKM", allocationSize = 1)
-    @Column(name = "LGN_LOG_SNO", comment = "토큰일련번호")
+    @Column(name = "LGN_LOG_SNO", comment = "토큰일련번호 (물리컬럼 LGN_LOG_SNO=메타표준 로그인로그일련번호)")
     private Long tokSno;
 
     /**
      * 토큰내용: JWT Refresh Token 값 (최대 2000자)
-     * UNIQUE 제약조건으로 중복 저장 방지
+     * UNIQUE 제약조건으로 중복 저장 방지.
+     * 물리 컬럼명은 API_TOK_CONE(메타표준 의미=API토큰내용)이며, 여기에 JWT Refresh Token을 저장함
      */
-    @Column(name = "API_TOK_CONE", nullable = false, unique = true, length = 2000, comment = "토큰내용")
+    @Column(name = "API_TOK_CONE", nullable = false, unique = true, length = 2000, comment = "토큰내용 (물리컬럼 API_TOK_CONE=메타표준 API토큰내용)")
     private String tokCone;
 
     /**
@@ -72,7 +74,8 @@ public class Crtokm extends BaseEntity {
 
     /**
      * 종료일시: 이 Refresh Token이 유효한 마지막 일시
-     * 이 시각 이후에는 토큰이 만료된 것으로 간주
+     * 이 시각 이후에는 토큰이 만료된 것으로 간주.
+     * 물리 컬럼 END_DTM은 Oracle DATE 타입(초 단위). 엔티티는 LocalDateTime으로 매핑됨
      */
     @Column(name = "END_DTM", nullable = false, comment = "종료일시")
     private LocalDateTime endDtm;

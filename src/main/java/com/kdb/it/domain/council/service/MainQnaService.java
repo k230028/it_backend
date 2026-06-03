@@ -87,9 +87,10 @@ public class MainQnaService {
     @Transactional
     public String createMainQna(String asctId, CouncilDto.QnaCreateRequest request,
                                 CustomUserDetails userDetails) {
-        if (!councilRepository.existsById(asctId)) {
-            throw new IllegalArgumentException("존재하지 않는 협의회입니다: " + asctId);
-        }
+        /* 협의회 존재 검증 + 채번 직렬화: 부모 협의회 행 비관적 잠금
+         * (동일 협의회 동시 등록 시 MQT_ID 순번 충돌 방지) */
+        councilRepository.findByIdForUpdate(asctId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 협의회입니다: " + asctId));
 
         int seq = mainQnaRepository.getNextQtnSeq(asctId);
         String qtnId = String.format("MQT-%s-%02d", asctId, seq);

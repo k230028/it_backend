@@ -44,16 +44,16 @@ public class Btermm extends BaseEntity {
 
     /** 단말기관리번호 */
     @Id
-    @Column(name = "TMN_MNG_NO", nullable = false, length = 32, comment = "단말관리번호")
+    @Column(name = "TMN_MNG_NO", nullable = false, length = 16, comment = "단말관리번호")
     private String tmnMngNo;
 
     /** 단말기일련번호 */
     @Id
-    @Column(name = "SNO", nullable = false, comment = "일련번호")
+    @Column(name = "SNO", nullable = false, precision = 9, comment = "일련번호")
     private Integer tmnSno;
 
     /** 예산번호 (조인용 필드) */
-    @Column(name = "BG_NO", length = 32, comment = "예산번호")
+    @Column(name = "BG_NO", length = 15, comment = "예산번호")
     private String itMngcNo;
 
     /** 예산일련번호 (조인용 필드) */
@@ -69,23 +69,23 @@ public class Btermm extends BaseEntity {
     private Bcostm bcostm;
 
     /** 단말기명 */
-    @Column(name = "SPF_TMN_NM", length = 100, comment = "단말기명")
+    @Column(name = "SPF_TMN_NM", length = 100, comment = "단말기명 (물리컬럼 SPF_TMN_NM=특정단말명)")
     private String tmnNm;
 
-    /** 단말기이용방법 */
-    @Column(name = "TMN_KD_TC", length = 100, comment = "단말기이용방법")
+    /** 단말기이용방법 (최대 2자) */
+    @Column(name = "TMN_KD_TC", length = 2, comment = "단말기이용방법 (물리컬럼 TMN_KD_TC=단말종류구분코드)")
     private String tmnTuzManr;
 
     /** 소요자금용도내용 */
     @Column(name = "NSF_USG_CONE", length = 200, comment = "소요자금용도내용")
     private String tmnUsg;
 
-    /** 단말기서비스 */
-    @Column(name = "TMN_CLSF_C", length = 100, comment = "단말기서비스")
+    /** 단말기서비스 (최대 1자) */
+    @Column(name = "TMN_CLSF_C", length = 1, comment = "단말기서비스 (물리컬럼 TMN_CLSF_C=단말분류코드)")
     private String tmnSvc;
 
-    /** 단말기금액 */
-    @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "단말기금액")
+    /** 단말기금액 (최대 18자리, 소수점 3자리) */
+    @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "단말기금액 (물리컬럼 RQM_BG_AMT=소요예산금액)")
     private BigDecimal tmlAmt;
 
     /** 통화 */
@@ -96,28 +96,28 @@ public class Btermm extends BaseEntity {
     @Column(name = "XCR", precision = 9, scale = 4, comment = "환율")
     private BigDecimal xcr;
 
-    /** 환율기준일자 */
-    @Column(name = "XCR_BSE_DT", comment = "환율기준일자")
+    /** 환율기준일자 (YYYYMMDD, 8자리) */
+    @Column(name = "XCR_BSE_DT", length = 8, comment = "환율기준일자")
     private String xcrBseDt;
 
-    /** 지급주기코드 */
-    @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
+    /** 지급주기코드 (최대 1자) */
+    @Column(name = "DFR_CLE_C", length = 1, comment = "지급주기코드")
     private String dfrCleC;
 
-    /** 증감사유 */
-    @Column(name = "IND_RSN", length = 600, comment = "증감사유")
+    /** 증감사유 (최대 200자) */
+    @Column(name = "IND_RSN", length = 200, comment = "증감사유")
     private String indRsn;
 
-    /** 담당자 */
-    @Column(name = "CGPR_ID", length = 32, comment = "담당자행번")
+    /** 담당자 (최대 14자) */
+    @Column(name = "CGPR_ID", length = 14, comment = "담당자행번 (물리컬럼 CGPR_ID=담당자ID)")
     private String cgprEno;
 
-    /** 담당팀 */
-    @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드")
+    /** 담당팀 (최대 5자) */
+    @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드 (물리컬럼 SVN_TEM_C=주관팀코드)")
     private String biceTemC;
 
-    /** 담당부서 */
-    @Column(name = "SVN_DPM_C", length = 3, comment = "담당부서코드")
+    /** 담당부서 (최대 20자) */
+    @Column(name = "SVN_DPM_C", length = 20, comment = "담당부서코드 (물리컬럼 SVN_DPM_C=주관부서코드)")
     private String biceDpmC;
 
     /** 비고 */

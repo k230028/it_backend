@@ -43,7 +43,7 @@ public class Ccodem extends BaseEntity {
     private String cdva;
 
     /** 코드값명 (예: 개발비, 기계장치, 기타무형자산) */
-    @Column(name = "CDVA_NM", length = 500, comment = "코드값명")
+    @Column(name = "CDVA_NM", length = 200, comment = "코드값명")
     private String cdvaNm;
 
     /** 시작일시: 복합 기본키 3. 컬럼 STT_DTM */

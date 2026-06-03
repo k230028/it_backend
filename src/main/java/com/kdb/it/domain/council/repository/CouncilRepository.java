@@ -1,7 +1,9 @@
 package com.kdb.it.domain.council.repository;
 
 import com.kdb.it.domain.council.entity.Basctm;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -56,6 +58,22 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      */
     @Query(value = "SELECT SEQ_BASCTM.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
+
+    /**
+     * 협의회 행 비관적 쓰기 잠금 조회 (질의응답 채번 직렬화용)
+     *
+     * <p>사전질의(QTN_ID)·본회의질의(MQT_ID)는 협의회별 {@code COUNT(*)+1} 순번으로
+     * 채번되므로, 동일 협의회에 동시 등록이 발생하면 같은 순번이 산정되어
+     * PK 충돌(ORA-00001)이 발생할 수 있다. 채번 직전 부모 협의회 행에
+     * {@code PESSIMISTIC_WRITE} 잠금을 걸어 같은 협의회의 채번을 직렬화한다.
+     * 서로 다른 협의회는 다른 행을 잠그므로 경합하지 않는다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return 잠금된 협의회 (없으면 empty)
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM Basctm b WHERE b.asctId = :asctId")
+    Optional<Basctm> findByIdForUpdate(@Param("asctId") String asctId);
 
     /**
      * 사업 PRJ_STS 업데이트 (협의회 신청 시 상태 전이용)

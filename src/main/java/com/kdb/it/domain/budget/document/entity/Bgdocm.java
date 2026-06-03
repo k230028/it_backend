@@ -40,16 +40,16 @@ public class Bgdocm extends BaseEntity {
 
     /** 문서관리번호: 기본키 (예: GDOC-2026-0001) */
     @Id
-    @Column(name = "DOC_MNG_NO", nullable = false, length = 32, comment = "문서관리번호")
+    @Column(name = "DOC_MNG_NO", nullable = false, length = 20, comment = "문서관리번호")
     private String docMngNo;
 
-    /** 문서명: 가이드 문서의 제목 (최대 200자) */
-    @Column(name = "DOC_TTL_CONE", length = 200, comment = "문서명")
+    /** 문서명: 가이드 문서의 제목 (최대 300자) */
+    @Column(name = "DOC_TTL_CONE", length = 300, comment = "문서명 (물리컬럼 DOC_TTL_CONE=문서제목내용)")
     private String docNm;
 
     /** 문서정보: 가이드 문서 상세 내용 (CLOB, HTML 포함 가능) */
     @Lob
-    @Column(name = "NAC_TXT_INF", comment = "문서정보")
+    @Column(name = "NAC_TXT_INF", comment = "문서정보 (물리컬럼 NAC_TXT_INF=게시물본문정보)")
     private String docInf;
 
     /**

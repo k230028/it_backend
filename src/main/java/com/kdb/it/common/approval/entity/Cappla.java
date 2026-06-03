@@ -36,7 +36,10 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public class Cappla extends BaseEntity {
 
-    /** 신청서일련번호: 단일 PK. Oracle 시퀀스(SEQ_CAPPLA) 자동 채번 */
+    /**
+     * 신청서일련번호: Oracle 시퀀스(SEQ_CAPPLA) 자동 채번.
+     * (물리 PK는 (APF_DCM_NO, APF_SNO) 복합키이나, 본 엔티티는 APF_SNO 단일 @Id로 매핑)
+     */
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SEQ_CAPPLA")
     @SequenceGenerator(name = "SEQ_CAPPLA", sequenceName = "SEQ_CAPPLA", allocationSize = 1)
@@ -55,7 +58,7 @@ public class Cappla extends BaseEntity {
     private String fntTbNm;
 
     /** 주식별자컬럼명: 신청 대상 레코드의 기본키 컬럼명 (예: 'PRJ_MNG_NO', 'IT_MNGC_NO') */
-    @Column(name = "PK_COL_NM", length = 32, comment = "주식별자컬럼명")
+    @Column(name = "PK_COL_NM", length = 4000, comment = "주식별자컬럼명")
     private String pkColNm;
 
     /** 원천테이블적재일련번호: 신청 대상 레코드의 적재 일련번호 */

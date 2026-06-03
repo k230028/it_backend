@@ -56,14 +56,14 @@ public class Cinfmm extends BaseEntity {
     private String infmRcdUrl;
 
     /** 수신자사원번호 (1행 = 1수신자) */
-    @Column(name = "RMS_ENO", length = 14, nullable = false, comment = "수신자사원번호")
+    @Column(name = "RMS_ENO", length = 32, nullable = false, comment = "수신자사원번호 (물리컬럼 RMS_ENO=메타표준 수신사원번호)")
     private String rmsEno;
 
     /** 조회여부: 'N' 미조회(기본), 'Y' 조회(=읽음) */
     @Column(name = "INQ_YN", length = 1, nullable = false, comment = "조회여부")
     private String inqYn;
 
-    /** 조회일시: 알림을 처음 조회(=읽음 처리)한 시각 (미조회 상태에서는 null) */
+    /** 조회일시: 알림을 처음 조회(=읽음 처리)한 시각 (미조회 상태에서는 null). 물리 컬럼 INQ_DTM은 Oracle DATE 타입(초 단위) */
     @Column(name = "INQ_DTM", comment = "조회일시")
     private LocalDateTime inqDtm;
 
@@ -71,7 +71,7 @@ public class Cinfmm extends BaseEntity {
     @Column(name = "SD_TC", length = 2, comment = "발송구분코드")
     private String sdTc;
 
-    /** 발송일시 (null=미발송) */
+    /** 발송일시 (null=미발송). 물리 컬럼 SD_DTM은 Oracle DATE 타입(초 단위) */
     @Column(name = "SD_DTM", comment = "발송일시")
     private LocalDateTime sdDtm;
 

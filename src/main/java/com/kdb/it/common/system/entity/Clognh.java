@@ -67,7 +67,10 @@ public class Clognh extends BaseEntity {
     @Column(name = "IP_ADDR", length = 20, comment = "IP주소")
     private String ipAddr;
 
-    /** 로그인일시: 이벤트 발생 일시 (서버 기준 시각) */
+    /**
+     * 로그인일시: 이벤트 발생 일시 (서버 기준 시각)
+     * 물리 컬럼 LGN_DTM은 Oracle DATE 타입(초 단위). 엔티티는 LocalDateTime으로 매핑되며 나노초 정밀도는 저장되지 않음
+     */
     @Column(name = "LGN_DTM", nullable = false, comment = "로그인일시")
     private LocalDateTime lgnDtm;
 
@@ -78,8 +81,8 @@ public class Clognh extends BaseEntity {
     @Column(name = "LGN_TC", nullable = false, length = 1, comment = "로그인구분코드")
     private String lgnTc;
 
-    /** 에이전트버전내용: 클라이언트 브라우저/기기 정보 (최대 2000자) */
-    @Column(name = "AGT_VRS_CONE", length = 2000, comment = "에이전트버전내용")
+    /** 에이전트버전내용: 클라이언트 브라우저/기기 정보 (최대 100자) */
+    @Column(name = "AGT_VRS_CONE", length = 100, comment = "에이전트버전내용")
     private String agtVrsCone;
 
     /** 로그인 성공 코드값 (공통코드 LGN_TC) */

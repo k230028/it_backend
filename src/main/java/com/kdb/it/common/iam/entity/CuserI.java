@@ -50,14 +50,14 @@ public class CuserI extends BaseEntity {
      * {@link CustomPasswordEncoder}로 암호화하여 저장합니다.
      * 최대 64자 (SHA-256 + Base64 인코딩 결과)
      */
-    @Column(name = "USR_ECY_PWD", length = 64, comment = "사용자암호화패스워드")
+    @Column(name = "USR_ECY_PWD", length = 64, comment = "사용자암호화패스워드 (물리컬럼 USR_ECY_PWD=메타표준 사용자암호화비밀번호)")
     private String usrEcyPwd;
 
     /**
      * 부서코드: 직원이 소속된 부점의 코드
      * {@link CorgnI}의 {@code PRLM_OGZ_C_CONE}과 조인 키로 사용
      */
-    @Column(name = "BBR_C", length = 3, comment = "부서코드")
+    @Column(name = "BBR_C", length = 3, comment = "부서코드 (물리컬럼 BBR_C=메타표준 부점코드)")
     private String bbrC;
 
     /**
@@ -164,8 +164,8 @@ public class CuserI extends BaseEntity {
     @Column(name = "USR_WREN_NM", length = 100, comment = "사용자영문명")
     private String usrWrenNm;
 
-    /** 회사전화번호 */
-    @Column(name = "CPN_TPN", length = 100, comment = "회사전화번호")
+    /** 회사전화번호 (최대 20자) */
+    @Column(name = "CPN_TPN", length = 20, comment = "회사전화번호")
     private String cpnTpn;
 
     /**

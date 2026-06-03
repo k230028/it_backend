@@ -26,10 +26,10 @@ public class Cblbcm extends BaseEntity {
 
     /** 게시물관리번호 PK. 형식: NAC-{YYYY}-{0001} */
     @Id
-    @Column(name = "NAC_NO", nullable = false, length = 32, comment = "게시물번호")
+    @Column(name = "NAC_NO", nullable = false, length = 16, comment = "게시물번호")
     private String nacMngNo;
 
-    @Column(name = "BLB_ID", nullable = false, length = 32, comment = "게시판ID")
+    @Column(name = "BLB_ID", nullable = false, length = 10, comment = "게시판ID")
     private String blbMngNo;
 
     @Column(name = "NAC_TTL", nullable = false, length = 300, comment = "게시물제목")
@@ -42,13 +42,13 @@ public class Cblbcm extends BaseEntity {
     @Column(name = "NAC_INQ_NBR", nullable = false, comment = "게시물조회수")
     private Integer nacInqNbr;
 
-    @Column(name = "NAC_ID", length = 32, comment = "게시물ID")
+    @Column(name = "NAC_ID", length = 10, comment = "게시물ID")
     private String nacId;
 
-    @Column(name = "NAC_KD_TC", length = 32, comment = "게시물종류구분코드")
+    @Column(name = "NAC_KD_TC", length = 2, comment = "게시물종류구분코드")
     private String kdC;
 
-    @Column(name = "MRL_PRIT_TC", nullable = false, length = 32, comment = "자료중요도구분코드")
+    @Column(name = "MRL_PRIT_TC", nullable = false, length = 2, comment = "자료중요도구분코드")
     private String pritC;
 
     @Column(name = "ANC_YN", nullable = false, length = 1, comment = "공지여부")
@@ -58,7 +58,7 @@ public class Cblbcm extends BaseEntity {
     private String sreYn;
 
     /** 공개 대상 부서코드 — NULL이면 전체 */
-    @Column(name = "BBR_C", length = 8, comment = "부점코드")
+    @Column(name = "BBR_C", length = 3, comment = "부점코드")
     private String bbrC;
 
     @Column(name = "STT_DTM", comment = "시작일시")

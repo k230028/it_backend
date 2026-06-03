@@ -61,7 +61,7 @@ public class Capplm extends BaseEntity {
     private String apfMngNo;
 
     /** 신청서진행상태코드: Ccodem APF_STS 참조 (01:결재중, 02:결재완료, 03:반려, 04:회수) */
-    @Column(name = "APF_PRG_STS_C", length = 3, nullable = false, comment = "신청서진행상태코드")
+    @Column(name = "APF_PRG_STS_C", length = 2, nullable = false, comment = "신청서진행상태코드")
     private String apfPrgStsC;
 
     /** 결재요청제목: 신청서의 제목 (최대 255자) */
@@ -77,12 +77,15 @@ public class Capplm extends BaseEntity {
     @Column(name = "DCD_REQ_USID", length = 14, comment = "결재요청사용자ID")
     private String dcdReqUsid;
 
-    /** 결재요청일시: 신청서를 제출한 날짜 */
+    /**
+     * 결재요청일시: 신청서를 제출한 날짜.
+     * (물리 컬럼 DCD_REQ_DTM은 DATE라 시·분·초까지 저장되나, Java 타입이 LocalDate라 시각 정보는 손실됨)
+     */
     @Column(name = "DCD_REQ_DTM", comment = "결재요청일시")
     private LocalDate dcdReqDtm;
 
-    /** 등록자결재요청내용: 신청자가 작성한 의견 또는 요청 사항 (최대 1000자) */
-    @Column(name = "RGPR_DCD_REQ_CONE", length = 1000, comment = "등록자결재요청내용")
+    /** 등록자결재요청내용: 신청자가 작성한 의견 또는 요청 사항 (최대 300자) */
+    @Column(name = "RGPR_DCD_REQ_CONE", length = 300, comment = "등록자결재요청내용")
     private String rgprDcdReqCone;
 
     /** 결재요청부점코드: 신청서 요청 부점 코드 (최대 3자) */

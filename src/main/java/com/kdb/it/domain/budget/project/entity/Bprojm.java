@@ -51,152 +51,152 @@ public class Bprojm extends BaseEntity {
 
     /** 프로젝트관리번호: 기본키 (예: PRJ-2026-0001) */
     @Id
-    @Column(name = "ABUS_MNG_NO", nullable = false, length = 32, comment = "프로젝트관리번호")
+    @Column(name = "ABUS_MNG_NO", nullable = false, length = 30, comment = "프로젝트관리번호 (물리컬럼 ABUS_MNG_NO=사업관리번호)")
     private String prjMngNo;
 
     /** 프로젝트순번: 복합 기본키의 두 번째 컬럼 (동일 관리번호 내 버전 구분, 1부터 시작) */
     @Id
-    @Column(name = "SNO", nullable = false, comment = "프로젝트순번")
+    @Column(name = "SNO", nullable = false, precision = 9, comment = "프로젝트순번 (물리컬럼 SNO=일련번호)")
     private Integer prjSno;
 
-    /** 프로젝트명: 사업의 공식 명칭 (최대 200자) */
-    @Column(name = "PRJ_NM", length = 200, comment = "프로젝트명")
+    /** 프로젝트명: 사업의 공식 명칭 (최대 100자) */
+    @Column(name = "PRJ_NM", length = 100, comment = "프로젝트명")
     private String prjNm;
 
-    /** 프로젝트유형: 사업의 성격 분류 (최대 100자, 예: 신규개발, 고도화, 유지보수) */
-    @Column(name = "PRJ_BZ_TC", length = 100, comment = "프로젝트유형")
+    /** 프로젝트유형: 사업의 성격 분류 (예: 신규개발, 고도화, 유지보수) */
+    @Column(name = "PRJ_BZ_TC", length = 2, comment = "프로젝트유형 (물리컬럼 PRJ_BZ_TC=프로젝트업무구분코드)")
     private String prjTp;
 
-    /** 주관부서: 사업을 주관하는 업무 부서 코드/명 (최대 100자) */
-    @Column(name = "SVN_DPM_C", length = 100, comment = "주관부서")
+    /** 주관부서: 사업을 주관하는 업무 부서 코드 (최대 20자) */
+    @Column(name = "SVN_DPM_C", length = 20, comment = "주관부서 (물리컬럼 SVN_DPM_C=주관부서코드)")
     private String svnDpm;
 
-    /** IT부서: 사업을 담당하는 IT 부서 코드/명 (최대 100자) */
-    @Column(name = "DVM_DPM_C", length = 100, comment = "IT부서")
+    /** IT부서: 사업을 담당하는 IT 부서 코드 (최대 20자) */
+    @Column(name = "DVM_DPM_C", length = 20, comment = "IT부서 (물리컬럼 DVM_DPM_C=개발부서코드)")
     private String itDpm;
 
-    /** 프로젝트예산: 사업 총 예산 금액 (최대 15자리, 소수점 2자리) */
-    @Column(name = "RQM_BG_AMT", precision = 15, scale = 2, comment = "프로젝트예산")
+    /** 프로젝트예산: 사업 총 예산 금액 (최대 18자리, 소수점 2자리) */
+    @Column(name = "RQM_BG_AMT", precision = 18, scale = 2, comment = "프로젝트예산 (물리컬럼 RQM_BG_AMT=소요예산금액)")
     private BigDecimal prjBg;
 
-    /** 익년프로젝트예산: 익년(다음 해) 사업 예산 금액 (최대 15자리, 소수점 2자리) */
-    @Column(name = "MPL_AMT", precision = 15, scale = 2, comment = "익년프로젝트예산")
+    /** 익년프로젝트예산: 익년(다음 해) 사업 예산 금액 (최대 18자리, 소수점 3자리) */
+    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "익년프로젝트예산 (물리컬럼 MPL_AMT=예정금액)")
     private BigDecimal nyyPrjBg;
 
-    /** 시작일자: 사업 개시 예정일 */
-    @Column(name = "STT_DTM", comment = "시작일자")
+    /** 시작일자: 사업 개시 예정일 (DDL DATE 타입을 LocalDate로 매핑) */
+    @Column(name = "STT_DTM", comment = "시작일자 (물리컬럼 STT_DTM=시작일시)")
     private LocalDate sttDt;
 
-    /** 종료일자: 사업 완료 예정일 */
-    @Column(name = "END_DTM", comment = "종료일자")
+    /** 종료일자: 사업 완료 예정일 (DDL DATE 타입을 LocalDate로 매핑) */
+    @Column(name = "END_DTM", comment = "종료일자 (물리컬럼 END_DTM=종료일시)")
     private LocalDate endDt;
 
-    /** 주관부서담당자: 주관부서 담당자 사번 또는 이름 (최대 32자) */
-    @Column(name = "SVN_DPM_USID", length = 32, comment = "주관부서담당자")
+    /** 주관부서담당자: 주관부서 담당자 사번 또는 이름 (최대 14자) */
+    @Column(name = "SVN_DPM_USID", length = 14, comment = "주관부서담당자 (물리컬럼 SVN_DPM_USID=주관부서사용자ID)")
     private String svnDpmCgpr;
 
-    /** IT부서담당자: IT부서 담당자 사번 또는 이름 (최대 32자) */
-    @Column(name = "DVM_USID", length = 32, comment = "IT부서담당자")
+    /** IT부서담당자: IT부서 담당자 사번 또는 이름 (최대 14자) */
+    @Column(name = "DVM_USID", length = 14, comment = "IT부서담당자 (물리컬럼 DVM_USID=개발사용자ID)")
     private String itDpmCgpr;
 
-    /** 주관부서담당팀장: 주관부서 담당 팀장 사번 또는 이름 (최대 32자) */
-    @Column(name = "SVN_DPM_DCD_USID", length = 32, comment = "주관부서담당팀장")
+    /** 주관부서담당팀장: 주관부서 담당 팀장 사번 또는 이름 (최대 14자) */
+    @Column(name = "SVN_DPM_DCD_USID", length = 14, comment = "주관부서담당팀장 (물리컬럼 SVN_DPM_DCD_USID=주관부서결재사용자ID)")
     private String svnDpmTlr;
 
-    /** IT부서담당팀장: IT부서 담당 팀장 사번 또는 이름 (최대 32자) */
-    @Column(name = "TLR_USID", length = 32, comment = "IT부서담당팀장")
+    /** IT부서담당팀장: IT부서 담당 팀장 사번 또는 이름 (최대 14자) */
+    @Column(name = "TLR_USID", length = 14, comment = "IT부서담당팀장 (물리컬럼 TLR_USID=팀장사용자ID)")
     private String itDpmTlr;
 
-    /** 전결권: 결재 전결 권한자 구분 (최대 32자) */
-    @Column(name = "EDRT_TC", length = 32, comment = "전결권")
+    /** 전결권: 결재 전결 권한자 구분 (최대 2자) */
+    @Column(name = "EDRT_TC", length = 2, comment = "전결권 (물리컬럼 EDRT_TC=전결권구분코드)")
     private String edrt;
 
     /** 사업설명: 사업의 전반적인 설명 (최대 1000자) */
-    @Column(name = "ABUS_CONE", length = 1000, comment = "사업설명")
+    @Column(name = "ABUS_CONE", length = 1000, comment = "사업설명 (물리컬럼 ABUS_CONE=사업내용)")
     private String prjDes;
 
     /** 현황: 현재 업무/시스템의 현황 분석 내용 (최대 1000자) */
-    @Column(name = "CPN_SAF_CONE", length = 1000, comment = "현황")
+    @Column(name = "CPN_SAF_CONE", length = 1000, comment = "현황 (물리컬럼 CPN_SAF_CONE=회사현황내용)")
     private String saf;
 
-    /** 필요성: 사업의 필요성 및 당위성 (최대 1000자) */
-    @Column(name = "ABUS_NCS_CONE", length = 1000, comment = "필요성")
+    /** 필요성: 사업의 필요성 및 당위성 (최대 300자) */
+    @Column(name = "ABUS_NCS_CONE", length = 300, comment = "필요성 (물리컬럼 ABUS_NCS_CONE=사업필요성내용)")
     private String ncs;
 
-    /** 기대효과: 사업 완료 후 기대되는 효과 (최대 1000자) */
-    @Column(name = "DGOG_PPO_CONE", length = 1000, comment = "기대효과")
+    /** 기대효과: 사업 완료 후 기대되는 효과 (최대 4000자) */
+    @Column(name = "DGOG_PPO_CONE", length = 4000, comment = "기대효과 (물리컬럼 DGOG_PPO_CONE=효과성목적내용)")
     private String xptEff;
 
-    /** 문제: 현재 문제점 또는 개선이 필요한 사항 (최대 1000자) */
-    @Column(name = "PLM_DES", length = 1000, comment = "문제")
+    /** 문제: 현재 문제점 또는 개선이 필요한 사항 (최대 4000자) */
+    @Column(name = "PLM_DES", length = 4000, comment = "문제 (물리컬럼 PLM_DES=문제설명)")
     private String plm;
 
-    /** 사업범위: 사업의 대상 범위 및 경계 (최대 1000자) */
-    @Column(name = "PRJ_TGT_RNG_CONE", length = 1000, comment = "사업범위")
+    /** 사업범위: 사업의 대상 범위 및 경계 (최대 300자) */
+    @Column(name = "PRJ_TGT_RNG_CONE", length = 300, comment = "사업범위 (물리컬럼 PRJ_TGT_RNG_CONE=프로젝트대상범위내용)")
     private String prjRng;
 
     /** 주요진행내용: 사업 추진 진행 상황 및 경과 내용 (최대 2000자) */
     @Column(name = "MN_PRG_CONE", length = 2000, comment = "주요진행내용")
     private String pulPsg;
 
-    /** 향후계획: 앞으로의 추진 계획 (최대 1000자) */
-    @Column(name = "HRF_PLN_CONE", length = 1000, comment = "향후계획")
+    /** 향후계획: 앞으로의 추진 계획 (최대 300자) */
+    @Column(name = "HRF_PLN_CONE", length = 300, comment = "향후계획 (물리컬럼 HRF_PLN_CONE=향후계획내용)")
     private String hrfPln;
 
-    /** 업무구분: 사업이 속하는 업무 영역 구분 (최대 32자, 예: 리테일, 기업금융) */
-    @Column(name = "BZ_DTT_NM", length = 32, comment = "업무구분")
+    /** 업무구분: 사업이 속하는 업무 영역 구분 (최대 100자, 예: 리테일, 기업금융) */
+    @Column(name = "BZ_DTT_NM", length = 100, comment = "업무구분 (물리컬럼 BZ_DTT_NM=업무구분명)")
     private String bzDtt;
 
-    /** 기술유형: 사업에 적용되는 기술 분류 (최대 32자, 예: 웹, 앱, AI, 빅데이터) */
-    @Column(name = "SKL_TP_TC", length = 32, comment = "기술유형")
+    /** 기술유형: 사업에 적용되는 기술 분류 (예: 웹, 앱, AI, 빅데이터) */
+    @Column(name = "SKL_TP_TC", length = 2, comment = "기술유형 (물리컬럼 SKL_TP_TC=기술유형구분코드)")
     private String tchnTp;
 
-    /** 주요사용자: 시스템의 주요 사용자 그룹 (최대 32자, 예: 내부직원, 고객, 전체) */
-    @Column(name = "CST_TP_TC", length = 32, comment = "주요사용자")
+    /** 주요사용자: 시스템의 주요 사용자 그룹 (예: 내부직원, 고객, 전체) */
+    @Column(name = "CST_TP_TC", length = 3, comment = "주요사용자 (물리컬럼 CST_TP_TC=고객유형구분코드)")
     private String mnUsr;
 
     /** 중복여부: 기존 유사 사업과의 중복 여부 ('Y'=중복, 'N'=미중복) */
     @Column(name = "DPL_YN", length = 1, comment = "중복여부")
     private String dplYn;
 
-    /** 의무완료기한: 법적/규정상 반드시 완료해야 하는 기한 */
-    @Column(name = "FLF_FSG_DT", comment = "의무완료기한")
+    /** 의무완료기한: 법적/규정상 반드시 완료해야 하는 기한 (YYYYMMDD, 8자리) */
+    @Column(name = "FLF_FSG_DT", length = 8, comment = "의무완료기한 (물리컬럼 FLF_FSG_DT=이행완료일자)")
     private String lblFsgTlm;
 
-    /** 보고상태: 상위 보고 단계의 상태 (최대 32자) */
-    @Column(name = "RPR_STS_TC", length = 32, comment = "보고상태")
+    /** 보고상태: 상위 보고 단계의 상태 (최대 1자) */
+    @Column(name = "RPR_STS_TC", length = 1, comment = "보고상태 (물리컬럼 RPR_STS_TC=보고상태구분코드)")
     private String rprSts;
 
     /** 최종여부: 현재 유효한 레코드 여부 ('Y'=최신, 'N'=이전 버전) */
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
-    /** 프로젝트추진가능성: 공통코드 PRJ_PUL_PTT cdva 값 (VARCHAR2(3), 예: "001", "002") */
-    @Column(name = "EXE_PTT_YN", length = 3, comment = "프로젝트추진가능성")
+    /** 프로젝트추진가능성: 공통코드 PRJ_PUL_PTT cdva 값 (VARCHAR2(1), 예: "1", "2") */
+    @Column(name = "EXE_PTT_YN", length = 1, comment = "프로젝트추진가능성 (물리컬럼 EXE_PTT_YN=실행가능성여부)")
     private String prjPulPtt;
 
-    /** 프로젝트상태: 사업의 현재 진행 상태 (최대 32자, 예: 계획, 진행중, 완료, 취소) */
-    @Column(name = "STS_TC", length = 32, comment = "프로젝트상태")
+    /** 프로젝트상태: 사업의 현재 진행 상태 (예: 계획, 진행중, 완료, 취소) */
+    @Column(name = "STS_TC", length = 2, comment = "프로젝트상태 (물리컬럼 STS_TC=상태구분코드)")
     private String prjSts;
 
     /** 예산연도: 예산 연도 (4자리 숫자, 예: "2026") */
-    @Column(name = "BSE_YY", length = 4, comment = "예산연도")
+    @Column(name = "BSE_YY", length = 4, comment = "예산연도 (물리컬럼 BSE_YY=기준연도)")
     private String bgYy;
 
-    /** 주관본부/부문: 사업을 총괄하는 본부 또는 부문 명칭 (최대 32자) */
-    @Column(name = "PRLM_HRK_OGZ_C_CONE", length = 32, comment = "주관본부")
+    /** 주관본부/부문: 사업을 총괄하는 본부 또는 부문 명칭 (최대 100자) */
+    @Column(name = "PRLM_HRK_OGZ_C_CONE", length = 100, comment = "주관본부 (물리컬럼 PRLM_HRK_OGZ_C_CONE=인사상위조직코드내용)")
     private String svnHdq;
 
     /** 경상여부: 경상사업 여부 ('Y'=경상사업, null 또는 'N'=일반 정보화사업) */
     @Column(name = "ODN_YN", length = 1, comment = "경상여부")
     private String ornYn;
 
-    /** 사업구분: 사업의 신규/계속 여부 (최대 32자, 예: '신규', '계속') */
-    @Column(name = "ABUS_TC", length = 32, comment = "사업구분")
+    /** 사업구분: 사업의 신규/계속 여부 (예: '신규', '계속') */
+    @Column(name = "ABUS_TC", length = 2, comment = "사업구분 (물리컬럼 ABUS_TC=사업구분코드)")
     private String pulDtt;
 
-    /** 관련프로젝트관리번호: 계속사업인 경우 전년도 사업의 관리번호 */
-    @Column(name = "CNCD_RFR_NO", length = 32, comment = "관련프로젝트관리번호")
+    /** 관련프로젝트관리번호: 계속사업인 경우 전년도 사업의 관리번호 (최대 30자) */
+    @Column(name = "CNCD_RFR_NO", length = 30, comment = "관련프로젝트관리번호 (물리컬럼 CNCD_RFR_NO=관련참조번호)")
     private String cncdPrjMngNo;
 
     /**

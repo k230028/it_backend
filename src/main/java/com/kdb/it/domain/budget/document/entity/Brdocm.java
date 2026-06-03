@@ -45,33 +45,33 @@ public class Brdocm extends BaseEntity {
 
     /** 문서관리번호: 복합 기본키의 첫 번째 컬럼 (예: DOC-2026-0001) */
     @Id
-    @Column(name = "DOC_MNG_NO", nullable = false, length = 32, comment = "문서관리번호")
+    @Column(name = "DOC_MNG_NO", nullable = false, length = 20, comment = "문서관리번호")
     private String docMngNo;
 
-    /** 문서버전: 복합 기본키의 두 번째 컬럼 (Oracle NUMBER(4,2), 예: 1.00, 1.01, 2.00) */
+    /** 문서버전: 복합 기본키의 두 번째 컬럼 (Oracle NUMBER(9,2), 예: 1.00, 1.01, 2.00) */
     @Id
-    @Column(name = "DOC_VRS_SNO", nullable = false, precision = 4, scale = 2, comment = "문서버전")
+    @Column(name = "DOC_VRS_SNO", nullable = false, precision = 9, scale = 2, comment = "문서버전 (물리컬럼 DOC_VRS_SNO=문서버전일련번호)")
     private BigDecimal docVrs;
 
-    /** 요구사항명: 요구사항의 제목 (최대 200자) */
-    @Column(name = "REQ_TTL", length = 200, comment = "요구사항명")
+    /** 요구사항명: 요구사항의 제목 (최대 500자) */
+    @Column(name = "REQ_TTL", length = 500, comment = "요구사항명 (물리컬럼 REQ_TTL=요청제목)")
     private String reqNm;
 
     /** 요구사항정보: 요구사항 상세 내용 (CLOB, HTML 포함 가능) */
     @Lob
-    @Column(name = "REDT_CONE_INF", comment = "요구사항정보")
+    @Column(name = "REDT_CONE_INF", comment = "요구사항정보 (물리컬럼 REDT_CONE_INF=보고서내용정보)")
     private String reqInf;
 
-    /** 요구사항구분: 요구사항 분류 코드 (최대 32자) */
-    @Column(name = "REQ_DTT_NO", length = 32, comment = "요구사항구분")
+    /** 요구사항구분: 요구사항 분류 코드 (최대 2자) */
+    @Column(name = "REQ_DTT_NO", length = 2, comment = "요구사항구분 (물리컬럼 REQ_DTT_NO=요청구분번호)")
     private String reqDtt;
 
-    /** 업무구분: 업무 영역 분류 코드 (최대 32자) */
-    @Column(name = "BZ_DTT_NM", length = 32, comment = "업무구분")
+    /** 업무구분: 업무 영역 분류 코드 (최대 100자) */
+    @Column(name = "BZ_DTT_NM", length = 100, comment = "업무구분 (물리컬럼 BZ_DTT_NM=업무구분명)")
     private String bzDtt;
 
-    /** 완료기한: 요구사항 처리 완료 기한 */
-    @Column(name = "RVW_FSG_TLM_DT", comment = "완료기한")
+    /** 완료기한: 요구사항 처리 완료 기한 (YYYYMMDD, 8자리) */
+    @Column(name = "RVW_FSG_TLM_DT", length = 8, comment = "완료기한 (물리컬럼 RVW_FSG_TLM_DT=리뷰완료기한일자)")
     private String fsgTlm;
 
     /**

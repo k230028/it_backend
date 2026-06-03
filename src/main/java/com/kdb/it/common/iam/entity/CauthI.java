@@ -42,8 +42,8 @@ public class CauthI extends BaseEntity {
     @Column(name = "QLF_GR_NM", length = 200, comment = "자격등급명")
     private String qlfGrNm;
 
-    /** 자격등급사항: 자격등급의 상세 설명 및 권한 내용 (최대 600자) */
-    @Column(name = "QLF_GR_MAT", length = 600, comment = "자격등급사항")
+    /** 자격등급사항: 자격등급의 상세 설명 및 권한 내용 (최대 2000자) */
+    @Column(name = "QLF_GR_MAT", length = 2000, comment = "자격등급사항")
     private String qlfGrMat;
 
     /** 사용여부: 'Y'=사용, 'N'=미사용 (기본값: 'Y') */

@@ -63,7 +63,10 @@ public class Cdecim extends BaseEntity {
     @Column(name = "DCD_TP_C", length = 2, comment = "결재유형코드")
     private String dcdTpC;
 
-    /** 결재일시: 실제 결재(승인/반려)가 이루어진 일자 (미결재 시 null) */
+    /**
+     * 결재일시: 실제 결재(승인/반려)가 이루어진 일자 (미결재 시 null).
+     * (물리 컬럼 DCD_DTM은 DATE라 시·분·초까지 저장되나, Java 타입이 LocalDate라 시각 정보는 손실됨)
+     */
     @Column(name = "DCD_DTM", comment = "결재일시")
     private LocalDate dcdDtm;
 
@@ -71,7 +74,11 @@ public class Cdecim extends BaseEntity {
     @Column(name = "DCR_OPNN_CONE", length = 2000, comment = "결재자의견내용")
     private String dcrOpnnCone;
 
-    /** 결재상태코드: Ccodem DCD_STS 참조 (001:미결재, 002:승인, 003:반려, 004:회수무효) */
+    /**
+     * 결재상태코드: Ccodem DCD_STS 참조 (001:미결재, 002:승인, 003:반려, 004:회수무효).
+     * 애플리케이션은 3자리 코드를 저장하며, 물리 컬럼 DCD_STS_C는 마이그레이션
+     * V20260603_006 에서 VARCHAR2(1) → VARCHAR2(3) 으로 확대되어 정합됨.
+     */
     @Column(name = "DCD_STS_C", length = 3, nullable = false, comment = "결재상태코드")
     private String dcdStsC;
 

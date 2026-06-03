@@ -75,10 +75,10 @@ public class QnaService {
      */
     @Transactional
     public String createQna(String asctId, CouncilDto.QnaCreateRequest request, CustomUserDetails userDetails) {
-        /* 협의회 존재 여부 검증 */
-        if (!councilRepository.existsById(asctId)) {
-            throw new IllegalArgumentException("존재하지 않는 협의회입니다: " + asctId);
-        }
+        /* 협의회 존재 검증 + 채번 직렬화: 부모 협의회 행 비관적 잠금
+         * (동일 협의회 동시 등록 시 QTN_ID 순번 충돌 방지) */
+        councilRepository.findByIdForUpdate(asctId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 협의회입니다: " + asctId));
 
         /* QTN_ID 채번: QTN-{asctId}-{2자리순번} */
         int seq = qnaRepository.getNextQtnSeq(asctId);
