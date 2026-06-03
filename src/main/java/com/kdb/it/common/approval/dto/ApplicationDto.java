@@ -2,6 +2,7 @@ package com.kdb.it.common.approval.dto;
 
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.common.approval.domain.DecisionStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -501,15 +502,15 @@ public class ApplicationDto {
                     .dcdEno(cdecim.getDcrEno())       // 결재자 사원번호
                     // 결재유형: 미결재(001) 또는 null이면 null, 그 외는 "결재"로 표시
                     .dcdTp(cdecim.getDcdStsC() == null
-                            || com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code().equals(cdecim.getDcdStsC())
+                            || DecisionStatus.isPendingCode(cdecim.getDcdStsC())
                                 ? null : "결재")
                     .dcdDt(cdecim.getDcdDtm())        // 결재일자
                     .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
                     // 결재상태: 코드 → 라벨 변환 (미결재/null이면 null)
                     .dcdSts(cdecim.getDcdStsC() == null
-                            || com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code().equals(cdecim.getDcdStsC())
+                            || DecisionStatus.isPendingCode(cdecim.getDcdStsC())
                                 ? null
-                                : com.kdb.it.common.approval.domain.DecisionStatus.ofCode(cdecim.getDcdStsC()).label())
+                                : DecisionStatus.ofCode(cdecim.getDcdStsC()).label())
                     .lstDcdYn(cdecim.getLstDcdYn()) // 최종결재자여부
                     .build();
         }

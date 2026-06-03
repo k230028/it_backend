@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.dto;
 
+import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -141,14 +142,13 @@ public class ApplicationInfoDto {
          */
         public static ApproverDto fromEntity(Cdecim cdecim) {
             String dcdStsC = cdecim.getDcdStsC();
-            boolean pending = dcdStsC == null
-                    || com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code().equals(dcdStsC);
+            boolean pending = dcdStsC == null || DecisionStatus.isPendingCode(dcdStsC);
             return ApproverDto.builder()
                     .dcdSqn(cdecim.getDcrSqnSno())   // 결재순서
                     .dcdEno(cdecim.getDcrEno())       // 결재자 사번
                     .dcdTp(pending ? null : "결재")   // 결재유형(미결재면 null)
                     .dcdSts(pending ? null
-                            : com.kdb.it.common.approval.domain.DecisionStatus.ofCode(dcdStsC).label())
+                            : DecisionStatus.ofCode(dcdStsC).label())
                     .dcdDt(cdecim.getDcdDtm())        // 결재일자
                     .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
                     .build();

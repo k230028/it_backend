@@ -401,6 +401,31 @@ class ApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("getApplications: 레거시 1자리 미결재 코드가 있어도 목록을 반환한다")
+    void getApplications_레거시미결재코드_목록반환() {
+        Capplm capplm = Capplm.builder()
+                .apfMngNo(APF_MNG_NO)
+                .apfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
+                .build();
+        Cdecim legacyPending = Cdecim.builder()
+                .dcdMngNo(APF_MNG_NO)
+                .dcrSqnSno(1)
+                .dcrEno("E10001")
+                .lstDcdYn("Y")
+                .dcdStsC("0")
+                .build();
+        given(applicationRepository.findAll()).willReturn(List.of(capplm));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(legacyPending));
+
+        List<ApplicationDto.Response> result = applicationService.getApplications();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getApprovers().getFirst().getDcdSts()).isNull();
+        assertThat(result.getFirst().getApprovers().getFirst().getDcdTp()).isNull();
+    }
+
+    @Test
     @DisplayName("getApplications: 신청서가 없으면 빈 목록을 반환한다")
     void getApplications_신청서없음_빈목록반환() {
         given(applicationRepository.findAll()).willReturn(List.of());

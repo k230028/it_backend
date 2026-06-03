@@ -194,7 +194,7 @@ public class ApplicationService {
     private void publishApprovalRequestNotification(Capplm capplm) {
         List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(capplm.getApfMngNo());
         Cdecim next = approvers.stream()
-            .filter(a -> DecisionStatus.PENDING.code().equals(a.getDcdStsC()))
+            .filter(a -> DecisionStatus.isPendingCode(a.getDcdStsC()))
             .findFirst()
             .orElse(null);
         if (next == null || next.getDcrEno() == null || next.getDcrEno().isBlank()) {
@@ -272,13 +272,13 @@ public class ApplicationService {
         for (Cdecim approver : approvers) {
             String stsC = approver.getDcdStsC(); // 결재상태 코드 (DCD_STS_C)
 
-            if (DecisionStatus.PENDING.code().equals(stsC)) {
+            if (DecisionStatus.isPendingCode(stsC)) {
                 // 미결재 항목: 이전이 모두 승인되었을 때만 현재 차례
                 if (isPreviousApproved) {
                     currentApprover = approver;
                 }
                 break;
-            } else if (!DecisionStatus.APPROVED.code().equals(stsC)) {
+            } else if (!DecisionStatus.isApprovedCode(stsC)) {
                 // 반려/회수/무효 등 — 이전 결재자가 승인하지 않은 상태
                 isPreviousApproved = false;
                 break;
@@ -629,7 +629,7 @@ public class ApplicationService {
         List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
         boolean lastApproved = approvers.stream()
             .anyMatch(a -> "Y".equals(a.getLstDcdYn())
-                        && DecisionStatus.APPROVED.code().equals(a.getDcdStsC()));
+                        && DecisionStatus.isApprovedCode(a.getDcdStsC()));
         if (lastApproved) {
             throw new IllegalStateException("최종 결재자 승인 후에는 회수할 수 없습니다.");
         }
@@ -642,7 +642,7 @@ public class ApplicationService {
         approvalLineDelegate.applyRecallInfo(capplm, currentEno, request.getRecallOpnn());
 
         for (Cdecim a : approvers) {
-            if (DecisionStatus.PENDING.code().equals(a.getDcdStsC())) {
+            if (DecisionStatus.isPendingCode(a.getDcdStsC())) {
                 a.invalidateByRecall();
                 approverRepository.save(a);
             }
@@ -650,7 +650,7 @@ public class ApplicationService {
 
         List<String> approvedMiddle = approvers.stream()
             .filter(a -> "N".equals(a.getLstDcdYn())
-                      && DecisionStatus.APPROVED.code().equals(a.getDcdStsC()))
+                      && DecisionStatus.isApprovedCode(a.getDcdStsC()))
             .map(Cdecim::getDcrEno)
             .distinct()
             .toList();

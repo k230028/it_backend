@@ -17,9 +17,13 @@ class ApprovalDomainStatusTest {
     @DisplayName("DecisionStatus: 코드와 라벨로 상태를 조회하고 미지정 값은 거부한다")
     void decisionStatus_코드및라벨조회() {
         assertThat(DecisionStatus.ofCode("002")).isEqualTo(DecisionStatus.APPROVED);
+        assertThat(DecisionStatus.ofCode("0")).isEqualTo(DecisionStatus.PENDING);
+        assertThat(DecisionStatus.ofCode("1")).isEqualTo(DecisionStatus.APPROVED);
         assertThat(DecisionStatus.ofLabel("회수무효")).isEqualTo(DecisionStatus.INVALIDATED);
         assertThat(DecisionStatus.REJECTED.code()).isEqualTo("003");
         assertThat(DecisionStatus.REJECTED.label()).isEqualTo("반려");
+        assertThat(DecisionStatus.isPendingCode("0")).isTrue();
+        assertThat(DecisionStatus.isApprovedCode("1")).isTrue();
 
         assertThatThrownBy(() -> DecisionStatus.ofCode("999"))
                 .isInstanceOf(IllegalArgumentException.class);
