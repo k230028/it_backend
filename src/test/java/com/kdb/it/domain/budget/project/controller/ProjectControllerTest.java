@@ -63,7 +63,7 @@ class ProjectControllerTest {
                 // given
                 ProjectDto.Response project = ProjectDto.Response.builder()
                                 .abusMngNo("PRJ-2026-0001")
-                                .prjNm("테스트 사업")
+                                .abusNm("테스트 사업")
                                 .build();
                 given(projectService.searchProjectList(any(ProjectDto.SearchCondition.class)))
                                 .willReturn(List.of(project));
@@ -72,7 +72,7 @@ class ProjectControllerTest {
                 mockMvc.perform(get("/api/projects"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$[0].abusMngNo").value("PRJ-2026-0001"))
-                                .andExpect(jsonPath("$[0].prjNm").value("테스트 사업"));
+                                .andExpect(jsonPath("$[0].abusNm").value("테스트 사업"));
         }
 
         @Test
@@ -89,7 +89,7 @@ class ProjectControllerTest {
                 // given
                 ProjectDto.Response detail = ProjectDto.Response.builder()
                                 .abusMngNo("PRJ-2026-0001")
-                                .prjNm("테스트 사업")
+                                .abusNm("테스트 사업")
                                 .build();
                 given(projectService.getProject("PRJ-2026-0001")).willReturn(detail);
 
@@ -105,7 +105,7 @@ class ProjectControllerTest {
         void createProject_성공_201반환() throws Exception {
                 // given
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                                .prjNm("신규 사업")
+                                .abusNm("신규 사업")
                                 .build();
                 given(projectService.createProject(any(ProjectDto.CreateRequest.class)))
                                 .willReturn("PRJ-2026-0001");
@@ -137,7 +137,7 @@ class ProjectControllerTest {
         @WithMockUser(username = "10001")
         void updateProject_성공_200반환() throws Exception {
                 ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
-                                .prjNm("수정 사업")
+                                .abusNm("수정 사업")
                                 .build();
                 given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
                                 .willReturn("PRJ-2026-0001");
@@ -165,7 +165,7 @@ class ProjectControllerTest {
                 request.setPrjMngNos(List.of("PRJ-2026-0001", "PRJ-2026-0002"));
                 ProjectDto.Response project = ProjectDto.Response.builder()
                                 .abusMngNo("PRJ-2026-0001")
-                                .prjNm("테스트 사업")
+                                .abusNm("테스트 사업")
                                 .build();
                 given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
                                 .willReturn(List.of(project));

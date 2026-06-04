@@ -61,7 +61,7 @@ public class BudgetStatusController {
                                             [
                                               {
                                                 "abusMngNo": "PRJ-2026-0001",
-                                                "prjNm": "차세대 IT 포털 구축",
+                                                "abusNm": "차세대 IT 포털 구축",
                                                 "svnDpmCNm": "디지털기획부",
                                                 "reqTotalBg": 1200000000,
                                                 "adjTotalBg": 960000000
@@ -135,7 +135,7 @@ public class BudgetStatusController {
                                             [
                                               {
                                                 "prjMngNo": "PRJ-2026-0100",
-                                                "prjNm": "노후 장비 교체",
+                                                "abusNm": "노후 장비 교체",
                                                 "machCur": "KRW",
                                                 "machAmtKrw": 150000000,
                                                 "intanAmtKrw": 50000000

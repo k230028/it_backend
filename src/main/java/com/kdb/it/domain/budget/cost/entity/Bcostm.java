@@ -127,9 +127,9 @@ public class Bcostm extends BaseEntity {
     @Column(name = "BG_UNT_ABUS_C", length = 3, comment = "사업코드 (물리컬럼 BG_UNT_ABUS_C=예산단위사업코드)")
     private String bgUntAbusC;
 
-    /** 전산업무비유형 (최대 2자) */
-    @Column(name = "BG_XP_TC", length = 2, comment = "전산업무비유형 (물리컬럼 BG_XP_TC=예산비용구분코드)")
-    private String bgXpTc;
+    /** 단말여부: 금융정보단말기 항목 여부 (Y=단말, N=비단말; 구 IT_MNGC_TP 002→Y/001→N) */
+    @Column(name = "TMN_YN", length = 1, comment = "단말여부")
+    private String tmnYn;
 
     /** 전산업무비구분 (최대 2자) */
     @Column(name = "ABUS_TC", length = 2, comment = "전산업무비구분 (물리컬럼 ABUS_TC=사업구분코드)")
@@ -173,7 +173,7 @@ public class Bcostm extends BaseEntity {
      * @param costSvnDpmC   담당부서
      * @param svnTemC       담당팀
      * @param bgUntAbusC    사업코드
-     * @param bgXpTc        전산업무비유형
+     * @param tmnYn        단말여부 (Y=단말, N=비단말)
      * @param abusTc        전산업무비구분
      * @param bseYy         예산연도
      * @param cncdRfrNo     관련전산업무비번호 (계속항목인 경우 전년도 관리번호)
@@ -182,7 +182,7 @@ public class Bcostm extends BaseEntity {
     public void update(String ioeC, String cttNm, String cttOppNm, BigDecimal costTotXpAmt,
             String dfrCleC, String fstDfrDt, String curC, BigDecimal xcr, String xcrBseDt,
             String sectSysUtzYn, String indRsn, String cgprId, String costSvnDpmC, String svnTemC,
-            String bgUntAbusC, String bgXpTc, String abusTc, String bseYy, String cncdRfrNo, BigDecimal fcAmt) {
+            String bgUntAbusC, String tmnYn, String abusTc, String bseYy, String cncdRfrNo, BigDecimal fcAmt) {
         this.ioeC = ioeC;
         this.cttNm = cttNm;
         this.cttOppNm = cttOppNm;
@@ -198,7 +198,7 @@ public class Bcostm extends BaseEntity {
         this.costSvnDpmC = costSvnDpmC;
         this.svnTemC = svnTemC;
         this.bgUntAbusC = bgUntAbusC;
-        this.bgXpTc = bgXpTc;
+        this.tmnYn = tmnYn;
         this.abusTc = abusTc;
         this.bseYy = bseYy;
         this.cncdRfrNo = cncdRfrNo;

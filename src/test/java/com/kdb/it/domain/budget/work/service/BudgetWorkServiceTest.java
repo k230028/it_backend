@@ -201,7 +201,7 @@ class BudgetWorkServiceTest {
                 .build();
         Bbugtm bbugtm = Bbugtm.builder()
                 .ioeC("101")
-                .bugRqmBgAmt(BigDecimal.valueOf(800000))
+                .bgDupAmt(BigDecimal.valueOf(800000))
                 .asgRt(80)
                 .build();
 
@@ -537,7 +537,7 @@ class BudgetWorkServiceTest {
 
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
-        assertThat(captor.getValue().getBugRqmBgAmt()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
@@ -585,7 +585,7 @@ class BudgetWorkServiceTest {
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository, org.mockito.Mockito.times(2)).save(captor.capture());
         assertThat(captor.getAllValues()).extracting(Bbugtm::getAsgRt).containsExactly(60, 100);
-        assertThat(captor.getAllValues()).extracting(Bbugtm::getBugRqmBgAmt)
+        assertThat(captor.getAllValues()).extracting(Bbugtm::getBgDupAmt)
                 .containsExactly(new BigDecimal("1200.00"), new BigDecimal("500.00"));
     }
 
@@ -605,7 +605,7 @@ class BudgetWorkServiceTest {
         // BBUGTM에는 "102"만 있음 (dupBgAmt=300)
         Bbugtm budget = Bbugtm.builder()
                 .ioeC("102")
-                .bugRqmBgAmt(BigDecimal.valueOf(300))
+                .bgDupAmt(BigDecimal.valueOf(300))
                 .asgRt(30)
                 .build();
 
@@ -640,14 +640,14 @@ class BudgetWorkServiceTest {
                 .fntTbNm("BITEMM")
                 .pkColNm("GCL-0001")
                 .ioeC("101")
-                .bugRqmBgAmt(BigDecimal.valueOf(800))
+                .bgDupAmt(BigDecimal.valueOf(800))
                 .asgRt(80)
                 .build();
         Bbugtm costBudget = Bbugtm.builder()
                 .fntTbNm("BCOSTM")
                 .pkColNm("COST-2026-0001")
                 .ioeC("102")
-                .bugRqmBgAmt(BigDecimal.valueOf(500))
+                .bgDupAmt(BigDecimal.valueOf(500))
                 .asgRt(50)
                 .build();
         Ccodem ioeCode1 = Ccodem.builder().cdva("101").cNm("237-0100").cdvaDtlC("237-0100").build();
@@ -655,7 +655,7 @@ class BudgetWorkServiceTest {
         Bitemm item = mock(Bitemm.class);
         given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
         Bprojm project = mock(Bprojm.class);
-        given(project.getPrjNm()).willReturn("정보화사업");
+        given(project.getAbusNm()).willReturn("정보화사업");
         Bcostm cost = mock(Bcostm.class);
         given(cost.getCttNm()).willReturn("유지보수계약");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
@@ -688,7 +688,7 @@ class BudgetWorkServiceTest {
                 .fntTbNm("BCOSTM")
                 .pkColNm("COST-2026-0001")
                 .ioeC("001")
-                .bugRqmBgAmt(BigDecimal.valueOf(70))
+                .bgDupAmt(BigDecimal.valueOf(70))
                 .asgRt(70)
                 .build();
         Bcostm cost = mock(Bcostm.class);
@@ -722,7 +722,7 @@ class BudgetWorkServiceTest {
                 .build();
         Bbugtm budget = Bbugtm.builder()
                 .fntTbNm("BCOSTM").pkColNm("COST-001")
-                .ioeC("001").bugRqmBgAmt(BigDecimal.valueOf(100)).asgRt(50)
+                .ioeC("001").bgDupAmt(BigDecimal.valueOf(100)).asgRt(50)
                 .build();
         Bcostm cost = mock(Bcostm.class);
         given(cost.getCttNm()).willReturn("계약A");
@@ -750,7 +750,7 @@ class BudgetWorkServiceTest {
                 .build();
         Bbugtm budget = Bbugtm.builder()
                 .fntTbNm("BCOSTM").pkColNm("COST-002")
-                .ioeC("005").bugRqmBgAmt(BigDecimal.valueOf(200)).asgRt(80)
+                .ioeC("005").bgDupAmt(BigDecimal.valueOf(200)).asgRt(80)
                 .build();
         Bcostm cost = mock(Bcostm.class);
         given(cost.getCttNm()).willReturn("계약B");
@@ -831,7 +831,7 @@ class BudgetWorkServiceTest {
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
         assertThat(captor.getValue().getAsgRt()).isEqualTo(40);
-        assertThat(captor.getValue().getBugRqmBgAmt()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     // =========================================================================
@@ -847,9 +847,9 @@ class BudgetWorkServiceTest {
                 .cdva("101").cNm("237-0100").cdvaDtlC("237-0100").cdvaNm("국내전산임차료").cTp("IOE_IDR")
                 .build();
         // dupBgAmt=null 레코드 (null 필터 분기)
-        Bbugtm nullBudget = Bbugtm.builder().ioeC("101").bugRqmBgAmt(null).asgRt(80).build();
-        // bugRqmBgAmt=200 정상 레코드
-        Bbugtm normalBudget = Bbugtm.builder().ioeC("101").bugRqmBgAmt(BigDecimal.valueOf(200)).asgRt(80).build();
+        Bbugtm nullBudget = Bbugtm.builder().ioeC("101").bgDupAmt(null).asgRt(80).build();
+        // bgDupAmt=200 정상 레코드
+        Bbugtm normalBudget = Bbugtm.builder().ioeC("101").bgDupAmt(BigDecimal.valueOf(200)).asgRt(80).build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(nullBudget, normalBudget));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
@@ -968,7 +968,7 @@ class BudgetWorkServiceTest {
                 .build();
         Bbugtm budget = Bbugtm.builder()
                 .fntTbNm("BCOSTM").pkColNm("COST-003")
-                .ioeC("007").bugRqmBgAmt(BigDecimal.valueOf(100)).asgRt(50)
+                .ioeC("007").bgDupAmt(BigDecimal.valueOf(100)).asgRt(50)
                 .build();
         Bcostm cost = org.mockito.Mockito.mock(Bcostm.class);
         given(cost.getCttNm()).willReturn("계약C");
@@ -993,22 +993,22 @@ class BudgetWorkServiceTest {
         // orcPkVl=null → 처음부터 skip
         Bbugtm nullPk = Bbugtm.builder()
                 .fntTbNm("BITEMM").pkColNm(null)
-                .ioeC("100").bugRqmBgAmt(BigDecimal.TEN).asgRt(10)
+                .ioeC("100").bgDupAmt(BigDecimal.TEN).asgRt(10)
                 .build();
-        // asgRt=0 → requestAmt 역산 skip, bugRqmBgAmt=100은 합산
+        // asgRt=0 → requestAmt 역산 skip, bgDupAmt=100은 합산
         Bbugtm itemNoProject = Bbugtm.builder()
                 .fntTbNm("BITEMM").pkColNm("GCL-MISSING")
-                .ioeC("101").bugRqmBgAmt(BigDecimal.valueOf(100)).asgRt(0)
+                .ioeC("101").bgDupAmt(BigDecimal.valueOf(100)).asgRt(0)
                 .build();
-        // bugRqmBgAmt=null → 금액 미합산
+        // bgDupAmt=null → 금액 미합산
         Bbugtm costNoName = Bbugtm.builder()
                 .fntTbNm("BCOSTM").pkColNm("COST-MISSING")
-                .ioeC("102").bugRqmBgAmt(null).asgRt(null)
+                .ioeC("102").bgDupAmt(null).asgRt(null)
                 .build();
         // ioeC="NO-MATCH" → ioeCdvaToHierarchyCode에 없음 → matchedPrefix=null → 금액 skip, 이름은 표시
         Bbugtm unknown = Bbugtm.builder()
                 .fntTbNm("UNKNOWN").pkColNm("UNK-1")
-                .ioeC("NO-MATCH").bugRqmBgAmt(BigDecimal.ONE).asgRt(50)
+                .ioeC("NO-MATCH").bgDupAmt(BigDecimal.ONE).asgRt(50)
                 .build();
         Ccodem ioeCode0 = Ccodem.builder().cdva("100").cNm("237-0000").cdvaDtlC("237-0000").build();
         Ccodem ioeCode1 = Ccodem.builder().cdva("101").cNm("237-0100").cdvaDtlC("237-0100").build();

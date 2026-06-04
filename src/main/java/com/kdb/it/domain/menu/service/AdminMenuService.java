@@ -41,7 +41,7 @@ public class AdminMenuService {
         }
 
         Cmenum menu = Cmenum.builder()
-                .mnuId(mnuId).hrkMnuId(req.getHrkMnuId()).sreTc(req.getSreTc())
+                .mnuId(mnuId).hrkMnuId(req.getHrkMnuId()).sysHrkMnuId(req.getSysHrkMnuId())
                 .mnuNm(req.getMnuNm()).mnuTpC(req.getMnuTpC()).srePth(req.getSrePth())
                 .mnuSotSqnSno(SORT_STEP).hidYn(req.getHidYn() == null ? "N" : req.getHidYn())
                 .mnuDep(depth).whlMnuPth(whlPth).delYn("N")
@@ -55,7 +55,7 @@ public class AdminMenuService {
         validateTypePath(req.getMnuTpC(), req.getSrePth());
         Cmenum menu = load(mnuId);
         menu.setMnuNm(req.getMnuNm());
-        menu.setSreTc(req.getSreTc());
+        menu.setSysHrkMnuId(req.getSysHrkMnuId());
         menu.setMnuTpC(req.getMnuTpC());
         menu.setSrePth(req.getSrePth());
         menu.setHidYn(req.getHidYn() == null ? "N" : req.getHidYn());

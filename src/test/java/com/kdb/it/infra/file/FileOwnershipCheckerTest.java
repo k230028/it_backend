@@ -1,8 +1,6 @@
 package com.kdb.it.infra.file;
 
 import com.kdb.it.common.board.entity.Cblbcm;
-import com.kdb.it.common.board.entity.Cblbmm;
-import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
@@ -37,8 +35,6 @@ class FileOwnershipCheckerTest {
 
     @Mock
     private FileRepository fileRepository;
-    @Mock
-    private BoardMetaRepository boardMetaRepository;
     @Mock
     private BoardPostRepository boardPostRepository;
 
@@ -127,7 +123,7 @@ class FileOwnershipCheckerTest {
 
             CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
 
-            // Act & Assert — 관리자 우회: boardPostRepository, boardMetaRepository 호출 없이 통과
+            // Act & Assert — 관리자 우회: boardPostRepository 호출 없이 통과
             assertThatCode(() -> fileOwnershipChecker.checkReadAccess("FL_BOARD_01", adminUser))
                     .doesNotThrowAnyException();
         }
@@ -164,73 +160,6 @@ class FileOwnershipCheckerTest {
         }
 
         @Test
-        @DisplayName("게시판이 없으면 CustomGeneralException 발생")
-        void verifyBoardFileAccess_boardNotFound_throws() {
-            // Arrange
-            Cblbcm post = buildPost("NAC-2026-0001", "BLBM-2026-0001");
-            given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-                    .willReturn(Optional.of(post));
-            given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-                    .willReturn(Optional.empty());
-
-            CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
-
-            // Act & Assert
-            assertThatThrownBy(() -> fileOwnershipChecker.checkReadAccess("FL_BOARD_01", user))
-                    .isInstanceOf(CustomGeneralException.class)
-                    .hasMessageContaining("게시판을 찾을 수 없습니다");
-        }
-
-        @Test
-        @DisplayName("boardOk=false — 사용자 권한이 게시판 조회권한과 불일치하면 예외 발생")
-        void verifyBoardFileAccess_boardOkFalse_throws() {
-            // Arrange — inqAthC=ROLE_ADMIN, 일반사용자는 ROLE_USER만 보유
-            Cblbcm post = buildPost("NAC-2026-0001", "BLBM-2026-0001");
-            Cblbmm board = Cblbmm.builder()
-                    .blbMngNo("BLBM-2026-0001").blbNm("관리자게시판")
-                    .inqAthC("ROLE_ADMIN").enrAthC("ROLE_ADMIN")
-                    .repUseYn("N").cmmtUseYn("N")
-                    .useYn("Y").delYn("N")
-                    .build();
-
-            given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-                    .willReturn(Optional.of(post));
-            given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-                    .willReturn(Optional.of(board));
-
-            CustomUserDetails normalUser = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
-
-            // Act & Assert
-            assertThatThrownBy(() -> fileOwnershipChecker.checkReadAccess("FL_BOARD_01", normalUser))
-                    .isInstanceOf(CustomGeneralException.class)
-                    .hasMessageContaining("파일 다운로드 권한이 없습니다");
-        }
-
-        @Test
-        @DisplayName("boardOk=true, inqAthC=ALL — 모든 사용자 접근 허용")
-        void verifyBoardFileAccess_boardOkAll_passes() {
-            // Arrange
-            Cblbcm post = buildPost("NAC-2026-0001", "BLBM-2026-0001");
-            Cblbmm board = Cblbmm.builder()
-                    .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
-                    .inqAthC("ALL").enrAthC("ALL")
-                    .repUseYn("N").cmmtUseYn("Y")
-                    .useYn("Y").delYn("N")
-                    .build();
-
-            given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-                    .willReturn(Optional.of(post));
-            given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-                    .willReturn(Optional.of(board));
-
-            CustomUserDetails normalUser = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
-
-            // Act & Assert
-            assertThatCode(() -> fileOwnershipChecker.checkReadAccess("FL_BOARD_01", normalUser))
-                    .doesNotThrowAnyException();
-        }
-
-        @Test
         @DisplayName("postOk=false — sreYn=N인 게시물의 파일은 접근 불가")
         void verifyBoardFileAccess_postNotVisible_throws() {
             // Arrange — sreYn=N (화면표시 안 함)
@@ -241,21 +170,13 @@ class FileOwnershipCheckerTest {
                     .sreYn("N")
                     .sttDt(null).endDt(null)
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
-                    .pritC("01").ancYn("N")
+                    .ancYn("N")
                     .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
-                    .build();
-            Cblbmm board = Cblbmm.builder()
-                    .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
-                    .inqAthC("ALL").enrAthC("ALL")
-                    .repUseYn("N").cmmtUseYn("Y")
-                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
                     .willReturn(Optional.of(post));
-            given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-                    .willReturn(Optional.of(board));
 
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
 
@@ -277,21 +198,13 @@ class FileOwnershipCheckerTest {
                     .sttDt(LocalDate.now().plusDays(1))
                     .endDt(null)
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
-                    .pritC("01").ancYn("N")
+                    .ancYn("N")
                     .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
-                    .build();
-            Cblbmm board = Cblbmm.builder()
-                    .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
-                    .inqAthC("ALL").enrAthC("ALL")
-                    .repUseYn("N").cmmtUseYn("Y")
-                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
                     .willReturn(Optional.of(post));
-            given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-                    .willReturn(Optional.of(board));
 
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
 
@@ -313,21 +226,13 @@ class FileOwnershipCheckerTest {
                     .sttDt(null)
                     .endDt(LocalDate.now().minusDays(1))
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
-                    .pritC("01").ancYn("N")
+                    .ancYn("N")
                     .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
-                    .build();
-            Cblbmm board = Cblbmm.builder()
-                    .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
-                    .inqAthC("ALL").enrAthC("ALL")
-                    .repUseYn("N").cmmtUseYn("Y")
-                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
                     .willReturn(Optional.of(post));
-            given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-                    .willReturn(Optional.of(board));
 
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
 
@@ -338,9 +243,9 @@ class FileOwnershipCheckerTest {
         }
 
         @Test
-        @DisplayName("boardOk=true (권한 일치), postOk=true (공개중) — 정상 접근 허용")
-        void verifyBoardFileAccess_allOk_passes() {
-            // Arrange — ROLE_USER 권한 게시판, 공개중 게시물
+        @DisplayName("게시판 조회는 전체 공개 — 비관리자도 공개중 게시물의 파일에 접근할 수 있다")
+        void verifyBoardFileAccess_normalUser_visiblePost_passes() {
+            // Arrange — 공개중 게시물 (게시판 단위 권한 검증 없음)
             Cblbcm post = Cblbcm.builder()
                     .nacMngNo("NAC-2026-0001")
                     .blbMngNo("BLBM-2026-0001")
@@ -349,23 +254,14 @@ class FileOwnershipCheckerTest {
                     .sttDt(LocalDate.now().minusDays(1))
                     .endDt(LocalDate.now().plusDays(1))
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
-                    .pritC("01").ancYn("N")
+                    .ancYn("N")
                     .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
-                    .build();
-            Cblbmm board = Cblbmm.builder()
-                    .blbMngNo("BLBM-2026-0001").blbNm("사용자게시판")
-                    .inqAthC("ROLE_USER").enrAthC("ROLE_USER")
-                    .repUseYn("N").cmmtUseYn("Y")
-                    .useYn("Y").delYn("N")
                     .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
                     .willReturn(Optional.of(post));
-            given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-                    .willReturn(Optional.of(board));
 
-            // ITPZZ001 → ROLE_USER 권한 보유
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
 
             // Act & Assert
@@ -378,17 +274,9 @@ class FileOwnershipCheckerTest {
         void verifyBoardFileAccess_noDates_passes() {
             // Arrange — sttDt=null, endDt=null (항상 공개)
             Cblbcm post = buildPost("NAC-2026-0001", "BLBM-2026-0001");
-            Cblbmm board = Cblbmm.builder()
-                    .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
-                    .inqAthC("ALL").enrAthC("ALL")
-                    .repUseYn("N").cmmtUseYn("Y")
-                    .useYn("Y").delYn("N")
-                    .build();
 
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
                     .willReturn(Optional.of(post));
-            given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-                    .willReturn(Optional.of(board));
 
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
 
@@ -412,7 +300,7 @@ class FileOwnershipCheckerTest {
                 .sttDt(null)
                 .endDt(null)
                 .nacInqNbr(0).flNbr(0).flApgYn("N")
-                .pritC("01").ancYn("N")
+                .ancYn("N")
                 .nacId(nacMngNo).nacGrpSqn(0).nacGrpLev(0)
                 .delYn("N")
                 .build();

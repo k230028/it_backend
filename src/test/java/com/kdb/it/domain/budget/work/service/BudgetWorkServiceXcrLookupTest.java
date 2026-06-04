@@ -96,7 +96,7 @@ class BudgetWorkServiceXcrLookupTest {
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
         Bbugtm saved = captor.getValue();
-        assertThat(saved.getBugRqmBgAmt()).isEqualByComparingTo(new BigDecimal("1400000.00"));
+        assertThat(saved.getBgDupAmt()).isEqualByComparingTo(new BigDecimal("1400000.00"));
         assertThat(saved.getFntTbNm()).isEqualTo("BITEMM");
         assertThat(saved.getPkColNm()).isEqualTo("GCL-2026-0001");
     }
@@ -163,6 +163,6 @@ class BudgetWorkServiceXcrLookupTest {
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
         Bbugtm saved = captor.getValue();
-        assertThat(saved.getBugRqmBgAmt()).isEqualByComparingTo(new BigDecimal("5000000.00"));
+        assertThat(saved.getBgDupAmt()).isEqualByComparingTo(new BigDecimal("5000000.00"));
     }
 }

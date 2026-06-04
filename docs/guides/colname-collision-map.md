@@ -19,7 +19,7 @@
 | `BG_NO` | Bbugtm → `bgNo` (예산관리번호) | Bcostm → `costBgNo` (IT관리비코드), Btermm → `termBgNo` |
 | `BG_SNO` | Bcostm → `bgSno` (예산일련번호) | Btermm → `termBgSno` |
 | `TOT_XP_AMT` | Bplanm → `totXpAmt` (일반관리비) | Bcostm → `costTotXpAmt` (IT관리비금액) |
-| `RQM_BG_AMT` | Bprojm → `rqmBgAmt` (프로젝트예산, 파일럿 완료) | Bbugtm → `bugRqmBgAmt` (편성예산), Btermm → `termRqmBgAmt` (단말기금액) |
+| ~~`RQM_BG_AMT`~~ | Btermm → `termRqmBgAmt` (단말기금액, 단독 소유) | 2026-06-04 물리 분리로 충돌 해소: Bprojm → `TOT_RQM_AMT`(`totRqmAmt`, 총소요금액), Bbugtm → `BG_DUP_AMT`(`bgDupAmt`, 예산편성금액). `*L` 미러 포함 |
 | `SVN_DPM_C` | Bprojm → `svnDpmC` (주관부서, 파일럿 완료) | Bcostm → `costSvnDpmC` (담당부서), Btermm → `termSvnDpmC` |
 | `SVN_TEM_C` | Bcostm → `svnTemC` | Btermm → `termSvnTemC` |
 

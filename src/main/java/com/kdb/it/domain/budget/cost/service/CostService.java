@@ -316,7 +316,7 @@ public class CostService {
                 request.getCurC(), request.getXcr(), DateFormatUtil.toYmd8(request.getXcrBseDt()),
                 request.getSectSysUtzYn(), request.getIndRsn(), request.getCgprId(),
                 request.getCostSvnDpmC(), request.getSvnTemC(), request.getBgUntAbusC(),
-                request.getBgXpTc(), request.getAbusTc(), request.getBseYy(), request.getCncdRfrNo(),
+                request.getTmnYn(), request.getAbusTc(), request.getBseYy(), request.getCncdRfrNo(),
                 request.getFcAmt());
 
         /* 연관된 단말기 목록 업데이트: 기존 Soft Delete 후 재등록 */
@@ -566,7 +566,8 @@ public class CostService {
         Set<String> userEnos = new java.util.HashSet<>();
         Set<String> bgUntAbusCdvas = new java.util.HashSet<>();
         Set<String> dfrCleCCdvas = new java.util.HashSet<>();
-        Set<String> bgXpTcCdvas = new java.util.HashSet<>();
+        // 단말여부(Y/N) → 구 IT_MNGC_TP 코드(002/001) 매핑값. 표시명(tmnYnNm) 조회용.
+        Set<String> tmnYnMngcCodes = new java.util.HashSet<>();
         Set<String> abusTcCdvas = new java.util.HashSet<>();
         Set<String> ioeCCdvas = new java.util.HashSet<>();
         for (CostDto.Response r : responses) {
@@ -575,7 +576,8 @@ public class CostService {
             if (r.getCgprId() != null && !r.getCgprId().isEmpty()) userEnos.add(r.getCgprId());
             if (r.getBgUntAbusC() != null && !r.getBgUntAbusC().isEmpty()) bgUntAbusCdvas.add(r.getBgUntAbusC());
             if (r.getDfrCleC() != null && !r.getDfrCleC().isEmpty()) dfrCleCCdvas.add(r.getDfrCleC());
-            if (r.getBgXpTc() != null && !r.getBgXpTc().isEmpty()) bgXpTcCdvas.add(r.getBgXpTc());
+            if ("Y".equals(r.getTmnYn())) tmnYnMngcCodes.add("002");
+            else if ("N".equals(r.getTmnYn())) tmnYnMngcCodes.add("001");
             if (r.getAbusTc() != null && !r.getAbusTc().isEmpty()) abusTcCdvas.add(r.getAbusTc());
             if (r.getIoeC() != null && !r.getIoeC().isEmpty()) ioeCCdvas.add(r.getIoeC());
         }
@@ -589,8 +591,8 @@ public class CostService {
                 : buildCodeNameMap("ABUS_C", bgUntAbusCdvas);
         Map<String, String> dfrCleCNameMap = dfrCleCCdvas.isEmpty() ? Map.of()
                 : buildCodeNameMap("DFR_CLE", dfrCleCCdvas);
-        Map<String, String> bgXpTcNameMap = bgXpTcCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap("IT_MNGC_TP", bgXpTcCdvas);
+        Map<String, String> tmnYnNameMap = tmnYnMngcCodes.isEmpty() ? Map.of()
+                : buildCodeNameMap("IT_MNGC_TP", tmnYnMngcCodes);
         Map<String, String> abusTcNameMap = abusTcCdvas.isEmpty() ? Map.of()
                 : buildCodeNameMap("PUL_DTT", abusTcCdvas);
         Map<String, String> ioeCNameMap = ioeCCdvas.isEmpty() ? Map.of()
@@ -619,13 +621,14 @@ public class CostService {
             if (response.getCgprId() != null) response.setCgprNm(userNameMap.get(response.getCgprId()));
             if (response.getBgUntAbusC() != null) response.setBgUntAbusCNm(bgUntAbusCNameMap.get(response.getBgUntAbusC()));
             if (response.getDfrCleC() != null) response.setDfrCleCNm(dfrCleCNameMap.get(response.getDfrCleC()));
-            if (response.getBgXpTc() != null) response.setBgXpTcNm(bgXpTcNameMap.get(response.getBgXpTc()));
+            if ("Y".equals(response.getTmnYn())) response.setTmnYnNm(tmnYnNameMap.get("002"));
+            else if ("N".equals(response.getTmnYn())) response.setTmnYnNm(tmnYnNameMap.get("001"));
             if (response.getAbusTc() != null) response.setAbusTcNm(abusTcNameMap.get(response.getAbusTc()));
             if (response.getIoeC() != null) response.setIoeCNm(ioeCNameMap.get(response.getIoeC()));
 
             setBudgetCategory(response);
 
-            if ("002".equals(cost.getBgXpTc())) {
+            if ("Y".equals(cost.getTmnYn())) {
                 attachTerminals(response);
             }
         }
@@ -723,9 +726,14 @@ public class CostService {
             ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE", response.getDfrCleC(), null)
                     .ifPresent(code -> response.setDfrCleCNm(code.getCNm()));
         }
-        if (response.getBgXpTc() != null && !response.getBgXpTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", response.getBgXpTc(), null)
-                    .ifPresent(code -> response.setBgXpTcNm(code.getCNm()));
+        if (response.getTmnYn() != null && !response.getTmnYn().isEmpty()) {
+            // 단말여부(Y/N) → 구 IT_MNGC_TP 코드(002/001)로 환산하여 표시명 조회
+            String mngcTpCode = "Y".equals(response.getTmnYn()) ? "002"
+                    : "N".equals(response.getTmnYn()) ? "001" : null;
+            if (mngcTpCode != null) {
+                ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", mngcTpCode, null)
+                        .ifPresent(code -> response.setTmnYnNm(code.getCNm()));
+            }
         }
         if (response.getAbusTc() != null && !response.getAbusTc().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", response.getAbusTc(), null)

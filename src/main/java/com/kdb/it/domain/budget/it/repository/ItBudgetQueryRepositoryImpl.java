@@ -172,7 +172,7 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         QBitemm bi = new QBitemm("bi");
 
         List<Tuple> rows = queryFactory
-                .select(bg.ioeC, bi.sectSysUtzYn, bg.bugRqmBgAmt.sum())
+                .select(bg.ioeC, bi.sectSysUtzYn, bg.bgDupAmt.sum())
                 .from(bg)
                 .join(bi).on(
                         bg.fntTbNm.eq(ORC_TB_ITEM),
@@ -190,7 +190,7 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         for (Tuple row : rows) {
             String ioeC = row.get(bg.ioeC);
             String prtYn = row.get(bi.sectSysUtzYn);
-            BigDecimal amt = row.get(bg.bugRqmBgAmt.sum());
+            BigDecimal amt = row.get(bg.bgDupAmt.sum());
             if (ioeC == null || amt == null) continue;
             long[] v = acc.computeIfAbsent(ioeC, k -> new long[4]);
             if (INF_PRT_Y.equals(prtYn)) {
@@ -207,7 +207,7 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         QBcostm bc = new QBcostm("bc");
 
         List<Tuple> rows = queryFactory
-                .select(bg.ioeC, bc.sectSysUtzYn, bg.bugRqmBgAmt.sum())
+                .select(bg.ioeC, bc.sectSysUtzYn, bg.bgDupAmt.sum())
                 .from(bg)
                 .join(bc).on(
                         bg.fntTbNm.eq(ORC_TB_COST),
@@ -225,7 +225,7 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         for (Tuple row : rows) {
             String ioeC = row.get(bg.ioeC);
             String prtYn = row.get(bc.sectSysUtzYn);
-            BigDecimal amt = row.get(bg.bugRqmBgAmt.sum());
+            BigDecimal amt = row.get(bg.bgDupAmt.sum());
             if (ioeC == null || amt == null) continue;
             long[] v = acc.computeIfAbsent(ioeC, k -> new long[4]);
             if (INF_PRT_Y.equals(prtYn)) {

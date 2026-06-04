@@ -17,7 +17,7 @@ import lombok.experimental.SuperBuilder;
 /** 공통메뉴기본(메뉴 마스터). 변경 시 CmenumL로 자동 스냅샷 로깅(@LogTarget). */
 @LogTarget(entity = CmenumL.class)
 @Entity
-@Table(name = "TPRMPP_CMENUM", comment = "공통메뉴기본 — 메뉴 마스터")
+@Table(name = "TPRMPP_CMENUM", comment = "공통메뉴기본")
 @Getter
 @Setter
 @SuperBuilder
@@ -32,8 +32,8 @@ public class Cmenum extends BaseEntity {
     @Column(name = "HRK_MNU_ID", length = 10, comment = "상위메뉴ID")
     private String hrkMnuId;
 
-    @Column(name = "SRE_TC", length = 2, nullable = false, comment = "화면구분코드")
-    private String sreTc;
+    @Column(name = "SYS_HRK_MNU_ID", length = 10, nullable = false, comment = "시스템상위메뉴ID")
+    private String sysHrkMnuId;
 
     @Column(name = "MNU_NM", length = 100, nullable = false, comment = "메뉴명")
     private String mnuNm;

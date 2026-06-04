@@ -25,8 +25,6 @@ public class BoardPostDto {
         @Schema(description = "제목")           private String        nacNm;
         @Schema(description = "조회수")         private Integer       nacInqNbr;
         @Schema(description = "게시물ID") private String        nacId;
-        @Schema(description = "종류코드")       private String        kdC;
-        @Schema(description = "중요도코드")     private String        pritC;
         @Schema(description = "공지여부")   private String        ancYn;
         @Schema(description = "화면여부")       private String        sreYn;
         @Schema(description = "파일첨부여부")   private String        flApgYn;
@@ -41,7 +39,7 @@ public class BoardPostDto {
             return ListItem.builder()
                 .nacMngNo(e.getNacMngNo()).blbMngNo(e.getBlbMngNo())
                 .nacNm(e.getNacNm()).nacInqNbr(e.getNacInqNbr())
-                .nacId(e.getNacId()).kdC(e.getKdC()).pritC(e.getPritC())
+                .nacId(e.getNacId())
                 .ancYn(e.getAncYn()).sreYn(e.getSreYn())
                 .flApgYn(e.getFlApgYn()).flNbr(e.getFlNbr())
                 .nacGrpLev(e.getNacGrpLev())
@@ -63,8 +61,6 @@ public class BoardPostDto {
         @Schema(description = "본문 HTML")      private String        nacCone;
         @Schema(description = "조회수")         private Integer       nacInqNbr;
         @Schema(description = "게시물ID") private String        nacId;
-        @Schema(description = "종류코드")       private String        kdC;
-        @Schema(description = "중요도코드")     private String        pritC;
         @Schema(description = "공지여부")   private String        ancYn;
         @Schema(description = "화면여부")       private String        sreYn;
         @Schema(description = "담당부서코드")   private String        bbrC;
@@ -85,7 +81,6 @@ public class BoardPostDto {
                 .nacMngNo(e.getNacMngNo()).blbMngNo(e.getBlbMngNo())
                 .nacNm(e.getNacNm()).nacCone(e.getNacCone())
                 .nacInqNbr(e.getNacInqNbr()).nacId(e.getNacId())
-                .kdC(e.getKdC()).pritC(e.getPritC())
                 .ancYn(e.getAncYn()).sreYn(e.getSreYn())
                 .bbrC(e.getBbrC()).sttYmd(e.getSttDt()).endYmd(e.getEndDt())
                 .flApgYn(e.getFlApgYn()).flNbr(e.getFlNbr())
@@ -105,8 +100,6 @@ public class BoardPostDto {
     public static class CreateRequest {
         @Schema(description = "제목 (최대 300자)", requiredMode = Schema.RequiredMode.REQUIRED) private String    nacNm;
         @Schema(description = "본문 HTML")                         private String    nacCone;
-        @Schema(description = "종류코드")                          private String    kdC;
-        @Schema(description = "중요도코드", example = "PRIT_C_001") private String   pritC;
         @Schema(description = "공지여부", example = "N")        private String   ancYn;
         @Schema(description = "화면여부", example = "Y")            private String   sreYn;
         @Schema(description = "담당부서코드")                       private String   bbrC;
@@ -124,8 +117,6 @@ public class BoardPostDto {
     public static class UpdateRequest {
         @Schema(description = "제목")          private String    nacNm;
         @Schema(description = "본문 HTML")     private String    nacCone;
-        @Schema(description = "종류코드")      private String    kdC;
-        @Schema(description = "중요도코드")    private String    pritC;
         @Schema(description = "공지여부")  private String    ancYn;
         @Schema(description = "화면여부")      private String    sreYn;
         @Schema(description = "담당부서코드")  private String    bbrC;
@@ -136,8 +127,7 @@ public class BoardPostDto {
 
         public Cblbcm.UpdateCommand toUpdateCommand(String sanitizedCone) {
             return new Cblbcm.UpdateCommand(
-                nacNm, sanitizedCone, kdC,
-                pritC == null ? "PRIT_C_001" : pritC,
+                nacNm, sanitizedCone,
                 ancYn == null ? "N" : ancYn,
                 sreYn == null ? "Y" : sreYn,
                 bbrC, sttYmd, endYmd
@@ -153,7 +143,6 @@ public class BoardPostDto {
     public static class ReplyCreateRequest {
         @Schema(description = "제목", requiredMode = Schema.RequiredMode.REQUIRED) private String    nacNm;
         @Schema(description = "본문 HTML")             private String    nacCone;
-        @Schema(description = "중요도코드")             private String    pritC;
         @Schema(description = "담당부서코드")           private String    bbrC;
         @Schema(description = "공개시작일")             private LocalDate sttYmd;
         @Schema(description = "공개종료일")             private LocalDate endYmd;
@@ -167,8 +156,6 @@ public class BoardPostDto {
     @Schema(name = "BoardPostSearchCondition", description = "게시물 목록 검색 조건")
     public static class SearchCondition {
         @Schema(description = "키워드 (제목/본문/작성자 LIKE)") private String keyword;
-        @Schema(description = "종류코드")                       private String kdC;
-        @Schema(description = "중요도코드")                     private String pritC;
         @Schema(description = "등록일 시작 (yyyy-MM-dd)")       private String enrDtmFrom;
         @Schema(description = "등록일 종료 (yyyy-MM-dd)")       private String enrDtmTo;
         @Schema(description = "담당부서코드")                   private String bbrC;

@@ -54,7 +54,7 @@ public class PlanDto {
 
         /** 계획구분 (신규, 조정) */
         @Schema(description = "계획구분 (신규/조정)")
-        private String plnTpC;
+        private String itPtlPlnTpC;
 
         /** 대상 프로젝트관리번호 목록 */
         @Schema(description = "대상 프로젝트관리번호 목록")
@@ -176,7 +176,7 @@ public class PlanDto {
 
         /** 계획구분 (신규, 조정) */
         @Schema(description = "계획구분")
-        private String plnTpC;
+        private String itPtlPlnTpC;
 
         /** 대상년도 (YYYY) */
         @Schema(description = "대상년도")
@@ -227,7 +227,7 @@ public class PlanDto {
         public static ListResponse fromEntity(Bplanm plan) {
             return ListResponse.builder()
                     .reqDocNo(plan.getReqDocNo())
-                    .plnTpC(plan.getPlnTpC())
+                    .itPtlPlnTpC(plan.getItPtlPlnTpC())
                     .bseYy(plan.getBseYy())
                     .aduTotAmt(plan.getAduTotAmt())
                     .cpitBgApvAmt(plan.getCpitBgApvAmt())
@@ -262,7 +262,7 @@ public class PlanDto {
 
         /** 계획구분 (신규, 조정) */
         @Schema(description = "계획구분")
-        private String plnTpC;
+        private String itPtlPlnTpC;
 
         /** 대상년도 (YYYY) */
         @Schema(description = "대상년도")
@@ -332,7 +332,7 @@ public class PlanDto {
         public static DetailResponse fromEntity(Bplanm plan, List<String> prjMngNos) {
             return DetailResponse.builder()
                     .reqDocNo(plan.getReqDocNo())
-                    .plnTpC(plan.getPlnTpC())
+                    .itPtlPlnTpC(plan.getItPtlPlnTpC())
                     .bseYy(plan.getBseYy())
                     .aduTotAmt(plan.getAduTotAmt())
                     .cpitBgApvAmt(plan.getCpitBgApvAmt())
@@ -370,7 +370,7 @@ public class PlanDto {
         private String bseYy;
 
         /** 계획구분 */
-        private String plnTpC;
+        private String itPtlPlnTpC;
 
         /** 총예산 합계 */
         private BigDecimal aduTotAmt;
@@ -430,8 +430,8 @@ public class PlanDto {
         /** 프로젝트관리번호 */
         private String prjMngNo;
 
-        /** 프로젝트명 */
-        private String prjNm;
+        /** 사업명 */
+        private String abusNm;
 
         /** 사업유형 */
         private String prjTp;

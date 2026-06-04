@@ -76,8 +76,8 @@ public class Bbugtm extends BaseEntity {
     private String ioeC;
 
     /** 편성예산: 요청금액 × (편성률 / 100) */
-    @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "편성예산금액 (물리컬럼 RQM_BG_AMT=소요예산금액)")
-    private BigDecimal bugRqmBgAmt;
+    @Column(name = "BG_DUP_AMT", precision = 18, scale = 3, comment = "편성예산금액 (물리컬럼 BG_DUP_AMT=예산편성금액)")
+    private BigDecimal bgDupAmt;
 
     /**
      * 편성률: 0~100 사이의 정수.
@@ -95,11 +95,11 @@ public class Bbugtm extends BaseEntity {
      * Upsert 시 기존 레코드가 존재하면 이 메서드로 UPDATE 처리합니다.
      * </p>
      *
-     * @param bugRqmBgAmt 편성예산 (요청금액 × 편성률/100)
+     * @param bgDupAmt 편성예산 (요청금액 × 편성률/100)
      * @param asgRt 편성률 (0~100)
      */
-    public void update(BigDecimal bugRqmBgAmt, Integer asgRt) {
-        this.bugRqmBgAmt = bugRqmBgAmt;
+    public void update(BigDecimal bgDupAmt, Integer asgRt) {
+        this.bgDupAmt = bgDupAmt;
         this.asgRt = asgRt;
     }
 }

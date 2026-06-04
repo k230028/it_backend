@@ -20,7 +20,7 @@ public class MenuDto {
     public static class Node {
         private String mnuId;
         private String hrkMnuId;
-        private String sreTc;
+        private String sysHrkMnuId;
         private String mnuNm;
         private String mnuTpC;       // LNK / GRP / DYN
         private String srePth;
@@ -36,7 +36,7 @@ public class MenuDto {
     @Schema(name = "MenuUpsertRequest")
     public static class UpsertRequest {
         @NotBlank @Schema(description = "메뉴명") private String mnuNm;
-        @NotBlank @Schema(description = "화면구분코드(01~06)") private String sreTc;
+        @NotBlank @Schema(description = "시스템상위메뉴ID") private String sysHrkMnuId;
         @NotBlank @Schema(description = "메뉴유형코드 LNK/GRP/DYN") private String mnuTpC;
         @Schema(description = "상위메뉴ID(루트면 null)") private String hrkMnuId;
         @Schema(description = "화면경로(LNK 필수)") private String srePth;
@@ -64,7 +64,7 @@ public class MenuDto {
     public static class Route {
         @NotBlank private String srePth;
         @NotBlank private String sreMnuNm;
-        private String sreTc;
+        private String sysHrkMnuId;
         private String useYn;
         private String rmk;
     }

@@ -122,7 +122,7 @@ public class MenuQueryService {
 
     private MenuDto.Node toNode(Cmenum m) {
         return MenuDto.Node.builder()
-                .mnuId(m.getMnuId()).hrkMnuId(m.getHrkMnuId()).sreTc(m.getSreTc())
+                .mnuId(m.getMnuId()).hrkMnuId(m.getHrkMnuId()).sysHrkMnuId(m.getSysHrkMnuId())
                 .mnuNm(m.getMnuNm()).mnuTpC(m.getMnuTpC()).srePth(m.getSrePth())
                 .mnuSotSqnSno(m.getMnuSotSqnSno()).hidYn(m.getHidYn())
                 .mnuDep(m.getMnuDep()).whlMnuPth(m.getWhlMnuPth())

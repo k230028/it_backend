@@ -59,13 +59,13 @@ public class Bprojm extends BaseEntity {
     @Column(name = "SNO", nullable = false, precision = 9, comment = "프로젝트순번 (물리컬럼 SNO=일련번호)")
     private Integer sno;
 
-    /** 프로젝트명: 사업의 공식 명칭 (최대 100자) */
-    @Column(name = "PRJ_NM", length = 100, comment = "프로젝트명")
-    private String prjNm;
+    /** 사업명: 사업의 공식 명칭 (최대 100자) */
+    @Column(name = "ABUS_NM", length = 100, comment = "사업명")
+    private String abusNm;
 
-    /** 프로젝트유형: 사업의 성격 분류 (예: 신규개발, 고도화, 유지보수) */
-    @Column(name = "PRJ_BZ_TC", length = 2, comment = "프로젝트유형 (물리컬럼 PRJ_BZ_TC=프로젝트업무구분코드)")
-    private String prjBzTc;
+    /** 업무유형코드: 사업의 성격 분류 (예: 신규개발, 고도화, 유지보수) */
+    @Column(name = "BZ_TP_C", length = 6, comment = "업무유형코드")
+    private String bzTpC;
 
     /** 주관부서: 사업을 주관하는 업무 부서 코드 (최대 20자) */
     @Column(name = "SVN_DPM_C", length = 20, comment = "주관부서 (물리컬럼 SVN_DPM_C=주관부서코드)")
@@ -76,8 +76,8 @@ public class Bprojm extends BaseEntity {
     private String dvmDpmC;
 
     /** 프로젝트예산: 사업 총 예산 금액 (최대 18자리, 소수점 2자리) */
-    @Column(name = "RQM_BG_AMT", precision = 18, scale = 2, comment = "프로젝트예산 (물리컬럼 RQM_BG_AMT=소요예산금액)")
-    private BigDecimal rqmBgAmt;
+    @Column(name = "TOT_RQM_AMT", precision = 18, scale = 3, comment = "프로젝트예산 (물리컬럼 TOT_RQM_AMT=총소요금액)")
+    private BigDecimal totRqmAmt;
 
     /** 익년프로젝트예산: 익년(다음 해) 사업 예산 금액 (최대 18자리, 소수점 3자리) */
     @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "익년프로젝트예산 (물리컬럼 MPL_AMT=예정금액)")
@@ -92,20 +92,20 @@ public class Bprojm extends BaseEntity {
     private LocalDate endDtm;
 
     /** 주관부서담당자: 주관부서 담당자 사번 또는 이름 (최대 14자) */
-    @Column(name = "SVN_DPM_USID", length = 14, comment = "주관부서담당자 (물리컬럼 SVN_DPM_USID=주관부서사용자ID)")
-    private String svnDpmUsid;
+    @Column(name = "USID", length = 14, comment = "주관부서담당자 (물리컬럼 USID=사용자ID)")
+    private String usid;
 
     /** IT부서담당자: IT부서 담당자 사번 또는 이름 (최대 14자) */
     @Column(name = "DVM_USID", length = 14, comment = "IT부서담당자 (물리컬럼 DVM_USID=개발사용자ID)")
     private String dvmUsid;
 
     /** 주관부서담당팀장: 주관부서 담당 팀장 사번 또는 이름 (최대 14자) */
-    @Column(name = "SVN_DPM_DCD_USID", length = 14, comment = "주관부서담당팀장 (물리컬럼 SVN_DPM_DCD_USID=주관부서결재사용자ID)")
-    private String svnDpmDcdUsid;
+    @Column(name = "TLR_USID", length = 14, comment = "주관부서담당팀장 (물리컬럼 TLR_USID=팀장사용자ID)")
+    private String tlrUsid;
 
     /** IT부서담당팀장: IT부서 담당 팀장 사번 또는 이름 (최대 14자) */
-    @Column(name = "TLR_USID", length = 14, comment = "IT부서담당팀장 (물리컬럼 TLR_USID=팀장사용자ID)")
-    private String tlrUsid;
+    @Column(name = "DVM_TLR_USID", length = 14, comment = "IT부서담당팀장 (물리컬럼 DVM_TLR_USID=개발팀장사용자ID)")
+    private String dvmTlrUsid;
 
     /** 전결권: 결재 전결 권한자 구분 (최대 2자) */
     @Column(name = "EDRT_TC", length = 2, comment = "전결권 (물리컬럼 EDRT_TC=전결권구분코드)")
@@ -131,9 +131,9 @@ public class Bprojm extends BaseEntity {
     @Column(name = "PLM_DES", length = 4000, comment = "문제 (물리컬럼 PLM_DES=문제설명)")
     private String plmDes;
 
-    /** 사업범위: 사업의 대상 범위 및 경계 (최대 300자) */
-    @Column(name = "PRJ_TGT_RNG_CONE", length = 300, comment = "사업범위 (물리컬럼 PRJ_TGT_RNG_CONE=프로젝트대상범위내용)")
-    private String prjTgtRngCone;
+    /** 사업범위내용: 사업의 대상 범위 및 경계 (최대 600자) */
+    @Column(name = "ABUS_RNG_CONE", length = 600, comment = "사업범위내용")
+    private String abusRngCone;
 
     /** 주요진행내용: 사업 추진 진행 상황 및 경과 내용 (최대 2000자) */
     @Column(name = "MN_PRG_CONE", length = 2000, comment = "주요진행내용")
@@ -206,12 +206,12 @@ public class Bprojm extends BaseEntity {
      * {@link ProjectService}의 수정 로직에서 사용합니다.</p>
      */
     public record UpdateCommand(
-            String prjNm, String prjBzTc, String svnDpmC, String dvmDpmC,
-            BigDecimal rqmBgAmt, BigDecimal mplAmt,
+            String abusNm, String bzTpC, String svnDpmC, String dvmDpmC,
+            BigDecimal totRqmAmt, BigDecimal mplAmt,
             LocalDate sttDtm, LocalDate endDtm,
-            String svnDpmUsid, String dvmUsid, String svnDpmDcdUsid, String tlrUsid,
+            String usid, String dvmUsid, String tlrUsid, String dvmTlrUsid,
             String edrtTc, String abusCone, String cpnSafCone, String abusNcsCone,
-            String dgogPpoCone, String plmDes, String prjTgtRngCone, String mnPrgCone, String hrfPlnCone,
+            String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone, String hrfPlnCone,
             String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
             String flfFsgDt, String rprStsTc, String exePttYn, String stsTc,
             String bseYy, String prlmHrkOgzCCone,
@@ -224,11 +224,11 @@ public class Bprojm extends BaseEntity {
      * @param cmd 수정 파라미터 레코드
      */
     public void update(UpdateCommand cmd) {
-        update(cmd.prjNm(), cmd.prjBzTc(), cmd.svnDpmC(), cmd.dvmDpmC(),
-                cmd.rqmBgAmt(), cmd.mplAmt(), cmd.sttDtm(), cmd.endDtm(),
-                cmd.svnDpmUsid(), cmd.dvmUsid(), cmd.svnDpmDcdUsid(), cmd.tlrUsid(),
+        update(cmd.abusNm(), cmd.bzTpC(), cmd.svnDpmC(), cmd.dvmDpmC(),
+                cmd.totRqmAmt(), cmd.mplAmt(), cmd.sttDtm(), cmd.endDtm(),
+                cmd.usid(), cmd.dvmUsid(), cmd.tlrUsid(), cmd.dvmTlrUsid(),
                 cmd.edrtTc(), cmd.abusCone(), cmd.cpnSafCone(), cmd.abusNcsCone(),
-                cmd.dgogPpoCone(), cmd.plmDes(), cmd.prjTgtRngCone(), cmd.mnPrgCone(), cmd.hrfPlnCone(),
+                cmd.dgogPpoCone(), cmd.plmDes(), cmd.abusRngCone(), cmd.mnPrgCone(), cmd.hrfPlnCone(),
                 cmd.bzDttNm(), cmd.sklTpTc(), cmd.cstTpTc(), cmd.dplYn(),
                 cmd.flfFsgDt(), cmd.rprStsTc(), cmd.exePttYn(), cmd.stsTc(),
                 cmd.bseYy(), cmd.prlmHrkOgzCCone(), cmd.odnYn(), cmd.abusTc(), cmd.cncdRfrNo());
@@ -239,33 +239,33 @@ public class Bprojm extends BaseEntity {
      *
      * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 모든 필드를 변경합니다.</p>
      */
-    public void update(String prjNm, String prjBzTc, String svnDpmC, String dvmDpmC, BigDecimal rqmBgAmt,
-            BigDecimal mplAmt, LocalDate sttDtm, LocalDate endDtm, String svnDpmUsid, String dvmUsid,
-            String svnDpmDcdUsid, String tlrUsid, String edrtTc, String abusCone,
-            String cpnSafCone, String abusNcsCone, String dgogPpoCone, String plmDes, String prjTgtRngCone, String mnPrgCone,
+    public void update(String abusNm, String bzTpC, String svnDpmC, String dvmDpmC, BigDecimal totRqmAmt,
+            BigDecimal mplAmt, LocalDate sttDtm, LocalDate endDtm, String usid, String dvmUsid,
+            String tlrUsid, String dvmTlrUsid, String edrtTc, String abusCone,
+            String cpnSafCone, String abusNcsCone, String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone,
             String hrfPlnCone, String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
             String flfFsgDt, String rprStsTc, String exePttYn, String stsTc, String bseYy, String prlmHrkOgzCCone,
             Integer sno, String odnYn, String abusTc, String cncdRfrNo) {
         this.sno = sno;
-        this.prjNm = prjNm;
-        this.prjBzTc = prjBzTc;
+        this.abusNm = abusNm;
+        this.bzTpC = bzTpC;
         this.svnDpmC = svnDpmC;
         this.dvmDpmC = dvmDpmC;
-        this.rqmBgAmt = rqmBgAmt;
+        this.totRqmAmt = totRqmAmt;
         this.mplAmt = mplAmt;
         this.sttDtm = sttDtm;
         this.endDtm = endDtm;
-        this.svnDpmUsid = svnDpmUsid;
+        this.usid = usid;
         this.dvmUsid = dvmUsid;
-        this.svnDpmDcdUsid = svnDpmDcdUsid;
         this.tlrUsid = tlrUsid;
+        this.dvmTlrUsid = dvmTlrUsid;
         this.edrtTc = edrtTc;
         this.abusCone = abusCone;
         this.cpnSafCone = cpnSafCone;
         this.abusNcsCone = abusNcsCone;
         this.dgogPpoCone = dgogPpoCone;
         this.plmDes = plmDes;
-        this.prjTgtRngCone = prjTgtRngCone;
+        this.abusRngCone = abusRngCone;
         this.mnPrgCone = mnPrgCone;
         this.hrfPlnCone = hrfPlnCone;
         this.bzDttNm = bzDttNm;
@@ -288,32 +288,32 @@ public class Bprojm extends BaseEntity {
      *
      * <p>프로젝트 순번(sno)은 변경하지 않고 나머지 필드만 업데이트합니다.</p>
      */
-    public void update(String prjNm, String prjBzTc, String svnDpmC, String dvmDpmC, BigDecimal rqmBgAmt,
-            BigDecimal mplAmt, LocalDate sttDtm, LocalDate endDtm, String svnDpmUsid, String dvmUsid,
-            String svnDpmDcdUsid, String tlrUsid, String edrtTc, String abusCone,
-            String cpnSafCone, String abusNcsCone, String dgogPpoCone, String plmDes, String prjTgtRngCone, String mnPrgCone,
+    public void update(String abusNm, String bzTpC, String svnDpmC, String dvmDpmC, BigDecimal totRqmAmt,
+            BigDecimal mplAmt, LocalDate sttDtm, LocalDate endDtm, String usid, String dvmUsid,
+            String tlrUsid, String dvmTlrUsid, String edrtTc, String abusCone,
+            String cpnSafCone, String abusNcsCone, String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone,
             String hrfPlnCone, String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
             String flfFsgDt, String rprStsTc, String exePttYn, String stsTc, String bseYy, String prlmHrkOgzCCone,
             String odnYn, String abusTc, String cncdRfrNo) {
-        this.prjNm = prjNm;
-        this.prjBzTc = prjBzTc;
+        this.abusNm = abusNm;
+        this.bzTpC = bzTpC;
         this.svnDpmC = svnDpmC;
         this.dvmDpmC = dvmDpmC;
-        this.rqmBgAmt = rqmBgAmt;
+        this.totRqmAmt = totRqmAmt;
         this.mplAmt = mplAmt;
         this.sttDtm = sttDtm;
         this.endDtm = endDtm;
-        this.svnDpmUsid = svnDpmUsid;
+        this.usid = usid;
         this.dvmUsid = dvmUsid;
-        this.svnDpmDcdUsid = svnDpmDcdUsid;
         this.tlrUsid = tlrUsid;
+        this.dvmTlrUsid = dvmTlrUsid;
         this.edrtTc = edrtTc;
         this.abusCone = abusCone;
         this.cpnSafCone = cpnSafCone;
         this.abusNcsCone = abusNcsCone;
         this.dgogPpoCone = dgogPpoCone;
         this.plmDes = plmDes;
-        this.prjTgtRngCone = prjTgtRngCone;
+        this.abusRngCone = abusRngCone;
         this.mnPrgCone = mnPrgCone;
         this.hrfPlnCone = hrfPlnCone;
         this.bzDttNm = bzDttNm;

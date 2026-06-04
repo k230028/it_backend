@@ -23,10 +23,7 @@ public class BoardMetaDto {
         @Schema(description = "답변사용여부")  private String  repUseYn;
         @Schema(description = "댓글사용여부")  private String  cmmtUseYn;
         @Schema(description = "첨부필수여부")  private String  flEsnYn;
-        @Schema(description = "상위고정사용여부") private String hrkFxnUseYn;
         @Schema(description = "머리말태그사용여부") private String hedTagUseYn;
-        @Schema(description = "조회권한코드")  private String  inqAthC;
-        @Schema(description = "등록권한코드")  private String  enrAthC;
         @Schema(description = "화면순서번호")  private Integer sreSqnNo;
         @Schema(description = "사용여부")      private String  useYn;
         @Schema(description = "비고")          private String  rmk;
@@ -35,9 +32,8 @@ public class BoardMetaDto {
             return Response.builder()
                 .blbMngNo(e.getBlbMngNo()).blbNm(e.getBlbNm()).blbTp(e.getBlbTp())
                 .repUseYn(e.getRepUseYn()).cmmtUseYn(e.getCmmtUseYn())
-                .flEsnYn(e.getFlEsnYn()).hrkFxnUseYn(e.getHrkFxnUseYn())
+                .flEsnYn(e.getFlEsnYn())
                 .hedTagUseYn(e.getHedTagUseYn())
-                .inqAthC(e.getInqAthC()).enrAthC(e.getEnrAthC())
                 .sreSqnNo(e.getSreSqnNo()).useYn(e.getUseYn()).rmk(e.getRmk())
                 .build();
         }
@@ -55,10 +51,7 @@ public class BoardMetaDto {
         @Schema(description = "답변사용여부", example = "N")       private String  repUseYn;
         @Schema(description = "댓글사용여부", example = "N")       private String  cmmtUseYn;
         @Schema(description = "첨부필수여부", example = "N")       private String  flEsnYn;
-        @Schema(description = "상위고정사용여부", example = "N")   private String  hrkFxnUseYn;
         @Schema(description = "머리말태그사용여부", example = "N")  private String  hedTagUseYn;
-        @Schema(description = "조회권한코드", example = "ALL")     private String  inqAthC;
-        @Schema(description = "등록권한코드", example = "ALL")     private String  enrAthC;
         @Schema(description = "화면순서번호", example = "0")       private Integer sreSqnNo;
         @Schema(description = "비고")                              private String  rmk;
 
@@ -66,9 +59,8 @@ public class BoardMetaDto {
             return new Cblbmm.UpdateCommand(
                 blbNm,
                 nvl(repUseYn,     "N"), nvl(cmmtUseYn,    "N"),
-                nvl(flEsnYn,      "N"), nvl(hrkFxnUseYn,  "N"),
+                nvl(flEsnYn,      "N"),
                 nvl(hedTagUseYn,  "N"),
-                nvl(inqAthC,     "ALL"), nvl(enrAthC,    "ALL"),
                 sreSqnNo == null ? 0 : sreSqnNo, "Y", rmk
             );
         }
@@ -86,18 +78,15 @@ public class BoardMetaDto {
         @Schema(description = "답변사용여부")      private String  repUseYn;
         @Schema(description = "댓글사용여부")      private String  cmmtUseYn;
         @Schema(description = "첨부필수여부")      private String  flEsnYn;
-        @Schema(description = "상위고정사용여부")   private String  hrkFxnUseYn;
         @Schema(description = "머리말태그사용여부") private String  hedTagUseYn;
-        @Schema(description = "조회권한코드")      private String  inqAthC;
-        @Schema(description = "등록권한코드")      private String  enrAthC;
         @Schema(description = "화면순서번호")      private Integer sreSqnNo;
         @Schema(description = "사용여부")          private String  useYn;
         @Schema(description = "비고")              private String  rmk;
 
         public Cblbmm.UpdateCommand toUpdateCommand() {
             return new Cblbmm.UpdateCommand(
-                blbNm, repUseYn, cmmtUseYn, flEsnYn, hrkFxnUseYn,
-                hedTagUseYn, inqAthC, enrAthC,
+                blbNm, repUseYn, cmmtUseYn, flEsnYn,
+                hedTagUseYn,
                 sreSqnNo, useYn, rmk
             );
         }

@@ -8,7 +8,7 @@
 - 테이블 prefix: `TPRMPP_`
 - 마스터 테이블: `*M` (예: `BPROJM`, `BCOSTM`)
 - 로그 테이블: `*L` (예: `BPROJML`, `BCOSTML`) — `BaseLogEntity` 상속, `ChangeLogEntityListener`가 자동 기록
-- 연결/매핑: `*A` (예: `CAPPLA`, `BPROJA`)
+- 연결/매핑: `*A` (예: `CAPPLA`, `BPLANA`)
 - 코드/공통: `C*` 접두 (예: `CCODEM`, `CFILEM`)
 
 ## 2. 도메인별 테이블 매핑
@@ -22,7 +22,7 @@
 | Bcostm  | TPRMPP_BCOSTM   | 전산관리비        |
 | Btermm  | TPRMPP_BTERMM   | 단말기            |
 | Bplanm  | TPRMPP_BPLANM   | 정보기술부문 계획 |
-| Bproja  | TPRMPP_BPROJA   | 계획-사업 연결    |
+| Bplana  | TPRMPP_BPLANA   | 정보기술부문계획 관계 |
 | Bbugtm  | TPRMPP_BBUGTM   | 예산 편성률       |
 | Bgdocm  | TPRMPP_BGDOCM   | 가이드 문서       |
 | Brdocm  | TPRMPP_BRDOCM   | 요구사항 정의서   |

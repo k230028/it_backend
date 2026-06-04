@@ -43,8 +43,8 @@ public class BbugtL extends BaseLogEntity {
     @Column(name = "IOE_C", length = 3, comment = "비목코드")
     private String ioeC;
 
-    @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "편성예산금액")
-    private BigDecimal bugRqmBgAmt;
+    @Column(name = "BG_DUP_AMT", precision = 18, scale = 3, comment = "편성예산금액")
+    private BigDecimal bgDupAmt;
 
     @Column(name = "ASG_RT", precision = 3, scale = 0, comment = "편성률")
     private Integer asgRt;

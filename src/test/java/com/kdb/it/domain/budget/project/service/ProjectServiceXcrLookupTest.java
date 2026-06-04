@@ -100,7 +100,7 @@ class ProjectServiceXcrLookupTest {
         item.setAmt(new BigDecimal("0"));           // 클라이언트 위조값
 
         ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                .prjNm("외화 사업")
+                .abusNm("외화 사업")
                 .bseYy("2026")
                 .items(List.of(item))
                 .build();
@@ -136,7 +136,7 @@ class ProjectServiceXcrLookupTest {
         item.setAmt(new BigDecimal("0"));
 
         ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                .prjNm("미등록 통화 사업")
+                .abusNm("미등록 통화 사업")
                 .bseYy("2026")
                 .items(List.of(item))
                 .build();
@@ -164,7 +164,7 @@ class ProjectServiceXcrLookupTest {
         item.setFcAmt(null);
 
         ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                .prjNm("원화 사업")
+                .abusNm("원화 사업")
                 .bseYy("2026")
                 .items(List.of(item))
                 .build();

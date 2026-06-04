@@ -14,7 +14,7 @@ import lombok.experimental.SuperBuilder;
 
 /** 공통메뉴권한연결(메뉴↔권한). 매핑 0건=전체 공개, 1건 이상=해당 권한만 노출. */
 @Entity
-@Table(name = "TPRMPP_CMENUA", comment = "공통메뉴권한연결 — 메뉴↔권한")
+@Table(name = "TPRMPP_CMENUA", comment = "공통메뉴권한연결")
 @IdClass(CmenuaId.class)
 @Getter
 @SuperBuilder

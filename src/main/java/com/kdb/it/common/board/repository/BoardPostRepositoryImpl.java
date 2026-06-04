@@ -58,8 +58,6 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
                 .or(p.fstEnrUsid.containsIgnoreCase(cond.getKeyword()))
             );
         }
-        if (StringUtils.hasText(cond.getKdC()))    builder.and(p.kdC.eq(cond.getKdC()));
-        if (StringUtils.hasText(cond.getPritC()))  builder.and(p.pritC.eq(cond.getPritC()));
         if (StringUtils.hasText(cond.getBbrC()))   builder.and(p.bbrC.eq(cond.getBbrC()));
 
         int offset = cond.getPage() * cond.getSize();

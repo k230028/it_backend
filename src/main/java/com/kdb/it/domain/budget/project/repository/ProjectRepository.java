@@ -125,11 +125,11 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
      * @return 활성 사업의 (관리번호, 사업명) 참조 목록 (사업명 오름차순)
      */
     @Query("""
-            SELECT new com.kdb.it.domain.budget.project.entity.Bprojm$Ref(p.abusMngNo, p.prjNm)
+            SELECT new com.kdb.it.domain.budget.project.entity.Bprojm$Ref(p.abusMngNo, p.abusNm)
               FROM Bprojm p
              WHERE p.delYn = 'N'
                AND p.lstYn = 'Y'
-             ORDER BY p.prjNm ASC
+             ORDER BY p.abusNm ASC
             """)
     List<Bprojm.Ref> findActiveProjectRefs();
 }

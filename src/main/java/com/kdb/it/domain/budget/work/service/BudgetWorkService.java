@@ -191,7 +191,7 @@ public class BudgetWorkService {
                             .pkColNm(cost.getCostBgNo())
                             .fntTbCrySno(cost.getBgSno())
                             .ioeC(cost.getIoeC())
-                            .bugRqmBgAmt(dupBgAmt)
+                            .bgDupAmt(dupBgAmt)
                             .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
@@ -229,7 +229,7 @@ public class BudgetWorkService {
                             .pkColNm(item.getGclMngNo())
                             .fntTbCrySno(item.getSno())
                             .ioeC(item.getIoeC())
-                            .bugRqmBgAmt(dupBgAmt)
+                            .bgDupAmt(dupBgAmt)
                             .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
@@ -319,7 +319,7 @@ public class BudgetWorkService {
                             .pkColNm(bitemm.getGclMngNo())
                             .fntTbCrySno(bitemm.getSno())
                             .ioeC(bitemm.getIoeC())
-                            .bugRqmBgAmt(dupBgAmt)
+                            .bgDupAmt(dupBgAmt)
                             .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
@@ -345,7 +345,7 @@ public class BudgetWorkService {
                             .pkColNm(cost.getCostBgNo())
                             .fntTbCrySno(cost.getBgSno())
                             .ioeC(cost.getIoeC())
-                            .bugRqmBgAmt(dupBgAmt)
+                            .bgDupAmt(dupBgAmt)
                             .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
@@ -511,7 +511,7 @@ public class BudgetWorkService {
 
                 // 편성금액 합계 (BBUGTM 기반)
                 BigDecimal dupAmount = allRecords.stream()
-                        .map(Bbugtm::getBugRqmBgAmt)
+                        .map(Bbugtm::getBgDupAmt)
                         .filter(v -> v != null)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -725,14 +725,14 @@ public class BudgetWorkService {
 
             BigDecimal[] amounts = catMap.get(matchedPrefix);
             // 요청금액 역산: dupBgAmt / (dupRt / 100)
-            if (b.getBugRqmBgAmt() != null && b.getAsgRt() != null && b.getAsgRt() > 0) {
-                BigDecimal requestAmt = b.getBugRqmBgAmt()
+            if (b.getBgDupAmt() != null && b.getAsgRt() != null && b.getAsgRt() > 0) {
+                BigDecimal requestAmt = b.getBgDupAmt()
                         .multiply(BigDecimal.valueOf(100))
                         .divide(BigDecimal.valueOf(b.getAsgRt()), 2, RoundingMode.HALF_UP);
                 amounts[0] = amounts[0].add(requestAmt);
             }
-            if (b.getBugRqmBgAmt() != null) {
-                amounts[1] = amounts[1].add(b.getBugRqmBgAmt());
+            if (b.getBgDupAmt() != null) {
+                amounts[1] = amounts[1].add(b.getBgDupAmt());
             }
         }
 
@@ -782,7 +782,7 @@ public class BudgetWorkService {
     private String resolveProjectName(String orcTb, String orcPkVl) {
         if ("BPROJM".equals(orcTb)) {
             return projectRepository.findByAbusMngNoAndDelYn(orcPkVl, "N")
-                    .map(Bprojm::getPrjNm)
+                    .map(Bprojm::getAbusNm)
                     .orElse(orcPkVl);
         } else if ("BCOSTM".equals(orcTb)) {
             List<Bcostm> costs = costRepository.findByCostBgNoAndDelYn(orcPkVl, "N");

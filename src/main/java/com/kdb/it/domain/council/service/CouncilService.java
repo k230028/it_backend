@@ -415,13 +415,13 @@ public class CouncilService {
         String prjNm = projectOverviewRepository
                 .findByAsctIdAndDelYn(council.getAsctId(), "N")
                 .map(Bpovwm::getPrjNm)
-                .orElseGet(() -> projectOpt.map(p -> p.getPrjNm()).orElse(null));
+                .orElseGet(() -> projectOpt.map(p -> p.getAbusNm()).orElse(null));
 
         // 사업 상세 (BPROJM 기반)
         String prjYy   = projectOpt.map(p -> p.getBseYy()).orElse(null);
-        String prjTp   = projectOpt.map(p -> p.getPrjBzTc()).orElse(null);
+        String prjTp   = projectOpt.map(p -> p.getBzTpC()).orElse(null);
         String svnDpm  = projectOpt.map(p -> p.getSvnDpmC()).orElse(null);
-        java.math.BigDecimal prjBg = projectOpt.map(p -> p.getRqmBgAmt()).orElse(null);
+        java.math.BigDecimal prjBg = projectOpt.map(p -> p.getTotRqmAmt()).orElse(null);
         java.time.LocalDate sttDt  = projectOpt.map(p -> p.getSttDtm()).orElse(null);
         java.time.LocalDate endDt  = projectOpt.map(p -> p.getEndDtm()).orElse(null);
         String itDpm   = projectOpt.map(p -> p.getDvmDpmC()).orElse(null);
@@ -544,12 +544,12 @@ public class CouncilService {
         var projectOpt = projectRepository.findById(new BprojmId(council.getPrjMngNo(), council.getPrjSno()));
         if (projectOpt.isPresent()) {
             var p = projectOpt.get();
-            prjNm = p.getPrjNm();
+            prjNm = p.getAbusNm();
             edrt = p.getEdrtTc();
             sttDt = p.getSttDtm();
             endDt = p.getEndDtm();
             ncs = p.getAbusNcsCone();
-            prjBg = p.getRqmBgAmt();
+            prjBg = p.getTotRqmAmt();
             prjDes = p.getAbusCone();
             xptEff = p.getDgogPpoCone();
         }

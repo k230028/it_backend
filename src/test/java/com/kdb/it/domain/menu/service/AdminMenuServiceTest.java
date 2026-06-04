@@ -27,7 +27,7 @@ class AdminMenuServiceTest {
     @InjectMocks AdminMenuService service;
 
     private Cmenum node(String id, String parent, int dep, String path) {
-        return Cmenum.builder().mnuId(id).hrkMnuId(parent).sreTc("01").mnuNm(id)
+        return Cmenum.builder().mnuId(id).hrkMnuId(parent).sysHrkMnuId("01").mnuNm(id)
                 .mnuTpC("GRP").mnuSotSqnSno(10).hidYn("N").mnuDep(dep).whlMnuPth(path).delYn("N").build();
     }
 

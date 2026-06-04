@@ -43,19 +43,8 @@ public class Cblbmm extends BaseEntity {
     @Column(name = "APG_FL_USE_YN", nullable = false, length = 1, comment = "첨부필수여부 (물리컬럼 APG_FL_USE_YN=첨부파일사용여부)")
     private String flEsnYn;
 
-    @Column(name = "IOA_TC", nullable = false, length = 2, comment = "상위고정사용여부 (물리컬럼 IOA_TC=공지사항구분코드)")
-    private String hrkFxnUseYn;
-
     @Column(name = "HED_TAG_USE_YN", nullable = false, length = 1, comment = "머리말태그사용여부")
     private String hedTagUseYn;
-
-    /** 조회권한코드 (ALL / ROLE_ADMIN / ROLE_USER / ROLE_DEPT_MANAGER) */
-    @Column(name = "INQ_DWN_ATH_TC", nullable = false, length = 20, comment = "조회권한코드 (물리컬럼 INQ_DWN_ATH_TC=조회권한구분코드)")
-    private String inqAthC;
-
-    /** 등록권한코드 */
-    @Column(name = "WRT_DWN_ATH_TC", nullable = false, length = 20, comment = "등록권한코드 (물리컬럼 WRT_DWN_ATH_TC=쓰기권한구분코드)")
-    private String enrAthC;
 
     @Column(name = "SRE_SQN_SNO", nullable = false, comment = "화면순서번호 (물리컬럼 SRE_SQN_SNO=화면순서일련번호)")
     private Integer sreSqnNo;
@@ -73,18 +62,14 @@ public class Cblbmm extends BaseEntity {
      * @param repUseYn      답변사용여부
      * @param cmmtUseYn     댓글사용여부
      * @param flEsnYn       첨부필수여부
-     * @param hrkFxnUseYn   상위고정사용여부
      * @param hedTagUseYn   머리말태그사용여부
-     * @param inqAthC       조회권한코드
-     * @param enrAthC       등록권한코드
      * @param sreSqnNo      화면순서번호
      * @param useYn         사용여부
      * @param rmk           비고
      */
     public record UpdateCommand(
         String blbNm, String repUseYn, String cmmtUseYn,
-        String flEsnYn, String hrkFxnUseYn, String hedTagUseYn,
-        String inqAthC, String enrAthC,
+        String flEsnYn, String hedTagUseYn,
         Integer sreSqnNo, String useYn, String rmk
     ) {}
 
@@ -94,10 +79,7 @@ public class Cblbmm extends BaseEntity {
         this.repUseYn     = cmd.repUseYn();
         this.cmmtUseYn    = cmd.cmmtUseYn();
         this.flEsnYn      = cmd.flEsnYn();
-        this.hrkFxnUseYn  = cmd.hrkFxnUseYn();
         this.hedTagUseYn  = cmd.hedTagUseYn();
-        this.inqAthC      = cmd.inqAthC();
-        this.enrAthC      = cmd.enrAthC();
         this.sreSqnNo     = cmd.sreSqnNo();
         this.useYn        = cmd.useYn();
         this.rmk          = cmd.rmk();

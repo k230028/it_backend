@@ -48,15 +48,14 @@ public class BoardPostService {
      * @param cond     검색 조건
      * @param user     인증 사용자
      * @return 게시물 목록
-     * @throws CustomGeneralException 게시판 조회 권한 없음
+     * @throws CustomGeneralException 게시판을 찾을 수 없음
      */
     public List<BoardPostDto.ListItem> searchPosts(
             String blbMngNo,
             BoardPostDto.SearchCondition cond,
             CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
-        verifyCanReadBoard(user, board);
+        findActiveBoard(blbMngNo); // 게시판 존재 검증 (조회는 인증 사용자 전체 공개)
 
         return postRepository.searchPosts(
             blbMngNo, cond,
@@ -118,8 +117,6 @@ public class BoardPostService {
             .blbMngNo(blbMngNo)
             .nacNm(request.getNacNm())
             .nacCone(sanitizedCone)
-            .kdC(request.getKdC())
-            .pritC(request.getPritC() != null ? request.getPritC() : "PRIT_C_001")
             .ancYn(request.getAncYn() != null ? request.getAncYn() : "N")
             .sreYn(request.getSreYn() != null ? request.getSreYn() : "Y")
             .bbrC(request.getBbrC())
@@ -220,7 +217,6 @@ public class BoardPostService {
             .blbMngNo(blbMngNo)
             .nacNm(request.getNacNm())
             .nacCone(sanitizedCone)
-            .pritC(request.getPritC() != null ? request.getPritC() : "PRIT_C_001")
             .ancYn("N")
             .sreYn("Y")
             .bbrC(request.getBbrC())
@@ -314,25 +310,10 @@ public class BoardPostService {
     // ── 권한 검증 (패키지 접근 허용 — BoardCommentService에서 위임 호출) ──
 
     /**
-     * 게시판 조회 권한 검증
-     *
-     * @param user  인증 사용자
-     * @param board 게시판 엔티티
-     * @throws CustomGeneralException 조회 권한 없음
-     */
-    public void verifyCanReadBoard(CustomUserDetails user, Cblbmm board) {
-        if (user.isAdmin()) return;
-
-        boolean roleOk = "ALL".equals(board.getInqAthC())
-            || hasSpringRole(user, board.getInqAthC());
-
-        if (!roleOk) {
-            throw new CustomGeneralException("게시판 접근 권한이 없습니다.");
-        }
-    }
-
-    /**
      * 게시물 단건 가시성 검증
+     *
+     * <p>게시판 조회는 인증된 모든 사용자에게 공개되므로 게시판 단위 권한 검증은 없으며,
+     * 게시물의 화면노출여부·공개기간만 비관리자 대상으로 확인합니다.</p>
      *
      * @param user  인증 사용자
      * @param post  게시물 엔티티
@@ -340,7 +321,6 @@ public class BoardPostService {
      * @throws CustomGeneralException 게시물 접근 권한 없음
      */
     public void verifyCanReadPost(CustomUserDetails user, Cblbcm post, Cblbmm board) {
-        verifyCanReadBoard(user, board);
         if (user.isAdmin()) return;
 
         LocalDate today = LocalDate.now();
@@ -365,11 +345,17 @@ public class BoardPostService {
             .orElseThrow(() -> new CustomGeneralException("게시물을 찾을 수 없습니다: " + nacMngNo));
     }
 
+    /**
+     * 게시물 등록 권한 검증
+     *
+     * <p>공지사항(BLB_TC='001') 게시판은 관리자만 등록할 수 있으며,
+     * 그 외 게시판은 인증된 모든 사용자가 등록할 수 있습니다.</p>
+     */
     private void verifyCanWrite(CustomUserDetails user, Cblbmm board) {
         if (user.isAdmin()) return;
-        if ("ALL".equals(board.getEnrAthC())) return;
-        if (hasSpringRole(user, board.getEnrAthC())) return;
-        throw new CustomGeneralException("게시물 등록 권한이 없습니다.");
+        if ("001".equals(board.getBlbTp())) {
+            throw new CustomGeneralException("공지사항은 관리자만 등록할 수 있습니다.");
+        }
     }
 
     private void verifyCanModify(CustomUserDetails user, Cblbcm post) {
@@ -383,10 +369,5 @@ public class BoardPostService {
         if (!requestBbrC.equals(user.getBbrC())) {
             throw new CustomGeneralException("본인 부서코드만 지정할 수 있습니다.");
         }
-    }
-
-    private boolean hasSpringRole(CustomUserDetails user, String roleCode) {
-        return user.getAuthorities().stream()
-            .anyMatch(a -> a.getAuthority().equals(roleCode));
     }
 }

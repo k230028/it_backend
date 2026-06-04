@@ -5,9 +5,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
 import com.kdb.it.domain.budget.plan.entity.Bplanm;
-import com.kdb.it.domain.budget.plan.entity.Bproja;
+import com.kdb.it.domain.budget.plan.entity.Bplana;
 import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
-import com.kdb.it.domain.budget.plan.repository.BprojaRepository;
+import com.kdb.it.domain.budget.plan.repository.BplanaRepository;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.entity.CuserI;
@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
  * 정보기술부문 계획 서비스
  *
  * <p>
- * 정보기술부문계획(TPRMPP_BPLANM)과 정보화사업 관계(TPRMPP_BPROJA)의
+ * 정보기술부문계획(TPRMPP_BPLANM)과 정보기술부문계획 관계(TPRMPP_BPLANA)의
  * 등록, 조회, 삭제 비즈니스 로직을 담당합니다.
  * </p>
  */
@@ -45,8 +45,8 @@ public class PlanService {
 
         /** 정보기술부문계획(TPRMPP_BPLANM) CRUD 리포지토리 */
         private final BplanmRepository bplanmRepository;
-        /** 정보화사업 계획 연결(TPRMPP_BPROJA) 리포지토리 */
-        private final BprojaRepository bprojaRepository;
+        /** 정보기술부문계획 관계(TPRMPP_BPLANA) 리포지토리 */
+        private final BplanaRepository bplanaRepository;
         /** 정보화사업 서비스: 프로젝트 목록·상세 조회 위임 */
         private final ProjectService projectService;
         /** 전산관리비 서비스: 비용 목록·상세 조회 위임 */
@@ -156,9 +156,9 @@ public class PlanService {
                                                 "존재하지 않는 계획입니다: " + reqDocNo));
 
                 // 연결된 프로젝트관리번호 목록 조회
-                List<String> prjMngNos = bprojaRepository.findAllByBzMngNoAndDelYn(reqDocNo, "N")
+                List<String> prjMngNos = bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N")
                                 .stream()
-                                .map(Bproja::getPrjMngNo)
+                                .map(Bplana::getPrjMngNo)
                                 .collect(Collectors.toList());
 
                 return PlanDto.DetailResponse.fromEntity(plan, prjMngNos);
@@ -175,7 +175,7 @@ public class PlanService {
          * 4. JSON 스냅샷 생성
          * 5. 계획관리번호 채번: PLN-{bseYy}-{seq:04d}
          * 6. TPRMPP_BPLANM 저장
-         * 7. 각 프로젝트·전산업무비에 대해 TPRMPP_BPROJA 저장
+         * 7. 각 프로젝트·전산업무비에 대해 TPRMPP_BPLANA 저장
          * </p>
          *
          * @param request 계획 생성 요청 DTO
@@ -210,7 +210,7 @@ public class PlanService {
 
                 // 3. 예산 합계 계산 (정보화사업 + 전산업무비)
                 BigDecimal aduTotAmt = projects.stream()
-                                .map(p -> p.getRqmBgAmt() != null ? p.getRqmBgAmt() : BigDecimal.ZERO)
+                                .map(p -> p.getTotRqmAmt() != null ? p.getTotRqmAmt() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
                 aduTotAmt = costs.stream()
                                 .map(c -> c.getCostTotXpAmt() != null ? c.getCostTotXpAmt() : BigDecimal.ZERO)
@@ -240,7 +240,7 @@ public class PlanService {
                 // 6. TPRMPP_BPLANM 저장
                 Bplanm plan = Bplanm.builder()
                                 .reqDocNo(reqDocNo)
-                                .plnTpC(request.getPlnTpC())
+                                .itPtlPlnTpC(request.getItPtlPlnTpC())
                                 .bseYy(request.getBseYy())
                                 .aduTotAmt(aduTotAmt)
                                 .cpitBgApvAmt(cpitBgApvAmt)
@@ -254,20 +254,20 @@ public class PlanService {
                                 .build();
                 bplanmRepository.save(plan);
 
-                // 7. TPRMPP_BPROJA 저장 (prjMngNo 컬럼에 프로젝트/전산업무비 관리번호를 함께 저장)
+                // 7. TPRMPP_BPLANA 저장 (prjMngNo 컬럼에 프로젝트/전산업무비 관리번호를 함께 저장)
                 for (String prjMngNo : prjMngNos) {
-                        Bproja relation = Bproja.builder()
+                        Bplana relation = Bplana.builder()
                                         .prjMngNo(prjMngNo)
-                                        .bzMngNo(reqDocNo)
+                                        .reqDocNo(reqDocNo)
                                         .build();
-                        bprojaRepository.save(relation);
+                        bplanaRepository.save(relation);
                 }
                 for (String itMngcNo : itMngcNos) {
-                        Bproja relation = Bproja.builder()
+                        Bplana relation = Bplana.builder()
                                         .prjMngNo(itMngcNo)
-                                        .bzMngNo(reqDocNo)
+                                        .reqDocNo(reqDocNo)
                                         .build();
-                        bprojaRepository.save(relation);
+                        bplanaRepository.save(relation);
                 }
 
                 return reqDocNo;
@@ -278,7 +278,7 @@ public class PlanService {
          *
          * <p>
          * 계획 엔티티의 DEL_YN을 'Y'로 변경하며,
-         * 연결된 정보화사업 관계(BPROJA) 레코드도 함께 논리 삭제합니다.
+         * 연결된 정보기술부문계획 관계(BPLANA) 레코드도 함께 논리 삭제합니다.
          * </p>
          *
          * @param reqDocNo 계획관리번호
@@ -295,11 +295,11 @@ public class PlanService {
                 plan.delete();
                 bplanmRepository.save(plan);
 
-                // 연결된 정보화사업 관계 논리 삭제
-                List<Bproja> relations = bprojaRepository.findAllByBzMngNoAndDelYn(reqDocNo, "N");
-                for (Bproja relation : relations) {
+                // 연결된 정보기술부문계획 관계 논리 삭제
+                List<Bplana> relations = bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N");
+                for (Bplana relation : relations) {
                         relation.delete();
-                        bprojaRepository.save(relation);
+                        bplanaRepository.save(relation);
                 }
         }
 
@@ -329,7 +329,7 @@ public class PlanService {
          *
          * <p>
          * 스냅샷 구조:
-         * - 기본 정보(bseYy, plnTpC, 예산 합계)
+         * - 기본 정보(bseYy, itPtlPlnTpC, 예산 합계)
          * - 전체 프로젝트 목록(projects)
          * - 부문(SVN_HDQ)별 그룹 목록(byDepartment)
          * - 사업유형(PRJ_TP)별 그룹 목록(byProjectType)
@@ -351,12 +351,12 @@ public class PlanService {
                 List<PlanDto.ProjectSnapshot> projectSnapshots = projects.stream()
                                 .map(p -> PlanDto.ProjectSnapshot.builder()
                                                 .prjMngNo(p.getAbusMngNo())
-                                                .prjNm(p.getPrjNm())
-                                                .prjTp(p.getPrjBzTc())
+                                                .abusNm(p.getAbusNm())
+                                                .prjTp(p.getBzTpC())
                                                 .svnHdq(p.getPrlmHrkOgzCCone())
                                                 .svnDpm(p.getSvnDpmC())
                                                 .svnDpmNm(p.getSvnDpmCNm())
-                                                .prjBg(p.getRqmBgAmt())
+                                                .prjBg(p.getTotRqmAmt())
                                                 .assetBg(p.getAssetBg())
                                                 .costBg(p.getCostBg())
                                                 .build())
@@ -366,8 +366,8 @@ public class PlanService {
                 List<PlanDto.ProjectSnapshot> costSnapshots = costs.stream()
                                 .map(c -> PlanDto.ProjectSnapshot.builder()
                                                 .prjMngNo(c.getCostBgNo())
-                                                .prjNm(c.getCttNm())
-                                                .prjTp(c.getBgXpTc())
+                                                .abusNm(c.getCttNm())
+                                                .prjTp(c.getTmnYn())
                                                 .svnHdq("미분류")
                                                 .svnDpm(c.getCostSvnDpmC())
                                                 .svnDpmNm(c.getCostSvnDpmNm() != null ? c.getCostSvnDpmNm() : "")
@@ -420,7 +420,7 @@ public class PlanService {
                 // 스냅샷 DTO 생성
                 PlanDto.SnapshotDto snapshot = PlanDto.SnapshotDto.builder()
                                 .bseYy(request.getBseYy())
-                                .plnTpC(request.getPlnTpC())
+                                .itPtlPlnTpC(request.getItPtlPlnTpC())
                                 .aduTotAmt(aduTotAmt)
                                 .cpitBgApvAmt(cpitBgApvAmt)
                                 .totXpAmt(totXpAmt)

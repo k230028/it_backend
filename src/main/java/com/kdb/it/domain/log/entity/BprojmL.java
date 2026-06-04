@@ -29,11 +29,11 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "SNO", comment = "프로젝트순번")
     private Integer sno;
 
-    @Column(name = "PRJ_NM", length = 200, comment = "프로젝트명")
-    private String prjNm;
+    @Column(name = "ABUS_NM", length = 200, comment = "사업명")
+    private String abusNm;
 
-    @Column(name = "PRJ_BZ_TC", length = 100, comment = "프로젝트유형")
-    private String prjBzTc;
+    @Column(name = "BZ_TP_C", length = 100, comment = "업무유형코드")
+    private String bzTpC;
 
     @Column(name = "SVN_DPM_C", length = 100, comment = "주관부서")
     private String svnDpmC;
@@ -41,8 +41,8 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "DVM_DPM_C", length = 100, comment = "IT부서")
     private String dvmDpmC;
 
-    @Column(name = "RQM_BG_AMT", precision = 15, scale = 2, comment = "프로젝트예산")
-    private BigDecimal rqmBgAmt;
+    @Column(name = "TOT_RQM_AMT", precision = 18, scale = 3, comment = "프로젝트예산")
+    private BigDecimal totRqmAmt;
 
     @Column(name = "MPL_AMT", precision = 15, scale = 2, comment = "익년프로젝트예산")
     private BigDecimal mplAmt;
@@ -53,17 +53,17 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "END_DTM", comment = "종료일자")
     private LocalDate endDtm;
 
-    @Column(name = "SVN_DPM_USID", length = 32, comment = "주관부서담당자")
-    private String svnDpmUsid;
+    @Column(name = "USID", length = 32, comment = "주관부서담당자")
+    private String usid;
 
     @Column(name = "DVM_USID", length = 32, comment = "IT부서담당자")
     private String dvmUsid;
 
-    @Column(name = "SVN_DPM_DCD_USID", length = 32, comment = "주관부서담당팀장")
-    private String svnDpmDcdUsid;
-
-    @Column(name = "TLR_USID", length = 32, comment = "IT부서담당팀장")
+    @Column(name = "TLR_USID", length = 32, comment = "주관부서담당팀장")
     private String tlrUsid;
+
+    @Column(name = "DVM_TLR_USID", length = 32, comment = "IT부서담당팀장")
+    private String dvmTlrUsid;
 
     @Column(name = "EDRT_TC", length = 32, comment = "전결권")
     private String edrtTc;
@@ -83,8 +83,8 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "PLM_DES", length = 1000, comment = "문제")
     private String plmDes;
 
-    @Column(name = "PRJ_TGT_RNG_CONE", length = 1000, comment = "사업범위")
-    private String prjTgtRngCone;
+    @Column(name = "ABUS_RNG_CONE", length = 1000, comment = "사업범위내용")
+    private String abusRngCone;
 
     @Column(name = "MN_PRG_CONE", length = 2000, comment = "주요진행내용")
     private String mnPrgCone;

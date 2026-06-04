@@ -11,7 +11,7 @@ import lombok.experimental.SuperBuilder;
 
 /** 공통메뉴기본(Cmenum) 변경 스냅샷 로그. */
 @Entity
-@Table(name = "TPRMPP_CMENUL", comment = "공통메뉴로그 — 변경 스냅샷")
+@Table(name = "TPRMPP_CMENUL", comment = "공통메뉴로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -24,8 +24,8 @@ public class CmenumL extends BaseLogEntity {
     @Column(name = "HRK_MNU_ID", length = 10, comment = "상위메뉴ID")
     private String hrkMnuId;
 
-    @Column(name = "SRE_TC", length = 2, comment = "화면구분코드")
-    private String sreTc;
+    @Column(name = "SYS_HRK_MNU_ID", length = 10, comment = "시스템상위메뉴ID")
+    private String sysHrkMnuId;
 
     @Column(name = "MNU_NM", length = 100, comment = "메뉴명")
     private String mnuNm;

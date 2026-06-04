@@ -264,7 +264,7 @@ public class ProjectService {
 
         // Rich Text 필드 XSS 새니타이징 (서버 측 방어)
         request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
-        request.setPrjTgtRngCone(HtmlSanitizer.sanitize(request.getPrjTgtRngCone()));
+        request.setAbusRngCone(HtmlSanitizer.sanitize(request.getAbusRngCone()));
 
         // 엔티티 생성 및 저장
         Bprojm project = request.toEntity();
@@ -368,15 +368,15 @@ public class ProjectService {
 
         // Rich Text 필드 XSS 새니타이징 (서버 측 방어)
         request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
-        request.setPrjTgtRngCone(HtmlSanitizer.sanitize(request.getPrjTgtRngCone()));
+        request.setAbusRngCone(HtmlSanitizer.sanitize(request.getAbusRngCone()));
 
         // 프로젝트 기본 정보 수정 (JPA Dirty Checking으로 자동 반영)
         project.update(new Bprojm.UpdateCommand(
-                request.getPrjNm(), request.getPrjBzTc(), request.getSvnDpmC(), request.getDvmDpmC(),
-                request.getRqmBgAmt(), request.getMplAmt(), request.getSttDtm(), request.getEndDtm(),
-                request.getSvnDpmUsid(), request.getDvmUsid(), request.getSvnDpmDcdUsid(), request.getTlrUsid(),
+                request.getAbusNm(), request.getBzTpC(), request.getSvnDpmC(), request.getDvmDpmC(),
+                request.getTotRqmAmt(), request.getMplAmt(), request.getSttDtm(), request.getEndDtm(),
+                request.getUsid(), request.getDvmUsid(), request.getTlrUsid(), request.getDvmTlrUsid(),
                 request.getEdrtTc(), request.getAbusCone(), request.getCpnSafCone(), request.getAbusNcsCone(),
-                request.getDgogPpoCone(), request.getPlmDes(), request.getPrjTgtRngCone(), request.getMnPrgCone(), request.getHrfPlnCone(),
+                request.getDgogPpoCone(), request.getPlmDes(), request.getAbusRngCone(), request.getMnPrgCone(), request.getHrfPlnCone(),
                 request.getBzDttNm(), request.getSklTpTc(), request.getCstTpTc(), request.getDplYn(),
                 request.getFlfFsgDt(), request.getRprStsTc(), request.getExePttYn(), request.getStsTc(),
                 request.getBseYy(), request.getPrlmHrkOgzCCone(),
@@ -696,9 +696,9 @@ public class ProjectService {
             if (r.getSvnDpmC() != null && !r.getSvnDpmC().isEmpty()) orgCodes.add(r.getSvnDpmC());
             if (r.getDvmUsid() != null && !r.getDvmUsid().isEmpty()) userEnos.add(r.getDvmUsid());
             if (r.getTlrUsid() != null && !r.getTlrUsid().isEmpty()) userEnos.add(r.getTlrUsid());
-            if (r.getSvnDpmUsid() != null && !r.getSvnDpmUsid().isEmpty()) userEnos.add(r.getSvnDpmUsid());
-            if (r.getSvnDpmDcdUsid() != null && !r.getSvnDpmDcdUsid().isEmpty()) userEnos.add(r.getSvnDpmDcdUsid());
-            if (r.getPrjBzTc() != null && !r.getPrjBzTc().isEmpty()) prjTpCdvas.add(r.getPrjBzTc());
+            if (r.getUsid() != null && !r.getUsid().isEmpty()) userEnos.add(r.getUsid());
+            if (r.getDvmTlrUsid() != null && !r.getDvmTlrUsid().isEmpty()) userEnos.add(r.getDvmTlrUsid());
+            if (r.getBzTpC() != null && !r.getBzTpC().isEmpty()) prjTpCdvas.add(r.getBzTpC());
             if (r.getBzDttNm() != null && !r.getBzDttNm().isEmpty()) bzDttCdvas.add(r.getBzDttNm());
             if (r.getSklTpTc() != null && !r.getSklTpTc().isEmpty()) tchnTpCdvas.add(r.getSklTpTc());
             if (r.getCstTpTc() != null && !r.getCstTpTc().isEmpty()) mnUsrCdvas.add(r.getCstTpTc());
@@ -741,9 +741,9 @@ public class ProjectService {
             if (response.getSvnDpmC() != null) response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC()));
             if (response.getDvmUsid() != null) response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
             if (response.getTlrUsid() != null) response.setTlrUsidNm(userNameMap.get(response.getTlrUsid()));
-            if (response.getSvnDpmUsid() != null) response.setSvnDpmUsidNm(userNameMap.get(response.getSvnDpmUsid()));
-            if (response.getSvnDpmDcdUsid() != null) response.setSvnDpmDcdUsidNm(userNameMap.get(response.getSvnDpmDcdUsid()));
-            if (response.getPrjBzTc() != null) response.setPrjBzTcNm(prjTpNameMap.get(response.getPrjBzTc()));
+            if (response.getUsid() != null) response.setUsidNm(userNameMap.get(response.getUsid()));
+            if (response.getDvmTlrUsid() != null) response.setDvmTlrUsidNm(userNameMap.get(response.getDvmTlrUsid()));
+            if (response.getBzTpC() != null) response.setBzTpCNm(prjTpNameMap.get(response.getBzTpC()));
             if (response.getBzDttNm() != null) response.setBzDttNmNm(bzDttNameMap.get(response.getBzDttNm()));
             if (response.getSklTpTc() != null) response.setSklTpTcNm(tchnTpNameMap.get(response.getSklTpTc()));
             if (response.getCstTpTc() != null) response.setCstTpTcNm(mnUsrNameMap.get(response.getCstTpTc()));
@@ -842,29 +842,29 @@ public class ProjectService {
                     .ifPresent(user -> response.setDvmUsidNm(user.getUsrNm()));
         }
 
-        // IT담당팀장 사번 → IT담당팀장명
+        // 주관부서담당팀장 사번 → 주관부서담당팀장명
         if (response.getTlrUsid() != null && !response.getTlrUsid().isEmpty()) {
             cuserIRepository.findById(response.getTlrUsid())
                     .ifPresent(user -> response.setTlrUsidNm(user.getUsrNm()));
         }
 
         // 주관부서담당자 사번 → 주관부서담당자명
-        if (response.getSvnDpmUsid() != null && !response.getSvnDpmUsid().isEmpty()) {
-            cuserIRepository.findById(response.getSvnDpmUsid())
-                    .ifPresent(user -> response.setSvnDpmUsidNm(user.getUsrNm()));
+        if (response.getUsid() != null && !response.getUsid().isEmpty()) {
+            cuserIRepository.findById(response.getUsid())
+                    .ifPresent(user -> response.setUsidNm(user.getUsrNm()));
         }
 
-        // 주관부서담당팀장 사번 → 주관부서담당팀장명
-        if (response.getSvnDpmDcdUsid() != null && !response.getSvnDpmDcdUsid().isEmpty()) {
-            cuserIRepository.findById(response.getSvnDpmDcdUsid())
-                    .ifPresent(user -> response.setSvnDpmDcdUsidNm(user.getUsrNm()));
+        // IT부서담당팀장 사번 → IT부서담당팀장명
+        if (response.getDvmTlrUsid() != null && !response.getDvmTlrUsid().isEmpty()) {
+            cuserIRepository.findById(response.getDvmTlrUsid())
+                    .ifPresent(user -> response.setDvmTlrUsidNm(user.getUsrNm()));
         }
 
         // === 공통코드 코드값 → 코드명 변환 (TPRMPP_CCODEM) ===
 
-        if (response.getPrjBzTc() != null && !response.getPrjBzTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_TP", response.getPrjBzTc(), null)
-                    .ifPresent(code -> response.setPrjBzTcNm(code.getCNm()));
+        if (response.getBzTpC() != null && !response.getBzTpC().isEmpty()) {
+            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_TP", response.getBzTpC(), null)
+                    .ifPresent(code -> response.setBzTpCNm(code.getCNm()));
         }
         if (response.getBzDttNm() != null && !response.getBzDttNm().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate("BZ_DTT", response.getBzDttNm(), null)

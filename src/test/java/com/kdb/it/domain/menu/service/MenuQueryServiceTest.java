@@ -29,7 +29,7 @@ class MenuQueryServiceTest {
     }
 
     private Cmenum node(String id, String parent, String type, int dep, String path) {
-        return Cmenum.builder().mnuId(id).hrkMnuId(parent).sreTc("01").mnuNm(id)
+        return Cmenum.builder().mnuId(id).hrkMnuId(parent).sysHrkMnuId("01").mnuNm(id)
                 .mnuTpC(type).mnuSotSqnSno(10).hidYn("N").mnuDep(dep).whlMnuPth(path).delYn("N").build();
     }
 
@@ -68,7 +68,7 @@ class MenuQueryServiceTest {
 
     @Test
     void dynNode_getsChildrenFromMatchingResolver() {
-        Cmenum dyn = Cmenum.builder().mnuId("MBRD0001").hrkMnuId(null).sreTc("04").mnuNm("게시판")
+        Cmenum dyn = Cmenum.builder().mnuId("MBRD0001").hrkMnuId(null).sysHrkMnuId("04").mnuNm("게시판")
                 .mnuTpC("DYN").mnuSotSqnSno(10).hidYn("N").mnuDep(1).whlMnuPth("/MBRD0001").delYn("N").build();
         given(cmenumRepository.findAllActive()).willReturn(List.of(dyn));
         given(cmenuaRepository.findAllActive()).willReturn(List.of());

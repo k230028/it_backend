@@ -45,12 +45,6 @@ public class Cblbcm extends BaseEntity {
     @Column(name = "NAC_ID", length = 10, comment = "게시물ID")
     private String nacId;
 
-    @Column(name = "NAC_KD_TC", length = 2, comment = "게시물종류구분코드")
-    private String kdC;
-
-    @Column(name = "MRL_PRIT_TC", nullable = false, length = 2, comment = "자료중요도구분코드")
-    private String pritC;
-
     @Column(name = "ANC_YN", nullable = false, length = 1, comment = "공지여부")
     private String ancYn;
 
@@ -88,8 +82,6 @@ public class Cblbcm extends BaseEntity {
      *
      * @param nacNm    제목
      * @param nacCone  본문 HTML (sanitize 완료 값)
-     * @param kdC      종류 코드
-     * @param pritC    중요도 코드
      * @param ancYn    공지여부
      * @param sreYn    화면여부
      * @param bbrC     공개 대상 부서코드
@@ -97,7 +89,7 @@ public class Cblbcm extends BaseEntity {
      * @param endDt    공개 종료일자
      */
     public record UpdateCommand(
-        String nacNm, String nacCone, String kdC, String pritC,
+        String nacNm, String nacCone,
         String ancYn, String sreYn, String bbrC,
         LocalDate sttDt, LocalDate endDt
     ) {}
@@ -113,8 +105,6 @@ public class Cblbcm extends BaseEntity {
     public void update(UpdateCommand cmd) {
         this.nacNm    = cmd.nacNm();
         this.nacCone  = cmd.nacCone();
-        this.kdC      = cmd.kdC();
-        this.pritC    = cmd.pritC();
         this.ancYn    = cmd.ancYn();
         this.sreYn    = cmd.sreYn();
         this.bbrC     = cmd.bbrC();
