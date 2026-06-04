@@ -123,7 +123,7 @@ BaseEntity (추상 클래스)
  ├── Bitemm      (품목)
  ├── Btermm      (단말기)
  ├── Bplanm      (정보기술부문 계획)
- ├── Bproja      (계획-사업 연결)
+ ├── Bplana      (정보기술부문계획 관계)
  ├── Bbugtm      (예산 작업/편성률)
  ├── Basctm      (협의회 심의과제)
  ├── Bchklc      (타당성 검토항목)
@@ -178,7 +178,7 @@ com.kdb.it
 │   │   ├── project/         # 정보화사업 (ProjectController, ProjectService, Bprojm)
 │   │   ├── cost/            # 전산업무비 (CostController, CostService, Bcostm, Btermm)
 │   │   ├── document/        # 문서·검토의견 (GuideDocController, ServiceRequestDocController, ReviewCommentController)
-│   │   ├── plan/            # 정보기술부문 계획 (PlanController, PlanService, Bplanm, Bproja)
+│   │   ├── plan/            # 정보기술부문 계획 (PlanController, PlanService, Bplanm, Bplana)
 │   │   ├── status/          # 예산현황 대시보드 (BudgetStatusController, BudgetStatusService)
 │   │   └── work/            # 예산 작업 (BudgetWorkController, BudgetWorkService, Bbugtm)
 │   ├── council/             # 정보화실무협의회 (CouncilController, 8개 서비스, 9개 Repository)
@@ -207,7 +207,7 @@ common → domain (X)   common → infra  (X)
 | 요구사항정의서 | `ServiceRequestDocController` | `ServiceRequestDocService` | `ServiceRequestDocRepository` | `Brdocm` |
 | 검토의견 | `ReviewCommentController` | `ReviewCommentService` | `BrivgmRepository` | `Brivgm` |
 | 사전협의 검토자 | `ReviewerController` | `ReviewerService` | - | - |
-| 정보기술부문계획 | `PlanController` | `PlanService` | `BplanmRepository`, `BprojaRepository` | `Bplanm`, `Bproja` |
+| 정보기술부문계획 | `PlanController` | `PlanService` | `BplanmRepository`, `BplanaRepository` | `Bplanm`, `Bplana` |
 | 예산현황 | `BudgetStatusController` | `BudgetStatusService` | `BudgetStatusQueryRepository` | - |
 | IT부문 예산 | `ItBudgetController` | `ItBudgetService` | `ItBudgetQueryRepository` + Custom | - |
 | 예산작업 | `BudgetWorkController` | `BudgetWorkService` | `BbugtmRepository` + Custom | `Bbugtm` |
@@ -859,7 +859,7 @@ infra → domain (X, domain 기능 불필요)
 | **budget.project** | Bprojm, Bitemm | ProjectService | ProjectRepository(+Custom) | 정보화사업 및 비목 |
 | **budget.cost** | Bcostm, Btermm | CostService | CostRepository(+Custom) | 전산관리비 및 단말기 |
 | **budget.document** | Bgdocm, Brdocm, Brivgm | GuideDocService, ServiceRequestDocService, ReviewCommentService | GuideDocRepository, ServiceRequestDocRepository, BrivgmRepository | 가이드·요구사항·검토의견 |
-| **budget.plan** | Bplanm, Bproja | PlanService | BplanmRepository, BprojaRepository | 정보기술부문 계획 |
+| **budget.plan** | Bplanm, Bplana | PlanService | BplanmRepository, BplanaRepository | 정보기술부문 계획 |
 | **budget.status** | - (집계) | BudgetStatusService | BudgetStatusQueryRepository | 예산현황 대시보드 |
 | **budget.work** | Bbugtm | BudgetWorkService | BbugtmRepository(+Custom) | 예산 편성률 |
 | **council** | Basctm, Bschdm, Bchklc, Bcmmtm, Bevalm, Bperfm, Bpovwm, Bpqnam, Brsltm | CouncilService(+7개 세부) | 9개 Repository | 정보화실무협의회 |

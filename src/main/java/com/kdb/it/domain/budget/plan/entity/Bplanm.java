@@ -43,8 +43,8 @@ public class Bplanm extends BaseEntity {
     private String reqDocNo;
 
     /** 계획구분 (신규, 조정) */
-    @Column(name = "PLN_TP_C", length = 2, comment = "계획구분 (물리컬럼 PLN_TP_C=계획유형코드)")
-    private String plnTpC;
+    @Column(name = "IT_PTL_PLN_TP_C", length = 2, comment = "계획구분 (물리컬럼 IT_PTL_PLN_TP_C)")
+    private String itPtlPlnTpC;
 
     /** 대상년도 (형식: YYYY) */
     @Column(name = "BSE_YY", length = 4, comment = "대상년도 (물리컬럼 BSE_YY=기준연도)")

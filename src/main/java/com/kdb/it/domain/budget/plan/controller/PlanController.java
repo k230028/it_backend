@@ -71,7 +71,7 @@ public class PlanController {
                         [
                           {
                             "plnMngNo": "PLN-2026-0001",
-                            "plnTp": "신규",
+                            "itPtlPlnTpC": "신규",
                             "plnYy": "2026",
                             "ttlBg": 1500000000,
                             "cptBg": 1000000000,
@@ -97,7 +97,7 @@ public class PlanController {
         @Operation(summary = "계획 상세 조회", description = """
                         계획관리번호로 단건 계획 상세와 저장 시점의 JSON 스냅샷을 조회합니다.
 
-                        - 조회 대상: TPRMPP_BPLANM, TPRMPP_BPROJA
+                        - 조회 대상: TPRMPP_BPLANM, TPRMPP_BPLANA
                         - 스냅샷: 계획 생성 당시 프로젝트 목록과 예산 집계 정보를 JSON 문자열로 보관합니다.
                         - 존재하지 않는 계획관리번호는 서비스 계층에서 404로 처리됩니다.
                         """, responses = @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(implementation = PlanDto.DetailResponse.class))))
@@ -132,7 +132,7 @@ public class PlanController {
                         @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "계획 생성 요청. 대상년도, 계획구분, 프로젝트/전산업무비 관리번호 목록을 전달합니다.", required = true, content = @Content(schema = @Schema(implementation = PlanDto.CreateRequest.class), examples = @ExampleObject(name = "계획 등록 요청 예시", value = """
                                         {
                                           "plnYy": "2026",
-                                          "plnTp": "신규",
+                                          "itPtlPlnTpC": "신규",
                                           "prjMngNos": [
                                             "PRJ-2026-0001",
                                             "PRJ-2026-0002"
@@ -183,10 +183,10 @@ public class PlanController {
          */
         @DeleteMapping("/{plnMngNo}")
         @Operation(summary = "계획 삭제", description = """
-                        계획과 연결 정보화사업 관계를 논리 삭제합니다.
+                        계획과 연결 정보기술부문계획 관계를 논리 삭제합니다.
 
                         - 삭제 방식: DEL_YN='Y'로 변경
-                        - 대상 테이블: TPRMPP_BPLANM, TPRMPP_BPROJA
+                        - 대상 테이블: TPRMPP_BPLANM, TPRMPP_BPLANA
                         - 실제 레코드는 제거하지 않아 이력 추적이 가능합니다.
                         """, responses = @ApiResponse(responseCode = "204", description = "삭제 성공"))
         public ResponseEntity<Void> deletePlan(

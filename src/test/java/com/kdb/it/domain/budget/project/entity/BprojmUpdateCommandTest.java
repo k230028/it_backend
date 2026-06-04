@@ -36,11 +36,11 @@ class BprojmUpdateCommandTest {
 
         project.update(cmd);
 
-        assertThat(project.getPrjNm()).isEqualTo("신규 프로젝트명");
-        assertThat(project.getPrjBzTc()).isEqualTo("신규개발");
+        assertThat(project.getAbusNm()).isEqualTo("신규 프로젝트명");
+        assertThat(project.getBzTpC()).isEqualTo("신규개발");
         assertThat(project.getSvnDpmC()).isEqualTo("주관부서A");
         assertThat(project.getDvmDpmC()).isEqualTo("IT부서B");
-        assertThat(project.getRqmBgAmt()).isEqualByComparingTo(BigDecimal.valueOf(50_000_000));
+        assertThat(project.getTotRqmAmt()).isEqualByComparingTo(BigDecimal.valueOf(50_000_000));
         assertThat(project.getSttDtm()).isEqualTo(LocalDate.of(2026, 1, 1));
         assertThat(project.getEndDtm()).isEqualTo(LocalDate.of(2026, 12, 31));
         assertThat(project.getBseYy()).isEqualTo("2026");

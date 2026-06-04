@@ -76,11 +76,11 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         // 담당자 행번 → 이름 변환용 스칼라 서브쿼리 (JPQL 엔티티명 사용)
         StringExpression svnDpmTlrNm = Expressions.stringTemplate(
-                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.svnDpmDcdUsid);
-        StringExpression svnDpmCgprNm = Expressions.stringTemplate(
-                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.svnDpmUsid);
-        StringExpression itDpmTlrNm = Expressions.stringTemplate(
                 "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.tlrUsid);
+        StringExpression svnDpmCgprNm = Expressions.stringTemplate(
+                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.usid);
+        StringExpression itDpmTlrNm = Expressions.stringTemplate(
+                "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.dvmTlrUsid);
         StringExpression itDpmCgprNm = Expressions.stringTemplate(
                 "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.dvmUsid);
 
@@ -104,9 +104,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         List<Tuple> tuples = queryFactory
                 .select(
-                        p.abusMngNo, p.prjBzTc, p.abusTc, p.prjNm, p.abusCone,
-                        p.prlmHrkOgzCCone, p.svnDpmC, svnOrg.bbrNm, p.svnDpmDcdUsid, svnDpmTlrNm, p.svnDpmUsid, svnDpmCgprNm,
-                        p.dvmDpmC, itOrg.bbrNm, p.tlrUsid, itDpmTlrNm, p.dvmUsid, itDpmCgprNm,
+                        p.abusMngNo, p.bzTpC, p.abusTc, p.abusNm, p.abusCone,
+                        p.prlmHrkOgzCCone, p.svnDpmC, svnOrg.bbrNm, p.tlrUsid, svnDpmTlrNm, p.usid, svnDpmCgprNm,
+                        p.dvmDpmC, itOrg.bbrNm, p.dvmTlrUsid, itDpmTlrNm, p.dvmUsid, itDpmCgprNm,
                         p.exePttYn, p.sttDtm, p.endDtm, p.rprStsTc, rprStsCode.cNm, p.edrtTc,
                         reqDev, reqMach, reqIntan, reqRent, reqTravel, reqService, reqMisc,
                         adjDev, adjMach, adjIntan, adjRent, adjTravel, adjService, adjMisc
@@ -148,9 +148,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         p.lstYn.eq("Y")
                 )
                 .groupBy(
-                        p.abusMngNo, p.sno, p.prjBzTc, p.abusTc, p.prjNm, p.abusCone,
-                        p.prlmHrkOgzCCone, p.svnDpmC, svnOrg.bbrNm, p.svnDpmDcdUsid, p.svnDpmUsid,
-                        p.dvmDpmC, itOrg.bbrNm, p.tlrUsid, p.dvmUsid,
+                        p.abusMngNo, p.sno, p.bzTpC, p.abusTc, p.abusNm, p.abusCone,
+                        p.prlmHrkOgzCCone, p.svnDpmC, svnOrg.bbrNm, p.tlrUsid, p.usid,
+                        p.dvmDpmC, itOrg.bbrNm, p.dvmTlrUsid, p.dvmUsid,
                         p.exePttYn, p.sttDtm, p.endDtm, p.rprStsTc, rprStsCode.cNm, p.edrtTc
                 )
                 .orderBy(p.abusMngNo.asc())
@@ -182,17 +182,17 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
             BigDecimal aTotal = aAsset.add(aCost);
 
             return new BudgetStatusDto.ProjectResponse(
-                    // abusMngNo, prjBzTc, abusTc, prjNm, abusCone
-                    t.get(p.abusMngNo), t.get(p.prjBzTc), t.get(p.abusTc),
-                    t.get(p.prjNm), t.get(p.abusCone),
+                    // abusMngNo, bzTpC, abusTc, abusNm, abusCone
+                    t.get(p.abusMngNo), t.get(p.bzTpC), t.get(p.abusTc),
+                    t.get(p.abusNm), t.get(p.abusCone),
                     // prlmHrkOgzCCone, svnDpmC, svnDpmCNm
                     t.get(p.prlmHrkOgzCCone), t.get(p.svnDpmC), t.get(svnOrg.bbrNm),
-                    // svnDpmDcdUsid, svnDpmDcdUsidNm, svnDpmUsid, svnDpmUsidNm
-                    t.get(p.svnDpmDcdUsid), t.get(svnDpmTlrNm),
-                    t.get(p.svnDpmUsid), t.get(svnDpmCgprNm),
-                    // dvmDpmC, dvmDpmCNm, tlrUsid, tlrUsidNm, dvmUsid, dvmUsidNm
+                    // tlrUsid(주관팀장), tlrUsidNm, usid(주관담당자), usidNm
+                    t.get(p.tlrUsid), t.get(svnDpmTlrNm),
+                    t.get(p.usid), t.get(svnDpmCgprNm),
+                    // dvmDpmC, dvmDpmCNm, dvmTlrUsid(IT팀장), dvmTlrUsidNm, dvmUsid, dvmUsidNm
                     t.get(p.dvmDpmC), t.get(itOrg.bbrNm),
-                    t.get(p.tlrUsid), t.get(itDpmTlrNm),
+                    t.get(p.dvmTlrUsid), t.get(itDpmTlrNm),
                     t.get(p.dvmUsid), t.get(itDpmCgprNm),
                     // exePttYn, sttDt, endDt, rprSts, rprStsNm, edrt
                     t.get(p.exePttYn), t.get(p.sttDtm), t.get(p.endDtm),
@@ -231,26 +231,26 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         String prevYy = String.valueOf(Integer.parseInt(bgYy) - 1);
 
         // 전년도 편성금액: 전년도 BBUGTM DUP_BG를 IOE_C 접두어별 분배 (편성 없으면 0)
-        NumberExpression<BigDecimal> reqRent = caseDupBgByCTp(costCode.cTp, bPrev.bugRqmBgAmt, CTP_RENT);
-        NumberExpression<BigDecimal> reqTravel = caseDupBgByCTp(costCode.cTp, bPrev.bugRqmBgAmt, CTP_TRAVEL);
-        NumberExpression<BigDecimal> reqService = caseDupBgByCTp(costCode.cTp, bPrev.bugRqmBgAmt, CTP_SERVICE);
-        NumberExpression<BigDecimal> reqMisc = caseDupBgByCTp(costCode.cTp, bPrev.bugRqmBgAmt, CTP_MISC);
+        NumberExpression<BigDecimal> reqRent = caseDupBgByCTp(costCode.cTp, bPrev.bgDupAmt, CTP_RENT);
+        NumberExpression<BigDecimal> reqTravel = caseDupBgByCTp(costCode.cTp, bPrev.bgDupAmt, CTP_TRAVEL);
+        NumberExpression<BigDecimal> reqService = caseDupBgByCTp(costCode.cTp, bPrev.bgDupAmt, CTP_SERVICE);
+        NumberExpression<BigDecimal> reqMisc = caseDupBgByCTp(costCode.cTp, bPrev.bgDupAmt, CTP_MISC);
         NumberExpression<BigDecimal> reqTotal = Expressions.numberTemplate(BigDecimal.class,
-                "COALESCE({0}, 0)", bPrev.bugRqmBgAmt);
+                "COALESCE({0}, 0)", bPrev.bgDupAmt);
 
         // 금년도 조정: 금년도 BBUGTM의 DUP_BG를 IOE_C 접두어별 분배
-        NumberExpression<BigDecimal> adjRent = caseDupBgByCTp(costCode.cTp, b.bugRqmBgAmt, CTP_RENT);
-        NumberExpression<BigDecimal> adjTravel = caseDupBgByCTp(costCode.cTp, b.bugRqmBgAmt, CTP_TRAVEL);
-        NumberExpression<BigDecimal> adjService = caseDupBgByCTp(costCode.cTp, b.bugRqmBgAmt, CTP_SERVICE);
-        NumberExpression<BigDecimal> adjMisc = caseDupBgByCTp(costCode.cTp, b.bugRqmBgAmt, CTP_MISC);
+        NumberExpression<BigDecimal> adjRent = caseDupBgByCTp(costCode.cTp, b.bgDupAmt, CTP_RENT);
+        NumberExpression<BigDecimal> adjTravel = caseDupBgByCTp(costCode.cTp, b.bgDupAmt, CTP_TRAVEL);
+        NumberExpression<BigDecimal> adjService = caseDupBgByCTp(costCode.cTp, b.bgDupAmt, CTP_SERVICE);
+        NumberExpression<BigDecimal> adjMisc = caseDupBgByCTp(costCode.cTp, b.bgDupAmt, CTP_MISC);
         NumberExpression<BigDecimal> adjTotal = Expressions.numberTemplate(BigDecimal.class,
-                "COALESCE({0}, 0)", b.bugRqmBgAmt);
+                "COALESCE({0}, 0)", b.bgDupAmt);
 
         List<Tuple> tuples = queryFactory
                 .select(
                         c.costBgNo, c.abusTc, c.bgUntAbusC, c.ioeC, costCode.cdvaNm,
                         c.costSvnDpmC, dpmOrg.bbrNm, c.svnTemC, temOrg.bbrNm,
-                        c.cttNm, c.cttOppNm, c.sectSysUtzYn, c.bgXpTc,
+                        c.cttNm, c.cttOppNm, c.sectSysUtzYn, c.tmnYn,
                         reqRent, reqTravel, reqService, reqMisc, reqTotal,
                         adjRent, adjTravel, adjService, adjMisc, adjTotal
                 )
@@ -299,7 +299,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         return tuples.stream().map(t -> new BudgetStatusDto.CostResponse(
                 t.get(c.costBgNo), t.get(c.abusTc), t.get(c.bgUntAbusC), t.get(c.ioeC), t.get(costCode.cdvaNm),
                 t.get(c.costSvnDpmC), t.get(dpmOrg.bbrNm), t.get(c.svnTemC), t.get(temOrg.bbrNm),
-                t.get(c.cttNm), t.get(c.cttOppNm), t.get(c.sectSysUtzYn), t.get(c.bgXpTc),
+                t.get(c.cttNm), t.get(c.cttOppNm), t.get(c.sectSysUtzYn), t.get(c.tmnYn),
                 nvl(t.get(reqRent)), nvl(t.get(reqTravel)),
                 nvl(t.get(reqService)), nvl(t.get(reqMisc)), nvl(t.get(reqTotal)),
                 nvl(t.get(adjRent)), nvl(t.get(adjTravel)),
@@ -343,7 +343,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         List<Tuple> tuples = queryFactory
                 .select(
-                        p.abusMngNo, p.abusTc, p.prjNm, p.abusCone,
+                        p.abusMngNo, p.abusTc, p.abusNm, p.abusCone,
                         machCur, machQtt, machAmt, machAmtKrw,
                         intanCur, intanQtt, intanAmt, intanAmtKrw
                 )
@@ -365,7 +365,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         p.delYn.eq("N"),
                         p.lstYn.eq("Y")
                 )
-                .groupBy(p.abusMngNo, p.sno, p.abusTc, p.prjNm, p.abusCone)
+                .groupBy(p.abusMngNo, p.sno, p.abusTc, p.abusNm, p.abusCone)
                 .orderBy(p.abusMngNo.asc())
                 .fetch();
 
@@ -382,7 +382,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                     ? iAmt.divide(iQtt, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
             return new BudgetStatusDto.OrdinaryResponse(
-                    t.get(p.abusMngNo), t.get(p.abusTc), t.get(p.prjNm), t.get(p.abusCone),
+                    t.get(p.abusMngNo), t.get(p.abusTc), t.get(p.abusNm), t.get(p.abusCone),
                     t.get(machCur), mQtt, mUnitPrice, mAmt, nvl(t.get(machAmtKrw)),
                     t.get(intanCur), iQtt, iUnitPrice, iAmt, nvl(t.get(intanAmtKrw))
             );
@@ -463,7 +463,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         // 편성액: BBUGTM.dupBgAmt 합계 — 해당 사업의 BITEMM(gclMngNo)을 통해 매핑된 편성예산
         BigDecimal allocatedSum = queryFactory
-                .select(b.bugRqmBgAmt.sum().coalesce(BigDecimal.ZERO))
+                .select(b.bgDupAmt.sum().coalesce(BigDecimal.ZERO))
                 .from(b)
                 .join(i).on(
                         i.gclMngNo.eq(b.pkColNm),
@@ -525,7 +525,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
 
         // 편성액: BBUGTM.dupBgAmt 합계 — BITEMM(gclMngNo)을 통해 매핑된 편성예산
         BigDecimal allocatedSum = queryFactory
-                .select(b.bugRqmBgAmt.sum().coalesce(BigDecimal.ZERO))
+                .select(b.bgDupAmt.sum().coalesce(BigDecimal.ZERO))
                 .from(b)
                 .join(i).on(
                         i.gclMngNo.eq(b.pkColNm),
@@ -590,7 +590,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     private NumberExpression<BigDecimal> sumDupBgByCTp(StringExpression cTp, QBbugtm b, String codeType) {
         return Expressions.numberTemplate(BigDecimal.class,
                 "COALESCE(SUM(CASE WHEN {0} = {1} THEN {2} ELSE 0 END), 0)",
-                cTp, Expressions.constant(codeType), b.bugRqmBgAmt);
+                cTp, Expressions.constant(codeType), b.bgDupAmt);
     }
 
     /**

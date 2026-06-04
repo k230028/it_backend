@@ -123,8 +123,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
             builder.and(bprojm.stsTc.eq(condition.getStsTc()));
         }
         // 프로젝트유형 필터
-        if (condition.getPrjBzTc() != null && !condition.getPrjBzTc().isBlank()) {
-            builder.and(bprojm.prjBzTc.eq(condition.getPrjBzTc()));
+        if (condition.getBzTpC() != null && !condition.getBzTpC().isBlank()) {
+            builder.and(bprojm.bzTpC.eq(condition.getBzTpC()));
         }
         // IT부서 필터
         if (condition.getDvmDpmC() != null && !condition.getDvmDpmC().isBlank()) {

@@ -136,7 +136,7 @@ public class CostDto {
 
         /** 전산업무비유형 */
         @Schema(description = "전산업무비유형", example = "TP01")
-        private String bgXpTc;
+        private String tmnYn;
 
         @Schema(description = "전산업무비구분", example = "DTT01")
         private String abusTc;
@@ -178,7 +178,7 @@ public class CostDto {
                     .costSvnDpmC(this.costSvnDpmC) // 담당부서
                     .svnTemC(this.svnTemC) // 담당팀
                     .bgUntAbusC(this.bgUntAbusC) // 사업코드
-                    .bgXpTc(this.bgXpTc) // 전산업무비유형
+                    .tmnYn(this.tmnYn) // 전산업무비유형
                     .abusTc(this.abusTc) // 전산업무비구분
                     .bseYy(this.bseYy) // 예산연도
                     .cncdRfrNo(this.cncdRfrNo) // 관련전산업무비번호
@@ -272,7 +272,7 @@ public class CostDto {
 
         /** 전산업무비유형 */
         @Schema(description = "전산업무비유형", example = "TP01")
-        private String bgXpTc;
+        private String tmnYn;
 
         @Schema(description = "전산업무비구분", example = "DTT01")
         private String abusTc;
@@ -396,9 +396,9 @@ public class CostDto {
         @Schema(description = "지급주기명")
         private String dfrCleCNm;
 
-        /** 전산업무비유형명: bgXpTc 기준 TPRMPP_CCODEM C_NM */
+        /** 전산업무비유형명: tmnYn 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "전산업무비유형명")
-        private String bgXpTcNm;
+        private String tmnYnNm;
 
         /** 전산업무비구분명: abusTc 기준 TPRMPP_CCODEM C_NM */
         @Schema(description = "전산업무비구분명")
@@ -406,7 +406,7 @@ public class CostDto {
 
         /** 전산업무비유형 */
         @Schema(description = "전산업무비유형", example = "TP01")
-        private String bgXpTc;
+        private String tmnYn;
 
         @Schema(description = "전산업무비구분", example = "DTT01")
         private String abusTc;
@@ -517,7 +517,7 @@ public class CostDto {
                     .costSvnDpmC(entity.getCostSvnDpmC()) // 담당부서
                     .svnTemC(entity.getSvnTemC()) // 담당팀
                     .bgUntAbusC(entity.getBgUntAbusC()) // 사업코드
-                    .bgXpTc(entity.getBgXpTc()) // 전산업무비유형
+                    .tmnYn(entity.getTmnYn()) // 전산업무비유형
                     .abusTc(entity.getAbusTc()) // 전산업무비구분
                     .bseYy(entity.getBseYy()) // 예산연도
                     .cncdRfrNo(entity.getCncdRfrNo()) // 관련전산업무비번호

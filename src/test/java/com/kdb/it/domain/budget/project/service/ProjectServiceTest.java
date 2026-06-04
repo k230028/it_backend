@@ -297,7 +297,7 @@ class ProjectServiceTest {
         void createProject_관리번호자동채번() {
                 // given: 관리번호 미입력
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                                .prjNm("신규 정보화사업")
+                                .abusNm("신규 정보화사업")
                                 .bseYy("2026")
                                 .build();
 
@@ -335,7 +335,7 @@ class ProjectServiceTest {
                                 .willReturn(List.of());
 
                 ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
-                                .prjNm("수정된 사업명")
+                                .abusNm("수정된 사업명")
                                 .build();
 
                 // when
@@ -400,7 +400,7 @@ class ProjectServiceTest {
                                 .willReturn(true);
 
                 ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
-                                .prjNm("수정 시도").build();
+                                .abusNm("수정 시도").build();
 
                 assertThatThrownBy(() -> projectService.updateProject(prjMngNo, request))
                                 .isInstanceOf(IllegalStateException.class)
@@ -445,7 +445,7 @@ class ProjectServiceTest {
                 item.setAmt(java.math.BigDecimal.valueOf(1_000_000));
 
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                                .prjNm("품목포함 사업")
+                                .abusNm("품목포함 사업")
                                 .bseYy("2026")
                                 .items(List.of(item))
                                 .build();
@@ -487,7 +487,7 @@ class ProjectServiceTest {
                 newItem.setAmt(java.math.BigDecimal.valueOf(500_000));
 
                 ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
-                                .prjNm("수정 사업명")
+                                .abusNm("수정 사업명")
                                 .items(List.of(newItem))
                                 .build();
 
@@ -530,7 +530,7 @@ class ProjectServiceTest {
 
                 // 요청에 품목 없음 → 기존 품목 전부 soft-delete
                 ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
-                                .prjNm("수정 사업명")
+                                .abusNm("수정 사업명")
                                 .items(List.of())
                                 .build();
 
@@ -547,9 +547,9 @@ class ProjectServiceTest {
                 String prjMngNo = "PRJ-2026-MANUAL";
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
                                 .abusMngNo(prjMngNo)
-                                .prjNm("수기 관리번호 사업")
+                                .abusNm("수기 관리번호 사업")
                                 .abusCone("<script>alert(1)</script><p>설명</p>")
-                                .prjTgtRngCone("<b>범위</b>")
+                                .abusRngCone("<b>범위</b>")
                                 .build();
                 given(projectRepository.existsByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(false);
 
@@ -564,7 +564,7 @@ class ProjectServiceTest {
         @DisplayName("createProject: 사업연도가 없으면 현재 연도로 채번한다")
         void createProject_사업연도없음_현재연도채번() {
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                                .prjNm("연도 기본값 사업")
+                                .abusNm("연도 기본값 사업")
                                 .build();
                 given(projectRepository.getNextSequenceValue()).willReturn(3L);
 
@@ -616,7 +616,7 @@ class ProjectServiceTest {
                                 .willReturn(List.of(existingItem));
 
                 projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                                .prjNm("수정 사업")
+                                .abusNm("수정 사업")
                                 .items(List.of(changedItem))
                                 .build());
 
@@ -719,9 +719,9 @@ class ProjectServiceTest {
                                 .dvmDpmC("101")
                                 .svnDpmC("102")
                                 .dvmUsid("10001")
-                                .tlrUsid("10002")
-                                .svnDpmUsid("10003")
-                                .svnDpmDcdUsid("10004")
+                                .dvmTlrUsid("10002")
+                                .usid("10003")
+                                .tlrUsid("10004")
                                 .delYn("N")
                                 .build();
                 Cappla cappla = Cappla.builder()
@@ -812,7 +812,7 @@ class ProjectServiceTest {
                                 .willReturn(Optional.of(project));
 
                 assertThatThrownBy(() -> projectService.updateProject("PRJ-2026-0001",
-                                ProjectDto.UpdateRequest.builder().prjNm("수정").build()))
+                                ProjectDto.UpdateRequest.builder().abusNm("수정").build()))
                                 .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -832,7 +832,7 @@ class ProjectServiceTest {
                                 .willReturn(Optional.of(project));
 
                 assertThatThrownBy(() -> projectService.updateProject("PRJ-2026-0001",
-                                ProjectDto.UpdateRequest.builder().prjNm("수정").build()))
+                                ProjectDto.UpdateRequest.builder().abusNm("수정").build()))
                                 .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -871,9 +871,9 @@ class ProjectServiceTest {
                                 .dvmDpmC("101")
                                 .svnDpmC("102")
                                 .dvmUsid("10001")
-                                .tlrUsid("10002")
-                                .svnDpmUsid("10003")
-                                .svnDpmDcdUsid("10004")
+                                .dvmTlrUsid("10002")
+                                .usid("10003")
+                                .tlrUsid("10004")
                                 .delYn("N")
                                 .build();
                 Cappla latest = Cappla.builder()
@@ -918,7 +918,7 @@ class ProjectServiceTest {
                 assertThat(result.get(0).getDvmDpmCNm()).isEqualTo("IT부");
                 assertThat(result.get(0).getSvnDpmCNm()).isEqualTo("현업부");
                 assertThat(result.get(0).getDvmUsidNm()).isEqualTo("IT담당");
-                assertThat(result.get(0).getSvnDpmDcdUsidNm()).isEqualTo("현업팀장");
+                assertThat(result.get(0).getTlrUsidNm()).isEqualTo("현업팀장");
         }
 
         @Test
@@ -997,9 +997,9 @@ class ProjectServiceTest {
         void buildCodeNameMap_cdvas필터와merge람다커버() {
                 // given: 두 개의 프로젝트 (prjTp="A" 중복 → merge lambda 트리거)
                 Bprojm project1 = Bprojm.builder()
-                                .abusMngNo("PRJ-2026-0001").sno(1).delYn("N").prjBzTc("A").build();
+                                .abusMngNo("PRJ-2026-0001").sno(1).delYn("N").bzTpC("A").build();
                 Bprojm project2 = Bprojm.builder()
-                                .abusMngNo("PRJ-2026-0002").sno(2).delYn("N").prjBzTc("A").build();
+                                .abusMngNo("PRJ-2026-0002").sno(2).delYn("N").bzTpC("A").build();
 
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project1, project2));
                 given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
@@ -1020,8 +1020,8 @@ class ProjectServiceTest {
 
                 // then: 두 프로젝트 모두 반환되며 prjTpNm이 "일반사업"으로 설정됨
                 assertThat(result).hasSize(2);
-                assertThat(result.get(0).getPrjBzTcNm()).isEqualTo("일반사업");
-                assertThat(result.get(1).getPrjBzTcNm()).isEqualTo("일반사업");
+                assertThat(result.get(0).getBzTpCNm()).isEqualTo("일반사업");
+                assertThat(result.get(1).getBzTpCNm()).isEqualTo("일반사업");
         }
 
         // ───────────────────────────────────────────────────────
@@ -1100,7 +1100,7 @@ class ProjectServiceTest {
                 // given: 코드 필드가 모두 있는 프로젝트 → buildCodeNameMap 분기 다수 커버
                 Bprojm project = Bprojm.builder()
                                 .abusMngNo("PRJ-2026-0001").sno(1).delYn("N")
-                                .prjBzTc("A").bzDttNm("B1").sklTpTc("C1")
+                                .bzTpC("A").bzDttNm("B1").sklTpTc("C1")
                                 .cstTpTc("D1").rprStsTc("E1").exePttYn("F1").abusTc("G1")
                                 .build();
 
@@ -1128,7 +1128,7 @@ class ProjectServiceTest {
 
                 // then: 프로젝트 1건 반환
                 assertThat(result).hasSize(1);
-                assertThat(result.get(0).getPrjBzTcNm()).isEqualTo("사업유형A");
+                assertThat(result.get(0).getBzTpCNm()).isEqualTo("사업유형A");
                 assertThat(result.get(0).getBzDttNm()).isEqualTo("업무구분B1");
         }
 
@@ -1139,9 +1139,9 @@ class ProjectServiceTest {
                 Bprojm project = Bprojm.builder()
                                 .abusMngNo("PRJ-2026-0009").sno(1).delYn("N")
                                 .dvmDpmC(null).svnDpmC(null)
-                                .dvmUsid(null).tlrUsid(null)
-                                .svnDpmUsid(null).svnDpmDcdUsid(null)
-                                .prjBzTc(null).bzDttNm(null).sklTpTc(null).cstTpTc(null)
+                                .dvmUsid(null).dvmTlrUsid(null)
+                                .usid(null).tlrUsid(null)
+                                .bzTpC(null).bzDttNm(null).sklTpTc(null).cstTpTc(null)
                                 .rprStsTc(null).exePttYn(null).abusTc(null)
                                 .build();
 
@@ -1551,7 +1551,7 @@ class ProjectServiceTest {
                                 .willReturn(false);
 
                 ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
-                                .prjNm("수정 사업명")
+                                .abusNm("수정 사업명")
                                 .items(null) // null → 동기화 건너뜀
                                 .build();
 
@@ -1597,7 +1597,7 @@ class ProjectServiceTest {
 
                 // when
                 projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                                .prjNm("수정").items(List.of(notFoundItem)).build());
+                                .abusNm("수정").items(List.of(notFoundItem)).build());
 
                 // then: processedGclMngNos에 없는 existingItem은 soft-delete
                 assertThat(existingItem.getDelYn()).isEqualTo("Y");
@@ -1612,10 +1612,10 @@ class ProjectServiceTest {
         void createProject_xss새니타이징() {
                 // given
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                                .prjNm("XSS 테스트 사업")
+                                .abusNm("XSS 테스트 사업")
                                 .bseYy("2026")
                                 .abusCone("<script>alert('xss')</script><p>설명</p>")
-                                .prjTgtRngCone("<script>alert('xss2')</script><b>범위</b>")
+                                .abusRngCone("<script>alert('xss2')</script><b>범위</b>")
                                 .build();
                 given(projectRepository.getNextSequenceValue()).willReturn(10L);
 
@@ -1625,7 +1625,7 @@ class ProjectServiceTest {
                 // then: script 태그 제거됨
                 assertThat(result).matches("PRJ-2026-\\d{4}");
                 assertThat(request.getAbusCone()).doesNotContain("<script>");
-                assertThat(request.getPrjTgtRngCone()).doesNotContain("<script>");
+                assertThat(request.getAbusRngCone()).doesNotContain("<script>");
         }
 
         // ───────────────────────────────────────────────────────
@@ -1648,9 +1648,9 @@ class ProjectServiceTest {
                                 .willReturn(List.of());
 
                 ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
-                                .prjNm("XSS 수정 테스트")
+                                .abusNm("XSS 수정 테스트")
                                 .abusCone("<script>alert('xss')</script><p>설명</p>")
-                                .prjTgtRngCone("<script>alert('xss2')</script><b>범위</b>")
+                                .abusRngCone("<script>alert('xss2')</script><b>범위</b>")
                                 .build();
 
                 // when
@@ -1659,7 +1659,7 @@ class ProjectServiceTest {
                 // then
                 assertThat(result).isEqualTo(prjMngNo);
                 assertThat(request.getAbusCone()).doesNotContain("<script>");
-                assertThat(request.getPrjTgtRngCone()).doesNotContain("<script>");
+                assertThat(request.getAbusRngCone()).doesNotContain("<script>");
         }
 
         // ───────────────────────────────────────────────────────
@@ -1673,11 +1673,11 @@ class ProjectServiceTest {
                 String prjMngNo = "PRJ-2026-CODE";
                 Bprojm project = Bprojm.builder()
                                 .abusMngNo(prjMngNo).sno(1)
-                                .prjBzTc("TP01").bzDttNm("BZ01").sklTpTc("TC01")
+                                .bzTpC("TP01").bzDttNm("BZ01").sklTpTc("TC01")
                                 .cstTpTc("MN01").rprStsTc("RS01").exePttYn("PP01").abusTc("PD01")
                                 .dvmDpmC("101").svnDpmC("102")
-                                .dvmUsid("10001").tlrUsid("10002")
-                                .svnDpmUsid("10003").svnDpmDcdUsid("10004")
+                                .dvmUsid("10001").dvmTlrUsid("10002")
+                                .usid("10003").tlrUsid("10004")
                                 .delYn("N").build();
 
                 given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
@@ -1722,7 +1722,7 @@ class ProjectServiceTest {
                 ProjectDto.Response result = projectService.getProject(prjMngNo);
 
                 // then: 코드명 필드 확인
-                assertThat(result.getPrjBzTcNm()).isEqualTo("신규개발");
+                assertThat(result.getBzTpCNm()).isEqualTo("신규개발");
                 assertThat(result.getBzDttNmNm()).isEqualTo("금융");
                 assertThat(result.getSklTpTcNm()).isEqualTo("AI");
                 assertThat(result.getDvmDpmCNm()).isEqualTo("IT부");
@@ -1737,11 +1737,11 @@ class ProjectServiceTest {
                 String prjMngNo = "PRJ-2026-NULLCODES";
                 Bprojm project = Bprojm.builder()
                                 .abusMngNo(prjMngNo).sno(1)
-                                .prjBzTc(null).bzDttNm(null).sklTpTc(null)
+                                .bzTpC(null).bzDttNm(null).sklTpTc(null)
                                 .cstTpTc(null).rprStsTc(null).exePttYn(null).abusTc(null)
                                 .dvmDpmC(null).svnDpmC(null)
-                                .dvmUsid(null).tlrUsid(null)
-                                .svnDpmUsid(null).svnDpmDcdUsid(null)
+                                .dvmUsid(null).dvmTlrUsid(null)
+                                .usid(null).tlrUsid(null)
                                 .delYn("N").build();
 
                 given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
@@ -1983,7 +1983,7 @@ class ProjectServiceTest {
                 item2.setAmt(BigDecimal.valueOf(200_000));
 
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                                .prjNm("다중품목 사업")
+                                .abusNm("다중품목 사업")
                                 .bseYy("2026")
                                 .items(List.of(item1, item2))
                                 .build();
@@ -2023,7 +2023,7 @@ class ProjectServiceTest {
                                 .willReturn(new BigDecimal("1300.0000"));
 
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                                .prjNm("외화 품목 사업")
+                                .abusNm("외화 품목 사업")
                                 .bseYy("2026")
                                 .items(List.of(item))
                                 .build();
@@ -2057,7 +2057,7 @@ class ProjectServiceTest {
                 item.setXcr(null);
 
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                                .prjNm("원화 품목 사업")
+                                .abusNm("원화 품목 사업")
                                 .bseYy("2026")
                                 .items(List.of(item))
                                 .build();
@@ -2121,7 +2121,7 @@ class ProjectServiceTest {
                                 .willReturn(new BigDecimal("1300.0000"));
 
                 ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
-                                .prjNm("외화 품목 사업")
+                                .abusNm("외화 품목 사업")
                                 .bseYy("2026")
                                 .items(List.of(changed))
                                 .build();

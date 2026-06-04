@@ -39,7 +39,7 @@ public class Bpovwm extends BaseEntity {
     @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
-    /** 사업명: BPROJM.PRJ_NM과 동일 필드 (수정 가능) */
+    /** 사업명: BPROJM.ABUS_NM과 동일 필드 (수정 가능) */
     @Column(name = "PRJ_NM", length = 200, comment = "사업명")
     private String prjNm;
 

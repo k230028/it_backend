@@ -33,7 +33,7 @@ public class AdminRouteService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "중복된 화면경로: " + req.getSrePth());
         });
         cmenudRepository.save(Cmenud.builder()
-                .srePth(req.getSrePth()).sreMnuNm(req.getSreMnuNm()).sreTc(req.getSreTc())
+                .srePth(req.getSrePth()).sreMnuNm(req.getSreMnuNm()).sysHrkMnuId(req.getSysHrkMnuId())
                 .useYn(req.getUseYn() == null ? "Y" : req.getUseYn()).rmk(req.getRmk()).delYn("N")
                 .build());
     }
@@ -43,7 +43,7 @@ public class AdminRouteService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "없는 경로: " + req.getSrePth()));
         // Cmenud has no @Setter; rebuild + save (PK srePth unchanged → JPA merge)
         cmenudRepository.save(Cmenud.builder()
-                .srePth(c.getSrePth()).sreMnuNm(req.getSreMnuNm()).sreTc(req.getSreTc())
+                .srePth(c.getSrePth()).sreMnuNm(req.getSreMnuNm()).sysHrkMnuId(req.getSysHrkMnuId())
                 .useYn(req.getUseYn()).rmk(req.getRmk()).delYn("N").build());
     }
 

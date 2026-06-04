@@ -319,11 +319,11 @@ class CouncilServiceTest {
         Bprojm project = Bprojm.builder()
                 .abusMngNo("PRJ-2026-0001")
                 .sno(1)
-                .prjNm("사업마스터명")
+                .abusNm("사업마스터명")
                 .bseYy("2026")
-                .prjBzTc("신규")
+                .bzTpC("신규")
                 .svnDpmC("101")
-                .rqmBgAmt(BigDecimal.valueOf(1000))
+                .totRqmAmt(BigDecimal.valueOf(1000))
                 .sttDtm(LocalDate.of(2026, 1, 1))
                 .endDtm(LocalDate.of(2026, 12, 31))
                 .dvmDpmC("IT")
@@ -337,7 +337,7 @@ class CouncilServiceTest {
 
         assertThat(result).singleElement()
                 .satisfies(item -> {
-                    assertThat(item.prjNm()).isEqualTo("사업개요명");
+                    assertThat(item.abusNm()).isEqualTo("사업개요명");
                     assertThat(item.prjYy()).isEqualTo("2026");
                     assertThat(item.prjTp()).isEqualTo("신규");
                     assertThat(item.prjBg()).isEqualByComparingTo("1000");
@@ -391,12 +391,12 @@ class CouncilServiceTest {
         Bprojm project = Bprojm.builder()
                 .abusMngNo("PRJ-2026-0001")
                 .sno(1)
-                .prjNm("정보화사업")
+                .abusNm("정보화사업")
                 .edrtTc("전결권자")
                 .sttDtm(LocalDate.of(2026, 1, 1))
                 .endDtm(LocalDate.of(2026, 12, 31))
                 .abusNcsCone("필요성")
-                .rqmBgAmt(BigDecimal.valueOf(1000))
+                .totRqmAmt(BigDecimal.valueOf(1000))
                 .abusCone("사업설명")
                 .dgogPpoCone("기대효과")
                 .build();
@@ -405,7 +405,7 @@ class CouncilServiceTest {
 
         CouncilDto.DetailResponse result = councilService.getCouncil(ASCT_ID);
 
-        assertThat(result.prjNm()).isEqualTo("정보화사업");
+        assertThat(result.abusNm()).isEqualTo("정보화사업");
         assertThat(result.edrt()).isEqualTo("전결권자");
         assertThat(result.prjBg()).isEqualByComparingTo("1000");
     }

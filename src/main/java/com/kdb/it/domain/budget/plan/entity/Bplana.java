@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
- * 정보화사업 관계(TPRMPP_BPROJA) 엔티티
+ * 정보기술부문계획 관계(TPRMPP_BPLANA) 엔티티
  *
  * <p>
  * 정보화사업(TPRMPP_BPROJM)과 정보기술부문계획(TPRMPP_BPLANM) 간의
@@ -21,25 +21,25 @@ import lombok.experimental.SuperBuilder;
  *
  * <ul>
  * <li>{@code prjMngNo}: 프로젝트관리번호 (BPROJM의 PK)</li>
- * <li>{@code bzMngNo}: 업무관리번호 (BPLANM의 PLN_MNG_NO)</li>
+ * <li>{@code reqDocNo}: 요청문서번호 (BPLANM의 PLN_MNG_NO에 대응)</li>
  * </ul>
  */
 @Entity
-@Table(name = "TPRMPP_BPROJA", comment = "정보화사업 관계")
-@IdClass(BprojaId.class)
+@Table(name = "TPRMPP_BPLANA", comment = "정보기술부문계획 관계")
+@IdClass(BplanaId.class)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-public class Bproja extends BaseEntity {
+public class Bplana extends BaseEntity {
 
     /** 프로젝트관리번호 (복합 PK의 첫 번째 키) */
     @Id
     @Column(name = "ABUS_MNG_NO", length = 32, comment = "프로젝트관리번호")
     private String prjMngNo;
 
-    /** 업무관리번호 (복합 PK의 두 번째 키, BPLANM의 PLN_MNG_NO에 대응) */
+    /** 요청문서번호 (복합 PK의 두 번째 키, BPLANM의 PLN_MNG_NO에 대응) */
     @Id
-    @Column(name = "DOC_MNG_NO", length = 32, comment = "업무관리번호")
-    private String bzMngNo;
+    @Column(name = "REQ_DOC_NO", length = 32, comment = "요청문서번호")
+    private String reqDocNo;
 }

@@ -42,8 +42,8 @@ public class CouncilDto {
         String prjMngNo,
         /** 프로젝트순번 */
         Integer prjSno,
-        /** 사업명 (BPROJM.PRJ_NM 또는 BPOVWM.PRJ_NM) */
-        String prjNm,
+        /** 사업명 (BPROJM.ABUS_NM 또는 BPOVWM.PRJ_NM) */
+        String abusNm,
         /** 협의회상태 코드 (DRAFT~COMPLETED). 협의회 신청 전이면 null */
         String asctStsC,
         /** 심의유형 (INFO_SYS/INFO_SEC/ETC). 협의회 신청 전이면 null */
@@ -109,8 +109,8 @@ public class CouncilDto {
         String cnrcTm,
         /** 회의장소 */
         String cnrcPlc,
-        /** 사업명 (BPROJM.PRJ_NM) */
-        String prjNm,
+        /** 사업명 (BPROJM.ABUS_NM) */
+        String abusNm,
         /** 전결권자 (BPROJM.EDRT) */
         String edrt,
         /** 사업기간 시작일 (BPROJM.STT_DT) */

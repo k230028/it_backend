@@ -26,8 +26,8 @@ public class BplanmL extends BaseLogEntity {
     @Column(name = "REQ_DOC_NO", length = 32, comment = "계획관리번호")
     private String reqDocNo;
 
-    @Column(name = "PLN_TP_C", length = 16, comment = "계획구분")
-    private String plnTpC;
+    @Column(name = "IT_PTL_PLN_TP_C", length = 16, comment = "계획구분")
+    private String itPtlPlnTpC;
 
     @Column(name = "BSE_YY", length = 4, comment = "대상년도")
     private String bseYy;

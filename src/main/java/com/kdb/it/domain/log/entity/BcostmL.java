@@ -80,8 +80,8 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "BG_UNT_ABUS_C", length = 100, comment = "사업코드")
     private String bgUntAbusC;
 
-    @Column(name = "BG_XP_TC", length = 100, comment = "전산업무비유형")
-    private String bgXpTc;
+    @Column(name = "TMN_YN", length = 100, comment = "단말여부")
+    private String tmnYn;
 
     @Column(name = "ABUS_TC", length = 100, comment = "전산업무비구분")
     private String abusTc;

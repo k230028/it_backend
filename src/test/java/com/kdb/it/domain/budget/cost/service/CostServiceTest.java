@@ -647,7 +647,7 @@ class CostServiceTest {
                 .bgSno(1)
                 .ioeC("101")
                 .costTotXpAmt(BigDecimal.valueOf(1000))
-                .bgXpTc("002")
+                .tmnYn("Y")
                 .abusTc("002")
                 .bseYy("2026")
                 .cncdRfrNo("COST-2025-0001")
@@ -831,7 +831,7 @@ class CostServiceTest {
                 .ioeC("101")
                 .bgUntAbusC("ABUS01")
                 .dfrCleC("DFR01")
-                .bgXpTc("TP01")
+                .tmnYn("Y")
                 .abusTc("PD01")
                 .delYn("N")
                 .build();
@@ -845,7 +845,7 @@ class CostServiceTest {
                 .willReturn(java.util.Optional.of(Ccodem.builder().cNm("남용코드명").build()));
         given(ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE", "DFR01", null))
                 .willReturn(java.util.Optional.of(Ccodem.builder().cNm("납입주기명").build()));
-        given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", "TP01", null))
+        given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", "002", null))
                 .willReturn(java.util.Optional.of(Ccodem.builder().cNm("유형명").build()));
         given(ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", "PD01", null))
                 .willReturn(java.util.Optional.of(Ccodem.builder().cNm("지급구분명").build()));
@@ -856,7 +856,7 @@ class CostServiceTest {
         // Assert: 각 코드명 람다가 실행되어 이름이 설정됨
         assertThat(result.getBgUntAbusCNm()).isEqualTo("남용코드명");
         assertThat(result.getDfrCleCNm()).isEqualTo("납입주기명");
-        assertThat(result.getBgXpTcNm()).isEqualTo("유형명");
+        assertThat(result.getTmnYnNm()).isEqualTo("유형명");
         assertThat(result.getAbusTcNm()).isEqualTo("지급구분명");
     }
 
@@ -1002,7 +1002,7 @@ class CostServiceTest {
                 .ioeC("101")
                 .bgUntAbusC("ABUS01")
                 .dfrCleC("DFR01")
-                .bgXpTc("TP01")
+                .tmnYn("Y")
                 .abusTc("PD01")
                 .bseYy("2026")
                 .delYn("N")
@@ -1018,7 +1018,7 @@ class CostServiceTest {
         given(ccodemRepository.findByCIdWithValidDate("DFR_CLE", null))
                 .willReturn(List.of(Ccodem.builder().cId("DFR_CLE").cdva("DFR01").cNm("매월").build()));
         given(ccodemRepository.findByCIdWithValidDate("IT_MNGC_TP", null))
-                .willReturn(List.of(Ccodem.builder().cId("IT_MNGC_TP").cdva("TP01").cNm("유형A").build()));
+                .willReturn(List.of(Ccodem.builder().cId("IT_MNGC_TP").cdva("002").cNm("유형A").build()));
         given(ccodemRepository.findByCIdWithValidDate("PUL_DTT", null))
                 .willReturn(List.of(Ccodem.builder().cId("PUL_DTT").cdva("PD01").cNm("지급A").build()));
         given(ccodemRepository.findByCIdWithValidDate("IOE", null))
@@ -1031,7 +1031,7 @@ class CostServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getBgUntAbusCNm()).isEqualTo("남용유형");
         assertThat(result.get(0).getDfrCleCNm()).isEqualTo("매월");
-        assertThat(result.get(0).getBgXpTcNm()).isEqualTo("유형A");
+        assertThat(result.get(0).getTmnYnNm()).isEqualTo("유형A");
         assertThat(result.get(0).getAbusTcNm()).isEqualTo("지급A");
         assertThat(result.get(0).getIoeCNm()).isEqualTo("전산임차료");
     }

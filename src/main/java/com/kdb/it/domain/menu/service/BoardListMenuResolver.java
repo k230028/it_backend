@@ -36,7 +36,7 @@ public class BoardListMenuResolver implements MenuChildrenResolver {
         return MenuDto.Node.builder()
                 .mnuId(childMnuId)
                 .hrkMnuId(BOARD_DYN_MNU_ID)
-                .sreTc("04")
+                .sysHrkMnuId("04")
                 .mnuNm(b.getBlbNm())
                 .mnuTpC("LNK")
                 .srePth("/board/" + b.getBlbMngNo())

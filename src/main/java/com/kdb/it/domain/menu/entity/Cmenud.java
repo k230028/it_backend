@@ -27,8 +27,8 @@ public class Cmenud extends BaseEntity {
     @Column(name = "SRE_MNU_NM", length = 100, nullable = false, comment = "화면메뉴명")
     private String sreMnuNm;
 
-    @Column(name = "SRE_TC", length = 2, comment = "화면구분코드")
-    private String sreTc;
+    @Column(name = "SYS_HRK_MNU_ID", length = 10, comment = "시스템상위메뉴ID")
+    private String sysHrkMnuId;
 
     @Column(name = "USE_YN", length = 1, nullable = false, comment = "사용여부")
     private String useYn;
