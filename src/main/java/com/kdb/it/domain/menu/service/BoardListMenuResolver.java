@@ -17,7 +17,6 @@ public class BoardListMenuResolver implements MenuChildrenResolver {
 
     /** 시드의 게시판 DYN 노드 MNU_ID (V20260603_008 시드와 일치해야 함). */
     private static final String BOARD_DYN_MNU_ID = "MBRD0001";
-    private static final String ADMIN_ATH_ID = "ITPAD001";
 
     private final BoardMetaService boardMetaService;
 
@@ -26,9 +25,8 @@ public class BoardListMenuResolver implements MenuChildrenResolver {
 
     @Override
     public List<MenuDto.Node> resolveChildren(List<String> athIds) {
-        boolean isAdmin = athIds != null && athIds.contains(ADMIN_ATH_ID);
+        // 게시판 조회는 인증된 모든 사용자에게 공개되므로 활성 게시판 전체를 노출한다.
         return boardMetaService.getAllActive().stream()
-                .filter(b -> "ALL".equals(b.getInqAthC()) || isAdmin)
                 .map(this::toNode)
                 .collect(Collectors.toList());
     }

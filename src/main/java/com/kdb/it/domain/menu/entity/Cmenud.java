@@ -13,7 +13,7 @@ import lombok.experimental.SuperBuilder;
 
 /** 공통화면상세(라우트 카탈로그). PK는 화면경로(SRE_PTH). */
 @Entity
-@Table(name = "TPRMPP_CMENUD", comment = "공통화면상세 — 라우트 카탈로그")
+@Table(name = "TPRMPP_CMENUD", comment = "공통화면상세")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

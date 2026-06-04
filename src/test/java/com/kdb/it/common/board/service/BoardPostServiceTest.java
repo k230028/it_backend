@@ -42,16 +42,15 @@ class BoardPostServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 공지사항(BLB_TC='001') — 조회는 전체 공개, 등록은 관리자 전용
         publicBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0001").blbNm("공지사항")
-            .inqAthC("ALL").enrAthC("ROLE_ADMIN")
+            .blbMngNo("BLBM-2026-0001").blbNm("공지사항").blbTp("001")
             .repUseYn("N").cmmtUseYn("N")
             .useYn("Y").delYn("N")
             .build();
 
         adminOnlyBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0099").blbNm("내부게시판")
-            .inqAthC("ROLE_ADMIN").enrAthC("ROLE_ADMIN")
+            .blbMngNo("BLBM-2026-0099").blbNm("내부게시판").blbTp("001")
             .useYn("Y").delYn("N")
             .build();
 
@@ -60,14 +59,16 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("관리자가 아닌 사용자는 관리자 전용 게시판 목록을 조회할 수 없다")
-    void searchPosts_nonAdminOnAdminBoard_throwsForbidden() {
+    @DisplayName("일반 사용자도 모든 게시판 게시물 목록을 조회할 수 있다 (조회 전체 공개)")
+    void searchPosts_normalUser_anyBoard_success() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0099", "N"))
             .willReturn(Optional.of(adminOnlyBoard));
+        given(postRepository.searchPosts(any(), any(), anyBoolean()))
+            .willReturn(List.of());
 
-        assertThatThrownBy(() ->
-            service.searchPosts("BLBM-2026-0099", new com.kdb.it.common.board.dto.BoardPostDto.SearchCondition(), normalUser)
-        ).isInstanceOf(CustomGeneralException.class);
+        var result = service.searchPosts(
+            "BLBM-2026-0099", new com.kdb.it.common.board.dto.BoardPostDto.SearchCondition(), normalUser);
+        assertThat(result).isNotNull();
     }
 
     @Test
@@ -87,16 +88,17 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("ROLE_ADMIN 등록 게시판에 일반 사용자가 게시물을 등록하면 예외가 발생한다")
+    @DisplayName("공지사항(BLB_TC='001') 게시판에 일반 사용자가 게시물을 등록하면 예외가 발생한다")
     void createPost_noWritePermission_throwsForbidden() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(publicBoard)); // enrAthC = ROLE_ADMIN
+            .willReturn(Optional.of(publicBoard)); // blbTp = 001 → 관리자만 등록
 
         var req = new com.kdb.it.common.board.dto.BoardPostDto.CreateRequest();
         req.setNacNm("제목");
 
         assertThatThrownBy(() -> service.createPost("BLBM-2026-0001", req, normalUser))
-            .isInstanceOf(CustomGeneralException.class);
+            .isInstanceOf(CustomGeneralException.class)
+            .hasMessageContaining("관리자만");
     }
 
     @Test
@@ -152,7 +154,6 @@ class BoardPostServiceTest {
         var ok = new com.kdb.it.common.board.dto.BoardPostDto.UpdateRequest();
         ok.setNacNm("수정 제목");
         ok.setNacCone("<p>수정</p>");
-        ok.setPritC("PRIT_C_002");
         ok.setAncYn("N");
         ok.setSreYn("Y");
         ok.setBbrC("10002");
@@ -206,8 +207,7 @@ class BoardPostServiceTest {
         verify(postRepository).save(argThat(reply -> reply.getNacGrpLev() == parent.getNacGrpLev() + 1));
 
         Cblbmm noReplyBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0004").blbNm("답변 미지원")
-            .inqAthC("ALL").enrAthC("ALL").repUseYn("N")
+            .blbMngNo("BLBM-2026-0004").blbNm("답변 미지원").blbTp("002").repUseYn("N")
             .useYn("Y").delYn("N")
             .build();
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0004", "N"))
@@ -221,41 +221,18 @@ class BoardPostServiceTest {
     @DisplayName("공개 시작 전 게시물은 일반 사용자 접근을 차단한다")
     void verifyCanReadPost_beforePublishStart_throws() {
         Cblbmm board = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0005").blbNm("자유게시판")
-            .inqAthC("ALL").enrAthC("ALL").repUseYn("Y")
+            .blbMngNo("BLBM-2026-0005").blbNm("자유게시판").blbTp("002").repUseYn("Y")
             .useYn("Y").delYn("N")
             .build();
         Cblbcm hidden = post("NAC-2026-0002", "OTHER");
         hidden.update(new Cblbcm.UpdateCommand(
-            hidden.getNacNm(), hidden.getNacCone(), hidden.getKdC(),
-            hidden.getPritC(), hidden.getAncYn(), "N", hidden.getBbrC(),
+            hidden.getNacNm(), hidden.getNacCone(),
+            hidden.getAncYn(), "N", hidden.getBbrC(),
             LocalDate.now().plusDays(1), null
         ));
 
         assertThatThrownBy(() -> service.verifyCanReadPost(normalUser, hidden, board))
             .isInstanceOf(CustomGeneralException.class);
-    }
-
-    // ── verifyCanReadBoard: 역할 코드 매칭으로 접근 허용 ──
-
-    @Test
-    @DisplayName("역할 코드가 일치하는 사용자는 게시판을 조회할 수 있다")
-    void verifyCanReadBoard_roleMatch_allowed() {
-        // Arrange: inqAthC = ROLE_USER → normalUser(ROLE_USER) 권한 보유
-        Cblbmm roleBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0010").blbNm("역할게시판")
-            .inqAthC("ROLE_USER").enrAthC("ALL")
-            .useYn("Y").delYn("N")
-            .build();
-        // Act & Assert: 예외 없이 통과
-        service.verifyCanReadBoard(normalUser, roleBoard);
-    }
-
-    @Test
-    @DisplayName("관리자는 모든 게시판을 조회할 수 있다")
-    void verifyCanReadBoard_admin_alwaysAllowed() {
-        // Act & Assert: adminUser는 isAdmin() = true → 즉시 return
-        service.verifyCanReadBoard(adminUser, adminOnlyBoard);
     }
 
     // ── verifyCanReadPost: 다양한 날짜/부서 분기 ──
@@ -279,8 +256,8 @@ class BoardPostServiceTest {
         Cblbmm board = writableBoard();
         Cblbcm expiredPost = post("NAC-2026-0011", "OTHER");
         expiredPost.update(new Cblbcm.UpdateCommand(
-            expiredPost.getNacNm(), expiredPost.getNacCone(), expiredPost.getKdC(),
-            expiredPost.getPritC(), expiredPost.getAncYn(), "Y", expiredPost.getBbrC(),
+            expiredPost.getNacNm(), expiredPost.getNacCone(),
+            expiredPost.getAncYn(), "Y", expiredPost.getBbrC(),
             null, LocalDate.now().minusDays(1)
         ));
 
@@ -297,8 +274,8 @@ class BoardPostServiceTest {
         Cblbmm board = writableBoard();
         Cblbcm hiddenPost = post("NAC-2026-0012", "OTHER");
         hiddenPost.update(new Cblbcm.UpdateCommand(
-            hiddenPost.getNacNm(), hiddenPost.getNacCone(), hiddenPost.getKdC(),
-            hiddenPost.getPritC(), hiddenPost.getAncYn(), "N", hiddenPost.getBbrC(),
+            hiddenPost.getNacNm(), hiddenPost.getNacCone(),
+            hiddenPost.getAncYn(), "N", hiddenPost.getBbrC(),
             null, null
         ));
 
@@ -314,8 +291,8 @@ class BoardPostServiceTest {
         Cblbmm board = writableBoard();
         Cblbcm futurePost = post("NAC-2026-0013", "OTHER");
         futurePost.update(new Cblbcm.UpdateCommand(
-            futurePost.getNacNm(), futurePost.getNacCone(), futurePost.getKdC(),
-            futurePost.getPritC(), futurePost.getAncYn(), "N", futurePost.getBbrC(),
+            futurePost.getNacNm(), futurePost.getNacCone(),
+            futurePost.getAncYn(), "N", futurePost.getBbrC(),
             LocalDate.now().plusDays(5), null
         ));
 
@@ -394,7 +371,7 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("createPost: pritC/ancYn/sreYn이 null인 경우 기본값이 적용된다")
+    @DisplayName("createPost: ancYn/sreYn이 null인 경우 기본값이 적용된다")
     void createPost_nullOptions_defaultsApplied() {
         // Arrange
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
@@ -406,7 +383,6 @@ class BoardPostServiceTest {
         req.setNacNm("기본값 테스트");
         req.setNacCone("<p>본문</p>");
         req.setBbrC("10002");
-        req.setPritC(null);    // → 기본값 PRIT_C_001
         req.setAncYn(null); // → 기본값 N
         req.setSreYn(null);    // → 기본값 Y
 
@@ -416,14 +392,13 @@ class BoardPostServiceTest {
         // Assert
         assertThat(result).startsWith("NAC-");
         verify(postRepository).save(argThat(savedPost ->
-            "PRIT_C_001".equals(savedPost.getPritC())
-                && "N".equals(savedPost.getAncYn())
+            "N".equals(savedPost.getAncYn())
                 && "Y".equals(savedPost.getSreYn())
         ));
     }
 
     @Test
-    @DisplayName("createPost: pritC/ancYn/sreYn이 명시된 경우 해당 값이 사용된다")
+    @DisplayName("createPost: ancYn/sreYn이 명시된 경우 해당 값이 사용된다")
     void createPost_explicitOptions_usedAsProvided() {
         // Arrange
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
@@ -435,7 +410,6 @@ class BoardPostServiceTest {
         req.setNacNm("명시값 테스트");
         req.setNacCone("<p>본문</p>");
         req.setBbrC("10002");
-        req.setPritC("PRIT_C_002");
         req.setAncYn("Y");
         req.setSreYn("N");
 
@@ -445,8 +419,7 @@ class BoardPostServiceTest {
         // Assert
         assertThat(result).startsWith("NAC-");
         verify(postRepository).save(argThat(savedPost ->
-            "PRIT_C_002".equals(savedPost.getPritC())
-                && "Y".equals(savedPost.getAncYn())
+            "Y".equals(savedPost.getAncYn())
                 && "N".equals(savedPost.getSreYn())
         ));
     }
@@ -514,8 +487,7 @@ class BoardPostServiceTest {
     void createPost_adminSkipsBbrCValidation() {
         // Arrange: 관리자 전용 등록 게시판
         Cblbmm adminWriteBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0099").blbNm("관리자등록")
-            .inqAthC("ROLE_ADMIN").enrAthC("ROLE_ADMIN")
+            .blbMngNo("BLBM-2026-0099").blbNm("관리자등록").blbTp("001")
             .repUseYn("N").cmmtUseYn("N")
             .useYn("Y").delYn("N")
             .build();
@@ -537,38 +509,11 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("createReply: pritC가 명시된 경우 해당 값이 사용된다")
-    void createReply_explicitPritC_usedAsProvided() {
-        // Arrange
-        Cblbmm board = writableBoard();
-        Cblbcm parent = post("NAC-2026-0050", "USER001");
-        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
-            .willReturn(java.util.Optional.of(board));
-        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0050", "N"))
-            .willReturn(java.util.Optional.of(parent));
-        given(postRepository.getNextSequenceValue()).willReturn(20L);
-
-        var req = new com.kdb.it.common.board.dto.BoardPostDto.ReplyCreateRequest();
-        req.setNacNm("명시 우선순위 답변");
-        req.setNacCone("<p>답변</p>");
-        req.setBbrC("10002");
-        req.setPritC("PRIT_C_003"); // null이 아님 → 그대로 사용
-
-        // Act
-        String result = service.createReply("BLBM-2026-0003", "NAC-2026-0050", req, normalUser);
-
-        // Assert
-        assertThat(result).startsWith("NAC-");
-        verify(postRepository).save(argThat(reply -> "PRIT_C_003".equals(reply.getPritC())));
-    }
-
-    @Test
-    @DisplayName("createReply: 등록 권한이 없는 게시판에서 답변 등록 시 예외가 발생한다")
+    @DisplayName("createReply: 공지사항(BLB_TC='001') 게시판에서 일반 사용자가 답변 등록 시 예외가 발생한다")
     void createReply_noWritePermission_throws() {
-        // Arrange: 답변 지원되지만 ROLE_ADMIN만 등록 가능
+        // Arrange: 답변 지원되지만 공지사항(001) → 관리자만 등록 가능
         Cblbmm adminWriteReplyBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0020").blbNm("관리자답변")
-            .inqAthC("ALL").enrAthC("ROLE_ADMIN")
+            .blbMngNo("BLBM-2026-0020").blbNm("공지답변").blbTp("001")
             .repUseYn("Y").cmmtUseYn("N")
             .useYn("Y").delYn("N")
             .build();
@@ -586,7 +531,7 @@ class BoardPostServiceTest {
         // Act & Assert
         assertThatThrownBy(() -> service.createReply("BLBM-2026-0020", "NAC-2026-0060", req, normalUser))
             .isInstanceOf(CustomGeneralException.class)
-            .hasMessageContaining("등록 권한");
+            .hasMessageContaining("관리자만");
     }
 
     @Test
@@ -608,12 +553,11 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("verifyCanWrite: 역할 코드가 일치하는 사용자는 등록할 수 있다")
+    @DisplayName("verifyCanWrite: 공지사항이 아닌 게시판은 일반 사용자가 등록할 수 있다")
     void verifyCanWrite_roleMatch_allowed() {
-        // Arrange: enrAthC = ROLE_USER → normalUser(ROLE_USER) 허용
+        // Arrange: blbTp = 002 (비공지) → 인증 사용자 등록 허용
         Cblbmm roleWriteBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0030").blbNm("역할등록게시판")
-            .inqAthC("ALL").enrAthC("ROLE_USER")
+            .blbMngNo("BLBM-2026-0030").blbNm("자유게시판").blbTp("002")
             .repUseYn("N").cmmtUseYn("N")
             .useYn("Y").delYn("N")
             .build();
@@ -632,9 +576,9 @@ class BoardPostServiceTest {
     }
 
     private Cblbmm writableBoard() {
+        // 공지사항이 아닌 일반 게시판(BLB_TC='002') — 인증 사용자 전체 등록 가능
         return Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0003").blbNm("자유게시판")
-            .inqAthC("ALL").enrAthC("ALL")
+            .blbMngNo("BLBM-2026-0003").blbNm("자유게시판").blbTp("002")
             .repUseYn("Y").cmmtUseYn("Y")
             .useYn("Y").delYn("N")
             .build();
@@ -646,7 +590,6 @@ class BoardPostServiceTest {
             .blbMngNo("BLBM-2026-0003")
             .nacNm("테스트 게시물")
             .nacCone("<p>본문</p>")
-            .pritC("PRIT_C_001")
             .ancYn("N")
             .sreYn("Y")
             .bbrC("10002")

@@ -52,15 +52,13 @@ class BoardCommentServiceTest {
     @BeforeEach
     void setUp() {
         boardWithComment = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0001").blbNm("자유게시판")
-            .inqAthC("ALL").enrAthC("ALL")
+            .blbMngNo("BLBM-2026-0001").blbNm("자유게시판").blbTp("002")
             .repUseYn("N").cmmtUseYn("Y")
             .useYn("Y").delYn("N")
             .build();
 
         boardNoComment = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0002").blbNm("공지사항")
-            .inqAthC("ALL").enrAthC("ROLE_ADMIN")
+            .blbMngNo("BLBM-2026-0002").blbNm("공지사항").blbTp("001")
             .repUseYn("N").cmmtUseYn("N")
             .useYn("Y").delYn("N")
             .build();

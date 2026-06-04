@@ -109,12 +109,9 @@ class BoardMetaServiceTest {
             .blbMngNo(id)
             .blbNm(name)
             .blbTp("001")
-            .inqAthC("ALL")
-            .enrAthC("ALL")
             .repUseYn("Y")
             .cmmtUseYn("Y")
             .flEsnYn("N")
-            .hrkFxnUseYn("Y")
             .sreSqnNo(1)
             .useYn("Y")
             .delYn("N")
@@ -125,12 +122,9 @@ class BoardMetaServiceTest {
         BoardMetaDto.CreateRequest request = new BoardMetaDto.CreateRequest();
         request.setBlbTp("001");
         request.setBlbNm("공지사항");
-        request.setInqAthC("ALL");
-        request.setEnrAthC("ALL");
         request.setRepUseYn("Y");
         request.setCmmtUseYn("Y");
         request.setFlEsnYn("N");
-        request.setHrkFxnUseYn("Y");
         request.setSreSqnNo(1);
         return request;
     }
@@ -138,12 +132,9 @@ class BoardMetaServiceTest {
     private static BoardMetaDto.UpdateRequest updateRequest(String name) {
         BoardMetaDto.UpdateRequest request = new BoardMetaDto.UpdateRequest();
         request.setBlbNm(name);
-        request.setInqAthC("ALL");
-        request.setEnrAthC("ALL");
         request.setRepUseYn("Y");
         request.setCmmtUseYn("Y");
         request.setFlEsnYn("N");
-        request.setHrkFxnUseYn("Y");
         request.setSreSqnNo(2);
         request.setUseYn("Y");
         return request;

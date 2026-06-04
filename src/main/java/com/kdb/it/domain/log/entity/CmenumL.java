@@ -11,7 +11,7 @@ import lombok.experimental.SuperBuilder;
 
 /** 공통메뉴기본(Cmenum) 변경 스냅샷 로그. */
 @Entity
-@Table(name = "TPRMPP_CMENUL", comment = "공통메뉴로그 — 변경 스냅샷")
+@Table(name = "TPRMPP_CMENUL", comment = "공통메뉴로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

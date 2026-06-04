@@ -17,7 +17,7 @@ import lombok.experimental.SuperBuilder;
 /** 공통메뉴기본(메뉴 마스터). 변경 시 CmenumL로 자동 스냅샷 로깅(@LogTarget). */
 @LogTarget(entity = CmenumL.class)
 @Entity
-@Table(name = "TPRMPP_CMENUM", comment = "공통메뉴기본 — 메뉴 마스터")
+@Table(name = "TPRMPP_CMENUM", comment = "공통메뉴기본")
 @Getter
 @Setter
 @SuperBuilder

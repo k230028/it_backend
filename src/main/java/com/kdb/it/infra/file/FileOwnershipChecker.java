@@ -1,8 +1,6 @@
 package com.kdb.it.infra.file;
 
 import com.kdb.it.common.board.entity.Cblbcm;
-import com.kdb.it.common.board.entity.Cblbmm;
-import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
@@ -28,7 +26,6 @@ import java.time.LocalDate;
 public class FileOwnershipChecker {
 
     private final FileRepository fileRepository;
-    private final BoardMetaRepository boardMetaRepository;
     private final BoardPostRepository boardPostRepository;
 
     /**
@@ -67,7 +64,8 @@ public class FileOwnershipChecker {
     /**
      * 공통게시판 파일 접근 권한 검증
      *
-     * <p>게시판 조회권한 및 게시물 공개 여부(화면여부·공개기간)를 확인합니다.
+     * <p>게시판 조회는 인증된 모든 사용자에게 공개되므로 게시판 단위 권한은 검증하지 않으며,
+     * 게시물 공개 여부(화면여부·공개기간)만 확인합니다.
      * 관리자는 모든 파일에 접근 가능합니다.</p>
      */
     private void verifyBoardFileAccess(Cfilem file, CustomUserDetails user) {
@@ -76,16 +74,6 @@ public class FileOwnershipChecker {
         String nacMngNo = file.getPkCone();
         Cblbcm post = boardPostRepository.findByNacMngNoAndDelYn(nacMngNo, "N")
                 .orElseThrow(() -> new CustomGeneralException("첨부파일의 게시물을 찾을 수 없습니다."));
-
-        Cblbmm board = boardMetaRepository.findByBlbMngNoAndDelYn(post.getBlbMngNo(), "N")
-                .orElseThrow(() -> new CustomGeneralException("첨부파일의 게시판을 찾을 수 없습니다."));
-
-        boolean boardOk = "ALL".equals(board.getInqAthC())
-                || user.getAuthorities().stream()
-                       .anyMatch(a -> a.getAuthority().equals(board.getInqAthC()));
-        if (!boardOk) {
-            throw new CustomGeneralException("파일 다운로드 권한이 없습니다.");
-        }
 
         LocalDate today = LocalDate.now();
         boolean postOk = "Y".equals(post.getSreYn())
