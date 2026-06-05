@@ -26,10 +26,15 @@ public class MenuQueryService {
 
     private final CmenumRepository cmenumRepository;
     private final CmenuaRepository cmenuaRepository;
-    /** Spring이 모든 MenuChildrenResolver 빈을 주입(없으면 빈 리스트). Plan 2에서 게시판 resolver 등록. */
+    /** Spring이 모든 MenuChildrenResolver 빈을 주입한다. DYN 메뉴는 resolver가 자식 노드를 동적으로 생성한다. */
     private final List<MenuChildrenResolver> resolvers;
 
-    /** 사용자용: ROLE 필터 + HID_YN='N' + 빈 GRP/DYN 가지치기. */
+    /**
+     * 사용자용 메뉴 트리를 조회한다.
+     *
+     * @param athIds JWT 클레임에서 복원한 자격등급 ID 목록. null이면 공개 메뉴만 반환한다.
+     * @return 숨김 메뉴와 권한 불일치 메뉴를 제거하고, 빈 GRP/DYN 노드를 가지치기한 트리
+     */
     public List<MenuDto.Node> getMenuTree(List<String> athIds) {
         List<Cmenum> all = cmenumRepository.findAllActive();
         Map<String, Set<String>> athByMenu = athByMenu();
@@ -93,7 +98,7 @@ public class MenuQueryService {
         return resolvers.stream()
                 .filter(r -> r.mnuId().equals(mnuId))
                 .findFirst()
-                // resolver가 불변 리스트를 반환해도 이후 정렬/가지치기에서 in-place 변형이 가능하도록 복사.
+                // resolver가 불변 리스트를 반환해도 이후 정렬/가지치기에서 제자리 변형이 가능하도록 복사한다.
                 .map(r -> new ArrayList<>(r.resolveChildren(athIds)))
                 .map(list -> (List<MenuDto.Node>) list)
                 .orElseGet(ArrayList::new);

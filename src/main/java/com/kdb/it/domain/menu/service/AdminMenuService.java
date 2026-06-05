@@ -27,6 +27,13 @@ public class AdminMenuService {
     private final CmenuaRepository cmenuaRepository;
     private final CmenudRepository cmenudRepository;
 
+    /**
+     * 메뉴를 생성하고 권한 매핑을 저장한다.
+     *
+     * @param req 메뉴명, 유형, 부모, 화면 경로, 권한 목록
+     * @return 신규 메뉴 ID
+     * @throws ResponseStatusException 메뉴 유형/경로가 유효하지 않거나 깊이가 3단을 초과하는 경우
+     */
     public String create(MenuDto.UpsertRequest req) {
         validateTypePath(req.getMnuTpC(), req.getSrePth());
         String mnuId = cmenumRepository.nextMnuId();
@@ -51,6 +58,13 @@ public class AdminMenuService {
         return mnuId;
     }
 
+    /**
+     * 메뉴 기본 정보와 권한 매핑을 수정한다.
+     *
+     * @param mnuId 수정할 메뉴 ID
+     * @param req 변경할 메뉴 속성
+     * @throws ResponseStatusException 메뉴가 없거나 LNK/GRP/DYN 경로 규칙을 위반하는 경우
+     */
     public void update(String mnuId, MenuDto.UpsertRequest req) {
         validateTypePath(req.getMnuTpC(), req.getSrePth());
         Cmenum menu = load(mnuId);
@@ -59,10 +73,16 @@ public class AdminMenuService {
         menu.setMnuTpC(req.getMnuTpC());
         menu.setSrePth(req.getSrePth());
         menu.setHidYn(req.getHidYn() == null ? "N" : req.getHidYn());
-        // dirty checking flushes; @LogTarget snapshots automatically on @PreUpdate
+        // JPA dirty checking으로 flush되며, @LogTarget 스냅샷은 @PreUpdate에서 자동 생성된다.
         replaceRoles(mnuId, req.getAthIds());
     }
 
+    /**
+     * 하위 메뉴가 없는 메뉴와 권한 매핑을 Soft Delete 처리한다.
+     *
+     * @param mnuId 삭제할 메뉴 ID
+     * @throws ResponseStatusException 메뉴가 없거나 활성 하위 메뉴가 남아 있는 경우
+     */
     public void delete(String mnuId) {
         Cmenum menu = load(mnuId);
         if (cmenumRepository.countActiveChildren(mnuId) > 0) {
@@ -72,6 +92,12 @@ public class AdminMenuService {
         for (Cmenua a : cmenuaRepository.findActiveByMnuId(mnuId)) a.delete();
     }
 
+    /**
+     * 같은 부모 아래 메뉴 표시 순서를 재배치한다.
+     *
+     * @param orderedMnuIds 화면에서 확정한 메뉴 ID 순서
+     * @throws ResponseStatusException 목록에 존재하지 않는 메뉴 ID가 포함된 경우
+     */
     public void reorder(List<String> orderedMnuIds) {
         int sort = SORT_STEP;
         for (String id : orderedMnuIds) {
@@ -80,6 +106,13 @@ public class AdminMenuService {
         }
     }
 
+    /**
+     * 메뉴를 새 부모 아래로 이동하고 하위 트리의 전체 경로와 깊이를 재계산한다.
+     *
+     * @param mnuId 이동할 메뉴 ID
+     * @param newHrkMnuId 새 부모 메뉴 ID. null이면 루트로 이동한다.
+     * @throws ResponseStatusException 순환 참조가 발생하거나 이동 후 깊이가 3단을 초과하는 경우
+     */
     public void move(String mnuId, String newHrkMnuId) {
         Cmenum target = load(mnuId);
         String oldPrefix = target.getWhlMnuPth();

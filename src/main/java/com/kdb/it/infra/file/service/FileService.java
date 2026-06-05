@@ -193,7 +193,7 @@ public class FileService {
     /**
      * 파일 단건 조회
      *
-     * @param flMngNo 파일관리번호 (예: FL_00000001)
+     * @param flMpnId 파일매핑ID (예: FL_00000001)
      * @return 파일 조회 응답 DTO
      * @throws CustomGeneralException 파일이 존재하지 않는 경우
      */
@@ -280,10 +280,10 @@ public class FileService {
      *
      * <p>
      * [재쿼리 회피 이유]<br>
-     * 수동 부여된 ID({@code flMngNo})로 {@code save()}를 호출할 때
+     * 수동 부여된 ID({@code flMpnId})로 {@code save()}를 호출할 때
      * Spring Data JPA는 내부적으로 {@code merge()} 세만틱으로 동작해
      * INSERT가 트랜잭션 커밋 전까지 지연될 수 있습니다.
-     * 이 상태에서 동일 트랜잭션 내 {@code findByFlMngNoAndDelYn(...)} 같은
+     * 이 상태에서 동일 트랜잭션 내 {@code findByFlMpnIdAndDelYn(...)} 같은
      * derived 쿼리가 바로 실행되면 flush가 보장되지 않아
      * "존재하지 않는 파일입니다. 파일관리번호: FL_xxxxxxxx" 오류가 발생합니다.
      * 본 메서드는 저장된 엔티티를 그대로 반환하여
@@ -421,9 +421,9 @@ public class FileService {
      * 파일 교체가 필요한 경우 삭제 후 재업로드를 사용하세요.
      * </p>
      *
-     * @param flMngNo 수정할 파일관리번호
+     * @param flMpnId 수정할 파일매핑ID
      * @param request 수정 요청 DTO (orcPkVl, orcDtt)
-     * @return 수정된 파일관리번호
+     * @return 수정된 파일매핑ID
      * @throws CustomGeneralException 파일이 존재하지 않는 경우
      */
     @Transactional
@@ -448,7 +448,7 @@ public class FileService {
      * (물리 파일은 별도 배치 프로세스로 정리 권장)
      * </p>
      *
-     * @param flMngNo 삭제할 파일관리번호
+     * @param flMpnId 삭제할 파일매핑ID
      * @throws CustomGeneralException 파일이 존재하지 않는 경우
      */
     @Transactional
@@ -469,8 +469,8 @@ public class FileService {
      * 삭제할 파일이 없어도 예외 없이 정상 처리됩니다.
      * </p>
      *
-     * @param orcDtt  원본구분 (예: 요구사항정의서)
-     * @param orcPkVl 원본PK값 (예: PRJ-2026-0001)
+     * @param pkColNm 주식별자컬럼명 (예: 요구사항정의서)
+     * @param pkCone  주식별자내용 (예: PRJ-2026-0001)
      * @return 논리 삭제된 파일 수
      */
     @Transactional
@@ -496,7 +496,7 @@ public class FileService {
      * 헤더를 설정하여 다운로드 처리합니다.
      * </p>
      *
-     * @param flMngNo 다운로드할 파일관리번호
+     * @param flMpnId 다운로드할 파일매핑ID
      * @return 파일 Resource (스트림으로 클라이언트에 전송)
      * @throws CustomGeneralException 파일이 존재하지 않거나 디스크에서 찾을 수 없는 경우
      */

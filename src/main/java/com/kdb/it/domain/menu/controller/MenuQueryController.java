@@ -21,6 +21,12 @@ public class MenuQueryController {
 
     private final MenuQueryService menuQueryService;
 
+    /**
+     * 현재 인증 사용자의 자격등급으로 필터링된 메뉴 트리를 조회한다.
+     *
+     * @param user JWT에서 복원된 사용자 정보. 비로그인 요청이면 빈 권한 목록으로 공개 메뉴만 조회한다.
+     * @return 사이드바와 Breadcrumb에서 함께 사용하는 메뉴 노드 목록
+     */
     @GetMapping
     public ResponseEntity<List<MenuDto.Node>> getMenus(
             @AuthenticationPrincipal CustomUserDetails user) {

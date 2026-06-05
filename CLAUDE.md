@@ -51,6 +51,7 @@ src/main/java/com/kdb/it/
 │   ├── budget/    - 예산 관리 (it, project, cost, document, plan, status, work)
 │   ├── council/   - 정보화실무협의회
 │   ├── log/       - 변경 로그 (BaseLogEntity, *L 엔티티)
+│   ├── menu/      - DB 기반 메뉴 트리, 라우트 카탈로그, 권한 매핑
 │   ├── cdp/       - 경력개발
 │   ├── audit/     - 감사/이력
 │   └── entity/    - BaseEntity
@@ -225,6 +226,13 @@ private static LocalDateTime toLdt(Object v) {
 
 직접 `(String) r[3]`, `(Timestamp) r[4]` 캐스트는 금지. QueryDSL/JPQL은 자동 매핑되므로 본 규칙은
 네이티브 쿼리 한정.
+
+### 5.5.5 DB 기반 메뉴 트리 규칙
+- 사용자 메뉴는 `MenuQueryService.getMenuTree()`가 `Cmenum`/`Cmenua`를 기준으로 권한 필터링하고, 프론트는 `useMenu()` 응답을 사이드바와 Breadcrumb의 단일 소스로 사용합니다.
+- 메뉴 유형은 `LNK`, `GRP`, `DYN`만 허용합니다. `LNK`는 `Cmenud` 라우트 카탈로그에 등록된 `srePth`가 필수이고, `GRP`/`DYN`은 화면 경로를 가질 수 없습니다.
+- 메뉴 깊이는 최대 3단입니다. 이동 시 `AdminMenuService.move()`가 `WHL_MNU_PTH`와 `MNU_DEP`를 하위 트리까지 재계산합니다.
+- `DYN` 메뉴의 자식은 `MenuChildrenResolver` 구현체가 생성합니다. 현재 게시판 목록은 `BoardListMenuResolver`가 권한 필터링된 자식 노드를 제공합니다.
+- 프론트 메뉴 숨김은 UX 보조입니다. 최종 보안 경계는 백엔드 API 권한(`SecurityConfig`, `@PreAuthorize`, 서비스 권한 검증)입니다.
 
 ### 5.6 인증 및 보안 (전사 SoT)
 

@@ -95,7 +95,7 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "BZ_DTT_NM", length = 32, comment = "업무구분")
     private String bzDttNm;
 
-    @Column(name = "IT_PTL_SKL_TP_TC", length = 2, comment = "기술유형")
+    @Column(name = "IT_PTL_TCHN_TP_TC", length = 2, comment = "IT포탈기술유형구분코드")
     private String sklTpTc;
 
     @Column(name = "CST_TP_TC", length = 32, comment = "주요사용자")

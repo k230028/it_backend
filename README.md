@@ -16,9 +16,10 @@
   - Tiptap 에디터 변수 토큰 시스템
   - 실시간 알림 (인앱, Phase 2 예정: 이메일/SMS/알림톡)
   - 실시간 로그 모니터링(관리자용)
+  - DB 기반 메뉴 트리 및 라우트 카탈로그 관리
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
-- **소스 코드**: 271개 메인 Java 파일, 92개 테스트 파일, 63개 JPA 엔티티(`@Entity` 기준)
+- **소스 코드**: 291개 메인 Java 파일, 96개 테스트 파일, 63개 JPA 엔티티(`@Entity` 기준)
 
 ## 2. 기술 스택
 
@@ -32,7 +33,7 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 92개 테스트 파일 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 96개 테스트 파일 |
 
 ## 2.5 빠른 시작 (Quick Start)
 
@@ -711,10 +712,12 @@ public class Bprojm extends BaseEntity { ... }
 | **Gemini AI** | POST | `/api/gemini/generate` | 텍스트 생성 (파일 첨부 가능) | **관리자** |
 | **알림** | GET/PATCH/DELETE | `/api/notifications/**` | 알림 목록/읽음/삭제 (본인 데이터만) | 일반 |
 | **Tiptap 변수** | GET/POST | `/api/tiptap-variables/**` | 변수 카탈로그, 토큰 해석 | 일반 |
+| **메뉴 조회** | GET | `/api/menus` | 사용자 자격등급 기준 사이드바·Breadcrumb 메뉴 트리 | 일반 |
 | **공통코드** | GET/POST/PUT/DELETE | `/api/ccodem/**` | 코드 조회 및 CRUD (캐싱) | 일반 |
 | **사용자** | GET | `/api/users/**` | 사용자/조직 조회 | 일반 |
 | **로그인 이력** | GET | `/api/login-history/**` | 본인 이력 조회 (최대 50건) | 일반 |
 | **관리자** | GET/POST/PUT/DELETE | `/api/admin/**` | 시스템 설정, 로그 조회, 사용자/코드 관리 | **관리자** |
+| **관리자 메뉴** | GET/POST/PUT/PATCH/DELETE | `/api/admin/menus/**`, `/api/admin/routes/**` | 메뉴 트리, 권한 매핑, 라우트 카탈로그 관리 | **관리자** |
 | **실시간 로그** | GET | `/api/admin/realtime-logs` | 통합 변경 로그 스냅샷, 최근 5분/30분 집계 | **관리자** |
 | **게시판 관리** | GET/POST/PUT/DELETE | `/api/admin/boards/meta/**` | 게시판 메타 생성/수정/삭제 | **관리자** |
 | **계획 관리** | GET/POST | `/api/plans/**` | 정보기술부문 계획 CRUD | **관리자** |
@@ -990,7 +993,8 @@ public class Bnewent extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
-| **2026-06-01** | README.md 현행화: (1) 소스 통계 확정(271개 메인 Java, 92개 테스트, 63개 @Entity), (2) 실시간 로그 모니터링 섹션 신규 추가(§5, `common/admin/realtime`, RealtimeLogController, V_ITPAPP_LOG_FEED View, 커서 페이징, 테이블·변경유형 필터, 집계 정보), (3) 알림·Tiptap 변수 섹션을 §6으로 이동, (4) 로그 체계 섹션을 §7로 이동, (5) 모듈 패키지 구조에 `common/notification`, `common/admin/realtime` 명시 |
+| **2026-06-05** | README.md 현행화: 소스 통계(291개 메인 Java, 96개 테스트, 63개 @Entity)와 DB 기반 메뉴 모듈(`domain/menu`, `/api/menus`, `/api/admin/menus`, `/api/admin/routes`) 반영 |
+| **2026-06-01** | README.md 현행화: (1) 소스 통계 확정(271개 메인 Java, 92개 테스트, 63개 @Entity), (2) 실시간 로그 모니터링 섹션 신규 추가(§5, `common/admin/realtime`, RealtimeLogController, V_ITPAPP_LOG_FEED View, 커서 페이징, 테이블·변경유형 필터, 집계 정보), (3) 알림·Tiptap 변수 섹션을 §6으로 이동, (4) 로그 체계 섹션을 §7으로 이동, (5) 모듈 패키지 구조에 `common/notification`, `common/admin/realtime` 명시 |
 | **2026-05-29** | README.md 현행화: 소스 코드 통계 정정(266 Java 파일, 84 테스트, 59 엔티티), IT부문 예산(`ItBudgetController`/`ItBudgetService`) 도메인 추가, 사전협의 검토자(`ReviewerController`) API 추가 |
 | **2026-05-26** | README.md 전체 분석 및 업데이트: 소스 코드 통계(257 Java 파일, 84 테스트, 61 엔티티) 추가, 개발자 가이드 섹션(신규 기능 패턴, 테스트 의무, 보안 체크리스트) 신규 작성, 28개 컨트롤러 API 현행화 |
 | **2026-05-22** | 알림 시스템(Notification) 및 Tiptap 변수 시스템 문서화: `common/notification` 모듈(Cinfmm, NotificationService, NotificationDispatcher, @TransactionalEventListener 패턴), `common/system/tiptap` 모듈(TiptapVariableService, TiptapVariableController, 토큰 형식, 금액 포맷팅) 상세 기술 |

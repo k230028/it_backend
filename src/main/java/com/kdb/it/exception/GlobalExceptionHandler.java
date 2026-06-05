@@ -118,8 +118,35 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException e) {
+        // 클라이언트 연결 끊김이 HttpMessageNotWritableException 등으로 래핑되어 들어오면
+        // RuntimeException 핸들러가 먼저 매칭되므로, cause 체인을 검사해 조용히 처리한다.
+        // (응답을 다시 쓰면 끊긴 연결에 2차 IOException이 발생하므로 본문을 생략한다.)
+        if (isClientDisconnect(e)) {
+            log.debug("클라이언트 연결이 끊어졌습니다: {}", e.getMessage());
+            return null;
+        }
         log.warn("런타임 예외 발생: {}", e.getMessage(), e);
         return buildErrorResponse(HttpStatus.BAD_REQUEST, "요청을 처리할 수 없습니다.");
+    }
+
+    /**
+     * cause 체인에 클라이언트 연결 끊김(다운로드 중단, 탭 닫기 등)이 있는지 판별합니다.
+     *
+     * <p>{@link AsyncRequestNotUsableException} 또는 Tomcat {@code ClientAbortException}이
+     * 원인으로 포함되면 정상적인 클라이언트 취소로 간주합니다. Tomcat 클래스에 대한 컴파일
+     * 의존을 피하기 위해 단순 클래스명으로 비교합니다.</p>
+     *
+     * @param e 검사 대상 예외
+     * @return 연결 끊김으로 판단되면 {@code true}
+     */
+    private boolean isClientDisconnect(Throwable e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause instanceof AsyncRequestNotUsableException
+                    || "ClientAbortException".equals(cause.getClass().getSimpleName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

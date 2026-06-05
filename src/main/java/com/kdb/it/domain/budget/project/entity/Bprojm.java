@@ -148,7 +148,7 @@ public class Bprojm extends BaseEntity {
     private String bzDttNm;
 
     /** 기술유형: 사업에 적용되는 기술 분류 (예: 웹, 앱, AI, 빅데이터) */
-    @Column(name = "IT_PTL_SKL_TP_TC", length = 2, comment = "기술유형 (물리컬럼 IT_PTL_SKL_TP_TC=기술유형구분코드)")
+    @Column(name = "IT_PTL_TCHN_TP_TC", length = 2, comment = "IT포탈기술유형구분코드")
     private String sklTpTc;
 
     /** 주요사용자: 시스템의 주요 사용자 그룹 (예: 내부직원, 고객, 전체) */
