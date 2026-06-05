@@ -12,7 +12,7 @@ import java.time.LocalDate;
 /**
  * 게시물 엔티티 — TPRMPP_CBLBCM
  *
- * <p>답변글 트리는 NAC_ID / GRP_SQN_SNO / NAC_LEV_MNG_SNO 3컬럼으로 표현한다.
+ * <p>답변글 트리는 NAC_UNQ_ID / GRP_SQN_SNO / NAC_LEV_MNG_SNO 3컬럼으로 표현한다.
  * 변경 시 {@link CblbcmL}에 이력이 자동 적재된다.</p>
  */
 @LogTarget(entity = CblbcmL.class)
@@ -42,8 +42,8 @@ public class Cblbcm extends BaseEntity {
     @Column(name = "NAC_INQ_NBR", nullable = false, comment = "게시물조회수")
     private Integer nacInqNbr;
 
-    @Column(name = "NAC_ID", length = 10, comment = "게시물ID")
-    private String nacId;
+    @Column(name = "NAC_UNQ_ID", length = 16, comment = "게시물고유ID")
+    private String nacUnqId;
 
     @Column(name = "ANC_YN", nullable = false, length = 1, comment = "공지여부")
     private String ancYn;
@@ -125,7 +125,7 @@ public class Cblbcm extends BaseEntity {
 
     /** 그룹 정보 설정 — 원글 등록 시 */
     public void initGroupAsRoot() {
-        this.nacId     = this.nacMngNo;
+        this.nacUnqId  = this.nacMngNo;
         this.nacGrpSqn = 0;
         this.nacGrpLev = 0;
     }
@@ -133,13 +133,13 @@ public class Cblbcm extends BaseEntity {
     /**
      * 그룹 정보 설정 — 답변글 등록 시
      *
-     * @param parentGrpNo  부모의 NAC_ID (그룹번호)
+     * @param parentGrpNo  부모의 NAC_UNQ_ID (그룹번호)
      * @param parentGrpSqn 부모의 NAC_GRP_SQN
      * @param parentGrpLev 부모의 NAC_GRP_LEV
      * @param parentPk     부모의 NAC_MNG_NO
      */
     public void initGroupAsReply(String parentGrpNo, int parentGrpSqn, int parentGrpLev, String parentPk) {
-        this.nacId       = parentGrpNo;
+        this.nacUnqId    = parentGrpNo;
         this.nacGrpSqn   = parentGrpSqn + 1;
         this.nacGrpLev   = parentGrpLev + 1;
         this.hrkNacNo    = parentPk;

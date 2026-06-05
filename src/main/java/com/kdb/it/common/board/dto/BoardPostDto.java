@@ -24,7 +24,7 @@ public class BoardPostDto {
         @Schema(description = "게시판관리번호")  private String        blbMngNo;
         @Schema(description = "제목")           private String        nacNm;
         @Schema(description = "조회수")         private Integer       nacInqNbr;
-        @Schema(description = "게시물ID") private String        nacId;
+        @Schema(description = "게시물고유ID") private String        nacUnqId;
         @Schema(description = "공지여부")   private String        ancYn;
         @Schema(description = "화면여부")       private String        sreYn;
         @Schema(description = "파일첨부여부")   private String        flApgYn;
@@ -39,7 +39,7 @@ public class BoardPostDto {
             return ListItem.builder()
                 .nacMngNo(e.getNacMngNo()).blbMngNo(e.getBlbMngNo())
                 .nacNm(e.getNacNm()).nacInqNbr(e.getNacInqNbr())
-                .nacId(e.getNacId())
+                .nacUnqId(e.getNacUnqId())
                 .ancYn(e.getAncYn()).sreYn(e.getSreYn())
                 .flApgYn(e.getFlApgYn()).flNbr(e.getFlNbr())
                 .nacGrpLev(e.getNacGrpLev())
@@ -60,7 +60,7 @@ public class BoardPostDto {
         @Schema(description = "제목")           private String        nacNm;
         @Schema(description = "본문 HTML")      private String        nacCone;
         @Schema(description = "조회수")         private Integer       nacInqNbr;
-        @Schema(description = "게시물ID") private String        nacId;
+        @Schema(description = "게시물고유ID") private String        nacUnqId;
         @Schema(description = "공지여부")   private String        ancYn;
         @Schema(description = "화면여부")       private String        sreYn;
         @Schema(description = "담당부서코드")   private String        bbrC;
@@ -80,7 +80,7 @@ public class BoardPostDto {
             return Detail.builder()
                 .nacMngNo(e.getNacMngNo()).blbMngNo(e.getBlbMngNo())
                 .nacNm(e.getNacNm()).nacCone(e.getNacCone())
-                .nacInqNbr(e.getNacInqNbr()).nacId(e.getNacId())
+                .nacInqNbr(e.getNacInqNbr()).nacUnqId(e.getNacUnqId())
                 .ancYn(e.getAncYn()).sreYn(e.getSreYn())
                 .bbrC(e.getBbrC()).sttYmd(e.getSttDt()).endYmd(e.getEndDt())
                 .flApgYn(e.getFlApgYn()).flNbr(e.getFlNbr())
