@@ -38,13 +38,13 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "SPF_TMN_NM", length = 100, comment = "단말기명")
     private String spfTmnNm;
 
-    @Column(name = "TMN_KD_TC", length = 100, comment = "단말기이용방법")
+    @Column(name = "IT_PTL_TMN_KD_TC", length = 2, comment = "단말기이용방법")
     private String tmnKdTc;
 
     @Column(name = "NSF_USG_CONE", length = 200, comment = "소요자금용도내용")
     private String nsfUsgCone;
 
-    @Column(name = "TMN_CLSF_C", length = 100, comment = "단말기서비스")
+    @Column(name = "IT_PTL_TMN_SVC_TC", length = 2, comment = "단말기서비스")
     private String tmnClsfC;
 
     @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "단말기금액")

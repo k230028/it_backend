@@ -108,7 +108,7 @@ public class Bprojm extends BaseEntity {
     private String dvmTlrUsid;
 
     /** 전결권: 결재 전결 권한자 구분 (최대 2자) */
-    @Column(name = "EDRT_TC", length = 2, comment = "전결권 (물리컬럼 EDRT_TC=전결권구분코드)")
+    @Column(name = "IT_PTL_EDRT_TC", length = 2, comment = "전결권 (물리컬럼 IT_PTL_EDRT_TC=전결권구분코드)")
     private String edrtTc;
 
     /** 사업설명: 사업의 전반적인 설명 (최대 1000자) */
@@ -148,7 +148,7 @@ public class Bprojm extends BaseEntity {
     private String bzDttNm;
 
     /** 기술유형: 사업에 적용되는 기술 분류 (예: 웹, 앱, AI, 빅데이터) */
-    @Column(name = "SKL_TP_TC", length = 2, comment = "기술유형 (물리컬럼 SKL_TP_TC=기술유형구분코드)")
+    @Column(name = "IT_PTL_SKL_TP_TC", length = 2, comment = "기술유형 (물리컬럼 IT_PTL_SKL_TP_TC=기술유형구분코드)")
     private String sklTpTc;
 
     /** 주요사용자: 시스템의 주요 사용자 그룹 (예: 내부직원, 고객, 전체) */
@@ -164,7 +164,7 @@ public class Bprojm extends BaseEntity {
     private String flfFsgDt;
 
     /** 보고상태: 상위 보고 단계의 상태 (최대 1자) */
-    @Column(name = "RPR_STS_TC", length = 1, comment = "보고상태 (물리컬럼 RPR_STS_TC=보고상태구분코드)")
+    @Column(name = "IT_PTL_RPR_STS_TC", length = 2, comment = "보고상태 (물리컬럼 IT_PTL_RPR_STS_TC=보고상태구분코드)")
     private String rprStsTc;
 
     /** 최종여부: 현재 유효한 레코드 여부 ('Y'=최신, 'N'=이전 버전) */
@@ -176,7 +176,7 @@ public class Bprojm extends BaseEntity {
     private String exePttYn;
 
     /** 프로젝트상태: 사업의 현재 진행 상태 (예: 계획, 진행중, 완료, 취소) */
-    @Column(name = "STS_TC", length = 2, comment = "프로젝트상태 (물리컬럼 STS_TC=상태구분코드)")
+    @Column(name = "IT_PTL_STS_TC", length = 2, comment = "프로젝트상태 (물리컬럼 IT_PTL_STS_TC=상태구분코드)")
     private String stsTc;
 
     /** 예산연도: 예산 연도 (4자리 숫자, 예: "2026") */
