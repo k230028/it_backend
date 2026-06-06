@@ -19,7 +19,7 @@
   - DB 기반 메뉴 트리 및 라우트 카탈로그 관리
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
-- **소스 코드**: 291개 메인 Java 파일, 96개 테스트 파일, 63개 JPA 엔티티(`@Entity` 기준)
+- **소스 코드**: 291개 메인 Java 파일, 96개 테스트 파일, 64개 JPA 엔티티(`@Entity` 기준)
 
 ## 2. 기술 스택
 
@@ -100,7 +100,7 @@ Controller → Service → Repository → DB (Oracle)
 | 결정 | 내용 | 이유 |
 |------|------|-----|
 | **Soft Delete** | 물리 삭제 대신 `DEL_YN='Y'` 논리 삭제 사용 | 감사 추적(Audit Trail), 실수 복구 가능, 외래키 참조 무결성 유지 |
-| **복합키 (`@IdClass`)** | `ProjectId`, `BcostmId`, `BitemmId`, `CdecimId` 등 복합 기본키 정의 | Oracle 테이블 스키마 설계를 JPA 엔티티에 1:1 매핑 |
+| **복합키 (`@IdClass`)** | `BprojmId`, `BcostmId`, `BitemmId`, `CdecimId` 등 복합 기본키 정의 (총 15개 `@IdClass`) | Oracle 테이블 스키마 설계를 JPA 엔티티에 1:1 매핑 |
 | **JPA Auditing (`BaseEntity`)** | 모든 업무 엔티티 상속, `@CreatedDate/@LastModifiedDate` 자동 기록 | 누가 언제 생성/수정했는지 자동 추적 |
 | **JWT httpOnly 쿠키** | Access Token(15분) + Refresh Token(7일), `CookieUtil`로 관리 | XSS 공격 방어(JavaScript 접근 불가), 자동 전송 편의성 |
 | **비밀번호 인코딩** | SHA-256 + Base64 (`CustomPasswordEncoder`) | Oracle 레거시 시스템과의 호환성 |
@@ -112,7 +112,7 @@ Controller → Service → Repository → DB (Oracle)
 | **Properties 기반 CORS** | `application.properties`의 `cors.allowed-origins` 환경변수 제어 | 운영 배포 시 도메인 재빌드 불필요 |
 | **RBAC (자격등급 + 역할)** | `CauthI`(자격등급) + `CroleI`(역할 매핑) + `@PreAuthorize` | 유연한 권한 관리, 운영 중 권한 추가 가능 |
 | **관리자 이중 보호** | SecurityConfig URL 패턴(`/api/admin/**`) + 컨트롤러 레벨 `@PreAuthorize("hasRole('ADMIN')")` | 깊이 있는 방어(Defense in Depth), 도메인 API도 명시적 보호 |
-| **협의회 통합 컨트롤러** | `CouncilController` 1개 (34개 매핑 메서드) vs 서비스 8개 분리 | 협의회 업무의 통합 흐름 표현, 서비스 계층은 관심사 분리 |
+| **협의회 통합 컨트롤러** | `CouncilController` 1개 (39개 매핑 메서드) vs 서비스 9개 분리 | 협의회 업무의 통합 흐름 표현, 서비스 계층은 관심사 분리 |
 | **변경 로그 (Audit)** | `@PrePersist/@PreUpdate` JPA 리스너로 자동 스냅샷 기록 | 누가 무엇을 언제 변경했는지 추적, 감사/규정 준수 대응 |
 
 ### 3.3 BaseEntity 상속 구조
@@ -133,6 +133,7 @@ BaseEntity (추상 클래스)
  ├── Bperfm      (성과지표)
  ├── Bpovwm      (사업개요)
  ├── Bpqnam      (사전질의응답)
+ ├── Bmqnam      (본회의질의응답)
  ├── Brsltm      (결과서)
  ├── Bschdm      (일정)
  ├── Capplm      (신청서 마스터)
@@ -145,6 +146,13 @@ BaseEntity (추상 클래스)
  ├── Brdocm      (요구사항 정의서)
  ├── Brivgm      (검토의견)
  ├── Cfilem      (첨부파일)
+ ├── Cblbmm      (게시판 메타)
+ ├── Cblbcm      (게시물)
+ ├── Ccmmtm      (게시판 댓글)
+ ├── Cinfmm      (알림)
+ ├── Cmenum      (메뉴 마스터)
+ ├── Cmenua      (메뉴-자격등급 매핑)
+ ├── Cmenud      (라우트 카탈로그)
  ├── CauthI      (자격등급)
  ├── CroleI      (역할 매핑)
  ├── Clognh      (로그인 이력)
@@ -158,11 +166,11 @@ BaseLogEntity (변경 로그 추상 클래스)
 
 ### 4.1 패키지 구조
 
-2026-04-29 기준 도메인 기반 레이어드 아키텍처와 예산·결재·변경 로그 모듈 구조를 반영합니다.
+2026-06-05 기준 도메인 기반 레이어드 아키텍처와 예산·결재·변경 로그·메뉴 모듈 구조를 반영합니다.
 
 ```
 com.kdb.it
-├── config/                  # 전역 설정 (Security, JPA, Jackson, QueryDSL, Swagger, Web) — 6개
+├── config/                  # 전역 설정 (Security, JPA Auditing, Jackson, QueryDSL, Swagger, SSO Web, Clock) — 7개
 ├── exception/               # 전역 예외 핸들러 + 커스텀 예외 — 2개
 ├── common/
 │   ├── system/              # 인증·로그인 (AuthController, AuthService, JwtUtil, JwtAuthenticationFilter)
@@ -181,11 +189,11 @@ com.kdb.it
 │   │   ├── document/        # 문서·검토의견 (GuideDocController, ServiceRequestDocController, ReviewCommentController)
 │   │   ├── plan/            # 정보기술부문 계획 (PlanController, PlanService, Bplanm, Bplana)
 │   │   ├── status/          # 예산현황 대시보드 (BudgetStatusController, BudgetStatusService)
-│   │   └── work/            # 예산 작업 (BudgetWorkController, BudgetWorkService, Bbugtm)
-│   ├── council/             # 정보화실무협의회 (CouncilController, 8개 서비스, 9개 Repository)
+│   │   ├── work/            # 예산 작업 (BudgetWorkController, BudgetWorkService, Bbugtm)
+│   │   └── it/              # IT부문 예산 (ItBudgetController, ItBudgetService)
+│   ├── council/             # 정보화실무협의회 (CouncilController, 9개 서비스, 10개 Repository)
 │   ├── log/                 # 변경 로그 (BaseLogEntity, *L 로그 엔티티, ChangeLogEntityListener)
-│   ├── cdp/                 # 경력개발 (빈 디렉토리)
-│   ├── audit/               # 감사/이력 (빈 디렉토리)
+│   ├── menu/                # DB 기반 메뉴 트리·라우트 카탈로그 (MenuQueryController, AdminMenuController, AdminRouteController, Cmenum/Cmenua/Cmenud)
 │   └── entity/              # BaseEntity
 └── infra/
     ├── file/                # 파일 관리 (FileController, FileService, FileRepository, Cfilem)
@@ -212,7 +220,7 @@ common → domain (X)   common → infra  (X)
 | 예산현황 | `BudgetStatusController` | `BudgetStatusService` | `BudgetStatusQueryRepository` | - |
 | IT부문 예산 | `ItBudgetController` | `ItBudgetService` | `ItBudgetQueryRepository` + Custom | - |
 | 예산작업 | `BudgetWorkController` | `BudgetWorkService` | `BbugtmRepository` + Custom | `Bbugtm` |
-| 정보화실무협의회 | `CouncilController` | `CouncilService` 외 7개 | `CouncilRepository` 외 8개 | `Basctm` 외 13개 |
+| 정보화실무협의회 | `CouncilController` | `CouncilService` 외 8개 | `CouncilRepository` 외 9개 | `Basctm` 외 9개 |
 | 신청서(결재) | `ApplicationController` | `ApplicationService` | `ApplicationRepository`, `ApplicationMapRepository`, `ApproverRepository` | `Capplm`, `Cappla`, `Cdecim` |
 | 공통게시판 | `BoardMetaController`, `BoardPostController`, `BoardCommentController`, `AdminBoardMetaController` | `BoardMetaService`, `BoardPostService`, `BoardCommentService` | `BoardMetaRepository`, `BoardPostRepository`, `BoardCommentRepository` | `Cblbmm`, `Cblbcm`, `Ccmmtm` |
 | 알림 | `NotificationController` | `NotificationService` | `CinfmmRepository` + Custom | `Cinfmm` |
@@ -221,6 +229,8 @@ common → domain (X)   common → infra  (X)
 | 인증 | `AuthController` | `AuthService` | `UserRepository`, `RefreshTokenRepository`, `LoginHistoryRepository` | `CuserI`, `Crtokm`, `Clognh` |
 | 공통코드 | `CodeController` | `CodeService` | `CodeRepository` + Custom | `Ccodem` |
 | 시스템관리 | `AdminController` | `AdminService` | (기존 Repository 활용) | (기존 Entity 활용) |
+| 메뉴 조회 | `MenuQueryController` | `MenuQueryService`, `BoardListMenuResolver` | `CmenumRepository`(+Custom), `CmenuaRepository` | `Cmenum`, `Cmenua` |
+| 관리자 메뉴/라우트 | `AdminMenuController`, `AdminRouteController` | `AdminMenuService`, `AdminRouteService` | `CmenumRepository`, `CmenuaRepository`, `CmenudRepository` | `Cmenum`, `Cmenua`, `Cmenud` |
 | 사용자 | `UserController` | `UserService` | `UserRepository` | `CuserI` |
 | 조직 | `OrganizationController` | `OrganizationService` | `OrganizationRepository` | `CorgnI` |
 | 첨부파일 | `FileController` | `FileService` | `FileRepository` | `Cfilem` |
@@ -540,7 +550,7 @@ IT Portal의 로그는 **3가지 유형**으로 구성되며, 각각 다른 계�
 public class Bprojm extends BaseEntity { ... }
 ```
 
-**현재 로그 대상 엔티티 (23개)**
+**현재 로그 대상 엔티티 (`@LogTarget` 기준 25개)**
 
 | 키 | 로그 엔티티 | 설명 |
 |----|-----------|------|
@@ -555,7 +565,8 @@ public class Bprojm extends BaseEntity { ... }
 | `bperfm` | `BperfmL` | 성과평가 |
 | `bplanm` | `BplanmL` | 정보기술부문 계획 |
 | `bpovwm` | `BpovwmL` | 관점/배점 |
-| `bpqnam` | `BpqnamL` | 질의응답 |
+| `bpqnam` | `BpqnamL` | 사전질의응답 |
+| `bmqnam` | `BmqnamL` | 본회의질의응답 |
 | `bprojm` | `BprojmL` | 정보화사업 |
 | `brdocm` | `BrdocmL` | 요구사항 문서 |
 | `brivgm` | `BrivgmL` | 검토의견 |
@@ -567,6 +578,9 @@ public class Bprojm extends BaseEntity { ... }
 | `cblbcm` | `CblbcmL` | 게시물 |
 | `cblbmm` | `CblbmmL` | 게시판 |
 | `ccmmtm` | `CcmmtmL` | 게시판 댓글 |
+| `cmenum` | `CmenumL` | 공통메뉴 |
+
+> **참고**: 위 25개 엔티티는 `@LogTarget`으로 변경 로그가 자동 기록됩니다. 다만 관리자 로그 조회 화면(`AdminLogService.buildDefinitions()`, §7.3)에 등록된 항목은 **20개**입니다. 게시판 로그(`cblbcm`/`cblbmm`/`ccmmtm`), `bmqnam`, `cmenum`은 자동 기록은 되지만 아직 관리자 조회 정의에 추가되지 않았습니다(후속 과제).
 
 **`BaseLogEntity` 공통 필드**
 
@@ -707,8 +721,8 @@ public class Bprojm extends BaseEntity { ... }
 | | GET/POST/PUT/DELETE | `/api/boards/{blbMngNo}/posts/{nacMngNo}/comments/**` | 댓글/대댓글 CRUD | 일반 |
 | **첨부파일** | POST/GET | `/api/files/**` | 업로드(50MB)/다운로드/미리보기 | 일반 |
 | | | | 파일명 생성: `{서버ID}_{UUID}_{원본확장자}` | |
-| **협의회 관리** | GET/POST/PUT/PATCH | `/api/council/**` | 신청, 심의, 평가, 일정 (34개 매핑) | 일반 |
-| | | | CouncilController 통합 (8개 서비스 분리) | |
+| **협의회 관리** | GET/POST/PUT/PATCH | `/api/council/**` | 신청, 심의, 평가, 일정 (39개 매핑) | 일반 |
+| | | | CouncilController 통합 (9개 서비스 분리) | |
 | **Gemini AI** | POST | `/api/gemini/generate` | 텍스트 생성 (파일 첨부 가능) | **관리자** |
 | **알림** | GET/PATCH/DELETE | `/api/notifications/**` | 알림 목록/읽음/삭제 (본인 데이터만) | 일반 |
 | **Tiptap 변수** | GET/POST | `/api/tiptap-variables/**` | 변수 카탈로그, 토큰 해석 | 일반 |
@@ -766,8 +780,8 @@ public class Bprojm extends BaseEntity { ... }
 | 속성 | 기본값 | 개발 | 운영 | 설명 |
 |------|--------|------|------|------|
 | `spring.datasource.url` | - | `jdbc:oracle:thin:@127.0.0.1:1521/XEPDB1` | 프로덕션 접속 정보 | Oracle 접속 URL |
-| `spring.datasource.password` | `your-db-password` | 로컬값 | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
-| `jwt.secret` | `your-jwt-secret-key` | 로컬값 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 (운영 기본값 제거 필요) |
+| `spring.datasource.password` | `${DB_PASSWORD:kdb1234!!}` | 환경변수 또는 기본값 `kdb1234!!` | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
+| `jwt.secret` | `${JWT_SECRET:kdb-it-secret-key-...256-bits}` | 환경변수 또는 내장 기본 시크릿 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 (운영 기본값 제거 필요) |
 | `jwt.access-token-validity` | `900000` | - | - | Access Token 유효시간 (15분) |
 | `jwt.refresh-token-validity` | `604800000` | - | - | Refresh Token 유효시간 (7일) |
 | `app.cookie.secure` | `false` | 개발: false | 운영: true | 쿠키 Secure 플래그 (HTTPS 필수) |
@@ -865,7 +879,7 @@ infra → domain (X, domain 기능 불필요)
 | **budget.plan** | Bplanm, Bplana | PlanService | BplanmRepository, BplanaRepository | 정보기술부문 계획 |
 | **budget.status** | - (집계) | BudgetStatusService | BudgetStatusQueryRepository | 예산현황 대시보드 |
 | **budget.work** | Bbugtm | BudgetWorkService | BbugtmRepository(+Custom) | 예산 편성률 |
-| **council** | Basctm, Bschdm, Bchklc, Bcmmtm, Bevalm, Bperfm, Bpovwm, Bpqnam, Brsltm | CouncilService(+7개 세부) | 9개 Repository | 정보화실무협의회 |
+| **council** | Basctm, Bschdm, Bchklc, Bcmmtm, Bevalm, Bperfm, Bpovwm, Bpqnam, Bmqnam, Brsltm | CouncilService(+8개 세부) | 10개 Repository | 정보화실무협의회 |
 | **log** | BaseLogEntity, *L | - | EntityManager 직접 | 자동 감시로그 |
 | **common.system** | CuserI, Crtokm, Clognh | AuthService, CustomUserDetailsService, LoginHistoryService | UserRepository, RefreshTokenRepository, LoginHistoryRepository | 인증 및 사용자 |
 | **common.approval** | Capplm, Cappla, Cdecim | ApplicationService | ApplicationRepository(+Map, Approver) | 신청 및 결재 |
@@ -903,7 +917,7 @@ REFACTOR — 중복 제거, 가독성 개선 (테스트 통과 유지)
 
 | 패키지 | 목적 |
 |--------|------|
-| **config** | Spring Security, JPA, QueryDSL, Swagger, SSO, Jackson 설정 |
+| **config** | Spring Security, JPA Auditing, QueryDSL, Swagger, SSO Web, Jackson, Clock 설정 (7개) |
 | **exception** | 전역 예외 처리 (`GlobalExceptionHandler`) |
 | **common.util** | CookieUtil, HtmlSanitizer, CustomPasswordEncoder, CustomUserDetails |
 | **common.system.security** | JwtUtil, JwtAuthenticationFilter |
@@ -993,7 +1007,8 @@ public class Bnewent extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
-| **2026-06-05** | README.md 현행화: 소스 통계(291개 메인 Java, 96개 테스트, 63개 @Entity)와 DB 기반 메뉴 모듈(`domain/menu`, `/api/menus`, `/api/admin/menus`, `/api/admin/routes`) 반영 |
+| **2026-06-05** | README.md 코드 대조 현행화: (1) 소스 통계 정정(@Entity 63→64), (2) `Bmqnam`(본회의질의응답) 엔티티·`@LogTarget` 반영 — 로그 대상 23→25개(관리자 조회 정의는 20개 유지), (3) 협의회 통계 정정(매핑 34→39, 서비스 8→9, Repository 9→10), (4) `config` 7개(ClockConfig 포함) 및 `domain/menu`·`budget/it` 패키지 명시, 미사용 `cdp`/`audit` 빈 디렉토리 표기 제거, (5) `application.properties` 실제 기본값(`DB_PASSWORD`/`JWT_SECRET`) 반영 |
+| **2026-06-05** | README.md 현행화: 소스 통계(291개 메인 Java, 96개 테스트)와 DB 기반 메뉴 모듈(`domain/menu`, `/api/menus`, `/api/admin/menus`, `/api/admin/routes`) 반영 |
 | **2026-06-01** | README.md 현행화: (1) 소스 통계 확정(271개 메인 Java, 92개 테스트, 63개 @Entity), (2) 실시간 로그 모니터링 섹션 신규 추가(§5, `common/admin/realtime`, RealtimeLogController, V_ITPAPP_LOG_FEED View, 커서 페이징, 테이블·변경유형 필터, 집계 정보), (3) 알림·Tiptap 변수 섹션을 §6으로 이동, (4) 로그 체계 섹션을 §7으로 이동, (5) 모듈 패키지 구조에 `common/notification`, `common/admin/realtime` 명시 |
 | **2026-05-29** | README.md 현행화: 소스 코드 통계 정정(266 Java 파일, 84 테스트, 59 엔티티), IT부문 예산(`ItBudgetController`/`ItBudgetService`) 도메인 추가, 사전협의 검토자(`ReviewerController`) API 추가 |
 | **2026-05-26** | README.md 전체 분석 및 업데이트: 소스 코드 통계(257 Java 파일, 84 테스트, 61 엔티티) 추가, 개발자 가이드 섹션(신규 기능 패턴, 테스트 의무, 보안 체크리스트) 신규 작성, 28개 컨트롤러 API 현행화 |
@@ -1006,7 +1021,7 @@ public class Bnewent extends BaseEntity { ... }
 | 2026-04-30 | README 로그 체계 섹션 추가: 변경 로그(AuditLog), 로그인 이력, 관리자 로그 조회 구조 문서화 |
 | 2026-04-29 | README 현행화: Spring Boot/JJWT/Springdoc 버전, 15분 Access Token, 예산현황·검토의견·변경로그 도메인, 테스트/환경 설정 반영 |
 | 2026-04-10 | 전체 프로젝트 문서/주석 리프레시 (README/CLAUDE/TASK.md 최신화, AdminController JavaDoc 보강) |
-| 2026-04-05 | 정보화실무협의회(council) 도메인 구현: CouncilController(현재 34개 매핑), 8개 서비스, 14개 엔티티, 9개 Repository |
+| 2026-04-05 | 정보화실무협의회(council) 도메인 구현: CouncilController(현재 39개 매핑), 9개 서비스, 10개 엔티티, 10개 Repository |
 | 2026-04-04 | 시스템관리(admin) 모듈 구현: AdminController/AdminService, @PreAuthorize ROLE_ADMIN 이중 보호 |
 | 2026-04-04 | 예산작업(budget/work) 구현: BudgetWorkController(3 API), Bbugtm 엔티티, 편성률 Upsert |
 | 2026-04-02 | 정보기술부문 계획(budget/plan) 구현: PlanController, Bplanm/Bproja 엔티티, JSON 스냅샷 저장 |

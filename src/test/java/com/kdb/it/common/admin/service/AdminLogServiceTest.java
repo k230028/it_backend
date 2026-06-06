@@ -199,7 +199,8 @@ class AdminLogServiceTest {
 
         assertThat(result.columns())
                 .anySatisfy(column -> {
-                    assertThat(column.field()).isEqualTo("dupBgAmt");
+                    // BbugtL 실제 필드명: bgDupAmt (컬럼 BG_DUP_AMT, comment="편성예산금액")
+                    assertThat(column.field()).isEqualTo("bgDupAmt");
                     assertThat(column.header()).isEqualTo("편성예산금액");
                 });
     }

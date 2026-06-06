@@ -45,15 +45,14 @@ src/main/java/com/kdb/it/
 │   ├── board/     - 공통 게시판 (메타, 게시물, 댓글)
 │   ├── code/      - 공통코드
 │   ├── iam/       - 사용자/조직/권한
-│   ├── system/    - 인증·보안 (JwtUtil, JwtAuthenticationFilter)
-│   └── util/      - 공통 유틸 (CookieUtil, HtmlSanitizer 등)
+│   ├── notification/ - 알림 (이벤트 발행 → 비동기 적재 → 채널별 디스패처)
+│   ├── system/    - 인증·보안 (JwtUtil, JwtAuthenticationFilter), 환경검증, tiptap 변수
+│   └── util/      - 공통 유틸 (CookieUtil, HtmlSanitizer, CustomPasswordEncoder 등)
 ├── domain/        - 비즈니스 도메인
 │   ├── budget/    - 예산 관리 (it, project, cost, document, plan, status, work)
 │   ├── council/   - 정보화실무협의회
-│   ├── log/       - 변경 로그 (BaseLogEntity, *L 엔티티)
+│   ├── log/       - 변경 로그 (BaseLogEntity, *L 엔티티, ChangeLogEntityListener)
 │   ├── menu/      - DB 기반 메뉴 트리, 라우트 카탈로그, 권한 매핑
-│   ├── cdp/       - 경력개발
-│   ├── audit/     - 감사/이력
 │   └── entity/    - BaseEntity
 ├── exception/     - 전역 예외 핸들러
 └── infra/         - 인프라 도메인 (ai, file)
@@ -79,14 +78,14 @@ src/main/resources/
 
 ### 5.2 엔티티 설계
 - 모든 업무 엔티티는 **`BaseEntity` 상속** (공통 컬럼: `DEL_YN`, `GUID`, `FST_ENR_DTM/USID`, `LST_CHG_DTM/USID`).
-- 감사 로그 필요 엔티티: **`BaseLogEntity` 상속** (기본 컬럼 + `BLG` 로그 엔티티 자동 동기화).
-  - 현재 적용: 23개 엔티티 (`Bprojm`, `Bitemm`, `Bbugtm`, `Cblbmm`, `Cblbcm`, `Ccmmtm`, `Capplm`, `Cappla` 등 *L 접미사).
+- 감사 로그 필요 엔티티: 업무 엔티티는 **`BaseEntity` 상속 + `@LogTarget(entity = XxxL.class)` 어노테이션** 부착, 짝이 되는 **`*L` 로그 엔티티가 `BaseLogEntity` 상속**. (업무 엔티티 자체가 `BaseLogEntity`를 상속하지 않음에 주의.)
+  - 현재 적용: 25쌍 (업무 엔티티 `@LogTarget` ↔ `*L` 로그 엔티티). 예: `Bprojm`↔`BprojmL`, `Bitemm`↔`BitemmL`, `Cblbcm`↔`CblbcmL`, `Capplm`↔`CapplmL`, `Ccodem`↔`CcodemL`.
   - 로그 생성 메커니즘: JPA `@PrePersist`/`@PreUpdate` → `ChangeLogEntityListener` → `AuditLogPersister.persist()`.
 - 삭제는 항상 **Soft Delete**(`delete()` → `DEL_YN='Y'`). 물리 삭제 금지.
 - 엔티티 명칭은 메타 문서 반드시 용어사전 기반으로 지정 (필수).
   - 예: 삭제여부=`DEL_YN`, 생성자사번=`FST_ENR_USID`, 변경자사번=`LST_CHG_USID`.
 - `@Column` 주석(comment) 필수 지정.
-- 복합 기본키: `@IdClass` 또는 `@EmbeddedId` 패턴 사용 (예: `CcodemId`, `CapplaId`).
+- 복합 기본키: `@IdClass` 패턴 사용 (예: `CcodemId`, `BitemmId`, `BprojmId`, `CdecimId`).
 ```java
     @Column(name = "ORC_TB_CD", length = 10, comment = "원본테이블코드")
     private String orcTbCd;
@@ -283,7 +282,7 @@ public class PlanController { ... }
 - 메서드: `GET /summary` (비목별 편성요청액·편성액), `GET /comparison` (전년도 대비 비교)
 - **권한**: `@PreAuthorize("hasRole('ADMIN')")` — 클래스 레벨 적용, ADMIN 전용.
 
-**현재 적용 대상** (코드 분석 2026-06-01):
+**현재 적용 대상** (클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")`, 코드 분석 2026-06-05 — 총 11개):
 - `AdminController` (`common/admin`) — 시스템 관리
 - `RealtimeLogController` (`common/admin/realtime`) — V_ITPAPP_LOG_FEED 기반 실시간 로그 모니터링
 - `GeminiController` (`infra/ai`) — Gemini AI
@@ -292,8 +291,11 @@ public class PlanController { ... }
 - `BudgetWorkController` (`domain/budget/work`) — 예산 작업
 - `PlanController` (`domain/budget/plan`) — 정보기술부문 계획
 - `ItBudgetController` (`domain/budget/it`) — IT부문 예산 조회/비교
+- `CouncilController` (`domain/council`) — 정보화실무협의회
+- `AdminMenuController` (`domain/menu`) — 관리자 메뉴 관리
+- `AdminRouteController` (`domain/menu`) — 라우트 카탈로그 관리
 
-**SecurityConfig URL 패턴 보호 대상** (코드 분석 2026-06-01):
+**SecurityConfig URL 패턴 보호 대상** (코드 분석 2026-06-05):
 - `/api/admin/**` → `hasRole("ADMIN")` (`AdminController`, `AdminBoardMetaController`, `RealtimeLogController` 포함)
 - `/api/auth/signup` → `hasRole("ADMIN")`
 - `/api/plan/**` → `hasRole("ADMIN")` (현재 실제 `PlanController` 경로 `/api/plans/**`와 불일치, `TASK.md`에서 정비 과제로 추적)
@@ -412,11 +414,11 @@ public class PlanController { ... }
 - **IP·기기 기준 잠금 없음** — Credential stuffing 방어 미적용 (§5.6 Brute-force 보호 참조).
 
 ### 5.12.1 감사 로그(BaseLogEntity) 패턴
-- **로그 엔티티**: 23개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`).
-- **기본 구조**: `BaseLogEntity` 상속 — 기본 컬럼 자동 포함 (GUID, FST_ENR_DTM/USID, LST_CHG_DTM/USID).
+- **로그 엔티티**: 25개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`). 짝이 되는 업무 엔티티는 `@LogTarget(entity = *L.class)`로 로그 대상을 지정.
+- **기본 구조**: `*L` 로그 엔티티가 `BaseLogEntity` 상속 — 기본 컬럼 자동 포함 (GUID, FST_ENR_DTM/USID, LST_CHG_DTM/USID).
 - **로그 리스너**: `ChangeLogEntityListener` → JPA entity lifecycle 후킹 → `AuditLogPersister` → DB 저장.
 - **저장 시점**: JPA `@PrePersist`/`@PreUpdate` 콜백 중 `ChangeLogEntityListener`가 `AuditLogPersister.persist()`를 직접 호출해 현재 flush 흐름에서 로그를 저장합니다. 로그 저장 실패는 catch 후 warn 처리하여 원본 작업 롤백을 피합니다.
-- 로그 조회는 감사 도메인(`domain/audit`) 또는 분석용 view 사용.
+- 로그 조회는 `domain/log`의 `*L` 로그 엔티티 또는 분석용 view(`V_ITPAPP_LOG_FEED`, `common/admin`·`common/admin/realtime` 조회 서비스)를 사용.
 
 ### 5.12.2 이벤트 리스너(@EventListener vs @TransactionalEventListener)
 - **`@EventListener`**: 발행자와 동일 트랜잭션에서 **동기 실행**. 리스너 실패 시 원본 트랜잭션 롤백.
@@ -425,7 +427,7 @@ public class PlanController { ... }
   - 사용 예: 알림 발송, 메일 전송, 별도 시스템 동기화 (부수 효과).
 - 선택 기준: 상태 일관성이 필수 → `@EventListener`, 실패해도 괜찮은 부가 작업 → `@TransactionalEventListener`.
 
-### 5.12.3 실시간 로그 모니터링 (최종 구현, 2026-06-01)
+### 5.12.3 실시간 로그 모니터링 (최종 구현, 2026-06-05)
 **컨트롤러 & API**
 - `RealtimeLogController` (`common/admin/realtime`): `/api/admin/realtime-logs` 단일 GET 엔드포인트, 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")` 적용.
 - 쿼리 파라미터:
@@ -504,7 +506,7 @@ public class PlanController { ... }
 - **목적**: 앱 내 알림(인앱), 이메일, SMS, 알림톡 등 다중 채널 알림 발송 통합 관리.
 - **패턴**: Event-driven 이벤트 발행 → 비동기 리스너 → DB 적재 → 채널별 디스패처 호출.
 
-#### 알림 발송 흐름 (최종 구현, 2026-06-01)
+#### 알림 발송 흐름 (최종 구현, 2026-06-05)
 1. 비즈니스 로직(결재, 게시판, 시스템 등)에서 `ApplicationEventPublisher.publishEvent(new NotificationEvent(...))` 호출.
 2. `NotificationEventListener`가 `@TransactionalEventListener(phase=AFTER_COMMIT)` 콜백으로 `NotificationService.send(event)` 호출.
 3. `NotificationService.send()` — **`@Transactional(propagation=Propagation.REQUIRES_NEW)` 반드시 필수**:
@@ -519,13 +521,14 @@ public class PlanController { ... }
   - 예: `INF-2026-00000001`, `INF-2026-00000002`
 - 시퀀스는 `CINFMM` 테이블 스키마 기반 `NEXTVAL()` 호출로 생성 (Repository).
 
-#### 알림 종류 상수 (Ccodem cId='INF_TP')
+#### 알림 종류 상수 (`NotificationEvent.TYPE_*`, Ccodem cId='INF_TP')
 ```
-001 — 시스템 알림 (TYPE_SYSTEM)
-002 — 결재요청 (TYPE_APPROVAL_REQUEST)
-003 — 결재결과 (TYPE_APPROVAL_RESULT)
-004 — 게시물 멘션 (TYPE_MENTION_POST)
-005 — 댓글 멘션 (TYPE_MENTION_COMMENT)
+01 — 시스템 알림 (TYPE_SYSTEM)
+02 — 결재요청 (TYPE_APPROVAL_REQUEST)
+03 — 결재결과 (TYPE_APPROVAL_RESULT)
+04 — 게시물 멘션 (TYPE_MENTION_POST)
+05 — 댓글 멘션 (TYPE_MENTION_COMMENT)
+06 — 결재회수 (TYPE_APPROVAL_RECALLED)
 ```
 호출자는 `NotificationEvent.TYPE_*` 상수 사용 권장 (오타 방지).
 
@@ -558,12 +561,12 @@ public class PlanController { ... }
 - 타인 알림 조회/수정/삭제 시도 → `AccessDeniedException` 발생.
 - `NotificationService.loadOwned(infMngNo, currentEno)` 내부 헬퍼로 검증.
 
-#### 디스패처 패턴 (NotificationDispatcher SPI, 현재 구현 2026-06-01)
+#### 디스패처 패턴 (NotificationDispatcher SPI, 현재 구현 2026-06-05)
 - **인터페이스**: `NotificationDispatcher.dispatch(Cinfmm notification, String eaiPayload)`.
   - 목적: 알림 엔티티 저장 후 채널별 발송 처리 분리 (부수 효과 SPI).
   
 - **현재 구현**: `StubNotificationDispatcher` — INAPP(인앱) 채널만 처리.
-  - `notification.markDispatched("001", eaiPayload)` 호출 (EAI_SD_TP_C='001' + EAI_SD_DTM=now).
+  - `notification.markDispatched("01", sdPayload)` 호출 (`CHANNEL_INAPP="01"`, EAI_SD_TP_C='01' + EAI_SD_DTM=now).
   - 발송 실패 처리: 예외 발생 금지, warn 로그만 수행 (원본 알림 저장 작업 무영향 유지).
   
 - **향후 확장 패턴** (TASK.md 등록):
@@ -654,7 +657,7 @@ record ResolvedValue(String value, String status)
 - 예: `"85.3%"`.
 - null/0 조건 → `MISSING`.
 
-#### API 엔드포인트 (`/api/tiptap-variables`, 현재 구현 2026-06-01)
+#### API 엔드포인트 (`/api/tiptap-variables`, 현재 구현 2026-06-05)
 1. **`GET /api/tiptap-variables/metadata`** — 변수 카탈로그 조회.
    - 응답: `TiptapVariableDto.MetadataResponse` (위 구조 참조).
    - 호출처: Tiptap 변수 드롭다운(UI) 초기화 시.

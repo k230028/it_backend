@@ -81,7 +81,9 @@ class MainQnaServiceTest {
     @DisplayName("createMainQna: 다음 순번으로 QTN_ID를 만들고 persist로 저장한다")
     void createMainQna_persists() {
         ReflectionTestUtils.setField(service, "entityManager", entityManager);
-        given(councilRepository.existsById(ASCT_ID)).willReturn(true);
+        // createMainQna는 existsById 대신 findByIdForUpdate(비관적 잠금)로 협의회 존재를 검증한다
+        given(councilRepository.findByIdForUpdate(ASCT_ID))
+                .willReturn(java.util.Optional.of(org.mockito.Mockito.mock(com.kdb.it.domain.council.entity.Basctm.class)));
         given(mainQnaRepository.getNextQtnSeq(ASCT_ID)).willReturn(3);
 
         String result = service.createMainQna(
@@ -102,7 +104,8 @@ class MainQnaServiceTest {
     @Test
     @DisplayName("createMainQna: 협의회가 없으면 예외를 던진다")
     void createMainQna_missingCouncil_throws() {
-        given(councilRepository.existsById(ASCT_ID)).willReturn(false);
+        // createMainQna는 findByIdForUpdate가 empty를 반환하면 IllegalArgumentException을 던진다
+        given(councilRepository.findByIdForUpdate(ASCT_ID)).willReturn(java.util.Optional.empty());
 
         assertThatThrownBy(() -> service.createMainQna(
                 ASCT_ID,
