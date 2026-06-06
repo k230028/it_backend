@@ -170,7 +170,7 @@ public class ApplicationService {
                     .dcdMngNo(apfMngNo) // 결재관리번호 (FK)
                     .dcrSqnSno(i + 1) // 결재순번 (1부터 시작)
                     .dcrEno(approverEnos.get(i)) // 결재자 사원번호
-                    .dcdStsC(DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(001) — NOT NULL
+                    .dcdStsC(DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(1) — NOT NULL
                     .lstDcdYn(i == approverEnos.size() - 1 ? "Y" : "N") // 마지막 결재자 여부
                     .build();
             approverRepository.save(cdecim);
@@ -188,7 +188,7 @@ public class ApplicationService {
     /**
      * 결재선에서 다음 차례인 결재자에게 결재요청 알림을 발행한다.
      *
-     * <p>{@code DCD_STS_C = '001'(미결재)}인 결재 항목 중 가장 작은 {@code DCD_SQN}의 결재자가 대상.
+     * <p>{@code DCD_STS_C = '1'(미결재)}인 결재 항목 중 가장 작은 {@code DCD_SQN}의 결재자가 대상.
      * 발견되지 않으면(=결재선 모두 처리됨) 알림을 발행하지 않는다.</p>
      */
     private void publishApprovalRequestNotification(Capplm capplm) {

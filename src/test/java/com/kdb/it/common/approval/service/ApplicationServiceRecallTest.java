@@ -84,7 +84,7 @@ class ApplicationServiceRecallTest {
     void recall_byRequester_setsStatusToRecalled() {
         when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("1")));
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
-            .thenReturn(List.of(approver(1, "E001", "002", "N"), approver(2, "E002", "001", "Y")));
+            .thenReturn(List.of(approver(1, "E001", "2", "N"), approver(2, "E002", "1", "Y")));
 
         service.recall(APF, req(), "E001", false);
 
@@ -97,7 +97,7 @@ class ApplicationServiceRecallTest {
     void recall_whenLastApproverApproved_throws() {
         when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("1")));
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
-            .thenReturn(List.of(approver(1, "E002", "002", "Y")));
+            .thenReturn(List.of(approver(1, "E002", "2", "Y")));
 
         assertThatThrownBy(() -> service.recall(APF, req(), "E001", false))
             .isInstanceOf(IllegalStateException.class)
@@ -118,7 +118,7 @@ class ApplicationServiceRecallTest {
     void recall_byUnrelatedUser_throwsAccessDenied() {
         when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("1")));
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
-            .thenReturn(List.of(approver(1, "E002", "001", "Y")));
+            .thenReturn(List.of(approver(1, "E002", "1", "Y")));
 
         assertThatThrownBy(() -> service.recall(APF, req(), "E999", false))
             .isInstanceOf(AccessDeniedException.class);
@@ -129,7 +129,7 @@ class ApplicationServiceRecallTest {
     void recall_byAdmin_succeeds() {
         when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("1")));
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
-            .thenReturn(List.of(approver(1, "E002", "001", "Y")));
+            .thenReturn(List.of(approver(1, "E002", "1", "Y")));
 
         service.recall(APF, req(), "E999", true);
         verify(eventPublisher).publishEvent(any(ApprovalRecalledEvent.class));
@@ -139,16 +139,16 @@ class ApplicationServiceRecallTest {
     @DisplayName("중간결재자 회수 — 기승인 이력 보존, 미결재만 회수무효")
     void recall_byMiddleApprover_preservesApprovedHistory() {
         when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("1")));
-        Cdecim a1 = approver(1, "E001", "002", "N");
-        Cdecim a2 = approver(2, "E002", "001", "N");
-        Cdecim a3 = approver(3, "E003", "001", "Y");
+        Cdecim a1 = approver(1, "E001", "2", "N");
+        Cdecim a2 = approver(2, "E002", "1", "N");
+        Cdecim a3 = approver(3, "E003", "1", "Y");
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
             .thenReturn(List.of(a1, a2, a3));
 
         service.recall(APF, req(), "E002", false);
 
-        assertThat(a1.getDcdStsC()).isEqualTo("002");
-        assertThat(a2.getDcdStsC()).isEqualTo("004");
-        assertThat(a3.getDcdStsC()).isEqualTo("004");
+        assertThat(a1.getDcdStsC()).isEqualTo("2");
+        assertThat(a2.getDcdStsC()).isEqualTo("4");
+        assertThat(a3.getDcdStsC()).isEqualTo("4");
     }
 }

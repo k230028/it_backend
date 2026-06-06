@@ -53,7 +53,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
         WHERE a.APF_PRG_STS_C = '1'
           AND d.DCR_ENO = :eno
-          AND d.DCD_STS_C = '001'
+          AND d.DCD_STS_C = '1'
         """, nativeQuery = true)
     int countPendingByEno(@Param("eno") String eno);
 
@@ -114,7 +114,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
         WHERE a.APF_PRG_STS_C = '1'
           AND d.DCR_ENO = :eno
-          AND d.DCD_STS_C = '001'
+          AND d.DCD_STS_C = '1'
         ORDER BY a.DCD_REQ_DTM DESC
         FETCH FIRST 3 ROWS ONLY
         """, nativeQuery = true)

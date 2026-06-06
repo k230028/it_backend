@@ -23,8 +23,8 @@ import java.time.LocalDate;
  *
  * <p>결재 처리 흐름:</p>
  * <pre>
- *   신청서 생성 시: DCD_STS_C='001'(미결재), 나머지 null
- *   결재 처리 후:   DCD_STS_C='002'(승인) 또는 '003'(반려)
+ *   신청서 생성 시: DCD_STS_C='1'(미결재), 나머지 null
+ *   결재 처리 후:   DCD_STS_C='2'(승인) 또는 '3'(반려)
  * </pre>
  *
  * <p>순차 결재: {@code DCR_SQN_SNO} 순서대로 결재가 진행됩니다.

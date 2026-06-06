@@ -75,7 +75,7 @@ class ApplicationServiceTest {
         return capplm;
     }
 
-    /** 미결재(dcdStsC="001") 상태의 Cdecim 생성 */
+    /** 미결재(dcdStsC="1") 상태의 Cdecim 생성 */
     private Cdecim pendingApprover(String eno, int sqn, String lstDcdYn) {
         return Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO)
