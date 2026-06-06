@@ -118,7 +118,9 @@ class QnaServiceTest {
     @DisplayName("createQna: 정상 요청이면 QTN_ID를 채번하여 저장하고 반환한다")
     void createQna_정상요청_질의ID반환() {
         // given
-        given(councilRepository.existsById(ASCT_ID)).willReturn(true);
+        // createQna는 existsById 대신 findByIdForUpdate(비관적 잠금)로 협의회 존재를 검증한다
+        given(councilRepository.findByIdForUpdate(ASCT_ID))
+                .willReturn(java.util.Optional.of(mock(com.kdb.it.domain.council.entity.Basctm.class)));
         given(qnaRepository.getNextQtnSeq(ASCT_ID)).willReturn(1);
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
         given(userDetails.getEno()).willReturn("E10001");

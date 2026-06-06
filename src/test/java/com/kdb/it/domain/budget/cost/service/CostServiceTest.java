@@ -511,10 +511,10 @@ class CostServiceTest {
                 .willReturn(List.of());
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(any(), any(), eq("N")))
                 .willReturn(List.of());
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(
-                        Ccodem.builder().cId("IOE").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
-                        Ccodem.builder().cId("IOE").cdva("102").cTp("IOE_IDR").build()));
+                        Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
+                        Ccodem.builder().cId("IOE_C").cdva("102").cTp("IOE_IDR").build()));
         given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-ASSET", "COST-COST"), "2026"))
                 .willReturn(java.util.Map.of(
                         "COST-ASSET", BigDecimal.valueOf(700),
@@ -575,8 +575,8 @@ class CostServiceTest {
         given(corgnIRepository.findById("101")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("101").bbrNm("부서").build()));
         given(corgnIRepository.findById("102")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
         given(cuserIRepository.findById("10001")).willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
-                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
+                .willReturn(List.of(Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                 .willReturn(List.of(terminal));
         given(cuserIRepository.findByEnoIn(java.util.Set.of("10003")))
@@ -623,11 +623,11 @@ class CostServiceTest {
         given(costRepository.findByCostBgNoAndDelYn("COST-MACH", "N")).willReturn(List.of(machCost));
         given(costRepository.findByCostBgNoAndDelYn("COST-INTAN", "N")).willReturn(List.of(intanCost));
         given(costRepository.findByCostBgNoAndDelYn("COST-GEN", "N")).willReturn(List.of(costBg));
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(
-                        Ccodem.builder().cId("IOE").cdva("101").cdvaNm("기계장치").cTp("IOE_HW").build(),
-                        Ccodem.builder().cId("IOE").cdva("102").cdvaNm("기타무형자산").cTp("IOE_SW").build(),
-                        Ccodem.builder().cId("IOE").cdva("103").cTp("IOE_IDR").build()));
+                        Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("기계장치").cTp("IOE_HW").build(),
+                        Ccodem.builder().cId("IOE_C").cdva("102").cdvaNm("기타무형자산").cTp("IOE_SW").build(),
+                        Ccodem.builder().cId("IOE_C").cdva("103").cTp("IOE_IDR").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(any(), eq(1), eq("N"))).willReturn(List.of());
 
         CostDto.Response mach = costService.getCost("COST-MACH");
@@ -648,7 +648,7 @@ class CostServiceTest {
                 .ioeC("101")
                 .costTotXpAmt(BigDecimal.valueOf(1000))
                 .tmnYn("Y")
-                .abusTc("002")
+                .abusTc("02")
                 .bseYy("2026")
                 .cncdRfrNo("COST-2025-0001")
                 .costSvnDpmC("101")
@@ -660,7 +660,7 @@ class CostServiceTest {
                 .costBgNo("COST-NEW")
                 .bgSno(1)
                 .ioeC(null)
-                .abusTc("001")
+                .abusTc("01")
                 .bseYy("2026")
                 .delYn("N")
                 .build();
@@ -682,8 +682,8 @@ class CostServiceTest {
                         CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
         given(cuserIRepository.findAllById(any()))
                 .willReturn(List.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
-                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("101").cTp("IOE_IDR").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
+                .willReturn(List.of(Ccodem.builder().cId("IOE_C").cdva("101").cTp("IOE_IDR").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N")).willReturn(List.of());
         given(costRepository.sumPrevBgByCostBgNos(List.of(IT_MNGC_NO), "2025"))
                 .willReturn(java.util.Map.of(IT_MNGC_NO, BigDecimal.valueOf(900)));
@@ -839,15 +839,15 @@ class CostServiceTest {
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn("COST-ALL-CODE", 1, "N")).willReturn(List.of());
         given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(any(), any(), any()))
                 .willReturn(List.of());
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(Ccodem.builder().cdva("101").cTp("IOE_IDR").build()));
-        given(ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_C", "ABUS01", null))
+        given(ccodemRepository.findByCIdAndCdvaWithValidDate("BG_UNT_ABUS_C", "ABUS01", null))
                 .willReturn(java.util.Optional.of(Ccodem.builder().cNm("남용코드명").build()));
-        given(ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE", "DFR01", null))
+        given(ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE_C", "DFR01", null))
                 .willReturn(java.util.Optional.of(Ccodem.builder().cNm("납입주기명").build()));
-        given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", "002", null))
+        given(ccodemRepository.findByCIdAndCdvaWithValidDate("TMN_YN", "1", null))
                 .willReturn(java.util.Optional.of(Ccodem.builder().cNm("유형명").build()));
-        given(ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", "PD01", null))
+        given(ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_TC", "PD01", null))
                 .willReturn(java.util.Optional.of(Ccodem.builder().cNm("지급구분명").build()));
 
         // Act
@@ -895,8 +895,8 @@ class CostServiceTest {
                 .delYn("N")
                 .build();
         given(costRepository.findByCostBgNoAndDelYn("COST-CPIT-DVC", "N")).willReturn(List.of(cost));
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
-                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_DVC").cTp("IOE_CPIT").cdvaDes("단말기").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
+                .willReturn(List.of(Ccodem.builder().cId("IOE_C").cdva("OLD_DVC").cTp("IOE_CPIT").cdvaDes("단말기").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn("COST-CPIT-DVC", 1, "N")).willReturn(List.of());
         given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(any(), any(), any()))
                 .willReturn(List.of());
@@ -922,8 +922,8 @@ class CostServiceTest {
                 .delYn("N")
                 .build();
         given(costRepository.findByCostBgNoAndDelYn("COST-CPIT-HW", "N")).willReturn(List.of(cost));
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
-                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_HW").cTp("IOE_CPIT").cdvaDes("기계장치").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
+                .willReturn(List.of(Ccodem.builder().cId("IOE_C").cdva("OLD_HW").cTp("IOE_CPIT").cdvaDes("기계장치").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn("COST-CPIT-HW", 1, "N")).willReturn(List.of());
         given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(any(), any(), any()))
                 .willReturn(List.of());
@@ -948,8 +948,8 @@ class CostServiceTest {
                 .delYn("N")
                 .build();
         given(costRepository.findByCostBgNoAndDelYn("COST-CPIT-SW", "N")).willReturn(List.of(cost));
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
-                .willReturn(List.of(Ccodem.builder().cId("IOE").cdva("OLD_SW").cTp("IOE_CPIT").cdvaDes("기타무형자산").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
+                .willReturn(List.of(Ccodem.builder().cId("IOE_C").cdva("OLD_SW").cTp("IOE_CPIT").cdvaDes("기타무형자산").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn("COST-CPIT-SW", 1, "N")).willReturn(List.of());
         given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(any(), any(), any()))
                 .willReturn(List.of());
@@ -974,7 +974,7 @@ class CostServiceTest {
                 .delYn("N")
                 .build();
         given(costRepository.findByCostBgNoAndDelYn("COST-UNKNOWN-IOE", "N")).willReturn(List.of(cost));
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of()); // 빈 목록 → codeOpt = empty
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn("COST-UNKNOWN-IOE", 1, "N")).willReturn(List.of());
         given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(any(), any(), any()))
@@ -1013,15 +1013,15 @@ class CostServiceTest {
         given(corgnIRepository.findAllById(any())).willReturn(List.of());
         given(cuserIRepository.findAllById(any())).willReturn(List.of());
         // buildCodeNameMap 람다 커버: 각 코드타입 → 코드명 반환
-        given(ccodemRepository.findByCIdWithValidDate("ABUS_C", null))
-                .willReturn(List.of(Ccodem.builder().cId("ABUS_C").cdva("ABUS01").cNm("남용유형").build()));
-        given(ccodemRepository.findByCIdWithValidDate("DFR_CLE", null))
-                .willReturn(List.of(Ccodem.builder().cId("DFR_CLE").cdva("DFR01").cNm("매월").build()));
-        given(ccodemRepository.findByCIdWithValidDate("IT_MNGC_TP", null))
-                .willReturn(List.of(Ccodem.builder().cId("IT_MNGC_TP").cdva("002").cNm("유형A").build()));
-        given(ccodemRepository.findByCIdWithValidDate("PUL_DTT", null))
-                .willReturn(List.of(Ccodem.builder().cId("PUL_DTT").cdva("PD01").cNm("지급A").build()));
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+        given(ccodemRepository.findByCIdWithValidDate("BG_UNT_ABUS_C", null))
+                .willReturn(List.of(Ccodem.builder().cId("BG_UNT_ABUS_C").cdva("ABUS01").cNm("남용유형").build()));
+        given(ccodemRepository.findByCIdWithValidDate("DFR_CLE_C", null))
+                .willReturn(List.of(Ccodem.builder().cId("DFR_CLE_C").cdva("DFR01").cNm("매월").build()));
+        given(ccodemRepository.findByCIdWithValidDate("TMN_YN", null))
+                .willReturn(List.of(Ccodem.builder().cId("TMN_YN").cdva("1").cNm("유형A").build()));
+        given(ccodemRepository.findByCIdWithValidDate("ABUS_TC", null))
+                .willReturn(List.of(Ccodem.builder().cId("ABUS_TC").cdva("PD01").cNm("지급A").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(Ccodem.builder().cdva("101").cdvaNm("전산임차료").cTp("IOE_IDR").build()));
 
         // Act
@@ -1052,7 +1052,7 @@ class CostServiceTest {
                 .willReturn(List.of());
         given(corgnIRepository.findAllById(any())).willReturn(List.of());
         given(cuserIRepository.findAllById(any())).willReturn(List.of());
-        given(ccodemRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of());
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
 
         // Act
         List<CostDto.Response> result = costService.getCostList();

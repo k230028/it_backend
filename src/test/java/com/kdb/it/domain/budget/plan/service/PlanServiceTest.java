@@ -86,7 +86,7 @@ class PlanServiceTest {
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
         given(cuserIRepository.findAllById(List.of("USER001"))).willReturn(List.of(
                 CuserI.builder().eno("USER001").usrNm("홍길동").build()));
-        given(codeService.findCodeEntitiesByCId("PUL_DTT")).willReturn(List.of());
+        given(codeService.findCodeEntitiesByCId("ABUS_TC")).willReturn(List.of());
 
         // when
         List<PlanDto.ListResponse> result = planService.getPlans();
@@ -124,7 +124,7 @@ class PlanServiceTest {
         ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER002");
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
         given(cuserIRepository.findAllById(List.of("USER002"))).willReturn(List.of());
-        given(codeService.findCodeEntitiesByCId("PUL_DTT")).willReturn(List.of(
+        given(codeService.findCodeEntitiesByCId("ABUS_TC")).willReturn(List.of(
                 Ccodem.builder().cdva("001").cNm("신규").build(),
                 Ccodem.builder().cdva("002").cNm("계속").build()));
 
@@ -148,7 +148,7 @@ class PlanServiceTest {
         ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER003");
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
         given(cuserIRepository.findAllById(List.of("USER003"))).willReturn(List.of());
-        given(codeService.findCodeEntitiesByCId("PUL_DTT")).willReturn(List.of());
+        given(codeService.findCodeEntitiesByCId("ABUS_TC")).willReturn(List.of());
 
         List<PlanDto.ListResponse> result = service.getPlans();
 

@@ -65,7 +65,7 @@ class BudgetWorkServiceXcrLookupTest {
         // given: applyItemRates 진입 mocks
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
-        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
 
         // 외화 Bitemm 1건 (item.xcr=0 위조)
@@ -107,7 +107,7 @@ class BudgetWorkServiceXcrLookupTest {
         // given
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
-        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
 
         Bitemm bitemm = mock(Bitemm.class);
@@ -136,7 +136,7 @@ class BudgetWorkServiceXcrLookupTest {
         // given
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
-        given(codeRepository.findByCIdWithValidDate("IOE", null)).willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
 
         Bitemm bitemm = mock(Bitemm.class);

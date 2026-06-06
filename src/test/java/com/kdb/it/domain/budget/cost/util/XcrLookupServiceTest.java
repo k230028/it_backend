@@ -42,13 +42,13 @@ class XcrLookupServiceTest {
     void resolveXcr_외화정상_BigDecimal반환() {
         // given: Ccodem(CUR/USD/XCR, cNm="1400") 존재
         Ccodem ccodem = Ccodem.builder()
-                .cId("CUR")
+                .cId("CUR_C")
                 .cdva("USD")
                 .cTp("XCR")
                 .cNm("1400")
                 .sttDt(LocalDate.of(2026, 1, 1))
                 .build();
-        given(codeRepository.findByCIdAndCdvaWithValidDate("CUR", "USD", BASE_DATE))
+        given(codeRepository.findByCIdAndCdvaWithValidDate("CUR_C", "USD", BASE_DATE))
                 .willReturn(Optional.of(ccodem));
 
         // when
@@ -56,14 +56,14 @@ class XcrLookupServiceTest {
 
         // then
         assertThat(result).isEqualByComparingTo(new BigDecimal("1400"));
-        verify(codeRepository).findByCIdAndCdvaWithValidDate("CUR", "USD", BASE_DATE);
+        verify(codeRepository).findByCIdAndCdvaWithValidDate("CUR_C", "USD", BASE_DATE);
     }
 
     @Test
     @DisplayName("외화 미등록: Ccodem 부재 시 IllegalStateException + 한글 메시지")
     void resolveXcr_외화미등록_IllegalStateException발생() {
         // given: 유효 Ccodem 없음
-        given(codeRepository.findByCIdAndCdvaWithValidDate(eq("CUR"), eq("XYZ"), any(LocalDate.class)))
+        given(codeRepository.findByCIdAndCdvaWithValidDate(eq("CUR_C"), eq("XYZ"), any(LocalDate.class)))
                 .willReturn(Optional.empty());
 
         // when / then

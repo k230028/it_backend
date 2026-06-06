@@ -604,7 +604,7 @@ class ApplicationServiceTest {
 
         ArgumentCaptor<Capplm> captor = ArgumentCaptor.forClass(Capplm.class);
         verify(applicationRepository).save(captor.capture());
-        assertThat(captor.getValue().getApfPrgStsC()).isEqualTo("01");
+        assertThat(captor.getValue().getApfPrgStsC()).isEqualTo("1");
     }
 
     @Test

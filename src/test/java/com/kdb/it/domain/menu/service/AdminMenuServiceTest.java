@@ -1,11 +1,16 @@
 package com.kdb.it.domain.menu.service;
 
+import com.kdb.it.domain.menu.dto.MenuDto;
+import com.kdb.it.domain.menu.entity.Cmenua;
 import com.kdb.it.domain.menu.entity.Cmenum;
+import com.kdb.it.domain.menu.entity.Cmenud;
 import com.kdb.it.domain.menu.repository.CmenuaRepository;
 import com.kdb.it.domain.menu.repository.CmenudRepository;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -16,7 +21,9 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class AdminMenuServiceTest {
@@ -96,5 +103,220 @@ class AdminMenuServiceTest {
 
         assertThat(b.getMnuSotSqnSno()).isEqualTo(10);
         assertThat(a.getMnuSotSqnSno()).isEqualTo(20);
+    }
+
+    // =========================================================================
+    // create 메서드 검증
+    // =========================================================================
+
+    @Test
+    @DisplayName("create: LNK 유형이고 유효한 화면경로이면 메뉴를 저장하고 ID를 반환한다")
+    void create_LNK유형_메뉴저장및ID반환() {
+        // given
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("예산목록").sysHrkMnuId("01").mnuTpC("LNK")
+                .srePth("/budget/list").hidYn("N").athIds(List.of())
+                .build();
+        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
+                .willReturn(Optional.of(Cmenud.builder().srePth("/budget/list").sreMnuNm("예산목록")
+                        .useYn("Y").delYn("N").build()));
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0000001");
+        given(cmenuaRepository.findActiveByMnuId("MNU0000001")).willReturn(List.of());
+
+        // when
+        String result = service.create(req);
+
+        // then
+        assertThat(result).isEqualTo("MNU0000001");
+        verify(cmenumRepository).save(any(Cmenum.class));
+    }
+
+    @Test
+    @DisplayName("create: GRP 유형이고 화면경로가 없으면 루트 메뉴를 저장한다")
+    void create_GRP유형_루트메뉴저장() {
+        // given
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("예산관리").sysHrkMnuId("01").mnuTpC("GRP")
+                .hrkMnuId(null).srePth(null).hidYn("N").athIds(null)
+                .build();
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0000002");
+        given(cmenuaRepository.findActiveByMnuId("MNU0000002")).willReturn(List.of());
+
+        // when
+        String result = service.create(req);
+
+        // then
+        assertThat(result).isEqualTo("MNU0000002");
+        ArgumentCaptor<Cmenum> captor = ArgumentCaptor.forClass(Cmenum.class);
+        verify(cmenumRepository).save(captor.capture());
+        assertThat(captor.getValue().getMnuDep()).isEqualTo(1);
+        assertThat(captor.getValue().getWhlMnuPth()).isEqualTo("/MNU0000002");
+    }
+
+    @Test
+    @DisplayName("create: 부모 메뉴가 있으면 depth를 부모+1로 설정한다")
+    void create_부모메뉴있음_depth부모플러스1() {
+        // given
+        Cmenum parent = node("PAR", null, 1, "/PAR");
+        parent.setMnuTpC("GRP");
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("하위메뉴").sysHrkMnuId("01").mnuTpC("GRP")
+                .hrkMnuId("PAR").srePth(null).hidYn("N").athIds(List.of())
+                .build();
+        given(cmenumRepository.findByMnuIdAndDelYn("PAR", "N")).willReturn(Optional.of(parent));
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0000003");
+        given(cmenuaRepository.findActiveByMnuId("MNU0000003")).willReturn(List.of());
+
+        // when
+        String result = service.create(req);
+
+        // then
+        assertThat(result).isEqualTo("MNU0000003");
+        ArgumentCaptor<Cmenum> captor = ArgumentCaptor.forClass(Cmenum.class);
+        verify(cmenumRepository).save(captor.capture());
+        assertThat(captor.getValue().getMnuDep()).isEqualTo(2);
+        assertThat(captor.getValue().getWhlMnuPth()).isEqualTo("/PAR/MNU0000003");
+    }
+
+    @Test
+    @DisplayName("create: GRP 메뉴에 화면경로가 있으면 예외를 던진다")
+    void create_GRP유형_화면경로있음_예외() {
+        // given
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("잘못된메뉴").sysHrkMnuId("01").mnuTpC("GRP")
+                .srePth("/some/path").build();
+
+        // when & then
+        assertThatThrownBy(() -> service.create(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("화면경로를 가질 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("create: LNK 메뉴에 화면경로가 없으면 예외를 던진다")
+    void create_LNK유형_화면경로없음_예외() {
+        // given
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("링크메뉴").sysHrkMnuId("01").mnuTpC("LNK")
+                .srePth(null).build();
+
+        // when & then
+        assertThatThrownBy(() -> service.create(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("화면경로가 필수");
+    }
+
+    @Test
+    @DisplayName("create: 잘못된 메뉴유형코드이면 예외를 던진다")
+    void create_잘못된메뉴유형_예외() {
+        // given
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("잘못된타입").sysHrkMnuId("01").mnuTpC("XXX").build();
+
+        // when & then
+        assertThatThrownBy(() -> service.create(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("잘못된 메뉴유형코드");
+    }
+
+    @Test
+    @DisplayName("create: 깊이가 3단을 초과하면 예외를 던진다")
+    void create_깊이초과_예외() {
+        // given: depth=3인 부모에 추가하면 depth=4 → 예외
+        Cmenum parent = Cmenum.builder().mnuId("D3").hrkMnuId("D2").sysHrkMnuId("01")
+                .mnuNm("3단메뉴").mnuTpC("GRP").mnuSotSqnSno(10).hidYn("N")
+                .mnuDep(3).whlMnuPth("/D1/D2/D3").delYn("N").build();
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("4단메뉴").sysHrkMnuId("01").mnuTpC("GRP")
+                .hrkMnuId("D3").srePth(null).build();
+        given(cmenumRepository.findByMnuIdAndDelYn("D3", "N")).willReturn(Optional.of(parent));
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0000004");
+
+        // when & then
+        assertThatThrownBy(() -> service.create(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("깊이");
+    }
+
+    // =========================================================================
+    // update 메서드 검증
+    // =========================================================================
+
+    @Test
+    @DisplayName("update: 존재하는 메뉴의 속성을 수정한다")
+    void update_존재하는메뉴_속성수정() {
+        // given
+        Cmenum menu = node("M1", null, 1, "/M1");
+        menu.setMnuTpC("GRP");
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("수정메뉴").sysHrkMnuId("02").mnuTpC("GRP")
+                .srePth(null).hidYn("Y").athIds(List.of("ITPAD001"))
+                .build();
+        given(cmenumRepository.findByMnuIdAndDelYn("M1", "N")).willReturn(Optional.of(menu));
+        given(cmenuaRepository.findActiveByMnuId("M1")).willReturn(List.of());
+
+        // when
+        service.update("M1", req);
+
+        // then: JPA dirty checking으로 필드가 수정됨
+        assertThat(menu.getMnuNm()).isEqualTo("수정메뉴");
+        assertThat(menu.getHidYn()).isEqualTo("Y");
+        // 권한 매핑 저장 확인
+        verify(cmenuaRepository).save(any(Cmenua.class));
+    }
+
+    @Test
+    @DisplayName("update: 존재하지 않는 메뉴면 예외를 던진다")
+    void update_존재하지않는메뉴_예외() {
+        // given
+        given(cmenumRepository.findByMnuIdAndDelYn("NONE", "N")).willReturn(Optional.empty());
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("없는메뉴").sysHrkMnuId("01").mnuTpC("GRP").build();
+
+        // when & then
+        assertThatThrownBy(() -> service.update("NONE", req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("존재하지 않는 메뉴");
+    }
+
+    // =========================================================================
+    // delete 메서드 검증
+    // =========================================================================
+
+    @Test
+    @DisplayName("delete: 하위 메뉴가 없으면 Soft Delete 처리한다")
+    void delete_하위메뉴없음_소프트딜리트() {
+        // given
+        Cmenum menu = node("D1", null, 1, "/D1");
+        given(cmenumRepository.findByMnuIdAndDelYn("D1", "N")).willReturn(Optional.of(menu));
+        given(cmenumRepository.countActiveChildren("D1")).willReturn(0L);
+        given(cmenuaRepository.findActiveByMnuId("D1")).willReturn(List.of());
+
+        // when
+        service.delete("D1");
+
+        // then
+        assertThat(menu.getDelYn()).isEqualTo("Y");
+    }
+
+    // =========================================================================
+    // move: 루트로 이동 검증
+    // =========================================================================
+
+    @Test
+    @DisplayName("move: newHrkMnuId가 null이면 루트로 이동한다")
+    void move_루트로이동() {
+        // given
+        Cmenum target = node("B", "A", 2, "/A/B");
+        given(cmenumRepository.findByMnuIdAndDelYn("B", "N")).willReturn(Optional.of(target));
+        given(cmenumRepository.findSubtreeByPathPrefix("/A/B")).willReturn(List.of(target));
+
+        // when
+        service.move("B", null);
+
+        // then: 루트(depth=1), 경로=/B
+        assertThat(target.getHrkMnuId()).isNull();
+        assertThat(target.getMnuDep()).isEqualTo(1);
+        assertThat(target.getWhlMnuPth()).isEqualTo("/B");
     }
 }

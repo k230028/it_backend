@@ -770,16 +770,16 @@ class ProjectServiceTest {
                                 .willReturn(List.of(devItem, machItem, costItem,
                                                 Bitemm.builder().ioeC(null).amt(BigDecimal.ONE).build(),
                                                 Bitemm.builder().ioeC("IOE-NULL").amt(null).build()));
-                given(codeService.findCodeEntitiesByCId("IOE"))
+                given(codeService.findCodeEntitiesByCId("IOE_C"))
                                 .willReturn(List.of(
-                                                Ccodem.builder().cId("IOE").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
-                                                Ccodem.builder().cId("IOE").cdva("102").cdvaNm("기계장치").cTp("IOE_HW").build(),
-                                                Ccodem.builder().cId("IOE").cdva("103").cTp("IOE_IDR").build()));
-                given(ccodemRepository.findByCIdWithValidDate("IOE", null))
+                                                Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
+                                                Ccodem.builder().cId("IOE_C").cdva("102").cdvaNm("기계장치").cTp("IOE_HW").build(),
+                                                Ccodem.builder().cId("IOE_C").cdva("103").cTp("IOE_IDR").build()));
+                given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                                 .willReturn(List.of(
-                                                Ccodem.builder().cId("IOE").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
-                                                Ccodem.builder().cId("IOE").cdva("102").cdvaNm("기계장치").cTp("IOE_HW").build(),
-                                                Ccodem.builder().cId("IOE").cdva("103").cTp("IOE_IDR").build()));
+                                                Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
+                                                Ccodem.builder().cId("IOE_C").cdva("102").cdvaNm("기계장치").cTp("IOE_HW").build(),
+                                                Ccodem.builder().cId("IOE_C").cdva("103").cTp("IOE_IDR").build()));
 
                 ProjectDto.Response result = projectService.getProject(prjMngNo);
 
@@ -1129,7 +1129,8 @@ class ProjectServiceTest {
                 // then: 프로젝트 1건 반환
                 assertThat(result).hasSize(1);
                 assertThat(result.get(0).getBzTpCNm()).isEqualTo("사업유형A");
-                assertThat(result.get(0).getBzDttNm()).isEqualTo("업무구분B1");
+                // 업무구분 코드명은 bzDttNmNm(코드명 필드)에 저장; bzDttNm은 원본 코드값 필드
+                assertThat(result.get(0).getBzDttNmNm()).isEqualTo("업무구분B1");
         }
 
         @Test
@@ -1499,12 +1500,12 @@ class ProjectServiceTest {
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of(devItem, machItem, intanItem));
-                given(codeService.findCodeEntitiesByCId("IOE")).willReturn(List.of(
-                                Ccodem.builder().cId("IOE").cdva("DEV-001").cTp("IOE_CPIT").cdvaDes("단말기").build(),
-                                Ccodem.builder().cId("IOE").cdva("MACH-001").cTp("IOE_CPIT").cdvaDes("기계장치").build(),
-                                Ccodem.builder().cId("IOE").cdva("INTAN-001").cTp("IOE_CPIT").cdvaDes("기타무형자산").build()
+                given(codeService.findCodeEntitiesByCId("IOE_C")).willReturn(List.of(
+                                Ccodem.builder().cId("IOE_C").cdva("DEV-001").cTp("IOE_CPIT").cdvaDes("단말기").build(),
+                                Ccodem.builder().cId("IOE_C").cdva("MACH-001").cTp("IOE_CPIT").cdvaDes("기계장치").build(),
+                                Ccodem.builder().cId("IOE_C").cdva("INTAN-001").cTp("IOE_CPIT").cdvaDes("기타무형자산").build()
                 ));
-                given(ccodemRepository.findByCIdWithValidDate(eq("IOE"), any())).willReturn(List.of());
+                given(ccodemRepository.findByCIdWithValidDate(eq("IOE_C"), any())).willReturn(List.of());
 
                 // when
                 ProjectDto.Response result = projectService.getProject(prjMngNo);
@@ -1707,16 +1708,16 @@ class ProjectServiceTest {
                                 .willReturn(Optional.of(Ccodem.builder().cId("PRJ_TP").cdva("TP01").cNm("신규개발").build()));
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("BZ_DTT", "BZ01", null))
                                 .willReturn(Optional.of(Ccodem.builder().cId("BZ_DTT").cdva("BZ01").cNm("금융").build()));
-                given(ccodemRepository.findByCIdAndCdvaWithValidDate("TCHN_TP", "TC01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("TCHN_TP").cdva("TC01").cNm("AI").build()));
-                given(ccodemRepository.findByCIdAndCdvaWithValidDate("MN_USR", "MN01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("MN_USR").cdva("MN01").cNm("직접관리").build()));
-                given(ccodemRepository.findByCIdAndCdvaWithValidDate("RPR_STS", "RS01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("RPR_STS").cdva("RS01").cNm("검토중").build()));
-                given(ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_PUL_PTT", "PP01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("PRJ_PUL_PTT").cdva("PP01").cNm("정규").build()));
-                given(ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", "PD01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("PUL_DTT").cdva("PD01").cNm("연초").build()));
+                given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_PTL_TCHN_TP_TC", "TC01", null))
+                                .willReturn(Optional.of(Ccodem.builder().cId("IT_PTL_TCHN_TP_TC").cdva("TC01").cNm("AI").build()));
+                given(ccodemRepository.findByCIdAndCdvaWithValidDate("CST_TP_TC", "MN01", null))
+                                .willReturn(Optional.of(Ccodem.builder().cId("CST_TP_TC").cdva("MN01").cNm("직접관리").build()));
+                given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_PTL_RPR_STS_TC", "RS01", null))
+                                .willReturn(Optional.of(Ccodem.builder().cId("IT_PTL_RPR_STS_TC").cdva("RS01").cNm("검토중").build()));
+                given(ccodemRepository.findByCIdAndCdvaWithValidDate("EXE_PTT_YN", "PP01", null))
+                                .willReturn(Optional.of(Ccodem.builder().cId("EXE_PTT_YN").cdva("PP01").cNm("정규").build()));
+                given(ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_TC", "PD01", null))
+                                .willReturn(Optional.of(Ccodem.builder().cId("ABUS_TC").cdva("PD01").cNm("연초").build()));
 
                 // when
                 ProjectDto.Response result = projectService.getProject(prjMngNo);
