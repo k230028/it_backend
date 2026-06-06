@@ -112,7 +112,7 @@ class AdminMenuControllerTest {
     void create_정상요청_201반환() throws Exception {
         // given
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("새메뉴").sysHrkMnuId("01").mnuTpC("GRP")
+                .mnuNm("새메뉴").mnuTpC("GRP")
                 .build();
         given(adminMenuService.create(any())).willReturn("MNU0000001");
 
@@ -130,7 +130,7 @@ class AdminMenuControllerTest {
     void create_mnuNm누락_400반환() throws Exception {
         // given: @NotBlank 위반 (빈 문자열)
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("").sysHrkMnuId("01").mnuTpC("GRP")
+                .mnuNm("").mnuTpC("GRP")
                 .build();
 
         // when & then
@@ -150,7 +150,7 @@ class AdminMenuControllerTest {
     void update_정상요청_204반환() throws Exception {
         // given
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("수정메뉴").sysHrkMnuId("01").mnuTpC("GRP")
+                .mnuNm("수정메뉴").mnuTpC("GRP")
                 .build();
 
         // when & then
@@ -166,7 +166,7 @@ class AdminMenuControllerTest {
     void update_존재하지않는메뉴_400반환() throws Exception {
         // given
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("수정메뉴").sysHrkMnuId("01").mnuTpC("GRP")
+                .mnuNm("수정메뉴").mnuTpC("GRP")
                 .build();
         // GlobalExceptionHandler가 RuntimeException(ResponseStatusException 포함)을 400으로 변환한다
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 메뉴"))

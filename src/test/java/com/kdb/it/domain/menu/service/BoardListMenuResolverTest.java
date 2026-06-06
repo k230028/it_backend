@@ -78,8 +78,8 @@ class BoardListMenuResolverTest {
         assertThat(first.getMnuNm()).isEqualTo("공지사항");
         assertThat(first.getMnuTpC()).isEqualTo("LNK");
         assertThat(first.getSrePth()).isEqualTo("/board/BLB-2026-0001");
-        assertThat(first.getMnuDep()).isEqualTo(2);
-        assertThat(first.getWhlMnuPth()).isEqualTo("/MBRD0001/MBRD-BLB-2026-0001");
+        assertThat(first.getMnuDep()).isEqualTo(3);
+        assertThat(first.getWhlMnuPth()).isEqualTo("/MHED0006/MBRD0001/MBRD-BLB-2026-0001");
         // children은 빈 가변 리스트여야 한다 (정렬/가지치기에서 in-place 변형 가능)
         assertThat(first.getChildren()).isNotNull().isEmpty();
 
@@ -99,6 +99,7 @@ class BoardListMenuResolverTest {
 
         // then
         assertThat(adminResult).hasSize(1);
-        assertThat(adminResult.get(0).getSysHrkMnuId()).isEqualTo("04");
+        assertThat(adminResult.get(0).getHrkMnuId()).isEqualTo("MBRD0001");
+        assertThat(adminResult.get(0).getMnuDep()).isEqualTo(3);
     }
 }

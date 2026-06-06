@@ -29,7 +29,7 @@ class MenuQueryServiceTest {
     }
 
     private Cmenum node(String id, String parent, String type, int dep, String path) {
-        return Cmenum.builder().mnuId(id).hrkMnuId(parent).sysHrkMnuId("01").mnuNm(id)
+        return Cmenum.builder().mnuId(id).hrkMnuId(parent).mnuNm(id)
                 .mnuTpC(type).mnuSotSqnSno(10).hidYn("N").mnuDep(dep).whlMnuPth(path).delYn("N").build();
     }
 
@@ -68,7 +68,7 @@ class MenuQueryServiceTest {
 
     @Test
     void dynNode_getsChildrenFromMatchingResolver() {
-        Cmenum dyn = Cmenum.builder().mnuId("MBRD0001").hrkMnuId(null).sysHrkMnuId("04").mnuNm("게시판")
+        Cmenum dyn = Cmenum.builder().mnuId("MBRD0001").hrkMnuId(null).mnuNm("게시판")
                 .mnuTpC("DYN").mnuSotSqnSno(10).hidYn("N").mnuDep(1).whlMnuPth("/MBRD0001").delYn("N").build();
         given(cmenumRepository.findAllActive()).willReturn(List.of(dyn));
         given(cmenuaRepository.findAllActive()).willReturn(List.of());
@@ -87,5 +87,28 @@ class MenuQueryServiceTest {
 
         assertThat(tree).extracting(MenuDto.Node::getMnuId).containsExactly("MBRD0001");
         assertThat(tree.get(0).getChildren()).extracting(MenuDto.Node::getMnuId).containsExactly("MBRD-B1");
+    }
+
+    @Test
+    void hedHeader_isPruned_whenAllChildrenUnauthorized_butKept_whenPlaceholderVisible() {
+        // 관리자 헤더 H1: admin 전용 자식 A. CDP 헤더 H2: 공개 플레이스홀더 P.
+        given(cmenumRepository.findAllActive()).willReturn(List.of(
+                node("H1", null, "HED", 1, "/H1"),
+                node("A",  "H1", "LNK", 2, "/H1/A"),
+                node("H2", null, "HED", 1, "/H2"),
+                node("P",  "H2", "LNK", 2, "/H2/P")
+        ));
+        given(cmenuaRepository.findAllActive()).willReturn(List.of(
+                Cmenua.builder().mnuId("H1").athId("ITPAD001").delYn("N").build(),
+                Cmenua.builder().mnuId("A").athId("ITPAD001").delYn("N").build()
+        ));
+
+        // 비관리자: H1(관리자 헤더) 숨김, H2(CDP)는 플레이스홀더 P 덕분에 유지
+        List<MenuDto.Node> userTree = service.getMenuTree(List.of("ITPZZ001"));
+        assertThat(userTree).extracting(MenuDto.Node::getMnuId).containsExactly("H2");
+
+        // 관리자: H1 + H2 모두 노출
+        List<MenuDto.Node> adminTree = service.getMenuTree(List.of("ITPAD001"));
+        assertThat(adminTree).extracting(MenuDto.Node::getMnuId).containsExactlyInAnyOrder("H1", "H2");
     }
 }

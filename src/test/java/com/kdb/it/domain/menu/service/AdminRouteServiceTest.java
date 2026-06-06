@@ -179,7 +179,7 @@ class AdminRouteServiceTest {
         Cmenud c = route("/budget/list");
         given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N")).willReturn(Optional.of(c));
         Cmenum menu = Cmenum.builder().mnuId("M1").mnuNm("예산목록").mnuTpC("LNK")
-                .srePth("/budget/list").sysHrkMnuId("01").mnuSotSqnSno(10)
+                .srePth("/budget/list").mnuSotSqnSno(10)
                 .hidYn("N").mnuDep(1).whlMnuPth("/M1").delYn("N").build();
         given(cmenumRepository.findAllActive()).willReturn(List.of(menu));
 

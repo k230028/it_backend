@@ -20,7 +20,7 @@ import java.util.List;
 @Transactional
 public class AdminMenuService {
 
-    private static final int MAX_DEPTH = 3;
+    private static final int MAX_DEPTH = 4;
     private static final int SORT_STEP = 10;
 
     private final CmenumRepository cmenumRepository;
@@ -36,6 +36,7 @@ public class AdminMenuService {
      */
     public String create(MenuDto.UpsertRequest req) {
         validateTypePath(req.getMnuTpC(), req.getSrePth());
+        validateHierarchy(req.getMnuTpC(), req.getHrkMnuId());
         String mnuId = cmenumRepository.nextMnuId();
 
         int depth = 1;
@@ -48,7 +49,7 @@ public class AdminMenuService {
         }
 
         Cmenum menu = Cmenum.builder()
-                .mnuId(mnuId).hrkMnuId(req.getHrkMnuId()).sysHrkMnuId(req.getSysHrkMnuId())
+                .mnuId(mnuId).hrkMnuId(req.getHrkMnuId())
                 .mnuNm(req.getMnuNm()).mnuTpC(req.getMnuTpC()).srePth(req.getSrePth())
                 .mnuSotSqnSno(SORT_STEP).hidYn(req.getHidYn() == null ? "N" : req.getHidYn())
                 .mnuDep(depth).whlMnuPth(whlPth).delYn("N")
@@ -69,7 +70,6 @@ public class AdminMenuService {
         validateTypePath(req.getMnuTpC(), req.getSrePth());
         Cmenum menu = load(mnuId);
         menu.setMnuNm(req.getMnuNm());
-        menu.setSysHrkMnuId(req.getSysHrkMnuId());
         menu.setMnuTpC(req.getMnuTpC());
         menu.setSrePth(req.getSrePth());
         menu.setHidYn(req.getHidYn() == null ? "N" : req.getHidYn());
@@ -115,6 +115,7 @@ public class AdminMenuService {
      */
     public void move(String mnuId, String newHrkMnuId) {
         Cmenum target = load(mnuId);
+        validateHierarchy(target.getMnuTpC(), newHrkMnuId);
         String oldPrefix = target.getWhlMnuPth();
 
         int baseDepth = 0;
@@ -151,13 +152,30 @@ public class AdminMenuService {
     }
 
     private void validateTypePath(String mnuTpC, String srePth) {
-        if (!List.of("LNK", "GRP", "DYN").contains(mnuTpC)) throw badRequest("잘못된 메뉴유형코드: " + mnuTpC);
+        if (!List.of("LNK", "GRP", "DYN", "HED").contains(mnuTpC)) throw badRequest("잘못된 메뉴유형코드: " + mnuTpC);
         if ("LNK".equals(mnuTpC)) {
             if (srePth == null || srePth.isBlank()) throw badRequest("LNK 메뉴는 화면경로가 필수입니다.");
             cmenudRepository.findBySrePthAndDelYn(srePth, "N")
                     .orElseThrow(() -> badRequest("라우트 카탈로그에 없는 경로: " + srePth));
         } else if (srePth != null) {
             throw badRequest(mnuTpC + " 메뉴는 화면경로를 가질 수 없습니다.");
+        }
+    }
+
+    /**
+     * HED(헤더)는 최상위 전용, 비-HED는 반드시 상위 메뉴를 가져야 한다.
+     *
+     * @param mnuTpC   메뉴유형코드
+     * @param hrkMnuId 상위메뉴ID (루트면 null)
+     * @throws ResponseStatusException HED가 상위를 갖거나, 비-HED가 루트로 지정된 경우
+     */
+    private void validateHierarchy(String mnuTpC, String hrkMnuId) {
+        boolean isHed = "HED".equals(mnuTpC);
+        if (isHed && hrkMnuId != null) {
+            throw badRequest("헤더(HED) 메뉴는 최상위에만 위치할 수 있습니다.");
+        }
+        if (!isHed && hrkMnuId == null) {
+            throw badRequest("헤더(HED)가 아닌 메뉴는 최상위(루트)로 둘 수 없습니다. 상위 헤더를 지정하세요.");
         }
     }
 

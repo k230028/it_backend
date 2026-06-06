@@ -117,7 +117,7 @@ public class MenuQueryService {
         List<MenuDto.Node> kept = new ArrayList<>();
         for (MenuDto.Node n : nodes) {
             n.setChildren(prune(n.getChildren(), true));
-            boolean container = "GRP".equals(n.getMnuTpC()) || "DYN".equals(n.getMnuTpC());
+            boolean container = "GRP".equals(n.getMnuTpC()) || "DYN".equals(n.getMnuTpC()) || "HED".equals(n.getMnuTpC());
             boolean empty = n.getChildren() == null || n.getChildren().isEmpty();
             if (container && empty) continue;
             kept.add(n);
@@ -127,7 +127,7 @@ public class MenuQueryService {
 
     private MenuDto.Node toNode(Cmenum m) {
         return MenuDto.Node.builder()
-                .mnuId(m.getMnuId()).hrkMnuId(m.getHrkMnuId()).sysHrkMnuId(m.getSysHrkMnuId())
+                .mnuId(m.getMnuId()).hrkMnuId(m.getHrkMnuId())
                 .mnuNm(m.getMnuNm()).mnuTpC(m.getMnuTpC()).srePth(m.getSrePth())
                 .mnuSotSqnSno(m.getMnuSotSqnSno()).hidYn(m.getHidYn())
                 .mnuDep(m.getMnuDep()).whlMnuPth(m.getWhlMnuPth())

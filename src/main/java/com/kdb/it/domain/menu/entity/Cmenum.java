@@ -32,9 +32,6 @@ public class Cmenum extends BaseEntity {
     @Column(name = "HRK_MNU_ID", length = 10, comment = "상위메뉴ID")
     private String hrkMnuId;
 
-    @Column(name = "SYS_HRK_MNU_ID", length = 10, nullable = false, comment = "시스템상위메뉴ID")
-    private String sysHrkMnuId;
-
     @Column(name = "MNU_NM", length = 100, nullable = false, comment = "메뉴명")
     private String mnuNm;
 

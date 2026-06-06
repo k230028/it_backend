@@ -18,6 +18,9 @@ public class BoardListMenuResolver implements MenuChildrenResolver {
     /** 시드의 게시판 DYN 노드 MNU_ID (V20260603_008 시드와 일치해야 함). */
     private static final String BOARD_DYN_MNU_ID = "MBRD0001";
 
+    /** 게시판 헤더(HED) MNU_ID. 마이그레이션 006 시드와 일치해야 함. */
+    private static final String BOARD_HEADER_MNU_ID = "MHED0006";
+
     private final BoardMetaService boardMetaService;
 
     @Override
@@ -36,13 +39,12 @@ public class BoardListMenuResolver implements MenuChildrenResolver {
         return MenuDto.Node.builder()
                 .mnuId(childMnuId)
                 .hrkMnuId(BOARD_DYN_MNU_ID)
-                .sysHrkMnuId("04")
                 .mnuNm(b.getBlbNm())
                 .mnuTpC("LNK")
                 .srePth("/board/" + b.getBlbMngNo())
-                .mnuDep(2)
-                // Breadcrumb가 조상(게시판 그룹)을 해석할 수 있도록 전체 경로를 채운다(부모 MBRD0001 = '/MBRD0001').
-                .whlMnuPth("/" + BOARD_DYN_MNU_ID + "/" + childMnuId)
+                .mnuDep(3)
+                // Breadcrumb가 조상(게시판 헤더·DYN)을 해석하도록 헤더부터 전체 경로를 채운다.
+                .whlMnuPth("/" + BOARD_HEADER_MNU_ID + "/" + BOARD_DYN_MNU_ID + "/" + childMnuId)
                 // 가변 리스트 필수: MenuQueryService.sortRecursive가 children을 in-place 정렬한다.
                 .children(new ArrayList<>())
                 .build();

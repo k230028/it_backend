@@ -34,7 +34,7 @@ class AdminMenuServiceTest {
     @InjectMocks AdminMenuService service;
 
     private Cmenum node(String id, String parent, int dep, String path) {
-        return Cmenum.builder().mnuId(id).hrkMnuId(parent).sysHrkMnuId("01").mnuNm(id)
+        return Cmenum.builder().mnuId(id).hrkMnuId(parent).mnuNm(id)
                 .mnuTpC("GRP").mnuSotSqnSno(10).hidYn("N").mnuDep(dep).whlMnuPth(path).delYn("N").build();
     }
 
@@ -69,10 +69,11 @@ class AdminMenuServiceTest {
     }
 
     @Test
-    void move_rejectsWhenResultingDepthExceedsThree() {
+    void move_rejectsWhenResultingDepthExceedsFour() {
+        // B(depth2)+자식 C(depth3)를 depth3 부모 아래로 이동 → C가 depth5가 되어 거부
         Cmenum target = node("B", "A", 2, "/A/B");
-        Cmenum child  = node("C", "B", 3, "/A/B/C");        // moving B under depth-2 parent -> C becomes depth 4
-        Cmenum newParent = node("P", "Q", 2, "/Q/P");
+        Cmenum child  = node("C", "B", 3, "/A/B/C");
+        Cmenum newParent = node("P", "O", 3, "/N/O/P");
         given(cmenumRepository.findByMnuIdAndDelYn("B", "N")).willReturn(Optional.of(target));
         given(cmenumRepository.findByMnuIdAndDelYn("P", "N")).willReturn(Optional.of(newParent));
         given(cmenumRepository.findSubtreeByPathPrefix("/A/B")).willReturn(List.of(target, child));
@@ -114,12 +115,14 @@ class AdminMenuServiceTest {
     void create_LNK유형_메뉴저장및ID반환() {
         // given
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("예산목록").sysHrkMnuId("01").mnuTpC("LNK")
+                .mnuNm("예산목록").mnuTpC("LNK").hrkMnuId("P1")
                 .srePth("/budget/list").hidYn("N").athIds(List.of())
                 .build();
         given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
                 .willReturn(Optional.of(Cmenud.builder().srePth("/budget/list").sreMnuNm("예산목록")
                         .useYn("Y").delYn("N").build()));
+        given(cmenumRepository.findByMnuIdAndDelYn("P1", "N"))
+                .willReturn(Optional.of(node("P1", "MHED0002", 2, "/MHED0002/P1")));
         given(cmenumRepository.nextMnuId()).willReturn("MNU0000001");
         given(cmenuaRepository.findActiveByMnuId("MNU0000001")).willReturn(List.of());
 
@@ -132,11 +135,11 @@ class AdminMenuServiceTest {
     }
 
     @Test
-    @DisplayName("create: GRP 유형이고 화면경로가 없으면 루트 메뉴를 저장한다")
-    void create_GRP유형_루트메뉴저장() {
+    @DisplayName("create: HED 유형이고 화면경로가 없으면 루트 헤더를 저장한다")
+    void create_HED유형_루트헤더저장() {
         // given
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("예산관리").sysHrkMnuId("01").mnuTpC("GRP")
+                .mnuNm("새 헤더").mnuTpC("HED")
                 .hrkMnuId(null).srePth(null).hidYn("N").athIds(null)
                 .build();
         given(cmenumRepository.nextMnuId()).willReturn("MNU0000002");
@@ -160,7 +163,7 @@ class AdminMenuServiceTest {
         Cmenum parent = node("PAR", null, 1, "/PAR");
         parent.setMnuTpC("GRP");
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("하위메뉴").sysHrkMnuId("01").mnuTpC("GRP")
+                .mnuNm("하위메뉴").mnuTpC("GRP")
                 .hrkMnuId("PAR").srePth(null).hidYn("N").athIds(List.of())
                 .build();
         given(cmenumRepository.findByMnuIdAndDelYn("PAR", "N")).willReturn(Optional.of(parent));
@@ -183,7 +186,7 @@ class AdminMenuServiceTest {
     void create_GRP유형_화면경로있음_예외() {
         // given
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("잘못된메뉴").sysHrkMnuId("01").mnuTpC("GRP")
+                .mnuNm("잘못된메뉴").mnuTpC("GRP")
                 .srePth("/some/path").build();
 
         // when & then
@@ -197,7 +200,7 @@ class AdminMenuServiceTest {
     void create_LNK유형_화면경로없음_예외() {
         // given
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("링크메뉴").sysHrkMnuId("01").mnuTpC("LNK")
+                .mnuNm("링크메뉴").mnuTpC("LNK")
                 .srePth(null).build();
 
         // when & then
@@ -211,7 +214,7 @@ class AdminMenuServiceTest {
     void create_잘못된메뉴유형_예외() {
         // given
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("잘못된타입").sysHrkMnuId("01").mnuTpC("XXX").build();
+                .mnuNm("잘못된타입").mnuTpC("XXX").build();
 
         // when & then
         assertThatThrownBy(() -> service.create(req))
@@ -220,16 +223,16 @@ class AdminMenuServiceTest {
     }
 
     @Test
-    @DisplayName("create: 깊이가 3단을 초과하면 예외를 던진다")
+    @DisplayName("create: 깊이가 4단을 초과하면 예외를 던진다")
     void create_깊이초과_예외() {
-        // given: depth=3인 부모에 추가하면 depth=4 → 예외
-        Cmenum parent = Cmenum.builder().mnuId("D3").hrkMnuId("D2").sysHrkMnuId("01")
-                .mnuNm("3단메뉴").mnuTpC("GRP").mnuSotSqnSno(10).hidYn("N")
-                .mnuDep(3).whlMnuPth("/D1/D2/D3").delYn("N").build();
+        // given: depth=4인 부모에 추가하면 depth=5 → 예외
+        Cmenum parent = Cmenum.builder().mnuId("D4").hrkMnuId("D3")
+                .mnuNm("4단메뉴").mnuTpC("GRP").mnuSotSqnSno(10).hidYn("N")
+                .mnuDep(4).whlMnuPth("/D1/D2/D3/D4").delYn("N").build();
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("4단메뉴").sysHrkMnuId("01").mnuTpC("GRP")
-                .hrkMnuId("D3").srePth(null).build();
-        given(cmenumRepository.findByMnuIdAndDelYn("D3", "N")).willReturn(Optional.of(parent));
+                .mnuNm("5단메뉴").mnuTpC("GRP")
+                .hrkMnuId("D4").srePth(null).build();
+        given(cmenumRepository.findByMnuIdAndDelYn("D4", "N")).willReturn(Optional.of(parent));
         given(cmenumRepository.nextMnuId()).willReturn("MNU0000004");
 
         // when & then
@@ -249,7 +252,7 @@ class AdminMenuServiceTest {
         Cmenum menu = node("M1", null, 1, "/M1");
         menu.setMnuTpC("GRP");
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("수정메뉴").sysHrkMnuId("02").mnuTpC("GRP")
+                .mnuNm("수정메뉴").mnuTpC("GRP")
                 .srePth(null).hidYn("Y").athIds(List.of("ITPAD001"))
                 .build();
         given(cmenumRepository.findByMnuIdAndDelYn("M1", "N")).willReturn(Optional.of(menu));
@@ -271,7 +274,7 @@ class AdminMenuServiceTest {
         // given
         given(cmenumRepository.findByMnuIdAndDelYn("NONE", "N")).willReturn(Optional.empty());
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
-                .mnuNm("없는메뉴").sysHrkMnuId("01").mnuTpC("GRP").build();
+                .mnuNm("없는메뉴").mnuTpC("GRP").build();
 
         // when & then
         assertThatThrownBy(() -> service.update("NONE", req))
@@ -304,19 +307,44 @@ class AdminMenuServiceTest {
     // =========================================================================
 
     @Test
-    @DisplayName("move: newHrkMnuId가 null이면 루트로 이동한다")
-    void move_루트로이동() {
-        // given
-        Cmenum target = node("B", "A", 2, "/A/B");
-        given(cmenumRepository.findByMnuIdAndDelYn("B", "N")).willReturn(Optional.of(target));
-        given(cmenumRepository.findSubtreeByPathPrefix("/A/B")).willReturn(List.of(target));
+    @DisplayName("move: HED를 루트로 이동하면 depth=1로 재계산한다")
+    void move_HED를루트로이동() {
+        // given: 비-HED는 루트 이동이 금지되므로 HED를 대상으로 루트 이동 재계산을 검증한다.
+        Cmenum target = Cmenum.builder().mnuId("MHED0009").hrkMnuId("X")
+                .mnuNm("헤더").mnuTpC("HED").mnuSotSqnSno(10).hidYn("N")
+                .mnuDep(2).whlMnuPth("/X/MHED0009").delYn("N").build();
+        given(cmenumRepository.findByMnuIdAndDelYn("MHED0009", "N")).willReturn(Optional.of(target));
+        given(cmenumRepository.findSubtreeByPathPrefix("/X/MHED0009")).willReturn(List.of(target));
 
         // when
-        service.move("B", null);
+        service.move("MHED0009", null);
 
-        // then: 루트(depth=1), 경로=/B
+        // then: 루트(depth=1), 경로=/MHED0009
         assertThat(target.getHrkMnuId()).isNull();
         assertThat(target.getMnuDep()).isEqualTo(1);
-        assertThat(target.getWhlMnuPth()).isEqualTo("/B");
+        assertThat(target.getWhlMnuPth()).isEqualTo("/MHED0009");
+    }
+
+    @Test
+    @DisplayName("create: 비-HED 메뉴를 루트로 생성하면 예외를 던진다")
+    void create_비HED루트_예외() {
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("루트GRP").mnuTpC("GRP").hrkMnuId(null).srePth(null).build();
+        assertThatThrownBy(() -> service.create(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("최상위");
+    }
+
+    @Test
+    @DisplayName("move: HED 헤더를 다른 메뉴 밑으로 이동하면 예외를 던진다")
+    void move_HED를하위로이동_예외() {
+        Cmenum header = Cmenum.builder().mnuId("MHED0009").hrkMnuId(null)
+                .mnuNm("헤더").mnuTpC("HED").mnuSotSqnSno(10).hidYn("N")
+                .mnuDep(1).whlMnuPth("/MHED0009").delYn("N").build();
+        given(cmenumRepository.findByMnuIdAndDelYn("MHED0009", "N")).willReturn(Optional.of(header));
+
+        assertThatThrownBy(() -> service.move("MHED0009", "MHED0002"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("최상위");
     }
 }
