@@ -123,7 +123,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                         cappla.fntTbNm.eq("BCOSTM"),
                                         cappla.pkColNm.eq(bcostm.costBgNo),
                                         cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                        capplm.apfPrgStsC.in("01", "02"))
+                                        capplm.apfPrgStsC.in(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(), com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()))
                                 .notExists());
             } else {
                 // 특정 결재상태: 최신 신청서(APF_DCM_NO 최대값)의 결재상태가 일치하는 경우
