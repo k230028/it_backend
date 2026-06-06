@@ -83,7 +83,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * @param prjSts   변경할 상태값
      */
     @Modifying
-    @Query(value = "UPDATE TPRMPP_BPROJM SET STS_TC = :prjSts WHERE ABUS_MNG_NO = :prjMngNo AND SNO = :prjSno",
+    @Query(value = "UPDATE TPRMPP_BPROJM SET IT_PTL_STS_TC = :prjSts WHERE ABUS_MNG_NO = :prjMngNo AND SNO = :prjSno",
             nativeQuery = true)
     int updateProjectStatus(@Param("prjMngNo") String prjMngNo,
                             @Param("prjSno") Integer prjSno,
@@ -162,9 +162,9 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                AND a.DEL_YN     = 'N'
             WHERE p.DEL_YN = 'N'
               AND (
-                  (a.ASCT_ID IS NOT NULL AND p.STS_TC = :stsInProgress)
+                  (a.ASCT_ID IS NOT NULL AND p.IT_PTL_STS_TC = :stsInProgress)
                   OR
-                  (a.ASCT_ID IS NULL AND p.STS_TC IN (:stsPending1, :stsPending2)
+                  (a.ASCT_ID IS NULL AND p.IT_PTL_STS_TC IN (:stsPending1, :stsPending2)
                   AND EXISTS (
                       SELECT 1
                       FROM TPRMPP_CAPPLA ca
@@ -230,9 +230,9 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
             WHERE p.SVN_DPM_C = :svnDpm
               AND p.DEL_YN  = 'N'
               AND (
-                  (a.ASCT_ID IS NOT NULL AND p.STS_TC = :stsInProgress)
+                  (a.ASCT_ID IS NOT NULL AND p.IT_PTL_STS_TC = :stsInProgress)
                   OR
-                  (a.ASCT_ID IS NULL AND p.STS_TC IN (:stsPending1, :stsPending2)
+                  (a.ASCT_ID IS NULL AND p.IT_PTL_STS_TC IN (:stsPending1, :stsPending2)
                   AND EXISTS (
                       SELECT 1
                       FROM TPRMPP_CAPPLA ca
