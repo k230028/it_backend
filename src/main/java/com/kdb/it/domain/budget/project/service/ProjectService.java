@@ -865,31 +865,31 @@ public class ProjectService {
 
         if (response.getBzTpC() != null && !response.getBzTpC().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.PRJ_TYPE, response.getBzTpC(), null)
-                    .ifPresent(code -> response.setBzTpCNm(code.getCNm()));
+                    .ifPresent(code -> response.setBzTpCNm(code.getCdvaNm()));
         }
         if (response.getBzDttNm() != null && !response.getBzDttNm().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.BZ_DTT, response.getBzDttNm(), null)
-                    .ifPresent(code -> response.setBzDttNmNm(code.getCNm()));
+                    .ifPresent(code -> response.setBzDttNmNm(code.getCdvaNm()));
         }
         if (response.getSklTpTc() != null && !response.getSklTpTc().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.TECH_TYPE, response.getSklTpTc(), null)
-                    .ifPresent(code -> response.setSklTpTcNm(code.getCNm()));
+                    .ifPresent(code -> response.setSklTpTcNm(code.getCdvaNm()));
         }
         if (response.getCstTpTc() != null && !response.getCstTpTc().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.MAIN_USER, response.getCstTpTc(), null)
-                    .ifPresent(code -> response.setCstTpTcNm(code.getCNm()));
+                    .ifPresent(code -> response.setCstTpTcNm(code.getCdvaNm()));
         }
         if (response.getRprStsTc() != null && !response.getRprStsTc().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.REPORT_STS, response.getRprStsTc(), null)
-                    .ifPresent(code -> response.setRprStsTcNm(code.getCNm()));
+                    .ifPresent(code -> response.setRprStsTcNm(code.getCdvaNm()));
         }
         if (response.getExePttYn() != null && !response.getExePttYn().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.EXE_POSSIBLE, response.getExePttYn(), null)
-                    .ifPresent(code -> response.setExePttYnNm(code.getCNm()));
+                    .ifPresent(code -> response.setExePttYnNm(code.getCdvaNm()));
         }
         if (response.getAbusTc() != null && !response.getAbusTc().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.ABUS, response.getAbusTc(), null)
-                    .ifPresent(code -> response.setAbusTcNm(code.getCNm()));
+                    .ifPresent(code -> response.setAbusTcNm(code.getCdvaNm()));
         }
     }
 
@@ -1024,7 +1024,7 @@ public class ProjectService {
     private Map<String, String> buildCodeNameMap(String cId, Set<String> cdvas) {
         return ccodemRepository.findByCIdWithValidDate(cId, null).stream()
                 .filter(c -> cdvas.contains(c.getCdva()))
-                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCNm, (a, b) -> a));
+                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCdvaNm, (a, b) -> a));
     }
 
     /**
@@ -1060,7 +1060,7 @@ public class ProjectService {
                     String cdva = lastUnderscore >= 0 ? normalized.substring(lastUnderscore + 1) : normalized;
                     if (cdva.equals(code.getCdva())) {
                         String displayName = code.getCdvaNm() != null ? code.getCdvaNm()
-                                : (code.getCdvaDtl() != null ? code.getCdvaDtl() : code.getCNm());
+                                : (code.getCdvaDtl() != null ? code.getCdvaDtl() : code.getCdvaNm());
                         if (displayName != null) {
                             String[] parts = displayName.split(" - ");
                             result.put(orig, parts[parts.length - 1].trim());

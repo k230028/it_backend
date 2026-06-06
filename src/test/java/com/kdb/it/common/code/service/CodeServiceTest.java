@@ -215,9 +215,9 @@ class CodeServiceTest {
     @DisplayName("validateBudgetPeriod: 현재 날짜가 신청기간 내이면 예외가 발생하지 않는다")
     void validateBudgetPeriod_기간내_예외없음() {
         Ccodem sta = mockCcodem("STA", "BG_RQS");
-        given(sta.getCNm()).willReturn("2020-01-01");
+        given(sta.getCdvaDtlC()).willReturn("2020-01-01");
         Ccodem end = mockCcodem("END", "BG_RQS");
-        given(end.getCNm()).willReturn("2099-12-31");
+        given(end.getCdvaDtlC()).willReturn("2099-12-31");
         given(codeRepository.findByCIdAndCdvaWithValidDate(eq("BG_RQS"), eq("STA"), any()))
                 .willReturn(Optional.of(sta));
         given(codeRepository.findByCIdAndCdvaWithValidDate(eq("BG_RQS"), eq("END"), any()))
@@ -230,9 +230,9 @@ class CodeServiceTest {
     @DisplayName("validateBudgetPeriod: 현재 날짜가 신청기간 이전이면 CustomGeneralException을 던진다")
     void validateBudgetPeriod_기간이전_CustomGeneralException발생() {
         Ccodem sta = mockCcodem("STA", "BG_RQS");
-        given(sta.getCNm()).willReturn("2099-01-01");
+        given(sta.getCdvaDtlC()).willReturn("2099-01-01");
         Ccodem end = mockCcodem("END", "BG_RQS");
-        given(end.getCNm()).willReturn("2099-12-31");
+        given(end.getCdvaDtlC()).willReturn("2099-12-31");
         given(codeRepository.findByCIdAndCdvaWithValidDate(eq("BG_RQS"), eq("STA"), any()))
                 .willReturn(Optional.of(sta));
         given(codeRepository.findByCIdAndCdvaWithValidDate(eq("BG_RQS"), eq("END"), any()))
@@ -247,9 +247,9 @@ class CodeServiceTest {
     @DisplayName("validateBudgetPeriod: 현재 날짜가 신청기간 이후이면 CustomGeneralException을 던진다")
     void validateBudgetPeriod_기간이후_CustomGeneralException발생() {
         Ccodem sta = mockCcodem("STA", "BG_RQS");
-        given(sta.getCNm()).willReturn("2000-01-01");
+        given(sta.getCdvaDtlC()).willReturn("2000-01-01");
         Ccodem end = mockCcodem("END", "BG_RQS");
-        given(end.getCNm()).willReturn("2000-12-31");
+        given(end.getCdvaDtlC()).willReturn("2000-12-31");
         given(codeRepository.findByCIdAndCdvaWithValidDate(eq("BG_RQS"), eq("STA"), any()))
                 .willReturn(Optional.of(sta));
         given(codeRepository.findByCIdAndCdvaWithValidDate(eq("BG_RQS"), eq("END"), any()))
@@ -264,7 +264,7 @@ class CodeServiceTest {
     @DisplayName("getBudgetPeriod: 종료 코드가 없으면 IllegalArgumentException을 던진다")
     void getBudgetPeriod_종료코드없음_IllegalArgumentException발생() {
         Ccodem sta = mockCcodem("STA", "BG_RQS");
-        given(sta.getCNm()).willReturn("2026-01-01");
+        given(sta.getCdvaDtlC()).willReturn("2026-01-01");
         given(codeRepository.findByCIdAndCdvaWithValidDate(eq("BG_RQS"), eq("STA"), any()))
                 .willReturn(Optional.of(sta));
         given(codeRepository.findByCIdAndCdvaWithValidDate(eq("BG_RQS"), eq("END"), any()))

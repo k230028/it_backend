@@ -108,7 +108,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         p.abusMngNo, p.bzTpC, p.abusTc, p.abusNm, p.abusCone,
                         p.prlmHrkOgzCCone, p.svnDpmC, svnOrg.bbrNm, p.tlrUsid, svnDpmTlrNm, p.usid, svnDpmCgprNm,
                         p.dvmDpmC, itOrg.bbrNm, p.dvmTlrUsid, itDpmTlrNm, p.dvmUsid, itDpmCgprNm,
-                        p.exePttYn, p.sttDtm, p.endDtm, p.rprStsTc, rprStsCode.cNm, p.edrtTc,
+                        p.exePttYn, p.sttDtm, p.endDtm, p.rprStsTc, rprStsCode.cdvaNm, p.edrtTc,
                         reqDev, reqMach, reqIntan, reqRent, reqTravel, reqService, reqMisc,
                         adjDev, adjMach, adjIntan, adjRent, adjTravel, adjService, adjMisc
                 )
@@ -152,7 +152,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                         p.abusMngNo, p.sno, p.bzTpC, p.abusTc, p.abusNm, p.abusCone,
                         p.prlmHrkOgzCCone, p.svnDpmC, svnOrg.bbrNm, p.tlrUsid, p.usid,
                         p.dvmDpmC, itOrg.bbrNm, p.dvmTlrUsid, p.dvmUsid,
-                        p.exePttYn, p.sttDtm, p.endDtm, p.rprStsTc, rprStsCode.cNm, p.edrtTc
+                        p.exePttYn, p.sttDtm, p.endDtm, p.rprStsTc, rprStsCode.cdvaNm, p.edrtTc
                 )
                 .orderBy(p.abusMngNo.asc())
                 .fetch();
@@ -197,7 +197,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                     t.get(p.dvmUsid), t.get(itDpmCgprNm),
                     // exePttYn, sttDt, endDt, rprSts, rprStsNm, edrt
                     t.get(p.exePttYn), t.get(p.sttDtm), t.get(p.endDtm),
-                    t.get(p.rprStsTc), t.get(rprStsCode.cNm), t.get(p.edrtTc),
+                    t.get(p.rprStsTc), t.get(rprStsCode.cdvaNm), t.get(p.edrtTc),
                     rDev, rMach, rIntan, rAsset,
                     rRent, rTravel, rService, rMisc, rCost, rTotal,
                     aDev, aMach, aIntan, aAsset,

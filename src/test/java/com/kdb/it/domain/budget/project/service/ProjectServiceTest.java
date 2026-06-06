@@ -1010,8 +1010,8 @@ class ProjectServiceTest {
                 // ccodemRepository: prjTp="A" 코드명 반환 (cdva 필터 대상)
                 given(ccodemRepository.findByCIdWithValidDate(anyString(), any()))
                                 .willReturn(List.of(
-                                                Ccodem.builder().cdva("A").cNm("일반사업").build(),
-                                                Ccodem.builder().cdva("B").cNm("제외대상").build()));
+                                                Ccodem.builder().cdva("A").cdvaNm("일반사업").build(),
+                                                Ccodem.builder().cdva("B").cdvaNm("제외대상").build()));
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
 
@@ -1113,13 +1113,13 @@ class ProjectServiceTest {
                 // ccodemRepository: 각 코드 반환
                 given(ccodemRepository.findByCIdWithValidDate(anyString(), any()))
                                 .willReturn(List.of(
-                                                Ccodem.builder().cdva("A").cNm("사업유형A").build(),
-                                                Ccodem.builder().cdva("B1").cNm("업무구분B1").build(),
-                                                Ccodem.builder().cdva("C1").cNm("기술유형C1").build(),
-                                                Ccodem.builder().cdva("D1").cNm("주요사용자D1").build(),
-                                                Ccodem.builder().cdva("E1").cNm("보고상태E1").build(),
-                                                Ccodem.builder().cdva("F1").cNm("추진가능F1").build(),
-                                                Ccodem.builder().cdva("G1").cNm("사업구분G1").build()));
+                                                Ccodem.builder().cdva("A").cdvaNm("사업유형A").build(),
+                                                Ccodem.builder().cdva("B1").cdvaNm("업무구분B1").build(),
+                                                Ccodem.builder().cdva("C1").cdvaNm("기술유형C1").build(),
+                                                Ccodem.builder().cdva("D1").cdvaNm("주요사용자D1").build(),
+                                                Ccodem.builder().cdva("E1").cdvaNm("보고상태E1").build(),
+                                                Ccodem.builder().cdva("F1").cdvaNm("추진가능F1").build(),
+                                                Ccodem.builder().cdva("G1").cdvaNm("사업구분G1").build()));
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
 
@@ -1705,19 +1705,19 @@ class ProjectServiceTest {
 
                 // 공통코드 코드명 설정
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_TP", "TP01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("PRJ_TP").cdva("TP01").cNm("신규개발").build()));
+                                .willReturn(Optional.of(Ccodem.builder().cId("PRJ_TP").cdva("TP01").cdvaNm("신규개발").build()));
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("BZ_DTT", "BZ01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("BZ_DTT").cdva("BZ01").cNm("금융").build()));
+                                .willReturn(Optional.of(Ccodem.builder().cId("BZ_DTT").cdva("BZ01").cdvaNm("금융").build()));
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_PTL_TCHN_TP_TC", "TC01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("IT_PTL_TCHN_TP_TC").cdva("TC01").cNm("AI").build()));
+                                .willReturn(Optional.of(Ccodem.builder().cId("IT_PTL_TCHN_TP_TC").cdva("TC01").cdvaNm("AI").build()));
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("CST_TP_TC", "MN01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("CST_TP_TC").cdva("MN01").cNm("직접관리").build()));
+                                .willReturn(Optional.of(Ccodem.builder().cId("CST_TP_TC").cdva("MN01").cdvaNm("직접관리").build()));
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_PTL_RPR_STS_TC", "RS01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("IT_PTL_RPR_STS_TC").cdva("RS01").cNm("검토중").build()));
+                                .willReturn(Optional.of(Ccodem.builder().cId("IT_PTL_RPR_STS_TC").cdva("RS01").cdvaNm("검토중").build()));
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("EXE_PTT_YN", "PP01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("EXE_PTT_YN").cdva("PP01").cNm("정규").build()));
+                                .willReturn(Optional.of(Ccodem.builder().cId("EXE_PTT_YN").cdva("PP01").cdvaNm("정규").build()));
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_TC", "PD01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("ABUS_TC").cdva("PD01").cNm("연초").build()));
+                                .willReturn(Optional.of(Ccodem.builder().cId("ABUS_TC").cdva("PD01").cdvaNm("연초").build()));
 
                 // when
                 ProjectDto.Response result = projectService.getProject(prjMngNo);

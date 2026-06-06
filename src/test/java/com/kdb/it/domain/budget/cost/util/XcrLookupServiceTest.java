@@ -45,7 +45,7 @@ class XcrLookupServiceTest {
                 .cId("CUR_C")
                 .cdva("USD")
                 .cTp("XCR")
-                .cNm("1400")
+                .cdvaDtlC("1400")
                 .sttDt(LocalDate.of(2026, 1, 1))
                 .build();
         given(codeRepository.findByCIdAndCdvaWithValidDate("CUR_C", "USD", BASE_DATE))

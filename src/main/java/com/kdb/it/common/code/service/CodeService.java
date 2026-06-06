@@ -174,8 +174,8 @@ public class CodeService {
         Ccodem end = codeRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.BUDGET_RQS, "END", null)
                 .orElseThrow(() -> new IllegalArgumentException("예산 신청기간 종료일자 코드를 찾을 수 없습니다: BG_RQS/END"));
         return CodeDto.BudgetPeriodResponse.builder()
-                .startDate(sta.getCNm())
-                .endDate(end.getCNm())
+                .startDate(sta.getCdvaDtlC())
+                .endDate(end.getCdvaDtlC())
                 .build();
     }
 

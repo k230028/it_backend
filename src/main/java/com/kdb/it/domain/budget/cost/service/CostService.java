@@ -721,11 +721,11 @@ public class CostService {
         }
         if (response.getBgUntAbusC() != null && !response.getBgUntAbusC().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.ABUS_UNIT, response.getBgUntAbusC(), null)
-                    .ifPresent(code -> response.setBgUntAbusCNm(code.getCNm()));
+                    .ifPresent(code -> response.setBgUntAbusCNm(code.getCdvaNm()));
         }
         if (response.getDfrCleC() != null && !response.getDfrCleC().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.DFR_CLE, response.getDfrCleC(), null)
-                    .ifPresent(code -> response.setDfrCleCNm(code.getCNm()));
+                    .ifPresent(code -> response.setDfrCleCNm(code.getCdvaNm()));
         }
         if (response.getTmnYn() != null && !response.getTmnYn().isEmpty()) {
             // 단말여부(Y/N) → 구 IT_MNGC_TP 코드(002/001)로 환산하여 표시명 조회
@@ -733,12 +733,12 @@ public class CostService {
                     : "N".equals(response.getTmnYn()) ? "0" : null;
             if (mngcTpCode != null) {
                 ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.TMN_YN, mngcTpCode, null)
-                        .ifPresent(code -> response.setTmnYnNm(code.getCNm()));
+                        .ifPresent(code -> response.setTmnYnNm(code.getCdvaNm()));
             }
         }
         if (response.getAbusTc() != null && !response.getAbusTc().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.ABUS, response.getAbusTc(), null)
-                    .ifPresent(code -> response.setAbusTcNm(code.getCNm()));
+                    .ifPresent(code -> response.setAbusTcNm(code.getCdvaNm()));
         }
         if (response.getIoeC() != null && !response.getIoeC().isEmpty()) {
             String ioeCNm = buildIoeCNameMap(Set.of(response.getIoeC())).get(response.getIoeC());
@@ -769,7 +769,7 @@ public class CostService {
     private Map<String, String> buildCodeNameMap(String cId, Set<String> cdvas) {
         return ccodemRepository.findByCIdWithValidDate(cId, null).stream()
                 .filter(c -> cdvas.contains(c.getCdva()))
-                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCNm, (a, b) -> a));
+                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCdvaNm, (a, b) -> a));
     }
 
     /** IOE 코드 cdva → CDVA_NM 우선 표시명 맵 생성 */

@@ -842,13 +842,13 @@ class CostServiceTest {
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(Ccodem.builder().cdva("101").cTp("IOE_IDR").build()));
         given(ccodemRepository.findByCIdAndCdvaWithValidDate("BG_UNT_ABUS_C", "ABUS01", null))
-                .willReturn(java.util.Optional.of(Ccodem.builder().cNm("남용코드명").build()));
+                .willReturn(java.util.Optional.of(Ccodem.builder().cdvaNm("남용코드명").build()));
         given(ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE_C", "DFR01", null))
-                .willReturn(java.util.Optional.of(Ccodem.builder().cNm("납입주기명").build()));
+                .willReturn(java.util.Optional.of(Ccodem.builder().cdvaNm("납입주기명").build()));
         given(ccodemRepository.findByCIdAndCdvaWithValidDate("TMN_YN", "1", null))
-                .willReturn(java.util.Optional.of(Ccodem.builder().cNm("유형명").build()));
+                .willReturn(java.util.Optional.of(Ccodem.builder().cdvaNm("유형명").build()));
         given(ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_TC", "PD01", null))
-                .willReturn(java.util.Optional.of(Ccodem.builder().cNm("지급구분명").build()));
+                .willReturn(java.util.Optional.of(Ccodem.builder().cdvaNm("지급구분명").build()));
 
         // Act
         CostDto.Response result = costService.getCost("COST-ALL-CODE");
@@ -1014,13 +1014,13 @@ class CostServiceTest {
         given(cuserIRepository.findAllById(any())).willReturn(List.of());
         // buildCodeNameMap 람다 커버: 각 코드타입 → 코드명 반환
         given(ccodemRepository.findByCIdWithValidDate("BG_UNT_ABUS_C", null))
-                .willReturn(List.of(Ccodem.builder().cId("BG_UNT_ABUS_C").cdva("ABUS01").cNm("남용유형").build()));
+                .willReturn(List.of(Ccodem.builder().cId("BG_UNT_ABUS_C").cdva("ABUS01").cdvaNm("남용유형").build()));
         given(ccodemRepository.findByCIdWithValidDate("DFR_CLE_C", null))
-                .willReturn(List.of(Ccodem.builder().cId("DFR_CLE_C").cdva("DFR01").cNm("매월").build()));
+                .willReturn(List.of(Ccodem.builder().cId("DFR_CLE_C").cdva("DFR01").cdvaNm("매월").build()));
         given(ccodemRepository.findByCIdWithValidDate("TMN_YN", null))
-                .willReturn(List.of(Ccodem.builder().cId("TMN_YN").cdva("1").cNm("유형A").build()));
+                .willReturn(List.of(Ccodem.builder().cId("TMN_YN").cdva("1").cdvaNm("유형A").build()));
         given(ccodemRepository.findByCIdWithValidDate("ABUS_TC", null))
-                .willReturn(List.of(Ccodem.builder().cId("ABUS_TC").cdva("PD01").cNm("지급A").build()));
+                .willReturn(List.of(Ccodem.builder().cId("ABUS_TC").cdva("PD01").cdvaNm("지급A").build()));
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(Ccodem.builder().cdva("101").cdvaNm("전산임차료").cTp("IOE_IDR").build()));
 
