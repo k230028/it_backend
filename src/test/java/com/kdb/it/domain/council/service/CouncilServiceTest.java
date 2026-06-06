@@ -193,7 +193,7 @@ class CouncilServiceTest {
         councilService.skipCouncil(ASCT_ID);
 
         verify(council).changeStatus("SKIPPED");
-        verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "요건 상세화");
+        verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "29");
     }
 
     // ───────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ class CouncilServiceTest {
     @DisplayName("getCouncilList: 관리자이면 전체 사업 목록을 반환한다")
     void getCouncilList_관리자_전체목록반환() {
         CustomUserDetails admin = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
-        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString(), anyString(), anyString()))
+        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
                 .willReturn(List.of());
 
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
@@ -235,7 +235,7 @@ class CouncilServiceTest {
                 "IT",
                 "설명"
         };
-        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString(), anyString(), anyString()))
+        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
                 .willReturn(java.util.Collections.singletonList(row));
 
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
@@ -272,7 +272,7 @@ class CouncilServiceTest {
                 "IT",
                 "설명"
         };
-        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString(), anyString(), anyString()))
+        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
                 .willReturn(java.util.Collections.singletonList(row));
 
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
@@ -354,7 +354,7 @@ class CouncilServiceTest {
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "IT001");
         given(councilRepository.findByCommitteeMember("10001", "N")).willReturn(List.of());
         given(councilRepository.findProjectsForCouncilByDepartment(
-                anyString(), anyString(), anyString(), anyString(), anyString()))
+                anyString(), anyString(), anyString()))
                 .willReturn(List.of());
 
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(user);
@@ -544,7 +544,7 @@ class CouncilServiceTest {
 
         CouncilDto.NotifyResponse result = councilService.notifyCouncil(ASCT_ID);
 
-        verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "요건 상세화");
+        verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "29");
         assertThat(result).isNotNull();
     }
 

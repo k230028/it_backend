@@ -127,12 +127,18 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
     /**
      * 관리자용 협의회 신청 대상 목록 조회 (전체 부서, 통합)
      *
-     * <p>부서 필터 없이 전체 사업을 대상으로 조회합니다.</p>
+     * <p>부서 필터 없이 전체 사업을 대상으로 조회합니다. 상태는 IT_PTL_STS_TC 코드 기준입니다
+     * (공통코드 그룹 IT_PTL_STS_TC).</p>
      * <ul>
-     *   <li>협의회 미신청: PRJ_STS = '예산 작성' + 결재완료(APF_STS='결재완료') 사업</li>
-     *   <li>협의회 신청된 건: PRJ_STS = '정실협 진행중'</li>
+     *   <li>협의회 미신청 대상: IT_PTL_STS_TC = '19'(예산편성 작업 완료) 이면서 BASCTM 미존재</li>
+     *   <li>협의회 신청된 건: IT_PTL_STS_TC = '21'(정실협 진행중) 이면서 BASCTM 존재</li>
      * </ul>
      *
+     * <p>상태코드 '19'는 예산편성 단계의 전자결재·작업 완료를 이미 의미하므로,
+     * 과거의 별도 결재완료(CAPPLA/CAPPLM) EXISTS 조건은 상태코드로 대체했습니다.</p>
+     *
+     * @param stsInProgress 정실협 진행중 코드 ('21')
+     * @param stsPending    정실협 신청 대상 코드 ('19')
      * @return prjMngNo, prjSno, prjNm, asctId(null 가능), asctStsC(null 가능),
      *         dbrTc(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
      */
@@ -164,42 +170,26 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
               AND (
                   (a.ASCT_ID IS NOT NULL AND p.IT_PTL_STS_TC = :stsInProgress)
                   OR
-                  (a.ASCT_ID IS NULL AND p.IT_PTL_STS_TC IN (:stsPending1, :stsPending2)
-                  AND EXISTS (
-                      SELECT 1
-                      FROM TPRMPP_CAPPLA ca
-                      JOIN TPRMPP_CAPPLM cm ON ca.APF_DCM_NO = cm.APF_DCM_NO
-                      WHERE ca.FNT_TB_NM   = 'BPROJM'
-                        AND ca.PK_COL_NM   = p.ABUS_MNG_NO
-                        AND ca.FNT_TB_CRY_SNO = p.SNO
-                        AND cm.APF_PRG_STS_C = :apfSts
-                        AND ca.APF_SNO = (
-                            SELECT MAX(ca2.APF_SNO)
-                            FROM TPRMPP_CAPPLA ca2
-                            WHERE ca2.FNT_TB_NM   = 'BPROJM'
-                              AND ca2.PK_COL_NM   = p.ABUS_MNG_NO
-                              AND ca2.FNT_TB_CRY_SNO = p.SNO
-                        )
-                  ))
+                  (a.ASCT_ID IS NULL AND p.IT_PTL_STS_TC = :stsPending)
               )
             ORDER BY p.FST_ENR_DTM DESC
             """, nativeQuery = true)
     List<Object[]> findProjectsForCouncilAll(
             @Param("stsInProgress") String stsInProgress,
-            @Param("stsPending1") String stsPending1,
-            @Param("stsPending2") String stsPending2,
-            @Param("apfSts") String apfSts);
+            @Param("stsPending") String stsPending);
 
     /**
      * 일반사용자용 협의회 신청 대상 목록 조회 (통합)
      *
-     * <p>부서 필터: 사용자의 BBR_C = BPROJM.SVN_DPM</p>
+     * <p>부서 필터: 사용자의 BBR_C = BPROJM.SVN_DPM_C. 상태는 IT_PTL_STS_TC 코드 기준입니다.</p>
      * <ul>
-     *   <li>협의회 미신청: PRJ_STS = '예산 작성' + 결재완료(APF_STS='결재완료') 사업</li>
-     *   <li>협의회 신청된 건: PRJ_STS = '정실협 진행중'</li>
+     *   <li>협의회 미신청 대상: IT_PTL_STS_TC = '19'(예산편성 작업 완료) 이면서 BASCTM 미존재</li>
+     *   <li>협의회 신청된 건: IT_PTL_STS_TC = '21'(정실협 진행중) 이면서 BASCTM 존재</li>
      * </ul>
      *
-     * @param svnDpm 사용자 소속부서코드 (CustomUserDetails.getBbrC())
+     * @param svnDpm        사용자 소속부서코드 (CustomUserDetails.getBbrC())
+     * @param stsInProgress 정실협 진행중 코드 ('21')
+     * @param stsPending    정실협 신청 대상 코드 ('19')
      * @return prjMngNo, prjSno, prjNm, asctId(null 가능), asctStsC(null 가능),
      *         dbrTc(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
      */
@@ -232,30 +222,12 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
               AND (
                   (a.ASCT_ID IS NOT NULL AND p.IT_PTL_STS_TC = :stsInProgress)
                   OR
-                  (a.ASCT_ID IS NULL AND p.IT_PTL_STS_TC IN (:stsPending1, :stsPending2)
-                  AND EXISTS (
-                      SELECT 1
-                      FROM TPRMPP_CAPPLA ca
-                      JOIN TPRMPP_CAPPLM cm ON ca.APF_DCM_NO = cm.APF_DCM_NO
-                      WHERE ca.FNT_TB_NM   = 'BPROJM'
-                        AND ca.PK_COL_NM   = p.ABUS_MNG_NO
-                        AND ca.FNT_TB_CRY_SNO = p.SNO
-                        AND cm.APF_PRG_STS_C = :apfSts
-                        AND ca.APF_SNO = (
-                            SELECT MAX(ca2.APF_SNO)
-                            FROM TPRMPP_CAPPLA ca2
-                            WHERE ca2.FNT_TB_NM   = 'BPROJM'
-                              AND ca2.PK_COL_NM   = p.ABUS_MNG_NO
-                              AND ca2.FNT_TB_CRY_SNO = p.SNO
-                        )
-                  ))
+                  (a.ASCT_ID IS NULL AND p.IT_PTL_STS_TC = :stsPending)
               )
             ORDER BY p.FST_ENR_DTM DESC
             """, nativeQuery = true)
     List<Object[]> findProjectsForCouncilByDepartment(
             @Param("svnDpm") String svnDpm,
             @Param("stsInProgress") String stsInProgress,
-            @Param("stsPending1") String stsPending1,
-            @Param("stsPending2") String stsPending2,
-            @Param("apfSts") String apfSts);
+            @Param("stsPending") String stsPending);
 }

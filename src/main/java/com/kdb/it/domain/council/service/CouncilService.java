@@ -77,6 +77,19 @@ public class CouncilService {
     private final OrganizationRepository organizationRepository;
 
     // =========================================================================
+    // 사업 상태 코드 (공통코드 그룹 IT_PTL_STS_TC, BPROJM.IT_PTL_STS_TC)
+    // =========================================================================
+
+    /** 정실협 신청 대상 상태: 예산편성 작업 완료 */
+    private static final String PRJ_STS_COUNCIL_TARGET = "19";
+
+    /** 정실협 진행중 상태 (협의회 신청 시 전이) */
+    private static final String PRJ_STS_COUNCIL_IN_PROGRESS = "21";
+
+    /** 정실협 완료 상태 (통보·생략 시 전이) */
+    private static final String PRJ_STS_COUNCIL_DONE = "29";
+
+    // =========================================================================
     // 조회
     // =========================================================================
 
@@ -102,9 +115,7 @@ public class CouncilService {
         if (userDetails.isAdmin()) {
             // 관리자: 전체 부서 대상으로 결재완료 사업(미신청 포함) + 기신청 협의회 통합 조회
             List<Object[]> rows = councilRepository.findProjectsForCouncilAll(
-                    // TODO: 유니코드 이스케이프를 한글 리터럴로 교체 필요 — 가독성 심각 저해 (예: "정실협..." -> "정실협 진행중...")
-                    "\uc815\uc2e4\ud611 \uc9c4\ud589\uc911", "\uc608\uc0b0 \uc791\uc131", "\uacc4\ud68d \uc791\uc131",
-                    com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code());
+                    PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
             log.info("[CouncilList] admin query result count={}", rows.size());
             return rows.stream().map(row -> toListResponseFromRow(row)).collect(Collectors.toList());
         }
@@ -118,9 +129,7 @@ public class CouncilService {
 
         // 일반사용자: SVN_DPM = 사용자 BBR_C 조건으로 결재완료 사업 + 기신청 협의회 통합 조회
         List<Object[]> rows = councilRepository.findProjectsForCouncilByDepartment(
-                // TODO: 유니코드 이스케이프를 한글 리터럴로 교체 필요 — 가독성 심각 저해 (예: "정실협..." -> "정실협 진행중...")
-                userDetails.getBbrC(), "\uc815\uc2e4\ud611 \uc9c4\ud589\uc911", "\uc608\uc0b0 \uc791\uc131",
-                "\uacc4\ud68d \uc791\uc131", com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code());
+                userDetails.getBbrC(), PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
         log.info("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());
         return rows.stream().map(row -> toListResponseFromRow(row)).collect(Collectors.toList());
     }
@@ -171,7 +180,7 @@ public class CouncilService {
 
         // 사업 상태를 '정실협 진행중'으로 전이
         councilRepository.updateProjectStatus(request.prjMngNo(), request.prjSno(),
-                "\uc815\uc2e4\ud611 \uc9c4\ud589\uc911");
+                PRJ_STS_COUNCIL_IN_PROGRESS);
 
         return asctId;
     }
@@ -272,7 +281,7 @@ public class CouncilService {
      * 추진부서 통보 처리 (COMPLETED)
      *
      * <p>협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다.
-     * 사업 상태(BPROJM.PRJ_STS)를 '요건 상세화'로 변경하고,
+     * 사업 상태(BPROJM.IT_PTL_STS_TC)를 '정실협 완료'(29)로 변경하고,
      * 수신자(협의회 최초 등록자) 정보를 반환합니다.</p>
      *
      * @param asctId 협의회ID
@@ -289,8 +298,8 @@ public class CouncilService {
                 "통보는 완료(013) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
         }
 
-        // 사업 상태 전이: '정실협 진행중' → '요건 상세화'
-        councilRepository.updateProjectStatus(council.getPrjMngNo(), council.getPrjSno(), "요건 상세화");
+        // 사업 상태 전이: '정실협 진행중'(21) → '정실협 완료'(29)
+        councilRepository.updateProjectStatus(council.getPrjMngNo(), council.getPrjSno(), PRJ_STS_COUNCIL_DONE);
 
         // 수신자(협의회 최초 등록자 = 추진부서 담당자) 정보 조회
         String recipientEno = council.getFstEnrUsid();
@@ -324,7 +333,7 @@ public class CouncilService {
      * <p>처리 내용:</p>
      * <ol>
      *   <li>협의회 상태: APPROVED → SKIPPED</li>
-     *   <li>사업 상태(PRJ_STS): '정실협 진행중' → '요건 상세화'</li>
+     *   <li>사업 상태(IT_PTL_STS_TC): '정실협 진행중'(21) → '정실협 완료'(29)</li>
      * </ol>
      *
      * @param asctId 협의회ID
@@ -343,8 +352,8 @@ public class CouncilService {
         // 협의회 상태 전이: APPROVED → SKIPPED
         council.changeStatus("SKIPPED");
 
-        // 사업 상태 전이: '정실협 진행중' → '요건 상세화'
-        councilRepository.updateProjectStatus(council.getPrjMngNo(), council.getPrjSno(), "요건 상세화");
+        // 사업 상태 전이: '정실협 진행중'(21) → '정실협 완료'(29)
+        councilRepository.updateProjectStatus(council.getPrjMngNo(), council.getPrjSno(), PRJ_STS_COUNCIL_DONE);
     }
 
     // =========================================================================

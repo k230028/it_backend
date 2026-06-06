@@ -175,8 +175,8 @@ public class Bprojm extends BaseEntity {
     @Column(name = "EXE_PTT_YN", length = 1, comment = "프로젝트추진가능성 (물리컬럼 EXE_PTT_YN=실행가능성여부)")
     private String exePttYn;
 
-    /** 프로젝트상태: 사업의 현재 진행 상태 (예: 계획, 진행중, 완료, 취소) */
-    @Column(name = "IT_PTL_STS_TC", length = 2, comment = "프로젝트상태 (물리컬럼 IT_PTL_STS_TC=상태구분코드)")
+    /** 프로젝트상태: 사업의 현재 진행 상태 코드 (공통코드 IT_PTL_STS_TC, 예: 19=예산편성 작업 완료, 21=정실협 진행중) */
+    @Column(name = "IT_PTL_STS_TC", length = 2, comment = "프로젝트상태 (공통코드 IT_PTL_STS_TC, 2자리 코드)")
     private String stsTc;
 
     /** 예산연도: 예산 연도 (4자리 숫자, 예: "2026") */
