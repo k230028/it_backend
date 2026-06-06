@@ -1,4 +1,5 @@
 package com.kdb.it.common.code.service;
+import com.kdb.it.common.code.CommonCodeGroups;
 
 import com.kdb.it.common.code.dto.CodeDto;
 import com.kdb.it.common.code.entity.Ccodem;
@@ -168,9 +169,9 @@ public class CodeService {
      */
     @Cacheable("budgetPeriod")
     public CodeDto.BudgetPeriodResponse getBudgetPeriod() {
-        Ccodem sta = codeRepository.findByCIdAndCdvaWithValidDate("BG_RQS", "STA", null)
+        Ccodem sta = codeRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.BUDGET_RQS, "STA", null)
                 .orElseThrow(() -> new IllegalArgumentException("예산 신청기간 시작일자 코드를 찾을 수 없습니다: BG_RQS/STA"));
-        Ccodem end = codeRepository.findByCIdAndCdvaWithValidDate("BG_RQS", "END", null)
+        Ccodem end = codeRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.BUDGET_RQS, "END", null)
                 .orElseThrow(() -> new IllegalArgumentException("예산 신청기간 종료일자 코드를 찾을 수 없습니다: BG_RQS/END"));
         return CodeDto.BudgetPeriodResponse.builder()
                 .startDate(sta.getCNm())

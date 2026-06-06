@@ -4,10 +4,10 @@ package com.kdb.it.common.approval.domain;
  * 신청서 결재상태 (Ccodem cId='APF_STS').
  */
 public enum ApprovalStatus {
-    IN_PROGRESS("01", "결재중"),
-    COMPLETED  ("02", "결재완료"),
-    REJECTED   ("03", "반려"),
-    RECALLED   ("04", "회수");
+    IN_PROGRESS("1", "결재중"),
+    COMPLETED  ("2", "결재완료"),
+    REJECTED   ("3", "반려"),
+    RECALLED   ("4", "회수");
 
     private final String code;
     private final String label;

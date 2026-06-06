@@ -1,4 +1,5 @@
 package com.kdb.it.domain.budget.status.repository;
+import com.kdb.it.common.code.CommonCodeGroups;
 
 import com.kdb.it.common.code.entity.QCcodem;
 import com.kdb.it.common.iam.entity.QCorgnI;
@@ -41,7 +42,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     private final JPAQueryFactory queryFactory;
 
     /** IOE 공통코드 코드ID */
-    private static final String C_ID_IOE = "IOE";
+    private static final String C_ID_IOE = CommonCodeGroups.IOE;
 
     /** 편성비목 코드타입 상수 */
     private static final String CTP_DEV = "IOE_DVC";       // 개발비
@@ -115,7 +116,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                 .leftJoin(svnOrg).on(svnOrg.prlmOgzCCone.eq(p.svnDpmC))
                 .leftJoin(itOrg).on(itOrg.prlmOgzCCone.eq(p.dvmDpmC))
                 .leftJoin(rprStsCode).on(
-                        rprStsCode.cId.eq("RPR_STS"),
+                        rprStsCode.cId.eq(CommonCodeGroups.REPORT_STS),
                         rprStsCode.cdva.eq(p.rprStsTc),
                         codeIsActive(rprStsCode)
                 )

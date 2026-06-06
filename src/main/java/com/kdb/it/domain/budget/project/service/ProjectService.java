@@ -1,4 +1,5 @@
 package com.kdb.it.domain.budget.project.service;
+import com.kdb.it.common.code.CommonCodeGroups;
 
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
@@ -627,8 +628,8 @@ public class ProjectService {
                     .toList();
             Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByPrjMngNos(prjMngNos, bgYy);
 
-            // 자본예산/일반관리비 편성예산 분류 (마이그레이션 후 cId="IOE", cTp 필드로 분류)
-            List<com.kdb.it.common.code.entity.Ccodem> allIoeForBugt = codeService.findCodeEntitiesByCId("IOE");
+            // 자본예산/일반관리비 편성예산 분류 (마이그레이션 후 cId=CommonCodeGroups.IOE, cTp 필드로 분류)
+            List<com.kdb.it.common.code.entity.Ccodem> allIoeForBugt = codeService.findCodeEntitiesByCId(CommonCodeGroups.IOE);
             Set<String> assetTypes = allIoeForBugt.stream()
                     .filter(c -> "IOE_CPIT".equals(c.getCTp()))
                     .map(c -> c.getCdva())
@@ -712,13 +713,13 @@ public class ProjectService {
                 .collect(Collectors.toMap(CorgnI::getPrlmOgzCCone, CorgnI::getBbrNm));
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
-        Map<String, String> prjTpNameMap = prjTpCdvas.isEmpty() ? Map.of() : buildCodeNameMap("PRJ_TP", prjTpCdvas);
-        Map<String, String> bzDttNameMap = bzDttCdvas.isEmpty() ? Map.of() : buildCodeNameMap("BZ_DTT", bzDttCdvas);
-        Map<String, String> tchnTpNameMap = tchnTpCdvas.isEmpty() ? Map.of() : buildCodeNameMap("TCHN_TP", tchnTpCdvas);
-        Map<String, String> mnUsrNameMap = mnUsrCdvas.isEmpty() ? Map.of() : buildCodeNameMap("MN_USR", mnUsrCdvas);
-        Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of() : buildCodeNameMap("RPR_STS", rprStsCdvas);
-        Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : buildCodeNameMap("PRJ_PUL_PTT", prjPulPttCdvas);
-        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : buildCodeNameMap("PUL_DTT", pulDttCdvas);
+        Map<String, String> prjTpNameMap = prjTpCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.PRJ_TYPE, prjTpCdvas);
+        Map<String, String> bzDttNameMap = bzDttCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.BZ_DTT, bzDttCdvas);
+        Map<String, String> tchnTpNameMap = tchnTpCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.TECH_TYPE, tchnTpCdvas);
+        Map<String, String> mnUsrNameMap = mnUsrCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.MAIN_USER, mnUsrCdvas);
+        Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.REPORT_STS, rprStsCdvas);
+        Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
+        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.ABUS, pulDttCdvas);
 
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < projects.size(); i++) {
@@ -863,31 +864,31 @@ public class ProjectService {
         // === 공통코드 코드값 → 코드명 변환 (TPRMPP_CCODEM) ===
 
         if (response.getBzTpC() != null && !response.getBzTpC().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_TP", response.getBzTpC(), null)
+            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.PRJ_TYPE, response.getBzTpC(), null)
                     .ifPresent(code -> response.setBzTpCNm(code.getCNm()));
         }
         if (response.getBzDttNm() != null && !response.getBzDttNm().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("BZ_DTT", response.getBzDttNm(), null)
+            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.BZ_DTT, response.getBzDttNm(), null)
                     .ifPresent(code -> response.setBzDttNmNm(code.getCNm()));
         }
         if (response.getSklTpTc() != null && !response.getSklTpTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("TCHN_TP", response.getSklTpTc(), null)
+            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.TECH_TYPE, response.getSklTpTc(), null)
                     .ifPresent(code -> response.setSklTpTcNm(code.getCNm()));
         }
         if (response.getCstTpTc() != null && !response.getCstTpTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("MN_USR", response.getCstTpTc(), null)
+            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.MAIN_USER, response.getCstTpTc(), null)
                     .ifPresent(code -> response.setCstTpTcNm(code.getCNm()));
         }
         if (response.getRprStsTc() != null && !response.getRprStsTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("RPR_STS", response.getRprStsTc(), null)
+            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.REPORT_STS, response.getRprStsTc(), null)
                     .ifPresent(code -> response.setRprStsTcNm(code.getCNm()));
         }
         if (response.getExePttYn() != null && !response.getExePttYn().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_PUL_PTT", response.getExePttYn(), null)
+            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.EXE_POSSIBLE, response.getExePttYn(), null)
                     .ifPresent(code -> response.setExePttYnNm(code.getCNm()));
         }
         if (response.getAbusTc() != null && !response.getAbusTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", response.getAbusTc(), null)
+            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.ABUS, response.getAbusTc(), null)
                     .ifPresent(code -> response.setAbusTcNm(code.getCNm()));
         }
     }
@@ -934,9 +935,9 @@ public class ProjectService {
      */
     private void setBudgetSummaryFromItems(ProjectDto.Response response,
             List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms) {
-        // 마이그레이션 후: cId="IOE" 단일 그룹, cTp 필드로 자본/관리비 분류
+        // 마이그레이션 후: cId=CommonCodeGroups.IOE 단일 그룹, cTp 필드로 자본/관리비 분류
         // 개발비/기계장치/기타무형자산은 C_TP 기준(IOE_DVC/IOE_HW/IOE_SW)으로 세부 분류
-        List<com.kdb.it.common.code.entity.Ccodem> allIoeCodes = codeService.findCodeEntitiesByCId("IOE");
+        List<com.kdb.it.common.code.entity.Ccodem> allIoeCodes = codeService.findCodeEntitiesByCId(CommonCodeGroups.IOE);
         List<com.kdb.it.common.code.entity.Ccodem> assetCodes = allIoeCodes.stream()
                 .filter(c -> CAPITAL_DETAIL_CTPS.contains(c.getCTp()) || "IOE_CPIT".equals(c.getCTp()))
                 .collect(java.util.stream.Collectors.toList());
@@ -1046,7 +1047,7 @@ public class ProjectService {
             if (ioeC == null) continue;
             String normalized = ioeC.replace('-', '_');
             int lastUnderscore = normalized.lastIndexOf('_');
-            String cId = lastUnderscore >= 0 ? normalized.substring(0, lastUnderscore) : "IOE";
+            String cId = lastUnderscore >= 0 ? normalized.substring(0, lastUnderscore) : CommonCodeGroups.IOE;
             byCId.computeIfAbsent(cId, k -> new java.util.ArrayList<>()).add(ioeC);
         }
         for (Map.Entry<String, List<String>> entry : byCId.entrySet()) {

@@ -1,4 +1,5 @@
 package com.kdb.it.domain.budget.it.repository;
+import com.kdb.it.common.code.CommonCodeGroups;
 
 import com.kdb.it.common.code.entity.QCcodem;
 import com.kdb.it.domain.budget.cost.entity.QBcostm;
@@ -40,7 +41,7 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
     /** 정보보호여부 'Y' */
     private static final String INF_PRT_Y = "Y";
     /** IOE 코드 cId */
-    private static final String C_ID_IOE = "IOE";
+    private static final String C_ID_IOE = CommonCodeGroups.IOE;
     /** BBUGTM 원본테이블: 품목 */
     private static final String ORC_TB_ITEM = "BITEMM";
     /** BBUGTM 원본테이블: 전산업무비 */

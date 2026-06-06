@@ -1,4 +1,5 @@
 package com.kdb.it.domain.budget.cost.util;
+import com.kdb.it.common.code.CommonCodeGroups;
 
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
@@ -20,7 +21,7 @@ import java.time.LocalDate;
  *
  * <p>조회 규약 (Ccodem):</p>
  * <ul>
- *   <li>{@code C_ID = "CUR"}</li>
+ *   <li>{@code C_ID = CommonCodeGroups.CURRENCY}</li>
  *   <li>{@code CDVA = 통화코드} (예: USD, JPY)</li>
  *   <li>{@code C_TP = "XCR"}</li>
  *   <li>유효 기간 {@code STT_DT ~ END_DT} 내 행만 매칭
@@ -39,7 +40,7 @@ import java.time.LocalDate;
 public class XcrLookupService {
 
     /** 환율 코드 식별자 — Ccodem.C_ID 값 */
-    private static final String CUR_C_ID = "CUR";
+    private static final String CUR_C_ID = CommonCodeGroups.CURRENCY;
 
     /** 공통코드 리포지토리 — 유효 기간 필터링 단건 조회용 */
     private final CodeRepository codeRepository;
@@ -52,7 +53,7 @@ public class XcrLookupService {
      *   <li>{@code curC} 가 {@code null} 또는 {@code "KRW"} 이면 조회를 수행하지 않고
      *       {@code null} 을 반환한다 (호출 측에서 KRW 분기 판단에 사용).</li>
      *   <li>{@code baseDate} 가 {@code null} 이면 {@link LocalDate#now()} 를 사용한다.</li>
-     *   <li>{@code Ccodem(C_ID="CUR", CDVA=curC, 유효일=baseDate)} 단건 조회.
+     *   <li>{@code Ccodem(C_ID=CommonCodeGroups.CURRENCY, CDVA=curC, 유효일=baseDate)} 단건 조회.
      *       존재하지 않으면 {@link IllegalStateException} 을 던져 트랜잭션을 롤백시킨다.</li>
      *   <li>존재하면 {@code ccodem.getCNm()} 을 {@link BigDecimal} 로 파싱해 반환한다.</li>
      * </ol>

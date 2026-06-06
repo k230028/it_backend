@@ -51,7 +51,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         SELECT COUNT(DISTINCT a.APF_DCM_NO)
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
-        WHERE a.APF_PRG_STS_C = '01'
+        WHERE a.APF_PRG_STS_C = '1'
           AND d.DCR_ENO = :eno
           AND d.DCD_STS_C = '001'
         """, nativeQuery = true)
@@ -61,7 +61,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
-        WHERE a.APF_PRG_STS_C = '01'
+        WHERE a.APF_PRG_STS_C = '1'
           AND a.DCD_REQ_USID = :eno
         """, nativeQuery = true)
     int countInProgressByEno(@Param("eno") String eno);
@@ -71,7 +71,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
-        WHERE a.APF_PRG_STS_C = '02'
+        WHERE a.APF_PRG_STS_C = '2'
           AND u.BBR_C = :bbrC
           AND a.DCD_REQ_DTM >= TRUNC(SYSDATE, 'MM')
         """, nativeQuery = true)
@@ -81,7 +81,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
-        WHERE a.APF_PRG_STS_C = '03'
+        WHERE a.APF_PRG_STS_C = '3'
           AND a.DCD_REQ_USID = :eno
         """, nativeQuery = true)
     int countRejectedByEno(@Param("eno") String eno);
@@ -112,7 +112,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
         JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
-        WHERE a.APF_PRG_STS_C = '01'
+        WHERE a.APF_PRG_STS_C = '1'
           AND d.DCR_ENO = :eno
           AND d.DCD_STS_C = '001'
         ORDER BY a.DCD_REQ_DTM DESC

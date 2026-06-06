@@ -1,4 +1,5 @@
 package com.kdb.it.domain.budget.work.service;
+import com.kdb.it.common.code.CommonCodeGroups;
 
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
@@ -102,7 +103,7 @@ public class BudgetWorkService {
 
         // V003 마이그레이션 후 IOE_C는 단축 cdva("001" 등)를 저장하므로
         // DUP_IOE 접두어("237") → 해당하는 IOE cdva 집합 매핑을 빌드
-        List<Ccodem> allIoeCodes = findCodes("IOE");
+        List<Ccodem> allIoeCodes = findCodes(CommonCodeGroups.IOE);
         Map<String, Set<String>> prefixToIoeCValues = buildPrefixToIoeCValuesMap(allIoeCodes);
 
         return ioeCodes.stream().map(code -> {
@@ -159,7 +160,7 @@ public class BudgetWorkService {
         int totalRecords = 0;
 
         // V003 마이그레이션 후 IOE_C는 단축 cdva를 저장하므로 prefix→cdva 집합 매핑 빌드
-        List<Ccodem> allIoeCodes = findCodes("IOE");
+        List<Ccodem> allIoeCodes = findCodes(CommonCodeGroups.IOE);
         Map<String, Set<String>> prefixToIoeCValues = buildPrefixToIoeCValuesMap(allIoeCodes);
 
         for (BudgetWorkDto.RateItem rate : request.rates()) {
@@ -271,7 +272,7 @@ public class BudgetWorkService {
         for (Bbugtm prior : priorBudgets) prior.delete();
 
         /* 자본예산 비목코드 목록 조회 — C_TP(IOE_DVC/HW/SW) 기준 */
-        List<Ccodem> capitalCodes = findCodes("IOE")
+        List<Ccodem> capitalCodes = findCodes(CommonCodeGroups.IOE)
                 .stream()
                 .filter(code -> isCapitalCTp(code.getCTp()))
                 .toList();
@@ -398,9 +399,9 @@ public class BudgetWorkService {
         // 편성비목 그룹 코드 조회 (DUP_IOE: 접두어 → 그룹명 매핑)
         List<Ccodem> dupIoeCodes = findCodes("DUP_IOE");
 
-        // 세부 비목 코드 조회: 마이그레이션 후 cId="IOE" 단일 그룹으로 통합됨
+        // 세부 비목 코드 조회: 마이그레이션 후 cId=CommonCodeGroups.IOE 단일 그룹으로 통합됨
         // cdva("101") → 계층코드 cdvaDtlC("304-1100") 매핑으로 DUP_IOE 접두어("304")와 매칭
-        List<Ccodem> allIoeCodes = findCodes("IOE");
+        List<Ccodem> allIoeCodes = findCodes(CommonCodeGroups.IOE);
         Map<String, String> cdvaToHierarchyCode = new LinkedHashMap<>();
         Map<String, String> cdvaToDisplayName = new LinkedHashMap<>();
         Map<String, String> cdvaToGroupName = new LinkedHashMap<>();
@@ -448,7 +449,7 @@ public class BudgetWorkService {
         for (String prefix : prefixOrder) {
             String groupName = prefixToGroupName.get(prefix);
 
-            // CCODEM[cId="IOE"] 기반: 계층코드(cNm)의 접두어로 그룹 매칭
+            // CCODEM[cId=CommonCodeGroups.IOE] 기반: 계층코드(cNm)의 접두어로 그룹 매칭
             // ioeC("101") → cNm("304-1100") → startsWith("304") 방식으로 매칭
             List<String> detailCodesForPrefix = new ArrayList<>();
             for (Map.Entry<String, String> e : cdvaToHierarchyCode.entrySet()) {
@@ -644,7 +645,7 @@ public class BudgetWorkService {
         List<Bbugtm> budgets = bbugtmRepository.findByBseYyAndDelYn(bgYy, "N");
 
         // ioeC(cdva, "101") → 계층코드 cdvaDtlC("304-1100") 매핑: DUP_IOE 접두어("304") 매칭용
-        List<Ccodem> ioeDetailCodes = findCodes("IOE");
+        List<Ccodem> ioeDetailCodes = findCodes(CommonCodeGroups.IOE);
         Map<String, String> ioeCdvaToHierarchyCode = new LinkedHashMap<>();
         for (Ccodem code : ioeDetailCodes) {
             ioeCdvaToHierarchyCode.put(code.getCdva(), code.getCdvaDtlC());
@@ -816,11 +817,11 @@ public class BudgetWorkService {
      * DUP_IOE 접두어 → IOE cdva 값 집합 매핑 빌드
      *
      * <p>
-     * V003 마이그레이션 후: CCODEM[cId="IOE"]의 cNm이 계층코드("237-0700")를 담고,
+     * V003 마이그레이션 후: CCODEM[cId=CommonCodeGroups.IOE]의 cNm이 계층코드("237-0700")를 담고,
      * cdva가 단축 값("001")을 담습니다. cNm에서 첫 '-' 이전 부분을 DUP_IOE 접두어로 사용합니다.
      * </p>
      *
-     * @param allIoeCodes CCODEM[cId="IOE"] 전체 코드 목록
+     * @param allIoeCodes CCODEM[cId=CommonCodeGroups.IOE] 전체 코드 목록
      * @return 접두어("237") → cdva 집합({"001","002",...}) 맵
      */
     Map<String, Set<String>> buildPrefixToIoeCValuesMap(List<Ccodem> allIoeCodes) {

@@ -127,7 +127,7 @@ public class Bcostm extends BaseEntity {
     @Column(name = "BG_UNT_ABUS_C", length = 3, comment = "사업코드 (물리컬럼 BG_UNT_ABUS_C=예산단위사업코드)")
     private String bgUntAbusC;
 
-    /** 단말여부: 금융정보단말기 항목 여부 (Y=단말, N=비단말; 구 IT_MNGC_TP 002→Y/001→N) */
+    /** 단말여부: 금융정보단말기 항목 여부 (Y=단말, N=비단말; 구 IT_MNGC_TP→TMN_YN, 1→Y/0→N) */
     @Column(name = "TMN_YN", length = 1, comment = "단말여부")
     private String tmnYn;
 

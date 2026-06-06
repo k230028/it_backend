@@ -1,4 +1,5 @@
 package com.kdb.it.domain.budget.plan.service;
+import com.kdb.it.common.code.CommonCodeGroups;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -75,7 +76,7 @@ public class PlanService {
                 }
 
                 // PUL_DTT 공통코드 cdva → cNm 매핑 (신규/계속 구분에 사용)
-                Map<String, String> pulDttNameByCdva = codeService.findCodeEntitiesByCId("PUL_DTT").stream()
+                Map<String, String> pulDttNameByCdva = codeService.findCodeEntitiesByCId(CommonCodeGroups.ABUS).stream()
                                 .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCNm, (a, b) -> a));
 
                 // 최초생성자 사번 → 이름 매핑 (CUSERI 조인)

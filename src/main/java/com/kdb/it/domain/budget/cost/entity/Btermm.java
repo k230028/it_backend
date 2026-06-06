@@ -73,7 +73,7 @@ public class Btermm extends BaseEntity {
     private String spfTmnNm;
 
     /** 단말기이용방법 (최대 2자) */
-    @Column(name = "IT_PTL_TMN_KD_TC", length = 2, comment = "단말기이용방법 (물리컬럼 IT_PTL_TMN_KD_TC=단말종류구분코드)")
+    @Column(name = "IT_PTL_TMN_KD_TC", length = 3, comment = "단말기이용방법 (물리컬럼 IT_PTL_TMN_KD_TC=단말종류구분코드)")
     private String tmnKdTc;
 
     /** 소요자금용도내용 */
@@ -81,7 +81,7 @@ public class Btermm extends BaseEntity {
     private String nsfUsgCone;
 
     /** 단말기서비스 (최대 2자) */
-    @Column(name = "IT_PTL_TMN_SVC_TC", length = 2, comment = "단말기서비스 (물리컬럼 IT_PTL_TMN_SVC_TC=단말서비스구분코드)")
+    @Column(name = "IT_PTL_TMN_SVC_TC", length = 3, comment = "단말기서비스 (물리컬럼 IT_PTL_TMN_SVC_TC=단말서비스구분코드)")
     private String tmnClsfC;
 
     /** 단말기금액 (최대 18자리, 소수점 3자리) */

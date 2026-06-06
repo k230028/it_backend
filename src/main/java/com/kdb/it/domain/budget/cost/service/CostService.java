@@ -1,4 +1,5 @@
 package com.kdb.it.domain.budget.cost.service;
+import com.kdb.it.common.code.CommonCodeGroups;
 
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.util.DateFormatUtil;
@@ -497,7 +498,7 @@ public class CostService {
             return;
         }
 
-        Optional<Ccodem> codeOpt = ccodemRepository.findByCIdWithValidDate("IOE", null)
+        Optional<Ccodem> codeOpt = ccodemRepository.findByCIdWithValidDate(CommonCodeGroups.IOE, null)
                 .stream()
                 .filter(c -> response.getIoeC().equals(c.getCdva()))
                 .findFirst();
@@ -576,8 +577,8 @@ public class CostService {
             if (r.getCgprId() != null && !r.getCgprId().isEmpty()) userEnos.add(r.getCgprId());
             if (r.getBgUntAbusC() != null && !r.getBgUntAbusC().isEmpty()) bgUntAbusCdvas.add(r.getBgUntAbusC());
             if (r.getDfrCleC() != null && !r.getDfrCleC().isEmpty()) dfrCleCCdvas.add(r.getDfrCleC());
-            if ("Y".equals(r.getTmnYn())) tmnYnMngcCodes.add("002");
-            else if ("N".equals(r.getTmnYn())) tmnYnMngcCodes.add("001");
+            if ("Y".equals(r.getTmnYn())) tmnYnMngcCodes.add("1");
+            else if ("N".equals(r.getTmnYn())) tmnYnMngcCodes.add("0");
             if (r.getAbusTc() != null && !r.getAbusTc().isEmpty()) abusTcCdvas.add(r.getAbusTc());
             if (r.getIoeC() != null && !r.getIoeC().isEmpty()) ioeCCdvas.add(r.getIoeC());
         }
@@ -588,13 +589,13 @@ public class CostService {
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
         Map<String, String> bgUntAbusCNameMap = bgUntAbusCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap("ABUS_C", bgUntAbusCdvas);
+                : buildCodeNameMap(CommonCodeGroups.ABUS_UNIT, bgUntAbusCdvas);
         Map<String, String> dfrCleCNameMap = dfrCleCCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap("DFR_CLE", dfrCleCCdvas);
+                : buildCodeNameMap(CommonCodeGroups.DFR_CLE, dfrCleCCdvas);
         Map<String, String> tmnYnNameMap = tmnYnMngcCodes.isEmpty() ? Map.of()
-                : buildCodeNameMap("IT_MNGC_TP", tmnYnMngcCodes);
+                : buildCodeNameMap(CommonCodeGroups.TMN_YN, tmnYnMngcCodes);
         Map<String, String> abusTcNameMap = abusTcCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap("PUL_DTT", abusTcCdvas);
+                : buildCodeNameMap(CommonCodeGroups.ABUS, abusTcCdvas);
         Map<String, String> ioeCNameMap = ioeCCdvas.isEmpty() ? Map.of()
                 : buildIoeCNameMap(ioeCCdvas);
 
@@ -621,8 +622,8 @@ public class CostService {
             if (response.getCgprId() != null) response.setCgprNm(userNameMap.get(response.getCgprId()));
             if (response.getBgUntAbusC() != null) response.setBgUntAbusCNm(bgUntAbusCNameMap.get(response.getBgUntAbusC()));
             if (response.getDfrCleC() != null) response.setDfrCleCNm(dfrCleCNameMap.get(response.getDfrCleC()));
-            if ("Y".equals(response.getTmnYn())) response.setTmnYnNm(tmnYnNameMap.get("002"));
-            else if ("N".equals(response.getTmnYn())) response.setTmnYnNm(tmnYnNameMap.get("001"));
+            if ("Y".equals(response.getTmnYn())) response.setTmnYnNm(tmnYnNameMap.get("1"));
+            else if ("N".equals(response.getTmnYn())) response.setTmnYnNm(tmnYnNameMap.get("0"));
             if (response.getAbusTc() != null) response.setAbusTcNm(abusTcNameMap.get(response.getAbusTc()));
             if (response.getIoeC() != null) response.setIoeCNm(ioeCNameMap.get(response.getIoeC()));
 
@@ -635,7 +636,7 @@ public class CostService {
 
         // --- 7. 전년도 예산(prevBgAmt) 배치 조회 (계속 항목만) ---
         List<String> continuingNos = responses.stream()
-                .filter(r -> "002".equals(r.getAbusTc()))
+                .filter(r -> "02".equals(r.getAbusTc()))
                 .map(CostDto.Response::getCostBgNo)
                 .distinct()
                 .collect(Collectors.toList());
@@ -648,7 +649,7 @@ public class CostService {
                 String prevYear = String.valueOf(Integer.parseInt(bseYy) - 1);
                 Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByCostBgNos(continuingNos, prevYear);
                 responses.forEach(r -> {
-                    if ("002".equals(r.getAbusTc())) {
+                    if ("02".equals(r.getAbusTc())) {
                         r.setPrevBgAmt(prevBgMap.getOrDefault(r.getCostBgNo(), BigDecimal.ZERO));
                     } else {
                         r.setPrevBgAmt(BigDecimal.ZERO);
@@ -719,24 +720,24 @@ public class CostService {
                     .ifPresent(user -> response.setCgprNm(user.getUsrNm()));
         }
         if (response.getBgUntAbusC() != null && !response.getBgUntAbusC().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("ABUS_C", response.getBgUntAbusC(), null)
+            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.ABUS_UNIT, response.getBgUntAbusC(), null)
                     .ifPresent(code -> response.setBgUntAbusCNm(code.getCNm()));
         }
         if (response.getDfrCleC() != null && !response.getDfrCleC().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("DFR_CLE", response.getDfrCleC(), null)
+            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.DFR_CLE, response.getDfrCleC(), null)
                     .ifPresent(code -> response.setDfrCleCNm(code.getCNm()));
         }
         if (response.getTmnYn() != null && !response.getTmnYn().isEmpty()) {
             // 단말여부(Y/N) → 구 IT_MNGC_TP 코드(002/001)로 환산하여 표시명 조회
-            String mngcTpCode = "Y".equals(response.getTmnYn()) ? "002"
-                    : "N".equals(response.getTmnYn()) ? "001" : null;
+            String mngcTpCode = "Y".equals(response.getTmnYn()) ? "1"
+                    : "N".equals(response.getTmnYn()) ? "0" : null;
             if (mngcTpCode != null) {
-                ccodemRepository.findByCIdAndCdvaWithValidDate("IT_MNGC_TP", mngcTpCode, null)
+                ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.TMN_YN, mngcTpCode, null)
                         .ifPresent(code -> response.setTmnYnNm(code.getCNm()));
             }
         }
         if (response.getAbusTc() != null && !response.getAbusTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate("PUL_DTT", response.getAbusTc(), null)
+            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.ABUS, response.getAbusTc(), null)
                     .ifPresent(code -> response.setAbusTcNm(code.getCNm()));
         }
         if (response.getIoeC() != null && !response.getIoeC().isEmpty()) {
@@ -773,7 +774,7 @@ public class CostService {
 
     /** IOE 코드 cdva → CDVA_NM 우선 표시명 맵 생성 */
     private Map<String, String> buildIoeCNameMap(Set<String> cdvas) {
-        return ccodemRepository.findByCIdWithValidDate("IOE", null).stream()
+        return ccodemRepository.findByCIdWithValidDate(CommonCodeGroups.IOE, null).stream()
                 .filter(c -> cdvas.contains(c.getCdva()))
                 .collect(Collectors.toMap(
                         Ccodem::getCdva,
