@@ -108,16 +108,22 @@ public class PlanService {
                                                 try {
                                                         Map<String, Object> snapshot = objectMapper.readValue(dtlCone,
                                                                         new TypeReference<Map<String, Object>>() {});
+                                                        // 신 포맷(prjSnapshots) 우선, 구 포맷(projects) 폴백
                                                         Object snaps = snapshot.get("prjSnapshots");
+                                                        if (!(snaps instanceof List<?>)) {
+                                                                snaps = snapshot.get("projects");
+                                                        }
                                                         if (snaps instanceof List<?> list) {
                                                                 for (Object item : list) {
                                                                         if (!(item instanceof Map<?, ?> m))
                                                                                 continue;
                                                                         itCnt++;
-                                                                        Object pulDtt = m.get("pulDtt");
-                                                                        String pulDttNm = pulDtt == null ? null
-                                                                                        : pulDttNameByCdva.get(pulDtt
-                                                                                                        .toString());
+                                                                        // 신 포맷: pulDtt(=abusTc), 구 포맷: prjTp 에 추진유형 저장
+                                                                        Object raw = m.get("pulDtt");
+                                                                        if (raw == null)
+                                                                                raw = m.get("prjTp");
+                                                                        String pulDttNm = pulDttNameByCdva
+                                                                                        .get(normalizeAbusTc(raw));
                                                                         if ("신규".equals(pulDttNm))
                                                                                 newCnt++;
                                                                         else if ("계속".equals(pulDttNm))
@@ -445,5 +451,29 @@ public class PlanService {
                         throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                                         "계획 스냅샷 직렬화에 실패했습니다.");
                 }
+        }
+
+        /**
+         * 스냅샷에 저장된 추진유형 값을 현행 ABUS_TC 코드값ID(01/02)로 정규화한다.
+         *
+         * <p>마이그레이션 이전 스냅샷은 구 PUL_DTT 값(001/002) 또는 그룹ID 접두 형식
+         * (PUL_DTT_001 등)을 저장했을 수 있어 현행 코드값과 매칭되도록 변환한다.</p>
+         *
+         * @param raw 스냅샷 항목의 추진유형 원본값(null 허용)
+         * @return 정규화된 코드값ID(예: "01", "02"). 입력이 null 이면 null.
+         */
+        private static String normalizeAbusTc(Object raw) {
+                if (raw == null) {
+                        return null;
+                }
+                String code = raw.toString().trim();
+                if (code.startsWith("PUL_DTT_")) {
+                        code = code.substring("PUL_DTT_".length());
+                }
+                // 구 3자리(001/002) → 신 2자리(01/02)
+                if (code.length() == 3 && code.startsWith("0")) {
+                        code = code.substring(1);
+                }
+                return code;
         }
 }
