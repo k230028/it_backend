@@ -28,7 +28,7 @@ public class GwePayloadSection implements EaiPayloadSection {
         GwePayload g = (GwePayload) payload;
 
         String msgKey = "mailt" + ctx.props().appC() + ctx.props().appBzLv1C()
-                + ctx.date("yyyyMMddHHmmss") + ctx.randomDigits().apply(8);
+                + ctx.date("yyyyMMddHHmmss") + ctx.randomDigits(8);
 
         StringBuilder p = new StringBuilder();
         p.append(ctx.lpad("C", 32, msgKey));            // MSG_KEY      메시지키값

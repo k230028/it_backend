@@ -11,6 +11,8 @@ import org.springframework.web.client.RestClient;
 
 import java.nio.charset.Charset;
 import java.time.Clock;
+import java.util.List;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 /**
@@ -35,8 +37,8 @@ public class EaiService {
                       @Qualifier("eaiClock") Clock eaiClock,
                       @Qualifier("eaiGuidRandom") Supplier<String> guidRandom,
                       HostAddressProvider host,
-                      @Qualifier("eaiRandomDigits") java.util.function.IntFunction<String> randomDigits,
-                      java.util.List<EaiPayloadSection> sections) {
+                      @Qualifier("eaiRandomDigits") IntFunction<String> randomDigits,
+                      List<EaiPayloadSection> sections) {
         this.props = props;
         this.restClient = restClient;
         this.charset = Charset.forName(props.charset());

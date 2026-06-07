@@ -33,6 +33,11 @@ public record EaiSectionContext(
         return dateFn.apply(pattern);
     }
 
+    /** 길이 인자 난수 문자열 (예: GWE MSG_KEY 8자리). */
+    public String randomDigits(int len) {
+        return randomDigits.apply(len);
+    }
+
     /** charset 기준 바이트 길이. */
     public int bytes(String s) {
         return s.getBytes(cs).length;

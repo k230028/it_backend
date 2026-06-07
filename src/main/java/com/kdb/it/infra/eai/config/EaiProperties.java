@@ -42,5 +42,9 @@ public record EaiProperties(
         if (bzCS3 == null || bzCS3.isBlank()) bzCS3 = "IPP";
         if (appC == null || appC.isBlank()) appC = "PRM";
         if (appBzLv1C == null || appBzLv1C.isBlank()) appBzLv1C = "PP";
+        if (fwdiSysC.length() != 3) throw new IllegalStateException("eai.fwdi-sys-c must be 3 chars: " + fwdiSysC);
+        if (bzCS3.length() != 3) throw new IllegalStateException("eai.bz-c-s3 must be 3 chars: " + bzCS3);
+        if (appC.length() != 3) throw new IllegalStateException("eai.app-c must be 3 chars: " + appC);
+        if (appBzLv1C.length() != 2) throw new IllegalStateException("eai.app-bz-lv1-c must be 2 chars: " + appBzLv1C);
     }
 }

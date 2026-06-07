@@ -109,6 +109,18 @@ class EaiServiceTest {
     }
 
     @Test
+    @DisplayName("지원 섹션 없으면 EaiResult.failure (예외 전파 없음)")
+    void noSection_returnsFailure() {
+        EaiProperties props = new EaiProperties(true, "http://eai.test/eai", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
+        RestClient client = RestClient.builder().baseUrl("http://eai.test").build();
+        EaiService svc = new EaiService(props, client, fixedClock(), () -> "000000001", host(),
+                len -> "1".repeat(len), java.util.List.of()); // 빈 섹션 레지스트리
+        EaiResult r = svc.sendEai(req());
+        assertThat(r.success()).isFalse();
+        assertThat(r.errorMessage()).contains("지원하지 않는");
+    }
+
+    @Test
     @DisplayName("GWE 메일 발송 — octet-stream 전송 성공")
     void gwe_mail_sends() {
         RestClient.Builder builder = RestClient.builder().baseUrl("http://eai.test");

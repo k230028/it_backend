@@ -55,5 +55,6 @@ class GwePayloadSectionTest {
         GwePayloadSection s = new GwePayloadSection();
         assertThat(s.systemCode()).isEqualTo("GWE");
         assertThat(s.supports(GwePayload.builder().msgGubun("3").recvIds("k1").build())).isTrue();
+        assertThat(s.supports(com.kdb.it.infra.eai.dto.UmsPayload.builder().umsBzDttId("SMS2096").umsTrSno("1").build())).isFalse();
     }
 }

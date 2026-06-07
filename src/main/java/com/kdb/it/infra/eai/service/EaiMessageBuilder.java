@@ -26,14 +26,14 @@ public class EaiMessageBuilder {
     private final Clock clock;
     private final Supplier<String> guidRandom;        // 헤더 GUID 9자리 (변경 없음)
     private final HostAddressProvider host;
-    private final java.util.function.IntFunction<String> randomDigits; // 섹션용 길이 인자 난수
-    private final java.util.List<EaiPayloadSection> sections;          // 개별부 전략 레지스트리
+    private final IntFunction<String> randomDigits; // 섹션용 길이 인자 난수
+    private final List<EaiPayloadSection> sections;          // 개별부 전략 레지스트리
     private final Charset cs;
 
     public EaiMessageBuilder(EaiProperties props, Clock clock, Supplier<String> guidRandom,
                              HostAddressProvider host,
-                             java.util.function.IntFunction<String> randomDigits,
-                             java.util.List<EaiPayloadSection> sections) {
+                             IntFunction<String> randomDigits,
+                             List<EaiPayloadSection> sections) {
         this.props = props;
         this.clock = clock;
         this.guidRandom = guidRandom;
@@ -45,7 +45,7 @@ public class EaiMessageBuilder {
 
     /** 표준전문(param01~08) 전체를 조립해 charset 바이트로 반환. */
     public byte[] build(EaiRequest req) {
-        com.kdb.it.infra.eai.dto.EaiPayload payload = req.payload();
+        EaiPayload payload = req.payload();
         EaiPayloadSection section = sections.stream()
                 .filter(s -> s.supports(payload))
                 .findFirst()

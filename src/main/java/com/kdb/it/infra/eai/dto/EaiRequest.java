@@ -11,6 +11,11 @@ package com.kdb.it.infra.eai.dto;
  */
 public record EaiRequest(String ifId, EaiPayload payload) {
 
+    public EaiRequest {
+        java.util.Objects.requireNonNull(ifId, "ifId");
+        java.util.Objects.requireNonNull(payload, "payload");
+    }
+
     /** UMS 발송 요청. */
     public static EaiRequest ums(String ifId, UmsPayload payload) {
         return new EaiRequest(ifId, payload);
