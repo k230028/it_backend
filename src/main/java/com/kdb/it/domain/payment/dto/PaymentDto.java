@@ -1,0 +1,60 @@
+package com.kdb.it.domain.payment.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
+import java.util.List;
+
+/** 대금지급 API 요청/응답 DTO 모음. */
+public final class PaymentDto {
+    private PaymentDto() {}
+
+    @Schema(name = "PaymentCreateRequest", description = "대금지급 신규 의뢰 요청")
+    public record CreateRequest(
+            @NotBlank @Size(max = 3) String bgPrnTc,
+            @NotBlank @Size(max = 30) String cncdRfrNo,
+            @Size(max = 300) String reqCone,
+            @Size(max = 100) String cttNm,
+            BigDecimal cttAmt
+    ) {}
+
+    @Schema(name = "PaymentUpdateRequest", description = "대금지급 마스터 수정(작성중)")
+    public record UpdateRequest(
+            @Size(max = 300) String reqCone,
+            @Size(max = 100) String cttNm,
+            BigDecimal cttAmt
+    ) {}
+
+    @Schema(name = "PaymentStatusRequest", description = "대금지급 상태 전이")
+    public record StatusRequest(@NotBlank @Size(max = 2) String stsTc) {}
+
+    @Schema(name = "PaymentLineRequest", description = "회차별 지급 1행")
+    public record LineRequest(
+            @NotNull Integer dfrTod,
+            BigDecimal dfrAmt,
+            @Size(max = 8) String dfrDt,
+            @Size(max = 8) String dfrMplDt,
+            @Size(max = 1000) String opnnCone
+    ) {}
+
+    @Schema(name = "PaymentLinesRequest", description = "회차별 지급 일괄 저장(진행중)")
+    public record LinesRequest(@NotNull List<LineRequest> lines) {}
+
+    @Schema(name = "PaymentListItem", description = "대금지급 목록 항목")
+    public record ListItem(
+            String docMngNo, Integer docVrsSno, String bgPrnTc, String cncdRfrNo,
+            String stsTc, String cttNm, BigDecimal cttAmt, String reqUsid, java.time.LocalDateTime reqDtm
+    ) {}
+
+    @Schema(name = "PaymentLine", description = "회차별 지급 응답")
+    public record Line(Integer dfrTod, BigDecimal dfrAmt, String dfrDt, String dfrMplDt, String opnnCone) {}
+
+    @Schema(name = "PaymentDetail", description = "대금지급 상세")
+    public record Detail(
+            String docMngNo, Integer docVrsSno, String bgPrnTc, String cncdRfrNo, String tgtNm,
+            String stsTc, String reqCone, String cttNm, BigDecimal cttAmt,
+            String reqUsid, java.time.LocalDateTime reqDtm, List<Line> lines
+    ) {}
+}
