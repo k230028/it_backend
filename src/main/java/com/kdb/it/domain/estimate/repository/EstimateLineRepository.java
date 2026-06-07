@@ -22,4 +22,16 @@ public interface EstimateLineRepository extends JpaRepository<Bestid, BestidId> 
      */
     List<Bestid> findByRqmBgReqDocNoAndDocVrsSnoAndDelYn(
             String rqmBgReqDocNo, Integer docVrsSno, String delYn);
+
+    /**
+     * 문서번호·버전으로 산정 명세 행 목록을 삭제여부와 무관하게 조회합니다.
+     *
+     * <p>명세 일괄 저장 시 soft-delete된 행까지 포함해 동일 복합키 충돌을 막고
+     * 재추가 시 복원(restore)할 수 있도록 합니다.</p>
+     *
+     * @param rqmBgReqDocNo 소요예산요청문서번호
+     * @param docVrsSno     문서버전일련번호
+     * @return 해당 마스터의 모든 산정 명세 행 목록 (delYn='Y' 포함)
+     */
+    List<Bestid> findByRqmBgReqDocNoAndDocVrsSno(String rqmBgReqDocNo, Integer docVrsSno);
 }

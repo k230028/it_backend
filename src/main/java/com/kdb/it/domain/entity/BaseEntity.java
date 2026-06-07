@@ -153,4 +153,17 @@ public abstract class BaseEntity {
     public void delete() {
         this.delYn = "Y";
     }
+
+    /**
+     * 논리 삭제 복원(Undelete) 처리 메서드
+     *
+     * <p>
+     * Soft Delete된 레코드의 {@code DEL_YN}을 'N'으로 되돌립니다.
+     * 동일 복합키 행을 다시 활성화해야 할 때({@link #delete()}의 역연산) 사용합니다.
+     * 신규 INSERT 대신 기존 행을 복원하여 PK 충돌을 방지합니다.
+     * </p>
+     */
+    public void restore() {
+        this.delYn = "N";
+    }
 }

@@ -178,19 +178,24 @@ public class EstimateService {
             throw new IllegalStateException("진행중 상태에서만 산정 명세를 저장할 수 있습니다.");
         }
         Integer vrs = e.getDocVrsSno();
-        List<Bestid> existing = lineRepository.findByRqmBgReqDocNoAndDocVrsSnoAndDelYn(docNo, vrs, "N");
+        // 삭제여부와 무관하게 모든 행을 조회 — soft-delete된 행도 동일 복합키 충돌 방지를 위해 포함한다.
+        List<Bestid> existing = lineRepository.findByRqmBgReqDocNoAndDocVrsSno(docNo, vrs);
 
-        // 기존 행을 (팀코드|비목코드) 복합 키로 색인
+        // 기존 행을 (팀코드|비목코드) 복합 키로 색인 (deleted 행 포함)
         Map<String, Bestid> byKey = existing.stream()
                 .collect(Collectors.toMap(b -> b.getSvnTemC() + "|" + b.getIoeC(), b -> b));
 
-        // 요청 행 처리: 신규 추가 또는 금액/의견 갱신
+        // 요청 행 처리: 기존 행이 있으면 (필요 시 복원 후) 갱신, 없으면 신규 INSERT
         Set<String> incomingKeys = new HashSet<>();
         for (EstimateDto.LineRequest line : req.lines()) {
             String key = line.svnTemC() + "|" + line.ioeC();
             incomingKeys.add(key);
             Bestid row = byKey.get(key);
             if (row != null) {
+                // soft-delete된 행을 재추가하는 경우: 새 INSERT 대신 복원 후 갱신 (PK 충돌 방지)
+                if ("Y".equals(row.getDelYn())) {
+                    row.restore();
+                }
                 row.updateEstimate(line.rqmBgAmt(), line.opnnCone());
             } else {
                 lineRepository.save(Bestid.builder()
@@ -204,9 +209,10 @@ public class EstimateService {
             }
         }
 
-        // 요청에 없는 기존 행 Soft Delete
+        // 요청에 없는 활성(delYn='N') 행만 Soft Delete — 이미 삭제된 행은 그대로 둔다.
         for (Bestid row : existing) {
-            if (!incomingKeys.contains(row.getSvnTemC() + "|" + row.getIoeC())) {
+            boolean active = !"Y".equals(row.getDelYn());
+            if (active && !incomingKeys.contains(row.getSvnTemC() + "|" + row.getIoeC())) {
                 row.delete();
             }
         }

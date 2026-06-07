@@ -105,13 +105,31 @@ class EstimateServiceTest {
                 .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("42").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         Bestid existing = Bestid.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .svnTemC("12004").ioeC("DEV").rqmBgAmt(new java.math.BigDecimal("100")).build();
-        when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoAndDelYn("REQ-2026-0001", 1, "N"))
+                .svnTemC("12004").ioeC("DEV").rqmBgAmt(new java.math.BigDecimal("100")).delYn("N").build();
+        when(lineRepository.findByRqmBgReqDocNoAndDocVrsSno("REQ-2026-0001", 1))
                 .thenReturn(new java.util.ArrayList<>(List.of(existing)));
         var lines = List.of(new EstimateDto.LineRequest("18010", "HW", new java.math.BigDecimal("200"), "HW 산정"));
         service.saveLines("REQ-2026-0001", new EstimateDto.LinesRequest(lines), requester());
         assertThat(existing.getDelYn()).isEqualTo("Y");
         org.mockito.Mockito.verify(lineRepository).save(any(com.kdb.it.domain.estimate.entity.Bestid.class));
+    }
+
+    @Test
+    @DisplayName("진행중(42)에서 soft-deleted 행과 동일 키 재추가 시 새로 insert하지 않고 기존 행을 복원·갱신한다")
+    void saveLines_revivesSoftDeletedRowOnReAdd() {
+        Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
+                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("42").build();
+        when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
+        // 이미 soft-delete된 행 (delYn='Y') — 동일 PK가 물리적으로 존재
+        Bestid deleted = Bestid.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
+                .svnTemC("12004").ioeC("DEV").rqmBgAmt(new java.math.BigDecimal("100")).delYn("Y").build();
+        when(lineRepository.findByRqmBgReqDocNoAndDocVrsSno("REQ-2026-0001", 1))
+                .thenReturn(new java.util.ArrayList<>(List.of(deleted)));
+        var lines = List.of(new EstimateDto.LineRequest("12004", "DEV", new java.math.BigDecimal("300"), "재산정"));
+        service.saveLines("REQ-2026-0001", new EstimateDto.LinesRequest(lines), requester());
+        assertThat(deleted.getDelYn()).isEqualTo("N");
+        assertThat(deleted.getRqmBgAmt()).isEqualByComparingTo(new java.math.BigDecimal("300"));
+        org.mockito.Mockito.verify(lineRepository, org.mockito.Mockito.never()).save(any(com.kdb.it.domain.estimate.entity.Bestid.class));
     }
 
     @Test
