@@ -43,6 +43,21 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
     Optional<Bprojm> findByAbusMngNoAndDelYn(String prjMngNo, String delYn);
 
     /**
+     * 사업관리번호·최종여부·삭제여부로 현재 버전(최신 스냅샷) 사업 단건 조회
+     *
+     * <p>
+     * 동일 {@code abusMngNo}의 여러 버전 중 {@code lstYn='Y'} 한 건만 반환하여
+     * 복수 결과로 인한 예외를 방지합니다. 소요예산 산정 상세에서 사업명 표기에 사용합니다.
+     * </p>
+     *
+     * @param abusMngNo 사업관리번호 (예: PRJ-2026-0001)
+     * @param lstYn     최종여부 ('Y'=최신 레코드)
+     * @param delYn     삭제여부 ('N'=미삭제)
+     * @return 현재 버전 사업 (없으면 {@link Optional#empty()})
+     */
+    Optional<Bprojm> findByAbusMngNoAndLstYnAndDelYn(String abusMngNo, String lstYn, String delYn);
+
+    /**
      * 프로젝트 관리번호와 삭제여부로 존재 여부 확인
      *
      * <p>

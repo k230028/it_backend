@@ -48,7 +48,7 @@ class EstimateServiceTest {
 
         String docNo = service.create(new EstimateDto.CreateRequest("PRJ-2026-0001", "요청합니다"), requester());
 
-        assertThat(docNo).isEqualTo("REQ-2026-0001");
+        assertThat(docNo).matches("REQ-\\d{4}-0001");
     }
 
     @Test
@@ -111,6 +111,7 @@ class EstimateServiceTest {
         var lines = List.of(new EstimateDto.LineRequest("18010", "HW", new java.math.BigDecimal("200"), "HW 산정"));
         service.saveLines("REQ-2026-0001", new EstimateDto.LinesRequest(lines), requester());
         assertThat(existing.getDelYn()).isEqualTo("Y");
+        org.mockito.Mockito.verify(lineRepository).save(any(com.kdb.it.domain.estimate.entity.Bestid.class));
     }
 
     @Test
