@@ -57,8 +57,8 @@ public class EstimateRepositoryImpl implements EstimateRepositoryCustom {
                         e.fstEnrDtm        // 최초등록일시(요청일시) — BaseEntity 상속 필드
                 ))
                 .from(e)
-                // 사업관리번호로 조인, 최신버전(lstYn='Y') 1건만 매핑
-                .leftJoin(p).on(p.abusMngNo.eq(e.cncdRfrNo).and(p.lstYn.eq("Y")))
+                // 사업관리번호로 조인, 최신버전(lstYn='Y')·미삭제(delYn='N') 1건만 매핑
+                .leftJoin(p).on(p.abusMngNo.eq(e.cncdRfrNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
                 .where(where)
                 .orderBy(e.fstEnrDtm.desc())
                 .fetch();
