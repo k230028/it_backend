@@ -193,7 +193,7 @@ class CouncilServiceTest {
         councilService.skipCouncil(ASCT_ID);
 
         verify(council).changeStatus("SKIPPED");
-        verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "29");
+        verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "39");
     }
 
     // ───────────────────────────────────────────────────────
@@ -544,7 +544,7 @@ class CouncilServiceTest {
 
         CouncilDto.NotifyResponse result = councilService.notifyCouncil(ASCT_ID);
 
-        verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "29");
+        verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "39");
         assertThat(result).isNotNull();
     }
 

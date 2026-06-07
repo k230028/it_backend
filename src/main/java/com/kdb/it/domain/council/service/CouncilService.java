@@ -80,14 +80,14 @@ public class CouncilService {
     // 사업 상태 코드 (공통코드 그룹 IT_PTL_STS_TC, BPROJM.IT_PTL_STS_TC)
     // =========================================================================
 
-    /** 정실협 신청 대상 상태: 예산편성 작업 완료 */
+    /** 협의회 신청 대상 상태: 예산편성 작업 완료 (19) */
     private static final String PRJ_STS_COUNCIL_TARGET = "19";
 
-    /** 정실협 진행중 상태 (협의회 신청 시 전이) */
-    private static final String PRJ_STS_COUNCIL_IN_PROGRESS = "21";
+    /** 타당성검토 정실협 진행중 상태 (협의회 신청 시 전이) (32) */
+    private static final String PRJ_STS_COUNCIL_IN_PROGRESS = "32";
 
-    /** 정실협 완료 상태 (통보·생략 시 전이) */
-    private static final String PRJ_STS_COUNCIL_DONE = "29";
+    /** 타당성검토 정실협 완료 상태 (통보·생략 시 전이) (39) */
+    private static final String PRJ_STS_COUNCIL_DONE = "39";
 
     // =========================================================================
     // 조회
@@ -178,7 +178,7 @@ public class CouncilService {
 
         councilRepository.save(council);
 
-        // 사업 상태를 '정실협 진행중'으로 전이
+        // 사업 상태를 '타당성검토 정실협 진행중'(32)으로 전이
         councilRepository.updateProjectStatus(request.prjMngNo(), request.prjSno(),
                 PRJ_STS_COUNCIL_IN_PROGRESS);
 
@@ -281,7 +281,7 @@ public class CouncilService {
      * 추진부서 통보 처리 (COMPLETED)
      *
      * <p>협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다.
-     * 사업 상태(BPROJM.IT_PTL_STS_TC)를 '정실협 완료'(29)로 변경하고,
+     * 사업 상태(BPROJM.IT_PTL_STS_TC)를 '타당성검토 정실협 완료'(39)로 변경하고,
      * 수신자(협의회 최초 등록자) 정보를 반환합니다.</p>
      *
      * @param asctId 협의회ID
@@ -298,7 +298,7 @@ public class CouncilService {
                 "통보는 완료(013) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
         }
 
-        // 사업 상태 전이: '정실협 진행중'(21) → '정실협 완료'(29)
+        // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
         councilRepository.updateProjectStatus(council.getPrjMngNo(), council.getPrjSno(), PRJ_STS_COUNCIL_DONE);
 
         // 수신자(협의회 최초 등록자 = 추진부서 담당자) 정보 조회
@@ -333,7 +333,7 @@ public class CouncilService {
      * <p>처리 내용:</p>
      * <ol>
      *   <li>협의회 상태: APPROVED → SKIPPED</li>
-     *   <li>사업 상태(IT_PTL_STS_TC): '정실협 진행중'(21) → '정실협 완료'(29)</li>
+     *   <li>사업 상태(IT_PTL_STS_TC): '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)</li>
      * </ol>
      *
      * @param asctId 협의회ID
@@ -352,7 +352,7 @@ public class CouncilService {
         // 협의회 상태 전이: APPROVED → SKIPPED
         council.changeStatus("SKIPPED");
 
-        // 사업 상태 전이: '정실협 진행중'(21) → '정실협 완료'(29)
+        // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
         councilRepository.updateProjectStatus(council.getPrjMngNo(), council.getPrjSno(), PRJ_STS_COUNCIL_DONE);
     }
 
