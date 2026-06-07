@@ -38,14 +38,16 @@ class EaiServiceTest {
     }
 
     private EaiRequest req() {
-        return EaiRequest.builder()
-                .system("UMS").ifId("IPPO00012345").umsBzDttId("SMS2096").umsTrSno("7")
+        return EaiRequest.ums("IPPO00012345", com.kdb.it.infra.eai.dto.UmsPayload.builder()
+                .umsBzDttId("SMS2096").umsTrSno("7")
                 .emplNum("K1234567").cstNm("홍길동").reqCh("01012345678")
-                .deptKey("182").deptNm("디지털금융부").umData1("123456").build();
+                .deptKey("182").deptNm("디지털금융부").umData1("123456").build());
     }
 
     private EaiService service(EaiProperties props, RestClient client) {
-        return new EaiService(props, client, fixedClock(), () -> "000000001", host());
+        return new EaiService(props, client, fixedClock(), () -> "000000001", host(),
+                len -> "1".repeat(len),
+                java.util.List.of(new UmsPayloadSection(), new GwePayloadSection()));
     }
 
     @Test
@@ -95,14 +97,30 @@ class EaiServiceTest {
     @Test
     @DisplayName("전문 빌드 실패(필드 초과)면 EaiResult.failure")
     void buildOverflow_returnsFailure() {
-        EaiRequest bad = EaiRequest.builder()
-                .system("UMS").ifId("IPPO00012345").umsBzDttId("SMS2096").umsTrSno("7")
+        EaiRequest bad = EaiRequest.ums("IPPO00012345", com.kdb.it.infra.eai.dto.UmsPayload.builder()
+                .umsBzDttId("SMS2096").umsTrSno("7")
                 .emplNum("K12345678").cstNm("홍길동").reqCh("01012345678")
-                .deptKey("182").deptNm("디지털금융부").umData1("123456").build();
+                .deptKey("182").deptNm("디지털금융부").umData1("123456").build());
         EaiProperties props = new EaiProperties(true, "http://eai.test/eai", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
         RestClient client = RestClient.builder().baseUrl("http://eai.test").build();
         EaiResult r = service(props, client).sendEai(bad);
         assertThat(r.success()).isFalse();
         assertThat(r.errorMessage()).contains("전문");
+    }
+
+    @Test
+    @DisplayName("GWE 메일 발송 — octet-stream 전송 성공")
+    void gwe_mail_sends() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("http://eai.test");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("http://eai.test/eai")).andExpect(method(POST))
+                .andRespond(withSuccess("RES-OK".getBytes(MS949), MediaType.APPLICATION_OCTET_STREAM));
+        RestClient client = builder.build();
+        EaiProperties props = new EaiProperties(true, "http://eai.test/eai", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
+        EaiRequest gwe = EaiRequest.gwe("IPPG00000001", com.kdb.it.infra.eai.dto.GwePayload.builder()
+                .msgGubun("3").recvIds("k0001,k0002").subject("공지").contents("<p>본문</p>").build());
+        EaiResult r = service(props, client).sendEai(gwe);
+        server.verify();
+        assertThat(r.success()).isTrue();
     }
 }

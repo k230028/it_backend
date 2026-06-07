@@ -31,12 +31,20 @@ class EaiMessageBuilderTest {
         };
     }
 
+    private static EaiMessageBuilder fixedBuilderNew() {
+        return new EaiMessageBuilder(fixedProps(), fixedClock(), () -> "000000001", fixedHost(),
+                len -> "1".repeat(len),
+                java.util.List.of(new UmsPayloadSection(), new GwePayloadSection()));
+    }
+
+    private static com.kdb.it.infra.eai.dto.UmsPayload fixedSmsPayload() {
+        return com.kdb.it.infra.eai.dto.UmsPayload.builder()
+                .umsBzDttId("SMS2096").umsTrSno("7").emplNum("K1234567").cstNm("홍길동")
+                .reqCh("01012345678").deptKey("182").deptNm("디지털금융부").umData1("123456").build();
+    }
+
     private static com.kdb.it.infra.eai.dto.EaiRequest fixedSmsRequest() {
-        return com.kdb.it.infra.eai.dto.EaiRequest.builder()
-                .system("UMS").ifId("IPPO00012345").umsBzDttId("SMS2096")
-                .umsTrSno("7").emplNum("K1234567").cstNm("홍길동")
-                .reqCh("01012345678").deptKey("182").deptNm("디지털금융부")
-                .umData1("123456").build();
+        return com.kdb.it.infra.eai.dto.EaiRequest.ums("IPPO00012345", fixedSmsPayload());
     }
 
     @Test
@@ -71,32 +79,10 @@ class EaiMessageBuilderTest {
     @DisplayName("build() 스모크")
     class BuildSmoke {
 
-        private EaiMessageBuilder fixedBuilder() {
-            java.time.Clock clock = java.time.Clock.fixed(
-                    java.time.LocalDateTime.of(2026, 6, 7, 9, 30, 15, 123_000_000)
-                            .atZone(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
-                    java.time.ZoneId.of("Asia/Seoul"));
-            com.kdb.it.infra.eai.config.EaiProperties props = new com.kdb.it.infra.eai.config.EaiProperties(
-                    false, "", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
-            HostAddressProvider host = new HostAddressProvider() {
-                @Override public String ipAddress() { return "10.0.0.1"; }
-                @Override public String macAddress() { return "001122334455"; }
-            };
-            return new EaiMessageBuilder(props, clock, () -> "000000001", host);
-        }
-
-        private com.kdb.it.infra.eai.dto.EaiRequest umsRequest() {
-            return com.kdb.it.infra.eai.dto.EaiRequest.builder()
-                    .system("UMS").ifId("IPPO00012345").umsBzDttId("SMS2096")
-                    .umsTrSno("7").emplNum("K1234567").cstNm("홍길동")
-                    .reqCh("01012345678").deptKey("182").deptNm("디지털금융부")
-                    .umData1("123456").build();
-        }
-
         @Test
         @DisplayName("build()는 비어있지 않은 byte[]를 만들고 앞 24바이트가 길이필드(숫자)다")
         void build_producesLengthHeader() {
-            byte[] msg = fixedBuilder().build(umsRequest());
+            byte[] msg = fixedBuilderNew().build(fixedSmsRequest());
             assertThat(msg).isNotEmpty();
             String head = new String(msg, 0, 24, MS949);
             assertThat(head).matches("\\d{24}");
@@ -109,7 +95,7 @@ class EaiMessageBuilderTest {
     class EpamsEquivalence {
 
         private EaiMessageBuilder actual() {
-            return new EaiMessageBuilder(fixedProps(), fixedClock(), () -> "000000001", fixedHost());
+            return fixedBuilderNew();
         }
 
         private EpamsReferenceMessageBuilder reference() {
@@ -119,7 +105,7 @@ class EaiMessageBuilderTest {
         @Test
         @DisplayName("신규 빌더는 ePAMS 참조 조립과 바이트 단위로 동일하다 (SMS)")
         void byteForByte_sms() {
-            byte[] ref = reference().buildUms(fixedSmsRequest());
+            byte[] ref = reference().buildUms(fixedSmsPayload(), "IPPO00012345");
             byte[] act = actual().build(fixedSmsRequest());
 
             assertThat(new String(act, 0, 24, MS949))
@@ -131,23 +117,39 @@ class EaiMessageBuilderTest {
         @Test
         @DisplayName("알림톡(A) 템플릿도 참조와 동일하다")
         void byteForByte_alimtalk() {
-            com.kdb.it.infra.eai.dto.EaiRequest alt = com.kdb.it.infra.eai.dto.EaiRequest.builder()
-                    .system("UMS").ifId("IPPO00012345").umsBzDttId("ALT0165")
+            com.kdb.it.infra.eai.dto.UmsPayload alt = com.kdb.it.infra.eai.dto.UmsPayload.builder()
+                    .umsBzDttId("ALT0165")
                     .umsTrSno("42").emplNum("K7654321").cstNm("김철수")
                     .reqCh("01099998888").deptKey("182").deptNm("디지털금융부")
                     .umData1("987654").build();
-            assertThat(actual().build(alt)).isEqualTo(reference().buildUms(alt));
+            assertThat(actual().build(com.kdb.it.infra.eai.dto.EaiRequest.ums("IPPO00012345", alt)))
+                    .isEqualTo(reference().buildUms(alt, "IPPO00012345"));
         }
 
         @Test
         @DisplayName("이메일(E) 템플릿도 참조와 동일하다 (umsSdChnTpC=M 분기)")
         void byteForByte_email() {
-            com.kdb.it.infra.eai.dto.EaiRequest eml = com.kdb.it.infra.eai.dto.EaiRequest.builder()
-                    .system("UMS").ifId("IPPO00012345").umsBzDttId("EML0001")
+            com.kdb.it.infra.eai.dto.UmsPayload eml = com.kdb.it.infra.eai.dto.UmsPayload.builder()
+                    .umsBzDttId("EML0001")
                     .umsTrSno("3").emplNum("K1112223").cstNm("이영희")
                     .reqCh("hong@kdb.co.kr").deptKey("182").deptNm("디지털금융부")
                     .umData1("본문내용").build();
-            assertThat(actual().build(eml)).isEqualTo(reference().buildUms(eml));
+            assertThat(actual().build(com.kdb.it.infra.eai.dto.EaiRequest.ums("IPPO00012345", eml)))
+                    .isEqualTo(reference().buildUms(eml, "IPPO00012345"));
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("UMS 골든 회귀")
+    class UmsGolden {
+        @Test
+        @DisplayName("리팩터링 후에도 캡처된 골든 바이트와 100% 일치")
+        void matchesGolden() throws Exception {
+            byte[] golden = java.util.Base64.getDecoder().decode(
+                    java.nio.file.Files.readString(
+                            java.nio.file.Path.of("src/test/resources/eai/ums-golden.b64")).trim());
+            byte[] actual = fixedBuilderNew().build(fixedSmsRequest());
+            assertThat(actual).isEqualTo(golden);
         }
     }
 }

@@ -1,13 +1,16 @@
 package com.kdb.it.infra.eai.service;
 
 import com.kdb.it.infra.eai.config.EaiProperties;
+import com.kdb.it.infra.eai.dto.EaiPayload;
 import com.kdb.it.infra.eai.dto.EaiRequest;
 
 import java.nio.charset.Charset;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 /**
@@ -19,33 +22,44 @@ import java.util.function.Supplier;
  */
 public class EaiMessageBuilder {
 
-    /** 가변데이터 JSON 안정 직렬화를 위한 항목 키. */
-    private static final String[] UM_KEYS =
-            {"UM_DATA_1", "UM_DATA_2", "UM_DATA_3", "UM_DATA_4", "UM_DATA_5", "UM_DATA_6", "UM_DATA_7"};
-
     private final EaiProperties props;
     private final Clock clock;
-    private final Supplier<String> guidRandom; // 9자리 숫자 문자열 공급
+    private final Supplier<String> guidRandom;        // 헤더 GUID 9자리 (변경 없음)
     private final HostAddressProvider host;
+    private final java.util.function.IntFunction<String> randomDigits; // 섹션용 길이 인자 난수
+    private final java.util.List<EaiPayloadSection> sections;          // 개별부 전략 레지스트리
     private final Charset cs;
 
-    public EaiMessageBuilder(EaiProperties props, Clock clock, Supplier<String> guidRandom, HostAddressProvider host) {
+    public EaiMessageBuilder(EaiProperties props, Clock clock, Supplier<String> guidRandom,
+                             HostAddressProvider host,
+                             java.util.function.IntFunction<String> randomDigits,
+                             java.util.List<EaiPayloadSection> sections) {
         this.props = props;
         this.clock = clock;
         this.guidRandom = guidRandom;
         this.host = host;
+        this.randomDigits = randomDigits;
+        this.sections = sections;
         this.cs = Charset.forName(props.charset());
     }
 
     /** 표준전문(param01~08) 전체를 조립해 charset 바이트로 반환. */
     public byte[] build(EaiRequest req) {
+        com.kdb.it.infra.eai.dto.EaiPayload payload = req.payload();
+        EaiPayloadSection section = sections.stream()
+                .filter(s -> s.supports(payload))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "지원하지 않는 EAI 페이로드: " + payload.getClass().getSimpleName()));
+        EaiSectionContext ctx = new EaiSectionContext(cs, props, this::date, randomDigits);
+
         String p01 = param01();
-        String p02 = param02(req);
+        String p02 = param02(section.systemCode(), req.ifId());
         String p03 = param03();
         String p04 = param04();
         String p05 = param05();
         String p06 = param06();
-        String p07 = param07Ums(req);
+        String p07 = section.build(payload, ctx);
         String p08 = "@@";
 
         String whlTgrLe = lpad(cs, "N", 8, String.valueOf(bytes(p01 + p02 + p03 + p04 + p05 + p06 + p07 + p08)));
@@ -84,12 +98,12 @@ public class EaiMessageBuilder {
     }
 
     // ── 02. 거래공통부 ───────────────────────────────────────────────────────
-    private String param02(EaiRequest req) {
+    private String param02(String rmsSysC, String ifId) {
         String reqDtm = date("yyyyMMddHHmmssSSS");
         String trSlsDt = date("yyyyMMdd");
         StringBuilder p = new StringBuilder();
         p.append(lpad(cs, "C", 10, ""));             // TR_ID                 거래 ID
-        p.append(lpad(cs, "C", 3, req.getSystem())); // RMS_SYS_C             수신시스템코드 (UMS)
+        p.append(lpad(cs, "C", 3, rmsSysC));         // RMS_SYS_C             수신시스템코드 (UMS)
         p.append(lpad(cs, "C", 10, ""));             // SRE_ID                화면ID
         p.append(lpad(cs, "C", 10, ""));             // LKG_SRE_ID            연계화면ID
         p.append(lpad(cs, "C", 1, ""));              // SRE_CNTR_TC           화면제어구분코드
@@ -131,7 +145,7 @@ public class EaiMessageBuilder {
         p.append(lpad(cs, "C", 20, ""));             // FOOE_REQ_TR_TC        대외요청거래구분코드
         p.append(lpad(cs, "C", 1, ""));              // ONLD_CNTR_TP_TC       온렌딩제어구분코드
         p.append(lpad(cs, "C", 4, ""));              // ADN_FOOE_IST_CD       부가대외기관코드
-        p.append(lpad(cs, "C", 12, req.getIfId()));  // IF_ID                 인터페이스ID
+        p.append(lpad(cs, "C", 12, ifId));           // IF_ID                 인터페이스ID
         p.append("00");                              // EAI_FWDI_SVR_NO       EAI전송서버번호
         p.append("11");                              // MCI_FWDI_SVR_NO       MCI전송서버번호
         p.append(lpad(cs, "C", 10, ""));             // MCI_SES_ID            MCI세션ID
@@ -209,104 +223,6 @@ public class EaiMessageBuilder {
     // ── 06. 출력매체부 ───────────────────────────────────────────────────────
     private String param06() {
         return "000"; // PRO_MDA_CNT 출력매체건수
-    }
-
-    // ── 07. 개별부(UMS 입력데이터) ───────────────────────────────────────────
-    private String param07Ums(EaiRequest req) {
-        String umsBzDttId = req.getUmsBzDttId();
-        String reqUsid = req.getEmplNum();
-        String umsSdChnNo = req.getReqCh();
-        String sendDt = req.getSendDt();
-        String sendTime = req.getSendTime();
-
-        String trDt = date("yyyyMMdd");
-        String trTm = date("HHmmss");
-
-        String umsTrSno = req.getUmsTrSno();
-        String umsRetNo = umsBzDttId + trDt + String.format("%08d", Integer.parseInt(umsTrSno));
-
-        String umsTmeChnNo = "1588-1500";
-        if (!umsBzDttId.isEmpty() && "E".equals(umsBzDttId.substring(0, 1))) {
-            umsTmeChnNo = "hrd@kdb.co.kr";
-        }
-
-        String reqUsrNm = req.getCstNm();
-        String reqBbrC = req.getDeptKey();
-        String reqBbrNm = req.getDeptNm();
-
-        String umsSdChnTpC = umsBzDttId.isEmpty() ? "" : umsBzDttId.substring(0, 1);
-        if ("E".equals(umsSdChnTpC)) {
-            umsSdChnTpC = "M";
-        }
-
-        String variDatS0 = variableDataJson(req);
-        String variDatLenN9 = String.valueOf(bytes(variDatS0));
-
-        // 발송예정일자/시각 — null이면 당일/즉시로 보정 (전문 조립 전)
-        String sdMplDt = (sendDt == null) ? trDt : sendDt;
-        String sdMplTm = (sendTime == null) ? "" : sendTime;
-
-        StringBuilder p = new StringBuilder();
-        p.append(lpad(cs, "C", 7, umsBzDttId));    // UMS_BZ_DTT_ID        UMS업무구분ID (템플릿ID)
-        p.append(trDt);                            // TR_DT                거래일자 (yyyyMMdd)
-        p.append(lpad(cs, "N", 10, umsTrSno));     // UMS_TR_SNO           UMS거래일련번호
-        p.append(lpad(cs, "C", 23, umsRetNo));     // UMS_RET_NO           UMS접수번호 (템플릿ID7+연월일8+일련번호8)
-        p.append(lpad(cs, "C", 8, reqUsid));       // CNO                  고객번호 (수신자 행번)
-        p.append(lpad(cs, "C", 100, reqUsrNm));    // CST_NM               고객명
-        p.append(lpad(cs, "C", 30, ""));           // SECT_EML_CNFM_NO     보안이메일확인번호
-        p.append(lpad(cs, "C", 200, umsSdChnNo));  // UMS_SD_CHN_NO        UMS발송채널번호 (휴대폰/이메일)
-        p.append(lpad(cs, "C", 4000, ""));         // UMS_SD_CHN_ADDR_CONE UMS발송채널주소내용
-        p.append(lpad(cs, "C", 8, sdMplDt));       // UMS_SD_MPL_DT        UMS발송예정일자 (null이면 당일)
-        p.append(lpad(cs, "C", 6, sdMplTm));       // UMS_SD_MPL_TM        UMS발송예정시각 (null이면 즉시)
-        p.append(lpad(cs, "C", 100, umsTmeChnNo)); // UMS_TME_CHN_NO       UMS송신채널번호 (1588-1500 / 이메일)
-        p.append(props.appC());                    // APP_C                어플리케이션코드
-        p.append(props.appBzLv1C());               // APP_BZ_LV1_C         어플리케이션업무1레벨코드
-        p.append(lpad(cs, "C", 14, reqUsid));      // REQ_USID             요청사용자ID
-        p.append(lpad(cs, "C", 100, reqUsrNm));    // REQ_USR_NM           요청사용자명
-        p.append(lpad(cs, "C", 3, reqBbrC));       // REQ_BBR_C            요청부점코드
-        p.append(lpad(cs, "C", 100, reqBbrNm));    // REQ_BBR_NM           요청부점명
-        p.append("N");                             // UMS_CKG_C            UMS점검코드
-        p.append(lpad(cs, "C", 4000, ""));         // APG_FL_CONE          첨부파일내용
-        p.append(lpad(cs, "C", 6, trTm));          // TR_TM                거래시각 (HHmmss)
-        p.append(umsSdChnTpC);                     // UMS_SD_CHN_TP_C      UMS발송채널유형코드 (S/A/M)
-        p.append("10");                            // CHN_REQ_TP_C         채널요청유형코드 (10-실시간)
-        p.append(lpad(cs, "C", 100, ""));          // BZ_DCM_INF_CONE      업무식별정보내용
-        p.append(lpad(cs, "C", 1000, ""));         // UMS_BZ_RFR_CONE      UMS업무참조내용
-        p.append(lpad(cs, "C", 1, "N"));           // DEL_YN               삭제여부
-        p.append(lpad(cs, "C", 14, "SYSTEM"));     // LST_CHG_USID         최종변경사용자ID
-        p.append(props.bzCS3());                   // BZ_C_S3              업무코드_S3 (UMS요청시스템코드)
-        p.append(lpad(cs, "N", 9, variDatLenN9));  // VARI_DAT_LEN_N9      가변데이터길이_N9
-        p.append(variDatS0);                       // VARI_DAT_S0          가변데이터_S0 (템플릿 치환 JSON)
-        return p.toString();
-    }
-
-    /**
-     * 가변데이터 JSON 안정 직렬화.
-     * {@code {"type":"dataSet","entries":{"UM_DATA_1":"v1",...}}} (비어있지 않은 항목만, 키 순서 고정).
-     */
-    private String variableDataJson(EaiRequest req) {
-        String[] vals = {req.getUmData1(), req.getUmData2(), req.getUmData3(), req.getUmData4(),
-                req.getUmData5(), req.getUmData6(), req.getUmData7()};
-        StringBuilder entries = new StringBuilder();
-        boolean first = true;
-        for (int i = 0; i < UM_KEYS.length; i++) {
-            String v = vals[i];
-            if (v == null || v.isEmpty()) {
-                continue;
-            }
-            if (!first) {
-                entries.append(",");
-            }
-            entries.append("\"").append(UM_KEYS[i]).append("\":\"").append(escape(v)).append("\"");
-            first = false;
-        }
-        return "{\"type\":\"dataSet\",\"entries\":{" + entries + "}}";
-    }
-
-    /** JSON 문자열 값 최소 이스케이프(역슬래시·따옴표). */
-    private static String escape(String v) {
-        return v.replace("\\", "\\\\").replace("\"", "\\\"")
-                .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
 
     private int bytes(String s) {

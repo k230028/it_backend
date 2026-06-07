@@ -34,11 +34,13 @@ public class EaiService {
                       @Qualifier("eaiRestClient") RestClient restClient,
                       @Qualifier("eaiClock") Clock eaiClock,
                       @Qualifier("eaiGuidRandom") Supplier<String> guidRandom,
-                      HostAddressProvider host) {
+                      HostAddressProvider host,
+                      @Qualifier("eaiRandomDigits") java.util.function.IntFunction<String> randomDigits,
+                      java.util.List<EaiPayloadSection> sections) {
         this.props = props;
         this.restClient = restClient;
         this.charset = Charset.forName(props.charset());
-        this.builder = new EaiMessageBuilder(props, eaiClock, guidRandom, host);
+        this.builder = new EaiMessageBuilder(props, eaiClock, guidRandom, host, randomDigits, sections);
     }
 
     /**
@@ -51,15 +53,15 @@ public class EaiService {
         byte[] message;
         try {
             message = builder.build(request);
-        } catch (IndexOutOfBoundsException | NumberFormatException e) {
-            log.warn("EAI 전문 조립 실패: ifId={}, tpl={}, 사유={}",
-                    request.getIfId(), request.getUmsBzDttId(), e.getMessage());
+        } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
+            log.warn("EAI 전문 조립 실패: ifId={}, payload={}, 사유={}",
+                    request.ifId(), request.payload().getClass().getSimpleName(), e.getMessage());
             return EaiResult.failure("전문 조립 실패: " + e.getMessage());
         }
 
         if (!props.enabled()) {
-            log.info("EAI 비활성화(eai.enabled=false) — 전송 스킵. ifId={}, tpl={}, len={}바이트, 미리보기=[{}]",
-                    request.getIfId(), request.getUmsBzDttId(), message.length, maskedPreview(message));
+            log.info("EAI 비활성화(eai.enabled=false) — 전송 스킵. ifId={}, payload={}, len={}바이트, 미리보기=[{}]",
+                    request.ifId(), request.payload().getClass().getSimpleName(), message.length, maskedPreview(message));
             return EaiResult.skip();
         }
 
@@ -71,10 +73,10 @@ public class EaiService {
                     .retrieve()
                     .body(byte[].class);
             String responseRaw = (response == null) ? "" : new String(response, charset);
-            log.info("EAI 전송 성공: ifId={}, tpl={}, reqLen={}바이트", request.getIfId(), request.getUmsBzDttId(), message.length);
+            log.info("EAI 전송 성공: ifId={}, payload={}, reqLen={}바이트", request.ifId(), request.payload().getClass().getSimpleName(), message.length);
             return EaiResult.success(responseRaw);
         } catch (RuntimeException e) {
-            log.warn("EAI 전송 실패: ifId={}, tpl={}, 사유={}", request.getIfId(), request.getUmsBzDttId(), e.getMessage());
+            log.warn("EAI 전송 실패: ifId={}, payload={}, 사유={}", request.ifId(), request.payload().getClass().getSimpleName(), e.getMessage());
             return EaiResult.failure("전송 실패: " + e.getMessage());
         }
     }

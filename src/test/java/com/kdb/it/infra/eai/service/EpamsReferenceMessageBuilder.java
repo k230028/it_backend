@@ -1,7 +1,7 @@
 package com.kdb.it.infra.eai.service;
 
 import com.kdb.it.infra.eai.config.EaiProperties;
-import com.kdb.it.infra.eai.dto.EaiRequest;
+import com.kdb.it.infra.eai.dto.UmsPayload;
 
 import java.nio.charset.Charset;
 import java.time.Clock;
@@ -32,14 +32,14 @@ class EpamsReferenceMessageBuilder {
         this.cs = Charset.forName(props.charset());
     }
 
-    byte[] buildUms(EaiRequest req) {
+    byte[] buildUms(UmsPayload u, String ifId) {
         String p01 = p01();
-        String p02 = p02(req);
+        String p02 = p02(ifId);
         String p03 = p03();
         String p04 = p04();
         String p05 = p05();
         String p06 = "000";
-        String p07 = p07(req);
+        String p07 = p07(u);
         String p08 = "@@";
 
         String whl = pad("N", 8, String.valueOf(len(p01 + p02 + p03 + p04 + p05 + p06 + p07 + p08)));
@@ -61,17 +61,17 @@ class EpamsReferenceMessageBuilder {
                 + props.fwdiSysC() + props.fwdiSysC() + pad("C", 12, "");
     }
 
-    private String p02(EaiRequest req) {
+    private String p02(String ifId) {
         String reqDtm = fmt("yyyyMMddHHmmssSSS");
         String trSlsDt = fmt("yyyyMMdd");
-        return pad("C", 10, "") + pad("C", 3, req.getSystem()) + pad("C", 10, "") + pad("C", 10, "")
+        return pad("C", 10, "") + pad("C", 3, "UMS") + pad("C", 10, "") + pad("C", 10, "")
                 + pad("C", 1, "") + "Q" + "2" + "TR" + pad("C", 2, "") + "S" + pad("C", 1, "")
                 + "00000" + pad("C", 1, "") + "00000" + reqDtm + pad("C", 17, "") + trSlsDt + "0" + "0"
                 + pad("C", 8, "") + "N" + "N" + "N" + pad("C", 1, "") + "01" + "10" + pad("C", 3, "")
                 + pad("C", 14, "") + pad("C", 4, "") + pad("C", 4, "") + pad("C", 3, "") + pad("C", 10, "")
                 + pad("C", 3, "") + pad("C", 10, "") + pad("C", 10, "") + pad("C", 10, "") + pad("C", 4, "")
                 + pad("C", 4, "") + pad("C", 3, "") + pad("C", 8, "") + pad("C", 20, "") + pad("C", 1, "")
-                + pad("C", 4, "") + pad("C", 12, req.getIfId()) + "00" + "11" + pad("C", 10, "") + pad("C", 10, "")
+                + pad("C", 4, "") + pad("C", 12, ifId) + "00" + "11" + pad("C", 10, "") + pad("C", 10, "")
                 + pad("C", 8, "") + "00000" + "000000000" + "00" + pad("C", 10, "") + pad("C", 1, "")
                 + pad("C", 10, "") + pad("C", 2, "") + "0000000000000000.000" + "0000000000000000.000"
                 + pad("C", 1, "") + pad("C", 8, "") + pad("C", 40, "");
@@ -92,28 +92,28 @@ class EpamsReferenceMessageBuilder {
         return pad("C", 1, "") + pad("C", 50, "") + "000" + "00";
     }
 
-    private String p07(EaiRequest req) {
-        String umsBzDttId = req.getUmsBzDttId();
-        String reqUsid = req.getEmplNum();
-        String umsSdChnNo = req.getReqCh();
-        String sendDt = req.getSendDt();
-        String sendTime = req.getSendTime();
+    private String p07(UmsPayload u) {
+        String umsBzDttId = u.umsBzDttId();
+        String reqUsid = u.emplNum();
+        String umsSdChnNo = u.reqCh();
+        String sendDt = u.sendDt();
+        String sendTime = u.sendTime();
         String trDt = fmt("yyyyMMdd");
         String trTm = fmt("HHmmss");
-        String umsTrSno = req.getUmsTrSno();
+        String umsTrSno = u.umsTrSno();
         String umsRetNo = umsBzDttId + trDt + String.format("%08d", Integer.parseInt(umsTrSno));
         String umsTmeChnNo = "1588-1500";
         if (!umsBzDttId.isEmpty() && "E".equals(umsBzDttId.substring(0, 1))) {
             umsTmeChnNo = "hrd@kdb.co.kr";
         }
-        String reqUsrNm = req.getCstNm();
-        String reqBbrC = req.getDeptKey();
-        String reqBbrNm = req.getDeptNm();
+        String reqUsrNm = u.cstNm();
+        String reqBbrC = u.deptKey();
+        String reqBbrNm = u.deptNm();
         String umsSdChnTpC = umsBzDttId.isEmpty() ? "" : umsBzDttId.substring(0, 1);
         if ("E".equals(umsSdChnTpC)) {
             umsSdChnTpC = "M";
         }
-        String vari = json(req);
+        String vari = json(u);
         String variLen = String.valueOf(len(vari));
 
         return pad("C", 7, umsBzDttId) + trDt + pad("N", 10, umsTrSno) + pad("C", 23, umsRetNo)
@@ -126,10 +126,10 @@ class EpamsReferenceMessageBuilder {
                 + pad("C", 14, "SYSTEM") + props.bzCS3() + pad("N", 9, variLen) + vari;
     }
 
-    private String json(EaiRequest req) {
+    private String json(UmsPayload u) {
         String[] keys = {"UM_DATA_1", "UM_DATA_2", "UM_DATA_3", "UM_DATA_4", "UM_DATA_5", "UM_DATA_6", "UM_DATA_7"};
-        String[] vals = {req.getUmData1(), req.getUmData2(), req.getUmData3(), req.getUmData4(),
-                req.getUmData5(), req.getUmData6(), req.getUmData7()};
+        String[] vals = {u.umData1(), u.umData2(), u.umData3(), u.umData4(),
+                u.umData5(), u.umData6(), u.umData7()};
         StringBuilder e = new StringBuilder();
         boolean first = true;
         for (int i = 0; i < keys.length; i++) {
