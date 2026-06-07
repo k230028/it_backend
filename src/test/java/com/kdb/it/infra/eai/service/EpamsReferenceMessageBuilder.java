@@ -140,7 +140,8 @@ class EpamsReferenceMessageBuilder {
                 e.append(",");
             }
             e.append("\"").append(keys[i]).append("\":\"")
-                    .append(vals[i].replace("\\", "\\\\").replace("\"", "\\\"")).append("\"");
+                    .append(vals[i].replace("\\", "\\\\").replace("\"", "\\\"")
+                            .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")).append("\"");
             first = false;
         }
         return "{\"type\":\"dataSet\",\"entries\":{" + e + "}}";

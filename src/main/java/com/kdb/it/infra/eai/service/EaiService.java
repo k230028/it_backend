@@ -32,7 +32,7 @@ public class EaiService {
 
     public EaiService(EaiProperties props,
                       @Qualifier("eaiRestClient") RestClient restClient,
-                      Clock eaiClock,
+                      @Qualifier("eaiClock") Clock eaiClock,
                       @Qualifier("eaiGuidRandom") Supplier<String> guidRandom,
                       HostAddressProvider host) {
         this.props = props;

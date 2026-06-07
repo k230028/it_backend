@@ -301,7 +301,8 @@ public class EaiMessageBuilder {
 
     /** JSON 문자열 값 최소 이스케이프(역슬래시·따옴표). */
     private static String escape(String v) {
-        return v.replace("\\", "\\\\").replace("\"", "\\\"");
+        return v.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
 
     private int bytes(String s) {

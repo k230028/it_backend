@@ -138,5 +138,16 @@ class EaiMessageBuilderTest {
                     .umData1("987654").build();
             assertThat(actual().build(alt)).isEqualTo(reference().buildUms(alt));
         }
+
+        @Test
+        @DisplayName("이메일(E) 템플릿도 참조와 동일하다 (umsSdChnTpC=M 분기)")
+        void byteForByte_email() {
+            com.kdb.it.infra.eai.dto.EaiRequest eml = com.kdb.it.infra.eai.dto.EaiRequest.builder()
+                    .system("UMS").ifId("IPPO00012345").umsBzDttId("EML0001")
+                    .umsTrSno("3").emplNum("K1112223").cstNm("이영희")
+                    .reqCh("hong@kdb.co.kr").deptKey("182").deptNm("디지털금융부")
+                    .umData1("본문내용").build();
+            assertThat(actual().build(eml)).isEqualTo(reference().buildUms(eml));
+        }
     }
 }
