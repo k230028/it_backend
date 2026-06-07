@@ -115,6 +115,18 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
     Long getNextSequenceValue();
 
     /**
+     * 사업관리번호·최종여부·삭제여부로 사업 존재 여부 확인 (소요예산 산정 신청 유효성 검증용)
+     *
+     * <p>소요예산 산정 신규 신청 시 대상 사업이 실제로 존재하는지 확인합니다.</p>
+     *
+     * @param abusMngNo 사업관리번호 (예: PRJ-2026-0001)
+     * @param lstYn     최종여부 ('Y'=최신 레코드)
+     * @param delYn     삭제여부 ('N'=미삭제)
+     * @return 존재하면 {@code true}
+     */
+    boolean existsByAbusMngNoAndLstYnAndDelYn(String abusMngNo, String lstYn, String delYn);
+
+    /**
      * 활성 정보화사업의 경량 참조 목록 조회 (Tiptap 변수 카탈로그용)
      *
      * <p>
