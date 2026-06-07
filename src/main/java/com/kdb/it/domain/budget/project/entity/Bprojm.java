@@ -148,7 +148,7 @@ public class Bprojm extends BaseEntity {
     private String bzDttNm;
 
     /** 기술유형: 사업에 적용되는 기술 분류 (예: 웹, 앱, AI, 빅데이터) */
-    @Column(name = "IT_PTL_TCHN_TP_TC", length = 2, comment = "IT포탈기술유형구분코드")
+    @Column(name = "IT_PTL_TCHN_TP_TC", length = 3, comment = "IT포탈기술유형구분코드 (공통코드 3자리)")
     private String sklTpTc;
 
     /** 주요사용자: 시스템의 주요 사용자 그룹 (예: 내부직원, 고객, 전체) */
@@ -164,7 +164,7 @@ public class Bprojm extends BaseEntity {
     private String flfFsgDt;
 
     /** 보고상태: 상위 보고 단계의 상태 (최대 1자) */
-    @Column(name = "IT_PTL_RPR_STS_TC", length = 2, comment = "보고상태 (물리컬럼 IT_PTL_RPR_STS_TC=보고상태구분코드)")
+    @Column(name = "IT_PTL_RPR_STS_TC", length = 3, comment = "보고상태 (물리컬럼 IT_PTL_RPR_STS_TC=보고상태구분코드, 공통코드 3자리)")
     private String rprStsTc;
 
     /** 최종여부: 현재 유효한 레코드 여부 ('Y'=최신, 'N'=이전 버전) */
@@ -172,10 +172,10 @@ public class Bprojm extends BaseEntity {
     private String lstYn;
 
     /** 프로젝트추진가능성: 공통코드 PRJ_PUL_PTT cdva 값 (VARCHAR2(1), 예: "1", "2") */
-    @Column(name = "EXE_PTT_YN", length = 1, comment = "프로젝트추진가능성 (물리컬럼 EXE_PTT_YN=실행가능성여부)")
+    @Column(name = "EXE_PTT_YN", length = 3, comment = "프로젝트추진가능성 (물리컬럼 EXE_PTT_YN=실행가능성여부, 공통코드 EXE_PTT_YN 3자리)")
     private String exePttYn;
 
-    /** 프로젝트상태: 사업의 현재 진행 상태 코드 (공통코드 IT_PTL_STS_TC, 예: 19=예산편성 작업 완료, 21=정실협 진행중) */
+    /** 프로젝트상태: 사업의 현재 진행 상태 코드 (공통코드 IT_PTL_STS_TC, 예: 09=예산편성 작업 완료, 11=정보기술부문계획 정실협 진행중) */
     @Column(name = "IT_PTL_STS_TC", length = 2, comment = "프로젝트상태 (공통코드 IT_PTL_STS_TC, 2자리 코드)")
     private String stsTc;
 

@@ -80,8 +80,8 @@ public class CouncilService {
     // 사업 상태 코드 (공통코드 그룹 IT_PTL_STS_TC, BPROJM.IT_PTL_STS_TC)
     // =========================================================================
 
-    /** 협의회 신청 대상 상태: 예산편성 작업 완료 (19) */
-    private static final String PRJ_STS_COUNCIL_TARGET = "19";
+    /** 협의회 신청 대상 상태: 예산편성 작업 완료 (09, IT_PTL_STS_TC 재정렬 후) */
+    private static final String PRJ_STS_COUNCIL_TARGET = "09";
 
     /** 타당성검토 정실협 진행중 상태 (협의회 신청 시 전이) (32) */
     private static final String PRJ_STS_COUNCIL_IN_PROGRESS = "32";
