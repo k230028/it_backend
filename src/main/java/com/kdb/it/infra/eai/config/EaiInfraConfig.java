@@ -9,6 +9,7 @@ import org.springframework.web.client.RestClient;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 /**
@@ -34,6 +35,18 @@ public class EaiInfraConfig {
     @Bean
     public Supplier<String> eaiGuidRandom() {
         return () -> String.format("%09d", SECURE_RANDOM.nextInt(999_999_999) + 1);
+    }
+
+    /** 길이 인자 난수(0~9) 공급 — GWE MSG_KEY(8자리) 등 섹션 전용. 헤더 GUID 시임과 별개. */
+    @Bean
+    public IntFunction<String> eaiRandomDigits() {
+        return len -> {
+            StringBuilder sb = new StringBuilder(len);
+            for (int i = 0; i < len; i++) {
+                sb.append(SECURE_RANDOM.nextInt(10));
+            }
+            return sb.toString();
+        };
     }
 
     /** EAI 전용 RestClient — octet-stream 바이트 송수신, 연결/읽기 타임아웃 적용. */
