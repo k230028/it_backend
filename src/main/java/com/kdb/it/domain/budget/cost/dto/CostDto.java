@@ -168,7 +168,7 @@ public class CostDto {
                     .cttOppNm(this.cttOppNm) // 계약상대처
                     .costTotXpAmt(this.costTotXpAmt) // 전산관리비예산
                     .dfrCleC(this.dfrCleC) // 지급주기
-                    .fstDfrDt(this.fstDfrDt) // 최초지급일자
+                    .fstDfrDt(DateFormatUtil.toYmd8(this.fstDfrDt)) // 최초지급일자 (YYYYMMDD 8자리 정규화 — VARCHAR2(8) truncate 방지)
                     .curC(this.curC) // 통화
                     .xcr(this.xcr) // 환율
                     .xcrBseDt(DateFormatUtil.toYmd8(this.xcrBseDt)) // 환율기준일자
@@ -517,13 +517,33 @@ public class CostDto {
                     .costSvnDpmC(entity.getCostSvnDpmC()) // 담당부서
                     .svnTemC(entity.getSvnTemC()) // 담당팀
                     .bgUntAbusC(entity.getBgUntAbusC()) // 사업코드
-                    .tmnYn(entity.getTmnYn()) // 전산업무비유형
+                    .tmnYn(normalizeTmnYn(entity.getTmnYn())) // 단말여부 (구 "1"/"0" 데이터를 "Y"/"N"으로 정규화)
                     .abusTc(entity.getAbusTc()) // 전산업무비구분
                     .bseYy(entity.getBseYy()) // 예산연도
                     .cncdRfrNo(entity.getCncdRfrNo()) // 관련전산업무비번호
                     .fcAmt(entity.getFcAmt()) // 외화금액
                     .delYn(entity.getDelYn()) // 삭제여부
                     .build();
+        }
+
+        /**
+         * 단말여부 코드 정규화.
+         *
+         * <p>레거시 데이터는 구 IT_MNGC_TP 값("1"=단말, "0"=비단말)으로 저장되어 있고,
+         * 신규 데이터는 "Y"/"N"으로 저장된다. 프론트 표시·체크 로직은 "Y"/"N" 단일 기준이므로
+         * 응답 경계에서 "1"→"Y", "0"→"N"으로 변환하여 일관성을 보장한다.</p>
+         *
+         * @param value DB 원본 단말여부 ("Y"/"N"/"1"/"0"/null)
+         * @return 정규화된 "Y"/"N" (그 외 값은 원본 그대로)
+         */
+        private static String normalizeTmnYn(String value) {
+            if ("1".equals(value)) {
+                return "Y";
+            }
+            if ("0".equals(value)) {
+                return "N";
+            }
+            return value;
         }
     }
 

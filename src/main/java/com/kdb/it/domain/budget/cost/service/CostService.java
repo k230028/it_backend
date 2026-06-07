@@ -313,7 +313,7 @@ public class CostService {
 
         target.update(
                 request.getIoeC(), request.getCttNm(), request.getCttOppNm(),
-                request.getCostTotXpAmt(), request.getDfrCleC(), request.getFstDfrDt(),
+                request.getCostTotXpAmt(), request.getDfrCleC(), DateFormatUtil.toYmd8(request.getFstDfrDt()),
                 request.getCurC(), request.getXcr(), DateFormatUtil.toYmd8(request.getXcrBseDt()),
                 request.getSectSysUtzYn(), request.getIndRsn(), request.getCgprId(),
                 request.getCostSvnDpmC(), request.getSvnTemC(), request.getBgUntAbusC(),
