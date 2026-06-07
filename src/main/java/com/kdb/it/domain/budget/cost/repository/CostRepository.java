@@ -91,4 +91,29 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      */
     @Query(value = "SELECT NVL(MAX(BG_SNO), 0) + 1 FROM TPRMPP_BCOSTM WHERE BG_NO = :costBgNo", nativeQuery = true)
     Integer getNextSnoValue(@Param("costBgNo") String costBgNo);
+
+    /**
+     * 전산관리비 관리번호 존재 여부 확인 (과업심의 대상 유효성 검증용).
+     *
+     * <p>현재 유효 버전({@code lstYn='Y'}) + 미삭제({@code delYn='N'}) 조합으로 확인합니다.</p>
+     *
+     * @param costBgNo 전산관리비 관리번호 (예: COST_2026_0001)
+     * @param lstYn    최종여부 ('Y'=현재 유효)
+     * @param delYn    삭제여부 ('N'=미삭제)
+     * @return 해당 조건의 레코드가 존재하면 true
+     */
+    boolean existsByCostBgNoAndLstYnAndDelYn(String costBgNo, String lstYn, String delYn);
+
+    /**
+     * 전산관리비 현재 유효 버전 단건 조회 (과업심의 대상명 해석용).
+     *
+     * <p>현재 유효 버전({@code lstYn='Y'}) + 미삭제({@code delYn='N'}) 조합으로 단 하나의 레코드를 조회합니다.
+     * 대상명은 {@link Bcostm#getCttNm()} (계약명)으로 식별합니다.</p>
+     *
+     * @param costBgNo 전산관리비 관리번호
+     * @param lstYn    최종여부 ('Y'=현재 유효)
+     * @param delYn    삭제여부 ('N'=미삭제)
+     * @return 조건에 맞는 전산관리비 (없으면 empty)
+     */
+    Optional<Bcostm> findByCostBgNoAndLstYnAndDelYn(String costBgNo, String lstYn, String delYn);
 }
