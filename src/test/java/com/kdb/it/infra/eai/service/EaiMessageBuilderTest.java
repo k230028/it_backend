@@ -39,4 +39,41 @@ class EaiMessageBuilderTest {
         assertThatThrownBy(() -> EaiMessageBuilder.lpad(MS949, "C", 1, "abc"))
                 .isInstanceOf(IndexOutOfBoundsException.class);
     }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("build() 스모크")
+    class BuildSmoke {
+
+        private EaiMessageBuilder fixedBuilder() {
+            java.time.Clock clock = java.time.Clock.fixed(
+                    java.time.LocalDateTime.of(2026, 6, 7, 9, 30, 15, 123_000_000)
+                            .atZone(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
+                    java.time.ZoneId.of("Asia/Seoul"));
+            com.kdb.it.infra.eai.config.EaiProperties props = new com.kdb.it.infra.eai.config.EaiProperties(
+                    false, "", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
+            HostAddressProvider host = new HostAddressProvider() {
+                @Override public String ipAddress() { return "10.0.0.1"; }
+                @Override public String macAddress() { return "001122334455"; }
+            };
+            return new EaiMessageBuilder(props, clock, () -> "000000001", host);
+        }
+
+        private com.kdb.it.infra.eai.dto.EaiRequest umsRequest() {
+            return com.kdb.it.infra.eai.dto.EaiRequest.builder()
+                    .system("UMS").ifId("IPPO00012345").umsBzDttId("SMS2096")
+                    .umsTrSno("7").emplNum("K1234567").cstNm("홍길동")
+                    .reqCh("01012345678").deptKey("182").deptNm("디지털금융부")
+                    .umData1("123456").build();
+        }
+
+        @Test
+        @DisplayName("build()는 비어있지 않은 byte[]를 만들고 앞 24바이트가 길이필드(숫자)다")
+        void build_producesLengthHeader() {
+            byte[] msg = fixedBuilder().build(umsRequest());
+            assertThat(msg).isNotEmpty();
+            String head = new String(msg, 0, 24, MS949);
+            assertThat(head).matches("\\d{24}");
+            assertThat(msg).endsWith("@@".getBytes(MS949));
+        }
+    }
 }
