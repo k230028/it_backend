@@ -10,14 +10,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-/** 소요예산 산정 상세(TPRMPP_BESTID) 변경 로그. */
+/** 소요예산 산정 상세(TPRMPP_BESTTM) 변경 로그. */
 @Entity
-@Table(name = "TPRMPP_BESTIDL", comment = "소요예산 산정 상세 변경 로그")
+@Table(name = "TPRMPP_BESTTL", comment = "소요예산 산정 상세 변경 로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-public class BestidL extends BaseLogEntity {
+public class BesttmL extends BaseLogEntity {
 
     @Column(name = "RQM_BG_REQ_DOC_NO", length = 30, comment = "소요예산요청문서번호")
     private String rqmBgReqDocNo;

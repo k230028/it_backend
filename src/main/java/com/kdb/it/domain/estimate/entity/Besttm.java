@@ -2,7 +2,7 @@ package com.kdb.it.domain.estimate.entity;
 
 import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
-import com.kdb.it.domain.log.entity.BestidL;
+import com.kdb.it.domain.log.entity.BesttmL;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -18,17 +18,17 @@ import lombok.experimental.SuperBuilder;
 /**
  * 소요예산 산정 상세(명세) 엔티티 — 팀별·비목별 소요예산금액.
  *
- * <p>DB 테이블: {@code TPRMPP_BESTID}. 마스터(Bestim) 1건에 (담당팀 × 비목) N행.</p>
+ * <p>DB 테이블: {@code TPRMPP_BESTTM}. 마스터(Bestim) 1건에 (담당팀 × 비목) N행.</p>
  */
-@LogTarget(entity = BestidL.class)
+@LogTarget(entity = BesttmL.class)
 @Entity
-@Table(name = "TPRMPP_BESTID", comment = "소요예산 산정 상세(팀별 산정)")
-@IdClass(BestidId.class)
+@Table(name = "TPRMPP_BESTTM", comment = "소요예산 산정 상세(팀별 산정)")
+@IdClass(BesttmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @SuperBuilder
-public class Bestid extends BaseEntity {
+public class Besttm extends BaseEntity {
 
     @Id
     @Column(name = "RQM_BG_REQ_DOC_NO", length = 30, nullable = false, comment = "소요예산요청문서번호")

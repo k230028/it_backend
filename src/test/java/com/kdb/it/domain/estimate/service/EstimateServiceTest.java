@@ -9,7 +9,7 @@ import static org.mockito.Mockito.when;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.estimate.dto.EstimateDto;
-import com.kdb.it.domain.estimate.entity.Bestid;
+import com.kdb.it.domain.estimate.entity.Besttm;
 import com.kdb.it.domain.estimate.entity.Bestim;
 import com.kdb.it.domain.estimate.repository.EstimateLineRepository;
 import com.kdb.it.domain.estimate.repository.EstimateRepository;
@@ -104,14 +104,14 @@ class EstimateServiceTest {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
                 .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("42").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
-        Bestid existing = Bestid.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
+        Besttm existing = Besttm.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
                 .svnTemC("12004").ioeC("DEV").rqmBgAmt(new java.math.BigDecimal("100")).delYn("N").build();
         when(lineRepository.findByRqmBgReqDocNoAndDocVrsSno("REQ-2026-0001", 1))
                 .thenReturn(new java.util.ArrayList<>(List.of(existing)));
         var lines = List.of(new EstimateDto.LineRequest("18010", "HW", new java.math.BigDecimal("200"), "HW 산정"));
         service.saveLines("REQ-2026-0001", new EstimateDto.LinesRequest(lines), requester());
         assertThat(existing.getDelYn()).isEqualTo("Y");
-        org.mockito.Mockito.verify(lineRepository).save(any(com.kdb.it.domain.estimate.entity.Bestid.class));
+        org.mockito.Mockito.verify(lineRepository).save(any(com.kdb.it.domain.estimate.entity.Besttm.class));
     }
 
     @Test
@@ -121,7 +121,7 @@ class EstimateServiceTest {
                 .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("42").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         // 이미 soft-delete된 행 (delYn='Y') — 동일 PK가 물리적으로 존재
-        Bestid deleted = Bestid.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
+        Besttm deleted = Besttm.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
                 .svnTemC("12004").ioeC("DEV").rqmBgAmt(new java.math.BigDecimal("100")).delYn("Y").build();
         when(lineRepository.findByRqmBgReqDocNoAndDocVrsSno("REQ-2026-0001", 1))
                 .thenReturn(new java.util.ArrayList<>(List.of(deleted)));
@@ -129,7 +129,7 @@ class EstimateServiceTest {
         service.saveLines("REQ-2026-0001", new EstimateDto.LinesRequest(lines), requester());
         assertThat(deleted.getDelYn()).isEqualTo("N");
         assertThat(deleted.getRqmBgAmt()).isEqualByComparingTo(new java.math.BigDecimal("300"));
-        org.mockito.Mockito.verify(lineRepository, org.mockito.Mockito.never()).save(any(com.kdb.it.domain.estimate.entity.Bestid.class));
+        org.mockito.Mockito.verify(lineRepository, org.mockito.Mockito.never()).save(any(com.kdb.it.domain.estimate.entity.Besttm.class));
     }
 
     @Test

@@ -4,7 +4,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.estimate.dto.EstimateDto;
-import com.kdb.it.domain.estimate.entity.Bestid;
+import com.kdb.it.domain.estimate.entity.Besttm;
 import com.kdb.it.domain.estimate.entity.Bestim;
 import com.kdb.it.domain.estimate.repository.EstimateLineRepository;
 import com.kdb.it.domain.estimate.repository.EstimateRepository;
@@ -179,10 +179,10 @@ public class EstimateService {
         }
         Integer vrs = e.getDocVrsSno();
         // 삭제여부와 무관하게 모든 행을 조회 — soft-delete된 행도 동일 복합키 충돌 방지를 위해 포함한다.
-        List<Bestid> existing = lineRepository.findByRqmBgReqDocNoAndDocVrsSno(docNo, vrs);
+        List<Besttm> existing = lineRepository.findByRqmBgReqDocNoAndDocVrsSno(docNo, vrs);
 
         // 기존 행을 (팀코드|비목코드) 복합 키로 색인 (deleted 행 포함)
-        Map<String, Bestid> byKey = existing.stream()
+        Map<String, Besttm> byKey = existing.stream()
                 .collect(Collectors.toMap(b -> b.getSvnTemC() + "|" + b.getIoeC(), b -> b));
 
         // 요청 행 처리: 기존 행이 있으면 (필요 시 복원 후) 갱신, 없으면 신규 INSERT
@@ -190,7 +190,7 @@ public class EstimateService {
         for (EstimateDto.LineRequest line : req.lines()) {
             String key = line.svnTemC() + "|" + line.ioeC();
             incomingKeys.add(key);
-            Bestid row = byKey.get(key);
+            Besttm row = byKey.get(key);
             if (row != null) {
                 // soft-delete된 행을 재추가하는 경우: 새 INSERT 대신 복원 후 갱신 (PK 충돌 방지)
                 if ("Y".equals(row.getDelYn())) {
@@ -198,7 +198,7 @@ public class EstimateService {
                 }
                 row.updateEstimate(line.rqmBgAmt(), line.opnnCone());
             } else {
-                lineRepository.save(Bestid.builder()
+                lineRepository.save(Besttm.builder()
                         .rqmBgReqDocNo(docNo)
                         .docVrsSno(vrs)
                         .svnTemC(line.svnTemC())
@@ -210,7 +210,7 @@ public class EstimateService {
         }
 
         // 요청에 없는 활성(delYn='N') 행만 Soft Delete — 이미 삭제된 행은 그대로 둔다.
-        for (Bestid row : existing) {
+        for (Besttm row : existing) {
             boolean active = !"Y".equals(row.getDelYn());
             if (active && !incomingKeys.contains(row.getSvnTemC() + "|" + row.getIoeC())) {
                 row.delete();
