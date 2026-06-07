@@ -88,7 +88,7 @@ class AdminServiceTest {
         // given: 이미 존재하는 코드ID
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE001", "001", "코드명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
+                "CODE001", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
         given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE001", "001", sttDt)).willReturn(true);
 
         // when & then
@@ -103,7 +103,7 @@ class AdminServiceTest {
         // given
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE002", "001", "코드명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
+                "CODE002", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
         given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "001", sttDt)).willReturn(false);
 
         // when
@@ -119,7 +119,7 @@ class AdminServiceTest {
         // given
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "NONE", "001", "코드명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
+                "NONE", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("NONE", "001", sttDt, "N")).willReturn(Optional.empty());
 
         // when & then
@@ -148,8 +148,8 @@ class AdminServiceTest {
     void bulkUpsertCodes_신규수정건수반환() {
         // given: CODE001은 기존 존재, CODE002는 신규
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        AdminDto.CodeRequest req1 = new AdminDto.CodeRequest("CODE001", "001", "코드1", null, null, null, null, null, null, sttDt, null, 1);
-        AdminDto.CodeRequest req2 = new AdminDto.CodeRequest("CODE002", "002", "코드2", null, null, null, null, null, null, sttDt, null, 2);
+        AdminDto.CodeRequest req1 = new AdminDto.CodeRequest("CODE001", "001", "코드1", null, null, null, null, null, null, null, sttDt, null, 1);
+        AdminDto.CodeRequest req2 = new AdminDto.CodeRequest("CODE002", "002", "코드2", null, null, null, null, null, null, null, sttDt, null, 2);
         AdminDto.BulkCodeRequest bulkReq = new AdminDto.BulkCodeRequest(List.of(req1, req2));
 
         Ccodem existingCode = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
@@ -172,7 +172,7 @@ class AdminServiceTest {
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).cNm("기존").build();
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE001", "001", "수정", "설명", "값", "상세", "타입", "타입설명", null, sttDt, null, 2);
+                "CODE001", "001", "수정", "코드값명", "설명", "값", "상세", "타입", "타입설명", null, sttDt, null, 2);
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
                 .willReturn(Optional.of(code));
 
@@ -188,7 +188,7 @@ class AdminServiceTest {
         LocalDate newSttDt = LocalDate.of(2026, 2, 1);
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE002", "002", "신규키", null, null, null, null, null, null, newSttDt, null, 1);
+                "CODE002", "002", "신규키", null, null, null, null, null, null, null, newSttDt, null, 1);
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
                 .willReturn(Optional.of(code));
 
@@ -205,7 +205,7 @@ class AdminServiceTest {
         LocalDate newSttDt = LocalDate.of(2026, 2, 1);
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE002", "002", "신규키", null, null, null, null, null, null, newSttDt, null, 1);
+                "CODE002", "002", "신규키", null, null, null, null, null, null, null, newSttDt, null, 1);
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
                 .willReturn(Optional.of(code));
         given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "002", newSttDt)).willReturn(true);
@@ -220,11 +220,11 @@ class AdminServiceTest {
     void createCode_필수키누락_예외발생() {
         LocalDate date = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest noId = new AdminDto.CodeRequest(
-                " ", "001", null, null, null, null, null, null, null, date, null, 1);
+                " ", "001", null, null, null, null, null, null, null, null, date, null, 1);
         AdminDto.CodeRequest noValue = new AdminDto.CodeRequest(
-                "CODE", null, null, null, null, null, null, null, null, date, null, 1);
+                "CODE", null, null, null, null, null, null, null, null, null, date, null, 1);
         AdminDto.CodeRequest noDate = new AdminDto.CodeRequest(
-                "CODE", "001", null, null, null, null, null, null, null, null, null, 1);
+                "CODE", "001", null, null, null, null, null, null, null, null, null, null, 1);
 
         assertThatThrownBy(() -> adminService.createCode(noId)).hasMessageContaining("코드ID");
         assertThatThrownBy(() -> adminService.createCode(noValue)).hasMessageContaining("코드값");

@@ -94,7 +94,7 @@ class AdminControllerTest {
         // given
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE001", "001", "코드명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
+                "CODE001", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
 
         // when & then
         mockMvc.perform(post("/api/admin/codes")
@@ -112,7 +112,7 @@ class AdminControllerTest {
                 .when(adminService).createCode(any(AdminDto.CodeRequest.class));
 
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE001", "001", "코드명", "설명", "값", "구분", "구분설명", null, null, LocalDate.of(2026, 1, 1), null, 1);
+                "CODE001", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, LocalDate.of(2026, 1, 1), null, 1);
 
         // when & then
         mockMvc.perform(post("/api/admin/codes")
@@ -128,7 +128,7 @@ class AdminControllerTest {
         // given
         LocalDate sttDt = LocalDate.of(2026, 1, 1);
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE001", "001", "수정된코드명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
+                "CODE001", "001", "수정된코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
 
         // when & then
         mockMvc.perform(put("/api/admin/codes/CODE001/001")

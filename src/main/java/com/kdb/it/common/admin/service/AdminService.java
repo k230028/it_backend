@@ -111,6 +111,7 @@ public class AdminService {
                 Ccodem code = Ccodem.builder()
                                 .cId(req.cId())
                                 .cNm(req.cNm())
+                                .cdvaNm(req.cdvaNm())
                                 .cdva(req.cdva())
                                 .cdvaDes(req.cdvaDes())
                                 .cdvaDtl(req.cdvaDtl())
@@ -160,7 +161,7 @@ public class AdminService {
 
                 if (!pkChanged) {
                         // PK 동일 — 기존 setter 기반 update (Dirty Checking)
-                        code.update(req.cNm(), req.cdvaDes(), req.cdvaDtl(), req.cTp(),
+                        code.update(req.cNm(), req.cdvaDes(), req.cdvaDtl(), req.cdvaNm(), req.cTp(),
                                         req.cTpDes(), req.hrkC(), req.cSqn(), req.endDt(), req.cdvaDtlC());
                         return;
                 }
@@ -181,6 +182,7 @@ public class AdminService {
                                 .cdva(newCdva)
                                 .sttDt(newSttDt)
                                 .cNm(req.cNm())
+                                .cdvaNm(req.cdvaNm())
                                 .cdvaDes(req.cdvaDes())
                                 .cdvaDtl(req.cdvaDtl())
                                 .cdvaDtlC(req.cdvaDtlC())
@@ -226,13 +228,14 @@ public class AdminService {
                         Optional<Ccodem> existing = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(
                                         item.cId(), item.cdva(), item.sttDt(), "N");
                         if (existing.isPresent()) {
-                                existing.get().update(item.cNm(), item.cdvaDes(), item.cdvaDtl(), item.cTp(),
+                                existing.get().update(item.cNm(), item.cdvaDes(), item.cdvaDtl(), item.cdvaNm(), item.cTp(),
                                                 item.cTpDes(), item.hrkC(), item.cSqn(), item.endDt(), item.cdvaDtlC());
                                 updated++;
                         } else {
                                 Ccodem code = Ccodem.builder()
                                                 .cId(item.cId())
                                                 .cNm(item.cNm())
+                                                .cdvaNm(item.cdvaNm())
                                                 .cdva(item.cdva())
                                                 .cdvaDes(item.cdvaDes())
                                                 .cdvaDtl(item.cdvaDtl())
@@ -277,6 +280,7 @@ public class AdminService {
                                 c.getCId(),
                                 c.getCdva(),
                                 c.getCNm(),
+                                c.getCdvaNm(),
                                 c.getCdvaDes(),
                                 c.getCdvaDtl(),
                                 c.getCdvaDtlC(),
