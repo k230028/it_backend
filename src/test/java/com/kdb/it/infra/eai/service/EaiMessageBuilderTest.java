@@ -12,6 +12,33 @@ class EaiMessageBuilderTest {
 
     private static final Charset MS949 = Charset.forName("MS949");
 
+    private static java.time.Clock fixedClock() {
+        return java.time.Clock.fixed(
+                java.time.LocalDateTime.of(2026, 6, 7, 9, 30, 15, 123_000_000)
+                        .atZone(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
+                java.time.ZoneId.of("Asia/Seoul"));
+    }
+
+    private static com.kdb.it.infra.eai.config.EaiProperties fixedProps() {
+        return new com.kdb.it.infra.eai.config.EaiProperties(
+                false, "", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
+    }
+
+    private static HostAddressProvider fixedHost() {
+        return new HostAddressProvider() {
+            @Override public String ipAddress() { return "10.0.0.1"; }
+            @Override public String macAddress() { return "001122334455"; }
+        };
+    }
+
+    private static com.kdb.it.infra.eai.dto.EaiRequest fixedSmsRequest() {
+        return com.kdb.it.infra.eai.dto.EaiRequest.builder()
+                .system("UMS").ifId("IPPO00012345").umsBzDttId("SMS2096")
+                .umsTrSno("7").emplNum("K1234567").cstNm("홍길동")
+                .reqCh("01012345678").deptKey("182").deptNm("디지털금융부")
+                .umData1("123456").build();
+    }
+
     @Test
     @DisplayName("lpad: 숫자 타입은 '0', 그 외 타입은 공백으로 좌측 패딩")
     void lpad_padsLeft() {
@@ -74,6 +101,42 @@ class EaiMessageBuilderTest {
             String head = new String(msg, 0, 24, MS949);
             assertThat(head).matches("\\d{24}");
             assertThat(msg).endsWith("@@".getBytes(MS949));
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("ePAMS 참조 동일성")
+    class EpamsEquivalence {
+
+        private EaiMessageBuilder actual() {
+            return new EaiMessageBuilder(fixedProps(), fixedClock(), () -> "000000001", fixedHost());
+        }
+
+        private EpamsReferenceMessageBuilder reference() {
+            return new EpamsReferenceMessageBuilder(fixedProps(), fixedClock(), () -> "000000001", fixedHost());
+        }
+
+        @Test
+        @DisplayName("신규 빌더는 ePAMS 참조 조립과 바이트 단위로 동일하다 (SMS)")
+        void byteForByte_sms() {
+            byte[] ref = reference().buildUms(fixedSmsRequest());
+            byte[] act = actual().build(fixedSmsRequest());
+
+            assertThat(new String(act, 0, 24, MS949))
+                    .as("길이필드(전체/헤더/출력매체)")
+                    .isEqualTo(new String(ref, 0, 24, MS949));
+            assertThat(act).as("전문 전체 byte[]").isEqualTo(ref);
+        }
+
+        @Test
+        @DisplayName("알림톡(A) 템플릿도 참조와 동일하다")
+        void byteForByte_alimtalk() {
+            com.kdb.it.infra.eai.dto.EaiRequest alt = com.kdb.it.infra.eai.dto.EaiRequest.builder()
+                    .system("UMS").ifId("IPPO00012345").umsBzDttId("ALT0165")
+                    .umsTrSno("42").emplNum("K7654321").cstNm("김철수")
+                    .reqCh("01099998888").deptKey("182").deptNm("디지털금융부")
+                    .umData1("987654").build();
+            assertThat(actual().build(alt)).isEqualTo(reference().buildUms(alt));
         }
     }
 }
