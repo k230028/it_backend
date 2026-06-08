@@ -41,12 +41,12 @@ public class Brsltm extends BaseEntity {
     @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String asctId;
 
-    /** 종합의견내용: IT관리자가 작성하는 전체 심의 결과 요약 (최대 4000자) */
-    @Column(name = "SYN_OPNN_CONE", length = 4000, comment = "종합의견내용")
+    /** 종합의견내용: IT관리자가 작성하는 전체 심의 결과 요약 (최대 6000자) */
+    @Column(name = "SYN_OPNN_CONE", length = 6000, comment = "종합의견내용")
     private String synOpnn;
 
-    /** 타당성검토의견내용: 각 항목별 검토 결과 종합 의견 (최대 4000자) */
-    @Column(name = "CKG_OPNN_CONE", length = 4000, comment = "타당성검토의견내용")
+    /** 타당성검토의견내용: 각 항목별 검토 결과 종합 의견 (최대 1000자) */
+    @Column(name = "CKG_OPNN_CONE", length = 1000, comment = "타당성검토의견내용")
     private String ckgOpnn;
 
     /** 관련자료 첨부파일관리번호: TPRMPP_CFILEM.FL_MNG_NO FK */

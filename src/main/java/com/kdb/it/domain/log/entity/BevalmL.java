@@ -32,6 +32,6 @@ public class BevalmL extends BaseLogEntity {
     @Column(name = "CKG_RCRD", comment = "점검점수")
     private Integer ckgRcrd;
 
-    @Column(name = "CKG_OPNN_CONE", length = 2000, comment = "점검의견내용")
+    @Column(name = "CKG_OPNN_CONE", length = 1000, comment = "점검의견내용")
     private String ckgOpnn;
 }

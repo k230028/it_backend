@@ -20,7 +20,7 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public class BpqnamL extends BaseLogEntity {
 
-    @Column(name = "QTN_ID", length = 32, comment = "질의응답ID")
+    @Column(name = "QTN_ID", length = 36, comment = "질의응답ID")
     private String qtnId;
 
     @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
@@ -35,7 +35,7 @@ public class BpqnamL extends BaseLogEntity {
     @Column(name = "REP_ENO", length = 32, comment = "답변자사번")
     private String repEno;
 
-    @Column(name = "REP_CONE", length = 4000, comment = "답변내용")
+    @Column(name = "REP_CONE", length = 2000, comment = "답변내용")
     private String repCone;
 
     @Column(name = "REP_YN", length = 1, comment = "답변여부")

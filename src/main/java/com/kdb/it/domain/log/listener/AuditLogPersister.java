@@ -13,6 +13,7 @@ import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 변경 로그 영속화 컴포넌트.
@@ -44,6 +45,11 @@ public class AuditLogPersister {
             ctor.setAccessible(true);
             BaseLogEntity logEntity = (BaseLogEntity) ctor.newInstance();
 
+            // 생성(C) 시점에는 JPA 콜백 순서상 BaseEntity.prePersist가 아직 실행되지 않아
+            // 원본의 delYn/guid/guidPrgSno가 null이다. 스냅샷 복사 전에 동일 기본값을 미리
+            // 채워, 로그 스냅샷이 *L NOT NULL 제약을 만족하고 원본과 같은 값을 갖게 한다(멱등).
+            applyBaseAuditDefaults(sourceEntity);
+
             setField(logEntity, "chgTp", chgTp);
             setField(logEntity, "chgDtm", LocalDateTime.now());
             setField(logEntity, "chgUsid", resolveCurrentUserId());
@@ -54,6 +60,87 @@ public class AuditLogPersister {
         } catch (Exception e) {
             throw new RuntimeException("변경 로그 INSERT 실패: " + logClass.getSimpleName(), e);
         }
+    }
+
+    /**
+     * 원본 엔티티의 공통 감사 기본값(delYn/guid/guidPrgSno)을 보정합니다.
+     *
+     * <p>{@link com.kdb.it.domain.entity.BaseEntity#prePersist()}와 동일한 규칙이며,
+     * 값이 null인 경우에만 채우므로 멱등합니다. 생성(C) 로그 스냅샷이 NOT NULL 제약을
+     * 만족하고 원본 행과 동일한 GUID를 갖도록, prePersist보다 먼저(스냅샷 직전) 적용합니다.
+     * 해당 필드가 없는 엔티티(비-BaseEntity 로그 대상)는 조용히 건너뜁니다.</p>
+     *
+     * @param source 원본 엔티티 (CUD 이벤트 발생 엔티티)
+     */
+    private void applyBaseAuditDefaults(Object source) {
+        if (getFieldValue(source, "delYn") == null) {
+            setFieldQuiet(source, "delYn", "N");
+        }
+        if (getFieldValue(source, "guid") == null) {
+            setFieldQuiet(source, "guid", UUID.randomUUID().toString());
+        }
+        if (getFieldValue(source, "guidPrgSno") == null) {
+            setFieldQuiet(source, "guidPrgSno", 1);
+        }
+    }
+
+    /**
+     * 리플렉션으로 필드 값을 읽습니다. 필드가 없거나 접근 실패 시 {@code null}을 반환합니다.
+     *
+     * @param target    대상 객체
+     * @param fieldName 읽을 필드명
+     * @return 필드 값, 없으면 {@code null}
+     */
+    private Object getFieldValue(Object target, String fieldName) {
+        Field f = findField(target.getClass(), fieldName);
+        if (f == null) {
+            return null;
+        }
+        try {
+            f.setAccessible(true);
+            return f.get(target);
+        } catch (IllegalAccessException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 리플렉션으로 필드 값을 설정합니다. 필드가 없거나 접근 실패 시 조용히 무시합니다.
+     *
+     * @param target    대상 객체
+     * @param fieldName 설정할 필드명
+     * @param value     설정할 값
+     */
+    private void setFieldQuiet(Object target, String fieldName, Object value) {
+        Field f = findField(target.getClass(), fieldName);
+        if (f == null) {
+            return;
+        }
+        try {
+            f.setAccessible(true);
+            f.set(target, value);
+        } catch (IllegalAccessException ignored) {
+            // 보정 실패는 본 작업에 영향을 주지 않음 (NOT NULL 위반은 상위 catch에서 warn)
+        }
+    }
+
+    /**
+     * 클래스 계층을 탐색하여 지정한 이름의 필드를 찾습니다. 없으면 {@code null}.
+     *
+     * @param clazz 탐색 시작 클래스
+     * @param name  찾을 필드명
+     * @return 발견된 {@link Field}, 없으면 {@code null}
+     */
+    private Field findField(Class<?> clazz, String name) {
+        Class<?> c = clazz;
+        while (c != null && c != Object.class) {
+            try {
+                return c.getDeclaredField(name);
+            } catch (NoSuchFieldException e) {
+                c = c.getSuperclass();
+            }
+        }
+        return null;
     }
 
     /**

@@ -39,7 +39,7 @@ public class Bmqnam extends BaseEntity {
 
     /** 질의응답ID: PK (MQT-{협의회ID}-{순번} 형식) */
     @Id
-    @Column(name = "QTN_ID", length = 32, nullable = false, comment = "질의응답ID")
+    @Column(name = "QTN_ID", length = 36, nullable = false, comment = "질의응답ID")
     private String qtnId;
 
     /** 협의회ID: BASCTM.ASCT_ID FK */
@@ -58,8 +58,8 @@ public class Bmqnam extends BaseEntity {
     @Column(name = "REP_ENO", length = 32, comment = "답변자사번")
     private String repEno;
 
-    /** 답변내용: IT관리자가 정리한 답변 내용 (최대 4000자) */
-    @Column(name = "REP_CONE", length = 4000, comment = "답변내용")
+    /** 답변내용: IT관리자가 정리한 답변 내용 (최대 2000자) */
+    @Column(name = "REP_CONE", length = 2000, comment = "답변내용")
     private String repCone;
 
     /** 답변여부: N(미답변) / Y(답변완료), 기본값 N */

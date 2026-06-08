@@ -95,7 +95,7 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "BZ_DTT_NM", length = 32, comment = "업무구분")
     private String bzDttNm;
 
-    @Column(name = "IT_PTL_TCHN_TP_TC", length = 3, comment = "IT포탈기술유형구분코드 (공통코드 3자리)")
+    @Column(name = "IT_PTL_TCHN_TP_TC", length = 2, comment = "IT포탈기술유형구분코드 (공통코드 2자리)")
     private String sklTpTc;
 
     @Column(name = "CST_TP_TC", length = 32, comment = "주요사용자")
@@ -107,13 +107,13 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "FLF_FSG_DT", comment = "의무완료기한")
     private String flfFsgDt;
 
-    @Column(name = "IT_PTL_RPR_STS_TC", length = 3, comment = "보고상태 (공통코드 3자리)")
+    @Column(name = "IT_PTL_RPR_STS_TC", length = 2, comment = "보고상태 (공통코드 2자리)")
     private String rprStsTc;
 
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
-    @Column(name = "EXE_PTT_YN", length = 3, comment = "프로젝트추진가능성")
+    @Column(name = "EXE_PTT_YN", length = 1, comment = "프로젝트추진가능성")
     private String exePttYn;
 
     @Column(name = "IT_PTL_STS_TC", length = 2, comment = "프로젝트상태")

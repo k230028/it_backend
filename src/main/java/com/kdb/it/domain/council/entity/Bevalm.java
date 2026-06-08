@@ -56,8 +56,8 @@ public class Bevalm extends BaseEntity {
     @Column(name = "CKG_RCRD", comment = "점검점수")
     private Integer ckgRcrd;
 
-    /** 점검의견내용: 1~2점 입력 시 필수, 부정적 평가 사유 기술 (최대 2000자) */
-    @Column(name = "CKG_OPNN_CONE", length = 2000, comment = "점검의견내용")
+    /** 점검의견내용: 1~2점 입력 시 필수, 부정적 평가 사유 기술 (최대 1000자) */
+    @Column(name = "CKG_OPNN_CONE", length = 1000, comment = "점검의견내용")
     private String ckgOpnn;
 
     /**

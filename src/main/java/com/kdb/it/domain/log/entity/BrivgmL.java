@@ -37,7 +37,7 @@ public class BrivgmL extends BaseLogEntity {
     @Column(name = "IVG_OPNN_CONE", length = 4000, comment = "의견내용")
     private String ivgOpnnCone;
 
-    @Column(name = "RFR_ID", length = 64, comment = "표시ID")
+    @Column(name = "RFR_ID", length = 14, comment = "표시ID")
     private String rfrId;
 
     @Column(name = "RFR_CONE", length = 4000, comment = "인용내용")
