@@ -54,6 +54,9 @@ class AdminMenuServiceTest {
         assertThat(target.getWhlMnuPth()).isEqualTo("/X/B");
         assertThat(child.getMnuDep()).isEqualTo(3);
         assertThat(child.getWhlMnuPth()).isEqualTo("/X/B/C");
+        // 이동 후 트리 최상위(루트 X) 기준으로 시스템상위메뉴ID 재산출
+        assertThat(target.getSysHrkMnuId()).isEqualTo("X");
+        assertThat(child.getSysHrkMnuId()).isEqualTo("X");
     }
 
     @Test
@@ -154,6 +157,8 @@ class AdminMenuServiceTest {
         verify(cmenumRepository).save(captor.capture());
         assertThat(captor.getValue().getMnuDep()).isEqualTo(1);
         assertThat(captor.getValue().getWhlMnuPth()).isEqualTo("/MNU0000002");
+        // 루트(HED) 노드는 상위가 없으므로 시스템상위메뉴ID는 null
+        assertThat(captor.getValue().getSysHrkMnuId()).isNull();
     }
 
     @Test
@@ -179,6 +184,8 @@ class AdminMenuServiceTest {
         verify(cmenumRepository).save(captor.capture());
         assertThat(captor.getValue().getMnuDep()).isEqualTo(2);
         assertThat(captor.getValue().getWhlMnuPth()).isEqualTo("/PAR/MNU0000003");
+        // 자식 노드의 시스템상위메뉴ID는 트리 최상위(루트 PAR)
+        assertThat(captor.getValue().getSysHrkMnuId()).isEqualTo("PAR");
     }
 
     @Test
