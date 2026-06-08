@@ -2,8 +2,12 @@ package com.kdb.it.domain.payment.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +18,7 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.payment.dto.PaymentDto;
 import com.kdb.it.domain.payment.service.PaymentService;
 import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +69,38 @@ class PaymentControllerTest {
 
     @Test
     @WithMockUser(username = "10001")
+    @DisplayName("GET /api/project/payments → 200 + 목록 반환")
+    void list_returns200() throws Exception {
+        given(paymentService.list(any(), any(), any(), any()))
+                .willReturn(List.of(new PaymentDto.ListItem(
+                        "PAY-2026-0001", 1, "100", "PRJ-1", "71",
+                        "계약A", new BigDecimal("1000"), "10001", null)));
+
+        mockMvc.perform(get("/api/project/payments")
+                        .param("status", "71")
+                        .param("prnTc", "100")
+                        .param("cncdRfrNo", "PRJ-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].docMngNo").value("PAY-2026-0001"));
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("GET /api/project/payments/{docNo} → 200 + 상세 반환")
+    void get_returns200() throws Exception {
+        given(paymentService.get("PAY-2026-0001"))
+                .willReturn(new PaymentDto.Detail(
+                        "PAY-2026-0001", 1, "100", "PRJ-1", "테스트사업",
+                        "71", "의뢰", "계약A", new BigDecimal("1000"),
+                        "10001", null, List.of()));
+
+        mockMvc.perform(get("/api/project/payments/PAY-2026-0001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.docMngNo").value("PAY-2026-0001"));
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
     @DisplayName("POST /api/project/payments → 201 + 문서번호 반환")
     void create_returns201() throws Exception {
         given(paymentService.create(any(PaymentDto.CreateRequest.class), any()))
@@ -80,12 +117,43 @@ class PaymentControllerTest {
 
     @Test
     @WithMockUser(username = "10001")
+    @DisplayName("PUT /api/project/payments/{docNo} → 200")
+    void update_returns200() throws Exception {
+        mockMvc.perform(put("/api/project/payments/PAY-2026-0001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new PaymentDto.UpdateRequest("수정", "계약B", new BigDecimal("2000")))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("DELETE /api/project/payments/{docNo} → 204")
+    void delete_returns204() throws Exception {
+        mockMvc.perform(delete("/api/project/payments/PAY-2026-0001"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
     @DisplayName("POST /api/project/payments/{docNo}/status → 200")
     void changeStatus_returns200() throws Exception {
         mockMvc.perform(post("/api/project/payments/PAY-2026-0001/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new PaymentDto.StatusRequest("72"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("PUT /api/project/payments/{docNo}/payments → 200")
+    void savePayments_returns200() throws Exception {
+        mockMvc.perform(put("/api/project/payments/PAY-2026-0001/payments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new PaymentDto.LinesRequest(List.of(
+                                        new PaymentDto.LineRequest(1, new BigDecimal("1000"), "20260601", null, "의견"))))))
                 .andExpect(status().isOk());
     }
 }

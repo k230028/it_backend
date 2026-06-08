@@ -2,8 +2,12 @@ package com.kdb.it.domain.contract.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +17,8 @@ import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.contract.dto.ContractDto;
 import com.kdb.it.domain.contract.service.ContractService;
+import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +68,38 @@ class ContractControllerTest {
 
     @Test
     @WithMockUser(username = "10001")
+    @DisplayName("GET /api/project/contracts → 200 + 목록 반환")
+    void list_returns200() throws Exception {
+        given(contractService.list(any(), any(), any(), any()))
+                .willReturn(List.of(new ContractDto.ListItem(
+                        "CTR-2026-0001", 1, "100", "PRJ-1", "61",
+                        "계약A", new BigDecimal("1000"), "10001", null)));
+
+        mockMvc.perform(get("/api/project/contracts")
+                        .param("status", "61")
+                        .param("prnTc", "100")
+                        .param("cncdRfrNo", "PRJ-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].docMngNo").value("CTR-2026-0001"));
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("GET /api/project/contracts/{docNo} → 200 + 상세 반환")
+    void get_returns200() throws Exception {
+        given(contractService.get("CTR-2026-0001"))
+                .willReturn(new ContractDto.Detail(
+                        "CTR-2026-0001", 1, "100", "PRJ-1", "테스트사업",
+                        "61", "의뢰", "01", "수의계약", "계약A",
+                        new BigDecimal("1000"), "공급사", "20260601", "10001", null));
+
+        mockMvc.perform(get("/api/project/contracts/CTR-2026-0001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.docMngNo").value("CTR-2026-0001"));
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
     @DisplayName("POST /api/project/contracts → 201 + 문서번호 반환")
     void create_returns201() throws Exception {
         given(contractService.create(any(ContractDto.CreateRequest.class), any()))
@@ -77,12 +115,43 @@ class ContractControllerTest {
 
     @Test
     @WithMockUser(username = "10001")
+    @DisplayName("PUT /api/project/contracts/{docNo} → 200")
+    void update_returns200() throws Exception {
+        mockMvc.perform(put("/api/project/contracts/CTR-2026-0001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new ContractDto.UpdateRequest("수정"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("DELETE /api/project/contracts/{docNo} → 204")
+    void delete_returns204() throws Exception {
+        mockMvc.perform(delete("/api/project/contracts/CTR-2026-0001"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
     @DisplayName("POST /api/project/contracts/{docNo}/status → 200")
     void changeStatus_returns200() throws Exception {
         mockMvc.perform(post("/api/project/contracts/CTR-2026-0001/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new ContractDto.StatusRequest("62"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("PUT /api/project/contracts/{docNo}/contract → 200")
+    void saveContract_returns200() throws Exception {
+        mockMvc.perform(put("/api/project/contracts/CTR-2026-0001/contract")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new ContractDto.WorkRequest(
+                                        "01", "사유", "계약A", new BigDecimal("1000"), "공급사", "20260601"))))
                 .andExpect(status().isOk());
     }
 }

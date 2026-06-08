@@ -19,7 +19,7 @@
   - DB 기반 메뉴 트리 및 라우트 카탈로그 관리
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
-- **소스 코드**: 291개 메인 Java 파일, 96개 테스트 파일, 64개 JPA 엔티티(`@Entity` 기준)
+- **소스 코드**: 350개 메인 Java 파일, 115개 테스트 파일, 79개 JPA 엔티티(`@Entity` 기준)
 
 ## 2. 기술 스택
 
@@ -33,7 +33,7 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 96개 테스트 파일 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 115개 테스트 파일 |
 
 ## 2.5 빠른 시작 (Quick Start)
 
@@ -166,7 +166,7 @@ BaseLogEntity (변경 로그 추상 클래스)
 
 ### 4.1 패키지 구조
 
-2026-06-05 기준 도메인 기반 레이어드 아키텍처와 예산·결재·변경 로그·메뉴 모듈 구조를 반영합니다.
+2026-06-09 기준 도메인 기반 레이어드 아키텍처와 예산·결재·변경 로그·메뉴·사업집행 4단계 모듈 구조를 반영합니다.
 
 ```
 com.kdb.it
@@ -191,12 +191,17 @@ com.kdb.it
 │   │   ├── status/          # 예산현황 대시보드 (BudgetStatusController, BudgetStatusService)
 │   │   ├── work/            # 예산 작업 (BudgetWorkController, BudgetWorkService, Bbugtm)
 │   │   └── it/              # IT부문 예산 (ItBudgetController, ItBudgetService)
+│   ├── estimate/            # 사업집행① 소요예산 산정 (EstimateController, Bestim + Besttm 팀별 상세)
+│   ├── deliberation/        # 사업집행② 과업심의위원회 (DeliberationController, Bdelim)
+│   ├── contract/            # 사업집행③ 입찰/계약 (ContractController, Bcontm)
+│   ├── payment/             # 사업집행④ 대금지급 (PaymentController, Bpaymm + Bpaymt 회차별 상세)
 │   ├── council/             # 정보화실무협의회 (CouncilController, 9개 서비스, 10개 Repository)
 │   ├── log/                 # 변경 로그 (BaseLogEntity, *L 로그 엔티티, ChangeLogEntityListener)
 │   ├── menu/                # DB 기반 메뉴 트리·라우트 카탈로그 (MenuQueryController, AdminMenuController, AdminRouteController, Cmenum/Cmenua/Cmenud)
 │   └── entity/              # BaseEntity
 └── infra/
     ├── file/                # 파일 관리 (FileController, FileService, FileRepository, Cfilem)
+    ├── eai/                 # KDB 표준전문 EAI 발송 (EaiService, sealed EaiPayload SPI: UMS/GWE) — 현재 미연동(eai.enabled=false)
     └── ai/                  # Gemini AI (GeminiController, GeminiService)
 ```
 
@@ -219,6 +224,10 @@ common → domain (X)   common → infra  (X)
 | 정보기술부문계획 | `PlanController` | `PlanService` | `BplanmRepository`, `BplanaRepository` | `Bplanm`, `Bplana` |
 | 예산현황 | `BudgetStatusController` | `BudgetStatusService` | `BudgetStatusQueryRepository` | - |
 | IT부문 예산 | `ItBudgetController` | `ItBudgetService` | `ItBudgetQueryRepository` + Custom | - |
+| 사업집행① 소요예산 산정 | `EstimateController` | `EstimateService` | `EstimateRepository`(+Custom), `EstimateLineRepository` | `Bestim`, `Besttm` |
+| 사업집행② 과업심의 | `DeliberationController` | `DeliberationService` | `DeliberationRepository`(+Custom) | `Bdelim` |
+| 사업집행③ 입찰/계약 | `ContractController` | `ContractService` | `ContractRepository`(+Custom) | `Bcontm` |
+| 사업집행④ 대금지급 | `PaymentController` | `PaymentService` | `PaymentRepository`(+Custom), `PaymentLineRepository` | `Bpaymm`, `Bpaymt` |
 | 예산작업 | `BudgetWorkController` | `BudgetWorkService` | `BbugtmRepository` + Custom | `Bbugtm` |
 | 정보화실무협의회 | `CouncilController` | `CouncilService` 외 8개 | `CouncilRepository` 외 9개 | `Basctm` 외 9개 |
 | 신청서(결재) | `ApplicationController` | `ApplicationService` | `ApplicationRepository`, `ApplicationMapRepository`, `ApproverRepository` | `Capplm`, `Cappla`, `Cdecim` |
@@ -550,7 +559,7 @@ IT Portal의 로그는 **3가지 유형**으로 구성되며, 각각 다른 계�
 public class Bprojm extends BaseEntity { ... }
 ```
 
-**현재 로그 대상 엔티티 (`@LogTarget` 기준 25개)**
+**현재 로그 대상 엔티티 (`@LogTarget` 기준 31개)**
 
 | 키 | 로그 엔티티 | 설명 |
 |----|-----------|------|
@@ -573,6 +582,12 @@ public class Bprojm extends BaseEntity { ... }
 | `brsltm` | `BrsltmL` | 심의결과 |
 | `bschdm` | `BschdmL` | 협의회 일정 |
 | `btermm` | `BtermmL` | 단말기 상세 |
+| `bestim` | `BestimL` | 사업집행① 소요예산 산정 기본 |
+| `besttm` | `BesttmL` | 사업집행① 소요예산 산정 팀별 상세 |
+| `bdelim` | `BdelimL` | 사업집행② 과업심의 |
+| `bcontm` | `BcontmL` | 사업집행③ 입찰/계약 |
+| `bpaymm` | `BpaymmL` | 사업집행④ 대금지급 기본 |
+| `bpaymt` | `BpaymtL` | 사업집행④ 대금지급 회차별 상세 |
 | `capplm` | `CapplmL` | 전자결재 |
 | `ccodem` | `CcodemL` | 공통코드 |
 | `cblbcm` | `CblbcmL` | 게시물 |
@@ -580,7 +595,7 @@ public class Bprojm extends BaseEntity { ... }
 | `ccmmtm` | `CcmmtmL` | 게시판 댓글 |
 | `cmenum` | `CmenumL` | 공통메뉴 |
 
-> **참고**: 위 25개 엔티티는 `@LogTarget`으로 변경 로그가 자동 기록됩니다. 다만 관리자 로그 조회 화면(`AdminLogService.buildDefinitions()`, §7.3)에 등록된 항목은 **20개**입니다. 게시판 로그(`cblbcm`/`cblbmm`/`ccmmtm`), `bmqnam`, `cmenum`은 자동 기록은 되지만 아직 관리자 조회 정의에 추가되지 않았습니다(후속 과제).
+> **참고**: 위 31개 엔티티는 `@LogTarget`으로 변경 로그가 자동 기록됩니다. 다만 관리자 로그 조회 화면(`AdminLogService.buildDefinitions()`, §7.3)에 등록된 항목은 **20개**입니다. 사업집행 4단계(bestim/besttm/bdelim/bcontm/bpaymm/bpaymt)는 자동 기록되나 관리자 조회 정의 미등록(후속 과제). 게시판 로그(`cblbcm`/`cblbmm`/`ccmmtm`), `bmqnam`, `cmenum`은 자동 기록은 되지만 아직 관리자 조회 정의에 추가되지 않았습니다(후속 과제).
 
 **`BaseLogEntity` 공통 필드**
 
@@ -739,6 +754,12 @@ public class Bprojm extends BaseEntity { ... }
 | **IT부문 예산** | GET | `/api/budget/it/**` | 비목별 IT/정보보호 예산 요약, 전년 대비 비교 | **관리자** |
 | **예산작업** | GET/POST | `/api/budget/work/**` | 편성률 조회, Upsert, 결과 조회 | **관리자** |
 | **사전협의 검토자** | GET | `/api/reviews/{docMngNo}/reviewers` | 사전협의 문서별 검토자 목록 조회 | 일반 |
+| **사업집행① 소요예산** | GET/POST/PUT/DELETE | `/api/project/estimates/**` | 소요예산 산정 CRUD, 상태전이, 팀별 라인 저장 (상태 41→42→49) | 일반 |
+| **사업집행② 과업심의** | GET/POST/PUT/DELETE | `/api/project/deliberations/**` | 과업심의 CRUD, 상태전이, 심의결과 저장 (상태 51→52→59) | 일반 |
+| **사업집행③ 입찰/계약** | GET/POST/PUT/DELETE | `/api/project/contracts/**` | 입찰/계약 CRUD, 상태전이, 계약정보 저장 (상태 61→62→69) | 일반 |
+| **사업집행④ 대금지급** | GET/POST/PUT/DELETE | `/api/project/payments/**` | 대금지급 CRUD, 상태전이, 회차별 지급 저장 (상태 71→72→79) | 일반 |
+
+> 사업집행 4단계(`/api/project/**`)는 클래스 레벨 `@PreAuthorize` 없이 인증만 요구하며, 쓰기 주체·상태 전이·부서 권한은 서비스 계층에서 검증합니다. 대상구분(`bgPrnTc`)은 100(정보화사업)·200(전산업무비)이며 소요예산 산정은 100 전용입니다.
 
 > **Swagger UI**: http://localhost:8080/swagger-ui/index.html
 
@@ -1007,6 +1028,7 @@ public class Bnewent extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-06-09** | README.md 코드 대조 현행화: (1) 소스 통계 정정(메인 Java 291→350, 테스트 96→115, @Entity 64→79), (2) 정보화사업 집행 4단계 도메인 신규 반영 — `domain/estimate`(소요예산 산정, `/api/project/estimates`, Bestim+Besttm), `domain/deliberation`(과업심의, `/api/project/deliberations`, Bdelim), `domain/contract`(입찰/계약, `/api/project/contracts`, Bcontm), `domain/payment`(대금지급, `/api/project/payments`, Bpaymm+Bpaymt) — 패키지 구조·모듈 관계표·API 엔드포인트표에 추가(상태머신 41~79, 인증만 요구·서비스 계층 권한 검증), (3) `infra/eai`(KDB 표준전문 EAI 발송, sealed EaiPayload SPI: UMS/GWE, eai.enabled=false 미연동) 인프라 모듈 반영 |
 | **2026-06-05** | README.md 코드 대조 현행화: (1) 소스 통계 정정(@Entity 63→64), (2) `Bmqnam`(본회의질의응답) 엔티티·`@LogTarget` 반영 — 로그 대상 23→25개(관리자 조회 정의는 20개 유지), (3) 협의회 통계 정정(매핑 34→39, 서비스 8→9, Repository 9→10), (4) `config` 7개(ClockConfig 포함) 및 `domain/menu`·`budget/it` 패키지 명시, 미사용 `cdp`/`audit` 빈 디렉토리 표기 제거, (5) `application.properties` 실제 기본값(`DB_PASSWORD`/`JWT_SECRET`) 반영 |
 | **2026-06-05** | README.md 현행화: 소스 통계(291개 메인 Java, 96개 테스트)와 DB 기반 메뉴 모듈(`domain/menu`, `/api/menus`, `/api/admin/menus`, `/api/admin/routes`) 반영 |
 | **2026-06-01** | README.md 현행화: (1) 소스 통계 확정(271개 메인 Java, 92개 테스트, 63개 @Entity), (2) 실시간 로그 모니터링 섹션 신규 추가(§5, `common/admin/realtime`, RealtimeLogController, V_ITPAPP_LOG_FEED View, 커서 페이징, 테이블·변경유형 필터, 집계 정보), (3) 알림·Tiptap 변수 섹션을 §6으로 이동, (4) 로그 체계 섹션을 §7으로 이동, (5) 모듈 패키지 구조에 `common/notification`, `common/admin/realtime` 명시 |

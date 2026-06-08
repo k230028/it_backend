@@ -50,12 +50,16 @@ src/main/java/com/kdb/it/
 │   └── util/      - 공통 유틸 (CookieUtil, HtmlSanitizer, CustomPasswordEncoder 등)
 ├── domain/        - 비즈니스 도메인
 │   ├── budget/    - 예산 관리 (it, project, cost, document, plan, status, work)
+│   ├── estimate/  - 정보화사업 집행 ① 소요예산 산정 (Bestim 기본 + Besttm 팀별 상세)
+│   ├── deliberation/ - 정보화사업 집행 ② 과업심의위원회 (Bdelim)
+│   ├── contract/  - 정보화사업 집행 ③ 입찰/계약 (Bcontm)
+│   ├── payment/   - 정보화사업 집행 ④ 대금지급 (Bpaymm 기본 + Bpaymt 회차별 상세)
 │   ├── council/   - 정보화실무협의회
 │   ├── log/       - 변경 로그 (BaseLogEntity, *L 엔티티, ChangeLogEntityListener)
 │   ├── menu/      - DB 기반 메뉴 트리, 라우트 카탈로그, 권한 매핑
 │   └── entity/    - BaseEntity
 ├── exception/     - 전역 예외 핸들러
-└── infra/         - 인프라 도메인 (ai, file)
+└── infra/         - 인프라 도메인 (ai, eai, file)
 src/main/resources/
 └── application.properties
 ```
@@ -79,7 +83,7 @@ src/main/resources/
 ### 5.2 엔티티 설계
 - 모든 업무 엔티티는 **`BaseEntity` 상속** (공통 컬럼: `DEL_YN`, `GUID`, `FST_ENR_DTM/USID`, `LST_CHG_DTM/USID`).
 - 감사 로그 필요 엔티티: 업무 엔티티는 **`BaseEntity` 상속 + `@LogTarget(entity = XxxL.class)` 어노테이션** 부착, 짝이 되는 **`*L` 로그 엔티티가 `BaseLogEntity` 상속**. (업무 엔티티 자체가 `BaseLogEntity`를 상속하지 않음에 주의.)
-  - 현재 적용: 25쌍 (업무 엔티티 `@LogTarget` ↔ `*L` 로그 엔티티). 예: `Bprojm`↔`BprojmL`, `Bitemm`↔`BitemmL`, `Cblbcm`↔`CblbcmL`, `Capplm`↔`CapplmL`, `Ccodem`↔`CcodemL`.
+  - 현재 적용: 31쌍 (업무 엔티티 `@LogTarget` ↔ `*L` 로그 엔티티). 예: `Bprojm`↔`BprojmL`, `Bitemm`↔`BitemmL`, `Cblbcm`↔`CblbcmL`, `Capplm`↔`CapplmL`, `Ccodem`↔`CcodemL`, `Bestim`↔`BestimL`(사업집행 4단계 6쌍 신규).
   - 로그 생성 메커니즘: JPA `@PrePersist`/`@PreUpdate` → `ChangeLogEntityListener` → `AuditLogPersister.persist()`.
 - 삭제는 항상 **Soft Delete**(`delete()` → `DEL_YN='Y'`). 물리 삭제 금지.
 - 엔티티 명칭은 메타 문서 반드시 용어사전 기반으로 지정 (필수).
@@ -414,7 +418,7 @@ public class PlanController { ... }
 - **IP·기기 기준 잠금 없음** — Credential stuffing 방어 미적용 (§5.6 Brute-force 보호 참조).
 
 ### 5.12.1 감사 로그(BaseLogEntity) 패턴
-- **로그 엔티티**: 25개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`). 짝이 되는 업무 엔티티는 `@LogTarget(entity = *L.class)`로 로그 대상을 지정.
+- **로그 엔티티**: 31개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`, `BestimL`). 짝이 되는 업무 엔티티는 `@LogTarget(entity = *L.class)`로 로그 대상을 지정.
 - **기본 구조**: `*L` 로그 엔티티가 `BaseLogEntity` 상속 — 기본 컬럼 자동 포함 (GUID, FST_ENR_DTM/USID, LST_CHG_DTM/USID).
 - **로그 리스너**: `ChangeLogEntityListener` → JPA entity lifecycle 후킹 → `AuditLogPersister` → DB 저장.
 - **저장 시점**: JPA `@PrePersist`/`@PreUpdate` 콜백 중 `ChangeLogEntityListener`가 `AuditLogPersister.persist()`를 직접 호출해 현재 flush 흐름에서 로그를 저장합니다. 로그 저장 실패는 catch 후 warn 처리하여 원본 작업 롤백을 피합니다.
@@ -682,6 +686,47 @@ record ResolvedValue(String value, String status)
 #### 권한 필터링 (향후 Task)
 - 현재: 권한 검증 없음 (모든 인증 사용자 접근 가능).
 - 향후: `SecurityContext` 기준 사용자 권한/부서별 카탈로그 및 해석 결과 필터링 (§4.5 Design Ref).
+
+### 5.18 정보화사업 집행 4단계 (domain/estimate·deliberation·contract·payment)
+
+정보화사업/전산업무비의 집행 절차를 4개 독립 도메인으로 구현합니다. 4개 도메인은 동일한 컨트롤러·상태·채번 패턴을 공유합니다.
+
+| 단계 | 도메인 | 기본 테이블 | 상세 테이블 | API Prefix | 채번 | 상태(작성중→진행중→완료) | 대상구분(bgPrnTc) |
+|------|--------|------------|------------|-----------|------|------|------|
+| ① 소요예산 산정 | `domain/estimate` | `TPRMPP_BESTIM` | `TPRMPP_BESTTM`(팀별 산정) | `/api/project/estimates` | `REQ-{YYYY}-{4}` | 41→42→49 | 100(사업) 전용 |
+| ② 과업심의위원회 | `domain/deliberation` | `TPRMPP_BDELIM` | — | `/api/project/deliberations` | `DLB-{YYYY}-{4}` | 51→52→59 | 100(사업)·200(전산업무비) |
+| ③ 입찰/계약 | `domain/contract` | `TPRMPP_BCONTM` | — | `/api/project/contracts` | `CTR-{YYYY}-{4}` | 61→62→69 | 100·200 |
+| ④ 대금지급 | `domain/payment` | `TPRMPP_BPAYMM` | `TPRMPP_BPAYTM`(회차별 지급) | `/api/project/payments` | `PAY-{YYYY}-{4}` | 71→72→79 | 100·200 |
+
+**공통 컨트롤러 패턴** (각 도메인 `*Controller`):
+- `GET /` 목록, `GET /{docNo}` 상세, `POST /` 생성, `PUT /{docNo}` 수정, `DELETE /{docNo}` 삭제(Soft Delete).
+- `POST /{docNo}/status` 상태 전이, `PUT /{docNo}/{lines|contract|result|payments}` 단계별 상세 저장.
+- **클래스 레벨 `@PreAuthorize` 없음** — `/api/admin/**`가 아니므로 SecurityConfig상 인증만 요구. 쓰기 주체·상태 전이·부서 권한은 **서비스 계층**에서 검증(관리자 전용 도메인 아님).
+- mutating 엔드포인트는 `@Valid` 적용.
+
+**공통 서비스 규칙**:
+- 클래스 레벨 `@Transactional(readOnly=true)` + 쓰기 메서드 `@Transactional` 오버라이드.
+- 상태 전이는 **인접 단계만 허용**(작성중↔진행중↔완료). 작성중 상태에서만 수정·삭제 가능.
+- 채번: 연도별 시퀀스 `*-{연도}-{4자리}` (예: `REQ-2026-0001`). `nextDocSeq()`/시퀀스 NEXTVAL.
+- 신규 생성 시 동일 대상에 **진행 중(작성중/진행중) 문서 중복 방지** 검증.
+- 모든 엔티티는 `BaseEntity` 상속 + `@LogTarget`로 감사 로그 대상(§5.12.1).
+
+**보안 규칙 (집행 4단계, 코드 분석 2026-06-09 — 현재 MVP 미충족 항목 존재, TASK.md 추적):**
+- 클래스 레벨 `@PreAuthorize`가 없는 업무 컨트롤러는 **서비스 계층에서 소유자/관리자 검증 필수**. update/delete/changeStatus/save*는 `e.getFstEnrUsid().equals(user.getEno()) || user.isAdmin()` 검증을 두어야 합니다. **현재 4개 서비스는 `user` 파라미터를 받지만 소유권 검증 미구현 → 인증된 임의 직원이 타인 문서를 수정·삭제·상태전이 가능(TASK.md 보안 HIGH).**
+- 부서(bbrC) 필터는 **목록 RepositoryImpl에서 실제 쿼리 조건으로 포함**해야 효력이 있습니다. `EstimateRepositoryImpl`은 적용되어 있으나 `Contract`/`Deliberation`/`PaymentRepositoryImpl`은 MVP 미적용 → 일반 사용자가 타부서 목록 열람 가능(TASK.md 보안 HIGH).
+- 금융 금액 필드(`cttAmt`, `dfrAmt`)는 `@DecimalMin("0")`, YN 플래그는 `@Pattern(regexp="^[YN]$")` 적용 권장(현재 일부 누락).
+
+### 5.19 EAI 발송 인프라 (infra/eai, KDB 표준전문)
+
+- **목적**: KDB 사내 EAI 게이트웨이로 표준전문(UMS 알림톡/SMS, GWE 메일)을 발송. ePAMS(eHR) 전문 규격을 포팅.
+- **구조**: `EaiService.sendEai(EaiRequest)`가 전문 조립(`EaiMessageBuilder`)과 전송(`RestClient`)을 연결. 페이로드는 **sealed 인터페이스 SPI**(`EaiPayload` → `UmsPayload`/`GwePayload`), 채널별 `EaiPayloadSection` 구현체가 개별부를 조립.
+- **안전장치**:
+  - `eai.enabled=false`(기본값)이면 전문을 빌드·로깅만 하고 HTTP 미호출 (개발/CI 안전).
+  - 모든 실패는 예외를 전파하지 않고 `EaiResult`(success/failure/skip)로 표현 — **부수효과 원칙**.
+  - 민감정보(휴대폰/OTP)는 전문 평문 로깅하지 않고 마스킹.
+  - 시스템 식별자 IPP/PRM/PP는 프로퍼티로 확정. `IF_ID`(인터페이스ID)·UMS 템플릿은 운영팀 발급 대기 (TASK.md EAI 섹션).
+- **현재 미연동**: `NotificationDispatcher` 실연동 어댑터로 `EaiService`를 연결하는 작업은 TASK.md 백로그. 현재 알림은 `StubNotificationDispatcher`(INAPP 전용)만 동작.
+- 신규 시스템 연동 시: `EaiPayload`(record) + `EaiPayloadSection`(@Component) 1쌍 추가 패턴.
 
 ## 7. 주석 작성 예시
 JavaDoc 표준 양식과 코드 예제는 → [`docs/guides/comment-style.md`](docs/guides/comment-style.md) 참조.

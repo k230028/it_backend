@@ -2,8 +2,12 @@ package com.kdb.it.domain.estimate.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +17,8 @@ import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.estimate.dto.EstimateDto;
 import com.kdb.it.domain.estimate.service.EstimateService;
+import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +68,36 @@ class EstimateControllerTest {
 
     @Test
     @WithMockUser(username = "10001")
+    @DisplayName("GET /api/project/estimates → 200 + 목록 반환")
+    void list_returns200() throws Exception {
+        given(estimateService.list(any(), any(), any()))
+                .willReturn(List.of(new EstimateDto.ListItem(
+                        "REQ-2026-0001", 1, "100", "PRJ-1",
+                        "테스트사업", "41", "10001", null)));
+
+        mockMvc.perform(get("/api/project/estimates")
+                        .param("status", "41")
+                        .param("cncdRfrNo", "PRJ-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].rqmBgReqDocNo").value("REQ-2026-0001"));
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("GET /api/project/estimates/{docNo} → 200 + 상세 반환")
+    void get_returns200() throws Exception {
+        given(estimateService.get("REQ-2026-0001"))
+                .willReturn(new EstimateDto.Detail(
+                        "REQ-2026-0001", 1, "100", "PRJ-1", "테스트사업",
+                        "41", "요청", "10001", null, List.of()));
+
+        mockMvc.perform(get("/api/project/estimates/REQ-2026-0001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rqmBgReqDocNo").value("REQ-2026-0001"));
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
     @DisplayName("POST /api/project/estimates → 201 + 문서번호 반환")
     void create_returns201() throws Exception {
         given(estimateService.create(any(EstimateDto.CreateRequest.class), any()))
@@ -77,12 +113,43 @@ class EstimateControllerTest {
 
     @Test
     @WithMockUser(username = "10001")
+    @DisplayName("PUT /api/project/estimates/{docNo} → 200")
+    void update_returns200() throws Exception {
+        mockMvc.perform(put("/api/project/estimates/REQ-2026-0001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new EstimateDto.UpdateRequest("수정"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("DELETE /api/project/estimates/{docNo} → 204")
+    void delete_returns204() throws Exception {
+        mockMvc.perform(delete("/api/project/estimates/REQ-2026-0001"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
     @DisplayName("POST /api/project/estimates/{docNo}/status → 200")
     void changeStatus_returns200() throws Exception {
         mockMvc.perform(post("/api/project/estimates/REQ-2026-0001/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new EstimateDto.StatusRequest("42"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("PUT /api/project/estimates/{docNo}/lines → 200")
+    void saveLines_returns200() throws Exception {
+        mockMvc.perform(put("/api/project/estimates/REQ-2026-0001/lines")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new EstimateDto.LinesRequest(List.of(
+                                        new EstimateDto.LineRequest("T001", "IOE001", new BigDecimal("1000"), "의견"))))))
                 .andExpect(status().isOk());
     }
 }
