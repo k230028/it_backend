@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.document.service;
 import com.kdb.it.domain.budget.document.entity.Brdocm;
 import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.document.repository.ServiceRequestDocRepository;
+import com.kdb.it.domain.budget.document.util.DocVersionCodec;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
@@ -26,6 +27,13 @@ import java.util.stream.Collectors;
  * 테이블 PK는 (DOC_MNG_NO, DOC_VRS) 복합키이며, 동일 {@code DOC_MNG_NO}에 대해
  * 여러 버전이 존재할 수 있습니다. 최초 생성 시 버전은 {@code 0.01}이며,
  * 새 버전 생성 시 기존 최신 버전 + {@code 0.01}로 증가합니다.
+ * </p>
+ *
+ * <p>
+ * <b>버전 저장 규약</b>: 물리 컬럼 {@code DOC_VRS_SNO}는 {@code NUMBER(9,0)}(정수)이므로
+ * 소수 버전을 그대로 저장하면 절삭되어 PK가 충돌합니다. 따라서 화면/API는 소수 버전(0.01, 1.00 ...)을
+ * 사용하되, DB 저장·조회 키로 쓸 때만 {@link DocVersionCodec#toStored(BigDecimal)}(× 100)로 정수 변환하고,
+ * 엔티티에서 읽어 응답할 때는 {@link DocVersionCodec#toDisplay(BigDecimal)}(÷ 100)로 소수 변환합니다.
  * </p>
  *
  * <p>
@@ -94,9 +102,9 @@ public class ServiceRequestDocService {
                     .orElseThrow(() -> new CustomGeneralException(
                             "존재하지 않는 문서관리번호입니다: " + docMngNo));
         } else {
-            // 특정 버전 조회
+            // 특정 버전 조회: 화면 소수 버전 → 저장 정수 버전(× 100)으로 변환하여 조회
             document = serviceRequestDocRepository
-                    .findByDocMngNoAndDocVrsSnoAndDelYn(docMngNo, version, "N")
+                    .findByDocMngNoAndDocVrsSnoAndDelYn(docMngNo, DocVersionCodec.toStored(version), "N")
                     .orElseThrow(() -> new CustomGeneralException(
                             "해당 버전의 문서를 찾을 수 없습니다: " + docMngNo + " (v" + version + ")"));
         }
@@ -158,8 +166,9 @@ public class ServiceRequestDocService {
         // 요구사항내용 XSS 새니타이징
         request.setRedtConeInf(HtmlSanitizer.sanitize(request.getRedtConeInf()));
 
-        // 복합키 (docMngNo, 0.01)로 엔티티 생성
-        Brdocm document = request.toEntity(docMngNo, INITIAL_VERSION);
+        // 복합키 (docMngNo, 최초버전)로 엔티티 생성
+        // 화면 버전 0.01 → 저장 정수 1(× 100). NUMBER(9,0) 컬럼 절삭 방지.
+        Brdocm document = request.toEntity(docMngNo, DocVersionCodec.toStored(INITIAL_VERSION));
         serviceRequestDocRepository.save(document);
         return document.getDocMngNo();
     }
@@ -219,13 +228,16 @@ public class ServiceRequestDocService {
                 .orElseThrow(() -> new CustomGeneralException(
                         "존재하지 않는 문서관리번호입니다: " + docMngNo));
 
-        // 새 버전 번호 계산 (최신 + 0.01)
-        BigDecimal nextVrs = latest.getDocVrsSno().add(VERSION_INCREMENT);
+        // 새 버전 번호 계산: 저장 정수 → 화면 소수(÷ 100)로 환산 후 + 0.01 증가
+        BigDecimal currentDisplay = DocVersionCodec.toDisplay(latest.getDocVrsSno());
+        BigDecimal nextDisplay = currentDisplay.add(VERSION_INCREMENT);
 
-        // 기존 업무 필드 복제 + 새 버전 번호 지정
-        Brdocm newEntity = latest.newVersion(nextVrs);
+        // 기존 업무 필드 복제 + 새 버전 번호(저장 정수, × 100) 지정
+        Brdocm newEntity = latest.newVersion(DocVersionCodec.toStored(nextDisplay));
         serviceRequestDocRepository.save(newEntity);
-        return nextVrs;
+
+        // 응답은 화면 소수 버전으로 반환 (예: 0.02)
+        return nextDisplay;
     }
 
     /**
@@ -253,9 +265,9 @@ public class ServiceRequestDocService {
             // BaseEntity.delete() 호출 → DEL_YN='Y' (JPA Dirty Checking)
             all.forEach(Brdocm::delete);
         } else {
-            // 특정 버전만 소프트 삭제
+            // 특정 버전만 소프트 삭제: 화면 소수 버전 → 저장 정수 버전(× 100)으로 변환하여 조회
             Brdocm document = serviceRequestDocRepository
-                    .findByDocMngNoAndDocVrsSnoAndDelYn(docMngNo, version, "N")
+                    .findByDocMngNoAndDocVrsSnoAndDelYn(docMngNo, DocVersionCodec.toStored(version), "N")
                     .orElseThrow(() -> new CustomGeneralException(
                             "해당 버전의 문서를 찾을 수 없습니다: " + docMngNo + " (v" + version + ")"));
             document.delete();

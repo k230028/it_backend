@@ -28,6 +28,8 @@ public class MenuDto {
         private Integer mnuDep;
         private String whlMnuPth;
         private List<Node> children;
+        /** 노출 권한ID 목록(관리 트리에서만 채움). 빈 목록=전체 공개. 사용자 트리에서는 null. */
+        private List<String> athIds;
     }
 
     /** 단건 생성/수정 요청. mnuId는 서버가 채번하므로 받지 않는다. */

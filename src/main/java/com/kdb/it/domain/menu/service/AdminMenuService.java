@@ -12,7 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /** 메뉴 마스터 관리(CRUD) + 정렬/이동 + WHL_MNU_PTH·MNU_DEP 재계산 책임. */
 @Service
@@ -195,12 +198,33 @@ public class AdminMenuService {
         }
     }
 
-    /** 권한 매핑 전체 교체: 기존 활성 매핑 soft-delete 후 새 목록 저장. */
+    /**
+     * 권한 매핑을 목표 목록(athIds)에 맞춰 재조정한다.
+     *
+     * <p>기존 행(삭제분 포함)을 모두 로드해 목표에 있으면 복원(restore), 없으면 soft-delete 하고,
+     * 어느 상태로도 존재하지 않는 권한만 신규 INSERT 한다. 활성 매핑을 일괄 삭제 후 동일 복합 PK로
+     * 재INSERT하면 {@code save()}가 {@code merge()} 경로로 빠지면서 {@code @PrePersist} 미발화로
+     * GUID가 NULL이 되어 {@code ORA-01407}이 발생하므로(§5.12.1.1) 복원·재사용 방식을 사용한다.</p>
+     *
+     * @param mnuId  대상 메뉴 ID
+     * @param athIds 노출 권한ID 목록. null·빈 목록이면 모든 매핑을 삭제하여 전체 공개로 만든다.
+     */
     private void replaceRoles(String mnuId, List<String> athIds) {
-        for (Cmenua a : cmenuaRepository.findActiveByMnuId(mnuId)) a.delete();
-        if (athIds == null) return;
-        for (String athId : athIds) {
-            cmenuaRepository.save(Cmenua.builder().mnuId(mnuId).athId(athId).delYn("N").build());
+        Set<String> wanted = athIds == null ? new LinkedHashSet<>() : new LinkedHashSet<>(athIds);
+        Set<String> existing = new HashSet<>();
+        for (Cmenua a : cmenuaRepository.findByMnuId(mnuId)) {
+            if (wanted.contains(a.getAthId())) {
+                a.restore();          // 삭제분은 'N'으로 복원, 이미 활성이면 변화 없음
+                existing.add(a.getAthId());
+            } else {
+                a.delete();           // 더 이상 필요 없는 매핑은 soft delete
+            }
+        }
+        for (String athId : wanted) {
+            if (!existing.contains(athId)) {
+                // 신규 PK는 merge SELECT가 비어 INSERT로 가며 @PrePersist가 GUID를 채운다.
+                cmenuaRepository.save(Cmenua.builder().mnuId(mnuId).athId(athId).delYn("N").build());
+            }
         }
     }
 

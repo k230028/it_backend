@@ -424,6 +424,29 @@ public class PlanController { ... }
 - **저장 시점**: JPA `@PrePersist`/`@PreUpdate` 콜백 중 `ChangeLogEntityListener`가 `AuditLogPersister.persist()`를 직접 호출해 현재 flush 흐름에서 로그를 저장합니다. 로그 저장 실패는 catch 후 warn 처리하여 원본 작업 롤백을 피합니다.
 - 로그 조회는 `domain/log`의 `*L` 로그 엔티티 또는 분석용 view(`V_ITPAPP_LOG_FEED`, `common/admin`·`common/admin/realtime` 조회 서비스)를 사용.
 
+#### 5.12.1.1 NOT NULL 기본값은 생성자/팩토리에서 설정 (감사 로그 스냅샷 타이밍 함정 — 필수 규칙)
+**`@LogTarget` 엔티티에서 NOT NULL 컬럼의 기본값은 반드시 생성자·팩토리(`create()`)·빌더 시점에 채웁니다. 엔티티 자신의 `@PrePersist`에서만 기본값을 설정하면 안 됩니다.**
+
+- **이유**: `BaseEntity`는 `@EntityListeners({AuditingEntityListener.class, ChangeLogEntityListener.class})`를 선언합니다. JPA 규약상 **엔티티 리스너 콜백은 엔티티 자신의 `@PrePersist`보다 먼저** 실행됩니다. 따라서 INSERT 시 `ChangeLogEntityListener`가 로그(`*L`)를 스냅샷하는 시점에는, 엔티티 자체 `@PrePersist`가 아직 실행되지 않아 해당 필드가 **null**입니다. 마스터 테이블 INSERT는 이후 `@PrePersist`가 값을 채워 정상이지만, 로그 테이블에는 null이 복사되어 `*L`의 NOT NULL 제약을 위반합니다(`ORA-01400`).
+- **try/catch로도 안 잡힘**: `AuditLogPersister`의 `entityManager.persist(logEntity)`는 INSERT를 **예약만** 하며 실제 SQL은 커밋 시점 flush에서 실행됩니다. 그래서 `ChangeLogEntityListener.persistLog()`의 "로그 실패 무시" try/catch 바깥(커밋 flush)에서 제약 위반이 터져 **원본 업무 트랜잭션까지 롤백**됩니다.
+- **안전한 필드(예외)**: BaseEntity 공통 필드(`delYn`/`guid`/`guidPrgSno`)는 `AuditLogPersister.applyBaseAuditDefaults()`가 스냅샷 직전에 보정하고, JPA Auditing 필드(`fstEnrDtm`/`fstEnrUsid`)는 리스너 선언 순서상 `AuditingEntityListener`가 먼저 채우므로 안전합니다. **엔티티 고유의 NOT NULL 기본값만** 본 규칙의 대상입니다.
+- **올바른 패턴** (`Brivgm.create()` 참고):
+  ```java
+  public static Brivgm create(...) {
+      Brivgm b = new Brivgm();
+      // ...
+      b.fsgYn = "N";   // ← 생성 시점에 설정. 스냅샷이 'N'을 복사하도록 보장.
+      return b;
+  }
+
+  @PrePersist
+  private void prePersistBrivgm() {
+      if (this.fsgYn == null) this.fsgYn = "N";   // 방어적 폴백으로 유지
+  }
+  ```
+- **체크리스트**: 새 `@LogTarget` 엔티티를 추가할 때, 짝이 되는 `*L` 로그 엔티티/테이블에 NOT NULL 컬럼이 있으면 그 값이 **영속화 직전이 아니라 객체 생성 시점**에 항상 채워지는지 확인합니다.
+- 참고: `save()`가 ID 보유 엔티티에서 `merge()` 분기로 빠져 `DEL_YN=null` 등 기본값이 누락되는 별개의 회귀(PRD §15)도 있습니다. 신규 INSERT가 확실하면 `entityManager.persist()`로 직접 저장해 `@PrePersist` 발화를 보장합니다(`council` 서비스 참고).
+
 ### 5.12.2 이벤트 리스너(@EventListener vs @TransactionalEventListener)
 - **`@EventListener`**: 발행자와 동일 트랜잭션에서 **동기 실행**. 리스너 실패 시 원본 트랜잭션 롤백.
   - 사용 예: `CouncilApprovalEventListener` — 결재 완료 이벤트 → 협의회 상태 자동 전이. 협의회 상태 변경 실패 시 결재 원본 작업도 함께 롤백.

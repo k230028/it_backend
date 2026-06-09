@@ -127,7 +127,7 @@ class AdminMenuServiceTest {
         given(cmenumRepository.findByMnuIdAndDelYn("P1", "N"))
                 .willReturn(Optional.of(node("P1", "MHED0002", 2, "/MHED0002/P1")));
         given(cmenumRepository.nextMnuId()).willReturn("MNU0000001");
-        given(cmenuaRepository.findActiveByMnuId("MNU0000001")).willReturn(List.of());
+        given(cmenuaRepository.findByMnuId("MNU0000001")).willReturn(List.of());
 
         // when
         String result = service.create(req);
@@ -146,7 +146,7 @@ class AdminMenuServiceTest {
                 .hrkMnuId(null).srePth(null).hidYn("N").athIds(null)
                 .build();
         given(cmenumRepository.nextMnuId()).willReturn("MNU0000002");
-        given(cmenuaRepository.findActiveByMnuId("MNU0000002")).willReturn(List.of());
+        given(cmenuaRepository.findByMnuId("MNU0000002")).willReturn(List.of());
 
         // when
         String result = service.create(req);
@@ -173,7 +173,7 @@ class AdminMenuServiceTest {
                 .build();
         given(cmenumRepository.findByMnuIdAndDelYn("PAR", "N")).willReturn(Optional.of(parent));
         given(cmenumRepository.nextMnuId()).willReturn("MNU0000003");
-        given(cmenuaRepository.findActiveByMnuId("MNU0000003")).willReturn(List.of());
+        given(cmenuaRepository.findByMnuId("MNU0000003")).willReturn(List.of());
 
         // when
         String result = service.create(req);
@@ -263,7 +263,7 @@ class AdminMenuServiceTest {
                 .srePth(null).hidYn("Y").athIds(List.of("ITPAD001"))
                 .build();
         given(cmenumRepository.findByMnuIdAndDelYn("M1", "N")).willReturn(Optional.of(menu));
-        given(cmenuaRepository.findActiveByMnuId("M1")).willReturn(List.of());
+        given(cmenuaRepository.findByMnuId("M1")).willReturn(List.of());
 
         // when
         service.update("M1", req);
@@ -273,6 +273,32 @@ class AdminMenuServiceTest {
         assertThat(menu.getHidYn()).isEqualTo("Y");
         // 권한 매핑 저장 확인
         verify(cmenuaRepository).save(any(Cmenua.class));
+    }
+
+    @Test
+    @DisplayName("update: 기존 권한은 복원·재사용하고 동일 PK 재INSERT를 하지 않는다(ORA-01407 회귀 방지)")
+    void update_권한재조정_기존행복원_재INSERT없음() {
+        // given: 이미 ITPAD001 매핑이 존재하는 메뉴를 ITPAD001 유지 + ITPZZ002 추가로 저장
+        Cmenum menu = node("M1", null, 1, "/M1");
+        menu.setMnuTpC("GRP");
+        Cmenua existingAdmin = Cmenua.builder().mnuId("M1").athId("ITPAD001").delYn("N").build();
+        Cmenua removedManager = Cmenua.builder().mnuId("M1").athId("ITPZZ001").delYn("N").build();
+        MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
+                .mnuNm("권한조정").mnuTpC("GRP").srePth(null).hidYn("N")
+                .athIds(List.of("ITPAD001", "ITPZZ002"))
+                .build();
+        given(cmenumRepository.findByMnuIdAndDelYn("M1", "N")).willReturn(Optional.of(menu));
+        given(cmenuaRepository.findByMnuId("M1")).willReturn(List.of(existingAdmin, removedManager));
+
+        // when
+        service.update("M1", req);
+
+        // then: 유지 권한은 활성 그대로(복원), 빠진 권한은 soft-delete, 신규 권한만 INSERT
+        assertThat(existingAdmin.getDelYn()).isEqualTo("N");   // 동일 PK 재INSERT 없이 재사용 → GUID NULL UPDATE 회피
+        assertThat(removedManager.getDelYn()).isEqualTo("Y");  // 더 이상 필요 없는 매핑 삭제
+        ArgumentCaptor<Cmenua> captor = ArgumentCaptor.forClass(Cmenua.class);
+        verify(cmenuaRepository).save(captor.capture());       // 신규 ITPZZ002 1건만 저장
+        assertThat(captor.getValue().getAthId()).isEqualTo("ITPZZ002");
     }
 
     @Test

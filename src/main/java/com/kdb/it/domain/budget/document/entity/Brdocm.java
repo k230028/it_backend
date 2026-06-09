@@ -48,9 +48,16 @@ public class Brdocm extends BaseEntity {
     @Column(name = "DOC_MNG_NO", nullable = false, length = 20, comment = "문서관리번호")
     private String docMngNo;
 
-    /** 문서버전: 복합 기본키의 두 번째 컬럼 (Oracle NUMBER(9,2), 예: 1.00, 1.01, 2.00) */
+    /**
+     * 문서버전: 복합 기본키의 두 번째 컬럼.
+     *
+     * <p>물리 컬럼은 Oracle {@code NUMBER(9,0)}(정수)입니다. 소수 버전(0.01 단위)을 그대로 저장하면
+     * 절삭되어 PK가 충돌하므로, 화면 소수 버전 × 100을 정수로 저장합니다.
+     * (예: 화면 0.01 → 저장 1, 화면 1.00 → 저장 100). 화면 변환은
+     * {@link com.kdb.it.domain.budget.document.util.DocVersionCodec} 참조.</p>
+     */
     @Id
-    @Column(name = "DOC_VRS_SNO", nullable = false, precision = 9, scale = 2, comment = "문서버전 (물리컬럼 DOC_VRS_SNO=문서버전일련번호)")
+    @Column(name = "DOC_VRS_SNO", nullable = false, precision = 9, scale = 0, comment = "문서버전 (물리컬럼 DOC_VRS_SNO=문서버전일련번호, NUMBER(9,0) 정수저장=화면버전×100)")
     private BigDecimal docVrsSno;
 
     /** 요구사항명: 요구사항의 제목 (최대 500자) */
@@ -111,7 +118,7 @@ public class Brdocm extends BaseEntity {
      * 해당 필드들을 별도로 지정하지 않습니다.
      * </p>
      *
-     * @param nextVrs 새로 생성할 문서버전 (예: 1.01, 2.00)
+     * @param nextVrs 새로 생성할 문서버전 (저장용 정수값 = 화면버전 × 100, 예: 화면 1.01 → 101)
      * @return 새 버전의 {@link Brdocm} 인스턴스 (영속화 전 상태)
      */
     public Brdocm newVersion(BigDecimal nextVrs) {

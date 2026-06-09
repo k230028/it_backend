@@ -545,10 +545,18 @@ IT Portal의 로그는 **3가지 유형**으로 구성되며, 각각 다른 계�
 |------|------|
 | 트리거 | `@PrePersist` / `@PreUpdate` (Post 콜백 대신 Pre 사용 → Hibernate ActionQueue ConcurrentModificationException 방지) |
 | 이중 기록 방지 | `ThreadLocal<Set<Object>> inFlightEntities` (identity 비교)로 동일 flush 사이클 1회만 기록 |
-| 실패 격리 | 로그 INSERT 실패 시 예외를 삼켜 본 업무 트랜잭션이 롤백되지 않도록 처리 (`log.warn` 출력) |
+| 실패 격리 | `persist()` 호출 자체의 예외는 삼켜 본 업무 트랜잭션 롤백을 방지 (`log.warn`). **단, `entityManager.persist()`는 INSERT를 예약만 하므로 제약 위반 등 flush 시점 오류는 이 try/catch로 잡히지 않고 커밋 시 원본 트랜잭션을 롤백시킴**(아래 ⚠️ 규칙 참조) |
 | PK 생성 | `AuditLogIdGenerator` → Oracle `S_{Postfix}.NEXTVAL` 조회 → `"{Postfix}_{22자리 0패딩}"` 형식 |
 | 변경유형 | `C`(생성) / `U`(수정) / `D`(논리삭제, `DEL_YN='Y'` 판별) |
 | 변경자 | `SecurityContext`에서 추출한 현재 사용자 사번 자동 기록 |
+
+> **⚠️ 필수 규칙 — NOT NULL 기본값은 생성자/팩토리에서 설정 (스냅샷 타이밍 함정)**
+>
+> `@LogTarget` 엔티티에서 NOT NULL 컬럼의 기본값은 **생성자·팩토리(`create()`)·빌더 시점**에 채웁니다. 엔티티 자신의 `@PrePersist`에서만 설정하면 안 됩니다.
+>
+> JPA 규약상 엔티티 리스너(`ChangeLogEntityListener`)는 엔티티 자신의 `@PrePersist`보다 **먼저** 실행됩니다. 그래서 로그(`*L`)를 스냅샷하는 시점에 엔티티 고유 기본값이 아직 null이면, 마스터 INSERT는 정상이어도 로그 테이블에 null이 복사되어 `*L`의 NOT NULL 제약을 위반합니다(`ORA-01400`). 위 "실패 격리"의 try/catch는 flush 시점 오류를 잡지 못하므로 **원본 트랜잭션까지 롤백**됩니다.
+>
+> BaseEntity 공통 필드(`delYn`/`guid`/`guidPrgSno`)와 JPA Auditing 필드(`fstEnrDtm`/`fstEnrUsid`)는 각각 `AuditLogPersister.applyBaseAuditDefaults()`와 `AuditingEntityListener`(리스너 순서상 먼저)가 처리하므로 안전합니다. **엔티티 고유의 NOT NULL 기본값만** 본 규칙 대상입니다. 사례: `Brivgm.fsgYn`(검토의견 완료여부)를 `create()`에서 `"N"`으로 설정. 상세는 `CLAUDE.md` §5.12.1.1 참조.
 
 **`@LogTarget` 어노테이션으로 로그 대상 지정**
 

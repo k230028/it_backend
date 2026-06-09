@@ -61,9 +61,14 @@ class MenuQueryServiceTest {
         given(cmenumRepository.findAllActive()).willReturn(List.of(
                 node("H", null, "LNK", 1, "/H")
         ));
-        // getAdminMenuTree does not consult permissions
+        // 관리 트리는 가지치기 없이 전체를 반환하고, 편집 폼용으로 노드별 athIds를 함께 싣는다.
+        given(cmenuaRepository.findAllActive()).willReturn(List.of(
+                Cmenua.builder().mnuId("H").athId("ITPAD001").delYn("N").build()
+        ));
         List<MenuDto.Node> all = service.getAdminMenuTree();
         assertThat(all).extracting(MenuDto.Node::getMnuId).containsExactly("H");
+        // Bug 2 회귀 방지: 관리 트리 노드가 기존 권한ID를 실어야 편집 화면 체크박스가 복원된다.
+        assertThat(all.get(0).getAthIds()).containsExactly("ITPAD001");
     }
 
     @Test

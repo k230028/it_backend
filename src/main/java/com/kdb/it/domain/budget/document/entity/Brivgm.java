@@ -55,8 +55,13 @@ public class Brivgm extends BaseEntity {
     @Column(name = "DOC_MNG_NO", length = 20, nullable = false, comment = "문서관리번호")
     private String docMngNo;
 
-    /** 문서버전: {@link Brdocm#getDocVrsSno()} 참조 (Oracle NUMBER(9,2), 예: 1.00, 1.01) */
-    @Column(name = "DOC_VRS_SNO", precision = 9, scale = 2, nullable = false, comment = "문서버전 (물리컬럼 DOC_VRS_SNO=문서버전일련번호)")
+    /**
+     * 문서버전: {@link Brdocm#getDocVrsSno()} 참조.
+     * 물리 컬럼은 Oracle {@code NUMBER(9,0)}(정수)이며, Brdocm과 동일하게 화면 소수 버전 × 100을
+     * 정수로 저장합니다. (예: 화면 1.01 → 저장 101). 변환은
+     * {@link com.kdb.it.domain.budget.document.util.DocVersionCodec} 참조.
+     */
+    @Column(name = "DOC_VRS_SNO", precision = 9, scale = 0, nullable = false, comment = "문서버전 (물리컬럼 DOC_VRS_SNO=문서버전일련번호, NUMBER(9,0) 정수저장=화면버전×100)")
     private BigDecimal docVrsSno;
 
     /** 의견유형: {@code I}=인라인, {@code G}=전반 */
@@ -120,6 +125,13 @@ public class Brivgm extends BaseEntity {
         b.ivgOpnnCone = ivgOpnnCone;
         b.rfrId = rfrId;
         b.rfrCone = rfrCone;
+        // 완료여부 기본값을 생성 시점에 설정한다.
+        // BaseEntity의 @EntityListeners(ChangeLogEntityListener)는 JPA 규약상
+        // 엔티티 자신의 @PrePersist(prePersistBrivgm)보다 먼저 실행되어,
+        // 감사 로그(BrivgmL) 스냅샷 시점에는 fsgYn이 아직 null이다.
+        // 로그 테이블 TPRMPP_BRIVGL.FSG_YN(NOT NULL) 위반(ORA-01400)을 막기 위해
+        // 팩토리에서 미리 'N'으로 채운다. @PrePersist는 방어적 폴백으로 유지한다.
+        b.fsgYn = "N";
         return b;
     }
 

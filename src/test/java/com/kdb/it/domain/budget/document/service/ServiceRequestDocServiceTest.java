@@ -78,9 +78,9 @@ class ServiceRequestDocServiceTest {
         // Act
         String result = service.createDocument(req);
 
-        // Assert
+        // Assert: 화면 버전 0.01은 저장 정수 1(× 100)로 영속화된다
         then(repository).should().save(argThat(entity ->
-                new BigDecimal("0.01").compareTo(entity.getDocVrsSno()) == 0
+                new BigDecimal("1").compareTo(entity.getDocVrsSno()) == 0
         ));
         assertThat(result).isNotBlank();
     }
@@ -88,10 +88,10 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("새 버전 생성 시 기존 최신 버전 + 0.01 로 생성된다")
     void createNewVersion_incrementsVersion() {
-        // Arrange
+        // Arrange: 최신 버전 엔티티는 저장 정수 1(화면 0.01)을 보유
         Brdocm latest = Brdocm.builder()
                 .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("0.01"))
+                .docVrsSno(new BigDecimal("1"))
                 .reqTtl("문서")
                 .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
@@ -101,10 +101,10 @@ class ServiceRequestDocServiceTest {
         // Act
         BigDecimal newVersion = service.createNewVersion("DOC-001");
 
-        // Assert
+        // Assert: 응답은 화면 소수 0.02, 저장 엔티티는 정수 2(× 100)
         assertThat(newVersion).isEqualByComparingTo(new BigDecimal("0.02"));
         then(repository).should().save(argThat(entity ->
-                new BigDecimal("0.02").compareTo(entity.getDocVrsSno()) == 0
+                new BigDecimal("2").compareTo(entity.getDocVrsSno()) == 0
         ));
     }
 
@@ -123,7 +123,7 @@ class ServiceRequestDocServiceTest {
     void getDocument_withoutVersion_returnsLatest() {
         Brdocm latest = Brdocm.builder()
                 .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("0.03"))
+                .docVrsSno(new BigDecimal("3"))   // 저장 정수 3 = 화면 0.03
                 .reqTtl("최신 문서")
                 .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
@@ -139,10 +139,11 @@ class ServiceRequestDocServiceTest {
     void getDocument_withVersion_returnsSpecific() {
         Brdocm v1 = Brdocm.builder()
                 .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("0.01"))
+                .docVrsSno(new BigDecimal("1"))   // 저장 정수 1 = 화면 0.01
                 .reqTtl("v0.01 문서")
                 .build();
-        given(repository.findByDocMngNoAndDocVrsSnoAndDelYn("DOC-001", new BigDecimal("0.01"), "N"))
+        // 화면 입력 0.01 → 저장 정수 1로 변환되어 조회된다
+        given(repository.findByDocMngNoAndDocVrsSnoAndDelYn("DOC-001", new BigDecimal("1"), "N"))
                 .willReturn(Optional.of(v1));
 
         ServiceRequestDocDto.Response result = service.getDocument("DOC-001", new BigDecimal("0.01"));
@@ -171,13 +172,14 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("특정 버전 삭제 시 해당 버전만 소프트 삭제된다")
     void deleteDocument_withVersion_deletesSpecificVersion() {
-        // Arrange: 0.02 버전 엔티티 준비
+        // Arrange: 화면 0.02 버전 엔티티(저장 정수 2) 준비
         Brdocm v2 = Brdocm.builder()
                 .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("0.02"))
+                .docVrsSno(new BigDecimal("2"))
                 .build();
+        // 화면 입력 0.02 → 저장 정수 2로 변환되어 조회된다
         given(repository.findByDocMngNoAndDocVrsSnoAndDelYn(
-                "DOC-001", new BigDecimal("0.02"), "N"))
+                "DOC-001", new BigDecimal("2"), "N"))
                 .willReturn(Optional.of(v2));
 
         // Act
@@ -202,9 +204,9 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("특정 버전 삭제 시 해당 버전이 없으면 예외가 발생한다")
     void deleteDocument_withVersion_throwsWhenNotFound() {
-        // Arrange: 0.99 버전 미존재
+        // Arrange: 화면 0.99(저장 정수 99) 버전 미존재
         given(repository.findByDocMngNoAndDocVrsSnoAndDelYn(
-                "DOC-001", new BigDecimal("0.99"), "N"))
+                "DOC-001", new BigDecimal("99"), "N"))
                 .willReturn(Optional.empty());
 
         // Act & Assert
@@ -263,13 +265,13 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("getVersionHistory: 동일 문서의 전체 버전 목록을 내림차순으로 반환한다")
     void getVersionHistory_returnsAllVersionsDescending() {
-        // Arrange: 0.03, 0.02, 0.01 버전 내림차순 반환
+        // Arrange: 저장 정수 3,2,1(화면 0.03,0.02,0.01) 내림차순 반환
         Brdocm v3 = Brdocm.builder()
-                .docMngNo("DOC-001").docVrsSno(new BigDecimal("0.03")).reqTtl("v3").build();
+                .docMngNo("DOC-001").docVrsSno(new BigDecimal("3")).reqTtl("v3").build();
         Brdocm v2 = Brdocm.builder()
-                .docMngNo("DOC-001").docVrsSno(new BigDecimal("0.02")).reqTtl("v2").build();
+                .docMngNo("DOC-001").docVrsSno(new BigDecimal("2")).reqTtl("v2").build();
         Brdocm v1 = Brdocm.builder()
-                .docMngNo("DOC-001").docVrsSno(new BigDecimal("0.01")).reqTtl("v1").build();
+                .docMngNo("DOC-001").docVrsSno(new BigDecimal("1")).reqTtl("v1").build();
         given(repository.findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
                 .willReturn(List.of(v3, v2, v1));
 
@@ -384,7 +386,8 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("특정 버전 문서 조회 시 없으면 예외가 발생한다")
     void getDocument_withVersionThrowsWhenMissing() {
-        given(repository.findByDocMngNoAndDocVrsSnoAndDelYn("DOC-001", new BigDecimal("0.99"), "N"))
+        // 화면 입력 0.99 → 저장 정수 99로 변환되어 조회된다
+        given(repository.findByDocMngNoAndDocVrsSnoAndDelYn("DOC-001", new BigDecimal("99"), "N"))
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getDocument("DOC-001", new BigDecimal("0.99")))

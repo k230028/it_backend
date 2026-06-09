@@ -17,4 +17,8 @@ public interface CmenuaRepository extends JpaRepository<Cmenua, CmenuaId> {
 
     @Query("SELECT a FROM Cmenua a WHERE a.mnuId = :mnuId AND a.delYn = 'N'")
     List<Cmenua> findActiveByMnuId(@Param("mnuId") String mnuId);
+
+    /** 삭제분 포함 전체 매핑. 권한 재조정 시 동일 PK 행을 복원·재사용하기 위해 사용한다. */
+    @Query("SELECT a FROM Cmenua a WHERE a.mnuId = :mnuId")
+    List<Cmenua> findByMnuId(@Param("mnuId") String mnuId);
 }

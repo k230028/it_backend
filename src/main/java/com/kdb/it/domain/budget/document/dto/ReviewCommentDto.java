@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.document.dto;
 
 import com.kdb.it.domain.budget.document.entity.Brivgm;
+import com.kdb.it.domain.budget.document.util.DocVersionCodec;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -57,7 +58,8 @@ public class ReviewCommentDto {
          * @return 영속화 전 상태의 Brivgm 엔티티
          */
         public Brivgm toEntity(String docMngNo) {
-            return Brivgm.create(docMngNo, docVrs, rplOpnnTc, ivgOpnnCone, markId, qtdCone);
+            // 화면 소수 버전 → 저장 정수 버전(× 100). Brdocm 버전 키와 동일 규약으로 정합성 유지.
+            return Brivgm.create(docMngNo, DocVersionCodec.toStored(docVrs), rplOpnnTc, ivgOpnnCone, markId, qtdCone);
         }
     }
 
@@ -105,7 +107,8 @@ public class ReviewCommentDto {
         public Response(Brivgm e, String authorName) {
             this.ipmOpnnSno = e.getIpmOpnnSno();
             this.docMngNo   = e.getDocMngNo();
-            this.docVrsSno  = e.getDocVrsSno();
+            // 저장 정수 버전 → 화면 소수 버전(÷ 100)
+            this.docVrsSno  = DocVersionCodec.toDisplay(e.getDocVrsSno());
             this.rplOpnnTc  = e.getRplOpnnTc();
             this.ivgOpnnCone = e.getIvgOpnnCone();
             this.rfrId      = e.getRfrId();

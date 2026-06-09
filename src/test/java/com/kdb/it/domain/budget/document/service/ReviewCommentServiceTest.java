@@ -47,12 +47,24 @@ class ReviewCommentServiceTest {
     }
 
     @Test
+    void 코멘트_생성시_완료여부가_N으로_초기화된다() {
+        // 준비 & 실행: 팩토리 메서드로 생성 (영속화/@PrePersist 이전 시점)
+        var entity = Brivgm.create("DOC-2026-0009", new BigDecimal("1.00"),
+                "G", "리뷰 코멘트", null, null);
+
+        // 검증: 감사 로그(BrivgmL)는 BaseEntity @EntityListeners가 엔티티 자신의
+        // @PrePersist보다 먼저 fsgYn을 스냅샷하므로, 생성 시점에 'N'이어야
+        // TPRMPP_BRIVGL.FSG_YN(NOT NULL) 위반(ORA-01400)을 막을 수 있다.
+        assertThat(entity.getFsgYn()).isEqualTo("N");
+    }
+
+    @Test
     void 코멘트_조회시_해당_버전의_미삭제_코멘트만_반환된다() {
         // 준비
         var comment = Brivgm.create("DOC-2026-0010", new BigDecimal("1.01"),
                 "G", "전반 코멘트", null, null);
         given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
-                "DOC-2026-0010", new BigDecimal("1.01"), "N"))
+                "DOC-2026-0010", new BigDecimal("101"), "N"))   // 화면 1.01 → 저장 정수 101(× 100)
                 .willReturn(List.of(comment));
 
         // 실행
@@ -77,7 +89,7 @@ class ReviewCommentServiceTest {
         }
 
         given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
-                "DOC-2026-0010", new BigDecimal("1.01"), "N"))
+                "DOC-2026-0010", new BigDecimal("101"), "N"))   // 화면 1.01 → 저장 정수 101(× 100)
                 .willReturn(List.of(comment));
 
         var user = CuserI.builder().eno("E12345").usrNm("홍길동").build();
@@ -106,7 +118,7 @@ class ReviewCommentServiceTest {
         }
 
         given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
-                "DOC-2026-0010", new BigDecimal("1.01"), "N"))
+                "DOC-2026-0010", new BigDecimal("101"), "N"))   // 화면 1.01 → 저장 정수 101(× 100)
                 .willReturn(List.of(comment));
         given(userRepository.findById("UNKNOWN_ENO")).willReturn(Optional.empty());
 

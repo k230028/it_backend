@@ -48,9 +48,21 @@ public class MenuQueryService {
         return prune(buildTree(visible, athIds), true);
     }
 
-    /** 관리화면용: 숨김/권한/빈 그룹 무관하게 전체 트리. */
+    /** 관리화면용: 숨김/권한/빈 그룹 무관하게 전체 트리. 편집 폼 체크박스용으로 노드별 권한ID를 함께 싣는다. */
     public List<MenuDto.Node> getAdminMenuTree() {
-        return buildTree(cmenumRepository.findAllActive(), null);
+        List<MenuDto.Node> tree = buildTree(cmenumRepository.findAllActive(), null);
+        applyAthIds(tree, athByMenu());
+        return tree;
+    }
+
+    /** 트리 각 노드에 활성 권한 매핑을 채운다. 매핑 없으면 빈 목록(전체 공개). */
+    private void applyAthIds(List<MenuDto.Node> nodes, Map<String, Set<String>> athByMenu) {
+        if (nodes == null) return;
+        for (MenuDto.Node n : nodes) {
+            Set<String> aths = athByMenu.get(n.getMnuId());
+            n.setAthIds(aths == null ? new ArrayList<>() : new ArrayList<>(aths));
+            applyAthIds(n.getChildren(), athByMenu);
+        }
     }
 
     // ---- helpers ----

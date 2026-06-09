@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.document.dto;
 
 import com.kdb.it.domain.budget.document.entity.Brdocm;
+import com.kdb.it.domain.budget.document.util.DocVersionCodec;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -191,7 +192,8 @@ public class ServiceRequestDocDto {
         public static Response fromEntity(Brdocm entity) {
             return Response.builder()
                     .docMngNo(entity.getDocMngNo())
-                    .docVrsSno(entity.getDocVrsSno())
+                    // 저장 정수 버전 → 화면 소수 버전(÷ 100)
+                    .docVrsSno(DocVersionCodec.toDisplay(entity.getDocVrsSno()))
                     .reqTtl(entity.getReqTtl())
                     .redtConeInf(entity.getRedtConeInf())
                     .reqDttNo(entity.getReqDttNo())
@@ -250,7 +252,8 @@ public class ServiceRequestDocDto {
         public static VersionResponse fromEntity(Brdocm entity) {
             return VersionResponse.builder()
                     .docMngNo(entity.getDocMngNo())
-                    .docVrsSno(entity.getDocVrsSno())
+                    // 저장 정수 버전 → 화면 소수 버전(÷ 100)
+                    .docVrsSno(DocVersionCodec.toDisplay(entity.getDocVrsSno()))
                     .fstEnrDtm(entity.getFstEnrDtm())
                     .lstChgDtm(entity.getLstChgDtm())
                     .delYn(entity.getDelYn())

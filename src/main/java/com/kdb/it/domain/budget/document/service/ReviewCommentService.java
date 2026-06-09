@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.document.service;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.budget.document.dto.ReviewCommentDto;
 import com.kdb.it.domain.budget.document.repository.BrivgmRepository;
+import com.kdb.it.domain.budget.document.util.DocVersionCodec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -38,8 +39,9 @@ public class ReviewCommentService {
      */
     @Transactional(readOnly = true)
     public List<ReviewCommentDto.Response> getComments(String docMngNo, BigDecimal docVrsSno) {
+        // 화면 소수 버전 → 저장 정수 버전(× 100)으로 변환하여 조회 (Brdocm 버전 키와 동일 규약)
         return brivgmRepository
-                .findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(docMngNo, docVrsSno, "N")
+                .findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(docMngNo, DocVersionCodec.toStored(docVrsSno), "N")
                 .stream()
                 .map(e -> new ReviewCommentDto.Response(e, resolveAuthorName(e.getFstEnrUsid())))
                 .collect(Collectors.toList());
