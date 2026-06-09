@@ -1,5 +1,6 @@
 {
     "java.autobuild.enabled": true,
+    "java.import.gradle.user.home": "C:/it/.gradle",
     "files.autoSave": "afterDelay",
     "files.autoSaveDelay": 1000,
     "java.compile.nullAnalysis.mode": "automatic",
