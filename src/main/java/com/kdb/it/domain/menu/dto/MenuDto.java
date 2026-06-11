@@ -28,7 +28,7 @@ public class MenuDto {
         private Integer mnuDep;
         private String whlMnuPth;
         private List<Node> children;
-        /** 노출 권한ID 목록(관리 트리에서만 채움). 빈 목록=전체 공개. 사용자 트리에서는 null. */
+        /** 노출 권한ID 목록. 빈 목록=전체 공개. 관리 트리는 편집 폼 복원용, 사용자 트리는 왕관 아이콘 표시 판정용. */
         private List<String> athIds;
     }
 

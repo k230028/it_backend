@@ -45,7 +45,10 @@ public class MenuQueryService {
                 .filter(m -> isAllowed(m.getMnuId(), athByMenu, userAths))
                 .collect(Collectors.toList());
 
-        return prune(buildTree(visible, athIds), true);
+        List<MenuDto.Node> tree = prune(buildTree(visible, athIds), true);
+        // 사이드바/헤더가 관리자 전용 메뉴에 왕관 아이콘을 표시할 수 있도록 노드별 권한ID를 함께 싣는다.
+        applyAthIds(tree, athByMenu);
+        return tree;
     }
 
     /** 관리화면용: 숨김/권한/빈 그룹 무관하게 전체 트리. 편집 폼 체크박스용으로 노드별 권한ID를 함께 싣는다. */

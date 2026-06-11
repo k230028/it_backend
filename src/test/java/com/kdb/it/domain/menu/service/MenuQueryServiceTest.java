@@ -57,6 +57,26 @@ class MenuQueryServiceTest {
     }
 
     @Test
+    void userTree_carriesAthIds_forCrownIndicator() {
+        // 사용자 트리도 노드별 athIds를 실어야 사이드바/헤더가 관리자(왕관) 메뉴를 표시할 수 있다.
+        given(cmenumRepository.findAllActive()).willReturn(List.of(
+                node("A", null, "LNK", 1, "/A"),
+                node("P", null, "LNK", 1, "/P")
+        ));
+        given(cmenuaRepository.findAllActive()).willReturn(List.of(
+                Cmenua.builder().mnuId("A").athId("ITPAD001").delYn("N").build()
+        ));
+
+        List<MenuDto.Node> tree = service.getMenuTree(List.of("ITPAD001"));
+
+        MenuDto.Node a = tree.stream().filter(n -> n.getMnuId().equals("A")).findFirst().orElseThrow();
+        MenuDto.Node p = tree.stream().filter(n -> n.getMnuId().equals("P")).findFirst().orElseThrow();
+        assertThat(a.getAthIds()).containsExactly("ITPAD001");
+        // 권한 매핑이 없는 공개 메뉴는 빈 목록(전체 공개)으로 내려간다.
+        assertThat(p.getAthIds()).isEmpty();
+    }
+
+    @Test
     void adminTree_returnsEverything_withoutPruning() {
         given(cmenumRepository.findAllActive()).willReturn(List.of(
                 node("H", null, "LNK", 1, "/H")
