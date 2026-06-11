@@ -89,7 +89,7 @@ src/main/resources/
 ### 5.2 엔티티 설계
 - 모든 업무 엔티티는 **`BaseEntity` 상속** (공통 컬럼: `DEL_YN`, `GUID`, `FST_ENR_DTM/USID`, `LST_CHG_DTM/USID`).
 - 감사 로그 필요 엔티티: 업무 엔티티는 **`BaseEntity` 상속 + `@LogTarget(entity = XxxL.class)` 어노테이션** 부착, 짝이 되는 **`*L` 로그 엔티티가 `BaseLogEntity` 상속**. (업무 엔티티 자체가 `BaseLogEntity`를 상속하지 않음에 주의.)
-  - 현재 적용: 31쌍 (업무 엔티티 `@LogTarget` ↔ `*L` 로그 엔티티). 예: `Bprojm`↔`BprojmL`, `Bitemm`↔`BitemmL`, `Cblbcm`↔`CblbcmL`, `Capplm`↔`CapplmL`, `Ccodem`↔`CcodemL`, `Bestim`↔`BestimL`(사업집행 4단계 6쌍 신규).
+  - 현재 적용: 31쌍 (업무 엔티티 `@LogTarget` ↔ `*L` 로그 엔티티, 코드 분석 2026-06-12). 예: `Bprojm`↔`BprojmL`, `Bitemm`↔`BitemmL`, `Cblbcm`↔`CblbcmL`, `Capplm`↔`CapplmL`, `Ccodem`↔`CcodemL`, `Bestim`↔`BestimL`(사업집행 4단계 6쌍 신규).
   - 로그 생성 메커니즘: JPA `@PrePersist`/`@PreUpdate` → `ChangeLogEntityListener` → `AuditLogPersister.persist()`.
 - 삭제는 항상 **Soft Delete**(`delete()` → `DEL_YN='Y'`). 물리 삭제 금지.
 - 엔티티 명칭은 메타 문서 반드시 용어사전 기반으로 지정 (필수).
@@ -238,7 +238,8 @@ private static LocalDateTime toLdt(Object v) {
 
 ### 5.5.5 DB 기반 메뉴 트리 규칙
 - 사용자 메뉴는 `MenuQueryService.getMenuTree()`가 `Cmenum`/`Cmenua`를 기준으로 권한 필터링하고, 프론트는 `useMenu()` 응답을 사이드바와 Breadcrumb의 단일 소스로 사용합니다.
-- 메뉴 유형은 `LNK`, `GRP`, `DYN`만 허용합니다. `LNK`는 `Cmenud` 라우트 카탈로그에 등록된 `srePth`가 필수이고, `GRP`/`DYN`은 화면 경로를 가질 수 없습니다.
+  - `MenuDto.Node.athIds` 필드: 노드별 노출 권한ID 목록 (빈 목록=전체 공개). 사용자 트리도 노드별 `athIds`를 실어 사이드바/헤더가 관리자 전용 메뉴(왕관 아이콘)를 표시할 수 있도록 지원합니다. 관리 트리는 편집 폼 권한 복원용으로도 사용됩니다.
+- 메뉴 유형은 `LNK`, `GRP`, `DYN`, `HED`를 허용합니다 (`AdminMenuService` 검증 기준). `HED`(헤더)는 트리 최상위 전용으로 상위 메뉴를 가질 수 없고, 비-HED는 반드시 상위 메뉴가 필요합니다. `LNK`는 `Cmenud` 라우트 카탈로그에 등록된 `srePth`가 필수이고, `GRP`/`DYN`/`HED`는 화면 경로를 가질 수 없습니다.
 - 메뉴 깊이는 최대 3단입니다. 이동 시 `AdminMenuService.move()`가 `WHL_MNU_PTH`와 `MNU_DEP`를 하위 트리까지 재계산합니다.
 - `DYN` 메뉴의 자식은 `MenuChildrenResolver` 구현체가 생성합니다. 현재 게시판 목록은 `BoardListMenuResolver`가 권한 필터링된 자식 노드를 제공합니다.
 - 프론트 메뉴 숨김은 UX 보조입니다. 최종 보안 경계는 백엔드 API 권한(`SecurityConfig`, `@PreAuthorize`, 서비스 권한 검증)입니다.
@@ -424,7 +425,7 @@ public class PlanController { ... }
 - **IP·기기 기준 잠금 없음** — Credential stuffing 방어 미적용 (§5.6 Brute-force 보호 참조).
 
 ### 5.12.1 감사 로그(BaseLogEntity) 패턴
-- **로그 엔티티**: 31개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`, `BestimL`). 짝이 되는 업무 엔티티는 `@LogTarget(entity = *L.class)`로 로그 대상을 지정.
+- **로그 엔티티**: 31개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`, `BestimL`, 코드 분석 2026-06-12). 짝이 되는 업무 엔티티는 `@LogTarget(entity = *L.class)`로 로그 대상을 지정.
 - **기본 구조**: `*L` 로그 엔티티가 `BaseLogEntity` 상속 — 기본 컬럼 자동 포함 (GUID, FST_ENR_DTM/USID, LST_CHG_DTM/USID).
 - **로그 리스너**: `ChangeLogEntityListener` → JPA entity lifecycle 후킹 → `AuditLogPersister` → DB 저장.
 - **저장 시점**: JPA `@PrePersist`/`@PreUpdate` 콜백 중 `ChangeLogEntityListener`가 `AuditLogPersister.persist()`를 직접 호출해 현재 flush 흐름에서 로그를 저장합니다. 로그 저장 실패는 catch 후 warn 처리하여 원본 작업 롤백을 피합니다.

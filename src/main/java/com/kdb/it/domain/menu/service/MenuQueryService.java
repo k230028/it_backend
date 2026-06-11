@@ -33,7 +33,8 @@ public class MenuQueryService {
      * 사용자용 메뉴 트리를 조회한다.
      *
      * @param athIds JWT 클레임에서 복원한 자격등급 ID 목록. null이면 공개 메뉴만 반환한다.
-     * @return 숨김 메뉴와 권한 불일치 메뉴를 제거하고, 빈 GRP/DYN 노드를 가지치기한 트리
+     * @return 숨김 메뉴와 권한 불일치 메뉴를 제거하고, 빈 GRP/DYN/HED 노드를 가지치기한 트리.
+     *         각 노드의 {@code athIds}에는 왕관 아이콘 표시 판정용 권한ID 목록이 채워진다.
      */
     public List<MenuDto.Node> getMenuTree(List<String> athIds) {
         List<Cmenum> all = cmenumRepository.findAllActive();
