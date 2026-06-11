@@ -52,17 +52,17 @@ public class EvaluationService {
 
     // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM_C 기준)
     private static final Map<String, String> CHECK_ITEM_NAMES = Map.of(
-        "001", "경영전략/계획 부합",
-        "002", "재무 효과",
-        "003", "리스크 개선 효과",
-        "004", "평판/이미지 개선 효과",
-        "005", "유사/중복 시스템 유무",
-        "006", "기타"
+        "01", "경영전략/계획 부합",
+        "02", "재무 효과",
+        "03", "리스크 개선 효과",
+        "04", "평판/이미지 개선 효과",
+        "05", "유사/중복 시스템 유무",
+        "06", "기타"
     );
 
     // 6개 고정 점검항목 순서 (CKG_ITM_C 숫자코드)
     private static final List<String> CHECK_ITEM_ORDER =
-        List.of("001", "002", "003", "004", "005", "006");
+        List.of("01", "02", "03", "04", "05", "06");
 
     // =========================================================================
     // 조회
@@ -81,7 +81,7 @@ public class EvaluationService {
         councilService.findActiveCouncil(asctId);
 
         // 전체 평가의견 조회
-        List<Bevalm> allEvaluations = evaluationRepository.findByAsctIdAndDelYn(asctId, "N");
+        List<Bevalm> allEvaluations = evaluationRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
 
         // 위원별 사용자 정보 Map (N+1 방지)
         Map<String, CuserI> userMap = buildUserMapFromEvaluations(allEvaluations);
@@ -93,9 +93,9 @@ public class EvaluationService {
                     return new CouncilDto.EvaluationItemResponse(
                             e.getEno(),
                             user != null ? user.getUsrNm() : null,
-                            e.getCkgItmC(),
-                            CHECK_ITEM_NAMES.getOrDefault(e.getCkgItmC(), e.getCkgItmC()),
-                            e.getCkgRcrd(),
+                            e.getItPtlCkgItmTc(),
+                            CHECK_ITEM_NAMES.getOrDefault(e.getItPtlCkgItmTc(), e.getItPtlCkgItmTc()),
+                            e.getQuelRcrd(),
                             e.getCkgOpnn()
                     );
                 })
@@ -120,15 +120,15 @@ public class EvaluationService {
 
         String eno = userDetails.getEno();
         List<Bevalm> myEvaluations =
-                evaluationRepository.findByAsctIdAndEnoAndDelYn(asctId, eno, "N");
+                evaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N");
 
         return myEvaluations.stream()
                 .map(e -> new CouncilDto.EvaluationItemResponse(
                         e.getEno(),
                         null,   // 본인 조회 시 성명 불필요
-                        e.getCkgItmC(),
-                        CHECK_ITEM_NAMES.getOrDefault(e.getCkgItmC(), e.getCkgItmC()),
-                        e.getCkgRcrd(),
+                        e.getItPtlCkgItmTc(),
+                        CHECK_ITEM_NAMES.getOrDefault(e.getItPtlCkgItmTc(), e.getItPtlCkgItmTc()),
+                        e.getQuelRcrd(),
                         e.getCkgOpnn()
                 ))
                 .collect(Collectors.toList());
@@ -171,17 +171,17 @@ public class EvaluationService {
 
             // upsert: 기존 의견 있으면 update, 없으면 신규 INSERT
             evaluationRepository
-                    .findByAsctIdAndEnoAndCkgItmCAndDelYn(asctId, eno, item.ckgItmC(), "N")
+                    .findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(asctId, eno, item.ckgItmC(), "N")
                     .ifPresentOrElse(
                         // 기존 의견 업데이트
                         existing -> existing.update(item.ckgRcrd(), item.ckgOpnn()),
                         // 신규 INSERT
                         () -> {
                             Bevalm evaluation = Bevalm.builder()
-                                    .asctId(asctId)
+                                    .itPtlAsctId(asctId)
                                     .eno(eno)
-                                    .ckgItmC(item.ckgItmC())
-                                    .ckgRcrd(item.ckgRcrd())
+                                    .itPtlCkgItmTc(item.ckgItmC())
+                                    .quelRcrd(item.ckgRcrd())
                                     .ckgOpnn(item.ckgOpnn())
                                     .build();
                             evaluationRepository.save(evaluation);
@@ -191,15 +191,15 @@ public class EvaluationService {
 
         // 협의회 상태 전이: IN_PROGRESS → EVALUATING (첫 제출 시 1회만)
         // Plan SC: 이미 EVALUATING 이상이면 상태 전이 skip
-        String currentStatus = councilService.findActiveCouncil(asctId).getAsctStsC();
-        if ("007".equals(currentStatus)) {
-            councilService.changeStatus(asctId, "008");
+        String currentStatus = councilService.findActiveCouncil(asctId).getItPtlAsctPrgStsTc();
+        if ("07".equals(currentStatus)) {
+            councilService.changeStatus(asctId, "08");
         }
 
         // 전원 제출 완료 시 008 → 009 자동 전이
-        if ("008".equals(currentStatus) || "007".equals(currentStatus)) {
+        if ("08".equals(currentStatus) || "07".equals(currentStatus)) {
             if (isAllMembersSubmitted(asctId)) {
-                councilService.changeStatus(asctId, "009");
+                councilService.changeStatus(asctId, "09");
             }
         }
     }
@@ -215,7 +215,7 @@ public class EvaluationService {
      */
     private boolean isAllMembersSubmitted(String asctId) {
         // 등록된 평가위원 사번 목록 조회
-        List<Bcmmtm> members = committeeRepository.findByAsctIdAndDelYn(asctId, "N");
+        List<Bcmmtm> members = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
         if (members.isEmpty()) return false;
 
         Set<String> memberEnos = members.stream()
@@ -223,7 +223,7 @@ public class EvaluationService {
                 .collect(Collectors.toSet());
 
         // 제출된 평가의견에서 6개 항목을 모두 제출한 사번 목록 추출
-        List<Bevalm> allEvaluations = evaluationRepository.findByAsctIdAndDelYn(asctId, "N");
+        List<Bevalm> allEvaluations = evaluationRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
 
         // 사번별 제출 항목 수 집계
         Map<String, Long> submitCountByEno = allEvaluations.stream()

@@ -20,11 +20,11 @@ public interface PerformanceRepository extends JpaRepository<Bperfm, BperfmId> {
     /**
      * 협의회별 성과지표 목록 조회 (삭제되지 않은 항목, 순번 오름차순)
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @param delYn  삭제여부 ('N')
      * @return 해당 협의회의 성과지표 목록
      */
-    List<Bperfm> findByAsctIdAndDelYnOrderByDtpSnoAsc(String asctId, String delYn);
+    List<Bperfm> findByItPtlAsctIdAndDelYnOrderByEvlDtpSnoAsc(String itPtlAsctId, String delYn);
 
     /**
      * 협의회의 다음 성과지표 순번 계산
@@ -32,10 +32,10 @@ public interface PerformanceRepository extends JpaRepository<Bperfm, BperfmId> {
      * <p>성과지표 추가 시 자동으로 순번을 채번합니다.
      * 삭제된 항목은 제외하고 현재 최대 순번 + 1을 반환합니다.</p>
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @return 다음 순번 (기존 항목 없으면 1)
      */
-    @Query(value = "SELECT NVL(MAX(DTP_SNO), 0) + 1 FROM TPRMPP_BPERFM WHERE ASCT_ID = :asctId AND DEL_YN = 'N'",
+    @Query(value = "SELECT NVL(MAX(EVL_DTP_SNO), 0) + 1 FROM TPRMPP_BPERFM WHERE IT_PTL_ASCT_ID = :itPtlAsctId AND DEL_YN = 'N'",
            nativeQuery = true)
-    Integer getNextDtpSno(@Param("asctId") String asctId);
+    Integer getNextEvlDtpSno(@Param("itPtlAsctId") String itPtlAsctId);
 }

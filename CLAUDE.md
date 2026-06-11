@@ -15,7 +15,13 @@
 - Build: Gradle (Groovy DSL, `build.gradle`)
 - ORM: Spring Data JPA + QueryDSL 5.1.0
 - Security: Spring Security + JWT (JJWT 0.13.0)
-- Database: Oracle Database (XEPDB1 / 사용자: ITPAPP)
+- Database: Oracle Database — **전 환경(로컬/개발/운영) 공통 스키마 분리 구조**
+  - 접속 계정은 `ITPAPP`, 테이블/시퀀스 소유 스키마는 **`ITPOWN`** — `ITPOWN.테이블명`으로 접근.
+  - 베이스 `application.properties`의 `spring.datasource.hikari.connection-init-sql=ALTER SESSION SET CURRENT_SCHEMA=${DB_SCHEMA:ITPOWN}`이
+    세션 스키마를 전환하므로 코드(엔티티/네이티브 쿼리)에 스키마 접두어를 하드코딩하지 않습니다.
+    (hibernate `default_schema`는 네이티브 쿼리에 적용되지 않아 CURRENT_SCHEMA 방식을 사용.)
+  - ITPAPP 계정에는 ITPOWN 객체에 대한 SELECT/INSERT/UPDATE/DELETE 및 시퀀스 SELECT 권한이 부여되어 있어야 합니다.
+    (로컬 XE는 ITPAPP에 DBA 롤이 있어 별도 객체 권한 없이 동작.)
 - API 문서화: SpringDoc OpenAPI 3.0.3 (Swagger UI)
 - 유틸: Lombok, Jsoup 1.18.3
 

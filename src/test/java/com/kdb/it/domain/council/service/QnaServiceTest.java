@@ -54,12 +54,12 @@ class QnaServiceTest {
     private Bpqnam mockQna(String qtnId, String asctId, String qtnEno) {
         Bpqnam qna = mock(Bpqnam.class);
         given(qna.getQtnId()).willReturn(qtnId);
-        given(qna.getAsctId()).willReturn(asctId);
-        given(qna.getQtnEno()).willReturn(qtnEno);
+        given(qna.getItPtlAsctId()).willReturn(asctId);
+        given(qna.getQtnDwuUsid()).willReturn(qtnEno);
         given(qna.getQtnCone()).willReturn("테스트 질의내용");
-        given(qna.getRepEno()).willReturn(null);
+        given(qna.getRepDwuUsid()).willReturn(null);
         given(qna.getRepCone()).willReturn(null);
-        given(qna.getRepYn()).willReturn("N");
+        given(qna.getQtnRpdRltYn()).willReturn("N");
         return qna;
     }
 
@@ -85,7 +85,7 @@ class QnaServiceTest {
         // given
         Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E10001");
         given(councilRepository.existsById(ASCT_ID)).willReturn(true);
-        given(qnaRepository.findByAsctIdAndDelYnOrderByFstEnrDtmAsc(ASCT_ID, "N"))
+        given(qnaRepository.findByItPtlAsctIdAndDelYnOrderByFstEnrDtmAsc(ASCT_ID, "N"))
                 .willReturn(List.of(qna));
 
         // when
@@ -284,7 +284,7 @@ class QnaServiceTest {
     void getQnaList_빈목록_빈리스트반환() {
         // Arrange
         given(councilRepository.existsById(ASCT_ID)).willReturn(true);
-        given(qnaRepository.findByAsctIdAndDelYnOrderByFstEnrDtmAsc(ASCT_ID, "N"))
+        given(qnaRepository.findByItPtlAsctIdAndDelYnOrderByFstEnrDtmAsc(ASCT_ID, "N"))
                 .willReturn(List.of());
 
         // Act

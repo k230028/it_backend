@@ -808,7 +808,8 @@ public class Bprojm extends BaseEntity { ... }
 
 | 속성 | 기본값 | 개발 | 운영 | 설명 |
 |------|--------|------|------|------|
-| `spring.datasource.url` | - | `jdbc:oracle:thin:@127.0.0.1:1521/XEPDB1` | 프로덕션 접속 정보 | Oracle 접속 URL |
+| `spring.datasource.url` | - | `jdbc:oracle:thin:@127.0.0.1:11521/XEPDB1` | 프로덕션 접속 정보 | Oracle 접속 URL |
+| `spring.datasource.hikari.connection-init-sql` | `ALTER SESSION SET CURRENT_SCHEMA=${DB_SCHEMA:ITPOWN}` | 동일 (베이스 공통) | 동일 (베이스 공통) | 스키마 전환 — 전 환경 공통 (접속 ITPAPP → 객체 소유 ITPOWN) |
 | `spring.datasource.password` | `${DB_PASSWORD:kdb1234!!}` | 환경변수 또는 기본값 `kdb1234!!` | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
 | `jwt.secret` | `${JWT_SECRET:kdb-it-secret-key-...256-bits}` | 환경변수 또는 내장 기본 시크릿 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 (운영 기본값 제거 필요) |
 | `jwt.access-token-validity` | `900000` | - | - | Access Token 유효시간 (15분) |

@@ -29,7 +29,7 @@ public interface BoardPostRepository
     @Query("""
             UPDATE Cblbcm c
                SET c.nacGrpSqn = c.nacGrpSqn + 1
-             WHERE c.nacUnqId  = :grpNo
+             WHERE c.nacId  = :grpNo
                AND c.nacGrpSqn > :parentSqn
                AND c.nacGrpLev > :parentLev
                AND c.delYn     = 'N'

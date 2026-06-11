@@ -165,15 +165,15 @@ public class CouncilService {
     @Transactional
     public String createCouncil(CouncilDto.CreateRequest request, CustomUserDetails userDetails) {
         // 협의회ID 채번: ASCT-{연도}-{4자리순번}
-        String asctId = generateAsctId();
+        String asctId = generateItPtlAsctId();
 
         // 협의회 기본정보 생성 (초기 상태: DRAFT)
         Basctm council = Basctm.builder()
-                .asctId(asctId)
-                .prjMngNo(request.prjMngNo())
-                .prjSno(request.prjSno())
-                .asctStsC("001")
-                .dbrTc(request.dbrTc())
+                .itPtlAsctId(asctId)
+                .abusMngNo(request.prjMngNo())
+                .sno(request.prjSno())
+                .itPtlAsctPrgStsTc("01")
+                .itPtlAsctDbrTc(request.dbrTc())
                 .build();
 
         councilRepository.save(council);
@@ -219,12 +219,12 @@ public class CouncilService {
     public void startCouncil(String asctId) {
         Basctm council = findActiveCouncil(asctId);
 
-        if (!"006".equals(council.getAsctStsC())) {
+        if (!"06".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "협의회 개최 시작은 SCHEDULED(006) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
+                "협의회 개최 시작은 SCHEDULED(006) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
-        council.changeStatus("007");
+        council.changeStatus("07");
     }
 
     /**
@@ -245,18 +245,18 @@ public class CouncilService {
     @Transactional
     public void completeCouncil(String asctId) {
         Basctm council = findActiveCouncil(asctId);
-        String status = council.getAsctStsC();
+        String status = council.getItPtlAsctPrgStsTc();
 
         // IN_PROGRESS(평가 미시작) 또는 EVALUATING(평가 진행 중) 상태에서만 가능
-        if (!"007".equals(status) && !"008".equals(status)) {
+        if (!"07".equals(status) && !"08".equals(status)) {
             throw new IllegalStateException(
                 "협의회 완료는 진행 중 상태에서만 가능합니다. 현재 상태: " + status);
         }
 
         // 평가 대상 위원 조회 (간사 제외: MAND(001) + CALL(002)만 평가 의무)
-        List<Bcmmtm> evaluators = committeeRepository.findByAsctIdAndDelYn(asctId, "N")
+        List<Bcmmtm> evaluators = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
                 .stream()
-                .filter(m -> !"003".equals(m.getVlrTc()))
+                .filter(m -> !"03".equals(m.getItPtlAsctMebTc()))
                 .collect(Collectors.toList());
 
         if (evaluators.isEmpty()) {
@@ -266,7 +266,7 @@ public class CouncilService {
         // 각 위원별 6개 항목 제출 완료 여부 확인
         long incompleteCount = evaluators.stream()
                 .filter(m -> evaluationRepository
-                        .findByAsctIdAndEnoAndDelYn(asctId, m.getEno(), "N").size() < 6)
+                        .findByItPtlAsctIdAndEnoAndDelYn(asctId, m.getEno(), "N").size() < 6)
                 .count();
 
         if (incompleteCount > 0) {
@@ -274,7 +274,7 @@ public class CouncilService {
                 "아직 평가의견이 입력되지 않은 평가위원이 있습니다. (" + incompleteCount + "명 미완료)");
         }
 
-        council.changeStatus("009");
+        council.changeStatus("09");
     }
 
     /**
@@ -293,13 +293,13 @@ public class CouncilService {
         Basctm council = findActiveCouncil(asctId);
 
         // COMPLETED 상태에서만 통보 가능 (PRD §31: 완료 = 013)
-        if (!"013".equals(council.getAsctStsC())) {
+        if (!"13".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "통보는 완료(013) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
+                "통보는 완료(013) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
         // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
-        councilRepository.updateProjectStatus(council.getPrjMngNo(), council.getPrjSno(), PRJ_STS_COUNCIL_DONE);
+        councilRepository.updateProjectStatus(council.getAbusMngNo(), council.getSno(), PRJ_STS_COUNCIL_DONE);
 
         // 수신자(협의회 최초 등록자 = 추진부서 담당자) 정보 조회
         String recipientEno = council.getFstEnrUsid();
@@ -344,16 +344,16 @@ public class CouncilService {
         Basctm council = findActiveCouncil(asctId);
 
         // APPROVED 상태에서만 생략 가능
-        if (!"004".equals(council.getAsctStsC())) {
+        if (!"04".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "생략 처리는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
+                "생략 처리는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
         // 협의회 상태 전이: APPROVED → SKIPPED
         council.changeStatus("SKIPPED");
 
         // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
-        councilRepository.updateProjectStatus(council.getPrjMngNo(), council.getPrjSno(), PRJ_STS_COUNCIL_DONE);
+        councilRepository.updateProjectStatus(council.getAbusMngNo(), council.getSno(), PRJ_STS_COUNCIL_DONE);
     }
 
     // =========================================================================
@@ -368,7 +368,7 @@ public class CouncilService {
      * @throws IllegalArgumentException 존재하지 않는 경우
      */
     public Basctm findActiveCouncil(String asctId) {
-        return councilRepository.findByAsctIdAndDelYn(asctId, "N")
+        return councilRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 협의회입니다. asctId=" + asctId));
     }
 
@@ -381,7 +381,7 @@ public class CouncilService {
      *
      * @return 생성된 협의회ID
      */
-    private String generateAsctId() {
+    private String generateItPtlAsctId() {
         int year = java.time.LocalDate.now().getYear();
         Long seq = councilRepository.getNextSequenceValue();
         return String.format("ASCT-%d-%04d", year, seq);
@@ -418,12 +418,12 @@ public class CouncilService {
      */
     private CouncilDto.ListResponse toListResponseFromEntity(Basctm council) {
         // BPROJM 조회 — 사업 상세 정보 원천
-        var projectOpt = projectRepository.findById(new BprojmId(council.getPrjMngNo(), council.getPrjSno()));
+        var projectOpt = projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
 
         // 사업명: BPOVWM(타당성검토표) 우선, 없으면 BPROJM
         String prjNm = projectOverviewRepository
-                .findByAsctIdAndDelYn(council.getAsctId(), "N")
-                .map(Bpovwm::getPrjNm)
+                .findByItPtlAsctIdAndDelYn(council.getItPtlAsctId(), "N")
+                .map(Bpovwm::getAbusNm)
                 .orElseGet(() -> projectOpt.map(p -> p.getAbusNm()).orElse(null));
 
         // 사업 상세 (BPROJM 기반)
@@ -437,14 +437,14 @@ public class CouncilService {
         String prjDes  = projectOpt.map(p -> p.getAbusCone()).orElse(null);
 
         return new CouncilDto.ListResponse(
-                council.getAsctId(),
-                council.getPrjMngNo(),
-                council.getPrjSno(),
+                council.getItPtlAsctId(),
+                council.getAbusMngNo(),
+                council.getSno(),
                 prjNm,
-                council.getAsctStsC(),
-                council.getDbrTc(),
+                council.getItPtlAsctPrgStsTc(),
+                council.getItPtlAsctDbrTc(),
                 council.getCnrcDt(),
-                council.getCnrcTm(),
+                council.getCnrcSttTm(),
                 true,
                 prjYy, prjTp, svnDpm, prjBg, sttDt, endDt, itDpm, prjDes
         );
@@ -550,7 +550,7 @@ public class CouncilService {
         java.math.BigDecimal prjBg = null;
         String prjDes = null;
         String xptEff = null;
-        var projectOpt = projectRepository.findById(new BprojmId(council.getPrjMngNo(), council.getPrjSno()));
+        var projectOpt = projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
         if (projectOpt.isPresent()) {
             var p = projectOpt.get();
             prjNm = p.getAbusNm();
@@ -564,13 +564,13 @@ public class CouncilService {
         }
 
         return new CouncilDto.DetailResponse(
-                council.getAsctId(),
-                council.getPrjMngNo(),
-                council.getPrjSno(),
-                council.getAsctStsC(),
-                council.getDbrTc(),
+                council.getItPtlAsctId(),
+                council.getAbusMngNo(),
+                council.getSno(),
+                council.getItPtlAsctPrgStsTc(),
+                council.getItPtlAsctDbrTc(),
                 council.getCnrcDt(),
-                council.getCnrcTm(),
+                council.getCnrcSttTm(),
                 council.getCnrcPlc(),
                 prjNm,
                 edrt,

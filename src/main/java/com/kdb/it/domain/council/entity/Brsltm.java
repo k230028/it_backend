@@ -38,8 +38,8 @@ public class Brsltm extends BaseEntity {
 
     /** 협의회ID: BASCTM.ASCT_ID (FK, PK, 1:1) */
     @Id
-    @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
+    private String itPtlAsctId;
 
     /** 종합의견내용: IT관리자가 작성하는 전체 심의 결과 요약 (최대 6000자) */
     @Column(name = "SYN_OPNN_CONE", length = 6000, comment = "종합의견내용")
@@ -50,20 +50,20 @@ public class Brsltm extends BaseEntity {
     private String ckgOpnn;
 
     /** 관련자료 첨부파일관리번호: TPRMPP_CFILEM.FL_MNG_NO FK */
-    @Column(name = "FL_MNG_NO", length = 32, comment = "관련자료 첨부파일관리번호")
-    private String flMngNo;
+    @Column(name = "FL_MPN_ID", length = 36, comment = "관련자료 첨부파일관리번호")
+    private String flMpnId;
 
     /**
      * 결과서 내용 업데이트 (작성/수정 시 공통)
      *
      * @param synOpnn 종합의견
      * @param ckgOpnn 타당성검토의견
-     * @param flMngNo 관련자료 첨부파일관리번호
+     * @param flMpnId 관련자료 첨부파일관리번호
      */
-    public void update(String synOpnn, String ckgOpnn, String flMngNo) {
+    public void update(String synOpnn, String ckgOpnn, String flMpnId) {
         this.synOpnn = synOpnn;
         this.ckgOpnn = ckgOpnn;
-        this.flMngNo = flMngNo;
+        this.flMpnId = flMpnId;
     }
 }
 

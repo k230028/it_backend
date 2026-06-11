@@ -19,34 +19,34 @@ public interface QnaRepository extends JpaRepository<Bpqnam, String> {
     /**
      * 협의회별 질의응답 목록 조회 (삭제되지 않은 항목, 등록일시 오름차순)
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @param delYn  삭제여부 ('N')
      * @return 해당 협의회의 질의응답 목록
      */
-    List<Bpqnam> findByAsctIdAndDelYnOrderByFstEnrDtmAsc(String asctId, String delYn);
+    List<Bpqnam> findByItPtlAsctIdAndDelYnOrderByFstEnrDtmAsc(String itPtlAsctId, String delYn);
 
     /**
      * 미답변 질의 목록 조회
      *
      * <p>답변이 완료되지 않은 항목을 필터링합니다.</p>
      *
-     * @param asctId 협의회ID
-     * @param repYn  답변여부 ('N'=미답변)
+     * @param itPtlAsctId 협의회ID
+     * @param qtnRpdRltYn  답변여부 ('N'=미답변)
      * @param delYn  삭제여부 ('N')
      * @return 미답변 질의 목록
      */
-    List<Bpqnam> findByAsctIdAndRepYnAndDelYn(String asctId, String repYn, String delYn);
+    List<Bpqnam> findByItPtlAsctIdAndQtnRpdRltYnAndDelYn(String itPtlAsctId, String qtnRpdRltYn, String delYn);
 
     /**
      * QTN_ID 채번 (협의회ID 기반 순번)
      *
      * <p>새로운 질의 등록 시 ID를 생성합니다.
-     * 형식: {@code QTN-{asctId}-{2자리순번}} (예: QTN-ASCT-2026-0001-01)</p>
+     * 형식: {@code QTN-{itPtlAsctId}-{2자리순번}} (예: QTN-ASCT-2026-0001-01)</p>
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @return 다음 순번 (기존 항목 없으면 1)
      */
-    @Query(value = "SELECT NVL(COUNT(*), 0) + 1 FROM TPRMPP_BPQNAM WHERE ASCT_ID = :asctId",
+    @Query(value = "SELECT NVL(COUNT(*), 0) + 1 FROM TPRMPP_BPQNAM WHERE IT_PTL_ASCT_ID = :itPtlAsctId",
            nativeQuery = true)
-    Integer getNextQtnSeq(@Param("asctId") String asctId);
+    Integer getNextQtnSeq(@Param("itPtlAsctId") String itPtlAsctId);
 }

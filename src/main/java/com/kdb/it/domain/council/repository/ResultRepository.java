@@ -17,9 +17,9 @@ public interface ResultRepository extends JpaRepository<Brsltm, String> {
     /**
      * 협의회 결과서 단건 조회 (삭제되지 않은 항목)
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @param delYn  삭제여부 ('N')
      * @return 결과서 (없으면 empty — 아직 작성 전)
      */
-    Optional<Brsltm> findByAsctIdAndDelYn(String asctId, String delYn);
+    Optional<Brsltm> findByItPtlAsctIdAndDelYn(String itPtlAsctId, String delYn);
 }

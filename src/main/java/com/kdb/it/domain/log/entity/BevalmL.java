@@ -20,17 +20,17 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public class BevalmL extends BaseLogEntity {
 
-    @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, comment = "협의회ID")
+    private String itPtlAsctId;
 
     @Column(name = "ENO", length = 32, comment = "사번")
     private String eno;
 
-    @Column(name = "CKG_ITM_C", length = 20, comment = "점검항목코드")
-    private String ckgItmC;
+    @Column(name = "IT_PTL_CKG_ITM_TC", length = 2, comment = "점검항목코드")
+    private String itPtlCkgItmTc;
 
-    @Column(name = "CKG_RCRD", comment = "점검점수")
-    private Integer ckgRcrd;
+    @Column(name = "QUEL_RCRD", comment = "점검점수")
+    private Integer quelRcrd;
 
     @Column(name = "CKG_OPNN_CONE", length = 1000, comment = "점검의견내용")
     private String ckgOpnn;

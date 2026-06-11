@@ -39,8 +39,8 @@ public class Bevalm extends BaseEntity {
 
     /** 협의회ID: 복합키 첫 번째 컬럼 */
     @Id
-    @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
+    private String itPtlAsctId;
 
     /** 사번: 복합키 두 번째 컬럼 (TPRMPP_CUSERI.ENO FK, 평가위원) */
     @Id
@@ -49,12 +49,12 @@ public class Bevalm extends BaseEntity {
 
     /** 점검항목코드: 복합키 세 번째 컬럼 (MGMT_STR/FIN_EFC/RISK_IMP/REP_IMP/DUP_SYS/ETC) */
     @Id
-    @Column(name = "CKG_ITM_C", length = 20, nullable = false, comment = "점검항목코드")
-    private String ckgItmC;
+    @Column(name = "IT_PTL_CKG_ITM_TC", length = 2, nullable = false, comment = "점검항목코드")
+    private String itPtlCkgItmTc;
 
     /** 점검점수: 1~5점 척도 */
-    @Column(name = "CKG_RCRD", comment = "점검점수")
-    private Integer ckgRcrd;
+    @Column(name = "QUEL_RCRD", comment = "점검점수")
+    private Integer quelRcrd;
 
     /** 점검의견내용: 1~2점 입력 시 필수, 부정적 평가 사유 기술 (최대 1000자) */
     @Column(name = "CKG_OPNN_CONE", length = 1000, comment = "점검의견내용")
@@ -63,11 +63,11 @@ public class Bevalm extends BaseEntity {
     /**
      * 평가의견 업데이트 (위원이 수정 시 재호출)
      *
-     * @param ckgRcrd 점검점수 (1~5)
+     * @param quelRcrd 점검점수 (1~5)
      * @param ckgOpnn 점검의견 (1~2점 시 필수)
      */
-    public void update(Integer ckgRcrd, String ckgOpnn) {
-        this.ckgRcrd = ckgRcrd;
+    public void update(Integer quelRcrd, String ckgOpnn) {
+        this.quelRcrd = quelRcrd;
         this.ckgOpnn = ckgOpnn;
     }
 }

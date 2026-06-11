@@ -113,7 +113,7 @@ class ScheduleServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bschdm existing = mock(Bschdm.class);
-        given(scheduleRepository.findByAsctIdAndEnoAndDsdDtAndDsdTmAndDelYn(
+        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
                 ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
                 .willReturn(Optional.of(existing));
 
@@ -130,7 +130,7 @@ class ScheduleServiceTest {
     void submitSchedule_기존일정없으면_save호출() {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(scheduleRepository.findByAsctIdAndEnoAndDsdDtAndDsdTmAndDelYn(
+        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
                 ASCT_ID, ENO, TEST_DATE, "14:00", "N"))
                 .willReturn(Optional.empty());
 
@@ -169,7 +169,7 @@ class ScheduleServiceTest {
         scheduleService.confirmSchedule(ASCT_ID, request);
 
         verify(council).confirmSchedule(TEST_DATE_LD, "10:00", "본관 1층");
-        verify(councilService).changeStatus(ASCT_ID, "006");
+        verify(councilService).changeStatus(ASCT_ID, "06");
     }
 
     // ───────────────────────────────────────────────────────
@@ -183,10 +183,10 @@ class ScheduleServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bschdm slot = mock(Bschdm.class);
-        given(slot.getDsdDt()).willReturn(TEST_DATE);
-        given(slot.getDsdTm()).willReturn("10:00");
-        given(slot.getPsbYn()).willReturn("Y");
-        given(scheduleRepository.findByAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
+        given(slot.getCnrcDt()).willReturn(TEST_DATE);
+        given(slot.getCnrcSttTm()).willReturn("10:00");
+        given(slot.getUsePsbYn()).willReturn("Y");
+        given(scheduleRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
                 .willReturn(List.of(slot));
 
         List<CouncilDto.ScheduleSlotResponse> result =
@@ -207,7 +207,7 @@ class ScheduleServiceTest {
         // given: 아직 일정을 제출하지 않은 위원
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(scheduleRepository.findByAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
+        given(scheduleRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
                 .willReturn(List.of());
 
         // when
@@ -226,21 +226,21 @@ class ScheduleServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bschdm slot1 = mock(Bschdm.class);
-        given(slot1.getDsdDt()).willReturn(TEST_DATE);
-        given(slot1.getDsdTm()).willReturn("10:00");
-        given(slot1.getPsbYn()).willReturn("Y");
+        given(slot1.getCnrcDt()).willReturn(TEST_DATE);
+        given(slot1.getCnrcSttTm()).willReturn("10:00");
+        given(slot1.getUsePsbYn()).willReturn("Y");
 
         Bschdm slot2 = mock(Bschdm.class);
-        given(slot2.getDsdDt()).willReturn(TEST_DATE);
-        given(slot2.getDsdTm()).willReturn("14:00");
-        given(slot2.getPsbYn()).willReturn("N");
+        given(slot2.getCnrcDt()).willReturn(TEST_DATE);
+        given(slot2.getCnrcSttTm()).willReturn("14:00");
+        given(slot2.getUsePsbYn()).willReturn("N");
 
         Bschdm slot3 = mock(Bschdm.class);
-        given(slot3.getDsdDt()).willReturn(TEST_DATE);
-        given(slot3.getDsdTm()).willReturn("15:00");
-        given(slot3.getPsbYn()).willReturn("Y");
+        given(slot3.getCnrcDt()).willReturn(TEST_DATE);
+        given(slot3.getCnrcSttTm()).willReturn("15:00");
+        given(slot3.getUsePsbYn()).willReturn("Y");
 
-        given(scheduleRepository.findByAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
+        given(scheduleRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
                 .willReturn(List.of(slot1, slot2, slot3));
 
         // when
@@ -263,7 +263,7 @@ class ScheduleServiceTest {
         // given: 16:00은 허용 시간대
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(scheduleRepository.findByAsctIdAndEnoAndDsdDtAndDsdTmAndDelYn(
+        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
                 ASCT_ID, ENO, TEST_DATE, "16:00", "N"))
                 .willReturn(Optional.empty());
 
@@ -283,10 +283,10 @@ class ScheduleServiceTest {
         // given: 2개 슬롯 (10:00, 14:00) 동시 제출, 모두 신규
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(scheduleRepository.findByAsctIdAndEnoAndDsdDtAndDsdTmAndDelYn(
+        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
                 ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
                 .willReturn(Optional.empty());
-        given(scheduleRepository.findByAsctIdAndEnoAndDsdDtAndDsdTmAndDelYn(
+        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
                 ASCT_ID, ENO, TEST_DATE, "14:00", "N"))
                 .willReturn(Optional.empty());
 
@@ -310,16 +310,16 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: 위원 1명이 미응답인 경우 현황 DTO를 반환한다")
     void getScheduleStatus_위원1명미응답_현황반환() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTc()).willReturn("005");
+        given(council.getItPtlAsctDbrTc()).willReturn("05");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
-        given(member.getVlrTc()).willReturn("001");
-        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        given(member.getItPtlAsctMebTc()).willReturn("01");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
 
         // 아직 일정 응답 없음
-        given(scheduleRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
+        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(1L);
         given(userRepository.findByEno(ENO)).willReturn(Optional.empty());
 
@@ -337,21 +337,21 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: 전원 응답(ETC 타입)이면 allRequiredResponded가 true이다")
     void getScheduleStatus_전원응답ETC_allRequiredRespondedTrue() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTc()).willReturn("005");
+        given(council.getItPtlAsctDbrTc()).willReturn("05");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
-        given(member.getVlrTc()).willReturn("001");
-        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        given(member.getItPtlAsctMebTc()).willReturn("01");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
 
         // 해당 위원이 일정을 응답함
         Bschdm slot = mock(Bschdm.class);
         given(slot.getEno()).willReturn(ENO);
-        given(slot.getDsdDt()).willReturn(TEST_DATE);
-        given(slot.getDsdTm()).willReturn("10:00");
-        given(slot.getPsbYn()).willReturn("Y");
-        given(scheduleRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(slot));
+        given(slot.getCnrcDt()).willReturn(TEST_DATE);
+        given(slot.getCnrcSttTm()).willReturn("10:00");
+        given(slot.getUsePsbYn()).willReturn("Y");
+        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(slot));
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(0L);
 
         CuserI user = mock(CuserI.class);
@@ -373,28 +373,28 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: INFO_SYS 필수 팀장들이 모두 응답하면 확정 가능하다")
     void getScheduleStatus_INFO_SYS필수팀장응답_true() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTc()).willReturn("003");
+        given(council.getItPtlAsctDbrTc()).willReturn("03");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm budgetLead = mock(Bcmmtm.class);
         Bcmmtm itLead = mock(Bcmmtm.class);
         given(budgetLead.getEno()).willReturn("12004");
-        given(budgetLead.getVlrTc()).willReturn("001");
+        given(budgetLead.getItPtlAsctMebTc()).willReturn("01");
         given(itLead.getEno()).willReturn("18001");
-        given(itLead.getVlrTc()).willReturn("001");
-        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetLead, itLead));
+        given(itLead.getItPtlAsctMebTc()).willReturn("01");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetLead, itLead));
 
         Bschdm budgetSlot = mock(Bschdm.class);
         Bschdm itSlot = mock(Bschdm.class);
         given(budgetSlot.getEno()).willReturn("12004");
-        given(budgetSlot.getDsdDt()).willReturn(TEST_DATE);
-        given(budgetSlot.getDsdTm()).willReturn("10:00");
-        given(budgetSlot.getPsbYn()).willReturn("Y");
+        given(budgetSlot.getCnrcDt()).willReturn(TEST_DATE);
+        given(budgetSlot.getCnrcSttTm()).willReturn("10:00");
+        given(budgetSlot.getUsePsbYn()).willReturn("Y");
         given(itSlot.getEno()).willReturn("18001");
-        given(itSlot.getDsdDt()).willReturn(TEST_DATE);
-        given(itSlot.getDsdTm()).willReturn("14:00");
-        given(itSlot.getPsbYn()).willReturn("Y");
-        given(scheduleRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetSlot, itSlot));
+        given(itSlot.getCnrcDt()).willReturn(TEST_DATE);
+        given(itSlot.getCnrcSttTm()).willReturn("14:00");
+        given(itSlot.getUsePsbYn()).willReturn("Y");
+        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetSlot, itSlot));
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(0L);
 
         CuserI budgetUser = mock(CuserI.class);
@@ -415,18 +415,18 @@ class ScheduleServiceTest {
     @DisplayName("getScheduleStatus: INFO_SYS 필수 팀장 중 한 명이 미응답이면 확정 불가다")
     void getScheduleStatus_INFO_SYS필수팀장미응답_false() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTc()).willReturn("003");
+        given(council.getItPtlAsctDbrTc()).willReturn("03");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm budgetLead = mock(Bcmmtm.class);
         Bcmmtm itLead = mock(Bcmmtm.class);
         given(budgetLead.getEno()).willReturn("12004");
         given(itLead.getEno()).willReturn("18001");
-        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetLead, itLead));
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetLead, itLead));
 
         Bschdm budgetSlot = mock(Bschdm.class);
         given(budgetSlot.getEno()).willReturn("12004");
-        given(scheduleRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetSlot));
+        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetSlot));
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(1L);
 
         CuserI budgetUser = mock(CuserI.class);

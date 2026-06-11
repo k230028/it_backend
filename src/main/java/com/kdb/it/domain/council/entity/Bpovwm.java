@@ -36,82 +36,82 @@ public class Bpovwm extends BaseEntity {
 
     /** 협의회ID: BASCTM.ASCT_ID (FK, PK, 1:1) */
     @Id
-    @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
+    private String itPtlAsctId;
 
     /** 사업명: BPROJM.ABUS_NM과 동일 필드 (수정 가능) */
-    @Column(name = "PRJ_NM", length = 200, comment = "사업명")
-    private String prjNm;
+    @Column(name = "ABUS_NM", length = 100, comment = "사업명")
+    private String abusNm;
 
     /** 사업기간내용: 예) 2026.01 ~ 2026.12 */
-    @Column(name = "PRJ_TRM_CONE", length = 100, comment = "사업기간내용")
-    private String prjTrm;
+    @Column(name = "ABUS_TRM_CONE", length = 300, comment = "사업기간내용")
+    private String abusTrmCone;
 
     /** 필요성내용: BPROJM.NCS와 동일 스키마 (최대 1000자) */
-    @Column(name = "NCS_CONE", length = 1000, comment = "필요성내용")
-    private String ncs;
+    @Column(name = "ABUS_NCS_CONE", length = 300, comment = "필요성내용")
+    private String abusNcsCone;
 
     /** 소요예산금액: BPROJM.PRJ_BG와 동일 (BG 도메인 NUMBER(18,3)) */
-    @Column(name = "PRJ_BG_AMR", precision = 18, scale = 3, comment = "소요예산금액")
-    private BigDecimal prjBg;
+    @Column(name = "RQM_BG_AMT", precision = 18, comment = "소요예산금액")
+    private BigDecimal rqmBgAmt;
 
     /** 전결권자명: BPROJM.EDRT와 동일 (부점장/본부장 등 직급명) */
-    @Column(name = "EDRT_NM", length = 100, comment = "전결권자명")
-    private String edrt;
+    @Column(name = "IT_PTL_EDRT_TC", length = 2, comment = "전결권자명")
+    private String itPtlEdrtTc;
 
     /** 사업내용: BPROJM.PRJ_DES와 동일 스키마 (최대 1000자) */
-    @Column(name = "PRJ_DES", length = 1000, comment = "사업내용")
-    private String prjDes;
+    @Column(name = "ABUS_CONE", length = 1000, comment = "사업내용")
+    private String abusCone;
 
     /** 법률규제대응여부: Y(해당) / N(해당없음), 기본값 N */
-    @Column(name = "LGL_RGL_YN", length = 1, comment = "법률규제대응여부")
-    private String lglRglYn;
+    @Column(name = "LW_RGL_YN", length = 1, comment = "법률규제대응여부")
+    private String lwRglYn;
 
     /** 관련법률규제명: LGL_RGL_YN='Y'인 경우 필수 입력 */
-    @Column(name = "LGL_RGL_NM", length = 500, comment = "관련법률규제명")
-    private String lglRglNm;
+    @Column(name = "LW_FDTN", length = 300, comment = "관련법률규제명")
+    private String lwFdtn;
 
     /** 기대효과내용: BPROJM.XPT_EFF와 동일 스키마 (최대 1000자) */
-    @Column(name = "XPT_EFF_CONE", length = 1000, comment = "기대효과내용")
-    private String xptEff;
+    @Column(name = "DGOG_PPO_CONE", length = 4000, comment = "기대효과내용")
+    private String dgogPpoCone;
 
     /** 저장구분코드: TEMP(임시저장) / COMPLETE(작성완료), CCODEM KPN_TC 기준 */
-    @Column(name = "KPN_TC", length = 10, comment = "저장구분코드")
-    private String kpnTc;
+    @Column(name = "KPN_TP_TC", length = 2, comment = "저장구분코드")
+    private String kpnTpTc;
 
     /** 첨부파일관리번호: TPRMPP_CFILEM.FL_MNG_NO (FK, hwp/hwpx/pdf만 허용) */
-    @Column(name = "FL_MNG_NO", length = 32, comment = "첨부파일관리번호")
-    private String flMngNo;
+    @Column(name = "FL_MPN_ID", length = 36, comment = "첨부파일관리번호")
+    private String flMpnId;
 
     /**
      * 사업개요 정보 업데이트 (임시저장 / 작성완료 공통)
      *
-     * @param prjNm     사업명
-     * @param prjTrm    사업기간
-     * @param ncs       필요성
-     * @param prjBg     소요예산
-     * @param edrt      전결권자
-     * @param prjDes    사업내용
-     * @param lglRglYn  법률규제대응여부
-     * @param lglRglNm  관련법률규제명
-     * @param xptEff    기대효과
-     * @param kpnTc     저장유형 (TEMP/COMPLETE)
-     * @param flMngNo   첨부파일관리번호
+     * @param abusNm     사업명
+     * @param abusTrmCone    사업기간
+     * @param abusNcsCone       필요성
+     * @param rqmBgAmt     소요예산
+     * @param itPtlEdrtTc      전결권자
+     * @param abusCone    사업내용
+     * @param lwRglYn  법률규제대응여부
+     * @param lwFdtn  관련법률규제명
+     * @param dgogPpoCone    기대효과
+     * @param kpnTpTc     저장유형 (TEMP/COMPLETE)
+     * @param flMpnId   첨부파일관리번호
      */
-    public void update(String prjNm, String prjTrm, String ncs, BigDecimal prjBg, String edrt,
-                       String prjDes, String lglRglYn, String lglRglNm, String xptEff,
-                       String kpnTc, String flMngNo) {
-        this.prjNm = prjNm;
-        this.prjTrm = prjTrm;
-        this.ncs = ncs;
-        this.prjBg = prjBg;
-        this.edrt = edrt;
-        this.prjDes = prjDes;
-        this.lglRglYn = lglRglYn;
-        this.lglRglNm = lglRglNm;
-        this.xptEff = xptEff;
-        this.kpnTc = kpnTc;
-        this.flMngNo = flMngNo;
+    public void update(String abusNm, String abusTrmCone, String abusNcsCone, BigDecimal rqmBgAmt, String itPtlEdrtTc,
+                       String abusCone, String lwRglYn, String lwFdtn, String dgogPpoCone,
+                       String kpnTpTc, String flMpnId) {
+        this.abusNm = abusNm;
+        this.abusTrmCone = abusTrmCone;
+        this.abusNcsCone = abusNcsCone;
+        this.rqmBgAmt = rqmBgAmt;
+        this.itPtlEdrtTc = itPtlEdrtTc;
+        this.abusCone = abusCone;
+        this.lwRglYn = lwRglYn;
+        this.lwFdtn = lwFdtn;
+        this.dgogPpoCone = dgogPpoCone;
+        this.kpnTpTc = kpnTpTc;
+        this.flMpnId = flMpnId;
     }
 }
 

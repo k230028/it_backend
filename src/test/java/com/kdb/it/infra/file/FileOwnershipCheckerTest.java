@@ -171,7 +171,7 @@ class FileOwnershipCheckerTest {
                     .sttDt(null).endDt(null)
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
                     .ancYn("N")
-                    .nacUnqId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
+                    .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
                     .build();
 
@@ -199,7 +199,7 @@ class FileOwnershipCheckerTest {
                     .endDt(null)
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
                     .ancYn("N")
-                    .nacUnqId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
+                    .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
                     .build();
 
@@ -227,7 +227,7 @@ class FileOwnershipCheckerTest {
                     .endDt(LocalDate.now().minusDays(1))
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
                     .ancYn("N")
-                    .nacUnqId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
+                    .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
                     .build();
 
@@ -255,7 +255,7 @@ class FileOwnershipCheckerTest {
                     .endDt(LocalDate.now().plusDays(1))
                     .nacInqNbr(0).flNbr(0).flApgYn("N")
                     .ancYn("N")
-                    .nacUnqId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
+                    .nacId("NAC-2026-0001").nacGrpSqn(0).nacGrpLev(0)
                     .delYn("N")
                     .build();
 
@@ -301,7 +301,7 @@ class FileOwnershipCheckerTest {
                 .endDt(null)
                 .nacInqNbr(0).flNbr(0).flApgYn("N")
                 .ancYn("N")
-                .nacUnqId(nacMngNo).nacGrpSqn(0).nacGrpLev(0)
+                .nacId(nacMngNo).nacGrpSqn(0).nacGrpLev(0)
                 .delYn("N")
                 .build();
     }

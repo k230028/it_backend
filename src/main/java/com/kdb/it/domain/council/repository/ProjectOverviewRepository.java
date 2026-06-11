@@ -17,9 +17,9 @@ public interface ProjectOverviewRepository extends JpaRepository<Bpovwm, String>
     /**
      * 협의회 사업개요 단건 조회 (삭제되지 않은 항목)
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @param delYn  삭제여부 ('N')
      * @return 사업개요 (없으면 empty)
      */
-    Optional<Bpovwm> findByAsctIdAndDelYn(String asctId, String delYn);
+    Optional<Bpovwm> findByItPtlAsctIdAndDelYn(String itPtlAsctId, String delYn);
 }

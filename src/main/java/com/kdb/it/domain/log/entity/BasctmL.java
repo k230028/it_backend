@@ -24,28 +24,34 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class BasctmL extends BaseLogEntity {
 
-    @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, comment = "협의회ID")
+    private String itPtlAsctId;
 
-    @Column(name = "PRJ_MNG_NO", length = 32, comment = "프로젝트관리번호")
-    private String prjMngNo;
+    @Column(name = "ABUS_MNG_NO", length = 30, comment = "프로젝트관리번호")
+    private String abusMngNo;
 
-    @Column(name = "PRJ_SNO", comment = "프로젝트순번")
-    private Integer prjSno;
+    @Column(name = "SNO", comment = "프로젝트순번")
+    private Integer sno;
 
-    @Column(name = "ASCT_STS_C", length = 3, comment = "협의회상태코드")
-    private String asctStsC;
+    @Column(name = "IT_PTL_ASCT_PRG_STS_TC", length = 2, comment = "협의회상태코드")
+    private String itPtlAsctPrgStsTc;
 
-    @Column(name = "DBR_TC", length = 20, comment = "심의유형구분코드")
-    private String dbrTc;
+    @Column(name = "IT_PTL_ASCT_DBR_TC", length = 2, comment = "심의유형구분코드")
+    private String itPtlAsctDbrTc;
 
     @Column(name = "CNRC_DT", length = 8, comment = "회의일자")
     @Convert(converter = Yyyymmdd8DateConverter.class)
     private LocalDate cnrcDt;
 
-    @Column(name = "CNRC_TM", length = 6, comment = "회의시간")
-    private String cnrcTm;
+    @Column(name = "CNRC_STT_TM", length = 6, comment = "회의시간")
+    private String cnrcSttTm;
 
     @Column(name = "CNRC_PLC_NM", length = 100, comment = "회의장소명")
     private String cnrcPlc;
+
+    @Column(name = "PRTY_IVG_OMT_YN", length = 1, comment = "타당성검토생략여부")
+    private String prtyIvgOmtYn;
+
+    @Column(name = "PRTY_IVG_OMT_RSN", length = 200, comment = "타당성검토생략사유")
+    private String prtyIvgOmtRsn;
 }

@@ -1,8 +1,6 @@
 package com.kdb.it.domain.log.entity;
 
-import com.kdb.it.common.util.Yyyymmdd8DateConverter;
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -10,8 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-
-import java.time.LocalDate;
 
 /**
  * 성과관리 자체계획(TPRMPP_BPERFM) 변경 로그 엔티티.
@@ -24,38 +20,28 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class BperfmL extends BaseLogEntity {
 
-    @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, comment = "협의회ID")
+    private String itPtlAsctId;
 
-    @Column(name = "DTP_SNO", comment = "지표순번")
-    private Integer dtpSno;
+    @Column(name = "EVL_DTP_SNO", comment = "지표순번")
+    private Integer evlDtpSno;
 
-    @Column(name = "DTP_NM", length = 200, comment = "성과지표명")
-    private String dtpNm;
+    @Column(name = "EVL_DTP_NM", length = 100, comment = "성과지표명")
+    private String evlDtpNm;
 
-    @Column(name = "DTP_CONE", length = 1000, comment = "성과지표정의")
-    private String dtpCone;
+    @Column(name = "EVL_DTP_DFNT_CONE", length = 4000, comment = "성과지표정의")
+    private String evlDtpDfntCone;
 
-    @Column(name = "MSM_MANR_CONE", length = 1000, comment = "측정방법내용")
-    private String msmManr;
 
-    @Column(name = "CLF", length = 1000, comment = "산식")
-    private String clf;
+    @Column(name = "EVL_DTP_CLF_CONE", length = 4000, comment = "산식")
+    private String evlDtpClfCone;
 
-    @Column(name = "GL_NV_CONE", length = 200, comment = "목표수치내용")
-    private String glNv;
 
-    @Column(name = "MSM_STT_DT", length = 8, comment = "측정시작일")
-    @Convert(converter = Yyyymmdd8DateConverter.class)
-    private LocalDate msmSttDt;
 
-    @Column(name = "MSM_END_DT", length = 8, comment = "측정종료일")
-    @Convert(converter = Yyyymmdd8DateConverter.class)
-    private LocalDate msmEndDt;
 
-    @Column(name = "MSM_PTM_CONE", length = 100, comment = "측정시점내용")
-    private String msmTpm;
+    @Column(name = "EVL_DTP_MSM_PTM_CONE", length = 300, comment = "측정시점내용")
+    private String evlDtpMsmPtmCone;
 
-    @Column(name = "MSM_CLE", length = 100, comment = "측정주기")
-    private String msmCle;
+    @Column(name = "EVL_DTP_MSM_CLE_CONE", length = 300, comment = "측정주기")
+    private String evlDtpMsmCleCone;
 }

@@ -63,7 +63,7 @@ public class MainQnaService {
             throw new IllegalArgumentException("존재하지 않는 협의회입니다: " + asctId);
         }
         return mainQnaRepository
-                .findByAsctIdAndDelYnOrderByFstEnrDtmAsc(asctId, "N")
+                .findByItPtlAsctIdAndDelYnOrderByFstEnrDtmAsc(asctId, "N")
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -97,10 +97,10 @@ public class MainQnaService {
 
         Bmqnam qna = Bmqnam.builder()
                 .qtnId(qtnId)
-                .asctId(asctId)
-                .qtnEno(userDetails.getEno())
+                .itPtlAsctId(asctId)
+                .qtnDwuUsid(userDetails.getEno())
                 .qtnCone(request.qtnCone())
-                .repYn("N")
+                .qtnRpdRltYn("N")
                 .build();
 
         /* PRD §15 회귀 방지: persist()로 직접 INSERT (@PrePersist 발화) */
@@ -123,7 +123,7 @@ public class MainQnaService {
         Bmqnam qna = mainQnaRepository.findById(qtnId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 본회의 질의응답입니다: " + qtnId));
 
-        if (!qna.getAsctId().equals(asctId)) {
+        if (!qna.getItPtlAsctId().equals(asctId)) {
             throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
         }
 
@@ -147,7 +147,7 @@ public class MainQnaService {
         Bmqnam qna = mainQnaRepository.findById(qtnId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 본회의 질의응답입니다: " + qtnId));
 
-        if (!qna.getAsctId().equals(asctId)) {
+        if (!qna.getItPtlAsctId().equals(asctId)) {
             throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
         }
 
@@ -165,7 +165,7 @@ public class MainQnaService {
         Bmqnam qna = mainQnaRepository.findById(qtnId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 본회의 질의응답입니다: " + qtnId));
 
-        if (!qna.getAsctId().equals(asctId)) {
+        if (!qna.getItPtlAsctId().equals(asctId)) {
             throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
         }
 
@@ -179,13 +179,13 @@ public class MainQnaService {
     private CouncilDto.QnaResponse toResponse(Bmqnam qna) {
         return new CouncilDto.QnaResponse(
                 qna.getQtnId(),
-                qna.getQtnEno(),
+                qna.getQtnDwuUsid(),
                 null,
                 qna.getQtnCone(),
-                qna.getRepEno(),
+                qna.getRepDwuUsid(),
                 null,
                 qna.getRepCone(),
-                qna.getRepYn()
+                qna.getQtnRpdRltYn()
         );
     }
 }

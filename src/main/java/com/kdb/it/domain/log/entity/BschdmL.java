@@ -20,18 +20,18 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public class BschdmL extends BaseLogEntity {
 
-    @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, comment = "협의회ID")
+    private String itPtlAsctId;
 
     @Column(name = "ENO", length = 32, comment = "사번")
     private String eno;
 
-    @Column(name = "DSD_DT", length = 8, comment = "일정일자")
-    private String dsdDt;
+    @Column(name = "CNRC_DT", length = 8, comment = "일정일자")
+    private String cnrcDt;
 
-    @Column(name = "DSD_TM", length = 10, comment = "일정시간")
-    private String dsdTm;
+    @Column(name = "CNRC_STT_TM", length = 6, comment = "일정시간")
+    private String cnrcSttTm;
 
-    @Column(name = "PSB_YN", length = 1, comment = "가능여부")
-    private String psbYn;
+    @Column(name = "USE_PSB_YN", length = 1, comment = "가능여부")
+    private String usePsbYn;
 }

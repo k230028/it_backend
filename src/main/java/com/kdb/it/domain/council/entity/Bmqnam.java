@@ -43,39 +43,39 @@ public class Bmqnam extends BaseEntity {
     private String qtnId;
 
     /** 협의회ID: BASCTM.ASCT_ID FK */
-    @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
+    private String itPtlAsctId;
 
     /** 질의자사번: 질의를 정리해 등록한 IT관리자 사번 (CUSERI.ENO FK) */
-    @Column(name = "QTN_ENO", length = 32, comment = "질의자사번")
-    private String qtnEno;
+    @Column(name = "QTN_DWU_USID", length = 14, comment = "질의자사번")
+    private String qtnDwuUsid;
 
     /** 질의내용: 본회의에서 나온 질의를 IT관리자가 정리한 내용 (최대 4000자) */
     @Column(name = "QTN_CONE", length = 4000, comment = "질의내용")
     private String qtnCone;
 
     /** 답변자사번: 답변을 정리해 등록한 IT관리자 사번 (CUSERI.ENO FK) */
-    @Column(name = "REP_ENO", length = 32, comment = "답변자사번")
-    private String repEno;
+    @Column(name = "REP_DWU_USID", length = 14, comment = "답변자사번")
+    private String repDwuUsid;
 
     /** 답변내용: IT관리자가 정리한 답변 내용 (최대 2000자) */
     @Column(name = "REP_CONE", length = 2000, comment = "답변내용")
     private String repCone;
 
     /** 답변여부: N(미답변) / Y(답변완료), 기본값 N */
-    @Column(name = "REP_YN", length = 1, comment = "답변여부")
-    private String repYn;
+    @Column(name = "QTN_RPD_RLT_YN", length = 1, comment = "답변여부")
+    private String qtnRpdRltYn;
 
     /**
      * 답변 등록/수정 (IT관리자가 호출)
      *
-     * @param repEno  답변자 사번
+     * @param repDwuUsid  답변자 사번
      * @param repCone 답변내용
      */
-    public void reply(String repEno, String repCone) {
-        this.repEno = repEno;
+    public void reply(String repDwuUsid, String repCone) {
+        this.repDwuUsid = repDwuUsid;
         this.repCone = repCone;
-        this.repYn = "Y";
+        this.qtnRpdRltYn = "Y";
     }
 
     /**

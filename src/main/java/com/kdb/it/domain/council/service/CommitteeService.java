@@ -61,18 +61,18 @@ public class CommitteeService {
 
     // 심의유형별 당연위원 팀코드 매핑 (TEM_C 기준, Design §2.4)
     private static final Map<String, List<String>> MANDATORY_TEM_CODES = Map.of(
-        "003", List.of("12004", "18010", "18501", "18301"),  // INFO_SYS
-        "004", List.of("12004", "18001", "18010", "18501"),  // INFO_SEC
-        "005", List.of("12004", "18010", "18501")            // ETC
+        "03", List.of("12004", "18010", "18501", "18301"),  // INFO_SYS
+        "04", List.of("12004", "18001", "18010", "18501"),  // INFO_SEC
+        "05", List.of("12004", "18010", "18501")            // ETC
     );
 
     // 심의유형별 간사 팀코드 매핑 (TEM_C 기준)
     // 003(INFO_SYS) / 005(ETC): IT기획(18001) → 간사
     // 004(INFO_SEC): 정보보호기획(18301) → 간사
     private static final Map<String, List<String>> SECRETARY_TEM_CODES = Map.of(
-        "003", List.of("18001"),  // INFO_SYS
-        "004", List.of("18301"),  // INFO_SEC
-        "005", List.of("18001")   // ETC
+        "03", List.of("18001"),  // INFO_SYS
+        "04", List.of("18301"),  // INFO_SEC
+        "05", List.of("18001")   // ETC
     );
 
     /** INFO_SYS 일정 확정 필수 응답 팀코드 (예산:12004, IT기획:18001) */
@@ -93,7 +93,7 @@ public class CommitteeService {
      */
     public List<CouncilDto.CommitteeMemberResponse> getDefaultCommittee(String asctId) {
         // 협의회 존재 확인 및 심의유형 조회
-        String dbrTc = councilService.findActiveCouncil(asctId).getDbrTc();
+        String dbrTc = councilService.findActiveCouncil(asctId).getItPtlAsctDbrTc();
 
         List<CouncilDto.CommitteeMemberResponse> result = new ArrayList<>();
 
@@ -109,7 +109,7 @@ public class CommitteeService {
                     .findFirst()
                     .orElse(users.get(0));
 
-            result.add(toMemberResponse(candidate, "001"));
+            result.add(toMemberResponse(candidate, "01"));
         }
 
         // 간사(SECR) 자동 배정
@@ -124,7 +124,7 @@ public class CommitteeService {
                     .findFirst()
                     .orElse(users.get(0));
 
-            result.add(toMemberResponse(candidate, "003"));
+            result.add(toMemberResponse(candidate, "03"));
         }
 
         return result;
@@ -141,7 +141,7 @@ public class CommitteeService {
     public CouncilDto.CommitteeListResponse getCommittee(String asctId) {
         councilService.findActiveCouncil(asctId);
 
-        List<Bcmmtm> members = committeeRepository.findByAsctIdAndDelYn(asctId, "N");
+        List<Bcmmtm> members = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
 
         // 위원 사번 목록으로 사용자 정보 일괄 조회
         Map<String, CuserI> userMap = buildUserMap(members);
@@ -154,10 +154,10 @@ public class CommitteeService {
             CuserI user = userMap.get(m.getEno());
             CouncilDto.CommitteeMemberResponse resp = toMemberResponseFromEntity(m, user);
 
-            switch (m.getVlrTc()) {
-                case "001" -> mandatory.add(resp);  // MAND
-                case "002" -> call.add(resp);        // CALL
-                case "003" -> secretary.add(resp);   // SECR
+            switch (m.getItPtlAsctMebTc()) {
+                case "01" -> mandatory.add(resp);  // MAND
+                case "02" -> call.add(resp);        // CALL
+                case "03" -> secretary.add(resp);   // SECR
             }
         }
 
@@ -193,7 +193,7 @@ public class CommitteeService {
         Basctm council = councilService.findActiveCouncil(asctId);
 
         // 기존 활성 위원을 사번 기준으로 인덱싱
-        Map<String, Bcmmtm> existingByEno = committeeRepository.findByAsctIdAndDelYn(asctId, "N")
+        Map<String, Bcmmtm> existingByEno = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
                 .stream()
                 .collect(Collectors.toMap(Bcmmtm::getEno, m -> m, (a, b) -> a));
 
@@ -214,9 +214,9 @@ public class CommitteeService {
                  *   - persist()는 새 entity로 처리되며 @PrePersist가 발화해 delYn='N'으로 자동 채움
                  */
                 Bcmmtm member = Bcmmtm.builder()
-                        .asctId(asctId)
+                        .itPtlAsctId(asctId)
                         .eno(req.eno())
-                        .vlrTc(req.vlrTc())
+                        .itPtlAsctMebTc(req.vlrTc())
                         .build();
                 entityManager.persist(member);
             }
@@ -230,8 +230,8 @@ public class CommitteeService {
         // 협의회 상태 전이: APPROVED → PREPARING (위원 선정 완료)
         // 이미 PREPARING 이후 상태(SCHEDULED, IN_PROGRESS 등)이면 상태를 되돌리지 않음
         // (일정 확정 후 위원 수정 시 SCHEDULED → PREPARING 역전이 방지)
-        if ("004".equals(council.getAsctStsC())) {
-            councilService.changeStatus(asctId, "005");
+        if ("04".equals(council.getItPtlAsctPrgStsTc())) {
+            councilService.changeStatus(asctId, "05");
         }
     }
 
@@ -280,7 +280,7 @@ public class CommitteeService {
                 user != null ? user.getUsrNm() : null,
                 user != null ? user.getBbrNm() : null,
                 user != null ? user.getPtCNm() : null,
-                member.getVlrTc(),
+                member.getItPtlAsctMebTc(),
                 member.getCnfmYn()  // 결과서 검토 확인 여부
         );
     }

@@ -61,17 +61,17 @@ public class FeasibilityService {
 
     // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM_C 기준)
     private static final Map<String, String> CHECK_ITEM_NAMES = Map.of(
-        "001", "경영전략/계획 부합",
-        "002", "재무 효과",
-        "003", "리스크 개선 효과",
-        "004", "평판/이미지 개선 효과",
-        "005", "유사/중복 시스템 유무",
-        "006", "기타"
+        "01", "경영전략/계획 부합",
+        "02", "재무 효과",
+        "03", "리스크 개선 효과",
+        "04", "평판/이미지 개선 효과",
+        "05", "유사/중복 시스템 유무",
+        "06", "기타"
     );
 
     // 6개 고정 점검항목 순서 (CKG_ITM_C 숫자코드)
     private static final List<String> CHECK_ITEM_ORDER =
-        List.of("001", "002", "003", "004", "005", "006");
+        List.of("01", "02", "03", "04", "05", "06");
 
     // =========================================================================
     // 조회
@@ -89,16 +89,16 @@ public class FeasibilityService {
         councilService.findActiveCouncil(asctId);
 
         // 사업개요 조회 — 최초 진입 시 미작성 상태이면 null 반환 (프론트에서 DEFAULT_FORM으로 초기화)
-        java.util.Optional<Bpovwm> overviewOpt = projectOverviewRepository.findByAsctIdAndDelYn(asctId, "N");
+        java.util.Optional<Bpovwm> overviewOpt = projectOverviewRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
         if (overviewOpt.isEmpty()) {
             return null;
         }
 
         // 자체점검 6개 항목 조회
-        List<Bchklc> checkItems = feasibilityCheckRepository.findByAsctIdAndDelYn(asctId, "N");
+        List<Bchklc> checkItems = feasibilityCheckRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
 
         // 성과지표 목록 조회 (순번 오름차순)
-        List<Bperfm> performances = performanceRepository.findByAsctIdAndDelYnOrderByDtpSnoAsc(asctId, "N");
+        List<Bperfm> performances = performanceRepository.findByItPtlAsctIdAndDelYnOrderByEvlDtpSnoAsc(asctId, "N");
 
         return toFeasibilityResponse(overviewOpt.get(), checkItems, performances);
     }
@@ -127,7 +127,7 @@ public class FeasibilityService {
         councilService.findActiveCouncil(asctId);
 
         // 작성완료 시 첨부파일 필수 검증
-        if ("002".equals(request.kpnTc())) { // KPN_TC 002 = 저장(작성완료)
+        if ("02".equals(request.kpnTc())) { // KPN_TC 002 = 저장(작성완료)
             validateAttachment(request.flMngNo());
         }
 
@@ -145,8 +145,8 @@ public class FeasibilityService {
         }
 
         // 작성완료 시 상태 전이: DRAFT → SUBMITTED
-        if ("002".equals(request.kpnTc())) { // KPN_TC 002 = 저장(작성완료)
-            councilService.changeStatus(asctId, "002");
+        if ("02".equals(request.kpnTc())) { // KPN_TC 002 = 저장(작성완료)
+            councilService.changeStatus(asctId, "02");
         }
     }
 
@@ -158,7 +158,7 @@ public class FeasibilityService {
      * 사업개요 신규 저장 또는 업데이트 (upsert)
      */
     private void saveOrUpdateOverview(String asctId, CouncilDto.FeasibilityRequest req) {
-        projectOverviewRepository.findByAsctIdAndDelYn(asctId, "N")
+        projectOverviewRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
                 .ifPresentOrElse(
                     // 기존 데이터 있으면 update
                     existing -> existing.update(
@@ -168,18 +168,18 @@ public class FeasibilityService {
                     // 없으면 신규 INSERT
                     () -> {
                         Bpovwm overview = Bpovwm.builder()
-                                .asctId(asctId)
-                                .prjNm(req.prjNm())
-                                .prjTrm(req.prjTrm())
-                                .ncs(req.ncs())
-                                .prjBg(req.prjBg())
-                                .edrt(req.edrt())
-                                .prjDes(req.prjDes())
-                                .lglRglYn(req.lglRglYn() != null ? req.lglRglYn() : "N")
-                                .lglRglNm(req.lglRglNm())
-                                .xptEff(req.xptEff())
-                                .kpnTc(req.kpnTc())
-                                .flMngNo(req.flMngNo())
+                                .itPtlAsctId(asctId)
+                                .abusNm(req.prjNm())
+                                .abusTrmCone(req.prjTrm())
+                                .abusNcsCone(req.ncs())
+                                .rqmBgAmt(req.prjBg())
+                                .itPtlEdrtTc(req.edrt())
+                                .abusCone(req.prjDes())
+                                .lwRglYn(req.lglRglYn() != null ? req.lglRglYn() : "N")
+                                .lwFdtn(req.lglRglNm())
+                                .dgogPpoCone(req.xptEff())
+                                .kpnTpTc(req.kpnTc())
+                                .flMpnId(req.flMngNo())
                                 .build();
                         projectOverviewRepository.save(overview);
                     }
@@ -194,15 +194,15 @@ public class FeasibilityService {
     private void saveOrUpdateCheckItems(String asctId, List<CouncilDto.CheckItemRequest> requests) {
         for (CouncilDto.CheckItemRequest req : requests) {
             feasibilityCheckRepository
-                    .findByAsctIdAndCkgItmCAndDelYn(asctId, req.ckgItmC(), "N")
+                    .findByItPtlAsctIdAndItPtlCkgItmTcAndDelYn(asctId, req.ckgItmC(), "N")
                     .ifPresentOrElse(
                         existing -> existing.update(req.ckgCone(), req.ckgRcrd()),
                         () -> {
                             Bchklc item = Bchklc.builder()
-                                    .asctId(asctId)
-                                    .ckgItmC(req.ckgItmC())
-                                    .ckgCone(req.ckgCone())
-                                    .ckgRcrd(req.ckgRcrd())
+                                    .itPtlAsctId(asctId)
+                                    .itPtlCkgItmTc(req.ckgItmC())
+                                    .ckgOpnnCone(req.ckgCone())
+                                    .quelRcrd(req.ckgRcrd())
                                     .build();
                             feasibilityCheckRepository.save(item);
                         }
@@ -216,30 +216,26 @@ public class FeasibilityService {
      * <p>동적 추가/삭제를 지원하기 위해 요청 목록으로 완전 교체합니다.</p>
      *
      * <p>소프트 딜리트(del_yn='Y') 방식을 사용하지 않는 이유:
-     * BPERFM은 복합 PK(asctId, dtpSno)를 가지며 DEL_YN이 NOT NULL입니다.
+     * BPERFM은 복합 PK(itPtlAsctId, evlDtpSno)를 가지며 DEL_YN이 NOT NULL입니다.
      * soft-delete 후 동일 PK로 재삽입 시 JPA merge()가 del_yn=null로 덮어써
      * NOT NULL 제약 위반이 발생합니다. 하드 딜리트로 PK 충돌을 방지합니다.</p>
      */
     private void replacePerformances(String asctId, List<CouncilDto.PerformanceRequest> requests) {
         // 기존 성과지표 전체 하드 삭제 (JPQL — persistence context 및 DB 동시 반영)
-        entityManager.createQuery("DELETE FROM Bperfm b WHERE b.asctId = :asctId")
+        entityManager.createQuery("DELETE FROM Bperfm b WHERE b.itPtlAsctId = :asctId")
                 .setParameter("asctId", asctId)
                 .executeUpdate();
 
         // 새 성과지표 INSERT (persist — @PrePersist 확실히 실행됨)
         for (CouncilDto.PerformanceRequest req : requests) {
             Bperfm perf = Bperfm.builder()
-                    .asctId(asctId)
-                    .dtpSno(req.dtpSno())
-                    .dtpNm(req.dtpNm())
-                    .dtpCone(req.dtpCone())
-                    .msmManr(req.msmManr())
-                    .clf(req.clf())
-                    .glNv(req.glNv())
-                    .msmSttDt(req.msmSttDt())
-                    .msmEndDt(req.msmEndDt())
-                    .msmTpm(req.msmTpm())
-                    .msmCle(req.msmCle())
+                    .itPtlAsctId(asctId)
+                    .evlDtpSno(req.dtpSno())
+                    .evlDtpNm(req.dtpNm())
+                    .evlDtpDfntCone(req.dtpCone())
+                    .evlDtpClfCone(req.clf())
+                    .evlDtpMsmPtmCone(req.msmTpm())
+                    .evlDtpMsmCleCone(req.msmCle())
                     .build();
             entityManager.persist(perf);
         }
@@ -272,7 +268,7 @@ public class FeasibilityService {
 
         // 자체점검 항목 변환 (고정 순서 유지)
         Map<String, Bchklc> checkMap = checkItems.stream()
-                .collect(Collectors.toMap(Bchklc::getCkgItmC, c -> c));
+                .collect(Collectors.toMap(Bchklc::getItPtlCkgItmTc, c -> c));
 
         List<CouncilDto.CheckItemResponse> checkResponses = CHECK_ITEM_ORDER.stream()
                 .map(code -> {
@@ -280,8 +276,8 @@ public class FeasibilityService {
                     return new CouncilDto.CheckItemResponse(
                             code,
                             CHECK_ITEM_NAMES.getOrDefault(code, code),
-                            item != null ? item.getCkgCone() : null,
-                            item != null ? item.getCkgRcrd() : null
+                            item != null ? item.getCkgOpnnCone() : null,
+                            item != null ? item.getQuelRcrd() : null
                     );
                 })
                 .collect(Collectors.toList());
@@ -289,16 +285,15 @@ public class FeasibilityService {
         // 성과지표 변환
         List<CouncilDto.PerformanceResponse> perfResponses = performances.stream()
                 .map(p -> new CouncilDto.PerformanceResponse(
-                        p.getDtpSno(), p.getDtpNm(), p.getDtpCone(), p.getMsmManr(),
-                        p.getClf(), p.getGlNv(), p.getMsmSttDt(), p.getMsmEndDt(),
-                        p.getMsmTpm(), p.getMsmCle()))
+                        p.getEvlDtpSno(), p.getEvlDtpNm(), p.getEvlDtpDfntCone(),
+                        p.getEvlDtpClfCone(), p.getEvlDtpMsmPtmCone(), p.getEvlDtpMsmCleCone()))
                 .collect(Collectors.toList());
 
         return new CouncilDto.FeasibilityResponse(
-                overview.getPrjNm(), overview.getPrjTrm(), overview.getNcs(),
-                overview.getPrjBg(), overview.getEdrt(), overview.getPrjDes(),
-                overview.getLglRglYn(), overview.getLglRglNm(), overview.getXptEff(),
-                overview.getKpnTc(), checkResponses, perfResponses, overview.getFlMngNo()
+                overview.getAbusNm(), overview.getAbusTrmCone(), overview.getAbusNcsCone(),
+                overview.getRqmBgAmt(), overview.getItPtlEdrtTc(), overview.getAbusCone(),
+                overview.getLwRglYn(), overview.getLwFdtn(), overview.getDgogPpoCone(),
+                overview.getKpnTpTc(), checkResponses, perfResponses, overview.getFlMpnId()
         );
     }
 }

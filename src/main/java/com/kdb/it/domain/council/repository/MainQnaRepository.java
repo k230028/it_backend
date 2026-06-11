@@ -20,21 +20,21 @@ public interface MainQnaRepository extends JpaRepository<Bmqnam, String> {
     /**
      * 협의회별 본회의 질의응답 목록 조회 (삭제되지 않은 항목, 등록일시 오름차순)
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @param delYn  삭제여부 ('N')
      * @return 해당 협의회의 본회의 질의응답 목록
      */
-    List<Bmqnam> findByAsctIdAndDelYnOrderByFstEnrDtmAsc(String asctId, String delYn);
+    List<Bmqnam> findByItPtlAsctIdAndDelYnOrderByFstEnrDtmAsc(String itPtlAsctId, String delYn);
 
     /**
      * QTN_ID 채번 (협의회ID 기반 순번)
      *
-     * <p>형식: {@code MQT-{asctId}-{2자리순번}} (예: MQT-ASCT-2026-0001-01)</p>
+     * <p>형식: {@code MQT-{itPtlAsctId}-{2자리순번}} (예: MQT-ASCT-2026-0001-01)</p>
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @return 다음 순번 (기존 항목 없으면 1)
      */
-    @Query(value = "SELECT NVL(COUNT(*), 0) + 1 FROM TPRMPP_BMQNAM WHERE ASCT_ID = :asctId",
+    @Query(value = "SELECT NVL(COUNT(*), 0) + 1 FROM TPRMPP_BMQNAM WHERE IT_PTL_ASCT_ID = :itPtlAsctId",
            nativeQuery = true)
-    Integer getNextQtnSeq(@Param("asctId") String asctId);
+    Integer getNextQtnSeq(@Param("itPtlAsctId") String itPtlAsctId);
 }

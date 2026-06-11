@@ -48,8 +48,8 @@ public class Bcmmtm extends BaseEntity {
 
     /** 협의회ID: 복합키 첫 번째 컬럼 */
     @Id
-    @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
+    private String itPtlAsctId;
 
     /** 사번: 복합키 두 번째 컬럼 (TPRMPP_CUSERI.ENO FK) */
     @Id
@@ -57,8 +57,8 @@ public class Bcmmtm extends BaseEntity {
     private String eno;
 
     /** 위원유형구분코드: MAND(당연위원) / CALL(소집위원) / SECR(간사), CCODEM VLR_TC 기준 */
-    @Column(name = "VLR_TC", length = 32, nullable = false, comment = "위원유형구분코드")
-    private String vlrTc;
+    @Column(name = "IT_PTL_ASCT_MEB_TC", length = 2, nullable = false, comment = "위원유형구분코드")
+    private String itPtlAsctMebTc;
 
     /**
      * 결과서 검토 확인 여부
@@ -72,10 +72,10 @@ public class Bcmmtm extends BaseEntity {
     /**
      * 위원유형 변경 (소집→당연 또는 간사 재지정 시)
      *
-     * @param vlrTc 변경할 위원유형 코드
+     * @param itPtlAsctMebTc 변경할 위원유형 코드
      */
-    public void changeType(String vlrTc) {
-        this.vlrTc = vlrTc;
+    public void changeType(String itPtlAsctMebTc) {
+        this.itPtlAsctMebTc = itPtlAsctMebTc;
     }
 
     /**

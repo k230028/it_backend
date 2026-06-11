@@ -78,7 +78,7 @@ class CommitteeServiceTest {
     private Bcmmtm mockMember(String eno, String vlrTc) {
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(eno);
-        given(member.getVlrTc()).willReturn(vlrTc);
+        given(member.getItPtlAsctMebTc()).willReturn(vlrTc);
         return member;
     }
 
@@ -90,7 +90,7 @@ class CommitteeServiceTest {
     @DisplayName("getDefaultCommittee: INFO_SYS 타입이면 당연위원(MAND) 4명과 간사(SECR) 1명 후보를 반환한다")
     void getDefaultCommittee_INFO_SYS타입_당연위원후보반환() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTc()).willReturn("003");
+        given(council.getItPtlAsctDbrTc()).willReturn("03");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         // mockUser 내부에도 given()이 있으므로 변수에 먼저 생성 후 willReturn에 전달
@@ -110,15 +110,15 @@ class CommitteeServiceTest {
                 committeeService.getDefaultCommittee(ASCT_ID);
 
         assertThat(result).hasSize(5);
-        assertThat(result).filteredOn(r -> "001".equals(r.vlrTc())).hasSize(4);
-        assertThat(result).filteredOn(r -> "003".equals(r.vlrTc())).hasSize(1);
+        assertThat(result).filteredOn(r -> "01".equals(r.vlrTc())).hasSize(4);
+        assertThat(result).filteredOn(r -> "03".equals(r.vlrTc())).hasSize(1);
     }
 
     @Test
     @DisplayName("getDefaultCommittee: 팀장이 없으면 첫 번째 사용자를 후보로 선택한다")
     void getDefaultCommittee_팀장없음_첫번째사용자선택() {
         Basctm council = mock(Basctm.class);
-        given(council.getDbrTc()).willReturn("005");
+        given(council.getItPtlAsctDbrTc()).willReturn("05");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         CuserI member = mockUser("E20001", "12004", "과장");
@@ -143,10 +143,10 @@ class CommitteeServiceTest {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
-        Bcmmtm mand = mockMember("E10001", "001");
-        Bcmmtm call = mockMember("E10002", "002");
-        Bcmmtm secr = mockMember("E10003", "003");
-        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N"))
+        Bcmmtm mand = mockMember("E10001", "01");
+        Bcmmtm call = mockMember("E10002", "02");
+        Bcmmtm secr = mockMember("E10003", "03");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(List.of(mand, call, secr));
 
         CuserI ue1 = mockUser("E10001", "18001", "팀장");
@@ -175,11 +175,11 @@ class CommitteeServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm existing = mock(Bcmmtm.class);
-        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(existing));
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(existing));
 
         CouncilDto.CommitteeRequest request = new CouncilDto.CommitteeRequest(
-                "003",
-                List.of(new CouncilDto.CommitteeMemberRequest("E20001", "001")));
+                "03",
+                List.of(new CouncilDto.CommitteeMemberRequest("E20001", "01")));
 
         committeeService.saveCommittee(ASCT_ID, request);
 
@@ -192,12 +192,12 @@ class CommitteeServiceTest {
     void saveCommittee_위원선정후PREPARING전이() {
         Basctm council = mock(Basctm.class);
         // APPROVED 상태일 때만 PREPARING으로 전이됨
-        given(council.getAsctStsC()).willReturn("004");
+        given(council.getItPtlAsctPrgStsTc()).willReturn("04");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(committeeRepository.findByAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
-        committeeService.saveCommittee(ASCT_ID, new CouncilDto.CommitteeRequest("005", List.of()));
+        committeeService.saveCommittee(ASCT_ID, new CouncilDto.CommitteeRequest("05", List.of()));
 
-        verify(councilService).changeStatus(ASCT_ID, "005");
+        verify(councilService).changeStatus(ASCT_ID, "05");
     }
 }

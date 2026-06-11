@@ -234,16 +234,8 @@ public class CouncilDto {
         String dtpNm,
         /** 성과지표정의 */
         String dtpCone,
-        /** 측정방법 */
-        String msmManr,
         /** 산식 */
         String clf,
-        /** 목표치 */
-        String glNv,
-        /** 측정시작일 */
-        LocalDate msmSttDt,
-        /** 측정종료일 */
-        LocalDate msmEndDt,
         /** 측정시점 */
         String msmTpm,
         /** 측정주기 */
@@ -257,11 +249,7 @@ public class CouncilDto {
         Integer dtpSno,
         String dtpNm,
         String dtpCone,
-        String msmManr,
         String clf,
-        String glNv,
-        LocalDate msmSttDt,
-        LocalDate msmEndDt,
         String msmTpm,
         String msmCle
     ) {}

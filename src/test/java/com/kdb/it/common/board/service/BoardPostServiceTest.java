@@ -203,7 +203,7 @@ class BoardPostServiceTest {
         String result = service.createReply("BLBM-2026-0003", "NAC-2026-0001", req, normalUser);
 
         assertThat(result).startsWith("NAC-");
-        verify(postRepository).shiftGroupSqn(parent.getNacUnqId(), parent.getNacGrpSqn(), parent.getNacGrpLev());
+        verify(postRepository).shiftGroupSqn(parent.getNacId(), parent.getNacGrpSqn(), parent.getNacGrpLev());
         verify(postRepository).save(argThat(reply -> reply.getNacGrpLev() == parent.getNacGrpLev() + 1));
 
         Cblbmm noReplyBoard = Cblbmm.builder()
@@ -594,7 +594,7 @@ class BoardPostServiceTest {
             .sreYn("Y")
             .bbrC("10002")
             .nacInqNbr(0)
-            .nacUnqId(id)
+            .nacId(id)
             .nacGrpSqn(0)
             .nacGrpLev(0)
             .flApgYn("N")

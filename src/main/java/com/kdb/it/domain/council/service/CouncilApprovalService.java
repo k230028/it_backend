@@ -82,15 +82,15 @@ public class CouncilApprovalService {
         Basctm council = councilService.findActiveCouncil(asctId);
 
         // SUBMITTED 상태 확인 (작성완료 후에만 결재 요청 가능)
-        if (!"002".equals(council.getAsctStsC())) {
+        if (!"02".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "결재 요청은 작성완료(002) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
+                "결재 요청은 작성완료(002) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
         // 신청서명 생성: "협의회 타당성검토표 결재 요청 - {사업명}"
         String prjNm = projectOverviewRepository
-                .findByAsctIdAndDelYn(asctId, "N")
-                .map(Bpovwm::getPrjNm)
+                .findByItPtlAsctIdAndDelYn(asctId, "N")
+                .map(Bpovwm::getAbusNm)
                 .orElse(asctId);
         String apfNm = "협의회 타당성검토표 결재 요청 - " + prjNm;
 
@@ -102,7 +102,7 @@ public class CouncilApprovalService {
         String apfMngNo = applicationService.submit(createRequest);
 
         // 협의회 상태 전이: SUBMITTED → APPROVAL_PENDING
-        councilService.changeStatus(asctId, "003");
+        councilService.changeStatus(asctId, "03");
 
         return new CouncilDto.ApprovalResponse(apfMngNo);
     }
@@ -133,15 +133,15 @@ public class CouncilApprovalService {
         Basctm council = councilService.findActiveCouncil(asctId);
 
         // FINAL_APPROVAL 상태 확인 (전원 결과서 확인 완료 후에만 결재 요청 가능)
-        if (!"011".equals(council.getAsctStsC())) {
+        if (!"11".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "개최결과서 결재 요청은 결재 요청 가능(011) 상태에서만 가능합니다. 현재 상태: " + council.getAsctStsC());
+                "개최결과서 결재 요청은 결재 요청 가능(011) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
         // 신청서명 생성: "협의회 개최결과서 결재 요청 - {사업명}"
         String prjNm = projectOverviewRepository
-                .findByAsctIdAndDelYn(asctId, "N")
-                .map(Bpovwm::getPrjNm)
+                .findByItPtlAsctIdAndDelYn(asctId, "N")
+                .map(Bpovwm::getAbusNm)
                 .orElse(asctId);
         String apfNm = "협의회 개최결과서 결재 요청 - " + prjNm;
 
@@ -153,7 +153,7 @@ public class CouncilApprovalService {
         String apfMngNo = applicationService.submit(createRequest);
 
         // 협의회 상태 전이: FINAL_APPROVAL → RESULT_APPROVAL_PENDING (PRD §31: 결재 중 = 012)
-        councilService.changeStatus(asctId, "012");
+        councilService.changeStatus(asctId, "12");
 
         return new CouncilDto.ApprovalResponse(apfMngNo);
     }
@@ -183,25 +183,25 @@ public class CouncilApprovalService {
     public void processApprovalCallback(String asctId, CouncilDto.ApprovalCallbackRequest request) {
         // 협의회 존재 확인
         Basctm council = councilService.findActiveCouncil(asctId);
-        String currentStatus = council.getAsctStsC();
+        String currentStatus = council.getItPtlAsctPrgStsTc();
 
-        if ("003".equals(currentStatus)) {
+        if ("03".equals(currentStatus)) {
             // 타당성검토표 결재 콜백 (APPROVAL_PENDING)
             if (request.approved()) {
                 // 승인: 003 → 004
-                councilService.changeStatus(asctId, "004");
+                councilService.changeStatus(asctId, "04");
             } else {
                 // 반려: 003 → 001 (타당성검토표 재작성)
-                councilService.changeStatus(asctId, "001");
+                councilService.changeStatus(asctId, "01");
             }
-        } else if ("012".equals(currentStatus)) {
+        } else if ("12".equals(currentStatus)) {
             // 개최결과서 결재 콜백 (RESULT_APPROVAL_PENDING, PRD §31: 결재 중 = 012)
             if (request.approved()) {
                 // 승인: 012(결재 중) → 013(완료)
-                councilService.changeStatus(asctId, "013");
+                councilService.changeStatus(asctId, "13");
             } else {
                 // 반려: 012 → 011 (재결재 요청 가능)
-                councilService.changeStatus(asctId, "011");
+                councilService.changeStatus(asctId, "11");
             }
         } else {
             throw new IllegalStateException(

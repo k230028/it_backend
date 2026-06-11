@@ -20,8 +20,8 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public class BrsltmL extends BaseLogEntity {
 
-    @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, comment = "협의회ID")
+    private String itPtlAsctId;
 
     @Column(name = "SYN_OPNN_CONE", length = 4000, comment = "종합의견내용")
     private String synOpnn;
@@ -29,6 +29,6 @@ public class BrsltmL extends BaseLogEntity {
     @Column(name = "CKG_OPNN_CONE", length = 1000, comment = "타당성검토의견내용")
     private String ckgOpnn;
 
-    @Column(name = "FL_MNG_NO", length = 32, comment = "관련자료 첨부파일관리번호")
-    private String flMngNo;
+    @Column(name = "FL_MPN_ID", length = 36, comment = "관련자료 첨부파일관리번호")
+    private String flMpnId;
 }

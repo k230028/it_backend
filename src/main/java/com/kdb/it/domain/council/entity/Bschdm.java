@@ -39,8 +39,8 @@ public class Bschdm extends BaseEntity {
 
     /** 협의회ID: 복합키 첫 번째 컬럼 */
     @Id
-    @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
+    private String itPtlAsctId;
 
     /** 사번: 복합키 두 번째 컬럼 (TPRMPP_CUSERI.ENO FK, 평가위원) */
     @Id
@@ -49,25 +49,25 @@ public class Bschdm extends BaseEntity {
 
     /** 일정일자: 복합키 세 번째 컬럼 (DT 도메인 VARCHAR2(8) yyyyMMdd, @Id라 컨버터 불가로 String 직접 사용) */
     @Id
-    @Column(name = "DSD_DT", length = 8, nullable = false, comment = "일정일자")
-    private String dsdDt;
+    @Column(name = "CNRC_DT", length = 8, nullable = false, comment = "일정일자")
+    private String cnrcDt;
 
     /** 일정시간: 복합키 네 번째 컬럼 (10:00/14:00/15:00/16:00) */
     @Id
-    @Column(name = "DSD_TM", length = 10, nullable = false, comment = "일정시간")
-    private String dsdTm;
+    @Column(name = "CNRC_STT_TM", length = 6, nullable = false, comment = "일정시간")
+    private String cnrcSttTm;
 
     /** 가능여부: Y(가능) / N(불가), 기본값 N */
-    @Column(name = "PSB_YN", length = 1, comment = "가능여부")
-    private String psbYn;
+    @Column(name = "USE_PSB_YN", length = 1, comment = "가능여부")
+    private String usePsbYn;
 
     /**
      * 일정 가능 여부 응답 (위원이 입력)
      *
-     * @param psbYn 가능여부 (Y/N)
+     * @param usePsbYn 가능여부 (Y/N)
      */
-    public void respond(String psbYn) {
-        this.psbYn = psbYn;
+    public void respond(String usePsbYn) {
+        this.usePsbYn = usePsbYn;
     }
 }
 

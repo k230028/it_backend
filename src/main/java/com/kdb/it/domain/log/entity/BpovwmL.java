@@ -20,39 +20,39 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public class BpovwmL extends BaseLogEntity {
 
-    @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, comment = "협의회ID")
+    private String itPtlAsctId;
 
-    @Column(name = "PRJ_NM", length = 200, comment = "사업명")
-    private String prjNm;
+    @Column(name = "ABUS_NM", length = 100, comment = "사업명")
+    private String abusNm;
 
-    @Column(name = "PRJ_TRM_CONE", length = 100, comment = "사업기간내용")
-    private String prjTrm;
+    @Column(name = "ABUS_TRM_CONE", length = 300, comment = "사업기간내용")
+    private String abusTrmCone;
 
-    @Column(name = "NCS_CONE", length = 1000, comment = "필요성내용")
-    private String ncs;
+    @Column(name = "ABUS_NCS_CONE", length = 300, comment = "필요성내용")
+    private String abusNcsCone;
 
-    @Column(name = "PRJ_BG_AMR", precision = 18, scale = 3, comment = "소요예산금액")
-    private java.math.BigDecimal prjBg;
+    @Column(name = "RQM_BG_AMT", precision = 18, comment = "소요예산금액")
+    private java.math.BigDecimal rqmBgAmt;
 
-    @Column(name = "EDRT_NM", length = 100, comment = "전결권자명")
-    private String edrt;
+    @Column(name = "IT_PTL_EDRT_TC", length = 2, comment = "전결권자명")
+    private String itPtlEdrtTc;
 
-    @Column(name = "PRJ_DES", length = 1000, comment = "사업내용")
-    private String prjDes;
+    @Column(name = "ABUS_CONE", length = 1000, comment = "사업내용")
+    private String abusCone;
 
-    @Column(name = "LGL_RGL_YN", length = 1, comment = "법률규제대응여부")
-    private String lglRglYn;
+    @Column(name = "LW_RGL_YN", length = 1, comment = "법률규제대응여부")
+    private String lwRglYn;
 
-    @Column(name = "LGL_RGL_NM", length = 500, comment = "관련법률규제명")
-    private String lglRglNm;
+    @Column(name = "LW_FDTN", length = 300, comment = "관련법률규제명")
+    private String lwFdtn;
 
-    @Column(name = "XPT_EFF_CONE", length = 1000, comment = "기대효과내용")
-    private String xptEff;
+    @Column(name = "DGOG_PPO_CONE", length = 4000, comment = "기대효과내용")
+    private String dgogPpoCone;
 
-    @Column(name = "KPN_TC", length = 10, comment = "저장구분코드")
-    private String kpnTc;
+    @Column(name = "KPN_TP_TC", length = 2, comment = "저장구분코드")
+    private String kpnTpTc;
 
-    @Column(name = "FL_MNG_NO", length = 32, comment = "첨부파일관리번호")
-    private String flMngNo;
+    @Column(name = "FL_MPN_ID", length = 36, comment = "첨부파일관리번호")
+    private String flMpnId;
 }

@@ -23,11 +23,11 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
     /**
      * 협의회 단건 조회 (삭제되지 않은 항목)
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @param delYn  삭제여부 ('N')
      * @return 협의회 (없으면 empty)
      */
-    Optional<Basctm> findByAsctIdAndDelYn(String asctId, String delYn);
+    Optional<Basctm> findByItPtlAsctIdAndDelYn(String itPtlAsctId, String delYn);
 
     /**
      * 전체 협의회 목록 조회 (관리자용, 삭제되지 않은 항목)
@@ -42,16 +42,16 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      *
      * <p>특정 사업의 협의회 진행이력 조회 시 사용합니다.</p>
      *
-     * @param prjMngNo 프로젝트관리번호
+     * @param abusMngNo 프로젝트관리번호
      * @param delYn    삭제여부 ('N')
      * @return 해당 사업의 협의회 목록
      */
-    List<Basctm> findByPrjMngNoAndDelYn(String prjMngNo, String delYn);
+    List<Basctm> findByAbusMngNoAndDelYn(String abusMngNo, String delYn);
 
     /**
      * Oracle 시퀀스(SEQ_BASCTM) 다음 값 조회
      *
-     * <p>새로운 협의회 생성 시 ASCT_ID 채번에 사용합니다.
+     * <p>새로운 협의회 생성 시 IT_PTL_ASCT_ID 채번에 사용합니다.
      * ID 형식: {@code ASCT-{연도}-{4자리}} (예: ASCT-2026-0001)</p>
      *
      * @return 시퀀스의 다음 값
@@ -68,25 +68,25 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * {@code PESSIMISTIC_WRITE} 잠금을 걸어 같은 협의회의 채번을 직렬화한다.
      * 서로 다른 협의회는 다른 행을 잠그므로 경합하지 않는다.</p>
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @return 잠금된 협의회 (없으면 empty)
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT b FROM Basctm b WHERE b.asctId = :asctId")
-    Optional<Basctm> findByIdForUpdate(@Param("asctId") String asctId);
+    @Query("SELECT b FROM Basctm b WHERE b.itPtlAsctId = :itPtlAsctId")
+    Optional<Basctm> findByIdForUpdate(@Param("itPtlAsctId") String itPtlAsctId);
 
     /**
      * 사업 PRJ_STS 업데이트 (협의회 신청 시 상태 전이용)
      *
-     * @param prjMngNo 프로젝트관리번호
-     * @param prjSno   프로젝트순번
+     * @param abusMngNo 프로젝트관리번호
+     * @param sno   프로젝트순번
      * @param prjSts   변경할 상태값
      */
     @Modifying
-    @Query(value = "UPDATE TPRMPP_BPROJM SET IT_PTL_STS_TC = :prjSts WHERE ABUS_MNG_NO = :prjMngNo AND SNO = :prjSno",
+    @Query(value = "UPDATE TPRMPP_BPROJM SET IT_PTL_STS_TC = :prjSts WHERE ABUS_MNG_NO = :abusMngNo AND SNO = :sno",
             nativeQuery = true)
-    int updateProjectStatus(@Param("prjMngNo") String prjMngNo,
-                            @Param("prjSno") Integer prjSno,
+    int updateProjectStatus(@Param("abusMngNo") String abusMngNo,
+                            @Param("sno") Integer sno,
                             @Param("prjSts") String prjSts);
 
     /**
@@ -101,7 +101,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      */
     @Query(value = """
             SELECT a.* FROM TPRMPP_BASCTM a
-            JOIN TPRMPP_BPROJM p ON a.PRJ_MNG_NO = p.ABUS_MNG_NO AND a.PRJ_SNO = p.SNO
+            JOIN TPRMPP_BPROJM p ON a.ABUS_MNG_NO = p.ABUS_MNG_NO AND a.SNO = p.SNO
             WHERE p.BBR_C = :bbrC AND a.DEL_YN = :delYn
             ORDER BY a.FST_ENR_DTM DESC
             """, nativeQuery = true)
@@ -118,7 +118,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      */
     @Query(value = """
             SELECT a.* FROM TPRMPP_BASCTM a
-            JOIN TPRMPP_BCMMTM c ON a.ASCT_ID = c.ASCT_ID
+            JOIN TPRMPP_BCMMTM c ON a.IT_PTL_ASCT_ID = c.IT_PTL_ASCT_ID
             WHERE c.ENO = :eno AND a.DEL_YN = :delYn AND c.DEL_YN = :delYn
             ORDER BY a.FST_ENR_DTM DESC
             """, nativeQuery = true)
@@ -139,38 +139,38 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      *
      * @param stsInProgress 정실협 진행중 코드 ('21')
      * @param stsPending    정실협 신청 대상 코드 ('19')
-     * @return prjMngNo, prjSno, prjNm, asctId(null 가능), asctStsC(null 가능),
-     *         dbrTc(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
+     * @return abusMngNo, sno, abusNm, itPtlAsctId(null 가능), itPtlAsctPrgStsTc(null 가능),
+     *         itPtlAsctDbrTc(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
      */
     @Query(value = """
             SELECT
-                p.ABUS_MNG_NO    AS prjMngNo,
-                p.SNO       AS prjSno,
-                p.ABUS_NM       AS prjNm,
-                a.ASCT_ID       AS asctId,
-                a.ASCT_STS_C      AS asctStsC,
-                a.DBR_TC        AS dbrTc,
+                p.ABUS_MNG_NO    AS abusMngNo,
+                p.SNO       AS sno,
+                p.ABUS_NM       AS abusNm,
+                a.IT_PTL_ASCT_ID       AS itPtlAsctId,
+                a.IT_PTL_ASCT_PRG_STS_TC      AS itPtlAsctPrgStsTc,
+                a.IT_PTL_ASCT_DBR_TC        AS itPtlAsctDbrTc,
                 a.CNRC_DT       AS cnrcDt,
-                a.CNRC_TM       AS cnrcTm,
-                CASE WHEN a.ASCT_ID IS NOT NULL THEN 1 ELSE 0 END AS applied,
+                a.CNRC_STT_TM       AS cnrcSttTm,
+                CASE WHEN a.IT_PTL_ASCT_ID IS NOT NULL THEN 1 ELSE 0 END AS applied,
                 p.BSE_YY         AS prjYy,
                 p.BZ_TP_C          AS prjTp,
                 p.SVN_DPM_C       AS svnDpm,
-                p.TOT_RQM_AMT        AS prjBg,
+                p.TOT_RQM_AMT        AS rqmBgAmt,
                 p.STT_DTM        AS sttDt,
                 p.END_DTM        AS endDt,
                 p.DVM_DPM_C        AS itDpm,
-                p.ABUS_CONE       AS prjDes
+                p.ABUS_CONE       AS abusCone
             FROM TPRMPP_BPROJM p
             LEFT JOIN TPRMPP_BASCTM a
-                ON p.ABUS_MNG_NO = a.PRJ_MNG_NO
-               AND p.SNO    = a.PRJ_SNO
+                ON p.ABUS_MNG_NO = a.ABUS_MNG_NO
+               AND p.SNO    = a.SNO
                AND a.DEL_YN     = 'N'
             WHERE p.DEL_YN = 'N'
               AND (
-                  (a.ASCT_ID IS NOT NULL AND p.IT_PTL_STS_TC = :stsInProgress)
+                  (a.IT_PTL_ASCT_ID IS NOT NULL AND p.IT_PTL_STS_TC = :stsInProgress)
                   OR
-                  (a.ASCT_ID IS NULL AND p.IT_PTL_STS_TC = :stsPending)
+                  (a.IT_PTL_ASCT_ID IS NULL AND p.IT_PTL_STS_TC = :stsPending)
               )
             ORDER BY p.FST_ENR_DTM DESC
             """, nativeQuery = true)
@@ -190,39 +190,39 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * @param svnDpm        사용자 소속부서코드 (CustomUserDetails.getBbrC())
      * @param stsInProgress 정실협 진행중 코드 ('21')
      * @param stsPending    정실협 신청 대상 코드 ('19')
-     * @return prjMngNo, prjSno, prjNm, asctId(null 가능), asctStsC(null 가능),
-     *         dbrTc(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
+     * @return abusMngNo, sno, abusNm, itPtlAsctId(null 가능), itPtlAsctPrgStsTc(null 가능),
+     *         itPtlAsctDbrTc(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
      */
     @Query(value = """
             SELECT
-                p.ABUS_MNG_NO    AS prjMngNo,
-                p.SNO       AS prjSno,
-                p.ABUS_NM       AS prjNm,
-                a.ASCT_ID       AS asctId,
-                a.ASCT_STS_C      AS asctStsC,
-                a.DBR_TC        AS dbrTc,
+                p.ABUS_MNG_NO    AS abusMngNo,
+                p.SNO       AS sno,
+                p.ABUS_NM       AS abusNm,
+                a.IT_PTL_ASCT_ID       AS itPtlAsctId,
+                a.IT_PTL_ASCT_PRG_STS_TC      AS itPtlAsctPrgStsTc,
+                a.IT_PTL_ASCT_DBR_TC        AS itPtlAsctDbrTc,
                 a.CNRC_DT       AS cnrcDt,
-                a.CNRC_TM       AS cnrcTm,
-                CASE WHEN a.ASCT_ID IS NOT NULL THEN 1 ELSE 0 END AS applied,
+                a.CNRC_STT_TM       AS cnrcSttTm,
+                CASE WHEN a.IT_PTL_ASCT_ID IS NOT NULL THEN 1 ELSE 0 END AS applied,
                 p.BSE_YY         AS prjYy,
                 p.BZ_TP_C          AS prjTp,
                 p.SVN_DPM_C       AS svnDpm,
-                p.TOT_RQM_AMT        AS prjBg,
+                p.TOT_RQM_AMT        AS rqmBgAmt,
                 p.STT_DTM        AS sttDt,
                 p.END_DTM        AS endDt,
                 p.DVM_DPM_C        AS itDpm,
-                p.ABUS_CONE       AS prjDes
+                p.ABUS_CONE       AS abusCone
             FROM TPRMPP_BPROJM p
             LEFT JOIN TPRMPP_BASCTM a
-                ON p.ABUS_MNG_NO = a.PRJ_MNG_NO
-               AND p.SNO    = a.PRJ_SNO
+                ON p.ABUS_MNG_NO = a.ABUS_MNG_NO
+               AND p.SNO    = a.SNO
                AND a.DEL_YN     = 'N'
             WHERE p.SVN_DPM_C = :svnDpm
               AND p.DEL_YN  = 'N'
               AND (
-                  (a.ASCT_ID IS NOT NULL AND p.IT_PTL_STS_TC = :stsInProgress)
+                  (a.IT_PTL_ASCT_ID IS NOT NULL AND p.IT_PTL_STS_TC = :stsInProgress)
                   OR
-                  (a.ASCT_ID IS NULL AND p.IT_PTL_STS_TC = :stsPending)
+                  (a.IT_PTL_ASCT_ID IS NULL AND p.IT_PTL_STS_TC = :stsPending)
               )
             ORDER BY p.FST_ENR_DTM DESC
             """, nativeQuery = true)

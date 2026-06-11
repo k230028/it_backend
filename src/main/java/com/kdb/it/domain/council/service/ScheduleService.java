@@ -86,10 +86,10 @@ public class ScheduleService {
         Basctm council = councilService.findActiveCouncil(asctId);
 
         // 전체 위원 목록
-        List<Bcmmtm> members = committeeRepository.findByAsctIdAndDelYn(asctId, "N");
+        List<Bcmmtm> members = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
 
         // 전체 일정 응답 목록
-        List<Bschdm> allSchedules = scheduleRepository.findByAsctIdAndDelYn(asctId, "N");
+        List<Bschdm> allSchedules = scheduleRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
 
         // 응답한 위원 사번 Set
         Set<String> respondedEnos = allSchedules.stream()
@@ -112,7 +112,7 @@ public class ScheduleService {
                     List<CouncilDto.ScheduleSlotResponse> slots =
                             scheduleByEno.getOrDefault(m.getEno(), List.of()).stream()
                                     .map(s -> new CouncilDto.ScheduleSlotResponse(
-                                            s.getDsdDt(), s.getDsdTm(), s.getPsbYn()))
+                                            s.getCnrcDt(), s.getCnrcSttTm(), s.getUsePsbYn()))
                                     .collect(Collectors.toList());
 
                     return new CouncilDto.MemberScheduleStatus(
@@ -120,7 +120,7 @@ public class ScheduleService {
                             user != null ? user.getUsrNm() : null,
                             user != null ? user.getBbrNm() : null,
                             user != null ? user.getPtCNm() : null,
-                            m.getVlrTc(),
+                            m.getItPtlAsctMebTc(),
                             responded,
                             slots
                     );
@@ -135,7 +135,7 @@ public class ScheduleService {
         // INFO_SYS: 필수 위원(예산팀장:12004, IT기획팀장:18001) 응답 완료 시 true
         // 기타 타입: 전원 응답 완료 시 true
         boolean allRequiredResponded = calcAllRequiredResponded(
-                council.getDbrTc(), members, userMap, respondedEnos);
+                council.getItPtlAsctDbrTc(), members, userMap, respondedEnos);
 
         return new CouncilDto.ScheduleStatusResponse(
                 members.size(),
@@ -158,8 +158,8 @@ public class ScheduleService {
      */
     public List<CouncilDto.ScheduleSlotResponse> getMySchedule(String asctId, String eno) {
         councilService.findActiveCouncil(asctId);
-        return scheduleRepository.findByAsctIdAndEnoAndDelYn(asctId, eno, "N").stream()
-                .map(s -> new CouncilDto.ScheduleSlotResponse(s.getDsdDt(), s.getDsdTm(), s.getPsbYn()))
+        return scheduleRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").stream()
+                .map(s -> new CouncilDto.ScheduleSlotResponse(s.getCnrcDt(), s.getCnrcSttTm(), s.getUsePsbYn()))
                 .collect(Collectors.toList());
     }
 
@@ -181,7 +181,7 @@ public class ScheduleService {
             Map<String, CuserI> userMap,
             Set<String> respondedEnos) {
 
-        if (!"003".equals(dbrTc)) {  // INFO_SYS
+        if (!"03".equals(dbrTc)) {  // INFO_SYS
             // INFO_SYS 외 타입: 전원 응답 기준
             return !members.isEmpty() && respondedEnos.size() >= members.size();
         }
@@ -243,7 +243,7 @@ public class ScheduleService {
             // upsert: 기존 데이터 있으면 update, 없으면 신규 INSERT
             final String dsdDtFinal = dsdDtNorm;
             scheduleRepository
-                    .findByAsctIdAndEnoAndDsdDtAndDsdTmAndDelYn(
+                    .findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
                             asctId, eno, dsdDtFinal, item.dsdTm(), "N")
                     .ifPresentOrElse(
                         // 기존 응답 update
@@ -251,11 +251,11 @@ public class ScheduleService {
                         // 신규 INSERT — persist()로 직접 @PrePersist 발화 (PRD §15 회귀 방지)
                         () -> {
                             Bschdm schedule = Bschdm.builder()
-                                    .asctId(asctId)
+                                    .itPtlAsctId(asctId)
                                     .eno(eno)
-                                    .dsdDt(dsdDtFinal)
-                                    .dsdTm(item.dsdTm())
-                                    .psbYn(item.psbYn())
+                                    .cnrcDt(dsdDtFinal)
+                                    .cnrcSttTm(item.dsdTm())
+                                    .usePsbYn(item.psbYn())
                                     .build();
                             entityManager.persist(schedule);
                         }
@@ -298,7 +298,7 @@ public class ScheduleService {
                 .confirmSchedule(request.cnrcDt(), request.cnrcTm(), request.cnrcPlc());
 
         // 협의회 상태 전이: PREPARING → SCHEDULED
-        councilService.changeStatus(asctId, "006");
+        councilService.changeStatus(asctId, "06");
     }
 
     // =========================================================================

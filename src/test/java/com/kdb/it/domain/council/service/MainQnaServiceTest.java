@@ -55,15 +55,15 @@ class MainQnaServiceTest {
     void getMainQnaList_returnsResponses() {
         Bmqnam qna = Bmqnam.builder()
                 .qtnId("MQT-1")
-                .asctId(ASCT_ID)
-                .qtnEno("E001")
+                .itPtlAsctId(ASCT_ID)
+                .qtnDwuUsid("E001")
                 .qtnCone("질의")
-                .repEno("E002")
+                .repDwuUsid("E002")
                 .repCone("답변")
-                .repYn("Y")
+                .qtnRpdRltYn("Y")
                 .build();
         given(councilRepository.existsById(ASCT_ID)).willReturn(true);
-        given(mainQnaRepository.findByAsctIdAndDelYnOrderByFstEnrDtmAsc(ASCT_ID, "N"))
+        given(mainQnaRepository.findByItPtlAsctIdAndDelYnOrderByFstEnrDtmAsc(ASCT_ID, "N"))
                 .willReturn(List.of(qna));
 
         List<CouncilDto.QnaResponse> result = service.getMainQnaList(ASCT_ID);
@@ -96,9 +96,9 @@ class MainQnaServiceTest {
         ArgumentCaptor<Bmqnam> captor = ArgumentCaptor.forClass(Bmqnam.class);
         verify(entityManager).persist(captor.capture());
         assertThat(captor.getValue().getQtnId()).isEqualTo("MQT-ASCT-2026-0001-03");
-        assertThat(captor.getValue().getQtnEno()).isEqualTo("E001");
+        assertThat(captor.getValue().getQtnDwuUsid()).isEqualTo("E001");
         assertThat(captor.getValue().getQtnCone()).isEqualTo("본회의 질의");
-        assertThat(captor.getValue().getRepYn()).isEqualTo("N");
+        assertThat(captor.getValue().getQtnRpdRltYn()).isEqualTo("N");
     }
 
     @Test
@@ -119,7 +119,7 @@ class MainQnaServiceTest {
     @Test
     @DisplayName("updateMainQna: 협의회ID가 일치하면 질의 내용을 수정한다")
     void updateMainQna_updatesQuestion() {
-        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").asctId(ASCT_ID).qtnCone("기존").build();
+        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId(ASCT_ID).qtnCone("기존").build();
         given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
 
         service.updateMainQna(ASCT_ID, "MQT-1", new CouncilDto.QnaUpdateRequest("수정"));
@@ -144,7 +144,7 @@ class MainQnaServiceTest {
     @Test
     @DisplayName("replyMainQna: 협의회ID가 일치하면 답변자와 답변 여부를 갱신한다")
     void replyMainQna_replies() {
-        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").asctId(ASCT_ID).repYn("N").build();
+        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId(ASCT_ID).qtnRpdRltYn("N").build();
         given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
 
         service.replyMainQna(
@@ -154,9 +154,9 @@ class MainQnaServiceTest {
                 new CustomUserDetails("E002", List.of(CustomUserDetails.ATH_ADMIN), "D001")
         );
 
-        assertThat(qna.getRepEno()).isEqualTo("E002");
+        assertThat(qna.getRepDwuUsid()).isEqualTo("E002");
         assertThat(qna.getRepCone()).isEqualTo("답변");
-        assertThat(qna.getRepYn()).isEqualTo("Y");
+        assertThat(qna.getQtnRpdRltYn()).isEqualTo("Y");
     }
 
     @Test
@@ -177,7 +177,7 @@ class MainQnaServiceTest {
     @Test
     @DisplayName("deleteMainQna: 협의회ID가 일치하면 Soft Delete 처리한다")
     void deleteMainQna_deletes() {
-        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").asctId(ASCT_ID).build();
+        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId(ASCT_ID).build();
         given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
 
         service.deleteMainQna(ASCT_ID, "MQT-1");
@@ -198,7 +198,7 @@ class MainQnaServiceTest {
     @Test
     @DisplayName("수정/답변/삭제: 협의회ID가 다르면 예외를 던진다")
     void mutate_wrongCouncil_throws() {
-        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").asctId("OTHER").build();
+        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId("OTHER").build();
         given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
 
         assertThatThrownBy(() -> service.updateMainQna(ASCT_ID, "MQT-1", new CouncilDto.QnaUpdateRequest("수정")))
@@ -209,7 +209,7 @@ class MainQnaServiceTest {
     @Test
     @DisplayName("replyMainQna/deleteMainQna: 협의회ID가 다르면 예외를 던진다")
     void replyAndDelete_wrongCouncil_throws() {
-        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").asctId("OTHER").build();
+        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId("OTHER").build();
         given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
 
         assertThatThrownBy(() -> service.replyMainQna(

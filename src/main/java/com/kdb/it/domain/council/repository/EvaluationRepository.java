@@ -23,49 +23,49 @@ public interface EvaluationRepository extends JpaRepository<Bevalm, BevalmId> {
      *
      * <p>IT관리자가 평균점수 계산 및 결과서 작성 시 사용합니다.</p>
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @param delYn  삭제여부 ('N')
      * @return 해당 협의회의 전체 평가의견 목록
      */
-    List<Bevalm> findByAsctIdAndDelYn(String asctId, String delYn);
+    List<Bevalm> findByItPtlAsctIdAndDelYn(String itPtlAsctId, String delYn);
 
     /**
      * 특정 위원의 평가의견 목록 조회
      *
-     * @param asctId 협의회ID
+     * @param itPtlAsctId 협의회ID
      * @param eno    사번
      * @param delYn  삭제여부 ('N')
      * @return 해당 위원의 평가의견 목록 (최대 6개)
      */
-    List<Bevalm> findByAsctIdAndEnoAndDelYn(String asctId, String eno, String delYn);
+    List<Bevalm> findByItPtlAsctIdAndEnoAndDelYn(String itPtlAsctId, String eno, String delYn);
 
     /**
      * 특정 위원의 특정 항목 평가의견 단건 조회
      *
-     * @param asctId   협의회ID
+     * @param itPtlAsctId   협의회ID
      * @param eno      사번
-     * @param ckgItmC  점검항목코드
+     * @param itPtlCkgItmTc  점검항목코드
      * @param delYn    삭제여부 ('N')
      * @return 평가의견 (없으면 empty)
      */
-    Optional<Bevalm> findByAsctIdAndEnoAndCkgItmCAndDelYn(
-            String asctId, String eno, String ckgItmC, String delYn);
+    Optional<Bevalm> findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(
+            String itPtlAsctId, String eno, String itPtlCkgItmTc, String delYn);
 
     /**
      * 점검항목별 평균 점수 조회
      *
      * <p>결과서 2page의 평균점수 산출에 사용됩니다.</p>
      *
-     * @param asctId  협의회ID
+     * @param itPtlAsctId  협의회ID
      * @param delYn   삭제여부 ('N')
-     * @return 항목코드, 평균점수 배열 (Object[]: [ckgItmC, avgScore])
+     * @return 항목코드, 평균점수 배열 (Object[]: [itPtlCkgItmTc, avgScore])
      */
     @Query(value = """
-            SELECT CKG_ITM_C, AVG(CKG_RCRD)
+            SELECT IT_PTL_CKG_ITM_TC, AVG(QUEL_RCRD)
             FROM TPRMPP_BEVALM
-            WHERE ASCT_ID = :asctId AND DEL_YN = :delYn
-            GROUP BY CKG_ITM_C
-            ORDER BY CKG_ITM_C
+            WHERE IT_PTL_ASCT_ID = :itPtlAsctId AND DEL_YN = :delYn
+            GROUP BY IT_PTL_CKG_ITM_TC
+            ORDER BY IT_PTL_CKG_ITM_TC
             """, nativeQuery = true)
-    List<Object[]> findAverageScoreByItem(@Param("asctId") String asctId, @Param("delYn") String delYn);
+    List<Object[]> findAverageScoreByItem(@Param("itPtlAsctId") String itPtlAsctId, @Param("delYn") String delYn);
 }

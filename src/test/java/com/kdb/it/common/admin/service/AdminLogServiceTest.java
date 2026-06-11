@@ -83,8 +83,8 @@ class AdminLogServiceTest {
                 .chgTp("C")
                 .chgDtm(LocalDateTime.of(2026, 5, 6, 9, 0))
                 .chgUsid("10001")
-                .asctId("ASCT-1")
-                .prjMngNo("PRJ-2026-0001")
+                .itPtlAsctId("ASCT-1")
+                .abusMngNo("PRJ-2026-0001")
                 .cnrcDt(LocalDate.of(2026, 5, 7))
                 .build();
         TypedQuery<BasctmL> listQuery = mock(TypedQuery.class);
@@ -117,7 +117,7 @@ class AdminLogServiceTest {
                 .logSno(1L)
                 .chgTp("U")
                 .chgUsid("10001")
-                .asctId("ASCT-1")
+                .itPtlAsctId("ASCT-1")
                 .build();
         given(entityManager.find(eq(BasctmL.class), eq(1L))).willReturn(log);
 

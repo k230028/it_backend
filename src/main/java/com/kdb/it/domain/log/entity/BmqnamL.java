@@ -23,21 +23,21 @@ public class BmqnamL extends BaseLogEntity {
     @Column(name = "QTN_ID", length = 36, comment = "질의응답ID")
     private String qtnId;
 
-    @Column(name = "ASCT_ID", length = 32, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, comment = "협의회ID")
+    private String itPtlAsctId;
 
-    @Column(name = "QTN_ENO", length = 32, comment = "질의자사번")
-    private String qtnEno;
+    @Column(name = "QTN_DWU_USID", length = 14, comment = "질의자사번")
+    private String qtnDwuUsid;
 
     @Column(name = "QTN_CONE", length = 4000, comment = "질의내용")
     private String qtnCone;
 
-    @Column(name = "REP_ENO", length = 32, comment = "답변자사번")
-    private String repEno;
+    @Column(name = "REP_DWU_USID", length = 14, comment = "답변자사번")
+    private String repDwuUsid;
 
     @Column(name = "REP_CONE", length = 2000, comment = "답변내용")
     private String repCone;
 
-    @Column(name = "REP_YN", length = 1, comment = "답변여부")
-    private String repYn;
+    @Column(name = "QTN_RPD_RLT_YN", length = 1, comment = "답변여부")
+    private String qtnRpdRltYn;
 }

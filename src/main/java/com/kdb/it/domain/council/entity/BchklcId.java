@@ -9,11 +9,11 @@ import lombok.NoArgsConstructor;
 /**
  * 타당성 자체점검(Bchklc) 복합 기본키 클래스
  *
- * <p>복합키 구성: ({@code asctId}, {@code ckgItmC})</p>
+ * <p>복합키 구성: ({@code itPtlAsctId}, {@code itPtlCkgItmTc})</p>
  *
  * <ul>
- *   <li>asctId: 협의회ID</li>
- *   <li>ckgItmC: 점검항목코드 (MGMT_STR/FIN_EFC/RISK_IMP/REP_IMP/DUP_SYS/ETC)</li>
+ *   <li>itPtlAsctId: 협의회ID</li>
+ *   <li>itPtlCkgItmTc: 점검항목코드 (MGMT_STR/FIN_EFC/RISK_IMP/REP_IMP/DUP_SYS/ETC)</li>
  * </ul>
  */
 @Getter
@@ -23,8 +23,8 @@ import lombok.NoArgsConstructor;
 public class BchklcId implements Serializable {
 
     /** 협의회ID: Bchklc.asctId와 이름/타입 일치 필수 */
-    private String asctId;
+    private String itPtlAsctId;
 
     /** 점검항목코드: Bchklc.ckgItmC와 이름/타입 일치 필수 */
-    private String ckgItmC;
+    private String itPtlCkgItmTc;
 }

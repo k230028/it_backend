@@ -1,11 +1,9 @@
 package com.kdb.it.domain.council.entity;
 
-import com.kdb.it.common.util.Yyyymmdd8DateConverter;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BperfmL;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
@@ -16,7 +14,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDate;
 
 /**
  * 성과관리 자체계획(성과지표) 엔티티
@@ -40,76 +37,50 @@ public class Bperfm extends BaseEntity {
 
     /** 협의회ID: 복합키 첫 번째 컬럼 */
     @Id
-    @Column(name = "ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
-    private String asctId;
+    @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
+    private String itPtlAsctId;
 
     /** 지표순번: 복합키 두 번째 컬럼 (1부터 시작, 클라이언트 관리) */
     @Id
-    @Column(name = "DTP_SNO", nullable = false, comment = "지표순번")
-    private Integer dtpSno;
+    @Column(name = "EVL_DTP_SNO", nullable = false, comment = "지표순번")
+    private Integer evlDtpSno;
 
-    /** 성과지표명: 지표를 식별하는 명칭 (최대 200자) */
-    @Column(name = "DTP_NM", length = 200, comment = "성과지표명")
-    private String dtpNm;
+    /** 평가지표명: 지표를 식별하는 명칭 (최대 100자) */
+    @Column(name = "EVL_DTP_NM", length = 100, comment = "평가지표명")
+    private String evlDtpNm;
 
-    /** 성과지표정의: 지표의 개념과 범위를 설명 (최대 1000자) */
-    @Column(name = "DTP_CONE", length = 1000, comment = "성과지표정의")
-    private String dtpCone;
+    /** 평가지표정의내용: 지표의 개념과 범위를 설명 (최대 4000자) */
+    @Column(name = "EVL_DTP_DFNT_CONE", length = 4000, comment = "평가지표정의내용")
+    private String evlDtpDfntCone;
 
-    /** 측정방법내용: 지표 측정 방법론 설명 (최대 1000자) */
-    @Column(name = "MSM_MANR_CONE", length = 1000, comment = "측정방법내용")
-    private String msmManr;
+    /** 평가지표계산식내용: 지표 계산 공식 (최대 4000자) */
+    @Column(name = "EVL_DTP_CLF_CONE", length = 4000, comment = "평가지표계산식내용")
+    private String evlDtpClfCone;
 
-    /** 산식: 지표 계산 공식 (최대 1000자) */
-    @Column(name = "CLF", length = 1000, comment = "산식")
-    private String clf;
+    /** 평가지표측정시점내용: 측정 시점 설명 (예: 시스템 오픈 후, 최대 300자) */
+    @Column(name = "EVL_DTP_MSM_PTM_CONE", length = 300, comment = "평가지표측정시점내용")
+    private String evlDtpMsmPtmCone;
 
-    /** 목표수치내용: 달성 목표값 (예: 95% 이상, 최대 200자) */
-    @Column(name = "GL_NV_CONE", length = 200, comment = "목표수치내용")
-    private String glNv;
-
-    /** 측정시작일: 지표 측정 시작 날짜 (DT 도메인 VARCHAR2(8) yyyyMMdd / 자바는 LocalDate) */
-    @Column(name = "MSM_STT_DT", length = 8, comment = "측정시작일")
-    @Convert(converter = Yyyymmdd8DateConverter.class)
-    private LocalDate msmSttDt;
-
-    /** 측정종료일: 지표 측정 종료 날짜 (DT 도메인 VARCHAR2(8) yyyyMMdd / 자바는 LocalDate) */
-    @Column(name = "MSM_END_DT", length = 8, comment = "측정종료일")
-    @Convert(converter = Yyyymmdd8DateConverter.class)
-    private LocalDate msmEndDt;
-
-    /** 측정시점내용: 측정 시점 설명 (예: 시스템 오픈 후, 최대 100자) PTM 도메인 */
-    @Column(name = "MSM_PTM_CONE", length = 100, comment = "측정시점내용")
-    private String msmTpm;
-
-    /** 측정주기: 측정 반복 주기 (예: 매년말, 반기별, 최대 100자) */
-    @Column(name = "MSM_CLE", length = 100, comment = "측정주기")
-    private String msmCle;
+    /** 평가지표측정주기내용: 측정 반복 주기 (예: 매년말, 반기별, 최대 300자) */
+    @Column(name = "EVL_DTP_MSM_CLE_CONE", length = 300, comment = "평가지표측정주기내용")
+    private String evlDtpMsmCleCone;
 
     /**
      * 성과지표 정보 업데이트
      *
-     * @param dtpNm    성과지표명
-     * @param dtpCone  성과지표정의
-     * @param msmManr  측정방법
-     * @param clf      산식
-     * @param glNv     목표치
-     * @param msmSttDt 측정시작일
-     * @param msmEndDt 측정종료일
-     * @param msmTpm   측정시점
-     * @param msmCle   측정주기
+     * @param evlDtpNm         평가지표명
+     * @param evlDtpDfntCone   평가지표정의내용
+     * @param evlDtpClfCone    평가지표계산식내용
+     * @param evlDtpMsmPtmCone 평가지표측정시점내용
+     * @param evlDtpMsmCleCone 평가지표측정주기내용
      */
-    public void update(String dtpNm, String dtpCone, String msmManr, String clf, String glNv,
-                       LocalDate msmSttDt, LocalDate msmEndDt, String msmTpm, String msmCle) { // dtpSno PK은 별도
-        this.dtpNm = dtpNm;
-        this.dtpCone = dtpCone;
-        this.msmManr = msmManr;
-        this.clf = clf;
-        this.glNv = glNv;
-        this.msmSttDt = msmSttDt;
-        this.msmEndDt = msmEndDt;
-        this.msmTpm = msmTpm;
-        this.msmCle = msmCle;
+    public void update(String evlDtpNm, String evlDtpDfntCone, String evlDtpClfCone,
+                       String evlDtpMsmPtmCone, String evlDtpMsmCleCone) { // evlDtpSno PK은 별도
+        this.evlDtpNm = evlDtpNm;
+        this.evlDtpDfntCone = evlDtpDfntCone;
+        this.evlDtpClfCone = evlDtpClfCone;
+        this.evlDtpMsmPtmCone = evlDtpMsmPtmCone;
+        this.evlDtpMsmCleCone = evlDtpMsmCleCone;
     }
 }
 

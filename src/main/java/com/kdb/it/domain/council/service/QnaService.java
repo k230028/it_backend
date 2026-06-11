@@ -52,7 +52,7 @@ public class QnaService {
         }
 
         return qnaRepository
-                .findByAsctIdAndDelYnOrderByFstEnrDtmAsc(asctId, "N")
+                .findByItPtlAsctIdAndDelYnOrderByFstEnrDtmAsc(asctId, "N")
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -86,10 +86,10 @@ public class QnaService {
 
         Bpqnam qna = Bpqnam.builder()
                 .qtnId(qtnId)
-                .asctId(asctId)
-                .qtnEno(userDetails.getEno())
+                .itPtlAsctId(asctId)
+                .qtnDwuUsid(userDetails.getEno())
                 .qtnCone(request.qtnCone())
-                .repYn("N")
+                .qtnRpdRltYn("N")
                 .build();
 
         qnaRepository.save(qna);
@@ -112,12 +112,12 @@ public class QnaService {
         Bpqnam qna = qnaRepository.findById(qtnId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 질의응답입니다: " + qtnId));
 
-        if (!qna.getAsctId().equals(asctId)) {
+        if (!qna.getItPtlAsctId().equals(asctId)) {
             throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
         }
 
         /* 본인 또는 관리자만 수정 가능 */
-        boolean isOwner = qna.getQtnEno().equals(userDetails.getEno());
+        boolean isOwner = qna.getQtnDwuUsid().equals(userDetails.getEno());
         // FIXME: 권한 문자열 불일치 — ITPAD001은 CustomUserDetails에서 ROLE_ADMIN으로 매핑되므로
         //        "ROLE_ITPAD001" 비교는 항상 false가 되어 관리자 수정이 동작하지 않음. "ROLE_ADMIN" 또는 userDetails.isAdmin()으로 교정 필요 (TASK.md 등록).
         boolean isAdmin = userDetails.getAuthorities().stream()
@@ -145,7 +145,7 @@ public class QnaService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 질의응답입니다: " + qtnId));
 
         /* 해당 협의회 소속 여부 검증 */
-        if (!qna.getAsctId().equals(asctId)) {
+        if (!qna.getItPtlAsctId().equals(asctId)) {
             throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
         }
 
@@ -165,13 +165,13 @@ public class QnaService {
     private CouncilDto.QnaResponse toResponse(Bpqnam qna) {
         return new CouncilDto.QnaResponse(
                 qna.getQtnId(),
-                qna.getQtnEno(),
+                qna.getQtnDwuUsid(),
                 null,  // 사용자명은 별도 조회 (M10 UI에서 필요 시 추가)
                 qna.getQtnCone(),
-                qna.getRepEno(),
+                qna.getRepDwuUsid(),
                 null,  // 답변자명
                 qna.getRepCone(),
-                qna.getRepYn()
+                qna.getQtnRpdRltYn()
         );
     }
 }
