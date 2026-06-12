@@ -303,7 +303,6 @@ public class AdminLogService {
         List<LogDefinition> list = List.of(
                 new LogDefinition("basctm", "정보화실무협의회 신청 로그", BasctmL.class),
                 new LogDefinition("bbugt", "예산 편성 로그", BbugtL.class),
-                new LogDefinition("bchklc", "체크리스트 로그", BchklcL.class),
                 new LogDefinition("bcmmtm", "협의회 위원 로그", BcmmtmL.class),
                 new LogDefinition("bcostm", "전산업무비 로그", BcostmL.class),
                 new LogDefinition("bevalm", "평가 로그", BevalmL.class),

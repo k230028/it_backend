@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
  * <ul>
  *   <li>itPtlAsctId: 협의회ID</li>
  *   <li>eno: 평가위원 사번</li>
- *   <li>itPtlCkgItmTc: 점검항목코드 (BCHKLC와 동일 코드체계)</li>
+ *   <li>itPtlCkgItmTc: 점검항목코드 (CCODEM CKG_ITM_C 체계)</li>
  * </ul>
  */
 @Getter

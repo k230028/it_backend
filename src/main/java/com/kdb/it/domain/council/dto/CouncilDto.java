@@ -158,8 +158,6 @@ public class CouncilDto {
         String xptEff,
         /** 저장구분코드 (TEMP:임시저장 / COMPLETE:작성완료) */
         String kpnTc,
-        /** 타당성 자체점검 6개 항목 */
-        List<CheckItemRequest> checkItems,
         /** 성과지표 목록 (1개 이상) */
         List<PerformanceRequest> performances,
         /** 첨부파일관리번호 (hwp/hwpx/pdf) */
@@ -190,39 +188,13 @@ public class CouncilDto {
         String xptEff,
         /** 저장유형 */
         String kpnTc,
-        /** 자체점검 항목 목록 */
-        List<CheckItemResponse> checkItems,
         /** 성과지표 목록 */
         List<PerformanceResponse> performances,
         /** 첨부파일관리번호 */
         String flMngNo
     ) {}
 
-    /**
-     * 타당성 자체점검 항목 요청
-     */
-    public record CheckItemRequest(
-        /** 점검항목코드 (MGMT_STR/FIN_EFC/RISK_IMP/REP_IMP/DUP_SYS/ETC) */
-        String ckgItmC,
-        /** 점검내용 */
-        String ckgCone,
-        /** 점검점수 (1~5) */
-        Integer ckgRcrd
-    ) {}
 
-    /**
-     * 타당성 자체점검 항목 응답 (화면 표출용 한글명 포함)
-     */
-    public record CheckItemResponse(
-        /** 점검항목코드 */
-        String ckgItmC,
-        /** 화면 표출용 한글명 (예: 경영전략/계획 부합) */
-        String ckgItmNm,
-        /** 점검내용 */
-        String ckgCone,
-        /** 점검점수 (1~5) */
-        Integer ckgRcrd
-    ) {}
 
     /**
      * 성과지표 요청 (추가/수정 공통)

@@ -31,7 +31,7 @@
 - `./gradlew test` — 테스트 실행
 - `./gradlew clean test` — 전체 테스트 재검증
 - `./gradlew clean build` — 클린 빌드
-- Swagger UI: http://localhost:8080/swagger-ui/index.html
+- Swagger UI: http://localhost:28080/swagger-ui/index.html
 
 ## 4. 아키텍처
 

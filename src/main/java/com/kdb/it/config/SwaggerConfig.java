@@ -20,8 +20,8 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
  * Swagger UI 접근 URL:
  * </p>
  * <ul>
- * <li>Swagger UI: {@code http://localhost:8080/swagger-ui/index.html}</li>
- * <li>API 명세 JSON: {@code http://localhost:8080/v3/api-docs}</li>
+ * <li>Swagger UI: {@code http://localhost:28080/swagger-ui/index.html}</li>
+ * <li>API 명세 JSON: {@code http://localhost:28080/v3/api-docs}</li>
  * </ul>
  *
  * <p>

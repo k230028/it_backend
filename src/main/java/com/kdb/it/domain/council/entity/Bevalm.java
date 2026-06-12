@@ -23,7 +23,7 @@ import lombok.experimental.SuperBuilder;
  * 점수(1~5)와 의견을 작성합니다.
  * 1~2점 입력 시 의견(CKG_OPNN) 작성이 필수입니다.</p>
  *
- * <p>점검항목 코드는 BCHKLC와 동일 체계(CCODEM CKG_ITM_C)를 사용합니다.</p>
+ * <p>점검항목 코드는 공통코드(CCODEM CKG_ITM_C) 체계를 사용합니다.</p>
  *
  * <p>복합키: ({@code ASCT_ID}, {@code ENO}, {@code CKG_ITM_C})</p>
  */

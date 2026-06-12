@@ -1,10 +1,8 @@
 package com.kdb.it.domain.council.service;
 
 import com.kdb.it.domain.council.dto.CouncilDto;
-import com.kdb.it.domain.council.entity.Bchklc;
 import com.kdb.it.domain.council.entity.Bperfm;
 import com.kdb.it.domain.council.entity.Bpovwm;
-import com.kdb.it.domain.council.repository.FeasibilityCheckRepository;
 import com.kdb.it.domain.council.repository.PerformanceRepository;
 import com.kdb.it.domain.council.repository.ProjectOverviewRepository;
 import jakarta.persistence.EntityManager;
@@ -24,7 +22,6 @@ import java.util.stream.Collectors;
  * <p>타당성검토표는 3개 엔티티로 구성됩니다:</p>
  * <ul>
  *   <li>{@code BPOVWM}: 사업개요 (1:1)</li>
- *   <li>{@code BCHKLC}: 타당성 자체점검 6개 고정 항목 (1:N)</li>
  *   <li>{@code BPERFM}: 성과관리 자체계획 (1:N, 동적 추가/삭제)</li>
  * </ul>
  *
@@ -46,8 +43,6 @@ public class FeasibilityService {
     /** 사업개요 리포지토리 (TPRMPP_BPOVWM) */
     private final ProjectOverviewRepository projectOverviewRepository;
 
-    /** 타당성 자체점검 리포지토리 (TPRMPP_BCHKLC) */
-    private final FeasibilityCheckRepository feasibilityCheckRepository;
 
     /** 성과지표 리포지토리 (TPRMPP_BPERFM) */
     private final PerformanceRepository performanceRepository;
@@ -59,19 +54,7 @@ public class FeasibilityService {
     @PersistenceContext
     private EntityManager entityManager;
 
-    // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM_C 기준)
-    private static final Map<String, String> CHECK_ITEM_NAMES = Map.of(
-        "01", "경영전략/계획 부합",
-        "02", "재무 효과",
-        "03", "리스크 개선 효과",
-        "04", "평판/이미지 개선 효과",
-        "05", "유사/중복 시스템 유무",
-        "06", "기타"
-    );
 
-    // 6개 고정 점검항목 순서 (CKG_ITM_C 숫자코드)
-    private static final List<String> CHECK_ITEM_ORDER =
-        List.of("01", "02", "03", "04", "05", "06");
 
     // =========================================================================
     // 조회
@@ -94,13 +77,10 @@ public class FeasibilityService {
             return null;
         }
 
-        // 자체점검 6개 항목 조회
-        List<Bchklc> checkItems = feasibilityCheckRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
-
         // 성과지표 목록 조회 (순번 오름차순)
         List<Bperfm> performances = performanceRepository.findByItPtlAsctIdAndDelYnOrderByEvlDtpSnoAsc(asctId, "N");
 
-        return toFeasibilityResponse(overviewOpt.get(), checkItems, performances);
+        return toFeasibilityResponse(overviewOpt.get(), performances);
     }
 
     // =========================================================================
@@ -133,11 +113,6 @@ public class FeasibilityService {
 
         // 사업개요 저장 (upsert)
         saveOrUpdateOverview(asctId, request);
-
-        // 자체점검 저장 (upsert — 6개 항목)
-        if (request.checkItems() != null && !request.checkItems().isEmpty()) {
-            saveOrUpdateCheckItems(asctId, request.checkItems());
-        }
 
         // 성과지표 저장 (전체 교체)
         if (request.performances() != null && !request.performances().isEmpty()) {
@@ -186,29 +161,6 @@ public class FeasibilityService {
                 );
     }
 
-    /**
-     * 타당성 자체점검 6개 항목 저장 (upsert)
-     *
-     * <p>항목별로 기존 데이터 있으면 update, 없으면 신규 INSERT합니다.</p>
-     */
-    private void saveOrUpdateCheckItems(String asctId, List<CouncilDto.CheckItemRequest> requests) {
-        for (CouncilDto.CheckItemRequest req : requests) {
-            feasibilityCheckRepository
-                    .findByItPtlAsctIdAndItPtlCkgItmTcAndDelYn(asctId, req.ckgItmC(), "N")
-                    .ifPresentOrElse(
-                        existing -> existing.update(req.ckgCone(), req.ckgRcrd()),
-                        () -> {
-                            Bchklc item = Bchklc.builder()
-                                    .itPtlAsctId(asctId)
-                                    .itPtlCkgItmTc(req.ckgItmC())
-                                    .ckgOpnnCone(req.ckgCone())
-                                    .quelRcrd(req.ckgRcrd())
-                                    .build();
-                            feasibilityCheckRepository.save(item);
-                        }
-                    );
-        }
-    }
 
     /**
      * 성과지표 전체 교체 (기존 하드 삭제 + 신규 INSERT)
@@ -264,23 +216,7 @@ public class FeasibilityService {
      * 엔티티 → FeasibilityResponse 변환
      */
     private CouncilDto.FeasibilityResponse toFeasibilityResponse(
-            Bpovwm overview, List<Bchklc> checkItems, List<Bperfm> performances) {
-
-        // 자체점검 항목 변환 (고정 순서 유지)
-        Map<String, Bchklc> checkMap = checkItems.stream()
-                .collect(Collectors.toMap(Bchklc::getItPtlCkgItmTc, c -> c));
-
-        List<CouncilDto.CheckItemResponse> checkResponses = CHECK_ITEM_ORDER.stream()
-                .map(code -> {
-                    Bchklc item = checkMap.get(code);
-                    return new CouncilDto.CheckItemResponse(
-                            code,
-                            CHECK_ITEM_NAMES.getOrDefault(code, code),
-                            item != null ? item.getCkgOpnnCone() : null,
-                            item != null ? item.getQuelRcrd() : null
-                    );
-                })
-                .collect(Collectors.toList());
+            Bpovwm overview, List<Bperfm> performances) {
 
         // 성과지표 변환
         List<CouncilDto.PerformanceResponse> perfResponses = performances.stream()
@@ -293,7 +229,7 @@ public class FeasibilityService {
                 overview.getAbusNm(), overview.getAbusTrmCone(), overview.getAbusNcsCone(),
                 overview.getRqmBgAmt(), overview.getItPtlEdrtTc(), overview.getAbusCone(),
                 overview.getLwRglYn(), overview.getLwFdtn(), overview.getDgogPpoCone(),
-                overview.getKpnTpTc(), checkResponses, perfResponses, overview.getFlMpnId()
+                overview.getKpnTpTc(), perfResponses, overview.getFlMpnId()
         );
     }
 }
