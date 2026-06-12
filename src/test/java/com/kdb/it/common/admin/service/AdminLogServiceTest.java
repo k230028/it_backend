@@ -105,7 +105,7 @@ class AdminLogServiceTest {
         assertThat(result.size()).isEqualTo(500);
         assertThat(result.content()).hasSize(1);
         assertThat(result.content().get(0)).containsEntry("logSno", 1L);
-        assertThat(result.content().get(0)).containsEntry("asctId", "ASCT-1");
+        assertThat(result.content().get(0)).containsEntry("itPtlAsctId", "ASCT-1");
         assertThat(result.userNames()).containsEntry("10001", "홍길동");
         verify(listQuery).setMaxResults(500);
     }

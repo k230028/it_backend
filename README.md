@@ -802,6 +802,65 @@ public class Bprojm extends BaseEntity { ... }
 #   → Tomcat 기동
 ```
 
+### 10.1 폐쇄망 빌드 (오프라인 미러)
+
+인터넷이 차단된 폐쇄망에서는 외부망에서 수집한 의존성 묶음(`C:\maven-repo`)을
+**로컬 파일 저장소(file:// URL)**로 사용해 빌드합니다. Nexus 업로드가 정책상
+불가하고, Gradle 캐시(`.gradle`) 통째 복사도 저장소 선언 불일치로 동작하지
+않으므로 본 방식이 표준입니다.
+
+#### 반입 패키지 생성 (외부망 PC)
+
+```powershell
+cd it_backend
+
+# 1. 격리된 GRADLE_USER_HOME으로 클린 빌드 — 필요한 의존성 전부 수집
+$env:GRADLE_USER_HOME = 'C:\gradle-mirror'
+.\gradlew --no-daemon clean build
+
+# 2. Gradle 캐시를 Maven2 레이아웃 저장소로 변환
+.\make-local-maven-repo.ps1 -CacheDir 'C:\gradle-mirror\caches\modules-2\files-2.1' -OutDir 'C:\maven-repo'
+
+# 3. Gradle 배포판 zip 포함 (wrapper가 압축 해제 후 zip을 삭제하므로 별도 다운로드)
+Invoke-WebRequest -Uri 'https://downloads.gradle.org/distributions/gradle-9.2.1-bin.zip' -OutFile 'C:\maven-repo\gradle-9.2.1-bin.zip'
+```
+
+`C:\maven-repo` 폴더 전체(의존성 + Gradle zip, 약 250MB)를 폐쇄망 PC의
+**동일 경로 `C:\maven-repo`**로 복사합니다.
+
+#### 폐쇄망 PC 설정
+
+아래 3개 파일의 `[폐쇄망]` 주석 블록을 해제합니다 (모두 file:// URL 기본):
+
+| 파일 | 변경 내용 |
+|------|----------|
+| `settings.gradle` | `pluginManagement` 블록 해제 → 플러그인을 `file:///C:/maven-repo`에서 해석 |
+| `build.gradle` | `mavenCentral()` 주석 처리 + `maven { url = 'file:///C:/maven-repo' }` 해제 |
+| `gradle/wrapper/gradle-wrapper.properties` | 기존 `distributionUrl` 주석 처리 + `file:///c:/maven-repo/gradle-9.2.1-bin.zip` 해제 |
+
+file 프로토콜이므로 `allowInsecureProtocol` 설정은 불필요합니다.
+이후 `./gradlew build`로 일반 빌드와 동일하게 사용합니다.
+
+#### 의존성 추가/변경 시 미러 갱신
+
+build.gradle 의존성이 바뀌면 외부망에서 위 1·2단계를 재실행한 뒤
+갱신된 `C:\maven-repo`를 다시 반입합니다 (`C:\gradle-mirror`는 증분
+재사용되므로 유지 권장).
+
+#### 동작 원리 및 주의사항
+
+- Gradle은 플러그인 ID(`org.springframework.boot`)를 **마커 POM**
+  (`org.springframework.boot.gradle.plugin-4.0.5.pom`)으로 먼저 조회한 뒤 실제
+  구현 JAR를 받습니다. 미러에 마커 POM이 없으면 "Plugin was not found" 오류가
+  발생합니다 (변환 스크립트가 자동 포함).
+- `querydsl-jpa`/`querydsl-apt`는 `jakarta` classifier 파일
+  (`querydsl-jpa-5.1.0-jakarta.jar`)을 사용합니다.
+- `.gradle` 캐시 통째 복사가 실패하는 이유: 캐시 메타데이터가 "어느 저장소
+  선언에서 받았는지"에 바인딩되어, 외부망(`mavenCentral()`)과 폐쇄망(file/Nexus)
+  선언이 다르면 캐시를 재사용하지 못하고 네트워크 조회를 시도합니다.
+- Nexus를 사용할 수 있게 되면(프록시 그룹 저장소 구성 시) 각 파일의 "방식 A"
+  주석(Nexus URL + `allowInsecureProtocol`)으로 전환하면 됩니다.
+
 ## 11. 환경 설정
 
 ### 11.1 application.properties 주요 항목

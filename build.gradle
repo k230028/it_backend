@@ -28,14 +28,12 @@ repositories {
 	// [폐쇄망] 내부 Nexus 사용 시: 위 mavenCentral()을 주석 처리하고 아래 블록의 주석을 해제합니다.
 	// URL은 사내 Nexus의 maven-public(프록시 그룹) 저장소로 교체하세요.
 	// maven {
-	// 	url 'http://10.6.65.151:20080/repository/maven-releases/'
-	// 	// 사내 Nexus가 http이므로 필수 — 누락 시 "Using insecure protocols ... is unsupported" 오류
-	// 	allowInsecureProtocol = true
-	// 	// Nexus가 인증을 요구하는 경우에만 주석 해제 (값은 환경변수 또는 ~/.gradle/gradle.properties로 주입)
-	// 	// credentials {
-	// 	// 	username = findProperty('nexusUser') ?: System.getenv('NEXUS_USER')
-	// 	// 	password = findProperty('nexusPassword') ?: System.getenv('NEXUS_PASSWORD')
-	// 	// }
+	// 	// 방식 A: 내부 Nexus (전체 아티팩트가 업로드되어 있어야 함)
+	// 	// url = 'http://10.6.65.151:20080/repository/maven-releases/'
+	// 	// allowInsecureProtocol = true   // http이므로 필수
+	//
+	// 	// 방식 B: 반입한 로컬 폴더 저장소 (make-local-maven-repo.ps1 산출물)
+	// 	url = 'file:///C:/maven-repo'
 	// }
 }
 

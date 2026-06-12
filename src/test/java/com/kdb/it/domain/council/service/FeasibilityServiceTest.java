@@ -165,7 +165,7 @@ class FeasibilityServiceTest {
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
         ReflectionTestUtils.setField(feasibilityService, "entityManager", entityManager);
         Query deleteQuery = mock(Query.class);
-        given(entityManager.createQuery("DELETE FROM Bperfm b WHERE b.asctId = :asctId")).willReturn(deleteQuery);
+        given(entityManager.createQuery("DELETE FROM Bperfm b WHERE b.itPtlAsctId = :asctId")).willReturn(deleteQuery);
         given(deleteQuery.setParameter("asctId", ASCT_ID)).willReturn(deleteQuery);
         given(deleteQuery.executeUpdate()).willReturn(1);
         List<CouncilDto.PerformanceRequest> performances = List.of(
