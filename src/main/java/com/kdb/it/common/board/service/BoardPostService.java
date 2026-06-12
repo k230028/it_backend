@@ -203,7 +203,7 @@ public class BoardPostService {
         verifyCanWrite(user, board);
 
         postRepository.shiftGroupSqn(
-            parent.getNacId(),
+            parent.getNacUnqId(),
             parent.getNacGrpSqn(),
             parent.getNacGrpLev()
         );
@@ -229,7 +229,7 @@ public class BoardPostService {
             .nacGrpLev(0)
             .build();
         reply.initGroupAsReply(
-            parent.getNacId(),
+            parent.getNacUnqId(),
             parent.getNacGrpSqn(),
             parent.getNacGrpLev(),
             parent.getNacMngNo()

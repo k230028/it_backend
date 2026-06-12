@@ -64,7 +64,7 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
 
         return queryFactory.selectFrom(p)
             .where(builder)
-            .orderBy(p.ancYn.desc(), p.nacId.desc(), p.nacGrpSqn.asc())
+            .orderBy(p.ancYn.desc(), p.nacUnqId.desc(), p.nacGrpSqn.asc())
             .offset(offset)
             .limit(cond.getSize())
             .fetch();

@@ -42,8 +42,8 @@ public class Cblbcm extends BaseEntity {
     @Column(name = "NAC_INQ_NBR", nullable = false, comment = "게시물조회수")
     private Integer nacInqNbr;
 
-    @Column(name = "NAC_ID", length = 16, comment = "게시물고유ID")
-    private String nacId;
+    @Column(name = "NAC_UNQ_ID", length = 16, comment = "게시물고유ID")
+    private String nacUnqId;
 
     @Column(name = "ANC_YN", nullable = false, length = 1, comment = "공지여부")
     private String ancYn;
@@ -125,7 +125,7 @@ public class Cblbcm extends BaseEntity {
 
     /** 그룹 정보 설정 — 원글 등록 시 */
     public void initGroupAsRoot() {
-        this.nacId  = this.nacMngNo;
+        this.nacUnqId  = this.nacMngNo;
         this.nacGrpSqn = 0;
         this.nacGrpLev = 0;
     }
@@ -139,7 +139,7 @@ public class Cblbcm extends BaseEntity {
      * @param parentPk     부모의 NAC_MNG_NO
      */
     public void initGroupAsReply(String parentGrpNo, int parentGrpSqn, int parentGrpLev, String parentPk) {
-        this.nacId    = parentGrpNo;
+        this.nacUnqId    = parentGrpNo;
         this.nacGrpSqn   = parentGrpSqn + 1;
         this.nacGrpLev   = parentGrpLev + 1;
         this.hrkNacNo    = parentPk;
