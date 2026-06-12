@@ -33,3 +33,8 @@ out/
 /nbdist/
 /.nb-gradle/
 .gstack/
+
+# Æó¼â¸Á ¹èÆ÷¿ë ºôµå »êÃâ¹° (GitHub 100MB Á¦ÇÑ ÃÊ°ú)
+*.JAR
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
