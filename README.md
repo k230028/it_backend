@@ -841,11 +841,63 @@ Invoke-WebRequest -Uri 'https://downloads.gradle.org/distributions/gradle-9.2.1-
 file 프로토콜이므로 `allowInsecureProtocol` 설정은 불필요합니다.
 이후 `./gradlew build`로 일반 빌드와 동일하게 사용합니다.
 
+#### 내부 Nexus 활용 — 커버리지 점검 및 부분 다운로드
+
+내부 Nexus(`http://10.6.65.151:20080/repository/maven-releases/`)에 의존성이
+일부만 있는 경우, 빌드는 첫 누락에서 중단되므로 `check-repo-coverage.ps1`로
+전체 커버리지를 먼저 점검합니다. 빌드와 달리 끝까지 돌며 누락 목록을 남깁니다.
+
+```powershell
+# 점검만 (존재/누락/커버리지 요약 + repo-missing-files.txt 생성)
+.\check-repo-coverage.ps1 -ManifestFile .\maven-repo-manifest-pom-only.txt
+
+# 점검 + 존재하는 파일을 C:\maven-repo로 다운로드 (재실행 시 받은 파일은 건너뜀)
+.\check-repo-coverage.ps1 -ManifestFile .\maven-repo-manifest-pom-only.txt -DownloadDir 'C:\maven-repo'
+
+# Nexus가 익명 조회를 막은 경우: -Username / -Password 추가
+```
+
+- 기준 목록: `maven-repo-manifest-pom-only.txt` (583건, `.module` 제외) —
+  외부망 미러 생성 시 함께 갱신.
+- 누락분은 `repo-missing-files.txt`를 그대로 **반입 신청 목록**으로 사용합니다.
+  타입은 확장자 그대로: `.jar` → jar, `.pom` → pom (BOM·부모 POM·플러그인
+  마커도 모두 pom).
+- 운영 흐름: ① Nexus에서 받을 수 있는 만큼 `C:\maven-repo` 채움 → ② 누락분
+  반입 신청 → ③ 도착 파일을 같은 경로 구조로 배치 → ④ 빌드.
+
+#### Gradle Module Metadata(.module) — 반입 불필요
+
+`.module`은 Gradle 전용 JSON 메타데이터(variant 정보)로, Maven 표준 타입
+(jar/pom/war/aar/ear)이 아니라 반입 신청이 불가합니다. 저장소 주석 블록에
+포함된 아래 설정이 Gradle의 `.module` 요청 자체를 차단하므로 **반입하지 않아도
+됩니다** (주석 해제 시 이 블록 누락 금지 — 누락하면 `.module` 404로 빌드 중단):
+
+```groovy
+metadataSources {
+    mavenPom()
+    artifact()
+    ignoreGradleMetadataRedirection()   // POM의 .module 리다이렉트 마커 무시
+}
+```
+
+POM-only 해석으로 전체 빌드가 통과함은 빈 캐시 + file:// 저장소 시뮬레이션으로
+검증 완료(2026-06-12). `.module` 보유 아티팩트 132개 전부 `.pom`을 함께
+보유함을 확인했습니다.
+
 #### 의존성 추가/변경 시 미러 갱신
 
 build.gradle 의존성이 바뀌면 외부망에서 위 1·2단계를 재실행한 뒤
 갱신된 `C:\maven-repo`를 다시 반입합니다 (`C:\gradle-mirror`는 증분
-재사용되므로 유지 권장).
+재사용되므로 유지 권장). manifest도 함께 재생성합니다:
+
+```powershell
+Get-ChildItem C:\maven-repo -File -Recurse |
+  ForEach-Object { $_.FullName.Substring('C:\maven-repo\'.Length) -replace '\\','/' } |
+  Where-Object { $_ -notlike 'gradle-*' } |
+  Out-File maven-repo-manifest.txt -Encoding utf8
+Get-Content maven-repo-manifest.txt | Where-Object { $_ -notlike '*.module' } |
+  Out-File maven-repo-manifest-pom-only.txt -Encoding utf8
+```
 
 #### 동작 원리 및 주의사항
 
@@ -860,6 +912,16 @@ build.gradle 의존성이 바뀌면 외부망에서 위 1·2단계를 재실행�
   선언이 다르면 캐시를 재사용하지 못하고 네트워크 조회를 시도합니다.
 - Nexus를 사용할 수 있게 되면(프록시 그룹 저장소 구성 시) 각 파일의 "방식 A"
   주석(Nexus URL + `allowInsecureProtocol`)으로 전환하면 됩니다.
+  이때도 `metadataSources` 블록은 유지합니다.
+
+#### 관련 스크립트/파일
+
+| 파일 | 용도 |
+|------|------|
+| `make-local-maven-repo.ps1` | Gradle 캐시 → Maven2 레이아웃 미러 변환 (외부망) |
+| `check-repo-coverage.ps1` | 내부 저장소 커버리지 점검 + 존재 파일 다운로드 (폐쇄망) |
+| `maven-repo-manifest.txt` | 필요 파일 전체 목록 (715건, `.module` 포함) |
+| `maven-repo-manifest-pom-only.txt` | 점검·반입 기준 목록 (583건, `.module` 제외) |
 
 ## 11. 환경 설정
 

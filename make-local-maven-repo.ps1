@@ -1,4 +1,4 @@
-# Gradle 캐시(modules-2/files-2.1)를 Maven2 레이아웃의 로컬 폴더 저장소로 변환합니다.
+﻿# Gradle 캐시(modules-2/files-2.1)를 Maven2 레이아웃의 로컬 폴더 저장소로 변환합니다.
 # Nexus 업로드가 불가한 폐쇄망에서, 변환된 폴더를 반입해 file:/// URL 저장소로 사용합니다.
 #
 # 사용 절차:

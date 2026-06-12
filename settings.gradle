@@ -11,6 +11,14 @@
 //
 // 			// 방식 B: 반입한 로컬 폴더 저장소 (make-local-maven-repo.ps1 산출물)
 // 			url = 'file:///C:/maven-repo'
+//
+// 			// Gradle Module Metadata(.module) 미요청 — POM만으로 해석.
+// 			// .module은 반입 신청 불가 유형이므로 저장소에 없어도 동작하도록 필수 유지.
+// 			metadataSources {
+// 				mavenPom()
+// 				artifact()
+// 				ignoreGradleMetadataRedirection()
+// 			}
 // 		}
 // 	}
 // }
