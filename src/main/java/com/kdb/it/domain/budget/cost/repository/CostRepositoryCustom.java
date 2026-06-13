@@ -45,13 +45,13 @@ public interface CostRepositoryCustom {
      * 전년도 예산 합계 일괄 조회 (계속 항목 전용)
      *
      * <p>
-     * 주어진 관리번호 목록과 전년도 연도로 TPRMPP_BCOSTM에서 TOT_XP_AMT 합계를
+     * 주어진 관리번호 목록과 전년도 연도로 TPRMPP_BCOSTM에서 AMT(전산업무비예산금액) 합계를
      * costBgNo별로 집계하여 반환합니다.
      * </p>
      *
      * @param costBgNos 전산관리비 관리번호 목록 (계속 항목만)
      * @param prevYear  전년도 연도 문자열 (예: "2025")
-     * @return costBgNo → TOT_XP_AMT 합계 맵
+     * @return costBgNo → AMT(전산업무비예산금액) 합계 맵
      */
     Map<String, BigDecimal> sumPrevBgByCostBgNos(List<String> costBgNos, String prevYear);
 }

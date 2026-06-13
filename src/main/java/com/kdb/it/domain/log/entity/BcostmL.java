@@ -41,7 +41,7 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "CTT_OPP_NM", length = 100, comment = "계약상대처명")
     private String cttOppNm;
 
-    @Column(name = "TOT_XP_AMT", precision = 18, scale = 3, comment = "전산업무비예산금액")
+    @Column(name = "AMT", precision = 18, scale = 3, comment = "전산업무비예산금액")
     private BigDecimal costTotXpAmt;
 
     @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")

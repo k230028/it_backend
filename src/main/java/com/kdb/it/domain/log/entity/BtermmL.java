@@ -47,7 +47,7 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "IT_PTL_TMN_SVC_TC", length = 2, comment = "단말기서비스")
     private String tmnClsfC;
 
-    @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "단말기금액")
+    @Column(name = "AMT", precision = 18, scale = 3, comment = "단말기금액")
     private BigDecimal termRqmBgAmt;
 
     @Column(name = "CUR_C", length = 3, comment = "통화코드")

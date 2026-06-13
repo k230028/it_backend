@@ -54,7 +54,7 @@ public class BplanmL extends BaseLogEntity {
     @Column(name = "ADU_TOT_AMT", precision = 15, scale = 2, comment = "총예산")
     private BigDecimal aduTotAmt;
 
-    @Column(name = "CPIT_BG_APV_AMT", precision = 15, scale = 2, comment = "자본예산")
+    @Column(name = "TOT_CPIT_AMT", precision = 15, scale = 2, comment = "자본예산")
     private BigDecimal cpitBgApvAmt;
 
     @Column(name = "TOT_XP_AMT", precision = 15, scale = 2, comment = "일반관리비")

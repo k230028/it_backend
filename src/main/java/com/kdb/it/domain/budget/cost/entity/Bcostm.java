@@ -76,7 +76,7 @@ public class Bcostm extends BaseEntity {
     private String cttOppNm;
 
     /** 전산업무비예산: 해당 항목의 연간 예산 금액 (최대 18자리, 소수점 3자리) */
-    @Column(name = "TOT_XP_AMT", precision = 18, scale = 3, comment = "전산업무비예산금액 (물리컬럼 TOT_XP_AMT=총비용금액)")
+    @Column(name = "AMT", precision = 18, scale = 3, comment = "전산업무비예산금액 (물리컬럼 AMT=금액)")
     private BigDecimal costTotXpAmt;
 
     /** 지급주기코드: 비용 지급 주기 코드 (예: 매월, 분기, 반기, 연간) */

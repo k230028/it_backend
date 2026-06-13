@@ -98,7 +98,7 @@ public class Bplanm extends BaseEntity {
     private BigDecimal aduTotAmt;
 
     /** 자본예산 (전체 대상사업의 자본예산 합계) */
-    @Column(name = "CPIT_BG_APV_AMT", precision = 18, scale = 3, comment = "자본예산 (물리컬럼 CPIT_BG_APV_AMT=자본예산승인금액)")
+    @Column(name = "TOT_CPIT_AMT", precision = 18, scale = 3, comment = "자본예산 (물리컬럼 TOT_CPIT_AMT=총자본금액)")
     private BigDecimal cpitBgApvAmt;
 
     /** 일반관리비 (전체 대상사업의 일반관리비 합계) */

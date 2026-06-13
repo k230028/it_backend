@@ -467,8 +467,8 @@ public class CostDto {
         @Schema(description = "일반관리비 편성예산 (BBUGTM 기준)")
         private java.math.BigDecimal costDupBg;
 
-        /** 전년도 예산: abusTc=002(계속)이면 bseYy-1 연도 TOT_XP_AMT 합계, 신규(abusTc=001)이면 0 */
-        @Schema(description = "전년도 예산 (계속 항목은 전년도 TOT_XP_AMT 합계, 신규는 0)")
+        /** 전년도 예산: abusTc=002(계속)이면 bseYy-1 연도 AMT(전산업무비예산금액) 합계, 신규(abusTc=001)이면 0 */
+        @Schema(description = "전년도 예산 (계속 항목은 전년도 AMT(전산업무비예산금액) 합계, 신규는 0)")
         private BigDecimal prevBgAmt;
 
         /** 전년도 BBUGTM 편성예산: 계속 항목의 cncdRfrNo 기준 bseYy-1 DUP_BG 합계, 신규는 0 */

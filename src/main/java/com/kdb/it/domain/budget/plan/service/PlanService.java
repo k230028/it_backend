@@ -178,7 +178,7 @@ public class PlanService {
          * [처리 순서]
          * 1. 대상 정보화사업 목록을 ProjectService에서 조회
          * 2. 대상 전산업무비 목록을 CostService에서 조회
-         * 3. 예산 합계(ADU_TOT_AMT, CPIT_BG_APV_AMT, TOT_XP_AMT) 계산 (정보화사업 + 전산업무비 합산)
+         * 3. 예산 합계(ADU_TOT_AMT, TOT_CPIT_AMT, TOT_XP_AMT) 계산 (정보화사업 + 전산업무비 합산)
          * 4. JSON 스냅샷 생성
          * 5. 계획관리번호 채번: PLN-{bseYy}-{seq:04d}
          * 6. TPRMPP_BPLANM 저장

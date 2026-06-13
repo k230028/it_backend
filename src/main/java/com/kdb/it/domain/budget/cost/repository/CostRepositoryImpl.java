@@ -178,7 +178,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
     /**
      * 전년도 예산 합계 일괄 조회
      *
-     * <p>costBgNo별 전년도(prevYear) TOT_XP_AMT 합계를 집계하여 반환합니다.</p>
+     * <p>costBgNo별 전년도(prevYear) AMT(전산업무비예산금액) 합계를 집계하여 반환합니다.</p>
      */
     @Override
     public Map<String, BigDecimal> sumPrevBgByCostBgNos(List<String> costBgNos, String prevYear) {

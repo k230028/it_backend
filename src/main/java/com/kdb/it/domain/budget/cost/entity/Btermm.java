@@ -85,7 +85,7 @@ public class Btermm extends BaseEntity {
     private String tmnClsfC;
 
     /** 단말기금액 (최대 18자리, 소수점 3자리) */
-    @Column(name = "RQM_BG_AMT", precision = 18, scale = 3, comment = "단말기금액 (물리컬럼 RQM_BG_AMT=소요예산금액)")
+    @Column(name = "AMT", precision = 18, scale = 3, comment = "단말기금액 (물리컬럼 AMT=금액)")
     private BigDecimal termRqmBgAmt;
 
     /** 통화 */
