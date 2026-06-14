@@ -79,9 +79,13 @@ public class Bprojm extends BaseEntity {
     @Column(name = "TOT_RQM_AMT", precision = 18, scale = 3, comment = "프로젝트예산 (물리컬럼 TOT_RQM_AMT=총소요금액)")
     private BigDecimal totRqmAmt;
 
-    /** 익년프로젝트예산: 익년(다음 해) 사업 예산 금액 (최대 18자리, 소수점 3자리) */
-    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "익년프로젝트예산 (물리컬럼 MPL_AMT=예정금액)")
-    private BigDecimal mplAmt;
+    /** 예정자본금액: 익년(다음 해) 이후 자본예산 요청액 (최대 18자리, 소수점 3자리) */
+    @Column(name = "MPL_CPIT_AMT", precision = 18, scale = 3, comment = "예정자본금액 (물리컬럼 MPL_CPIT_AMT=예정자본금액)")
+    private BigDecimal mplCpitAmt;
+
+    /** 예정비용금액: 익년(다음 해) 이후 비용예산 요청액 (최대 18자리, 소수점 3자리) */
+    @Column(name = "MPL_XP_AMT", precision = 18, scale = 3, comment = "예정비용금액 (물리컬럼 MPL_XP_AMT=예정비용금액)")
+    private BigDecimal mplXpAmt;
 
     /** 시작일자: 사업 개시 예정일 (DDL DATE 타입을 LocalDate로 매핑) */
     @Column(name = "STT_DTM", comment = "시작일자 (물리컬럼 STT_DTM=시작일시)")
@@ -207,7 +211,7 @@ public class Bprojm extends BaseEntity {
      */
     public record UpdateCommand(
             String abusNm, String bzTpC, String svnDpmC, String dvmDpmC,
-            BigDecimal totRqmAmt, BigDecimal mplAmt,
+            BigDecimal totRqmAmt, BigDecimal mplCpitAmt, BigDecimal mplXpAmt,
             LocalDate sttDtm, LocalDate endDtm,
             String usid, String dvmUsid, String tlrUsid, String dvmTlrUsid,
             String edrtTc, String abusCone, String cpnSafCone, String abusNcsCone,
@@ -225,7 +229,7 @@ public class Bprojm extends BaseEntity {
      */
     public void update(UpdateCommand cmd) {
         update(cmd.abusNm(), cmd.bzTpC(), cmd.svnDpmC(), cmd.dvmDpmC(),
-                cmd.totRqmAmt(), cmd.mplAmt(), cmd.sttDtm(), cmd.endDtm(),
+                cmd.totRqmAmt(), cmd.mplCpitAmt(), cmd.mplXpAmt(), cmd.sttDtm(), cmd.endDtm(),
                 cmd.usid(), cmd.dvmUsid(), cmd.tlrUsid(), cmd.dvmTlrUsid(),
                 cmd.edrtTc(), cmd.abusCone(), cmd.cpnSafCone(), cmd.abusNcsCone(),
                 cmd.dgogPpoCone(), cmd.plmDes(), cmd.abusRngCone(), cmd.mnPrgCone(), cmd.hrfPlnCone(),
@@ -240,7 +244,7 @@ public class Bprojm extends BaseEntity {
      * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 모든 필드를 변경합니다.</p>
      */
     public void update(String abusNm, String bzTpC, String svnDpmC, String dvmDpmC, BigDecimal totRqmAmt,
-            BigDecimal mplAmt, LocalDate sttDtm, LocalDate endDtm, String usid, String dvmUsid,
+            BigDecimal mplCpitAmt, BigDecimal mplXpAmt, LocalDate sttDtm, LocalDate endDtm, String usid, String dvmUsid,
             String tlrUsid, String dvmTlrUsid, String edrtTc, String abusCone,
             String cpnSafCone, String abusNcsCone, String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone,
             String hrfPlnCone, String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
@@ -252,7 +256,8 @@ public class Bprojm extends BaseEntity {
         this.svnDpmC = svnDpmC;
         this.dvmDpmC = dvmDpmC;
         this.totRqmAmt = totRqmAmt;
-        this.mplAmt = mplAmt;
+        this.mplCpitAmt = mplCpitAmt;
+        this.mplXpAmt = mplXpAmt;
         this.sttDtm = sttDtm;
         this.endDtm = endDtm;
         this.usid = usid;
@@ -289,7 +294,7 @@ public class Bprojm extends BaseEntity {
      * <p>프로젝트 순번(sno)은 변경하지 않고 나머지 필드만 업데이트합니다.</p>
      */
     public void update(String abusNm, String bzTpC, String svnDpmC, String dvmDpmC, BigDecimal totRqmAmt,
-            BigDecimal mplAmt, LocalDate sttDtm, LocalDate endDtm, String usid, String dvmUsid,
+            BigDecimal mplCpitAmt, BigDecimal mplXpAmt, LocalDate sttDtm, LocalDate endDtm, String usid, String dvmUsid,
             String tlrUsid, String dvmTlrUsid, String edrtTc, String abusCone,
             String cpnSafCone, String abusNcsCone, String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone,
             String hrfPlnCone, String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
@@ -300,7 +305,8 @@ public class Bprojm extends BaseEntity {
         this.svnDpmC = svnDpmC;
         this.dvmDpmC = dvmDpmC;
         this.totRqmAmt = totRqmAmt;
-        this.mplAmt = mplAmt;
+        this.mplCpitAmt = mplCpitAmt;
+        this.mplXpAmt = mplXpAmt;
         this.sttDtm = sttDtm;
         this.endDtm = endDtm;
         this.usid = usid;

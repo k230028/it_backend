@@ -88,9 +88,13 @@ public class ProjectDto {
         @Schema(description = "프로젝트예산")
         private BigDecimal totRqmAmt;
 
-        /** 익년프로젝트예산 (다음 해 예산 금액) */
-        @Schema(description = "익년프로젝트예산")
-        private BigDecimal mplAmt;
+        /** 예정자본금액 (익년 이후 자본예산 요청액) */
+        @Schema(description = "예정자본금액")
+        private BigDecimal mplCpitAmt;
+
+        /** 예정비용금액 (익년 이후 비용예산 요청액) */
+        @Schema(description = "예정비용금액")
+        private BigDecimal mplXpAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
@@ -232,7 +236,8 @@ public class ProjectDto {
                     .svnDpmC(svnDpmC) // 주관부서
                     .dvmDpmC(dvmDpmC) // IT부서
                     .totRqmAmt(totRqmAmt) // 프로젝트예산
-                    .mplAmt(mplAmt) // 익년프로젝트예산
+                    .mplCpitAmt(mplCpitAmt) // 예정자본금액
+                    .mplXpAmt(mplXpAmt) // 예정비용금액
                     .sttDtm(sttDtm) // 시작일자
                     .endDtm(endDtm) // 종료일자
                     .usid(usid) // 주관부서담당자
@@ -306,9 +311,13 @@ public class ProjectDto {
         @Schema(description = "프로젝트예산")
         private BigDecimal totRqmAmt;
 
-        /** 익년프로젝트예산 (다음 해 예산 금액) */
-        @Schema(description = "익년프로젝트예산")
-        private BigDecimal mplAmt;
+        /** 예정자본금액 (익년 이후 자본예산 요청액) */
+        @Schema(description = "예정자본금액")
+        private BigDecimal mplCpitAmt;
+
+        /** 예정비용금액 (익년 이후 비용예산 요청액) */
+        @Schema(description = "예정비용금액")
+        private BigDecimal mplXpAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
@@ -485,9 +494,13 @@ public class ProjectDto {
         @Schema(description = "프로젝트예산")
         private BigDecimal totRqmAmt;
 
-        /** 익년프로젝트예산 (다음 해 예산 금액) */
-        @Schema(description = "익년프로젝트예산")
-        private BigDecimal mplAmt;
+        /** 예정자본금액 (익년 이후 자본예산 요청액) */
+        @Schema(description = "예정자본금액")
+        private BigDecimal mplCpitAmt;
+
+        /** 예정비용금액 (익년 이후 비용예산 요청액) */
+        @Schema(description = "예정비용금액")
+        private BigDecimal mplXpAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
@@ -769,7 +782,8 @@ public class ProjectDto {
                     .svnDpmC(project.getSvnDpmC()) // 주관부서
                     .dvmDpmC(project.getDvmDpmC()) // IT부서
                     .totRqmAmt(project.getTotRqmAmt()) // 프로젝트예산
-                    .mplAmt(project.getMplAmt()) // 익년프로젝트예산
+                    .mplCpitAmt(project.getMplCpitAmt()) // 예정자본금액
+                    .mplXpAmt(project.getMplXpAmt()) // 예정비용금액
                     .sttDtm(project.getSttDtm()) // 시작일자
                     .endDtm(project.getEndDtm()) // 종료일자
                     .prlmHrkOgzCCone(project.getPrlmHrkOgzCCone()) // 주관본부/부문

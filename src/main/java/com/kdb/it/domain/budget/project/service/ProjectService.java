@@ -374,7 +374,7 @@ public class ProjectService {
         // 프로젝트 기본 정보 수정 (JPA Dirty Checking으로 자동 반영)
         project.update(new Bprojm.UpdateCommand(
                 request.getAbusNm(), request.getBzTpC(), request.getSvnDpmC(), request.getDvmDpmC(),
-                request.getTotRqmAmt(), request.getMplAmt(), request.getSttDtm(), request.getEndDtm(),
+                request.getTotRqmAmt(), request.getMplCpitAmt(), request.getMplXpAmt(), request.getSttDtm(), request.getEndDtm(),
                 request.getUsid(), request.getDvmUsid(), request.getTlrUsid(), request.getDvmTlrUsid(),
                 request.getEdrtTc(), request.getAbusCone(), request.getCpnSafCone(), request.getAbusNcsCone(),
                 request.getDgogPpoCone(), request.getPlmDes(), request.getAbusRngCone(), request.getMnPrgCone(), request.getHrfPlnCone(),
