@@ -42,7 +42,7 @@ public class BplanmL extends BaseLogEntity {
     @Column(name = "IT_BG_CONE", length = 4000, comment = "IT예산내용")
     private String itBgCone;
 
-    @Column(name = "IT_PRJ_RMK", length = 600, comment = "IT예산비고")
+    @Column(name = "IT_PRJ_RMK", length = 600, comment = "IT프로젝트비고")
     private String itPrjRmk;
 
     @Column(name = "CPIT_BG_RMK", length = 600, comment = "자본예산비고")

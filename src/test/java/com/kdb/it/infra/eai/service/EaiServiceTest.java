@@ -135,4 +135,42 @@ class EaiServiceTest {
         server.verify();
         assertThat(r.success()).isTrue();
     }
+
+    @Test
+    @DisplayName("서버 응답 body가 빈 배열이면 responseRaw 빈 문자열로 success 반환 (null-or-empty 분기)")
+    void emptyBody_responseRaw_empty() {
+        // Arrange — 서버가 빈 응답 바디를 반환하는 시나리오 (body="" 는 null 분기 또는 빈 배열 분기)
+        RestClient.Builder builder = RestClient.builder().baseUrl("http://eai.test");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("http://eai.test/eai"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess(new byte[0], MediaType.APPLICATION_OCTET_STREAM));
+        RestClient client = builder.build();
+
+        EaiProperties props = new EaiProperties(true, "http://eai.test/eai", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
+        EaiResult r = service(props, client).sendEai(req());
+
+        server.verify();
+        assertThat(r.success()).isTrue();
+        // 빈 바이트 배열 → responseRaw = ""
+        assertThat(r.responseRaw()).isEqualTo("");
+    }
+
+    @Test
+    @DisplayName("enabled=false이고 GWE 요청도 skip 반환 (마스킹 미리보기 경로)")
+    void disabled_gwe_skipsHttp() {
+        // Arrange
+        EaiProperties props = new EaiProperties(false, "", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
+        RestClient client = RestClient.builder().baseUrl("http://eai.invalid").build();
+        com.kdb.it.infra.eai.dto.EaiRequest gwe = com.kdb.it.infra.eai.dto.EaiRequest.gwe("IPPG00000001",
+                com.kdb.it.infra.eai.dto.GwePayload.builder()
+                        .msgGubun("1").recvIds("k0001").subject("알림").contents("내용").build());
+
+        // Act
+        EaiResult r = service(props, client).sendEai(gwe);
+
+        // Assert — GWE도 enabled=false면 skip
+        assertThat(r.skipped()).isTrue();
+        assertThat(r.success()).isFalse();
+    }
 }

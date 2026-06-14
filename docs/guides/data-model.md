@@ -33,7 +33,6 @@
 | 엔티티   | 테이블명         | 역할              |
 |---------|-----------------|------------------|
 | Basctm  | TPRMPP_BASCTM   | 협의회 심의과제   |
-| Bchklc  | TPRMPP_BCHKLC   | 타당성 검토항목   |
 | Bcmmtm  | TPRMPP_BCMMTM   | 평가위원          |
 | Bevalm  | TPRMPP_BEVALM   | 평가의견          |
 | Bperfm  | TPRMPP_BPERFM   | 성과지표          |

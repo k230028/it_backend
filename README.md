@@ -19,7 +19,7 @@
   - DB 기반 메뉴 트리 및 라우트 카탈로그 관리
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
-- **소스 코드**: 350개 메인 Java 파일, 115개 테스트 파일, 79개 JPA 엔티티(`@Entity` 기준)
+- **소스 코드**: 347개 메인 Java 파일, 116개 테스트 파일, 77개 JPA 엔티티(`@Entity` 기준)
 
 ## 2. 기술 스택
 
@@ -33,7 +33,7 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 115개 테스트 파일 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 116개 테스트 파일 |
 
 ## 2.5 빠른 시작 (Quick Start)
 
@@ -100,7 +100,7 @@ Controller → Service → Repository → DB (Oracle)
 | 결정 | 내용 | 이유 |
 |------|------|-----|
 | **Soft Delete** | 물리 삭제 대신 `DEL_YN='Y'` 논리 삭제 사용 | 감사 추적(Audit Trail), 실수 복구 가능, 외래키 참조 무결성 유지 |
-| **복합키 (`@IdClass`)** | `BprojmId`, `BcostmId`, `BitemmId`, `CdecimId` 등 복합 기본키 정의 (총 15개 `@IdClass`) | Oracle 테이블 스키마 설계를 JPA 엔티티에 1:1 매핑 |
+| **복합키 (`@IdClass`)** | `BprojmId`, `BcostmId`, `BitemmId`, `CdecimId` 등 복합 기본키 정의 (총 29개 `@IdClass`) | Oracle 테이블 스키마 설계를 JPA 엔티티에 1:1 매핑 |
 | **JPA Auditing (`BaseEntity`)** | 모든 업무 엔티티 상속, `@CreatedDate/@LastModifiedDate` 자동 기록 | 누가 언제 생성/수정했는지 자동 추적 |
 | **JWT httpOnly 쿠키** | Access Token(15분) + Refresh Token(7일), `CookieUtil`로 관리 | XSS 공격 방어(JavaScript 접근 불가), 자동 전송 편의성 |
 | **비밀번호 인코딩** | SHA-256 + Base64 (`CustomPasswordEncoder`) | Oracle 레거시 시스템과의 호환성 |
@@ -127,7 +127,6 @@ BaseEntity (추상 클래스)
  ├── Bplana      (정보기술부문계획 관계)
  ├── Bbugtm      (예산 작업/편성률)
  ├── Basctm      (협의회 심의과제)
- ├── Bchklc      (타당성 검토항목)
  ├── Bcmmtm      (평가위원)
  ├── Bevalm      (평가의견)
  ├── Bperfm      (성과지표)
@@ -166,7 +165,7 @@ BaseLogEntity (변경 로그 추상 클래스)
 
 ### 4.1 패키지 구조
 
-2026-06-09 기준 도메인 기반 레이어드 아키텍처와 예산·결재·변경 로그·메뉴·사업집행 4단계 모듈 구조를 반영합니다.
+2026-06-14 기준 도메인 기반 레이어드 아키텍처와 예산·결재·변경 로그·메뉴·사업집행 4단계 모듈 구조를 반영합니다.
 
 ```
 com.kdb.it
@@ -567,13 +566,12 @@ IT Portal의 로그는 **3가지 유형**으로 구성되며, 각각 다른 계�
 public class Bprojm extends BaseEntity { ... }
 ```
 
-**현재 로그 대상 엔티티 (`@LogTarget` 기준 31개)**
+**현재 로그 대상 엔티티 (`@LogTarget` 기준 30개)**
 
 | 키 | 로그 엔티티 | 설명 |
 |----|-----------|------|
 | `basctm` | `BasctmL` | 정보화실무협의회 신청 |
 | `bbugt` | `BbugtL` | 예산 편성 |
-| `bchklc` | `BchklcL` | 체크리스트 |
 | `bcmmtm` | `BcmmtmL` | 협의회 위원 |
 | `bcostm` | `BcostmL` | 전산업무비 |
 | `bevalm` | `BevalmL` | 평가 |
@@ -603,7 +601,7 @@ public class Bprojm extends BaseEntity { ... }
 | `ccmmtm` | `CcmmtmL` | 게시판 댓글 |
 | `cmenum` | `CmenumL` | 공통메뉴 |
 
-> **참고**: 위 31개 엔티티는 `@LogTarget`으로 변경 로그가 자동 기록됩니다. 다만 관리자 로그 조회 화면(`AdminLogService.buildDefinitions()`, §7.3)에 등록된 항목은 **20개**입니다. 사업집행 4단계(bestim/besttm/bdelim/bcontm/bpaymm/bpaymt)는 자동 기록되나 관리자 조회 정의 미등록(후속 과제). 게시판 로그(`cblbcm`/`cblbmm`/`ccmmtm`), `bmqnam`, `cmenum`은 자동 기록은 되지만 아직 관리자 조회 정의에 추가되지 않았습니다(후속 과제).
+> **참고**: 위 30개 엔티티는 `@LogTarget`으로 변경 로그가 자동 기록됩니다. 다만 관리자 로그 조회 화면(`AdminLogService.buildDefinitions()`, §7.3)에 등록된 항목은 **19개**입니다. 사업집행 4단계(bestim/besttm/bdelim/bcontm/bpaymm/bpaymt)는 자동 기록되나 관리자 조회 정의 미등록(후속 과제). 게시판 로그(`cblbcm`/`cblbmm`/`ccmmtm`), `bmqnam`, `cmenum`은 자동 기록은 되지만 아직 관리자 조회 정의에 추가되지 않았습니다(후속 과제).
 
 **`BaseLogEntity` 공통 필드**
 
@@ -1030,7 +1028,7 @@ infra → domain (X, domain 기능 불필요)
 | **budget.plan** | Bplanm, Bplana | PlanService | BplanmRepository, BplanaRepository | 정보기술부문 계획 |
 | **budget.status** | - (집계) | BudgetStatusService | BudgetStatusQueryRepository | 예산현황 대시보드 |
 | **budget.work** | Bbugtm | BudgetWorkService | BbugtmRepository(+Custom) | 예산 편성률 |
-| **council** | Basctm, Bschdm, Bchklc, Bcmmtm, Bevalm, Bperfm, Bpovwm, Bpqnam, Bmqnam, Brsltm | CouncilService(+8개 세부) | 10개 Repository | 정보화실무협의회 |
+| **council** | Basctm, Bschdm, Bcmmtm, Bevalm, Bperfm, Bpovwm, Bpqnam, Bmqnam, Brsltm | CouncilService(+8개 세부) | 9개 Repository | 정보화실무협의회 |
 | **log** | BaseLogEntity, *L | - | EntityManager 직접 | 자동 감시로그 |
 | **common.system** | CuserI, Crtokm, Clognh | AuthService, CustomUserDetailsService, LoginHistoryService | UserRepository, RefreshTokenRepository, LoginHistoryRepository | 인증 및 사용자 |
 | **common.approval** | Capplm, Cappla, Cdecim | ApplicationService | ApplicationRepository(+Map, Approver) | 신청 및 결재 |
