@@ -10,7 +10,7 @@
 - 프로젝트 개요/목적은 루트 `../CLAUDE.md` §1 참조.
 
 ## 2. 기술 스택
-- Framework: Spring Boot 4.0.5
+- Framework: Spring Boot 4.1.0
 - Language: Java 25
 - Build: Gradle (Groovy DSL, `build.gradle`)
 - ORM: Spring Data JPA + QueryDSL 5.1.0

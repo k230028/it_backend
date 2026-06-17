@@ -1,7 +1,7 @@
 plugins {
 	id 'java'
 	id 'war'
-	id 'org.springframework.boot' version '4.0.5'
+	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'org.asciidoctor.jvm.convert' version '4.0.5'
 	id 'jacoco'
@@ -68,31 +68,11 @@ repositories {
 	mavenCentral()
 }
 
-// Snyk 취약점 대응 — 전이 의존성 강제 버전 업그레이드
-configurations.all {
-	resolutionStrategy.eachDependency { details ->
-		// jackson 2.x 라인: jjwt-jackson 0.13.0 POM의 requested 버전(2.12.7.1)을 강제로
-		// 2.21.2로 끌어올려 Snyk의 jackson-core@2.12.7 거짓 양성(CWE-770/CWE-400) 제거.
-		// jackson-bom 2.21.2가 spring-boot-dependencies BOM에서 관리되므로 호환 안전.
-		// (tools.jackson 3.x 라인은 spring-boot 4.0.5가 별도 관리 — 본 strategy 영향 없음)
-		if (details.requested.group == 'com.fasterxml.jackson.core'
-				&& (details.requested.name == 'jackson-core'
-					|| details.requested.name == 'jackson-databind')) {
-			details.useVersion '2.21.2'
-			details.because 'Snyk SNYK-JAVA-COMFASTERXMLJACKSONCORE-* (DoS/Resource Allocation) — jjwt-jackson 전이 강제 업그레이드'
-		}
-		// logback 1.5.22 → 1.5.32 (Low 1건)
-		if (details.requested.group == 'ch.qos.logback') {
-			details.useVersion '1.5.32'
-			details.because 'Snyk SNYK-JAVA-CHQOSLOGBACK-15062482 취약점 대응'
-		}
-		// spring-web/webmvc 7.0.1 → 7.0.6 (High 1건 + Low 2건, Spring Boot BOM 미적용 시 fallback)
-		if (details.requested.group == 'org.springframework') {
-			details.useVersion '7.0.6'
-			details.because 'Snyk SNYK-JAVA-ORGSPRINGFRAMEWORK-* 취약점 대응 (7.0.6 안전 버전)'
-		}
-	}
-}
+// Snyk 취약점 대응 강제 버전(과거) 제거 — Spring Boot 4.1.0 BOM이 모든 안전 하한선 이상으로 관리.
+//   spring-framework 7.0.8(≥7.0.6), jackson 2.x 2.21.4(≥2.21.2), logback 1.5.x(≥1.5.32).
+//   4.0.5 시절의 강제(org.springframework→7.0.6, jackson→2.21.2 등)는 4.1.0에서는 오히려
+//   BOM 관리값을 끌어내리는 다운그레이드가 되므로 제거함. 신규 Snyk 지적 발생 시
+//   resolutionStrategy 대신 BOM 버전 프로퍼티(예: ext['spring-framework.version']) 오버라이드를 우선 검토.
 
 ext {
 	set('snippetsDir', file("build/generated-snippets"))
