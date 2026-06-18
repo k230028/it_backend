@@ -42,7 +42,7 @@ class BprojmUpdateCommandTest {
         assertThat(project.getDvmDpmC()).isEqualTo("IT부서B");
         assertThat(project.getTotRqmAmt()).isEqualByComparingTo(BigDecimal.valueOf(50_000_000));
         assertThat(project.getMplCpitAmt()).isEqualByComparingTo(BigDecimal.valueOf(10_000_000));
-        assertThat(project.getMplXpAmt()).isEqualByComparingTo(BigDecimal.valueOf(5_000_000));
+        assertThat(project.getMplMngcAmt()).isEqualByComparingTo(BigDecimal.valueOf(5_000_000));
         assertThat(project.getSttDtm()).isEqualTo(LocalDate.of(2026, 1, 1));
         assertThat(project.getEndDtm()).isEqualTo(LocalDate.of(2026, 12, 31));
         assertThat(project.getBseYy()).isEqualTo("2026");

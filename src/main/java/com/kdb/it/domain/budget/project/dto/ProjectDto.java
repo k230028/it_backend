@@ -92,9 +92,9 @@ public class ProjectDto {
         @Schema(description = "예정자본금액")
         private BigDecimal mplCpitAmt;
 
-        /** 예정비용금액 (익년 이후 비용예산 요청액) */
-        @Schema(description = "예정비용금액")
-        private BigDecimal mplXpAmt;
+        /** 예정관리비금액 (익년 이후 일반관리비예산 요청액) */
+        @Schema(description = "예정관리비금액")
+        private BigDecimal mplMngcAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
@@ -237,7 +237,7 @@ public class ProjectDto {
                     .dvmDpmC(dvmDpmC) // IT부서
                     .totRqmAmt(totRqmAmt) // 프로젝트예산
                     .mplCpitAmt(mplCpitAmt) // 예정자본금액
-                    .mplXpAmt(mplXpAmt) // 예정비용금액
+                    .mplMngcAmt(mplMngcAmt) // 예정관리비금액
                     .sttDtm(sttDtm) // 시작일자
                     .endDtm(endDtm) // 종료일자
                     .usid(usid) // 주관부서담당자
@@ -315,9 +315,9 @@ public class ProjectDto {
         @Schema(description = "예정자본금액")
         private BigDecimal mplCpitAmt;
 
-        /** 예정비용금액 (익년 이후 비용예산 요청액) */
-        @Schema(description = "예정비용금액")
-        private BigDecimal mplXpAmt;
+        /** 예정관리비금액 (익년 이후 일반관리비예산 요청액) */
+        @Schema(description = "예정관리비금액")
+        private BigDecimal mplMngcAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
@@ -498,9 +498,9 @@ public class ProjectDto {
         @Schema(description = "예정자본금액")
         private BigDecimal mplCpitAmt;
 
-        /** 예정비용금액 (익년 이후 비용예산 요청액) */
-        @Schema(description = "예정비용금액")
-        private BigDecimal mplXpAmt;
+        /** 예정관리비금액 (익년 이후 일반관리비예산 요청액) */
+        @Schema(description = "예정관리비금액")
+        private BigDecimal mplMngcAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
@@ -783,7 +783,7 @@ public class ProjectDto {
                     .dvmDpmC(project.getDvmDpmC()) // IT부서
                     .totRqmAmt(project.getTotRqmAmt()) // 프로젝트예산
                     .mplCpitAmt(project.getMplCpitAmt()) // 예정자본금액
-                    .mplXpAmt(project.getMplXpAmt()) // 예정비용금액
+                    .mplMngcAmt(project.getMplMngcAmt()) // 예정관리비금액
                     .sttDtm(project.getSttDtm()) // 시작일자
                     .endDtm(project.getEndDtm()) // 종료일자
                     .prlmHrkOgzCCone(project.getPrlmHrkOgzCCone()) // 주관본부/부문

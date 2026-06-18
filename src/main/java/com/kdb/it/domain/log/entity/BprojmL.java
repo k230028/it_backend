@@ -47,8 +47,8 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "MPL_CPIT_AMT", precision = 18, scale = 3, comment = "예정자본금액")
     private BigDecimal mplCpitAmt;
 
-    @Column(name = "MPL_XP_AMT", precision = 18, scale = 3, comment = "예정비용금액")
-    private BigDecimal mplXpAmt;
+    @Column(name = "MPL_MNGC_AMT", precision = 18, scale = 3, comment = "예정관리비금액")
+    private BigDecimal mplMngcAmt;
 
     @Column(name = "STT_DTM", comment = "시작일자")
     private LocalDate sttDtm;
