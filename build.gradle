@@ -89,12 +89,8 @@ dependencies {
 	// HTML 새니타이징 (XSS 서버 측 방어)
 	implementation 'org.jsoup:jsoup:1.18.3'
 
-	// JSP 컴파일러 — business.jsp / agentProc.jsp 직접 실행에 필요
-	// SsoWebConfig의 WebServerFactoryCustomizer가 document root를 src/main/webapp으로 설정
-	implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
-
-	// SSO 에이전트 라이브러리 — libs/ 폴더에 JAR 복사 후 주석 해제
-	// implementation files('libs/sso-agent.jar')
+	// SSO 연동은 Spring 컨트롤러(SsoController) + RestClient(SsoAgentClient)로 처리합니다.
+	// 구 JSP Web Agent(tomcat-embed-jasper / commons-httpclient) 의존은 제거되었습니다.
 
 	// JWT
 	implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
