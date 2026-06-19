@@ -38,3 +38,6 @@ out/
 *.JAR
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
+
+# Office 임시 잠금 파일 (Word/PPT/Excel 열람 시 생성)
+~$*
