@@ -23,7 +23,7 @@ import java.time.LocalDate;
 public class CcodemL extends BaseLogEntity {
 
     // 변경로그 복사는 @Column(name)으로 매칭하므로 마스터(Ccodem)와 컬럼명이 일치해야 한다.
-    @Column(name = "CO_C_ID", length = 20, comment = "공통코드ID")
+    @Column(name = "CO_C_ID", length = 40, comment = "공통코드ID")
     private String cId;
 
     @Column(name = "CDVA_ID", length = 40, comment = "코드값ID")

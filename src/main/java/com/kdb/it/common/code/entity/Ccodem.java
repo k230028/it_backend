@@ -34,7 +34,7 @@ public class Ccodem extends BaseEntity {
 
     /** 공통코드ID: 복합 기본키 1 (예: CUR, PRJ_TP). 컬럼 CO_C_ID */
     @Id
-    @Column(name = "CO_C_ID", nullable = false, length = 20, comment = "공통코드ID")
+    @Column(name = "CO_C_ID", nullable = false, length = 40, comment = "공통코드ID")
     private String cId;
 
     /** 코드값ID: 복합 기본키 2 (예: 001, STA, END). 컬럼 CDVA_ID */
