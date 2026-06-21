@@ -64,6 +64,10 @@ public class AuthController {
     /** JWT 토큰 쿠키 관리 유틸리티 */
     private final CookieUtil cookieUtil;
 
+    /** 신뢰하는 역방향 프록시 IP 목록(CSV). 운영 Nginx 등. 비어 있으면 XFF 미신뢰. */
+    @org.springframework.beans.factory.annotation.Value("${app.trusted-proxies:}")
+    private String trustedProxiesCsv;
+
     /**
      * 회원가입
      *
@@ -232,44 +236,20 @@ public class AuthController {
      *
      * <p>
      * 로드밸런서, 리버스 프록시(Nginx, Apache), CDN 등을 경유한
-     * 요청에서 실제 클라이언트 IP를 추출합니다. 아래 헤더는 프록시가 신뢰 가능한 방식으로
-     * 덮어쓴다는 전제에서만 안전하며, 직접 인터넷에 노출된 환경에서는 위조될 수 있습니다.
+     * 요청에서 실제 클라이언트 IP를 추출합니다. {@code X-Forwarded-For}는 위조 가능하므로,
+     * 직접 연결한 프록시({@code remoteAddr})가 {@code app.trusted-proxies} allowlist에
+     * 포함된 경우에만 신뢰하고, 멀티 IP는 최좌측(원 클라이언트)만 사용합니다.
      * </p>
-     *
-     * <p>
-     * 헤더 우선순위 (앞에서부터 순서대로 확인):
-     * </p>
-     * <ol>
-     * <li>{@code X-Forwarded-For}: 표준 프록시 헤더 (여러 IP가 있으면 첫 번째가 원래 IP)</li>
-     * <li>{@code Proxy-Client-IP}: 일부 프록시에서 사용</li>
-     * <li>{@code WL-Proxy-Client-IP}: WebLogic 프록시에서 사용</li>
-     * <li>{@code HTTP_CLIENT_IP}: 일부 환경에서 사용</li>
-     * <li>{@code HTTP_X_FORWARDED_FOR}: 비표준 헤더</li>
-     * <li>{@code request.getRemoteAddr()}: 직접 연결 IP (프록시 없는 경우)</li>
-     * </ol>
      *
      * @param request HTTP 요청 객체
      * @return 클라이언트의 실제 IP 주소 문자열
      */
     private String getClientIp(HttpServletRequest request) {
-        // X-Forwarded-For 헤더: 표준 프록시/로드밸런서 클라이언트 IP 헤더
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("HTTP_CLIENT_IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("HTTP_X_FORWARDED_FOR");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            // 프록시 없이 직접 연결된 경우의 IP
-            ip = request.getRemoteAddr();
-        }
-        return ip;
+        java.util.Set<String> trusted = (trustedProxiesCsv == null || trustedProxiesCsv.isBlank())
+                ? java.util.Set.of()
+                : java.util.Arrays.stream(trustedProxiesCsv.split(","))
+                        .map(String::trim).filter(s -> !s.isEmpty())
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        return ClientIpResolver.resolve(request, trusted);
     }
 }
