@@ -6,6 +6,8 @@ import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -43,6 +45,8 @@ public class NotificationService {
      * {@code REQUIRES_NEW}로 명시하면 항상 독립된 새 트랜잭션을 강제 시작하므로 회피 가능.</p>
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @CacheEvict(value = "notificationUnreadCount", key = "#event.recipientEno()",
+            condition = "#event.recipientEno() != null")
     public Cinfmm send(NotificationEvent event) {
         log.info("[알림] send 진입: recipient={}, svcTc={}", event.recipientEno(), event.infmSvcTc());
         if (event.recipientEno() == null || event.recipientEno().isBlank()) {
@@ -98,7 +102,13 @@ public class NotificationService {
 
     /**
      * 본인 미읽음 알림 건수 조회.
+     *
+     * <p>AppHeader 배지에서 고빈도 호출되므로 사용자(currentEno)별로 캐시한다. 카운트가 0이면
+     * 캐시하지 않아(unless) 신규 알림 발생 시 즉시 반영되도록 한다. 쓰기 경로(send/markRead/
+     * markAllRead/softDelete)에서 해당 사용자 키를 evict 한다. (ConcurrentMap은 TTL 미지원 →
+     * evict-on-write로 정합 보장, {@link com.kdb.it.config.CacheConfig} 참조.)</p>
      */
+    @Cacheable(value = "notificationUnreadCount", key = "#currentEno", unless = "#result == 0")
     public long unreadCount(String currentEno) {
         return cinfmmRepository.countUnread(currentEno);
     }
@@ -107,6 +117,7 @@ public class NotificationService {
      * 단건 읽음 처리. 소유자 검증 포함.
      */
     @Transactional(readOnly = false)
+    @CacheEvict(value = "notificationUnreadCount", key = "#currentEno")
     public void markRead(String infmMsgNo, String currentEno) {
         Cinfmm notification = loadOwned(infmMsgNo, currentEno);
         notification.markRead();
@@ -116,6 +127,7 @@ public class NotificationService {
      * 본인 미읽음 알림 일괄 읽음 처리.
      */
     @Transactional(readOnly = false)
+    @CacheEvict(value = "notificationUnreadCount", key = "#currentEno")
     public long markAllRead(String currentEno) {
         return cinfmmRepository.markAllReadByRmsEno(currentEno);
     }
@@ -124,6 +136,7 @@ public class NotificationService {
      * 단건 알림 Soft Delete. 소유자 검증 포함.
      */
     @Transactional(readOnly = false)
+    @CacheEvict(value = "notificationUnreadCount", key = "#currentEno")
     public void softDelete(String infmMsgNo, String currentEno) {
         Cinfmm notification = loadOwned(infmMsgNo, currentEno);
         notification.delete();

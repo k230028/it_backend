@@ -1,8 +1,5 @@
 package com.kdb.it.config;
 
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
@@ -28,14 +25,7 @@ import java.util.Optional;
  */
 @Configuration
 @EnableJpaAuditing
-@EnableCaching
 public class JpaAuditConfig {
-
-    /** 인메모리 캐시 매니저 (공통코드 등 정적 데이터 캐싱용) */
-    @Bean
-    public CacheManager cacheManager() {
-        return new ConcurrentMapCacheManager("codesByType", "codesByCid", "budgetPeriod");
-    }
 
     /**
      * 현재 로그인한 사용자(사번)를 반환하는 AuditorAware 빈 등록.
