@@ -22,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 게시물 서비스
@@ -62,7 +61,7 @@ public class BoardPostService {
             user.isAdmin()
         ).stream()
          .map(BoardPostDto.ListItem::from)
-         .collect(Collectors.toList());
+         .toList();
     }
 
     /**

@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 게시판 댓글 서비스
@@ -57,7 +56,7 @@ public class BoardCommentService {
 
         return commentRepository.findCommentsByPost(nacMngNo).stream()
             .map(c -> BoardCommentDto.Response.from(c, canModify(user, c)))
-            .collect(Collectors.toList());
+            .toList();
     }
 
     /**

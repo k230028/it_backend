@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 게시판 메타 서비스
@@ -27,7 +26,7 @@ public class BoardMetaService {
     public List<BoardMetaDto.Response> getAllActive() {
         return boardMetaRepository.findAllActiveOrdered().stream()
             .map(BoardMetaDto.Response::from)
-            .collect(Collectors.toList());
+            .toList();
     }
 
     /**

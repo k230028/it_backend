@@ -22,7 +22,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * 인증(Authentication) 서비스
@@ -369,7 +368,7 @@ public class AuthService {
                 .findAllByIdEnoAndUseYnAndDelYn(eno, "Y", "N")
                 .stream()
                 .map(CroleI::getAthId)
-                .collect(Collectors.toList());
+                .toList();
         return athIds.isEmpty() ? List.of(CustomUserDetails.ATH_USER) : athIds;
     }
 

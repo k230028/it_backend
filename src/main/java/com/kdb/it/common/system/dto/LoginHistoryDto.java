@@ -10,7 +10,6 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 공통로그인이력 관련 DTO 클래스 모음
@@ -94,7 +93,7 @@ public class LoginHistoryDto {
         public static List<Response> fromEntities(List<Clognh> clognhs) {
             return clognhs.stream()
                     .map(Response::fromEntity)
-                    .collect(Collectors.toList());
+                    .toList();
         }
     }
 }

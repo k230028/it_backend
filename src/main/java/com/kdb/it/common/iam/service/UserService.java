@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 사용자(직원) 조회 서비스
@@ -55,7 +54,7 @@ public class UserService {
         // 각 사용자 엔티티를 DTO로 변환 (부점명은 연관관계에서 조회)
         return users.stream()
                 .map(user -> UserDto.ListResponse.fromEntity(user, user.getBbrNm())) // getBbrNm(): CorgnI.bbrNm
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

@@ -14,7 +14,6 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 신청서(결재) 관련 DTO 클래스 모음
@@ -329,7 +328,7 @@ public class ApplicationDto {
                     .rqsOpnn(capplm.getRgprDcdReqCone())  // 신청의견(등록자결재요청내용에서 파생)
                     .approvers(approvers.stream()
                             .map(ApproverResponse::fromEntity) // 각 결재자 엔티티를 DTO로 변환
-                            .collect(Collectors.toList()))
+                            .toList())
                     .build();
         }
     }
