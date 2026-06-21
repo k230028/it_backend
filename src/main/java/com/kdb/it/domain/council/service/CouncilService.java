@@ -109,14 +109,14 @@ public class CouncilService {
      * @return 권한에 맞는 협의회 목록
      */
     public List<CouncilDto.ListResponse> getCouncilList(CustomUserDetails userDetails) {
-        log.info("[CouncilList] eno={}, isAdmin={}, isCommitteeMember={}, bbrC={}",
+        log.debug("[CouncilList] eno={}, isAdmin={}, isCommitteeMember={}, bbrC={}",
                 userDetails.getEno(), userDetails.isAdmin(), isCommitteeMember(userDetails), userDetails.getBbrC());
 
         if (userDetails.isAdmin()) {
             // 관리자: 전체 부서 대상으로 결재완료 사업(미신청 포함) + 기신청 협의회 통합 조회
             List<Object[]> rows = councilRepository.findProjectsForCouncilAll(
                     PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
-            log.info("[CouncilList] admin query result count={}", rows.size());
+            log.debug("[CouncilList] admin query result count={}", rows.size());
             return rows.stream().map(row -> toListResponseFromRow(row)).collect(Collectors.toList());
         }
 
