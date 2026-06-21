@@ -242,7 +242,6 @@ public class AuditLogPersister {
      * 배치 또는 비인증 컨텍스트에서 호출되는 경우에도 안전하게 처리됩니다.</p>
      *
      * @return 현재 인증된 사용자의 사번, 미인증 시 {@code null}
-     * TODO: [B-M-02] null 반환 시 감사 로그 CHG_USID에 null 기록됨 — 'SYSTEM' 또는 'ANONYMOUS' 기본값 + warn 로그 추가 권장
      */
     private String resolveCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

@@ -94,6 +94,51 @@ class NotificationServiceTest {
         assertThat(captor.getValue().getTtl()).hasSize(100);
     }
 
+    @Test
+    @DisplayName("send: 본문이 4000자를 초과하면 4000자로 잘라 저장한다")
+    void send_본문초과_4000자로_clamp() {
+        // Arrange
+        String longBody = "가".repeat(5000);
+        NotificationEvent event = NotificationEvent.builder()
+                .recipientEno("E0001")
+                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
+                .ttl("제목")
+                .infmMsgCone(longBody)
+                .build();
+        given(cinfmmRepository.getNextVal()).willReturn(1L);
+
+        // Act
+        notificationService.send(event);
+
+        // Assert
+        ArgumentCaptor<Cinfmm> captor = ArgumentCaptor.forClass(Cinfmm.class);
+        verify(cinfmmRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getInfmMsgCone()).hasSize(4000);
+    }
+
+    @Test
+    @DisplayName("send: URL이 300자를 초과하면 300자로 잘라 저장한다")
+    void send_URL초과_300자로_clamp() {
+        // Arrange
+        String longUrl = "/notifications/" + "a".repeat(400);
+        NotificationEvent event = NotificationEvent.builder()
+                .recipientEno("E0001")
+                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
+                .ttl("제목")
+                .infmMsgCone("본문")
+                .infmRcdUrl(longUrl)
+                .build();
+        given(cinfmmRepository.getNextVal()).willReturn(1L);
+
+        // Act
+        notificationService.send(event);
+
+        // Assert
+        ArgumentCaptor<Cinfmm> captor = ArgumentCaptor.forClass(Cinfmm.class);
+        verify(cinfmmRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getInfmRcdUrl()).hasSize(300);
+    }
+
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = " ")
