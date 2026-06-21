@@ -29,7 +29,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * 공통 첨부파일 서비스
@@ -234,7 +233,7 @@ public class FileService {
             list = fileRepository.findAllByPkColNmAndDelYn(condition.getPkColNm(), "N");
         }
 
-        return list.stream().map(this::toResponse).collect(Collectors.toList());
+        return list.stream().map(this::toResponse).toList();
     }
 
     // ─────────────────────────────────────────
