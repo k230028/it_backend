@@ -26,7 +26,6 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
-import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -65,8 +64,6 @@ class BudgetWorkServiceTest {
     @Mock private ProjectItemRepository projectItemRepository;
     @Mock private CostRepository costRepository;
     @Mock private BudgetWorkQueryRepository budgetWorkQueryRepository;
-    /** 환율 표준 조회 헬퍼 (CONTEXT.md 결정 E / R3.7 — Wave 5 추가 의존성) */
-    @Mock private XcrLookupService xcrLookupService;
 
     @InjectMocks
     private BudgetWorkService budgetWorkService;
@@ -177,15 +174,15 @@ class BudgetWorkServiceTest {
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code1, code2));
         mockEmptyDetailCodes();
-        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026")).willReturn(java.util.Map.of());
-        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026")).willReturn(java.util.Map.of());
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any())).willReturn(java.util.Map.of());
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any())).willReturn(java.util.Map.of());
 
         // when
         budgetWorkService.getSummary("2026");
 
         // then: 각각 정확히 1회 호출 (N+1 없음)
-        Mockito.verify(budgetWorkQueryRepository, Mockito.times(1)).findApprovedCostAmountByIoeC("2026");
-        Mockito.verify(budgetWorkQueryRepository, Mockito.times(1)).findApprovedItemAmountByGclDtt("2026");
+        Mockito.verify(budgetWorkQueryRepository, Mockito.times(1)).findApprovedCostAmountByIoeC(eq("2026"), any());
+        Mockito.verify(budgetWorkQueryRepository, Mockito.times(1)).findApprovedItemAmountByGclDtt(eq("2026"), any());
         Mockito.verify(bbugtmRepository, Mockito.never()).findApprovedCostsByIoeCValues(any(), any());
         Mockito.verify(bbugtmRepository, Mockito.never()).findApprovedItemsByIoeCValues(any(), any());
     }
@@ -208,9 +205,9 @@ class BudgetWorkServiceTest {
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(bbugtm));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(detailCode));
-        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026"))
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
                 .willReturn(java.util.Map.of("101", BigDecimal.valueOf(1000000)));
-        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026"))
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
                 .willReturn(java.util.Map.of());
 
         // when
@@ -246,13 +243,13 @@ class BudgetWorkServiceTest {
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(dupCodes);
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(ioeCodes);
-        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026"))
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
                 .willReturn(java.util.Map.of(
                         "001", BigDecimal.valueOf(100),
                         "003", BigDecimal.valueOf(200),
                         "006", BigDecimal.valueOf(300),
                         "010", BigDecimal.valueOf(400)));
-        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026"))
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
                 .willReturn(java.util.Map.of());
 
         BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
@@ -554,11 +551,8 @@ class BudgetWorkServiceTest {
         given(capitalItem.getGclMngNo()).willReturn("GCL-0001");
         given(capitalItem.getSno()).willReturn(1);
         given(capitalItem.getIoeC()).willReturn("IOE-351-0100");
+        // BITEMM.amt는 이미 원화(KRW) 정규화 금액 → 편성 계산 시 환율을 다시 곱하지 않는다.
         given(capitalItem.getAmt()).willReturn(BigDecimal.valueOf(1000));
-        // Wave 5: Ccodem 단일 원천으로 환율 조회 — item.xcr 무시 (CONTEXT.md 결정 E)
-        given(capitalItem.getCurC()).willReturn("USD");
-        given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
-                .willReturn(BigDecimal.valueOf(2));
         Bcostm cost = mock(Bcostm.class);
         given(cost.getCostBgNo()).willReturn("COST_2026_0001");
         given(cost.getBgSno()).willReturn(1);
@@ -586,7 +580,7 @@ class BudgetWorkServiceTest {
         verify(bbugtmRepository, org.mockito.Mockito.times(2)).save(captor.capture());
         assertThat(captor.getAllValues()).extracting(Bbugtm::getAsgRt).containsExactly(60, 100);
         assertThat(captor.getAllValues()).extracting(Bbugtm::getBgDupAmt)
-                .containsExactly(new BigDecimal("1200.00"), new BigDecimal("500.00"));
+                .containsExactly(new BigDecimal("600.00"), new BigDecimal("500.00"));
     }
 
     @Test
@@ -612,9 +606,9 @@ class BudgetWorkServiceTest {
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(detailCode, detailCode2));
-        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026"))
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
                 .willReturn(java.util.Map.of("101", BigDecimal.valueOf(1000)));
-        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026"))
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
                 .willReturn(java.util.Map.of());
 
         BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
@@ -854,9 +848,9 @@ class BudgetWorkServiceTest {
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(nullBudget, normalBudget));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(detailCode));
-        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC("2026"))
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
                 .willReturn(java.util.Map.of("101", BigDecimal.valueOf(1000)));
-        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt("2026"))
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
                 .willReturn(java.util.Map.of());
 
         // when

@@ -5,7 +5,6 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
-import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -21,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -61,9 +59,6 @@ public class BudgetWorkService {
 
     /** 공통코드 리포지토리 (TPRMPP_CCODEM): 편성비목(DUP_IOE) 조회용 */
     private final CodeRepository codeRepository;
-
-    /** 환율 표준 조회 헬퍼: 외화 항목 amountKrw 계산 시 Ccodem 단일 원천 (CONTEXT.md 결정 E / R3.7) */
-    private final XcrLookupService xcrLookupService;
 
     /** 결재완료 원본 집계 쿼리 리포지토리: getSummary N+1 제거용 (DB-01) */
     private final BudgetWorkQueryRepository budgetWorkQueryRepository;
@@ -206,11 +201,9 @@ public class BudgetWorkService {
             // 지칭한 것이며, BBUGTM에 저장 시 실제 원본은 BITEMM임.
             List<Bitemm> items = bbugtmRepository.findApprovedItemsByIoeCValues(ioeCValues, bgYy);
             for (Bitemm item : items) {
-                // XCR 표준 조회: 외화는 Ccodem 단일 원천, KRW/null은 1 fallback (CONTEXT.md 결정 E / R3.7)
-                // 외화이며 환율 미등록 시 resolveXcr가 IllegalStateException → @Transactional 경계에서 자연 롤백
-                BigDecimal serverXcr = xcrLookupService.resolveXcr(item.getCurC(), LocalDate.now());
-                BigDecimal xcrVal = serverXcr != null ? serverXcr : BigDecimal.ONE;
-                BigDecimal amountKrw = item.getAmt() != null ? item.getAmt().multiply(xcrVal) : BigDecimal.ZERO;
+                // BITEMM.amt는 이미 원화(KRW) 정규화 금액(외화 행은 amt = fcAmt × xcr로 저장).
+                // 환율을 다시 곱하면 외화 품목이 이중환산되므로 amt를 원화로 직접 사용한다.
+                BigDecimal amountKrw = item.getAmt() != null ? item.getAmt() : BigDecimal.ZERO;
                 BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
                 Optional<Bbugtm> existing = bbugtmRepository
@@ -303,11 +296,11 @@ public class BudgetWorkService {
                     boolean isCapital = isCapitalIoeCode(bitemm.getIoeC(), capitalPrefixes);
                     int dupRt = isCapital ? assetDupRt : costDupRt;
 
-                    // XCR 표준 조회: 외화는 Ccodem 단일 원천, KRW/null은 1 fallback (CONTEXT.md 결정 E / R3.7)
-                    // 외화이며 환율 미등록 시 resolveXcr가 IllegalStateException → @Transactional 경계에서 자연 롤백
-                    BigDecimal serverXcr = xcrLookupService.resolveXcr(bitemm.getCurC(), LocalDate.now());
-                    BigDecimal xcrVal = serverXcr != null ? serverXcr : BigDecimal.ONE;
-                    BigDecimal amountKrw = bitemm.getAmt() != null ? bitemm.getAmt().multiply(xcrVal) : BigDecimal.ZERO;
+                    // BITEMM.amt는 이미 원화(KRW) 정규화 금액이다(외화 행은 ProjectService에서
+                    // amt = fcAmt × xcr로 환산 저장, 원화 행은 입력값 그대로). 따라서 여기서 환율을
+                    // 다시 곱하면 외화 품목이 이중환산되어 편성액이 부풀려진다. amt를 원화로 직접 사용한다.
+                    // (BCOSTM 편성이 costTotXpAmt(=AMT, 원화)를 그대로 쓰는 것과 동일 기준)
+                    BigDecimal amountKrw = bitemm.getAmt() != null ? bitemm.getAmt() : BigDecimal.ZERO;
                     BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
                     /* 선 Soft Delete 후 전체 재삽입 방식이므로 Upsert 불필요 (항상 INSERT) */
@@ -394,7 +387,27 @@ public class BudgetWorkService {
      * @return 비목별 요약 목록 + 합계
      */
     public BudgetWorkDto.SummaryResponse getSummary(String bgYy) {
+        return getSummary(bgYy, null);
+    }
+
+    /**
+     * 편성 결과 조회 (API-03) — 선택 원본 한정 집계 지원.
+     *
+     * @param bgYy   예산연도
+     * @param srcPks 선택 원본 PK 목록(BBUGTM.pkColNm). null/빈 목록이면 연도 전체 집계(예산작업 화면용),
+     *               값이 있으면 해당 원본만 집계(정보기술부문 계획 화면의 선택 사업 카드용).
+     */
+    public BudgetWorkDto.SummaryResponse getSummary(String bgYy, java.util.List<String> srcPks) {
         List<Bbugtm> budgets = bbugtmRepository.findByBseYyAndDelYn(bgYy, "N");
+        budgets = filterByApprovedSource(budgets, bgYy);
+
+        // 선택 원본 한정(정보기술부문 계획 카드): 지정된 원본 PK의 편성행만 집계
+        if (srcPks != null && !srcPks.isEmpty()) {
+            java.util.Set<String> selectedPks = new java.util.HashSet<>(srcPks);
+            budgets = budgets.stream()
+                    .filter(b -> b.getPkColNm() != null && selectedPks.contains(b.getPkColNm()))
+                    .toList();
+        }
 
         // 편성비목 그룹 코드 조회 (DUP_IOE: 접두어 → 그룹명 매핑)
         List<Ccodem> dupIoeCodes = findCodes("DUP_IOE");
@@ -433,13 +446,18 @@ public class BudgetWorkService {
             }
         }
 
+        // 예정금액(익년 이후분) 비목별 차감액 산출 — 예산년도분 기준으로 정렬(budget/list와 일치)
+        Map<String, BigDecimal> mplReqAdjustByIoeC = new LinkedHashMap<>();
+        Map<String, BigDecimal> mplDupAdjustByIoeC = new LinkedHashMap<>();
+        computeMplAdjustment(budgets, cdvaToCapital, mplReqAdjustByIoeC, mplDupAdjustByIoeC);
+
         // 결재완료 원본 데이터에서 요청금액을 직접 계산 (DB-01: 단일 집계 쿼리로 N+1 제거)
         // 기존: 각 prefix별 findApprovedCostsByPrefix / findApprovedItemsByPrefix → N×2 쿼리
         // 개선: 전체를 한 번에 GROUP BY 집계 → 2 쿼리
         Map<String, BigDecimal> approvedCostAmountByIoeC =
-                budgetWorkQueryRepository.findApprovedCostAmountByIoeC(bgYy);
+                budgetWorkQueryRepository.findApprovedCostAmountByIoeC(bgYy, srcPks);
         Map<String, BigDecimal> approvedItemAmountByIoeC =
-                budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(bgYy);
+                budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(bgYy, srcPks);
 
         List<BudgetWorkDto.SummaryItem> items = new ArrayList<>();
         BigDecimal totalRequest = BigDecimal.ZERO;
@@ -525,6 +543,14 @@ public class BudgetWorkService {
                             approvedItemAmountByIoeC.getOrDefault(ioeC, BigDecimal.ZERO));
                 }
 
+                // 예정금액(익년분) 비례 차감 — 요청·편성 동일 비율 차감으로 편성률 보존
+                for (String ioeC : ioeCodes) {
+                    requestAmount = requestAmount.subtract(mplReqAdjustByIoeC.getOrDefault(ioeC, BigDecimal.ZERO));
+                    dupAmount = dupAmount.subtract(mplDupAdjustByIoeC.getOrDefault(ioeC, BigDecimal.ZERO));
+                }
+                if (requestAmount.signum() < 0) requestAmount = BigDecimal.ZERO;
+                if (dupAmount.signum() < 0) dupAmount = BigDecimal.ZERO;
+
                 // 편성률 (BBUGTM 레코드가 있으면 해당 값, 없으면 null)
                 Integer dupRt = allRecords.stream()
                         .map(Bbugtm::getAsgRt)
@@ -565,6 +591,100 @@ public class BudgetWorkService {
             return fullName.substring(dashIdx + 3);
         }
         return fullName;
+    }
+
+    /**
+     * BBUGTM 편성 행 중 "결재완료 원본"에 해당하는 것만 남깁니다.
+     *
+     * <p>편성요청금액 집계는 결재완료 원본만 대상으로 하지만, BBUGTM에는 이후 결재가
+     * 취소·반려되었거나 잘못 입력된 미결재 원본의 편성 행이 stale 상태로 남아 합계를
+     * 부풀릴 수 있습니다. 요청금액과 동일한 결재완료 기준(원본 PK 화이트리스트)으로
+     * 필터링하여 편성액 집계를 일치시킵니다.</p>
+     *
+     * @param budgets 연도별 BBUGTM 편성 행 (DEL_YN='N')
+     * @param bgYy    예산연도
+     * @return 결재완료 원본(BBUGTM.pkColNm ∈ 결재완료 원본 PK)만 남긴 목록
+     */
+    private List<Bbugtm> filterByApprovedSource(List<Bbugtm> budgets, String bgYy) {
+        java.util.Set<String> approvedSrcPks = budgetWorkQueryRepository.findApprovedSourcePks(bgYy);
+        // 안전장치(fail-open): 결재완료 원본 집합을 구하지 못하면(null/빈 집합) 필터링하지 않는다.
+        // 화이트리스트가 비었을 때 전체 편성행이 사라져 합계가 0이 되는 더 큰 사고를 방지.
+        if (approvedSrcPks == null || approvedSrcPks.isEmpty()) return budgets;
+        return budgets.stream()
+                .filter(b -> b.getPkColNm() != null && approvedSrcPks.contains(b.getPkColNm()))
+                .toList();
+    }
+
+    /**
+     * 예정금액(익년 이후분) 비목별 차감액 산출.
+     *
+     * <p>사업의 예정자본/관리비금액(MPL_CPIT_AMT/MPL_MNGC_AMT)은 익년 이후 예정분이므로
+     * 예산년도 편성요청/편성에서 제외해야 한다(budget/list의 totRqmAmt 기준과 일치).
+     * 예정금액은 사업 단위라 해당 사업의 그룹(자본/일반관리비) 품목에 비례 배분하여
+     * 요청(req)·편성(dup)을 동일 비율로 차감한다(품목별 편성률 ≤ 100% 보존).
+     * 전산업무비(BCOSTM)는 예정금액이 없어 대상에서 제외한다.</p>
+     */
+    private void computeMplAdjustment(List<Bbugtm> budgets, Map<String, Boolean> cdvaToCapital,
+                                      Map<String, BigDecimal> reqAdjustOut, Map<String, BigDecimal> dupAdjustOut) {
+        // 품목(gclMngNo)별 BBUGTM 편성행 (BITEMM 원본만)
+        Map<String, List<Bbugtm>> byGcl = new LinkedHashMap<>();
+        for (Bbugtm b : budgets) {
+            if ("BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null && b.getIoeC() != null) {
+                byGcl.computeIfAbsent(b.getPkColNm(), k -> new ArrayList<>()).add(b);
+            }
+        }
+        if (byGcl.isEmpty()) return;
+
+        // gclMngNo → Bitemm(품목금액/환율/사업관리번호)
+        Map<String, Bitemm> bitemmByGcl = new LinkedHashMap<>();
+        for (String gcl : byGcl.keySet()) {
+            projectItemRepository.findByGclMngNoAndDelYn(gcl, "N").stream().findFirst()
+                    .ifPresent(it -> bitemmByGcl.put(gcl, it));
+        }
+        // 사업관리번호 → Bprojm(예정금액)
+        Map<String, Bprojm> prjByNo = new LinkedHashMap<>();
+        for (Bitemm it : bitemmByGcl.values()) {
+            String no = it.getAbusMngNo();
+            if (no != null && !prjByNo.containsKey(no)) {
+                projectRepository.findByAbusMngNoAndDelYn(no, "N").ifPresent(p -> prjByNo.put(no, p));
+            }
+        }
+
+        // 사업+그룹(자본/일반)별 품목 기여(요청/편성) 집계
+        record ItemContrib(String ioeC, BigDecimal req, BigDecimal dup) {}
+        Map<String, List<ItemContrib>> groupItems = new LinkedHashMap<>();
+        Map<String, BigDecimal> groupReqSum = new LinkedHashMap<>();
+        for (Map.Entry<String, List<Bbugtm>> e : byGcl.entrySet()) {
+            Bitemm it = bitemmByGcl.get(e.getKey());
+            if (it == null || it.getAbusMngNo() == null || !prjByNo.containsKey(it.getAbusMngNo())) continue;
+            String ioeC = e.getValue().get(0).getIoeC();
+            boolean capital = Boolean.TRUE.equals(cdvaToCapital.get(ioeC));
+            BigDecimal xcr = it.getXcr() != null ? it.getXcr() : BigDecimal.ONE;
+            BigDecimal req = (it.getAmt() != null ? it.getAmt() : BigDecimal.ZERO).multiply(xcr);
+            BigDecimal dup = e.getValue().stream().map(Bbugtm::getBgDupAmt)
+                    .filter(v -> v != null).reduce(BigDecimal.ZERO, BigDecimal::add);
+            String key = it.getAbusMngNo() + "|" + capital;
+            groupItems.computeIfAbsent(key, k -> new ArrayList<>()).add(new ItemContrib(ioeC, req, dup));
+            groupReqSum.merge(key, req, BigDecimal::add);
+        }
+
+        // 그룹별 예정금액을 비례 배분하여 비목별 차감액 누적
+        for (Map.Entry<String, List<ItemContrib>> e : groupItems.entrySet()) {
+            String key = e.getKey();
+            int sep = key.lastIndexOf('|');
+            Bprojm prj = prjByNo.get(key.substring(0, sep));
+            boolean capital = Boolean.parseBoolean(key.substring(sep + 1));
+            BigDecimal mpl = capital ? prj.getMplCpitAmt() : prj.getMplMngcAmt();
+            if (mpl == null || mpl.signum() <= 0) continue;
+            BigDecimal sum = groupReqSum.getOrDefault(key, BigDecimal.ZERO);
+            if (sum.signum() <= 0) continue;
+            BigDecimal factor = mpl.compareTo(sum) >= 0 ? BigDecimal.ONE
+                    : mpl.divide(sum, 10, RoundingMode.HALF_UP);
+            for (ItemContrib ic : e.getValue()) {
+                reqAdjustOut.merge(ic.ioeC(), ic.req().multiply(factor), BigDecimal::add);
+                dupAdjustOut.merge(ic.ioeC(), ic.dup().multiply(factor), BigDecimal::add);
+            }
+        }
     }
 
     /**
@@ -643,6 +763,7 @@ public class BudgetWorkService {
         // 1. 편성비목 코드 조회 (컬럼 헤더용)
         List<Ccodem> ioeCodes = findCodes("DUP_IOE");
         List<Bbugtm> budgets = bbugtmRepository.findByBseYyAndDelYn(bgYy, "N");
+        budgets = filterByApprovedSource(budgets, bgYy);
 
         // ioeC(cdva, "101") → 계층코드 cdvaDtlC("304-1100") 매핑: DUP_IOE 접두어("304") 매칭용
         List<Ccodem> ioeDetailCodes = findCodes(CommonCodeGroups.IOE);
