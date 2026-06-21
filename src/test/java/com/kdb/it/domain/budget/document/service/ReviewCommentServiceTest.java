@@ -7,6 +7,7 @@ import com.kdb.it.domain.budget.document.entity.Brivgm;
 import com.kdb.it.domain.budget.document.repository.BrivgmRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,6 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 /**
  * 검토의견 서비스({@link ReviewCommentService}) 단위 테스트
@@ -80,20 +83,15 @@ class ReviewCommentServiceTest {
         // 준비: FST_ENR_USID 가 설정된 코멘트 (JPA Auditing 대신 리플렉션으로 주입)
         var comment = Brivgm.create("DOC-2026-0010", new BigDecimal("1.01"),
                 "G", "작성자 이름 확인용 코멘트", null, null);
-        try {
-            var field = comment.getClass().getSuperclass().getDeclaredField("fstEnrUsid");
-            field.setAccessible(true);
-            field.set(comment, "E12345");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        setFstEnrUsid(comment, "E12345");
 
         given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
                 "DOC-2026-0010", new BigDecimal("101"), "N"))   // 화면 1.01 → 저장 정수 101(× 100)
                 .willReturn(List.of(comment));
 
         var user = CuserI.builder().eno("E12345").usrNm("홍길동").build();
-        given(userRepository.findById("E12345")).willReturn(Optional.of(user));
+        given(userRepository.findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
+                .willReturn(List.of(user));
 
         // 실행
         List<ReviewCommentDto.Response> result =
@@ -109,18 +107,13 @@ class ReviewCommentServiceTest {
         // 준비
         var comment = Brivgm.create("DOC-2026-0010", new BigDecimal("1.01"),
                 "G", "코멘트", null, null);
-        try {
-            var field = comment.getClass().getSuperclass().getDeclaredField("fstEnrUsid");
-            field.setAccessible(true);
-            field.set(comment, "UNKNOWN_ENO");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        setFstEnrUsid(comment, "UNKNOWN_ENO");
 
         given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
                 "DOC-2026-0010", new BigDecimal("101"), "N"))   // 화면 1.01 → 저장 정수 101(× 100)
                 .willReturn(List.of(comment));
-        given(userRepository.findById("UNKNOWN_ENO")).willReturn(Optional.empty());
+        given(userRepository.findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
+                .willReturn(List.of());
 
         // 실행
         List<ReviewCommentDto.Response> result =
@@ -129,6 +122,43 @@ class ReviewCommentServiceTest {
         // 검증: 미존재 사용자는 사번(eno) 자체를 fallback으로 반환
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getAuthorName()).isEqualTo("UNKNOWN_ENO");
+    }
+
+    @Test
+    void getComments_작성자명은_findByEnoIn_1회_배치조회하고_findById는_호출하지_않는다() {
+        // 준비: 동일 사번(E001) 2건 + 다른 사번(E002) 1건 → 사번 집합은 {E001, E002}
+        var c1 = Brivgm.create("DOC-1", new BigDecimal("0.01"), "G", "코멘트1", null, null);
+        var c2 = Brivgm.create("DOC-1", new BigDecimal("0.01"), "G", "코멘트2", null, null);
+        var c3 = Brivgm.create("DOC-1", new BigDecimal("0.01"), "G", "코멘트3", null, null);
+        setFstEnrUsid(c1, "E001");
+        setFstEnrUsid(c2, "E002");
+        setFstEnrUsid(c3, "E001");
+        given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
+                eq("DOC-1"), any(), eq("N")))
+                .willReturn(List.of(c1, c2, c3));
+        var u1 = CuserI.builder().eno("E001").usrNm("홍길동").build();
+        var u2 = CuserI.builder().eno("E002").usrNm("김철수").build();
+        given(userRepository.findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
+                .willReturn(List.of(u1, u2));
+
+        List<ReviewCommentDto.Response> result =
+                reviewCommentService.getComments("DOC-1", new BigDecimal("0.01"));
+
+        assertThat(result).hasSize(3);
+        then(userRepository).should(times(1))
+                .findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any());
+        then(userRepository).should(never()).findById(anyString());
+    }
+
+    // 헬퍼: BaseEntity.fstEnrUsid를 리플렉션으로 주입 (JPA Auditing 대체)
+    private void setFstEnrUsid(Brivgm comment, String eno) {
+        try {
+            var field = comment.getClass().getSuperclass().getDeclaredField("fstEnrUsid");
+            field.setAccessible(true);
+            field.set(comment, eno);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
