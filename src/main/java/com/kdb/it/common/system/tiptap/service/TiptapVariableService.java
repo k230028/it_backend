@@ -6,7 +6,9 @@ import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.MetadataResponse;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ProjectRef;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ResolveResponse;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ResolvedValue;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.tiptap.util.TiptapTokenParser;
+import com.kdb.it.common.system.tiptap.util.TiptapTokenParser.Category;
 import com.kdb.it.common.system.tiptap.util.TiptapTokenParser.ParseResult;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount;
@@ -77,23 +79,28 @@ public class TiptapVariableService {
      * @param tokens 해석 대상 토큰 배열 (호출자는 1~200 사이로 검증)
      * @return 토큰별 해석 결과(삽입 순서 유지)
      */
-    public ResolveResponse resolve(List<String> tokens) {
+    public ResolveResponse resolve(List<String> tokens, CustomUserDetails user) {
         Map<String, ResolvedValue> results = new LinkedHashMap<>();
         for (String token : tokens) {
-            results.put(token, resolveOne(token));
+            results.put(token, resolveOne(token, user));
         }
         return new ResolveResponse(results);
     }
 
     /**
-     * 단일 토큰 해석. INVALID/MISSING/OK 분기.
-     * FORBIDDEN 반환 경로는 현재 미구현 — 향후 SecurityContext 기준 권한 검증 추가 시 이 분기에서 처리.
-     * // TODO: 권한 검증 구현 후 FORBIDDEN 분기 추가 (TASK.md)
+     * 단일 토큰 해석. INVALID/FORBIDDEN/MISSING/OK 분기.
+     * PROJ 토큰은 관리자·부서매니저만 허용하고, 그 외 사용자에게는 FORBIDDEN을 반환한다.
      */
-    private ResolvedValue resolveOne(String token) {
+    private ResolvedValue resolveOne(String token, CustomUserDetails user) {
         ParseResult parsed = tokenParser.parse(token);
         if (!parsed.valid()) {
             return ResolvedValue.invalid();
+        }
+        // 사업(PROJ) 토큰은 부서/권한 종속 데이터이므로 관리자·부서매니저만 허용한다.
+        // 일반 사용자는 FORBIDDEN으로 차단(세부 부서-사업 매핑은 후속 과제).
+        if (parsed.category() == Category.PROJ
+                && (user == null || (!user.isAdmin() && !user.isDeptManager()))) {
+            return ResolvedValue.forbidden();
         }
 
         AggregatedAmount agg = switch (parsed.category()) {

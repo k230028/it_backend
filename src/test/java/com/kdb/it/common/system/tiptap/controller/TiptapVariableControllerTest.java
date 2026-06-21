@@ -77,7 +77,7 @@ class TiptapVariableControllerTest {
     @WithMockUser
     @DisplayName("POST /api/tiptap-variables/resolve - 정상 요청은 200 + results 반환")
     void resolve_validRequest_returnsResults() throws Exception {
-        given(service.resolve(any())).willReturn(new ResolveResponse(Map.of(
+        given(service.resolve(any(), any())).willReturn(new ResolveResponse(Map.of(
                 "2026.itBudget.requestAmount", ResolvedValue.ok("900억원")
         )));
 

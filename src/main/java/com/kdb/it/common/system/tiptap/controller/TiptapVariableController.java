@@ -1,12 +1,14 @@
 package com.kdb.it.common.system.tiptap.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.MetadataResponse;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ResolveRequest;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ResolveResponse;
@@ -59,7 +61,9 @@ public class TiptapVariableController {
     @PostMapping("/resolve")
     @Operation(summary = "변수 토큰 해석",
                description = "토큰 배열을 받아 토큰별 표시값과 상태를 반환합니다. 최대 200개.")
-    public ResponseEntity<ResolveResponse> resolve(@Valid @RequestBody ResolveRequest request) {
-        return ResponseEntity.ok(service.resolve(request.tokens()));
+    public ResponseEntity<ResolveResponse> resolve(
+            @Valid @RequestBody ResolveRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(service.resolve(request.tokens(), user));
     }
 }
