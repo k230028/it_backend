@@ -8,6 +8,7 @@ import com.kdb.it.domain.budget.document.repository.ServiceRequestDocRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,6 +30,8 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 /**
  * ServiceRequestDocService 단위 테스트
@@ -299,25 +302,30 @@ class ServiceRequestDocServiceTest {
     }
 
     @Test
-    @DisplayName("문서 목록 조회 시 최초생성자명이 있으면 사용자명을 매핑한다")
-    void getDocumentList_mapsCreatorNameWhenUserExists() {
-        Brdocm document = Brdocm.builder()
-                .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("0.01"))
-                .reqTtl("문서")
-                .fstEnrUsid("E10001")
-                .build();
-        CuserI user = CuserI.builder()
-                .eno("E10001")
-                .usrNm("홍길동")
-                .build();
-        given(repository.findLatestVersionsAll()).willReturn(List.of(document));
-        given(cuserIRepository.findById("E10001")).willReturn(Optional.of(user));
+    @DisplayName("getDocumentList: 작성자명은 findByEnoIn 1회로 배치 조회하고 findById는 호출하지 않는다")
+    void getDocumentList_batchesAuthorNames() {
+        Brdocm d1 = Brdocm.builder()
+                .docMngNo("DOC-1").docVrsSno(new BigDecimal("0.01")).reqTtl("문서1").fstEnrUsid("E001").build();
+        Brdocm d2 = Brdocm.builder()
+                .docMngNo("DOC-2").docVrsSno(new BigDecimal("0.01")).reqTtl("문서2").fstEnrUsid("E002").build();
+        Brdocm d3 = Brdocm.builder()
+                .docMngNo("DOC-3").docVrsSno(new BigDecimal("0.01")).reqTtl("문서3").fstEnrUsid("E001").build();
+        CuserI u1 = CuserI.builder().eno("E001").usrNm("홍길동").build();
+        CuserI u2 = CuserI.builder().eno("E002").usrNm("김철수").build();
+        given(repository.findLatestVersionsAll()).willReturn(List.of(d1, d2, d3));
+        given(cuserIRepository.findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
+                .willReturn(List.of(u1, u2));
 
         List<ServiceRequestDocDto.Response> result = service.getDocumentList();
 
-        assertThat(result).hasSize(1);
+        // 작성자명이 배치 결과로 매핑되고, 동일 사번(E001)이 여러 행에서 재사용된다
+        assertThat(result).hasSize(3);
         assertThat(result.get(0).getFstEnrUsNm()).isEqualTo("홍길동");
+        assertThat(result.get(1).getFstEnrUsNm()).isEqualTo("김철수");
+        assertThat(result.get(2).getFstEnrUsNm()).isEqualTo("홍길동");
+        then(cuserIRepository).should(times(1))
+                .findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any());
+        then(cuserIRepository).should(never()).findById(anyString());
     }
 
     @Test

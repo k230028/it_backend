@@ -68,17 +68,28 @@ public class ServiceRequestDocService {
      * @return 문서별 최신 버전 응답 DTO 목록
      */
     public List<ServiceRequestDocDto.Response> getDocumentList() {
-        return serviceRequestDocRepository.findLatestVersionsAll().stream()
-                .map(entity -> {
-                    ServiceRequestDocDto.Response response = ServiceRequestDocDto.Response.fromEntity(entity);
-                    // 최초생성자 사번 → 사용자명 매핑
-                    if (response.getFstEnrUsid() != null && !response.getFstEnrUsid().isEmpty()) {
-                        cuserIRepository.findById(response.getFstEnrUsid())
-                                .ifPresent(user -> response.setFstEnrUsNm(user.getUsrNm()));
-                    }
-                    return response;
-                })
+        List<ServiceRequestDocDto.Response> responses = serviceRequestDocRepository.findLatestVersionsAll().stream()
+                .map(ServiceRequestDocDto.Response::fromEntity)
                 .collect(Collectors.toList());
+
+        // 작성자명 배치 조회 (N+1 제거): 사번 집합 → findByEnoIn 1회 → eno→이름 Map
+        java.util.Set<String> enos = responses.stream()
+                .map(ServiceRequestDocDto.Response::getFstEnrUsid)
+                .filter(eno -> eno != null && !eno.isEmpty())
+                .collect(Collectors.toSet());
+        if (!enos.isEmpty()) {
+            java.util.Map<String, String> nameByEno = cuserIRepository.findByEnoIn(enos).stream()
+                    .collect(Collectors.toMap(
+                            com.kdb.it.common.iam.entity.CuserI::getEno,
+                            com.kdb.it.common.iam.entity.CuserI::getUsrNm,
+                            (a, b) -> a));
+            responses.forEach(r -> {
+                if (r.getFstEnrUsid() != null) {
+                    r.setFstEnrUsNm(nameByEno.get(r.getFstEnrUsid()));
+                }
+            });
+        }
+        return responses;
     }
 
     /**
