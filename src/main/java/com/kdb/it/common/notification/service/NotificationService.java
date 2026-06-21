@@ -51,12 +51,14 @@ public class NotificationService {
         }
         String infmMsgNo = generateInfmMsgNo();
 
+        // DB 컬럼 길이(제목 100자 / 본문 4000자 / URL 300자)를 초과하면 INSERT가 ORA-12899로 실패하므로
+        // 저장 직전에 안전하게 잘라낸다. truncation 발생 시 발행자 측 데이터 점검을 위해 warn 로그를 남긴다.
         Cinfmm notification = Cinfmm.builder()
             .infmMsgNo(infmMsgNo)
             .infmSvcTc(event.infmSvcTc())
-            .ttl(event.ttl())
-            .infmMsgCone(event.infmMsgCone())
-            .infmRcdUrl(event.infmRcdUrl())
+            .ttl(clamp("제목", infmMsgNo, event.ttl(), 100))
+            .infmMsgCone(clamp("본문", infmMsgNo, event.infmMsgCone(), 4000))
+            .infmRcdUrl(clamp("URL", infmMsgNo, event.infmRcdUrl(), 300))
             .rmsEno(event.recipientEno())
             .inqYn("N")
             .build();
@@ -67,6 +69,24 @@ public class NotificationService {
         log.info("[알림] CINFMM saveAndFlush 완료: infmMsgNo={}", infmMsgNo);
         dispatcher.dispatch(notification, event.sdPayload());
         return notification;
+    }
+
+    /**
+     * 알림 문자열 필드를 DB 컬럼 최대 길이로 안전하게 잘라냅니다.
+     *
+     * @param fieldLabel 로그용 필드 라벨(제목/본문/URL)
+     * @param infmMsgNo  진단용 알림 채번
+     * @param value      원본 값(null이면 그대로 null 반환)
+     * @param maxLen     허용 최대 길이
+     * @return maxLen 이하로 잘린 값(또는 원본/널)
+     */
+    private String clamp(String fieldLabel, String infmMsgNo, String value, int maxLen) {
+        if (value == null || value.length() <= maxLen) {
+            return value;
+        }
+        log.warn("[알림] {} 길이 초과 — {}자→{}자로 절단: infmMsgNo={}",
+                fieldLabel, value.length(), maxLen, infmMsgNo);
+        return value.substring(0, maxLen);
     }
 
     /**

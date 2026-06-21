@@ -72,6 +72,28 @@ class NotificationServiceTest {
         verify(dispatcher).dispatch(result, "{\"id\":1}");
     }
 
+    @Test
+    @DisplayName("send: 제목이 100자를 초과하면 100자로 잘라 저장한다")
+    void send_제목초과_100자로_clamp() {
+        // Arrange
+        String longTitle = "가".repeat(150);
+        NotificationEvent event = NotificationEvent.builder()
+                .recipientEno("E0001")
+                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
+                .ttl(longTitle)
+                .infmMsgCone("본문")
+                .build();
+        given(cinfmmRepository.getNextVal()).willReturn(1L);
+
+        // Act
+        notificationService.send(event);
+
+        // Assert
+        ArgumentCaptor<Cinfmm> captor = ArgumentCaptor.forClass(Cinfmm.class);
+        verify(cinfmmRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getTtl()).hasSize(100);
+    }
+
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = " ")
