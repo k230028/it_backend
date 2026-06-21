@@ -194,7 +194,17 @@ public class SecurityConfig {
                 CorsConfiguration configuration = new CorsConfiguration();
                 // 허용 Origin: application.properties의 cors.allowed-origins 값 사용
                 // allowCredentials=true 사용 시 와일드카드(*) 불가 → 명시적 도메인 필요
-                configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
+                // split 후 공백 제거 + 빈 항목 필터링: 빈/콤마-공백 입력이 [""]로 해석돼
+                // 모든 교차 출처를 조용히 차단하는 footgun 방지.
+                List<String> origins = java.util.Arrays.stream(allowedOrigins.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .toList();
+                if (origins.isEmpty()) {
+                        // 미설정 시 빈 목록을 명시적으로 설정 — 동작이 의도적이고 가시적이도록 WARN 로깅.
+                        log.warn("[CORS] cors.allowed-origins 미설정 — 교차 출처 요청이 차단됩니다");
+                }
+                configuration.setAllowedOrigins(origins);
                 // 허용할 HTTP 메서드 목록
                 configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 // 허용 헤더 명시화: 운영에서 필요한 표준 헤더만 허용 (와일드카드 제거)

@@ -40,4 +40,19 @@ class SecurityConfigCorsTest {
         assertThat(cors.getAllowCredentials()).isTrue();
         assertThat(cors.getAllowedOrigins()).containsExactly("https://it.kdb.co.kr");
     }
+
+    @Test
+    @DisplayName("콤마+공백이 섞인 입력은 빈 항목을 걸러내고 비공백 오리진만 남긴다")
+    void allowedOrigins_빈항목필터링() {
+        CorsConfiguration cors = corsFor("https://a.example.com, ,");
+        assertThat(cors.getAllowedOrigins()).containsExactly("https://a.example.com");
+        assertThat(cors.getAllowedOrigins()).doesNotContain("");
+    }
+
+    @Test
+    @DisplayName("빈 문자열 입력은 빈 오리진 목록으로 설정된다(전체 차단, 리터럴 [\"\"] 미발생)")
+    void allowedOrigins_빈값_빈목록() {
+        CorsConfiguration cors = corsFor("");
+        assertThat(cors.getAllowedOrigins()).isEmpty();
+    }
 }

@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 인증(Authentication) REST 컨트롤러
@@ -54,7 +53,6 @@ import lombok.RequiredArgsConstructor;
  */
 @RestController // REST API 컨트롤러로 등록
 @RequestMapping("/api/auth") // 기본 URL 경로 설정
-@RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
 @Tag(name = "Auth", description = "인증 API") // Swagger UI 그룹 태그
 public class AuthController {
 
@@ -64,9 +62,28 @@ public class AuthController {
     /** JWT 토큰 쿠키 관리 유틸리티 */
     private final CookieUtil cookieUtil;
 
-    /** 신뢰하는 역방향 프록시 IP 목록(CSV). 운영 Nginx 등. 비어 있으면 XFF 미신뢰. */
-    @org.springframework.beans.factory.annotation.Value("${app.trusted-proxies:}")
-    private String trustedProxiesCsv;
+    /** 신뢰하는 역방향 프록시 IP 집합(운영 Nginx 등). 비어 있으면 XFF 미신뢰. 생성 시 1회 파싱. */
+    private final java.util.Set<String> trustedProxies;
+
+    /**
+     * 생성자 — 신뢰 프록시 CSV를 {@code app.trusted-proxies}에서 주입받아 1회 파싱합니다.
+     *
+     * @param authService      인증 서비스
+     * @param cookieUtil       토큰 쿠키 유틸리티
+     * @param trustedProxiesCsv 신뢰 프록시 IP 목록(CSV). 비어 있으면 XFF를 신뢰하지 않음.
+     */
+    public AuthController(
+            AuthService authService,
+            CookieUtil cookieUtil,
+            @org.springframework.beans.factory.annotation.Value("${app.trusted-proxies:}") String trustedProxiesCsv) {
+        this.authService = authService;
+        this.cookieUtil = cookieUtil;
+        this.trustedProxies = (trustedProxiesCsv == null || trustedProxiesCsv.isBlank())
+                ? java.util.Set.of()
+                : java.util.Arrays.stream(trustedProxiesCsv.split(","))
+                        .map(String::trim).filter(s -> !s.isEmpty())
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
 
     /**
      * 회원가입
@@ -245,11 +262,6 @@ public class AuthController {
      * @return 클라이언트의 실제 IP 주소 문자열
      */
     private String getClientIp(HttpServletRequest request) {
-        java.util.Set<String> trusted = (trustedProxiesCsv == null || trustedProxiesCsv.isBlank())
-                ? java.util.Set.of()
-                : java.util.Arrays.stream(trustedProxiesCsv.split(","))
-                        .map(String::trim).filter(s -> !s.isEmpty())
-                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        return ClientIpResolver.resolve(request, trusted);
+        return ClientIpResolver.resolve(request, trustedProxies);
     }
 }

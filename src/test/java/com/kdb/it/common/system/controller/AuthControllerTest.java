@@ -265,7 +265,7 @@ class AuthControllerTest {
                                 .maxAge(0).path("/api/auth").build();
                 given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
                 given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
-                AuthController controller = new AuthController(authService, cookieUtil);
+                AuthController controller = new AuthController(authService, cookieUtil, "");
 
                 var response = controller.logout(new MockHttpServletRequest());
 
