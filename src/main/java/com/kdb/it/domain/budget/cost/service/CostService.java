@@ -154,7 +154,7 @@ public class CostService {
         List<Bcostm> costs = costRepository.findAllByDelYn("N");
         List<CostDto.Response> responses = costs.stream()
                 .map(CostDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         enrichCostListBatch(costs, responses);
         return responses;
     }
@@ -182,7 +182,7 @@ public class CostService {
         List<Bcostm> costs = costRepository.searchByCondition(condition);
         List<CostDto.Response> responses = costs.stream()
                 .map(CostDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         enrichCostListBatch(costs, responses);
         return responses;
     }
@@ -412,7 +412,7 @@ public class CostService {
                     }
                 })
                 .filter(response -> response != null)
-                .collect(Collectors.toList());
+                .toList();
 
         // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
         String bseYy = request.getBseYy();
@@ -545,7 +545,7 @@ public class CostService {
         if (costs.isEmpty()) return;
 
         // --- 1. CAPPLA 배치 조회 ---
-        List<String> costBgNos = costs.stream().map(Bcostm::getCostBgNo).distinct().collect(Collectors.toList());
+        List<String> costBgNos = costs.stream().map(Bcostm::getCostBgNo).distinct().toList();
         List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", costBgNos);
 
         // costBgNo+sno 복합키 → 최신 Cappla
@@ -557,7 +557,7 @@ public class CostService {
 
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
-                .map(Cappla::getApfDcmNo).collect(Collectors.toList());
+                .map(Cappla::getApfDcmNo).toList();
         Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
                 .collect(Collectors.toMap(Capplm::getApfMngNo, m -> m));
 
@@ -643,7 +643,7 @@ public class CostService {
                 .filter(r -> "02".equals(r.getAbusTc()))
                 .map(CostDto.Response::getCostBgNo)
                 .distinct()
-                .collect(Collectors.toList());
+                .toList();
         if (!continuingNos.isEmpty()) {
             String bseYy = responses.stream()
                     .map(CostDto.Response::getBseYy)
@@ -667,7 +667,7 @@ public class CostService {
                 .filter(r -> r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank())
                 .map(CostDto.Response::getCncdRfrNo)
                 .distinct()
-                .collect(Collectors.toList());
+                .toList();
         if (!cncdNos.isEmpty()) {
             String bseYy8 = responses.stream()
                     .map(CostDto.Response::getBseYy)

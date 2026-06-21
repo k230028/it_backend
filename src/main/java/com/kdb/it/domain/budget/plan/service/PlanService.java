@@ -88,7 +88,7 @@ public class PlanService {
                                 .map(Bplanm::getFstEnrUsid)
                                 .filter(eno -> eno != null && !eno.isBlank())
                                 .distinct()
-                                .collect(Collectors.toList());
+                                .toList();
                 Map<String, String> userNameByEno = userEnos.isEmpty()
                                 ? Map.of()
                                 : cuserIRepository.findAllById(userEnos).stream()
@@ -145,7 +145,7 @@ public class PlanService {
                                         dto.setContPrjCnt(contCnt);
                                         return dto;
                                 })
-                                .collect(Collectors.toList());
+                                .toList();
         }
 
         /**
@@ -170,7 +170,7 @@ public class PlanService {
                 List<String> prjMngNos = bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N")
                                 .stream()
                                 .map(Bplana::getPrjMngNo)
-                                .collect(Collectors.toList());
+                                .toList();
 
                 return PlanDto.DetailResponse.fromEntity(plan, prjMngNos);
         }
@@ -386,7 +386,7 @@ public class PlanService {
                                                 .assetBg(c.getAssetBg())
                                                 .costBg(c.getCostBg())
                                                 .build())
-                                .collect(Collectors.toList());
+                                .toList();
 
                 // 부문별/사업유형별 사업목록에는 일반 정보화사업만 표시합니다.
                 Set<String> ordinaryProjectIds = projects.stream()
@@ -395,7 +395,7 @@ public class PlanService {
                                 .collect(Collectors.toSet());
                 List<PlanDto.ProjectSnapshot> businessListSnapshots = projectSnapshots.stream()
                                 .filter(p -> !ordinaryProjectIds.contains(p.getPrjMngNo()))
-                                .collect(Collectors.toList());
+                                .toList();
 
                 // 통합 스냅샷 목록
                 projectSnapshots.addAll(costSnapshots);
@@ -412,7 +412,7 @@ public class PlanService {
                                         group.put("projects", entry.getValue());
                                         return group;
                                 })
-                                .collect(Collectors.toList());
+                                .toList();
 
                 // 사업유형(PRJ_TP)별 그룹핑
                 Map<String, List<PlanDto.ProjectSnapshot>> byTypeMap = businessListSnapshots.stream()
@@ -426,7 +426,7 @@ public class PlanService {
                                         group.put("projects", entry.getValue());
                                         return group;
                                 })
-                                .collect(Collectors.toList());
+                                .toList();
 
                 // 스냅샷 DTO 생성
                 PlanDto.SnapshotDto snapshot = PlanDto.SnapshotDto.builder()

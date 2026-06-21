@@ -52,7 +52,7 @@ public class ProjectBudgetSummaryService {
         List<Ccodem> allIoeCodes = codeService.findCodeEntitiesByCId(CommonCodeGroups.IOE);
         List<Ccodem> assetCodes = allIoeCodes.stream()
                 .filter(c -> CAPITAL_DETAIL_CTPS.contains(c.getCTp()) || "IOE_CPIT".equals(c.getCTp()))
-                .collect(Collectors.toList());
+                .toList();
         Set<String> assetTypes = assetCodes.stream()
                 .map(Ccodem::getCdva)
                 .collect(Collectors.toSet());
@@ -88,7 +88,7 @@ public class ProjectBudgetSummaryService {
 
         List<Bitemm> validItems = bitemms.stream()
                 .filter(item -> item.getIoeC() != null && item.getAmt() != null)
-                .collect(Collectors.toList());
+                .toList();
 
         BigDecimal assetBg = sumByIoe(validItems, assetTypes, calcAmt);
         BigDecimal dvcBg = sumByIoe(validItems, devTypes, calcAmt);

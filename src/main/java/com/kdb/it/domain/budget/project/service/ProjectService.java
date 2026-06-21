@@ -131,7 +131,7 @@ public class ProjectService {
         List<Bprojm> projects = projectRepository.findAllByDelYn("N");
         List<ProjectDto.Response> responses = projects.stream()
                 .map(ProjectDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         enrichProjectListBatch(projects, responses);
         return responses;
     }
@@ -164,7 +164,7 @@ public class ProjectService {
         List<Bprojm> projects = projectRepository.searchByCondition(condition);
         List<ProjectDto.Response> responses = projects.stream()
                 .map(ProjectDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         enrichProjectListBatch(projects, responses);
         return responses;
     }
@@ -200,7 +200,7 @@ public class ProjectService {
         // 품목 엔티티를 DTO로 변환하여 응답 객체에 설정
         List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
                 .map(ProjectDto.BitemmDto::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         // 품목구분명(ioeCNm) IOE 코드 표시명 설정
         enrichItemIoeCNames(itemDtos);
         response.setItems(itemDtos);
@@ -665,7 +665,7 @@ public class ProjectService {
                     }
                 })
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .toList();
 
         // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
         String bgYy = request.getBseYy();
@@ -713,7 +713,7 @@ public class ProjectService {
         if (projects.isEmpty()) return;
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
-        List<String> prjMngNos = projects.stream().map(Bprojm::getAbusMngNo).collect(Collectors.toList());
+        List<String> prjMngNos = projects.stream().map(Bprojm::getAbusMngNo).toList();
         List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", prjMngNos);
 
         // prjMngNo → 최신 Cappla (이미 DESC 정렬이므로 첫 번째가 최신)
@@ -724,7 +724,7 @@ public class ProjectService {
 
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
-                .map(Cappla::getApfDcmNo).collect(Collectors.toList());
+                .map(Cappla::getApfDcmNo).toList();
         Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
                 .collect(Collectors.toMap(Capplm::getApfMngNo, m -> m));
 
@@ -964,7 +964,7 @@ public class ProjectService {
         if (response.getItems() == null) {
             List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
                     .map(ProjectDto.BitemmDto::fromEntity)
-                    .collect(Collectors.toList());
+                    .toList();
             enrichItemIoeCNames(itemDtos);
             response.setItems(itemDtos);
         }

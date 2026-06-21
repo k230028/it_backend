@@ -70,7 +70,7 @@ public class ServiceRequestDocService {
     public List<ServiceRequestDocDto.Response> getDocumentList() {
         List<ServiceRequestDocDto.Response> responses = serviceRequestDocRepository.findLatestVersionsAll().stream()
                 .map(ServiceRequestDocDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
 
         // 작성자명 배치 조회 (N+1 제거): 사번 집합 → findByEnoIn 1회 → eno→이름 Map
         java.util.Set<String> enos = responses.stream()
@@ -138,7 +138,7 @@ public class ServiceRequestDocService {
         return serviceRequestDocRepository
                 .findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N").stream()
                 .map(ServiceRequestDocDto.VersionResponse::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

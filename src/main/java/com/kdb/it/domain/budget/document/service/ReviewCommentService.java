@@ -58,7 +58,7 @@ public class ReviewCommentService {
         return comments.stream()
                 .map(e -> new ReviewCommentDto.Response(e,
                         e.getFstEnrUsid() == null ? "" : nameByEno.getOrDefault(e.getFstEnrUsid(), e.getFstEnrUsid())))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
