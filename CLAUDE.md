@@ -8,6 +8,7 @@
 ## 1. 개요
 - 패키지 루트: `com.kdb.it`
 - 프로젝트 개요/목적은 루트 `../CLAUDE.md` §1 참조.
+- 작업 워크플로우는 루트 `../CLAUDE.md` §5를 따릅니다. Superpowers를 기본으로 사용하고, ECC/gstack은 보조 도구로 사용합니다.
 
 ## 2. 기술 스택
 - Framework: Spring Boot 4.1.0

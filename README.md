@@ -19,21 +19,21 @@
   - DB 기반 메뉴 트리 및 라우트 카탈로그 관리
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
-- **소스 코드**: 347개 메인 Java 파일, 116개 테스트 파일, 77개 JPA 엔티티(`@Entity` 기준)
+- **소스 코드**: 353개 메인 Java 파일, 121개 테스트 파일, 74개 JPA 엔티티(`@Entity` 기준)
 
 ## 2. 기술 스택
 
 | 구분 | 기술 | 버전 | 비고 |
 |------|------|------|------|
 | 언어 | Java | 25 | JDK 25 툴체인 |
-| 프레임워크 | Spring Boot | 4.0.5 | Spring Framework 7.0, 경량화 설정 |
+| 프레임워크 | Spring Boot | 4.1.0 | Spring Framework 7.x, 경량화 설정 |
 | ORM | Spring Data JPA + QueryDSL | 5.1.0 | 동적 쿼리/집계 쿼리용 QueryDSL, SQL Injection 대응(CVE) |
 | DB | Oracle Database | XEPDB1 | 사용자: `ITPAPP` |
 | 인증 | Spring Security + JWT | JJWT 0.13.0 | **httpOnly 쿠키 기반**, 15분 Access Token / 7일 Refresh Token |
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 116개 테스트 파일 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 121개 테스트 파일 |
 
 ## 2.5 빠른 시작 (Quick Start)
 
@@ -783,7 +783,7 @@ public class Bprojm extends BaseEntity { ... }
 #   → http://localhost:28080
 #   → Swagger: http://localhost:28080/swagger-ui/index.html
 
-# 4. 테스트 실행 (84개 테스트 파일)
+# 4. 테스트 실행 (121개 테스트 파일)
 ./gradlew test
 
 # 5. 테스트 커버리지 리포트 생성
@@ -900,7 +900,7 @@ Get-Content maven-repo-manifest.txt | Where-Object { $_ -notlike '*.module' } |
 #### 동작 원리 및 주의사항
 
 - Gradle은 플러그인 ID(`org.springframework.boot`)를 **마커 POM**
-  (`org.springframework.boot.gradle.plugin-4.0.5.pom`)으로 먼저 조회한 뒤 실제
+  (`org.springframework.boot.gradle.plugin-4.1.0.pom`)으로 먼저 조회한 뒤 실제
   구현 JAR를 받습니다. 미러에 마커 POM이 없으면 "Plugin was not found" 오류가
   발생합니다 (변환 스크립트가 자동 포함).
 - `querydsl-jpa`/`querydsl-apt`는 `jakarta` classifier 파일
@@ -1170,6 +1170,7 @@ public class Bnewent extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-06-22** | README.md 현행화: Spring Boot 4.1.0 기준으로 기술 스택 표기 정정, 소스 통계 재검증(메인 Java 353개, 테스트 121개, @Entity 74개), 루트 AI 하네스 기준(Superpowers 기본, ECC/gstack 보조)과 충돌하지 않도록 문서 참조 흐름 정리 |
 | **2026-06-09** | README.md 코드 대조 현행화: (1) 소스 통계 정정(메인 Java 291→350, 테스트 96→115, @Entity 64→79), (2) 정보화사업 집행 4단계 도메인 신규 반영 — `domain/estimate`(소요예산 산정, `/api/project/estimates`, Bestim+Besttm), `domain/deliberation`(과업심의, `/api/project/deliberations`, Bdelim), `domain/contract`(입찰/계약, `/api/project/contracts`, Bcontm), `domain/payment`(대금지급, `/api/project/payments`, Bpaymm+Bpaymt) — 패키지 구조·모듈 관계표·API 엔드포인트표에 추가(상태머신 41~79, 인증만 요구·서비스 계층 권한 검증), (3) `infra/eai`(KDB 표준전문 EAI 발송, sealed EaiPayload SPI: UMS/GWE, eai.enabled=false 미연동) 인프라 모듈 반영 |
 | **2026-06-05** | README.md 코드 대조 현행화: (1) 소스 통계 정정(@Entity 63→64), (2) `Bmqnam`(본회의질의응답) 엔티티·`@LogTarget` 반영 — 로그 대상 23→25개(관리자 조회 정의는 20개 유지), (3) 협의회 통계 정정(매핑 34→39, 서비스 8→9, Repository 9→10), (4) `config` 7개(ClockConfig 포함) 및 `domain/menu`·`budget/it` 패키지 명시, 미사용 `cdp`/`audit` 빈 디렉토리 표기 제거, (5) `application.properties` 실제 기본값(`DB_PASSWORD`/`JWT_SECRET`) 반영 |
 | **2026-06-05** | README.md 현행화: 소스 통계(291개 메인 Java, 96개 테스트)와 DB 기반 메뉴 모듈(`domain/menu`, `/api/menus`, `/api/admin/menus`, `/api/admin/routes`) 반영 |
