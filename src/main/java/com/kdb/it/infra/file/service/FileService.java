@@ -113,19 +113,12 @@ public class FileService {
      *
      * <p>Oracle 시퀀스(SEQ_CFILEM) 값을 기반으로 생성합니다.</p>
      *
-     * <p>시퀀스가 기존 데이터의 최대값보다 작게 재설정되면 PK 충돌(ORA-00001)이
-     * 발생할 수 있으므로, INSERT 충돌 시 최대 {@value #FL_MNG_NO_RETRY}회까지
-     * 다음 NEXTVAL을 시도하여 자동 회복합니다(`uploadFileInternal`에서 활용).</p>
-     *
      * @return 파일매핑ID (예: FL_00000001)
      */
     private String generateFlMpnId() {
         Long seq = fileRepository.getNextSequenceValue();
         return String.format("FL_%08d", seq);
     }
-
-    /** PK 충돌 회복 시 최대 재시도 횟수 (시퀀스가 기존 최대값보다 작게 재설정된 경우 대비) */
-    private static final int FL_MNG_NO_RETRY = 5;
 
     /**
      * 파일물리명 생성
