@@ -84,7 +84,8 @@ public class ServiceRequestDocService {
                             com.kdb.it.common.iam.entity.CuserI::getUsrNm,
                             (a, b) -> a));
             responses.forEach(r -> {
-                if (r.getFstEnrUsid() != null) {
+                // 원본 가드와 동일하게 사번이 null이거나 빈 문자열이면 이름을 설정하지 않음
+                if (r.getFstEnrUsid() != null && !r.getFstEnrUsid().isEmpty()) {
                     r.setFstEnrUsNm(nameByEno.get(r.getFstEnrUsid()));
                 }
             });

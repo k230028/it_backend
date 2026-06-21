@@ -4,6 +4,7 @@ import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.entity.CdecimId;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,5 +54,5 @@ public interface ApproverRepository extends JpaRepository<Cdecim, CdecimId> {
      * @param dcdMngNos 신청서식별번호 목록
      * @return 전체 결재선 목록
      */
-    List<Cdecim> findByDcdMngNoInOrderByDcrSqnSnoAsc(List<String> dcdMngNos);
+    List<Cdecim> findByDcdMngNoInOrderByDcrSqnSnoAsc(Collection<String> dcdMngNos);
 }

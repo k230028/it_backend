@@ -78,6 +78,12 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
     /**
      * 사업 PRJ_STS 업데이트 (협의회 신청 시 상태 전이용)
      *
+     * <p><b>주의(영속성 컨텍스트 초기화)</b>: {@code clearAutomatically = true}로 인해
+     * 이 메서드 실행 직후 영속성 컨텍스트가 비워집니다. 따라서 동일 트랜잭션에서
+     * 이 호출 이후에 수행하는 {@link Basctm} 등 엔티티 변경은 Dirty Checking 대상에서
+     * 제외되어 DB에 반영되지 않습니다. 같은 트랜잭션의 Basctm 변경은 반드시
+     * 명시적으로 {@code save()}하거나, 이 호출보다 먼저 수행해야 합니다.</p>
+     *
      * @param abusMngNo 프로젝트관리번호
      * @param sno   프로젝트순번
      * @param prjSts   변경할 상태값
