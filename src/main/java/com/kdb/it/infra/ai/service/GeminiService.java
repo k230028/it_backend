@@ -100,11 +100,17 @@ public class GeminiService {
         this.apiKey = apiKey;
         this.model = model;
         this.fileRepository = fileRepository;
-        // FIXME: [B-H-06] connectTimeout/readTimeout 설정 필요, 미설정시 스레드풀 고갈 위험
-        // FIXME: [B-H-04] RestClient 타임아웃 미설정 — Gemini API 응답 지연 시 스레드 무한 대기 가능
-        // HttpClient.newBuilder().connectTimeout(5s)/readTimeout(60s) 설정 후 .httpClient() 주입 필요
+        // 외부 Gemini API 응답 지연이 스레드를 무한 점유하지 않도록 connect/read 타임아웃을 강제한다.
+        // JDK HttpClient의 connectTimeout(5s) + 요청별 readTimeout(60s)을 RequestFactory에 설정한다.
+        java.net.http.HttpClient httpClient = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(java.time.Duration.ofSeconds(5))
+                .build();
+        org.springframework.http.client.JdkClientHttpRequestFactory requestFactory =
+                new org.springframework.http.client.JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(60));
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
+                .requestFactory(requestFactory)
                 .build();
     }
 
