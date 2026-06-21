@@ -66,15 +66,13 @@ public class TiptapVariableService {
     /**
      * 변수 토큰 배열을 해석하여 표시값/상태를 매핑해 반환합니다.
      *
-     * <p>
-     * 동작 순서:
-     * <ol>
+      * <p>동작 순서:</p>
+      * <ol>
      *   <li>토큰 정규식 검증 — 실패 시 {@code INVALID}</li>
      *   <li>카테고리에 따라 {@link BudgetStatusQueryRepository#aggregateByCategory(int, String)} 또는
      *       {@link BudgetStatusQueryRepository#aggregateByProject(int, String)} 호출</li>
-     *   <li>편성요청액·편성액·편성률 항목별 포맷팅 적용</li>
-     * </ol>
-     * </p>
+      *   <li>편성요청액·편성액·편성률 항목별 포맷팅 적용</li>
+      * </ol>
      *
      * @param tokens 해석 대상 토큰 배열 (호출자는 1~200 사이로 검증)
      * @return 토큰별 해석 결과(삽입 순서 유지)

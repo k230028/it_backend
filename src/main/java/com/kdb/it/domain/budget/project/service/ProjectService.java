@@ -224,8 +224,7 @@ public class ProjectService {
      * <li>관리번호 자동 생성 형식: {@code PRJ-{bgYy}-{seq:04d}}
      * (예: {@code PRJ-2026-0001})</li>
      * </ul>
-     * 예: {@code PRJ-2026-0001}
-     * </p>
+     * <p>예: {@code PRJ-2026-0001}</p>
      *
      * @param request 정보화사업 생성 요청 DTO (프로젝트명, 예산, 기간, 담당자 등)
      * @return 생성된 프로젝트관리번호

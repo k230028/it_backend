@@ -40,7 +40,7 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
     /**
      * 특정 연도의 편성 데이터 조회
      *
-     * @param bgYy  예산년도
+     * @param bseYy 예산년도
      * @param delYn 삭제여부 ('N')
      * @return 해당 연도의 편성 데이터 목록
      */
@@ -57,10 +57,10 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
      *
      * // Plan SC: SC-05 — Upsert 동작 (중복 INSERT 방지)
      *
-     * @param bgYy     예산년도
-     * @param orcTb    원본테이블 (BPROJM/BCOSTM)
-     * @param orcPkVl  원본PK값
-     * @param orcSnoVl 원본일련번호값
+     * @param bseYy       예산년도
+     * @param fntTbNm     원본테이블 (BPROJM/BCOSTM)
+     * @param pkColNm     원본PK값
+     * @param fntTbCrySno 원본일련번호값
      * @param ioeC     비목코드
      * @param delYn    삭제여부 ('N')
      * @return 기존 편성 데이터 (없으면 Optional.empty)
@@ -72,7 +72,7 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
     /**
      * 특정 예산관리번호 내 최대 일련번호 조회 (BG_SNO 채번용)
      *
-     * @param bgMngNo 예산관리번호
+     * @param bgNo 예산관리번호
      * @return 최대 일련번호 (없으면 null)
      */
     @Query("SELECT MAX(b.sno) FROM Bbugtm b WHERE b.bgNo = :bgNo")
@@ -84,9 +84,9 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
      * <p>사업별 편성률 재적용 시 구버전 품목으로 인해 생성된 고아(orphan) BBUGTM 레코드를
      * 탐지·정리하기 위해 사용합니다.</p>
      *
-     * @param bgYy    예산년도
-     * @param orcTb   원본테이블 (BPROJM/BCOSTM/BITEMM)
-     * @param orcPkVl 원본PK값
+     * @param bseYy   예산년도
+     * @param fntTbNm 원본테이블 (BPROJM/BCOSTM/BITEMM)
+     * @param pkColNm 원본PK값
      * @param delYn   삭제여부 ('N')
      * @return 해당 조건의 편성 데이터 목록
      */

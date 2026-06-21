@@ -33,9 +33,8 @@ import java.util.List;
  * <p>비밀번호 입력 없이 임의의 사용자로 세션을 전환할 수 있는 개발 전용 API입니다.
  * 협의회 등 권한별 화면을 빠르게 검증하기 위해 도입했습니다.</p>
  *
- * <p>활성화 조건: {@code app.dev.user-switch.enabled=true} (기본값 true).
- * 운영 배포 전에는 반드시 {@code application.properties}에서 false로 설정하거나
- * 이 파일을 제거해야 합니다.</p>
+ * <p>활성화 조건: {@code app.dev.user-switch.enabled=true}.
+ * 기본값은 비활성이며 로컬/개발 프로파일에서만 명시적으로 켭니다.</p>
  *
  * <p>제공 엔드포인트:</p>
  * <ul>
@@ -43,12 +42,10 @@ import java.util.List;
  *   <li>{@code POST /api/auth/dev/switch-user} — 선택한 사번으로 JWT 쿠키 재발급</li>
  * </ul>
  */
-// ⚠️ 주의: matchIfMissing=true 이므로 환경변수(app.dev.user-switch.enabled) 미설정 시 이 컨트롤러가 기본 활성화됩니다.
-// 운영 배포 전 반드시 app.dev.user-switch.enabled=false 설정 필수 (미설정 시 보안 취약점 발생)
 @RestController
 @RequestMapping("/api/auth/dev")
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "app.dev.user-switch.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.dev.user-switch.enabled", havingValue = "true")
 @Tag(name = "DevAuth", description = "개발 전용 사용자 전환 API")
 public class DevAuthController {
 

@@ -930,7 +930,7 @@ Get-Content maven-repo-manifest.txt | Where-Object { $_ -notlike '*.module' } |
 | `spring.datasource.url` | - | `jdbc:oracle:thin:@127.0.0.1:11521/XEPDB1` | 프로덕션 접속 정보 | Oracle 접속 URL |
 | `spring.datasource.hikari.connection-init-sql` | `ALTER SESSION SET CURRENT_SCHEMA=${DB_SCHEMA:ITPOWN}` | 동일 (베이스 공통) | 동일 (베이스 공통) | 스키마 전환 — 전 환경 공통 (접속 ITPAPP → 객체 소유 ITPOWN) |
 | `spring.datasource.password` | `${DB_PASSWORD:kdb1234!!}` | 환경변수 또는 기본값 `kdb1234!!` | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
-| `spring.flyway.enabled` | `${FLYWAY_ENABLED:true}` | true | true | Flyway 자동 마이그레이션 사용 여부 |
+| `spring.flyway.enabled` | `false` | `local-ext`/`local-int`: true | false | Flyway 자동 마이그레이션 사용 여부. dev/prod는 DBA 적용 |
 | `spring.flyway.locations` | `${FLYWAY_LOCATIONS:classpath:db/migration}` | classpath 기본값 | classpath 기본값 또는 배포 정책값 | Gradle이 `../it_database/migrations/V*.sql`을 포함하는 위치 |
 | `spring.flyway.user` / `spring.flyway.password` | `${FLYWAY_USER:${spring.datasource.username}}` / `${FLYWAY_PASSWORD:${spring.datasource.password}}` | 앱 계정 또는 로컬 DDL 계정 | 운영 DDL 권한 계정 | Flyway 전용 접속 계정. 미설정 시 datasource 계정 사용 |
 | `spring.flyway.default-schema` / `spring.flyway.schemas` | `${DB_SCHEMA:ITPOWN}` | ITPOWN | 운영 객체 스키마 | Flyway schema history와 마이그레이션 적용 스키마 |
@@ -950,9 +950,10 @@ Get-Content maven-repo-manifest.txt | Where-Object { $_ -notlike '*.module' } |
 
 #### DB 마이그레이션
 - 신규 DDL/DML 변경은 `../it_database/migrations/V{YYYYMMDD_NNN}__{설명}.sql`로 추가합니다.
-- 백엔드 빌드 시 `processResources`가 해당 파일을 `classpath:db/migration`으로 복사하고, 애플리케이션 기동 시 Flyway가 신규 버전만 적용합니다.
-- 기존 ITPOWN 스키마는 `baseline-version=20260620.001`로 기준선을 등록합니다. 빈 스키마에서는 전체 V* 스크립트를 처음부터 순서대로 적용합니다.
-- 운영처럼 애플리케이션 계정(`ITPAPP`)에 DDL 권한을 주지 않는 환경은 `FLYWAY_USER`/`FLYWAY_PASSWORD`에 DDL 권한 계정을 별도로 지정합니다.
+- 백엔드 빌드 시 `processResources`가 해당 파일을 `classpath:db/migration`으로 복사합니다.
+- Flyway 자동 적용은 `local-ext`/`local-int` 프로파일에서만 켭니다. `dev`/`prod` DB는 DBA가 스크립트를 검토하고 수동 적용합니다.
+- 기존 로컬 ITPOWN 스키마는 `baseline-version=20260620.001`로 기준선을 등록합니다. 빈 스키마에서는 전체 V* 스크립트를 처음부터 순서대로 적용합니다.
+- 로컬에서 애플리케이션 계정(`ITPAPP`)에 DDL 권한을 주지 않는 경우 `FLYWAY_USER`/`FLYWAY_PASSWORD`에 DDL 권한 계정을 별도로 지정합니다.
 - 단위 테스트 프로파일(`application-test.properties`)은 DB 자동설정을 제외하므로 `spring.flyway.enabled=false`를 사용합니다.
 
 ### 11.2 보안 설정

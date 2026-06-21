@@ -25,7 +25,7 @@ import java.util.List;
 /**
  * 정보화실무협의회 본회의 질의응답 REST 컨트롤러.
  *
- * <p>기본 URL은 {@code /api/council}이며, 본회의 Q&A(PRD §26) 엔드포인트만 담당합니다.</p>
+ * <p>기본 URL은 {@code /api/council}이며, 본회의 질의응답(PRD §26) 엔드포인트만 담당합니다.</p>
  */
 @RestController
 @RequestMapping("/api/council")
@@ -41,7 +41,7 @@ public class CouncilMainQnaController {
      *
      * <p>평가위원은 평가의견 작성 시 참고용으로 사용합니다.</p>
      */
-    @Operation(summary = "본회의 질의응답 목록", description = "협의회의 본회의 Q&A 목록을 반환합니다.")
+    @Operation(summary = "본회의 질의응답 목록", description = "협의회의 본회의 질의응답 목록을 반환합니다.")
     @GetMapping("/{asctId}/main-qna")
     public ResponseEntity<List<CouncilDto.QnaResponse>> getMainQnaList(
             @PathVariable("asctId") String asctId) {

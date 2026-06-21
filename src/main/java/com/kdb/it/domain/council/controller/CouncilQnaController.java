@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * 정보화실무협의회 사전질의응답 REST 컨트롤러.
  *
- * <p>기본 URL은 {@code /api/council}이며, 협의회 개최 전 Q&A 엔드포인트만 담당합니다.</p>
+ * <p>기본 URL은 {@code /api/council}이며, 협의회 개최 전 질의응답 엔드포인트만 담당합니다.</p>
  */
 @RestController
 @RequestMapping("/api/council")

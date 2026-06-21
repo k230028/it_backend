@@ -41,7 +41,7 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
      * WHERE c.DEL_YN='N' AND c.LST_YN='Y' AND c.BG_YY=? AND c.IOE_C IS NOT NULL
      *   AND EXISTS ( SELECT 1 FROM CAPPLA ca, CAPPLM cm ... AND cm.APF_STS='결재완료' )
      * GROUP BY c.IOE_C
-     * }</pre></p>
+     * }</pre>
      */
     @Override
     public Map<String, BigDecimal> findApprovedCostAmountByIoeC(String bgYy, java.util.Collection<String> srcPks) {
@@ -101,7 +101,7 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
      * WHERE i.DEL_YN='N' AND i.LST_YN='Y' AND i.GCL_DTT IS NOT NULL AND i.GCL_AMT IS NOT NULL
      *   AND EXISTS ( SELECT 1 FROM BPROJM p WHERE p.BG_YY=? ... AND EXISTS(...결재완료...) )
      * GROUP BY i.GCL_DTT
-     * }</pre></p>
+     * }</pre>
      */
     @Override
     public Map<String, BigDecimal> findApprovedItemAmountByGclDtt(String bgYy, java.util.Collection<String> srcPks) {

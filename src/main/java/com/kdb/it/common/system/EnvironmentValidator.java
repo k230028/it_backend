@@ -13,12 +13,11 @@ import org.springframework.stereotype.Component;
  * 단, {@code application.properties}에 기본값이 남아 있으면 환경변수 미설정도 통과하므로
  * 운영 프로파일에서는 기본값 제거 또는 별도 검증이 필요합니다.</p>
  *
- * <p>검증 대상:
+ * <p>검증 대상:</p>
  * <ul>
  *   <li>{@code spring.datasource.password} → 환경변수 {@code DB_PASSWORD}</li>
  *   <li>{@code jwt.secret} → 환경변수 {@code JWT_SECRET}</li>
  * </ul>
- * </p>
  */
 @Component
 @RequiredArgsConstructor

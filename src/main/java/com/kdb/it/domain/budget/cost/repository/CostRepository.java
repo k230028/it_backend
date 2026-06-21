@@ -108,7 +108,7 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      * 전산관리비 현재 유효 버전 단건 조회 (과업심의 대상명 해석용).
      *
      * <p>현재 유효 버전({@code lstYn='Y'}) + 미삭제({@code delYn='N'}) 조합으로 단 하나의 레코드를 조회합니다.
-     * 대상명은 {@link Bcostm#getCttNm()} (계약명)으로 식별합니다.</p>
+     * 대상명은 {@code Bcostm#getCttNm()} (계약명)으로 식별합니다.</p>
      *
      * @param costBgNo 전산관리비 관리번호
      * @param lstYn    최종여부 ('Y'=현재 유효)
