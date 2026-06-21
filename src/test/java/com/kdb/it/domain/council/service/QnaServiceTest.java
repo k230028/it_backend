@@ -172,12 +172,14 @@ class QnaServiceTest {
     @Test
     @DisplayName("updateQna: 본인이 아니고 관리자도 아니면 AccessDeniedException을 던진다")
     void updateQna_본인아님_관리자아님_AccessDenied발생() {
+        // given
         Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E_OWNER");
         given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
         given(userDetails.getEno()).willReturn("E10001");
         given(userDetails.isAdmin()).willReturn(false);
 
+        // when & then
         assertThatThrownBy(() -> qnaService.updateQna(ASCT_ID, QTN_ID,
                 new CouncilDto.QnaUpdateRequest("수정 시도"), userDetails))
                 .isInstanceOf(AccessDeniedException.class);
@@ -192,6 +194,7 @@ class QnaServiceTest {
 
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
         given(userDetails.getEno()).willReturn("E10001");
+        given(userDetails.isAdmin()).willReturn(false);
 
         // when
         qnaService.updateQna(ASCT_ID, QTN_ID,
