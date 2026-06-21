@@ -1,6 +1,7 @@
 package com.kdb.it.common.iam.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -17,10 +18,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.security.access.AccessDeniedException;
 
 import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 
 /**
  * UserService 단위 테스트
@@ -117,9 +120,11 @@ class UserServiceTest {
         given(user.getPrlmHrkOgzCCone()).willReturn("001");
         given(user.getPrlmHrkOgzCNm()).willReturn("경영지원본부");
         given(userRepository.findByEno(eno)).willReturn(Optional.of(user));
+        CustomUserDetails admin = mock(CustomUserDetails.class);
+        given(admin.isAdmin()).willReturn(true);
 
-        // when
-        UserDto.DetailResponse result = userService.getUser(eno);
+        // when — 관리자 권한으로 조회
+        UserDto.DetailResponse result = userService.getUser(eno, admin);
 
         // then
         assertThat(result.getEno()).isEqualTo(eno);
@@ -135,11 +140,57 @@ class UserServiceTest {
         // given
         String eno = "E99999";
         given(userRepository.findByEno(eno)).willReturn(Optional.empty());
+        CustomUserDetails admin = mock(CustomUserDetails.class);
+        given(admin.isAdmin()).willReturn(true);
 
-        // when & then
-        assertThatThrownBy(() -> userService.getUser(eno))
+        // when & then — 권한 통과 후 미존재로 IllegalArgumentException
+        assertThatThrownBy(() -> userService.getUser(eno, admin))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("E99999");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // getUser 권한 검증 (T11a) — 본인/관리자만 PII 조회
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getUser: 본인 사번 상세 조회는 허용된다")
+    void getUser_owner_allowed() {
+        // given
+        CuserI user = mockUserEntity("E0001", "BBR001", "홍길동");
+        given(userRepository.findByEno("E0001")).willReturn(Optional.of(user));
+        CustomUserDetails me = mock(CustomUserDetails.class);
+        given(me.isAdmin()).willReturn(false);
+        given(me.getEno()).willReturn("E0001");
+
+        // when & then
+        assertThatCode(() -> userService.getUser("E0001", me)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("getUser: 관리자는 타인 상세 조회가 허용된다")
+    void getUser_admin_allowed() {
+        // given
+        CuserI user = mockUserEntity("E0002", "BBR001", "홍길동");
+        given(userRepository.findByEno("E0002")).willReturn(Optional.of(user));
+        CustomUserDetails admin = mock(CustomUserDetails.class);
+        given(admin.isAdmin()).willReturn(true);
+
+        // when & then
+        assertThat(userService.getUser("E0002", admin).getEno()).isEqualTo("E0002");
+    }
+
+    @Test
+    @DisplayName("getUser: 본인도 관리자도 아니면 AccessDeniedException")
+    void getUser_other_denied() {
+        // given — 권한 거부를 조회보다 먼저 수행하므로 findByEno 스텁 불필요(존재 누설 방지)
+        CustomUserDetails other = mock(CustomUserDetails.class);
+        given(other.isAdmin()).willReturn(false);
+        given(other.getEno()).willReturn("E9999");
+
+        // when & then
+        assertThatThrownBy(() -> userService.getUser("E0002", other))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     // ───────────────────────────────────────────────────────

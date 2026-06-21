@@ -3,6 +3,7 @@ package com.kdb.it.common.iam.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -21,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.service.OrganizationService;
 import com.kdb.it.common.iam.service.UserService;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
@@ -91,10 +93,13 @@ class IamControllerTest {
 
     @Test
     @DisplayName("GET /api/users/{eno} - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
     void getUserDetail_인증_200() throws Exception {
-        given(userService.getUser("E10001")).willReturn(new UserDto.DetailResponse());
-        mockMvc.perform(get("/api/users/E10001"))
+        // 본인/관리자 권한이 서비스 계층(OwnershipVerifier)에서 검증되므로
+        // CustomUserDetails 주체로 요청하고 서비스 스텁은 any()로 매칭한다.
+        given(userService.getUser(anyString(), any(CustomUserDetails.class)))
+                .willReturn(new UserDto.DetailResponse());
+        mockMvc.perform(get("/api/users/E10001")
+                        .with(user(new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "D001"))))
                 .andExpect(status().isOk());
     }
 

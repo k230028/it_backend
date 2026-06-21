@@ -2,10 +2,12 @@ package com.kdb.it.common.iam.controller;
 
 import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.service.UserService;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -64,13 +66,18 @@ public class UserController {
      *
      * <p>반환 데이터: 사번, 부점명, 팀명, 사용자명, 직위명, 내선번호, 휴대폰번호, 상세직무내용</p>
      *
-     * @param eno 사번(행번, ENO 컬럼 값)
+     * <p>PII 보호: 본인 또는 관리자만 조회할 수 있습니다.</p>
+     *
+     * @param eno         사번(행번, ENO 컬럼 값)
+     * @param currentUser 현재 인증 사용자
      * @return HTTP 200 + 사용자 상세 정보 ({@link UserDto.DetailResponse})
      */
     @GetMapping("/{eno}")
-    @Operation(summary = "사용자 상세 조회", description = "행번으로 사용자 상세 정보를 조회합니다.")
-    public ResponseEntity<UserDto.DetailResponse> getUser(@PathVariable("eno") String eno) {
-        return ResponseEntity.ok(userService.getUser(eno));
+    @Operation(summary = "사용자 상세 조회", description = "행번으로 사용자 상세 정보를 조회합니다. 본인 또는 관리자만 가능합니다.")
+    public ResponseEntity<UserDto.DetailResponse> getUser(
+            @PathVariable("eno") String eno,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(userService.getUser(eno, currentUser));
     }
 
     /**
