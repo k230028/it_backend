@@ -635,18 +635,22 @@ public class BudgetWorkService {
         }
         if (byGcl.isEmpty()) return;
 
-        // gclMngNo → Bitemm(품목금액/환율/사업관리번호)
+        // gclMngNo → Bitemm(품목금액/환율/사업관리번호) — 품목 PK 집합 1회 배치 조회 (N+1 제거)
+        // 원본 단건 로직과 동일하게 gclMngNo별 첫 행만 채택(putIfAbsent).
         Map<String, Bitemm> bitemmByGcl = new LinkedHashMap<>();
-        for (String gcl : byGcl.keySet()) {
-            projectItemRepository.findByGclMngNoAndDelYn(gcl, "N").stream().findFirst()
-                    .ifPresent(it -> bitemmByGcl.put(gcl, it));
+        for (Bitemm it : projectItemRepository.findByGclMngNoInAndDelYn(byGcl.keySet(), "N")) {
+            bitemmByGcl.putIfAbsent(it.getGclMngNo(), it);
         }
-        // 사업관리번호 → Bprojm(예정금액)
+        // 사업관리번호 → Bprojm(예정금액) — 사업관리번호 집합 1회 배치 조회 (N+1 제거)
+        // 원본 단건 로직과 동일하게 abusMngNo별 첫 행만 채택(putIfAbsent).
+        java.util.Set<String> prjNos = bitemmByGcl.values().stream()
+                .map(Bitemm::getAbusMngNo)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
         Map<String, Bprojm> prjByNo = new LinkedHashMap<>();
-        for (Bitemm it : bitemmByGcl.values()) {
-            String no = it.getAbusMngNo();
-            if (no != null && !prjByNo.containsKey(no)) {
-                projectRepository.findByAbusMngNoAndDelYn(no, "N").ifPresent(p -> prjByNo.put(no, p));
+        if (!prjNos.isEmpty()) {
+            for (Bprojm p : projectRepository.findByAbusMngNoInAndDelYn(prjNos, "N")) {
+                prjByNo.putIfAbsent(p.getAbusMngNo(), p);
             }
         }
 
@@ -804,8 +808,19 @@ public class BudgetWorkService {
         Map<String, Map<String, BigDecimal[]>> projectCategoryMap = new LinkedHashMap<>();
         Map<String, String> orcTbMap = new LinkedHashMap<>();
 
-        // BITEMM gclMngNo → prjMngNo 캐시 (중복 DB 조회 방지)
-        Map<String, String> itemToPrjCache = new LinkedHashMap<>();
+        // BITEMM gclMngNo → prjMngNo 선조회 Map (N+1 제거): BITEMM 원본의 품목 PK 집합을
+        // 1회 배치 조회한 뒤 gclMngNo→abusMngNo 매핑을 미리 구성한다. 원본 단건 로직과 동일하게
+        // gclMngNo별 첫 행만 채택(putIfAbsent)하고, 매핑이 없으면 gclMngNo 자체를 키로 사용한다.
+        java.util.Set<String> gclPks = budgets.stream()
+                .filter(b -> "BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null)
+                .map(Bbugtm::getPkColNm)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+        Map<String, String> gclToPrj = new LinkedHashMap<>();
+        if (!gclPks.isEmpty()) {
+            for (Bitemm it : projectItemRepository.findByGclMngNoInAndDelYn(gclPks, "N")) {
+                gclToPrj.putIfAbsent(it.getGclMngNo(), it.getAbusMngNo());
+            }
+        }
 
         for (Bbugtm b : budgets) {
             if (b.getPkColNm() == null) continue;
@@ -814,11 +829,8 @@ public class BudgetWorkService {
             String groupKey;
             String groupOrcTb;
             if ("BITEMM".equals(b.getFntTbNm())) {
-                // gclMngNo → prjMngNo 변환
-                groupKey = itemToPrjCache.computeIfAbsent(b.getPkColNm(), gclMngNo -> {
-                    List<Bitemm> items = projectItemRepository.findByGclMngNoAndDelYn(gclMngNo, "N");
-                    return items.isEmpty() ? gclMngNo : items.get(0).getAbusMngNo();
-                });
+                // gclMngNo → prjMngNo 변환 (선조회 Map, 매핑 없으면 gclMngNo 자체)
+                groupKey = gclToPrj.getOrDefault(b.getPkColNm(), b.getPkColNm());
                 groupOrcTb = "BPROJM";
             } else {
                 groupKey = b.getPkColNm();
@@ -859,6 +871,35 @@ public class BudgetWorkService {
         }
 
         // 3. 응답 구성
+        // 사업명(BPROJM)/계약명(BCOSTM) 배치 선조회 (N+1 제거): 그룹키를 원본테이블별로 분류하여
+        // 각 1회 IN 조회한 뒤 Map으로 보관한다. 원본 resolveProjectName과 동일하게 첫 행을 채택하며,
+        // BPROJM은 사업명이 null이면 orcPkVl로 폴백(null 이름은 Map에 넣지 않음), BCOSTM은 첫 행의
+        // 계약명(null 포함)을 그대로 채택한다.
+        java.util.Set<String> prjGroupNos = new java.util.LinkedHashSet<>();
+        java.util.Set<String> costGroupNos = new java.util.LinkedHashSet<>();
+        for (Map.Entry<String, String> e : orcTbMap.entrySet()) {
+            if ("BPROJM".equals(e.getValue())) prjGroupNos.add(e.getKey());
+            else if ("BCOSTM".equals(e.getValue())) costGroupNos.add(e.getKey());
+        }
+        Map<String, String> prjNameByNo = new LinkedHashMap<>();
+        if (!prjGroupNos.isEmpty()) {
+            for (Bprojm p : projectRepository.findByAbusMngNoInAndDelYn(prjGroupNos, "N")) {
+                // 첫 행 채택 + 사업명이 null/blank가 아닐 때만 등록 (없으면 orcPkVl 폴백)
+                if (p.getAbusNm() != null) {
+                    prjNameByNo.putIfAbsent(p.getAbusMngNo(), p.getAbusNm());
+                }
+            }
+        }
+        // 계약명: costBgNo별 첫 행의 cttNm(null 포함)을 채택하기 위해 키 존재 여부로 폴백 판단
+        Map<String, String> costNameByNo = new LinkedHashMap<>();
+        if (!costGroupNos.isEmpty()) {
+            for (Bcostm c : costRepository.findByCostBgNoInAndDelYn(costGroupNos, "N")) {
+                if (!costNameByNo.containsKey(c.getCostBgNo())) {
+                    costNameByNo.put(c.getCostBgNo(), c.getCttNm());
+                }
+            }
+        }
+
         List<BudgetWorkDto.ProjectSummaryItem> items = new ArrayList<>();
         BigDecimal totalRequest = BigDecimal.ZERO;
         BigDecimal totalDup = BigDecimal.ZERO;
@@ -867,7 +908,15 @@ public class BudgetWorkService {
             String orcPkVl = entry.getKey();
             Map<String, BigDecimal[]> catMap = entry.getValue();
             String orcTb = orcTbMap.get(orcPkVl);
-            String name = resolveProjectName(orcTb, orcPkVl);
+            // 원본 resolveProjectName(orcTb, orcPkVl)와 동치: 선조회 Map 참조
+            String name;
+            if ("BPROJM".equals(orcTb)) {
+                name = prjNameByNo.getOrDefault(orcPkVl, orcPkVl);
+            } else if ("BCOSTM".equals(orcTb)) {
+                name = costNameByNo.containsKey(orcPkVl) ? costNameByNo.get(orcPkVl) : orcPkVl;
+            } else {
+                name = orcPkVl;
+            }
 
             // 비목별 금액 맵 구성
             Map<String, BudgetWorkDto.CategoryAmount> categoryAmounts = new LinkedHashMap<>();
@@ -892,28 +941,6 @@ public class BudgetWorkService {
         return new BudgetWorkDto.ProjectSummaryResponse(
                 categoryHeaders, items,
                 new BudgetWorkDto.SummaryTotals(totalRequest, totalDup));
-    }
-
-    /**
-     * 원본테이블 유형에 따라 사업명/계약명 조회
-     *
-     * @param orcTb   원본테이블 (BPROJM/BCOSTM)
-     * @param orcPkVl 원본PK값
-     * @return 사업명 또는 계약명
-     */
-    private String resolveProjectName(String orcTb, String orcPkVl) {
-        if ("BPROJM".equals(orcTb)) {
-            return projectRepository.findByAbusMngNoAndDelYn(orcPkVl, "N")
-                    .map(Bprojm::getAbusNm)
-                    .orElse(orcPkVl);
-        } else if ("BCOSTM".equals(orcTb)) {
-            List<Bcostm> costs = costRepository.findByCostBgNoAndDelYn(orcPkVl, "N");
-            if (!costs.isEmpty()) {
-                return costs.get(0).getCttNm();
-            }
-            return orcPkVl;
-        }
-        return orcPkVl;
     }
 
     /**

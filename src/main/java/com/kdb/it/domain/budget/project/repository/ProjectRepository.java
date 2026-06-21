@@ -43,6 +43,19 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
     Optional<Bprojm> findByAbusMngNoAndDelYn(String prjMngNo, String delYn);
 
     /**
+     * 사업관리번호 집합 일괄 조회 (N+1 제거) — 사업명 매핑용
+     *
+     * <p>{@link #findByAbusMngNoAndDelYn(String, String)}의 단건 조회를 집합으로 묶어
+     * 1회로 수행합니다. 동일한 {@code DEL_YN} 필터를 유지하며, 호출부에서 abusMngNo별
+     * 첫 행 채택 규칙(원본 로직과 동일)을 적용합니다. (LST_YN 조건 없는 별도 메서드)</p>
+     *
+     * @param abusMngNos 사업관리번호 집합
+     * @param delYn      삭제 여부 ('N'=미삭제)
+     * @return 조건에 맞는 사업 목록
+     */
+    List<Bprojm> findByAbusMngNoInAndDelYn(Collection<String> abusMngNos, String delYn);
+
+    /**
      * 사업관리번호·최종여부·삭제여부로 현재 버전(최신 스냅샷) 사업 단건 조회
      *
      * <p>
