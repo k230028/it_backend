@@ -70,7 +70,7 @@ public class SecurityConfig {
          * 운영 환경: {@code application.properties}의 {@code cors.allowed-origins}에 도메인 지정
          * 예: {@code cors.allowed-origins=https://itportal.kdb.com}
          */
-        @Value("${cors.allowed-origins:*}")
+        @Value("${cors.allowed-origins:}")
         private String allowedOrigins;
 
         /**
@@ -183,7 +183,7 @@ public class SecurityConfig {
          * <ul>
          * <li>허용 Origin: {@code cors.allowed-origins}에 지정된 명시 Origin</li>
          * <li>허용 메서드: GET, POST, PUT, DELETE, OPTIONS, PATCH</li>
-         * <li>허용 헤더: 전체 ({@code *})</li>
+         * <li>허용 헤더: 명시 목록(Content-Type/Authorization/X-Requested-With)</li>
          * <li>자격증명(쿠키 등) 포함 허용: true</li>
          * </ul>
          *
@@ -197,8 +197,8 @@ public class SecurityConfig {
                 configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
                 // 허용할 HTTP 메서드 목록
                 configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-                // 모든 요청 헤더 허용 (Authorization, Content-Type 등)
-                configuration.setAllowedHeaders(List.of("*"));
+                // 허용 헤더 명시화: 운영에서 필요한 표준 헤더만 허용 (와일드카드 제거)
+                configuration.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-Requested-With"));
                 // 쿠키, Authorization 헤더 등 자격증명 포함 허용
                 configuration.setAllowCredentials(true);
                 // 브라우저가 읽을 수 있도록 노출할 응답 헤더 (201 Created 시 신규 리소스 경로 추출용)
