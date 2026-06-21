@@ -168,8 +168,13 @@ public class JwtUtil {
         if (claim instanceof List<?>) {
             return (List<String>) claim;
         }
-        // TODO: [B-M-04] athIds 클레임 타입 불일치 시 빈 권한 목록 반환 (warn 로그 없음)
-        // JWT 토큰 구조 변경 시 모든 권한이 조용히 제거될 수 있음 — log.warn 추가 권장
+        // athIds 클레임이 비어있거나 List가 아니면 빈 권한 목록을 반환한다(사용자는 기본 ITPZZ001로 강등).
+        // 토큰 구조 변경·손상 시 권한이 조용히 제거되는 것을 탐지할 수 있도록 warn 로그를 남긴다.
+        // (claim == null은 athIds 미포함 정상 경로(예: Refresh Token)이므로 로깅하지 않고, 타입 불일치만 경고한다.)
+        if (claim != null) {
+            log.warn("[JWT] athIds 클레임 타입 불일치 — 빈 권한 목록 반환: actualType={}",
+                    claim.getClass().getSimpleName());
+        }
         return List.of();
     }
 
