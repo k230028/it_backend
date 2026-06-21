@@ -82,7 +82,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * @param sno   프로젝트순번
      * @param prjSts   변경할 상태값
      */
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "UPDATE TPRMPP_BPROJM SET IT_PTL_STS_TC = :prjSts WHERE ABUS_MNG_NO = :abusMngNo AND SNO = :sno",
             nativeQuery = true)
     int updateProjectStatus(@Param("abusMngNo") String abusMngNo,
