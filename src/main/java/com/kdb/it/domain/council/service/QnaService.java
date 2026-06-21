@@ -1,6 +1,7 @@
 package com.kdb.it.domain.council.service;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Bpqnam;
 import com.kdb.it.domain.council.repository.CouncilRepository;
@@ -117,14 +118,7 @@ public class QnaService {
         }
 
         /* 본인 또는 관리자만 수정 가능 */
-        boolean isOwner = qna.getQtnDwuUsid().equals(userDetails.getEno());
-        // FIXME: 권한 문자열 불일치 — ITPAD001은 CustomUserDetails에서 ROLE_ADMIN으로 매핑되므로
-        //        "ROLE_ITPAD001" 비교는 항상 false가 되어 관리자 수정이 동작하지 않음. "ROLE_ADMIN" 또는 userDetails.isAdmin()으로 교정 필요 (TASK.md 등록).
-        boolean isAdmin = userDetails.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ITPAD001"));
-        if (!isOwner && !isAdmin) {
-            throw new IllegalArgumentException("본인이 등록한 질의만 수정할 수 있습니다.");
-        }
+        OwnershipVerifier.verifyOwnerOrAdmin(qna.getQtnDwuUsid(), userDetails);
 
         qna.updateQuestion(request.qtnCone());
     }
