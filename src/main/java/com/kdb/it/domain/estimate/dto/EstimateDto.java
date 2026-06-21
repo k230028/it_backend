@@ -1,6 +1,7 @@
 package com.kdb.it.domain.estimate.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -33,7 +34,7 @@ public final class EstimateDto {
     public record LineRequest(
             @NotBlank @Size(max = 5) String svnTemC,
             @NotBlank @Size(max = 7) String ioeC,
-            @NotNull BigDecimal rqmBgAmt,
+            @NotNull @DecimalMin(value = "0", message = "산정 예산액은 0 이상이어야 합니다.") BigDecimal rqmBgAmt,
             @Size(max = 1000) String opnnCone
     ) {}
 

@@ -2,6 +2,7 @@ package com.kdb.it.domain.deliberation.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /** 과업심의 API 요청/응답 DTO 모음. */
@@ -27,7 +28,7 @@ public final class DeliberationDto {
             @Size(max = 2) String taskDbrRltTc,
             @Size(max = 8) String taskDbrDt,
             @Size(max = 2) String taskDbrTod,
-            @Size(max = 1) String taskDbrOmtYn,
+            @Pattern(regexp = "^[YN]$", message = "심의생략여부는 Y 또는 N이어야 합니다.") String taskDbrOmtYn,
             @Size(max = 200) String taskDbrOmtRsn,
             @Size(max = 1000) String opnnCone,
             @Size(max = 300) String apvTrdnRsnCone
