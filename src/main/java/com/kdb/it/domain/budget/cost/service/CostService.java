@@ -746,29 +746,60 @@ public class CostService {
         }
     }
 
-    /** 단말기 DTO 목록에 담당자명(cgprNm) 일괄 설정 (배치 조회로 N+1 방지) */
+    /**
+     * 단말기 DTO 목록에 담당자명(cgprNm)과 코드명(단말기종류·이용방법·지급주기)을 일괄 설정.
+     *
+     * <p>담당자명은 사번 배치 조회, 코드명은 그룹별 1회 조회로 N+1을 방지한다.
+     * 코드명은 cost-level(setCodeNames)과 동일한 CCODEM 유효일자 기준 조회를 사용한다.</p>
+     */
     private void setTerminalCodeNames(List<CostDto.TerminalDto> terminalDtos) {
+        if (terminalDtos.isEmpty()) return;
+
+        // 담당자명: 사번 배치 조회
         Set<String> enos = terminalDtos.stream()
                 .map(CostDto.TerminalDto::getCgprId)
                 .filter(cgprId -> cgprId != null && !cgprId.isEmpty())
                 .collect(Collectors.toSet());
-        if (enos.isEmpty()) return;
+        if (!enos.isEmpty()) {
+            Map<String, String> nameMap = cuserIRepository.findByEnoIn(enos).stream()
+                    .collect(Collectors.toMap(
+                            CuserI::getEno,
+                            CuserI::getUsrNm));
+            terminalDtos.forEach(tDto -> {
+                if (tDto.getCgprId() != null) {
+                    tDto.setCgprNm(nameMap.get(tDto.getCgprId()));
+                }
+            });
+        }
 
-        Map<String, String> nameMap = cuserIRepository.findByEnoIn(enos).stream()
-                .collect(Collectors.toMap(
-                        CuserI::getEno,
-                        CuserI::getUsrNm));
+        // 코드명: 단말기종류(tmnClsfC)/이용방법(tmnKdTc)/지급주기(dfrCleC) 그룹별 배치 조회
+        Map<String, String> svcMap = buildCodeNameMap(CommonCodeGroups.TERM_SERVICE,
+                collectCdvas(terminalDtos, CostDto.TerminalDto::getTmnClsfC));
+        Map<String, String> kindMap = buildCodeNameMap(CommonCodeGroups.TERM_KIND,
+                collectCdvas(terminalDtos, CostDto.TerminalDto::getTmnKdTc));
+        Map<String, String> dfrMap = buildCodeNameMap(CommonCodeGroups.DFR_CLE,
+                collectCdvas(terminalDtos, CostDto.TerminalDto::getDfrCleC));
         terminalDtos.forEach(tDto -> {
-            if (tDto.getCgprId() != null) {
-                tDto.setCgprNm(nameMap.get(tDto.getCgprId()));
-            }
+            if (tDto.getTmnClsfC() != null) tDto.setTmnClsfCNm(svcMap.get(tDto.getTmnClsfC()));
+            if (tDto.getTmnKdTc() != null) tDto.setTmnKdTcNm(kindMap.get(tDto.getTmnKdTc()));
+            if (tDto.getDfrCleC() != null) tDto.setDfrCleCNm(dfrMap.get(tDto.getDfrCleC()));
         });
     }
 
-    /** C_ID 기준 cdva→C_NM 맵 생성 (지정 cdva만 필터링) */
+    /** 단말기 DTO 목록에서 지정 코드 추출자로 비어있지 않은 cdva 집합 수집 */
+    private Set<String> collectCdvas(List<CostDto.TerminalDto> dtos,
+            java.util.function.Function<CostDto.TerminalDto, String> getter) {
+        return dtos.stream()
+                .map(getter)
+                .filter(v -> v != null && !v.isEmpty())
+                .collect(Collectors.toSet());
+    }
+
+    /** C_ID 기준 cdva→CDVA_NM 맵 생성 (지정 cdva만 필터링, 코드명 null은 제외) */
     private Map<String, String> buildCodeNameMap(String cId, Set<String> cdvas) {
+        if (cdvas == null || cdvas.isEmpty()) return Map.of();
         return ccodemRepository.findByCIdWithValidDate(cId, null).stream()
-                .filter(c -> cdvas.contains(c.getCdva()))
+                .filter(c -> cdvas.contains(c.getCdva()) && c.getCdvaNm() != null)
                 .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCdvaNm, (a, b) -> a));
     }
 

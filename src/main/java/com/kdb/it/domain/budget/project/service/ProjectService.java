@@ -267,6 +267,15 @@ public class ProjectService {
         request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
         request.setAbusRngCone(HtmlSanitizer.sanitize(request.getAbusRngCone()));
 
+        // 의무완료기한(FLF_FSG_DT, VARCHAR2(8)) 정규화: 프론트는 "YYYY-MM-DD"(ISO)로 보내므로
+        // 하이픈을 제거해 yyyyMMdd 8자리로 저장 (ORA-12899 방지, 품목 xcrBseDt와 동일 처리)
+        request.setFlfFsgDt(DateFormatUtil.toYmd8(request.getFlfFsgDt()));
+
+        // 당해예산(TOT_RQM_AMT) 항상 재계산: 품목 합계 − 예정금액(MPL_CPIT + MPL_MNGC)
+        // 예정금액(익년 이후분)은 사용자가 직접 입력하며, 당해예산만 품목 기준으로 산출한다.
+        request.setTotRqmAmt(recalcCurrentYearBudget(
+                request.getItems(), request.getMplCpitAmt(), request.getMplMngcAmt()));
+
         // 엔티티 생성 및 저장
         Bprojm project = request.toEntity();
         projectRepository.save(project);
@@ -371,15 +380,21 @@ public class ProjectService {
         request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
         request.setAbusRngCone(HtmlSanitizer.sanitize(request.getAbusRngCone()));
 
+        // 당해예산(TOT_RQM_AMT) 항상 재계산: 품목 합계 − 예정금액(MPL_CPIT + MPL_MNGC).
+        // 품목(items)을 함께 보낸 경우에만 재계산하고, 미동봉(null) 시 기존 요청값을 유지한다.
+        BigDecimal recalcTotRqmAmt = request.getItems() != null
+                ? recalcCurrentYearBudget(request.getItems(), request.getMplCpitAmt(), request.getMplMngcAmt())
+                : request.getTotRqmAmt();
+
         // 프로젝트 기본 정보 수정 (JPA Dirty Checking으로 자동 반영)
         project.update(new Bprojm.UpdateCommand(
                 request.getAbusNm(), request.getBzTpC(), request.getSvnDpmC(), request.getDvmDpmC(),
-                request.getTotRqmAmt(), request.getMplCpitAmt(), request.getMplMngcAmt(), request.getSttDtm(), request.getEndDtm(),
+                recalcTotRqmAmt, request.getMplCpitAmt(), request.getMplMngcAmt(), request.getSttDtm(), request.getEndDtm(),
                 request.getUsid(), request.getDvmUsid(), request.getTlrUsid(), request.getDvmTlrUsid(),
                 request.getEdrtTc(), request.getAbusCone(), request.getCpnSafCone(), request.getAbusNcsCone(),
                 request.getDgogPpoCone(), request.getPlmDes(), request.getAbusRngCone(), request.getMnPrgCone(), request.getHrfPlnCone(),
                 request.getBzDttNm(), request.getSklTpTc(), request.getCstTpTc(), request.getDplYn(),
-                request.getFlfFsgDt(), request.getRprStsTc(), request.getExePttYn(), request.getStsTc(),
+                DateFormatUtil.toYmd8(request.getFlfFsgDt()), request.getRprStsTc(), request.getExePttYn(), request.getStsTc(),
                 request.getBseYy(), request.getPrlmHrkOgzCCone(),
                 request.getOdnYn(), request.getAbusTc(), request.getCncdRfrNo()));
 
@@ -543,6 +558,38 @@ public class ProjectService {
         if (a == null && b == null) return false;
         if (a == null || b == null) return true;
         return a.compareTo(b) != 0;
+    }
+
+    /**
+     * 당해예산(TOT_RQM_AMT) 재계산.
+     *
+     * <p>당해예산 = 품목 합계 − 예정금액(예정자본 + 예정관리비, 익년 이후 요청액).
+     * 품목 금액은 외화 정규화(amt = fcAmt × xcr)된 원화 기준으로 합산하며, 환율은
+     * {@link XcrLookupService}의 표준 환율로 해석한다(품목 저장 로직과 동일 기준).
+     * 결과가 음수면 0으로 보정한다.</p>
+     *
+     * @param items      품목 목록(null이면 합계 0으로 처리)
+     * @param mplCpitAmt 예정자본금액(직접 입력, null이면 0)
+     * @param mplMngcAmt 예정관리비금액(직접 입력, null이면 0)
+     * @return 당해예산(원화, 0 이상)
+     */
+    private BigDecimal recalcCurrentYearBudget(List<ProjectDto.BitemmDto> items,
+            BigDecimal mplCpitAmt, BigDecimal mplMngcAmt) {
+        BigDecimal itemsSum = BigDecimal.ZERO;
+        if (items != null) {
+            for (ProjectDto.BitemmDto itemDto : items) {
+                BigDecimal xcr = xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now());
+                BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
+                        itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), xcr);
+                if (reconciled[0] != null) {
+                    itemsSum = itemsSum.add(reconciled[0]);
+                }
+            }
+        }
+        BigDecimal mpl = (mplCpitAmt == null ? BigDecimal.ZERO : mplCpitAmt)
+                .add(mplMngcAmt == null ? BigDecimal.ZERO : mplMngcAmt);
+        BigDecimal currentYear = itemsSum.subtract(mpl);
+        return currentYear.signum() < 0 ? BigDecimal.ZERO : currentYear;
     }
 
     /**

@@ -346,6 +346,57 @@ class ProjectServiceTest {
         }
 
         // ───────────────────────────────────────────────────────
+        // 의무완료기한(FLF_FSG_DT) yyyyMMdd 정규화 — ORA-12899 회귀 방지
+        // ───────────────────────────────────────────────────────
+
+        @Test
+        @DisplayName("createProject: 의무완료기한(flfFsgDt) ISO 입력을 yyyyMMdd 8자리로 정규화하여 저장한다")
+        void createProject_의무완료기한_정규화() {
+                // given: 프론트가 "YYYY-MM-DD"(10자)로 전송
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .abusNm("신규 정보화사업")
+                                .bseYy("2026")
+                                .flfFsgDt("2025-12-31")
+                                .build();
+                given(projectRepository.getNextSequenceValue()).willReturn(1L);
+
+                // when
+                projectService.createProject(request);
+
+                // then: VARCHAR2(8) 컬럼에 맞게 하이픈 제거된 8자리로 저장
+                ArgumentCaptor<Bprojm> captor = ArgumentCaptor.forClass(Bprojm.class);
+                verify(projectRepository).save(captor.capture());
+                assertThat(captor.getValue().getFlfFsgDt()).isEqualTo("20251231");
+        }
+
+        @Test
+        @DisplayName("updateProject: 의무완료기한(flfFsgDt) ISO 입력을 yyyyMMdd 8자리로 정규화하여 반영한다")
+        void updateProject_의무완료기한_정규화() {
+                // given
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .abusMngNo(prjMngNo).sno(1).delYn("N").build();
+                given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of());
+
+                ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
+                                .abusNm("수정된 사업명")
+                                .flfFsgDt("2025-12-31")
+                                .build();
+
+                // when (Dirty Checking으로 엔티티에 직접 반영)
+                projectService.updateProject(prjMngNo, request);
+
+                // then
+                assertThat(project.getFlfFsgDt()).isEqualTo("20251231");
+        }
+
+        // ───────────────────────────────────────────────────────
         // getProjectsByIds (신규) — 존재+미존재 필터링
         // ───────────────────────────────────────────────────────
 
@@ -457,6 +508,38 @@ class ProjectServiceTest {
                 assertThat(result).matches("PRJ-2026-\\d{4}");
                 org.mockito.Mockito.verify(projectRepository).save(any(Bprojm.class));
                 org.mockito.Mockito.verify(bitemmRepository).save(any(com.kdb.it.domain.budget.project.entity.Bitemm.class));
+        }
+
+        @Test
+        @DisplayName("createProject: 당해예산(TOT_RQM_AMT)은 클라이언트값과 무관하게 품목합계 − 예정금액으로 재계산된다")
+        void createProject_당해예산_재계산() {
+                // given: 품목 합계 1,000,000 / 예정금액(자본 300,000 + 관리비 200,000) = 500,000
+                given(projectRepository.getNextSequenceValue()).willReturn(1L);
+                given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
+                given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
+
+                ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+                item.setIoeC("IOE-237-0700");
+                item.setGclNm("소프트웨어 구매");
+                item.setAmt(java.math.BigDecimal.valueOf(1_000_000));
+
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .abusNm("당해예산 재계산 사업")
+                                .bseYy("2026")
+                                .totRqmAmt(java.math.BigDecimal.valueOf(999_999)) // 클라이언트값(무시되어야 함)
+                                .mplCpitAmt(java.math.BigDecimal.valueOf(300_000))
+                                .mplMngcAmt(java.math.BigDecimal.valueOf(200_000))
+                                .items(List.of(item))
+                                .build();
+
+                // when
+                projectService.createProject(request);
+
+                // then: 저장된 엔티티의 TOT_RQM_AMT = 1,000,000 − 500,000 = 500,000
+                org.mockito.ArgumentCaptor<Bprojm> captor = org.mockito.ArgumentCaptor.forClass(Bprojm.class);
+                org.mockito.Mockito.verify(projectRepository).save(captor.capture());
+                assertThat(captor.getValue().getTotRqmAmt())
+                                .isEqualByComparingTo(java.math.BigDecimal.valueOf(500_000));
         }
 
         // ───────────────────────────────────────────────────────
