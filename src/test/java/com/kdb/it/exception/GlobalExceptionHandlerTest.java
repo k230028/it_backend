@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -149,6 +150,41 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(response.getBody()).containsEntry("status", 403);
         assertThat(response.getBody()).containsEntry("message", "본인 또는 관리자만 수행할 수 있습니다.");
+        assertThat(response.getBody()).containsKey("timestamp");
+    }
+
+    /** NotFoundException 발생 시 404 Not Found 와 원본 메시지를 반환해야 합니다. */
+    @Test
+    @DisplayName("handleNotFound - 리소스 미존재 예외 발생 시 404 반환")
+    void handleNotFound_리소스미존재_404반환() {
+        // Arrange
+        NotFoundException ex = new NotFoundException("신청서를 찾을 수 없습니다: APF-2026-0001");
+
+        // Act
+        ResponseEntity<Map<String, Object>> response = handler.handleNotFound(ex);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).containsEntry("status", 404);
+        assertThat(response.getBody()).containsEntry("message", "신청서를 찾을 수 없습니다: APF-2026-0001");
+        assertThat(response.getBody()).containsKey("timestamp");
+    }
+
+    /** ResponseStatusException 발생 시 지정한 상태코드(500 등)를 그대로 보존해 반환해야 합니다. */
+    @Test
+    @DisplayName("handleResponseStatus - 지정 상태코드를 보존하여 반환")
+    void handleResponseStatus_상태코드보존() {
+        // Arrange
+        ResponseStatusException ex = new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR, "계획 스냅샷 직렬화에 실패했습니다.");
+
+        // Act
+        ResponseEntity<Map<String, Object>> response = handler.handleResponseStatus(ex);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody()).containsEntry("status", 500);
+        assertThat(response.getBody()).containsEntry("message", "계획 스냅샷 직렬화에 실패했습니다.");
         assertThat(response.getBody()).containsKey("timestamp");
     }
 
