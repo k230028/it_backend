@@ -9,6 +9,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Table;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ import java.util.Set;
  * 공통 조회·상세 조회 기능만 제공합니다.</p>
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminLogService {
@@ -235,8 +237,9 @@ public class AdminLogService {
                 throw new IllegalStateException("로그 필드 값을 읽을 수 없습니다: " + fieldName, e);
             }
         }
-        // TODO: [B-M-01] 클래스 계층에서 필드 미발견 시 null 반환 — 호출부 null 체크 없이 사용 시 NPE 위험
-        // Optional<Object> 반환 타입 변경 또는 호출부에서 null 체크 보강 권장
+        // 클래스 계층 전체에서 필드를 찾지 못한 경우 null 반환(기존 동작 유지).
+        // 호출부가 null을 그대로 사용하므로, 매핑 누락을 진단할 수 있도록 warn 로그를 남긴다.
+        log.warn("[관리자로그] 로그 필드 미발견 — null 반환: fieldName={}", fieldName);
         return null;
     }
 
