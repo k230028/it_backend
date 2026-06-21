@@ -22,4 +22,13 @@ class NotFoundExceptionTest {
     void isRuntimeException() {
         assertThat(new NotFoundException("x")).isInstanceOf(RuntimeException.class);
     }
+
+    @Test
+    @DisplayName("원인 예외(cause)를 보존한다")
+    void preservesCause() {
+        Throwable cause = new IllegalStateException("원본 원인");
+        NotFoundException ex = new NotFoundException("문서를 찾을 수 없습니다", cause);
+        assertThat(ex.getCause()).isSameAs(cause);
+        assertThat(ex.getMessage()).isEqualTo("문서를 찾을 수 없습니다");
+    }
 }

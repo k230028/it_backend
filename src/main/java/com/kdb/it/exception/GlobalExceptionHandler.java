@@ -157,7 +157,7 @@ public class GlobalExceptionHandler {
         if (status.is5xxServerError()) {
             log.error("상태코드 예외(5xx): status={}, reason={}", status.value(), message, e);
         } else {
-            log.warn("상태코드 예외: status={}, reason={}", status.value(), message);
+            log.warn("상태코드 예외: status={}, reason={}", status.value(), message, e);
         }
         return buildErrorResponse(status, message);
     }
