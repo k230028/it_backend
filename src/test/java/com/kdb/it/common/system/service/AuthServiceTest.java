@@ -21,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.entity.CroleI;
@@ -63,6 +64,11 @@ class AuthServiceTest {
 
         @InjectMocks
         private AuthService authService;
+
+        @org.junit.jupiter.api.BeforeEach
+        void setUp() {
+                ReflectionTestUtils.setField(authService, "refreshTokenValidityMs", 604_800_000L);
+        }
 
         // ── 로그인 테스트 ──────────────────────────────────────────────────
 
@@ -230,12 +236,41 @@ class AuthServiceTest {
                 given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
                                 .willReturn(Collections.emptyList());
                 given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access-token");
+                given(jwtUtil.generateRefreshToken("10001")).willReturn("new-refresh-token");
 
                 // when
                 AuthDto.RefreshResponse response = authService.refreshAccessToken(refreshTokenValue);
 
                 // then
                 assertThat(response.getAccessToken()).isEqualTo("new-access-token");
+        }
+
+        @Test
+        @DisplayName("refreshAccessToken - 회전: 기존 Refresh Token 삭제 후 새 토큰 저장 및 응답 포함")
+        void refreshAccessToken_회전_새RefreshToken발급() {
+                // given
+                String oldRefresh = "old-refresh-token";
+                Crtokm stored = Crtokm.builder()
+                                .tokCone(oldRefresh).eno("10001")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
+                given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
+                given(userRepository.findByEno("10001")).willReturn(Optional.of(
+                                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
+                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
+                                .willReturn(Collections.emptyList());
+                given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access-token");
+                given(jwtUtil.generateRefreshToken("10001")).willReturn("new-refresh-token");
+
+                // when
+                AuthDto.RefreshResponse response = authService.refreshAccessToken(oldRefresh);
+
+                // then
+                assertThat(response.getAccessToken()).isEqualTo("new-access-token");
+                assertThat(response.getRefreshToken()).isEqualTo("new-refresh-token");
+                verify(refreshTokenRepository, times(1)).delete(stored);
+                verify(refreshTokenRepository, times(1)).save(any(Crtokm.class));
         }
 
         @Test

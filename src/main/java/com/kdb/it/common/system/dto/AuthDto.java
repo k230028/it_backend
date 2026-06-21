@@ -236,5 +236,15 @@ public class AuthDto {
          */
         @Schema(description = "새로운 Access Token")
         private String accessToken;
+
+        /**
+         * 회전된 JWT Refresh Token
+         * <p>
+         * Refresh 시 기존 토큰을 폐기하고 새로 발급한 Refresh Token입니다.
+         * 컨트롤러가 httpOnly 쿠키로 재설정합니다. (탈취 재사용 방어 — 토큰 회전)
+         * </p>
+         */
+        @Schema(description = "회전된 Refresh Token")
+        private String refreshToken;
     }
 }

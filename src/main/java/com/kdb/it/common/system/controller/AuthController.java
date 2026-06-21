@@ -182,15 +182,22 @@ public class AuthController {
             return ResponseEntity.status(401).body("Refresh Token 쿠키가 없습니다.");
         }
 
-        // Refresh Token 검증 및 새 Access Token 발급
+        // Refresh Token 검증 및 새 Access Token 발급 (Refresh Token 회전 포함)
         AuthDto.RefreshResponse response = authService.refreshAccessToken(refreshToken);
 
         // 새 Access Token을 httpOnly 쿠키로 설정
         ResponseCookie accessCookie = cookieUtil.createAccessTokenCookie(response.getAccessToken());
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
-                .body("토큰 갱신 성공");
+        ResponseEntity.BodyBuilder builder = ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString());
+
+        // 회전된 Refresh Token이 있으면 로그인과 동일 정책으로 쿠키 재설정 (탈취 재사용 방어)
+        if (response.getRefreshToken() != null) {
+            ResponseCookie refreshCookie = cookieUtil.createRefreshTokenCookie(response.getRefreshToken());
+            builder.header(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        }
+
+        return builder.body("토큰 갱신 성공");
     }
 
     /**
