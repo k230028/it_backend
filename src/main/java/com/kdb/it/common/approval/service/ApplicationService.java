@@ -467,12 +467,19 @@ public class ApplicationService {
      * @return 전체 신청서 응답 DTO 목록 (각각 결재자 목록 포함)
      */
     public List<ApplicationDto.Response> getApplications() {
-        return applicationRepository.findAll().stream()
-                .map(capplm -> {
-                    // 각 신청서의 결재자 목록을 별도 조회하여 DTO에 포함
-                    List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(capplm.getApfMngNo());
-                    return ApplicationDto.Response.fromEntity(capplm, approvers);
-                })
+        List<Capplm> capplms = applicationRepository.findAll();
+        List<String> apfMngNos = capplms.stream().map(Capplm::getApfMngNo).toList();
+
+        // 결재선 배치 조회 (N+1 제거): 신청번호별 결재자 목록 Map 선구성.
+        // findByDcdMngNoInOrderByDcrSqnSnoAsc가 DCR_SQN_SNO 오름차순으로 반환하므로
+        // groupingBy가 각 신청번호 그룹 내 결재자 순서를 보존한다.
+        java.util.Map<String, List<Cdecim>> approversByApf =
+                approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos).stream()
+                        .collect(java.util.stream.Collectors.groupingBy(Cdecim::getDcdMngNo));
+
+        return capplms.stream()
+                .map(capplm -> ApplicationDto.Response.fromEntity(
+                        capplm, approversByApf.getOrDefault(capplm.getApfMngNo(), List.of())))
                 .toList();
     }
 
@@ -590,13 +597,14 @@ public class ApplicationService {
         ProjectDto.SearchCondition projectCondition = new ProjectDto.SearchCondition();
         projectCondition.setApfSts("none");
         if (bgYy != null && !bgYy.isBlank()) projectCondition.setBseYy(bgYy);
-        long projectCount = projectRepository.searchByCondition(projectCondition).size();
+        // 전체 엔티티 적재 대신 COUNT 쿼리로 건수만 산출 (동일 WHERE 조건 → 결과 동치)
+        long projectCount = projectRepository.countBySearchCondition(projectCondition);
 
         // 미상신 전산업무비 건수
         CostDto.SearchCondition costCondition = new CostDto.SearchCondition();
         costCondition.setApfSts("none");
         if (bgYy != null && !bgYy.isBlank()) costCondition.setBseYy(bgYy);
-        long costCount = costRepository.searchByCondition(costCondition).size();
+        long costCount = costRepository.countBySearchCondition(costCondition);
 
         return ApplicationDto.PendingCountResponse.builder()
                 .projectCount(projectCount)

@@ -97,6 +97,43 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
     @Override
     public List<Bcostm> searchByCondition(CostDto.SearchCondition condition) {
         QBcostm bcostm = QBcostm.bcostm;
+        BooleanBuilder builder = buildConditionPredicate(condition);
+
+        return queryFactory
+                .selectFrom(bcostm)
+                .where(builder)
+                .fetch();
+    }
+
+    /**
+     * 검색 조건에 해당하는 전산관리비 건수 (COUNT 쿼리, 전체 적재 회피)
+     *
+     * <p>{@link #searchByCondition(CostDto.SearchCondition)}와 동일한 WHERE 조건을
+     * {@link #buildConditionPredicate(CostDto.SearchCondition)}로 공유하므로
+     * {@code searchByCondition(...).size()}와 결과가 정확히 일치합니다.</p>
+     */
+    @Override
+    public long countBySearchCondition(CostDto.SearchCondition condition) {
+        QBcostm bcostm = QBcostm.bcostm;
+        Long cnt = queryFactory
+                .select(bcostm.count())
+                .from(bcostm)
+                .where(buildConditionPredicate(condition))
+                .fetchOne();
+        return cnt == null ? 0L : cnt;
+    }
+
+    /**
+     * 검색 조건 → QueryDSL WHERE 절(BooleanBuilder) 조립.
+     *
+     * <p>{@code searchByCondition}(목록)과 {@code countBySearchCondition}(건수)가 동일 조건을
+     * 공유하도록 조건 조립부를 추출한 헬퍼입니다. apfSts EXISTS/NOT EXISTS 서브쿼리 포함.</p>
+     *
+     * @param condition 검색 조건 DTO
+     * @return DEL_YN='N' 및 동적 조건이 누적된 BooleanBuilder
+     */
+    private BooleanBuilder buildConditionPredicate(CostDto.SearchCondition condition) {
+        QBcostm bcostm = QBcostm.bcostm;
         // 서브쿼리용 CAPPLA Q타입 별칭 (자기 참조 서브쿼리 충돌 방지)
         QCappla cappla = new QCappla("cappla");
         QCappla cappla2 = new QCappla("cappla2");
@@ -169,10 +206,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
             builder.and(bcostm.bseYy.eq(condition.getBseYy()));
         }
 
-        return queryFactory
-                .selectFrom(bcostm)
-                .where(builder)
-                .fetch();
+        return builder;
     }
 
     /**
