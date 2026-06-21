@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Map;
 
@@ -132,6 +133,23 @@ class GlobalExceptionHandlerTest {
         // Assert: 고정 메시지가 아닌 원본 메시지가 반환되어야 함
         assertThat(response.getBody()).containsEntry("message", "비즈니스 로직 오류 메시지");
         assertThat(response.getBody()).doesNotContainValue("요청을 처리할 수 없습니다.");
+    }
+
+    /** AccessDeniedException 발생 시 403 Forbidden 과 원본 메시지를 반환해야 합니다. */
+    @Test
+    @DisplayName("handleAccessDenied - 권한 없음 예외 발생 시 403 반환")
+    void handleAccessDenied_권한없음_403반환() {
+        // Arrange
+        AccessDeniedException ex = new AccessDeniedException("본인 또는 관리자만 수행할 수 있습니다.");
+
+        // Act
+        ResponseEntity<Map<String, Object>> response = handler.handleAccessDenied(ex);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getBody()).containsEntry("status", 403);
+        assertThat(response.getBody()).containsEntry("message", "본인 또는 관리자만 수행할 수 있습니다.");
+        assertThat(response.getBody()).containsKey("timestamp");
     }
 
     // ---- 엣지 케이스 ----

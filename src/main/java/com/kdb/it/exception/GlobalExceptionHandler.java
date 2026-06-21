@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -106,6 +107,21 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         log.warn("입력값 검증 실패: {}", message);
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message);
+    }
+
+    /**
+     * 접근 권한 없음 예외 처리 (403 Forbidden)
+     *
+     * <p>서비스 계층의 소유권/권한 검증({@code OwnershipVerifier}) 실패 시 발생합니다.
+     * 포괄 {@code RuntimeException} 핸들러(400)보다 우선 매칭되어 403으로 반환합니다.</p>
+     *
+     * @param e {@link AccessDeniedException}
+     * @return 403 응답 + 오류 메시지
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException e) {
+        log.warn("접근 권한 없음: {}", e.getMessage());
+        return buildErrorResponse(HttpStatus.FORBIDDEN, e.getMessage());
     }
 
     /**
