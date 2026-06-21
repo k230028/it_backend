@@ -6,13 +6,16 @@ import com.kdb.it.infra.file.repository.FileRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
+import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -105,12 +108,11 @@ public class GeminiService {
         this.fileRepository = fileRepository;
         // 외부 Gemini API 응답 지연이 스레드를 무한 점유하지 않도록 connect/read 타임아웃을 강제한다.
         // JDK HttpClient의 connectTimeout(5s) + 요청별 readTimeout(60s)을 RequestFactory에 설정한다.
-        java.net.http.HttpClient httpClient = java.net.http.HttpClient.newBuilder()
-                .connectTimeout(java.time.Duration.ofSeconds(5))
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
                 .build();
-        org.springframework.http.client.JdkClientHttpRequestFactory requestFactory =
-                new org.springframework.http.client.JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(60));
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(60));
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
                 .requestFactory(requestFactory)
