@@ -4,6 +4,7 @@ import com.kdb.it.infra.ai.dto.GeminiDto;
 import com.kdb.it.infra.ai.service.GeminiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -61,7 +62,7 @@ public class GeminiController {
         description = "프롬프트를 Gemini API에 전달하고 AI 응답을 반환합니다. " +
                       "systemInstruction은 선택 사항으로, AI의 역할이나 응답 방식을 지정합니다."
     )
-    public ResponseEntity<GeminiDto.Response> generate(@RequestBody GeminiDto.Request request) {
+    public ResponseEntity<GeminiDto.Response> generate(@Valid @RequestBody GeminiDto.Request request) {
         GeminiDto.Response response = geminiService.generate(request);
         return ResponseEntity.ok(response);
     }
