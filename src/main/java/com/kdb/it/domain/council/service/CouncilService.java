@@ -130,7 +130,7 @@ public class CouncilService {
         // 일반사용자: SVN_DPM = 사용자 BBR_C 조건으로 결재완료 사업 + 기신청 협의회 통합 조회
         List<Object[]> rows = councilRepository.findProjectsForCouncilByDepartment(
                 userDetails.getBbrC(), PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
-        log.info("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());
+        log.debug("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());
         return rows.stream().map(row -> toListResponseFromRow(row)).collect(Collectors.toList());
     }
 

@@ -83,8 +83,8 @@ public class EaiService {
         }
     }
 
-    /** 예외 메시지를 안전하게 추출 — null/과도한 길이를 방어해 결과/로그 오염을 막는다. */
-    private static String safeMessage(Throwable e) {
+    /** 예외 메시지를 안전하게 추출 — null/과도한 길이를 방어해 결과/로그 오염을 막는다. (패키지 가시성: 단위 테스트 직접 검증용) */
+    static String safeMessage(Throwable e) {
         String msg = e.getMessage();
         if (msg == null || msg.isBlank()) {
             return e.getClass().getSimpleName();
