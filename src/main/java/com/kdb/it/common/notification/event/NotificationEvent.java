@@ -9,7 +9,8 @@ import lombok.Builder;
  * 결재·게시판·시스템 등 어디서든 알림이 필요할 때 발행하는 공용 이벤트.
  * {@link org.springframework.context.ApplicationEventPublisher}로 발행하고
  * {@link NotificationEventListener}가 {@code @TransactionalEventListener(AFTER_COMMIT)}로
- * 구독하여 비동기로 적재한다. 발행자 트랜잭션은 차단/롤백되지 않는다.
+ * 구독하여 커밋 이후 적재한다. {@code @Async}를 사용하지 않으므로 리스너 실행 자체는 동기 콜백이며,
+ * 발행자 트랜잭션은 이미 커밋된 뒤라 알림 실패로 롤백되지 않는다.
  * </p>
  *
  * @param recipientEno 수신자 사원번호 (필수)

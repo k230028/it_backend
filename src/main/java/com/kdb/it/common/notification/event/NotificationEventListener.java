@@ -33,7 +33,7 @@ public class NotificationEventListener {
     private final ApplicationRepository applicationRepository;
 
     /**
-     * 일반 알림 이벤트 처리. 발행자 트랜잭션 커밋 이후 비동기 발송.
+     * 일반 알림 이벤트 처리. 발행자 트랜잭션 커밋 이후 동기 콜백으로 발송한다.
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onNotificationEvent(NotificationEvent event) {

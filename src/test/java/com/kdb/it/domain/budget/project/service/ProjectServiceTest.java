@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
@@ -87,6 +88,8 @@ class ProjectServiceTest {
         @Mock
         private com.kdb.it.domain.budget.cost.util.XcrLookupService xcrLookupService;
         @Mock
+        private ProjectBudgetSummaryService projectBudgetSummaryService;
+        @Mock
         private SecurityContext securityContext;
         @Mock
         private Authentication authentication;
@@ -101,6 +104,12 @@ class ProjectServiceTest {
                 given(securityContext.getAuthentication()).willReturn(authentication);
                 given(authentication.getPrincipal()).willReturn(adminUser);
                 SecurityContextHolder.setContext(securityContext);
+                doAnswer(invocation -> {
+                        ProjectDto.Response response = invocation.getArgument(0);
+                        List<Bitemm> items = invocation.getArgument(1);
+                        new ProjectBudgetSummaryService(codeService).applyBudgetSummary(response, items);
+                        return null;
+                }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
         }
 
         @AfterEach

@@ -52,8 +52,8 @@ $env:GEMINI_API_KEY = "your-gemini-api-key"  # 필요시
 cd it_backend
 ./gradlew clean build
 ./gradlew bootRun
-#   → http://localhost:8080
-#   → Swagger: http://localhost:8080/swagger-ui/index.html
+#   → http://localhost:28080
+#   → Swagger: http://localhost:28080/swagger-ui/index.html
 ```
 
 ### 테스트 실행
@@ -767,7 +767,7 @@ public class Bprojm extends BaseEntity { ... }
 
 > 사업집행 4단계(`/api/project/**`)는 클래스 레벨 `@PreAuthorize` 없이 인증만 요구하며, 쓰기 주체·상태 전이·부서 권한은 서비스 계층에서 검증합니다. 대상구분(`bgPrnTc`)은 100(정보화사업)·200(전산업무비)이며 소요예산 산정은 100 전용입니다.
 
-> **Swagger UI**: http://localhost:8080/swagger-ui/index.html
+> **Swagger UI**: http://localhost:28080/swagger-ui/index.html
 
 ## 10. 빌드 및 실행
 
@@ -780,8 +780,8 @@ public class Bprojm extends BaseEntity { ... }
 
 # 3. 개발 서버 기동 (Hot Reload 지원)
 ./gradlew bootRun
-#   → http://localhost:8080
-#   → Swagger: http://localhost:8080/swagger-ui/index.html
+#   → http://localhost:28080
+#   → Swagger: http://localhost:28080/swagger-ui/index.html
 
 # 4. 테스트 실행 (84개 테스트 파일)
 ./gradlew test
@@ -930,6 +930,12 @@ Get-Content maven-repo-manifest.txt | Where-Object { $_ -notlike '*.module' } |
 | `spring.datasource.url` | - | `jdbc:oracle:thin:@127.0.0.1:11521/XEPDB1` | 프로덕션 접속 정보 | Oracle 접속 URL |
 | `spring.datasource.hikari.connection-init-sql` | `ALTER SESSION SET CURRENT_SCHEMA=${DB_SCHEMA:ITPOWN}` | 동일 (베이스 공통) | 동일 (베이스 공통) | 스키마 전환 — 전 환경 공통 (접속 ITPAPP → 객체 소유 ITPOWN) |
 | `spring.datasource.password` | `${DB_PASSWORD:kdb1234!!}` | 환경변수 또는 기본값 `kdb1234!!` | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
+| `spring.flyway.enabled` | `${FLYWAY_ENABLED:true}` | true | true | Flyway 자동 마이그레이션 사용 여부 |
+| `spring.flyway.locations` | `${FLYWAY_LOCATIONS:classpath:db/migration}` | classpath 기본값 | classpath 기본값 또는 배포 정책값 | Gradle이 `../it_database/migrations/V*.sql`을 포함하는 위치 |
+| `spring.flyway.user` / `spring.flyway.password` | `${FLYWAY_USER:${spring.datasource.username}}` / `${FLYWAY_PASSWORD:${spring.datasource.password}}` | 앱 계정 또는 로컬 DDL 계정 | 운영 DDL 권한 계정 | Flyway 전용 접속 계정. 미설정 시 datasource 계정 사용 |
+| `spring.flyway.default-schema` / `spring.flyway.schemas` | `${DB_SCHEMA:ITPOWN}` | ITPOWN | 운영 객체 스키마 | Flyway schema history와 마이그레이션 적용 스키마 |
+| `spring.flyway.baseline-on-migrate` | `${FLYWAY_BASELINE_ON_MIGRATE:true}` | true | 기존 스키마 최초 도입 시 true | 기존 non-empty 스키마를 기준선으로 등록 |
+| `spring.flyway.baseline-version` | `${FLYWAY_BASELINE_VERSION:20260620.001}` | `20260620.001` | 기존 운영 스키마 기준 버전 | 기존 ITPOWN 스키마의 현재 적용 기준선 |
 | `jwt.secret` | `${JWT_SECRET:kdb-it-secret-key-...256-bits}` | 환경변수 또는 내장 기본 시크릿 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 (운영 기본값 제거 필요) |
 | `jwt.access-token-validity` | `900000` | - | - | Access Token 유효시간 (15분) |
 | `jwt.refresh-token-validity` | `604800000` | - | - | Refresh Token 유효시간 (7일) |
@@ -941,6 +947,13 @@ Get-Content maven-repo-manifest.txt | Where-Object { $_ -notlike '*.module' } |
 | `spring.servlet.multipart.max-request-size` | `200MB` | - | - | 다건 업로드 최대 크기 |
 | `gemini.api.key` | - | 환경변수 `GEMINI_API_KEY` | 환경변수 | Google Gemini API 키 |
 | `gemini.api.model` | `gemini-2.5-flash` | - | - | Gemini 모델 선택 |
+
+#### DB 마이그레이션
+- 신규 DDL/DML 변경은 `../it_database/migrations/V{YYYYMMDD_NNN}__{설명}.sql`로 추가합니다.
+- 백엔드 빌드 시 `processResources`가 해당 파일을 `classpath:db/migration`으로 복사하고, 애플리케이션 기동 시 Flyway가 신규 버전만 적용합니다.
+- 기존 ITPOWN 스키마는 `baseline-version=20260620.001`로 기준선을 등록합니다. 빈 스키마에서는 전체 V* 스크립트를 처음부터 순서대로 적용합니다.
+- 운영처럼 애플리케이션 계정(`ITPAPP`)에 DDL 권한을 주지 않는 환경은 `FLYWAY_USER`/`FLYWAY_PASSWORD`에 DDL 권한 계정을 별도로 지정합니다.
+- 단위 테스트 프로파일(`application-test.properties`)은 DB 자동설정을 제외하므로 `spring.flyway.enabled=false`를 사용합니다.
 
 ### 11.2 보안 설정
 

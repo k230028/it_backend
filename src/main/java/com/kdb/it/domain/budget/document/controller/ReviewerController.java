@@ -33,7 +33,7 @@ public class ReviewerController {
     @Operation(summary = "검토자 목록 조회", description = "사전협의 문서의 검토자 목록을 팀별로 반환합니다.")
     @GetMapping("/{docMngNo}/reviewers")
     public ResponseEntity<List<ReviewerDto.Response>> getReviewers(
-            @PathVariable String docMngNo) {
+            @PathVariable(name = "docMngNo") String docMngNo) {
         return ResponseEntity.ok(reviewerService.getReviewers(docMngNo));
     }
 }

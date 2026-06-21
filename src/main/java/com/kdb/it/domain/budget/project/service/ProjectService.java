@@ -73,12 +73,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true) // 기본 읽기 전용 트랜잭션
 public class ProjectService {
 
-    /** 자본예산 세부 코드타입: 개발비/기계장치/기타무형자산 */
-    private static final String IOE_DVC = "IOE_DVC";
-    private static final String IOE_HW = "IOE_HW";
-    private static final String IOE_SW = "IOE_SW";
-    private static final Set<String> CAPITAL_DETAIL_CTPS = Set.of(IOE_DVC, IOE_HW, IOE_SW);
-
     /** 정보화사업 데이터 접근 리포지토리 (TPRMPP_BPROJM) */
     private final ProjectRepository projectRepository;
 
@@ -111,6 +105,9 @@ public class ProjectService {
 
     /** 환율 표준 조회 헬퍼: 외화 품목 저장 전 Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7) */
     private final XcrLookupService xcrLookupService;
+
+    /** 품목 기준 예산 합계 계산 서비스 */
+    private final ProjectBudgetSummaryService projectBudgetSummaryService;
 
     /**
      * 전체 정보화사업 목록 조회
@@ -205,7 +202,7 @@ public class ProjectService {
         response.setItems(itemDtos);
 
         // 품목 기준 자본예산/일반관리비 합계 계산 및 설정 (이미 조회한 bitemms 재활용)
-        setBudgetSummaryFromItems(response, bitemms);
+        projectBudgetSummaryService.applyBudgetSummary(response, bitemms);
 
         return response;
     }
@@ -968,101 +965,7 @@ public class ProjectService {
             enrichItemIoeCNames(itemDtos);
             response.setItems(itemDtos);
         }
-        setBudgetSummaryFromItems(response, bitemms);
-    }
-
-    /**
-     * 품목 목록으로부터 자본예산/일반관리비 합계를 계산하여 응답 DTO에 설정
-     *
-     * <p>
-     * 자본예산(assetBg): 품목구분(gclDtt)이 공통코드 코드값구분 IOE_CPIT에 해당하는 품목의 gclAmt 합계
-     * </p>
-     * <p>
-     * 일반관리비(costBg): 품목구분(gclDtt)이 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하는 품목의 gclAmt 합계
-     * </p>
-     *
-     * @param response 예산 합계를 설정할 응답 DTO
-     * @param bitemms  합계 계산 대상 품목 목록
-     */
-    private void setBudgetSummaryFromItems(ProjectDto.Response response,
-            List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms) {
-        // 마이그레이션 후: cId=CommonCodeGroups.IOE 단일 그룹, cTp 필드로 자본/관리비 분류
-        // 개발비/기계장치/기타무형자산은 C_TP 기준(IOE_DVC/IOE_HW/IOE_SW)으로 세부 분류
-        List<com.kdb.it.common.code.entity.Ccodem> allIoeCodes = codeService.findCodeEntitiesByCId(CommonCodeGroups.IOE);
-        List<com.kdb.it.common.code.entity.Ccodem> assetCodes = allIoeCodes.stream()
-                .filter(c -> CAPITAL_DETAIL_CTPS.contains(c.getCTp()) || "IOE_CPIT".equals(c.getCTp()))
-                .collect(java.util.stream.Collectors.toList());
-        java.util.Set<String> assetTypes = assetCodes.stream()
-                .map(com.kdb.it.common.code.entity.Ccodem::getCdva)
-                .collect(java.util.stream.Collectors.toSet());
-
-        // 자본예산 비목코드를 코드타입(C_TP) 기준으로 세부 분류
-        java.util.Map<String, java.util.Set<String>> assetSubTypesByCTp = assetCodes.stream()
-                .collect(java.util.stream.Collectors.groupingBy(
-                        c -> c.getCTp() != null ? c.getCTp() : "",
-                        java.util.stream.Collectors.mapping(
-                                com.kdb.it.common.code.entity.Ccodem::getCdva,
-                                java.util.stream.Collectors.toSet())));
-        java.util.Set<String> devTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_DVC, java.util.Collections.emptySet()));
-        java.util.Set<String> machTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_HW, java.util.Collections.emptySet()));
-        java.util.Set<String> intanTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_SW, java.util.Collections.emptySet()));
-
-        // 구 데이터 호환: IOE_CPIT 행은 CDVA_DES 한글명으로 세부 분류
-        assetCodes.stream()
-                .filter(c -> "IOE_CPIT".equals(c.getCTp()))
-                .forEach(c -> {
-                    String cdvaDes = c.getCdvaDes() != null ? c.getCdvaDes() : "";
-                    if ("단말기".equals(cdvaDes)) devTypes.add(c.getCdva());
-                    else if ("기계장치".equals(cdvaDes)) machTypes.add(c.getCdva());
-                    else if ("기타무형자산".equals(cdvaDes)) intanTypes.add(c.getCdva());
-                });
-
-        // 일반관리비: cTp가 IOE_IDR/IOE_SEVS/IOE_XPN/IOE_LEAFE인 코드의 cdva 집합
-        java.util.Set<String> costTypes = allIoeCodes.stream()
-                .filter(c -> java.util.Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE").contains(c.getCTp()))
-                .map(com.kdb.it.common.code.entity.Ccodem::getCdva)
-                .collect(java.util.stream.Collectors.toSet());
-
-        // 품목별 금액 계산 헬퍼 (gclAmt × xcr, xcr이 null이거나 0이면 1로 간주)
-        java.util.function.Function<com.kdb.it.domain.budget.project.entity.Bitemm, java.math.BigDecimal> calcAmt =
-                item -> {
-                    java.math.BigDecimal xcr = (item.getXcr() != null && item.getXcr().compareTo(java.math.BigDecimal.ZERO) != 0)
-                            ? item.getXcr() : java.math.BigDecimal.ONE;
-                    return item.getAmt().multiply(xcr);
-                };
-
-        // 유효한 품목만 필터링 (ioeC, gclAmt가 null이 아닌 항목)
-        List<com.kdb.it.domain.budget.project.entity.Bitemm> validItems = bitemms.stream()
-                .filter(item -> item.getIoeC() != null && item.getAmt() != null)
-                .collect(java.util.stream.Collectors.toList());
-
-        // 자본예산 합계 계산
-        java.math.BigDecimal assetBg = validItems.stream()
-                .filter(item -> assetTypes.contains(item.getIoeC()))
-                .map(calcAmt)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-
-        // 자본예산 세부 분류 합계 계산
-        java.math.BigDecimal dvcBg = validItems.stream()
-                .filter(item -> devTypes.contains(item.getIoeC()))
-                .map(calcAmt)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-        java.math.BigDecimal hwBg = validItems.stream()
-                .filter(item -> machTypes.contains(item.getIoeC()))
-                .map(calcAmt)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-        java.math.BigDecimal swBg = validItems.stream()
-                .filter(item -> intanTypes.contains(item.getIoeC()))
-                .map(calcAmt)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-
-        // 일반관리비 합계 계산
-        java.math.BigDecimal costBg = validItems.stream()
-                .filter(item -> costTypes.contains(item.getIoeC()))
-                .map(calcAmt)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-
-        response.setBudgetAmounts(assetBg, dvcBg, hwBg, swBg, costBg);
+        projectBudgetSummaryService.applyBudgetSummary(response, bitemms);
     }
 
     /**

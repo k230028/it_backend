@@ -43,7 +43,7 @@ import com.kdb.it.domain.council.service.ScheduleService;
  *
  * <p>정보화실무협의회 HTTP 응답 구조와 인증 동작을 검증합니다.</p>
  */
-@WebMvcTest(CouncilController.class)
+@WebMvcTest({ CouncilController.class, CouncilMainQnaController.class, CouncilQnaController.class })
 @Import({ TestSecurityConfig.class, JacksonConfig.class })
 class CouncilControllerTest {
 

@@ -7,8 +7,6 @@ import com.kdb.it.domain.council.service.CouncilService;
 import com.kdb.it.domain.council.service.CommitteeService;
 import com.kdb.it.domain.council.service.EvaluationService;
 import com.kdb.it.domain.council.service.FeasibilityService;
-import com.kdb.it.domain.council.service.MainQnaService;
-import com.kdb.it.domain.council.service.QnaService;
 import com.kdb.it.domain.council.service.ResultService;
 import com.kdb.it.domain.council.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,7 +19,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -77,12 +74,6 @@ public class CouncilController {
 
     /** 결과서 서비스 (Step 3) */
     private final ResultService resultService;
-
-    /** 사전질의응답 서비스 (Step 2) */
-    private final QnaService qnaService;
-
-    /** 본회의 질의응답 서비스 (PRD §26) */
-    private final MainQnaService mainQnaService;
 
     // =========================================================================
     // M3: 협의회 목록/기본
@@ -488,80 +479,6 @@ public class CouncilController {
         return ResponseEntity.ok(scheduleService.getMySchedule(asctId, userDetails.getEno()));
     }
 
-    // =========================================================================
-    // §26: 본회의 질의응답 (BMQNAM)
-    // =========================================================================
-    // 평가위원·관리자 모두 목록 조회 가능. 등록/수정/답변은 IT관리자 전용.
-    // =========================================================================
-
-    /**
-     * 본회의 질의응답 목록 조회 (PRD §26)
-     *
-     * <p>평가위원은 평가의견 작성 시 참고용으로 사용합니다.</p>
-     */
-    @Operation(summary = "본회의 질의응답 목록", description = "협의회의 본회의 Q&A 목록을 반환합니다.")
-    @GetMapping("/{asctId}/main-qna")
-    public ResponseEntity<List<CouncilDto.QnaResponse>> getMainQnaList(
-            @PathVariable("asctId") String asctId) {
-        return ResponseEntity.ok(mainQnaService.getMainQnaList(asctId));
-    }
-
-    /**
-     * 본회의 질의 등록 (IT관리자 전용, PRD §26)
-     */
-    @Operation(summary = "본회의 질의 등록", description = "IT관리자가 본회의에서 나온 질의를 정리해 등록합니다.")
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/{asctId}/main-qna")
-    public ResponseEntity<String> createMainQna(
-            @PathVariable("asctId") String asctId,
-            @RequestBody @Valid CouncilDto.QnaCreateRequest request,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        String qtnId = mainQnaService.createMainQna(asctId, request, userDetails);
-        return ResponseEntity.ok(qtnId);
-    }
-
-    /**
-     * 본회의 질의 수정 (IT관리자 전용, PRD §26)
-     */
-    @Operation(summary = "본회의 질의 수정", description = "IT관리자가 본회의 질의 내용을 수정합니다.")
-    @PreAuthorize("hasRole('ADMIN')")
-    @PatchMapping("/{asctId}/main-qna/{qtnId}")
-    public ResponseEntity<Void> updateMainQna(
-            @PathVariable("asctId") String asctId,
-            @PathVariable("qtnId") String qtnId,
-            @RequestBody @Valid CouncilDto.QnaUpdateRequest request) {
-        mainQnaService.updateMainQna(asctId, qtnId, request);
-        return ResponseEntity.ok().build();
-    }
-
-    /**
-     * 본회의 답변 등록/수정 (IT관리자 전용, PRD §26)
-     */
-    @Operation(summary = "본회의 답변", description = "IT관리자가 본회의 질의에 대한 답변을 정리해 등록·수정합니다.")
-    @PreAuthorize("hasRole('ADMIN')")
-    @PutMapping("/{asctId}/main-qna/{qtnId}")
-    public ResponseEntity<Void> replyMainQna(
-            @PathVariable("asctId") String asctId,
-            @PathVariable("qtnId") String qtnId,
-            @RequestBody @Valid CouncilDto.QnaReplyRequest request,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        mainQnaService.replyMainQna(asctId, qtnId, request, userDetails);
-        return ResponseEntity.ok().build();
-    }
-
-    /**
-     * 본회의 질의응답 삭제 (Soft Delete, IT관리자 전용, PRD §26)
-     */
-    @Operation(summary = "본회의 질의응답 삭제", description = "IT관리자가 본회의 Q&A 항목을 삭제(Soft)합니다.")
-    @PreAuthorize("hasRole('ADMIN')")
-    @org.springframework.web.bind.annotation.DeleteMapping("/{asctId}/main-qna/{qtnId}")
-    public ResponseEntity<Void> deleteMainQna(
-            @PathVariable("asctId") String asctId,
-            @PathVariable("qtnId") String qtnId) {
-        mainQnaService.deleteMainQna(asctId, qtnId);
-        return ResponseEntity.noContent().build();
-    }
-
     /**
      * 일정 입력 (평가위원)
      *
@@ -906,92 +823,4 @@ public class CouncilController {
     // M6: 사전질의응답 (Step 2)
     // =========================================================================
 
-    /**
-     * 사전질의응답 목록 조회
-     *
-     * <p>해당 협의회의 전체 질의응답 목록을 등록일시 오름차순으로 반환합니다.
-     * 평가위원과 추진부서 담당자 모두 조회 가능합니다.</p>
-     *
-     * @param asctId 협의회ID
-     * @return HTTP 200 + 질의응답 목록
-     */
-    @Operation(summary = "사전질의응답 목록 조회", description = "협의회의 사전질의응답 목록을 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
-    })
-    @GetMapping("/{asctId}/qna")
-    public ResponseEntity<List<CouncilDto.QnaResponse>> getQnaList(
-            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId) {
-        return ResponseEntity.ok(qnaService.getQnaList(asctId));
-    }
-
-    /**
-     * 사전 질의 등록 (평가위원)
-     *
-     * <p>평가위원이 협의회 개최 전 사전 질의를 등록합니다.
-     * QTN_ID는 자동 채번됩니다.</p>
-     *
-     * @param asctId      협의회ID
-     * @param request     질의 등록 요청
-     * @param userDetails 로그인한 평가위원
-     * @return HTTP 200 + 생성된 질의응답ID
-     */
-    @Operation(summary = "사전 질의 등록", description = "평가위원이 사전 질의를 등록합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "등록 성공"),
-            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
-    })
-    @PostMapping("/{asctId}/qna")
-    public ResponseEntity<String> createQna(
-            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.QnaCreateRequest request,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        String qtnId = qnaService.createQna(asctId, request, userDetails);
-        return ResponseEntity.ok(qtnId);
-    }
-
-    /**
-     * 사전 질의 답변 (추진부서 담당자)
-     *
-     * <p>추진부서 담당자(ITPZZ001)가 평가위원의 사전 질의에 답변합니다.
-     * 답변 후 REP_YN='Y'로 변경됩니다.</p>
-     *
-     * @param asctId      협의회ID
-     * @param qtnId       질의응답ID
-     * @param request     답변 요청
-     * @param userDetails 로그인한 담당자
-     * @return HTTP 200
-     */
-    @Operation(summary = "사전 질의 답변", description = "추진부서 담당자가 사전 질의에 답변합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "답변 성공"),
-            @ApiResponse(responseCode = "404", description = "존재하지 않는 질의응답", content = @Content)
-    })
-    @PutMapping("/{asctId}/qna/{qtnId}")
-    public ResponseEntity<Void> replyQna(
-            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId,
-            @Parameter(description = "질의응답ID", required = true, example = "QTN-ASCT-2026-0001-01")
-            @PathVariable("qtnId") String qtnId,
-            @RequestBody CouncilDto.QnaReplyRequest request,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        qnaService.replyQna(asctId, qtnId, request, userDetails);
-        return ResponseEntity.ok().build();
-    }
-
-    @Operation(summary = "사전질의 수정", description = "질의 등록자(또는 IT관리자)가 질의 내용을 수정합니다.")
-    @PatchMapping("/{asctId}/qna/{qtnId}")
-    public ResponseEntity<Void> updateQna(
-            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId,
-            @Parameter(description = "질의응답ID", required = true, example = "QTN-ASCT-2026-0001-01")
-            @PathVariable("qtnId") String qtnId,
-            @RequestBody CouncilDto.QnaUpdateRequest request,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        qnaService.updateQna(asctId, qtnId, request, userDetails);
-        return ResponseEntity.ok().build();
-    }
 }

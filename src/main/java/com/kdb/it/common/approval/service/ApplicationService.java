@@ -376,8 +376,8 @@ public class ApplicationService {
      * </p>
      *
      * @param request 일괄 결재 요청 DTO (처리할 신청서 목록)
-     * @return 일괄 결재 결과 DTO (전체/성공/실패 건수, 개별 결과 목록)
-     * @throws RuntimeException 개별 신청서 처리 실패 시 (전체 롤백)
+     * @return 모든 항목이 성공한 경우의 일괄 결재 결과 DTO. 실패 항목이 있으면 반환되지 않는다.
+     * @throws RuntimeException 개별 신청서 처리 실패 시 즉시 재발생하여 전체 롤백
      */
     @Transactional
     public ApplicationDto.BulkApproveResponse bulkApprove(ApplicationDto.BulkApproveRequest request) {
