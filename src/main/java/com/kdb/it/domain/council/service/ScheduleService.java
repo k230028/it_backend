@@ -113,7 +113,7 @@ public class ScheduleService {
                             scheduleByEno.getOrDefault(m.getEno(), List.of()).stream()
                                     .map(s -> new CouncilDto.ScheduleSlotResponse(
                                             s.getCnrcDt(), s.getCnrcSttTm(), s.getUsePsbYn()))
-                                    .collect(Collectors.toList());
+                                    .toList();
 
                     return new CouncilDto.MemberScheduleStatus(
                             m.getEno(),
@@ -125,7 +125,7 @@ public class ScheduleService {
                             slots
                     );
                 })
-                .collect(Collectors.toList());
+                .toList();
 
         // 미응답 위원 수
         long pendingCount = scheduleRepository.countPendingMembers(asctId);
@@ -160,7 +160,7 @@ public class ScheduleService {
         councilService.findActiveCouncil(asctId);
         return scheduleRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").stream()
                 .map(s -> new CouncilDto.ScheduleSlotResponse(s.getCnrcDt(), s.getCnrcSttTm(), s.getUsePsbYn()))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

@@ -14,7 +14,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /** 메뉴 트리 조회 + 서버 단 권한 필터링. 권한 판단은 전적으로 여기서 수행한다. */
 @Service
@@ -43,7 +42,7 @@ public class MenuQueryService {
         List<Cmenum> visible = all.stream()
                 .filter(m -> !"Y".equals(m.getHidYn()))
                 .filter(m -> isAllowed(m.getMnuId(), athByMenu, userAths))
-                .collect(Collectors.toList());
+                .toList();
 
         List<MenuDto.Node> tree = prune(buildTree(visible, athIds), true);
         // 사이드바/헤더가 관리자 전용 메뉴에 왕관 아이콘을 표시할 수 있도록 노드별 권한ID를 함께 싣는다.

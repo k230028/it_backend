@@ -1,7 +1,6 @@
 package com.kdb.it.domain.council.service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
@@ -117,21 +116,21 @@ public class CouncilService {
             List<Object[]> rows = councilRepository.findProjectsForCouncilAll(
                     PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
             log.debug("[CouncilList] admin query result count={}", rows.size());
-            return rows.stream().map(row -> toListResponseFromRow(row)).collect(Collectors.toList());
+            return rows.stream().map(row -> toListResponseFromRow(row)).toList();
         }
 
         if (isCommitteeMember(userDetails)) {
             // 평가위원: 배정된 협의회만 조회
             return councilRepository.findByCommitteeMember(userDetails.getEno(), "N").stream()
                     .map(c -> toListResponseFromEntity(c))
-                    .collect(Collectors.toList());
+                    .toList();
         }
 
         // 일반사용자: SVN_DPM = 사용자 BBR_C 조건으로 결재완료 사업 + 기신청 협의회 통합 조회
         List<Object[]> rows = councilRepository.findProjectsForCouncilByDepartment(
                 userDetails.getBbrC(), PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
         log.debug("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());
-        return rows.stream().map(row -> toListResponseFromRow(row)).collect(Collectors.toList());
+        return rows.stream().map(row -> toListResponseFromRow(row)).toList();
     }
 
     /**
@@ -257,7 +256,7 @@ public class CouncilService {
         List<Bcmmtm> evaluators = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
                 .stream()
                 .filter(m -> !"03".equals(m.getItPtlAsctMebTc()))
-                .collect(Collectors.toList());
+                .toList();
 
         if (evaluators.isEmpty()) {
             throw new IllegalStateException("평가위원이 선정되지 않았습니다.");
