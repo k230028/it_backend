@@ -145,8 +145,7 @@ public class ApplicationController {
      */
     @PostMapping
     @Operation(summary = "신규 신청서 생성", description = "신규 신청서를 생성합니다.")
-        // FIXME: @Valid 추가 필요 — Bean Validation이 동작하지 않아 미검증 입력이 서비스 레이어로 전달됨 (CLAUDE.md §5.5.2)
-    public ResponseEntity<String> submit(@RequestBody ApplicationDto.CreateRequest request) {
+    public ResponseEntity<String> submit(@Valid @RequestBody ApplicationDto.CreateRequest request) {
         // 신청서 생성 후 관리번호 반환
         String apfMngNo = applicationService.submit(request);
         // 201 Created 응답 + Location 헤더에 생성된 리소스 URL 포함
@@ -173,8 +172,7 @@ public class ApplicationController {
     @PostMapping("/{apfMngNo}/approve")
     @Operation(summary = "신청서 승인", description = "신청서를 승인합니다.")
     public ResponseEntity<Void> approve(@PathVariable("apfMngNo") String apfMngNo,
-        // FIXME: @Valid 추가 필요 — Bean Validation이 동작하지 않아 미검증 입력이 서비스 레이어로 전달됨 (CLAUDE.md §5.5.2)
-            @RequestBody ApplicationDto.ApproveRequest request) {
+            @Valid @RequestBody ApplicationDto.ApproveRequest request) {
         applicationService.approve(apfMngNo, request);
         return ResponseEntity.ok().build();
     }
