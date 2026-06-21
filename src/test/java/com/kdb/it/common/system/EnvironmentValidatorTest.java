@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
+import org.springframework.mock.env.MockEnvironment;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -64,5 +65,116 @@ class EnvironmentValidatorTest {
         assertThatThrownBy(validator::validate)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("JWT_SECRET");
+    }
+
+    // ── 운영 프로파일 전용 키 검증 (T8) ───────────────────────────────────
+
+    private MockEnvironment prodEnvWithAllRequired() {
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        env.setProperty("spring.datasource.password", "pw");
+        env.setProperty("jwt.secret", "super-secret-key-at-least-256-bits-long-xxxxxxxxxxxxxxxxxxxxxxxx");
+        env.setProperty("gemini.api.key", "gk-real-key");
+        env.setProperty("eai.enabled", "true");
+        env.setProperty("eai.url", "http://eai.internal/std");
+        env.setProperty("cors.allowed-origins", "https://it.kdb.co.kr");
+        env.setProperty("app.sso.allow-direct-eno", "false");
+        env.setProperty("app.frontend-url", "https://it.kdb.co.kr");
+        return env;
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 모든 운영 필수 키가 채워지면 예외 없음")
+    void validate_prodAllKeysSet_noException() {
+        EnvironmentValidator validator = new EnvironmentValidator(prodEnvWithAllRequired());
+        assertThatCode(validator::validate).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 gemini.api.key 빈값이면 기동 차단")
+    void validate_prodBlankGeminiKey_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("gemini.api.key", "");
+        EnvironmentValidator validator = new EnvironmentValidator(env);
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("GEMINI_API_KEY");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 eai.enabled=true인데 eai.url 빈값이면 기동 차단")
+    void validate_prodEaiEnabledBlankUrl_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("eai.url", "");
+        EnvironmentValidator validator = new EnvironmentValidator(env);
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("EAI_URL");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 eai.enabled=false면 eai.url 빈값이어도 통과")
+    void validate_prodEaiDisabledBlankUrl_noException() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("eai.enabled", "false");
+        env.setProperty("eai.url", "");
+        EnvironmentValidator validator = new EnvironmentValidator(env);
+        assertThatCode(validator::validate).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 cors.allowed-origins가 와일드카드(*)면 기동 차단")
+    void validate_prodCorsWildcard_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("cors.allowed-origins", "*");
+        EnvironmentValidator validator = new EnvironmentValidator(env);
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cors.allowed-origins");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 cors.allowed-origins 빈값이면 기동 차단")
+    void validate_prodCorsBlank_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("cors.allowed-origins", "");
+        EnvironmentValidator validator = new EnvironmentValidator(env);
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cors.allowed-origins");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 app.sso.allow-direct-eno=true면 기동 차단")
+    void validate_prodSsoDirectEnoTrue_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.sso.allow-direct-eno", "true");
+        EnvironmentValidator validator = new EnvironmentValidator(env);
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("allow-direct-eno");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 app.frontend-url 빈값이면 기동 차단")
+    void validate_prodBlankFrontendUrl_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.frontend-url", "");
+        EnvironmentValidator validator = new EnvironmentValidator(env);
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("app.frontend-url");
+    }
+
+    @Test
+    @DisplayName("비운영 프로파일(local-ext)에서는 운영 전용 키가 비어도 통과")
+    void validate_nonProdProfile_skipsProdKeys() {
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("local-ext");
+        env.setProperty("spring.datasource.password", "pw");
+        env.setProperty("jwt.secret", "super-secret-key-at-least-256-bits-long-xxxxxxxxxxxxxxxxxxxxxxxx");
+        // gemini/eai/cors/sso 미설정
+        EnvironmentValidator validator = new EnvironmentValidator(env);
+        assertThatCode(validator::validate).doesNotThrowAnyException();
     }
 }

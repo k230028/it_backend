@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>{@code spring.datasource.password} → 환경변수 {@code DB_PASSWORD}</li>
  *   <li>{@code jwt.secret} → 환경변수 {@code JWT_SECRET}</li>
+ *   <li>(운영 프로파일 전용) {@code gemini.api.key}/{@code eai.url}(eai.enabled=true)/{@code cors.allowed-origins}(와일드카드 금지)/{@code app.sso.allow-direct-eno}(false 고정)/{@code app.frontend-url}</li>
  * </ul>
  */
 @Component
@@ -35,8 +36,70 @@ public class EnvironmentValidator {
      */
     @PostConstruct
     public void validate() {
+        // 전 프로파일 공통: 비밀값 빈값 차단
         checkRequired("spring.datasource.password", "DB_PASSWORD");
         checkRequired("jwt.secret", "JWT_SECRET");
+
+        // 운영 프로파일에서만: 운영 필수 키 빈값/와일드카드/위험 토글 차단
+        if (isProdProfile()) {
+            validateProdKeys();
+        }
+    }
+
+    /** 활성 프로파일에 {@code prod}가 포함되어 있으면 운영 검증을 수행합니다. */
+    private boolean isProdProfile() {
+        String[] activeProfiles = environment.getActiveProfiles();
+        if (activeProfiles == null) {
+            return false;
+        }
+        for (String profile : activeProfiles) {
+            if ("prod".equalsIgnoreCase(profile)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 운영 전용 필수 키 검증 — 빈값/와일드카드/위험 토글을 기동 시 차단합니다.
+     *
+     * <ul>
+     *   <li>{@code gemini.api.key} → {@code GEMINI_API_KEY} 비공백</li>
+     *   <li>{@code eai.enabled=true}이면 {@code eai.url} → {@code EAI_URL} 비공백</li>
+     *   <li>{@code cors.allowed-origins} 비공백 + 와일드카드({@code *}) 금지</li>
+     *   <li>{@code app.sso.allow-direct-eno} 운영 false 고정</li>
+     *   <li>{@code app.frontend-url} 비공백</li>
+     * </ul>
+     */
+    private void validateProdKeys() {
+        checkRequired("gemini.api.key", "GEMINI_API_KEY");
+
+        boolean eaiEnabled = Boolean.parseBoolean(environment.getProperty("eai.enabled", "false"));
+        if (eaiEnabled) {
+            checkRequired("eai.url", "EAI_URL");
+        }
+
+        String corsOrigins = environment.getProperty("cors.allowed-origins");
+        if (corsOrigins == null || corsOrigins.isBlank()) {
+            throw new IllegalStateException(
+                    "운영 필수 키 미설정: cors.allowed-origins — 운영에서는 명시적 오리진이 필요합니다.");
+        }
+        if (corsOrigins.contains("*")) {
+            throw new IllegalStateException(
+                    "운영 보안 위반: cors.allowed-origins 와일드카드(*) 금지 — 실제 오리진을 나열하세요. (현재값=" + corsOrigins + ")");
+        }
+
+        boolean allowDirectEno = Boolean.parseBoolean(environment.getProperty("app.sso.allow-direct-eno", "false"));
+        if (allowDirectEno) {
+            throw new IllegalStateException(
+                    "운영 보안 위반: app.sso.allow-direct-eno=true 금지 — SSO 우회 로그인 경로입니다.");
+        }
+
+        String frontendUrl = environment.getProperty("app.frontend-url");
+        if (frontendUrl == null || frontendUrl.isBlank()) {
+            throw new IllegalStateException(
+                    "운영 필수 키 미설정: app.frontend-url — SSO 완료 리다이렉트 대상이 필요합니다.");
+        }
     }
 
     private void checkRequired(String propertyKey, String envVarName) {
