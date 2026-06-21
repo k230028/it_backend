@@ -21,6 +21,7 @@ import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
+import com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -99,6 +100,9 @@ public class CostService {
 
     /** 환율 표준 조회 헬퍼: 외화 저장 전 Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7) */
     private final XcrLookupService xcrLookupService;
+
+    /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (Cost/Project 서비스 공용) */
+    private final CodeNameMapBuilder codeNameMapBuilder;
 
     /** 일반관리비 대상 코드값구분 */
     private static final Set<String> COST_CTT_TPS = Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE");
@@ -589,13 +593,13 @@ public class CostService {
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
         Map<String, String> bgUntAbusCNameMap = bgUntAbusCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap(CommonCodeGroups.ABUS_UNIT, bgUntAbusCdvas);
+                : codeNameMapBuilder.build(CommonCodeGroups.ABUS_UNIT, bgUntAbusCdvas);
         Map<String, String> dfrCleCNameMap = dfrCleCCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap(CommonCodeGroups.DFR_CLE, dfrCleCCdvas);
+                : codeNameMapBuilder.build(CommonCodeGroups.DFR_CLE, dfrCleCCdvas);
         Map<String, String> tmnYnNameMap = tmnYnMngcCodes.isEmpty() ? Map.of()
-                : buildCodeNameMap(CommonCodeGroups.TMN_YN, tmnYnMngcCodes);
+                : codeNameMapBuilder.build(CommonCodeGroups.TMN_YN, tmnYnMngcCodes);
         Map<String, String> abusTcNameMap = abusTcCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap(CommonCodeGroups.ABUS, abusTcCdvas);
+                : codeNameMapBuilder.build(CommonCodeGroups.ABUS, abusTcCdvas);
         Map<String, String> ioeCNameMap = ioeCCdvas.isEmpty() ? Map.of()
                 : buildIoeCNameMap(ioeCCdvas);
 
@@ -773,11 +777,11 @@ public class CostService {
         }
 
         // 코드명: 단말기종류(tmnClsfC)/이용방법(tmnKdTc)/지급주기(dfrCleC) 그룹별 배치 조회
-        Map<String, String> svcMap = buildCodeNameMap(CommonCodeGroups.TERM_SERVICE,
+        Map<String, String> svcMap = codeNameMapBuilder.build(CommonCodeGroups.TERM_SERVICE,
                 collectCdvas(terminalDtos, CostDto.TerminalDto::getTmnClsfC));
-        Map<String, String> kindMap = buildCodeNameMap(CommonCodeGroups.TERM_KIND,
+        Map<String, String> kindMap = codeNameMapBuilder.build(CommonCodeGroups.TERM_KIND,
                 collectCdvas(terminalDtos, CostDto.TerminalDto::getTmnKdTc));
-        Map<String, String> dfrMap = buildCodeNameMap(CommonCodeGroups.DFR_CLE,
+        Map<String, String> dfrMap = codeNameMapBuilder.build(CommonCodeGroups.DFR_CLE,
                 collectCdvas(terminalDtos, CostDto.TerminalDto::getDfrCleC));
         terminalDtos.forEach(tDto -> {
             if (tDto.getTmnClsfC() != null) tDto.setTmnClsfCNm(svcMap.get(tDto.getTmnClsfC()));
@@ -793,14 +797,6 @@ public class CostService {
                 .map(getter)
                 .filter(v -> v != null && !v.isEmpty())
                 .collect(Collectors.toSet());
-    }
-
-    /** C_ID 기준 cdva→CDVA_NM 맵 생성 (지정 cdva만 필터링, 코드명 null은 제외) */
-    private Map<String, String> buildCodeNameMap(String cId, Set<String> cdvas) {
-        if (cdvas == null || cdvas.isEmpty()) return Map.of();
-        return ccodemRepository.findByCIdWithValidDate(cId, null).stream()
-                .filter(c -> cdvas.contains(c.getCdva()) && c.getCdvaNm() != null)
-                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCdvaNm, (a, b) -> a));
     }
 
     /** IOE 코드 cdva → CDVA_NM 우선 표시명 맵 생성 */

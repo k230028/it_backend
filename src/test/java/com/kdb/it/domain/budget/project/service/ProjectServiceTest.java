@@ -12,8 +12,11 @@ import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -89,6 +92,9 @@ class ProjectServiceTest {
         private com.kdb.it.domain.budget.cost.util.XcrLookupService xcrLookupService;
         @Mock
         private ProjectBudgetSummaryService projectBudgetSummaryService;
+        /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (CodeNameMapBuilder 추출 후 의존성) */
+        @Mock
+        private com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder codeNameMapBuilder;
         @Mock
         private SecurityContext securityContext;
         @Mock
@@ -1099,11 +1105,9 @@ class ProjectServiceTest {
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
-                // ccodemRepository: prjTp="A" 코드명 반환 (cdva 필터 대상)
-                given(ccodemRepository.findByCIdWithValidDate(anyString(), any()))
-                                .willReturn(List.of(
-                                                Ccodem.builder().cdva("A").cdvaNm("일반사업").build(),
-                                                Ccodem.builder().cdva("B").cdvaNm("제외대상").build()));
+                // codeNameMapBuilder: prjTp="A" 코드명 반환 (cdva 필터는 헬퍼 내부 책임)
+                given(codeNameMapBuilder.build(anyString(), any()))
+                                .willReturn(Map.of("A", "일반사업"));
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
 
@@ -1202,16 +1206,22 @@ class ProjectServiceTest {
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
-                // ccodemRepository: 각 코드 반환
-                given(ccodemRepository.findByCIdWithValidDate(anyString(), any()))
-                                .willReturn(List.of(
-                                                Ccodem.builder().cdva("A").cdvaNm("사업유형A").build(),
-                                                Ccodem.builder().cdva("B1").cdvaNm("업무구분B1").build(),
-                                                Ccodem.builder().cdva("C1").cdvaNm("기술유형C1").build(),
-                                                Ccodem.builder().cdva("D1").cdvaNm("주요사용자D1").build(),
-                                                Ccodem.builder().cdva("E1").cdvaNm("보고상태E1").build(),
-                                                Ccodem.builder().cdva("F1").cdvaNm("추진가능F1").build(),
-                                                Ccodem.builder().cdva("G1").cdvaNm("사업구분G1").build()));
+                // codeNameMapBuilder: 요청된 cdva 집합을 전체 코드명 맵에서 필터링(헬퍼 동작 모사)
+                Map<String, String> allCodeNames = Map.of(
+                                "A", "사업유형A", "B1", "업무구분B1", "C1", "기술유형C1",
+                                "D1", "주요사용자D1", "E1", "보고상태E1", "F1", "추진가능F1", "G1", "사업구분G1");
+                given(codeNameMapBuilder.build(anyString(), any())).willAnswer(inv -> {
+                        Set<String> requested = inv.getArgument(1);
+                        Map<String, String> filtered = new HashMap<>();
+                        if (requested != null) {
+                                for (String cdva : requested) {
+                                        if (allCodeNames.containsKey(cdva)) {
+                                                filtered.put(cdva, allCodeNames.get(cdva));
+                                        }
+                                }
+                        }
+                        return filtered;
+                });
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
 

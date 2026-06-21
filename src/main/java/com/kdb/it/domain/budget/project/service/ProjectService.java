@@ -17,6 +17,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
+import com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import java.time.LocalDate;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
@@ -108,6 +109,9 @@ public class ProjectService {
 
     /** 품목 기준 예산 합계 계산 서비스 */
     private final ProjectBudgetSummaryService projectBudgetSummaryService;
+
+    /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (Cost/Project 서비스 공용) */
+    private final CodeNameMapBuilder codeNameMapBuilder;
 
     /**
      * 전체 정보화사업 목록 조회
@@ -760,13 +764,13 @@ public class ProjectService {
                 .collect(Collectors.toMap(CorgnI::getPrlmOgzCCone, CorgnI::getBbrNm));
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
-        Map<String, String> prjTpNameMap = prjTpCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.PRJ_TYPE, prjTpCdvas);
-        Map<String, String> bzDttNameMap = bzDttCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.BZ_DTT, bzDttCdvas);
-        Map<String, String> tchnTpNameMap = tchnTpCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.TECH_TYPE, tchnTpCdvas);
-        Map<String, String> mnUsrNameMap = mnUsrCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.MAIN_USER, mnUsrCdvas);
-        Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.REPORT_STS, rprStsCdvas);
-        Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
-        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.ABUS, pulDttCdvas);
+        Map<String, String> prjTpNameMap = prjTpCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.PRJ_TYPE, prjTpCdvas);
+        Map<String, String> bzDttNameMap = bzDttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.BZ_DTT, bzDttCdvas);
+        Map<String, String> tchnTpNameMap = tchnTpCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.TECH_TYPE, tchnTpCdvas);
+        Map<String, String> mnUsrNameMap = mnUsrCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.MAIN_USER, mnUsrCdvas);
+        Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCdvas);
+        Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
+        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
 
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < projects.size(); i++) {
@@ -965,19 +969,6 @@ public class ProjectService {
             response.setItems(itemDtos);
         }
         projectBudgetSummaryService.applyBudgetSummary(response, bitemms);
-    }
-
-    /**
-     * C_ID 기준 cdva→C_NM 맵 생성 (지정 cdva만 필터링)
-     *
-     * @param cId   코드ID (예: PRJ_TP, BZ_DTT)
-     * @param cdvas 조회할 코드값 집합
-     * @return 코드값 → 코드명 맵
-     */
-    private Map<String, String> buildCodeNameMap(String cId, Set<String> cdvas) {
-        return ccodemRepository.findByCIdWithValidDate(cId, null).stream()
-                .filter(c -> cdvas.contains(c.getCdva()))
-                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCdvaNm, (a, b) -> a));
     }
 
     /**
