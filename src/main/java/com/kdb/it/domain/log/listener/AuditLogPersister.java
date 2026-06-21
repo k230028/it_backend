@@ -1,6 +1,8 @@
 package com.kdb.it.domain.log.listener;
 
 import com.kdb.it.domain.log.entity.BaseLogEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -28,6 +30,8 @@ import java.util.UUID;
 @Component
 @Transactional
 public class AuditLogPersister {
+
+    private static final Logger log = LoggerFactory.getLogger(AuditLogPersister.class);
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -243,6 +247,9 @@ public class AuditLogPersister {
     private String resolveCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
+            // 인증 컨텍스트가 없는 경로(시스템 트리거·비동기 등)에서는 CHG_USID가 null로 적재된다.
+            // 동작은 유지하되, 변경자 추적 누락을 진단할 수 있도록 warn 로그를 남긴다.
+            log.warn("[감사로그] 인증 컨텍스트 없음 — CHG_USID null로 기록됨");
             return null;
         }
         return auth.getName();
