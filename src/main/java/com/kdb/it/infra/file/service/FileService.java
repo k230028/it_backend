@@ -8,6 +8,7 @@ import com.kdb.it.exception.CustomGeneralException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -65,6 +66,7 @@ import java.util.stream.Collectors;
  * </p>
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FileService {
@@ -397,7 +399,9 @@ public class FileService {
                 Cfilem saved = uploadFileInternal(file, request);
                 successList.add(toResponse(saved));
             } catch (Exception e) {
-                // TODO: [B-H-01] 파일 업로드 실패 로그에 원본 파일명과 스택 트레이스를 포함해 실패 원인을 추적한다.
+                // 다건 업로드 중 일부 실패는 전체를 중단하지 않고 실패 목록으로 수집한다.
+                // 단, 원본 파일명과 스택트레이스를 warn으로 남겨 실패 원인을 추적한다.
+                log.warn("[파일] 업로드 실패 — fileName={}", file.getOriginalFilename(), e);
                 failList.add(file.getOriginalFilename() + " (" + e.getMessage() + ")");
             }
         }
@@ -520,7 +524,7 @@ public class FileService {
         try {
             resource = new UrlResource(filePath.toUri());
         } catch (MalformedURLException e) {
-            throw new CustomGeneralException("파일 경로가 잘못되었습니다. 파일매핑ID: " + flMpnId);
+            throw new CustomGeneralException("파일 경로가 잘못되었습니다. 파일매핑ID: " + flMpnId, e);
         }
 
         if (!resource.exists() || !resource.isReadable()) {
