@@ -1,9 +1,7 @@
 package com.kdb.it.domain.menu.service;
 
 import com.kdb.it.domain.menu.dto.MenuDto;
-import com.kdb.it.domain.menu.entity.Cmenua;
 import com.kdb.it.domain.menu.entity.Cmenum;
-import com.kdb.it.domain.menu.repository.CmenuaRepository;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,7 +23,8 @@ import java.util.stream.Collectors;
 public class MenuQueryService {
 
     private final CmenumRepository cmenumRepository;
-    private final CmenuaRepository cmenuaRepository;
+    /** 메뉴 권한 매핑(menuAuthMap) 캐시 제공자. self-invocation 회피를 위해 별도 빈으로 분리(§Task T13-C). */
+    private final MenuAuthMapProvider menuAuthMapProvider;
     /** Spring이 모든 MenuChildrenResolver 빈을 주입한다. DYN 메뉴는 resolver가 자식 노드를 동적으로 생성한다. */
     private final List<MenuChildrenResolver> resolvers;
 
@@ -38,7 +37,7 @@ public class MenuQueryService {
      */
     public List<MenuDto.Node> getMenuTree(List<String> athIds) {
         List<Cmenum> all = cmenumRepository.findAllActive();
-        Map<String, Set<String>> athByMenu = athByMenu();
+        Map<String, Set<String>> athByMenu = menuAuthMapProvider.getMenuAuthMap();
         Set<String> userAths = new HashSet<>(athIds == null ? List.of() : athIds);
 
         List<Cmenum> visible = all.stream()
@@ -55,7 +54,7 @@ public class MenuQueryService {
     /** 관리화면용: 숨김/권한/빈 그룹 무관하게 전체 트리. 편집 폼 체크박스용으로 노드별 권한ID를 함께 싣는다. */
     public List<MenuDto.Node> getAdminMenuTree() {
         List<MenuDto.Node> tree = buildTree(cmenumRepository.findAllActive(), null);
-        applyAthIds(tree, athByMenu());
+        applyAthIds(tree, menuAuthMapProvider.getMenuAuthMap());
         return tree;
     }
 
@@ -70,14 +69,6 @@ public class MenuQueryService {
     }
 
     // ---- helpers ----
-
-    private Map<String, Set<String>> athByMenu() {
-        Map<String, Set<String>> map = new HashMap<>();
-        for (Cmenua a : cmenuaRepository.findAllActive()) {
-            map.computeIfAbsent(a.getMnuId(), k -> new HashSet<>()).add(a.getAthId());
-        }
-        return map;
-    }
 
     /** 매핑 0건이면 전체 공개, 1건 이상이면 교집합 필요. */
     private boolean isAllowed(String mnuId, Map<String, Set<String>> athByMenu, Set<String> userAths) {

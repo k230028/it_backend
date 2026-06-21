@@ -7,6 +7,7 @@ import com.kdb.it.domain.menu.repository.CmenuaRepository;
 import com.kdb.it.domain.menu.repository.CmenudRepository;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,8 @@ public class AdminMenuService {
      * @return 신규 메뉴 ID
      * @throws ResponseStatusException 메뉴 유형/경로가 유효하지 않거나 깊이가 3단을 초과하는 경우
      */
+    // 권한 매핑(Cmenua)이 신규 생성되므로 menuAuthMap 캐시를 전체 무효화한다(정합 보장).
+    @CacheEvict(value = "menuAuthMap", allEntries = true)
     public String create(MenuDto.UpsertRequest req) {
         validateTypePath(req.getMnuTpC(), req.getSrePth());
         validateHierarchy(req.getMnuTpC(), req.getHrkMnuId());
@@ -69,6 +72,8 @@ public class AdminMenuService {
      * @param req 변경할 메뉴 속성
      * @throws ResponseStatusException 메뉴가 없거나 LNK/GRP/DYN 경로 규칙을 위반하는 경우
      */
+    // replaceRoles로 권한 매핑이 변경되므로 menuAuthMap 캐시를 전체 무효화한다.
+    @CacheEvict(value = "menuAuthMap", allEntries = true)
     public void update(String mnuId, MenuDto.UpsertRequest req) {
         validateTypePath(req.getMnuTpC(), req.getSrePth());
         Cmenum menu = load(mnuId);
@@ -86,6 +91,8 @@ public class AdminMenuService {
      * @param mnuId 삭제할 메뉴 ID
      * @throws ResponseStatusException 메뉴가 없거나 활성 하위 메뉴가 남아 있는 경우
      */
+    // 메뉴와 권한 매핑이 soft-delete되므로 menuAuthMap 캐시를 전체 무효화한다.
+    @CacheEvict(value = "menuAuthMap", allEntries = true)
     public void delete(String mnuId) {
         Cmenum menu = load(mnuId);
         if (cmenumRepository.countActiveChildren(mnuId) > 0) {
@@ -116,6 +123,7 @@ public class AdminMenuService {
      * @param newHrkMnuId 새 부모 메뉴 ID. null이면 루트로 이동한다.
      * @throws ResponseStatusException 순환 참조가 발생하거나 이동 후 깊이가 3단을 초과하는 경우
      */
+    // move/reorder는 Cmenua(권한 매핑)를 변경하지 않으므로 menuAuthMap 캐시 evict 불필요.
     public void move(String mnuId, String newHrkMnuId) {
         Cmenum target = load(mnuId);
         validateHierarchy(target.getMnuTpC(), newHrkMnuId);
