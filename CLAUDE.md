@@ -313,7 +313,7 @@ public class PlanController { ... }
 **SecurityConfig URL 패턴 보호 대상** (코드 분석 2026-06-05):
 - `/api/admin/**` → `hasRole("ADMIN")` (`AdminController`, `AdminBoardMetaController`, `RealtimeLogController` 포함)
 - `/api/auth/signup` → `hasRole("ADMIN")`
-- `/api/plan/**` → `hasRole("ADMIN")` (현재 실제 `PlanController` 경로 `/api/plans/**`와 불일치, `TASK.md`에서 정비 과제로 추적)
+- `/api/plans/**` → `hasRole("ADMIN")` (`PlanController` 실제 경로 `/api/plans`와 정합 완료)
 
 #### 부서 필터링(bbrC) 적용 규칙 (§5.14와 동일, 여기에 보안 관점 요약)
 - `bbrC`는 JWT `athIds` 클레임의 소속 부서코드. Access Token 발급 시 DB에서 읽은 `user.getBbrC()`를 포함.
@@ -333,7 +333,7 @@ public class PlanController { ... }
 
 #### 공개/비공개 엔드포인트 (SecurityConfig 코드 기준)
 - 인증 불필요: `/api/auth/login`, `/api/auth/refresh`, `/api/auth/sso/complete`, `/sso/**`, `/swagger-ui/**`, `/v3/api-docs/**`, `/error`
-- 인증 필요 + ADMIN 전용: `/api/admin/**`, `/api/auth/signup`, `/api/plan/**`
+- 인증 필요 + ADMIN 전용: `/api/admin/**`, `/api/auth/signup`, `/api/plans/**`
 - 나머지: 인증 필요 (`anyRequest().authenticated()`)
 
 #### 개발 전용 API 보안 주의사항 (DevAuthController, SsoController 코드 기준)

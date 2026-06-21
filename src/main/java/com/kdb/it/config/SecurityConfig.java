@@ -136,8 +136,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                                 // 회원가입 — 관리자만 신규 계정 생성 가능 (임직원 포털 특성상 자유 가입 금지)
                                                 .requestMatchers("/api/auth/signup").hasRole("ADMIN")
-                                                // 정보기술부문계획 — 관리자 전용
-                                                .requestMatchers("/api/plan/**").hasRole("ADMIN")
+                                                // 정보기술부문계획 — 관리자 전용 (컨트롤러 실제 경로 /api/plans 와 정합)
+                                                .requestMatchers("/api/plans/**").hasRole("ADMIN")
                                                 // 나머지는 인증 필요 (유효한 JWT 토큰 필수)
                                                 .anyRequest().authenticated())
                                 // 인증/접근 예외 처리 핸들러 설정

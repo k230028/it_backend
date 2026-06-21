@@ -690,7 +690,7 @@ public class Bprojm extends BaseEntity { ... }
 | 보호 범위 | 방식 | 예시 |
 |-----------|------|-----|
 | `/api/admin/**` | `SecurityConfig` URL 패턴 + `@PreAuthorize` | AdminController |
-| `/api/plans/**` | `PlanController` 클래스 레벨 `@PreAuthorize` | SecurityConfig에는 구 경로 `/api/plan/**`가 남아 있어 정비 필요 |
+| `/api/plans/**` | `PlanController` 클래스 레벨 `@PreAuthorize` | SecurityConfig URL 매처 `/api/plans/**`로 정합 완료 |
 | `/api/budget/status/**` | `@PreAuthorize` 컨트롤러 레벨만 | BudgetStatusController |
 | `/api/budget/work/**` | `@PreAuthorize` 컨트롤러 레벨만 | BudgetWorkController |
 
