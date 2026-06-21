@@ -46,5 +46,8 @@ public record EaiProperties(
         if (bzCS3.length() != 3) throw new IllegalStateException("eai.bz-c-s3 must be 3 chars: " + bzCS3);
         if (appC.length() != 3) throw new IllegalStateException("eai.app-c must be 3 chars: " + appC);
         if (appBzLv1C.length() != 2) throw new IllegalStateException("eai.app-bz-lv1-c must be 2 chars: " + appBzLv1C);
+        if (enabled && (url == null || url.isBlank())) {
+            throw new IllegalStateException("eai.enabled=true이면 eai.url(EAI_URL)이 필요합니다.");
+        }
     }
 }
