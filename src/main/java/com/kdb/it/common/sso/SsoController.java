@@ -276,9 +276,14 @@ public class SsoController {
             String dest = (next != null && next.startsWith("/")) ? next : "/";
             response.sendRedirect(resolveFrontendBaseUrl(origin) + dest);
         } catch (Exception e) {
-            // TODO: [B-H-06] sendRedirect() IOException을 내부 try-catch로 감싸고 에링 로그 추가 필요
             log.error("SSO 인증 실패 - eno: {}, reason: {}", eno, e.getMessage(), e);
-            response.sendRedirect(resolveFrontendBaseUrl(origin) + "/login?error=sso");
+            // 오류 리다이렉트 자체도 IOException(클라이언트 연결 종료 등)을 던질 수 있으므로
+            // 별도 try-catch로 감싸 2차 예외가 핸들러 밖으로 전파되지 않게 한다.
+            try {
+                response.sendRedirect(resolveFrontendBaseUrl(origin) + "/login?error=sso");
+            } catch (IOException redirectEx) {
+                log.warn("SSO 오류 리다이렉트 실패 - eno: {}", eno, redirectEx);
+            }
         }
     }
 
