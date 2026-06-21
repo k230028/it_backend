@@ -179,6 +179,22 @@ class TiptapVariableServiceTest {
     }
 
     @Test
+    @DisplayName("resolve: 동일 (year,category) 항목 3종은 집계 쿼리를 1회만 호출한다(인트라요청 메모이즈)")
+    void resolve_memoizesAggregatePerRequest() {
+        when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                        90_000_000_000L, 76_000_000_000L));
+
+        service.resolve(List.of(
+                "2026.itBudget.requestAmount",
+                "2026.itBudget.allocatedAmount",
+                "2026.itBudget.allocationRate"), null);
+
+        org.mockito.Mockito.verify(budgetStatusRepository, org.mockito.Mockito.times(1))
+                .aggregateByCategory(2026, "IT_BUDGET");
+    }
+
+    @Test
     @DisplayName("resolve: 일반 사용자가 사업(PROJ) 토큰을 요청하면 FORBIDDEN을 반환한다")
     void resolve_일반사용자_PROJ토큰_FORBIDDEN() {
         // Arrange

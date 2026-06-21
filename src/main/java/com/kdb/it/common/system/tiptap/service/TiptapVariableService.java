@@ -14,6 +14,7 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount;
 import com.kdb.it.domain.budget.status.repository.BudgetStatusQueryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +52,8 @@ public class TiptapVariableService {
      *
      * @return 카테고리 메타데이터 응답 (IT_BUDGET, CAP_BUDGET, OPEX, PROJ 4개 카테고리)
      */
+    // 활성 사업 변경 시 캐시 무효화는 후속 과제(TTL 미지원 ConcurrentMap) — 준정적 카탈로그라 evict 미적용.
+    @Cacheable("tiptapMetadata")
     public MetadataResponse getMetadata() {
         List<Integer> years = currentPlusMinusTwo();
         List<ProjectRef> projects = projectRepository.findActiveProjectRefs().stream()
@@ -81,8 +84,11 @@ public class TiptapVariableService {
      */
     public ResolveResponse resolve(List<String> tokens, CustomUserDetails user) {
         Map<String, ResolvedValue> results = new LinkedHashMap<>();
+        // 인트라요청 메모이즈: 동일 (year, category|projectCode) 집계는 요청당 1회만 조회한다.
+        // 같은 (year, category)에 requestAmount/allocatedAmount/allocationRate가 함께 오면 중복 집계를 제거.
+        Map<String, AggregatedAmount> aggCache = new java.util.HashMap<>();
         for (String token : tokens) {
-            results.put(token, resolveOne(token, user));
+            results.put(token, resolveOne(token, user, aggCache));
         }
         return new ResolveResponse(results);
     }
@@ -91,7 +97,7 @@ public class TiptapVariableService {
      * 단일 토큰 해석. INVALID/FORBIDDEN/MISSING/OK 분기.
      * PROJ 토큰은 관리자·부서매니저만 허용하고, 그 외 사용자에게는 FORBIDDEN을 반환한다.
      */
-    private ResolvedValue resolveOne(String token, CustomUserDetails user) {
+    private ResolvedValue resolveOne(String token, CustomUserDetails user, Map<String, AggregatedAmount> aggCache) {
         ParseResult parsed = tokenParser.parse(token);
         if (!parsed.valid()) {
             return ResolvedValue.invalid();
@@ -103,12 +109,16 @@ public class TiptapVariableService {
             return ResolvedValue.forbidden();
         }
 
-        AggregatedAmount agg = switch (parsed.category()) {
+        // 인트라요청 메모이즈 키: 카테고리/사업코드 + 연도. computeIfAbsent로 동일 키 재조회를 방지한다.
+        String aggKey = parsed.category() == Category.PROJ
+                ? "P|" + parsed.year() + "|" + parsed.projectCode()
+                : "C|" + parsed.year() + "|" + parsed.category().name();
+        AggregatedAmount agg = aggCache.computeIfAbsent(aggKey, k -> switch (parsed.category()) {
             case IT_BUDGET, CAP_BUDGET, OPEX ->
                     budgetStatusRepository.aggregateByCategory(parsed.year(), parsed.category().name());
             case PROJ ->
                     budgetStatusRepository.aggregateByProject(parsed.year(), parsed.projectCode());
-        };
+        });
 
         if (agg == null || (agg.requestSum() == null && agg.allocatedSum() == null)) {
             return ResolvedValue.missing();
