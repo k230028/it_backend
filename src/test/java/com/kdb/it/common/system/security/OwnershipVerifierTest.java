@@ -14,6 +14,7 @@ import org.springframework.security.access.AccessDeniedException;
 class OwnershipVerifierTest {
 
     private CustomUserDetails user(String eno, String ath) {
+        // bbrC("18001")는 소유권 검증과 무관 — 임의 부서값
         return new CustomUserDetails(eno, List.of(ath), "18001");
     }
 
@@ -43,6 +44,13 @@ class OwnershipVerifierTest {
     void nullOwnerDenied() {
         assertThatThrownBy(() -> OwnershipVerifier.verifyOwnerOrAdmin(null, user("E0001", "ITPZZ001")))
                 .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("관리자이면 소유자 사번이 null이어도 통과한다")
+    void adminPassesWithNullOwner() {
+        assertThatCode(() -> OwnershipVerifier.verifyOwnerOrAdmin(null, user("E0099", "ITPAD001")))
+                .doesNotThrowAnyException();
     }
 
     @Test
