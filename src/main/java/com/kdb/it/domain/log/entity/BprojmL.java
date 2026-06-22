@@ -9,7 +9,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -40,15 +39,6 @@ public class BprojmL extends BaseLogEntity {
 
     @Column(name = "DVM_DPM_C", length = 100, comment = "IT부서")
     private String dvmDpmC;
-
-    @Column(name = "TOT_RQM_AMT", precision = 18, scale = 3, comment = "프로젝트예산")
-    private BigDecimal totRqmAmt;
-
-    @Column(name = "MPL_CPIT_AMT", precision = 18, scale = 3, comment = "예정자본금액")
-    private BigDecimal mplCpitAmt;
-
-    @Column(name = "MPL_MNGC_AMT", precision = 18, scale = 3, comment = "예정관리비금액")
-    private BigDecimal mplMngcAmt;
 
     @Column(name = "STT_DTM", comment = "시작일자")
     private LocalDate sttDtm;

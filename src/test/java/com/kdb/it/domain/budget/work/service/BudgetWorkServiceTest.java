@@ -272,10 +272,10 @@ class BudgetWorkServiceTest {
                 .abusMngNo("PRJ-1")
                 .amt(BigDecimal.valueOf(1000))
                 .xcr(BigDecimal.ONE)
+                .mplAmt(BigDecimal.valueOf(500)) // 예정금액: 품목 단위로 관리 (Bprojm.mplMngcAmt 제거 후)
                 .build();
         Bprojm project = Bprojm.builder()
                 .abusMngNo("PRJ-1")
-                .mplMngcAmt(BigDecimal.valueOf(500))
                 .build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(bbugtm));

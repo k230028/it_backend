@@ -87,6 +87,18 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
     List<Bitemm> findByAbusMngNoAndDelYn(String prjMngNo, String delYn);
 
     /**
+     * 프로젝트 관리번호 집합과 삭제여부로 품목 일괄 조회 (목록 파생 합산용, N+1 제거)
+     *
+     * <p>{@code enrichProjectListBatch}에서 목록 파생 예산 3종 합산 시 N+1 쿼리를 제거하기 위해
+     * 대상 프로젝트들의 활성 품목을 1회 배치로 조회합니다.</p>
+     *
+     * @param prjMngNos 프로젝트 관리번호 집합
+     * @param delYn     삭제 여부 ('N'=미삭제)
+     * @return 조건에 맞는 품목 목록
+     */
+    List<Bitemm> findByAbusMngNoInAndDelYn(java.util.Collection<String> prjMngNos, String delYn);
+
+    /**
      * 프로젝트 관리번호의 최신 버전 품목 목록 조회
      *
      * <p>동일 프로젝트의 여러 버전(PRJ_SNO) 중 최신 버전({@code LST_YN='Y'}) 품목만 조회합니다.

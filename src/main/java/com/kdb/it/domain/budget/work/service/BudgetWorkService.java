@@ -658,6 +658,8 @@ public class BudgetWorkService {
         record ItemContrib(String ioeC, BigDecimal req, BigDecimal dup) {}
         Map<String, List<ItemContrib>> groupItems = new LinkedHashMap<>();
         Map<String, BigDecimal> groupReqSum = new LinkedHashMap<>();
+        // 그룹별 품목 예정금액(mplAmt) 합산 — Bprojm.mplCpitAmt/mplMngcAmt 제거 후 품목 단위로 집계
+        Map<String, BigDecimal> groupMplSum = new LinkedHashMap<>();
         for (Map.Entry<String, List<Bbugtm>> e : byGcl.entrySet()) {
             Bitemm it = bitemmByGcl.get(e.getKey());
             if (it == null || it.getAbusMngNo() == null || !prjByNo.containsKey(it.getAbusMngNo())) continue;
@@ -670,16 +672,16 @@ public class BudgetWorkService {
             String key = it.getAbusMngNo() + "|" + capital;
             groupItems.computeIfAbsent(key, k -> new ArrayList<>()).add(new ItemContrib(ioeC, req, dup));
             groupReqSum.merge(key, req, BigDecimal::add);
+            // 품목 예정금액 그룹 합산
+            BigDecimal mplAmt = it.getMplAmt() != null ? it.getMplAmt() : BigDecimal.ZERO;
+            groupMplSum.merge(key, mplAmt, BigDecimal::add);
         }
 
-        // 그룹별 예정금액을 비례 배분하여 비목별 차감액 누적
+        // 그룹별 예정금액(품목 단위 합산)을 비례 배분하여 비목별 차감액 누적
         for (Map.Entry<String, List<ItemContrib>> e : groupItems.entrySet()) {
             String key = e.getKey();
-            int sep = key.lastIndexOf('|');
-            Bprojm prj = prjByNo.get(key.substring(0, sep));
-            boolean capital = Boolean.parseBoolean(key.substring(sep + 1));
-            BigDecimal mpl = capital ? prj.getMplCpitAmt() : prj.getMplMngcAmt();
-            if (mpl == null || mpl.signum() <= 0) continue;
+            BigDecimal mpl = groupMplSum.getOrDefault(key, BigDecimal.ZERO);
+            if (mpl.signum() <= 0) continue;
             BigDecimal sum = groupReqSum.getOrDefault(key, BigDecimal.ZERO);
             if (sum.signum() <= 0) continue;
             BigDecimal factor = mpl.compareTo(sum) >= 0 ? BigDecimal.ONE

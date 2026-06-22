@@ -84,18 +84,6 @@ public class ProjectDto {
         @Schema(description = "IT부서")
         private String dvmDpmC;
 
-        /** 프로젝트예산 (금액) */
-        @Schema(description = "프로젝트예산")
-        private BigDecimal totRqmAmt;
-
-        /** 예정자본금액 (익년 이후 자본예산 요청액) */
-        @Schema(description = "예정자본금액")
-        private BigDecimal mplCpitAmt;
-
-        /** 예정관리비금액 (익년 이후 일반관리비예산 요청액) */
-        @Schema(description = "예정관리비금액")
-        private BigDecimal mplMngcAmt;
-
         /** 시작일자 */
         @Schema(description = "시작일자")
         private LocalDate sttDtm;
@@ -235,9 +223,6 @@ public class ProjectDto {
                     .bzTpC(bzTpC) // 프로젝트유형
                     .svnDpmC(svnDpmC) // 주관부서
                     .dvmDpmC(dvmDpmC) // IT부서
-                    .totRqmAmt(totRqmAmt) // 프로젝트예산
-                    .mplCpitAmt(mplCpitAmt) // 예정자본금액
-                    .mplMngcAmt(mplMngcAmt) // 예정관리비금액
                     .sttDtm(sttDtm) // 시작일자
                     .endDtm(endDtm) // 종료일자
                     .usid(usid) // 주관부서담당자
@@ -306,18 +291,6 @@ public class ProjectDto {
         /** IT부서 */
         @Schema(description = "IT부서")
         private String dvmDpmC;
-
-        /** 프로젝트예산 */
-        @Schema(description = "프로젝트예산")
-        private BigDecimal totRqmAmt;
-
-        /** 예정자본금액 (익년 이후 자본예산 요청액) */
-        @Schema(description = "예정자본금액")
-        private BigDecimal mplCpitAmt;
-
-        /** 예정관리비금액 (익년 이후 일반관리비예산 요청액) */
-        @Schema(description = "예정관리비금액")
-        private BigDecimal mplMngcAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
@@ -490,16 +463,16 @@ public class ProjectDto {
         @Schema(description = "IT부서")
         private String dvmDpmC;
 
-        /** 프로젝트예산 */
-        @Schema(description = "프로젝트예산")
+        /** 프로젝트예산 (파생값: 품목 mplAmt 합산) */
+        @Schema(description = "프로젝트예산 (파생값)")
         private BigDecimal totRqmAmt;
 
-        /** 예정자본금액 (익년 이후 자본예산 요청액) */
-        @Schema(description = "예정자본금액")
+        /** 예정자본금액 (파생값: 품목 mplAmt 자본예산 합산) */
+        @Schema(description = "예정자본금액 (파생값)")
         private BigDecimal mplCpitAmt;
 
-        /** 예정관리비금액 (익년 이후 일반관리비예산 요청액) */
-        @Schema(description = "예정관리비금액")
+        /** 예정관리비금액 (파생값: 품목 mplAmt 관리비 합산) */
+        @Schema(description = "예정관리비금액 (파생값)")
         private BigDecimal mplMngcAmt;
 
         /** 시작일자 */
@@ -781,9 +754,6 @@ public class ProjectDto {
                     .bzTpC(project.getBzTpC()) // 프로젝트유형
                     .svnDpmC(project.getSvnDpmC()) // 주관부서
                     .dvmDpmC(project.getDvmDpmC()) // IT부서
-                    .totRqmAmt(project.getTotRqmAmt()) // 프로젝트예산
-                    .mplCpitAmt(project.getMplCpitAmt()) // 예정자본금액
-                    .mplMngcAmt(project.getMplMngcAmt()) // 예정관리비금액
                     .sttDtm(project.getSttDtm()) // 시작일자
                     .endDtm(project.getEndDtm()) // 종료일자
                     .prlmHrkOgzCCone(project.getPrlmHrkOgzCCone()) // 주관본부/부문
@@ -926,6 +896,10 @@ public class ProjectDto {
         @Schema(description = "품목금액")
         private BigDecimal amt;
 
+        /** 예정금액 (품목금액 중 익년 이후 예정분, 0 ≤ mplAmt ≤ amt, 기본 0) */
+        @Schema(description = "예정금액 (익년 이후 예정분)")
+        private BigDecimal mplAmt;
+
         /**
          * {@link com.kdb.it.domain.budget.project.entity.Bitemm} 엔티티를 DTO로 변환하는 정적 팩토리 메서드
          *
@@ -950,6 +924,7 @@ public class ProjectDto {
                     .lstYn(bitemm.getLstYn()) // 최종여부
                     .amt(bitemm.getAmt()) // 품목금액
                     .fcAmt(bitemm.getFcAmt()) // 외화금액
+                    .mplAmt(bitemm.getMplAmt()) // 예정금액
                     .build();
         }
     }

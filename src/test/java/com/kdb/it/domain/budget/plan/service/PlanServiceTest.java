@@ -242,7 +242,6 @@ class PlanServiceTest {
 
         ProjectDto.Response mockProject = ProjectDto.Response.builder()
                 .abusMngNo("PRJ-2026-0001")
-                .totRqmAmt(BigDecimal.valueOf(50000000))
                 .assetBg(BigDecimal.valueOf(30000000))
                 .costBg(BigDecimal.valueOf(20000000))
                 .build();
@@ -308,7 +307,6 @@ class PlanServiceTest {
                 .abusNm("정보화사업")
                 .prlmHrkOgzCCone(null)
                 .bzTpC(null)
-                .totRqmAmt(null)
                 .assetBg(null)
                 .costBg(null)
                 .build();

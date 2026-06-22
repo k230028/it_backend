@@ -429,7 +429,8 @@ public class CouncilService {
         String prjYy   = projectOpt.map(p -> p.getBseYy()).orElse(null);
         String prjTp   = projectOpt.map(p -> p.getBzTpC()).orElse(null);
         String svnDpm  = projectOpt.map(p -> p.getSvnDpmC()).orElse(null);
-        java.math.BigDecimal prjBg = projectOpt.map(p -> p.getTotRqmAmt()).orElse(null);
+        // totRqmAmt는 품목 단위 파생값으로 변경되어 협의회 목록에서는 null 반환 (파생 미적용)
+        java.math.BigDecimal prjBg = null;
         java.time.LocalDate sttDt  = projectOpt.map(p -> p.getSttDtm()).orElse(null);
         java.time.LocalDate endDt  = projectOpt.map(p -> p.getEndDtm()).orElse(null);
         String itDpm   = projectOpt.map(p -> p.getDvmDpmC()).orElse(null);
@@ -561,7 +562,7 @@ public class CouncilService {
             sttDt = p.getSttDtm();
             endDt = p.getEndDtm();
             ncs = p.getAbusNcsCone();
-            prjBg = p.getTotRqmAmt();
+            prjBg = null; // totRqmAmt는 품목 단위 파생값으로 변경되어 협의회 상세에서는 null 반환 (파생 미적용)
             prjDes = p.getAbusCone();
             xptEff = p.getDgogPpoCone();
         }

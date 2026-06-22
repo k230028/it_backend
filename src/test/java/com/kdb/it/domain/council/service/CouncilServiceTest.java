@@ -326,7 +326,6 @@ class CouncilServiceTest {
                 .bseYy("2026")
                 .bzTpC("신규")
                 .svnDpmC("101")
-                .totRqmAmt(BigDecimal.valueOf(1000))
                 .sttDtm(LocalDate.of(2026, 1, 1))
                 .endDtm(LocalDate.of(2026, 12, 31))
                 .dvmDpmC("IT")
@@ -343,7 +342,7 @@ class CouncilServiceTest {
                     assertThat(item.abusNm()).isEqualTo("사업개요명");
                     assertThat(item.prjYy()).isEqualTo("2026");
                     assertThat(item.prjTp()).isEqualTo("신규");
-                    assertThat(item.prjBg()).isEqualByComparingTo("1000");
+                    assertThat(item.prjBg()).isNull(); // totRqmAmt는 품목 단위 파생값으로 변경 — 협의회 목록에서 null
                     assertThat(item.sttDt()).isEqualTo(LocalDate.of(2026, 1, 1));
                     assertThat(item.endDt()).isEqualTo(LocalDate.of(2026, 12, 31));
                     assertThat(item.itDpm()).isEqualTo("IT");
@@ -399,7 +398,6 @@ class CouncilServiceTest {
                 .sttDtm(LocalDate.of(2026, 1, 1))
                 .endDtm(LocalDate.of(2026, 12, 31))
                 .abusNcsCone("필요성")
-                .totRqmAmt(BigDecimal.valueOf(1000))
                 .abusCone("사업설명")
                 .dgogPpoCone("기대효과")
                 .build();
@@ -410,7 +408,7 @@ class CouncilServiceTest {
 
         assertThat(result.abusNm()).isEqualTo("정보화사업");
         assertThat(result.edrt()).isEqualTo("전결권자");
-        assertThat(result.prjBg()).isEqualByComparingTo("1000");
+        assertThat(result.prjBg()).isNull(); // totRqmAmt는 품목 단위 파생값으로 변경 — 협의회 상세에서 null
     }
 
     // ───────────────────────────────────────────────────────

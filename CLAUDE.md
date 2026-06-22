@@ -395,7 +395,7 @@ public class PlanController { ... }
 - JWT: `jwt.secret`, `jwt.access-token-validity`, `jwt.refresh-token-validity`
 - CORS: `cors.allowed-origins`
 - 쿠키: `app.cookie.secure`
-- 파일: `app.file.base-path=C:/data/files`, multipart 최대 파일 50MB / 요청 200MB
+- 파일: `app.file.base-path` — local `c:/itp_file` (base 기본값), dev·prod `${FILE_BASE_PATH:/dat/springitp}`. multipart 최대 파일 50MB / 요청 200MB
 - Gemini: `gemini.api.key`, `gemini.api.base-url`, `gemini.api.model=gemini-2.5-flash`
 - 서버 식별자: `app.server.instance-id=SVR1`
 - Flyway: 베이스/dev/prod `spring.flyway.enabled=false`, `local-ext`/`local-int`만 `spring.flyway.enabled=true`; `spring.flyway.locations=classpath:db/migration`, `spring.flyway.user=${FLYWAY_USER:...}`, `spring.flyway.password=${FLYWAY_PASSWORD:...}`, `spring.flyway.default-schema=${DB_SCHEMA:ITPOWN}`, `spring.flyway.baseline-on-migrate=true`, `spring.flyway.baseline-version=20260620.001`
@@ -762,6 +762,13 @@ record ResolvedValue(String value, String status)
   - 시스템 식별자 IPP/PRM/PP는 프로퍼티로 확정. `IF_ID`(인터페이스ID)·UMS 템플릿은 운영팀 발급 대기 (TASK.md EAI 섹션).
 - **현재 미연동**: `NotificationDispatcher` 실연동 어댑터로 `EaiService`를 연결하는 작업은 TASK.md 백로그. 현재 알림은 `StubNotificationDispatcher`(INAPP 전용)만 동작.
 - 신규 시스템 연동 시: `EaiPayload`(record) + `EaiPayloadSection`(@Component) 1쌍 추가 패턴.
+
+### 5.20 파일 로깅 (logback-spring.xml)
+- 설정 파일: `src/main/resources/logback-spring.xml` (Spring Boot 자동 로드). 콘솔 + 파일 appender.
+- **1개월 단위 롤오버**: `TimeBasedRollingPolicy` + `%d{yyyy-MM}` → 활성 파일 `it-backend.log`, 보관본 `it-backend.YYYY-MM.log`. `maxHistory=12`(12개월), `totalSizeCap=3GB`.
+- 로그 경로(프로파일별): `local-ext`/`local-int`/미지정 → `c:/itp_log`, `dev`/`prod` → `/log/springitp`. 디렉터리는 logback이 자동 생성.
+- 로그 레벨은 기존 `application*.properties`의 `logging.level.*`가 콘솔·파일 공통 제어.
+- 프론트엔드(Nuxt CSR/정적 생성)는 서버 런타임이 없어 파일 로깅 비대상.
 
 ## 7. 주석 작성 예시
 JavaDoc 표준 양식과 코드 예제는 → [`docs/guides/comment-style.md`](docs/guides/comment-style.md) 참조.

@@ -271,11 +271,6 @@ public class ProjectService {
         // 하이픈을 제거해 yyyyMMdd 8자리로 저장 (ORA-12899 방지, 품목 xcrBseDt와 동일 처리)
         request.setFlfFsgDt(DateFormatUtil.toYmd8(request.getFlfFsgDt()));
 
-        // 당해예산(TOT_RQM_AMT) 항상 재계산: 품목 합계 − 예정금액(MPL_CPIT + MPL_MNGC)
-        // 예정금액(익년 이후분)은 사용자가 직접 입력하며, 당해예산만 품목 기준으로 산출한다.
-        request.setTotRqmAmt(recalcCurrentYearBudget(
-                request.getItems(), request.getMplCpitAmt(), request.getMplMngcAmt()));
-
         // 엔티티 생성 및 저장
         Bprojm project = request.toEntity();
         projectRepository.save(project);
@@ -314,6 +309,7 @@ public class ProjectService {
                         .lstYn("Y") // 최종여부
                         .amt(reconciled[0]) // 품목금액 (서버 재계산)
                         .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
+                        .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
                         .build();
                 bitemmRepository.save(newItem);
             }
@@ -380,16 +376,10 @@ public class ProjectService {
         request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
         request.setAbusRngCone(HtmlSanitizer.sanitize(request.getAbusRngCone()));
 
-        // 당해예산(TOT_RQM_AMT) 항상 재계산: 품목 합계 − 예정금액(MPL_CPIT + MPL_MNGC).
-        // 품목(items)을 함께 보낸 경우에만 재계산하고, 미동봉(null) 시 기존 요청값을 유지한다.
-        BigDecimal recalcTotRqmAmt = request.getItems() != null
-                ? recalcCurrentYearBudget(request.getItems(), request.getMplCpitAmt(), request.getMplMngcAmt())
-                : request.getTotRqmAmt();
-
         // 프로젝트 기본 정보 수정 (JPA Dirty Checking으로 자동 반영)
         project.update(new Bprojm.UpdateCommand(
                 request.getAbusNm(), request.getBzTpC(), request.getSvnDpmC(), request.getDvmDpmC(),
-                recalcTotRqmAmt, request.getMplCpitAmt(), request.getMplMngcAmt(), request.getSttDtm(), request.getEndDtm(),
+                request.getSttDtm(), request.getEndDtm(),
                 request.getUsid(), request.getDvmUsid(), request.getTlrUsid(), request.getDvmTlrUsid(),
                 request.getEdrtTc(), request.getAbusCone(), request.getCpnSafCone(), request.getAbusNcsCone(),
                 request.getDgogPpoCone(), request.getPlmDes(), request.getAbusRngCone(), request.getMnPrgCone(), request.getHrfPlnCone(),
@@ -452,6 +442,7 @@ public class ProjectService {
                                     .lstYn("Y") // 최종여부
                                     .amt(reconciled[0]) // 품목금액 (서버 재계산)
                                     .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
+                                    .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
                                     .build();
                             bitemmRepository.save(updatedItem);
                             maxGclSno = Math.max(maxGclSno, newGclSno);
@@ -490,6 +481,7 @@ public class ProjectService {
                             .lstYn("Y") // 최종여부
                             .amt(reconciled[0]) // 품목금액 (서버 재계산)
                             .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
+                            .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
                             .build();
                     bitemmRepository.save(newItem);
                 }
@@ -531,6 +523,7 @@ public class ProjectService {
                 || !Objects.equals(existing.getSectSysUtzYn(), defaultYn(dto.getSectSysUtzYn()))
                 || !Objects.equals(existing.getItrInfrYn(), defaultYn(dto.getItrInfrYn()))
                 || bigDecimalChanged(existing.getAmt(), dto.getAmt())
+                || bigDecimalChanged(existing.getMplAmt(), dto.getMplAmt())
                 // fcAmt 변경 시 D/C 이력 생성 (null-safe 비교)
                 || bigDecimalChanged(existing.getFcAmt(), dto.getFcAmt());
     }
@@ -561,35 +554,17 @@ public class ProjectService {
     }
 
     /**
-     * 당해예산(TOT_RQM_AMT) 재계산.
+     * 예정금액을 유효 범위 [0, amt]로 보정한다.
      *
-     * <p>당해예산 = 품목 합계 − 예정금액(예정자본 + 예정관리비, 익년 이후 요청액).
-     * 품목 금액은 외화 정규화(amt = fcAmt × xcr)된 원화 기준으로 합산하며, 환율은
-     * {@link XcrLookupService}의 표준 환율로 해석한다(품목 저장 로직과 동일 기준).
-     * 결과가 음수면 0으로 보정한다.</p>
-     *
-     * @param items      품목 목록(null이면 합계 0으로 처리)
-     * @param mplCpitAmt 예정자본금액(직접 입력, null이면 0)
-     * @param mplMngcAmt 예정관리비금액(직접 입력, null이면 0)
-     * @return 당해예산(원화, 0 이상)
+     * @param mplAmt 입력 예정금액(null이면 0)
+     * @param amt    품목금액(서버 재계산값, null이면 상한 미적용)
+     * @return 0 이상, amt 이하로 클램프된 예정금액
      */
-    private BigDecimal recalcCurrentYearBudget(List<ProjectDto.BitemmDto> items,
-            BigDecimal mplCpitAmt, BigDecimal mplMngcAmt) {
-        BigDecimal itemsSum = BigDecimal.ZERO;
-        if (items != null) {
-            for (ProjectDto.BitemmDto itemDto : items) {
-                BigDecimal xcr = xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now());
-                BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
-                        itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), xcr);
-                if (reconciled[0] != null) {
-                    itemsSum = itemsSum.add(reconciled[0]);
-                }
-            }
-        }
-        BigDecimal mpl = (mplCpitAmt == null ? BigDecimal.ZERO : mplCpitAmt)
-                .add(mplMngcAmt == null ? BigDecimal.ZERO : mplMngcAmt);
-        BigDecimal currentYear = itemsSum.subtract(mpl);
-        return currentYear.signum() < 0 ? BigDecimal.ZERO : currentYear;
+    private static BigDecimal clampMpl(BigDecimal mplAmt, BigDecimal amt) {
+        BigDecimal v = (mplAmt == null) ? BigDecimal.ZERO : mplAmt;
+        if (v.signum() < 0) v = BigDecimal.ZERO;
+        if (amt != null && v.compareTo(amt) > 0) v = amt;
+        return v;
     }
 
     /**
@@ -772,6 +747,12 @@ public class ProjectService {
         Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
         Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
 
+        // 목록 파생 합산: 대상 프로젝트들의 활성 품목 1회 배치 조회 후 프로젝트별 그룹핑
+        Map<String, List<com.kdb.it.domain.budget.project.entity.Bitemm>> itemsByPrj =
+                bitemmRepository.findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
+                        .collect(Collectors.groupingBy(
+                                com.kdb.it.domain.budget.project.entity.Bitemm::getAbusMngNo));
+
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < projects.size(); i++) {
             Bprojm project = projects.get(i);
@@ -804,6 +785,11 @@ public class ProjectService {
             if (response.getAbusTc() != null) response.setAbusTcNm(pulDttNameMap.get(response.getAbusTc()));
 
             setBudgetSummary(response, project.getAbusMngNo(), project.getSno());
+
+            // 파생 예산 3종(totRqmAmt/mplCpitAmt/mplMngcAmt) 주입
+            projectBudgetSummaryService.applyBudgetSummary(
+                    response,
+                    itemsByPrj.getOrDefault(project.getAbusMngNo(), java.util.List.of()));
         }
     }
 

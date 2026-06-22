@@ -526,35 +526,34 @@ class ProjectServiceTest {
         }
 
         @Test
-        @DisplayName("createProject: 당해예산(TOT_RQM_AMT)은 클라이언트값과 무관하게 품목합계 − 예정금액으로 재계산된다")
-        void createProject_당해예산_재계산() {
-                // given: 품목 합계 1,000,000 / 예정금액(자본 300,000 + 관리비 200,000) = 500,000
+        @DisplayName("createProject: 품목 mplAmt가 amt를 초과하면 amt로 클램프된다")
+        void createClampsItemMplAmt() {
+                // given: amt=1,000 / mplAmt=1,500 (초과) → 저장 시 mplAmt는 1,000으로 보정
                 given(projectRepository.getNextSequenceValue()).willReturn(1L);
                 given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
+                given(xcrLookupService.resolveXcr(any(), any())).willReturn(java.math.BigDecimal.ONE);
                 given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
 
                 ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
                 item.setIoeC("IOE-237-0700");
                 item.setGclNm("소프트웨어 구매");
-                item.setAmt(java.math.BigDecimal.valueOf(1_000_000));
+                item.setAmt(java.math.BigDecimal.valueOf(1_000));
+                item.setMplAmt(java.math.BigDecimal.valueOf(1_500)); // amt 초과값
 
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                                .abusNm("당해예산 재계산 사업")
+                                .abusNm("clamp 테스트 사업")
                                 .bseYy("2026")
-                                .totRqmAmt(java.math.BigDecimal.valueOf(999_999)) // 클라이언트값(무시되어야 함)
-                                .mplCpitAmt(java.math.BigDecimal.valueOf(300_000))
-                                .mplMngcAmt(java.math.BigDecimal.valueOf(200_000))
                                 .items(List.of(item))
                                 .build();
 
                 // when
                 projectService.createProject(request);
 
-                // then: 저장된 엔티티의 TOT_RQM_AMT = 1,000,000 − 500,000 = 500,000
-                org.mockito.ArgumentCaptor<Bprojm> captor = org.mockito.ArgumentCaptor.forClass(Bprojm.class);
-                org.mockito.Mockito.verify(projectRepository).save(captor.capture());
-                assertThat(captor.getValue().getTotRqmAmt())
-                                .isEqualByComparingTo(java.math.BigDecimal.valueOf(500_000));
+                // then: 저장된 품목의 mplAmt는 amt(1,000)로 클램프되어야 함
+                ArgumentCaptor<Bitemm> itemCaptor = ArgumentCaptor.forClass(Bitemm.class);
+                org.mockito.Mockito.verify(bitemmRepository).save(itemCaptor.capture());
+                assertThat(itemCaptor.getValue().getMplAmt())
+                                .isEqualByComparingTo(java.math.BigDecimal.valueOf(1_000));
         }
 
         // ───────────────────────────────────────────────────────

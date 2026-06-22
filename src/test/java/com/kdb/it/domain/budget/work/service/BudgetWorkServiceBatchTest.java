@@ -142,10 +142,12 @@ class BudgetWorkServiceBatchTest {
                 .bgDupAmt(BigDecimal.valueOf(800)).asgRt(80).build();
         Bitemm item = Bitemm.builder()
                 .gclMngNo("GCL-1").abusMngNo("PRJ-1")
-                .amt(BigDecimal.valueOf(1000)).xcr(BigDecimal.ONE).build();
-        Bprojm project = org.mockito.Mockito.mock(Bprojm.class);
-        given(project.getAbusMngNo()).willReturn("PRJ-1");
-        given(project.getMplMngcAmt()).willReturn(BigDecimal.valueOf(500));
+                .amt(BigDecimal.valueOf(1000)).xcr(BigDecimal.ONE)
+                .mplAmt(BigDecimal.valueOf(500)) // 예정금액: 품목 단위로 관리 (Bprojm.mplMngcAmt 제거 후)
+                .build();
+        Bprojm project = Bprojm.builder()
+                .abusMngNo("PRJ-1")
+                .build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(bbugtm));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));

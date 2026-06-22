@@ -2,7 +2,6 @@ package com.kdb.it.domain.budget.project.entity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +24,6 @@ class BprojmUpdateCommandTest {
 
         Bprojm.UpdateCommand cmd = new Bprojm.UpdateCommand(
                 "신규 프로젝트명", "신규개발", "주관부서A", "IT부서B",
-                BigDecimal.valueOf(50_000_000), BigDecimal.valueOf(10_000_000), BigDecimal.valueOf(5_000_000),
                 LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
                 "주관담당자A", "IT담당자B", "팀장A", "IT팀장B",
                 "과장", "사업설명 내용", "현황 내용", "필요성 내용",
@@ -40,9 +38,6 @@ class BprojmUpdateCommandTest {
         assertThat(project.getBzTpC()).isEqualTo("신규개발");
         assertThat(project.getSvnDpmC()).isEqualTo("주관부서A");
         assertThat(project.getDvmDpmC()).isEqualTo("IT부서B");
-        assertThat(project.getTotRqmAmt()).isEqualByComparingTo(BigDecimal.valueOf(50_000_000));
-        assertThat(project.getMplCpitAmt()).isEqualByComparingTo(BigDecimal.valueOf(10_000_000));
-        assertThat(project.getMplMngcAmt()).isEqualByComparingTo(BigDecimal.valueOf(5_000_000));
         assertThat(project.getSttDtm()).isEqualTo(LocalDate.of(2026, 1, 1));
         assertThat(project.getEndDtm()).isEqualTo(LocalDate.of(2026, 12, 31));
         assertThat(project.getBseYy()).isEqualTo("2026");
