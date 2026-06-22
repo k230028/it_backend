@@ -40,11 +40,25 @@ public class ReviewCommentService {
     @Transactional(readOnly = true)
     public List<ReviewCommentDto.Response> getComments(String docMngNo, BigDecimal docVrsSno) {
         // 화면 소수 버전 → 저장 정수 버전(× 100)으로 변환하여 조회 (Brdocm 버전 키와 동일 규약)
-        return brivgmRepository
-                .findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(docMngNo, DocVersionCodec.toStored(docVrsSno), "N")
-                .stream()
-                .map(e -> new ReviewCommentDto.Response(e, resolveAuthorName(e.getFstEnrUsid())))
-                .collect(Collectors.toList());
+        var comments = brivgmRepository
+                .findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(docMngNo, DocVersionCodec.toStored(docVrsSno), "N");
+
+        // 작성자명 배치 조회 (N+1 제거): 사번 집합 → findByEnoIn 1회 → eno→이름 Map
+        java.util.Set<String> enos = comments.stream()
+                .map(com.kdb.it.domain.budget.document.entity.Brivgm::getFstEnrUsid)
+                .filter(eno -> eno != null && !eno.isEmpty())
+                .collect(Collectors.toSet());
+        java.util.Map<String, String> nameByEno = enos.isEmpty() ? java.util.Map.of()
+                : userRepository.findByEnoIn(enos).stream()
+                        .collect(Collectors.toMap(
+                                com.kdb.it.common.iam.entity.CuserI::getEno,
+                                com.kdb.it.common.iam.entity.CuserI::getUsrNm,
+                                (a, b) -> a));
+
+        return comments.stream()
+                .map(e -> new ReviewCommentDto.Response(e,
+                        e.getFstEnrUsid() == null ? "" : nameByEno.getOrDefault(e.getFstEnrUsid(), e.getFstEnrUsid())))
+                .toList();
     }
 
     /**

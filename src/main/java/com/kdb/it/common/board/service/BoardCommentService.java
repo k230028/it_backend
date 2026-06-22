@@ -15,16 +15,12 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 게시판 댓글 서비스
@@ -35,8 +31,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BoardCommentService {
-
-    private static final Logger log = LoggerFactory.getLogger(BoardCommentService.class);
 
     private final BoardMetaRepository    metaRepository;
     private final BoardPostRepository    postRepository;
@@ -62,7 +56,7 @@ public class BoardCommentService {
 
         return commentRepository.findCommentsByPost(nacMngNo).stream()
             .map(c -> BoardCommentDto.Response.from(c, canModify(user, c)))
-            .collect(Collectors.toList());
+            .toList();
     }
 
     /**
@@ -237,10 +231,6 @@ public class BoardCommentService {
      * <p>발행은 {@code @TransactionalEventListener(AFTER_COMMIT)} 리스너가 처리하므로
      * 본 트랜잭션은 차단되지 않는다. 멘션이 없으면 아무 동작도 하지 않는다.</p>
      *
-     * <p><strong>임시 진단 로그 주의</strong>: 메서드 내부에 [멘션 진단] 접두사 INFO 로그 5건이 존재합니다.
-     * 운영 환경에서 사용자 사번(PII)이 로그에 기록될 수 있으므로, 진단 완료 후 제거해야 합니다.</p>
-     * <!-- FIXME: 운영 배포 전 [멘션 진단] INFO 로그 5건 제거 필요 (PII 사번 노출 위험) -->
-     *
      * @param comment      저장 직후의 댓글 엔티티
      * @param post         댓글이 속한 게시물 (linkUrl 구성에 필요)
      * @param authorEno    작성자 사번 (자기 멘션 제외용)
@@ -248,9 +238,6 @@ public class BoardCommentService {
      */
     private void publishMentionNotifications(Ccmmtm comment, Cblbcm post, String authorEno,
                                              java.util.List<String> explicitEnos) {
-        log.info("[멘션 진단] 댓글 publishMentionNotifications 진입: cmmtMngNo={}, nacMngNo={}, author={}, contentLen={}, explicitEnos={}",
-            comment.getCmmtMngNo(), post.getNacMngNo(), authorEno,
-            comment.getCmmtCone() == null ? 0 : comment.getCmmtCone().length(), explicitEnos);
         // 1) 본문 정규식 추출
         Set<String> rawEnos = new java.util.LinkedHashSet<>(
             MentionExtractor.extractEnos(comment.getCmmtCone(), authorEno));
@@ -262,27 +249,20 @@ public class BoardCommentService {
                 }
             }
         }
-        log.info("[멘션 진단] 댓글 union 결과: cmmtMngNo={}, rawEnos={}", comment.getCmmtMngNo(), rawEnos);
         if (rawEnos.isEmpty()) {
-            log.info("[멘션 진단] 댓글 추출+명시 union 0건 → 종료. content snippet={}",
-                comment.getCmmtCone() == null ? "<null>" :
-                    comment.getCmmtCone().substring(0, Math.min(120, comment.getCmmtCone().length())));
             return;
         }
         // 실제 TPRMPP_CUSERI 에 존재하는 사번만 통과 (batch existence check, 순서 보존)
         Set<String> existingEnos = userRepository.findByEnoIn(rawEnos).stream()
             .map(CuserI::getEno)
             .collect(java.util.stream.Collectors.toSet());
-        log.info("[멘션 진단] 댓글 CUSERI 검증: existingEnos={}", existingEnos);
         Set<String> recipients = new java.util.LinkedHashSet<>();
         for (String eno : rawEnos) {
             if (existingEnos.contains(eno)) recipients.add(eno);
         }
         if (recipients.isEmpty()) {
-            log.info("[멘션 진단] 댓글 검증 후 수신자 0건 → 종료. rawEnos={}, existingEnos={}", rawEnos, existingEnos);
             return;
         }
-        log.info("[멘션 진단] 댓글 최종 수신자: {}", recipients);
         String title   = "댓글 멘션: " + safe(post.getNacNm());
         String linkUrl = "/board/" + post.getBlbMngNo()
             + "?postId=" + post.getNacMngNo()

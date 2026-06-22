@@ -1,6 +1,7 @@
 package com.kdb.it.domain.contract.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -27,7 +28,7 @@ public final class ContractDto {
             @Size(max = 2) String cttManrC,
             @Size(max = 1000) String cttManrRsn,
             @Size(max = 100) String cttNm,
-            BigDecimal cttAmt,
+            @DecimalMin(value = "0", message = "계약금액은 0 이상이어야 합니다.") BigDecimal cttAmt,
             @Size(max = 100) String cttOppNm,
             @Size(max = 8) String cttDt
     ) {}

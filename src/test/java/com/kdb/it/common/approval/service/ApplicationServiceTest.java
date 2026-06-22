@@ -327,10 +327,8 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getPendingCount: 프로젝트 3건 전산업무비 2건이면 총 5건을 반환한다")
     void getPendingCount_프로젝트3전산업무비2_총5반환() {
-        given(projectRepository.searchByCondition(any())).willReturn(List.of(
-                mock(Bprojm.class), mock(Bprojm.class), mock(Bprojm.class)));
-        given(costRepository.searchByCondition(any())).willReturn(List.of(
-                mock(Bcostm.class), mock(Bcostm.class)));
+        given(projectRepository.countBySearchCondition(any())).willReturn(3L);
+        given(costRepository.countBySearchCondition(any())).willReturn(2L);
 
         ApplicationDto.PendingCountResponse result = applicationService.getPendingCount(null);
 
@@ -342,12 +340,25 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getPendingCount: 미상신 건수가 없으면 총합 0을 반환한다")
     void getPendingCount_미상신없음_총합0반환() {
-        given(projectRepository.searchByCondition(any())).willReturn(List.of());
-        given(costRepository.searchByCondition(any())).willReturn(List.of());
+        given(projectRepository.countBySearchCondition(any())).willReturn(0L);
+        given(costRepository.countBySearchCondition(any())).willReturn(0L);
 
         ApplicationDto.PendingCountResponse result = applicationService.getPendingCount(null);
 
         assertThat(result.getTotalCount()).isEqualTo(0L);
+    }
+
+    @Test
+    @DisplayName("getPendingCount: 전체 적재 대신 countBySearchCondition COUNT 쿼리를 사용한다")
+    void getPendingCount_usesCountQuery() {
+        given(projectRepository.countBySearchCondition(any())).willReturn(3L);
+        given(costRepository.countBySearchCondition(any())).willReturn(2L);
+
+        ApplicationDto.PendingCountResponse res = applicationService.getPendingCount("2026");
+
+        assertThat(res.getTotalCount()).isEqualTo(5L);
+        verify(projectRepository, never()).searchByCondition(any());
+        verify(costRepository, never()).searchByCondition(any());
     }
 
     // ───────────────────────────────────────────────────────
@@ -392,12 +403,35 @@ class ApplicationServiceTest {
         given(c1.getApfMngNo()).willReturn(APF_MNG_NO);
         given(c2.getApfMngNo()).willReturn("APF_202600000002");
         given(applicationRepository.findAll()).willReturn(List.of(c1, c2));
-        // 각 신청서의 결재자 목록은 빈 목록으로 반환
-        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(any())).willReturn(List.of());
+        // 결재자 목록은 In-쿼리 1회 배치 조회 (빈 목록 반환)
+        given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any())).willReturn(List.of());
 
         List<ApplicationDto.Response> result = applicationService.getApplications();
 
         assertThat(result).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("getApplications: 결재자 목록은 findByDcdMngNoIn 1회로 배치 조회한다")
+    void getApplications_batchesApprovers() {
+        Capplm a1 = mock(Capplm.class);
+        Capplm a2 = mock(Capplm.class);
+        given(a1.getApfMngNo()).willReturn("APF-1");
+        given(a2.getApfMngNo()).willReturn("APF-2");
+        given(applicationRepository.findAll()).willReturn(List.of(a1, a2));
+        // APF-1 결재선 2건(순서 유지 검증), APF-2 결재선 없음
+        Cdecim d1 = Cdecim.builder().dcdMngNo("APF-1").dcrSqnSno(1).dcrEno("E001").build();
+        Cdecim d2 = Cdecim.builder().dcdMngNo("APF-1").dcrSqnSno(2).dcrEno("E002").build();
+        given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
+                .willReturn(List.of(d1, d2));
+
+        List<ApplicationDto.Response> result = applicationService.getApplications();
+
+        assertThat(result).hasSize(2);
+        verify(approverRepository, times(1))
+                .findByDcdMngNoInOrderByDcrSqnSnoAsc(any());
+        verify(approverRepository, never())
+                .findByDcdMngNoOrderByDcrSqnSnoAsc(org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -415,7 +449,7 @@ class ApplicationServiceTest {
                 .dcdStsC("0")
                 .build();
         given(applicationRepository.findAll()).willReturn(List.of(capplm));
-        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+        given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of(legacyPending));
 
         List<ApplicationDto.Response> result = applicationService.getApplications();

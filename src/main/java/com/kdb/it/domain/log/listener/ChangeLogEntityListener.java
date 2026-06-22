@@ -105,11 +105,11 @@ public class ChangeLogEntityListener {
             AuditLogPersister persister = ApplicationContextHolder.getBean(AuditLogPersister.class);
             persister.persist(entity, logClass, chgTp);
         } catch (Exception e) {
-            // FIXME: [B-H-01] e.getMessage() 대신 e를 마지막 인자로 전달하여 스택트레이스 포함 필요
             // 감사로그 실패가 본 업무 트랜잭션을 롤백시키지 않도록 예외를 삼킨다.
             // 시퀀스 미생성(ORA-02289) 등 인프라 오류 시 본 작업은 정상 완료되어야 한다.
-            log.warn("[감사로그 기록 실패] entity={}, logClass={}, chgTp={}, reason={}",
-                    entity.getClass().getSimpleName(), logClass.getSimpleName(), chgTp, e.getMessage());
+            // 단, 진단을 위해 스택트레이스(e)를 마지막 인자로 전달한다.
+            log.warn("[감사로그 기록 실패] entity={}, logClass={}, chgTp={}",
+                    entity.getClass().getSimpleName(), logClass.getSimpleName(), chgTp, e);
         }
     }
 
@@ -131,8 +131,9 @@ public class ChangeLogEntityListener {
             delYnField.setAccessible(true);
             return "Y".equals(delYnField.get(entity)) ? "D" : "U";
         } catch (IllegalAccessException e) {
-            // FIXME: [B-C-02] delYn 리플렉션 실패 시 warn 로그에 원인 예외를 포함해 삭제 판정 실패를 추적한다.
-            // TODO: [B-M-03] IllegalAccessException 발생 시 원인 로깅 후 기본값(U) 반환 필요
+            // delYn 리플렉션 실패 시 삭제 판정 불가 → 기본값 U로 폴백하되, 원인 예외를 warn으로 추적한다.
+            log.warn("[감사로그] delYn 리플렉션 실패 — 변경유형 U로 폴백: entity={}",
+                    entity.getClass().getSimpleName(), e);
             return "U";
         }
     }

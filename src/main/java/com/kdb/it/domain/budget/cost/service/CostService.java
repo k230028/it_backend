@@ -21,6 +21,7 @@ import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
+import com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -100,6 +101,9 @@ public class CostService {
     /** 환율 표준 조회 헬퍼: 외화 저장 전 Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7) */
     private final XcrLookupService xcrLookupService;
 
+    /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (Cost/Project 서비스 공용) */
+    private final CodeNameMapBuilder codeNameMapBuilder;
+
     /** 일반관리비 대상 코드값구분 */
     private static final Set<String> COST_CTT_TPS = Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE");
 
@@ -150,7 +154,7 @@ public class CostService {
         List<Bcostm> costs = costRepository.findAllByDelYn("N");
         List<CostDto.Response> responses = costs.stream()
                 .map(CostDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         enrichCostListBatch(costs, responses);
         return responses;
     }
@@ -178,7 +182,7 @@ public class CostService {
         List<Bcostm> costs = costRepository.searchByCondition(condition);
         List<CostDto.Response> responses = costs.stream()
                 .map(CostDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         enrichCostListBatch(costs, responses);
         return responses;
     }
@@ -408,7 +412,7 @@ public class CostService {
                     }
                 })
                 .filter(response -> response != null)
-                .collect(Collectors.toList());
+                .toList();
 
         // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
         String bseYy = request.getBseYy();
@@ -541,7 +545,7 @@ public class CostService {
         if (costs.isEmpty()) return;
 
         // --- 1. CAPPLA 배치 조회 ---
-        List<String> costBgNos = costs.stream().map(Bcostm::getCostBgNo).distinct().collect(Collectors.toList());
+        List<String> costBgNos = costs.stream().map(Bcostm::getCostBgNo).distinct().toList();
         List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", costBgNos);
 
         // costBgNo+sno 복합키 → 최신 Cappla
@@ -553,7 +557,7 @@ public class CostService {
 
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
-                .map(Cappla::getApfDcmNo).collect(Collectors.toList());
+                .map(Cappla::getApfDcmNo).toList();
         Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
                 .collect(Collectors.toMap(Capplm::getApfMngNo, m -> m));
 
@@ -589,13 +593,13 @@ public class CostService {
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
         Map<String, String> bgUntAbusCNameMap = bgUntAbusCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap(CommonCodeGroups.ABUS_UNIT, bgUntAbusCdvas);
+                : codeNameMapBuilder.build(CommonCodeGroups.ABUS_UNIT, bgUntAbusCdvas);
         Map<String, String> dfrCleCNameMap = dfrCleCCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap(CommonCodeGroups.DFR_CLE, dfrCleCCdvas);
+                : codeNameMapBuilder.build(CommonCodeGroups.DFR_CLE, dfrCleCCdvas);
         Map<String, String> tmnYnNameMap = tmnYnMngcCodes.isEmpty() ? Map.of()
-                : buildCodeNameMap(CommonCodeGroups.TMN_YN, tmnYnMngcCodes);
+                : codeNameMapBuilder.build(CommonCodeGroups.TMN_YN, tmnYnMngcCodes);
         Map<String, String> abusTcNameMap = abusTcCdvas.isEmpty() ? Map.of()
-                : buildCodeNameMap(CommonCodeGroups.ABUS, abusTcCdvas);
+                : codeNameMapBuilder.build(CommonCodeGroups.ABUS, abusTcCdvas);
         Map<String, String> ioeCNameMap = ioeCCdvas.isEmpty() ? Map.of()
                 : buildIoeCNameMap(ioeCCdvas);
 
@@ -639,7 +643,7 @@ public class CostService {
                 .filter(r -> "02".equals(r.getAbusTc()))
                 .map(CostDto.Response::getCostBgNo)
                 .distinct()
-                .collect(Collectors.toList());
+                .toList();
         if (!continuingNos.isEmpty()) {
             String bseYy = responses.stream()
                     .map(CostDto.Response::getBseYy)
@@ -663,7 +667,7 @@ public class CostService {
                 .filter(r -> r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank())
                 .map(CostDto.Response::getCncdRfrNo)
                 .distinct()
-                .collect(Collectors.toList());
+                .toList();
         if (!cncdNos.isEmpty()) {
             String bseYy8 = responses.stream()
                     .map(CostDto.Response::getBseYy)
@@ -746,30 +750,53 @@ public class CostService {
         }
     }
 
-    /** 단말기 DTO 목록에 담당자명(cgprNm) 일괄 설정 (배치 조회로 N+1 방지) */
+    /**
+     * 단말기 DTO 목록에 담당자명(cgprNm)과 코드명(단말기종류·이용방법·지급주기)을 일괄 설정.
+     *
+     * <p>담당자명은 사번 배치 조회, 코드명은 그룹별 1회 조회로 N+1을 방지한다.
+     * 코드명은 cost-level(setCodeNames)과 동일한 CCODEM 유효일자 기준 조회를 사용한다.</p>
+     */
     private void setTerminalCodeNames(List<CostDto.TerminalDto> terminalDtos) {
+        if (terminalDtos.isEmpty()) return;
+
+        // 담당자명: 사번 배치 조회
         Set<String> enos = terminalDtos.stream()
                 .map(CostDto.TerminalDto::getCgprId)
                 .filter(cgprId -> cgprId != null && !cgprId.isEmpty())
                 .collect(Collectors.toSet());
-        if (enos.isEmpty()) return;
+        if (!enos.isEmpty()) {
+            Map<String, String> nameMap = cuserIRepository.findByEnoIn(enos).stream()
+                    .collect(Collectors.toMap(
+                            CuserI::getEno,
+                            CuserI::getUsrNm));
+            terminalDtos.forEach(tDto -> {
+                if (tDto.getCgprId() != null) {
+                    tDto.setCgprNm(nameMap.get(tDto.getCgprId()));
+                }
+            });
+        }
 
-        Map<String, String> nameMap = cuserIRepository.findByEnoIn(enos).stream()
-                .collect(Collectors.toMap(
-                        CuserI::getEno,
-                        CuserI::getUsrNm));
+        // 코드명: 단말기종류(tmnClsfC)/이용방법(tmnKdTc)/지급주기(dfrCleC) 그룹별 배치 조회
+        Map<String, String> svcMap = codeNameMapBuilder.build(CommonCodeGroups.TERM_SERVICE,
+                collectCdvas(terminalDtos, CostDto.TerminalDto::getTmnClsfC));
+        Map<String, String> kindMap = codeNameMapBuilder.build(CommonCodeGroups.TERM_KIND,
+                collectCdvas(terminalDtos, CostDto.TerminalDto::getTmnKdTc));
+        Map<String, String> dfrMap = codeNameMapBuilder.build(CommonCodeGroups.DFR_CLE,
+                collectCdvas(terminalDtos, CostDto.TerminalDto::getDfrCleC));
         terminalDtos.forEach(tDto -> {
-            if (tDto.getCgprId() != null) {
-                tDto.setCgprNm(nameMap.get(tDto.getCgprId()));
-            }
+            if (tDto.getTmnClsfC() != null) tDto.setTmnClsfCNm(svcMap.get(tDto.getTmnClsfC()));
+            if (tDto.getTmnKdTc() != null) tDto.setTmnKdTcNm(kindMap.get(tDto.getTmnKdTc()));
+            if (tDto.getDfrCleC() != null) tDto.setDfrCleCNm(dfrMap.get(tDto.getDfrCleC()));
         });
     }
 
-    /** C_ID 기준 cdva→C_NM 맵 생성 (지정 cdva만 필터링) */
-    private Map<String, String> buildCodeNameMap(String cId, Set<String> cdvas) {
-        return ccodemRepository.findByCIdWithValidDate(cId, null).stream()
-                .filter(c -> cdvas.contains(c.getCdva()))
-                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCdvaNm, (a, b) -> a));
+    /** 단말기 DTO 목록에서 지정 코드 추출자로 비어있지 않은 cdva 집합 수집 */
+    private Set<String> collectCdvas(List<CostDto.TerminalDto> dtos,
+            java.util.function.Function<CostDto.TerminalDto, String> getter) {
+        return dtos.stream()
+                .map(getter)
+                .filter(v -> v != null && !v.isEmpty())
+                .collect(Collectors.toSet());
     }
 
     /** IOE 코드 cdva → CDVA_NM 우선 표시명 맵 생성 */

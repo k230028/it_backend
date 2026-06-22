@@ -7,6 +7,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import org.springframework.security.access.AccessDeniedException;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -168,21 +170,19 @@ class QnaServiceTest {
     }
 
     @Test
-    @DisplayName("updateQna: 본인이 아니고 관리자도 아니면 IllegalArgumentException을 던진다")
-    void updateQna_본인아님_관리자아님_IllegalArgumentException발생() {
+    @DisplayName("updateQna: 본인이 아니고 관리자도 아니면 AccessDeniedException을 던진다")
+    void updateQna_본인아님_관리자아님_AccessDenied발생() {
         // given
-        Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "OTHER_ENO");
+        Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E_OWNER");
         given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
-
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
         given(userDetails.getEno()).willReturn("E10001");
-        given(userDetails.getAuthorities()).willReturn(List.of());
+        given(userDetails.isAdmin()).willReturn(false);
 
         // when & then
         assertThatThrownBy(() -> qnaService.updateQna(ASCT_ID, QTN_ID,
-                new CouncilDto.QnaUpdateRequest("수정내용"), userDetails))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("본인");
+                new CouncilDto.QnaUpdateRequest("수정 시도"), userDetails))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
@@ -194,6 +194,7 @@ class QnaServiceTest {
 
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
         given(userDetails.getEno()).willReturn("E10001");
+        given(userDetails.isAdmin()).willReturn(false);
 
         // when
         qnaService.updateQna(ASCT_ID, QTN_ID,
@@ -256,7 +257,6 @@ class QnaServiceTest {
 
     @Test
     @DisplayName("updateQna: 관리자이면 본인 질의가 아니어도 수정할 수 있다")
-    @SuppressWarnings({"unchecked", "rawtypes"})
     void updateQna_관리자_타인질의수정가능() {
         // Arrange: qna 등록자는 OTHER_ENO, 로그인 사용자는 관리자
         Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "OTHER_ENO");
@@ -264,12 +264,7 @@ class QnaServiceTest {
 
         CustomUserDetails admin = mock(CustomUserDetails.class);
         given(admin.getEno()).willReturn("E_ADMIN");
-        // 관리자 권한 부여 — Collection<? extends GrantedAuthority> 타입 맞춤
-        org.springframework.security.core.GrantedAuthority adminAuth = () -> "ROLE_ITPAD001";
-        java.util.Collection<org.springframework.security.core.GrantedAuthority> authorities =
-                java.util.Collections.singletonList(adminAuth);
-        given(admin.getAuthorities()).willReturn(
-                (java.util.Collection) authorities);
+        given(admin.isAdmin()).willReturn(true);
 
         // Act: 예외 없이 수정 완료
         qnaService.updateQna(ASCT_ID, QTN_ID,

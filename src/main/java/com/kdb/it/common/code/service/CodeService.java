@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 공통코드(Ccodem) 서비스 클래스
@@ -42,7 +41,7 @@ public class CodeService {
     public List<CodeDto.Response> getCcodemsByCId(String cId, LocalDate targetDate) {
         return codeRepository.findByCIdWithValidDate(cId, targetDate).stream()
                 .map(CodeDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -71,7 +70,7 @@ public class CodeService {
     public List<CodeDto.Response> getCcodemsByCTp(String cTp, LocalDate targetDate) {
         return codeRepository.findByCTpWithValidDate(cTp, targetDate).stream()
                 .map(CodeDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

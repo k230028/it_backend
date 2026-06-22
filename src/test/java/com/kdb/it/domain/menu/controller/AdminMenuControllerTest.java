@@ -161,14 +161,13 @@ class AdminMenuControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /api/admin/menus/{mnuId} - 존재하지 않는 메뉴 → 400 (GlobalExceptionHandler가 RuntimeException을 400으로 변환)")
+    @DisplayName("PUT /api/admin/menus/{mnuId} - 존재하지 않는 메뉴 → 404")
     @WithMockUser(username = "10001", roles = "ADMIN")
-    void update_존재하지않는메뉴_400반환() throws Exception {
+    void update_존재하지않는메뉴_404반환() throws Exception {
         // given
         MenuDto.UpsertRequest req = MenuDto.UpsertRequest.builder()
                 .mnuNm("수정메뉴").mnuTpC("GRP")
                 .build();
-        // GlobalExceptionHandler가 RuntimeException(ResponseStatusException 포함)을 400으로 변환한다
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 메뉴"))
                 .when(adminMenuService).update(eq("NONE"), any());
 
@@ -176,7 +175,7 @@ class AdminMenuControllerTest {
         mockMvc.perform(put("/api/admin/menus/NONE")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     // =========================================================================
@@ -193,17 +192,16 @@ class AdminMenuControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/admin/menus/{mnuId} - 하위 메뉴 존재 → 400 (GlobalExceptionHandler가 RuntimeException을 400으로 변환)")
+    @DisplayName("DELETE /api/admin/menus/{mnuId} - 하위 메뉴 존재 → 409")
     @WithMockUser(username = "10001", roles = "ADMIN")
-    void delete_하위메뉴존재_400반환() throws Exception {
+    void delete_하위메뉴존재_409반환() throws Exception {
         // given
-        // GlobalExceptionHandler가 RuntimeException(ResponseStatusException 포함)을 400으로 변환한다
         doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "하위 메뉴가 있어 삭제할 수 없습니다."))
                 .when(adminMenuService).delete("MNU_PARENT");
 
         // when & then
         mockMvc.perform(delete("/api/admin/menus/MNU_PARENT"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict());
     }
 
     // =========================================================================

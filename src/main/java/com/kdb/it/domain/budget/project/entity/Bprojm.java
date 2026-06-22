@@ -207,7 +207,7 @@ public class Bprojm extends BaseEntity {
      * 프로젝트 수정 파라미터 레코드 (DB-06)
      *
      * <p>35+ 개별 파라미터를 하나의 레코드로 압축하여 메서드 시그니처 가독성을 개선합니다.
-     * {@link ProjectService}의 수정 로직에서 사용합니다.</p>
+     * {@code ProjectService}의 수정 로직에서 사용합니다.</p>
      */
     public record UpdateCommand(
             String abusNm, String bzTpC, String svnDpmC, String dvmDpmC,

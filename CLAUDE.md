@@ -8,6 +8,7 @@
 ## 1. 개요
 - 패키지 루트: `com.kdb.it`
 - 프로젝트 개요/목적은 루트 `../CLAUDE.md` §1 참조.
+- 작업 워크플로우는 루트 `../CLAUDE.md` §5를 따릅니다. Superpowers를 기본으로 사용하고, ECC/gstack은 보조 도구로 사용합니다.
 
 ## 2. 기술 스택
 - Framework: Spring Boot 4.1.0
@@ -121,7 +122,10 @@ src/main/resources/
 - `app_sequences_ddl.sql` — 비즈니스 채번 시퀀스 (S_ASCT/S_QTN/S_APF/S_APF_REL_SNO/S_FL)
 - `audit_log_sequences_ddl.sql` — 로그 시퀀스 (S_{POSTFIX} 22개)
 
-운영 환경 권장: Flyway/Liquibase 도입 검토 (TASK.md 백로그).
+운영/개발 공통 변경은 `../it_database/migrations/`에 Flyway 스크립트를 추가합니다.
+백엔드 Gradle `processResources`가 해당 V* 스크립트를 `classpath:db/migration`으로 포함합니다.
+자동 적용은 `local-ext`/`local-int` 프로파일에서만 켜며, `dev`/`prod` DB는 DBA가 검토 후 수동 적용합니다.
+적용된 스크립트는 체크섬 추적 대상이므로 수정하지 않고, 추가 변경은 항상 새 버전 스크립트로 작성합니다.
 
 ### 5.3 DTO 설계
 - 관련 DTO는 **정적 중첩 클래스**로 한 파일에 묶음 (예: `AuthDto.LoginRequest`).
@@ -309,7 +313,7 @@ public class PlanController { ... }
 **SecurityConfig URL 패턴 보호 대상** (코드 분석 2026-06-05):
 - `/api/admin/**` → `hasRole("ADMIN")` (`AdminController`, `AdminBoardMetaController`, `RealtimeLogController` 포함)
 - `/api/auth/signup` → `hasRole("ADMIN")`
-- `/api/plan/**` → `hasRole("ADMIN")` (현재 실제 `PlanController` 경로 `/api/plans/**`와 불일치, `TASK.md`에서 정비 과제로 추적)
+- `/api/plans/**` → `hasRole("ADMIN")` (`PlanController` 실제 경로 `/api/plans`와 정합 완료)
 
 #### 부서 필터링(bbrC) 적용 규칙 (§5.14와 동일, 여기에 보안 관점 요약)
 - `bbrC`는 JWT `athIds` 클레임의 소속 부서코드. Access Token 발급 시 DB에서 읽은 `user.getBbrC()`를 포함.
@@ -329,7 +333,7 @@ public class PlanController { ... }
 
 #### 공개/비공개 엔드포인트 (SecurityConfig 코드 기준)
 - 인증 불필요: `/api/auth/login`, `/api/auth/refresh`, `/api/auth/sso/complete`, `/sso/**`, `/swagger-ui/**`, `/v3/api-docs/**`, `/error`
-- 인증 필요 + ADMIN 전용: `/api/admin/**`, `/api/auth/signup`, `/api/plan/**`
+- 인증 필요 + ADMIN 전용: `/api/admin/**`, `/api/auth/signup`, `/api/plans/**`
 - 나머지: 인증 필요 (`anyRequest().authenticated()`)
 
 #### 개발 전용 API 보안 주의사항 (DevAuthController, SsoController 코드 기준)
@@ -394,6 +398,7 @@ public class PlanController { ... }
 - 파일: `app.file.base-path=C:/data/files`, multipart 최대 파일 50MB / 요청 200MB
 - Gemini: `gemini.api.key`, `gemini.api.base-url`, `gemini.api.model=gemini-2.5-flash`
 - 서버 식별자: `app.server.instance-id=SVR1`
+- Flyway: 베이스/dev/prod `spring.flyway.enabled=false`, `local-ext`/`local-int`만 `spring.flyway.enabled=true`; `spring.flyway.locations=classpath:db/migration`, `spring.flyway.user=${FLYWAY_USER:...}`, `spring.flyway.password=${FLYWAY_PASSWORD:...}`, `spring.flyway.default-schema=${DB_SCHEMA:ITPOWN}`, `spring.flyway.baseline-on-migrate=true`, `spring.flyway.baseline-version=20260620.001`
 
 ### 5.9 테스트 기준
 - 기능 변경 후 최소 `./gradlew test` 실행.

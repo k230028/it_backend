@@ -12,7 +12,7 @@ import java.util.List;
  *
  * <p>DB 테이블: {@code TPRMPP_BMQNAM}</p>
  *
- * <p>IT관리자가 본회의 동안 오간 Q&A를 정리·관리합니다.
+ * <p>IT관리자가 본회의 동안 오간 질의응답을 정리·관리합니다.
  * 사전질의응답({@link QnaRepository})과 동일 메서드 시그니처를 유지합니다.</p>
  */
 public interface MainQnaRepository extends JpaRepository<Bmqnam, String> {

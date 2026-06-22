@@ -1,9 +1,7 @@
 package com.kdb.it.domain.menu.service;
 
 import com.kdb.it.domain.menu.dto.MenuDto;
-import com.kdb.it.domain.menu.entity.Cmenua;
 import com.kdb.it.domain.menu.entity.Cmenum;
-import com.kdb.it.domain.menu.repository.CmenuaRepository;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +10,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -20,12 +20,13 @@ import static org.mockito.BDDMockito.given;
 class MenuQueryServiceTest {
 
     @Mock CmenumRepository cmenumRepository;
-    @Mock CmenuaRepository cmenuaRepository;
+    // 권한 매핑은 별도 캐시 빈(MenuAuthMapProvider)에서 제공받으므로 provider를 모킹한다(self-invocation 회피, T13-C).
+    @Mock MenuAuthMapProvider menuAuthMapProvider;
     MenuQueryService service;   // resolvers가 테스트마다 달라 per-test로 생성
 
     @BeforeEach
     void setUp() {
-        service = new MenuQueryService(cmenumRepository, cmenuaRepository, List.of());
+        service = new MenuQueryService(cmenumRepository, menuAuthMapProvider, List.of());
     }
 
     private Cmenum node(String id, String parent, String type, int dep, String path) {
@@ -41,9 +42,7 @@ class MenuQueryServiceTest {
                 node("C", "G", "LNK", 2, "/G/C"),
                 node("P", null, "LNK", 1, "/P")
         ));
-        given(cmenuaRepository.findAllActive()).willReturn(List.of(
-                Cmenua.builder().mnuId("G").athId("ITPAD001").delYn("N").build()
-        ));
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of("G", Set.of("ITPAD001")));
 
         // non-admin user: only 'P' visible (G+C pruned because G requires ITPAD001)
         List<MenuDto.Node> userTree = service.getMenuTree(List.of("ITPZZ001"));
@@ -63,9 +62,7 @@ class MenuQueryServiceTest {
                 node("A", null, "LNK", 1, "/A"),
                 node("P", null, "LNK", 1, "/P")
         ));
-        given(cmenuaRepository.findAllActive()).willReturn(List.of(
-                Cmenua.builder().mnuId("A").athId("ITPAD001").delYn("N").build()
-        ));
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of("A", Set.of("ITPAD001")));
 
         List<MenuDto.Node> tree = service.getMenuTree(List.of("ITPAD001"));
 
@@ -82,9 +79,7 @@ class MenuQueryServiceTest {
                 node("H", null, "LNK", 1, "/H")
         ));
         // 관리 트리는 가지치기 없이 전체를 반환하고, 편집 폼용으로 노드별 athIds를 함께 싣는다.
-        given(cmenuaRepository.findAllActive()).willReturn(List.of(
-                Cmenua.builder().mnuId("H").athId("ITPAD001").delYn("N").build()
-        ));
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of("H", Set.of("ITPAD001")));
         List<MenuDto.Node> all = service.getAdminMenuTree();
         assertThat(all).extracting(MenuDto.Node::getMnuId).containsExactly("H");
         // Bug 2 회귀 방지: 관리 트리 노드가 기존 권한ID를 실어야 편집 화면 체크박스가 복원된다.
@@ -96,7 +91,7 @@ class MenuQueryServiceTest {
         Cmenum dyn = Cmenum.builder().mnuId("MBRD0001").hrkMnuId(null).mnuNm("게시판")
                 .mnuTpC("DYN").mnuSotSqnSno(10).hidYn("N").mnuDep(1).whlMnuPth("/MBRD0001").delYn("N").build();
         given(cmenumRepository.findAllActive()).willReturn(List.of(dyn));
-        given(cmenuaRepository.findAllActive()).willReturn(List.of());
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
 
         MenuChildrenResolver fake = new MenuChildrenResolver() {
             public String mnuId() { return "MBRD0001"; }
@@ -107,7 +102,7 @@ class MenuQueryServiceTest {
                         .srePth("/board/BLBM-0001").children(List.of()).build());
             }
         };
-        MenuQueryService svc = new MenuQueryService(cmenumRepository, cmenuaRepository, List.of(fake));
+        MenuQueryService svc = new MenuQueryService(cmenumRepository, menuAuthMapProvider, List.of(fake));
         List<MenuDto.Node> tree = svc.getMenuTree(List.of("ITPZZ001"));
 
         assertThat(tree).extracting(MenuDto.Node::getMnuId).containsExactly("MBRD0001");
@@ -123,10 +118,9 @@ class MenuQueryServiceTest {
                 node("H2", null, "HED", 1, "/H2"),
                 node("P",  "H2", "LNK", 2, "/H2/P")
         ));
-        given(cmenuaRepository.findAllActive()).willReturn(List.of(
-                Cmenua.builder().mnuId("H1").athId("ITPAD001").delYn("N").build(),
-                Cmenua.builder().mnuId("A").athId("ITPAD001").delYn("N").build()
-        ));
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of(
+                "H1", Set.of("ITPAD001"),
+                "A", Set.of("ITPAD001")));
 
         // 비관리자: H1(관리자 헤더) 숨김, H2(CDP)는 플레이스홀더 P 덕분에 유지
         List<MenuDto.Node> userTree = service.getMenuTree(List.of("ITPZZ001"));

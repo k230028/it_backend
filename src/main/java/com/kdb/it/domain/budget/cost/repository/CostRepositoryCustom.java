@@ -42,6 +42,18 @@ public interface CostRepositoryCustom {
     List<Bcostm> searchByCondition(CostDto.SearchCondition condition);
 
     /**
+     * 검색 조건에 해당하는 전산관리비 건수 (COUNT 쿼리, 전체 적재 회피)
+     *
+     * <p>{@link #searchByCondition(CostDto.SearchCondition)}와 동일한 WHERE 조건을 사용하므로
+     * {@code searchByCondition(condition).size()}와 결과가 정확히 일치합니다. 미상신 건수 배지 등
+     * 건수만 필요한 경로에서 엔티티 전체 적재를 회피하기 위해 사용합니다.</p>
+     *
+     * @param condition 검색 조건 DTO
+     * @return 조건에 맞는 전산관리비 건수 (DEL_YN='N' 필터 항상 적용)
+     */
+    long countBySearchCondition(CostDto.SearchCondition condition);
+
+    /**
      * 전년도 예산 합계 일괄 조회 (계속 항목 전용)
      *
      * <p>

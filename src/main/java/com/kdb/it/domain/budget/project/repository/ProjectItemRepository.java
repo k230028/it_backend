@@ -63,6 +63,19 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
     List<Bitemm> findByGclMngNoAndDelYn(String gclMngNo, String delYn);
 
     /**
+     * 품목관리번호 집합 일괄 조회 (N+1 제거)
+     *
+     * <p>{@link #findByGclMngNoAndDelYn(String, String)}의 단건 조회를 집합으로 묶어
+     * 1회로 수행합니다. 동일한 {@code DEL_YN} 필터를 유지하며, 호출부에서 gclMngNo별
+     * 첫 행 채택 규칙(원본 로직과 동일)을 적용합니다.</p>
+     *
+     * @param gclMngNos 품목관리번호 집합
+     * @param delYn     삭제 여부 ('N'=미삭제)
+     * @return 조건에 맞는 품목 목록
+     */
+    List<Bitemm> findByGclMngNoInAndDelYn(java.util.Collection<String> gclMngNos, String delYn);
+
+    /**
      * 프로젝트 관리번호와 삭제여부로 품목 목록 조회 (순번 무관)
      *
      * <p>사업별 편성률 적용(REQ-2) 시 해당 사업의 모든 유효 품목을 조회하는 데 사용됩니다.</p>

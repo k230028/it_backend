@@ -1,17 +1,14 @@
 package com.kdb.it.domain.budget.work.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
-import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
@@ -30,15 +27,14 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 /**
- * {@link BudgetWorkService} 의 XCR 표준 조회 통합 테스트.
+ * {@link BudgetWorkService} 의 BITEMM 원화 정규화 금액 편성 테스트.
  *
- * <p>CONTEXT.md 결정 E / R3.7: L204(applyRates BITEMM) 와 L298(applyItemRates BPROJM)
- * 의 {@code BigDecimal.ONE} fallback 안티패턴이 {@link XcrLookupService} 호출로 교체되어,
- * 외화는 Ccodem 단일 원천 환율을 사용하고 KRW/null 만 1 fallback 을 적용함을 검증한다.</p>
+ * <p>BITEMM 저장 단계(ProjectService)에서 외화 환율을 검증하고 {@code amt = fcAmt × xcr}로
+ * 원화 금액을 정규화한다. 편성 단계에서는 이미 정규화된 {@code amt}를 그대로 사용해
+ * 환율 이중 적용을 방지한다.</p>
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -50,38 +46,33 @@ class BudgetWorkServiceXcrLookupTest {
     @Mock private ProjectItemRepository projectItemRepository;
     @Mock private CostRepository costRepository;
     @Mock private BudgetWorkQueryRepository budgetWorkQueryRepository;
-    @Mock private XcrLookupService xcrLookupService;
 
     @InjectMocks
     private BudgetWorkService budgetWorkService;
 
     /**
      * applyItemRates(BPROJM 분기, L298 경로) 를 통해 외화 USD Bitemm 1건을 재집계.
-     * item.xcr 가 0(위조)이어도 Ccodem 1400 환율로 amountKrw 계산되는지 확인.
+     * item.xcr 가 0이어도 이미 원화 정규화된 amt만 사용되는지 확인.
      */
     @Test
-    @DisplayName("L298 BITEMM 결재완료 외화 USD: item.xcr=0 위조 무시, Ccodem 1400으로 amountKrw 계산")
-    void applyItemRates_외화품목_Ccodem환율로amountKrw계산() {
+    @DisplayName("L298 BITEMM 결재완료 외화 USD: item.xcr=0이어도 원화 정규화 amt로 편성금액 계산")
+    void applyItemRates_외화품목_원화정규화Amt로DupBgAmt계산() {
         // given: applyItemRates 진입 mocks
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
 
-        // 외화 Bitemm 1건 (item.xcr=0 위조)
+        // 외화 Bitemm 1건: ProjectService 저장 단계에서 amt는 이미 원화로 정규화되어 있다.
         Bitemm bitemm = mock(Bitemm.class);
         given(bitemm.getCurC()).willReturn("USD");
-        given(bitemm.getAmt()).willReturn(new BigDecimal("1000"));
-        given(bitemm.getXcr()).willReturn(BigDecimal.ZERO);  // 클라가 0으로 위조해도 무시
+        given(bitemm.getAmt()).willReturn(new BigDecimal("1400000"));
+        given(bitemm.getXcr()).willReturn(BigDecimal.ZERO);
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0001");
         given(bitemm.getSno()).willReturn(1);
         given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(eq("PRJ-2026-0001"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
-
-        // XcrLookupService → Ccodem 1400 환율 반환
-        given(xcrLookupService.resolveXcr(eq("USD"), any(LocalDate.class)))
-                .willReturn(new BigDecimal("1400"));
 
         // getSummary mocks
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
@@ -102,8 +93,8 @@ class BudgetWorkServiceXcrLookupTest {
     }
 
     @Test
-    @DisplayName("L298 ItemRate 외화 미등록 XYZ: IllegalStateException으로 작업 중단, bbugtmRepository.save 미호출")
-    void applyItemRates_외화미등록_IllegalStateException발생() {
+    @DisplayName("L298 BITEMM 외화 XYZ: 편성 단계에서는 환율 재조회 없이 정규화 amt로 저장")
+    void applyItemRates_외화미등록_편성단계환율재조회없이저장() {
         // given
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
@@ -114,20 +105,21 @@ class BudgetWorkServiceXcrLookupTest {
         given(bitemm.getCurC()).willReturn("XYZ");
         given(bitemm.getAmt()).willReturn(new BigDecimal("1000"));
         given(bitemm.getIoeC()).willReturn("001");
+        given(bitemm.getGclMngNo()).willReturn("GCL-2026-0003");
+        given(bitemm.getSno()).willReturn(1);
         given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(eq("PRJ-2026-0001"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
 
-        given(xcrLookupService.resolveXcr(eq("XYZ"), any(LocalDate.class)))
-                .willThrow(new IllegalStateException("환율 미등록: XYZ (기준일: 2026-05-24)"));
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
 
         BudgetWorkDto.ItemRate rate = new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 100);
         BudgetWorkDto.ItemApplyRequest request = new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate));
 
-        // when / then
-        assertThatThrownBy(() -> budgetWorkService.applyItemRates(request))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("환율 미등록:");
-        verify(bbugtmRepository, never()).save(any());
+        // when
+        budgetWorkService.applyItemRates(request);
+
+        // then
+        verify(bbugtmRepository).save(any());
     }
 
     @Test
@@ -147,9 +139,6 @@ class BudgetWorkServiceXcrLookupTest {
         given(bitemm.getSno()).willReturn(1);
         given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(eq("PRJ-2026-0002"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
-
-        // KRW → null 반환 (Ccodem 조회 우회)
-        given(xcrLookupService.resolveXcr(eq("KRW"), any(LocalDate.class))).willReturn(null);
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
 

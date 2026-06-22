@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
  * </p>
  *
  * <p>
- * PK({@code LOG_HIS_TGR_SNO})는 {@link AuditLogIdGenerator}가
+ * PK({@code LOG_HIS_TGR_SNO})는 {@code AuditLogIdGenerator}가
  * {@code SEQ_{Postfix}.NEXTVAL}을 조회하여 Long 값으로 생성한다.
  * </p>
  *

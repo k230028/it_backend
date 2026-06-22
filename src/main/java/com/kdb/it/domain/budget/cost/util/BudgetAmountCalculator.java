@@ -14,11 +14,11 @@ import java.math.RoundingMode;
  *
  * <p>정책 (CONTEXT.md 결정 B / C / D):</p>
  * <ul>
- *   <li><b>결정 C — 외화 행</b>: curC != null && curC != "KRW" 이면서
- *       fcAmt != null && xcr > 0 인 경우, 클라이언트가 보낸 원화금액(krwAmt)을
+ *   <li><b>결정 C — 외화 행</b>: {@code curC != null && curC != "KRW"} 이면서
+ *       {@code fcAmt != null && xcr > 0} 인 경우, 클라이언트가 보낸 원화금액(krwAmt)을
  *       무시하고 <code>fcAmt × xcr</code>로 재계산하여 저장한다.
  *       라운딩은 setScale(3, HALF_UP) (DOMAIN.md 금액 18,3).</li>
- *   <li><b>결정 B — 원화 행</b>: curC == "KRW" 또는 curC == null 인 경우,
+ *   <li><b>결정 B — 원화 행</b>: {@code curC == "KRW"} 또는 {@code curC == null} 인 경우,
  *       클라이언트 krwAmt를 그대로 보존하고 fcAmt는 NULL로 강제한다.</li>
  *   <li><b>결정 D — 데이터 불완전 외화 행</b>: 외화임에도 fcAmt 또는 xcr 이 누락/0 이면
  *       재계산을 포기하고 krwAmt 보존 + fcAmt NULL 강제.</li>

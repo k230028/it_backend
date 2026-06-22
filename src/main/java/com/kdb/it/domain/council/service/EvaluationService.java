@@ -99,7 +99,7 @@ public class EvaluationService {
                             e.getCkgOpnn()
                     );
                 })
-                .collect(Collectors.toList());
+                .toList();
 
         // 점검항목별 평균점수 계산
         List<CouncilDto.CheckItemAvgScore> avgScores = buildAvgScores(asctId);
@@ -131,7 +131,7 @@ public class EvaluationService {
                         e.getQuelRcrd(),
                         e.getCkgOpnn()
                 ))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // =========================================================================
@@ -278,6 +278,6 @@ public class EvaluationService {
                         CHECK_ITEM_NAMES.getOrDefault(code, code),
                         avgMap.get(code)
                 ))
-                .collect(Collectors.toList());
+                .toList();
     }
 }

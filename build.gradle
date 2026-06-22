@@ -85,6 +85,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+	implementation 'org.flywaydb:flyway-core'
+	runtimeOnly 'org.flywaydb:flyway-database-oracle'
 	
 	// HTML 새니타이징 (XSS 서버 측 방어)
 	implementation 'org.jsoup:jsoup:1.18.3'
@@ -203,6 +205,16 @@ tasks.named('test') {
 tasks.named('asciidoctor') {
 	inputs.dir snippetsDir
 	dependsOn test
+}
+
+tasks.named('processResources') {
+	def migrationsDir = file('../it_database/migrations')
+	if (migrationsDir.isDirectory()) {
+		from(migrationsDir) {
+			into 'db/migration'
+			include 'V*.sql'
+		}
+	}
 }
 
 tasks.withType(JavaCompile).configureEach {

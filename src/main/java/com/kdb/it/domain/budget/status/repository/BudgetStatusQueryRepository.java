@@ -50,8 +50,8 @@ public interface BudgetStatusQueryRepository {
     /**
      * 카테고리·연도 기준 편성요청액·편성액 합계 조회 (Tiptap 변수 해석 전용)
      *
-     * <p>
-     * 카테고리 필터링은 모두 BITEMM 비목구분({@code Ccodem.cTp}, {@code cId='IOE'}) 기준입니다.
+     * <p>카테고리 필터링은 모두 BITEMM 비목구분({@code Ccodem.cTp}, {@code cId='IOE'}) 기준입니다.</p>
+     *
      * 편성요청액은 BITEMM({@code gclAmt * COALESCE(xcr,1)}), 편성액은 BBUGTM({@code orcTb='BITEMM'}, {@code dupBgAmt}) 합계.
      * <ul>
      *   <li>{@code IT_BUDGET} → 전체 BITEMM 합계 (정보화·경상·일반관리비 모두 포함, 비목 필터 없음)</li>
@@ -59,7 +59,6 @@ public interface BudgetStatusQueryRepository {
      *   <li>{@code OPEX} → {@code cTp ∈ ('IOE_IDR','IOE_SEVS','IOE_XPN','IOE_LEAFE')} 일반관리비 항목</li>
      * </ul>
      * 데이터가 전혀 없으면 {@code AggregatedAmount(null, null)}을 반환합니다.
-     * </p>
      *
      * @param year         예산년도 (예: 2026)
      * @param categoryCode 카테고리 코드 ({@code IT_BUDGET} | {@code CAP_BUDGET} | {@code OPEX})

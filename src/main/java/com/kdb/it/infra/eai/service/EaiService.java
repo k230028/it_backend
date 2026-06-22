@@ -57,8 +57,8 @@ public class EaiService {
             message = builder.build(request);
         } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
             log.warn("EAI 전문 조립 실패: ifId={}, payload={}, 사유={}",
-                    request.ifId(), request.payload().getClass().getSimpleName(), e.getMessage());
-            return EaiResult.failure("전문 조립 실패: " + e.getMessage());
+                    request.ifId(), request.payload().getClass().getSimpleName(), safeMessage(e));
+            return EaiResult.failure("전문 조립 실패: " + safeMessage(e));
         }
 
         if (!props.enabled()) {
@@ -78,9 +78,18 @@ public class EaiService {
             log.info("EAI 전송 성공: ifId={}, payload={}, reqLen={}바이트", request.ifId(), request.payload().getClass().getSimpleName(), message.length);
             return EaiResult.success(responseRaw);
         } catch (RuntimeException e) {
-            log.warn("EAI 전송 실패: ifId={}, payload={}, 사유={}", request.ifId(), request.payload().getClass().getSimpleName(), e.getMessage());
-            return EaiResult.failure("전송 실패: " + e.getMessage());
+            log.warn("EAI 전송 실패: ifId={}, payload={}, 사유={}", request.ifId(), request.payload().getClass().getSimpleName(), safeMessage(e));
+            return EaiResult.failure("전송 실패: " + safeMessage(e));
         }
+    }
+
+    /** 예외 메시지를 안전하게 추출 — null/과도한 길이를 방어해 결과/로그 오염을 막는다. (패키지 가시성: 단위 테스트 직접 검증용) */
+    static String safeMessage(Throwable e) {
+        String msg = e.getMessage();
+        if (msg == null || msg.isBlank()) {
+            return e.getClass().getSimpleName();
+        }
+        return msg.length() > 200 ? msg.substring(0, 200) + "...(생략)" : msg;
     }
 
     /**

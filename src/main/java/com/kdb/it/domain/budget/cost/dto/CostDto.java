@@ -690,6 +690,18 @@ public class CostDto {
         @Schema(description = "담당자명")
         private String cgprNm;
 
+        /** 단말기서비스명(단말기종류): tmnClsfC 기준 TPRMPP_CCODEM(IT_PTL_TMN_SVC_TC) CDVA_NM 조회 (응답 전용) */
+        @Schema(description = "단말기서비스명(단말기종류)")
+        private String tmnClsfCNm;
+
+        /** 단말기이용방법명: tmnKdTc 기준 TPRMPP_CCODEM(IT_PTL_TMN_KD_TC) CDVA_NM 조회 (응답 전용) */
+        @Schema(description = "단말기이용방법명")
+        private String tmnKdTcNm;
+
+        /** 지급주기명: dfrCleC 기준 TPRMPP_CCODEM(DFR_CLE_C) CDVA_NM 조회 (응답 전용) */
+        @Schema(description = "지급주기명")
+        private String dfrCleCNm;
+
         @Schema(description = "담당팀", example = "00101")
         private String termSvnTemC;
 

@@ -1,7 +1,6 @@
 package com.kdb.it.common.iam.service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.kdb.it.common.iam.dto.OrganizationDto;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
@@ -46,6 +45,6 @@ public class OrganizationService {
     public List<OrganizationDto.Response> getOrganizations() {
         return organizationRepository.findAll().stream()       // 전체 조직 엔티티 조회
                 .map(OrganizationDto.Response::fromEntity) // 각 엔티티를 DTO로 변환
-                .collect(Collectors.toList());             // 리스트로 수집
+                .toList();                                 // 리스트로 수집(불변)
     }
 }

@@ -201,6 +201,56 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
     }
 
     /**
+     * BBUGTM(편성예산) × BITEMM 조인 후 abusMngNo별 {@code bgDupAmt} 합계를 구한다.
+     *
+     * <p>정보화사업 편성은 BITEMM 단위로 저장(ORC_TB='BITEMM', ORC_PK_VL=GCL_MNG_NO)되므로
+     * BITEMM.GCL_MNG_NO 기준으로 JOIN 후 GROUP BY 한다. 세 개의 {@code sum…DupBg…} 메서드가
+     * 공유하던 동일 골격을 추출한 헬퍼이며, 비목코드 필터만 선택적으로 적용된다.</p>
+     *
+     * @param prjMngNos 사업관리번호 목록(null/빈 목록이면 빈 맵)
+     * @param bgYy      기준연도
+     * @param ioeCodes  비목코드 필터. null/빈 집합이면 비목 조건 미적용.
+     * @return abusMngNo → 합계(없으면 0)
+     */
+    private Map<String, BigDecimal> sumDupBgByIoe(
+            List<String> prjMngNos, String bgYy, Set<String> ioeCodes) {
+        if (prjMngNos == null || prjMngNos.isEmpty()) {
+            return Map.of();
+        }
+        QBbugtm bbugtm = QBbugtm.bbugtm;
+        QBitemm bitemm = QBitemm.bitemm;
+
+        BooleanBuilder where = new BooleanBuilder()
+                .and(bbugtm.bseYy.eq(bgYy))
+                .and(bbugtm.fntTbNm.eq("BITEMM"))
+                .and(bitemm.abusMngNo.in(prjMngNos))
+                .and(bbugtm.delYn.eq("N"))
+                .and(bitemm.delYn.eq("N"))
+                .and(bitemm.lstYn.eq("Y"));
+        if (ioeCodes != null && !ioeCodes.isEmpty()) {
+            where.and(bitemm.ioeC.in(ioeCodes));
+        }
+
+        List<Tuple> results = queryFactory
+                .select(bitemm.abusMngNo, bbugtm.bgDupAmt.sum())
+                .from(bbugtm)
+                .join(bitemm).on(
+                        bbugtm.pkColNm.eq(bitemm.gclMngNo),
+                        bbugtm.fntTbCrySno.eq(bitemm.sno))
+                .where(where)
+                .groupBy(bitemm.abusMngNo)
+                .fetch();
+
+        Map<String, BigDecimal> map = new HashMap<>();
+        for (Tuple t : results) {
+            String key = t.get(bitemm.abusMngNo);
+            BigDecimal sum = t.get(bbugtm.bgDupAmt.sum());
+            if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
+        }
+        return map;
+    }
+
+    /**
      * 정보화사업(BPROJM)별 편성예산(DUP_BG) 합계 일괄 조회
      *
      * <p>
@@ -210,33 +260,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      */
     @Override
     public Map<String, BigDecimal> sumDupBgByPrjMngNos(List<String> prjMngNos, String bgYy) {
-        if (prjMngNos == null || prjMngNos.isEmpty()) return Map.of();
-        QBbugtm bbugtm = QBbugtm.bbugtm;
-        QBitemm bitemm = QBitemm.bitemm;
-        // 정보화사업 편성은 BITEMM 단위로 저장(ORC_TB='BITEMM', ORC_PK_VL=GCL_MNG_NO)
-        // → BITEMM.PRJ_MNG_NO 기준으로 JOIN 후 GROUP BY
-        List<Tuple> results = queryFactory
-                .select(bitemm.abusMngNo, bbugtm.bgDupAmt.sum())
-                .from(bbugtm)
-                .join(bitemm).on(
-                        bbugtm.pkColNm.eq(bitemm.gclMngNo),
-                        bbugtm.fntTbCrySno.eq(bitemm.sno))
-                .where(
-                        bbugtm.bseYy.eq(bgYy),
-                        bbugtm.fntTbNm.eq("BITEMM"),
-                        bitemm.abusMngNo.in(prjMngNos),
-                        bbugtm.delYn.eq("N"),
-                        bitemm.delYn.eq("N"),
-                        bitemm.lstYn.eq("Y"))
-                .groupBy(bitemm.abusMngNo)
-                .fetch();
-        Map<String, BigDecimal> map = new HashMap<>();
-        for (Tuple t : results) {
-            String key = t.get(bitemm.abusMngNo);
-            BigDecimal sum = t.get(bbugtm.bgDupAmt.sum());
-            if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
-        }
-        return map;
+        return sumDupBgByIoe(prjMngNos, bgYy, null);
     }
 
     /**
@@ -274,33 +298,11 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      */
     @Override
     public Map<String, BigDecimal> sumAssetDupBgByPrjMngNos(List<String> prjMngNos, String bgYy, Set<String> assetGclDttCodes) {
-        if (prjMngNos == null || prjMngNos.isEmpty() || assetGclDttCodes == null || assetGclDttCodes.isEmpty())
+        // 비목 코드 집합이 비면 빈 맵(헬퍼의 null=비목 미필터 동작과 의미가 다르므로 가드 유지)
+        if (assetGclDttCodes == null || assetGclDttCodes.isEmpty()) {
             return Map.of();
-        QBbugtm bbugtm = QBbugtm.bbugtm;
-        QBitemm bitemm = QBitemm.bitemm;
-        List<Tuple> results = queryFactory
-                .select(bitemm.abusMngNo, bbugtm.bgDupAmt.sum())
-                .from(bbugtm)
-                .join(bitemm).on(
-                        bbugtm.pkColNm.eq(bitemm.gclMngNo),
-                        bbugtm.fntTbCrySno.eq(bitemm.sno))
-                .where(
-                        bbugtm.bseYy.eq(bgYy),
-                        bbugtm.fntTbNm.eq("BITEMM"),
-                        bitemm.abusMngNo.in(prjMngNos),
-                        bitemm.ioeC.in(assetGclDttCodes),
-                        bbugtm.delYn.eq("N"),
-                        bitemm.delYn.eq("N"),
-                        bitemm.lstYn.eq("Y"))
-                .groupBy(bitemm.abusMngNo)
-                .fetch();
-        Map<String, BigDecimal> map = new HashMap<>();
-        for (Tuple t : results) {
-            String key = t.get(bitemm.abusMngNo);
-            BigDecimal sum = t.get(bbugtm.bgDupAmt.sum());
-            if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
-        return map;
+        return sumDupBgByIoe(prjMngNos, bgYy, assetGclDttCodes);
     }
 
     /**
@@ -308,33 +310,11 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      */
     @Override
     public Map<String, BigDecimal> sumCostDupBgByPrjMngNos(List<String> prjMngNos, String bgYy, Set<String> costGclDttCodes) {
-        if (prjMngNos == null || prjMngNos.isEmpty() || costGclDttCodes == null || costGclDttCodes.isEmpty())
+        // 비목 코드 집합이 비면 빈 맵(헬퍼의 null=비목 미필터 동작과 의미가 다르므로 가드 유지)
+        if (costGclDttCodes == null || costGclDttCodes.isEmpty()) {
             return Map.of();
-        QBbugtm bbugtm = QBbugtm.bbugtm;
-        QBitemm bitemm = QBitemm.bitemm;
-        List<Tuple> results = queryFactory
-                .select(bitemm.abusMngNo, bbugtm.bgDupAmt.sum())
-                .from(bbugtm)
-                .join(bitemm).on(
-                        bbugtm.pkColNm.eq(bitemm.gclMngNo),
-                        bbugtm.fntTbCrySno.eq(bitemm.sno))
-                .where(
-                        bbugtm.bseYy.eq(bgYy),
-                        bbugtm.fntTbNm.eq("BITEMM"),
-                        bitemm.abusMngNo.in(prjMngNos),
-                        bitemm.ioeC.in(costGclDttCodes),
-                        bbugtm.delYn.eq("N"),
-                        bitemm.delYn.eq("N"),
-                        bitemm.lstYn.eq("Y"))
-                .groupBy(bitemm.abusMngNo)
-                .fetch();
-        Map<String, BigDecimal> map = new HashMap<>();
-        for (Tuple t : results) {
-            String key = t.get(bitemm.abusMngNo);
-            BigDecimal sum = t.get(bbugtm.bgDupAmt.sum());
-            if (key != null) map.put(key, sum != null ? sum : BigDecimal.ZERO);
         }
-        return map;
+        return sumDupBgByIoe(prjMngNos, bgYy, costGclDttCodes);
     }
 
     /**

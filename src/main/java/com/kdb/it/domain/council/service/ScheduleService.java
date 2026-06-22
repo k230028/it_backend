@@ -115,7 +115,7 @@ public class ScheduleService {
                             scheduleByEno.getOrDefault(m.getEno(), List.of()).stream()
                                     .map(s -> new CouncilDto.ScheduleSlotResponse(
                                             s.getCnrcDt(), s.getCnrcSttTm(), s.getUsePsbYn()))
-                                    .collect(Collectors.toList());
+                                    .toList();
 
                     return new CouncilDto.MemberScheduleStatus(
                             m.getEno(),
@@ -128,7 +128,7 @@ public class ScheduleService {
                             slots
                     );
                 })
-                .collect(Collectors.toList());
+                .toList();
 
         // 대면희망 위원 존재 여부 (한 명이라도 Y면 대면개최) (PRD_c_20260620 #1)
         boolean anyFaceToFaceHope = members.stream()
@@ -167,7 +167,7 @@ public class ScheduleService {
         councilService.findActiveCouncil(asctId);
         return scheduleRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").stream()
                 .map(s -> new CouncilDto.ScheduleSlotResponse(s.getCnrcDt(), s.getCnrcSttTm(), s.getUsePsbYn()))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

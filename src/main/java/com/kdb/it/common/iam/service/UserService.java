@@ -3,12 +3,13 @@ package com.kdb.it.common.iam.service;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 사용자(직원) 조회 서비스
@@ -53,7 +54,7 @@ public class UserService {
         // 각 사용자 엔티티를 DTO로 변환 (부점명은 연관관계에서 조회)
         return users.stream()
                 .map(user -> UserDto.ListResponse.fromEntity(user, user.getBbrNm())) // getBbrNm(): CorgnI.bbrNm
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -62,11 +63,18 @@ public class UserService {
      * <p>특정 사번({@code eno})의 사용자 상세 정보를 조회합니다.
      * 목록 조회보다 더 많은 정보(내선번호, 휴대폰번호, 상세직무)를 포함합니다.</p>
      *
-     * @param eno 조회할 사번
+     * <p>PII(휴대폰번호·내선번호·이메일) 보호를 위해 본인 또는 관리자만 조회할 수 있습니다.</p>
+     *
+     * @param eno         조회할 사번
+     * @param currentUser 현재 인증 사용자
      * @return 사용자 상세 응답 DTO ({@link UserDto.DetailResponse})
+     * @throws org.springframework.security.access.AccessDeniedException 본인도 관리자도 아닌 경우
      * @throws IllegalArgumentException 해당 사번의 사용자가 없는 경우
      */
-    public UserDto.DetailResponse getUser(String eno) {
+    public UserDto.DetailResponse getUser(String eno, CustomUserDetails currentUser) {
+        // 권한 검증을 조회보다 먼저 수행 — 타인 사번 존재 여부 누설 방지
+        OwnershipVerifier.verifyOwnerOrAdmin(eno, currentUser);
+
         // 사번으로 사용자 조회 (없으면 예외)
         CuserI user = userRepository.findByEno(eno)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with eno: " + eno));

@@ -399,8 +399,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     /**
      * 카테고리·연도 기준 편성요청액·편성액 합계 조회 (Tiptap 변수 해석 전용)
      *
-     * <p>
-     * 카테고리별 SoT (Bitemm 비목구분 {@code Ccodem.C_TP} 기준 필터링):
+     * <p>카테고리별 SoT (Bitemm 비목구분 {@code Ccodem.C_TP} 기준 필터링):</p>
      * <ul>
      *   <li>{@code IT_BUDGET} → 전체 Bitemm 합계 (정보화사업·경상사업·일반관리비 포함, 비목 필터 없음)</li>
      *   <li>{@code CAP_BUDGET} → {@code Ccodem.cTp ∈ ('IOE_DVC','IOE_HW','IOE_SW')} 자본예산 항목 합계</li>
@@ -409,7 +408,6 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
      * 편성요청액은 {@code BITEMM.gclAmt * COALESCE(xcr,1)} 합산,
      * 편성액은 {@code BBUGTM.dupBgAmt}({@code orcTb='BITEMM'}) 합산입니다.
      * 두 합계 모두 0이거나 null이면 {@code AggregatedAmount(null, null)}을 반환합니다(MISSING 판정용).
-     * </p>
      *
      * @param year         예산년도
      * @param categoryCode 카테고리 코드 ({@code IT_BUDGET} | {@code CAP_BUDGET} | {@code OPEX})

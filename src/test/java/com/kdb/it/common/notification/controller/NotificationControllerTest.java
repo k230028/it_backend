@@ -82,6 +82,15 @@ class NotificationControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/notifications: size가 200을 초과하면 400을 반환한다")
+    void list_size상한초과_400() throws Exception {
+        mockMvc.perform(get("/api/notifications")
+                        .with(currentUser())
+                        .param("size", "201"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("GET /api/notifications/unread-count: 미읽음 건수를 반환한다")
     void unreadCount_인증사용자_건수반환() throws Exception {
         given(notificationService.unreadCount("10001")).willReturn(4L);

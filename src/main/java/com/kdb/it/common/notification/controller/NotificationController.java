@@ -5,8 +5,10 @@ import com.kdb.it.common.notification.service.NotificationService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
 @Tag(name = "Notification", description = "알림 API")
+@Validated
 public class NotificationController {
 
     private final NotificationService notificationService;
@@ -40,6 +43,7 @@ public class NotificationController {
         @AuthenticationPrincipal CustomUserDetails currentUser,
         @RequestParam(value = "unreadOnly", required = false) Boolean unreadOnly,
         @RequestParam(value = "page", defaultValue = "0") int page,
+        @Max(value = 200, message = "size는 최대 200까지 가능합니다.")
         @RequestParam(value = "size", defaultValue = "20") int size
     ) {
         Page<NotificationDto.Item> result = notificationService

@@ -1,6 +1,8 @@
 package com.kdb.it.common.system.tiptap.service;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.MetadataResponse;
+import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ResolveResponse;
 import com.kdb.it.common.system.tiptap.util.TiptapTokenParser;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
@@ -17,6 +19,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -89,7 +93,7 @@ class TiptapVariableServiceTest {
     @Test
     @DisplayName("resolve — 잘못된 토큰은 INVALID 반환")
     void resolve_invalidToken_returnsInvalid() {
-        var response = service.resolve(java.util.List.of("not-a-valid-token"));
+        var response = service.resolve(java.util.List.of("not-a-valid-token"), null);
         assertThat(response.results().get("not-a-valid-token").status()).isEqualTo("INVALID");
     }
 
@@ -99,7 +103,7 @@ class TiptapVariableServiceTest {
         when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
                 .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(null, null));
 
-        var response = service.resolve(java.util.List.of("2026.itBudget.requestAmount"));
+        var response = service.resolve(java.util.List.of("2026.itBudget.requestAmount"), null);
         assertThat(response.results().get("2026.itBudget.requestAmount").status()).isEqualTo("MISSING");
     }
 
@@ -110,7 +114,7 @@ class TiptapVariableServiceTest {
                 .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
                         90_000_000_000L, 85_000_000_000L));
 
-        var response = service.resolve(java.util.List.of("2026.itBudget.requestAmount"));
+        var response = service.resolve(java.util.List.of("2026.itBudget.requestAmount"), null);
         var resolved = response.results().get("2026.itBudget.requestAmount");
         assertThat(resolved.status()).isEqualTo("OK");
         assertThat(resolved.value()).isEqualTo("900억원");
@@ -123,7 +127,7 @@ class TiptapVariableServiceTest {
                 .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
                         100_000_000_000L, 85_300_000_000L));
 
-        var response = service.resolve(java.util.List.of("2026.itBudget.allocationRate"));
+        var response = service.resolve(java.util.List.of("2026.itBudget.allocationRate"), null);
         assertThat(response.results().get("2026.itBudget.allocationRate").value()).isEqualTo("85.3%");
     }
 
@@ -133,7 +137,10 @@ class TiptapVariableServiceTest {
         when(budgetStatusRepository.aggregateByProject(2026, "PRJ001"))
                 .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(50_000L, 20_000L));
 
-        var response = service.resolve(List.of("2026.proj.PRJ001.allocatedAmount"));
+        // PROJ 토큰은 관리자/부서매니저만 허용되므로 관리자 사용자로 호출한다.
+        CustomUserDetails admin = mock(CustomUserDetails.class);
+        given(admin.isAdmin()).willReturn(true);
+        var response = service.resolve(List.of("2026.proj.PRJ001.allocatedAmount"), admin);
 
         assertThat(response.results().get("2026.proj.PRJ001.allocatedAmount").value()).isEqualTo("2만원");
     }
@@ -144,7 +151,7 @@ class TiptapVariableServiceTest {
         when(budgetStatusRepository.aggregateByCategory(2026, "OPEX"))
                 .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(9_999L, 1L));
 
-        var response = service.resolve(List.of("2026.opex.requestAmount"));
+        var response = service.resolve(List.of("2026.opex.requestAmount"), null);
 
         assertThat(response.results().get("2026.opex.requestAmount").value()).isEqualTo("9999원");
     }
@@ -155,7 +162,7 @@ class TiptapVariableServiceTest {
         when(budgetStatusRepository.aggregateByCategory(2026, "CAP_BUDGET"))
                 .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(100L, null));
 
-        var response = service.resolve(List.of("2026.capBudget.allocatedAmount"));
+        var response = service.resolve(List.of("2026.capBudget.allocatedAmount"), null);
 
         assertThat(response.results().get("2026.capBudget.allocatedAmount").status()).isEqualTo("MISSING");
     }
@@ -166,8 +173,39 @@ class TiptapVariableServiceTest {
         when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
                 .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(0L, 10L));
 
-        var response = service.resolve(List.of("2026.itBudget.allocationRate"));
+        var response = service.resolve(List.of("2026.itBudget.allocationRate"), null);
 
         assertThat(response.results().get("2026.itBudget.allocationRate").status()).isEqualTo("MISSING");
+    }
+
+    @Test
+    @DisplayName("resolve: 동일 (year,category) 항목 3종은 집계 쿼리를 1회만 호출한다(인트라요청 메모이즈)")
+    void resolve_memoizesAggregatePerRequest() {
+        when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                        90_000_000_000L, 76_000_000_000L));
+
+        service.resolve(List.of(
+                "2026.itBudget.requestAmount",
+                "2026.itBudget.allocatedAmount",
+                "2026.itBudget.allocationRate"), null);
+
+        org.mockito.Mockito.verify(budgetStatusRepository, org.mockito.Mockito.times(1))
+                .aggregateByCategory(2026, "IT_BUDGET");
+    }
+
+    @Test
+    @DisplayName("resolve: 일반 사용자가 사업(PROJ) 토큰을 요청하면 FORBIDDEN을 반환한다")
+    void resolve_일반사용자_PROJ토큰_FORBIDDEN() {
+        // Arrange
+        CustomUserDetails user = mock(CustomUserDetails.class);
+        given(user.isAdmin()).willReturn(false);
+        given(user.isDeptManager()).willReturn(false);
+
+        // Act
+        ResolveResponse res = service.resolve(List.of("2026.proj.P001.allocationRate"), user);
+
+        // Assert
+        assertThat(res.results().get("2026.proj.P001.allocationRate").status()).isEqualTo("FORBIDDEN");
     }
 }

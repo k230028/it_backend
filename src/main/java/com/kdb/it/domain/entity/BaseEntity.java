@@ -25,7 +25,7 @@ import java.util.UUID;
  * 공통 감사(Audit) 정보를 담는 추상 기반 엔티티 클래스
  *
  * <p>
- * 모든 업무 엔티티({@link Bprojm}, {@link Bcostm}, {@link Capplm} 등)가
+ * 모든 업무 엔티티({@code Bprojm}, {@code Bcostm}, {@code Capplm} 등)가
  * 상속하는 공통 필드를 정의합니다.
  * </p>
  *

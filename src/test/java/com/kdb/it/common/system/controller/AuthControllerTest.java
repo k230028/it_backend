@@ -166,8 +166,9 @@ class AuthControllerTest {
         }
 
         @Test
-        @DisplayName("POST /api/auth/login - X-Forwarded-For 헤더를 클라이언트 IP로 사용한다")
-        void login_XForwardedFor_IP전달() throws Exception {
+        @DisplayName("POST /api/auth/login - 신뢰 프록시 미설정 시 X-Forwarded-For를 무시하고 remoteAddr을 사용한다")
+        void login_XForwardedFor_미신뢰_remoteAddr전달() throws Exception {
+                // app.trusted-proxies 미설정(빈 allowlist)이므로 XFF는 위조 가능으로 간주해 무시.
                 AuthDto.LoginRequest request = new AuthDto.LoginRequest();
                 request.setEno("10001");
                 request.setPassword("password123");
@@ -177,15 +178,19 @@ class AuthControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("X-Forwarded-For", "203.0.113.10")
                                 .header("User-Agent", "TestAgent")
+                                .with(req -> {
+                                        req.setRemoteAddr("198.51.100.5");
+                                        return req;
+                                })
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk());
 
-                verify(authService).login("10001", "password123", "203.0.113.10", "TestAgent");
+                verify(authService).login("10001", "password123", "198.51.100.5", "TestAgent");
         }
 
         @Test
-        @DisplayName("POST /api/auth/login - Proxy-Client-IP 헤더를 클라이언트 IP로 사용한다")
-        void login_ProxyClientIP_IP전달() throws Exception {
+        @DisplayName("POST /api/auth/login - X-Forwarded-For가 없으면 remoteAddr을 사용한다")
+        void login_XForwardedFor없음_remoteAddr전달() throws Exception {
                 AuthDto.LoginRequest request = new AuthDto.LoginRequest();
                 request.setEno("10001");
                 request.setPassword("password123");
@@ -193,18 +198,20 @@ class AuthControllerTest {
 
                 mockMvc.perform(post("/api/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-Forwarded-For", "unknown")
-                                .header("Proxy-Client-IP", "203.0.113.20")
                                 .header("User-Agent", "TestAgent")
+                                .with(req -> {
+                                        req.setRemoteAddr("198.51.100.20");
+                                        return req;
+                                })
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk());
 
-                verify(authService).login("10001", "password123", "203.0.113.20", "TestAgent");
+                verify(authService).login("10001", "password123", "198.51.100.20", "TestAgent");
         }
 
         @Test
-        @DisplayName("POST /api/auth/login - 하위 프록시 헤더와 remoteAddr fallback을 순서대로 확인한다")
-        void login_하위프록시헤더와RemoteAddr_IP전달() throws Exception {
+        @DisplayName("POST /api/auth/login - 미신뢰 환경에서 멀티 IP XFF도 무시하고 remoteAddr을 사용한다")
+        void login_멀티IP_미신뢰_remoteAddr전달() throws Exception {
                 AuthDto.LoginRequest request = new AuthDto.LoginRequest();
                 request.setEno("10001");
                 request.setPassword("password123");
@@ -212,16 +219,16 @@ class AuthControllerTest {
 
                 mockMvc.perform(post("/api/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header("X-Forwarded-For", "")
-                                .header("Proxy-Client-IP", "unknown")
-                                .header("WL-Proxy-Client-IP", "unknown")
-                                .header("HTTP_CLIENT_IP", "unknown")
-                                .header("HTTP_X_FORWARDED_FOR", "203.0.113.30")
+                                .header("X-Forwarded-For", "203.0.113.30, 10.0.0.9")
                                 .header("User-Agent", "TestAgent")
+                                .with(req -> {
+                                        req.setRemoteAddr("198.51.100.30");
+                                        return req;
+                                })
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk());
 
-                verify(authService).login("10001", "password123", "203.0.113.30", "TestAgent");
+                verify(authService).login("10001", "password123", "198.51.100.30", "TestAgent");
         }
 
         @Test
@@ -258,7 +265,7 @@ class AuthControllerTest {
                                 .maxAge(0).path("/api/auth").build();
                 given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
                 given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
-                AuthController controller = new AuthController(authService, cookieUtil);
+                AuthController controller = new AuthController(authService, cookieUtil, "");
 
                 var response = controller.logout(new MockHttpServletRequest());
 

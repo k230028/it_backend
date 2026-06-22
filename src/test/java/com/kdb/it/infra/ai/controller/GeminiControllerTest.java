@@ -162,6 +162,20 @@ class GeminiControllerTest {
     // -------------------------------------------------------------------------
 
     @Test
+    @DisplayName("generate: prompt가 비어있으면 400을 반환한다")
+    @WithMockUser(roles = "ADMIN")
+    void generate_빈prompt_400반환() throws Exception {
+        GeminiDto.Request request = GeminiDto.Request.builder()
+                .prompt("   ")
+                .build();
+
+        mockMvc.perform(post("/api/gemini/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("POST /api/gemini/generate - systemInstruction 없는 최소 요청 → 200 정상 처리")
     @WithMockUser(roles = "ADMIN")
     void generate_systemInstruction없음_정상처리() throws Exception {

@@ -17,6 +17,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
+import com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import java.time.LocalDate;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
@@ -73,12 +74,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true) // 기본 읽기 전용 트랜잭션
 public class ProjectService {
 
-    /** 자본예산 세부 코드타입: 개발비/기계장치/기타무형자산 */
-    private static final String IOE_DVC = "IOE_DVC";
-    private static final String IOE_HW = "IOE_HW";
-    private static final String IOE_SW = "IOE_SW";
-    private static final Set<String> CAPITAL_DETAIL_CTPS = Set.of(IOE_DVC, IOE_HW, IOE_SW);
-
     /** 정보화사업 데이터 접근 리포지토리 (TPRMPP_BPROJM) */
     private final ProjectRepository projectRepository;
 
@@ -112,6 +107,12 @@ public class ProjectService {
     /** 환율 표준 조회 헬퍼: 외화 품목 저장 전 Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7) */
     private final XcrLookupService xcrLookupService;
 
+    /** 품목 기준 예산 합계 계산 서비스 */
+    private final ProjectBudgetSummaryService projectBudgetSummaryService;
+
+    /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (Cost/Project 서비스 공용) */
+    private final CodeNameMapBuilder codeNameMapBuilder;
+
     /**
      * 전체 정보화사업 목록 조회
      *
@@ -130,7 +131,7 @@ public class ProjectService {
         List<Bprojm> projects = projectRepository.findAllByDelYn("N");
         List<ProjectDto.Response> responses = projects.stream()
                 .map(ProjectDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         enrichProjectListBatch(projects, responses);
         return responses;
     }
@@ -163,7 +164,7 @@ public class ProjectService {
         List<Bprojm> projects = projectRepository.searchByCondition(condition);
         List<ProjectDto.Response> responses = projects.stream()
                 .map(ProjectDto.Response::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         enrichProjectListBatch(projects, responses);
         return responses;
     }
@@ -199,13 +200,13 @@ public class ProjectService {
         // 품목 엔티티를 DTO로 변환하여 응답 객체에 설정
         List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
                 .map(ProjectDto.BitemmDto::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         // 품목구분명(ioeCNm) IOE 코드 표시명 설정
         enrichItemIoeCNames(itemDtos);
         response.setItems(itemDtos);
 
         // 품목 기준 자본예산/일반관리비 합계 계산 및 설정 (이미 조회한 bitemms 재활용)
-        setBudgetSummaryFromItems(response, bitemms);
+        projectBudgetSummaryService.applyBudgetSummary(response, bitemms);
 
         return response;
     }
@@ -227,8 +228,7 @@ public class ProjectService {
      * <li>관리번호 자동 생성 형식: {@code PRJ-{bgYy}-{seq:04d}}
      * (예: {@code PRJ-2026-0001})</li>
      * </ul>
-     * 예: {@code PRJ-2026-0001}
-     * </p>
+     * <p>예: {@code PRJ-2026-0001}</p>
      *
      * @param request 정보화사업 생성 요청 DTO (프로젝트명, 예산, 기간, 담당자 등)
      * @return 생성된 프로젝트관리번호
@@ -266,6 +266,15 @@ public class ProjectService {
         // Rich Text 필드 XSS 새니타이징 (서버 측 방어)
         request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
         request.setAbusRngCone(HtmlSanitizer.sanitize(request.getAbusRngCone()));
+
+        // 의무완료기한(FLF_FSG_DT, VARCHAR2(8)) 정규화: 프론트는 "YYYY-MM-DD"(ISO)로 보내므로
+        // 하이픈을 제거해 yyyyMMdd 8자리로 저장 (ORA-12899 방지, 품목 xcrBseDt와 동일 처리)
+        request.setFlfFsgDt(DateFormatUtil.toYmd8(request.getFlfFsgDt()));
+
+        // 당해예산(TOT_RQM_AMT) 항상 재계산: 품목 합계 − 예정금액(MPL_CPIT + MPL_MNGC)
+        // 예정금액(익년 이후분)은 사용자가 직접 입력하며, 당해예산만 품목 기준으로 산출한다.
+        request.setTotRqmAmt(recalcCurrentYearBudget(
+                request.getItems(), request.getMplCpitAmt(), request.getMplMngcAmt()));
 
         // 엔티티 생성 및 저장
         Bprojm project = request.toEntity();
@@ -371,15 +380,21 @@ public class ProjectService {
         request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
         request.setAbusRngCone(HtmlSanitizer.sanitize(request.getAbusRngCone()));
 
+        // 당해예산(TOT_RQM_AMT) 항상 재계산: 품목 합계 − 예정금액(MPL_CPIT + MPL_MNGC).
+        // 품목(items)을 함께 보낸 경우에만 재계산하고, 미동봉(null) 시 기존 요청값을 유지한다.
+        BigDecimal recalcTotRqmAmt = request.getItems() != null
+                ? recalcCurrentYearBudget(request.getItems(), request.getMplCpitAmt(), request.getMplMngcAmt())
+                : request.getTotRqmAmt();
+
         // 프로젝트 기본 정보 수정 (JPA Dirty Checking으로 자동 반영)
         project.update(new Bprojm.UpdateCommand(
                 request.getAbusNm(), request.getBzTpC(), request.getSvnDpmC(), request.getDvmDpmC(),
-                request.getTotRqmAmt(), request.getMplCpitAmt(), request.getMplMngcAmt(), request.getSttDtm(), request.getEndDtm(),
+                recalcTotRqmAmt, request.getMplCpitAmt(), request.getMplMngcAmt(), request.getSttDtm(), request.getEndDtm(),
                 request.getUsid(), request.getDvmUsid(), request.getTlrUsid(), request.getDvmTlrUsid(),
                 request.getEdrtTc(), request.getAbusCone(), request.getCpnSafCone(), request.getAbusNcsCone(),
                 request.getDgogPpoCone(), request.getPlmDes(), request.getAbusRngCone(), request.getMnPrgCone(), request.getHrfPlnCone(),
                 request.getBzDttNm(), request.getSklTpTc(), request.getCstTpTc(), request.getDplYn(),
-                request.getFlfFsgDt(), request.getRprStsTc(), request.getExePttYn(), request.getStsTc(),
+                DateFormatUtil.toYmd8(request.getFlfFsgDt()), request.getRprStsTc(), request.getExePttYn(), request.getStsTc(),
                 request.getBseYy(), request.getPrlmHrkOgzCCone(),
                 request.getOdnYn(), request.getAbusTc(), request.getCncdRfrNo()));
 
@@ -546,6 +561,38 @@ public class ProjectService {
     }
 
     /**
+     * 당해예산(TOT_RQM_AMT) 재계산.
+     *
+     * <p>당해예산 = 품목 합계 − 예정금액(예정자본 + 예정관리비, 익년 이후 요청액).
+     * 품목 금액은 외화 정규화(amt = fcAmt × xcr)된 원화 기준으로 합산하며, 환율은
+     * {@link XcrLookupService}의 표준 환율로 해석한다(품목 저장 로직과 동일 기준).
+     * 결과가 음수면 0으로 보정한다.</p>
+     *
+     * @param items      품목 목록(null이면 합계 0으로 처리)
+     * @param mplCpitAmt 예정자본금액(직접 입력, null이면 0)
+     * @param mplMngcAmt 예정관리비금액(직접 입력, null이면 0)
+     * @return 당해예산(원화, 0 이상)
+     */
+    private BigDecimal recalcCurrentYearBudget(List<ProjectDto.BitemmDto> items,
+            BigDecimal mplCpitAmt, BigDecimal mplMngcAmt) {
+        BigDecimal itemsSum = BigDecimal.ZERO;
+        if (items != null) {
+            for (ProjectDto.BitemmDto itemDto : items) {
+                BigDecimal xcr = xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now());
+                BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
+                        itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), xcr);
+                if (reconciled[0] != null) {
+                    itemsSum = itemsSum.add(reconciled[0]);
+                }
+            }
+        }
+        BigDecimal mpl = (mplCpitAmt == null ? BigDecimal.ZERO : mplCpitAmt)
+                .add(mplMngcAmt == null ? BigDecimal.ZERO : mplMngcAmt);
+        BigDecimal currentYear = itemsSum.subtract(mpl);
+        return currentYear.signum() < 0 ? BigDecimal.ZERO : currentYear;
+    }
+
+    /**
      * 정보화사업 삭제 (Soft Delete)
      *
      * <p>
@@ -618,7 +665,7 @@ public class ProjectService {
                     }
                 })
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .toList();
 
         // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
         String bgYy = request.getBseYy();
@@ -629,9 +676,13 @@ public class ProjectService {
             Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByPrjMngNos(prjMngNos, bgYy);
 
             // 자본예산/일반관리비 편성예산 분류 (마이그레이션 후 cId=CommonCodeGroups.IOE, cTp 필드로 분류)
+            // 자본예산 비목의 cTp는 IOE_HW(기계장치)/IOE_DVC(개발비)/IOE_SW(무형자산) 계열이다.
+            // (구코드 IOE_CPIT만 보던 버그로 assetTypes가 비어 자본 편성예산이 항상 0이 되던 문제 수정.
+            //  BudgetWorkService.CAPITAL_CTPS와 동일 집합으로 정렬)
+            Set<String> capitalCTps = java.util.Set.of("IOE_DVC", "IOE_HW", "IOE_SW", "IOE_CPIT");
             List<com.kdb.it.common.code.entity.Ccodem> allIoeForBugt = codeService.findCodeEntitiesByCId(CommonCodeGroups.IOE);
             Set<String> assetTypes = allIoeForBugt.stream()
-                    .filter(c -> "IOE_CPIT".equals(c.getCTp()))
+                    .filter(c -> capitalCTps.contains(c.getCTp()))
                     .map(c -> c.getCdva())
                     .collect(Collectors.toSet());
             Set<String> costTypes = allIoeForBugt.stream()
@@ -662,7 +713,7 @@ public class ProjectService {
         if (projects.isEmpty()) return;
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
-        List<String> prjMngNos = projects.stream().map(Bprojm::getAbusMngNo).collect(Collectors.toList());
+        List<String> prjMngNos = projects.stream().map(Bprojm::getAbusMngNo).toList();
         List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", prjMngNos);
 
         // prjMngNo → 최신 Cappla (이미 DESC 정렬이므로 첫 번째가 최신)
@@ -673,7 +724,7 @@ public class ProjectService {
 
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
-                .map(Cappla::getApfDcmNo).collect(Collectors.toList());
+                .map(Cappla::getApfDcmNo).toList();
         Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
                 .collect(Collectors.toMap(Capplm::getApfMngNo, m -> m));
 
@@ -713,13 +764,13 @@ public class ProjectService {
                 .collect(Collectors.toMap(CorgnI::getPrlmOgzCCone, CorgnI::getBbrNm));
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
-        Map<String, String> prjTpNameMap = prjTpCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.PRJ_TYPE, prjTpCdvas);
-        Map<String, String> bzDttNameMap = bzDttCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.BZ_DTT, bzDttCdvas);
-        Map<String, String> tchnTpNameMap = tchnTpCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.TECH_TYPE, tchnTpCdvas);
-        Map<String, String> mnUsrNameMap = mnUsrCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.MAIN_USER, mnUsrCdvas);
-        Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.REPORT_STS, rprStsCdvas);
-        Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
-        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : buildCodeNameMap(CommonCodeGroups.ABUS, pulDttCdvas);
+        Map<String, String> prjTpNameMap = prjTpCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.PRJ_TYPE, prjTpCdvas);
+        Map<String, String> bzDttNameMap = bzDttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.BZ_DTT, bzDttCdvas);
+        Map<String, String> tchnTpNameMap = tchnTpCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.TECH_TYPE, tchnTpCdvas);
+        Map<String, String> mnUsrNameMap = mnUsrCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.MAIN_USER, mnUsrCdvas);
+        Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCdvas);
+        Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
+        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
 
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < projects.size(); i++) {
@@ -913,118 +964,11 @@ public class ProjectService {
         if (response.getItems() == null) {
             List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
                     .map(ProjectDto.BitemmDto::fromEntity)
-                    .collect(Collectors.toList());
+                    .toList();
             enrichItemIoeCNames(itemDtos);
             response.setItems(itemDtos);
         }
-        setBudgetSummaryFromItems(response, bitemms);
-    }
-
-    /**
-     * 품목 목록으로부터 자본예산/일반관리비 합계를 계산하여 응답 DTO에 설정
-     *
-     * <p>
-     * 자본예산(assetBg): 품목구분(gclDtt)이 공통코드 코드값구분 IOE_CPIT에 해당하는 품목의 gclAmt 합계
-     * </p>
-     * <p>
-     * 일반관리비(costBg): 품목구분(gclDtt)이 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하는 품목의 gclAmt 합계
-     * </p>
-     *
-     * @param response 예산 합계를 설정할 응답 DTO
-     * @param bitemms  합계 계산 대상 품목 목록
-     */
-    private void setBudgetSummaryFromItems(ProjectDto.Response response,
-            List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms) {
-        // 마이그레이션 후: cId=CommonCodeGroups.IOE 단일 그룹, cTp 필드로 자본/관리비 분류
-        // 개발비/기계장치/기타무형자산은 C_TP 기준(IOE_DVC/IOE_HW/IOE_SW)으로 세부 분류
-        List<com.kdb.it.common.code.entity.Ccodem> allIoeCodes = codeService.findCodeEntitiesByCId(CommonCodeGroups.IOE);
-        List<com.kdb.it.common.code.entity.Ccodem> assetCodes = allIoeCodes.stream()
-                .filter(c -> CAPITAL_DETAIL_CTPS.contains(c.getCTp()) || "IOE_CPIT".equals(c.getCTp()))
-                .collect(java.util.stream.Collectors.toList());
-        java.util.Set<String> assetTypes = assetCodes.stream()
-                .map(com.kdb.it.common.code.entity.Ccodem::getCdva)
-                .collect(java.util.stream.Collectors.toSet());
-
-        // 자본예산 비목코드를 코드타입(C_TP) 기준으로 세부 분류
-        java.util.Map<String, java.util.Set<String>> assetSubTypesByCTp = assetCodes.stream()
-                .collect(java.util.stream.Collectors.groupingBy(
-                        c -> c.getCTp() != null ? c.getCTp() : "",
-                        java.util.stream.Collectors.mapping(
-                                com.kdb.it.common.code.entity.Ccodem::getCdva,
-                                java.util.stream.Collectors.toSet())));
-        java.util.Set<String> devTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_DVC, java.util.Collections.emptySet()));
-        java.util.Set<String> machTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_HW, java.util.Collections.emptySet()));
-        java.util.Set<String> intanTypes = new java.util.HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_SW, java.util.Collections.emptySet()));
-
-        // 구 데이터 호환: IOE_CPIT 행은 CDVA_DES 한글명으로 세부 분류
-        assetCodes.stream()
-                .filter(c -> "IOE_CPIT".equals(c.getCTp()))
-                .forEach(c -> {
-                    String cdvaDes = c.getCdvaDes() != null ? c.getCdvaDes() : "";
-                    if ("단말기".equals(cdvaDes)) devTypes.add(c.getCdva());
-                    else if ("기계장치".equals(cdvaDes)) machTypes.add(c.getCdva());
-                    else if ("기타무형자산".equals(cdvaDes)) intanTypes.add(c.getCdva());
-                });
-
-        // 일반관리비: cTp가 IOE_IDR/IOE_SEVS/IOE_XPN/IOE_LEAFE인 코드의 cdva 집합
-        java.util.Set<String> costTypes = allIoeCodes.stream()
-                .filter(c -> java.util.Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE").contains(c.getCTp()))
-                .map(com.kdb.it.common.code.entity.Ccodem::getCdva)
-                .collect(java.util.stream.Collectors.toSet());
-
-        // 품목별 금액 계산 헬퍼 (gclAmt × xcr, xcr이 null이거나 0이면 1로 간주)
-        java.util.function.Function<com.kdb.it.domain.budget.project.entity.Bitemm, java.math.BigDecimal> calcAmt =
-                item -> {
-                    java.math.BigDecimal xcr = (item.getXcr() != null && item.getXcr().compareTo(java.math.BigDecimal.ZERO) != 0)
-                            ? item.getXcr() : java.math.BigDecimal.ONE;
-                    return item.getAmt().multiply(xcr);
-                };
-
-        // 유효한 품목만 필터링 (ioeC, gclAmt가 null이 아닌 항목)
-        List<com.kdb.it.domain.budget.project.entity.Bitemm> validItems = bitemms.stream()
-                .filter(item -> item.getIoeC() != null && item.getAmt() != null)
-                .collect(java.util.stream.Collectors.toList());
-
-        // 자본예산 합계 계산
-        java.math.BigDecimal assetBg = validItems.stream()
-                .filter(item -> assetTypes.contains(item.getIoeC()))
-                .map(calcAmt)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-
-        // 자본예산 세부 분류 합계 계산
-        java.math.BigDecimal dvcBg = validItems.stream()
-                .filter(item -> devTypes.contains(item.getIoeC()))
-                .map(calcAmt)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-        java.math.BigDecimal hwBg = validItems.stream()
-                .filter(item -> machTypes.contains(item.getIoeC()))
-                .map(calcAmt)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-        java.math.BigDecimal swBg = validItems.stream()
-                .filter(item -> intanTypes.contains(item.getIoeC()))
-                .map(calcAmt)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-
-        // 일반관리비 합계 계산
-        java.math.BigDecimal costBg = validItems.stream()
-                .filter(item -> costTypes.contains(item.getIoeC()))
-                .map(calcAmt)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-
-        response.setBudgetAmounts(assetBg, dvcBg, hwBg, swBg, costBg);
-    }
-
-    /**
-     * C_ID 기준 cdva→C_NM 맵 생성 (지정 cdva만 필터링)
-     *
-     * @param cId   코드ID (예: PRJ_TP, BZ_DTT)
-     * @param cdvas 조회할 코드값 집합
-     * @return 코드값 → 코드명 맵
-     */
-    private Map<String, String> buildCodeNameMap(String cId, Set<String> cdvas) {
-        return ccodemRepository.findByCIdWithValidDate(cId, null).stream()
-                .filter(c -> cdvas.contains(c.getCdva()))
-                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCdvaNm, (a, b) -> a));
+        projectBudgetSummaryService.applyBudgetSummary(response, bitemms);
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.kdb.it.domain.payment.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -17,14 +18,14 @@ public final class PaymentDto {
             @NotBlank @Size(max = 30) String cncdRfrNo,
             @Size(max = 300) String reqCone,
             @Size(max = 100) String cttNm,
-            BigDecimal cttAmt
+            @DecimalMin(value = "0", message = "계약금액은 0 이상이어야 합니다.") BigDecimal cttAmt
     ) {}
 
     @Schema(name = "PaymentUpdateRequest", description = "대금지급 마스터 수정(작성중)")
     public record UpdateRequest(
             @Size(max = 300) String reqCone,
             @Size(max = 100) String cttNm,
-            BigDecimal cttAmt
+            @DecimalMin(value = "0", message = "계약금액은 0 이상이어야 합니다.") BigDecimal cttAmt
     ) {}
 
     @Schema(name = "PaymentStatusRequest", description = "대금지급 상태 전이")
@@ -33,7 +34,7 @@ public final class PaymentDto {
     @Schema(name = "PaymentLineRequest", description = "회차별 지급 1행")
     public record LineRequest(
             @NotNull Integer dfrTod,
-            BigDecimal dfrAmt,
+            @DecimalMin(value = "0", message = "지급금액은 0 이상이어야 합니다.") BigDecimal dfrAmt,
             @Size(max = 8) String dfrDt,
             @Size(max = 8) String dfrMplDt,
             @Size(max = 1000) String opnnCone

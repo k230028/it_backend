@@ -4,10 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.stream.Collectors;
 
@@ -106,6 +108,58 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         log.warn("입력값 검증 실패: {}", message);
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message);
+    }
+
+    /**
+     * 접근 권한 없음 예외 처리 (403 Forbidden)
+     *
+     * <p>서비스 계층의 소유권/권한 검증({@code OwnershipVerifier}) 실패 시 발생합니다.
+     * 포괄 {@code RuntimeException} 핸들러(400)보다 우선 매칭되어 403으로 반환합니다.</p>
+     *
+     * @param e {@link AccessDeniedException}
+     * @return 403 응답 + 오류 메시지
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException e) {
+        log.warn("접근 권한 없음: {}", e.getMessage());
+        return buildErrorResponse(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+
+    /**
+     * 리소스 미존재 예외 처리 (404 Not Found)
+     *
+     * <p>{@link NotFoundException}을 404로 매핑합니다. 잘못된 입력값(400)과 구분하기 위한
+     * 전용 핸들러로, 포괄 {@code RuntimeException} 핸들러(400)보다 우선 매칭됩니다.</p>
+     *
+     * @param e {@link NotFoundException}
+     * @return 404 응답 + 오류 메시지
+     */
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(NotFoundException e) {
+        log.warn("리소스 미존재: {}", e.getMessage());
+        return buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    /**
+     * 명시적 상태코드 예외 처리 (상태코드 보존)
+     *
+     * <p>{@link ResponseStatusException}이 지정한 HTTP 상태코드(404·500 등)를 그대로 보존합니다.
+     * 본 핸들러가 없으면 {@code RuntimeException} 핸들러가 400으로 강등합니다.
+     * 5xx는 ERROR, 그 외는 WARN으로 로깅합니다.</p>
+     *
+     * @param e {@link ResponseStatusException}
+     * @return 지정 상태코드 응답 + 사유 메시지
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException e) {
+        HttpStatus status = HttpStatus.valueOf(e.getStatusCode().value());
+        String message = e.getReason() != null ? e.getReason() : status.getReasonPhrase();
+        if (status.is5xxServerError()) {
+            log.error("상태코드 예외(5xx): status={}, reason={}", status.value(), message, e);
+        } else {
+            log.warn("상태코드 예외: status={}, reason={}", status.value(), message, e);
+        }
+        return buildErrorResponse(status, message);
     }
 
     /**

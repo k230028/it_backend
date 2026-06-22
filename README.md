@@ -19,21 +19,21 @@
   - DB 기반 메뉴 트리 및 라우트 카탈로그 관리
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
-- **소스 코드**: 347개 메인 Java 파일, 116개 테스트 파일, 77개 JPA 엔티티(`@Entity` 기준)
+- **소스 코드**: 353개 메인 Java 파일, 121개 테스트 파일, 74개 JPA 엔티티(`@Entity` 기준)
 
 ## 2. 기술 스택
 
 | 구분 | 기술 | 버전 | 비고 |
 |------|------|------|------|
 | 언어 | Java | 25 | JDK 25 툴체인 |
-| 프레임워크 | Spring Boot | 4.0.5 | Spring Framework 7.0, 경량화 설정 |
+| 프레임워크 | Spring Boot | 4.1.0 | Spring Framework 7.x, 경량화 설정 |
 | ORM | Spring Data JPA + QueryDSL | 5.1.0 | 동적 쿼리/집계 쿼리용 QueryDSL, SQL Injection 대응(CVE) |
 | DB | Oracle Database | XEPDB1 | 사용자: `ITPAPP` |
 | 인증 | Spring Security + JWT | JJWT 0.13.0 | **httpOnly 쿠키 기반**, 15분 Access Token / 7일 Refresh Token |
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 116개 테스트 파일 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 121개 테스트 파일 |
 
 ## 2.5 빠른 시작 (Quick Start)
 
@@ -52,8 +52,8 @@ $env:GEMINI_API_KEY = "your-gemini-api-key"  # 필요시
 cd it_backend
 ./gradlew clean build
 ./gradlew bootRun
-#   → http://localhost:8080
-#   → Swagger: http://localhost:8080/swagger-ui/index.html
+#   → http://localhost:28080
+#   → Swagger: http://localhost:28080/swagger-ui/index.html
 ```
 
 ### 테스트 실행
@@ -690,7 +690,7 @@ public class Bprojm extends BaseEntity { ... }
 | 보호 범위 | 방식 | 예시 |
 |-----------|------|-----|
 | `/api/admin/**` | `SecurityConfig` URL 패턴 + `@PreAuthorize` | AdminController |
-| `/api/plans/**` | `PlanController` 클래스 레벨 `@PreAuthorize` | SecurityConfig에는 구 경로 `/api/plan/**`가 남아 있어 정비 필요 |
+| `/api/plans/**` | `PlanController` 클래스 레벨 `@PreAuthorize` | SecurityConfig URL 매처 `/api/plans/**`로 정합 완료 |
 | `/api/budget/status/**` | `@PreAuthorize` 컨트롤러 레벨만 | BudgetStatusController |
 | `/api/budget/work/**` | `@PreAuthorize` 컨트롤러 레벨만 | BudgetWorkController |
 
@@ -767,7 +767,7 @@ public class Bprojm extends BaseEntity { ... }
 
 > 사업집행 4단계(`/api/project/**`)는 클래스 레벨 `@PreAuthorize` 없이 인증만 요구하며, 쓰기 주체·상태 전이·부서 권한은 서비스 계층에서 검증합니다. 대상구분(`bgPrnTc`)은 100(정보화사업)·200(전산업무비)이며 소요예산 산정은 100 전용입니다.
 
-> **Swagger UI**: http://localhost:8080/swagger-ui/index.html
+> **Swagger UI**: http://localhost:28080/swagger-ui/index.html
 
 ## 10. 빌드 및 실행
 
@@ -780,10 +780,10 @@ public class Bprojm extends BaseEntity { ... }
 
 # 3. 개발 서버 기동 (Hot Reload 지원)
 ./gradlew bootRun
-#   → http://localhost:8080
-#   → Swagger: http://localhost:8080/swagger-ui/index.html
+#   → http://localhost:28080
+#   → Swagger: http://localhost:28080/swagger-ui/index.html
 
-# 4. 테스트 실행 (84개 테스트 파일)
+# 4. 테스트 실행 (121개 테스트 파일)
 ./gradlew test
 
 # 5. 테스트 커버리지 리포트 생성
@@ -900,7 +900,7 @@ Get-Content maven-repo-manifest.txt | Where-Object { $_ -notlike '*.module' } |
 #### 동작 원리 및 주의사항
 
 - Gradle은 플러그인 ID(`org.springframework.boot`)를 **마커 POM**
-  (`org.springframework.boot.gradle.plugin-4.0.5.pom`)으로 먼저 조회한 뒤 실제
+  (`org.springframework.boot.gradle.plugin-4.1.0.pom`)으로 먼저 조회한 뒤 실제
   구현 JAR를 받습니다. 미러에 마커 POM이 없으면 "Plugin was not found" 오류가
   발생합니다 (변환 스크립트가 자동 포함).
 - `querydsl-jpa`/`querydsl-apt`는 `jakarta` classifier 파일
@@ -930,6 +930,12 @@ Get-Content maven-repo-manifest.txt | Where-Object { $_ -notlike '*.module' } |
 | `spring.datasource.url` | - | `jdbc:oracle:thin:@127.0.0.1:11521/XEPDB1` | 프로덕션 접속 정보 | Oracle 접속 URL |
 | `spring.datasource.hikari.connection-init-sql` | `ALTER SESSION SET CURRENT_SCHEMA=${DB_SCHEMA:ITPOWN}` | 동일 (베이스 공통) | 동일 (베이스 공통) | 스키마 전환 — 전 환경 공통 (접속 ITPAPP → 객체 소유 ITPOWN) |
 | `spring.datasource.password` | `${DB_PASSWORD:kdb1234!!}` | 환경변수 또는 기본값 `kdb1234!!` | 환경변수 `DB_PASSWORD` | DB 비밀번호 (환경변수 우선, 운영 기본값 제거 필요) |
+| `spring.flyway.enabled` | `false` | `local-ext`/`local-int`: true | false | Flyway 자동 마이그레이션 사용 여부. dev/prod는 DBA 적용 |
+| `spring.flyway.locations` | `${FLYWAY_LOCATIONS:classpath:db/migration}` | classpath 기본값 | classpath 기본값 또는 배포 정책값 | Gradle이 `../it_database/migrations/V*.sql`을 포함하는 위치 |
+| `spring.flyway.user` / `spring.flyway.password` | `${FLYWAY_USER:${spring.datasource.username}}` / `${FLYWAY_PASSWORD:${spring.datasource.password}}` | 앱 계정 또는 로컬 DDL 계정 | 운영 DDL 권한 계정 | Flyway 전용 접속 계정. 미설정 시 datasource 계정 사용 |
+| `spring.flyway.default-schema` / `spring.flyway.schemas` | `${DB_SCHEMA:ITPOWN}` | ITPOWN | 운영 객체 스키마 | Flyway schema history와 마이그레이션 적용 스키마 |
+| `spring.flyway.baseline-on-migrate` | `${FLYWAY_BASELINE_ON_MIGRATE:true}` | true | 기존 스키마 최초 도입 시 true | 기존 non-empty 스키마를 기준선으로 등록 |
+| `spring.flyway.baseline-version` | `${FLYWAY_BASELINE_VERSION:20260620.001}` | `20260620.001` | 기존 운영 스키마 기준 버전 | 기존 ITPOWN 스키마의 현재 적용 기준선 |
 | `jwt.secret` | `${JWT_SECRET:kdb-it-secret-key-...256-bits}` | 환경변수 또는 내장 기본 시크릿 | 환경변수 `JWT_SECRET` (최소 256비트) | JWT 서명 비밀키 (운영 기본값 제거 필요) |
 | `jwt.access-token-validity` | `900000` | - | - | Access Token 유효시간 (15분) |
 | `jwt.refresh-token-validity` | `604800000` | - | - | Refresh Token 유효시간 (7일) |
@@ -941,6 +947,14 @@ Get-Content maven-repo-manifest.txt | Where-Object { $_ -notlike '*.module' } |
 | `spring.servlet.multipart.max-request-size` | `200MB` | - | - | 다건 업로드 최대 크기 |
 | `gemini.api.key` | - | 환경변수 `GEMINI_API_KEY` | 환경변수 | Google Gemini API 키 |
 | `gemini.api.model` | `gemini-2.5-flash` | - | - | Gemini 모델 선택 |
+
+#### DB 마이그레이션
+- 신규 DDL/DML 변경은 `../it_database/migrations/V{YYYYMMDD_NNN}__{설명}.sql`로 추가합니다.
+- 백엔드 빌드 시 `processResources`가 해당 파일을 `classpath:db/migration`으로 복사합니다.
+- Flyway 자동 적용은 `local-ext`/`local-int` 프로파일에서만 켭니다. `dev`/`prod` DB는 DBA가 스크립트를 검토하고 수동 적용합니다.
+- 기존 로컬 ITPOWN 스키마는 `baseline-version=20260620.001`로 기준선을 등록합니다. 빈 스키마에서는 전체 V* 스크립트를 처음부터 순서대로 적용합니다.
+- 로컬에서 애플리케이션 계정(`ITPAPP`)에 DDL 권한을 주지 않는 경우 `FLYWAY_USER`/`FLYWAY_PASSWORD`에 DDL 권한 계정을 별도로 지정합니다.
+- 단위 테스트 프로파일(`application-test.properties`)은 DB 자동설정을 제외하므로 `spring.flyway.enabled=false`를 사용합니다.
 
 ### 11.2 보안 설정
 
@@ -1156,6 +1170,7 @@ public class Bnewent extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-06-22** | README.md 현행화: Spring Boot 4.1.0 기준으로 기술 스택 표기 정정, 소스 통계 재검증(메인 Java 353개, 테스트 121개, @Entity 74개), 루트 AI 하네스 기준(Superpowers 기본, ECC/gstack 보조)과 충돌하지 않도록 문서 참조 흐름 정리 |
 | **2026-06-09** | README.md 코드 대조 현행화: (1) 소스 통계 정정(메인 Java 291→350, 테스트 96→115, @Entity 64→79), (2) 정보화사업 집행 4단계 도메인 신규 반영 — `domain/estimate`(소요예산 산정, `/api/project/estimates`, Bestim+Besttm), `domain/deliberation`(과업심의, `/api/project/deliberations`, Bdelim), `domain/contract`(입찰/계약, `/api/project/contracts`, Bcontm), `domain/payment`(대금지급, `/api/project/payments`, Bpaymm+Bpaymt) — 패키지 구조·모듈 관계표·API 엔드포인트표에 추가(상태머신 41~79, 인증만 요구·서비스 계층 권한 검증), (3) `infra/eai`(KDB 표준전문 EAI 발송, sealed EaiPayload SPI: UMS/GWE, eai.enabled=false 미연동) 인프라 모듈 반영 |
 | **2026-06-05** | README.md 코드 대조 현행화: (1) 소스 통계 정정(@Entity 63→64), (2) `Bmqnam`(본회의질의응답) 엔티티·`@LogTarget` 반영 — 로그 대상 23→25개(관리자 조회 정의는 20개 유지), (3) 협의회 통계 정정(매핑 34→39, 서비스 8→9, Repository 9→10), (4) `config` 7개(ClockConfig 포함) 및 `domain/menu`·`budget/it` 패키지 명시, 미사용 `cdp`/`audit` 빈 디렉토리 표기 제거, (5) `application.properties` 실제 기본값(`DB_PASSWORD`/`JWT_SECRET`) 반영 |
 | **2026-06-05** | README.md 현행화: 소스 통계(291개 메인 Java, 96개 테스트)와 DB 기반 메뉴 모듈(`domain/menu`, `/api/menus`, `/api/admin/menus`, `/api/admin/routes`) 반영 |

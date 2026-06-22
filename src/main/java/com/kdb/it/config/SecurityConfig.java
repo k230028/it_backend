@@ -70,7 +70,7 @@ public class SecurityConfig {
          * 운영 환경: {@code application.properties}의 {@code cors.allowed-origins}에 도메인 지정
          * 예: {@code cors.allowed-origins=https://itportal.kdb.com}
          */
-        @Value("${cors.allowed-origins:*}")
+        @Value("${cors.allowed-origins:}")
         private String allowedOrigins;
 
         /**
@@ -136,8 +136,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                                 // 회원가입 — 관리자만 신규 계정 생성 가능 (임직원 포털 특성상 자유 가입 금지)
                                                 .requestMatchers("/api/auth/signup").hasRole("ADMIN")
-                                                // 정보기술부문계획 — 관리자 전용
-                                                .requestMatchers("/api/plan/**").hasRole("ADMIN")
+                                                // 정보기술부문계획 — 관리자 전용 (컨트롤러 실제 경로 /api/plans 와 정합)
+                                                .requestMatchers("/api/plans/**").hasRole("ADMIN")
                                                 // 나머지는 인증 필요 (유효한 JWT 토큰 필수)
                                                 .anyRequest().authenticated())
                                 // 인증/접근 예외 처리 핸들러 설정
@@ -183,7 +183,7 @@ public class SecurityConfig {
          * <ul>
          * <li>허용 Origin: {@code cors.allowed-origins}에 지정된 명시 Origin</li>
          * <li>허용 메서드: GET, POST, PUT, DELETE, OPTIONS, PATCH</li>
-         * <li>허용 헤더: 전체 ({@code *})</li>
+         * <li>허용 헤더: 명시 목록(Content-Type/Authorization/X-Requested-With)</li>
          * <li>자격증명(쿠키 등) 포함 허용: true</li>
          * </ul>
          *
@@ -194,11 +194,21 @@ public class SecurityConfig {
                 CorsConfiguration configuration = new CorsConfiguration();
                 // 허용 Origin: application.properties의 cors.allowed-origins 값 사용
                 // allowCredentials=true 사용 시 와일드카드(*) 불가 → 명시적 도메인 필요
-                configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
+                // split 후 공백 제거 + 빈 항목 필터링: 빈/콤마-공백 입력이 [""]로 해석돼
+                // 모든 교차 출처를 조용히 차단하는 footgun 방지.
+                List<String> origins = java.util.Arrays.stream(allowedOrigins.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .toList();
+                if (origins.isEmpty()) {
+                        // 미설정 시 빈 목록을 명시적으로 설정 — 동작이 의도적이고 가시적이도록 WARN 로깅.
+                        log.warn("[CORS] cors.allowed-origins 미설정 — 교차 출처 요청이 차단됩니다");
+                }
+                configuration.setAllowedOrigins(origins);
                 // 허용할 HTTP 메서드 목록
                 configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-                // 모든 요청 헤더 허용 (Authorization, Content-Type 등)
-                configuration.setAllowedHeaders(List.of("*"));
+                // 허용 헤더 명시화: 운영에서 필요한 표준 헤더만 허용 (와일드카드 제거)
+                configuration.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-Requested-With"));
                 // 쿠키, Authorization 헤더 등 자격증명 포함 허용
                 configuration.setAllowCredentials(true);
                 // 브라우저가 읽을 수 있도록 노출할 응답 헤더 (201 Created 시 신규 리소스 경로 추출용)

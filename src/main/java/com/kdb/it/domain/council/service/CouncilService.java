@@ -1,7 +1,6 @@
 package com.kdb.it.domain.council.service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
@@ -109,29 +108,29 @@ public class CouncilService {
      * @return 권한에 맞는 협의회 목록
      */
     public List<CouncilDto.ListResponse> getCouncilList(CustomUserDetails userDetails) {
-        log.info("[CouncilList] eno={}, isAdmin={}, isCommitteeMember={}, bbrC={}",
+        log.debug("[CouncilList] eno={}, isAdmin={}, isCommitteeMember={}, bbrC={}",
                 userDetails.getEno(), userDetails.isAdmin(), isCommitteeMember(userDetails), userDetails.getBbrC());
 
         if (userDetails.isAdmin()) {
             // 관리자: 전체 부서 대상으로 결재완료 사업(미신청 포함) + 기신청 협의회 통합 조회
             List<Object[]> rows = councilRepository.findProjectsForCouncilAll(
                     PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
-            log.info("[CouncilList] admin query result count={}", rows.size());
-            return rows.stream().map(row -> toListResponseFromRow(row)).collect(Collectors.toList());
+            log.debug("[CouncilList] admin query result count={}", rows.size());
+            return rows.stream().map(row -> toListResponseFromRow(row)).toList();
         }
 
         if (isCommitteeMember(userDetails)) {
             // 평가위원: 배정된 협의회만 조회
             return councilRepository.findByCommitteeMember(userDetails.getEno(), "N").stream()
                     .map(c -> toListResponseFromEntity(c))
-                    .collect(Collectors.toList());
+                    .toList();
         }
 
         // 일반사용자: SVN_DPM = 사용자 BBR_C 조건으로 결재완료 사업 + 기신청 협의회 통합 조회
         List<Object[]> rows = councilRepository.findProjectsForCouncilByDepartment(
                 userDetails.getBbrC(), PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
-        log.info("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());
-        return rows.stream().map(row -> toListResponseFromRow(row)).collect(Collectors.toList());
+        log.debug("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());
+        return rows.stream().map(row -> toListResponseFromRow(row)).toList();
     }
 
     /**
@@ -257,7 +256,7 @@ public class CouncilService {
         List<Bcmmtm> evaluators = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
                 .stream()
                 .filter(m -> !"03".equals(m.getItPtlAsctMebTc()))
-                .collect(Collectors.toList());
+                .toList();
 
         if (evaluators.isEmpty()) {
             throw new IllegalStateException("평가위원이 선정되지 않았습니다.");
@@ -529,8 +528,10 @@ public class CouncilService {
                             Integer.parseInt(digits.substring(0, 4)),
                             Integer.parseInt(digits.substring(4, 6)),
                             Integer.parseInt(digits.substring(6, 8)));
-                } catch (NumberFormatException | java.time.DateTimeException ignored) {
-                    // TODO: 회의일자 문자열 파싱 실패 시 원본 값을 warn 로그로 남겨 데이터 정합성 점검이 가능하게 합니다.
+                } catch (NumberFormatException | java.time.DateTimeException e) {
+                    // 회의일자 문자열이 yyyyMMdd로 변환되지 않으면 null 반환(카드에 미표시).
+                    // 데이터 정합성 점검을 위해 원본 값과 원인 예외를 warn으로 남긴다.
+                    log.warn("[협의회] 회의일자 파싱 실패 — 원본값={}", s, e);
                     return null;
                 }
             }

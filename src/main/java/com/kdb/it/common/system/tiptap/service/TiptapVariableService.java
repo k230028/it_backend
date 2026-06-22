@@ -6,12 +6,15 @@ import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.MetadataResponse;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ProjectRef;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ResolveResponse;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ResolvedValue;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.tiptap.util.TiptapTokenParser;
+import com.kdb.it.common.system.tiptap.util.TiptapTokenParser.Category;
 import com.kdb.it.common.system.tiptap.util.TiptapTokenParser.ParseResult;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount;
 import com.kdb.it.domain.budget.status.repository.BudgetStatusQueryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +52,8 @@ public class TiptapVariableService {
      *
      * @return 카테고리 메타데이터 응답 (IT_BUDGET, CAP_BUDGET, OPEX, PROJ 4개 카테고리)
      */
+    // 활성 사업 변경 시 캐시 무효화는 후속 과제(TTL 미지원 ConcurrentMap) — 준정적 카탈로그라 evict 미적용.
+    @Cacheable("tiptapMetadata")
     public MetadataResponse getMetadata() {
         List<Integer> years = currentPlusMinusTwo();
         List<ProjectRef> projects = projectRepository.findActiveProjectRefs().stream()
@@ -66,44 +71,54 @@ public class TiptapVariableService {
     /**
      * 변수 토큰 배열을 해석하여 표시값/상태를 매핑해 반환합니다.
      *
-     * <p>
-     * 동작 순서:
-     * <ol>
+      * <p>동작 순서:</p>
+      * <ol>
      *   <li>토큰 정규식 검증 — 실패 시 {@code INVALID}</li>
      *   <li>카테고리에 따라 {@link BudgetStatusQueryRepository#aggregateByCategory(int, String)} 또는
      *       {@link BudgetStatusQueryRepository#aggregateByProject(int, String)} 호출</li>
-     *   <li>편성요청액·편성액·편성률 항목별 포맷팅 적용</li>
-     * </ol>
-     * </p>
+      *   <li>편성요청액·편성액·편성률 항목별 포맷팅 적용</li>
+      * </ol>
      *
      * @param tokens 해석 대상 토큰 배열 (호출자는 1~200 사이로 검증)
      * @return 토큰별 해석 결과(삽입 순서 유지)
      */
-    public ResolveResponse resolve(List<String> tokens) {
+    public ResolveResponse resolve(List<String> tokens, CustomUserDetails user) {
         Map<String, ResolvedValue> results = new LinkedHashMap<>();
+        // 인트라요청 메모이즈: 동일 (year, category|projectCode) 집계는 요청당 1회만 조회한다.
+        // 같은 (year, category)에 requestAmount/allocatedAmount/allocationRate가 함께 오면 중복 집계를 제거.
+        Map<String, AggregatedAmount> aggCache = new java.util.HashMap<>();
         for (String token : tokens) {
-            results.put(token, resolveOne(token));
+            results.put(token, resolveOne(token, user, aggCache));
         }
         return new ResolveResponse(results);
     }
 
     /**
-     * 단일 토큰 해석. INVALID/MISSING/OK 분기.
-     * FORBIDDEN 반환 경로는 현재 미구현 — 향후 SecurityContext 기준 권한 검증 추가 시 이 분기에서 처리.
-     * // TODO: 권한 검증 구현 후 FORBIDDEN 분기 추가 (TASK.md)
+     * 단일 토큰 해석. INVALID/FORBIDDEN/MISSING/OK 분기.
+     * PROJ 토큰은 관리자·부서매니저만 허용하고, 그 외 사용자에게는 FORBIDDEN을 반환한다.
      */
-    private ResolvedValue resolveOne(String token) {
+    private ResolvedValue resolveOne(String token, CustomUserDetails user, Map<String, AggregatedAmount> aggCache) {
         ParseResult parsed = tokenParser.parse(token);
         if (!parsed.valid()) {
             return ResolvedValue.invalid();
         }
+        // 사업(PROJ) 토큰은 부서/권한 종속 데이터이므로 관리자·부서매니저만 허용한다.
+        // 일반 사용자는 FORBIDDEN으로 차단(세부 부서-사업 매핑은 후속 과제).
+        if (parsed.category() == Category.PROJ
+                && (user == null || (!user.isAdmin() && !user.isDeptManager()))) {
+            return ResolvedValue.forbidden();
+        }
 
-        AggregatedAmount agg = switch (parsed.category()) {
+        // 인트라요청 메모이즈 키: 카테고리/사업코드 + 연도. computeIfAbsent로 동일 키 재조회를 방지한다.
+        String aggKey = parsed.category() == Category.PROJ
+                ? "P|" + parsed.year() + "|" + parsed.projectCode()
+                : "C|" + parsed.year() + "|" + parsed.category().name();
+        AggregatedAmount agg = aggCache.computeIfAbsent(aggKey, k -> switch (parsed.category()) {
             case IT_BUDGET, CAP_BUDGET, OPEX ->
                     budgetStatusRepository.aggregateByCategory(parsed.year(), parsed.category().name());
             case PROJ ->
                     budgetStatusRepository.aggregateByProject(parsed.year(), parsed.projectCode());
-        };
+        });
 
         if (agg == null || (agg.requestSum() == null && agg.allocatedSum() == null)) {
             return ResolvedValue.missing();

@@ -8,6 +8,7 @@ import com.kdb.it.exception.CustomGeneralException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -28,7 +29,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * 공통 첨부파일 서비스
@@ -65,6 +65,7 @@ import java.util.stream.Collectors;
  * </p>
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FileService {
@@ -111,19 +112,12 @@ public class FileService {
      *
      * <p>Oracle 시퀀스(SEQ_CFILEM) 값을 기반으로 생성합니다.</p>
      *
-     * <p>시퀀스가 기존 데이터의 최대값보다 작게 재설정되면 PK 충돌(ORA-00001)이
-     * 발생할 수 있으므로, INSERT 충돌 시 최대 {@value #FL_MNG_NO_RETRY}회까지
-     * 다음 NEXTVAL을 시도하여 자동 회복합니다(`uploadFileInternal`에서 활용).</p>
-     *
      * @return 파일매핑ID (예: FL_00000001)
      */
     private String generateFlMpnId() {
         Long seq = fileRepository.getNextSequenceValue();
         return String.format("FL_%08d", seq);
     }
-
-    /** PK 충돌 회복 시 최대 재시도 횟수 (시퀀스가 기존 최대값보다 작게 재설정된 경우 대비) */
-    private static final int FL_MNG_NO_RETRY = 5;
 
     /**
      * 파일물리명 생성
@@ -239,7 +233,7 @@ public class FileService {
             list = fileRepository.findAllByPkColNmAndDelYn(condition.getPkColNm(), "N");
         }
 
-        return list.stream().map(this::toResponse).collect(Collectors.toList());
+        return list.stream().map(this::toResponse).toList();
     }
 
     // ─────────────────────────────────────────
@@ -397,7 +391,9 @@ public class FileService {
                 Cfilem saved = uploadFileInternal(file, request);
                 successList.add(toResponse(saved));
             } catch (Exception e) {
-                // TODO: [B-H-01] 파일 업로드 실패 로그에 원본 파일명과 스택 트레이스를 포함해 실패 원인을 추적한다.
+                // 다건 업로드 중 일부 실패는 전체를 중단하지 않고 실패 목록으로 수집한다.
+                // 단, 원본 파일명과 스택트레이스를 warn으로 남겨 실패 원인을 추적한다.
+                log.warn("[파일] 업로드 실패 — fileName={}", file.getOriginalFilename(), e);
                 failList.add(file.getOriginalFilename() + " (" + e.getMessage() + ")");
             }
         }
@@ -520,7 +516,7 @@ public class FileService {
         try {
             resource = new UrlResource(filePath.toUri());
         } catch (MalformedURLException e) {
-            throw new CustomGeneralException("파일 경로가 잘못되었습니다. 파일매핑ID: " + flMpnId);
+            throw new CustomGeneralException("파일 경로가 잘못되었습니다. 파일매핑ID: " + flMpnId, e);
         }
 
         if (!resource.exists() || !resource.isReadable()) {

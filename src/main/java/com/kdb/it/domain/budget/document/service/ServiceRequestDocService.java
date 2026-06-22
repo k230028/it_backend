@@ -68,17 +68,29 @@ public class ServiceRequestDocService {
      * @return 문서별 최신 버전 응답 DTO 목록
      */
     public List<ServiceRequestDocDto.Response> getDocumentList() {
-        return serviceRequestDocRepository.findLatestVersionsAll().stream()
-                .map(entity -> {
-                    ServiceRequestDocDto.Response response = ServiceRequestDocDto.Response.fromEntity(entity);
-                    // 최초생성자 사번 → 사용자명 매핑
-                    if (response.getFstEnrUsid() != null && !response.getFstEnrUsid().isEmpty()) {
-                        cuserIRepository.findById(response.getFstEnrUsid())
-                                .ifPresent(user -> response.setFstEnrUsNm(user.getUsrNm()));
-                    }
-                    return response;
-                })
-                .collect(Collectors.toList());
+        List<ServiceRequestDocDto.Response> responses = serviceRequestDocRepository.findLatestVersionsAll().stream()
+                .map(ServiceRequestDocDto.Response::fromEntity)
+                .toList();
+
+        // 작성자명 배치 조회 (N+1 제거): 사번 집합 → findByEnoIn 1회 → eno→이름 Map
+        java.util.Set<String> enos = responses.stream()
+                .map(ServiceRequestDocDto.Response::getFstEnrUsid)
+                .filter(eno -> eno != null && !eno.isEmpty())
+                .collect(Collectors.toSet());
+        if (!enos.isEmpty()) {
+            java.util.Map<String, String> nameByEno = cuserIRepository.findByEnoIn(enos).stream()
+                    .collect(Collectors.toMap(
+                            com.kdb.it.common.iam.entity.CuserI::getEno,
+                            com.kdb.it.common.iam.entity.CuserI::getUsrNm,
+                            (a, b) -> a));
+            responses.forEach(r -> {
+                // 원본 가드와 동일하게 사번이 null이거나 빈 문자열이면 이름을 설정하지 않음
+                if (r.getFstEnrUsid() != null && !r.getFstEnrUsid().isEmpty()) {
+                    r.setFstEnrUsNm(nameByEno.get(r.getFstEnrUsid()));
+                }
+            });
+        }
+        return responses;
     }
 
     /**
@@ -126,7 +138,7 @@ public class ServiceRequestDocService {
         return serviceRequestDocRepository
                 .findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N").stream()
                 .map(ServiceRequestDocDto.VersionResponse::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

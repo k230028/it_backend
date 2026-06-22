@@ -18,6 +18,8 @@ import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PlanService {
+
+        private static final Logger log = LoggerFactory.getLogger(PlanService.class);
 
         /** 정보기술부문계획(TPRMPP_BPLANM) CRUD 리포지토리 */
         private final BplanmRepository bplanmRepository;
@@ -84,7 +88,7 @@ public class PlanService {
                                 .map(Bplanm::getFstEnrUsid)
                                 .filter(eno -> eno != null && !eno.isBlank())
                                 .distinct()
-                                .collect(Collectors.toList());
+                                .toList();
                 Map<String, String> userNameByEno = userEnos.isEmpty()
                                 ? Map.of()
                                 : cuserIRepository.findAllById(userEnos).stream()
@@ -131,9 +135,9 @@ public class PlanService {
                                                                 }
                                                         }
                                                 } catch (JsonProcessingException e) {
-                                                        // FIXME: [B-H-05] 스냅샷 파싱 실패 시 카운트 0 폴백으로
-                                                        // 잘못된 예산 보고서가 산출될 수 있으므로 실패 로그와 보정 정책이 필요합니다.
-                                                        // 스냅샷 파싱 실패 시 카운트는 0 으로 유지 (목록 화면은 동작해야 함)
+                                                        // 스냅샷 파싱 실패 시 카운트는 0 으로 유지(목록 화면은 동작해야 함).
+                                                        // 단, 잘못된 예산 집계가 조용히 산출되지 않도록 원인 예외를 warn으로 남긴다.
+                                                        log.warn("[계획] 스냅샷 파싱 실패 — 사업 카운트 0으로 폴백", e);
                                                 }
                                         }
                                         dto.setItPrjCnt(itCnt);
@@ -141,7 +145,7 @@ public class PlanService {
                                         dto.setContPrjCnt(contCnt);
                                         return dto;
                                 })
-                                .collect(Collectors.toList());
+                                .toList();
         }
 
         /**
@@ -166,7 +170,7 @@ public class PlanService {
                 List<String> prjMngNos = bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N")
                                 .stream()
                                 .map(Bplana::getPrjMngNo)
-                                .collect(Collectors.toList());
+                                .toList();
 
                 return PlanDto.DetailResponse.fromEntity(plan, prjMngNos);
         }
@@ -382,7 +386,7 @@ public class PlanService {
                                                 .assetBg(c.getAssetBg())
                                                 .costBg(c.getCostBg())
                                                 .build())
-                                .collect(Collectors.toList());
+                                .toList();
 
                 // 부문별/사업유형별 사업목록에는 일반 정보화사업만 표시합니다.
                 Set<String> ordinaryProjectIds = projects.stream()
@@ -391,7 +395,7 @@ public class PlanService {
                                 .collect(Collectors.toSet());
                 List<PlanDto.ProjectSnapshot> businessListSnapshots = projectSnapshots.stream()
                                 .filter(p -> !ordinaryProjectIds.contains(p.getPrjMngNo()))
-                                .collect(Collectors.toList());
+                                .toList();
 
                 // 통합 스냅샷 목록
                 projectSnapshots.addAll(costSnapshots);
@@ -408,7 +412,7 @@ public class PlanService {
                                         group.put("projects", entry.getValue());
                                         return group;
                                 })
-                                .collect(Collectors.toList());
+                                .toList();
 
                 // 사업유형(PRJ_TP)별 그룹핑
                 Map<String, List<PlanDto.ProjectSnapshot>> byTypeMap = businessListSnapshots.stream()
@@ -422,7 +426,7 @@ public class PlanService {
                                         group.put("projects", entry.getValue());
                                         return group;
                                 })
-                                .collect(Collectors.toList());
+                                .toList();
 
                 // 스냅샷 DTO 생성
                 PlanDto.SnapshotDto snapshot = PlanDto.SnapshotDto.builder()
@@ -449,7 +453,7 @@ public class PlanService {
                         return objectMapper.writeValueAsString(snapshot);
                 } catch (JsonProcessingException e) {
                         throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                                        "계획 스냅샷 직렬화에 실패했습니다.");
+                                        "계획 스냅샷 직렬화에 실패했습니다.", e);
                 }
         }
 

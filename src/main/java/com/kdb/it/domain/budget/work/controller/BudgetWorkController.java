@@ -200,8 +200,11 @@ public class BudgetWorkController {
     @GetMapping("/summary")
     public ResponseEntity<BudgetWorkDto.SummaryResponse> getSummary(
             @Parameter(description = "예산년도", required = true, example = "2026")
-            @RequestParam("bgYy") String bgYy) {
-        return ResponseEntity.ok(budgetWorkService.getSummary(bgYy));
+            @RequestParam("bgYy") String bgYy,
+            @Parameter(description = "선택 원본 PK 목록(BBUGTM.pkColNm: 전산업무비 costBgNo·품목 gclMngNo). "
+                    + "지정 시 해당 원본만 집계(예산작업 화면=미지정=연도 전체).")
+            @RequestParam(name = "srcPks", required = false) java.util.List<String> srcPks) {
+        return ResponseEntity.ok(budgetWorkService.getSummary(bgYy, srcPks));
     }
 
     /**

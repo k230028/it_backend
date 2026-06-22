@@ -50,7 +50,7 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
     /**
      * {@inheritDoc}
      *
-     * <p>집계 흐름:
+     * <p>집계 흐름:</p>
      * <ol>
      *   <li>BITEMM × BPROJM → (ioeC, infPrtYn) 별 편성요청액</li>
      *   <li>BCOSTM → (ioeC, infPrtYn) 별 편성요청액</li>
@@ -59,7 +59,6 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
      *   <li>CCODEM(cId='IOE') → ioeCode → cdvaNm 조회</li>
      *   <li>전체 병합 후 ioeCode 오름차순 정렬</li>
      * </ol>
-     * </p>
      */
     @Override
     public List<ItBudgetDto.CategoryRow> findSummary(String bgYy) {

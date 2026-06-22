@@ -22,7 +22,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * 인증(Authentication) 서비스
@@ -196,11 +195,13 @@ public class AuthService {
      *   <li>Refresh Token JWT 서명/만료 검증</li>
      *   <li>DB에서 Refresh Token 존재 여부 확인</li>
      *   <li>DB 저장 만료일 기준 만료 여부 재확인 (보안 이중 검증)</li>
-     *   <li>새로운 Access Token 생성 및 반환</li>
+     *   <li>새로운 Access Token 생성</li>
+     *   <li>Refresh Token 회전: 제출된 토큰 폐기 후 신규 발급·저장 (탈취 재사용 방어)</li>
+     *   <li>새 Access Token + 회전된 Refresh Token 반환</li>
      * </ol>
      *
      * @param refreshTokenValue 클라이언트가 제출한 Refresh Token 문자열
-     * @return 토큰 갱신 응답 DTO (새로운 Access Token)
+     * @return 토큰 갱신 응답 DTO (새로운 Access Token + 회전된 Refresh Token)
      * @throws RuntimeException Refresh Token이 유효하지 않거나 만료된 경우
      */
     @Transactional
@@ -230,8 +231,19 @@ public class AuthService {
         // 새로운 Access Token 생성 (최신 자격등급 및 부서코드 반영)
         String newAccessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
 
+        // Refresh Token 회전: 제출된 토큰 폐기 후 신규 발급·저장 (탈취 재사용 방어)
+        refreshTokenRepository.delete(refreshToken);
+        String newRefreshTokenValue = jwtUtil.generateRefreshToken(eno);
+        Crtokm rotated = Crtokm.builder()
+                .tokCone(newRefreshTokenValue)
+                .eno(eno)
+                .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
+                .build();
+        refreshTokenRepository.save(rotated);
+
         return AuthDto.RefreshResponse.builder()
-                .accessToken(newAccessToken) // 새로 발급된 Access Token
+                .accessToken(newAccessToken)            // 새 Access Token
+                .refreshToken(newRefreshTokenValue)     // 회전된 Refresh Token (컨트롤러가 쿠키 재설정)
                 .build();
     }
 
@@ -356,7 +368,7 @@ public class AuthService {
                 .findAllByIdEnoAndUseYnAndDelYn(eno, "Y", "N")
                 .stream()
                 .map(CroleI::getAthId)
-                .collect(Collectors.toList());
+                .toList();
         return athIds.isEmpty() ? List.of(CustomUserDetails.ATH_USER) : athIds;
     }
 

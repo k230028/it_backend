@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
-import java.util.stream.Collectors;
 
 /**
  * 타당성검토표 서비스 (Step 1)
@@ -223,7 +222,7 @@ public class FeasibilityService {
                 .map(p -> new CouncilDto.PerformanceResponse(
                         p.getEvlDtpSno(), p.getEvlDtpNm(), p.getEvlDtpDfntCone(),
                         p.getEvlDtpClfCone(), p.getEvlDtpMsmPtmCone(), p.getEvlDtpMsmCleCone()))
-                .collect(Collectors.toList());
+                .toList();
 
         return new CouncilDto.FeasibilityResponse(
                 overview.getAbusNm(), overview.getAbusTrmCone(), overview.getAbusNcsCone(),

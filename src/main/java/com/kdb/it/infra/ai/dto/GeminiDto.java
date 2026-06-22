@@ -3,6 +3,8 @@ package com.kdb.it.infra.ai.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -33,6 +35,8 @@ public class GeminiDto {
 
         /** 사용자 프롬프트 */
         @Schema(description = "Gemini에게 전달할 프롬프트", example = "요구사항 정의서 작성을 도와줘")
+        @NotBlank(message = "프롬프트는 필수입니다.")
+        @Size(max = 10000, message = "프롬프트는 10000자를 초과할 수 없습니다.")
         private String prompt;
 
         /**
@@ -40,6 +44,7 @@ public class GeminiDto {
          * Gemini에게 역할이나 응답 방식을 사전에 지정할 때 사용합니다.
          */
         @Schema(description = "시스템 지시문 (선택)", example = "당신은 IT 프로젝트 요구사항 분석 전문가입니다.")
+        @Size(max = 4000, message = "시스템 지시문은 4000자를 초과할 수 없습니다.")
         private String systemInstruction;
 
         /**
@@ -56,7 +61,8 @@ public class GeminiDto {
          * 파일당 최대 20MB 제한.
          * </p>
          */
-        @Schema(description = "첨부파일 매핑ID 목록 (선택, 예: [\"FL_00000001\", \"FL_00000002\"])")
+        @Schema(description = "첨부파일 매핑ID 목록 (선택, 최대 10개, 예: [\"FL_00000001\", \"FL_00000002\"])")
+        @Size(max = 10, message = "첨부파일은 최대 10개까지 가능합니다.")
         private List<String> flMpnIds;
     }
 

@@ -12,7 +12,7 @@ import java.util.List;
  * <ul>
  *   <li>M3 (CouncilService): {@link ListResponse}, {@link CreateRequest}, {@link DetailResponse}</li>
  *   <li>M4 (FeasibilityService): {@link FeasibilityRequest}, {@link FeasibilityResponse},
- *       {@link CheckItemRequest}, {@link PerformanceRequest}</li>
+ *       {@code CheckItemRequest}, {@link PerformanceRequest}</li>
  *   <li>M6 (CommitteeService): {@link CommitteeRequest}, {@link CommitteeMemberRequest}</li>
  *   <li>M6 (ScheduleService): {@link ScheduleRequest}, {@link ScheduleItem}, {@link ScheduleConfirmRequest}</li>
  *   <li>M7 (EvaluationService): {@link EvaluationRequest}, {@link EvaluationItem}</li>

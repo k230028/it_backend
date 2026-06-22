@@ -6,6 +6,8 @@ import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -43,6 +45,8 @@ public class NotificationService {
      * {@code REQUIRES_NEW}로 명시하면 항상 독립된 새 트랜잭션을 강제 시작하므로 회피 가능.</p>
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @CacheEvict(value = "notificationUnreadCount", key = "#event.recipientEno()",
+            condition = "#event.recipientEno() != null")
     public Cinfmm send(NotificationEvent event) {
         log.info("[알림] send 진입: recipient={}, svcTc={}", event.recipientEno(), event.infmSvcTc());
         if (event.recipientEno() == null || event.recipientEno().isBlank()) {
@@ -51,12 +55,14 @@ public class NotificationService {
         }
         String infmMsgNo = generateInfmMsgNo();
 
+        // DB 컬럼 길이(제목 100자 / 본문 4000자 / URL 300자)를 초과하면 INSERT가 ORA-12899로 실패하므로
+        // 저장 직전에 안전하게 잘라낸다. truncation 발생 시 발행자 측 데이터 점검을 위해 warn 로그를 남긴다.
         Cinfmm notification = Cinfmm.builder()
             .infmMsgNo(infmMsgNo)
             .infmSvcTc(event.infmSvcTc())
-            .ttl(event.ttl())
-            .infmMsgCone(event.infmMsgCone())
-            .infmRcdUrl(event.infmRcdUrl())
+            .ttl(clamp("제목", infmMsgNo, event.ttl(), 100))
+            .infmMsgCone(clamp("본문", infmMsgNo, event.infmMsgCone(), 4000))
+            .infmRcdUrl(clamp("URL", infmMsgNo, event.infmRcdUrl(), 300))
             .rmsEno(event.recipientEno())
             .inqYn("N")
             .build();
@@ -70,6 +76,24 @@ public class NotificationService {
     }
 
     /**
+     * 알림 문자열 필드를 DB 컬럼 최대 길이로 안전하게 잘라냅니다.
+     *
+     * @param fieldLabel 로그용 필드 라벨(제목/본문/URL)
+     * @param infmMsgNo  진단용 알림 채번
+     * @param value      원본 값(null이면 그대로 null 반환)
+     * @param maxLen     허용 최대 길이
+     * @return maxLen 이하로 잘린 값(또는 원본/널)
+     */
+    private String clamp(String fieldLabel, String infmMsgNo, String value, int maxLen) {
+        if (value == null || value.length() <= maxLen) {
+            return value;
+        }
+        log.warn("[알림] {} 길이 초과 — {}자→{}자로 절단: infmMsgNo={}",
+                fieldLabel, value.length(), maxLen, infmMsgNo);
+        return value.substring(0, maxLen);
+    }
+
+    /**
      * 본인 알림 목록 페이지 조회.
      */
     public Page<Cinfmm> listForCurrentUser(String currentEno, Boolean unreadOnly, Pageable pageable) {
@@ -78,7 +102,13 @@ public class NotificationService {
 
     /**
      * 본인 미읽음 알림 건수 조회.
+     *
+     * <p>AppHeader 배지에서 고빈도 호출되므로 사용자(currentEno)별로 캐시한다. 카운트가 0이면
+     * 캐시하지 않아(unless) 신규 알림 발생 시 즉시 반영되도록 한다. 쓰기 경로(send/markRead/
+     * markAllRead/softDelete)에서 해당 사용자 키를 evict 한다. (ConcurrentMap은 TTL 미지원 →
+     * evict-on-write로 정합 보장, {@link com.kdb.it.config.CacheConfig} 참조.)</p>
      */
+    @Cacheable(value = "notificationUnreadCount", key = "#currentEno", unless = "#result == 0")
     public long unreadCount(String currentEno) {
         return cinfmmRepository.countUnread(currentEno);
     }
@@ -87,6 +117,7 @@ public class NotificationService {
      * 단건 읽음 처리. 소유자 검증 포함.
      */
     @Transactional(readOnly = false)
+    @CacheEvict(value = "notificationUnreadCount", key = "#currentEno")
     public void markRead(String infmMsgNo, String currentEno) {
         Cinfmm notification = loadOwned(infmMsgNo, currentEno);
         notification.markRead();
@@ -96,6 +127,7 @@ public class NotificationService {
      * 본인 미읽음 알림 일괄 읽음 처리.
      */
     @Transactional(readOnly = false)
+    @CacheEvict(value = "notificationUnreadCount", key = "#currentEno")
     public long markAllRead(String currentEno) {
         return cinfmmRepository.markAllReadByRmsEno(currentEno);
     }
@@ -104,6 +136,7 @@ public class NotificationService {
      * 단건 알림 Soft Delete. 소유자 검증 포함.
      */
     @Transactional(readOnly = false)
+    @CacheEvict(value = "notificationUnreadCount", key = "#currentEno")
     public void softDelete(String infmMsgNo, String currentEno) {
         Cinfmm notification = loadOwned(infmMsgNo, currentEno);
         notification.delete();

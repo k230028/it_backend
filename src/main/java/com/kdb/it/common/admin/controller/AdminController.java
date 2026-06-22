@@ -77,7 +77,8 @@ public class AdminController {
     /**
      * 공통코드 수정 (인라인 편집 즉시 저장)
      *
-     * @param cdId 코드ID
+     * @param cId 코드ID
+     * @param cdva 코드값
      * @param sttDt 시작일자
      * @param req  공통코드 수정 요청 DTO
      * @return 200 OK
@@ -97,7 +98,8 @@ public class AdminController {
      * 공통코드 삭제 (Soft Delete)
      * DEL_YN='Y' 처리 — 물리 삭제 아님.
      *
-     * @param cdId 코드ID
+     * @param cId 코드ID
+     * @param cdva 코드값
      * @param sttDt 시작일자
      * @return 204 No Content
      */

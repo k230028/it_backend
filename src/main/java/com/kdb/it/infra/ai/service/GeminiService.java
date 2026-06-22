@@ -6,13 +6,16 @@ import com.kdb.it.infra.file.repository.FileRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
+import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -52,6 +55,9 @@ public class GeminiService {
 
     /** 첨부파일 메타데이터 조회용 리포지토리 */
     private final FileRepository fileRepository;
+
+    /** Gemini 첨부 파일당 최대 허용 크기(20MB). 초과 시 해당 파일은 스킵한다. */
+    private static final long MAX_ATTACHMENT_BYTES = 20L * 1024 * 1024;
 
     /**
      * Gemini가 지원하는 MIME 타입 목록
@@ -100,11 +106,16 @@ public class GeminiService {
         this.apiKey = apiKey;
         this.model = model;
         this.fileRepository = fileRepository;
-        // FIXME: [B-H-06] connectTimeout/readTimeout 설정 필요, 미설정시 스레드풀 고갈 위험
-        // FIXME: [B-H-04] RestClient 타임아웃 미설정 — Gemini API 응답 지연 시 스레드 무한 대기 가능
-        // HttpClient.newBuilder().connectTimeout(5s)/readTimeout(60s) 설정 후 .httpClient() 주입 필요
+        // 외부 Gemini API 응답 지연이 스레드를 무한 점유하지 않도록 connect/read 타임아웃을 강제한다.
+        // JDK HttpClient의 connectTimeout(5s) + 요청별 readTimeout(60s)을 RequestFactory에 설정한다.
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(60));
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
+                .requestFactory(requestFactory)
                 .build();
     }
 
@@ -270,12 +281,25 @@ public class GeminiService {
                     + " (저장 경로와 실제 파일 위치가 다를 수 있음)");
         }
 
+        // 대형 파일이 메모리를 점유하거나 Base64 폭증을 일으키지 않도록 읽기 전에 크기를 사전검사한다.
+        try {
+            long size = Files.size(filePath);
+            if (size > MAX_ATTACHMENT_BYTES) {
+                log.warn("[Gemini] 첨부 크기 초과로 스킵 - flMpnId: {}, size: {}MB (제한: 20MB)",
+                        flMpnId, size / (1024 * 1024));
+                return FilePartResult.skip("첨부 크기 초과(20MB): " + (size / (1024 * 1024)) + "MB");
+            }
+        } catch (IOException e) {
+            log.warn("[Gemini] 첨부 크기 조회 실패로 스킵 - filePath: {}", filePath, e);
+            return FilePartResult.skip("첨부 크기 조회 실패: " + e.getMessage());
+        }
+
         byte[] fileBytes;
         try {
             fileBytes = Files.readAllBytes(filePath);
         } catch (IOException e) {
-            // TODO: [B-M-05] IOException 발생시 warn 로그 추가 후 skip 처리 필요
-            // TODO: [B-H-03] log.warn("AI 분석 파일 읽기 실패, 스킵: {}", filePath, e) 최소한 warn 로그 필요
+            // 파일 읽기 실패 시 해당 파일만 스킵하고 원인 예외를 warn으로 남긴다.
+            log.warn("[Gemini] AI 분석 파일 읽기 실패로 스킵 - filePath: {}", filePath, e);
             return FilePartResult.skip("파일 읽기 실패: " + e.getMessage());
         }
 
