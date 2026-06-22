@@ -1,6 +1,7 @@
 package com.kdb.it.domain.estimate.service;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.estimate.dto.EstimateDto;
@@ -81,6 +82,7 @@ public class EstimateService {
     @Transactional
     public void update(String docNo, EstimateDto.UpdateRequest req, CustomUserDetails user) {
         Bestim e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_DRAFT.equals(e.getStsTc())) {
             throw new IllegalStateException("작성중 상태에서만 수정할 수 있습니다.");
         }
@@ -97,6 +99,7 @@ public class EstimateService {
     @Transactional
     public void delete(String docNo, CustomUserDetails user) {
         Bestim e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_DRAFT.equals(e.getStsTc())) {
             throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         }
@@ -114,6 +117,7 @@ public class EstimateService {
     @Transactional
     public void changeStatus(String docNo, EstimateDto.StatusRequest req, CustomUserDetails user) {
         Bestim e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         String from = e.getStsTc();
         String to   = req.stsTc();
         boolean allowed = (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
@@ -174,6 +178,7 @@ public class EstimateService {
     @Transactional
     public void saveLines(String docNo, EstimateDto.LinesRequest req, CustomUserDetails user) {
         Bestim e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_IN_PROGRESS.equals(e.getStsTc())) {
             throw new IllegalStateException("진행중 상태에서만 산정 명세를 저장할 수 있습니다.");
         }
