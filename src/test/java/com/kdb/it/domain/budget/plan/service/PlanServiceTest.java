@@ -402,6 +402,46 @@ class PlanServiceTest {
                 .hasMessageContaining("계획 스냅샷 직렬화");
     }
 
+    @Test
+    @DisplayName("createPlan - 계획작성 합계(aduTotAmt)는 예정금액(MPL_AMT)을 제외한 totRqmAmt를 사용한다")
+    void 계획작성_합계는_예정금액을_제외한다() throws Exception {
+        // given
+        // 품목 총합(AMT)= 1500, MPL_AMT= 500 → ProjectBudgetSummaryService가 totRqmAmt = 1000 으로 설정.
+        // PlanService 경계에서 Response.totRqmAmt 는 이미 MPL_AMT 가 제외된 파생값이다.
+        // (원시 AMT 합계 1500 vs 계획 반영값 1000 — 차이가 명확히 구분됨)
+        PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
+                .bseYy("2026")
+                .itPtlPlnTpC("신규")
+                .prjMngNos(List.of("PRJ-2026-MPL-TEST"))
+                .build();
+
+        // totRqmAmt = ∑AMT(1500) − ∑MPL_AMT(500) = 1000 (ProjectBudgetSummaryService가 이미 산출)
+        ProjectDto.Response mockProject = ProjectDto.Response.builder()
+                .abusMngNo("PRJ-2026-MPL-TEST")
+                .totRqmAmt(BigDecimal.valueOf(1000)) // 예정금액 500 제외된 당해 예산
+                .assetBg(BigDecimal.valueOf(800))
+                .costBg(BigDecimal.valueOf(200))
+                .build();
+
+        given(projectService.getProjectsByIds(any())).willReturn(List.of(mockProject));
+        given(bplanmRepository.getNextSequenceValue()).willReturn(10L);
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        // when
+        planService.createPlan(request);
+
+        // then: 저장된 Bplanm의 aduTotAmt 는 totRqmAmt(1000) 이어야 한다.
+        // 만약 MPL_AMT 를 제외하지 않았다면 원시 AMT 합계(1500)가 저장되었을 것이다.
+        ArgumentCaptor<Bplanm> planCaptor = ArgumentCaptor.forClass(Bplanm.class);
+        verify(bplanmRepository).save(planCaptor.capture());
+        assertThat(planCaptor.getValue().getAduTotAmt())
+                .as("계획작성 aduTotAmt 는 totRqmAmt(예정금액 제외값=1000)이어야 한다 — 원시 AMT 합계 1500이면 버그")
+                .isEqualByComparingTo(BigDecimal.valueOf(1000));
+        // 명시적 음성 검증: 원시 AMT 합계(1500)가 아님
+        assertThat(planCaptor.getValue().getAduTotAmt())
+                .isNotEqualByComparingTo(BigDecimal.valueOf(1500));
+    }
+
     // =========================================================================
     // deletePlan
     // =========================================================================

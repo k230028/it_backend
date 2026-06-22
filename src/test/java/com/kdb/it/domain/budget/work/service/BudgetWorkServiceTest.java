@@ -718,6 +718,76 @@ class BudgetWorkServiceTest {
     }
 
     @Test
+    @DisplayName("예산작업 - 편성요청액은 품목 예정금액(mplAmt)만큼 차감된다")
+    void 예산작업_편성요청액은_품목_예정금액만큼_차감된다() {
+        // 시나리오:
+        //   - 품목 AMT = 2000, MPL_AMT(예정금액) = 800
+        //   - BITEMM → 그룹 합산: groupReqSum = 2000, groupMplSum = 800
+        //   - factor = 800/2000 = 0.4
+        //   - 비목별 req 차감 = 2000 × 0.4 = 800
+        //   - 최종 requestAmount = 원시집계(2000) − 차감(800) = 1200
+        //   - 만약 MPL_AMT 를 제외하지 않았다면 requestAmount = 2000 (차이 800 이 명확)
+        Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
+        Ccodem detailCode = Ccodem.builder()
+                .cdva("101")
+                .cNm("237-0700")
+                .cdvaDtlC("237-0700")
+                .cdvaNm("국내전산임차료")
+                .cTp("IOE_LEAFE")
+                .cTpDes("전산임차료")
+                .build();
+        Bbugtm bbugtm = Bbugtm.builder()
+                .fntTbNm("BITEMM")
+                .pkColNm("GCL-MPL-001")
+                .ioeC("101")
+                .bgDupAmt(BigDecimal.valueOf(1600))  // 편성액
+                .asgRt(80)
+                .build();
+        // 품목: AMT=2000, MPL_AMT=800 (예정금액)
+        Bitemm item = Bitemm.builder()
+                .gclMngNo("GCL-MPL-001")
+                .abusMngNo("PRJ-MPL-001")
+                .amt(BigDecimal.valueOf(2000))
+                .xcr(BigDecimal.ONE)
+                .mplAmt(BigDecimal.valueOf(800))
+                .build();
+        Bprojm project = Bprojm.builder()
+                .abusMngNo("PRJ-MPL-001")
+                .build();
+
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(bbugtm));
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(detailCode));
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
+                .willReturn(java.util.Map.of());
+        // 결재완료 원본 집계: 비목 "101" → 2000 (raw, MPL_AMT 차감 전)
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
+                .willReturn(java.util.Map.of("101", BigDecimal.valueOf(2000)));
+        // Phase 4 T12 배치 조회
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(item));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(project));
+
+        BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
+
+        assertThat(result.data()).hasSize(1);
+        BudgetWorkDto.SummaryItem summaryItem = result.data().get(0);
+
+        // 편성요청액 = 원시집계(2000) − 예정금액비례차감(800) = 1200
+        // 만약 차감이 없었다면 2000이 반환되었을 것임 → 명시적 음성 검증
+        assertThat(summaryItem.requestAmount())
+                .as("예산작업 편성요청액은 품목 예정금액(800)만큼 차감되어 1200이어야 한다")
+                .isEqualByComparingTo(BigDecimal.valueOf(1200));
+        assertThat(summaryItem.requestAmount())
+                .as("예정금액 차감이 적용되지 않은 원시 AMT 합계(2000)면 버그")
+                .isNotEqualByComparingTo(BigDecimal.valueOf(2000));
+
+        // 편성액 = 1600 − (1600 × 0.4) = 960
+        assertThat(summaryItem.dupAmount())
+                .as("편성액도 동일 비율(0.4)로 차감되어 960이어야 한다")
+                .isEqualByComparingTo(BigDecimal.valueOf(960));
+    }
+
+    @Test
     @DisplayName("getSummary: 그룹 접두어가 있는 세부명과 CCODEM 등록 코드는 BBUGTM 유무와 무관하게 표시된다")
     void getSummary_세부명접두어제거와미등록원본포함() {
         // 마이그레이션 후 CCODEM 구조:
