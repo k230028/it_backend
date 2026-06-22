@@ -117,6 +117,10 @@ public class Bitemm extends BaseEntity {
     @Column(name = "AMT", precision = 18, scale = 3, comment = "품목금액 (물리컬럼 AMT=금액)")
     private BigDecimal amt;
 
+    /** 예정금액: 이 품목 금액 중 익년(예산연도+1) 이후로 예정된 금액 (AMT의 일부, 0 ≤ MPL_AMT ≤ AMT) */
+    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "예정금액")
+    private BigDecimal mplAmt;
+
     /**
      * 외화금액(품목 외화 원금 — 환율 적용 전).
      * <p>
