@@ -62,20 +62,47 @@
 | Ccodem  | TPRMPP_CCODEM   | 코드 마스터  |
 | Cfilem  | TPRMPP_CFILEM   | 첨부파일     |
 
-## 3. 채번 규칙
+## 3. 주요 테이블 컬럼 메모
+
+### Bitemm / TPRMPP_BITEMM (프로젝트 품목)
+
+업무상 자주 참조되는 컬럼:
+
+| 컬럼명 | 타입 | 설명 |
+|--------|------|------|
+| `ABUS_MNG_NO` | VARCHAR2(32) | 프로젝트 관리번호 (PK, FK → TPRMPP_BPROJM) |
+| `IOE_C` | VARCHAR2(10) | 비목코드 (PK) |
+| `AMT` | NUMBER(18,3) | 품목 금액 (당해 + 이월 합산) |
+| `MPL_AMT` | NUMBER(18,3) | 예정금액 — 익년(예산연도+1) 이후로 이월 예정인 금액. 0 ≤ MPL_AMT ≤ AMT. |
+| `DEL_YN` | VARCHAR2(1) | 논리 삭제 여부 |
+
+`BitemmL` (TPRMPP_BITEML) 로그 엔티티에도 동일 컬럼이 미러됩니다.
+
+### Bprojm / TPRMPP_BPROJM (정보화사업 마스터)
+
+> **컬럼 삭제 이력 (2026-06-22)**: `TOT_RQM_AMT`(당해예산), `MPL_CPIT_AMT`(예정자본금액), `MPL_MNGC_AMT`(예정관리비금액) 3개 컬럼이 물리 테이블에서 제거되었습니다.
+> 이 세 값은 이제 품목(`Bitemm`)의 `MPL_AMT`를 집계하여 파생합니다 (`ProjectBudgetSummaryService`):
+> - `totRqmAmt` (당해예산) = max(0, ∑AMT − ∑MPL_AMT)
+> - `mplCpitAmt` (예정자본금액) = ∑MPL_AMT (자본 비목, IOE_C 기준)
+> - `mplMngcAmt` (예정관리비금액) = ∑MPL_AMT (관리비 비목, IOE_C 기준)
+>
+> `ProjectDto.Response`에는 세 필드가 그대로 노출되나, DB 컬럼이 아닌 파생 계산값입니다.
+> `BprojmL` (TPRMPP_BPROJL) 로그 엔티티에서도 동일하게 제거되었습니다.
+
+## 4. 채번 규칙
 
 - 정보화사업 관리번호: `PRJ-{사업연도}-{4자리 시퀀스}` (예: `PRJ-2026-0001`)
 - 신청서 관리번호: `APF-{연도}-{8자리 시퀀스}`
 - 로그 일련번호:  BITEML-{22자리 시퀀스}`
 - 시퀀스 값은 Oracle Native Query로 조회합니다.
 
-## 4. 변경 로그(`*L`) 기록 원칙
+## 5. 변경 로그(`*L`) 기록 원칙
 
 - `BaseLogEntity` 상속 + `ChangeLogEntityListener` 자동 기록
 - 원본 엔티티별 1:1 로그 엔티티(`BprojmL`, `BcostmL`, `BrdocmL` 등)
 - 변경 이력 조회는 `LST_CHG_DTM` 기준 정렬
 
-## 5. 공통 컬럼(`BaseEntity`)
+## 6. 공통 컬럼(`BaseEntity`)
 
 모든 업무 엔티티가 상속:
 

@@ -19,7 +19,7 @@
 | `BG_NO` | Bbugtm → `bgNo` (예산관리번호) | Bcostm → `costBgNo` (IT관리비코드), Btermm → `termBgNo` |
 | `BG_SNO` | Bcostm → `bgSno` (예산일련번호) | Btermm → `termBgSno` |
 | ~~`TOT_XP_AMT`~~ | Bplanm → `totXpAmt` (일반관리비, 단독 소유) | 2026-06-14 물리 분리로 충돌 해소: Bcostm → `AMT`(`costTotXpAmt`, 전산업무비예산금액). `*L` 미러 포함 |
-| ~~`RQM_BG_AMT`~~ | Besttm·Bpovwm → `rqmBgAmt` (소요예산금액, 동일 의미) | 2026-06-04 Bprojm → `TOT_RQM_AMT`(`totRqmAmt`), Bbugtm → `BG_DUP_AMT`(`bgDupAmt`); 2026-06-14 Btermm → `AMT`(`termRqmBgAmt`, 단말기금액). 모두 `*L` 미러 포함 |
+| ~~`RQM_BG_AMT`~~ | Besttm·Bpovwm → `rqmBgAmt` (소요예산금액, 동일 의미) | 2026-06-04 Bprojm → `TOT_RQM_AMT`(`totRqmAmt`), Bbugtm → `BG_DUP_AMT`(`bgDupAmt`); 2026-06-14 Btermm → `AMT`(`termRqmBgAmt`, 단말기금액). 모두 `*L` 미러 포함. ~~`TOT_RQM_AMT`~~: 삭제됨(2026-06-22, 프로젝트 컬럼 제거 → 품목 `MPL_AMT` 합산 파생으로 대체). ~~`MPL_CPIT_AMT`~~·~~`MPL_MNGC_AMT`~~: 삭제됨(2026-06-22, 동일 사유). 파생 로직: `ProjectBudgetSummaryService` 참조. |
 | `CPIT_BG_APV_AMT`→`TOT_CPIT_AMT` | Bplanm → `cpitBgApvAmt` (자본예산, 단독 소유) | 2026-06-14 메타 정합 리네임(총자본금액). 필드명 유지, `*L` 미러 포함 |
 | `SVN_DPM_C` | Bprojm → `svnDpmC` (주관부서, 파일럿 완료) | Bcostm → `costSvnDpmC` (담당부서), Btermm → `termSvnDpmC` |
 | `SVN_TEM_C` | Bcostm → `svnTemC` | Btermm → `termSvnTemC` |
