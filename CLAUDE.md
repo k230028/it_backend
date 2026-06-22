@@ -385,7 +385,7 @@ public class PlanController { ... }
 - **파일 업로드 확장자 검증**: `FileService.uploadFileInternal()` 진입 시점에 `FileValidator.validateExtension()` 호출.
 
 ### 5.7 채번/주요 비즈니스 제약
-- 채번 규칙(관리번호 포맷)은 → [`docs/guides/data-model.md#3-채번-규칙`](docs/guides/data-model.md) 참조.
+- 채번 규칙(관리번호 포맷)은 → [`docs/guides/data-model.md#4-채번-규칙`](docs/guides/data-model.md) 참조.
 - 신청 상태가 **"결재중"** 또는 **"결재완료"**인 경우 연결된 프로젝트 수정/삭제 불가.
 - 프로젝트 수정 시 품목(`Bitemm`) 동기화: 요청에 포함된 품목은 추가/수정, 누락된 기존 품목은 Soft Delete.
 - 검토의견(`Brivgm`)은 문서에 종속. 삭제는 논리 삭제 우선 검토.
