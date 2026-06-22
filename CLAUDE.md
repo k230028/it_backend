@@ -379,7 +379,7 @@ public class PlanController { ... }
 - `@SuppressWarnings` 4건 + `NOSONAR` 마커로 자동화 보안 점검 정책 예외 처리됨. 보안 검토 결과에 재등재 금지.
 
 #### 권한 검증 보강 현황 (코드 분석 2026-05-26)
-- `FileController`: 단건 삭제 — `FileOwnershipChecker.checkOwnership()` 적용. 다운로드·미리보기·조회·메타수정·원본 기준 일괄삭제 권한 검증은 후속 과제.
+- `FileController`: 읽기 경로(목록·단건조회·다운로드·미리보기)는 `FileOwnershipChecker.checkReadAccess()`/`canRead()`로 읽기 권한 검증, 쓰기 경로(메타수정·단건삭제)는 `FileOwnershipChecker.verifyWriteAccess()`(owner-or-admin, 403), 원본 기준 일괄삭제(`deleteFilesByOrc`)는 서비스 계층에서 owner-or-admin 검증 적용(2026-06-23 소유권 하드닝).
 - `GeminiController`: `@PreAuthorize("hasRole('ADMIN')")` 관리자 전용.
 - `UserController`, `OrganizationController`, `ProjectController`, `ApplicationController`: 부서/소유권 정책은 업무 요건에 맞춰 별도 검토.
 - **파일 업로드 확장자 검증**: `FileService.uploadFileInternal()` 진입 시점에 `FileValidator.validateExtension()` 호출.
@@ -414,7 +414,7 @@ public class PlanController { ... }
 
 ### 5.11 파일 보안
 - `FileValidator` (`infra/file/FileValidator.java`): 허용 확장자 화이트리스트 검증 — `FileService.uploadFileInternal()` 진입 시점 호출.
-- `FileOwnershipChecker` (`infra/file/FileOwnershipChecker.java`): 파일 소유자 및 도메인별 읽기 권한 검증. 현재 코드상 단건 삭제의 `checkOwnership()`은 적용되어 있으나, 다운로드/미리보기/목록/단건조회/메타수정/원본 기준 일괄삭제 경로의 읽기·쓰기 권한 검증은 후속 과제로 관리합니다.
+- `FileOwnershipChecker` (`infra/file/FileOwnershipChecker.java`): 파일 쓰기 권한 검증 `verifyWriteAccess(flMpnId, user)`(본인 또는 관리자, 실패 시 `AccessDeniedException`→403)와 읽기 권한 검증 `checkReadAccess(flMpnId, user)`(예외)·`canRead(file, user)`(목록 필터용 boolean)을 제공합니다. 메타수정·단건삭제는 `verifyWriteAccess`, 다운로드/미리보기/목록/단건조회는 `checkReadAccess`/`canRead`로 검증합니다. (기존 `checkOwnership(String,String)`은 `verifyWriteAccess`로 대체·제거됨, 2026-06-23.)
 - `/api/files/**`는 `SecurityConfig`에서 인증만 요구합니다. 새 파일 API를 추가할 때는 `flMngNo` 기반 조회/다운로드/미리보기에는 `FileOwnershipChecker.checkReadAccess()` 또는 `orcDtt`별 권한 검증을 반드시 연결합니다.
 - `FileOwnershipChecker.checkReadAccess()`는 현재 `orcDtt="공통게시판"`만 게시판 권한 정책으로 특수 검증하고, 그 외 원본구분은 읽기를 허용합니다. 새 `orcDtt`를 도입할 때는 파일 권한 정책 등록 여부를 함께 결정합니다.
 - 허용 확장자 변경 시 `FileValidator.ALLOWED_EXTENSIONS` 상수 수정.
