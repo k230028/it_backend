@@ -270,6 +270,22 @@ class ServiceRequestDocServiceTest {
     }
 
     @Test
+    @DisplayName("createNewVersion: 소유자가 아닌 사용자는 AccessDeniedException")
+    void createNewVersion_deniedForOther() {
+        Brdocm latest = Brdocm.builder()
+                .docMngNo("DOC-2026-0001")
+                .docVrsSno(new BigDecimal("1"))
+                .reqTtl("문서")
+                .fstEnrUsid("E0001")
+                .build();
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-2026-0001", "N"))
+                .willReturn(Optional.of(latest));
+
+        assertThatThrownBy(() -> service.createNewVersion("DOC-2026-0001", other()))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
     @DisplayName("deleteDocument: 소유자가 아닌 사용자는 AccessDeniedException")
     void delete_deniedForOther() {
         Brdocm latest = Brdocm.builder()

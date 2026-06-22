@@ -125,6 +125,7 @@ public class ServiceRequestDocController {
      * </p>
      *
      * @param docMngNo 문서관리번호
+     * @param user     인증 사용자 (소유권 검증용)
      * @return HTTP 200 + 생성된 새 버전 안내 메시지
      */
     @PostMapping("/{docMngNo}/versions")
@@ -142,6 +143,7 @@ public class ServiceRequestDocController {
      *
      * @param docMngNo 수정할 문서관리번호
      * @param request  수정 요청 데이터
+     * @param user     인증 사용자 (소유권 검증용)
      * @return HTTP 200 + 수정된 문서관리번호
      */
     @PutMapping("/{docMngNo}")
@@ -164,6 +166,7 @@ public class ServiceRequestDocController {
      *
      * @param docMngNo 삭제할 문서관리번호
      * @param version  삭제할 문서버전 (선택, 미지정 시 전체 버전 일괄 삭제)
+     * @param user     인증 사용자 (소유권 검증용)
      * @return HTTP 204 No Content
      */
     @DeleteMapping("/{docMngNo}")
