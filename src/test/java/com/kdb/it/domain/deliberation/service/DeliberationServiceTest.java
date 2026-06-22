@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class DeliberationServiceTest {
@@ -50,17 +51,87 @@ class DeliberationServiceTest {
         return new CustomUserDetails("A0001", List.of("ITPAD001"), "18001");
     }
 
-    /** 지정 상태로 과업심의 엔티티 생성 */
+    /** 지정 상태로 과업심의 엔티티 생성 (소유자 E0001) */
     Bdelim bdelim(String docNo, String bgPrnTc, String cncdRfrNo, String stsTc) {
         return Bdelim.builder()
                 .docMngNo(docNo).docVrsSno(1).lstYn("Y")
                 .bgPrnTc(bgPrnTc).cncdRfrNo(cncdRfrNo)
-                .stsTc(stsTc).taskDbrOmtYn("N").build();
+                .stsTc(stsTc).taskDbrOmtYn("N").fstEnrUsid("E0001").build();
+    }
+
+    /** 타인 사용자 (E0002) */
+    CustomUserDetails other() {
+        return new CustomUserDetails("E0002", List.of("ITPZZ001"), "18001");
     }
 
     @BeforeEach
     void setUp() {
         service = new DeliberationService(deliberationRepository, projectRepository, costRepository);
+    }
+
+    // -----------------------------------------------------------------------
+    // 소유권 검증 — 타인 차단
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("소유권 검증 — 타인 차단")
+    class OwnershipTests {
+
+        private Bdelim draftOwnedByE0001() {
+            return Bdelim.builder()
+                    .docMngNo("DLB-2026-0001").docVrsSno(1).lstYn("Y")
+                    .bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                    .stsTc("51").reqCone("내용").taskDbrOmtYn("N").fstEnrUsid("E0001").build();
+        }
+
+        @Test
+        @DisplayName("타인이 수정하면 AccessDeniedException")
+        void update_deniedForOther() {
+            when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(draftOwnedByE0001()));
+            assertThatThrownBy(() -> service.update("DLB-2026-0001", new DeliberationDto.UpdateRequest("x"), other()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("관리자는 타인 문서도 수정 가능")
+        void update_allowedForAdmin() {
+            Bdelim e = draftOwnedByE0001();
+            when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(e));
+            service.update("DLB-2026-0001", new DeliberationDto.UpdateRequest("수정"), admin());
+            assertThat(e.getReqCone()).isEqualTo("수정");
+        }
+
+        @Test
+        @DisplayName("타인이 삭제하면 AccessDeniedException")
+        void delete_deniedForOther() {
+            when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(draftOwnedByE0001()));
+            assertThatThrownBy(() -> service.delete("DLB-2026-0001", other()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("타인이 상태전이하면 AccessDeniedException")
+        void changeStatus_deniedForOther() {
+            when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(draftOwnedByE0001()));
+            assertThatThrownBy(() -> service.changeStatus("DLB-2026-0001", new DeliberationDto.StatusRequest("52"), other()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("타인이 결과저장하면 AccessDeniedException")
+        void saveResult_deniedForOther() {
+            when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(draftOwnedByE0001()));
+            assertThatThrownBy(() -> service.saveResult(
+                    "DLB-2026-0001",
+                    new DeliberationDto.ResultRequest("01", "01", "20260601", "01", "N", null, null, null),
+                    other()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -289,7 +360,7 @@ class DeliberationServiceTest {
     void changeStatus_submitAllowed() {
         Bdelim e = Bdelim.builder()
                 .docMngNo("DLB-2026-0001").docVrsSno(1).lstYn("Y")
-                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("51").build();
+                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("51").fstEnrUsid("E0001").build();
         when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
                 .thenReturn(Optional.of(e));
 
@@ -318,7 +389,7 @@ class DeliberationServiceTest {
     void changeStatus_rejectsBackward() {
         Bdelim e = Bdelim.builder()
                 .docMngNo("DLB-2026-0001").docVrsSno(1).lstYn("Y")
-                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("59").build();
+                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("59").fstEnrUsid("E0001").build();
         when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
                 .thenReturn(Optional.of(e));
 
@@ -393,7 +464,7 @@ class DeliberationServiceTest {
     void saveResult_rejectsWhenNotInProgress() {
         Bdelim e = Bdelim.builder()
                 .docMngNo("DLB-2026-0001").docVrsSno(1).lstYn("Y")
-                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("51").build();
+                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("51").fstEnrUsid("E0001").build();
         when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
                 .thenReturn(Optional.of(e));
 
@@ -409,7 +480,7 @@ class DeliberationServiceTest {
     void saveResult_inProgress_appliesResult() {
         Bdelim e = Bdelim.builder()
                 .docMngNo("DLB-2026-0001").docVrsSno(1).lstYn("Y")
-                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("52").taskDbrOmtYn("N").build();
+                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("52").taskDbrOmtYn("N").fstEnrUsid("E0001").build();
         when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
                 .thenReturn(Optional.of(e));
 

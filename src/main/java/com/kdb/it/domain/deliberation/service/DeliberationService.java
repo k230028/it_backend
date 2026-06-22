@@ -1,6 +1,7 @@
 package com.kdb.it.domain.deliberation.service;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.deliberation.dto.DeliberationDto;
@@ -85,6 +86,7 @@ public class DeliberationService {
     @Transactional
     public void update(String docNo, DeliberationDto.UpdateRequest req, CustomUserDetails user) {
         Bdelim e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 수정할 수 있습니다.");
         e.updateRequest(req.reqCone());
     }
@@ -99,6 +101,7 @@ public class DeliberationService {
     @Transactional
     public void delete(String docNo, CustomUserDetails user) {
         Bdelim e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         e.delete();
     }
@@ -114,6 +117,7 @@ public class DeliberationService {
     @Transactional
     public void changeStatus(String docNo, DeliberationDto.StatusRequest req, CustomUserDetails user) {
         Bdelim e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         String from = e.getStsTc(), to = req.stsTc();
         boolean ok = (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
                 || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
@@ -132,6 +136,7 @@ public class DeliberationService {
     @Transactional
     public void saveResult(String docNo, DeliberationDto.ResultRequest req, CustomUserDetails user) {
         Bdelim e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_IN_PROGRESS.equals(e.getStsTc())) throw new IllegalStateException("진행중 상태에서만 심의 결과를 입력할 수 있습니다.");
         String omt = req.taskDbrOmtYn() == null ? "N" : req.taskDbrOmtYn();
         e.updateResult(req.taskDbrTc(), req.taskDbrRltTc(), req.taskDbrDt(), req.taskDbrTod(),
