@@ -614,6 +614,30 @@ public class CouncilController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * 서면개최 확정 (IT관리자) (PRD_c_20260620 #1)
+     *
+     * <p>위원 전원이 대면을 희망하지 않을 때 서면개최로 확정합니다.
+     * 회의일자/시간/장소 없이 BASCTM.CSF_HELD_YN='N'으로 설정하고
+     * 상태를 개최준비(05) → 진행중(07)으로 직접 전이합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return HTTP 200
+     */
+    @Operation(summary = "서면개최 확정", description = "위원 전원 미희망 시 서면개최로 확정하고 상태를 진행중으로 전이합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "서면개최 확정 성공"),
+            @ApiResponse(responseCode = "400", description = "개최준비(05) 상태가 아닌 경우", content = @Content),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @PutMapping("/{asctId}/schedule/confirm-written")
+    public ResponseEntity<Void> confirmWrittenMeeting(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId) {
+        scheduleService.confirmWrittenMeeting(asctId);
+        return ResponseEntity.ok().build();
+    }
+
     // =========================================================================
     // M7: 평가의견 (Step 3)
     // =========================================================================

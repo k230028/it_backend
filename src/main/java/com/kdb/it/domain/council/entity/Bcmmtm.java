@@ -70,6 +70,16 @@ public class Bcmmtm extends BaseEntity {
     private String cnfmYn = "N";
 
     /**
+     * 대면희망여부: Y(대면 희망) / N(서면 가능) (PRD_c_20260620 #1).
+     *
+     * <p>개최준비(PREPARING) 단계에서 위원이 가능 일정을 응답할 때 함께 선택합니다.
+     * 대면을 희망하지 않더라도 가능 일정 선택은 필수입니다.
+     * 위원 전원이 'N'이면 협의회는 서면으로 개최됩니다. null이면 미응답.</p>
+     */
+    @Column(name = "CSF_HP_YN", length = 1, comment = "대면희망여부")
+    private String csfHpYn;
+
+    /**
      * 위원유형 변경 (소집→당연 또는 간사 재지정 시)
      *
      * @param itPtlAsctMebTc 변경할 위원유형 코드
@@ -84,6 +94,15 @@ public class Bcmmtm extends BaseEntity {
      */
     public void confirmReview() {
         this.cnfmYn = "Y";
+    }
+
+    /**
+     * 대면희망여부 응답 (위원이 일정 응답 시 호출)
+     *
+     * @param csfHpYn 대면희망여부 (Y/N)
+     */
+    public void respondFaceToFace(String csfHpYn) {
+        this.csfHpYn = csfHpYn;
     }
 }
 

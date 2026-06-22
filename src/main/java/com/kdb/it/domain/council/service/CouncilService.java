@@ -446,7 +446,8 @@ public class CouncilService {
                 council.getCnrcDt(),
                 council.getCnrcSttTm(),
                 true,
-                prjYy, prjTp, svnDpm, prjBg, sttDt, endDt, itDpm, prjDes
+                prjYy, prjTp, svnDpm, prjBg, sttDt, endDt, itDpm, prjDes,
+                council.getCsfHeldYn()
         );
     }
 
@@ -490,7 +491,8 @@ public class CouncilService {
                 sttDt,            // sttDt
                 endDt,            // endDt
                 (String) row[15], // itDpm
-                (String) row[16]  // prjDes
+                (String) row[16], // prjDes
+                (String) row[17]  // csfHeldYn (PRD_c_20260620 #1)
         );
     }
 
@@ -579,6 +581,7 @@ public class CouncilService {
                 ncs,
                 prjBg,
                 prjDes,
-                xptEff);
+                xptEff,
+                council.getCsfHeldYn());
     }
 }

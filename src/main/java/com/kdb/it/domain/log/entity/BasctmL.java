@@ -54,4 +54,7 @@ public class BasctmL extends BaseLogEntity {
 
     @Column(name = "PRTY_IVG_OMT_RSN", length = 200, comment = "타당성검토생략사유")
     private String prtyIvgOmtRsn;
+
+    @Column(name = "CSF_HELD_YN", length = 1, comment = "대면개최여부")
+    private String csfHeldYn;
 }

@@ -83,6 +83,17 @@ public class Basctm extends BaseEntity {
     private String prtyIvgOmtRsn;
 
     /**
+     * 대면개최여부: Y(대면개최) / N(서면개최) (PRD_c_20260620 #1).
+     *
+     * <p>개최준비 단계에서 위원들의 대면희망여부(BCMMTM.CSF_HP_YN)를 취합한 결과로 확정됩니다.
+     * 한 명이라도 대면을 희망하면 'Y'(일정·장소 확정 후 대면 진행),
+     * 전원 서면이면 'N'(회의일자/장소/시간 null, 서면질의응답 후 바로 평가).
+     * null이면 미확정(대면 기본 취급).</p>
+     */
+    @Column(name = "CSF_HELD_YN", length = 1, comment = "대면개최여부")
+    private String csfHeldYn;
+
+    /**
      * 협의회 상태 변경
      *
      * <p>상태 전이 시 사용합니다. JPA Dirty Checking으로 자동 반영됩니다.</p>
@@ -104,6 +115,21 @@ public class Basctm extends BaseEntity {
         this.cnrcDt = cnrcDt;
         this.cnrcSttTm = cnrcSttTm;
         this.cnrcPlc = cnrcPlc;
+        // 일정을 확정한다는 것은 대면개최를 의미한다.
+        this.csfHeldYn = "Y";
+    }
+
+    /**
+     * 서면개최 확정 (PRD_c_20260620 #1)
+     *
+     * <p>위원 전원이 대면을 희망하지 않아 서면으로 진행할 때 호출합니다.
+     * 대면개최여부를 'N'으로 설정하고 회의일자/시간/장소를 모두 비웁니다.</p>
+     */
+    public void markWrittenMeeting() {
+        this.csfHeldYn = "N";
+        this.cnrcDt = null;
+        this.cnrcSttTm = null;
+        this.cnrcPlc = null;
     }
 }
 

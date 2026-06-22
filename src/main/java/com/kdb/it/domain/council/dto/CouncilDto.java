@@ -70,7 +70,9 @@ public class CouncilDto {
         /** IT담당부서 */
         String itDpm,
         /** 사업설명 (최대 1000자) */
-        String prjDes
+        String prjDes,
+        /** 대면개최여부 (Y=대면 / N=서면 / null=미확정) (PRD_c_20260620 #1) */
+        String csfHeldYn
     ) {}
 
     /**
@@ -124,7 +126,9 @@ public class CouncilDto {
         /** 사업내용 (BPROJM.PRJ_DES) */
         String prjDes,
         /** 기대효과 (BPROJM.XPT_EFF) */
-        String xptEff
+        String xptEff,
+        /** 대면개최여부 (Y=대면 / N=서면 / null=미확정) (PRD_c_20260620 #1) */
+        String csfHeldYn
     ) {}
 
     // =========================================================================
@@ -255,7 +259,9 @@ public class CouncilDto {
      */
     public record ScheduleRequest(
         /** 가능한 날짜×시간대 목록 */
-        List<ScheduleItem> availableSlots
+        List<ScheduleItem> availableSlots,
+        /** 대면희망여부 (Y/N) — 위원이 일정 응답 시 함께 선택 (PRD_c_20260620 #1) */
+        String csfHopeYn
     ) {}
 
     /**
@@ -384,6 +390,8 @@ public class CouncilDto {
         String vlrTc,
         /** 응답 완료 여부 */
         boolean responded,
+        /** 대면희망여부 (Y/N/null) (PRD_c_20260620 #1) */
+        String csfHpYn,
         /** 위원의 일정 응답 목록 */
         List<ScheduleSlotResponse> slots
     ) {}
@@ -405,7 +413,13 @@ public class CouncilDto {
          * INFO_SYS: 예산팀장(12004) + IT기획팀장(18001) 응답 완료 시 true
          * 기타 타입: 전원 응답 완료 시 true
          */
-        boolean allRequiredResponded
+        boolean allRequiredResponded,
+        /**
+         * 대면희망 위원 존재 여부 (PRD_c_20260620 #1).
+         * 위원 중 한 명이라도 CSF_HP_YN='Y'이면 true → 대면개최.
+         * 전원 미희망(false)이고 응답 완료 시 서면개최 확정 가능.
+         */
+        boolean anyFaceToFaceHope
     ) {}
 
     // =========================================================================

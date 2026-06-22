@@ -233,7 +233,8 @@ class CouncilServiceTest {
                 Date.valueOf(LocalDate.of(2026, 1, 1)),
                 LocalDateTime.of(2026, 12, 31, 0, 0),
                 "IT",
-                "설명"
+                "설명",
+                "Y"                                          // csfHeldYn (PRD_c_20260620 #1)
         };
         given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
                 .willReturn(java.util.Collections.singletonList(row));
@@ -242,6 +243,7 @@ class CouncilServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).prjSno()).isEqualTo(1);
+        assertThat(result.get(0).csfHeldYn()).isEqualTo("Y");
         assertThat(result.get(0).cnrcDt()).isEqualTo(LocalDate.of(2026, 5, 9));
         assertThat(result.get(0).applied()).isTrue();
         assertThat(result.get(0).prjBg()).isEqualByComparingTo("1000.50");
@@ -270,7 +272,8 @@ class CouncilServiceTest {
                 "20260101",
                 "invalid",
                 "IT",
-                "설명"
+                "설명",
+                null                                          // csfHeldYn (미확정)
         };
         given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
                 .willReturn(java.util.Collections.singletonList(row));
