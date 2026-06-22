@@ -4,6 +4,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -25,6 +27,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
@@ -132,21 +135,73 @@ class ServiceRequestDocControllerTest {
 
     @Test
     @DisplayName("GET /api/documents/dashboard - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
     void getDashboard_인증_200() throws Exception {
+        CustomUserDetails user = new CustomUserDetails("10001", List.of("ITPAD001"), "IT001");
         given(serviceRequestDocService.getDashboard(anyString()))
                 .willReturn(new ServiceRequestDocDto.DashboardResponse());
-        mockMvc.perform(get("/api/documents/dashboard").param("bbrC", "IT001"))
+        mockMvc.perform(get("/api/documents/dashboard").param("bbrC", "IT001").with(user(user)))
                 .andExpect(status().isOk());
     }
 
     @Test
     @DisplayName("GET /api/documents/badge-count - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
     void getBadgeCount_인증_200() throws Exception {
+        CustomUserDetails user = new CustomUserDetails("10001", List.of("ITPAD001"), "IT001");
         given(serviceRequestDocService.getBadgeCount(anyString()))
                 .willReturn(new ServiceRequestDocDto.BadgeCountResponse());
-        mockMvc.perform(get("/api/documents/badge-count").param("bbrC", "IT001"))
+        mockMvc.perform(get("/api/documents/badge-count").param("bbrC", "IT001").with(user(user)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /api/documents/dashboard - 비관리자는 본인 부서코드로 강제된다")
+    void dashboard_nonAdminForcedToOwnBbrC() throws Exception {
+        CustomUserDetails user = new CustomUserDetails("E0001", List.of("ITPZZ001"), "18001");
+        given(serviceRequestDocService.getDashboard("18001"))
+                .willReturn(new ServiceRequestDocDto.DashboardResponse());
+
+        mockMvc.perform(get("/api/documents/dashboard").param("bbrC", "99999").with(user(user)))
+                .andExpect(status().isOk());
+
+        verify(serviceRequestDocService).getDashboard("18001");
+    }
+
+    @Test
+    @DisplayName("GET /api/documents/dashboard - 관리자는 요청한 부서코드를 사용한다")
+    void dashboard_adminUsesRequestedBbrC() throws Exception {
+        CustomUserDetails user = new CustomUserDetails("E0099", List.of("ITPAD001"), "18001");
+        given(serviceRequestDocService.getDashboard("99999"))
+                .willReturn(new ServiceRequestDocDto.DashboardResponse());
+
+        mockMvc.perform(get("/api/documents/dashboard").param("bbrC", "99999").with(user(user)))
+                .andExpect(status().isOk());
+
+        verify(serviceRequestDocService).getDashboard("99999");
+    }
+
+    @Test
+    @DisplayName("GET /api/documents/badge-count - 비관리자는 본인 부서코드로 강제된다")
+    void badgeCount_nonAdminForcedToOwnBbrC() throws Exception {
+        CustomUserDetails user = new CustomUserDetails("E0001", List.of("ITPZZ001"), "18001");
+        given(serviceRequestDocService.getBadgeCount("18001"))
+                .willReturn(new ServiceRequestDocDto.BadgeCountResponse());
+
+        mockMvc.perform(get("/api/documents/badge-count").param("bbrC", "99999").with(user(user)))
+                .andExpect(status().isOk());
+
+        verify(serviceRequestDocService).getBadgeCount("18001");
+    }
+
+    @Test
+    @DisplayName("GET /api/documents/badge-count - 관리자는 요청한 부서코드를 사용한다")
+    void badgeCount_adminUsesRequestedBbrC() throws Exception {
+        CustomUserDetails user = new CustomUserDetails("E0099", List.of("ITPAD001"), "18001");
+        given(serviceRequestDocService.getBadgeCount("99999"))
+                .willReturn(new ServiceRequestDocDto.BadgeCountResponse());
+
+        mockMvc.perform(get("/api/documents/badge-count").param("bbrC", "99999").with(user(user)))
+                .andExpect(status().isOk());
+
+        verify(serviceRequestDocService).getBadgeCount("99999");
     }
 }

@@ -182,28 +182,44 @@ public class ServiceRequestDocController {
     /**
      * 요구사항 정의서 대시보드 집계 조회
      *
-     * @param bbrC 부서코드 (필수)
+     * <p>
+     * 비관리자는 요청한 {@code bbrC}와 무관하게 본인 소속 부서코드로 강제 집계됩니다.
+     * 관리자만 임의의 {@code bbrC}로 타 부서 집계를 조회할 수 있습니다 (JWT 클레임 기준).
+     * </p>
+     *
+     * @param bbrC 부서코드 (필수, 비관리자는 본인 부서로 강제 대체됨)
+     * @param user 인증 사용자 (관리자 여부 및 소속 부서 판별용)
      * @return HTTP 200 + 대시보드 집계 응답
      */
     @GetMapping("/dashboard")
     @Operation(summary = "요구사항 정의서 대시보드 조회",
                description = "부서코드 기준 KPI, 월별 추이, 검토 진행 중 목록을 반환합니다.")
     public ResponseEntity<ServiceRequestDocDto.DashboardResponse> getDashboard(
-            @RequestParam("bbrC") String bbrC) {
-        return ResponseEntity.ok(serviceRequestDocService.getDashboard(bbrC));
+            @RequestParam("bbrC") String bbrC,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        String effectiveBbrC = user.isAdmin() ? bbrC : user.getBbrC();
+        return ResponseEntity.ok(serviceRequestDocService.getDashboard(effectiveBbrC));
     }
 
     /**
      * 사이드바 배지용 검토 중 문서 수 조회
      *
-     * @param bbrC 부서코드 (필수)
+     * <p>
+     * 비관리자는 요청한 {@code bbrC}와 무관하게 본인 소속 부서코드로 강제 집계됩니다.
+     * 관리자만 임의의 {@code bbrC}로 타 부서 집계를 조회할 수 있습니다 (JWT 클레임 기준).
+     * </p>
+     *
+     * @param bbrC 부서코드 (필수, 비관리자는 본인 부서로 강제 대체됨)
+     * @param user 인증 사용자 (관리자 여부 및 소속 부서 판별용)
      * @return HTTP 200 + 배지 건수
      */
     @GetMapping("/badge-count")
     @Operation(summary = "사이드바 배지 건수 조회",
                description = "검토 진행 중인 문서 수를 반환합니다.")
     public ResponseEntity<ServiceRequestDocDto.BadgeCountResponse> getBadgeCount(
-            @RequestParam("bbrC") String bbrC) {
-        return ResponseEntity.ok(serviceRequestDocService.getBadgeCount(bbrC));
+            @RequestParam("bbrC") String bbrC,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        String effectiveBbrC = user.isAdmin() ? bbrC : user.getBbrC();
+        return ResponseEntity.ok(serviceRequestDocService.getBadgeCount(effectiveBbrC));
     }
 }
