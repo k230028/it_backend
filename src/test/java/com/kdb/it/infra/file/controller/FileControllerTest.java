@@ -4,6 +4,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -130,13 +132,40 @@ class FileControllerTest {
 
     @Test
     @DisplayName("PUT /api/files/{flMngNo} - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
     void updateFileMeta_인증_200() throws Exception {
+        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
         given(fileService.updateFileMeta(anyString(), any())).willReturn(FL_MNG_NO);
-        mockMvc.perform(put("/api/files/" + FL_MNG_NO)
+        mockMvc.perform(put("/api/files/" + FL_MNG_NO).with(user(userDetails))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new FileDto.UpdateRequest())))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /api/files/{flMngNo} - 소유권 검증을 호출한다")
+    void updateMeta_callsOwnershipCheck() throws Exception {
+        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        given(fileService.updateFileMeta(anyString(), any())).willReturn(FL_MNG_NO);
+
+        mockMvc.perform(put("/api/files/" + FL_MNG_NO).with(user(userDetails))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new FileDto.UpdateRequest())))
+                .andExpect(status().isOk());
+
+        verify(fileOwnershipChecker).checkOwnership(FL_MNG_NO, "10001");
+    }
+
+    @Test
+    @DisplayName("PUT /api/files/{flMngNo} - 타인 파일 메타수정 시 소유권 위반 → 400")
+    void updateMeta_deniedForOther() throws Exception {
+        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        doThrow(new com.kdb.it.exception.CustomGeneralException("본인이 업로드한 파일만 삭제할 수 있습니다."))
+                .when(fileOwnershipChecker).checkOwnership(anyString(), anyString());
+
+        mockMvc.perform(put("/api/files/" + FL_MNG_NO).with(user(userDetails))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new FileDto.UpdateRequest())))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -149,10 +178,10 @@ class FileControllerTest {
 
     @Test
     @DisplayName("DELETE /api/files/bulk - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
     void deleteFilesByOrc_인증_200() throws Exception {
-        given(fileService.deleteFilesByOrc(anyString(), anyString())).willReturn(3);
-        mockMvc.perform(delete("/api/files/bulk")
+        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        given(fileService.deleteFilesByOrc(anyString(), anyString(), any())).willReturn(3);
+        mockMvc.perform(delete("/api/files/bulk").with(user(userDetails))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new FileDto.BulkDeleteRequest())))
                 .andExpect(status().isOk());

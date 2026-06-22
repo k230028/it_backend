@@ -130,7 +130,10 @@ public class FileController {
                         "파일 교체가 필요하면 삭제 후 재업로드를 사용하세요.")
         public ResponseEntity<String> updateFileMeta(
                         @PathVariable("flMpnId") String flMpnId,
-                        @org.springframework.web.bind.annotation.RequestBody FileDto.UpdateRequest request) {
+                        @org.springframework.web.bind.annotation.RequestBody FileDto.UpdateRequest request,
+                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+                // 소유권 검증 — 업로드자 ≠ 현재 사용자이면 예외 발생 (단건 삭제와 동일 정책)
+                fileOwnershipChecker.checkOwnership(flMpnId, userDetails.getUsername());
                 String updatedFlMpnId = fileService.updateFileMeta(flMpnId, request);
                 return ResponseEntity.ok(updatedFlMpnId);
         }
@@ -155,8 +158,10 @@ public class FileController {
                         "프로젝트나 문서 삭제 시 연관 파일을 일괄 정리할 때 사용합니다. " +
                         "삭제된 파일 수를 반환합니다.")
         public ResponseEntity<Integer> deleteFilesByOrc(
-                        @org.springframework.web.bind.annotation.RequestBody FileDto.BulkDeleteRequest request) {
-                int deletedCount = fileService.deleteFilesByOrc(request.getPkColNm(), request.getPkCone());
+                        @org.springframework.web.bind.annotation.RequestBody FileDto.BulkDeleteRequest request,
+                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+                // 소유권 검증은 서비스 계층에서 수행 — 비관리자는 본인 소유 파일만 일괄 삭제 가능
+                int deletedCount = fileService.deleteFilesByOrc(request.getPkColNm(), request.getPkCone(), userDetails);
                 return ResponseEntity.ok(deletedCount);
         }
 

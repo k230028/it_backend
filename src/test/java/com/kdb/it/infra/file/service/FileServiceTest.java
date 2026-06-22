@@ -28,6 +28,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
+import org.springframework.security.access.AccessDeniedException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.FileValidator;
 import com.kdb.it.infra.file.dto.FileDto;
@@ -78,8 +79,13 @@ class FileServiceTest {
         given(f.getFlTpCone()).willReturn("첨부파일");
         given(f.getPkCone()).willReturn("PRJ-2026-0001");
         given(f.getPkColNm()).willReturn("요구사항정의서");
+        given(f.getFstEnrUsid()).willReturn("E0001");
         return f;
     }
+
+    /** 관리자 사용자 (소유권 검증 우회) */
+    private static final CustomUserDetails ADMIN =
+            new CustomUserDetails("E9999", List.of(CustomUserDetails.ATH_ADMIN), "18001");
 
     // ───────────────────────────────────────────────────────
     // getFile
@@ -214,11 +220,63 @@ class FileServiceTest {
         given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "PRJ-2026-0001", "N"))
                 .willReturn(List.of(f1, f2));
 
-        int count = fileService.deleteFilesByOrc("요구사항정의서", "PRJ-2026-0001");
+        int count = fileService.deleteFilesByOrc("요구사항정의서", "PRJ-2026-0001", USER);
 
         assertThat(count).isEqualTo(2);
         verify(f1).delete();
         verify(f2).delete();
+    }
+
+    @Test
+    @DisplayName("deleteFilesByOrc: 타인 소유 파일이 섞이면 AccessDeniedException을 던진다")
+    void deleteFilesByOrc_deniedWhenOtherOwned() {
+        Cfilem mine = mockCfilem("FL_00000001");
+        given(mine.getFstEnrUsid()).willReturn("E0001");
+        Cfilem others = mockCfilem("FL_00000002");
+        given(others.getFstEnrUsid()).willReturn("E0002");
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "DOC-1", "N"))
+                .willReturn(List.of(mine, others));
+
+        assertThatThrownBy(() -> fileService.deleteFilesByOrc(
+                "요구사항정의서", "DOC-1",
+                new CustomUserDetails("E0001", List.of("ITPZZ001"), "18001")))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("deleteFilesByOrc: 모든 파일이 본인 소유이면 일괄 삭제하고 건수를 반환한다")
+    void deleteFilesByOrc_allowedWhenAllOwned() {
+        Cfilem f1 = mockCfilem("FL_00000001");
+        given(f1.getFstEnrUsid()).willReturn("E0001");
+        Cfilem f2 = mockCfilem("FL_00000002");
+        given(f2.getFstEnrUsid()).willReturn("E0001");
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "DOC-1", "N"))
+                .willReturn(List.of(f1, f2));
+
+        int count = fileService.deleteFilesByOrc(
+                "요구사항정의서", "DOC-1",
+                new CustomUserDetails("E0001", List.of("ITPZZ001"), "18001"));
+
+        assertThat(count).isEqualTo(2);
+        verify(f1).delete();
+        verify(f2).delete();
+    }
+
+    @Test
+    @DisplayName("deleteFilesByOrc: 관리자는 타인 소유 파일이 섞여도 일괄 삭제한다")
+    void deleteFilesByOrc_allowedForAdmin() {
+        Cfilem mine = mockCfilem("FL_00000001");
+        given(mine.getFstEnrUsid()).willReturn("E0001");
+        Cfilem others = mockCfilem("FL_00000002");
+        given(others.getFstEnrUsid()).willReturn("E0002");
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "DOC-1", "N"))
+                .willReturn(List.of(mine, others));
+
+        int count = fileService.deleteFilesByOrc("요구사항정의서", "DOC-1", ADMIN);
+
+        assertThat(count).isEqualTo(2);
+        verify(mine).delete();
+        verify(others).delete();
     }
 
     @Test
@@ -227,7 +285,7 @@ class FileServiceTest {
         given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("없는구분", "PRJ-9999-9999", "N"))
                 .willReturn(List.of());
 
-        int count = fileService.deleteFilesByOrc("없는구분", "PRJ-9999-9999");
+        int count = fileService.deleteFilesByOrc("없는구분", "PRJ-9999-9999", USER);
 
         assertThat(count).isEqualTo(0);
     }
@@ -549,7 +607,7 @@ class FileServiceTest {
                 .willReturn(java.util.Collections.emptyList());
 
         // Act
-        int count = fileService.deleteFilesByOrc("없는구분", "PRJ-0000-0000");
+        int count = fileService.deleteFilesByOrc("없는구분", "PRJ-0000-0000", USER);
 
         // Assert: 예외 없이 0 반환
         assertThat(count).isEqualTo(0);
@@ -602,7 +660,7 @@ class FileServiceTest {
                 .willReturn(java.util.Arrays.asList(f1, f2, f3));
 
         // Act
-        int count = fileService.deleteFilesByOrc("정보화사업", "BIZ-2026-0001");
+        int count = fileService.deleteFilesByOrc("정보화사업", "BIZ-2026-0001", USER);
 
         // Assert: 3건 모두 delete() 호출, 반환값 3
         assertThat(count).isEqualTo(3);

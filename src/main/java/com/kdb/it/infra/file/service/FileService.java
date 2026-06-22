@@ -7,6 +7,7 @@ import com.kdb.it.infra.file.repository.FileRepository;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.FileValidator;
 import com.kdb.it.exception.CustomGeneralException;
+import org.springframework.security.access.AccessDeniedException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -474,13 +475,32 @@ public class FileService {
      * 삭제할 파일이 없어도 예외 없이 정상 처리됩니다.
      * </p>
      *
+     * <p>
+     * 소유권 검증: 관리자가 아닌 경우 대상 파일이 모두 본인이 업로드한 파일일 때만 삭제할 수 있습니다.
+     * 하나라도 타인이 업로드한 파일이 섞여 있으면 {@link AccessDeniedException}을 던집니다.
+     * 관리자는 검증을 우회합니다.
+     * </p>
+     *
      * @param pkColNm 주식별자컬럼명 (예: 요구사항정의서)
      * @param pkCone  주식별자내용 (예: PRJ-2026-0001)
+     * @param user    현재 사용자 — 비관리자는 본인 소유 파일만 일괄 삭제 가능
      * @return 논리 삭제된 파일 수
+     * @throws AccessDeniedException 비관리자가 타인 소유 파일을 포함해 삭제를 시도한 경우
      */
     @Transactional
-    public int deleteFilesByOrc(String pkColNm, String pkCone) {
+    public int deleteFilesByOrc(String pkColNm, String pkCone, CustomUserDetails user) {
         List<Cfilem> files = fileRepository.findAllByPkColNmAndPkConeAndDelYn(pkColNm, pkCone, "N");
+
+        // 관리자가 아니면 본인 소유 파일만 일괄 삭제 허용 — 하나라도 타인 파일이면 차단
+        if (user == null || !user.isAdmin()) {
+            String eno = (user == null) ? null : user.getUsername();
+            boolean hasOthers = files.stream()
+                    .anyMatch(f -> eno == null || !eno.equals(f.getFstEnrUsid()));
+            if (hasOthers) {
+                throw new AccessDeniedException("본인이 업로드한 파일만 일괄 삭제할 수 있습니다.");
+            }
+        }
+
         files.forEach(Cfilem::delete);
         return files.size();
     }
