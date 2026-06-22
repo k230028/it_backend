@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class EstimateServiceTest {
@@ -45,6 +46,11 @@ class EstimateServiceTest {
     /** 관리자 사용자 */
     CustomUserDetails admin() {
         return new CustomUserDetails("E0099", List.of("ITPAD001"), "18001");
+    }
+
+    @BeforeEach
+    void setUp() {
+        service = new EstimateService(estimateRepository, lineRepository, projectRepository);
     }
 
     /** 타인 (소유자가 아닌 일반 사용자) */
@@ -69,7 +75,7 @@ class EstimateServiceTest {
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(draftOwnedByE0001()));
             assertThatThrownBy(() -> service.update("REQ-2026-0001", new EstimateDto.UpdateRequest("x"), other()))
-                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+                    .isInstanceOf(AccessDeniedException.class);
         }
 
         @Test
@@ -88,13 +94,26 @@ class EstimateServiceTest {
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(draftOwnedByE0001()));
             assertThatThrownBy(() -> service.delete("REQ-2026-0001", other()))
-                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+                    .isInstanceOf(AccessDeniedException.class);
         }
-    }
 
-    @BeforeEach
-    void setUp() {
-        service = new EstimateService(estimateRepository, lineRepository, projectRepository);
+        @Test
+        @DisplayName("타인이 상태전이하면 AccessDeniedException")
+        void changeStatus_deniedForOther() {
+            when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(draftOwnedByE0001()));
+            assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("42"), other()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("타인이 명세저장하면 AccessDeniedException")
+        void saveLines_deniedForOther() {
+            when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(draftOwnedByE0001()));
+            assertThatThrownBy(() -> service.saveLines("REQ-2026-0001", new EstimateDto.LinesRequest(List.of()), other()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
     }
 
     // =========================================================================
