@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class ContractServiceTest {
@@ -46,11 +47,17 @@ class ContractServiceTest {
         return new CustomUserDetails("A0001", List.of("ITPAD001"), "18001");
     }
 
-    /** 공통 테스트용 Bcontm 빌더 헬퍼 */
+    /** 타부서 일반 사용자(소유자 아님) */
+    CustomUserDetails other() {
+        return new CustomUserDetails("E0002", List.of("ITPZZ001"), "18001");
+    }
+
+    /** 공통 테스트용 Bcontm 빌더 헬퍼. 최초등록자(소유자)는 requester()와 동일한 E0001. */
     Bcontm entityWith(String stsTc, String bgPrnTc, String cncdRfrNo) {
         return Bcontm.builder()
                 .docMngNo("CTR-2026-0001").docVrsSno(1).lstYn("Y")
-                .bgPrnTc(bgPrnTc).cncdRfrNo(cncdRfrNo).stsTc(stsTc).build();
+                .bgPrnTc(bgPrnTc).cncdRfrNo(cncdRfrNo).stsTc(stsTc)
+                .fstEnrUsid("E0001").build();
     }
 
     @BeforeEach
@@ -405,6 +412,87 @@ class ContractServiceTest {
             assertThat(e.getCttOppNm()).isEqualTo("상대처A");
             assertThat(e.getCttDt()).isEqualTo("20260601");
             assertThat(e.getCttManrRsn()).isEqualTo("수의계약 사유");
+        }
+    }
+
+    // =========================================================================
+    // OwnershipTests — 쓰기 경로 소유권 검증
+    // =========================================================================
+
+    @Nested
+    @DisplayName("OwnershipTests — 쓰기 경로 소유권 검증")
+    class OwnershipTests {
+
+        @Test
+        @DisplayName("소유자가 아닌 사용자가 수정하면 AccessDeniedException이 발생한다")
+        void update_rejectsNonOwner() {
+            // Arrange — 소유자 E0001, 요청자 E0002(타인), 작성중(61)
+            Bcontm e = entityWith("61", "100", "PRJ-1");
+            when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(e));
+
+            // Act & Assert
+            assertThatThrownBy(() -> service.update(
+                    "CTR-2026-0001", new ContractDto.UpdateRequest("수정 시도"), other()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("소유자가 아닌 사용자가 삭제하면 AccessDeniedException이 발생한다")
+        void delete_rejectsNonOwner() {
+            // Arrange
+            Bcontm e = entityWith("61", "100", "PRJ-1");
+            when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(e));
+
+            // Act & Assert
+            assertThatThrownBy(() -> service.delete("CTR-2026-0001", other()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("소유자가 아닌 사용자가 상태 전이하면 AccessDeniedException이 발생한다")
+        void changeStatus_rejectsNonOwner() {
+            // Arrange
+            Bcontm e = entityWith("61", "100", "PRJ-1");
+            when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(e));
+
+            // Act & Assert
+            assertThatThrownBy(() -> service.changeStatus(
+                    "CTR-2026-0001", new ContractDto.StatusRequest("62"), other()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("소유자가 아닌 사용자가 계약 정보를 입력하면 AccessDeniedException이 발생한다")
+        void saveContract_rejectsNonOwner() {
+            // Arrange — 소유권 검증이 상태 검증보다 먼저이므로 작성중(61)이어도 소유권에서 거부
+            Bcontm e = entityWith("61", "100", "PRJ-1");
+            when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(e));
+
+            // Act & Assert
+            assertThatThrownBy(() -> service.saveContract(
+                    "CTR-2026-0001",
+                    new ContractDto.WorkRequest("01", "수의계약 사유", "계약A", new BigDecimal("1000"), "상대처A", "20260601"),
+                    other()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("관리자는 소유자가 아니어도 수정할 수 있다")
+        void update_allowsAdmin() {
+            // Arrange — 소유자 E0001, 요청자는 관리자(A0001/ITPAD001)
+            Bcontm e = entityWith("61", "100", "PRJ-1");
+            when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(e));
+
+            // Act
+            service.update("CTR-2026-0001", new ContractDto.UpdateRequest("관리자 수정"), admin());
+
+            // Assert
+            assertThat(e.getReqCone()).isEqualTo("관리자 수정");
         }
     }
 
