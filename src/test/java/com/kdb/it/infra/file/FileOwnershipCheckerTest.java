@@ -178,11 +178,11 @@ class FileOwnershipCheckerTest {
         }
     }
 
-    // ── verifyBoardFileAccess ──
+    // ── checkReadAccess (게시판 파일) ──
 
     @Nested
-    @DisplayName("verifyBoardFileAccess — 게시판 파일 접근 권한 검증")
-    class VerifyBoardFileAccess {
+    @DisplayName("checkReadAccess — 게시판 파일 접근 권한 검증")
+    class CheckReadAccessBoardFile {
 
         @BeforeEach
         void setUp() {

@@ -7,6 +7,7 @@ import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -23,6 +24,7 @@ import java.time.LocalDate;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class FileOwnershipChecker {
 
     private final FileRepository fileRepository;
@@ -87,9 +89,14 @@ public class FileOwnershipChecker {
         }
 
         String nacMngNo = file.getPkCone();
-        return boardPostRepository.findByNacMngNoAndDelYn(nacMngNo, "N")
-                .map(this::isPostVisible)
-                .orElse(false);
+        var postOpt = boardPostRepository.findByNacMngNoAndDelYn(nacMngNo, "N");
+        if (postOpt.isEmpty()) {
+            // 파일이 존재하지 않는 게시물을 참조 — 데이터 정합성 문제이므로 경고 로깅 후 읽기 불가.
+            log.warn("게시판 파일이 존재하지 않는 게시물을 참조합니다: flMpnId={}, pkCone={}",
+                    file.getFlMpnId(), nacMngNo);
+            return false;
+        }
+        return isPostVisible(postOpt.get());
     }
 
     /**
