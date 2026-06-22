@@ -10,6 +10,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.util.MentionExtractor;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
 import lombok.RequiredArgsConstructor;
@@ -358,9 +359,7 @@ public class BoardPostService {
     }
 
     private void verifyCanModify(CustomUserDetails user, Cblbcm post) {
-        if (user.isAdmin()) return;
-        if (user.getEno().equals(post.getFstEnrUsid())) return;
-        throw new CustomGeneralException("본인 게시물만 수정/삭제할 수 있습니다.");
+        OwnershipVerifier.verifyOwnerOrAdmin(post.getFstEnrUsid(), user);
     }
 
     private void verifyBbrC(CustomUserDetails user, String requestBbrC) {

@@ -8,6 +8,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
+import org.springframework.security.access.AccessDeniedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -350,8 +351,7 @@ class BoardPostServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() -> service.updatePost("BLBM-2026-0003", "NAC-2026-0099", req, normalUser))
-            .isInstanceOf(CustomGeneralException.class)
-            .hasMessageContaining("본인 게시물");
+            .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
@@ -366,8 +366,7 @@ class BoardPostServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() -> service.deletePost("BLBM-2026-0003", "NAC-2026-0098", normalUser))
-            .isInstanceOf(CustomGeneralException.class)
-            .hasMessageContaining("본인 게시물");
+            .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test

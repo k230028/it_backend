@@ -12,6 +12,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.util.MentionExtractor;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
 import lombok.RequiredArgsConstructor;
@@ -211,9 +212,7 @@ public class BoardCommentService {
     }
 
     private void verifyCanModify(CustomUserDetails user, Ccmmtm comment) {
-        if (user.isAdmin()) return;
-        if (user.getEno().equals(comment.getFstEnrUsid())) return;
-        throw new CustomGeneralException("본인 댓글만 수정/삭제할 수 있습니다.");
+        OwnershipVerifier.verifyOwnerOrAdmin(comment.getFstEnrUsid(), user);
     }
 
     private boolean canModify(CustomUserDetails user, Ccmmtm comment) {

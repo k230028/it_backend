@@ -11,6 +11,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
+import org.springframework.security.access.AccessDeniedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -184,7 +185,7 @@ class BoardCommentServiceTest {
         // normalUser(USER001)는 OTHER_USER가 작성한 댓글을 수정할 수 없다
         assertThatThrownBy(() ->
             service.updateComment(1L, request, normalUser)
-        ).isInstanceOf(CustomGeneralException.class);
+        ).isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
@@ -265,7 +266,7 @@ class BoardCommentServiceTest {
         // normalUser(USER001)는 OTHER_USER의 댓글을 삭제할 수 없다
         assertThatThrownBy(() ->
             service.deleteComment(1L, normalUser)
-        ).isInstanceOf(CustomGeneralException.class);
+        ).isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
