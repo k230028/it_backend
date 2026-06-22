@@ -14,13 +14,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDate;
-
 /**
  * 공통코드마스터 엔티티
  *
- * <p>DB 테이블: {@code TPRMPP_CCODEM} — PK: (CO_C_ID, CDVA_ID, STT_DTM)</p>
+ * <p>DB 테이블: {@code TPRMPP_CCODEM} — PK: (CO_C_ID_NM, CDVA_ID, STT_DT)</p>
  * <p>Java 필드명은 기존 명칭을 유지하고 {@code @Column} 매핑만 신규 컬럼에 연결합니다.</p>
+ * <p>시작·종료일자(sttDt/endDt)는 {@code VARCHAR2(8)} 'YYYYMMDD' 문자열입니다.</p>
  */
 @LogTarget(entity = CcodemL.class)
 @Entity
@@ -32,9 +31,9 @@ import java.time.LocalDate;
 @IdClass(CcodemId.class)
 public class Ccodem extends BaseEntity {
 
-    /** 공통코드ID: 복합 기본키 1 (예: CUR, PRJ_TP). 컬럼 CO_C_ID */
+    /** 공통코드ID: 복합 기본키 1 (예: CUR, PRJ_TP). 컬럼 CO_C_ID_NM */
     @Id
-    @Column(name = "CO_C_ID", nullable = false, length = 20, comment = "공통코드ID")
+    @Column(name = "CO_C_ID_NM", nullable = false, length = 100, comment = "공통코드ID")
     private String cId;
 
     /** 코드값ID: 복합 기본키 2 (예: 001, STA, END). 컬럼 CDVA_ID */
@@ -46,14 +45,14 @@ public class Ccodem extends BaseEntity {
     @Column(name = "CDVA_NM", length = 200, comment = "코드값명")
     private String cdvaNm;
 
-    /** 시작일시: 복합 기본키 3. 컬럼 STT_DTM */
+    /** 시작일자: 복합 기본키 3 (YYYYMMDD). 컬럼 STT_DT */
     @Id
-    @Column(name = "STT_DTM", nullable = false, comment = "시작일시")
-    private LocalDate sttDt;
+    @Column(name = "STT_DT", nullable = false, length = 8, comment = "시작일자")
+    private String sttDt;
 
-    /** 종료일시. 컬럼 END_DTM */
-    @Column(name = "END_DTM", comment = "종료일시")
-    private LocalDate endDt;
+    /** 종료일자 (YYYYMMDD). 컬럼 END_DT */
+    @Column(name = "END_DT", length = 8, comment = "종료일자")
+    private String endDt;
 
     /** 공통코드명 (Java 필드명 cNm 유지). 컬럼 CO_C_NM */
     @Column(name = "CO_C_NM", length = 100, comment = "공통코드명")
@@ -97,12 +96,12 @@ public class Ccodem extends BaseEntity {
      * @param cTpDes   코드타입설명
      * @param hrkC     상위코드
      * @param cSqn     코드순서
-     * @param endDt    종료일자
+     * @param endDt    종료일자 (YYYYMMDD)
      * @param cdvaDtlC 코드값상세코드
      */
     public void update(String cNm, String cdvaDes, String cdvaDtl,
                        String cTp, String cTpDes, String hrkC,
-                       Integer cSqn, LocalDate endDt, String cdvaDtlC) {
+                       Integer cSqn, String endDt, String cdvaDtlC) {
         update(cNm, cdvaDes, cdvaDtl, this.cdvaNm, cTp, cTpDes, hrkC, cSqn, endDt, cdvaDtlC);
     }
 
@@ -117,12 +116,12 @@ public class Ccodem extends BaseEntity {
      * @param cTpDes   코드타입설명
      * @param hrkC     상위코드
      * @param cSqn     코드순서
-     * @param endDt    종료일자
+     * @param endDt    종료일자 (YYYYMMDD)
      * @param cdvaDtlC 코드값상세코드
      */
     public void update(String cNm, String cdvaDes, String cdvaDtl, String cdvaNm,
                        String cTp, String cTpDes, String hrkC,
-                       Integer cSqn, LocalDate endDt, String cdvaDtlC) {
+                       Integer cSqn, String endDt, String cdvaDtlC) {
         this.cNm      = cNm;
         this.cdvaDes  = cdvaDes;
         this.cdvaDtl  = cdvaDtl;

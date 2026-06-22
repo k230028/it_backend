@@ -46,8 +46,8 @@ public class AdminDto {
             @Schema(description = "코드타입 (구 CTT_TP)") String cTp,
             @Schema(description = "코드타입설명") String cTpDes,
             @Schema(description = "상위코드 {C_ID}_{CDVA}") String hrkC,
-            @Schema(description = "시작일자") LocalDate sttDt,
-            @Schema(description = "종료일자") LocalDate endDt,
+            @Schema(description = "시작일자 (YYYYMMDD)") String sttDt,
+            @Schema(description = "종료일자 (YYYYMMDD)") String endDt,
             @Schema(description = "코드순서") Integer cSqn
     ) {}
 
@@ -97,8 +97,8 @@ public class AdminDto {
             String cTp,
             String cTpDes,
             String hrkC,
-            LocalDate sttDt,
-            LocalDate endDt,
+            String sttDt,
+            String endDt,
             Integer cSqn,
             LocalDateTime fstEnrDtm,
             String fstEnrUsid,

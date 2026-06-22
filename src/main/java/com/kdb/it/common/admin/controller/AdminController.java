@@ -13,13 +13,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -88,7 +86,7 @@ public class AdminController {
     public ResponseEntity<Void> updateCode(
             @PathVariable("cId") String cId,
             @PathVariable("cdva") String cdva,
-            @Parameter(description = "시작일자 (yyyy-MM-dd)", required = true) @RequestParam("sttDt") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sttDt,
+            @Parameter(description = "시작일자 (YYYYMMDD)", required = true) @RequestParam("sttDt") String sttDt,
             @Valid @RequestBody AdminDto.CodeRequest req) {
         adminService.updateCode(cId, cdva, sttDt, req);
         return ResponseEntity.ok().build();
@@ -108,7 +106,7 @@ public class AdminController {
     public ResponseEntity<Void> deleteCode(
             @PathVariable("cId") String cId,
             @PathVariable("cdva") String cdva,
-            @Parameter(description = "시작일자 (yyyy-MM-dd)", required = true) @RequestParam("sttDt") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sttDt) {
+            @Parameter(description = "시작일자 (YYYYMMDD)", required = true) @RequestParam("sttDt") String sttDt) {
         adminService.deleteCode(cId, cdva, sttDt);
         return ResponseEntity.noContent().build();
     }

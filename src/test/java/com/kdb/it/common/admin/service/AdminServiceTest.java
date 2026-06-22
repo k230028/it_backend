@@ -86,7 +86,7 @@ class AdminServiceTest {
     @DisplayName("createCode - 중복 코드ID 존재 시 IllegalArgumentException 발생")
     void createCode_중복코드ID_예외발생() {
         // given: 이미 존재하는 코드ID
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "CODE001", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
         given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE001", "001", sttDt)).willReturn(true);
@@ -101,7 +101,7 @@ class AdminServiceTest {
     @DisplayName("createCode - 정상 요청 시 codeRepository.save() 호출")
     void createCode_정상요청_저장호출() {
         // given
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "CODE002", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
         given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "001", sttDt)).willReturn(false);
@@ -117,7 +117,7 @@ class AdminServiceTest {
     @DisplayName("updateCode - 미존재 코드ID 수정 시 IllegalArgumentException 발생")
     void updateCode_미존재코드ID_예외발생() {
         // given
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "NONE", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("NONE", "001", sttDt, "N")).willReturn(Optional.empty());
@@ -132,7 +132,7 @@ class AdminServiceTest {
     @DisplayName("deleteCode - 정상 삭제 시 code.delete() 호출 (Soft Delete)")
     void deleteCode_정상삭제_SoftDelete() {
         // given
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N")).willReturn(Optional.of(code));
 
@@ -147,7 +147,7 @@ class AdminServiceTest {
     @DisplayName("bulkUpsertCodes - 신규/수정 건수를 정확히 반환한다")
     void bulkUpsertCodes_신규수정건수반환() {
         // given: CODE001은 기존 존재, CODE002는 신규
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         AdminDto.CodeRequest req1 = new AdminDto.CodeRequest("CODE001", "001", "코드1", null, null, null, null, null, null, null, sttDt, null, 1);
         AdminDto.CodeRequest req2 = new AdminDto.CodeRequest("CODE002", "002", "코드2", null, null, null, null, null, null, null, sttDt, null, 2);
         AdminDto.BulkCodeRequest bulkReq = new AdminDto.BulkCodeRequest(List.of(req1, req2));
@@ -169,7 +169,7 @@ class AdminServiceTest {
     @Test
     @DisplayName("updateCode - 복합키가 같으면 기존 코드의 일반 필드만 수정한다")
     void updateCode_동일키_기존항목수정() {
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).cNm("기존").build();
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "CODE001", "001", "수정", "코드값명", "설명", "값", "상세", "타입", "타입설명", null, sttDt, null, 2);
@@ -184,8 +184,8 @@ class AdminServiceTest {
     @Test
     @DisplayName("updateCode - 복합키 변경 시 기존 코드를 삭제하고 새 코드를 저장한다")
     void updateCode_키변경_새항목저장() {
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        LocalDate newSttDt = LocalDate.of(2026, 2, 1);
+        String sttDt = "20260101";
+        String newSttDt = "20260201";
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "CODE002", "002", "신규키", null, null, null, null, null, null, null, newSttDt, null, 1);
@@ -201,8 +201,8 @@ class AdminServiceTest {
     @Test
     @DisplayName("updateCode - 변경 대상 복합키가 이미 있으면 저장을 거절한다")
     void updateCode_변경키중복_예외발생() {
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
-        LocalDate newSttDt = LocalDate.of(2026, 2, 1);
+        String sttDt = "20260101";
+        String newSttDt = "20260201";
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "CODE002", "002", "신규키", null, null, null, null, null, null, null, newSttDt, null, 1);
@@ -218,7 +218,7 @@ class AdminServiceTest {
     @Test
     @DisplayName("createCode - 코드 키 필수값이 없으면 각각 예외를 반환한다")
     void createCode_필수키누락_예외발생() {
-        LocalDate date = LocalDate.of(2026, 1, 1);
+        String date = "20260101";
         AdminDto.CodeRequest noId = new AdminDto.CodeRequest(
                 " ", "001", null, null, null, null, null, null, null, null, date, null, 1);
         AdminDto.CodeRequest noValue = new AdminDto.CodeRequest(

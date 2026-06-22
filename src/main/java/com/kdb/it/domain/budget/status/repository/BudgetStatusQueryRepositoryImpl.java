@@ -22,6 +22,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -564,7 +565,8 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
      * 현재 유효한 공통코드만 조인합니다.
      */
     private BooleanExpression codeIsActive(QCcodem code) {
-        LocalDate today = LocalDate.now();
+        // 시작·종료일자는 'YYYYMMDD' 문자열이므로 기준일자도 동일 형식으로 비교
+        String today = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
         return code.delYn.eq("N")
                 .and(code.sttDt.loe(today))
                 .and(code.endDt.isNull().or(code.endDt.goe(today)));

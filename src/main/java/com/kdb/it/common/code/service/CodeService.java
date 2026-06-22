@@ -125,7 +125,7 @@ public class CodeService {
             @CacheEvict(value = "budgetPeriod", allEntries = true),
             @CacheEvict(value = "codesByCid",   allEntries = true)
     })
-    public String updateCcodem(String cId, String cdva, LocalDate sttDt,
+    public String updateCcodem(String cId, String cdva, String sttDt,
                                CodeDto.UpdateRequest request) {
         Ccodem ccodem = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -156,7 +156,7 @@ public class CodeService {
             @CacheEvict(value = "budgetPeriod", allEntries = true),
             @CacheEvict(value = "codesByCid",   allEntries = true)
     })
-    public void deleteCcodem(String cId, String cdva, LocalDate sttDt) {
+    public void deleteCcodem(String cId, String cdva, String sttDt) {
         Ccodem ccodem = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
                 .orElseThrow(() -> new IllegalArgumentException(
                         "삭제할 공통코드를 찾을 수 없거나 이미 삭제됨: " + cId + "/" + cdva + ", " + sttDt));

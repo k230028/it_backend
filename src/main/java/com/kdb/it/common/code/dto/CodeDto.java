@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -55,11 +54,11 @@ public class CodeDto {
         @Schema(description = "코드순서", example = "1")
         private Integer cSqn;
 
-        @Schema(description = "시작일자", example = "2026-01-01")
-        private LocalDate sttDt;
+        @Schema(description = "시작일자 (YYYYMMDD)", example = "20260101")
+        private String sttDt;
 
-        @Schema(description = "종료일자", example = "2099-12-31")
-        private LocalDate endDt;
+        @Schema(description = "종료일자 (YYYYMMDD)", example = "20991231")
+        private String endDt;
 
         public Ccodem toEntity() {
             return Ccodem.builder()
@@ -113,8 +112,8 @@ public class CodeDto {
         @Schema(description = "코드순서")
         private Integer cSqn;
 
-        @Schema(description = "종료일자")
-        private LocalDate endDt;
+        @Schema(description = "종료일자 (YYYYMMDD)")
+        private String endDt;
     }
 
     @Getter
@@ -162,11 +161,11 @@ public class CodeDto {
         @Schema(description = "코드순서")
         private Integer cSqn;
 
-        @Schema(description = "시작일자")
-        private LocalDate sttDt;
+        @Schema(description = "시작일자 (YYYYMMDD)")
+        private String sttDt;
 
-        @Schema(description = "종료일자")
-        private LocalDate endDt;
+        @Schema(description = "종료일자 (YYYYMMDD)")
+        private String endDt;
 
         @Schema(description = "삭제여부")
         private String delYn;

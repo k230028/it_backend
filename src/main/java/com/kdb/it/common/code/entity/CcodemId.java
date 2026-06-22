@@ -5,12 +5,11 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDate;
 
 /**
  * 공통코드마스터(Ccodem) 엔티티의 복합 기본키 클래스
  *
- * <p>JPA의 {@code @IdClass} 방식으로 {@link Ccodem} 엔티티의 복합키(CO_C_ID, CDVA_ID, STT_DTM)를 정의합니다.</p>
+ * <p>JPA의 {@code @IdClass} 방식으로 {@link Ccodem} 엔티티의 복합키(CO_C_ID_NM, CDVA_ID, STT_DT)를 정의합니다.</p>
  */
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,6 +22,6 @@ public class CcodemId implements Serializable {
     /** 코드값: Ccodem.cdva와 이름/타입 일치 필수 */
     private String cdva;
 
-    /** 시작일자: Ccodem.sttDt와 이름/타입 일치 필수 */
-    private LocalDate sttDt;
+    /** 시작일자(YYYYMMDD): Ccodem.sttDt와 이름/타입 일치 필수 */
+    private String sttDt;
 }

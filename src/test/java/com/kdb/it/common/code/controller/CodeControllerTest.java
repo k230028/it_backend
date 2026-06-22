@@ -117,7 +117,7 @@ class CodeControllerTest {
     @WithMockUser(username = "10001")
     void updateCode_인증_200() throws Exception {
         mockMvc.perform(put("/api/ccodem/CODE001/001")
-                .param("sttDt", "2026-01-01")
+                .param("sttDt", "20260101")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new CodeDto.UpdateRequest())))
                 .andExpect(status().isOk());
@@ -128,7 +128,7 @@ class CodeControllerTest {
     @WithMockUser(username = "10001")
     void deleteCode_인증_204() throws Exception {
         mockMvc.perform(delete("/api/ccodem/CODE001/001")
-                .param("sttDt", "2026-01-01"))
+                .param("sttDt", "20260101"))
                 .andExpect(status().isNoContent());
     }
 

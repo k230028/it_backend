@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.util.Optional;
 
 /**
@@ -26,7 +25,7 @@ public interface CodeRepository extends JpaRepository<Ccodem, CcodemId>, CodeRep
     @Query("SELECT c FROM Ccodem c WHERE c.cId = :cId AND c.cdva = :cdva AND c.sttDt = :sttDt AND c.delYn = :delYn")
     Optional<Ccodem> findByCIdAndCdvaAndSttDtAndDelYn(@Param("cId") String cId,
                                                      @Param("cdva") String cdva,
-                                                     @Param("sttDt") LocalDate sttDt,
+                                                     @Param("sttDt") String sttDt,
                                                      @Param("delYn") String delYn);
 
     /**
@@ -35,5 +34,5 @@ public interface CodeRepository extends JpaRepository<Ccodem, CcodemId>, CodeRep
     @Query("SELECT CASE WHEN COUNT(c) > 0 THEN TRUE ELSE FALSE END FROM Ccodem c WHERE c.cId = :cId AND c.cdva = :cdva AND c.sttDt = :sttDt")
     boolean existsByCIdAndCdvaAndSttDt(@Param("cId") String cId,
                                        @Param("cdva") String cdva,
-                                       @Param("sttDt") LocalDate sttDt);
+                                       @Param("sttDt") String sttDt);
 }

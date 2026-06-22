@@ -145,7 +145,7 @@ public class AdminService {
          * @throws IllegalArgumentException 원본 코드를 찾을 수 없거나, 새 PK가 이미 존재하는 경우
          */
         @Transactional
-        public void updateCode(String cId, String cdva, LocalDate sttDt, AdminDto.CodeRequest req) {
+        public void updateCode(String cId, String cdva, String sttDt, AdminDto.CodeRequest req) {
                 validateCodeKey(cId, cdva, sttDt);
                 Ccodem code = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
                                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드입니다: " + cId + "/" + cdva + ", " + sttDt));
@@ -153,7 +153,7 @@ public class AdminService {
                 // 요청 PK 결정: req에 값이 있으면 새 PK, 없으면 path PK 유지
                 String newCId    = (req.cId()  != null && !req.cId().isBlank())  ? req.cId()  : cId;
                 String newCdva   = (req.cdva() != null && !req.cdva().isBlank()) ? req.cdva() : cdva;
-                LocalDate newSttDt = (req.sttDt() != null) ? req.sttDt() : sttDt;
+                String newSttDt = (req.sttDt() != null && !req.sttDt().isBlank()) ? req.sttDt() : sttDt;
 
                 boolean pkChanged = !Objects.equals(newCId, cId)
                                 || !Objects.equals(newCdva, cdva)
@@ -205,7 +205,7 @@ public class AdminService {
          * @throws IllegalArgumentException 코드를 찾을 수 없는 경우
          */
         @Transactional
-        public void deleteCode(String cId, String cdva, LocalDate sttDt) {
+        public void deleteCode(String cId, String cdva, String sttDt) {
                 validateCodeKey(cId, cdva, sttDt);
                 Ccodem code = codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
                                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 코드입니다: " + cId + "/" + cdva + ", " + sttDt));
@@ -257,14 +257,14 @@ public class AdminService {
         /**
          * 공통코드 복합키 필수값을 검증합니다.
          */
-        private void validateCodeKey(String cId, String cdva, LocalDate sttDt) {
+        private void validateCodeKey(String cId, String cdva, String sttDt) {
                 if (cId == null || cId.isBlank()) {
                         throw new IllegalArgumentException("코드ID는 필수입니다.");
                 }
                 if (cdva == null || cdva.isBlank()) {
                         throw new IllegalArgumentException("코드값은 필수입니다.");
                 }
-                if (sttDt == null) {
+                if (sttDt == null || sttDt.isBlank()) {
                         throw new IllegalArgumentException("시작일자는 필수입니다.");
                 }
         }

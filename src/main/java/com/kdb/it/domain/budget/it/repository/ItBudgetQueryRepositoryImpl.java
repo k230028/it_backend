@@ -17,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -239,7 +240,8 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
     /** CCODEM(cId='IOE') 에서 cdva → cdvaNm 맵 로드 */
     private Map<String, String> loadCodeNames() {
         QCcodem c = QCcodem.ccodem;
-        LocalDate today = LocalDate.now();
+        // 시작·종료일자는 'YYYYMMDD' 문자열이므로 기준일자도 동일 형식으로 비교
+        String today = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
 
         List<Tuple> rows = queryFactory
                 .select(c.cdva, c.cdvaNm)

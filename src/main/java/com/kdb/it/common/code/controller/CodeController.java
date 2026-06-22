@@ -91,9 +91,8 @@ public class CodeController {
     public ResponseEntity<String> updateCcodem(
             @PathVariable("cId") String cId,
             @PathVariable("cdva") String cdva,
-            @Parameter(description = "시작일자 (yyyy-MM-dd)", required = true)
-            @RequestParam("sttDt")
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sttDt,
+            @Parameter(description = "시작일자 (YYYYMMDD)", required = true)
+            @RequestParam("sttDt") String sttDt,
             @Valid @RequestBody CodeDto.UpdateRequest request) {
 
         return ResponseEntity.ok(codeService.updateCcodem(cId, cdva, sttDt, request));
@@ -111,9 +110,8 @@ public class CodeController {
     public ResponseEntity<Void> deleteCcodem(
             @PathVariable("cId") String cId,
             @PathVariable("cdva") String cdva,
-            @Parameter(description = "시작일자 (yyyy-MM-dd)", required = true)
-            @RequestParam("sttDt")
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sttDt) {
+            @Parameter(description = "시작일자 (YYYYMMDD)", required = true)
+            @RequestParam("sttDt") String sttDt) {
 
         codeService.deleteCcodem(cId, cdva, sttDt);
         return ResponseEntity.noContent().build();

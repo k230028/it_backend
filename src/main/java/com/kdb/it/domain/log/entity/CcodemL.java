@@ -9,8 +9,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDate;
-
 /**
  * 코드 마스터(TPRMPP_CCODEM) 변경 로그 엔티티.
  */
@@ -23,7 +21,7 @@ import java.time.LocalDate;
 public class CcodemL extends BaseLogEntity {
 
     // 변경로그 복사는 @Column(name)으로 매칭하므로 마스터(Ccodem)와 컬럼명이 일치해야 한다.
-    @Column(name = "CO_C_ID", length = 20, comment = "공통코드ID")
+    @Column(name = "CO_C_ID_NM", length = 100, comment = "공통코드ID")
     private String cId;
 
     @Column(name = "CDVA_ID", length = 40, comment = "코드값ID")
@@ -32,11 +30,11 @@ public class CcodemL extends BaseLogEntity {
     @Column(name = "CDVA_NM", length = 500, comment = "코드값명")
     private String cdvaNm;
 
-    @Column(name = "STT_DTM", comment = "시작일시")
-    private LocalDate sttDt;
+    @Column(name = "STT_DT", length = 8, comment = "시작일자")
+    private String sttDt;
 
-    @Column(name = "END_DTM", comment = "종료일시")
-    private LocalDate endDt;
+    @Column(name = "END_DT", length = 8, comment = "종료일자")
+    private String endDt;
 
     @Column(name = "CO_C_NM", length = 100, comment = "공통코드명")
     private String cNm;

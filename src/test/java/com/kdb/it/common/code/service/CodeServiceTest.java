@@ -11,7 +11,6 @@ import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.Optional;
-import java.time.LocalDate;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -108,8 +107,8 @@ class CodeServiceTest {
         CodeDto.CreateRequest request = new CodeDto.CreateRequest();
         request.setCId("CD001");
         request.setCdva("001");
-        request.setSttDt(LocalDate.of(2026, 1, 1));
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CD001", "001", LocalDate.of(2026, 1, 1))).willReturn(true);
+        request.setSttDt("20260101");
+        given(codeRepository.existsByCIdAndCdvaAndSttDt("CD001", "001", "20260101")).willReturn(true);
 
         assertThatThrownBy(() -> codeService.createCcodem(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -136,8 +135,8 @@ class CodeServiceTest {
         request.setCdva("001");
         request.setCNm("테스트코드");
         request.setCTp("PRJ_TP");
-        request.setSttDt(LocalDate.of(2026, 1, 1));
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CD001", "001", LocalDate.of(2026, 1, 1))).willReturn(false);
+        request.setSttDt("20260101");
+        given(codeRepository.existsByCIdAndCdvaAndSttDt("CD001", "001", "20260101")).willReturn(false);
 
         String result = codeService.createCcodem(request);
 
@@ -152,7 +151,7 @@ class CodeServiceTest {
     @Test
     @DisplayName("updateCcodem: 존재하지 않으면 IllegalArgumentException을 던진다")
     void updateCcodem_존재하지않음_IllegalArgumentException발생() {
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("INVALID", "001", sttDt, "N"))
                 .willReturn(Optional.empty());
 
@@ -164,7 +163,7 @@ class CodeServiceTest {
     @Test
     @DisplayName("updateCcodem: 존재하는 코드이면 update 후 cId를 반환한다")
     void updateCcodem_존재하는코드_update호출() {
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         Ccodem ccodem = mockCcodem("001", "PRJ_TP");
         CodeDto.UpdateRequest request = new CodeDto.UpdateRequest();
         request.setCNm("수정명");
@@ -185,7 +184,7 @@ class CodeServiceTest {
     @Test
     @DisplayName("deleteCcodem: 존재하지 않으면 IllegalArgumentException을 던진다")
     void deleteCcodem_존재하지않음_IllegalArgumentException발생() {
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("INVALID", "001", sttDt, "N"))
                 .willReturn(Optional.empty());
 
@@ -198,7 +197,7 @@ class CodeServiceTest {
     @DisplayName("deleteCcodem: 존재하는 코드이면 논리 삭제를 수행한다")
     void deleteCcodem_존재하는코드_논리삭제수행() {
         Ccodem ccodem = mockCcodem("001", "PRJ_TP");
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CD001", "001", sttDt, "N"))
                 .willReturn(Optional.of(ccodem));
 

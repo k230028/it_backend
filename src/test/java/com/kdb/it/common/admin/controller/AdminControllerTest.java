@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -92,7 +91,7 @@ class AdminControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void createCode_정상요청_201반환() throws Exception {
         // given
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "CODE001", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
 
@@ -112,7 +111,7 @@ class AdminControllerTest {
                 .when(adminService).createCode(any(AdminDto.CodeRequest.class));
 
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE001", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, LocalDate.of(2026, 1, 1), null, 1);
+                "CODE001", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, "20260101", null, 1);
 
         // when & then
         mockMvc.perform(post("/api/admin/codes")
@@ -126,13 +125,13 @@ class AdminControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void updateCode_정상수정_200반환() throws Exception {
         // given
-        LocalDate sttDt = LocalDate.of(2026, 1, 1);
+        String sttDt = "20260101";
         AdminDto.CodeRequest req = new AdminDto.CodeRequest(
                 "CODE001", "001", "수정된코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
 
         // when & then
         mockMvc.perform(put("/api/admin/codes/CODE001/001")
-                .param("sttDt", "2026-01-01")
+                .param("sttDt", "20260101")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk());
@@ -144,7 +143,7 @@ class AdminControllerTest {
     void deleteCode_정상삭제_204반환() throws Exception {
         // when & then
         mockMvc.perform(delete("/api/admin/codes/CODE001/001")
-                .param("sttDt", "2026-01-01"))
+                .param("sttDt", "20260101"))
                 .andExpect(status().isNoContent());
     }
 

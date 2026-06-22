@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,7 +28,7 @@ public class CodeRepositoryImpl implements CodeRepositoryCustom {
     @Override
     public Optional<Ccodem> findByCIdAndCdvaWithValidDate(String cId, String cdva, LocalDate targetDate) {
         QCcodem q = QCcodem.ccodem;
-        LocalDate date = (targetDate != null) ? targetDate : LocalDate.now();
+        String date = toYmd(targetDate);
 
         return Optional.ofNullable(
             queryFactory.selectFrom(q)
@@ -46,7 +47,7 @@ public class CodeRepositoryImpl implements CodeRepositoryCustom {
     @Override
     public List<Ccodem> findByCIdWithValidDate(String cId, LocalDate targetDate) {
         QCcodem q = QCcodem.ccodem;
-        LocalDate date = (targetDate != null) ? targetDate : LocalDate.now();
+        String date = toYmd(targetDate);
 
         return queryFactory.selectFrom(q)
                 .where(q.cId.eq(cId),
@@ -87,7 +88,7 @@ public class CodeRepositoryImpl implements CodeRepositoryCustom {
     @Override
     public List<Ccodem> findByCTpWithValidDate(String cTp, LocalDate targetDate) {
         QCcodem q = QCcodem.ccodem;
-        LocalDate date = (targetDate != null) ? targetDate : LocalDate.now();
+        String date = toYmd(targetDate);
 
         return queryFactory.selectFrom(q)
                 .where(q.cTp.eq(cTp),
@@ -97,10 +98,19 @@ public class CodeRepositoryImpl implements CodeRepositoryCustom {
                 .fetch();
     }
 
-    /** 기준일자가 시작~종료 범위 내인지 검증 */
-    private BooleanExpression isValidDate(QCcodem ccodem, LocalDate date) {
+    /**
+     * 기준일자가 시작~종료 범위 내인지 검증.
+     * 시작·종료일자는 'YYYYMMDD' 문자열이므로 사전식 비교가 곧 날짜 비교와 일치합니다.
+     */
+    private BooleanExpression isValidDate(QCcodem ccodem, String date) {
         BooleanExpression afterStart = ccodem.sttDt.isNull().or(ccodem.sttDt.loe(date));
         BooleanExpression beforeEnd  = ccodem.endDt.isNull().or(ccodem.endDt.goe(date));
         return afterStart.and(beforeEnd);
+    }
+
+    /** 기준일자(null이면 오늘)를 'YYYYMMDD' 문자열로 변환 */
+    private String toYmd(LocalDate targetDate) {
+        LocalDate date = (targetDate != null) ? targetDate : LocalDate.now();
+        return date.format(DateTimeFormatter.BASIC_ISO_DATE);
     }
 }
