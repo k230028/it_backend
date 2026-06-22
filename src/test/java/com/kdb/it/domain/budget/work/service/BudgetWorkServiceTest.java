@@ -133,6 +133,28 @@ class BudgetWorkServiceTest {
         assertThat(result.get(0).requestAmount()).isEqualTo(BigDecimal.valueOf(1000000));
     }
 
+    @Test
+    @DisplayName("getIoeCategories - 기존 편성행이 비목 집합과 매칭되지 않으면 편성률 null")
+    void getIoeCategories_기존편성행비매칭_편성률null() {
+        Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cdvaDtlC("237-0700").build();
+        Bbugtm unmatched = Bbugtm.builder()
+                .ioeC("999")
+                .asgRt(80)
+                .build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(unmatched));
+        given(bbugtmRepository.sumApprovedAmountByIoeCValues(any(), eq("2026")))
+                .willReturn(BigDecimal.TEN);
+
+        List<BudgetWorkDto.IoeCategoryResponse> result = budgetWorkService.getIoeCategories("2026");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).dupRt()).isNull();
+    }
+
     // =========================================================================
     // getSummary — 편성 결과 조회
     // =========================================================================
@@ -224,6 +246,118 @@ class BudgetWorkServiceTest {
         assertThat(item.requestAmount()).isEqualByComparingTo(BigDecimal.valueOf(1000000));
         assertThat(result.totals().requestAmount()).isEqualByComparingTo(BigDecimal.valueOf(1000000));
         assertThat(result.totals().dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(800000));
+    }
+
+    @Test
+    @DisplayName("getSummary: 사업 예정금액을 품목 비율로 차감한다")
+    void getSummary_예정금액_비율차감() {
+        Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
+        Ccodem detailCode = Ccodem.builder()
+                .cdva("101")
+                .cNm("237-0700")
+                .cdvaDtlC("237-0700")
+                .cdvaNm("국내전산임차료")
+                .cTp("IOE_LEAFE")
+                .cTpDes("전산임차료")
+                .build();
+        Bbugtm bbugtm = Bbugtm.builder()
+                .fntTbNm("BITEMM")
+                .pkColNm("GCL-1")
+                .ioeC("101")
+                .bgDupAmt(BigDecimal.valueOf(800))
+                .asgRt(80)
+                .build();
+        Bitemm item = Bitemm.builder()
+                .gclMngNo("GCL-1")
+                .abusMngNo("PRJ-1")
+                .amt(BigDecimal.valueOf(1000))
+                .xcr(BigDecimal.ONE)
+                .build();
+        Bprojm project = Bprojm.builder()
+                .abusMngNo("PRJ-1")
+                .mplMngcAmt(BigDecimal.valueOf(500))
+                .build();
+
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(bbugtm));
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(detailCode));
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
+                .willReturn(java.util.Map.of());
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
+                .willReturn(java.util.Map.of("101", BigDecimal.valueOf(1000)));
+        // Phase 4 T12: 배치 조회로 변경 (findByGclMngNoInAndDelYn, findByAbusMngNoInAndDelYn)
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(item));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(project));
+
+        BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
+
+        assertThat(result.data()).hasSize(1);
+        assertThat(result.data().get(0).requestAmount()).isEqualByComparingTo(BigDecimal.valueOf(500));
+        assertThat(result.data().get(0).dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(400));
+    }
+
+    @Test
+    @DisplayName("getSummary: 결재완료 원본과 선택 원본만 집계한다")
+    void getSummary_승인원본과선택원본필터() {
+        Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
+        Ccodem detailCode = Ccodem.builder()
+                .cdva("101")
+                .cNm("237-0700")
+                .cdvaDtlC("237-0700")
+                .cdvaNm("국내전산임차료")
+                .cTp("IOE_LEAFE")
+                .cTpDes("전산임차료")
+                .build();
+        Bbugtm selected = Bbugtm.builder()
+                .pkColNm("SRC-1")
+                .ioeC("101")
+                .bgDupAmt(BigDecimal.valueOf(800))
+                .asgRt(80)
+                .build();
+        Bbugtm notSelected = Bbugtm.builder()
+                .pkColNm("SRC-2")
+                .ioeC("101")
+                .bgDupAmt(BigDecimal.valueOf(1600))
+                .asgRt(80)
+                .build();
+        Bbugtm notApproved = Bbugtm.builder()
+                .pkColNm("SRC-3")
+                .ioeC("101")
+                .bgDupAmt(BigDecimal.valueOf(2400))
+                .asgRt(80)
+                .build();
+
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
+                .willReturn(List.of(selected, notSelected, notApproved));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of("SRC-1", "SRC-2"));
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(detailCode));
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
+                .willReturn(java.util.Map.of("101", BigDecimal.valueOf(3000)));
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
+                .willReturn(java.util.Map.of());
+
+        BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026", List.of("SRC-1"));
+
+        assertThat(result.data()).hasSize(1);
+        assertThat(result.data().get(0).dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(800));
+    }
+
+    @Test
+    @DisplayName("buildPrefixToIoeCValuesMap: 계층코드가 없거나 cdva가 없으면 건너뛴다")
+    void buildPrefixToIoeCValuesMap_누락값건너뜀() {
+        List<Ccodem> codes = List.of(
+                Ccodem.builder().cdva("001").cdvaDtlC("237-0700").build(),
+                Ccodem.builder().cdva(null).cdvaDtlC("238-0100").build(),
+                Ccodem.builder().cdva("003").cdvaDtlC(null).build(),
+                Ccodem.builder().cdva("004").cdvaDtlC("240").build());
+
+        java.util.Map<String, java.util.Set<String>> result = budgetWorkService.buildPrefixToIoeCValuesMap(codes);
+
+        assertThat(result).containsEntry("237", java.util.Set.of("001"));
+        assertThat(result).containsEntry("240", java.util.Set.of("004"));
+        assertThat(result).doesNotContainKey("238");
     }
 
     @Test
@@ -655,9 +789,10 @@ class BudgetWorkServiceTest {
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode1, ioeCode2));
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(itemBudget, costBudget));
-        given(projectItemRepository.findByGclMngNoAndDelYn("GCL-0001", "N")).willReturn(List.of(item));
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N")).willReturn(Optional.of(project));
-        given(costRepository.findByCostBgNoAndDelYn("COST-2026-0001", "N")).willReturn(List.of(cost));
+        // Phase 4 T12: 배치 조회로 변경
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(item));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(project));
+        given(costRepository.findByCostBgNoInAndDelYn(any(), eq("N"))).willReturn(List.of(cost));
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
@@ -690,7 +825,7 @@ class BudgetWorkServiceTest {
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
-        given(costRepository.findByCostBgNoAndDelYn("COST-2026-0001", "N")).willReturn(List.of(cost));
+        given(costRepository.findByCostBgNoInAndDelYn(any(), eq("N"))).willReturn(List.of(cost));
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
@@ -723,7 +858,7 @@ class BudgetWorkServiceTest {
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
-        given(costRepository.findByCostBgNoAndDelYn("COST-001", "N")).willReturn(List.of(cost));
+        given(costRepository.findByCostBgNoInAndDelYn(any(), eq("N"))).willReturn(List.of(cost));
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
@@ -751,7 +886,7 @@ class BudgetWorkServiceTest {
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
-        given(costRepository.findByCostBgNoAndDelYn("COST-002", "N")).willReturn(List.of(cost));
+        given(costRepository.findByCostBgNoInAndDelYn(any(), eq("N"))).willReturn(List.of(cost));
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
@@ -969,7 +1104,7 @@ class BudgetWorkServiceTest {
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
-        given(costRepository.findByCostBgNoAndDelYn("COST-003", "N")).willReturn(List.of(cost));
+        given(costRepository.findByCostBgNoInAndDelYn(any(), eq("N"))).willReturn(List.of(cost));
 
         // when
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
@@ -1011,9 +1146,9 @@ class BudgetWorkServiceTest {
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode0, ioeCode1, ioeCode2));
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
                 .willReturn(List.of(nullPk, itemNoProject, costNoName, unknown));
-        given(projectItemRepository.findByGclMngNoAndDelYn("GCL-MISSING", "N")).willReturn(List.of());
-        given(projectRepository.findByAbusMngNoAndDelYn("GCL-MISSING", "N")).willReturn(Optional.empty());
-        given(costRepository.findByCostBgNoAndDelYn("COST-MISSING", "N")).willReturn(List.of());
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of());
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of());
+        given(costRepository.findByCostBgNoInAndDelYn(any(), eq("N"))).willReturn(List.of());
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
@@ -1021,5 +1156,68 @@ class BudgetWorkServiceTest {
                 .contains("GCL-MISSING", "COST-MISSING", "UNK-1");
         assertThat(result.totals().requestAmount()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.totals().dupAmount()).isEqualByComparingTo("100");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary: 컬럼명 후보가 모두 비어 있으면 접두어를 사용한다")
+    void getProjectSummary_컬럼명최종prefix폴백() {
+        Ccodem dupCode = Ccodem.builder().cdva("999").build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.categories()).hasSize(1);
+        assertThat(result.categories().get(0).cdNm()).isEqualTo("999");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary: 세부코드 매칭이 없으면 dupCode cdvaNm을 컬럼명으로 사용한다")
+    void getProjectSummary_세부코드매칭없음_cdvaNm폴백() {
+        Ccodem dupCode = Ccodem.builder()
+                .cdva("888")
+                .cdvaNm("CDVA명폴백")
+                .cNm("CNM폴백")
+                .build();
+        Ccodem unrelatedIoeCode = Ccodem.builder()
+                .cdva("001")
+                .cdvaDtlC("777-0100")
+                .cTpDes("다른그룹")
+                .build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(unrelatedIoeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.categories()).hasSize(1);
+        assertThat(result.categories().get(0).cdNm()).isEqualTo("CDVA명폴백");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary: 세부코드 계층명이 없으면 세부코드 설명을 컬럼명으로 사용한다")
+    void getProjectSummary_세부코드계층명없음_cdvaDes사용() {
+        Ccodem dupCode = Ccodem.builder()
+                .cdva("555")
+                .cdvaNm("사용되지않는폴백")
+                .build();
+        Ccodem ioeCode = Ccodem.builder()
+                .cdva("005")
+                .cdvaDtlC("555-0100")
+                .cdvaDtl("계층구분없는문자열")
+                .cdvaDes("세부설명컬럼명")
+                .build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.categories()).hasSize(1);
+        assertThat(result.categories().get(0).cdNm()).isEqualTo("세부설명컬럼명");
     }
 }

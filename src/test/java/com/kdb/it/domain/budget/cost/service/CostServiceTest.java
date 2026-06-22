@@ -72,12 +72,20 @@ class CostServiceTest {
     @Mock private BbugtmRepository bbugtmRepository;
     /** 환율 표준 조회 헬퍼 (CONTEXT.md 결정 E / R3.7 — Wave 5 추가 의존성) */
     @Mock private XcrLookupService xcrLookupService;
+    /** Phase 5 Task 5: CodeNameMapBuilder 추출 후 주입 */
+    @Mock private com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder codeNameMapBuilder;
 
     @InjectMocks
     private CostService costService;
 
     /** 테스트 공통 관리번호 */
     private static final String IT_MNGC_NO = "COST_2026_0001";
+
+    @org.junit.jupiter.api.BeforeEach
+    void setupCodeNameMapperDefaults() {
+        // codeNameMapBuilder.build()의 기본값: 빈 Map 반환 (호출자가 필요시 override)
+        given(codeNameMapBuilder.build(any(), any())).willReturn(java.util.Map.of());
+    }
 
     // ───────────────────────────────────────────────────────
     // getCost
@@ -385,6 +393,38 @@ class CostServiceTest {
     }
 
     @Test
+    @DisplayName("getCost: 단말기 코드와 담당자가 비어 있으면 코드명 배치 조회를 건너뛴다")
+    void getCost_단말기코드담당자없음_코드명조회건너뜀() {
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn(IT_MNGC_NO);
+        given(cost.getBgSno()).willReturn(1);
+        Btermm terminal = Btermm.builder()
+                .termBgNo(IT_MNGC_NO)
+                .termBgSno(1)
+                .tmnMngNo("TMN-EMPTY")
+                .sno(1)
+                .cgprId("")
+                .tmnClsfC("")
+                .tmnKdTc(null)
+                .dfrCleC("")
+                .build();
+        given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                eq("BCOSTM"), eq(IT_MNGC_NO), eq(1))).willReturn(List.of());
+        given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
+                .willReturn(List.of(terminal));
+
+        CostDto.Response result = costService.getCost(IT_MNGC_NO);
+
+        assertThat(result.getTerminals()).hasSize(1);
+        assertThat(result.getTerminals().get(0).getCgprNm()).isNull();
+        verify(cuserIRepository, never()).findByEnoIn(any());
+        verify(ccodemRepository, never()).findByCIdWithValidDate(eq("IT_PTL_TMN_SVC_TC"), any());
+        verify(ccodemRepository, never()).findByCIdWithValidDate(eq("IT_PTL_TMN_KD_TC"), any());
+        verify(ccodemRepository, never()).findByCIdWithValidDate(eq("DFR_CLE_C"), any());
+    }
+
+    @Test
     @DisplayName("createCost: 단말기 식별자가 없으면 단말기 관리번호와 순번을 채번해 저장한다")
     void createCost_단말기식별자없음_채번후저장() {
         CostDto.TerminalDto terminal = CostDto.TerminalDto.builder()
@@ -566,6 +606,9 @@ class CostServiceTest {
                 .termBgNo(IT_MNGC_NO)
                 .termBgSno(1)
                 .cgprId("10003")
+                .tmnClsfC("SVC01")
+                .tmnKdTc("KIND01")
+                .dfrCleC("DFR01")
                 .build();
         given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
         given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
@@ -576,11 +619,23 @@ class CostServiceTest {
         given(corgnIRepository.findById("102")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
         given(cuserIRepository.findById("10001")).willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
-                .willReturn(List.of(Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build()));
+                .willReturn(List.of(
+                        Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
+                        Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("중복개발비").cTp("IOE_DVC").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                 .willReturn(List.of(terminal));
         given(cuserIRepository.findByEnoIn(java.util.Set.of("10003")))
                 .willReturn(List.of(CuserI.builder().eno("10003").usrNm("단말담당").build()));
+        given(ccodemRepository.findByCIdWithValidDate("IT_PTL_TMN_SVC_TC", null))
+                .willReturn(List.of(
+                        Ccodem.builder().cdva("SVC01").cdvaNm("업무용").build(),
+                        Ccodem.builder().cdva("SVC02").cdvaNm(null).build()));
+        given(ccodemRepository.findByCIdWithValidDate("IT_PTL_TMN_KD_TC", null))
+                .willReturn(List.of(
+                        Ccodem.builder().cdva("KIND01").cdvaNm("노트북").build(),
+                        Ccodem.builder().cdva("KIND01").cdvaNm("중복노트북").build()));
+        given(ccodemRepository.findByCIdWithValidDate("DFR_CLE_C", null))
+                .willReturn(List.of(Ccodem.builder().cdva("DFR01").cdvaNm("월납").build()));
 
         CostDto.Response result = costService.getCost(IT_MNGC_NO);
 
@@ -591,9 +646,13 @@ class CostServiceTest {
         assertThat(result.getCgprNm()).isEqualTo("담당자");
         assertThat(result.getAssetBg()).isEqualByComparingTo("1000");
         assertThat(result.getDvcBg()).isEqualByComparingTo("1000");
+        assertThat(result.getIoeCNm()).isEqualTo("개발비");
         assertThat(result.getCostBg()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getTerminals()).hasSize(1);
         assertThat(result.getTerminals().get(0).getCgprNm()).isEqualTo("단말담당");
+        assertThat(result.getTerminals().get(0).getTmnClsfCNm()).isEqualTo("업무용");
+        assertThat(result.getTerminals().get(0).getTmnKdTcNm()).isEqualTo("노트북");
+        assertThat(result.getTerminals().get(0).getDfrCleCNm()).isEqualTo("월납");
     }
 
     @Test
