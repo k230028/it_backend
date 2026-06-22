@@ -626,16 +626,12 @@ class CostServiceTest {
                 .willReturn(List.of(terminal));
         given(cuserIRepository.findByEnoIn(java.util.Set.of("10003")))
                 .willReturn(List.of(CuserI.builder().eno("10003").usrNm("단말담당").build()));
-        given(ccodemRepository.findByCIdWithValidDate("IT_PTL_TMN_SVC_TC", null))
-                .willReturn(List.of(
-                        Ccodem.builder().cdva("SVC01").cdvaNm("업무용").build(),
-                        Ccodem.builder().cdva("SVC02").cdvaNm(null).build()));
-        given(ccodemRepository.findByCIdWithValidDate("IT_PTL_TMN_KD_TC", null))
-                .willReturn(List.of(
-                        Ccodem.builder().cdva("KIND01").cdvaNm("노트북").build(),
-                        Ccodem.builder().cdva("KIND01").cdvaNm("중복노트북").build()));
-        given(ccodemRepository.findByCIdWithValidDate("DFR_CLE_C", null))
-                .willReturn(List.of(Ccodem.builder().cdva("DFR01").cdvaNm("월납").build()));
+        given(codeNameMapBuilder.build(eq("IT_PTL_TMN_SVC_TC"), eq(java.util.Set.of("SVC01"))))
+                .willReturn(java.util.Map.of("SVC01", "업무용"));
+        given(codeNameMapBuilder.build(eq("IT_PTL_TMN_KD_TC"), eq(java.util.Set.of("KIND01"))))
+                .willReturn(java.util.Map.of("KIND01", "노트북"));
+        given(codeNameMapBuilder.build(eq("DFR_CLE_C"), eq(java.util.Set.of("DFR01"))))
+                .willReturn(java.util.Map.of("DFR01", "월납"));
 
         CostDto.Response result = costService.getCost(IT_MNGC_NO);
 
@@ -1071,15 +1067,15 @@ class CostServiceTest {
                 .willReturn(List.of());
         given(corgnIRepository.findAllById(any())).willReturn(List.of());
         given(cuserIRepository.findAllById(any())).willReturn(List.of());
-        // buildCodeNameMap 람다 커버: 각 코드타입 → 코드명 반환
-        given(ccodemRepository.findByCIdWithValidDate("BG_UNT_ABUS_C", null))
-                .willReturn(List.of(Ccodem.builder().cId("BG_UNT_ABUS_C").cdva("ABUS01").cdvaNm("남용유형").build()));
-        given(ccodemRepository.findByCIdWithValidDate("DFR_CLE_C", null))
-                .willReturn(List.of(Ccodem.builder().cId("DFR_CLE_C").cdva("DFR01").cdvaNm("매월").build()));
-        given(ccodemRepository.findByCIdWithValidDate("TMN_YN", null))
-                .willReturn(List.of(Ccodem.builder().cId("TMN_YN").cdva("1").cdvaNm("유형A").build()));
-        given(ccodemRepository.findByCIdWithValidDate("ABUS_TC", null))
-                .willReturn(List.of(Ccodem.builder().cId("ABUS_TC").cdva("PD01").cdvaNm("지급A").build()));
+        // 배치 코드명 헬퍼 호출 결과: 각 코드타입 → 코드명 반환
+        given(codeNameMapBuilder.build(eq("BG_UNT_ABUS_C"), eq(java.util.Set.of("ABUS01"))))
+                .willReturn(java.util.Map.of("ABUS01", "남용유형"));
+        given(codeNameMapBuilder.build(eq("DFR_CLE_C"), eq(java.util.Set.of("DFR01"))))
+                .willReturn(java.util.Map.of("DFR01", "매월"));
+        given(codeNameMapBuilder.build(eq("TMN_YN"), eq(java.util.Set.of("1"))))
+                .willReturn(java.util.Map.of("1", "유형A"));
+        given(codeNameMapBuilder.build(eq("ABUS_TC"), eq(java.util.Set.of("PD01"))))
+                .willReturn(java.util.Map.of("PD01", "지급A"));
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(Ccodem.builder().cdva("101").cdvaNm("전산임차료").cTp("IOE_IDR").build()));
 

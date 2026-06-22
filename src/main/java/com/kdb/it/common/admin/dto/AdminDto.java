@@ -19,6 +19,20 @@ public class AdminDto {
 
     /**
      * 공통코드 생성/수정 요청 DTO
+     *
+     * @param cId      코드 ID
+     * @param cdva     코드값
+     * @param cNm      코드명
+     * @param cdvaNm   코드값명
+     * @param cdvaDes  코드값 설명
+     * @param cdvaDtl  코드값 상세
+     * @param cdvaDtlC 코드값 상세 코드
+     * @param cTp      코드 타입
+     * @param cTpDes   코드 타입 설명
+     * @param hrkC     상위 코드
+     * @param sttDt    시작 일자
+     * @param endDt    종료 일자
+     * @param cSqn     코드 순서
      */
     @Schema(name = "AdminDto.CodeRequest", description = "공통코드 생성/수정 요청")
     public record CodeRequest(
@@ -39,6 +53,8 @@ public class AdminDto {
 
     /**
      * 공통코드 일괄 업로드(Upsert) 요청 DTO
+     *
+     * @param codes 업로드할 코드 목록
      */
     @Schema(name = "AdminDto.BulkCodeRequest", description = "공통코드 일괄 업로드 요청")
     public record BulkCodeRequest(
@@ -48,6 +64,26 @@ public class AdminDto {
     /**
      * 공통코드 조회 응답 DTO
      * 최초생성자·마지막수정자 사원번호를 이름으로 변환하여 제공합니다.
+     *
+     * @param cId       코드 ID
+     * @param cdva      코드값
+     * @param cNm       코드명
+     * @param cdvaNm    코드값명
+     * @param cdvaDes   코드값 설명
+     * @param cdvaDtl   코드값 상세
+     * @param cdvaDtlC  코드값 상세 코드
+     * @param cTp       코드 타입
+     * @param cTpDes    코드 타입 설명
+     * @param hrkC      상위 코드
+     * @param sttDt     시작 일자
+     * @param endDt     종료 일자
+     * @param cSqn      코드 순서
+     * @param fstEnrDtm 최초 등록 일시
+     * @param fstEnrUsid 최초 등록자 사번
+     * @param fstEnrUsNm 최초 등록자 이름
+     * @param lstChgDtm 최종 변경 일시
+     * @param lstChgUsid 최종 변경자 사번
+     * @param lstChgUsNm 최종 변경자 이름
      */
     @Schema(name = "AdminDto.CodeResponse", description = "공통코드 조회 응답")
     public record CodeResponse(
@@ -76,7 +112,14 @@ public class AdminDto {
     // 자격등급 (TPRMPP_CAUTHI)
     // =========================================================================
 
-    /** 자격등급 생성/수정 요청 DTO */
+    /**
+     * 자격등급 생성/수정 요청 DTO
+     *
+     * @param athId    권한 ID
+     * @param qlfGrNm  자격등급명
+     * @param qlfGrMat 자격등급 내용
+     * @param useYn    사용 여부
+     */
     @Schema(name = "AdminDto.AuthGradeRequest", description = "자격등급 생성/수정 요청")
     public record AuthGradeRequest(
             @NotBlank String athId,
@@ -85,7 +128,20 @@ public class AdminDto {
             String useYn
     ) {}
 
-    /** 자격등급 조회 응답 DTO */
+    /**
+     * 자격등급 조회 응답 DTO
+     *
+     * @param athId     권한 ID
+     * @param qlfGrNm   자격등급명
+     * @param qlfGrMat  자격등급 내용
+     * @param useYn     사용 여부
+     * @param fstEnrDtm 최초 등록 일시
+     * @param fstEnrUsid 최초 등록자 사번
+     * @param fstEnrUsNm 최초 등록자 이름
+     * @param lstChgDtm 최종 변경 일시
+     * @param lstChgUsid 최종 변경자 사번
+     * @param lstChgUsNm 최종 변경자 이름
+     */
     @Schema(name = "AdminDto.AuthGradeResponse", description = "자격등급 조회 응답")
     public record AuthGradeResponse(
             String athId,
@@ -104,7 +160,19 @@ public class AdminDto {
     // 사용자 (TPRMPP_CUSERI)
     // =========================================================================
 
-    /** 사용자 생성/수정 요청 DTO */
+    /**
+     * 사용자 생성/수정 요청 DTO
+     *
+     * @param eno         사번
+     * @param usrNm       사용자명
+     * @param ptCNm       직위명
+     * @param temC        팀 코드
+     * @param bbrC        부점 코드
+     * @param etrMilAddrNm 이메일 주소
+     * @param inleNo      내선 번호
+     * @param cpnTpn      휴대전화 번호
+     * @param password    비밀번호
+     */
     @Schema(name = "AdminDto.UserRequest", description = "사용자 생성/수정 요청")
     public record UserRequest(
             @NotBlank String eno,
@@ -118,7 +186,22 @@ public class AdminDto {
             String password
     ) {}
 
-    /** 사용자 조회 응답 DTO */
+    /**
+     * 사용자 조회 응답 DTO
+     *
+     * @param eno         사번
+     * @param usrNm       사용자명
+     * @param ptCNm       직위명
+     * @param temC        팀 코드
+     * @param temNm       팀명
+     * @param bbrC        부점 코드
+     * @param bbrNm       부점명
+     * @param etrMilAddrNm 이메일 주소
+     * @param inleNo      내선 번호
+     * @param cpnTpn      휴대전화 번호
+     * @param fstEnrDtm   최초 등록 일시
+     * @param lstChgDtm   최종 변경 일시
+     */
     @Schema(name = "AdminDto.UserResponse", description = "사용자 조회 응답")
     public record UserResponse(
             String eno,
@@ -139,7 +222,15 @@ public class AdminDto {
     // 조직 (TPRMPP_CORGNI)
     // =========================================================================
 
-    /** 조직 생성/수정 요청 DTO */
+    /**
+     * 조직 생성/수정 요청 DTO
+     *
+     * @param prlmOgzCCone    조직 코드
+     * @param bbrNm           부점명
+     * @param bbrWrenNm       부점 약칭명
+     * @param itmSqnSno       항목 순서
+     * @param prlmHrkOgzCCone 상위 조직 코드
+     */
     @Schema(name = "AdminDto.OrgRequest", description = "조직 생성/수정 요청")
     public record OrgRequest(
             @NotBlank String prlmOgzCCone,
@@ -149,6 +240,21 @@ public class AdminDto {
             String prlmHrkOgzCCone
     ) {}
 
+    /**
+     * 조직 조회 응답 DTO
+     *
+     * @param prlmOgzCCone    조직 코드
+     * @param bbrNm           부점명
+     * @param bbrWrenNm       부점 약칭명
+     * @param itmSqnSno       항목 순서
+     * @param prlmHrkOgzCCone 상위 조직 코드
+     * @param fstEnrDtm       최초 등록 일시
+     * @param fstEnrUsid      최초 등록자 사번
+     * @param fstEnrUsNm      최초 등록자 이름
+     * @param lstChgDtm       최종 변경 일시
+     * @param lstChgUsid      최종 변경자 사번
+     * @param lstChgUsNm      최종 변경자 이름
+     */
     @Schema(name = "AdminDto.OrgResponse", description = "조직 조회 응답")
     public record OrgResponse(
             String prlmOgzCCone,
@@ -168,7 +274,13 @@ public class AdminDto {
     // 역할 (TPRMPP_CROLEI)
     // =========================================================================
 
-    /** 역할 생성/수정 요청 DTO */
+    /**
+     * 역할 생성/수정 요청 DTO
+     *
+     * @param athId 권한 ID
+     * @param eno   사번
+     * @param useYn 사용 여부
+     */
     @Schema(name = "AdminDto.RoleRequest", description = "역할 생성/수정 요청")
     public record RoleRequest(
             @NotBlank String athId,
@@ -176,7 +288,20 @@ public class AdminDto {
             String useYn
     ) {}
 
-    /** 역할 조회 응답 DTO */
+    /**
+     * 역할 조회 응답 DTO
+     *
+     * @param athId      권한 ID
+     * @param eno        사번
+     * @param usrNm      사용자명
+     * @param useYn      사용 여부
+     * @param fstEnrDtm  최초 등록 일시
+     * @param fstEnrUsid 최초 등록자 사번
+     * @param fstEnrUsNm 최초 등록자 이름
+     * @param lstChgDtm  최종 변경 일시
+     * @param lstChgUsid 최종 변경자 사번
+     * @param lstChgUsNm 최종 변경자 이름
+     */
     @Schema(name = "AdminDto.RoleResponse", description = "역할 조회 응답")
     public record RoleResponse(
             String athId,
@@ -195,7 +320,18 @@ public class AdminDto {
     // 로그인 이력 (TPRMPP_CLOGNH)
     // =========================================================================
 
-    /** 로그인 이력 조회 응답 DTO */
+    /**
+     * 로그인 이력 조회 응답 DTO
+     *
+     * @param eno        사번
+     * @param usrNm      사용자명
+     * @param lgnDtm     로그인 일시
+     * @param lgnTc      로그인 유형 코드
+     * @param ipAddr     IP 주소
+     * @param lgnErrRsn  로그인 오류 사유
+     * @param agtVrsCone 에이전트 버전 내용
+     * @param fstEnrDtm  최초 등록 일시
+     */
     @Schema(name = "AdminDto.LoginHistoryResponse", description = "로그인 이력 조회 응답")
     public record LoginHistoryResponse(
             String eno,
@@ -212,7 +348,15 @@ public class AdminDto {
     // JWT 토큰 (TPRMPP_CRTOKM)
     // =========================================================================
 
-    /** Refresh Token 관리 조회 응답 DTO */
+    /**
+     * Refresh Token 관리 조회 응답 DTO
+     *
+     * @param eno        사번
+     * @param usrNm      사용자명
+     * @param endDtm     만료 일시
+     * @param tokMasked  마스킹된 토큰
+     * @param fstEnrDtm  최초 등록 일시
+     */
     @Schema(name = "AdminDto.TokenResponse", description = "JWT 토큰 조회 응답")
     public record TokenResponse(
             String eno,
@@ -226,7 +370,17 @@ public class AdminDto {
     // 첨부파일 (TPRMPP_CFILEM)
     // =========================================================================
 
-    /** 첨부파일 관리 조회 응답 DTO */
+    /**
+     * 첨부파일 관리 조회 응답 DTO
+     *
+     * @param flMpnId    파일 매핑 ID
+     * @param flNm       파일명
+     * @param flTpCone   파일 유형 내용
+     * @param pkColNm    원본 PK 컬럼값
+     * @param fstEnrDtm  최초 등록 일시
+     * @param fstEnrUsid 최초 등록자 사번
+     * @param fstEnrUsNm 최초 등록자 이름
+     */
     @Schema(name = "AdminDto.FileResponse", description = "첨부파일 조회 응답")
     public record FileResponse(
             String flMpnId,
@@ -242,7 +396,12 @@ public class AdminDto {
     // 대시보드 통계
     // =========================================================================
 
-    /** 관리자 대시보드 로그인 통계 응답 DTO */
+    /**
+     * 관리자 대시보드 로그인 통계 응답 DTO
+     *
+     * @param date  집계 일자
+     * @param count 로그인 건수
+     */
     @Schema(name = "AdminDto.LoginStatResponse", description = "일별 로그인 통계")
     public record LoginStatResponse(
             LocalDate date,

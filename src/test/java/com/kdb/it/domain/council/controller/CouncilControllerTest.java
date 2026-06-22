@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -116,6 +117,64 @@ class CouncilControllerTest {
         given(councilService.getCouncil(ASCT_ID)).willReturn(null);
         mockMvc.perform(get("/api/council/" + ASCT_ID))
                 .andExpect(status().isOk());
+    }
+
+    // =========================================================================
+    // M3-1: 본회의 Q&A
+    // =========================================================================
+
+    @Test
+    @DisplayName("GET /api/council/{asctId}/main-qna - 인증된 사용자 → 200 + 배열 반환")
+    @WithMockUser(username = "10001")
+    void getMainQnaList_인증_200() throws Exception {
+        given(mainQnaService.getMainQnaList(ASCT_ID)).willReturn(List.of(
+                new CouncilDto.QnaResponse("MQT-1", "10001", "홍길동", "질의", null, null, null, "N")));
+
+        mockMvc.perform(get("/api/council/" + ASCT_ID + "/main-qna"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].qtnId").value("MQT-1"))
+                .andExpect(jsonPath("$[0].qtnCone").value("질의"));
+    }
+
+    @Test
+    @DisplayName("POST /api/council/{asctId}/main-qna - ADMIN → 생성 ID 반환")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void createMainQna_관리자_200() throws Exception {
+        given(mainQnaService.createMainQna(anyString(), any(), any())).willReturn("MQT-1");
+
+        mockMvc.perform(post("/api/council/" + ASCT_ID + "/main-qna")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CouncilDto.QnaCreateRequest("질의"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value("MQT-1"));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/council/{asctId}/main-qna/{qtnId} - ADMIN → 200")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void updateMainQna_관리자_200() throws Exception {
+        mockMvc.perform(patch("/api/council/" + ASCT_ID + "/main-qna/MQT-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CouncilDto.QnaUpdateRequest("수정"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /api/council/{asctId}/main-qna/{qtnId} - ADMIN → 200")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void replyMainQna_관리자_200() throws Exception {
+        mockMvc.perform(put("/api/council/" + ASCT_ID + "/main-qna/MQT-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CouncilDto.QnaReplyRequest("답변"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/council/{asctId}/main-qna/{qtnId} - ADMIN → 204")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void deleteMainQna_관리자_204() throws Exception {
+        mockMvc.perform(delete("/api/council/" + ASCT_ID + "/main-qna/MQT-1"))
+                .andExpect(status().isNoContent());
     }
 
     // =========================================================================

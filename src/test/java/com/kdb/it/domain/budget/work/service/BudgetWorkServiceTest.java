@@ -781,10 +781,13 @@ class BudgetWorkServiceTest {
         Ccodem ioeCode1 = Ccodem.builder().cdva("101").cNm("237-0100").cdvaDtlC("237-0100").build();
         Ccodem ioeCode2 = Ccodem.builder().cdva("102").cNm("237-0200").cdvaDtlC("237-0200").build();
         Bitemm item = mock(Bitemm.class);
+        given(item.getGclMngNo()).willReturn("GCL-0001");
         given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
         Bprojm project = mock(Bprojm.class);
+        given(project.getAbusMngNo()).willReturn("PRJ-2026-0001");
         given(project.getAbusNm()).willReturn("정보화사업");
         Bcostm cost = mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn("COST-2026-0001");
         given(cost.getCttNm()).willReturn("유지보수계약");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode1, ioeCode2));

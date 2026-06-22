@@ -103,12 +103,12 @@ class RealtimeLogControllerTest {
 
     @Test
     @WithMockUser(roles = "USER")
-    @DisplayName("비-ADMIN 차단 (GlobalExceptionHandler가 AccessDeniedException → 400 매핑)")
+    @DisplayName("비-ADMIN 차단")
     void user_forbidden() throws Exception {
-        // 프로젝트 GlobalExceptionHandler가 RuntimeException(AccessDeniedException 포함)을
-        // 일괄 400으로 매핑하므로 본 프로젝트 동작값은 400임. 권한 차단 자체는 정상 동작.
         mvc.perform(get("/api/admin/realtime-logs"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.message").value("Access Denied"));
     }
 
     @Test

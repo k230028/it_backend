@@ -155,6 +155,22 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("GET /sso/loginProc - 성공 세션이지만 빈 next/origin이면 complete 기본 경로로 이동")
+    void loginProc_성공세션_빈nextOrigin_complete기본경로() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("resultCode", "000000");
+        session.setAttribute("resultData", "K150024");
+        session.setAttribute("ssoNext", " ");
+        session.setAttribute("ssoOrigin", "");
+
+        mockMvc.perform(get("/sso/loginProc").session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/api/auth/sso/complete"));
+
+        assertThat(session.getAttribute("ssoVerifiedEno")).isEqualTo("K150024");
+    }
+
+    @Test
     @DisplayName("GET /api/auth/sso/complete - eno 직접 전달은 기본 차단")
     void complete_eno직접전달_차단() throws Exception {
         mockMvc.perform(get("/api/auth/sso/complete")
@@ -219,6 +235,34 @@ class SsoControllerTest {
 
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/dashboard");
         assertThat(response.getHeaders("Set-Cookie")).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("complete: next/origin이 없으면 기본 프론트 루트로 이동한다")
+    void complete_nextOrigin없음_기본루트() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = new SsoController(authService, cookieUtil, ssoAgentClient, props);
+        ReflectionTestUtils.setField(controller, "frontendUrl", "http://localhost:3000");
+        ReflectionTestUtils.setField(controller, "allowedOrigins", "http://localhost:3000");
+        ReflectionTestUtils.setField(controller, "allowDirectEno", true);
+        AuthDto.LoginResponse loginResponse = AuthDto.LoginResponse.builder()
+                .eno("K150024")
+                .accessToken("access-token")
+                .refreshToken("refresh-token")
+                .build();
+        given(authService.issueSsoTokens("K150024")).willReturn(loginResponse);
+        given(cookieUtil.createAccessTokenCookie("access-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "access-token").build());
+        given(cookieUtil.createRefreshTokenCookie("refresh-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "refresh-token").build());
+        given(cookieUtil.createUserInfoCookie(loginResponse))
+                .willReturn(ResponseCookie.from("it-portal-user", "user").build());
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete("K150024", null, null, request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
     }
 
     /**
@@ -301,6 +345,25 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("checkauth: CS 모드이면 토큰 저장 페이지로 이동한다")
+    void checkauth_CS모드_토큰저장페이지이동() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024",
+                "https://dintesso.kdb.co.kr:20443", "https://dintesso.kdb.co.kr:20443", "3", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        given(ssoAgentClient.authorize("secure-token", "sess-1", "127.0.0.1"))
+                .willReturn(new SsoAgentClient.TokenAuthResult("000000", "OK", "K150024", null, true));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.checkauth("000000", "secure-token", "sess-1", request, response);
+
+        assertThat(response.getRedirectedUrl())
+                .isEqualTo("https://dintesso.kdb.co.kr:20443/token/saveToken.html");
+        assertThat(request.getSession().getAttribute("secureSessionId")).isEqualTo("sess-1");
+    }
+
+    @Test
     @DisplayName("checkauth: secureToken 없는 비정상 호출이면 진입점(business)으로 복귀")
     void checkauth_비정상호출_business복귀() throws Exception {
         SsoProperties props = new SsoProperties(false, "K140024",
@@ -331,5 +394,64 @@ class SsoControllerTest {
         controller.checkauth("000000", "secure-token", "sess-1", request, response);
 
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/login?error=sso");
+    }
+
+    @Test
+    @DisplayName("complete: 토큰 발급 실패 시 로그인 오류 페이지로 이동한다")
+    void complete_토큰발급실패_로그인오류() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true).setAttribute("ssoVerifiedEno", "K150024");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        given(authService.issueSsoTokens("K150024")).willThrow(new IllegalStateException("사용자 없음"));
+
+        controller.complete(null, "/info/projects", "http://localhost:3002", request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3002/login?error=sso");
+    }
+
+    @Test
+    @DisplayName("complete: 세션 사번이 공백이면 인증 실패로 처리한다")
+    void complete_공백세션사번_로그인오류() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true).setAttribute("ssoVerifiedEno", " ");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(null, "/info/projects", "http://localhost:3002", request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3002/login?error=sso");
+        verify(authService, never()).issueSsoTokens(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("ssoLogout: 모의 모드이면 세션 무효화 후 프론트 로그인으로 이동한다")
+    void ssoLogout_모의모드_프론트로그인() throws Exception {
+        SsoProperties props = new SsoProperties(true, "K140024",
+                "https://dintesso.kdb.co.kr:20443", "https://dintesso.kdb.co.kr:20443", "3", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true).setAttribute("dummy", "value");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.ssoLogout(request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/login");
+    }
+
+    @Test
+    @DisplayName("ssoLogout: 실연동 모드이면 ESSO 로그아웃 페이지로 이동한다")
+    void ssoLogout_실연동_통합로그아웃() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024",
+                "https://dintesso.kdb.co.kr:20443", "https://dintesso.kdb.co.kr:20443", "3", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.ssoLogout(request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("https://dintesso.kdb.co.kr:20443/logout.html");
     }
 }

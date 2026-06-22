@@ -158,11 +158,10 @@ class AdminRouteControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/admin/routes - 중복 경로 → 400 (GlobalExceptionHandler가 RuntimeException을 400으로 변환)")
+    @DisplayName("POST /api/admin/routes - 중복 경로 → 409")
     @WithMockUser(username = "10001", roles = "ADMIN")
-    void create_중복경로_400반환() throws Exception {
+    void create_중복경로_409반환() throws Exception {
         // given
-        // GlobalExceptionHandler가 RuntimeException(ResponseStatusException 포함)을 400으로 변환한다
         MenuDto.Route req = MenuDto.Route.builder()
                 .srePth("/dup/route").sreMnuNm("중복화면").build();
         doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "중복된 화면경로"))
@@ -172,7 +171,7 @@ class AdminRouteControllerTest {
         mockMvc.perform(post("/api/admin/routes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict());
     }
 
     // =========================================================================
@@ -196,11 +195,10 @@ class AdminRouteControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /api/admin/routes - 존재하지 않는 경로 → 400 (GlobalExceptionHandler가 RuntimeException을 400으로 변환)")
+    @DisplayName("PUT /api/admin/routes - 존재하지 않는 경로 → 404")
     @WithMockUser(username = "10001", roles = "ADMIN")
-    void update_존재하지않는경로_400반환() throws Exception {
+    void update_존재하지않는경로_404반환() throws Exception {
         // given
-        // GlobalExceptionHandler가 RuntimeException(ResponseStatusException 포함)을 400으로 변환한다
         MenuDto.Route req = MenuDto.Route.builder()
                 .srePth("/no/route").sreMnuNm("없는화면").build();
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "없는 경로"))
@@ -210,7 +208,7 @@ class AdminRouteControllerTest {
         mockMvc.perform(put("/api/admin/routes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     // =========================================================================
@@ -228,17 +226,16 @@ class AdminRouteControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/admin/routes?srePth=xxx - 메뉴 참조 중 → 400 (GlobalExceptionHandler가 RuntimeException을 400으로 변환)")
+    @DisplayName("DELETE /api/admin/routes?srePth=xxx - 메뉴 참조 중 → 409")
     @WithMockUser(username = "10001", roles = "ADMIN")
-    void delete_메뉴참조중_400반환() throws Exception {
+    void delete_메뉴참조중_409반환() throws Exception {
         // given
-        // GlobalExceptionHandler가 RuntimeException(ResponseStatusException 포함)을 400으로 변환한다
         doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "메뉴에서 참조 중인 경로"))
                 .when(adminRouteService).delete("/in-use");
 
         // when & then
         mockMvc.perform(delete("/api/admin/routes")
                         .param("srePth", "/in-use"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict());
     }
 }
