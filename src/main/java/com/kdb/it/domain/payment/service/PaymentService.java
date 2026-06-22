@@ -1,6 +1,7 @@
 package com.kdb.it.domain.payment.service;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.payment.dto.PaymentDto;
@@ -92,6 +93,7 @@ public class PaymentService {
     @Transactional
     public void update(String docNo, PaymentDto.UpdateRequest req, CustomUserDetails user) {
         Bpaymm e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 수정할 수 있습니다.");
         e.updateMaster(req.reqCone(), req.cttNm(), req.cttAmt());
     }
@@ -106,6 +108,7 @@ public class PaymentService {
     @Transactional
     public void delete(String docNo, CustomUserDetails user) {
         Bpaymm e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         e.delete();
     }
@@ -121,6 +124,7 @@ public class PaymentService {
     @Transactional
     public void changeStatus(String docNo, PaymentDto.StatusRequest req, CustomUserDetails user) {
         Bpaymm e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         String from = e.getStsTc(), to = req.stsTc();
         boolean ok = (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
                 || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
@@ -142,6 +146,7 @@ public class PaymentService {
     @Transactional
     public void savePayments(String docNo, PaymentDto.LinesRequest req, CustomUserDetails user) {
         Bpaymm e = loadCurrent(docNo);
+        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_IN_PROGRESS.equals(e.getStsTc())) throw new IllegalStateException("진행중 상태에서만 지급 명세를 저장할 수 있습니다.");
         Integer vrs = e.getDocVrsSno();
         List<Bpaymt> all = lineRepository.findByDocMngNoAndDocVrsSno(docNo, vrs);
