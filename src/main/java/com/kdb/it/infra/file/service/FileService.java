@@ -491,11 +491,14 @@ public class FileService {
     public int deleteFilesByOrc(String pkColNm, String pkCone, CustomUserDetails user) {
         List<Cfilem> files = fileRepository.findAllByPkColNmAndPkConeAndDelYn(pkColNm, pkCone, "N");
 
+        // 인증 정보가 없으면 대상 목록이 비어 있어도 즉시 거부 — 빈 목록에 기대지 않는 서비스 계약
+        if (user == null) {
+            throw new AccessDeniedException("인증 정보가 없습니다.");
+        }
         // 관리자가 아니면 본인 소유 파일만 일괄 삭제 허용 — 하나라도 타인 파일이면 차단
-        if (user == null || !user.isAdmin()) {
-            String eno = (user == null) ? null : user.getUsername();
+        if (!user.isAdmin()) {
             boolean hasOthers = files.stream()
-                    .anyMatch(f -> eno == null || !eno.equals(f.getFstEnrUsid()));
+                    .anyMatch(f -> !user.getUsername().equals(f.getFstEnrUsid()));
             if (hasOthers) {
                 throw new AccessDeniedException("본인이 업로드한 파일만 일괄 삭제할 수 있습니다.");
             }

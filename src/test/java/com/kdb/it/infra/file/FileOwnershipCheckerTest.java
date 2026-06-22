@@ -42,38 +42,62 @@ class FileOwnershipCheckerTest {
     @InjectMocks
     private FileOwnershipChecker fileOwnershipChecker;
 
-    // ── checkOwnership ──
+    // ── verifyWriteAccess (owner-or-admin, 403) ──
 
-    @Test
-    @DisplayName("업로드자와 현재 사용자가 동일하면 예외 없음")
-    void checkOwnership_sameUser_noException() {
-        Cfilem file = mock(Cfilem.class);
-        when(file.getFstEnrUsid()).thenReturn("E001");
-        given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
+    @Nested
+    @DisplayName("verifyWriteAccess — 본인 또는 관리자만 허용(403)")
+    class VerifyWriteAccess {
 
-        assertThatCode(() -> fileOwnershipChecker.checkOwnership("FL_00000001", "E001"))
-                .doesNotThrowAnyException();
-    }
+        @Test
+        @DisplayName("업로드자 본인이면 예외 없이 통과한다")
+        void verifyWriteAccess_owner_noException() {
+            Cfilem file = mock(Cfilem.class);
+            when(file.getFstEnrUsid()).thenReturn("E001");
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
 
-    @Test
-    @DisplayName("업로드자와 현재 사용자가 다르면 CustomGeneralException 발생")
-    void checkOwnership_differentUser_throwsException() {
-        Cfilem file = mock(Cfilem.class);
-        when(file.getFstEnrUsid()).thenReturn("E001");
-        given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
+            CustomUserDetails owner = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
 
-        assertThatThrownBy(() -> fileOwnershipChecker.checkOwnership("FL_00000001", "E002"))
-                .isInstanceOf(CustomGeneralException.class)
-                .hasMessageContaining("본인이 업로드한 파일만");
-    }
+            assertThatCode(() -> fileOwnershipChecker.verifyWriteAccess("FL_00000001", owner))
+                    .doesNotThrowAnyException();
+        }
 
-    @Test
-    @DisplayName("존재하지 않는 파일 ID 시 CustomGeneralException 발생")
-    void checkOwnership_fileNotFound_throwsException() {
-        given(fileRepository.findByFlMpnIdAndDelYn("FL_99999999", "N")).willReturn(Optional.empty());
+        @Test
+        @DisplayName("관리자는 타인 파일이어도 예외 없이 통과한다(우회)")
+        void verifyWriteAccess_admin_bypass() {
+            Cfilem file = mock(Cfilem.class);
+            when(file.getFstEnrUsid()).thenReturn("E001");
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
 
-        assertThatThrownBy(() -> fileOwnershipChecker.checkOwnership("FL_99999999", "E001"))
-                .isInstanceOf(CustomGeneralException.class);
+            CustomUserDetails admin = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
+
+            assertThatCode(() -> fileOwnershipChecker.verifyWriteAccess("FL_00000001", admin))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("본인도 관리자도 아니면 AccessDeniedException(403) 발생")
+        void verifyWriteAccess_other_throwsAccessDenied() {
+            Cfilem file = mock(Cfilem.class);
+            when(file.getFstEnrUsid()).thenReturn("E001");
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
+
+            CustomUserDetails other = new CustomUserDetails("E002", List.of("ITPZZ001"), "IT001");
+
+            assertThatThrownBy(() -> fileOwnershipChecker.verifyWriteAccess("FL_00000001", other))
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("파일이 존재하지 않으면 CustomGeneralException 발생")
+        void verifyWriteAccess_fileNotFound_throws() {
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_99999999", "N")).willReturn(Optional.empty());
+
+            CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
+
+            assertThatThrownBy(() -> fileOwnershipChecker.verifyWriteAccess("FL_99999999", user))
+                    .isInstanceOf(CustomGeneralException.class)
+                    .hasMessageContaining("파일을 찾을 수 없습니다");
+        }
     }
 
     // ── checkReadAccess ──

@@ -3,6 +3,7 @@ package com.kdb.it.infra.file;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
@@ -31,19 +32,20 @@ public class FileOwnershipChecker {
     private final BoardPostRepository boardPostRepository;
 
     /**
-     * 파일 소유권을 확인합니다.
+     * 파일 쓰기(수정/삭제) 권한 검증 — 본인 또는 관리자만 허용(403).
+     *
+     * <p>나머지 쓰기 경로의 "owner OR admin" 표준({@link OwnershipVerifier})과 일관되게,
+     * 소유자 본인 또는 시스템관리자만 파일 메타 수정·삭제를 허용합니다.</p>
      *
      * @param flMpnId 검증할 파일매핑ID
-     * @param userEno 현재 로그인 사용자의 사번
-     * @throws CustomGeneralException 파일이 없거나 소유권 불일치인 경우
+     * @param user    현재 인증 사용자
+     * @throws CustomGeneralException 파일 미존재
+     * @throws org.springframework.security.access.AccessDeniedException 본인도 관리자도 아닌 경우
      */
-    public void checkOwnership(String flMpnId, String userEno) {
+    public void verifyWriteAccess(String flMpnId, CustomUserDetails user) {
         Cfilem file = fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")
                 .orElseThrow(() -> new CustomGeneralException("파일을 찾을 수 없습니다: " + flMpnId));
-
-        if (!file.getFstEnrUsid().equals(userEno)) {
-            throw new CustomGeneralException("본인이 업로드한 파일만 삭제할 수 있습니다.");
-        }
+        OwnershipVerifier.verifyOwnerOrAdmin(file.getFstEnrUsid(), user);
     }
 
     /**

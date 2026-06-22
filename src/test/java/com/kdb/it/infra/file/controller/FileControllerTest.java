@@ -152,20 +152,20 @@ class FileControllerTest {
                 .content(objectMapper.writeValueAsString(new FileDto.UpdateRequest())))
                 .andExpect(status().isOk());
 
-        verify(fileOwnershipChecker).checkOwnership(FL_MNG_NO, "10001");
+        verify(fileOwnershipChecker).verifyWriteAccess(FL_MNG_NO, userDetails);
     }
 
     @Test
-    @DisplayName("PUT /api/files/{flMngNo} - 타인 파일 메타수정 시 소유권 위반 → 400")
+    @DisplayName("PUT /api/files/{flMngNo} - 타인 파일 메타수정 시 소유권 위반 → 403")
     void updateMeta_deniedForOther() throws Exception {
         CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
-        doThrow(new com.kdb.it.exception.CustomGeneralException("본인이 업로드한 파일만 수정할 수 있습니다."))
-                .when(fileOwnershipChecker).checkOwnership(anyString(), anyString());
+        doThrow(new org.springframework.security.access.AccessDeniedException("본인 또는 관리자만 수행할 수 있습니다."))
+                .when(fileOwnershipChecker).verifyWriteAccess(anyString(), any());
 
         mockMvc.perform(put("/api/files/" + FL_MNG_NO).with(user(userDetails))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new FileDto.UpdateRequest())))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -174,6 +174,17 @@ class FileControllerTest {
         CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
         mockMvc.perform(delete("/api/files/" + FL_MNG_NO).with(user(userDetails)))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/files/{flMngNo} - 타인 파일 삭제 시 소유권 위반 → 403")
+    void deleteFile_deniedForOther() throws Exception {
+        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        doThrow(new org.springframework.security.access.AccessDeniedException("본인 또는 관리자만 수행할 수 있습니다."))
+                .when(fileOwnershipChecker).verifyWriteAccess(anyString(), any());
+
+        mockMvc.perform(delete("/api/files/" + FL_MNG_NO).with(user(userDetails)))
+                .andExpect(status().isForbidden());
     }
 
     @Test

@@ -132,8 +132,8 @@ public class FileController {
                         @PathVariable("flMpnId") String flMpnId,
                         @org.springframework.web.bind.annotation.RequestBody FileDto.UpdateRequest request,
                         @AuthenticationPrincipal CustomUserDetails userDetails) {
-                // 소유권 검증 — 업로드자 ≠ 현재 사용자이면 예외 발생 (단건 삭제와 동일 정책)
-                fileOwnershipChecker.checkOwnership(flMpnId, userDetails.getUsername());
+                // 쓰기 권한 검증 — 본인 또는 관리자만 허용(403). 단건 삭제와 동일 정책
+                fileOwnershipChecker.verifyWriteAccess(flMpnId, userDetails);
                 String updatedFlMpnId = fileService.updateFileMeta(flMpnId, request);
                 return ResponseEntity.ok(updatedFlMpnId);
         }
@@ -147,8 +147,8 @@ public class FileController {
         public ResponseEntity<Void> deleteFile(
                         @PathVariable("flMpnId") String flMpnId,
                         @AuthenticationPrincipal CustomUserDetails userDetails) {
-                // 소유권 검증 — 업로드자 ≠ 현재 사용자이면 예외 발생 (SEC-02)
-                fileOwnershipChecker.checkOwnership(flMpnId, userDetails.getUsername());
+                // 쓰기 권한 검증 — 본인 또는 관리자만 허용(403). 관리자는 타인 파일도 삭제 가능 (SEC-02)
+                fileOwnershipChecker.verifyWriteAccess(flMpnId, userDetails);
                 fileService.deleteFile(flMpnId);
                 return ResponseEntity.noContent().build();
         }

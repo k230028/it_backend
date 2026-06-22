@@ -256,6 +256,18 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("deleteFilesByOrc: 사용자 정보가 없으면 대상 목록이 비어 있어도 AccessDeniedException을 던진다")
+    void deleteFilesByOrc_deniedWhenNullUserAndEmptyList() {
+        // Arrange: 매칭 파일 0건 + 인증 정보 없음 → 빈 목록이라도 거부되어야 함(서비스 계약)
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "DOC-1", "N"))
+                .willReturn(List.of());
+
+        // Act & Assert
+        assertThatThrownBy(() -> fileService.deleteFilesByOrc("요구사항정의서", "DOC-1", null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
     @DisplayName("deleteFilesByOrc: 모든 파일이 본인 소유이면 일괄 삭제하고 건수를 반환한다")
     void deleteFilesByOrc_allowedWhenAllOwned() {
         Cfilem f1 = mockCfilem("FL_00000001");
