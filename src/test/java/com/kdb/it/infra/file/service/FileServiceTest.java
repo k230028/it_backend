@@ -244,6 +244,18 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("deleteFilesByOrc: 사용자 정보가 없으면 AccessDeniedException을 던진다")
+    void deleteFilesByOrc_deniedWhenNullUser() {
+        Cfilem owned = mockCfilem("FL_00000001");
+        given(owned.getFstEnrUsid()).willReturn("E0001");
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "DOC-1", "N"))
+                .willReturn(List.of(owned));
+
+        assertThatThrownBy(() -> fileService.deleteFilesByOrc("요구사항정의서", "DOC-1", null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
     @DisplayName("deleteFilesByOrc: 모든 파일이 본인 소유이면 일괄 삭제하고 건수를 반환한다")
     void deleteFilesByOrc_allowedWhenAllOwned() {
         Cfilem f1 = mockCfilem("FL_00000001");

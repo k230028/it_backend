@@ -159,7 +159,7 @@ class FileControllerTest {
     @DisplayName("PUT /api/files/{flMngNo} - 타인 파일 메타수정 시 소유권 위반 → 400")
     void updateMeta_deniedForOther() throws Exception {
         CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
-        doThrow(new com.kdb.it.exception.CustomGeneralException("본인이 업로드한 파일만 삭제할 수 있습니다."))
+        doThrow(new com.kdb.it.exception.CustomGeneralException("본인이 업로드한 파일만 수정할 수 있습니다."))
                 .when(fileOwnershipChecker).checkOwnership(anyString(), anyString());
 
         mockMvc.perform(put("/api/files/" + FL_MNG_NO).with(user(userDetails))
