@@ -88,6 +88,19 @@ public class CodeService {
     }
 
     /**
+     * 코드ID로 엔티티 목록을 캐시 없이 즉시 조회합니다.
+     *
+     * <p>예산 산출처럼 SQL 마이그레이션·운영 보정 직후의 공통코드 값이 바로 반영되어야 하는
+     * 경로에서 사용합니다.</p>
+     *
+     * @param cId 코드ID
+     * @return 유효한 Ccodem 엔티티 목록
+     */
+    public List<Ccodem> findCodeEntitiesByCIdWithoutCache(String cId) {
+        return codeRepository.findByCIdWithValidDate(cId, null);
+    }
+
+    /**
      * 공통코드 신규 생성
      *
      * @param request 생성 요청 DTO

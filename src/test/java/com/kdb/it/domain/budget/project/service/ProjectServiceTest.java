@@ -867,7 +867,7 @@ class ProjectServiceTest {
                                 .willReturn(List.of(devItem, machItem, costItem,
                                                 Bitemm.builder().ioeC(null).amt(BigDecimal.ONE).build(),
                                                 Bitemm.builder().ioeC("IOE-NULL").amt(null).build()));
-                given(codeService.findCodeEntitiesByCId("IOE_C"))
+                given(codeService.findCodeEntitiesByCIdWithoutCache("IOE_C"))
                                 .willReturn(List.of(
                                                 Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
                                                 Ccodem.builder().cId("IOE_C").cdva("102").cdvaNm("기계장치").cTp("IOE_HW").build(),
@@ -1601,7 +1601,7 @@ class ProjectServiceTest {
                                 anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of(devItem, machItem, intanItem));
-                given(codeService.findCodeEntitiesByCId("IOE_C")).willReturn(List.of(
+                given(codeService.findCodeEntitiesByCIdWithoutCache("IOE_C")).willReturn(List.of(
                                 Ccodem.builder().cId("IOE_C").cdva("DEV-001").cTp("IOE_CPIT").cdvaDes("단말기").build(),
                                 Ccodem.builder().cId("IOE_C").cdva("MACH-001").cTp("IOE_CPIT").cdvaDes("기계장치").build(),
                                 Ccodem.builder().cId("IOE_C").cdva("INTAN-001").cTp("IOE_CPIT").cdvaDes("기타무형자산").build()

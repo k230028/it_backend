@@ -398,7 +398,9 @@ public class PlanController { ... }
 - 파일: `app.file.base-path` — local `c:/itp_file` (base 기본값), dev·prod `${FILE_BASE_PATH:/dat/springitp}`. multipart 최대 파일 50MB / 요청 200MB
 - Gemini: `gemini.api.key`, `gemini.api.base-url`, `gemini.api.model=gemini-2.5-flash`
 - 서버 식별자: `app.server.instance-id=SVR1`
-- Flyway: 베이스/dev/prod `spring.flyway.enabled=false`, `local-ext`/`local-int`만 `spring.flyway.enabled=true`; `spring.flyway.locations=classpath:db/migration`, `spring.flyway.user=${FLYWAY_USER:...}`, `spring.flyway.password=${FLYWAY_PASSWORD:...}`, `spring.flyway.default-schema=${DB_SCHEMA:ITPOWN}`, `spring.flyway.baseline-on-migrate=true`, `spring.flyway.baseline-version=20260620.001`
+- Flyway: 베이스/dev/prod `spring.flyway.enabled=false`, `local-ext`/`local-int`만 `spring.flyway.enabled=true`; `spring.flyway.user=${FLYWAY_USER:...}`, `spring.flyway.password=${FLYWAY_PASSWORD:...}`, `spring.flyway.default-schema=${DB_SCHEMA:ITPOWN}`, `spring.flyway.baseline-on-migrate=true`, `spring.flyway.baseline-version=20260620.001`
+  - **의존성(Spring Boot 4 필수)**: Flyway 오토컨피그는 `org.springframework.boot:spring-boot-starter-flyway`로 가져온다. Spring Boot 4.0+는 `FlywayAutoConfiguration`을 별도 모듈(`spring-boot-flyway`)로 분리했으므로 `flyway-core` 단독 의존이면 마이그레이션이 **조용히 실행되지 않는다**(빈 미생성·로그 0줄·히스토리 테이블 미생성). Oracle 방언은 `runtimeOnly 'org.flywaydb:flyway-database-oracle'` 유지.
+  - **위치(로컬 실행 경로)**: 베이스는 `spring.flyway.locations=${FLYWAY_LOCATIONS:classpath:db/migration}`(Gradle `processResources`가 `it_database/migrations`를 복사). 단 VSCode/Eclipse 실행은 `bin/main`에서 구동되어 이 복사를 거치지 않으므로, `local-ext`/`local-int`는 `spring.flyway.locations=${FLYWAY_LOCATIONS:filesystem:../it_database/migrations}`로 소스 디렉토리를 직접 읽는다(작업 디렉토리는 VSCode·`gradlew bootRun` 모두 `it_backend`).
 
 ### 5.9 테스트 기준
 - 기능 변경 후 최소 `./gradlew test` 실행.

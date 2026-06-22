@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import java.lang.reflect.Method;
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -25,6 +26,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -178,6 +181,20 @@ class NotificationServiceTest {
         long result = notificationService.unreadCount("10001");
 
         assertThat(result).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("캐시 키는 파라미터명 보존 여부와 무관하게 인덱스 기반 SpEL을 사용한다")
+    void cacheAnnotations_useIndexedParameterKeys() throws NoSuchMethodException {
+        Method unreadCount = NotificationService.class.getMethod("unreadCount", String.class);
+        Method markRead = NotificationService.class.getMethod("markRead", String.class, String.class);
+        Method markAllRead = NotificationService.class.getMethod("markAllRead", String.class);
+        Method softDelete = NotificationService.class.getMethod("softDelete", String.class, String.class);
+
+        assertThat(unreadCount.getAnnotation(Cacheable.class).key()).isEqualTo("#p0");
+        assertThat(markRead.getAnnotation(CacheEvict.class).key()).isEqualTo("#p1");
+        assertThat(markAllRead.getAnnotation(CacheEvict.class).key()).isEqualTo("#p0");
+        assertThat(softDelete.getAnnotation(CacheEvict.class).key()).isEqualTo("#p1");
     }
 
     @Test

@@ -77,7 +77,7 @@ class ProjectBudgetSummaryServiceTest {
     @DisplayName("품목 MPL_AMT를 비목별로 합산하고 당해예산을 파생한다")
     void appliesDerivedPlannedAmounts() {
         // Arrange: C1=자본(IOE_DVC), M1=관리비(IOE_SEVS)
-        when(codeService.findCodeEntitiesByCId(CommonCodeGroups.IOE))
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
                 .thenReturn(List.of(code("C1", "IOE_DVC"), code("M1", "IOE_SEVS")));
         ProjectDto.Response res = ProjectDto.Response.builder().build();
         // C1: amt=1000, mplAmt=300 / M1: amt=500, mplAmt=200
@@ -97,7 +97,7 @@ class ProjectBudgetSummaryServiceTest {
     @DisplayName("당해예산이 음수면 0으로 보정한다")
     void clampsNegativeCurrentYearToZero() {
         // Arrange: C1=자본(IOE_DVC), amt=100이지만 mplAmt=250으로 초과
-        when(codeService.findCodeEntitiesByCId(CommonCodeGroups.IOE))
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
                 .thenReturn(List.of(code("C1", "IOE_DVC")));
         ProjectDto.Response res = ProjectDto.Response.builder().build();
 

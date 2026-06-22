@@ -108,7 +108,7 @@ public class NotificationService {
      * markAllRead/softDelete)에서 해당 사용자 키를 evict 한다. (ConcurrentMap은 TTL 미지원 →
      * evict-on-write로 정합 보장, {@link com.kdb.it.config.CacheConfig} 참조.)</p>
      */
-    @Cacheable(value = "notificationUnreadCount", key = "#currentEno", unless = "#result == 0")
+    @Cacheable(value = "notificationUnreadCount", key = "#p0", unless = "#result == 0")
     public long unreadCount(String currentEno) {
         return cinfmmRepository.countUnread(currentEno);
     }
@@ -117,7 +117,7 @@ public class NotificationService {
      * 단건 읽음 처리. 소유자 검증 포함.
      */
     @Transactional(readOnly = false)
-    @CacheEvict(value = "notificationUnreadCount", key = "#currentEno")
+    @CacheEvict(value = "notificationUnreadCount", key = "#p1")
     public void markRead(String infmMsgNo, String currentEno) {
         Cinfmm notification = loadOwned(infmMsgNo, currentEno);
         notification.markRead();
@@ -127,7 +127,7 @@ public class NotificationService {
      * 본인 미읽음 알림 일괄 읽음 처리.
      */
     @Transactional(readOnly = false)
-    @CacheEvict(value = "notificationUnreadCount", key = "#currentEno")
+    @CacheEvict(value = "notificationUnreadCount", key = "#p0")
     public long markAllRead(String currentEno) {
         return cinfmmRepository.markAllReadByRmsEno(currentEno);
     }
@@ -136,7 +136,7 @@ public class NotificationService {
      * 단건 알림 Soft Delete. 소유자 검증 포함.
      */
     @Transactional(readOnly = false)
-    @CacheEvict(value = "notificationUnreadCount", key = "#currentEno")
+    @CacheEvict(value = "notificationUnreadCount", key = "#p1")
     public void softDelete(String infmMsgNo, String currentEno) {
         Cinfmm notification = loadOwned(infmMsgNo, currentEno);
         notification.delete();

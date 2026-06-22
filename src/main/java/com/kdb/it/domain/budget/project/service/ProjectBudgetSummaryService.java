@@ -49,7 +49,7 @@ public class ProjectBudgetSummaryService {
      * @param bitemms  합계 계산 대상 품목 목록
      */
     public void applyBudgetSummary(ProjectDto.Response response, List<Bitemm> bitemms) {
-        List<Ccodem> allIoeCodes = codeService.findCodeEntitiesByCId(CommonCodeGroups.IOE);
+        List<Ccodem> allIoeCodes = codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE);
         List<Ccodem> assetCodes = allIoeCodes.stream()
                 .filter(c -> CAPITAL_DETAIL_CTPS.contains(c.getCTp()) || "IOE_CPIT".equals(c.getCTp()))
                 .toList();

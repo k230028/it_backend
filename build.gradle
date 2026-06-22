@@ -85,7 +85,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
-	implementation 'org.flywaydb:flyway-core'
+	// Spring Boot 4.0+는 Flyway 오토컨피그를 별도 모듈(spring-boot-flyway)로 분리함.
+	// 스타터가 flyway-core(BOM 관리 버전) + 오토컨피그 모듈을 함께 가져온다.
+	// flyway-core 단독 의존 시 FlywayAutoConfiguration이 없어 마이그레이션이 실행되지 않음.
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
 	runtimeOnly 'org.flywaydb:flyway-database-oracle'
 	
 	// HTML 새니타이징 (XSS 서버 측 방어)
