@@ -618,8 +618,9 @@ public class BudgetWorkService {
     /**
      * 예정금액(익년 이후분) 비목별 차감액 산출.
      *
-     * <p>사업의 예정자본/관리비금액(MPL_CPIT_AMT/MPL_MNGC_AMT)은 익년 이후 예정분이므로
-     * 예산년도 편성요청/편성에서 제외해야 한다(budget/list의 totRqmAmt 기준과 일치).
+     * <p>품목별 예정금액(BITEMM.MPL_AMT)의 사업+그룹(자본/일반관리비) 합산액은 익년 이후 예정분이므로
+     * 예산년도 편성요청/편성에서 제외해야 한다(ProjectBudgetSummaryService.applyBudgetSummary의
+     * totRqmAmt = ∑AMT − ∑MPL_AMT 기준과 일치).
      * 예정금액은 사업 단위라 해당 사업의 그룹(자본/일반관리비) 품목에 비례 배분하여
      * 요청(req)·편성(dup)을 동일 비율로 차감한다(품목별 편성률 ≤ 100% 보존).
      * 전산업무비(BCOSTM)는 예정금액이 없어 대상에서 제외한다.</p>

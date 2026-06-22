@@ -7,8 +7,11 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
+import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
@@ -62,6 +65,12 @@ public class CouncilService {
 
     /** 정보화사업 리포지토리 — 사업명/전결권자 조회용 */
     private final ProjectRepository projectRepository;
+
+    /** 품목 리포지토리 — 협의회 당해예산(파생) 계산용 */
+    private final ProjectItemRepository projectItemRepository;
+
+    /** 품목 기준 예산 합계 계산 서비스 — 협의회 당해예산(파생) 계산용 */
+    private final ProjectBudgetSummaryService projectBudgetSummaryService;
 
     /** 평가위원 리포지토리 — completeCouncil 완료 검증용 */
     private final CommitteeRepository committeeRepository;
@@ -360,6 +369,27 @@ public class CouncilService {
     // =========================================================================
 
     /**
+     * 협의회 화면 표시용 당해예산(파생) 계산.
+     *
+     * <p>프로젝트 활성 품목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반으로 산출한다.
+     * TOT_RQM_AMT 컬럼이 제거됨에 따라 협의회 목록/상세에서 사용하는 당해예산을
+     * 품목 단위 파생값으로 대체한다.</p>
+     *
+     * <p><strong>N+1 주의</strong>: 현재 협의회 목록 각 행마다 호출되므로 사업 수가 많을 때
+     * 다수의 품목 조회가 발생한다. 추후 배치 조회 방식으로 개선 대상(TASK.md 등록).</p>
+     *
+     * @param abusMngNo 프로젝트관리번호 (null 또는 빈 값이면 null 반환)
+     * @return 당해예산(파생값), 프로젝트 품목이 없으면 0
+     */
+    private java.math.BigDecimal deriveCurrentYearBudget(String abusMngNo) {
+        if (abusMngNo == null || abusMngNo.isBlank()) return null;
+        var items = projectItemRepository.findByAbusMngNoAndDelYn(abusMngNo, "N");
+        var tmp = ProjectDto.Response.builder().build();
+        projectBudgetSummaryService.applyBudgetSummary(tmp, items);
+        return tmp.getTotRqmAmt();
+    }
+
+    /**
      * 활성 협의회 조회 (삭제되지 않은 항목)
      *
      * @param asctId 협의회ID
@@ -429,8 +459,8 @@ public class CouncilService {
         String prjYy   = projectOpt.map(p -> p.getBseYy()).orElse(null);
         String prjTp   = projectOpt.map(p -> p.getBzTpC()).orElse(null);
         String svnDpm  = projectOpt.map(p -> p.getSvnDpmC()).orElse(null);
-        // totRqmAmt는 품목 단위 파생값으로 변경되어 협의회 목록에서는 null 반환 (파생 미적용)
-        java.math.BigDecimal prjBg = null;
+        // 당해예산: 품목 활성 항목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반 파생값
+        java.math.BigDecimal prjBg = deriveCurrentYearBudget(council.getAbusMngNo());
         java.time.LocalDate sttDt  = projectOpt.map(p -> p.getSttDtm()).orElse(null);
         java.time.LocalDate endDt  = projectOpt.map(p -> p.getEndDtm()).orElse(null);
         String itDpm   = projectOpt.map(p -> p.getDvmDpmC()).orElse(null);
@@ -471,8 +501,9 @@ public class CouncilService {
         java.time.LocalDate endDt = toLocalDate(row[14]);
         // Oracle NUMBER(1) → BigDecimal 등으로 반환되므로 intValue() 처리
         boolean applied = row[8] != null && ((Number) row[8]).intValue() == 1;
-        // Oracle NUMBER(15,2) → BigDecimal
-        java.math.BigDecimal prjBg = row[12] != null ? new java.math.BigDecimal(row[12].toString()) : null;
+        // 당해예산: TOT_RQM_AMT 컬럼 제거로 row[12]는 NULL. 품목 파생값으로 산출한다.
+        String rowAbusMngNo = (String) row[0];
+        java.math.BigDecimal prjBg = deriveCurrentYearBudget(rowAbusMngNo);
 
         return new CouncilDto.ListResponse(
                 asctId,
@@ -562,7 +593,7 @@ public class CouncilService {
             sttDt = p.getSttDtm();
             endDt = p.getEndDtm();
             ncs = p.getAbusNcsCone();
-            prjBg = null; // totRqmAmt는 품목 단위 파생값으로 변경되어 협의회 상세에서는 null 반환 (파생 미적용)
+            prjBg = deriveCurrentYearBudget(p.getAbusMngNo()); // 당해예산: 품목 ∑AMT − ∑MPL_AMT 파생값
             prjDes = p.getAbusCone();
             xptEff = p.getDgogPpoCone();
         }

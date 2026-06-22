@@ -3,8 +3,11 @@ package com.kdb.it.domain.council.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -30,8 +33,12 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
+import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
@@ -75,6 +82,12 @@ class CouncilServiceTest {
 
     @Mock
     private OrganizationRepository organizationRepository;
+
+    @Mock
+    private ProjectItemRepository projectItemRepository;
+
+    @Mock
+    private ProjectBudgetSummaryService projectBudgetSummaryService;
 
     @InjectMocks
     private CouncilService councilService;
@@ -213,9 +226,10 @@ class CouncilServiceTest {
     }
 
     @Test
-    @DisplayName("getCouncilList: 관리자 조회 행은 날짜 타입과 적용 여부를 변환한다")
+    @DisplayName("getCouncilList: 관리자 조회 행은 날짜 타입과 적용 여부를 변환하고 당해예산을 품목 파생값으로 반환한다")
     void getCouncilList_관리자_행변환() {
         CustomUserDetails admin = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
+        // row[12]는 DB에서 NULL(TOT_RQM_AMT 컬럼 제거) — 당해예산은 품목 파생으로 산출
         Object[] row = new Object[]{
                 "PRJ-2026-0001",
                 BigDecimal.ONE,
@@ -229,13 +243,21 @@ class CouncilServiceTest {
                 "2026",
                 "신규",
                 "101",
-                new BigDecimal("1000.50"),
+                null,                                       // rqmBgAmt: TOT_RQM_AMT 컬럼 제거로 NULL
                 Date.valueOf(LocalDate.of(2026, 1, 1)),
                 LocalDateTime.of(2026, 12, 31, 0, 0),
                 "IT",
                 "설명",
                 "Y"                                          // csfHeldYn (PRD_c_20260620 #1)
         };
+        // 품목 파생 당해예산: 활성 품목 1건(amt=5000, mplAmt=0) → totRqmAmt=5000 반환 시뮬레이션
+        given(projectItemRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+                .willReturn(List.of(mock(Bitemm.class)));
+        doAnswer(inv -> {
+            ProjectDto.Response resp = inv.getArgument(0);
+            resp.setTotRqmAmt(new BigDecimal("5000"));
+            return null;
+        }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
         given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
                 .willReturn(java.util.Collections.singletonList(row));
 
@@ -246,7 +268,8 @@ class CouncilServiceTest {
         assertThat(result.get(0).csfHeldYn()).isEqualTo("Y");
         assertThat(result.get(0).cnrcDt()).isEqualTo(LocalDate.of(2026, 5, 9));
         assertThat(result.get(0).applied()).isTrue();
-        assertThat(result.get(0).prjBg()).isEqualByComparingTo("1000.50");
+        // 당해예산은 row[12] 값이 아닌 품목 파생값(5000)으로 채워진다
+        assertThat(result.get(0).prjBg()).isEqualByComparingTo("5000");
         assertThat(result.get(0).sttDt()).isEqualTo(LocalDate.of(2026, 1, 1));
         assertThat(result.get(0).endDt()).isEqualTo(LocalDate.of(2026, 12, 31));
     }
@@ -284,6 +307,7 @@ class CouncilServiceTest {
         assertThat(result.get(0).prjSno()).isNull();
         assertThat(result.get(0).cnrcDt()).isEqualTo(LocalDate.of(2026, 5, 9));
         assertThat(result.get(0).applied()).isFalse();
+        // 품목이 없으면(projectItemRepository 빈 목록 반환) applyBudgetSummary가 totRqmAmt를 설정하지 않아 null
         assertThat(result.get(0).prjBg()).isNull();
         assertThat(result.get(0).sttDt()).isEqualTo(LocalDate.of(2026, 1, 1));
         assertThat(result.get(0).endDt()).isNull();
@@ -334,6 +358,14 @@ class CouncilServiceTest {
         given(councilRepository.findByCommitteeMember("10001", "N")).willReturn(List.of(council));
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
         given(projectRepository.findById(any())).willReturn(Optional.of(project));
+        // 품목 파생 당해예산: 활성 품목 조회 후 applyBudgetSummary가 totRqmAmt=3000 설정 시뮬레이션
+        given(projectItemRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+                .willReturn(List.of(mock(Bitemm.class)));
+        doAnswer(inv -> {
+            ProjectDto.Response resp = inv.getArgument(0);
+            resp.setTotRqmAmt(new BigDecimal("3000"));
+            return null;
+        }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
 
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(user);
 
@@ -342,7 +374,8 @@ class CouncilServiceTest {
                     assertThat(item.abusNm()).isEqualTo("사업개요명");
                     assertThat(item.prjYy()).isEqualTo("2026");
                     assertThat(item.prjTp()).isEqualTo("신규");
-                    assertThat(item.prjBg()).isNull(); // totRqmAmt는 품목 단위 파생값으로 변경 — 협의회 목록에서 null
+                    // 당해예산은 품목 파생값(∑AMT − ∑MPL_AMT)으로 산출됨
+                    assertThat(item.prjBg()).isEqualByComparingTo("3000");
                     assertThat(item.sttDt()).isEqualTo(LocalDate.of(2026, 1, 1));
                     assertThat(item.endDt()).isEqualTo(LocalDate.of(2026, 12, 31));
                     assertThat(item.itDpm()).isEqualTo("IT");
@@ -403,12 +436,21 @@ class CouncilServiceTest {
                 .build();
         given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
         given(projectRepository.findById(any())).willReturn(Optional.of(project));
+        // 품목 파생 당해예산: 활성 품목 조회 후 applyBudgetSummary가 totRqmAmt=2000 설정 시뮬레이션
+        given(projectItemRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+                .willReturn(List.of(mock(Bitemm.class)));
+        doAnswer(inv -> {
+            ProjectDto.Response resp = inv.getArgument(0);
+            resp.setTotRqmAmt(new BigDecimal("2000"));
+            return null;
+        }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
 
         CouncilDto.DetailResponse result = councilService.getCouncil(ASCT_ID);
 
         assertThat(result.abusNm()).isEqualTo("정보화사업");
         assertThat(result.edrt()).isEqualTo("전결권자");
-        assertThat(result.prjBg()).isNull(); // totRqmAmt는 품목 단위 파생값으로 변경 — 협의회 상세에서 null
+        // 당해예산은 품목 파생값(∑AMT − ∑MPL_AMT)으로 산출되어야 한다
+        assertThat(result.prjBg()).isEqualByComparingTo("2000");
     }
 
     // ───────────────────────────────────────────────────────
