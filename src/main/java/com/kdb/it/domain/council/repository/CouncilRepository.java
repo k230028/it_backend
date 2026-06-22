@@ -166,7 +166,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.STT_DTM        AS sttDt,
                 p.END_DTM        AS endDt,
                 p.DVM_DPM_C        AS itDpm,
-                p.ABUS_CONE       AS abusCone
+                p.ABUS_CONE       AS abusCone,
+                a.CSF_HELD_YN       AS csfHeldYn
             FROM TPRMPP_BPROJM p
             LEFT JOIN TPRMPP_BASCTM a
                 ON p.ABUS_MNG_NO = a.ABUS_MNG_NO
@@ -217,7 +218,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.STT_DTM        AS sttDt,
                 p.END_DTM        AS endDt,
                 p.DVM_DPM_C        AS itDpm,
-                p.ABUS_CONE       AS abusCone
+                p.ABUS_CONE       AS abusCone,
+                a.CSF_HELD_YN       AS csfHeldYn
             FROM TPRMPP_BPROJM p
             LEFT JOIN TPRMPP_BASCTM a
                 ON p.ABUS_MNG_NO = a.ABUS_MNG_NO

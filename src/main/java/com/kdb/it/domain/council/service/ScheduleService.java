@@ -85,8 +85,10 @@ public class ScheduleService {
     public CouncilDto.ScheduleStatusResponse getScheduleStatus(String asctId) {
         Basctm council = councilService.findActiveCouncil(asctId);
 
-        // 전체 위원 목록
-        List<Bcmmtm> members = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
+        // 일정 취합 대상 위원 목록 — 간사(03)는 회의 진행 담당이라 일정/대면희망 응답 대상에서 제외
+        List<Bcmmtm> members = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N").stream()
+                .filter(m -> !"03".equals(m.getItPtlAsctMebTc()))
+                .collect(Collectors.toList());
 
         // 전체 일정 응답 목록
         List<Bschdm> allSchedules = scheduleRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
@@ -122,27 +124,32 @@ public class ScheduleService {
                             user != null ? user.getPtCNm() : null,
                             m.getItPtlAsctMebTc(),
                             responded,
+                            m.getCsfHpYn(),
                             slots
                     );
                 })
                 .toList();
 
-        // 미응답 위원 수
-        long pendingCount = scheduleRepository.countPendingMembers(asctId);
-        int respondedCount = (int) respondedEnos.size();
+        // 대면희망 위원 존재 여부 (한 명이라도 Y면 대면개최) (PRD_c_20260620 #1)
+        boolean anyFaceToFaceHope = members.stream()
+                .anyMatch(m -> "Y".equals(m.getCsfHpYn()));
 
-        // 일정 확정 가능 여부 계산
-        // INFO_SYS: 필수 위원(예산팀장:12004, IT기획팀장:18001) 응답 완료 시 true
-        // 기타 타입: 전원 응답 완료 시 true
-        boolean allRequiredResponded = calcAllRequiredResponded(
-                council.getItPtlAsctDbrTc(), members, userMap, respondedEnos);
+        // 응답/미응답 위원 수 — 간사 제외된 취합 대상(members) 기준으로 계산
+        int respondedCount = (int) members.stream()
+                .filter(m -> respondedEnos.contains(m.getEno()))
+                .count();
+        long pendingCount = (long) members.size() - respondedCount;
+
+        // 일정 확정 가능 여부 계산: 심의유형과 무관하게 위원 전원 응답 시 true (PRD_c_20260620 #1)
+        boolean allRequiredResponded = calcAllRequiredResponded(members, respondedEnos);
 
         return new CouncilDto.ScheduleStatusResponse(
                 members.size(),
                 respondedCount,
                 pendingCount,
                 memberStatuses,
-                allRequiredResponded
+                allRequiredResponded,
+                anyFaceToFaceHope
         );
     }
 
@@ -164,41 +171,21 @@ public class ScheduleService {
     }
 
     /**
-     * 일정 확정 가능 여부 계산
+     * 일정 확정 가능 여부 계산 (PRD_c_20260620 #1)
      *
-     * <p>INFO_SYS 타입: 예산팀장(TEM_C=12004), IT기획팀장(TEM_C=18001)이 모두 응답했는지 확인
-     * <br>기타 타입: 전원이 응답했는지 확인</p>
+     * <p>심의유형과 무관하게 평가위원 '전원'이 가능 일정을 제출해야 일정 확정이 가능합니다.
+     * (이전에는 INFO_SYS의 경우 필수 팀장(예산팀장 12004 · IT기획팀장 18001)만 응답하면
+     * 확정 가능했으나, 전원 응답 기준으로 통일했습니다.)</p>
      *
-     * @param dbrTc         심의유형
      * @param members       전체 위원 목록
-     * @param userMap       위원 사번 → 사용자 정보 Map
      * @param respondedEnos 응답 완료한 위원 사번 Set
-     * @return 일정 확정 가능 여부
+     * @return 위원 전원이 응답했으면 true
      */
     private boolean calcAllRequiredResponded(
-            String dbrTc,
             List<Bcmmtm> members,
-            Map<String, CuserI> userMap,
             Set<String> respondedEnos) {
-
-        if (!"03".equals(dbrTc)) {  // INFO_SYS
-            // INFO_SYS 외 타입: 전원 응답 기준
-            return !members.isEmpty() && respondedEnos.size() >= members.size();
-        }
-
-        // INFO_SYS: 필수 팀코드 팀장의 응답 여부만 확인
-        for (String requiredTemC : CommitteeService.INFO_SYS_REQUIRED_TEM_CODES) {
-            // 해당 팀코드(TEM_C)에 속한 위원 중 한 명이라도 응답했는지 확인
-            boolean hasResponse = members.stream()
-                    .filter(m -> {
-                        CuserI user = userMap.get(m.getEno());
-                        return user != null && requiredTemC.equals(user.getTemC());
-                    })
-                    .anyMatch(m -> respondedEnos.contains(m.getEno()));
-
-            if (!hasResponse) return false;
-        }
-        return true;
+        return !members.isEmpty()
+                && members.stream().allMatch(m -> respondedEnos.contains(m.getEno()));
     }
 
     // =========================================================================
@@ -261,6 +248,16 @@ public class ScheduleService {
                         }
                     );
         }
+
+        /*
+         * 대면희망여부 저장 (PRD_c_20260620 #1)
+         *   - 위원 본인의 BCMMTM.CSF_HP_YN에 응답을 반영한다.
+         *   - 값이 없으면(null) 변경하지 않는다(기존 응답 유지).
+         */
+        if (request.csfHopeYn() != null) {
+            committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N")
+                    .ifPresent(member -> member.respondFaceToFace(request.csfHopeYn()));
+        }
     }
 
     /**
@@ -299,6 +296,47 @@ public class ScheduleService {
 
         // 협의회 상태 전이: PREPARING → SCHEDULED
         councilService.changeStatus(asctId, "06");
+    }
+
+    /**
+     * 서면개최 확정 (IT관리자) (PRD_c_20260620 #1)
+     *
+     * <p>위원 전원이 대면을 희망하지 않을 때, IT관리자가 서면개최로 확정합니다.
+     * 회의일자/시간/장소 없이 BASCTM.CSF_HELD_YN='N'으로 설정하고,
+     * 일정확정(SCHEDULED)·개최(개최시작) 단계를 건너뛰어 상태를 바로 진행중(07)으로 전이합니다.
+     * 이후 서면질의응답 → 평가의견 작성 흐름은 대면과 동일합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @throws IllegalStateException 현재 상태가 개최준비(05)가 아닌 경우
+     */
+    @Transactional
+    public void confirmWrittenMeeting(String asctId) {
+        Basctm council = councilService.findActiveCouncil(asctId);
+
+        // 개최준비(PREPARING=05) 상태에서만 서면개최 확정 가능
+        if (!"05".equals(council.getItPtlAsctPrgStsTc())) {
+            throw new IllegalStateException(
+                "서면개최 확정은 개최준비(05) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+        }
+
+        /*
+         * 서면개최는 평가위원 '전원'이 대면을 희망하지 않을 때만 가능 (PRD_c_20260620 #1)
+         *   - 전원 응답 + 전원 N: 위원의 CSF_HP_YN이 모두 'N'이어야 한다.
+         *   - 미응답(null) 또는 한 명이라도 'Y'이면 서면 확정 불가(대면으로 진행).
+         */
+        // 간사(03) 제외 — 일정/대면희망 응답 대상이 아니므로 전원-서면 판정에서도 제외
+        List<Bcmmtm> members = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N").stream()
+                .filter(m -> !"03".equals(m.getItPtlAsctMebTc()))
+                .collect(Collectors.toList());
+        if (members.isEmpty() || members.stream().anyMatch(m -> !"N".equals(m.getCsfHpYn()))) {
+            throw new IllegalStateException(
+                "서면개최는 평가위원 전원이 대면을 희망하지 않을 때(전원 응답 + 전원 서면)만 확정할 수 있습니다.");
+        }
+
+        // 대면개최여부 N + 회의 일정 비우기
+        council.markWrittenMeeting();
+        // 일정확정/개최 단계 생략하고 진행중으로 직접 전이
+        council.changeStatus("07");
     }
 
     // =========================================================================

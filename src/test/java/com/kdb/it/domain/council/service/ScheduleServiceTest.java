@@ -95,7 +95,7 @@ class ScheduleServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
-                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "09:00", "Y")));
+                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "09:00", "Y")), null);
 
         assertThatThrownBy(() -> scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO)))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -118,7 +118,7 @@ class ScheduleServiceTest {
                 .willReturn(Optional.of(existing));
 
         CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
-                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "N")));
+                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "N")), null);
 
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
@@ -135,7 +135,7 @@ class ScheduleServiceTest {
                 .willReturn(Optional.empty());
 
         CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
-                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "14:00", "Y")));
+                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "14:00", "Y")), null);
 
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
@@ -268,7 +268,7 @@ class ScheduleServiceTest {
                 .willReturn(Optional.empty());
 
         CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
-                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "16:00", "Y")));
+                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "16:00", "Y")), null);
 
         // when
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
@@ -293,13 +293,129 @@ class ScheduleServiceTest {
         CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(List.of(
                 new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "Y"),
                 new CouncilDto.ScheduleItem(TEST_DATE, "14:00", "Y")
-        ));
+        ), null);
 
         // when
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
         // then: persist가 2회 호출됨 (PRD §15 패턴)
         verify(entityManager, org.mockito.Mockito.times(2)).persist(any(Bschdm.class));
+    }
+
+    // ───────────────────────────────────────────────────────
+    // submitSchedule — 대면희망여부 (PRD_c_20260620 #1)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("submitSchedule: 대면희망여부가 전달되면 위원의 respondFaceToFace를 호출한다")
+    void submitSchedule_대면희망여부전달_위원에반영() {
+        Basctm council = mock(Basctm.class);
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
+                ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
+                .willReturn(Optional.empty());
+
+        Bcmmtm member = mock(Bcmmtm.class);
+        given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
+                .willReturn(Optional.of(member));
+
+        CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
+                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "Y")), "N");
+
+        scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
+
+        verify(member).respondFaceToFace("N");
+    }
+
+    @Test
+    @DisplayName("submitSchedule: 대면희망여부가 null이면 위원 선호도를 변경하지 않는다")
+    void submitSchedule_대면희망여부null_위원미변경() {
+        Basctm council = mock(Basctm.class);
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
+                ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
+                .willReturn(Optional.empty());
+
+        CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
+                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "Y")), null);
+
+        scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
+
+        verify(committeeRepository, org.mockito.Mockito.never())
+                .findByItPtlAsctIdAndEnoAndDelYn(any(), any(), any());
+    }
+
+    // ───────────────────────────────────────────────────────
+    // confirmWrittenMeeting — 서면개최 확정 (PRD_c_20260620 #1)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("confirmWrittenMeeting: 개최준비(05) + 위원 전원 서면(N)이면 서면확정 후 진행중(07)으로 전이한다")
+    void confirmWrittenMeeting_전원서면_서면확정후진행중전이() {
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("05");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bcmmtm m1 = mock(Bcmmtm.class);
+        given(m1.getCsfHpYn()).willReturn("N");
+        Bcmmtm m2 = mock(Bcmmtm.class);
+        given(m2.getCsfHpYn()).willReturn("N");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(m1, m2));
+
+        scheduleService.confirmWrittenMeeting(ASCT_ID);
+
+        verify(council).markWrittenMeeting();
+        verify(council).changeStatus("07");
+    }
+
+    @Test
+    @DisplayName("confirmWrittenMeeting: 대면희망(Y) 위원이 한 명이라도 있으면 IllegalStateException을 던진다")
+    void confirmWrittenMeeting_대면희망위원존재_IllegalStateException발생() {
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("05");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bcmmtm m1 = mock(Bcmmtm.class);
+        given(m1.getCsfHpYn()).willReturn("N");
+        Bcmmtm m2 = mock(Bcmmtm.class);
+        given(m2.getCsfHpYn()).willReturn("Y");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(m1, m2));
+
+        assertThatThrownBy(() -> scheduleService.confirmWrittenMeeting(ASCT_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("전원");
+    }
+
+    @Test
+    @DisplayName("confirmWrittenMeeting: 미응답(null) 위원이 있으면 IllegalStateException을 던진다")
+    void confirmWrittenMeeting_미응답위원존재_IllegalStateException발생() {
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("05");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bcmmtm m1 = mock(Bcmmtm.class);
+        given(m1.getCsfHpYn()).willReturn("N");
+        Bcmmtm m2 = mock(Bcmmtm.class);
+        given(m2.getCsfHpYn()).willReturn(null);
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(m1, m2));
+
+        assertThatThrownBy(() -> scheduleService.confirmWrittenMeeting(ASCT_ID))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("confirmWrittenMeeting: 개최준비(05)가 아니면 IllegalStateException을 던진다")
+    void confirmWrittenMeeting_잘못된상태_IllegalStateException발생() {
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("06");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        assertThatThrownBy(() -> scheduleService.confirmWrittenMeeting(ASCT_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("05");
     }
 
     // ───────────────────────────────────────────────────────
@@ -370,8 +486,8 @@ class ScheduleServiceTest {
     }
 
     @Test
-    @DisplayName("getScheduleStatus: INFO_SYS 필수 팀장들이 모두 응답하면 확정 가능하다")
-    void getScheduleStatus_INFO_SYS필수팀장응답_true() {
+    @DisplayName("getScheduleStatus: 위원 전원이 응답하면 확정 가능하다 (INFO_SYS도 전원 기준)")
+    void getScheduleStatus_INFO_SYS전원응답_true() {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctDbrTc()).willReturn("03");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
@@ -412,8 +528,8 @@ class ScheduleServiceTest {
     }
 
     @Test
-    @DisplayName("getScheduleStatus: INFO_SYS 필수 팀장 중 한 명이 미응답이면 확정 불가다")
-    void getScheduleStatus_INFO_SYS필수팀장미응답_false() {
+    @DisplayName("getScheduleStatus: 위원 중 한 명이라도 미응답이면 확정 불가다 (INFO_SYS도 전원 기준)")
+    void getScheduleStatus_INFO_SYS일부미응답_false() {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctDbrTc()).willReturn("03");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
@@ -441,5 +557,45 @@ class ScheduleServiceTest {
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
         assertThat(result.allRequiredResponded()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getScheduleStatus: 간사(03)는 일정 취합 대상에서 제외된다")
+    void getScheduleStatus_간사제외() {
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctDbrTc()).willReturn("05");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bcmmtm evaluator = mock(Bcmmtm.class);
+        given(evaluator.getEno()).willReturn("E1");
+        given(evaluator.getItPtlAsctMebTc()).willReturn("01");
+        Bcmmtm secretary = mock(Bcmmtm.class);
+        given(secretary.getEno()).willReturn("S1");
+        given(secretary.getItPtlAsctMebTc()).willReturn("03");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(evaluator, secretary));
+
+        // 평가위원만 일정 응답
+        Bschdm slot = mock(Bschdm.class);
+        given(slot.getEno()).willReturn("E1");
+        given(slot.getCnrcDt()).willReturn(TEST_DATE);
+        given(slot.getCnrcSttTm()).willReturn("10:00");
+        given(slot.getUsePsbYn()).willReturn("Y");
+        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(slot));
+
+        CuserI u = mock(CuserI.class);
+        given(u.getEno()).willReturn("E1");
+        given(userRepository.findByEno("E1")).willReturn(Optional.of(u));
+
+        CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
+
+        // 간사 제외: 취합 대상은 평가위원 1명만
+        assertThat(result.totalCount()).isEqualTo(1);
+        assertThat(result.memberStatuses()).hasSize(1);
+        assertThat(result.memberStatuses().get(0).eno()).isEqualTo("E1");
+        assertThat(result.respondedCount()).isEqualTo(1);
+        assertThat(result.pendingCount()).isEqualTo(0L);
+        // 평가위원 전원 응답 → 확정 가능
+        assertThat(result.allRequiredResponded()).isTrue();
     }
 }

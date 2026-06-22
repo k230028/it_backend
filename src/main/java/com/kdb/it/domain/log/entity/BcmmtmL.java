@@ -31,4 +31,7 @@ public class BcmmtmL extends BaseLogEntity {
 
     @Column(name = "CNFM_YN", length = 1, comment = "확인여부")
     private String cnfmYn;
+
+    @Column(name = "CSF_HP_YN", length = 1, comment = "대면희망여부")
+    private String csfHpYn;
 }
