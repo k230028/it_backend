@@ -1,8 +1,10 @@
 package com.kdb.it.infra.file.service;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.repository.FileRepository;
+import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.FileValidator;
 import com.kdb.it.exception.CustomGeneralException;
 import jakarta.persistence.EntityManager;
@@ -75,6 +77,9 @@ public class FileService {
 
     /** 파일 확장자 화이트리스트 검증 — SEC-04 */
     private final FileValidator fileValidator;
+
+    /** 파일 읽기 권한 검증 — 목록 결과를 사용자별 읽기 가능 파일로 필터링 */
+    private final FileOwnershipChecker fileOwnershipChecker;
 
     /**
      * JPA EntityManager — 수동 부여 ID 엔티티의 INSERT를 {@code persist()}로 확정적으로 수행하기 위해 사용.
@@ -210,10 +215,11 @@ public class FileService {
      * </ol>
      *
      * @param condition 검색 조건 (orcDtt 필수, orcPkVl·flDtt 선택)
-     * @return 파일 조회 응답 DTO 목록
+     * @param user      현재 사용자 — 읽기 권한 필터링에 사용 (게시판 비공개 파일 제외)
+     * @return 파일 조회 응답 DTO 목록 (읽기 가능한 파일만)
      * @throws CustomGeneralException orcDtt 미입력 시
      */
-    public List<FileDto.Response> getFiles(FileDto.SearchCondition condition) {
+    public List<FileDto.Response> getFiles(FileDto.SearchCondition condition, CustomUserDetails user) {
         if (!StringUtils.hasText(condition.getPkColNm())) {
             throw new CustomGeneralException("주식별자컬럼명(pkColNm)은 필수입니다.");
         }
@@ -233,7 +239,10 @@ public class FileService {
             list = fileRepository.findAllByPkColNmAndDelYn(condition.getPkColNm(), "N");
         }
 
-        return list.stream().map(this::toResponse).toList();
+        return list.stream()
+                .filter(f -> fileOwnershipChecker.canRead(f, user))
+                .map(this::toResponse)
+                .toList();
     }
 
     // ─────────────────────────────────────────

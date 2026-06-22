@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -129,6 +130,54 @@ class FileOwnershipCheckerTest {
         }
     }
 
+    // ── canRead (boolean) ──
+
+    @Nested
+    @DisplayName("canRead — 목록 필터링용 boolean 권한 판정")
+    class CanRead {
+
+        @Test
+        @DisplayName("공통게시판이 아닌 파일은 항상 읽기 가능(true) — 리포지토리 호출 없음")
+        void canRead_nonBoardAlwaysTrue() {
+            // Arrange
+            Cfilem file = mock(Cfilem.class);
+            when(file.getPkColNm()).thenReturn("요구사항정의서");
+
+            CustomUserDetails normalUser = new CustomUserDetails("E0001", List.of("ITPZZ001"), "18001");
+
+            // Act & Assert
+            assertThat(fileOwnershipChecker.canRead(file, normalUser)).isTrue();
+        }
+
+        @Test
+        @DisplayName("비공개(sreYn=N) 게시물의 게시판 파일은 비관리자에게 읽기 불가(false)")
+        void canRead_hiddenBoardPostDeniedForNonAdmin() {
+            // Arrange
+            Cfilem file = mock(Cfilem.class);
+            when(file.getPkColNm()).thenReturn("공통게시판");
+            when(file.getPkCone()).thenReturn("POST-1");
+
+            Cblbcm post = Cblbcm.builder()
+                    .nacMngNo("POST-1")
+                    .blbMngNo("BLBM-2026-0001")
+                    .nacNm("비공개 게시물")
+                    .sreYn("N")
+                    .sttDt(null).endDt(null)
+                    .nacInqNbr(0).flNbr(0).flApgYn("N")
+                    .ancYn("N")
+                    .nacUnqId("POST-1").nacGrpSqn(0).nacGrpLev(0)
+                    .delYn("N")
+                    .build();
+            given(boardPostRepository.findByNacMngNoAndDelYn("POST-1", "N"))
+                    .willReturn(Optional.of(post));
+
+            CustomUserDetails normalUser = new CustomUserDetails("E0001", List.of("ITPZZ001"), "18001");
+
+            // Act & Assert
+            assertThat(fileOwnershipChecker.canRead(file, normalUser)).isFalse();
+        }
+    }
+
     // ── verifyBoardFileAccess ──
 
     @Nested
@@ -145,7 +194,7 @@ class FileOwnershipCheckerTest {
         }
 
         @Test
-        @DisplayName("게시물이 없으면 CustomGeneralException 발생")
+        @DisplayName("게시물이 없으면 읽기 권한 없음 — CustomGeneralException 발생")
         void verifyBoardFileAccess_postNotFound_throws() {
             // Arrange
             given(boardPostRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
@@ -153,10 +202,10 @@ class FileOwnershipCheckerTest {
 
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
 
-            // Act & Assert
+            // Act & Assert — canRead로 일원화되어 게시물 부재 시 false → 권한 없음 메시지
             assertThatThrownBy(() -> fileOwnershipChecker.checkReadAccess("FL_BOARD_01", user))
                     .isInstanceOf(CustomGeneralException.class)
-                    .hasMessageContaining("게시물을 찾을 수 없습니다");
+                    .hasMessageContaining("파일 다운로드 권한이 없습니다");
         }
 
         @Test

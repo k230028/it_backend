@@ -47,6 +47,9 @@ public class FileOwnershipChecker {
     /**
      * 파일 다운로드 권한 검증 — 주식별자컬럼명(PK_COL_NM)별 분기.
      *
+     * <p>읽기 가능 여부는 {@link #canRead(Cfilem, CustomUserDetails)}로 일원화하고,
+     * 본 메서드는 단건 다운로드·미리보기·조회 경로에서 권한 없음 시 예외를 던집니다.</p>
+     *
      * @param flMpnId 파일매핑ID
      * @param user    현재 사용자
      * @throws CustomGeneralException 파일이 없거나 접근 권한이 없는 경우
@@ -55,32 +58,47 @@ public class FileOwnershipChecker {
         Cfilem file = fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")
                 .orElseThrow(() -> new CustomGeneralException("파일을 찾을 수 없습니다: " + flMpnId));
 
-        if ("공통게시판".equals(file.getPkColNm())) {
-            verifyBoardFileAccess(file, user);
+        if (!canRead(file, user)) {
+            throw new CustomGeneralException("파일 다운로드 권한이 없습니다.");
         }
-        // 다른 주식별자컬럼명은 별도 정책 없으면 읽기 허용
     }
 
     /**
-     * 공통게시판 파일 접근 권한 검증
+     * 파일 읽기 가능 여부 판정 (목록 필터링·단건 권한 검증 공통 사용).
      *
-     * <p>게시판 조회는 인증된 모든 사용자에게 공개되므로 게시판 단위 권한은 검증하지 않으며,
-     * 게시물 공개 여부(화면여부·공개기간)만 확인합니다.
-     * 관리자는 모든 파일에 접근 가능합니다.</p>
+     * <p>판정 규칙:</p>
+     * <ul>
+     *   <li>주식별자컬럼명이 "공통게시판"이 아니면 항상 읽기 허용(true) — 리포지토리 조회 없음.</li>
+     *   <li>관리자({@link CustomUserDetails#isAdmin()})는 항상 읽기 허용.</li>
+     *   <li>그 외에는 연결된 게시물을 조회해 공개 여부(화면여부 sreYn=Y + 공개기간)를 판정.
+     *       게시물이 없으면 읽기 불가(false).</li>
+     * </ul>
+     *
+     * @param file 대상 파일 엔티티
+     * @param user 현재 사용자 (null이면 관리자 우회 없음)
+     * @return 읽기 가능하면 true, 아니면 false
      */
-    private void verifyBoardFileAccess(Cfilem file, CustomUserDetails user) {
-        if (user.isAdmin()) return;
+    public boolean canRead(Cfilem file, CustomUserDetails user) {
+        if (!"공통게시판".equals(file.getPkColNm())) {
+            return true;
+        }
+        if (user != null && user.isAdmin()) {
+            return true;
+        }
 
         String nacMngNo = file.getPkCone();
-        Cblbcm post = boardPostRepository.findByNacMngNoAndDelYn(nacMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("첨부파일의 게시물을 찾을 수 없습니다."));
+        return boardPostRepository.findByNacMngNoAndDelYn(nacMngNo, "N")
+                .map(this::isPostVisible)
+                .orElse(false);
+    }
 
+    /**
+     * 게시물 공개 여부 판정 — 화면여부(sreYn=Y)이고 공개기간(sttDt~endDt) 내인지 확인.
+     */
+    private boolean isPostVisible(Cblbcm post) {
         LocalDate today = LocalDate.now();
-        boolean postOk = "Y".equals(post.getSreYn())
+        return "Y".equals(post.getSreYn())
                 && (post.getSttDt() == null || !post.getSttDt().isAfter(today))
                 && (post.getEndDt() == null || !post.getEndDt().isBefore(today));
-        if (!postOk) {
-            throw new CustomGeneralException("파일 다운로드 권한이 없습니다.");
-        }
     }
 }

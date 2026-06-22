@@ -26,7 +26,9 @@ import org.mockito.quality.Strictness;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.FileValidator;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.entity.Cfilem;
@@ -55,10 +57,17 @@ class FileServiceTest {
     @Mock
     private FileValidator fileValidator;
 
+    @Mock
+    private FileOwnershipChecker fileOwnershipChecker;
+
     @InjectMocks
     private FileService fileService;
 
     private static final String FL_MNG_NO = "FL_00000001";
+
+    /** 목록 조회 권한 필터링용 일반 사용자 (canRead 기본 허용 가정) */
+    private static final CustomUserDetails USER =
+            new CustomUserDetails("E0001", List.of("ITPZZ001"), "18001");
 
     private Cfilem mockCfilem(String flMngNo) {
         Cfilem f = mock(Cfilem.class);
@@ -109,7 +118,7 @@ class FileServiceTest {
     void getFiles_pkColNm없음_CustomGeneralException발생() {
         FileDto.SearchCondition condition = FileDto.SearchCondition.builder().build();
 
-        assertThatThrownBy(() -> fileService.getFiles(condition))
+        assertThatThrownBy(() -> fileService.getFiles(condition, USER))
                 .isInstanceOf(CustomGeneralException.class)
                 .hasMessageContaining("pkColNm");
     }
@@ -123,8 +132,9 @@ class FileServiceTest {
         Cfilem file = mockCfilem(FL_MNG_NO);
         given(fileRepository.findAllByPkColNmAndDelYn("요구사항정의서", "N"))
                 .willReturn(List.of(file));
+        given(fileOwnershipChecker.canRead(file, USER)).willReturn(true);
 
-        List<FileDto.Response> result = fileService.getFiles(condition);
+        List<FileDto.Response> result = fileService.getFiles(condition, USER);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getFlMpnId()).isEqualTo(FL_MNG_NO);
@@ -140,8 +150,9 @@ class FileServiceTest {
         Cfilem file = mockCfilem(FL_MNG_NO);
         given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "PRJ-2026-0001", "N"))
                 .willReturn(List.of(file));
+        given(fileOwnershipChecker.canRead(file, USER)).willReturn(true);
 
-        List<FileDto.Response> result = fileService.getFiles(condition);
+        List<FileDto.Response> result = fileService.getFiles(condition, USER);
 
         assertThat(result).hasSize(1);
     }
@@ -158,8 +169,9 @@ class FileServiceTest {
         given(fileRepository.findAllByPkColNmAndPkConeAndFlTpConeAndDelYn(
                 "요구사항정의서", "PRJ-2026-0001", "이미지", "N"))
                 .willReturn(List.of(file));
+        given(fileOwnershipChecker.canRead(file, USER)).willReturn(true);
 
-        List<FileDto.Response> result = fileService.getFiles(condition);
+        List<FileDto.Response> result = fileService.getFiles(condition, USER);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getPreviewUrl()).isEqualTo("/api/files/" + FL_MNG_NO + "/preview");

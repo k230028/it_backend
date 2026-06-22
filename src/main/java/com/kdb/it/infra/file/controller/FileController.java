@@ -60,14 +60,18 @@ public class FileController {
                         "pkCone(주식별자내용)을 추가하면 특정 레코드의 파일만 조회합니다. " +
                         "flTpCone('이미지' 또는 '첨부파일')로 파일 종류를 필터링할 수 있습니다.")
         public ResponseEntity<List<FileDto.Response>> getFiles(
-                        @ModelAttribute FileDto.SearchCondition condition) {
-                return ResponseEntity.ok(fileService.getFiles(condition));
+                        @ModelAttribute FileDto.SearchCondition condition,
+                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+                return ResponseEntity.ok(fileService.getFiles(condition, userDetails));
         }
 
         @GetMapping("/{flMpnId}")
         @Operation(summary = "파일 단건 조회", description = "파일매핑ID로 첨부파일 상세 정보를 조회합니다.")
         public ResponseEntity<FileDto.Response> getFile(
-                        @PathVariable("flMpnId") String flMpnId) {
+                        @PathVariable("flMpnId") String flMpnId,
+                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+                // 읽기 권한 검증 — 게시판 비공개 파일 등 접근 불가 시 예외 발생
+                fileOwnershipChecker.checkReadAccess(flMpnId, userDetails);
                 return ResponseEntity.ok(fileService.getFile(flMpnId));
         }
 
@@ -165,7 +169,11 @@ public class FileController {
                         "응답 헤더에 Content-Disposition: attachment가 설정되어 브라우저에서 자동 다운로드됩니다. " +
                         "파일명이 그대로 사용되며 한글 파일명도 UTF-8로 지원합니다.")
         public ResponseEntity<org.springframework.core.io.Resource> downloadFile(
-                        @PathVariable("flMpnId") String flMpnId) {
+                        @PathVariable("flMpnId") String flMpnId,
+                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+                // 읽기 권한 검증 — 게시판 비공개 파일 등 접근 불가 시 예외 발생
+                fileOwnershipChecker.checkReadAccess(flMpnId, userDetails);
 
                 FileService.FileDownloadResult result = fileService.downloadFile(flMpnId);
 
@@ -189,7 +197,11 @@ public class FileController {
                         "Content-Type이 파일 확장자 기반으로 자동 감지되어 브라우저에서 이미지가 올바르게 렌더링됩니다. " +
                         "Tiptap 에디터의 img src로 사용 시 httpOnly 쿠키 인증이 자동 적용됩니다.")
         public ResponseEntity<org.springframework.core.io.Resource> previewFile(
-                        @PathVariable("flMpnId") String flMpnId) {
+                        @PathVariable("flMpnId") String flMpnId,
+                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+                // 읽기 권한 검증 — 게시판 비공개 파일 등 접근 불가 시 예외 발생
+                fileOwnershipChecker.checkReadAccess(flMpnId, userDetails);
 
                 FileService.FileDownloadResult result = fileService.downloadFile(flMpnId);
 

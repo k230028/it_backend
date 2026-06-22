@@ -3,6 +3,7 @@ package com.kdb.it.infra.file.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -72,7 +73,7 @@ class FileControllerTest {
     @DisplayName("GET /api/files - 인증된 사용자 → 200 + 배열 반환")
     @WithMockUser(username = "10001")
     void getFiles_인증_200() throws Exception {
-        given(fileService.getFiles(any())).willReturn(List.of());
+        given(fileService.getFiles(any(), any())).willReturn(List.of());
         mockMvc.perform(get("/api/files").param("pkColNm", "요구사항정의서"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
@@ -178,6 +179,36 @@ class FileControllerTest {
                 .willReturn(new FileService.FileDownloadResult(resource, "photo.png", "image/png"));
 
         mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/preview"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /api/files/{flMngNo}/preview - 비게시판 파일(읽기권한 통과) → 200")
+    @WithMockUser(username = "10001")
+    void previewFile_비게시판파일_읽기권한통과_200() throws Exception {
+        // checkReadAccess는 비게시판 파일에서 예외 없이 통과(no-op)
+        doNothing().when(fileOwnershipChecker).checkReadAccess(anyString(), any());
+
+        ByteArrayResource resource = new ByteArrayResource("imgdata".getBytes());
+        given(fileService.downloadFile(FL_MNG_NO))
+                .willReturn(new FileService.FileDownloadResult(resource, "photo.png", "image/png"));
+
+        mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/preview"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /api/files/{flMngNo}/download - 비게시판 파일(읽기권한 통과) → 200")
+    @WithMockUser(username = "10001")
+    void downloadFile_비게시판파일_읽기권한통과_200() throws Exception {
+        // checkReadAccess는 비게시판 파일에서 예외 없이 통과(no-op)
+        doNothing().when(fileOwnershipChecker).checkReadAccess(anyString(), any());
+
+        ByteArrayResource resource = new ByteArrayResource("content".getBytes());
+        given(fileService.downloadFile(FL_MNG_NO))
+                .willReturn(new FileService.FileDownloadResult(resource, "test.pdf", "application/pdf"));
+
+        mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/download"))
                 .andExpect(status().isOk());
     }
 }
