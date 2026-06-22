@@ -97,6 +97,29 @@ public class ProjectBudgetSummaryService {
         BigDecimal costBg = sumByIoe(validItems, costTypes, calcAmt);
 
         response.setBudgetAmounts(assetBg, dvcBg, hwBg, swBg, costBg);
+
+        // === 예정금액(MPL_AMT) 파생 합산 (Bprojm 3개 컬럼 대체) ===
+        // MPL_AMT 는 AMT 와 동일 환산 규칙(× xcr)을 적용해 대칭 계산한다.
+        Function<Bitemm, BigDecimal> calcMpl = i -> {
+            if (i.getMplAmt() == null) return BigDecimal.ZERO;
+            BigDecimal xcr = (i.getXcr() != null && i.getXcr().compareTo(BigDecimal.ZERO) != 0)
+                    ? i.getXcr() : BigDecimal.ONE;
+            return i.getMplAmt().multiply(xcr);
+        };
+        List<Bitemm> mplItems = bitemms.stream()
+                .filter(i -> i.getIoeC() != null)
+                .toList();
+        BigDecimal mplCpit = sumByIoe(mplItems, assetTypes, calcMpl);
+        BigDecimal mplMngc = sumByIoe(mplItems, costTypes, calcMpl);
+        // 당해예산 = 비목 합계(AMT) - 비목 합계(MPL_AMT), 음수이면 0으로 보정
+        BigDecimal totalAmt = assetBg.add(costBg);
+        BigDecimal totalMpl = mplCpit.add(mplMngc);
+        BigDecimal currentYear = totalAmt.subtract(totalMpl);
+        if (currentYear.signum() < 0) currentYear = BigDecimal.ZERO;
+
+        response.setMplCpitAmt(mplCpit);
+        response.setMplMngcAmt(mplMngc);
+        response.setTotRqmAmt(currentYear);
     }
 
     /**
