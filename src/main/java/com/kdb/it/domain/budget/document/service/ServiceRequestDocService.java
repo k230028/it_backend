@@ -5,6 +5,8 @@ import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.document.repository.ServiceRequestDocRepository;
 import com.kdb.it.domain.budget.document.util.DocVersionCodec;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
 import lombok.RequiredArgsConstructor;
@@ -195,16 +197,21 @@ public class ServiceRequestDocService {
      *
      * @param docMngNo 수정할 문서관리번호
      * @param request  수정 요청 DTO
+     * @param user     현재 인증 사용자 (소유권 검증용)
      * @return 수정된 문서관리번호
      * @throws CustomGeneralException 해당 문서관리번호가 없는 경우
+     * @throws org.springframework.security.access.AccessDeniedException 소유자도 관리자도 아닌 경우
      */
     @Transactional
-    public String updateDocument(String docMngNo, ServiceRequestDocDto.UpdateRequest request) {
+    public String updateDocument(String docMngNo, ServiceRequestDocDto.UpdateRequest request, CustomUserDetails user) {
         // 최신 버전 조회
         Brdocm document = serviceRequestDocRepository
                 .findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N")
                 .orElseThrow(() -> new CustomGeneralException(
                         "존재하지 않는 문서관리번호입니다: " + docMngNo));
+
+        // 소유권 검증: 최신 버전의 작성자 본인 또는 관리자만 수정 가능
+        OwnershipVerifier.verifyOwnerOrAdmin(document.getFstEnrUsid(), user);
 
         // 요구사항정보 XSS 새니타이징
         String sanitizedCone = HtmlSanitizer.sanitize(request.getRedtConeInf());
@@ -229,16 +236,21 @@ public class ServiceRequestDocService {
      * </p>
      *
      * @param docMngNo 문서관리번호
+     * @param user     현재 인증 사용자 (소유권 검증용)
      * @return 새로 생성된 버전 번호 (예: 0.02)
      * @throws CustomGeneralException 해당 문서관리번호가 없는 경우
+     * @throws org.springframework.security.access.AccessDeniedException 소유자도 관리자도 아닌 경우
      */
     @Transactional
-    public BigDecimal createNewVersion(String docMngNo) {
+    public BigDecimal createNewVersion(String docMngNo, CustomUserDetails user) {
         // 최신 버전 조회
         Brdocm latest = serviceRequestDocRepository
                 .findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N")
                 .orElseThrow(() -> new CustomGeneralException(
                         "존재하지 않는 문서관리번호입니다: " + docMngNo));
+
+        // 소유권 검증: 최신 버전의 작성자 본인 또는 관리자만 새 버전 생성 가능
+        OwnershipVerifier.verifyOwnerOrAdmin(latest.getFstEnrUsid(), user);
 
         // 새 버전 번호 계산: 저장 정수 → 화면 소수(÷ 100)로 환산 후 + 0.01 증가
         BigDecimal currentDisplay = DocVersionCodec.toDisplay(latest.getDocVrsSno());
@@ -263,10 +275,19 @@ public class ServiceRequestDocService {
      *
      * @param docMngNo 삭제할 문서관리번호
      * @param version  삭제할 문서버전 ({@code null}이면 전체 버전 일괄 삭제)
+     * @param user     현재 인증 사용자 (소유권 검증용)
      * @throws CustomGeneralException 해당 문서 또는 버전이 없는 경우
+     * @throws org.springframework.security.access.AccessDeniedException 소유자도 관리자도 아닌 경우
      */
     @Transactional
-    public void deleteDocument(String docMngNo, BigDecimal version) {
+    public void deleteDocument(String docMngNo, BigDecimal version, CustomUserDetails user) {
+        // 소유권 검증: 최신 버전의 작성자 본인 또는 관리자만 삭제 가능 (버전 분기 이전 선행 검증)
+        Brdocm latest = serviceRequestDocRepository
+                .findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N")
+                .orElseThrow(() -> new CustomGeneralException(
+                        "존재하지 않는 문서관리번호입니다: " + docMngNo));
+        OwnershipVerifier.verifyOwnerOrAdmin(latest.getFstEnrUsid(), user);
+
         if (version == null) {
             // 전체 버전 일괄 소프트 삭제
             List<Brdocm> all = serviceRequestDocRepository

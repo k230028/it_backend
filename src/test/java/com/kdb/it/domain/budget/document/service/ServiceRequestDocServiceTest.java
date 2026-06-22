@@ -2,9 +2,11 @@ package com.kdb.it.domain.budget.document.service;
 
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.document.entity.Brdocm;
 import com.kdb.it.domain.budget.document.repository.ServiceRequestDocRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,6 +64,25 @@ class ServiceRequestDocServiceTest {
     @InjectMocks
     private ServiceRequestDocService service;
 
+    // ─────────────────────────────────────────────────────────────────
+    // 인증 사용자 헬퍼 (소유권 검증용)
+    // ─────────────────────────────────────────────────────────────────
+
+    /** 문서 소유자 본인 (FST_ENR_USID=E0001 과 일치) */
+    private static CustomUserDetails owner() {
+        return new CustomUserDetails("E0001", List.of(CustomUserDetails.ATH_USER), "101");
+    }
+
+    /** 소유자가 아닌 일반 사용자 */
+    private static CustomUserDetails other() {
+        return new CustomUserDetails("E0002", List.of(CustomUserDetails.ATH_USER), "101");
+    }
+
+    /** 시스템관리자 (소유자가 아니어도 허용) */
+    private static CustomUserDetails admin() {
+        return new CustomUserDetails("E0099", List.of(CustomUserDetails.ATH_ADMIN), "101");
+    }
+
     @Test
     @DisplayName("신규 문서 생성 시 버전은 0.01 이다")
     void createDocument_setsInitialVersion() {
@@ -102,7 +123,7 @@ class ServiceRequestDocServiceTest {
         given(repository.save(any(Brdocm.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act
-        BigDecimal newVersion = service.createNewVersion("DOC-001");
+        BigDecimal newVersion = service.createNewVersion("DOC-001", admin());
 
         // Assert: 응답은 화면 소수 0.02, 저장 엔티티는 정수 2(× 100)
         assertThat(newVersion).isEqualByComparingTo(new BigDecimal("0.02"));
@@ -117,7 +138,7 @@ class ServiceRequestDocServiceTest {
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("MISSING", "N"))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.createNewVersion("MISSING"))
+        assertThatThrownBy(() -> service.createNewVersion("MISSING", admin()))
                 .isInstanceOf(RuntimeException.class);
     }
 
@@ -159,9 +180,11 @@ class ServiceRequestDocServiceTest {
     void deleteDocument_withoutVersion_deletesAll() {
         Brdocm v1 = Brdocm.builder().docMngNo("DOC-001").docVrsSno(new BigDecimal("0.01")).build();
         Brdocm v2 = Brdocm.builder().docMngNo("DOC-001").docVrsSno(new BigDecimal("0.02")).build();
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
+                .willReturn(Optional.of(v2));
         given(repository.findAllByDocMngNoAndDelYn("DOC-001", "N")).willReturn(List.of(v1, v2));
 
-        service.deleteDocument("DOC-001", null);
+        service.deleteDocument("DOC-001", null, admin());
 
         // BaseEntity.delete()가 호출되어 delYn이 'Y'로 변경됨 (JPA Dirty Checking)
         assertThat(v1.getDelYn()).isEqualTo("Y");
@@ -180,13 +203,15 @@ class ServiceRequestDocServiceTest {
                 .docMngNo("DOC-001")
                 .docVrsSno(new BigDecimal("2"))
                 .build();
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
+                .willReturn(Optional.of(v2));
         // 화면 입력 0.02 → 저장 정수 2로 변환되어 조회된다
         given(repository.findByDocMngNoAndDocVrsSnoAndDelYn(
                 "DOC-001", new BigDecimal("2"), "N"))
                 .willReturn(Optional.of(v2));
 
         // Act
-        service.deleteDocument("DOC-001", new BigDecimal("0.02"));
+        service.deleteDocument("DOC-001", new BigDecimal("0.02"), admin());
 
         // Assert: 해당 버전만 논리 삭제 (DEL_YN='Y')
         assertThat(v2.getDelYn()).isEqualTo("Y");
@@ -200,21 +225,85 @@ class ServiceRequestDocServiceTest {
                 .willReturn(List.of());
 
         // Act & Assert
-        assertThatThrownBy(() -> service.deleteDocument("MISSING", null))
+        assertThatThrownBy(() -> service.deleteDocument("MISSING", null, admin()))
                 .isInstanceOf(RuntimeException.class);
     }
 
     @Test
     @DisplayName("특정 버전 삭제 시 해당 버전이 없으면 예외가 발생한다")
     void deleteDocument_withVersion_throwsWhenNotFound() {
-        // Arrange: 화면 0.99(저장 정수 99) 버전 미존재
+        // Arrange: 소유권 검증용 최신 버전은 존재하되, 화면 0.99(저장 정수 99) 버전은 미존재
+        Brdocm latest = Brdocm.builder()
+                .docMngNo("DOC-001").docVrsSno(new BigDecimal("1")).build();
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
+                .willReturn(Optional.of(latest));
         given(repository.findByDocMngNoAndDocVrsSnoAndDelYn(
                 "DOC-001", new BigDecimal("99"), "N"))
                 .willReturn(Optional.empty());
 
         // Act & Assert
-        assertThatThrownBy(() -> service.deleteDocument("DOC-001", new BigDecimal("0.99")))
+        assertThatThrownBy(() -> service.deleteDocument("DOC-001", new BigDecimal("0.99"), admin()))
                 .isInstanceOf(RuntimeException.class);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // 소유권 검증 (Task 5)
+    // ─────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateDocument: 소유자가 아닌 사용자는 AccessDeniedException")
+    void update_deniedForOther() {
+        Brdocm latest = Brdocm.builder()
+                .docMngNo("DOC-2026-0001")
+                .docVrsSno(new BigDecimal("1"))
+                .reqTtl("문서")
+                .fstEnrUsid("E0001")
+                .build();
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-2026-0001", "N"))
+                .willReturn(Optional.of(latest));
+
+        assertThatThrownBy(() -> service.updateDocument(
+                "DOC-2026-0001",
+                ServiceRequestDocDto.UpdateRequest.builder().reqTtl("수정").build(),
+                other()))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("deleteDocument: 소유자가 아닌 사용자는 AccessDeniedException")
+    void delete_deniedForOther() {
+        Brdocm latest = Brdocm.builder()
+                .docMngNo("DOC-2026-0001")
+                .docVrsSno(new BigDecimal("1"))
+                .reqTtl("문서")
+                .fstEnrUsid("E0001")
+                .build();
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-2026-0001", "N"))
+                .willReturn(Optional.of(latest));
+
+        assertThatThrownBy(() -> service.deleteDocument("DOC-2026-0001", null, other()))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("updateDocument: 관리자는 소유자가 아니어도 허용된다")
+    void update_allowedForAdmin() {
+        Brdocm latest = Brdocm.builder()
+                .docMngNo("DOC-2026-0001")
+                .docVrsSno(new BigDecimal("1"))
+                .reqTtl("기존")
+                .fstEnrUsid("E0001")
+                .build();
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-2026-0001", "N"))
+                .willReturn(Optional.of(latest));
+
+        String result = service.updateDocument(
+                "DOC-2026-0001",
+                ServiceRequestDocDto.UpdateRequest.builder().reqTtl("관리자 수정").build(),
+                admin());
+
+        assertThat(result).isEqualTo("DOC-2026-0001");
+        assertThat(latest.getReqTtl()).isEqualTo("관리자 수정");
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -233,7 +322,8 @@ class ServiceRequestDocServiceTest {
                 "MISSING",
                 ServiceRequestDocDto.UpdateRequest.builder()
                         .reqTtl("수정명")
-                        .build()))
+                        .build(),
+                admin()))
                 .isInstanceOf(RuntimeException.class);
     }
 
@@ -254,7 +344,8 @@ class ServiceRequestDocServiceTest {
                 "DOC-001",
                 ServiceRequestDocDto.UpdateRequest.builder()
                         .reqTtl("수정된 문서명")
-                        .build());
+                        .build(),
+                admin());
 
         // Assert: 문서관리번호 반환, JPA Dirty Checking으로 reqNm 수정 반영
         assertThat(result).isEqualTo("DOC-001");
@@ -421,7 +512,8 @@ class ServiceRequestDocServiceTest {
                 .reqDttNo("REQ")
                 .bzDttNm("BZ")
                 .rvwFsgTlmDt(LocalDate.now().plusDays(3).format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE))
-                .build());
+                .build(),
+                admin());
 
         assertThat(latest.getReqTtl()).isEqualTo("수정");
         assertThat(latest.getRedtConeInf()).isNull();

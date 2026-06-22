@@ -1,11 +1,13 @@
 package com.kdb.it.domain.budget.document.controller;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.document.service.ServiceRequestDocService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -127,8 +129,10 @@ public class ServiceRequestDocController {
      */
     @PostMapping("/{docMngNo}/versions")
     @Operation(summary = "요구사항 정의서 새 버전 생성", description = "기존 최신 버전을 복제하여 버전 번호를 0.01 증가시킨 새 버전을 생성합니다.")
-    public ResponseEntity<String> createNewVersion(@PathVariable("docMngNo") String docMngNo) {
-        BigDecimal newVrs = serviceRequestDocService.createNewVersion(docMngNo);
+    public ResponseEntity<String> createNewVersion(
+            @PathVariable("docMngNo") String docMngNo,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        BigDecimal newVrs = serviceRequestDocService.createNewVersion(docMngNo, user);
         return ResponseEntity.created(URI.create("/api/documents/" + docMngNo + "/versions"))
                 .body(newVrs.toPlainString());
     }
@@ -144,8 +148,9 @@ public class ServiceRequestDocController {
     @Operation(summary = "요구사항 정의서 수정", description = "요구사항 정의서 최신 버전을 수정합니다.")
     public ResponseEntity<String> updateDocument(
             @PathVariable("docMngNo") String docMngNo,
-            @RequestBody ServiceRequestDocDto.UpdateRequest request) {
-        return ResponseEntity.ok(serviceRequestDocService.updateDocument(docMngNo, request));
+            @RequestBody ServiceRequestDocDto.UpdateRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(serviceRequestDocService.updateDocument(docMngNo, request, user));
     }
 
     /**
@@ -165,8 +170,9 @@ public class ServiceRequestDocController {
     @Operation(summary = "요구사항 정의서 삭제", description = "요구사항 정의서를 논리 삭제합니다 (DEL_YN='Y'). version 미지정 시 전체 버전 일괄 삭제.")
     public ResponseEntity<Void> deleteDocument(
             @PathVariable("docMngNo") String docMngNo,
-            @RequestParam(value = "version", required = false) BigDecimal version) {
-        serviceRequestDocService.deleteDocument(docMngNo, version);
+            @RequestParam(value = "version", required = false) BigDecimal version,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        serviceRequestDocService.deleteDocument(docMngNo, version, user);
         return ResponseEntity.noContent().build();
     }
 

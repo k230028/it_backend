@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.document.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -104,7 +105,7 @@ class ServiceRequestDocControllerTest {
     @DisplayName("POST /api/documents/{docMngNo}/versions - 인증된 사용자 → 201 Created")
     @WithMockUser(username = "10001")
     void createNewVersion_인증_201() throws Exception {
-        given(serviceRequestDocService.createNewVersion("DOC-2026-0001"))
+        given(serviceRequestDocService.createNewVersion(eq("DOC-2026-0001"), any()))
                 .willReturn(new BigDecimal("2.0"));
         mockMvc.perform(post("/api/documents/DOC-2026-0001/versions"))
                 .andExpect(status().isCreated());
@@ -114,7 +115,7 @@ class ServiceRequestDocControllerTest {
     @DisplayName("PUT /api/documents/{docMngNo} - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void updateDocument_인증_200() throws Exception {
-        given(serviceRequestDocService.updateDocument(anyString(), any())).willReturn("DOC-2026-0001");
+        given(serviceRequestDocService.updateDocument(anyString(), any(), any())).willReturn("DOC-2026-0001");
         mockMvc.perform(put("/api/documents/DOC-2026-0001")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ServiceRequestDocDto.UpdateRequest())))
