@@ -90,7 +90,7 @@ src/main/resources/
 ### 5.2 엔티티 설계
 - 모든 업무 엔티티는 **`BaseEntity` 상속** (공통 컬럼: `DEL_YN`, `GUID`, `FST_ENR_DTM/USID`, `LST_CHG_DTM/USID`).
 - 감사 로그 필요 엔티티: 업무 엔티티는 **`BaseEntity` 상속 + `@LogTarget(entity = XxxL.class)` 어노테이션** 부착, 짝이 되는 **`*L` 로그 엔티티가 `BaseLogEntity` 상속**. (업무 엔티티 자체가 `BaseLogEntity`를 상속하지 않음에 주의.)
-  - 현재 적용: 30쌍 (업무 엔티티 `@LogTarget` ↔ `*L` 로그 엔티티, 코드 분석 2026-06-14). 예: `Bprojm`↔`BprojmL`, `Bitemm`↔`BitemmL`, `Cblbcm`↔`CblbcmL`, `Capplm`↔`CapplmL`, `Ccodem`↔`CcodemL`, `Bestim`↔`BestimL`(사업집행 4단계 6쌍 신규).
+  - 현재 적용: 30쌍 (업무 엔티티 `@LogTarget` ↔ `*L` 로그 엔티티, 코드 분석 2026-06-24). 예: `Bprojm`↔`BprojmL`, `Bitemm`↔`BitemmL`, `Cblbcm`↔`CblbcmL`, `Capplm`↔`CapplmL`, `Ccodem`↔`CcodemL`, `Bestim`↔`BestimL`(사업집행 4단계 6쌍 신규).
   - 로그 생성 메커니즘: JPA `@PrePersist`/`@PreUpdate` → `ChangeLogEntityListener` → `AuditLogPersister.persist()`.
 - 삭제는 항상 **Soft Delete**(`delete()` → `DEL_YN='Y'`). 물리 삭제 금지.
 - 엔티티 명칭은 메타 문서 반드시 용어사전 기반으로 지정 (필수).
@@ -342,7 +342,7 @@ public class PlanController { ... }
 - 메서드: `GET /summary` (비목별 편성요청액·편성액), `GET /comparison` (전년도 대비 비교)
 - **권한**: `@PreAuthorize("hasRole('ADMIN')")` — 클래스 레벨 적용, ADMIN 전용.
 
-**현재 적용 대상** (클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")`, 코드 분석 2026-06-05 — 총 11개):
+**현재 적용 대상** (클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")`, 코드 분석 2026-06-24 — 총 11개):
 - `AdminController` (`common/admin`) — 시스템 관리
 - `RealtimeLogController` (`common/admin/realtime`) — V_ITPAPP_LOG_FEED 기반 실시간 로그 모니터링
 - `GeminiController` (`infra/ai`) — Gemini AI
@@ -749,7 +749,7 @@ record ResolvedValue(String value, String status)
    - 응답: `TiptapVariableDto.MetadataResponse` (위 구조 참조).
    - 호출처: Tiptap 변수 드롭다운(UI) 초기화 시.
    - 인증 요구: Yes (인증된 모든 사용자).
-   - 권한별 필터링: 서비스 계층에서 SecurityContext 기준 적용 (향후 Task, 현재 미구현).
+   - 권한별 필터링: 현재 미구현. 프로젝트 카탈로그는 인증 사용자 공통 목록이며, 사용자별 프로젝트 목록 필터링은 TASK.md 후속 과제로 관리합니다.
 
 2. **`POST /api/tiptap-variables/resolve`** — 토큰 배열 일괄 해석.
    - 요청 본문: `TiptapVariableDto.ResolveRequest { tokens: List<String> }`.
@@ -759,7 +759,7 @@ record ResolvedValue(String value, String status)
    - 응답 구조 예시: `{ "2026.itBudget.requestAmount": { "value": "900억원", "status": "OK" }, "2026.proj.P001.allocationRate": { "value": "85.3%", "status": "OK" }, ... }`.
    - 토큰 개수 = 0 → 빈 Map 반환 (API 호출 스킵 권장).
    - 인증 요구: Yes (인증된 모든 사용자).
-   - 권한별 필터링: 구현 예정 (현재 미구현).
+   - 권한별 필터링: PROJ 토큰은 관리자·부서매니저만 해석 가능하며, 그 외 사용자는 `FORBIDDEN`을 반환합니다. 세부 부서-사업 매핑은 후속 과제입니다.
 
 #### 데이터 쿼리 (BudgetStatusQueryRepository)
 - **카테고리 집계**: `aggregateByCategory(year, category)` → `AggregatedAmount { requestSum, allocatedSum }`.
@@ -767,8 +767,8 @@ record ResolvedValue(String value, String status)
 - null/결과 없음 → `ResolvedValue.missing()`.
 
 #### 권한 필터링 (향후 Task)
-- 현재: 권한 검증 없음 (모든 인증 사용자 접근 가능).
-- 향후: `SecurityContext` 기준 사용자 권한/부서별 카탈로그 및 해석 결과 필터링 (§4.5 Design Ref).
+- 현재: metadata 프로젝트 카탈로그는 모든 인증 사용자에게 공통 노출. resolve의 PROJ 토큰은 관리자·부서매니저만 허용.
+- 향후: `SecurityContext` 기준 사용자 권한/부서별 카탈로그 및 사업별 해석 결과 필터링 (§4.5 Design Ref).
 
 ### 5.18 정보화사업 집행 4단계 (domain/estimate·deliberation·contract·payment)
 

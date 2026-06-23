@@ -19,7 +19,7 @@
   - DB 기반 메뉴 트리 및 라우트 카탈로그 관리
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
-- **소스 코드**: 353개 메인 Java 파일, 121개 테스트 파일, 74개 JPA 엔티티(`@Entity` 기준)
+- **소스 코드**: 357개 메인 Java 파일, 135개 테스트 파일, 77개 JPA 엔티티(`@Entity` 기준), 38개 컨트롤러
 
 ## 2. 기술 스택
 
@@ -33,7 +33,7 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 121개 테스트 파일 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 135개 테스트 파일 |
 
 ## 2.5 빠른 시작 (Quick Start)
 
@@ -783,7 +783,7 @@ public class Bprojm extends BaseEntity { ... }
 #   → http://localhost:28080
 #   → Swagger: http://localhost:28080/swagger-ui/index.html
 
-# 4. 테스트 실행 (121개 테스트 파일)
+# 4. 테스트 실행 (135개 테스트 파일)
 ./gradlew test
 
 # 5. 테스트 커버리지 리포트 생성
@@ -1170,6 +1170,7 @@ public class Bnewent extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-06-24** | REVIEW.md 현행화: 소스 통계 재검증(메인 Java 357개, 테스트 135개, @Entity 77개, 컨트롤러 38개), 사업집행 4단계 부서 필터 현황 재확인(`EstimateRepositoryImpl` 적용, `Contract`/`Deliberation`/`PaymentRepositoryImpl` 미적용), SecurityConfig와 JWT 쿠키/Authorization 헤더 폴백 문서 기준 재검토 |
 | **2026-06-22** | README.md 현행화: Spring Boot 4.1.0 기준으로 기술 스택 표기 정정, 소스 통계 재검증(메인 Java 353개, 테스트 121개, @Entity 74개), 루트 AI 하네스 기준(Superpowers 기본, ECC/gstack 보조)과 충돌하지 않도록 문서 참조 흐름 정리 |
 | **2026-06-09** | README.md 코드 대조 현행화: (1) 소스 통계 정정(메인 Java 291→350, 테스트 96→115, @Entity 64→79), (2) 정보화사업 집행 4단계 도메인 신규 반영 — `domain/estimate`(소요예산 산정, `/api/project/estimates`, Bestim+Besttm), `domain/deliberation`(과업심의, `/api/project/deliberations`, Bdelim), `domain/contract`(입찰/계약, `/api/project/contracts`, Bcontm), `domain/payment`(대금지급, `/api/project/payments`, Bpaymm+Bpaymt) — 패키지 구조·모듈 관계표·API 엔드포인트표에 추가(상태머신 41~79, 인증만 요구·서비스 계층 권한 검증), (3) `infra/eai`(KDB 표준전문 EAI 발송, sealed EaiPayload SPI: UMS/GWE, eai.enabled=false 미연동) 인프라 모듈 반영 |
 | **2026-06-05** | README.md 코드 대조 현행화: (1) 소스 통계 정정(@Entity 63→64), (2) `Bmqnam`(본회의질의응답) 엔티티·`@LogTarget` 반영 — 로그 대상 23→25개(관리자 조회 정의는 20개 유지), (3) 협의회 통계 정정(매핑 34→39, 서비스 8→9, Repository 9→10), (4) `config` 7개(ClockConfig 포함) 및 `domain/menu`·`budget/it` 패키지 명시, 미사용 `cdp`/`audit` 빈 디렉토리 표기 제거, (5) `application.properties` 실제 기본값(`DB_PASSWORD`/`JWT_SECRET`) 반영 |
