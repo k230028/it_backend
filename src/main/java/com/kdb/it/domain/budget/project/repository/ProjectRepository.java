@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
 
 /**
  * 정보화사업(Bprojm) 데이터 접근 리포지토리
@@ -25,7 +24,6 @@ import org.springframework.stereotype.Repository;
  * Soft Delete 패턴 적용: 조회 시 항상 {@code delYn='N'} 조건을 사용합니다.
  * </p>
  */
-@Repository // Spring 리포지토리 빈으로 등록
 public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, ProjectRepositoryCustom {
 
     /**

@@ -37,7 +37,7 @@ class SsoAgentClientTest {
 
     @Test
     @DisplayName("isServerAlive: 성공 resultCode이면 true를 반환한다")
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     void isServerAlive_successCode_true() {
         RestClient restClient = mock(RestClient.class);
         RestClient.RequestHeadersUriSpec request = mock(RestClient.RequestHeadersUriSpec.class);
@@ -55,7 +55,7 @@ class SsoAgentClientTest {
 
     @Test
     @DisplayName("isServerAlive: 비성공 resultCode, null 본문, 통신 실패이면 false를 반환한다")
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     void isServerAlive_failure_false() {
         RestClient restClient = mock(RestClient.class);
         RestClient.RequestHeadersUriSpec request = mock(RestClient.RequestHeadersUriSpec.class);
@@ -76,7 +76,7 @@ class SsoAgentClientTest {
 
     @Test
     @DisplayName("authorize: 성공 응답이면 requestData 키를 쉼표로 추출한다")
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     void authorize_success_extractsRequestData() {
         RestClient restClient = mock(RestClient.class);
         RestClient.RequestBodyUriSpec request = mock(RestClient.RequestBodyUriSpec.class);
@@ -114,7 +114,7 @@ class SsoAgentClientTest {
 
     @Test
     @DisplayName("authorize: base64 secureToken의 +, /, = 가 %2B/%2F/%3D로 인코딩된다 (토큰 복호화 실패 방지)")
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     void authorize_base64Token_percentEncoded() {
         RestClient restClient = mock(RestClient.class);
         RestClient.RequestBodyUriSpec request = mock(RestClient.RequestBodyUriSpec.class);
@@ -139,7 +139,7 @@ class SsoAgentClientTest {
 
     @Test
     @DisplayName("authorize: useCSMode가 문자열 \"true\"여도 정상 해석한다")
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     void authorize_useCSModeAsString_parsed() {
         RestClient restClient = mock(RestClient.class);
         RestClient.RequestBodyUriSpec request = mock(RestClient.RequestBodyUriSpec.class);
@@ -162,7 +162,7 @@ class SsoAgentClientTest {
 
     @Test
     @DisplayName("authorize: 실패 코드, null 본문, 통신 예외이면 실패 결과를 반환한다")
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     void authorize_failurePaths_failureResult() {
         RestClient restClient = mock(RestClient.class);
         RestClient.RequestBodyUriSpec request = mock(RestClient.RequestBodyUriSpec.class);

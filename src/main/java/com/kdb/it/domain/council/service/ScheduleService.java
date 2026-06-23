@@ -83,7 +83,7 @@ public class ScheduleService {
      * @return 일정 현황 (전체/응답/미응답 위원 수 + 위원별 상세)
      */
     public CouncilDto.ScheduleStatusResponse getScheduleStatus(String asctId) {
-        Basctm council = councilService.findActiveCouncil(asctId);
+        councilService.findActiveCouncil(asctId);
 
         // 일정 취합 대상 위원 목록 — 간사(03)는 회의 진행 담당이라 일정/대면희망 응답 대상에서 제외
         List<Bcmmtm> members = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N").stream()
@@ -346,7 +346,7 @@ public class ScheduleService {
     /**
      * 위원 목록의 사번으로 사용자 정보 Map 생성.
      *
-     * TODO: 현재는 사번별 findByEno()를 반복하므로 사용자 일괄 조회로 N+1을 제거해야 합니다.
+     * 후속 과제: 현재는 사번별 findByEno()를 반복하므로 사용자 일괄 조회로 N+1을 제거해야 합니다.
      */
     private Map<String, CuserI> buildUserMap(List<Bcmmtm> members) {
         return members.stream()

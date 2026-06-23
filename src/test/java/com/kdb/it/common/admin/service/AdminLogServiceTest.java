@@ -61,7 +61,6 @@ class AdminLogServiceTest {
     }
 
     private static class PlainProbe {
-        private String existing = "값";
     }
 
     @Test
@@ -207,7 +206,6 @@ class AdminLogServiceTest {
 
     @Test
     @DisplayName("내부 헬퍼: AttributeOverride 단일/다중 선언을 컬럼 맵으로 변환한다")
-    @SuppressWarnings("unchecked")
     void buildAttributeOverrideMap_단일다중선언_컬럼맵반환() {
         Map<String, Column> multi = ReflectionTestUtils.invokeMethod(
                 adminLogService,

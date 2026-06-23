@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 사용자(직원) 조회 서비스
@@ -110,8 +111,8 @@ public class UserService {
 
         List<CuserI> users = userRepository.searchByName(keyword);
         if (!orgBlank) {
-            // 람다 캡처용 final 지역 변수로 좁혀 NPE false positive 제거
-            final String orgFilter = orgCode;
+            // orgBlank 검증 뒤 null 불가 값을 명시해 정적 분석 경고를 제거한다.
+            final String orgFilter = Objects.requireNonNull(orgCode);
             users = users.stream()
                     .filter(u -> orgFilter.equals(u.getBbrC()))
                     .toList();

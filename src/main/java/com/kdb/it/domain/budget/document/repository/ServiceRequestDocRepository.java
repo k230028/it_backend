@@ -5,7 +5,6 @@ import com.kdb.it.domain.budget.document.entity.BrdocmId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,7 +26,6 @@ import java.util.Optional;
  * Soft Delete 패턴 적용: 조회 시 {@code delYn='N'} 조건을 사용합니다.
  * </p>
  */
-@Repository
 public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, BrdocmId> {
 
     /**

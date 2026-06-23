@@ -2,7 +2,6 @@ package com.kdb.it.common.iam.repository;
 
 import com.kdb.it.common.iam.entity.CorgnI;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 /**
  * 조직(부점) 정보(CorgnI) 데이터 접근 리포지토리
@@ -21,6 +20,5 @@ import org.springframework.stereotype.Repository;
  * <p>현재는 커스텀 메서드 없이 기본 기능만 사용합니다.
  * 조직 정보는 읽기 전용으로 주로 활용됩니다.</p>
  */
-@Repository // Spring 리포지토리 빈으로 등록 (예외 변환 포함)
 public interface OrganizationRepository extends JpaRepository<CorgnI, String> {
 }

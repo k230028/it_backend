@@ -6,12 +6,10 @@ import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.entity.BtermmId;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 /**
  * 단말기관리마스터(Btermm) 데이터 접근 리포지토리
  */
-@Repository
 public interface BtermmRepository extends JpaRepository<Btermm, BtermmId> {
 
     /**

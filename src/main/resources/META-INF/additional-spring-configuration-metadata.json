@@ -1,0 +1,74 @@
+{
+  "properties": [
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT 서명에 사용할 HMAC 시크릿입니다."
+    },
+    {
+      "name": "jwt.access-token-validity",
+      "type": "java.lang.Long",
+      "description": "Access Token 유효 시간(ms)입니다."
+    },
+    {
+      "name": "jwt.refresh-token-validity",
+      "type": "java.lang.Long",
+      "description": "Refresh Token 유효 시간(ms)입니다."
+    },
+    {
+      "name": "app.cookie.secure",
+      "type": "java.lang.Boolean",
+      "description": "인증 쿠키의 Secure 속성 사용 여부입니다."
+    },
+    {
+      "name": "app.dev.user-switch.enabled",
+      "type": "java.lang.Boolean",
+      "description": "개발용 사용자 전환 기능 사용 여부입니다."
+    },
+    {
+      "name": "app.sso.allow-direct-eno",
+      "type": "java.lang.Boolean",
+      "description": "SSO 우회용 직접 사번 로그인 허용 여부입니다."
+    },
+    {
+      "name": "app.frontend-url",
+      "type": "java.lang.String",
+      "description": "프론트엔드 기준 URL입니다."
+    },
+    {
+      "name": "cors.allowed-origins",
+      "type": "java.lang.String",
+      "description": "CORS 허용 Origin 목록입니다."
+    },
+    {
+      "name": "app.trusted-proxies",
+      "type": "java.lang.String",
+      "description": "신뢰할 프록시 주소 목록입니다."
+    },
+    {
+      "name": "app.server.instance-id",
+      "type": "java.lang.String",
+      "description": "서버 인스턴스 식별자입니다."
+    },
+    {
+      "name": "app.file.base-path",
+      "type": "java.lang.String",
+      "description": "첨부파일 저장 기본 경로입니다."
+    },
+    {
+      "name": "gemini.api.key",
+      "type": "java.lang.String",
+      "description": "Gemini API 키입니다."
+    },
+    {
+      "name": "gemini.api.model",
+      "type": "java.lang.String",
+      "description": "Gemini API 모델명입니다."
+    },
+    {
+      "name": "gemini.api.base-url",
+      "type": "java.lang.String",
+      "description": "Gemini API 기본 URL입니다."
+    }
+  ]
+}

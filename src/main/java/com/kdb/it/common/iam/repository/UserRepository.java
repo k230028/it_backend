@@ -2,7 +2,6 @@ package com.kdb.it.common.iam.repository;
 
 import com.kdb.it.common.iam.entity.CuserI;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.util.List;
@@ -30,7 +29,6 @@ import java.util.Optional;
  * N+1 문제를 방지합니다.</li>
  * </ul>
  */
-@Repository // Spring 리포지토리 빈으로 등록 (예외 변환 포함)
 public interface UserRepository extends JpaRepository<CuserI, String>, UserRepositoryCustom {
 
     /**

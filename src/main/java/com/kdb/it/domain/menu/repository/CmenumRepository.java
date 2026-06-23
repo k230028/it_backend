@@ -4,12 +4,10 @@ import com.kdb.it.domain.menu.entity.Cmenum;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
-@Repository
 public interface CmenumRepository extends JpaRepository<Cmenum, String>, CmenumRepositoryCustom {
 
     @Query("SELECT m FROM Cmenum m WHERE m.delYn = 'N'")

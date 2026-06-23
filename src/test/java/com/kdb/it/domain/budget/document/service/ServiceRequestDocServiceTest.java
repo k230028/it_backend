@@ -68,11 +68,6 @@ class ServiceRequestDocServiceTest {
     // 인증 사용자 헬퍼 (소유권 검증용)
     // ─────────────────────────────────────────────────────────────────
 
-    /** 문서 소유자 본인 (FST_ENR_USID=E0001 과 일치) */
-    private static CustomUserDetails owner() {
-        return new CustomUserDetails("E0001", List.of(CustomUserDetails.ATH_USER), "101");
-    }
-
     /** 소유자가 아닌 일반 사용자 */
     private static CustomUserDetails other() {
         return new CustomUserDetails("E0002", List.of(CustomUserDetails.ATH_USER), "101");

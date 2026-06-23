@@ -5,11 +5,9 @@ import com.kdb.it.domain.menu.entity.CmenuaId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@Repository
 public interface CmenuaRepository extends JpaRepository<Cmenua, CmenuaId> {
 
     @Query("SELECT a FROM Cmenua a WHERE a.delYn = 'N'")

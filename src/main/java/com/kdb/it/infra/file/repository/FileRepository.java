@@ -3,7 +3,6 @@ package com.kdb.it.infra.file.repository;
 import com.kdb.it.infra.file.entity.Cfilem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +19,6 @@ import java.util.Optional;
  * Soft Delete 패턴 적용: 조회 시 {@code delYn='N'} 조건을 반드시 사용합니다.
  * </p>
  */
-@Repository
 public interface FileRepository extends JpaRepository<Cfilem, String> {
 
     /**

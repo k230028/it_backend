@@ -5,7 +5,6 @@ import com.kdb.it.common.code.entity.CcodemId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
@@ -16,7 +15,6 @@ import java.util.Optional;
  * 프로퍼티명이 {@code CId}로 해석되어 Spring Data 파생 쿼리가 Hibernate 메타모델의
  * {@code cId} 속성을 찾지 못한다. 따라서 명시적 JPQL을 사용한다.</p>
  */
-@Repository
 public interface CodeRepository extends JpaRepository<Ccodem, CcodemId>, CodeRepositoryCustom {
 
     /**

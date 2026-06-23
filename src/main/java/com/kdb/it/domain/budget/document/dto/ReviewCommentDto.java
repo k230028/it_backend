@@ -69,7 +69,7 @@ public class ReviewCommentDto {
      * <p>
      * 작성자 사번({@code authorEno})은 {@link Brivgm}의 {@code FST_ENR_USID}에서 가져오며,
      * 작성자 이름({@code authorName})은 별도 조회(TPRMPP_CUSERI JOIN)하여 주입합니다.
-     * TODO: 프론트엔드의 {@code ReviewComment.authorTeam} 임시값을 제거할 수 있도록
+     * 후속 과제: 프론트엔드의 {@code ReviewComment.authorTeam} 임시값을 제거할 수 있도록
      *       조직 테이블(TPRMPP_CORGNI) 조인 기반 작성자 팀명 응답 필드를 추가해야 합니다.
      * </p>
      */

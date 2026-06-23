@@ -10,7 +10,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 /**
  * 전산관리비(TPRMPP_BCOSTM) 변경 로그 엔티티.
