@@ -1028,4 +1028,17 @@ public class ProjectDto {
         @Schema(description = "사업연도 (예: 2026). BBUGTM 편성예산 집계에 사용")
         private String bseYy;
     }
+
+    /**
+     * 정보화사업 일괄 조회 결과 DTO (부분 성공)
+     *
+     * <p>조회에 성공한 항목({@code items})과 미존재로 조회에 실패한 프로젝트관리번호
+     * 목록({@code failedIds})을 함께 반환합니다. 누락 건을 조용히 버리지 않고
+     * 호출자에게 노출하기 위함입니다.</p>
+     */
+    @Schema(name = "ProjectBulkResponse", description = "정보화사업 일괄 조회 결과 (부분 성공)")
+    public record BulkResponse(
+            @Schema(description = "조회 성공 항목") java.util.List<Response> items,
+            @Schema(description = "조회 실패(미존재) 프로젝트관리번호 목록") java.util.List<String> failedIds
+    ) {}
 }

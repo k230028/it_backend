@@ -168,12 +168,13 @@ class ProjectControllerTest {
                                 .abusNm("테스트 사업")
                                 .build();
                 given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
-                                .willReturn(List.of(project));
+                                .willReturn(new ProjectDto.BulkResponse(List.of(project), List.of("PRJ-2026-0002")));
 
                 mockMvc.perform(post("/api/projects/bulk-get")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$[0].abusMngNo").value("PRJ-2026-0001"));
+                                .andExpect(jsonPath("$.items[0].abusMngNo").value("PRJ-2026-0001"))
+                                .andExpect(jsonPath("$.failedIds[0]").value("PRJ-2026-0002"));
         }
 }

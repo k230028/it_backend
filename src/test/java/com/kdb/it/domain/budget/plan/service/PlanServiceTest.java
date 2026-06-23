@@ -246,7 +246,7 @@ class PlanServiceTest {
                 .costBg(BigDecimal.valueOf(20000000))
                 .build();
 
-        given(projectService.getProjectsByIds(any())).willReturn(List.of(mockProject));
+        given(projectService.getProjectsByIds(any())).willReturn(new ProjectDto.BulkResponse(List.of(mockProject), List.of()));
         given(bplanmRepository.getNextSequenceValue()).willReturn(1L);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 
@@ -318,7 +318,7 @@ class PlanServiceTest {
                 .assetBg(null)
                 .costBg(null)
                 .build();
-        given(projectService.getProjectsByIds(any())).willReturn(List.of(project));
+        given(projectService.getProjectsByIds(any())).willReturn(new ProjectDto.BulkResponse(List.of(project), List.of()));
         given(costService.getCostsByIds(any())).willReturn(List.of(cost));
         given(bplanmRepository.getNextSequenceValue()).willReturn(3L);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
@@ -361,7 +361,7 @@ class PlanServiceTest {
                 .cttNm("전산업무비")
                 .tmnYn("관리비")
                 .build();
-        given(projectService.getProjectsByIds(any())).willReturn(List.of(generalProject, ordinaryProject));
+        given(projectService.getProjectsByIds(any())).willReturn(new ProjectDto.BulkResponse(List.of(generalProject, ordinaryProject), List.of()));
         given(costService.getCostsByIds(any())).willReturn(List.of(cost));
         given(bplanmRepository.getNextSequenceValue()).willReturn(4L);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
@@ -392,9 +392,9 @@ class PlanServiceTest {
                 .itPtlPlnTpC("신규")
                 .prjMngNos(List.of("PRJ-2026-0001"))
                 .build();
-        given(projectService.getProjectsByIds(any())).willReturn(List.of(ProjectDto.Response.builder()
+        given(projectService.getProjectsByIds(any())).willReturn(new ProjectDto.BulkResponse(List.of(ProjectDto.Response.builder()
                 .abusMngNo("PRJ-2026-0001")
-                .build()));
+                .build()), List.of()));
         given(objectMapper.writeValueAsString(any())).willThrow(new JsonProcessingException("boom") {});
 
         assertThatThrownBy(() -> planService.createPlan(request))
@@ -423,7 +423,7 @@ class PlanServiceTest {
                 .costBg(BigDecimal.valueOf(200))
                 .build();
 
-        given(projectService.getProjectsByIds(any())).willReturn(List.of(mockProject));
+        given(projectService.getProjectsByIds(any())).willReturn(new ProjectDto.BulkResponse(List.of(mockProject), List.of()));
         given(bplanmRepository.getNextSequenceValue()).willReturn(10L);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 

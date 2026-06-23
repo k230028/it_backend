@@ -196,17 +196,17 @@ public class ProjectController {
      *
      * <p>
      * 여러 프로젝트 관리번호를 한 번에 조회합니다.
-     * 존재하지 않는 프로젝트 관리번호는 결과에서 제외됩니다.
+     * 존재하지 않는 프로젝트 관리번호는 {@code failedIds}로 함께 반환됩니다 (부분 성공).
      * </p>
      *
      * @param request 조회할 프로젝트 관리번호 목록 ({@link ProjectDto.BulkGetRequest})
-     * @return HTTP 200 + 정보화사업 목록 (존재하는 프로젝트만 포함)
+     * @return HTTP 200 + 조회 성공 항목({@code items})과 미존재 관리번호({@code failedIds})를 담은 결과
      */
     @PostMapping("/bulk-get")
-    @Operation(summary = "정보화사업 일괄 조회", description = "여러 개의 정보화사업을 한 번에 조회합니다. 존재하지 않는 프로젝트는 결과에서 제외됩니다.")
-    public ResponseEntity<List<ProjectDto.Response>> bulkGetProjects(
+    @Operation(summary = "정보화사업 일괄 조회", description = "여러 개의 정보화사업을 한 번에 조회합니다. 존재하지 않는 프로젝트는 failedIds로 함께 반환됩니다 (부분 성공).")
+    public ResponseEntity<ProjectDto.BulkResponse> bulkGetProjects(
             @RequestBody ProjectDto.BulkGetRequest request) {
-        List<ProjectDto.Response> responses = projectService.getProjectsByIds(request);
+        ProjectDto.BulkResponse responses = projectService.getProjectsByIds(request);
         return ResponseEntity.ok(responses);
     }
 }

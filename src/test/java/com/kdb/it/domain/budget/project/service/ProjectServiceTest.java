@@ -440,11 +440,12 @@ class ProjectServiceTest {
                 request.setPrjMngNos(List.of(existingNo, missingNo));
 
                 // when
-                List<ProjectDto.Response> result = projectService.getProjectsByIds(request);
+                ProjectDto.BulkResponse result = projectService.getProjectsByIds(request);
 
-                // then: 존재하는 1건만 반환
-                assertThat(result).hasSize(1);
-                assertThat(result.get(0).getAbusMngNo()).isEqualTo(existingNo);
+                // then: 존재하는 1건만 반환, 미존재 1건은 failedIds로 노출
+                assertThat(result.items()).hasSize(1);
+                assertThat(result.items().get(0).getAbusMngNo()).isEqualTo(existingNo);
+                assertThat(result.failedIds()).containsExactly(missingNo);
         }
 
         // ───────────────────────────────────────────────────────
@@ -797,12 +798,12 @@ class ProjectServiceTest {
                 request.setPrjMngNos(List.of(prjMngNo));
                 request.setBseYy("2026");
 
-                List<ProjectDto.Response> result = projectService.getProjectsByIds(request);
+                ProjectDto.BulkResponse result = projectService.getProjectsByIds(request);
 
-                assertThat(result).hasSize(1);
-                assertThat(result.get(0).getDupBgAmt()).isEqualByComparingTo(java.math.BigDecimal.valueOf(1000));
-                assertThat(result.get(0).getAssetDupBg()).isEqualByComparingTo(java.math.BigDecimal.valueOf(700));
-                assertThat(result.get(0).getCostDupBg()).isEqualByComparingTo(java.math.BigDecimal.valueOf(300));
+                assertThat(result.items()).hasSize(1);
+                assertThat(result.items().get(0).getDupBgAmt()).isEqualByComparingTo(java.math.BigDecimal.valueOf(1000));
+                assertThat(result.items().get(0).getAssetDupBg()).isEqualByComparingTo(java.math.BigDecimal.valueOf(700));
+                assertThat(result.items().get(0).getCostDupBg()).isEqualByComparingTo(java.math.BigDecimal.valueOf(300));
         }
 
         @Test
@@ -1142,11 +1143,11 @@ class ProjectServiceTest {
                 request.setBseYy(null); // bgYy 없음 → 편성예산 skip 분기
 
                 // when
-                List<ProjectDto.Response> result = projectService.getProjectsByIds(request);
+                ProjectDto.BulkResponse result = projectService.getProjectsByIds(request);
 
                 // then: 프로젝트 반환, bbugtmRepository.sumDupBgByPrjMngNos 미호출
-                assertThat(result).hasSize(1);
-                assertThat(result.get(0).getAbusMngNo()).isEqualTo(prjMngNo);
+                assertThat(result.items()).hasSize(1);
+                assertThat(result.items().get(0).getAbusMngNo()).isEqualTo(prjMngNo);
                 org.mockito.Mockito.verify(bbugtmRepository, org.mockito.Mockito.never())
                                 .sumDupBgByPrjMngNos(anyList(), anyString());
         }
@@ -1356,10 +1357,10 @@ class ProjectServiceTest {
                 request.setBseYy(null); // bgYy = null → 편성예산 조회 건너뜀
 
                 // when
-                List<ProjectDto.Response> result = projectService.getProjectsByIds(request);
+                ProjectDto.BulkResponse result = projectService.getProjectsByIds(request);
 
                 // then
-                assertThat(result).hasSize(1);
+                assertThat(result.items()).hasSize(1);
                 org.mockito.Mockito.verify(bbugtmRepository, org.mockito.Mockito.never())
                                 .sumDupBgByPrjMngNos(any(), any());
         }
@@ -1384,10 +1385,10 @@ class ProjectServiceTest {
                 request.setBseYy("   "); // 공백 → isBlank() true
 
                 // when
-                List<ProjectDto.Response> result = projectService.getProjectsByIds(request);
+                ProjectDto.BulkResponse result = projectService.getProjectsByIds(request);
 
                 // then
-                assertThat(result).hasSize(1);
+                assertThat(result.items()).hasSize(1);
                 org.mockito.Mockito.verify(bbugtmRepository, org.mockito.Mockito.never())
                                 .sumDupBgByPrjMngNos(any(), any());
         }
@@ -1406,12 +1407,25 @@ class ProjectServiceTest {
                 request.setBseYy("2026");
 
                 // when
-                List<ProjectDto.Response> result = projectService.getProjectsByIds(request);
+                ProjectDto.BulkResponse result = projectService.getProjectsByIds(request);
 
                 // then: bbugtmRepository 미호출 (responses가 empty)
-                assertThat(result).isEmpty();
+                assertThat(result.items()).isEmpty();
                 org.mockito.Mockito.verify(bbugtmRepository, org.mockito.Mockito.never())
                                 .sumDupBgByPrjMngNos(any(), any());
+        }
+
+        @Test
+        @DisplayName("getProjectsByIds: 전건 미존재면 items empty, failedIds 전부 (bseYy null)")
+        void getProjectsByIds_allMissing_collectsFailedIds() {
+                given(projectRepository.findByAbusMngNoAndDelYn(anyString(), eq("N")))
+                                .willReturn(Optional.empty());
+                ProjectDto.BulkGetRequest req = new ProjectDto.BulkGetRequest();
+                req.setPrjMngNos(List.of("PRJ-X", "PRJ-Y"));
+                req.setBseYy(null);
+                ProjectDto.BulkResponse result = projectService.getProjectsByIds(req);
+                assertThat(result.items()).isEmpty();
+                assertThat(result.failedIds()).containsExactly("PRJ-X", "PRJ-Y");
         }
 
         // ───────────────────────────────────────────────────────

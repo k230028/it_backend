@@ -22,12 +22,15 @@ import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import java.time.LocalDate;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -73,6 +76,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
 @Transactional(readOnly = true) // 기본 읽기 전용 트랜잭션
 public class ProjectService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProjectService.class);
 
     /** 정보화사업 데이터 접근 리포지토리 (TPRMPP_BPROJM) */
     private final ProjectRepository projectRepository;
@@ -621,26 +626,26 @@ public class ProjectService {
      *
      * <p>
      * 여러 프로젝트관리번호를 한 번에 조회합니다.
-     * 존재하지 않는 항목은 결과에서 제외합니다 (null 필터링).
+     * 존재하지 않는 항목은 결과에서 제외하되, 누락된 프로젝트관리번호를
+     * {@code failedIds}로 호출자에게 함께 노출합니다 (부분 성공).
      * </p>
      *
      * @param request 일괄 조회 요청 DTO (프로젝트관리번호 목록)
-     * @return 존재하는 프로젝트의 응답 DTO 목록 (품목 정보 포함, 없는 항목 제외)
+     * @return 조회 성공 항목({@code items})과 미존재 프로젝트관리번호({@code failedIds})를 함께 담은 결과 DTO
      */
-    public List<ProjectDto.Response> getProjectsByIds(ProjectDto.BulkGetRequest request) {
-        List<ProjectDto.Response> responses = request.getPrjMngNos().stream()
-                .map(prjMngNo -> {
-                    try {
-                        return getProject(prjMngNo); // 개별 상세 조회 (품목 포함)
-                    } catch (IllegalArgumentException e) {
-                        // FIXME: [B-H-03] null 필터 패턴 제거, 조회 실패시 예외 전파 또는 warn 로그 필요
-                        // 현재 null → filter(Objects::nonNull) 패턴으로 실패 프로젝트가 silently 손실됨.
-                        // FIXME: [B-C-04] B-C-03 참조. 실패 프로젝트 ID warn 로그 및 호출자 통지 필요
-                        return null; // 존재하지 않는 항목은 null로 처리
-                    }
-                })
-                .filter(Objects::nonNull)
-                .toList();
+    public ProjectDto.BulkResponse getProjectsByIds(ProjectDto.BulkGetRequest request) {
+        List<ProjectDto.Response> responses = new ArrayList<>();
+        List<String> failedIds = new ArrayList<>();
+        for (String prjMngNo : request.getPrjMngNos()) {
+            try {
+                responses.add(getProject(prjMngNo)); // 개별 상세 조회 (품목 포함)
+            } catch (IllegalArgumentException e) {
+                failedIds.add(prjMngNo); // 미존재 항목은 failedIds로 수집
+            }
+        }
+        if (!failedIds.isEmpty()) {
+            log.warn("bulk-get 누락: type=project, failedIds={}", failedIds);
+        }
 
         // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
         String bgYy = request.getBseYy();
@@ -674,7 +679,7 @@ public class ProjectService {
                 r.setCostDupBg(costDupBgMap.getOrDefault(r.getAbusMngNo(), BigDecimal.ZERO));
             });
         }
-        return responses;
+        return new ProjectDto.BulkResponse(responses, failedIds);
     }
 
     /**

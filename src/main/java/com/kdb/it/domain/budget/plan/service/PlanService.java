@@ -208,7 +208,8 @@ public class PlanService {
                 if (!prjMngNos.isEmpty()) {
                         ProjectDto.BulkGetRequest bulkRequest = new ProjectDto.BulkGetRequest();
                         bulkRequest.setPrjMngNos(prjMngNos);
-                        projects = projectService.getProjectsByIds(bulkRequest);
+                        // BulkResponse(부분 성공)에서 조회 성공 항목만 사용 (미존재 failedIds는 합계 계산 대상 아님)
+                        projects = projectService.getProjectsByIds(bulkRequest).items();
                 }
 
                 // 2. 대상 전산업무비 목록 조회
