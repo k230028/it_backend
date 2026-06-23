@@ -1,14 +1,17 @@
 package com.kdb.it.common.sso;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 /**
  * ESSO(ISign+) 인증서버와 통신하는 클라이언트.
@@ -24,6 +27,19 @@ public class SsoAgentClient {
 
     /** ISign+ 정상 응답 코드. */
     private static final String SUCCESS_CODE = "000000";
+
+    /**
+     * 인증서버 JSON 응답 역직렬화 타입.
+     *
+     * <p>Jackson 특정 버전의 {@code JsonNode}로 받지 않고 {@code Map}으로 받습니다.
+     * Spring Boot 4(Spring Framework 7) 클래스패스에는 Jackson 2와 3이 공존하고 기본 JSON
+     * 컨버터가 Jackson 3로 동작하므로, Jackson 2의 {@code com.fasterxml.jackson.databind.JsonNode}로
+     * 역직렬화를 요청하면 {@code HttpMessageConversionException: Type definition error
+     * [JsonNode]}가 발생합니다. {@code Map}은 어떤 Jackson 버전 컨버터와도 호환됩니다.</p>
+     */
+    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
+            new ParameterizedTypeReference<>() {
+            };
 
     private final RestClient restClient;
     private final SsoProperties props;
@@ -42,10 +58,10 @@ public class SsoAgentClient {
      */
     public boolean isServerAlive() {
         try {
-            JsonNode body = restClient.get()
+            Map<String, Object> body = restClient.get()
                     .uri(props.checkServerUrl())
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(MAP_TYPE);
             return body != null && SUCCESS_CODE.equals(text(body, "resultCode"));
         } catch (Exception e) {
             log.warn("SSO 인증서버 통신 점검 실패 - url: {}, reason: {}", props.checkServerUrl(), e.toString());
@@ -66,21 +82,30 @@ public class SsoAgentClient {
      * @return 검증 결과 (통신 실패 시 resultCode는 비-성공값)
      */
     public TokenAuthResult authorize(String secureToken, String secureSessionId, String clientIp) {
+        // 쿼리 값은 직접 퍼센트 인코딩한 뒤 build(true)로 조립한다(이미 인코딩됨으로 표시).
+        // UriComponentsBuilder.encode()는 '+'를 쿼리에서 합법 문자로 보아 인코딩하지 않는데,
+        // secureToken(base64)의 '+'가 그대로 전송되면 ISign+가 폼 디코딩 규칙으로 '+'를 공백으로
+        // 해석해 토큰이 깨진다("토큰 복호화 실패", resultCode 310001). URLEncoder는 '+' → '%2B'로
+        // 인코딩해 원본 base64가 서버에서 정확히 복원되게 한다(구 JSP Agent의 NameValuePair와 동일).
         URI uri = UriComponentsBuilder.fromUriString(props.tokenAuthorizationUrl())
-                .queryParam("secureToken", secureToken)
-                .queryParam("secureSessionId", secureSessionId == null ? "" : secureSessionId)
-                .queryParam("requestData", props.requestData())
-                .queryParam("agentId", props.agentId())
-                .queryParam("clientIP", clientIp)
-                .build()
-                .encode()
+                .queryParam("secureToken", enc(secureToken))
+                .queryParam("secureSessionId", enc(secureSessionId == null ? "" : secureSessionId))
+                .queryParam("requestData", enc(props.requestData()))
+                .queryParam("agentId", enc(props.agentId()))
+                .queryParam("clientIP", enc(clientIp))
+                .build(true)
                 .toUri();
 
+        // 토큰 검증 요청 컨텍스트(전송 파라미터)를 남겨 거부 원인 추적을 돕는다.
+        // secureToken은 민감값이라 앞 8자+길이로 마스킹한다.
+        log.info("SSO 토큰 검증 요청 - url: {}, 전송[agentId='{}', clientIP={}, secureSessionId={}, requestData='{}', secureToken={}]",
+                props.tokenAuthorizationUrl(), props.agentId(), clientIp, secureSessionId, props.requestData(), mask(secureToken));
+
         try {
-            JsonNode body = restClient.post()
+            Map<String, Object> body = restClient.post()
                     .uri(uri)
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(MAP_TYPE);
             if (body == null) {
                 log.warn("SSO 토큰 검증 응답 본문이 비어 있습니다.");
                 return TokenAuthResult.failure("999999");
@@ -89,15 +114,25 @@ public class SsoAgentClient {
             String resultCode = text(body, "resultCode");
             String resultMessage = text(body, "resultMessage");
             String returnUrl = text(body, "returnUrl");
-            boolean useCSMode = body.path("useCSMode").asBoolean(false);
+            boolean useCSMode = bool(body.get("useCSMode"));
 
             String resultData = "";
             if (SUCCESS_CODE.equals(resultCode)) {
-                resultData = extractRequestData(body.path("user"));
+                resultData = extractRequestData(asMap(body.get("user")));
+                log.info("SSO 토큰 검증 성공 - resultCode: {}, useCSMode: {}, resultData(추출 사용자 데이터): {}",
+                        resultCode, useCSMode, resultData);
+            } else {
+                // 인증서버가 토큰을 거부한 경우(예: 310001) 원인 추적용 컨텍스트를 남긴다.
+                // agentId 누락/불일치, clientIP 불일치, 미등록 agent 등이 전형적 원인이다.
+                // 응답 본문 전체를 남겨 resultMessage 외 ISign+가 돌려준 모든 필드를 확인할 수 있게 한다.
+                // (검증 실패 시 본문에는 user PII가 없으므로 전체 로깅이 안전하다.)
+                log.warn("SSO 토큰 검증 거부 - resultCode: {}, resultMessage: {}, 전송[agentId='{}', clientIP={}, secureSessionId={}, requestData='{}', secureToken={}], 응답본문: {}",
+                        resultCode, resultMessage, props.agentId(), clientIp, secureSessionId, props.requestData(), mask(secureToken), body);
             }
             return new TokenAuthResult(resultCode, resultMessage, resultData, returnUrl, useCSMode);
         } catch (Exception e) {
-            log.warn("SSO 토큰 검증 통신 실패 - url: {}, reason: {}", props.tokenAuthorizationUrl(), e.toString());
+            log.warn("SSO 토큰 검증 통신 실패 - url: {}, 전송[agentId='{}', clientIP={}, secureSessionId={}], reason: {}",
+                    props.tokenAuthorizationUrl(), props.agentId(), clientIp, secureSessionId, e.toString(), e);
             return TokenAuthResult.failure("999999");
         }
     }
@@ -105,37 +140,91 @@ public class SsoAgentClient {
     /**
      * 인증 응답 {@code user} 객체에서 {@code requestData}가 지정한 키 값을 쉼표로 이어 붙입니다.
      *
-     * @param user 인증서버가 반환한 사용자 정보 노드
+     * @param user 인증서버가 반환한 사용자 정보 맵 (없으면 null)
      * @return 추출된 사용자 데이터 (없으면 빈 문자열)
      */
-    private String extractRequestData(JsonNode user) {
-        if (user == null || user.isMissingNode() || user.isNull()) {
+    private String extractRequestData(Map<String, Object> user) {
+        if (user == null) {
             return "";
         }
         StringBuilder sb = new StringBuilder();
         for (String key : props.requestData().split(",")) {
-            JsonNode value = user.path(key.trim());
-            if (value.isMissingNode() || value.isNull()) {
+            Object value = user.get(key.trim());
+            if (value == null) {
                 continue;
             }
             if (sb.length() > 0) {
                 sb.append(",");
             }
-            sb.append(value.asText());
+            sb.append(value);
         }
         return sb.toString();
     }
 
     /**
-     * JSON 노드에서 문자열 필드를 안전하게 읽습니다.
+     * 응답 맵에서 문자열 필드를 안전하게 읽습니다.
      *
-     * @param node  대상 노드
+     * @param body  응답 맵
      * @param field 필드명
      * @return 필드 값 (없거나 null이면 빈 문자열)
      */
-    private static String text(JsonNode node, String field) {
-        JsonNode value = node.path(field);
-        return value.isMissingNode() || value.isNull() ? "" : value.asText();
+    private static String text(Map<String, Object> body, String field) {
+        Object value = body.get(field);
+        return value == null ? "" : value.toString();
+    }
+
+    /**
+     * 응답 값을 boolean으로 변환합니다. {@code Boolean}/{@code "true"} 문자열을 모두 처리합니다.
+     *
+     * @param value 응답 값
+     * @return 변환된 boolean (해석 불가/null이면 false)
+     */
+    private static boolean bool(Object value) {
+        if (value instanceof Boolean b) {
+            return b;
+        }
+        if (value instanceof String s) {
+            return Boolean.parseBoolean(s);
+        }
+        return false;
+    }
+
+    /**
+     * 응답 값이 중첩 객체이면 {@code Map}으로, 아니면 null로 변환합니다.
+     *
+     * @param value 응답 값
+     * @return 중첩 객체 맵 (객체가 아니면 null)
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> asMap(Object value) {
+        return value instanceof Map ? (Map<String, Object>) value : null;
+    }
+
+    /**
+     * 쿼리 파라미터 값을 application/x-www-form-urlencoded 규칙으로 퍼센트 인코딩합니다.
+     *
+     * <p>특히 base64 secureToken의 {@code +}를 {@code %2B}로 인코딩해, 인증서버가 쿼리를
+     * 폼 디코딩할 때 {@code +}가 공백으로 바뀌어 토큰이 깨지는 문제를 막습니다.</p>
+     *
+     * @param value 인코딩할 원본 값
+     * @return 퍼센트 인코딩된 값
+     */
+    private static String enc(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 로그용 토큰 마스킹 — 앞 8자와 길이만 노출합니다(전체 토큰 평문 로깅 방지).
+     *
+     * @param token 원본 토큰
+     * @return 마스킹된 표현 (없으면 {@code (없음)})
+     */
+    private static String mask(String token) {
+        if (token == null || token.isEmpty()) {
+            return "(없음)";
+        }
+        int len = token.length();
+        return token.substring(0, Math.min(8, len)) + "...(len=" + len + ")";
     }
 
     /**

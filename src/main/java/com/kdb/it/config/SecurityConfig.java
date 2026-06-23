@@ -1,5 +1,6 @@
 package com.kdb.it.config;
 
+import com.kdb.it.common.sso.SsoController;
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.config.Customizer;
@@ -23,6 +24,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.kdb.it.common.util.CustomPasswordEncoder;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.List;
 
 /**
@@ -110,8 +115,10 @@ public class SecurityConfig {
                                                                 .includeSubDomains(true)
                                                                 .maxAgeInSeconds(31536000))
                                                 // CSP: XSS 2차 방어선
-                                                .contentSecurityPolicy(csp -> csp
-                                                                .policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'")))
+                                                // script-src의 sha256 해시는 SSO CS 모드 saveToken POST 브리지 페이지의
+                                                // 고정 인라인 스크립트(SsoController.CS_MODE_SUBMIT_SCRIPT)만 허용한다.
+                                                // 해시는 그 스크립트 본문에서 런타임 계산하므로 스크립트 변경 시 자동 정합된다.
+                                                .contentSecurityPolicy(csp -> csp.policyDirectives(contentSecurityPolicy())))
                                 // CORS 설정 적용 (corsConfigurationSource 빈 사용)
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 // CSRF 보호 비활성화: httpOnly 쿠키를 쓰므로 운영 SameSite/CORS 설정과 함께 관리
@@ -127,6 +134,8 @@ public class SecurityConfig {
                                                                 "/swagger-ui/**", "/v3/api-docs/**",
                                                                 "/swagger-resources/**", "/webjars/**",
                                                                 "/swagger-ui.html", "/error",
+                                                                // 브라우저 기본 요청 — 인증 불필요(인증 실패 WARN 로그 노이즈 제거)
+                                                                "/favicon.ico",
                                                                 // SSO 흐름 — business/checkauth/loginProc/logout (SsoController)
                                                                 "/sso/**",
                                                                 // SSO 브리지 — loginProc에서 리다이렉트되는 JWT 발급 엔드포인트
@@ -214,10 +223,59 @@ public class SecurityConfig {
                 // 브라우저가 읽을 수 있도록 노출할 응답 헤더 (201 Created 시 신규 리소스 경로 추출용)
                 configuration.setExposedHeaders(List.of("Location"));
 
-                // 모든 URL 경로에 CORS 설정 적용
+                // SSO 콜백 전용 CORS 설정.
+                // /sso/** 는 SPA의 XHR 대상이 아니라 ESSO(외부 인증서버)가 브라우저를 통해 교차 출처로
+                // 콜백/리다이렉트하는 전체 페이지 내비게이션 엔드포인트다. SPA용 allowlist(localhost 등)로
+                // 게이트하면 ESSO origin(예: http://intesso.kdb.co.kr:20080)이나 IP 기반 접근의 Origin이
+                // 목록에 없어 CorsFilter가 "Invalid CORS request"(403)로 콜백을 차단한다. 콜백 응답은
+                // 스크립트가 교차 출처에서 읽는 대상이 아니므로(자격증명 불필요) origin을 제한하지 않는다.
+                CorsConfiguration ssoConfiguration = new CorsConfiguration();
+                ssoConfiguration.setAllowedOriginPatterns(List.of("*"));
+                ssoConfiguration.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+                ssoConfiguration.setAllowedHeaders(List.of("*"));
+                ssoConfiguration.setAllowCredentials(false);
+
+                // URL 경로별 CORS 설정. 더 구체적인 /sso/** 를 /** 보다 먼저 등록해 우선 매칭시킨다.
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/sso/**", ssoConfiguration);
                 source.registerCorsConfiguration("/**", configuration);
                 return source;
+        }
+
+        /**
+         * Content-Security-Policy 지시문을 조립합니다.
+         *
+         * <p>{@code script-src}에는 {@code 'self'}와, SSO CS 모드 saveToken POST 브리지 페이지의
+         * 고정 인라인 스크립트({@link SsoController#CS_MODE_SUBMIT_SCRIPT})에 대한 sha256 해시만
+         * 허용합니다. 해시는 스크립트 본문에서 런타임 계산하므로 스크립트가 바뀌어도 자동 정합됩니다.</p>
+         *
+         * @return CSP policy-directives 문자열
+         */
+        private static String contentSecurityPolicy() {
+                return "default-src 'self'; "
+                                + "script-src 'self' " + cspHash(SsoController.CS_MODE_SUBMIT_SCRIPT) + "; "
+                                + "style-src 'self' 'unsafe-inline'; "
+                                + "img-src 'self' data:; "
+                                + "connect-src 'self'; "
+                                + "frame-ancestors 'none'; "
+                                + "object-src 'none'";
+        }
+
+        /**
+         * 인라인 스크립트 본문의 CSP sha256 소스 표현({@code 'sha256-...'})을 계산합니다.
+         *
+         * @param script 인라인 스크립트 본문(태그 사이 정확한 텍스트)
+         * @return CSP에 넣을 {@code 'sha256-<base64>'} 토큰
+         */
+        private static String cspHash(String script) {
+                try {
+                        byte[] digest = MessageDigest.getInstance("SHA-256")
+                                        .digest(script.getBytes(StandardCharsets.UTF_8));
+                        return "'sha256-" + Base64.getEncoder().encodeToString(digest) + "'";
+                } catch (NoSuchAlgorithmException e) {
+                        // SHA-256은 표준 JDK에 항상 존재하므로 정상 환경에서는 도달하지 않음.
+                        throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다", e);
+                }
         }
 
         /**

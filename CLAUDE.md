@@ -240,6 +240,51 @@ private static LocalDateTime toLdt(Object v) {
 직접 `(String) r[3]`, `(Timestamp) r[4]` 캐스트는 금지. QueryDSL/JPQL은 자동 매핑되므로 본 규칙은
 네이티브 쿼리 한정.
 
+### 5.5.6 RestClient/RestTemplate 응답을 Jackson 버전 특정 `JsonNode`로 받지 말 것 (Jackson 2/3 공존 함정)
+**`RestClient`/`RestTemplate` 응답 본문은 `com.fasterxml.jackson.databind.JsonNode`(Jackson 2)나
+`tools.jackson.databind.JsonNode`(Jackson 3) 같은 버전 특정 타입으로 받지 말고, `Map<String,Object>`
+또는 전용 DTO로 역직렬화합니다.**
+
+- **이유**: Spring Boot 4(Spring Framework 7) 클래스패스에는 Jackson 2(`jackson-databind-2.x`)와
+  Jackson 3(`jackson-databind-3.x`, 패키지 `tools.jackson`)이 **공존**하며, 기본 JSON 메시지 컨버터는
+  **Jackson 3**(`JacksonJsonHttpMessageConverter`)로 동작합니다. 이때 코드가 Jackson 2의 `JsonNode`로
+  역직렬화를 요청하면 다음 예외가 발생합니다:
+  ```
+  HttpMessageConversionException: Type definition error:
+    [simple type, class com.fasterxml.jackson.databind.JsonNode]
+  ```
+- **함정의 은닉성**: 외부망/CI에서는 외부 서버 미도달→타임아웃→폴백 경로라 컨버터가 실행되지 않아
+  드러나지 않고, 서버가 실제 응답을 주는 **내부망 구동에서만** 재현됩니다. 또한 `RestClient`를 mock하는
+  단위 테스트는 컨버터 경로를 건너뛰어 통과하므로 회귀로 잡히지 않습니다. 실제 컨버터를 거치는 통합
+  테스트(로컬 `HttpServer` + 실제 RestClient, `SsoAgentClientHttpIntegrationTest` 참고)로 검증합니다.
+- **올바른 패턴** (`SsoAgentClient` 참고): `Map<String,Object>`로 받고 키 접근:
+  ```java
+  private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
+          new ParameterizedTypeReference<>() {};
+  Map<String, Object> body = restClient.get().uri(url).retrieve().body(MAP_TYPE);
+  ```
+- 단순 import만 Jackson 3 `JsonNode`로 바꾸는 것은 비권장: Jackson 3는 `asText()`→`asString()` 등
+  메서드/의미가 달라져 미묘한 회귀 위험이 있습니다. 버전 비의존(`Map`/DTO)이 표준입니다.
+- 참고: `JacksonConfig`의 Jackson 2 `ObjectMapper` 빈은 정적 `RestClient.builder()`로 만든 클라이언트에
+  주입되지 않습니다. 앱 JSON 설정을 따르려면 오토컨피그된 `RestClient.Builder`를 주입해야 하나, 위
+  `Map` 패턴은 컨버터 종류와 무관하게 동작하므로 별도 설정이 필요 없습니다.
+
+### 5.5.7 RestClient 쿼리 파라미터의 `+`는 UriComponentsBuilder가 인코딩하지 않음 (base64 깨짐 함정)
+**base64/암호문처럼 `+`를 포함하는 값을 `RestClient`/`RestTemplate` 쿼리 파라미터로 보낼 때는
+값을 직접 `URLEncoder.encode`로 인코딩한 뒤 `UriComponentsBuilder...build(true)`로 조립합니다.**
+
+- **이유**: `UriComponentsBuilder.queryParam(...).build().encode()`는 `+`를 쿼리 컴포넌트에서 합법
+  문자(RFC 3986 sub-delim)로 보아 **인코딩하지 않습니다**. 그 URL을 받은 서버가 쿼리를
+  application/x-www-form-urlencoded 규칙으로 디코딩하면 `+`를 **공백**으로 바꿔 값이 깨집니다.
+  SSO(ISign+) `/token/authorization`에서 base64 `secureToken`의 `+`가 공백이 되어 `resultCode 310001
+  "토큰 복호화 실패"(Failed to decode the token)`가 발생한 사례가 있습니다(`SsoAgentClient`).
+- **올바른 패턴**: `URLEncoder.encode(value, UTF_8)`로 `+`→`%2B`, `/`→`%2F`, `=`→`%3D` 인코딩 후
+  `.build(true)`(이미 인코딩됨)로 조립. 구 JSP Web Agent의 `NameValuePair`(commons-httpclient)
+  인코딩과 동일한 결과가 됩니다.
+- 회귀: `SsoAgentClientTest.authorize_base64Token_percentEncoded`(URI 캡처),
+  `SsoAgentClientHttpIntegrationTest`(실제 서버 폼디코딩 라운드트립).
+- 참고: 응답 역직렬화 측 함정은 §5.5.6(Jackson 2/3)과 별개입니다(이건 요청 인코딩).
+
 ### 5.5.5 DB 기반 메뉴 트리 규칙
 - 사용자 메뉴는 `MenuQueryService.getMenuTree()`가 `Cmenum`/`Cmenua`를 기준으로 권한 필터링하고, 프론트는 `useMenu()` 응답을 사이드바와 Breadcrumb의 단일 소스로 사용합니다.
   - `MenuDto.Node.athIds` 필드: 노드별 노출 권한ID 목록 (빈 목록=전체 공개). 사용자 트리도 노드별 `athIds`를 실어 사이드바/헤더가 관리자 전용 메뉴(왕관 아이콘)를 표시할 수 있도록 지원합니다. 관리 트리는 편집 폼 권한 복원용으로도 사용됩니다.
@@ -353,16 +398,17 @@ public class PlanController { ... }
 - `X-Content-Type-Options: nosniff` — MIME 스니핑 방지
 - `X-Frame-Options: DENY` — 클릭재킹 방지
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains` — HSTS
-- `Content-Security-Policy`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'`
+- `Content-Security-Policy`: `default-src 'self'; script-src 'self' 'sha256-<auto>'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'`
+  - `script-src`의 sha256 해시는 SSO CS 모드 saveToken POST 브리지 페이지의 고정 인라인 스크립트(`SsoController.CS_MODE_SUBMIT_SCRIPT` = `document.forms[0].submit()`)만 허용합니다. 해시는 `SecurityConfig.cspHash()`가 그 상수에서 **런타임 계산**하므로 스크립트 변경 시 자동 정합되고, 그 외 인라인 스크립트는 계속 차단됩니다.
   - `style-src 'unsafe-inline'` 포함 — CSS injection 벡터 존재. 개선 대상.
 
 #### CORS 설정 (SecurityConfig.corsConfigurationSource() 코드 기준)
-- `cors.allowed-origins` 기본값: `*` (`@Value("${cors.allowed-origins:*}")` 코드 기준). 개발 환경 설정 파일에서 `http://localhost,http://localhost:3000,http://localhost:3002`로 재정의.
-- `allowCredentials=true` + `allowedOrigins="*"` 조합: 브라우저는 이를 거부하나, 환경변수 미설정 시 `*`로 구동되어 오설정 위험 존재.
-- 운영 배포 시 `https://it.kdb.co.kr` 등 실제 오리진으로 환경변수 오버라이드 필수.
-- `allowCredentials=true`이므로 와일드카드(`*`) 불가. 반드시 명시적 도메인 나열.
-- `allowedHeaders`는 `List.of("*")`로 전체 허용 — 운영 환경에서 실제 필요 헤더(`Content-Type`, `Authorization` 등)로 제한 권장 (TASK.md 등록).
-- 구동 시 CORS 오리진 운영값 검증 로직 없음 — 배포 체크리스트에 포함 필수.
+- `cors.allowed-origins` 기본값: **빈 문자열** (`@Value("${cors.allowed-origins:}")` 코드 기준). 미설정 시 origin 목록이 비어 교차 출처 요청이 전부 차단되며 WARN 로깅됨. 개발 환경 설정 파일에서 `http://localhost,http://localhost:3000,http://localhost:3002`로 재정의.
+- `allowCredentials=true`이므로 와일드카드(`*`) 불가 — 반드시 명시적 도메인 나열. split 후 공백 제거 + 빈 항목 필터링으로 `[""]` footgun 방지.
+- `allowedHeaders`는 명시 목록(`Content-Type`, `Authorization`, `X-Requested-With`). `allowedMethods`는 GET/POST/PUT/DELETE/OPTIONS/PATCH. `exposedHeaders`는 `Location`.
+- **`/sso/**` 는 위 SPA allowlist 예외** — `UrlBasedCorsConfigurationSource`에 `/sso/**`(허용 origin `*`, `allowCredentials=false`)를 `/**`보다 **먼저** 등록해 우선 매칭시킵니다. `/sso/**`는 SPA의 XHR이 아니라 ESSO(외부 인증서버)가 브라우저를 통해 교차 출처로 콜백/리다이렉트하는 **전체 페이지 내비게이션** 엔드포인트라, SPA allowlist로 게이트하면 ESSO origin(예: `http://intesso.kdb.co.kr:20080`)이나 IP 기반 접근의 Origin이 목록에 없어 CorsFilter가 **`Invalid CORS request`(403)** 로 콜백을 차단합니다. 회귀: `SecurityConfigCorsTest`.
+- **내부망/IP 접근 배포 주의**: 백엔드를 `http://10.9.16.x:28080`처럼 IP로 접근하면 SPA의 `/api/**` XHR Origin이 localhost allowlist에 없어 거부됩니다. 해당 환경에서는 `cors.allowed-origins`에 **실제로 서비스되는 프론트 origin**(IP:포트 포함)을 추가해야 합니다. SSO 콜백(`/sso/**`)은 위 예외로 영향 없음.
+- 운영 배포 시 `https://it.kdb.co.kr` 등 실제 오리진으로 환경변수 오버라이드 필수. 구동 시 CORS 오리진 운영값 검증 로직은 없으므로 배포 체크리스트에 포함 필수.
 
 #### 비밀값 관리 (application.properties, EnvironmentValidator 코드 기준)
 - 운영 비밀값: `spring.datasource.password`, `jwt.secret`, `gemini.api.key`는 환경변수 주입 필수.
@@ -771,6 +817,7 @@ record ResolvedValue(String value, String status)
 - **1개월 단위 롤오버**: `TimeBasedRollingPolicy` + `%d{yyyy-MM}` → 활성 파일 `it-backend.log`, 보관본 `it-backend.YYYY-MM.log`. `maxHistory=12`(12개월), `totalSizeCap=3GB`.
 - 로그 경로(프로파일별): `local-ext`/`local-int`/미지정 → `c:/itp_log`, `dev`/`prod` → `/log/springitp`. 디렉터리는 logback이 자동 생성.
 - 로그 레벨은 기존 `application*.properties`의 `logging.level.*`가 콘솔·파일 공통 제어.
+- **콘솔 charset = `${stdout.encoding:-UTF-8}` (한글 콘솔 깨짐 방지)**: logback `ConsoleAppender`는 `stdout.encoding`(PrintStream)을 무시하고 자체 `<charset>`로 바이트를 직접 출력한다. 고정 `UTF-8`이면 Windows 한글 콘솔(MS949)에서 한글이 깨진다(예: `인증서버` → `?몄쬆?쒕쾭` = UTF-8 바이트를 cp949로 읽은 전형적 패턴). JDK 18+가 콘솔 코드페이지로 `stdout.encoding`을 설정하므로(Windows=MS949 / Linux=UTF-8), charset을 이 속성에 맞추면 프로파일 분기 없이 자동 정합된다. 속성 미해석 시 UTF-8 폴백. **파일 appender는 UTF-8 고정 유지**(도구가 UTF-8로 읽음). 회귀: `LogbackConsoleCharsetTest`.
 - 프론트엔드(Nuxt CSR/정적 생성)는 서버 런타임이 없어 파일 로깅 비대상.
 
 ## 7. 주석 작성 예시

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -138,6 +139,23 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleNotFound(NotFoundException e) {
         log.warn("리소스 미존재: {}", e.getMessage());
         return buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    /**
+     * 정적 리소스 미존재 예외 처리 (404 Not Found, 로그 노이즈 제거)
+     *
+     * <p>브라우저가 자동 요청하는 {@code /favicon.ico}처럼 매핑되지 않은 정적 리소스 요청에서
+     * 발생합니다. {@link NoResourceFoundException}은 {@link ResponseStatusException} 하위 타입이라
+     * 전용 핸들러가 없으면 스택트레이스와 함께 로깅되어 운영 로그를 오염시킵니다. 클라이언트 실수이지
+     * 서버 오류가 아니므로 스택트레이스 없이 DEBUG로만 남기고 404로 응답합니다.</p>
+     *
+     * @param e {@link NoResourceFoundException}
+     * @return 404 응답
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResourceFound(NoResourceFoundException e) {
+        log.debug("정적 리소스 미존재: {}", e.getResourcePath());
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다.");
     }
 
     /**

@@ -24,10 +24,18 @@
     <property name="LOG_FILE_NAME" value="it-backend"/>
 
     <!-- 콘솔 출력 -->
+    <!--
+      콘솔 charset은 JVM이 감지한 콘솔 인코딩(stdout.encoding)에 맞춘다.
+      logback ConsoleAppender는 stdout.encoding(PrintStream)을 무시하고 이 <charset>으로
+      바이트를 직접 출력하므로, 고정 UTF-8이면 Windows 한글 콘솔(MS949)에서 한글이 깨진다
+      (예: "인증서버" → "?몄쬆?쒕쾭"). stdout.encoding은 JDK 18+가 콘솔 코드페이지로 설정하므로
+      Windows=MS949 / Linux=UTF-8로 자동 정합된다. 속성 미해석 시 UTF-8로 폴백(기존 동작).
+      파일 appender는 도구가 UTF-8로 읽으므로 UTF-8 고정 유지.
+    -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>${CONSOLE_LOG_PATTERN}</pattern>
-            <charset>UTF-8</charset>
+            <charset>${stdout.encoding:-UTF-8}</charset>
         </encoder>
     </appender>
 

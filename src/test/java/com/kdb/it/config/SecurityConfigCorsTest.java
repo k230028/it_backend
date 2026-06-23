@@ -6,8 +6,10 @@ import com.kdb.it.common.system.security.JwtAuthenticationFilter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
@@ -54,5 +56,38 @@ class SecurityConfigCorsTest {
     void allowedOrigins_빈값_빈목록() {
         CorsConfiguration cors = corsFor("");
         assertThat(cors.getAllowedOrigins()).isEmpty();
+    }
+
+    // ── SSO 콜백 CORS 회귀 (Invalid CORS request 방지) ──────────────────────
+
+    /** allowlist에 없는 외부 origin(ESSO 인증서버/내부망 IP 등)을 흉내내는 값. */
+    private static final String EXTERNAL_ORIGIN = "http://intesso.kdb.co.kr:20080";
+
+    private CorsConfiguration configFor(String uri) {
+        SecurityConfig config = new SecurityConfig(Mockito.mock(JwtAuthenticationFilter.class));
+        ReflectionTestUtils.setField(config, "allowedOrigins", "http://localhost:3000,http://localhost:3002");
+        CorsConfigurationSource source = config.corsConfigurationSource();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI(uri);
+        return source.getCorsConfiguration(request);
+    }
+
+    @Test
+    @DisplayName("/sso/checkauth 는 allowlist에 없는 외부 origin도 허용한다 (ESSO 콜백 차단 방지)")
+    void ssoCallback_allowsExternalOrigin() {
+        CorsConfiguration cfg = configFor("/sso/checkauth");
+        assertThat(cfg).isNotNull();
+        // checkOrigin이 non-null을 반환하면 CorsFilter가 "Invalid CORS request"(403)로 거부하지 않는다.
+        assertThat(cfg.checkOrigin(EXTERNAL_ORIGIN)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("일반 API 경로는 allowlist origin만 허용하고 그 외 origin은 거부한다")
+    void apiPath_restrictsToAllowlist() {
+        CorsConfiguration cfg = configFor("/api/projects");
+        assertThat(cfg).isNotNull();
+        assertThat(cfg.checkOrigin("http://localhost:3000")).isEqualTo("http://localhost:3000");
+        // allowlist에 없는 origin은 거부(null) → SPA 보안 정책 유지
+        assertThat(cfg.checkOrigin(EXTERNAL_ORIGIN)).isNull();
     }
 }

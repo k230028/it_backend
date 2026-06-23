@@ -49,6 +49,15 @@ public class CookieUtil {
     /** Refresh Token 쿠키 만료 시간 (7일, 초 단위) */
     private static final long REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60;
 
+    /** SSO 복귀 경로 쿠키 이름 — 인증 완료 후 돌아갈 프론트 내부 경로(next) 보관 */
+    public static final String SSO_NEXT_COOKIE = "sso-next";
+
+    /** SSO 복귀 origin 쿠키 이름 — 인증 완료 후 돌아갈 프론트 origin 보관 */
+    public static final String SSO_ORIGIN_COOKIE = "sso-origin";
+
+    /** SSO 복귀 상태 쿠키 만료 시간 (10분, 초 단위) — SSO 왕복 동안만 유지 */
+    private static final long SSO_STATE_MAX_AGE = 10 * 60;
+
     /**
      * 쿠키 Secure 플래그
      * 개발 환경: false (HTTP 허용), 운영 환경: true (HTTPS만 허용)
@@ -131,6 +140,65 @@ public class CookieUtil {
                 .secure(secureCookie)
                 .path("/api/auth")
                 .maxAge(0) // 즉시 만료 → 브라우저에서 삭제
+                .sameSite("Lax")
+                .build();
+    }
+
+    /**
+     * SSO 복귀 경로(next) 쿠키를 생성합니다.
+     *
+     * <p>SSO 시작({@code /sso/business}) 시 원본 요청 경로를 쿠키에 보관해, 인증 완료
+     * ({@code /api/auth/sso/complete})까지 운반합니다. ESSO 교차 출처 왕복(특히 CS 모드 POST 콜백)
+     * 중에는 서버 세션이 끊길 수 있으나, 이 쿠키는 마지막 same-site complete 내비게이션(GET)에
+     * 전달되므로 세션 유실과 무관하게 원본 URL을 복원할 수 있습니다. 값은 경로에 포함될 수 있는
+     * 쿼리 문자({@code ?&=})를 보존하기 위해 URL 인코딩합니다.</p>
+     *
+     * @param next 프론트 내부 경로 (예: {@code /info/projects/123})
+     * @return {@code sso-next} 쿠키
+     */
+    public ResponseCookie createSsoNextCookie(String next) {
+        return ssoStateCookie(SSO_NEXT_COOKIE, next);
+    }
+
+    /**
+     * SSO 복귀 origin 쿠키를 생성합니다. 상세는 {@link #createSsoNextCookie(String)} 참조.
+     *
+     * @param origin 프론트 origin (예: {@code http://10.9.16.109:28080})
+     * @return {@code sso-origin} 쿠키
+     */
+    public ResponseCookie createSsoOriginCookie(String origin) {
+        return ssoStateCookie(SSO_ORIGIN_COOKIE, origin);
+    }
+
+    /** SSO 복귀 상태 쿠키(next/origin) 공통 생성기. 값은 URL 인코딩, Lax/path=/로 발급. */
+    private ResponseCookie ssoStateCookie(String name, String value) {
+        String encoded = URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+        return ResponseCookie.from(name, encoded)
+                .httpOnly(true)
+                .secure(secureCookie)
+                .path("/")
+                .maxAge(SSO_STATE_MAX_AGE)
+                .sameSite("Lax")
+                .build();
+    }
+
+    /** SSO 복귀 경로(next) 쿠키 삭제용 쿠키를 생성합니다(인증 완료 후 정리). */
+    public ResponseCookie deleteSsoNextCookie() {
+        return deleteSsoStateCookie(SSO_NEXT_COOKIE);
+    }
+
+    /** SSO 복귀 origin 쿠키 삭제용 쿠키를 생성합니다(인증 완료 후 정리). */
+    public ResponseCookie deleteSsoOriginCookie() {
+        return deleteSsoStateCookie(SSO_ORIGIN_COOKIE);
+    }
+
+    /** SSO 복귀 상태 쿠키 삭제 공통기(maxAge=0). */
+    private ResponseCookie deleteSsoStateCookie(String name) {
+        return ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(secureCookie)
+                .path("/")
+                .maxAge(0)
                 .sameSite("Lax")
                 .build();
     }

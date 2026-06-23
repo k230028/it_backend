@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpMethod;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
 
@@ -185,6 +187,26 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).containsEntry("status", 500);
         assertThat(response.getBody()).containsEntry("message", "계획 스냅샷 직렬화에 실패했습니다.");
+        assertThat(response.getBody()).containsKey("timestamp");
+    }
+
+    /**
+     * NoResourceFoundException(예: /favicon.ico)은 ERROR/500이 아니라 조용한 404로 처리되어야 합니다.
+     * 전용 핸들러가 없으면 포괄 Exception 핸들러(500, 스택트레이스)로 떨어져 로그를 오염시킵니다.
+     */
+    @Test
+    @DisplayName("handleNoResourceFound - 정적 리소스 미존재 시 404 반환(서버 오류 아님)")
+    void handleNoResourceFound_정적리소스미존재_404반환() {
+        // Arrange
+        NoResourceFoundException ex =
+                new NoResourceFoundException(HttpMethod.GET, "favicon.ico", "No static resource favicon.ico");
+
+        // Act
+        ResponseEntity<Map<String, Object>> response = handler.handleNoResourceFound(ex);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).containsEntry("status", 404);
         assertThat(response.getBody()).containsKey("timestamp");
     }
 

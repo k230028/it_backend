@@ -2,9 +2,12 @@ package com.kdb.it.common.sso;
 
 import static org.mockito.BDDMockito.given;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -15,6 +18,8 @@ import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.TestSecurityConfig;
+import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +35,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * SSO 완료 컨트롤러 테스트
@@ -77,6 +85,22 @@ class SsoControllerTest {
         SsoProperties ssoProperties() {
             return new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
         }
+    }
+
+    /**
+     * SSO 복귀 상태 쿠키(next/origin) mock 기본 스텁.
+     * business()/complete()가 항상 이 메서드들을 호출하므로 NPE 방지용으로 lenient 스텁합니다.
+     */
+    @BeforeEach
+    void stubSsoStateCookies() {
+        lenient().when(cookieUtil.createSsoNextCookie(anyString()))
+                .thenReturn(ResponseCookie.from(CookieUtil.SSO_NEXT_COOKIE, "n").path("/").build());
+        lenient().when(cookieUtil.createSsoOriginCookie(anyString()))
+                .thenReturn(ResponseCookie.from(CookieUtil.SSO_ORIGIN_COOKIE, "o").path("/").build());
+        lenient().when(cookieUtil.deleteSsoNextCookie())
+                .thenReturn(ResponseCookie.from(CookieUtil.SSO_NEXT_COOKIE, "").path("/").maxAge(0).build());
+        lenient().when(cookieUtil.deleteSsoOriginCookie())
+                .thenReturn(ResponseCookie.from(CookieUtil.SSO_ORIGIN_COOKIE, "").path("/").maxAge(0).build());
     }
 
     @Test
@@ -171,6 +195,36 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("GET /sso/agentProc - loginProc와 동일하게 검증 사번을 세션에 승격하고 complete로 이동")
+    void agentProc_GET_성공세션_complete로연결() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("resultCode", "000000");
+        session.setAttribute("resultData", "K150024");
+        session.setAttribute("ssoNext", "/info/projects");
+        session.setAttribute("ssoOrigin", "http://localhost:3002");
+
+        mockMvc.perform(get("/sso/agentProc").session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/api/auth/sso/complete?next=%2Finfo%2Fprojects&origin=http%3A%2F%2Flocalhost%3A3002"));
+
+        assertThat(session.getAttribute("ssoVerifiedEno")).isEqualTo("K150024");
+    }
+
+    @Test
+    @DisplayName("POST /sso/agentProc - CS 모드 saveToken 복귀(POST)도 동일하게 처리")
+    void agentProc_POST_성공세션_complete로연결() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("resultCode", "000000");
+        session.setAttribute("resultData", "K150024");
+
+        mockMvc.perform(post("/sso/agentProc").session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/api/auth/sso/complete"));
+
+        assertThat(session.getAttribute("ssoVerifiedEno")).isEqualTo("K150024");
+    }
+
+    @Test
     @DisplayName("GET /api/auth/sso/complete - eno 직접 전달은 기본 차단")
     void complete_eno직접전달_차단() throws Exception {
         mockMvc.perform(get("/api/auth/sso/complete")
@@ -234,7 +288,8 @@ class SsoControllerTest {
         controller.complete("K150024", "/dashboard", "http://localhost:3000", request, response);
 
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/dashboard");
-        assertThat(response.getHeaders("Set-Cookie")).hasSize(3);
+        // 토큰 3개(access/refresh/user) + SSO 복귀 상태 쿠키 2개 삭제(next/origin)
+        assertThat(response.getHeaders("Set-Cookie")).hasSize(5);
     }
 
     @Test
@@ -263,6 +318,53 @@ class SsoControllerTest {
         controller.complete("K150024", null, null, request, response);
 
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+    }
+
+    @Test
+    @DisplayName("complete: next/origin 파라미터가 없으면 SSO 쿠키에서 최초 요청 URL을 복원한다")
+    void complete_파라미터없음_쿠키에서원본URL복원() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = new SsoController(authService, cookieUtil, ssoAgentClient, props);
+        ReflectionTestUtils.setField(controller, "frontendUrl", "http://localhost:3000");
+        ReflectionTestUtils.setField(controller, "allowedOrigins", "http://localhost:3000,http://localhost:3002");
+        ReflectionTestUtils.setField(controller, "allowDirectEno", true);
+        AuthDto.LoginResponse loginResponse = AuthDto.LoginResponse.builder()
+                .eno("K150024").accessToken("access-token").refreshToken("refresh-token").build();
+        given(authService.issueSsoTokens("K150024")).willReturn(loginResponse);
+        given(cookieUtil.createAccessTokenCookie("access-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "access-token").build());
+        given(cookieUtil.createRefreshTokenCookie("refresh-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "refresh-token").build());
+        given(cookieUtil.createUserInfoCookie(loginResponse))
+                .willReturn(ResponseCookie.from("it-portal-user", "user").build());
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        // 세션·파라미터엔 next/origin이 없고(ESSO 왕복에서 유실), SSO 시작 시 심은 쿠키에만 존재
+        request.setCookies(
+                new Cookie(CookieUtil.SSO_NEXT_COOKIE,
+                        URLEncoder.encode("/info/projects/123", StandardCharsets.UTF_8)),
+                new Cookie(CookieUtil.SSO_ORIGIN_COOKIE,
+                        URLEncoder.encode("http://localhost:3002", StandardCharsets.UTF_8)));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete("K150024", null, null, request, response);
+
+        // 파라미터가 비어도 쿠키에서 복원해 최초 요청 URL로 복귀해야 한다.
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3002/info/projects/123");
+    }
+
+    @Test
+    @DisplayName("business: next/origin을 SSO 복귀 쿠키로도 발급한다(세션 유실 대비)")
+    void business_복귀쿠키발급() throws Exception {
+        SsoProperties props = new SsoProperties(true, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.business("/info/projects/9", "http://localhost:3002", request, response);
+
+        verify(cookieUtil).createSsoNextCookie("/info/projects/9");
+        verify(cookieUtil).createSsoOriginCookie("http://localhost:3002");
     }
 
     /**
@@ -345,8 +447,8 @@ class SsoControllerTest {
     }
 
     @Test
-    @DisplayName("checkauth: CS 모드이면 토큰 저장 페이지로 이동한다")
-    void checkauth_CS모드_토큰저장페이지이동() throws Exception {
+    @DisplayName("checkauth: CS 모드이면 saveToken.html로 POST 자동제출 폼을 렌더링한다(agentId/errCode/secureSessionId)")
+    void checkauth_CS모드_saveToken_POST폼렌더링() throws Exception {
         SsoProperties props = new SsoProperties(false, "K140024",
                 "https://dintesso.kdb.co.kr:20443", "https://dintesso.kdb.co.kr:20443", "3", "id", 5000, 5000);
         SsoController controller = newController(props);
@@ -358,14 +460,44 @@ class SsoControllerTest {
 
         controller.checkauth("000000", "secure-token", "sess-1", request, response);
 
-        assertThat(response.getRedirectedUrl())
-                .isEqualTo("https://dintesso.kdb.co.kr:20443/token/saveToken.html");
+        // GET 리다이렉트가 아니라 POST 폼 HTML이어야 한다.
+        assertThat(response.getRedirectedUrl()).isNull();
+        String html = response.getContentAsString();
+        assertThat(html)
+                .contains("method=\"post\"")
+                .contains("action=\"https://dintesso.kdb.co.kr:20443/token/saveToken.html\"")
+                .contains("name=\"agentId\" value=\"3\"")
+                .contains("name=\"errCode\" value=\"000000\"")
+                .contains("name=\"secureSessionId\" value=\"sess-1\"")
+                // CSP sha256 해시와 일치해야 하는 정확한 제출 스크립트
+                .contains("<script>document.forms[0].submit()</script>");
         assertThat(request.getSession().getAttribute("secureSessionId")).isEqualTo("sess-1");
     }
 
     @Test
-    @DisplayName("checkauth: secureToken 없는 비정상 호출이면 진입점(business)으로 복귀")
-    void checkauth_비정상호출_business복귀() throws Exception {
+    @DisplayName("checkauth: CS 모드 POST 폼은 secureSessionId의 HTML 특수문자를 이스케이프한다(XSS 방지)")
+    void checkauth_CS모드_secureSessionId_이스케이프() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024",
+                "https://dintesso.kdb.co.kr:20443", "https://dintesso.kdb.co.kr:20443", "3", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        String xss = "\"><script>alert(1)</script>";
+        given(ssoAgentClient.authorize("secure-token", xss, "127.0.0.1"))
+                .willReturn(new SsoAgentClient.TokenAuthResult("000000", "OK", "K150024", null, true));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.checkauth("000000", "secure-token", xss, request, response);
+
+        String html = response.getContentAsString();
+        // 주입 시도가 원문 그대로 들어가면 안 된다.
+        assertThat(html).doesNotContain("\"><script>alert(1)</script>");
+        assertThat(html).contains("&lt;script&gt;alert(1)&lt;/script&gt;");
+    }
+
+    @Test
+    @DisplayName("checkauth: secureToken 없는 비정상 호출이면 SSO 재시작 대신 수동 로그인으로 폴백(루프 차단)")
+    void checkauth_비정상호출_수동로그인폴백() throws Exception {
         SsoProperties props = new SsoProperties(false, "K140024",
                 "https://dintesso.kdb.co.kr:20443", "https://dintesso.kdb.co.kr:20443", "3", "id", 5000, 5000);
         SsoController controller = newController(props);
@@ -374,9 +506,26 @@ class SsoControllerTest {
 
         controller.checkauth("000000", "", null, request, response);
 
-        assertThat(response.getRedirectedUrl()).isEqualTo("/sso/business");
+        // /sso/business로 되돌리면 무한 루프가 되므로 프론트 수동 로그인으로 보낸다.
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/login?error=sso");
         verify(ssoAgentClient, never()).authorize(org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("checkauth: 비정상 호출 시 origin 쿠키가 있으면 그 origin의 로그인으로 폴백한다")
+    void checkauth_비정상호출_origin쿠키사용() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024",
+                "https://dintesso.kdb.co.kr:20443", "https://dintesso.kdb.co.kr:20443", "3", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(new Cookie(CookieUtil.SSO_ORIGIN_COOKIE,
+                URLEncoder.encode("http://localhost:3002", StandardCharsets.UTF_8)));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.checkauth(null, null, null, request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3002/login?error=sso");
     }
 
     @Test
