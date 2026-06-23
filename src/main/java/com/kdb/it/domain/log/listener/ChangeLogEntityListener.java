@@ -107,8 +107,10 @@ public class ChangeLogEntityListener {
         } catch (Exception e) {
             // 감사로그 실패가 본 업무 트랜잭션을 롤백시키지 않도록 예외를 삼킨다.
             // 시퀀스 미생성(ORA-02289) 등 인프라 오류 시 본 작업은 정상 완료되어야 한다.
-            // 단, 진단을 위해 스택트레이스(e)를 마지막 인자로 전달한다.
-            log.warn("[감사로그 기록 실패] entity={}, logClass={}, chgTp={}",
+            // 단, 감사 추적 유실은 비정상 상황이므로 ERROR로 승격해 로그 수집/모니터링 알람에 노출한다.
+            // 확장점: 운영 알람 인프라(EAI 알림톡/메일, 관리자 인앱 알림) 도입 시 여기서 통지 연동.
+            //         단, 인앱 알림 발행은 그 자체가 감사로그 대상이라 재귀/연쇄 실패 위험이 있어 별도 채널 권장.
+            log.error("[감사로그 기록 실패] entity={}, logClass={}, chgTp={}",
                     entity.getClass().getSimpleName(), logClass.getSimpleName(), chgTp, e);
         }
     }
