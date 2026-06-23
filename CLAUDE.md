@@ -403,7 +403,7 @@ public class PlanController { ... }
   - `style-src 'unsafe-inline'` 포함 — CSS injection 벡터 존재. 개선 대상.
 
 #### CORS 설정 (SecurityConfig.corsConfigurationSource() 코드 기준)
-- `cors.allowed-origins` 기본값: **빈 문자열** (`@Value("${cors.allowed-origins:}")` 코드 기준). 미설정 시 origin 목록이 비어 교차 출처 요청이 전부 차단되며 WARN 로깅됨. 개발 환경 설정 파일에서 `http://localhost,http://localhost:3000,http://localhost:3002`로 재정의.
+- `cors.allowed-origins`는 **`app.frontend-url`로 폴백**합니다: `cors.allowed-origins=${CORS_ALLOWED_ORIGINS:${app.frontend-url}}`, `app.frontend-url=${APP_FRONTEND_URL:}`. 즉 **프론트 URL 환경변수(`APP_FRONTEND_URL`) 하나만 지정하면 SSO 복귀 대상과 CORS 허용 오리진이 함께** 맞춰집니다(매번 두 값을 따로 설정 불필요). 다중 오리진이 필요할 때만 `CORS_ALLOWED_ORIGINS`(콤마 구분)로 CORS만 오버라이드. 둘 다 미설정이면 빈 목록=전체 차단(WARN 로깅). 개발(`dev`/`local-ext`/`local-int`) 프로파일도 같은 폴백 구조(`cors.allowed-origins=${CORS_ALLOWED_ORIGINS:${APP_FRONTEND_URL:http://localhost,http://localhost:3000,http://localhost:3002}}`, `app.frontend-url=${APP_FRONTEND_URL:http://localhost:3000}`)라, 환경변수 미설정 시 localhost 기본값을 유지하되 `APP_FRONTEND_URL`을 주면 SSO 복귀·CORS가 함께 그 값으로 바뀝니다(내부망 IP 테스트 시 cors를 따로 수정할 필요 없음 — 과거엔 이 프로파일들이 cors를 하드코딩해 IP 테스트에서 CORS가 막혔음). 회귀: `FrontendUrlPropertyResolutionTest`.
 - `allowCredentials=true`이므로 와일드카드(`*`) 불가 — 반드시 명시적 도메인 나열. split 후 공백 제거 + 빈 항목 필터링으로 `[""]` footgun 방지.
 - `allowedHeaders`는 명시 목록(`Content-Type`, `Authorization`, `X-Requested-With`). `allowedMethods`는 GET/POST/PUT/DELETE/OPTIONS/PATCH. `exposedHeaders`는 `Location`.
 - **`/sso/**` 는 위 SPA allowlist 예외** — `UrlBasedCorsConfigurationSource`에 `/sso/**`(허용 origin `*`, `allowCredentials=false`)를 `/**`보다 **먼저** 등록해 우선 매칭시킵니다. `/sso/**`는 SPA의 XHR이 아니라 ESSO(외부 인증서버)가 브라우저를 통해 교차 출처로 콜백/리다이렉트하는 **전체 페이지 내비게이션** 엔드포인트라, SPA allowlist로 게이트하면 ESSO origin(예: `http://intesso.kdb.co.kr:20080`)이나 IP 기반 접근의 Origin이 목록에 없어 CorsFilter가 **`Invalid CORS request`(403)** 로 콜백을 차단합니다. 회귀: `SecurityConfigCorsTest`.
@@ -439,7 +439,7 @@ public class PlanController { ... }
 
 ### 5.8 환경 설정 키
 - JWT: `jwt.secret`, `jwt.access-token-validity`, `jwt.refresh-token-validity`
-- CORS: `cors.allowed-origins`
+- 프론트/CORS: `app.frontend-url`(=`APP_FRONTEND_URL`)과 `cors.allowed-origins`(미지정 시 `app.frontend-url`로 폴백). **프론트 URL 환경변수 하나로 둘 다 정합**, CORS만 다중 오리진 필요 시 `CORS_ALLOWED_ORIGINS`로 오버라이드. (§5.6 CORS 참조)
 - 쿠키: `app.cookie.secure`
 - 파일: `app.file.base-path` — local `c:/itp_file` (base 기본값), dev·prod `${FILE_BASE_PATH:/dat/springitp}`. multipart 최대 파일 50MB / 요청 200MB
 - Gemini: `gemini.api.key`, `gemini.api.base-url`, `gemini.api.model=gemini-2.5-flash`
