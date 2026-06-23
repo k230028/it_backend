@@ -633,6 +633,19 @@ public class CostDto {
     }
 
     /**
+     * 전산관리비 일괄 조회 결과 DTO (부분 성공)
+     *
+     * <p>조회에 성공한 항목({@code items})과 미존재로 조회에 실패한 전산관리비관리번호
+     * 목록({@code failedIds})을 함께 반환합니다. 누락 건을 조용히 버리지 않고
+     * 호출자에게 노출하기 위함입니다.</p>
+     */
+    @Schema(name = "CostBulkResponse", description = "전산관리비 일괄 조회 결과 (부분 성공)")
+    public record BulkResponse(
+            @Schema(description = "조회 성공 항목") List<Response> items,
+            @Schema(description = "조회 실패(미존재) 전산관리비관리번호 목록") List<String> failedIds
+    ) {}
+
+    /**
      * 금융정보단말기 정보 DTO
      */
     @Getter

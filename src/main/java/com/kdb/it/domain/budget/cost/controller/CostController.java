@@ -182,10 +182,10 @@ public class CostController {
      */
     @Operation(summary = "전산관리비 일괄 조회", description = "여러 개의 전산관리비 관리번호로 상세 정보를 일괄 조회합니다.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(implementation = CostDto.Response.class)))
+            @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(implementation = CostDto.BulkResponse.class)))
     })
     @PostMapping("/bulk-get")
-    public ResponseEntity<List<CostDto.Response>> getCostsByIds(@RequestBody CostDto.BulkGetRequest request) {
+    public ResponseEntity<CostDto.BulkResponse> getCostsByIds(@RequestBody CostDto.BulkGetRequest request) {
         return ResponseEntity.ok(costService.getCostsByIds(request));
     }
 }

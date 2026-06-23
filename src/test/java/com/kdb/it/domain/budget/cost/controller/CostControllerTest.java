@@ -108,14 +108,16 @@ class CostControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/cost/bulk-get - 인증된 사용자 → 200 + 배열 반환")
+    @DisplayName("POST /api/cost/bulk-get - 인증된 사용자 → 200 + items/failedIds 반환")
     @WithMockUser(username = "10001")
     void getCostsByIds_인증_200() throws Exception {
-        given(costService.getCostsByIds(any())).willReturn(List.of());
+        given(costService.getCostsByIds(any()))
+                .willReturn(new CostDto.BulkResponse(List.of(), List.of()));
         mockMvc.perform(post("/api/cost/bulk-get")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new CostDto.BulkGetRequest())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.failedIds").isArray());
     }
 }

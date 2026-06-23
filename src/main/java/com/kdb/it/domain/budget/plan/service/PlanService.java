@@ -217,7 +217,8 @@ public class PlanService {
                 if (!itMngcNos.isEmpty()) {
                         CostDto.BulkGetRequest costBulkRequest = new CostDto.BulkGetRequest();
                         costBulkRequest.setCostBgNos(itMngcNos);
-                        costs = costService.getCostsByIds(costBulkRequest);
+                        // BulkResponse(부분 성공)에서 조회 성공 항목만 사용 (미존재 failedIds는 합계 계산 대상 아님)
+                        costs = costService.getCostsByIds(costBulkRequest).items();
                 }
 
                 // 3. 예산 합계 계산 (정보화사업 + 전산업무비)

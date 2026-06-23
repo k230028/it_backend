@@ -278,7 +278,7 @@ class PlanServiceTest {
                 .assetBg(BigDecimal.valueOf(70))
                 .costBg(BigDecimal.valueOf(30))
                 .build();
-        given(costService.getCostsByIds(any())).willReturn(List.of(cost));
+        given(costService.getCostsByIds(any())).willReturn(new CostDto.BulkResponse(List.of(cost), List.of()));
         given(bplanmRepository.getNextSequenceValue()).willReturn(2L);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 
@@ -319,7 +319,7 @@ class PlanServiceTest {
                 .costBg(null)
                 .build();
         given(projectService.getProjectsByIds(any())).willReturn(new ProjectDto.BulkResponse(List.of(project), List.of()));
-        given(costService.getCostsByIds(any())).willReturn(List.of(cost));
+        given(costService.getCostsByIds(any())).willReturn(new CostDto.BulkResponse(List.of(cost), List.of()));
         given(bplanmRepository.getNextSequenceValue()).willReturn(3L);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 
@@ -362,7 +362,7 @@ class PlanServiceTest {
                 .tmnYn("관리비")
                 .build();
         given(projectService.getProjectsByIds(any())).willReturn(new ProjectDto.BulkResponse(List.of(generalProject, ordinaryProject), List.of()));
-        given(costService.getCostsByIds(any())).willReturn(List.of(cost));
+        given(costService.getCostsByIds(any())).willReturn(new CostDto.BulkResponse(List.of(cost), List.of()));
         given(bplanmRepository.getNextSequenceValue()).willReturn(4L);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 

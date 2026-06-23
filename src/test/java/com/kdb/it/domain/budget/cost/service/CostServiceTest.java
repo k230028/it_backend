@@ -141,9 +141,24 @@ class CostServiceTest {
         CostDto.BulkGetRequest request = new CostDto.BulkGetRequest(
                 List.of("COST_NOTEXIST1", "COST_NOTEXIST2"), null);
 
-        List<CostDto.Response> result = costService.getCostsByIds(request);
+        CostDto.BulkResponse result = costService.getCostsByIds(request);
 
-        assertThat(result).isEmpty();
+        assertThat(result.items()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getCostsByIds: 전건 미존재면 items empty, failedIds 전부")
+    void getCostsByIds_allMissing_collectsFailedIds() {
+        given(costRepository.findByCostBgNoAndDelYn(any(), eq("N"))).willReturn(List.of());
+
+        CostDto.BulkGetRequest req = new CostDto.BulkGetRequest();
+        req.setCostBgNos(java.util.List.of("COST-X", "COST-Y"));
+        req.setBseYy(null);
+
+        CostDto.BulkResponse result = costService.getCostsByIds(req);
+
+        assertThat(result.items()).isEmpty();
+        assertThat(result.failedIds()).containsExactly("COST-X", "COST-Y");
     }
 
     // ───────────────────────────────────────────────────────
@@ -345,10 +360,10 @@ class CostServiceTest {
                 List.of("COST_2026_0001", "COST_2026_0002"), null);
 
         // when
-        List<CostDto.Response> result = costService.getCostsByIds(request);
+        CostDto.BulkResponse result = costService.getCostsByIds(request);
 
         // then: 2건 모두 반환
-        assertThat(result).hasSize(2);
+        assertThat(result.items()).hasSize(2);
     }
 
     // ───────────────────────────────────────────────────────
@@ -562,13 +577,13 @@ class CostServiceTest {
 
         CostDto.BulkGetRequest request = new CostDto.BulkGetRequest(List.of("COST-ASSET", "COST-COST"), "2026");
 
-        List<CostDto.Response> result = costService.getCostsByIds(request);
+        CostDto.BulkResponse result = costService.getCostsByIds(request);
 
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).getAssetDupBg()).isEqualByComparingTo(BigDecimal.valueOf(700));
-        assertThat(result.get(0).getCostDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(result.get(1).getAssetDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(result.get(1).getCostDupBg()).isEqualByComparingTo(BigDecimal.valueOf(800));
+        assertThat(result.items()).hasSize(2);
+        assertThat(result.items().get(0).getAssetDupBg()).isEqualByComparingTo(BigDecimal.valueOf(700));
+        assertThat(result.items().get(0).getCostDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.items().get(1).getAssetDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.items().get(1).getCostDupBg()).isEqualByComparingTo(BigDecimal.valueOf(800));
     }
 
     @Test
