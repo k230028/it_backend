@@ -86,15 +86,17 @@ class ApplicationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/applications/bulk-get - 인증된 사용자 → 200 + 배열 반환")
+    @DisplayName("POST /api/applications/bulk-get - 인증된 사용자 → 200 + items/failedIds 반환")
     @WithMockUser(username = "10001")
     void bulkGet_인증_200() throws Exception {
-        given(applicationService.getApplicationsByIds(any())).willReturn(List.of());
+        given(applicationService.getApplicationsByIds(any()))
+                .willReturn(new ApplicationDto.BulkResponse(List.of(), List.of()));
         mockMvc.perform(post("/api/applications/bulk-get")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ApplicationDto.BulkGetRequest())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.failedIds").isArray());
     }
 
     @Test

@@ -484,10 +484,27 @@ class ApplicationServiceTest {
         ApplicationDto.BulkGetRequest request = new ApplicationDto.BulkGetRequest();
         request.setApfMngNos(List.of(APF_MNG_NO, "APF_NONE"));
 
-        List<ApplicationDto.Response> result = applicationService.getApplicationsByIds(request);
+        ApplicationDto.BulkResponse result = applicationService.getApplicationsByIds(request);
 
         // 존재하는 1건만 반환
-        assertThat(result).hasSize(1);
+        assertThat(result.items()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("getApplicationsByIds: 일부 미존재 ID는 failedIds에 담기고 items는 정상분만 반환")
+    void getApplicationsByIds_partialMissing_returnsItemsAndFailedIds() {
+        Capplm found = mock(Capplm.class);
+        given(found.getApfMngNo()).willReturn("APF-1");
+        given(applicationRepository.findById("APF-1")).willReturn(Optional.of(found));
+        given(applicationRepository.findById("APF-X")).willReturn(Optional.empty());
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc("APF-1")).willReturn(List.of());
+        ApplicationDto.BulkGetRequest req = new ApplicationDto.BulkGetRequest();
+        req.setApfMngNos(List.of("APF-1", "APF-X"));
+
+        ApplicationDto.BulkResponse result = applicationService.getApplicationsByIds(req);
+
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.failedIds()).containsExactly("APF-X");
     }
 
     @Test
@@ -498,9 +515,9 @@ class ApplicationServiceTest {
         ApplicationDto.BulkGetRequest request = new ApplicationDto.BulkGetRequest();
         request.setApfMngNos(List.of("APF_NONE1", "APF_NONE2"));
 
-        List<ApplicationDto.Response> result = applicationService.getApplicationsByIds(request);
+        ApplicationDto.BulkResponse result = applicationService.getApplicationsByIds(request);
 
-        assertThat(result).isEmpty();
+        assertThat(result.items()).isEmpty();
     }
 
     // ───────────────────────────────────────────────────────

@@ -492,22 +492,23 @@ public class ApplicationService {
      * </p>
      *
      * @param request 일괄 조회 요청 DTO (신청관리번호 목록)
-     * @return 존재하는 신청서의 응답 DTO 목록 (없는 항목 제외)
+     * @return 조회 성공 항목과 실패(미존재) ID 목록을 함께 담은 {@link ApplicationDto.BulkResponse}
      */
-    public List<ApplicationDto.Response> getApplicationsByIds(ApplicationDto.BulkGetRequest request) {
-        return request.getApfMngNos().stream()
-                .map(apfMngNo -> {
-                    try {
-                        return getApplication(apfMngNo); // 개별 신청서 조회
-                    } catch (IllegalArgumentException e) {
-                        // FIXME: [B-H-02] null 반환 대신 Optional 또는 예외 전파로 변경, 최소 warn 로그 추가 필요
-                        // 현재 null → filter(Objects::nonNull) 패턴으로 실패 건이 silently 손실됨. 사용자 인지 불가.
-                        // FIXME: [B-C-03] null 필터링 대신 실패 ID 목록을 warn 로그에 남기고, 호출자에게 실패 건수 반환 또는 예외 재발생 필요
-                        return null; // 존재하지 않는 신청서는 null로 처리
-                    }
-                })
-                .filter(response -> response != null) // null 제거 (존재하지 않는 항목 제외)
-                .toList();
+    public ApplicationDto.BulkResponse getApplicationsByIds(ApplicationDto.BulkGetRequest request) {
+        List<ApplicationDto.Response> items = new java.util.ArrayList<>();
+        List<String> failedIds = new java.util.ArrayList<>();
+        for (String apfMngNo : request.getApfMngNos()) {
+            try {
+                items.add(getApplication(apfMngNo)); // 개별 신청서 조회
+            } catch (IllegalArgumentException e) {
+                // 미존재 ID는 조용히 버리지 않고 실패 목록에 수집해 호출자에게 노출한다.
+                failedIds.add(apfMngNo);
+            }
+        }
+        if (!failedIds.isEmpty()) {
+            log.warn("bulk-get 누락: type=application, failedIds={}", failedIds);
+        }
+        return new ApplicationDto.BulkResponse(items, failedIds);
     }
 
     /**

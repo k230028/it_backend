@@ -114,17 +114,18 @@ public class ApplicationController {
      * 신청서 일괄 조회
      *
      * <p>여러 신청서 관리번호를 한 번에 조회합니다.
-     * 존재하지 않는 신청서는 결과에서 제외됩니다.</p>
+     * 조회 성공 항목({@code items})과 미존재로 실패한 신청관리번호 목록({@code failedIds})을
+     * 함께 반환합니다 (부분 성공).</p>
      *
      * @param request 조회할 신청서 관리번호 목록 ({@link ApplicationDto.BulkGetRequest})
-     * @return HTTP 200 + 신청서 목록 (존재하는 신청서만 포함)
+     * @return HTTP 200 + 조회 성공 항목 및 실패 ID 목록 ({@link ApplicationDto.BulkResponse})
      */
     @PostMapping("/bulk-get")
-    @Operation(summary = "신청서 일괄 조회", description = "여러 개의 신청서를 한 번에 조회합니다. 존재하지 않는 신청서는 결과에서 제외됩니다.")
-    public ResponseEntity<java.util.List<ApplicationDto.Response>> bulkGetApplications(
+    @Operation(summary = "신청서 일괄 조회", description = "여러 개의 신청서를 한 번에 조회합니다. 조회 성공 항목(items)과 미존재 신청관리번호 목록(failedIds)을 함께 반환합니다.")
+    public ResponseEntity<ApplicationDto.BulkResponse> bulkGetApplications(
             @RequestBody ApplicationDto.BulkGetRequest request) {
-        java.util.List<ApplicationDto.Response> responses = applicationService.getApplicationsByIds(request);
-        return ResponseEntity.ok(responses);
+        ApplicationDto.BulkResponse response = applicationService.getApplicationsByIds(request);
+        return ResponseEntity.ok(response);
     }
 
     /**
