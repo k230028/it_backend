@@ -481,7 +481,7 @@ public class PlanController { ... }
 - **로그 엔티티**: 30개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`, `BestimL`, 코드 분석 2026-06-14). 짝이 되는 업무 엔티티는 `@LogTarget(entity = *L.class)`로 로그 대상을 지정.
 - **기본 구조**: `*L` 로그 엔티티가 `BaseLogEntity` 상속 — 기본 컬럼 자동 포함 (GUID, FST_ENR_DTM/USID, LST_CHG_DTM/USID).
 - **로그 리스너**: `ChangeLogEntityListener` → JPA entity lifecycle 후킹 → `AuditLogPersister` → DB 저장.
-- **저장 시점**: JPA `@PrePersist`/`@PreUpdate` 콜백 중 `ChangeLogEntityListener`가 `AuditLogPersister.persist()`를 직접 호출해 현재 flush 흐름에서 로그를 저장합니다. 로그 저장 실패는 catch 후 warn 처리하여 원본 작업 롤백을 피합니다.
+- **저장 시점**: JPA `@PrePersist`/`@PreUpdate` 콜백 중 `ChangeLogEntityListener`가 `AuditLogPersister.persist()`를 직접 호출해 현재 flush 흐름에서 로그를 저장합니다. 로그 저장 실패는 catch 후 `log.error`로 기록(감사 추적 유실은 비정상 상황 → 모니터링 알람 노출)하되 예외는 삼켜 원본 작업 롤백을 피합니다.
 - 로그 조회는 `domain/log`의 `*L` 로그 엔티티 또는 분석용 view(`V_ITPAPP_LOG_FEED`, `common/admin`·`common/admin/realtime` 조회 서비스)를 사용.
 
 #### 5.12.1.1 NOT NULL 기본값은 생성자/팩토리에서 설정 (감사 로그 스냅샷 타이밍 함정 — 필수 규칙)
