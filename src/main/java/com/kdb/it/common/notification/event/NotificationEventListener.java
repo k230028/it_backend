@@ -8,6 +8,8 @@ import com.kdb.it.common.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -48,7 +50,9 @@ public class NotificationEventListener {
     /**
      * 결재 완료/반려 이벤트 → 신청자에게 결재결과 알림.
      */
+    // §5.16: AFTER_COMMIT은 non-tx 동기화 컨텍스트에서 실행되므로 findById 조회를 독립 트랜잭션으로 보장.
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onApprovalCompleted(ApprovalCompletedEvent event) {
         try {
             Capplm capplm = applicationRepository.findById(event.apfMngNo()).orElse(null);
@@ -78,7 +82,9 @@ public class NotificationEventListener {
     /**
      * 결재회수 이벤트 → 신청자 및 기승인 중간결재자에게 결재회수 알림 발송.
      */
+    // §5.16: AFTER_COMMIT은 non-tx 동기화 컨텍스트에서 실행되므로 findById 조회를 독립 트랜잭션으로 보장.
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onApprovalRecalled(ApprovalRecalledEvent event) {
         try {
             Capplm capplm = applicationRepository.findById(event.apfMngNo()).orElse(null);
