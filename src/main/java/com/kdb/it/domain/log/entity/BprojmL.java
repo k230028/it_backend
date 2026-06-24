@@ -109,9 +109,6 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "EXE_PTT_YN", length = 1, comment = "프로젝트추진가능성")
     private String exePttYn;
 
-    @Column(name = "IT_PTL_STS_TC", length = 2, comment = "프로젝트상태")
-    private String stsTc;
-
     @Column(name = "BSE_YY", length = 4, comment = "예산연도")
     private String bseYy;
 

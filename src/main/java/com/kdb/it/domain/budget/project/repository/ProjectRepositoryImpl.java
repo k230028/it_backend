@@ -153,10 +153,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
         if (condition.getBseYy() != null && !condition.getBseYy().isBlank()) {
             builder.and(bprojm.bseYy.eq(condition.getBseYy()));
         }
-        // 프로젝트상태 필터
-        if (condition.getStsTc() != null && !condition.getStsTc().isBlank()) {
-            builder.and(bprojm.stsTc.eq(condition.getStsTc()));
-        }
+        // 프로젝트상태 필터: BPROJA 대표상태로 전환됨 — BPROJM 컬럼 미존재로 현재 미적용.
+        // TODO: BPROJA 대표상태 서브쿼리로 필터링 구현 (2차 범위)
         // 프로젝트유형 필터
         if (condition.getBzTpC() != null && !condition.getBzTpC().isBlank()) {
             builder.and(bprojm.bzTpC.eq(condition.getBzTpC()));

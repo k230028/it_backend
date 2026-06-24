@@ -175,10 +175,6 @@ public class Bprojm extends BaseEntity {
     @Column(name = "EXE_PTT_YN", length = 1, comment = "프로젝트추진가능성 (물리컬럼 EXE_PTT_YN=실행가능성여부, 공통코드 EXE_PTT_YN 1자리)")
     private String exePttYn;
 
-    /** 프로젝트상태: 사업의 현재 진행 상태 코드 (공통코드 IT_PTL_STS_TC, 예: 09=예산편성 작업 완료, 11=정보기술부문계획 정실협 진행중) */
-    @Column(name = "IT_PTL_STS_TC", length = 2, comment = "프로젝트상태 (공통코드 IT_PTL_STS_TC, 2자리 코드)")
-    private String stsTc;
-
     /** 예산연도: 예산 연도 (4자리 숫자, 예: "2026") */
     @Column(name = "BSE_YY", length = 4, comment = "예산연도 (물리컬럼 BSE_YY=기준연도)")
     private String bseYy;
@@ -212,7 +208,7 @@ public class Bprojm extends BaseEntity {
             String edrtTc, String abusCone, String cpnSafCone, String abusNcsCone,
             String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone, String hrfPlnCone,
             String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
-            String flfFsgDt, String rprStsTc, String exePttYn, String stsTc,
+            String flfFsgDt, String rprStsTc, String exePttYn,
             String bseYy, String prlmHrkOgzCCone,
             String odnYn, String abusTc, String cncdRfrNo
     ) {}
@@ -229,7 +225,7 @@ public class Bprojm extends BaseEntity {
                 cmd.edrtTc(), cmd.abusCone(), cmd.cpnSafCone(), cmd.abusNcsCone(),
                 cmd.dgogPpoCone(), cmd.plmDes(), cmd.abusRngCone(), cmd.mnPrgCone(), cmd.hrfPlnCone(),
                 cmd.bzDttNm(), cmd.sklTpTc(), cmd.cstTpTc(), cmd.dplYn(),
-                cmd.flfFsgDt(), cmd.rprStsTc(), cmd.exePttYn(), cmd.stsTc(),
+                cmd.flfFsgDt(), cmd.rprStsTc(), cmd.exePttYn(),
                 cmd.bseYy(), cmd.prlmHrkOgzCCone(), cmd.odnYn(), cmd.abusTc(), cmd.cncdRfrNo());
     }
 
@@ -243,7 +239,7 @@ public class Bprojm extends BaseEntity {
             String tlrUsid, String dvmTlrUsid, String edrtTc, String abusCone,
             String cpnSafCone, String abusNcsCone, String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone,
             String hrfPlnCone, String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
-            String flfFsgDt, String rprStsTc, String exePttYn, String stsTc, String bseYy, String prlmHrkOgzCCone,
+            String flfFsgDt, String rprStsTc, String exePttYn, String bseYy, String prlmHrkOgzCCone,
             Integer sno, String odnYn, String abusTc, String cncdRfrNo) {
         this.sno = sno;
         this.abusNm = abusNm;
@@ -272,7 +268,6 @@ public class Bprojm extends BaseEntity {
         this.flfFsgDt = flfFsgDt;
         this.rprStsTc = rprStsTc;
         this.exePttYn = exePttYn;
-        this.stsTc = stsTc;
         this.bseYy = bseYy;
         this.prlmHrkOgzCCone = prlmHrkOgzCCone;
         this.odnYn = odnYn;
@@ -290,7 +285,7 @@ public class Bprojm extends BaseEntity {
             String tlrUsid, String dvmTlrUsid, String edrtTc, String abusCone,
             String cpnSafCone, String abusNcsCone, String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone,
             String hrfPlnCone, String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
-            String flfFsgDt, String rprStsTc, String exePttYn, String stsTc, String bseYy, String prlmHrkOgzCCone,
+            String flfFsgDt, String rprStsTc, String exePttYn, String bseYy, String prlmHrkOgzCCone,
             String odnYn, String abusTc, String cncdRfrNo) {
         this.abusNm = abusNm;
         this.bzTpC = bzTpC;
@@ -318,7 +313,6 @@ public class Bprojm extends BaseEntity {
         this.flfFsgDt = flfFsgDt;
         this.rprStsTc = rprStsTc;
         this.exePttYn = exePttYn;
-        this.stsTc = stsTc;
         this.bseYy = bseYy;
         this.prlmHrkOgzCCone = prlmHrkOgzCCone;
         this.odnYn = odnYn;

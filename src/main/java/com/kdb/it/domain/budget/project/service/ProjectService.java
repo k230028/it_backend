@@ -115,6 +115,9 @@ public class ProjectService {
     /** 품목 기준 예산 합계 계산 서비스 */
     private final ProjectBudgetSummaryService projectBudgetSummaryService;
 
+    /** 정보화사업관계(TPRMPP_BPROJA) 리포지토리: 프로젝트 대표상태(MAX IT_PTL_STS_TC) 계산용 */
+    private final com.kdb.it.domain.budget.project.repository.BprojaRepository bprojaRepository;
+
     /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (Cost/Project 서비스 공용) */
     private final CodeNameMapBuilder codeNameMapBuilder;
 
@@ -196,6 +199,10 @@ public class ProjectService {
         setApplicationInfo(response, prjMngNo, project.getSno());
         // 부서코드→부서명, 사원번호→사용자명 조회 및 설정
         setCodeNames(response);
+
+        // 프로젝트 대표상태(BPROJA 중 IT_PTL_STS_TC 최댓값) 주입. 1차에서는 BPROJA 미적재라 null일 수 있음.
+        response.setStsTc(representativeStatus(
+                bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")));
 
         // 품목 정보 조회 및 설정 (삭제되지 않은 항목만)
         // ABUS_MNG_NO(프로젝트관리번호), SNO(프로젝트일련번호) 기준, DEL_YN='N'인 품목 조회
@@ -389,7 +396,7 @@ public class ProjectService {
                 request.getEdrtTc(), request.getAbusCone(), request.getCpnSafCone(), request.getAbusNcsCone(),
                 request.getDgogPpoCone(), request.getPlmDes(), request.getAbusRngCone(), request.getMnPrgCone(), request.getHrfPlnCone(),
                 request.getBzDttNm(), request.getSklTpTc(), request.getCstTpTc(), request.getDplYn(),
-                DateFormatUtil.toYmd8(request.getFlfFsgDt()), request.getRprStsTc(), request.getExePttYn(), request.getStsTc(),
+                DateFormatUtil.toYmd8(request.getFlfFsgDt()), request.getRprStsTc(), request.getExePttYn(),
                 request.getBseYy(), request.getPrlmHrkOgzCCone(),
                 request.getOdnYn(), request.getAbusTc(), request.getCncdRfrNo()));
 
@@ -748,6 +755,13 @@ public class ProjectService {
                         .collect(Collectors.groupingBy(
                                 com.kdb.it.domain.budget.project.entity.Bitemm::getAbusMngNo));
 
+        // 대표상태 배치 조회: 대상 프로젝트들의 BPROJA를 1회 조회 후 프로젝트별 MAX(IT_PTL_STS_TC) 계산.
+        Map<String, String> repStatusByPrj = bprojaRepository
+                .findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
+                .collect(Collectors.groupingBy(
+                        com.kdb.it.domain.budget.project.entity.Bproja::getAbusMngNo,
+                        Collectors.collectingAndThen(Collectors.toList(), this::representativeStatus)));
+
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < projects.size(); i++) {
             Bprojm project = projects.get(i);
@@ -779,6 +793,9 @@ public class ProjectService {
             if (response.getRprStsTc() != null) response.setRprStsTcNm(rprStsNameMap.get(response.getRprStsTc()));
             if (response.getExePttYn() != null) response.setExePttYnNm(prjPulPttNameMap.get(response.getExePttYn()));
             if (response.getAbusTc() != null) response.setAbusTcNm(pulDttNameMap.get(response.getAbusTc()));
+
+            // 프로젝트 대표상태 주입(없으면 null)
+            response.setStsTc(repStatusByPrj.get(project.getAbusMngNo()));
 
             setBudgetSummary(response, project.getAbusMngNo(), project.getSno());
 
@@ -913,6 +930,23 @@ public class ProjectService {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.ABUS, response.getAbusTc(), null)
                     .ifPresent(code -> response.setAbusTcNm(code.getCdvaNm()));
         }
+    }
+
+    /**
+     * BPROJA 관계 행 목록에서 대표상태(IT_PTL_STS_TC 최댓값)를 계산한다.
+     *
+     * <p>2자리 zero-pad 코드이므로 문자열 사전식 비교 = 숫자 비교. null 상태는 무시.
+     * 행이 없거나 모두 null이면 null 반환.</p>
+     *
+     * @param rows 단일 프로젝트의 미삭제 BPROJA 행 목록
+     * @return 대표상태 코드 또는 null
+     */
+    private String representativeStatus(java.util.List<com.kdb.it.domain.budget.project.entity.Bproja> rows) {
+        return rows.stream()
+                .map(com.kdb.it.domain.budget.project.entity.Bproja::getStsTc)
+                .filter(s -> s != null && !s.isEmpty())
+                .max(java.util.Comparator.naturalOrder())
+                .orElse(null);
     }
 
     /**

@@ -247,7 +247,6 @@ public class ProjectDto {
                     .rprStsTc(rprStsTc) // 보고상태
                     .lstYn("Y") // 최종여부: 신규 등록은 항상 최신 레코드
                     .exePttYn(exePttYn) // 프로젝트추진가능성
-                    .stsTc(stsTc) // 프로젝트상태
                     .bseYy(bseYy) // 사업연도
                     .odnYn(odnYn) // 경상여부
                     .abusTc(abusTc) // 사업구분
@@ -777,7 +776,6 @@ public class ProjectDto {
                     .flfFsgDt(project.getFlfFsgDt()) // 의무완료기한
                     .rprStsTc(project.getRprStsTc()) // 보고상태
                     .exePttYn(project.getExePttYn()) // 프로젝트추진가능성
-                    .stsTc(project.getStsTc()) // 프로젝트상태
                     .delYn(project.getDelYn()) // 삭제여부
                     .bseYy(project.getBseYy()) // 사업연도
                     .odnYn(project.getOdnYn()) // 경상여부
