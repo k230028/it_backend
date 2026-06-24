@@ -38,6 +38,7 @@ public class EstimateService {
     private final EstimateRepository estimateRepository;
     private final EstimateLineRepository lineRepository;
     private final ProjectRepository projectRepository;
+    private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
 
     /**
      * 소요예산 산정 신규 신청 생성.
@@ -68,6 +69,8 @@ public class EstimateService {
                 .reqCone(req.reqCone())
                 .build();
         estimateRepository.save(entity);
+        // 소요예산 산정은 정보화사업(bgPrnTc=100) 전용이므로 조건 없이 적재
+        bprojaSyncService.upsert(req.cncdRfrNo(), docNo, STS_DRAFT);
         return docNo;
     }
 
@@ -104,6 +107,9 @@ public class EstimateService {
             throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         }
         e.delete();
+        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+            bprojaSyncService.softDelete(e.getCncdRfrNo(), docNo);
+        }
     }
 
     /**
@@ -126,6 +132,9 @@ public class EstimateService {
             throw new IllegalStateException("허용되지 않은 상태 전이입니다: " + from + " → " + to);
         }
         e.changeStatus(to);
+        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+            bprojaSyncService.upsert(e.getCncdRfrNo(), docNo, to);
+        }
     }
 
     /**
