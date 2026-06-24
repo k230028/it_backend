@@ -18,6 +18,7 @@
 | 엔티티   | 테이블명         | 역할              |
 |---------|-----------------|------------------|
 | Bprojm  | TPRMPP_BPROJM   | 정보화사업 마스터 |
+| Bproja  | TPRMPP_BPROJA   | 정보화사업관계 (사업↔단계문서 연결, 상태 정규화) |
 | Bitemm  | TPRMPP_BITEMM   | 프로젝트 품목     |
 | Bcostm  | TPRMPP_BCOSTM   | 전산관리비        |
 | Btermm  | TPRMPP_BTERMM   | 단말기            |
@@ -88,6 +89,42 @@
 >
 > `ProjectDto.Response`에는 세 필드가 그대로 노출되나, DB 컬럼이 아닌 파생 계산값입니다.
 > `BprojmL` (TPRMPP_BPROJL) 로그 엔티티에서도 동일하게 제거되었습니다.
+>
+> **컬럼 삭제 이력 (2026-06-24)**: `IT_PTL_STS_TC`(IT포탈상태구분코드) 컬럼이 BPROJM 및 BPROJL에서 제거되었습니다.
+> 프로젝트 대표상태는 `TPRMPP_BPROJA`(정보화사업관계)의 `MAX(IT_PTL_STS_TC)` 집계값으로 파생합니다.
+> 상세 설계: `docs/superpowers/specs/2026-06-24-bproja-status-relation-design.md`
+
+### Bproja / TPRMPP_BPROJA (정보화사업관계)
+
+> 프로젝트(BPROJM) ↔ 단계별 원본문서를 연결하고 단계별 상태를 보관하는 관계 테이블.
+> **프로젝트 대표상태 = 해당 사업의 BPROJA 행 중 `MAX(IT_PTL_STS_TC)`**.
+> 상세 설계: `docs/superpowers/specs/2026-06-24-bproja-status-relation-design.md`
+
+| 컬럼명 | 타입 | PK | NULL | Default | 설명 |
+|--------|------|----|------|---------|------|
+| `ABUS_MNG_NO` | VARCHAR2(30) | Y | N | | 사업관리번호 (FK → TPRMPP_BPROJM) |
+| `CNCD_RFR_NO` | VARCHAR2(30) | Y | N | | 관련참조번호 — 단계 원본문서의 PK |
+| `IT_PTL_STS_TC` | VARCHAR2(2) | | Y | | IT포탈상태구분코드 |
+| `FST_ENR_USID` | VARCHAR2(14) | | N | '00000000000000' | 최초등록사용자ID |
+| `FST_ENR_DTM` | DATE | | N | sysdate | 최초등록일시 |
+| `DEL_YN` | VARCHAR2(1) | | N | 'N' | 삭제여부 |
+| `GUID` | VARCHAR2(38) | | N | '0…0'(38자리) | GUID |
+| `GUID_PRG_SNO` | NUMBER(4) | | N | 0 | GUID진행일련번호 |
+| `LST_CHG_USID` | VARCHAR2(14) | | N | '00000000000000' | 최종변경사용자ID |
+| `LST_CHG_DTM` | DATE | | N | sysdate | 최종변경일시 |
+
+단계별 원본테이블 ↔ `CNCD_RFR_NO` 키 매핑:
+
+| 단계 | 원본테이블 | CNCD_RFR_NO 키 |
+|------|-----------|----------------|
+| 사전협의 | TPRMPP_BRDOCM | DOC_MNG_NO |
+| 예산편성 | TPRMPP_BBUGTM | BG_NO |
+| 정보기술부문계획 | TPRMPP_BPLANM | REQ_DOC_NO |
+| 타당성검토 | TPRMPP_BASCTM | IT_PTL_ASCT_ID |
+| 소요예산 | TPRMPP_BESTIM | RQM_BG_REQ_DOC_NO |
+| 과업심의 | TPRMPP_BDELIM | DOC_MNG_NO |
+| 입찰계약 | TPRMPP_BCONTM | DOC_MNG_NO |
+| 대금지급 | TPRMPP_BPAYMM | DOC_MNG_NO |
 
 ## 4. 채번 규칙
 
