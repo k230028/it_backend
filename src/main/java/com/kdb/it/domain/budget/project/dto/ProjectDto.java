@@ -570,6 +570,10 @@ public class ProjectDto {
         @Schema(description = "프로젝트상태")
         private String stsTc;
 
+        /** 해당 사업의 활성 BPROJA 단계 상태코드 목록(IT_PTL_STS_TC) */
+        @Schema(description = "해당 사업의 활성 BPROJA 단계 상태코드 목록(IT_PTL_STS_TC)")
+        private java.util.List<String> bprojaStsCodes;
+
         /** 삭제여부 (Soft Delete 상태, "Y": 삭제됨, "N": 정상) */
         @Schema(description = "삭제여부")
         private String delYn;

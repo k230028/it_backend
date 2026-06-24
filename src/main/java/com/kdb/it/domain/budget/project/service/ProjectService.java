@@ -200,9 +200,16 @@ public class ProjectService {
         // 부서코드→부서명, 사원번호→사용자명 조회 및 설정
         setCodeNames(response);
 
-        // 프로젝트 대표상태(BPROJA 중 IT_PTL_STS_TC 최댓값) 주입. 1차에서는 BPROJA 미적재라 null일 수 있음.
-        response.setStsTc(representativeStatus(
-                bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")));
+        // BPROJA 단계 상태 조회(1회). 대표상태(MAX)와 단계별 코드 목록에 함께 사용.
+        java.util.List<com.kdb.it.domain.budget.project.entity.Bproja> bprojaRows =
+                bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N");
+        // 프로젝트 대표상태(BPROJA 중 IT_PTL_STS_TC 최댓값). BPROJA 미적재면 null.
+        response.setStsTc(representativeStatus(bprojaRows));
+        // 단계별 카드용: 활성 BPROJA 상태코드 목록(진행 현황 섹션이 대역별로 판정).
+        response.setBprojaStsCodes(bprojaRows.stream()
+                .map(com.kdb.it.domain.budget.project.entity.Bproja::getStsTc)
+                .filter(java.util.Objects::nonNull)
+                .toList());
 
         // 품목 정보 조회 및 설정 (삭제되지 않은 항목만)
         // ABUS_MNG_NO(프로젝트관리번호), SNO(프로젝트일련번호) 기준, DEL_YN='N'인 품목 조회
