@@ -319,7 +319,7 @@ public class BudgetWorkService {
                             .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
-                    bprojaSyncService.upsert(item.orcPkVl(), bbugtm.getBgNo(), "21"); // 예산편성 진행중
+                    bprojaSyncService.upsert(item.orcPkVl(), bbugtm.getBgNo(), "03"); // 예산편성 작업 진행중
                     totalRecords++;
                 }
             } else if ("BCOSTM".equals(item.orcTb())) {
