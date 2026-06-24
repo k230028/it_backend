@@ -62,8 +62,11 @@ public class Bprojm extends BaseEntity {
     @Column(name = "ABUS_NM", length = 100, comment = "사업명")
     private String abusNm;
 
-    /** 업무유형코드: 사업의 성격 분류 (예: 신규개발, 고도화, 유지보수) */
-    @Column(name = "BZ_TP_C", length = 6, comment = "업무유형코드")
+    /**
+     * 사업유형: 코드값이 아닌 코드값명(공통코드 ABUS_PPO)을 직접 저장.
+     * 물리컬럼 ABUS_PPO_CONE(사업목적내용). Java 필드명 bzTpC는 API 계약 안정성을 위해 유지.
+     */
+    @Column(name = "ABUS_PPO_CONE", length = 300, comment = "사업유형명 (물리컬럼 ABUS_PPO_CONE=사업목적내용, 공통코드 ABUS_PPO 코드값명 저장)")
     private String bzTpC;
 
     /** 주관부서: 사업을 주관하는 업무 부서 코드 (최대 20자) */
@@ -134,16 +137,22 @@ public class Bprojm extends BaseEntity {
     @Column(name = "HRF_PLN_CONE", length = 300, comment = "향후계획 (물리컬럼 HRF_PLN_CONE=향후계획내용)")
     private String hrfPlnCone;
 
-    /** 업무구분: 사업이 속하는 업무 영역 구분 (최대 100자, 예: 리테일, 기업금융) */
-    @Column(name = "BZ_DTT_NM", length = 100, comment = "업무구분 (물리컬럼 BZ_DTT_NM=업무구분명)")
+    /** 업무구분: 코드값이 아닌 코드값명(공통코드 BZ_DTT)을 직접 저장 (최대 100자, 예: 리테일, 기업금융) */
+    @Column(name = "BZ_DTT_NM", length = 100, comment = "업무구분명 (공통코드 BZ_DTT 코드값명 저장)")
     private String bzDttNm;
 
-    /** 기술유형: 사업에 적용되는 기술 분류 (예: 웹, 앱, AI, 빅데이터) */
-    @Column(name = "IT_PTL_TCHN_TP_TC", length = 2, comment = "IT포탈기술유형구분코드 (공통코드 2자리)")
+    /**
+     * 기술분야: 코드값이 아닌 코드값명(공통코드 SKL_FLD)을 직접 저장.
+     * 물리컬럼 SKL_FLD_NM. Java 필드명 sklTpTc는 API 계약 안정성을 위해 유지.
+     */
+    @Column(name = "SKL_FLD_NM", length = 500, comment = "기술분야명 (물리컬럼 SKL_FLD_NM, 공통코드 SKL_FLD 코드값명 저장)")
     private String sklTpTc;
 
-    /** 주요사용자: 시스템의 주요 사용자 그룹 (예: 내부직원, 고객, 전체) */
-    @Column(name = "CST_TP_TC", length = 3, comment = "주요사용자 (물리컬럼 CST_TP_TC=고객유형구분코드)")
+    /**
+     * 주요사용자/고객유형: 코드값이 아닌 코드값명(공통코드 CST_TP_TC)을 직접 저장.
+     * 물리컬럼 CST_TP_TC_NM. Java 필드명 cstTpTc는 API 계약 안정성을 위해 유지.
+     */
+    @Column(name = "CST_TP_TC_NM", length = 1000, comment = "고객유형구분코드명 (물리컬럼 CST_TP_TC_NM, 공통코드 CST_TP_TC 코드값명 저장)")
     private String cstTpTc;
 
     /** 중복여부: 기존 유사 사업과의 중복 여부 ('Y'=중복, 'N'=미중복) */

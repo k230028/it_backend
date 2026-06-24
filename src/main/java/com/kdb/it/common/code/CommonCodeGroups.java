@@ -15,8 +15,8 @@ public final class CommonCodeGroups {
     public static final String TERM_SERVICE = "IT_PTL_TMN_SVC_TC";
     /** 단말기이용방식 (구 TMN_MAGR) */
     public static final String TERM_KIND = "IT_PTL_TMN_KD_TC";
-    /** 기술유형 (구 TCHN_TP) */
-    public static final String TECH_TYPE = "IT_PTL_TCHN_TP_TC";
+    /** 기술분야 (구 TCHN_TP → IT_PTL_TCHN_TP_TC, 그룹ID 통일) */
+    public static final String TECH_TYPE = "SKL_FLD";
     /** 발송구분코드 (구 SD) */
     public static final String SEND_DTT = "SD_TC";
     /** 보고상태 (구 RPR_STS) */
@@ -44,9 +44,9 @@ public final class CommonCodeGroups {
     /** 사업구분코드 (구 PUL_DTT, 값 001/002→01/02) */
     public static final String ABUS = "ABUS_TC";
 
-    // 그룹ID 불변(명칭만 변경) — 상수 집약용
-    /** 사업유형 (불변) */
-    public static final String PRJ_TYPE = "PRJ_TP";
+    // 사업/업무 관련 그룹 — 상수 집약용
+    /** 사업유형 (구 PRJ_TP → ABUS_PPO, 그룹ID 통일) */
+    public static final String PRJ_TYPE = "ABUS_PPO";
     /** 업무구분 (불변) */
     public static final String BZ_DTT = "BZ_DTT";
     /** 예산 신청기간 (불변) */

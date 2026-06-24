@@ -31,7 +31,7 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "ABUS_NM", length = 200, comment = "사업명")
     private String abusNm;
 
-    @Column(name = "BZ_TP_C", length = 100, comment = "업무유형코드")
+    @Column(name = "ABUS_PPO_CONE", length = 300, comment = "사업유형명 (물리컬럼 ABUS_PPO_CONE=사업목적내용)")
     private String bzTpC;
 
     @Column(name = "SVN_DPM_C", length = 100, comment = "주관부서")
@@ -85,13 +85,13 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "HRF_PLN_CONE", length = 1000, comment = "향후계획")
     private String hrfPlnCone;
 
-    @Column(name = "BZ_DTT_NM", length = 32, comment = "업무구분")
+    @Column(name = "BZ_DTT_NM", length = 100, comment = "업무구분명")
     private String bzDttNm;
 
-    @Column(name = "IT_PTL_TCHN_TP_TC", length = 2, comment = "IT포탈기술유형구분코드 (공통코드 2자리)")
+    @Column(name = "SKL_FLD_NM", length = 500, comment = "기술분야명 (물리컬럼 SKL_FLD_NM)")
     private String sklTpTc;
 
-    @Column(name = "CST_TP_TC", length = 32, comment = "주요사용자")
+    @Column(name = "CST_TP_TC_NM", length = 1000, comment = "고객유형구분코드명 (물리컬럼 CST_TP_TC_NM)")
     private String cstTpTc;
 
     @Column(name = "DPL_YN", length = 1, comment = "중복여부")

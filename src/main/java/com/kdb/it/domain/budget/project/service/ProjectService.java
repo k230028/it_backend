@@ -717,10 +717,6 @@ public class ProjectService {
         // --- 4. 부서코드·사원번호·공통코드 수집 ---
         Set<String> orgCodes = new java.util.HashSet<>();
         Set<String> userEnos = new java.util.HashSet<>();
-        Set<String> prjTpCdvas = new java.util.HashSet<>();
-        Set<String> bzDttCdvas = new java.util.HashSet<>();
-        Set<String> tchnTpCdvas = new java.util.HashSet<>();
-        Set<String> mnUsrCdvas = new java.util.HashSet<>();
         Set<String> rprStsCdvas = new java.util.HashSet<>();
         Set<String> prjPulPttCdvas = new java.util.HashSet<>();
         Set<String> pulDttCdvas = new java.util.HashSet<>();
@@ -731,10 +727,7 @@ public class ProjectService {
             if (r.getTlrUsid() != null && !r.getTlrUsid().isEmpty()) userEnos.add(r.getTlrUsid());
             if (r.getUsid() != null && !r.getUsid().isEmpty()) userEnos.add(r.getUsid());
             if (r.getDvmTlrUsid() != null && !r.getDvmTlrUsid().isEmpty()) userEnos.add(r.getDvmTlrUsid());
-            if (r.getBzTpC() != null && !r.getBzTpC().isEmpty()) prjTpCdvas.add(r.getBzTpC());
-            if (r.getBzDttNm() != null && !r.getBzDttNm().isEmpty()) bzDttCdvas.add(r.getBzDttNm());
-            if (r.getSklTpTc() != null && !r.getSklTpTc().isEmpty()) tchnTpCdvas.add(r.getSklTpTc());
-            if (r.getCstTpTc() != null && !r.getCstTpTc().isEmpty()) mnUsrCdvas.add(r.getCstTpTc());
+            // 사업유형/업무구분/기술분야/고객유형은 컬럼에 코드값명을 직접 저장 → 별도 코드 해석 불필요
             if (r.getRprStsTc() != null && !r.getRprStsTc().isEmpty()) rprStsCdvas.add(r.getRprStsTc());
             if (r.getExePttYn() != null && !r.getExePttYn().isEmpty()) prjPulPttCdvas.add(r.getExePttYn());
             if (r.getAbusTc() != null && !r.getAbusTc().isEmpty()) pulDttCdvas.add(r.getAbusTc());
@@ -745,10 +738,6 @@ public class ProjectService {
                 .collect(Collectors.toMap(CorgnI::getPrlmOgzCCone, CorgnI::getBbrNm));
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
-        Map<String, String> prjTpNameMap = prjTpCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.PRJ_TYPE, prjTpCdvas);
-        Map<String, String> bzDttNameMap = bzDttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.BZ_DTT, bzDttCdvas);
-        Map<String, String> tchnTpNameMap = tchnTpCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.TECH_TYPE, tchnTpCdvas);
-        Map<String, String> mnUsrNameMap = mnUsrCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.MAIN_USER, mnUsrCdvas);
         Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCdvas);
         Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
         Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
@@ -782,10 +771,11 @@ public class ProjectService {
             if (response.getTlrUsid() != null) response.setTlrUsidNm(userNameMap.get(response.getTlrUsid()));
             if (response.getUsid() != null) response.setUsidNm(userNameMap.get(response.getUsid()));
             if (response.getDvmTlrUsid() != null) response.setDvmTlrUsidNm(userNameMap.get(response.getDvmTlrUsid()));
-            if (response.getBzTpC() != null) response.setBzTpCNm(prjTpNameMap.get(response.getBzTpC()));
-            if (response.getBzDttNm() != null) response.setBzDttNmNm(bzDttNameMap.get(response.getBzDttNm()));
-            if (response.getSklTpTc() != null) response.setSklTpTcNm(tchnTpNameMap.get(response.getSklTpTc()));
-            if (response.getCstTpTc() != null) response.setCstTpTcNm(mnUsrNameMap.get(response.getCstTpTc()));
+            // 사업유형/업무구분/기술분야/고객유형: 컬럼값이 곧 코드값명 → 원본값 그대로 사용
+            response.setBzTpCNm(response.getBzTpC());
+            response.setBzDttNmNm(response.getBzDttNm());
+            response.setSklTpTcNm(response.getSklTpTc());
+            response.setCstTpTcNm(response.getCstTpTc());
             if (response.getRprStsTc() != null) response.setRprStsTcNm(rprStsNameMap.get(response.getRprStsTc()));
             if (response.getExePttYn() != null) response.setExePttYnNm(prjPulPttNameMap.get(response.getExePttYn()));
             if (response.getAbusTc() != null) response.setAbusTcNm(pulDttNameMap.get(response.getAbusTc()));
@@ -906,22 +896,11 @@ public class ProjectService {
 
         // === 공통코드 코드값 → 코드명 변환 (TPRMPP_CCODEM) ===
 
-        if (response.getBzTpC() != null && !response.getBzTpC().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.PRJ_TYPE, response.getBzTpC(), null)
-                    .ifPresent(code -> response.setBzTpCNm(code.getCdvaNm()));
-        }
-        if (response.getBzDttNm() != null && !response.getBzDttNm().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.BZ_DTT, response.getBzDttNm(), null)
-                    .ifPresent(code -> response.setBzDttNmNm(code.getCdvaNm()));
-        }
-        if (response.getSklTpTc() != null && !response.getSklTpTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.TECH_TYPE, response.getSklTpTc(), null)
-                    .ifPresent(code -> response.setSklTpTcNm(code.getCdvaNm()));
-        }
-        if (response.getCstTpTc() != null && !response.getCstTpTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.MAIN_USER, response.getCstTpTc(), null)
-                    .ifPresent(code -> response.setCstTpTcNm(code.getCdvaNm()));
-        }
+        // 사업유형/업무구분/기술분야/고객유형: 컬럼에 코드값명을 직접 저장 → 원본값을 그대로 노출
+        response.setBzTpCNm(response.getBzTpC());
+        response.setBzDttNmNm(response.getBzDttNm());
+        response.setSklTpTcNm(response.getSklTpTc());
+        response.setCstTpTcNm(response.getCstTpTc());
         if (response.getRprStsTc() != null && !response.getRprStsTc().isEmpty()) {
             ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.REPORT_STS, response.getRprStsTc(), null)
                     .ifPresent(code -> response.setRprStsTcNm(code.getCdvaNm()));

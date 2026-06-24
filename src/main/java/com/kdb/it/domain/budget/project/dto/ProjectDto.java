@@ -660,19 +660,19 @@ public class ProjectDto {
         @Schema(description = "IT부서담당팀장명")
         private String dvmTlrUsidNm;
 
-        /** 프로젝트유형명: bzTpC 기준 TPRMPP_CCODEM C_NM */
-        @Schema(description = "프로젝트유형명")
+        /** 사업유형명: 컬럼(ABUS_PPO_CONE)에 코드값명을 직접 저장하므로 bzTpC 원본값과 동일 */
+        @Schema(description = "사업유형명")
         private String bzTpCNm;
 
-        /** 업무구분명: bzDttNm 기준 TPRMPP_CCODEM C_NM */
+        /** 업무구분명: 컬럼(BZ_DTT_NM)에 코드값명을 직접 저장하므로 bzDttNm 원본값과 동일 */
         @Schema(description = "업무구분명")
         private String bzDttNmNm;
 
-        /** 기술유형명: sklTpTc 기준 TPRMPP_CCODEM C_NM */
-        @Schema(description = "기술유형명")
+        /** 기술분야명: 컬럼(SKL_FLD_NM)에 코드값명을 직접 저장하므로 sklTpTc 원본값과 동일 */
+        @Schema(description = "기술분야명")
         private String sklTpTcNm;
 
-        /** 주요사용자명: cstTpTc 기준 TPRMPP_CCODEM C_NM */
+        /** 주요사용자명: 컬럼(CST_TP_TC_NM)에 코드값명을 직접 저장하므로 cstTpTc 원본값과 동일 */
         @Schema(description = "주요사용자명")
         private String cstTpTcNm;
 

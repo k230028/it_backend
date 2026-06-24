@@ -1092,11 +1092,11 @@ class ProjectServiceTest {
         @Test
         @DisplayName("getProjectList: 배치 보강 시 buildCodeNameMap이 지정 cdvas만 필터링하여 코드명을 반환한다")
         void buildCodeNameMap_cdvas필터와merge람다커버() {
-                // given: 두 개의 프로젝트 (prjTp="A" 중복 → merge lambda 트리거)
+                // given: 두 개의 프로젝트 (사업유형은 컬럼에 코드값명을 직접 저장)
                 Bprojm project1 = Bprojm.builder()
-                                .abusMngNo("PRJ-2026-0001").sno(1).delYn("N").bzTpC("A").build();
+                                .abusMngNo("PRJ-2026-0001").sno(1).delYn("N").bzTpC("일반사업").build();
                 Bprojm project2 = Bprojm.builder()
-                                .abusMngNo("PRJ-2026-0002").sno(2).delYn("N").bzTpC("A").build();
+                                .abusMngNo("PRJ-2026-0002").sno(2).delYn("N").bzTpC("일반사업").build();
 
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project1, project2));
                 given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
@@ -1104,16 +1104,13 @@ class ProjectServiceTest {
                 given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
                 given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
-                // codeNameMapBuilder: prjTp="A" 코드명 반환 (cdva 필터는 헬퍼 내부 책임)
-                given(codeNameMapBuilder.build(anyString(), any()))
-                                .willReturn(Map.of("A", "일반사업"));
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
 
                 // when
                 List<ProjectDto.Response> result = projectService.getProjectList();
 
-                // then: 두 프로젝트 모두 반환되며 prjTpNm이 "일반사업"으로 설정됨
+                // then: 두 프로젝트 모두 반환되며 bzTpCNm이 컬럼값(명) 그대로 설정됨
                 assertThat(result).hasSize(2);
                 assertThat(result.get(0).getBzTpCNm()).isEqualTo("일반사업");
                 assertThat(result.get(1).getBzTpCNm()).isEqualTo("일반사업");
@@ -1195,8 +1192,9 @@ class ProjectServiceTest {
                 // given: 코드 필드가 모두 있는 프로젝트 → buildCodeNameMap 분기 다수 커버
                 Bprojm project = Bprojm.builder()
                                 .abusMngNo("PRJ-2026-0001").sno(1).delYn("N")
-                                .bzTpC("A").bzDttNm("B1").sklTpTc("C1")
-                                .cstTpTc("D1").rprStsTc("E1").exePttYn("F1").abusTc("G1")
+                                // 사업유형/업무구분/기술분야/고객유형은 컬럼에 코드값명을 직접 저장
+                                .bzTpC("사업유형A").bzDttNm("업무구분B1").sklTpTc("기술분야C1")
+                                .cstTpTc("주요사용자D1").rprStsTc("E1").exePttYn("F1").abusTc("G1")
                                 .build();
 
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
@@ -1207,8 +1205,7 @@ class ProjectServiceTest {
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
                 // codeNameMapBuilder: 요청된 cdva 집합을 전체 코드명 맵에서 필터링(헬퍼 동작 모사)
                 Map<String, String> allCodeNames = Map.of(
-                                "A", "사업유형A", "B1", "업무구분B1", "C1", "기술유형C1",
-                                "D1", "주요사용자D1", "E1", "보고상태E1", "F1", "추진가능F1", "G1", "사업구분G1");
+                                "E1", "보고상태E1", "F1", "추진가능F1", "G1", "사업구분G1");
                 given(codeNameMapBuilder.build(anyString(), any())).willAnswer(inv -> {
                         Set<String> requested = inv.getArgument(1);
                         Map<String, String> filtered = new HashMap<>();
@@ -1229,8 +1226,8 @@ class ProjectServiceTest {
 
                 // then: 프로젝트 1건 반환
                 assertThat(result).hasSize(1);
+                // 사업유형/업무구분은 컬럼값(코드값명)을 그대로 *Nm 필드에 노출
                 assertThat(result.get(0).getBzTpCNm()).isEqualTo("사업유형A");
-                // 업무구분 코드명은 bzDttNmNm(코드명 필드)에 저장; bzDttNm은 원본 코드값 필드
                 assertThat(result.get(0).getBzDttNmNm()).isEqualTo("업무구분B1");
         }
 
@@ -1788,8 +1785,9 @@ class ProjectServiceTest {
                 String prjMngNo = "PRJ-2026-CODE";
                 Bprojm project = Bprojm.builder()
                                 .abusMngNo(prjMngNo).sno(1)
-                                .bzTpC("TP01").bzDttNm("BZ01").sklTpTc("TC01")
-                                .cstTpTc("MN01").rprStsTc("RS01").exePttYn("PP01").abusTc("PD01")
+                                // 사업유형/업무구분/기술분야/고객유형은 컬럼에 코드값명을 직접 저장
+                                .bzTpC("신규개발").bzDttNm("금융").sklTpTc("AI")
+                                .cstTpTc("직접관리").rprStsTc("RS01").exePttYn("PP01").abusTc("PD01")
                                 .dvmDpmC("101").svnDpmC("102")
                                 .dvmUsid("10001").dvmTlrUsid("10002")
                                 .usid("10003").tlrUsid("10004")
@@ -1817,15 +1815,7 @@ class ProjectServiceTest {
                 given(cuserIRepository.findById("10004")).willReturn(Optional.of(
                                 CuserI.builder().eno("10004").usrNm("팀장2").build()));
 
-                // 공통코드 코드명 설정
-                given(ccodemRepository.findByCIdAndCdvaWithValidDate("PRJ_TP", "TP01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("PRJ_TP").cdva("TP01").cdvaNm("신규개발").build()));
-                given(ccodemRepository.findByCIdAndCdvaWithValidDate("BZ_DTT", "BZ01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("BZ_DTT").cdva("BZ01").cdvaNm("금융").build()));
-                given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_PTL_TCHN_TP_TC", "TC01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("IT_PTL_TCHN_TP_TC").cdva("TC01").cdvaNm("AI").build()));
-                given(ccodemRepository.findByCIdAndCdvaWithValidDate("CST_TP_TC", "MN01", null))
-                                .willReturn(Optional.of(Ccodem.builder().cId("CST_TP_TC").cdva("MN01").cdvaNm("직접관리").build()));
+                // 공통코드 코드명 설정 (사업유형/업무구분/기술분야/고객유형은 컬럼값=명이므로 해석 불필요)
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_PTL_RPR_STS_TC", "RS01", null))
                                 .willReturn(Optional.of(Ccodem.builder().cId("IT_PTL_RPR_STS_TC").cdva("RS01").cdvaNm("검토중").build()));
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("EXE_PTT_YN", "PP01", null))
