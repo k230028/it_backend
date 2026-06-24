@@ -6,6 +6,7 @@ import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
+import com.kdb.it.domain.budget.project.entity.QBproja;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.JPAExpressions;
@@ -153,8 +154,26 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
         if (condition.getBseYy() != null && !condition.getBseYy().isBlank()) {
             builder.and(bprojm.bseYy.eq(condition.getBseYy()));
         }
-        // 프로젝트상태 필터: BPROJA 대표상태로 전환됨 — BPROJM 컬럼 미존재로 현재 미적용.
-        // TODO: BPROJA 대표상태 서브쿼리로 필터링 구현 (2차 범위)
+        // 프로젝트상태 필터: 대표상태(해당 프로젝트 BPROJA 중 MAX IT_PTL_STS_TC)가 조건과 일치하는 프로젝트만.
+        if (condition.getStsTc() != null && !condition.getStsTc().isBlank()) {
+            QBproja bproja = new QBproja("bproja");
+            QBproja bprojaMax = new QBproja("bprojaMax");
+            builder.and(
+                    JPAExpressions.selectOne()
+                            .from(bproja)
+                            .where(
+                                    bproja.abusMngNo.eq(bprojm.abusMngNo),
+                                    bproja.delYn.eq("N"),
+                                    bproja.stsTc.eq(condition.getStsTc()),
+                                    // 이 행의 상태가 해당 프로젝트의 최대 상태인지
+                                    bproja.stsTc.eq(
+                                            JPAExpressions.select(bprojaMax.stsTc.max())
+                                                    .from(bprojaMax)
+                                                    .where(
+                                                            bprojaMax.abusMngNo.eq(bprojm.abusMngNo),
+                                                            bprojaMax.delYn.eq("N"))))
+                            .exists());
+        }
         // 프로젝트유형 필터
         if (condition.getBzTpC() != null && !condition.getBzTpC().isBlank()) {
             builder.and(bprojm.bzTpC.eq(condition.getBzTpC()));
