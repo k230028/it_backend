@@ -63,6 +63,8 @@ public class PlanService {
         /** JSON 직렬화/역직렬화: 계획 스냅샷 파싱용 */
         private final ObjectMapper objectMapper;
 
+        private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
+
         /**
          * 전체 계획 목록을 조회합니다.
          *
@@ -274,6 +276,7 @@ public class PlanService {
                                         .reqDocNo(reqDocNo)
                                         .build();
                         bplanaRepository.save(relation);
+                        bprojaSyncService.upsert(prjMngNo, reqDocNo, "11"); // 계획 진행중
                 }
                 for (String itMngcNo : itMngcNos) {
                         Bplana relation = Bplana.builder()
@@ -313,6 +316,7 @@ public class PlanService {
                 for (Bplana relation : relations) {
                         relation.delete();
                         bplanaRepository.save(relation);
+                        bprojaSyncService.softDelete(relation.getPrjMngNo(), reqDocNo);
                 }
         }
 
