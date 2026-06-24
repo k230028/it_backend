@@ -31,6 +31,7 @@ public class ContractService {
     private final ContractRepository contractRepository;
     private final ProjectRepository projectRepository;
     private final CostRepository costRepository;
+    private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
 
     /**
      * 신규 입찰계약 의뢰를 생성한다.
@@ -53,6 +54,9 @@ public class ContractService {
                 .docMngNo(docNo).docVrsSno(1).lstYn("Y")
                 .bgPrnTc(req.bgPrnTc()).cncdRfrNo(req.cncdRfrNo())
                 .stsTc(STS_DRAFT).reqCone(req.reqCone()).build());
+        if (TGT_PROJECT.equals(req.bgPrnTc())) {
+            bprojaSyncService.upsert(req.cncdRfrNo(), docNo, STS_DRAFT);
+        }
         return docNo;
     }
 
@@ -104,6 +108,9 @@ public class ContractService {
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         e.delete();
+        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+            bprojaSyncService.softDelete(e.getCncdRfrNo(), docNo);
+        }
     }
 
     /**
@@ -123,6 +130,9 @@ public class ContractService {
                 || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
         if (!ok) throw new IllegalStateException("허용되지 않은 상태 전이입니다: " + from + " → " + to);
         e.changeStatus(to);
+        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+            bprojaSyncService.upsert(e.getCncdRfrNo(), docNo, to);
+        }
     }
 
     /**
