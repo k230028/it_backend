@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 입찰계약 서비스. 상태 61→62→69. 대상구분 100=사업/200=전산업무비.
+ * 입찰계약 서비스. 상태 71→75→79. 대상구분 100=사업/200=전산업무비.
  * 쓰기 주체: 작성중=신청자/부서, 진행중 계약입력=작업자(IT계약팀). 상태 전이는 인접만 허용.
  */
 @Service
@@ -22,9 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ContractService {
 
-    static final String STS_DRAFT = "61";
-    static final String STS_IN_PROGRESS = "62";
-    static final String STS_DONE = "69";
+    static final String STS_DRAFT = "71";
+    static final String STS_IN_PROGRESS = "75";
+    static final String STS_DONE = "79";
     static final String TGT_PROJECT = "100";
     static final String TGT_COST = "200";
 
@@ -80,7 +80,7 @@ public class ContractService {
     }
 
     /**
-     * 입찰계약 요청내용을 수정한다. 작성중(61) 상태에서만 수정 가능하다.
+     * 입찰계약 요청내용을 수정한다. 작성중(71) 상태에서만 수정 가능하다.
      *
      * @param docNo 문서관리번호
      * @param req   수정 요청 DTO
@@ -96,7 +96,7 @@ public class ContractService {
     }
 
     /**
-     * 입찰계약을 논리 삭제한다. 작성중(61) 상태에서만 삭제 가능하다.
+     * 입찰계약을 논리 삭제한다. 작성중(71) 상태에서만 삭제 가능하다.
      *
      * @param docNo 문서관리번호
      * @param user  요청자 인증 정보
@@ -114,7 +114,7 @@ public class ContractService {
     }
 
     /**
-     * 입찰계약 상태를 전이한다. 허용 전이: 61→62, 62→69.
+     * 입찰계약 상태를 전이한다. 허용 전이: 71→75, 75→79.
      *
      * @param docNo 문서관리번호
      * @param req   상태 전이 요청 DTO
@@ -136,7 +136,7 @@ public class ContractService {
     }
 
     /**
-     * 계약 정보를 입력한다. 진행중(62) 상태에서만 입력 가능하다.
+     * 계약 정보를 입력한다. 진행중(75) 상태에서만 입력 가능하다.
      *
      * @param docNo 문서관리번호
      * @param req   계약 정보 입력 DTO

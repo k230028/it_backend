@@ -36,7 +36,7 @@ public interface EstimateRepository extends JpaRepository<Bestim, BestimId>, Est
     /**
      * 동일 사업·대상구분에 대해 지정 상태 중 하나인 미삭제 산정 문서가 이미 존재하는지 확인합니다.
      *
-     * <p>중복 신청 방지: stsTc가 "41"(작성중) 또는 "42"(진행중)인 건이 있으면 신규 신청 불가.</p>
+     * <p>중복 신청 방지: stsTc가 "51"(작성중) 또는 "55"(진행중)인 건이 있으면 신규 신청 불가.</p>
      *
      * @param bgPrnTc   예산성격구분코드
      * @param cncdRfrNo 관련참조번호(사업관리번호)

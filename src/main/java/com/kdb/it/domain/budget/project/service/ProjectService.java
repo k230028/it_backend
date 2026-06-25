@@ -118,6 +118,9 @@ public class ProjectService {
     /** 정보화사업관계(TPRMPP_BPROJA) 리포지토리: 프로젝트 대표상태(MAX IT_PTL_STS_TC) 계산용 */
     private final com.kdb.it.domain.budget.project.repository.BprojaRepository bprojaRepository;
 
+    /** 정보화사업관계(TPRMPP_BPROJA) 동기화 서비스: 예산편성 단계 상태(작성중 01) 적재용 */
+    private final BprojaSyncService bprojaSyncService;
+
     /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (Cost/Project 서비스 공용) */
     private final CodeNameMapBuilder codeNameMapBuilder;
 
@@ -333,6 +336,11 @@ public class ProjectService {
                 bitemmRepository.save(newItem);
             }
         }
+
+        // 정보화사업관계(BPROJA) 적재: 예산편성 요청 작성중(IT_PTL_STS_TC='01').
+        // 예산편성 단계는 별도 단계 문서가 없으므로 단계 key(CNCD_RFR_NO)는 프로젝트관리번호 자신으로 둔다.
+        // 이후 결재 상신('02')/완료('09')가 동일 BPROJA 행을 멱등 upsert 하여 대표상태(MAX)에 반영된다.
+        bprojaSyncService.upsert(prjMngNo, prjMngNo, "01");
 
         return project.getAbusMngNo(); // 저장된 관리번호 반환
     }

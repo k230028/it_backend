@@ -73,10 +73,10 @@ class EstimateControllerTest {
         given(estimateService.list(any(), any(), any()))
                 .willReturn(List.of(new EstimateDto.ListItem(
                         "REQ-2026-0001", 1, "100", "PRJ-1",
-                        "테스트사업", "41", "10001", null)));
+                        "테스트사업", "51", "10001", null)));
 
         mockMvc.perform(get("/api/project/estimates")
-                        .param("status", "41")
+                        .param("status", "51")
                         .param("cncdRfrNo", "PRJ-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].rqmBgReqDocNo").value("REQ-2026-0001"));
@@ -89,7 +89,7 @@ class EstimateControllerTest {
         given(estimateService.get("REQ-2026-0001"))
                 .willReturn(new EstimateDto.Detail(
                         "REQ-2026-0001", 1, "100", "PRJ-1", "테스트사업",
-                        "41", "요청", "10001", null, List.of()));
+                        "51", "요청", "10001", null, List.of()));
 
         mockMvc.perform(get("/api/project/estimates/REQ-2026-0001"))
                 .andExpect(status().isOk())
@@ -137,7 +137,7 @@ class EstimateControllerTest {
         mockMvc.perform(post("/api/project/estimates/REQ-2026-0001/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new EstimateDto.StatusRequest("42"))))
+                                new EstimateDto.StatusRequest("55"))))
                 .andExpect(status().isOk());
     }
 

@@ -37,7 +37,7 @@ class EstimateRepositoryTest {
                 .lstYn("Y")
                 .bgPrnTc("100")
                 .cncdRfrNo("PRJ-2026-0001")
-                .stsTc("41")
+                .stsTc("51")
                 .reqCone("산정 요청합니다")
                 .build();
     }
@@ -60,7 +60,7 @@ class EstimateRepositoryTest {
         // Assert
         assertThat(found).isPresent();
         assertThat(found.get().getRqmBgReqDocNo()).isEqualTo("BEG-2026-00000001");
-        assertThat(found.get().getStsTc()).isEqualTo("41");
+        assertThat(found.get().getStsTc()).isEqualTo("51");
         assertThat(found.get().getDocVrsSno()).isEqualTo(1);
         verify(repository).findByRqmBgReqDocNoAndLstYnAndDelYn("BEG-2026-00000001", "Y", "N");
     }
@@ -88,7 +88,7 @@ class EstimateRepositoryTest {
     @DisplayName("동일 사업에 작성중/진행중 건이 있으면 true를 반환한다")
     void existsActiveDuplicate_returnsTrue() {
         // Arrange
-        List<String> activeStatuses = List.of("41", "42");
+        List<String> activeStatuses = List.of("51", "55");
         given(repository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
                 "100", "PRJ-2026-0001", activeStatuses, "N"))
                 .willReturn(true);
@@ -105,7 +105,7 @@ class EstimateRepositoryTest {
     @DisplayName("동일 사업에 활성 건이 없으면 false를 반환한다")
     void existsActiveDuplicate_noMatch_returnsFalse() {
         // Arrange
-        List<String> activeStatuses = List.of("41", "42");
+        List<String> activeStatuses = List.of("51", "55");
         given(repository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
                 "100", "PRJ-2026-NEW", activeStatuses, "N"))
                 .willReturn(false);
@@ -128,7 +128,7 @@ class EstimateRepositoryTest {
         // Arrange
         EstimateDto.ListItem item = new EstimateDto.ListItem(
                 "BEG-2026-00000001", 1, "100", "PRJ-2026-0001",
-                "클라우드 전환 사업", "41", "EMP001", null);
+                "클라우드 전환 사업", "51", "EMP001", null);
         given(repository.search(null, null, null)).willReturn(List.of(item));
 
         // Act
@@ -144,13 +144,13 @@ class EstimateRepositoryTest {
     @DisplayName("stsTc 조건으로 필터링된 목록을 반환한다")
     void search_withStsTc_returnsFiltered() {
         // Arrange
-        given(repository.search("42", null, null)).willReturn(List.of());
+        given(repository.search("55", null, null)).willReturn(List.of());
 
         // Act
-        List<EstimateDto.ListItem> result = repository.search("42", null, null);
+        List<EstimateDto.ListItem> result = repository.search("55", null, null);
 
         // Assert
         assertThat(result).isEmpty();
-        verify(repository).search("42", null, null);
+        verify(repository).search("55", null, null);
     }
 }

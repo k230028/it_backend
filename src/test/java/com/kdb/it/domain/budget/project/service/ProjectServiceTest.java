@@ -91,6 +91,12 @@ class ProjectServiceTest {
         private com.kdb.it.domain.budget.cost.util.XcrLookupService xcrLookupService;
         @Mock
         private ProjectBudgetSummaryService projectBudgetSummaryService;
+        /** 정보화사업관계(BPROJA) 리포지토리 (대표상태 MAX 계산 — 읽기 경로 의존성) */
+        @Mock
+        private com.kdb.it.domain.budget.project.repository.BprojaRepository bprojaRepository;
+        /** 정보화사업관계(BPROJA) 동기화 서비스 (예산편성 작성중 '01' 적재 의존성) */
+        @Mock
+        private BprojaSyncService bprojaSyncService;
         /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (CodeNameMapBuilder 추출 후 의존성) */
         @Mock
         private com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder codeNameMapBuilder;
@@ -324,6 +330,23 @@ class ProjectServiceTest {
                 assertThat(result).matches("PRJ-2026-\\d{4}");
                 // repository.save() 호출 확인
                 verify(projectRepository).save(any(Bprojm.class));
+        }
+
+        @Test
+        @DisplayName("createProject: 예산편성 요청 작성중 상태(IT_PTL_STS_TC='01')를 BPROJA에 적재한다")
+        void createProject_BPROJA_작성중01_적재() {
+                // given: 관리번호 미입력 → PRJ-2026-0001 채번
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .abusNm("신규 정보화사업")
+                                .bseYy("2026")
+                                .build();
+                given(projectRepository.getNextSequenceValue()).willReturn(1L);
+
+                // when
+                String result = projectService.createProject(request);
+
+                // then: 단계 key(CNCD_RFR_NO)=프로젝트관리번호 자신, 상태 '01'로 upsert
+                verify(bprojaSyncService).upsert(result, result, "01");
         }
 
         // ───────────────────────────────────────────────────────

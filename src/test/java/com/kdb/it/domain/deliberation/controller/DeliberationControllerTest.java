@@ -71,10 +71,10 @@ class DeliberationControllerTest {
     void list_returns200() throws Exception {
         given(deliberationService.list(any(), any(), any(), any()))
                 .willReturn(List.of(new DeliberationDto.ListItem(
-                        "DLB-2026-0001", 1, "100", "PRJ-1", "51", "01", "10001", null)));
+                        "DLB-2026-0001", 1, "100", "PRJ-1", "61", "01", "10001", null)));
 
         mockMvc.perform(get("/api/project/deliberations")
-                        .param("status", "51")
+                        .param("status", "61")
                         .param("prnTc", "100")
                         .param("cncdRfrNo", "PRJ-1"))
                 .andExpect(status().isOk())
@@ -88,7 +88,7 @@ class DeliberationControllerTest {
         given(deliberationService.get("DLB-2026-0001"))
                 .willReturn(new DeliberationDto.Detail(
                         "DLB-2026-0001", 1, "100", "PRJ-1", "테스트사업",
-                        "51", "요청", "01", "01", "20260601", "1",
+                        "61", "요청", "01", "01", "20260601", "1",
                         "N", null, "의견", "전결사유", "10001", null));
 
         mockMvc.perform(get("/api/project/deliberations/DLB-2026-0001"))
@@ -137,7 +137,7 @@ class DeliberationControllerTest {
         mockMvc.perform(post("/api/project/deliberations/DLB-2026-0001/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new DeliberationDto.StatusRequest("52"))))
+                                new DeliberationDto.StatusRequest("65"))))
                 .andExpect(status().isOk());
     }
 

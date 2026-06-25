@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 소요예산 산정 서비스.
  *
- * <p>상태: 41(작성중) → 42(진행중) → 49(완료). 대상구분 100=정보화사업.</p>
+ * <p>상태: 51(작성중) → 55(진행중) → 59(완료). 대상구분 100=정보화사업.</p>
  * <p>쓰기 주체: 작성중=신청자/부서, 진행중 작업=작업자(부서담당자/관리자). 상태 전이는 인접만 허용.</p>
  */
 @Service
@@ -30,9 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class EstimateService {
 
-    static final String STS_DRAFT       = "41";
-    static final String STS_IN_PROGRESS = "42";
-    static final String STS_DONE        = "49";
+    static final String STS_DRAFT       = "51";
+    static final String STS_IN_PROGRESS = "55";
+    static final String STS_DONE        = "59";
     static final String TGT_PROJECT     = "100";
 
     private final EstimateRepository estimateRepository;
@@ -47,7 +47,7 @@ public class EstimateService {
      * @param user 요청자 인증 정보
      * @return 채번된 문서번호 (REQ-{YYYY}-{4자리})
      * @throws IllegalArgumentException 대상 사업 미존재
-     * @throws IllegalStateException    동일 대상에 진행 중(41/42) 문서 존재
+     * @throws IllegalStateException    동일 대상에 진행 중(51/55) 문서 존재
      */
     @Transactional
     public String create(EstimateDto.CreateRequest req, CustomUserDetails user) {
@@ -75,7 +75,7 @@ public class EstimateService {
     }
 
     /**
-     * 마스터 수정 — 작성중(41) 상태에서만 가능.
+     * 마스터 수정 — 작성중(51) 상태에서만 가능.
      *
      * @param docNo 소요예산요청문서번호
      * @param req   수정 요청 (요청내용)
@@ -93,7 +93,7 @@ public class EstimateService {
     }
 
     /**
-     * Soft delete — 작성중(41) 상태에서만 가능.
+     * Soft delete — 작성중(51) 상태에서만 가능.
      *
      * @param docNo 소요예산요청문서번호
      * @param user  요청자 인증 정보
@@ -113,7 +113,7 @@ public class EstimateService {
     }
 
     /**
-     * 상태 전이 — 인접 전이만 허용: 41→42, 42→49.
+     * 상태 전이 — 인접 전이만 허용: 51→55, 55→59.
      *
      * @param docNo 소요예산요청문서번호
      * @param req   상태 전이 요청 (목표 상태코드)
@@ -174,7 +174,7 @@ public class EstimateService {
     }
 
     /**
-     * 팀별 산정 명세 일괄 저장 — 진행중(42) 상태에서만 가능.
+     * 팀별 산정 명세 일괄 저장 — 진행중(55) 상태에서만 가능.
      *
      * <p>요청에 포함된 (팀코드+비목코드) 행은 추가/수정하고,
      * 요청에 없는 기존 행은 Soft Delete 처리합니다 (Bitemm 동기화 패턴).</p>

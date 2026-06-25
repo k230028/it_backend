@@ -72,8 +72,6 @@ public class BudgetWorkService {
     /** 전산업무비 리포지토리 (TPRMPP_BCOSTM): 계약명 조회용 */
     private final CostRepository costRepository;
 
-    private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
-
     /**
      * 편성비목 목록 조회 (API-01)
      *
@@ -319,7 +317,6 @@ public class BudgetWorkService {
                             .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
-                    bprojaSyncService.upsert(item.orcPkVl(), bbugtm.getBgNo(), "03"); // 예산편성 작업 진행중
                     totalRecords++;
                 }
             } else if ("BCOSTM".equals(item.orcTb())) {

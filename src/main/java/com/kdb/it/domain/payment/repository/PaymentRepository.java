@@ -35,7 +35,7 @@ public interface PaymentRepository extends JpaRepository<Bpaymm, BpaymmId>, Paym
     /**
      * 동일 대상·대상구분에 대해 지정 상태 중 하나인 미삭제 대금지급 문서가 이미 존재하는지 확인합니다.
      *
-     * <p>중복 신청 방지: stsTc가 "71"(작성중) 또는 "72"(진행중)인 건이 있으면 신규 의뢰 불가.</p>
+     * <p>중복 신청 방지: stsTc가 "81"(작성중) 또는 "85"(진행중)인 건이 있으면 신규 의뢰 불가.</p>
      *
      * @param bgPrnTc   예산성격구분코드(대상구분)
      * @param cncdRfrNo 관련참조번호(대상관리번호)

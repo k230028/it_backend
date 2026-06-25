@@ -3,6 +3,7 @@ package com.kdb.it.common.approval.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -60,6 +61,7 @@ class ApplicationServiceTest {
     @Mock private CostRepository costRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private ApprovalLineDelegate approvalLineDelegate;
+    @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
 
     @InjectMocks
     private ApplicationService applicationService;
@@ -102,7 +104,8 @@ class ApplicationServiceTest {
                 projectRepository,
                 costRepository,
                 eventPublisher,
-                new ApprovalLineDelegate(new ObjectMapper()));
+                new ApprovalLineDelegate(new ObjectMapper()),
+                bprojaSyncService);
     }
 
     // ───────────────────────────────────────────────────────
@@ -681,6 +684,47 @@ class ApplicationServiceTest {
         assertThat(captor.getAllValues())
                 .extracting(Cappla::getPkColNm)
                 .containsExactly("PRJ-2026-0001", "PRJ-2026-0002", "PRJ-2026-0003");
+    }
+
+    @Test
+    @DisplayName("submit: BPROJM 원천은 BPROJA 결재중('05')으로 적재하고, BCOSTM 원천은 적재하지 않는다")
+    void submit_BPROJM원천_BPROJA결재중02_적재() {
+        given(applicationRepository.getNextVal()).willReturn(1L);
+
+        ApplicationDto.OrcItem project = new ApplicationDto.OrcItem();
+        project.setFntTbNm("BPROJM");
+        project.setPkColNm("PRJ-2026-0001");
+        ApplicationDto.OrcItem cost = new ApplicationDto.OrcItem();
+        cost.setFntTbNm("BCOSTM");
+        cost.setPkColNm("COST-001");
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("E001");
+        request.setApproverEnos(List.of("E002"));
+        request.setOrcItems(List.of(project, cost));
+
+        applicationService.submit(request);
+
+        // BPROJM 프로젝트만 (pk, pk, '05')로 upsert, BCOSTM은 미적재
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "05");
+        verify(bprojaSyncService, never()).upsert(eq("COST-001"), any(), any());
+    }
+
+    @Test
+    @DisplayName("approve: 최종 승인 완료 시 연결된 BPROJM의 BPROJA를 결재완료('09')로 적재한다")
+    void approve_최종승인_BPROJA결재완료09_적재() {
+        Capplm capplm = mockCapplm();
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
+        Cappla bprojm = Cappla.builder().apfDcmNo(APF_MNG_NO).fntTbNm("BPROJM").pkColNm("PRJ-2026-0001").build();
+        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, "BPROJM"))
+                .willReturn(List.of(bprojm));
+
+        applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
+
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "09");
     }
 
     @Test

@@ -178,7 +178,7 @@ class ContractServiceTest {
         @DisplayName("작성중(61) 상태에서 수정 시 요청내용이 갱신된다")
         void update_draft_updatesReqCone() {
             // Arrange
-            Bcontm e = entityWith("61", "100", "PRJ-1");
+            Bcontm e = entityWith("71", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -193,7 +193,7 @@ class ContractServiceTest {
         @DisplayName("작성중이 아닐 때(62) 마스터 수정을 거부한다")
         void update_rejectsWhenNotDraft() {
             // Arrange
-            Bcontm e = entityWith("62", "100", "PRJ-1");
+            Bcontm e = entityWith("75", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -208,7 +208,7 @@ class ContractServiceTest {
         @DisplayName("완료(69) 상태에서 수정을 거부한다")
         void update_rejectsWhenDone() {
             // Arrange — 완료 상태
-            Bcontm e = entityWith("69", "100", "PRJ-1");
+            Bcontm e = entityWith("79", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -231,7 +231,7 @@ class ContractServiceTest {
         @DisplayName("작성중(61) 상태에서 삭제 시 DEL_YN이 Y로 변경된다")
         void delete_draft_setsDelYn() {
             // Arrange
-            Bcontm e = entityWith("61", "100", "PRJ-1");
+            Bcontm e = entityWith("71", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -246,7 +246,7 @@ class ContractServiceTest {
         @DisplayName("작성중이 아닐 때(62) 삭제를 거부한다")
         void delete_rejectsWhenNotDraft() {
             // Arrange
-            Bcontm e = entityWith("62", "100", "PRJ-1");
+            Bcontm e = entityWith("75", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -260,7 +260,7 @@ class ContractServiceTest {
         @DisplayName("완료(69) 상태에서 삭제를 거부한다")
         void delete_rejectsWhenDone() {
             // Arrange
-            Bcontm e = entityWith("69", "100", "PRJ-1");
+            Bcontm e = entityWith("79", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -282,43 +282,43 @@ class ContractServiceTest {
         @DisplayName("작성중(61)→진행중(62) 전이를 허용한다")
         void changeStatus_submitAllowed() {
             // Arrange
-            Bcontm e = entityWith("61", "100", "PRJ-1");
+            Bcontm e = entityWith("71", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act
-            service.changeStatus("CTR-2026-0001", new ContractDto.StatusRequest("62"), requester());
+            service.changeStatus("CTR-2026-0001", new ContractDto.StatusRequest("75"), requester());
 
             // Assert
-            assertThat(e.getStsTc()).isEqualTo("62");
+            assertThat(e.getStsTc()).isEqualTo("75");
         }
 
         @Test
         @DisplayName("진행중(62)→완료(69) 전이를 허용한다")
         void changeStatus_completeAllowed() {
             // Arrange
-            Bcontm e = entityWith("62", "100", "PRJ-1");
+            Bcontm e = entityWith("75", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act
-            service.changeStatus("CTR-2026-0001", new ContractDto.StatusRequest("69"), requester());
+            service.changeStatus("CTR-2026-0001", new ContractDto.StatusRequest("79"), requester());
 
             // Assert
-            assertThat(e.getStsTc()).isEqualTo("69");
+            assertThat(e.getStsTc()).isEqualTo("79");
         }
 
         @Test
         @DisplayName("완료(69)에서 역행 전이(69→62)를 거부한다")
         void changeStatus_rejectsBackward() {
             // Arrange
-            Bcontm e = entityWith("69", "100", "PRJ-1");
+            Bcontm e = entityWith("79", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("62"), requester()))
+                    "CTR-2026-0001", new ContractDto.StatusRequest("75"), requester()))
                     .isInstanceOf(IllegalStateException.class);
         }
 
@@ -326,13 +326,13 @@ class ContractServiceTest {
         @DisplayName("작성중(61)에서 완료(69)로의 비인접 전이를 거부한다")
         void changeStatus_rejectsNonAdjacentTransition() {
             // Arrange — 61→69 는 허용되지 않는 비인접 전이
-            Bcontm e = entityWith("61", "100", "PRJ-1");
+            Bcontm e = entityWith("71", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("69"), requester()))
+                    "CTR-2026-0001", new ContractDto.StatusRequest("79"), requester()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
         }
@@ -341,13 +341,13 @@ class ContractServiceTest {
         @DisplayName("진행중(62)→작성중(61) 역행 전이를 거부한다")
         void changeStatus_rejectsReverseFromInProgress() {
             // Arrange
-            Bcontm e = entityWith("62", "100", "PRJ-1");
+            Bcontm e = entityWith("75", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("61"), requester()))
+                    "CTR-2026-0001", new ContractDto.StatusRequest("71"), requester()))
                     .isInstanceOf(IllegalStateException.class);
         }
     }
@@ -364,7 +364,7 @@ class ContractServiceTest {
         @DisplayName("진행중이 아닐 때(61) 계약 정보 입력을 거부한다")
         void saveContract_rejectsWhenNotInProgress() {
             // Arrange
-            Bcontm e = entityWith("61", "100", "PRJ-1");
+            Bcontm e = entityWith("71", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -381,7 +381,7 @@ class ContractServiceTest {
         @DisplayName("완료(69) 상태에서 계약 정보 입력을 거부한다")
         void saveContract_rejectsWhenDone() {
             // Arrange
-            Bcontm e = entityWith("69", "100", "PRJ-1");
+            Bcontm e = entityWith("79", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -397,7 +397,7 @@ class ContractServiceTest {
         @DisplayName("진행중(62)에서 계약 정보 입력 시 계약 필드가 반영된다")
         void saveContract_inProgress_appliesContractFields() {
             // Arrange
-            Bcontm e = entityWith("62", "100", "PRJ-1");
+            Bcontm e = entityWith("75", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -429,7 +429,7 @@ class ContractServiceTest {
         @DisplayName("소유자가 아닌 사용자가 수정하면 AccessDeniedException이 발생한다")
         void update_rejectsNonOwner() {
             // Arrange — 소유자 E0001, 요청자 E0002(타인), 작성중(61)
-            Bcontm e = entityWith("61", "100", "PRJ-1");
+            Bcontm e = entityWith("71", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -443,7 +443,7 @@ class ContractServiceTest {
         @DisplayName("소유자가 아닌 사용자가 삭제하면 AccessDeniedException이 발생한다")
         void delete_rejectsNonOwner() {
             // Arrange
-            Bcontm e = entityWith("61", "100", "PRJ-1");
+            Bcontm e = entityWith("71", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -456,13 +456,13 @@ class ContractServiceTest {
         @DisplayName("소유자가 아닌 사용자가 상태 전이하면 AccessDeniedException이 발생한다")
         void changeStatus_rejectsNonOwner() {
             // Arrange
-            Bcontm e = entityWith("61", "100", "PRJ-1");
+            Bcontm e = entityWith("71", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("62"), other()))
+                    "CTR-2026-0001", new ContractDto.StatusRequest("75"), other()))
                     .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -470,7 +470,7 @@ class ContractServiceTest {
         @DisplayName("소유자가 아닌 사용자가 계약 정보를 입력하면 AccessDeniedException이 발생한다")
         void saveContract_rejectsNonOwner() {
             // Arrange — 소유권 검증이 상태 검증보다 먼저이므로 작성중(61)이어도 소유권에서 거부
-            Bcontm e = entityWith("61", "100", "PRJ-1");
+            Bcontm e = entityWith("71", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -486,7 +486,7 @@ class ContractServiceTest {
         @DisplayName("관리자는 소유자가 아니어도 수정할 수 있다")
         void update_allowsAdmin() {
             // Arrange — 소유자 E0001, 요청자는 관리자(A0001/ITPAD001)
-            Bcontm e = entityWith("61", "100", "PRJ-1");
+            Bcontm e = entityWith("71", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -510,7 +510,7 @@ class ContractServiceTest {
         @DisplayName("사업(100) 대상 문서 조회 시 사업명이 포함된 상세를 반환한다")
         void get_project_returnsDetailWithTargetName() {
             // Arrange
-            Bcontm e = entityWith("62", "100", "PRJ-1");
+            Bcontm e = entityWith("75", "100", "PRJ-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -532,7 +532,7 @@ class ContractServiceTest {
         @DisplayName("사업 대상 이름 조회 결과가 없을 때 tgtNm은 null이다")
         void get_project_returnsNullTargetNameWhenAbsent() {
             // Arrange — resolveTargetName → Optional.empty() → orElse(null)
-            Bcontm e = entityWith("62", "100", "PRJ-NONE");
+            Bcontm e = entityWith("75", "100", "PRJ-NONE");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
             when(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-NONE", "Y", "N"))
@@ -549,7 +549,7 @@ class ContractServiceTest {
         @DisplayName("전산업무비(200) 대상 문서 조회 시 계약명이 tgtNm으로 반환된다")
         void get_cost_returnsDetailWithTargetName() {
             // Arrange
-            Bcontm e = entityWith("61", "200", "BG-1");
+            Bcontm e = entityWith("71", "200", "BG-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -570,7 +570,7 @@ class ContractServiceTest {
         @DisplayName("전산업무비 대상 이름 조회 결과가 없을 때 tgtNm은 null이다")
         void get_cost_returnsNullTargetNameWhenAbsent() {
             // Arrange — resolveTargetName → Optional.empty() → orElse(null)
-            Bcontm e = entityWith("61", "200", "BG-NONE");
+            Bcontm e = entityWith("71", "200", "BG-NONE");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
             when(costRepository.findByCostBgNoAndLstYnAndDelYn("BG-NONE", "Y", "N"))
@@ -587,7 +587,7 @@ class ContractServiceTest {
         @DisplayName("알 수 없는 대상구분(999)인 문서 조회 시 tgtNm은 null을 반환한다")
         void get_unknownBgPrnTc_returnsNullTargetName() {
             // Arrange — resolveTargetName에서 마지막 return null 경로 진입
-            Bcontm e = entityWith("61", "999", "ANY-1");
+            Bcontm e = entityWith("71", "999", "ANY-1");
             when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -639,30 +639,30 @@ class ContractServiceTest {
         void list_normalUser_usesBbrCFromToken() {
             // Arrange — 일반 사용자의 bbrC="18001"
             ContractDto.ListItem item = new ContractDto.ListItem(
-                    "CTR-2026-0001", 1, "100", "PRJ-1", "61", null, null, "E0001", null);
-            when(contractRepository.search("61", "100", null, "18001"))
+                    "CTR-2026-0001", 1, "100", "PRJ-1", "71", null, null, "E0001", null);
+            when(contractRepository.search("71", "100", null, "18001"))
                     .thenReturn(List.of(item));
 
             // Act
-            List<ContractDto.ListItem> result = service.list("61", "100", null, requester());
+            List<ContractDto.ListItem> result = service.list("71", "100", null, requester());
 
             // Assert
             assertThat(result).hasSize(1);
             assertThat(result.get(0).docMngNo()).isEqualTo("CTR-2026-0001");
-            verify(contractRepository).search("61", "100", null, "18001");
+            verify(contractRepository).search("71", "100", null, "18001");
         }
 
         @Test
         @DisplayName("필터 파라미터(stsTc, bgPrnTc, cncdRfrNo)를 모두 전달하면 그대로 search에 넘긴다")
         void list_allFilters_passedToRepository() {
             // Arrange
-            when(contractRepository.search("62", "200", "BG-1", "18001")).thenReturn(List.of());
+            when(contractRepository.search("75", "200", "BG-1", "18001")).thenReturn(List.of());
 
             // Act
-            service.list("62", "200", "BG-1", requester());
+            service.list("75", "200", "BG-1", requester());
 
             // Assert
-            verify(contractRepository).search("62", "200", "BG-1", "18001");
+            verify(contractRepository).search("75", "200", "BG-1", "18001");
         }
     }
 
@@ -710,7 +710,7 @@ class ContractServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-7777", new ContractDto.StatusRequest("62"), requester()))
+                    "CTR-7777", new ContractDto.StatusRequest("75"), requester()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
 

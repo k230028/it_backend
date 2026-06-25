@@ -73,11 +73,11 @@ class PaymentControllerTest {
     void list_returns200() throws Exception {
         given(paymentService.list(any(), any(), any(), any()))
                 .willReturn(List.of(new PaymentDto.ListItem(
-                        "PAY-2026-0001", 1, "100", "PRJ-1", "71",
+                        "PAY-2026-0001", 1, "100", "PRJ-1", "81",
                         "계약A", new BigDecimal("1000"), "10001", null)));
 
         mockMvc.perform(get("/api/project/payments")
-                        .param("status", "71")
+                        .param("status", "81")
                         .param("prnTc", "100")
                         .param("cncdRfrNo", "PRJ-1"))
                 .andExpect(status().isOk())
@@ -91,7 +91,7 @@ class PaymentControllerTest {
         given(paymentService.get("PAY-2026-0001"))
                 .willReturn(new PaymentDto.Detail(
                         "PAY-2026-0001", 1, "100", "PRJ-1", "테스트사업",
-                        "71", "의뢰", "계약A", new BigDecimal("1000"),
+                        "81", "의뢰", "계약A", new BigDecimal("1000"),
                         "10001", null, List.of()));
 
         mockMvc.perform(get("/api/project/payments/PAY-2026-0001"))
@@ -141,7 +141,7 @@ class PaymentControllerTest {
         mockMvc.perform(post("/api/project/payments/PAY-2026-0001/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new PaymentDto.StatusRequest("72"))))
+                                new PaymentDto.StatusRequest("85"))))
                 .andExpect(status().isOk());
     }
 

@@ -72,11 +72,11 @@ class ContractControllerTest {
     void list_returns200() throws Exception {
         given(contractService.list(any(), any(), any(), any()))
                 .willReturn(List.of(new ContractDto.ListItem(
-                        "CTR-2026-0001", 1, "100", "PRJ-1", "61",
+                        "CTR-2026-0001", 1, "100", "PRJ-1", "71",
                         "계약A", new BigDecimal("1000"), "10001", null)));
 
         mockMvc.perform(get("/api/project/contracts")
-                        .param("status", "61")
+                        .param("status", "71")
                         .param("prnTc", "100")
                         .param("cncdRfrNo", "PRJ-1"))
                 .andExpect(status().isOk())
@@ -90,7 +90,7 @@ class ContractControllerTest {
         given(contractService.get("CTR-2026-0001"))
                 .willReturn(new ContractDto.Detail(
                         "CTR-2026-0001", 1, "100", "PRJ-1", "테스트사업",
-                        "61", "의뢰", "01", "수의계약", "계약A",
+                        "71", "의뢰", "01", "수의계약", "계약A",
                         new BigDecimal("1000"), "공급사", "20260601", "10001", null));
 
         mockMvc.perform(get("/api/project/contracts/CTR-2026-0001"))
@@ -139,7 +139,7 @@ class ContractControllerTest {
         mockMvc.perform(post("/api/project/contracts/CTR-2026-0001/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new ContractDto.StatusRequest("62"))))
+                                new ContractDto.StatusRequest("75"))))
                 .andExpect(status().isOk());
     }
 

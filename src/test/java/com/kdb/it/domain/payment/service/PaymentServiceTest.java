@@ -205,7 +205,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("71")
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("81")
                     .reqCone("기존내용").cttNm("기존계약명").cttAmt(BigDecimal.valueOf(1000000)).fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
@@ -228,7 +228,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -247,7 +247,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("79").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("89").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -274,7 +274,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("71").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("81").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -291,7 +291,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -307,7 +307,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("79").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("89").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -331,15 +331,15 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("71").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("81").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act
-            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("72"), requester());
+            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("85"), requester());
 
             // Assert
-            assertThat(e.getStsTc()).isEqualTo("72");
+            assertThat(e.getStsTc()).isEqualTo("85");
         }
 
         @Test
@@ -348,15 +348,15 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act
-            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("79"), requester());
+            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("89"), requester());
 
             // Assert
-            assertThat(e.getStsTc()).isEqualTo("79");
+            assertThat(e.getStsTc()).isEqualTo("89");
         }
 
         @Test
@@ -365,13 +365,13 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("79").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("89").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("72"), requester()))
+                    "PAY-2026-0001", new PaymentDto.StatusRequest("85"), requester()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
         }
@@ -382,13 +382,13 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("71").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("81").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("79"), requester()))
+                    "PAY-2026-0001", new PaymentDto.StatusRequest("89"), requester()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
         }
@@ -399,13 +399,13 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("71"), requester()))
+                    "PAY-2026-0001", new PaymentDto.StatusRequest("81"), requester()))
                     .isInstanceOf(IllegalStateException.class);
         }
     }
@@ -424,7 +424,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("71").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("81").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -444,7 +444,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("79").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("89").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -462,7 +462,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
@@ -492,7 +492,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
@@ -525,7 +525,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
@@ -556,7 +556,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
@@ -588,7 +588,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
@@ -614,7 +614,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72").fstEnrUsid("E0001").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
@@ -651,7 +651,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("71")
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("81")
                     .reqCone("요청내용").cttNm("계약명").cttAmt(BigDecimal.valueOf(500000)).build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
@@ -680,7 +680,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0002").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("200").cncdRfrNo("BG-1").stsTc("72")
+                    .bgPrnTc("200").cncdRfrNo("BG-1").stsTc("85")
                     .cttNm("유지보수계약").cttAmt(BigDecimal.valueOf(1000000)).build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0002", "Y", "N"))
                     .thenReturn(Optional.of(master));
@@ -713,7 +713,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0003").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-GONE").stsTc("71").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-GONE").stsTc("81").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0003", "Y", "N"))
                     .thenReturn(Optional.of(master));
             when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0003", 1, "N"))
@@ -734,7 +734,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0005").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("200").cncdRfrNo("BG-GONE").stsTc("71").build();
+                    .bgPrnTc("200").cncdRfrNo("BG-GONE").stsTc("81").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0005", "Y", "N"))
                     .thenReturn(Optional.of(master));
             when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0005", 1, "N"))
@@ -755,7 +755,7 @@ class PaymentServiceTest {
             // Arrange - bgPrnTc="999" 같은 비표준 값 → resolveTargetName에서 else null 경로
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0004").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("999").cncdRfrNo("UNKNOWN").stsTc("71").build();
+                    .bgPrnTc("999").cncdRfrNo("UNKNOWN").stsTc("81").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0004", "Y", "N"))
                     .thenReturn(Optional.of(master));
             when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0004", 1, "N"))
@@ -795,8 +795,8 @@ class PaymentServiceTest {
         void list_admin_noBbrCFilter() {
             // Arrange
             List<PaymentDto.ListItem> mockResult = List.of(
-                    new PaymentDto.ListItem("PAY-2026-0001", 1, "100", "PRJ-1", "71", "계약1", BigDecimal.valueOf(1000000), "E0001", null),
-                    new PaymentDto.ListItem("PAY-2026-0002", 1, "200", "BG-1", "72", "계약2", BigDecimal.valueOf(2000000), "E0002", null)
+                    new PaymentDto.ListItem("PAY-2026-0001", 1, "100", "PRJ-1", "81", "계약1", BigDecimal.valueOf(1000000), "E0001", null),
+                    new PaymentDto.ListItem("PAY-2026-0002", 1, "200", "BG-1", "85", "계약2", BigDecimal.valueOf(2000000), "E0002", null)
             );
             when(paymentRepository.search(null, null, null, null)).thenReturn(mockResult);
 
@@ -813,15 +813,15 @@ class PaymentServiceTest {
         void list_regularUser_bbrCFiltered() {
             // Arrange - 사용자 bbrC="18001"
             List<PaymentDto.ListItem> mockResult = List.of(
-                    new PaymentDto.ListItem("PAY-2026-0001", 1, "100", "PRJ-1", "71", "계약1", BigDecimal.valueOf(1000000), "E0001", null)
+                    new PaymentDto.ListItem("PAY-2026-0001", 1, "100", "PRJ-1", "81", "계약1", BigDecimal.valueOf(1000000), "E0001", null)
             );
-            when(paymentRepository.search("71", null, null, "18001")).thenReturn(mockResult);
+            when(paymentRepository.search("81", null, null, "18001")).thenReturn(mockResult);
 
             // Act
-            List<PaymentDto.ListItem> result = service.list("71", null, null, requester());
+            List<PaymentDto.ListItem> result = service.list("81", null, null, requester());
 
             // Assert - 일반 사용자이므로 bbrC="18001"로 search 호출
-            verify(paymentRepository).search("71", null, null, "18001");
+            verify(paymentRepository).search("81", null, null, "18001");
             assertThat(result).hasSize(1);
         }
 
@@ -829,13 +829,13 @@ class PaymentServiceTest {
         @DisplayName("상태코드·대상구분·대상관리번호 필터가 모두 지정된 경우 조건이 그대로 전달된다")
         void list_withAllFilters_passedThrough() {
             // Arrange
-            when(paymentRepository.search("72", "100", "PRJ-1", null)).thenReturn(List.of());
+            when(paymentRepository.search("85", "100", "PRJ-1", null)).thenReturn(List.of());
 
             // Act
-            service.list("72", "100", "PRJ-1", adminUser());
+            service.list("85", "100", "PRJ-1", adminUser());
 
             // Assert
-            verify(paymentRepository).search("72", "100", "PRJ-1", null);
+            verify(paymentRepository).search("85", "100", "PRJ-1", null);
         }
 
         @Test
@@ -866,7 +866,7 @@ class PaymentServiceTest {
             // Arrange
             Bpaymm e = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("71").build();
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("81").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -875,7 +875,7 @@ class PaymentServiceTest {
 
             // Assert
             assertThat(result.getDocMngNo()).isEqualTo("PAY-2026-0001");
-            assertThat(result.getStsTc()).isEqualTo("71");
+            assertThat(result.getStsTc()).isEqualTo("81");
         }
 
         @Test
@@ -904,7 +904,7 @@ class PaymentServiceTest {
         private Bpaymm draftOwnedByE0001() {
             return Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("71")
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("81")
                     .fstEnrUsid("E0001").build();
         }
 
@@ -944,7 +944,7 @@ class PaymentServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("72"), other()))
+                    "PAY-2026-0001", new PaymentDto.StatusRequest("85"), other()))
                     .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -954,7 +954,7 @@ class PaymentServiceTest {
             // Arrange - 진행중(72) 상태 마스터, 소유자 E0001
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("72")
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("85")
                     .fstEnrUsid("E0001").build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));

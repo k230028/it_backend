@@ -47,6 +47,7 @@ class ApplicationServiceRecallTest {
     @Mock private CostRepository costRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private ApprovalLineDelegate approvalLineDelegate;
+    @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
 
     @InjectMocks private ApplicationService service;
 

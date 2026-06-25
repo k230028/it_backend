@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 과업심의 서비스. 상태 51→52→59. 대상구분 100=사업/200=전산업무비.
+ * 과업심의 서비스. 상태 61→65→69. 대상구분 100=사업/200=전산업무비.
  * 쓰기 주체: 작성중=신청자/부서, 진행중 결과입력=작업자. 상태 전이는 인접만 허용.
  */
 @Service
@@ -22,9 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DeliberationService {
 
-    static final String STS_DRAFT = "51";
-    static final String STS_IN_PROGRESS = "52";
-    static final String STS_DONE = "59";
+    static final String STS_DRAFT = "61";
+    static final String STS_IN_PROGRESS = "65";
+    static final String STS_DONE = "69";
     static final String TGT_PROJECT = "100";
     static final String TGT_COST = "200";
 
@@ -40,7 +40,7 @@ public class DeliberationService {
      * @param user 요청자 인증 정보
      * @return 채번된 문서번호 (DLB-{YYYY}-{4자리})
      * @throws IllegalArgumentException 알 수 없는 대상구분 또는 대상 미존재
-     * @throws IllegalStateException    동일 대상에 진행 중(51/52) 문서 존재
+     * @throws IllegalStateException    동일 대상에 진행 중(61/65) 문서 존재
      */
     @Transactional
     public String create(DeliberationDto.CreateRequest req, CustomUserDetails user) {
@@ -80,7 +80,7 @@ public class DeliberationService {
     }
 
     /**
-     * 마스터 수정 — 작성중(51) 상태에서만 가능.
+     * 마스터 수정 — 작성중(61) 상태에서만 가능.
      *
      * @param docNo 문서관리번호
      * @param req   수정 요청 (요청내용)
@@ -96,7 +96,7 @@ public class DeliberationService {
     }
 
     /**
-     * Soft delete — 작성중(51) 상태에서만 가능.
+     * Soft delete — 작성중(61) 상태에서만 가능.
      *
      * @param docNo 문서관리번호
      * @param user  요청자 인증 정보
@@ -114,7 +114,7 @@ public class DeliberationService {
     }
 
     /**
-     * 상태 전이 — 인접 전이만 허용: 51→52, 52→59.
+     * 상태 전이 — 인접 전이만 허용: 61→65, 65→69.
      *
      * @param docNo 문서관리번호
      * @param req   상태 전이 요청 (목표 상태코드)
@@ -136,7 +136,7 @@ public class DeliberationService {
     }
 
     /**
-     * 심의 결과 입력 — 진행중(52) 상태에서만 가능.
+     * 심의 결과 입력 — 진행중(65) 상태에서만 가능.
      *
      * @param docNo 문서관리번호
      * @param req   결과 입력 요청 (심의구분, 결과구분, 심의일자 등)

@@ -99,6 +99,12 @@ public class ApplicationService {
     /** 결재선 JSON 업데이트 위임 — ERR-03/04: public @Transactional로 AOP 프록시 우회 방지 */
     private final ApprovalLineDelegate approvalLineDelegate;
 
+    /** 정보화사업관계(TPRMPP_BPROJA) 동기화 서비스: 예산편성 결재 상신(02)/완료(09) 적재용 */
+    private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
+
+    /** 원천테이블명: 정보화사업 마스터(BPROJM). BPROJA 적재 대상 식별용 상수. */
+    private static final String FNT_TB_BPROJM = "BPROJM";
+
     /**
      * 신청서 등록 (결재 요청)
      *
@@ -158,6 +164,13 @@ public class ApplicationService {
                         .fntTbCrySno(item.getFntTbCrySno() != null ? Integer.parseInt(item.getFntTbCrySno()) : null)
                         .build();
                 applicationMapRepository.save(cappla);
+
+                // 정보화사업(BPROJM) 결재 상신 → 정보화사업관계(BPROJA) 상태를 결재중('05')으로 갱신.
+                // 단계 key(CNCD_RFR_NO)는 작성('01') 시와 동일하게 프로젝트관리번호(pkColNm) 자신을 사용해
+                // 동일 행을 멱등 upsert 한다. 전산업무비(BCOSTM) 등 비-프로젝트 원천은 적재 대상이 아니다.
+                if (FNT_TB_BPROJM.equals(item.getFntTbNm())) {
+                    bprojaSyncService.upsert(item.getPkColNm(), item.getPkColNm(), "05");
+                }
             }
         }
 
@@ -350,6 +363,12 @@ public class ApplicationService {
             // 마지막 결재자(lstDcdYn='Y')가 승인한 경우 "결재완료"로 변경
             capplm.updateStatus(ApprovalStatus.COMPLETED);
             newApfSts = ApprovalStatus.COMPLETED.label();
+
+            // 정보화사업(BPROJM) 결재 완료 → 연결된 각 프로젝트의 정보화사업관계(BPROJA)를 결재완료('09')로 갱신.
+            // 신청서에 연결된 BPROJM 원천(Cappla)을 역조회해, 작성('01')/상신('02')과 동일 행(단계 key=프로젝트관리번호)을 멱등 upsert 한다.
+            for (Cappla c : applicationMapRepository.findByApfDcmNoAndFntTbNm(apfMngNo, FNT_TB_BPROJM)) {
+                bprojaSyncService.upsert(c.getPkColNm(), c.getPkColNm(), "09");
+            }
         }
 
         // 신청서 상태가 종결(결재완료/반려)된 경우, 도메인 이벤트 발행

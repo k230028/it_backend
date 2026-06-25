@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 대금지급 서비스. 상태 71→72→79. 대상구분 100=사업/200=전산업무비.
+ * 대금지급 서비스. 상태 81→85→89. 대상구분 100=사업/200=전산업무비.
  * 마스터(계약 정보) + 회차별 지급 명세(Bpaymt). 명세 저장은 회차(DFR_TOD) 기준 upsert + soft-deleted 복원.
  */
 @Service
@@ -28,9 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class PaymentService {
 
-    static final String STS_DRAFT = "71";
-    static final String STS_IN_PROGRESS = "72";
-    static final String STS_DONE = "79";
+    static final String STS_DRAFT = "81";
+    static final String STS_IN_PROGRESS = "85";
+    static final String STS_DONE = "89";
     static final String TGT_PROJECT = "100";
     static final String TGT_COST = "200";
 
@@ -92,7 +92,7 @@ public class PaymentService {
      * @param docNo 문서관리번호
      * @param req   수정 요청 DTO (요청내용, 계약명, 계약금액)
      * @param user  요청자 인증 정보
-     * @throws IllegalStateException 작성중(71) 상태가 아닌 경우
+     * @throws IllegalStateException 작성중(81) 상태가 아닌 경우
      */
     @Transactional
     public void update(String docNo, PaymentDto.UpdateRequest req, CustomUserDetails user) {
@@ -107,7 +107,7 @@ public class PaymentService {
      *
      * @param docNo 문서관리번호
      * @param user  요청자 인증 정보
-     * @throws IllegalStateException 작성중(71) 상태가 아닌 경우
+     * @throws IllegalStateException 작성중(81) 상태가 아닌 경우
      */
     @Transactional
     public void delete(String docNo, CustomUserDetails user) {
@@ -121,7 +121,7 @@ public class PaymentService {
     }
 
     /**
-     * 대금지급 상태를 전이합니다 (허용 전이: 71→72, 72→79).
+     * 대금지급 상태를 전이합니다 (허용 전이: 81→85, 85→89).
      *
      * @param docNo 문서관리번호
      * @param req   상태 전이 요청 DTO
@@ -151,7 +151,7 @@ public class PaymentService {
      * @param docNo 문서관리번호
      * @param req   회차별 지급 명세 일괄 저장 요청 DTO
      * @param user  요청자 인증 정보
-     * @throws IllegalStateException 진행중(72) 상태가 아닌 경우
+     * @throws IllegalStateException 진행중(85) 상태가 아닌 경우
      */
     @Transactional
     public void savePayments(String docNo, PaymentDto.LinesRequest req, CustomUserDetails user) {
