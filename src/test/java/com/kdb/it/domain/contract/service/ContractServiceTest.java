@@ -13,6 +13,7 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.contract.dto.ContractDto;
 import com.kdb.it.domain.contract.entity.Bcontm;
 import com.kdb.it.domain.contract.repository.ContractRepository;
@@ -34,6 +35,7 @@ class ContractServiceTest {
     @Mock ContractRepository contractRepository;
     @Mock ProjectRepository projectRepository;
     @Mock CostRepository costRepository;
+    @Mock BprojaSyncService bprojaSyncService;
 
     ContractService service;
 
@@ -62,7 +64,7 @@ class ContractServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ContractService(contractRepository, projectRepository, costRepository);
+        service = new ContractService(contractRepository, projectRepository, costRepository, bprojaSyncService);
     }
 
     // =========================================================================

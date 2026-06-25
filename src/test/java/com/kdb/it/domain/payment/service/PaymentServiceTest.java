@@ -13,6 +13,7 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.payment.dto.PaymentDto;
 import com.kdb.it.domain.payment.entity.Bpaymm;
 import com.kdb.it.domain.payment.entity.Bpaymt;
@@ -44,6 +45,7 @@ class PaymentServiceTest {
     @Mock PaymentLineRepository lineRepository;
     @Mock ProjectRepository projectRepository;
     @Mock CostRepository costRepository;
+    @Mock BprojaSyncService bprojaSyncService;
 
     PaymentService service;
 
@@ -64,7 +66,7 @@ class PaymentServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PaymentService(paymentRepository, lineRepository, projectRepository, costRepository);
+        service = new PaymentService(paymentRepository, lineRepository, projectRepository, costRepository, bprojaSyncService);
     }
 
     // =========================================================================

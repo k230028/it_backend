@@ -14,6 +14,7 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.deliberation.dto.DeliberationDto;
 import com.kdb.it.domain.deliberation.entity.Bdelim;
 import com.kdb.it.domain.deliberation.repository.DeliberationRepository;
@@ -34,6 +35,7 @@ class DeliberationServiceTest {
     @Mock DeliberationRepository deliberationRepository;
     @Mock ProjectRepository projectRepository;
     @Mock CostRepository costRepository;
+    @Mock BprojaSyncService bprojaSyncService;
 
     DeliberationService service;
 
@@ -66,7 +68,7 @@ class DeliberationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DeliberationService(deliberationRepository, projectRepository, costRepository);
+        service = new DeliberationService(deliberationRepository, projectRepository, costRepository, bprojaSyncService);
     }
 
     // -----------------------------------------------------------------------

@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.estimate.dto.EstimateDto;
 import com.kdb.it.domain.estimate.entity.Besttm;
 import com.kdb.it.domain.estimate.entity.Bestim;
@@ -35,6 +36,7 @@ class EstimateServiceTest {
     @Mock EstimateRepository estimateRepository;
     @Mock EstimateLineRepository lineRepository;
     @Mock ProjectRepository projectRepository;
+    @Mock BprojaSyncService bprojaSyncService;
 
     EstimateService service;
 
@@ -50,7 +52,7 @@ class EstimateServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new EstimateService(estimateRepository, lineRepository, projectRepository);
+        service = new EstimateService(estimateRepository, lineRepository, projectRepository, bprojaSyncService);
     }
 
     /** 타인 (소유자가 아닌 일반 사용자) */

@@ -37,6 +37,7 @@ import com.kdb.it.domain.budget.plan.repository.BplanaRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectService;
+import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 
 /**
  * PlanService 단위 테스트
@@ -65,6 +66,8 @@ class PlanServiceTest {
     private UserRepository cuserIRepository;
     @Mock
     private ObjectMapper objectMapper;
+    @Mock
+    private BprojaSyncService bprojaSyncService;
 
     @InjectMocks
     private PlanService planService;
@@ -114,7 +117,7 @@ class PlanServiceTest {
     void getPlans_스냅샷사업유형_건수계산() {
         PlanService service = new PlanService(
                 bplanmRepository, bplanaRepository, projectService, costService,
-                codeService, cuserIRepository, new ObjectMapper());
+                codeService, cuserIRepository, new ObjectMapper(), bprojaSyncService);
         Bplanm plan = Bplanm.builder()
                 .reqDocNo("PLN-2026-0002")
                 .bseYy("2026")
@@ -140,7 +143,7 @@ class PlanServiceTest {
     void getPlans_손상된스냅샷_건수0유지() {
         PlanService service = new PlanService(
                 bplanmRepository, bplanaRepository, projectService, costService,
-                codeService, cuserIRepository, new ObjectMapper());
+                codeService, cuserIRepository, new ObjectMapper(), bprojaSyncService);
         Bplanm plan = Bplanm.builder()
                 .reqDocNo("PLN-2026-0003")
                 .redtConeInf("{")
