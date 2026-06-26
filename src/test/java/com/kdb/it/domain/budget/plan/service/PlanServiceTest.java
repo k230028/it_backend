@@ -278,8 +278,9 @@ class PlanServiceTest {
                 .costSvnDpmC("001")
                 .costSvnDpmNm(null)
                 .costTotXpAmt(BigDecimal.valueOf(100))
-                .assetBg(BigDecimal.valueOf(70))
-                .costBg(BigDecimal.valueOf(30))
+                // 합계는 BBUGTM 편성예산(assetDupBg/costDupBg) 기준 — 자본 70 + 일반관리비 30 = 100
+                .assetDupBg(BigDecimal.valueOf(70))
+                .costDupBg(BigDecimal.valueOf(30))
                 .build();
         given(costService.getCostsByIds(any())).willReturn(new CostDto.BulkResponse(List.of(cost), List.of()));
         given(bplanmRepository.getNextSequenceValue()).willReturn(2L);
@@ -406,24 +407,27 @@ class PlanServiceTest {
     }
 
     @Test
-    @DisplayName("createPlan - 계획작성 합계(aduTotAmt)는 예정금액(MPL_AMT)을 제외한 totRqmAmt를 사용한다")
-    void 계획작성_합계는_예정금액을_제외한다() throws Exception {
+    @DisplayName("createPlan - 계획 예산 합계는 BBUGTM 편성예산(assetDupBg/costDupBg) 기준으로 집계한다")
+    void 계획작성_합계는_편성예산기준() throws Exception {
         // given
-        // 품목 총합(AMT)= 1500, MPL_AMT= 500 → ProjectBudgetSummaryService가 totRqmAmt = 1000 으로 설정.
-        // PlanService 경계에서 Response.totRqmAmt 는 이미 MPL_AMT 가 제외된 파생값이다.
-        // (원시 AMT 합계 1500 vs 계획 반영값 1000 — 차이가 명확히 구분됨)
+        // 폼 미리보기와 동일하게 총예산 = 자본 편성액(assetDupBg) + 일반관리비 편성액(costDupBg).
+        // 요청/소요 금액(totRqmAmt·assetBg·costBg)을 합산하면 미리보기보다 큰 값이 저장되던 버그를
+        // 회귀 방지하기 위해 요청 금액과 편성예산을 명확히 다른 값으로 둔다.
         PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
                 .bseYy("2026")
                 .itPtlPlnTpC("신규")
-                .prjMngNos(List.of("PRJ-2026-MPL-TEST"))
+                .prjMngNos(List.of("PRJ-2026-DUP-TEST"))
                 .build();
 
-        // totRqmAmt = ∑AMT(1500) − ∑MPL_AMT(500) = 1000 (ProjectBudgetSummaryService가 이미 산출)
         ProjectDto.Response mockProject = ProjectDto.Response.builder()
-                .abusMngNo("PRJ-2026-MPL-TEST")
-                .totRqmAmt(BigDecimal.valueOf(1000)) // 예정금액 500 제외된 당해 예산
+                .abusMngNo("PRJ-2026-DUP-TEST")
+                // 요청/소요 금액 — 합산 대상이 아님 (편성예산과 구분되는 값)
+                .totRqmAmt(BigDecimal.valueOf(1000))
                 .assetBg(BigDecimal.valueOf(800))
                 .costBg(BigDecimal.valueOf(200))
+                // BBUGTM 편성예산 — 실제 합산 대상
+                .assetDupBg(BigDecimal.valueOf(600))
+                .costDupBg(BigDecimal.valueOf(150))
                 .build();
 
         given(projectService.getProjectsByIds(any())).willReturn(new ProjectDto.BulkResponse(List.of(mockProject), List.of()));
@@ -433,16 +437,18 @@ class PlanServiceTest {
         // when
         planService.createPlan(request);
 
-        // then: 저장된 Bplanm의 aduTotAmt 는 totRqmAmt(1000) 이어야 한다.
-        // 만약 MPL_AMT 를 제외하지 않았다면 원시 AMT 합계(1500)가 저장되었을 것이다.
+        // then: 편성예산 기준 — 자본 600, 일반관리비 150, 총 750.
         ArgumentCaptor<Bplanm> planCaptor = ArgumentCaptor.forClass(Bplanm.class);
         verify(bplanmRepository).save(planCaptor.capture());
-        assertThat(planCaptor.getValue().getAduTotAmt())
-                .as("계획작성 aduTotAmt 는 totRqmAmt(예정금액 제외값=1000)이어야 한다 — 원시 AMT 합계 1500이면 버그")
-                .isEqualByComparingTo(BigDecimal.valueOf(1000));
-        // 명시적 음성 검증: 원시 AMT 합계(1500)가 아님
-        assertThat(planCaptor.getValue().getAduTotAmt())
-                .isNotEqualByComparingTo(BigDecimal.valueOf(1500));
+        Bplanm saved = planCaptor.getValue();
+        assertThat(saved.getCpitBgApvAmt()).isEqualByComparingTo(BigDecimal.valueOf(600));
+        assertThat(saved.getTotXpAmt()).isEqualByComparingTo(BigDecimal.valueOf(150));
+        assertThat(saved.getAduTotAmt())
+                .as("총예산은 편성예산 합계(자본 600 + 일반관리비 150 = 750)이어야 한다 — 요청 금액(1000)이면 버그")
+                .isEqualByComparingTo(BigDecimal.valueOf(750));
+        // 명시적 음성 검증: 요청/소요 금액(totRqmAmt 1000)이 아님
+        assertThat(saved.getAduTotAmt())
+                .isNotEqualByComparingTo(BigDecimal.valueOf(1000));
     }
 
     // =========================================================================

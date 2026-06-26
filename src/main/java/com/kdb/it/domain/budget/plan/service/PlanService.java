@@ -210,6 +210,9 @@ public class PlanService {
                 if (!prjMngNos.isEmpty()) {
                         ProjectDto.BulkGetRequest bulkRequest = new ProjectDto.BulkGetRequest();
                         bulkRequest.setPrjMngNos(prjMngNos);
+                        // 대상년도 전달 필수: 그래야 bulk-get이 BBUGTM 편성예산(assetDupBg/costDupBg)을 채워
+                        // 폼 미리보기와 동일한 편성예산 합계를 계산할 수 있다.
+                        bulkRequest.setBseYy(request.getBseYy());
                         // BulkResponse(부분 성공)에서 조회 성공 항목만 사용 (미존재 failedIds는 합계 계산 대상 아님)
                         projects = projectService.getProjectsByIds(bulkRequest).items();
                 }
@@ -219,31 +222,33 @@ public class PlanService {
                 if (!itMngcNos.isEmpty()) {
                         CostDto.BulkGetRequest costBulkRequest = new CostDto.BulkGetRequest();
                         costBulkRequest.setCostBgNos(itMngcNos);
+                        // 대상년도 전달 필수: BBUGTM 편성예산(assetDupBg/costDupBg) 산출용 (위 사업과 동일)
+                        costBulkRequest.setBseYy(request.getBseYy());
                         // BulkResponse(부분 성공)에서 조회 성공 항목만 사용 (미존재 failedIds는 합계 계산 대상 아님)
                         costs = costService.getCostsByIds(costBulkRequest).items();
                 }
 
                 // 3. 예산 합계 계산 (정보화사업 + 전산업무비)
-                BigDecimal aduTotAmt = projects.stream()
-                                .map(p -> p.getTotRqmAmt() != null ? p.getTotRqmAmt() : BigDecimal.ZERO)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-                aduTotAmt = costs.stream()
-                                .map(c -> c.getCostTotXpAmt() != null ? c.getCostTotXpAmt() : BigDecimal.ZERO)
-                                .reduce(aduTotAmt, BigDecimal::add);
-
+                //    폼 미리보기와 동일하게 BBUGTM 편성예산(DUP_BG) 기준으로 집계한다.
+                //    과거에는 요청/소요 금액(totRqmAmt·costTotXpAmt·assetBg·costBg)을 합산해
+                //    미리보기(편성예산)보다 큰 값이 저장되는 불일치가 있었다.
+                //    - 자본예산 편성액 = Σ assetDupBg, 일반관리비 편성액 = Σ costDupBg
+                //    - 총예산 = 자본예산 편성액 + 일반관리비 편성액 (미리보기 ttlBg = cptBg + mngc 와 동일)
                 BigDecimal cpitBgApvAmt = projects.stream()
-                                .map(p -> p.getAssetBg() != null ? p.getAssetBg() : BigDecimal.ZERO)
+                                .map(p -> p.getAssetDupBg() != null ? p.getAssetDupBg() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
                 cpitBgApvAmt = costs.stream()
-                                .map(c -> c.getAssetBg() != null ? c.getAssetBg() : BigDecimal.ZERO)
+                                .map(c -> c.getAssetDupBg() != null ? c.getAssetDupBg() : BigDecimal.ZERO)
                                 .reduce(cpitBgApvAmt, BigDecimal::add);
 
                 BigDecimal totXpAmt = projects.stream()
-                                .map(p -> p.getCostBg() != null ? p.getCostBg() : BigDecimal.ZERO)
+                                .map(p -> p.getCostDupBg() != null ? p.getCostDupBg() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
                 totXpAmt = costs.stream()
-                                .map(c -> c.getCostBg() != null ? c.getCostBg() : BigDecimal.ZERO)
+                                .map(c -> c.getCostDupBg() != null ? c.getCostDupBg() : BigDecimal.ZERO)
                                 .reduce(totXpAmt, BigDecimal::add);
+
+                BigDecimal aduTotAmt = cpitBgApvAmt.add(totXpAmt);
 
                 // 4. JSON 스냅샷 생성
                 String snapshotJson = buildSnapshot(request, projects, costs, aduTotAmt, cpitBgApvAmt, totXpAmt);
