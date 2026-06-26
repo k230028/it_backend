@@ -3,7 +3,6 @@ package com.kdb.it.domain.council.service;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
-import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import jakarta.persistence.EntityManager;
@@ -189,8 +188,8 @@ public class CommitteeService {
      */
     @Transactional
     public void saveCommittee(String asctId, CouncilDto.CommitteeRequest request) {
-        // 협의회 존재 확인 및 현재 상태 캡처
-        Basctm council = councilService.findActiveCouncil(asctId);
+        // 협의회 존재 확인 (없으면 예외)
+        councilService.findActiveCouncil(asctId);
 
         // 기존 활성 위원을 사번 기준으로 인덱싱
         Map<String, Bcmmtm> existingByEno = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
@@ -227,12 +226,9 @@ public class CommitteeService {
                 .filter(e -> !requestedEnos.contains(e.getKey()))
                 .forEach(e -> e.getValue().delete());
 
-        // 협의회 상태 전이: APPROVED → PREPARING (위원 선정 완료)
-        // 이미 PREPARING 이후 상태(SCHEDULED, IN_PROGRESS 등)이면 상태를 되돌리지 않음
-        // (일정 확정 후 위원 수정 시 SCHEDULED → PREPARING 역전이 방지)
-        if ("04".equals(council.getItPtlAsctPrgStsTc())) {
-            councilService.changeStatus(asctId, "05");
-        }
+        // 04→05 전이는 더 이상 위원 저장의 부수효과로 처리하지 않는다.
+        // Step1 상세의 '개최준비 진행' 버튼(startPreparation, PATCH /start-preparation)이
+        // 명시적으로 수행한다. (PRD_c_20260620 #2)
     }
 
     // =========================================================================

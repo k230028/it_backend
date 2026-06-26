@@ -364,6 +364,30 @@ public class CouncilService {
         councilRepository.updateProjectStatus(council.getAbusMngNo(), council.getSno(), PRJ_STS_COUNCIL_DONE);
     }
 
+    /**
+     * 개최준비 시작 (APPROVED → PREPARING)
+     *
+     * <p>IT관리자가 타당성검토표 검토 후 '개최준비 진행'을 선택한 경우 호출합니다.
+     * 기존에는 평가위원 저장(saveCommittee)의 부수효과로 04→05 전이가 일어났으나,
+     * 의사결정 지점(Step1 상세의 '개최준비 진행' 버튼)으로 전이를 명시화했습니다. (PRD_c_20260620 #2)</p>
+     *
+     * @param asctId 협의회ID
+     * @throws IllegalStateException 현재 상태가 APPROVED(04)가 아닌 경우
+     */
+    @Transactional
+    public void startPreparation(String asctId) {
+        Basctm council = findActiveCouncil(asctId);
+
+        // 결재완료(04) 상태에서만 개최준비로 전이 가능
+        if (!"04".equals(council.getItPtlAsctPrgStsTc())) {
+            throw new IllegalStateException(
+                "개최준비 전이는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+        }
+
+        // 협의회 상태 전이: APPROVED(04) → PREPARING(05)
+        council.changeStatus("05");
+    }
+
     // =========================================================================
     // 내부 헬퍼
     // =========================================================================

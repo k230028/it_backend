@@ -349,6 +349,29 @@ public class CouncilController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * 정보화실무협의회 개최준비 시작 (APPROVED → PREPARING)
+     *
+     * <p>IT관리자가 타당성검토표 검토 후 '개최준비 진행'을 선택한 경우 호출합니다.
+     * 04→05 전이를 평가위원 저장의 부수효과가 아닌 명시적 액션으로 분리했습니다. (PRD_c_20260620 #2)</p>
+     *
+     * @param asctId 협의회ID
+     * @return HTTP 200
+     */
+    @Operation(summary = "협의회 개최준비 시작", description = "APPROVED(04) 상태에서 협의회를 개최준비(05) 단계로 전이합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "개최준비 전이 성공"),
+            @ApiResponse(responseCode = "400", description = "APPROVED 상태가 아닌 경우", content = @Content),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @PatchMapping("/{asctId}/start-preparation")
+    public ResponseEntity<Void> startPreparation(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId) {
+        councilService.startPreparation(asctId);
+        return ResponseEntity.ok().build();
+    }
+
     // =========================================================================
     // M6: 평가위원 선정 (Step 2)
     // =========================================================================
