@@ -218,7 +218,7 @@ public class ApplicationService {
                 next != null && (next.getDcrEno() == null || next.getDcrEno().isBlank()));
             return;
         }
-        log.info("[알림 진단] APPROVAL_REQUEST publishEvent: apfMngNo={}, recipientEno={}, dcrSqnSno={}",
+        log.debug("[알림 진단] APPROVAL_REQUEST publishEvent: apfMngNo={}, recipientEno={}, dcrSqnSno={}",
             capplm.getApfMngNo(), next.getDcrEno(), next.getDcrSqnSno());
         eventPublisher.publishEvent(
             NotificationEvent.builder()
