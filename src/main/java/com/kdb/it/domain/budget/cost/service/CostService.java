@@ -385,12 +385,16 @@ public class CostService {
 
         validateModifyPermission(costs.get(0).getFstEnrUsid(), costs.get(0).getCostSvnDpmC());
 
+        // 단말기 일괄 조회 (N+1 제거): 미삭제 단말기를 IN 조회로 1회만 적재
+        List<String> costNos = costs.stream().map(Bcostm::getCostBgNo).distinct().toList();
+        Map<String, List<Btermm>> terminalsByKey = btermmRepository
+                .findByTermBgNoInAndDelYn(costNos, "N").stream()
+                .collect(Collectors.groupingBy(
+                    t -> t.getTermBgNo() + "_" + t.getTermBgSno()));
         for (Bcostm cost : costs) {
             cost.delete();
-            List<Btermm> terminals = btermmRepository.findByTermBgNoAndTermBgSno(cost.getCostBgNo(), cost.getBgSno());
-            for (Btermm t : terminals) {
-                t.delete();
-            }
+            terminalsByKey.getOrDefault(cost.getCostBgNo() + "_" + cost.getBgSno(), List.of())
+                .forEach(Btermm::delete);
         }
     }
 
@@ -607,6 +611,17 @@ public class CostService {
         Map<String, String> ioeCNameMap = ioeCCdvas.isEmpty() ? Map.of()
                 : buildIoeCNameMap(ioeCCdvas);
 
+        // --- 5.5 단말기 일괄 조회 (N+1 제거): tmnYn='Y' 행만 대상 ---
+        List<String> terminalCostNos = costs.stream()
+                .filter(c -> "Y".equals(c.getTmnYn()))
+                .map(Bcostm::getCostBgNo)
+                .distinct()
+                .toList();
+        Map<String, List<Btermm>> terminalsByKey = terminalCostNos.isEmpty() ? Map.of()
+                : btermmRepository.findByTermBgNoInAndDelYn(terminalCostNos, "N").stream()
+                    .collect(Collectors.groupingBy(
+                        t -> t.getTermBgNo() + "_" + t.getTermBgSno()));
+
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < costs.size(); i++) {
             Bcostm cost = costs.get(i);
@@ -638,7 +653,12 @@ public class CostService {
             setBudgetCategory(response);
 
             if ("Y".equals(cost.getTmnYn())) {
-                attachTerminals(response);
+                List<Btermm> terminals = terminalsByKey.getOrDefault(
+                        cost.getCostBgNo() + "_" + cost.getBgSno(), List.of());
+                List<CostDto.TerminalDto> dtos = terminals.stream()
+                        .map(CostDto.TerminalDto::fromEntity).toList();
+                setTerminalCodeNames(dtos);
+                response.setTerminals(dtos);
             }
         }
 

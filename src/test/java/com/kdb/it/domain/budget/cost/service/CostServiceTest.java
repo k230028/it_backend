@@ -533,9 +533,11 @@ class CostServiceTest {
             given(cost.getBgSno()).willReturn(1);
             given(cost.getFstEnrUsid()).willReturn("10001");
             given(cost.getCostSvnDpmC()).willReturn("BBR001");
+            given(terminal.getTermBgNo()).willReturn(IT_MNGC_NO);
+            given(terminal.getTermBgSno()).willReturn(1);
             given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
                     .willReturn(List.of(cost));
-            given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1))
+            given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
                     .willReturn(List.of(terminal));
 
             costService.deleteCost(IT_MNGC_NO);
@@ -1273,6 +1275,91 @@ class CostServiceTest {
                     .as("서버 재계산: 1000.000 × 1300.5000 = 1300500.0000")
                     .isEqualByComparingTo(new BigDecimal("1300500.0000"));
             assertThat(fcAmtCaptor.getValue()).isEqualByComparingTo(new BigDecimal("1000.000"));
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    // ───────────────────────────────────────────────────────
+    // Batch 3a: 단말기 조회 N+1 제거 (IN 일괄 조회)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("목록 조회 시 단말기는 행별이 아닌 IN 일괄 조회로 1회만 조회한다")
+    void enrichCostList_batchLoadsTerminals_once() {
+        // Arrange: tmnYn='Y' 전산관리비 2건
+        Bcostm cost1 = Bcostm.builder()
+                .costBgNo("COST-T1").bgSno(1).tmnYn("Y").delYn("N").build();
+        Bcostm cost2 = Bcostm.builder()
+                .costBgNo("COST-T2").bgSno(1).tmnYn("Y").delYn("N").build();
+        Btermm term1 = Btermm.builder()
+                .tmnMngNo("TER-T1").sno(1).termBgNo("COST-T1").termBgSno(1).build();
+        Btermm term2 = Btermm.builder()
+                .tmnMngNo("TER-T2").sno(1).termBgNo("COST-T2").termBgSno(1).build();
+
+        given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost1, cost2));
+        given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(eq("BCOSTM"), any()))
+                .willReturn(List.of());
+        given(corgnIRepository.findAllById(any())).willReturn(List.of());
+        given(cuserIRepository.findAllById(any())).willReturn(List.of());
+        given(ccodemRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
+        given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(term1, term2));
+
+        // Act
+        List<CostDto.Response> result = costService.getCostList();
+
+        // Assert: IN 일괄 조회 1회, 행별 조회 0회
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getTerminals()).hasSize(1);
+        assertThat(result.get(1).getTerminals()).hasSize(1);
+        verify(btermmRepository).findByTermBgNoInAndDelYn(any(), eq("N"));
+        verify(btermmRepository, never()).findByTermBgNoAndTermBgSnoAndDelYn(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("deleteCost는 단말기를 IN 일괄 조회로 1회만 조회한다")
+    void deleteCost_batchLoadsTerminals_once() {
+        // Arrange: 관리자 인증 컨텍스트
+        CustomUserDetails admin = new CustomUserDetails(
+                "10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+
+        try {
+            // 동일 관리번호의 이력 2건 (BG_SNO 상이)
+            Bcostm cost1 = mock(Bcostm.class);
+            Bcostm cost2 = mock(Bcostm.class);
+            given(cost1.getCostBgNo()).willReturn(IT_MNGC_NO);
+            given(cost1.getBgSno()).willReturn(1);
+            given(cost1.getFstEnrUsid()).willReturn("10001");
+            given(cost1.getCostSvnDpmC()).willReturn("BBR001");
+            given(cost2.getCostBgNo()).willReturn(IT_MNGC_NO);
+            given(cost2.getBgSno()).willReturn(2);
+
+            Btermm terminal = mock(Btermm.class);
+            given(terminal.getTermBgNo()).willReturn(IT_MNGC_NO);
+            given(terminal.getTermBgSno()).willReturn(1);
+
+            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
+                    .willReturn(List.of(cost1, cost2));
+            given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
+                    .willReturn(List.of(terminal));
+
+            // Act
+            costService.deleteCost(IT_MNGC_NO);
+
+            // Assert: IN 일괄 조회 1회, 행별 조회 0회
+            verify(btermmRepository).findByTermBgNoInAndDelYn(any(), eq("N"));
+            verify(btermmRepository, never()).findByTermBgNoAndTermBgSno(any(), any());
+            verify(cost1).delete();
+            verify(cost2).delete();
+            verify(terminal).delete();
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }

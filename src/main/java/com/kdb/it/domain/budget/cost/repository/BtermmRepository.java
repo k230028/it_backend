@@ -32,6 +32,15 @@ public interface BtermmRepository extends JpaRepository<Btermm, BtermmId> {
     List<Btermm> findByTermBgNoAndTermBgSno(String termBgNo, Integer termBgSno);
 
     /**
+     * 여러 전산관리비에 연관된 단말기 일괄 조회 (N+1 방지용 배치 조회)
+     *
+     * @param termBgNos 전산관리비 관리번호 목록
+     * @param delYn     삭제여부 ('N'=미삭제)
+     * @return 연관 단말기 목록 (호출자가 termBgNo+termBgSno로 그룹핑)
+     */
+    List<Btermm> findByTermBgNoInAndDelYn(java.util.Collection<String> termBgNos, String delYn);
+
+    /**
      * Oracle 시퀀스(SEQ_BTERMM) 다음 값 조회
      *
      * @return 시퀀스의 다음 값 (Long)
