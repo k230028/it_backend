@@ -385,7 +385,8 @@ public class CostService {
 
         validateModifyPermission(costs.get(0).getFstEnrUsid(), costs.get(0).getCostSvnDpmC());
 
-        // 단말기 일괄 조회 (N+1 제거): 미삭제 단말기를 IN 조회로 1회만 적재
+        // 단말기 일괄 조회 (N+1 제거): 미삭제 단말기를 IN 조회로 1회만 적재.
+        // DEL_YN='N'만 대상으로 한다 — 이미 삭제(DEL_YN='Y')된 단말기는 재삭제가 불필요하므로 의도적으로 제외(멱등).
         List<String> costNos = costs.stream().map(Bcostm::getCostBgNo).distinct().toList();
         Map<String, List<Btermm>> terminalsByKey = btermmRepository
                 .findByTermBgNoInAndDelYn(costNos, "N").stream()
