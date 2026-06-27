@@ -48,7 +48,7 @@ public class NotificationService {
     @CacheEvict(value = "notificationUnreadCount", key = "#event.recipientEno()",
             condition = "#event.recipientEno() != null")
     public Cinfmm send(NotificationEvent event) {
-        log.info("[알림] send 진입: recipient={}, svcTc={}", event.recipientEno(), event.infmSvcTc());
+        log.debug("[알림] send 진입: recipient={}, svcTc={}", event.recipientEno(), event.infmSvcTc());
         if (event.recipientEno() == null || event.recipientEno().isBlank()) {
             log.warn("[알림] recipientEno 비어있음 → 발행 건너뜀: svcTc={}", event.infmSvcTc());
             return null;
