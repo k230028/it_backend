@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 예산 작업 서비스
@@ -160,14 +161,16 @@ public class BudgetWorkService {
 
         // 존재확인 N+1 제거: 연도·테이블 단위로 기존 BBUGTM을 일괄 조회해 키맵 구성.
         // 키 = pkColNm + "|" + fntTbCrySno + "|" + ioeC (레코드별 SELECT와 동일 조합).
-        java.util.Map<String, Bbugtm> existingCostMap = bbugtmRepository
+        // (pkColNm,fntTbCrySno,ioeC)는 자연키이며 DB 제약으로 중복이 방지되므로,
+        // 충돌 시 첫 행 채택 (a,b)->a 은 기존 Optional 단건 반환과 동등하다.
+        Map<String, Bbugtm> existingCostMap = bbugtmRepository
                 .findByBseYyAndFntTbNmAndDelYn(bgYy, "BCOSTM", "N").stream()
-                .collect(java.util.stream.Collectors.toMap(
+                .collect(Collectors.toMap(
                     b -> b.getPkColNm() + "|" + b.getFntTbCrySno() + "|" + b.getIoeC(),
                     b -> b, (a, b) -> a));
-        java.util.Map<String, Bbugtm> existingItemMap = bbugtmRepository
+        Map<String, Bbugtm> existingItemMap = bbugtmRepository
                 .findByBseYyAndFntTbNmAndDelYn(bgYy, "BITEMM", "N").stream()
-                .collect(java.util.stream.Collectors.toMap(
+                .collect(Collectors.toMap(
                     b -> b.getPkColNm() + "|" + b.getFntTbCrySno() + "|" + b.getIoeC(),
                     b -> b, (a, b) -> a));
 
