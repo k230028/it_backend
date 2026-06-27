@@ -251,7 +251,7 @@ public class BoardPostService {
      */
     private void publishMentionNotifications(Cblbcm post, String authorEno, boolean isComment,
                                              java.util.List<String> explicitEnos) {
-        log.info("[멘션 진단] publishMentionNotifications 진입: nacMngNo={}, author={}, contentLen={}, explicitEnos={}",
+        log.debug("[멘션 진단] publishMentionNotifications 진입: nacMngNo={}, author={}, contentLen={}, explicitEnos={}",
             post.getNacMngNo(), authorEno, post.getNacCone() == null ? 0 : post.getNacCone().length(), explicitEnos);
         // 1) 본문 정규식 추출 (사용자가 직접 @K... 타이핑한 경우)
         Set<String> rawEnos = new java.util.LinkedHashSet<>(
@@ -264,9 +264,9 @@ public class BoardPostService {
                 }
             }
         }
-        log.info("[멘션 진단] union 결과: nacMngNo={}, rawEnos={}", post.getNacMngNo(), rawEnos);
+        log.debug("[멘션 진단] union 결과: nacMngNo={}, rawEnos={}", post.getNacMngNo(), rawEnos);
         if (rawEnos.isEmpty()) {
-            log.info("[멘션 진단] 추출+명시 union 0건 → 종료. content snippet={}",
+            log.debug("[멘션 진단] 추출+명시 union 0건 → 종료. content snippet={}",
                 post.getNacCone() == null ? "<null>" :
                     post.getNacCone().substring(0, Math.min(120, post.getNacCone().length())));
             return;
@@ -275,16 +275,16 @@ public class BoardPostService {
         Set<String> existingEnos = userRepository.findByEnoIn(rawEnos).stream()
             .map(CuserI::getEno)
             .collect(java.util.stream.Collectors.toSet());
-        log.info("[멘션 진단] CUSERI 검증: existingEnos={}", existingEnos);
+        log.debug("[멘션 진단] CUSERI 검증: existingEnos={}", existingEnos);
         Set<String> recipients = new java.util.LinkedHashSet<>();
         for (String eno : rawEnos) {
             if (existingEnos.contains(eno)) recipients.add(eno);
         }
         if (recipients.isEmpty()) {
-            log.info("[멘션 진단] 검증 후 수신자 0건 → 종료. rawEnos={}, existingEnos={}", rawEnos, existingEnos);
+            log.debug("[멘션 진단] 검증 후 수신자 0건 → 종료. rawEnos={}, existingEnos={}", rawEnos, existingEnos);
             return;
         }
-        log.info("[멘션 진단] 최종 수신자: {}, isComment={}", recipients, isComment);
+        log.debug("[멘션 진단] 최종 수신자: {}, isComment={}", recipients, isComment);
         String type    = isComment ? NotificationEvent.TYPE_MENTION_COMMENT : NotificationEvent.TYPE_MENTION_POST;
         String title   = (isComment ? "댓글 멘션: " : "게시물 멘션: ") + safe(post.getNacNm());
         String linkUrl = "/board/" + post.getBlbMngNo() + "?postId=" + post.getNacMngNo();
