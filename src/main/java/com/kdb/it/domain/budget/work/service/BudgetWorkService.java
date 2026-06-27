@@ -158,6 +158,19 @@ public class BudgetWorkService {
         List<Ccodem> allIoeCodes = findCodes(CommonCodeGroups.IOE);
         Map<String, Set<String>> prefixToIoeCValues = buildPrefixToIoeCValuesMap(allIoeCodes);
 
+        // 존재확인 N+1 제거: 연도·테이블 단위로 기존 BBUGTM을 일괄 조회해 키맵 구성.
+        // 키 = pkColNm + "|" + fntTbCrySno + "|" + ioeC (레코드별 SELECT와 동일 조합).
+        java.util.Map<String, Bbugtm> existingCostMap = bbugtmRepository
+                .findByBseYyAndFntTbNmAndDelYn(bgYy, "BCOSTM", "N").stream()
+                .collect(java.util.stream.Collectors.toMap(
+                    b -> b.getPkColNm() + "|" + b.getFntTbCrySno() + "|" + b.getIoeC(),
+                    b -> b, (a, b) -> a));
+        java.util.Map<String, Bbugtm> existingItemMap = bbugtmRepository
+                .findByBseYyAndFntTbNmAndDelYn(bgYy, "BITEMM", "N").stream()
+                .collect(java.util.stream.Collectors.toMap(
+                    b -> b.getPkColNm() + "|" + b.getFntTbCrySno() + "|" + b.getIoeC(),
+                    b -> b, (a, b) -> a));
+
         for (BudgetWorkDto.RateItem rate : request.rates()) {
             String prefix = extractPrefix(rate.cdId());
             Set<String> ioeCValues = prefixToIoeCValues.getOrDefault(prefix, Set.of());
@@ -168,14 +181,13 @@ public class BudgetWorkService {
             for (Bcostm cost : costs) {
                 BigDecimal dupBgAmt = calculateDupBg(cost.getCostTotXpAmt(), dupRt);
 
-                Optional<Bbugtm> existing = bbugtmRepository
-                        .findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(
-                                bgYy, "BCOSTM", cost.getCostBgNo(),
-                                cost.getBgSno(), cost.getIoeC(), "N");
+                // 존재확인: 레코드별 SELECT 대신 일괄 조회 키맵 조회 (N+1 제거)
+                String key = cost.getCostBgNo() + "|" + cost.getBgSno() + "|" + cost.getIoeC();
+                Bbugtm existing = existingCostMap.get(key);
 
-                if (existing.isPresent()) {
+                if (existing != null) {
                     // Upsert: UPDATE (JPA Dirty Checking)
-                    existing.get().update(dupBgAmt, dupRt);
+                    existing.update(dupBgAmt, dupRt);
                 } else {
                     // Upsert: INSERT
                     snoCounter++;
@@ -191,6 +203,9 @@ public class BudgetWorkService {
                             .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
+                    // 동일 실행 내 중복 키 재삽입 방지 (기존 레코드별 SELECT가 같은 트랜잭션 내
+                    // 직전 INSERT 행을 보던 동작과 동일하게 UPDATE로 처리되도록 키맵에 반영)
+                    existingCostMap.put(key, bbugtm);
                 }
                 totalRecords++;
             }
@@ -206,13 +221,12 @@ public class BudgetWorkService {
                 BigDecimal amountKrw = item.getAmt() != null ? item.getAmt() : BigDecimal.ZERO;
                 BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
-                Optional<Bbugtm> existing = bbugtmRepository
-                        .findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(
-                                bgYy, "BITEMM", item.getGclMngNo(),
-                                item.getSno(), item.getIoeC(), "N");
+                // 존재확인: 레코드별 SELECT 대신 일괄 조회 키맵 조회 (N+1 제거)
+                String key = item.getGclMngNo() + "|" + item.getSno() + "|" + item.getIoeC();
+                Bbugtm existing = existingItemMap.get(key);
 
-                if (existing.isPresent()) {
-                    existing.get().update(dupBgAmt, dupRt);
+                if (existing != null) {
+                    existing.update(dupBgAmt, dupRt);
                 } else {
                     snoCounter++;
                     Bbugtm bbugtm = Bbugtm.builder()
@@ -227,6 +241,8 @@ public class BudgetWorkService {
                             .asgRt(dupRt)
                             .build();
                     bbugtmRepository.save(bbugtm);
+                    // 동일 실행 내 중복 키 재삽입 방지 (직전 INSERT 행을 UPDATE로 처리)
+                    existingItemMap.put(key, bbugtm);
                 }
                 totalRecords++;
             }

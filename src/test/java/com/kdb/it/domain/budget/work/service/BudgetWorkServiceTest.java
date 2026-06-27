@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.eq;
 
@@ -417,6 +416,43 @@ class BudgetWorkServiceTest {
         assertThat(result.totalRecords()).isEqualTo(0);
     }
 
+    @Test
+    @DisplayName("applyRates는 존재확인을 레코드별이 아닌 테이블별 일괄 조회로 수행한다")
+    void applyRates_batchExistenceCheck() {
+        // given: rate 1건 + BCOSTM 1건 (기존 테스트 입력 stub 패턴 재사용)
+        BudgetWorkDto.RateItem rateItem = new BudgetWorkDto.RateItem("237", 80);
+        BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rateItem));
+
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn("COST_2026_0001");
+        given(cost.getBgSno()).willReturn(1);
+        given(cost.getIoeC()).willReturn("001");
+        given(cost.getCostTotXpAmt()).willReturn(BigDecimal.valueOf(1_000_000));
+
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026")))
+                .willReturn(List.of(cost));
+        given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
+                .willReturn(List.of());
+        // 존재확인을 테이블별 일괄 조회로 수행: 빈 목록 반환 → INSERT 경로
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BCOSTM"), eq("N"))).willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BITEMM"), eq("N"))).willReturn(List.of());
+
+        // getSummary 내부 호출용 mock
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        mockEmptyDetailCodes();
+
+        // when
+        budgetWorkService.applyRates(request);
+
+        // then: 레코드별 존재확인 0회 (테이블별 일괄 조회로 대체)
+        Mockito.verify(bbugtmRepository, Mockito.never())
+                .findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(any(), any(), any(), any(), any(), any());
+    }
+
     // =========================================================================
     // applyRates — 기존 레코드 없음 → save 호출 (신규)
     // =========================================================================
@@ -442,10 +478,9 @@ class BudgetWorkServiceTest {
                 .willReturn(List.of(cost));
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of());
-        // 기존 BBUGTM 레코드 없음 → INSERT 경로
-        given(bbugtmRepository.findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(
-                any(), any(), any(), any(), any(), any()))
-                .willReturn(Optional.empty());
+        // 기존 BBUGTM 레코드 없음 → INSERT 경로 (테이블별 일괄 조회 빈 목록)
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BCOSTM"), eq("N"))).willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BITEMM"), eq("N"))).willReturn(List.of());
 
         // getSummary 내부 호출용 mock
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
@@ -474,8 +509,11 @@ class BudgetWorkServiceTest {
         given(cost.getIoeC()).willReturn("001");
         given(cost.getCostTotXpAmt()).willReturn(BigDecimal.valueOf(1_000_000));
 
-        // 기존 BBUGTM 레코드 존재 → UPDATE 경로
+        // 기존 BBUGTM 레코드 존재 → UPDATE 경로 (테이블별 일괄 조회 키맵에 동일 키로 포함)
         Bbugtm existing = mock(Bbugtm.class);
+        given(existing.getPkColNm()).willReturn("COST_2026_0001");
+        given(existing.getFntTbCrySno()).willReturn(1);
+        given(existing.getIoeC()).willReturn("001");
 
         Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -484,9 +522,9 @@ class BudgetWorkServiceTest {
                 .willReturn(List.of(cost));
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of());
-        given(bbugtmRepository.findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(
-                any(), any(), any(), any(), any(), any()))
-                .willReturn(Optional.of(existing));
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BCOSTM"), eq("N")))
+                .willReturn(List.of(existing));
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BITEMM"), eq("N"))).willReturn(List.of());
 
         // getSummary 내부 호출용 mock
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
@@ -589,9 +627,9 @@ class BudgetWorkServiceTest {
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026"))).willReturn(List.of(item));
 
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(
-                any(), any(), any(), any(), any(), any()))
-                .willReturn(Optional.empty());
+        // 기존 BBUGTM 레코드 없음 → INSERT 경로 (테이블별 일괄 조회 빈 목록)
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BCOSTM"), eq("N"))).willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BITEMM"), eq("N"))).willReturn(List.of());
 
         // getSummary 내부 호출용 mock
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
@@ -658,8 +696,8 @@ class BudgetWorkServiceTest {
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026"))).willReturn(List.of(cost));
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026"))).willReturn(List.of());
-        given(bbugtmRepository.findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(
-                any(), any(), any(), any(), any(), any())).willReturn(Optional.empty());
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BCOSTM"), eq("N"))).willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BITEMM"), eq("N"))).willReturn(List.of());
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
         mockEmptyDetailCodes();
@@ -1132,15 +1170,19 @@ class BudgetWorkServiceTest {
 
         // 기존 BBUGTM 레코드 존재 (BITEMM 경로에서 UPDATE 분기)
         Bbugtm existingBugtm = org.mockito.Mockito.mock(Bbugtm.class);
+        // 일괄 조회 키맵에서 "GCL-0001|1|001"로 매칭되도록 키 구성 게터 스텁
+        given(existingBugtm.getPkColNm()).willReturn("GCL-0001");
+        given(existingBugtm.getFntTbCrySno()).willReturn(1);
+        given(existingBugtm.getIoeC()).willReturn("001");
 
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026"))).willReturn(List.of());
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026"))).willReturn(List.of(item));
-        // BITEMM 경로: existing 있음
-        given(bbugtmRepository.findByBseYyAndFntTbNmAndPkColNmAndFntTbCrySnoAndIoeCAndDelYn(
-                eq("2026"), eq("BITEMM"), eq("GCL-0001"), eq(1), eq("001"), eq("N")))
-                .willReturn(Optional.of(existingBugtm));
+        // BITEMM 경로: existing 있음 (테이블별 일괄 조회로 키맵 구성)
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BITEMM"), eq("N")))
+                .willReturn(List.of(existingBugtm));
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BCOSTM"), eq("N"))).willReturn(List.of());
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());

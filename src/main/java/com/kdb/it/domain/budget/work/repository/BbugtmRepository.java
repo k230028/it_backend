@@ -45,6 +45,16 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
     List<Bbugtm> findByBseYyAndDelYn(String bseYy, String delYn);
 
     /**
+     * 연도·원천테이블 단위 편성예산 전체 조회 (편성률 적용 시 존재확인 N+1 제거용)
+     *
+     * @param bseYy    회계연도
+     * @param fntTbNm  원천테이블명 ("BCOSTM" 또는 "BITEMM")
+     * @param delYn    삭제여부 ('N'=미삭제)
+     * @return 해당 연도·테이블의 미삭제 편성예산 목록 (호출자가 pkColNm+sno+ioeC로 그룹핑)
+     */
+    List<Bbugtm> findByBseYyAndFntTbNmAndDelYn(String bseYy, String fntTbNm, String delYn);
+
+    /**
      * Upsert용: 원본 기준으로 기존 편성 데이터 조회
      *
      * <p>
