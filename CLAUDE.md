@@ -797,7 +797,7 @@ record ResolvedValue(String value, String status)
 **보안 규칙 (집행 4단계, 코드 분석 2026-06-23):**
 - 쓰기 경로 소유권 검증은 공통 유틸 `OwnershipVerifier.verifyOwnerOrAdmin(ownerEno, user)`(`common/system/security`, 실패 시 `AccessDeniedException`→403)를 표준으로 사용합니다. 적용: 집행 4단계(update/delete/changeStatus/save*), 요구사항정의서(수정/삭제/새버전), 게시판 본인 게시물·댓글 수정·삭제. 파일은 메타수정·일괄삭제에 소유권 검증, 읽기 경로(목록/단건/다운로드/미리보기)에 `FileOwnershipChecker.checkReadAccess`/`canRead` 적용. 요구사항정의서 대시보드/배지의 `bbrC`는 비관리자에 한해 JWT 클레임으로 서버측 강제합니다.
 - 클래스 레벨 `@PreAuthorize`가 없는 업무 컨트롤러는 **서비스 계층에서 소유자/관리자 검증 필수**이며, 집행 4단계 update/delete/changeStatus/save*에 위 `OwnershipVerifier` 검증이 적용되어 있습니다.
-- **(미해결, TASK.md 보안 HIGH)** 부서(bbrC) 필터는 **목록 RepositoryImpl에서 실제 쿼리 조건으로 포함**해야 효력이 있습니다. `EstimateRepositoryImpl`은 적용되어 있으나 `Contract`/`Deliberation`/`PaymentRepositoryImpl`은 MVP 미적용 → 일반 사용자가 타부서 목록 열람 가능. `changeStatus`의 역할 분기(상태 전이 주체별 권한 차등)도 미적용 상태로 추적 중입니다.
+- 부서(bbrC) 필터는 4개 도메인(`Estimate`/`Deliberation`/`Contract`/`Payment`) `RepositoryImpl` 목록 쿼리에 모두 적용됩니다(2026-06-28). 사업(`bgPrnTc='100'`)은 `Bprojm.svnDpmC`, 전산업무비(`'200'`)는 `Bcostm.costSvnDpmC`를 `cncdRfrNo` 키로 LEFT JOIN(최신버전 `lstYn='Y'`·미삭제) 후 `Expressions.anyOf(allOf(100,사업부서), allOf(200,전산부서))`로 분기 비교하며, 2중 JOIN 안전을 위해 `.distinct()` 가드를 둡니다. `changeStatus`의 역할 분기(상태 전이 주체별 권한 차등)는 여전히 미적용 상태로 추적 중입니다(TASK.md).
 - 금융 금액 필드(`cttAmt`, `dfrAmt`)는 `@DecimalMin("0")`, YN 플래그는 `@Pattern(regexp="^[YN]$")` 적용 권장(현재 일부 누락).
 
 ### 5.19 EAI 발송 인프라 (infra/eai, KDB 표준전문)
