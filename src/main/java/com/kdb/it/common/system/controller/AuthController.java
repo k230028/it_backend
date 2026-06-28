@@ -81,7 +81,7 @@ public class AuthController {
         this.trustedProxies = (trustedProxiesCsv == null || trustedProxiesCsv.isBlank())
                 ? java.util.Set.of()
                 : java.util.Arrays.stream(trustedProxiesCsv.split(","))
-                        .map(String::trim).filter(s -> !s.isEmpty())
+                        .map(value -> value.trim()).filter(s -> !s.isEmpty())
                         .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 

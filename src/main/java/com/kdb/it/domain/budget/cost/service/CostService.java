@@ -387,7 +387,7 @@ public class CostService {
 
         // 단말기 일괄 조회 (N+1 제거): 미삭제 단말기를 IN 조회로 1회만 적재.
         // DEL_YN='N'만 대상으로 한다 — 이미 삭제(DEL_YN='Y')된 단말기는 재삭제가 불필요하므로 의도적으로 제외(멱등).
-        List<String> costNos = costs.stream().map(Bcostm::getCostBgNo).distinct().toList();
+        List<String> costNos = costs.stream().map(value -> value.getCostBgNo()).distinct().toList();
         Map<String, List<Btermm>> terminalsByKey = btermmRepository
                 .findByTermBgNoInAndDelYn(costNos, "N").stream()
                 .collect(Collectors.groupingBy(
@@ -395,7 +395,7 @@ public class CostService {
         for (Bcostm cost : costs) {
             cost.delete();
             terminalsByKey.getOrDefault(cost.getCostBgNo() + "_" + cost.getBgSno(), List.of())
-                .forEach(Btermm::delete);
+                .forEach(value -> value.delete());
         }
     }
 
@@ -427,7 +427,7 @@ public class CostService {
         String bseYy = request.getBseYy();
         if (bseYy != null && !bseYy.isBlank() && !responses.isEmpty()) {
             List<String> costBgNos = responses.stream()
-                    .map(CostDto.Response::getCostBgNo)
+                    .map(value -> value.getCostBgNo())
                     .toList();
             Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByItMngcNos(costBgNos, bseYy);
             // 전산업무비는 ioeC가 IOE_CPIT이면 자본예산, 나머지면 일반관리비 단일 분류
@@ -554,7 +554,7 @@ public class CostService {
         if (costs.isEmpty()) return;
 
         // --- 1. CAPPLA 배치 조회 ---
-        List<String> costBgNos = costs.stream().map(Bcostm::getCostBgNo).distinct().toList();
+        List<String> costBgNos = costs.stream().map(value -> value.getCostBgNo()).distinct().toList();
         List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", costBgNos);
 
         // costBgNo+sno 복합키 → 최신 Cappla
@@ -566,14 +566,14 @@ public class CostService {
 
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
-                .map(Cappla::getApfDcmNo).toList();
+                .map(value -> value.getApfDcmNo()).toList();
         Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
-                .collect(Collectors.toMap(Capplm::getApfMngNo, m -> m));
+                .collect(Collectors.toMap(value -> value.getApfMngNo(), m -> m));
 
         // --- 3. CDECIM 배치 조회 ---
         List<Cdecim> allDecisions = cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
         Map<String, List<Cdecim>> decisionMap = allDecisions.stream()
-                .collect(Collectors.groupingBy(Cdecim::getDcdMngNo));
+                .collect(Collectors.groupingBy(value -> value.getDcdMngNo()));
 
         // --- 4. 부서코드·사원번호·공통코드 CDVA 수집 ---
         Set<String> orgCodes = new java.util.HashSet<>();
@@ -598,9 +598,9 @@ public class CostService {
 
         // --- 5. 배치 조회 ---
         Map<String, String> orgNameMap = corgnIRepository.findAllById(orgCodes).stream()
-                .collect(Collectors.toMap(CorgnI::getPrlmOgzCCone, CorgnI::getBbrNm));
+                .collect(Collectors.toMap(value -> value.getPrlmOgzCCone(), value -> value.getBbrNm()));
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
-                .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
+                .collect(Collectors.toMap(value -> value.getEno(), value -> value.getUsrNm()));
         Map<String, String> bgUntAbusCNameMap = bgUntAbusCdvas.isEmpty() ? Map.of()
                 : codeNameMapBuilder.build(CommonCodeGroups.ABUS_UNIT, bgUntAbusCdvas);
         Map<String, String> dfrCleCNameMap = dfrCleCCdvas.isEmpty() ? Map.of()
@@ -615,7 +615,7 @@ public class CostService {
         // --- 5.5 단말기 일괄 조회 (N+1 제거): tmnYn='Y' 행만 대상 ---
         List<String> terminalCostNos = costs.stream()
                 .filter(c -> "Y".equals(c.getTmnYn()))
-                .map(Bcostm::getCostBgNo)
+                .map(value -> value.getCostBgNo())
                 .distinct()
                 .toList();
         Map<String, List<Btermm>> terminalsByKey = terminalCostNos.isEmpty() ? Map.of()
@@ -666,12 +666,12 @@ public class CostService {
         // --- 7. 전년도 예산(prevBgAmt) 배치 조회 (계속 항목만) ---
         List<String> continuingNos = responses.stream()
                 .filter(r -> "02".equals(r.getAbusTc()))
-                .map(CostDto.Response::getCostBgNo)
+                .map(value -> value.getCostBgNo())
                 .distinct()
                 .toList();
         if (!continuingNos.isEmpty()) {
             String bseYy = responses.stream()
-                    .map(CostDto.Response::getBseYy)
+                    .map(value -> value.getBseYy())
                     .filter(y -> y != null && !y.isBlank())
                     .findFirst().orElse(null);
             if (bseYy != null) {
@@ -690,12 +690,12 @@ public class CostService {
         // --- 8. 전년도 BBUGTM 편성예산(prevDupBg) 배치 조회 (cncdRfrNo 기준) ---
         List<String> cncdNos = responses.stream()
                 .filter(r -> r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank())
-                .map(CostDto.Response::getCncdRfrNo)
+                .map(value -> value.getCncdRfrNo())
                 .distinct()
                 .toList();
         if (!cncdNos.isEmpty()) {
             String bseYy8 = responses.stream()
-                    .map(CostDto.Response::getBseYy)
+                    .map(value -> value.getBseYy())
                     .filter(y -> y != null && !y.isBlank())
                     .findFirst().orElse(null);
             if (bseYy8 != null) {
@@ -786,14 +786,14 @@ public class CostService {
 
         // 담당자명: 사번 배치 조회
         Set<String> enos = terminalDtos.stream()
-                .map(CostDto.TerminalDto::getCgprId)
+                .map(value -> value.getCgprId())
                 .filter(cgprId -> cgprId != null && !cgprId.isEmpty())
                 .collect(Collectors.toSet());
         if (!enos.isEmpty()) {
             Map<String, String> nameMap = cuserIRepository.findByEnoIn(enos).stream()
                     .collect(Collectors.toMap(
-                            CuserI::getEno,
-                            CuserI::getUsrNm));
+                            value -> value.getEno(),
+                            value -> value.getUsrNm()));
             terminalDtos.forEach(tDto -> {
                 if (tDto.getCgprId() != null) {
                     tDto.setCgprNm(nameMap.get(tDto.getCgprId()));
@@ -803,11 +803,11 @@ public class CostService {
 
         // 코드명: 단말기종류(tmnClsfC)/이용방법(tmnKdTc)/지급주기(dfrCleC) 그룹별 배치 조회
         Map<String, String> svcMap = codeNameMapBuilder.build(CommonCodeGroups.TERM_SERVICE,
-                collectCdvas(terminalDtos, CostDto.TerminalDto::getTmnClsfC));
+                collectCdvas(terminalDtos, value -> value.getTmnClsfC()));
         Map<String, String> kindMap = codeNameMapBuilder.build(CommonCodeGroups.TERM_KIND,
-                collectCdvas(terminalDtos, CostDto.TerminalDto::getTmnKdTc));
+                collectCdvas(terminalDtos, value -> value.getTmnKdTc()));
         Map<String, String> dfrMap = codeNameMapBuilder.build(CommonCodeGroups.DFR_CLE,
-                collectCdvas(terminalDtos, CostDto.TerminalDto::getDfrCleC));
+                collectCdvas(terminalDtos, value -> value.getDfrCleC()));
         terminalDtos.forEach(tDto -> {
             if (tDto.getTmnClsfC() != null) tDto.setTmnClsfCNm(svcMap.get(tDto.getTmnClsfC()));
             if (tDto.getTmnKdTc() != null) tDto.setTmnKdTcNm(kindMap.get(tDto.getTmnKdTc()));
@@ -829,7 +829,7 @@ public class CostService {
         return ccodemRepository.findByCIdWithValidDate(CommonCodeGroups.IOE, null).stream()
                 .filter(c -> cdvas.contains(c.getCdva()))
                 .collect(Collectors.toMap(
-                        Ccodem::getCdva,
+                        value -> value.getCdva(),
                         c -> {
                             String dtl = c.getCdvaNm() != null ? c.getCdvaNm()
                                     : (c.getCdvaDtl() != null ? c.getCdvaDtl() : (c.getCNm() != null ? c.getCNm() : c.getCdva()));

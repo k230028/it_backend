@@ -83,7 +83,7 @@ class CustomUserDetailsTest {
 
     private List<String> authorityNames(CustomUserDetails details) {
         return details.getAuthorities().stream()
-            .map(GrantedAuthority::getAuthority)
+            .map(value -> value.getAuthority())
             .toList();
     }
 }

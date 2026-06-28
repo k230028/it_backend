@@ -153,7 +153,7 @@ public class EstimateService {
         // 대상 사업명: 현재 버전 사업을 단건 조회해 채우고, 없으면 null로 둔다.
         String abusNm = projectRepository
                 .findByAbusMngNoAndLstYnAndDelYn(e.getCncdRfrNo(), "Y", "N")
-                .map(Bprojm::getAbusNm)
+                .map(value -> value.getAbusNm())
                 .orElse(null);
         return new EstimateDto.Detail(
                 e.getRqmBgReqDocNo(), e.getDocVrsSno(), e.getBgPrnTc(), e.getCncdRfrNo(),

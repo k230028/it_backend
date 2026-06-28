@@ -83,18 +83,18 @@ public class PlanService {
 
                 // PUL_DTT 공통코드 cdva → cNm 매핑 (신규/계속 구분에 사용)
                 Map<String, String> pulDttNameByCdva = codeService.findCodeEntitiesByCId(CommonCodeGroups.ABUS).stream()
-                                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCdvaNm, (a, b) -> a));
+                                .collect(Collectors.toMap(value -> value.getCdva(), value -> value.getCdvaNm(), (a, b) -> a));
 
                 // 최초생성자 사번 → 이름 매핑 (CUSERI 조인)
                 List<String> userEnos = plans.stream()
-                                .map(Bplanm::getFstEnrUsid)
+                                .map(value -> value.getFstEnrUsid())
                                 .filter(eno -> eno != null && !eno.isBlank())
                                 .distinct()
                                 .toList();
                 Map<String, String> userNameByEno = userEnos.isEmpty()
                                 ? Map.of()
                                 : cuserIRepository.findAllById(userEnos).stream()
-                                                .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm,
+                                                .collect(Collectors.toMap(value -> value.getEno(), value -> value.getUsrNm(),
                                                                 (a, b) -> a));
 
                 return plans.stream()
@@ -171,7 +171,7 @@ public class PlanService {
                 // 연결된 프로젝트관리번호 목록 조회
                 List<String> prjMngNos = bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N")
                                 .stream()
-                                .map(Bplana::getPrjMngNo)
+                                .map(value -> value.getPrjMngNo())
                                 .toList();
 
                 return PlanDto.DetailResponse.fromEntity(plan, prjMngNos);
@@ -236,17 +236,17 @@ public class PlanService {
                 //    - 총예산 = 자본예산 편성액 + 일반관리비 편성액 (미리보기 ttlBg = cptBg + mngc 와 동일)
                 BigDecimal cpitBgApvAmt = projects.stream()
                                 .map(p -> p.getAssetDupBg() != null ? p.getAssetDupBg() : BigDecimal.ZERO)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                                .reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
                 cpitBgApvAmt = costs.stream()
                                 .map(c -> c.getAssetDupBg() != null ? c.getAssetDupBg() : BigDecimal.ZERO)
-                                .reduce(cpitBgApvAmt, BigDecimal::add);
+                                .reduce(cpitBgApvAmt, (left, right) -> left.add(right));
 
                 BigDecimal totXpAmt = projects.stream()
                                 .map(p -> p.getCostDupBg() != null ? p.getCostDupBg() : BigDecimal.ZERO)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                                .reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
                 totXpAmt = costs.stream()
                                 .map(c -> c.getCostDupBg() != null ? c.getCostDupBg() : BigDecimal.ZERO)
-                                .reduce(totXpAmt, BigDecimal::add);
+                                .reduce(totXpAmt, (left, right) -> left.add(right));
 
                 BigDecimal aduTotAmt = cpitBgApvAmt.add(totXpAmt);
 
@@ -402,7 +402,7 @@ public class PlanService {
                 // 부문별/사업유형별 사업목록에는 일반 정보화사업만 표시합니다.
                 Set<String> ordinaryProjectIds = projects.stream()
                                 .filter(p -> "Y".equals(p.getOdnYn()))
-                                .map(ProjectDto.Response::getAbusMngNo)
+                                .map(value -> value.getAbusMngNo())
                                 .collect(Collectors.toSet());
                 List<PlanDto.ProjectSnapshot> businessListSnapshots = projectSnapshots.stream()
                                 .filter(p -> !ordinaryProjectIds.contains(p.getPrjMngNo()))

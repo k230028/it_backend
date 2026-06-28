@@ -45,14 +45,14 @@ public class ReviewCommentService {
 
         // 작성자명 배치 조회 (N+1 제거): 사번 집합 → findByEnoIn 1회 → eno→이름 Map
         java.util.Set<String> enos = comments.stream()
-                .map(com.kdb.it.domain.budget.document.entity.Brivgm::getFstEnrUsid)
+                .map(value -> value.getFstEnrUsid())
                 .filter(eno -> eno != null && !eno.isEmpty())
                 .collect(Collectors.toSet());
         java.util.Map<String, String> nameByEno = enos.isEmpty() ? java.util.Map.of()
                 : userRepository.findByEnoIn(enos).stream()
                         .collect(Collectors.toMap(
-                                com.kdb.it.common.iam.entity.CuserI::getEno,
-                                com.kdb.it.common.iam.entity.CuserI::getUsrNm,
+                                value -> value.getEno(),
+                                value -> value.getUsrNm(),
                                 (a, b) -> a));
 
         return comments.stream()

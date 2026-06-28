@@ -124,7 +124,7 @@ class AdminLogServiceTest {
 
         assertThat(result.row()).containsEntry("logSno", 1L);
         assertThat(result.row()).containsEntry("chgTp", "U");
-        assertThat(result.columns()).anyMatch(AdminLogDto.LogColumnResponse::primary);
+        assertThat(result.columns()).anyMatch(value -> value.primary());
     }
 
     @Test

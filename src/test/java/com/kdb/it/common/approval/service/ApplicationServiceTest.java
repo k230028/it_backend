@@ -636,7 +636,7 @@ class ApplicationServiceTest {
         assertThat(result).startsWith("APF-");
         ArgumentCaptor<Cappla> capplaCaptor = ArgumentCaptor.forClass(Cappla.class);
         verify(applicationMapRepository, times(2)).save(capplaCaptor.capture());
-        assertThat(capplaCaptor.getAllValues()).extracting(Cappla::getFntTbCrySno)
+        assertThat(capplaCaptor.getAllValues()).extracting(value -> value.getFntTbCrySno())
                 .containsExactly(3, null);
         // 결재선 2건 초기 저장만 발생 (자동 승인 분기 제거됨)
         verify(approverRepository, times(2)).save(any(Cdecim.class));
@@ -682,7 +682,7 @@ class ApplicationServiceTest {
         ArgumentCaptor<Cappla> captor = ArgumentCaptor.forClass(Cappla.class);
         verify(applicationMapRepository, times(3)).save(captor.capture());
         assertThat(captor.getAllValues())
-                .extracting(Cappla::getPkColNm)
+                .extracting(value -> value.getPkColNm())
                 .containsExactly("PRJ-2026-0001", "PRJ-2026-0002", "PRJ-2026-0003");
     }
 
@@ -778,9 +778,9 @@ class ApplicationServiceTest {
 
         ApplicationDto.DashboardResponse result = applicationService.getDashboard("BBR001", "10001");
 
-        assertThat(result.getMonthlyTrend()).extracting(ApplicationDto.MonthlyCount::getCount)
+        assertThat(result.getMonthlyTrend()).extracting(value -> value.getCount())
                 .containsExactly(4);
-        assertThat(result.getPendingList()).extracting(ApplicationDto.PendingItem::getUrgency)
+        assertThat(result.getPendingList()).extracting(value -> value.getUrgency())
                 .containsExactly("urgent", "normal");
     }
 }

@@ -54,13 +54,13 @@ public class ProjectBudgetSummaryService {
                 .filter(c -> CAPITAL_DETAIL_CTPS.contains(c.getCTp()) || "IOE_CPIT".equals(c.getCTp()))
                 .toList();
         Set<String> assetTypes = assetCodes.stream()
-                .map(Ccodem::getCdva)
+                .map(value -> value.getCdva())
                 .collect(Collectors.toSet());
 
         java.util.Map<String, Set<String>> assetSubTypesByCTp = assetCodes.stream()
                 .collect(Collectors.groupingBy(
                         c -> c.getCTp() != null ? c.getCTp() : "",
-                        Collectors.mapping(Ccodem::getCdva, Collectors.toSet())));
+                        Collectors.mapping(value -> value.getCdva(), Collectors.toSet())));
         Set<String> devTypes = new HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_DVC, java.util.Collections.emptySet()));
         Set<String> machTypes = new HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_HW, java.util.Collections.emptySet()));
         Set<String> intanTypes = new HashSet<>(assetSubTypesByCTp.getOrDefault(IOE_SW, java.util.Collections.emptySet()));
@@ -77,7 +77,7 @@ public class ProjectBudgetSummaryService {
 
         Set<String> costTypes = allIoeCodes.stream()
                 .filter(c -> Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE").contains(c.getCTp()))
-                .map(Ccodem::getCdva)
+                .map(value -> value.getCdva())
                 .collect(Collectors.toSet());
 
         Function<Bitemm, BigDecimal> calcAmt = item -> {
@@ -134,6 +134,6 @@ public class ProjectBudgetSummaryService {
         return items.stream()
                 .filter(item -> ioeTypes.contains(item.getIoeC()))
                 .map(calcAmt)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
     }
 }

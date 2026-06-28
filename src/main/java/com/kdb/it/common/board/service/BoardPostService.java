@@ -273,7 +273,7 @@ public class BoardPostService {
         }
         // 실제 TPRMPP_CUSERI 에 존재하는 사번만 통과 (batch existence check, 순서 보존)
         Set<String> existingEnos = userRepository.findByEnoIn(rawEnos).stream()
-            .map(CuserI::getEno)
+            .map(value -> value.getEno())
             .collect(java.util.stream.Collectors.toSet());
         log.debug("[멘션 진단] CUSERI 검증: existingEnos={}", existingEnos);
         Set<String> recipients = new java.util.LinkedHashSet<>();

@@ -115,7 +115,7 @@ public class BudgetWorkService {
             // 3. 기존 편성률 조회 (ioeC IN ioeCValues 기반)
             Integer dupRt = existingBudgets.stream()
                     .filter(b -> b.getIoeC() != null && ioeCValues.contains(b.getIoeC()))
-                    .map(Bbugtm::getAsgRt)
+                    .map(value -> value.getAsgRt())
                     .findFirst()
                     .orElse(null);
 
@@ -549,9 +549,9 @@ public class BudgetWorkService {
 
                 // 편성금액 합계 (BBUGTM 기반)
                 BigDecimal dupAmount = allRecords.stream()
-                        .map(Bbugtm::getBgDupAmt)
+                        .map(value -> value.getBgDupAmt())
                         .filter(v -> v != null)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                        .reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
 
                 // 요청금액: 결재완료 원본 데이터(BCOSTM/BITEMM)에서 직접 계산
                 BigDecimal requestAmount = BigDecimal.ZERO;
@@ -572,7 +572,7 @@ public class BudgetWorkService {
 
                 // 편성률 (BBUGTM 레코드가 있으면 해당 값, 없으면 null)
                 Integer dupRt = allRecords.stream()
-                        .map(Bbugtm::getAsgRt)
+                        .map(value -> value.getAsgRt())
                         .findFirst()
                         .orElse(null);
 
@@ -664,7 +664,7 @@ public class BudgetWorkService {
         // 사업관리번호 → Bprojm(예정금액) — 사업관리번호 집합 1회 배치 조회 (N+1 제거)
         // 원본 단건 로직과 동일하게 abusMngNo별 첫 행만 채택(putIfAbsent).
         java.util.Set<String> prjNos = bitemmByGcl.values().stream()
-                .map(Bitemm::getAbusMngNo)
+                .map(value -> value.getAbusMngNo())
                 .filter(java.util.Objects::nonNull)
                 .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
         Map<String, Bprojm> prjByNo = new LinkedHashMap<>();
@@ -687,14 +687,14 @@ public class BudgetWorkService {
             boolean capital = Boolean.TRUE.equals(cdvaToCapital.get(ioeC));
             BigDecimal xcr = it.getXcr() != null ? it.getXcr() : BigDecimal.ONE;
             BigDecimal req = (it.getAmt() != null ? it.getAmt() : BigDecimal.ZERO).multiply(xcr);
-            BigDecimal dup = e.getValue().stream().map(Bbugtm::getBgDupAmt)
-                    .filter(v -> v != null).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal dup = e.getValue().stream().map(value -> value.getBgDupAmt())
+                    .filter(v -> v != null).reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
             String key = it.getAbusMngNo() + "|" + capital;
             groupItems.computeIfAbsent(key, k -> new ArrayList<>()).add(new ItemContrib(ioeC, req, dup));
-            groupReqSum.merge(key, req, BigDecimal::add);
+            groupReqSum.merge(key, req, (left, right) -> left.add(right));
             // 품목 예정금액 그룹 합산
             BigDecimal mplAmt = it.getMplAmt() != null ? it.getMplAmt() : BigDecimal.ZERO;
-            groupMplSum.merge(key, mplAmt, BigDecimal::add);
+            groupMplSum.merge(key, mplAmt, (left, right) -> left.add(right));
         }
 
         // 그룹별 예정금액(품목 단위 합산)을 비례 배분하여 비목별 차감액 누적
@@ -707,8 +707,8 @@ public class BudgetWorkService {
             BigDecimal factor = mpl.compareTo(sum) >= 0 ? BigDecimal.ONE
                     : mpl.divide(sum, 10, RoundingMode.HALF_UP);
             for (ItemContrib ic : e.getValue()) {
-                reqAdjustOut.merge(ic.ioeC(), ic.req().multiply(factor), BigDecimal::add);
-                dupAdjustOut.merge(ic.ioeC(), ic.dup().multiply(factor), BigDecimal::add);
+                reqAdjustOut.merge(ic.ioeC(), ic.req().multiply(factor), (left, right) -> left.add(right));
+                dupAdjustOut.merge(ic.ioeC(), ic.dup().multiply(factor), (left, right) -> left.add(right));
             }
         }
     }
@@ -835,7 +835,7 @@ public class BudgetWorkService {
         // gclMngNo별 첫 행만 채택(putIfAbsent)하고, 매핑이 없으면 gclMngNo 자체를 키로 사용한다.
         java.util.Set<String> gclPks = budgets.stream()
                 .filter(b -> "BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null)
-                .map(Bbugtm::getPkColNm)
+                .map(value -> value.getPkColNm())
                 .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
         Map<String, String> gclToPrj = new LinkedHashMap<>();
         if (!gclPks.isEmpty()) {

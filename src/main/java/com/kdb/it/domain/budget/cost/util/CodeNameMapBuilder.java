@@ -31,6 +31,6 @@ public class CodeNameMapBuilder {
         }
         return codeRepository.findByCIdWithValidDate(cId, null).stream()
                 .filter(c -> cdvas.contains(c.getCdva()) && c.getCdvaNm() != null)
-                .collect(Collectors.toMap(Ccodem::getCdva, Ccodem::getCdvaNm, (a, b) -> a));
+                .collect(Collectors.toMap(value -> value.getCdva(), value -> value.getCdvaNm(), (a, b) -> a));
     }
 }

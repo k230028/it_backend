@@ -744,7 +744,7 @@ public class AdminService {
                 if (eno == null)
                         return null;
                 return userRepository.findByEno(eno)
-                                .map(CuserI::getUsrNm)
+                                .map(value -> value.getUsrNm())
                                 .orElse(eno);
         }
 

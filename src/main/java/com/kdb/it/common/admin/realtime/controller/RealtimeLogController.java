@@ -59,7 +59,7 @@ public class RealtimeLogController {
     private List<String> split(String csv) {
         if (csv == null || csv.isBlank()) return null;
         return Arrays.stream(csv.split(","))
-                .map(String::trim)
+                .map(value -> value.trim())
                 .filter(s -> !s.isEmpty())
                 .toList();
     }

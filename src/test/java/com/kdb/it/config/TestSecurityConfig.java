@@ -20,7 +20,7 @@ public class TestSecurityConfig {
     @Bean
     public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable)
+            .csrf(value -> value.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/sso/**").permitAll()
                 .anyRequest().authenticated()

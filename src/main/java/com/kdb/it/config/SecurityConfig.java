@@ -122,7 +122,7 @@ public class SecurityConfig {
                                 // CORS 설정 적용 (corsConfigurationSource 빈 사용)
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 // CSRF 보호 비활성화: httpOnly 쿠키를 쓰므로 운영 SameSite/CORS 설정과 함께 관리
-                                .csrf(AbstractHttpConfigurer::disable)
+                                .csrf(value -> value.disable())
                                 // Stateless 세션 설정 (JWT 사용): 서버가 세션을 생성/유지하지 않음
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -206,7 +206,7 @@ public class SecurityConfig {
                 // split 후 공백 제거 + 빈 항목 필터링: 빈/콤마-공백 입력이 [""]로 해석돼
                 // 모든 교차 출처를 조용히 차단하는 footgun 방지.
                 List<String> origins = java.util.Arrays.stream(allowedOrigins.split(","))
-                                .map(String::trim)
+                                .map(value -> value.trim())
                                 .filter(s -> !s.isEmpty())
                                 .toList();
                 if (origins.isEmpty()) {

@@ -160,7 +160,7 @@ public class PaymentService {
         if (!STS_IN_PROGRESS.equals(e.getStsTc())) throw new IllegalStateException("진행중 상태에서만 지급 명세를 저장할 수 있습니다.");
         Integer vrs = e.getDocVrsSno();
         List<Bpaymt> all = lineRepository.findByDocMngNoAndDocVrsSno(docNo, vrs);
-        Map<Integer, Bpaymt> byTod = all.stream().collect(Collectors.toMap(Bpaymt::getDfrTod, b -> b));
+        Map<Integer, Bpaymt> byTod = all.stream().collect(Collectors.toMap(value -> value.getDfrTod(), b -> b));
 
         Set<Integer> incoming = new HashSet<>();
         for (PaymentDto.LineRequest line : req.lines()) {

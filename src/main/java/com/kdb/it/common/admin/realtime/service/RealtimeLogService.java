@@ -83,7 +83,7 @@ public class RealtimeLogService {
 
     private Set<String> allowedLogKeys() {
         return adminLogService.getTables().stream()
-                .map(AdminLogDto.LogTableResponse::key)
+                .map(value -> value.key())
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
@@ -91,7 +91,7 @@ public class RealtimeLogService {
         if (input == null) return List.of();
         return input.stream()
                 .filter(s -> s != null && !s.isBlank())
-                .map(String::trim)
+                .map(value -> value.trim())
                 .toList();
     }
 }

@@ -194,7 +194,7 @@ public class CommitteeService {
         // 기존 활성 위원을 사번 기준으로 인덱싱
         Map<String, Bcmmtm> existingByEno = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
                 .stream()
-                .collect(Collectors.toMap(Bcmmtm::getEno, m -> m, (a, b) -> a));
+                .collect(Collectors.toMap(value -> value.getEno(), m -> m, (a, b) -> a));
 
         Set<String> requestedEnos = new HashSet<>();
 
@@ -243,9 +243,9 @@ public class CommitteeService {
     private Map<String, CuserI> buildUserMap(List<Bcmmtm> members) {
         return members.stream()
                 .map(m -> userRepository.findByEno(m.getEno()))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toMap(CuserI::getEno, u -> u, (a, b) -> a));
+                .filter(value -> value.isPresent())
+                .map(value -> value.get())
+                .collect(Collectors.toMap(value -> value.getEno(), u -> u, (a, b) -> a));
     }
 
     /**

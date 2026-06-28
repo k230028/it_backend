@@ -57,7 +57,7 @@ public class ItBudgetService {
         List<ItBudgetDto.CategoryRow> prevRows = itBudgetQueryRepository.findSummary(prevYy);
 
         Map<String, ItBudgetDto.CategoryRow> prevMap = prevRows.stream()
-                .collect(Collectors.toMap(ItBudgetDto.CategoryRow::ioeCode, Function.identity()));
+                .collect(Collectors.toMap(value -> value.ioeCode(), Function.identity()));
 
         // 금년도 비목 기준으로 증감 계산
         List<ItBudgetDto.YoyRow> yoyRows = new ArrayList<>();

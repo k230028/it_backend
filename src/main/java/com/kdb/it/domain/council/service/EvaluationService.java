@@ -219,7 +219,7 @@ public class EvaluationService {
         if (members.isEmpty()) return false;
 
         Set<String> memberEnos = members.stream()
-                .map(Bcmmtm::getEno)
+                .map(value -> value.getEno())
                 .collect(Collectors.toSet());
 
         // 제출된 평가의견에서 6개 항목을 모두 제출한 사번 목록 추출
@@ -227,7 +227,7 @@ public class EvaluationService {
 
         // 사번별 제출 항목 수 집계
         Map<String, Long> submitCountByEno = allEvaluations.stream()
-                .collect(Collectors.groupingBy(Bevalm::getEno, Collectors.counting()));
+                .collect(Collectors.groupingBy(value -> value.getEno(), Collectors.counting()));
 
         // 전원이 6개 항목을 모두 제출했는지 검사
         return memberEnos.stream()
@@ -243,12 +243,12 @@ public class EvaluationService {
      */
     private Map<String, CuserI> buildUserMapFromEvaluations(List<Bevalm> evaluations) {
         return evaluations.stream()
-                .map(Bevalm::getEno)
+                .map(value -> value.getEno())
                 .distinct()
                 .map(eno -> userRepository.findByEno(eno))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toMap(CuserI::getEno, u -> u, (a, b) -> a));
+                .filter(value -> value.isPresent())
+                .map(value -> value.get())
+                .collect(Collectors.toMap(value -> value.getEno(), u -> u, (a, b) -> a));
     }
 
     /**

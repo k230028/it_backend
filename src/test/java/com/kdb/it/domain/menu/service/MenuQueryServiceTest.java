@@ -46,13 +46,13 @@ class MenuQueryServiceTest {
 
         // non-admin user: only 'P' visible (G+C pruned because G requires ITPAD001)
         List<MenuDto.Node> userTree = service.getMenuTree(List.of("ITPZZ001"));
-        assertThat(userTree).extracting(MenuDto.Node::getMnuId).containsExactly("P");
+        assertThat(userTree).extracting(value -> value.getMnuId()).containsExactly("P");
 
         // admin: G (with child C) + P
         List<MenuDto.Node> adminTree = service.getMenuTree(List.of("ITPAD001"));
-        assertThat(adminTree).extracting(MenuDto.Node::getMnuId).containsExactlyInAnyOrder("G", "P");
+        assertThat(adminTree).extracting(value -> value.getMnuId()).containsExactlyInAnyOrder("G", "P");
         MenuDto.Node g = adminTree.stream().filter(n -> n.getMnuId().equals("G")).findFirst().orElseThrow();
-        assertThat(g.getChildren()).extracting(MenuDto.Node::getMnuId).containsExactly("C");
+        assertThat(g.getChildren()).extracting(value -> value.getMnuId()).containsExactly("C");
     }
 
     @Test
@@ -81,7 +81,7 @@ class MenuQueryServiceTest {
         // 관리 트리는 가지치기 없이 전체를 반환하고, 편집 폼용으로 노드별 athIds를 함께 싣는다.
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of("H", Set.of("ITPAD001")));
         List<MenuDto.Node> all = service.getAdminMenuTree();
-        assertThat(all).extracting(MenuDto.Node::getMnuId).containsExactly("H");
+        assertThat(all).extracting(value -> value.getMnuId()).containsExactly("H");
         // Bug 2 회귀 방지: 관리 트리 노드가 기존 권한ID를 실어야 편집 화면 체크박스가 복원된다.
         assertThat(all.get(0).getAthIds()).containsExactly("ITPAD001");
     }
@@ -105,8 +105,8 @@ class MenuQueryServiceTest {
         MenuQueryService svc = new MenuQueryService(cmenumRepository, menuAuthMapProvider, List.of(fake));
         List<MenuDto.Node> tree = svc.getMenuTree(List.of("ITPZZ001"));
 
-        assertThat(tree).extracting(MenuDto.Node::getMnuId).containsExactly("MBRD0001");
-        assertThat(tree.get(0).getChildren()).extracting(MenuDto.Node::getMnuId).containsExactly("MBRD-B1");
+        assertThat(tree).extracting(value -> value.getMnuId()).containsExactly("MBRD0001");
+        assertThat(tree.get(0).getChildren()).extracting(value -> value.getMnuId()).containsExactly("MBRD-B1");
     }
 
     @Test
@@ -124,10 +124,10 @@ class MenuQueryServiceTest {
 
         // 비관리자: H1(관리자 헤더) 숨김, H2(CDP)는 플레이스홀더 P 덕분에 유지
         List<MenuDto.Node> userTree = service.getMenuTree(List.of("ITPZZ001"));
-        assertThat(userTree).extracting(MenuDto.Node::getMnuId).containsExactly("H2");
+        assertThat(userTree).extracting(value -> value.getMnuId()).containsExactly("H2");
 
         // 관리자: H1 + H2 모두 노출
         List<MenuDto.Node> adminTree = service.getMenuTree(List.of("ITPAD001"));
-        assertThat(adminTree).extracting(MenuDto.Node::getMnuId).containsExactlyInAnyOrder("H1", "H2");
+        assertThat(adminTree).extracting(value -> value.getMnuId()).containsExactlyInAnyOrder("H1", "H2");
     }
 }

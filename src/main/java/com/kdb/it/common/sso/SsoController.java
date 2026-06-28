@@ -412,7 +412,7 @@ public class SsoController {
             return Optional.empty();
         }
         return Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
+                .map(value -> value.trim())
                 .filter(allowed -> allowed.equals(origin))
                 .findFirst();
     }

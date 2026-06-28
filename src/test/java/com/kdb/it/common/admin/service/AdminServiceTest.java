@@ -762,7 +762,7 @@ class AdminServiceTest {
 
         List<AdminDto.TokenResponse> result = adminService.getTokens();
 
-        assertThat(result).extracting(AdminDto.TokenResponse::tokMasked)
+        assertThat(result).extracting(value -> value.tokMasked())
                 .containsExactly("12345678901234567890...", "short");
     }
 

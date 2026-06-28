@@ -476,7 +476,7 @@ public class CouncilService {
         // 사업명: BPOVWM(타당성검토표) 우선, 없으면 BPROJM
         String prjNm = projectOverviewRepository
                 .findByItPtlAsctIdAndDelYn(council.getItPtlAsctId(), "N")
-                .map(Bpovwm::getAbusNm)
+                .map(value -> value.getAbusNm())
                 .orElseGet(() -> projectOpt.map(p -> p.getAbusNm()).orElse(null));
 
         // 사업 상세 (BPROJM 기반)

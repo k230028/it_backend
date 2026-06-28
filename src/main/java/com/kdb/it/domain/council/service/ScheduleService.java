@@ -95,7 +95,7 @@ public class ScheduleService {
 
         // 응답한 위원 사번 Set
         Set<String> respondedEnos = allSchedules.stream()
-                .map(Bschdm::getEno)
+                .map(value -> value.getEno())
                 .collect(Collectors.toSet());
 
         // 위원별 사용자 정보 Map
@@ -103,7 +103,7 @@ public class ScheduleService {
 
         // 위원별 일정 응답 목록 Map (eno → slots)
         Map<String, List<Bschdm>> scheduleByEno = allSchedules.stream()
-                .collect(Collectors.groupingBy(Bschdm::getEno));
+                .collect(Collectors.groupingBy(value -> value.getEno()));
 
         // 위원별 현황 생성
         List<CouncilDto.MemberScheduleStatus> memberStatuses = members.stream()
@@ -351,8 +351,8 @@ public class ScheduleService {
     private Map<String, CuserI> buildUserMap(List<Bcmmtm> members) {
         return members.stream()
                 .map(m -> userRepository.findByEno(m.getEno()))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toMap(CuserI::getEno, u -> u, (a, b) -> a));
+                .filter(value -> value.isPresent())
+                .map(value -> value.get())
+                .collect(Collectors.toMap(value -> value.getEno(), u -> u, (a, b) -> a));
     }
 }

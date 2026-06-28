@@ -92,7 +92,7 @@ class BudgetWorkServiceBatchTest {
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
         // Assert: 동작 동치 — 사업명/계약명 매핑 결과가 리팩터 전과 동일
-        assertThat(result.data()).extracting(BudgetWorkDto.ProjectSummaryItem::name)
+        assertThat(result.data()).extracting(value -> value.name())
                 .containsExactly("정보화사업", "유지보수계약");
 
         // Assert: In-쿼리 1회 배치, 단건 finder 미호출
@@ -124,7 +124,7 @@ class BudgetWorkServiceBatchTest {
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
-        assertThat(result.data()).extracting(BudgetWorkDto.ProjectSummaryItem::name)
+        assertThat(result.data()).extracting(value -> value.name())
                 .containsExactly("GCL-MISSING");
         verify(projectItemRepository, never()).findByGclMngNoAndDelYn(anyString(), anyString());
     }

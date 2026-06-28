@@ -90,7 +90,7 @@ public class CouncilApprovalService {
         // 신청서명 생성: "협의회 타당성검토표 결재 요청 - {사업명}"
         String prjNm = projectOverviewRepository
                 .findByItPtlAsctIdAndDelYn(asctId, "N")
-                .map(Bpovwm::getAbusNm)
+                .map(value -> value.getAbusNm())
                 .orElse(asctId);
         String apfNm = "협의회 타당성검토표 결재 요청 - " + prjNm;
 
@@ -141,7 +141,7 @@ public class CouncilApprovalService {
         // 신청서명 생성: "협의회 개최결과서 결재 요청 - {사업명}"
         String prjNm = projectOverviewRepository
                 .findByItPtlAsctIdAndDelYn(asctId, "N")
-                .map(Bpovwm::getAbusNm)
+                .map(value -> value.getAbusNm())
                 .orElse(asctId);
         String apfNm = "협의회 개최결과서 결재 요청 - " + prjNm;
 

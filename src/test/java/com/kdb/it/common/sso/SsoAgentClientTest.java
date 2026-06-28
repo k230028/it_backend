@@ -14,6 +14,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,10 +41,10 @@ class SsoAgentClientTest {
     @SuppressWarnings("unchecked")
     void isServerAlive_successCode_true() {
         RestClient restClient = mock(RestClient.class);
-        RestClient.RequestHeadersUriSpec request = mock(RestClient.RequestHeadersUriSpec.class);
+        RestClient.RequestHeadersUriSpec<?> request = mock(RestClient.RequestHeadersUriSpec.class);
         RestClient.ResponseSpec response = mock(RestClient.ResponseSpec.class);
-        when(restClient.get()).thenReturn(request);
-        when(request.uri(HOST + "/openapi/checkserver")).thenReturn(request);
+        doReturn(request).when(restClient).get();
+        doReturn(request).when(request).uri(HOST + "/openapi/checkserver");
         when(request.retrieve()).thenReturn(response);
         when(response.body(any(ParameterizedTypeReference.class)))
                 .thenReturn(map("resultCode", "000000"));
@@ -58,10 +59,10 @@ class SsoAgentClientTest {
     @SuppressWarnings("unchecked")
     void isServerAlive_failure_false() {
         RestClient restClient = mock(RestClient.class);
-        RestClient.RequestHeadersUriSpec request = mock(RestClient.RequestHeadersUriSpec.class);
+        RestClient.RequestHeadersUriSpec<?> request = mock(RestClient.RequestHeadersUriSpec.class);
         RestClient.ResponseSpec response = mock(RestClient.ResponseSpec.class);
-        when(restClient.get()).thenReturn(request);
-        when(request.uri(HOST + "/openapi/checkserver")).thenReturn(request);
+        doReturn(request).when(restClient).get();
+        doReturn(request).when(request).uri(HOST + "/openapi/checkserver");
         when(request.retrieve()).thenReturn(response);
         when(response.body(any(ParameterizedTypeReference.class)))
                 .thenReturn(map("resultCode", "999999"))

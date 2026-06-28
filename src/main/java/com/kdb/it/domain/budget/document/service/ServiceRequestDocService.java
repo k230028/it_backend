@@ -76,14 +76,14 @@ public class ServiceRequestDocService {
 
         // 작성자명 배치 조회 (N+1 제거): 사번 집합 → findByEnoIn 1회 → eno→이름 Map
         java.util.Set<String> enos = responses.stream()
-                .map(ServiceRequestDocDto.Response::getFstEnrUsid)
+                .map(value -> value.getFstEnrUsid())
                 .filter(eno -> eno != null && !eno.isEmpty())
                 .collect(Collectors.toSet());
         if (!enos.isEmpty()) {
             java.util.Map<String, String> nameByEno = cuserIRepository.findByEnoIn(enos).stream()
                     .collect(Collectors.toMap(
-                            com.kdb.it.common.iam.entity.CuserI::getEno,
-                            com.kdb.it.common.iam.entity.CuserI::getUsrNm,
+                            value -> value.getEno(),
+                            value -> value.getUsrNm(),
                             (a, b) -> a));
             responses.forEach(r -> {
                 // 원본 가드와 동일하게 사번이 null이거나 빈 문자열이면 이름을 설정하지 않음
@@ -296,7 +296,7 @@ public class ServiceRequestDocService {
                 throw new CustomGeneralException("존재하지 않는 문서관리번호입니다: " + docMngNo);
             }
             // BaseEntity.delete() 호출 → DEL_YN='Y' (JPA Dirty Checking)
-            all.forEach(Brdocm::delete);
+            all.forEach(value -> value.delete());
         } else {
             // 특정 버전만 소프트 삭제: 화면 소수 버전 → 저장 정수 버전(× 100)으로 변환하여 조회
             Brdocm document = serviceRequestDocRepository

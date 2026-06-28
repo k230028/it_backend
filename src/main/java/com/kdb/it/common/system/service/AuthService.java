@@ -110,7 +110,7 @@ public class AuthService {
     @Transactional(readOnly = true)
     public String getUserName(String eno) {
         return userRepository.findByEno(eno)
-                .map(CuserI::getUsrNm) // Optional에서 사용자명 추출
+                .map(value -> value.getUsrNm()) // Optional에서 사용자명 추출
                 .orElse("Unknown");    // 사용자가 없으면 기본값 반환
     }
 
@@ -367,7 +367,7 @@ public class AuthService {
         List<String> athIds = roleRepository
                 .findAllByIdEnoAndUseYnAndDelYn(eno, "Y", "N")
                 .stream()
-                .map(CroleI::getAthId)
+                .map(value -> value.getAthId())
                 .toList();
         return athIds.isEmpty() ? List.of(CustomUserDetails.ATH_USER) : athIds;
     }

@@ -210,7 +210,7 @@ public class ProjectService {
         response.setStsTc(representativeStatus(bprojaRows));
         // 단계별 카드용: 활성 BPROJA 상태코드 목록(진행 현황 섹션이 대역별로 판정).
         response.setBprojaStsCodes(bprojaRows.stream()
-                .map(com.kdb.it.domain.budget.project.entity.Bproja::getStsTc)
+                .map(value -> value.getStsTc())
                 .filter(java.util.Objects::nonNull)
                 .toList());
 
@@ -425,7 +425,7 @@ public class ProjectService {
             java.util.Set<String> processedGclMngNos = new java.util.HashSet<>();
             // 현재 최대 SNO 계산 (신규 추가 시 MAX+1로 설정)
             int maxGclSno = existingItems.stream()
-                    .mapToInt(com.kdb.it.domain.budget.project.entity.Bitemm::getSno)
+                    .mapToInt(value -> value.getSno())
                     .max().orElse(0);
 
             // 2. 요청 품목 처리 (수정 또는 신규 추가)
@@ -673,7 +673,7 @@ public class ProjectService {
         String bgYy = request.getBseYy();
         if (bgYy != null && !bgYy.isBlank() && !responses.isEmpty()) {
             List<String> prjMngNos = responses.stream()
-                    .map(ProjectDto.Response::getAbusMngNo)
+                    .map(value -> value.getAbusMngNo())
                     .toList();
             Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByPrjMngNos(prjMngNos, bgYy);
 
@@ -716,7 +716,7 @@ public class ProjectService {
         if (projects.isEmpty()) return;
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
-        List<String> prjMngNos = projects.stream().map(Bprojm::getAbusMngNo).toList();
+        List<String> prjMngNos = projects.stream().map(value -> value.getAbusMngNo()).toList();
         List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", prjMngNos);
 
         // prjMngNo → 최신 Cappla (이미 DESC 정렬이므로 첫 번째가 최신)
@@ -727,14 +727,14 @@ public class ProjectService {
 
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
-                .map(Cappla::getApfDcmNo).toList();
+                .map(value -> value.getApfDcmNo()).toList();
         Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
-                .collect(Collectors.toMap(Capplm::getApfMngNo, m -> m));
+                .collect(Collectors.toMap(value -> value.getApfMngNo(), m -> m));
 
         // --- 3. CDECIM 배치 조회 ---
         List<Cdecim> allDecisions = cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
         Map<String, List<Cdecim>> decisionMap = allDecisions.stream()
-                .collect(Collectors.groupingBy(Cdecim::getDcdMngNo));
+                .collect(Collectors.groupingBy(value -> value.getDcdMngNo()));
 
         // --- 4. 부서코드·사원번호·공통코드 수집 ---
         Set<String> orgCodes = new java.util.HashSet<>();
@@ -757,9 +757,9 @@ public class ProjectService {
 
         // --- 5. 부서명·사용자명·공통코드명 배치 조회 ---
         Map<String, String> orgNameMap = corgnIRepository.findAllById(orgCodes).stream()
-                .collect(Collectors.toMap(CorgnI::getPrlmOgzCCone, CorgnI::getBbrNm));
+                .collect(Collectors.toMap(value -> value.getPrlmOgzCCone(), value -> value.getBbrNm()));
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
-                .collect(Collectors.toMap(CuserI::getEno, CuserI::getUsrNm));
+                .collect(Collectors.toMap(value -> value.getEno(), value -> value.getUsrNm()));
         Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCdvas);
         Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
         Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
@@ -768,13 +768,13 @@ public class ProjectService {
         Map<String, List<com.kdb.it.domain.budget.project.entity.Bitemm>> itemsByPrj =
                 bitemmRepository.findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
                         .collect(Collectors.groupingBy(
-                                com.kdb.it.domain.budget.project.entity.Bitemm::getAbusMngNo));
+                                value -> value.getAbusMngNo()));
 
         // 대표상태 배치 조회: 대상 프로젝트들의 BPROJA를 1회 조회 후 프로젝트별 MAX(IT_PTL_STS_TC) 계산.
         Map<String, String> repStatusByPrj = bprojaRepository
                 .findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
                 .collect(Collectors.groupingBy(
-                        com.kdb.it.domain.budget.project.entity.Bproja::getAbusMngNo,
+                        value -> value.getAbusMngNo(),
                         Collectors.collectingAndThen(Collectors.toList(), this::representativeStatus)));
 
         // --- 6. 응답 DTO에 일괄 주입 ---
@@ -958,7 +958,7 @@ public class ProjectService {
      */
     private String representativeStatus(java.util.List<com.kdb.it.domain.budget.project.entity.Bproja> rows) {
         return rows.stream()
-                .map(com.kdb.it.domain.budget.project.entity.Bproja::getStsTc)
+                .map(value -> value.getStsTc())
                 .filter(s -> s != null && !s.isEmpty())
                 .max(java.util.Comparator.naturalOrder())
                 .orElse(null);
@@ -1049,7 +1049,7 @@ public class ProjectService {
     private void enrichItemIoeCNames(List<ProjectDto.BitemmDto> items) {
         if (items == null || items.isEmpty()) return;
         Set<String> ioeCSet = items.stream()
-                .map(ProjectDto.BitemmDto::getIoeC)
+                .map(value -> value.getIoeC())
                 .filter(v -> v != null && !v.isEmpty())
                 .collect(Collectors.toSet());
         if (ioeCSet.isEmpty()) return;

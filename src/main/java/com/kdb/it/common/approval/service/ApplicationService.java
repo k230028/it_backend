@@ -487,14 +487,14 @@ public class ApplicationService {
      */
     public List<ApplicationDto.Response> getApplications() {
         List<Capplm> capplms = applicationRepository.findAll();
-        List<String> apfMngNos = capplms.stream().map(Capplm::getApfMngNo).toList();
+        List<String> apfMngNos = capplms.stream().map(value -> value.getApfMngNo()).toList();
 
         // 결재선 배치 조회 (N+1 제거): 신청번호별 결재자 목록 Map 선구성.
         // findByDcdMngNoInOrderByDcrSqnSnoAsc가 DCR_SQN_SNO 오름차순으로 반환하므로
         // groupingBy가 각 신청번호 그룹 내 결재자 순서를 보존한다.
         java.util.Map<String, List<Cdecim>> approversByApf =
                 approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos).stream()
-                        .collect(java.util.stream.Collectors.groupingBy(Cdecim::getDcdMngNo));
+                        .collect(java.util.stream.Collectors.groupingBy(value -> value.getDcdMngNo()));
 
         return capplms.stream()
                 .map(capplm -> ApplicationDto.Response.fromEntity(
@@ -679,7 +679,7 @@ public class ApplicationService {
         List<String> approvedMiddle = approvers.stream()
             .filter(a -> "N".equals(a.getLstDcdYn())
                       && DecisionStatus.isApprovedCode(a.getDcdStsC()))
-            .map(Cdecim::getDcrEno)
+            .map(value -> value.getDcrEno())
             .distinct()
             .toList();
 

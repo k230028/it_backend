@@ -504,7 +504,7 @@ public class FileService {
             }
         }
 
-        files.forEach(Cfilem::delete);
+        files.forEach(value -> value.delete());
         return files.size();
     }
 

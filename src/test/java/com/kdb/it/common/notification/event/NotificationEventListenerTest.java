@@ -119,7 +119,7 @@ class NotificationEventListenerTest {
 
         ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
         verify(notificationService, times(2)).send(captor.capture());
-        assertThat(captor.getAllValues()).extracting(NotificationEvent::recipientEno)
+        assertThat(captor.getAllValues()).extracting(value -> value.recipientEno())
                 .containsExactly("REQUESTER", "APPROVER");
         assertThat(captor.getAllValues()).allSatisfy(notification ->
                 assertThat(notification.infmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_RECALLED));

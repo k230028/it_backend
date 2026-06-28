@@ -387,10 +387,10 @@ class BudgetWorkServiceTest {
 
         BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
 
-        assertThat(result.data()).extracting(BudgetWorkDto.SummaryItem::groupName)
+        assertThat(result.data()).extracting(value -> value.groupName())
                 .contains("전산임차료", "전산여비", "전산용역비", "전산제비");
         assertThat(result.data()).filteredOn(item -> "전산임차료".equals(item.groupName()))
-                .extracting(BudgetWorkDto.SummaryItem::ioeCategory)
+                .extracting(value -> value.ioeCategory())
                 .containsExactly("국내전산임차료");
     }
 
@@ -750,8 +750,8 @@ class BudgetWorkServiceTest {
         assertThat(result.totalRecords()).isEqualTo(2);
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository, org.mockito.Mockito.times(2)).save(captor.capture());
-        assertThat(captor.getAllValues()).extracting(Bbugtm::getAsgRt).containsExactly(60, 100);
-        assertThat(captor.getAllValues()).extracting(Bbugtm::getBgDupAmt)
+        assertThat(captor.getAllValues()).extracting(value -> value.getAsgRt()).containsExactly(60, 100);
+        assertThat(captor.getAllValues()).extracting(value -> value.getBgDupAmt())
                 .containsExactly(new BigDecimal("600.00"), new BigDecimal("500.00"));
     }
 
@@ -857,7 +857,7 @@ class BudgetWorkServiceTest {
 
         // cdvaDtl="자본그룹 - 개발비" → stripGroupPrefix → "개발비"
         // cNm="351-9999" (cdvaDtl 없음) → stripGroupPrefix → "351-9999"
-        assertThat(result.data()).extracting(BudgetWorkDto.SummaryItem::ioeCategory)
+        assertThat(result.data()).extracting(value -> value.ioeCategory())
                 .contains("개발비", "351-9999");
         assertThat(result.data()).anySatisfy(item -> {
             if ("개발비".equals(item.ioeCategory())) {
@@ -908,7 +908,7 @@ class BudgetWorkServiceTest {
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
         assertThat(result.categories()).hasSize(1);
-        assertThat(result.data()).extracting(BudgetWorkDto.ProjectSummaryItem::name)
+        assertThat(result.data()).extracting(value -> value.name())
                 .containsExactly("정보화사업", "유지보수계약");
         assertThat(result.totals().requestAmount()).isEqualByComparingTo("2000.00");
         assertThat(result.totals().dupAmount()).isEqualByComparingTo("1300");
@@ -1267,7 +1267,7 @@ class BudgetWorkServiceTest {
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
-        assertThat(result.data()).extracting(BudgetWorkDto.ProjectSummaryItem::name)
+        assertThat(result.data()).extracting(value -> value.name())
                 .contains("GCL-MISSING", "COST-MISSING", "UNK-1");
         assertThat(result.totals().requestAmount()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.totals().dupAmount()).isEqualByComparingTo("100");

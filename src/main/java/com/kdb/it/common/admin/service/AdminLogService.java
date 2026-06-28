@@ -246,8 +246,8 @@ public class AdminLogService {
     private Map<String, String> loadUserNames(List<Map<String, Object>> rows, List<AdminLogDto.LogColumnResponse> columns) {
         Set<String> enos = new LinkedHashSet<>();
         List<String> userFields = columns.stream()
-                .filter(AdminLogDto.LogColumnResponse::userField)
-                .map(AdminLogDto.LogColumnResponse::field)
+                .filter(value -> value.userField())
+                .map(value -> value.field())
                 .toList();
 
         for (Map<String, Object> row : rows) {
@@ -263,7 +263,7 @@ public class AdminLogService {
         }
 
         return userRepository.findByEnoIn(enos).stream()
-                .collect(LinkedHashMap::new, (map, user) -> map.put(user.getEno(), user.getUsrNm()), LinkedHashMap::putAll);
+                .collect(LinkedHashMap::new, (map, user) -> map.put(user.getEno(), user.getUsrNm()), (target, source) -> target.putAll(source));
     }
 
     private AdminLogDto.LogTableResponse toTableResponse(LogDefinition def) {
@@ -325,8 +325,8 @@ public class AdminLogService {
                 new LogDefinition("ccodem", "공통코드 로그", CcodemL.class)
         );
         return list.stream()
-                .sorted(Comparator.comparing(LogDefinition::key))
-                .collect(LinkedHashMap::new, (map, def) -> map.put(def.key(), def), LinkedHashMap::putAll);
+                .sorted(Comparator.comparing(value -> value.key()))
+                .collect(LinkedHashMap::new, (map, def) -> map.put(def.key(), def), (target, source) -> target.putAll(source));
     }
 
     private record LogDefinition(String key, String title, Class<?> entityClass) {}

@@ -59,6 +59,6 @@ public class BprojaSyncService {
             return;
         }
         bprojaRepository.findById(new BprojaId(abusMngNo, cncdRfrNo))
-                .ifPresent(Bproja::delete);
+                .ifPresent(value -> value.delete());
     }
 }

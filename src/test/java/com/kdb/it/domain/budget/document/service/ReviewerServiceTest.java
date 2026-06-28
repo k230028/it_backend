@@ -64,7 +64,7 @@ class ReviewerServiceTest {
         assertThat(result)
                 .filteredOn(r -> "PMO팀".equals(r.getTeamName()))
                 .hasSize(1)
-                .extracting(ReviewerDto.Response::getEno)
+                .extracting(value -> value.getEno())
                 .containsExactly("E001");
     }
 

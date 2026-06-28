@@ -549,9 +549,9 @@ class ServiceRequestDocServiceTest {
         ServiceRequestDocDto.DashboardResponse result = service.getDashboard("101");
 
         assertThat(result.getTotalCount()).isEqualTo(5);
-        assertThat(result.getMonthlyTrend()).extracting(ServiceRequestDocDto.MonthlyCount::getCount)
+        assertThat(result.getMonthlyTrend()).extracting(value -> value.getCount())
                 .containsExactly(2);
-        assertThat(result.getRecentReviewing()).extracting(ServiceRequestDocDto.ReviewingItem::getStatus)
+        assertThat(result.getRecentReviewing()).extracting(value -> value.getStatus())
                 .containsExactly("delayed", "reviewing", "reviewing");
     }
 
