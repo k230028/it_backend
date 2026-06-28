@@ -6,6 +6,7 @@ import com.kdb.it.domain.deliberation.dto.DeliberationDto;
 import com.kdb.it.domain.deliberation.entity.QBdelim;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -49,16 +50,18 @@ public class DeliberationRepositoryImpl implements DeliberationRepositoryCustom 
         if (StringUtils.hasText(stsTc))     where.and(d.stsTc.eq(stsTc));
         if (StringUtils.hasText(bgPrnTc))   where.and(d.bgPrnTc.eq(bgPrnTc));
         if (StringUtils.hasText(cncdRfrNo)) where.and(d.cncdRfrNo.eq(cncdRfrNo));
-        // bbrC 부서 필터: 사업(100)=Bprojm.svnDpmC, 전산업무비(200)=Bcostm.costSvnDpmC와 비교
+        // bbrC 부서 필터: 대상구분(bgPrnTc)은 100(정보화사업)·200(전산업무비) 2종뿐.
+        // 사업=Bprojm.svnDpmC, 전산업무비=Bcostm.costSvnDpmC와 비교. 그룹핑 명시(anyOf/allOf)로 우선순위 모호성 제거.
         if (StringUtils.hasText(bbrC)) {
-            where.and(
-                    d.bgPrnTc.eq("100").and(p.svnDpmC.eq(bbrC))
-                            .or(d.bgPrnTc.eq("200").and(c.costSvnDpmC.eq(bbrC)))
-            );
+            where.and(Expressions.anyOf(
+                    Expressions.allOf(d.bgPrnTc.eq("100"), p.svnDpmC.eq(bbrC)),
+                    Expressions.allOf(d.bgPrnTc.eq("200"), c.costSvnDpmC.eq(bbrC))
+            ));
         }
 
         return queryFactory.select(Projections.constructor(DeliberationDto.ListItem.class,
                         d.docMngNo, d.docVrsSno, d.bgPrnTc, d.cncdRfrNo, d.stsTc, d.taskDbrRltTc, d.fstEnrUsid, d.fstEnrDtm))
+                .distinct()
                 .from(d)
                 .leftJoin(p).on(p.abusMngNo.eq(d.cncdRfrNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
                 .leftJoin(c).on(c.costBgNo.eq(d.cncdRfrNo).and(c.lstYn.eq("Y")).and(c.delYn.eq("N")))

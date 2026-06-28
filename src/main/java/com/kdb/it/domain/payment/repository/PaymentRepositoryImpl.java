@@ -6,6 +6,7 @@ import com.kdb.it.domain.payment.dto.PaymentDto;
 import com.kdb.it.domain.payment.entity.QBpaymm;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -45,12 +46,13 @@ public class PaymentRepositoryImpl implements PaymentRepositoryCustom {
         if (StringUtils.hasText(stsTc))     { where.and(pm.stsTc.eq(stsTc)); }
         if (StringUtils.hasText(bgPrnTc))   { where.and(pm.bgPrnTc.eq(bgPrnTc)); }
         if (StringUtils.hasText(cncdRfrNo)) { where.and(pm.cncdRfrNo.eq(cncdRfrNo)); }
-        // bbrC 부서 필터: 사업(100)=Bprojm.svnDpmC, 전산업무비(200)=Bcostm.costSvnDpmC와 비교
+        // bbrC 부서 필터: 대상구분(bgPrnTc)은 100(정보화사업)·200(전산업무비) 2종뿐.
+        // 사업=Bprojm.svnDpmC, 전산업무비=Bcostm.costSvnDpmC와 비교. 그룹핑 명시(anyOf/allOf)로 우선순위 모호성 제거.
         if (StringUtils.hasText(bbrC)) {
-            where.and(
-                    pm.bgPrnTc.eq("100").and(p.svnDpmC.eq(bbrC))
-                            .or(pm.bgPrnTc.eq("200").and(c.costSvnDpmC.eq(bbrC)))
-            );
+            where.and(Expressions.anyOf(
+                    Expressions.allOf(pm.bgPrnTc.eq("100"), p.svnDpmC.eq(bbrC)),
+                    Expressions.allOf(pm.bgPrnTc.eq("200"), c.costSvnDpmC.eq(bbrC))
+            ));
         }
 
         return queryFactory
@@ -65,6 +67,7 @@ public class PaymentRepositoryImpl implements PaymentRepositoryCustom {
                         pm.fstEnrUsid,    // 최초등록자(요청자) — BaseEntity 상속 필드
                         pm.fstEnrDtm      // 최초등록일시(요청일시) — BaseEntity 상속 필드
                 ))
+                .distinct()
                 .from(pm)
                 .leftJoin(p).on(p.abusMngNo.eq(pm.cncdRfrNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
                 .leftJoin(c).on(c.costBgNo.eq(pm.cncdRfrNo).and(c.lstYn.eq("Y")).and(c.delYn.eq("N")))
