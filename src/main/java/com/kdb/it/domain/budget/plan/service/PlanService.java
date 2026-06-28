@@ -1,29 +1,4 @@
 package com.kdb.it.domain.budget.plan.service;
-import com.kdb.it.common.code.CommonCodeGroups;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.domain.budget.plan.dto.PlanDto;
-import com.kdb.it.domain.budget.plan.entity.Bplanm;
-import com.kdb.it.domain.budget.plan.entity.Bplana;
-import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
-import com.kdb.it.domain.budget.plan.repository.BplanaRepository;
-import com.kdb.it.common.code.entity.Ccodem;
-import com.kdb.it.common.code.service.CodeService;
-import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.domain.budget.cost.dto.CostDto;
-import com.kdb.it.domain.budget.cost.service.CostService;
-import com.kdb.it.domain.budget.project.dto.ProjectDto;
-import com.kdb.it.domain.budget.project.service.ProjectService;
-import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -31,6 +6,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.code.CommonCodeGroups;
+import com.kdb.it.common.code.service.CodeService;
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.budget.cost.service.CostService;
+import com.kdb.it.domain.budget.plan.dto.PlanDto;
+import com.kdb.it.domain.budget.plan.entity.Bplana;
+import com.kdb.it.domain.budget.plan.entity.Bplanm;
+import com.kdb.it.domain.budget.plan.repository.BplanaRepository;
+import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.service.ProjectService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * 정보기술부문 계획 서비스
@@ -40,8 +40,10 @@ import java.util.stream.Collectors;
  * 등록, 조회, 삭제 비즈니스 로직을 담당합니다.
  * </p>
  */
-// 후속 과제: 클래스 레벨 @Transactional(readOnly=true) 추가 필요 — 조회 위주 서비스이므로 메서드별 어노테이션 누락 방지 (CLAUDE.md §5.5)
-// 누락 배경: 초기 개발 시 트랜잭션 전략 미수립. 쓰기 메서드에 @Transactional(readOnly=false) 오버라이드 후 클래스 레벨 적용 예정.
+// 후속 과제: 클래스 레벨 @Transactional(readOnly=true) 추가 필요 — 조회 위주 서비스이므로 메서드별 어노테이션
+// 누락 방지 (CLAUDE.md §5.5)
+// 누락 배경: 초기 개발 시 트랜잭션 전략 미수립. 쓰기 메서드에 @Transactional(readOnly=false) 오버라이드 후
+// 클래스 레벨 적용 예정.
 @Service
 @RequiredArgsConstructor
 public class PlanService {
@@ -83,7 +85,8 @@ public class PlanService {
 
                 // PUL_DTT 공통코드 cdva → cNm 매핑 (신규/계속 구분에 사용)
                 Map<String, String> pulDttNameByCdva = codeService.findCodeEntitiesByCId(CommonCodeGroups.ABUS).stream()
-                                .collect(Collectors.toMap(value -> value.getCdva(), value -> value.getCdvaNm(), (a, b) -> a));
+                                .collect(Collectors.toMap(value -> value.getCdva(), value -> value.getCdvaNm(),
+                                                (a, b) -> a));
 
                 // 최초생성자 사번 → 이름 매핑 (CUSERI 조인)
                 List<String> userEnos = plans.stream()
@@ -94,7 +97,8 @@ public class PlanService {
                 Map<String, String> userNameByEno = userEnos.isEmpty()
                                 ? Map.of()
                                 : cuserIRepository.findAllById(userEnos).stream()
-                                                .collect(Collectors.toMap(value -> value.getEno(), value -> value.getUsrNm(),
+                                                .collect(Collectors.toMap(value -> value.getEno(),
+                                                                value -> value.getUsrNm(),
                                                                 (a, b) -> a));
 
                 return plans.stream()
@@ -113,7 +117,8 @@ public class PlanService {
                                         if (dtlCone != null && !dtlCone.isBlank()) {
                                                 try {
                                                         Map<String, Object> snapshot = objectMapper.readValue(dtlCone,
-                                                                        new TypeReference<Map<String, Object>>() {});
+                                                                        new TypeReference<Map<String, Object>>() {
+                                                                        });
                                                         // 신 포맷(prjSnapshots) 우선, 구 포맷(projects) 폴백
                                                         Object snaps = snapshot.get("prjSnapshots");
                                                         if (!(snaps instanceof List<?>)) {
@@ -229,11 +234,11 @@ public class PlanService {
                 }
 
                 // 3. 예산 합계 계산 (정보화사업 + 전산업무비)
-                //    폼 미리보기와 동일하게 BBUGTM 편성예산(DUP_BG) 기준으로 집계한다.
-                //    과거에는 요청/소요 금액(totRqmAmt·costTotXpAmt·assetBg·costBg)을 합산해
-                //    미리보기(편성예산)보다 큰 값이 저장되는 불일치가 있었다.
-                //    - 자본예산 편성액 = Σ assetDupBg, 일반관리비 편성액 = Σ costDupBg
-                //    - 총예산 = 자본예산 편성액 + 일반관리비 편성액 (미리보기 ttlBg = cptBg + mngc 와 동일)
+                // 폼 미리보기와 동일하게 BBUGTM 편성예산(DUP_BG) 기준으로 집계한다.
+                // 과거에는 요청/소요 금액(totRqmAmt·costTotXpAmt·assetBg·costBg)을 합산해
+                // 미리보기(편성예산)보다 큰 값이 저장되는 불일치가 있었다.
+                // - 자본예산 편성액 = Σ assetDupBg, 일반관리비 편성액 = Σ costDupBg
+                // - 총예산 = 자본예산 편성액 + 일반관리비 편성액 (미리보기 ttlBg = cptBg + mngc 와 동일)
                 BigDecimal cpitBgApvAmt = projects.stream()
                                 .map(p -> p.getAssetDupBg() != null ? p.getAssetDupBg() : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
@@ -329,7 +334,8 @@ public class PlanService {
          * 계획의 5개 텍스트 필드를 수정합니다.
          *
          * @param reqDocNo 계획관리번호
-         * @param request  수정 요청 DTO (prjDvmCone, itBgCone, itPrjRmk, cpitBgRmk, mngcBgRmk)
+         * @param request  수정 요청 DTO (prjDvmCone, itBgCone, itPrjRmk, cpitBgRmk,
+         *                 mngcBgRmk)
          * @throws ResponseStatusException 계획을 찾을 수 없는 경우 404
          */
         @Transactional
@@ -357,12 +363,12 @@ public class PlanService {
          * - 사업유형(PRJ_TP)별 그룹 목록(byProjectType)
          * </p>
          *
-         * @param request     계획 생성 요청
-         * @param projects    대상 정보화사업 목록
-         * @param costs       대상 전산업무비 목록
-         * @param aduTotAmt   총예산 합계
+         * @param request      계획 생성 요청
+         * @param projects     대상 정보화사업 목록
+         * @param costs        대상 전산업무비 목록
+         * @param aduTotAmt    총예산 합계
          * @param cpitBgApvAmt 자본예산 합계
-         * @param totXpAmt    일반관리비 합계
+         * @param totXpAmt     일반관리비 합계
          * @return JSON 직렬화 문자열
          */
         private String buildSnapshot(PlanDto.CreateRequest request,
@@ -471,8 +477,10 @@ public class PlanService {
         /**
          * 스냅샷에 저장된 추진유형 값을 현행 ABUS_TC 코드값ID(01/02)로 정규화한다.
          *
-         * <p>마이그레이션 이전 스냅샷은 구 PUL_DTT 값(001/002) 또는 그룹ID 접두 형식
-         * (PUL_DTT_001 등)을 저장했을 수 있어 현행 코드값과 매칭되도록 변환한다.</p>
+         * <p>
+         * 마이그레이션 이전 스냅샷은 구 PUL_DTT 값(001/002) 또는 그룹ID 접두 형식
+         * (PUL_DTT_001 등)을 저장했을 수 있어 현행 코드값과 매칭되도록 변환한다.
+         * </p>
          *
          * @param raw 스냅샷 항목의 추진유형 원본값(null 허용)
          * @return 정규화된 코드값ID(예: "01", "02"). 입력이 null 이면 null.

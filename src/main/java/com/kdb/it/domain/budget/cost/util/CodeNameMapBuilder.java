@@ -1,18 +1,22 @@
 package com.kdb.it.domain.budget.cost.util;
 
-import com.kdb.it.common.code.entity.Ccodem;
-import com.kdb.it.common.code.repository.CodeRepository;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
+
+import com.kdb.it.common.code.repository.CodeRepository;
+
 import org.springframework.stereotype.Component;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * 공통코드 {@code cId} 기준으로 지정한 {@code cdva} 집합을 {@code cdva → CDVA_NM} 맵으로 만든다.
  *
- * <p>예산/사업 서비스에서 비목·구분 코드 표시명을 한 번에 조회하기 위한 공통 헬퍼.
- * {@code cdvas}가 비어 있으면 빈 맵을 반환하고, 코드명이 null인 항목은 제외한다(표시용 매핑).</p>
+ * <p>
+ * 예산/사업 서비스에서 비목·구분 코드 표시명을 한 번에 조회하기 위한 공통 헬퍼.
+ * {@code cdvas}가 비어 있으면 빈 맵을 반환하고, 코드명이 null인 항목은 제외한다(표시용 매핑).
+ * </p>
  */
 @Component
 @RequiredArgsConstructor

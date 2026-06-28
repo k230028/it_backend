@@ -1,19 +1,24 @@
 package com.kdb.it.config;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import java.util.List;
+
 import com.kdb.it.common.sso.SsoController;
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.config.Customizer;
-import lombok.RequiredArgsConstructor;
+import com.kdb.it.common.util.CustomPasswordEncoder;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -22,13 +27,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import com.kdb.it.common.util.CustomPasswordEncoder;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
-import java.util.List;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Spring Security 보안 설정 클래스
@@ -118,7 +118,8 @@ public class SecurityConfig {
                                                 // script-src의 sha256 해시는 SSO CS 모드 saveToken POST 브리지 페이지의
                                                 // 고정 인라인 스크립트(SsoController.CS_MODE_SUBMIT_SCRIPT)만 허용한다.
                                                 // 해시는 그 스크립트 본문에서 런타임 계산하므로 스크립트 변경 시 자동 정합된다.
-                                                .contentSecurityPolicy(csp -> csp.policyDirectives(contentSecurityPolicy())))
+                                                .contentSecurityPolicy(
+                                                                csp -> csp.policyDirectives(contentSecurityPolicy())))
                                 // CORS 설정 적용 (corsConfigurationSource 빈 사용)
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 // CSRF 보호 비활성화: httpOnly 쿠키를 쓰므로 운영 SameSite/CORS 설정과 함께 관리
@@ -136,7 +137,8 @@ public class SecurityConfig {
                                                                 "/swagger-ui.html", "/error",
                                                                 // 브라우저 기본 요청 — 인증 불필요(인증 실패 WARN 로그 노이즈 제거)
                                                                 "/favicon.ico",
-                                                                // SSO 흐름 — business/checkauth/loginProc/logout (SsoController)
+                                                                // SSO 흐름 — business/checkauth/loginProc/logout
+                                                                // (SsoController)
                                                                 "/sso/**",
                                                                 // SSO 브리지 — loginProc에서 리다이렉트되는 JWT 발급 엔드포인트
                                                                 "/api/auth/sso/complete")
@@ -245,9 +247,11 @@ public class SecurityConfig {
         /**
          * Content-Security-Policy 지시문을 조립합니다.
          *
-         * <p>{@code script-src}에는 {@code 'self'}와, SSO CS 모드 saveToken POST 브리지 페이지의
+         * <p>
+         * {@code script-src}에는 {@code 'self'}와, SSO CS 모드 saveToken POST 브리지 페이지의
          * 고정 인라인 스크립트({@link SsoController#CS_MODE_SUBMIT_SCRIPT})에 대한 sha256 해시만
-         * 허용합니다. 해시는 스크립트 본문에서 런타임 계산하므로 스크립트가 바뀌어도 자동 정합됩니다.</p>
+         * 허용합니다. 해시는 스크립트 본문에서 런타임 계산하므로 스크립트가 바뀌어도 자동 정합됩니다.
+         * </p>
          *
          * @return CSP policy-directives 문자열
          */

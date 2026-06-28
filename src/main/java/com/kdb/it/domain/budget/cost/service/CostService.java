@@ -1,30 +1,4 @@
 package com.kdb.it.domain.budget.cost.service;
-import com.kdb.it.common.code.CommonCodeGroups;
-
-import com.kdb.it.common.approval.dto.ApplicationInfoDto;
-import com.kdb.it.common.util.DateFormatUtil;
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.entity.Capplm;
-import com.kdb.it.common.approval.entity.Cdecim;
-import com.kdb.it.common.iam.entity.CorgnI;
-import com.kdb.it.common.approval.repository.ApplicationMapRepository;
-import com.kdb.it.common.approval.repository.ApplicationRepository;
-import com.kdb.it.common.approval.repository.ApproverRepository;
-import com.kdb.it.common.code.entity.Ccodem;
-import com.kdb.it.common.code.repository.CodeRepository;
-import com.kdb.it.common.iam.repository.OrganizationRepository;
-import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.domain.budget.cost.dto.CostDto;
-import com.kdb.it.domain.budget.cost.entity.Bcostm;
-import com.kdb.it.domain.budget.cost.entity.Btermm;
-import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
-import com.kdb.it.domain.budget.cost.repository.CostRepository;
-import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
-import com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder;
-import com.kdb.it.domain.budget.cost.util.XcrLookupService;
-import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,13 +9,38 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import lombok.RequiredArgsConstructor;
+import com.kdb.it.common.approval.dto.ApplicationInfoDto;
+import com.kdb.it.common.approval.entity.Cappla;
+import com.kdb.it.common.approval.entity.Capplm;
+import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.common.approval.repository.ApplicationMapRepository;
+import com.kdb.it.common.approval.repository.ApplicationRepository;
+import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.code.CommonCodeGroups;
+import com.kdb.it.common.code.entity.Ccodem;
+import com.kdb.it.common.code.repository.CodeRepository;
+import com.kdb.it.common.iam.repository.OrganizationRepository;
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.util.DateFormatUtil;
+import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.budget.cost.entity.Bcostm;
+import com.kdb.it.domain.budget.cost.entity.Btermm;
+import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
+import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
+import com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
+import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * 전산관리비(IT 관리비) 서비스
@@ -168,7 +167,8 @@ public class CostService {
      * 검색 조건으로 전산관리비 목록 조회
      *
      * <p>
-     * {@link CostDto.SearchCondition}의 조건이 모두 비어있으면 전체 조회({@link #getCostList()})와 동일합니다.
+     * {@link CostDto.SearchCondition}의 조건이 모두 비어있으면 전체 조회({@link #getCostList()})와
+     * 동일합니다.
      * </p>
      *
      * <p>
@@ -330,7 +330,8 @@ public class CostService {
                 request.getFcAmt());
 
         /* 연관된 단말기 목록 업데이트: 기존 Soft Delete 후 재등록 */
-        List<Btermm> existingTerminals = btermmRepository.findByTermBgNoAndTermBgSno(target.getCostBgNo(), target.getBgSno());
+        List<Btermm> existingTerminals = btermmRepository.findByTermBgNoAndTermBgSno(target.getCostBgNo(),
+                target.getBgSno());
         for (Btermm et : existingTerminals) {
             et.delete();
         }
@@ -391,11 +392,11 @@ public class CostService {
         Map<String, List<Btermm>> terminalsByKey = btermmRepository
                 .findByTermBgNoInAndDelYn(costNos, "N").stream()
                 .collect(Collectors.groupingBy(
-                    t -> t.getTermBgNo() + "_" + t.getTermBgSno()));
+                        t -> t.getTermBgNo() + "_" + t.getTermBgSno()));
         for (Bcostm cost : costs) {
             cost.delete();
             terminalsByKey.getOrDefault(cost.getCostBgNo() + "_" + cost.getBgSno(), List.of())
-                .forEach(value -> value.delete());
+                    .forEach(value -> value.delete());
         }
     }
 
@@ -475,7 +476,8 @@ public class CostService {
             capplmRepository.findById(cappla.getApfDcmNo())
                     .ifPresent(capplm -> {
                         response.setApfSts(capplm.getApfPrgStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label());
+                                : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC())
+                                        .label());
                         List<Cdecim> decisions = cdecimRepository
                                 .findByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
                         response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
@@ -490,8 +492,10 @@ public class CostService {
      * 비목코드(ioeC)를 공통코드에서 조회하여 코드값구분(cttTp) 기준으로 분류합니다.
      * </p>
      * <ul>
-     * <li>자본예산: cttTp가 IOE_DVC/IOE_HW/IOE_SW인 경우 → assetBg = itMngcBgAmt, costBg = 0</li>
-     * <li>일반관리비: cttTp가 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE인 경우 → assetBg = 0, costBg = itMngcBgAmt</li>
+     * <li>자본예산: cttTp가 IOE_DVC/IOE_HW/IOE_SW인 경우 → assetBg = itMngcBgAmt, costBg =
+     * 0</li>
+     * <li>일반관리비: cttTp가 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE인 경우 → assetBg = 0,
+     * costBg = itMngcBgAmt</li>
      * </ul>
      *
      * @param response 예산 구분을 설정할 응답 DTO
@@ -528,9 +532,12 @@ public class CostService {
                     case IOE_SW -> response.setSwBg(totalBg);
                     case "IOE_CPIT" -> {
                         String cdvaDes = code.getCdvaDes() != null ? code.getCdvaDes() : "";
-                        if ("단말기".equals(cdvaDes)) response.setDvcBg(totalBg);
-                        else if ("기계장치".equals(cdvaDes)) response.setHwBg(totalBg);
-                        else if ("기타무형자산".equals(cdvaDes)) response.setSwBg(totalBg);
+                        if ("단말기".equals(cdvaDes))
+                            response.setDvcBg(totalBg);
+                        else if ("기계장치".equals(cdvaDes))
+                            response.setHwBg(totalBg);
+                        else if ("기타무형자산".equals(cdvaDes))
+                            response.setSwBg(totalBg);
                     }
                     default -> {
                         // 위 CAPITAL_DETAIL_CTPS 조건과 switch 분기가 어긋나는 경우 금액만 자본예산으로 유지
@@ -548,10 +555,13 @@ public class CostService {
     /**
      * 전산관리비 목록 응답에 신청서 정보·코드명·예산 구분을 배치로 주입 (N+1 방지)
      *
-     * <p>CAPPLA 1회, CAPPLM 1회, CDECIM 1회, CORGNI 1회, CUSERI 1회 — 총 5 쿼리로 처리합니다.</p>
+     * <p>
+     * CAPPLA 1회, CAPPLM 1회, CDECIM 1회, CORGNI 1회, CUSERI 1회 — 총 5 쿼리로 처리합니다.
+     * </p>
      */
     private void enrichCostListBatch(List<Bcostm> costs, List<CostDto.Response> responses) {
-        if (costs.isEmpty()) return;
+        if (costs.isEmpty())
+            return;
 
         // --- 1. CAPPLA 배치 조회 ---
         List<String> costBgNos = costs.stream().map(value -> value.getCostBgNo()).distinct().toList();
@@ -585,15 +595,24 @@ public class CostService {
         Set<String> abusTcCdvas = new java.util.HashSet<>();
         Set<String> ioeCCdvas = new java.util.HashSet<>();
         for (CostDto.Response r : responses) {
-            if (r.getCostSvnDpmC() != null && !r.getCostSvnDpmC().isEmpty()) orgCodes.add(r.getCostSvnDpmC());
-            if (r.getSvnTemC() != null && !r.getSvnTemC().isEmpty()) orgCodes.add(r.getSvnTemC());
-            if (r.getCgprId() != null && !r.getCgprId().isEmpty()) userEnos.add(r.getCgprId());
-            if (r.getBgUntAbusC() != null && !r.getBgUntAbusC().isEmpty()) bgUntAbusCdvas.add(r.getBgUntAbusC());
-            if (r.getDfrCleC() != null && !r.getDfrCleC().isEmpty()) dfrCleCCdvas.add(r.getDfrCleC());
-            if ("Y".equals(r.getTmnYn())) tmnYnMngcCodes.add("1");
-            else if ("N".equals(r.getTmnYn())) tmnYnMngcCodes.add("0");
-            if (r.getAbusTc() != null && !r.getAbusTc().isEmpty()) abusTcCdvas.add(r.getAbusTc());
-            if (r.getIoeC() != null && !r.getIoeC().isEmpty()) ioeCCdvas.add(r.getIoeC());
+            if (r.getCostSvnDpmC() != null && !r.getCostSvnDpmC().isEmpty())
+                orgCodes.add(r.getCostSvnDpmC());
+            if (r.getSvnTemC() != null && !r.getSvnTemC().isEmpty())
+                orgCodes.add(r.getSvnTemC());
+            if (r.getCgprId() != null && !r.getCgprId().isEmpty())
+                userEnos.add(r.getCgprId());
+            if (r.getBgUntAbusC() != null && !r.getBgUntAbusC().isEmpty())
+                bgUntAbusCdvas.add(r.getBgUntAbusC());
+            if (r.getDfrCleC() != null && !r.getDfrCleC().isEmpty())
+                dfrCleCCdvas.add(r.getDfrCleC());
+            if ("Y".equals(r.getTmnYn()))
+                tmnYnMngcCodes.add("1");
+            else if ("N".equals(r.getTmnYn()))
+                tmnYnMngcCodes.add("0");
+            if (r.getAbusTc() != null && !r.getAbusTc().isEmpty())
+                abusTcCdvas.add(r.getAbusTc());
+            if (r.getIoeC() != null && !r.getIoeC().isEmpty())
+                ioeCCdvas.add(r.getIoeC());
         }
 
         // --- 5. 배치 조회 ---
@@ -620,8 +639,8 @@ public class CostService {
                 .toList();
         Map<String, List<Btermm>> terminalsByKey = terminalCostNos.isEmpty() ? Map.of()
                 : btermmRepository.findByTermBgNoInAndDelYn(terminalCostNos, "N").stream()
-                    .collect(Collectors.groupingBy(
-                        t -> t.getTermBgNo() + "_" + t.getTermBgSno()));
+                        .collect(Collectors.groupingBy(
+                                t -> t.getTermBgNo() + "_" + t.getTermBgSno()));
 
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < costs.size(); i++) {
@@ -641,15 +660,24 @@ public class CostService {
                 }
             }
 
-            if (response.getCostSvnDpmC() != null) response.setCostSvnDpmNm(orgNameMap.get(response.getCostSvnDpmC()));
-            if (response.getSvnTemC() != null) response.setSvnTemNm(orgNameMap.get(response.getSvnTemC()));
-            if (response.getCgprId() != null) response.setCgprNm(userNameMap.get(response.getCgprId()));
-            if (response.getBgUntAbusC() != null) response.setBgUntAbusCNm(bgUntAbusCNameMap.get(response.getBgUntAbusC()));
-            if (response.getDfrCleC() != null) response.setDfrCleCNm(dfrCleCNameMap.get(response.getDfrCleC()));
-            if ("Y".equals(response.getTmnYn())) response.setTmnYnNm(tmnYnNameMap.get("1"));
-            else if ("N".equals(response.getTmnYn())) response.setTmnYnNm(tmnYnNameMap.get("0"));
-            if (response.getAbusTc() != null) response.setAbusTcNm(abusTcNameMap.get(response.getAbusTc()));
-            if (response.getIoeC() != null) response.setIoeCNm(ioeCNameMap.get(response.getIoeC()));
+            if (response.getCostSvnDpmC() != null)
+                response.setCostSvnDpmNm(orgNameMap.get(response.getCostSvnDpmC()));
+            if (response.getSvnTemC() != null)
+                response.setSvnTemNm(orgNameMap.get(response.getSvnTemC()));
+            if (response.getCgprId() != null)
+                response.setCgprNm(userNameMap.get(response.getCgprId()));
+            if (response.getBgUntAbusC() != null)
+                response.setBgUntAbusCNm(bgUntAbusCNameMap.get(response.getBgUntAbusC()));
+            if (response.getDfrCleC() != null)
+                response.setDfrCleCNm(dfrCleCNameMap.get(response.getDfrCleC()));
+            if ("Y".equals(response.getTmnYn()))
+                response.setTmnYnNm(tmnYnNameMap.get("1"));
+            else if ("N".equals(response.getTmnYn()))
+                response.setTmnYnNm(tmnYnNameMap.get("0"));
+            if (response.getAbusTc() != null)
+                response.setAbusTcNm(abusTcNameMap.get(response.getAbusTc()));
+            if (response.getIoeC() != null)
+                response.setIoeCNm(ioeCNameMap.get(response.getIoeC()));
 
             setBudgetCategory(response);
 
@@ -778,11 +806,14 @@ public class CostService {
     /**
      * 단말기 DTO 목록에 담당자명(cgprNm)과 코드명(단말기종류·이용방법·지급주기)을 일괄 설정.
      *
-     * <p>담당자명은 사번 배치 조회, 코드명은 그룹별 1회 조회로 N+1을 방지한다.
-     * 코드명은 cost-level(setCodeNames)과 동일한 CCODEM 유효일자 기준 조회를 사용한다.</p>
+     * <p>
+     * 담당자명은 사번 배치 조회, 코드명은 그룹별 1회 조회로 N+1을 방지한다.
+     * 코드명은 cost-level(setCodeNames)과 동일한 CCODEM 유효일자 기준 조회를 사용한다.
+     * </p>
      */
     private void setTerminalCodeNames(List<CostDto.TerminalDto> terminalDtos) {
-        if (terminalDtos.isEmpty()) return;
+        if (terminalDtos.isEmpty())
+            return;
 
         // 담당자명: 사번 배치 조회
         Set<String> enos = terminalDtos.stream()
@@ -809,9 +840,12 @@ public class CostService {
         Map<String, String> dfrMap = codeNameMapBuilder.build(CommonCodeGroups.DFR_CLE,
                 collectCdvas(terminalDtos, value -> value.getDfrCleC()));
         terminalDtos.forEach(tDto -> {
-            if (tDto.getTmnClsfC() != null) tDto.setTmnClsfCNm(svcMap.get(tDto.getTmnClsfC()));
-            if (tDto.getTmnKdTc() != null) tDto.setTmnKdTcNm(kindMap.get(tDto.getTmnKdTc()));
-            if (tDto.getDfrCleC() != null) tDto.setDfrCleCNm(dfrMap.get(tDto.getDfrCleC()));
+            if (tDto.getTmnClsfC() != null)
+                tDto.setTmnClsfCNm(svcMap.get(tDto.getTmnClsfC()));
+            if (tDto.getTmnKdTc() != null)
+                tDto.setTmnKdTcNm(kindMap.get(tDto.getTmnKdTc()));
+            if (tDto.getDfrCleC() != null)
+                tDto.setDfrCleCNm(dfrMap.get(tDto.getDfrCleC()));
         });
     }
 
@@ -832,7 +866,8 @@ public class CostService {
                         value -> value.getCdva(),
                         c -> {
                             String dtl = c.getCdvaNm() != null ? c.getCdvaNm()
-                                    : (c.getCdvaDtl() != null ? c.getCdvaDtl() : (c.getCNm() != null ? c.getCNm() : c.getCdva()));
+                                    : (c.getCdvaDtl() != null ? c.getCdvaDtl()
+                                            : (c.getCNm() != null ? c.getCNm() : c.getCdva()));
                             String[] parts = dtl.split(" - ");
                             return parts[parts.length - 1].trim();
                         },
@@ -847,19 +882,23 @@ public class CostService {
     }
 
     /**
-     * RBAC 수정/삭제 권한 검증 헬퍼 ({@link com.kdb.it.domain.budget.project.service.ProjectService}와 동일 규칙)
+     * RBAC 수정/삭제 권한 검증 헬퍼
+     * ({@link com.kdb.it.domain.budget.project.service.ProjectService}와 동일 규칙)
      *
-     * <p>SecurityContext에서 현재 인증된 사용자를 조회하고 자격등급 기반 3단계 권한을 검증합니다.</p>
+     * <p>
+     * SecurityContext에서 현재 인증된 사용자를 조회하고 자격등급 기반 3단계 권한을 검증합니다.
+     * </p>
      *
      * <ol>
-     *   <li>시스템관리자(ITPAD001): 모든 리소스 수정 허용</li>
-     *   <li>기획통할담당자(ITPZZ002): 소속 부서(bbrC) == 리소스 부서(resourceBbrC)인 경우 허용</li>
-     *   <li>일반사용자(ITPZZ001): 본인 작성 리소스(creatorEno == 요청자 eno)만 허용</li>
+     * <li>시스템관리자(ITPAD001): 모든 리소스 수정 허용</li>
+     * <li>기획통할담당자(ITPZZ002): 소속 부서(bbrC) == 리소스 부서(resourceBbrC)인 경우 허용</li>
+     * <li>일반사용자(ITPZZ001): 본인 작성 리소스(creatorEno == 요청자 eno)만 허용</li>
      * </ol>
      *
      * @param creatorEno   리소스 최초 작성자 사번 (FST_ENR_USID)
      * @param resourceBbrC 리소스 소속 부서코드 (부서 단위 권한 범위 결정용)
-     * @throws org.springframework.security.access.AccessDeniedException 수정 권한이 없는 경우
+     * @throws org.springframework.security.access.AccessDeniedException 수정 권한이 없는
+     *                                                                   경우
      */
     private void validateModifyPermission(String creatorEno, String resourceBbrC) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();

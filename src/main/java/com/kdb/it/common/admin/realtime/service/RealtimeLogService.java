@@ -1,22 +1,24 @@
 package com.kdb.it.common.admin.realtime.service;
 
-import com.kdb.it.common.admin.dto.AdminLogDto;
-import com.kdb.it.common.admin.realtime.dto.RealtimeLogDto;
-import com.kdb.it.common.admin.realtime.repository.RealtimeLogRepository;
-import com.kdb.it.common.admin.service.AdminLogService;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
+import com.kdb.it.common.admin.realtime.dto.RealtimeLogDto;
+import com.kdb.it.common.admin.realtime.repository.RealtimeLogRepository;
+import com.kdb.it.common.admin.service.AdminLogService;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 /**
  * 실시간 로그 모니터링 화면 서비스.
  *
- * <p>{@link AdminLogService#getTables()}의 허용 LOG_KEY 집합과 변경구분 {@code C/U/D}만 허용한다.
- * 검증 실패 시 {@link IllegalArgumentException}을 던진다.</p>
+ * <p>
+ * {@link AdminLogService#getTables()}의 허용 LOG_KEY 집합과 변경구분 {@code C/U/D}만 허용한다.
+ * 검증 실패 시 {@link IllegalArgumentException}을 던진다.
+ * </p>
  */
 @Service
 @Transactional(readOnly = true)
@@ -33,8 +35,8 @@ public class RealtimeLogService {
     private final Clock clock;
 
     public RealtimeLogService(RealtimeLogRepository repository,
-                              AdminLogService adminLogService,
-                              Clock clock) {
+            AdminLogService adminLogService,
+            Clock clock) {
         this.repository = repository;
         this.adminLogService = adminLogService;
         this.clock = clock;
@@ -43,12 +45,12 @@ public class RealtimeLogService {
     /**
      * 실시간 로그 스냅샷을 반환한다.
      *
-     * @param since         이 시각 이후 로그만 조회. null이면 초기 200건.
-     * @param cursorLogTbl  복합 커서의 LOG_TBL. {@code since}와 함께 사용.
-     * @param cursorLogSno  복합 커서의 LOG_HIS_TGR_SNO. {@code since}와 함께 사용.
-     * @param limit         최대 200.
-     * @param tableKeys     허용된 LOG_KEY 부분집합. null/빈 리스트는 필터 없음.
-     * @param chgTypes      C/U/D 부분집합. null/빈 리스트는 필터 없음.
+     * @param since        이 시각 이후 로그만 조회. null이면 초기 200건.
+     * @param cursorLogTbl 복합 커서의 LOG_TBL. {@code since}와 함께 사용.
+     * @param cursorLogSno 복합 커서의 LOG_HIS_TGR_SNO. {@code since}와 함께 사용.
+     * @param limit        최대 200.
+     * @param tableKeys    허용된 LOG_KEY 부분집합. null/빈 리스트는 필터 없음.
+     * @param chgTypes     C/U/D 부분집합. null/빈 리스트는 필터 없음.
      * @throws IllegalArgumentException 허용되지 않은 LOG_KEY 또는 chgType 포함 시.
      */
     public RealtimeLogDto.Snapshot snapshot(
@@ -88,7 +90,8 @@ public class RealtimeLogService {
     }
 
     private List<String> normalize(List<String> input) {
-        if (input == null) return List.of();
+        if (input == null)
+            return List.of();
         return input.stream()
                 .filter(s -> s != null && !s.isBlank())
                 .map(value -> value.trim())

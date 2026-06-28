@@ -1,24 +1,30 @@
 package com.kdb.it.domain.council.service;
 
+import java.util.List;
+
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
-import com.kdb.it.domain.council.entity.Bpovwm;
 import com.kdb.it.domain.council.repository.ProjectOverviewRepository;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 정보화실무협의회 전자결재 연동 서비스 (Step 1 — 타당성검토표 팀장 결재)
  *
- * <p>타당성검토표 작성완료(SUBMITTED) 후 팀장 결재를 공통 전자결재 시스템과 연동합니다.</p>
+ * <p>
+ * 타당성검토표 작성완료(SUBMITTED) 후 팀장 결재를 공통 전자결재 시스템과 연동합니다.
+ * </p>
  *
- * <p>결재 흐름:</p>
+ * <p>
+ * 결재 흐름:
+ * </p>
+ * 
  * <pre>
  *   SUBMITTED
  *     │  requestApproval() 호출
@@ -34,9 +40,13 @@ import java.util.List;
  *   DRAFT  (재작성 필요)
  * </pre>
  *
- * <p>원본 데이터 연결: {@code orcTbCd="BASCTM"}, {@code orcPkVl=asctId}</p>
+ * <p>
+ * 원본 데이터 연결: {@code orcTbCd="BASCTM"}, {@code orcPkVl=asctId}
+ * </p>
  *
- * <p>Design Ref: §2.1 M5 — 전자결재 연동</p>
+ * <p>
+ * Design Ref: §2.1 M5 — 전자결재 연동
+ * </p>
  */
 @Service
 @RequiredArgsConstructor
@@ -62,9 +72,13 @@ public class CouncilApprovalService {
     /**
      * 타당성검토표 결재 요청 (SUBMITTED → APPROVAL_PENDING)
      *
-     * <p>전자결재 시스템에 신청서를 등록하고 협의회 상태를 APPROVAL_PENDING으로 전이합니다.</p>
+     * <p>
+     * 전자결재 시스템에 신청서를 등록하고 협의회 상태를 APPROVAL_PENDING으로 전이합니다.
+     * </p>
      *
-     * <p>Plan SC: 결재자는 소관부서 팀장 1인 (approverEno)으로 단일 결재선 구성</p>
+     * <p>
+     * Plan SC: 결재자는 소관부서 팀장 1인 (approverEno)으로 단일 결재선 구성
+     * </p>
      *
      * @param asctId      협의회ID
      * @param request     결재 요청 (팀장 사번, 신청의견)
@@ -84,7 +98,7 @@ public class CouncilApprovalService {
         // SUBMITTED 상태 확인 (작성완료 후에만 결재 요청 가능)
         if (!"02".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "결재 요청은 작성완료(002) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+                    "결재 요청은 작성완료(002) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
         // 신청서명 생성: "협의회 타당성검토표 결재 요청 - {사업명}"
@@ -114,8 +128,10 @@ public class CouncilApprovalService {
     /**
      * 개최결과서 결재 요청 (IT관리자, FINAL_APPROVAL → RESULT_APPROVAL_PENDING)
      *
-     * <p>전원 결과서 확인 완료 후 IT관리자가 부장에게 결재를 요청합니다.
-     * 전자결재 시스템에 신청서를 등록하고 협의회 상태를 RESULT_APPROVAL_PENDING으로 전이합니다.</p>
+     * <p>
+     * 전원 결과서 확인 완료 후 IT관리자가 부장에게 결재를 요청합니다.
+     * 전자결재 시스템에 신청서를 등록하고 협의회 상태를 RESULT_APPROVAL_PENDING으로 전이합니다.
+     * </p>
      *
      * @param asctId      협의회ID
      * @param request     결재 요청 (부장 사번, 신청의견)
@@ -135,7 +151,7 @@ public class CouncilApprovalService {
         // FINAL_APPROVAL 상태 확인 (전원 결과서 확인 완료 후에만 결재 요청 가능)
         if (!"11".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "개최결과서 결재 요청은 결재 요청 가능(011) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+                    "개최결과서 결재 요청은 결재 요청 가능(011) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
         // 신청서명 생성: "협의회 개최결과서 결재 요청 - {사업명}"
@@ -165,14 +181,16 @@ public class CouncilApprovalService {
     /**
      * 결재 완료/반려 처리 (전자결재 시스템 콜백)
      *
-     * <p>결재 시스템에서 승인 또는 반려 처리 시 이 메서드로 협의회 상태를 업데이트합니다.
-     * 현재 상태에 따라 두 가지 결재 흐름을 분기 처리합니다:</p>
+     * <p>
+     * 결재 시스템에서 승인 또는 반려 처리 시 이 메서드로 협의회 상태를 업데이트합니다.
+     * 현재 상태에 따라 두 가지 결재 흐름을 분기 처리합니다:
+     * </p>
      *
      * <ul>
-     *   <li>APPROVAL_PENDING (타당성검토표 결재):
-     *       승인 → APPROVED, 반려 → DRAFT</li>
-     *   <li>RESULT_APPROVAL_PENDING (개최결과서 결재):
-     *       승인 → COMPLETED, 반려 → FINAL_APPROVAL (재결재 가능)</li>
+     * <li>APPROVAL_PENDING (타당성검토표 결재):
+     * 승인 → APPROVED, 반려 → DRAFT</li>
+     * <li>RESULT_APPROVAL_PENDING (개최결과서 결재):
+     * 승인 → COMPLETED, 반려 → FINAL_APPROVAL (재결재 가능)</li>
      * </ul>
      *
      * @param asctId  협의회ID
@@ -205,7 +223,7 @@ public class CouncilApprovalService {
             }
         } else {
             throw new IllegalStateException(
-                "결재 콜백 처리는 결재대기 상태에서만 가능합니다. 현재 상태: " + currentStatus);
+                    "결재 콜백 처리는 결재대기 상태에서만 가능합니다. 현재 상태: " + currentStatus);
         }
     }
 
@@ -216,8 +234,10 @@ public class CouncilApprovalService {
     /**
      * ApplicationDto.CreateRequest 생성
      *
-     * <p>orcTbCd="BASCTM", orcPkVl=asctId 로 원본 데이터를 연결합니다.
-     * 결재자 1인(팀장)으로 단일 결재선을 구성합니다.</p>
+     * <p>
+     * orcTbCd="BASCTM", orcPkVl=asctId 로 원본 데이터를 연결합니다.
+     * 결재자 1인(팀장)으로 단일 결재선을 구성합니다.
+     * </p>
      */
     private ApplicationDto.CreateRequest buildApprovalRequest(
             String apfNm, String asctId, List<String> approverEnos,

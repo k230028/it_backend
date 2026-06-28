@@ -6,7 +6,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.core.GrantedAuthority;
 
 /**
  * CustomUserDetails 단위 테스트
@@ -31,10 +30,9 @@ class CustomUserDetailsTest {
     @DisplayName("관리자는 관리자 권한과 부서관리 권한을 모두 가진다")
     void admin_관리자_부서관리권한포함() {
         CustomUserDetails details = new CustomUserDetails(
-            "10001",
-            List.of(CustomUserDetails.ATH_ADMIN),
-            "D001"
-        );
+                "10001",
+                List.of(CustomUserDetails.ATH_ADMIN),
+                "D001");
 
         assertThat(details.isAdmin()).isTrue();
         assertThat(details.isDeptManager()).isTrue();
@@ -45,10 +43,9 @@ class CustomUserDetailsTest {
     @DisplayName("부서관리자는 ROLE_DEPT_MANAGER 권한으로 매핑된다")
     void authorities_부서관리자_역할매핑() {
         CustomUserDetails details = new CustomUserDetails(
-            "10001",
-            List.of(CustomUserDetails.ATH_DEPT_MGR),
-            "D001"
-        );
+                "10001",
+                List.of(CustomUserDetails.ATH_DEPT_MGR),
+                "D001");
 
         assertThat(details.isAdmin()).isFalse();
         assertThat(details.isDeptManager()).isTrue();
@@ -59,10 +56,9 @@ class CustomUserDetailsTest {
     @DisplayName("중복 자격등급은 권한 목록에서 제거된다")
     void authorities_중복자격등급_권한중복제거() {
         CustomUserDetails details = new CustomUserDetails(
-            "10001",
-            List.of(CustomUserDetails.ATH_USER, CustomUserDetails.ATH_USER),
-            "D001"
-        );
+                "10001",
+                List.of(CustomUserDetails.ATH_USER, CustomUserDetails.ATH_USER),
+                "D001");
 
         assertThat(authorityNames(details)).containsExactly("ROLE_USER");
     }
@@ -83,7 +79,7 @@ class CustomUserDetailsTest {
 
     private List<String> authorityNames(CustomUserDetails details) {
         return details.getAuthorities().stream()
-            .map(value -> value.getAuthority())
-            .toList();
+                .map(value -> value.getAuthority())
+                .toList();
     }
 }

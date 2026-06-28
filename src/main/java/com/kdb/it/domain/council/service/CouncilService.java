@@ -15,7 +15,6 @@ import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
-import com.kdb.it.domain.council.entity.Bpovwm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
@@ -108,10 +107,12 @@ public class CouncilService {
      * Plan SC: Step 1~3 전 과정 온라인 처리 기반 목록 제공
      * </p>
      *
-     * <p><strong>유니코드 이스케이프 주의</strong>: 쿼리 파라미터에 한글 리터럴 대신
+     * <p>
+     * <strong>유니코드 이스케이프 주의</strong>: 쿼리 파라미터에 한글 리터럴 대신
      * 유니코드 이스케이프({@code &#92;uXXXX})를 사용하는 이유는 Oracle 소스 파일 인코딩(EUC-KR) 환경에서
      * 한글 직접 삽입 시 문자 깨짐이 발생하는 문제를 방지하기 위함입니다.
-     * 빌드 환경 인코딩 표준화 후 한글 리터럴로 교체할 예정입니다.</p>
+     * 빌드 환경 인코딩 표준화 후 한글 리터럴로 교체할 예정입니다.
+     * </p>
      *
      * @param userDetails 현재 로그인한 사용자 정보
      * @return 권한에 맞는 협의회 목록
@@ -217,8 +218,10 @@ public class CouncilService {
     /**
      * 협의회 개최 시작 처리 (SCHEDULED → IN_PROGRESS)
      *
-     * <p>IT관리자가 오프라인 협의회 개최를 확인하고 진행 상태로 전이합니다.
-     * SCHEDULED 상태에서만 호출 가능합니다.</p>
+     * <p>
+     * IT관리자가 오프라인 협의회 개최를 확인하고 진행 상태로 전이합니다.
+     * SCHEDULED 상태에서만 호출 가능합니다.
+     * </p>
      *
      * @param asctId 협의회ID
      * @throws IllegalStateException 현재 상태가 SCHEDULED가 아닌 경우
@@ -229,7 +232,7 @@ public class CouncilService {
 
         if (!"06".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "협의회 개최 시작은 SCHEDULED(006) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+                    "협의회 개최 시작은 SCHEDULED(006) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
         council.changeStatus("07");
@@ -238,13 +241,17 @@ public class CouncilService {
     /**
      * 협의회 완료 처리 (IN_PROGRESS/EVALUATING → RESULT_WRITING)
      *
-     * <p>모든 평가위원의 평가 제출이 확인된 후 IT관리자가 호출합니다.
-     * IN_PROGRESS 또는 EVALUATING 상태에서 호출 가능합니다.</p>
+     * <p>
+     * 모든 평가위원의 평가 제출이 확인된 후 IT관리자가 호출합니다.
+     * IN_PROGRESS 또는 EVALUATING 상태에서 호출 가능합니다.
+     * </p>
      *
-     * <p>완료 조건:</p>
+     * <p>
+     * 완료 조건:
+     * </p>
      * <ol>
-     *   <li>평가위원(간사 제외: MAND + CALL)이 1명 이상 존재</li>
-     *   <li>모든 평가위원이 6개 항목 평가의견을 제출 완료</li>
+     * <li>평가위원(간사 제외: MAND + CALL)이 1명 이상 존재</li>
+     * <li>모든 평가위원이 6개 항목 평가의견을 제출 완료</li>
      * </ol>
      *
      * @param asctId 협의회ID
@@ -258,7 +265,7 @@ public class CouncilService {
         // IN_PROGRESS(평가 미시작) 또는 EVALUATING(평가 진행 중) 상태에서만 가능
         if (!"07".equals(status) && !"08".equals(status)) {
             throw new IllegalStateException(
-                "협의회 완료는 진행 중 상태에서만 가능합니다. 현재 상태: " + status);
+                    "협의회 완료는 진행 중 상태에서만 가능합니다. 현재 상태: " + status);
         }
 
         // 평가 대상 위원 조회 (간사 제외: MAND(001) + CALL(002)만 평가 의무)
@@ -279,7 +286,7 @@ public class CouncilService {
 
         if (incompleteCount > 0) {
             throw new IllegalStateException(
-                "아직 평가의견이 입력되지 않은 평가위원이 있습니다. (" + incompleteCount + "명 미완료)");
+                    "아직 평가의견이 입력되지 않은 평가위원이 있습니다. (" + incompleteCount + "명 미완료)");
         }
 
         council.changeStatus("09");
@@ -288,9 +295,11 @@ public class CouncilService {
     /**
      * 추진부서 통보 처리 (COMPLETED)
      *
-     * <p>협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다.
+     * <p>
+     * 협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다.
      * 사업 상태(BPROJM.IT_PTL_STS_TC)를 '타당성검토 정실협 완료'(39)로 변경하고,
-     * 수신자(협의회 최초 등록자) 정보를 반환합니다.</p>
+     * 수신자(협의회 최초 등록자) 정보를 반환합니다.
+     * </p>
      *
      * @param asctId 협의회ID
      * @return 수신자(추진부서 담당자) 정보 DTO
@@ -303,7 +312,7 @@ public class CouncilService {
         // COMPLETED 상태에서만 통보 가능 (PRD §31: 완료 = 013)
         if (!"13".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "통보는 완료(013) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+                    "통보는 완료(013) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
         // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
@@ -336,12 +345,16 @@ public class CouncilService {
     /**
      * 정보화실무협의회 생략 처리 (APPROVED → SKIPPED)
      *
-     * <p>IT관리자가 타당성검토표 검토 후 해당 사업이 협의회 생략 대상임을 확인한 경우 호출합니다.</p>
+     * <p>
+     * IT관리자가 타당성검토표 검토 후 해당 사업이 협의회 생략 대상임을 확인한 경우 호출합니다.
+     * </p>
      *
-     * <p>처리 내용:</p>
+     * <p>
+     * 처리 내용:
+     * </p>
      * <ol>
-     *   <li>협의회 상태: APPROVED → SKIPPED</li>
-     *   <li>사업 상태(IT_PTL_STS_TC): '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)</li>
+     * <li>협의회 상태: APPROVED → SKIPPED</li>
+     * <li>사업 상태(IT_PTL_STS_TC): '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)</li>
      * </ol>
      *
      * @param asctId 협의회ID
@@ -354,7 +367,7 @@ public class CouncilService {
         // APPROVED 상태에서만 생략 가능
         if (!"04".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "생략 처리는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+                    "생략 처리는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
         // 협의회 상태 전이: APPROVED → SKIPPED
@@ -367,9 +380,11 @@ public class CouncilService {
     /**
      * 개최준비 시작 (APPROVED → PREPARING)
      *
-     * <p>IT관리자가 타당성검토표 검토 후 '개최준비 진행'을 선택한 경우 호출합니다.
+     * <p>
+     * IT관리자가 타당성검토표 검토 후 '개최준비 진행'을 선택한 경우 호출합니다.
      * 기존에는 평가위원 저장(saveCommittee)의 부수효과로 04→05 전이가 일어났으나,
-     * 의사결정 지점(Step1 상세의 '개최준비 진행' 버튼)으로 전이를 명시화했습니다. (PRD_c_20260620 #2)</p>
+     * 의사결정 지점(Step1 상세의 '개최준비 진행' 버튼)으로 전이를 명시화했습니다. (PRD_c_20260620 #2)
+     * </p>
      *
      * @param asctId 협의회ID
      * @throws IllegalStateException 현재 상태가 APPROVED(04)가 아닌 경우
@@ -381,7 +396,7 @@ public class CouncilService {
         // 결재완료(04) 상태에서만 개최준비로 전이 가능
         if (!"04".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                "개최준비 전이는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+                    "개최준비 전이는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
         // 협의회 상태 전이: APPROVED(04) → PREPARING(05)
@@ -395,18 +410,23 @@ public class CouncilService {
     /**
      * 협의회 화면 표시용 당해예산(파생) 계산.
      *
-     * <p>프로젝트 활성 품목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반으로 산출한다.
+     * <p>
+     * 프로젝트 활성 품목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반으로 산출한다.
      * TOT_RQM_AMT 컬럼이 제거됨에 따라 협의회 목록/상세에서 사용하는 당해예산을
-     * 품목 단위 파생값으로 대체한다.</p>
+     * 품목 단위 파생값으로 대체한다.
+     * </p>
      *
-     * <p><strong>N+1 주의</strong>: 현재 협의회 목록 각 행마다 호출되므로 사업 수가 많을 때
-     * 다수의 품목 조회가 발생한다. 추후 배치 조회 방식으로 개선 대상(TASK.md 등록).</p>
+     * <p>
+     * <strong>N+1 주의</strong>: 현재 협의회 목록 각 행마다 호출되므로 사업 수가 많을 때
+     * 다수의 품목 조회가 발생한다. 추후 배치 조회 방식으로 개선 대상(TASK.md 등록).
+     * </p>
      *
      * @param abusMngNo 프로젝트관리번호 (null 또는 빈 값이면 null 반환)
      * @return 당해예산(파생값), 프로젝트 품목이 없으면 0
      */
     private java.math.BigDecimal deriveCurrentYearBudget(String abusMngNo) {
-        if (abusMngNo == null || abusMngNo.isBlank()) return null;
+        if (abusMngNo == null || abusMngNo.isBlank())
+            return null;
         var items = projectItemRepository.findByAbusMngNoAndDelYn(abusMngNo, "N");
         var tmp = ProjectDto.Response.builder().build();
         projectBudgetSummaryService.applyBudgetSummary(tmp, items);
@@ -465,9 +485,11 @@ public class CouncilService {
     /**
      * Basctm 엔티티 → ListResponse 변환 (평가위원용, PRD §16)
      *
-     * <p>사업명은 BPOVWM 우선, 없으면 BPROJM에서 가져옵니다.
+     * <p>
+     * 사업명은 BPOVWM 우선, 없으면 BPROJM에서 가져옵니다.
      * 평가위원 사업카드도 일반사용자/관리자와 동일하게 사업 상세 필드를 채워야 하므로
-     * BPROJM에서 prjYy/prjTp/svnDpm/prjBg/sttDt/endDt/itDpm/prjDes를 함께 매핑합니다.</p>
+     * BPROJM에서 prjYy/prjTp/svnDpm/prjBg/sttDt/endDt/itDpm/prjDes를 함께 매핑합니다.
+     * </p>
      */
     private CouncilDto.ListResponse toListResponseFromEntity(Basctm council) {
         // BPROJM 조회 — 사업 상세 정보 원천
@@ -480,15 +502,15 @@ public class CouncilService {
                 .orElseGet(() -> projectOpt.map(p -> p.getAbusNm()).orElse(null));
 
         // 사업 상세 (BPROJM 기반)
-        String prjYy   = projectOpt.map(p -> p.getBseYy()).orElse(null);
-        String prjTp   = projectOpt.map(p -> p.getBzTpC()).orElse(null);
-        String svnDpm  = projectOpt.map(p -> p.getSvnDpmC()).orElse(null);
+        String prjYy = projectOpt.map(p -> p.getBseYy()).orElse(null);
+        String prjTp = projectOpt.map(p -> p.getBzTpC()).orElse(null);
+        String svnDpm = projectOpt.map(p -> p.getSvnDpmC()).orElse(null);
         // 당해예산: 품목 활성 항목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반 파생값
         java.math.BigDecimal prjBg = deriveCurrentYearBudget(council.getAbusMngNo());
-        java.time.LocalDate sttDt  = projectOpt.map(p -> p.getSttDtm()).orElse(null);
-        java.time.LocalDate endDt  = projectOpt.map(p -> p.getEndDtm()).orElse(null);
-        String itDpm   = projectOpt.map(p -> p.getDvmDpmC()).orElse(null);
-        String prjDes  = projectOpt.map(p -> p.getAbusCone()).orElse(null);
+        java.time.LocalDate sttDt = projectOpt.map(p -> p.getSttDtm()).orElse(null);
+        java.time.LocalDate endDt = projectOpt.map(p -> p.getEndDtm()).orElse(null);
+        String itDpm = projectOpt.map(p -> p.getDvmDpmC()).orElse(null);
+        String prjDes = projectOpt.map(p -> p.getAbusCone()).orElse(null);
 
         return new CouncilDto.ListResponse(
                 council.getItPtlAsctId(),
@@ -501,8 +523,7 @@ public class CouncilService {
                 council.getCnrcSttTm(),
                 true,
                 prjYy, prjTp, svnDpm, prjBg, sttDt, endDt, itDpm, prjDes,
-                council.getCsfHeldYn()
-        );
+                council.getCsfHeldYn());
     }
 
     /**
@@ -518,7 +539,8 @@ public class CouncilService {
         String asctId = (String) row[3];
         String asctStsC = (String) row[4];
         String dbrTc = (String) row[5];
-        // Oracle JDBC 버전에 따라 DATE → java.sql.Date 또는 java.time.LocalDateTime / String(yyyyMMdd)으로 반환
+        // Oracle JDBC 버전에 따라 DATE → java.sql.Date 또는 java.time.LocalDateTime /
+        // String(yyyyMMdd)으로 반환
         java.time.LocalDate cnrcDt = toLocalDate(row[6]);
         String cnrcTm = (String) row[7];
         java.time.LocalDate sttDt = toLocalDate(row[13]);
@@ -539,15 +561,15 @@ public class CouncilService {
                 cnrcDt,
                 cnrcTm,
                 applied,
-                (String) row[9],  // prjYy
+                (String) row[9], // prjYy
                 (String) row[10], // prjTp
                 (String) row[11], // svnDpm
-                prjBg,            // prjBg
-                sttDt,            // sttDt
-                endDt,            // endDt
+                prjBg, // prjBg
+                sttDt, // sttDt
+                endDt, // endDt
                 (String) row[15], // itDpm
                 (String) row[16], // prjDes
-                (String) row[17]  // csfHeldYn (PRD_c_20260620 #1)
+                (String) row[17] // csfHeldYn (PRD_c_20260620 #1)
         );
     }
 

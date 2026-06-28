@@ -1,34 +1,33 @@
 package com.kdb.it.domain.budget.project.service;
-import com.kdb.it.common.code.CommonCodeGroups;
 
-import com.kdb.it.common.code.entity.Ccodem;
-import com.kdb.it.common.code.repository.CodeRepository;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
-import com.kdb.it.domain.budget.project.dto.ProjectDto;
-import com.kdb.it.domain.budget.project.repository.ProjectRepository;
-import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
-import com.kdb.it.common.approval.dto.ApplicationInfoDto;
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.entity.Capplm;
-import com.kdb.it.common.approval.entity.Cdecim;
-import com.kdb.it.common.iam.entity.CorgnI;
-import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.common.util.DateFormatUtil;
-import com.kdb.it.common.util.HtmlSanitizer;
-import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
-import com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder;
-import com.kdb.it.domain.budget.cost.util.XcrLookupService;
-import java.time.LocalDate;
-import com.kdb.it.domain.budget.project.entity.Bitemm;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
+
+import com.kdb.it.common.approval.dto.ApplicationInfoDto;
+import com.kdb.it.common.approval.entity.Cappla;
+import com.kdb.it.common.approval.entity.Capplm;
+import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.common.code.CommonCodeGroups;
+import com.kdb.it.common.code.entity.Ccodem;
+import com.kdb.it.common.code.repository.CodeRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.util.DateFormatUtil;
+import com.kdb.it.common.util.HtmlSanitizer;
+import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
+import com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
+import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
@@ -36,11 +35,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * 정보화사업(IT 프로젝트) 서비스
  *
  * <p>
- * 정보화사업(TPRMPP_BPROJM) 엔티티의 CRUD 및 품목({@link com.kdb.it.domain.budget.project.entity.Bitemm})
+ * 정보화사업(TPRMPP_BPROJM) 엔티티의 CRUD 및
+ * 품목({@link com.kdb.it.domain.budget.project.entity.Bitemm})
  * 동기화
  * 비즈니스 로직을 처리합니다.
  * </p>
@@ -58,7 +60,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 품목(Bitemm) 동기화 로직 (수정 시):
  * </p>
  * <ol>
- * <li>요청의 {@code gclMngNo}가 있으면 기존 레코드 Soft Delete + 동일 관리번호·일련번호(+1)로 신규 레코드 저장</li>
+ * <li>요청의 {@code gclMngNo}가 있으면 기존 레코드 Soft Delete + 동일 관리번호·일련번호(+1)로 신규 레코드
+ * 저장</li>
  * <li>요청의 {@code gclMngNo}가 없으면 신규 항목 추가</li>
  * <li>요청에 없는 기존 항목은 Soft Delete</li>
  * </ol>
@@ -204,8 +207,8 @@ public class ProjectService {
         setCodeNames(response);
 
         // BPROJA 단계 상태 조회(1회). 대표상태(MAX)와 단계별 코드 목록에 함께 사용.
-        java.util.List<com.kdb.it.domain.budget.project.entity.Bproja> bprojaRows =
-                bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N");
+        java.util.List<com.kdb.it.domain.budget.project.entity.Bproja> bprojaRows = bprojaRepository
+                .findByAbusMngNoAndDelYn(prjMngNo, "N");
         // 프로젝트 대표상태(BPROJA 중 IT_PTL_STS_TC 최댓값). BPROJA 미적재면 null.
         response.setStsTc(representativeStatus(bprojaRows));
         // 단계별 카드용: 활성 BPROJA 상태코드 목록(진행 현황 섹션이 대역별로 판정).
@@ -216,8 +219,9 @@ public class ProjectService {
 
         // 품목 정보 조회 및 설정 (삭제되지 않은 항목만)
         // ABUS_MNG_NO(프로젝트관리번호), SNO(프로젝트일련번호) 기준, DEL_YN='N'인 품목 조회
-        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo,
-                project.getSno(), "N");
+        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository
+                .findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo,
+                        project.getSno(), "N");
 
         // 품목 엔티티를 DTO로 변환하여 응답 객체에 설정
         List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
@@ -250,7 +254,9 @@ public class ProjectService {
      * <li>관리번호 자동 생성 형식: {@code PRJ-{bgYy}-{seq:04d}}
      * (예: {@code PRJ-2026-0001})</li>
      * </ul>
-     * <p>예: {@code PRJ-2026-0001}</p>
+     * <p>
+     * 예: {@code PRJ-2026-0001}
+     * </p>
      *
      * @param request 정보화사업 생성 요청 DTO (프로젝트명, 예산, 기간, 담당자 등)
      * @return 생성된 프로젝트관리번호
@@ -312,7 +318,8 @@ public class ProjectService {
                 BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
                         itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
 
-                com.kdb.it.domain.budget.project.entity.Bitemm newItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
+                com.kdb.it.domain.budget.project.entity.Bitemm newItem = com.kdb.it.domain.budget.project.entity.Bitemm
+                        .builder()
                         .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
                         .sno(++gclSno) // 품목일련번호
                         .abusMngNo(project.getAbusMngNo()) // 프로젝트관리번호
@@ -363,7 +370,8 @@ public class ProjectService {
      * <li>기존 품목 목록 조회 (DEL_YN='N')</li>
      * <li>요청 품목 처리:
      * <ul>
-     * <li>{@code gclMngNo}가 있는 경우: 기존 레코드 Soft Delete 후 동일 관리번호 + 일련번호(+1)로 신규 레코드 저장</li>
+     * <li>{@code gclMngNo}가 있는 경우: 기존 레코드 Soft Delete 후 동일 관리번호 + 일련번호(+1)로 신규 레코드
+     * 저장</li>
      * <li>{@code gclMngNo}가 없는 경우: 신규 항목으로 시퀀스 채번 후 추가</li>
      * </ul>
      * </li>
@@ -409,7 +417,8 @@ public class ProjectService {
                 request.getSttDtm(), request.getEndDtm(),
                 request.getUsid(), request.getDvmUsid(), request.getTlrUsid(), request.getDvmTlrUsid(),
                 request.getEdrtTc(), request.getAbusCone(), request.getCpnSafCone(), request.getAbusNcsCone(),
-                request.getDgogPpoCone(), request.getPlmDes(), request.getAbusRngCone(), request.getMnPrgCone(), request.getHrfPlnCone(),
+                request.getDgogPpoCone(), request.getPlmDes(), request.getAbusRngCone(), request.getMnPrgCone(),
+                request.getHrfPlnCone(),
                 request.getBzDttNm(), request.getSklTpTc(), request.getCstTpTc(), request.getDplYn(),
                 DateFormatUtil.toYmd8(request.getFlfFsgDt()), request.getRprStsTc(), request.getExePttYn(),
                 request.getBseYy(), request.getPrlmHrkOgzCCone(),
@@ -450,7 +459,8 @@ public class ProjectService {
                             // 외화 재계산: amt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
                             BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
                                     itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
-                            com.kdb.it.domain.budget.project.entity.Bitemm updatedItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
+                            com.kdb.it.domain.budget.project.entity.Bitemm updatedItem = com.kdb.it.domain.budget.project.entity.Bitemm
+                                    .builder()
                                     .gclMngNo(existingItem.getGclMngNo()) // 품목관리번호 유지 (기존 번호)
                                     .sno(newGclSno) // 품목일련번호 1 증가
                                     .abusMngNo(existingItem.getAbusMngNo()) // 프로젝트관리번호 유지
@@ -489,7 +499,8 @@ public class ProjectService {
                     BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
                             itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
 
-                    com.kdb.it.domain.budget.project.entity.Bitemm newItem = com.kdb.it.domain.budget.project.entity.Bitemm.builder()
+                    com.kdb.it.domain.budget.project.entity.Bitemm newItem = com.kdb.it.domain.budget.project.entity.Bitemm
+                            .builder()
                             .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
                             .sno(++maxGclSno) // 품목일련번호 (MAX+1)
                             .abusMngNo(prjMngNo) // 프로젝트관리번호
@@ -529,9 +540,15 @@ public class ProjectService {
     /**
      * 품목 변경 여부 판단
      *
-     * <p>기존 엔티티와 요청 DTO의 업무 필드를 비교하여, 하나라도 다르면 {@code true}를 반환합니다.</p>
-     * <p>변경이 없는 품목은 버저닝(D→C 로그)을 건너뜁니다.</p>
-     * <p>BigDecimal 필드(xcr, gclQty, gclAmt)는 scale 무관한 수치 비교를 위해 compareTo를 사용합니다.</p>
+     * <p>
+     * 기존 엔티티와 요청 DTO의 업무 필드를 비교하여, 하나라도 다르면 {@code true}를 반환합니다.
+     * </p>
+     * <p>
+     * 변경이 없는 품목은 버저닝(D→C 로그)을 건너뜁니다.
+     * </p>
+     * <p>
+     * BigDecimal 필드(xcr, gclQty, gclAmt)는 scale 무관한 수치 비교를 위해 compareTo를 사용합니다.
+     * </p>
      *
      * @param existing 현재 활성 품목 엔티티 (DEL_YN='N')
      * @param dto      클라이언트로부터 전달된 수정 요청 DTO
@@ -575,8 +592,10 @@ public class ProjectService {
 
     /** BigDecimal 수치 비교 (scale 무시). 둘 다 null이면 동일, 한쪽만 null이면 변경으로 간주 */
     private static boolean bigDecimalChanged(BigDecimal a, BigDecimal b) {
-        if (a == null && b == null) return false;
-        if (a == null || b == null) return true;
+        if (a == null && b == null)
+            return false;
+        if (a == null || b == null)
+            return true;
         return a.compareTo(b) != 0;
     }
 
@@ -589,8 +608,10 @@ public class ProjectService {
      */
     private static BigDecimal clampMpl(BigDecimal mplAmt, BigDecimal amt) {
         BigDecimal v = (mplAmt == null) ? BigDecimal.ZERO : mplAmt;
-        if (v.signum() < 0) v = BigDecimal.ZERO;
-        if (amt != null && v.compareTo(amt) > 0) v = amt;
+        if (v.signum() < 0)
+            v = BigDecimal.ZERO;
+        if (amt != null && v.compareTo(amt) > 0)
+            v = amt;
         return v;
     }
 
@@ -636,7 +657,8 @@ public class ProjectService {
         project.delete();
 
         // 2. 관련 품목 전체 Soft Delete (DEL_YN 무관하게 모든 품목 조회 후 삭제)
-        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo,
+        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository.findByAbusMngNoAndFntTbCrySno(
+                prjMngNo,
                 project.getSno());
         for (com.kdb.it.domain.budget.project.entity.Bitemm bitemm : bitemms) {
             bitemm.delete(); // BaseEntity.delete() 호출 (DEL_YN='Y')
@@ -653,7 +675,8 @@ public class ProjectService {
      * </p>
      *
      * @param request 일괄 조회 요청 DTO (프로젝트관리번호 목록)
-     * @return 조회 성공 항목({@code items})과 미존재 프로젝트관리번호({@code failedIds})를 함께 담은 결과 DTO
+     * @return 조회 성공 항목({@code items})과 미존재 프로젝트관리번호({@code failedIds})를 함께 담은 결과
+     *         DTO
      */
     public ProjectDto.BulkResponse getProjectsByIds(ProjectDto.BulkGetRequest request) {
         List<ProjectDto.Response> responses = new ArrayList<>();
@@ -680,10 +703,10 @@ public class ProjectService {
             // 자본예산/일반관리비 편성예산 분류 (마이그레이션 후 cId=CommonCodeGroups.IOE, cTp 필드로 분류)
             // 자본예산 비목의 cTp는 IOE_HW(기계장치)/IOE_DVC(개발비)/IOE_SW(무형자산) 계열이다.
             // (구코드 IOE_CPIT만 보던 버그로 assetTypes가 비어 자본 편성예산이 항상 0이 되던 문제 수정.
-            //  BudgetWorkService.CAPITAL_CTPS와 동일 집합으로 정렬)
+            // BudgetWorkService.CAPITAL_CTPS와 동일 집합으로 정렬)
             Set<String> capitalCTps = java.util.Set.of("IOE_DVC", "IOE_HW", "IOE_SW", "IOE_CPIT");
-            List<com.kdb.it.common.code.entity.Ccodem> allIoeForBugt =
-                    codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE);
+            List<com.kdb.it.common.code.entity.Ccodem> allIoeForBugt = codeService
+                    .findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE);
             Set<String> assetTypes = allIoeForBugt.stream()
                     .filter(c -> capitalCTps.contains(c.getCTp()))
                     .map(c -> c.getCdva())
@@ -692,7 +715,8 @@ public class ProjectService {
                     .filter(c -> java.util.Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE").contains(c.getCTp()))
                     .map(c -> c.getCdva())
                     .collect(Collectors.toSet());
-            Map<String, BigDecimal> assetDupBgMap = bbugtmRepository.sumAssetDupBgByPrjMngNos(prjMngNos, bgYy, assetTypes);
+            Map<String, BigDecimal> assetDupBgMap = bbugtmRepository.sumAssetDupBgByPrjMngNos(prjMngNos, bgYy,
+                    assetTypes);
             Map<String, BigDecimal> costDupBgMap = bbugtmRepository.sumCostDupBgByPrjMngNos(prjMngNos, bgYy, costTypes);
 
             responses.forEach(r -> {
@@ -713,7 +737,8 @@ public class ProjectService {
      * </p>
      */
     private void enrichProjectListBatch(List<Bprojm> projects, List<ProjectDto.Response> responses) {
-        if (projects.isEmpty()) return;
+        if (projects.isEmpty())
+            return;
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
         List<String> prjMngNos = projects.stream().map(value -> value.getAbusMngNo()).toList();
@@ -743,16 +768,25 @@ public class ProjectService {
         Set<String> prjPulPttCdvas = new java.util.HashSet<>();
         Set<String> pulDttCdvas = new java.util.HashSet<>();
         for (ProjectDto.Response r : responses) {
-            if (r.getDvmDpmC() != null && !r.getDvmDpmC().isEmpty()) orgCodes.add(r.getDvmDpmC());
-            if (r.getSvnDpmC() != null && !r.getSvnDpmC().isEmpty()) orgCodes.add(r.getSvnDpmC());
-            if (r.getDvmUsid() != null && !r.getDvmUsid().isEmpty()) userEnos.add(r.getDvmUsid());
-            if (r.getTlrUsid() != null && !r.getTlrUsid().isEmpty()) userEnos.add(r.getTlrUsid());
-            if (r.getUsid() != null && !r.getUsid().isEmpty()) userEnos.add(r.getUsid());
-            if (r.getDvmTlrUsid() != null && !r.getDvmTlrUsid().isEmpty()) userEnos.add(r.getDvmTlrUsid());
+            if (r.getDvmDpmC() != null && !r.getDvmDpmC().isEmpty())
+                orgCodes.add(r.getDvmDpmC());
+            if (r.getSvnDpmC() != null && !r.getSvnDpmC().isEmpty())
+                orgCodes.add(r.getSvnDpmC());
+            if (r.getDvmUsid() != null && !r.getDvmUsid().isEmpty())
+                userEnos.add(r.getDvmUsid());
+            if (r.getTlrUsid() != null && !r.getTlrUsid().isEmpty())
+                userEnos.add(r.getTlrUsid());
+            if (r.getUsid() != null && !r.getUsid().isEmpty())
+                userEnos.add(r.getUsid());
+            if (r.getDvmTlrUsid() != null && !r.getDvmTlrUsid().isEmpty())
+                userEnos.add(r.getDvmTlrUsid());
             // 사업유형/업무구분/기술분야/고객유형은 컬럼에 코드값명을 직접 저장 → 별도 코드 해석 불필요
-            if (r.getRprStsTc() != null && !r.getRprStsTc().isEmpty()) rprStsCdvas.add(r.getRprStsTc());
-            if (r.getExePttYn() != null && !r.getExePttYn().isEmpty()) prjPulPttCdvas.add(r.getExePttYn());
-            if (r.getAbusTc() != null && !r.getAbusTc().isEmpty()) pulDttCdvas.add(r.getAbusTc());
+            if (r.getRprStsTc() != null && !r.getRprStsTc().isEmpty())
+                rprStsCdvas.add(r.getRprStsTc());
+            if (r.getExePttYn() != null && !r.getExePttYn().isEmpty())
+                prjPulPttCdvas.add(r.getExePttYn());
+            if (r.getAbusTc() != null && !r.getAbusTc().isEmpty())
+                pulDttCdvas.add(r.getAbusTc());
         }
 
         // --- 5. 부서명·사용자명·공통코드명 배치 조회 ---
@@ -760,15 +794,18 @@ public class ProjectService {
                 .collect(Collectors.toMap(value -> value.getPrlmOgzCCone(), value -> value.getBbrNm()));
         Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
                 .collect(Collectors.toMap(value -> value.getEno(), value -> value.getUsrNm()));
-        Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCdvas);
-        Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
-        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of() : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
+        Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of()
+                : codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCdvas);
+        Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of()
+                : codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
+        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of()
+                : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
 
         // 목록 파생 합산: 대상 프로젝트들의 활성 품목 1회 배치 조회 후 프로젝트별 그룹핑
-        Map<String, List<com.kdb.it.domain.budget.project.entity.Bitemm>> itemsByPrj =
-                bitemmRepository.findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
-                        .collect(Collectors.groupingBy(
-                                value -> value.getAbusMngNo()));
+        Map<String, List<com.kdb.it.domain.budget.project.entity.Bitemm>> itemsByPrj = bitemmRepository
+                .findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
+                .collect(Collectors.groupingBy(
+                        value -> value.getAbusMngNo()));
 
         // 대표상태 배치 조회: 대상 프로젝트들의 BPROJA를 1회 조회 후 프로젝트별 MAX(IT_PTL_STS_TC) 계산.
         Map<String, String> repStatusByPrj = bprojaRepository
@@ -794,20 +831,29 @@ public class ProjectService {
                 }
             }
 
-            if (response.getDvmDpmC() != null) response.setDvmDpmCNm(orgNameMap.get(response.getDvmDpmC()));
-            if (response.getSvnDpmC() != null) response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC()));
-            if (response.getDvmUsid() != null) response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
-            if (response.getTlrUsid() != null) response.setTlrUsidNm(userNameMap.get(response.getTlrUsid()));
-            if (response.getUsid() != null) response.setUsidNm(userNameMap.get(response.getUsid()));
-            if (response.getDvmTlrUsid() != null) response.setDvmTlrUsidNm(userNameMap.get(response.getDvmTlrUsid()));
+            if (response.getDvmDpmC() != null)
+                response.setDvmDpmCNm(orgNameMap.get(response.getDvmDpmC()));
+            if (response.getSvnDpmC() != null)
+                response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC()));
+            if (response.getDvmUsid() != null)
+                response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
+            if (response.getTlrUsid() != null)
+                response.setTlrUsidNm(userNameMap.get(response.getTlrUsid()));
+            if (response.getUsid() != null)
+                response.setUsidNm(userNameMap.get(response.getUsid()));
+            if (response.getDvmTlrUsid() != null)
+                response.setDvmTlrUsidNm(userNameMap.get(response.getDvmTlrUsid()));
             // 사업유형/업무구분/기술분야/고객유형: 컬럼값이 곧 코드값명 → 원본값 그대로 사용
             response.setBzTpCNm(response.getBzTpC());
             response.setBzDttNmNm(response.getBzDttNm());
             response.setSklTpTcNm(response.getSklTpTc());
             response.setCstTpTcNm(response.getCstTpTc());
-            if (response.getRprStsTc() != null) response.setRprStsTcNm(rprStsNameMap.get(response.getRprStsTc()));
-            if (response.getExePttYn() != null) response.setExePttYnNm(prjPulPttNameMap.get(response.getExePttYn()));
-            if (response.getAbusTc() != null) response.setAbusTcNm(pulDttNameMap.get(response.getAbusTc()));
+            if (response.getRprStsTc() != null)
+                response.setRprStsTcNm(rprStsNameMap.get(response.getRprStsTc()));
+            if (response.getExePttYn() != null)
+                response.setExePttYnNm(prjPulPttNameMap.get(response.getExePttYn()));
+            if (response.getAbusTc() != null)
+                response.setAbusTcNm(pulDttNameMap.get(response.getAbusTc()));
 
             // 프로젝트 대표상태 주입(없으면 null)
             response.setStsTc(repStatusByPrj.get(project.getAbusMngNo()));
@@ -856,7 +902,8 @@ public class ProjectService {
             capplmRepository.findById(cappla.getApfDcmNo())
                     .ifPresent(capplm -> {
                         response.setApfSts(capplm.getApfPrgStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label()); // 결재상태 설정 (코드→라벨)
+                                : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC())
+                                        .label()); // 결재상태 설정 (코드→라벨)
 
                         // 결재자 목록 조회 (결재순서 오름차순)
                         List<com.kdb.it.common.approval.entity.Cdecim> decisions = cdecimRepository
@@ -950,8 +997,10 @@ public class ProjectService {
     /**
      * BPROJA 관계 행 목록에서 대표상태(IT_PTL_STS_TC 최댓값)를 계산한다.
      *
-     * <p>2자리 zero-pad 코드이므로 문자열 사전식 비교 = 숫자 비교. null 상태는 무시.
-     * 행이 없거나 모두 null이면 null 반환.</p>
+     * <p>
+     * 2자리 zero-pad 코드이므로 문자열 사전식 비교 = 숫자 비교. null 상태는 무시.
+     * 행이 없거나 모두 null이면 null 반환.
+     * </p>
      *
      * @param rows 단일 프로젝트의 미삭제 BPROJA 행 목록
      * @return 대표상태 코드 또는 null
@@ -1008,7 +1057,8 @@ public class ProjectService {
         // C_ID 별로 그룹화하여 배치 조회
         Map<String, List<String>> byCId = new java.util.HashMap<>();
         for (String ioeC : ioeCodes) {
-            if (ioeC == null) continue;
+            if (ioeC == null)
+                continue;
             String normalized = ioeC.replace('-', '_');
             int lastUnderscore = normalized.lastIndexOf('_');
             String cId = lastUnderscore >= 0 ? normalized.substring(0, lastUnderscore) : CommonCodeGroups.IOE;
@@ -1047,15 +1097,18 @@ public class ProjectService {
      * @param items 품목 DTO 목록
      */
     private void enrichItemIoeCNames(List<ProjectDto.BitemmDto> items) {
-        if (items == null || items.isEmpty()) return;
+        if (items == null || items.isEmpty())
+            return;
         Set<String> ioeCSet = items.stream()
                 .map(value -> value.getIoeC())
                 .filter(v -> v != null && !v.isEmpty())
                 .collect(Collectors.toSet());
-        if (ioeCSet.isEmpty()) return;
+        if (ioeCSet.isEmpty())
+            return;
         Map<String, String> nameMap = buildIoeCNameMap(ioeCSet);
         items.forEach(item -> {
-            if (item.getIoeC() != null) item.setIoeCNm(nameMap.get(item.getIoeC()));
+            if (item.getIoeC() != null)
+                item.setIoeCNm(nameMap.get(item.getIoeC()));
         });
     }
 

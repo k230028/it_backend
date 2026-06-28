@@ -1,39 +1,45 @@
 package com.kdb.it.domain.estimate.service;
 
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.common.system.security.OwnershipVerifier;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
-import com.kdb.it.domain.budget.project.repository.ProjectRepository;
-import com.kdb.it.domain.estimate.dto.EstimateDto;
-import com.kdb.it.domain.estimate.entity.Besttm;
-import com.kdb.it.domain.estimate.entity.Bestim;
-import com.kdb.it.domain.estimate.repository.EstimateLineRepository;
-import com.kdb.it.domain.estimate.repository.EstimateRepository;
 import java.time.Year;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
+
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
+import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.estimate.dto.EstimateDto;
+import com.kdb.it.domain.estimate.entity.Bestim;
+import com.kdb.it.domain.estimate.entity.Besttm;
+import com.kdb.it.domain.estimate.repository.EstimateLineRepository;
+import com.kdb.it.domain.estimate.repository.EstimateRepository;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * 소요예산 산정 서비스.
  *
- * <p>상태: 51(작성중) → 55(진행중) → 59(완료). 대상구분 100=정보화사업.</p>
- * <p>쓰기 주체: 작성중=신청자/부서, 진행중 작업=작업자(부서담당자/관리자). 상태 전이는 인접만 허용.</p>
+ * <p>
+ * 상태: 51(작성중) → 55(진행중) → 59(완료). 대상구분 100=정보화사업.
+ * </p>
+ * <p>
+ * 쓰기 주체: 작성중=신청자/부서, 진행중 작업=작업자(부서담당자/관리자). 상태 전이는 인접만 허용.
+ * </p>
  */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class EstimateService {
 
-    static final String STS_DRAFT       = "51";
+    static final String STS_DRAFT = "51";
     static final String STS_IN_PROGRESS = "55";
-    static final String STS_DONE        = "59";
-    static final String TGT_PROJECT     = "100";
+    static final String STS_DONE = "59";
+    static final String TGT_PROJECT = "100";
 
     private final EstimateRepository estimateRepository;
     private final EstimateLineRepository lineRepository;
@@ -125,7 +131,7 @@ public class EstimateService {
         Bestim e = loadCurrent(docNo);
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         String from = e.getStsTc();
-        String to   = req.stsTc();
+        String to = req.stsTc();
         boolean allowed = (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
                 || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
         if (!allowed) {
@@ -176,8 +182,10 @@ public class EstimateService {
     /**
      * 팀별 산정 명세 일괄 저장 — 진행중(55) 상태에서만 가능.
      *
-     * <p>요청에 포함된 (팀코드+비목코드) 행은 추가/수정하고,
-     * 요청에 없는 기존 행은 Soft Delete 처리합니다 (Bitemm 동기화 패턴).</p>
+     * <p>
+     * 요청에 포함된 (팀코드+비목코드) 행은 추가/수정하고,
+     * 요청에 없는 기존 행은 Soft Delete 처리합니다 (Bitemm 동기화 패턴).
+     * </p>
      *
      * @param docNo 소요예산요청문서번호
      * @param req   명세 일괄 저장 요청
