@@ -3,9 +3,11 @@ package com.kdb.it.domain.budget.work.repository;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.entity.BbugtmId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,6 +45,34 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
      * @return 해당 연도의 편성 데이터 목록
      */
     List<Bbugtm> findByBseYyAndDelYn(String bseYy, String delYn);
+
+    /**
+     * 해당 예산년도의 미삭제(DEL_YN='N') 편성예산 전체를 벌크 Soft Delete 한다.
+     *
+     * <p>사업별 편성률 재적용(applyItemRates)의 "선 정리 → 후 재삽입" 패턴에서,
+     * 기존 "전체 메모리 로드 + 루프 delete()"를 단일 벌크 UPDATE로 대체합니다(P1 #1).
+     * 변경자 사번(LST_CHG_USID)과 변경일시(LST_CHG_DTM)를 UPDATE 문에서 직접 세팅합니다.</p>
+     *
+     * <p><b>감사로그 트레이드오프</b>: 벌크 UPDATE는 JPA @PreUpdate→ChangeLogEntityListener를
+     * 우회하므로 이 선정리 구간의 행별 BbugtL 변경로그는 생성되지 않습니다. 본 구간은 직후
+     * 전량 재삽입되는 과도적 선정리라 행별 로그 가치가 낮다고 보고 손실을 수용합니다
+     * (설계 §4.2 DECISION, 2026-06-29 확정).</p>
+     *
+     * <p>{@code clearAutomatically=true}: 벌크 후 영속성 컨텍스트 1차 캐시를 비워, 직후
+     * 재삽입 로직이 stale 엔티티를 보지 않도록 합니다. {@code flushAutomatically=true}:
+     * 선행 변경을 DB에 반영한 뒤 UPDATE를 실행합니다.</p>
+     *
+     * @param bgYy 예산년도 (BSE_YY)
+     * @param usid 변경자 사번 (LST_CHG_USID에 기록)
+     * @param now  변경일시 (LST_CHG_DTM에 기록)
+     * @return 영향받은(soft-delete된) 행 수
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Bbugtm b SET b.delYn = 'Y', b.lstChgUsid = :usid, b.lstChgDtm = :now "
+            + "WHERE b.bseYy = :bgYy AND b.delYn = 'N'")
+    int softDeleteByBseYy(@Param("bgYy") String bgYy,
+                          @Param("usid") String usid,
+                          @Param("now") LocalDateTime now);
 
     /**
      * 연도·원천테이블 단위 편성예산 전체 조회 (편성률 적용 시 존재확인 N+1 제거용)
