@@ -200,9 +200,25 @@ jacocoTestCoverageVerification {
 
 tasks.named('test') {
 	outputs.dir snippetsDir
-	useJUnitPlatform()
+	// 통합 테스트(@Tag("it"))는 로컬 전용 — CI 기본 test 게이트에서 제외
+	useJUnitPlatform {
+		excludeTags 'it'
+	}
 	// 테스트 완료 후 자동으로 커버리지 리포트 생성
 	finalizedBy jacocoTestReport
+}
+
+// 로컬 전용 통합 테스트(실제 로컬 Oracle @DataJpaTest). 로컬 Oracle 가동 필요.
+// 실행: ./gradlew integrationTest
+tasks.register('integrationTest', Test) {
+	description = '로컬 Oracle 기반 @DataJpaTest 통합 테스트 (로컬 전용, 로컬 Oracle 가동 필요)'
+	group = 'verification'
+	useJUnitPlatform {
+		includeTags 'it'
+	}
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	shouldRunAfter tasks.named('test')
 }
 
 tasks.named('asciidoctor') {
