@@ -3,6 +3,10 @@ package com.kdb.it.domain.council.dto;
 import java.time.LocalDate;
 import java.util.List;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+
 /**
  * 정보화실무협의회 DTO 중앙 관리
  *
@@ -82,11 +86,11 @@ public class CouncilDto {
      */
     public record CreateRequest(
         /** 프로젝트관리번호 (BPROJM FK) */
-        String prjMngNo,
+        @NotBlank String prjMngNo,
         /** 프로젝트순번 (BPROJM FK) */
-        Integer prjSno,
+        @NotNull Integer prjSno,
         /** 심의유형 (INFO_SYS/INFO_SEC/ETC) */
-        String dbrTc
+        @NotBlank String dbrTc
     ) {}
 
     /**
@@ -161,7 +165,7 @@ public class CouncilDto {
         /** 기대효과 (최대 1000자) */
         String xptEff,
         /** 저장구분코드 (TEMP:임시저장 / COMPLETE:작성완료) */
-        String kpnTc,
+        @NotBlank String kpnTc,
         /** 성과지표 목록 (1개 이상) */
         List<PerformanceRequest> performances,
         /** 첨부파일관리번호 (hwp/hwpx/pdf) */
@@ -241,7 +245,7 @@ public class CouncilDto {
         /** 심의유형 (당연위원 자동 배치 기준) */
         String dbrTc,
         /** 위원 목록 (당연+소집+간사 전체) */
-        List<CommitteeMemberRequest> members
+        @NotEmpty List<CommitteeMemberRequest> members
     ) {}
 
     /**
@@ -259,7 +263,7 @@ public class CouncilDto {
      */
     public record ScheduleRequest(
         /** 가능한 날짜×시간대 목록 */
-        List<ScheduleItem> availableSlots,
+        @NotEmpty List<ScheduleItem> availableSlots,
         /** 대면희망여부 (Y/N) — 위원이 일정 응답 시 함께 선택 (PRD_c_20260620 #1) */
         String csfHopeYn
     ) {}
@@ -283,9 +287,9 @@ public class CouncilDto {
      */
     public record ScheduleConfirmRequest(
         /** 최종 확정 회의일자 */
-        LocalDate cnrcDt,
+        @NotNull LocalDate cnrcDt,
         /** 최종 확정 회의시간 (10:00/14:00/15:00/16:00) */
-        String cnrcTm,
+        @NotBlank String cnrcTm,
         /** 회의장소 */
         String cnrcPlc
     ) {}
@@ -301,7 +305,7 @@ public class CouncilDto {
      */
     public record EvaluationRequest(
         /** 6개 점검항목별 점수+의견 */
-        List<EvaluationItem> items
+        @NotEmpty List<EvaluationItem> items
     ) {}
 
     /**
@@ -494,7 +498,7 @@ public class CouncilDto {
      */
     public record ApprovalRequest(
         /** 결재자(팀장) 사번 */
-        String approverEno,
+        @NotBlank String approverEno,
         /** 신청의견 (선택) */
         String rqsOpnn
     ) {}
@@ -525,9 +529,9 @@ public class CouncilDto {
      */
     public record ResultApprovalRequest(
         /** 결재자 1순위 — 팀장 사번 */
-        String teamLeadEno,
+        @NotBlank String teamLeadEno,
         /** 결재자 2순위 — 부장 사번 */
-        String deptHeadEno,
+        @NotBlank String deptHeadEno,
         /** 신청의견 (선택) */
         String rqsOpnn
     ) {}

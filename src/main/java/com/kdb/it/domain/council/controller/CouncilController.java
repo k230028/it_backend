@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -118,7 +119,7 @@ public class CouncilController {
     })
     @PostMapping
     public ResponseEntity<String> createCouncil(
-            @RequestBody CouncilDto.CreateRequest request,
+            @Valid @RequestBody CouncilDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         String asctId = councilService.createCouncil(request, userDetails);
         return ResponseEntity.ok(asctId);
@@ -191,7 +192,7 @@ public class CouncilController {
     public ResponseEntity<Void> saveFeasibility(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.FeasibilityRequest request) {
+            @Valid @RequestBody CouncilDto.FeasibilityRequest request) {
         feasibilityService.saveFeasibility(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -215,7 +216,7 @@ public class CouncilController {
     public ResponseEntity<Void> updateFeasibility(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.FeasibilityRequest request) {
+            @Valid @RequestBody CouncilDto.FeasibilityRequest request) {
         feasibilityService.saveFeasibility(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -246,7 +247,7 @@ public class CouncilController {
     public ResponseEntity<CouncilDto.ApprovalResponse> requestApproval(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.ApprovalRequest request,
+            @Valid @RequestBody CouncilDto.ApprovalRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         CouncilDto.ApprovalResponse response = councilApprovalService.requestApproval(asctId, request, userDetails);
         return ResponseEntity.ok(response);
@@ -275,7 +276,7 @@ public class CouncilController {
     public ResponseEntity<Void> processApprovalCallback(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.ApprovalCallbackRequest request) {
+            @Valid @RequestBody CouncilDto.ApprovalCallbackRequest request) {
         councilApprovalService.processApprovalCallback(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -435,7 +436,7 @@ public class CouncilController {
     public ResponseEntity<Void> saveCommittee(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.CommitteeRequest request) {
+            @Valid @RequestBody CouncilDto.CommitteeRequest request) {
         committeeService.saveCommittee(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -458,7 +459,7 @@ public class CouncilController {
     public ResponseEntity<Void> updateCommittee(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.CommitteeRequest request) {
+            @Valid @RequestBody CouncilDto.CommitteeRequest request) {
         committeeService.saveCommittee(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -522,7 +523,7 @@ public class CouncilController {
     public ResponseEntity<Void> submitSchedule(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.ScheduleRequest request,
+            @Valid @RequestBody CouncilDto.ScheduleRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         scheduleService.submitSchedule(asctId, request, userDetails);
         return ResponseEntity.ok().build();
@@ -548,7 +549,7 @@ public class CouncilController {
     public ResponseEntity<Void> confirmSchedule(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.ScheduleConfirmRequest request) {
+            @Valid @RequestBody CouncilDto.ScheduleConfirmRequest request) {
         scheduleService.confirmSchedule(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -648,7 +649,7 @@ public class CouncilController {
     public ResponseEntity<Void> saveEvaluation(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.EvaluationRequest request,
+            @Valid @RequestBody CouncilDto.EvaluationRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         evaluationService.saveEvaluation(asctId, request, userDetails);
         return ResponseEntity.ok().build();
@@ -700,7 +701,7 @@ public class CouncilController {
     public ResponseEntity<Void> saveResult(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.ResultRequest request) {
+            @Valid @RequestBody CouncilDto.ResultRequest request) {
         resultService.saveResult(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -723,7 +724,7 @@ public class CouncilController {
     public ResponseEntity<Void> updateResult(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.ResultRequest request) {
+            @Valid @RequestBody CouncilDto.ResultRequest request) {
         resultService.saveResult(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -836,7 +837,7 @@ public class CouncilController {
     public ResponseEntity<CouncilDto.ApprovalResponse> requestResultApproval(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.ResultApprovalRequest request,
+            @Valid @RequestBody CouncilDto.ResultApprovalRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         CouncilDto.ApprovalResponse response = councilApprovalService.requestResultApproval(asctId, request, userDetails);
         return ResponseEntity.ok(response);

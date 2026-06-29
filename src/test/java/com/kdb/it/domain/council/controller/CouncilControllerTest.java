@@ -78,6 +78,20 @@ class CouncilControllerTest {
 
     private static final String ASCT_ID = "ASCT-2026-0001";
 
+    /** 핵심 필드 제약을 충족하는 타당성검토표 요청 (kpnTc 필수) */
+    private static CouncilDto.FeasibilityRequest validFeasibilityRequest() {
+        return new CouncilDto.FeasibilityRequest(
+                null, null, null, null, null, null, null, null, null,
+                "TEMP", null, null);
+    }
+
+    /** 핵심 필드 제약을 충족하는 평가위원 선정 요청 (members 비어있지 않음) */
+    private static CouncilDto.CommitteeRequest validCommitteeRequest() {
+        return new CouncilDto.CommitteeRequest(
+                "INFO_SYS",
+                List.of(new CouncilDto.CommitteeMemberRequest("10002", "MAND")));
+    }
+
     // =========================================================================
     // M3: 기본 CRUD
     // =========================================================================
@@ -106,8 +120,20 @@ class CouncilControllerTest {
         given(councilService.createCouncil(any(), any())).willReturn(ASCT_ID);
         mockMvc.perform(post("/api/council")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                .content(objectMapper.writeValueAsString(
+                        new CouncilDto.CreateRequest("PRJ-2026-0001", 1, "INFO_SYS"))))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("POST /api/council - prjMngNo 누락 → 400")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void createCouncil_prjMngNo누락_400() throws Exception {
+        var body = new CouncilDto.CreateRequest(null, null, null);
+        mockMvc.perform(post("/api/council")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -196,7 +222,7 @@ class CouncilControllerTest {
     void saveFeasibility_인증_200() throws Exception {
         mockMvc.perform(post("/api/council/" + ASCT_ID + "/feasibility")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                .content(objectMapper.writeValueAsString(validFeasibilityRequest())))
                 .andExpect(status().isOk());
     }
 
@@ -206,7 +232,7 @@ class CouncilControllerTest {
     void updateFeasibility_인증_200() throws Exception {
         mockMvc.perform(put("/api/council/" + ASCT_ID + "/feasibility")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                .content(objectMapper.writeValueAsString(validFeasibilityRequest())))
                 .andExpect(status().isOk());
     }
 
@@ -288,7 +314,7 @@ class CouncilControllerTest {
     void saveCommittee_인증_200() throws Exception {
         mockMvc.perform(post("/api/council/" + ASCT_ID + "/committee")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                .content(objectMapper.writeValueAsString(validCommitteeRequest())))
                 .andExpect(status().isOk());
     }
 
@@ -298,7 +324,7 @@ class CouncilControllerTest {
     void updateCommittee_인증_200() throws Exception {
         mockMvc.perform(put("/api/council/" + ASCT_ID + "/committee")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                .content(objectMapper.writeValueAsString(validCommitteeRequest())))
                 .andExpect(status().isOk());
     }
 
@@ -319,9 +345,11 @@ class CouncilControllerTest {
     @DisplayName("POST /api/council/{asctId}/schedule - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void submitSchedule_인증_200() throws Exception {
+        var request = new CouncilDto.ScheduleRequest(
+                List.of(new CouncilDto.ScheduleItem("20260701", "10:00", "Y")), "N");
         mockMvc.perform(post("/api/council/" + ASCT_ID + "/schedule")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
     }
 
@@ -329,9 +357,11 @@ class CouncilControllerTest {
     @DisplayName("PUT /api/council/{asctId}/schedule/confirm - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void confirmSchedule_인증_200() throws Exception {
+        var request = new CouncilDto.ScheduleConfirmRequest(
+                java.time.LocalDate.of(2026, 7, 1), "10:00", "회의실 A");
         mockMvc.perform(put("/api/council/" + ASCT_ID + "/schedule/confirm")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
     }
 
@@ -354,7 +384,8 @@ class CouncilControllerTest {
     void saveEvaluation_인증_200() throws Exception {
         mockMvc.perform(post("/api/council/" + ASCT_ID + "/evaluation")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CouncilDto.EvaluationRequest(List.of()))))
+                .content(objectMapper.writeValueAsString(new CouncilDto.EvaluationRequest(
+                        List.of(new CouncilDto.EvaluationItem("CK01", 5, "적정"))))))
                 .andExpect(status().isOk());
     }
 
