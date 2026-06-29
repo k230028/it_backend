@@ -105,8 +105,9 @@ public class NotificationService {
      *
      * <p>AppHeader 배지에서 고빈도 호출되므로 사용자(currentEno)별로 캐시한다. 카운트가 0이면
      * 캐시하지 않아(unless) 신규 알림 발생 시 즉시 반영되도록 한다. 쓰기 경로(send/markRead/
-     * markAllRead/softDelete)에서 해당 사용자 키를 evict 한다. (ConcurrentMap은 TTL 미지원 →
-     * evict-on-write로 정합 보장, {@link com.kdb.it.config.CacheConfig} 참조.)</p>
+     * markAllRead/softDelete)에서 해당 사용자 키를 evict 한다. 캐시는 Caffeine 60초 TTL을
+     * 가지므로(P5/T13, {@link com.kdb.it.config.CacheConfig} 참조), evict 누락 시에도 stale은
+     * 최대 60초로 제한된다(evict-on-write와 TTL 병행).</p>
      */
     @Cacheable(value = "notificationUnreadCount", key = "#p0", unless = "#result == 0")
     public long unreadCount(String currentEno) {
