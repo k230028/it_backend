@@ -176,8 +176,12 @@ class FeasibilityServiceTest {
 
         feasibilityService.saveFeasibility(ASCT_ID, request);
 
-        verify(deleteQuery).executeUpdate();
-        verify(entityManager).persist(any(com.kdb.it.domain.council.entity.Bperfm.class));
+        // P1 #2: DELETE 실행(executeUpdate) 직후, 신규 persist 이전에 flush가 호출되어야
+        // DELETE→INSERT 순서가 보장된다(PK 충돌/유령 행 방지).
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(deleteQuery, entityManager);
+        inOrder.verify(deleteQuery).executeUpdate();
+        inOrder.verify(entityManager).flush();
+        inOrder.verify(entityManager).persist(any(com.kdb.it.domain.council.entity.Bperfm.class));
     }
 
     @Test

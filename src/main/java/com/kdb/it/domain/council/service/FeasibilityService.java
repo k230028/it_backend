@@ -176,6 +176,10 @@ public class FeasibilityService {
                 .setParameter("asctId", asctId)
                 .executeUpdate();
 
+        // P1 #2: DELETE를 INSERT 이전에 DB로 flush — 영속성 컨텍스트 동기화 순서를 명시 강제하여
+        // 동일 복합 PK 재삽입 시 DELETE가 INSERT 뒤로 밀려 발생하는 PK 충돌/유령 행을 방지한다.
+        entityManager.flush();
+
         // 새 성과지표 INSERT (persist — @PrePersist 확실히 실행됨)
         for (CouncilDto.PerformanceRequest req : requests) {
             Bperfm perf = Bperfm.builder()
