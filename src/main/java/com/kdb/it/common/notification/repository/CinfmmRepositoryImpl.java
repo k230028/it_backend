@@ -73,10 +73,14 @@ public class CinfmmRepositoryImpl implements CinfmmRepositoryCustom {
     // 반환하고 동일 트랜잭션에서 해당 알림 엔티티를 재조회하지 않으므로 clear가 불필요하다.
     @Override
     public long markAllReadByRmsEno(String rmsEno) {
+        LocalDateTime now = LocalDateTime.now();
         return query
             .update(c)
             .set(c.inqYn, "Y")
-            .set(c.inqDtm, LocalDateTime.now())
+            .set(c.inqDtm, now)
+            // JPA Auditing 우회(벌크 UPDATE)이므로 감사컬럼을 명시 SET — 변경자=수신자 본인
+            .set(c.lstChgDtm, now)
+            .set(c.lstChgUsid, rmsEno)
             .where(
                 c.rmsEno.eq(rmsEno),
                 c.delYn.eq("N"),
