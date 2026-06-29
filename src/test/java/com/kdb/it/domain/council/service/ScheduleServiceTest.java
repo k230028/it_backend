@@ -3,8 +3,13 @@ package com.kdb.it.domain.council.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.time.LocalDate;
@@ -437,7 +442,7 @@ class ScheduleServiceTest {
         // 아직 일정 응답 없음
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(1L);
-        given(userRepository.findByEno(ENO)).willReturn(Optional.empty());
+        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of());
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -475,7 +480,7 @@ class ScheduleServiceTest {
         given(user.getUsrNm()).willReturn("홍길동");
         given(user.getBbrNm()).willReturn("IT기획부");
         given(user.getPtCNm()).willReturn("IT기획팀장");
-        given(userRepository.findByEno(ENO)).willReturn(Optional.of(user));
+        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(user));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -519,8 +524,8 @@ class ScheduleServiceTest {
         given(budgetUser.getTemC()).willReturn("12004");
         given(itUser.getEno()).willReturn("18001");
         given(itUser.getTemC()).willReturn("18001");
-        given(userRepository.findByEno("12004")).willReturn(Optional.of(budgetUser));
-        given(userRepository.findByEno("18001")).willReturn(Optional.of(itUser));
+        given(userRepository.findByEnoIn(anyCollection()))
+                .willReturn(List.of(budgetUser, itUser));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -551,8 +556,8 @@ class ScheduleServiceTest {
         given(budgetUser.getTemC()).willReturn("12004");
         given(itUser.getEno()).willReturn("18001");
         given(itUser.getTemC()).willReturn("18001");
-        given(userRepository.findByEno("12004")).willReturn(Optional.of(budgetUser));
-        given(userRepository.findByEno("18001")).willReturn(Optional.of(itUser));
+        given(userRepository.findByEnoIn(anyCollection()))
+                .willReturn(List.of(budgetUser, itUser));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -585,7 +590,7 @@ class ScheduleServiceTest {
 
         CuserI u = mock(CuserI.class);
         given(u.getEno()).willReturn("E1");
-        given(userRepository.findByEno("E1")).willReturn(Optional.of(u));
+        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(u));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -597,5 +602,36 @@ class ScheduleServiceTest {
         assertThat(result.pendingCount()).isEqualTo(0L);
         // 평가위원 전원 응답 → 확정 가능
         assertThat(result.allRequiredResponded()).isTrue();
+    }
+
+    @Test
+    @DisplayName("위원 사용자명 조회는 findByEnoIn 1회 배치 — findByEno 미호출")
+    void 위원사용자명_findByEnoIn_1회() {
+        // given: 평가위원 2명(E001, E002)
+        Basctm council = mock(Basctm.class);
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bcmmtm m1 = mock(Bcmmtm.class);
+        given(m1.getEno()).willReturn("E001");
+        given(m1.getItPtlAsctMebTc()).willReturn("01");
+        Bcmmtm m2 = mock(Bcmmtm.class);
+        given(m2.getEno()).willReturn("E002");
+        given(m2.getItPtlAsctMebTc()).willReturn("01");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(m1, m2));
+
+        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
+
+        given(userRepository.findByEnoIn(anyCollection()))
+                .willReturn(List.of(
+                        CuserI.builder().eno("E001").usrNm("홍길동").build(),
+                        CuserI.builder().eno("E002").usrNm("김철수").build()));
+
+        // when
+        scheduleService.getScheduleStatus(ASCT_ID);
+
+        // then: 일괄 조회 1회, 사번별 조회는 호출되지 않음
+        then(userRepository).should(times(1)).findByEnoIn(anyCollection());
+        then(userRepository).should(never()).findByEno(anyString());
     }
 }

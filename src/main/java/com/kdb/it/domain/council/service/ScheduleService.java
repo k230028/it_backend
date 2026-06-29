@@ -376,13 +376,14 @@ public class ScheduleService {
         /**
          * 위원 목록의 사번으로 사용자 정보 Map 생성.
          *
-         * 후속 과제: 현재는 사번별 findByEno()를 반복하므로 사용자 일괄 조회로 N+1을 제거해야 합니다.
+         * <p>사번 집합을 모아 {@code findByEnoIn}으로 일괄 조회(N+1 제거).</p>
          */
         private Map<String, CuserI> buildUserMap(List<Bcmmtm> members) {
-                return members.stream()
-                                .map(m -> userRepository.findByEno(m.getEno()))
-                                .filter(value -> value.isPresent())
-                                .map(value -> value.get())
-                                .collect(Collectors.toMap(value -> value.getEno(), u -> u, (a, b) -> a));
+                List<String> enos = members.stream().map(Bcmmtm::getEno).distinct().toList();
+                if (enos.isEmpty()) {
+                        return Map.of();
+                }
+                return userRepository.findByEnoIn(enos).stream()
+                                .collect(Collectors.toMap(CuserI::getEno, u -> u, (a, b) -> a));
         }
 }
