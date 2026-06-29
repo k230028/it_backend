@@ -249,16 +249,17 @@ public class EvaluationService {
     // =========================================================================
 
     /**
-     * 평가의견 목록에서 사번 중복 없이 사용자 정보 Map 생성 (N+1 방지)
+     * 평가의견 목록에서 사번 중복 없이 사용자 정보 Map 생성.
+     *
+     * <p>사번 집합을 모아 {@code findByEnoIn}으로 일괄 조회(N+1 제거).</p>
      */
     private Map<String, CuserI> buildUserMapFromEvaluations(List<Bevalm> evaluations) {
-        return evaluations.stream()
-                .map(value -> value.getEno())
-                .distinct()
-                .map(eno -> userRepository.findByEno(eno))
-                .filter(value -> value.isPresent())
-                .map(value -> value.get())
-                .collect(Collectors.toMap(value -> value.getEno(), u -> u, (a, b) -> a));
+        List<String> enos = evaluations.stream().map(Bevalm::getEno).distinct().toList();
+        if (enos.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findByEnoIn(enos).stream()
+                .collect(Collectors.toMap(CuserI::getEno, u -> u, (a, b) -> a));
     }
 
     /**

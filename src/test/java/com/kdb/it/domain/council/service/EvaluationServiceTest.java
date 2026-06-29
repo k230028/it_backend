@@ -3,9 +3,13 @@ package com.kdb.it.domain.council.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.util.List;
@@ -229,7 +233,7 @@ class EvaluationServiceTest {
         given(eval.getCkgOpnn()).willReturn("좋음");
         given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
 
-        given(userRepository.findByEno(ENO)).willReturn(java.util.Optional.empty());
+        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of());
         given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N")).willReturn(List.of());
 
         CouncilDto.EvaluationSummaryResponse result =
@@ -239,6 +243,26 @@ class EvaluationServiceTest {
         assertThat(result.evaluations()).hasSize(1);
         assertThat(result.evaluations().get(0).ckgItmC()).isEqualTo("01");
         assertThat(result.avgScores()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getAllEvaluations: 사용자명은 findByEnoIn 1회 배치 — findByEno 미호출")
+    void getAllEvaluations_findByEnoIn_1회() {
+        Basctm council = mock(Basctm.class);
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        Bevalm eval = mock(Bevalm.class);
+        given(eval.getEno()).willReturn(ENO);
+        given(eval.getItPtlCkgItmTc()).willReturn("01");
+        given(eval.getQuelRcrd()).willReturn(4);
+        given(eval.getCkgOpnn()).willReturn("좋음");
+        given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
+        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of());
+        given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N")).willReturn(List.of());
+
+        evaluationService.getAllEvaluations(ASCT_ID);
+
+        then(userRepository).should(times(1)).findByEnoIn(anyCollection());
+        then(userRepository).should(never()).findByEno(anyString());
     }
 
     // ───────────────────────────────────────────────────────
@@ -311,7 +335,7 @@ class EvaluationServiceTest {
         com.kdb.it.common.iam.entity.CuserI user = mock(com.kdb.it.common.iam.entity.CuserI.class);
         given(user.getEno()).willReturn(ENO);
         given(user.getUsrNm()).willReturn("홍길동");
-        given(userRepository.findByEno(ENO)).willReturn(Optional.of(user));
+        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(user));
         given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N"))
                 .willReturn(java.util.Collections.singletonList(new Object[]{"UNKNOWN", 2.5}));
 
