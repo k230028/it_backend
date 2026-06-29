@@ -46,6 +46,7 @@ class BudgetWorkServiceXcrLookupTest {
     @Mock private ProjectItemRepository projectItemRepository;
     @Mock private CostRepository costRepository;
     @Mock private BudgetWorkQueryRepository budgetWorkQueryRepository;
+    @Mock private org.springframework.data.domain.AuditorAware<String> auditorAware;
 
     @InjectMocks
     private BudgetWorkService budgetWorkService;
