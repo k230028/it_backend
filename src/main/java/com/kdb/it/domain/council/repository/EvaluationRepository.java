@@ -71,6 +71,23 @@ public interface EvaluationRepository extends JpaRepository<Bevalm, BevalmId> {
     List<Object[]> findAverageScoreByItem(@Param("itPtlAsctId") String itPtlAsctId, @Param("delYn") String delYn);
 
     /**
+     * 협의회별 평가자(ENO)별 제출 항목 수 집계 (#4 N+1 제거 — per-evaluator COUNT 루프 대체).
+     *
+     * <p>{@code completeCouncil}의 평가자별 6항목 제출 검증을 협의회ID당 1회 GROUP BY로 수렴시킨다.
+     * 반환은 {@code Object[]{eno, count}} 목록이며, 서비스에서 {@code Map<eno, Long>}으로 접어 사용한다.
+     * JPQL이므로 Hibernate가 {@code count(e)}를 {@code Long}, {@code e.eno}를 {@code String}으로
+     * 자동 매핑한다(네이티브 타입 quirk 헬퍼 불필요).</p>
+     *
+     * @param itPtlAsctId 협의회ID
+     * @param delYn       삭제여부 ('N')
+     * @return {@code Object[]{eno, count}} 목록 (제출 이력이 있는 평가자만 포함)
+     */
+    @Query("SELECT e.eno, COUNT(e) FROM Bevalm e "
+            + "WHERE e.itPtlAsctId = :itPtlAsctId AND e.delYn = :delYn "
+            + "GROUP BY e.eno")
+    List<Object[]> countByEnoForCouncil(@Param("itPtlAsctId") String itPtlAsctId, @Param("delYn") String delYn);
+
+    /**
      * 항목별 평균점수를 DTO로 봉인 반환한다(#6).
      *
      * <p>native {@link #findAverageScoreByItem(String, String)}의 {@code Object[]}를
