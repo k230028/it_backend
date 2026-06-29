@@ -72,6 +72,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /** JWT 토큰 생성/검증 유틸리티 */
     private final JwtUtil jwtUtil;
 
+    /** Authorization: Bearer 헤더 폴백 허용 여부 (운영 기본 false, dev/swagger만 true). XSS 2차 탈취 경로 차단 */
+    @org.springframework.beans.factory.annotation.Value("${app.auth.allow-bearer-header:false}")
+    private boolean allowBearerHeader;
+
     /**
      * JWT 인증 처리 핵심 메서드
      *
@@ -162,12 +166,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        // 2. Authorization 헤더에서 Bearer 토큰 추출 (폴백: API 테스트 도구 호환)
-        String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7); // "Bearer ".length() == 7
+        // 2. Authorization 헤더에서 Bearer 토큰 추출 (폴백) — 운영 비활성화 가능 (app.auth.allow-bearer-header)
+        if (allowBearerHeader) {
+            String bearerToken = request.getHeader("Authorization");
+            if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+                return bearerToken.substring(7); // "Bearer ".length() == 7
+            }
         }
 
-        return null; // 쿠키/헤더 모두 없음
+        return null; // 쿠키/헤더 모두 없음 (또는 헤더 폴백 비활성)
     }
 }

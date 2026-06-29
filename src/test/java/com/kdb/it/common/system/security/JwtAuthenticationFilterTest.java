@@ -5,7 +5,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 
@@ -15,6 +17,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +26,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.kdb.it.common.util.CookieUtil;
 
@@ -36,6 +42,11 @@ import com.kdb.it.common.util.CookieUtil;
  * Oracle DB 없이 실행됩니다.
  * </p>
  * <p>커버리지 60% 달성을 위해 추가 (2026-04-29)</p>
+ * <p>
+ * Authorization Bearer 헤더 폴백은 {@code app.auth.allow-bearer-header}로 게이트됩니다
+ * (운영 기본 false, dev/swagger만 true). 헤더 폴백을 검증하는 테스트는
+ * {@link ReflectionTestUtils}로 {@code allowBearerHeader}=true를 설정합니다 (TASK 보안 #1).
+ * </p>
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -46,6 +57,12 @@ class JwtAuthenticationFilterTest {
 
     @InjectMocks
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    /** 각 테스트 기본값: 헤더 폴백 비활성(운영 기본). 헤더 검증 테스트에서만 true로 오버라이드. */
+    @BeforeEach
+    void resetBearerFlag() {
+        ReflectionTestUtils.setField(jwtAuthenticationFilter, "allowBearerHeader", false);
+    }
 
     /** 각 테스트 후 SecurityContext 초기화 (테스트 간 상태 오염 방지) */
     @AfterEach
@@ -108,13 +125,14 @@ class JwtAuthenticationFilterTest {
     }
 
     // ───────────────────────────────────────────────────────
-    // 유효한 Authorization Bearer 헤더 → SecurityContext 인증 설정
+    // 유효한 Authorization Bearer 헤더 → SecurityContext 인증 설정 (플래그 true)
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("doFilterInternal: 쿠키가 없고 유효한 Bearer 토큰 헤더가 있으면 인증 정보를 설정한다")
+    @DisplayName("doFilterInternal: 헤더 폴백 허용(true) + 쿠키 없음 + 유효한 Bearer 토큰이면 인증 정보를 설정한다")
     void doFilterInternal_유효한BearerHeader_인증설정됨() throws Exception {
         // given
+        ReflectionTestUtils.setField(jwtAuthenticationFilter, "allowBearerHeader", true);
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
         FilterChain filterChain = mock(FilterChain.class);
@@ -193,13 +211,14 @@ class JwtAuthenticationFilterTest {
     }
 
     // ───────────────────────────────────────────────────────
-    // 다른 이름의 쿠키만 있는 경우 → Authorization 헤더 폴백
+    // 다른 이름의 쿠키만 있는 경우 → Authorization 헤더 폴백 (플래그 true)
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("doFilterInternal: accessToken 쿠키가 없고 다른 이름의 쿠키만 있으면 Authorization 헤더로 폴백한다")
+    @DisplayName("doFilterInternal: 헤더 폴백 허용(true) + accessToken 쿠키 없음 + 다른 쿠키만이면 Authorization 헤더로 폴백한다")
     void doFilterInternal_다른이름쿠키_Authorization헤더폴백() throws Exception {
         // given
+        ReflectionTestUtils.setField(jwtAuthenticationFilter, "allowBearerHeader", true);
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
         FilterChain filterChain = mock(FilterChain.class);
@@ -215,5 +234,39 @@ class JwtAuthenticationFilterTest {
         // then: 토큰이 추출되지 않으므로 validateToken 미호출
         verify(jwtUtil, never()).validateToken(anyString());
         verify(filterChain).doFilter(request, response);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // 헤더 폴백 게이트 (TASK 보안 #1)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("allowBearerHeader=false 면 Authorization Bearer 토큰을 무시한다(쿠키 전용)")
+    void bearerIgnored_whenFlagFalse() throws Exception {
+        ReflectionTestUtils.setField(jwtAuthenticationFilter, "allowBearerHeader", false);
+        MockHttpServletRequest req = new MockHttpServletRequest();
+        req.addHeader("Authorization", "Bearer some.jwt.token");
+        FilterChain chain = mock(FilterChain.class);
+
+        jwtAuthenticationFilter.doFilter(req, new MockHttpServletResponse(), chain);
+
+        verify(jwtUtil, never()).validateToken(anyString());
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verify(chain).doFilter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("allowBearerHeader=true 면 Authorization Bearer 토큰을 추출·검증한다")
+    void bearerUsed_whenFlagTrue() throws Exception {
+        ReflectionTestUtils.setField(jwtAuthenticationFilter, "allowBearerHeader", true);
+        MockHttpServletRequest req = new MockHttpServletRequest();
+        req.addHeader("Authorization", "Bearer some.jwt.token");
+        when(jwtUtil.validateToken("some.jwt.token")).thenReturn(false);
+        FilterChain chain = mock(FilterChain.class);
+
+        jwtAuthenticationFilter.doFilter(req, new MockHttpServletResponse(), chain);
+
+        verify(jwtUtil, times(1)).validateToken("some.jwt.token");
+        verify(chain).doFilter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 }

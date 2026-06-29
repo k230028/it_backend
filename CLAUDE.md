@@ -322,7 +322,7 @@ private static LocalDateTime toLdt(Object v) {
 1. `accessToken` httpOnly 쿠키 (브라우저 기본)
 2. `Authorization: Bearer {token}` 헤더 (Swagger/Postman 폴백)
 
-**`Authorization: Bearer` 헤더 폴백 주의**: Swagger/Postman 편의용이나 운영에서도 동작합니다. httpOnly 쿠키 전략을 우회할 수 있어 XSS 이후 2차 공격 경로가 됩니다. 운영 전환 전 비활성화 여부를 결정하고 이 문서에 명시해야 합니다.
+**`Authorization: Bearer` 헤더 폴백 주의**: Swagger/Postman 편의용이며 httpOnly 쿠키 전략을 우회할 수 있어 XSS 이후 2차 공격 경로가 됩니다. Bearer 헤더 폴백은 `app.auth.allow-bearer-header`(운영 기본 false)로 게이트 — 운영은 쿠키 전용, dev/swagger만 헤더 허용. 베이스 `application.properties`가 false, `dev`/`local-ext`/`local-int` 프로파일만 true이며 `prod`는 베이스 false를 상속합니다. 회귀: `JwtAuthenticationFilterTest`(`bearerIgnored_whenFlagFalse`/`bearerUsed_whenFlagTrue`).
 
 #### @PreAuthorize 표준 패턴 (컨트롤러 코드 기준)
 - `hasRole('ADMIN')` — 클래스 레벨 적용 필수. 메서드 레벨 개별 적용 금지 (누락 방지).
