@@ -2,12 +2,16 @@ package com.kdb.it.domain.council.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -152,9 +156,7 @@ class CommitteeServiceTest {
         CuserI ue1 = mockUser("E10001", "18001", "팀장");
         CuserI ue2 = mockUser("E10002", "18010", "대리");
         CuserI ue3 = mockUser("E10003", "18301", "과장");
-        given(userRepository.findByEno("E10001")).willReturn(Optional.of(ue1));
-        given(userRepository.findByEno("E10002")).willReturn(Optional.of(ue2));
-        given(userRepository.findByEno("E10003")).willReturn(Optional.of(ue3));
+        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(ue1, ue2, ue3));
 
         CouncilDto.CommitteeListResponse result = committeeService.getCommittee(ASCT_ID);
 
@@ -162,6 +164,25 @@ class CommitteeServiceTest {
         assertThat(result.call()).hasSize(1);
         assertThat(result.secretary()).hasSize(1);
         assertThat(result.mandatory().get(0).eno()).isEqualTo("E10001");
+    }
+
+    @Test
+    @DisplayName("getCommittee: 사용자명은 findByEnoIn 1회 배치 — findByEno 미호출")
+    void getCommittee_findByEnoIn_1회() {
+        Basctm council = mock(Basctm.class);
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        Bcmmtm mand = mockMember("E10001", "01");
+        Bcmmtm call = mockMember("E10002", "02");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(mand, call));
+        // mockUser 내부에도 given()이 있으므로 변수에 먼저 생성 후 willReturn에 전달
+        CuserI ue1 = mockUser("E10001", "18001", "팀장");
+        CuserI ue2 = mockUser("E10002", "18010", "대리");
+        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(ue1, ue2));
+
+        committeeService.getCommittee(ASCT_ID);
+
+        then(userRepository).should(times(1)).findByEnoIn(anyCollection());
+        then(userRepository).should(never()).findByEno(anyString());
     }
 
     // ───────────────────────────────────────────────────────
