@@ -452,6 +452,7 @@ public class PlanController { ... }
 ### 5.9 테스트 기준
 - 기능 변경 후 최소 `./gradlew test` 실행.
 - 인증/결재/파일/QueryDSL 집계/변경 로그 등 공통 영향 변경은 `./gradlew clean test`로 재검증.
+- **통합 테스트(로컬 Oracle @DataJpaTest, 로컬 전용)**: `@Tag("it")` 부착 테스트는 기본 `./gradlew test`에서 제외되며 `./gradlew integrationTest`로만 실행한다. 가동 중인 로컬 Oracle(`ITPAPP@127.0.0.1:11521/XEPDB1`, CURRENT_SCHEMA=ITPOWN)에 연결하고, 베이스 클래스는 `com.kdb.it.support.AbstractOracleRepositoryTest`다. `ddl-auto=none`으로 실 스키마를 변경하지 않으며 `@DataJpaTest` 트랜잭션 롤백으로 데이터 오염을 막는다. 로컬 Oracle이 꺼져 있으면 TCP 프로브로 자동 스킵된다. (Docker 미설치 환경이라 Testcontainers 대신 실 로컬 DB를 사용.)
 
 ### 5.10 기동 시 환경변수 검증
 - `EnvironmentValidator` (`common/system/EnvironmentValidator.java`): `@PostConstruct`에서 `spring.datasource.password`, `jwt.secret` 프로퍼티 해석 결과를 검사.
