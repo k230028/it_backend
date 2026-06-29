@@ -16,8 +16,8 @@ class OracleHarnessSmokeTest extends AbstractOracleRepositoryTest {
     @Test
     @DisplayName("실 스키마에 연결되어 JPQL 라운드트립이 동작한다")
     void connectsToRealSchema_andRunsJpql() {
-        // CURRENT_SCHEMA=ITPOWN의 TPRMPP_CCODEM에 연결되어 카운트가 음수가 아니다.
-        assertThat(codeRepository.count()).isNotNegative();
+        // CURRENT_SCHEMA=ITPOWN이 적용되어 ITPOWN.TPRMPP_CCODEM의 실데이터를 조회한다(로컬 206행 보유).
+        assertThat(codeRepository.count()).isGreaterThan(0);
         // 존재하지 않는 복합키 조회는 데이터 변동과 무관하게 항상 false (결정적).
         assertThat(codeRepository.existsByCIdAndCdvaAndSttDt(
                 "ZZ_NONEXIST", "ZZ_NONEXIST", "00000000")).isFalse();
