@@ -94,6 +94,16 @@ dependencies {
 	// HTML 새니타이징 (XSS 서버 측 방어)
 	implementation 'org.jsoup:jsoup:1.18.3'
 
+	// Caffeine 캐시 — CacheManager를 ConcurrentMap(TTL 미지원)에서 Caffeine으로 전환(P5/T13).
+	// 버전은 Spring Boot 4.1.0 BOM이 관리(caffeine.version=3.2.4)하므로 미지정.
+	// ⚠️ 폐쇄망: caffeine-3.2.4.jar + 트랜지티브(checker-qual, error_prone_annotations)가
+	//    C:/maven-repo 또는 Nexus에 반입되어 있어야 오프라인 해석된다(반입 신청 선행).
+	// starter-cache: CaffeineCacheManager(org.springframework.cache.caffeine, spring-context-support)를
+	//   클래스패스에 올린다. 본 프로젝트는 기존에 cache 스타터가 없었으므로(@EnableCaching은 spring-context
+	//   제공) Caffeine 연동을 위해 함께 반입한다. spring-context-support도 BOM 관리(버전 미지정).
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+	implementation 'com.github.ben-manes.caffeine:caffeine'
+
 	// SSO 연동은 Spring 컨트롤러(SsoController) + RestClient(SsoAgentClient)로 처리합니다.
 	// 구 JSP Web Agent(tomcat-embed-jasper / commons-httpclient) 의존은 제거되었습니다.
 
