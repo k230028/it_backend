@@ -109,6 +109,34 @@ class EaiServiceTest {
     }
 
     @Test
+    @DisplayName("umsTrSno가 빈 문자열이면 parseInt 실패 → EaiResult.failure")
+    void umsTrSnoBlank_returnsFailure() {
+        EaiRequest bad = EaiRequest.ums("IPPO00012345", com.kdb.it.infra.eai.dto.UmsPayload.builder()
+                .umsBzDttId("SMS2096").umsTrSno("")
+                .emplNum("K1234567").cstNm("홍길동").reqCh("01012345678")
+                .deptKey("182").deptNm("디지털금융부").umData1("123456").build());
+        EaiProperties props = new EaiProperties(true, "http://eai.test/eai", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
+        RestClient client = RestClient.builder().baseUrl("http://eai.test").build();
+        EaiResult r = service(props, client).sendEai(bad);
+        assertThat(r.success()).isFalse();
+        assertThat(r.errorMessage()).contains("전문");
+    }
+
+    @Test
+    @DisplayName("umsTrSno가 비숫자면 parseInt 실패 → EaiResult.failure")
+    void umsTrSnoNonNumeric_returnsFailure() {
+        EaiRequest bad = EaiRequest.ums("IPPO00012345", com.kdb.it.infra.eai.dto.UmsPayload.builder()
+                .umsBzDttId("SMS2096").umsTrSno("abc")
+                .emplNum("K1234567").cstNm("홍길동").reqCh("01012345678")
+                .deptKey("182").deptNm("디지털금융부").umData1("123456").build());
+        EaiProperties props = new EaiProperties(true, "http://eai.test/eai", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
+        RestClient client = RestClient.builder().baseUrl("http://eai.test").build();
+        EaiResult r = service(props, client).sendEai(bad);
+        assertThat(r.success()).isFalse();
+        assertThat(r.errorMessage()).contains("전문");
+    }
+
+    @Test
     @DisplayName("지원 섹션 없으면 EaiResult.failure (예외 전파 없음)")
     void noSection_returnsFailure() {
         EaiProperties props = new EaiProperties(true, "http://eai.test/eai", "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
