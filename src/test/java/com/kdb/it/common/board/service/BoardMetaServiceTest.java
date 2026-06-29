@@ -104,6 +104,34 @@ class BoardMetaServiceTest {
         assertThat(board.getDelYn()).isEqualTo("Y");
     }
 
+    @Test
+    @DisplayName("getAllActive: 활성 게시판이 없으면 빈 리스트를 반환한다")
+    void getAllActive_empty_returnsEmpty() {
+        given(boardMetaRepository.findAllActiveOrdered()).willReturn(List.of());
+
+        assertThat(service.getAllActive()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("updateBoard: 미존재 게시판이면 예외를 던진다")
+    void updateBoard_missing_throws() {
+        given(boardMetaRepository.findByBlbMngNoAndDelYn("NOPE", "N"))
+            .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateBoard("NOPE", updateRequest("X")))
+            .isInstanceOf(CustomGeneralException.class);
+    }
+
+    @Test
+    @DisplayName("deleteBoard: 미존재 게시판이면 예외를 던진다")
+    void deleteBoard_missing_throws() {
+        given(boardMetaRepository.findByBlbMngNoAndDelYn("NOPE", "N"))
+            .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deleteBoard("NOPE"))
+            .isInstanceOf(CustomGeneralException.class);
+    }
+
     private static Cblbmm board(String id, String name) {
         return Cblbmm.builder()
             .blbMngNo(id)
