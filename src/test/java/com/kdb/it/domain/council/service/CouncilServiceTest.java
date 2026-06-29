@@ -406,24 +406,42 @@ class CouncilServiceTest {
     }
 
     @Test
-    @DisplayName("협의회 목록 당해예산 파생은 품목을 1회 배치 조회 (행별 N+1 없음)")
+    @DisplayName("협의회 목록 당해예산 파생은 품목을 1회 배치 조회하고 행별 값이 배치 결과와 동일하다 (행별 N+1 없음)")
     void 목록_당해예산_품목_배치조회() {
-        // given: 서로 다른 abusMngNo를 가진 2개 행으로 구성된 관리자 협의회 목록
+        // given: 서로 다른 abusMngNo를 가진 2개 행으로 구성된 관리자 협의회 목록.
+        // row1은 품목을 가지고(배치 조회 결과에 포함), row2는 품목이 없다(빈 목록).
         CustomUserDetails admin = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
         Object[] row1 = listRowWithAbusMngNo("PRJ-2026-0001", ASCT_ID);
         Object[] row2 = listRowWithAbusMngNo("PRJ-2026-0002", "ASCT-2026-0002");
         given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
                 .willReturn(List.of(row1, row2));
-        // 품목은 1회 배치 조회로만 가져온다 (빈 목록도 허용)
+        // 품목은 1회 배치 조회로만 가져온다. PRJ-2026-0001만 활성 품목 1건을 가진다.
+        Bitemm item = mock(Bitemm.class);
+        given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
         given(projectItemRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
-                .willReturn(List.of());
+                .willReturn(List.of(item));
+        // 품목이 있는 사업은 applyBudgetSummary가 totRqmAmt=7000을 설정, 빈 목록은 설정하지 않아 null 유지.
+        doAnswer(inv -> {
+            List<Bitemm> items = inv.getArgument(1);
+            if (!items.isEmpty()) {
+                ProjectDto.Response resp = inv.getArgument(0);
+                resp.setTotRqmAmt(new BigDecimal("7000"));
+            }
+            return null;
+        }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
 
         // when
-        councilService.getCouncilList(admin);
+        List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
 
         // then: 배치 조회 1회, 행별 단건 조회는 0회
         then(projectItemRepository).should(times(1)).findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
         then(projectItemRepository).should(never()).findByAbusMngNoAndDelYn(anyString(), anyString());
+        // 그리고 품목이 있는 행(PRJ-2026-0001)의 당해예산은 배치 합산 결과(7000)와 동일하다.
+        assertThat(result).hasSize(2);
+        CouncilDto.ListResponse withItems = result.stream()
+                .filter(r -> "PRJ-2026-0001".equals(r.prjMngNo()))
+                .findFirst().orElseThrow();
+        assertThat(withItems.prjBg()).isEqualByComparingTo("7000");
     }
 
     /**

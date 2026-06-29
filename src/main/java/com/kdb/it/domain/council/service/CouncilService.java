@@ -1,5 +1,8 @@
 package com.kdb.it.domain.council.service;
 
+import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -130,7 +133,7 @@ public class CouncilService {
                     PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
             log.debug("[CouncilList] admin query result count={}", rows.size());
             // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
-            Map<String, java.math.BigDecimal> budgetMap = deriveCurrentYearBudgets(
+            Map<String, BigDecimal> budgetMap = deriveCurrentYearBudgets(
                     rows.stream().map(row -> (String) row[0]).toList());
             return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
         }
@@ -139,7 +142,7 @@ public class CouncilService {
             // 평가위원: 배정된 협의회만 조회
             List<Basctm> councils = councilRepository.findByCommitteeMember(userDetails.getEno(), "N");
             // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
-            Map<String, java.math.BigDecimal> budgetMap = deriveCurrentYearBudgets(
+            Map<String, BigDecimal> budgetMap = deriveCurrentYearBudgets(
                     councils.stream().map(Basctm::getAbusMngNo).toList());
             return councils.stream()
                     .map(c -> toListResponseFromEntity(c, budgetMap))
@@ -151,7 +154,7 @@ public class CouncilService {
                 userDetails.getBbrC(), PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
         log.debug("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());
         // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
-        Map<String, java.math.BigDecimal> budgetMap = deriveCurrentYearBudgets(
+        Map<String, BigDecimal> budgetMap = deriveCurrentYearBudgets(
                 rows.stream().map(row -> (String) row[0]).toList());
         return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
     }
@@ -437,7 +440,7 @@ public class CouncilService {
      * @param abusMngNo 프로젝트관리번호 (null 또는 빈 값이면 null 반환)
      * @return 당해예산(파생값), 프로젝트 품목이 없으면 0
      */
-    private java.math.BigDecimal deriveCurrentYearBudget(String abusMngNo) {
+    private BigDecimal deriveCurrentYearBudget(String abusMngNo) {
         if (abusMngNo == null || abusMngNo.isBlank())
             return null;
         var items = projectItemRepository.findByAbusMngNoAndDelYn(abusMngNo, "N");
@@ -457,23 +460,28 @@ public class CouncilService {
      * </p>
      *
      * @param abusMngNos 사업관리번호 목록 (null·빈 값은 무시)
-     * @return 사업관리번호 → 당해예산(파생) 맵. 품목이 없는 사업관리번호는 키가 없어 조회 시 null 반환
+     * @return 사업관리번호 → 당해예산(파생) 맵. 요청된 모든 사업관리번호에 대해 값이 채워지며,
+     *         품목이 없는 사업관리번호도 빈 품목 목록으로 동일 합산 로직을 적용한 값(예: 0)을 가진다
      */
-    private Map<String, java.math.BigDecimal> deriveCurrentYearBudgets(java.util.Collection<String> abusMngNos) {
+    private Map<String, BigDecimal> deriveCurrentYearBudgets(Collection<String> abusMngNos) {
         List<String> keys = abusMngNos.stream()
                 .filter(v -> v != null && !v.isBlank())
                 .distinct().toList();
-        Map<String, java.math.BigDecimal> result = new java.util.HashMap<>();
         if (keys.isEmpty()) {
-            return result;
+            return new HashMap<>();
         }
-        var itemsByAbus = projectItemRepository.findByAbusMngNoInAndDelYn(keys, "N").stream()
+        // 전체 사업관리번호의 활성 품목을 1회 배치 조회한 뒤 사업관리번호별로 그룹핑
+        Map<String, List<Bitemm>> itemsByAbus = projectItemRepository.findByAbusMngNoInAndDelYn(keys, "N").stream()
                 .collect(Collectors.groupingBy(Bitemm::getAbusMngNo));
-        itemsByAbus.forEach((abusMngNo, items) -> {
+        Map<String, BigDecimal> result = new HashMap<>();
+        // 요청된 모든 키를 순회한다(itemsByAbus가 아님). 품목이 없는 키도 빈 목록으로
+        // applyBudgetSummary를 호출해 행별 단건 조회(deriveCurrentYearBudget)와 값이 동일하게 보존된다.
+        for (String abusMngNo : keys) {
+            List<Bitemm> items = itemsByAbus.getOrDefault(abusMngNo, List.of());
             var tmp = ProjectDto.Response.builder().build();
             projectBudgetSummaryService.applyBudgetSummary(tmp, items);
             result.put(abusMngNo, tmp.getTotRqmAmt());
-        });
+        }
         return result;
     }
 
@@ -536,7 +544,7 @@ public class CouncilService {
      * </p>
      */
     private CouncilDto.ListResponse toListResponseFromEntity(Basctm council,
-            Map<String, java.math.BigDecimal> budgetMap) {
+            Map<String, BigDecimal> budgetMap) {
         // BPROJM 조회 — 사업 상세 정보 원천
         var projectOpt = projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
 
@@ -551,7 +559,7 @@ public class CouncilService {
         String prjTp = projectOpt.map(p -> p.getBzTpC()).orElse(null);
         String svnDpm = projectOpt.map(p -> p.getSvnDpmC()).orElse(null);
         // 당해예산: 품목 활성 항목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반 파생값 (배치 조회 결과 사용)
-        java.math.BigDecimal prjBg = budgetMap.get(council.getAbusMngNo());
+        BigDecimal prjBg = budgetMap.get(council.getAbusMngNo());
         java.time.LocalDate sttDt = projectOpt.map(p -> p.getSttDtm()).orElse(null);
         java.time.LocalDate endDt = projectOpt.map(p -> p.getEndDtm()).orElse(null);
         String itDpm = projectOpt.map(p -> p.getDvmDpmC()).orElse(null);
@@ -581,7 +589,7 @@ public class CouncilService {
      * </p>
      */
     private CouncilDto.ListResponse toListResponseFromRow(Object[] row,
-            Map<String, java.math.BigDecimal> budgetMap) {
+            Map<String, BigDecimal> budgetMap) {
         String asctId = (String) row[3];
         String asctStsC = (String) row[4];
         String dbrTc = (String) row[5];
@@ -594,7 +602,7 @@ public class CouncilService {
         // Oracle NUMBER(1) → BigDecimal 등으로 반환되므로 intValue() 처리
         boolean applied = row[8] != null && ((Number) row[8]).intValue() == 1;
         // 당해예산: TOT_RQM_AMT 컬럼 제거로 row[12]는 NULL. 품목 파생값(배치 조회 결과)으로 산출한다.
-        java.math.BigDecimal prjBg = budgetMap.get((String) row[0]);
+        BigDecimal prjBg = budgetMap.get((String) row[0]);
 
         return new CouncilDto.ListResponse(
                 asctId,
@@ -673,7 +681,7 @@ public class CouncilService {
         java.time.LocalDate sttDt = null;
         java.time.LocalDate endDt = null;
         String ncs = null;
-        java.math.BigDecimal prjBg = null;
+        BigDecimal prjBg = null;
         String prjDes = null;
         String xptEff = null;
         var projectOpt = projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
