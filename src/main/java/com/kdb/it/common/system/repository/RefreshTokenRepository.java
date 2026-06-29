@@ -15,9 +15,11 @@ import java.util.Optional;
  *
  * <p>Refresh Token 관리 전략:</p>
  * <ul>
- *   <li>사용자당 1개의 Refresh Token 유지</li>
- *   <li>로그인 시: 기존 토큰 삭제({@link #deleteByEno}) → 새 토큰 저장</li>
- *   <li>로그아웃 시: 해당 사용자의 토큰 삭제({@link #deleteByEno})</li>
+ *   <li>로그인 시: 기존 토큰 삭제({@link #deleteByEno}) → 새 패밀리 토큰 저장</li>
+ *   <li>회전(refresh) 시: 구 토큰을 '회전됨(AVL_YN=N)'으로 유지하고 신규 토큰을 추가하므로,
+ *       한 세션 안에서는 활성 토큰 + 회전된 토큰 등 2행 이상이 일시 공존할 수 있음(재사용 탐지용).</li>
+ *   <li>로그아웃 시: 해당 사용자의 토큰 일괄 삭제({@link #deleteByEno})</li>
+ *   <li>즉, '사용자당 1개'가 아니라 '사용자당 1패밀리'이며, 로그인/로그아웃 시 정리됨.</li>
  * </ul>
  */
 public interface RefreshTokenRepository extends JpaRepository<Crtokm, Long> {

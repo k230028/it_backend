@@ -77,6 +77,10 @@ public class AuthService {
     @Value("${jwt.refresh-token-validity}")
     private long refreshTokenValidityMs;
 
+    /** Refresh Token 회전 직후 동시 새로고침(다중 탭) 허용 grace 기간(초). 이 기간 내 회전된 토큰 재제출은 패밀리 폐기 없이 거부만 한다. */
+    @org.springframework.beans.factory.annotation.Value("${app.auth.refresh-rotation-grace-seconds:30}")
+    private long rotationGraceSeconds;
+
     /**
      * 회원가입 (사용자 등록)
      *
@@ -233,8 +237,17 @@ public class AuthService {
         Crtokm refreshToken = refreshTokenRepository.findByTokCone(refreshTokenValue)
                 .orElseThrow(() -> new RuntimeException("Refresh Token을 찾을 수 없습니다."));
 
-        // 재사용 탐지: 이미 회전된(AVL_YN='N') 구 토큰이 재제출되면 탈취로 간주 → 패밀리 전체 폐기
+        // 참고: 배포 전 토큰은 FAM_NM='LEGACY'로 백필됨 — 동일 사용자의 LEGACY 행이 한 패밀리명을 공유하나,
+        // 폐기는 deleteByEno(사용자 단위)라 보안상 안전(과다 폐기=재로그인 유도). 다음 로그인 시 LEGACY 행 정리됨.
+        // 재사용 탐지(AVL_YN='N' 구 토큰 재제출). 단, 회전 직후 grace 기간 내 재제출은
+        // 다중 탭 동시 새로고침으로 간주 → 패밀리 유지, 이 요청만 거부(공유 쿠키의 신규 토큰으로 사용자는 유지됨).
         if (refreshToken.isRotated()) {
+            java.time.LocalDateTime rotatedAt = refreshToken.getLstChgDtm();
+            boolean withinGrace = rotatedAt != null
+                    && java.time.Duration.between(rotatedAt, java.time.LocalDateTime.now()).getSeconds() <= rotationGraceSeconds;
+            if (withinGrace) {
+                throw new RuntimeException("토큰이 방금 갱신되었습니다. 잠시 후 다시 시도하세요.");
+            }
             log.warn("Refresh Token 재사용 탐지 — 패밀리 폐기: eno={}, famNm={}", refreshToken.getEno(),
                     refreshToken.getFamNm());
             refreshTokenRepository.deleteByEno(refreshToken.getEno());

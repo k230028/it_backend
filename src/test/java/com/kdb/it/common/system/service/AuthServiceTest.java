@@ -69,6 +69,7 @@ class AuthServiceTest {
         @org.junit.jupiter.api.BeforeEach
         void setUp() {
                 ReflectionTestUtils.setField(authService, "refreshTokenValidityMs", 604_800_000L);
+                ReflectionTestUtils.setField(authService, "rotationGraceSeconds", 30L);
         }
 
         // ── 로그인 테스트 ──────────────────────────────────────────────────
@@ -226,7 +227,7 @@ class AuthServiceTest {
                 // given
                 String refreshTokenValue = "valid-refresh-token";
                 Crtokm refreshToken = Crtokm.builder()
-                                .tokCone(refreshTokenValue).eno("10001")
+                                .tokCone(refreshTokenValue).eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
 
@@ -280,6 +281,7 @@ class AuthServiceTest {
                 Crtokm rotated = Crtokm.builder()
                                 .tokCone(reused).eno("10001").famNm("FAM-1").avlYn("N")
                                 .endDtm(LocalDateTime.now().plusDays(7))
+                                .lstChgDtm(LocalDateTime.now().minusMinutes(5)) // grace 경과 → 패밀리 폐기 경로
                                 .build();
                 given(jwtUtil.validateToken(reused)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone(reused)).willReturn(Optional.of(rotated));
@@ -289,6 +291,25 @@ class AuthServiceTest {
                                 .hasMessageContaining("재사용");
                 verify(refreshTokenRepository, times(1)).deleteByEno("10001");
                 verify(refreshTokenRepository, never()).save(any(Crtokm.class));
+        }
+
+        @Test
+        @DisplayName("refreshAccessToken - grace 내 동시 새로고침: 패밀리 폐기 없이 거부")
+        void refreshAccessToken_grace내_패밀리유지() {
+                org.springframework.test.util.ReflectionTestUtils.setField(authService, "rotationGraceSeconds", 30L);
+                String recent = "just-rotated-token";
+                Crtokm rotated = Crtokm.builder()
+                                .tokCone(recent).eno("10001").famNm("FAM-1").avlYn("N")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .lstChgDtm(LocalDateTime.now().minusSeconds(3))
+                                .build();
+                given(jwtUtil.validateToken(recent)).willReturn(true);
+                given(refreshTokenRepository.findByTokCone(recent)).willReturn(Optional.of(rotated));
+
+                assertThatThrownBy(() -> authService.refreshAccessToken(recent))
+                                .isInstanceOf(RuntimeException.class)
+                                .hasMessageContaining("다시 시도");
+                verify(refreshTokenRepository, never()).deleteByEno(anyString()); // 패밀리 폐기 없음
         }
 
         @Test
@@ -332,7 +353,7 @@ class AuthServiceTest {
                 // given
                 String tokenValue = "expired-refresh-token";
                 Crtokm expiredToken = Crtokm.builder()
-                                .tokCone(tokenValue).eno("10001")
+                                .tokCone(tokenValue).eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().minusDays(1)) // 이미 만료
                                 .build();
 
@@ -409,7 +430,7 @@ class AuthServiceTest {
         void refreshAccessToken_사용자없음_예외발생() {
                 String tokenValue = "valid-refresh-token";
                 Crtokm refreshToken = Crtokm.builder()
-                                .tokCone(tokenValue).eno("10001")
+                                .tokCone(tokenValue).eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
                 given(jwtUtil.validateToken(tokenValue)).willReturn(true);
