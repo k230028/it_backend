@@ -9,6 +9,7 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.dto.EvaluationItemAvgRow;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bevalm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
@@ -274,13 +275,13 @@ public class EvaluationService {
      * @return 점검항목별 평균점수 목록 (최대 6개)
      */
     public List<CouncilDto.CheckItemAvgScore> buildAvgScores(String asctId) {
-        List<Object[]> raw = evaluationRepository.findAverageScoreByItem(asctId, "N");
+        List<EvaluationItemAvgRow> raw = evaluationRepository.findAvgRowsByItem(asctId, "N");
 
-        // Object[]{ckgItmC, avgScore} → Map<ckgItmC, avgScore>
+        // EvaluationItemAvgRow(항목코드, 평균점수) → Map<항목코드, 평균점수>
         Map<String, Double> avgMap = raw.stream()
                 .collect(Collectors.toMap(
-                        r -> (String) r[0],
-                        r -> ((Number) r[1]).doubleValue()));
+                        EvaluationItemAvgRow::itPtlCkgItmTc,
+                        r -> r.avgScore() == null ? 0.0 : r.avgScore().doubleValue()));
 
         // 고정 항목 순서로 정렬하여 반환
         return CHECK_ITEM_ORDER.stream()

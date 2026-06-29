@@ -1,5 +1,6 @@
 package com.kdb.it.domain.council.repository;
 
+import com.kdb.it.domain.council.dto.EvaluationItemAvgRow;
 import com.kdb.it.domain.council.entity.Bevalm;
 import com.kdb.it.domain.council.entity.BevalmId;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -68,4 +69,20 @@ public interface EvaluationRepository extends JpaRepository<Bevalm, BevalmId> {
             ORDER BY IT_PTL_CKG_ITM_TC
             """, nativeQuery = true)
     List<Object[]> findAverageScoreByItem(@Param("itPtlAsctId") String itPtlAsctId, @Param("delYn") String delYn);
+
+    /**
+     * 항목별 평균점수를 DTO로 봉인 반환한다(#6).
+     *
+     * <p>native {@link #findAverageScoreByItem(String, String)}의 {@code Object[]}를
+     * {@link EvaluationItemAvgRow#fromRow(Object[])}로 매핑해 인덱스 캐스팅을 봉인한다.</p>
+     *
+     * @param itPtlAsctId 협의회ID
+     * @param delYn       삭제여부 ('N')
+     * @return 항목별 평균점수 DTO 목록
+     */
+    default List<EvaluationItemAvgRow> findAvgRowsByItem(String itPtlAsctId, String delYn) {
+        return findAverageScoreByItem(itPtlAsctId, delYn).stream()
+                .map(EvaluationItemAvgRow::fromRow)
+                .toList();
+    }
 }
