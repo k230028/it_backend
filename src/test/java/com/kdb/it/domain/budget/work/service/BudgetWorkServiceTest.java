@@ -63,6 +63,7 @@ class BudgetWorkServiceTest {
     @Mock private ProjectItemRepository projectItemRepository;
     @Mock private CostRepository costRepository;
     @Mock private BudgetWorkQueryRepository budgetWorkQueryRepository;
+    @Mock private org.springframework.data.domain.AuditorAware<String> auditorAware;
 
     @InjectMocks
     private BudgetWorkService budgetWorkService;
@@ -713,7 +714,6 @@ class BudgetWorkServiceTest {
     @SuppressWarnings("unchecked")
     @DisplayName("applyItemRates: 기존 편성 레코드는 먼저 논리삭제하고 자본/경상 편성률을 구분 적용한다")
     void applyItemRates_기존삭제와자본경상구분적용() {
-        Bbugtm prior = Bbugtm.builder().bgNo("BG-OLD").sno(1).delYn("N").build();
         BudgetWorkDto.ItemApplyRequest request = new BudgetWorkDto.ItemApplyRequest("2026", List.of(
                 new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 60, 40),
                 new BudgetWorkDto.ItemRate("BCOSTM", "COST_2026_0001", null, null)
@@ -731,7 +731,10 @@ class BudgetWorkServiceTest {
         given(cost.getIoeC()).willReturn("IOE-999-0100");
         given(cost.getCostTotXpAmt()).willReturn(BigDecimal.valueOf(500));
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(prior), List.of());
+        given(bbugtmRepository.softDeleteByBseYy(org.mockito.ArgumentMatchers.eq("2026"),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).willReturn(1);
+        // getSummary 내부에서만 조회 (선정리는 더 이상 findByBseYyAndDelYn 사용 안 함)
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of(capitalCode));
         given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
                 .willReturn(List.of(capitalItem));
@@ -746,7 +749,8 @@ class BudgetWorkServiceTest {
 
         BudgetWorkDto.ApplyResponse result = budgetWorkService.applyItemRates(request);
 
-        assertThat(prior.getDelYn()).isEqualTo("Y");
+        verify(bbugtmRepository).softDeleteByBseYy(org.mockito.ArgumentMatchers.eq("2026"),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
         assertThat(result.totalRecords()).isEqualTo(2);
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository, org.mockito.Mockito.times(2)).save(captor.capture());
@@ -1334,5 +1338,25 @@ class BudgetWorkServiceTest {
 
         assertThat(result.categories()).hasSize(1);
         assertThat(result.categories().get(0).cdNm()).isEqualTo("세부설명컬럼명");
+    }
+
+    @Test
+    @DisplayName("applyItemRates: 선정리를 루프 delete가 아닌 벌크 UPDATE 1회로 수행한다 (P1 #1)")
+    void applyItemRates_선정리_벌크UPDATE단일호출() {
+        BudgetWorkDto.ItemApplyRequest request =
+                new BudgetWorkDto.ItemApplyRequest("2026", List.of());
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.softDeleteByBseYy(eq("2026"), any(), any())).willReturn(3);
+        // getSummary 내부 호출용 mock
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
+        mockEmptyDetailCodes();
+
+        budgetWorkService.applyItemRates(request);
+
+        // 선정리는 벌크 UPDATE 1회 — 루프 delete용 선정리 조회는 발생하지 않는다.
+        verify(bbugtmRepository).softDeleteByBseYy(eq("2026"), any(), any());
+        // getSummary가 부르는 findByBseYyAndDelYn는 정확히 1회 (선정리용 추가 호출 없음)
+        Mockito.verify(bbugtmRepository, Mockito.times(1)).findByBseYyAndDelYn("2026", "N");
     }
 }

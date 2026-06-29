@@ -15,11 +15,13 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -72,6 +74,9 @@ public class BudgetWorkService {
 
     /** 전산업무비 리포지토리 (TPRMPP_BCOSTM): 계약명 조회용 */
     private final CostRepository costRepository;
+
+    /** 현재 인증 사용자 사번 제공 (벌크 UPDATE 감사컬럼 LST_CHG_USID 세팅용) */
+    private final AuditorAware<String> auditorAware;
 
     /**
      * 편성비목 목록 조회 (API-01)
@@ -280,8 +285,12 @@ public class BudgetWorkService {
          * 비목별 편성 결과의 편성금액을 부풀리는 문제를 원천 차단합니다.
          * 또한 BITEMM 구버전(LST_YN='N')이 과거 버그로 저장된 고아 레코드도 함께 제거됩니다.
          */
-        List<Bbugtm> priorBudgets = bbugtmRepository.findByBseYyAndDelYn(bgYy, "N");
-        for (Bbugtm prior : priorBudgets) prior.delete();
+        // 선정리: 전체 로드+루프 delete 대신 단일 벌크 UPDATE로 soft-delete (P1 #1).
+        // 변경자 사번은 현재 인증 사용자(없으면 SYSTEM)를 UPDATE문에 직접 세팅한다.
+        // 벌크는 @PreUpdate→ChangeLogEntityListener를 우회하므로 이 과도적 선정리 구간의
+        // 행별 BbugtL 로그는 생성되지 않는다(설계 §4.2 DECISION, 손실 수용).
+        String changerUsid = auditorAware.getCurrentAuditor().orElse("SYSTEM");
+        bbugtmRepository.softDeleteByBseYy(bgYy, changerUsid, LocalDateTime.now());
 
         /* 자본예산 비목코드 목록 조회 — C_TP(IOE_DVC/HW/SW) 기준 */
         List<Ccodem> capitalCodes = findCodes(CommonCodeGroups.IOE)
