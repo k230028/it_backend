@@ -3,12 +3,16 @@ package com.kdb.it.domain.payment.repository;
 import com.kdb.it.domain.budget.cost.entity.QBcostm;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
 import com.kdb.it.domain.payment.dto.PaymentDto;
+import com.kdb.it.domain.payment.entity.Bpaymm;
 import com.kdb.it.domain.payment.entity.QBpaymm;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.util.StringUtils;
 
@@ -74,5 +78,36 @@ public class PaymentRepositoryImpl implements PaymentRepositoryCustom {
                 .where(where)
                 .orderBy(pm.fstEnrDtm.desc())
                 .fetch();
+    }
+
+    /**
+     * 현재 유효 마스터 + 대상명 단일 조회.
+     *
+     * <p>마스터와 대상명을 한 번의 쿼리(Tuple)로 가져옵니다. 대상명은 대상구분(bgPrnTc)에 따라
+     * Bprojm(100=사업, ABUS_NM) 또는 Bcostm(200=전산업무비, CTT_NM)을 cncdRfrNo 키로 LEFT JOIN하여
+     * CASE 식으로 분기합니다. 대상 레코드가 없으면 LEFT JOIN 특성상 대상명은 null입니다.
+     * 회차별 지급 명세(1:N)는 본 쿼리에 포함하지 않고 서비스에서 별도 조회합니다.</p>
+     *
+     * @param docNo 문서관리번호
+     * @return 마스터 + 대상명 행 (문서 없으면 empty)
+     */
+    @Override
+    public Optional<PaymentTargetRow> findCurrentWithTargetName(String docNo) {
+        QBpaymm pm = QBpaymm.bpaymm;
+        QBprojm p = QBprojm.bprojm;
+        QBcostm c = QBcostm.bcostm;
+        Tuple row = queryFactory
+                .select(pm,
+                        new CaseBuilder()
+                                .when(pm.bgPrnTc.eq("100")).then(p.abusNm)
+                                .when(pm.bgPrnTc.eq("200")).then(c.cttNm)
+                                .otherwise(Expressions.nullExpression(String.class)))
+                .from(pm)
+                .leftJoin(p).on(p.abusMngNo.eq(pm.cncdRfrNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
+                .leftJoin(c).on(c.costBgNo.eq(pm.cncdRfrNo).and(c.lstYn.eq("Y")).and(c.delYn.eq("N")))
+                .where(pm.docMngNo.eq(docNo).and(pm.lstYn.eq("Y")).and(pm.delYn.eq("N")))
+                .fetchOne();
+        if (row == null) return Optional.empty();
+        return Optional.of(new PaymentTargetRow(row.get(0, Bpaymm.class), row.get(1, String.class)));
     }
 }

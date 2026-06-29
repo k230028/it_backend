@@ -9,9 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.payment.dto.PaymentDto;
@@ -19,6 +17,7 @@ import com.kdb.it.domain.payment.entity.Bpaymm;
 import com.kdb.it.domain.payment.entity.Bpaymt;
 import com.kdb.it.domain.payment.repository.PaymentLineRepository;
 import com.kdb.it.domain.payment.repository.PaymentRepository;
+import com.kdb.it.domain.payment.repository.PaymentTargetRow;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -646,23 +645,17 @@ class PaymentServiceTest {
     class GetTests {
 
         @Test
-        @DisplayName("사업(100) 대상 문서 상세 조회 시 프로젝트명이 포함된 Detail을 반환한다")
+        @DisplayName("사업(100) 대상 문서 상세 조회 시 단일 쿼리로 프로젝트명이 포함된 Detail을 반환하고 대상별 추가 조회는 호출되지 않는다")
         void get_projectTarget_returnsDetailWithProjectName() {
-            // Arrange
+            // Arrange — 마스터+대상명은 단일 쿼리(findCurrentWithTargetName)로, 회차 명세는 기존대로 별도 조회
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
                     .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("81")
                     .reqCone("요청내용").cttNm("계약명").cttAmt(BigDecimal.valueOf(500000)).build();
-            when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
-                    .thenReturn(Optional.of(master));
+            when(paymentRepository.findCurrentWithTargetName("PAY-2026-0001"))
+                    .thenReturn(Optional.of(new PaymentTargetRow(master, "클라우드 전환 프로젝트")));
             when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0001", 1, "N"))
                     .thenReturn(List.of());
-
-            // Bprojm을 직접 빌드하기 어려우므로 Mock으로 이름만 반환
-            Bprojm proj = Mockito.mock(Bprojm.class);
-            when(proj.getAbusNm()).thenReturn("클라우드 전환 프로젝트");
-            when(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N"))
-                    .thenReturn(Optional.of(proj));
 
             // Act
             PaymentDto.Detail detail = service.get("PAY-2026-0001");
@@ -672,29 +665,30 @@ class PaymentServiceTest {
             assertThat(detail.bgPrnTc()).isEqualTo("100");
             assertThat(detail.tgtNm()).isEqualTo("클라우드 전환 프로젝트");
             assertThat(detail.lines()).isEmpty();
+            // 단일 쿼리로 통합되어 마스터 조회·대상별 조회가 더 이상 호출되지 않음 (회차 명세 조회는 유지)
+            verify(paymentRepository).findCurrentWithTargetName("PAY-2026-0001");
+            verify(paymentRepository, never()).findByDocMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+            verify(projectRepository, never()).findByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+            verify(costRepository, never()).findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+            verify(lineRepository).findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0001", 1, "N");
         }
 
         @Test
-        @DisplayName("전산업무비(200) 대상 문서 상세 조회 시 전산업무비명과 회차 명세 목록을 반환한다")
+        @DisplayName("전산업무비(200) 대상 문서 상세 조회 시 단일 쿼리 전산업무비명과 회차 명세 목록을 반환한다")
         void get_costTarget_returnsDetailWithCostName() {
             // Arrange
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0002").docVrsSno(1).lstYn("Y")
                     .bgPrnTc("200").cncdRfrNo("BG-1").stsTc("85")
                     .cttNm("유지보수계약").cttAmt(BigDecimal.valueOf(1000000)).build();
-            when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0002", "Y", "N"))
-                    .thenReturn(Optional.of(master));
+            when(paymentRepository.findCurrentWithTargetName("PAY-2026-0002"))
+                    .thenReturn(Optional.of(new PaymentTargetRow(master, "서버유지보수")));
 
             Bpaymt line = Bpaymt.builder()
                     .docMngNo("PAY-2026-0002").docVrsSno(1).dfrTod(1)
                     .dfrAmt(BigDecimal.valueOf(500000)).dfrDt("20260601").dfrMplDt("20260630").opnnCone("1차지급").build();
             when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0002", 1, "N"))
                     .thenReturn(List.of(line));
-
-            Bcostm cost = Mockito.mock(Bcostm.class);
-            when(cost.getCttNm()).thenReturn("서버유지보수");
-            when(costRepository.findByCostBgNoAndLstYnAndDelYn("BG-1", "Y", "N"))
-                    .thenReturn(Optional.of(cost));
 
             // Act
             PaymentDto.Detail detail = service.get("PAY-2026-0002");
@@ -710,37 +704,33 @@ class PaymentServiceTest {
         @Test
         @DisplayName("사업 대상이지만 프로젝트를 찾을 수 없으면 tgtNm이 null이다")
         void get_projectNotFound_tgtNmIsNull() {
-            // Arrange
+            // Arrange — LEFT JOIN 미매칭이면 대상명 null
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0003").docVrsSno(1).lstYn("Y")
                     .bgPrnTc("100").cncdRfrNo("PRJ-GONE").stsTc("81").build();
-            when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0003", "Y", "N"))
-                    .thenReturn(Optional.of(master));
+            when(paymentRepository.findCurrentWithTargetName("PAY-2026-0003"))
+                    .thenReturn(Optional.of(new PaymentTargetRow(master, null)));
             when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0003", 1, "N"))
                     .thenReturn(List.of());
-            when(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-GONE", "Y", "N"))
-                    .thenReturn(Optional.empty());
 
             // Act
             PaymentDto.Detail detail = service.get("PAY-2026-0003");
 
-            // Assert - orElse(null) → tgtNm은 null
+            // Assert
             assertThat(detail.tgtNm()).isNull();
         }
 
         @Test
         @DisplayName("전산업무비 대상을 찾을 수 없으면 tgtNm이 null이다")
         void get_costNotFound_tgtNmIsNull() {
-            // Arrange
+            // Arrange — LEFT JOIN 미매칭이면 대상명 null
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0005").docVrsSno(1).lstYn("Y")
                     .bgPrnTc("200").cncdRfrNo("BG-GONE").stsTc("81").build();
-            when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0005", "Y", "N"))
-                    .thenReturn(Optional.of(master));
+            when(paymentRepository.findCurrentWithTargetName("PAY-2026-0005"))
+                    .thenReturn(Optional.of(new PaymentTargetRow(master, null)));
             when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0005", 1, "N"))
                     .thenReturn(List.of());
-            when(costRepository.findByCostBgNoAndLstYnAndDelYn("BG-GONE", "Y", "N"))
-                    .thenReturn(Optional.empty());
 
             // Act
             PaymentDto.Detail detail = service.get("PAY-2026-0005");
@@ -752,12 +742,12 @@ class PaymentServiceTest {
         @Test
         @DisplayName("알 수 없는 대상구분(bgPrnTc=999) 문서의 tgtNm은 null이다")
         void get_unknownBgPrnTc_tgtNmIsNull() {
-            // Arrange - bgPrnTc="999" 같은 비표준 값 → resolveTargetName에서 else null 경로
+            // Arrange — CASE otherwise(null) 분기
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0004").docVrsSno(1).lstYn("Y")
                     .bgPrnTc("999").cncdRfrNo("UNKNOWN").stsTc("81").build();
-            when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0004", "Y", "N"))
-                    .thenReturn(Optional.of(master));
+            when(paymentRepository.findCurrentWithTargetName("PAY-2026-0004"))
+                    .thenReturn(Optional.of(new PaymentTargetRow(master, null)));
             when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0004", 1, "N"))
                     .thenReturn(List.of());
 
@@ -772,7 +762,7 @@ class PaymentServiceTest {
         @DisplayName("존재하지 않는 문서번호로 조회하면 IllegalArgumentException을 던진다")
         void get_documentNotFound_throwsIllegalArgument() {
             // Arrange
-            when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-XXXX-9999", "Y", "N"))
+            when(paymentRepository.findCurrentWithTargetName("PAY-XXXX-9999"))
                     .thenReturn(Optional.empty());
 
             // Act & Assert

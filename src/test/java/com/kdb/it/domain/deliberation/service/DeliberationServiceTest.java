@@ -6,18 +6,18 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.deliberation.dto.DeliberationDto;
 import com.kdb.it.domain.deliberation.entity.Bdelim;
 import com.kdb.it.domain.deliberation.repository.DeliberationRepository;
+import com.kdb.it.domain.deliberation.repository.DeliberationTargetRow;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -567,15 +567,12 @@ class DeliberationServiceTest {
     // -----------------------------------------------------------------------
 
     @Test
-    @DisplayName("사업 대상(100) 문서 상세 조회 시 사업명이 tgtNm으로 반환된다")
+    @DisplayName("사업 대상(100) 문서 상세 조회 시 단일 쿼리로 사업명이 tgtNm으로 반환되고 대상별 추가 조회는 호출되지 않는다")
     void get_project_returnsTgtNm() {
-        // Arrange
+        // Arrange — 단일 쿼리(findCurrentWithTargetName)가 마스터+대상명을 함께 반환
         Bdelim e = bdelim("DLB-2026-0001", "100", "PRJ-1", "61");
-        when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
-                .thenReturn(Optional.of(e));
-        Bprojm proj = Bprojm.builder().abusMngNo("PRJ-1").sno(1).abusNm("클라우드 전환 사업").lstYn("Y").build();
-        when(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N"))
-                .thenReturn(Optional.of(proj));
+        when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0001"))
+                .thenReturn(Optional.of(new DeliberationTargetRow(e, "클라우드 전환 사업")));
 
         // Act
         DeliberationDto.Detail detail = service.get("DLB-2026-0001");
@@ -583,17 +580,20 @@ class DeliberationServiceTest {
         // Assert
         assertThat(detail.tgtNm()).isEqualTo("클라우드 전환 사업");
         assertThat(detail.docMngNo()).isEqualTo("DLB-2026-0001");
+        // 단일 쿼리로 통합되어 마스터 조회·대상별 조회가 더 이상 호출되지 않음
+        verify(deliberationRepository).findCurrentWithTargetName("DLB-2026-0001");
+        verify(deliberationRepository, never()).findByDocMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+        verify(projectRepository, never()).findByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+        verify(costRepository, never()).findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
     }
 
     @Test
     @DisplayName("사업 대상(100)인데 사업 레코드가 없으면 tgtNm은 null이다")
     void get_project_notFound_tgtNmIsNull() {
-        // Arrange
+        // Arrange — LEFT JOIN 미매칭이면 대상명 null
         Bdelim e = bdelim("DLB-2026-0001", "100", "PRJ-NONE", "61");
-        when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
-                .thenReturn(Optional.of(e));
-        when(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-NONE", "Y", "N"))
-                .thenReturn(Optional.empty());
+        when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0001"))
+                .thenReturn(Optional.of(new DeliberationTargetRow(e, null)));
 
         // Act
         DeliberationDto.Detail detail = service.get("DLB-2026-0001");
@@ -603,21 +603,19 @@ class DeliberationServiceTest {
     }
 
     @Test
-    @DisplayName("전산업무비 대상(200) 문서 상세 조회 시 계약명이 tgtNm으로 반환된다")
+    @DisplayName("전산업무비 대상(200) 문서 상세 조회 시 단일 쿼리로 계약명이 tgtNm으로 반환된다")
     void get_cost_returnsCttNm() {
         // Arrange
         Bdelim e = bdelim("DLB-2026-0002", "200", "BG-1", "65");
-        when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0002", "Y", "N"))
-                .thenReturn(Optional.of(e));
-        Bcostm cost = Bcostm.builder().costBgNo("BG-1").bgSno(1).cttNm("서버 유지보수 계약").lstYn("Y").build();
-        when(costRepository.findByCostBgNoAndLstYnAndDelYn("BG-1", "Y", "N"))
-                .thenReturn(Optional.of(cost));
+        when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0002"))
+                .thenReturn(Optional.of(new DeliberationTargetRow(e, "서버 유지보수 계약")));
 
         // Act
         DeliberationDto.Detail detail = service.get("DLB-2026-0002");
 
         // Assert
         assertThat(detail.tgtNm()).isEqualTo("서버 유지보수 계약");
+        verify(costRepository, never()).findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
     }
 
     @Test
@@ -625,10 +623,8 @@ class DeliberationServiceTest {
     void get_cost_notFound_tgtNmIsNull() {
         // Arrange
         Bdelim e = bdelim("DLB-2026-0002", "200", "BG-NONE", "65");
-        when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0002", "Y", "N"))
-                .thenReturn(Optional.of(e));
-        when(costRepository.findByCostBgNoAndLstYnAndDelYn("BG-NONE", "Y", "N"))
-                .thenReturn(Optional.empty());
+        when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0002"))
+                .thenReturn(Optional.of(new DeliberationTargetRow(e, null)));
 
         // Act
         DeliberationDto.Detail detail = service.get("DLB-2026-0002");
@@ -638,12 +634,12 @@ class DeliberationServiceTest {
     }
 
     @Test
-    @DisplayName("알 수 없는 대상구분(999)이면 resolveTargetName이 null을 반환하여 tgtNm은 null이다")
+    @DisplayName("알 수 없는 대상구분(999)이면 CASE 식이 null을 반환하여 tgtNm은 null이다")
     void get_unknownBgPrnTc_tgtNmIsNull() {
-        // Arrange — bgPrnTc=999 는 resolveTargetName의 마지막 return null 분기 실행
+        // Arrange — bgPrnTc=999 는 CASE의 otherwise(null) 분기 실행
         Bdelim e = bdelim("DLB-2026-0003", "999", "ANY-1", "61");
-        when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0003", "Y", "N"))
-                .thenReturn(Optional.of(e));
+        when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0003"))
+                .thenReturn(Optional.of(new DeliberationTargetRow(e, null)));
 
         // Act
         DeliberationDto.Detail detail = service.get("DLB-2026-0003");
@@ -656,7 +652,7 @@ class DeliberationServiceTest {
     @DisplayName("문서가 없으면 get은 IllegalArgumentException을 던진다")
     void get_throwsWhenDocNotFound() {
         // Arrange
-        when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("NONE", "Y", "N"))
+        when(deliberationRepository.findCurrentWithTargetName("NONE"))
                 .thenReturn(Optional.empty());
 
         // Act & Assert

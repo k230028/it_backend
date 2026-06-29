@@ -189,31 +189,19 @@ public class PaymentService {
      * @throws IllegalArgumentException 문서를 찾을 수 없는 경우
      */
     public PaymentDto.Detail get(String docNo) {
-        Bpaymm e = loadCurrent(docNo);
+        // 마스터 + 대상명을 단일 쿼리로 조회 (기존 마스터/대상명 2쿼리 → 1쿼리 통합).
+        // 대상명은 대상구분(100=사업 ABUS_NM, 200=전산업무비 CTT_NM)에 따라 LEFT JOIN + CASE로 해석.
+        var row = paymentRepository.findCurrentWithTargetName(docNo)
+                .orElseThrow(() -> new IllegalArgumentException("대금지급 문서를 찾을 수 없습니다: " + docNo));
+        Bpaymm e = row.entity();
+        // 회차별 지급 명세(1:N)는 별도 데이터이므로 기존대로 별도 조회 유지.
         List<PaymentDto.Line> lines = lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn(docNo, e.getDocVrsSno(), "N")
                 .stream().map(l -> new PaymentDto.Line(l.getDfrTod(), l.getDfrAmt(), l.getDfrDt(), l.getDfrMplDt(), l.getOpnnCone()))
                 .toList();
-        String tgtNm = resolveTargetName(e.getBgPrnTc(), e.getCncdRfrNo());
+        String tgtNm = row.targetName();
         return new PaymentDto.Detail(
                 e.getDocMngNo(), e.getDocVrsSno(), e.getBgPrnTc(), e.getCncdRfrNo(), tgtNm,
                 e.getStsTc(), e.getReqCone(), e.getCttNm(), e.getCttAmt(), e.getFstEnrUsid(), e.getFstEnrDtm(), lines);
-    }
-
-    /**
-     * 대상구분과 대상관리번호로 대상 명칭을 조회합니다.
-     *
-     * @param bgPrnTc   대상구분 (100=사업, 200=전산업무비)
-     * @param cncdRfrNo 대상관리번호
-     * @return 대상 명칭 (없으면 null)
-     */
-    private String resolveTargetName(String bgPrnTc, String cncdRfrNo) {
-        if (TGT_PROJECT.equals(bgPrnTc)) {
-            return projectRepository.findByAbusMngNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N").map(p -> p.getAbusNm()).orElse(null);
-        }
-        if (TGT_COST.equals(bgPrnTc)) {
-            return costRepository.findByCostBgNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N").map(c -> c.getCttNm()).orElse(null);
-        }
-        return null;
     }
 
     /**

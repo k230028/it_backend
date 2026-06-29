@@ -159,31 +159,16 @@ public class ContractService {
      * @throws IllegalArgumentException 문서 미존재
      */
     public ContractDto.Detail get(String docNo) {
-        Bcontm e = loadCurrent(docNo);
-        String tgtNm = resolveTargetName(e.getBgPrnTc(), e.getCncdRfrNo());
+        // 마스터 + 대상명을 단일 쿼리로 조회 (기존 마스터/대상명 2쿼리 → 1쿼리 통합).
+        // 대상명은 대상구분(100=사업 ABUS_NM, 200=전산업무비 CTT_NM)에 따라 LEFT JOIN + CASE로 해석.
+        var row = contractRepository.findCurrentWithTargetName(docNo)
+                .orElseThrow(() -> new IllegalArgumentException("입찰계약 문서를 찾을 수 없습니다: " + docNo));
+        Bcontm e = row.entity();
+        String tgtNm = row.targetName();
         return new ContractDto.Detail(
                 e.getDocMngNo(), e.getDocVrsSno(), e.getBgPrnTc(), e.getCncdRfrNo(), tgtNm,
                 e.getStsTc(), e.getReqCone(), e.getCttManrC(), e.getCttManrRsn(), e.getCttNm(),
                 e.getCttAmt(), e.getCttOppNm(), e.getCttDt(), e.getFstEnrUsid(), e.getFstEnrDtm());
-    }
-
-    /**
-     * 대상구분에 따라 대상명을 조회한다.
-     *
-     * @param bgPrnTc   예산성격구분코드
-     * @param cncdRfrNo 관련참조번호
-     * @return 대상명 (없으면 null)
-     */
-    private String resolveTargetName(String bgPrnTc, String cncdRfrNo) {
-        if (TGT_PROJECT.equals(bgPrnTc)) {
-            return projectRepository.findByAbusMngNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N")
-                    .map(p -> p.getAbusNm()).orElse(null);
-        }
-        if (TGT_COST.equals(bgPrnTc)) {
-            return costRepository.findByCostBgNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N")
-                    .map(c -> c.getCttNm()).orElse(null);
-        }
-        return null;
     }
 
     /**

@@ -160,37 +160,17 @@ public class DeliberationService {
      * @return 상세 응답 DTO
      */
     public DeliberationDto.Detail get(String docNo) {
-        Bdelim e = loadCurrent(docNo);
-        String tgtNm = resolveTargetName(e.getBgPrnTc(), e.getCncdRfrNo());
+        // 마스터 + 대상명을 단일 쿼리로 조회 (기존 마스터/대상명 2쿼리 → 1쿼리 통합).
+        // 대상명은 대상구분(100=사업 ABUS_NM, 200=전산업무비 CTT_NM)에 따라 LEFT JOIN + CASE로 해석.
+        var row = deliberationRepository.findCurrentWithTargetName(docNo)
+                .orElseThrow(() -> new IllegalArgumentException("과업심의 문서를 찾을 수 없습니다: " + docNo));
+        Bdelim e = row.entity();
+        String tgtNm = row.targetName();
         return new DeliberationDto.Detail(
                 e.getDocMngNo(), e.getDocVrsSno(), e.getBgPrnTc(), e.getCncdRfrNo(), tgtNm,
                 e.getStsTc(), e.getReqCone(), e.getTaskDbrTc(), e.getTaskDbrRltTc(), e.getTaskDbrDt(),
                 e.getTaskDbrTod(), e.getTaskDbrOmtYn(), e.getTaskDbrOmtRsn(), e.getOpnnCone(), e.getApvTrdnRsnCone(),
                 e.getFstEnrUsid(), e.getFstEnrDtm());
-    }
-
-    /**
-     * 대상명 해석.
-     *
-     * <p>사업(100)이면 {@code ABUS_NM}, 전산업무비(200)이면 계약명({@code CTT_NM}).
-     * 해당 레코드가 없으면 null을 반환하며, 프론트엔드가 대상번호로 폴백 표시합니다.</p>
-     *
-     * @param bgPrnTc   예산성격구분코드(대상구분)
-     * @param cncdRfrNo 관련참조번호(대상관리번호)
-     * @return 대상 명칭 (없으면 null)
-     */
-    private String resolveTargetName(String bgPrnTc, String cncdRfrNo) {
-        if (TGT_PROJECT.equals(bgPrnTc)) {
-            return projectRepository.findByAbusMngNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N")
-                    .map(p -> p.getAbusNm()).orElse(null);
-        }
-        if (TGT_COST.equals(bgPrnTc)) {
-            // 전산업무비 명칭은 계약명(CTT_NM). 전산업무비 레코드의 주요 식별자이며
-            // 실제 계약서상 명칭(예: "2026년 서버 유지보수 계약")이 사용자에게 표시되는 이름이다.
-            return costRepository.findByCostBgNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N")
-                    .map(c -> c.getCttNm()).orElse(null);
-        }
-        return null;
     }
 
     /**
