@@ -73,7 +73,7 @@ class CostServiceTest {
     /** 환율 표준 조회 헬퍼 (CONTEXT.md 결정 E / R3.7 — Wave 5 추가 의존성) */
     @Mock private XcrLookupService xcrLookupService;
     /** Phase 5 Task 5: CodeNameMapBuilder 추출 후 주입 */
-    @Mock private com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder codeNameMapBuilder;
+    @Mock private com.kdb.it.common.util.CodeNameMapBuilder codeNameMapBuilder;
 
     @InjectMocks
     private CostService costService;

@@ -1,4 +1,4 @@
-package com.kdb.it.domain.budget.cost.util;
+package com.kdb.it.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;

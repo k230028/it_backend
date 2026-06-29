@@ -20,7 +20,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
-import com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder;
+import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;

@@ -29,7 +29,7 @@ import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
-import com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder;
+import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 

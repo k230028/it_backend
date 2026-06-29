@@ -99,7 +99,7 @@ class ProjectServiceTest {
         private BprojaSyncService bprojaSyncService;
         /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (CodeNameMapBuilder 추출 후 의존성) */
         @Mock
-        private com.kdb.it.domain.budget.cost.util.CodeNameMapBuilder codeNameMapBuilder;
+        private com.kdb.it.common.util.CodeNameMapBuilder codeNameMapBuilder;
         @Mock
         private SecurityContext securityContext;
         @Mock

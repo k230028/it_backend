@@ -1,4 +1,4 @@
-package com.kdb.it.domain.budget.cost.util;
+package com.kdb.it.common.util;
 
 import java.util.Map;
 import java.util.Set;
