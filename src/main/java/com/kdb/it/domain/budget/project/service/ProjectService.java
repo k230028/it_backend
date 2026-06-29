@@ -30,6 +30,7 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -262,6 +263,9 @@ public class ProjectService {
      * @return 생성된 프로젝트관리번호
      * @throws IllegalArgumentException 제공된 관리번호가 이미 존재하는 경우
      */
+    // 프로젝트 생성 시 Tiptap 변수 카탈로그(활성 사업 목록 포함)가 stale → 전체 evict (P5/T13).
+    // 캐시 키가 'ALL'·부서코드별로 분산되어 단일 키로는 무효화 불가하므로 allEntries=true.
+    @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
     @Transactional
     public String createProject(ProjectDto.CreateRequest request) {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
@@ -384,6 +388,8 @@ public class ProjectService {
      * @throws IllegalArgumentException 해당 관리번호의 프로젝트가 없는 경우
      * @throws IllegalStateException    결재중/결재완료 상태여서 수정 불가한 경우
      */
+    // 프로젝트 수정 시 Tiptap 변수 카탈로그가 stale → 전체 evict (P5/T13).
+    @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
     @Transactional
     public String updateProject(String prjMngNo, ProjectDto.UpdateRequest request) {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
@@ -631,6 +637,8 @@ public class ProjectService {
      * @throws IllegalArgumentException 해당 관리번호의 프로젝트가 없는 경우
      * @throws IllegalStateException    결재중/결재완료 상태여서 삭제 불가한 경우
      */
+    // 프로젝트 삭제 시 Tiptap 변수 카탈로그가 stale → 전체 evict (P5/T13).
+    @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
     @Transactional
     public void deleteProject(String prjMngNo) {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
