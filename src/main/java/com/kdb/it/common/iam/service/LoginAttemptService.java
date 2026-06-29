@@ -5,6 +5,7 @@ import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
  */
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class LoginAttemptService {
 
     private static final int MAX_FAILURES = 5;
