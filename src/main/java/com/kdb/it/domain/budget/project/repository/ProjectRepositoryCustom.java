@@ -50,4 +50,17 @@ public interface ProjectRepositoryCustom {
      * @return 조건에 맞는 정보화사업 건수 (DEL_YN='N' 필터 항상 적용)
      */
     long countBySearchCondition(ProjectDto.SearchCondition condition);
+
+    /**
+     * 목록 경량 프로젝션 조회(#7) — {@link #searchByCondition}와 동일 WHERE,
+     * select만 대용량 텍스트 제외 컬럼으로 축소.
+     *
+     * <p>목록 화면에 필요한 식별/요약 컬럼만 select하므로 행 집합은 {@code searchByCondition}과
+     * 동일하나 1000자+ 본문(사업설명/현황/기대효과 등)을 적재하지 않는다. 상세는 기존 엔티티
+     * 조회 경로를 유지한다(결정 B).</p>
+     *
+     * @param condition 검색 조건 DTO
+     * @return 조건에 맞는 정보화사업 경량 목록 행 (DEL_YN='N' 필터 항상 적용)
+     */
+    List<ProjectDto.ProjectListRow> searchListByCondition(ProjectDto.SearchCondition condition);
 }

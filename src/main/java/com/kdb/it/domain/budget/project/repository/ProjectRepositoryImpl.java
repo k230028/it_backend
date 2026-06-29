@@ -9,6 +9,7 @@ import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.entity.QBproja;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
@@ -63,6 +64,37 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
         return queryFactory
                 .selectFrom(bprojm)
                 .where(builder)
+                .fetch();
+    }
+
+    /**
+     * 목록 경량 프로젝션 조회(#7) — {@link #searchByCondition}와 동일 WHERE,
+     * select만 대용량 텍스트 제외 컬럼으로 축소.
+     *
+     * <p>QueryDSL {@code Projections.constructor}는 위치 기반이므로 select 인자 순서가
+     * {@link ProjectDto.ProjectListRow} 컴포넌트 순서와 정확히 일치해야 한다.</p>
+     */
+    @Override
+    public List<ProjectDto.ProjectListRow> searchListByCondition(ProjectDto.SearchCondition condition) {
+        QBprojm bprojm = QBprojm.bprojm;
+        // 동일 WHERE 재사용 — searchByCondition과 결과 행 집합 동일, select만 경량화
+        return queryFactory
+                .select(Projections.constructor(ProjectDto.ProjectListRow.class,
+                        bprojm.abusMngNo,
+                        bprojm.sno,
+                        bprojm.abusNm,
+                        bprojm.bzTpC,
+                        bprojm.svnDpmC,
+                        bprojm.dvmDpmC,
+                        bprojm.sttDtm,
+                        bprojm.endDtm,
+                        bprojm.bseYy,
+                        bprojm.odnYn,
+                        bprojm.abusTc,
+                        bprojm.rprStsTc,
+                        bprojm.delYn))
+                .from(bprojm)
+                .where(buildConditionPredicate(condition))
                 .fetch();
     }
 

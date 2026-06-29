@@ -36,6 +36,30 @@ import java.time.LocalDateTime;
 public class ProjectDto {
 
     /**
+     * 정보화사업 목록 경량 프로젝션 DTO(#7).
+     *
+     * <p>목록 화면에 필요한 식별/요약 컬럼만 담으며, 1000자+ 대용량 텍스트
+     * (사업설명/현황/기대효과/문제/추진경과/고객유형 등)는 select하지 않는다.
+     * 상세는 기존 엔티티 조회 경로를 유지한다.</p>
+     */
+    @Schema(name = "ProjectListRow")
+    public record ProjectListRow(
+            String abusMngNo,
+            Integer sno,
+            String abusNm,
+            String bzTpC,
+            String svnDpmC,
+            String dvmDpmC,
+            LocalDate sttDtm,
+            LocalDate endDtm,
+            String bseYy,
+            String odnYn,
+            String abusTc,
+            String rprStsTc,
+            String delYn
+    ) {}
+
+    /**
      * 정보화사업 생성 요청 DTO
      *
      * <p>
