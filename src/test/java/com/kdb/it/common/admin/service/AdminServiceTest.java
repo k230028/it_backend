@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.kdb.it.common.admin.dto.AdminDto;
+import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.iam.entity.CauthI;
@@ -796,8 +797,9 @@ class AdminServiceTest {
     @Test
     @DisplayName("getLoginStats: 일별 로그인 통계를 날짜와 건수로 변환한다")
     void getLoginStats_일별통계반환() {
-        given(loginHistoryRepository.findDailyLoginStats())
-                .willReturn(Collections.singletonList(new Object[]{"2026-05-09", 3L}));
+        given(loginHistoryRepository.findDailyLoginStatRows())
+                .willReturn(Collections.singletonList(
+                        LabeledCountRow.fromRow(new Object[]{"2026-05-09", 3L})));
 
         List<AdminDto.LoginStatResponse> result = adminService.getLoginStats();
 

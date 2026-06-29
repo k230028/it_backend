@@ -28,6 +28,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.dto.ApplicationDto;
+import com.kdb.it.common.approval.dto.PendingApprovalRow;
+import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
@@ -751,8 +753,8 @@ class ApplicationServiceTest {
         given(applicationRepository.countInProgressByEno("10001")).willReturn(1);
         given(applicationRepository.countMonthlyCompletedByBbrC("BBR001")).willReturn(3);
         given(applicationRepository.countRejectedByEno("10001")).willReturn(0);
-        given(applicationRepository.findMonthlyTrendByBbrC("BBR001")).willReturn(List.of());
-        given(applicationRepository.findPendingListByEno("10001")).willReturn(List.of());
+        given(applicationRepository.findMonthlyTrendRowsByBbrC("BBR001")).willReturn(List.of());
+        given(applicationRepository.findPendingRowsByEno("10001")).willReturn(List.of());
 
         ApplicationDto.DashboardResponse result =
                 applicationService.getDashboard("BBR001", "10001");
@@ -769,11 +771,12 @@ class ApplicationServiceTest {
         given(applicationRepository.countInProgressByEno("10001")).willReturn(1);
         given(applicationRepository.countMonthlyCompletedByBbrC("BBR001")).willReturn(4);
         given(applicationRepository.countRejectedByEno("10001")).willReturn(1);
-        given(applicationRepository.findMonthlyTrendByBbrC("BBR001"))
-                .willReturn(java.util.Collections.singletonList(new Object[]{"2026-05", 4}));
-        given(applicationRepository.findPendingListByEno("10001")).willReturn(List.of(
-                new Object[]{"APF-OLD", "오래된 신청", "홍길동", LocalDate.now().minusDays(4).toString()},
-                new Object[]{"APF-NULL", "날짜 없음", "김길동", null}
+        given(applicationRepository.findMonthlyTrendRowsByBbrC("BBR001"))
+                .willReturn(java.util.Collections.singletonList(
+                        LabeledCountRow.fromRow(new Object[]{"2026-05", 4})));
+        given(applicationRepository.findPendingRowsByEno("10001")).willReturn(List.of(
+                PendingApprovalRow.fromRow(new Object[]{"APF-OLD", "오래된 신청", "홍길동", LocalDate.now().minusDays(4).toString()}),
+                PendingApprovalRow.fromRow(new Object[]{"APF-NULL", "날짜 없음", "김길동", null})
         ));
 
         ApplicationDto.DashboardResponse result = applicationService.getDashboard("BBR001", "10001");

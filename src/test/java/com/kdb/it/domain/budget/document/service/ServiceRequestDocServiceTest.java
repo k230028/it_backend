@@ -2,6 +2,8 @@ package com.kdb.it.domain.budget.document.service;
 
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.util.LabeledCountRow;
+import com.kdb.it.domain.budget.document.dto.RecentReviewingRow;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.document.entity.Brdocm;
@@ -538,12 +540,14 @@ class ServiceRequestDocServiceTest {
         given(repository.countReviewingByBbrC("101")).willReturn(3);
         given(repository.countCompletedByBbrC("101")).willReturn(1);
         given(repository.countOverdueByBbrC("101")).willReturn(1);
-        given(repository.findMonthlyTrendByBbrC("101"))
-                .willReturn(java.util.Collections.singletonList(new Object[]{"2026-05", 2}));
-        given(repository.findRecentReviewingByBbrC("101")).willReturn(List.of(
-                new Object[]{"DOC-OLD", "지연", "홍길동", "2026-05-01", Timestamp.valueOf(LocalDate.now().minusDays(1).atStartOfDay())},
-                new Object[]{"DOC-TODAY", "검토", "김길동", "2026-05-02", Date.valueOf(LocalDate.now().plusDays(1))},
-                new Object[]{"DOC-NULL", "미정", "이길동", "2026-05-03", null}
+        given(repository.findMonthlyTrendRowsByBbrC("101"))
+                .willReturn(java.util.Collections.singletonList(
+                        LabeledCountRow.fromRow(new Object[]{"2026-05", 2})));
+        // Timestamp/Date/null 완료기한이 RecentReviewingRow.fromRow(toLd)에서 LocalDate로 봉인되는지 검증
+        given(repository.findRecentReviewingRowsByBbrC("101")).willReturn(List.of(
+                RecentReviewingRow.fromRow(new Object[]{"DOC-OLD", "지연", "홍길동", "2026-05-01", Timestamp.valueOf(LocalDate.now().minusDays(1).atStartOfDay())}),
+                RecentReviewingRow.fromRow(new Object[]{"DOC-TODAY", "검토", "김길동", "2026-05-02", Date.valueOf(LocalDate.now().plusDays(1))}),
+                RecentReviewingRow.fromRow(new Object[]{"DOC-NULL", "미정", "이길동", "2026-05-03", null})
         ));
 
         ServiceRequestDocDto.DashboardResponse result = service.getDashboard("101");

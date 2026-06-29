@@ -27,6 +27,7 @@ import org.mockito.quality.Strictness;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.dto.EvaluationItemAvgRow;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bevalm;
@@ -234,7 +235,7 @@ class EvaluationServiceTest {
         given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
 
         given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of());
-        given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N")).willReturn(List.of());
+        given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N")).willReturn(List.of());
 
         CouncilDto.EvaluationSummaryResponse result =
                 evaluationService.getAllEvaluations(ASCT_ID);
@@ -257,7 +258,7 @@ class EvaluationServiceTest {
         given(eval.getCkgOpnn()).willReturn("좋음");
         given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
         given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of());
-        given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N")).willReturn(List.of());
+        given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.getAllEvaluations(ASCT_ID);
 
@@ -272,8 +273,9 @@ class EvaluationServiceTest {
     @Test
     @DisplayName("buildAvgScores: 항목별 평균점수 DTO를 반환한다")
     void buildAvgScores_평균점수반환() {
-        Object[] row = new Object[]{"01", 4.0};
-        given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N"))
+        // native Object[]를 fromRow로 봉인한 DTO 경로(findAvgRowsByItem)를 stub해 변환 의미를 그대로 검증
+        EvaluationItemAvgRow row = EvaluationItemAvgRow.fromRow(new Object[]{"01", 4.0});
+        given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N"))
                 .willReturn(java.util.Collections.singletonList(row));
 
         List<CouncilDto.CheckItemAvgScore> result =
@@ -336,8 +338,9 @@ class EvaluationServiceTest {
         given(user.getEno()).willReturn(ENO);
         given(user.getUsrNm()).willReturn("홍길동");
         given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(user));
-        given(evaluationRepository.findAverageScoreByItem(ASCT_ID, "N"))
-                .willReturn(java.util.Collections.singletonList(new Object[]{"UNKNOWN", 2.5}));
+        given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N"))
+                .willReturn(java.util.Collections.singletonList(
+                        EvaluationItemAvgRow.fromRow(new Object[]{"UNKNOWN", 2.5})));
 
         CouncilDto.EvaluationSummaryResponse result = evaluationService.getAllEvaluations(ASCT_ID);
 
