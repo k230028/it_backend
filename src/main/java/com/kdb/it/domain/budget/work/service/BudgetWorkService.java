@@ -15,6 +15,7 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,7 @@ import java.util.stream.Collectors;
  *
  * // Design Ref: §4.4 — BudgetWorkService 핵심 로직
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -289,7 +291,11 @@ public class BudgetWorkService {
         // 변경자 사번은 현재 인증 사용자(없으면 SYSTEM)를 UPDATE문에 직접 세팅한다.
         // 벌크는 @PreUpdate→ChangeLogEntityListener를 우회하므로 이 과도적 선정리 구간의
         // 행별 BbugtL 로그는 생성되지 않는다(설계 §4.2 DECISION, 손실 수용).
-        String changerUsid = auditorAware.getCurrentAuditor().orElse("SYSTEM");
+        String changerUsid = auditorAware.getCurrentAuditor()
+                .orElseGet(() -> {
+                    log.warn("applyItemRates: AuditorAware에서 사번을 가져오지 못했습니다. LST_CHG_USID를 'SYSTEM'으로 설정합니다.");
+                    return "SYSTEM";
+                });
         bbugtmRepository.softDeleteByBseYy(bgYy, changerUsid, LocalDateTime.now());
 
         /* 자본예산 비목코드 목록 조회 — C_TP(IOE_DVC/HW/SW) 기준 */

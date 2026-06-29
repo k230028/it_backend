@@ -78,9 +78,10 @@ class BbugtmRepositoryIntegrationTest extends AbstractOracleRepositoryTest {
         assertThat(updated).isEqualTo(2);
 
         em.clear(); // 벌크 UPDATE 우회분 반영 — 1차 캐시 비우고 DB 재조회
-        assertThat(em.find(Bbugtm.class, idOf(active1)).getDelYn()).isEqualTo("Y");
-        assertThat(em.find(Bbugtm.class, idOf(active1)).getLstChgUsid()).isEqualTo("TESTUSER");
-        assertThat(em.find(Bbugtm.class, idOf(active1)).getLstChgDtm()).isNotNull();
+        Bbugtm reloaded = em.find(Bbugtm.class, idOf(active1));
+        assertThat(reloaded.getDelYn()).isEqualTo("Y");
+        assertThat(reloaded.getLstChgUsid()).isEqualTo("TESTUSER");
+        assertThat(reloaded.getLstChgDtm()).isNotNull();
         assertThat(em.find(Bbugtm.class, idOf(active2)).getDelYn()).isEqualTo("Y");
         // 이미 삭제된 행과 타연도 행은 불변
         assertThat(em.find(Bbugtm.class, idOf(alreadyDeleted)).getLstChgUsid()).isNotEqualTo("TESTUSER");

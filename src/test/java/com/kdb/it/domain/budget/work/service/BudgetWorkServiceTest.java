@@ -581,7 +581,7 @@ class BudgetWorkServiceTest {
         given(cost.getCostTotXpAmt()).willReturn(BigDecimal.valueOf(500_000));
 
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        // 기존 BBUGTM Soft Delete 대상 없음
+        // getSummary 내부 호출용 (선정리는 softDeleteByBseYy 벌크 UPDATE로 수행, findByBseYyAndDelYn 미사용)
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         // 자본예산 비목코드 없음 → 경상 처리
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
@@ -663,7 +663,7 @@ class BudgetWorkServiceTest {
         given(bitemm.getXcr()).willReturn(null);
 
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        // 기존 BBUGTM Soft Delete 대상 없음
+        // getSummary 내부 호출용 (선정리는 softDeleteByBseYy 벌크 UPDATE로 수행, findByBseYyAndDelYn 미사용)
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         // 자본예산 비목코드 없음 → 경상 처리
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
@@ -731,6 +731,8 @@ class BudgetWorkServiceTest {
         given(cost.getIoeC()).willReturn("IOE-999-0100");
         given(cost.getCostTotXpAmt()).willReturn(BigDecimal.valueOf(500));
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        // 실제 인증 사번 경로 검증: AuditorAware가 사번을 제공하면 그 값이 LST_CHG_USID로 전달되어야 한다.
+        given(auditorAware.getCurrentAuditor()).willReturn(java.util.Optional.of("ADMINUSER"));
         given(bbugtmRepository.softDeleteByBseYy(org.mockito.ArgumentMatchers.eq("2026"),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).willReturn(1);
         // getSummary 내부에서만 조회 (선정리는 더 이상 findByBseYyAndDelYn 사용 안 함)
@@ -750,7 +752,7 @@ class BudgetWorkServiceTest {
         BudgetWorkDto.ApplyResponse result = budgetWorkService.applyItemRates(request);
 
         verify(bbugtmRepository).softDeleteByBseYy(org.mockito.ArgumentMatchers.eq("2026"),
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+                org.mockito.ArgumentMatchers.eq("ADMINUSER"), org.mockito.ArgumentMatchers.any());
         assertThat(result.totalRecords()).isEqualTo(2);
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository, org.mockito.Mockito.times(2)).save(captor.capture());
@@ -1058,7 +1060,7 @@ class BudgetWorkServiceTest {
         given(item.getGclMngNo()).willReturn("GCL-NULL");
         given(item.getSno()).willReturn(1);
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(), List.of());
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of(capitalCodeWithoutDash));
         given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
                 .willReturn(List.of(item));
