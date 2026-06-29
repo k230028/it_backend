@@ -102,6 +102,9 @@ public class PaymentRepositoryImpl implements PaymentRepositoryCustom {
                                 .when(pm.bgPrnTc.eq("100")).then(p.abusNm)
                                 .when(pm.bgPrnTc.eq("200")).then(c.cttNm)
                                 .otherwise(Expressions.nullExpression(String.class)))
+                // BPROJM/BCOSTM 2중 LEFT JOIN이 버전 전환 중 lstYn='Y' 중복 행으로 팬아웃되어
+                // NonUniqueResultException이 나는 것을 방어한다(search()와 동일한 가드).
+                .distinct()
                 .from(pm)
                 .leftJoin(p).on(p.abusMngNo.eq(pm.cncdRfrNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
                 .leftJoin(c).on(c.costBgNo.eq(pm.cncdRfrNo).and(c.lstYn.eq("Y")).and(c.delYn.eq("N")))

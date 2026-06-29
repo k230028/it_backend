@@ -95,6 +95,9 @@ public class DeliberationRepositoryImpl implements DeliberationRepositoryCustom 
                                 .when(d.bgPrnTc.eq("100")).then(p.abusNm)
                                 .when(d.bgPrnTc.eq("200")).then(c.cttNm)
                                 .otherwise(Expressions.nullExpression(String.class)))
+                // BPROJM/BCOSTM 2중 LEFT JOIN이 버전 전환 중 lstYn='Y' 중복 행으로 팬아웃되어
+                // NonUniqueResultException이 나는 것을 방어한다(search()와 동일한 가드).
+                .distinct()
                 .from(d)
                 .leftJoin(p).on(p.abusMngNo.eq(d.cncdRfrNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
                 .leftJoin(c).on(c.costBgNo.eq(d.cncdRfrNo).and(c.lstYn.eq("Y")).and(c.delYn.eq("N")))
