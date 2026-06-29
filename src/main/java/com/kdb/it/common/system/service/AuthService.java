@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 인증(Authentication) 서비스
@@ -47,6 +48,7 @@ import lombok.RequiredArgsConstructor;
  * 비밀번호 처리: {@link PasswordEncoder} (SHA-256 + Base64 방식)로 암호화합니다.
  * </p>
  */
+@Slf4j // 로깅 (Lombok) — 토큰 재사용 탐지 경고 등
 @Service // Spring 서비스 빈으로 등록
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
 public class AuthService {
@@ -179,16 +181,9 @@ public class AuthService {
         List<String> athIds = loadAthIds(eno);
 
         String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
-        String refreshTokenValue = jwtUtil.generateRefreshToken(eno);
 
-        // 기존 Refresh Token 삭제 후 새 토큰 저장 (1인 1토큰 정책)
-        refreshTokenRepository.deleteByEno(eno);
-        Crtokm refreshToken = Crtokm.builder()
-                .tokCone(refreshTokenValue)
-                .eno(eno)
-                .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
-                .build();
-        refreshTokenRepository.save(refreshToken);
+        // 기존 Refresh Token 삭제 후 새 패밀리로 토큰 저장 (1인 1패밀리 정책)
+        String refreshTokenValue = issueNewRefreshFamily(eno);
 
         recordLoginSuccess(eno, ipAddress, userAgent);
 
@@ -238,6 +233,14 @@ public class AuthService {
         Crtokm refreshToken = refreshTokenRepository.findByTokCone(refreshTokenValue)
                 .orElseThrow(() -> new RuntimeException("Refresh Token을 찾을 수 없습니다."));
 
+        // 재사용 탐지: 이미 회전된(AVL_YN='N') 구 토큰이 재제출되면 탈취로 간주 → 패밀리 전체 폐기
+        if (refreshToken.isRotated()) {
+            log.warn("Refresh Token 재사용 탐지 — 패밀리 폐기: eno={}, famNm={}", refreshToken.getEno(),
+                    refreshToken.getFamNm());
+            refreshTokenRepository.deleteByEno(refreshToken.getEno());
+            throw new RuntimeException("토큰 재사용이 탐지되어 세션이 폐기되었습니다. 다시 로그인하세요.");
+        }
+
         // DB 저장 만료일 기준 만료 여부 확인 (3차 검증: endDtm 필드)
         if (refreshToken.isExpired()) {
             refreshTokenRepository.delete(refreshToken); // 만료된 토큰 즉시 삭제
@@ -254,12 +257,15 @@ public class AuthService {
         // 새로운 Access Token 생성 (최신 자격등급 및 부서코드 반영)
         String newAccessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
 
-        // Refresh Token 회전: 제출된 토큰 폐기 후 신규 발급·저장 (탈취 재사용 방어)
-        refreshTokenRepository.delete(refreshToken);
+        // 회전: 구 토큰을 삭제하지 않고 '회전됨' 표식 유지(재사용 탐지용), 신규 토큰을 동일 패밀리로 저장
+        refreshToken.markRotated();
+        refreshTokenRepository.save(refreshToken);
         String newRefreshTokenValue = jwtUtil.generateRefreshToken(eno);
         Crtokm rotated = Crtokm.builder()
                 .tokCone(newRefreshTokenValue)
                 .eno(eno)
+                .famNm(refreshToken.getFamNm())
+                .avlYn("Y")
                 .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
                 .build();
         refreshTokenRepository.save(rotated);
@@ -317,15 +323,7 @@ public class AuthService {
         List<String> athIds = loadAthIds(eno);
 
         String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
-        String refreshTokenValue = jwtUtil.generateRefreshToken(eno);
-
-        refreshTokenRepository.deleteByEno(eno);
-        Crtokm refreshToken = Crtokm.builder()
-                .tokCone(refreshTokenValue)
-                .eno(eno)
-                .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
-                .build();
-        refreshTokenRepository.save(refreshToken);
+        String refreshTokenValue = issueNewRefreshFamily(eno);
 
         recordLoginSuccess(eno, "DEV-SWITCH", "DEV-SWITCH");
 
@@ -373,15 +371,7 @@ public class AuthService {
         List<String> athIds = loadAthIds(eno);
 
         String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
-        String refreshTokenValue = jwtUtil.generateRefreshToken(eno);
-
-        refreshTokenRepository.deleteByEno(eno);
-        Crtokm refreshToken = Crtokm.builder()
-                .tokCone(refreshTokenValue)
-                .eno(eno)
-                .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
-                .build();
-        refreshTokenRepository.save(refreshToken);
+        String refreshTokenValue = issueNewRefreshFamily(eno);
 
         recordLoginSuccess(eno, "SSO", "SSO");
 
@@ -394,6 +384,24 @@ public class AuthService {
                 .bbrC(user.getBbrC())
                 .temC(user.getTemC())
                 .build();
+    }
+
+    /**
+     * 신규 패밀리로 Refresh Token 발급·저장 (로그인/SSO/개발스위치 진입점).
+     *
+     * <p>기존 토큰을 모두 삭제(1인 1패밀리)하고 새 패밀리(FAM_NM)로 활성(AVL_YN='Y') 토큰을 저장한다.</p>
+     */
+    private String issueNewRefreshFamily(String eno) {
+        refreshTokenRepository.deleteByEno(eno);
+        String value = jwtUtil.generateRefreshToken(eno);
+        Crtokm token = Crtokm.builder()
+                .tokCone(value).eno(eno)
+                .famNm(java.util.UUID.randomUUID().toString())
+                .avlYn("Y")
+                .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
+                .build();
+        refreshTokenRepository.save(token);
+        return value;
     }
 
     private List<String> loadAthIds(String eno) {

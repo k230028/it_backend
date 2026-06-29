@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -251,7 +252,7 @@ class AuthServiceTest {
                 // given
                 String oldRefresh = "old-refresh-token";
                 Crtokm stored = Crtokm.builder()
-                                .tokCone(oldRefresh).eno("10001")
+                                .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
                 given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
@@ -269,8 +270,48 @@ class AuthServiceTest {
                 // then
                 assertThat(response.getAccessToken()).isEqualTo("new-access-token");
                 assertThat(response.getRefreshToken()).isEqualTo("new-refresh-token");
-                verify(refreshTokenRepository, times(1)).delete(stored);
-                verify(refreshTokenRepository, times(1)).save(any(Crtokm.class));
+                verify(refreshTokenRepository, times(2)).save(any(Crtokm.class)); // 구 표식 + 신규
+        }
+
+        @Test
+        @DisplayName("refreshAccessToken - 재사용 탐지: 이미 회전된 토큰 재제출 시 패밀리 폐기 후 예외")
+        void refreshAccessToken_재사용탐지_패밀리폐기() {
+                String reused = "rotated-old-token";
+                Crtokm rotated = Crtokm.builder()
+                                .tokCone(reused).eno("10001").famNm("FAM-1").avlYn("N")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                given(jwtUtil.validateToken(reused)).willReturn(true);
+                given(refreshTokenRepository.findByTokCone(reused)).willReturn(Optional.of(rotated));
+
+                assertThatThrownBy(() -> authService.refreshAccessToken(reused))
+                                .isInstanceOf(RuntimeException.class)
+                                .hasMessageContaining("재사용");
+                verify(refreshTokenRepository, times(1)).deleteByEno("10001");
+                verify(refreshTokenRepository, never()).save(any(Crtokm.class));
+        }
+
+        @Test
+        @DisplayName("refreshAccessToken - 정상 회전: 구 토큰 markRotated 유지 + 신규 동일 패밀리 저장")
+        void refreshAccessToken_정상회전_구토큰유지() {
+                String oldRefresh = "active-token";
+                Crtokm stored = Crtokm.builder()
+                                .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
+                given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
+                given(userRepository.findByEno("10001")).willReturn(Optional.of(
+                                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
+                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N")).willReturn(Collections.emptyList());
+                given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access");
+                given(jwtUtil.generateRefreshToken("10001")).willReturn("new-refresh");
+
+                authService.refreshAccessToken(oldRefresh);
+
+                assertThat(stored.isRotated()).isTrue();
+                verify(refreshTokenRepository, never()).delete(stored);
+                verify(refreshTokenRepository, times(2)).save(any(Crtokm.class)); // 구 표식 + 신규
         }
 
         @Test
