@@ -80,6 +80,14 @@ public class Crtokm extends BaseEntity {
     @Column(name = "END_DTM", nullable = false, comment = "종료일시")
     private LocalDateTime endDtm;
 
+    /** 가족명 — 토큰패밀리(로그인 1회=1패밀리). 재사용 탐지 시 패밀리 단위 폐기 기준 */
+    @Column(name = "FAM_NM", nullable = false, length = 100, comment = "가족명")
+    private String famNm;
+
+    /** 유효여부 — 'Y'=활성 토큰, 'N'=회전된 구 토큰. 'N' 토큰이 재제출되면 재사용(탈취)으로 판단 */
+    @Column(name = "AVL_YN", nullable = false, length = 1, comment = "유효여부")
+    private String avlYn;
+
     /**
      * 토큰 만료 여부 확인 메서드
      *
@@ -87,6 +95,16 @@ public class Crtokm extends BaseEntity {
      */
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(endDtm);
+    }
+
+    /** 회전 표식 — 신규 토큰 발급 후 이 토큰을 '회전됨(비활성)'으로 표시(삭제 대신 유지하여 재사용 탐지) */
+    public void markRotated() {
+        this.avlYn = "N";
+    }
+
+    /** 회전된(이미 사용된) 토큰인지 — AVL_YN='N' */
+    public boolean isRotated() {
+        return "N".equals(this.avlYn);
     }
 
 }
