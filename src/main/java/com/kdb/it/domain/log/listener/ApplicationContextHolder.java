@@ -34,21 +34,4 @@ public class ApplicationContextHolder implements ApplicationContextAware {
         }
         return context.getBean(beanClass);
     }
-
-    /**
-     * Spring ApplicationEvent 발행.
-     *
-     * <p>JPA EntityListener에서 직접 persist()를 호출하면 Hibernate ActionQueue
-     * 이터레이션 도중 ConcurrentModificationException이 발생한다.
-     * 이 메서드를 통해 이벤트를 발행하고, {@code @TransactionalEventListener(BEFORE_COMMIT)}이
-     * flush 완료 후 안전한 시점에 로그 INSERT를 처리한다.</p>
-     *
-     * @param event 발행할 이벤트 객체
-     */
-    public static void publishEvent(Object event) {
-        if (context == null) {
-            throw new IllegalStateException("ApplicationContext가 초기화되지 않았습니다.");
-        }
-        context.publishEvent(event);
-    }
 }
