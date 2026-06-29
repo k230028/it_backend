@@ -1,6 +1,7 @@
 package com.kdb.it.common.system.repository;
 
 import com.kdb.it.common.system.entity.Clognh;
+import com.kdb.it.common.util.LabeledCountRow;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -103,4 +104,15 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
             ORDER BY TRUNC(LGN_DTM)
             """, nativeQuery = true)
     List<Object[]> findDailyLoginStats();
+
+    /**
+     * 최근 30일 일별 로그인 성공 건수를 DTO로 봉인 반환한다(#6).
+     *
+     * @return (일자 YYYY-MM-DD, 건수) DTO 목록
+     */
+    default List<LabeledCountRow> findDailyLoginStatRows() {
+        return findDailyLoginStats().stream()
+                .map(LabeledCountRow::fromRow)
+                .toList();
+    }
 }

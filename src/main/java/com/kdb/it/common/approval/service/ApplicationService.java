@@ -547,24 +547,24 @@ public class ApplicationService {
         int rejectedCount         = applicationRepository.countRejectedByEno(eno);
 
         List<ApplicationDto.MonthlyCount> monthlyTrend =
-            applicationRepository.findMonthlyTrendByBbrC(bbrC).stream()
+            applicationRepository.findMonthlyTrendRowsByBbrC(bbrC).stream()
                 .map(row -> ApplicationDto.MonthlyCount.builder()
-                    .month((String) row[0])
-                    .count(((Number) row[1]).intValue())
+                    .month(row.label())
+                    .count((int) row.count())
                     .build())
                 .toList();
 
         LocalDate threeDaysAgo = LocalDate.now().minusDays(3);
         List<ApplicationDto.PendingItem> pendingList =
-            applicationRepository.findPendingListByEno(eno).stream()
+            applicationRepository.findPendingRowsByEno(eno).stream()
                 .map(row -> {
-                    String rqsDtStr = (String) row[3];
+                    String rqsDtStr = row.rqsDt();
                     LocalDate rqsDt = rqsDtStr != null ? LocalDate.parse(rqsDtStr) : LocalDate.now();
                     String urgency = rqsDt.isBefore(threeDaysAgo) ? "urgent" : "normal";
                     return ApplicationDto.PendingItem.builder()
-                        .apfMngNo((String) row[0])
-                        .title((String) row[1])
-                        .requesterName((String) row[2])
+                        .apfMngNo(row.apfDcmNo())
+                        .title(row.title())
+                        .requesterName(row.usrNm())
                         .requestedAt(rqsDtStr)
                         .urgency(urgency)
                         .build();

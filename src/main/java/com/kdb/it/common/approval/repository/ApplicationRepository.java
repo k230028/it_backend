@@ -1,6 +1,8 @@
 package com.kdb.it.common.approval.repository;
 
+import com.kdb.it.common.approval.dto.PendingApprovalRow;
 import com.kdb.it.common.approval.entity.Capplm;
+import com.kdb.it.common.util.LabeledCountRow;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -119,4 +121,28 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         FETCH FIRST 3 ROWS ONLY
         """, nativeQuery = true)
     List<Object[]> findPendingListByEno(@Param("eno") String eno);
+
+    /**
+     * 부서 기준 최근 6개월 월별 결재 처리 건수를 DTO로 봉인 반환한다(#6).
+     *
+     * @param bbrC 소속부서코드
+     * @return (월, 건수) DTO 목록
+     */
+    default List<LabeledCountRow> findMonthlyTrendRowsByBbrC(String bbrC) {
+        return findMonthlyTrendByBbrC(bbrC).stream()
+                .map(LabeledCountRow::fromRow)
+                .toList();
+    }
+
+    /**
+     * 본인 결재 대기 최근 3건을 DTO로 봉인 반환한다(#6).
+     *
+     * @param eno 사번
+     * @return 결재 대기 DTO 목록
+     */
+    default List<PendingApprovalRow> findPendingRowsByEno(String eno) {
+        return findPendingListByEno(eno).stream()
+                .map(PendingApprovalRow::fromRow)
+                .toList();
+    }
 }

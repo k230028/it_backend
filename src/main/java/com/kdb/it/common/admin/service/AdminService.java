@@ -760,10 +760,10 @@ public class AdminService {
          */
         public List<AdminDto.LoginStatResponse> getLoginStats() {
                 // Design Ref: §3.7 — 대시보드 차트 데이터 (최근 30일 일별 집계)
-                return loginHistoryRepository.findDailyLoginStats().stream()
+                return loginHistoryRepository.findDailyLoginStatRows().stream()
                                 .map(row -> new AdminDto.LoginStatResponse(
-                                                LocalDate.parse((String) row[0]),
-                                                ((Number) row[1]).longValue()))
+                                                LocalDate.parse(row.label()),
+                                                row.count()))
                                 .toList();
         }
 }

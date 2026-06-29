@@ -323,32 +323,25 @@ public class ServiceRequestDocService {
         int overdueCount   = serviceRequestDocRepository.countOverdueByBbrC(bbrC);
 
         List<ServiceRequestDocDto.MonthlyCount> monthlyTrend =
-            serviceRequestDocRepository.findMonthlyTrendByBbrC(bbrC).stream()
+            serviceRequestDocRepository.findMonthlyTrendRowsByBbrC(bbrC).stream()
                 .map(row -> ServiceRequestDocDto.MonthlyCount.builder()
-                    .month((String) row[0])
-                    .count(((Number) row[1]).intValue())
+                    .month(row.label())
+                    .count((int) row.count())
                     .build())
                 .toList();
 
         LocalDate today = LocalDate.now();
         List<ServiceRequestDocDto.ReviewingItem> recentReviewing =
-            serviceRequestDocRepository.findRecentReviewingByBbrC(bbrC).stream()
+            serviceRequestDocRepository.findRecentReviewingRowsByBbrC(bbrC).stream()
                 .map(row -> {
-                    LocalDate fsgTlmDate = null;
-                    if (row[4] != null) {
-                        // Oracle JDBC는 DATE를 java.sql.Date 또는 java.sql.Timestamp로 반환 가능
-                        if (row[4] instanceof java.sql.Timestamp ts) {
-                            fsgTlmDate = ts.toLocalDateTime().toLocalDate();
-                        } else if (row[4] instanceof java.sql.Date d) {
-                            fsgTlmDate = d.toLocalDate();
-                        }
-                    }
+                    // 검토완료기한(DATE/Timestamp 혼용)은 RecentReviewingRow.fromRow가 이미 LocalDate로 봉인
+                    LocalDate fsgTlmDate = row.fsgTlm();
                     boolean delayed = fsgTlmDate != null && fsgTlmDate.isBefore(today);
                     return ServiceRequestDocDto.ReviewingItem.builder()
-                        .docMngNo((String) row[0])
-                        .title((String) row[1])
-                        .authorName((String) row[2])
-                        .createdAt((String) row[3])
+                        .docMngNo(row.docMngNo())
+                        .title(row.reqTtl())
+                        .authorName(row.usrNm())
+                        .createdAt(row.createdAt())
                         .status(delayed ? "delayed" : "reviewing")
                         .build();
                 })

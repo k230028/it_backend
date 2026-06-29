@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.document.repository;
 
+import com.kdb.it.common.util.LabeledCountRow;
+import com.kdb.it.domain.budget.document.dto.RecentReviewingRow;
 import com.kdb.it.domain.budget.document.entity.Brdocm;
 import com.kdb.it.domain.budget.document.entity.BrdocmId;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -205,4 +207,28 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
         FETCH FIRST 3 ROWS ONLY
         """, nativeQuery = true)
     java.util.List<Object[]> findRecentReviewingByBbrC(@Param("bbrC") String bbrC);
+
+    /**
+     * 부서 기준 최근 6개월 월별 문서 등록 건수를 DTO로 봉인 반환한다(#6).
+     *
+     * @param bbrC 소속부서코드
+     * @return (월, 건수) DTO 목록
+     */
+    default List<LabeledCountRow> findMonthlyTrendRowsByBbrC(String bbrC) {
+        return findMonthlyTrendByBbrC(bbrC).stream()
+                .map(LabeledCountRow::fromRow)
+                .toList();
+    }
+
+    /**
+     * 부서 기준 검토 중인 최근 문서 3건을 DTO로 봉인 반환한다(#6).
+     *
+     * @param bbrC 소속부서코드
+     * @return 검토 중 문서 DTO 목록
+     */
+    default List<RecentReviewingRow> findRecentReviewingRowsByBbrC(String bbrC) {
+        return findRecentReviewingByBbrC(bbrC).stream()
+                .map(RecentReviewingRow::fromRow)
+                .toList();
+    }
 }
