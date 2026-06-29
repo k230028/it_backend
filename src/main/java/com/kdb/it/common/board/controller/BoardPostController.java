@@ -5,6 +5,7 @@ import com.kdb.it.common.board.service.BoardPostService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -70,7 +71,7 @@ public class BoardPostController {
     @Operation(summary = "게시물 등록")
     public ResponseEntity<String> create(
             @PathVariable("blbMngNo") String blbMngNo,
-            @RequestBody BoardPostDto.CreateRequest request,
+            @Valid @RequestBody BoardPostDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         String nacMngNo = boardPostService.createPost(blbMngNo, request, user);
         return ResponseEntity.created(
@@ -91,7 +92,7 @@ public class BoardPostController {
     public ResponseEntity<Void> update(
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
-            @RequestBody BoardPostDto.UpdateRequest request,
+            @Valid @RequestBody BoardPostDto.UpdateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         boardPostService.updatePost(blbMngNo, nacMngNo, request, user);
         return ResponseEntity.ok().build();
@@ -128,7 +129,7 @@ public class BoardPostController {
     public ResponseEntity<String> createReply(
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
-            @RequestBody BoardPostDto.ReplyCreateRequest request,
+            @Valid @RequestBody BoardPostDto.ReplyCreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         String replyId = boardPostService.createReply(blbMngNo, nacMngNo, request, user);
         return ResponseEntity.created(

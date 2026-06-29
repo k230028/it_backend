@@ -2,6 +2,7 @@ package com.kdb.it.common.board.dto;
 
 import com.kdb.it.common.board.entity.Cblbcm;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -98,6 +99,7 @@ public class BoardPostDto {
     @AllArgsConstructor
     @Schema(name = "BoardPostCreateRequest", description = "게시물 등록 요청")
     public static class CreateRequest {
+        @NotBlank
         @Schema(description = "제목 (최대 300자)", requiredMode = Schema.RequiredMode.REQUIRED) private String    nacNm;
         @Schema(description = "본문 HTML")                         private String    nacCone;
         @Schema(description = "공지여부", example = "N")        private String   ancYn;
@@ -115,6 +117,7 @@ public class BoardPostDto {
     @AllArgsConstructor
     @Schema(name = "BoardPostUpdateRequest", description = "게시물 수정 요청")
     public static class UpdateRequest {
+        @NotBlank
         @Schema(description = "제목")          private String    nacNm;
         @Schema(description = "본문 HTML")     private String    nacCone;
         @Schema(description = "공지여부")  private String    ancYn;
@@ -141,6 +144,7 @@ public class BoardPostDto {
     @AllArgsConstructor
     @Schema(name = "BoardPostReplyCreateRequest", description = "답변글 등록 요청")
     public static class ReplyCreateRequest {
+        @NotBlank
         @Schema(description = "제목", requiredMode = Schema.RequiredMode.REQUIRED) private String    nacNm;
         @Schema(description = "본문 HTML")             private String    nacCone;
         @Schema(description = "담당부서코드")           private String    bbrC;
