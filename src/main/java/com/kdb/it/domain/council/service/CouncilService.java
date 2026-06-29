@@ -19,6 +19,7 @@ import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.dto.CouncilProjectRow;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
@@ -129,12 +130,12 @@ public class CouncilService {
 
         if (userDetails.isAdmin()) {
             // 관리자: 전체 부서 대상으로 결재완료 사업(미신청 포함) + 기신청 협의회 통합 조회
-            List<Object[]> rows = councilRepository.findProjectsForCouncilAll(
+            List<CouncilProjectRow> rows = councilRepository.findProjectRowsForCouncilAll(
                     PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
             log.debug("[CouncilList] admin query result count={}", rows.size());
             // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
             Map<String, BigDecimal> budgetMap = deriveCurrentYearBudgets(
-                    rows.stream().map(row -> (String) row[0]).toList());
+                    rows.stream().map(CouncilProjectRow::abusMngNo).toList());
             return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
         }
 
@@ -150,12 +151,12 @@ public class CouncilService {
         }
 
         // 일반사용자: SVN_DPM = 사용자 BBR_C 조건으로 결재완료 사업 + 기신청 협의회 통합 조회
-        List<Object[]> rows = councilRepository.findProjectsForCouncilByDepartment(
+        List<CouncilProjectRow> rows = councilRepository.findProjectRowsForCouncilByDepartment(
                 userDetails.getBbrC(), PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
         log.debug("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());
         // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
         Map<String, BigDecimal> budgetMap = deriveCurrentYearBudgets(
-                rows.stream().map(row -> (String) row[0]).toList());
+                rows.stream().map(CouncilProjectRow::abusMngNo).toList());
         return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
     }
 
@@ -580,94 +581,37 @@ public class CouncilService {
     }
 
     /**
-     * Native Query Object[] 행 → ListResponse 변환 (관리자/일반사용자용)
+     * 협의회 신청대상 DTO 행 → ListResponse 변환 (관리자/일반사용자용)
      *
-     * <p>
-     * 컬럼 순서: prjMngNo(0), prjSno(1), prjNm(2), asctId(3), asctStsC(4),
-     * dbrTc(5), cnrcDt(6), cnrcTm(7), applied(8), prjYy(9), prjTp(10), svnDpm(11),
-     * prjBg(12), sttDt(13), endDt(14), itDpm(15), prjDes(16) — PRD §25 cnrcTm 추가
-     * </p>
+     * <p>native {@code Object[]} 인덱스 캐스팅은 {@link CouncilProjectRow#fromRow(Object[])}
+     * 단일 팩토리(§5.5.4 헬퍼 사용)로 봉인되어 서비스로 새지 않는다. 날짜 타입/문자열
+     * yyyyMMdd 변환은 DTO 생성 시점에 이미 {@code LocalDate}로 끝나 있으므로 여기서는
+     * 추가 변환이 없다.</p>
+     *
+     * <p>당해예산({@code prjBg})은 native 컬럼이 NULL이므로 품목 배치 조회 결과({@code budgetMap})로
+     * 파생 산출한다.</p>
      */
-    private CouncilDto.ListResponse toListResponseFromRow(Object[] row,
+    private CouncilDto.ListResponse toListResponseFromRow(CouncilProjectRow row,
             Map<String, BigDecimal> budgetMap) {
-        String asctId = (String) row[3];
-        String asctStsC = (String) row[4];
-        String dbrTc = (String) row[5];
-        // Oracle JDBC 버전에 따라 DATE → java.sql.Date 또는 java.time.LocalDateTime /
-        // String(yyyyMMdd)으로 반환
-        java.time.LocalDate cnrcDt = toLocalDate(row[6]);
-        String cnrcTm = (String) row[7];
-        java.time.LocalDate sttDt = toLocalDate(row[13]);
-        java.time.LocalDate endDt = toLocalDate(row[14]);
-        // Oracle NUMBER(1) → BigDecimal 등으로 반환되므로 intValue() 처리
-        boolean applied = row[8] != null && ((Number) row[8]).intValue() == 1;
-        // 당해예산: TOT_RQM_AMT 컬럼 제거로 row[12]는 NULL. 품목 파생값(배치 조회 결과)으로 산출한다.
-        BigDecimal prjBg = budgetMap.get((String) row[0]);
-
         return new CouncilDto.ListResponse(
-                asctId,
-                (String) row[0],
-                row[1] != null ? ((Number) row[1]).intValue() : null,
-                (String) row[2],
-                asctStsC,
-                dbrTc,
-                cnrcDt,
-                cnrcTm,
-                applied,
-                (String) row[9], // prjYy
-                (String) row[10], // prjTp
-                (String) row[11], // svnDpm
-                prjBg, // prjBg
-                sttDt, // sttDt
-                endDt, // endDt
-                (String) row[15], // itDpm
-                (String) row[16], // prjDes
-                (String) row[17] // csfHeldYn (PRD_c_20260620 #1)
-        );
-    }
-
-    /**
-     * Oracle Native Query DATE 컬럼 → LocalDate 변환
-     *
-     * <p>
-     * Oracle JDBC 드라이버 버전에 따라 DATE 컬럼이 java.sql.Date,
-     * java.time.LocalDateTime, java.time.LocalDate 등 다양한 타입으로 반환될 수 있어
-     * 방어적으로 처리합니다.
-     * </p>
-     *
-     * @param val Native Query 결과의 날짜 컬럼 값
-     * @return LocalDate (null이면 null 반환)
-     */
-    private java.time.LocalDate toLocalDate(Object val) {
-        if (val == null)
-            return null;
-        if (val instanceof java.time.LocalDate)
-            return (java.time.LocalDate) val;
-        if (val instanceof java.time.LocalDateTime)
-            return ((java.time.LocalDateTime) val).toLocalDate();
-        if (val instanceof java.sql.Date)
-            return ((java.sql.Date) val).toLocalDate();
-        if (val instanceof java.sql.Timestamp)
-            return ((java.sql.Timestamp) val).toLocalDateTime().toLocalDate();
-        // PRD §25 — DT 도메인 VARCHAR2(8) yyyyMMdd / yyyy-MM-dd String 케이스 처리
-        // (BASCTM.CNRC_DT 등이 String으로 반환되면 기존엔 null로 떨어져 카드에 회의일자 표시 안 됨)
-        if (val instanceof String s) {
-            String digits = s.replaceAll("[^0-9]", "");
-            if (digits.length() >= 8) {
-                try {
-                    return java.time.LocalDate.of(
-                            Integer.parseInt(digits.substring(0, 4)),
-                            Integer.parseInt(digits.substring(4, 6)),
-                            Integer.parseInt(digits.substring(6, 8)));
-                } catch (NumberFormatException | java.time.DateTimeException e) {
-                    // 회의일자 문자열이 yyyyMMdd로 변환되지 않으면 null 반환(카드에 미표시).
-                    // 데이터 정합성 점검을 위해 원본 값과 원인 예외를 warn으로 남긴다.
-                    log.warn("[협의회] 회의일자 파싱 실패 — 원본값={}", s, e);
-                    return null;
-                }
-            }
-        }
-        return null;
+                row.itPtlAsctId(),
+                row.abusMngNo(),
+                row.sno(),
+                row.abusNm(),
+                row.itPtlAsctPrgStsTc(),
+                row.itPtlAsctDbrTc(),
+                row.cnrcDt(),
+                row.cnrcSttTm(),
+                row.applied(),
+                row.prjYy(),
+                row.prjTp(),
+                row.svnDpm(),
+                budgetMap.get(row.abusMngNo()),
+                row.sttDt(),
+                row.endDt(),
+                row.itDpm(),
+                row.abusCone(),
+                row.csfHeldYn());
     }
 
     /**

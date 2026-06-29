@@ -1,5 +1,6 @@
 package com.kdb.it.domain.council.repository;
 
+import com.kdb.it.domain.council.dto.CouncilProjectRow;
 import com.kdb.it.domain.council.entity.Basctm;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -238,4 +239,36 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
             @Param("svnDpm") String svnDpm,
             @Param("stsInProgress") String stsInProgress,
             @Param("stsPending") String stsPending);
+
+    /**
+     * 관리자용 협의회 신청대상 목록을 DTO로 봉인 반환한다(#5).
+     *
+     * <p>native {@link #findProjectsForCouncilAll(String, String)}의 {@code Object[]}를
+     * {@link CouncilProjectRow#fromRow(Object[])} 단일 팩토리로 매핑해, 인덱스 캐스팅이
+     * 서비스로 새지 않게 한다.</p>
+     *
+     * @param stsInProgress 정실협 진행중 코드
+     * @param stsPending    정실협 신청 대상 코드
+     * @return 신청대상 DTO 목록
+     */
+    default List<CouncilProjectRow> findProjectRowsForCouncilAll(String stsInProgress, String stsPending) {
+        return findProjectsForCouncilAll(stsInProgress, stsPending).stream()
+                .map(CouncilProjectRow::fromRow)
+                .toList();
+    }
+
+    /**
+     * 일반사용자(부서)용 협의회 신청대상 목록을 DTO로 봉인 반환한다(#5).
+     *
+     * @param svnDpm        사용자 소속부서코드
+     * @param stsInProgress 정실협 진행중 코드
+     * @param stsPending    정실협 신청 대상 코드
+     * @return 신청대상 DTO 목록
+     */
+    default List<CouncilProjectRow> findProjectRowsForCouncilByDepartment(
+            String svnDpm, String stsInProgress, String stsPending) {
+        return findProjectsForCouncilByDepartment(svnDpm, stsInProgress, stsPending).stream()
+                .map(CouncilProjectRow::fromRow)
+                .toList();
+    }
 }

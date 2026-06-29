@@ -44,6 +44,7 @@ import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.dto.CouncilProjectRow;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bevalm;
@@ -221,7 +222,7 @@ class CouncilServiceTest {
     @DisplayName("getCouncilList: 관리자이면 전체 사업 목록을 반환한다")
     void getCouncilList_관리자_전체목록반환() {
         CustomUserDetails admin = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
-        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
+        given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
                 .willReturn(List.of());
 
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
@@ -233,8 +234,9 @@ class CouncilServiceTest {
     @DisplayName("getCouncilList: 관리자 조회 행은 날짜 타입과 적용 여부를 변환하고 당해예산을 품목 파생값으로 반환한다")
     void getCouncilList_관리자_행변환() {
         CustomUserDetails admin = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
-        // row[12]는 DB에서 NULL(TOT_RQM_AMT 컬럼 제거) — 당해예산은 품목 파생으로 산출
-        Object[] row = new Object[]{
+        // row[12]는 DB에서 NULL(TOT_RQM_AMT 컬럼 제거) — 당해예산은 품목 파생으로 산출.
+        // fromRow를 거쳐 native Object[]의 날짜/적용여부 타입 변환이 그대로 검증되도록 한다.
+        CouncilProjectRow row = CouncilProjectRow.fromRow(new Object[]{
                 "PRJ-2026-0001",
                 BigDecimal.ONE,
                 "정보화사업",
@@ -253,7 +255,7 @@ class CouncilServiceTest {
                 "IT",
                 "설명",
                 "Y"                                          // csfHeldYn (PRD_c_20260620 #1)
-        };
+        });
         // 품목 파생 당해예산: 배치 조회로 활성 품목 1건(amt=5000, mplAmt=0) → totRqmAmt=5000 반환 시뮬레이션
         Bitemm item = mock(Bitemm.class);
         given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
@@ -264,7 +266,7 @@ class CouncilServiceTest {
             resp.setTotRqmAmt(new BigDecimal("5000"));
             return null;
         }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
-        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
+        given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
                 .willReturn(java.util.Collections.singletonList(row));
 
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
@@ -284,7 +286,8 @@ class CouncilServiceTest {
     @DisplayName("getCouncilList: 행 변환 시 문자열 날짜와 null 값을 방어적으로 처리한다")
     void getCouncilList_관리자_문자열날짜와null변환() {
         CustomUserDetails admin = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
-        Object[] row = new Object[]{
+        // 문자열 날짜(yyyy-MM-dd / yyyyMMdd)·null·파싱불가("invalid")가 fromRow에서 방어적으로 처리되는지 검증
+        CouncilProjectRow row = CouncilProjectRow.fromRow(new Object[]{
                 "PRJ-2026-0001",
                 null,
                 "정보화사업",
@@ -303,8 +306,8 @@ class CouncilServiceTest {
                 "IT",
                 "설명",
                 null                                          // csfHeldYn (미확정)
-        };
-        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
+        });
+        given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
                 .willReturn(java.util.Collections.singletonList(row));
 
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
@@ -396,7 +399,7 @@ class CouncilServiceTest {
     void getCouncilList_일반사용자_부서별목록반환() {
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "IT001");
         given(councilRepository.findByCommitteeMember("10001", "N")).willReturn(List.of());
-        given(councilRepository.findProjectsForCouncilByDepartment(
+        given(councilRepository.findProjectRowsForCouncilByDepartment(
                 anyString(), anyString(), anyString()))
                 .willReturn(List.of());
 
@@ -411,9 +414,9 @@ class CouncilServiceTest {
         // given: 서로 다른 abusMngNo를 가진 2개 행으로 구성된 관리자 협의회 목록.
         // row1은 품목을 가지고(배치 조회 결과에 포함), row2는 품목이 없다(빈 목록).
         CustomUserDetails admin = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
-        Object[] row1 = listRowWithAbusMngNo("PRJ-2026-0001", ASCT_ID);
-        Object[] row2 = listRowWithAbusMngNo("PRJ-2026-0002", "ASCT-2026-0002");
-        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
+        CouncilProjectRow row1 = listRowWithAbusMngNo("PRJ-2026-0001", ASCT_ID);
+        CouncilProjectRow row2 = listRowWithAbusMngNo("PRJ-2026-0002", "ASCT-2026-0002");
+        given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
                 .willReturn(List.of(row1, row2));
         // 품목은 1회 배치 조회로만 가져온다. PRJ-2026-0001만 활성 품목 1건을 가진다.
         Bitemm item = mock(Bitemm.class);
@@ -445,10 +448,11 @@ class CouncilServiceTest {
     }
 
     /**
-     * 목록 행(Object[]) 생성 헬퍼 — 지정한 abusMngNo/asctId를 가진 최소 유효 행을 만든다.
+     * 목록 행 생성 헬퍼 — 지정한 abusMngNo/asctId를 가진 최소 유효 행을 native Object[]로 만든 뒤
+     * {@link CouncilProjectRow#fromRow(Object[])}로 변환해 봉인 경로와 동일한 DTO를 돌려준다.
      */
-    private Object[] listRowWithAbusMngNo(String abusMngNo, String asctId) {
-        return new Object[]{
+    private CouncilProjectRow listRowWithAbusMngNo(String abusMngNo, String asctId) {
+        return CouncilProjectRow.fromRow(new Object[]{
                 abusMngNo,                                  // row[0] abusMngNo
                 BigDecimal.ONE,                             // row[1] sno
                 "정보화사업",                               // row[2] prjNm
@@ -467,7 +471,7 @@ class CouncilServiceTest {
                 "IT",                                       // row[15] itDpm
                 "설명",                                     // row[16] prjDes
                 "Y"                                         // row[17] csfHeldYn
-        };
+        });
     }
 
     // ───────────────────────────────────────────────────────
