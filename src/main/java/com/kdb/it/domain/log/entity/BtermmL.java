@@ -61,7 +61,7 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
     private String dfrCleC;
 
-    @Column(name = "IND_RSN", length = 600, comment = "증감사유")
+    @Column(name = "IND_RSN", length = 200, comment = "증감사유")
     private String indRsn;
 
     @Column(name = "CGPR_ID", length = 32, comment = "담당자행번")
