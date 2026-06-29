@@ -2,6 +2,7 @@ package com.kdb.it.common.system.tiptap.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -22,6 +23,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.MetadataResponse;
@@ -56,12 +58,12 @@ class TiptapVariableControllerTest {
     private CustomUserDetailsService customUserDetailsService;
 
     @Test
-    @WithMockUser
     @DisplayName("GET /api/tiptap-variables/metadata - 인증 사용자에게 카탈로그 반환")
     void getMetadata_authenticated_returnsOk() throws Exception {
-        given(service.getMetadata()).willReturn(new MetadataResponse(List.of()));
+        given(service.getMetadata(any())).willReturn(new MetadataResponse(List.of()));
 
-        mockMvc.perform(get("/api/tiptap-variables/metadata"))
+        mockMvc.perform(get("/api/tiptap-variables/metadata")
+                        .with(user(new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "D001"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.categories").isArray());
     }

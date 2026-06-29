@@ -19,8 +19,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,8 +36,12 @@ class TiptapVariableServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Task 4 채워질 예정 — 현재 호출 없음
         service = new TiptapVariableService(new TiptapTokenParser(), projectRepository, budgetStatusRepository);
+    }
+
+    /** 관리자 사용자 — 전체 사업(findActiveProjectRefs) 경로를 타도록 한다. */
+    private static CustomUserDetails adminUser() {
+        return new CustomUserDetails("A1", List.of("ITPAD001"), "D001");
     }
 
     @Test
@@ -44,7 +51,7 @@ class TiptapVariableServiceTest {
                 new Bprojm.Ref("PROJ001", "차세대 시스템 구축")
         ));
 
-        MetadataResponse response = service.getMetadata();
+        MetadataResponse response = service.getMetadata(adminUser());
 
         assertThat(response.categories()).extracting("code")
                 .containsExactly("IT_BUDGET", "CAP_BUDGET", "OPEX", "PROJ");
@@ -57,7 +64,7 @@ class TiptapVariableServiceTest {
                 new Bprojm.Ref("PROJ001", "차세대 시스템 구축")
         ));
 
-        MetadataResponse response = service.getMetadata();
+        MetadataResponse response = service.getMetadata(adminUser());
 
         var byCode = response.categories().stream()
                 .collect(Collectors.toMap(c -> c.code(), c -> c));
@@ -71,7 +78,7 @@ class TiptapVariableServiceTest {
     void getMetadata_eachCategoryHasThreeItems() {
         when(projectRepository.findActiveProjectRefs()).thenReturn(List.of());
 
-        MetadataResponse response = service.getMetadata();
+        MetadataResponse response = service.getMetadata(adminUser());
 
         response.categories().forEach(c ->
                 assertThat(c.items()).extracting("key")
@@ -83,11 +90,39 @@ class TiptapVariableServiceTest {
     void getMetadata_yearsAreCurrentPlusMinusTwo() {
         when(projectRepository.findActiveProjectRefs()).thenReturn(List.of());
 
-        MetadataResponse response = service.getMetadata();
+        MetadataResponse response = service.getMetadata(adminUser());
         int now = Year.now().getValue();
 
         response.categories().forEach(c ->
                 assertThat(c.years()).containsExactly(now - 2, now - 1, now, now + 1, now + 2));
+    }
+
+    @Test
+    @DisplayName("metadata — 일반 사용자는 본인 부서 사업만 반환")
+    void getMetadata_부서필터_일반사용자() {
+        var user = new CustomUserDetails("E1", List.of("ITPZZ001"), "D001");
+        when(projectRepository.findActiveProjectRefsByDept("D001"))
+                .thenReturn(List.of(new Bprojm.Ref("P-D001", "부서사업")));
+
+        MetadataResponse res = service.getMetadata(user);
+
+        var proj = res.categories().stream().filter(c -> c.code().equals("PROJ")).findFirst().orElseThrow();
+        assertThat(proj.projects()).extracting("code").containsExactly("P-D001");
+        verify(projectRepository, never()).findActiveProjectRefs();
+    }
+
+    @Test
+    @DisplayName("metadata — ADMIN은 전체 사업 반환")
+    void getMetadata_전체_관리자() {
+        var admin = new CustomUserDetails("A1", List.of("ITPAD001"), "D001");
+        when(projectRepository.findActiveProjectRefs())
+                .thenReturn(List.of(new Bprojm.Ref("P1", "사업1"), new Bprojm.Ref("P2", "사업2")));
+
+        MetadataResponse res = service.getMetadata(admin);
+
+        var proj = res.categories().stream().filter(c -> c.code().equals("PROJ")).findFirst().orElseThrow();
+        assertThat(proj.projects()).hasSize(2);
+        verify(projectRepository, never()).findActiveProjectRefsByDept(any());
     }
 
     @Test

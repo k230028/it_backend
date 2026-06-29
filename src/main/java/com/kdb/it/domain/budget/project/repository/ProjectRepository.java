@@ -170,4 +170,26 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
              ORDER BY p.abusNm ASC
             """)
     List<Bprojm.Ref> findActiveProjectRefs();
+
+    /**
+     * 부서(주관부서코드) 기준 활성 사업 참조 목록 (Tiptap 카탈로그 권한 필터용)
+     *
+     * <p>
+     * {@link #findActiveProjectRefs()}와 동일하게 최신({@code LST_YN='Y'}) 미삭제 사업만 반환하되,
+     * 주관부서코드({@code SVN_DPM_C})가 일치하는 사업으로 한정합니다.
+     * 일반 사용자(비관리자·비부서매니저)의 변수 카탈로그 부서 필터에 사용합니다.
+     * </p>
+     *
+     * @param svnDpmC 주관부서코드 (JWT bbrC와 동일 도메인)
+     * @return 해당 부서의 활성 사업 (관리번호, 사업명) 참조 목록 (사업명 오름차순)
+     */
+    @Query("""
+            SELECT new com.kdb.it.domain.budget.project.entity.Bprojm$Ref(p.abusMngNo, p.abusNm)
+              FROM Bprojm p
+             WHERE p.delYn = 'N'
+               AND p.lstYn = 'Y'
+               AND p.svnDpmC = :svnDpmC
+             ORDER BY p.abusNm ASC
+            """)
+    List<Bprojm.Ref> findActiveProjectRefsByDept(String svnDpmC);
 }

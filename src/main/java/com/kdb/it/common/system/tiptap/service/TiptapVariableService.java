@@ -48,17 +48,24 @@ public class TiptapVariableService {
     private final BudgetStatusQueryRepository budgetStatusRepository;
 
     /**
-     * 드롭다운용 카탈로그 반환. 권한 필터링은 후속 Task에서 SecurityContext 기준 적용.
+     * 드롭다운용 카탈로그 반환. PROJ 카탈로그는 사용자 부서(bbrC) 기준 필터(ADMIN/부서매니저는 전체).
      *
+     * <p>비사업 카테고리(전산예산/자본예산/일반관리비)는 사용자와 무관하게 동일하며,
+     * 사업(PROJ) 목록만 권한·부서에 따라 달라집니다. 캐시 키는 ADMIN/부서매니저는 'ALL',
+     * 그 외 일반 사용자는 부서코드(bbrC)별로 분리합니다.</p>
+     *
+     * @param user 현재 인증 사용자 (권한·부서 기준 필터)
      * @return 카테고리 메타데이터 응답 (IT_BUDGET, CAP_BUDGET, OPEX, PROJ 4개 카테고리)
      */
     // 활성 사업 변경 시 캐시 무효화는 후속 과제(TTL 미지원 ConcurrentMap) — 준정적 카탈로그라 evict 미적용.
-    @Cacheable("tiptapMetadata")
-    public MetadataResponse getMetadata() {
+    @Cacheable(value = "tiptapMetadata", key = "#user.isAdmin() or #user.isDeptManager() ? 'ALL' : #user.bbrC")
+    public MetadataResponse getMetadata(CustomUserDetails user) {
         List<Integer> years = currentPlusMinusTwo();
-        List<ProjectRef> projects = projectRepository.findActiveProjectRefs().stream()
-                .map(r -> new ProjectRef(r.code(), r.name()))
-                .toList();
+        boolean seeAll = user.isAdmin() || user.isDeptManager();
+        List<ProjectRef> projects = (seeAll
+                ? projectRepository.findActiveProjectRefs()
+                : projectRepository.findActiveProjectRefsByDept(user.getBbrC()))
+                .stream().map(r -> new ProjectRef(r.code(), r.name())).toList();
 
         return new MetadataResponse(List.of(
                 new CategoryMetadata("IT_BUDGET",  "전산예산",   years, null,     ITEMS),
