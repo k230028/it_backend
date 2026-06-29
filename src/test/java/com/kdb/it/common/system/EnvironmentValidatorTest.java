@@ -156,6 +156,17 @@ class EnvironmentValidatorTest {
     }
 
     @Test
+    @DisplayName("운영 프로파일에서 app.dev.user-switch.enabled=true면 기동 차단")
+    void validate_prod_devUserSwitchEnabled_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.dev.user-switch.enabled", "true");
+        EnvironmentValidator validator = new EnvironmentValidator(env);
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("user-switch");
+    }
+
+    @Test
     @DisplayName("운영 프로파일에서 app.frontend-url 빈값이면 기동 차단")
     void validate_prodBlankFrontendUrl_throws() {
         MockEnvironment env = prodEnvWithAllRequired();

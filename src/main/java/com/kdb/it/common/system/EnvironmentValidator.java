@@ -68,6 +68,7 @@ public class EnvironmentValidator {
      *   <li>{@code eai.enabled=true}이면 {@code eai.url} → {@code EAI_URL} 비공백</li>
      *   <li>{@code cors.allowed-origins} 비공백 + 와일드카드({@code *}) 금지</li>
      *   <li>{@code app.sso.allow-direct-eno} 운영 false 고정</li>
+     *   <li>{@code app.dev.user-switch.enabled} 운영 false 고정 (비밀번호 없이 임의 사번 로그인 경로 차단)</li>
      *   <li>{@code app.frontend-url} 비공백</li>
      * </ul>
      */
@@ -93,6 +94,12 @@ public class EnvironmentValidator {
         if (allowDirectEno) {
             throw new IllegalStateException(
                     "운영 보안 위반: app.sso.allow-direct-eno=true 금지 — SSO 우회 로그인 경로입니다.");
+        }
+
+        boolean devUserSwitch = Boolean.parseBoolean(environment.getProperty("app.dev.user-switch.enabled", "false"));
+        if (devUserSwitch) {
+            throw new IllegalStateException(
+                    "운영 보안 위반: app.dev.user-switch.enabled=true 금지 — 비밀번호 없이 임의 사번 로그인 경로입니다.");
         }
 
         String frontendUrl = environment.getProperty("app.frontend-url");

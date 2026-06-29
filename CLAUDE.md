@@ -386,6 +386,7 @@ public class PlanController { ... }
 - **`SsoController`**: `app.sso.allow-direct-eno=false`(기본값). `true`이면 GET 파라미터 `eno=`로 SSO 없이 JWT 발급 가능. 기본값 유지 필수.
 - SSO 리다이렉트 URL은 `cors.allowed-origins` 화이트리스트로 오픈 리다이렉트 방지 (`SsoController.getAllowedOrigin()`).
 - SSO 완료 후 세션 키(`ssoVerifiedEno`)는 사용 즉시 `session.removeAttribute()`로 삭제 (재사용 방지).
+- **운영 안전장치**: `EnvironmentValidator`는 운영 프로파일에서 `app.sso.allow-direct-eno=true` 및 `app.dev.user-switch.enabled=true`를 기동 차단. (§5.10 참조)
 
 #### 로그인 Brute-force 보호 (LoginAttemptService, AuthService 코드 기준)
 - 임계값: **사번 기준 5회 실패 / 10분 잠금** (`LoginAttemptService.checkLocked(eno)`).
@@ -416,9 +417,9 @@ public class PlanController { ... }
 - **현재 `application.properties`에 `${DB_PASSWORD:kdb1234!!}`, `${JWT_SECRET:...}` 기본값이 남아 있어 환경변수 미설정 시 기본값으로 통과됨. 운영 프로파일에서 기본값 제거 필수.**
 - `gemini.api.key`는 `${GEMINI_API_KEY:}` (빈 기본값)이므로 `EnvironmentValidator` 검증 대상에 추가 권장.
 
-#### X-Forwarded-For 헤더 신뢰 (AuthController.getClientIp() 코드 기준)
-- `X-Forwarded-For` → `Proxy-Client-IP` → `WL-Proxy-Client-IP` 순서로 IP 추출.
-- 헤더를 무조건 신뢰함. 운영 인프라(Nginx)에서 신뢰된 프록시만 헤더를 설정하도록 구성해야 IP 위조 방지.
+#### X-Forwarded-For 헤더 신뢰 (ClientIpResolver.resolve() 코드 기준)
+- `ClientIpResolver.resolve()`가 직접 peer(`request.getRemoteAddr()`)가 `app.trusted-proxies` allowlist에 포함될 때만 `X-Forwarded-For` 최좌측 IP를 채택하고, 그 외에는 `remoteAddr`를 사용합니다(`Proxy-Client-IP`/`WL-Proxy-Client-IP` 폴백 없음).
+- 신뢰 프록시 미설정 시 헤더를 무시하므로 IP 위조가 차단됩니다. 운영 인프라(Nginx) 앞단 프록시 IP를 `app.trusted-proxies`에 등록해야 실 클라이언트 IP가 정확히 기록됩니다.
 
 #### 비밀번호 해시 규격 (CustomPasswordEncoder 코드 기준)
 - SHA-256 + Base64 (고정 빈 솔트). KDB 사내 SSO 표준 규격이므로 거버넌스 승인 없이 변경 불가.
