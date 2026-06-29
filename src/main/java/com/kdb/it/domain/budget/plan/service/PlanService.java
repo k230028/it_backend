@@ -39,13 +39,13 @@ import lombok.RequiredArgsConstructor;
  * 정보기술부문계획(TPRMPP_BPLANM)과 정보기술부문계획 관계(TPRMPP_BPLANA)의
  * 등록, 조회, 삭제 비즈니스 로직을 담당합니다.
  * </p>
+ *
+ * <p>조회 위주 서비스이므로 클래스 레벨 {@code @Transactional(readOnly=true)}를 적용하고,
+ * 쓰기 메서드는 메서드 레벨 {@code @Transactional}로 오버라이드합니다 (CLAUDE.md §5.5).</p>
  */
-// 후속 과제: 클래스 레벨 @Transactional(readOnly=true) 추가 필요 — 조회 위주 서비스이므로 메서드별 어노테이션
-// 누락 방지 (CLAUDE.md §5.5)
-// 누락 배경: 초기 개발 시 트랜잭션 전략 미수립. 쓰기 메서드에 @Transactional(readOnly=false) 오버라이드 후
-// 클래스 레벨 적용 예정.
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class PlanService {
 
         private static final Logger log = LoggerFactory.getLogger(PlanService.class);
@@ -76,7 +76,6 @@ public class PlanService {
          *
          * @return 계획 목록 응답 DTO 리스트
          */
-        @Transactional(readOnly = true)
         public List<PlanDto.ListResponse> getPlans() {
                 List<Bplanm> plans = bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N");
                 if (plans.isEmpty()) {
@@ -166,7 +165,6 @@ public class PlanService {
          * @return 계획 상세 응답 DTO
          * @throws ResponseStatusException 계획을 찾을 수 없는 경우 404
          */
-        @Transactional(readOnly = true)
         public PlanDto.DetailResponse getPlan(String reqDocNo) {
                 // 계획 조회
                 Bplanm plan = bplanmRepository.findByReqDocNoAndDelYn(reqDocNo, "N")
