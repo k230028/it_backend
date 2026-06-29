@@ -32,7 +32,7 @@ public interface HostAddressProvider {
             try {
                 return InetAddress.getLocalHost().getHostAddress();
             } catch (UnknownHostException e) {
-                log.info("EAI ipAddress 조회 실패");
+                log.warn("EAI ipAddress 조회 실패 — 전문 공통부 IP 공백 처리", e);
                 return "";
             }
         }
@@ -55,7 +55,7 @@ public interface HostAddressProvider {
                 }
                 return sb.toString();
             } catch (UnknownHostException | SocketException e) {
-                log.info("EAI macAddress 조회 실패");
+                log.warn("EAI macAddress 조회 실패 — 전문 공통부 MAC 공백 처리", e);
                 return "";
             }
         }
