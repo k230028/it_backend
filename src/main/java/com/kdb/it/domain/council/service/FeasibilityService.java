@@ -189,6 +189,8 @@ public class FeasibilityService {
                     .build();
             entityManager.persist(perf);
         }
+        // 신규 성과지표 INSERT를 즉시 flush — 제약 위반을 본 트랜잭션에서 조기 표면화
+        entityManager.flush();
     }
 
     // =========================================================================
