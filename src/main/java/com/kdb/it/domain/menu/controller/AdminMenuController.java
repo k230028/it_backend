@@ -14,6 +14,12 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.util.List;
 
+/**
+ * 관리자 메뉴 관리 REST 컨트롤러.
+ *
+ * <p>기본 URL: {@code /api/admin/menus}. DB 기반 메뉴 트리의 CRUD·정렬·이동(reparent)을 제공한다.
+ * 클래스 레벨 {@code @PreAuthorize("hasRole('ADMIN')")}로 관리자 전용이다.</p>
+ */
 @RestController
 @RequestMapping("/api/admin/menus")
 @RequiredArgsConstructor

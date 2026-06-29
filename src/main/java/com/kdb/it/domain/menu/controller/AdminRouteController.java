@@ -12,6 +12,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * 관리자 라우트 카탈로그 REST 컨트롤러.
+ *
+ * <p>기본 URL: {@code /api/admin/routes}. 메뉴(LNK)가 참조하는 화면경로 카탈로그(Cmenud)의 CRUD를 제공한다.
+ * 클래스 레벨 {@code @PreAuthorize("hasRole('ADMIN')")}로 관리자 전용이다.</p>
+ */
 @RestController
 @RequestMapping("/api/admin/routes")
 @RequiredArgsConstructor

@@ -13,6 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * 사용자 메뉴 조회 REST 컨트롤러.
+ *
+ * <p>기본 URL: {@code /api/menus}. 권한 필터링된 메뉴 트리를 반환하며, 프론트의 사이드바·Breadcrumb
+ * 단일 소스로 사용된다. 인증된 사용자라면 접근 가능하고, 노드별 노출 권한은 서비스 계층에서 필터링한다.</p>
+ */
 @RestController
 @RequestMapping("/api/menus")
 @RequiredArgsConstructor
