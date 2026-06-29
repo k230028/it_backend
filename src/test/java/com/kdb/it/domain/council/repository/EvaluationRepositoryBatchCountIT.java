@@ -51,8 +51,27 @@ class EvaluationRepositoryBatchCountIT extends AbstractOracleRepositoryTest {
         assertThat(countByEno).containsEntry("ENOA", 6L).containsEntry("ENOB", 4L);
     }
 
+    @Test
+    @DisplayName("countByEnoForCouncil: delYn=Y 행은 집계에서 제외된다")
+    void countByEnoForCouncil_delYnY행_집계제외() {
+        // Arrange — 동일 평가자(ENOC)에 활성 3건 + 소프트삭제 1건. WHERE delYn='N'이 삭제 행을 제외해야 한다.
+        for (String itm : List.of("01", "02", "03")) {
+            entityManager.persist(fixture("ENOC", itm, 5, "N"));
+        }
+        entityManager.persist(fixture("ENOC", "04", 5, "Y"));
+        entityManager.flush();
+        entityManager.clear();
+
+        // Act
+        Map<String, Long> countByEno = evaluationRepository.countByEnoForCouncil(ASCT_ID, "N").stream()
+                .collect(Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
+
+        // Assert — 활성 3건만 집계되고 소프트삭제 행은 카운트되지 않는다
+        assertThat(countByEno).containsEntry("ENOC", 3L);
+    }
+
     /**
-     * 테스트 픽스처 행 생성.
+     * 테스트 픽스처 행 생성 (활성 행, delYn="N").
      *
      * <p>{@code @DataJpaTest} 슬라이스에는 SecurityContext가 없어 JPA Auditing(@CreatedBy)이
      * NOT NULL인 FST_ENR_USID/FST_ENR_DTM 등을 채우지 못한다(ORA-01400). 따라서 감사컬럼과
@@ -60,12 +79,17 @@ class EvaluationRepositoryBatchCountIT extends AbstractOracleRepositoryTest {
      * ({@code BbugtmRepositoryIntegrationTest} 동일 패턴.)</p>
      */
     private Bevalm fixture(String eno, String itPtlCkgItmTc, int quelRcrd) {
+        return fixture(eno, itPtlCkgItmTc, quelRcrd, "N");
+    }
+
+    /** 테스트 픽스처 행 생성 (delYn 지정). 소프트삭제 제외 검증에서 delYn="Y" 행을 만든다. */
+    private Bevalm fixture(String eno, String itPtlCkgItmTc, int quelRcrd, String delYn) {
         return Bevalm.builder()
                 .itPtlAsctId(ASCT_ID)
                 .eno(eno)
                 .itPtlCkgItmTc(itPtlCkgItmTc)
                 .quelRcrd(quelRcrd)
-                .delYn("N")
+                .delYn(delYn)
                 .fstEnrUsid("FIXTURE")
                 .fstEnrDtm(LocalDateTime.now())
                 .lstChgUsid("FIXTURE")

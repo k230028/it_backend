@@ -297,8 +297,13 @@ public class CouncilService {
 
         // 평가자별 제출 항목 수를 협의회ID당 1회 GROUP BY로 일괄 집계 (#4 N+1 제거).
         // 행별 findByItPtlAsctIdAndEnoAndDelYn 루프를 단일 배치 COUNT로 대체한다.
+        // GROUP BY e.eno이므로 eno는 본래 유일하지만, 데이터 이상으로 중복 키가 들어와도
+        // Long::sum 병합으로 IllegalStateException 없이 부분 카운트를 합산한다(방어적).
         Map<String, Long> submitCountByEno = evaluationRepository.countByEnoForCouncil(asctId, "N").stream()
-                .collect(Collectors.toMap(row -> (String) row[0], row -> ((Number) row[1]).longValue()));
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> ((Number) row[1]).longValue(),
+                        Long::sum));
 
         // 6개 항목 미만(미제출 포함=Map 누락 시 0)인 평가자 수 집계
         long incompleteCount = evaluators.stream()
