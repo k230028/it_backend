@@ -66,4 +66,16 @@ public interface CostRepositoryCustom {
      * @return costBgNo → AMT(전산업무비예산금액) 합계 맵
      */
     Map<String, BigDecimal> sumPrevBgByCostBgNos(List<String> costBgNos, String prevYear);
+
+    /**
+     * 목록 경량 프로젝션 조회(#7) — {@link #searchByCondition}와 동일 WHERE,
+     * select만 목록 표시 컬럼으로 축소(미표시 환산/외화/연기/담당자 컬럼 제외).
+     *
+     * <p>행 집합은 {@code searchByCondition}과 동일하나 목록에 불필요한 컬럼을 적재하지 않는다.
+     * 상세는 기존 엔티티 조회 경로를 유지한다(결정 B).</p>
+     *
+     * @param condition 검색 조건 DTO
+     * @return 조건에 맞는 전산관리비 경량 목록 행 (DEL_YN='N' 필터 항상 적용)
+     */
+    List<CostDto.CostListRow> searchListByCondition(CostDto.SearchCondition condition);
 }

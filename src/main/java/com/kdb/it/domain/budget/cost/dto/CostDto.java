@@ -35,6 +35,31 @@ import lombok.Setter;
 public class CostDto {
 
     /**
+     * 전산관리비 목록 경량 프로젝션 DTO(#7).
+     *
+     * <p>목록 화면에 필요한 식별/요약 컬럼만 담는다. Bcostm은 1000자+ 대용량 텍스트가 없어
+     * 제외 본문은 없으나, 목록에 불필요한 환산/외화/연기/담당자 등 미표시 컬럼을 select에서
+     * 빼 적재 폭을 줄인다. 상세는 기존 엔티티 조회 경로를 유지한다(결정 B).</p>
+     */
+    @Schema(name = "CostListRow")
+    public record CostListRow(
+            String costBgNo,
+            Integer bgSno,
+            String lstYn,
+            String ioeC,
+            String cttNm,
+            String cttOppNm,
+            BigDecimal costTotXpAmt,
+            String curC,
+            String sectSysUtzYn,
+            String costSvnDpmC,
+            String svnTemC,
+            String bseYy,
+            String abusTc,
+            String delYn
+    ) {}
+
+    /**
      * 전산관리비 생성 요청 DTO
      *
      * <p>

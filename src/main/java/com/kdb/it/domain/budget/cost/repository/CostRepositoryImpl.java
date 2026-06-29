@@ -12,6 +12,7 @@ import com.querydsl.core.Tuple;
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
@@ -100,6 +101,38 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         return queryFactory
                 .selectFrom(bcostm)
                 .where(builder)
+                .fetch();
+    }
+
+    /**
+     * 목록 경량 프로젝션 조회(#7) — {@link #searchByCondition}와 동일 WHERE,
+     * select만 목록 표시 컬럼으로 축소.
+     *
+     * <p>QueryDSL {@code Projections.constructor}는 위치 기반이므로 select 인자 순서가
+     * {@link CostDto.CostListRow} 컴포넌트 순서와 정확히 일치해야 한다.</p>
+     */
+    @Override
+    public List<CostDto.CostListRow> searchListByCondition(CostDto.SearchCondition condition) {
+        QBcostm bcostm = QBcostm.bcostm;
+        // 동일 WHERE 재사용 — searchByCondition과 결과 행 집합 동일, select만 경량화
+        return queryFactory
+                .select(Projections.constructor(CostDto.CostListRow.class,
+                        bcostm.costBgNo,
+                        bcostm.bgSno,
+                        bcostm.lstYn,
+                        bcostm.ioeC,
+                        bcostm.cttNm,
+                        bcostm.cttOppNm,
+                        bcostm.costTotXpAmt,
+                        bcostm.curC,
+                        bcostm.sectSysUtzYn,
+                        bcostm.costSvnDpmC,
+                        bcostm.svnTemC,
+                        bcostm.bseYy,
+                        bcostm.abusTc,
+                        bcostm.delYn))
+                .from(bcostm)
+                .where(buildConditionPredicate(condition))
                 .fetch();
     }
 
