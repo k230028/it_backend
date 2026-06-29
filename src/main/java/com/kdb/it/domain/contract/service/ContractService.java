@@ -124,7 +124,7 @@ public class ContractService {
     @Transactional
     public void changeStatus(String docNo, ContractDto.StatusRequest req, CustomUserDetails user) {
         Bcontm e = loadCurrent(docNo);
-        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
+        OwnershipVerifier.verifyAdmin(user);
         String from = e.getStsTc(), to = req.stsTc();
         boolean ok = (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
                 || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));

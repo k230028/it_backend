@@ -335,7 +335,7 @@ class PaymentServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act
-            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("85"), requester());
+            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("85"), adminUser());
 
             // Assert
             assertThat(e.getStsTc()).isEqualTo("85");
@@ -352,7 +352,7 @@ class PaymentServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act
-            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("89"), requester());
+            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("89"), adminUser());
 
             // Assert
             assertThat(e.getStsTc()).isEqualTo("89");
@@ -370,7 +370,7 @@ class PaymentServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("85"), requester()))
+                    "PAY-2026-0001", new PaymentDto.StatusRequest("85"), adminUser()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
         }
@@ -387,7 +387,7 @@ class PaymentServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("89"), requester()))
+                    "PAY-2026-0001", new PaymentDto.StatusRequest("89"), adminUser()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
         }
@@ -404,7 +404,7 @@ class PaymentServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("81"), requester()))
+                    "PAY-2026-0001", new PaymentDto.StatusRequest("81"), adminUser()))
                     .isInstanceOf(IllegalStateException.class);
         }
     }

@@ -286,7 +286,7 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act
-            service.changeStatus("CTR-2026-0001", new ContractDto.StatusRequest("75"), requester());
+            service.changeStatus("CTR-2026-0001", new ContractDto.StatusRequest("75"), admin());
 
             // Assert
             assertThat(e.getStsTc()).isEqualTo("75");
@@ -301,7 +301,7 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act
-            service.changeStatus("CTR-2026-0001", new ContractDto.StatusRequest("79"), requester());
+            service.changeStatus("CTR-2026-0001", new ContractDto.StatusRequest("79"), admin());
 
             // Assert
             assertThat(e.getStsTc()).isEqualTo("79");
@@ -317,7 +317,7 @@ class ContractServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("75"), requester()))
+                    "CTR-2026-0001", new ContractDto.StatusRequest("75"), admin()))
                     .isInstanceOf(IllegalStateException.class);
         }
 
@@ -331,7 +331,7 @@ class ContractServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("79"), requester()))
+                    "CTR-2026-0001", new ContractDto.StatusRequest("79"), admin()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
         }
@@ -346,7 +346,7 @@ class ContractServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("71"), requester()))
+                    "CTR-2026-0001", new ContractDto.StatusRequest("71"), admin()))
                     .isInstanceOf(IllegalStateException.class);
         }
     }

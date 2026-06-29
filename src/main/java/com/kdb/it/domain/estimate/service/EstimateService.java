@@ -129,7 +129,7 @@ public class EstimateService {
     @Transactional
     public void changeStatus(String docNo, EstimateDto.StatusRequest req, CustomUserDetails user) {
         Bestim e = loadCurrent(docNo);
-        OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
+        OwnershipVerifier.verifyAdmin(user);
         String from = e.getStsTc();
         String to = req.stsTc();
         boolean allowed = (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))

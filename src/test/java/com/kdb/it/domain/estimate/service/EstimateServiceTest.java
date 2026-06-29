@@ -109,6 +109,15 @@ class EstimateServiceTest {
         }
 
         @Test
+        @DisplayName("소유자라도 ADMIN이 아니면 상태전이 거부")
+        void changeStatus_deniedForNonAdminOwner() {
+            when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(draftOwnedByE0001()));
+            assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("55"), requester()))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
         @DisplayName("타인이 명세저장하면 AccessDeniedException")
         void saveLines_deniedForOther() {
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
@@ -274,7 +283,7 @@ class EstimateServiceTest {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
                 .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
-        service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("55"), requester());
+        service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("55"), admin());
         assertThat(e.getStsTc()).isEqualTo("55");
     }
 
@@ -284,7 +293,7 @@ class EstimateServiceTest {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
                 .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
-        service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("59"), requester());
+        service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("59"), admin());
         assertThat(e.getStsTc()).isEqualTo("59");
     }
 
@@ -294,7 +303,7 @@ class EstimateServiceTest {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
                 .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("59").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
-        assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("55"), requester()))
+        assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("55"), admin()))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -304,7 +313,7 @@ class EstimateServiceTest {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
                 .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
-        assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("59"), requester()))
+        assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("59"), admin()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("허용되지 않은");
     }
@@ -315,7 +324,7 @@ class EstimateServiceTest {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
                 .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
-        assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("51"), requester()))
+        assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("51"), admin()))
                 .isInstanceOf(IllegalStateException.class);
     }
 

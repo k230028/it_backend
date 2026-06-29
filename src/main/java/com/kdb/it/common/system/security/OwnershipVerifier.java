@@ -35,4 +35,19 @@ public final class OwnershipVerifier {
         }
         throw new AccessDeniedException("본인 또는 관리자만 수행할 수 있습니다.");
     }
+
+    /**
+     * 시스템관리자(ADMIN) 전용 작업 검증. ADMIN이 아니면 {@link AccessDeniedException}.
+     *
+     * @param user 현재 인증 사용자
+     * @throws AccessDeniedException 인증 정보가 없거나 ADMIN이 아닌 경우
+     */
+    public static void verifyAdmin(CustomUserDetails user) {
+        if (user == null) {
+            throw new AccessDeniedException("인증 정보가 없습니다.");
+        }
+        if (!user.isAdmin()) {
+            throw new AccessDeniedException("관리자만 수행할 수 있습니다.");
+        }
+    }
 }

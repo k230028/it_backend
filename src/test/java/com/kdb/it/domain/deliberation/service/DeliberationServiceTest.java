@@ -366,7 +366,7 @@ class DeliberationServiceTest {
         when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
                 .thenReturn(Optional.of(e));
 
-        service.changeStatus("DLB-2026-0001", new DeliberationDto.StatusRequest("65"), requester());
+        service.changeStatus("DLB-2026-0001", new DeliberationDto.StatusRequest("65"), admin());
 
         assertThat(e.getStsTc()).isEqualTo("65");
     }
@@ -380,7 +380,7 @@ class DeliberationServiceTest {
                 .thenReturn(Optional.of(e));
 
         // Act
-        service.changeStatus("DLB-2026-0001", new DeliberationDto.StatusRequest("69"), requester());
+        service.changeStatus("DLB-2026-0001", new DeliberationDto.StatusRequest("69"), admin());
 
         // Assert
         assertThat(e.getStsTc()).isEqualTo("69");
@@ -396,7 +396,7 @@ class DeliberationServiceTest {
                 .thenReturn(Optional.of(e));
 
         assertThatThrownBy(() -> service.changeStatus(
-                "DLB-2026-0001", new DeliberationDto.StatusRequest("65"), requester()))
+                "DLB-2026-0001", new DeliberationDto.StatusRequest("65"), admin()))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -410,7 +410,7 @@ class DeliberationServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() -> service.changeStatus(
-                "DLB-2026-0001", new DeliberationDto.StatusRequest("69"), requester()))
+                "DLB-2026-0001", new DeliberationDto.StatusRequest("69"), admin()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("허용되지 않은 상태 전이");
     }
@@ -425,7 +425,7 @@ class DeliberationServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() -> service.changeStatus(
-                "DLB-2026-0001", new DeliberationDto.StatusRequest("61"), requester()))
+                "DLB-2026-0001", new DeliberationDto.StatusRequest("61"), admin()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("허용되지 않은 상태 전이");
     }
@@ -440,7 +440,7 @@ class DeliberationServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() -> service.changeStatus(
-                "DLB-2026-0001", new DeliberationDto.StatusRequest("69"), requester()))
+                "DLB-2026-0001", new DeliberationDto.StatusRequest("69"), admin()))
                 .isInstanceOf(IllegalStateException.class);
     }
 
