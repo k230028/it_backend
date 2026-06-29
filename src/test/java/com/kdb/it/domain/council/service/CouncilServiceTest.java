@@ -47,7 +47,6 @@ import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.dto.CouncilProjectRow;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
-import com.kdb.it.domain.council.entity.Bevalm;
 import com.kdb.it.domain.council.entity.Bpovwm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
@@ -587,7 +586,8 @@ class CouncilServiceTest {
         given(evaluator.getItPtlAsctMebTc()).willReturn("01");
         given(evaluator.getEno()).willReturn("10002");
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(evaluator));
-        given(evaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "10002", "N")).willReturn(List.of());
+        // 배치 COUNT 결과에 평가자가 없으면(미제출) getOrDefault(...,0L)<6 으로 미완료 판정
+        given(evaluationRepository.countByEnoForCouncil(ASCT_ID, "N")).willReturn(List.of());
 
         assertThatThrownBy(() -> councilService.completeCouncil(ASCT_ID))
                 .isInstanceOf(IllegalStateException.class)
@@ -605,9 +605,8 @@ class CouncilServiceTest {
         given(evaluator.getItPtlAsctMebTc()).willReturn("01");
         given(evaluator.getEno()).willReturn("10002");
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(evaluator));
-        given(evaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "10002", "N"))
-                .willReturn(List.of(mock(Bevalm.class), mock(Bevalm.class), mock(Bevalm.class),
-                        mock(Bevalm.class), mock(Bevalm.class), mock(Bevalm.class)));
+        given(evaluationRepository.countByEnoForCouncil(ASCT_ID, "N"))
+                .willReturn(List.<Object[]>of(new Object[]{"10002", 6L}));
 
         councilService.completeCouncil(ASCT_ID);
 
@@ -627,13 +626,45 @@ class CouncilServiceTest {
         given(caller.getItPtlAsctMebTc()).willReturn("02");
         given(caller.getEno()).willReturn("10002");
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(secretary, caller));
-        given(evaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "10002", "N"))
-                .willReturn(List.of(mock(Bevalm.class), mock(Bevalm.class), mock(Bevalm.class),
-                        mock(Bevalm.class), mock(Bevalm.class), mock(Bevalm.class)));
+        // 간사(10001)는 평가 의무 제외 → 배치 결과에 없어도 무방. 평가위원(10002)만 6건 제출.
+        given(evaluationRepository.countByEnoForCouncil(ASCT_ID, "N"))
+                .willReturn(List.<Object[]>of(new Object[]{"10002", 6L}));
 
         councilService.completeCouncil(ASCT_ID);
 
         verify(council).changeStatus("09");
+    }
+
+    @Test
+    @DisplayName("completeCouncil: 평가자 N명이어도 배치 COUNT를 1회만 호출하고 평가자별 단건 조회 루프가 없다 (#4 N+1 제거)")
+    void completeCouncil_평가완료검증_배치COUNT_N플러스1없음() {
+        // Arrange
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("07");
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+
+        // 평가 의무 위원 2명(MAND 01, CALL 02) — 둘 다 6항목 제출 완료
+        Bcmmtm e1 = mock(Bcmmtm.class);
+        given(e1.getItPtlAsctMebTc()).willReturn("01");
+        given(e1.getEno()).willReturn("10001");
+        Bcmmtm e2 = mock(Bcmmtm.class);
+        given(e2.getItPtlAsctMebTc()).willReturn("02");
+        given(e2.getEno()).willReturn("10002");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(e1, e2));
+
+        // 배치 COUNT 결과: 두 평가자 모두 6건 제출
+        given(evaluationRepository.countByEnoForCouncil(ASCT_ID, "N")).willReturn(List.of(
+                new Object[]{"10001", 6L},
+                new Object[]{"10002", 6L}));
+
+        // Act
+        councilService.completeCouncil(ASCT_ID);
+
+        // Assert
+        verify(council).changeStatus("09");
+        then(evaluationRepository).should(times(1)).countByEnoForCouncil(ASCT_ID, "N");
+        then(evaluationRepository).should(never())
+                .findByItPtlAsctIdAndEnoAndDelYn(anyString(), anyString(), anyString());
     }
 
     // ───────────────────────────────────────────────────────

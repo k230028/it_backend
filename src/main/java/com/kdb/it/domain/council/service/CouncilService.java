@@ -295,10 +295,14 @@ public class CouncilService {
             throw new IllegalStateException("평가위원이 선정되지 않았습니다.");
         }
 
-        // 각 위원별 6개 항목 제출 완료 여부 확인
+        // 평가자별 제출 항목 수를 협의회ID당 1회 GROUP BY로 일괄 집계 (#4 N+1 제거).
+        // 행별 findByItPtlAsctIdAndEnoAndDelYn 루프를 단일 배치 COUNT로 대체한다.
+        Map<String, Long> submitCountByEno = evaluationRepository.countByEnoForCouncil(asctId, "N").stream()
+                .collect(Collectors.toMap(row -> (String) row[0], row -> ((Number) row[1]).longValue()));
+
+        // 6개 항목 미만(미제출 포함=Map 누락 시 0)인 평가자 수 집계
         long incompleteCount = evaluators.stream()
-                .filter(m -> evaluationRepository
-                        .findByItPtlAsctIdAndEnoAndDelYn(asctId, m.getEno(), "N").size() < 6)
+                .filter(m -> submitCountByEno.getOrDefault(m.getEno(), 0L) < 6)
                 .count();
 
         if (incompleteCount > 0) {
