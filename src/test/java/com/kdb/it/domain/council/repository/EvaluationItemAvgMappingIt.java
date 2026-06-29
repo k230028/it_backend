@@ -21,6 +21,7 @@ class EvaluationItemAvgMappingIt extends AbstractOracleRepositoryTest {
     @DisplayName("존재하는 협의회ID에 대해 Object[]와 DTO 결과가 일치한다(데이터 없으면 둘 다 빈 목록)")
     void avg_objectArray_equals_dto() {
         // 결정적: 존재하지 않는 ID는 항상 빈 목록 → 두 경로 모두 empty로 동등
+        // 주의: 빈 목록만 반환하므로 컬럼별 매핑 검증은 서비스 단위 테스트의 fromRow fixture에 의존함
         String asctId = "ASCT-0000-0000";
         List<Object[]> rows = evaluationRepository.findAverageScoreByItem(asctId, "N");
         List<EvaluationItemAvgRow> dtos = evaluationRepository.findAvgRowsByItem(asctId, "N");

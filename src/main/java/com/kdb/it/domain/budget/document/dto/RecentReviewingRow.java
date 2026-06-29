@@ -16,13 +16,20 @@ public record RecentReviewingRow(
         String usrNm,
         String createdAt,
         LocalDate fsgTlm) {
+    /** 컬럼 수 가드: SELECT 절 길이가 바뀌면 즉시 드러나도록 한다. */
+    private static final int EXPECTED_COLUMNS = 5;
+
     /**
      * native {@code Object[]} 1행을 DTO로 매핑한다(#6).
      *
      * @param r 5컬럼 native 결과 행([4]는 DATE/Timestamp 혼용 → {@code toLd})
      * @return 매핑된 DTO
+     * @throws IllegalStateException 컬럼 수가 5가 아니면(SQL/팩토리 불일치 조기 검출)
      */
     public static RecentReviewingRow fromRow(Object[] r) {
+        if (r == null || r.length != EXPECTED_COLUMNS) {
+            throw new IllegalStateException("컬럼 수 불일치: 기대=" + EXPECTED_COLUMNS + ", 실제=" + (r == null ? "null" : r.length));
+        }
         return new RecentReviewingRow(
                 NativeRowMapper.toStr(r[0]),
                 NativeRowMapper.toStr(r[1]),

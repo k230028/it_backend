@@ -550,7 +550,7 @@ public class ApplicationService {
             applicationRepository.findMonthlyTrendRowsByBbrC(bbrC).stream()
                 .map(row -> ApplicationDto.MonthlyCount.builder()
                     .month(row.label())
-                    .count((int) row.count())
+                    .count(Math.toIntExact(row.count()))
                     .build())
                 .toList();
 

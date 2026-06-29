@@ -21,6 +21,7 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
     @DisplayName("findMonthlyTrendByBbrC: Object[] 경로와 LabeledCountRow 경로가 컬럼별로 동일하다")
     void monthlyTrend_objectArray_equals_dto() {
         // 존재하지 않는 부서코드는 결정적으로 빈 목록 → 두 경로 동등. 실데이터가 있으면 컬럼별 비교.
+        // 주의: 빈 목록만 반환하므로 컬럼별 매핑 검증은 서비스 단위 테스트의 fromRow fixture에 의존함
         String bbrC = "ZZZZZ";
         List<Object[]> rows = applicationRepository.findMonthlyTrendByBbrC(bbrC);
         List<LabeledCountRow> dtos = applicationRepository.findMonthlyTrendRowsByBbrC(bbrC);
@@ -36,6 +37,7 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
     @Test
     @DisplayName("findPendingListByEno: Object[] 경로와 PendingApprovalRow 경로가 컬럼별로 동일하다")
     void pendingList_objectArray_equals_dto() {
+        // 주의: 빈 목록만 반환하므로 컬럼별 매핑 검증은 서비스 단위 테스트의 fromRow fixture에 의존함
         String eno = "00000000";
         List<Object[]> rows = applicationRepository.findPendingListByEno(eno);
         List<PendingApprovalRow> dtos = applicationRepository.findPendingRowsByEno(eno);

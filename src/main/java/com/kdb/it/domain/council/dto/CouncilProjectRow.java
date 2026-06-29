@@ -50,6 +50,11 @@ public record CouncilProjectRow(
                     "협의회 신청대상 행 컬럼 수 불일치: 기대=" + EXPECTED_COLUMNS
                             + ", 실제=" + (r == null ? "null" : r.length));
         }
+        // 12번 컬럼은 SELECT의 NULL placeholder(rqmBgAmt 자리)다. 값이 들어오면 SELECT 컬럼 순서가
+        // 바뀐 것이므로 조기에 드러내 오매핑을 방지한다.
+        if (r[12] != null) {
+            throw new IllegalStateException("12번 컬럼(rqmBgAmt 자리)은 NULL placeholder여야 합니다. SELECT 컬럼 순서 변경 의심: " + r[12]);
+        }
         return new CouncilProjectRow(
                 NativeRowMapper.toStr(r[0]),         // abusMngNo
                 r[1] == null ? null : ((Number) r[1]).intValue(), // sno

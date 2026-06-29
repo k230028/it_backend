@@ -54,11 +54,15 @@ public final class NativeRowMapper {
 
     /** NUMBER 컬럼 → Long (BigDecimal/Long/Integer 혼용 대응). null 허용. */
     public static Long toLong(Object v) {
-        return v == null ? null : ((Number) v).longValue();
+        if (v == null) return null;
+        if (v instanceof Number n) return n.longValue();
+        throw new IllegalStateException("지원하지 않는 숫자 타입: " + v.getClass());
     }
 
     /** NUMBER 컬럼 → int (null이면 기본값). */
     public static int toInt(Object v, int defaultValue) {
-        return v == null ? defaultValue : ((Number) v).intValue();
+        if (v == null) return defaultValue;
+        if (v instanceof Number n) return n.intValue();
+        throw new IllegalStateException("지원하지 않는 숫자 타입: " + v.getClass());
     }
 }

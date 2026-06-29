@@ -760,7 +760,9 @@ public class AdminService {
          */
         public List<AdminDto.LoginStatResponse> getLoginStats() {
                 // Design Ref: §3.7 — 대시보드 차트 데이터 (최근 30일 일별 집계)
+                // 일자 라벨이 null/공백이면 LocalDate.parse가 예외를 던지므로 방어적으로 제외한다.
                 return loginHistoryRepository.findDailyLoginStatRows().stream()
+                                .filter(row -> row.label() != null && !row.label().isBlank())
                                 .map(row -> new AdminDto.LoginStatResponse(
                                                 LocalDate.parse(row.label()),
                                                 row.count()))

@@ -44,6 +44,7 @@ class ProjectListProjectionIt extends AbstractOracleRepositoryTest {
             assertThat(row.bseYy()).isEqualTo(e.getBseYy());
             assertThat(row.odnYn()).isEqualTo(e.getOdnYn());
             assertThat(row.abusTc()).isEqualTo(e.getAbusTc());
+            assertThat(row.rprStsTc()).isEqualTo(e.getRprStsTc());
             assertThat(row.delYn()).isEqualTo(e.getDelYn());
         }
     }
