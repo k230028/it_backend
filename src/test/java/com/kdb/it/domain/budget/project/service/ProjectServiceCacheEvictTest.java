@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -47,14 +47,17 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
  * <p>update/delete는 {@code validateModifyPermission}이 SecurityContext의 {@link CustomUserDetails}를
  * 요구하므로, 메서드가 예외 없이 정상 반환해 evict가 발화하도록 ADMIN 컨텍스트를 심습니다(계획 ⚠️ 주석 반영).</p>
  */
+// 주의: 트랜잭션 매니저 빈이 없어 @Transactional은 비활성 — @CacheEvict 발화 자체만 검증하며,
+//       커밋 후 지연(TransactionAwareCacheManagerProxy) 경로는 검증 대상이 아님.
 @SpringBootTest(classes = {CacheConfig.class, ProjectService.class})
 class ProjectServiceCacheEvictTest {
 
     @Autowired
     private ProjectService projectService;
 
+    // 시드/검증은 위임 대상 Caffeine 매니저를 직접 사용 — 프록시 지연과 무관하게 백킹 스토어를 명시 타깃팅.
     @Autowired
-    private CacheManager cacheManager;
+    private CaffeineCacheManager caffeineCacheManager;
 
     // ProjectService 협력 빈 — 캐시 발화만 검증하므로 동작은 최소 스텁
     @MockitoBean private ProjectRepository projectRepository;
@@ -77,7 +80,7 @@ class ProjectServiceCacheEvictTest {
 
     @BeforeEach
     void seedCacheAndSecurity() {
-        tiptapCache = cacheManager.getCache("tiptapMetadata");
+        tiptapCache = caffeineCacheManager.getCache("tiptapMetadata");
         assertThat(tiptapCache).isNotNull();
         // evict 검증을 위해 임의 엔트리를 미리 적재
         tiptapCache.put("ALL", "stale");

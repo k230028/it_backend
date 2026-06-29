@@ -5,9 +5,12 @@ import java.time.Duration;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.transaction.TransactionAwareCacheManagerProxy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 /**
@@ -22,6 +25,12 @@ import com.github.benmanes.caffeine.cache.Caffeine;
  * 외부 변경·evict 누락에 대한 안전망(stale 한도)을 둡니다. 기존 {@code @Cacheable}/{@code @CacheEvict}
  * 의미(특히 공통코드 {@code codesByCid}/{@code budgetPeriod}의 쓰기 시 evict-all, CLAUDE §5.5.1)는
  * 그대로 유지되며, CacheManager 구현만 교체됩니다.</p>
+ *
+ * <p><b>트랜잭션 정합(P5 polish/MED-1):</b> 애플리케이션이 사용하는 캐시 매니저는
+ * {@link TransactionAwareCacheManagerProxy}로 감싸 {@code @CacheEvict}/{@code @CachePut}의 캐시 쓰기를
+ * 트랜잭션 <b>커밋 후</b>로 지연합니다. 이렇게 하면 evict와 커밋 사이의 짧은 구간에 동시 읽기가 stale 데이터를
+ * 다시 캐싱하는 경합이 사라져, 공통코드({@code codesByCid}/{@code budgetPeriod}) evict-on-write도 더
+ * 견고해집니다. 트랜잭션이 없으면(또는 활성 트랜잭션 미동기화 시) 캐시 쓰기는 기존처럼 즉시 수행됩니다.</p>
  *
  * <p><b>캐시별 정책:</b></p>
  * <ul>
@@ -42,30 +51,34 @@ public class CacheConfig {
     /** 준정적 캐시 최대 엔트리 수. 코드 그룹/연도/권한맵 키 수가 적어 넉넉히 둠. */
     private static final long STATIC_MAX_SIZE = 1_000L;
 
-    /** Tiptap 변수 카탈로그 TTL — 쓰기 evict 보강 + 준정적 카탈로그라 10분 안전망. */
+    /** Tiptap 변수 카탈로그 TTL — write-expiry(마지막 재생성 후 고정 시간 경과 시 만료). 카탈로그는 활성
+     *  사업 목록으로 재구성되며, ProjectService 쓰기 evict가 1차 무효화·이 TTL이 멀티 인스턴스 안전망. */
     private static final Duration TIPTAP_TTL = Duration.ofMinutes(10);
     /** Tiptap 카탈로그 캐시 최대 엔트리 수(키: 'ALL' 또는 부서코드별). */
     private static final long TIPTAP_MAX_SIZE = 500L;
 
-    /** 알림 미읽음 카운트 TTL — 사용자별 고빈도 조회, evict 누락 대비 60초 stale 한도. */
+    /** 알림 미읽음 카운트 TTL — 단일 프로세스 인메모리 캐시. evict-on-write가 1차 무효화이며,
+     *  TTL(60s)은 멀티 인스턴스 배포 시 evict 누락 대비 안전망. */
     private static final Duration UNREAD_TTL = Duration.ofSeconds(60);
     /** 미읽음 카운트 캐시 최대 엔트리 수(사용자 약 3,000명 기준 여유). */
     private static final long UNREAD_MAX_SIZE = 10_000L;
 
     /**
-     * Caffeine 기반 캐시 매니저.
+     * 내부(실제) Caffeine 캐시 매니저.
      *
      * <p>캐시별로 {@link CaffeineCacheManager#registerCustomCache(String, com.github.benmanes.caffeine.cache.Cache)}
      * 로 명시 등록하여 각자의 TTL/최대크기를 강제합니다. 등록된 6개 캐시는 기존 {@code ConcurrentMapCacheManager}가
-     * 등록하던 이름과 동일합니다(드롭 없음).</p>
+     * 등록하던 이름과 동일합니다(드롭 없음). 이 빈은 {@link #cacheManager(CaffeineCacheManager)} 프록시의 내부
+     * 위임 대상이며, 테스트가 네이티브 TTL(expireAfterWrite)을 직접 검사할 때 주입받습니다.</p>
      *
      * @return 6개 캐시가 per-cache spec으로 등록된 {@link CaffeineCacheManager}
      */
     @Bean
-    public CacheManager cacheManager() {
+    public CaffeineCacheManager caffeineCacheManager() {
         CaffeineCacheManager manager = new CaffeineCacheManager();
 
         // 준정적 참조 데이터: 1시간 TTL (쓰기 시 @CacheEvict로 즉시 무효화 — §5.5.1)
+        // 현재 @Cacheable 사용처 없음 — 기존 등록 유지(향후 codesByType 도입 예약). SoT: CLAUDE.md §5.5.1은 codesByCid/budgetPeriod만 명시
         manager.registerCustomCache("codesByType", buildCache(STATIC_TTL, STATIC_MAX_SIZE));
         manager.registerCustomCache("codesByCid", buildCache(STATIC_TTL, STATIC_MAX_SIZE));
         manager.registerCustomCache("budgetPeriod", buildCache(STATIC_TTL, STATIC_MAX_SIZE));
@@ -80,8 +93,24 @@ public class CacheConfig {
         return manager;
     }
 
+    /**
+     * 애플리케이션이 사용하는 캐시 매니저({@link Primary}).
+     *
+     * <p>{@link TransactionAwareCacheManagerProxy}로 내부 Caffeine 매니저를 감싸, {@code @CacheEvict}/
+     * {@code @CachePut}의 캐시 쓰기를 트랜잭션 커밋 후로 지연합니다(MED-1). evict와 커밋 사이 경합으로 stale
+     * 데이터가 재적재되는 위험을 제거하며, 공통코드 evict-on-write(§5.5.1)도 함께 견고해집니다.</p>
+     *
+     * @param caffeineCacheManager 위임 대상 내부 Caffeine 매니저
+     * @return 트랜잭션 인지 캐시 매니저 프록시
+     */
+    @Bean
+    @Primary
+    public CacheManager cacheManager(CaffeineCacheManager caffeineCacheManager) {
+        return new TransactionAwareCacheManagerProxy(caffeineCacheManager);
+    }
+
     /** 주어진 TTL(expireAfterWrite)과 최대 엔트리 수로 Caffeine 네이티브 캐시를 생성합니다. */
-    private com.github.benmanes.caffeine.cache.Cache<Object, Object> buildCache(Duration ttl, long maxSize) {
+    private Cache<Object, Object> buildCache(Duration ttl, long maxSize) {
         return Caffeine.newBuilder()
                 .expireAfterWrite(ttl)
                 .maximumSize(maxSize)
