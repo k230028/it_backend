@@ -318,7 +318,7 @@ public class SsoController {
             session.setAttribute(SSO_VERIFIED_ENO_SESSION_KEY, resultData);
         }
 
-        log.info("SSO {} - resultCode: {}, ssoVerifiedEno 설정: {}, complete로 이동 (next: {}, origin: {})",
+        log.debug("SSO {} - resultCode: {}, ssoVerifiedEno 설정: {}, complete로 이동 (next: {}, origin: {})",
                 stage, resultCode, verified, next, origin);
         response.sendRedirect(buildCompleteRedirect(next, origin));
     }
@@ -370,7 +370,7 @@ public class SsoController {
             String dest = (effectiveNext != null && effectiveNext.startsWith("/")) ? effectiveNext : "/";
             String target = resolveFrontendBaseUrl(effectiveOrigin) + dest;
             // 복귀 대상이 비어 보이면(app.frontend-url/origin 미설정) 백엔드 자신으로 가 401이 난다.
-            log.info("SSO 인증 완료 - eno: {}, 토큰 쿠키 발급, 복귀 대상: {}", verifiedEno, target);
+            log.debug("SSO 인증 완료 - eno: {}, 토큰 쿠키 발급, 복귀 대상: {}", verifiedEno, target);
             response.sendRedirect(target);
         } catch (Exception e) {
             log.error("SSO 인증 실패 - eno: {}, reason: {}", eno, e.getMessage(), e);
