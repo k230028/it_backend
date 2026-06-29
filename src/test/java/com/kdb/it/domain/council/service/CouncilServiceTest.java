@@ -3,11 +3,16 @@ package com.kdb.it.domain.council.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
@@ -249,9 +254,11 @@ class CouncilServiceTest {
                 "설명",
                 "Y"                                          // csfHeldYn (PRD_c_20260620 #1)
         };
-        // 품목 파생 당해예산: 활성 품목 1건(amt=5000, mplAmt=0) → totRqmAmt=5000 반환 시뮬레이션
-        given(projectItemRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
-                .willReturn(List.of(mock(Bitemm.class)));
+        // 품목 파생 당해예산: 배치 조회로 활성 품목 1건(amt=5000, mplAmt=0) → totRqmAmt=5000 반환 시뮬레이션
+        Bitemm item = mock(Bitemm.class);
+        given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
+        given(projectItemRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(item));
         doAnswer(inv -> {
             ProjectDto.Response resp = inv.getArgument(0);
             resp.setTotRqmAmt(new BigDecimal("5000"));
@@ -357,9 +364,11 @@ class CouncilServiceTest {
         given(councilRepository.findByCommitteeMember("10001", "N")).willReturn(List.of(council));
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
         given(projectRepository.findById(any())).willReturn(Optional.of(project));
-        // 품목 파생 당해예산: 활성 품목 조회 후 applyBudgetSummary가 totRqmAmt=3000 설정 시뮬레이션
-        given(projectItemRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
-                .willReturn(List.of(mock(Bitemm.class)));
+        // 품목 파생 당해예산: 배치 조회 후 applyBudgetSummary가 totRqmAmt=3000 설정 시뮬레이션
+        Bitemm bitemm = mock(Bitemm.class);
+        given(bitemm.getAbusMngNo()).willReturn("PRJ-2026-0001");
+        given(projectItemRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(bitemm));
         doAnswer(inv -> {
             ProjectDto.Response resp = inv.getArgument(0);
             resp.setTotRqmAmt(new BigDecimal("3000"));
@@ -394,6 +403,53 @@ class CouncilServiceTest {
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(user);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("협의회 목록 당해예산 파생은 품목을 1회 배치 조회 (행별 N+1 없음)")
+    void 목록_당해예산_품목_배치조회() {
+        // given: 서로 다른 abusMngNo를 가진 2개 행으로 구성된 관리자 협의회 목록
+        CustomUserDetails admin = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
+        Object[] row1 = listRowWithAbusMngNo("PRJ-2026-0001", ASCT_ID);
+        Object[] row2 = listRowWithAbusMngNo("PRJ-2026-0002", "ASCT-2026-0002");
+        given(councilRepository.findProjectsForCouncilAll(anyString(), anyString()))
+                .willReturn(List.of(row1, row2));
+        // 품목은 1회 배치 조회로만 가져온다 (빈 목록도 허용)
+        given(projectItemRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of());
+
+        // when
+        councilService.getCouncilList(admin);
+
+        // then: 배치 조회 1회, 행별 단건 조회는 0회
+        then(projectItemRepository).should(times(1)).findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
+        then(projectItemRepository).should(never()).findByAbusMngNoAndDelYn(anyString(), anyString());
+    }
+
+    /**
+     * 목록 행(Object[]) 생성 헬퍼 — 지정한 abusMngNo/asctId를 가진 최소 유효 행을 만든다.
+     */
+    private Object[] listRowWithAbusMngNo(String abusMngNo, String asctId) {
+        return new Object[]{
+                abusMngNo,                                  // row[0] abusMngNo
+                BigDecimal.ONE,                             // row[1] sno
+                "정보화사업",                               // row[2] prjNm
+                asctId,                                     // row[3] asctId
+                "01",                                       // row[4] asctStsC
+                "03",                                       // row[5] dbrTc
+                Timestamp.valueOf(LocalDateTime.of(2026, 5, 9, 10, 0)), // row[6] cnrcDt
+                "10:00",                                    // row[7] cnrcTm
+                BigDecimal.ONE,                             // row[8] applied
+                "2026",                                     // row[9] prjYy
+                "신규",                                     // row[10] prjTp
+                "101",                                      // row[11] svnDpm
+                null,                                       // row[12] rqmBgAmt(NULL)
+                Date.valueOf(LocalDate.of(2026, 1, 1)),     // row[13] sttDt
+                LocalDateTime.of(2026, 12, 31, 0, 0),       // row[14] endDt
+                "IT",                                       // row[15] itDpm
+                "설명",                                     // row[16] prjDes
+                "Y"                                         // row[17] csfHeldYn
+        };
     }
 
     // ───────────────────────────────────────────────────────

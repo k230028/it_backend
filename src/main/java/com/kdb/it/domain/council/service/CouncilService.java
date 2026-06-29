@@ -1,8 +1,11 @@
 package com.kdb.it.domain.council.service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
@@ -126,13 +129,20 @@ public class CouncilService {
             List<Object[]> rows = councilRepository.findProjectsForCouncilAll(
                     PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
             log.debug("[CouncilList] admin query result count={}", rows.size());
-            return rows.stream().map(row -> toListResponseFromRow(row)).toList();
+            // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
+            Map<String, java.math.BigDecimal> budgetMap = deriveCurrentYearBudgets(
+                    rows.stream().map(row -> (String) row[0]).toList());
+            return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
         }
 
         if (isCommitteeMember(userDetails)) {
             // 평가위원: 배정된 협의회만 조회
-            return councilRepository.findByCommitteeMember(userDetails.getEno(), "N").stream()
-                    .map(c -> toListResponseFromEntity(c))
+            List<Basctm> councils = councilRepository.findByCommitteeMember(userDetails.getEno(), "N");
+            // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
+            Map<String, java.math.BigDecimal> budgetMap = deriveCurrentYearBudgets(
+                    councils.stream().map(Basctm::getAbusMngNo).toList());
+            return councils.stream()
+                    .map(c -> toListResponseFromEntity(c, budgetMap))
                     .toList();
         }
 
@@ -140,7 +150,10 @@ public class CouncilService {
         List<Object[]> rows = councilRepository.findProjectsForCouncilByDepartment(
                 userDetails.getBbrC(), PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
         log.debug("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());
-        return rows.stream().map(row -> toListResponseFromRow(row)).toList();
+        // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
+        Map<String, java.math.BigDecimal> budgetMap = deriveCurrentYearBudgets(
+                rows.stream().map(row -> (String) row[0]).toList());
+        return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
     }
 
     /**
@@ -434,6 +447,37 @@ public class CouncilService {
     }
 
     /**
+     * 협의회 목록의 모든 사업관리번호에 대한 당해예산(파생)을 1회 배치 조회로 계산.
+     *
+     * <p>
+     * 행마다 {@link #deriveCurrentYearBudget(String)}를 호출하면 사업 수만큼 품목 조회가
+     * 발생(N+1)한다. 본 메서드는 전체 사업관리번호의 활성 품목(DEL_YN='N')을 1회 배치 조회한 뒤
+     * 메모리에서 사업관리번호별로 그룹핑하여 동일한 합산 로직(applyBudgetSummary + getTotRqmAmt)을
+     * 적용한다. 따라서 행별 단건 조회와 값이 동일하게 보존된다.
+     * </p>
+     *
+     * @param abusMngNos 사업관리번호 목록 (null·빈 값은 무시)
+     * @return 사업관리번호 → 당해예산(파생) 맵. 품목이 없는 사업관리번호는 키가 없어 조회 시 null 반환
+     */
+    private Map<String, java.math.BigDecimal> deriveCurrentYearBudgets(java.util.Collection<String> abusMngNos) {
+        List<String> keys = abusMngNos.stream()
+                .filter(v -> v != null && !v.isBlank())
+                .distinct().toList();
+        Map<String, java.math.BigDecimal> result = new java.util.HashMap<>();
+        if (keys.isEmpty()) {
+            return result;
+        }
+        var itemsByAbus = projectItemRepository.findByAbusMngNoInAndDelYn(keys, "N").stream()
+                .collect(Collectors.groupingBy(Bitemm::getAbusMngNo));
+        itemsByAbus.forEach((abusMngNo, items) -> {
+            var tmp = ProjectDto.Response.builder().build();
+            projectBudgetSummaryService.applyBudgetSummary(tmp, items);
+            result.put(abusMngNo, tmp.getTotRqmAmt());
+        });
+        return result;
+    }
+
+    /**
      * 활성 협의회 조회 (삭제되지 않은 항목)
      *
      * @param asctId 협의회ID
@@ -491,7 +535,8 @@ public class CouncilService {
      * BPROJM에서 prjYy/prjTp/svnDpm/prjBg/sttDt/endDt/itDpm/prjDes를 함께 매핑합니다.
      * </p>
      */
-    private CouncilDto.ListResponse toListResponseFromEntity(Basctm council) {
+    private CouncilDto.ListResponse toListResponseFromEntity(Basctm council,
+            Map<String, java.math.BigDecimal> budgetMap) {
         // BPROJM 조회 — 사업 상세 정보 원천
         var projectOpt = projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
 
@@ -505,8 +550,8 @@ public class CouncilService {
         String prjYy = projectOpt.map(p -> p.getBseYy()).orElse(null);
         String prjTp = projectOpt.map(p -> p.getBzTpC()).orElse(null);
         String svnDpm = projectOpt.map(p -> p.getSvnDpmC()).orElse(null);
-        // 당해예산: 품목 활성 항목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반 파생값
-        java.math.BigDecimal prjBg = deriveCurrentYearBudget(council.getAbusMngNo());
+        // 당해예산: 품목 활성 항목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반 파생값 (배치 조회 결과 사용)
+        java.math.BigDecimal prjBg = budgetMap.get(council.getAbusMngNo());
         java.time.LocalDate sttDt = projectOpt.map(p -> p.getSttDtm()).orElse(null);
         java.time.LocalDate endDt = projectOpt.map(p -> p.getEndDtm()).orElse(null);
         String itDpm = projectOpt.map(p -> p.getDvmDpmC()).orElse(null);
@@ -535,7 +580,8 @@ public class CouncilService {
      * prjBg(12), sttDt(13), endDt(14), itDpm(15), prjDes(16) — PRD §25 cnrcTm 추가
      * </p>
      */
-    private CouncilDto.ListResponse toListResponseFromRow(Object[] row) {
+    private CouncilDto.ListResponse toListResponseFromRow(Object[] row,
+            Map<String, java.math.BigDecimal> budgetMap) {
         String asctId = (String) row[3];
         String asctStsC = (String) row[4];
         String dbrTc = (String) row[5];
@@ -547,9 +593,8 @@ public class CouncilService {
         java.time.LocalDate endDt = toLocalDate(row[14]);
         // Oracle NUMBER(1) → BigDecimal 등으로 반환되므로 intValue() 처리
         boolean applied = row[8] != null && ((Number) row[8]).intValue() == 1;
-        // 당해예산: TOT_RQM_AMT 컬럼 제거로 row[12]는 NULL. 품목 파생값으로 산출한다.
-        String rowAbusMngNo = (String) row[0];
-        java.math.BigDecimal prjBg = deriveCurrentYearBudget(rowAbusMngNo);
+        // 당해예산: TOT_RQM_AMT 컬럼 제거로 row[12]는 NULL. 품목 파생값(배치 조회 결과)으로 산출한다.
+        java.math.BigDecimal prjBg = budgetMap.get((String) row[0]);
 
         return new CouncilDto.ListResponse(
                 asctId,
