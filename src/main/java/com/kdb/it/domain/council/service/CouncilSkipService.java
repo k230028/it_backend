@@ -7,9 +7,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Baskpm;
 import com.kdb.it.domain.council.entity.Basctm;
-import com.kdb.it.domain.council.entity.Bpovwm;
 import com.kdb.it.domain.council.repository.BaskpmRepository;
-import com.kdb.it.domain.council.repository.ProjectOverviewRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -47,7 +45,6 @@ public class CouncilSkipService {
     private static final String STS_APPROVED = "04";
 
     private final BaskpmRepository baskpmRepository;
-    private final ProjectOverviewRepository projectOverviewRepository;
     private final CouncilService councilService;
     private final ApplicationService applicationService;
     private final ApplicationEventPublisher eventPublisher;
@@ -80,17 +77,10 @@ public class CouncilSkipService {
             throw new IllegalStateException("이미 진행 중인 생략 판정 요청이 있습니다.");
         });
 
-        // 타당성검토표 첨부는 Step1(Bpovwm)의 기존 첨부를 재사용 (서버가 직접 조회)
-        Bpovwm overview = projectOverviewRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
-                .orElseThrow(() -> new IllegalStateException("타당성검토표가 작성되지 않아 재사용할 첨부가 없습니다."));
-        String prtyIvgFlMpnId = overview.getFlMpnId();
-        if (prtyIvgFlMpnId == null || prtyIvgFlMpnId.isBlank()) {
-            throw new IllegalStateException("재사용할 타당성검토표 첨부가 없습니다.");
-        }
-
+        // 타당성검토표는 협의회 구조화 데이터(Bpovwm)로 활용하므로 별도 파일참조 없음. 첨부는 사업계획서 1종.
         // 신규 INSERT 보장(@PrePersist 발화 → 감사로그 스냅샷 정합) — it_backend §5.12.1.1
         Baskpm baskpm = Baskpm.create(
-                asctId, req.rsnTc(), req.rsn(), req.abusPdcFlMpnId(), prtyIvgFlMpnId, userDetails.getEno());
+                asctId, req.rsnTc(), req.rsn(), req.flMpnId(), userDetails.getEno());
         entityManager.persist(baskpm);
         log.info("[생략판정요청] 등록 - asctId={}, rqsUsid={}, rsnTc={}", asctId, userDetails.getEno(), req.rsnTc());
     }
@@ -196,10 +186,10 @@ public class CouncilSkipService {
     /** Baskpm → 응답 DTO 변환. */
     private CouncilDto.SkipRequestResponse toResponse(Baskpm b) {
         return new CouncilDto.SkipRequestResponse(
-                b.getItPtlAsctId(), b.getPrtyIvgOmtRsnTc(), b.getPrtyIvgOmtRsn(),
-                b.getAbusPdcFlMpnId(), b.getPrtyIvgFlMpnId(), b.getRqsUsid(), b.getRqsDtm(),
+                b.getItPtlAsctId(), b.getPrtyIvgOmtRsnTc(), b.getCgprOpnnCone(),
+                b.getFlMpnId(), b.getRqsUsid(), b.getRqsDtm(),
                 b.getCnfmDtm() != null,
-                b.getPrtyIvgOmtYn(), b.getOmtCnfmCone(), b.getCnfmUsid(), b.getCnfmDtm(), b.getApfMngNo());
+                b.getPrtyIvgOmtYn(), b.getCgprRpdCone(), b.getCnfmUsid(), b.getCnfmDtm(), b.getApfMngNo());
     }
 
     /** 요청자(정보보호기획)에게 결재 결과 통보. */

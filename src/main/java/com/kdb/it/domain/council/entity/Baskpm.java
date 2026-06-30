@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
  * <p>정보보호기획(ITPAD002)이 IT기획(ITPAD001) 앞으로 보내는 타당성검토 생략 판정 요청을 적재합니다.
  * IT기획이 생략여부를 판정한 뒤 전자결재(IT기획팀장→부장)를 거쳐 확정합니다.</p>
  *
- * <p>처리상태(PRC_STS_TC): 01 요청 → 02 판정·결재중 → (03 생략확정 / 04 개최확정 / 05 반려)</p>
+ * <p>진행상태는 별도 컬럼 없이 확인일시(CNFM_DTM)/생략여부(PRTY_IVG_OMT_YN)/결재·협의회 상태로 파생합니다.</p>
  */
 @LogTarget(entity = BaskpmL.class)
 @Entity
@@ -43,17 +43,13 @@ public class Baskpm extends BaseEntity {
     @Column(name = "PRTY_IVG_OMT_RSN_TC", length = 2, nullable = false, comment = "타당성검토생략사유구분코드")
     private String prtyIvgOmtRsnTc;
 
-    /** 타당성검토생략사유 (요청자 개별 설명) */
-    @Column(name = "PRTY_IVG_OMT_RSN", length = 200, nullable = false, comment = "타당성검토생략사유")
-    private String prtyIvgOmtRsn;
+    /** 담당자의견내용 (요청측 정보보호기획 의견) */
+    @Column(name = "CGPR_OPNN_CONE", length = 4000, nullable = false, comment = "담당자의견내용")
+    private String cgprOpnnCone;
 
-    /** 사업계획서 첨부파일관리번호 (Cfilem.FL_MPN_ID) */
-    @Column(name = "ABUS_PDC_FL_MPN_ID", length = 36, nullable = false, comment = "사업계획서첨부파일관리번호")
-    private String abusPdcFlMpnId;
-
-    /** 타당성검토표 첨부파일관리번호 (Cfilem.FL_MPN_ID) */
-    @Column(name = "PRTY_IVG_FL_MPN_ID", length = 36, nullable = false, comment = "타당성검토표첨부파일관리번호")
-    private String prtyIvgFlMpnId;
+    /** 첨부파일관리번호 (사업계획서, Cfilem.FL_MPN_ID) */
+    @Column(name = "FL_MPN_ID", length = 36, nullable = false, comment = "첨부파일관리번호")
+    private String flMpnId;
 
     /** 신청사용자ID (정보보호기획 요청자) */
     @Column(name = "RQS_USID", length = 14, nullable = false, comment = "신청사용자ID")
@@ -67,9 +63,9 @@ public class Baskpm extends BaseEntity {
     @Column(name = "PRTY_IVG_OMT_YN", length = 1, comment = "타당성검토생략여부")
     private String prtyIvgOmtYn;
 
-    /** 생략확인내용 (IT기획 확인사유) */
-    @Column(name = "OMT_CNFM_CONE", length = 2000, comment = "생략확인내용")
-    private String omtCnfmCone;
+    /** 담당자응답내용 (응답측 IT기획 응답) */
+    @Column(name = "CGPR_RPD_CONE", length = 4000, comment = "담당자응답내용")
+    private String cgprRpdCone;
 
     /** 확인사용자ID (IT기획) */
     @Column(name = "CNFM_USID", length = 14, comment = "확인사용자ID")
@@ -88,22 +84,19 @@ public class Baskpm extends BaseEntity {
      *
      * <p>NOT NULL 컬럼은 감사로그 스냅샷 타이밍을 위해 생성 시점에 모두 채웁니다(it_backend §5.12.1.1).</p>
      *
-     * @param itPtlAsctId       협의회ID
-     * @param rsnTc             생략사유코드(4종)
-     * @param rsn               생략사유 개별 설명
-     * @param abusPdcFlMpnId    사업계획서 첨부파일관리번호
-     * @param prtyIvgFlMpnId    타당성검토표 첨부파일관리번호
-     * @param rqsUsid           신청자(정보보호기획) 사용자ID
+     * @param itPtlAsctId 협의회ID
+     * @param rsnTc       생략사유코드(4종)
+     * @param opnn        담당자의견내용(요청 설명)
+     * @param flMpnId     사업계획서 첨부파일관리번호
+     * @param rqsUsid     신청자(정보보호기획) 사용자ID
      */
     public static Baskpm create(
-            String itPtlAsctId, String rsnTc, String rsn,
-            String abusPdcFlMpnId, String prtyIvgFlMpnId, String rqsUsid) {
+            String itPtlAsctId, String rsnTc, String opnn, String flMpnId, String rqsUsid) {
         Baskpm b = new Baskpm();
         b.itPtlAsctId = itPtlAsctId;
         b.prtyIvgOmtRsnTc = rsnTc;
-        b.prtyIvgOmtRsn = rsn;
-        b.abusPdcFlMpnId = abusPdcFlMpnId;
-        b.prtyIvgFlMpnId = prtyIvgFlMpnId;
+        b.cgprOpnnCone = opnn;
+        b.flMpnId = flMpnId;
         b.rqsUsid = rqsUsid;
         b.rqsDtm = LocalDateTime.now();
         return b;
@@ -116,13 +109,13 @@ public class Baskpm extends BaseEntity {
      * 확인일시(CNFM_DTM) null 여부로 판별하므로 별도 처리상태 컬럼을 두지 않습니다.</p>
      *
      * @param omtYn     생략여부(Y=생략 / N=개최)
-     * @param cnfmCone  확인사유
+     * @param rpd       담당자응답내용(판정 사유)
      * @param cnfmUsid  확인자(IT기획) 사용자ID
      * @param apfMngNo  전자결재 신청관리번호
      */
-    public void submitForDecision(String omtYn, String cnfmCone, String cnfmUsid, String apfMngNo) {
+    public void submitForDecision(String omtYn, String rpd, String cnfmUsid, String apfMngNo) {
         this.prtyIvgOmtYn = omtYn;
-        this.omtCnfmCone = cnfmCone;
+        this.cgprRpdCone = rpd;
         this.cnfmUsid = cnfmUsid;
         this.cnfmDtm = LocalDateTime.now();
         this.apfMngNo = apfMngNo;

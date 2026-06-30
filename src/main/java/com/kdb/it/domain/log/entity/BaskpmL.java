@@ -28,14 +28,11 @@ public class BaskpmL extends BaseLogEntity {
     @Column(name = "PRTY_IVG_OMT_RSN_TC", length = 2, comment = "타당성검토생략사유구분코드")
     private String prtyIvgOmtRsnTc;
 
-    @Column(name = "PRTY_IVG_OMT_RSN", length = 200, comment = "타당성검토생략사유")
-    private String prtyIvgOmtRsn;
+    @Column(name = "CGPR_OPNN_CONE", length = 4000, comment = "담당자의견내용")
+    private String cgprOpnnCone;
 
-    @Column(name = "ABUS_PDC_FL_MPN_ID", length = 36, comment = "사업계획서첨부파일관리번호")
-    private String abusPdcFlMpnId;
-
-    @Column(name = "PRTY_IVG_FL_MPN_ID", length = 36, comment = "타당성검토표첨부파일관리번호")
-    private String prtyIvgFlMpnId;
+    @Column(name = "FL_MPN_ID", length = 36, comment = "첨부파일관리번호")
+    private String flMpnId;
 
     @Column(name = "RQS_USID", length = 14, comment = "신청사용자ID")
     private String rqsUsid;
@@ -46,8 +43,8 @@ public class BaskpmL extends BaseLogEntity {
     @Column(name = "PRTY_IVG_OMT_YN", length = 1, comment = "타당성검토생략여부")
     private String prtyIvgOmtYn;
 
-    @Column(name = "OMT_CNFM_CONE", length = 2000, comment = "생략확인내용")
-    private String omtCnfmCone;
+    @Column(name = "CGPR_RPD_CONE", length = 4000, comment = "담당자응답내용")
+    private String cgprRpdCone;
 
     @Column(name = "CNFM_USID", length = 14, comment = "확인사용자ID")
     private String cnfmUsid;

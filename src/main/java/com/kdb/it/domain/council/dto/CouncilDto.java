@@ -628,14 +628,14 @@ public class CouncilDto {
      * <p>타당성검토표 첨부는 Step1(Bpovwm)의 기존 첨부를 서버가 재사용하므로 클라이언트가 보내지 않습니다.
      * 사업계획서 첨부만 신규 업로드 후 그 파일관리번호를 전달합니다.</p>
      *
-     * @param rsnTc          생략사유코드 (PRTY_IVG_OMT_RSN_TC, 01~04)
-     * @param rsn            생략사유 개별 설명
-     * @param abusPdcFlMpnId 사업계획서 첨부 파일관리번호 (Cfilem.FL_MPN_ID, 신규 업로드)
+     * @param rsnTc    생략사유코드 (PRTY_IVG_OMT_RSN_TC, 01~04)
+     * @param rsn      담당자의견내용 (요청 설명)
+     * @param flMpnId  사업계획서 첨부 파일관리번호 (Cfilem.FL_MPN_ID, 신규 업로드)
      */
     public record SkipRequestCreate(
         String rsnTc,
         String rsn,
-        String abusPdcFlMpnId
+        String flMpnId
     ) {}
 
     /**
@@ -656,26 +656,24 @@ public class CouncilDto {
      *
      * <p>{@code decided}=확인일시(cnfmDtm) 존재 여부. 회신 전이면 false(판정 대기).</p>
      *
-     * @param asctId         협의회ID
-     * @param rsnTc          생략사유코드
-     * @param rsn            생략사유 설명
-     * @param abusPdcFlMpnId 사업계획서 첨부 파일관리번호
-     * @param prtyIvgFlMpnId 타당성검토표 첨부 파일관리번호(재사용)
-     * @param rqsUsid        신청자 사번
-     * @param rqsDtm         신청일시
-     * @param decided        판정(확인) 완료 여부
-     * @param omtYn          판정 결과 생략여부(Y/N, 미판정 시 null)
-     * @param cnfmCone       확인사유(미판정 시 null)
-     * @param cnfmUsid       확인자 사번(미판정 시 null)
-     * @param cnfmDtm        확인일시(미판정 시 null)
-     * @param apfMngNo       전자결재 연동번호(미상신 시 null)
+     * @param asctId   협의회ID
+     * @param rsnTc    생략사유코드
+     * @param rsn      담당자의견내용 (요청 설명)
+     * @param flMpnId  사업계획서 첨부 파일관리번호
+     * @param rqsUsid  신청자 사번
+     * @param rqsDtm   신청일시
+     * @param decided  판정(확인) 완료 여부
+     * @param omtYn    판정 결과 생략여부(Y/N, 미판정 시 null)
+     * @param cnfmCone 담당자응답내용(미판정 시 null)
+     * @param cnfmUsid 확인자 사번(미판정 시 null)
+     * @param cnfmDtm  확인일시(미판정 시 null)
+     * @param apfMngNo 전자결재 연동번호(미상신 시 null)
      */
     public record SkipRequestResponse(
         String asctId,
         String rsnTc,
         String rsn,
-        String abusPdcFlMpnId,
-        String prtyIvgFlMpnId,
+        String flMpnId,
         String rqsUsid,
         java.time.LocalDateTime rqsDtm,
         boolean decided,
