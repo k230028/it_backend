@@ -14,12 +14,11 @@
   - 변경 이력 추적(Audit Log)
   - 파일 업로드/다운로드
   - Tiptap 에디터 변수 토큰 시스템
-  - 실시간 알림 (인앱, Phase 2 예정: 이메일/SMS/알림톡)
+  - 인앱 알림과 채널 디스패처 SPI
   - 실시간 로그 모니터링(관리자용)
   - DB 기반 메뉴 트리 및 라우트 카탈로그 관리
   - Gemini AI 텍스트 생성 보조
 - **배포**: WAR 아티팩트로 Tomcat 기동
-- **소스 코드**: 357개 메인 Java 파일, 135개 테스트 파일, 77개 JPA 엔티티(`@Entity` 기준), 38개 컨트롤러
 
 ## 2. 기술 스택
 
@@ -33,7 +32,7 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 135개 테스트 파일 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 152개 테스트 파일 |
 
 ## 2.5 빠른 시작 (Quick Start)
 
@@ -114,6 +113,9 @@ Controller → Service → Repository → DB (Oracle)
 | **관리자 이중 보호** | SecurityConfig URL 패턴(`/api/admin/**`) + 컨트롤러 레벨 `@PreAuthorize("hasRole('ADMIN')")` | 깊이 있는 방어(Defense in Depth), 도메인 API도 명시적 보호 |
 | **협의회 통합 컨트롤러** | `CouncilController` 1개 (39개 매핑 메서드) vs 서비스 9개 분리 | 협의회 업무의 통합 흐름 표현, 서비스 계층은 관심사 분리 |
 | **변경 로그 (Audit)** | `@PrePersist/@PreUpdate` JPA 리스너로 자동 스냅샷 기록 | 누가 무엇을 언제 변경했는지 추적, 감사/규정 준수 대응 |
+| **이벤트 기반 알림** | 원 트랜잭션 커밋 후 `REQUIRES_NEW`로 알림 저장 | 핵심 업무의 커밋과 알림 적재 실패를 분리 |
+| **Caffeine 캐시** | 공통코드·예산기간·메뉴권한·Tiptap 카탈로그·미읽음 수 캐시 | 쓰기 시 무효화하고 TTL을 정합성 안전망으로 사용 |
+| **Flyway 프로파일 분리** | 로컬 프로파일만 자동 적용, dev/prod는 비활성 | 로컬 개발 편의와 운영 DDL 통제를 함께 유지 |
 
 ### 3.3 BaseEntity 상속 구조
 
@@ -165,7 +167,7 @@ BaseLogEntity (변경 로그 추상 클래스)
 
 ### 4.1 패키지 구조
 
-2026-06-14 기준 도메인 기반 레이어드 아키텍처와 예산·결재·변경 로그·메뉴·사업집행 4단계 모듈 구조를 반영합니다.
+도메인 기반 레이어드 아키텍처와 예산·결재·변경 로그·메뉴·사업집행 4단계 모듈 구조를 사용합니다.
 
 ```
 com.kdb.it
@@ -200,15 +202,21 @@ com.kdb.it
 │   └── entity/              # BaseEntity
 └── infra/
     ├── file/                # 파일 관리 (FileController, FileService, FileRepository, Cfilem)
-    ├── eai/                 # KDB 표준전문 EAI 발송 (EaiService, sealed EaiPayload SPI: UMS/GWE) — 현재 미연동(eai.enabled=false)
+    ├── eai/                 # KDB 표준전문 EAI 조립·전송 (EaiService, sealed EaiPayload SPI: UMS/GWE, eai.enabled 안전 스위치)
     └── ai/                  # Gemini AI (GeminiController, GeminiService)
 ```
 
-**의존성 규칙 (단방향)**
+**주요 의존 흐름**
 ```
-domain → common (O)   infra → common (O)
-common → domain (X)   common → infra  (X)
+Controller → Service → Repository
+domain → common
+infra.file/ai → common
+common.approval → domain.budget.project (BprojaSyncService)
 ```
+
+`common.approval`은 결재 상태와 정보화사업 단계 관계를 동기화하기 위해
+`domain.budget.project.BprojaSyncService`를 호출합니다. 따라서 패키지명만으로
+`common → domain` 의존을 금지하지 않으며, 신규 의존은 실제 업무 흐름과 순환 참조 여부를 함께 검토합니다.
 
 ### 4.2 도메인 모듈 관계
 
@@ -320,14 +328,15 @@ common → domain (X)   common → infra  (X)
 - **Cinfmm** (`TPRMPP_CINFMM`): 알림 마스터 — 1행 = 1수신자
   - `infMngNo` (PK): 형식 `INF-{YYYY}-{8자리 시퀀스}` (예: `INF-2026-00000001`)
   - `infTpC`: 알림종류구분코드 (Ccodem cId=CINF_TP)
-    - `001` = 시스템 알림
-    - `002` = 결재요청 알림
-    - `003` = 결재결과 알림
-    - `004` = 게시물 멘션 알림
-    - `005` = 댓글 멘션 알림
+    - `01` = 시스템 알림
+    - `02` = 결재요청 알림
+    - `03` = 결재결과 알림
+    - `04` = 게시물 멘션 알림
+    - `05` = 댓글 멘션 알림
+    - `06` = 결재회수 알림
   - `rcvUsid`: 수신자 사번 (1행 = 1수신자)
   - `rddYn` / `rddDtm`: 읽음여부 및 읽음일시
-  - `eaiSdTpC` / `eaiSdDtm` / `eaiSdCone`: EAI 발송 채널·일시·페이로드 (Phase 2에서 EMAIL/SMS/TALK 활성화)
+  - `eaiSdTpC` / `eaiSdDtm` / `eaiSdCone`: 디스패처가 기록하는 발송 채널·일시·페이로드
 
 #### API 엔드포인트
 
@@ -348,7 +357,7 @@ common → domain (X)   common → infra  (X)
    → ApplicationEventPublisher.publishEvent(new NotificationEvent(...))
 
 2. NotificationEventListener (Spring @TransactionalEventListener(AFTER_COMMIT))
-   → 발행자 트랜잭션 커밋 후 비동기 호출
+   → 발행자 트랜잭션 커밋 후 비동기 리스너에서 호출
    → NotificationService.send(event)
 
 3. NotificationService.send()
@@ -358,8 +367,7 @@ common → domain (X)   common → infra  (X)
    → NotificationDispatcher.dispatch() — EAI 메타 기록
 
 4. NotificationDispatcher (전략 인터페이스)
-   → 현 Phase: INAPP만 처리 (EAI_SD_TP_C='001')
-   → Phase 2: EMAIL/SMS/TALK 채널 추가
+   → StubNotificationDispatcher가 INAPP 채널(EAI_SD_TP_C='01') 처리
 ```
 
 #### 주요 특징
@@ -372,24 +380,16 @@ common → domain (X)   common → infra  (X)
 
 #### NotificationDispatcher 패턴
 
-현재 `StubNotificationDispatcher` 구현체가 기본 처리합니다. Phase 2에서는 다음을 추가합니다:
+현재 `StubNotificationDispatcher` 구현체가 INAPP 채널을 처리합니다:
 
 ```java
 public interface NotificationDispatcher {
     void dispatch(Cinfmm notification, String eaiPayload);
 }
 
-// Phase 1 (현재): 인앱만
 public class StubNotificationDispatcher implements NotificationDispatcher {
     public void dispatch(Cinfmm notification, String eaiPayload) {
-        notification.markDispatched("001", null); // EAI_SD_TP='001' = INAPP 채널 코드
-    }
-}
-
-// Phase 2 (예정):
-public class MultiChannelDispatcher implements NotificationDispatcher {
-    void dispatch(Cinfmm notification, String eaiPayload) {
-        // EMAIL/SMS/TALK 어댑터 호출
+        notification.markDispatched("01", eaiPayload); // INAPP 채널 코드
     }
 }
 ```
@@ -518,8 +518,9 @@ public class MultiChannelDispatcher implements NotificationDispatcher {
 
 #### 권한 및 필터링
 
-- 현 Phase: 권한 필터링 없음 (모든 인증 사용자 동일 카탈로그)
-- Phase 2: SecurityContext 기반 부서/권한별 사업 필터링 (후속 Task)
+- 메타데이터의 사업 카탈로그는 관리자·부서매니저에게 전체를, 일반 사용자에게 본인 부서 사업만 반환합니다.
+- `PROJ` 토큰 해석은 관리자·부서매니저만 허용하며, 나머지 사용자에게는 `FORBIDDEN`을 반환합니다.
+- 카탈로그는 권한·부서별 키로 캐시하고, 사업 생성·수정 시 전체 무효화합니다.
 
 ---
 
@@ -601,7 +602,8 @@ public class Bprojm extends BaseEntity { ... }
 | `ccmmtm` | `CcmmtmL` | 게시판 댓글 |
 | `cmenum` | `CmenumL` | 공통메뉴 |
 
-> **참고**: 위 30개 엔티티는 `@LogTarget`으로 변경 로그가 자동 기록됩니다. 다만 관리자 로그 조회 화면(`AdminLogService.buildDefinitions()`, §7.3)에 등록된 항목은 **19개**입니다. 사업집행 4단계(bestim/besttm/bdelim/bcontm/bpaymm/bpaymt)는 자동 기록되나 관리자 조회 정의 미등록(후속 과제). 게시판 로그(`cblbcm`/`cblbmm`/`ccmmtm`), `bmqnam`, `cmenum`은 자동 기록은 되지만 아직 관리자 조회 정의에 추가되지 않았습니다(후속 과제).
+> **참고**: `@LogTarget`이 붙은 엔티티는 변경 로그를 자동 기록합니다. 관리자 로그 조회 화면은
+> `AdminLogService.buildDefinitions()`에 등록된 로그 테이블만 노출하므로, 자동 기록 대상과 화면 조회 대상은 동일한 집합이 아닙니다.
 
 **`BaseLogEntity` 공통 필드**
 
@@ -670,8 +672,9 @@ public class Bprojm extends BaseEntity { ... }
 
 [토큰 갱신] POST /api/auth/refresh
   → httpOnly 쿠키에서 Refresh Token 추출
-  → DB 검증 (RefreshTokenRepository)
-  → 새 Access Token 쿠키 발급 (유효시간 재설정)
+  → JWT 서명·만료와 DB 토큰 상태를 중복 검증
+  → 제출된 Refresh Token을 회전 처리하고 재사용을 탐지
+  → 새 Access Token과 Refresh Token 쿠키 발급
 
 [로그아웃] POST /api/auth/logout
   → RefreshTokenRepository에서 토큰 레코드 삭제
@@ -700,13 +703,13 @@ public class Bprojm extends BaseEntity { ... }
 
 | 항목 | 기술 | 설명 |
 |------|------|------|
-| **CSRF 방어** | JWT Stateless | REST API는 CSRF 공격 대상이 아님, Spring Security CSRF 비활성화 |
+| **CSRF 경계** | SameSite=Lax 쿠키 + CORS 허용 목록 | Spring Security CSRF 토큰은 비활성화되어 있으며, 쿠키 SameSite와 운영 CORS 설정을 보안 경계로 사용 |
 | **XSS 방어** | httpOnly 쿠키 + HTML 새니타이징 | JavaScript 접근 차단, `HtmlSanitizer`(Jsoup)로 사용자 입력 필터링 |
 | **SQL Injection** | 매개변수화 쿼리 | JPA `@Query`/QueryDSL, Native Query는 `@Query(nativeQuery=true)` + 파라미터 바인딩 |
 | **HSTS** | SecurityConfig | `max-age=31536000`, `includeSubDomains=true` |
 | **CSP** | SecurityConfig | `default-src 'self'`, `script-src 'self'`, XSS 2차 방어선 |
 | **비밀번호 저장** | SHA-256 + Base64 | `CustomPasswordEncoder` |
-| **환경 비밀값** | 환경변수 주입 | `DB_PASSWORD`, `JWT_SECRET`, `GEMINI_API_KEY` (`DB_PASSWORD`, `JWT_SECRET`은 현재 개발 기본값이 남아 있어 운영 프로파일에서 제거 필요) |
+| **환경 비밀값** | 환경변수 주입 | `DB_PASSWORD`, `JWT_SECRET`, `GEMINI_API_KEY` |
 
 ## 9. 주요 API 엔드포인트
 
@@ -765,7 +768,7 @@ public class Bprojm extends BaseEntity { ... }
 | **사업집행③ 입찰/계약** | GET/POST/PUT/DELETE | `/api/project/contracts/**` | 입찰/계약 CRUD, 상태전이, 계약정보 저장 (상태 61→62→69) | 일반 |
 | **사업집행④ 대금지급** | GET/POST/PUT/DELETE | `/api/project/payments/**` | 대금지급 CRUD, 상태전이, 회차별 지급 저장 (상태 71→72→79) | 일반 |
 
-> 사업집행 4단계(`/api/project/**`)는 클래스 레벨 `@PreAuthorize` 없이 인증만 요구하며, 쓰기 주체·상태 전이·부서 권한은 서비스 계층에서 검증합니다. 대상구분(`bgPrnTc`)은 100(정보화사업)·200(전산업무비)이며 소요예산 산정은 100 전용입니다.
+> 사업집행 4단계(`/api/project/**`)는 클래스 레벨 `@PreAuthorize` 없이 인증을 요구합니다. 수정·삭제·상세 저장은 소유자 또는 ADMIN, 상태 전이는 ADMIN만 서비스 계층에서 허용합니다. 목록의 `bbrC`는 사업(`Bprojm.svnDpmC`)과 전산업무비(`Bcostm.costSvnDpmC`)를 대상구분별로 JOIN해 필터링합니다.
 
 > **Swagger UI**: http://localhost:28080/swagger-ui/index.html
 
@@ -783,7 +786,7 @@ public class Bprojm extends BaseEntity { ... }
 #   → http://localhost:28080
 #   → Swagger: http://localhost:28080/swagger-ui/index.html
 
-# 4. 테스트 실행 (135개 테스트 파일)
+# 4. 테스트 실행 (152개 테스트 파일)
 ./gradlew test
 
 # 5. 테스트 커버리지 리포트 생성
@@ -1020,17 +1023,16 @@ export GEMINI_API_KEY=your-gemini-api-key
 
 ## 13. 핵심 도메인 및 의존성
 
-### 13.1 도메인 의존성 규칙
+### 13.1 도메인 의존 흐름
 
 ```
 domain → common (O)
-common → domain (X)
-
 infra → common (O)
-common → infra (X)
-
-infra → domain (X, domain 기능 불필요)
+common.approval → domain.budget.project (O, 결재-사업 단계 동기화)
 ```
+
+계층 내에서는 Controller → Service → Repository 방향을 유지합니다.
+패키지 간 의존은 이 방향과 순환 참조 여부를 기준으로 검토합니다.
 
 ### 13.2 도메인별 핵심 클래스
 
@@ -1050,8 +1052,11 @@ infra → domain (X, domain 기능 불필요)
 | **common.iam** | CorgnI, CauthI, CroleI | UserService, OrganizationService | UserRepository, OrganizationRepository | 사용자/조직/권한 |
 | **common.code** | Ccodem | CodeService | CodeRepository(+Custom) | 공통코드 (캐싱) |
 | **common.admin** | - (기존 활용) | AdminService, AdminLogService | - | 시스템 관리 및 로그 |
+| **notification** | Cinfmm | NotificationService, NotificationDispatcher | CinfmmRepository(+Custom) | 커밋 후 인앱 알림 적재·읽음 관리 |
+| **menu** | Cmenum, Cmenua, Cmenud | MenuQueryService, AdminMenuService, AdminRouteService | CmenumRepository, CmenuaRepository, CmenudRepository | 권한별 메뉴 트리와 라우트 카탈로그 |
 | **infra.file** | Cfilem | FileService | FileRepository | 첨부파일 |
 | **infra.ai** | - | GeminiService | FileRepository | Gemini 프록시 |
+| **infra.eai** | - | EaiService | - | UMS/GWE 표준전문 조립·전송, 비활성 시 스킵 결과 반환 |
 
 ### 13.2.1 부서 필터링 패턴 (bbrC) — 재발 방지
 
@@ -1170,6 +1175,7 @@ public class Bnewent extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-07-01** | 실제 구현 기준 현행화: Refresh Token 회전·재사용 탐지, 사업집행 4단계 부서 필터·ADMIN 상태 전이, Tiptap 권한별 카탈로그·Caffeine 캐시, Flyway 프로파일 분리, 알림 코드·디스패처 흐름 반영 |
 | **2026-06-24** | REVIEW.md 현행화: 소스 통계 재검증(메인 Java 357개, 테스트 135개, @Entity 77개, 컨트롤러 38개), 사업집행 4단계 부서 필터 현황 재확인(`EstimateRepositoryImpl` 적용, `Contract`/`Deliberation`/`PaymentRepositoryImpl` 미적용), SecurityConfig와 JWT 쿠키/Authorization 헤더 폴백 문서 기준 재검토 |
 | **2026-06-22** | README.md 현행화: Spring Boot 4.1.0 기준으로 기술 스택 표기 정정, 소스 통계 재검증(메인 Java 353개, 테스트 121개, @Entity 74개), 루트 AI 하네스 기준(Superpowers 기본, ECC/gstack 보조)과 충돌하지 않도록 문서 참조 흐름 정리 |
 | **2026-06-09** | README.md 코드 대조 현행화: (1) 소스 통계 정정(메인 Java 291→350, 테스트 96→115, @Entity 64→79), (2) 정보화사업 집행 4단계 도메인 신규 반영 — `domain/estimate`(소요예산 산정, `/api/project/estimates`, Bestim+Besttm), `domain/deliberation`(과업심의, `/api/project/deliberations`, Bdelim), `domain/contract`(입찰/계약, `/api/project/contracts`, Bcontm), `domain/payment`(대금지급, `/api/project/payments`, Bpaymm+Bpaymt) — 패키지 구조·모듈 관계표·API 엔드포인트표에 추가(상태머신 41~79, 인증만 요구·서비스 계층 권한 검증), (3) `infra/eai`(KDB 표준전문 EAI 발송, sealed EaiPayload SPI: UMS/GWE, eai.enabled=false 미연동) 인프라 모듈 반영 |

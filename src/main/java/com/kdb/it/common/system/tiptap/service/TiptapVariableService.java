@@ -57,7 +57,8 @@ public class TiptapVariableService {
      * @param user 현재 인증 사용자 (권한·부서 기준 필터)
      * @return 카테고리 메타데이터 응답 (IT_BUDGET, CAP_BUDGET, OPEX, PROJ 4개 카테고리)
      */
-    // 활성 사업 변경 시 캐시 무효화는 후속 과제(TTL 미지원 ConcurrentMap) — 준정적 카탈로그라 evict 미적용.
+    // 활성 사업 생성·수정 시 ProjectService가 카탈로그 캐시 전체를 무효화하며,
+    // Caffeine TTL은 멀티 인스턴스 환경의 보조 안전망으로 사용한다.
     @Cacheable(value = "tiptapMetadata", key = "#user.isAdmin() or #user.isDeptManager() ? 'ALL' : #user.bbrC")
     public MetadataResponse getMetadata(CustomUserDetails user) {
         List<Integer> years = currentPlusMinusTwo();

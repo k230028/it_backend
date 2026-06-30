@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import java.util.List;
 
@@ -24,6 +25,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
@@ -31,6 +33,7 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.service.CouncilApprovalService;
 import com.kdb.it.domain.council.service.CouncilService;
+import com.kdb.it.domain.council.service.CouncilSkipService;
 import com.kdb.it.domain.council.service.CommitteeService;
 import com.kdb.it.domain.council.service.EvaluationService;
 import com.kdb.it.domain.council.service.FeasibilityService;
@@ -67,6 +70,8 @@ class CouncilControllerTest {
     private EvaluationService evaluationService;
     @MockitoBean
     private ResultService resultService;
+    @MockitoBean
+    private CouncilSkipService councilSkipService;
     @MockitoBean
     private QnaService qnaService;
     @MockitoBean
@@ -445,6 +450,238 @@ class CouncilControllerTest {
         given(councilService.notifyCouncil(ASCT_ID)).willReturn(null);
         mockMvc.perform(post("/api/council/" + ASCT_ID + "/notify"))
                 .andExpect(status().isOk());
+    }
+
+    // =========================================================================
+    // PRD_c_20260620 #2: 개최준비 시작
+    // =========================================================================
+
+    /**
+     * startPreparation: PATCH /api/council/{asctId}/start-preparation
+     * councilService.startPreparation(asctId) 위임 확인
+     */
+    @Test
+    @DisplayName("PATCH /api/council/{asctId}/start-preparation - 인증된 사용자 → 200")
+    @WithMockUser(username = "10001")
+    void startPreparation_인증_200() throws Exception {
+        // Arrange: 서비스 스텁은 void — 별도 설정 불필요
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/council/" + ASCT_ID + "/start-preparation"))
+                .andExpect(status().isOk());
+    }
+
+    // =========================================================================
+    // PRD_c_20260620 #3: 타당성검토 생략 판정 요청
+    // =========================================================================
+
+    /**
+     * createSkipRequest: POST /api/council/{asctId}/skip-request
+     * councilSkipService.createSkipRequest(asctId, request, userDetails) 위임 확인
+     */
+    @Test
+    @DisplayName("POST /api/council/{asctId}/skip-request - 인증된 사용자 → 200")
+    @WithMockUser(username = "10001")
+    void createSkipRequest_인증_200() throws Exception {
+        // Arrange
+        var body = new CouncilDto.SkipRequestCreate("01", "보안강화 사유", "FL-2026-00000001");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/council/" + ASCT_ID + "/skip-request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * decideSkipRequest: POST /api/council/{asctId}/skip-request/decision
+     * councilSkipService.submitDecision(asctId, request, userDetails) 위임 확인
+     */
+    @Test
+    @DisplayName("POST /api/council/{asctId}/skip-request/decision - 인증된 사용자 → 200")
+    @WithMockUser(username = "10001")
+    void decideSkipRequest_인증_200() throws Exception {
+        // Arrange
+        var body = new CouncilDto.SkipDecisionRequest("Y", "생략 가능", List.of("E10001", "E10002"));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/council/" + ASCT_ID + "/skip-request/decision")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * getSkipRequests: GET /api/council/skip-requests
+     * councilSkipService.getActiveSkipRequests() 위임 및 배열 응답 확인
+     */
+    @Test
+    @DisplayName("GET /api/council/skip-requests - 인증된 사용자 → 200 + 배열 반환")
+    @WithMockUser(username = "10001")
+    void getSkipRequests_인증_200() throws Exception {
+        // Arrange
+        var response = new CouncilDto.SkipRequestResponse(
+                ASCT_ID, "01", "보안강화", "FL-2026-0001",
+                "10001", null, false, null, null, null, null, null);
+        given(councilSkipService.getActiveSkipRequests()).willReturn(List.of(response));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/council/skip-requests"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].asctId").value(ASCT_ID));
+    }
+
+    /**
+     * getSkipRequest: GET /api/council/{asctId}/skip-request
+     * councilSkipService.getSkipRequest(asctId) 위임 및 단건 응답 확인
+     */
+    @Test
+    @DisplayName("GET /api/council/{asctId}/skip-request - 인증된 사용자 → 200 + 단건 반환")
+    @WithMockUser(username = "10001")
+    void getSkipRequest_인증_200() throws Exception {
+        // Arrange
+        var response = new CouncilDto.SkipRequestResponse(
+                ASCT_ID, "02", "기타 사유", "FL-2026-0002",
+                "10002", null, false, null, null, null, null, null);
+        given(councilSkipService.getSkipRequest(ASCT_ID)).willReturn(response);
+
+        // Act & Assert
+        mockMvc.perform(get("/api/council/" + ASCT_ID + "/skip-request"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.asctId").value(ASCT_ID))
+                .andExpect(jsonPath("$.rsnTc").value("02"));
+    }
+
+    // =========================================================================
+    // M6: 내 일정 조회 (평가위원 본인)
+    // =========================================================================
+
+    /**
+     * getMySchedule: GET /api/council/{asctId}/schedule/my
+     * scheduleService.getMySchedule(asctId, eno) 위임 및 배열 응답 확인
+     */
+    @Test
+    @DisplayName("GET /api/council/{asctId}/schedule/my - 인증된 사용자 → 200 + 배열 반환")
+    @WithMockUser(username = "10001")
+    void getMySchedule_인증_200() throws Exception {
+        // Arrange
+        var slot = new CouncilDto.ScheduleSlotResponse("20260701", "10:00", "Y");
+        given(scheduleService.getMySchedule(anyString(), anyString())).willReturn(List.of(slot));
+
+        // Act & Assert — @AuthenticationPrincipal CustomUserDetails.getEno() 사용을 위해 실제 principal 주입
+        mockMvc.perform(get("/api/council/" + ASCT_ID + "/schedule/my")
+                        .with(user(new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "D001"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].dsdDt").value("20260701"));
+    }
+
+    // =========================================================================
+    // PRD_c_20260620 #1: 서면개최 확정
+    // =========================================================================
+
+    /**
+     * confirmWrittenMeeting: PUT /api/council/{asctId}/schedule/confirm-written
+     * scheduleService.confirmWrittenMeeting(asctId) 위임 확인
+     */
+    @Test
+    @DisplayName("PUT /api/council/{asctId}/schedule/confirm-written - 인증된 사용자 → 200")
+    @WithMockUser(username = "10001")
+    void confirmWrittenMeeting_인증_200() throws Exception {
+        // Arrange: void 서비스 — 스텁 불필요
+
+        // Act & Assert
+        mockMvc.perform(put("/api/council/" + ASCT_ID + "/schedule/confirm-written"))
+                .andExpect(status().isOk());
+    }
+
+    // =========================================================================
+    // M7: 내 평가의견 조회
+    // =========================================================================
+
+    /**
+     * getMyEvaluation: GET /api/council/{asctId}/evaluation/my
+     * evaluationService.getMyEvaluation(asctId, userDetails) 위임 및 배열 응답 확인
+     */
+    @Test
+    @DisplayName("GET /api/council/{asctId}/evaluation/my - 인증된 사용자 → 200 + 배열 반환")
+    @WithMockUser(username = "10001")
+    void getMyEvaluation_인증_200() throws Exception {
+        // Arrange
+        var item = new CouncilDto.EvaluationItemResponse(
+                "10001", "홍길동", "CK01", "필요성", 5, "적정");
+        given(evaluationService.getMyEvaluation(anyString(), any())).willReturn(List.of(item));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/council/" + ASCT_ID + "/evaluation/my"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].ckgItmC").value("CK01"));
+    }
+
+    // =========================================================================
+    // M7: 결과서 검토 동기화 및 본인 확인 여부
+    // =========================================================================
+
+    /**
+     * syncReviewStatus: POST /api/council/{asctId}/result/review/sync
+     * resultService.syncReviewStatus(asctId) 위임 및 Boolean 응답 확인
+     */
+    @Test
+    @DisplayName("POST /api/council/{asctId}/result/review/sync - 인증된 사용자 → 200 + Boolean 반환")
+    @WithMockUser(username = "10001")
+    void syncReviewStatus_인증_200() throws Exception {
+        // Arrange
+        given(resultService.syncReviewStatus(ASCT_ID)).willReturn(true);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/council/" + ASCT_ID + "/result/review/sync"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(true));
+    }
+
+    /**
+     * getMyResultReview: GET /api/council/{asctId}/result/review/my
+     * resultService.getMyReviewStatus(asctId, userDetails) 위임 및 Boolean 응답 확인
+     */
+    @Test
+    @DisplayName("GET /api/council/{asctId}/result/review/my - 인증된 사용자 → 200 + Boolean 반환")
+    @WithMockUser(username = "10001")
+    void getMyResultReview_인증_200() throws Exception {
+        // Arrange
+        given(resultService.getMyReviewStatus(anyString(), any())).willReturn(false);
+
+        // Act & Assert
+        mockMvc.perform(get("/api/council/" + ASCT_ID + "/result/review/my"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(false));
+    }
+
+    // =========================================================================
+    // M7: 개최결과서 결재 요청
+    // =========================================================================
+
+    /**
+     * requestResultApproval: POST /api/council/{asctId}/result/approval
+     * councilApprovalService.requestResultApproval(asctId, request, userDetails) 위임 확인
+     */
+    @Test
+    @DisplayName("POST /api/council/{asctId}/result/approval - 인증된 사용자 → 200 + 신청관리번호 반환")
+    @WithMockUser(username = "10001")
+    void requestResultApproval_인증_200() throws Exception {
+        // Arrange
+        var approval = new CouncilDto.ApprovalResponse("APF_202600000099");
+        given(councilApprovalService.requestResultApproval(anyString(), any(), any()))
+                .willReturn(approval);
+        var body = new CouncilDto.ResultApprovalRequest("E10001", "E10002", "결재요청합니다");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/council/" + ASCT_ID + "/result/approval")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.apfMngNo").value("APF_202600000099"));
     }
 
     // =========================================================================

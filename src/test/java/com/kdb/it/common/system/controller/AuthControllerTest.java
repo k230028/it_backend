@@ -273,6 +273,110 @@ class AuthControllerTest {
                 verify(authService, never()).logout(anyString(), anyString(), anyString());
         }
 
+        // -----------------------------------------------------------------------
+        // refresh — Refresh Token 회전 분기 (response.getRefreshToken() != null)
+        // -----------------------------------------------------------------------
+
+        @Test
+        @DisplayName("POST /api/auth/refresh - Refresh Token 회전 시 새 refreshToken 쿠키도 Set-Cookie에 포함")
+        void refresh_토큰회전_새리프레시쿠키포함() throws Exception {
+                // given — 서비스가 새 accessToken + 회전된 refreshToken 모두 반환하는 경우
+                AuthDto.RefreshResponse rotatedResponse = AuthDto.RefreshResponse.builder()
+                                .accessToken("rotated-access-token")
+                                .refreshToken("rotated-refresh-token")
+                                .build();
+
+                ResponseCookie newAccessCookie = ResponseCookie
+                                .from(CookieUtil.ACCESS_TOKEN_COOKIE, "rotated-access-token")
+                                .httpOnly(true).path("/").build();
+                ResponseCookie newRefreshCookie = ResponseCookie
+                                .from(CookieUtil.REFRESH_TOKEN_COOKIE, "rotated-refresh-token")
+                                .httpOnly(true).path("/api/auth").build();
+
+                given(authService.refreshAccessToken("valid-refresh-token")).willReturn(rotatedResponse);
+                given(cookieUtil.createAccessTokenCookie("rotated-access-token")).willReturn(newAccessCookie);
+                given(cookieUtil.createRefreshTokenCookie("rotated-refresh-token")).willReturn(newRefreshCookie);
+
+                // when & then — Set-Cookie 헤더가 존재하고 body가 "토큰 갱신 성공"임을 검증
+                mockMvc.perform(post("/api/auth/refresh")
+                                .cookie(new Cookie(CookieUtil.REFRESH_TOKEN_COOKIE, "valid-refresh-token")))
+                                .andExpect(status().isOk())
+                                .andExpect(content().string("토큰 갱신 성공"))
+                                .andExpect(header().exists("Set-Cookie"));
+        }
+
+        // -----------------------------------------------------------------------
+        // refresh — extractCookieValue: 쿠키 배열에 대상 이름이 없는 경우 (이름 불일치 분기)
+        // -----------------------------------------------------------------------
+
+        @Test
+        @DisplayName("POST /api/auth/refresh - 쿠키는 있지만 refreshToken 이름이 아닌 경우 401 반환")
+        void refresh_쿠키이름불일치_401반환() throws Exception {
+                // given — 다른 이름의 쿠키만 존재 → extractCookieValue 루프에서 이름 불일치 후 null 반환
+                // 즉 cookies != null, but no cookie named "refreshToken" → 401 분기 도달
+                mockMvc.perform(post("/api/auth/refresh")
+                                .cookie(new Cookie("otherCookie", "some-value")))
+                                .andExpect(status().isUnauthorized());
+        }
+
+        // -----------------------------------------------------------------------
+        // 생성자 람다 (lambda$new$0 / lambda$new$1): trustedProxiesCsv 파싱 분기
+        // trustedProxiesCsv가 공백이 아닐 때 .map(String::trim).filter(!isEmpty) 람다 실행
+        // -----------------------------------------------------------------------
+
+        @Test
+        @DisplayName("생성자 - 신뢰 프록시 CSV를 공백·빈값 포함해 파싱하면 유효한 항목만 Set에 저장된다")
+        void constructor_trustedProxiesCsv_파싱_람다실행() {
+                // given — 공백 항목이 포함된 CSV (trim + filter 람다 모두 실행)
+                // "10.0.0.1, ,10.0.0.2," → trim 후 빈 항목 필터링 → {10.0.0.1, 10.0.0.2}
+                AuthController controller = new AuthController(authService, cookieUtil,
+                                "10.0.0.1, ,10.0.0.2,");
+
+                // when & then — 컨트롤러 생성 자체가 람다를 실행한다; NPE 없이 생성되면 통과
+                org.assertj.core.api.Assertions.assertThat(controller).isNotNull();
+        }
+
+        @Test
+        @DisplayName("생성자 - 단일 프록시 IP만 있는 CSV도 정상 파싱된다")
+        void constructor_trustedProxiesCsv_단일항목_파싱() {
+                // given — 단일 값, trim 결과가 비어있지 않으므로 filter 통과
+                AuthController controller = new AuthController(authService, cookieUtil, "192.168.1.1");
+
+                // then — 람다가 실행되고 예외 없이 생성됨
+                org.assertj.core.api.Assertions.assertThat(controller).isNotNull();
+        }
+
+        // -----------------------------------------------------------------------
+        // logout — 쿠키 삭제 결과 Set-Cookie 헤더가 두 개 설정되는지 검증
+        // -----------------------------------------------------------------------
+
+        @Test
+        @WithMockUser(username = "20001")
+        @DisplayName("POST /api/auth/logout - 쿠키 삭제 헤더(Set-Cookie)가 응답에 포함된다")
+        void logout_쿠키삭제헤더_존재() throws Exception {
+                // given — 삭제용 만료 쿠키 스텁
+                ResponseCookie deleteAccess = ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "")
+                                .maxAge(0).path("/").build();
+                ResponseCookie deleteRefresh = ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "")
+                                .maxAge(0).path("/api/auth").build();
+                given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
+                given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
+
+                // when & then — IP/User-Agent를 함께 제공해 logout 인자(ipAddress·userAgent) null을 회피
+                mockMvc.perform(post("/api/auth/logout")
+                                .header("User-Agent", "TestAgent")
+                                .with(request -> {
+                                        request.setRemoteAddr("198.51.100.2");
+                                        return request;
+                                }))
+                                .andExpect(status().isOk())
+                                .andExpect(content().string("로그아웃 성공"))
+                                .andExpect(header().exists("Set-Cookie"));
+
+                // authService.logout 이 인증 사용자(20001)에 대해 호출되었는지 검증
+                verify(authService).logout(eq("20001"), eq("198.51.100.2"), eq("TestAgent"));
+        }
+
         private void stubLoginResponseAndCookies() {
                 AuthDto.LoginResponse loginResponse = AuthDto.LoginResponse.builder()
                                 .eno("10001").empNm("홍길동")

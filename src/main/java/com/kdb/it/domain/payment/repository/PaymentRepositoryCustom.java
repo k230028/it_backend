@@ -26,13 +26,13 @@ public interface PaymentRepositoryCustom {
     /**
      * 대금지급 목록 동적 검색.
      *
-     * <p>stsTc·bgPrnTc·cncdRfrNo 모두 null/빈값이면 전체 조회.
-     * bbrC 필터는 대상 2종(사업/전산업무비) 단일 조인이 곤란하여 MVP 미적용 — 후속 고도화 예정.</p>
+     * <p>stsTc·bgPrnTc·cncdRfrNo 모두 null/빈값이면 전체 조회합니다.
+     * bbrC가 있으면 사업은 Bprojm.svnDpmC, 전산업무비는 Bcostm.costSvnDpmC로 필터링합니다.</p>
      *
      * @param stsTc     상태구분코드 필터
      * @param bgPrnTc   예산성격구분코드(대상구분) 필터
      * @param cncdRfrNo 관련참조번호(대상관리번호) 필터
-     * @param bbrC      주관부서코드 필터 (현재 미사용, 후속 고도화)
+     * @param bbrC      주관부서코드 필터. null 또는 빈 문자열이면 전체 부서를 조회
      * @return 조회된 목록 항목 리스트 (최초등록일시 DESC)
      */
     List<PaymentDto.ListItem> search(String stsTc, String bgPrnTc, String cncdRfrNo, String bbrC);

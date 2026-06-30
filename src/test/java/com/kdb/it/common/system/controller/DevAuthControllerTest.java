@@ -1,5 +1,6 @@
 package com.kdb.it.common.system.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -118,5 +119,158 @@ class DevAuthControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(authService, never()).issueDevSwitchTokens(anyString());
+    }
+
+    // ─── SwitchRequest DTO 단위 테스트 — Spring 컨텍스트 불필요 ────────
+
+    /**
+     * SwitchRequest DTO의 접근자·동등성·toString 분기 커버리지 보완.
+     *
+     * <p>Lombok {@code @Getter}/{@code @Setter}/{@code @NoArgsConstructor} 기반이므로
+     * equals/hashCode는 {@link Object} 기본 구현(참조 동일성)을 사용합니다.
+     * JaCoCo가 집계하는 분기는 Lombok 접근자 null 체크·생성자 경로 등입니다.</p>
+     */
+    @org.junit.jupiter.api.Nested
+    @DisplayName("SwitchRequest DTO 단위 테스트")
+    class SwitchRequestTest {
+
+        @Test
+        @DisplayName("기본 생성자로 생성하면 eno는 null이다")
+        void noArgsConstructor_enoIsNull() {
+            // Arrange & Act
+            DevAuthController.SwitchRequest req = new DevAuthController.SwitchRequest();
+
+            // Assert
+            assertThat(req.getEno()).isNull();
+        }
+
+        @Test
+        @DisplayName("setEno 후 getEno로 동일 값을 조회할 수 있다")
+        void setter_getter_roundTrip() {
+            // Arrange
+            DevAuthController.SwitchRequest req = new DevAuthController.SwitchRequest();
+
+            // Act
+            req.setEno("12345");
+
+            // Assert
+            assertThat(req.getEno()).isEqualTo("12345");
+        }
+
+        @Test
+        @DisplayName("eno를 다른 값으로 덮어쓰면 최신 값이 반환된다")
+        void setter_overwrite_returnsLatestValue() {
+            // Arrange
+            DevAuthController.SwitchRequest req = new DevAuthController.SwitchRequest();
+            req.setEno("00001");
+
+            // Act
+            req.setEno("99999");
+
+            // Assert
+            assertThat(req.getEno()).isEqualTo("99999");
+        }
+
+        @Test
+        @DisplayName("같은 인스턴스를 equals로 비교하면 true이다 (참조 동일성)")
+        void equals_sameInstance_true() {
+            // Arrange
+            DevAuthController.SwitchRequest req = new DevAuthController.SwitchRequest();
+            req.setEno("10001");
+
+            // Act & Assert
+            assertThat(req.equals(req)).isTrue();
+        }
+
+        @Test
+        @DisplayName("eno가 같아도 다른 인스턴스를 equals로 비교하면 false이다 (Object 기본 동일성)")
+        void equals_differentInstance_sameEno_false() {
+            // Arrange
+            DevAuthController.SwitchRequest req1 = new DevAuthController.SwitchRequest();
+            req1.setEno("10001");
+            DevAuthController.SwitchRequest req2 = new DevAuthController.SwitchRequest();
+            req2.setEno("10001");
+
+            // Act & Assert — Object.equals()는 참조 동일성이므로 false
+            assertThat(req1.equals(req2)).isFalse();
+        }
+
+        @Test
+        @DisplayName("eno가 다른 두 인스턴스를 equals로 비교하면 false이다")
+        void equals_differentInstance_differentEno_false() {
+            // Arrange
+            DevAuthController.SwitchRequest req1 = new DevAuthController.SwitchRequest();
+            req1.setEno("10001");
+            DevAuthController.SwitchRequest req2 = new DevAuthController.SwitchRequest();
+            req2.setEno("20002");
+
+            // Act & Assert
+            assertThat(req1.equals(req2)).isFalse();
+        }
+
+        @Test
+        @DisplayName("null과 equals로 비교하면 false이다")
+        void equals_null_false() {
+            // Arrange
+            DevAuthController.SwitchRequest req = new DevAuthController.SwitchRequest();
+            req.setEno("10001");
+
+            // Act & Assert
+            assertThat(req.equals(null)).isFalse();
+        }
+
+        @Test
+        @DisplayName("다른 타입(String)과 equals로 비교하면 false이다")
+        void equals_differentType_false() {
+            // Arrange
+            DevAuthController.SwitchRequest req = new DevAuthController.SwitchRequest();
+            req.setEno("10001");
+
+            // Act & Assert
+            assertThat(req.equals("10001")).isFalse();
+        }
+
+        @Test
+        @DisplayName("hashCode는 두 번 호출해도 동일한 값을 반환한다 (안정성)")
+        void hashCode_stable() {
+            // Arrange
+            DevAuthController.SwitchRequest req = new DevAuthController.SwitchRequest();
+            req.setEno("10001");
+
+            // Act
+            int h1 = req.hashCode();
+            int h2 = req.hashCode();
+
+            // Assert
+            assertThat(h1).isEqualTo(h2);
+        }
+
+        @Test
+        @DisplayName("toString은 null이 아닌 문자열을 반환한다")
+        void toString_returnsNonNull() {
+            // Arrange
+            DevAuthController.SwitchRequest req = new DevAuthController.SwitchRequest();
+            req.setEno("10001");
+
+            // Act
+            String s = req.toString();
+
+            // Assert
+            assertThat(s).isNotNull();
+        }
+
+        @Test
+        @DisplayName("eno에 null을 설정하면 getEno가 null을 반환한다")
+        void setEno_null_getEnoReturnsNull() {
+            // Arrange
+            DevAuthController.SwitchRequest req = new DevAuthController.SwitchRequest();
+            req.setEno("before");
+
+            // Act
+            req.setEno(null);
+
+            // Assert
+            assertThat(req.getEno()).isNull();
+        }
     }
 }

@@ -63,6 +63,7 @@ class ProjectServiceXcrLookupTest {
     @Mock private BbugtmRepository bbugtmRepository;
     @Mock private XcrLookupService xcrLookupService;
     @Mock private ProjectBudgetSummaryService projectBudgetSummaryService;
+    @Mock private BprojaSyncService bprojaSyncService;
     @Mock private SecurityContext securityContext;
     @Mock private Authentication authentication;
 

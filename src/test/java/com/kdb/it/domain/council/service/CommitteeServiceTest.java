@@ -209,16 +209,17 @@ class CommitteeServiceTest {
     }
 
     @Test
-    @DisplayName("saveCommittee: 위원 선정 후 PREPARING으로 상태를 전이한다")
-    void saveCommittee_위원선정후PREPARING전이() {
+    @DisplayName("saveCommittee: 위원 저장은 더 이상 협의회 상태를 전이하지 않는다 (PRD_c_20260620 #2 — '개최준비 진행' 버튼이 명시적으로 수행)")
+    void saveCommittee_상태전이없음() {
+        // Arrange: 활성 협의회 존재, 기존 위원 없음
         Basctm council = mock(Basctm.class);
-        // APPROVED 상태일 때만 PREPARING으로 전이됨
-        given(council.getItPtlAsctPrgStsTc()).willReturn("04");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
+        // Act
         committeeService.saveCommittee(ASCT_ID, new CouncilDto.CommitteeRequest("05", List.of()));
 
-        verify(councilService).changeStatus(ASCT_ID, "05");
+        // Assert: 04→05 전이는 saveCommittee의 부수효과로 더 이상 처리되지 않는다.
+        verify(councilService, never()).changeStatus(anyString(), anyString());
     }
 }

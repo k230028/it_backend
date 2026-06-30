@@ -73,6 +73,11 @@ src/main/resources/
 
 도메인별 엔티티 ↔ 테이블 매핑은 → [`docs/guides/data-model.md`](docs/guides/data-model.md) 참조.
 
+### 4.3 패키지 간 의존 예외
+- 기본 요청 흐름은 Controller → Service → Repository 방향을 유지합니다.
+- `domain` → `common`, `infra` → `common` 의존이 일반적이지만, 실제 코드에는 결재 상태와 정보화사업 단계 관계를 동기화하는 `common.approval.ApplicationService` → `domain.budget.project.BprojaSyncService` 의존이 있습니다.
+- 따라서 `common` → `domain`을 일괄 금지 규칙으로 다루지 않습니다. 신규 의존은 업무 흐름의 필요성과 순환 참조 발생 여부를 함께 검토합니다.
+
 ## 5. 코딩 스타일 및 가이드라인
 
 ### 5.1 공통 원칙
@@ -90,7 +95,7 @@ src/main/resources/
 ### 5.2 엔티티 설계
 - 모든 업무 엔티티는 **`BaseEntity` 상속** (공통 컬럼: `DEL_YN`, `GUID`, `FST_ENR_DTM/USID`, `LST_CHG_DTM/USID`).
 - 감사 로그 필요 엔티티: 업무 엔티티는 **`BaseEntity` 상속 + `@LogTarget(entity = XxxL.class)` 어노테이션** 부착, 짝이 되는 **`*L` 로그 엔티티가 `BaseLogEntity` 상속**. (업무 엔티티 자체가 `BaseLogEntity`를 상속하지 않음에 주의.)
-  - 현재 적용: 30쌍 (업무 엔티티 `@LogTarget` ↔ `*L` 로그 엔티티, 코드 분석 2026-06-24). 예: `Bprojm`↔`BprojmL`, `Bitemm`↔`BitemmL`, `Cblbcm`↔`CblbcmL`, `Capplm`↔`CapplmL`, `Ccodem`↔`CcodemL`, `Bestim`↔`BestimL`(사업집행 4단계 6쌍 신규).
+  - 예: `Bprojm`↔`BprojmL`, `Bitemm`↔`BitemmL`, `Cblbcm`↔`CblbcmL`, `Capplm`↔`CapplmL`, `Ccodem`↔`CcodemL`, `Bestim`↔`BestimL`.
   - 로그 생성 메커니즘: JPA `@PrePersist`/`@PreUpdate` → `ChangeLogEntityListener` → `AuditLogPersister.persist()`.
 - 삭제는 항상 **Soft Delete**(`delete()` → `DEL_YN='Y'`). 물리 삭제 금지.
 - 엔티티 명칭은 메타 문서 반드시 용어사전 기반으로 지정 (필수).
@@ -307,8 +312,10 @@ private static LocalDateTime toLdt(Object v) {
   - `iat` — 발급 시각, `exp` — 만료 시각
 - Refresh Token은 `athIds`/`bbrC` 클레임 없이 `sub`+`iat`+`exp`만 포함.
 - Refresh Token 갱신 시 최신 자격등급을 DB에서 재조회하여 Access Token 생성 (`AuthService.refreshAccessToken()`).
-- **1인 1 Refresh Token 정책**: 로그인 시 기존 Refresh Token을 삭제 후 신규 저장 (`refreshTokenRepository.deleteByEno(eno)` → save).
-- Refresh Token 검증은 3단계: JWT 서명 검증 → DB 존재 여부 → DB `endDtm` 만료 여부.
+- **1인 1 Refresh Token 패밀리 정책**: 로그인·SSO·개발 사용자 전환 시 기존 사용자 토큰을 모두 삭제하고 UUID `FAM_NM`으로 신규 패밀리를 시작합니다.
+- Refresh Token 검증은 JWT 서명·만료 → DB 존재 → `AVL_YN`·`endDtm` 순으로 수행하고, 갱신 시 사용자의 최신 자격등급·부서를 Access Token에 다시 반영합니다.
+- **Refresh Token 회전**: 제출된 토큰은 삭제하지 않고 `AVL_YN='N'`으로 표시하며, 같은 `FAM_NM`의 신규 토큰을 `AVL_YN='Y'`로 저장합니다. 컨트롤러는 새 Access/Refresh 쿠키를 모두 재설정합니다.
+- **재사용 탐지**: 회전된 토큰이 `app.auth.refresh-rotation-grace-seconds`(기본 30초) 안에 재제출되면 다중 탭 경합으로 보아 해당 요청만 거부합니다. 유예 기간 후 재제출되면 탈취 재사용으로 보고 `deleteByEno()`로 해당 사용자의 토큰 패밀리 전체를 폐기합니다.
 - **`athIds` 클레임 타입 불일치 시**: 빈 리스트 반환 → `CustomUserDetails`가 기본값 `ITPZZ001`(일반사용자) 적용. warn 로그 없음 — 권한 강등 탐지 어려움 (TASK.md 등록).
 
 #### 쿠키 정책 (CookieUtil 코드 기준)
@@ -316,7 +323,13 @@ private static LocalDateTime toLdt(Object v) {
 - Access Token 쿠키: `path="/"`, `maxAge=900초(15분)`, `sameSite=Lax`.
 - Refresh Token 쿠키: `path="/api/auth"` (인증 경로 전송 제한), `maxAge=604800초(7일)`, `sameSite=Lax`.
 - `it-portal-user` 쿠키: `httpOnly=false` — Nuxt 화면 인증 상태 복원용. 사번/이름/권한만 포함. JWT나 비밀값 삽입 금지.
-- `app.cookie.secure` 기본값: `false`. 운영 프로파일에서 반드시 `true`로 오버라이드 필수.
+- `app.cookie.secure`는 베이스·prod에서 `true`, dev·local 프로파일에서만 HTTP 개발을 위해 `false`입니다.
+
+#### CSRF·CORS 신뢰 경계
+- JWT가 Stateless인 것은 CSRF 면제 조건이 아닙니다. 브라우저가 JWT를 쿠키로 자동 전송하므로 쿠키 기반 변경 API는 CSRF 경계 검토 대상입니다.
+- 현재 Spring Security CSRF 토큰은 비활성화되어 있으며, `SameSite=Lax` 쿠키와 명시적 `cors.allowed-origins`, `allowCredentials=true` 조합이 주요 브라우저 경계입니다. CORS는 응답 읽기를 제어하는 정책이며 단독 CSRF 방어로 간주하지 않습니다.
+- 인증 쿠키의 `SameSite=None`으로의 완화, CORS 와일드카드, 임의 Origin 추가는 별도 CSRF 보강 없이 적용하지 않습니다.
+- `/sso/**`는 전체 페이지 인증 콜백용 예외로 `allowedOriginPatterns="*"`, `allowCredentials=false`를 사용합니다. 이 예외를 쿠키 기반 SPA API 경로로 확장하지 않습니다.
 
 #### 토큰 추출 우선순위 (JwtAuthenticationFilter 코드 기준)
 1. `accessToken` httpOnly 쿠키 (브라우저 기본)
@@ -342,7 +355,7 @@ public class PlanController { ... }
 - 메서드: `GET /summary` (비목별 편성요청액·편성액), `GET /comparison` (전년도 대비 비교)
 - **권한**: `@PreAuthorize("hasRole('ADMIN')")` — 클래스 레벨 적용, ADMIN 전용.
 
-**현재 적용 대상** (클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")`, 코드 분석 2026-06-24 — 총 11개):
+**클래스 레벨 적용 대상** (`@PreAuthorize("hasRole('ADMIN')")`):
 - `AdminController` (`common/admin`) — 시스템 관리
 - `RealtimeLogController` (`common/admin/realtime`) — V_ITPAPP_LOG_FEED 기반 실시간 로그 모니터링
 - `GeminiController` (`infra/ai`) — Gemini AI
@@ -355,13 +368,13 @@ public class PlanController { ... }
 - `AdminMenuController` (`domain/menu`) — 관리자 메뉴 관리
 - `AdminRouteController` (`domain/menu`) — 라우트 카탈로그 관리
 
-**SecurityConfig URL 패턴 보호 대상** (코드 분석 2026-06-05):
+**SecurityConfig URL 패턴 보호 대상**:
 - `/api/admin/**` → `hasRole("ADMIN")` (`AdminController`, `AdminBoardMetaController`, `RealtimeLogController` 포함)
 - `/api/auth/signup` → `hasRole("ADMIN")`
 - `/api/plans/**` → `hasRole("ADMIN")` (`PlanController` 실제 경로 `/api/plans`와 정합 완료)
 
 #### 부서 필터링(bbrC) 적용 규칙 (§5.14와 동일, 여기에 보안 관점 요약)
-- `bbrC`는 JWT `athIds` 클레임의 소속 부서코드. Access Token 발급 시 DB에서 읽은 `user.getBbrC()`를 포함.
+- `bbrC`는 JWT의 별도 소속 부서코드 클레임입니다. Access Token 발급 시 DB에서 읽은 `user.getBbrC()`를 포함합니다.
 - 서비스 계층에서 `isAdmin()` 체크 후 관리자는 전체 조회, 일반 사용자는 `bbrC` 일치 항목만 반환. 프론트 필터링은 UX 보조일 뿐 최종 보안 경계가 아님.
 - `bbrC` null인 경우 전체 조회. 관리자·SSO 미동기화 계정 동일 처리.
 
@@ -382,7 +395,7 @@ public class PlanController { ... }
 - 나머지: 인증 필요 (`anyRequest().authenticated()`)
 
 #### 개발 전용 API 보안 주의사항 (DevAuthController, SsoController 코드 기준)
-- **`DevAuthController`**: `app.dev.user-switch.enabled=true`(기본값)이면 비밀번호 없이 임의 사번으로 JWT 발급 가능. `matchIfMissing=true`이므로 설정 누락 시 자동 활성화됨. **운영 배포 전 `app.dev.user-switch.enabled=false` 설정 필수.**
+- **`DevAuthController`**: `app.dev.user-switch.enabled=true`일 때만 비밀번호 없이 지정 사번으로 JWT 발급이 가능합니다. `@ConditionalOnProperty`에 `matchIfMissing`이 없고 베이스·prod 설정이 `false`이므로 설정 누락 시 비활성화됩니다. dev·local 프로파일만 `true`입니다.
 - **`SsoController`**: `app.sso.allow-direct-eno=false`(기본값). `true`이면 GET 파라미터 `eno=`로 SSO 없이 JWT 발급 가능. 기본값 유지 필수.
 - SSO 리다이렉트 URL은 `cors.allowed-origins` 화이트리스트로 오픈 리다이렉트 방지 (`SsoController.getAllowedOrigin()`).
 - SSO 완료 후 세션 키(`ssoVerifiedEno`)는 사용 즉시 `session.removeAttribute()`로 삭제 (재사용 방지).
@@ -414,8 +427,7 @@ public class PlanController { ... }
 #### 비밀값 관리 (application.properties, EnvironmentValidator 코드 기준)
 - 운영 비밀값: `spring.datasource.password`, `jwt.secret`, `gemini.api.key`는 환경변수 주입 필수.
 - `EnvironmentValidator`는 `DB_PASSWORD`, `JWT_SECRET` 프로퍼티 해석 결과가 빈값이면 구동 차단.
-- **현재 `application.properties`에 `${DB_PASSWORD:kdb1234!!}`, `${JWT_SECRET:...}` 기본값이 남아 있어 환경변수 미설정 시 기본값으로 통과됨. 운영 프로파일에서 기본값 제거 필수.**
-- `gemini.api.key`는 `${GEMINI_API_KEY:}` (빈 기본값)이므로 `EnvironmentValidator` 검증 대상에 추가 권장.
+- 베이스·prod 프로파일은 `DB_PASSWORD`, `JWT_SECRET`에 기본값을 두지 않습니다. dev·local 프로파일에만 로컬 접속용 폴백이 존재하므로 운영 배포에 개발 프로파일을 사용하지 않습니다.
 
 #### X-Forwarded-For 헤더 신뢰 (ClientIpResolver.resolve() 코드 기준)
 - `ClientIpResolver.resolve()`가 직접 peer(`request.getRemoteAddr()`)가 `app.trusted-proxies` allowlist에 포함될 때만 `X-Forwarded-For` 최좌측 IP를 채택하고, 그 외에는 `remoteAddr`를 사용합니다(`Proxy-Client-IP`/`WL-Proxy-Client-IP` 폴백 없음).
@@ -425,7 +437,7 @@ public class PlanController { ... }
 - SHA-256 + Base64 (고정 빈 솔트). KDB 사내 SSO 표준 규격이므로 거버넌스 승인 없이 변경 불가.
 - `@SuppressWarnings` 4건 + `NOSONAR` 마커로 자동화 보안 점검 정책 예외 처리됨. 보안 검토 결과에 재등재 금지.
 
-#### 권한 검증 보강 현황 (코드 분석 2026-05-26)
+#### 권한 검증 적용 규칙
 - `FileController`: 읽기 경로(목록·단건조회·다운로드·미리보기)는 `FileOwnershipChecker.checkReadAccess()`/`canRead()`로 읽기 권한 검증, 쓰기 경로(메타수정·단건삭제)는 `FileOwnershipChecker.verifyWriteAccess()`(owner-or-admin, 403), 원본 기준 일괄삭제(`deleteFilesByOrc`)는 서비스 계층에서 owner-or-admin 검증 적용(2026-06-23 소유권 하드닝).
 - `GeminiController`: `@PreAuthorize("hasRole('ADMIN')")` 관리자 전용.
 - `UserController`, `OrganizationController`, `ProjectController`, `ApplicationController`: 부서/소유권 정책은 업무 요건에 맞춰 별도 검토.
@@ -440,6 +452,7 @@ public class PlanController { ... }
 
 ### 5.8 환경 설정 키
 - JWT: `jwt.secret`, `jwt.access-token-validity`, `jwt.refresh-token-validity`
+- Refresh Token 회전: `app.auth.refresh-rotation-grace-seconds`(기본 30초)
 - 프론트/CORS: `app.frontend-url`(=`APP_FRONTEND_URL`)과 `cors.allowed-origins`(미지정 시 `app.frontend-url`로 폴백). **프론트 URL 환경변수 하나로 둘 다 정합**, CORS만 다중 오리진 필요 시 `CORS_ALLOWED_ORIGINS`로 오버라이드. (§5.6 CORS 참조)
 - 쿠키: `app.cookie.secure`
 - 파일: `app.file.base-path` — local `c:/itp_file` (base 기본값), dev·prod `${FILE_BASE_PATH:/dat/springitp}`. multipart 최대 파일 50MB / 요청 200MB
@@ -457,7 +470,7 @@ public class PlanController { ... }
 ### 5.10 기동 시 환경변수 검증
 - `EnvironmentValidator` (`common/system/EnvironmentValidator.java`): `@PostConstruct`에서 `spring.datasource.password`, `jwt.secret` 프로퍼티 해석 결과를 검사.
 - 해석 결과가 빈값이면 `IllegalStateException`으로 즉시 구동 실패.
-- **현재 `application.properties`의 기본값(`kdb1234!!`, 기본 JWT 시크릿)으로 인해 환경변수 미설정 시 검증 통과 → 운영 프로파일에서 기본값 제거 필수.** (§5.6 비밀값 관리 참조)
+- 베이스·prod 프로파일은 `DB_PASSWORD`, `JWT_SECRET`에 폴백을 두지 않아 미설정 시 기동이 실패합니다. dev·local 프로파일의 로컬 폴백은 운영에서 사용하지 않습니다.
 - 환경변수 추가 시 `EnvironmentValidator` 목록에도 함께 등록.
 
 ### 5.11 파일 보안
@@ -480,7 +493,7 @@ public class PlanController { ... }
 - **IP·기기 기준 잠금 없음** — Credential stuffing 방어 미적용 (§5.6 Brute-force 보호 참조).
 
 ### 5.12.1 감사 로그(BaseLogEntity) 패턴
-- **로그 엔티티**: 30개 (*L 접미사, 예: `BprojmL`, `CcodemL`, `CapplmL`, `BestimL`, 코드 분석 2026-06-14). 짝이 되는 업무 엔티티는 `@LogTarget(entity = *L.class)`로 로그 대상을 지정.
+- **로그 엔티티**: `*L` 접미사를 사용하며(예: `BprojmL`, `CcodemL`, `CapplmL`, `BestimL`), 짝이 되는 업무 엔티티는 `@LogTarget(entity = *L.class)`로 로그 대상을 지정.
 - **기본 구조**: `*L` 로그 엔티티가 `BaseLogEntity` 상속 — 기본 컬럼 자동 포함 (GUID, FST_ENR_DTM/USID, LST_CHG_DTM/USID).
 - **로그 리스너**: `ChangeLogEntityListener` → JPA entity lifecycle 후킹 → `AuditLogPersister` → DB 저장.
 - **저장 시점**: JPA `@PrePersist`/`@PreUpdate` 콜백 중 `ChangeLogEntityListener`가 `AuditLogPersister.persist()`를 직접 호출해 현재 flush 흐름에서 로그를 저장합니다. 로그 저장 실패는 catch 후 `log.error`로 기록(감사 추적 유실은 비정상 상황 → 모니터링 알람 노출)하되 예외는 삼켜 원본 작업 롤백을 피합니다.
@@ -796,7 +809,7 @@ record ResolvedValue(String value, String status)
 - 신규 생성 시 동일 대상에 **진행 중(작성중/진행중) 문서 중복 방지** 검증.
 - 모든 엔티티는 `BaseEntity` 상속 + `@LogTarget`로 감사 로그 대상(§5.12.1).
 
-**보안 규칙 (집행 4단계, 코드 분석 2026-06-23):**
+**보안 규칙 (집행 4단계):**
 - 쓰기 경로 소유권 검증은 공통 유틸 `OwnershipVerifier.verifyOwnerOrAdmin(ownerEno, user)`(`common/system/security`, 실패 시 `AccessDeniedException`→403)를 표준으로 사용합니다. 적용: 집행 4단계(update/delete/save*), 요구사항정의서(수정/삭제/새버전), 게시판 본인 게시물·댓글 수정·삭제. 파일은 메타수정·일괄삭제에 소유권 검증, 읽기 경로(목록/단건/다운로드/미리보기)에 `FileOwnershipChecker.checkReadAccess`/`canRead` 적용. 요구사항정의서 대시보드/배지의 `bbrC`는 비관리자에 한해 JWT 클레임으로 서버측 강제합니다.
 - **집행 4단계 `changeStatus`(상태전이)는 ADMIN 전용입니다(2026-06-29 적용).** `OwnershipVerifier.verifyAdmin(user)`(실패 시 `AccessDeniedException`→403)로 검증하며, 소유자라도 ADMIN이 아니면 거부합니다. 인접 단계 전이 가드(`작성중↔진행중↔완료`)와 `bprojaSyncService.upsert`는 그대로 유지됩니다. update/delete/save*는 기존대로 소유자-or-ADMIN(`verifyOwnerOrAdmin`)을 유지합니다.
 - 클래스 레벨 `@PreAuthorize`가 없는 업무 컨트롤러는 **서비스 계층에서 소유자/관리자 검증 필수**이며, 집행 4단계 update/delete/save*에 `verifyOwnerOrAdmin`, changeStatus에 `verifyAdmin`이 적용되어 있습니다.

@@ -12,7 +12,7 @@ public interface ContractRepositoryCustom {
      *
      * <p>마스터(lstYn='Y', delYn='N')와 대상명을 1개 쿼리로 가져옵니다. 대상명은 대상구분(bgPrnTc)에 따라
      * Bprojm(사업=ABUS_NM) 또는 Bcostm(전산업무비=CTT_NM)을 cncdRfrNo 키로 LEFT JOIN하여 CASE로 분기합니다.
-     * 마스터·대상 분리 조회(2쿼리)를 단일 쿼리로 통합해 단건 조회의 N+1을 제거합니다.</p>
+     * 마스터·대상 분리 조회를 단일 쿼리로 통합해 단건 조회의 DB 왕복을 2회에서 1회로 줄입니다.</p>
      *
      * @param docNo 문서관리번호
      * @return 마스터 + 대상명 행 (문서 없으면 empty)
@@ -27,7 +27,7 @@ public interface ContractRepositoryCustom {
      * @param stsTc     상태구분코드 필터 (nullable)
      * @param bgPrnTc   예산성격구분코드(대상구분) 필터 (nullable)
      * @param cncdRfrNo 관련참조번호(대상관리번호) 필터 (nullable)
-     * @param bbrC      주관부서코드 필터 (MVP 미적용, nullable)
+     * @param bbrC      주관부서코드 필터. null 또는 빈 문자열이면 전체 부서를 조회
      * @return 조회된 목록 항목 리스트 (최초등록일시 DESC)
      */
     List<ContractDto.ListItem> search(String stsTc, String bgPrnTc, String cncdRfrNo, String bbrC);

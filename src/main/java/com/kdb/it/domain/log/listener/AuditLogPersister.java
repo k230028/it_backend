@@ -104,6 +104,7 @@ public class AuditLogPersister {
             f.setAccessible(true);
             return f.get(target);
         } catch (IllegalAccessException e) {
+            // TODO: 실제 null과 접근 실패를 구분할 수 있도록 필드명을 포함해 경고하거나 예외를 전파한다.
             return null;
         }
     }
@@ -124,7 +125,7 @@ public class AuditLogPersister {
             f.setAccessible(true);
             f.set(target, value);
         } catch (IllegalAccessException ignored) {
-            // 보정 실패는 본 작업에 영향을 주지 않음 (NOT NULL 위반은 상위 catch에서 warn)
+            // TODO: 감사 필드 유실 원인을 추적할 수 있도록 필드명을 포함한 진단 정보를 남긴다.
         }
     }
 

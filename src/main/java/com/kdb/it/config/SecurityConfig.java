@@ -71,8 +71,8 @@ public class SecurityConfig {
 
         /**
          * 허용할 CORS Origin 목록
-         * 개발 환경: {@code *} (전체 허용)
-         * 운영 환경: {@code application.properties}의 {@code cors.allowed-origins}에 도메인 지정
+         * 모든 환경에서 {@code application.properties}의 {@code cors.allowed-origins}에 명시한 Origin만 허용합니다.
+         * 운영 환경은 {@link com.kdb.it.common.system.EnvironmentValidator}가 빈 값과 와일드카드를 거부합니다.
          * 예: {@code cors.allowed-origins=https://itportal.kdb.com}
          */
         @Value("${cors.allowed-origins:}")
