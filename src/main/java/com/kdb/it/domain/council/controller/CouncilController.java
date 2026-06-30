@@ -7,6 +7,7 @@ import com.kdb.it.domain.council.service.CouncilService;
 import com.kdb.it.domain.council.service.CommitteeService;
 import com.kdb.it.domain.council.service.EvaluationService;
 import com.kdb.it.domain.council.service.FeasibilityService;
+import com.kdb.it.domain.council.service.CouncilSkipService;
 import com.kdb.it.domain.council.service.ResultService;
 import com.kdb.it.domain.council.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -74,6 +75,9 @@ public class CouncilController {
 
     /** 결과서 서비스 (Step 3) */
     private final ResultService resultService;
+
+    /** 타당성검토 생략 판정 워크플로우 서비스 (PRD_c_20260620 #3) */
+    private final CouncilSkipService councilSkipService;
 
     // =========================================================================
     // M3: 협의회 목록/기본
@@ -371,6 +375,79 @@ public class CouncilController {
             @PathVariable("asctId") String asctId) {
         councilService.startPreparation(asctId);
         return ResponseEntity.ok().build();
+    }
+
+    // =========================================================================
+    // PRD_c_20260620 #3: 타당성검토 생략 판정 요청 (정보보호기획 → IT기획)
+    // =========================================================================
+
+    /**
+     * 타당성검토 생략 판정 요청 등록 (정보보호기획 ITPAD002)
+     *
+     * <p>결재완료(04) 정보보호시스템(dbrTc=04) 협의회에 대해 생략 사유·설명·첨부(사업계획서/타당성검토표)를
+     * 담아 IT기획에 생략 판정을 요청합니다. 협의회 상태는 04를 유지합니다.</p>
+     *
+     * @param asctId      협의회ID
+     * @param request     생략 판정 요청 (사유코드/설명/첨부 2종)
+     * @param userDetails 요청자 (정보보호관리자)
+     * @return HTTP 200
+     */
+    @Operation(summary = "타당성검토 생략 판정 요청", description = "정보보호기획이 IT기획에 생략 판정을 요청합니다(dbrTc=04, 상태 04).")
+    @PostMapping("/{asctId}/skip-request")
+    public ResponseEntity<Void> createSkipRequest(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId,
+            @RequestBody CouncilDto.SkipRequestCreate request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilSkipService.createSkipRequest(asctId, request, userDetails);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 생략여부 판정 + 전자결재 상신 (IT기획 ITPAD001)
+     *
+     * <p>IT기획이 생략여부(Y=생략/N=개최)와 확인사유를 입력하고 결재선(IT기획팀장→부장)으로 전자결재를 상신합니다.
+     * 결재 완료 콜백에서 생략→{@code skipCouncil}, 개최→{@code startPreparation}로 분기됩니다.</p>
+     *
+     * @param asctId      협의회ID
+     * @param request     판정 내용 (생략여부/확인사유/결재선)
+     * @param userDetails 판정자 (IT관리자)
+     * @return HTTP 200
+     */
+    @Operation(summary = "생략 판정 + 결재 상신", description = "IT기획이 생략여부를 판정하고 팀장→부장 전자결재를 상신합니다.")
+    @PostMapping("/{asctId}/skip-request/decision")
+    public ResponseEntity<Void> decideSkipRequest(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId,
+            @RequestBody CouncilDto.SkipDecisionRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilSkipService.submitDecision(asctId, request, userDetails);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 활성 생략 판정 요청 목록 (IT기획 판정함 — 협의회 목록 배지/판정용)
+     *
+     * @return 활성(미삭제) 생략 판정 요청 목록
+     */
+    @Operation(summary = "생략 판정 요청 목록", description = "활성 생략 판정 요청 전체(판정함 배지/판정용).")
+    @GetMapping("/skip-requests")
+    public ResponseEntity<List<CouncilDto.SkipRequestResponse>> getSkipRequests() {
+        return ResponseEntity.ok(councilSkipService.getActiveSkipRequests());
+    }
+
+    /**
+     * 협의회별 생략 판정 요청 단건 조회 (상태 확인 / 판정 화면)
+     *
+     * @param asctId 협의회ID
+     * @return 생략 판정 요청(없으면 본문 null)
+     */
+    @Operation(summary = "생략 판정 요청 단건 조회", description = "협의회의 생략 판정 요청을 조회합니다(없으면 null).")
+    @GetMapping("/{asctId}/skip-request")
+    public ResponseEntity<CouncilDto.SkipRequestResponse> getSkipRequest(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId) {
+        return ResponseEntity.ok(councilSkipService.getSkipRequest(asctId));
     }
 
     // =========================================================================

@@ -617,4 +617,72 @@ public class CouncilDto {
     // {@link QnaReplyRequest}/{@link QnaResponse})과 동일한 DTO 스키마를 재사용합니다.
     // 권한과 라이프사이클만 다르고 컬럼 구조는 동일하기 때문입니다.
     // =========================================================================
+
+    // =========================================================================
+    // PRD_c_20260620 #3: 타당성검토 생략 판정 요청 (BASKPM)
+    // =========================================================================
+
+    /**
+     * 생략 판정 요청 생성 (정보보호기획 → IT기획).
+     *
+     * <p>타당성검토표 첨부는 Step1(Bpovwm)의 기존 첨부를 서버가 재사용하므로 클라이언트가 보내지 않습니다.
+     * 사업계획서 첨부만 신규 업로드 후 그 파일관리번호를 전달합니다.</p>
+     *
+     * @param rsnTc          생략사유코드 (PRTY_IVG_OMT_RSN_TC, 01~04)
+     * @param rsn            생략사유 개별 설명
+     * @param abusPdcFlMpnId 사업계획서 첨부 파일관리번호 (Cfilem.FL_MPN_ID, 신규 업로드)
+     */
+    public record SkipRequestCreate(
+        String rsnTc,
+        String rsn,
+        String abusPdcFlMpnId
+    ) {}
+
+    /**
+     * 생략 판정 + 결재 상신 (IT기획).
+     *
+     * @param omtYn        생략여부 (Y=생략 / N=개최)
+     * @param cnfmCone     확인사유
+     * @param approverEnos 결재선 사번 목록 (순서대로 IT기획팀장 → IT기획부장)
+     */
+    public record SkipDecisionRequest(
+        String omtYn,
+        String cnfmCone,
+        List<String> approverEnos
+    ) {}
+
+    /**
+     * 생략 판정 요청 조회 응답 (정보보호기획 상태 확인 / IT기획 판정 화면).
+     *
+     * <p>{@code decided}=확인일시(cnfmDtm) 존재 여부. 회신 전이면 false(판정 대기).</p>
+     *
+     * @param asctId         협의회ID
+     * @param rsnTc          생략사유코드
+     * @param rsn            생략사유 설명
+     * @param abusPdcFlMpnId 사업계획서 첨부 파일관리번호
+     * @param prtyIvgFlMpnId 타당성검토표 첨부 파일관리번호(재사용)
+     * @param rqsUsid        신청자 사번
+     * @param rqsDtm         신청일시
+     * @param decided        판정(확인) 완료 여부
+     * @param omtYn          판정 결과 생략여부(Y/N, 미판정 시 null)
+     * @param cnfmCone       확인사유(미판정 시 null)
+     * @param cnfmUsid       확인자 사번(미판정 시 null)
+     * @param cnfmDtm        확인일시(미판정 시 null)
+     * @param apfMngNo       전자결재 연동번호(미상신 시 null)
+     */
+    public record SkipRequestResponse(
+        String asctId,
+        String rsnTc,
+        String rsn,
+        String abusPdcFlMpnId,
+        String prtyIvgFlMpnId,
+        String rqsUsid,
+        java.time.LocalDateTime rqsDtm,
+        boolean decided,
+        String omtYn,
+        String cnfmCone,
+        String cnfmUsid,
+        java.time.LocalDateTime cnfmDtm,
+        String apfMngNo
+    ) {}
 }

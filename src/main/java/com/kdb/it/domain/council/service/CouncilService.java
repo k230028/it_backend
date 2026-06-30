@@ -139,6 +139,21 @@ public class CouncilService {
             return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
         }
 
+        if (userDetails.isInfoSecAdmin()) {
+            // 정보보호관리자(ITPAD002): 전체 부서 대상으로 조회하되,
+            // 미신청 사업(생성용)과 신청된 정보보호시스템 사업(dbrTc='04') 협의회만 표출. (PRD_c_20260620 #3)
+            List<CouncilProjectRow> rows = councilRepository.findProjectRowsForCouncilAll(
+                    PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
+            Map<String, BigDecimal> budgetMap = deriveCurrentYearBudgets(
+                    rows.stream().map(CouncilProjectRow::abusMngNo).toList());
+            List<CouncilDto.ListResponse> result = rows.stream()
+                    .map(row -> toListResponseFromRow(row, budgetMap))
+                    .filter(r -> !r.applied() || "04".equals(r.dbrTc()))
+                    .toList();
+            log.debug("[CouncilList] infosec-admin filtered count={}", result.size());
+            return result;
+        }
+
         if (isCommitteeMember(userDetails)) {
             // 평가위원: 배정된 협의회만 조회
             List<Basctm> councils = councilRepository.findByCommitteeMember(userDetails.getEno(), "N");

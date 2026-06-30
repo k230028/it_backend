@@ -40,6 +40,9 @@ public class CustomUserDetails implements UserDetails {
     /** 시스템관리자: 전체 조회/수정/삭제, 관리자 메뉴 접근 */
     public static final String ATH_ADMIN    = "ITPAD001";
 
+    /** 정보보호관리자: 정보보호기획팀 — 정보보호시스템 사업(dbrTc=04) 협의회 개최준비 권한 (PRD_c_20260620 #3) */
+    public static final String ATH_INFOSEC_ADMIN = "ITPAD002";
+
     /** 기획통할담당자: 소속 부서 조회/수정/삭제 */
     public static final String ATH_DEPT_MGR = "ITPZZ002";
 
@@ -47,9 +50,10 @@ public class CustomUserDetails implements UserDetails {
     public static final String ATH_USER     = "ITPZZ001";
 
     // Spring Security Role 상수 (Spring Security Role은 ROLE_ 접두사 필요)
-    private static final String ROLE_ADMIN        = "ROLE_ADMIN";
-    private static final String ROLE_DEPT_MANAGER = "ROLE_DEPT_MANAGER";
-    private static final String ROLE_USER         = "ROLE_USER";
+    private static final String ROLE_ADMIN         = "ROLE_ADMIN";
+    private static final String ROLE_INFOSEC_ADMIN = "ROLE_INFOSEC_ADMIN";
+    private static final String ROLE_DEPT_MANAGER  = "ROLE_DEPT_MANAGER";
+    private static final String ROLE_USER          = "ROLE_USER";
 
     // -------------------------------------------------------------------------
     // 필드
@@ -114,6 +118,29 @@ public class CustomUserDetails implements UserDetails {
     }
 
     /**
+     * 정보보호관리자 여부 (PRD_c_20260620 #3)
+     * athIds에 ITPAD002가 포함된 경우 true
+     *
+     * @return 정보보호관리자이면 true
+     */
+    public boolean isInfoSecAdmin() {
+        return athIds.contains(ATH_INFOSEC_ADMIN);
+    }
+
+    /**
+     * 협의회 개최준비 관리자 여부 (PRD_c_20260620 #3)
+     *
+     * <p>IT관리자(ITPAD001) 또는 정보보호관리자(ITPAD002)이면 true.
+     * 협의회 개최준비/위원선정 등 관리 액션의 공통 권한 판정에 사용합니다.
+     * 단, 심의유형(dbrTc)별 가능 범위 제한은 서비스 계층에서 별도 적용합니다.</p>
+     *
+     * @return 협의회 관리 권한이 있으면 true
+     */
+    public boolean isCouncilManager() {
+        return isAdmin() || isInfoSecAdmin();
+    }
+
+    /**
      * 부서 관리 권한 여부
      *
      * <p>
@@ -160,9 +187,10 @@ public class CustomUserDetails implements UserDetails {
      */
     private String mapRole(String athId) {
         return switch (athId) {
-            case ATH_ADMIN    -> ROLE_ADMIN;
-            case ATH_DEPT_MGR -> ROLE_DEPT_MANAGER;
-            default           -> ROLE_USER;
+            case ATH_ADMIN          -> ROLE_ADMIN;
+            case ATH_INFOSEC_ADMIN  -> ROLE_INFOSEC_ADMIN;
+            case ATH_DEPT_MGR       -> ROLE_DEPT_MANAGER;
+            default                 -> ROLE_USER;
         };
     }
 }
