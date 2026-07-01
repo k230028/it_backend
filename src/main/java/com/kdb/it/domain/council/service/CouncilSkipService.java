@@ -177,8 +177,7 @@ public class CouncilSkipService {
      * 활성 생략 판정 요청 전체 조회 (IT기획 판정함 — 협의회 목록 배지/판정용).
      */
     public List<CouncilDto.SkipRequestResponse> getActiveSkipRequests() {
-        return baskpmRepository.findAll().stream()
-                .filter(b -> "N".equals(b.getDelYn()))
+        return baskpmRepository.findByDelYn("N").stream()
                 .map(this::toResponse)
                 .toList();
     }

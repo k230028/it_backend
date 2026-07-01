@@ -3,6 +3,7 @@ package com.kdb.it.domain.council.repository;
 import com.kdb.it.domain.council.entity.Baskpm;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -17,4 +18,11 @@ public interface BaskpmRepository extends JpaRepository<Baskpm, String> {
      * @param delYn       삭제여부('N')
      */
     Optional<Baskpm> findByItPtlAsctIdAndDelYn(String itPtlAsctId, String delYn);
+
+    /**
+     * 미삭제 생략판정요청 전체 조회 (IT기획 판정함 목록용).
+     *
+     * @param delYn 삭제여부('N')
+     */
+    List<Baskpm> findByDelYn(String delYn);
 }

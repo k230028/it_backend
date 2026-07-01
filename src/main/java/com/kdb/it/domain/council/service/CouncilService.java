@@ -13,6 +13,8 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.security.access.AccessDeniedException;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
@@ -94,6 +96,10 @@ public class CouncilService {
 
     /** 조직 리포지토리 — 부서명 조회용 */
     private final OrganizationRepository organizationRepository;
+
+    /** JPA EntityManager — 협의회 신규 INSERT persist용 (§5.12.1.1) */
+    @PersistenceContext
+    private EntityManager entityManager;
 
     // =========================================================================
     // 사업 상태 코드 (공통코드 그룹 IT_PTL_STS_TC, BPROJA.IT_PTL_STS_TC)
@@ -230,7 +236,8 @@ public class CouncilService {
                 .itPtlAsctDbrTc(request.dbrTc())
                 .build();
 
-        councilRepository.save(council);
+        // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
+        entityManager.persist(council);
 
         // 사업 상태를 '타당성검토 정실협 진행중'(32)으로 전이
         bprojaSyncService.upsert(request.prjMngNo(), request.prjMngNo(), PRJ_STS_COUNCIL_IN_PROGRESS);

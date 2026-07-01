@@ -10,11 +10,14 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.dto.EvaluationItemAvgRow;
+import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bevalm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +61,10 @@ public class EvaluationService {
 
     /** 평가위원 리포지토리 — 전원 제출 여부 확인용 */
     private final CommitteeRepository committeeRepository;
+
+    /** JPA EntityManager — 평가의견 신규 INSERT persist용 (§5.12.1.1) */
+    @PersistenceContext
+    private EntityManager entityManager;
 
     // 점검항목코드 → 한글명 매핑 (CCODEM CKG_ITM_C 기준)
     private static final Map<String, String> CHECK_ITEM_NAMES = Map.of(
@@ -165,7 +172,7 @@ public class EvaluationService {
     @Transactional
     public void saveEvaluation(String asctId, CouncilDto.EvaluationRequest request,
             CustomUserDetails userDetails) {
-        councilService.findActiveCouncil(asctId);
+        Basctm council = councilService.findActiveCouncil(asctId);
 
         String eno = userDetails.getEno();
 
@@ -173,6 +180,11 @@ public class EvaluationService {
         if (committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").isEmpty()) {
             throw new AccessDeniedException("해당 협의회의 평가위원만 평가의견을 제출할 수 있습니다.");
         }
+
+        // 기존 평가의견을 항목코드 기준으로 1회 배치 조회 (항목별 개별 SELECT N+1 제거, 리뷰 2-4)
+        Map<String, Bevalm> existingByItem = evaluationRepository
+                .findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").stream()
+                .collect(Collectors.toMap(Bevalm::getItPtlCkgItmTc, e -> e, (a, b) -> a));
 
         for (CouncilDto.EvaluationItem item : request.items()) {
             // 1~2점 시 의견 필수 검증
@@ -185,27 +197,25 @@ public class EvaluationService {
             }
 
             // upsert: 기존 의견 있으면 update, 없으면 신규 INSERT
-            evaluationRepository
-                    .findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(asctId, eno, item.ckgItmC(), "N")
-                    .ifPresentOrElse(
-                            // 기존 의견 업데이트
-                            existing -> existing.update(item.ckgRcrd(), item.ckgOpnn()),
-                            // 신규 INSERT
-                            () -> {
-                                Bevalm evaluation = Bevalm.builder()
-                                        .itPtlAsctId(asctId)
-                                        .eno(eno)
-                                        .itPtlCkgItmTc(item.ckgItmC())
-                                        .quelRcrd(item.ckgRcrd())
-                                        .ckgOpnn(item.ckgOpnn())
-                                        .build();
-                                evaluationRepository.save(evaluation);
-                            });
+            Bevalm existing = existingByItem.get(item.ckgItmC());
+            if (existing != null) {
+                existing.update(item.ckgRcrd(), item.ckgOpnn());
+            } else {
+                Bevalm evaluation = Bevalm.builder()
+                        .itPtlAsctId(asctId)
+                        .eno(eno)
+                        .itPtlCkgItmTc(item.ckgItmC())
+                        .quelRcrd(item.ckgRcrd())
+                        .ckgOpnn(item.ckgOpnn())
+                        .build();
+                // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
+                entityManager.persist(evaluation);
+            }
         }
 
         // 협의회 상태 전이: IN_PROGRESS → EVALUATING (첫 제출 시 1회만)
-        // Plan SC: 이미 EVALUATING 이상이면 상태 전이 skip
-        String currentStatus = councilService.findActiveCouncil(asctId).getItPtlAsctPrgStsTc();
+        // Plan SC: 이미 EVALUATING 이상이면 상태 전이 skip (루프는 상태를 바꾸지 않으므로 최초 조회분 재사용)
+        String currentStatus = council.getItPtlAsctPrgStsTc();
         if ("07".equals(currentStatus)) {
             councilService.changeStatus(asctId, "08");
         }

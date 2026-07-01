@@ -154,7 +154,8 @@ public class FeasibilityService {
                                 .kpnTpTc(req.kpnTc())
                                 .flMpnId(req.flMngNo())
                                 .build();
-                        projectOverviewRepository.save(overview);
+                        // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
+                        entityManager.persist(overview);
                     }
                 );
     }

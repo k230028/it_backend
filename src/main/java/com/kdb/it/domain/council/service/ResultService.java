@@ -6,6 +6,8 @@ import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Brsltm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.ResultRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,10 @@ public class ResultService {
 
     /** 평가위원 리포지토리 — 결과서 검토 확인 처리 및 전원 확인 여부 판단용 */
     private final CommitteeRepository committeeRepository;
+
+    /** JPA EntityManager — 결과서 신규 INSERT persist용 (§5.12.1.1) */
+    @PersistenceContext
+    private EntityManager entityManager;
 
     // =========================================================================
     // 조회
@@ -96,7 +102,7 @@ public class ResultService {
      */
     @Transactional
     public void saveResult(String asctId, CouncilDto.ResultRequest request) {
-        councilService.findActiveCouncil(asctId);
+        var council = councilService.findActiveCouncil(asctId);
 
         // upsert: 기존 결과서 있으면 update, 없으면 신규 INSERT
         resultRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
@@ -112,7 +118,8 @@ public class ResultService {
                                 .ckgOpnn(request.ckgOpnn())
                                 .flMpnId(request.flMngNo())
                                 .build();
-                        resultRepository.save(result);
+                        // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
+                        entityManager.persist(result);
                     }
                 );
 
@@ -120,7 +127,8 @@ public class ResultService {
         // RESULT_WRITING: 이미 '협의회 완료' 버튼으로 전이된 정상 흐름 (전이 skip)
         // EVALUATING: 구버전 평가의견 흐름 호환 처리
         // 참고: IN_PROGRESS → RESULT_WRITING 전이는 completeCouncil (PATCH /complete)에서 처리
-        String currentStatus = councilService.findActiveCouncil(asctId).getItPtlAsctPrgStsTc();
+        // (upsert는 협의회 상태를 바꾸지 않으므로 최초 조회분 재사용, 리뷰 2-4)
+        String currentStatus = council.getItPtlAsctPrgStsTc();
         if ("08".equals(currentStatus)) {
             councilService.changeStatus(asctId, "09");
         }

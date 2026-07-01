@@ -9,6 +9,8 @@ import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bpqnam;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.QnaRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,10 @@ public class QnaService {
 
     /** 정보화사업 리포지토리 — 답변 권한(주관부서) 검증용 */
     private final ProjectRepository projectRepository;
+
+    /** JPA EntityManager — 질의 신규 INSERT persist용 (§5.12.1.1) */
+    @PersistenceContext
+    private EntityManager entityManager;
 
     // =========================================================================
     // 조회
@@ -100,7 +106,8 @@ public class QnaService {
                 .qtnRpdRltYn("N")
                 .build();
 
-        qnaRepository.save(qna);
+        // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
+        entityManager.persist(qna);
         return qtnId;
     }
 
