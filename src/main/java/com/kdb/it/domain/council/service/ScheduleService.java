@@ -15,6 +15,7 @@ import com.kdb.it.domain.council.entity.Bschdm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.ScheduleRepository;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -234,6 +235,11 @@ public class ScheduleService {
 
                 String eno = userDetails.getEno();
 
+                // 가능 일정은 해당 협의회 평가위원 본인만 입력 가능 (비위원 데이터 주입 차단, 리뷰 1-4)
+                if (committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").isEmpty()) {
+                        throw new AccessDeniedException("해당 협의회의 평가위원만 일정을 입력할 수 있습니다.");
+                }
+
                 for (CouncilDto.ScheduleItem item : request.availableSlots()) {
                         // 허용 시간대 검증
                         if (!ALLOWED_TIMES.contains(item.dsdTm())) {
@@ -312,17 +318,24 @@ public class ScheduleService {
          */
         @Transactional
         public void confirmSchedule(String asctId, CouncilDto.ScheduleConfirmRequest request) {
-                // 협의회 존재 및 회의시간 검증
+                // 회의시간 검증
                 if (!ALLOWED_TIMES.contains(request.cnrcTm())) {
                         throw new IllegalArgumentException(
                                         "허용되지 않은 회의시간입니다: " + request.cnrcTm() + ". 허용값: " + ALLOWED_TIMES);
                 }
 
-                // BASCTM.CNRC_DT / CNRC_TM / CNRC_PLC 업데이트
-                councilService.findActiveCouncil(asctId)
-                                .confirmSchedule(request.cnrcDt(), request.cnrcTm(), request.cnrcPlc());
+                Basctm council = councilService.findActiveCouncil(asctId);
 
-                // 협의회 상태 전이: PREPARING → SCHEDULED
+                // 개최준비(PREPARING=05) 상태에서만 일정 확정 가능 (비정상 상태 전이 차단, 리뷰 1-3)
+                if (!"05".equals(council.getItPtlAsctPrgStsTc())) {
+                        throw new IllegalStateException(
+                                        "일정 확정은 개최준비(05) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+                }
+
+                // BASCTM.CNRC_DT / CNRC_TM / CNRC_PLC 업데이트
+                council.confirmSchedule(request.cnrcDt(), request.cnrcTm(), request.cnrcPlc());
+
+                // 협의회 상태 전이: PREPARING(05) → SCHEDULED(06)
                 councilService.changeStatus(asctId, "06");
         }
 

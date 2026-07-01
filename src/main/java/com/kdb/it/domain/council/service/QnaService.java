@@ -2,11 +2,15 @@ package com.kdb.it.domain.council.service;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
+import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bpqnam;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.QnaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +37,9 @@ public class QnaService {
 
     /** 협의회 기본정보 리포지토리 (존재 여부 검증용) */
     private final CouncilRepository councilRepository;
+
+    /** 정보화사업 리포지토리 — 답변 권한(주관부서) 검증용 */
+    private final ProjectRepository projectRepository;
 
     // =========================================================================
     // 조회
@@ -141,6 +148,20 @@ public class QnaService {
         /* 해당 협의회 소속 여부 검증 */
         if (!qna.getItPtlAsctId().equals(asctId)) {
             throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
+        }
+
+        /*
+         * 답변 권한 검증 — 답변은 사업 주관부서(추진부서) 담당자만 등록 가능. (리뷰 1-4)
+         * 판정 가능할 때만(주관부서·요청자 부서가 모두 확인될 때) 부서 일치를 강제하고,
+         * 데이터가 불완전하면(부서 미확인) 기존 동작을 보존한다.
+         */
+        Basctm council = councilRepository.findByItPtlAsctIdAndDelYn(asctId, "N").orElse(null);
+        String svnDpm = council == null ? null
+                : projectRepository.findByAbusMngNoAndLstYnAndDelYn(council.getAbusMngNo(), "Y", "N")
+                        .map(Bprojm::getSvnDpmC).orElse(null);
+        String bbrC = userDetails.getBbrC();
+        if (svnDpm != null && bbrC != null && !svnDpm.equals(bbrC)) {
+            throw new AccessDeniedException("답변은 사업 주관부서 담당자만 등록할 수 있습니다.");
         }
 
         qna.reply(userDetails.getEno(), request.repCone());

@@ -280,7 +280,9 @@ public class CouncilController {
     public ResponseEntity<Void> processApprovalCallback(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @Valid @RequestBody CouncilDto.ApprovalCallbackRequest request) {
+            @Valid @RequestBody CouncilDto.ApprovalCallbackRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyAdmin(userDetails);
         councilApprovalService.processApprovalCallback(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -303,7 +305,9 @@ public class CouncilController {
     @PatchMapping("/{asctId}/start")
     public ResponseEntity<Void> startCouncil(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId) {
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyCouncilManager(asctId, userDetails);
         councilService.startCouncil(asctId);
         return ResponseEntity.ok().build();
     }
@@ -326,7 +330,9 @@ public class CouncilController {
     @PatchMapping("/{asctId}/complete")
     public ResponseEntity<Void> completeCouncil(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId) {
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyCouncilManager(asctId, userDetails);
         councilService.completeCouncil(asctId);
         return ResponseEntity.ok().build();
     }
@@ -349,7 +355,10 @@ public class CouncilController {
     @PatchMapping("/{asctId}/skip")
     public ResponseEntity<Void> skipCouncil(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId) {
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        // 직접 생략은 IT관리자 전용(정보보호시스템 사업은 판정 요청→IT기획 결재를 거쳐야 함)
+        councilService.verifyAdmin(userDetails);
         councilService.skipCouncil(asctId);
         return ResponseEntity.ok().build();
     }
@@ -372,7 +381,9 @@ public class CouncilController {
     @PatchMapping("/{asctId}/start-preparation")
     public ResponseEntity<Void> startPreparation(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId) {
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyCouncilManager(asctId, userDetails);
         councilService.startPreparation(asctId);
         return ResponseEntity.ok().build();
     }
@@ -626,7 +637,9 @@ public class CouncilController {
     public ResponseEntity<Void> confirmSchedule(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @Valid @RequestBody CouncilDto.ScheduleConfirmRequest request) {
+            @Valid @RequestBody CouncilDto.ScheduleConfirmRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyCouncilManager(asctId, userDetails);
         scheduleService.confirmSchedule(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -650,7 +663,9 @@ public class CouncilController {
     @PutMapping("/{asctId}/schedule/confirm-written")
     public ResponseEntity<Void> confirmWrittenMeeting(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId) {
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyCouncilManager(asctId, userDetails);
         scheduleService.confirmWrittenMeeting(asctId);
         return ResponseEntity.ok().build();
     }
@@ -778,7 +793,9 @@ public class CouncilController {
     public ResponseEntity<Void> saveResult(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @Valid @RequestBody CouncilDto.ResultRequest request) {
+            @Valid @RequestBody CouncilDto.ResultRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyCouncilManager(asctId, userDetails);
         resultService.saveResult(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -801,7 +818,9 @@ public class CouncilController {
     public ResponseEntity<Void> updateResult(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @Valid @RequestBody CouncilDto.ResultRequest request) {
+            @Valid @RequestBody CouncilDto.ResultRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyCouncilManager(asctId, userDetails);
         resultService.saveResult(asctId, request);
         return ResponseEntity.ok().build();
     }
@@ -824,7 +843,9 @@ public class CouncilController {
     @PutMapping("/{asctId}/result/confirm")
     public ResponseEntity<Void> confirmResult(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId) {
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyCouncilManager(asctId, userDetails);
         resultService.confirmResult(asctId);
         return ResponseEntity.ok().build();
     }
@@ -916,6 +937,7 @@ public class CouncilController {
             @PathVariable("asctId") String asctId,
             @Valid @RequestBody CouncilDto.ResultApprovalRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyCouncilManager(asctId, userDetails);
         CouncilDto.ApprovalResponse response = councilApprovalService.requestResultApproval(asctId, request, userDetails);
         return ResponseEntity.ok(response);
     }
@@ -938,7 +960,9 @@ public class CouncilController {
     @PostMapping("/{asctId}/notify")
     public ResponseEntity<CouncilDto.NotifyResponse> notifyCouncil(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
-            @PathVariable("asctId") String asctId) {
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        councilService.verifyCouncilManager(asctId, userDetails);
         CouncilDto.NotifyResponse response = councilService.notifyCouncil(asctId);
         return ResponseEntity.ok(response);
     }

@@ -13,6 +13,7 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import org.springframework.security.access.AccessDeniedException;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -531,6 +532,47 @@ public class CouncilService {
     public Basctm findActiveCouncil(String asctId) {
         return councilRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 협의회입니다. asctId=" + asctId));
+    }
+
+    // =========================================================================
+    // 권한 검증 (관리 액션 진입 가드) — 리뷰 PRD_c_20260701 1-1
+    // =========================================================================
+
+    /**
+     * 협의회 관리 권한 검증 (개최준비·진행·일정·결과 등 관리 액션 공통 가드).
+     *
+     * <p>IT관리자(ITPAD001)는 전 심의유형, 정보보호관리자(ITPAD002)는 정보보호시스템(dbrTc='04')
+     * 협의회에 한해 관리할 수 있습니다(PRD_c_20260620 #3). 프론트 canManageCouncil과 동일 스코프이며,
+     * 프론트 가드는 UX 보조이므로 서버 진입 가드가 최종 보안 경계입니다.</p>
+     *
+     * @param asctId      협의회ID
+     * @param userDetails 요청자 (JWT 주입)
+     * @throws AccessDeniedException 관리 권한이 없는 경우
+     */
+    public void verifyCouncilManager(String asctId, CustomUserDetails userDetails) {
+        if (userDetails != null && userDetails.isAdmin()) {
+            return;
+        }
+        if (userDetails != null && userDetails.isInfoSecAdmin()
+                && "04".equals(findActiveCouncil(asctId).getItPtlAsctDbrTc())) {
+            return;
+        }
+        throw new AccessDeniedException("협의회 관리 권한이 없습니다.");
+    }
+
+    /**
+     * IT관리자(ITPAD001) 전용 액션 권한 검증.
+     *
+     * <p>협의회 직접 생략·결재 콜백처럼 IT기획 관할이 확정된 액션에 사용합니다.
+     * (정보보호시스템 사업의 생략은 판정 요청→IT기획 결재를 거쳐야 하므로 직접 생략은 IT관리자 전용)</p>
+     *
+     * @param userDetails 요청자 (JWT 주입)
+     * @throws AccessDeniedException IT관리자가 아닌 경우
+     */
+    public void verifyAdmin(CustomUserDetails userDetails) {
+        if (userDetails == null || !userDetails.isAdmin()) {
+            throw new AccessDeniedException("IT관리자 권한이 필요합니다.");
+        }
     }
 
     /**

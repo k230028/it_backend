@@ -15,6 +15,7 @@ import com.kdb.it.domain.council.entity.Bevalm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -167,6 +168,11 @@ public class EvaluationService {
         councilService.findActiveCouncil(asctId);
 
         String eno = userDetails.getEno();
+
+        // 평가의견은 해당 협의회 평가위원 본인만 제출 가능 (비위원 평가 주입 차단, 리뷰 1-4)
+        if (committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").isEmpty()) {
+            throw new AccessDeniedException("해당 협의회의 평가위원만 평가의견을 제출할 수 있습니다.");
+        }
 
         for (CouncilDto.EvaluationItem item : request.items()) {
             // 1~2점 시 의견 필수 검증
