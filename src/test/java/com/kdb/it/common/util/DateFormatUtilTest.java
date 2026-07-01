@@ -32,4 +32,11 @@ class DateFormatUtilTest {
     void toYmd8_longValue_truncates() {
         assertThat(DateFormatUtil.toYmd8("2026-06-04T00:00:00")).isEqualTo("20260604");
     }
+
+    @Test
+    @DisplayName("숫자가 없거나 8자리보다 짧으면 제거 결과를 그대로 반환")
+    void toYmd8_nonNumericOrShort_returnsAvailableDigits() {
+        assertThat(DateFormatUtil.toYmd8("날짜없음")).isEmpty();
+        assertThat(DateFormatUtil.toYmd8("2026-7-2")).isEqualTo("202672");
+    }
 }

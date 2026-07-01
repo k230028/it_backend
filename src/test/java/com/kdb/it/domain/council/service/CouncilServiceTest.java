@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,6 +32,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import jakarta.persistence.EntityManager;
 
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
@@ -97,8 +102,17 @@ class CouncilServiceTest {
     @Mock
     private BprojaSyncService bprojaSyncService;
 
+    @Mock
+    private EntityManager entityManager;
+
     @InjectMocks
     private CouncilService councilService;
+
+    @BeforeEach
+    void injectEntityManager() {
+        // @PersistenceContext 필드는 Mockito 생성자 주입 대상이 아니므로 테스트에서 명시적으로 연결한다.
+        ReflectionTestUtils.setField(councilService, "entityManager", entityManager);
+    }
 
     private static final String ASCT_ID = "ASCT-2026-0001";
 
@@ -213,7 +227,7 @@ class CouncilServiceTest {
 
         councilService.skipCouncil(ASCT_ID);
 
-        verify(council).changeStatus("SKIPPED");
+        verify(council).changeStatus("99");
         verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "39");
     }
 
@@ -547,7 +561,7 @@ class CouncilServiceTest {
         String result = councilService.createCouncil(request, user);
 
         assertThat(result).startsWith("ASCT-");
-        verify(councilRepository).save(any(Basctm.class));
+        verify(entityManager).persist(any(Basctm.class));
         verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "32");
     }
 
@@ -732,5 +746,113 @@ class CouncilServiceTest {
         assertThat(result.usrNm()).isEqualTo("홍길동");
         assertThat(result.bbrNm()).isEqualTo("IT부");
         assertThat(result.temNm()).isEqualTo("개발팀");
+    }
+
+    @Test
+    @DisplayName("startPreparation: 결재완료 상태이면 개최준비로 전이한다")
+    void startPreparation_결재완료_개최준비전이() {
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("04");
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+
+        councilService.startPreparation(ASCT_ID);
+
+        verify(council).changeStatus("05");
+    }
+
+    @Test
+    @DisplayName("startPreparation: 결재완료 상태가 아니면 전이를 거부한다")
+    void startPreparation_결재완료아님_상태예외() {
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("05");
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+
+        assertThatThrownBy(() -> councilService.startPreparation(ASCT_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("04");
+    }
+
+    @Test
+    @DisplayName("verifyCouncilManager: IT관리자는 모든 심의유형을 관리할 수 있다")
+    void verifyCouncilManager_IT관리자_통과() {
+        CustomUserDetails admin = new CustomUserDetails(
+                "A001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
+
+        org.assertj.core.api.Assertions.assertThatCode(
+                () -> councilService.verifyCouncilManager(ASCT_ID, admin))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("verifyCouncilManager: 정보보호관리자는 정보보호시스템 협의회를 관리할 수 있다")
+    void verifyCouncilManager_정보보호관리자_정보보호심의통과() {
+        CustomUserDetails admin = new CustomUserDetails(
+                "S001", List.of(CustomUserDetails.ATH_INFOSEC_ADMIN), "D001");
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctDbrTc()).willReturn("04");
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+
+        org.assertj.core.api.Assertions.assertThatCode(
+                () -> councilService.verifyCouncilManager(ASCT_ID, admin))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("verifyCouncilManager: 정보보호관리자의 일반 심의 관리를 거부한다")
+    void verifyCouncilManager_정보보호관리자_일반심의거부() {
+        CustomUserDetails admin = new CustomUserDetails(
+                "S001", List.of(CustomUserDetails.ATH_INFOSEC_ADMIN), "D001");
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctDbrTc()).willReturn("03");
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+
+        assertThatThrownBy(() -> councilService.verifyCouncilManager(ASCT_ID, admin))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("verifyCouncilManager: 인증 정보가 없으면 관리를 거부한다")
+    void verifyCouncilManager_인증없음_거부() {
+        assertThatThrownBy(() -> councilService.verifyCouncilManager(ASCT_ID, null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("verifyAdmin: IT관리자만 통과하고 일반사용자와 미인증 요청은 거부한다")
+    void verifyAdmin_권한별검증() {
+        CustomUserDetails admin = new CustomUserDetails(
+                "A001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
+        CustomUserDetails user = new CustomUserDetails(
+                "U001", List.of(CustomUserDetails.ATH_USER), "D001");
+
+        org.assertj.core.api.Assertions.assertThatCode(() -> councilService.verifyAdmin(admin))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> councilService.verifyAdmin(user))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> councilService.verifyAdmin(null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("getCouncilList: 정보보호관리자는 미신청 사업과 정보보호 심의만 조회한다")
+    void getCouncilList_정보보호관리자_허용범위필터() {
+        CustomUserDetails admin = new CustomUserDetails(
+                "S001", List.of(CustomUserDetails.ATH_INFOSEC_ADMIN), "D001");
+        CouncilProjectRow notApplied = listRowWithAbusMngNo("PRJ-001", null);
+        CouncilProjectRow infoSec = listRowWithAbusMngNo("PRJ-002", "ASCT-002");
+        CouncilProjectRow general = listRowWithAbusMngNo("PRJ-003", "ASCT-003");
+        // 적용된 행의 심의유형을 필터에서 구분하도록 native row mock의 접근값을 지정한다.
+        infoSec = org.mockito.Mockito.spy(infoSec);
+        general = org.mockito.Mockito.spy(general);
+        notApplied = org.mockito.Mockito.spy(notApplied);
+        org.mockito.Mockito.doReturn(false).when(notApplied).applied();
+        org.mockito.Mockito.doReturn("04").when(infoSec).itPtlAsctDbrTc();
+        org.mockito.Mockito.doReturn("03").when(general).itPtlAsctDbrTc();
+        given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
+                .willReturn(List.of(notApplied, infoSec, general));
+
+        List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
+
+        assertThat(result).hasSize(2);
     }
 }

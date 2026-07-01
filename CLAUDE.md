@@ -364,9 +364,12 @@ public class PlanController { ... }
 - `BudgetWorkController` (`domain/budget/work`) — 예산 작업
 - `PlanController` (`domain/budget/plan`) — 정보기술부문 계획
 - `ItBudgetController` (`domain/budget/it`) — IT부문 예산 조회/비교
-- `CouncilController` (`domain/council`) — 정보화실무협의회
 - `AdminMenuController` (`domain/menu`) — 관리자 메뉴 관리
 - `AdminRouteController` (`domain/menu`) — 라우트 카탈로그 관리
+
+**서비스 계층 권한 검증 대상 (클래스 레벨 `@PreAuthorize` 없음)**:
+- `CouncilController` (`domain/council`, `/api/council`) — 클래스 레벨 `@PreAuthorize`가 **없습니다**(인증만 요구). 정보보호관리자(ITPAD002)가 정보보호시스템(`dbrTc='04'`) 협의회를 관리해야 하므로 ADMIN 전용으로 묶을 수 없기 때문입니다. 관리 액션(개최준비·진행·완료·일정·결과·통보 등)은 서비스 계층 `CouncilService.verifyCouncilManager(asctId, userDetails)`(IT관리자 ITPAD001 = 전 심의유형, 정보보호관리자 ITPAD002 = `dbrTc='04'`만 허용, 실패 시 `AccessDeniedException`→403)로 최종 경계를 강제하고, 직접 생략·결재콜백은 `verifyAdmin`(ADMIN 전용)을 적용합니다. 프론트 `council-manager`/상세 scope 검사는 UX 보조입니다.
+- 집행 4단계(`estimate`/`deliberation`/`contract`/`payment`)도 클래스 레벨 `@PreAuthorize` 없이 서비스 계층에서 검증합니다(§5.18 참조).
 
 **SecurityConfig URL 패턴 보호 대상**:
 - `/api/admin/**` → `hasRole("ADMIN")` (`AdminController`, `AdminBoardMetaController`, `RealtimeLogController` 포함)
@@ -585,6 +588,13 @@ public class PlanController { ... }
       builder.and(entity.bbrC.eq(bbrC));
   }
   ```
+
+### 5.14.1 작성자 소속 스냅샷 패턴 (AuthorOrg)
+- 신규 마스터 레코드 생성 시 "작성자(현재 로그인 사용자) 기준" 소속 조직 컬럼(주관부서코드·주관팀코드·인사상위조직코드내용)은 **`AuthorOrgResolver.resolveCurrent()`**(`common/iam/service`)로 채웁니다.
+- 이유: JWT 클레임에는 부서코드(`bbrC`)만 있고 팀코드(`temC`)·상위조직코드는 없으므로, 사번(eno)으로 `CuserI`를 조회해 세 값을 함께 해석합니다. 반환은 불변 record `AuthorOrg(svnDpmC, svnTemC, prlmHrkOgzCCone)`이며, 미인증·미조회 시 `AuthorOrg.empty()`(모든 필드 null)를 반환합니다(대상 컬럼은 모두 nullable).
+- 적용 컬럼(물리): `BPROJM.SVN_TEM_C`(주관팀코드), `BCOSTM.PRLM_HRK_OGZ_C_CONE`(인사상위조직코드내용), `BRDOCM.SVN_DPM_C`/`SVN_TEM_C`(주관부서·주관팀). 각 `*L` 로그 미러에도 동일 컬럼이 있으며 감사 스냅샷에 함께 기록됩니다.
+- 사용처: `ProjectService`·`CostService`·`ServiceRequestDocService`의 생성 경로. 신규 마스터 엔티티에 작성자 소속 컬럼을 추가할 때 이 패턴을 따릅니다(직접 SecurityContext 파싱 금지).
+- 스키마 변경은 마이그레이션으로 관리합니다: `it_database/migrations/V20260701_002__AddAuthorOrgColumns.sql`.
 
 ### 5.15 사전협의 검토자 API
 - `ReviewerController`: `GET /api/reviews/{docMngNo}/reviewers` — 사전협의 문서 검토자 목록 반환.

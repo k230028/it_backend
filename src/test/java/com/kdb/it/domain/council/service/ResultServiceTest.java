@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,6 +20,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import jakarta.persistence.EntityManager;
 
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -54,8 +58,17 @@ class ResultServiceTest {
     @Mock
     private CommitteeRepository committeeRepository;
 
+    @Mock
+    private EntityManager entityManager;
+
     @InjectMocks
     private ResultService resultService;
+
+    @BeforeEach
+    void injectEntityManager() {
+        // 신규 결과서 저장 경로의 persist() 호출을 단위 테스트용 mock으로 연결한다.
+        ReflectionTestUtils.setField(resultService, "entityManager", entityManager);
+    }
 
     // ───────────────────────────────────────────────────────
     // getResult
@@ -142,7 +155,7 @@ class ResultServiceTest {
                 new CouncilDto.ResultRequest("종합의견", "타당성의견", null));
 
         // then
-        verify(resultRepository).save(any(Brsltm.class));
+        verify(entityManager).persist(any(Brsltm.class));
     }
 
     @Test
@@ -234,7 +247,7 @@ class ResultServiceTest {
                 new CouncilDto.ResultRequest("종합의견", "타당성의견", "FL_00000001"));
 
         // then: 신규 저장 및 EVALUATING → RESULT_WRITING 전이
-        verify(resultRepository).save(any(Brsltm.class));
+        verify(entityManager).persist(any(Brsltm.class));
         verify(councilService).changeStatus("ASCT-2026-0001", "09");
     }
 

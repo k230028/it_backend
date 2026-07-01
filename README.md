@@ -32,7 +32,7 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 152개 테스트 파일 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 163개 테스트 파일 |
 
 ## 2.5 빠른 시작 (Quick Start)
 
@@ -99,7 +99,7 @@ Controller → Service → Repository → DB (Oracle)
 | 결정 | 내용 | 이유 |
 |------|------|-----|
 | **Soft Delete** | 물리 삭제 대신 `DEL_YN='Y'` 논리 삭제 사용 | 감사 추적(Audit Trail), 실수 복구 가능, 외래키 참조 무결성 유지 |
-| **복합키 (`@IdClass`)** | `BprojmId`, `BcostmId`, `BitemmId`, `CdecimId` 등 복합 기본키 정의 (총 29개 `@IdClass`) | Oracle 테이블 스키마 설계를 JPA 엔티티에 1:1 매핑 |
+| **복합키 (`@IdClass`)** | `BprojmId`, `BcostmId`, `BitemmId`, `CdecimId` 등 복합 기본키 정의 (총 30개 `@IdClass`) | Oracle 테이블 스키마 설계를 JPA 엔티티에 1:1 매핑 |
 | **JPA Auditing (`BaseEntity`)** | 모든 업무 엔티티 상속, `@CreatedDate/@LastModifiedDate` 자동 기록 | 누가 언제 생성/수정했는지 자동 추적 |
 | **JWT httpOnly 쿠키** | Access Token(15분) + Refresh Token(7일), `CookieUtil`로 관리 | XSS 공격 방어(JavaScript 접근 불가), 자동 전송 편의성 |
 | **비밀번호 인코딩** | SHA-256 + Base64 (`CustomPasswordEncoder`) | Oracle 레거시 시스템과의 호환성 |
@@ -111,7 +111,7 @@ Controller → Service → Repository → DB (Oracle)
 | **Properties 기반 CORS** | `application.properties`의 `cors.allowed-origins` 환경변수 제어 | 운영 배포 시 도메인 재빌드 불필요 |
 | **RBAC (자격등급 + 역할)** | `CauthI`(자격등급) + `CroleI`(역할 매핑) + `@PreAuthorize` | 유연한 권한 관리, 운영 중 권한 추가 가능 |
 | **관리자 이중 보호** | SecurityConfig URL 패턴(`/api/admin/**`) + 컨트롤러 레벨 `@PreAuthorize("hasRole('ADMIN')")` | 깊이 있는 방어(Defense in Depth), 도메인 API도 명시적 보호 |
-| **협의회 통합 컨트롤러** | `CouncilController` 1개 (39개 매핑 메서드) vs 서비스 9개 분리 | 협의회 업무의 통합 흐름 표현, 서비스 계층은 관심사 분리 |
+| **협의회 통합 컨트롤러** | `CouncilController` 1개 (37개 매핑 메서드) vs 서비스 10개 분리 | 협의회 업무의 통합 흐름 표현, 서비스 계층은 관심사 분리 |
 | **변경 로그 (Audit)** | `@PrePersist/@PreUpdate` JPA 리스너로 자동 스냅샷 기록 | 누가 무엇을 언제 변경했는지 추적, 감사/규정 준수 대응 |
 | **이벤트 기반 알림** | 원 트랜잭션 커밋 후 `REQUIRES_NEW`로 알림 저장 | 핵심 업무의 커밋과 알림 적재 실패를 분리 |
 | **Caffeine 캐시** | 공통코드·예산기간·메뉴권한·Tiptap 카탈로그·미읽음 수 캐시 | 쓰기 시 무효화하고 TTL을 정합성 안전망으로 사용 |
@@ -196,7 +196,7 @@ com.kdb.it
 │   ├── deliberation/        # 사업집행② 과업심의위원회 (DeliberationController, Bdelim)
 │   ├── contract/            # 사업집행③ 입찰/계약 (ContractController, Bcontm)
 │   ├── payment/             # 사업집행④ 대금지급 (PaymentController, Bpaymm + Bpaymt 회차별 상세)
-│   ├── council/             # 정보화실무협의회 (CouncilController, 9개 서비스, 10개 Repository)
+│   ├── council/             # 정보화실무협의회 (CouncilController, 10개 서비스 + 2개 이벤트리스너, 10개 Repository)
 │   ├── log/                 # 변경 로그 (BaseLogEntity, *L 로그 엔티티, ChangeLogEntityListener)
 │   ├── menu/                # DB 기반 메뉴 트리·라우트 카탈로그 (MenuQueryController, AdminMenuController, AdminRouteController, Cmenum/Cmenua/Cmenud)
 │   └── entity/              # BaseEntity
@@ -236,7 +236,7 @@ common.approval → domain.budget.project (BprojaSyncService)
 | 사업집행③ 입찰/계약 | `ContractController` | `ContractService` | `ContractRepository`(+Custom) | `Bcontm` |
 | 사업집행④ 대금지급 | `PaymentController` | `PaymentService` | `PaymentRepository`(+Custom), `PaymentLineRepository` | `Bpaymm`, `Bpaymt` |
 | 예산작업 | `BudgetWorkController` | `BudgetWorkService` | `BbugtmRepository` + Custom | `Bbugtm` |
-| 정보화실무협의회 | `CouncilController` | `CouncilService` 외 8개 | `CouncilRepository` 외 9개 | `Basctm` 외 9개 |
+| 정보화실무협의회 | `CouncilController` | `CouncilService` 외 9개 | `CouncilRepository` 외 9개 | `Basctm` 외 9개 |
 | 신청서(결재) | `ApplicationController` | `ApplicationService` | `ApplicationRepository`, `ApplicationMapRepository`, `ApproverRepository` | `Capplm`, `Cappla`, `Cdecim` |
 | 공통게시판 | `BoardMetaController`, `BoardPostController`, `BoardCommentController`, `AdminBoardMetaController` | `BoardMetaService`, `BoardPostService`, `BoardCommentService` | `BoardMetaRepository`, `BoardPostRepository`, `BoardCommentRepository` | `Cblbmm`, `Cblbcm`, `Ccmmtm` |
 | 알림 | `NotificationController` | `NotificationService` | `CinfmmRepository` + Custom | `Cinfmm` |
@@ -567,11 +567,12 @@ IT Portal의 로그는 **3가지 유형**으로 구성되며, 각각 다른 계�
 public class Bprojm extends BaseEntity { ... }
 ```
 
-**현재 로그 대상 엔티티 (`@LogTarget` 기준 30개)**
+**현재 로그 대상 엔티티 (`@LogTarget` 기준 31개)**
 
 | 키 | 로그 엔티티 | 설명 |
 |----|-----------|------|
 | `basctm` | `BasctmL` | 정보화실무협의회 신청 |
+| `baskpm` | `BaskpmL` | 협의회 타당성검토 생략판정요청 |
 | `bbugt` | `BbugtL` | 예산 편성 |
 | `bcmmtm` | `BcmmtmL` | 협의회 위원 |
 | `bcostm` | `BcostmL` | 전산업무비 |
@@ -745,8 +746,8 @@ public class Bprojm extends BaseEntity { ... }
 | | GET/POST/PUT/DELETE | `/api/boards/{blbMngNo}/posts/{nacMngNo}/comments/**` | 댓글/대댓글 CRUD | 일반 |
 | **첨부파일** | POST/GET | `/api/files/**` | 업로드(50MB)/다운로드/미리보기 | 일반 |
 | | | | 파일명 생성: `{서버ID}_{UUID}_{원본확장자}` | |
-| **협의회 관리** | GET/POST/PUT/PATCH | `/api/council/**` | 신청, 심의, 평가, 일정 (39개 매핑) | 일반 |
-| | | | CouncilController 통합 (9개 서비스 분리) | |
+| **협의회 관리** | GET/POST/PUT/PATCH | `/api/council/**` | 신청, 심의, 평가, 일정 (37개 매핑) | 일반 |
+| | | | CouncilController 통합 (10개 서비스 분리) | |
 | **Gemini AI** | POST | `/api/gemini/generate` | 텍스트 생성 (파일 첨부 가능) | **관리자** |
 | **알림** | GET/PATCH/DELETE | `/api/notifications/**` | 알림 목록/읽음/삭제 (본인 데이터만) | 일반 |
 | **Tiptap 변수** | GET/POST | `/api/tiptap-variables/**` | 변수 카탈로그, 토큰 해석 | 일반 |

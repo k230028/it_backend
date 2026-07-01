@@ -75,6 +75,9 @@ class ScheduleServiceTest {
     void injectEntityManager() {
         // @PersistenceContext 필드는 @InjectMocks가 constructor 주입 후 건너뛰므로 명시적 주입
         ReflectionTestUtils.setField(scheduleService, "entityManager", entityManager);
+        Bcmmtm member = mock(Bcmmtm.class);
+        given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
+                .willReturn(Optional.of(member));
     }
 
     private static final String ASCT_ID = "ASCT-2026-0001";
@@ -167,6 +170,7 @@ class ScheduleServiceTest {
     void confirmSchedule_정상요청_confirmSchedule호출후SCHEDULED전이() {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("05");
 
         CouncilDto.ScheduleConfirmRequest request =
                 new CouncilDto.ScheduleConfirmRequest(TEST_DATE_LD, "10:00", "본관 1층");
@@ -346,7 +350,7 @@ class ScheduleServiceTest {
 
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
-        verify(committeeRepository, org.mockito.Mockito.never())
+        verify(committeeRepository, times(1))
                 .findByItPtlAsctIdAndEnoAndDelYn(any(), any(), any());
     }
 

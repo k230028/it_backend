@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -23,6 +24,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import jakarta.persistence.EntityManager;
 
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -60,8 +64,20 @@ class EvaluationServiceTest {
     @Mock
     private CouncilService councilService;
 
+    @Mock
+    private EntityManager entityManager;
+
     @InjectMocks
     private EvaluationService evaluationService;
+
+    @BeforeEach
+    void setUp() {
+        // 신규 평가 저장은 persist()를 사용하므로 영속성 컨텍스트를 명시적으로 주입한다.
+        ReflectionTestUtils.setField(evaluationService, "entityManager", entityManager);
+        Bcmmtm member = mock(Bcmmtm.class);
+        given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
+                .willReturn(Optional.of(member));
+    }
 
     private static final String ASCT_ID = "ASCT-2026-0001";
     private static final String ENO = "E10001";
@@ -101,15 +117,15 @@ class EvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctPrgStsTc()).willReturn("07");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(evaluationRepository.findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(ASCT_ID, ENO, "01", "N"))
-                .willReturn(Optional.empty());
+        given(evaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
+                .willReturn(List.of());
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.saveEvaluation(ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("01", 3, null))),
                 mockUser(ENO));
 
-        verify(evaluationRepository).save(any(Bevalm.class));
+        verify(entityManager).persist(any(Bevalm.class));
     }
 
     // ───────────────────────────────────────────────────────
@@ -125,15 +141,16 @@ class EvaluationServiceTest {
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         Bevalm existing = mock(Bevalm.class);
-        given(evaluationRepository.findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(ASCT_ID, ENO, "02", "N"))
-                .willReturn(Optional.of(existing));
+        given(existing.getItPtlCkgItmTc()).willReturn("02");
+        given(evaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
+                .willReturn(List.of(existing));
 
         evaluationService.saveEvaluation(ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("02", 4, "좋음"))),
                 mockUser(ENO));
 
         verify(existing).update(4, "좋음");
-        verify(evaluationRepository, never()).save(any());
+        verify(entityManager, never()).persist(any());
     }
 
     @Test
@@ -142,15 +159,15 @@ class EvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctPrgStsTc()).willReturn("07");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(evaluationRepository.findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(ASCT_ID, ENO, "03", "N"))
-                .willReturn(Optional.empty());
+        given(evaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
+                .willReturn(List.of());
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.saveEvaluation(ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("03", 5, null))),
                 mockUser(ENO));
 
-        verify(evaluationRepository).save(any(Bevalm.class));
+        verify(entityManager).persist(any(Bevalm.class));
     }
 
     // ───────────────────────────────────────────────────────

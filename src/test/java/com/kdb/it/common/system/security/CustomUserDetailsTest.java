@@ -64,6 +64,35 @@ class CustomUserDetailsTest {
     }
 
     @Test
+    @DisplayName("정보보호관리자는 협의회 관리 권한과 전용 역할을 가진다")
+    void infoSecAdmin_협의회관리권한_전용역할매핑() {
+        CustomUserDetails details = new CustomUserDetails(
+                "10002",
+                List.of(CustomUserDetails.ATH_INFOSEC_ADMIN),
+                "D002");
+
+        assertThat(details.isInfoSecAdmin()).isTrue();
+        assertThat(details.isCouncilManager()).isTrue();
+        assertThat(details.isAdmin()).isFalse();
+        assertThat(details.isDeptManager()).isFalse();
+        assertThat(authorityNames(details)).containsExactly("ROLE_INFOSEC_ADMIN");
+    }
+
+    @Test
+    @DisplayName("일반사용자와 미등록 자격등급은 관리자 권한을 얻지 못한다")
+    void normalAndUnknownAuthorities_관리권한없음_사용자역할매핑() {
+        CustomUserDetails normal = new CustomUserDetails(
+                "10003", List.of(CustomUserDetails.ATH_USER), "D003");
+        CustomUserDetails unknown = new CustomUserDetails(
+                "10004", List.of("UNKNOWN"), "D004");
+
+        assertThat(normal.isCouncilManager()).isFalse();
+        assertThat(normal.isInfoSecAdmin()).isFalse();
+        assertThat(normal.hasAthId(CustomUserDetails.ATH_ADMIN)).isFalse();
+        assertThat(authorityNames(unknown)).containsExactly("ROLE_USER");
+    }
+
+    @Test
     @DisplayName("UserDetails 계약은 Stateless JWT 사용자에 맞는 고정값을 반환한다")
     void userDetails_계약_고정값반환() {
         CustomUserDetails details = new CustomUserDetails("10001", List.of(), "D001");

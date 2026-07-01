@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,9 +21,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import jakarta.persistence.EntityManager;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
+import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bpqnam;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.QnaRepository;
@@ -47,8 +54,20 @@ class QnaServiceTest {
     @Mock
     private CouncilRepository councilRepository;
 
+    @Mock
+    private ProjectRepository projectRepository;
+
+    @Mock
+    private EntityManager entityManager;
+
     @InjectMocks
     private QnaService qnaService;
+
+    @BeforeEach
+    void injectEntityManager() {
+        // 신규 질의 저장 경로의 persist() 호출을 단위 테스트용 mock으로 연결한다.
+        ReflectionTestUtils.setField(qnaService, "entityManager", entityManager);
+    }
 
     private static final String ASCT_ID = "ASCT-2026-0001";
     private static final String QTN_ID  = "QTN-ASCT-2026-0001-01";
@@ -133,7 +152,7 @@ class QnaServiceTest {
 
         // then
         assertThat(result).startsWith("QTN-").contains(ASCT_ID);
-        verify(qnaRepository).save(any(Bpqnam.class));
+        verify(entityManager).persist(any(Bpqnam.class));
     }
 
     // ───────────────────────────────────────────────────────
@@ -252,6 +271,68 @@ class QnaServiceTest {
                 new CouncilDto.QnaReplyRequest("답변내용"), userDetails);
 
         // then
+        verify(qna).reply("E20001", "답변내용");
+    }
+
+    @Test
+    @DisplayName("replyQna: 사업 주관부서와 요청자 부서가 다르면 답변을 거부한다")
+    void replyQna_주관부서불일치_접근거부() {
+        Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E10001");
+        Basctm council = mock(Basctm.class);
+        Bprojm project = mock(Bprojm.class);
+        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        given(council.getAbusMngNo()).willReturn("PRJ-001");
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+        given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-001", "Y", "N"))
+                .willReturn(Optional.of(project));
+        given(project.getSvnDpmC()).willReturn("D001");
+        CustomUserDetails user = mock(CustomUserDetails.class);
+        given(user.getBbrC()).willReturn("D002");
+
+        assertThatThrownBy(() -> qnaService.replyQna(ASCT_ID, QTN_ID,
+                new CouncilDto.QnaReplyRequest("답변내용"), user))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("주관부서");
+    }
+
+    @Test
+    @DisplayName("replyQna: 사업 주관부서와 요청자 부서가 같으면 답변한다")
+    void replyQna_주관부서일치_답변등록() {
+        Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E10001");
+        Basctm council = mock(Basctm.class);
+        Bprojm project = mock(Bprojm.class);
+        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        given(council.getAbusMngNo()).willReturn("PRJ-001");
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+        given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-001", "Y", "N"))
+                .willReturn(Optional.of(project));
+        given(project.getSvnDpmC()).willReturn("D001");
+        CustomUserDetails user = mock(CustomUserDetails.class);
+        given(user.getBbrC()).willReturn("D001");
+        given(user.getEno()).willReturn("E20001");
+
+        qnaService.replyQna(ASCT_ID, QTN_ID, new CouncilDto.QnaReplyRequest("답변내용"), user);
+
+        verify(qna).reply("E20001", "답변내용");
+    }
+
+    @Test
+    @DisplayName("replyQna: 요청자 부서를 확인할 수 없으면 기존 답변 동작을 유지한다")
+    void replyQna_요청자부서미확인_답변등록() {
+        Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E10001");
+        Basctm council = mock(Basctm.class);
+        Bprojm project = mock(Bprojm.class);
+        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        given(council.getAbusMngNo()).willReturn("PRJ-001");
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+        given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-001", "Y", "N"))
+                .willReturn(Optional.of(project));
+        given(project.getSvnDpmC()).willReturn("D001");
+        CustomUserDetails user = mock(CustomUserDetails.class);
+        given(user.getEno()).willReturn("E20001");
+
+        qnaService.replyQna(ASCT_ID, QTN_ID, new CouncilDto.QnaReplyRequest("답변내용"), user);
+
         verify(qna).reply("E20001", "답변내용");
     }
 

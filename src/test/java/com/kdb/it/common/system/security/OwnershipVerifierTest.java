@@ -59,4 +59,36 @@ class OwnershipVerifierTest {
         assertThatThrownBy(() -> OwnershipVerifier.verifyOwnerOrAdmin("E0001", null))
                 .isInstanceOf(AccessDeniedException.class);
     }
+
+    @Test
+    @DisplayName("관리자 전용 검증은 관리자만 통과시킨다")
+    void verifyAdmin_관리자_통과() {
+        assertThatCode(() -> OwnershipVerifier.verifyAdmin(user("E0099", "ITPAD001")))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("관리자 전용 검증은 일반사용자를 거부한다")
+    void verifyAdmin_일반사용자_거부() {
+        assertThatThrownBy(() -> OwnershipVerifier.verifyAdmin(user("E0001", "ITPZZ001")))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("관리자");
+    }
+
+    @Test
+    @DisplayName("관리자 전용 검증은 인증 정보가 없으면 거부한다")
+    void verifyAdmin_인증정보없음_거부() {
+        assertThatThrownBy(() -> OwnershipVerifier.verifyAdmin(null))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("인증 정보");
+    }
+
+    @Test
+    @DisplayName("유틸리티 클래스 생성자는 외부에서 호출할 수 없다")
+    void constructor_리플렉션호출_비공개생성자확인() throws Exception {
+        var constructor = OwnershipVerifier.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+
+        assertThatCode(constructor::newInstance).doesNotThrowAnyException();
+    }
 }

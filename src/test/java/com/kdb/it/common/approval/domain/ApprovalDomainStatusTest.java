@@ -45,6 +45,13 @@ class ApprovalDomainStatusTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> ApprovalStatus.ofLabel("미지정"))
                 .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ApprovalStatus.ofCode(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("null");
+        assertThatThrownBy(() -> ApprovalStatus.ofLabel(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("null");
+        assertThat(ApprovalStatus.hasLabel(null)).isFalse();
     }
 
     @Test

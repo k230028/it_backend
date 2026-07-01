@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -50,6 +51,12 @@ class FeasibilityServiceTest {
 
     @InjectMocks
     private FeasibilityService feasibilityService;
+
+    @BeforeEach
+    void injectEntityManager() {
+        // @PersistenceContext 필드는 Mockito 생성자 주입 대상이 아니므로 테스트에서 명시적으로 연결한다.
+        ReflectionTestUtils.setField(feasibilityService, "entityManager", entityManager);
+    }
 
     private static final String ASCT_ID = "ASCT-2026-0001";
 

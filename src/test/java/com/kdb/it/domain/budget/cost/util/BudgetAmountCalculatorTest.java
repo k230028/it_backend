@@ -86,6 +86,36 @@ class BudgetAmountCalculatorTest {
     }
 
     @Test
+    @DisplayName("외화 환율이 음수이면 불완전 입력으로 보고 원화 입력값을 보존한다")
+    void reconcileAmount_외화환율음수_클라값보존() {
+        BigDecimal[] result = BudgetAmountCalculator.reconcileAmount(
+                new BigDecimal("10"), new BigDecimal("999"), "USD", new BigDecimal("-1"));
+
+        assertThat(result[0]).isEqualByComparingTo("999");
+        assertThat(result[1]).isNull();
+    }
+
+    @Test
+    @DisplayName("외화 재계산 결과는 소수 넷째 자리에서 HALF_UP 반올림한다")
+    void reconcileAmount_외화소수경계_셋째자리반올림() {
+        BigDecimal[] result = BudgetAmountCalculator.reconcileAmount(
+                new BigDecimal("1.2345"), BigDecimal.ZERO, "USD", BigDecimal.ONE);
+
+        assertThat(result[0]).isEqualTo(new BigDecimal("1.235"));
+        assertThat(result[1]).isEqualByComparingTo("1.2345");
+    }
+
+    @Test
+    @DisplayName("통화코드가 null이면 원화 행으로 처리한다")
+    void reconcileAmount_통화코드Null_원화값보존() {
+        BigDecimal[] result = BudgetAmountCalculator.reconcileAmount(
+                new BigDecimal("10"), new BigDecimal("777"), null, new BigDecimal("1300"));
+
+        assertThat(result[0]).isEqualByComparingTo("777");
+        assertThat(result[1]).isNull();
+    }
+
+    @Test
     @DisplayName("isForeignRow: null/KRW이면 false, 그 외 통화코드면 true")
     void isForeignRow_판정() {
         assertThat(BudgetAmountCalculator.isForeignRow(null)).isFalse();

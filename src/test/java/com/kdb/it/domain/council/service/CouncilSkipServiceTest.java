@@ -594,7 +594,7 @@ class CouncilSkipServiceTest {
             Baskpm deleted = mock(Baskpm.class);
             given(deleted.getDelYn()).willReturn("Y");
 
-            given(baskpmRepository.findAll()).willReturn(List.of(active, deleted));
+            given(baskpmRepository.findByDelYn("N")).willReturn(List.of(active));
 
             // Act
             List<CouncilDto.SkipRequestResponse> result = councilSkipService.getActiveSkipRequests();
@@ -610,7 +610,7 @@ class CouncilSkipServiceTest {
             // Arrange
             Baskpm deleted = mock(Baskpm.class);
             given(deleted.getDelYn()).willReturn("Y");
-            given(baskpmRepository.findAll()).willReturn(List.of(deleted));
+            given(baskpmRepository.findByDelYn("N")).willReturn(List.of());
 
             // Act
             List<CouncilDto.SkipRequestResponse> result = councilSkipService.getActiveSkipRequests();
@@ -623,7 +623,7 @@ class CouncilSkipServiceTest {
         @DisplayName("저장된 요청이 없으면 빈 목록을 반환한다")
         void getActiveSkipRequests_요청없음_빈목록() {
             // Arrange
-            given(baskpmRepository.findAll()).willReturn(List.of());
+            given(baskpmRepository.findByDelYn("N")).willReturn(List.of());
 
             // Act
             List<CouncilDto.SkipRequestResponse> result = councilSkipService.getActiveSkipRequests();
@@ -642,7 +642,7 @@ class CouncilSkipServiceTest {
             Baskpm b2 = pendingBaskpm("E10002", null);
             given(b2.getItPtlAsctId()).willReturn("ASCT-2026-0002");
 
-            given(baskpmRepository.findAll()).willReturn(List.of(b1, b2));
+            given(baskpmRepository.findByDelYn("N")).willReturn(List.of(b1, b2));
 
             // Act
             List<CouncilDto.SkipRequestResponse> result = councilSkipService.getActiveSkipRequests();

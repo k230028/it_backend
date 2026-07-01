@@ -62,4 +62,22 @@ class DocVersionCodecTest {
         assertThat(DocVersionCodec.toStored(null)).isNull();
         assertThat(DocVersionCodec.toDisplay(null)).isNull();
     }
+
+    @Test
+    @DisplayName("저장 변환은 소수 셋째 자리에서 HALF_UP 반올림한다")
+    void toStored_halfUpBoundary_roundsToInteger() {
+        assertThat(DocVersionCodec.toStored(new BigDecimal("1.004")))
+                .isEqualByComparingTo("100");
+        assertThat(DocVersionCodec.toStored(new BigDecimal("1.005")))
+                .isEqualByComparingTo("101");
+        assertThat(DocVersionCodec.toStored(new BigDecimal("-1.005")))
+                .isEqualByComparingTo("-101");
+    }
+
+    @Test
+    @DisplayName("표시 변환은 항상 소수 둘째 자리 스케일을 유지한다")
+    void toDisplay_integerAndFraction_preservesTwoDigitScale() {
+        assertThat(DocVersionCodec.toDisplay(BigDecimal.ZERO)).isEqualTo(new BigDecimal("0.00"));
+        assertThat(DocVersionCodec.toDisplay(new BigDecimal("1.5"))).isEqualTo(new BigDecimal("0.02"));
+    }
 }

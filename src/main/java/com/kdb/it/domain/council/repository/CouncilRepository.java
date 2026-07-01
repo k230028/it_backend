@@ -94,7 +94,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * <p>ITPZZ001 권한 사용자는 자신의 소속 부서 사업에 해당하는 협의회만 조회합니다.
      * BPROJM과 조인하여 사업 주관부서 기준으로 필터링합니다.</p>
      *
-     * @param bbrC  소속부서코드
+     * @param svnDpmC 소속부서코드
      * @param delYn 삭제여부 ('N')
      * @return 해당 부서의 협의회 목록
      */
