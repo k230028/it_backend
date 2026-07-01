@@ -74,6 +74,8 @@ class CostServiceTest {
     @Mock private XcrLookupService xcrLookupService;
     /** Phase 5 Task 5: CodeNameMapBuilder 추출 후 주입 */
     @Mock private com.kdb.it.common.util.CodeNameMapBuilder codeNameMapBuilder;
+    /** 작성자 소속 조직 해석기 (PRLM_HRK_OGZ_C_CONE 작성자 기준 주입) */
+    @Mock private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
 
     @InjectMocks
     private CostService costService;
@@ -85,6 +87,10 @@ class CostServiceTest {
     void setupCodeNameMapperDefaults() {
         // codeNameMapBuilder.build()의 기본값: 빈 Map 반환 (호출자가 필요시 override)
         given(codeNameMapBuilder.build(any(), any())).willReturn(java.util.Map.of());
+        // 작성자 조직 스냅샷 기본값: 생성 경로 NPE 방지용 빈 스냅샷
+        org.mockito.Mockito.lenient()
+                .when(authorOrgResolver.resolveCurrent())
+                .thenReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());
     }
 
     // ───────────────────────────────────────────────────────
@@ -242,6 +248,29 @@ class CostServiceTest {
 
         // then: btermmRepository.save() 미호출 검증
         verify(btermmRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createCost: 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE)을 작성자 소속 상위조직코드로 채운다")
+    void createCost_인사상위조직코드내용_작성자기준설정() {
+        // given: 최소 요청 + 작성자 조직 스냅샷
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
+                .costBgNo(IT_MNGC_NO)
+                .cttNm("작성자 상위조직 계약")
+                .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+        given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
+        org.mockito.Mockito.lenient()
+                .when(authorOrgResolver.resolveCurrent())
+                .thenReturn(new com.kdb.it.common.iam.service.AuthorOrg("BBR001", "18010", "H001"));
+
+        // when
+        costService.createCost(request);
+
+        // then: 저장 엔티티에 작성자 인사상위조직코드내용이 반영된다 (작성자 기준)
+        ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
+        verify(costRepository).save(captor.capture());
+        assertThat(captor.getValue().getPrlmHrkOgzCCone()).isEqualTo("H001");
     }
 
     // ───────────────────────────────────────────────────────

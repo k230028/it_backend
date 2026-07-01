@@ -101,6 +101,9 @@ public class ProjectService {
     /** 사용자 정보 리포지토리 (TPRMPP_CUSERI): 사원번호→사용자명 조회용 */
     private final com.kdb.it.common.iam.repository.UserRepository cuserIRepository;
 
+    /** 작성자 소속 조직 해석기: 신규 생성 시 주관팀코드(SVN_TEM_C)를 작성자 기준으로 채움 */
+    private final com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+
     /** 결재 정보 리포지토리 (TPRMPP_CDECIM): 결재선 목록 조회용 */
     private final com.kdb.it.common.approval.repository.ApproverRepository cdecimRepository;
 
@@ -303,8 +306,10 @@ public class ProjectService {
         // 하이픈을 제거해 yyyyMMdd 8자리로 저장 (ORA-12899 방지, 품목 xcrBseDt와 동일 처리)
         request.setFlfFsgDt(DateFormatUtil.toYmd8(request.getFlfFsgDt()));
 
-        // 엔티티 생성 및 저장
+        // 엔티티 생성
         Bprojm project = request.toEntity();
+        // 주관팀코드(SVN_TEM_C)는 작성자(현재 로그인 사용자) 소속 팀코드로 자동 설정 (작성자 기준)
+        project.assignSvnTemC(authorOrgResolver.resolveCurrent().svnTemC());
         projectRepository.save(project);
 
         // ===== 품목(Bitemm) 저장 =====

@@ -73,6 +73,10 @@ public class Bprojm extends BaseEntity {
     @Column(name = "SVN_DPM_C", length = 20, comment = "주관부서 (물리컬럼 SVN_DPM_C=주관부서코드)")
     private String svnDpmC;
 
+    /** 주관팀: 사업을 주관하는 업무 팀 코드 (신규 생성 시 작성자 소속 팀코드로 자동 설정, 최대 5자) */
+    @Column(name = "SVN_TEM_C", length = 5, comment = "주관팀 (물리컬럼 SVN_TEM_C=주관팀코드)")
+    private String svnTemC;
+
     /** IT부서: 사업을 담당하는 IT 부서 코드 (최대 20자) */
     @Column(name = "DVM_DPM_C", length = 20, comment = "IT부서 (물리컬럼 DVM_DPM_C=개발부서코드)")
     private String dvmDpmC;
@@ -318,6 +322,18 @@ public class Bprojm extends BaseEntity {
         this.odnYn = odnYn;
         this.abusTc = abusTc;
         this.cncdRfrNo = cncdRfrNo;
+    }
+
+    /**
+     * 작성자 기준 주관팀코드(SVN_TEM_C) 설정.
+     *
+     * <p>신규 생성 시 작성자(현재 로그인 사용자) 소속 팀코드로 채웁니다.
+     * 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT 이전(save 호출 전)에 호출합니다.</p>
+     *
+     * @param svnTemC 작성자 소속 팀코드
+     */
+    public void assignSvnTemC(String svnTemC) {
+        this.svnTemC = svnTemC;
     }
 
     /**

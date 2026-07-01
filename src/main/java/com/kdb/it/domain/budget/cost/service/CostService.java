@@ -91,6 +91,8 @@ public class CostService {
     private final OrganizationRepository corgnIRepository;
     /** 사용자(TPRMPP_CUSERI) 리포지토리: 담당자명 조회용 */
     private final UserRepository cuserIRepository;
+    /** 작성자 소속 조직 해석기: 신규 생성 시 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE)을 작성자 기준으로 채움 */
+    private final com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
     /** 결재자(TPRMPP_CDECIM) 리포지토리: 결재선 조회용 */
     private final ApproverRepository cdecimRepository;
     /** 공통코드(TPRMPP_CCODEM) 리포지토리: 코드명 배치 조회용 */
@@ -247,6 +249,8 @@ public class CostService {
         request.setFcAmt(reconciled[1]);
 
         Bcostm bcostm = request.toEntity(nextSno);
+        // 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE)은 작성자(현재 로그인 사용자) 소속 상위조직코드로 자동 설정 (작성자 기준)
+        bcostm.assignPrlmHrkOgzCCone(authorOrgResolver.resolveCurrent().prlmHrkOgzCCone());
         costRepository.save(bcostm);
 
         if (request.getTerminals() != null && !request.getTerminals().isEmpty()) {

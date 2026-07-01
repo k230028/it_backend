@@ -2,6 +2,8 @@ package com.kdb.it.domain.budget.document.service;
 
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.service.AuthorOrg;
+import com.kdb.it.common.iam.service.AuthorOrgResolver;
 import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.domain.budget.document.dto.RecentReviewingRow;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -9,6 +11,7 @@ import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.document.entity.Brdocm;
 import com.kdb.it.domain.budget.document.repository.ServiceRequestDocRepository;
 import org.springframework.security.access.AccessDeniedException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,9 +65,21 @@ class ServiceRequestDocServiceTest {
     @Mock
     private UserRepository cuserIRepository;
 
+    /** 작성자 소속 조직 해석기 (mock): 신규/새버전 생성 시 주관부서·팀 코드 주입 */
+    @Mock
+    private AuthorOrgResolver authorOrgResolver;
+
     /** 테스트 대상 서비스 */
     @InjectMocks
     private ServiceRequestDocService service;
+
+    /** 기본 작성자 조직 스냅샷: 생성 경로가 NPE 없이 통과하도록 빈 스냅샷을 반환한다. */
+    @BeforeEach
+    void setUpAuthorOrgDefault() {
+        org.mockito.Mockito.lenient()
+                .when(authorOrgResolver.resolveCurrent())
+                .thenReturn(AuthorOrg.empty());
+    }
 
     // ─────────────────────────────────────────────────────────────────
     // 인증 사용자 헬퍼 (소유권 검증용)
@@ -104,6 +119,52 @@ class ServiceRequestDocServiceTest {
                 new BigDecimal("1").compareTo(entity.getDocVrsSno()) == 0
         ));
         assertThat(result).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("신규 문서 생성 시 주관부서코드/주관팀코드를 작성자 소속 조직 기준으로 채운다")
+    void createDocument_populatesAuthorOrgFromCurrentUser() {
+        // Arrange
+        given(repository.getNextSequenceValue()).willReturn(1L);
+        given(repository.existsByDocMngNoAndDelYn(anyString(), eq("N"))).willReturn(false);
+        given(repository.save(any(Brdocm.class))).willAnswer(inv -> inv.getArgument(0));
+        given(authorOrgResolver.resolveCurrent())
+                .willReturn(new AuthorOrg("BBR001", "18010", "H001"));
+        ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
+                .reqTtl("작성자 조직 문서")
+                .build();
+
+        // Act
+        service.createDocument(req);
+
+        // Assert: 저장 엔티티에 작성자 부서/팀 코드가 반영된다 (작성자 기준)
+        then(repository).should().save(argThat(entity ->
+                "BBR001".equals(entity.getSvnDpmC()) && "18010".equals(entity.getSvnTemC())
+        ));
+    }
+
+    @Test
+    @DisplayName("새 버전 생성 시 주관부서코드/주관팀코드를 새 버전 작성자 기준으로 채운다")
+    void createNewVersion_populatesAuthorOrgFromCurrentUser() {
+        // Arrange
+        Brdocm latest = Brdocm.builder()
+                .docMngNo("DOC-001")
+                .docVrsSno(new BigDecimal("1"))
+                .reqTtl("문서")
+                .build();
+        given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
+                .willReturn(Optional.of(latest));
+        given(repository.save(any(Brdocm.class))).willAnswer(inv -> inv.getArgument(0));
+        given(authorOrgResolver.resolveCurrent())
+                .willReturn(new AuthorOrg("BBR002", "18501", "H002"));
+
+        // Act
+        service.createNewVersion("DOC-001", admin());
+
+        // Assert: 새 버전 행에도 작성자 부서/팀 코드가 반영된다
+        then(repository).should().save(argThat(entity ->
+                "BBR002".equals(entity.getSvnDpmC()) && "18501".equals(entity.getSvnTemC())
+        ));
     }
 
     @Test

@@ -75,6 +75,7 @@ class ProjectServiceCacheEvictTest {
     @MockitoBean private BprojaRepository bprojaRepository;
     @MockitoBean private BprojaSyncService bprojaSyncService;
     @MockitoBean private CodeNameMapBuilder codeNameMapBuilder;
+    @MockitoBean private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
 
     private Cache tiptapCache;
 
@@ -90,6 +91,10 @@ class ProjectServiceCacheEvictTest {
         CustomUserDetails admin = new CustomUserDetails("ADMIN01", List.of(CustomUserDetails.ATH_ADMIN), "D001");
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(admin, null, admin.getAuthorities()));
+
+        // 생성 경로가 참조하는 작성자 조직 스냅샷 기본값
+        given(authorOrgResolver.resolveCurrent())
+                .willReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());
     }
 
     @AfterEach

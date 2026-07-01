@@ -110,6 +110,10 @@ public class Bcostm extends BaseEntity {
     @Column(name = "CGPR_ID", length = 14, comment = "담당자행번 (물리컬럼 CGPR_ID=담당자ID)")
     private String cgprId;
 
+    /** 인사상위조직: 해당 비용 항목 작성자 소속 조직의 상위조직코드내용 (신규 생성 시 작성자 기준 자동 설정, 최대 100자) */
+    @Column(name = "PRLM_HRK_OGZ_C_CONE", length = 100, comment = "인사상위조직코드내용")
+    private String prlmHrkOgzCCone;
+
     /** 담당부서: 해당 비용 항목의 담당 부서 코드 (최대 20자) */
     @Column(name = "SVN_DPM_C", length = 20, comment = "담당부서코드 (물리컬럼 SVN_DPM_C=주관부서코드)")
     private String costSvnDpmC;
@@ -202,5 +206,17 @@ public class Bcostm extends BaseEntity {
         this.bseYy = bseYy;
         this.cncdRfrNo = cncdRfrNo;
         this.fcAmt = fcAmt;
+    }
+
+    /**
+     * 작성자 기준 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE) 설정.
+     *
+     * <p>신규 생성 시 작성자(현재 로그인 사용자) 소속 조직의 상위조직코드로 채웁니다.
+     * 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT 이전(save 호출 전)에 호출합니다.</p>
+     *
+     * @param prlmHrkOgzCCone 작성자 소속 인사상위조직코드내용
+     */
+    public void assignPrlmHrkOgzCCone(String prlmHrkOgzCCone) {
+        this.prlmHrkOgzCCone = prlmHrkOgzCCone;
     }
 }

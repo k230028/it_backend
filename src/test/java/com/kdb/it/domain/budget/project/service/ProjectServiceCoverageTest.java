@@ -108,6 +108,8 @@ class ProjectServiceCoverageTest {
     @Mock
     private CodeNameMapBuilder codeNameMapBuilder;
     @Mock
+    private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+    @Mock
     private SecurityContext securityContext;
     @Mock
     private Authentication authentication;
@@ -131,6 +133,10 @@ class ProjectServiceCoverageTest {
             new ProjectBudgetSummaryService(codeService).applyBudgetSummary(response, items);
             return null;
         }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
+        // 작성자 조직 스냅샷 기본값: 생성 경로 NPE 방지용 빈 스냅샷
+        org.mockito.Mockito.lenient()
+                .when(authorOrgResolver.resolveCurrent())
+                .thenReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());
     }
 
     @AfterEach

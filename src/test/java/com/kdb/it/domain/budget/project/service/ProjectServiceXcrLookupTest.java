@@ -64,6 +64,7 @@ class ProjectServiceXcrLookupTest {
     @Mock private XcrLookupService xcrLookupService;
     @Mock private ProjectBudgetSummaryService projectBudgetSummaryService;
     @Mock private BprojaSyncService bprojaSyncService;
+    @Mock private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
     @Mock private SecurityContext securityContext;
     @Mock private Authentication authentication;
 
@@ -77,6 +78,9 @@ class ProjectServiceXcrLookupTest {
         given(securityContext.getAuthentication()).willReturn(authentication);
         given(authentication.getPrincipal()).willReturn(adminUser);
         SecurityContextHolder.setContext(securityContext);
+        org.mockito.Mockito.lenient()
+                .when(authorOrgResolver.resolveCurrent())
+                .thenReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());
     }
 
     @AfterEach

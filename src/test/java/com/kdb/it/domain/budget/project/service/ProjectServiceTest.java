@@ -52,6 +52,8 @@ import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.iam.service.AuthorOrg;
+import com.kdb.it.common.iam.service.AuthorOrgResolver;
 import com.kdb.it.common.system.security.CustomUserDetails;
 
 /**
@@ -100,6 +102,9 @@ class ProjectServiceTest {
         /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (CodeNameMapBuilder 추출 후 의존성) */
         @Mock
         private com.kdb.it.common.util.CodeNameMapBuilder codeNameMapBuilder;
+        /** 작성자 소속 조직 해석기 (SVN_TEM_C 작성자 기준 주입) */
+        @Mock
+        private AuthorOrgResolver authorOrgResolver;
         @Mock
         private SecurityContext securityContext;
         @Mock
@@ -121,11 +126,38 @@ class ProjectServiceTest {
                         new ProjectBudgetSummaryService(codeService).applyBudgetSummary(response, items);
                         return null;
                 }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
+                // 기본 작성자 조직 스냅샷: 생성 경로가 NPE 없이 통과하도록 빈 스냅샷 반환
+                org.mockito.Mockito.lenient()
+                                .when(authorOrgResolver.resolveCurrent())
+                                .thenReturn(AuthorOrg.empty());
         }
 
         @AfterEach
         void clearSecurity() {
                 SecurityContextHolder.clearContext();
+        }
+
+        @Test
+        @DisplayName("createProject: 주관팀코드(SVN_TEM_C)를 작성자 소속 팀코드로 채운다")
+        void createProject_populatesSvnTemCFromAuthor() {
+                // Arrange
+                given(projectRepository.getNextSequenceValue()).willReturn(1L);
+                given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
+                org.mockito.Mockito.lenient()
+                                .when(authorOrgResolver.resolveCurrent())
+                                .thenReturn(new AuthorOrg("BBR001", "18010", "H001"));
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .abusNm("작성자 팀코드 사업")
+                                .bseYy("2026")
+                                .build();
+
+                // Act
+                projectService.createProject(request);
+
+                // Assert: 저장 엔티티의 주관팀코드가 작성자 팀코드로 채워진다 (작성자 기준)
+                ArgumentCaptor<Bprojm> captor = ArgumentCaptor.forClass(Bprojm.class);
+                verify(projectRepository).save(captor.capture());
+                assertThat(captor.getValue().getSvnTemC()).isEqualTo("18010");
         }
 
         @Test

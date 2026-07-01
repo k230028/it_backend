@@ -44,4 +44,10 @@ public class BrdocmL extends BaseLogEntity {
 
     @Column(name = "RVW_FSG_TLM_DT", comment = "완료기한")
     private String rvwFsgTlmDt;
+
+    @Column(name = "SVN_DPM_C", length = 20, comment = "주관부서코드")
+    private String svnDpmC;
+
+    @Column(name = "SVN_TEM_C", length = 5, comment = "주관팀코드")
+    private String svnTemC;
 }

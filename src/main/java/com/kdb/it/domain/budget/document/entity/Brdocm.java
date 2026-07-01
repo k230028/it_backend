@@ -80,6 +80,14 @@ public class Brdocm extends BaseEntity {
     @Column(name = "RVW_FSG_TLM_DT", length = 8, comment = "완료기한 (물리컬럼 RVW_FSG_TLM_DT=리뷰완료기한일자)")
     private String rvwFsgTlmDt;
 
+    /** 주관부서: 작성자 소속 부서 코드 (신규 생성·새 버전 생성 시 작성자 기준 자동 설정, 최대 20자) */
+    @Column(name = "SVN_DPM_C", length = 20, comment = "주관부서 (물리컬럼 SVN_DPM_C=주관부서코드)")
+    private String svnDpmC;
+
+    /** 주관팀: 작성자 소속 팀 코드 (신규 생성·새 버전 생성 시 작성자 기준 자동 설정, 최대 5자) */
+    @Column(name = "SVN_TEM_C", length = 5, comment = "주관팀 (물리컬럼 SVN_TEM_C=주관팀코드)")
+    private String svnTemC;
+
     /**
      * 요구사항 정의서 정보 업데이트 메서드
      *
@@ -99,6 +107,20 @@ public class Brdocm extends BaseEntity {
         this.reqDttNo = reqDttNo;
         this.bzDttNm = bzDttNm;
         this.rvwFsgTlmDt = rvwFsgTlmDt;
+    }
+
+    /**
+     * 작성자 기준 주관부서코드(SVN_DPM_C)/주관팀코드(SVN_TEM_C) 설정.
+     *
+     * <p>신규 생성 및 새 버전 생성 시 작성자(현재 로그인 사용자) 소속 부서·팀 코드로 채웁니다.
+     * 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT 이전(save 호출 전)에 호출합니다.</p>
+     *
+     * @param svnDpmC 작성자 소속 부서코드
+     * @param svnTemC 작성자 소속 팀코드
+     */
+    public void assignAuthorOrg(String svnDpmC, String svnTemC) {
+        this.svnDpmC = svnDpmC;
+        this.svnTemC = svnTemC;
     }
 
     /**

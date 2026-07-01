@@ -5,6 +5,8 @@ import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.document.repository.ServiceRequestDocRepository;
 import com.kdb.it.domain.budget.document.util.DocVersionCodec;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.iam.service.AuthorOrg;
+import com.kdb.it.common.iam.service.AuthorOrgResolver;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
@@ -52,6 +54,9 @@ public class ServiceRequestDocService {
 
     /** 사용자 정보 리포지토리 (TPRMPP_CUSERI): 사번→사용자명 조회용 */
     private final UserRepository cuserIRepository;
+
+    /** 작성자 소속 조직 해석기: 생성·새 버전 시 주관부서코드/주관팀코드를 작성자 기준으로 채움 */
+    private final AuthorOrgResolver authorOrgResolver;
 
     /** 신규 문서 최초 버전 */
     private static final BigDecimal INITIAL_VERSION = new BigDecimal("0.01");
@@ -183,6 +188,9 @@ public class ServiceRequestDocService {
         // 복합키 (docMngNo, 최초버전)로 엔티티 생성
         // 화면 버전 0.01 → 저장 정수 1(× 100). NUMBER(9,0) 컬럼 절삭 방지.
         Brdocm document = request.toEntity(docMngNo, DocVersionCodec.toStored(INITIAL_VERSION));
+        // 주관부서코드(SVN_DPM_C)/주관팀코드(SVN_TEM_C)는 작성자(현재 로그인 사용자) 소속 부서·팀 코드로 자동 설정 (작성자 기준)
+        AuthorOrg authorOrg = authorOrgResolver.resolveCurrent();
+        document.assignAuthorOrg(authorOrg.svnDpmC(), authorOrg.svnTemC());
         serviceRequestDocRepository.save(document);
         return document.getDocMngNo();
     }
@@ -258,6 +266,9 @@ public class ServiceRequestDocService {
 
         // 기존 업무 필드 복제 + 새 버전 번호(저장 정수, × 100) 지정
         Brdocm newEntity = latest.newVersion(DocVersionCodec.toStored(nextDisplay));
+        // 새 버전 행의 주관부서코드/주관팀코드도 새 버전 작성자(현재 로그인 사용자) 소속 조직 기준으로 설정 (작성자 기준)
+        AuthorOrg authorOrg = authorOrgResolver.resolveCurrent();
+        newEntity.assignAuthorOrg(authorOrg.svnDpmC(), authorOrg.svnTemC());
         serviceRequestDocRepository.save(newEntity);
 
         // 응답은 화면 소수 버전으로 반환 (예: 0.02)
