@@ -332,10 +332,10 @@ public class CouncilController {
     }
 
     /**
-     * 정보화실무협의회 생략 처리 (APPROVED → SKIPPED)
+     * 정보화실무협의회 생략 처리 (APPROVED(04) → 생략(99))
      *
      * <p>IT관리자가 타당성검토표 검토 후 협의회 생략 대상으로 판단한 경우 호출합니다.
-     * 협의회 상태를 SKIPPED로 전이하고, 사업 상태를 '요건 상세화'로 변경합니다.</p>
+     * 협의회 상태를 생략(99)으로 전이하고, 사업 상태를 '요건 상세화'로 변경합니다.</p>
      *
      * @param asctId 협의회ID
      * @return HTTP 200

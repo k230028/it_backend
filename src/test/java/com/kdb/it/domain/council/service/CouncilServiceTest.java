@@ -42,6 +42,7 @@ import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.dto.CouncilProjectRow;
@@ -92,6 +93,9 @@ class CouncilServiceTest {
 
     @Mock
     private ProjectBudgetSummaryService projectBudgetSummaryService;
+
+    @Mock
+    private BprojaSyncService bprojaSyncService;
 
     @InjectMocks
     private CouncilService councilService;
@@ -210,7 +214,7 @@ class CouncilServiceTest {
         councilService.skipCouncil(ASCT_ID);
 
         verify(council).changeStatus("SKIPPED");
-        verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "39");
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "39");
     }
 
     // ───────────────────────────────────────────────────────
@@ -544,6 +548,7 @@ class CouncilServiceTest {
 
         assertThat(result).startsWith("ASCT-");
         verify(councilRepository).save(any(Basctm.class));
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "32");
     }
 
     // ───────────────────────────────────────────────────────
@@ -695,7 +700,7 @@ class CouncilServiceTest {
 
         CouncilDto.NotifyResponse result = councilService.notifyCouncil(ASCT_ID);
 
-        verify(councilRepository).updateProjectStatus("PRJ-2026-0001", 1, "39");
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "39");
         assertThat(result).isNotNull();
     }
 

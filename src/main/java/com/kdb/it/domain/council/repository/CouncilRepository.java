@@ -5,7 +5,6 @@ import com.kdb.it.domain.council.entity.Basctm;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -89,13 +88,6 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * @param sno   프로젝트순번
      * @param prjSts   변경할 상태값
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(value = "UPDATE TPRMPP_BPROJM SET IT_PTL_STS_TC = :prjSts WHERE ABUS_MNG_NO = :abusMngNo AND SNO = :sno",
-            nativeQuery = true)
-    int updateProjectStatus(@Param("abusMngNo") String abusMngNo,
-                            @Param("sno") Integer sno,
-                            @Param("prjSts") String prjSts);
-
     /**
      * 소관부서(BBR_C) 기준 협의회 목록 조회 (일반사용자용)
      *
@@ -109,10 +101,10 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
     @Query(value = """
             SELECT a.* FROM TPRMPP_BASCTM a
             JOIN TPRMPP_BPROJM p ON a.ABUS_MNG_NO = p.ABUS_MNG_NO AND a.SNO = p.SNO
-            WHERE p.BBR_C = :bbrC AND a.DEL_YN = :delYn
+            WHERE p.SVN_DPM_C = :svnDpmC AND a.DEL_YN = :delYn
             ORDER BY a.FST_ENR_DTM DESC
             """, nativeQuery = true)
-    List<Basctm> findByDepartment(@Param("bbrC") String bbrC, @Param("delYn") String delYn);
+    List<Basctm> findByDepartment(@Param("svnDpmC") String svnDpmC, @Param("delYn") String delYn);
 
     /**
      * 평가위원으로 배정된 협의회 목록 조회
@@ -161,7 +153,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 a.CNRC_STT_TM       AS cnrcSttTm,
                 CASE WHEN a.IT_PTL_ASCT_ID IS NOT NULL THEN 1 ELSE 0 END AS applied,
                 p.BSE_YY         AS prjYy,
-                p.BZ_TP_C          AS prjTp,
+                p.ABUS_PPO_CONE          AS prjTp,
                 p.SVN_DPM_C       AS svnDpm,
                 NULL                 AS rqmBgAmt,
                 p.STT_DTM        AS sttDt,
@@ -170,15 +162,21 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.ABUS_CONE       AS abusCone,
                 a.CSF_HELD_YN       AS csfHeldYn
             FROM TPRMPP_BPROJM p
+            JOIN (
+                SELECT ABUS_MNG_NO, MAX(IT_PTL_STS_TC) AS IT_PTL_STS_TC
+                FROM TPRMPP_BPROJA
+                WHERE DEL_YN = 'N'
+                GROUP BY ABUS_MNG_NO
+            ) ps ON ps.ABUS_MNG_NO = p.ABUS_MNG_NO
             LEFT JOIN TPRMPP_BASCTM a
                 ON p.ABUS_MNG_NO = a.ABUS_MNG_NO
                AND p.SNO    = a.SNO
                AND a.DEL_YN     = 'N'
             WHERE p.DEL_YN = 'N'
               AND (
-                  (a.IT_PTL_ASCT_ID IS NOT NULL AND p.IT_PTL_STS_TC = :stsInProgress)
+                  (a.IT_PTL_ASCT_ID IS NOT NULL AND ps.IT_PTL_STS_TC = :stsInProgress)
                   OR
-                  (a.IT_PTL_ASCT_ID IS NULL AND p.IT_PTL_STS_TC = :stsPending)
+                  (a.IT_PTL_ASCT_ID IS NULL AND ps.IT_PTL_STS_TC = :stsPending)
               )
             ORDER BY p.FST_ENR_DTM DESC
             """, nativeQuery = true)
@@ -213,7 +211,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 a.CNRC_STT_TM       AS cnrcSttTm,
                 CASE WHEN a.IT_PTL_ASCT_ID IS NOT NULL THEN 1 ELSE 0 END AS applied,
                 p.BSE_YY         AS prjYy,
-                p.BZ_TP_C          AS prjTp,
+                p.ABUS_PPO_CONE          AS prjTp,
                 p.SVN_DPM_C       AS svnDpm,
                 NULL                 AS rqmBgAmt,
                 p.STT_DTM        AS sttDt,
@@ -222,6 +220,12 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.ABUS_CONE       AS abusCone,
                 a.CSF_HELD_YN       AS csfHeldYn
             FROM TPRMPP_BPROJM p
+            JOIN (
+                SELECT ABUS_MNG_NO, MAX(IT_PTL_STS_TC) AS IT_PTL_STS_TC
+                FROM TPRMPP_BPROJA
+                WHERE DEL_YN = 'N'
+                GROUP BY ABUS_MNG_NO
+            ) ps ON ps.ABUS_MNG_NO = p.ABUS_MNG_NO
             LEFT JOIN TPRMPP_BASCTM a
                 ON p.ABUS_MNG_NO = a.ABUS_MNG_NO
                AND p.SNO    = a.SNO
@@ -229,9 +233,9 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
             WHERE p.SVN_DPM_C = :svnDpm
               AND p.DEL_YN  = 'N'
               AND (
-                  (a.IT_PTL_ASCT_ID IS NOT NULL AND p.IT_PTL_STS_TC = :stsInProgress)
+                  (a.IT_PTL_ASCT_ID IS NOT NULL AND ps.IT_PTL_STS_TC = :stsInProgress)
                   OR
-                  (a.IT_PTL_ASCT_ID IS NULL AND p.IT_PTL_STS_TC = :stsPending)
+                  (a.IT_PTL_ASCT_ID IS NULL AND ps.IT_PTL_STS_TC = :stsPending)
               )
             ORDER BY p.FST_ENR_DTM DESC
             """, nativeQuery = true)

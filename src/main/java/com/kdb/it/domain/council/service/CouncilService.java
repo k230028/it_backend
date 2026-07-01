@@ -17,6 +17,7 @@ import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.dto.CouncilProjectRow;
@@ -78,6 +79,9 @@ public class CouncilService {
     /** 품목 기준 예산 합계 계산 서비스 — 협의회 당해예산(파생) 계산용 */
     private final ProjectBudgetSummaryService projectBudgetSummaryService;
 
+    /** 정보화사업관계(BPROJA) 동기화 서비스: 협의회 단계 상태 갱신용 */
+    private final BprojaSyncService bprojaSyncService;
+
     /** 평가위원 리포지토리 — completeCouncil 완료 검증용 */
     private final CommitteeRepository committeeRepository;
 
@@ -91,7 +95,7 @@ public class CouncilService {
     private final OrganizationRepository organizationRepository;
 
     // =========================================================================
-    // 사업 상태 코드 (공통코드 그룹 IT_PTL_STS_TC, BPROJM.IT_PTL_STS_TC)
+    // 사업 상태 코드 (공통코드 그룹 IT_PTL_STS_TC, BPROJA.IT_PTL_STS_TC)
     // =========================================================================
 
     /** 협의회 신청 대상 상태: 예산편성 작업 완료 (09, IT_PTL_STS_TC 재정렬 후) */
@@ -102,6 +106,14 @@ public class CouncilService {
 
     /** 타당성검토 정실협 완료 상태 (통보·생략 시 전이) (39) */
     private static final String PRJ_STS_COUNCIL_DONE = "39";
+
+    /**
+     * 협의회 진행상태 '생략' 코드 (CCODEM IT_PTL_ASCT_PRG_STS_TC '99')
+     *
+     * <p>IT_PTL_ASCT_PRG_STS_TC는 VARCHAR2(2)이므로 이전의 문자열 "SKIPPED"(7자)는
+     * ORA-12899로 저장 실패했다. 선형 흐름(01~13) 밖의 종료 상태로 '99'를 사용한다. (리뷰 C-1)</p>
+     */
+    private static final String STS_COUNCIL_SKIPPED = "99";
 
     // =========================================================================
     // 조회
@@ -220,8 +232,7 @@ public class CouncilService {
         councilRepository.save(council);
 
         // 사업 상태를 '타당성검토 정실협 진행중'(32)으로 전이
-        councilRepository.updateProjectStatus(request.prjMngNo(), request.prjSno(),
-                PRJ_STS_COUNCIL_IN_PROGRESS);
+        bprojaSyncService.upsert(request.prjMngNo(), request.prjMngNo(), PRJ_STS_COUNCIL_IN_PROGRESS);
 
         return asctId;
     }
@@ -338,7 +349,7 @@ public class CouncilService {
      *
      * <p>
      * 협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다.
-     * 사업 상태(BPROJM.IT_PTL_STS_TC)를 '타당성검토 정실협 완료'(39)로 변경하고,
+     * 사업 상태(BPROJA.IT_PTL_STS_TC)를 '타당성검토 정실협 완료'(39)로 변경하고,
      * 수신자(협의회 최초 등록자) 정보를 반환합니다.
      * </p>
      *
@@ -357,7 +368,7 @@ public class CouncilService {
         }
 
         // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
-        councilRepository.updateProjectStatus(council.getAbusMngNo(), council.getSno(), PRJ_STS_COUNCIL_DONE);
+        bprojaSyncService.upsert(council.getAbusMngNo(), council.getAbusMngNo(), PRJ_STS_COUNCIL_DONE);
 
         // 수신자(협의회 최초 등록자 = 추진부서 담당자) 정보 조회
         String recipientEno = council.getFstEnrUsid();
@@ -384,7 +395,7 @@ public class CouncilService {
     }
 
     /**
-     * 정보화실무협의회 생략 처리 (APPROVED → SKIPPED)
+     * 정보화실무협의회 생략 처리 (APPROVED(04) → 생략(99))
      *
      * <p>
      * IT관리자가 타당성검토표 검토 후 해당 사업이 협의회 생략 대상임을 확인한 경우 호출합니다.
@@ -394,12 +405,12 @@ public class CouncilService {
      * 처리 내용:
      * </p>
      * <ol>
-     * <li>협의회 상태: APPROVED → SKIPPED</li>
+     * <li>협의회 상태: 결재완료(04) → 생략(99)</li>
      * <li>사업 상태(IT_PTL_STS_TC): '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)</li>
      * </ol>
      *
      * @param asctId 협의회ID
-     * @throws IllegalStateException 현재 상태가 APPROVED가 아닌 경우
+     * @throws IllegalStateException 현재 상태가 APPROVED(04)가 아닌 경우
      */
     @Transactional
     public void skipCouncil(String asctId) {
@@ -408,14 +419,14 @@ public class CouncilService {
         // APPROVED 상태에서만 생략 가능
         if (!"04".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                    "생략 처리는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+                    "생략 처리는 결재완료(04) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
-        // 협의회 상태 전이: APPROVED → SKIPPED
-        council.changeStatus("SKIPPED");
+        // 협의회 상태 전이: 결재완료(04) → 생략(99)
+        council.changeStatus(STS_COUNCIL_SKIPPED);
 
         // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
-        councilRepository.updateProjectStatus(council.getAbusMngNo(), council.getSno(), PRJ_STS_COUNCIL_DONE);
+        bprojaSyncService.upsert(council.getAbusMngNo(), council.getAbusMngNo(), PRJ_STS_COUNCIL_DONE);
     }
 
     /**
