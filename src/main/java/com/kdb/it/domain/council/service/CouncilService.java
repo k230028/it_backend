@@ -396,7 +396,12 @@ public class CouncilService {
                         bbrNm = org.getBbrNm();
                     }
                 }
+            } else {
+                // 수신자 사번은 있으나 사용자 정보를 못 찾음 → 통보 대상 누락 추적용 경고 (리뷰 3-2/M-2)
+                log.warn("[협의회통보] 수신자 사용자 정보 조회 실패 - asctId={}, recipientEno={}", asctId, recipientEno);
             }
+        } else {
+            log.warn("[협의회통보] 수신자 사번 미확인 - asctId={} (FST_ENR_USID null)", asctId);
         }
 
         return new CouncilDto.NotifyResponse(recipientEno, usrNm, bbrNm, temNm);

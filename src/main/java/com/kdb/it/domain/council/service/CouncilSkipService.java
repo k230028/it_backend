@@ -141,8 +141,11 @@ public class CouncilSkipService {
     public void handleApprovalCompleted(String asctId, boolean approved) {
         Baskpm baskpm = baskpmRepository.findByItPtlAsctIdAndDelYn(asctId, "N").orElse(null);
         if (baskpm == null) {
-            log.warn("[생략판정요청] 콜백 대상 요청 없음 - asctId={}", asctId);
-            return;
+            // 결재 링크(BASKPM 원본)는 존재하는데 요청 레코드가 없는 데이터 불일치 상황.
+            // 조용히 return하면 협의회가 결재완료(04)에 영구 고착되므로, ERROR로 격상하고 예외를 던져
+            // 결재 완료 트랜잭션을 롤백시켜 불일치를 표면화한다(리스너가 rethrow → 롤백). (리뷰 3-1)
+            log.error("[생략판정요청] 결재 콜백 대상 요청 없음(데이터 불일치) - asctId={}. 결재 트랜잭션을 롤백합니다.", asctId);
+            throw new IllegalStateException("생략 판정 요청 레코드가 없어 결재 콜백을 처리할 수 없습니다: " + asctId);
         }
         String recipient = baskpm.getRqsUsid();
 
@@ -194,6 +197,8 @@ public class CouncilSkipService {
     /** 요청자(정보보호기획)에게 결재 결과 통보. */
     private void notify(String recipientEno, String ttl, String msg, String asctId) {
         if (recipientEno == null || recipientEno.isBlank()) {
+            // 수신자(신청자 RQS_USID) 미확인이면 통보가 유실되므로 추적 가능하도록 경고 로그. (리뷰 3-2)
+            log.warn("[생략판정요청] 통보 수신자 미확인 - asctId={} (RQS_USID null/blank), 통보 건너뜀: {}", asctId, ttl);
             return;
         }
         eventPublisher.publishEvent(new NotificationEvent(
