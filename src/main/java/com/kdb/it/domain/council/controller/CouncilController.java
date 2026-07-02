@@ -126,7 +126,9 @@ public class CouncilController {
             @Valid @RequestBody CouncilDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         String asctId = councilService.createCouncil(request, userDetails);
-        return ResponseEntity.ok(asctId);
+        return ResponseEntity
+                .created(java.net.URI.create("/api/council/" + asctId))
+                .body(asctId);
     }
 
     /**
@@ -408,7 +410,7 @@ public class CouncilController {
     public ResponseEntity<Void> createSkipRequest(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.SkipRequestCreate request,
+            @Valid @RequestBody CouncilDto.SkipRequestCreate request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         councilSkipService.createSkipRequest(asctId, request, userDetails);
         return ResponseEntity.ok().build();
@@ -430,7 +432,7 @@ public class CouncilController {
     public ResponseEntity<Void> decideSkipRequest(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.SkipDecisionRequest request,
+            @Valid @RequestBody CouncilDto.SkipDecisionRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         councilSkipService.submitDecision(asctId, request, userDetails);
         return ResponseEntity.ok().build();

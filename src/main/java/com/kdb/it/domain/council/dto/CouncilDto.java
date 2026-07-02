@@ -548,7 +548,7 @@ public class CouncilDto {
      */
     public record QnaCreateRequest(
         /** 질의내용 (최대 4000자) */
-        String qtnCone
+        @NotBlank String qtnCone
     ) {}
 
     /**
@@ -559,7 +559,7 @@ public class CouncilDto {
      */
     public record QnaReplyRequest(
         /** 답변내용 (최대 4000자) */
-        String repCone
+        @NotBlank String repCone
     ) {}
 
     /**
@@ -569,7 +569,7 @@ public class CouncilDto {
      */
     public record QnaUpdateRequest(
         /** 수정할 질의내용 (최대 4000자) */
-        String qtnCone
+        @NotBlank String qtnCone
     ) {}
 
     /**
@@ -633,9 +633,9 @@ public class CouncilDto {
      * @param flMpnId  사업계획서 첨부 파일관리번호 (Cfilem.FL_MPN_ID, 신규 업로드)
      */
     public record SkipRequestCreate(
-        String rsnTc,
-        String rsn,
-        String flMpnId
+        @NotBlank String rsnTc,
+        @NotBlank String rsn,
+        @NotBlank String flMpnId
     ) {}
 
     /**
@@ -646,9 +646,9 @@ public class CouncilDto {
      * @param approverEnos 결재선 사번 목록 (순서대로 IT기획팀장 → IT기획부장)
      */
     public record SkipDecisionRequest(
-        String omtYn,
-        String cnfmCone,
-        List<String> approverEnos
+        @NotBlank String omtYn,
+        @NotBlank String cnfmCone,
+        @NotEmpty List<String> approverEnos
     ) {}
 
     /**

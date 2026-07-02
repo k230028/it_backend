@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -78,10 +79,12 @@ public class CouncilQnaController {
     public ResponseEntity<String> createQna(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
             @PathVariable("asctId") String asctId,
-            @RequestBody CouncilDto.QnaCreateRequest request,
+            @Valid @RequestBody CouncilDto.QnaCreateRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         String qtnId = qnaService.createQna(asctId, request, userDetails);
-        return ResponseEntity.ok(qtnId);
+        return ResponseEntity
+                .created(java.net.URI.create("/api/council/" + asctId + "/qna/" + qtnId))
+                .body(qtnId);
     }
 
     /**
@@ -107,7 +110,7 @@ public class CouncilQnaController {
             @PathVariable("asctId") String asctId,
             @Parameter(description = "질의응답ID", required = true, example = "QTN-ASCT-2026-0001-01")
             @PathVariable("qtnId") String qtnId,
-            @RequestBody CouncilDto.QnaReplyRequest request,
+            @Valid @RequestBody CouncilDto.QnaReplyRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         qnaService.replyQna(asctId, qtnId, request, userDetails);
         return ResponseEntity.ok().build();
@@ -120,7 +123,7 @@ public class CouncilQnaController {
             @PathVariable("asctId") String asctId,
             @Parameter(description = "질의응답ID", required = true, example = "QTN-ASCT-2026-0001-01")
             @PathVariable("qtnId") String qtnId,
-            @RequestBody CouncilDto.QnaUpdateRequest request,
+            @Valid @RequestBody CouncilDto.QnaUpdateRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         qnaService.updateQna(asctId, qtnId, request, userDetails);
         return ResponseEntity.ok().build();
