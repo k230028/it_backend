@@ -385,6 +385,7 @@ public class PlanController { ... }
 | 자격등급 ID | Spring Security Role | 설명 |
 |-----------|---------------------|------|
 | `ITPAD001` | `ROLE_ADMIN` | 시스템관리자 — 전체 조회/수정/삭제, 관리자 메뉴 |
+| `ITPAD002` | `ROLE_INFOSEC_ADMIN` | 정보보호관리자 — 정보보호기획팀, 정보보호시스템 사업(dbrTc=04) 협의회 개최준비/관리 |
 | `ITPZZ002` | `ROLE_DEPT_MANAGER` | 기획통할담당자 — 소속 부서 조회/수정/삭제 |
 | `ITPZZ001` | `ROLE_USER` | 일반사용자 — 소속 부서 조회, 본인 작성 수정 (기본값) |
 
