@@ -76,7 +76,7 @@ public class Baskpm extends BaseEntity {
     private LocalDateTime cnfmDtm;
 
     /** 신청관리번호 (전자결재 연동) */
-    @Column(name = "APF_MNG_NO", length = 30, comment = "신청관리번호")
+    @Column(name = "APF_DCM_NO", length = 64, comment = "신청서식별번호")
     private String apfMngNo;
 
     /**

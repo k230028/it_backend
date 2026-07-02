@@ -52,6 +52,6 @@ public class BaskpmL extends BaseLogEntity {
     @Column(name = "CNFM_DTM", comment = "확인일시")
     private LocalDateTime cnfmDtm;
 
-    @Column(name = "APF_MNG_NO", length = 30, comment = "신청관리번호")
+    @Column(name = "APF_DCM_NO", length = 64, comment = "신청서식별번호")
     private String apfMngNo;
 }
