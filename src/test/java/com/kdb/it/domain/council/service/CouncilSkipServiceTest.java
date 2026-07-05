@@ -403,14 +403,16 @@ class CouncilSkipServiceTest {
     class HandleApprovalCompletedTests {
 
         @Test
-        @DisplayName("콜백 대상 요청 없음: baskpm이 없으면 경고 로그만 남기고 조기 반환한다")
-        void handleApprovalCompleted_요청없음_조기반환() {
-            // Arrange: 대상 요청 없음
+        @DisplayName("콜백 대상 요청 없음: baskpm이 없으면 IllegalStateException으로 결재 트랜잭션을 롤백시킨다")
+        void handleApprovalCompleted_요청없음_예외롤백() {
+            // Arrange: 대상 요청 없음 (데이터 불일치 상황)
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.empty());
 
-            // Act
-            councilSkipService.handleApprovalCompleted(ASCT_ID, true);
+            // Act & Assert: 조용한 조기 반환 대신 예외를 던져 결재 완료 트랜잭션을 롤백시킨다 (리뷰 3-1)
+            assertThatThrownBy(() -> councilSkipService.handleApprovalCompleted(ASCT_ID, true))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(ASCT_ID);
 
             // Assert: 협의회 상태 변경·통보 미호출
             then(councilService).shouldHaveNoInteractions();

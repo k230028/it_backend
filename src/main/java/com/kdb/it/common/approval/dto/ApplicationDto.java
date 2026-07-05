@@ -268,6 +268,9 @@ public class ApplicationDto {
      * <p>조회에 성공한 신청서 목록({@code items})과 미존재로 실패한
      * 신청관리번호 목록({@code failedIds})을 함께 반환합니다.
      * 누락 건을 조용히 버리지 않고 호출자에게 노출하기 위함입니다.</p>
+     *
+     * @param items     조회 성공 항목
+     * @param failedIds 조회 실패(미존재) 신청관리번호 목록
      */
     @Schema(name = "ApplicationBulkResponse", description = "신청서 일괄 조회 결과 (부분 성공)")
     public record BulkResponse(

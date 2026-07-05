@@ -32,7 +32,7 @@
 | API 문서 | Springdoc OpenAPI | 3.0.3 | Swagger UI 자동 생성 (`/swagger-ui/index.html`) |
 | 빌드 | Gradle (Groovy DSL) | - | `build.gradle` 관리, JaCoCo 70% 커버리지 목표 |
 | 유틸 | Lombok, Jsoup | 1.18.3 | 보일러플레이트 제거, 서버 측 HTML XSS 방어 |
-| 테스트 | JUnit 5, Mockito, AssertJ | - | 163개 테스트 파일 |
+| 테스트 | JUnit 5, Mockito, AssertJ | - | 164개 테스트 파일 |
 
 ## 2.5 빠른 시작 (Quick Start)
 
@@ -787,7 +787,7 @@ public class Bprojm extends BaseEntity { ... }
 #   → http://localhost:28080
 #   → Swagger: http://localhost:28080/swagger-ui/index.html
 
-# 4. 테스트 실행 (152개 테스트 파일)
+# 4. 테스트 실행 (164개 테스트 파일)
 ./gradlew test
 
 # 5. 테스트 커버리지 리포트 생성
@@ -1176,6 +1176,7 @@ public class Bnewent extends BaseEntity { ... }
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| **2026-07-06** | REVIEW.md 델타 현행화: 실제 소스 통계 재검증(메인 Java 377개, 테스트 164개, @Entity 84개, 컨트롤러 42개), 빈 catch 패턴 추가 발견 없음, 기존 보안/DB 후속 과제는 TASK.md 유지 |
 | **2026-07-01** | 실제 구현 기준 현행화: Refresh Token 회전·재사용 탐지, 사업집행 4단계 부서 필터·ADMIN 상태 전이, Tiptap 권한별 카탈로그·Caffeine 캐시, Flyway 프로파일 분리, 알림 코드·디스패처 흐름 반영 |
 | **2026-06-24** | REVIEW.md 현행화: 소스 통계 재검증(메인 Java 357개, 테스트 135개, @Entity 77개, 컨트롤러 38개), 사업집행 4단계 부서 필터 현황 재확인(`EstimateRepositoryImpl` 적용, `Contract`/`Deliberation`/`PaymentRepositoryImpl` 미적용), SecurityConfig와 JWT 쿠키/Authorization 헤더 폴백 문서 기준 재검토 |
 | **2026-06-22** | README.md 현행화: Spring Boot 4.1.0 기준으로 기술 스택 표기 정정, 소스 통계 재검증(메인 Java 353개, 테스트 121개, @Entity 74개), 루트 AI 하네스 기준(Superpowers 기본, ECC/gstack 보조)과 충돌하지 않도록 문서 참조 흐름 정리 |

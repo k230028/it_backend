@@ -40,6 +40,21 @@ public class CostDto {
      * <p>목록 화면에 필요한 식별/요약 컬럼만 담는다. Bcostm은 1000자+ 대용량 텍스트가 없어
      * 제외 본문은 없으나, 목록에 불필요한 환산/외화/연기/담당자 등 미표시 컬럼을 select에서
      * 빼 적재 폭을 줄인다. 상세는 기존 엔티티 조회 경로를 유지한다(결정 B).</p>
+     *
+     * @param costBgNo     전산업무비예산번호
+     * @param bgSno        예산일련번호
+     * @param lstYn        최종여부 ('Y'=현재 유효 레코드)
+     * @param ioeC         비목코드
+     * @param cttNm        계약명
+     * @param cttOppNm     계약상대처명
+     * @param costTotXpAmt 전산업무비예산금액
+     * @param curC         통화코드
+     * @param sectSysUtzYn 정보보호여부 (Y/N)
+     * @param costSvnDpmC  담당부서코드 (주관부서코드)
+     * @param svnTemC      담당팀코드 (주관팀코드)
+     * @param bseYy        예산연도 (기준연도)
+     * @param abusTc       사업구분코드
+     * @param delYn        삭제여부 (Y/N)
      */
     @Schema(name = "CostListRow")
     public record CostListRow(
@@ -663,6 +678,9 @@ public class CostDto {
      * <p>조회에 성공한 항목({@code items})과 미존재로 조회에 실패한 전산관리비관리번호
      * 목록({@code failedIds})을 함께 반환합니다. 누락 건을 조용히 버리지 않고
      * 호출자에게 노출하기 위함입니다.</p>
+     *
+     * @param items     조회 성공 항목 목록
+     * @param failedIds 조회 실패(미존재) 전산관리비관리번호 목록
      */
     @Schema(name = "CostBulkResponse", description = "전산관리비 일괄 조회 결과 (부분 성공)")
     public record BulkResponse(

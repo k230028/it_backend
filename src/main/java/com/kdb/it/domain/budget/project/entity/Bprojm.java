@@ -204,6 +204,38 @@ public class Bprojm extends BaseEntity {
      *
      * <p>35+ 개별 파라미터를 하나의 레코드로 압축하여 메서드 시그니처 가독성을 개선합니다.
      * {@code ProjectService}의 수정 로직에서 사용합니다.</p>
+     *
+     * @param abusNm 사업명
+     * @param bzTpC 사업유형명 (공통코드 ABUS_PPO 코드값명)
+     * @param svnDpmC 주관부서코드
+     * @param dvmDpmC IT부서코드 (물리컬럼 DVM_DPM_C=개발부서코드)
+     * @param sttDtm 시작일자
+     * @param endDtm 종료일자
+     * @param usid 주관부서담당자 사번
+     * @param dvmUsid IT부서담당자 사번
+     * @param tlrUsid 주관부서담당팀장 사번
+     * @param dvmTlrUsid IT부서담당팀장 사번
+     * @param edrtTc 전결권구분코드
+     * @param abusCone 사업설명 (물리컬럼 ABUS_CONE=사업내용)
+     * @param cpnSafCone 현황 (물리컬럼 CPN_SAF_CONE=회사현황내용)
+     * @param abusNcsCone 필요성 (물리컬럼 ABUS_NCS_CONE=사업필요성내용)
+     * @param dgogPpoCone 기대효과 (물리컬럼 DGOG_PPO_CONE=효과성목적내용)
+     * @param plmDes 문제 (물리컬럼 PLM_DES=문제설명)
+     * @param abusRngCone 사업범위내용
+     * @param mnPrgCone 주요진행내용
+     * @param hrfPlnCone 향후계획 (물리컬럼 HRF_PLN_CONE=향후계획내용)
+     * @param bzDttNm 업무구분명 (공통코드 BZ_DTT 코드값명)
+     * @param sklTpTc 기술분야명 (물리컬럼 SKL_FLD_NM, 공통코드 SKL_FLD 코드값명)
+     * @param cstTpTc 고객유형구분코드명 (물리컬럼 CST_TP_TC_NM, 공통코드 CST_TP_TC 코드값명)
+     * @param dplYn 중복여부 ('Y'=중복, 'N'=미중복)
+     * @param flfFsgDt 의무완료기한 (물리컬럼 FLF_FSG_DT=이행완료일자, YYYYMMDD)
+     * @param rprStsTc 보고상태구분코드
+     * @param exePttYn 프로젝트추진가능성 (공통코드 EXE_PTT_YN 1자리)
+     * @param bseYy 예산연도 (물리컬럼 BSE_YY=기준연도, 4자리)
+     * @param prlmHrkOgzCCone 주관본부 (물리컬럼 PRLM_HRK_OGZ_C_CONE=인사상위조직코드내용)
+     * @param odnYn 경상여부 ('Y'=경상사업, null 또는 'N'=일반 정보화사업)
+     * @param abusTc 사업구분코드 (예: '신규', '계속')
+     * @param cncdRfrNo 관련프로젝트관리번호 (계속사업인 경우 전년도 사업 관리번호)
      */
     public record UpdateCommand(
             String abusNm, String bzTpC, String svnDpmC, String dvmDpmC,
@@ -344,6 +376,9 @@ public class Bprojm extends BaseEntity {
      * Hibernate HQL 파서는 nested class를 FQN의 점 표기로 해석하지 못하므로,
      * {@code Bprojm.Ref}를 그대로 사용하려면 {@code Bprojm$Ref} 표기 또는
      * {@code @Imported} 등록이 필요합니다.</p>
+     *
+     * @param code 프로젝트관리번호 (ABUS_MNG_NO)
+     * @param name 사업명 (ABUS_NM)
      */
     @Imported
     public record Ref(String code, String name) {}
