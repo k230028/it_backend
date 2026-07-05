@@ -741,6 +741,43 @@ class CostServiceTest {
     }
 
     @Test
+    @DisplayName("getCost: 계속 항목 단건 조회 시 cncdRfrNo 기준 전년도 예산(prevBgAmt)을 설정한다")
+    void getCost_계속항목_전년도예산설정() {
+        Bcostm cost = Bcostm.builder()
+                .costBgNo("COST-2026-0004")
+                .bgSno(1)
+                .abusTc("02")
+                .bseYy("2026")
+                .cncdRfrNo("COST-2026-0023")
+                .delYn("N")
+                .build();
+        given(costRepository.findByCostBgNoAndDelYn("COST-2026-0004", "N")).willReturn(List.of(cost));
+        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-2026-0023"), "2025"))
+                .willReturn(java.util.Map.of("COST-2026-0023", BigDecimal.valueOf(4_200_000)));
+
+        CostDto.Response result = costService.getCost("COST-2026-0004");
+
+        assertThat(result.getPrevBgAmt()).isEqualByComparingTo("4200000");
+    }
+
+    @Test
+    @DisplayName("getCost: 신규 항목 단건 조회 시 전년도 예산(prevBgAmt)은 0이다")
+    void getCost_신규항목_전년도예산0() {
+        Bcostm cost = Bcostm.builder()
+                .costBgNo("COST-2026-0005")
+                .bgSno(1)
+                .abusTc("01")
+                .bseYy("2026")
+                .delYn("N")
+                .build();
+        given(costRepository.findByCostBgNoAndDelYn("COST-2026-0005", "N")).willReturn(List.of(cost));
+
+        CostDto.Response result = costService.getCost("COST-2026-0005");
+
+        assertThat(result.getPrevBgAmt()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
     @DisplayName("getCostList: 배치 보강으로 신청서, 부서명, 담당자명, 전년도 예산을 설정한다")
     void getCostList_배치보강정보설정() {
         Bcostm cost = Bcostm.builder()
@@ -786,8 +823,9 @@ class CostServiceTest {
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(Ccodem.builder().cId("IOE_C").cdva("101").cTp("IOE_IDR").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N")).willReturn(List.of());
-        given(costRepository.sumPrevBgByCostBgNos(List.of(IT_MNGC_NO), "2025"))
-                .willReturn(java.util.Map.of(IT_MNGC_NO, BigDecimal.valueOf(900)));
+        // 전년도 예산은 cncdRfrNo(전년도 항목 관리번호) 기준으로 조회한다
+        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-2025-0001"), "2025"))
+                .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(900)));
         given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-2025-0001"), "2025"))
                 .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(800)));
 
@@ -801,6 +839,44 @@ class CostServiceTest {
         assertThat(result.get(0).getPrevBgAmt()).isEqualByComparingTo("900");
         assertThat(result.get(0).getPrevDupBg()).isEqualByComparingTo("800");
         assertThat(result.get(1).getPrevDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("getCostList: 혼합 연도 목록에서 첫 행이 전년도여도 계속 항목의 전년도 예산이 행별 연도 기준으로 설정된다")
+    void getCostList_혼합연도목록_행별전년도계산() {
+        // Arrange: 2025 행이 목록 앞에 오는 혼합 연도 목록 (과거 버그: 첫 행 연도로 전년도 일괄 계산 → 전부 0)
+        Bcostm prev2025 = Bcostm.builder()
+                .costBgNo("COST-2025-0001")
+                .bgSno(1)
+                .abusTc("01")
+                .bseYy("2025")
+                .delYn("N")
+                .build();
+        Bcostm cont2026 = Bcostm.builder()
+                .costBgNo("COST-2026-0001")
+                .bgSno(1)
+                .abusTc("02")
+                .bseYy("2026")
+                .cncdRfrNo("COST-2025-0001")
+                .delYn("N")
+                .build();
+        given(costRepository.findAllByDelYn("N")).willReturn(List.of(prev2025, cont2026));
+        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-2025-0001"), "2025"))
+                .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(90_000_000)));
+        given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-2025-0001"), "2025"))
+                .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(90_000_000)));
+
+        // Act
+        List<CostDto.Response> result = costService.getCostList();
+
+        // Assert: 2026 계속 행은 cncdRfrNo 기준 전년도(2025) 예산이 채워지고, 2025 행은 0 유지
+        assertThat(result).hasSize(2);
+        CostDto.Response contRow = result.get(1);
+        assertThat(contRow.getCostBgNo()).isEqualTo("COST-2026-0001");
+        assertThat(contRow.getPrevBgAmt()).isEqualByComparingTo("90000000");
+        assertThat(contRow.getPrevDupBg()).isEqualByComparingTo("90000000");
+        assertThat(result.get(0).getPrevBgAmt()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.get(0).getPrevDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test

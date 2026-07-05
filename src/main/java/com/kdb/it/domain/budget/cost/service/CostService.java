@@ -695,64 +695,96 @@ public class CostService {
             }
         }
 
-        // --- 7. 전년도 예산(prevBgAmt) 배치 조회 (계속 항목만) ---
-        List<String> continuingNos = responses.stream()
-                .filter(r -> "02".equals(r.getAbusTc()))
-                .map(value -> value.getCostBgNo())
-                .distinct()
-                .toList();
-        if (!continuingNos.isEmpty()) {
-            String bseYy = responses.stream()
-                    .map(value -> value.getBseYy())
-                    .filter(y -> y != null && !y.isBlank())
-                    .findFirst().orElse(null);
-            if (bseYy != null) {
-                String prevYear = String.valueOf(Integer.parseInt(bseYy) - 1);
-                Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByCostBgNos(continuingNos, prevYear);
-                responses.forEach(r -> {
-                    if ("02".equals(r.getAbusTc())) {
-                        r.setPrevBgAmt(prevBgMap.getOrDefault(r.getCostBgNo(), BigDecimal.ZERO));
-                    } else {
-                        r.setPrevBgAmt(BigDecimal.ZERO);
-                    }
-                });
-            }
-        }
+        // --- 7. 전년도 예산(prevBgAmt)·전년도 편성예산(prevDupBg) 배치 조회 ---
+        // 목록에는 여러 예산연도가 섞일 수 있으므로(전체 조회) 행별 bseYy 기준으로
+        // 연도 그룹을 나눠 각 그룹의 전년도(bseYy-1)로 조회한다.
+        // (과거: 첫 행의 bseYy 하나로 전년도를 일괄 계산 → 혼합 연도 목록에서 전 행이 0이 되는 버그)
+        responses.forEach(r -> {
+            r.setPrevBgAmt(BigDecimal.ZERO);
+            r.setPrevDupBg(BigDecimal.ZERO);
+        });
+        Map<String, List<CostDto.Response>> responsesByYear = responses.stream()
+                .filter(r -> r.getBseYy() != null && r.getBseYy().matches("\\d{4}"))
+                .collect(Collectors.groupingBy(value -> value.getBseYy()));
+        for (Map.Entry<String, List<CostDto.Response>> entry : responsesByYear.entrySet()) {
+            String prevYear = String.valueOf(Integer.parseInt(entry.getKey()) - 1);
+            List<CostDto.Response> yearGroup = entry.getValue();
 
-        // --- 8. 전년도 BBUGTM 편성예산(prevDupBg) 배치 조회 (cncdRfrNo 기준) ---
-        List<String> cncdNos = responses.stream()
-                .filter(r -> r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank())
-                .map(value -> value.getCncdRfrNo())
-                .distinct()
-                .toList();
-        if (!cncdNos.isEmpty()) {
-            String bseYy8 = responses.stream()
-                    .map(value -> value.getBseYy())
-                    .filter(y -> y != null && !y.isBlank())
-                    .findFirst().orElse(null);
-            if (bseYy8 != null) {
-                String prevYear8 = String.valueOf(Integer.parseInt(bseYy8) - 1);
-                Map<String, BigDecimal> prevDupBgMap = bbugtmRepository.sumDupBgByItMngcNos(cncdNos, prevYear8);
-                responses.forEach(r -> {
+            // 전년도 예산(BCOSTM AMT 합계): 계속(abusTc='02') 항목만.
+            // 전년도 항목은 cncdRfrNo(관련전산업무비번호)로 연결되므로 cncdRfrNo 우선,
+            // 미연결(동일 관리번호 연차 데이터)은 costBgNo로 폴백 조회한다.
+            List<String> prevAmtKeys = yearGroup.stream()
+                    .filter(r -> "02".equals(r.getAbusTc()))
+                    .map(CostService::prevBudgetLookupKey)
+                    .filter(k -> k != null && !k.isBlank())
+                    .distinct()
+                    .toList();
+            if (!prevAmtKeys.isEmpty()) {
+                Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByCostBgNos(prevAmtKeys, prevYear);
+                yearGroup.stream()
+                        .filter(r -> "02".equals(r.getAbusTc()))
+                        .forEach(r -> r.setPrevBgAmt(
+                                prevBgMap.getOrDefault(prevBudgetLookupKey(r), BigDecimal.ZERO)));
+            }
+
+            // 전년도 BBUGTM 편성예산(DUP_BG 합계): cncdRfrNo 연결 항목만
+            List<String> cncdNos = yearGroup.stream()
+                    .map(value -> value.getCncdRfrNo())
+                    .filter(v -> v != null && !v.isBlank())
+                    .distinct()
+                    .toList();
+            if (!cncdNos.isEmpty()) {
+                Map<String, BigDecimal> prevDupBgMap = bbugtmRepository.sumDupBgByItMngcNos(cncdNos, prevYear);
+                yearGroup.forEach(r -> {
                     if (r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank()) {
                         r.setPrevDupBg(prevDupBgMap.getOrDefault(r.getCncdRfrNo(), BigDecimal.ZERO));
-                    } else {
-                        r.setPrevDupBg(BigDecimal.ZERO);
                     }
                 });
-            } else {
-                responses.forEach(r -> r.setPrevDupBg(BigDecimal.ZERO));
             }
-        } else {
-            responses.forEach(r -> r.setPrevDupBg(BigDecimal.ZERO));
         }
     }
 
-    /** 응답 DTO에 신청서 정보, 코드명, 예산 구분을 일괄 설정 */
+    /**
+     * 계속 항목의 전년도 예산 조회 키를 반환합니다.
+     * 전년도 항목이 cncdRfrNo로 연결된 경우 그 관리번호, 아니면 자기 관리번호(연차 데이터 호환).
+     */
+    private static String prevBudgetLookupKey(CostDto.Response r) {
+        return (r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank())
+                ? r.getCncdRfrNo()
+                : r.getCostBgNo();
+    }
+
+    /** 응답 DTO에 신청서 정보, 코드명, 예산 구분, 전년도 예산을 일괄 설정 */
     private void enrichResponse(CostDto.Response response, Bcostm cost) {
         setApplicationInfo(response, cost.getCostBgNo(), cost.getBgSno());
         setCodeNames(response);
         setBudgetCategory(response);
+        setPrevBudget(response);
+    }
+
+    /**
+     * 단건 응답에 전년도 예산(prevBgAmt)을 설정합니다.
+     *
+     * <p>계속(abusTc='02') 항목만 대상이며, cncdRfrNo(전년도 관리번호) 우선 키로
+     * 전년도(bseYy-1) BCOSTM 예산금액 합계를 조회합니다. 목록 배치 보강
+     * ({@code enrichCostListBatch})과 동일한 기준입니다.</p>
+     */
+    private void setPrevBudget(CostDto.Response response) {
+        response.setPrevBgAmt(BigDecimal.ZERO);
+        if (!"02".equals(response.getAbusTc())) {
+            return;
+        }
+        String bseYy = response.getBseYy();
+        if (bseYy == null || !bseYy.matches("\\d{4}")) {
+            return;
+        }
+        String key = prevBudgetLookupKey(response);
+        if (key == null || key.isBlank()) {
+            return;
+        }
+        String prevYear = String.valueOf(Integer.parseInt(bseYy) - 1);
+        Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByCostBgNos(List.of(key), prevYear);
+        response.setPrevBgAmt(prevBgMap.getOrDefault(key, BigDecimal.ZERO));
     }
 
     /**
