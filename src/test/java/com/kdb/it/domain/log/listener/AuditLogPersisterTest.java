@@ -191,6 +191,22 @@ class AuditLogPersisterTest {
         verify(entityManager, times(1)).persist(any());
     }
 
+    /** IllegalAccessException 진단 로그 경로는 예외를 다시 던지지 않아 본 업무 흐름을 막지 않습니다. */
+    @Test
+    @DisplayName("logReflectionAccessFailure - IllegalAccessException 진단 경로는 예외를 던지지 않는다")
+    void logReflectionAccessFailure_IllegalAccessException_예외없음() {
+        // Arrange
+        IllegalAccessException cause = new IllegalAccessException("접근 실패");
+
+        // Act & Assert
+        assertThatCode(() -> auditLogPersister.logReflectionAccessFailure(
+                "read",
+                SourceEntity.class,
+                "name",
+                cause
+        )).doesNotThrowAnyException();
+    }
+
     /** 연속으로 두 번 persist() 를 호출하면 entityManager.persist() 도 두 번 호출됩니다. */
     @Test
     @DisplayName("persist - 연속 두 번 호출 시 entityManager.persist() 두 번 호출")

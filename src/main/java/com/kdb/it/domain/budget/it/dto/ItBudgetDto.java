@@ -71,18 +71,38 @@ public class ItBudgetDto {
     ) {}
 
     /**
+     * 금감원 비목 매핑 행
+     *
+     * @param ioeCode        비목코드값
+     * @param bankCategoryNm 당행 비목명
+     * @param categoryNm     당행 비목명
+     * @param fssCategory    금감원 분류명
+     * @param currAmt        금년도 편성요청액 합계 (천원)
+     * @param note           매핑 산출 기준 비고
+     */
+    @Schema(name = "ItBudgetFssMappingRow", description = "금감원 비목 매핑 행")
+    public record FssMappingRow(
+            @Schema(description = "비목코드값") String ioeCode,
+            @Schema(description = "당행 비목명") String bankCategoryNm,
+            @Schema(description = "당행 비목명") String categoryNm,
+            @Schema(description = "금감원 분류명") String fssCategory,
+            @Schema(description = "금년도 편성요청액 합계 (천원)") long currAmt,
+            @Schema(description = "매핑 산출 기준 비고") String note
+    ) {}
+
+    /**
      * 정보기술부문 예산 비교 응답
      *
      * @param currYy        금년도
      * @param prevYy        전년도
-     * @param fssMapping    금감원 비목 매핑표 (추후 구현 예정, 현재 빈 목록)
+     * @param fssMapping    금감원 비목 매핑표
      * @param yoyComparison 전년 대비 증감 목록
      */
     @Schema(name = "ItBudgetComparisonResponse", description = "정보기술부문 예산 비교 응답")
     public record ComparisonResponse(
             @Schema(description = "금년도") String currYy,
             @Schema(description = "전년도") String prevYy,
-            @Schema(description = "금감원 비목 매핑표 (추후 구현 예정)") List<Object> fssMapping,
+            @Schema(description = "금감원 비목 매핑표") List<FssMappingRow> fssMapping,
             @Schema(description = "전년 대비 증감 목록") List<YoyRow> yoyComparison
     ) {}
 }

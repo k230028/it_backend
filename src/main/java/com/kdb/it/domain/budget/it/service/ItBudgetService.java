@@ -70,6 +70,17 @@ public class ItBudgetService {
             yoyRows.add(new ItBudgetDto.YoyRow(curr.ioeCode(), curr.codeNm(), prevAmt, currAmt, diff, diffRate));
         }
 
-        return new ItBudgetDto.ComparisonResponse(bgYy, prevYy, List.of(), yoyRows);
+        List<ItBudgetDto.FssMappingRow> fssMapping = currRows.stream()
+                .map(row -> new ItBudgetDto.FssMappingRow(
+                        row.ioeCode(),
+                        row.codeNm(),
+                        row.codeNm(),
+                        row.codeNm(),
+                        row.totalReqAmt(),
+                        "정식 금감원 매핑 테이블 도입 전 임시 동일 비목 매핑"
+                ))
+                .toList();
+
+        return new ItBudgetDto.ComparisonResponse(bgYy, prevYy, fssMapping, yoyRows);
     }
 }

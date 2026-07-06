@@ -185,7 +185,7 @@ public class AuditLogPersister {
         }
     }
 
-    private void logReflectionAccessFailure(
+    void logReflectionAccessFailure(
             String operation, Class<?> targetClass, String fieldName, IllegalAccessException e) {
         log.warn(
                 "[감사로그] reflection {} 실패 targetClass={} fieldName={}",

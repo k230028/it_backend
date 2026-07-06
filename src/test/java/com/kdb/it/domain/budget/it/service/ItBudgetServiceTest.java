@@ -49,7 +49,15 @@ class ItBudgetServiceTest {
 
         assertThat(result.currYy()).isEqualTo("2026");
         assertThat(result.prevYy()).isEqualTo("2025");
-        assertThat(result.fssMapping()).isEmpty();
+        assertThat(result.fssMapping()).singleElement()
+                .satisfies(row -> {
+                    assertThat(row.ioeCode()).isEqualTo("001");
+                    assertThat(row.bankCategoryNm()).isEqualTo("개발비");
+                    assertThat(row.categoryNm()).isEqualTo("개발비");
+                    assertThat(row.fssCategory()).isEqualTo("개발비");
+                    assertThat(row.currAmt()).isEqualTo(200);
+                    assertThat(row.note()).contains("임시");
+                });
         assertThat(result.yoyComparison()).singleElement()
                 .satisfies(row -> {
                     assertThat(row.prevAmt()).isEqualTo(100);
