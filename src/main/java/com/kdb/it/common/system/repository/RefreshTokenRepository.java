@@ -36,6 +36,14 @@ public interface RefreshTokenRepository extends JpaRepository<Crtokm, Long> {
     Optional<Crtokm> findByTokCone(String tokCone);
 
     /**
+     * 암호화갱신발행토큰내용으로 Refresh Token을 조회합니다.
+     *
+     * @param ecyRnwPubTokCone Refresh Token SHA-256 HEX 조회값
+     * @return 해당 토큰 엔티티
+     */
+    Optional<Crtokm> findByEcyRnwPubTokCone(String ecyRnwPubTokCone);
+
+    /**
      * 사번으로 갱신토큰 조회
      *
      * <p>특정 사용자의 Refresh Token을 조회합니다.

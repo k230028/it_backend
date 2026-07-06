@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Year;
 import java.util.LinkedHashMap;
@@ -59,14 +60,10 @@ public class TiptapVariableService {
      */
     // 활성 사업 생성·수정 시 ProjectService가 카탈로그 캐시 전체를 무효화하며,
     // Caffeine TTL은 멀티 인스턴스 환경의 보조 안전망으로 사용한다.
-    @Cacheable(value = "tiptapMetadata", key = "#user.isAdmin() or #user.isDeptManager() ? 'ALL' : #user.bbrC")
+    @Cacheable(value = "tiptapMetadata", key = "T(com.kdb.it.common.system.tiptap.service.TiptapVariableService).metadataCacheKey(#user)")
     public MetadataResponse getMetadata(CustomUserDetails user) {
         List<Integer> years = currentPlusMinusTwo();
-        boolean seeAll = user.isAdmin() || user.isDeptManager();
-        List<ProjectRef> projects = (seeAll
-                ? projectRepository.findActiveProjectRefs()
-                : projectRepository.findActiveProjectRefsByDept(user.getBbrC()))
-                .stream().map(r -> new ProjectRef(r.code(), r.name())).toList();
+        List<ProjectRef> projects = loadMetadataProjects(user);
 
         return new MetadataResponse(List.of(
                 new CategoryMetadata("IT_BUDGET",  "전산예산",   years, null,     ITEMS),
@@ -74,6 +71,40 @@ public class TiptapVariableService {
                 new CategoryMetadata("OPEX",       "일반관리비", years, null,     ITEMS),
                 new CategoryMetadata("PROJ",       "사업별",     years, projects, ITEMS)
         ));
+    }
+
+    /**
+     * Tiptap 메타데이터 캐시 키를 권한과 부서 기준으로 생성합니다.
+     *
+     * @param user 현재 인증 사용자
+     * @return 캐시 키
+     */
+    public static String metadataCacheKey(CustomUserDetails user) {
+        if (user == null) {
+            return "ANONYMOUS";
+        }
+        if (user.isAdmin() || user.isDeptManager()) {
+            return "ALL";
+        }
+        if (StringUtils.hasText(user.getBbrC())) {
+            return "DEPT:" + user.getBbrC();
+        }
+        return "USER_NO_DEPT:" + user.getUsername();
+    }
+
+    /**
+     * 사용자 권한과 부서 기준으로 PROJ 카탈로그 사업 목록을 조회합니다.
+     */
+    private List<ProjectRef> loadMetadataProjects(CustomUserDetails user) {
+        if (user != null && (user.isAdmin() || user.isDeptManager())) {
+            return projectRepository.findActiveProjectRefs()
+                    .stream().map(r -> new ProjectRef(r.code(), r.name())).toList();
+        }
+        if (user == null || !StringUtils.hasText(user.getBbrC())) {
+            return List.of();
+        }
+        return projectRepository.findActiveProjectRefsByDept(user.getBbrC())
+                .stream().map(r -> new ProjectRef(r.code(), r.name())).toList();
     }
 
     /**

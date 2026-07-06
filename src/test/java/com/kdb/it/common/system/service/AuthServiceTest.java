@@ -18,6 +18,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -492,5 +493,34 @@ class AuthServiceTest {
 
                 // Assert: 기본 자격등급 ITPZZ001이 응답에 포함되어야 한다
                 assertThat(response.getAthIds()).containsExactly("ITPZZ001");
+        }
+        @Test
+        @DisplayName("refreshAccessToken - 암호화 조회값으로 토큰을 조회하고 신규 토큰에도 조회값을 저장한다")
+        void refreshAccessToken_encryptedLookupValue_queriesAndSavesLookupValue() {
+                String oldRefresh = "active-refresh-token";
+                String newRefresh = "new-refresh-token";
+                String lookupValue = AuthService.sha256HexForToken(oldRefresh);
+                Crtokm stored = Crtokm.builder()
+                                .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
+                                .ecyRnwPubTokCone(lookupValue)
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(lookupValue)).willReturn(Optional.of(stored));
+                given(userRepository.findByEno("10001")).willReturn(Optional.of(
+                                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
+                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N")).willReturn(Collections.emptyList());
+                given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access");
+                given(jwtUtil.generateRefreshToken("10001")).willReturn(newRefresh);
+
+                AuthDto.RefreshResponse response = authService.refreshAccessToken(oldRefresh);
+
+                assertThat(response.getRefreshToken()).isEqualTo(newRefresh);
+                verify(refreshTokenRepository).findByEcyRnwPubTokCone(lookupValue);
+                verify(refreshTokenRepository, never()).findByTokCone(oldRefresh);
+                ArgumentCaptor<Crtokm> captor = ArgumentCaptor.forClass(Crtokm.class);
+                verify(refreshTokenRepository, times(2)).save(captor.capture());
+                assertThat(captor.getAllValues().get(1).getEcyRnwPubTokCone())
+                                .isEqualTo(AuthService.sha256HexForToken(newRefresh));
         }
 }
