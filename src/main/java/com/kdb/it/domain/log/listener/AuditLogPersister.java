@@ -104,7 +104,7 @@ public class AuditLogPersister {
             f.setAccessible(true);
             return f.get(target);
         } catch (IllegalAccessException e) {
-            // TODO: 실제 null과 접근 실패를 구분할 수 있도록 필드명을 포함해 경고하거나 예외를 전파한다.
+            logReflectionAccessFailure("read", target.getClass(), fieldName, e);
             return null;
         }
     }
@@ -124,8 +124,8 @@ public class AuditLogPersister {
         try {
             f.setAccessible(true);
             f.set(target, value);
-        } catch (IllegalAccessException ignored) {
-            // TODO: 감사 필드 유실 원인을 추적할 수 있도록 필드명을 포함한 진단 정보를 남긴다.
+        } catch (IllegalAccessException e) {
+            logReflectionAccessFailure("write", target.getClass(), fieldName, e);
         }
     }
 
@@ -156,9 +156,8 @@ public class AuditLogPersister {
      *
      * @param source 원본 엔티티 (CUD 이벤트 발생 엔티티)
      * @param target 대응하는 로그 엔티티 (빈 인스턴스, 필드에 값 설정됨)
-     * @throws IllegalAccessException 리플렉션 필드 접근 실패 시
      */
-    private void copyColumnFields(Object source, BaseLogEntity target) throws IllegalAccessException {
+    private void copyColumnFields(Object source, BaseLogEntity target) {
         List<Field> sourceFields = collectColumnFields(source.getClass());
         List<Field> targetFields = collectColumnFields(target.getClass());
 
@@ -168,11 +167,32 @@ public class AuditLogPersister {
                 if (colName.equalsIgnoreCase(columnName(tf))) {
                     sf.setAccessible(true);
                     tf.setAccessible(true);
-                    tf.set(target, sf.get(source));
+                    Object value;
+                    try {
+                        value = sf.get(source);
+                    } catch (IllegalAccessException e) {
+                        logReflectionAccessFailure("read", source.getClass(), sf.getName(), e);
+                        break;
+                    }
+                    try {
+                        tf.set(target, value);
+                    } catch (IllegalAccessException e) {
+                        logReflectionAccessFailure("write", target.getClass(), tf.getName(), e);
+                    }
                     break;
                 }
             }
         }
+    }
+
+    private void logReflectionAccessFailure(
+            String operation, Class<?> targetClass, String fieldName, IllegalAccessException e) {
+        log.warn(
+                "[감사로그] reflection {} 실패 targetClass={} fieldName={}",
+                operation,
+                targetClass.getName(),
+                fieldName,
+                e);
     }
 
     /**
