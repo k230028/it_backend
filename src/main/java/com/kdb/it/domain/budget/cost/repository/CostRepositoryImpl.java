@@ -13,6 +13,8 @@ import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
@@ -243,14 +245,24 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
     /**
      * 전년도 예산 합계 일괄 조회
      *
-     * <p>costBgNo별 전년도(prevYear) AMT(전산업무비예산금액) 합계를 집계하여 반환합니다.</p>
+     * <p>costBgNo별 전년도(prevYear) 예산 합계를 집계하여 반환합니다.
+     * 외화(curC≠'KRW') 행은 화면 예산 컬럼과 동일 기준인 FC_AMT(외화금액)를,
+     * 원화 행은 AMT(전산업무비예산금액)를 합산합니다.</p>
      */
     @Override
     public Map<String, BigDecimal> sumPrevBgByCostBgNos(List<String> costBgNos, String prevYear) {
         if (costBgNos == null || costBgNos.isEmpty()) return Map.of();
         QBcostm bcostm = QBcostm.bcostm;
+        // 외화 행은 fcAmt, 원화(또는 외화금액 미입력) 행은 costTotXpAmt 기준
+        NumberExpression<BigDecimal> prevAmt = new CaseBuilder()
+                .when(bcostm.curC.isNotNull()
+                        .and(bcostm.curC.ne("KRW"))
+                        .and(bcostm.fcAmt.isNotNull()))
+                .then(bcostm.fcAmt)
+                .otherwise(bcostm.costTotXpAmt);
+        NumberExpression<BigDecimal> prevAmtSum = prevAmt.sum();
         List<Tuple> results = queryFactory
-                .select(bcostm.costBgNo, bcostm.costTotXpAmt.sum())
+                .select(bcostm.costBgNo, prevAmtSum)
                 .from(bcostm)
                 .where(
                         bcostm.bseYy.eq(prevYear),
@@ -261,7 +273,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         return results.stream().collect(Collectors.toMap(
                 t -> t.get(bcostm.costBgNo),
                 t -> {
-                    BigDecimal sum = t.get(bcostm.costTotXpAmt.sum());
+                    BigDecimal sum = t.get(prevAmtSum);
                     return sum != null ? sum : BigDecimal.ZERO;
                 }));
     }

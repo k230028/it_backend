@@ -7,6 +7,7 @@ import com.kdb.it.common.util.DateFormatUtil;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -506,8 +507,11 @@ public class CostDto {
         @Schema(description = "일반관리비 편성예산 (BBUGTM 기준)")
         private java.math.BigDecimal costDupBg;
 
-        /** 전년도 예산: abusTc=002(계속)이면 bseYy-1 연도 AMT(전산업무비예산금액) 합계, 신규(abusTc=001)이면 0 */
-        @Schema(description = "전년도 예산 (계속 항목은 전년도 AMT(전산업무비예산금액) 합계, 신규는 0)")
+        /**
+         * 전년도 예산: abusTc=02(계속)이면 bseYy-1 연도 예산 합계, 신규(abusTc=01)이면 0.
+         * 외화(curC≠'KRW') 행은 FC_AMT(외화금액), 원화 행은 AMT(전산업무비예산금액) 기준.
+         */
+        @Schema(description = "전년도 예산 (계속 항목은 전년도 예산 합계 — 외화 행은 외화금액 기준, 신규는 0)")
         private BigDecimal prevBgAmt;
 
         /** 전년도 BBUGTM 편성예산: 계속 항목의 cncdRfrNo 기준 bseYy-1 DUP_BG 합계, 신규는 0 */
@@ -529,6 +533,10 @@ public class CostDto {
         /** 신청서 상세 정보 (신청서명, 신청자, 결재자 목록 등) */
         @Schema(description = "신청서 상세 정보")
         private ApplicationInfoDto applicationInfo;
+
+        /** 최종변경일시 (BaseEntity LST_CHG_DTM — 목록 기본 정렬(최근 수정순)에 사용) */
+        @Schema(description = "최종변경일시", example = "2026-07-01T10:30:00")
+        private LocalDateTime lstChgDtm;
 
         /**
          * {@link Bcostm} 엔티티를 응답 DTO로 변환하는 정적 팩토리 메서드
@@ -562,6 +570,7 @@ public class CostDto {
                     .cncdRfrNo(entity.getCncdRfrNo()) // 관련전산업무비번호
                     .fcAmt(entity.getFcAmt()) // 외화금액
                     .delYn(entity.getDelYn()) // 삭제여부
+                    .lstChgDtm(entity.getLstChgDtm()) // 최종변경일시 (목록 기본 정렬용)
                     .build();
         }
 
