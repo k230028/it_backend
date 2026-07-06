@@ -263,4 +263,34 @@ class TiptapVariableServiceTest {
         verify(projectRepository, never()).findActiveProjectRefs();
         verify(projectRepository, never()).findActiveProjectRefsByDept(any());
     }
+
+    @Test
+    @DisplayName("metadataCacheKey - 인증 사용자가 없으면 ANONYMOUS를 반환한다")
+    void metadataCacheKey_nullPrincipal_returnsAnonymous() {
+        assertThat(TiptapVariableService.metadataCacheKey(null)).isEqualTo("ANONYMOUS");
+    }
+
+    @Test
+    @DisplayName("metadataCacheKey - 관리자는 ALL을 반환한다")
+    void metadataCacheKey_admin_returnsAll() {
+        var user = new CustomUserDetails("A1", List.of("ITPAD001"), "D001");
+
+        assertThat(TiptapVariableService.metadataCacheKey(user)).isEqualTo("ALL");
+    }
+
+    @Test
+    @DisplayName("metadataCacheKey - 부서관리자는 ALL을 반환한다")
+    void metadataCacheKey_deptManager_returnsAll() {
+        var user = new CustomUserDetails("M1", List.of("ITPZZ002"), "D001");
+
+        assertThat(TiptapVariableService.metadataCacheKey(user)).isEqualTo("ALL");
+    }
+
+    @Test
+    @DisplayName("metadataCacheKey - 부서 있는 일반 사용자는 부서별 키를 반환한다")
+    void metadataCacheKey_regularUserWithDepartment_returnsDepartmentKey() {
+        var user = new CustomUserDetails("E1", List.of("ITPZZ001"), "D001");
+
+        assertThat(TiptapVariableService.metadataCacheKey(user)).isEqualTo("DEPT:D001");
+    }
 }

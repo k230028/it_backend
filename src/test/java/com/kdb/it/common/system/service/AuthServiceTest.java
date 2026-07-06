@@ -523,4 +523,35 @@ class AuthServiceTest {
                 assertThat(captor.getAllValues().get(1).getEcyRnwPubTokCone())
                                 .isEqualTo(AuthService.sha256HexForToken(newRefresh));
         }
+
+        @Test
+        @DisplayName("refreshAccessToken - 암호화 조회값이 없는 기존 토큰은 원문 조회 후 조회값을 보강한다")
+        void refreshAccessToken_legacyToken_fallbackRawLookupAndBackfillsLookupValue() {
+                String oldRefresh = "legacy-refresh-token";
+                String newRefresh = "new-refresh-token";
+                String lookupValue = AuthService.sha256HexForToken(oldRefresh);
+                Crtokm stored = Crtokm.builder()
+                                .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(lookupValue)).willReturn(Optional.empty());
+                given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
+                given(userRepository.findByEno("10001")).willReturn(Optional.of(
+                                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
+                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N")).willReturn(Collections.emptyList());
+                given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access");
+                given(jwtUtil.generateRefreshToken("10001")).willReturn(newRefresh);
+
+                AuthDto.RefreshResponse response = authService.refreshAccessToken(oldRefresh);
+
+                assertThat(response.getRefreshToken()).isEqualTo(newRefresh);
+                verify(refreshTokenRepository).findByEcyRnwPubTokCone(lookupValue);
+                verify(refreshTokenRepository).findByTokCone(oldRefresh);
+                ArgumentCaptor<Crtokm> captor = ArgumentCaptor.forClass(Crtokm.class);
+                verify(refreshTokenRepository, times(2)).save(captor.capture());
+                assertThat(captor.getAllValues().get(0).getEcyRnwPubTokCone()).isEqualTo(lookupValue);
+                assertThat(captor.getAllValues().get(1).getEcyRnwPubTokCone())
+                                .isEqualTo(AuthService.sha256HexForToken(newRefresh));
+        }
 }
