@@ -5,6 +5,7 @@ import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.notification.service.NotificationService;
+import com.kdb.it.common.notification.util.NotificationMessageFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -67,8 +68,8 @@ public class NotificationEventListener {
                 NotificationEvent.builder()
                     .recipientEno(capplm.getDcdReqUsid())
                     .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RESULT)
-                    .ttl(abbreviate(title, 100))
-                    .infmMsgCone(abbreviate(body, 4000))
+                    .ttl(NotificationMessageFormatter.abbreviate(title, 100))
+                    .infmMsgCone(NotificationMessageFormatter.abbreviate(body, 4000))
                     // 결재 결과 알림도 결재 대기 목록 화면으로 고정 (사용자 정책).
                     .infmRcdUrl("/approval/list?tab=pending")
                     .build()
@@ -93,7 +94,7 @@ public class NotificationEventListener {
                 return;
             }
             String apfNm   = safe(capplm.getDcdReqTtl());
-            String title   = abbreviate("결재회수: " + apfNm, 100);
+            String title   = NotificationMessageFormatter.abbreviate("결재회수: " + apfNm, 100);
             String linkUrl = "/approval/list?tab=pending";
 
             // 신청자 알림 (회수자가 신청자 본인이 아닌 경우만)
@@ -103,7 +104,7 @@ public class NotificationEventListener {
                         .recipientEno(capplm.getDcdReqUsid())
                         .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RECALLED)
                         .ttl(title)
-                        .infmMsgCone(abbreviate("신청서가 회수되었습니다: " + apfNm, 4000))
+                        .infmMsgCone(NotificationMessageFormatter.abbreviate("신청서가 회수되었습니다: " + apfNm, 4000))
                         .infmRcdUrl(linkUrl)
                         .build()
                 );
@@ -118,7 +119,7 @@ public class NotificationEventListener {
                             .recipientEno(eno)
                             .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RECALLED)
                             .ttl(title)
-                            .infmMsgCone(abbreviate("귀하가 결재한 신청서가 회수되었습니다: " + apfNm, 4000))
+                            .infmMsgCone(NotificationMessageFormatter.abbreviate("귀하가 결재한 신청서가 회수되었습니다: " + apfNm, 4000))
                             .infmRcdUrl(linkUrl)
                             .build()
                     );
@@ -132,10 +133,5 @@ public class NotificationEventListener {
 
     private static String safe(String s) {
         return s == null ? "" : s;
-    }
-
-    private static String abbreviate(String s, int max) {
-        if (s == null) return null;
-        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
     }
 }

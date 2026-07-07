@@ -15,6 +15,7 @@ import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
+import com.kdb.it.common.notification.util.NotificationMessageFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
@@ -224,8 +225,8 @@ public class ApplicationService {
             NotificationEvent.builder()
                 .recipientEno(next.getDcrEno())
                 .infmSvcTc(NotificationEvent.TYPE_APPROVAL_REQUEST)
-                .ttl(abbreviateText("결재요청: " + safeText(capplm.getDcdReqTtl()), 100))
-                .infmMsgCone(abbreviateText(safeText(capplm.getDcdReqTtl()), 4000))
+                .ttl(NotificationMessageFormatter.abbreviate("결재요청: " + safeText(capplm.getDcdReqTtl()), 100))
+                .infmMsgCone(NotificationMessageFormatter.abbreviate(safeText(capplm.getDcdReqTtl()), 4000))
                 // 결재 알림은 결재 대기 목록 화면으로 고정 (사용자 정책).
                 // 상대 path 사용 — Nuxt navigateTo가 내부 라우팅으로 처리하며 운영 호스트와 무관.
                 .infmRcdUrl("/approval/list?tab=pending")
@@ -235,11 +236,6 @@ public class ApplicationService {
 
     private static String safeText(String s) {
         return s == null ? "" : s;
-    }
-
-    private static String abbreviateText(String s, int max) {
-        if (s == null) return null;
-        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
     }
 
     /**

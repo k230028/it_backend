@@ -38,6 +38,25 @@ public class CouncilDto {
      *   <li>관리자(ITPAD001): 전체 사업</li>
      *   <li>평가위원: 배정된 협의회만</li>
      * </ul>
+     *
+     * @param asctId 협의회ID
+     * @param prjMngNo 프로젝트관리번호
+     * @param prjSno 프로젝트순번
+     * @param abusNm 사업명
+     * @param asctStsC 협의회상태코드
+     * @param dbrTc 심의유형
+     * @param cnrcDt 회의일자
+     * @param cnrcTm 회의시간
+     * @param applied 협의회 신청 여부
+     * @param prjYy 사업연도
+     * @param prjTp 프로젝트유형
+     * @param svnDpm 주관부서
+     * @param prjBg 사업예산
+     * @param sttDt 사업시작일자
+     * @param endDt 사업종료일자
+     * @param itDpm IT담당부서
+     * @param prjDes 사업설명
+     * @param csfHeldYn 대면개최여부
      */
     public record ListResponse(
         /** 협의회ID (ASCT-{연도}-{4자리}). 협의회 신청 전이면 null */
@@ -83,6 +102,10 @@ public class CouncilDto {
      * 협의회 신청 요청 (신규 생성)
      *
      * <p>소관부서 담당자(ITPZZ001)가 타당성검토표 작성 전 협의회를 먼저 신청합니다.</p>
+     *
+     * @param prjMngNo 프로젝트관리번호
+     * @param prjSno 프로젝트순번
+     * @param dbrTc 심의유형
      */
     public record CreateRequest(
         /** 프로젝트관리번호 (BPROJM FK) */
@@ -97,6 +120,24 @@ public class CouncilDto {
      * 협의회 단건 상세 조회 응답
      *
      * <p>협의회 기본 정보를 반환합니다. 각 단계별 상세 정보는 별도 API로 조회합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @param prjMngNo 프로젝트관리번호
+     * @param prjSno 프로젝트순번
+     * @param asctStsC 협의회상태코드
+     * @param dbrTc 심의유형
+     * @param cnrcDt 회의일자
+     * @param cnrcTm 회의시간
+     * @param cnrcPlc 회의장소
+     * @param abusNm 사업명
+     * @param edrt 전결권자
+     * @param sttDt 사업기간 시작일
+     * @param endDt 사업기간 종료일
+     * @param ncs 필요성
+     * @param prjBg 소요예산
+     * @param prjDes 사업내용
+     * @param xptEff 기대효과
+     * @param csfHeldYn 대면개최여부
      */
     public record DetailResponse(
         /** 협의회ID */
@@ -144,6 +185,19 @@ public class CouncilDto {
      *
      * <p>임시저장(TEMP)과 작성완료(COMPLETE) 모두 이 요청을 사용합니다.
      * kpnTc 값에 따라 서비스 로직이 분기됩니다.</p>
+     *
+     * @param prjNm 사업명
+     * @param prjTrm 사업기간
+     * @param ncs 필요성
+     * @param prjBg 소요예산금액
+     * @param edrt 전결권자명
+     * @param prjDes 사업내용
+     * @param lglRglYn 법률규제대응여부
+     * @param lglRglNm 관련법률규제명
+     * @param xptEff 기대효과
+     * @param kpnTc 저장구분코드
+     * @param performances 성과지표 목록
+     * @param flMngNo 첨부파일관리번호
      */
     public record FeasibilityRequest(
         /** 사업명 */
@@ -174,6 +228,19 @@ public class CouncilDto {
 
     /**
      * 타당성검토표 조회 응답 (사업개요 + 자체점검 + 성과지표 통합)
+     *
+     * @param prjNm 사업명
+     * @param prjTrm 사업기간
+     * @param ncs 필요성
+     * @param prjBg 소요예산금액
+     * @param edrt 전결권자명
+     * @param prjDes 사업내용
+     * @param lglRglYn 법률규제대응여부
+     * @param lglRglNm 관련법률규제명
+     * @param xptEff 기대효과
+     * @param kpnTc 저장유형
+     * @param performances 성과지표 목록
+     * @param flMngNo 첨부파일관리번호
      */
     public record FeasibilityResponse(
         /** 사업명 */
@@ -206,6 +273,13 @@ public class CouncilDto {
 
     /**
      * 성과지표 요청 (추가/수정 공통)
+     *
+     * @param dtpSno 지표순번
+     * @param dtpNm 성과지표명
+     * @param dtpCone 성과지표정의
+     * @param clf 산식
+     * @param msmTpm 측정시점
+     * @param msmCle 측정주기
      */
     public record PerformanceRequest(
         /** 지표순번 (클라이언트 관리, 1부터 시작) */
@@ -224,6 +298,13 @@ public class CouncilDto {
 
     /**
      * 성과지표 응답
+     *
+     * @param dtpSno 지표순번
+     * @param dtpNm 성과지표명
+     * @param dtpCone 성과지표정의
+     * @param clf 산식
+     * @param msmTpm 측정시점
+     * @param msmCle 측정주기
      */
     public record PerformanceResponse(
         Integer dtpSno,
@@ -240,6 +321,9 @@ public class CouncilDto {
 
     /**
      * 평가위원 선정 요청 (IT관리자)
+     *
+     * @param dbrTc 심의유형
+     * @param members 위원 목록
      */
     public record CommitteeRequest(
         /** 심의유형 (당연위원 자동 배치 기준) */
@@ -250,6 +334,9 @@ public class CouncilDto {
 
     /**
      * 위원 항목 요청
+     *
+     * @param eno 사번
+     * @param vlrTc 위원유형
      */
     public record CommitteeMemberRequest(
         /** 사번 */
@@ -260,6 +347,9 @@ public class CouncilDto {
 
     /**
      * 일정 입력 요청 (평가위원)
+     *
+     * @param availableSlots 가능한 날짜와 시간대 목록
+     * @param csfHopeYn 대면희망여부
      */
     public record ScheduleRequest(
         /** 가능한 날짜×시간대 목록 */
@@ -270,6 +360,10 @@ public class CouncilDto {
 
     /**
      * 일정 항목
+     *
+     * @param dsdDt 일정일자
+     * @param dsdTm 일정시간
+     * @param psbYn 가능여부
      */
     public record ScheduleItem(
         /** 일정일자 (DT 도메인 VARCHAR2(8) yyyyMMdd) */
@@ -284,6 +378,10 @@ public class CouncilDto {
      * 일정 확정 요청 (IT관리자)
      *
      * <p>확정 후 BASCTM.CNRC_DT/TM/PLC에 반영하고 상태를 SCHEDULED로 전이합니다.</p>
+     *
+     * @param cnrcDt 최종 확정 회의일자
+     * @param cnrcTm 최종 확정 회의시간
+     * @param cnrcPlc 회의장소
      */
     public record ScheduleConfirmRequest(
         /** 최종 확정 회의일자 */
@@ -302,6 +400,8 @@ public class CouncilDto {
      * 평가의견 작성 요청 (평가위원)
      *
      * <p>6개 항목 전체를 한 번에 저장합니다.</p>
+     *
+     * @param items 점검항목별 점수와 의견 목록
      */
     public record EvaluationRequest(
         /** 6개 점검항목별 점수+의견 */
@@ -310,6 +410,10 @@ public class CouncilDto {
 
     /**
      * 평가의견 항목
+     *
+     * @param ckgItmC 점검항목코드
+     * @param ckgRcrd 점검점수
+     * @param ckgOpnn 점검의견
      */
     public record EvaluationItem(
         /** 점검항목코드 */
@@ -322,6 +426,10 @@ public class CouncilDto {
 
     /**
      * 결과서 작성/수정 요청 (IT관리자)
+     *
+     * @param synOpnn 종합의견
+     * @param ckgOpnn 타당성검토의견
+     * @param flMngNo 관련자료 첨부파일관리번호
      */
     public record ResultRequest(
         /** 종합의견 */
@@ -338,6 +446,13 @@ public class CouncilDto {
 
     /**
      * 평가위원 단건 응답 (사용자 정보 포함)
+     *
+     * @param eno 사번
+     * @param usrNm 성명
+     * @param bbrNm 부서명
+     * @param ptCNm 직위명
+     * @param vlrTc 위원유형
+     * @param cnfmYn 결과서 검토 확인 여부
      */
     public record CommitteeMemberResponse(
         /** 사번 */
@@ -356,6 +471,10 @@ public class CouncilDto {
 
     /**
      * 평가위원 목록 응답
+     *
+     * @param mandatory 당연위원 목록
+     * @param call 소집위원 목록
+     * @param secretary 간사 목록
      */
     public record CommitteeListResponse(
         /** 당연위원 목록 */
@@ -368,6 +487,10 @@ public class CouncilDto {
 
     /**
      * 일정 슬롯별 응답 현황 (위원별)
+     *
+     * @param dsdDt 일정일자
+     * @param dsdTm 일정시간
+     * @param psbYn 가능여부
      */
     public record ScheduleSlotResponse(
         /** 일정일자 (DT 도메인 VARCHAR2(8) yyyyMMdd) */
@@ -380,6 +503,15 @@ public class CouncilDto {
 
     /**
      * 위원별 일정 응답 현황
+     *
+     * @param eno 사번
+     * @param usrNm 성명
+     * @param bbrNm 부서명
+     * @param ptCNm 직책명
+     * @param vlrTc 위원유형
+     * @param responded 응답 완료 여부
+     * @param csfHpYn 대면희망여부
+     * @param slots 위원의 일정 응답 목록
      */
     public record MemberScheduleStatus(
         /** 사번 */
@@ -402,6 +534,13 @@ public class CouncilDto {
 
     /**
      * 일정 입력 현황 응답 (IT관리자용)
+     *
+     * @param totalCount 전체 위원 수
+     * @param respondedCount 응답 완료 위원 수
+     * @param pendingCount 미응답 위원 수
+     * @param memberStatuses 위원별 응답 현황
+     * @param allRequiredResponded 필수 응답자 응답 완료 여부
+     * @param anyFaceToFaceHope 대면희망 위원 존재 여부
      */
     public record ScheduleStatusResponse(
         /** 전체 위원 수 */
@@ -432,6 +571,13 @@ public class CouncilDto {
 
     /**
      * 위원 개인 평가의견 항목 응답
+     *
+     * @param eno 사번
+     * @param usrNm 성명
+     * @param ckgItmC 점검항목코드
+     * @param ckgItmNm 점검항목명
+     * @param ckgRcrd 점검점수
+     * @param ckgOpnn 점검의견
      */
     public record EvaluationItemResponse(
         /** 사번 */
@@ -450,6 +596,10 @@ public class CouncilDto {
 
     /**
      * 점검항목별 평균점수
+     *
+     * @param ckgItmC 점검항목코드
+     * @param ckgItmNm 점검항목명
+     * @param avgScore 평균점수
      */
     public record CheckItemAvgScore(
         /** 점검항목코드 */
@@ -464,6 +614,9 @@ public class CouncilDto {
      * 평가의견 전체 현황 응답 (IT관리자용)
      *
      * <p>전체 위원별 평가의견 + 항목별 평균점수를 포함합니다.</p>
+     *
+     * @param evaluations 위원별 평가의견 목록
+     * @param avgScores   점검항목별 평균점수 목록
      */
     public record EvaluationSummaryResponse(
         /** 위원별 평가의견 목록 */
@@ -474,6 +627,11 @@ public class CouncilDto {
 
     /**
      * 결과서 조회 응답 (IT관리자용)
+     *
+     * @param synOpnn   종합의견
+     * @param ckgOpnn   타당성검토의견
+     * @param flMngNo   관련자료 첨부파일관리번호
+     * @param avgScores 점검항목별 평균점수 목록
      */
     public record ResultResponse(
         /** 종합의견 */
@@ -495,6 +653,9 @@ public class CouncilDto {
      *
      * <p>SUBMITTED 상태인 협의회의 타당성검토표를 팀장에게 결재 요청합니다.
      * 신청자 사번은 JWT에서, 신청의견은 선택사항입니다.</p>
+     *
+     * @param approverEno 결재자 사번
+     * @param rqsOpnn 신청의견
      */
     public record ApprovalRequest(
         /** 결재자(팀장) 사번 */
@@ -507,6 +668,8 @@ public class CouncilDto {
      * 결재 콜백 요청 (전자결재 시스템 → 협의회 시스템)
      *
      * <p>팀장 결재 완료/반려 시 협의회 상태를 업데이트하는 콜백 요청입니다.</p>
+     *
+     * @param approved 결재 승인 여부. true이면 승인, false이면 반려
      */
     public record ApprovalCallbackRequest(
         /** 결재완료 여부 (true: 승인→APPROVED, false: 반려→DRAFT) */
@@ -515,6 +678,8 @@ public class CouncilDto {
 
     /**
      * 결재 요청 응답
+     *
+     * @param apfMngNo 생성된 신청관리번호
      */
     public record ApprovalResponse(
         /** 생성된 신청관리번호 (예: APF_202600000001) */
@@ -526,6 +691,10 @@ public class CouncilDto {
      *
      * <p>FINAL_APPROVAL 상태에서 IT관리자가 결재자(부장)를 지정하여
      * 전자결재 시스템에 개최결과서 결재를 신청합니다.</p>
+     *
+     * @param teamLeadEno 팀장 결재자 사번
+     * @param deptHeadEno 부장 결재자 사번
+     * @param rqsOpnn     신청의견
      */
     public record ResultApprovalRequest(
         /** 결재자 1순위 — 팀장 사번 */
@@ -545,6 +714,8 @@ public class CouncilDto {
      *
      * <p>평가위원이 협의회 개최 전 사전 질의를 등록합니다.
      * 질의자 사번은 JWT에서 자동 주입됩니다.</p>
+     *
+     * @param qtnCone 질의내용
      */
     public record QnaCreateRequest(
         /** 질의내용 (최대 4000자) */
@@ -556,6 +727,8 @@ public class CouncilDto {
      *
      * <p>추진부서 담당자(ITPZZ001)가 질의에 답변합니다.
      * 답변자 사번은 JWT에서 자동 주입됩니다.</p>
+     *
+     * @param repCone 답변내용
      */
     public record QnaReplyRequest(
         /** 답변내용 (최대 4000자) */
@@ -566,6 +739,8 @@ public class CouncilDto {
      * 사전질의 수정 요청 DTO
      *
      * <p>질의 등록자가 자신의 질의 내용을 수정합니다.</p>
+     *
+     * @param qtnCone 수정할 질의내용
      */
     public record QnaUpdateRequest(
         /** 수정할 질의내용 (최대 4000자) */
@@ -574,6 +749,15 @@ public class CouncilDto {
 
     /**
      * 사전질의응답 항목 응답
+     *
+     * @param qtnId   질의응답ID
+     * @param qtnEno  질의자사번
+     * @param qtnNm   질의자성명
+     * @param qtnCone 질의내용
+     * @param repEno  답변자사번
+     * @param repNm   답변자성명
+     * @param repCone 답변내용
+     * @param repYn   답변여부
      */
     public record QnaResponse(
         /** 질의응답ID (QTN-{asctId}-{순번}) */
@@ -598,6 +782,11 @@ public class CouncilDto {
      * 추진부서 통보 응답
      *
      * <p>통보 완료 후 수신자(추진부서 담당자) 정보를 반환합니다.</p>
+     *
+     * @param eno   수신자 사번
+     * @param usrNm 수신자 성명
+     * @param bbrNm 수신자 부서명
+     * @param temNm 수신자 팀명
      */
     public record NotifyResponse(
         /** 수신자 사번 */

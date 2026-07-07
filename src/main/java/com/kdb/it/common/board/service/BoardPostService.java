@@ -12,6 +12,7 @@ import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.util.MentionExtractor;
+import com.kdb.it.common.notification.util.NotificationMessageFormatter;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
@@ -297,8 +298,8 @@ public class BoardPostService {
                     NotificationEvent.builder()
                             .recipientEno(eno)
                             .infmSvcTc(type)
-                            .ttl(abbreviate(title, 100))
-                            .infmMsgCone(abbreviate(safe(post.getNacNm()), 4000))
+                            .ttl(NotificationMessageFormatter.abbreviate(title, 100))
+                            .infmMsgCone(NotificationMessageFormatter.abbreviate(safe(post.getNacNm()), 4000))
                             .infmRcdUrl(linkUrl)
                             .build());
         }
@@ -306,12 +307,6 @@ public class BoardPostService {
 
     private static String safe(String s) {
         return s == null ? "" : s;
-    }
-
-    private static String abbreviate(String s, int max) {
-        if (s == null)
-            return null;
-        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
     }
 
     // ── 권한 검증 (패키지 접근 허용 — BoardCommentService에서 위임 호출) ──
