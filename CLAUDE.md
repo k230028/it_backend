@@ -574,7 +574,10 @@ public class PlanController { ... }
   - `/api/boards/{blbMngNo}/posts/**` — 게시물 목록·상세·등록·수정·삭제·답변글.
   - `/api/boards/{blbMngNo}/posts/{nacMngNo}/comments/**` — 댓글·대댓글 CRUD.
 - 게시물/댓글 본문은 저장 전 `HtmlSanitizer.sanitize()` 적용 필수.
+- 게시물 본문(`Cblbcm.nacCone`)은 현재 물리 컬럼 `VARCHAR2(4000)` 기준으로 검증합니다. `CreateRequest`/`UpdateRequest`/`ReplyCreateRequest`에는 `@Size(max=4000)`을 유지하고, 프론트도 같은 제한을 사전 안내합니다.
 - 게시판 권한은 메타의 `inqAthC`, `enrAthC`와 서비스 계층 검증으로 판단합니다. 프론트 메뉴 숨김은 UX 보조일 뿐 최종 보안 경계가 아닙니다.
+- 게시물 목록 API는 `Page<BoardPostDto.ListItem>`를 반환합니다. 신규 호출자는 `content`, `totalElements`, `number`, `size`를 사용하고 raw array 응답을 가정하지 않습니다.
+- 게시물 검색어는 DB LIKE 부하를 줄이기 위해 2자 이상만 허용합니다. `BoardPostService`에서 최종 검증하며, 프론트 검증은 UX 보조입니다.
 - 게시물/댓글 트리는 그룹번호·그룹순서·그룹레벨(`*_GRP_NO`, `*_GRP_SQN`, `*_GRP_LEV`)로 정렬합니다.
 
 ### 5.14 부서 필터링 패턴 (bbrC)
@@ -674,18 +677,15 @@ public class PlanController { ... }
 - 타인 알림 조회/수정/삭제 시도 → `AccessDeniedException` 발생.
 - `NotificationService.loadOwned(infMngNo, currentEno)` 내부 헬퍼로 검증.
 
-#### 디스패처 패턴 (NotificationDispatcher SPI, 현재 구현 2026-06-05)
+#### 디스패처 패턴 (NotificationDispatcher SPI, 현재 구현 2026-07-07)
 - **인터페이스**: `NotificationDispatcher.dispatch(Cinfmm notification, String eaiPayload)`.
   - 목적: 알림 엔티티 저장 후 채널별 발송 처리 분리 (부수 효과 SPI).
   
-- **현재 구현**: `StubNotificationDispatcher` — INAPP(인앱) 채널만 처리.
-  - `notification.markDispatched("01", sdPayload)` 호출 (`CHANNEL_INAPP="01"`, EAI_SD_TP_C='01' + EAI_SD_DTM=now).
-  - 발송 실패 처리: 예외 발생 금지, warn 로그만 수행 (원본 알림 저장 작업 무영향 유지).
-  
-- **향후 확장 패턴** (TASK.md 등록):
-  - 이메일, SMS, 카톡(알림톡) 어댑터 추가 시 채널별 구현체 분리 + 라우터 도입.
-  - 각 구현체는 `NotificationDispatcher` 인터페이스 구현.
-  - `dispatch()` 내에서 발송 실패는 예외 발생 금지, 로깅만 수행 (부수 효과로 취급).
+- **현재 구현**: `NotificationDispatcherRouter`.
+  - `NotificationEvent.sdTc()`가 null이면 기본 인앱 채널(`CHANNEL_INAPP="01"`)로 처리하고 `notification.markDispatched("01", sdPayload)`만 수행합니다.
+  - 외부 GWE 채널은 `CHANNEL_EAI_GWE="04"`를 사용합니다. 이벤트 발행자가 `NotificationEvent.builder().sdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)`를 지정하면 `NotificationService`가 `Cinfmm.sdTc`에 복사하고, 라우터가 `EaiService.sendEai()`로 위임합니다.
+  - 결재요청 알림은 GWE EAI 채널을 사용합니다. 게시판 멘션 등 기본 알림은 별도 채널을 지정하지 않으면 인앱으로 유지됩니다.
+  - EAI 실패(`EaiResult.failure` 또는 예외)는 warn 로그만 남기고 원 알림 저장·업무 처리를 막지 않습니다.
 
 ### 5.17 Tiptap 변수 시스템 (common/system/tiptap)
 
@@ -825,6 +825,7 @@ record ResolvedValue(String value, String status)
 - **집행 4단계 `changeStatus`(상태전이)는 ADMIN 전용입니다(2026-06-29 적용).** `OwnershipVerifier.verifyAdmin(user)`(실패 시 `AccessDeniedException`→403)로 검증하며, 소유자라도 ADMIN이 아니면 거부합니다. 인접 단계 전이 가드(`작성중↔진행중↔완료`)와 `bprojaSyncService.upsert`는 그대로 유지됩니다. update/delete/save*는 기존대로 소유자-or-ADMIN(`verifyOwnerOrAdmin`)을 유지합니다.
 - 클래스 레벨 `@PreAuthorize`가 없는 업무 컨트롤러는 **서비스 계층에서 소유자/관리자 검증 필수**이며, 집행 4단계 update/delete/save*에 `verifyOwnerOrAdmin`, changeStatus에 `verifyAdmin`이 적용되어 있습니다.
 - 부서(bbrC) 필터는 4개 도메인(`Estimate`/`Deliberation`/`Contract`/`Payment`) `RepositoryImpl` 목록 쿼리에 모두 적용됩니다(2026-06-28). 사업(`bgPrnTc='100'`)은 `Bprojm.svnDpmC`, 전산업무비(`'200'`)는 `Bcostm.costSvnDpmC`를 `cncdRfrNo` 키로 LEFT JOIN(최신버전 `lstYn='Y'`·미삭제) 후 `Expressions.anyOf(allOf(100,사업부서), allOf(200,전산부서))`로 분기 비교하며, 2중 JOIN 안전을 위해 `.distinct()` 가드를 둡니다. `changeStatus` 상태전이는 ADMIN 전용으로 적용되었습니다(2026-06-29, 위 보안 규칙 참조).
+- 품목 금액 규칙: `BITEMM.amt`는 이미 KRW 환산 후 저장된 금액이고, `BITEMM.fcAmt`는 원 통화 금액입니다. 조회/집계 로직은 `amt`를 직접 합산하며 `amt * xcr` 이중환산을 금지합니다. 원통화 표시가 필요할 때만 `fcAmt`와 통화/환율 필드를 함께 사용합니다.
 - 금융 금액 필드(`cttAmt`, `dfrAmt`)는 `@DecimalMin("0")`, YN 플래그는 `@Pattern(regexp="^[YN]$")` 적용 권장(현재 일부 누락).
 
 ### 5.19 EAI 발송 인프라 (infra/eai, KDB 표준전문)
@@ -836,7 +837,7 @@ record ResolvedValue(String value, String status)
   - 모든 실패는 예외를 전파하지 않고 `EaiResult`(success/failure/skip)로 표현 — **부수효과 원칙**.
   - 민감정보(휴대폰/OTP)는 전문 평문 로깅하지 않고 마스킹.
   - 시스템 식별자 IPP/PRM/PP는 프로퍼티로 확정. `IF_ID`(인터페이스ID)·UMS 템플릿은 운영팀 발급 대기 (TASK.md EAI 섹션).
-- **현재 미연동**: `NotificationDispatcher` 실연동 어댑터로 `EaiService`를 연결하는 작업은 TASK.md 백로그. 현재 알림은 `StubNotificationDispatcher`(INAPP 전용)만 동작.
+- **알림 연동**: `NotificationDispatcherRouter`가 `NotificationEvent.sdTc()` 값에 따라 인앱 또는 GWE EAI 발송을 선택합니다. 업무 상태전이 알림은 실패를 전파하지 않는 부수효과로 처리합니다.
 - 신규 시스템 연동 시: `EaiPayload`(record) + `EaiPayloadSection`(@Component) 1쌍 추가 패턴.
 
 ### 5.20 파일 로깅 (logback-spring.xml)
