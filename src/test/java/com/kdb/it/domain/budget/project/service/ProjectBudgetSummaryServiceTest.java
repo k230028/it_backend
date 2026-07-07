@@ -69,6 +69,33 @@ class ProjectBudgetSummaryServiceTest {
      * @param amt    품목금액 (원화 기준)
      * @param mplAmt 예정금액 (원화 기준)
      * @param xcr    저장 시 적용된 환율
+     * @param fcAmt  원통화 금액
+     * @return 테스트용 Bitemm 인스턴스
+     */
+    private Bitemm item(String ioeC, long amt, long mplAmt, BigDecimal xcr, BigDecimal fcAmt) {
+        return Bitemm.builder()
+                .gclMngNo("GCL-2026-0001")
+                .sno(1)
+                .abusMngNo("PRJ-2026-0001")
+                .fntTbCrySno(1)
+                .ioeC(ioeC)
+                .gclNm("품목")
+                .curC("KRW")
+                .xcr(xcr)
+                .amt(BigDecimal.valueOf(amt))
+                .fcAmt(fcAmt)
+                .mplAmt(BigDecimal.valueOf(mplAmt))
+                .lstYn("Y")
+                .build();
+    }
+
+    /**
+     * 테스트용 Bitemm 생성 헬퍼.
+     *
+     * @param ioeC   비목코드
+     * @param amt    품목금액 (원화 기준)
+     * @param mplAmt 예정금액 (원화 기준)
+     * @param xcr    저장 시 적용된 환율
      * @return 테스트용 Bitemm 인스턴스
      */
     private Bitemm item(String ioeC, long amt, long mplAmt, BigDecimal xcr) {
@@ -126,13 +153,13 @@ class ProjectBudgetSummaryServiceTest {
     @Test
     @DisplayName("외화 품목은 저장된 KRW amt를 요약에서 그대로 합산한다")
     void usesPersistedKrwAmountForSummary() {
-        // Arrange: C1=자본(IOE_DVC), fcAmt=100, xcr=1300, 저장 amt=130000
+        // Arrange: C1=자본(IOE_DVC), fcAmt=100, xcr=1400, 저장 amt=130000
         when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
                 .thenReturn(List.of(code("C1", "IOE_DVC")));
         ProjectDto.Response res = ProjectDto.Response.builder().build();
 
         // Act
-        service.applyBudgetSummary(res, List.of(item("C1", 130000, 0, new BigDecimal("1300"))));
+        service.applyBudgetSummary(res, List.of(item("C1", 130000, 0, new BigDecimal("1400"), new BigDecimal("100"))));
 
         // Assert: 원천금액 100이나 이중환산 169000000이 아닌 저장 KRW 금액 130000이어야 한다.
         assertThat(res.getAssetBg()).isEqualByComparingTo("130000");

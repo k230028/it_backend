@@ -58,12 +58,12 @@ class BudgetWorkServiceXcrLookupTest {
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
 
-        // 외화 Bitemm 1건: fcAmt=100, xcr=1300, 저장 amt=130000.
+        // 외화 Bitemm 1건: fcAmt=100, xcr=1400, 저장 amt=130000으로 환산값과 다르게 둔다.
         Bitemm bitemm = mock(Bitemm.class);
         given(bitemm.getCurC()).willReturn("USD");
         given(bitemm.getFcAmt()).willReturn(new BigDecimal("100"));
         given(bitemm.getAmt()).willReturn(new BigDecimal("130000"));
-        given(bitemm.getXcr()).willReturn(new BigDecimal("1300"));
+        given(bitemm.getXcr()).willReturn(new BigDecimal("1400"));
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0001");
         given(bitemm.getSno()).willReturn(1);
