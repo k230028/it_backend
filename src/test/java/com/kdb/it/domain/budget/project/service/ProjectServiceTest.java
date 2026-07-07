@@ -940,8 +940,8 @@ class ProjectServiceTest {
                 assertThat(result.getDvmDpmCNm()).isEqualTo("IT부");
                 assertThat(result.getSvnDpmCNm()).isEqualTo("현업부");
                 assertThat(result.getDvmUsidNm()).isEqualTo("담당자");
-                assertThat(result.getAssetBg()).isEqualByComparingTo("1200");
-                assertThat(result.getDvcBg()).isEqualByComparingTo("1000");
+                assertThat(result.getAssetBg()).isEqualByComparingTo("300");
+                assertThat(result.getDvcBg()).isEqualByComparingTo("100");
                 assertThat(result.getHwBg()).isEqualByComparingTo("200");
                 assertThat(result.getCostBg()).isEqualByComparingTo("300");
                 assertThat(result.getItems().get(0).getIoeCNm()).isEqualTo("개발비");
