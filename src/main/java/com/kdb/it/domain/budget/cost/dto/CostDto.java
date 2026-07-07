@@ -5,6 +5,7 @@ import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.util.DateFormatUtil;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -132,6 +133,7 @@ public class CostDto {
         private String fstDfrDt;
 
         /** 통화 코드 (예: "KRW", "USD") */
+        @NotBlank
         @Schema(description = "통화", example = "KRW")
         private String curC;
 

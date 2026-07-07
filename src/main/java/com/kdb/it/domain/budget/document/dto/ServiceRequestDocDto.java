@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.document.dto;
 import com.kdb.it.domain.budget.document.entity.Brdocm;
 import com.kdb.it.domain.budget.document.util.DocVersionCodec;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -42,6 +43,7 @@ public class ServiceRequestDocDto {
         @Schema(description = "문서관리번호 (미입력 시 자동 채번)")
         private String docMngNo;
 
+        @NotBlank
         /** 요구사항명 */
         @Schema(description = "요구사항명")
         private String reqTtl;

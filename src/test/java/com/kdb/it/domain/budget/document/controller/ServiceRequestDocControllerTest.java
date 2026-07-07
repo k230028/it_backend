@@ -98,10 +98,26 @@ class ServiceRequestDocControllerTest {
     @WithMockUser(username = "10001")
     void createDocument_인증_201() throws Exception {
         given(serviceRequestDocService.createDocument(any())).willReturn("DOC-2026-0001");
+        var body = new ServiceRequestDocDto.CreateRequest();
+        body.setReqTtl("요구사항 제목");
+
         mockMvc.perform(post("/api/documents")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new ServiceRequestDocDto.CreateRequest())))
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("POST /api/documents - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001")
+    void createDocument_필수필드누락_400() throws Exception {
+        var body = new ServiceRequestDocDto.CreateRequest();
+        body.setReqTtl(null);
+
+        mockMvc.perform(post("/api/documents")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -78,14 +79,31 @@ class CostControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/cost - 인증된 사용자 → 200 OK")
+    @DisplayName("POST /api/cost - 인증된 사용자 → 201 Created + Location")
     @WithMockUser(username = "10001")
-    void createCost_인증_200() throws Exception {
+    void createCost_인증_201() throws Exception {
         given(costService.createCost(any())).willReturn("COST_2026_0001");
+        var body = new CostDto.CreateRequest();
+        body.setCurC("KRW");
+
         mockMvc.perform(post("/api/cost")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CostDto.CreateRequest())))
-                .andExpect(status().isOk());
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/cost/COST_2026_0001"));
+    }
+
+    @Test
+    @DisplayName("POST /api/cost - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001")
+    void createCost_필수필드누락_400() throws Exception {
+        var body = new CostDto.CreateRequest();
+        body.setCurC(null);
+
+        mockMvc.perform(post("/api/cost")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

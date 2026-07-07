@@ -259,4 +259,5 @@ class AdminMenuControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest());
     }
+
 }

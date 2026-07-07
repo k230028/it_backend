@@ -82,10 +82,26 @@ class GuideDocControllerTest {
     @WithMockUser(username = "10001")
     void createDocument_인증_201() throws Exception {
         given(guideDocService.createDocument(any())).willReturn("DOC-2026-0001");
+        var body = new GuideDocDto.CreateRequest();
+        body.setDocTtlCone("가이드 문서");
+
         mockMvc.perform(post("/api/guide-documents")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new GuideDocDto.CreateRequest())))
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("POST /api/guide-documents - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001")
+    void createDocument_필수필드누락_400() throws Exception {
+        var body = new GuideDocDto.CreateRequest();
+        body.setDocTtlCone(null);
+
+        mockMvc.perform(post("/api/guide-documents")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

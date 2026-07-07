@@ -4,6 +4,7 @@ import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.service.BoardMetaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,7 +34,7 @@ public class AdminBoardMetaController {
      */
     @PostMapping
     @Operation(summary = "게시판 등록")
-    public ResponseEntity<String> create(@RequestBody BoardMetaDto.CreateRequest request) {
+    public ResponseEntity<String> create(@Valid @RequestBody BoardMetaDto.CreateRequest request) {
         String blbMngNo = boardMetaService.createBoard(request);
         return ResponseEntity.created(URI.create("/api/boards/meta/" + blbMngNo)).body(blbMngNo);
     }

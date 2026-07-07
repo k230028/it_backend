@@ -5,6 +5,7 @@ import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.document.service.ServiceRequestDocService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -112,7 +113,7 @@ public class ServiceRequestDocController {
      */
     @PostMapping
     @Operation(summary = "요구사항 정의서 생성", description = "신규 요구사항 정의서를 생성합니다. docMngNo 미입력 시 자동 채번됩니다.")
-    public ResponseEntity<String> createDocument(@RequestBody ServiceRequestDocDto.CreateRequest request) {
+    public ResponseEntity<String> createDocument(@Valid @RequestBody ServiceRequestDocDto.CreateRequest request) {
         String docMngNo = serviceRequestDocService.createDocument(request);
         return ResponseEntity.created(URI.create("/api/documents/" + docMngNo)).body(docMngNo);
     }

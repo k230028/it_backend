@@ -2,6 +2,7 @@ package com.kdb.it.common.board.dto;
 
 import com.kdb.it.common.board.entity.Ccmmtm;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -54,6 +55,7 @@ public class BoardCommentDto {
     @AllArgsConstructor
     @Schema(name = "BoardCommentCreateRequest", description = "댓글 등록 요청")
     public static class CreateRequest {
+        @NotBlank
         @Schema(description = "댓글 내용 (최대 2000자)", requiredMode = Schema.RequiredMode.REQUIRED) private String cmmtCone;
         @Schema(description = "프론트 자동완성에서 선택한 멘션 사용자 사번 목록")
         private java.util.List<String> mentionedEnos;

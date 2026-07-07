@@ -5,6 +5,7 @@ import com.kdb.it.common.board.service.BoardCommentService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -55,7 +56,7 @@ public class BoardCommentController {
     public ResponseEntity<Long> create(
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
-            @RequestBody BoardCommentDto.CreateRequest request,
+            @Valid @RequestBody BoardCommentDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         Long cmmtMngNo = boardCommentService.createComment(blbMngNo, nacMngNo, request, user);
         return ResponseEntity.created(
