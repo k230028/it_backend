@@ -16,7 +16,7 @@ import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
@@ -31,8 +31,6 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -405,7 +403,7 @@ public class ProjectService {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
 
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
-        validateModifyPermission(project.getFstEnrUsid(), project.getSvnDpmC());
+        OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
 
         // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
         // 결재중 또는 결재완료 상태인 경우 수정 불가
@@ -654,7 +652,7 @@ public class ProjectService {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
 
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
-        validateModifyPermission(project.getFstEnrUsid(), project.getSvnDpmC());
+        OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
 
         // 결재 상태 확인 (결재중/결재완료이면 삭제 불가)
         boolean isProcessingOrApproved = capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1123,56 +1121,5 @@ public class ProjectService {
             if (item.getIoeC() != null)
                 item.setIoeCNm(nameMap.get(item.getIoeC()));
         });
-    }
-
-    /**
-     * RBAC 수정/삭제 권한 검증 헬퍼 (내부 메서드)
-     *
-     * <p>
-     * SecurityContext에서 현재 인증된 사용자({@link CustomUserDetails})를 조회하고,
-     * 자격등급 기반으로 리소스 수정 권한을 3단계로 검증합니다.
-     * </p>
-     *
-     * <p>
-     * 권한 계층:
-     * </p>
-     * <ol>
-     * <li>시스템관리자(ITPAD001): 모든 리소스 수정 허용</li>
-     * <li>기획통할담당자(ITPZZ002): 소속 부서(bbrC) == 리소스 부서(resourceBbrC) 인 경우 허용</li>
-     * <li>일반사용자(ITPZZ001): 본인 작성 리소스(creatorEno == 요청자 eno) 인 경우만 허용</li>
-     * </ol>
-     *
-     * @param creatorEno   리소스 최초 작성자 사번 (FST_ENR_USID)
-     * @param resourceBbrC 리소스 소속 부서코드 (부서 단위 권한 범위 결정용)
-     * @throws AccessDeniedException 수정 권한이 없는 경우
-     */
-    private void validateModifyPermission(String creatorEno, String resourceBbrC) {
-        // SecurityContext에서 현재 인증 주체 조회
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-        // 인증 주체가 CustomUserDetails가 아닌 경우 (비정상 접근) 거부
-        if (!(principal instanceof CustomUserDetails currentUser)) {
-            throw new AccessDeniedException("인증 정보를 확인할 수 없습니다.");
-        }
-
-        // 1단계: 시스템관리자는 모든 리소스 수정 허용
-        if (currentUser.isAdmin()) {
-            return;
-        }
-
-        // 2단계: 기획통할담당자는 소속 부서 리소스 수정 허용
-        if (currentUser.isDeptManager()) {
-            if (currentUser.getBbrC() != null && currentUser.getBbrC().equals(resourceBbrC)) {
-                return;
-            }
-            throw new AccessDeniedException("소속 부서의 리소스만 수정할 수 있습니다.");
-        }
-
-        // 3단계: 일반사용자는 본인 작성 리소스만 수정 허용
-        if (currentUser.getEno().equals(creatorEno)) {
-            return;
-        }
-
-        throw new AccessDeniedException("본인이 작성한 리소스만 수정할 수 있습니다.");
     }
 }

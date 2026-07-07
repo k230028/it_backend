@@ -21,7 +21,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
@@ -35,8 +35,6 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -313,7 +311,7 @@ public class CostService {
                 .findFirst()
                 .orElse(costs.get(0));
 
-        validateModifyPermission(target.getFstEnrUsid(), target.getCostSvnDpmC());
+        OwnershipVerifier.verifyModifiable(target.getFstEnrUsid(), target.getCostSvnDpmC());
 
         // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
         request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
@@ -388,7 +386,7 @@ public class CostService {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
 
-        validateModifyPermission(costs.get(0).getFstEnrUsid(), costs.get(0).getCostSvnDpmC());
+        OwnershipVerifier.verifyModifiable(costs.get(0).getFstEnrUsid(), costs.get(0).getCostSvnDpmC());
 
         // 단말기 일괄 조회 (N+1 제거): 미삭제 단말기를 IN 조회로 1회만 적재.
         // DEL_YN='N'만 대상으로 한다 — 이미 삭제(DEL_YN='Y')된 단말기는 재삭제가 불필요하므로 의도적으로 제외(멱등).
@@ -915,44 +913,5 @@ public class CostService {
         Long seq = btermmRepository.getNextSequenceValue();
         String year = String.valueOf(LocalDate.now().getYear());
         return String.format("TER-%s-%04d", year, seq);
-    }
-
-    /**
-     * RBAC 수정/삭제 권한 검증 헬퍼
-     * ({@link com.kdb.it.domain.budget.project.service.ProjectService}와 동일 규칙)
-     *
-     * <p>
-     * SecurityContext에서 현재 인증된 사용자를 조회하고 자격등급 기반 3단계 권한을 검증합니다.
-     * </p>
-     *
-     * <ol>
-     * <li>시스템관리자(ITPAD001): 모든 리소스 수정 허용</li>
-     * <li>기획통할담당자(ITPZZ002): 소속 부서(bbrC) == 리소스 부서(resourceBbrC)인 경우 허용</li>
-     * <li>일반사용자(ITPZZ001): 본인 작성 리소스(creatorEno == 요청자 eno)만 허용</li>
-     * </ol>
-     *
-     * @param creatorEno   리소스 최초 작성자 사번 (FST_ENR_USID)
-     * @param resourceBbrC 리소스 소속 부서코드 (부서 단위 권한 범위 결정용)
-     * @throws org.springframework.security.access.AccessDeniedException 수정 권한이 없는
-     *                                                                   경우
-     */
-    private void validateModifyPermission(String creatorEno, String resourceBbrC) {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (!(principal instanceof CustomUserDetails currentUser)) {
-            throw new AccessDeniedException("인증 정보를 확인할 수 없습니다.");
-        }
-        if (currentUser.isAdmin()) {
-            return;
-        }
-        if (currentUser.isDeptManager()) {
-            if (currentUser.getBbrC() != null && currentUser.getBbrC().equals(resourceBbrC)) {
-                return;
-            }
-            throw new AccessDeniedException("소속 부서의 리소스만 수정할 수 있습니다.");
-        }
-        if (currentUser.getEno().equals(creatorEno)) {
-            return;
-        }
-        throw new AccessDeniedException("본인이 작성한 리소스만 수정할 수 있습니다.");
     }
 }

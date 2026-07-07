@@ -988,7 +988,7 @@ class CostServiceTest {
 
             assertThatThrownBy(() -> costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build()))
                     .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
-                    .hasMessageContaining("소속 부서");
+                    .hasMessageContaining("수정 권한");
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
