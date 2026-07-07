@@ -69,6 +69,31 @@ class RealtimeLogControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
+    @DisplayName("ADMIN — 상세 로그 이동에 필요한 logKey/logSno 응답")
+    void admin_returnsDetailPathKeys() throws Exception {
+        when(service.snapshot(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), any(), any()))
+                .thenReturn(new RealtimeLogDto.Snapshot(
+                        List.of(new RealtimeLogDto.FeedRow(
+                                "TPRMPP_BPROJL",
+                                "BPROJM",
+                                42L,
+                                "U",
+                                LocalDateTime.of(2026, 5, 31, 23, 14, 7),
+                                "admin",
+                                "guid-42",
+                                "N")),
+                        LocalDateTime.of(2026, 5, 31, 23, 14, 8),
+                        Map.of("BPROJM", 1L),
+                        List.of()));
+
+        mvc.perform(get("/api/admin/realtime-logs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows[0].logKey").value("BPROJM"))
+                .andExpect(jsonPath("$.rows[0].logSno").value(42));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("ADMIN — since/커서/limit/tables/chgTypes 전체 쿼리 파라미터 전달 (split CSV 분기 커버)")
     void admin_withAllQueryParams_passesSplitValues() throws Exception {
         // Arrange: 서비스는 mock — 컨트롤러의 split()·파라미터 바인딩 경로만 검증한다.
