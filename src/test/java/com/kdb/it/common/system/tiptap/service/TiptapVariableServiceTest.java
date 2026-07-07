@@ -20,9 +20,11 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -196,6 +198,49 @@ class TiptapVariableServiceTest {
     }
 
     @Test
+    @DisplayName("resolve — ADMIN은 어떤 사업이든 PROJ 토큰을 해석할 수 있다")
+    void resolve_adminCanResolveAnyProjectToken() {
+        when(budgetStatusRepository.aggregateByProject(2026, "PRJ999"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(50_000L, 20_000L));
+
+        var response = service.resolve(List.of("2026.proj.PRJ999.allocatedAmount"), adminUser());
+
+        assertThat(response.results().get("2026.proj.PRJ999.allocatedAmount").status()).isEqualTo("OK");
+        verify(projectRepository, never()).findActiveProjectRefsByDept(any());
+        verify(budgetStatusRepository).aggregateByProject(2026, "PRJ999");
+    }
+
+    @Test
+    @DisplayName("resolve — 부서관리자는 같은 부서 사업 PROJ 토큰을 해석할 수 있다")
+    void resolve_deptManagerCanResolveSameDepartmentProjectToken() {
+        var deptManager = new CustomUserDetails("M1", List.of("ITPZZ002"), "D001");
+        when(projectRepository.findActiveProjectRefsByDept("D001"))
+                .thenReturn(List.of(new Bprojm.Ref("PRJ001", "같은부서사업")));
+        when(budgetStatusRepository.aggregateByProject(2026, "PRJ001"))
+                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(50_000L, 20_000L));
+
+        var response = service.resolve(List.of("2026.proj.PRJ001.allocatedAmount"), deptManager);
+
+        assertThat(response.results().get("2026.proj.PRJ001.allocatedAmount").status()).isEqualTo("OK");
+        verify(projectRepository).findActiveProjectRefsByDept("D001");
+        verify(budgetStatusRepository).aggregateByProject(2026, "PRJ001");
+    }
+
+    @Test
+    @DisplayName("resolve — 부서관리자가 다른 부서 사업 PROJ 토큰을 요청하면 FORBIDDEN을 반환한다")
+    void resolve_deptManagerOtherDepartmentProject_returnsForbidden() {
+        var deptManager = new CustomUserDetails("M1", List.of("ITPZZ002"), "D001");
+        when(projectRepository.findActiveProjectRefsByDept("D001"))
+                .thenReturn(List.of(new Bprojm.Ref("PRJ001", "같은부서사업")));
+
+        var response = service.resolve(List.of("2026.proj.PRJ999.allocatedAmount"), deptManager);
+
+        assertThat(response.results().get("2026.proj.PRJ999.allocatedAmount").status()).isEqualTo("FORBIDDEN");
+        verify(projectRepository).findActiveProjectRefsByDept("D001");
+        verify(budgetStatusRepository, never()).aggregateByProject(anyInt(), any());
+    }
+
+    @Test
     @DisplayName("resolve — 천원 단위 요청액은 원 단위로 포맷한다")
     void resolve_smallRequestAmount_formatsWon() {
         when(budgetStatusRepository.aggregateByCategory(2026, "OPEX"))
@@ -240,8 +285,7 @@ class TiptapVariableServiceTest {
                 "2026.itBudget.allocatedAmount",
                 "2026.itBudget.allocationRate"), null);
 
-        org.mockito.Mockito.verify(budgetStatusRepository, org.mockito.Mockito.times(1))
-                .aggregateByCategory(2026, "IT_BUDGET");
+        verify(budgetStatusRepository, times(1)).aggregateByCategory(2026, "IT_BUDGET");
     }
 
     @Test
@@ -257,6 +301,7 @@ class TiptapVariableServiceTest {
 
         // Assert
         assertThat(res.results().get("2026.proj.P001.allocationRate").status()).isEqualTo("FORBIDDEN");
+        verify(budgetStatusRepository, never()).aggregateByProject(anyInt(), any());
     }
     @Test
     @DisplayName("metadataCacheKey - 부서 없는 일반 사용자는 사용자별 키를 반환한다")
