@@ -126,6 +126,21 @@ class TiptapVariableServiceTest {
     }
 
     @Test
+    @DisplayName("metadata - 부서관리자는 부서 사업만 반환한다")
+    void getMetadata_부서필터_부서관리자() {
+        var deptManager = new CustomUserDetails("M1", List.of("ITPZZ002"), "D001");
+        when(projectRepository.findActiveProjectRefsByDept("D001"))
+                .thenReturn(List.of(new Bprojm.Ref("P-D001", "부서관리자사업")));
+
+        MetadataResponse res = service.getMetadata(deptManager);
+
+        var proj = res.categories().stream().filter(c -> c.code().equals("PROJ")).findFirst().orElseThrow();
+        assertThat(proj.projects()).extracting("code").containsExactly("P-D001");
+        verify(projectRepository).findActiveProjectRefsByDept("D001");
+        verify(projectRepository, never()).findActiveProjectRefs();
+    }
+
+    @Test
     @DisplayName("resolve — 잘못된 토큰은 INVALID 반환")
     void resolve_invalidToken_returnsInvalid() {
         var response = service.resolve(java.util.List.of("not-a-valid-token"), null);
@@ -279,11 +294,11 @@ class TiptapVariableServiceTest {
     }
 
     @Test
-    @DisplayName("metadataCacheKey - 부서관리자는 ALL을 반환한다")
-    void metadataCacheKey_deptManager_returnsAll() {
+    @DisplayName("metadataCacheKey - 부서관리자는 부서별 키를 반환한다")
+    void metadataCacheKey_deptManager_returnsDepartmentKey() {
         var user = new CustomUserDetails("M1", List.of("ITPZZ002"), "D001");
 
-        assertThat(TiptapVariableService.metadataCacheKey(user)).isEqualTo("ALL");
+        assertThat(TiptapVariableService.metadataCacheKey(user)).isEqualTo("DEPT:D001");
     }
 
     @Test

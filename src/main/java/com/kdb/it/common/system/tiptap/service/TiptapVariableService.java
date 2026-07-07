@@ -49,11 +49,11 @@ public class TiptapVariableService {
     private final BudgetStatusQueryRepository budgetStatusRepository;
 
     /**
-     * 드롭다운용 카탈로그 반환. PROJ 카탈로그는 사용자 부서(bbrC) 기준 필터(ADMIN/부서매니저는 전체).
+     * 드롭다운용 카탈로그 반환. PROJ 카탈로그는 사용자 부서(bbrC) 기준으로 필터링합니다.
      *
      * <p>비사업 카테고리(전산예산/자본예산/일반관리비)는 사용자와 무관하게 동일하며,
-     * 사업(PROJ) 목록만 권한·부서에 따라 달라집니다. 캐시 키는 ADMIN/부서매니저는 'ALL',
-     * 그 외 일반 사용자는 부서코드(bbrC)별로 분리합니다.</p>
+     * 사업(PROJ) 목록만 권한·부서에 따라 달라집니다. 관리자는 전체 사업을 보며,
+     * 그 외 사용자는 부서코드(bbrC) 기준으로 사업 목록을 분리합니다.</p>
      *
      * @param user 현재 인증 사용자 (권한·부서 기준 필터)
      * @return 카테고리 메타데이터 응답 (IT_BUDGET, CAP_BUDGET, OPEX, PROJ 4개 카테고리)
@@ -83,7 +83,7 @@ public class TiptapVariableService {
         if (user == null) {
             return "ANONYMOUS";
         }
-        if (user.isAdmin() || user.isDeptManager()) {
+        if (user.isAdmin()) {
             return "ALL";
         }
         if (StringUtils.hasText(user.getBbrC())) {
@@ -96,7 +96,7 @@ public class TiptapVariableService {
      * 사용자 권한과 부서 기준으로 PROJ 카탈로그 사업 목록을 조회합니다.
      */
     private List<ProjectRef> loadMetadataProjects(CustomUserDetails user) {
-        if (user != null && (user.isAdmin() || user.isDeptManager())) {
+        if (user != null && user.isAdmin()) {
             return projectRepository.findActiveProjectRefs()
                     .stream().map(r -> new ProjectRef(r.code(), r.name())).toList();
         }
