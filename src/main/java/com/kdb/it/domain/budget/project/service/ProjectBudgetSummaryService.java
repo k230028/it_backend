@@ -81,9 +81,7 @@ public class ProjectBudgetSummaryService {
                 .collect(Collectors.toSet());
 
         Function<Bitemm, BigDecimal> calcAmt = item -> {
-            BigDecimal xcr = (item.getXcr() != null && item.getXcr().compareTo(BigDecimal.ZERO) != 0)
-                    ? item.getXcr() : BigDecimal.ONE;
-            return item.getAmt().multiply(xcr);
+            return item.getAmt();
         };
 
         List<Bitemm> validItems = bitemms.stream()
@@ -99,12 +97,10 @@ public class ProjectBudgetSummaryService {
         response.setBudgetAmounts(assetBg, dvcBg, hwBg, swBg, costBg);
 
         // === 예정금액(MPL_AMT) 파생 합산 (Bprojm 3개 컬럼 대체) ===
-        // MPL_AMT 는 AMT 와 동일 환산 규칙(× xcr)을 적용해 대칭 계산한다.
+        // MPL_AMT도 저장 시점 금액을 그대로 사용해 AMT와 동일한 집계 기준을 유지합니다.
         Function<Bitemm, BigDecimal> calcMpl = i -> {
             if (i.getMplAmt() == null) return BigDecimal.ZERO;
-            BigDecimal xcr = (i.getXcr() != null && i.getXcr().compareTo(BigDecimal.ZERO) != 0)
-                    ? i.getXcr() : BigDecimal.ONE;
-            return i.getMplAmt().multiply(xcr);
+            return i.getMplAmt();
         };
         List<Bitemm> mplItems = bitemms.stream()
                 .filter(i -> i.getIoeC() != null)

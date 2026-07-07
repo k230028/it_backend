@@ -29,10 +29,10 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * {@link BudgetWorkService} 의 BITEMM 원화 표시 경계 환산 테스트.
+ * {@link BudgetWorkService} 의 BITEMM 저장 원화 금액 편성 테스트.
  *
- * <p>BITEMM의 amt는 원천 통화 금액으로 저장하고, 편성 금액처럼 원화로 집계·표시되는 경계에서만
- * xcr을 한 번 적용합니다.</p>
+ * <p>BITEMM의 {@code amt}는 저장 시 원화로 환산된 금액이고, {@code fcAmt}가 원천 통화 금액입니다.
+ * 편성/조회 경계에서는 {@code amt}를 그대로 사용해 환율 이중 적용을 방지합니다.</p>
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -50,18 +50,19 @@ class BudgetWorkServiceXcrLookupTest {
     private BudgetWorkService budgetWorkService;
 
     @Test
-    @DisplayName("BPROJM 편성: 원천통화 amt에 xcr을 한 번만 적용해 KRW 편성금액을 계산")
-    void applyItemRates_외화품목_xcr한번만적용() {
+    @DisplayName("BPROJM 편성: 저장된 KRW amt를 그대로 사용해 편성금액을 계산")
+    void applyItemRates_외화품목_저장KrwAmt사용() {
         // given: applyItemRates 진입 mocks
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
 
-        // 외화 Bitemm 1건: amt는 원천 통화 금액이고, 편성 KRW 경계에서 xcr을 한 번 적용한다.
+        // 외화 Bitemm 1건: fcAmt=100, xcr=1300, 저장 amt=130000.
         Bitemm bitemm = mock(Bitemm.class);
         given(bitemm.getCurC()).willReturn("USD");
-        given(bitemm.getAmt()).willReturn(new BigDecimal("100"));
+        given(bitemm.getFcAmt()).willReturn(new BigDecimal("100"));
+        given(bitemm.getAmt()).willReturn(new BigDecimal("130000"));
         given(bitemm.getXcr()).willReturn(new BigDecimal("1300"));
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0001");
@@ -78,7 +79,7 @@ class BudgetWorkServiceXcrLookupTest {
         // when
         budgetWorkService.applyItemRates(request);
 
-        // then: dupBgAmt = 100 × 1300 × 100/100 = 130,000.00
+        // then: dupBgAmt = 130000 × 100/100 = 130,000.00
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
         Bbugtm saved = captor.getValue();
@@ -88,8 +89,8 @@ class BudgetWorkServiceXcrLookupTest {
     }
 
     @Test
-    @DisplayName("BPROJM 편성: xcr이 비어 있으면 1로 처리해 원천금액을 유지")
-    void applyItemRates_환율없음_원천금액유지() {
+    @DisplayName("BPROJM 편성: xcr이 있어도 저장된 KRW amt를 다시 환산하지 않는다")
+    void applyItemRates_환율있어도_저장KrwAmt유지() {
         // given
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
@@ -99,7 +100,7 @@ class BudgetWorkServiceXcrLookupTest {
         Bitemm bitemm = mock(Bitemm.class);
         given(bitemm.getCurC()).willReturn("XYZ");
         given(bitemm.getAmt()).willReturn(new BigDecimal("1000"));
-        given(bitemm.getXcr()).willReturn(null);
+        given(bitemm.getXcr()).willReturn(new BigDecimal("1300"));
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0003");
         given(bitemm.getSno()).willReturn(1);
@@ -146,7 +147,7 @@ class BudgetWorkServiceXcrLookupTest {
         // when
         budgetWorkService.applyItemRates(request);
 
-        // then: dupBgAmt = 5,000,000 × 1 × 100/100 = 5,000,000.00 (BigDecimal.ONE fallback)
+        // then: dupBgAmt = 5,000,000 × 100/100 = 5,000,000.00
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
         Bbugtm saved = captor.getValue();
@@ -154,8 +155,8 @@ class BudgetWorkServiceXcrLookupTest {
     }
 
     @Test
-    @DisplayName("DUP_IOE 편성: 결재완료 BITEMM 집계도 xcr을 한 번만 적용")
-    void applyRates_외화품목_xcr한번만적용() {
+    @DisplayName("DUP_IOE 편성: 결재완료 BITEMM 집계도 저장된 KRW amt를 그대로 사용")
+    void applyRates_외화품목_저장KrwAmt사용() {
         // given
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
         given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N")).willReturn(List.of());
@@ -171,7 +172,8 @@ class BudgetWorkServiceXcrLookupTest {
                 .willReturn(List.of());
 
         Bitemm bitemm = mock(Bitemm.class);
-        given(bitemm.getAmt()).willReturn(new BigDecimal("100"));
+        given(bitemm.getFcAmt()).willReturn(new BigDecimal("100"));
+        given(bitemm.getAmt()).willReturn(new BigDecimal("130000"));
         given(bitemm.getXcr()).willReturn(new BigDecimal("1300"));
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0004");

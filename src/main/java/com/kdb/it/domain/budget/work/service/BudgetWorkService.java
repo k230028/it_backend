@@ -226,8 +226,8 @@ public class BudgetWorkService {
             // 지칭한 것이며, BBUGTM에 저장 시 실제 원본은 BITEMM임.
             List<Bitemm> items = bbugtmRepository.findApprovedItemsByIoeCValues(ioeCValues, bgYy);
             for (Bitemm item : items) {
-                // BITEMM.amt는 원천 통화 금액으로 저장되므로, 편성 KRW 집계 경계에서 xcr을 한 번 적용한다.
-                BigDecimal amountKrw = toKrwAmount(item.getAmt(), item.getXcr());
+                // BITEMM.amt는 저장 시점에 원화로 환산된 금액이므로 환율을 다시 곱하지 않습니다.
+                BigDecimal amountKrw = item.getAmt() != null ? item.getAmt() : BigDecimal.ZERO;
                 BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
                 // 존재확인: 레코드별 SELECT 대신 일괄 조회 키맵 조회 (N+1 제거)
@@ -329,9 +329,9 @@ public class BudgetWorkService {
                     boolean isCapital = isCapitalIoeCode(bitemm.getIoeC(), capitalPrefixes);
                     int dupRt = isCapital ? assetDupRt : costDupRt;
 
-                    // BITEMM.amt는 원천 통화 금액으로 저장되므로, 편성 KRW 집계 경계에서 xcr을 한 번 적용한다.
-                    // BCOSTM은 기존처럼 원화 비용 합계(costTotXpAmt)를 그대로 사용한다.
-                    BigDecimal amountKrw = toKrwAmount(bitemm.getAmt(), bitemm.getXcr());
+                    // BITEMM.amt는 저장 시점에 원화로 환산된 금액이고, fcAmt가 원천 통화 금액입니다.
+                    // BCOSTM도 기존처럼 원화 비용 합계(costTotXpAmt)를 그대로 사용합니다.
+                    BigDecimal amountKrw = bitemm.getAmt() != null ? bitemm.getAmt() : BigDecimal.ZERO;
                     BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
                     /* 선 Soft Delete 후 전체 재삽입 방식이므로 Upsert 불필요 (항상 INSERT) */
@@ -697,14 +697,14 @@ public class BudgetWorkService {
             if (it == null || it.getAbusMngNo() == null || !prjByNo.containsKey(it.getAbusMngNo())) continue;
             String ioeC = e.getValue().get(0).getIoeC();
             boolean capital = Boolean.TRUE.equals(cdvaToCapital.get(ioeC));
-            BigDecimal req = toKrwAmount(it.getAmt(), it.getXcr());
+            BigDecimal req = it.getAmt() != null ? it.getAmt() : BigDecimal.ZERO;
             BigDecimal dup = e.getValue().stream().map(value -> value.getBgDupAmt())
                     .filter(v -> v != null).reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
             String key = it.getAbusMngNo() + "|" + capital;
             groupItems.computeIfAbsent(key, k -> new ArrayList<>()).add(new ItemContrib(ioeC, req, dup));
             groupReqSum.merge(key, req, (left, right) -> left.add(right));
             // 품목 예정금액 그룹 합산
-            BigDecimal mplAmt = toKrwAmount(it.getMplAmt(), it.getXcr());
+            BigDecimal mplAmt = it.getMplAmt() != null ? it.getMplAmt() : BigDecimal.ZERO;
             groupMplSum.merge(key, mplAmt, (left, right) -> left.add(right));
         }
 
@@ -992,22 +992,6 @@ public class BudgetWorkService {
         return requestAmount
                 .multiply(BigDecimal.valueOf(dupRt))
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-    }
-
-    /**
-     * 원천 통화 금액을 원화 집계 금액으로 변환합니다.
-     *
-     * @param sourceAmount 원천 통화 금액
-     * @param xcr          적용 환율(null 또는 0이면 1)
-     * @return 원화 집계 금액
-     */
-    private BigDecimal toKrwAmount(BigDecimal sourceAmount, BigDecimal xcr) {
-        if (sourceAmount == null) {
-            return BigDecimal.ZERO;
-        }
-        BigDecimal appliedXcr = (xcr != null && xcr.compareTo(BigDecimal.ZERO) != 0)
-                ? xcr : BigDecimal.ONE;
-        return sourceAmount.multiply(appliedXcr);
     }
 
     /**

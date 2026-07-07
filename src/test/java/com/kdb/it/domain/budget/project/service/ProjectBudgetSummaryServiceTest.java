@@ -20,8 +20,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 /**
  * ProjectBudgetSummaryService 단위 테스트.
  *
- * <p>품목 원천통화 금액에 환율을 한 번 적용해 KRW 요약과 MPL_AMT(예정금액) 파생값을
- * 올바르게 계산하는지 검증합니다.</p>
+ * <p>저장 시점에 원화로 환산된 품목 금액을 요약에서 그대로 합산하고,
+ * MPL_AMT(예정금액) 파생값을 올바르게 계산하는지 검증합니다.</p>
  */
 @ExtendWith(MockitoExtension.class)
 class ProjectBudgetSummaryServiceTest {
@@ -54,7 +54,7 @@ class ProjectBudgetSummaryServiceTest {
      * Bitemm은 복합 PK(gclMngNo, sno) 및 필수 연관 컬럼을 요구합니다.
      *
      * @param ioeC   비목코드 (예: "C1", "M1")
-     * @param amt    품목금액 (원천통화 기준)
+     * @param amt    품목금액 (원화 기준)
      * @param mplAmt 예정금액
      * @return 테스트용 Bitemm 인스턴스
      */
@@ -66,9 +66,9 @@ class ProjectBudgetSummaryServiceTest {
      * 테스트용 Bitemm 생성 헬퍼.
      *
      * @param ioeC   비목코드
-     * @param amt    품목금액 (원천통화 기준)
-     * @param mplAmt 예정금액 (원천통화 기준)
-     * @param xcr    원화 환산 환율
+     * @param amt    품목금액 (원화 기준)
+     * @param mplAmt 예정금액 (원화 기준)
+     * @param xcr    저장 시 적용된 환율
      * @return 테스트용 Bitemm 인스턴스
      */
     private Bitemm item(String ioeC, long amt, long mplAmt, BigDecimal xcr) {
@@ -82,6 +82,7 @@ class ProjectBudgetSummaryServiceTest {
                 .curC("KRW")
                 .xcr(xcr)
                 .amt(BigDecimal.valueOf(amt))
+                .fcAmt(BigDecimal.valueOf(100))
                 .mplAmt(BigDecimal.valueOf(mplAmt))
                 .lstYn("Y")
                 .build();
@@ -123,34 +124,34 @@ class ProjectBudgetSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("외화 품목은 KRW 요약 경계에서 xcr을 한 번만 적용한다")
-    void appliesXcrExactlyOnceForKrwSummary() {
-        // Arrange: C1=자본(IOE_DVC), amt=100, xcr=1300
+    @DisplayName("외화 품목은 저장된 KRW amt를 요약에서 그대로 합산한다")
+    void usesPersistedKrwAmountForSummary() {
+        // Arrange: C1=자본(IOE_DVC), fcAmt=100, xcr=1300, 저장 amt=130000
         when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
                 .thenReturn(List.of(code("C1", "IOE_DVC")));
         ProjectDto.Response res = ProjectDto.Response.builder().build();
 
         // Act
-        service.applyBudgetSummary(res, List.of(item("C1", 100, 0, new BigDecimal("1300"))));
+        service.applyBudgetSummary(res, List.of(item("C1", 130000, 0, new BigDecimal("1300"))));
 
-        // Assert: 100도 169000000도 아닌 130000이어야 한다.
+        // Assert: 원천금액 100이나 이중환산 169000000이 아닌 저장 KRW 금액 130000이어야 한다.
         assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
         assertThat(res.getDvcBg()).isEqualByComparingTo("130000");
         assertThat(res.getTotRqmAmt()).isEqualByComparingTo("130000");
     }
 
     @Test
-    @DisplayName("외화 예정금액도 KRW 요약 경계에서 xcr을 한 번만 적용해 차감한다")
-    void appliesXcrExactlyOnceForPlannedAmountSummary() {
-        // Arrange: C1=자본(IOE_DVC), amt=100, mplAmt=40, xcr=1300
+    @DisplayName("외화 예정금액도 저장된 KRW mplAmt를 요약에서 그대로 차감한다")
+    void usesPersistedKrwPlannedAmountForSummary() {
+        // Arrange: C1=자본(IOE_DVC), 저장 amt=130000, 저장 mplAmt=52000, xcr=1300
         when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
                 .thenReturn(List.of(code("C1", "IOE_DVC")));
         ProjectDto.Response res = ProjectDto.Response.builder().build();
 
         // Act
-        service.applyBudgetSummary(res, List.of(item("C1", 100, 40, new BigDecimal("1300"))));
+        service.applyBudgetSummary(res, List.of(item("C1", 130000, 52000, new BigDecimal("1300"))));
 
-        // Assert: 총 130000원에서 예정 52000원을 한 번만 차감한다.
+        // Assert: 총 130000원에서 저장된 예정금액 52000원을 그대로 차감한다.
         assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
         assertThat(res.getMplCpitAmt()).isEqualByComparingTo("52000");
         assertThat(res.getTotRqmAmt()).isEqualByComparingTo("78000");
