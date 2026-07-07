@@ -195,7 +195,7 @@ class BudgetWorkServiceXcrLookupTest {
     }
 
     @Test
-    @DisplayName("편성 재집계는 외화 품목의 amt를 원화 기준으로 합산한다")
+    @DisplayName("편성 재집계는 fcAmt*xcr=140000이어도 저장된 amt 130000을 원화 기준으로 합산한다")
     void aggregate_foreignCurrency_usesStoredKrwAmt() {
         // given
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
@@ -212,9 +212,10 @@ class BudgetWorkServiceXcrLookupTest {
                 .willReturn(List.of());
 
         Bitemm bitemm = mock(Bitemm.class);
+        // fcAmt=100, xcr=1400이면 140000이지만 저장 amt는 130000인 외화 품목
         given(bitemm.getFcAmt()).willReturn(new BigDecimal("100"));
         given(bitemm.getAmt()).willReturn(new BigDecimal("130000"));
-        given(bitemm.getXcr()).willReturn(new BigDecimal("1300"));
+        given(bitemm.getXcr()).willReturn(new BigDecimal("1400"));
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0005");
         given(bitemm.getSno()).willReturn(1);
@@ -231,6 +232,7 @@ class BudgetWorkServiceXcrLookupTest {
         // then: 합산 금액은 130000 이다
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
+        // fcAmt * xcr = 140000이지만 재집계는 저장된 amt 130000을 그대로 쓴다
         assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo(new BigDecimal("130000.00"));
     }
 }

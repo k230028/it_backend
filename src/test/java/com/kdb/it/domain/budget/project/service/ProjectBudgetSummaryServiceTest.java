@@ -168,17 +168,17 @@ class ProjectBudgetSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("외화 품목은 이미 환산된 amt를 다시 환율 곱하지 않는다")
+    @DisplayName("외화 품목은 fcAmt*xcr=140000이어도 저장된 amt 130000을 그대로 합산한다")
     void summarize_foreignCurrency_usesKrwAmtWithoutDoubleConversion() {
-        // Given: fcAmt=100, xcr=1300, amt=130000 인 품목
+        // Given: fcAmt=100, xcr=1400이면 140000이지만 저장 amt는 130000인 품목
         when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
                 .thenReturn(List.of(code("C1", "IOE_DVC")));
         ProjectDto.Response res = ProjectDto.Response.builder().build();
 
         // When: 프로젝트 요약을 계산
-        service.applyBudgetSummary(res, List.of(item("C1", 130000, 0, new BigDecimal("1300"))));
+        service.applyBudgetSummary(res, List.of(item("C1", 130000, 0, new BigDecimal("1400"), new BigDecimal("100"))));
 
-        // Then: 합산 금액은 169000000 이 아니라 130000 이다
+        // Then: fcAmt * xcr = 140000이지만 저장된 amt 130000을 그대로 사용한다
         assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
         assertThat(res.getDvcBg()).isEqualByComparingTo("130000");
         assertThat(res.getTotRqmAmt()).isEqualByComparingTo("130000");
