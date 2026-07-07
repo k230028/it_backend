@@ -141,6 +141,23 @@ class ProjectBudgetSummaryServiceTest {
     }
 
     @Test
+    @DisplayName("외화 품목은 이미 환산된 amt를 다시 환율 곱하지 않는다")
+    void summarize_foreignCurrency_usesKrwAmtWithoutDoubleConversion() {
+        // Given: fcAmt=100, xcr=1300, amt=130000 인 품목
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("C1", "IOE_DVC")));
+        ProjectDto.Response res = ProjectDto.Response.builder().build();
+
+        // When: 프로젝트 요약을 계산
+        service.applyBudgetSummary(res, List.of(item("C1", 130000, 0, new BigDecimal("1300"))));
+
+        // Then: 합산 금액은 169000000 이 아니라 130000 이다
+        assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
+        assertThat(res.getDvcBg()).isEqualByComparingTo("130000");
+        assertThat(res.getTotRqmAmt()).isEqualByComparingTo("130000");
+    }
+
+    @Test
     @DisplayName("외화 예정금액도 저장된 KRW mplAmt를 요약에서 그대로 차감한다")
     void usesPersistedKrwPlannedAmountForSummary() {
         // Arrange: C1=자본(IOE_DVC), 저장 amt=130000, 저장 mplAmt=52000, xcr=1300

@@ -80,12 +80,10 @@ public class ProjectBudgetSummaryService {
                 .map(value -> value.getCdva())
                 .collect(Collectors.toSet());
 
-        Function<Bitemm, BigDecimal> calcAmt = item -> {
-            return item.getAmt();
-        };
+        Function<Bitemm, BigDecimal> calcAmt = this::resolveKrwAmount;
 
         List<Bitemm> validItems = bitemms.stream()
-                .filter(item -> item.getIoeC() != null && item.getAmt() != null)
+                .filter(item -> item.getIoeC() != null)
                 .toList();
 
         BigDecimal assetBg = sumByIoe(validItems, assetTypes, calcAmt);
@@ -131,5 +129,17 @@ public class ProjectBudgetSummaryService {
                 .filter(item -> ioeTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
+    }
+
+    /**
+     * 품목의 저장 원화 금액을 반환합니다.
+     *
+     * <p>BITEMM.amt는 이미 원화 기준 금액이므로 환율을 다시 적용하지 않습니다.</p>
+     *
+     * @param item 품목 엔티티
+     * @return 저장된 원화 금액, null이면 0
+     */
+    private BigDecimal resolveKrwAmount(Bitemm item) {
+        return item.getAmt() == null ? BigDecimal.ZERO : item.getAmt();
     }
 }

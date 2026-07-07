@@ -193,4 +193,44 @@ class BudgetWorkServiceXcrLookupTest {
         verify(bbugtmRepository).save(captor.capture());
         assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo(new BigDecimal("130000.00"));
     }
+
+    @Test
+    @DisplayName("편성 재집계는 외화 품목의 amt를 원화 기준으로 합산한다")
+    void aggregate_foreignCurrency_usesStoredKrwAmt() {
+        // given
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N")).willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BITEMM", "N")).willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(
+                com.kdb.it.common.code.entity.Ccodem.builder()
+                        .cId("IOE_C")
+                        .cdva("001")
+                        .cdvaDtlC("237-0100")
+                        .sttDt("20260101")
+                        .build()));
+        given(bbugtmRepository.findApprovedCostsByIoeCValues(eq(java.util.Set.of("001")), eq("2026")))
+                .willReturn(List.of());
+
+        Bitemm bitemm = mock(Bitemm.class);
+        given(bitemm.getFcAmt()).willReturn(new BigDecimal("100"));
+        given(bitemm.getAmt()).willReturn(new BigDecimal("130000"));
+        given(bitemm.getXcr()).willReturn(new BigDecimal("1300"));
+        given(bitemm.getIoeC()).willReturn("001");
+        given(bitemm.getGclMngNo()).willReturn("GCL-2026-0005");
+        given(bitemm.getSno()).willReturn(1);
+        given(bbugtmRepository.findApprovedItemsByIoeCValues(eq(java.util.Set.of("001")), eq("2026")))
+                .willReturn(List.of(bitemm));
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
+
+        BudgetWorkDto.RateItem rate = new BudgetWorkDto.RateItem("237", 100);
+        BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of(rate));
+
+        // when
+        budgetWorkService.applyRates(request);
+
+        // then: 합산 금액은 130000 이다
+        ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
+        verify(bbugtmRepository).save(captor.capture());
+        assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo(new BigDecimal("130000.00"));
+    }
 }
