@@ -39,12 +39,21 @@ class ItBudgetControllerTest {
     @Test
     @DisplayName("getComparison: 서비스 응답을 200 OK로 반환한다")
     void getComparison_returnsOk() {
-        var response = new ItBudgetDto.ComparisonResponse("2026", "2025", List.of(), List.of());
+        var mapping = new ItBudgetDto.FssMappingRow(
+                "001",
+                "개발비",
+                "개발비",
+                "개발비",
+                200,
+                "정식 금감원 매핑 테이블 도입 전 임시 동일 비목 매핑"
+        );
+        var response = new ItBudgetDto.ComparisonResponse("2026", "2025", List.of(mapping), List.of());
         given(itBudgetService.getComparison("2026")).willReturn(response);
 
         ResponseEntity<ItBudgetDto.ComparisonResponse> result = controller.getComparison("2026");
 
         assertThat(result.getStatusCode().value()).isEqualTo(200);
         assertThat(result.getBody()).isSameAs(response);
+        assertThat(result.getBody().fssMapping()).containsExactly(mapping);
     }
 }

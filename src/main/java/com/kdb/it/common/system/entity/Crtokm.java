@@ -65,6 +65,10 @@ public class Crtokm extends BaseEntity {
     @Column(name = "API_TOK_CONE", nullable = false, unique = true, length = 2000, comment = "토큰내용 (물리컬럼 API_TOK_CONE=메타표준 API토큰내용)")
     private String tokCone;
 
+    /** 암호화갱신발행토큰내용: Refresh Token 원문 대신 조회에 사용하는 SHA-256 HEX 값 */
+    @Column(name = "ECY_RNW_PUB_TOK_CONE", length = 900, comment = "암호화갱신발행토큰내용")
+    private String ecyRnwPubTokCone;
+
     /**
      * 사원번호: 이 토큰을 소유한 사용자의 사번
      * 로그아웃 또는 재로그인 시 사번으로 기존 토큰 삭제에 사용
@@ -105,6 +109,13 @@ public class Crtokm extends BaseEntity {
     /** 회전된(이미 사용된) 토큰인지 — AVL_YN='N' */
     public boolean isRotated() {
         return "N".equals(this.avlYn);
+    }
+
+    /** 기존 토큰 행에는 조회값이 없을 수 있으므로 비어 있을 때만 보강한다. */
+    public void fillEncryptedRenewalTokenIfMissing(String lookupValue) {
+        if (this.ecyRnwPubTokCone == null || this.ecyRnwPubTokCone.isBlank()) {
+            this.ecyRnwPubTokCone = lookupValue;
+        }
     }
 
 }

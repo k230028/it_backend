@@ -243,4 +243,54 @@ class TiptapVariableServiceTest {
         // Assert
         assertThat(res.results().get("2026.proj.P001.allocationRate").status()).isEqualTo("FORBIDDEN");
     }
+    @Test
+    @DisplayName("metadataCacheKey - 부서 없는 일반 사용자는 사용자별 키를 반환한다")
+    void metadataCacheKey_noDepartment_returnsUserScopedKey() {
+        var user = new CustomUserDetails("E1", List.of("ITPZZ001"), null);
+
+        assertThat(TiptapVariableService.metadataCacheKey(user)).isEqualTo("USER_NO_DEPT:E1");
+    }
+
+    @Test
+    @DisplayName("metadata - 부서 없는 일반 사용자는 빈 사업 목록을 반환하고 사업 저장소를 호출하지 않는다")
+    void getMetadata_noDepartment_returnsEmptyProjectsWithoutRepositoryCall() {
+        var user = new CustomUserDetails("E1", List.of("ITPZZ001"), null);
+
+        MetadataResponse res = service.getMetadata(user);
+
+        var proj = res.categories().stream().filter(c -> c.code().equals("PROJ")).findFirst().orElseThrow();
+        assertThat(proj.projects()).isEmpty();
+        verify(projectRepository, never()).findActiveProjectRefs();
+        verify(projectRepository, never()).findActiveProjectRefsByDept(any());
+    }
+
+    @Test
+    @DisplayName("metadataCacheKey - 인증 사용자가 없으면 ANONYMOUS를 반환한다")
+    void metadataCacheKey_nullPrincipal_returnsAnonymous() {
+        assertThat(TiptapVariableService.metadataCacheKey(null)).isEqualTo("ANONYMOUS");
+    }
+
+    @Test
+    @DisplayName("metadataCacheKey - 관리자는 ALL을 반환한다")
+    void metadataCacheKey_admin_returnsAll() {
+        var user = new CustomUserDetails("A1", List.of("ITPAD001"), "D001");
+
+        assertThat(TiptapVariableService.metadataCacheKey(user)).isEqualTo("ALL");
+    }
+
+    @Test
+    @DisplayName("metadataCacheKey - 부서관리자는 ALL을 반환한다")
+    void metadataCacheKey_deptManager_returnsAll() {
+        var user = new CustomUserDetails("M1", List.of("ITPZZ002"), "D001");
+
+        assertThat(TiptapVariableService.metadataCacheKey(user)).isEqualTo("ALL");
+    }
+
+    @Test
+    @DisplayName("metadataCacheKey - 부서 있는 일반 사용자는 부서별 키를 반환한다")
+    void metadataCacheKey_regularUserWithDepartment_returnsDepartmentKey() {
+        var user = new CustomUserDetails("E1", List.of("ITPZZ001"), "D001");
+
+        assertThat(TiptapVariableService.metadataCacheKey(user)).isEqualTo("DEPT:D001");
+    }
 }

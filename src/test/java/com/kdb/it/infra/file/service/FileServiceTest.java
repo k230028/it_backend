@@ -15,10 +15,10 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -61,10 +61,17 @@ class FileServiceTest {
     @Mock
     private FileOwnershipChecker fileOwnershipChecker;
 
-    @InjectMocks
+    private FileUploadUnitService fileUploadUnitService;
+
     private FileService fileService;
 
     private static final String FL_MNG_NO = "FL_00000001";
+
+    @BeforeEach
+    void setUp() {
+        fileUploadUnitService = new FileUploadUnitService(fileRepository, fileValidator);
+        fileService = new FileService(fileRepository, fileOwnershipChecker, fileUploadUnitService);
+    }
 
     /** 목록 조회 권한 필터링용 일반 사용자 (canRead 기본 허용 가정) */
     private static final CustomUserDetails USER =
@@ -81,6 +88,12 @@ class FileServiceTest {
         given(f.getPkColNm()).willReturn("요구사항정의서");
         given(f.getFstEnrUsid()).willReturn("E0001");
         return f;
+    }
+
+    private void configureUploadUnit(java.nio.file.Path tempDir) {
+        ReflectionTestUtils.setField(fileUploadUnitService, "basePath", tempDir.toString());
+        ReflectionTestUtils.setField(fileUploadUnitService, "instanceId", "SVR1");
+        ReflectionTestUtils.setField(fileUploadUnitService, "entityManager", entityManager);
     }
 
     /** 관리자 사용자 (소유권 검증 우회) */
@@ -476,9 +489,7 @@ class FileServiceTest {
     @Test
     @DisplayName("uploadFileAndGet: 파일을 저장하고 업로드 응답 DTO를 반환한다")
     void uploadFileAndGet_정상파일_응답반환(@TempDir java.nio.file.Path tempDir) {
-        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
-        ReflectionTestUtils.setField(fileService, "instanceId", "SVR1");
-        ReflectionTestUtils.setField(fileService, "entityManager", entityManager);
+        configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
         MockMultipartFile file = new MockMultipartFile(
                 "file", "요구사항.pdf", "application/pdf", "PDF".getBytes(StandardCharsets.UTF_8));
@@ -505,9 +516,7 @@ class FileServiceTest {
         java.nio.file.Path blockingFile = tempDir.resolve("요구사항정의서");
         java.nio.file.Files.createFile(blockingFile);
 
-        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
-        ReflectionTestUtils.setField(fileService, "instanceId", "SVR1");
-        ReflectionTestUtils.setField(fileService, "entityManager", entityManager);
+        configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
 
         MockMultipartFile file = new MockMultipartFile(
@@ -526,9 +535,7 @@ class FileServiceTest {
     @Test
     @DisplayName("uploadFiles: 일부 파일 실패 시 성공 목록과 실패 파일명을 함께 반환한다")
     void uploadFiles_부분실패_결과분리(@TempDir java.nio.file.Path tempDir) {
-        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
-        ReflectionTestUtils.setField(fileService, "instanceId", "SVR1");
-        ReflectionTestUtils.setField(fileService, "entityManager", entityManager);
+        configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
         MockMultipartFile okFile = new MockMultipartFile(
                 "files", "ok.txt", "text/plain", "ok".getBytes(StandardCharsets.UTF_8));
@@ -543,6 +550,33 @@ class FileServiceTest {
         assertThat(result.getSuccessList()).hasSize(1);
         assertThat(result.getFailList()).hasSize(1);
         assertThat(result.getFailList().get(0)).contains("empty.txt");
+    }
+
+    @Test
+    @DisplayName("uploadFiles: 두 번째 DB 저장 실패 시 첫 번째 성공 응답은 유지하고 두 번째 파일만 실패 목록에 담는다")
+    void uploadFiles_secondDbSaveFailure_keepsFirstSuccess(@TempDir java.nio.file.Path tempDir) {
+        configureUploadUnit(tempDir);
+        given(fileRepository.getNextSequenceValue()).willReturn(1L, 2L);
+        org.mockito.Mockito.doNothing().doThrow(new RuntimeException("DB 저장 실패")).when(entityManager).flush();
+        MockMultipartFile firstFile = new MockMultipartFile(
+                "files", "first.txt", "text/plain", "first".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile secondFile = new MockMultipartFile(
+                "files", "second.txt", "text/plain", "second".getBytes(StandardCharsets.UTF_8));
+        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
+                .pkColNm("첨부")
+                .flTpCone("첨부파일")
+                .build();
+
+        FileDto.BulkUploadResponse result = fileService.uploadFiles(List.of(firstFile, secondFile), request);
+
+        assertThat(result.getSuccessList())
+                .extracting(FileDto.Response::getFlNm)
+                .containsExactly("first.txt");
+        assertThat(result.getFailList())
+                .singleElement()
+                .satisfies(message -> assertThat(message)
+                        .contains("second.txt")
+                        .contains("DB 저장 실패"));
     }
 
     // ───────────────────────────────────────────────────────
@@ -592,9 +626,7 @@ class FileServiceTest {
     @DisplayName("uploadFiles: null 파일이 포함된 경우 해당 파일만 실패 목록에 포함된다")
     void uploadFiles_null파일포함_해당파일실패목록포함(@TempDir java.nio.file.Path tempDir) {
         // Arrange: 정상 파일 1개 + null 파일 1개
-        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
-        ReflectionTestUtils.setField(fileService, "instanceId", "SVR1");
-        ReflectionTestUtils.setField(fileService, "entityManager", entityManager);
+        configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(2L);
 
         MockMultipartFile validFile = new MockMultipartFile(
@@ -656,9 +688,7 @@ class FileServiceTest {
         given(mockFile.getOriginalFilename()).willReturn("report.pdf");
         given(mockFile.getInputStream()).willThrow(new IOException("디스크 쓰기 시뮬레이션 오류"));
 
-        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
-        ReflectionTestUtils.setField(fileService, "instanceId", "SVR1");
-        ReflectionTestUtils.setField(fileService, "entityManager", entityManager);
+        configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(99L);
 
         FileDto.UploadRequest request = FileDto.UploadRequest.builder()
