@@ -14,6 +14,7 @@ import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.util.NotificationMessageFormatter;
 import org.slf4j.Logger;
@@ -230,6 +231,7 @@ public class ApplicationService {
                 // 결재 알림은 결재 대기 목록 화면으로 고정 (사용자 정책).
                 // 상대 path 사용 — Nuxt navigateTo가 내부 라우팅으로 처리하며 운영 호스트와 무관.
                 .infmRcdUrl("/approval/list?tab=pending")
+                .sdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
                 .build()
         );
     }

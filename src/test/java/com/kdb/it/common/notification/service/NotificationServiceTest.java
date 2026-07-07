@@ -12,6 +12,7 @@ import java.lang.reflect.Method;
 import java.time.LocalDate;
 import java.util.Optional;
 
+import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
 import com.kdb.it.common.notification.dispatcher.NotificationDispatcher;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.event.NotificationEvent;
@@ -59,6 +60,7 @@ class NotificationServiceTest {
                 .ttl("공지")
                 .infmMsgCone("내용")
                 .infmRcdUrl("/notifications")
+                .sdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
                 .sdPayload("{\"id\":1}")
                 .build();
         given(cinfmmRepository.getNextVal()).willReturn(7L);
@@ -72,6 +74,7 @@ class NotificationServiceTest {
                 .isEqualTo("INF-" + LocalDate.now().getYear() + "-00000007");
         assertThat(result.getRmsEno()).isEqualTo("10001");
         assertThat(result.getInqYn()).isEqualTo("N");
+        assertThat(result.getSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
         verify(dispatcher).dispatch(result, "{\"id\":1}");
     }
 

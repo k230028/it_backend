@@ -65,6 +65,7 @@ public class NotificationService {
             .infmRcdUrl(clamp("URL", infmMsgNo, event.infmRcdUrl(), 300))
             .rmsEno(event.recipientEno())
             .inqYn("N")
+            .sdTc(event.sdTc())
             .build();
         // saveAndFlush로 즉시 INSERT 발행 — 실패 시 즉시 예외(catch에서 명확한 ORA 진단).
         // 일반 save()는 트랜잭션 commit 시점에 flush되는데, @TransactionalEventListener(AFTER_COMMIT)

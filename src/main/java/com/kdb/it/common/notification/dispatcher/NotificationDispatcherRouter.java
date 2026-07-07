@@ -23,13 +23,13 @@ import org.springframework.util.StringUtils;
 public class NotificationDispatcherRouter implements NotificationDispatcher {
 
     /** 인앱 채널 코드 — 공통코드 {@code C_ID='SD'} / CDVA='01'. */
-    static final String CHANNEL_INAPP = "01";
+    public static final String CHANNEL_INAPP = "01";
 
     /** EAI GWE 채널 코드 — 현재 테이블의 이메일 외부 발송 코드(CDVA='04')를 사용한다. */
-    static final String CHANNEL_EAI_GWE = "04";
+    public static final String CHANNEL_EAI_GWE = "04";
 
     /** GWE 인터페이스ID — 운영팀 확정 전까지 기존 EAI 테스트 규격의 IT Portal GWE 값을 사용한다. */
-    static final String GWE_IF_ID = "IPPG00000001";
+    public static final String GWE_IF_ID = "IPPG00000001";
 
     private final EaiService eaiService;
 

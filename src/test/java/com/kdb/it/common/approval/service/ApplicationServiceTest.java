@@ -37,6 +37,8 @@ import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
+import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 
@@ -610,6 +612,28 @@ class ApplicationServiceTest {
 
         assertThat(result).startsWith("APF-");
         verify(applicationRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("submit: 1차 결재자 알림은 EAI 채널로 발행한다")
+    void submit_결재요청알림_EAI채널발행() {
+        given(applicationRepository.getNextVal()).willReturn(1L);
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("10001");
+        request.setApproverEnos(List.of("10002"));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc("APF-"
+                + LocalDate.now().getYear() + "-00000001"))
+                .willReturn(List.of(pendingApprover("10002", 1, "Y")));
+
+        applicationService.submit(request);
+
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().recipientEno()).isEqualTo("10002");
+        assertThat(captor.getValue().infmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_REQUEST);
+        assertThat(captor.getValue().sdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
     }
 
     @Test
