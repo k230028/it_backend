@@ -16,6 +16,7 @@ import com.kdb.it.domain.contract.dto.ContractDto;
 import com.kdb.it.domain.contract.entity.Bcontm;
 import com.kdb.it.domain.contract.repository.ContractRepository;
 import com.kdb.it.domain.contract.repository.ContractTargetRow;
+import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,7 @@ class ContractServiceTest {
     @Mock ProjectRepository projectRepository;
     @Mock CostRepository costRepository;
     @Mock BprojaSyncService bprojaSyncService;
+    @Mock EaiService eaiService;
 
     ContractService service;
 
@@ -63,7 +65,7 @@ class ContractServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ContractService(contractRepository, projectRepository, costRepository, bprojaSyncService);
+        service = new ContractService(contractRepository, projectRepository, costRepository, bprojaSyncService, eaiService);
     }
 
     // =========================================================================
@@ -305,6 +307,20 @@ class ContractServiceTest {
 
             // Assert
             assertThat(e.getStsTc()).isEqualTo("79");
+        }
+
+        @Test
+        @DisplayName("EAI 발송 실패는 입찰계약 상태 전이를 막지 않는다")
+        void changeStatus_eaiFailure_keepsMainWorkflow() {
+            Bcontm e = entityWith("71", "100", "PRJ-1");
+            when(contractRepository.findByDocMngNoAndLstYnAndDelYn("CTR-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(e));
+            when(eaiService.sendEai(any())).thenThrow(new IllegalStateException("EAI 장애"));
+
+            service.changeStatus("CTR-2026-0001", new ContractDto.StatusRequest("75"), admin());
+
+            assertThat(e.getStsTc()).isEqualTo("75");
+            verify(bprojaSyncService).upsert("PRJ-1", "CTR-2026-0001", "75");
         }
 
         @Test

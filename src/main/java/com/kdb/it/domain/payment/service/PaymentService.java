@@ -9,6 +9,10 @@ import com.kdb.it.domain.payment.entity.Bpaymm;
 import com.kdb.it.domain.payment.entity.Bpaymt;
 import com.kdb.it.domain.payment.repository.PaymentLineRepository;
 import com.kdb.it.domain.payment.repository.PaymentRepository;
+import com.kdb.it.infra.eai.dto.EaiRequest;
+import com.kdb.it.infra.eai.dto.EaiResult;
+import com.kdb.it.infra.eai.dto.GwePayload;
+import com.kdb.it.infra.eai.service.EaiService;
 import java.time.Year;
 import java.util.HashSet;
 import java.util.List;
@@ -16,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +32,7 @@ import org.springframework.util.StringUtils;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class PaymentService {
 
@@ -41,6 +47,7 @@ public class PaymentService {
     private final ProjectRepository projectRepository;
     private final CostRepository costRepository;
     private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
+    private final EaiService eaiService;
 
     /**
      * 대금지급 신규 의뢰를 생성합니다.
@@ -142,6 +149,7 @@ public class PaymentService {
         if (TGT_PROJECT.equals(e.getBgPrnTc())) {
             bprojaSyncService.upsert(e.getCncdRfrNo(), docNo, to);
         }
+        sendStatusEai("대금지급", docNo, from, to, user);
     }
 
     /**
@@ -233,5 +241,24 @@ public class PaymentService {
     Bpaymm loadCurrent(String docNo) {
         return paymentRepository.findByDocMngNoAndLstYnAndDelYn(docNo, "Y", "N")
                 .orElseThrow(() -> new IllegalArgumentException("대금지급 문서를 찾을 수 없습니다: " + docNo));
+    }
+
+    private void sendStatusEai(String domainName, String docNo, String from, String to, CustomUserDetails user) {
+        try {
+            EaiResult result = eaiService.sendEai(EaiRequest.gwe("IPPG00000001", GwePayload.builder()
+                    .msgGubun("1")
+                    .recvIds(user.getEno())
+                    .subject("[IT Portal] " + domainName + " 상태 변경")
+                    .contents(domainName + " 문서 " + docNo + " 상태가 " + from + "에서 " + to + "로 변경되었습니다.")
+                    .sendId("systemalert")
+                    .sendName("IT Portal")
+                    .build()));
+            if (!result.success() && !result.skipped()) {
+                log.warn("EAI 발송 실패 — 원 업무 처리는 유지합니다. domain={}, docNo={}, 사유={}",
+                        domainName, docNo, result.errorMessage());
+            }
+        } catch (RuntimeException e) {
+            log.warn("EAI 발송 실패 — 원 업무 처리는 유지합니다.", e);
+        }
     }
 }

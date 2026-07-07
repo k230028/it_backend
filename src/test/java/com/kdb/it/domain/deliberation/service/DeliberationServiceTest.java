@@ -18,6 +18,7 @@ import com.kdb.it.domain.deliberation.dto.DeliberationDto;
 import com.kdb.it.domain.deliberation.entity.Bdelim;
 import com.kdb.it.domain.deliberation.repository.DeliberationRepository;
 import com.kdb.it.domain.deliberation.repository.DeliberationTargetRow;
+import com.kdb.it.infra.eai.service.EaiService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +37,7 @@ class DeliberationServiceTest {
     @Mock ProjectRepository projectRepository;
     @Mock CostRepository costRepository;
     @Mock BprojaSyncService bprojaSyncService;
+    @Mock EaiService eaiService;
 
     DeliberationService service;
 
@@ -68,7 +70,7 @@ class DeliberationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DeliberationService(deliberationRepository, projectRepository, costRepository, bprojaSyncService);
+        service = new DeliberationService(deliberationRepository, projectRepository, costRepository, bprojaSyncService, eaiService);
     }
 
     // -----------------------------------------------------------------------
@@ -384,6 +386,20 @@ class DeliberationServiceTest {
 
         // Assert
         assertThat(e.getStsTc()).isEqualTo("69");
+    }
+
+    @Test
+    @DisplayName("EAI 발송 실패는 과업심의 상태 전이를 롤백하지 않는다")
+    void changeStatus_eaiFailure_keepsMainWorkflow() {
+        Bdelim e = bdelim("DLB-2026-0001", "100", "PRJ-1", "61");
+        when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
+                .thenReturn(Optional.of(e));
+        when(eaiService.sendEai(any())).thenThrow(new IllegalStateException("EAI 장애"));
+
+        service.changeStatus("DLB-2026-0001", new DeliberationDto.StatusRequest("65"), admin());
+
+        assertThat(e.getStsTc()).isEqualTo("65");
+        verify(bprojaSyncService).upsert("PRJ-1", "DLB-2026-0001", "65");
     }
 
     @Test

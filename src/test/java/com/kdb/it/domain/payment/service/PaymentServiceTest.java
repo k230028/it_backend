@@ -18,6 +18,7 @@ import com.kdb.it.domain.payment.entity.Bpaymt;
 import com.kdb.it.domain.payment.repository.PaymentLineRepository;
 import com.kdb.it.domain.payment.repository.PaymentRepository;
 import com.kdb.it.domain.payment.repository.PaymentTargetRow;
+import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +46,7 @@ class PaymentServiceTest {
     @Mock ProjectRepository projectRepository;
     @Mock CostRepository costRepository;
     @Mock BprojaSyncService bprojaSyncService;
+    @Mock EaiService eaiService;
 
     PaymentService service;
 
@@ -65,7 +67,7 @@ class PaymentServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PaymentService(paymentRepository, lineRepository, projectRepository, costRepository, bprojaSyncService);
+        service = new PaymentService(paymentRepository, lineRepository, projectRepository, costRepository, bprojaSyncService, eaiService);
     }
 
     // =========================================================================
@@ -356,6 +358,22 @@ class PaymentServiceTest {
 
             // Assert
             assertThat(e.getStsTc()).isEqualTo("89");
+        }
+
+        @Test
+        @DisplayName("EAI 발송 실패는 대금지급 상태 전이를 막지 않는다")
+        void changeStatus_eaiFailure_keepsMainWorkflow() {
+            Bpaymm e = Bpaymm.builder()
+                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
+                    .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("81").fstEnrUsid("E0001").build();
+            when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(e));
+            when(eaiService.sendEai(any())).thenThrow(new IllegalStateException("EAI 장애"));
+
+            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("85"), adminUser());
+
+            assertThat(e.getStsTc()).isEqualTo("85");
+            verify(bprojaSyncService).upsert("PRJ-1", "PAY-2026-0001", "85");
         }
 
         @Test

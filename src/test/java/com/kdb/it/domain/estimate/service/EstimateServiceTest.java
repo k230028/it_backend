@@ -17,6 +17,7 @@ import com.kdb.it.domain.estimate.entity.Besttm;
 import com.kdb.it.domain.estimate.entity.Bestim;
 import com.kdb.it.domain.estimate.repository.EstimateLineRepository;
 import com.kdb.it.domain.estimate.repository.EstimateRepository;
+import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +38,7 @@ class EstimateServiceTest {
     @Mock EstimateLineRepository lineRepository;
     @Mock ProjectRepository projectRepository;
     @Mock BprojaSyncService bprojaSyncService;
+    @Mock EaiService eaiService;
 
     EstimateService service;
 
@@ -52,7 +54,7 @@ class EstimateServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new EstimateService(estimateRepository, lineRepository, projectRepository, bprojaSyncService);
+        service = new EstimateService(estimateRepository, lineRepository, projectRepository, bprojaSyncService, eaiService);
     }
 
     /** 타인 (소유자가 아닌 일반 사용자) */
@@ -295,6 +297,20 @@ class EstimateServiceTest {
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("59"), admin());
         assertThat(e.getStsTc()).isEqualTo("59");
+    }
+
+    @Test
+    @DisplayName("EAI 발송이 실패해도 상태 전이와 사업 진행 동기화는 유지한다")
+    void changeStatus_eaiFailure_keepsMainWorkflow() {
+        Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
+                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
+        when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
+        when(eaiService.sendEai(any())).thenThrow(new IllegalStateException("EAI 장애"));
+
+        service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("55"), admin());
+
+        assertThat(e.getStsTc()).isEqualTo("55");
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "REQ-2026-0001", "55");
     }
 
     @Test

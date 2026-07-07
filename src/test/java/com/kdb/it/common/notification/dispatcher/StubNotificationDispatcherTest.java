@@ -6,17 +6,18 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
 import com.kdb.it.common.notification.entity.Cinfmm;
+import com.kdb.it.infra.eai.service.EaiService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * StubNotificationDispatcher 단위 테스트
+ * NotificationDispatcherRouter 인앱 호환성 테스트
  *
  * <p>인앱 발송 메타 기록과 부수 효과 실패 격리 정책을 검증합니다.</p>
  */
 class StubNotificationDispatcherTest {
 
-    private final StubNotificationDispatcher dispatcher = new StubNotificationDispatcher();
+    private final NotificationDispatcherRouter dispatcher = new NotificationDispatcherRouter(mock(EaiService.class));
 
     @Test
     @DisplayName("dispatch: 인앱 채널과 페이로드를 알림에 기록한다")
