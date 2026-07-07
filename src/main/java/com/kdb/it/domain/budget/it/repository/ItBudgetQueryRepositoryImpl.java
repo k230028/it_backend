@@ -8,8 +8,6 @@ import com.kdb.it.domain.budget.project.entity.QBitemm;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
 import com.kdb.it.domain.budget.work.entity.QBbugtm;
 import com.querydsl.core.Tuple;
-import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -103,11 +101,8 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         QBitemm i = QBitemm.bitemm;
         QBprojm p = QBprojm.bprojm;
 
-        NumberExpression<BigDecimal> effectiveAmt = Expressions.numberTemplate(
-                BigDecimal.class, "COALESCE({0}, 1.0) * {1}", i.xcr, i.amt);
-
         List<Tuple> rows = queryFactory
-                .select(i.ioeC, i.sectSysUtzYn, effectiveAmt.sum())
+                .select(i.ioeC, i.sectSysUtzYn, i.amt.sum())
                 .from(i)
                 .join(p).on(
                         p.abusMngNo.eq(i.abusMngNo),
@@ -125,7 +120,7 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         for (Tuple row : rows) {
             String ioeC = row.get(i.ioeC);
             String prtYn = row.get(i.sectSysUtzYn);
-            BigDecimal amt = row.get(effectiveAmt.sum());
+            BigDecimal amt = row.get(i.amt.sum());
             if (ioeC == null || amt == null) continue;
             long[] v = acc.computeIfAbsent(ioeC, k -> new long[4]);
             if (INF_PRT_Y.equals(prtYn)) {

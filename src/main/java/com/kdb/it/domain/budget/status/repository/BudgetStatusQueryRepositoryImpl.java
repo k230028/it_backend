@@ -86,7 +86,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         StringExpression itDpmCgprNm = Expressions.stringTemplate(
                 "(SELECT u.usrNm FROM CuserI u WHERE u.eno = {0})", p.dvmUsid);
 
-        // 편성요청 금액: BITEMM의 GCL_AMT * COALESCE(XCR, 1)를 품목구분별로 피벗
+        // 편성요청 금액: BITEMM의 저장 원화금액(amt)을 품목구분별로 피벗
         NumberExpression<BigDecimal> reqDev = sumItemAmtByCTp(itemCode.cTp, i, CTP_DEV);
         NumberExpression<BigDecimal> reqMach = sumItemAmtByCTp(itemCode.cTp, i, CTP_MACH);
         NumberExpression<BigDecimal> reqIntan = sumItemAmtByCTp(itemCode.cTp, i, CTP_INTAN);
@@ -406,7 +406,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
      *   <li>{@code CAP_BUDGET} → {@code Ccodem.cTp ∈ ('IOE_DVC','IOE_HW','IOE_SW')} 자본예산 항목 합계</li>
      *   <li>{@code OPEX} → {@code Ccodem.cTp ∈ ('IOE_IDR','IOE_SEVS','IOE_XPN','IOE_LEAFE')} 일반관리비 항목 합계</li>
      * </ul>
-     * 편성요청액은 {@code BITEMM.gclAmt * COALESCE(xcr,1)} 합산,
+     * 편성요청액은 저장 시점에 원화로 환산된 {@code BITEMM.amt} 합산,
      * 편성액은 {@code BBUGTM.dupBgAmt}({@code orcTb='BITEMM'}) 합산입니다.
      * 두 합계 모두 0이거나 null이면 {@code AggregatedAmount(null, null)}을 반환합니다(MISSING 판정용).
      *
@@ -444,10 +444,10 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
         QBitemm i = QBitemm.bitemm;
         QBbugtm b = QBbugtm.bbugtm;
 
-        // 편성요청액: BITEMM.gclAmt * COALESCE(xcr, 1) 합계 — 해당 사업의 최신 버전·미삭제 품목 대상
+        // 편성요청액: BITEMM.amt 합계 — 해당 사업의 최신 버전·미삭제 품목 대상
         BigDecimal requestSum = queryFactory
                 .select(Expressions.numberTemplate(BigDecimal.class,
-                        "COALESCE(SUM({0} * COALESCE({1}, 1)), 0)", i.amt, i.xcr))
+                        "COALESCE(SUM({0}), 0)", i.amt))
                 .from(p)
                 .join(i).on(
                         i.abusMngNo.eq(p.abusMngNo),
@@ -502,10 +502,10 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                 ? null
                 : itemCode.cTp.in(cTpCodes);
 
-        // 편성요청액: BITEMM.gclAmt * COALESCE(xcr, 1) 합계 — 최신 버전·미삭제 사업/품목 대상
+        // 편성요청액: BITEMM.amt 합계 — 최신 버전·미삭제 사업/품목 대상
         BigDecimal requestSum = queryFactory
                 .select(Expressions.numberTemplate(BigDecimal.class,
-                        "COALESCE(SUM({0} * COALESCE({1}, 1)), 0)", i.amt, i.xcr))
+                        "COALESCE(SUM({0}), 0)", i.amt))
                 .from(p)
                 .join(i).on(
                         i.abusMngNo.eq(p.abusMngNo),
@@ -573,14 +573,14 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
     }
 
     /**
-     * BITEMM 품목구분별 원화환산 금액 피벗
+     * BITEMM 품목구분별 저장 원화금액 피벗
      *
-     * <p>SUM(CASE WHEN C_TP = 'codeType' THEN gclAmt * COALESCE(xcr, 1) ELSE 0 END)</p>
+     * <p>SUM(CASE WHEN C_TP = 'codeType' THEN amt ELSE 0 END)</p>
      */
     private NumberExpression<BigDecimal> sumItemAmtByCTp(StringExpression cTp, QBitemm i, String codeType) {
         return Expressions.numberTemplate(BigDecimal.class,
-                "COALESCE(SUM(CASE WHEN {0} = {1} THEN {2} * COALESCE({3}, 1) ELSE 0 END), 0)",
-                cTp, Expressions.constant(codeType), i.amt, i.xcr);
+                "COALESCE(SUM(CASE WHEN {0} = {1} THEN {2} ELSE 0 END), 0)",
+                cTp, Expressions.constant(codeType), i.amt);
     }
 
     /**

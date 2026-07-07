@@ -52,7 +52,7 @@ public interface BudgetStatusQueryRepository {
      *
      * <p>카테고리 필터링은 모두 BITEMM 비목구분({@code Ccodem.cTp}, {@code cId='IOE'}) 기준입니다.</p>
      *
-     * 편성요청액은 BITEMM({@code gclAmt * COALESCE(xcr,1)}), 편성액은 BBUGTM({@code orcTb='BITEMM'}, {@code dupBgAmt}) 합계.
+     * 편성요청액은 저장 시점에 원화로 환산된 BITEMM({@code amt}), 편성액은 BBUGTM({@code orcTb='BITEMM'}, {@code dupBgAmt}) 합계.
      * <ul>
      *   <li>{@code IT_BUDGET} → 전체 BITEMM 합계 (정보화·경상·일반관리비 모두 포함, 비목 필터 없음)</li>
      *   <li>{@code CAP_BUDGET} → {@code cTp ∈ ('IOE_DVC','IOE_HW','IOE_SW')} 자본예산 항목</li>
