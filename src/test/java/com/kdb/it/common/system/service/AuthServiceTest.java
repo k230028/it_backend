@@ -337,21 +337,15 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("refreshAccessToken - 동시 회전 후 패밀리 활성 토큰은 1개만 남는다")
+        @DisplayName("refreshAccessToken - 같은 기존 토큰 두 번째 회전은 추가 활성 토큰 저장 없이 거부한다")
         void refreshToken_concurrentRotation_keepsSingleActiveTokenPerFamily() {
                 // 동일 refresh token 값으로 두 번 회전을 시도했을 때 활성 토큰이 1개만 남아야 한다.
                 String oldRefresh = "active-token";
+                String newRefresh = "new-refresh";
                 Crtokm stored = Crtokm.builder()
                                 .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
-                                .build();
-                Crtokm alreadyActive = Crtokm.builder()
-                                .tokCone("already-active-token").eno("10001").famNm("FAM-1").avlYn("Y")
-                                .endDtm(LocalDateTime.now().plusDays(7))
-                                .build();
-                Crtokm newActive = Crtokm.builder()
-                                .tokCone("new-refresh").eno("10001").famNm("FAM-1").avlYn("Y")
-                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .lstChgDtm(LocalDateTime.now().minusSeconds(3))
                                 .build();
                 given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
@@ -359,13 +353,23 @@ class AuthServiceTest {
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
                 given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N")).willReturn(Collections.emptyList());
                 given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access");
-                given(jwtUtil.generateRefreshToken("10001")).willReturn("new-refresh");
-                given(refreshTokenRepository.findByFamNmAndAvlYn("FAM-1", "Y"))
-                                .willReturn(List.of(alreadyActive, newActive));
+                given(jwtUtil.generateRefreshToken("10001")).willReturn(newRefresh);
 
+                AuthDto.RefreshResponse firstResponse = authService.refreshAccessToken(oldRefresh);
+
+                assertThat(firstResponse.getRefreshToken()).isEqualTo(newRefresh);
                 assertThatThrownBy(() -> authService.refreshAccessToken(oldRefresh))
-                                .isInstanceOf(IllegalStateException.class)
-                                .hasMessageContaining("활성 Refresh Token");
+                                .isInstanceOf(RuntimeException.class)
+                                .hasMessageContaining("다시 시도");
+                ArgumentCaptor<Crtokm> captor = ArgumentCaptor.forClass(Crtokm.class);
+                verify(refreshTokenRepository, times(2)).save(captor.capture()); // 첫 회전의 구 표식 + 신규만 저장
+                assertThat(captor.getAllValues())
+                                .filteredOn(token -> "Y".equals(token.getAvlYn()))
+                                .hasSize(1)
+                                .first()
+                                .extracting(Crtokm::getTokCone)
+                                .isEqualTo(newRefresh);
+                verify(refreshTokenRepository, never()).deleteByEno("10001");
         }
 
         @Test
