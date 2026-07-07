@@ -816,6 +816,18 @@ class PaymentServiceTest {
         }
 
         @Test
+        @DisplayName("부서코드가 없는 일반 사용자는 전체 대금지급 목록 조회를 거부한다")
+        void list_nonAdminWithoutDepartment_deniesWholeDepartmentSearch() {
+            // 부서코드가 없는 비관리자는 전체 조회로 폴백하지 않는다.
+            CustomUserDetails userWithoutDepartment = new CustomUserDetails("E0003", List.of("ITPZZ001"), null);
+
+            assertThatThrownBy(() -> service.list(null, null, null, userWithoutDepartment))
+                    .isInstanceOf(AccessDeniedException.class)
+                    .hasMessageContaining("부서 정보");
+            verify(paymentRepository, never()).search(any(), any(), any(), any());
+        }
+
+        @Test
         @DisplayName("상태코드·대상구분·대상관리번호 필터가 모두 지정된 경우 조건이 그대로 전달된다")
         void list_withAllFilters_passedThrough() {
             // Arrange

@@ -1,8 +1,11 @@
 package com.kdb.it.common.system.repository;
 
 import com.kdb.it.common.system.entity.Crtokm;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -33,6 +36,7 @@ public interface RefreshTokenRepository extends JpaRepository<Crtokm, Long> {
      * @param tokCone Refresh Token 문자열 (JWT 형식)
      * @return 해당 토큰 엔티티 (없으면 {@link Optional#empty()})
      */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Crtokm> findByTokCone(String tokCone);
 
     /**
@@ -41,7 +45,18 @@ public interface RefreshTokenRepository extends JpaRepository<Crtokm, Long> {
      * @param ecyRnwPubTokCone Refresh Token SHA-256 HEX 조회값
      * @return 해당 토큰 엔티티
      */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Crtokm> findByEcyRnwPubTokCone(String ecyRnwPubTokCone);
+
+    /**
+     * 패밀리명과 유효여부로 Refresh Token 목록을 조회합니다.
+     *
+     * @param famNm 패밀리명
+     * @param avlYn 유효여부 ('Y'=활성, 'N'=회전됨)
+     * @return 조건에 맞는 토큰 목록
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<Crtokm> findByFamNmAndAvlYn(String famNm, String avlYn);
 
     /**
      * 사번으로 갱신토큰 조회

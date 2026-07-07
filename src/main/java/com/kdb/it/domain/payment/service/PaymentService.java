@@ -16,8 +16,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * 대금지급 서비스. 상태 81→85→89. 대상구분 100=사업/200=전산업무비.
@@ -214,6 +216,9 @@ public class PaymentService {
      * @return 대금지급 목록 항목 리스트
      */
     public List<PaymentDto.ListItem> list(String stsTc, String bgPrnTc, String cncdRfrNo, CustomUserDetails user) {
+        if (!user.isAdmin() && !StringUtils.hasText(user.getBbrC())) {
+            throw new AccessDeniedException("부서 정보가 없는 사용자는 전체 조회할 수 없습니다.");
+        }
         String bbrC = user.isAdmin() ? null : user.getBbrC();
         return paymentRepository.search(stsTc, bgPrnTc, cncdRfrNo, bbrC);
     }

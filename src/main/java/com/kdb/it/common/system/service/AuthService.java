@@ -286,6 +286,7 @@ public class AuthService {
                 .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
                 .build();
         refreshTokenRepository.save(rotated);
+        validateSingleActiveToken(refreshToken.getFamNm(), rotated);
 
         return AuthDto.RefreshResponse.builder()
                 .accessToken(newAccessToken) // 새 Access Token
@@ -449,7 +450,24 @@ public class AuthService {
                             token.fillEncryptedRenewalTokenIfMissing(lookupValue);
                             return token;
                         }))
-                .orElseThrow(() -> new RuntimeException("Refresh Token을 찾을 수 없습니다."));
+                        .orElseThrow(() -> new RuntimeException("Refresh Token을 찾을 수 없습니다."));
+    }
+
+    /**
+     * 회전 완료 후 같은 패밀리에 활성 Refresh Token이 1개만 남았는지 검증합니다.
+     *
+     * @param famNm   검증할 토큰 패밀리명
+     * @param rotated 이번 요청에서 새로 저장한 활성 토큰
+     * @throws IllegalStateException 패밀리에 활성 토큰이 2개 이상 남은 경우
+     */
+    private void validateSingleActiveToken(String famNm, Crtokm rotated) {
+        List<Crtokm> activeTokens = refreshTokenRepository.findByFamNmAndAvlYn(famNm, "Y");
+        if (activeTokens.size() <= 1) {
+            return;
+        }
+        refreshTokenRepository.delete(rotated);
+        log.warn("Refresh Token 패밀리 활성 토큰 중복 탐지: famNm={}, activeCount={}", famNm, activeTokens.size());
+        throw new IllegalStateException("활성 Refresh Token은 패밀리당 1개만 허용됩니다.");
     }
 
     private List<String> loadAthIds(String eno) {

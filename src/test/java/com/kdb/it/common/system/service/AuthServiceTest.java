@@ -337,6 +337,38 @@ class AuthServiceTest {
         }
 
         @Test
+        @DisplayName("refreshAccessToken - 동시 회전 후 패밀리 활성 토큰은 1개만 남는다")
+        void refreshToken_concurrentRotation_keepsSingleActiveTokenPerFamily() {
+                // 동일 refresh token 값으로 두 번 회전을 시도했을 때 활성 토큰이 1개만 남아야 한다.
+                String oldRefresh = "active-token";
+                Crtokm stored = Crtokm.builder()
+                                .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                Crtokm alreadyActive = Crtokm.builder()
+                                .tokCone("already-active-token").eno("10001").famNm("FAM-1").avlYn("Y")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                Crtokm newActive = Crtokm.builder()
+                                .tokCone("new-refresh").eno("10001").famNm("FAM-1").avlYn("Y")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
+                given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
+                given(userRepository.findByEno("10001")).willReturn(Optional.of(
+                                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
+                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N")).willReturn(Collections.emptyList());
+                given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access");
+                given(jwtUtil.generateRefreshToken("10001")).willReturn("new-refresh");
+                given(refreshTokenRepository.findByFamNmAndAvlYn("FAM-1", "Y"))
+                                .willReturn(List.of(alreadyActive, newActive));
+
+                assertThatThrownBy(() -> authService.refreshAccessToken(oldRefresh))
+                                .isInstanceOf(IllegalStateException.class)
+                                .hasMessageContaining("활성 Refresh Token");
+        }
+
+        @Test
         @DisplayName("refreshAccessToken - 유효하지 않은 토큰 → RuntimeException 발생")
         void refreshAccessToken_유효하지않은토큰_예외발생() {
                 // given
