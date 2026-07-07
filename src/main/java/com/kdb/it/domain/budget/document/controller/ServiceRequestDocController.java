@@ -151,7 +151,7 @@ public class ServiceRequestDocController {
     @Operation(summary = "요구사항 정의서 수정", description = "요구사항 정의서 최신 버전을 수정합니다.")
     public ResponseEntity<String> updateDocument(
             @PathVariable("docMngNo") String docMngNo,
-            @RequestBody ServiceRequestDocDto.UpdateRequest request,
+            @Valid @RequestBody ServiceRequestDocDto.UpdateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(serviceRequestDocService.updateDocument(docMngNo, request, user));
     }

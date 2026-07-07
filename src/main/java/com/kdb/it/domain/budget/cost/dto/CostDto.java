@@ -270,6 +270,7 @@ public class CostDto {
         private String fstDfrDt;
 
         /** 통화 코드 */
+        @NotBlank
         @Schema(description = "통화", example = "KRW")
         private String curC;
 

@@ -89,7 +89,7 @@ public class CostController {
     public ResponseEntity<String> updateCost(
             @Parameter(description = "전산관리비 관리번호", required = true, example = "COST_2026_0001")
             @PathVariable("itMngcNo") String itMngcNo,
-            @RequestBody CostDto.UpdateRequest request) {
+            @Valid @RequestBody CostDto.UpdateRequest request) {
         return ResponseEntity.ok(costService.updateCost(itMngcNo, request));
     }
 
@@ -162,7 +162,7 @@ public class CostController {
      * </ul>
      *
      * @param request 전산관리비 생성 요청 ({@link CostDto.CreateRequest})
-     * @return HTTP 200 + 생성된 전산관리비 관리번호(IT_MNGC_NO)
+     * @return HTTP 201 Created + Location 헤더 + 생성된 전산관리비 관리번호(IT_MNGC_NO)
      */
     @Operation(summary = "신규 전산관리비 생성", description = "새로운 전산관리비를 생성합니다.")
     @ApiResponses(value = {

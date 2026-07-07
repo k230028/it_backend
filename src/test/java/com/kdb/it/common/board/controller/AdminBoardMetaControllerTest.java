@@ -3,6 +3,7 @@ package com.kdb.it.common.board.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
@@ -23,11 +24,6 @@ import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 
-/**
- * AdminBoardMetaController @WebMvcTest
- *
- * <p>게시판 메타 등록 요청의 Bean Validation 동작을 검증합니다.</p>
- */
 @WebMvcTest(AdminBoardMetaController.class)
 @Import({ TestSecurityConfig.class, JacksonConfig.class })
 class AdminBoardMetaControllerTest {
@@ -69,6 +65,19 @@ class AdminBoardMetaControllerTest {
         body.setBlbTp("001");
 
         mockMvc.perform(post("/api/admin/boards/meta")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PUT /api/admin/boards/meta/{blbMngNo} - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void update_필수필드누락_400() throws Exception {
+        var body = new BoardMetaDto.UpdateRequest();
+        body.setBlbNm(null);
+
+        mockMvc.perform(put("/api/admin/boards/meta/BLBM-0001")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());

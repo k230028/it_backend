@@ -76,6 +76,7 @@ public class GuideDocDto {
     public static class UpdateRequest {
 
         /** 문서명 */
+        @NotBlank
         @Schema(description = "문서명")
         private String docTtlCone;
 

@@ -30,11 +30,6 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.budget.document.dto.GuideDocDto;
 import com.kdb.it.domain.budget.document.service.GuideDocService;
 
-/**
- * GuideDocController @WebMvcTest
- *
- * <p>안내문서 HTTP 응답 구조와 인증 동작을 검증합니다.</p>
- */
 @WebMvcTest(GuideDocController.class)
 @Import({ TestSecurityConfig.class, JacksonConfig.class })
 class GuideDocControllerTest {
@@ -109,10 +104,26 @@ class GuideDocControllerTest {
     @WithMockUser(username = "10001")
     void updateDocument_인증_200() throws Exception {
         given(guideDocService.updateDocument(anyString(), any())).willReturn("DOC-2026-0001");
+        var body = new GuideDocDto.UpdateRequest();
+        body.setDocTtlCone("수정 문서");
+
         mockMvc.perform(put("/api/guide-documents/DOC-2026-0001")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new GuideDocDto.UpdateRequest())))
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /api/guide-documents/{docMngNo} - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001")
+    void updateDocument_필수필드누락_400() throws Exception {
+        var body = new GuideDocDto.UpdateRequest();
+        body.setDocTtlCone(null);
+
+        mockMvc.perform(put("/api/guide-documents/DOC-2026-0001")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

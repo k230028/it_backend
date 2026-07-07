@@ -72,6 +72,7 @@ public class BoardCommentDto {
     @AllArgsConstructor
     @Schema(name = "BoardCommentUpdateRequest", description = "댓글 수정 요청")
     public static class UpdateRequest {
+        @NotBlank
         @Schema(description = "댓글 내용 (최대 2000자)", requiredMode = Schema.RequiredMode.REQUIRED) private String cmmtCone;
         @Schema(description = "프론트 자동완성에서 선택한 멘션 사용자 사번 목록")
         private java.util.List<String> mentionedEnos;

@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
@@ -24,11 +25,6 @@ import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 
-/**
- * BoardCommentController @WebMvcTest
- *
- * <p>댓글 등록 요청의 Bean Validation 동작을 검증합니다.</p>
- */
 @WebMvcTest(BoardCommentController.class)
 @Import({ TestSecurityConfig.class, JacksonConfig.class })
 class BoardCommentControllerTest {
@@ -68,6 +64,32 @@ class BoardCommentControllerTest {
         body.setCmmtCone(null);
 
         mockMvc.perform(post("/api/boards/BLB-1/posts/NAC-1/comments")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/boards/{blbMngNo}/posts/{nacMngNo}/comments/{cmmtMngNo}/replies - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001")
+    void createReply_필수필드누락_400() throws Exception {
+        var body = new BoardCommentDto.CreateRequest();
+        body.setCmmtCone(null);
+
+        mockMvc.perform(post("/api/boards/BLB-1/posts/NAC-1/comments/1/replies")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PUT /api/boards/{blbMngNo}/posts/{nacMngNo}/comments/{cmmtMngNo} - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001")
+    void update_필수필드누락_400() throws Exception {
+        var body = new BoardCommentDto.UpdateRequest();
+        body.setCmmtCone(null);
+
+        mockMvc.perform(put("/api/boards/BLB-1/posts/NAC-1/comments/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());

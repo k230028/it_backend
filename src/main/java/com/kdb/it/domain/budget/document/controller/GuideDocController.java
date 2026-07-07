@@ -110,7 +110,7 @@ public class GuideDocController {
     @Operation(summary = "가이드 문서 수정", description = "가이드 문서 정보를 수정합니다.")
     public ResponseEntity<String> updateDocument(
             @PathVariable("docMngNo") String docMngNo,
-            @RequestBody GuideDocDto.UpdateRequest request) {
+            @Valid @RequestBody GuideDocDto.UpdateRequest request) {
         return ResponseEntity.ok(guideDocService.updateDocument(docMngNo, request));
     }
 

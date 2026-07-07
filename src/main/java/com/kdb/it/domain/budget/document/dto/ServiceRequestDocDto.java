@@ -101,6 +101,7 @@ public class ServiceRequestDocDto {
     public static class UpdateRequest {
 
         /** 요구사항명 */
+        @NotBlank
         @Schema(description = "요구사항명")
         private String reqTtl;
 

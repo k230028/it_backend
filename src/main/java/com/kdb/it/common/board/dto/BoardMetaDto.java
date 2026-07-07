@@ -77,6 +77,7 @@ public class BoardMetaDto {
     @AllArgsConstructor
     @Schema(name = "BoardMetaUpdateRequest", description = "게시판 메타 수정 요청")
     public static class UpdateRequest {
+        @NotBlank
         @Schema(description = "게시판명")          private String  blbNm;
         @Schema(description = "답변사용여부")      private String  repUseYn;
         @Schema(description = "댓글사용여부")      private String  cmmtUseYn;

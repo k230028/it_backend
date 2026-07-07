@@ -49,7 +49,7 @@ public class AdminBoardMetaController {
     @Operation(summary = "게시판 수정")
     public ResponseEntity<Void> update(
             @PathVariable("blbMngNo") String blbMngNo,
-            @RequestBody BoardMetaDto.UpdateRequest request) {
+            @Valid @RequestBody BoardMetaDto.UpdateRequest request) {
         boardMetaService.updateBoard(blbMngNo, request);
         return ResponseEntity.ok().build();
     }
