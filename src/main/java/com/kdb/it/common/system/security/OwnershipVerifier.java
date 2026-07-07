@@ -54,8 +54,10 @@ public final class OwnershipVerifier {
         }
 
         boolean createdByUser = Objects.equals(creatorEno, user.getEno());
-        boolean sameDepartment = StringUtils.hasText(resourceBbrC) && Objects.equals(resourceBbrC, user.getBbrC());
-        if (user.isAdmin() || createdByUser || sameDepartment) {
+        boolean sameDepartmentManager = user.isDeptManager()
+                && StringUtils.hasText(resourceBbrC)
+                && Objects.equals(resourceBbrC, user.getBbrC());
+        if (user.isAdmin() || createdByUser || sameDepartmentManager) {
             return;
         }
 

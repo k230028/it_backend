@@ -96,7 +96,7 @@ class OwnershipVerifierTest {
     @Test
     @DisplayName("생성자는 수정할 수 있다")
     void verifyModifiable_생성자_허용() {
-        setUser("10001", "D001", false);
+        setUser("10001", "D001", false, false);
 
         assertThatCode(() -> OwnershipVerifier.verifyModifiable("10001", "D999"))
                 .doesNotThrowAnyException();
@@ -105,25 +105,34 @@ class OwnershipVerifierTest {
     @Test
     @DisplayName("관리자는 수정할 수 있다")
     void verifyModifiable_관리자_허용() {
-        setUser("90000", "D999", true);
+        setUser("90000", "D999", true, false);
 
         assertThatCode(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
                 .doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("같은 부서 사용자는 수정할 수 있다")
-    void verifyModifiable_같은부서_허용() {
-        setUser("10002", "D001", false);
+    @DisplayName("부서관리자는 같은 부서 리소스를 수정할 수 있다")
+    void verifyModifiable_부서관리자_같은부서_허용() {
+        setUser("10002", "D001", false, true);
 
         assertThatCode(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
                 .doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("생성자도 관리자도 같은 부서도 아니면 거부한다")
+    @DisplayName("일반 사용자는 같은 부서라도 타인 리소스를 수정할 수 없다")
+    void verifyModifiable_일반사용자_같은부서_거부() {
+        setUser("10002", "D001", false, false);
+
+        assertThatThrownBy(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("생성자도 관리자도 같은 부서의 부서관리자도 아니면 거부한다")
     void verifyModifiable_권한없음_거부() {
-        setUser("10002", "D002", false);
+        setUser("10002", "D002", false, false);
 
         assertThatThrownBy(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
                 .isInstanceOf(AccessDeniedException.class);
@@ -138,11 +147,12 @@ class OwnershipVerifierTest {
         assertThatCode(constructor::newInstance).doesNotThrowAnyException();
     }
 
-    private void setUser(String eno, String bbrC, boolean admin) {
+    private void setUser(String eno, String bbrC, boolean admin, boolean deptManager) {
         CustomUserDetails principal = mock(CustomUserDetails.class);
         given(principal.getEno()).willReturn(eno);
         given(principal.getBbrC()).willReturn(bbrC);
         given(principal.isAdmin()).willReturn(admin);
+        given(principal.isDeptManager()).willReturn(deptManager);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
     }

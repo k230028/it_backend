@@ -994,6 +994,37 @@ class CostServiceTest {
         }
     }
 
+    @Test
+    @DisplayName("updateCost: 일반사용자는 같은 부서 전산업무비라도 타인 건을 수정할 수 없다")
+    void updateCost_일반사용자_동일부서_타인수정거부() {
+        CustomUserDetails user = new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_USER), "101");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(user);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+
+        try {
+            Bcostm cost = Bcostm.builder()
+                    .costBgNo(IT_MNGC_NO)
+                    .bgSno(1)
+                    .lstYn("Y")
+                    .fstEnrUsid("10001")
+                    .costSvnDpmC("101")
+                    .delYn("N")
+                    .build();
+            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+
+            assertThatThrownBy(() -> costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build()))
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                    .hasMessageContaining("수정 권한");
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
     // ───────────────────────────────────────────────────────
     // setCodeNames — abusC, dfrCleC, itMngcTp, pulDtt, ioeC 분기 (lambda 0% → 커버)
     // ───────────────────────────────────────────────────────
