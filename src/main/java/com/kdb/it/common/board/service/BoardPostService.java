@@ -21,8 +21,10 @@ import com.kdb.it.exception.CustomGeneralException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -51,21 +53,21 @@ public class BoardPostService {
      * @param blbMngNo 게시판관리번호
      * @param cond     검색 조건
      * @param user     인증 사용자
-     * @return 게시물 목록
+     * @return 게시물 페이지
      * @throws CustomGeneralException 게시판을 찾을 수 없음
      */
-    public List<BoardPostDto.ListItem> searchPosts(
+    public Page<BoardPostDto.ListItem> searchPosts(
             String blbMngNo,
             BoardPostDto.SearchCondition cond,
             CustomUserDetails user) {
 
         findActiveBoard(blbMngNo); // 게시판 존재 검증 (조회는 인증 사용자 전체 공개)
+        validateSearchCondition(cond);
 
         return postRepository.searchPosts(
                 blbMngNo, cond,
-                user.isAdmin()).stream()
-                .map(BoardPostDto.ListItem::from)
-                .toList();
+                user.isAdmin())
+                .map(BoardPostDto.ListItem::from);
     }
 
     /**
@@ -348,6 +350,15 @@ public class BoardPostService {
     private Cblbcm findPost(String nacMngNo) {
         return postRepository.findByNacMngNoAndDelYn(nacMngNo, "N")
                 .orElseThrow(() -> new CustomGeneralException("게시물을 찾을 수 없습니다: " + nacMngNo));
+    }
+
+    private void validateSearchCondition(BoardPostDto.SearchCondition cond) {
+        if (cond == null) {
+            return;
+        }
+        if (StringUtils.hasText(cond.getKeyword()) && cond.getKeyword().trim().length() < 2) {
+            throw new CustomGeneralException("검색어는 2자 이상 입력하세요.");
+        }
     }
 
     /**

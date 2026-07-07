@@ -2,7 +2,7 @@ package com.kdb.it.common.board.repository;
 
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.board.entity.Cblbcm;
-import java.util.List;
+import org.springframework.data.domain.Page;
 
 /** 게시물 동적 쿼리 인터페이스 */
 public interface BoardPostRepositoryCustom {
@@ -13,7 +13,7 @@ public interface BoardPostRepositoryCustom {
      * @param cond          검색 조건
      * @param isAdmin       관리자 여부 (삭제·숨김 게시물도 포함)
      */
-    List<Cblbcm> searchPosts(
+    Page<Cblbcm> searchPosts(
         String blbMngNo,
         BoardPostDto.SearchCondition cond,
         boolean isAdmin

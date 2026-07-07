@@ -3,6 +3,7 @@ package com.kdb.it.common.board.dto;
 import com.kdb.it.common.board.entity.Cblbcm;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -101,7 +102,8 @@ public class BoardPostDto {
     public static class CreateRequest {
         @NotBlank
         @Schema(description = "제목 (최대 300자)", requiredMode = Schema.RequiredMode.REQUIRED) private String    nacNm;
-        @Schema(description = "본문 HTML")                         private String    nacCone;
+        @Size(max = 4000)
+        @Schema(description = "본문 HTML (최대 4000자)")                         private String    nacCone;
         @Schema(description = "공지여부", example = "N")        private String   ancYn;
         @Schema(description = "화면여부", example = "Y")            private String   sreYn;
         @Schema(description = "담당부서코드")                       private String   bbrC;
@@ -119,7 +121,8 @@ public class BoardPostDto {
     public static class UpdateRequest {
         @NotBlank
         @Schema(description = "제목")          private String    nacNm;
-        @Schema(description = "본문 HTML")     private String    nacCone;
+        @Size(max = 4000)
+        @Schema(description = "본문 HTML (최대 4000자)")     private String    nacCone;
         @Schema(description = "공지여부")  private String    ancYn;
         @Schema(description = "화면여부")      private String    sreYn;
         @Schema(description = "담당부서코드")  private String    bbrC;
@@ -146,7 +149,8 @@ public class BoardPostDto {
     public static class ReplyCreateRequest {
         @NotBlank
         @Schema(description = "제목", requiredMode = Schema.RequiredMode.REQUIRED) private String    nacNm;
-        @Schema(description = "본문 HTML")             private String    nacCone;
+        @Size(max = 4000)
+        @Schema(description = "본문 HTML (최대 4000자)")             private String    nacCone;
         @Schema(description = "담당부서코드")           private String    bbrC;
         @Schema(description = "공개시작일")             private LocalDate sttYmd;
         @Schema(description = "공개종료일")             private LocalDate endYmd;

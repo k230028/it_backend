@@ -7,12 +7,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
-import java.util.List;
 
 /**
  * 게시물 CRUD + 답변글 컨트롤러
@@ -31,11 +31,11 @@ public class BoardPostController {
      * @param blbMngNo 게시판관리번호
      * @param cond     검색 조건
      * @param user     인증 사용자
-     * @return 게시물 목록
+     * @return 게시물 페이지
      */
     @GetMapping
     @Operation(summary = "게시물 목록 조회")
-    public ResponseEntity<List<BoardPostDto.ListItem>> searchPosts(
+    public ResponseEntity<Page<BoardPostDto.ListItem>> searchPosts(
             @PathVariable("blbMngNo") String blbMngNo,
             @ModelAttribute BoardPostDto.SearchCondition cond,
             @AuthenticationPrincipal CustomUserDetails user) {
