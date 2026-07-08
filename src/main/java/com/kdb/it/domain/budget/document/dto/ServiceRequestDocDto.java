@@ -161,6 +161,14 @@ public class ServiceRequestDocDto {
         @Schema(description = "완료기한")
         private String rvwFsgTlmDt;
 
+        /** 주관부서명 (저장 스냅샷, 구버전 데이터는 null) */
+        @Schema(description = "주관부서명")
+        private String svnDpmNm;
+
+        /** 주관팀명 (저장 스냅샷, 구버전 데이터는 null) */
+        @Schema(description = "주관팀명")
+        private String svnTemNm;
+
         /** 삭제여부 */
         @Schema(description = "삭제여부")
         private String delYn;
@@ -201,6 +209,8 @@ public class ServiceRequestDocDto {
                     .reqDttNo(entity.getReqDttNo())
                     .bzDttNm(entity.getBzDttNm())
                     .rvwFsgTlmDt(entity.getRvwFsgTlmDt())
+                    .svnDpmNm(entity.getSvnDpmNm())
+                    .svnTemNm(entity.getSvnTemNm())
                     .delYn(entity.getDelYn())
                     .fstEnrDtm(entity.getFstEnrDtm())
                     .fstEnrUsid(entity.getFstEnrUsid())
