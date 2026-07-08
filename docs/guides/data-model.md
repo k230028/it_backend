@@ -93,6 +93,11 @@
 > **컬럼 삭제 이력 (2026-06-24)**: `IT_PTL_STS_TC`(IT포탈상태구분코드) 컬럼이 BPROJM 및 BPROJL에서 제거되었습니다.
 > 프로젝트 대표상태는 `TPRMPP_BPROJA`(정보화사업관계)의 `MAX(IT_PTL_STS_TC)` 집계값으로 파생합니다.
 > 상세 설계: `docs/superpowers/specs/2026-06-24-bproja-status-relation-design.md`
+>
+> **컬럼 추가 이력 (2026-07-08)**: `SVN_DPM_NM`(주관부서명)/`SVN_TEM_NM`(주관팀명) VARCHAR2(100 CHAR) 컬럼이
+> BPROJM/BPROJL, BCOSTM/BCOSTL, BRDOCM/BRDOCL 6개 테이블에 추가되었습니다(운영 스키마 정합).
+> 코드 설정 시점에 `OrgNameResolver`가 CORGNI 조회 결과를 스냅샷 저장하며, 조회 시 저장값 우선·null이면 CORGNI 조인 폴백.
+> 마이그레이션: `it_database/migrations/V20260708_004__AddSvnOrgNameColumns.sql` (CLAUDE.md §5.14.1 참조)
 
 ### Bproja / TPRMPP_BPROJA (정보화사업관계)
 
