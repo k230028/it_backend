@@ -4,6 +4,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.service.AuthorOrg;
 import com.kdb.it.common.iam.service.AuthorOrgResolver;
+import com.kdb.it.common.iam.service.OrgNameResolver;
 import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.domain.budget.document.dto.RecentReviewingRow;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -69,6 +70,10 @@ class ServiceRequestDocServiceTest {
     @Mock
     private AuthorOrgResolver authorOrgResolver;
 
+    /** 조직코드→조직명 해석기 (mock): 주관부서명/주관팀명 스냅샷 주입 */
+    @Mock
+    private OrgNameResolver orgNameResolver;
+
     /** 테스트 대상 서비스 */
     @InjectMocks
     private ServiceRequestDocService service;
@@ -130,6 +135,8 @@ class ServiceRequestDocServiceTest {
         given(repository.save(any(Brdocm.class))).willAnswer(inv -> inv.getArgument(0));
         given(authorOrgResolver.resolveCurrent())
                 .willReturn(new AuthorOrg("BBR001", "18010", "H001"));
+        given(orgNameResolver.resolveName("BBR001")).willReturn("정보기술부");
+        given(orgNameResolver.resolveName("18010")).willReturn("PMO팀");
         ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
                 .reqTtl("작성자 조직 문서")
                 .build();
@@ -137,9 +144,10 @@ class ServiceRequestDocServiceTest {
         // Act
         service.createDocument(req);
 
-        // Assert: 저장 엔티티에 작성자 부서/팀 코드가 반영된다 (작성자 기준)
+        // Assert: 저장 엔티티에 작성자 부서/팀 코드·명이 반영된다 (작성자 기준 스냅샷)
         then(repository).should().save(argThat(entity ->
                 "BBR001".equals(entity.getSvnDpmC()) && "18010".equals(entity.getSvnTemC())
+                        && "정보기술부".equals(entity.getSvnDpmNm()) && "PMO팀".equals(entity.getSvnTemNm())
         ));
     }
 
@@ -157,13 +165,41 @@ class ServiceRequestDocServiceTest {
         given(repository.save(any(Brdocm.class))).willAnswer(inv -> inv.getArgument(0));
         given(authorOrgResolver.resolveCurrent())
                 .willReturn(new AuthorOrg("BBR002", "18501", "H002"));
+        given(orgNameResolver.resolveName("BBR002")).willReturn("정보보호부");
+        given(orgNameResolver.resolveName("18501")).willReturn("개발/운영팀");
 
         // Act
         service.createNewVersion("DOC-001", admin());
 
-        // Assert: 새 버전 행에도 작성자 부서/팀 코드가 반영된다
+        // Assert: 새 버전 행에도 작성자 부서/팀 코드·명이 반영된다
         then(repository).should().save(argThat(entity ->
                 "BBR002".equals(entity.getSvnDpmC()) && "18501".equals(entity.getSvnTemC())
+                        && "정보보호부".equals(entity.getSvnDpmNm()) && "개발/운영팀".equals(entity.getSvnTemNm())
+        ));
+    }
+
+    @Test
+    @DisplayName("생성 시 CORGNI에 없는 코드는 이름을 null로 저장한다")
+    void createDocument_unknownOrgCode_storesNullNames() {
+        // Arrange: 기존 생성 성공 테스트와 동일한 요청/스텁 구성, 조직명만 미등록(null)
+        given(repository.getNextSequenceValue()).willReturn(1L);
+        given(repository.existsByDocMngNoAndDelYn(anyString(), eq("N"))).willReturn(false);
+        given(repository.save(any(Brdocm.class))).willAnswer(inv -> inv.getArgument(0));
+        given(authorOrgResolver.resolveCurrent())
+                .willReturn(new AuthorOrg("ZZZ99", "99999", null));
+        given(orgNameResolver.resolveName("ZZZ99")).willReturn(null);
+        given(orgNameResolver.resolveName("99999")).willReturn(null);
+        ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
+                .reqTtl("미등록 조직 문서")
+                .build();
+
+        // Act
+        service.createDocument(req);
+
+        // Assert: 코드는 저장되되 이름 스냅샷은 null
+        then(repository).should().save(argThat(entity ->
+                "ZZZ99".equals(entity.getSvnDpmC())
+                        && entity.getSvnDpmNm() == null && entity.getSvnTemNm() == null
         ));
     }
 
