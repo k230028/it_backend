@@ -208,6 +208,10 @@ public class ProjectService {
         ProjectDto.Response response = ProjectDto.Response.fromEntity(project);
         // 최신 신청서 정보 조회 및 설정
         setApplicationInfo(response, prjMngNo, project.getSno());
+        // 저장 스냅샷 우선 — setCodeNames의 CORGNI 조회는 null일 때만 폴백으로 동작
+        if (project.getSvnDpmNm() != null) {
+            response.setSvnDpmCNm(project.getSvnDpmNm());
+        }
         // 부서코드→부서명, 사원번호→사용자명 조회 및 설정
         setCodeNames(response);
 
@@ -856,8 +860,10 @@ public class ProjectService {
 
             if (response.getDvmDpmC() != null)
                 response.setDvmDpmCNm(orgNameMap.get(response.getDvmDpmC()));
-            if (response.getSvnDpmC() != null)
-                response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC()));
+            if (project.getSvnDpmNm() != null)
+                response.setSvnDpmCNm(project.getSvnDpmNm()); // 저장 스냅샷 우선
+            else if (response.getSvnDpmC() != null)
+                response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC())); // 구데이터 폴백
             if (response.getDvmUsid() != null)
                 response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
             if (response.getTlrUsid() != null)
@@ -964,8 +970,9 @@ public class ProjectService {
                     .ifPresent(org -> response.setDvmDpmCNm(org.getBbrNm()));
         }
 
-        // 주관부서코드 → 주관부서명
-        if (response.getSvnDpmC() != null && !response.getSvnDpmC().isEmpty()) {
+        // 주관부서코드 → 주관부서명 (스냅샷이 이미 세팅됐으면 건너뜀)
+        if (response.getSvnDpmCNm() == null
+                && response.getSvnDpmC() != null && !response.getSvnDpmC().isEmpty()) {
             corgnIRepository.findById(response.getSvnDpmC())
                     .ifPresent(org -> response.setSvnDpmCNm(org.getBbrNm()));
         }

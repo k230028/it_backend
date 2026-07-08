@@ -673,9 +673,13 @@ public class CostService {
                 }
             }
 
-            if (response.getCostSvnDpmC() != null)
-                response.setCostSvnDpmNm(orgNameMap.get(response.getCostSvnDpmC()));
-            if (response.getSvnTemC() != null)
+            if (cost.getSvnDpmNm() != null)
+                response.setCostSvnDpmNm(cost.getSvnDpmNm()); // 저장 스냅샷 우선
+            else if (response.getCostSvnDpmC() != null)
+                response.setCostSvnDpmNm(orgNameMap.get(response.getCostSvnDpmC())); // 구데이터 폴백
+            if (cost.getSvnTemNm() != null)
+                response.setSvnTemNm(cost.getSvnTemNm());
+            else if (response.getSvnTemC() != null)
                 response.setSvnTemNm(orgNameMap.get(response.getSvnTemC()));
             if (response.getCgprId() != null)
                 response.setCgprNm(userNameMap.get(response.getCgprId()));
@@ -766,6 +770,13 @@ public class CostService {
     /** 응답 DTO에 신청서 정보, 코드명, 예산 구분, 전년도 예산을 일괄 설정 */
     private void enrichResponse(CostDto.Response response, Bcostm cost) {
         setApplicationInfo(response, cost.getCostBgNo(), cost.getBgSno());
+        // 저장 스냅샷 우선 — setCodeNames의 CORGNI 조회는 null일 때만 폴백으로 동작
+        if (cost.getSvnDpmNm() != null) {
+            response.setCostSvnDpmNm(cost.getSvnDpmNm());
+        }
+        if (cost.getSvnTemNm() != null) {
+            response.setSvnTemNm(cost.getSvnTemNm());
+        }
         setCodeNames(response);
         setBudgetCategory(response);
         setPrevBudget(response);
@@ -809,11 +820,14 @@ public class CostService {
 
     /** 부서코드→부서명, 사원번호→사용자명, 사업코드→사업코드명 조회 및 설정 */
     private void setCodeNames(CostDto.Response response) {
-        if (response.getCostSvnDpmC() != null && !response.getCostSvnDpmC().isEmpty()) {
+        // 담당부서/팀명: 스냅샷이 이미 세팅됐으면 건너뛰고, null일 때만 CORGNI 폴백 조회
+        if (response.getCostSvnDpmNm() == null
+                && response.getCostSvnDpmC() != null && !response.getCostSvnDpmC().isEmpty()) {
             corgnIRepository.findById(response.getCostSvnDpmC())
                     .ifPresent(org -> response.setCostSvnDpmNm(org.getBbrNm()));
         }
-        if (response.getSvnTemC() != null && !response.getSvnTemC().isEmpty()) {
+        if (response.getSvnTemNm() == null
+                && response.getSvnTemC() != null && !response.getSvnTemC().isEmpty()) {
             corgnIRepository.findById(response.getSvnTemC())
                     .ifPresent(org -> response.setSvnTemNm(org.getBbrNm()));
         }
