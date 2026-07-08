@@ -58,6 +58,8 @@ class CostServiceXcrLookupTest {
     @Mock private XcrLookupService xcrLookupService;
     /** 작성자 소속 조직 해석기 (생성 경로 의존성) */
     @Mock private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+    /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
+    @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
     @InjectMocks
     private CostService costService;
