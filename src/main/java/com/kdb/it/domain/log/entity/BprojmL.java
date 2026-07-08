@@ -40,6 +40,12 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "SVN_TEM_C", length = 5, comment = "주관팀코드")
     private String svnTemC;
 
+    @Column(name = "SVN_DPM_NM", length = 100, comment = "주관부서명")
+    private String svnDpmNm;
+
+    @Column(name = "SVN_TEM_NM", length = 100, comment = "주관팀명")
+    private String svnTemNm;
+
     @Column(name = "DVM_DPM_C", length = 100, comment = "IT부서")
     private String dvmDpmC;
 

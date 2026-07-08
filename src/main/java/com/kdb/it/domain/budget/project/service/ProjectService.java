@@ -102,6 +102,9 @@ public class ProjectService {
     /** 작성자 소속 조직 해석기: 신규 생성 시 주관팀코드(SVN_TEM_C)를 작성자 기준으로 채움 */
     private final com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
 
+    /** 조직코드→조직명 해석기: 주관부서명/주관팀명 스냅샷 저장용 */
+    private final com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
+
     /** 결재 정보 리포지토리 (TPRMPP_CDECIM): 결재선 목록 조회용 */
     private final com.kdb.it.common.approval.repository.ApproverRepository cdecimRepository;
 
@@ -308,6 +311,10 @@ public class ProjectService {
         Bprojm project = request.toEntity();
         // 주관팀코드(SVN_TEM_C)는 작성자(현재 로그인 사용자) 소속 팀코드로 자동 설정 (작성자 기준)
         project.assignSvnTemC(authorOrgResolver.resolveCurrent().svnTemC());
+        // 주관부서명/주관팀명은 코드 설정 시점의 CORGNI 조회 스냅샷으로 함께 저장
+        project.assignSvnOrgNames(
+                orgNameResolver.resolveName(project.getSvnDpmC()),
+                orgNameResolver.resolveName(project.getSvnTemC()));
         projectRepository.save(project);
 
         // ===== 품목(Bitemm) 저장 =====
@@ -432,6 +439,11 @@ public class ProjectService {
                 DateFormatUtil.toYmd8(request.getFlfFsgDt()), request.getRprStsTc(), request.getExePttYn(),
                 request.getBseYy(), request.getPrlmHrkOgzCCone(),
                 request.getOdnYn(), request.getAbusTc(), request.getCncdRfrNo()));
+
+        // 수정으로 주관부서코드가 바뀔 수 있으므로 이름 스냅샷도 같은 시점 기준으로 갱신
+        project.assignSvnOrgNames(
+                orgNameResolver.resolveName(project.getSvnDpmC()),
+                orgNameResolver.resolveName(project.getSvnTemC()));
 
         // ===== 품목 정보 동기화 (CUD) =====
         if (request.getItems() != null) {

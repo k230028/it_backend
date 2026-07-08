@@ -77,6 +77,14 @@ public class Bprojm extends BaseEntity {
     @Column(name = "SVN_TEM_C", length = 5, comment = "주관팀 (물리컬럼 SVN_TEM_C=주관팀코드)")
     private String svnTemC;
 
+    /** 주관부서명: 코드 설정 시점 CORGNI 조회 스냅샷 (조직명 변경 시에도 과거 기록 유지, 최대 100자) */
+    @Column(name = "SVN_DPM_NM", length = 100, comment = "주관부서명")
+    private String svnDpmNm;
+
+    /** 주관팀명: 코드 설정 시점 CORGNI 조회 스냅샷 (최대 100자) */
+    @Column(name = "SVN_TEM_NM", length = 100, comment = "주관팀명")
+    private String svnTemNm;
+
     /** IT부서: 사업을 담당하는 IT 부서 코드 (최대 20자) */
     @Column(name = "DVM_DPM_C", length = 20, comment = "IT부서 (물리컬럼 DVM_DPM_C=개발부서코드)")
     private String dvmDpmC;
@@ -366,6 +374,20 @@ public class Bprojm extends BaseEntity {
      */
     public void assignSvnTemC(String svnTemC) {
         this.svnTemC = svnTemC;
+    }
+
+    /**
+     * 주관부서명/주관팀명 스냅샷 설정.
+     *
+     * <p>현재 엔티티에 설정된 주관부서코드/주관팀코드에 대응하는 조직명을 저장합니다.
+     * 코드가 설정/변경되는 지점(생성·수정) 직후, INSERT/UPDATE flush 이전에 호출합니다.</p>
+     *
+     * @param svnDpmNm 주관부서명 (코드 미등록 시 null 허용)
+     * @param svnTemNm 주관팀명 (코드 미등록 시 null 허용)
+     */
+    public void assignSvnOrgNames(String svnDpmNm, String svnTemNm) {
+        this.svnDpmNm = svnDpmNm;
+        this.svnTemNm = svnTemNm;
     }
 
     /**
