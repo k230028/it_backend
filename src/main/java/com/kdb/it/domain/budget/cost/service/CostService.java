@@ -91,6 +91,8 @@ public class CostService {
     private final UserRepository cuserIRepository;
     /** 작성자 소속 조직 해석기: 신규 생성 시 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE)을 작성자 기준으로 채움 */
     private final com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+    /** 조직코드→조직명 해석기: 주관부서명/주관팀명 스냅샷 저장용 */
+    private final com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
     /** 결재자(TPRMPP_CDECIM) 리포지토리: 결재선 조회용 */
     private final ApproverRepository cdecimRepository;
     /** 공통코드(TPRMPP_CCODEM) 리포지토리: 코드명 배치 조회용 */
@@ -249,6 +251,10 @@ public class CostService {
         Bcostm bcostm = request.toEntity(nextSno);
         // 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE)은 작성자(현재 로그인 사용자) 소속 상위조직코드로 자동 설정 (작성자 기준)
         bcostm.assignPrlmHrkOgzCCone(authorOrgResolver.resolveCurrent().prlmHrkOgzCCone());
+        // 주관부서명/주관팀명은 코드 설정 시점의 CORGNI 조회 스냅샷으로 함께 저장
+        bcostm.assignSvnOrgNames(
+                orgNameResolver.resolveName(bcostm.getCostSvnDpmC()),
+                orgNameResolver.resolveName(bcostm.getSvnTemC()));
         costRepository.save(bcostm);
 
         if (request.getTerminals() != null && !request.getTerminals().isEmpty()) {
@@ -330,6 +336,11 @@ public class CostService {
                 request.getCostSvnDpmC(), request.getSvnTemC(), request.getBgUntAbusC(),
                 request.getTmnYn(), request.getAbusTc(), request.getBseYy(), request.getCncdRfrNo(),
                 request.getFcAmt());
+
+        // 수정으로 담당부서/팀 코드가 바뀔 수 있으므로 이름 스냅샷도 같은 시점 기준으로 갱신
+        target.assignSvnOrgNames(
+                orgNameResolver.resolveName(target.getCostSvnDpmC()),
+                orgNameResolver.resolveName(target.getSvnTemC()));
 
         /* 연관된 단말기 목록 업데이트: 기존 Soft Delete 후 재등록 */
         List<Btermm> existingTerminals = btermmRepository.findByTermBgNoAndTermBgSno(target.getCostBgNo(),

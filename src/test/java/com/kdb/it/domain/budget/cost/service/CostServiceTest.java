@@ -76,6 +76,8 @@ class CostServiceTest {
     @Mock private com.kdb.it.common.util.CodeNameMapBuilder codeNameMapBuilder;
     /** 작성자 소속 조직 해석기 (PRLM_HRK_OGZ_C_CONE 작성자 기준 주입) */
     @Mock private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+    /** 조직코드→조직명 해석기 (주관부서명/주관팀명 스냅샷 주입) */
+    @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
     @InjectMocks
     private CostService costService;
@@ -91,6 +93,10 @@ class CostServiceTest {
         org.mockito.Mockito.lenient()
                 .when(authorOrgResolver.resolveCurrent())
                 .thenReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());
+        // 조직명 스냅샷 기본값: 미등록 코드로 간주해 null 반환 (기존 테스트 무영향)
+        org.mockito.Mockito.lenient()
+                .when(orgNameResolver.resolveName(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(null);
     }
 
     // ───────────────────────────────────────────────────────
@@ -271,6 +277,31 @@ class CostServiceTest {
         ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
         verify(costRepository).save(captor.capture());
         assertThat(captor.getValue().getPrlmHrkOgzCCone()).isEqualTo("H001");
+    }
+
+    @Test
+    @DisplayName("전산업무비 생성 시 주관부서명/주관팀명을 CORGNI 스냅샷으로 저장한다")
+    void createCost_storesSvnOrgNameSnapshot() {
+        // given: 기존 create 성공 테스트와 동일한 request/스텁 구성 + 담당부서/팀 코드와 조직명 스텁
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
+                .costBgNo(IT_MNGC_NO)
+                .cttNm("조직명 스냅샷 계약")
+                .costSvnDpmC("BBR001")
+                .svnTemC("18010")
+                .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+        given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
+        given(orgNameResolver.resolveName("BBR001")).willReturn("담당부서명A");
+        given(orgNameResolver.resolveName("18010")).willReturn("담당팀명A");
+
+        // when
+        costService.createCost(request);
+
+        // then: 저장 엔티티에 주관부서명/주관팀명 스냅샷이 함께 저장된다
+        ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
+        verify(costRepository).save(captor.capture());
+        assertThat(captor.getValue().getSvnDpmNm()).isEqualTo("담당부서명A");
+        assertThat(captor.getValue().getSvnTemNm()).isEqualTo("담당팀명A");
     }
 
     // ───────────────────────────────────────────────────────
