@@ -805,8 +805,10 @@ public class BudgetWorkService {
         // ioeC(cdva, "101") → 계층코드 cdvaDtlC("304-1100") 매핑: DUP_IOE 접두어("304") 매칭용
         List<Ccodem> ioeDetailCodes = findCodes(CommonCodeGroups.IOE);
         Map<String, String> ioeCdvaToHierarchyCode = new LinkedHashMap<>();
+        Map<String, Boolean> ioeCdvaToCapital = new LinkedHashMap<>();
         for (Ccodem code : ioeDetailCodes) {
             ioeCdvaToHierarchyCode.put(code.getCdva(), code.getCdvaDtlC());
+            ioeCdvaToCapital.put(code.getCdva(), isCapitalCTp(code.getCTp()));
         }
 
         // 비목별 편성률 맵 (prefix → dupRt)
@@ -848,11 +850,43 @@ public class BudgetWorkService {
                 .filter(b -> "BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null)
                 .map(value -> value.getPkColNm())
                 .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+        Map<String, Bitemm> bitemmByGcl = new LinkedHashMap<>();
         Map<String, String> gclToPrj = new LinkedHashMap<>();
         if (!gclPks.isEmpty()) {
             for (Bitemm it : projectItemRepository.findByGclMngNoInAndDelYn(gclPks, "N")) {
+                bitemmByGcl.putIfAbsent(it.getGclMngNo(), it);
                 gclToPrj.putIfAbsent(it.getGclMngNo(), it.getAbusMngNo());
             }
+        }
+
+        // 사업별 결과에서도 예정금액은 예산년도분 요청/편성에서 제외한다.
+        // 품목 예정금액은 사업+자본구분 그룹 내 품목금액 합계 대비 비율로 배분한다.
+        Map<String, Bbugtm> firstBudgetByGcl = new LinkedHashMap<>();
+        for (Bbugtm b : budgets) {
+            if ("BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null && b.getIoeC() != null) {
+                firstBudgetByGcl.putIfAbsent(b.getPkColNm(), b);
+            }
+        }
+        Map<String, BigDecimal> groupReqSum = new LinkedHashMap<>();
+        Map<String, BigDecimal> groupMplSum = new LinkedHashMap<>();
+        for (Map.Entry<String, Bbugtm> e : firstBudgetByGcl.entrySet()) {
+            Bitemm item = bitemmByGcl.get(e.getKey());
+            if (item == null || item.getAbusMngNo() == null) continue;
+            boolean capital = Boolean.TRUE.equals(ioeCdvaToCapital.get(e.getValue().getIoeC()));
+            String key = item.getAbusMngNo() + "|" + capital;
+            BigDecimal requestAmount = item.getAmt() != null ? item.getAmt() : BigDecimal.ZERO;
+            BigDecimal mplAmount = item.getMplAmt() != null ? item.getMplAmt() : BigDecimal.ZERO;
+            groupReqSum.merge(key, requestAmount, (left, right) -> left.add(right));
+            groupMplSum.merge(key, mplAmount, (left, right) -> left.add(right));
+        }
+        Map<String, BigDecimal> groupMplFactor = new LinkedHashMap<>();
+        for (Map.Entry<String, BigDecimal> e : groupReqSum.entrySet()) {
+            BigDecimal requestSum = e.getValue();
+            BigDecimal mplSum = groupMplSum.getOrDefault(e.getKey(), BigDecimal.ZERO);
+            if (requestSum.signum() <= 0 || mplSum.signum() <= 0) continue;
+            BigDecimal factor = mplSum.compareTo(requestSum) >= 0 ? BigDecimal.ONE
+                    : mplSum.divide(requestSum, 10, RoundingMode.HALF_UP);
+            groupMplFactor.put(e.getKey(), factor);
         }
 
         for (Bbugtm b : budgets) {
@@ -861,8 +895,10 @@ public class BudgetWorkService {
             // 그룹핑 키 결정: BITEMM은 프로젝트 단위로 통합
             String groupKey;
             String groupOrcTb;
+            Bitemm sourceItem = null;
             if ("BITEMM".equals(b.getFntTbNm())) {
                 // gclMngNo → prjMngNo 변환 (선조회 Map, 매핑 없으면 gclMngNo 자체)
+                sourceItem = bitemmByGcl.get(b.getPkColNm());
                 groupKey = gclToPrj.getOrDefault(b.getPkColNm(), b.getPkColNm());
                 groupOrcTb = "BPROJM";
             } else {
@@ -891,16 +927,26 @@ public class BudgetWorkService {
             catMap.computeIfAbsent(matchedPrefix, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
 
             BigDecimal[] amounts = catMap.get(matchedPrefix);
+            BigDecimal requestAmt = BigDecimal.ZERO;
+            BigDecimal dupAmt = b.getBgDupAmt() != null ? b.getBgDupAmt() : BigDecimal.ZERO;
             // 요청금액 역산: dupBgAmt / (dupRt / 100)
             if (b.getBgDupAmt() != null && b.getAsgRt() != null && b.getAsgRt() > 0) {
-                BigDecimal requestAmt = b.getBgDupAmt()
+                requestAmt = b.getBgDupAmt()
                         .multiply(BigDecimal.valueOf(100))
                         .divide(BigDecimal.valueOf(b.getAsgRt()), 2, RoundingMode.HALF_UP);
-                amounts[0] = amounts[0].add(requestAmt);
             }
-            if (b.getBgDupAmt() != null) {
-                amounts[1] = amounts[1].add(b.getBgDupAmt());
+            if (sourceItem != null && sourceItem.getAbusMngNo() != null) {
+                boolean capital = Boolean.TRUE.equals(ioeCdvaToCapital.get(b.getIoeC()));
+                BigDecimal factor = groupMplFactor.get(sourceItem.getAbusMngNo() + "|" + capital);
+                if (factor != null) {
+                    requestAmt = requestAmt.subtract(requestAmt.multiply(factor));
+                    dupAmt = dupAmt.subtract(dupAmt.multiply(factor));
+                    if (requestAmt.signum() < 0) requestAmt = BigDecimal.ZERO;
+                    if (dupAmt.signum() < 0) dupAmt = BigDecimal.ZERO;
+                }
             }
+            amounts[0] = amounts[0].add(requestAmt);
+            amounts[1] = amounts[1].add(dupAmt);
         }
 
         // 3. 응답 구성

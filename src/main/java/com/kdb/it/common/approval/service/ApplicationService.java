@@ -14,6 +14,10 @@ import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.OrganizationRepository;
+import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.util.NotificationMessageFormatter;
@@ -96,6 +100,10 @@ public class ApplicationService {
 
     /** 전산업무비(Bcostm) 리포지토리: 미상신 건수 집계용 */
     private final CostRepository costRepository;
+    /** 사용자(TPRMPP_CUSERI) 리포지토리: 신청자명 조회용 */
+    private final UserRepository userRepository;
+    /** 조직(TPRMPP_CORGNI) 리포지토리: 신청부서명 조회용 */
+    private final OrganizationRepository organizationRepository;
     /** 결재 완료/반려 시 도메인 이벤트 발행 (도메인 간 직접 의존 제거) */
     private final ApplicationEventPublisher eventPublisher;
     /** 결재선 JSON 업데이트 위임 — ERR-03/04: public @Transactional로 AOP 프록시 우회 방지 */
@@ -150,6 +158,7 @@ public class ApplicationService {
                 .dcdReqInf(request.getApfDtlCone())        // 결재요청정보 (JSON)
                 .apfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
                 .dcdReqUsid(request.getRqsEno())           // 결재요청사용자ID
+                .dcdReqBbrC(resolveRequesterBbrC(request.getRqsEno())) // 결재요청부점코드
                 .dcdReqDtm(LocalDate.now())                // 결재요청일시 = 오늘
                 .rgprDcdReqCone(request.getRqsOpnn())      // 등록자결재요청내용
                 .build();
@@ -471,7 +480,9 @@ public class ApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
         // 결재자 목록 조회 (순번 오름차순)
         List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
-        return ApplicationDto.Response.fromEntity(capplm, approvers);
+        String requesterNm = requesterName(resolveRequesterNames(List.of(capplm)), capplm.getDcdReqUsid());
+        String requesterBbrNm = requesterDeptName(resolveRequesterDeptNames(List.of(capplm)), capplm.getDcdReqBbrC());
+        return ApplicationDto.Response.fromEntity(capplm, approvers, requesterNm, requesterBbrNm);
     }
 
     /**
@@ -493,11 +504,104 @@ public class ApplicationService {
         java.util.Map<String, List<Cdecim>> approversByApf =
                 approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos).stream()
                         .collect(java.util.stream.Collectors.groupingBy(value -> value.getDcdMngNo()));
+        java.util.Map<String, String> requesterNamesByEno = resolveRequesterNames(capplms);
+        java.util.Map<String, String> requesterDeptNamesByBbrC = resolveRequesterDeptNames(capplms);
 
         return capplms.stream()
                 .map(capplm -> ApplicationDto.Response.fromEntity(
-                        capplm, approversByApf.getOrDefault(capplm.getApfMngNo(), List.of())))
+                        capplm,
+                        approversByApf.getOrDefault(capplm.getApfMngNo(), List.of()),
+                        requesterName(requesterNamesByEno, capplm.getDcdReqUsid()),
+                        requesterDeptName(requesterDeptNamesByBbrC, capplm.getDcdReqBbrC())))
                 .toList();
+    }
+
+    /**
+     * 신청자 사번으로 현재 소속 부점코드를 조회합니다.
+     *
+     * @param eno 신청자 사번
+     * @return 신청자 소속 부점코드, 없으면 null
+     */
+    private String resolveRequesterBbrC(String eno) {
+        if (eno == null || eno.isBlank()) {
+            return null;
+        }
+        return userRepository.findById(eno)
+                .map(CuserI::getBbrC)
+                .orElse(null);
+    }
+
+    /**
+     * 사번이 비어 있거나 맵 구현체가 null key를 허용하지 않는 경우를 방어하며 신청자명을 조회합니다.
+     *
+     * @param requesterNamesByEno 사번별 신청자명 맵
+     * @param eno                 신청자 사번
+     * @return 신청자명, 없으면 null
+     */
+    private String requesterName(java.util.Map<String, String> requesterNamesByEno, String eno) {
+        if (eno == null || eno.isBlank()) {
+            return null;
+        }
+        return requesterNamesByEno.get(eno);
+    }
+
+    /**
+     * 부점코드가 비어 있거나 맵 구현체가 null key를 허용하지 않는 경우를 방어하며 신청부서명을 조회합니다.
+     *
+     * @param requesterDeptNamesByBbrC 부점코드별 신청부서명 맵
+     * @param bbrC                     신청부서코드
+     * @return 신청부서명, 없으면 null
+     */
+    private String requesterDeptName(java.util.Map<String, String> requesterDeptNamesByBbrC, String bbrC) {
+        if (bbrC == null || bbrC.isBlank()) {
+            return null;
+        }
+        return requesterDeptNamesByBbrC.get(bbrC);
+    }
+
+    /**
+     * 신청서 목록의 신청자 사번을 사용자명으로 일괄 변환합니다.
+     *
+     * @param capplms 신청서 마스터 목록
+     * @return 사번을 키로 하는 사용자명 맵
+     */
+    private java.util.Map<String, String> resolveRequesterNames(List<Capplm> capplms) {
+        java.util.Set<String> requesterEnos = capplms.stream()
+                .map(Capplm::getDcdReqUsid)
+                .filter(eno -> eno != null && !eno.isBlank())
+                .collect(java.util.stream.Collectors.toSet());
+        if (requesterEnos.isEmpty()) {
+            return java.util.Map.of();
+        }
+
+        return userRepository.findByEnoIn(requesterEnos).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        CuserI::getEno,
+                        CuserI::getUsrNm,
+                        (left, right) -> left));
+    }
+
+    /**
+     * 신청서 목록의 신청부서코드를 부서명으로 일괄 변환합니다.
+     *
+     * @param capplms 신청서 마스터 목록
+     * @return 부점코드를 키로 하는 부점명 맵
+     */
+    private java.util.Map<String, String> resolveRequesterDeptNames(List<Capplm> capplms) {
+        java.util.Set<String> requesterBbrCs = capplms.stream()
+                .map(Capplm::getDcdReqBbrC)
+                .filter(bbrC -> bbrC != null && !bbrC.isBlank())
+                .collect(java.util.stream.Collectors.toSet());
+        if (requesterBbrCs.isEmpty()) {
+            return java.util.Map.of();
+        }
+
+        return organizationRepository.findAllById(requesterBbrCs).stream()
+                .filter(org -> org.getBbrNm() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        CorgnI::getPrlmOgzCCone,
+                        CorgnI::getBbrNm,
+                        (left, right) -> left));
     }
 
     /**

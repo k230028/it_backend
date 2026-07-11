@@ -921,6 +921,52 @@ class BudgetWorkServiceTest {
     }
 
     @Test
+    @DisplayName("getProjectSummary: BITEMM 요청금액은 품목 예정금액을 제외한다")
+    void getProjectSummary_BITEMM요청금액은_예정금액제외() {
+        Ccodem dupCode = Ccodem.builder().cNm("임차료").cdvaDes("임차료").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder()
+                .cdva("101")
+                .cNm("237-0100")
+                .cdvaDtlC("237-0100")
+                .cTp("IOE_LEAFE")
+                .build();
+        Bbugtm itemBudget = Bbugtm.builder()
+                .fntTbNm("BITEMM")
+                .pkColNm("GCL-MPL-001")
+                .ioeC("101")
+                .bgDupAmt(BigDecimal.valueOf(1600))
+                .asgRt(80)
+                .build();
+        Bitemm item = Bitemm.builder()
+                .gclMngNo("GCL-MPL-001")
+                .abusMngNo("PRJ-MPL-001")
+                .amt(BigDecimal.valueOf(2000))
+                .mplAmt(BigDecimal.valueOf(800))
+                .build();
+        Bprojm project = Bprojm.builder()
+                .abusMngNo("PRJ-MPL-001")
+                .abusNm("예정금액 제외 사업")
+                .build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(itemBudget));
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(item));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(project));
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        BudgetWorkDto.ProjectSummaryItem summaryItem = result.data().get(0);
+        BudgetWorkDto.CategoryAmount categoryAmount = summaryItem.categoryAmounts().get("237");
+        assertThat(summaryItem.requestAmount()).isEqualByComparingTo("1200.00");
+        assertThat(summaryItem.dupAmount()).isEqualByComparingTo("960.0");
+        assertThat(categoryAmount.requestAmount()).isEqualByComparingTo("1200.00");
+        assertThat(categoryAmount.dupAmount()).isEqualByComparingTo("960.0");
+        assertThat(result.totals().requestAmount()).isEqualByComparingTo("1200.00");
+        assertThat(result.totals().dupAmount()).isEqualByComparingTo("960.0");
+    }
+
+    @Test
     @DisplayName("getProjectSummary: 컬럼명은 편성률 값이 아닌 IOE C_TP_DES를 표시한다")
     void getProjectSummary_컬럼명은CtpDes표시() {
         Ccodem dupCode = Ccodem.builder().cNm("70").cdvaDes("전산임차료 편성 비율").cdva("237").build();

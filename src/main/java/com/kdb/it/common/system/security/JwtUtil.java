@@ -12,6 +12,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * JWT 토큰 생성 및 검증 유틸리티 클래스
@@ -136,6 +137,13 @@ public class JwtUtil {
      * Access Token과 동일한 구조지만 유효시간이 더 깁니다 (기본 7일).
      * </p>
      *
+     * <p>
+     * {@code jti}(JWT ID) 클레임에 UUID를 넣어 발급마다 토큰 문자열이 고유하도록 보장합니다.
+     * JWT 시각 클레임(iat/exp)은 초 단위라, jti 없이는 같은 사용자에게 같은 초 안에 2회 발급 시
+     * 완전히 동일한 토큰이 생성되어 TPRMPP_CRTOKM의 SHA-256 조회값 유니크 인덱스
+     * (UX_CRTOKM_ECY_RNW_PUB_TOK)와 충돌합니다(ORA-00001).
+     * </p>
+     *
      * @param eno 토큰의 subject로 사용할 사번
      * @return 서명된 JWT Refresh Token 문자열
      */
@@ -145,6 +153,7 @@ public class JwtUtil {
 
         return Jwts.builder()
                 .subject(eno)
+                .id(UUID.randomUUID().toString()) // jti: 같은 초 발급 충돌 방지용 발급별 고유값
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)

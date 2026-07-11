@@ -139,6 +139,7 @@ src/main/resources/
 ### 5.4 Repository 패턴
 - 기본 CRUD: `JpaRepository` 상속.
 - 동적·복잡 쿼리: `RepositoryCustom` 인터페이스 + `RepositoryImpl` 구현(QueryDSL).
+- Spring Data JPA custom 구현체는 `*RepositoryCustom` + `*RepositoryImpl` 네이밍으로 자동 합성되므로, 단순 구현체에는 별도 `@Repository`를 붙이지 않아도 됩니다.
 - 시퀀스 등 DB 종속 쿼리: `@Query(nativeQuery = true)`.
 - 게시판 목록 검색처럼 공개 기간·권한·부서 조건이 함께 필요한 쿼리는 QueryDSL `BooleanBuilder`로 조립하고, 조건별 의도를 JavaDoc 또는 인접 주석으로 남깁니다.
 
@@ -229,7 +230,7 @@ public Snapshot get(
 | `TIMESTAMP` | `java.sql.Timestamp` 또는 `LocalDateTime` (Hibernate 6+) | `instanceof` 분기로 변환 |
 | `NUMBER` | `BigDecimal`, `Long`, `Integer` 등 | `((Number) v).longValue()` |
 
-**필수 헬퍼 패턴 (`RealtimeLogRepository` 참고):**
+**필수 헬퍼 패턴 (`NativeRowMapper`, `RealtimeLogRepository` 참고):**
 ```java
 private static String toStr(Object v) {
     return v == null ? null : v.toString();
@@ -310,7 +311,7 @@ private static LocalDateTime toLdt(Object v) {
   - `athIds` — 자격등급 ID 목록 (JSON 배열, 예: `["ITPAD001"]`)
   - `bbrC` — 소속 부서코드
   - `iat` — 발급 시각, `exp` — 만료 시각
-- Refresh Token은 `athIds`/`bbrC` 클레임 없이 `sub`+`iat`+`exp`만 포함.
+- Refresh Token은 `athIds`/`bbrC` 클레임 없이 `sub`+`jti`+`iat`+`exp`만 포함. `jti`(UUID)는 발급별 고유성 보장용 — JWT 시각 클레임이 초 단위라 jti 없이는 같은 초 내 재발급 시 동일 토큰이 생성되어 `UX_CRTOKM_ECY_RNW_PUB_TOK` 유니크 인덱스와 충돌한다(ORA-00001, 2026-07-12 수정).
 - Refresh Token 갱신 시 최신 자격등급을 DB에서 재조회하여 Access Token 생성 (`AuthService.refreshAccessToken()`).
 - **1인 1 Refresh Token 패밀리 정책**: 로그인·SSO·개발 사용자 전환 시 기존 사용자 토큰을 모두 삭제하고 UUID `FAM_NM`으로 신규 패밀리를 시작합니다.
 - Refresh Token 검증은 JWT 서명·만료 → DB 존재 → `AVL_YN`·`endDtm` 순으로 수행하고, 갱신 시 사용자의 최신 자격등급·부서를 Access Token에 다시 반영합니다.

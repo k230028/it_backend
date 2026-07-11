@@ -7,6 +7,8 @@ import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.iam.repository.OrganizationRepository;
+import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +47,8 @@ class ApplicationServiceRecallTest {
     @Mock private ApplicationMapRepository applicationMapRepository;
     @Mock private ProjectRepository projectRepository;
     @Mock private CostRepository costRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private OrganizationRepository organizationRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private ApprovalLineDelegate approvalLineDelegate;
     @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;

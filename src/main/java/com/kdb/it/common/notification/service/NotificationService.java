@@ -43,6 +43,9 @@ public class NotificationService {
      * Spring 7.0 환경에서 AFTER_COMMIT 페이즈는 outer 트랜잭션 종료 후 호출되어
      * {@code Propagation.REQUIRED}만으로는 {@code TransactionRequiredException}이 발생할 수 있다.
      * {@code REQUIRES_NEW}로 명시하면 항상 독립된 새 트랜잭션을 강제 시작하므로 회피 가능.</p>
+     *
+     * @param event 적재할 알림 이벤트
+     * @return 저장된 알림 엔티티. 수신자 사번이 비어 있으면 발송을 건너뛰고 null 반환
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CacheEvict(value = "notificationUnreadCount", key = "#event.recipientEno()",

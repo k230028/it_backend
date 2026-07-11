@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +38,8 @@ import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.iam.repository.OrganizationRepository;
+import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
@@ -63,6 +66,8 @@ class ApplicationServiceTest {
     @Mock private ApplicationMapRepository applicationMapRepository;
     @Mock private ProjectRepository projectRepository;
     @Mock private CostRepository costRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private OrganizationRepository organizationRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private ApprovalLineDelegate approvalLineDelegate;
     @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
@@ -71,6 +76,12 @@ class ApplicationServiceTest {
     private ApplicationService applicationService;
 
     private static final String APF_MNG_NO = "APF_202600000001";
+
+    @BeforeEach
+    void setUp() {
+        given(userRepository.findByEnoIn(any())).willReturn(List.of());
+        given(organizationRepository.findAllById(any())).willReturn(List.of());
+    }
 
     /** Capplm Mock — getApfDtlCone() null로 updateApprovalLineInDetail 즉시 리턴 */
     private Capplm mockCapplm() {
@@ -107,6 +118,8 @@ class ApplicationServiceTest {
                 applicationMapRepository,
                 projectRepository,
                 costRepository,
+                userRepository,
+                organizationRepository,
                 eventPublisher,
                 new ApprovalLineDelegate(new ObjectMapper()),
                 bprojaSyncService);
