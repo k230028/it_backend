@@ -19,6 +19,7 @@ import com.kdb.it.domain.estimate.repository.EstimateLineRepository;
 import com.kdb.it.domain.estimate.repository.EstimateRepository;
 import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -436,8 +437,12 @@ class EstimateServiceTest {
         void list_adminGetsAllWithNullBbrC() {
             // Arrange
             List<EstimateDto.ListItem> mockResult = List.of(
-                    new EstimateDto.ListItem("REQ-2026-0001", 1, "100", "PRJ-2026-0001", "테스트사업", "51", "E0001", null),
-                    new EstimateDto.ListItem("REQ-2026-0002", 1, "100", "PRJ-2026-0002", "다른사업", "55", "E0002", null)
+                    new EstimateDto.ListItem("REQ-2026-0001", 1, "100", "PRJ-2026-0001", "테스트사업",
+                            new BigDecimal("1000"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                            "18001", "IT기획부", "51", "E0001", null),
+                    new EstimateDto.ListItem("REQ-2026-0002", 1, "100", "PRJ-2026-0002", "다른사업",
+                            new BigDecimal("2000"), LocalDate.of(2026, 2, 1), LocalDate.of(2026, 11, 30),
+                            "18002", "디지털부", "55", "E0002", null)
             );
             when(estimateRepository.search(null, null, null)).thenReturn(mockResult);
 
@@ -454,7 +459,9 @@ class EstimateServiceTest {
         void list_nonAdminFiltersByBbrC() {
             // Arrange
             List<EstimateDto.ListItem> mockResult = List.of(
-                    new EstimateDto.ListItem("REQ-2026-0001", 1, "100", "PRJ-2026-0001", "테스트사업", "51", "E0001", null)
+                    new EstimateDto.ListItem("REQ-2026-0001", 1, "100", "PRJ-2026-0001", "테스트사업",
+                            new BigDecimal("1000"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                            "18001", "IT기획부", "51", "E0001", null)
             );
             when(estimateRepository.search("51", "PRJ-2026-0001", "18001")).thenReturn(mockResult);
 

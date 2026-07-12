@@ -1,10 +1,13 @@
 package com.kdb.it.domain.budget.plan.service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -49,6 +52,11 @@ import lombok.RequiredArgsConstructor;
 public class PlanService {
 
         private static final Logger log = LoggerFactory.getLogger(PlanService.class);
+        private static final String IT_AI_HEADQUARTERS_NAME = "IT·AI본부";
+        private static final String IT_PLANNING_DEPARTMENT_CODE = "180";
+        private static final String IT_PLANNING_DEPARTMENT_NAME = "IT기획부";
+        private static final String ORDINARY_PROJECT_SUMMARY_ID = "__ORDINARY_PROJECT_SUMMARY__";
+        private static final String NEW_PROJECT_TYPE_CODE = "01";
 
         /** 정보기술부문계획(TPRMPP_BPLANM) CRUD 리포지토리 */
         private final BplanmRepository bplanmRepository;
@@ -105,7 +113,7 @@ public class PlanService {
                                         PlanDto.ListResponse dto = PlanDto.ListResponse.fromEntity(plan);
                                         dto.setFstEnrUsNm(userNameByEno.get(plan.getFstEnrUsid()));
                                         // 계획 저장 시점의 스냅샷 JSON 의 prjSnapshots 를 그대로 사용한다.
-                                        // - prjSnapshots 는 폼 단계에서 정보화사업(경상사업 제외)만 포함하도록 구성됨
+                                        // - prjSnapshots 는 폼 단계에서 경상사업을 신규 정보화사업 대표 1건으로 합산해 구성됨
                                         // - 각 항목의 pulDtt 는 공통코드 cdva (예: "001"=신규, "002"=계속)
                                         // BPROJM 재조회 시 동일 prjMngNo 의 여러 스냅샷 중 ornYn='Y' 가 선택되어
                                         // 카운트가 줄어드는 문제를 피하기 위함이다.
@@ -379,6 +387,7 @@ public class PlanService {
                                                 .prjMngNo(p.getAbusMngNo())
                                                 .abusNm(p.getAbusNm())
                                                 .prjTp(p.getBzTpC())
+                                                .pulDtt(p.getAbusTc())
                                                 .svnHdq(p.getPrlmHrkOgzCCone())
                                                 .svnDpm(p.getSvnDpmC())
                                                 .svnDpmNm(p.getSvnDpmCNm())
@@ -394,6 +403,7 @@ public class PlanService {
                                                 .prjMngNo(c.getCostBgNo())
                                                 .abusNm(c.getCttNm())
                                                 .prjTp(c.getTmnYn())
+                                                .pulDtt(null)
                                                 .svnHdq("미분류")
                                                 .svnDpm(c.getCostSvnDpmC())
                                                 .svnDpmNm(c.getCostSvnDpmNm() != null ? c.getCostSvnDpmNm() : "")
@@ -403,22 +413,36 @@ public class PlanService {
                                                 .build())
                                 .toList();
 
-                // 부문별/사업유형별 사업목록에는 일반 정보화사업만 표시합니다.
-                Set<String> ordinaryProjectIds = projects.stream()
+                // 부문별 목록은 경상사업을 IT기획부 대표 1건으로 합산하고,
+                // 사업유형별 목록은 기존처럼 일반 정보화사업만 표시합니다.
+                List<ProjectDto.Response> ordinaryProjects = projects.stream()
                                 .filter(p -> "Y".equals(p.getOdnYn()))
-                                .map(value -> value.getAbusMngNo())
-                                .collect(Collectors.toSet());
-                List<PlanDto.ProjectSnapshot> businessListSnapshots = projectSnapshots.stream()
-                                .filter(p -> !ordinaryProjectIds.contains(p.getPrjMngNo()))
                                 .toList();
+                List<PlanDto.ProjectSnapshot> generalBusinessListSnapshots = projectSnapshots.stream()
+                                .filter(p -> ordinaryProjects.stream()
+                                                .noneMatch(ordinary -> Objects.equals(
+                                                                ordinary.getAbusMngNo(),
+                                                                p.getPrjMngNo())))
+                                .toList();
+                List<PlanDto.ProjectSnapshot> departmentBusinessListSnapshots =
+                                new ArrayList<>(generalBusinessListSnapshots);
+                PlanDto.ProjectSnapshot ordinaryProjectSummary =
+                                buildOrdinaryProjectSummary(request.getBseYy(), ordinaryProjects);
+                if (ordinaryProjectSummary != null) {
+                        departmentBusinessListSnapshots.add(ordinaryProjectSummary);
+                }
 
-                // 통합 스냅샷 목록
-                projectSnapshots.addAll(costSnapshots);
+                // 통합 스냅샷 목록: 경상사업 원본 여러 건은 대표 신규 정보화사업 1건으로 치환합니다.
+                List<PlanDto.ProjectSnapshot> combinedProjectSnapshots =
+                                new ArrayList<>(departmentBusinessListSnapshots);
+                combinedProjectSnapshots.addAll(costSnapshots);
 
                 // 부문(SVN_HDQ)별 그룹핑
-                Map<String, List<PlanDto.ProjectSnapshot>> byDeptMap = businessListSnapshots.stream()
+                Map<String, List<PlanDto.ProjectSnapshot>> byDeptMap = departmentBusinessListSnapshots.stream()
                                 .collect(Collectors.groupingBy(
-                                                p -> p.getSvnHdq() != null ? p.getSvnHdq() : "미분류"));
+                                                p -> p.getSvnHdq() != null ? p.getSvnHdq() : "미분류",
+                                                LinkedHashMap::new,
+                                                Collectors.toList()));
 
                 List<Map<String, Object>> byDepartment = byDeptMap.entrySet().stream()
                                 .map(entry -> {
@@ -430,9 +454,11 @@ public class PlanService {
                                 .toList();
 
                 // 사업유형(PRJ_TP)별 그룹핑
-                Map<String, List<PlanDto.ProjectSnapshot>> byTypeMap = businessListSnapshots.stream()
+                Map<String, List<PlanDto.ProjectSnapshot>> byTypeMap = generalBusinessListSnapshots.stream()
                                 .collect(Collectors.groupingBy(
-                                                p -> p.getPrjTp() != null ? p.getPrjTp() : "미분류"));
+                                                p -> p.getPrjTp() != null ? p.getPrjTp() : "미분류",
+                                                LinkedHashMap::new,
+                                                Collectors.toList()));
 
                 List<Map<String, Object>> byProjectType = byTypeMap.entrySet().stream()
                                 .map(entry -> {
@@ -450,7 +476,7 @@ public class PlanService {
                                 .aduTotAmt(aduTotAmt)
                                 .cpitBgApvAmt(cpitBgApvAmt)
                                 .totXpAmt(totXpAmt)
-                                .projects(projectSnapshots)
+                                .projects(combinedProjectSnapshots)
                                 .byDepartment(byDepartment)
                                 .byProjectType(byProjectType)
                                 .budgetAllocation(request.getBudgetAllocation())
@@ -470,6 +496,61 @@ public class PlanService {
                         throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                                         "계획 스냅샷 직렬화에 실패했습니다.", e);
                 }
+        }
+
+        /**
+         * 부문별 사업목록에 표시할 경상사업 대표 행을 생성합니다.
+         *
+         * @param bseYy            기준년도
+         * @param ordinaryProjects 선택된 경상사업 목록
+         * @return 경상사업 대표 스냅샷. 경상사업이 없으면 null.
+         */
+        private static PlanDto.ProjectSnapshot buildOrdinaryProjectSummary(
+                        String bseYy,
+                        List<ProjectDto.Response> ordinaryProjects) {
+                if (ordinaryProjects.isEmpty()) {
+                        return null;
+                }
+
+                ProjectDto.Response firstProject = ordinaryProjects.getFirst();
+                BigDecimal assetBg = sumAmount(ordinaryProjects, ProjectDto.Response::getAssetBg);
+                BigDecimal costBg = sumAmount(ordinaryProjects, ProjectDto.Response::getCostBg);
+                BigDecimal prjBg = sumAmount(ordinaryProjects, ProjectDto.Response::getTotRqmAmt);
+                if (BigDecimal.ZERO.compareTo(prjBg) == 0) {
+                        prjBg = assetBg.add(costBg);
+                }
+
+                return PlanDto.ProjectSnapshot.builder()
+                                .prjMngNo(ORDINARY_PROJECT_SUMMARY_ID)
+                                .abusNm(String.format("%s년 경상사업 (%s 등 %d건)",
+                                                bseYy,
+                                                firstProject.getAbusNm() != null ? firstProject.getAbusNm() : "경상사업",
+                                                ordinaryProjects.size()))
+                                .prjTp(firstProject.getBzTpC() != null ? firstProject.getBzTpC() : "미분류")
+                                .pulDtt(NEW_PROJECT_TYPE_CODE)
+                                .svnHdq(IT_AI_HEADQUARTERS_NAME)
+                                .svnDpm(IT_PLANNING_DEPARTMENT_CODE)
+                                .svnDpmNm(IT_PLANNING_DEPARTMENT_NAME)
+                                .prjBg(prjBg)
+                                .assetBg(assetBg)
+                                .costBg(costBg)
+                                .build();
+        }
+
+        /**
+         * null 금액을 0으로 보정해 합산합니다.
+         *
+         * @param projects 선택 사업 목록
+         * @param selector 합산 대상 금액 선택자
+         * @return 합산 금액
+         */
+        private static BigDecimal sumAmount(
+                        List<ProjectDto.Response> projects,
+                        Function<ProjectDto.Response, BigDecimal> selector) {
+                return projects.stream()
+                                .map(selector)
+                                .map(value -> value != null ? value : BigDecimal.ZERO)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
         /**

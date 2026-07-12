@@ -18,6 +18,7 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.estimate.dto.EstimateDto;
 import com.kdb.it.domain.estimate.service.EstimateService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -73,13 +74,19 @@ class EstimateControllerTest {
         given(estimateService.list(any(), any(), any()))
                 .willReturn(List.of(new EstimateDto.ListItem(
                         "REQ-2026-0001", 1, "100", "PRJ-1",
-                        "테스트사업", "51", "10001", null)));
+                        "테스트사업", new BigDecimal("120000000"), LocalDate.of(2026, 1, 1),
+                        LocalDate.of(2026, 12, 31), "18001", null, "51", "10001", null)));
 
         mockMvc.perform(get("/api/project/estimates")
                         .param("status", "51")
                         .param("cncdRfrNo", "PRJ-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].rqmBgReqDocNo").value("REQ-2026-0001"));
+                .andExpect(jsonPath("$[0].rqmBgReqDocNo").value("REQ-2026-0001"))
+                .andExpect(jsonPath("$[0].totalBudget").value(120000000))
+                .andExpect(jsonPath("$[0].sttDtm").value("2026-01-01"))
+                .andExpect(jsonPath("$[0].endDtm").value("2026-12-31"))
+                .andExpect(jsonPath("$[0].svnDpmC").value("18001"))
+                .andExpect(jsonPath("$[0].svnDpmNm").doesNotExist());
     }
 
     @Test

@@ -6,6 +6,8 @@ import static org.mockito.Mockito.verify;
 
 import com.kdb.it.domain.estimate.dto.EstimateDto;
 import com.kdb.it.domain.estimate.entity.Bestim;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -128,7 +130,9 @@ class EstimateRepositoryTest {
         // Arrange
         EstimateDto.ListItem item = new EstimateDto.ListItem(
                 "BEG-2026-00000001", 1, "100", "PRJ-2026-0001",
-                "클라우드 전환 사업", "51", "EMP001", null);
+                "클라우드 전환 사업", new BigDecimal("500000000"),
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                "18001", "IT기획부", "51", "EMP001", null);
         given(repository.search(null, null, null)).willReturn(List.of(item));
 
         // Act
@@ -138,6 +142,9 @@ class EstimateRepositoryTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).rqmBgReqDocNo()).isEqualTo("BEG-2026-00000001");
         assertThat(result.get(0).abusNm()).isEqualTo("클라우드 전환 사업");
+        assertThat(result.get(0).totalBudget()).isEqualByComparingTo(new BigDecimal("500000000"));
+        assertThat(result.get(0).svnDpmC()).isEqualTo("18001");
+        assertThat(result.get(0).svnDpmNm()).isEqualTo("IT기획부");
     }
 
     @Test

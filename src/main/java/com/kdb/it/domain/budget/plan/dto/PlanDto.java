@@ -206,8 +206,8 @@ public class PlanDto {
         @Schema(description = "최초생성자 이름")
         private String fstEnrUsNm;
 
-        /** 정보화사업 건수 (경상사업 제외) */
-        @Schema(description = "정보화사업 건수 (경상사업 제외)")
+        /** 정보화사업 건수 (경상사업은 대표 신규 사업 1건으로 포함) */
+        @Schema(description = "정보화사업 건수 (경상사업은 대표 신규 사업 1건으로 포함)")
         private Integer itPrjCnt;
 
         /** 신규 사업 건수 (정보화사업 중 PUL_DTT=신규) */
@@ -435,6 +435,9 @@ public class PlanDto {
 
         /** 사업유형 */
         private String prjTp;
+
+        /** 사업구분 (신규/계속 코드) */
+        private String pulDtt;
 
         /** 주관본부/부문 */
         private String svnHdq;
