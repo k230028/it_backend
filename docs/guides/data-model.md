@@ -28,6 +28,14 @@
 | Bgdocm  | TPRMPP_BGDOCM   | 가이드 문서       |
 | Brdocm  | TPRMPP_BRDOCM   | 요구사항 정의서   |
 | Brivgm  | TPRMPP_BRIVGM   | 요구사항 검토의견 |
+| Bbizpm  | TPRMPP_BBIZPM   | 사업계획 기본 (사업과 1:1) |
+| Bbizsm  | TPRMPP_BBIZSM   | 사업일정 기본     |
+| Bbizgm  | TPRMPP_BBIZGM   | 사업품목 기본     |
+| Bbizcm  | TPRMPP_BBIZCM   | 사업계약 기본     |
+| BbizpmL | TPRMPP_BBIZPL   | 사업계획 로그     |
+| BbizsmL | TPRMPP_BBIZSL   | 사업일정 로그     |
+| BbizgmL | TPRMPP_BBIZGL   | 사업품목 로그     |
+| BbizcmL | TPRMPP_BBIZCL   | 사업계약 로그     |
 
 ### 2.2 협의회 (council)
 
@@ -130,6 +138,7 @@
 | 과업심의 | TPRMPP_BDELIM | DOC_MNG_NO |
 | 입찰계약 | TPRMPP_BCONTM | DOC_MNG_NO |
 | 대금지급 | TPRMPP_BPAYMM | DOC_MNG_NO |
+| 사업계획 | TPRMPP_BBIZPM | BIZ-{ABUS_MNG_NO} (합성 키 — 협의회가 원본 `ABUS_MNG_NO`를 쓰므로 접두사로 충돌 회피) |
 
 ## 4. 채번 규칙
 
