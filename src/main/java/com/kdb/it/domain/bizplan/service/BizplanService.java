@@ -62,11 +62,28 @@ public class BizplanService {
     private final BprojaRepository bprojaRepository;
     private final BprojaSyncService bprojaSyncService;
 
+    /**
+     * 목록 조회 — 관리자는 전체, 그 외는 소속 부서 사업만.
+     *
+     * @param user 요청자 인증 정보
+     * @return BPLANA 포함 사업 기준 목록 (미작성 사업 포함, stsTc=null)
+     */
     public List<BizplanDto.ListItem> list(CustomUserDetails user) {
         String bbrC = user.isAdmin() ? null : user.getBbrC();
         return bizplanRepository.search(bbrC);
     }
 
+    /**
+     * 상세 진입(create-or-get) — BBIZPM이 없으면 생성하고 BPROJA에 21을 upsert한다.
+     *
+     * <p>생성 시 사업명은 BPROJM에서 복사하고, 예산번호는 BPROJA의 예산편성 행({@code BG-%})에서
+     * 자동 연계한다(없으면 null). 이미 존재하면 부수효과 없이 상세만 반환한다(멱등).</p>
+     *
+     * @param abusMngNo 사업관리번호
+     * @param user      요청자 인증 정보
+     * @throws IllegalArgumentException 사업 미존재 또는 BPLANA 미포함
+     * @throws AccessDeniedException    주관부서도 관리자도 아닌 경우
+     */
     @Transactional
     public BizplanDto.Detail getOrCreate(String abusMngNo, CustomUserDetails user) {
         Bprojm project = loadEligibleProject(abusMngNo);
@@ -85,12 +102,31 @@ public class BizplanService {
         return toDetail(plan);
     }
 
+    /**
+     * 상세 재조회 (부수효과 없음, 진입 이후 refresh 용).
+     *
+     * @param abusMngNo 사업관리번호
+     * @param user      요청자 인증 정보
+     * @throws IllegalArgumentException 사업 미존재/BPLANA 미포함/사업계획 미생성
+     */
     public BizplanDto.Detail get(String abusMngNo, CustomUserDetails user) {
         Bprojm project = loadEligibleProject(abusMngNo);
         verifyDeptOrAdmin(project.getSvnDpmC(), user);
         return toDetail(loadPlan(abusMngNo));
     }
 
+    /**
+     * 전체 저장 — 보고서/전결권 + 일정/품목/계약 병합.
+     *
+     * <p>자식 행은 (ABUS_MNG_NO, SNO) 기준 upsert: 기존 행은 갱신(삭제행 재사용 시 복원),
+     * 미존재 SNO는 INSERT, 요청에 없는 활성 행은 soft delete. SNO는 프론트가 부여한다.
+     * 품목 {@code cttSno}는 요청 계약 목록의 SNO만 허용(null 가능).
+     * 저장 마지막에 총소요금액을 활성 품목 금액 합계로 재계산한다.
+     * 완료(29) 상태에서도 저장 가능하며 상태는 변경하지 않는다.</p>
+     *
+     * @throws IllegalArgumentException SNO 중복, cttSno 불일치, 사업계획 미생성
+     * @throws AccessDeniedException    주관부서도 관리자도 아닌 경우
+     */
     @Transactional
     public void save(String abusMngNo, BizplanDto.SaveRequest req, CustomUserDetails user) {
         Bprojm project = loadEligibleProject(abusMngNo);
@@ -107,6 +143,12 @@ public class BizplanService {
         plan.changeTotalAmount(total);
     }
 
+    /**
+     * 완료 처리 — BPROJA 상태 21→29 전이만 허용.
+     *
+     * @throws IllegalArgumentException 목표 상태가 29가 아닌 경우
+     * @throws IllegalStateException    현재 상태가 21이 아닌 경우
+     */
     @Transactional
     public void complete(String abusMngNo, BizplanDto.StatusRequest req, CustomUserDetails user) {
         Bprojm project = loadEligibleProject(abusMngNo);
@@ -156,6 +198,12 @@ public class BizplanService {
         throw new AccessDeniedException("사업 주관부서 또는 관리자만 수행할 수 있습니다.");
     }
 
+    /**
+     * BPROJA 예산편성 행(BG-%)에서 예산번호 자동 연계 (없으면 null).
+     *
+     * <p>한 사업의 예산편성 단계 BPROJA 행은 1건이라는 전제로 첫 BG- 키를 사용한다.
+     * 다건이 존재할 경우 어느 행이 선택될지는 보장되지 않는다.</p>
+     */
     private String resolveBgNo(String abusMngNo) {
         return bprojaRepository.findByAbusMngNoAndDelYn(abusMngNo, "N").stream()
                 .map(Bproja::getCncdRfrNo)
@@ -234,6 +282,7 @@ public class BizplanService {
             }
         }
         softDeleteMissing(bySno.values(), Bbizgm::getSno, incoming, Bbizgm::delete);
+        // 총소요금액 = 요청(=저장 후 활성) 품목 금액 합계 (BITEMM 규칙과 동일하게 amt는 KRW 환산값)
         return rows.stream()
                 .map(BizplanDto.ItemRequest::amt)
                 .filter(Objects::nonNull)

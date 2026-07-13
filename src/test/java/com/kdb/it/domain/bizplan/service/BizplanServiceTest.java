@@ -178,7 +178,9 @@ class BizplanServiceTest {
         @Test
         @DisplayName("기존 행 갱신 + 요청에 없는 활성 행 soft delete + 총소요금액=활성 품목 합계")
         void mergesRowsAndRecalculatesTotal() {
-            stubPlanLoaded();
+            stubEligibleProject();
+            Bbizpm planRef = plan();
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.of(planRef));
             Bbizgm existing1 = Bbizgm.builder().abusMngNo(PRJ).sno(1).gclNm("서버").amt(new BigDecimal("100")).build();
             Bbizgm existing2 = Bbizgm.builder().abusMngNo(PRJ).sno(2).gclNm("삭제될 품목").amt(new BigDecimal("50")).build();
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
@@ -191,6 +193,7 @@ class BizplanServiceTest {
 
             assertThat(existing1.getAmt()).isEqualByComparingTo("300");
             assertThat(existing2.getDelYn()).isEqualTo("Y");
+            assertThat(planRef.getTotRqmAmt()).isEqualByComparingTo("300");
         }
 
         @Test
@@ -226,6 +229,15 @@ class BizplanServiceTest {
             stubEligibleProject();
             assertThatThrownBy(() -> service.save(PRJ, requestWith(List.of(), List.of()), otherDeptUser()))
                     .isInstanceOf(AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("사업계획 미생성 상태에서 저장하면 IllegalArgumentException")
+        void rejectsSaveBeforeCreate() {
+            stubEligibleProject();
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.empty());
+            assertThatThrownBy(() -> service.save(PRJ, requestWith(List.of(), List.of()), deptUser()))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
@@ -267,6 +279,27 @@ class BizplanServiceTest {
             stubPlanLoaded();
             assertThatThrownBy(() -> service.complete(PRJ, new BizplanDto.StatusRequest("21"), deptUser()))
                     .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("get — 상세 재조회(부수효과 없음)")
+    class GetTests {
+        @Test
+        @DisplayName("사업계획이 있으면 상세를 반환하고 저장/상태 upsert는 하지 않는다")
+        void returnsDetailWithoutSideEffects() {
+            stubEligibleProject();
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.of(plan()));
+            when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
+            when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
+            when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY))).thenReturn(Optional.empty());
+
+            BizplanDto.Detail detail = service.get(PRJ, deptUser());
+
+            assertThat(detail.abusMngNo()).isEqualTo(PRJ);
+            verify(bizplanRepository, never()).save(any());
+            verify(bprojaSyncService, never()).upsert(any(), any(), any());
         }
     }
 
