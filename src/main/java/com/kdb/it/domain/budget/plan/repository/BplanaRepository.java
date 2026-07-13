@@ -29,4 +29,7 @@ public interface BplanaRepository extends JpaRepository<Bplana, BplanaId> {
      * @return 정보기술부문계획 관계 엔티티 목록
      */
     List<Bplana> findAllByReqDocNoInAndDelYn(Collection<String> reqDocNos, String delYn);
+
+    /** 사업이 정보기술부문 계획(어느 연도든)에 포함되어 있는지 확인 (사업계획 진입 자격 검증용) */
+    boolean existsByPrjMngNoAndDelYn(String prjMngNo, String delYn);
 }
