@@ -15,7 +15,7 @@ import java.net.URI;
 /**
  * 게시판 메타 관리 컨트롤러 — 관리자 전용
  *
- * <p>{@code @PreAuthorize} 클래스 레벨 적용 필수 (CLAUDE.md §5.6)</p>
+ * <p>관리자 전용 API이므로 클래스 수준 {@code @PreAuthorize}를 적용합니다.</p>
  */
 @RestController
 @RequestMapping("/api/admin/boards/meta")

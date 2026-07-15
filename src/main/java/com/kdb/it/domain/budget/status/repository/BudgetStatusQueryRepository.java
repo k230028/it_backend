@@ -13,7 +13,7 @@ import java.util.List;
  * 각 쿼리는 DB 레벨에서 조인+피벗을 처리하여 단일 호출로 정제된 데이터를 반환합니다.
  * </p>
  *
- * // Design Ref: §3.4 — BudgetStatusQueryRepository 설계
+ * 예산 현황 탭별 집계 조회 계약을 정의합니다.
  */
 public interface BudgetStatusQueryRepository {
 

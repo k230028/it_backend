@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,20 +13,25 @@ import com.kdb.it.domain.bizplan.dto.BizplanDto;
 import com.kdb.it.domain.bizplan.entity.Bbizcm;
 import com.kdb.it.domain.bizplan.entity.Bbizgm;
 import com.kdb.it.domain.bizplan.entity.Bbizpm;
+import com.kdb.it.domain.bizplan.entity.Bbizsm;
 import com.kdb.it.domain.bizplan.repository.BbizcmRepository;
 import com.kdb.it.domain.bizplan.repository.BbizgmRepository;
 import com.kdb.it.domain.bizplan.repository.BbizsmRepository;
 import com.kdb.it.domain.bizplan.repository.BizplanRepository;
 import com.kdb.it.domain.budget.plan.repository.BplanaRepository;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bproja;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.entity.BprojaId;
 import com.kdb.it.domain.budget.project.repository.BprojaRepository;
+import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -46,6 +52,7 @@ class BizplanServiceTest {
     @Mock BbizgmRepository bbizgmRepository;
     @Mock BbizcmRepository bbizcmRepository;
     @Mock ProjectRepository projectRepository;
+    @Mock ProjectItemRepository projectItemRepository;
     @Mock BplanaRepository bplanaRepository;
     @Mock BprojaRepository bprojaRepository;
     @Mock BprojaSyncService bprojaSyncService;
@@ -55,8 +62,8 @@ class BizplanServiceTest {
     @BeforeEach
     void setUp() {
         service = new BizplanService(bizplanRepository, bbizsmRepository, bbizgmRepository,
-                bbizcmRepository, projectRepository, bplanaRepository, bprojaRepository,
-                bprojaSyncService);
+                bbizcmRepository, projectRepository, projectItemRepository, bplanaRepository,
+                bprojaRepository, bprojaSyncService);
     }
 
     /** 주관부서(18001) 사용자 */
@@ -132,6 +139,63 @@ class BizplanServiceTest {
             assertThat(detail.stsTc()).isEqualTo("29");
             verify(bizplanRepository, never()).save(any());
             verify(bprojaSyncService, never()).upsert(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("BBIZPM 최초 생성 시 사업(BITEMM 최신·유효본)의 소요예산 품목을 BBIZGM으로 복사한다")
+        void seedsItemsFromProjectOnCreate() {
+            stubEligibleProject();
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.empty());
+            // 예산신청 소요예산 상세내용 품목(BITEMM) 최신·유효본 2건
+            when(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(PRJ, "N", "Y")).thenReturn(List.of(
+                    Bitemm.builder().gclMngNo("GCL-2026-0001").sno(1).abusMngNo(PRJ)
+                            .gclNm("서버").ioeC("101").qty(new BigDecimal("2"))
+                            .curC("KRW").amt(new BigDecimal("1000000")).build(),
+                    Bitemm.builder().gclMngNo("GCL-2026-0001").sno(2).abusMngNo(PRJ)
+                            .gclNm("SW 라이선스").ioeC("201").qty(new BigDecimal("1"))
+                            .curC("USD").xcr(new BigDecimal("1300")).fcAmt(new BigDecimal("500"))
+                            .amt(new BigDecimal("650000")).build()));
+
+            service.getOrCreate(PRJ, deptUser());
+
+            // BBIZGM 2건 저장 — SNO는 1부터 순번, 필드는 BITEMM에서 복사(qty는 Long 변환)
+            ArgumentCaptor<Bbizgm> itemCaptor = ArgumentCaptor.forClass(Bbizgm.class);
+            verify(bbizgmRepository, times(2)).save(itemCaptor.capture());
+            List<Bbizgm> saved = itemCaptor.getAllValues();
+            assertThat(saved).extracting(Bbizgm::getSno).containsExactly(1, 2);
+            assertThat(saved).extracting(Bbizgm::getGclNm).containsExactly("서버", "SW 라이선스");
+            assertThat(saved).extracting(Bbizgm::getIoeC).containsExactly("101", "201");
+            assertThat(saved.get(0).getQty()).isEqualTo(2L);
+            assertThat(saved.get(0).getCurC()).isEqualTo("KRW");
+            assertThat(saved.get(1).getCurC()).isEqualTo("USD");
+            assertThat(saved.get(1).getFcAmt()).isEqualByComparingTo("500");
+            assertThat(saved.get(1).getXcr()).isEqualByComparingTo("1300");
+
+            // 총소요금액 = 복사 품목 amt 합계 (1,000,000 + 650,000)
+            ArgumentCaptor<Bbizpm> planCaptor = ArgumentCaptor.forClass(Bbizpm.class);
+            verify(bizplanRepository).save(planCaptor.capture());
+            assertThat(planCaptor.getValue().getTotRqmAmt()).isEqualByComparingTo("1650000");
+        }
+
+        @Test
+        @DisplayName("BBIZSM 최초 생성 시 사업(BPROJM)의 시작/종료일자로 기본 일정 1건(일정내용='사업추진')을 시드한다")
+        void seedsScheduleFromProjectOnCreate() {
+            when(projectRepository.findByAbusMngNoAndLstYnAndDelYn(PRJ, "Y", "N")).thenReturn(
+                    Optional.of(Bprojm.builder().abusMngNo(PRJ).sno(1).abusNm("차세대 시스템 구축")
+                            .svnDpmC("18001").lstYn("Y")
+                            .sttDtm(LocalDate.of(2026, 3, 1)).endDtm(LocalDate.of(2026, 12, 31)).build()));
+            when(bplanaRepository.existsByPrjMngNoAndDelYn(PRJ, "N")).thenReturn(true);
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.empty());
+
+            service.getOrCreate(PRJ, deptUser());
+
+            ArgumentCaptor<Bbizsm> captor = ArgumentCaptor.forClass(Bbizsm.class);
+            verify(bbizsmRepository).save(captor.capture());
+            Bbizsm saved = captor.getValue();
+            assertThat(saved.getSno()).isEqualTo(1);
+            assertThat(saved.getDsdCone()).isEqualTo("사업추진");
+            assertThat(saved.getSttDt()).isEqualTo("20260301");
+            assertThat(saved.getEndDt()).isEqualTo("20261231");
         }
 
         @Test

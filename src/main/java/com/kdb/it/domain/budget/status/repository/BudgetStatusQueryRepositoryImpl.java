@@ -34,7 +34,7 @@ import java.util.List;
  * 단일 쿼리로 정제된 데이터를 반환합니다.
  * </p>
  *
- * // Design Ref: §3.5 — QueryDSL 쿼리 전략
+ * QueryDSL 집계 결과를 탭별 응답 DTO로 변환합니다.
  */
 @Repository
 @RequiredArgsConstructor

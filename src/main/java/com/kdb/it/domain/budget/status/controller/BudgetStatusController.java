@@ -27,7 +27,7 @@ import java.util.List;
  * 각 탭은 편성요청 금액과 조정(편성) 금액을 병렬로 포함합니다.
  * </p>
  *
- * // Design Ref: §3.6 — BudgetStatusController 설계
+ * 예산 현황 조회는 관리자에게만 허용되며 탭별 집계 서비스로 위임합니다.
  */
 @RestController
 @RequestMapping("/api/budget/status")

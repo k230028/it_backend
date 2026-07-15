@@ -603,6 +603,19 @@ public class ProjectService {
     }
 
     /**
+     * 네이티브 쿼리 결과의 문자열 컬럼 안전 변환.
+     *
+     * <p>Oracle JDBC가 VARCHAR2 컬럼을 Character/String으로 혼용 반환할 수 있어 직접 캐스트 대신
+     * {@code toString()}으로 변환합니다.</p>
+     *
+     * @param value 네이티브 결과 컬럼값(null 허용)
+     * @return null이면 null, 아니면 문자열 표현
+     */
+    private static String toNativeStr(Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    /**
      * 도입시기를 DB 컬럼 형식(YYYYMM, 6자)으로 변환.
      * 프론트에서 "YYYY-MM-DD" 또는 "YYYY-MM" 형식이 올 수 있으므로
      * 하이픈을 제거한 뒤 앞 6자만 사용한다. 빈값/null은 그대로 반환.
@@ -841,6 +854,17 @@ public class ProjectService {
                         value -> value.getAbusMngNo(),
                         Collectors.collectingAndThen(Collectors.toList(), this::representativeStatus)));
 
+        // 사업계획서 사업일정(BBIZSM) 범위 배치 조회: 사업별 MIN(STT_DT)/MAX(END_DT).
+        // 대시보드 '사업별 진행현황' 간트 막대를 예산 일정이 아닌 사업계획서 일정 기준으로 표시하기 위함.
+        // 사업계획 일정이 없는 사업은 결과에 없어 값이 null로 남고, 프론트가 예산 일정으로 폴백한다.
+        Map<String, String[]> bizScheduleByPrj = new java.util.HashMap<>();
+        for (Object[] row : projectRepository.findBizplanScheduleRange(prjMngNos)) {
+            String id = toNativeStr(row[0]);
+            if (id != null) {
+                bizScheduleByPrj.put(id, new String[] { toNativeStr(row[1]), toNativeStr(row[2]) });
+            }
+        }
+
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < projects.size(); i++) {
             Bprojm project = projects.get(i);
@@ -886,6 +910,13 @@ public class ProjectService {
 
             // 프로젝트 대표상태 주입(없으면 null)
             response.setStsTc(repStatusByPrj.get(project.getAbusMngNo()));
+
+            // 사업계획서 사업일정 범위 주입(사업계획 미작성 사업은 null 유지 → 프론트가 예산 일정으로 폴백)
+            String[] bizRange = bizScheduleByPrj.get(project.getAbusMngNo());
+            if (bizRange != null) {
+                response.setBizplanSttDt(bizRange[0]);
+                response.setBizplanEndDt(bizRange[1]);
+            }
 
             setBudgetSummary(response, project.getAbusMngNo(), project.getSno());
 

@@ -1,5 +1,6 @@
 package com.kdb.it.domain.bizplan.repository;
 
+import com.kdb.it.common.iam.entity.QCorgnI;
 import com.kdb.it.domain.bizplan.dto.BizplanDto;
 import com.kdb.it.domain.bizplan.entity.QBbizpm;
 import com.kdb.it.domain.budget.plan.entity.QBplana;
@@ -33,6 +34,7 @@ public class BizplanRepositoryImpl implements BizplanRepositoryCustom {
         QBprojm p = QBprojm.bprojm;
         QBbizpm bp = QBbizpm.bbizpm;
         QBproja a = QBproja.bproja;
+        QCorgnI org = QCorgnI.corgnI;
 
         BooleanBuilder where = new BooleanBuilder();
         where.and(pa.delYn.eq("N"));
@@ -46,7 +48,8 @@ public class BizplanRepositoryImpl implements BizplanRepositoryCustom {
                         p.abusMngNo,   // 사업관리번호
                         p.abusNm,      // 사업명
                         p.svnDpmC,     // 주관부서코드
-                        p.svnDpmNm,    // 주관부서명(스냅샷)
+                        // 주관부서명: 조직 마스터(CORGNI) 실시간 부서명 우선, 없으면 저장 스냅샷 사용
+                        org.bbrNm.coalesce(p.svnDpmNm),
                         p.bseYy,       // 예산연도
                         bp.totRqmAmt,  // 총소요금액(사업계획 미생성 시 null)
                         a.stsTc,       // 사업계획 상태(21/29, 미생성 시 null=미작성)
@@ -60,6 +63,8 @@ public class BizplanRepositoryImpl implements BizplanRepositoryCustom {
                 .leftJoin(a).on(a.abusMngNo.eq(p.abusMngNo)
                         .and(a.cncdRfrNo.eq(p.abusMngNo.prepend(BPROJA_KEY_PREFIX)))
                         .and(a.delYn.eq("N")))
+                // 주관부서코드 → 조직 마스터 부서명 조인 (delYn='N'인 조직만)
+                .leftJoin(org).on(org.prlmOgzCCone.eq(p.svnDpmC).and(org.delYn.eq("N")))
                 .where(where)
                 .orderBy(p.abusMngNo.desc())
                 .fetch();

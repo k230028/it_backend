@@ -58,7 +58,7 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class AdminService {
 
-        // Design Ref: §2.3 — 기존 리포지토리 DI 재사용, 신규 리포지토리 생성 없음
+        // 각 관리 기능은 기존 도메인 리포지토리를 생성자 주입으로 재사용합니다.
         private final CodeRepository codeRepository;
         private final AuthRepository authRepository;
         private final RoleRepository roleRepository;
@@ -759,7 +759,7 @@ public class AdminService {
          * @return 일별 로그인 통계 DTO 목록 (날짜 오름차순)
          */
         public List<AdminDto.LoginStatResponse> getLoginStats() {
-                // Design Ref: §3.7 — 대시보드 차트 데이터 (최근 30일 일별 집계)
+                // 대시보드 차트에 사용할 최근 30일 일별 집계를 조회합니다.
                 // 일자 라벨이 null/공백이면 LocalDate.parse가 예외를 던지므로 방어적으로 제외한다.
                 return loginHistoryRepository.findDailyLoginStatRows().stream()
                                 .filter(row -> row.label() != null && !row.label().isBlank())

@@ -12,13 +12,18 @@ import com.kdb.it.domain.bizplan.repository.BbizgmRepository;
 import com.kdb.it.domain.bizplan.repository.BbizsmRepository;
 import com.kdb.it.domain.bizplan.repository.BizplanRepository;
 import com.kdb.it.domain.budget.plan.repository.BplanaRepository;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bproja;
 import com.kdb.it.domain.budget.project.entity.BprojaId;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.BprojaRepository;
+import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +53,8 @@ public class BizplanService {
 
     static final String STS_IN_PROGRESS = "21";
     static final String STS_DONE = "29";
+    /** 향후일정 기본 시드 일정내용 */
+    static final String DEFAULT_SCHEDULE_DSD_CONE = "사업추진";
     /** BPROJA 사업계획 단계 키 접두사 — 협의회가 원본 ABUS_MNG_NO를 키로 쓰므로 충돌 회피 */
     static final String BPROJA_KEY_PREFIX = "BIZ-";
     /** BPROJA 예산편성 단계 키 접두사 (BG_NO 자동 연계용) */
@@ -58,6 +65,7 @@ public class BizplanService {
     private final BbizgmRepository bbizgmRepository;
     private final BbizcmRepository bbizcmRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectItemRepository projectItemRepository;
     private final BplanaRepository bplanaRepository;
     private final BprojaRepository bprojaRepository;
     private final BprojaSyncService bprojaSyncService;
@@ -98,6 +106,15 @@ public class BizplanService {
                     .build();
             bizplanRepository.save(plan);
             bprojaSyncService.upsert(abusMngNo, bprojaKey(abusMngNo), STS_IN_PROGRESS);
+        }
+        // 사업품목이 한 번도 없으면(신규 생성 또는 아직 미시드된 기존 계획) 예산신청 소요예산 품목을 시드한다.
+        // 사용자가 삭제(soft delete)한 이력이 있으면 행이 남으므로 재시드되지 않는다.
+        if (bbizgmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).isEmpty()) {
+            seedItemsFromProject(abusMngNo, plan);
+        }
+        // 향후일정이 한 번도 없으면 예산신청 사업(BPROJM)의 시작/종료일자로 기본 일정 1건(일정내용='사업추진')을 시드한다.
+        if (bbizsmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).isEmpty()) {
+            seedSchedulesFromProject(abusMngNo, project);
         }
         return toDetail(plan);
     }
@@ -166,6 +183,75 @@ public class BizplanService {
     }
 
     // ----- 내부 헬퍼 -----
+
+    /**
+     * 해당 사업(BPROJM)의 예산신청 소요예산 상세내용 품목
+     * (BITEMM 최신·유효본, {@code LST_YN='Y'} · {@code DEL_YN='N'})을 사업품목(BBIZGM)으로 복사한다.
+     * SNO는 1부터 순번 부여하고, 총소요금액은 복사한 품목 금액(amt)의 합계로 설정한다.
+     *
+     * <p>호출부(getOrCreate)에서 사업품목 행이 하나도 없을 때만 호출하므로, 사용자가 편집·삭제한
+     * 사업품목을 덮어쓰지 않는다(삭제는 soft delete라 행이 남아 재시드되지 않음).
+     * 원본 품목이 없으면 아무 것도 하지 않는다.</p>
+     *
+     * @param abusMngNo 사업관리번호(= BITEMM.ABUS_MNG_NO)
+     * @param plan      대상 사업계획(총소요금액 설정 대상)
+     */
+    private void seedItemsFromProject(String abusMngNo, Bbizpm plan) {
+        List<Bitemm> sourceItems = projectItemRepository
+                .findByAbusMngNoAndDelYnAndLstYn(abusMngNo, "N", "Y").stream()
+                .sorted(Comparator
+                        .comparing(Bitemm::getGclMngNo, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(Bitemm::getSno, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        if (sourceItems.isEmpty()) {
+            return;
+        }
+        int sno = 1;
+        BigDecimal total = BigDecimal.ZERO;
+        for (Bitemm src : sourceItems) {
+            bbizgmRepository.save(Bbizgm.builder()
+                    .abusMngNo(abusMngNo)
+                    .sno(sno++)
+                    .gclNm(src.getGclNm())
+                    .ioeC(src.getIoeC())
+                    .qty(src.getQty() == null ? null : src.getQty().longValue())
+                    .amt(src.getAmt())
+                    .fcAmt(src.getFcAmt())
+                    .curC(src.getCurC())
+                    .xcr(src.getXcr())
+                    .xcrBseDt(src.getXcrBseDt())
+                    .build());
+            if (src.getAmt() != null) {
+                total = total.add(src.getAmt());
+            }
+        }
+        plan.changeTotalAmount(total);
+    }
+
+    /**
+     * 향후일정이 한 번도 없을 때 — 예산신청 사업(BPROJM)의 시작/종료일자로 기본 일정 1건을 시드한다.
+     * 일정내용 기본값은 '사업추진'이며, 사업 일자가 없으면 해당 일자는 비워 둔다.
+     *
+     * <p>호출부(getOrCreate)에서 사업일정 행이 하나도 없을 때만 호출하므로, 사용자가 편집·삭제한
+     * 일정을 덮어쓰지 않는다(삭제는 soft delete라 행이 남아 재시드되지 않음).</p>
+     *
+     * @param abusMngNo 사업관리번호
+     * @param project   대상 사업(시작/종료일자 원본)
+     */
+    private void seedSchedulesFromProject(String abusMngNo, Bprojm project) {
+        bbizsmRepository.save(Bbizsm.builder()
+                .abusMngNo(abusMngNo)
+                .sno(1)
+                .dsdCone(DEFAULT_SCHEDULE_DSD_CONE)
+                .sttDt(toYmd(project.getSttDtm()))
+                .endDt(toYmd(project.getEndDtm()))
+                .build());
+    }
+
+    /** LocalDate → YYYYMMDD 문자열 (null이면 null). */
+    private static String toYmd(LocalDate date) {
+        return date == null ? null : date.format(DateTimeFormatter.BASIC_ISO_DATE);
+    }
 
     private String bprojaKey(String abusMngNo) {
         return BPROJA_KEY_PREFIX + abusMngNo;

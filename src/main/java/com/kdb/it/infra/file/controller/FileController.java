@@ -55,6 +55,13 @@ public class FileController {
         // 조회
         // ─────────────────────────────────────────
 
+        /**
+         * 검색 조건과 사용자 읽기 범위에 맞는 파일 목록을 조회합니다.
+         *
+         * @param condition 파일 검색 조건
+         * @param userDetails 인증 사용자
+         * @return 접근 가능한 파일 목록
+         */
         @GetMapping
         @Operation(summary = "파일 목록 조회", description = "주식별자컬럼명(pkColNm) 기준으로 파일 목록을 조회합니다. " +
                         "pkCone(주식별자내용)을 추가하면 특정 레코드의 파일만 조회합니다. " +
@@ -65,6 +72,14 @@ public class FileController {
                 return ResponseEntity.ok(fileService.getFiles(condition, userDetails));
         }
 
+        /**
+         * 파일 메타데이터를 조회합니다.
+         *
+         * @param flMpnId 파일 매핑 ID
+         * @param userDetails 인증 사용자
+         * @return 파일 정보
+         * @throws org.springframework.security.access.AccessDeniedException 읽기 권한이 없는 경우
+         */
         @GetMapping("/{flMpnId}")
         @Operation(summary = "파일 단건 조회", description = "파일매핑ID로 첨부파일 상세 정보를 조회합니다.")
         public ResponseEntity<FileDto.Response> getFile(
@@ -79,6 +94,16 @@ public class FileController {
         // 등록
         // ─────────────────────────────────────────
 
+        /**
+         * 파일 한 건을 검증하고 저장합니다.
+         *
+         * @param file 업로드 파일
+         * @param flTpCone 파일 유형
+         * @param pkCone 원본 식별값
+         * @param pkColNm 원본 식별 컬럼명
+         * @return 생성된 파일 정보
+         * @throws com.kdb.it.exception.CustomGeneralException 파일 검증 또는 저장에 실패한 경우
+         */
         @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         @Operation(summary = "파일 단건 업로드", description = "multipart/form-data 형식으로 파일 1개를 업로드합니다. " +
                         "파일물리명은 {서버ID}_{타임스탬프}_{UUID}.{확장자} 형식으로 자동 채번됩니다. " +
@@ -102,6 +127,15 @@ public class FileController {
                                 .body(response);
         }
 
+        /**
+         * 여러 파일을 개별 처리하여 성공·실패 결과를 반환합니다.
+         *
+         * @param files 업로드 파일 목록
+         * @param flTpCone 파일 유형
+         * @param pkCone 원본 식별값
+         * @param pkColNm 원본 식별 컬럼명
+         * @return 파일별 업로드 결과
+         */
         @PostMapping(path = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         @Operation(summary = "파일 다건 일괄 업로드", description = "여러 파일을 한 번에 업로드합니다. 일부 파일이 실패해도 나머지는 계속 처리됩니다. " +
                         "응답에 성공한 파일 목록(successList)과 실패한 파일명 목록(failList)이 포함됩니다.")
@@ -124,6 +158,15 @@ public class FileController {
         // 수정
         // ─────────────────────────────────────────
 
+        /**
+         * 파일의 원본 연결 메타데이터를 수정합니다.
+         *
+         * @param flMpnId 파일 매핑 ID
+         * @param request 수정 요청
+         * @param userDetails 인증 사용자
+         * @return 수정된 파일 매핑 ID
+         * @throws org.springframework.security.access.AccessDeniedException 쓰기 권한이 없는 경우
+         */
         @PutMapping("/{flMpnId}")
         @Operation(summary = "파일 메타데이터 수정", description = "파일이 연결된 원본 도메인 정보(주식별자컬럼명, 주식별자내용)를 변경합니다. " +
                         "파일 자체(파일물리명, 저장경로)는 변경되지 않습니다. " +
@@ -142,6 +185,14 @@ public class FileController {
         // 삭제
         // ─────────────────────────────────────────
 
+        /**
+         * 파일을 논리 삭제합니다.
+         *
+         * @param flMpnId 파일 매핑 ID
+         * @param userDetails 인증 사용자
+         * @return 응답 본문이 없는 성공 응답
+         * @throws org.springframework.security.access.AccessDeniedException 삭제 권한이 없는 경우
+         */
         @DeleteMapping("/{flMpnId}")
         @Operation(summary = "파일 단건 삭제", description = "파일을 논리 삭제합니다(DEL_YN='Y'). 본인이 업로드한 파일만 삭제 가능합니다. 물리 파일은 서버에 유지됩니다.")
         public ResponseEntity<Void> deleteFile(
@@ -153,6 +204,14 @@ public class FileController {
                 return ResponseEntity.noContent().build();
         }
 
+        /**
+         * 원본 식별정보에 연결된 파일을 권한 범위 안에서 일괄 논리 삭제합니다.
+         *
+         * @param request 일괄 삭제 요청
+         * @param userDetails 인증 사용자
+         * @return 삭제된 파일 수
+         * @throws org.springframework.security.access.AccessDeniedException 삭제 권한이 없는 파일이 포함된 경우
+         */
         @DeleteMapping("/bulk")
         @Operation(summary = "원본 기준 파일 일괄 삭제", description = "특정 도메인 레코드(pkColNm + pkCone)에 연결된 모든 파일을 일괄 논리 삭제합니다. " +
                         "프로젝트나 문서 삭제 시 연관 파일을 일괄 정리할 때 사용합니다. " +
@@ -169,6 +228,14 @@ public class FileController {
         // 다운로드
         // ─────────────────────────────────────────
 
+        /**
+         * 파일을 첨부 응답으로 내려받습니다.
+         *
+         * @param flMpnId 파일 매핑 ID
+         * @param userDetails 인증 사용자
+         * @return 파일 리소스와 다운로드 헤더
+         * @throws org.springframework.security.access.AccessDeniedException 읽기 권한이 없는 경우
+         */
         @GetMapping("/{flMpnId}/download")
         @Operation(summary = "파일 다운로드", description = "파일매핑ID로 파일을 다운로드합니다. " +
                         "응답 헤더에 Content-Disposition: attachment가 설정되어 브라우저에서 자동 다운로드됩니다. " +
@@ -196,6 +263,14 @@ public class FileController {
                                 .body(result.resource());
         }
 
+        /**
+         * 파일을 브라우저 미리보기 응답으로 반환합니다.
+         *
+         * @param flMpnId 파일 매핑 ID
+         * @param userDetails 인증 사용자
+         * @return 파일 리소스와 인라인 표시 헤더
+         * @throws org.springframework.security.access.AccessDeniedException 읽기 권한이 없는 경우
+         */
         @GetMapping("/{flMpnId}/preview")
         @Operation(summary = "이미지 미리보기", description = "이미지 파일을 브라우저에서 인라인으로 표시합니다. " +
                         "파일유형내용이 '이미지'인 파일에 사용하세요. " +

@@ -13,7 +13,7 @@ import java.time.LocalDate;
  * 편성요청 금액(req*)과 조정(편성) 금액(adj*)을 병렬로 포함합니다.
  * </p>
  *
- * // Design Ref: §3.3 — BudgetStatusDto 설계
+ * 예산 현황 탭별 요청과 집계 응답을 정적 중첩 DTO로 묶어 관리합니다.
  */
 public class BudgetStatusDto {
 

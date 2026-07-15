@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
+/** 메뉴와 권한의 활성 매핑 및 삭제 이력을 조회하는 저장소입니다. */
 public interface CmenuaRepository extends JpaRepository<Cmenua, CmenuaId> {
 
     @Query("SELECT a FROM Cmenua a WHERE a.delYn = 'N'")

@@ -44,7 +44,7 @@ import lombok.RequiredArgsConstructor;
  * </p>
  *
  * <p>조회 위주 서비스이므로 클래스 레벨 {@code @Transactional(readOnly=true)}를 적용하고,
- * 쓰기 메서드는 메서드 레벨 {@code @Transactional}로 오버라이드합니다 (CLAUDE.md §5.5).</p>
+ * 쓰기 메서드는 메서드 레벨 {@code @Transactional}로 오버라이드합니다.</p>
  */
 @Service
 @RequiredArgsConstructor

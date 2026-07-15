@@ -11,7 +11,7 @@ import org.springframework.util.StringUtils;
  *
  * <p>업무 도메인 쓰기 경로(수정·삭제·상태전이 등)에서 "본인 또는 관리자만 허용" 규칙을
  * 단일 지점으로 강제합니다. 클래스 레벨 {@code @PreAuthorize}가 없는 업무 컨트롤러는
- * 서비스 계층에서 본 유틸로 소유권을 검증해야 합니다(it_backend/CLAUDE.md §5.18 보안 규칙).</p>
+ * 서비스 계층에서 본 유틸로 소유권을 검증해야 합니다.</p>
  *
  * <p>실패 시 {@link AccessDeniedException}을 던지며, {@code GlobalExceptionHandler}가 403으로 매핑합니다.</p>
  */

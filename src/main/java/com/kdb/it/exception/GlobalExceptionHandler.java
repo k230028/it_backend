@@ -44,7 +44,7 @@ import java.util.Map;
  * <li>{@link CustomGeneralException}: 비즈니스 로직 예외 → 400</li>
  * <li>{@link IllegalArgumentException}: 잘못된 인자 (중복, 미존재 등) → 400</li>
  * <li>{@link IllegalStateException}: 비즈니스 규칙 위반 (결재중 수정 불가 등) → 400</li>
- * <li>{@link RuntimeException}: 런타임 예외 (인증 실패 등) → 400</li>
+ * <li>{@link RuntimeException}: 별도 매핑되지 않은 런타임 예외 → 400</li>
  * <li>{@link Exception}: 예상치 못한 서버 오류 → 500</li>
  * </ul>
  */
@@ -181,9 +181,10 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 런타임 예외 처리 (400 Bad Request)
+     * 별도 매핑되지 않은 런타임 예외 처리 (400 Bad Request)
      *
-     * <p>인증 실패(사번 미존재, 비밀번호 불일치, 토큰 오류 등) 상황에서 발생합니다.</p>
+     * <p>더 구체적인 처리기에 매핑되지 않은 런타임 예외를 일괄 처리합니다.
+     * 서버 내부 결함도 이 범위에 포함될 수 있으므로 원인 예외를 경고 로그에 남깁니다.</p>
      *
      * @param e {@link RuntimeException}
      * @return 400 응답 + 일반 오류 메시지
@@ -191,7 +192,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException e) {
         // 클라이언트 연결 끊김이 HttpMessageNotWritableException 등으로 래핑되어 들어오면
-        // RuntimeException 핸들러가 먼저 매칭되므로, cause 체인을 검사해 조용히 처리한다.
+        // RuntimeException 처리기가 먼저 매칭되므로 원인 예외 연결을 검사해 조용히 처리합니다.
         // (응답을 다시 쓰면 끊긴 연결에 2차 IOException이 발생하므로 본문을 생략한다.)
         if (isClientDisconnect(e)) {
             log.debug("클라이언트 연결이 끊어졌습니다: {}", e.getMessage());

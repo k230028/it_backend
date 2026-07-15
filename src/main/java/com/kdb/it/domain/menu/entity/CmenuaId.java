@@ -9,6 +9,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
+/** 메뉴 ID와 권한 ID로 구성된 메뉴 권한 매핑의 JPA 복합키입니다. */
 public class CmenuaId implements Serializable {
     private String mnuId;
     private String athId;

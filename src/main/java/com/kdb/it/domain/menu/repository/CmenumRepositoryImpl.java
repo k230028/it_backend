@@ -11,6 +11,7 @@ import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
+/** QueryDSL 하위 트리 조회와 Oracle 시퀀스 기반 메뉴 ID 채번을 구현합니다. */
 public class CmenumRepositoryImpl implements CmenumRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;

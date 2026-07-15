@@ -122,7 +122,7 @@ public class ApplicationInfoDto {
         @Schema(description = "결재유형")
         private String dcdTp;
 
-        /** 결재상태 (DCD_STS, null=미결재, "승인", "반려") */
+        /** 결재상태 (DCD_STS_C, null=미결재, "승인", "반려") */
         @Schema(description = "결재상태")
         private String dcdSts;
 

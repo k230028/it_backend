@@ -612,6 +612,14 @@ public class ProjectDto {
         @Schema(description = "해당 사업의 활성 BPROJA 단계 상태코드 목록(IT_PTL_STS_TC)")
         private java.util.List<String> bprojaStsCodes;
 
+        /** 사업계획서 사업일정 최소 시작일 (YYYYMMDD, 대시보드 진행현황 간트용, 사업계획 미작성 시 null) */
+        @Schema(description = "사업계획서 사업일정 최소 시작일(YYYYMMDD)")
+        private String bizplanSttDt;
+
+        /** 사업계획서 사업일정 최대 종료일 (YYYYMMDD, 대시보드 진행현황 간트용, 사업계획 미작성 시 null) */
+        @Schema(description = "사업계획서 사업일정 최대 종료일(YYYYMMDD)")
+        private String bizplanEndDt;
+
         /** 삭제여부 (Soft Delete 상태, "Y": 삭제됨, "N": 정상) */
         @Schema(description = "삭제여부")
         private String delYn;

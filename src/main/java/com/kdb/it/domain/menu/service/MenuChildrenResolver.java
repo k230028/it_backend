@@ -3,7 +3,7 @@ package com.kdb.it.domain.menu.service;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import java.util.List;
 
-/** DYN 메뉴의 children을 MNU_ID 기준으로 생성하는 SPI. Plan 2에서 게시판 어댑터 등록. */
+/** 동적 메뉴의 하위 노드를 메뉴 ID와 사용자 권한 기준으로 생성하는 확장 지점입니다. */
 public interface MenuChildrenResolver {
     /** 이 resolver가 담당하는 DYN 노드의 MNU_ID. */
     String mnuId();

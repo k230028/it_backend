@@ -116,6 +116,17 @@ public class CouncilQnaController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * 등록된 사전질의 내용을 수정합니다.
+     *
+     * @param asctId 협의회 ID
+     * @param qtnId 질의응답 ID
+     * @param request 수정 요청
+     * @param userDetails 인증 사용자
+     * @return 응답 본문이 없는 성공 응답
+     * @throws org.springframework.security.access.AccessDeniedException 등록자 또는 관리자가 아닌 경우
+     * @throws IllegalArgumentException 대상 질의응답이 없는 경우
+     */
     @Operation(summary = "사전질의 수정", description = "질의 등록자(또는 IT관리자)가 질의 내용을 수정합니다.")
     @PatchMapping("/{asctId}/qna/{qtnId}")
     public ResponseEntity<Void> updateQna(

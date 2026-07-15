@@ -344,6 +344,57 @@ class ProjectServiceTest {
                 assertThat(result.get(1).getAbusMngNo()).isEqualTo("PRJ-2026-0002");
         }
 
+        @Test
+        @DisplayName("getProjectList: 사업계획서 사업일정(BBIZSM) 범위를 bizplanSttDt/EndDt에 주입한다")
+        void getProjectList_사업계획일정범위주입() {
+                // given: 사업 1건 + 해당 사업의 사업계획 일정 범위(MIN STT, MAX END)
+                Bprojm project = Bprojm.builder()
+                                .abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
+                given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                anyString(), anyList())).willReturn(List.of());
+                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
+                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
+                                .willReturn(List.of());
+                // 네이티브 집계 결과: {ABUS_MNG_NO, MIN(STT_DT), MAX(END_DT)}
+                given(projectRepository.findBizplanScheduleRange(anyList()))
+                                .willReturn(List.<Object[]>of(
+                                                new Object[] { "PRJ-2026-0001", "20260301", "20260930" }));
+
+                // when
+                List<ProjectDto.Response> result = projectService.getProjectList();
+
+                // then: 사업계획 일정 범위가 응답에 주입된다
+                assertThat(result).hasSize(1);
+                assertThat(result.get(0).getBizplanSttDt()).isEqualTo("20260301");
+                assertThat(result.get(0).getBizplanEndDt()).isEqualTo("20260930");
+        }
+
+        @Test
+        @DisplayName("getProjectList: 사업계획 일정이 없는 사업은 bizplanSttDt/EndDt가 null이다")
+        void getProjectList_사업계획일정없음_null유지() {
+                // given: 사업 1건, 사업계획 일정 집계 결과 없음(빈 목록)
+                Bprojm project = Bprojm.builder()
+                                .abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
+                given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                anyString(), anyList())).willReturn(List.of());
+                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
+                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
+                                .willReturn(List.of());
+                given(projectRepository.findBizplanScheduleRange(anyList())).willReturn(List.of());
+
+                // when
+                List<ProjectDto.Response> result = projectService.getProjectList();
+
+                // then: 미작성 사업은 null 유지(프론트가 예산 일정으로 폴백)
+                assertThat(result).hasSize(1);
+                assertThat(result.get(0).getBizplanSttDt()).isNull();
+                assertThat(result.get(0).getBizplanEndDt()).isNull();
+        }
+
         // ───────────────────────────────────────────────────────
         // searchProjectList (신규) — 검색 조건 전달 확인
         // ───────────────────────────────────────────────────────
