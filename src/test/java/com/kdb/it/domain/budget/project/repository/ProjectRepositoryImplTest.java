@@ -219,7 +219,7 @@ class ProjectRepositoryImplTest {
 
         sut.searchListByCondition(condition);
 
-        ArgumentCaptor<Expression> projection = ArgumentCaptor.forClass(Expression.class);
+        ArgumentCaptor<Expression<?>> projection = ArgumentCaptor.captor();
         org.mockito.Mockito.verify(queryFactory).select(projection.capture());
         String selected = projection.getValue().toString();
         assertThat(selected)

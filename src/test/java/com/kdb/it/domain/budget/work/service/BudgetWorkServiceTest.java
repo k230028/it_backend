@@ -711,7 +711,6 @@ class BudgetWorkServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     @DisplayName("applyItemRates: 기존 편성 레코드는 먼저 논리삭제하고 자본/경상 편성률을 구분 적용한다")
     void applyItemRates_기존삭제와자본경상구분적용() {
         BudgetWorkDto.ItemApplyRequest request = new BudgetWorkDto.ItemApplyRequest("2026", List.of(
@@ -1092,7 +1091,6 @@ class BudgetWorkServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     @DisplayName("applyItemRates: 알 수 없는 원본과 null 비목은 처리 건수 0으로 무시한다")
     void applyItemRates_알수없는원본과Null비목_무시() {
         BudgetWorkDto.ItemApplyRequest request = new BudgetWorkDto.ItemApplyRequest("2026", List.of(

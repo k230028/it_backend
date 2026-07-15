@@ -367,7 +367,7 @@ class AuthServiceTest {
                                 .filteredOn(token -> "Y".equals(token.getAvlYn()))
                                 .hasSize(1)
                                 .first()
-                                .extracting(Crtokm::getTokCone)
+                                .extracting(token -> token.getTokCone())
                                 .isEqualTo(newRefresh);
                 verify(refreshTokenRepository, never()).deleteByEno("10001");
         }

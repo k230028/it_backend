@@ -34,7 +34,7 @@ public class OrgNameResolver {
             return null;
         }
         return organizationRepository.findById(orgCode)
-                .map(CorgnI::getBbrNm)
+                .map(organization -> organization.getBbrNm())
                 .orElse(null);
     }
 }

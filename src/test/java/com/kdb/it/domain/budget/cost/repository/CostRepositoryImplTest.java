@@ -57,7 +57,7 @@ class CostRepositoryImplTest {
         List<CostDto.CostListRow> result = sut.searchListByCondition(condition);
 
         assertThat(result).isEmpty();
-        ArgumentCaptor<Expression> projection = ArgumentCaptor.forClass(Expression.class);
+        ArgumentCaptor<Expression<?>> projection = ArgumentCaptor.captor();
         org.mockito.Mockito.verify(queryFactory).select(projection.capture());
         String selected = projection.getValue().toString();
         assertThat(selected)

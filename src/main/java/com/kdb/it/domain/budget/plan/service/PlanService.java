@@ -513,9 +513,9 @@ public class PlanService {
                 }
 
                 ProjectDto.Response firstProject = ordinaryProjects.getFirst();
-                BigDecimal assetBg = sumAmount(ordinaryProjects, ProjectDto.Response::getAssetBg);
-                BigDecimal costBg = sumAmount(ordinaryProjects, ProjectDto.Response::getCostBg);
-                BigDecimal prjBg = sumAmount(ordinaryProjects, ProjectDto.Response::getTotRqmAmt);
+                BigDecimal assetBg = sumAmount(ordinaryProjects, project -> project.getAssetBg());
+                BigDecimal costBg = sumAmount(ordinaryProjects, project -> project.getCostBg());
+                BigDecimal prjBg = sumAmount(ordinaryProjects, project -> project.getTotRqmAmt());
                 if (BigDecimal.ZERO.compareTo(prjBg) == 0) {
                         prjBg = assetBg.add(costBg);
                 }
@@ -550,7 +550,7 @@ public class PlanService {
                 return projects.stream()
                                 .map(selector)
                                 .map(value -> value != null ? value : BigDecimal.ZERO)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                                .reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
         }
 
         /**

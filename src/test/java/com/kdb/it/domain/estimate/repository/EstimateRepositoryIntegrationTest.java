@@ -45,7 +45,7 @@ class EstimateRepositoryIntegrationTest extends AbstractOracleRepositoryTest {
         entityManager.clear();
 
         assertThat(estimateRepository.search(null, generalProjectNo, null))
-                .extracting(EstimateDto.ListItem::cncdRfrNo)
+                .extracting(item -> item.cncdRfrNo())
                 .contains(generalProjectNo);
         assertThat(estimateRepository.search(null, consultingProjectNo, null)).isEmpty();
     }

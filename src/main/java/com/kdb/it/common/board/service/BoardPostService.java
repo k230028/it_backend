@@ -1,7 +1,6 @@
 package com.kdb.it.common.board.service;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Set;
 
 import com.kdb.it.common.board.dto.BoardPostDto;

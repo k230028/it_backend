@@ -184,7 +184,7 @@ public class EvaluationService {
         // 기존 평가의견을 항목코드 기준으로 1회 배치 조회 (항목별 개별 SELECT N+1 제거, 리뷰 2-4)
         Map<String, Bevalm> existingByItem = evaluationRepository
                 .findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").stream()
-                .collect(Collectors.toMap(Bevalm::getItPtlCkgItmTc, e -> e, (a, b) -> a));
+                .collect(Collectors.toMap(evaluation -> evaluation.getItPtlCkgItmTc(), e -> e, (a, b) -> a));
 
         for (CouncilDto.EvaluationItem item : request.items()) {
             // 1~2점 시 의견 필수 검증
@@ -271,12 +271,12 @@ public class EvaluationService {
      * <p>사번 집합을 모아 {@code findByEnoIn}으로 일괄 조회(N+1 제거).</p>
      */
     private Map<String, CuserI> buildUserMapFromEvaluations(List<Bevalm> evaluations) {
-        List<String> enos = evaluations.stream().map(Bevalm::getEno).distinct().toList();
+        List<String> enos = evaluations.stream().map(evaluation -> evaluation.getEno()).distinct().toList();
         if (enos.isEmpty()) {
             return Map.of();
         }
         return userRepository.findByEnoIn(enos).stream()
-                .collect(Collectors.toMap(CuserI::getEno, u -> u, (a, b) -> a));
+                .collect(Collectors.toMap(user -> user.getEno(), user -> user, (a, b) -> a));
     }
 
     /**
@@ -296,7 +296,7 @@ public class EvaluationService {
         // EvaluationItemAvgRow(항목코드, 평균점수) → Map<항목코드, 평균점수>
         Map<String, Double> avgMap = raw.stream()
                 .collect(Collectors.toMap(
-                        EvaluationItemAvgRow::itPtlCkgItmTc,
+                        row -> row.itPtlCkgItmTc(),
                         r -> r.avgScore() == null ? 0.0 : r.avgScore().doubleValue()));
 
         // 고정 항목 순서로 정렬하여 반환

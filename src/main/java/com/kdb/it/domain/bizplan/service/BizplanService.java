@@ -200,8 +200,8 @@ public class BizplanService {
         List<Bitemm> sourceItems = projectItemRepository
                 .findByAbusMngNoAndDelYnAndLstYn(abusMngNo, "N", "Y").stream()
                 .sorted(Comparator
-                        .comparing(Bitemm::getGclMngNo, Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparing(Bitemm::getSno, Comparator.nullsLast(Comparator.naturalOrder())))
+                        .comparing((Bitemm item) -> item.getGclMngNo(), Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(item -> item.getSno(), Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
         if (sourceItems.isEmpty()) {
             return;
@@ -292,7 +292,7 @@ public class BizplanService {
      */
     private String resolveBgNo(String abusMngNo) {
         return bprojaRepository.findByAbusMngNoAndDelYn(abusMngNo, "N").stream()
-                .map(Bproja::getCncdRfrNo)
+                .map(application -> application.getCncdRfrNo())
                 .filter(key -> key != null && key.startsWith(BG_KEY_PREFIX))
                 .findFirst()
                 .orElse(null);
@@ -301,7 +301,7 @@ public class BizplanService {
     private String currentStatus(String abusMngNo) {
         return bprojaRepository.findById(new BprojaId(abusMngNo, bprojaKey(abusMngNo)))
                 .filter(a -> !"Y".equals(a.getDelYn()))
-                .map(Bproja::getStsTc)
+                .map(application -> application.getStsTc())
                 .orElse(STS_IN_PROGRESS);
     }
 
@@ -315,9 +315,9 @@ public class BizplanService {
     }
 
     private void mergeSchedules(String abusMngNo, List<BizplanDto.ScheduleRequest> rows) {
-        verifyUniqueSnos("일정", rows.stream().map(BizplanDto.ScheduleRequest::sno).toList());
+        verifyUniqueSnos("일정", rows.stream().map(row -> row.sno()).toList());
         Map<Integer, Bbizsm> bySno = bbizsmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
-                .collect(Collectors.toMap(Bbizsm::getSno, Function.identity()));
+                .collect(Collectors.toMap(schedule -> schedule.getSno(), Function.identity()));
         Set<Integer> incoming = new HashSet<>();
         for (BizplanDto.ScheduleRequest row : rows) {
             incoming.add(row.sno());
@@ -334,12 +334,12 @@ public class BizplanService {
                         .build());
             }
         }
-        softDeleteMissing(bySno.values(), Bbizsm::getSno, incoming, Bbizsm::delete);
+        softDeleteMissing(bySno.values(), schedule -> schedule.getSno(), incoming, schedule -> schedule.delete());
     }
 
     private BigDecimal mergeItems(String abusMngNo, List<BizplanDto.ItemRequest> rows,
             Set<Integer> contractSnos) {
-        verifyUniqueSnos("품목", rows.stream().map(BizplanDto.ItemRequest::sno).toList());
+        verifyUniqueSnos("품목", rows.stream().map(row -> row.sno()).toList());
         for (BizplanDto.ItemRequest row : rows) {
             if (row.cttSno() != null && !contractSnos.contains(row.cttSno())) {
                 throw new IllegalArgumentException(
@@ -347,7 +347,7 @@ public class BizplanService {
             }
         }
         Map<Integer, Bbizgm> bySno = bbizgmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
-                .collect(Collectors.toMap(Bbizgm::getSno, Function.identity()));
+                .collect(Collectors.toMap(item -> item.getSno(), Function.identity()));
         Set<Integer> incoming = new HashSet<>();
         for (BizplanDto.ItemRequest row : rows) {
             incoming.add(row.sno());
@@ -367,18 +367,18 @@ public class BizplanService {
                         .build());
             }
         }
-        softDeleteMissing(bySno.values(), Bbizgm::getSno, incoming, Bbizgm::delete);
+        softDeleteMissing(bySno.values(), item -> item.getSno(), incoming, item -> item.delete());
         // 총소요금액 = 요청(=저장 후 활성) 품목 금액 합계 (BITEMM 규칙과 동일하게 amt는 KRW 환산값)
         return rows.stream()
-                .map(BizplanDto.ItemRequest::amt)
+                .map(row -> row.amt())
                 .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
     }
 
     private Set<Integer> mergeContracts(String abusMngNo, List<BizplanDto.ContractRequest> rows) {
-        verifyUniqueSnos("계약", rows.stream().map(BizplanDto.ContractRequest::sno).toList());
+        verifyUniqueSnos("계약", rows.stream().map(row -> row.sno()).toList());
         Map<Integer, Bbizcm> bySno = bbizcmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
-                .collect(Collectors.toMap(Bbizcm::getSno, Function.identity()));
+                .collect(Collectors.toMap(contract -> contract.getSno(), Function.identity()));
         Set<Integer> incoming = new HashSet<>();
         for (BizplanDto.ContractRequest row : rows) {
             incoming.add(row.sno());
@@ -396,7 +396,7 @@ public class BizplanService {
                         .build());
             }
         }
-        softDeleteMissing(bySno.values(), Bbizcm::getSno, incoming, Bbizcm::delete);
+        softDeleteMissing(bySno.values(), contract -> contract.getSno(), incoming, contract -> contract.delete());
         return incoming;
     }
 

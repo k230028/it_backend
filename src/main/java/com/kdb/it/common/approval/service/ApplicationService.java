@@ -527,7 +527,7 @@ public class ApplicationService {
             return null;
         }
         return userRepository.findById(eno)
-                .map(CuserI::getBbrC)
+                .map(user -> user.getBbrC())
                 .orElse(null);
     }
 
@@ -567,7 +567,7 @@ public class ApplicationService {
      */
     private java.util.Map<String, String> resolveRequesterNames(List<Capplm> capplms) {
         java.util.Set<String> requesterEnos = capplms.stream()
-                .map(Capplm::getDcdReqUsid)
+                .map(application -> application.getDcdReqUsid())
                 .filter(eno -> eno != null && !eno.isBlank())
                 .collect(java.util.stream.Collectors.toSet());
         if (requesterEnos.isEmpty()) {
@@ -576,8 +576,8 @@ public class ApplicationService {
 
         return userRepository.findByEnoIn(requesterEnos).stream()
                 .collect(java.util.stream.Collectors.toMap(
-                        CuserI::getEno,
-                        CuserI::getUsrNm,
+                        user -> user.getEno(),
+                        user -> user.getUsrNm(),
                         (left, right) -> left));
     }
 
@@ -589,7 +589,7 @@ public class ApplicationService {
      */
     private java.util.Map<String, String> resolveRequesterDeptNames(List<Capplm> capplms) {
         java.util.Set<String> requesterBbrCs = capplms.stream()
-                .map(Capplm::getDcdReqBbrC)
+                .map(application -> application.getDcdReqBbrC())
                 .filter(bbrC -> bbrC != null && !bbrC.isBlank())
                 .collect(java.util.stream.Collectors.toSet());
         if (requesterBbrCs.isEmpty()) {
@@ -599,8 +599,8 @@ public class ApplicationService {
         return organizationRepository.findAllById(requesterBbrCs).stream()
                 .filter(org -> org.getBbrNm() != null)
                 .collect(java.util.stream.Collectors.toMap(
-                        CorgnI::getPrlmOgzCCone,
-                        CorgnI::getBbrNm,
+                        organization -> organization.getPrlmOgzCCone(),
+                        organization -> organization.getBbrNm(),
                         (left, right) -> left));
     }
 

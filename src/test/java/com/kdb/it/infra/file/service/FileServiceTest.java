@@ -570,7 +570,7 @@ class FileServiceTest {
         FileDto.BulkUploadResponse result = fileService.uploadFiles(List.of(firstFile, secondFile), request);
 
         assertThat(result.getSuccessList())
-                .extracting(FileDto.Response::getFlNm)
+                .extracting(file -> file.getFlNm())
                 .containsExactly("first.txt");
         assertThat(result.getFailList())
                 .singleElement()

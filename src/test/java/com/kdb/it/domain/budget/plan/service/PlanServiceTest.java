@@ -390,7 +390,7 @@ class PlanServiceTest {
         assertThat(departmentIds).containsExactly("PRJ-GENERAL", "__ORDINARY_PROJECT_SUMMARY__");
         assertThat(projectTypeIds).containsExactly("PRJ-GENERAL");
         assertThat(snapshot.getProjects())
-                .extracting(PlanDto.ProjectSnapshot::getPrjMngNo)
+                .extracting(project -> project.getPrjMngNo())
                 .contains("__ORDINARY_PROJECT_SUMMARY__")
                 .doesNotContain("PRJ-ORDINARY");
         PlanDto.ProjectSnapshot ordinarySummary = snapshot.getByDepartment().stream()

@@ -7,8 +7,6 @@ import com.kdb.it.infra.file.repository.FileRepository;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.exception.CustomGeneralException;
 import org.springframework.security.access.AccessDeniedException;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,12 +21,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 공통 첨부파일 서비스
@@ -80,89 +74,11 @@ public class FileService {
     private final FileUploadUnitService fileUploadUnitService;
 
     /**
-     * JPA EntityManager — 수동 부여 ID 엔티티의 INSERT를 {@code persist()}로 확정적으로 수행하기 위해 사용.
-     *
-     * <p>
-     * Spring Data JPA의 {@code save()}는 수동 부여 ID({@code @Id}만 있고 {@code @GeneratedValue} 없음)
-     * 엔티티에 대해 {@code EntityManager.merge()} 세만틱으로 동작합니다. merge()는 상황에 따라
-     * 즉시 INSERT가 되지 않거나 dirty flag가 누락되어, 커밋 후에도 DB에 행이 없는 현상이 발생할 수 있습니다.
-     * 본 클래스에서는 업로드 경로만 {@code persist()}를 명시적으로 호출하여 이러한 불확정성을 제거합니다.
-     * </p>
-     */
-
-    /**
-     * 서버 인스턴스 ID
-     * 1번 서버: SVR1, 2번 서버: SVR2 등으로 각 서버 설정 파일에서 다르게 지정
-     */
-
-    @Value("${app.server.instance-id:SVR1}")
-    private String instanceId;
-
-    @PersistenceContext
-    private EntityManager entityManager;
-
-    /**
      * 파일 저장 기본 경로
      * 운영 환경에서는 공유 스토리지 또는 NAS 경로를 지정하는 것을 권장합니다.
      */
     @Value("${app.file.base-path:/data/files}")
     private String basePath;
-
-    // ─────────────────────────────────────────
-    // 채번 & 경로 유틸리티
-    // ─────────────────────────────────────────
-
-    /**
-     * 파일매핑ID 채번
-     *
-     * <p>Oracle 시퀀스(SEQ_CFILEM) 값을 기반으로 생성합니다.</p>
-     *
-     * @return 파일매핑ID (예: FL_00000001)
-     */
-    private String generateFlMpnId() {
-        Long seq = fileRepository.getNextSequenceValue();
-        return String.format("FL_%08d", seq);
-    }
-
-    /**
-     * 파일물리명 생성
-     *
-     * <p>형식: {@code {서버ID}_{yyyyMMddHHmmss}_{UUID}.{확장자}}</p>
-     *
-     * @param originalFilename 원본 파일명 (확장자 추출용)
-     * @return 서버 저장용 고유 파일물리명
-     */
-    private String generateFlPysNm(String originalFilename) {
-        // 확장자 추출 (.pdf, .jpg 등 - 없으면 빈 문자열)
-        String ext = "";
-        if (StringUtils.hasText(originalFilename)) {
-            int dotIdx = originalFilename.lastIndexOf('.');
-            if (dotIdx >= 0 && dotIdx < originalFilename.length() - 1) {
-                ext = "." + originalFilename.substring(dotIdx + 1).toLowerCase();
-            }
-        }
-        // {서버ID}_{타임스탬프}_{UUID(하이픈 제거)}.{확장자}
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        String uuid = UUID.randomUUID().toString().replace("-", "");
-        return instanceId + "_" + timestamp + "_" + uuid + ext;
-    }
-
-    /**
-     * 파일 저장 디렉토리 경로 생성
-     *
-     * <p>형식: {@code {basePath}/{주식별자컬럼명}/{년도}/{월}}</p>
-     *
-     * @param pkColNm 주식별자컬럼명 (디렉토리 명으로 사용)
-     * @return 저장 디렉토리 Path 객체
-     */
-    private Path buildStorageDir(String pkColNm) {
-        LocalDate today = LocalDate.now();
-        return Paths.get(
-                basePath,
-                pkColNm,
-                String.valueOf(today.getYear()),
-                String.format("%02d", today.getMonthValue()));
-    }
 
     /**
      * 엔티티 → 응답 DTO 변환

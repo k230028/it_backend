@@ -6,7 +6,6 @@ import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
