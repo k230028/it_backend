@@ -14,6 +14,7 @@ import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.code.CommonCodeGroups;
+import com.kdb.it.common.code.IoeCategories;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.system.security.OwnershipVerifier;
@@ -742,13 +743,11 @@ public class ProjectService {
 
             // 자본예산/일반관리비 편성예산 분류 (마이그레이션 후 cId=CommonCodeGroups.IOE, cTp 필드로 분류)
             // 자본예산 비목의 cTp는 IOE_HW(기계장치)/IOE_DVC(개발비)/IOE_SW(무형자산) 계열이다.
-            // (구코드 IOE_CPIT만 보던 버그로 assetTypes가 비어 자본 편성예산이 항상 0이 되던 문제 수정.
-            // BudgetWorkService.CAPITAL_CTPS와 동일 집합으로 정렬)
-            Set<String> capitalCTps = java.util.Set.of("IOE_DVC", "IOE_HW", "IOE_SW", "IOE_CPIT");
+            // (구코드 IOE_CPIT만 보던 버그로 assetTypes가 비어 자본 편성예산이 항상 0이 되던 문제 수정)
             List<com.kdb.it.common.code.entity.Ccodem> allIoeForBugt = codeService
                     .findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE);
             Set<String> assetTypes = allIoeForBugt.stream()
-                    .filter(c -> capitalCTps.contains(c.getCTp()))
+                    .filter(c -> IoeCategories.isCapitalCTp(c.getCTp()))
                     .map(c -> c.getCdva())
                     .collect(Collectors.toSet());
             Set<String> costTypes = allIoeForBugt.stream()

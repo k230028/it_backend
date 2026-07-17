@@ -41,9 +41,10 @@ class ItBudgetControllerTest {
     void getComparison_returnsOk() {
         var mapping = new ItBudgetDto.FssMappingRow(
                 "001",
+                "351-1100",
                 "개발비",
-                "개발비",
-                "개발비",
+                "개발비(일반)",
+                "개발비(일반)",
                 200,
                 "정식 금감원 매핑 테이블 도입 전 임시 동일 비목 매핑"
         );

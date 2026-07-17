@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.work.service;
 import com.kdb.it.common.code.CommonCodeGroups;
+import com.kdb.it.common.code.IoeCategories;
 
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
@@ -55,9 +56,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BudgetWorkService {
-
-    /** 자본예산 세부 코드타입: 개발비/기계장치/기타무형자산 */
-    private static final Set<String> CAPITAL_CTPS = Set.of("IOE_DVC", "IOE_HW", "IOE_SW", "IOE_CPIT");
 
     /** 예산 데이터 접근 리포지토리 (TPRMPP_BBUGTM) */
     private final BbugtmRepository bbugtmRepository;
@@ -735,23 +733,14 @@ public class BudgetWorkService {
      * IOE 코드타입이 자본예산 세부 유형인지 판별합니다.
      */
     private boolean isCapitalCTp(String cTp) {
-        if (cTp == null) return false;
-        return CAPITAL_CTPS.contains(cTp);
+        return IoeCategories.isCapitalCTp(cTp);
     }
 
     /**
      * IOE 코드의 그룹명은 C_TP_DES를 우선 사용하고, 없으면 CDVA_DTL 계층의 중분류를 사용합니다.
      */
     private String resolveIoeGroupName(Ccodem code) {
-        if (code.getCTpDes() != null && !code.getCTpDes().isBlank()) {
-            return code.getCTpDes();
-        }
-        String detail = code.getCdvaDtl();
-        if (detail != null) {
-            String[] parts = detail.split(" - ");
-            if (parts.length >= 2) return parts[1].trim();
-        }
-        return code.getCdvaDes();
+        return IoeCategories.resolveGroupName(code);
     }
 
     /**
