@@ -9,6 +9,12 @@ import java.time.LocalDate;
  *
  * <p>컬럼: [0]=DOC_MNG_NO(문서관리번호), [1]=REQ_TTL(제목), [2]=USR_NM(작성자명),
  * [3]=CREATED_AT(YYYY-MM-DD 문자열), [4]=RVW_FSG_TLM_DT(검토완료기한 DATE).</p>
+ *
+ * @param docMngNo  문서관리번호
+ * @param reqTtl    제목
+ * @param usrNm     작성자명
+ * @param createdAt 등록일(YYYY-MM-DD 문자열)
+ * @param fsgTlm    검토완료기한
  */
 public record RecentReviewingRow(
         String docMngNo,

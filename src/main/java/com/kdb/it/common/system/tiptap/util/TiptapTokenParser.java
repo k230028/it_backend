@@ -19,10 +19,23 @@ import java.util.regex.Pattern;
 @Component
 public class TiptapTokenParser {
 
+    /** 토큰에서 허용하는 변수 카테고리. */
     public enum Category { IT_BUDGET, CAP_BUDGET, OPEX, PROJ }
 
+    /**
+     * 토큰 파싱 결과.
+     *
+     * @param valid 형식이 허용 문법과 일치하면 true
+     * @param year 토큰의 4자리 기준연도, invalid 결과에서는 null
+     * @param category 변수 카테고리, invalid 결과에서는 null
+     * @param projectCode 사업별 토큰일 때만 존재하는 사업코드
+     * @param item 금액/편성률 항목명, invalid 결과에서는 null
+     */
     public record ParseResult(boolean valid, Integer year, Category category,
                               String projectCode, String item) {
+        /**
+         * 형식 오류를 예외로 던지지 않고 서비스 계층의 INVALID 상태로 전달하기 위한 실패 결과를 생성합니다.
+         */
         public static ParseResult invalid() {
             return new ParseResult(false, null, null, null, null);
         }
@@ -34,6 +47,12 @@ public class TiptapTokenParser {
     private static final Pattern PROJ_PATTERN =
             Pattern.compile("^(\\d{4})\\.proj\\.([A-Z0-9_-]+)\\.(requestAmount|allocatedAmount|allocationRate)$");
 
+    /**
+     * Tiptap 변수 토큰을 구조화된 값으로 파싱합니다.
+     *
+     * @param token 원본 토큰 문자열
+     * @return 허용 문법에 맞으면 valid 결과, null/blank/형식 불일치이면 {@link ParseResult#invalid()}
+     */
     public ParseResult parse(String token) {
         if (token == null || token.isBlank()) {
             return ParseResult.invalid();

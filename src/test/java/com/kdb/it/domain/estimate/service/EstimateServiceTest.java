@@ -17,7 +17,9 @@ import com.kdb.it.domain.estimate.entity.Besttm;
 import com.kdb.it.domain.estimate.entity.Bestim;
 import com.kdb.it.domain.estimate.repository.EstimateLineRepository;
 import com.kdb.it.domain.estimate.repository.EstimateRepository;
+import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +39,7 @@ class EstimateServiceTest {
     @Mock EstimateLineRepository lineRepository;
     @Mock ProjectRepository projectRepository;
     @Mock BprojaSyncService bprojaSyncService;
+    @Mock EaiService eaiService;
 
     EstimateService service;
 
@@ -52,7 +55,7 @@ class EstimateServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new EstimateService(estimateRepository, lineRepository, projectRepository, bprojaSyncService);
+        service = new EstimateService(estimateRepository, lineRepository, projectRepository, bprojaSyncService, eaiService);
     }
 
     /** 타인 (소유자가 아닌 일반 사용자) */
@@ -298,6 +301,20 @@ class EstimateServiceTest {
     }
 
     @Test
+    @DisplayName("EAI 발송이 실패해도 상태 전이와 사업 진행 동기화는 유지한다")
+    void changeStatus_eaiFailure_keepsMainWorkflow() {
+        Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
+                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
+        when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
+        when(eaiService.sendEai(any())).thenThrow(new IllegalStateException("EAI 장애"));
+
+        service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("55"), admin());
+
+        assertThat(e.getStsTc()).isEqualTo("55");
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "REQ-2026-0001", "55");
+    }
+
+    @Test
     @DisplayName("완료(49)에서 역행 전이를 거부한다")
     void changeStatus_rejectsBackward() {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
@@ -420,8 +437,12 @@ class EstimateServiceTest {
         void list_adminGetsAllWithNullBbrC() {
             // Arrange
             List<EstimateDto.ListItem> mockResult = List.of(
-                    new EstimateDto.ListItem("REQ-2026-0001", 1, "100", "PRJ-2026-0001", "테스트사업", "51", "E0001", null),
-                    new EstimateDto.ListItem("REQ-2026-0002", 1, "100", "PRJ-2026-0002", "다른사업", "55", "E0002", null)
+                    new EstimateDto.ListItem("REQ-2026-0001", 1, "100", "PRJ-2026-0001", "테스트사업",
+                            new BigDecimal("1000"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                            "18001", "IT기획부", "51", "E0001", null),
+                    new EstimateDto.ListItem("REQ-2026-0002", 1, "100", "PRJ-2026-0002", "다른사업",
+                            new BigDecimal("2000"), LocalDate.of(2026, 2, 1), LocalDate.of(2026, 11, 30),
+                            "18002", "디지털부", "55", "E0002", null)
             );
             when(estimateRepository.search(null, null, null)).thenReturn(mockResult);
 
@@ -438,7 +459,9 @@ class EstimateServiceTest {
         void list_nonAdminFiltersByBbrC() {
             // Arrange
             List<EstimateDto.ListItem> mockResult = List.of(
-                    new EstimateDto.ListItem("REQ-2026-0001", 1, "100", "PRJ-2026-0001", "테스트사업", "51", "E0001", null)
+                    new EstimateDto.ListItem("REQ-2026-0001", 1, "100", "PRJ-2026-0001", "테스트사업",
+                            new BigDecimal("1000"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                            "18001", "IT기획부", "51", "E0001", null)
             );
             when(estimateRepository.search("51", "PRJ-2026-0001", "18001")).thenReturn(mockResult);
 

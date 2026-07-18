@@ -338,8 +338,8 @@ class PlanServiceTest {
     }
 
     @Test
-    @DisplayName("createPlan - 스냅샷 그룹 목록에서는 경상사업과 전산업무비를 제외한다")
-    void createPlan_스냅샷그룹목록_경상사업과전산업무비제외() throws Exception {
+    @DisplayName("createPlan - 부문별 목록에는 경상사업을 IT기획부 대표 1건으로 합산한다")
+    void createPlan_스냅샷그룹목록_경상사업_IT기획부대표건으로합산() throws Exception {
         PlanDto.CreateRequest request = PlanDto.CreateRequest.builder()
                 .bseYy("2026")
                 .itPtlPlnTpC("신규")
@@ -358,6 +358,9 @@ class PlanServiceTest {
                 .abusNm("경상사업")
                 .bzTpC("운영")
                 .prlmHrkOgzCCone("IT부문")
+                .totRqmAmt(BigDecimal.valueOf(300))
+                .assetBg(BigDecimal.valueOf(200))
+                .costBg(BigDecimal.valueOf(100))
                 .odnYn("Y")
                 .build();
         CostDto.Response cost = CostDto.Response.builder()
@@ -384,8 +387,26 @@ class PlanServiceTest {
                 .map(item -> ((PlanDto.ProjectSnapshot) item).getPrjMngNo())
                 .toList();
 
-        assertThat(departmentIds).containsExactly("PRJ-GENERAL");
+        assertThat(departmentIds).containsExactly("PRJ-GENERAL", "__ORDINARY_PROJECT_SUMMARY__");
         assertThat(projectTypeIds).containsExactly("PRJ-GENERAL");
+        assertThat(snapshot.getProjects())
+                .extracting(project -> project.getPrjMngNo())
+                .contains("__ORDINARY_PROJECT_SUMMARY__")
+                .doesNotContain("PRJ-ORDINARY");
+        PlanDto.ProjectSnapshot ordinarySummary = snapshot.getByDepartment().stream()
+                .flatMap(group -> ((List<?>) group.get("projects")).stream())
+                .map(item -> (PlanDto.ProjectSnapshot) item)
+                .filter(item -> "__ORDINARY_PROJECT_SUMMARY__".equals(item.getPrjMngNo()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(ordinarySummary.getAbusNm()).isEqualTo("2026년 경상사업 (경상사업 등 1건)");
+        assertThat(ordinarySummary.getSvnHdq()).isEqualTo("IT·AI본부");
+        assertThat(ordinarySummary.getSvnDpm()).isEqualTo("180");
+        assertThat(ordinarySummary.getSvnDpmNm()).isEqualTo("IT기획부");
+        assertThat(ordinarySummary.getPulDtt()).isEqualTo("01");
+        assertThat(ordinarySummary.getPrjBg()).isEqualByComparingTo("300");
+        assertThat(ordinarySummary.getAssetBg()).isEqualByComparingTo("200");
+        assertThat(ordinarySummary.getCostBg()).isEqualByComparingTo("100");
     }
 
     @Test

@@ -35,7 +35,16 @@ public final class RealtimeLogDto {
             List<Long> perMinute
     ) {}
 
-    /** 서비스 내부 — Repository 조건 묶음. */
+    /**
+     * 서비스 내부 — Repository 조건 묶음.
+     *
+     * @param since        이 시각 이후의 로그만 조회 (null이면 최신 limit건 스냅샷)
+     * @param cursorLogTbl 복합 커서 — 마지막 조회 로그의 로그테이블명 (중복 조회 회피용)
+     * @param cursorLogSno 복합 커서 — 마지막 조회 로그의 로그이력트리거일련번호
+     * @param limit        최대 조회 건수 (컨트롤러에서 200으로 상한 조정)
+     * @param tableKeys    허용 LOG_KEY 목록 (null/빈 목록이면 제약 없음)
+     * @param chgTypes     변경유형 필터 — C/U/D 부분집합 (null/빈 목록이면 제약 없음)
+     */
     public record QueryCondition(
             LocalDateTime since,
             String cursorLogTbl,

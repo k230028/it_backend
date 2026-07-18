@@ -115,6 +115,24 @@ class JwtUtilTest {
     }
 
     @Test
+    @DisplayName("Refresh Token 생성 - 같은 초에 연속 발급해도 매번 고유한 토큰 반환")
+    void generateRefreshToken_같은초연속발급_매번고유토큰() {
+        // given
+        String eno = "10001";
+        int issueCount = 10;
+
+        // when: 같은 초 안에서 연속 발급 (루프 전체가 수 ms 내 완료됨)
+        java.util.Set<String> tokens = new java.util.HashSet<>();
+        for (int i = 0; i < issueCount; i++) {
+            tokens.add(jwtUtil.generateRefreshToken(eno));
+        }
+
+        // then: 모든 토큰이 서로 달라야 함 — 동일 토큰이 발급되면 TPRMPP_CRTOKM의
+        // SHA-256 조회값 유니크 인덱스(UX_CRTOKM_ECY_RNW_PUB_TOK)와 충돌해 ORA-00001이 발생한다
+        assertThat(tokens).hasSize(issueCount);
+    }
+
+    @Test
     @DisplayName("토큰 유효성 검증 - 유효한 토큰은 true 반환")
     void validateToken_유효한토큰_true반환() {
         // given

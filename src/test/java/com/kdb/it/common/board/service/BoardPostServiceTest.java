@@ -26,6 +26,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 @ExtendWith(MockitoExtension.class)
 class BoardPostServiceTest {
@@ -65,7 +67,7 @@ class BoardPostServiceTest {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0099", "N"))
             .willReturn(Optional.of(adminOnlyBoard));
         given(postRepository.searchPosts(any(), any(), anyBoolean()))
-            .willReturn(List.of());
+            .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         var result = service.searchPosts(
             "BLBM-2026-0099", new com.kdb.it.common.board.dto.BoardPostDto.SearchCondition(), normalUser);
@@ -78,7 +80,7 @@ class BoardPostServiceTest {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
             .willReturn(Optional.of(publicBoard));
         given(postRepository.searchPosts(any(), any(), anyBoolean()))
-            .willReturn(List.of());
+            .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         var result = service.searchPosts(
             "BLBM-2026-0001",
@@ -86,6 +88,38 @@ class BoardPostServiceTest {
             normalUser
         );
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("검색어가 1자이면 목록 조회를 거부하고 저장소를 호출하지 않는다")
+    void searchPosts_keywordTooShort_throws() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+            .willReturn(Optional.of(publicBoard));
+        var cond = new com.kdb.it.common.board.dto.BoardPostDto.SearchCondition();
+        cond.setKeyword("가");
+
+        assertThatThrownBy(() -> service.searchPosts("BLBM-2026-0001", cond, normalUser))
+            .isInstanceOf(CustomGeneralException.class)
+            .hasMessageContaining("2자 이상");
+        verify(postRepository, never()).searchPosts(any(), any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("목록 조회는 저장소의 Page 응답을 DTO Page로 반환한다")
+    void searchPosts_returnsPagedResult() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+            .willReturn(Optional.of(publicBoard));
+        given(postRepository.searchPosts(any(), any(), anyBoolean()))
+            .willReturn(new PageImpl<>(List.of(post("NAC-2026-0001", "USER001")), PageRequest.of(1, 20), 21));
+
+        var cond = new com.kdb.it.common.board.dto.BoardPostDto.SearchCondition();
+        cond.setPage(1);
+        cond.setSize(20);
+        var result = service.searchPosts("BLBM-2026-0001", cond, normalUser);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getTotalElements()).isEqualTo(21);
+        assertThat(result.getNumber()).isEqualTo(1);
     }
 
     @Test

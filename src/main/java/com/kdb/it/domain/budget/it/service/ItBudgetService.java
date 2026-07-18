@@ -70,6 +70,31 @@ public class ItBudgetService {
             yoyRows.add(new ItBudgetDto.YoyRow(curr.ioeCode(), curr.codeNm(), prevAmt, currAmt, diff, diffRate));
         }
 
-        return new ItBudgetDto.ComparisonResponse(bgYy, prevYy, List.of(), yoyRows);
+        List<ItBudgetDto.FssMappingRow> fssMapping = currRows.stream()
+                .map(row -> new ItBudgetDto.FssMappingRow(
+                        row.ioeCode(),
+                        row.ioeDtlCode(),
+                        resolveBankCategoryNm(row),
+                        row.codeNm(),
+                        row.codeNm(),
+                        row.totalReqAmt(),
+                        "정식 금감원 매핑 테이블 도입 전 임시 동일 비목 매핑"
+                ))
+                .toList();
+
+        return new ItBudgetDto.ComparisonResponse(bgYy, prevYy, fssMapping, yoyRows);
+    }
+
+    /**
+     * 당행 비목명 해석 — 코드값약어명(CO_CDVA_ABV_NM)을 우선 사용합니다.
+     *
+     * <p>약어명이 없거나 공백이면 코드값명(CDVA_NM)으로 대체해 빈 셀이 표시되지 않게 합니다.</p>
+     *
+     * @param row 비목별 집계 행
+     * @return 표시용 당행 비목명
+     */
+    private String resolveBankCategoryNm(ItBudgetDto.CategoryRow row) {
+        String abbr = row.codeAbbrNm();
+        return (abbr != null && !abbr.isBlank()) ? abbr : row.codeNm();
     }
 }

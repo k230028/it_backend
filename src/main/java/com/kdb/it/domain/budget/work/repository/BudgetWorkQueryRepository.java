@@ -25,11 +25,11 @@ public interface BudgetWorkQueryRepository {
     /**
      * 결재완료 품목(BITEMM) 요청금액을 품목구분(ioeC)별로 집계합니다.
      *
-     * <p>환율(xcr)이 있으면 {@code gclAmt * xcr}, 없으면 {@code gclAmt}로 합산합니다.</p>
+     * <p>BITEMM.amt는 저장 시점에 원화로 환산된 금액이므로 환율을 다시 곱하지 않고 합산합니다.</p>
      *
      * @param bgYy   예산연도
      * @param srcPks 선택 원본 PK(gclMngNo) 한정 집합. null/빈 값이면 전체(연도 기준).
-     * @return ioeC → (gclAmt * xcr) 합계 맵
+     * @return ioeC → gclAmt 합계 맵
      */
     Map<String, BigDecimal> findApprovedItemAmountByGclDtt(String bgYy, Collection<String> srcPks);
 

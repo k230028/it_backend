@@ -6,6 +6,9 @@ package com.kdb.it.common.util;
  * <p>월별 결재/문서 추이, 일별 로그인 통계처럼 {@code [0]=문자열 라벨, [1]=건수(NUMBER)}
  * 형태가 반복되므로 공용 record 하나로 통합한다. 의미(월/일자 등)는 호출부 메서드명·주석으로
  * 구분한다. 매핑은 §5.5.4 {@link NativeRowMapper} 헬퍼로 봉인한다.</p>
+ *
+ * @param label 라벨(월/일자 등 문자열)
+ * @param count 건수
  */
 public record LabeledCountRow(String label, long count) {
     /** 컬럼 수 가드: SELECT 절 길이가 바뀌면 즉시 드러나도록 한다. */

@@ -7,6 +7,11 @@ import com.kdb.it.common.util.NativeRowMapper;
  *
  * <p>컬럼: [0]=APF_DCM_NO(결재문서번호), [1]=DCD_REQ_TTL(제목), [2]=USR_NM(요청자명),
  * [3]=RQS_DT(YYYY-MM-DD 문자열).</p>
+ *
+ * @param apfDcmNo 결재문서번호
+ * @param title    제목
+ * @param usrNm    요청자명
+ * @param rqsDt    신청일자(YYYY-MM-DD 문자열)
  */
 public record PendingApprovalRow(String apfDcmNo, String title, String usrNm, String rqsDt) {
     /** 컬럼 수 가드: SELECT 절 길이가 바뀌면 즉시 드러나도록 한다. */

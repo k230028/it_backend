@@ -5,6 +5,7 @@ import com.kdb.it.common.board.service.BoardCommentService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -55,7 +56,7 @@ public class BoardCommentController {
     public ResponseEntity<Long> create(
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
-            @RequestBody BoardCommentDto.CreateRequest request,
+            @Valid @RequestBody BoardCommentDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         Long cmmtMngNo = boardCommentService.createComment(blbMngNo, nacMngNo, request, user);
         return ResponseEntity.created(
@@ -79,7 +80,7 @@ public class BoardCommentController {
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
             @PathVariable("cmmtMngNo") Long cmmtMngNo,
-            @RequestBody BoardCommentDto.CreateRequest request,
+            @Valid @RequestBody BoardCommentDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         Long replyId = boardCommentService.createReply(blbMngNo, nacMngNo, cmmtMngNo, request, user);
         return ResponseEntity.created(
@@ -102,7 +103,7 @@ public class BoardCommentController {
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
             @PathVariable("cmmtMngNo") Long cmmtMngNo,
-            @RequestBody BoardCommentDto.UpdateRequest request,
+            @Valid @RequestBody BoardCommentDto.UpdateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         boardCommentService.updateComment(cmmtMngNo, request, user);
         return ResponseEntity.ok().build();

@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +38,12 @@ import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.OrganizationRepository;
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
+import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 
@@ -61,6 +68,8 @@ class ApplicationServiceTest {
     @Mock private ApplicationMapRepository applicationMapRepository;
     @Mock private ProjectRepository projectRepository;
     @Mock private CostRepository costRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private OrganizationRepository organizationRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private ApprovalLineDelegate approvalLineDelegate;
     @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
@@ -69,6 +78,12 @@ class ApplicationServiceTest {
     private ApplicationService applicationService;
 
     private static final String APF_MNG_NO = "APF_202600000001";
+
+    @BeforeEach
+    void setUp() {
+        given(userRepository.findByEnoIn(any())).willReturn(List.of());
+        given(organizationRepository.findAllById(any())).willReturn(List.of());
+    }
 
     /** Capplm Mock — getApfDtlCone() null로 updateApprovalLineInDetail 즉시 리턴 */
     private Capplm mockCapplm() {
@@ -105,6 +120,8 @@ class ApplicationServiceTest {
                 applicationMapRepository,
                 projectRepository,
                 costRepository,
+                userRepository,
+                organizationRepository,
                 eventPublisher,
                 new ApprovalLineDelegate(new ObjectMapper()),
                 bprojaSyncService);
@@ -613,6 +630,28 @@ class ApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("submit: 1차 결재자 알림은 EAI 채널로 발행한다")
+    void submit_결재요청알림_EAI채널발행() {
+        given(applicationRepository.getNextVal()).willReturn(1L);
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("10001");
+        request.setApproverEnos(List.of("10002"));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc("APF-"
+                + LocalDate.now().getYear() + "-00000001"))
+                .willReturn(List.of(pendingApprover("10002", 1, "Y")));
+
+        applicationService.submit(request);
+
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().recipientEno()).isEqualTo("10002");
+        assertThat(captor.getValue().infmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_REQUEST);
+        assertThat(captor.getValue().sdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
+    }
+
+    @Test
     @DisplayName("submit: 원본 항목을 연결하고 기안자가 1차 결재자여도 자동 승인하지 않는다")
     void submit_원본항목연결_기안자1차결재자도_자동승인없음() {
         ApplicationService realMapperService = serviceWithRealObjectMapper();
@@ -785,5 +824,130 @@ class ApplicationServiceTest {
                 .containsExactly(4);
         assertThat(result.getPendingList()).extracting(value -> value.getUrgency())
                 .containsExactly("urgent", "normal");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // 신청자명·부서명 해석 및 방어 분기 보강
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getApplication: 신청자 사번·부점코드를 이름/부서명으로 해석해 채운다")
+    void getApplication_신청자명_부서명_해석() {
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getApfMngNo()).willReturn(APF_MNG_NO);
+        given(capplm.getDcdReqUsid()).willReturn("10001");
+        given(capplm.getDcdReqBbrC()).willReturn("18001");
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("10002", 1, "Y")));
+        given(userRepository.findByEnoIn(any())).willReturn(List.of(
+                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("18001").build()));
+        given(organizationRepository.findAllById(any())).willReturn(List.of(
+                CorgnI.builder().prlmOgzCCone("18001").bbrNm("정보기술부").build()));
+
+        ApplicationDto.Response result = applicationService.getApplication(APF_MNG_NO);
+
+        assertThat(result.getApfMngNo()).isEqualTo(APF_MNG_NO);
+    }
+
+    @Test
+    @DisplayName("getApplication: 신청자 사번·부점코드가 없으면 이름 해석 없이 반환한다")
+    void getApplication_신청자정보없음_null유지() {
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getApfMngNo()).willReturn(APF_MNG_NO);
+        given(capplm.getDcdReqUsid()).willReturn(null);
+        given(capplm.getDcdReqBbrC()).willReturn(null);
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO)).willReturn(List.of());
+
+        ApplicationDto.Response result = applicationService.getApplication(APF_MNG_NO);
+
+        assertThat(result.getApfMngNo()).isEqualTo(APF_MNG_NO);
+    }
+
+    @Test
+    @DisplayName("getApplications: 부서명이 null인 조직은 매핑에서 제외된다")
+    void getApplications_부서명null조직_제외() {
+        Capplm c = mock(Capplm.class);
+        given(c.getApfMngNo()).willReturn(APF_MNG_NO);
+        given(c.getDcdReqUsid()).willReturn("10001");
+        given(c.getDcdReqBbrC()).willReturn("18001");
+        given(applicationRepository.findAll()).willReturn(List.of(c));
+        given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any())).willReturn(List.of());
+        given(userRepository.findByEnoIn(any())).willReturn(List.of(
+                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("18001").build()));
+        // bbrNm이 null인 조직은 filter(bbrNm != null)에서 제외되는 분기 커버
+        given(organizationRepository.findAllById(any())).willReturn(List.of(
+                CorgnI.builder().prlmOgzCCone("18001").bbrNm(null).build()));
+
+        List<ApplicationDto.Response> result = applicationService.getApplications();
+
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("submit: 신청자 사번으로 소속 부점코드를 조회해 저장한다")
+    void submit_신청자부점코드_해석저장() {
+        given(applicationRepository.getNextVal()).willReturn(11L);
+        given(userRepository.findById("10001")).willReturn(Optional.of(
+                CuserI.builder().eno("10001").bbrC("18001").build()));
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("부서 해석 신청");
+        request.setRqsEno("10001");
+        request.setApproverEnos(List.of("10002"));
+
+        applicationService.submit(request);
+
+        ArgumentCaptor<Capplm> captor = ArgumentCaptor.forClass(Capplm.class);
+        verify(applicationRepository).save(captor.capture());
+        assertThat(captor.getValue().getDcdReqBbrC()).isEqualTo("18001");
+    }
+
+    @Test
+    @DisplayName("submit: 신청자 사번이 없으면 신청부점코드는 null로 저장된다")
+    void submit_신청자사번없음_부점코드null() {
+        given(applicationRepository.getNextVal()).willReturn(12L);
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("사번 없는 신청");
+        request.setRqsEno(null);
+        request.setApproverEnos(List.of("10002"));
+
+        String result = applicationService.submit(request);
+
+        assertThat(result).startsWith("APF-");
+        ArgumentCaptor<Capplm> captor = ArgumentCaptor.forClass(Capplm.class);
+        verify(applicationRepository).save(captor.capture());
+        assertThat(captor.getValue().getDcdReqBbrC()).isNull();
+    }
+
+    @Test
+    @DisplayName("submit: 다음 결재자 사번이 공백이면 결재요청 알림을 발행하지 않는다")
+    void submit_다음결재자사번공백_알림생략() {
+        given(applicationRepository.getNextVal()).willReturn(13L);
+        String apf = "APF-" + LocalDate.now().getYear() + "-00000013";
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(apf))
+                .willReturn(List.of(pendingApprover("   ", 1, "Y")));
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("공백 결재자 신청");
+        request.setRqsEno("10001");
+        request.setApproverEnos(List.of("   "));
+
+        applicationService.submit(request);
+
+        verify(eventPublisher, never()).publishEvent(any(NotificationEvent.class));
+    }
+
+    @Test
+    @DisplayName("getPendingCount: bgYy가 공백이면 연도 필터 없이 집계한다")
+    void getPendingCount_공백연도_필터없이집계() {
+        given(projectRepository.countBySearchCondition(any())).willReturn(1L);
+        given(costRepository.countBySearchCondition(any())).willReturn(1L);
+
+        ApplicationDto.PendingCountResponse res = applicationService.getPendingCount("   ");
+
+        assertThat(res.getTotalCount()).isEqualTo(2L);
     }
 }

@@ -5,8 +5,10 @@ import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.util.DateFormatUtil;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -40,6 +42,21 @@ public class CostDto {
      * <p>목록 화면에 필요한 식별/요약 컬럼만 담는다. Bcostm은 1000자+ 대용량 텍스트가 없어
      * 제외 본문은 없으나, 목록에 불필요한 환산/외화/연기/담당자 등 미표시 컬럼을 select에서
      * 빼 적재 폭을 줄인다. 상세는 기존 엔티티 조회 경로를 유지한다(결정 B).</p>
+     *
+     * @param costBgNo     전산업무비예산번호
+     * @param bgSno        예산일련번호
+     * @param lstYn        최종여부 ('Y'=현재 유효 레코드)
+     * @param ioeC         비목코드
+     * @param cttNm        계약명
+     * @param cttOppNm     계약상대처명
+     * @param costTotXpAmt 전산업무비예산금액
+     * @param curC         통화코드
+     * @param sectSysUtzYn 정보보호여부 (Y/N)
+     * @param costSvnDpmC  담당부서코드 (주관부서코드)
+     * @param svnTemC      담당팀코드 (주관팀코드)
+     * @param bseYy        예산연도 (기준연도)
+     * @param abusTc       사업구분코드
+     * @param delYn        삭제여부 (Y/N)
      */
     @Schema(name = "CostListRow")
     public record CostListRow(
@@ -116,6 +133,7 @@ public class CostDto {
         private String fstDfrDt;
 
         /** 통화 코드 (예: "KRW", "USD") */
+        @NotBlank
         @Schema(description = "통화", example = "KRW")
         private String curC;
 
@@ -252,6 +270,7 @@ public class CostDto {
         private String fstDfrDt;
 
         /** 통화 코드 */
+        @NotBlank
         @Schema(description = "통화", example = "KRW")
         private String curC;
 
@@ -491,8 +510,11 @@ public class CostDto {
         @Schema(description = "일반관리비 편성예산 (BBUGTM 기준)")
         private java.math.BigDecimal costDupBg;
 
-        /** 전년도 예산: abusTc=002(계속)이면 bseYy-1 연도 AMT(전산업무비예산금액) 합계, 신규(abusTc=001)이면 0 */
-        @Schema(description = "전년도 예산 (계속 항목은 전년도 AMT(전산업무비예산금액) 합계, 신규는 0)")
+        /**
+         * 전년도 예산: abusTc=02(계속)이면 bseYy-1 연도 예산 합계, 신규(abusTc=01)이면 0.
+         * 외화(curC≠'KRW') 행은 FC_AMT(외화금액), 원화 행은 AMT(전산업무비예산금액) 기준.
+         */
+        @Schema(description = "전년도 예산 (계속 항목은 전년도 예산 합계 — 외화 행은 외화금액 기준, 신규는 0)")
         private BigDecimal prevBgAmt;
 
         /** 전년도 BBUGTM 편성예산: 계속 항목의 cncdRfrNo 기준 bseYy-1 DUP_BG 합계, 신규는 0 */
@@ -514,6 +536,10 @@ public class CostDto {
         /** 신청서 상세 정보 (신청서명, 신청자, 결재자 목록 등) */
         @Schema(description = "신청서 상세 정보")
         private ApplicationInfoDto applicationInfo;
+
+        /** 최종변경일시 (BaseEntity LST_CHG_DTM — 목록 기본 정렬(최근 수정순)에 사용) */
+        @Schema(description = "최종변경일시", example = "2026-07-01T10:30:00")
+        private LocalDateTime lstChgDtm;
 
         /**
          * {@link Bcostm} 엔티티를 응답 DTO로 변환하는 정적 팩토리 메서드
@@ -547,6 +573,7 @@ public class CostDto {
                     .cncdRfrNo(entity.getCncdRfrNo()) // 관련전산업무비번호
                     .fcAmt(entity.getFcAmt()) // 외화금액
                     .delYn(entity.getDelYn()) // 삭제여부
+                    .lstChgDtm(entity.getLstChgDtm()) // 최종변경일시 (목록 기본 정렬용)
                     .build();
         }
 
@@ -663,6 +690,9 @@ public class CostDto {
      * <p>조회에 성공한 항목({@code items})과 미존재로 조회에 실패한 전산관리비관리번호
      * 목록({@code failedIds})을 함께 반환합니다. 누락 건을 조용히 버리지 않고
      * 호출자에게 노출하기 위함입니다.</p>
+     *
+     * @param items     조회 성공 항목 목록
+     * @param failedIds 조회 실패(미존재) 전산관리비관리번호 목록
      */
     @Schema(name = "CostBulkResponse", description = "전산관리비 일괄 조회 결과 (부분 성공)")
     public record BulkResponse(

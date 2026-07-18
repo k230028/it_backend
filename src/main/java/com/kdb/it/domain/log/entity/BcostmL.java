@@ -76,6 +76,12 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드")
     private String svnTemC;
 
+    @Column(name = "SVN_DPM_NM", length = 100, comment = "주관부서명")
+    private String svnDpmNm;
+
+    @Column(name = "SVN_TEM_NM", length = 100, comment = "주관팀명")
+    private String svnTemNm;
+
     @Column(name = "BSE_YY", length = 4, comment = "예산연도")
     private String bseYy;
 

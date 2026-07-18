@@ -21,7 +21,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
@@ -35,8 +35,6 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -93,6 +91,8 @@ public class CostService {
     private final UserRepository cuserIRepository;
     /** 작성자 소속 조직 해석기: 신규 생성 시 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE)을 작성자 기준으로 채움 */
     private final com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+    /** 조직코드→조직명 해석기: 주관부서명/주관팀명 스냅샷 저장용 */
+    private final com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
     /** 결재자(TPRMPP_CDECIM) 리포지토리: 결재선 조회용 */
     private final ApproverRepository cdecimRepository;
     /** 공통코드(TPRMPP_CCODEM) 리포지토리: 코드명 배치 조회용 */
@@ -251,6 +251,10 @@ public class CostService {
         Bcostm bcostm = request.toEntity(nextSno);
         // 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE)은 작성자(현재 로그인 사용자) 소속 상위조직코드로 자동 설정 (작성자 기준)
         bcostm.assignPrlmHrkOgzCCone(authorOrgResolver.resolveCurrent().prlmHrkOgzCCone());
+        // 주관부서명/주관팀명은 코드 설정 시점의 CORGNI 조회 스냅샷으로 함께 저장
+        bcostm.assignSvnOrgNames(
+                orgNameResolver.resolveName(bcostm.getCostSvnDpmC()),
+                orgNameResolver.resolveName(bcostm.getSvnTemC()));
         costRepository.save(bcostm);
 
         if (request.getTerminals() != null && !request.getTerminals().isEmpty()) {
@@ -313,7 +317,7 @@ public class CostService {
                 .findFirst()
                 .orElse(costs.get(0));
 
-        validateModifyPermission(target.getFstEnrUsid(), target.getCostSvnDpmC());
+        OwnershipVerifier.verifyModifiable(target.getFstEnrUsid(), target.getCostSvnDpmC());
 
         // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
         request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
@@ -332,6 +336,11 @@ public class CostService {
                 request.getCostSvnDpmC(), request.getSvnTemC(), request.getBgUntAbusC(),
                 request.getTmnYn(), request.getAbusTc(), request.getBseYy(), request.getCncdRfrNo(),
                 request.getFcAmt());
+
+        // 수정으로 담당부서/팀 코드가 바뀔 수 있으므로 이름 스냅샷도 같은 시점 기준으로 갱신
+        target.assignSvnOrgNames(
+                orgNameResolver.resolveName(target.getCostSvnDpmC()),
+                orgNameResolver.resolveName(target.getSvnTemC()));
 
         /* 연관된 단말기 목록 업데이트: 기존 Soft Delete 후 재등록 */
         List<Btermm> existingTerminals = btermmRepository.findByTermBgNoAndTermBgSno(target.getCostBgNo(),
@@ -388,7 +397,7 @@ public class CostService {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
 
-        validateModifyPermission(costs.get(0).getFstEnrUsid(), costs.get(0).getCostSvnDpmC());
+        OwnershipVerifier.verifyModifiable(costs.get(0).getFstEnrUsid(), costs.get(0).getCostSvnDpmC());
 
         // 단말기 일괄 조회 (N+1 제거): 미삭제 단말기를 IN 조회로 1회만 적재.
         // DEL_YN='N'만 대상으로 한다 — 이미 삭제(DEL_YN='Y')된 단말기는 재삭제가 불필요하므로 의도적으로 제외(멱등).
@@ -664,9 +673,13 @@ public class CostService {
                 }
             }
 
-            if (response.getCostSvnDpmC() != null)
-                response.setCostSvnDpmNm(orgNameMap.get(response.getCostSvnDpmC()));
-            if (response.getSvnTemC() != null)
+            if (cost.getSvnDpmNm() != null)
+                response.setCostSvnDpmNm(cost.getSvnDpmNm()); // 저장 스냅샷 우선
+            else if (response.getCostSvnDpmC() != null)
+                response.setCostSvnDpmNm(orgNameMap.get(response.getCostSvnDpmC())); // 구데이터 폴백
+            if (cost.getSvnTemNm() != null)
+                response.setSvnTemNm(cost.getSvnTemNm());
+            else if (response.getSvnTemC() != null)
                 response.setSvnTemNm(orgNameMap.get(response.getSvnTemC()));
             if (response.getCgprId() != null)
                 response.setCgprNm(userNameMap.get(response.getCgprId()));
@@ -695,64 +708,103 @@ public class CostService {
             }
         }
 
-        // --- 7. 전년도 예산(prevBgAmt) 배치 조회 (계속 항목만) ---
-        List<String> continuingNos = responses.stream()
-                .filter(r -> "02".equals(r.getAbusTc()))
-                .map(value -> value.getCostBgNo())
-                .distinct()
-                .toList();
-        if (!continuingNos.isEmpty()) {
-            String bseYy = responses.stream()
-                    .map(value -> value.getBseYy())
-                    .filter(y -> y != null && !y.isBlank())
-                    .findFirst().orElse(null);
-            if (bseYy != null) {
-                String prevYear = String.valueOf(Integer.parseInt(bseYy) - 1);
-                Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByCostBgNos(continuingNos, prevYear);
-                responses.forEach(r -> {
-                    if ("02".equals(r.getAbusTc())) {
-                        r.setPrevBgAmt(prevBgMap.getOrDefault(r.getCostBgNo(), BigDecimal.ZERO));
-                    } else {
-                        r.setPrevBgAmt(BigDecimal.ZERO);
-                    }
-                });
-            }
-        }
+        // --- 7. 전년도 예산(prevBgAmt)·전년도 편성예산(prevDupBg) 배치 조회 ---
+        // 목록에는 여러 예산연도가 섞일 수 있으므로(전체 조회) 행별 bseYy 기준으로
+        // 연도 그룹을 나눠 각 그룹의 전년도(bseYy-1)로 조회한다.
+        // (과거: 첫 행의 bseYy 하나로 전년도를 일괄 계산 → 혼합 연도 목록에서 전 행이 0이 되는 버그)
+        responses.forEach(r -> {
+            r.setPrevBgAmt(BigDecimal.ZERO);
+            r.setPrevDupBg(BigDecimal.ZERO);
+        });
+        Map<String, List<CostDto.Response>> responsesByYear = responses.stream()
+                .filter(r -> r.getBseYy() != null && r.getBseYy().matches("\\d{4}"))
+                .collect(Collectors.groupingBy(value -> value.getBseYy()));
+        for (Map.Entry<String, List<CostDto.Response>> entry : responsesByYear.entrySet()) {
+            String prevYear = String.valueOf(Integer.parseInt(entry.getKey()) - 1);
+            List<CostDto.Response> yearGroup = entry.getValue();
 
-        // --- 8. 전년도 BBUGTM 편성예산(prevDupBg) 배치 조회 (cncdRfrNo 기준) ---
-        List<String> cncdNos = responses.stream()
-                .filter(r -> r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank())
-                .map(value -> value.getCncdRfrNo())
-                .distinct()
-                .toList();
-        if (!cncdNos.isEmpty()) {
-            String bseYy8 = responses.stream()
-                    .map(value -> value.getBseYy())
-                    .filter(y -> y != null && !y.isBlank())
-                    .findFirst().orElse(null);
-            if (bseYy8 != null) {
-                String prevYear8 = String.valueOf(Integer.parseInt(bseYy8) - 1);
-                Map<String, BigDecimal> prevDupBgMap = bbugtmRepository.sumDupBgByItMngcNos(cncdNos, prevYear8);
-                responses.forEach(r -> {
+            // 전년도 예산(BCOSTM AMT 합계): 계속(abusTc='02') 항목만.
+            // 전년도 항목은 cncdRfrNo(관련전산업무비번호)로 연결되므로 cncdRfrNo 우선,
+            // 미연결(동일 관리번호 연차 데이터)은 costBgNo로 폴백 조회한다.
+            List<String> prevAmtKeys = yearGroup.stream()
+                    .filter(r -> "02".equals(r.getAbusTc()))
+                    .map(CostService::prevBudgetLookupKey)
+                    .filter(k -> k != null && !k.isBlank())
+                    .distinct()
+                    .toList();
+            if (!prevAmtKeys.isEmpty()) {
+                Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByCostBgNos(prevAmtKeys, prevYear);
+                yearGroup.stream()
+                        .filter(r -> "02".equals(r.getAbusTc()))
+                        .forEach(r -> r.setPrevBgAmt(
+                                prevBgMap.getOrDefault(prevBudgetLookupKey(r), BigDecimal.ZERO)));
+            }
+
+            // 전년도 BBUGTM 편성예산(DUP_BG 합계): cncdRfrNo 연결 항목만
+            List<String> cncdNos = yearGroup.stream()
+                    .map(value -> value.getCncdRfrNo())
+                    .filter(v -> v != null && !v.isBlank())
+                    .distinct()
+                    .toList();
+            if (!cncdNos.isEmpty()) {
+                Map<String, BigDecimal> prevDupBgMap = bbugtmRepository.sumDupBgByItMngcNos(cncdNos, prevYear);
+                yearGroup.forEach(r -> {
                     if (r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank()) {
                         r.setPrevDupBg(prevDupBgMap.getOrDefault(r.getCncdRfrNo(), BigDecimal.ZERO));
-                    } else {
-                        r.setPrevDupBg(BigDecimal.ZERO);
                     }
                 });
-            } else {
-                responses.forEach(r -> r.setPrevDupBg(BigDecimal.ZERO));
             }
-        } else {
-            responses.forEach(r -> r.setPrevDupBg(BigDecimal.ZERO));
         }
     }
 
-    /** 응답 DTO에 신청서 정보, 코드명, 예산 구분을 일괄 설정 */
+    /**
+     * 계속 항목의 전년도 예산 조회 키를 반환합니다.
+     * 전년도 항목이 cncdRfrNo로 연결된 경우 그 관리번호, 아니면 자기 관리번호(연차 데이터 호환).
+     */
+    private static String prevBudgetLookupKey(CostDto.Response r) {
+        return (r.getCncdRfrNo() != null && !r.getCncdRfrNo().isBlank())
+                ? r.getCncdRfrNo()
+                : r.getCostBgNo();
+    }
+
+    /** 응답 DTO에 신청서 정보, 코드명, 예산 구분, 전년도 예산을 일괄 설정 */
     private void enrichResponse(CostDto.Response response, Bcostm cost) {
         setApplicationInfo(response, cost.getCostBgNo(), cost.getBgSno());
+        // 저장 스냅샷 우선 — setCodeNames의 CORGNI 조회는 null일 때만 폴백으로 동작
+        if (cost.getSvnDpmNm() != null) {
+            response.setCostSvnDpmNm(cost.getSvnDpmNm());
+        }
+        if (cost.getSvnTemNm() != null) {
+            response.setSvnTemNm(cost.getSvnTemNm());
+        }
         setCodeNames(response);
         setBudgetCategory(response);
+        setPrevBudget(response);
+    }
+
+    /**
+     * 단건 응답에 전년도 예산(prevBgAmt)을 설정합니다.
+     *
+     * <p>계속(abusTc='02') 항목만 대상이며, cncdRfrNo(전년도 관리번호) 우선 키로
+     * 전년도(bseYy-1) BCOSTM 예산금액 합계를 조회합니다. 목록 배치 보강
+     * ({@code enrichCostListBatch})과 동일한 기준입니다.</p>
+     */
+    private void setPrevBudget(CostDto.Response response) {
+        response.setPrevBgAmt(BigDecimal.ZERO);
+        if (!"02".equals(response.getAbusTc())) {
+            return;
+        }
+        String bseYy = response.getBseYy();
+        if (bseYy == null || !bseYy.matches("\\d{4}")) {
+            return;
+        }
+        String key = prevBudgetLookupKey(response);
+        if (key == null || key.isBlank()) {
+            return;
+        }
+        String prevYear = String.valueOf(Integer.parseInt(bseYy) - 1);
+        Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByCostBgNos(List.of(key), prevYear);
+        response.setPrevBgAmt(prevBgMap.getOrDefault(key, BigDecimal.ZERO));
     }
 
     /**
@@ -768,11 +820,14 @@ public class CostService {
 
     /** 부서코드→부서명, 사원번호→사용자명, 사업코드→사업코드명 조회 및 설정 */
     private void setCodeNames(CostDto.Response response) {
-        if (response.getCostSvnDpmC() != null && !response.getCostSvnDpmC().isEmpty()) {
+        // 담당부서/팀명: 스냅샷이 이미 세팅됐으면 건너뛰고, null일 때만 CORGNI 폴백 조회
+        if (response.getCostSvnDpmNm() == null
+                && response.getCostSvnDpmC() != null && !response.getCostSvnDpmC().isEmpty()) {
             corgnIRepository.findById(response.getCostSvnDpmC())
                     .ifPresent(org -> response.setCostSvnDpmNm(org.getBbrNm()));
         }
-        if (response.getSvnTemC() != null && !response.getSvnTemC().isEmpty()) {
+        if (response.getSvnTemNm() == null
+                && response.getSvnTemC() != null && !response.getSvnTemC().isEmpty()) {
             corgnIRepository.findById(response.getSvnTemC())
                     .ifPresent(org -> response.setSvnTemNm(org.getBbrNm()));
         }
@@ -883,44 +938,5 @@ public class CostService {
         Long seq = btermmRepository.getNextSequenceValue();
         String year = String.valueOf(LocalDate.now().getYear());
         return String.format("TER-%s-%04d", year, seq);
-    }
-
-    /**
-     * RBAC 수정/삭제 권한 검증 헬퍼
-     * ({@link com.kdb.it.domain.budget.project.service.ProjectService}와 동일 규칙)
-     *
-     * <p>
-     * SecurityContext에서 현재 인증된 사용자를 조회하고 자격등급 기반 3단계 권한을 검증합니다.
-     * </p>
-     *
-     * <ol>
-     * <li>시스템관리자(ITPAD001): 모든 리소스 수정 허용</li>
-     * <li>기획통할담당자(ITPZZ002): 소속 부서(bbrC) == 리소스 부서(resourceBbrC)인 경우 허용</li>
-     * <li>일반사용자(ITPZZ001): 본인 작성 리소스(creatorEno == 요청자 eno)만 허용</li>
-     * </ol>
-     *
-     * @param creatorEno   리소스 최초 작성자 사번 (FST_ENR_USID)
-     * @param resourceBbrC 리소스 소속 부서코드 (부서 단위 권한 범위 결정용)
-     * @throws org.springframework.security.access.AccessDeniedException 수정 권한이 없는
-     *                                                                   경우
-     */
-    private void validateModifyPermission(String creatorEno, String resourceBbrC) {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (!(principal instanceof CustomUserDetails currentUser)) {
-            throw new AccessDeniedException("인증 정보를 확인할 수 없습니다.");
-        }
-        if (currentUser.isAdmin()) {
-            return;
-        }
-        if (currentUser.isDeptManager()) {
-            if (currentUser.getBbrC() != null && currentUser.getBbrC().equals(resourceBbrC)) {
-                return;
-            }
-            throw new AccessDeniedException("소속 부서의 리소스만 수정할 수 있습니다.");
-        }
-        if (currentUser.getEno().equals(creatorEno)) {
-            return;
-        }
-        throw new AccessDeniedException("본인이 작성한 리소스만 수정할 수 있습니다.");
     }
 }

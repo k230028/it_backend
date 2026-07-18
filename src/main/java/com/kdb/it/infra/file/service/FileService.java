@@ -5,33 +5,24 @@ import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.repository.FileRepository;
 import com.kdb.it.infra.file.FileOwnershipChecker;
-import com.kdb.it.infra.file.FileValidator;
 import com.kdb.it.exception.CustomGeneralException;
 import org.springframework.security.access.AccessDeniedException;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.net.MalformedURLException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 공통 첨부파일 서비스
@@ -76,31 +67,11 @@ public class FileService {
     /** 공통 첨부파일 데이터 접근 리포지토리 */
     private final FileRepository fileRepository;
 
-    /** 파일 확장자 화이트리스트 검증 — SEC-04 */
-    private final FileValidator fileValidator;
-
     /** 파일 읽기 권한 검증 — 목록 결과를 사용자별 읽기 가능 파일로 필터링 */
     private final FileOwnershipChecker fileOwnershipChecker;
 
-    /**
-     * JPA EntityManager — 수동 부여 ID 엔티티의 INSERT를 {@code persist()}로 확정적으로 수행하기 위해 사용.
-     *
-     * <p>
-     * Spring Data JPA의 {@code save()}는 수동 부여 ID({@code @Id}만 있고 {@code @GeneratedValue} 없음)
-     * 엔티티에 대해 {@code EntityManager.merge()} 세만틱으로 동작합니다. merge()는 상황에 따라
-     * 즉시 INSERT가 되지 않거나 dirty flag가 누락되어, 커밋 후에도 DB에 행이 없는 현상이 발생할 수 있습니다.
-     * 본 클래스에서는 업로드 경로만 {@code persist()}를 명시적으로 호출하여 이러한 불확정성을 제거합니다.
-     * </p>
-     */
-    @PersistenceContext
-    private EntityManager entityManager;
-
-    /**
-     * 서버 인스턴스 ID
-     * 1번 서버: SVR1, 2번 서버: SVR2 등으로 각 서버 설정 파일에서 다르게 지정
-     */
-    @Value("${app.server.instance-id:SVR1}")
-    private String instanceId;
+    /** 파일별 업로드를 독립 트랜잭션으로 처리하는 단위 서비스 */
+    private final FileUploadUnitService fileUploadUnitService;
 
     /**
      * 파일 저장 기본 경로
@@ -108,62 +79,6 @@ public class FileService {
      */
     @Value("${app.file.base-path:/data/files}")
     private String basePath;
-
-    // ─────────────────────────────────────────
-    // 채번 & 경로 유틸리티
-    // ─────────────────────────────────────────
-
-    /**
-     * 파일매핑ID 채번
-     *
-     * <p>Oracle 시퀀스(SEQ_CFILEM) 값을 기반으로 생성합니다.</p>
-     *
-     * @return 파일매핑ID (예: FL_00000001)
-     */
-    private String generateFlMpnId() {
-        Long seq = fileRepository.getNextSequenceValue();
-        return String.format("FL_%08d", seq);
-    }
-
-    /**
-     * 파일물리명 생성
-     *
-     * <p>형식: {@code {서버ID}_{yyyyMMddHHmmss}_{UUID}.{확장자}}</p>
-     *
-     * @param originalFilename 원본 파일명 (확장자 추출용)
-     * @return 서버 저장용 고유 파일물리명
-     */
-    private String generateFlPysNm(String originalFilename) {
-        // 확장자 추출 (.pdf, .jpg 등 - 없으면 빈 문자열)
-        String ext = "";
-        if (StringUtils.hasText(originalFilename)) {
-            int dotIdx = originalFilename.lastIndexOf('.');
-            if (dotIdx >= 0 && dotIdx < originalFilename.length() - 1) {
-                ext = "." + originalFilename.substring(dotIdx + 1).toLowerCase();
-            }
-        }
-        // {서버ID}_{타임스탬프}_{UUID(하이픈 제거)}.{확장자}
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        String uuid = UUID.randomUUID().toString().replace("-", "");
-        return instanceId + "_" + timestamp + "_" + uuid + ext;
-    }
-
-    /**
-     * 파일 저장 디렉토리 경로 생성
-     *
-     * <p>형식: {@code {basePath}/{주식별자컬럼명}/{년도}/{월}}</p>
-     *
-     * @param pkColNm 주식별자컬럼명 (디렉토리 명으로 사용)
-     * @return 저장 디렉토리 Path 객체
-     */
-    private Path buildStorageDir(String pkColNm) {
-        LocalDate today = LocalDate.now();
-        return Paths.get(
-                basePath,
-                pkColNm,
-                String.valueOf(today.getYear()),
-                String.format("%02d", today.getMonthValue()));
-    }
 
     /**
      * 엔티티 → 응답 DTO 변환
@@ -296,58 +211,7 @@ public class FileService {
      */
     @Transactional
     protected Cfilem uploadFileInternal(MultipartFile file, FileDto.UploadRequest request) {
-        // 빈 파일 검증
-        if (file == null || file.isEmpty()) {
-            throw new CustomGeneralException("업로드할 파일이 비어있습니다.");
-        }
-
-        // 확장자 화이트리스트 검증 — SEC-04
-        fileValidator.validateExtension(file.getOriginalFilename());
-
-        // 저장 디렉토리 경로 생성
-        Path storageDir = buildStorageDir(request.getPkColNm());
-
-        // 파일물리명 채번
-        String flPysNm = generateFlPysNm(file.getOriginalFilename());
-
-        // 파일매핑ID 채번
-        String flMpnId = generateFlMpnId();
-
-        // 저장 경로 문자열 (DB 저장용)
-        String flKpnPth = storageDir.toString();
-
-        // 디렉토리 생성 (이미 있으면 무시)
-        try {
-            Files.createDirectories(storageDir);
-        } catch (IOException e) {
-            throw new CustomGeneralException("파일 저장 디렉토리 생성에 실패했습니다. 경로: " + flKpnPth, e);
-        }
-
-        // 파일 디스크 저장
-        Path targetPath = storageDir.resolve(flPysNm);
-        try {
-            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw new CustomGeneralException("파일 저장에 실패했습니다. 파일명: " + file.getOriginalFilename(), e);
-        }
-
-        // DB 메타데이터 저장
-        Cfilem cfilem = Cfilem.builder()
-                .flMpnId(flMpnId)
-                .flNm(file.getOriginalFilename())
-                .flPysNm(flPysNm)
-                .flKpnPth(flKpnPth)
-                .flTpCone(request.getFlTpCone())
-                .pkCone(request.getPkCone())
-                .pkColNm(request.getPkColNm())
-                .build();
-
-        // 수동 부여 ID 엔티티는 persist()로 명시적 INSERT → save() 위임 시 merge() 세만틱으로
-        // 실제 INSERT가 누락되거나 지연되어 "존재하지 않는 파일" 오류가 발생하는 현상을 근본 차단
-        entityManager.persist(cfilem);
-        // 같은 트랜잭션 내 후속 조회 쿼리가 새 행을 볼 수 있도록 즉시 flush
-        entityManager.flush();
-        return cfilem;
+        return fileUploadUnitService.uploadFileInNewTransaction(file, request);
     }
 
     /**
@@ -389,7 +253,7 @@ public class FileService {
      * @param request 공통 메타데이터 (모든 파일에 동일하게 적용)
      * @return 일괄 업로드 결과 DTO (성공 목록 + 실패 파일명 목록)
      */
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public FileDto.BulkUploadResponse uploadFiles(List<MultipartFile> files, FileDto.UploadRequest request) {
         List<FileDto.Response> successList = new ArrayList<>();
         List<String> failList = new ArrayList<>();
@@ -398,13 +262,14 @@ public class FileService {
             try {
                 // 업로드 직후 동일 트랜잭션 내 재조회는 merge() flush 지연으로 실패할 수 있음 →
                 // 영속화된 엔티티를 그대로 DTO로 변환
-                Cfilem saved = uploadFileInternal(file, request);
+                Cfilem saved = fileUploadUnitService.uploadFileInNewTransaction(file, request);
                 successList.add(toResponse(saved));
             } catch (Exception e) {
                 // 다건 업로드 중 일부 실패는 전체를 중단하지 않고 실패 목록으로 수집한다.
                 // 단, 원본 파일명과 스택트레이스를 warn으로 남겨 실패 원인을 추적한다.
-                log.warn("[파일] 업로드 실패 — fileName={}", file.getOriginalFilename(), e);
-                failList.add(file.getOriginalFilename() + " (" + e.getMessage() + ")");
+                String fileName = failureFileName(file);
+                log.warn("[파일] 업로드 실패 - fileName={}", fileName, e);
+                failList.add(fileName + " (" + e.getMessage() + ")");
             }
         }
 
@@ -412,6 +277,13 @@ public class FileService {
                 .successList(successList)
                 .failList(failList)
                 .build();
+    }
+
+    private String failureFileName(MultipartFile file) {
+        if (file == null || !StringUtils.hasText(file.getOriginalFilename())) {
+            return "(unknown)";
+        }
+        return file.getOriginalFilename();
     }
 
     // ─────────────────────────────────────────

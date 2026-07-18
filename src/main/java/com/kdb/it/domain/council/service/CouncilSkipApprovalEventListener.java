@@ -30,6 +30,12 @@ public class CouncilSkipApprovalEventListener {
     private final ApplicationMapRepository applicationMapRepository;
     private final CouncilSkipService councilSkipService;
 
+    /**
+     * 결재 완료 이벤트가 생략판정요청 원본에 연결된 경우 협의회 후속 상태를 동기 반영합니다.
+     *
+     * @param event 결재 완료 이벤트. 연결 원본이 BASKPM이 아니면 처리하지 않음
+     * @throws RuntimeException 후속 상태 반영 실패 시 발행 트랜잭션을 롤백하기 위해 예외를 다시 전파
+     */
     @EventListener
     @Transactional
     public void handleApprovalCompleted(ApprovalCompletedEvent event) {

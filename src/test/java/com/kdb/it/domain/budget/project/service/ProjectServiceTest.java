@@ -105,6 +105,9 @@ class ProjectServiceTest {
         /** 작성자 소속 조직 해석기 (SVN_TEM_C 작성자 기준 주입) */
         @Mock
         private AuthorOrgResolver authorOrgResolver;
+        /** 조직코드→조직명 해석기 (주관부서명/주관팀명 스냅샷 주입) */
+        @Mock
+        private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
         @Mock
         private SecurityContext securityContext;
         @Mock
@@ -130,6 +133,10 @@ class ProjectServiceTest {
                 org.mockito.Mockito.lenient()
                                 .when(authorOrgResolver.resolveCurrent())
                                 .thenReturn(AuthorOrg.empty());
+                // 기본 조직명 스냅샷: 미등록 코드로 간주해 null 반환 (기존 테스트 무영향)
+                org.mockito.Mockito.lenient()
+                                .when(orgNameResolver.resolveName(org.mockito.ArgumentMatchers.anyString()))
+                                .thenReturn(null);
         }
 
         @AfterEach
@@ -158,6 +165,33 @@ class ProjectServiceTest {
                 ArgumentCaptor<Bprojm> captor = ArgumentCaptor.forClass(Bprojm.class);
                 verify(projectRepository).save(captor.capture());
                 assertThat(captor.getValue().getSvnTemC()).isEqualTo("18010");
+        }
+
+        @Test
+        @DisplayName("프로젝트 생성 시 주관부서명/주관팀명을 CORGNI 스냅샷으로 저장한다")
+        void createProject_storesSvnOrgNameSnapshot() {
+                // Arrange: 기존 create 성공 테스트와 동일한 request/스텁 구성 + 조직명 스텁
+                given(projectRepository.getNextSequenceValue()).willReturn(1L);
+                given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
+                org.mockito.Mockito.lenient()
+                                .when(authorOrgResolver.resolveCurrent())
+                                .thenReturn(new AuthorOrg("BBR001", "18010", "H001"));
+                given(orgNameResolver.resolveName("BBR001")).willReturn("주관부서명A");
+                given(orgNameResolver.resolveName("18010")).willReturn("PMO팀");
+                ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
+                                .abusNm("조직명 스냅샷 사업")
+                                .bseYy("2026")
+                                .svnDpmC("BBR001")
+                                .build();
+
+                // Act
+                projectService.createProject(request);
+
+                // Assert: 저장 엔티티에 주관부서명/주관팀명 스냅샷이 함께 저장된다
+                ArgumentCaptor<Bprojm> captor = ArgumentCaptor.forClass(Bprojm.class);
+                verify(projectRepository).save(captor.capture());
+                assertThat(captor.getValue().getSvnDpmNm()).isEqualTo("주관부서명A");
+                assertThat(captor.getValue().getSvnTemNm()).isEqualTo("PMO팀");
         }
 
         @Test
@@ -308,6 +342,57 @@ class ProjectServiceTest {
                 assertThat(result).hasSize(2);
                 assertThat(result.get(0).getAbusMngNo()).isEqualTo("PRJ-2026-0001");
                 assertThat(result.get(1).getAbusMngNo()).isEqualTo("PRJ-2026-0002");
+        }
+
+        @Test
+        @DisplayName("getProjectList: 사업계획서 사업일정(BBIZSM) 범위를 bizplanSttDt/EndDt에 주입한다")
+        void getProjectList_사업계획일정범위주입() {
+                // given: 사업 1건 + 해당 사업의 사업계획 일정 범위(MIN STT, MAX END)
+                Bprojm project = Bprojm.builder()
+                                .abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
+                given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                anyString(), anyList())).willReturn(List.of());
+                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
+                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
+                                .willReturn(List.of());
+                // 네이티브 집계 결과: {ABUS_MNG_NO, MIN(STT_DT), MAX(END_DT)}
+                given(projectRepository.findBizplanScheduleRange(anyList()))
+                                .willReturn(List.<Object[]>of(
+                                                new Object[] { "PRJ-2026-0001", "20260301", "20260930" }));
+
+                // when
+                List<ProjectDto.Response> result = projectService.getProjectList();
+
+                // then: 사업계획 일정 범위가 응답에 주입된다
+                assertThat(result).hasSize(1);
+                assertThat(result.get(0).getBizplanSttDt()).isEqualTo("20260301");
+                assertThat(result.get(0).getBizplanEndDt()).isEqualTo("20260930");
+        }
+
+        @Test
+        @DisplayName("getProjectList: 사업계획 일정이 없는 사업은 bizplanSttDt/EndDt가 null이다")
+        void getProjectList_사업계획일정없음_null유지() {
+                // given: 사업 1건, 사업계획 일정 집계 결과 없음(빈 목록)
+                Bprojm project = Bprojm.builder()
+                                .abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
+                given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+                given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                anyString(), anyList())).willReturn(List.of());
+                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
+                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
+                                .willReturn(List.of());
+                given(projectRepository.findBizplanScheduleRange(anyList())).willReturn(List.of());
+
+                // when
+                List<ProjectDto.Response> result = projectService.getProjectList();
+
+                // then: 미작성 사업은 null 유지(프론트가 예산 일정으로 폴백)
+                assertThat(result).hasSize(1);
+                assertThat(result.get(0).getBizplanSttDt()).isNull();
+                assertThat(result.get(0).getBizplanEndDt()).isNull();
         }
 
         // ───────────────────────────────────────────────────────
@@ -940,8 +1025,8 @@ class ProjectServiceTest {
                 assertThat(result.getDvmDpmCNm()).isEqualTo("IT부");
                 assertThat(result.getSvnDpmCNm()).isEqualTo("현업부");
                 assertThat(result.getDvmUsidNm()).isEqualTo("담당자");
-                assertThat(result.getAssetBg()).isEqualByComparingTo("1200");
-                assertThat(result.getDvcBg()).isEqualByComparingTo("1000");
+                assertThat(result.getAssetBg()).isEqualByComparingTo("300");
+                assertThat(result.getDvcBg()).isEqualByComparingTo("100");
                 assertThat(result.getHwBg()).isEqualByComparingTo("200");
                 assertThat(result.getCostBg()).isEqualByComparingTo("300");
                 assertThat(result.getItems().get(0).getIoeCNm()).isEqualTo("개발비");

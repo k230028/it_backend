@@ -9,6 +9,8 @@ import com.kdb.it.common.board.service.BoardPostService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
@@ -72,12 +74,14 @@ class BoardControllerUnitTest {
         BoardPostDto.ReplyCreateRequest replyRequest = new BoardPostDto.ReplyCreateRequest();
         BoardPostDto.ListItem listItem = new BoardPostDto.ListItem();
         BoardPostDto.Detail detail = new BoardPostDto.Detail();
-        given(service.searchPosts("BLBM-2026-0001", condition, user)).willReturn(List.of(listItem));
+        given(service.searchPosts("BLBM-2026-0001", condition, user))
+            .willReturn(new PageImpl<>(List.of(listItem), PageRequest.of(0, 20), 1));
         given(service.getPostDetail("BLBM-2026-0001", "NAC-1", user)).willReturn(detail);
         given(service.createPost("BLBM-2026-0001", createRequest, user)).willReturn("NAC-2");
         given(service.createReply("BLBM-2026-0001", "NAC-1", replyRequest, user)).willReturn("NAC-3");
 
-        assertThat(controller.searchPosts("BLBM-2026-0001", condition, user).getBody()).containsExactly(listItem);
+        assertThat(controller.searchPosts("BLBM-2026-0001", condition, user).getBody().getContent())
+            .containsExactly(listItem);
         assertThat(controller.getDetail("BLBM-2026-0001", "NAC-1", user).getBody()).isEqualTo(detail);
         var created = controller.create("BLBM-2026-0001", createRequest, user);
         var updated = controller.update("BLBM-2026-0001", "NAC-1", updateRequest, user);

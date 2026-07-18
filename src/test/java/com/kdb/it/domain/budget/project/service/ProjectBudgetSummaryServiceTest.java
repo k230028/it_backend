@@ -20,8 +20,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 /**
  * ProjectBudgetSummaryService 단위 테스트.
  *
- * <p>품목 MPL_AMT(예정금액)를 비목(IOE_C)별로 합산하고,
- * 당해예산(totRqmAmt)을 올바르게 파생하는지 검증합니다.</p>
+ * <p>저장 시점에 원화로 환산된 품목 금액을 요약에서 그대로 합산하고,
+ * MPL_AMT(예정금액) 파생값을 올바르게 계산하는지 검증합니다.</p>
  */
 @ExtendWith(MockitoExtension.class)
 class ProjectBudgetSummaryServiceTest {
@@ -59,6 +59,20 @@ class ProjectBudgetSummaryServiceTest {
      * @return 테스트용 Bitemm 인스턴스
      */
     private Bitemm item(String ioeC, long amt, long mplAmt) {
+        return item(ioeC, amt, mplAmt, BigDecimal.ONE);
+    }
+
+    /**
+     * 테스트용 Bitemm 생성 헬퍼.
+     *
+     * @param ioeC   비목코드
+     * @param amt    품목금액 (원화 기준)
+     * @param mplAmt 예정금액 (원화 기준)
+     * @param xcr    저장 시 적용된 환율
+     * @param fcAmt  원통화 금액
+     * @return 테스트용 Bitemm 인스턴스
+     */
+    private Bitemm item(String ioeC, long amt, long mplAmt, BigDecimal xcr, BigDecimal fcAmt) {
         return Bitemm.builder()
                 .gclMngNo("GCL-2026-0001")
                 .sno(1)
@@ -67,7 +81,35 @@ class ProjectBudgetSummaryServiceTest {
                 .ioeC(ioeC)
                 .gclNm("품목")
                 .curC("KRW")
+                .xcr(xcr)
                 .amt(BigDecimal.valueOf(amt))
+                .fcAmt(fcAmt)
+                .mplAmt(BigDecimal.valueOf(mplAmt))
+                .lstYn("Y")
+                .build();
+    }
+
+    /**
+     * 테스트용 Bitemm 생성 헬퍼.
+     *
+     * @param ioeC   비목코드
+     * @param amt    품목금액 (원화 기준)
+     * @param mplAmt 예정금액 (원화 기준)
+     * @param xcr    저장 시 적용된 환율
+     * @return 테스트용 Bitemm 인스턴스
+     */
+    private Bitemm item(String ioeC, long amt, long mplAmt, BigDecimal xcr) {
+        return Bitemm.builder()
+                .gclMngNo("GCL-2026-0001")
+                .sno(1)
+                .abusMngNo("PRJ-2026-0001")
+                .fntTbCrySno(1)
+                .ioeC(ioeC)
+                .gclNm("품목")
+                .curC("KRW")
+                .xcr(xcr)
+                .amt(BigDecimal.valueOf(amt))
+                .fcAmt(BigDecimal.valueOf(100))
                 .mplAmt(BigDecimal.valueOf(mplAmt))
                 .lstYn("Y")
                 .build();
@@ -106,5 +148,56 @@ class ProjectBudgetSummaryServiceTest {
 
         // Assert: 음수 → 0으로 보정
         assertThat(res.getTotRqmAmt()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("외화 품목은 저장된 KRW amt를 요약에서 그대로 합산한다")
+    void usesPersistedKrwAmountForSummary() {
+        // Arrange: C1=자본(IOE_DVC), fcAmt=100, xcr=1400, 저장 amt=130000
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("C1", "IOE_DVC")));
+        ProjectDto.Response res = ProjectDto.Response.builder().build();
+
+        // Act
+        service.applyBudgetSummary(res, List.of(item("C1", 130000, 0, new BigDecimal("1400"), new BigDecimal("100"))));
+
+        // Assert: 원천금액 100이나 이중환산 169000000이 아닌 저장 KRW 금액 130000이어야 한다.
+        assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
+        assertThat(res.getDvcBg()).isEqualByComparingTo("130000");
+        assertThat(res.getTotRqmAmt()).isEqualByComparingTo("130000");
+    }
+
+    @Test
+    @DisplayName("외화 품목은 fcAmt*xcr=140000이어도 저장된 amt 130000을 그대로 합산한다")
+    void summarize_foreignCurrency_usesKrwAmtWithoutDoubleConversion() {
+        // Given: fcAmt=100, xcr=1400이면 140000이지만 저장 amt는 130000인 품목
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("C1", "IOE_DVC")));
+        ProjectDto.Response res = ProjectDto.Response.builder().build();
+
+        // When: 프로젝트 요약을 계산
+        service.applyBudgetSummary(res, List.of(item("C1", 130000, 0, new BigDecimal("1400"), new BigDecimal("100"))));
+
+        // Then: fcAmt * xcr = 140000이지만 저장된 amt 130000을 그대로 사용한다
+        assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
+        assertThat(res.getDvcBg()).isEqualByComparingTo("130000");
+        assertThat(res.getTotRqmAmt()).isEqualByComparingTo("130000");
+    }
+
+    @Test
+    @DisplayName("외화 예정금액도 저장된 KRW mplAmt를 요약에서 그대로 차감한다")
+    void usesPersistedKrwPlannedAmountForSummary() {
+        // Arrange: C1=자본(IOE_DVC), 저장 amt=130000, 저장 mplAmt=52000, xcr=1300
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("C1", "IOE_DVC")));
+        ProjectDto.Response res = ProjectDto.Response.builder().build();
+
+        // Act
+        service.applyBudgetSummary(res, List.of(item("C1", 130000, 52000, new BigDecimal("1300"))));
+
+        // Assert: 총 130000원에서 저장된 예정금액 52000원을 그대로 차감한다.
+        assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
+        assertThat(res.getMplCpitAmt()).isEqualByComparingTo("52000");
+        assertThat(res.getTotRqmAmt()).isEqualByComparingTo("78000");
     }
 }

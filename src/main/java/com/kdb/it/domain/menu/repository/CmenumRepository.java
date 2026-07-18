@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
+/** 메뉴 기본정보의 CRUD와 활성 메뉴 계층 조회를 담당하는 저장소입니다. */
 public interface CmenumRepository extends JpaRepository<Cmenum, String>, CmenumRepositoryCustom {
 
     @Query("SELECT m FROM Cmenum m WHERE m.delYn = 'N'")

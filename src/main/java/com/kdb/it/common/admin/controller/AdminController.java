@@ -30,7 +30,7 @@ import java.util.List;
  * </p>
  *
  * <p>
- * Design Ref: §2.2 — AdminController 설계, §6.1 — 보안 설계
+ * 클래스 수준 관리자 권한을 적용하고 관리 기능별 서비스 호출을 제공합니다.
  * </p>
  */
 @RestController

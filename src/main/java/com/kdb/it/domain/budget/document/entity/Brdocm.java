@@ -88,6 +88,14 @@ public class Brdocm extends BaseEntity {
     @Column(name = "SVN_TEM_C", length = 5, comment = "주관팀 (물리컬럼 SVN_TEM_C=주관팀코드)")
     private String svnTemC;
 
+    /** 주관부서명: 코드 설정 시점 CORGNI 조회 스냅샷 (조직명 변경 시에도 과거 기록 유지, 최대 100자) */
+    @Column(name = "SVN_DPM_NM", length = 100, comment = "주관부서명")
+    private String svnDpmNm;
+
+    /** 주관팀명: 코드 설정 시점 CORGNI 조회 스냅샷 (최대 100자) */
+    @Column(name = "SVN_TEM_NM", length = 100, comment = "주관팀명")
+    private String svnTemNm;
+
     /**
      * 요구사항 정의서 정보 업데이트 메서드
      *
@@ -110,17 +118,22 @@ public class Brdocm extends BaseEntity {
     }
 
     /**
-     * 작성자 기준 주관부서코드(SVN_DPM_C)/주관팀코드(SVN_TEM_C) 설정.
+     * 작성자 기준 주관부서/주관팀 코드·명 설정.
      *
-     * <p>신규 생성 및 새 버전 생성 시 작성자(현재 로그인 사용자) 소속 부서·팀 코드로 채웁니다.
+     * <p>신규 생성 및 새 버전 생성 시 작성자(현재 로그인 사용자) 소속 부서·팀 코드로 채우고,
+     * 조직명은 같은 시점의 CORGNI 조회 결과(스냅샷)로 저장합니다.
      * 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT 이전(save 호출 전)에 호출합니다.</p>
      *
-     * @param svnDpmC 작성자 소속 부서코드
-     * @param svnTemC 작성자 소속 팀코드
+     * @param svnDpmC  작성자 소속 부서코드
+     * @param svnDpmNm 부서명 (코드 미등록 시 null 허용)
+     * @param svnTemC  작성자 소속 팀코드
+     * @param svnTemNm 팀명 (코드 미등록 시 null 허용)
      */
-    public void assignAuthorOrg(String svnDpmC, String svnTemC) {
+    public void assignAuthorOrg(String svnDpmC, String svnDpmNm, String svnTemC, String svnTemNm) {
         this.svnDpmC = svnDpmC;
+        this.svnDpmNm = svnDpmNm;
         this.svnTemC = svnTemC;
+        this.svnTemNm = svnTemNm;
     }
 
     /**

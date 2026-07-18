@@ -1,7 +1,11 @@
 package com.kdb.it.common.system.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 
@@ -234,8 +238,7 @@ public class AuthService {
         }
 
         // DB에서 Refresh Token 조회 (2차 검증: DB 존재 여부)
-        Crtokm refreshToken = refreshTokenRepository.findByTokCone(refreshTokenValue)
-                .orElseThrow(() -> new RuntimeException("Refresh Token을 찾을 수 없습니다."));
+        Crtokm refreshToken = findRefreshTokenByValue(refreshTokenValue);
 
         // 참고: 배포 전 토큰은 FAM_NM='LEGACY'로 백필됨 — 동일 사용자의 LEGACY 행이 한 패밀리명을 공유하나,
         // 폐기는 deleteByEno(사용자 단위)라 보안상 안전(과다 폐기=재로그인 유도). 다음 로그인 시 LEGACY 행 정리됨.
@@ -276,12 +279,14 @@ public class AuthService {
         String newRefreshTokenValue = jwtUtil.generateRefreshToken(eno);
         Crtokm rotated = Crtokm.builder()
                 .tokCone(newRefreshTokenValue)
+                .ecyRnwPubTokCone(sha256HexForToken(newRefreshTokenValue))
                 .eno(eno)
                 .famNm(refreshToken.getFamNm())
                 .avlYn("Y")
                 .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
                 .build();
         refreshTokenRepository.save(rotated);
+        validateSingleActiveToken(refreshToken.getFamNm());
 
         return AuthDto.RefreshResponse.builder()
                 .accessToken(newAccessToken) // 새 Access Token
@@ -409,12 +414,58 @@ public class AuthService {
         String value = jwtUtil.generateRefreshToken(eno);
         Crtokm token = Crtokm.builder()
                 .tokCone(value).eno(eno)
+                .ecyRnwPubTokCone(sha256HexForToken(value))
                 .famNm(java.util.UUID.randomUUID().toString())
                 .avlYn("Y")
                 .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
                 .build();
         refreshTokenRepository.save(token);
         return value;
+    }
+
+    /**
+     * Refresh Token 원문을 조회용 SHA-256 HEX 값으로 변환합니다.
+     *
+     * @param token Refresh Token 원문
+     * @return 소문자 SHA-256 HEX 문자열
+     */
+    public static String sha256HexForToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashed = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hashed);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다.", e);
+        }
+    }
+
+    /**
+     * 신규 조회값을 우선 사용하고, 기존 원문 저장 행은 1회 조회 후 조회값을 보강합니다.
+     */
+    private Crtokm findRefreshTokenByValue(String refreshTokenValue) {
+        String lookupValue = sha256HexForToken(refreshTokenValue);
+        return refreshTokenRepository.findByEcyRnwPubTokCone(lookupValue)
+                .or(() -> refreshTokenRepository.findByTokCone(refreshTokenValue)
+                        .map(token -> {
+                            token.fillEncryptedRenewalTokenIfMissing(lookupValue);
+                            return token;
+                        }))
+                        .orElseThrow(() -> new RuntimeException("Refresh Token을 찾을 수 없습니다."));
+    }
+
+    /**
+     * 회전 완료 후 같은 패밀리에 활성 Refresh Token이 1개만 남았는지 검증합니다.
+     *
+     * @param famNm 검증할 토큰 패밀리명
+     * @throws IllegalStateException 패밀리에 활성 토큰이 2개 이상 남은 경우
+     */
+    private void validateSingleActiveToken(String famNm) {
+        List<Crtokm> activeTokens = refreshTokenRepository.findByFamNmAndAvlYn(famNm, "Y");
+        if (activeTokens.size() <= 1) {
+            return;
+        }
+        log.warn("Refresh Token 패밀리 활성 토큰 중복 탐지: famNm={}, activeCount={}", famNm, activeTokens.size());
+        throw new IllegalStateException("활성 Refresh Token은 패밀리당 1개만 허용됩니다.");
     }
 
     private List<String> loadAthIds(String eno) {

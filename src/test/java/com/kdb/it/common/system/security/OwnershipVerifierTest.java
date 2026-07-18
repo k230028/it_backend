@@ -2,16 +2,26 @@ package com.kdb.it.common.system.security;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * OwnershipVerifier 단위 테스트 — 관리자/소유자/타인/널 분기 검증.
  */
 class OwnershipVerifierTest {
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     private CustomUserDetails user(String eno, String ath) {
         // bbrC("18001")는 소유권 검증과 무관 — 임의 부서값
@@ -84,11 +94,66 @@ class OwnershipVerifierTest {
     }
 
     @Test
+    @DisplayName("생성자는 수정할 수 있다")
+    void verifyModifiable_생성자_허용() {
+        setUser("10001", "D001", false, false);
+
+        assertThatCode(() -> OwnershipVerifier.verifyModifiable("10001", "D999"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("관리자는 수정할 수 있다")
+    void verifyModifiable_관리자_허용() {
+        setUser("90000", "D999", true, false);
+
+        assertThatCode(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("부서관리자는 같은 부서 리소스를 수정할 수 있다")
+    void verifyModifiable_부서관리자_같은부서_허용() {
+        setUser("10002", "D001", false, true);
+
+        assertThatCode(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("일반 사용자는 같은 부서라도 타인 리소스를 수정할 수 없다")
+    void verifyModifiable_일반사용자_같은부서_거부() {
+        setUser("10002", "D001", false, false);
+
+        assertThatThrownBy(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("생성자도 관리자도 같은 부서의 부서관리자도 아니면 거부한다")
+    void verifyModifiable_권한없음_거부() {
+        setUser("10002", "D002", false, false);
+
+        assertThatThrownBy(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
     @DisplayName("유틸리티 클래스 생성자는 외부에서 호출할 수 없다")
     void constructor_리플렉션호출_비공개생성자확인() throws Exception {
         var constructor = OwnershipVerifier.class.getDeclaredConstructor();
         constructor.setAccessible(true);
 
         assertThatCode(constructor::newInstance).doesNotThrowAnyException();
+    }
+
+    private void setUser(String eno, String bbrC, boolean admin, boolean deptManager) {
+        CustomUserDetails principal = mock(CustomUserDetails.class);
+        given(principal.getEno()).willReturn(eno);
+        given(principal.getBbrC()).willReturn(bbrC);
+        given(principal.isAdmin()).willReturn(admin);
+        given(principal.isDeptManager()).willReturn(deptManager);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
     }
 }

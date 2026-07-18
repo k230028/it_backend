@@ -15,7 +15,6 @@ import com.kdb.it.domain.budget.project.entity.QBitemm;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
-import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.kdb.it.domain.budget.work.entity.QBbugtm;
@@ -378,10 +377,10 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
     }
 
     /**
-     * 결재완료 BITEMM의 비목코드 집합별 금액 합계 (환율 적용)
+     * 결재완료 BITEMM의 비목코드 집합별 저장 원화 금액 합계
      *
      * <p>
-     * SUM(GCL_AMT * COALESCE(XCR, 1)) — 외화 품목은 환율을 곱하여 원화로 변환합니다.
+     * SUM(GCL_AMT) — 외화 품목도 저장 시점에 원화로 환산된 AMT를 그대로 합산합니다.
      * </p>
      */
     private BigDecimal sumApprovedItemAmountByIoeCValues(Set<String> ioeCValues, String bgYy) {
@@ -424,10 +423,9 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                         .exists())
                         .exists());
 
-        // SUM(GCL_AMT * COALESCE(XCR, 1)) — 환율 적용된 원화 금액 합산
+        // SUM(GCL_AMT) — 저장 시점에 환산된 원화 금액을 그대로 합산
         return queryFactory
-                .select(Expressions.numberTemplate(BigDecimal.class,
-                        "SUM({0} * COALESCE({1}, 1))", bitemm.amt, bitemm.xcr))
+                .select(bitemm.amt.sum())
                 .from(bitemm)
                 .where(builder)
                 .fetchOne();

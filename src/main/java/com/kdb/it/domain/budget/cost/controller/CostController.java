@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -87,7 +89,7 @@ public class CostController {
     public ResponseEntity<String> updateCost(
             @Parameter(description = "전산관리비 관리번호", required = true, example = "COST_2026_0001")
             @PathVariable("itMngcNo") String itMngcNo,
-            @RequestBody CostDto.UpdateRequest request) {
+            @Valid @RequestBody CostDto.UpdateRequest request) {
         return ResponseEntity.ok(costService.updateCost(itMngcNo, request));
     }
 
@@ -160,15 +162,16 @@ public class CostController {
      * </ul>
      *
      * @param request 전산관리비 생성 요청 ({@link CostDto.CreateRequest})
-     * @return HTTP 200 + 생성된 전산관리비 관리번호(IT_MNGC_NO)
+     * @return HTTP 201 Created + Location 헤더 + 생성된 전산관리비 관리번호(IT_MNGC_NO)
      */
     @Operation(summary = "신규 전산관리비 생성", description = "새로운 전산관리비를 생성합니다.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "생성 성공 (반환값: IT_MNGC_NO)", content = @Content(schema = @Schema(implementation = String.class)))
+            @ApiResponse(responseCode = "201", description = "생성 성공 (반환값: IT_MNGC_NO)", content = @Content(schema = @Schema(implementation = String.class)))
     })
     @PostMapping
-    public ResponseEntity<String> createCost(@RequestBody CostDto.CreateRequest request) {
-        return ResponseEntity.ok(costService.createCost(request));
+    public ResponseEntity<String> createCost(@Valid @RequestBody CostDto.CreateRequest request) {
+        String itMngcNo = costService.createCost(request);
+        return ResponseEntity.created(URI.create("/api/cost/" + itMngcNo)).body(itMngcNo);
     }
 
     /**

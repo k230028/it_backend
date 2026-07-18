@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.work.service;
 import com.kdb.it.common.code.CommonCodeGroups;
+import com.kdb.it.common.code.IoeCategories;
 
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
@@ -55,9 +56,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BudgetWorkService {
-
-    /** 자본예산 세부 코드타입: 개발비/기계장치/기타무형자산 */
-    private static final Set<String> CAPITAL_CTPS = Set.of("IOE_DVC", "IOE_HW", "IOE_SW", "IOE_CPIT");
 
     /** 예산 데이터 접근 리포지토리 (TPRMPP_BBUGTM) */
     private final BbugtmRepository bbugtmRepository;
@@ -226,8 +224,7 @@ public class BudgetWorkService {
             // 지칭한 것이며, BBUGTM에 저장 시 실제 원본은 BITEMM임.
             List<Bitemm> items = bbugtmRepository.findApprovedItemsByIoeCValues(ioeCValues, bgYy);
             for (Bitemm item : items) {
-                // BITEMM.amt는 이미 원화(KRW) 정규화 금액(외화 행은 amt = fcAmt × xcr로 저장).
-                // 환율을 다시 곱하면 외화 품목이 이중환산되므로 amt를 원화로 직접 사용한다.
+                // BITEMM.amt는 저장 시점에 원화로 환산된 금액이므로 환율을 다시 곱하지 않습니다.
                 BigDecimal amountKrw = item.getAmt() != null ? item.getAmt() : BigDecimal.ZERO;
                 BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
@@ -330,10 +327,8 @@ public class BudgetWorkService {
                     boolean isCapital = isCapitalIoeCode(bitemm.getIoeC(), capitalPrefixes);
                     int dupRt = isCapital ? assetDupRt : costDupRt;
 
-                    // BITEMM.amt는 이미 원화(KRW) 정규화 금액이다(외화 행은 ProjectService에서
-                    // amt = fcAmt × xcr로 환산 저장, 원화 행은 입력값 그대로). 따라서 여기서 환율을
-                    // 다시 곱하면 외화 품목이 이중환산되어 편성액이 부풀려진다. amt를 원화로 직접 사용한다.
-                    // (BCOSTM 편성이 costTotXpAmt(=AMT, 원화)를 그대로 쓰는 것과 동일 기준)
+                    // BITEMM.amt는 저장 시점에 원화로 환산된 금액이고, fcAmt가 원천 통화 금액입니다.
+                    // BCOSTM도 기존처럼 원화 비용 합계(costTotXpAmt)를 그대로 사용합니다.
                     BigDecimal amountKrw = bitemm.getAmt() != null ? bitemm.getAmt() : BigDecimal.ZERO;
                     BigDecimal dupBgAmt = calculateDupBg(amountKrw, dupRt);
 
@@ -700,8 +695,7 @@ public class BudgetWorkService {
             if (it == null || it.getAbusMngNo() == null || !prjByNo.containsKey(it.getAbusMngNo())) continue;
             String ioeC = e.getValue().get(0).getIoeC();
             boolean capital = Boolean.TRUE.equals(cdvaToCapital.get(ioeC));
-            BigDecimal xcr = it.getXcr() != null ? it.getXcr() : BigDecimal.ONE;
-            BigDecimal req = (it.getAmt() != null ? it.getAmt() : BigDecimal.ZERO).multiply(xcr);
+            BigDecimal req = it.getAmt() != null ? it.getAmt() : BigDecimal.ZERO;
             BigDecimal dup = e.getValue().stream().map(value -> value.getBgDupAmt())
                     .filter(v -> v != null).reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
             String key = it.getAbusMngNo() + "|" + capital;
@@ -739,23 +733,14 @@ public class BudgetWorkService {
      * IOE 코드타입이 자본예산 세부 유형인지 판별합니다.
      */
     private boolean isCapitalCTp(String cTp) {
-        if (cTp == null) return false;
-        return CAPITAL_CTPS.contains(cTp);
+        return IoeCategories.isCapitalCTp(cTp);
     }
 
     /**
      * IOE 코드의 그룹명은 C_TP_DES를 우선 사용하고, 없으면 CDVA_DTL 계층의 중분류를 사용합니다.
      */
     private String resolveIoeGroupName(Ccodem code) {
-        if (code.getCTpDes() != null && !code.getCTpDes().isBlank()) {
-            return code.getCTpDes();
-        }
-        String detail = code.getCdvaDtl();
-        if (detail != null) {
-            String[] parts = detail.split(" - ");
-            if (parts.length >= 2) return parts[1].trim();
-        }
-        return code.getCdvaDes();
+        return IoeCategories.resolveGroupName(code);
     }
 
     /**
@@ -809,8 +794,10 @@ public class BudgetWorkService {
         // ioeC(cdva, "101") → 계층코드 cdvaDtlC("304-1100") 매핑: DUP_IOE 접두어("304") 매칭용
         List<Ccodem> ioeDetailCodes = findCodes(CommonCodeGroups.IOE);
         Map<String, String> ioeCdvaToHierarchyCode = new LinkedHashMap<>();
+        Map<String, Boolean> ioeCdvaToCapital = new LinkedHashMap<>();
         for (Ccodem code : ioeDetailCodes) {
             ioeCdvaToHierarchyCode.put(code.getCdva(), code.getCdvaDtlC());
+            ioeCdvaToCapital.put(code.getCdva(), isCapitalCTp(code.getCTp()));
         }
 
         // 비목별 편성률 맵 (prefix → dupRt)
@@ -852,11 +839,43 @@ public class BudgetWorkService {
                 .filter(b -> "BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null)
                 .map(value -> value.getPkColNm())
                 .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+        Map<String, Bitemm> bitemmByGcl = new LinkedHashMap<>();
         Map<String, String> gclToPrj = new LinkedHashMap<>();
         if (!gclPks.isEmpty()) {
             for (Bitemm it : projectItemRepository.findByGclMngNoInAndDelYn(gclPks, "N")) {
+                bitemmByGcl.putIfAbsent(it.getGclMngNo(), it);
                 gclToPrj.putIfAbsent(it.getGclMngNo(), it.getAbusMngNo());
             }
+        }
+
+        // 사업별 결과에서도 예정금액은 예산년도분 요청/편성에서 제외한다.
+        // 품목 예정금액은 사업+자본구분 그룹 내 품목금액 합계 대비 비율로 배분한다.
+        Map<String, Bbugtm> firstBudgetByGcl = new LinkedHashMap<>();
+        for (Bbugtm b : budgets) {
+            if ("BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null && b.getIoeC() != null) {
+                firstBudgetByGcl.putIfAbsent(b.getPkColNm(), b);
+            }
+        }
+        Map<String, BigDecimal> groupReqSum = new LinkedHashMap<>();
+        Map<String, BigDecimal> groupMplSum = new LinkedHashMap<>();
+        for (Map.Entry<String, Bbugtm> e : firstBudgetByGcl.entrySet()) {
+            Bitemm item = bitemmByGcl.get(e.getKey());
+            if (item == null || item.getAbusMngNo() == null) continue;
+            boolean capital = Boolean.TRUE.equals(ioeCdvaToCapital.get(e.getValue().getIoeC()));
+            String key = item.getAbusMngNo() + "|" + capital;
+            BigDecimal requestAmount = item.getAmt() != null ? item.getAmt() : BigDecimal.ZERO;
+            BigDecimal mplAmount = item.getMplAmt() != null ? item.getMplAmt() : BigDecimal.ZERO;
+            groupReqSum.merge(key, requestAmount, (left, right) -> left.add(right));
+            groupMplSum.merge(key, mplAmount, (left, right) -> left.add(right));
+        }
+        Map<String, BigDecimal> groupMplFactor = new LinkedHashMap<>();
+        for (Map.Entry<String, BigDecimal> e : groupReqSum.entrySet()) {
+            BigDecimal requestSum = e.getValue();
+            BigDecimal mplSum = groupMplSum.getOrDefault(e.getKey(), BigDecimal.ZERO);
+            if (requestSum.signum() <= 0 || mplSum.signum() <= 0) continue;
+            BigDecimal factor = mplSum.compareTo(requestSum) >= 0 ? BigDecimal.ONE
+                    : mplSum.divide(requestSum, 10, RoundingMode.HALF_UP);
+            groupMplFactor.put(e.getKey(), factor);
         }
 
         for (Bbugtm b : budgets) {
@@ -865,8 +884,10 @@ public class BudgetWorkService {
             // 그룹핑 키 결정: BITEMM은 프로젝트 단위로 통합
             String groupKey;
             String groupOrcTb;
+            Bitemm sourceItem = null;
             if ("BITEMM".equals(b.getFntTbNm())) {
                 // gclMngNo → prjMngNo 변환 (선조회 Map, 매핑 없으면 gclMngNo 자체)
+                sourceItem = bitemmByGcl.get(b.getPkColNm());
                 groupKey = gclToPrj.getOrDefault(b.getPkColNm(), b.getPkColNm());
                 groupOrcTb = "BPROJM";
             } else {
@@ -895,16 +916,26 @@ public class BudgetWorkService {
             catMap.computeIfAbsent(matchedPrefix, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
 
             BigDecimal[] amounts = catMap.get(matchedPrefix);
+            BigDecimal requestAmt = BigDecimal.ZERO;
+            BigDecimal dupAmt = b.getBgDupAmt() != null ? b.getBgDupAmt() : BigDecimal.ZERO;
             // 요청금액 역산: dupBgAmt / (dupRt / 100)
             if (b.getBgDupAmt() != null && b.getAsgRt() != null && b.getAsgRt() > 0) {
-                BigDecimal requestAmt = b.getBgDupAmt()
+                requestAmt = b.getBgDupAmt()
                         .multiply(BigDecimal.valueOf(100))
                         .divide(BigDecimal.valueOf(b.getAsgRt()), 2, RoundingMode.HALF_UP);
-                amounts[0] = amounts[0].add(requestAmt);
             }
-            if (b.getBgDupAmt() != null) {
-                amounts[1] = amounts[1].add(b.getBgDupAmt());
+            if (sourceItem != null && sourceItem.getAbusMngNo() != null) {
+                boolean capital = Boolean.TRUE.equals(ioeCdvaToCapital.get(b.getIoeC()));
+                BigDecimal factor = groupMplFactor.get(sourceItem.getAbusMngNo() + "|" + capital);
+                if (factor != null) {
+                    requestAmt = requestAmt.subtract(requestAmt.multiply(factor));
+                    dupAmt = dupAmt.subtract(dupAmt.multiply(factor));
+                    if (requestAmt.signum() < 0) requestAmt = BigDecimal.ZERO;
+                    if (dupAmt.signum() < 0) dupAmt = BigDecimal.ZERO;
+                }
             }
+            amounts[0] = amounts[0].add(requestAmt);
+            amounts[1] = amounts[1].add(dupAmt);
         }
 
         // 3. 응답 구성

@@ -392,11 +392,11 @@ public class ScheduleService {
          * <p>사번 집합을 모아 {@code findByEnoIn}으로 일괄 조회(N+1 제거).</p>
          */
         private Map<String, CuserI> buildUserMap(List<Bcmmtm> members) {
-                List<String> enos = members.stream().map(Bcmmtm::getEno).distinct().toList();
+                List<String> enos = members.stream().map(member -> member.getEno()).distinct().toList();
                 if (enos.isEmpty()) {
                         return Map.of();
                 }
                 return userRepository.findByEnoIn(enos).stream()
-                                .collect(Collectors.toMap(CuserI::getEno, u -> u, (a, b) -> a));
+                                .collect(Collectors.toMap(user -> user.getEno(), user -> user, (a, b) -> a));
         }
 }

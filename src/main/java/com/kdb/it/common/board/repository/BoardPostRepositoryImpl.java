@@ -6,6 +6,9 @@ import com.kdb.it.common.board.entity.QCblbcm;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.util.List;
@@ -33,7 +36,7 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
      * @return 권한과 검색 조건을 만족하는 게시물 목록
      */
     @Override
-    public List<Cblbcm> searchPosts(
+    public Page<Cblbcm> searchPosts(
             String blbMngNo,
             BoardPostDto.SearchCondition cond,
             boolean isAdmin) {
@@ -60,13 +63,22 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
         }
         if (StringUtils.hasText(cond.getBbrC()))   builder.and(p.bbrC.eq(cond.getBbrC()));
 
-        int offset = cond.getPage() * cond.getSize();
+        int page = Math.max(cond.getPage(), 0);
+        int size = Math.min(Math.max(cond.getSize(), 1), 100);
+        var pageable = PageRequest.of(page, size);
 
-        return queryFactory.selectFrom(p)
+        List<Cblbcm> rows = queryFactory.selectFrom(p)
             .where(builder)
             .orderBy(p.ancYn.desc(), p.nacUnqId.desc(), p.nacGrpSqn.asc())
-            .offset(offset)
-            .limit(cond.getSize())
+            .offset(pageable.getOffset())
+            .limit(pageable.getPageSize())
             .fetch();
+
+        Long total = queryFactory.select(p.count())
+            .from(p)
+            .where(builder)
+            .fetchOne();
+
+        return new PageImpl<>(rows, pageable, total == null ? 0 : total);
     }
 }

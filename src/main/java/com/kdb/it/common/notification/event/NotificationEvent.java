@@ -19,6 +19,7 @@ import lombok.Builder;
  * @param ttl          제목 (최대 100자)
  * @param infmMsgCone  알림메시지내용 — 본문 (최대 4000자)
  * @param infmRcdUrl   알림추천URL — 클릭 시 이동할 앱 내부 라우트 (최대 300자)
+ * @param sdTc         발송 채널 코드 — null이면 인앱 기본 채널
  * @param sdPayload    발송 페이로드(JSON 문자열). null이면 인앱만 처리
  */
 @Builder
@@ -28,8 +29,20 @@ public record NotificationEvent(
     String ttl,
     String infmMsgCone,
     String infmRcdUrl,
+    String sdTc,
     String sdPayload
 ) {
+    public NotificationEvent(
+            String recipientEno,
+            String infmSvcTc,
+            String ttl,
+            String infmMsgCone,
+            String infmRcdUrl,
+            String sdPayload
+    ) {
+        this(recipientEno, infmSvcTc, ttl, infmMsgCone, infmRcdUrl, null, sdPayload);
+    }
+
     /**
      * 알림 종류 상수 — 호출자 측 오타 방지용.
      *

@@ -1,6 +1,8 @@
 package com.kdb.it.domain.budget.it.repository;
 import com.kdb.it.common.code.CommonCodeGroups;
 
+import com.kdb.it.common.code.IoeCategories;
+import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.entity.QCcodem;
 import com.kdb.it.domain.budget.cost.entity.QBcostm;
 import com.kdb.it.domain.budget.it.dto.ItBudgetDto;
@@ -8,8 +10,6 @@ import com.kdb.it.domain.budget.project.entity.QBitemm;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
 import com.kdb.it.domain.budget.work.entity.QBbugtm;
 import com.querydsl.core.Tuple;
-import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -77,8 +77,8 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         // 4. BBUGTM(BCOSTM) 편성액
         accumulateCostAdj(bgYy, accumulator);
 
-        // 5. 코드명 조회
-        Map<String, String> codeNmMap = loadCodeNames();
+        // 5. 코드 메타(표시명/그룹명/자본예산 여부) 조회
+        Map<String, CodeMeta> codeMetaMap = loadCodeMeta();
 
         // 6. 결과 빌드 (ioeCode 오름차순)
         List<ItBudgetDto.CategoryRow> rows = new ArrayList<>();
@@ -88,9 +88,16 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
             long itAdj = toThousand(v[1]);
             long secReq = toThousand(v[2]);
             long secAdj = toThousand(v[3]);
+            /* CCODEM에 없는 비목코드는 코드값을 표시명으로 쓰고 일반관리비(미분류)로 취급 */
+            CodeMeta meta = codeMetaMap.getOrDefault(
+                    ioeCode, new CodeMeta(ioeCode, null, null, null, false));
             rows.add(new ItBudgetDto.CategoryRow(
                     ioeCode,
-                    codeNmMap.getOrDefault(ioeCode, ioeCode),
+                    meta.dtlCode(),
+                    meta.codeNm(),
+                    meta.abbrNm(),
+                    meta.groupName(),
+                    meta.capital(),
                     itReq, itAdj, secReq, secAdj,
                     itReq + secReq, itAdj + secAdj
             ));
@@ -98,16 +105,25 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         return rows;
     }
 
+    /**
+     * 비목코드 표시용 메타데이터
+     *
+     * @param codeNm    비목 표시명 (CDVA_NM)
+     * @param dtlCode   코드값상세코드 (CO_CDVA_NM, 예: 237-0700). 미등록이면 null
+     * @param abbrNm    코드값약어명 (CO_CDVA_ABV_NM, 예: 외주용역). 미등록이면 null
+     * @param groupName 중분류 그룹명 (해석 근거가 없으면 null)
+     * @param capital   자본예산 여부
+     */
+    private record CodeMeta(
+            String codeNm, String dtlCode, String abbrNm, String groupName, boolean capital) {}
+
     /** BITEMM × BPROJM → 편성요청액 누적 */
     private void accumulateItemReq(String bgYy, Map<String, long[]> acc) {
         QBitemm i = QBitemm.bitemm;
         QBprojm p = QBprojm.bprojm;
 
-        NumberExpression<BigDecimal> effectiveAmt = Expressions.numberTemplate(
-                BigDecimal.class, "COALESCE({0}, 1.0) * {1}", i.xcr, i.amt);
-
         List<Tuple> rows = queryFactory
-                .select(i.ioeC, i.sectSysUtzYn, effectiveAmt.sum())
+                .select(i.ioeC, i.sectSysUtzYn, i.amt.sum())
                 .from(i)
                 .join(p).on(
                         p.abusMngNo.eq(i.abusMngNo),
@@ -125,7 +141,7 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         for (Tuple row : rows) {
             String ioeC = row.get(i.ioeC);
             String prtYn = row.get(i.sectSysUtzYn);
-            BigDecimal amt = row.get(effectiveAmt.sum());
+            BigDecimal amt = row.get(i.amt.sum());
             if (ioeC == null || amt == null) continue;
             long[] v = acc.computeIfAbsent(ioeC, k -> new long[4]);
             if (INF_PRT_Y.equals(prtYn)) {
@@ -236,15 +252,19 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
         }
     }
 
-    /** CCODEM(cId='IOE') 에서 cdva → cdvaNm 맵 로드 */
-    private Map<String, String> loadCodeNames() {
+    /**
+     * CCODEM(cId='IOE')에서 cdva → 표시 메타(표시명/그룹명/자본예산 여부) 맵 로드
+     *
+     * <p>그룹명과 자본예산 판별은 {@link IoeCategories}를 사용해 예산작업(비목별 편성 결과)
+     * 화면과 동일한 분류 기준을 유지합니다.</p>
+     */
+    private Map<String, CodeMeta> loadCodeMeta() {
         QCcodem c = QCcodem.ccodem;
         // 시작·종료일자는 'YYYYMMDD' 문자열이므로 기준일자도 동일 형식으로 비교
         String today = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
 
-        List<Tuple> rows = queryFactory
-                .select(c.cdva, c.cdvaNm)
-                .from(c)
+        List<Ccodem> codes = queryFactory
+                .selectFrom(c)
                 .where(
                         c.cId.eq(C_ID_IOE),
                         c.delYn.eq("N"),
@@ -252,11 +272,17 @@ public class ItBudgetQueryRepositoryImpl implements ItBudgetQueryRepository {
                         c.endDt.isNull().or(c.endDt.goe(today)))
                 .fetch();
 
-        Map<String, String> map = new LinkedHashMap<>();
-        for (Tuple row : rows) {
-            String cdva = row.get(c.cdva);
-            String nm = row.get(c.cdvaNm);
-            if (cdva != null) map.put(cdva, nm != null ? nm : cdva);
+        Map<String, CodeMeta> map = new LinkedHashMap<>();
+        for (Ccodem code : codes) {
+            String cdva = code.getCdva();
+            if (cdva == null) continue;
+            String nm = code.getCdvaNm() != null ? code.getCdvaNm() : cdva;
+            map.put(cdva, new CodeMeta(
+                    nm,
+                    code.getCdvaDtlC(),
+                    code.getCdvaDes(),
+                    IoeCategories.resolveGroupName(code),
+                    IoeCategories.isCapitalCTp(code.getCTp())));
         }
         return map;
     }

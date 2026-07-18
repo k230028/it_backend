@@ -74,12 +74,8 @@ public class Cdecim extends BaseEntity {
     @Column(name = "DCR_OPNN_CONE", length = 2000, comment = "결재자의견내용")
     private String dcrOpnnCone;
 
-    /**
-     * 결재상태코드: Ccodem DCD_STS 참조 (001:미결재, 002:승인, 003:반려, 004:회수무효).
-     * 애플리케이션은 3자리 코드를 저장하며, 물리 컬럼 DCD_STS_C는 마이그레이션
-     * V20260603_006 에서 VARCHAR2(1) → VARCHAR2(3) 으로 확대되어 정합됨.
-     */
-    @Column(name = "DCD_STS_C", length = 3, nullable = false, comment = "결재상태코드")
+    /** 결재상태코드: Ccodem DCD_STS_C 참조 (1:미결재, 2:승인, 3:반려, 4:회수무효). */
+    @Column(name = "DCD_STS_C", length = 1, nullable = false, comment = "결재상태코드")
     private String dcdStsC;
 
     /**

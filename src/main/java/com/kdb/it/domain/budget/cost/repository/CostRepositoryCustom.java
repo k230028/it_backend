@@ -57,13 +57,14 @@ public interface CostRepositoryCustom {
      * 전년도 예산 합계 일괄 조회 (계속 항목 전용)
      *
      * <p>
-     * 주어진 관리번호 목록과 전년도 연도로 TPRMPP_BCOSTM에서 AMT(전산업무비예산금액) 합계를
-     * costBgNo별로 집계하여 반환합니다.
+     * 주어진 관리번호 목록과 전년도 연도로 TPRMPP_BCOSTM에서 예산 합계를 costBgNo별로
+     * 집계하여 반환합니다. 외화(curC≠'KRW') 행은 FC_AMT(외화금액), 원화 행은
+     * AMT(전산업무비예산금액) 기준입니다 (화면 예산 컬럼 표시 기준과 동일).
      * </p>
      *
      * @param costBgNos 전산관리비 관리번호 목록 (계속 항목만)
      * @param prevYear  전년도 연도 문자열 (예: "2025")
-     * @return costBgNo → AMT(전산업무비예산금액) 합계 맵
+     * @return costBgNo → 전년도 예산(외화 행은 외화금액) 합계 맵
      */
     Map<String, BigDecimal> sumPrevBgByCostBgNos(List<String> costBgNos, String prevYear);
 

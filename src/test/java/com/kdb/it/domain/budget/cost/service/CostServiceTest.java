@@ -76,6 +76,8 @@ class CostServiceTest {
     @Mock private com.kdb.it.common.util.CodeNameMapBuilder codeNameMapBuilder;
     /** 작성자 소속 조직 해석기 (PRLM_HRK_OGZ_C_CONE 작성자 기준 주입) */
     @Mock private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+    /** 조직코드→조직명 해석기 (주관부서명/주관팀명 스냅샷 주입) */
+    @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
     @InjectMocks
     private CostService costService;
@@ -91,6 +93,10 @@ class CostServiceTest {
         org.mockito.Mockito.lenient()
                 .when(authorOrgResolver.resolveCurrent())
                 .thenReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());
+        // 조직명 스냅샷 기본값: 미등록 코드로 간주해 null 반환 (기존 테스트 무영향)
+        org.mockito.Mockito.lenient()
+                .when(orgNameResolver.resolveName(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(null);
     }
 
     // ───────────────────────────────────────────────────────
@@ -271,6 +277,31 @@ class CostServiceTest {
         ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
         verify(costRepository).save(captor.capture());
         assertThat(captor.getValue().getPrlmHrkOgzCCone()).isEqualTo("H001");
+    }
+
+    @Test
+    @DisplayName("전산업무비 생성 시 주관부서명/주관팀명을 CORGNI 스냅샷으로 저장한다")
+    void createCost_storesSvnOrgNameSnapshot() {
+        // given: 기존 create 성공 테스트와 동일한 request/스텁 구성 + 담당부서/팀 코드와 조직명 스텁
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
+                .costBgNo(IT_MNGC_NO)
+                .cttNm("조직명 스냅샷 계약")
+                .costSvnDpmC("BBR001")
+                .svnTemC("18010")
+                .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+        given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
+        given(orgNameResolver.resolveName("BBR001")).willReturn("담당부서명A");
+        given(orgNameResolver.resolveName("18010")).willReturn("담당팀명A");
+
+        // when
+        costService.createCost(request);
+
+        // then: 저장 엔티티에 주관부서명/주관팀명 스냅샷이 함께 저장된다
+        ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
+        verify(costRepository).save(captor.capture());
+        assertThat(captor.getValue().getSvnDpmNm()).isEqualTo("담당부서명A");
+        assertThat(captor.getValue().getSvnTemNm()).isEqualTo("담당팀명A");
     }
 
     // ───────────────────────────────────────────────────────
@@ -741,6 +772,43 @@ class CostServiceTest {
     }
 
     @Test
+    @DisplayName("getCost: 계속 항목 단건 조회 시 cncdRfrNo 기준 전년도 예산(prevBgAmt)을 설정한다")
+    void getCost_계속항목_전년도예산설정() {
+        Bcostm cost = Bcostm.builder()
+                .costBgNo("COST-2026-0004")
+                .bgSno(1)
+                .abusTc("02")
+                .bseYy("2026")
+                .cncdRfrNo("COST-2026-0023")
+                .delYn("N")
+                .build();
+        given(costRepository.findByCostBgNoAndDelYn("COST-2026-0004", "N")).willReturn(List.of(cost));
+        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-2026-0023"), "2025"))
+                .willReturn(java.util.Map.of("COST-2026-0023", BigDecimal.valueOf(4_200_000)));
+
+        CostDto.Response result = costService.getCost("COST-2026-0004");
+
+        assertThat(result.getPrevBgAmt()).isEqualByComparingTo("4200000");
+    }
+
+    @Test
+    @DisplayName("getCost: 신규 항목 단건 조회 시 전년도 예산(prevBgAmt)은 0이다")
+    void getCost_신규항목_전년도예산0() {
+        Bcostm cost = Bcostm.builder()
+                .costBgNo("COST-2026-0005")
+                .bgSno(1)
+                .abusTc("01")
+                .bseYy("2026")
+                .delYn("N")
+                .build();
+        given(costRepository.findByCostBgNoAndDelYn("COST-2026-0005", "N")).willReturn(List.of(cost));
+
+        CostDto.Response result = costService.getCost("COST-2026-0005");
+
+        assertThat(result.getPrevBgAmt()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
     @DisplayName("getCostList: 배치 보강으로 신청서, 부서명, 담당자명, 전년도 예산을 설정한다")
     void getCostList_배치보강정보설정() {
         Bcostm cost = Bcostm.builder()
@@ -786,8 +854,9 @@ class CostServiceTest {
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(Ccodem.builder().cId("IOE_C").cdva("101").cTp("IOE_IDR").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N")).willReturn(List.of());
-        given(costRepository.sumPrevBgByCostBgNos(List.of(IT_MNGC_NO), "2025"))
-                .willReturn(java.util.Map.of(IT_MNGC_NO, BigDecimal.valueOf(900)));
+        // 전년도 예산은 cncdRfrNo(전년도 항목 관리번호) 기준으로 조회한다
+        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-2025-0001"), "2025"))
+                .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(900)));
         given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-2025-0001"), "2025"))
                 .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(800)));
 
@@ -801,6 +870,44 @@ class CostServiceTest {
         assertThat(result.get(0).getPrevBgAmt()).isEqualByComparingTo("900");
         assertThat(result.get(0).getPrevDupBg()).isEqualByComparingTo("800");
         assertThat(result.get(1).getPrevDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("getCostList: 혼합 연도 목록에서 첫 행이 전년도여도 계속 항목의 전년도 예산이 행별 연도 기준으로 설정된다")
+    void getCostList_혼합연도목록_행별전년도계산() {
+        // Arrange: 2025 행이 목록 앞에 오는 혼합 연도 목록 (과거 버그: 첫 행 연도로 전년도 일괄 계산 → 전부 0)
+        Bcostm prev2025 = Bcostm.builder()
+                .costBgNo("COST-2025-0001")
+                .bgSno(1)
+                .abusTc("01")
+                .bseYy("2025")
+                .delYn("N")
+                .build();
+        Bcostm cont2026 = Bcostm.builder()
+                .costBgNo("COST-2026-0001")
+                .bgSno(1)
+                .abusTc("02")
+                .bseYy("2026")
+                .cncdRfrNo("COST-2025-0001")
+                .delYn("N")
+                .build();
+        given(costRepository.findAllByDelYn("N")).willReturn(List.of(prev2025, cont2026));
+        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-2025-0001"), "2025"))
+                .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(90_000_000)));
+        given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-2025-0001"), "2025"))
+                .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(90_000_000)));
+
+        // Act
+        List<CostDto.Response> result = costService.getCostList();
+
+        // Assert: 2026 계속 행은 cncdRfrNo 기준 전년도(2025) 예산이 채워지고, 2025 행은 0 유지
+        assertThat(result).hasSize(2);
+        CostDto.Response contRow = result.get(1);
+        assertThat(contRow.getCostBgNo()).isEqualTo("COST-2026-0001");
+        assertThat(contRow.getPrevBgAmt()).isEqualByComparingTo("90000000");
+        assertThat(contRow.getPrevDupBg()).isEqualByComparingTo("90000000");
+        assertThat(result.get(0).getPrevBgAmt()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.get(0).getPrevDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
@@ -912,7 +1019,38 @@ class CostServiceTest {
 
             assertThatThrownBy(() -> costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build()))
                     .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
-                    .hasMessageContaining("소속 부서");
+                    .hasMessageContaining("수정 권한");
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("updateCost: 일반사용자는 같은 부서 전산업무비라도 타인 건을 수정할 수 없다")
+    void updateCost_일반사용자_동일부서_타인수정거부() {
+        CustomUserDetails user = new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_USER), "101");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(user);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+
+        try {
+            Bcostm cost = Bcostm.builder()
+                    .costBgNo(IT_MNGC_NO)
+                    .bgSno(1)
+                    .lstYn("Y")
+                    .fstEnrUsid("10001")
+                    .costSvnDpmC("101")
+                    .delYn("N")
+                    .build();
+            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+
+            assertThatThrownBy(() -> costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build()))
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                    .hasMessageContaining("수정 권한");
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }

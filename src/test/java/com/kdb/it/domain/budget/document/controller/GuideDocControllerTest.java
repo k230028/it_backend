@@ -30,11 +30,6 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.budget.document.dto.GuideDocDto;
 import com.kdb.it.domain.budget.document.service.GuideDocService;
 
-/**
- * GuideDocController @WebMvcTest
- *
- * <p>안내문서 HTTP 응답 구조와 인증 동작을 검증합니다.</p>
- */
 @WebMvcTest(GuideDocController.class)
 @Import({ TestSecurityConfig.class, JacksonConfig.class })
 class GuideDocControllerTest {
@@ -82,10 +77,26 @@ class GuideDocControllerTest {
     @WithMockUser(username = "10001")
     void createDocument_인증_201() throws Exception {
         given(guideDocService.createDocument(any())).willReturn("DOC-2026-0001");
+        var body = new GuideDocDto.CreateRequest();
+        body.setDocTtlCone("가이드 문서");
+
         mockMvc.perform(post("/api/guide-documents")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new GuideDocDto.CreateRequest())))
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("POST /api/guide-documents - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001")
+    void createDocument_필수필드누락_400() throws Exception {
+        var body = new GuideDocDto.CreateRequest();
+        body.setDocTtlCone(null);
+
+        mockMvc.perform(post("/api/guide-documents")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -93,10 +104,26 @@ class GuideDocControllerTest {
     @WithMockUser(username = "10001")
     void updateDocument_인증_200() throws Exception {
         given(guideDocService.updateDocument(anyString(), any())).willReturn("DOC-2026-0001");
+        var body = new GuideDocDto.UpdateRequest();
+        body.setDocTtlCone("수정 문서");
+
         mockMvc.perform(put("/api/guide-documents/DOC-2026-0001")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new GuideDocDto.UpdateRequest())))
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /api/guide-documents/{docMngNo} - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001")
+    void updateDocument_필수필드누락_400() throws Exception {
+        var body = new GuideDocDto.UpdateRequest();
+        body.setDocTtlCone(null);
+
+        mockMvc.perform(put("/api/guide-documents/DOC-2026-0001")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

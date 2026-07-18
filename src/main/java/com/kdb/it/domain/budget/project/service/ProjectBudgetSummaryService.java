@@ -80,14 +80,10 @@ public class ProjectBudgetSummaryService {
                 .map(value -> value.getCdva())
                 .collect(Collectors.toSet());
 
-        Function<Bitemm, BigDecimal> calcAmt = item -> {
-            BigDecimal xcr = (item.getXcr() != null && item.getXcr().compareTo(BigDecimal.ZERO) != 0)
-                    ? item.getXcr() : BigDecimal.ONE;
-            return item.getAmt().multiply(xcr);
-        };
+        Function<Bitemm, BigDecimal> calcAmt = this::resolveKrwAmount;
 
         List<Bitemm> validItems = bitemms.stream()
-                .filter(item -> item.getIoeC() != null && item.getAmt() != null)
+                .filter(item -> item.getIoeC() != null)
                 .toList();
 
         BigDecimal assetBg = sumByIoe(validItems, assetTypes, calcAmt);
@@ -99,12 +95,10 @@ public class ProjectBudgetSummaryService {
         response.setBudgetAmounts(assetBg, dvcBg, hwBg, swBg, costBg);
 
         // === 예정금액(MPL_AMT) 파생 합산 (Bprojm 3개 컬럼 대체) ===
-        // MPL_AMT 는 AMT 와 동일 환산 규칙(× xcr)을 적용해 대칭 계산한다.
+        // MPL_AMT도 저장 시점 금액을 그대로 사용해 AMT와 동일한 집계 기준을 유지합니다.
         Function<Bitemm, BigDecimal> calcMpl = i -> {
             if (i.getMplAmt() == null) return BigDecimal.ZERO;
-            BigDecimal xcr = (i.getXcr() != null && i.getXcr().compareTo(BigDecimal.ZERO) != 0)
-                    ? i.getXcr() : BigDecimal.ONE;
-            return i.getMplAmt().multiply(xcr);
+            return i.getMplAmt();
         };
         List<Bitemm> mplItems = bitemms.stream()
                 .filter(i -> i.getIoeC() != null)
@@ -135,5 +129,17 @@ public class ProjectBudgetSummaryService {
                 .filter(item -> ioeTypes.contains(item.getIoeC()))
                 .map(calcAmt)
                 .reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
+    }
+
+    /**
+     * 품목의 저장 원화 금액을 반환합니다.
+     *
+     * <p>BITEMM.amt는 이미 원화 기준 금액이므로 환율을 다시 적용하지 않습니다.</p>
+     *
+     * @param item 품목 엔티티
+     * @return 저장된 원화 금액, null이면 0
+     */
+    private BigDecimal resolveKrwAmount(Bitemm item) {
+        return item.getAmt() == null ? BigDecimal.ZERO : item.getAmt();
     }
 }

@@ -102,7 +102,7 @@ public class AdminMenuController {
      */
     @PatchMapping("/{mnuId}/move")
     public ResponseEntity<Void> move(@PathVariable(name = "mnuId") String mnuId,
-                                     @RequestBody MenuDto.MoveRequest req) {
+                                     @Valid @RequestBody MenuDto.MoveRequest req) {
         adminMenuService.move(mnuId, req.getNewHrkMnuId());
         return ResponseEntity.noContent().build();
     }

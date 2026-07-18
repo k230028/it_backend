@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -30,11 +31,6 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 
-/**
- * CostController @WebMvcTest
- *
- * <p>전산관리비 HTTP 응답 구조와 인증 동작을 검증합니다.</p>
- */
 @WebMvcTest(CostController.class)
 @Import({ TestSecurityConfig.class, JacksonConfig.class })
 class CostControllerTest {
@@ -78,14 +74,31 @@ class CostControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/cost - 인증된 사용자 → 200 OK")
+    @DisplayName("POST /api/cost - 인증된 사용자 → 201 Created + Location")
     @WithMockUser(username = "10001")
-    void createCost_인증_200() throws Exception {
+    void createCost_인증_201() throws Exception {
         given(costService.createCost(any())).willReturn("COST_2026_0001");
+        var body = new CostDto.CreateRequest();
+        body.setCurC("KRW");
+
         mockMvc.perform(post("/api/cost")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CostDto.CreateRequest())))
-                .andExpect(status().isOk());
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/cost/COST_2026_0001"));
+    }
+
+    @Test
+    @DisplayName("POST /api/cost - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001")
+    void createCost_필수필드누락_400() throws Exception {
+        var body = new CostDto.CreateRequest();
+        body.setCurC(null);
+
+        mockMvc.perform(post("/api/cost")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -93,10 +106,26 @@ class CostControllerTest {
     @WithMockUser(username = "10001")
     void updateCost_인증_200() throws Exception {
         given(costService.updateCost(anyString(), any())).willReturn("COST_2026_0001");
+        var body = new CostDto.UpdateRequest();
+        body.setCurC("KRW");
+
         mockMvc.perform(put("/api/cost/COST_2026_0001")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CostDto.UpdateRequest())))
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /api/cost/{itMngcNo} - 필수 필드 누락 → 400")
+    @WithMockUser(username = "10001")
+    void updateCost_필수필드누락_400() throws Exception {
+        var body = new CostDto.UpdateRequest();
+        body.setCurC(null);
+
+        mockMvc.perform(put("/api/cost/COST_2026_0001")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

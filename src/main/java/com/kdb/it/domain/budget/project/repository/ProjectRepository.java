@@ -141,6 +141,39 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
     Long getNextSequenceValue();
 
     /**
+     * 사업계획서 사업일정(TPRMPP_BBIZSM) 기준 사업별 일정 범위 일괄 조회
+     *
+     * <p>
+     * 대시보드 '사업별 진행현황' 간트 막대를 예산 일정이 아닌 사업계획서 일정 기준으로
+     * 표시하기 위해, 활성 사업일정 행에서 사업(ABUS_MNG_NO)별 최소 시작일({@code MIN(STT_DT)})과
+     * 최대 종료일({@code MAX(END_DT)})을 집계합니다.
+     * </p>
+     *
+     * <p>
+     * 날짜는 {@code YYYYMMDD}(VARCHAR2(8)) 문자열이라 문자열 MIN/MAX가 곧 최소/최대 날짜와
+     * 일치하며, NULL 날짜는 집계에서 자동 제외됩니다. 사업계획 일정 행이 없는 사업은 결과에
+     * 포함되지 않습니다(호출부에서 예산 일정으로 폴백).
+     * </p>
+     *
+     * <p>
+     * 도메인 순환 의존(budget.project ↔ bizplan)을 피하기 위해 bizplan 엔티티를 참조하지 않고
+     * 테이블명을 직접 지정하는 Oracle 전용 Native Query로 조회합니다.
+     * </p>
+     *
+     * @param abusMngNos 사업관리번호 목록 (비어있으면 호출하지 않음)
+     * @return {@code Object[]{ABUS_MNG_NO, MIN(STT_DT), MAX(END_DT)}} 행 목록 (일정 있는 사업만)
+     */
+    @Query(value = """
+            SELECT ABUS_MNG_NO, MIN(STT_DT) AS MIN_STT_DT, MAX(END_DT) AS MAX_END_DT
+              FROM TPRMPP_BBIZSM
+             WHERE ABUS_MNG_NO IN (:abusMngNos)
+               AND DEL_YN = 'N'
+             GROUP BY ABUS_MNG_NO
+            """, nativeQuery = true)
+    List<Object[]> findBizplanScheduleRange(
+            @org.springframework.data.repository.query.Param("abusMngNos") Collection<String> abusMngNos);
+
+    /**
      * 사업관리번호·최종여부·삭제여부로 사업 존재 여부 확인 (소요예산 산정 신청 유효성 검증용)
      *
      * <p>소요예산 산정 신규 신청 시 대상 사업이 실제로 존재하는지 확인합니다.</p>

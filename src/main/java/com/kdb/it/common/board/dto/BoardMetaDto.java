@@ -2,6 +2,7 @@ package com.kdb.it.common.board.dto;
 
 import com.kdb.it.common.board.entity.Cblbmm;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 /**
@@ -46,7 +47,9 @@ public class BoardMetaDto {
     @AllArgsConstructor
     @Schema(name = "BoardMetaCreateRequest", description = "게시판 메타 등록 요청")
     public static class CreateRequest {
+        @NotBlank
         @Schema(description = "게시판명", requiredMode = Schema.RequiredMode.REQUIRED)         private String  blbNm;
+        @NotBlank
         @Schema(description = "게시판구분코드 (공통코드 BLB_TC: 001=공지사항, 002=자료실)", example = "001", requiredMode = Schema.RequiredMode.REQUIRED) private String  blbTp;
         @Schema(description = "답변사용여부", example = "N")       private String  repUseYn;
         @Schema(description = "댓글사용여부", example = "N")       private String  cmmtUseYn;
@@ -74,6 +77,7 @@ public class BoardMetaDto {
     @AllArgsConstructor
     @Schema(name = "BoardMetaUpdateRequest", description = "게시판 메타 수정 요청")
     public static class UpdateRequest {
+        @NotBlank
         @Schema(description = "게시판명")          private String  blbNm;
         @Schema(description = "답변사용여부")      private String  repUseYn;
         @Schema(description = "댓글사용여부")      private String  cmmtUseYn;

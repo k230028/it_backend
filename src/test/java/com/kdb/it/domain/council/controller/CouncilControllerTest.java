@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -122,15 +123,16 @@ class CouncilControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/council - 인증된 사용자 → 200 OK")
+    @DisplayName("POST /api/council - 인증된 사용자 → 201 Created + Location")
     @WithMockUser(username = "10001")
-    void createCouncil_인증_200() throws Exception {
+    void createCouncil_인증_201() throws Exception {
         given(councilService.createCouncil(any(), any())).willReturn(ASCT_ID);
         mockMvc.perform(post("/api/council")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(
                         new CouncilDto.CreateRequest("PRJ-2026-0001", 1, "INFO_SYS", null))))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/council/" + ASCT_ID));
     }
 
     @Test
@@ -701,23 +703,45 @@ class CouncilControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/council/{asctId}/qna - 인증된 사용자 → 200")
+    @DisplayName("POST /api/council/{asctId}/qna - 인증된 사용자 → 201 Created")
     @WithMockUser(username = "10001")
-    void createQna_인증_200() throws Exception {
+    void createQna_인증_201() throws Exception {
         given(qnaService.createQna(anyString(), any(), any())).willReturn("QTN-ASCT-2026-0001-01");
+        // QnaCreateRequest.qtnCone은 @NotBlank — 유효한 본문 전송
+        mockMvc.perform(post("/api/council/" + ASCT_ID + "/qna")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"qtnCone\":\"사전 질의 내용\"}"))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("POST /api/council/{asctId}/qna - 질의내용 누락 → 400")
+    @WithMockUser(username = "10001")
+    void createQna_본문누락_400() throws Exception {
         mockMvc.perform(post("/api/council/" + ASCT_ID + "/qna")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     @DisplayName("PUT /api/council/{asctId}/qna/{qtnId} - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void replyQna_인증_200() throws Exception {
+        // QnaReplyRequest.repCone은 @NotBlank — 유효한 본문 전송
+        mockMvc.perform(put("/api/council/" + ASCT_ID + "/qna/QTN-ASCT-2026-0001-01")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"repCone\":\"답변 내용\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /api/council/{asctId}/qna/{qtnId} - 답변내용 누락 → 400")
+    @WithMockUser(username = "10001")
+    void replyQna_본문누락_400() throws Exception {
         mockMvc.perform(put("/api/council/" + ASCT_ID + "/qna/QTN-ASCT-2026-0001-01")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isBadRequest());
     }
 }

@@ -17,7 +17,7 @@ import java.util.List;
  * 서비스는 트랜잭션 관리와 리포지토리 호출을 담당합니다.
  * </p>
  *
- * // Design Ref: §3.7 — BudgetStatusService 설계
+ * 조회 전용 트랜잭션에서 탭별 예산 현황 집계를 제공합니다.
  * <p>주의: 클래스 수준 @Transactional(readOnly=true) 적용 중.</p>
  * <p>향후 쓰기 메서드 추가 시 반드시 @Transactional 오버라이드 필요 (readOnly=false).</p>
  */

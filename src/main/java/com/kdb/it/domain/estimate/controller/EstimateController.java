@@ -30,6 +30,14 @@ public class EstimateController {
 
     private final EstimateService estimateService;
 
+    /**
+     * 상태와 연계번호로 소요예산 문서를 조회합니다.
+     *
+     * @param status 상태 조건
+     * @param cncdRfrNo 연계번호
+     * @param user 인증 사용자
+     * @return 조회 가능한 문서 목록
+     */
     @Operation(summary = "소요예산 산정 목록")
     @GetMapping
     public ResponseEntity<List<EstimateDto.ListItem>> list(
@@ -39,12 +47,27 @@ public class EstimateController {
         return ResponseEntity.ok(estimateService.list(status, cncdRfrNo, user));
     }
 
+    /**
+     * 문서번호로 소요예산 상세를 조회합니다.
+     *
+     * @param docNo 문서번호
+     * @return 소요예산 상세
+     * @throws IllegalArgumentException 문서가 없는 경우
+     */
     @Operation(summary = "소요예산 산정 상세")
     @GetMapping("/{docNo}")
     public ResponseEntity<EstimateDto.Detail> get(@PathVariable(name = "docNo") String docNo) {
         return ResponseEntity.ok(estimateService.get(docNo));
     }
 
+    /**
+     * 소요예산 문서를 생성합니다.
+     *
+     * @param req 생성 요청
+     * @param user 인증 사용자
+     * @return 생성된 문서번호
+     * @throws org.springframework.security.access.AccessDeniedException 생성 권한이 없는 경우
+     */
     @Operation(summary = "소요예산 산정 신규 신청")
     @PostMapping
     public ResponseEntity<String> create(
@@ -53,6 +76,15 @@ public class EstimateController {
         return ResponseEntity.status(HttpStatus.CREATED).body(estimateService.create(req, user));
     }
 
+    /**
+     * 작성 중인 소요예산 문서를 수정합니다.
+     *
+     * @param docNo 문서번호
+     * @param req 수정 요청
+     * @param user 인증 사용자
+     * @return 빈 성공 응답
+     * @throws IllegalStateException 수정 가능한 상태가 아닌 경우
+     */
     @Operation(summary = "소요예산 산정 마스터 수정(작성중)")
     @PutMapping("/{docNo}")
     public ResponseEntity<Void> update(
@@ -63,6 +95,14 @@ public class EstimateController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * 작성 중인 소요예산 문서를 논리 삭제합니다.
+     *
+     * @param docNo 문서번호
+     * @param user 인증 사용자
+     * @return 빈 성공 응답
+     * @throws org.springframework.security.access.AccessDeniedException 삭제 권한이 없는 경우
+     */
     @Operation(summary = "소요예산 산정 삭제(작성중)")
     @DeleteMapping("/{docNo}")
     public ResponseEntity<Void> delete(
@@ -72,6 +112,15 @@ public class EstimateController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * 소요예산 문서 상태를 전이합니다.
+     *
+     * @param docNo 문서번호
+     * @param req 상태 요청
+     * @param user 인증 사용자
+     * @return 빈 성공 응답
+     * @throws IllegalStateException 허용되지 않은 상태 전이인 경우
+     */
     @Operation(summary = "소요예산 산정 상태 전이(제출/완료)")
     @PostMapping("/{docNo}/status")
     public ResponseEntity<Void> changeStatus(
@@ -82,6 +131,15 @@ public class EstimateController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * 진행 중 문서의 팀별 산정 명세를 저장합니다.
+     *
+     * @param docNo 문서번호
+     * @param req 명세 요청
+     * @param user 인증 사용자
+     * @return 빈 성공 응답
+     * @throws IllegalStateException 명세를 저장할 수 없는 상태인 경우
+     */
     @Operation(summary = "팀별 산정 명세 일괄 저장(진행중)")
     @PutMapping("/{docNo}/lines")
     public ResponseEntity<Void> saveLines(

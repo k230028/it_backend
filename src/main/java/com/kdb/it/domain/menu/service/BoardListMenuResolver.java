@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** DYN 게시판 노드(MBRD0001)의 children을 서버 단에서 권한 필터링하여 생성. */
+/** 활성 게시판 전체를 동적 게시판 노드(MBRD0001)의 하위 메뉴로 생성합니다. */
 @Component
 @RequiredArgsConstructor
 public class BoardListMenuResolver implements MenuChildrenResolver {
@@ -27,7 +27,7 @@ public class BoardListMenuResolver implements MenuChildrenResolver {
 
     @Override
     public List<MenuDto.Node> resolveChildren(List<String> athIds) {
-        // 게시판 조회는 인증된 모든 사용자에게 공개되므로 활성 게시판 전체를 노출한다.
+        // 게시판 조회는 인증된 모든 사용자에게 공개되므로 athIds와 관계없이 활성 게시판 전체를 노출합니다.
         return boardMetaService.getAllActive().stream()
                 .map(this::toNode)
                 .toList();

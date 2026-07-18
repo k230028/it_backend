@@ -14,9 +14,10 @@ import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.code.CommonCodeGroups;
+import com.kdb.it.common.code.IoeCategories;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
@@ -31,8 +32,6 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -103,6 +102,9 @@ public class ProjectService {
 
     /** 작성자 소속 조직 해석기: 신규 생성 시 주관팀코드(SVN_TEM_C)를 작성자 기준으로 채움 */
     private final com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+
+    /** 조직코드→조직명 해석기: 주관부서명/주관팀명 스냅샷 저장용 */
+    private final com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
     /** 결재 정보 리포지토리 (TPRMPP_CDECIM): 결재선 목록 조회용 */
     private final com.kdb.it.common.approval.repository.ApproverRepository cdecimRepository;
@@ -207,6 +209,10 @@ public class ProjectService {
         ProjectDto.Response response = ProjectDto.Response.fromEntity(project);
         // 최신 신청서 정보 조회 및 설정
         setApplicationInfo(response, prjMngNo, project.getSno());
+        // 저장 스냅샷 우선 — setCodeNames의 CORGNI 조회는 null일 때만 폴백으로 동작
+        if (project.getSvnDpmNm() != null) {
+            response.setSvnDpmCNm(project.getSvnDpmNm());
+        }
         // 부서코드→부서명, 사원번호→사용자명 조회 및 설정
         setCodeNames(response);
 
@@ -310,6 +316,10 @@ public class ProjectService {
         Bprojm project = request.toEntity();
         // 주관팀코드(SVN_TEM_C)는 작성자(현재 로그인 사용자) 소속 팀코드로 자동 설정 (작성자 기준)
         project.assignSvnTemC(authorOrgResolver.resolveCurrent().svnTemC());
+        // 주관부서명/주관팀명은 코드 설정 시점의 CORGNI 조회 스냅샷으로 함께 저장
+        project.assignSvnOrgNames(
+                orgNameResolver.resolveName(project.getSvnDpmC()),
+                orgNameResolver.resolveName(project.getSvnTemC()));
         projectRepository.save(project);
 
         // ===== 품목(Bitemm) 저장 =====
@@ -405,7 +415,7 @@ public class ProjectService {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
 
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
-        validateModifyPermission(project.getFstEnrUsid(), project.getSvnDpmC());
+        OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
 
         // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
         // 결재중 또는 결재완료 상태인 경우 수정 불가
@@ -434,6 +444,11 @@ public class ProjectService {
                 DateFormatUtil.toYmd8(request.getFlfFsgDt()), request.getRprStsTc(), request.getExePttYn(),
                 request.getBseYy(), request.getPrlmHrkOgzCCone(),
                 request.getOdnYn(), request.getAbusTc(), request.getCncdRfrNo()));
+
+        // 수정으로 주관부서코드가 바뀔 수 있으므로 이름 스냅샷도 같은 시점 기준으로 갱신
+        project.assignSvnOrgNames(
+                orgNameResolver.resolveName(project.getSvnDpmC()),
+                orgNameResolver.resolveName(project.getSvnTemC()));
 
         // ===== 품목 정보 동기화 (CUD) =====
         if (request.getItems() != null) {
@@ -589,6 +604,19 @@ public class ProjectService {
     }
 
     /**
+     * 네이티브 쿼리 결과의 문자열 컬럼 안전 변환.
+     *
+     * <p>Oracle JDBC가 VARCHAR2 컬럼을 Character/String으로 혼용 반환할 수 있어 직접 캐스트 대신
+     * {@code toString()}으로 변환합니다.</p>
+     *
+     * @param value 네이티브 결과 컬럼값(null 허용)
+     * @return null이면 null, 아니면 문자열 표현
+     */
+    private static String toNativeStr(Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    /**
      * 도입시기를 DB 컬럼 형식(YYYYMM, 6자)으로 변환.
      * 프론트에서 "YYYY-MM-DD" 또는 "YYYY-MM" 형식이 올 수 있으므로
      * 하이픈을 제거한 뒤 앞 6자만 사용한다. 빈값/null은 그대로 반환.
@@ -654,7 +682,7 @@ public class ProjectService {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
 
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
-        validateModifyPermission(project.getFstEnrUsid(), project.getSvnDpmC());
+        OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
 
         // 결재 상태 확인 (결재중/결재완료이면 삭제 불가)
         boolean isProcessingOrApproved = capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -715,13 +743,11 @@ public class ProjectService {
 
             // 자본예산/일반관리비 편성예산 분류 (마이그레이션 후 cId=CommonCodeGroups.IOE, cTp 필드로 분류)
             // 자본예산 비목의 cTp는 IOE_HW(기계장치)/IOE_DVC(개발비)/IOE_SW(무형자산) 계열이다.
-            // (구코드 IOE_CPIT만 보던 버그로 assetTypes가 비어 자본 편성예산이 항상 0이 되던 문제 수정.
-            // BudgetWorkService.CAPITAL_CTPS와 동일 집합으로 정렬)
-            Set<String> capitalCTps = java.util.Set.of("IOE_DVC", "IOE_HW", "IOE_SW", "IOE_CPIT");
+            // (구코드 IOE_CPIT만 보던 버그로 assetTypes가 비어 자본 편성예산이 항상 0이 되던 문제 수정)
             List<com.kdb.it.common.code.entity.Ccodem> allIoeForBugt = codeService
                     .findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE);
             Set<String> assetTypes = allIoeForBugt.stream()
-                    .filter(c -> capitalCTps.contains(c.getCTp()))
+                    .filter(c -> IoeCategories.isCapitalCTp(c.getCTp()))
                     .map(c -> c.getCdva())
                     .collect(Collectors.toSet());
             Set<String> costTypes = allIoeForBugt.stream()
@@ -827,6 +853,17 @@ public class ProjectService {
                         value -> value.getAbusMngNo(),
                         Collectors.collectingAndThen(Collectors.toList(), this::representativeStatus)));
 
+        // 사업계획서 사업일정(BBIZSM) 범위 배치 조회: 사업별 MIN(STT_DT)/MAX(END_DT).
+        // 대시보드 '사업별 진행현황' 간트 막대를 예산 일정이 아닌 사업계획서 일정 기준으로 표시하기 위함.
+        // 사업계획 일정이 없는 사업은 결과에 없어 값이 null로 남고, 프론트가 예산 일정으로 폴백한다.
+        Map<String, String[]> bizScheduleByPrj = new java.util.HashMap<>();
+        for (Object[] row : projectRepository.findBizplanScheduleRange(prjMngNos)) {
+            String id = toNativeStr(row[0]);
+            if (id != null) {
+                bizScheduleByPrj.put(id, new String[] { toNativeStr(row[1]), toNativeStr(row[2]) });
+            }
+        }
+
         // --- 6. 응답 DTO에 일괄 주입 ---
         for (int i = 0; i < projects.size(); i++) {
             Bprojm project = projects.get(i);
@@ -846,8 +883,10 @@ public class ProjectService {
 
             if (response.getDvmDpmC() != null)
                 response.setDvmDpmCNm(orgNameMap.get(response.getDvmDpmC()));
-            if (response.getSvnDpmC() != null)
-                response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC()));
+            if (project.getSvnDpmNm() != null)
+                response.setSvnDpmCNm(project.getSvnDpmNm()); // 저장 스냅샷 우선
+            else if (response.getSvnDpmC() != null)
+                response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC())); // 구데이터 폴백
             if (response.getDvmUsid() != null)
                 response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
             if (response.getTlrUsid() != null)
@@ -870,6 +909,13 @@ public class ProjectService {
 
             // 프로젝트 대표상태 주입(없으면 null)
             response.setStsTc(repStatusByPrj.get(project.getAbusMngNo()));
+
+            // 사업계획서 사업일정 범위 주입(사업계획 미작성 사업은 null 유지 → 프론트가 예산 일정으로 폴백)
+            String[] bizRange = bizScheduleByPrj.get(project.getAbusMngNo());
+            if (bizRange != null) {
+                response.setBizplanSttDt(bizRange[0]);
+                response.setBizplanEndDt(bizRange[1]);
+            }
 
             setBudgetSummary(response, project.getAbusMngNo(), project.getSno());
 
@@ -954,8 +1000,9 @@ public class ProjectService {
                     .ifPresent(org -> response.setDvmDpmCNm(org.getBbrNm()));
         }
 
-        // 주관부서코드 → 주관부서명
-        if (response.getSvnDpmC() != null && !response.getSvnDpmC().isEmpty()) {
+        // 주관부서코드 → 주관부서명 (스냅샷이 이미 세팅됐으면 건너뜀)
+        if (response.getSvnDpmCNm() == null
+                && response.getSvnDpmC() != null && !response.getSvnDpmC().isEmpty()) {
             corgnIRepository.findById(response.getSvnDpmC())
                     .ifPresent(org -> response.setSvnDpmCNm(org.getBbrNm()));
         }
@@ -1123,56 +1170,5 @@ public class ProjectService {
             if (item.getIoeC() != null)
                 item.setIoeCNm(nameMap.get(item.getIoeC()));
         });
-    }
-
-    /**
-     * RBAC 수정/삭제 권한 검증 헬퍼 (내부 메서드)
-     *
-     * <p>
-     * SecurityContext에서 현재 인증된 사용자({@link CustomUserDetails})를 조회하고,
-     * 자격등급 기반으로 리소스 수정 권한을 3단계로 검증합니다.
-     * </p>
-     *
-     * <p>
-     * 권한 계층:
-     * </p>
-     * <ol>
-     * <li>시스템관리자(ITPAD001): 모든 리소스 수정 허용</li>
-     * <li>기획통할담당자(ITPZZ002): 소속 부서(bbrC) == 리소스 부서(resourceBbrC) 인 경우 허용</li>
-     * <li>일반사용자(ITPZZ001): 본인 작성 리소스(creatorEno == 요청자 eno) 인 경우만 허용</li>
-     * </ol>
-     *
-     * @param creatorEno   리소스 최초 작성자 사번 (FST_ENR_USID)
-     * @param resourceBbrC 리소스 소속 부서코드 (부서 단위 권한 범위 결정용)
-     * @throws AccessDeniedException 수정 권한이 없는 경우
-     */
-    private void validateModifyPermission(String creatorEno, String resourceBbrC) {
-        // SecurityContext에서 현재 인증 주체 조회
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-        // 인증 주체가 CustomUserDetails가 아닌 경우 (비정상 접근) 거부
-        if (!(principal instanceof CustomUserDetails currentUser)) {
-            throw new AccessDeniedException("인증 정보를 확인할 수 없습니다.");
-        }
-
-        // 1단계: 시스템관리자는 모든 리소스 수정 허용
-        if (currentUser.isAdmin()) {
-            return;
-        }
-
-        // 2단계: 기획통할담당자는 소속 부서 리소스 수정 허용
-        if (currentUser.isDeptManager()) {
-            if (currentUser.getBbrC() != null && currentUser.getBbrC().equals(resourceBbrC)) {
-                return;
-            }
-            throw new AccessDeniedException("소속 부서의 리소스만 수정할 수 있습니다.");
-        }
-
-        // 3단계: 일반사용자는 본인 작성 리소스만 수정 허용
-        if (currentUser.getEno().equals(creatorEno)) {
-            return;
-        }
-
-        throw new AccessDeniedException("본인이 작성한 리소스만 수정할 수 있습니다.");
     }
 }

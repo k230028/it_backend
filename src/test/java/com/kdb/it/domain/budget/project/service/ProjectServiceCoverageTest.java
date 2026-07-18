@@ -109,6 +109,9 @@ class ProjectServiceCoverageTest {
     private CodeNameMapBuilder codeNameMapBuilder;
     @Mock
     private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+    /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
+    @Mock
+    private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
     @Mock
     private SecurityContext securityContext;
     @Mock

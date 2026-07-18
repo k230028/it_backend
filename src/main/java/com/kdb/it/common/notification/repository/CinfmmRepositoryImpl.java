@@ -55,6 +55,12 @@ public class CinfmmRepositoryImpl implements CinfmmRepositoryCustom {
         return new PageImpl<>(rows, pageable, total == null ? 0 : total);
     }
 
+    /**
+     * 수신자의 미읽음 알림 건수를 조회합니다.
+     *
+     * @param rmsEno 수신자 사번
+     * @return 삭제되지 않은 미조회 알림 건수
+     */
     @Override
     public long countUnread(String rmsEno) {
         Long count = query
@@ -69,8 +75,15 @@ public class CinfmmRepositoryImpl implements CinfmmRepositoryCustom {
         return count == null ? 0L : count;
     }
 
-    // 벌크 UPDATE는 1차 캐시를 우회하나, 호출자(NotificationService.markAllRead)는 갱신 건수만
-    // 반환하고 동일 트랜잭션에서 해당 알림 엔티티를 재조회하지 않으므로 clear가 불필요하다.
+    /**
+     * 수신자의 미읽음 알림을 모두 읽음 처리합니다.
+     *
+     * <p>벌크 UPDATE는 1차 캐시를 우회하나, 호출자(NotificationService.markAllRead)는 갱신 건수만
+     * 반환하고 동일 트랜잭션에서 해당 알림 엔티티를 재조회하지 않으므로 clear가 불필요합니다.</p>
+     *
+     * @param rmsEno 수신자 사번
+     * @return 읽음 처리된 알림 건수
+     */
     @Override
     public long markAllReadByRmsEno(String rmsEno) {
         LocalDateTime now = LocalDateTime.now();

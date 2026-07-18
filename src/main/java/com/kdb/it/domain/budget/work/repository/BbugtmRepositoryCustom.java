@@ -111,7 +111,7 @@ public interface BbugtmRepositoryCustom {
      *
      * <p>
      * 편성비목 조회(API-01) 시 각 비목별 결재완료 요청금액을 집계합니다.
-     * BCOSTM.IT_MNGC_BG + BITEMM.GCL_AMT * XCR 를 ioeCValues 기준으로 SUM합니다.
+     * BCOSTM.IT_MNGC_BG + BITEMM.GCL_AMT를 ioeCValues 기준으로 SUM합니다.
      * </p>
      *
      * @param ioeCValues 해당 편성비목에 속하는 IOE cdva 값 집합

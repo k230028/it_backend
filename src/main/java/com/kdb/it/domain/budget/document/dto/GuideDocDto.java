@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.document.dto;
 
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -40,6 +41,7 @@ public class GuideDocDto {
         @Schema(description = "문서관리번호 (미입력 시 자동 채번, 예: GDOC-2026-0001)")
         private String docMngNo;
 
+        @NotBlank
         /** 문서명 */
         @Schema(description = "문서명")
         private String docTtlCone;
@@ -74,6 +76,7 @@ public class GuideDocDto {
     public static class UpdateRequest {
 
         /** 문서명 */
+        @NotBlank
         @Schema(description = "문서명")
         private String docTtlCone;
 

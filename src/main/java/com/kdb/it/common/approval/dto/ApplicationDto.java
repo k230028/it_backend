@@ -268,6 +268,9 @@ public class ApplicationDto {
      * <p>조회에 성공한 신청서 목록({@code items})과 미존재로 실패한
      * 신청관리번호 목록({@code failedIds})을 함께 반환합니다.
      * 누락 건을 조용히 버리지 않고 호출자에게 노출하기 위함입니다.</p>
+     *
+     * @param items     조회 성공 항목
+     * @param failedIds 조회 실패(미존재) 신청관리번호 목록
      */
     @Schema(name = "ApplicationBulkResponse", description = "신청서 일괄 조회 결과 (부분 성공)")
     public record BulkResponse(
@@ -309,6 +312,18 @@ public class ApplicationDto {
         @Schema(description = "신청자 사원번호")
         private String rqsEno;
 
+        /** 신청자명 */
+        @Schema(description = "신청자명")
+        private String rqsNm;
+
+        /** 신청부서코드 */
+        @Schema(description = "신청부서코드")
+        private String rqsBbrC;
+
+        /** 신청부서명 */
+        @Schema(description = "신청부서명")
+        private String rqsBbrNm;
+
         /** 신청일자 */
         @Schema(description = "신청일자")
         private LocalDate rqsDt;
@@ -329,6 +344,35 @@ public class ApplicationDto {
          * @return 변환된 응답 DTO
          */
         public static Response fromEntity(Capplm capplm, List<Cdecim> approvers) {
+            return fromEntity(capplm, approvers, null);
+        }
+
+        /**
+         * 엔티티와 신청자명을 응답 DTO로 변환하는 정적 팩토리 메서드
+         *
+         * @param capplm      신청서 마스터 엔티티
+         * @param approvers   결재자 목록 엔티티
+         * @param requesterNm 신청자명
+         * @return 변환된 응답 DTO
+         */
+        public static Response fromEntity(Capplm capplm, List<Cdecim> approvers, String requesterNm) {
+            return fromEntity(capplm, approvers, requesterNm, null);
+        }
+
+        /**
+         * 엔티티와 신청자/신청부서명을 응답 DTO로 변환하는 정적 팩토리 메서드
+         *
+         * @param capplm        신청서 마스터 엔티티
+         * @param approvers     결재자 목록 엔티티
+         * @param requesterNm   신청자명
+         * @param requesterBbrNm 신청부서명
+         * @return 변환된 응답 DTO
+         */
+        public static Response fromEntity(
+                Capplm capplm,
+                List<Cdecim> approvers,
+                String requesterNm,
+                String requesterBbrNm) {
             return Response.builder()
                     .apfMngNo(capplm.getApfMngNo())       // 신청관리번호
                     .apfNm(capplm.getDcdReqTtl())          // 신청서명(결재요청제목에서 파생)
@@ -337,6 +381,9 @@ public class ApplicationDto {
                             : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label()) // 신청상태(라벨, 코드에서 파생)
                     .apfStsC(capplm.getApfPrgStsC())      // 신청상태코드
                     .rqsEno(capplm.getDcdReqUsid())       // 신청자 사원번호(결재요청사용자ID에서 파생)
+                    .rqsNm(requesterNm)                   // 신청자명
+                    .rqsBbrC(capplm.getDcdReqBbrC())       // 신청부서코드
+                    .rqsBbrNm(requesterBbrNm)              // 신청부서명
                     .rqsDt(capplm.getDcdReqDtm())         // 신청일자(결재요청일시에서 파생)
                     .rqsOpnn(capplm.getRgprDcdReqCone())  // 신청의견(등록자결재요청내용에서 파생)
                     .approvers(approvers.stream()

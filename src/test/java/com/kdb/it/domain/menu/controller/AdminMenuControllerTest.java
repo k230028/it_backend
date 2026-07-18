@@ -30,11 +30,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * AdminMenuController @WebMvcTest
- *
- * <p>관리자 메뉴 CRUD·정렬·이동 API의 HTTP 응답을 검증한다.</p>
- */
 @WebMvcTest(AdminMenuController.class)
 @Import({TestSecurityConfig.class, JacksonConfig.class})
 class AdminMenuControllerTest {
@@ -259,4 +254,5 @@ class AdminMenuControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest());
     }
+
 }

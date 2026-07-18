@@ -4,6 +4,7 @@ import com.kdb.it.domain.budget.document.dto.GuideDocDto;
 import com.kdb.it.domain.budget.document.service.GuideDocService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -93,7 +94,7 @@ public class GuideDocController {
     @PostMapping
     @Operation(summary = "가이드 문서 생성", description = "신규 가이드 문서를 생성합니다. docMngNo 미입력 시 자동 채번됩니다. " +
             "첨부파일은 생성 후 POST /api/files (orcDtt=가이드문서, orcPkVl={docMngNo})로 별도 등록합니다.")
-    public ResponseEntity<String> createDocument(@RequestBody GuideDocDto.CreateRequest request) {
+    public ResponseEntity<String> createDocument(@Valid @RequestBody GuideDocDto.CreateRequest request) {
         String docMngNo = guideDocService.createDocument(request);
         return ResponseEntity.created(URI.create("/api/guide-documents/" + docMngNo)).body(docMngNo);
     }
@@ -109,7 +110,7 @@ public class GuideDocController {
     @Operation(summary = "가이드 문서 수정", description = "가이드 문서 정보를 수정합니다.")
     public ResponseEntity<String> updateDocument(
             @PathVariable("docMngNo") String docMngNo,
-            @RequestBody GuideDocDto.UpdateRequest request) {
+            @Valid @RequestBody GuideDocDto.UpdateRequest request) {
         return ResponseEntity.ok(guideDocService.updateDocument(docMngNo, request));
     }
 

@@ -13,7 +13,7 @@ import java.util.List;
  * 각 쿼리는 DB 레벨에서 조인+피벗을 처리하여 단일 호출로 정제된 데이터를 반환합니다.
  * </p>
  *
- * // Design Ref: §3.4 — BudgetStatusQueryRepository 설계
+ * 예산 현황 탭별 집계 조회 계약을 정의합니다.
  */
 public interface BudgetStatusQueryRepository {
 
@@ -52,7 +52,7 @@ public interface BudgetStatusQueryRepository {
      *
      * <p>카테고리 필터링은 모두 BITEMM 비목구분({@code Ccodem.cTp}, {@code cId='IOE'}) 기준입니다.</p>
      *
-     * 편성요청액은 BITEMM({@code gclAmt * COALESCE(xcr,1)}), 편성액은 BBUGTM({@code orcTb='BITEMM'}, {@code dupBgAmt}) 합계.
+     * 편성요청액은 저장 시점에 원화로 환산된 BITEMM({@code amt}), 편성액은 BBUGTM({@code orcTb='BITEMM'}, {@code dupBgAmt}) 합계.
      * <ul>
      *   <li>{@code IT_BUDGET} → 전체 BITEMM 합계 (정보화·경상·일반관리비 모두 포함, 비목 필터 없음)</li>
      *   <li>{@code CAP_BUDGET} → {@code cTp ∈ ('IOE_DVC','IOE_HW','IOE_SW')} 자본예산 항목</li>

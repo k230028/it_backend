@@ -15,11 +15,16 @@ import com.kdb.it.domain.estimate.entity.Bestim;
 import com.kdb.it.domain.estimate.entity.Besttm;
 import com.kdb.it.domain.estimate.repository.EstimateLineRepository;
 import com.kdb.it.domain.estimate.repository.EstimateRepository;
+import com.kdb.it.infra.eai.dto.EaiRequest;
+import com.kdb.it.infra.eai.dto.EaiResult;
+import com.kdb.it.infra.eai.dto.GwePayload;
+import com.kdb.it.infra.eai.service.EaiService;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 소요예산 산정 서비스.
@@ -33,6 +38,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class EstimateService {
 
@@ -45,6 +51,7 @@ public class EstimateService {
     private final EstimateLineRepository lineRepository;
     private final ProjectRepository projectRepository;
     private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
+    private final EaiService eaiService;
 
     /**
      * 소요예산 산정 신규 신청 생성.
@@ -141,6 +148,7 @@ public class EstimateService {
         if (TGT_PROJECT.equals(e.getBgPrnTc())) {
             bprojaSyncService.upsert(e.getCncdRfrNo(), docNo, to);
         }
+        sendStatusEai("소요예산 산정", docNo, from, to, user);
     }
 
     /**
@@ -263,5 +271,24 @@ public class EstimateService {
     private String generateDocNo() {
         long seq = estimateRepository.nextDocSeq();
         return String.format("REQ-%d-%04d", Year.now().getValue(), seq);
+    }
+
+    private void sendStatusEai(String domainName, String docNo, String from, String to, CustomUserDetails user) {
+        try {
+            EaiResult result = eaiService.sendEai(EaiRequest.gwe("IPPG00000001", GwePayload.builder()
+                    .msgGubun("1")
+                    .recvIds(user.getEno())
+                    .subject("[IT Portal] " + domainName + " 상태 변경")
+                    .contents(domainName + " 문서 " + docNo + " 상태가 " + from + "에서 " + to + "로 변경되었습니다.")
+                    .sendId("systemalert")
+                    .sendName("IT Portal")
+                    .build()));
+            if (!result.success() && !result.skipped()) {
+                log.warn("EAI 발송 실패 — 원 업무 처리는 유지합니다. domain={}, docNo={}, 사유={}",
+                        domainName, docNo, result.errorMessage());
+            }
+        } catch (RuntimeException e) {
+            log.warn("EAI 발송 실패 — 원 업무 처리는 유지합니다.", e);
+        }
     }
 }

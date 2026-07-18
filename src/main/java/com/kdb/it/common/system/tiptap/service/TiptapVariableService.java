@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Year;
 import java.util.LinkedHashMap;
@@ -48,25 +49,21 @@ public class TiptapVariableService {
     private final BudgetStatusQueryRepository budgetStatusRepository;
 
     /**
-     * 드롭다운용 카탈로그 반환. PROJ 카탈로그는 사용자 부서(bbrC) 기준 필터(ADMIN/부서매니저는 전체).
+     * 드롭다운용 카탈로그 반환. PROJ 카탈로그는 사용자 부서(bbrC) 기준으로 필터링합니다.
      *
      * <p>비사업 카테고리(전산예산/자본예산/일반관리비)는 사용자와 무관하게 동일하며,
-     * 사업(PROJ) 목록만 권한·부서에 따라 달라집니다. 캐시 키는 ADMIN/부서매니저는 'ALL',
-     * 그 외 일반 사용자는 부서코드(bbrC)별로 분리합니다.</p>
+     * 사업(PROJ) 목록만 권한·부서에 따라 달라집니다. 관리자는 전체 사업을 보며,
+     * 그 외 사용자는 부서코드(bbrC) 기준으로 사업 목록을 분리합니다.</p>
      *
      * @param user 현재 인증 사용자 (권한·부서 기준 필터)
      * @return 카테고리 메타데이터 응답 (IT_BUDGET, CAP_BUDGET, OPEX, PROJ 4개 카테고리)
      */
     // 활성 사업 생성·수정 시 ProjectService가 카탈로그 캐시 전체를 무효화하며,
     // Caffeine TTL은 멀티 인스턴스 환경의 보조 안전망으로 사용한다.
-    @Cacheable(value = "tiptapMetadata", key = "#user.isAdmin() or #user.isDeptManager() ? 'ALL' : #user.bbrC")
+    @Cacheable(value = "tiptapMetadata", key = "T(com.kdb.it.common.system.tiptap.service.TiptapVariableService).metadataCacheKey(#user)")
     public MetadataResponse getMetadata(CustomUserDetails user) {
         List<Integer> years = currentPlusMinusTwo();
-        boolean seeAll = user.isAdmin() || user.isDeptManager();
-        List<ProjectRef> projects = (seeAll
-                ? projectRepository.findActiveProjectRefs()
-                : projectRepository.findActiveProjectRefsByDept(user.getBbrC()))
-                .stream().map(r -> new ProjectRef(r.code(), r.name())).toList();
+        List<ProjectRef> projects = loadMetadataProjects(user);
 
         return new MetadataResponse(List.of(
                 new CategoryMetadata("IT_BUDGET",  "전산예산",   years, null,     ITEMS),
@@ -74,6 +71,40 @@ public class TiptapVariableService {
                 new CategoryMetadata("OPEX",       "일반관리비", years, null,     ITEMS),
                 new CategoryMetadata("PROJ",       "사업별",     years, projects, ITEMS)
         ));
+    }
+
+    /**
+     * Tiptap 메타데이터 캐시 키를 권한과 부서 기준으로 생성합니다.
+     *
+     * @param user 현재 인증 사용자
+     * @return 캐시 키
+     */
+    public static String metadataCacheKey(CustomUserDetails user) {
+        if (user == null) {
+            return "ANONYMOUS";
+        }
+        if (user.isAdmin()) {
+            return "ALL";
+        }
+        if (StringUtils.hasText(user.getBbrC())) {
+            return "DEPT:" + user.getBbrC();
+        }
+        return "USER_NO_DEPT:" + user.getUsername();
+    }
+
+    /**
+     * 사용자 권한과 부서 기준으로 PROJ 카탈로그 사업 목록을 조회합니다.
+     */
+    private List<ProjectRef> loadMetadataProjects(CustomUserDetails user) {
+        if (user != null && user.isAdmin()) {
+            return projectRepository.findActiveProjectRefs()
+                    .stream().map(r -> new ProjectRef(r.code(), r.name())).toList();
+        }
+        if (user == null || !StringUtils.hasText(user.getBbrC())) {
+            return List.of();
+        }
+        return projectRepository.findActiveProjectRefsByDept(user.getBbrC())
+                .stream().map(r -> new ProjectRef(r.code(), r.name())).toList();
     }
 
     /**
@@ -103,17 +134,14 @@ public class TiptapVariableService {
 
     /**
      * 단일 토큰 해석. INVALID/FORBIDDEN/MISSING/OK 분기.
-     * PROJ 토큰은 관리자·부서매니저만 허용하고, 그 외 사용자에게는 FORBIDDEN을 반환한다.
+     * PROJ 토큰은 관리자만 전체 허용하며, 부서매니저는 본인 부서 사업일 때만 허용한다.
      */
     private ResolvedValue resolveOne(String token, CustomUserDetails user, Map<String, AggregatedAmount> aggCache) {
         ParseResult parsed = tokenParser.parse(token);
         if (!parsed.valid()) {
             return ResolvedValue.invalid();
         }
-        // 사업(PROJ) 토큰은 부서/권한 종속 데이터이므로 관리자·부서매니저만 허용한다.
-        // 일반 사용자는 FORBIDDEN으로 차단(세부 부서-사업 매핑은 후속 과제).
-        if (parsed.category() == Category.PROJ
-                && (user == null || (!user.isAdmin() && !user.isDeptManager()))) {
+        if (parsed.category() == Category.PROJ && !canResolveProjectToken(user, parsed.projectCode())) {
             return ResolvedValue.forbidden();
         }
 
@@ -142,6 +170,28 @@ public class TiptapVariableService {
             case "allocationRate" -> formatRate(agg);
             default -> ResolvedValue.invalid();
         };
+    }
+
+    /**
+     * PROJ 토큰 해석 가능 여부를 사용자 권한과 부서 소속 기준으로 판정합니다.
+     *
+     * @param user 현재 인증 사용자
+     * @param projectCode 토큰에 포함된 사업관리번호
+     * @return 해석 가능하면 {@code true}
+     */
+    private boolean canResolveProjectToken(CustomUserDetails user, String projectCode) {
+        if (user == null) {
+            return false;
+        }
+        if (user.isAdmin()) {
+            return true;
+        }
+        if (!user.isDeptManager() || !StringUtils.hasText(user.getBbrC())) {
+            return false;
+        }
+        return projectRepository.findActiveProjectRefsByDept(user.getBbrC())
+                .stream()
+                .anyMatch(project -> project.code().equals(projectCode));
     }
 
     /**

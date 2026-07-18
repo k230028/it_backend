@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -50,6 +51,11 @@ public final class EstimateDto {
             String bgPrnTc,
             String cncdRfrNo,
             String abusNm,
+            BigDecimal totalBudget,
+            LocalDate sttDtm,
+            LocalDate endDtm,
+            String svnDpmC,
+            String svnDpmNm,
             String stsTc,
             String reqUsid,
             LocalDateTime reqDtm

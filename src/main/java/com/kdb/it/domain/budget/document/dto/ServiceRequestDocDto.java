@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.document.dto;
 import com.kdb.it.domain.budget.document.entity.Brdocm;
 import com.kdb.it.domain.budget.document.util.DocVersionCodec;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -42,6 +43,7 @@ public class ServiceRequestDocDto {
         @Schema(description = "문서관리번호 (미입력 시 자동 채번)")
         private String docMngNo;
 
+        @NotBlank
         /** 요구사항명 */
         @Schema(description = "요구사항명")
         private String reqTtl;
@@ -99,6 +101,7 @@ public class ServiceRequestDocDto {
     public static class UpdateRequest {
 
         /** 요구사항명 */
+        @NotBlank
         @Schema(description = "요구사항명")
         private String reqTtl;
 
@@ -158,6 +161,14 @@ public class ServiceRequestDocDto {
         @Schema(description = "완료기한")
         private String rvwFsgTlmDt;
 
+        /** 주관부서명 (저장 스냅샷, 구버전 데이터는 null) */
+        @Schema(description = "주관부서명")
+        private String svnDpmNm;
+
+        /** 주관팀명 (저장 스냅샷, 구버전 데이터는 null) */
+        @Schema(description = "주관팀명")
+        private String svnTemNm;
+
         /** 삭제여부 */
         @Schema(description = "삭제여부")
         private String delYn;
@@ -198,6 +209,8 @@ public class ServiceRequestDocDto {
                     .reqDttNo(entity.getReqDttNo())
                     .bzDttNm(entity.getBzDttNm())
                     .rvwFsgTlmDt(entity.getRvwFsgTlmDt())
+                    .svnDpmNm(entity.getSvnDpmNm())
+                    .svnTemNm(entity.getSvnTemNm())
                     .delYn(entity.getDelYn())
                     .fstEnrDtm(entity.getFstEnrDtm())
                     .fstEnrUsid(entity.getFstEnrUsid())

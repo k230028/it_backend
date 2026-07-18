@@ -17,9 +17,12 @@ import org.mockito.quality.Strictness;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
+import com.querydsl.core.types.EntityPath;
+import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import org.mockito.ArgumentCaptor;
 
 /**
  * ProjectRepositoryImpl 단위 테스트
@@ -56,6 +59,8 @@ class ProjectRepositoryImplTest {
     void setUp() {
         sut = new ProjectRepositoryImpl(queryFactory);
         given(queryFactory.selectFrom(any())).willReturn(mockQuery);
+        given(queryFactory.select(any(Expression.class))).willReturn(mockQuery);
+        given(mockQuery.from(any(EntityPath.class))).willReturn(mockQuery);
         given(mockQuery.where(any(Predicate.class))).willReturn(mockQuery);
         given(mockQuery.fetch()).willReturn(List.of());
     }
@@ -205,5 +210,28 @@ class ProjectRepositoryImplTest {
         List<Bprojm> result = sut.searchByCondition(condition);
         // Assert
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("목록 프로젝션은 대용량 본문 컬럼 없이 요약 컬럼만 select한다")
+    void searchListByCondition_selectsLightweightColumnsOnly() {
+        ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
+
+        sut.searchListByCondition(condition);
+
+        ArgumentCaptor<Expression<?>> projection = ArgumentCaptor.captor();
+        org.mockito.Mockito.verify(queryFactory).select(projection.capture());
+        String selected = projection.getValue().toString();
+        assertThat(selected)
+                .contains("bprojm.abusMngNo", "bprojm.abusNm", "bprojm.bseYy")
+                .doesNotContain(
+                        "abusCone",
+                        "cpnSafCone",
+                        "abusNcsCone",
+                        "dgogPpoCone",
+                        "plmDes",
+                        "abusRngCone",
+                        "mnPrgCone",
+                        "hrfPlnCone");
     }
 }

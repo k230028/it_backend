@@ -13,6 +13,7 @@ import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.util.MentionExtractor;
+import com.kdb.it.common.notification.util.NotificationMessageFormatter;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
@@ -277,8 +278,8 @@ public class BoardCommentService {
                     NotificationEvent.builder()
                             .recipientEno(eno)
                             .infmSvcTc(NotificationEvent.TYPE_MENTION_COMMENT)
-                            .ttl(abbreviate(title, 100))
-                            .infmMsgCone(abbreviate(safe(post.getNacNm()), 4000))
+                            .ttl(NotificationMessageFormatter.abbreviate(title, 100))
+                            .infmMsgCone(NotificationMessageFormatter.abbreviate(safe(post.getNacNm()), 4000))
                             .infmRcdUrl(linkUrl)
                             .build());
         }
@@ -294,20 +295,4 @@ public class BoardCommentService {
         return s == null ? "" : s;
     }
 
-    /**
-     * 문자열을 최대 길이로 말줄임합니다.
-     *
-     * <p>
-     * {@code s}의 길이가 {@code max}를 초과하면 {@code max-1}자로 자르고 {@code "…"}를 추가합니다.
-     * </p>
-     *
-     * @param s   대상 문자열 (null 허용, null이면 null 반환)
-     * @param max 최대 허용 길이 (이 길이를 초과하면 말줄임 처리)
-     * @return max 이하로 줄인 문자열 (null 입력 시 null)
-     */
-    private static String abbreviate(String s, int max) {
-        if (s == null)
-            return null;
-        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
-    }
 }
