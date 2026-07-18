@@ -137,6 +137,34 @@ class CommitteeServiceTest {
         assertThat(result).filteredOn(r -> "E20001".equals(r.eno())).hasSize(1);
     }
 
+    @Test
+    @DisplayName("getDefaultCommittee: dbrTc='02'(정보기술부문계획)이면 IT기획팀장을 겸직('04') 단일 위원으로 병합한다")
+    void getDefaultCommittee_정보기술부문계획_IT기획팀장겸직04() {
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctDbrTc()).willReturn("02");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        CuserI u14011 = mockUser("E30001", "14011", "팀장");  // 미래전략팀장 → 당연위원
+        CuserI u18001 = mockUser("E30002", "18001", "팀장");  // IT기획팀장 → 당연위원 겸 간사
+
+        given(userRepository.findByTemC("14011")).willReturn(List.of(u14011));
+        given(userRepository.findByTemC("18001")).willReturn(List.of(u18001));
+
+        List<CouncilDto.CommitteeMemberResponse> result =
+                committeeService.getDefaultCommittee(ASCT_ID);
+
+        // IT기획팀장은 당연위원+간사 두 목록에 있지만 겸직('04') 1명으로만 배정된다(중복 없음)
+        assertThat(result).hasSize(2);
+        assertThat(result)
+                .filteredOn(r -> "E30001".equals(r.eno()))
+                .extracting(CouncilDto.CommitteeMemberResponse::vlrTc)
+                .containsExactly("01");
+        assertThat(result)
+                .filteredOn(r -> "E30002".equals(r.eno()))
+                .extracting(CouncilDto.CommitteeMemberResponse::vlrTc)
+                .containsExactly("04");
+    }
+
     // ───────────────────────────────────────────────────────
     // getCommittee
     // ───────────────────────────────────────────────────────
@@ -164,6 +192,26 @@ class CommitteeServiceTest {
         assertThat(result.call()).hasSize(1);
         assertThat(result.secretary()).hasSize(1);
         assertThat(result.mandatory().get(0).eno()).isEqualTo("E10001");
+    }
+
+    @Test
+    @DisplayName("getCommittee: '04'(당연위원 겸 간사) 위원은 당연위원 목록에 노출된다")
+    void getCommittee_겸직04_당연위원목록노출() {
+        Basctm council = mock(Basctm.class);
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+
+        Bcmmtm dual = mockMember("E30002", "04");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(dual));
+
+        CuserI u18001 = mockUser("E30002", "18001", "팀장");
+        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(u18001));
+
+        CouncilDto.CommitteeListResponse result = committeeService.getCommittee(ASCT_ID);
+
+        assertThat(result.mandatory()).hasSize(1);
+        assertThat(result.mandatory().get(0).eno()).isEqualTo("E30002");
+        assertThat(result.secretary()).isEmpty();
     }
 
     @Test

@@ -227,20 +227,27 @@ public class CouncilService {
         // 협의회ID 채번: ASCT-{연도}-{4자리순번}
         String asctId = generateItPtlAsctId();
 
+        // 정보기술부문계획 협의회(dbrTc='02')는 단일 사업이 아니라 계획(BPLANM)을 심의 대상으로 가진다.
+        boolean isPlanCouncil = "02".equals(request.dbrTc());
+
         // 협의회 기본정보 생성 (초기 상태: DRAFT)
         Basctm council = Basctm.builder()
                 .itPtlAsctId(asctId)
-                .abusMngNo(request.prjMngNo())
-                .sno(request.prjSno())
+                .abusMngNo(isPlanCouncil ? null : request.prjMngNo())  // 계획협의회는 단일 사업 없음
+                .sno(isPlanCouncil ? null : request.prjSno())
                 .itPtlAsctPrgStsTc("01")
                 .itPtlAsctDbrTc(request.dbrTc())
+                .reqDocNo(isPlanCouncil ? request.reqDocNo() : null)   // 계획협의회 심의 대상 계획
                 .build();
 
         // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
         entityManager.persist(council);
 
-        // 사업 상태를 '타당성검토 정실협 진행중'(32)으로 전이
-        bprojaSyncService.upsert(request.prjMngNo(), request.prjMngNo(), PRJ_STS_COUNCIL_IN_PROGRESS);
+        // 계획협의회(02)는 단일 사업 상태 전이 대상이 아니므로 사업 상태 동기화를 생략한다.
+        if (!isPlanCouncil) {
+            // 사업 상태를 '타당성검토 정실협 진행중'(32)으로 전이
+            bprojaSyncService.upsert(request.prjMngNo(), request.prjMngNo(), PRJ_STS_COUNCIL_IN_PROGRESS);
+        }
 
         return asctId;
     }
@@ -458,13 +465,17 @@ public class CouncilService {
     public void startPreparation(String asctId) {
         Basctm council = findActiveCouncil(asctId);
 
-        // 결재완료(04) 상태에서만 개최준비로 전이 가능
-        if (!"04".equals(council.getItPtlAsctPrgStsTc())) {
+        // 정보기술부문계획(dbrTc='02')은 타당성검토표/결재 단계가 없어 신청(01)에서 바로 개최준비로 전이한다.
+        // 그 외 심의유형(03/04/05)은 기존대로 결재완료(04)에서만 전이 가능.
+        boolean isPlanCouncil = "02".equals(council.getItPtlAsctDbrTc());
+        String current = council.getItPtlAsctPrgStsTc();
+        boolean allowed = "04".equals(current) || (isPlanCouncil && "01".equals(current));
+        if (!allowed) {
             throw new IllegalStateException(
-                    "개최준비 전이는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+                    "개최준비 전이는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + current);
         }
 
-        // 협의회 상태 전이: APPROVED(04) → PREPARING(05)
+        // 협의회 상태 전이: → PREPARING(05)
         council.changeStatus("05");
     }
 

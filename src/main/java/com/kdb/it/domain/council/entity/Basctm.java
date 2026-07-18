@@ -94,6 +94,15 @@ public class Basctm extends BaseEntity {
     private String csfHeldYn;
 
     /**
+     * 계획관리번호: 정보기술부문계획(dbrTc='02') 협의회의 심의 대상 계획.
+     *
+     * <p>BPLANM.REQ_DOC_NO(계획관리번호 PLN-YYYY-NNNN)를 참조합니다.
+     * dbrTc='02'에서만 사용하며, 그 외 심의유형(03/04/05)은 null입니다.</p>
+     */
+    @Column(name = "REQ_DOC_NO", length = 30, comment = "계획관리번호(dbrTc=02 대상 정보기술부문계획)")
+    private String reqDocNo;
+
+    /**
      * 협의회 상태 변경
      *
      * <p>상태 전이 시 사용합니다. JPA Dirty Checking으로 자동 반영됩니다.</p>

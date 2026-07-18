@@ -2,6 +2,7 @@ package com.kdb.it.domain.council.service;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +31,7 @@ import lombok.RequiredArgsConstructor;
  *   <li>INFO_SYS: 예산(12004), PMO(18010), 디지털기획(18501), 정보보호기획(18301)</li>
  *   <li>INFO_SEC: 예산(12004), IT기획(18001), PMO(18010), 디지털기획(18501)</li>
  *   <li>ETC: 예산(12004), PMO(18010), 디지털기획(18501)</li>
+ *   <li>정보기술부문계획(dbrTc=02): 미래전략(14011), IT기획(18001) — IT기획팀장은 평가위원 겸 간사('04')</li>
  * </ul>
  *
  * <p>위원 저장 전략: 전체 교체 (기존 Soft Delete + 신규 INSERT)</p>
@@ -61,6 +63,7 @@ public class CommitteeService {
 
     // 심의유형별 당연위원 팀코드 매핑 (TEM_C 기준, Design §2.4)
     private static final Map<String, List<String>> MANDATORY_TEM_CODES = Map.of(
+        "02", List.of("14011", "18001"),                    // 정보기술부문계획: 미래전략팀장, IT기획팀장
         "03", List.of("12004", "18010", "18501", "18301"),  // INFO_SYS
         "04", List.of("12004", "18001", "18010", "18501"),  // INFO_SEC
         "05", List.of("12004", "18010", "18501")            // ETC
@@ -70,6 +73,7 @@ public class CommitteeService {
     // 003(INFO_SYS) / 005(ETC): IT기획(18001) → 간사
     // 004(INFO_SEC): 정보보호기획(18301) → 간사
     private static final Map<String, List<String>> SECRETARY_TEM_CODES = Map.of(
+        "02", List.of("18001"),  // 정보기술부문계획: IT기획팀장(당연위원과 동일인 → 겸직 '04')
         "03", List.of("18001"),  // INFO_SYS
         "04", List.of("18301"),  // INFO_SEC
         "05", List.of("18001")   // ETC
@@ -95,36 +99,36 @@ public class CommitteeService {
         // 협의회 존재 확인 및 심의유형 조회
         String dbrTc = councilService.findActiveCouncil(asctId).getItPtlAsctDbrTc();
 
-        List<CouncilDto.CommitteeMemberResponse> result = new ArrayList<>();
-
-        // 당연위원(MAND) 자동 배정
+        // 당연위원(01)·간사(03) 후보 팀코드
         List<String> mandTemCodes = MANDATORY_TEM_CODES.getOrDefault(dbrTc, List.of());
-        for (String temC : mandTemCodes) {
-            List<CuserI> users = userRepository.findByTemC(temC);
-            if (users.isEmpty()) continue;
+        List<String> secrTemCodes = SECRETARY_TEM_CODES.getOrDefault(dbrTc, List.of());
 
-            // 팀장 우선, 없으면 첫 번째 사용자를 당연위원 후보로 선택
-            CuserI candidate = users.stream()
-                    .filter(u -> "팀장".equals(u.getPtCNm()))
-                    .findFirst()
-                    .orElse(users.get(0));
+        // 팀코드별 대표 후보(팀장 우선) 해석 — 입력 팀코드 순서 보존
+        Map<String, CuserI> mandCandidates = resolveTeamLeads(mandTemCodes);
+        Map<String, CuserI> secrCandidates = resolveTeamLeads(secrTemCodes);
 
-            result.add(toMemberResponse(candidate, "01"));
+        // 간사 후보 사번 집합 — 당연위원과 겹치면 겸직('04')으로 병합
+        // (dbrTc='02' 정보기술부문계획: IT기획팀장이 평가위원 겸 간사. BCMMTM PK=(협의회ID,사번)이라
+        //  1인 2행이 불가하므로 '04'(당연위원 겸 간사) 단일 유형으로 표현한다.)
+        Set<String> secrEnos = secrCandidates.values().stream()
+                .map(CuserI::getEno)
+                .collect(Collectors.toSet());
+
+        List<CouncilDto.CommitteeMemberResponse> result = new ArrayList<>();
+        Set<String> emittedEnos = new HashSet<>();
+
+        // 당연위원 배정: 간사 겸직이면 '04'(당연위원 겸 간사), 아니면 '01'
+        for (CuserI candidate : mandCandidates.values()) {
+            String mebTc = secrEnos.contains(candidate.getEno()) ? "04" : "01";
+            result.add(toMemberResponse(candidate, mebTc));
+            emittedEnos.add(candidate.getEno());
         }
 
-        // 간사(SECR) 자동 배정
-        List<String> secrTemCodes = SECRETARY_TEM_CODES.getOrDefault(dbrTc, List.of());
-        for (String temC : secrTemCodes) {
-            List<CuserI> users = userRepository.findByTemC(temC);
-            if (users.isEmpty()) continue;
-
-            // 팀장 우선, 없으면 첫 번째 사용자를 간사 후보로 선택
-            CuserI candidate = users.stream()
-                    .filter(u -> "팀장".equals(u.getPtCNm()))
-                    .findFirst()
-                    .orElse(users.get(0));
-
+        // 당연위원과 겹치지 않는 순수 간사만 '03'으로 추가(겸직은 위에서 '04'로 이미 배정)
+        for (CuserI candidate : secrCandidates.values()) {
+            if (emittedEnos.contains(candidate.getEno())) continue;
             result.add(toMemberResponse(candidate, "03"));
+            emittedEnos.add(candidate.getEno());
         }
 
         return result;
@@ -155,9 +159,12 @@ public class CommitteeService {
             CouncilDto.CommitteeMemberResponse resp = toMemberResponseFromEntity(m, user);
 
             switch (m.getItPtlAsctMebTc()) {
-                case "01" -> mandatory.add(resp);  // MAND
-                case "02" -> call.add(resp);        // CALL
-                case "03" -> secretary.add(resp);   // SECR
+                case "01" -> mandatory.add(resp);   // 당연위원(MAND)
+                case "02" -> call.add(resp);         // 소집위원(CALL)
+                case "03" -> secretary.add(resp);    // 간사(SECR)
+                // '04' 당연위원 겸 간사(dbrTc='02'): 평가위원 목록(당연위원)에 노출하고,
+                // 간사 여부는 위원유형(mebTc='04')으로 프론트가 판별한다(중복 노출 방지).
+                case "04" -> mandatory.add(resp);
             }
         }
 
@@ -235,6 +242,28 @@ public class CommitteeService {
     // =========================================================================
     // 내부 헬퍼
     // =========================================================================
+
+    /**
+     * 팀코드 목록별 대표 후보(팀장 우선, 없으면 첫 사용자)를 해석합니다.
+     *
+     * <p>팀원이 없는 팀은 결과에서 제외합니다. 반환 Map은 입력 팀코드 순서를 보존합니다(LinkedHashMap).</p>
+     *
+     * @param temCodes 후보를 뽑을 팀코드 목록
+     * @return 팀코드 → 대표 후보(CuserI) 매핑 (순서 보존)
+     */
+    private Map<String, CuserI> resolveTeamLeads(List<String> temCodes) {
+        Map<String, CuserI> leads = new LinkedHashMap<>();
+        for (String temC : temCodes) {
+            List<CuserI> users = userRepository.findByTemC(temC);
+            if (users.isEmpty()) continue;
+            CuserI candidate = users.stream()
+                    .filter(u -> "팀장".equals(u.getPtCNm()))
+                    .findFirst()
+                    .orElse(users.get(0));
+            leads.put(temC, candidate);
+        }
+        return leads;
+    }
 
     /**
      * 위원 목록의 사번으로 사용자 정보 Map 생성.
