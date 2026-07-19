@@ -1,15 +1,19 @@
 package com.kdb.it.infra.file.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -17,6 +21,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -250,5 +255,134 @@ class FileControllerTest {
 
         mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/download"))
                 .andExpect(status().isOk());
+    }
+
+    // ─────────────────────────────────────────
+    // SEC-05 네 읽기 경로 인가 계약 (목록·메타·다운로드·미리보기)
+    // 목록: 200 + 허용 파일만 / 단건 세 경로: 거부 403, 허용 200
+    // ─────────────────────────────────────────
+
+    /** 거부 대상 파일매핑ID — checkReadAccess가 AccessDeniedException을 던지도록 스텁하는 공통 값. */
+    private static final String FL_DENIED = "FL-DENIED";
+    /** 허용 대상 파일매핑ID. */
+    private static final String FL_OK = "FL-OK";
+
+    /** SEC-05 테스트용 인증 일반 사용자(관리자 아님). */
+    private CustomUserDetails normalUser() {
+        return new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+    }
+
+    @Test
+    @DisplayName("GET /api/files - 인증 사용자를 fileService.getFiles에 그대로 전달하고 허용 파일만 반환")
+    void getFiles_passesAuthenticatedUser_returnsAllowedOnly() throws Exception {
+        CustomUserDetails userDetails = normalUser();
+        // 서비스가 이미 읽기 권한으로 필터링한 "허용 파일만" 목록을 반환한다고 가정
+        given(fileService.getFiles(any(), any())).willReturn(List.of(new FileDto.Response()));
+
+        mockMvc.perform(get("/api/files").with(user(userDetails))
+                .param("pkColNm", "요구사항정의서").param("pkCone", "DOC-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        // 인증 사용자가 서비스로 정확히 전달되는지 ArgumentCaptor로 검증
+        ArgumentCaptor<CustomUserDetails> userCaptor = ArgumentCaptor.forClass(CustomUserDetails.class);
+        verify(fileService).getFiles(any(FileDto.SearchCondition.class), userCaptor.capture());
+        assertThat(userCaptor.getValue()).isSameAs(userDetails);
+    }
+
+    @Test
+    @DisplayName("GET /api/files - 목록 거부는 200 + 빈 배열(서비스가 걸러낸 결과)")
+    void getFiles_denied_returnsEmptyArray() throws Exception {
+        CustomUserDetails userDetails = normalUser();
+        given(fileService.getFiles(any(), any())).willReturn(List.of());
+
+        mockMvc.perform(get("/api/files").with(user(userDetails))
+                .param("pkColNm", "요구사항정의서").param("pkCone", "DOC-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("GET /api/files/{flMpnId} - 읽기 권한 없음 → 403 (getFile 미호출)")
+    void getFile_denied_403() throws Exception {
+        CustomUserDetails userDetails = normalUser();
+        doThrow(new org.springframework.security.access.AccessDeniedException("파일 읽기 권한이 없습니다."))
+                .when(fileOwnershipChecker).checkReadAccess(FL_DENIED, userDetails);
+
+        mockMvc.perform(get("/api/files/" + FL_DENIED).with(user(userDetails)))
+                .andExpect(status().isForbidden());
+
+        verify(fileService, never()).getFile(anyString());
+    }
+
+    @Test
+    @DisplayName("GET /api/files/{flMpnId} - 읽기 권한 허용 → 200 + 메타 DTO")
+    void getFile_allowed_200() throws Exception {
+        CustomUserDetails userDetails = normalUser();
+        given(fileService.getFile(FL_OK)).willReturn(new FileDto.Response());
+
+        mockMvc.perform(get("/api/files/" + FL_OK).with(user(userDetails)))
+                .andExpect(status().isOk());
+
+        verify(fileOwnershipChecker).checkReadAccess(FL_OK, userDetails);
+    }
+
+    @Test
+    @DisplayName("GET /api/files/{flMpnId}/download - 읽기 권한 없음 → 403 (downloadFile 미호출)")
+    void downloadFile_denied_403() throws Exception {
+        CustomUserDetails userDetails = normalUser();
+        doThrow(new org.springframework.security.access.AccessDeniedException("파일 읽기 권한이 없습니다."))
+                .when(fileOwnershipChecker).checkReadAccess(FL_DENIED, userDetails);
+
+        mockMvc.perform(get("/api/files/" + FL_DENIED + "/download").with(user(userDetails)))
+                .andExpect(status().isForbidden());
+
+        // 권한 거부 시 실제 파일 로드는 절대 수행되지 않아야 한다
+        verify(fileService, never()).downloadFile(anyString());
+    }
+
+    @Test
+    @DisplayName("GET /api/files/{flMpnId}/download - 허용 → 200 + Content-Disposition: attachment")
+    void downloadFile_allowed_attachment_200() throws Exception {
+        CustomUserDetails userDetails = normalUser();
+        ByteArrayResource resource = new ByteArrayResource("content".getBytes());
+        given(fileService.downloadFile(FL_OK))
+                .willReturn(new FileService.FileDownloadResult(resource, "test.pdf", "application/pdf"));
+
+        mockMvc.perform(get("/api/files/" + FL_OK + "/download").with(user(userDetails)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("attachment")));
+
+        verify(fileOwnershipChecker).checkReadAccess(FL_OK, userDetails);
+    }
+
+    @Test
+    @DisplayName("GET /api/files/{flMpnId}/preview - 읽기 권한 없음 → 403 (downloadFile 미호출)")
+    void previewFile_denied_403() throws Exception {
+        CustomUserDetails userDetails = normalUser();
+        doThrow(new org.springframework.security.access.AccessDeniedException("파일 읽기 권한이 없습니다."))
+                .when(fileOwnershipChecker).checkReadAccess(FL_DENIED, userDetails);
+
+        mockMvc.perform(get("/api/files/" + FL_DENIED + "/preview").with(user(userDetails)))
+                .andExpect(status().isForbidden());
+
+        verify(fileService, never()).downloadFile(anyString());
+    }
+
+    @Test
+    @DisplayName("GET /api/files/{flMpnId}/preview - 허용 → 200 + Content-Disposition: inline")
+    void previewFile_allowed_inline_200() throws Exception {
+        CustomUserDetails userDetails = normalUser();
+        ByteArrayResource resource = new ByteArrayResource("imgdata".getBytes());
+        given(fileService.downloadFile(FL_OK))
+                .willReturn(new FileService.FileDownloadResult(resource, "photo.png", "image/png"));
+
+        mockMvc.perform(get("/api/files/" + FL_OK + "/preview").with(user(userDetails)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("inline")));
+
+        verify(fileOwnershipChecker).checkReadAccess(FL_OK, userDetails);
     }
 }
