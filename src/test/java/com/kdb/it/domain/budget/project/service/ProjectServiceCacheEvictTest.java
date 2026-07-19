@@ -94,9 +94,6 @@ class ProjectServiceCacheEvictTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(admin, null, admin.getAuthorities()));
 
-        // 생성 경로가 참조하는 작성자 조직 스냅샷 기본값
-        given(authorOrgResolver.resolveCurrent())
-                .willReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());
     }
 
     @AfterEach

@@ -60,8 +60,7 @@ import lombok.RequiredArgsConstructor;
  * 품목(Bitemm) 동기화 로직 (수정 시):
  * </p>
  * <ol>
- * <li>요청의 {@code gclMngNo}가 있으면 기존 레코드 Soft Delete + 동일 관리번호·일련번호(+1)로 신규 레코드
- * 저장</li>
+ * <li>요청의 {@code gclMngNo}가 있으면 기존 활성 레코드를 제자리 수정(Dirty Checking) — 새 레코드를 추가하지 않는다</li>
  * <li>요청의 {@code gclMngNo}가 없으면 신규 항목 추가</li>
  * <li>요청에 없는 기존 항목은 Soft Delete</li>
  * </ol>
@@ -99,9 +98,6 @@ public class ProjectService {
 
     /** 사용자 정보 리포지토리 (TPRMPP_CUSERI): 사원번호→사용자명 조회용 */
     private final com.kdb.it.common.iam.repository.UserRepository cuserIRepository;
-
-    /** 작성자 소속 조직 해석기: 신규 생성 시 주관팀코드(SVN_TEM_C)를 작성자 기준으로 채움 */
-    private final com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
 
     /** 조직코드→조직명 해석기: 주관부서명/주관팀명 스냅샷 저장용 */
     private final com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
@@ -314,12 +310,13 @@ public class ProjectService {
 
         // 엔티티 생성
         Bprojm project = request.toEntity();
-        // 주관팀코드(SVN_TEM_C)는 작성자(현재 로그인 사용자) 소속 팀코드로 자동 설정 (작성자 기준)
-        project.assignSvnTemC(authorOrgResolver.resolveCurrent().svnTemC());
-        // 주관부서명/주관팀명은 코드 설정 시점의 CORGNI 조회 스냅샷으로 함께 저장
-        project.assignSvnOrgNames(
-                orgNameResolver.resolveName(project.getSvnDpmC()),
-                orgNameResolver.resolveName(project.getSvnTemC()));
+        // 주관팀/개발팀은 각 담당자(주관=USID, IT=DVM_USID) 소속 팀 스냅샷(팀코드+팀명)으로 채움
+        TeamSnapshot svnTeam = resolveTeam(project.getUsid());
+        TeamSnapshot dvmTeam = resolveTeam(project.getDvmUsid());
+        project.assignTeamCodes(svnTeam.temC(), dvmTeam.temC());
+        // 주관부서명은 CORGNI 조회 스냅샷, 주관팀명은 담당자(CUSERI) 팀명 스냅샷으로 저장
+        // (팀코드는 CORGNI에 없어 CORGNI 조회로는 팀명을 얻지 못하므로 담당자 팀명을 사용)
+        project.assignSvnOrgNames(orgNameResolver.resolveName(project.getSvnDpmC()), svnTeam.temNm());
         projectRepository.save(project);
 
         // ===== 품목(Bitemm) 저장 =====
@@ -445,10 +442,13 @@ public class ProjectService {
                 request.getBseYy(), request.getPrlmHrkOgzCCone(),
                 request.getOdnYn(), request.getAbusTc(), request.getCncdRfrNo()));
 
-        // 수정으로 주관부서코드가 바뀔 수 있으므로 이름 스냅샷도 같은 시점 기준으로 갱신
-        project.assignSvnOrgNames(
-                orgNameResolver.resolveName(project.getSvnDpmC()),
-                orgNameResolver.resolveName(project.getSvnTemC()));
+        // 담당자(주관=USID, IT=DVM_USID) 변경 시 소속 팀 스냅샷(팀코드+팀명)도 함께 갱신
+        TeamSnapshot svnTeam = resolveTeam(project.getUsid());
+        TeamSnapshot dvmTeam = resolveTeam(project.getDvmUsid());
+        project.assignTeamCodes(svnTeam.temC(), dvmTeam.temC());
+        // 주관부서명은 CORGNI 조회 스냅샷, 주관팀명은 담당자(CUSERI) 팀명 스냅샷으로 갱신
+        // (팀코드는 CORGNI에 없어 CORGNI 조회로는 팀명을 얻지 못하므로 담당자 팀명을 사용)
+        project.assignSvnOrgNames(orgNameResolver.resolveName(project.getSvnDpmC()), svnTeam.temNm());
 
         // ===== 품목 정보 동기화 (CUD) =====
         if (request.getItems() != null) {
@@ -474,41 +474,31 @@ public class ProjectService {
                             .orElse(null);
 
                     if (existingItem != null) {
-                        // 변경된 필드가 있을 때만 버저닝 (변경 없으면 D/C 로그 생성 생략)
+                        // 변경된 필드가 있을 때만 제자리 수정 (변경 없으면 UPDATE·로그 생성 생략)
                         if (isItemChanged(existingItem, itemDto)) {
-                            // 기존 레코드 Soft Delete (이전 버전으로 처리)
-                            existingItem.delete();
-                            // 기존 관리번호 유지 + 일련번호 1 증가하여 신규 레코드 저장
-                            int newGclSno = existingItem.getSno() + 1;
                             // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
                             itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
                             // 외화 재계산: amt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
                             BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
                                     itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
-                            com.kdb.it.domain.budget.project.entity.Bitemm updatedItem = com.kdb.it.domain.budget.project.entity.Bitemm
-                                    .builder()
-                                    .gclMngNo(existingItem.getGclMngNo()) // 품목관리번호 유지 (기존 번호)
-                                    .sno(newGclSno) // 품목일련번호 1 증가
-                                    .abusMngNo(existingItem.getAbusMngNo()) // 프로젝트관리번호 유지
-                                    .fntTbCrySno(existingItem.getFntTbCrySno()) // 프로젝트순번 유지
-                                    .ioeC(itemDto.getIoeC()) // 품목구분
-                                    .gclNm(itemDto.getGclNm()) // 품목명
-                                    .qty(itemDto.getQty()) // 품목수량
-                                    .curC(itemDto.getCurC()) // 통화
-                                    .xcr(itemDto.getXcr()) // 환율
-                                    .xcrBseDt(DateFormatUtil.toYmd8(itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
-                                    .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
-                                    .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
-                                    .dfrCleC(itemDto.getDfrCleC()) // 지급주기
-                                    .sectSysUtzYn(defaultYn(itemDto.getSectSysUtzYn()))
-                                    .itrInfrYn(defaultYn(itemDto.getItrInfrYn()))
-                                    .lstYn("Y") // 최종여부
-                                    .amt(reconciled[0]) // 품목금액 (서버 재계산)
-                                    .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
-                                    .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
-                                    .build();
-                            bitemmRepository.save(updatedItem);
-                            maxGclSno = Math.max(maxGclSno, newGclSno);
+                            // 기존 활성 레코드를 제자리 수정 (버저닝 폐기 — 새 레코드를 추가하지 않는다).
+                            // PK(GCL_MNG_NO, SNO)와 연관 필드(ABUS_MNG_NO, FNT_TB_CRY_SNO)는 유지하고 업무 필드만 갱신.
+                            // Dirty Checking으로 트랜잭션 종료 시 UPDATE가 실행된다.
+                            existingItem.update(
+                                    itemDto.getIoeC(), // 품목구분
+                                    itemDto.getGclNm(), // 품목명
+                                    itemDto.getQty(), // 품목수량
+                                    itemDto.getCurC(), // 통화
+                                    itemDto.getXcr(), // 환율
+                                    DateFormatUtil.toYmd8(itemDto.getXcrBseDt()), // 환율기준일자(yyyyMMdd 정규화)
+                                    itemDto.getCncdFdtnCone(), // 예산근거
+                                    toItdYm(itemDto.getBseYm()), // 도입시기
+                                    itemDto.getDfrCleC(), // 지급주기
+                                    defaultYn(itemDto.getSectSysUtzYn()), // 정보보호여부
+                                    defaultYn(itemDto.getItrInfrYn()), // 통합인프라여부
+                                    reconciled[0], // 품목금액 (서버 재계산)
+                                    reconciled[1], // 외화금액 (외화 행에서만 유효)
+                                    clampMpl(itemDto.getMplAmt(), reconciled[0])); // 예정금액 (0 ≤ mplAmt ≤ amt)
                         }
                         processedGclMngNos.add(existingItem.getGclMngNo()); // 변경 여부와 무관하게 처리 완료 표시
                     }
@@ -601,6 +591,37 @@ public class ProjectService {
     /** null이면 "N"으로 정규화 (infPrtYn, itrInfrYn 공통 기본값 처리) */
     private static String defaultYn(String value) {
         return value == null ? "N" : value;
+    }
+
+    /**
+     * 담당자 사번(eno)으로 소속 팀 스냅샷(팀코드 + 팀명)을 조회한다.
+     *
+     * <p>주관팀코드(SVN_TEM_C)/개발팀코드(DVM_TEM_C)는 {@code CUSERI.TEM_C}, 주관팀명(SVN_TEM_NM)은
+     * {@code CUSERI.TEM_NM}에서 직접 가져온다. 팀코드는 조직마스터(CORGNI)에 등재되지 않아
+     * CORGNI 조회로는 팀명을 얻을 수 없으므로, 담당자 레코드의 팀명을 그대로 저장 시점 스냅샷으로 사용한다.
+     * 담당자 미지정(사번 null/공백)이거나 CUSERI 미조회 시 팀코드·팀명 모두 {@code null}이다(대상 컬럼 nullable).</p>
+     *
+     * @param eno 담당자 사번 (null/공백 허용)
+     * @return 소속 팀 스냅샷. eno가 비었거나 사용자 미조회 시 {@link TeamSnapshot#EMPTY}
+     */
+    private TeamSnapshot resolveTeam(String eno) {
+        if (eno == null || eno.isBlank()) {
+            return TeamSnapshot.EMPTY;
+        }
+        return cuserIRepository.findByEno(eno)
+                .map(user -> new TeamSnapshot(user.getTemC(), user.getTemNm()))
+                .orElse(TeamSnapshot.EMPTY);
+    }
+
+    /**
+     * 담당자 소속 팀 스냅샷(팀코드 + 팀명).
+     *
+     * @param temC  팀코드 (CUSERI.TEM_C, 미조회 시 null)
+     * @param temNm 팀명 (CUSERI.TEM_NM, 미조회 시 null)
+     */
+    private record TeamSnapshot(String temC, String temNm) {
+        /** 담당자 미지정·미조회 시 사용할 빈 스냅샷(팀코드·팀명 모두 null). */
+        private static final TeamSnapshot EMPTY = new TeamSnapshot(null, null);
     }
 
     /**
