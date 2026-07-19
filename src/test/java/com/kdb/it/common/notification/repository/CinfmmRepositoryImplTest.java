@@ -71,6 +71,8 @@ class CinfmmRepositoryImplTest extends AbstractOracleRepositoryTest {
                 .inqYn(inqYn)
                 .inqDtm("Y".equals(inqYn) ? now : null)
                 .delYn(delYn)
+                .infmSdStsC(Cinfmm.DISPATCH_PENDING)
+                .reTryNot(0)
                 .fstEnrUsid("FIXTURE")
                 .fstEnrDtm(now)
                 .lstChgUsid("FIXTURE")
