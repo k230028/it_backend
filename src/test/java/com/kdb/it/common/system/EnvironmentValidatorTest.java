@@ -3,6 +3,8 @@ package com.kdb.it.common.system;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
@@ -79,8 +81,34 @@ class EnvironmentValidatorTest {
         env.setProperty("eai.url", "http://eai.internal/std");
         env.setProperty("cors.allowed-origins", "https://it.kdb.co.kr");
         env.setProperty("app.sso.allow-direct-eno", "false");
+        env.setProperty("sso.mock-enabled", "false");
+        env.setProperty("app.auth.allow-bearer-header", "false");
+        env.setProperty("app.cookie.secure", "true");
         env.setProperty("app.frontend-url", "https://it.kdb.co.kr");
         return env;
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"sso.mock-enabled", "app.auth.allow-bearer-header"})
+    @DisplayName("운영 프로파일에서 인증 우회 토글이 true면 기동 차단")
+    void validate_prodBypassToggleTrue_throws(String key) {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty(key, "true");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(key);
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 app.cookie.secure=false면 기동 차단")
+    void validate_prodCookieNotSecure_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.cookie.secure", "false");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("app.cookie.secure");
     }
 
     @Test
