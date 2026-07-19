@@ -99,19 +99,27 @@ public class ChangeLogEntityListener {
      * @param chgTp  변경 유형 코드 (C=생성, U=수정, D=논리삭제)
      */
     private void persistLog(Object entity, String chgTp) {
-        LogTarget ann = entity.getClass().getAnnotation(LogTarget.class);
-        Class<? extends BaseLogEntity> logClass = ann.entity();
+        // 감사 실패 처리 중이면 재진입하지 않는다(재귀·연쇄 실패 방지).
+        if (AuditFailureRecorder.isHandlingFailure()) {
+            return;
+        }
+        LogTarget annotation = entity.getClass().getAnnotation(LogTarget.class);
+        Class<? extends BaseLogEntity> logClass = annotation.entity();
         try {
-            AuditLogPersister persister = ApplicationContextHolder.getBean(AuditLogPersister.class);
-            persister.persist(entity, logClass, chgTp);
-        } catch (Exception e) {
-            // 감사로그 실패가 본 업무 트랜잭션을 롤백시키지 않도록 예외를 삼킨다.
-            // 시퀀스 미생성(ORA-02289) 등 인프라 오류 시 본 작업은 정상 완료되어야 한다.
-            // 단, 감사 추적 유실은 비정상 상황이므로 ERROR로 승격해 로그 수집/모니터링 알람에 노출한다.
-            // 확장점: 운영 알람 인프라(EAI 알림톡/메일, 관리자 인앱 알림) 도입 시 여기서 통지 연동.
-            //         단, 인앱 알림 발행은 그 자체가 감사로그 대상이라 재귀/연쇄 실패 위험이 있어 별도 채널 권장.
-            log.error("[감사로그 기록 실패] entity={}, logClass={}, chgTp={}",
-                    entity.getClass().getSimpleName(), logClass.getSimpleName(), chgTp, e);
+            ApplicationContextHolder.getBean(AuditLogPersister.class).persist(entity, logClass, chgTp);
+        } catch (Exception exception) {
+            // 스냅샷 생성·예약 단계 실패는 본 업무를 롤백시키지 않고 실패 recorder로 위임한다(schedule 단계).
+            try {
+                ApplicationContextHolder.getBean(AuditFailureRecorder.class)
+                        .record(entity.getClass().getSimpleName(),
+                                AuditEntityIdentifier.resolve(entity),
+                                chgTp, "schedule", exception);
+            } catch (Exception recorderException) {
+                // recorder 빈 조회조차 실패하면 최소한 ERROR 로그로 남긴다.
+                log.error("[감사로그 예약 실패] entity={}, logClass={}, chgTp={}",
+                        entity.getClass().getSimpleName(), logClass.getSimpleName(), chgTp, exception);
+                log.warn("[감사로그] 실패 recorder 조회 실패", recorderException);
+            }
         }
     }
 

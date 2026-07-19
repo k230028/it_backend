@@ -2,12 +2,16 @@ package com.kdb.it.domain.log.listener;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.withSettings;
 
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BaseLogEntity;
@@ -46,7 +50,7 @@ class ChangeLogEntityListenerTest {
     @BeforeEach
     void setUp() {
         listener = new ChangeLogEntityListener();
-        contextHolderMock = mockStatic(ApplicationContextHolder.class);
+        contextHolderMock = mockStatic(ApplicationContextHolder.class, withSettings().lenient());
         contextHolderMock.when(() -> ApplicationContextHolder.getBean(AuditLogPersister.class))
                 .thenReturn(auditLogPersister);
     }
@@ -225,6 +229,37 @@ class ChangeLogEntityListenerTest {
         // Act & Assert: 예외가 전파되지 않아야 함
         assertThatCode(() -> listener.onPrePersist(entity))
                 .doesNotThrowAnyException();
+    }
+
+    // ---- ERR-06: 재진입 가드·예약 실패 ----
+
+    /**
+     * 감사 실패 처리 중이면(재진입) persister를 호출하지 않고 즉시 반환합니다.
+     */
+    @Test
+    @DisplayName("persistLog - 감사 실패 처리 중이면 persister를 호출하지 않는다")
+    void persistLog_감사실패처리중이면persister를호출하지않는다() {
+        try (MockedStatic<AuditFailureRecorder> guard = mockStatic(AuditFailureRecorder.class)) {
+            guard.when(AuditFailureRecorder::isHandlingFailure).thenReturn(true);
+            listener.onPrePersist(new SampleEntity());
+            verifyNoInteractions(auditLogPersister);
+        }
+    }
+
+    /**
+     * persister 빈 조회·예약 단계 실패는 recorder에 schedule 단계로 위임하고 예외를 삼킵니다.
+     */
+    @Test
+    @DisplayName("persistLog - persister 조회 실패 시 recorder에 schedule로 기록하고 예외를 삼킨다")
+    void persistLog_persister조회실패_recorder에schedule기록() {
+        contextHolderMock.when(() -> ApplicationContextHolder.getBean(AuditLogPersister.class))
+                .thenThrow(new IllegalStateException("컨텍스트 없음"));
+        AuditFailureRecorder recorder = mock(AuditFailureRecorder.class);
+        contextHolderMock.when(() -> ApplicationContextHolder.getBean(AuditFailureRecorder.class))
+                .thenReturn(recorder);
+
+        assertThatCode(() -> listener.onPrePersist(new SampleEntity())).doesNotThrowAnyException();
+        verify(recorder).record(eq("SampleEntity"), anyString(), eq("C"), eq("schedule"), any());
     }
 
     // ---- 테스트 픽스처 ----
