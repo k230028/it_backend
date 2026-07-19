@@ -30,7 +30,12 @@ $ErrorActionPreference = 'Stop'
 
 # 콘솔 한글 출력 보정: 출력 인코딩을 UTF-8(BOM 없음)로 맞춰 mojibake 방지.
 # (네이티브 명령 출력에 BOM이 섞이지 않도록 UTF8Encoding($false) 사용.)
-try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false } catch {}
+try {
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+}
+catch {
+    Write-Verbose '콘솔 UTF-8 인코딩을 설정하지 못해 현재 인코딩으로 계속합니다.'
+}
 
 $gradlew  = Join-Path $PSScriptRoot 'gradlew.bat'
 $makeRepo = Join-Path $PSScriptRoot 'make-local-maven-repo.ps1'
