@@ -3,6 +3,7 @@ package com.kdb.it.domain.council.controller;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.service.CouncilApprovalService;
+import com.kdb.it.domain.council.service.PlanEvaluationService;
 import com.kdb.it.domain.council.service.CouncilService;
 import com.kdb.it.domain.council.service.CommitteeService;
 import com.kdb.it.domain.council.service.EvaluationService;
@@ -78,6 +79,9 @@ public class CouncilController {
 
     /** 타당성검토 생략 판정 워크플로우 서비스 (PRD_c_20260620 #3) */
     private final CouncilSkipService councilSkipService;
+
+    /** 정보기술부문계획 협의회(dbrTc='02') 사업별 적정/유보 평가 서비스 */
+    private final PlanEvaluationService planEvaluationService;
 
     // =========================================================================
     // M3: 협의회 목록/기본
@@ -747,6 +751,118 @@ public class CouncilController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         evaluationService.saveEvaluation(asctId, request, userDetails);
         return ResponseEntity.ok().build();
+    }
+
+    // =========================================================================
+    // 정보기술부문계획 협의회(dbrTc='02') — 심의 대상 계획 + 사업별 적정/유보
+    // =========================================================================
+
+    /**
+     * 계획협의회 심의 대상 조회 (dbrTc='02')
+     *
+     * <p>협의회에 연결된 계획(BPLANM)의 상세(사업 카드·예산 스냅샷)를 반환합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return HTTP 200 + 대상 계획 상세
+     */
+    @Operation(summary = "계획협의회 심의 대상 조회", description = "dbrTc='02' 협의회의 대상 계획 상세(사업 카드·예산)를 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @GetMapping("/{asctId}/plan-targets")
+    public ResponseEntity<CouncilDto.PlanTargetsResponse> getPlanTargets(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId) {
+        return ResponseEntity.ok(planEvaluationService.getPlanTargets(asctId));
+    }
+
+    /**
+     * 계획협의회 평가 현황 조회 (IT관리자)
+     *
+     * <p>위원별 사업 평가 목록과 사업별 최종 판정(위원 1명이라도 유보면 유보)을 반환합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return HTTP 200 + 평가 현황 + 사업별 판정
+     */
+    @Operation(summary = "계획협의회 평가 현황 조회", description = "위원별 사업 평가와 사업별 최종 판정을 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @GetMapping("/{asctId}/plan-evaluation")
+    public ResponseEntity<CouncilDto.PlanEvaluationSummaryResponse> getPlanEvaluations(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId) {
+        return ResponseEntity.ok(planEvaluationService.getAllEvaluations(asctId));
+    }
+
+    /**
+     * 내 계획협의회 평가 조회 (평가위원 본인)
+     *
+     * @param asctId      협의회ID
+     * @param userDetails 로그인한 평가위원
+     * @return HTTP 200 + 내 사업별 적정/유보 목록 (없으면 빈 배열)
+     */
+    @Operation(summary = "내 계획협의회 평가 조회", description = "로그인한 평가위원 본인의 사업별 적정/유보를 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @GetMapping("/{asctId}/plan-evaluation/my")
+    public ResponseEntity<List<CouncilDto.PlanEvaluationItemResponse>> getMyPlanEvaluation(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(planEvaluationService.getMyEvaluation(asctId, userDetails));
+    }
+
+    /**
+     * 계획협의회 사업별 적정/유보 저장 (평가위원)
+     *
+     * <p>각 사업에 대해 적정/유보(Y/N)와 사유를 저장합니다. 사유는 필수입니다.
+     * 첫 제출 시 협의회 상태를 07 → 08로 전이합니다.</p>
+     *
+     * @param asctId      협의회ID
+     * @param request     사업별 적정/유보 요청
+     * @param userDetails 로그인한 평가위원
+     * @return HTTP 200
+     */
+    @Operation(summary = "계획협의회 사업별 적정/유보 저장", description = "평가위원이 사업별 적정/유보와 사유를 저장합니다. 첫 제출 시 상태 08로 전이.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "저장 성공"),
+            @ApiResponse(responseCode = "400", description = "적정여부 값 오류 또는 사유 미작성", content = @Content),
+            @ApiResponse(responseCode = "403", description = "해당 협의회 평가위원 아님", content = @Content),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @PostMapping("/{asctId}/plan-evaluation")
+    public ResponseEntity<Void> savePlanEvaluation(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId,
+            @Valid @RequestBody CouncilDto.PlanEvaluationRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        planEvaluationService.saveEvaluation(asctId, request, userDetails);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 계획협의회 결과서 프리필 요약 (IT관리자)
+     *
+     * <p>사업별 판정 요약 표(HTML)와 구조화 판정을 반환해 결과서 본문 프리필에 사용합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return HTTP 200 + 요약 HTML + 사업별 판정
+     */
+    @Operation(summary = "계획협의회 결과서 프리필 요약", description = "사업별 판정 요약 표(HTML)를 결과서 본문 프리필용으로 반환합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
+    })
+    @GetMapping("/{asctId}/plan-evaluation/result-summary")
+    public ResponseEntity<CouncilDto.PlanResultSummaryResponse> getPlanResultSummary(
+            @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
+            @PathVariable("asctId") String asctId) {
+        return ResponseEntity.ok(planEvaluationService.buildResultSummary(asctId));
     }
 
     // =========================================================================

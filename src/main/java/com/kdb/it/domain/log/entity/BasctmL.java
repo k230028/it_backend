@@ -57,4 +57,7 @@ public class BasctmL extends BaseLogEntity {
 
     @Column(name = "CSF_HELD_YN", length = 1, comment = "대면개최여부")
     private String csfHeldYn;
+
+    @Column(name = "REQ_DOC_NO", length = 30, comment = "계획관리번호(dbrTc=02 대상 정보기술부문계획)")
+    private String reqDocNo;
 }

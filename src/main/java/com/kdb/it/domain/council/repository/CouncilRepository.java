@@ -49,6 +49,15 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
     List<Basctm> findByAbusMngNoAndDelYn(String abusMngNo, String delYn);
 
     /**
+     * 특정 심의유형·진행상태의 협의회 목록 (최근 등록순).
+     *
+     * <p>정보기술부문계획 협의회(dbrTc='02')의 완료(13) 이력에서 '직전 승인 계획'을
+     * 찾을 때 사용합니다(조정 협의회의 예산 최초/조정 비교).</p>
+     */
+    List<Basctm> findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(
+            String itPtlAsctDbrTc, String itPtlAsctPrgStsTc, String delYn);
+
+    /**
      * Oracle 시퀀스(SEQ_BASCTM) 다음 값 조회
      *
      * <p>새로운 협의회 생성 시 IT_PTL_ASCT_ID 채번에 사용합니다.

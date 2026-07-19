@@ -555,7 +555,7 @@ class CouncilServiceTest {
     @DisplayName("createCouncil: 정상 요청이면 ASCT-{연도}-{순번} 형식의 협의회ID를 반환한다")
     void createCouncil_정상요청_협의회ID반환() {
         CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "IT001");
-        CouncilDto.CreateRequest request = new CouncilDto.CreateRequest("PRJ-2026-0001", 1, "03");
+        CouncilDto.CreateRequest request = new CouncilDto.CreateRequest("PRJ-2026-0001", 1, "03", null);
         given(councilRepository.getNextSequenceValue()).willReturn(1L);
 
         String result = councilService.createCouncil(request, user);

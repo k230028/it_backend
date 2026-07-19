@@ -39,6 +39,7 @@ import com.kdb.it.domain.council.service.CommitteeService;
 import com.kdb.it.domain.council.service.EvaluationService;
 import com.kdb.it.domain.council.service.FeasibilityService;
 import com.kdb.it.domain.council.service.MainQnaService;
+import com.kdb.it.domain.council.service.PlanEvaluationService;
 import com.kdb.it.domain.council.service.QnaService;
 import com.kdb.it.domain.council.service.ResultService;
 import com.kdb.it.domain.council.service.ScheduleService;
@@ -73,6 +74,8 @@ class CouncilControllerTest {
     private ResultService resultService;
     @MockitoBean
     private CouncilSkipService councilSkipService;
+    @MockitoBean
+    private PlanEvaluationService planEvaluationService;
     @MockitoBean
     private QnaService qnaService;
     @MockitoBean
@@ -127,7 +130,7 @@ class CouncilControllerTest {
         mockMvc.perform(post("/api/council")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(
-                        new CouncilDto.CreateRequest("PRJ-2026-0001", 1, "INFO_SYS"))))
+                        new CouncilDto.CreateRequest("PRJ-2026-0001", 1, "INFO_SYS", null))))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/council/" + ASCT_ID));
     }
@@ -136,7 +139,7 @@ class CouncilControllerTest {
     @DisplayName("POST /api/council - prjMngNo 누락 → 400")
     @WithMockUser(username = "10001", roles = "ADMIN")
     void createCouncil_prjMngNo누락_400() throws Exception {
-        var body = new CouncilDto.CreateRequest(null, null, null);
+        var body = new CouncilDto.CreateRequest(null, null, null, null);
         mockMvc.perform(post("/api/council")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))

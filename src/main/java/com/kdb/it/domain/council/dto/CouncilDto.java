@@ -3,6 +3,7 @@ package com.kdb.it.domain.council.dto;
 import java.time.LocalDate;
 import java.util.List;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -108,13 +109,30 @@ public class CouncilDto {
      * @param dbrTc 심의유형
      */
     public record CreateRequest(
-        /** 프로젝트관리번호 (BPROJM FK) */
-        @NotBlank String prjMngNo,
-        /** 프로젝트순번 (BPROJM FK) */
-        @NotNull Integer prjSno,
-        /** 심의유형 (INFO_SYS/INFO_SEC/ETC) */
-        @NotBlank String dbrTc
-    ) {}
+        /** 프로젝트관리번호 (BPROJM FK) — dbrTc='02'(계획협의회)에서는 미사용(null) */
+        String prjMngNo,
+        /** 프로젝트순번 (BPROJM FK) — dbrTc='02'에서는 미사용(null) */
+        Integer prjSno,
+        /** 심의유형 ('02'=정보기술부문계획 / '03'=정보시스템 / '04'=정보보호 / '05'=기타) */
+        @NotBlank String dbrTc,
+        /** 계획관리번호 (BPLANM FK) — dbrTc='02'(계획협의회)에서만 필수 */
+        String reqDocNo
+    ) {
+        /**
+         * 심의 대상 검증: 계획협의회('02')는 reqDocNo 필수, 그 외 심의유형은 prjMngNo/prjSno 필수.
+         *
+         * <p>{@code @JsonIgnore}: Jackson이 이 boolean 게터를 'targetPresent' 속성으로 직렬화하지
+         * 않도록 한다(직렬화 시 phantom 속성이 생기면 역직렬화에서 unknown property로 400 유발).</p>
+         */
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        @AssertTrue(message = "심의유형에 필요한 대상 정보(사업 또는 계획)가 누락되었습니다.")
+        public boolean isTargetPresent() {
+            if ("02".equals(dbrTc)) {
+                return reqDocNo != null && !reqDocNo.isBlank();
+            }
+            return prjMngNo != null && !prjMngNo.isBlank() && prjSno != null;
+        }
+    }
 
     /**
      * 협의회 단건 상세 조회 응답
@@ -623,6 +641,114 @@ public class CouncilDto {
         List<EvaluationItemResponse> evaluations,
         /** 점검항목별 평균점수 */
         List<CheckItemAvgScore> avgScores
+    ) {}
+
+    // =========================================================================
+    // 정보기술부문계획 협의회(dbrTc='02') — 사업별 적정/유보 평가
+    // =========================================================================
+
+    /** 계획협의회 사업별 평가 저장 요청 (위원이 여러 사업을 한 번에 제출) */
+    public record PlanEvaluationRequest(
+        /** 사업별 적정/유보 항목 */
+        @NotEmpty List<PlanEvaluationItem> items
+    ) {}
+
+    /** 계획협의회 사업별 평가 항목 */
+    public record PlanEvaluationItem(
+        /** 사업관리번호 */
+        @NotBlank String abusMngNo,
+        /** 적정여부 (Y=적정 / N=유보) */
+        @NotBlank String adqYn,
+        /** 평가의견(사유) — 적정/유보 모두 필수 */
+        String evalOpnn
+    ) {}
+
+    /** 위원 개인 사업별 평가 응답 */
+    public record PlanEvaluationItemResponse(
+        /** 사번 */
+        String eno,
+        /** 성명 */
+        String usrNm,
+        /** 사업관리번호 */
+        String abusMngNo,
+        /** 적정여부 (Y=적정 / N=유보) */
+        String adqYn,
+        /** 평가의견(사유) */
+        String evalOpnn
+    ) {}
+
+    /** 사업별 최종 판정 (위원 1명이라도 유보면 유보) */
+    public record PlanBusinessVerdict(
+        /** 사업관리번호 */
+        String abusMngNo,
+        /** 최종 적정여부 (Y=적정 / N=유보) */
+        String finalAdqYn,
+        /** 유보(N) 선택 위원 수 */
+        long reserveCount,
+        /** 평가한 위원 수 */
+        long evaluatorCount
+    ) {}
+
+    /** 계획협의회 평가 전체 현황 (IT관리자용): 위원별 평가 + 사업별 최종 판정 */
+    public record PlanEvaluationSummaryResponse(
+        /** 위원별 사업 평가 목록 */
+        List<PlanEvaluationItemResponse> evaluations,
+        /** 사업별 최종 판정 */
+        List<PlanBusinessVerdict> verdicts
+    ) {}
+
+    /** 계획협의회 결과서 프리필 요약: 사업별 판정 표(HTML) + 구조화 판정 */
+    public record PlanResultSummaryResponse(
+        /** 사업별 판정 요약 표 (HTML, 결과서 본문 프리필용) */
+        String summaryHtml,
+        /** 사업별 최종 판정 */
+        List<PlanBusinessVerdict> verdicts
+    ) {}
+
+    /** 계획협의회 심의 대상: 계획 요약 + 사업별 기본정보(스냅샷 예산 + 사업상세 개요/기간 병합) */
+    public record PlanTargetsResponse(
+        /** 계획관리번호 */
+        String reqDocNo,
+        /** 대상년도 */
+        String bseYy,
+        /** 계획구분 (신규/조정) */
+        String itPtlPlnTpC,
+        /** 심의 대상 정보화사업 목록 */
+        List<PlanTargetBusiness> businesses,
+        /** 전산업무비 참고 건수 (평가 대상 아님) */
+        int costCount
+    ) {}
+
+    /** 심의 대상 사업 1건 (계획 스냅샷 예산 + BPROJM 사업개요/기간) */
+    public record PlanTargetBusiness(
+        /** 사업관리번호 */
+        String abusMngNo,
+        /** 사업명 */
+        String abusNm,
+        /** 진행구분 (신규/계속) */
+        String pulDtt,
+        /** 주관본부/부문 */
+        String svnHdq,
+        /** 주관부서명 */
+        String svnDpmNm,
+        /** 사업개요 (BPROJM 사업설명) */
+        String prjDes,
+        /** 시작일자 */
+        java.time.LocalDate sttDt,
+        /** 종료일자 */
+        java.time.LocalDate endDt,
+        /** 총예산 */
+        java.math.BigDecimal prjBg,
+        /** 자본예산 */
+        java.math.BigDecimal assetBg,
+        /** 일반관리비 */
+        java.math.BigDecimal costBg,
+        /** (조정 협의회) 직전 승인 수립계획의 총예산 — 최초. 비조정/미존재 시 null */
+        java.math.BigDecimal basePrjBg,
+        /** (조정 협의회) 최초 자본예산 */
+        java.math.BigDecimal baseAssetBg,
+        /** (조정 협의회) 최초 일반관리비 */
+        java.math.BigDecimal baseCostBg
     ) {}
 
     /**
