@@ -673,7 +673,7 @@ public class AdminService {
 
         /**
          * 전체 갱신토큰 목록을 조회합니다.
-         * 토큰값은 앞 20자 + "..." 마스킹 처리합니다.
+         * 원문 대신 SHA-256 조회값의 앞 20자만 마스킹해 표시합니다.
          *
          * @return 갱신토큰 응답 DTO 목록
          */
@@ -685,12 +685,13 @@ public class AdminService {
 
         /**
          * Crtokm 엔티티를 TokenResponse DTO로 변환합니다.
-         * Plan SC: JWT 토큰값 마스킹 — 보안 요구사항
+         * DB에는 원문이 없으므로 SHA-256 조회값만 마스킹합니다.
          */
         private AdminDto.TokenResponse toTokenResponse(Crtokm t) {
-                // 토큰값 마스킹: 앞 20자 + "..."
-                String raw = t.getTokCone();
-                String masked = (raw != null && raw.length() > 20) ? raw.substring(0, 20) + "..." : raw;
+                String lookupValue = t.getEcyRnwPubTokCone();
+                String masked = (lookupValue != null && lookupValue.length() > 20)
+                                ? lookupValue.substring(0, 20) + "..."
+                                : lookupValue;
                 return new AdminDto.TokenResponse(
                                 t.getEno(),
                                 resolveUserName(t.getEno()),

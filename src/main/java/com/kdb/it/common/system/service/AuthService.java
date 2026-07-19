@@ -285,7 +285,6 @@ public class AuthService {
         refreshTokenRepository.save(refreshToken);
         String newRefreshTokenValue = jwtUtil.generateRefreshToken(eno);
         Crtokm rotated = Crtokm.builder()
-                .tokCone(newRefreshTokenValue)
                 .ecyRnwPubTokCone(sha256HexForToken(newRefreshTokenValue))
                 .eno(eno)
                 .famNm(refreshToken.getFamNm())
@@ -420,8 +419,7 @@ public class AuthService {
         refreshTokenRepository.deleteByEno(eno);
         String value = jwtUtil.generateRefreshToken(eno);
         Crtokm token = Crtokm.builder()
-                .tokCone(value).eno(eno)
-                .ecyRnwPubTokCone(sha256HexForToken(value))
+                .ecyRnwPubTokCone(sha256HexForToken(value)).eno(eno)
                 .famNm(java.util.UUID.randomUUID().toString())
                 .avlYn("Y")
                 .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
@@ -446,22 +444,15 @@ public class AuthService {
         }
     }
 
-    /**
-     * 신규 조회값을 우선 사용하고, 기존 원문 저장 행은 1회 조회 후 조회값을 보강합니다.
-     */
+    /** Refresh Token 원문을 SHA-256 조회값으로 변환해 저장 행을 조회합니다. */
     private Crtokm findRefreshTokenByValue(String refreshTokenValue) {
         String lookupValue = sha256HexForToken(refreshTokenValue);
         return refreshTokenRepository.findByEcyRnwPubTokCone(lookupValue)
-                .or(() -> refreshTokenRepository.findByTokCone(refreshTokenValue)
-                        .map(token -> {
-                            token.fillEncryptedRenewalTokenIfMissing(lookupValue);
-                            return token;
-                        }))
-                        // DB 미존재도 재로그인 대상 — 원인은 서버 로그로만 구분(토큰 값 미기록), 전용 예외로 통일.
-                        .orElseThrow(() -> {
-                            log.warn("Refresh Token 조회 실패 — DB에 활성 토큰 없음");
-                            return new InvalidRefreshTokenException();
-                        });
+                // DB 미존재도 재로그인 대상 — 원인은 서버 로그로만 구분하고 토큰 값은 기록하지 않습니다.
+                .orElseThrow(() -> {
+                    log.warn("Refresh Token 조회 실패 — DB에 활성 토큰 없음");
+                    return new InvalidRefreshTokenException();
+                });
     }
 
     /**

@@ -232,12 +232,14 @@ class AuthServiceTest {
                 // given
                 String refreshTokenValue = "valid-refresh-token";
                 Crtokm refreshToken = Crtokm.builder()
-                                .tokCone(refreshTokenValue).eno("10001").famNm("FAM-1").avlYn("Y")
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(refreshTokenValue))
+                                .eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
 
                 given(jwtUtil.validateToken(refreshTokenValue, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-                given(refreshTokenRepository.findByTokCone(refreshTokenValue)).willReturn(Optional.of(refreshToken));
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(refreshTokenValue)))
+                                .willReturn(Optional.of(refreshToken));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
                 given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
@@ -258,11 +260,13 @@ class AuthServiceTest {
                 // given
                 String oldRefresh = "old-refresh-token";
                 Crtokm stored = Crtokm.builder()
-                                .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh))
+                                .eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
                 given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-                given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh)))
+                                .willReturn(Optional.of(stored));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
                 given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
@@ -284,12 +288,14 @@ class AuthServiceTest {
         void refreshAccessToken_재사용탐지_패밀리폐기() {
                 String reused = "rotated-old-token";
                 Crtokm rotated = Crtokm.builder()
-                                .tokCone(reused).eno("10001").famNm("FAM-1").avlYn("N")
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(reused))
+                                .eno("10001").famNm("FAM-1").avlYn("N")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .lstChgDtm(LocalDateTime.now().minusMinutes(5)) // grace 경과 → 패밀리 폐기 경로
                                 .build();
                 given(jwtUtil.validateToken(reused, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-                given(refreshTokenRepository.findByTokCone(reused)).willReturn(Optional.of(rotated));
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(reused)))
+                                .willReturn(Optional.of(rotated));
 
                 // 재사용 감지는 재로그인 대상 → 전용 예외로 통일(SEC-04). 패밀리 폐기·저장 억제는 그대로 유지.
                 assertThatThrownBy(() -> authService.refreshAccessToken(reused))
@@ -304,12 +310,14 @@ class AuthServiceTest {
                 org.springframework.test.util.ReflectionTestUtils.setField(authService, "rotationGraceSeconds", 30L);
                 String recent = "just-rotated-token";
                 Crtokm rotated = Crtokm.builder()
-                                .tokCone(recent).eno("10001").famNm("FAM-1").avlYn("N")
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(recent))
+                                .eno("10001").famNm("FAM-1").avlYn("N")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .lstChgDtm(LocalDateTime.now().minusSeconds(3))
                                 .build();
                 given(jwtUtil.validateToken(recent, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-                given(refreshTokenRepository.findByTokCone(recent)).willReturn(Optional.of(rotated));
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(recent)))
+                                .willReturn(Optional.of(rotated));
 
                 // grace 내 재제출은 동시 새로고침(다중 탭)에 의한 일시적 재시도 → 재로그인 대상이 아니므로
                 // 전용 예외가 아니라 기존 RuntimeException("다시 시도")을 그대로 유지한다(SEC-04 판단).
@@ -324,11 +332,13 @@ class AuthServiceTest {
         void refreshAccessToken_정상회전_구토큰유지() {
                 String oldRefresh = "active-token";
                 Crtokm stored = Crtokm.builder()
-                                .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh))
+                                .eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
                 given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-                given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh)))
+                                .willReturn(Optional.of(stored));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
                 given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N")).willReturn(Collections.emptyList());
@@ -349,12 +359,14 @@ class AuthServiceTest {
                 String oldRefresh = "active-token";
                 String newRefresh = "new-refresh";
                 Crtokm stored = Crtokm.builder()
-                                .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh))
+                                .eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .lstChgDtm(LocalDateTime.now().minusSeconds(3))
                                 .build();
                 given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-                given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh)))
+                                .willReturn(Optional.of(stored));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
                 given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N")).willReturn(Collections.emptyList());
@@ -374,8 +386,8 @@ class AuthServiceTest {
                                 .filteredOn(token -> "Y".equals(token.getAvlYn()))
                                 .hasSize(1)
                                 .first()
-                                .extracting(token -> token.getTokCone())
-                                .isEqualTo(newRefresh);
+                                .extracting(token -> token.getEcyRnwPubTokCone())
+                                .isEqualTo(AuthService.sha256HexForToken(newRefresh));
                 verify(refreshTokenRepository, never()).deleteByEno("10001");
         }
 
@@ -407,12 +419,14 @@ class AuthServiceTest {
                 // given
                 String tokenValue = "expired-refresh-token";
                 Crtokm expiredToken = Crtokm.builder()
-                                .tokCone(tokenValue).eno("10001").famNm("FAM-1").avlYn("Y")
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(tokenValue))
+                                .eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().minusDays(1)) // 이미 만료
                                 .build();
 
                 given(jwtUtil.validateToken(tokenValue, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-                given(refreshTokenRepository.findByTokCone(tokenValue)).willReturn(Optional.of(expiredToken));
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(tokenValue)))
+                                .willReturn(Optional.of(expiredToken));
 
                 // when & then: 만료도 재로그인 대상 → 전용 예외로 통일(SEC-04)
                 assertThatThrownBy(() -> authService.refreshAccessToken(tokenValue))
@@ -471,7 +485,8 @@ class AuthServiceTest {
         @DisplayName("refreshAccessToken - DB에 토큰이 없으면 InvalidRefreshTokenException을 던진다")
         void refreshAccessToken_DB토큰없음_예외발생() {
                 given(jwtUtil.validateToken("missing-refresh", JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-                given(refreshTokenRepository.findByTokCone("missing-refresh")).willReturn(Optional.empty());
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(
+                                AuthService.sha256HexForToken("missing-refresh"))).willReturn(Optional.empty());
 
                 // DB 미존재도 재로그인 대상 → 전용 예외로 통일(SEC-04)
                 assertThatThrownBy(() -> authService.refreshAccessToken("missing-refresh"))
@@ -483,11 +498,13 @@ class AuthServiceTest {
         void refreshAccessToken_사용자없음_예외발생() {
                 String tokenValue = "valid-refresh-token";
                 Crtokm refreshToken = Crtokm.builder()
-                                .tokCone(tokenValue).eno("10001").famNm("FAM-1").avlYn("Y")
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(tokenValue))
+                                .eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
                 given(jwtUtil.validateToken(tokenValue, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-                given(refreshTokenRepository.findByTokCone(tokenValue)).willReturn(Optional.of(refreshToken));
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(tokenValue)))
+                                .willReturn(Optional.of(refreshToken));
                 given(userRepository.findByEno("10001")).willReturn(Optional.empty());
 
                 // 사용자 미존재는 플랜의 재로그인 통일 분기(서명·미존재·만료·재사용)에 포함되지 않으므로
@@ -555,8 +572,7 @@ class AuthServiceTest {
                 String newRefresh = "new-refresh-token";
                 String lookupValue = AuthService.sha256HexForToken(oldRefresh);
                 Crtokm stored = Crtokm.builder()
-                                .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
-                                .ecyRnwPubTokCone(lookupValue)
+                                .ecyRnwPubTokCone(lookupValue).eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
                 given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
@@ -571,41 +587,10 @@ class AuthServiceTest {
 
                 assertThat(response.getRefreshToken()).isEqualTo(newRefresh);
                 verify(refreshTokenRepository).findByEcyRnwPubTokCone(lookupValue);
-                verify(refreshTokenRepository, never()).findByTokCone(oldRefresh);
                 ArgumentCaptor<Crtokm> captor = ArgumentCaptor.forClass(Crtokm.class);
                 verify(refreshTokenRepository, times(2)).save(captor.capture());
                 assertThat(captor.getAllValues().get(1).getEcyRnwPubTokCone())
                                 .isEqualTo(AuthService.sha256HexForToken(newRefresh));
         }
 
-        @Test
-        @DisplayName("refreshAccessToken - 암호화 조회값이 없는 기존 토큰은 원문 조회 후 조회값을 보강한다")
-        void refreshAccessToken_legacyToken_fallbackRawLookupAndBackfillsLookupValue() {
-                String oldRefresh = "legacy-refresh-token";
-                String newRefresh = "new-refresh-token";
-                String lookupValue = AuthService.sha256HexForToken(oldRefresh);
-                Crtokm stored = Crtokm.builder()
-                                .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
-                                .endDtm(LocalDateTime.now().plusDays(7))
-                                .build();
-                given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-                given(refreshTokenRepository.findByEcyRnwPubTokCone(lookupValue)).willReturn(Optional.empty());
-                given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
-                given(userRepository.findByEno("10001")).willReturn(Optional.of(
-                                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
-                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N")).willReturn(Collections.emptyList());
-                given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access");
-                given(jwtUtil.generateRefreshToken("10001")).willReturn(newRefresh);
-
-                AuthDto.RefreshResponse response = authService.refreshAccessToken(oldRefresh);
-
-                assertThat(response.getRefreshToken()).isEqualTo(newRefresh);
-                verify(refreshTokenRepository).findByEcyRnwPubTokCone(lookupValue);
-                verify(refreshTokenRepository).findByTokCone(oldRefresh);
-                ArgumentCaptor<Crtokm> captor = ArgumentCaptor.forClass(Crtokm.class);
-                verify(refreshTokenRepository, times(2)).save(captor.capture());
-                assertThat(captor.getAllValues().get(0).getEcyRnwPubTokCone()).isEqualTo(lookupValue);
-                assertThat(captor.getAllValues().get(1).getEcyRnwPubTokCone())
-                                .isEqualTo(AuthService.sha256HexForToken(newRefresh));
-        }
 }

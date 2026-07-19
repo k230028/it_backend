@@ -746,16 +746,16 @@ class AdminServiceTest {
     }
 
     @Test
-    @DisplayName("getTokens: 긴 토큰은 마스킹하고 짧은 토큰은 그대로 반환한다")
+    @DisplayName("getTokens: 긴 SHA-256 조회값은 마스킹하고 짧은 값은 그대로 반환한다")
     void getTokens_토큰마스킹반환() {
         Crtokm longToken = Crtokm.builder()
                 .eno("10001")
-                .tokCone("1234567890123456789012345")
+                .ecyRnwPubTokCone("1234567890123456789012345")
                 .endDtm(java.time.LocalDateTime.now().plusDays(1))
                 .build();
         Crtokm shortToken = Crtokm.builder()
                 .eno("10002")
-                .tokCone("short")
+                .ecyRnwPubTokCone("short")
                 .endDtm(java.time.LocalDateTime.now().plusDays(1))
                 .build();
         given(refreshTokenRepository.findAll()).willReturn(List.of(longToken, shortToken));
