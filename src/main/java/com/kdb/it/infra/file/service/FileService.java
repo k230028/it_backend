@@ -22,7 +22,9 @@ import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 공통 첨부파일 서비스
@@ -79,6 +81,16 @@ public class FileService {
      */
     @Value("${app.file.base-path:/data/files}")
     private String basePath;
+
+    /**
+     * 목록 인가 판정 요청 범위 캐시 키.
+     *
+     * <p>파일 읽기 권한은 {@code (PK_COL_NM, PK_CONE, user)}의 순수 함수이므로
+     * 같은 (종류, 부모)를 가리키는 파일은 동일한 판정을 공유한다. {@link #getFiles} 안에서만
+     * 쓰이는 메서드 지역 캐시의 키로 사용하며, 사용자·요청 사이에 공유되지 않는다.</p>
+     */
+    private record FileReadKey(String pkColNm, String pkCone) {
+    }
 
     /**
      * 엔티티 → 응답 DTO 변환
@@ -155,8 +167,13 @@ public class FileService {
             list = fileRepository.findAllByPkColNmAndDelYn(condition.getPkColNm(), "N");
         }
 
+        // 같은 (종류, 부모) 파일은 판정을 한 번만 계산해 재사용한다(요청 범위 캐시 → 부모 조회 N+1 제거).
+        // 캐시는 이 메서드 호출 동안에만 사는 지역 변수이므로 사용자·요청 사이에 공유되지 않는다.
+        Map<FileReadKey, Boolean> decisions = new HashMap<>();
         return list.stream()
-                .filter(f -> fileOwnershipChecker.canRead(f, user))
+                .filter(file -> decisions.computeIfAbsent(
+                        new FileReadKey(file.getPkColNm(), file.getPkCone()),
+                        ignored -> fileOwnershipChecker.canRead(file, user)))
                 .map(this::toResponse)
                 .toList();
     }

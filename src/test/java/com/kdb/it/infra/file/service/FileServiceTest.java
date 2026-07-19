@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -194,6 +196,113 @@ class FileServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getPreviewUrl()).isEqualTo("/api/files/" + FL_MNG_NO + "/preview");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // getFiles — 부모 판정 요청 범위 캐시(N+1 제거)
+    // ───────────────────────────────────────────────────────
+
+    /**
+     * 목록 캐시 검증용 파일 mock — 지정한 (종류, 부모)와 파일ID만 스텁한다.
+     *
+     * <p>읽기 판정 캐시는 {@code (PK_COL_NM, PK_CONE)} 조합만으로 키를 만들므로
+     * 각 파일이 자신의 종류·부모를 반환하도록 개별 스텁한다.</p>
+     */
+    private Cfilem mockCfilemWithParent(String flMngNo, String pkColNm, String pkCone) {
+        Cfilem f = mock(Cfilem.class);
+        given(f.getFlMpnId()).willReturn(flMngNo);
+        given(f.getPkColNm()).willReturn(pkColNm);
+        given(f.getPkCone()).willReturn(pkCone);
+        return f;
+    }
+
+    @Test
+    @DisplayName("getFiles: 같은 부모(종류·PK_CONE) 파일 3건이면 canRead를 1회만 호출하고 3건을 반환한다")
+    void getFiles_같은부모3건_canRead1회_3건반환() {
+        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
+                .pkColNm("요구사항정의서")
+                .pkCone("DOC-1")
+                .build();
+        Cfilem first = mockCfilemWithParent("FL_00000001", "요구사항정의서", "DOC-1");
+        Cfilem second = mockCfilemWithParent("FL_00000002", "요구사항정의서", "DOC-1");
+        Cfilem third = mockCfilemWithParent("FL_00000003", "요구사항정의서", "DOC-1");
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "DOC-1", "N"))
+                .willReturn(List.of(first, second, third));
+        // computeIfAbsent는 각 키의 첫 파일(first)로 lambda를 호출하므로 first에만 stub
+        given(fileOwnershipChecker.canRead(first, USER)).willReturn(true);
+
+        List<FileDto.Response> result = fileService.getFiles(condition, USER);
+
+        assertThat(result).hasSize(3);
+        verify(fileOwnershipChecker, times(1)).canRead(first, USER);
+        verify(fileOwnershipChecker, never()).canRead(second, USER);
+        verify(fileOwnershipChecker, never()).canRead(third, USER);
+    }
+
+    @Test
+    @DisplayName("getFiles: 부모 PK_CONE가 서로 다른 파일이면 각 부모마다 canRead를 호출한다(2회)")
+    void getFiles_서로다른부모2건_canRead2회() {
+        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
+                .pkColNm("요구사항정의서")
+                .build();
+        Cfilem doc1 = mockCfilemWithParent("FL_00000001", "요구사항정의서", "DOC-1");
+        Cfilem doc2 = mockCfilemWithParent("FL_00000002", "요구사항정의서", "DOC-2");
+        given(fileRepository.findAllByPkColNmAndDelYn("요구사항정의서", "N"))
+                .willReturn(List.of(doc1, doc2));
+        given(fileOwnershipChecker.canRead(doc1, USER)).willReturn(true);
+        given(fileOwnershipChecker.canRead(doc2, USER)).willReturn(true);
+
+        List<FileDto.Response> result = fileService.getFiles(condition, USER);
+
+        assertThat(result).hasSize(2);
+        verify(fileOwnershipChecker, times(1)).canRead(doc1, USER);
+        verify(fileOwnershipChecker, times(1)).canRead(doc2, USER);
+    }
+
+    @Test
+    @DisplayName("getFiles: 같은 부모가 거부되면 canRead를 1회만 호출하고 빈 목록을 반환한다")
+    void getFiles_같은부모거부3건_canRead1회_빈목록() {
+        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
+                .pkColNm("요구사항정의서")
+                .pkCone("DOC-DENY")
+                .build();
+        Cfilem first = mockCfilemWithParent("FL_00000001", "요구사항정의서", "DOC-DENY");
+        Cfilem second = mockCfilemWithParent("FL_00000002", "요구사항정의서", "DOC-DENY");
+        Cfilem third = mockCfilemWithParent("FL_00000003", "요구사항정의서", "DOC-DENY");
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "DOC-DENY", "N"))
+                .willReturn(List.of(first, second, third));
+        given(fileOwnershipChecker.canRead(first, USER)).willReturn(false);
+
+        List<FileDto.Response> result = fileService.getFiles(condition, USER);
+
+        assertThat(result).isEmpty();
+        verify(fileOwnershipChecker, times(1)).canRead(first, USER);
+        verify(fileOwnershipChecker, never()).canRead(second, USER);
+        verify(fileOwnershipChecker, never()).canRead(third, USER);
+    }
+
+    @Test
+    @DisplayName("getFiles: 종류가 같아도 PK_CONE가 다르면 캐시를 공유하지 않는다(부모별 개별 판정)")
+    void getFiles_같은종류다른부모_캐시미공유() {
+        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
+                .pkColNm("요구사항정의서")
+                .build();
+        Cfilem doc1a = mockCfilemWithParent("FL_00000001", "요구사항정의서", "DOC-1");
+        Cfilem doc1b = mockCfilemWithParent("FL_00000002", "요구사항정의서", "DOC-1");
+        Cfilem doc2 = mockCfilemWithParent("FL_00000003", "요구사항정의서", "DOC-2");
+        given(fileRepository.findAllByPkColNmAndDelYn("요구사항정의서", "N"))
+                .willReturn(List.of(doc1a, doc1b, doc2));
+        given(fileOwnershipChecker.canRead(doc1a, USER)).willReturn(true);
+        given(fileOwnershipChecker.canRead(doc2, USER)).willReturn(false);
+
+        List<FileDto.Response> result = fileService.getFiles(condition, USER);
+
+        // DOC-1 허용 2건만 포함, DOC-2 거부 제외 — 종류가 같아도 부모가 다르면 캐시 미공유
+        assertThat(result).extracting(FileDto.Response::getFlMpnId)
+                .containsExactly("FL_00000001", "FL_00000002");
+        verify(fileOwnershipChecker, times(1)).canRead(doc1a, USER);
+        verify(fileOwnershipChecker, never()).canRead(doc1b, USER);
+        verify(fileOwnershipChecker, times(1)).canRead(doc2, USER);
     }
 
     // ───────────────────────────────────────────────────────
