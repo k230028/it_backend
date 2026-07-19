@@ -7,6 +7,7 @@ import com.kdb.it.infra.file.authz.FileReadAuthorizerRegistry;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 /**
@@ -49,14 +50,15 @@ public class FileOwnershipChecker {
      *
      * @param flMpnId 파일매핑ID
      * @param user    현재 사용자
-     * @throws CustomGeneralException 파일이 없거나 접근 권한이 없는 경우
+     * @throws CustomGeneralException 파일이 없는 경우
+     * @throws AccessDeniedException 읽기 권한이 없는 경우(403). 쓰기 거부와 동일하게 403으로 매핑합니다.
      */
     public void checkReadAccess(String flMpnId, CustomUserDetails user) {
         Cfilem file = fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")
                 .orElseThrow(() -> new CustomGeneralException("파일을 찾을 수 없습니다: " + flMpnId));
 
         if (!canRead(file, user)) {
-            throw new CustomGeneralException("파일 다운로드 권한이 없습니다.");
+            throw new AccessDeniedException("파일 읽기 권한이 없습니다.");
         }
     }
 

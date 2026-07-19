@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 import java.util.Optional;
@@ -117,7 +118,7 @@ class FileOwnershipCheckerTest {
         }
 
         @Test
-        @DisplayName("레지스트리가 거부하면 CustomGeneralException 발생")
+        @DisplayName("레지스트리가 거부하면 AccessDeniedException 발생")
         void checkReadAccess_denied_throws() {
             Cfilem file = mock(Cfilem.class);
             given(fileRepository.findByFlMpnIdAndDelYn("FL_00000002", "N")).willReturn(Optional.of(file));
@@ -125,8 +126,8 @@ class FileOwnershipCheckerTest {
             given(readAuthorizerRegistry.canRead(file, user)).willReturn(false);
 
             assertThatThrownBy(() -> fileOwnershipChecker.checkReadAccess("FL_00000002", user))
-                    .isInstanceOf(CustomGeneralException.class)
-                    .hasMessageContaining("파일 다운로드 권한이 없습니다");
+                    .isInstanceOf(AccessDeniedException.class)
+                    .hasMessageContaining("파일 읽기 권한이 없습니다");
         }
 
         @Test
