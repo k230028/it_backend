@@ -9,6 +9,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -18,6 +19,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -36,6 +39,7 @@ import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.exception.InvalidRefreshTokenException;
 
 /**
  * AuthService 단위 테스트
@@ -232,7 +236,7 @@ class AuthServiceTest {
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
 
-                given(jwtUtil.validateToken(refreshTokenValue)).willReturn(true);
+                given(jwtUtil.validateToken(refreshTokenValue, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone(refreshTokenValue)).willReturn(Optional.of(refreshToken));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
@@ -257,7 +261,7 @@ class AuthServiceTest {
                                 .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
-                given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
+                given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
@@ -284,12 +288,12 @@ class AuthServiceTest {
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .lstChgDtm(LocalDateTime.now().minusMinutes(5)) // grace 경과 → 패밀리 폐기 경로
                                 .build();
-                given(jwtUtil.validateToken(reused)).willReturn(true);
+                given(jwtUtil.validateToken(reused, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone(reused)).willReturn(Optional.of(rotated));
 
+                // 재사용 감지는 재로그인 대상 → 전용 예외로 통일(SEC-04). 패밀리 폐기·저장 억제는 그대로 유지.
                 assertThatThrownBy(() -> authService.refreshAccessToken(reused))
-                                .isInstanceOf(RuntimeException.class)
-                                .hasMessageContaining("재사용");
+                                .isInstanceOf(InvalidRefreshTokenException.class);
                 verify(refreshTokenRepository, times(1)).deleteByEno("10001");
                 verify(refreshTokenRepository, never()).save(any(Crtokm.class));
         }
@@ -304,9 +308,11 @@ class AuthServiceTest {
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .lstChgDtm(LocalDateTime.now().minusSeconds(3))
                                 .build();
-                given(jwtUtil.validateToken(recent)).willReturn(true);
+                given(jwtUtil.validateToken(recent, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone(recent)).willReturn(Optional.of(rotated));
 
+                // grace 내 재제출은 동시 새로고침(다중 탭)에 의한 일시적 재시도 → 재로그인 대상이 아니므로
+                // 전용 예외가 아니라 기존 RuntimeException("다시 시도")을 그대로 유지한다(SEC-04 판단).
                 assertThatThrownBy(() -> authService.refreshAccessToken(recent))
                                 .isInstanceOf(RuntimeException.class)
                                 .hasMessageContaining("다시 시도");
@@ -321,7 +327,7 @@ class AuthServiceTest {
                                 .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
-                given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
+                given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
@@ -347,7 +353,7 @@ class AuthServiceTest {
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .lstChgDtm(LocalDateTime.now().minusSeconds(3))
                                 .build();
-                given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
+                given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
@@ -358,6 +364,7 @@ class AuthServiceTest {
                 AuthDto.RefreshResponse firstResponse = authService.refreshAccessToken(oldRefresh);
 
                 assertThat(firstResponse.getRefreshToken()).isEqualTo(newRefresh);
+                // 두 번째 회전은 grace 내 재제출 → 재로그인 대상이 아닌 일시적 재시도이므로 "다시 시도" 유지.
                 assertThatThrownBy(() -> authService.refreshAccessToken(oldRefresh))
                                 .isInstanceOf(RuntimeException.class)
                                 .hasMessageContaining("다시 시도");
@@ -372,20 +379,30 @@ class AuthServiceTest {
                 verify(refreshTokenRepository, never()).deleteByEno("10001");
         }
 
-        @Test
-        @DisplayName("refreshAccessToken - 유효하지 않은 토큰 → RuntimeException 발생")
-        void refreshAccessToken_유효하지않은토큰_예외발생() {
-                // given
-                given(jwtUtil.validateToken("invalid-token")).willReturn(false);
+        @ParameterizedTest(name = "[{index}] 용도 가드 실패 토큰 → InvalidRefreshTokenException (DB 접근 없음)")
+        @ValueSource(strings = {
+                        "access-use-token", // Access 용도 토큰
+                        "legacy-no-use-token", // 용도 클레임 없는 레거시 토큰
+                        "unknown-use-token", // 미지원 용도 문자열
+                        "bad-signature-token" // 서명·형식 오류 토큰
+        })
+        @DisplayName("refreshAccessToken - Refresh 용도 가드 실패 토큰은 DB 접근 없이 InvalidRefreshTokenException")
+        void refreshAccessToken_용도가드실패_DB접근없이전용예외(String token) {
+                // given: JwtUtil 용도 검증(3-arg)이 false → Refresh 전용 토큰이 아님
+                //   (access/레거시/unknown/서명오류의 구체 판별은 JwtUtilTest 소관이며 여기서는 모두 false로 귀결)
+                given(jwtUtil.validateToken(token, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(false);
 
-                // when & then
-                assertThatThrownBy(() -> authService.refreshAccessToken("invalid-token"))
-                                .isInstanceOf(RuntimeException.class)
+                // when & then: 첫 DB 접근 전 가드에서 전용 예외로 즉시 차단
+                assertThatThrownBy(() -> authService.refreshAccessToken(token))
+                                .isInstanceOf(InvalidRefreshTokenException.class)
                                 .hasMessageContaining("유효하지 않은 Refresh Token");
+
+                // 가드는 DB 접근 이전이므로 어떤 리포지토리 상호작용도 없어야 한다.
+                verifyNoInteractions(refreshTokenRepository, userRepository);
         }
 
         @Test
-        @DisplayName("refreshAccessToken - 만료된 DB 토큰 → delete() 후 RuntimeException 발생")
+        @DisplayName("refreshAccessToken - 만료된 DB 토큰 → delete() 후 InvalidRefreshTokenException 발생")
         void refreshAccessToken_만료된DB토큰_예외발생및삭제() {
                 // given
                 String tokenValue = "expired-refresh-token";
@@ -394,13 +411,12 @@ class AuthServiceTest {
                                 .endDtm(LocalDateTime.now().minusDays(1)) // 이미 만료
                                 .build();
 
-                given(jwtUtil.validateToken(tokenValue)).willReturn(true);
+                given(jwtUtil.validateToken(tokenValue, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone(tokenValue)).willReturn(Optional.of(expiredToken));
 
-                // when & then
+                // when & then: 만료도 재로그인 대상 → 전용 예외로 통일(SEC-04)
                 assertThatThrownBy(() -> authService.refreshAccessToken(tokenValue))
-                                .isInstanceOf(RuntimeException.class)
-                                .hasMessageContaining("만료된 Refresh Token");
+                                .isInstanceOf(InvalidRefreshTokenException.class);
 
                 // 만료 토큰 즉시 삭제 검증
                 verify(refreshTokenRepository, times(1)).delete(expiredToken);
@@ -452,14 +468,14 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("refreshAccessToken - DB에 토큰이 없으면 RuntimeException을 던진다")
+        @DisplayName("refreshAccessToken - DB에 토큰이 없으면 InvalidRefreshTokenException을 던진다")
         void refreshAccessToken_DB토큰없음_예외발생() {
-                given(jwtUtil.validateToken("missing-refresh")).willReturn(true);
+                given(jwtUtil.validateToken("missing-refresh", JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone("missing-refresh")).willReturn(Optional.empty());
 
+                // DB 미존재도 재로그인 대상 → 전용 예외로 통일(SEC-04)
                 assertThatThrownBy(() -> authService.refreshAccessToken("missing-refresh"))
-                                .isInstanceOf(RuntimeException.class)
-                                .hasMessageContaining("Refresh Token을 찾을 수 없습니다");
+                                .isInstanceOf(InvalidRefreshTokenException.class);
         }
 
         @Test
@@ -470,10 +486,12 @@ class AuthServiceTest {
                                 .tokCone(tokenValue).eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
-                given(jwtUtil.validateToken(tokenValue)).willReturn(true);
+                given(jwtUtil.validateToken(tokenValue, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByTokCone(tokenValue)).willReturn(Optional.of(refreshToken));
                 given(userRepository.findByEno("10001")).willReturn(Optional.empty());
 
+                // 사용자 미존재는 플랜의 재로그인 통일 분기(서명·미존재·만료·재사용)에 포함되지 않으므로
+                // 기존 RuntimeException("사용자를 찾을 수 없습니다")을 유지한다(SEC-04 판단).
                 assertThatThrownBy(() -> authService.refreshAccessToken(tokenValue))
                                 .isInstanceOf(RuntimeException.class)
                                 .hasMessageContaining("사용자를 찾을 수 없습니다");
@@ -541,7 +559,7 @@ class AuthServiceTest {
                                 .ecyRnwPubTokCone(lookupValue)
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
-                given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
+                given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByEcyRnwPubTokCone(lookupValue)).willReturn(Optional.of(stored));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(
                                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
@@ -570,7 +588,7 @@ class AuthServiceTest {
                                 .tokCone(oldRefresh).eno("10001").famNm("FAM-1").avlYn("Y")
                                 .endDtm(LocalDateTime.now().plusDays(7))
                                 .build();
-                given(jwtUtil.validateToken(oldRefresh)).willReturn(true);
+                given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
                 given(refreshTokenRepository.findByEcyRnwPubTokCone(lookupValue)).willReturn(Optional.empty());
                 given(refreshTokenRepository.findByTokCone(oldRefresh)).willReturn(Optional.of(stored));
                 given(userRepository.findByEno("10001")).willReturn(Optional.of(

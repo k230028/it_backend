@@ -20,6 +20,7 @@ import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.exception.InvalidRefreshTokenException;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -228,13 +229,16 @@ public class AuthService {
      *
      * @param refreshTokenValue 클라이언트가 제출한 Refresh Token 문자열
      * @return 토큰 갱신 응답 DTO (새로운 Access Token + 회전된 Refresh Token)
-     * @throws RuntimeException Refresh Token이 유효하지 않거나 만료된 경우
+     * @throws InvalidRefreshTokenException 재로그인이 필요한 분기 — 용도·서명·만료 검증 실패,
+     *                                      DB 미존재, 저장 만료, 재사용 감지(패밀리 폐기)
+     * @throws RuntimeException             일시적 동시 새로고침(grace 내 재제출)이거나 사용자 미존재인 경우
      */
     @Transactional
     public AuthDto.RefreshResponse refreshAccessToken(String refreshTokenValue) {
-        // JWT 서명/만료 검증 (1차 검증: JwtUtil)
-        if (!jwtUtil.validateToken(refreshTokenValue)) {
-            throw new RuntimeException("유효하지 않은 Refresh Token입니다.");
+        // 용도 강제(1차 검증: JwtUtil) — 서명·만료와 함께 tokenUse=refresh만 허용한다.
+        // 레거시(용도 클레임 없음) Refresh 토큰은 allowLegacy=false로 거부해 재로그인을 유도한다.
+        if (!jwtUtil.validateToken(refreshTokenValue, JwtUtil.TOKEN_USE_REFRESH, false)) {
+            throw new InvalidRefreshTokenException();
         }
 
         // DB에서 Refresh Token 조회 (2차 검증: DB 존재 여부)
@@ -254,13 +258,16 @@ public class AuthService {
             log.warn("Refresh Token 재사용 탐지 — 패밀리 폐기: eno={}, famNm={}", refreshToken.getEno(),
                     refreshToken.getFamNm());
             refreshTokenRepository.deleteByEno(refreshToken.getEno());
-            throw new RuntimeException("토큰 재사용이 탐지되어 세션이 폐기되었습니다. 다시 로그인하세요.");
+            // 재사용 감지는 재로그인 대상 — 전용 예외로 통일(원인은 위 warn 로그로만 구분, 토큰 값 미기록).
+            throw new InvalidRefreshTokenException();
         }
 
         // DB 저장 만료일 기준 만료 여부 확인 (3차 검증: endDtm 필드)
         if (refreshToken.isExpired()) {
+            // 만료도 재로그인 대상 — 원인은 서버 로그로만 구분(토큰 값 미기록), 전용 예외로 통일.
+            log.warn("만료된 Refresh Token — 삭제 후 재로그인 유도: eno={}", refreshToken.getEno());
             refreshTokenRepository.delete(refreshToken); // 만료된 토큰 즉시 삭제
-            throw new RuntimeException("만료된 Refresh Token입니다.");
+            throw new InvalidRefreshTokenException();
         }
 
         // Refresh 시에도 최신 자격등급 반영 (자격등급 변경 시 즉시 적용)
@@ -450,7 +457,11 @@ public class AuthService {
                             token.fillEncryptedRenewalTokenIfMissing(lookupValue);
                             return token;
                         }))
-                        .orElseThrow(() -> new RuntimeException("Refresh Token을 찾을 수 없습니다."));
+                        // DB 미존재도 재로그인 대상 — 원인은 서버 로그로만 구분(토큰 값 미기록), 전용 예외로 통일.
+                        .orElseThrow(() -> {
+                            log.warn("Refresh Token 조회 실패 — DB에 활성 토큰 없음");
+                            return new InvalidRefreshTokenException();
+                        });
     }
 
     /**
