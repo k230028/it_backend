@@ -53,7 +53,8 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 
 - 브라우저 인증은 httpOnly 쿠키 기반 Stateless JWT를 기본으로 합니다. Bearer 헤더 폴백은 `app.auth.allow-bearer-header`가 명시적으로 활성화된 개발·API 테스트 환경에서만 허용합니다.
 - Access Token은 `Path=/`와 15분, Refresh Token은 `Path=/api/auth`와 7일 범위를 유지하며 두 쿠키 모두 SameSite=Lax를 적용합니다.
-- Refresh Token은 사용자별 단일 패밀리로 관리합니다. 갱신 시 DB 쓰기 잠금 아래 토큰을 회전하고, 동시 갱신 유예 기간 이후 회전 토큰이 재사용되면 해당 사용자의 Refresh Token을 모두 폐기합니다.
+- Refresh Token은 사용자별 단일 패밀리로 관리합니다. DB에는 원문을 저장하지 않고 `ECY_RNW_PUB_TOK_CONE`에 소문자 SHA-256 HEX 조회값만 저장합니다. 갱신 시 DB 쓰기 잠금 아래 토큰을 회전하고, 동시 갱신 유예 기간 이후 회전 토큰이 재사용되면 해당 사용자의 Refresh Token을 모두 폐기합니다.
+- `prod` 프로파일은 `sso.mock-enabled=true`, `app.auth.allow-bearer-header=true`, `app.cookie.secure=false` 중 하나라도 감지하면 기동을 차단합니다. SSO 인증 성공 시 기존 세션 ID를 교체합니다.
 - 프론트 라우트 가드와 메뉴 숨김은 UX 보조이며 서버가 최종 보안 경계입니다.
 - 관리자 전용 컨트롤러는 클래스 수준 `@PreAuthorize("hasRole('ADMIN')")`를 적용합니다.
 - 관리자 전용이 아닌 업무 컨트롤러는 서비스 계층에서 소유자·역할·업무 범위를 검증합니다.
@@ -79,9 +80,10 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 
 - 원 트랜잭션과 반드시 함께 성공해야 하는 상태 동기화는 동기 `@EventListener`를 사용합니다.
 - 알림·메일처럼 실패가 원 업무를 롤백하면 안 되는 부수효과는 `@TransactionalEventListener(AFTER_COMMIT)`를 사용합니다.
-- AFTER_COMMIT 이후 DB 저장은 `REQUIRES_NEW`로 독립 트랜잭션을 시작합니다.
+- AFTER_COMMIT 이후 outbox 적재와 채널 발송은 각각 `REQUIRES_NEW` 독립 트랜잭션으로 처리합니다. 적재 실패는 원 업무를 롤백하지 않으며 `notification.persist.failure` 메트릭으로 탐지합니다.
+- `CINFMM` 발송 상태는 `01=PENDING`, `02=SENT`, `03=FAILED`이고, 재시도는 기본 60초 주기·최대 50건·건별 최대 5회입니다.
 - 알림 종류와 채널은 `NotificationEvent.TYPE_*`, `NotificationDispatcherRouter.CHANNEL_*` 상수를 사용합니다.
-- EAI 실패는 `EaiResult`로 표현하고 원 업무를 실패시키지 않으며 민감정보를 평문 로깅하지 않습니다.
+- EAI 실패는 `EaiResult`로 표현하고 원 업무를 실패시키지 않으며 민감정보를 평문 로깅하지 않습니다. GWE의 `IF_ID`는 `eai.gwe.if-id`만 사용합니다.
 - 외부 JSON 응답은 Jackson 버전 특정 `JsonNode`보다 전용 DTO 또는 `Map<String, Object>`로 받습니다.
 
 상세는 [알림 가이드](docs/guides/integrations/notifications.md), [EAI 가이드](docs/guides/integrations/eai.md), [SSO 가이드](docs/guides/integrations/sso.md)를 따릅니다.

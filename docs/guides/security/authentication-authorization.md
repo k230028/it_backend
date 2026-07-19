@@ -7,7 +7,19 @@
 - Access Token에는 사번, 자격등급 목록과 부서코드를 포함합니다.
 - Refresh Token 갱신 시 사용자 권한과 부서를 DB에서 다시 읽습니다.
 - Refresh Token은 회전하며 유예 기간 이후 재사용이 탐지되면 사용자 토큰 패밀리를 폐기합니다.
+- Refresh Token 원문은 DB에 저장하지 않습니다. `TPRMPP_CRTOKM.ECY_RNW_PUB_TOK_CONE`에는 조회용 소문자 SHA-256 HEX 값만 저장합니다.
+- Access Token이 만료되어도 Refresh 쿠키로 로그아웃하면 해당 토큰 소유자의 패밀리를 폐기합니다.
 - 운영에서는 Bearer 헤더 폴백을 비활성화하고 쿠키 인증을 기본으로 합니다.
+
+## 운영 인증 안전장치
+
+`prod` 프로파일에서는 다음 위험 설정을 허용하지 않으며, 하나라도 감지되면 애플리케이션 기동이 실패합니다.
+
+- `sso.mock-enabled=true`
+- `app.auth.allow-bearer-header=true`
+- `app.cookie.secure=false`
+
+SSO 인증 성공 경계에서는 기존 HTTP 세션 ID를 교체하여 세션 고정을 방지합니다.
 
 ## RBAC
 
