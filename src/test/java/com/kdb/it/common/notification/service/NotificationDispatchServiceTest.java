@@ -16,6 +16,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,10 +30,12 @@ class NotificationDispatchServiceTest {
     private NotificationDispatcher dispatcher;
 
     private NotificationDispatchService service;
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
-        service = new NotificationDispatchService(repository, dispatcher, new SimpleMeterRegistry());
+        meterRegistry = new SimpleMeterRegistry();
+        service = new NotificationDispatchService(repository, dispatcher, meterRegistry);
         ReflectionTestUtils.setField(service, "maxAttempts", 5);
     }
 
@@ -72,6 +75,60 @@ class NotificationDispatchServiceTest {
         service.dispatch(row.getInfmMsgNo());
 
         verify(dispatcher, never()).dispatch(row, row.getSdDocCone());
+    }
+
+    @Test
+    @DisplayName("dispatch 실패가 최대 재시도 횟수에 도달하면 소진 지표를 기록한다")
+    void dispatch_exhaustedBlankChannel_recordsBothMetrics() {
+        Cinfmm row = Cinfmm.builder()
+                .infmMsgNo("INF-2026-00000002")
+                .sdTc(" ")
+                .sdDocCone("payload")
+                .infmSdStsC(Cinfmm.DISPATCH_PENDING)
+                .reTryNot(4)
+                .build();
+        given(repository.findById(row.getInfmMsgNo())).willReturn(Optional.of(row));
+        given(dispatcher.dispatch(row, row.getSdDocCone()))
+                .willReturn(NotificationDispatchResult.failure("장애"));
+
+        service.dispatch(row.getInfmMsgNo());
+
+        assertThat(row.getReTryNot()).isEqualTo(5);
+        assertThat(meterRegistry.counter("notification.dispatch.failure", "channel", "unknown").count())
+                .isEqualTo(1.0);
+        assertThat(meterRegistry.counter("notification.dispatch.exhausted", "channel", "unknown").count())
+                .isEqualTo(1.0);
+    }
+
+    @Test
+    @DisplayName("dispatch 실패의 채널이 null이면 unknown 지표로 기록한다")
+    void dispatch_nullChannel_recordsUnknownMetric() {
+        Cinfmm row = Cinfmm.builder()
+                .infmMsgNo("INF-2026-00000003")
+                .sdTc(null)
+                .infmSdStsC(Cinfmm.DISPATCH_PENDING)
+                .reTryNot(0)
+                .build();
+        given(repository.findById(row.getInfmMsgNo())).willReturn(Optional.of(row));
+        given(dispatcher.dispatch(row, null)).willReturn(NotificationDispatchResult.failure(null));
+
+        service.dispatch(row.getInfmMsgNo());
+
+        assertThat(meterRegistry.counter("notification.dispatch.failure", "channel", "unknown").count())
+                .isEqualTo(1.0);
+        assertThat(row.getErrCone()).isNull();
+    }
+
+    @Test
+    @DisplayName("dispatch 대상 알림이 없으면 예외를 반환한다")
+    void dispatch_missingNotification_throws() {
+        given(repository.findById("UNKNOWN")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.dispatch("UNKNOWN"))
+                .isInstanceOf(java.util.NoSuchElementException.class);
+
+        verify(dispatcher, never()).dispatch(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
     }
 
     private Cinfmm pending() {

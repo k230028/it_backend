@@ -77,6 +77,56 @@ class NotificationDispatcherRouterTest {
         assertThat(notification.getSdDtm()).isNull();
     }
 
+    @Test
+    @DisplayName("비활성화된 EAI 발송은 성공으로 처리하고 기본 제목과 본문을 사용한다")
+    void dispatch_externalSkipped_usesDefaultTextAndReturnsSent() {
+        NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES);
+        Cinfmm notification = Cinfmm.builder()
+                .infmMsgNo("INF-2026-00000002")
+                .infmSvcTc("01")
+                .ttl(" ")
+                .infmMsgCone(null)
+                .rmsEno("E0002")
+                .inqYn("N")
+                .sdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
+                .build();
+        when(eaiService.sendEai(any())).thenReturn(EaiResult.skip());
+
+        NotificationDispatchResult result = router.dispatch(notification, null);
+
+        assertThat(result.success()).isTrue();
+        ArgumentCaptor<EaiRequest> captor = ArgumentCaptor.forClass(EaiRequest.class);
+        verify(eaiService).sendEai(captor.capture());
+        GwePayload payload = (GwePayload) captor.getValue().payload();
+        assertThat(payload.subject()).isEqualTo("IT Portal 알림");
+        assertThat(payload.contents()).isEqualTo("새 알림이 도착했습니다.");
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 채널은 인앱 성공으로 처리한다")
+    void dispatch_unknownChannel_fallsBackToSent() {
+        NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES);
+        Cinfmm notification = notification("99");
+
+        NotificationDispatchResult result = router.dispatch(notification, "payload");
+
+        assertThat(result.success()).isTrue();
+        verify(eaiService, never()).sendEai(any());
+    }
+
+    @Test
+    @DisplayName("EAI 호출 예외는 실패 결과로 변환한다")
+    void dispatch_externalException_returnsFailure() {
+        NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES);
+        Cinfmm notification = notification(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
+        when(eaiService.sendEai(any())).thenThrow(new IllegalStateException("연계 중단"));
+
+        NotificationDispatchResult result = router.dispatch(notification, null);
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).isEqualTo("연계 중단");
+    }
+
     private Cinfmm notification(String sdTc) {
         return Cinfmm.builder()
                 .infmMsgNo("INF-2026-00000001")

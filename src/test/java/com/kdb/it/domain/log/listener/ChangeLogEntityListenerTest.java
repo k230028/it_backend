@@ -11,7 +11,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.withSettings;
 
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BaseLogEntity;
@@ -50,7 +49,7 @@ class ChangeLogEntityListenerTest {
     @BeforeEach
     void setUp() {
         listener = new ChangeLogEntityListener();
-        contextHolderMock = mockStatic(ApplicationContextHolder.class, withSettings().lenient());
+        contextHolderMock = mockStatic(ApplicationContextHolder.class);
         contextHolderMock.when(() -> ApplicationContextHolder.getBean(AuditLogPersister.class))
                 .thenReturn(auditLogPersister);
     }

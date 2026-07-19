@@ -28,7 +28,7 @@ public class BoardFileReadAuthorizer implements FileReadAuthorizer {
     /**
      * 공통게시판 파일 읽기 가능 여부.
      *
-     * @param file 대상 파일(부모 게시물번호는 {@link Cfilem#getPkCone()})
+     * @param file 대상 파일(부모 게시물번호는 {@code PK_CONE} 값)
      * @param user 현재 사용자(null이면 비인증 → 불가)
      * @return 관리자이거나 연결 게시물이 공개(화면표시 + 공개기간 내)이면 true
      */

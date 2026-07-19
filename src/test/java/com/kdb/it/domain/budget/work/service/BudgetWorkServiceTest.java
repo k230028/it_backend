@@ -936,11 +936,24 @@ class BudgetWorkServiceTest {
                 .bgDupAmt(BigDecimal.valueOf(1600))
                 .asgRt(80)
                 .build();
+        Bbugtm secondItemBudget = Bbugtm.builder()
+                .fntTbNm("BITEMM")
+                .pkColNm("GCL-MPL-002")
+                .ioeC("101")
+                .bgDupAmt(BigDecimal.valueOf(800))
+                .asgRt(80)
+                .build();
         Bitemm item = Bitemm.builder()
                 .gclMngNo("GCL-MPL-001")
                 .abusMngNo("PRJ-MPL-001")
                 .amt(BigDecimal.valueOf(2000))
                 .mplAmt(BigDecimal.valueOf(800))
+                .build();
+        Bitemm secondItem = Bitemm.builder()
+                .gclMngNo("GCL-MPL-002")
+                .abusMngNo("PRJ-MPL-001")
+                .amt(BigDecimal.valueOf(1000))
+                .mplAmt(BigDecimal.valueOf(400))
                 .build();
         Bprojm project = Bprojm.builder()
                 .abusMngNo("PRJ-MPL-001")
@@ -949,20 +962,22 @@ class BudgetWorkServiceTest {
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
-        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(itemBudget));
-        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(item));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
+                .willReturn(List.of(itemBudget, secondItemBudget));
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(item, secondItem));
         given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(project));
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
         BudgetWorkDto.ProjectSummaryItem summaryItem = result.data().get(0);
         BudgetWorkDto.CategoryAmount categoryAmount = summaryItem.categoryAmounts().get("237");
-        assertThat(summaryItem.requestAmount()).isEqualByComparingTo("1200.00");
-        assertThat(summaryItem.dupAmount()).isEqualByComparingTo("960.0");
-        assertThat(categoryAmount.requestAmount()).isEqualByComparingTo("1200.00");
-        assertThat(categoryAmount.dupAmount()).isEqualByComparingTo("960.0");
-        assertThat(result.totals().requestAmount()).isEqualByComparingTo("1200.00");
-        assertThat(result.totals().dupAmount()).isEqualByComparingTo("960.0");
+        assertThat(summaryItem.requestAmount()).isEqualByComparingTo("1800.00");
+        assertThat(summaryItem.dupAmount()).isEqualByComparingTo("1440.0");
+        assertThat(categoryAmount.requestAmount()).isEqualByComparingTo("1800.00");
+        assertThat(categoryAmount.dupAmount()).isEqualByComparingTo("1440.0");
+        assertThat(result.totals().requestAmount()).isEqualByComparingTo("1800.00");
+        assertThat(result.totals().dupAmount()).isEqualByComparingTo("1440.0");
     }
 
     @Test

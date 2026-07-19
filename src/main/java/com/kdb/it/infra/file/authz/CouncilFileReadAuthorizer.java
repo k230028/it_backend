@@ -38,7 +38,7 @@ public class CouncilFileReadAuthorizer implements FileReadAuthorizer {
     /**
      * 협의회 연계 파일 읽기 가능 여부.
      *
-     * @param file 대상 파일(부모 협의회ID는 {@link Cfilem#getPkCone()})
+     * @param file 대상 파일(부모 협의회 ID는 {@code PK_CONE} 값)
      * @param user 현재 사용자(null이면 비인증 → 불가)
      * @return 관리자·정보보안관리자이거나, 해당 협의회 위원이거나, 협의회 사업의
      *         주관부서가 사용자 부서와 일치하면 true. 부모 ID가 없거나 협의회·사업을

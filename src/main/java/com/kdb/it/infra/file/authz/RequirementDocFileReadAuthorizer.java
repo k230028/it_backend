@@ -29,7 +29,7 @@ public class RequirementDocFileReadAuthorizer implements FileReadAuthorizer {
     /**
      * 요구사항정의서 파일 읽기 가능 여부.
      *
-     * @param file 대상 파일(부모 문서관리번호는 {@link Cfilem#getPkCone()})
+     * @param file 대상 파일(부모 문서관리번호는 {@code PK_CONE} 값)
      * @param user 현재 사용자(null이면 비인증 → 불가)
      * @return 관리자이거나, 최신 문서의 작성자(FST_ENR_USID) 또는 주관부서(SVN_DPM_C)가
      *         현재 사용자와 일치하면 true. 부모 ID가 없거나 문서를 찾지 못하면 false
