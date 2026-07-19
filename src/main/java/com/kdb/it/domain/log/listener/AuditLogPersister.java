@@ -4,12 +4,12 @@ import com.kdb.it.domain.log.entity.BaseLogEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jakarta.persistence.Column;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
@@ -18,32 +18,80 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 변경 로그 영속화 컴포넌트.
+ * 변경 로그 스냅샷 생성·예약 컴포넌트.
  *
- * <p>원본 엔티티의 {@code @Column} 필드를 리플렉션으로 복사하여
- * 대응하는 로그 엔티티를 현재 트랜잭션 내에 INSERT한다.</p>
+ * <p>원본 엔티티의 {@code @Column} 필드를 리플렉션으로 복사해 로그 엔티티 스냅샷을 만들고,
+ * 원 업무 트랜잭션 커밋 이후({@code afterCommit}) {@link AuditLogWriter}가 별도 트랜잭션에서 INSERT하도록
+ * 예약한다. 활성 동기화가 없으면 즉시 direct 단계로 기록한다.</p>
  *
- * <p>{@link ChangeLogEntityListener}의 {@code @PrePersist}/{@code @PreUpdate} 콜백에서
- * 직접 호출된다. Pre 콜백은 Hibernate ActionQueue 이터레이션 이전에 실행되므로
- * {@code entityManager.persist()}를 안전하게 호출할 수 있다.</p>
+ * <p>스냅샷 생성은 {@code @PrePersist}/{@code @PreUpdate} 시점에 동기로 수행되어 원본과 동일한 GUID·기본값을
+ * 확보하고, DB 쓰기만 커밋 이후로 분리한다. 쓰기 실패는 {@link AuditFailureRecorder}가 카운터·로그로 기록한다.</p>
  */
 @Component
-@Transactional
+@RequiredArgsConstructor
 public class AuditLogPersister {
 
     private static final Logger log = LoggerFactory.getLogger(AuditLogPersister.class);
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    private final AuditLogWriter auditLogWriter;
+    private final AuditFailureRecorder auditFailureRecorder;
 
     /**
-     * 변경 로그 INSERT.
+     * 변경 로그 스냅샷을 생성하고 원 업무 커밋 이후 별도 트랜잭션 INSERT를 예약한다.
      *
      * @param sourceEntity 원본 엔티티 (CUD 이벤트 발생 엔티티)
      * @param logClass     대응하는 로그 엔티티 클래스
      * @param chgTp        변경유형 ('C'=생성, 'U'=수정, 'D'=논리삭제)
      */
     public void persist(Object sourceEntity, Class<? extends BaseLogEntity> logClass, String chgTp) {
+        BaseLogEntity snapshot = createSnapshot(sourceEntity, logClass, chgTp);
+        String entityName = sourceEntity.getClass().getSimpleName();
+        String entityId = AuditEntityIdentifier.resolve(sourceEntity);
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            // 트랜잭션 동기화가 없는 호출(시스템 트리거 등)은 즉시 별도 트랜잭션으로 기록한다.
+            writeSafely(snapshot, entityName, entityId, chgTp, "direct");
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                writeSafely(snapshot, entityName, entityId, chgTp, "afterCommit");
+            }
+        });
+    }
+
+    /**
+     * 감사 스냅샷을 별도 트랜잭션으로 저장하고, 실패 시 실패 recorder에 위임한다.
+     *
+     * @param snapshot   저장할 감사 로그 스냅샷
+     * @param entityName 원본 엔티티 종류명
+     * @param entityId   원본 엔티티 식별자(로그 전용)
+     * @param chgTp      변경유형
+     * @param stage      실패 단계(direct/afterCommit)
+     */
+    private void writeSafely(BaseLogEntity snapshot, String entityName, String entityId,
+            String chgTp, String stage) {
+        try {
+            auditLogWriter.writeInNewTransaction(snapshot);
+        } catch (Exception exception) {
+            auditFailureRecorder.record(entityName, entityId, chgTp, stage, exception);
+        }
+    }
+
+    /**
+     * 원본 엔티티로부터 로그 엔티티 스냅샷을 생성합니다.
+     *
+     * <p>로그 엔티티를 인스턴스화하고 공통 감사값·변경 메타·{@code @Column} 값을 복사합니다.
+     * 스냅샷 생성 자체가 실패하면 예외를 전파해 상위 리스너가 실패 recorder로 위임합니다.</p>
+     *
+     * @param sourceEntity 원본 엔티티
+     * @param logClass     로그 엔티티 클래스
+     * @param chgTp        변경유형
+     * @return 값이 채워진 로그 엔티티 스냅샷
+     */
+    private BaseLogEntity createSnapshot(Object sourceEntity, Class<? extends BaseLogEntity> logClass,
+            String chgTp) {
         try {
             var ctor = logClass.getDeclaredConstructor();
             ctor.setAccessible(true);
@@ -60,9 +108,9 @@ public class AuditLogPersister {
 
             copyColumnFields(sourceEntity, logEntity);
 
-            entityManager.persist(logEntity);
+            return logEntity;
         } catch (Exception e) {
-            throw new RuntimeException("변경 로그 INSERT 실패: " + logClass.getSimpleName(), e);
+            throw new RuntimeException("변경 로그 스냅샷 생성 실패: " + logClass.getSimpleName(), e);
         }
     }
 
