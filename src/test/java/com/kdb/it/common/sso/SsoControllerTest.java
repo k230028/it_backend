@@ -157,6 +157,21 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("GET /sso/loginProc - 인증 성공 시 세션 ID를 교체하고 검증 사번을 보존한다")
+    void loginProc_성공_세션ID교체() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        String oldId = session.getId();
+        session.setAttribute("resultCode", "000000");
+        session.setAttribute("resultData", "K150024");
+
+        mockMvc.perform(get("/sso/loginProc").session(session))
+                .andExpect(status().is3xxRedirection());
+
+        assertThat(session.getId()).isNotEqualTo(oldId);
+        assertThat(session.getAttribute("ssoVerifiedEno")).isEqualTo("K150024");
+    }
+
+    @Test
     @DisplayName("GET /sso/loginProc - 세션이 없으면 complete 기본 경로로 이동")
     void loginProc_세션없음_complete기본경로() throws Exception {
         mockMvc.perform(get("/sso/loginProc"))
