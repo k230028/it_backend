@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
 import com.kdb.it.common.notification.entity.Cinfmm;
+import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,8 @@ import org.junit.jupiter.api.Test;
  */
 class StubNotificationDispatcherTest {
 
-    private final NotificationDispatcherRouter dispatcher = new NotificationDispatcherRouter(mock(EaiService.class));
+    private final NotificationDispatcherRouter dispatcher = new NotificationDispatcherRouter(
+            mock(EaiService.class), new GweProperties("TEST00000001"));
 
     @Test
     @DisplayName("dispatch: 인앱 채널과 페이로드를 알림에 기록한다")

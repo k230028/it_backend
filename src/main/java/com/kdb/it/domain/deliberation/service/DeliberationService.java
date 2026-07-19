@@ -7,6 +7,7 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.deliberation.dto.DeliberationDto;
 import com.kdb.it.domain.deliberation.entity.Bdelim;
 import com.kdb.it.domain.deliberation.repository.DeliberationRepository;
+import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.dto.EaiRequest;
 import com.kdb.it.infra.eai.dto.EaiResult;
 import com.kdb.it.infra.eai.dto.GwePayload;
@@ -39,6 +40,7 @@ public class DeliberationService {
     private final CostRepository costRepository;
     private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
     private final EaiService eaiService;
+    private final GweProperties gweProperties;
 
     /**
      * 과업심의 신규 신청 생성.
@@ -209,7 +211,7 @@ public class DeliberationService {
 
     private void sendStatusEai(String domainName, String docNo, String from, String to, CustomUserDetails user) {
         try {
-            EaiResult result = eaiService.sendEai(EaiRequest.gwe("IPPG00000001", GwePayload.builder()
+            EaiResult result = eaiService.sendEai(EaiRequest.gwe(gweProperties.ifId(), GwePayload.builder()
                     .msgGubun("1")
                     .recvIds(user.getEno())
                     .subject("[IT Portal] " + domainName + " 상태 변경")

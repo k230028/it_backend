@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.notification.entity.Cinfmm;
+import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.dto.EaiRequest;
 import com.kdb.it.infra.eai.dto.EaiResult;
 import com.kdb.it.infra.eai.dto.GwePayload;
@@ -22,13 +23,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class NotificationDispatcherRouterTest {
 
+    private static final GweProperties GWE_PROPERTIES = new GweProperties("TEST00000001");
+
     @Mock
     private EaiService eaiService;
 
     @Test
     @DisplayName("sdTc가 없으면 기존 인앱 채널로 발송 메타를 기록하고 EAI를 호출하지 않는다")
     void dispatch_nullChannel_marksInAppOnly() {
-        NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService);
+        NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES);
         Cinfmm notification = notification(null);
 
         router.dispatch(notification, "{\"id\":1}");
@@ -42,7 +45,7 @@ class NotificationDispatcherRouterTest {
     @Test
     @DisplayName("외부 EAI 채널이면 GWE 전문 요청으로 EaiService에 위임한다")
     void dispatch_externalChannel_delegatesToEai() {
-        NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService);
+        NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES);
         Cinfmm notification = notification(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
         when(eaiService.sendEai(any())).thenReturn(EaiResult.success("OK"));
 
@@ -50,7 +53,7 @@ class NotificationDispatcherRouterTest {
 
         ArgumentCaptor<EaiRequest> captor = ArgumentCaptor.forClass(EaiRequest.class);
         verify(eaiService).sendEai(captor.capture());
-        assertThat(captor.getValue().ifId()).isEqualTo(NotificationDispatcherRouter.GWE_IF_ID);
+        assertThat(captor.getValue().ifId()).isEqualTo(GWE_PROPERTIES.ifId());
         assertThat(captor.getValue().payload()).isInstanceOf(GwePayload.class);
         GwePayload payload = (GwePayload) captor.getValue().payload();
         assertThat(payload.recvIds()).isEqualTo("E0001");
@@ -62,7 +65,7 @@ class NotificationDispatcherRouterTest {
     @Test
     @DisplayName("EAI 실패 결과는 예외를 던지지 않고 원 알림 흐름을 유지한다")
     void dispatch_externalFailure_doesNotThrow() {
-        NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService);
+        NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES);
         Cinfmm notification = notification(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
         when(eaiService.sendEai(any())).thenReturn(EaiResult.failure("장애"));
 

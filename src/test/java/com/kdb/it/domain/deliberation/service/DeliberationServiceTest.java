@@ -18,6 +18,7 @@ import com.kdb.it.domain.deliberation.dto.DeliberationDto;
 import com.kdb.it.domain.deliberation.entity.Bdelim;
 import com.kdb.it.domain.deliberation.repository.DeliberationRepository;
 import com.kdb.it.domain.deliberation.repository.DeliberationTargetRow;
+import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import java.util.List;
 import java.util.Optional;
@@ -70,7 +71,8 @@ class DeliberationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DeliberationService(deliberationRepository, projectRepository, costRepository, bprojaSyncService, eaiService);
+        service = new DeliberationService(deliberationRepository, projectRepository, costRepository,
+                bprojaSyncService, eaiService, new GweProperties("TEST00000001"));
     }
 
     // -----------------------------------------------------------------------
