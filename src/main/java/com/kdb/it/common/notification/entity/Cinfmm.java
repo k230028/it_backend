@@ -34,6 +34,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Cinfmm extends BaseEntity {
 
+    public static final String DISPATCH_PENDING = "01";
+    public static final String DISPATCH_SENT = "02";
+    public static final String DISPATCH_FAILED = "03";
+
     /** 알림메시지번호: 기본키. 형식 {@code INF-{YYYY}-{NEXTVAL:08}} */
     @Id
     @Column(name = "INFM_MSG_NO", length = 30, nullable = false, comment = "알림메시지번호")
@@ -79,6 +83,18 @@ public class Cinfmm extends BaseEntity {
     @Column(name = "SD_DOC_CONE", length = 4000, comment = "발송문서내용")
     private String sdDocCone;
 
+    /** 알림발송상태코드 — 01=PENDING, 02=SENT, 03=FAILED */
+    @Column(name = "INFM_SD_STS_C", length = 2, nullable = false, comment = "알림발송상태코드")
+    private String infmSdStsC;
+
+    /** 외부 발송 재시도 횟수 */
+    @Column(name = "RE_TRY_NOT", nullable = false, comment = "재시도횟수")
+    private Integer reTryNot;
+
+    /** 마지막 발송 오류 내용 */
+    @Column(name = "ERR_CONE", length = 100, comment = "오류내용")
+    private String errCone;
+
     // ── 비즈니스 메서드 ─────────────────────────────────────────────────────
 
     /** 조회(읽음) 처리 — INQ_YN='Y', INQ_DTM=now (이미 조회 상태면 변경 없음) */
@@ -97,8 +113,31 @@ public class Cinfmm extends BaseEntity {
      * @param payload  외부 발송 페이로드 (JSON 또는 null)
      */
     public void markDispatched(String sdTc, String payload) {
+        markDispatchSent(sdTc, payload);
+    }
+
+    /** 발송 성공 상태와 채널 메타를 기록합니다. */
+    public void markDispatchSent(String sdTc, String payload) {
         this.sdTc = sdTc;
-        this.sdDtm = LocalDateTime.now();
         this.sdDocCone = payload;
+        this.sdDtm = LocalDateTime.now();
+        this.infmSdStsC = DISPATCH_SENT;
+        this.errCone = null;
+    }
+
+    /** 발송 실패 상태와 다음 재시도 판단에 필요한 정보를 기록합니다. */
+    public void markDispatchFailed(String errorMessage) {
+        this.infmSdStsC = DISPATCH_FAILED;
+        this.reTryNot = (this.reTryNot == null ? 0 : this.reTryNot) + 1;
+        this.sdDtm = LocalDateTime.now();
+        this.errCone = errorMessage == null
+                ? null
+                : errorMessage.substring(0, Math.min(100, errorMessage.length()));
+    }
+
+    /** 최대 시도 횟수에 도달하지 않은 미발송 알림인지 반환합니다. */
+    public boolean canRetry(int maxAttempts) {
+        return !DISPATCH_SENT.equals(infmSdStsC)
+                && (reTryNot == null ? 0 : reTryNot) < maxAttempts;
     }
 }
