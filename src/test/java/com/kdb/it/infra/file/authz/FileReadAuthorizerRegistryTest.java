@@ -46,6 +46,16 @@ class FileReadAuthorizerRegistryTest {
     }
 
     @Test
+    @DisplayName("종류(PK_COL_NM)가 null이면 관리자만 허용하고 예외를 던지지 않는다(default-deny)")
+    void nullKind_adminOnly() {
+        var registry = new FileReadAuthorizerRegistry(List.of(authorizer(Set.of("요구사항정의서"), true)));
+        CustomUserDetails normal = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
+        CustomUserDetails admin = new CustomUserDetails("A001", List.of("ITPAD001"), "IT001");
+        assertThat(registry.canRead(fileOfKind(null), normal)).isFalse();
+        assertThat(registry.canRead(fileOfKind(null), admin)).isTrue();
+    }
+
+    @Test
     @DisplayName("동일 종류를 두 authorizer가 등록하면 기동 시 예외로 막는다")
     void duplicateKind_throws() {
         assertThatThrownBy(() -> new FileReadAuthorizerRegistry(List.of(
