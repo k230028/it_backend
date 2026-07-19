@@ -4,6 +4,7 @@ import com.kdb.it.common.notification.entity.Cinfmm;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +32,8 @@ public interface CinfmmRepository extends JpaRepository<Cinfmm, String>, CinfmmR
             "and c.infmSdStsC in :statuses and c.reTryNot < :maxAttempts " +
             "and (c.infmSdStsC = '03' or c.fstEnrDtm <= :pendingBefore) " +
             "order by coalesce(c.sdDtm, c.fstEnrDtm) asc")
-    List<String> findRetryableIds(List<String> statuses, int maxAttempts,
-                                  LocalDateTime pendingBefore, Pageable pageable);
+    List<String> findRetryableIds(@Param("statuses") List<String> statuses,
+                                  @Param("maxAttempts") int maxAttempts,
+                                  @Param("pendingBefore") LocalDateTime pendingBefore,
+                                  Pageable pageable);
 }
