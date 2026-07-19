@@ -40,6 +40,9 @@ public class CouncilMainQnaController {
      * 본회의 질의응답 목록 조회 (PRD §26)
      *
      * <p>평가위원은 평가의견 작성 시 참고용으로 사용합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return 삭제되지 않은 본회의 질의응답 목록
      */
     @Operation(summary = "본회의 질의응답 목록", description = "협의회의 본회의 질의응답 목록을 반환합니다.")
     @GetMapping("/{asctId}/main-qna")
@@ -50,6 +53,11 @@ public class CouncilMainQnaController {
 
     /**
      * 본회의 질의 등록 (IT관리자 전용, PRD §26)
+     *
+     * @param asctId 협의회ID
+     * @param request 질의 등록 요청
+     * @param userDetails 인증된 IT관리자
+     * @return 생성된 질의응답ID
      */
     @Operation(summary = "본회의 질의 등록", description = "IT관리자가 본회의에서 나온 질의를 정리해 등록합니다.")
     @PreAuthorize("hasRole('ADMIN')")
@@ -64,6 +72,12 @@ public class CouncilMainQnaController {
 
     /**
      * 본회의 질의 수정 (IT관리자 전용, PRD §26)
+     *
+     * @param asctId 협의회ID
+     * @param qtnId 질의응답ID
+     * @param request 질의 수정 요청
+     * @return 본문 없는 HTTP 200 응답
+     * @throws IllegalArgumentException 협의회 또는 질의가 없는 경우
      */
     @Operation(summary = "본회의 질의 수정", description = "IT관리자가 본회의 질의 내용을 수정합니다.")
     @PreAuthorize("hasRole('ADMIN')")
@@ -78,6 +92,13 @@ public class CouncilMainQnaController {
 
     /**
      * 본회의 답변 등록/수정 (IT관리자 전용, PRD §26)
+     *
+     * @param asctId 협의회ID
+     * @param qtnId 질의응답ID
+     * @param request 답변 요청
+     * @param userDetails 인증된 IT관리자
+     * @return 본문 없는 HTTP 200 응답
+     * @throws IllegalArgumentException 협의회 또는 질의가 없는 경우
      */
     @Operation(summary = "본회의 답변", description = "IT관리자가 본회의 질의에 대한 답변을 정리해 등록·수정합니다.")
     @PreAuthorize("hasRole('ADMIN')")
@@ -92,7 +113,12 @@ public class CouncilMainQnaController {
     }
 
     /**
-     * 본회의 질의응답 삭제 (Soft Delete, IT관리자 전용, PRD §26)
+     * 본회의 질의응답 논리 삭제 (IT관리자 전용, PRD §26)
+     *
+     * @param asctId 협의회ID
+     * @param qtnId 질의응답ID
+     * @return 본문 없는 HTTP 204 응답
+     * @throws IllegalArgumentException 협의회 또는 질의가 없는 경우
      */
     @Operation(summary = "본회의 질의응답 삭제", description = "IT관리자가 본회의 Q&A 항목을 삭제(Soft)합니다.")
     @PreAuthorize("hasRole('ADMIN')")

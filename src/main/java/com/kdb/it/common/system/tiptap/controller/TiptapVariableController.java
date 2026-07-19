@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
  * <p>인증된 모든 사용자가 호출할 수 있으며, 사업(PROJ) 토큰 권한 검증은 서비스 계층에서 적용합니다.
  * ADMIN은 모든 사업 토큰을 해석할 수 있고, 부서관리자는 본인 부서 사업만 해석할 수 있습니다.</p>
  *
- * Design Ref: §2.2 백엔드, §4.5 권한 필터링
+ * 설계 참조: §2.2 백엔드, §4.5 권한 필터링
  */
 @RestController
 @RequestMapping("/api/tiptap-variables")

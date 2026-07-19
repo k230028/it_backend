@@ -45,10 +45,12 @@ public final class NativeRowMapper {
                             Integer.parseInt(digits.substring(4, 6)),
                             Integer.parseInt(digits.substring(6, 8)));
                 } catch (NumberFormatException | java.time.DateTimeException e) {
+                    // TODO: 변환 실패를 DB NULL과 구분하도록 원본 값·타입을 포함한 예외 또는 중앙 진단 로그를 제공한다.
                     return null; // 호출부가 필요 시 원본 로깅
                 }
             }
         }
+        // TODO: 지원하지 않는 DATE 표현을 DB NULL과 구분하도록 원본 값·타입을 포함한 예외 또는 중앙 진단 로그를 제공한다.
         return null;
     }
 

@@ -58,7 +58,7 @@ import lombok.extern.slf4j.Slf4j;
  * </p>
  *
  * <p>
- * Design Ref: §2.1 Architecture Decision — Clean Architecture, 서비스 분리
+ * 설계 참조: §2.1 아키텍처 결정 — 클린 아키텍처, 서비스 분리
  * </p>
  */
 @Slf4j
@@ -450,7 +450,7 @@ public class CouncilService {
     }
 
     /**
-     * 개최준비 시작 (APPROVED → PREPARING)
+     * 개최준비 시작 (결재완료 → 개최준비)
      *
      * <p>
      * IT관리자가 타당성검토표 검토 후 '개최준비 진행'을 선택한 경우 호출합니다.
@@ -459,7 +459,7 @@ public class CouncilService {
      * </p>
      *
      * @param asctId 협의회ID
-     * @throws IllegalStateException 현재 상태가 APPROVED(04)가 아닌 경우
+     * @throws IllegalStateException 일반 협의회가 결재완료(04)가 아니거나 계획협의회가 신청(01)이 아닌 경우
      */
     @Transactional
     public void startPreparation(String asctId) {

@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * Tiptap 변수 API DTO 모음.
- * Design Ref: §3.6 API 스키마
+ * 설계 참조: §3.6 API 스키마
  */
 public final class TiptapVariableDto {
 

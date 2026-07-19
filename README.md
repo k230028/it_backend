@@ -16,25 +16,37 @@
 
 ```powershell
 cd C:\it\it_backend
-$env:DB_PASSWORD = "로컬 DB 비밀번호"
-$env:JWT_SECRET = "256비트 이상의 개발용 키"
+$env:SPRING_PROFILES_ACTIVE = "local-ext"
 ./gradlew bootRun
 ```
 
 - API: http://localhost:28080
 - Swagger UI: http://localhost:28080/swagger-ui/index.html
+- Health: http://localhost:28080/actuator/health
 - Oracle: `ITPAPP@127.0.0.1:11521/XEPDB1`, CURRENT_SCHEMA=`ITPOWN`
+
+`local-ext`는 외부망 개발용 프로파일로 모의 SSO, 로컬 HTTP 쿠키, Swagger의 Bearer 인증 폴백과 Flyway 자동 적용을 활성화합니다. 내부 ESSO에 연결할 수 있는 환경에서는 `local-int`를 사용합니다. 두 로컬 프로파일은 개발 전용 DB·JWT 기본값을 제공하며, 환경변수를 지정하면 해당 값이 우선합니다.
+
+| 프로파일    | 용도             | SSO         | Flyway | 쿠키 / Bearer 헤더       |
+| ----------- | ---------------- | ----------- | ------ | ------------------------ |
+| `local-ext` | 외부망 로컬 개발 | 모의 SSO    | 자동   | Secure 해제 / 허용       |
+| `local-int` | 내부망 로컬 개발 | ESSO 실연동 | 자동   | Secure 해제 / 허용       |
+| `dev`       | 개발 서버        | ESSO 실연동 | 비활성 | Secure 해제 / 허용       |
+| `prod`      | 운영 서버        | ESSO 실연동 | 비활성 | Secure 적용 / 허용 안 함 |
 
 ## 주요 명령어
 
-| 명령                         | 용도                      |
-| ---------------------------- | ------------------------- |
-| `./gradlew bootRun`          | 개발 서버 실행            |
-| `./gradlew test`             | 기본 단위·슬라이스 테스트 |
-| `./gradlew clean test`       | 전체 재검증               |
-| `./gradlew integrationTest`  | 로컬 Oracle 통합 테스트   |
-| `./gradlew build`            | 테스트와 WAR 빌드         |
-| `./gradlew jacocoTestReport` | 커버리지 보고서 생성      |
+| 명령                                       | 용도                      |
+| ------------------------------------------ | ------------------------- |
+| `./gradlew bootRun`                        | 개발 서버 실행            |
+| `./gradlew test`                           | 기본 단위·슬라이스 테스트 |
+| `./gradlew clean test`                     | 전체 재검증               |
+| `./gradlew integrationTest`                | 로컬 Oracle 통합 테스트   |
+| `./gradlew build`                          | 테스트와 WAR 빌드         |
+| `./gradlew jacocoTestReport`               | 커버리지 보고서 생성      |
+| `./gradlew jacocoTestCoverageVerification` | 설정된 커버리지 기준 검증 |
+
+Gradle Wrapper는 9.2.1을 사용합니다. 일반 의존성은 `C:\maven-repo` → 접속 가능한 내부 Nexus → Maven Central 순서로 탐색하며, 플러그인은 내부 Nexus → 로컬 저장소 → Gradle Plugin Portal/Maven Central 순서로 해석합니다. 폐쇄망에서는 Wrapper 배포본과 필요한 Maven 아티팩트를 `C:\maven-repo`에 먼저 반입합니다.
 
 ## 프로젝트 구조
 
@@ -55,13 +67,15 @@ src/main/java/com/kdb/it/
 
 ```text
 HTTP 요청
-  → SecurityFilterChain
-  → JwtAuthenticationFilter
-  → Controller
+  → SecurityFilterChain(CORS·공개/관리자 URL 경계)
+  → JwtAuthenticationFilter(Access Token 쿠키 검증)
+  → Controller(DTO 변환·Bean Validation)
   → Service(권한·업무 규칙·트랜잭션)
   → JpaRepository 또는 QueryDSL 커스텀 Repository
   → Oracle
 ```
+
+Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청은 `@Valid`로 검증합니다. 서비스는 JWT 인증 주체를 기준으로 역할·부서·소유권을 재검증하며, 조회와 쓰기 트랜잭션을 구분합니다. 처리 중 발생한 업무·검증 예외는 `GlobalExceptionHandler`가 `timestamp`, `status`, `message`를 가진 JSON 오류 응답으로 변환합니다.
 
 | 영역                                                                          | 주요 책임                                              | 연결되는 영역                                                        |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
@@ -100,6 +114,7 @@ HTTP 요청
 - 업무 엔티티는 `BaseEntity`의 논리삭제, GUID, 등록·변경 감사 필드를 공유합니다. 복합키 테이블은 `@IdClass`로 기존 Oracle 물리 모델을 매핑합니다.
 - `@LogTarget` 엔티티는 대응하는 `BaseLogEntity` 하위 로그 엔티티에 생성·수정·논리삭제 스냅샷을 남깁니다.
 - 단순 CRUD는 `JpaRepository`를 사용하고 동적 검색·집계·다중 조인은 `*RepositoryCustom`과 `*RepositoryImpl`의 QueryDSL 구현으로 분리합니다.
+- 공통코드, 메뉴 권한, 알림 미읽음 수, Tiptap 메타데이터는 Caffeine 캐시를 사용합니다. 캐시 쓰기는 트랜잭션 완료와 연동하고, 원본 변경 서비스가 `@CacheEvict`로 즉시 무효화하며 TTL은 누락에 대한 안전망으로 사용합니다.
 - 물리 스키마 변경의 기준은 `C:\it\it_database\migrations`이며, 엔티티 매핑과 마이그레이션을 함께 검토합니다. 상세 매핑은 [데이터 모델 인덱스](docs/guides/persistence/data-model.md)를 확인합니다.
 
 ## 환경 설정
@@ -144,13 +159,15 @@ V20260715_001__DescribeChange.sql
 
 로컬 Oracle을 사용하는 테스트는 기본 테스트에서 제외되며 `integrationTest`로 실행합니다.
 
+Controller 계약은 MockMvc 슬라이스 테스트, 서비스 규칙은 Mockito 기반 단위 테스트, 실제 Oracle 매핑과 QueryDSL은 `@Tag("it")` 통합 테스트로 분리합니다. 기본 `test`는 통합 태그를 제외하고 종료 후 JaCoCo HTML/XML 보고서를 생성합니다. 커버리지 기준 자체를 게이트로 확인할 때는 `jacocoTestCoverageVerification`을 별도로 실행합니다.
+
 ## 빌드와 배포
 
 ```powershell
 ./gradlew clean build
 ```
 
-생성된 WAR을 운영 Tomcat에 배포합니다. 운영 배포 전 DB·JWT·프론트 URL·CORS·파일 경로·쿠키 secure 설정을 확인합니다.
+`war` 플러그인과 `SpringBootServletInitializer`를 함께 사용하므로 생성된 실행 가능 WAR은 `java -jar`로 구동하거나 외장 서블릿 컨테이너에 배포할 수 있습니다. 운영 배포 전 DB·JWT·프론트 URL·CORS·파일 경로·쿠키 Secure 설정을 확인합니다. `EnvironmentValidator`는 운영 프로파일에서 필수 비밀값, CORS 와일드카드와 개발용 인증 토글을 검사하고 안전하지 않으면 기동을 중단합니다.
 
 ## 보안 참고
 

@@ -22,7 +22,11 @@ public class BoardMetaService {
 
     private final BoardMetaRepository boardMetaRepository;
 
-    /** 사이드바용 게시판 목록 조회 — USE_YN='Y' + DEL_YN='N', SRE_SQN_NO 오름차순 */
+    /**
+     * 사이드바용 게시판 목록 조회.
+     *
+     * @return 사용 중이고 삭제되지 않은 게시판을 표시순서 오름차순으로 정렬한 목록
+     */
     public List<BoardMetaDto.Response> getAllActive() {
         return boardMetaRepository.findAllActiveOrdered().stream()
             .map(BoardMetaDto.Response::from)

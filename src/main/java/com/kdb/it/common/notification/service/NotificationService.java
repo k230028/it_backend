@@ -26,6 +26,11 @@ public class NotificationService {
 
     /**
      * 본인 알림 목록 페이지 조회.
+     *
+     * @param currentEno 현재 사용자 사번
+     * @param unreadOnly true면 미읽음만 조회, null이면 전체 조회
+     * @param pageable 페이지 번호·크기·정렬 조건
+     * @return 삭제되지 않은 본인 알림 페이지
      */
     public Page<Cinfmm> listForCurrentUser(String currentEno, Boolean unreadOnly, Pageable pageable) {
         return cinfmmRepository.findInbox(currentEno, unreadOnly, pageable);
@@ -39,6 +44,9 @@ public class NotificationService {
      * markAllRead/softDelete)에서 해당 사용자 키를 evict 한다. 캐시는 Caffeine 60초 TTL을
      * 가지므로(P5/T13, {@link com.kdb.it.config.CacheConfig} 참조), evict 누락 시에도 stale은
      * 최대 60초로 제한된다(evict-on-write와 TTL 병행).</p>
+     *
+     * @param currentEno 현재 사용자 사번
+     * @return 삭제되지 않은 본인 미읽음 알림 건수
      */
     @Cacheable(value = "notificationUnreadCount", key = "#p0", unless = "#result == 0")
     public long unreadCount(String currentEno) {
@@ -47,6 +55,11 @@ public class NotificationService {
 
     /**
      * 단건 읽음 처리. 소유자 검증 포함.
+     *
+     * @param infmMsgNo 읽음 처리할 알림 메시지 번호
+     * @param currentEno 현재 사용자 사번
+     * @throws IllegalArgumentException 알림이 없거나 이미 삭제된 경우
+     * @throws AccessDeniedException 알림 수신자가 현재 사용자가 아닌 경우
      */
     @Transactional(readOnly = false)
     @CacheEvict(value = "notificationUnreadCount", key = "#p1")
@@ -57,6 +70,9 @@ public class NotificationService {
 
     /**
      * 본인 미읽음 알림 일괄 읽음 처리.
+     *
+     * @param currentEno 현재 사용자 사번
+     * @return 읽음으로 변경된 알림 건수
      */
     @Transactional(readOnly = false)
     @CacheEvict(value = "notificationUnreadCount", key = "#p0")
@@ -65,7 +81,12 @@ public class NotificationService {
     }
 
     /**
-     * 단건 알림 Soft Delete. 소유자 검증 포함.
+     * 단건 알림 논리 삭제. 소유자 검증 포함.
+     *
+     * @param infmMsgNo 삭제할 알림 메시지 번호
+     * @param currentEno 현재 사용자 사번
+     * @throws IllegalArgumentException 알림이 없거나 이미 삭제된 경우
+     * @throws AccessDeniedException 알림 수신자가 현재 사용자가 아닌 경우
      */
     @Transactional(readOnly = false)
     @CacheEvict(value = "notificationUnreadCount", key = "#p1")

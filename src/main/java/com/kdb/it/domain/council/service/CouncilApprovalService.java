@@ -45,7 +45,7 @@ import lombok.RequiredArgsConstructor;
  * </p>
  *
  * <p>
- * Design Ref: §2.1 M5 — 전자결재 연동
+ * 설계 참조: §2.1 M5 — 전자결재 연동
  * </p>
  */
 @Service

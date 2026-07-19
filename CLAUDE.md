@@ -45,7 +45,9 @@
 - Repository는 DB 예외를 임의 변환하지 않고 상위 계층으로 전파합니다.
 - 조회 서비스는 `@Transactional(readOnly = true)`, 쓰기는 `@Transactional`을 사용합니다.
 - Dirty Checking이 가능한 변경에 불필요한 `save()`를 호출하지 않습니다.
-- 공통코드 변경 시 관련 캐시를 함께 무효화합니다.
+- Spring Cache는 `CacheConfig`에 이름·TTL·최대 크기를 등록한 Caffeine 캐시를 사용하고, 기본 `CacheManager`는 `TransactionAwareCacheManagerProxy`를 유지하여 캐시 쓰기·무효화가 트랜잭션 커밋 이후 반영되도록 합니다.
+- `@Cacheable` 원본을 변경하는 모든 쓰기 경로에는 영향 범위에 맞는 `@CacheEvict`를 적용합니다. 단일 키 변경은 같은 키를 제거하고 여러 키에 영향을 주면 `allEntries = true`를 사용합니다. TTL은 외부 변경이나 무효화 누락에 대한 안전망이며 정합성 보장의 주 수단으로 사용하지 않습니다.
+- `@Cacheable`은 Spring 프록시를 통해 호출합니다. 같은 빈 내부 호출이 필요하면 캐시 조회 책임을 별도 빈으로 분리합니다.
 
 Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/persistence/querydsl-and-oracle.md)를 확인합니다.
 
@@ -53,8 +55,10 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 
 - 브라우저 인증은 httpOnly 쿠키 기반 Stateless JWT를 기본으로 합니다. Bearer 헤더 폴백은 `app.auth.allow-bearer-header`가 명시적으로 활성화된 개발·API 테스트 환경에서만 허용합니다.
 - Access Token은 `Path=/`와 15분, Refresh Token은 `Path=/api/auth`와 7일 범위를 유지하며 두 쿠키 모두 SameSite=Lax를 적용합니다.
-- Refresh Token은 사용자별 단일 패밀리로 관리합니다. DB에는 원문을 저장하지 않고 `ECY_RNW_PUB_TOK_CONE`에 소문자 SHA-256 HEX 조회값만 저장합니다. 갱신 시 DB 쓰기 잠금 아래 토큰을 회전하고, 동시 갱신 유예 기간 이후 회전 토큰이 재사용되면 해당 사용자의 Refresh Token을 모두 폐기합니다.
-- `prod` 프로파일은 `sso.mock-enabled=true`, `app.auth.allow-bearer-header=true`, `app.cookie.secure=false` 중 하나라도 감지하면 기동을 차단합니다. SSO 인증 성공 시 기존 세션 ID를 교체합니다.
+- Refresh Token은 사용자별 단일 패밀리로 관리하고 원문 대신 `ECY_RNW_PUB_TOK_CONE`에 소문자 SHA-256 HEX 조회값을 저장합니다. 갱신은 DB 쓰기 잠금 아래 구 토큰을 회전 상태로 남기고 같은 패밀리에 신규 토큰을 발급합니다. 회전 토큰 재사용 시 재로그인을 요구하며, 패밀리 DB 폐기는 삭제 트랜잭션이 실제 커밋되는 구현에서만 보장합니다.
+- `EnvironmentValidator`는 전 프로파일에서 DB 비밀번호와 JWT 시크릿의 빈값을 차단합니다. `prod`에서는 Gemini 키, 활성 EAI URL, 비어 있거나 와일드카드인 CORS Origin, 빈 프론트 URL을 차단하고 SSO 직접 사번, 개발 사용자 전환, 모의 SSO, Bearer 폴백을 비활성화하며 보안 쿠키를 강제합니다. SSO 인증 성공 시 기존 세션 ID를 교체합니다.
+- 매 요청의 권한·부서 범위는 Access Token의 `athIds`·`bbrC` 클레임 스냅샷으로 구성하며 DB를 재조회하지 않습니다. 최신 자격등급과 부서는 로그인·SSO 발급 및 Refresh 시 다시 조회해 새 Access Token에 반영합니다.
+- Access 경로는 `tokenUse=access`를 검증하면서 용도 클레임이 없는 기존 Access Token을 만료까지 한시 허용하고, Refresh 경로는 `tokenUse=refresh`를 필수로 하여 레거시 토큰을 거부합니다.
 - 프론트 라우트 가드와 메뉴 숨김은 UX 보조이며 서버가 최종 보안 경계입니다.
 - 관리자 전용 컨트롤러는 클래스 수준 `@PreAuthorize("hasRole('ADMIN')")`를 적용합니다.
 - 관리자 전용이 아닌 업무 컨트롤러는 서비스 계층에서 소유자·역할·업무 범위를 검증합니다.
@@ -65,6 +69,7 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 클라이언트 IP는 신뢰 프록시에서 온 경우에만 `X-Forwarded-For`를 사용합니다.
 - `it-portal-user`의 사번·역할·부서 값은 변조 가능한 UX 상태로만 취급하고, API 권한과 데이터 범위는 JWT 기반 서버 검증으로 결정합니다.
 - SSO JWT 발급은 외부 토큰 검증 결과를 서버 세션에 저장한 뒤 1회 소비하는 흐름으로 수행합니다. 직접 사번 전달은 운영에서 금지하고, 복귀 Origin은 CORS 허용 목록, 복귀 경로는 같은 사이트 상대 경로로 제한합니다.
+- `/sso/**`는 외부 ESSO의 전체 페이지 콜백 전용으로 Origin 패턴과 GET·POST·OPTIONS를 열되 `allowCredentials=false`를 유지합니다. 이 예외를 `/api/**` 또는 쿠키 자격증명을 사용하는 XHR 경로로 확대하지 않습니다.
 
 세부 정책은 [인증·인가 가이드](docs/guides/security/authentication-authorization.md), 데이터 범위는 [데이터 접근 범위 가이드](docs/guides/security/data-scope.md), 파일은 [파일 보안 가이드](docs/guides/security/file-security.md)를 따릅니다.
 
@@ -81,7 +86,7 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 원 트랜잭션과 반드시 함께 성공해야 하는 상태 동기화는 동기 `@EventListener`를 사용합니다.
 - 알림·메일처럼 실패가 원 업무를 롤백하면 안 되는 부수효과는 `@TransactionalEventListener(AFTER_COMMIT)`를 사용합니다.
 - AFTER_COMMIT 이후 outbox 적재와 채널 발송은 각각 `REQUIRES_NEW` 독립 트랜잭션으로 처리합니다. 적재 실패는 원 업무를 롤백하지 않으며 `notification.persist.failure` 메트릭으로 탐지합니다.
-- `CINFMM` 발송 상태는 `01=PENDING`, `02=SENT`, `03=FAILED`이고, 재시도는 기본 60초 주기·최대 50건·건별 최대 5회입니다.
+- 알림 발송 상태는 `Cinfmm.DISPATCH_*` 상수를 사용하고, 재시도 주기·배치 크기·최대 횟수는 `notification.retry.*` 설정으로 관리합니다. 서비스나 스케줄러에 별도 값을 중복 하드코딩하지 않습니다.
 - 알림 종류와 채널은 `NotificationEvent.TYPE_*`, `NotificationDispatcherRouter.CHANNEL_*` 상수를 사용합니다.
 - EAI 실패는 `EaiResult`로 표현하고 원 업무를 실패시키지 않으며 민감정보를 평문 로깅하지 않습니다. GWE의 `IF_ID`는 `eai.gwe.if-id`만 사용합니다.
 - 외부 JSON 응답은 Jackson 버전 특정 `JsonNode`보다 전용 DTO 또는 `Map<String, Object>`로 받습니다.

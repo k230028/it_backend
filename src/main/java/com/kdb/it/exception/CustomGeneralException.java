@@ -9,8 +9,7 @@ package com.kdb.it.exception;
  * <p>사용 범위: 서비스/컨트롤러 전반에서 비즈니스 예외 발생 시 사용 (UserController, GuideDocService, CodeService 등).</p>
  * <p>HTTP 400으로 변환됩니다 (GlobalExceptionHandler @ControllerAdvice 처리).</p>
  *
- * <p>향후 전역 예외 핸들러({@code @ControllerAdvice})와 연계하여
- * 표준화된 에러 응답 형식으로 변환할 수 있습니다.</p>
+ * <p>{@code GlobalExceptionHandler}가 이 예외를 HTTP 400 표준 오류 응답으로 변환합니다.</p>
  */
 public class CustomGeneralException extends RuntimeException {
 

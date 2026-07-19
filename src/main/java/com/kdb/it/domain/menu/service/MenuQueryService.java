@@ -50,7 +50,11 @@ public class MenuQueryService {
         return tree;
     }
 
-    /** 관리화면용: 숨김/권한/빈 그룹 무관하게 전체 트리. 편집 폼 체크박스용으로 노드별 권한ID를 함께 싣는다. */
+    /**
+     * 관리화면용 전체 메뉴 트리를 조회합니다.
+     *
+     * @return 숨김·권한·빈 그룹을 제거하지 않고 노드별 권한ID를 포함한 전체 트리
+     */
     public List<MenuDto.Node> getAdminMenuTree() {
         List<MenuDto.Node> tree = buildTree(cmenumRepository.findAllActive(), null);
         applyAthIds(tree, menuAuthMapProvider.getMenuAuthMap());
@@ -67,7 +71,7 @@ public class MenuQueryService {
         }
     }
 
-    // ---- helpers ----
+    // ---- 내부 헬퍼 ----
 
     /** 매핑 0건이면 전체 공개, 1건 이상이면 교집합 필요. */
     private boolean isAllowed(String mnuId, Map<String, Set<String>> athByMenu, Set<String> userAths) {

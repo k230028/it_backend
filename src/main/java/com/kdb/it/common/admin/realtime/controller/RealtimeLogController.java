@@ -33,10 +33,10 @@ public class RealtimeLogController {
     /**
      * 통합 실시간 로그 스냅샷을 반환한다.
      *
-     * @param since         이 시각 이후 로그만 조회. null이면 최신 200건.
+     * @param since         이 시각 이후 로그만 조회. null이면 현재 필터 기준 최신 로그를 조회.
      * @param cursorLogTbl  복합 커서의 LOG_TBL. since와 함께 사용.
      * @param cursorLogSno  복합 커서의 LOG_HIS_TGR_SNO. since와 함께 사용.
-     * @param limit         최대 200.
+     * @param limit         조회 상한. 생략하면 200이며 서비스에서 최대 200으로 제한.
      * @param tables        쉼표로 구분된 허용 LOG_KEY 목록.
      * @param chgTypes      쉼표로 구분된 C/U/D 부분집합.
      */

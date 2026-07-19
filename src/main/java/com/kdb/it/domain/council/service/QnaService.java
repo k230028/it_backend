@@ -27,7 +27,7 @@ import java.util.List;
  * <p>QTN_ID 형식: {@code QTN-{asctId}-{2자리순번}}
  * (예: QTN-ASCT-2026-0001-01)</p>
  *
- * <p>Design Ref: §2.5 API 설계 — QnA 엔드포인트</p>
+ * <p>설계 참조: §2.5 API 설계 — 질의응답 엔드포인트</p>
  */
 @Service
 @RequiredArgsConstructor
