@@ -1,6 +1,7 @@
 package com.kdb.it.common.system.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
@@ -48,6 +49,15 @@ import java.util.UUID;
 public class JwtUtil {
 
     private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
+
+    /** 토큰 용도를 담는 클레임 키. 스펙 논리명 {@code typ} 대신 애플리케이션 전용 키를 사용한다. */
+    public static final String TOKEN_USE_CLAIM = "tokenUse";
+
+    /** Access Token 용도 값 (인증 경로에서만 허용) */
+    public static final String TOKEN_USE_ACCESS = "access";
+
+    /** Refresh Token 용도 값 (갱신 경로에서만 허용) */
+    public static final String TOKEN_USE_REFRESH = "refresh";
 
     /**
      * HMAC-SHA256 서명에 사용할 비밀키
@@ -117,6 +127,7 @@ public class JwtUtil {
 
         return Jwts.builder()
                 .subject(eno)                          // sub 클레임: 사번
+                .claim(TOKEN_USE_CLAIM, TOKEN_USE_ACCESS) // 용도 클레임: access (인증 경로 전용)
                 .claim("athIds", effectiveAthIds)      // 자격등급 목록 클레임 (JSON 배열)
                 .claim("bbrC",   bbrC)                 // 소속 부서코드 클레임
                 .issuedAt(now)                         // iat 클레임: 발급 시각
@@ -153,6 +164,7 @@ public class JwtUtil {
 
         return Jwts.builder()
                 .subject(eno)
+                .claim(TOKEN_USE_CLAIM, TOKEN_USE_REFRESH) // 용도 클레임: refresh (갱신 경로 전용)
                 .id(UUID.randomUUID().toString()) // jti: 같은 초 발급 충돌 방지용 발급별 고유값
                 .issuedAt(now)
                 .expiration(expiryDate)
@@ -277,6 +289,63 @@ public class JwtUtil {
             log.error("JWT 토큰 검증 실패 - 알 수 없는 오류: {}", e.getMessage(), e);
         }
         return false; // 예외 발생 시 유효하지 않은 토큰으로 처리
+    }
+
+    /**
+     * JWT 토큰의 용도({@code tokenUse}) 클레임 조회
+     *
+     * <p>
+     * 진단·테스트 용도의 조회 메서드입니다. 보안 결정(인증·갱신 허용 여부)은 반드시
+     * {@link #validateToken(String, String, boolean)}로 수행하고 이 메서드에 의존하지 않습니다.
+     * </p>
+     *
+     * @param token JWT 토큰 문자열
+     * @return {@code tokenUse} 클레임이 문자열이면 그 값, 없거나 문자열이 아니면 {@code null}
+     * @throws io.jsonwebtoken.JwtException 서명·형식·만료 검증에 실패한 경우
+     */
+    public String getTokenUse(String token) {
+        Object value = getClaims(token).get(TOKEN_USE_CLAIM);
+        return value instanceof String tokenUse ? tokenUse : null;
+    }
+
+    /**
+     * 서명·만료·용도를 한 계약으로 검증하는 JWT 유효성 검증
+     *
+     * <p>
+     * 서명과 만료를 검증한 뒤 {@code tokenUse} 클레임이 기대 용도와 일치하는지 확인합니다.
+     * Claims는 한 번만 파싱하며, 숫자·배열 등 비문자 값이 {@code null} 조회와 혼동되어
+     * 허용되지 않도록 원본 {@code Object}를 직접 검사합니다.
+     * </p>
+     *
+     * <ul>
+     * <li>{@code tokenUse}가 없는 경우: {@code allowLegacy} 값을 그대로 반환(배포 전 레거시 토큰 한시 허용).</li>
+     * <li>{@code tokenUse}가 문자열이면서 기대 용도와 같을 때만 {@code true}.</li>
+     * <li>문자열이 아닌 값(숫자·배열 등)이나 다른 문자열은 모두 {@code false}.</li>
+     * <li>서명·형식·만료 검증 실패는 토큰 본문 없이 경고 로그 후 {@code false}.</li>
+     * </ul>
+     *
+     * @param token       검증할 JWT 토큰 문자열
+     * @param expectedUse 기대 용도 ({@link #TOKEN_USE_ACCESS} 또는 {@link #TOKEN_USE_REFRESH})
+     * @param allowLegacy {@code tokenUse}가 없는 레거시 토큰을 허용할지 여부
+     * @return 검증을 통과하면 {@code true}, 아니면 {@code false}
+     * @throws IllegalArgumentException {@code expectedUse}가 access/refresh가 아닌 경우
+     */
+    public boolean validateToken(String token, String expectedUse, boolean allowLegacy) {
+        if (!TOKEN_USE_ACCESS.equals(expectedUse) && !TOKEN_USE_REFRESH.equals(expectedUse)) {
+            throw new IllegalArgumentException("지원하지 않는 JWT 기대 용도입니다: " + expectedUse);
+        }
+        try {
+            Claims claims = getClaims(token);
+            Object value = claims.get(TOKEN_USE_CLAIM);
+            if (value == null) {
+                return allowLegacy; // 용도 클레임이 없는 배포 전 레거시 토큰
+            }
+            return value instanceof String tokenUse && expectedUse.equals(tokenUse);
+        } catch (JwtException | IllegalArgumentException exception) {
+            // 잘못된 서명·형식·만료·빈 토큰. 토큰 본문은 남기지 않고 메시지만 기록한다.
+            log.warn("JWT 서명·만료·용도 검증에 실패했습니다: {}", exception.getMessage());
+            return false;
+        }
     }
 
 }
