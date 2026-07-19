@@ -228,6 +228,25 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).containsEntry("message", "서버 내부 오류가 발생했습니다.");
     }
 
+    /**
+     * InvalidRefreshTokenException 이 advice 까지 전파되면 401 Unauthorized 와
+     * 재로그인 안내 메시지를 반환해야 합니다. {@code /api/auth/refresh}는 컨트롤러 helper 에서
+     * 쿠키까지 삭제하지만, 쿠키를 다룰 수 없는 비-인증 컨트롤러를 위한 방어선입니다.
+     */
+    @Test
+    @DisplayName("handleInvalidRefreshToken - 잘못된 Refresh 토큰 예외 시 401 + 재로그인 안내 반환")
+    void handleInvalidRefreshToken_잘못된리프레시토큰_401반환() {
+        // Arrange
+        InvalidRefreshTokenException ex = new InvalidRefreshTokenException();
+
+        // Act
+        ResponseEntity<String> response = handler.handleInvalidRefreshToken(ex);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getBody()).isEqualTo("다시 로그인해 주세요.");
+    }
+
     /** 오류 응답은 timestamp, status, message 세 필드를 모두 포함해야 합니다. */
     @Test
     @DisplayName("buildErrorResponse - 오류 응답에 timestamp/status/message 필드가 모두 포함되어야 함")

@@ -1,5 +1,6 @@
 package com.kdb.it.common.system.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -20,12 +21,14 @@ import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.exception.InvalidRefreshTokenException;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -33,6 +36,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import java.util.List;
 
 import jakarta.servlet.http.Cookie;
 
@@ -139,10 +145,18 @@ class AuthControllerTest {
         }
 
         @Test
-        @DisplayName("POST /api/auth/refresh - Refresh Token 쿠키 없으면 401 반환")
-        void refresh_쿠키없음_401반환() throws Exception {
-                mockMvc.perform(post("/api/auth/refresh"))
-                                .andExpect(status().isUnauthorized());
+        @DisplayName("POST /api/auth/refresh - Refresh Token 쿠키 없으면 401 + Access·Refresh 삭제 쿠키 2개")
+        void refresh_쿠키없음_401및쿠키삭제() throws Exception {
+                // given — helper가 두 삭제 쿠키를 조회하므로 스텁 필요
+                stubDeleteCookies();
+
+                // when & then
+                MvcResult result = mockMvc.perform(post("/api/auth/refresh"))
+                                .andExpect(status().isUnauthorized())
+                                .andExpect(content().string("다시 로그인해 주세요."))
+                                .andReturn();
+
+                assertBothDeleteCookies(result);
         }
 
         @Test
@@ -310,13 +324,37 @@ class AuthControllerTest {
         // -----------------------------------------------------------------------
 
         @Test
-        @DisplayName("POST /api/auth/refresh - 쿠키는 있지만 refreshToken 이름이 아닌 경우 401 반환")
-        void refresh_쿠키이름불일치_401반환() throws Exception {
+        @DisplayName("POST /api/auth/refresh - 쿠키는 있지만 refreshToken 이름이 아닌 경우 401 + 삭제 쿠키 2개")
+        void refresh_쿠키이름불일치_401및쿠키삭제() throws Exception {
                 // given — 다른 이름의 쿠키만 존재 → extractCookieValue 루프에서 이름 불일치 후 null 반환
-                // 즉 cookies != null, but no cookie named "refreshToken" → 401 분기 도달
-                mockMvc.perform(post("/api/auth/refresh")
+                // 즉 cookies != null, but no cookie named "refreshToken" → helper(401 + 쿠키 삭제) 분기 도달
+                stubDeleteCookies();
+
+                MvcResult result = mockMvc.perform(post("/api/auth/refresh")
                                 .cookie(new Cookie("otherCookie", "some-value")))
-                                .andExpect(status().isUnauthorized());
+                                .andExpect(status().isUnauthorized())
+                                .andExpect(content().string("다시 로그인해 주세요."))
+                                .andReturn();
+
+                assertBothDeleteCookies(result);
+        }
+
+        @Test
+        @DisplayName("POST /api/auth/refresh - 서비스가 InvalidRefreshTokenException 발생 시 401 + 삭제 쿠키 2개 + 재로그인 안내")
+        void refresh_서비스예외_401및쿠키삭제() throws Exception {
+                // given — 서비스가 잘못된 Refresh 토큰 전용 예외를 던지는 경우
+                stubDeleteCookies();
+                given(authService.refreshAccessToken("invalid-refresh-token"))
+                                .willThrow(new InvalidRefreshTokenException());
+
+                // when & then — 컨트롤러 helper가 401 + Access·Refresh 쿠키 삭제로 변환
+                MvcResult result = mockMvc.perform(post("/api/auth/refresh")
+                                .cookie(new Cookie(CookieUtil.REFRESH_TOKEN_COOKIE, "invalid-refresh-token")))
+                                .andExpect(status().isUnauthorized())
+                                .andExpect(content().string("다시 로그인해 주세요."))
+                                .andReturn();
+
+                assertBothDeleteCookies(result);
         }
 
         // -----------------------------------------------------------------------
@@ -375,6 +413,41 @@ class AuthControllerTest {
 
                 // authService.logout 이 인증 사용자(20001)에 대해 호출되었는지 검증
                 verify(authService).logout(eq("20001"), eq("198.51.100.2"), eq("TestAgent"));
+        }
+
+        /**
+         * 삭제용 Access·Refresh 쿠키 스텁을 운영 CookieUtil과 동일 속성으로 준비합니다.
+         * (Max-Age=0, HttpOnly, Access=Path "/", Refresh=Path "/api/auth", SameSite=Lax)
+         */
+        private void stubDeleteCookies() {
+                ResponseCookie deleteAccess = ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "")
+                                .httpOnly(true).path("/").maxAge(0).sameSite("Lax").build();
+                ResponseCookie deleteRefresh = ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "")
+                                .httpOnly(true).path("/api/auth").maxAge(0).sameSite("Lax").build();
+                given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
+                given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
+        }
+
+        /**
+         * 응답의 Set-Cookie 헤더가 Access·Refresh 삭제 쿠키 정확히 2개인지 검증합니다.
+         * 각 쿠키는 이름뿐 아니라 Max-Age=0, HttpOnly, 그리고 생성 쿠키와 동일한 Path를 가져야 합니다.
+         * (Access=Path "/", Refresh=Path "/api/auth")
+         */
+        private void assertBothDeleteCookies(MvcResult result) {
+                List<String> setCookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
+                assertThat(setCookies).hasSize(2);
+                // Access 삭제 쿠키: 이름 accessToken, Path=/, Max-Age=0, HttpOnly
+                assertThat(setCookies).anySatisfy(cookie -> assertThat(cookie)
+                                .contains(CookieUtil.ACCESS_TOKEN_COOKIE + "=")
+                                .contains("Path=/;")
+                                .contains("Max-Age=0")
+                                .contains("HttpOnly"));
+                // Refresh 삭제 쿠키: 이름 refreshToken, Path=/api/auth, Max-Age=0, HttpOnly
+                assertThat(setCookies).anySatisfy(cookie -> assertThat(cookie)
+                                .contains(CookieUtil.REFRESH_TOKEN_COOKIE + "=")
+                                .contains("Path=/api/auth")
+                                .contains("Max-Age=0")
+                                .contains("HttpOnly"));
         }
 
         private void stubLoginResponseAndCookies() {
