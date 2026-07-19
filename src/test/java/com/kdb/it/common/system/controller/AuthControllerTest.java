@@ -287,6 +287,32 @@ class AuthControllerTest {
                 verify(authService, never()).logout(anyString(), anyString(), anyString());
         }
 
+        @Test
+        @DisplayName("POST /api/auth/logout - Access 인증이 없어도 Refresh 쿠키로 패밀리를 폐기한다")
+        void logout_Access만료_Refresh쿠키로폐기() throws Exception {
+                SecurityContextHolder.clearContext();
+                ResponseCookie deleteAccess = ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "")
+                                .maxAge(0).path("/").build();
+                ResponseCookie deleteRefresh = ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "")
+                                .maxAge(0).path("/api/auth").build();
+                given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
+                given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
+
+                mockMvc.perform(post("/api/auth/logout")
+                                .cookie(new Cookie(CookieUtil.REFRESH_TOKEN_COOKIE, "refresh-token"))
+                                .header("User-Agent", "TestAgent")
+                                .with(request -> {
+                                        request.setRemoteAddr("198.51.100.3");
+                                        return request;
+                                }))
+                                .andExpect(status().isOk())
+                                .andExpect(content().string("로그아웃 성공"));
+
+                verify(authService).logoutByRefreshToken(
+                                eq("refresh-token"), org.mockito.ArgumentMatchers.isNull(),
+                                eq("198.51.100.3"), eq("TestAgent"));
+        }
+
         // -----------------------------------------------------------------------
         // refresh — Refresh Token 회전 분기 (response.getRefreshToken() != null)
         // -----------------------------------------------------------------------

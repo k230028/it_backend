@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.validation.Valid;
@@ -248,16 +249,20 @@ public class AuthController {
     @PostMapping("/logout")
     @Operation(summary = "로그아웃", description = "쿠키의 JWT 토큰을 삭제하고 Refresh Token을 무효화합니다.")
     public ResponseEntity<String> logout(HttpServletRequest httpRequest) {
-        // SecurityContextHolder에서 현재 인증된 사용자 정보 조회
+        String refreshToken = extractCookieValue(httpRequest, CookieUtil.REFRESH_TOKEN_COOKIE);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            // JWT에서 추출된 사번
-            String eno = authentication.getName();
-            String ipAddress = getClientIp(httpRequest);
-            String userAgent = httpRequest.getHeader("User-Agent");
+        String authenticatedEno = authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken)
+                ? authentication.getName()
+                : null;
+        String ipAddress = getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
 
-            // Refresh Token 삭제 및 로그아웃 이력 기록
-            authService.logout(eno, ipAddress, userAgent);
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            authService.logoutByRefreshToken(refreshToken, authenticatedEno, ipAddress, userAgent);
+        } else if (authenticatedEno != null) {
+            authService.logout(authenticatedEno, ipAddress, userAgent);
         }
 
         // Access Token, Refresh Token 쿠키를 즉시 만료시켜 삭제

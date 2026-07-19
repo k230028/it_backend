@@ -322,6 +322,41 @@ public class AuthService {
     }
 
     /**
+     * Refresh 쿠키의 SHA-256 조회값으로 토큰 소유자 패밀리를 폐기합니다.
+     *
+     * <p>Access Token이 만료되어 SecurityContext가 비어 있어도 Refresh 쿠키가 유효하면
+     * 서버 토큰 패밀리를 삭제합니다. Access 사용자와 Refresh 소유자가 다르면 두 사용자의
+     * 패밀리를 모두 폐기하며, 토큰 값과 사번은 로그에 남기지 않습니다.</p>
+     *
+     * @param refreshTokenValue Refresh 쿠키 원문
+     * @param authenticatedEno  Access Token 인증 사번, 인증 정보가 없으면 {@code null}
+     * @param ipAddress         클라이언트 IP 주소
+     * @param userAgent         클라이언트 User-Agent
+     */
+    @Transactional
+    public void logoutByRefreshToken(String refreshTokenValue, String authenticatedEno,
+            String ipAddress, String userAgent) {
+        Crtokm stored = refreshTokenValue == null || refreshTokenValue.isBlank()
+                ? null
+                : refreshTokenRepository
+                        .findByEcyRnwPubTokCone(sha256HexForToken(refreshTokenValue))
+                        .orElse(null);
+        String tokenEno = stored == null ? null : stored.getEno();
+        if (tokenEno != null) {
+            refreshTokenRepository.deleteByEno(tokenEno);
+        }
+        if (authenticatedEno != null && !authenticatedEno.isBlank()
+                && !authenticatedEno.equals(tokenEno)) {
+            log.warn("로그아웃 Access/Refresh 사용자 불일치 — 두 토큰 패밀리를 폐기합니다.");
+            refreshTokenRepository.deleteByEno(authenticatedEno);
+        }
+        String historyEno = tokenEno != null ? tokenEno : authenticatedEno;
+        if (historyEno != null && !historyEno.isBlank()) {
+            recordLogout(historyEno, ipAddress, userAgent);
+        }
+    }
+
+    /**
      * 개발 편의용 사용자 전환 토큰 발급
      *
      * <p>

@@ -450,6 +450,40 @@ class AuthServiceTest {
         }
 
         @Test
+        @DisplayName("logoutByRefreshToken - 쿠키 해시로 토큰 소유자 패밀리를 폐기한다")
+        void logoutByRefreshToken_해시조회_패밀리폐기() {
+                String raw = "refresh-token";
+                Crtokm stored = Crtokm.builder()
+                                .eno("10001").famNm("FAM-1").avlYn("Y")
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(raw))
+                                .endDtm(LocalDateTime.now().plusDays(1)).build();
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(raw)))
+                                .willReturn(Optional.of(stored));
+
+                authService.logoutByRefreshToken(raw, null, "127.0.0.1", "Agent");
+
+                verify(refreshTokenRepository).deleteByEno("10001");
+                verify(loginHistoryRepository).save(any(Clognh.class));
+        }
+
+        @Test
+        @DisplayName("logoutByRefreshToken - Access 사용자와 쿠키 소유자가 다르면 두 패밀리를 폐기한다")
+        void logoutByRefreshToken_사용자불일치_두패밀리폐기() {
+                String raw = "refresh-token";
+                Crtokm stored = Crtokm.builder()
+                                .eno("10001").famNm("FAM-1").avlYn("Y")
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(raw))
+                                .endDtm(LocalDateTime.now().plusDays(1)).build();
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(raw)))
+                                .willReturn(Optional.of(stored));
+
+                authService.logoutByRefreshToken(raw, "20002", "127.0.0.1", "Agent");
+
+                verify(refreshTokenRepository).deleteByEno("10001");
+                verify(refreshTokenRepository).deleteByEno("20002");
+        }
+
+        @Test
         @DisplayName("getUserName - 사용자가 있으면 이름을 반환하고 없으면 Unknown을 반환한다")
         void getUserName_사용자존재여부에따라반환() {
                 given(userRepository.findByEno("10001"))
