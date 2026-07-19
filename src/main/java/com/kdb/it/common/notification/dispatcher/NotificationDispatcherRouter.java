@@ -33,22 +33,20 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
     private final GweProperties gweProperties;
 
     @Override
-    public void dispatch(Cinfmm notification, String sdPayload) {
+    public NotificationDispatchResult dispatch(Cinfmm notification, String sdPayload) {
         String channel = StringUtils.hasText(notification.getSdTc()) ? notification.getSdTc() : CHANNEL_INAPP;
         if (CHANNEL_INAPP.equals(channel)) {
-            markDispatched(notification, CHANNEL_INAPP, sdPayload);
-            return;
+            return NotificationDispatchResult.sent();
         }
         if (CHANNEL_EAI_GWE.equals(channel)) {
-            dispatchGwe(notification, sdPayload);
-            return;
+            return dispatchGwe(notification);
         }
         log.warn("지원하지 않는 알림 발송 채널입니다. 인앱으로 처리합니다: infmMsgNo={}, sdTc={}",
                 notification.getInfmMsgNo(), channel);
-        markDispatched(notification, CHANNEL_INAPP, sdPayload);
+        return NotificationDispatchResult.sent();
     }
 
-    private void dispatchGwe(Cinfmm notification, String sdPayload) {
+    private NotificationDispatchResult dispatchGwe(Cinfmm notification) {
         try {
             EaiResult result = eaiService.sendEai(EaiRequest.gwe(gweProperties.ifId(), GwePayload.builder()
                     .msgGubun("1")
@@ -59,23 +57,14 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
                     .sendId("systemalert")
                     .sendName("IT Portal")
                     .build()));
-            if (!result.success() && !result.skipped()) {
-                log.warn("EAI 알림 발송 실패 — 원 알림 처리는 유지합니다. infmMsgNo={}, 사유={}",
-                        notification.getInfmMsgNo(), result.errorMessage());
+            if (result.success() || result.skipped()) {
+                return NotificationDispatchResult.sent();
             }
+            return NotificationDispatchResult.failure(result.errorMessage());
         } catch (RuntimeException ex) {
-            log.warn("EAI 알림 발송 예외 — 원 알림 처리는 유지합니다. infmMsgNo={}",
+            log.warn("EAI 알림 발송 예외: infmMsgNo={}",
                     notification.getInfmMsgNo(), ex);
-        } finally {
-            markDispatched(notification, CHANNEL_EAI_GWE, sdPayload);
-        }
-    }
-
-    private void markDispatched(Cinfmm notification, String channel, String sdPayload) {
-        try {
-            notification.markDispatched(channel, sdPayload);
-        } catch (RuntimeException ex) {
-            log.warn("알림 발송 메타 기록 실패: infmMsgNo={}", notification.getInfmMsgNo(), ex);
+            return NotificationDispatchResult.failure(ex.getMessage());
         }
     }
 

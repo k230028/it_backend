@@ -1,7 +1,6 @@
 package com.kdb.it.common.notification.dispatcher;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,16 +28,16 @@ class NotificationDispatcherRouterTest {
     private EaiService eaiService;
 
     @Test
-    @DisplayName("sdTc가 없으면 기존 인앱 채널로 발송 메타를 기록하고 EAI를 호출하지 않는다")
-    void dispatch_nullChannel_marksInAppOnly() {
+    @DisplayName("sdTc가 없으면 인앱 성공 결과를 반환하고 EAI를 호출하지 않는다")
+    void dispatch_nullChannel_returnsSent() {
         NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES);
         Cinfmm notification = notification(null);
 
-        router.dispatch(notification, "{\"id\":1}");
+        NotificationDispatchResult result = router.dispatch(notification, "{\"id\":1}");
 
-        assertThat(notification.getSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_INAPP);
-        assertThat(notification.getSdDocCone()).isEqualTo("{\"id\":1}");
-        assertThat(notification.getSdDtm()).isNotNull();
+        assertThat(result.success()).isTrue();
+        assertThat(notification.getSdTc()).isNull();
+        assertThat(notification.getSdDtm()).isNull();
         verify(eaiService, never()).sendEai(any());
     }
 
@@ -49,8 +48,9 @@ class NotificationDispatcherRouterTest {
         Cinfmm notification = notification(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
         when(eaiService.sendEai(any())).thenReturn(EaiResult.success("OK"));
 
-        router.dispatch(notification, null);
+        NotificationDispatchResult result = router.dispatch(notification, null);
 
+        assertThat(result.success()).isTrue();
         ArgumentCaptor<EaiRequest> captor = ArgumentCaptor.forClass(EaiRequest.class);
         verify(eaiService).sendEai(captor.capture());
         assertThat(captor.getValue().ifId()).isEqualTo(GWE_PROPERTIES.ifId());
@@ -59,7 +59,7 @@ class NotificationDispatcherRouterTest {
         assertThat(payload.recvIds()).isEqualTo("E0001");
         assertThat(payload.subject()).isEqualTo("알림 제목");
         assertThat(notification.getSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
-        assertThat(notification.getSdDtm()).isNotNull();
+        assertThat(notification.getSdDtm()).isNull();
     }
 
     @Test
@@ -69,10 +69,12 @@ class NotificationDispatcherRouterTest {
         Cinfmm notification = notification(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
         when(eaiService.sendEai(any())).thenReturn(EaiResult.failure("장애"));
 
-        assertThatCode(() -> router.dispatch(notification, "payload")).doesNotThrowAnyException();
+        NotificationDispatchResult result = router.dispatch(notification, "payload");
 
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).isEqualTo("장애");
         assertThat(notification.getSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
-        assertThat(notification.getSdDocCone()).isEqualTo("payload");
+        assertThat(notification.getSdDtm()).isNull();
     }
 
     private Cinfmm notification(String sdTc) {

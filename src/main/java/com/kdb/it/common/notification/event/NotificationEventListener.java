@@ -4,8 +4,10 @@ import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
-import com.kdb.it.common.notification.service.NotificationService;
+import com.kdb.it.common.notification.service.NotificationDispatchService;
+import com.kdb.it.common.notification.service.NotificationOutboxService;
 import com.kdb.it.common.notification.util.NotificationMessageFormatter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -32,20 +34,17 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class NotificationEventListener {
 
-    private final NotificationService notificationService;
+    private final NotificationOutboxService outboxService;
+    private final NotificationDispatchService dispatchService;
     private final ApplicationRepository applicationRepository;
+    private final MeterRegistry meterRegistry;
 
     /**
      * 일반 알림 이벤트 처리. 발행자 트랜잭션 커밋 이후 동기 콜백으로 발송한다.
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onNotificationEvent(NotificationEvent event) {
-        try {
-            notificationService.send(event);
-        } catch (Exception ex) {
-            log.warn("Notification send failed: recipient={}, svcTc={}",
-                event.recipientEno(), event.infmSvcTc(), ex);
-        }
+        enqueueAndDispatch(event);
     }
 
     /**
@@ -64,7 +63,7 @@ public class NotificationEventListener {
             // getDcdReqTtl()이 null이면 빈 문자열로 대체 — 결재제목 미기재 건 방어
             String title = "결재 " + event.newStatus() + ": " + safe(capplm.getDcdReqTtl());
             String body  = "신청서가 " + event.newStatus() + " 처리되었습니다.";
-            notificationService.send(
+            enqueueAndDispatch(
                 NotificationEvent.builder()
                     .recipientEno(capplm.getDcdReqUsid())
                     .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RESULT)
@@ -99,7 +98,7 @@ public class NotificationEventListener {
 
             // 신청자 알림 (회수자가 신청자 본인이 아닌 경우만)
             if (capplm.getDcdReqUsid() != null && !capplm.getDcdReqUsid().equals(event.recallerEno())) {
-                notificationService.send(
+                enqueueAndDispatch(
                     NotificationEvent.builder()
                         .recipientEno(capplm.getDcdReqUsid())
                         .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RECALLED)
@@ -114,7 +113,7 @@ public class NotificationEventListener {
             if (event.approvedMiddleApproverEnos() != null) {
                 for (String eno : event.approvedMiddleApproverEnos()) {
                     if (eno == null || eno.isBlank()) continue;
-                    notificationService.send(
+                    enqueueAndDispatch(
                         NotificationEvent.builder()
                             .recipientEno(eno)
                             .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RECALLED)
@@ -133,5 +132,29 @@ public class NotificationEventListener {
 
     private static String safe(String s) {
         return s == null ? "" : s;
+    }
+
+    private void enqueueAndDispatch(NotificationEvent event) {
+        String id;
+        try {
+            id = outboxService.enqueue(event);
+        } catch (Exception ex) {
+            meterRegistry.counter("notification.persist.failure", "type", safeType(event.infmSvcTc())).increment();
+            log.error("알림 outbox 적재 실패: svcTc={}", event.infmSvcTc(), ex);
+            return;
+        }
+        if (id == null) {
+            return;
+        }
+        try {
+            dispatchService.dispatch(id);
+        } catch (Exception ex) {
+            meterRegistry.counter("notification.dispatch.unexpected", "type", safeType(event.infmSvcTc())).increment();
+            log.error("알림 발송 처리 중 예상 밖 오류: infmMsgNo={}, svcTc={}", id, event.infmSvcTc(), ex);
+        }
+    }
+
+    private static String safeType(String type) {
+        return type == null || type.isBlank() ? "unknown" : type;
     }
 }
