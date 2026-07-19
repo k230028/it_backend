@@ -149,6 +149,10 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/auth/signup").hasRole("ADMIN")
                                                 // 정보기술부문계획 — 관리자 전용 (컨트롤러 실제 경로 /api/plans 와 정합)
                                                 .requestMatchers("/api/plans/**").hasRole("ADMIN")
+                                                // Actuator: health 는 공개(로드밸런서/모니터링 헬스체크),
+                                                // 나머지(metrics 등)는 관리자 전용 — 감사 실패 메트릭 보호 (ERR-06)
+                                                .requestMatchers("/actuator/health").permitAll()
+                                                .requestMatchers("/actuator/**").hasRole("ADMIN")
                                                 // 나머지는 인증 필요 (유효한 JWT 토큰 필수)
                                                 .anyRequest().authenticated())
                                 // 인증/접근 예외 처리 핸들러 설정
