@@ -74,8 +74,6 @@ class CostServiceTest {
     @Mock private XcrLookupService xcrLookupService;
     /** Phase 5 Task 5: CodeNameMapBuilder 추출 후 주입 */
     @Mock private com.kdb.it.common.util.CodeNameMapBuilder codeNameMapBuilder;
-    /** 작성자 소속 조직 해석기 (PRLM_HRK_OGZ_C_CONE 작성자 기준 주입) */
-    @Mock private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
     /** 조직코드→조직명 해석기 (주관부서명/주관팀명 스냅샷 주입) */
     @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
@@ -89,10 +87,6 @@ class CostServiceTest {
     void setupCodeNameMapperDefaults() {
         // codeNameMapBuilder.build()의 기본값: 빈 Map 반환 (호출자가 필요시 override)
         given(codeNameMapBuilder.build(any(), any())).willReturn(java.util.Map.of());
-        // 작성자 조직 스냅샷 기본값: 생성 경로 NPE 방지용 빈 스냅샷
-        org.mockito.Mockito.lenient()
-                .when(authorOrgResolver.resolveCurrent())
-                .thenReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());
         // 조직명 스냅샷 기본값: 미등록 코드로 간주해 null 반환 (기존 테스트 무영향)
         org.mockito.Mockito.lenient()
                 .when(orgNameResolver.resolveName(org.mockito.ArgumentMatchers.anyString()))
@@ -257,47 +251,50 @@ class CostServiceTest {
     }
 
     @Test
-    @DisplayName("createCost: 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE)을 작성자 소속 상위조직코드로 채운다")
-    void createCost_인사상위조직코드내용_작성자기준설정() {
-        // given: 최소 요청 + 작성자 조직 스냅샷
+    @DisplayName("createCost: 상위조직명(PRLM_HRK_OGZ_C_CONE)을 담당자(CUSERI) 소속 상위조직명으로 채운다")
+    void createCost_상위조직명_담당자기준설정() {
+        // given: 담당자(cgprId) 소속 CUSERI의 상위조직명 스냅샷 (getPrlmHrkOgzCNm은 파생 게터라 mock 사용)
         CostDto.CreateRequest request = CostDto.CreateRequest.builder()
                 .costBgNo(IT_MNGC_NO)
-                .cttNm("작성자 상위조직 계약")
+                .cttNm("담당자 상위조직 계약")
+                .cgprId("10003")
                 .build();
         given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
         given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
-        org.mockito.Mockito.lenient()
-                .when(authorOrgResolver.resolveCurrent())
-                .thenReturn(new com.kdb.it.common.iam.service.AuthorOrg("BBR001", "18010", "H001"));
+        CuserI manager = mock(CuserI.class);
+        given(manager.getPrlmHrkOgzCNm()).willReturn("경영지원본부");
+        given(cuserIRepository.findByEno("10003")).willReturn(Optional.of(manager));
 
         // when
         costService.createCost(request);
 
-        // then: 저장 엔티티에 작성자 인사상위조직코드내용이 반영된다 (작성자 기준)
+        // then: 저장 엔티티에 담당자 소속 상위조직명이 반영된다 (담당자 기준)
         ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
         verify(costRepository).save(captor.capture());
-        assertThat(captor.getValue().getPrlmHrkOgzCCone()).isEqualTo("H001");
+        assertThat(captor.getValue().getPrlmHrkOgzCCone()).isEqualTo("경영지원본부");
     }
 
     @Test
-    @DisplayName("전산업무비 생성 시 주관부서명/주관팀명을 CORGNI 스냅샷으로 저장한다")
+    @DisplayName("전산업무비 생성 시 주관부서명은 CORGNI, 주관팀명은 담당자(CUSERI) 스냅샷으로 저장한다")
     void createCost_storesSvnOrgNameSnapshot() {
-        // given: 기존 create 성공 테스트와 동일한 request/스텁 구성 + 담당부서/팀 코드와 조직명 스텁
+        // given: 담당부서코드→부서명은 CORGNI, 담당자(cgprId) 소속 팀명은 CUSERI에서 스냅샷
         CostDto.CreateRequest request = CostDto.CreateRequest.builder()
                 .costBgNo(IT_MNGC_NO)
                 .cttNm("조직명 스냅샷 계약")
                 .costSvnDpmC("BBR001")
                 .svnTemC("18010")
+                .cgprId("10003")
                 .build();
         given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
         given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
         given(orgNameResolver.resolveName("BBR001")).willReturn("담당부서명A");
-        given(orgNameResolver.resolveName("18010")).willReturn("담당팀명A");
+        given(cuserIRepository.findByEno("10003"))
+                .willReturn(Optional.of(CuserI.builder().eno("10003").temC("18010").temNm("담당팀명A").build()));
 
         // when
         costService.createCost(request);
 
-        // then: 저장 엔티티에 주관부서명/주관팀명 스냅샷이 함께 저장된다
+        // then: 저장 엔티티에 주관부서명(CORGNI)/주관팀명(CUSERI) 스냅샷이 함께 저장된다
         ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
         verify(costRepository).save(captor.capture());
         assertThat(captor.getValue().getSvnDpmNm()).isEqualTo("담당부서명A");
@@ -334,7 +331,7 @@ class CostServiceTest {
             given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
                     .willReturn(List.of(cost));
             // 기존 단말기 없음
-            given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1))
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of());
 
             // when
@@ -524,7 +521,7 @@ class CostServiceTest {
     }
 
     @Test
-    @DisplayName("updateCost: 최신 이력이 없으면 첫 번째 항목을 수정하고 단말기를 재등록한다")
+    @DisplayName("updateCost: 최신 이력이 없으면 첫 번째 항목을 수정하고, PK 없는 신규 단말기는 저장·미매칭 기존 단말기는 Soft Delete한다")
     void updateCost_최신이력없음_첫번째항목수정및단말기재등록() {
         CustomUserDetails admin = new CustomUserDetails(
                 "10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
@@ -556,7 +553,7 @@ class CostServiceTest {
             given(second.getLstYn()).willReturn("N");
             given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
                     .willReturn(List.of(first, second));
-            given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1))
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of(oldTerminal));
             given(btermmRepository.getNextSequenceValue()).willReturn(8L);
 
@@ -571,6 +568,94 @@ class CostServiceTest {
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
+    }
+
+    @Test
+    @DisplayName("updateCost: 기존 PK와 일치하는 단말기는 제자리 수정하고 신규 저장·삭제·채번을 하지 않는다")
+    void updateCost_기존PK일치_제자리수정() {
+        CustomUserDetails admin = new CustomUserDetails(
+                "10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+
+        try {
+            Bcostm cost = mock(Bcostm.class);
+            given(cost.getCostBgNo()).willReturn(IT_MNGC_NO);
+            given(cost.getBgSno()).willReturn(1);
+            given(cost.getLstYn()).willReturn("Y");
+            given(cost.getFstEnrUsid()).willReturn("10001");
+            given(cost.getCostSvnDpmC()).willReturn("BBR001");
+
+            Btermm existing = mock(Btermm.class);
+            given(existing.getTmnMngNo()).willReturn("TER-2026-0001");
+            given(existing.getSno()).willReturn(1);
+
+            // 요청 단말기: 기존 PK(TER-2026-0001, SNO=1)와 일치 → 제자리 수정 대상
+            CostDto.TerminalDto tDto = CostDto.TerminalDto.builder()
+                    .tmnMngNo("TER-2026-0001")
+                    .sno(1)
+                    .spfTmnNm("수정단말")
+                    .termRqmBgAmt(BigDecimal.valueOf(3000))
+                    .build();
+            CostDto.UpdateRequest request = CostDto.UpdateRequest.builder()
+                    .cttNm("수정 계약")
+                    .terminals(List.of(tDto))
+                    .build();
+
+            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
+                    .willReturn(List.of(existing));
+
+            String result = costService.updateCost(IT_MNGC_NO, request);
+
+            assertThat(result).isEqualTo(IT_MNGC_NO);
+            // 제자리 수정: existing.update() 1회 호출 (Btermm.update 인자 15개)
+            verify(existing).update(any(), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any());
+            // 신규 저장·Soft Delete·시퀀스 채번은 발생하지 않음
+            verify(existing, never()).delete();
+            verify(btermmRepository, never()).save(any(Btermm.class));
+            verify(btermmRepository, never()).getNextSequenceValue();
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("createCost: 단말기 팀/부서 코드를 담당자(CGPR_ID) CUSERI 스냅샷으로 정정한다 (부서코드가 팀코드 컬럼에 유입되던 문제 교정)")
+    void createCost_단말기팀부서코드_담당자기준정정() {
+        // given: 담당자 CUSERI TEM_C=18001(팀), BBR_C=180(부서). 프론트가 팀코드 컬럼에 부서코드(180)를 넣어도 서버가 팀코드로 교정.
+        CostDto.TerminalDto terminal = CostDto.TerminalDto.builder()
+                .spfTmnNm("금융단말")
+                .cgprId("K140024")
+                .termSvnTemC("180") // 잘못된 값(부서코드) — 서버가 CUSERI.TEM_C로 교정해야 함
+                .termSvnDpmC("180")
+                .curC("KRW")
+                .termRqmBgAmt(BigDecimal.valueOf(1000))
+                .build();
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
+                .costBgNo(IT_MNGC_NO)
+                .cttNm("단말기 팀코드 계약")
+                .terminals(List.of(terminal))
+                .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+        given(btermmRepository.getNextSequenceValue()).willReturn(9L);
+        given(cuserIRepository.findByEnoIn(java.util.Set.of("K140024")))
+                .willReturn(List.of(CuserI.builder().eno("K140024").temC("18001").bbrC("180").build()));
+
+        // when
+        costService.createCost(request);
+
+        // then: 저장된 Btermm의 팀코드=18001(CUSERI.TEM_C), 부서코드=180(CUSERI.BBR_C)
+        ArgumentCaptor<Btermm> captor = ArgumentCaptor.forClass(Btermm.class);
+        verify(btermmRepository).save(captor.capture());
+        assertThat(captor.getValue().getTermSvnTemC()).isEqualTo("18001");
+        assertThat(captor.getValue().getTermSvnDpmC()).isEqualTo("180");
     }
 
     @Test
@@ -956,12 +1041,12 @@ class CostServiceTest {
                     .build();
             given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
             given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(2);
-            given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1)).willReturn(List.of());
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N")).willReturn(List.of());
 
             String result = costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build());
 
             assertThat(result).isEqualTo(IT_MNGC_NO);
-            verify(btermmRepository).findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1);
+            verify(btermmRepository).findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N");
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
@@ -987,7 +1072,7 @@ class CostServiceTest {
                     .delYn("N")
                     .build();
             given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
-            given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1)).willReturn(List.of());
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N")).willReturn(List.of());
 
             String result = costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build());
 
@@ -1416,7 +1501,7 @@ class CostServiceTest {
             given(target.getCostSvnDpmC()).willReturn("BBR001");
 
             given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(target));
-            given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1)).willReturn(List.of());
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N")).willReturn(List.of());
 
             CostDto.UpdateRequest request = CostDto.UpdateRequest.builder()
                     .curC("USD")

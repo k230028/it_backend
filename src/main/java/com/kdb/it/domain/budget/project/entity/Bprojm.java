@@ -89,6 +89,10 @@ public class Bprojm extends BaseEntity {
     @Column(name = "DVM_DPM_C", length = 20, comment = "IT부서 (물리컬럼 DVM_DPM_C=개발부서코드)")
     private String dvmDpmC;
 
+    /** 개발팀: IT부서담당자(DVM_USID) 소속 팀 코드 스냅샷 (생성·수정 시 담당자 기준 갱신, 최대 5자) */
+    @Column(name = "DVM_TEM_C", length = 5, comment = "개발팀 (물리컬럼 DVM_TEM_C=개발팀코드)")
+    private String dvmTemC;
+
     /** 시작일자: 사업 개시 예정일 (DDL DATE 타입을 LocalDate로 매핑) */
     @Column(name = "STT_DTM", comment = "시작일자 (물리컬럼 STT_DTM=시작일시)")
     private LocalDate sttDtm;
@@ -365,15 +369,18 @@ public class Bprojm extends BaseEntity {
     }
 
     /**
-     * 작성자 기준 주관팀코드(SVN_TEM_C) 설정.
+     * 담당자 기준 주관팀코드(SVN_TEM_C)/개발팀코드(DVM_TEM_C) 설정.
      *
-     * <p>신규 생성 시 작성자(현재 로그인 사용자) 소속 팀코드로 채웁니다.
-     * 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT 이전(save 호출 전)에 호출합니다.</p>
+     * <p>주관부서담당자(USID)/IT부서담당자(DVM_USID)의 소속 팀코드를 스냅샷으로 채웁니다.
+     * 생성·수정 시 담당자가 바뀌면 함께 갱신하며, 이름 스냅샷은 {@link #assignSvnOrgNames}로 저장합니다.
+     * 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT/UPDATE flush 이전에 호출합니다.</p>
      *
-     * @param svnTemC 작성자 소속 팀코드
+     * @param svnTemC 주관부서담당자 소속 팀코드 (담당자 미지정·미조회 시 null)
+     * @param dvmTemC IT부서담당자 소속 팀코드 (담당자 미지정·미조회 시 null)
      */
-    public void assignSvnTemC(String svnTemC) {
+    public void assignTeamCodes(String svnTemC, String dvmTemC) {
         this.svnTemC = svnTemC;
+        this.dvmTemC = dvmTemC;
     }
 
     /**

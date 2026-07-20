@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  * 사업 카테고리(proj)는 PROJECT_CODE 세그먼트가 필수입니다.
  * </p>
  *
- * Design Ref: §3.7 토큰 문법
+ * 설계 참조: §3.7 토큰 문법
  */
 @Component
 public class TiptapTokenParser {

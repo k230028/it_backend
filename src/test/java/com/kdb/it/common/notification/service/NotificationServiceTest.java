@@ -2,28 +2,17 @@ package com.kdb.it.common.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.lang.reflect.Method;
-import java.time.LocalDate;
 import java.util.Optional;
 
-import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
-import com.kdb.it.common.notification.dispatcher.NotificationDispatcher;
 import com.kdb.it.common.notification.entity.Cinfmm;
-import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -45,123 +34,8 @@ class NotificationServiceTest {
     @Mock
     private CinfmmRepository cinfmmRepository;
 
-    @Mock
-    private NotificationDispatcher dispatcher;
-
     @InjectMocks
     private NotificationService notificationService;
-
-    @Test
-    @DisplayName("send: 유효한 수신자이면 채번한 알림을 저장하고 디스패처에 전달한다")
-    void send_유효한수신자_저장및발송() {
-        NotificationEvent event = NotificationEvent.builder()
-                .recipientEno("10001")
-                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
-                .ttl("공지")
-                .infmMsgCone("내용")
-                .infmRcdUrl("/notifications")
-                .sdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
-                .sdPayload("{\"id\":1}")
-                .build();
-        given(cinfmmRepository.getNextVal()).willReturn(7L);
-
-        Cinfmm result = notificationService.send(event);
-
-        ArgumentCaptor<Cinfmm> captor = ArgumentCaptor.forClass(Cinfmm.class);
-        verify(cinfmmRepository).saveAndFlush(captor.capture());
-        assertThat(result).isSameAs(captor.getValue());
-        assertThat(result.getInfmMsgNo())
-                .isEqualTo("INF-" + LocalDate.now().getYear() + "-00000007");
-        assertThat(result.getRmsEno()).isEqualTo("10001");
-        assertThat(result.getInqYn()).isEqualTo("N");
-        assertThat(result.getSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
-        verify(dispatcher).dispatch(result, "{\"id\":1}");
-    }
-
-    @Test
-    @DisplayName("send: 제목이 100자를 초과하면 100자로 잘라 저장한다")
-    void send_제목초과_100자로_clamp() {
-        // Arrange
-        String longTitle = "가".repeat(150);
-        NotificationEvent event = NotificationEvent.builder()
-                .recipientEno("E0001")
-                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
-                .ttl(longTitle)
-                .infmMsgCone("본문")
-                .build();
-        given(cinfmmRepository.getNextVal()).willReturn(1L);
-
-        // Act
-        notificationService.send(event);
-
-        // Assert
-        ArgumentCaptor<Cinfmm> captor = ArgumentCaptor.forClass(Cinfmm.class);
-        verify(cinfmmRepository).saveAndFlush(captor.capture());
-        assertThat(captor.getValue().getTtl()).hasSize(100);
-    }
-
-    @Test
-    @DisplayName("send: 본문이 4000자를 초과하면 4000자로 잘라 저장한다")
-    void send_본문초과_4000자로_clamp() {
-        // Arrange
-        String longBody = "가".repeat(5000);
-        NotificationEvent event = NotificationEvent.builder()
-                .recipientEno("E0001")
-                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
-                .ttl("제목")
-                .infmMsgCone(longBody)
-                .build();
-        given(cinfmmRepository.getNextVal()).willReturn(1L);
-
-        // Act
-        notificationService.send(event);
-
-        // Assert
-        ArgumentCaptor<Cinfmm> captor = ArgumentCaptor.forClass(Cinfmm.class);
-        verify(cinfmmRepository).saveAndFlush(captor.capture());
-        assertThat(captor.getValue().getInfmMsgCone()).hasSize(4000);
-    }
-
-    @Test
-    @DisplayName("send: URL이 300자를 초과하면 300자로 잘라 저장한다")
-    void send_URL초과_300자로_clamp() {
-        // Arrange
-        String longUrl = "/notifications/" + "a".repeat(400);
-        NotificationEvent event = NotificationEvent.builder()
-                .recipientEno("E0001")
-                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
-                .ttl("제목")
-                .infmMsgCone("본문")
-                .infmRcdUrl(longUrl)
-                .build();
-        given(cinfmmRepository.getNextVal()).willReturn(1L);
-
-        // Act
-        notificationService.send(event);
-
-        // Assert
-        ArgumentCaptor<Cinfmm> captor = ArgumentCaptor.forClass(Cinfmm.class);
-        verify(cinfmmRepository).saveAndFlush(captor.capture());
-        assertThat(captor.getValue().getInfmRcdUrl()).hasSize(300);
-    }
-
-    @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = " ")
-    @DisplayName("send: 수신자 사번이 없으면 저장하지 않는다")
-    void send_수신자없음_저장하지않음(String recipientEno) {
-        NotificationEvent event = NotificationEvent.builder()
-                .recipientEno(recipientEno)
-                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
-                .build();
-
-        Cinfmm result = notificationService.send(event);
-
-        assertThat(result).isNull();
-        verify(cinfmmRepository, never()).getNextVal();
-        verify(cinfmmRepository, never()).saveAndFlush(any());
-        verifyNoInteractions(dispatcher);
-    }
 
     @Test
     @DisplayName("listForCurrentUser: 조회 조건과 페이지 정보를 리포지토리에 전달한다")

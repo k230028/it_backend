@@ -31,7 +31,7 @@ import java.util.List;
  *
  * <p>성과지표 저장 전략: 요청에 포함된 전체 목록으로 교체 (기존 삭제 + 신규 저장)</p>
  *
- * <p>Design Ref: §2.1 FeasibilityService — Step 1 담당</p>
+ * <p>설계 참조: §2.1 FeasibilityService — 1단계 담당</p>
  */
 @Service
 @RequiredArgsConstructor

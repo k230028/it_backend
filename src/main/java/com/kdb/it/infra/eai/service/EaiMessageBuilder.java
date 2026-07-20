@@ -43,7 +43,13 @@ public class EaiMessageBuilder {
         this.cs = Charset.forName(props.charset());
     }
 
-    /** 표준전문(param01~08) 전체를 조립해 charset 바이트로 반환. */
+    /**
+     * 표준전문(param01~08) 전체를 조립해 설정 문자셋 바이트로 반환합니다.
+     *
+     * @param req EAI 전송 요청
+     * @return 고정길이 표준전문 바이트 배열
+     * @throws IllegalArgumentException 지원하는 개별부 섹션이 없거나 필드 규격이 잘못된 경우
+     */
     public byte[] build(EaiRequest req) {
         EaiPayload payload = req.payload();
         EaiPayloadSection section = sections.stream()
@@ -236,6 +242,11 @@ public class EaiMessageBuilder {
     /**
      * 좌측 패딩. ePAMS {@code lpad}와 동일 규칙.
      *
+     * @param cs 바이트 길이 계산에 사용할 문자셋
+     * @param type 공백 또는 0 패딩 구분
+     * @param offset 목표 바이트 길이
+     * @param str 원본 문자열
+     * @return 목표 길이만큼 좌측 패딩된 문자열
      * @throws IndexOutOfBoundsException 원본 바이트 길이가 offset을 초과할 때
      */
     public static String lpad(Charset cs, String type, int offset, String str) {

@@ -27,7 +27,7 @@ import java.util.stream.IntStream;
 
 /**
  * Tiptap 변수 카탈로그 빌드 + 토큰 해석 서비스.
- * Design Ref: §2.2, §4.5
+ * 설계 참조: §2.2, §4.5
  */
 @Service
 @RequiredArgsConstructor

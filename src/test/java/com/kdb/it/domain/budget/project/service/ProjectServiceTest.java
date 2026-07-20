@@ -52,8 +52,6 @@ import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.iam.service.AuthorOrg;
-import com.kdb.it.common.iam.service.AuthorOrgResolver;
 import com.kdb.it.common.system.security.CustomUserDetails;
 
 /**
@@ -102,9 +100,6 @@ class ProjectServiceTest {
         /** 공통코드 cId→cdva→코드명 맵 생성 공통 헬퍼 (CodeNameMapBuilder 추출 후 의존성) */
         @Mock
         private com.kdb.it.common.util.CodeNameMapBuilder codeNameMapBuilder;
-        /** 작성자 소속 조직 해석기 (SVN_TEM_C 작성자 기준 주입) */
-        @Mock
-        private AuthorOrgResolver authorOrgResolver;
         /** 조직코드→조직명 해석기 (주관부서명/주관팀명 스냅샷 주입) */
         @Mock
         private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
@@ -129,10 +124,6 @@ class ProjectServiceTest {
                         new ProjectBudgetSummaryService(codeService).applyBudgetSummary(response, items);
                         return null;
                 }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
-                // 기본 작성자 조직 스냅샷: 생성 경로가 NPE 없이 통과하도록 빈 스냅샷 반환
-                org.mockito.Mockito.lenient()
-                                .when(authorOrgResolver.resolveCurrent())
-                                .thenReturn(AuthorOrg.empty());
                 // 기본 조직명 스냅샷: 미등록 코드로 간주해 null 반환 (기존 테스트 무영향)
                 org.mockito.Mockito.lenient()
                                 .when(orgNameResolver.resolveName(org.mockito.ArgumentMatchers.anyString()))
@@ -145,43 +136,46 @@ class ProjectServiceTest {
         }
 
         @Test
-        @DisplayName("createProject: 주관팀코드(SVN_TEM_C)를 작성자 소속 팀코드로 채운다")
-        void createProject_populatesSvnTemCFromAuthor() {
-                // Arrange
+        @DisplayName("createProject: 주관팀코드(SVN_TEM_C)/개발팀코드(DVM_TEM_C)를 담당자 소속 팀코드로 채운다")
+        void createProject_populatesTeamCodesFromManagers() {
+                // Arrange: 주관부서담당자(USID)=10003 소속 팀 18010, IT부서담당자(DVM_USID)=10001 소속 팀 21020
                 given(projectRepository.getNextSequenceValue()).willReturn(1L);
                 given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
-                org.mockito.Mockito.lenient()
-                                .when(authorOrgResolver.resolveCurrent())
-                                .thenReturn(new AuthorOrg("BBR001", "18010", "H001"));
+                given(cuserIRepository.findByEno("10003"))
+                                .willReturn(Optional.of(CuserI.builder().eno("10003").temC("18010").build()));
+                given(cuserIRepository.findByEno("10001"))
+                                .willReturn(Optional.of(CuserI.builder().eno("10001").temC("21020").build()));
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                                .abusNm("작성자 팀코드 사업")
+                                .abusNm("담당자 팀코드 사업")
                                 .bseYy("2026")
+                                .usid("10003")
+                                .dvmUsid("10001")
                                 .build();
 
                 // Act
                 projectService.createProject(request);
 
-                // Assert: 저장 엔티티의 주관팀코드가 작성자 팀코드로 채워진다 (작성자 기준)
+                // Assert: 저장 엔티티의 주관팀/개발팀 코드가 각 담당자 팀코드로 채워진다
                 ArgumentCaptor<Bprojm> captor = ArgumentCaptor.forClass(Bprojm.class);
                 verify(projectRepository).save(captor.capture());
                 assertThat(captor.getValue().getSvnTemC()).isEqualTo("18010");
+                assertThat(captor.getValue().getDvmTemC()).isEqualTo("21020");
         }
 
         @Test
         @DisplayName("프로젝트 생성 시 주관부서명/주관팀명을 CORGNI 스냅샷으로 저장한다")
         void createProject_storesSvnOrgNameSnapshot() {
-                // Arrange: 기존 create 성공 테스트와 동일한 request/스텁 구성 + 조직명 스텁
+                // Arrange: 주관부서담당자(USID)=10003 소속 팀 18010 → 팀명 스냅샷 검증
                 given(projectRepository.getNextSequenceValue()).willReturn(1L);
                 given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
-                org.mockito.Mockito.lenient()
-                                .when(authorOrgResolver.resolveCurrent())
-                                .thenReturn(new AuthorOrg("BBR001", "18010", "H001"));
+                given(cuserIRepository.findByEno("10003"))
+                                .willReturn(Optional.of(CuserI.builder().eno("10003").temC("18010").temNm("PMO팀").build()));
                 given(orgNameResolver.resolveName("BBR001")).willReturn("주관부서명A");
-                given(orgNameResolver.resolveName("18010")).willReturn("PMO팀");
                 ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
                                 .abusNm("조직명 스냅샷 사업")
                                 .bseYy("2026")
                                 .svnDpmC("BBR001")
+                                .usid("10003")
                                 .build();
 
                 // Act
@@ -499,6 +493,41 @@ class ProjectServiceTest {
                 assertThat(result).isEqualTo(prjMngNo);
         }
 
+        @Test
+        @DisplayName("updateProject: 담당자 소속 팀코드로 주관팀(SVN_TEM_C)/개발팀(DVM_TEM_C)을 갱신한다")
+        void updateProject_refreshesTeamCodesFromManagers() {
+                // given: 기존 프로젝트, 결재 없음, 품목 없음 + 담당자 팀코드 스텁
+                String prjMngNo = "PRJ-2026-0001";
+                Bprojm project = Bprojm.builder()
+                                .abusMngNo(prjMngNo).sno(1).delYn("N").build();
+                given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                                .willReturn(Optional.of(project));
+                given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                                .willReturn(false);
+                given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
+                                .willReturn(List.of());
+                // 주관부서담당자(USID)=10003 → 팀 18010/PMO팀, IT부서담당자(DVM_USID)=10001 → 팀 21020
+                given(cuserIRepository.findByEno("10003"))
+                                .willReturn(Optional.of(CuserI.builder().eno("10003").temC("18010").temNm("PMO팀").build()));
+                given(cuserIRepository.findByEno("10001"))
+                                .willReturn(Optional.of(CuserI.builder().eno("10001").temC("21020").build()));
+
+                ProjectDto.UpdateRequest request = ProjectDto.UpdateRequest.builder()
+                                .abusNm("수정된 사업명")
+                                .usid("10003")
+                                .dvmUsid("10001")
+                                .build();
+
+                // when
+                projectService.updateProject(prjMngNo, request);
+
+                // then: 수정 대상 엔티티(Dirty Checking)의 팀코드/주관팀명이 담당자 기준으로 갱신된다
+                assertThat(project.getSvnTemC()).isEqualTo("18010");
+                assertThat(project.getDvmTemC()).isEqualTo("21020");
+                assertThat(project.getSvnTemNm()).isEqualTo("PMO팀");
+        }
+
         // ───────────────────────────────────────────────────────
         // 의무완료기한(FLF_FSG_DT) yyyyMMdd 정규화 — ORA-12899 회귀 방지
         // ───────────────────────────────────────────────────────
@@ -812,8 +841,8 @@ class ProjectServiceTest {
         }
 
         @Test
-        @DisplayName("updateProject: 기존 품목이 변경되면 이전 품목을 삭제하고 새 버전을 저장한다")
-        void updateProject_기존품목변경_버저닝저장() {
+        @DisplayName("updateProject: 기존 품목이 변경되면 새 레코드 추가 없이 기존 레코드를 제자리 수정한다")
+        void updateProject_기존품목변경_제자리수정() {
                 String prjMngNo = "PRJ-2026-0001";
                 Bprojm project = Bprojm.builder()
                                 .abusMngNo(prjMngNo).sno(1).delYn("N").build();
@@ -857,8 +886,12 @@ class ProjectServiceTest {
                                 .items(List.of(changedItem))
                                 .build());
 
-                assertThat(existingItem.getDelYn()).isEqualTo("Y");
-                verify(bitemmRepository).save(any(com.kdb.it.domain.budget.project.entity.Bitemm.class));
+                // 제자리 수정: 기존 레코드가 삭제되지 않고(DEL_YN='N') 필드만 갱신되며, 신규 save는 호출되지 않는다
+                assertThat(existingItem.getDelYn()).isEqualTo("N");
+                assertThat(existingItem.getSno()).isEqualTo(1);
+                assertThat(existingItem.getGclNm()).isEqualTo("변경 품목");
+                verify(bitemmRepository, org.mockito.Mockito.never())
+                                .save(any(com.kdb.it.domain.budget.project.entity.Bitemm.class));
         }
 
         @Test
@@ -1402,8 +1435,8 @@ class ProjectServiceTest {
         }
 
         @Test
-        @DisplayName("updateProject: 기존 품목의 마지막 금액 필드만 달라도 변경으로 판단한다")
-        void updateProject_기존품목_금액만변경_버저닝저장() {
+        @DisplayName("updateProject: 기존 품목의 마지막 금액 필드만 달라도 변경으로 판단해 제자리 수정한다")
+        void updateProject_기존품목_금액만변경_제자리수정() {
                 String prjMngNo = "PRJ-2026-0001";
                 Bprojm project = Bprojm.builder()
                                 .abusMngNo(prjMngNo)
@@ -1456,8 +1489,10 @@ class ProjectServiceTest {
                                 .items(List.of(changed))
                                 .build());
 
-                assertThat(existingItem.getDelYn()).isEqualTo("Y");
-                verify(bitemmRepository).save(any(Bitemm.class));
+                // 금액만 바뀌어도 변경으로 판단 → 제자리 수정 (삭제·신규 save 없음)
+                assertThat(existingItem.getDelYn()).isEqualTo("N");
+                assertThat(existingItem.getAmt()).isEqualByComparingTo(BigDecimal.valueOf(200));
+                verify(bitemmRepository, org.mockito.Mockito.never()).save(any(Bitemm.class));
         }
 
         @Test
@@ -2079,9 +2114,10 @@ class ProjectServiceTest {
                 projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                                 .items(List.of(changedItem)).build());
 
-                // then: 변경 감지 → soft-delete + save
-                assertThat(existingItem.getDelYn()).isEqualTo("Y");
-                verify(bitemmRepository).save(any(Bitemm.class));
+                // then: 변경 감지 → 제자리 수정 (삭제·신규 save 없음)
+                assertThat(existingItem.getDelYn()).isEqualTo("N");
+                assertThat(existingItem.getIoeC()).isEqualTo("IOE-NEW");
+                verify(bitemmRepository, org.mockito.Mockito.never()).save(any(Bitemm.class));
         }
 
         @Test
@@ -2118,9 +2154,10 @@ class ProjectServiceTest {
                 projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                                 .items(List.of(changedItem)).build());
 
-                // then
-                assertThat(existingItem.getDelYn()).isEqualTo("Y");
-                verify(bitemmRepository).save(any(Bitemm.class));
+                // then: 변경 감지 → 제자리 수정 (삭제·신규 save 없음)
+                assertThat(existingItem.getDelYn()).isEqualTo("N");
+                assertThat(existingItem.getCurC()).isEqualTo("USD");
+                verify(bitemmRepository, org.mockito.Mockito.never()).save(any(Bitemm.class));
         }
 
         @Test
@@ -2159,9 +2196,10 @@ class ProjectServiceTest {
                 projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                                 .items(List.of(changedItem)).build());
 
-                // then
-                assertThat(existingItem.getDelYn()).isEqualTo("Y");
-                verify(bitemmRepository).save(any(Bitemm.class));
+                // then: 변경 감지 → 제자리 수정 (삭제·신규 save 없음)
+                assertThat(existingItem.getDelYn()).isEqualTo("N");
+                assertThat(existingItem.getXcrBseDt()).isEqualTo("20260601");
+                verify(bitemmRepository, org.mockito.Mockito.never()).save(any(Bitemm.class));
         }
 
         @Test
@@ -2200,9 +2238,10 @@ class ProjectServiceTest {
                 projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                                 .items(List.of(changedItem)).build());
 
-                // then
-                assertThat(existingItem.getDelYn()).isEqualTo("Y");
-                verify(bitemmRepository).save(any(Bitemm.class));
+                // then: 변경 감지 → 제자리 수정 (삭제·신규 save 없음)
+                assertThat(existingItem.getDelYn()).isEqualTo("N");
+                assertThat(existingItem.getCncdFdtnCone()).isEqualTo("변경근거");
+                verify(bitemmRepository, org.mockito.Mockito.never()).save(any(Bitemm.class));
         }
 
         // ───────────────────────────────────────────────────────
@@ -2317,8 +2356,8 @@ class ProjectServiceTest {
         }
 
         @Test
-        @DisplayName("updateProject: 기존 품목의 fcAmt만 변경되어도 isItemChanged가 true로 판정되어 신규 버전 저장된다 (null-safe 포함)")
-        void updateProject_fcAmt만변경_변경검출_신규버전저장() {
+        @DisplayName("updateProject: 기존 품목의 fcAmt만 변경되어도 isItemChanged가 true로 판정되어 제자리 수정된다 (null-safe 포함)")
+        void updateProject_fcAmt만변경_변경검출_제자리수정() {
                 // given
                 String prjMngNo = "PRJ-2026-0001";
                 Bprojm project = Bprojm.builder()
@@ -2374,13 +2413,14 @@ class ProjectServiceTest {
                 // when
                 projectService.updateProject(prjMngNo, request);
 
-                // then: isItemChanged → true 판정되어 신규 Bitemm 저장 + 서버 재계산
-                ArgumentCaptor<Bitemm> captor = ArgumentCaptor.forClass(Bitemm.class);
-                org.mockito.Mockito.verify(bitemmRepository).save(captor.capture());
-                assertThat(captor.getValue().getFcAmt())
+                // then: isItemChanged → true 판정되어 기존 레코드를 제자리 수정 (신규 save 없이 서버 재계산 반영)
+                assertThat(existingItem.getDelYn()).isEqualTo("N");
+                assertThat(existingItem.getFcAmt())
                                 .isEqualByComparingTo(new BigDecimal("600.000"));
-                assertThat(captor.getValue().getAmt())
+                assertThat(existingItem.getAmt())
                                 .as("서버 재계산: 600.000 × 1300.0000 = 780000.0000")
                                 .isEqualByComparingTo(new BigDecimal("780000.0000"));
+                org.mockito.Mockito.verify(bitemmRepository, org.mockito.Mockito.never())
+                                .save(any(Bitemm.class));
         }
 }

@@ -16,12 +16,14 @@ import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
-import com.kdb.it.common.notification.service.NotificationService;
+import com.kdb.it.common.notification.service.NotificationDispatchService;
+import com.kdb.it.common.notification.service.NotificationOutboxService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -34,33 +36,46 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NotificationEventListenerTest {
 
     @Mock
-    private NotificationService notificationService;
+    private NotificationOutboxService outboxService;
+
+    @Mock
+    private NotificationDispatchService dispatchService;
 
     @Mock
     private ApplicationRepository applicationRepository;
 
-    @InjectMocks
     private NotificationEventListener listener;
+
+    @BeforeEach
+    void setUp() {
+        listener = new NotificationEventListener(
+                outboxService, dispatchService, applicationRepository, new SimpleMeterRegistry());
+    }
 
     @Test
     @DisplayName("onNotificationEvent: 수신 이벤트를 알림 서비스에 전달한다")
     void onNotificationEvent_정상요청_서비스전달() {
         NotificationEvent event = NotificationEvent.builder().recipientEno("10001").infmSvcTc("01").build();
 
+        given(outboxService.enqueue(event)).willReturn("INF-1");
+
         listener.onNotificationEvent(event);
 
-        verify(notificationService).send(event);
+        verify(outboxService).enqueue(event);
+        verify(dispatchService).dispatch("INF-1");
     }
 
     @Test
     @DisplayName("onNotificationEvent: 발송 실패가 발생해도 예외를 전파하지 않는다")
     void onNotificationEvent_발송실패_예외흡수() {
         NotificationEvent event = NotificationEvent.builder().recipientEno("10001").infmSvcTc("01").build();
-        doThrow(new IllegalStateException("발송 실패")).when(notificationService).send(event);
+        given(outboxService.enqueue(event)).willReturn("INF-1");
+        doThrow(new IllegalStateException("발송 실패")).when(dispatchService).dispatch("INF-1");
 
         listener.onNotificationEvent(event);
 
-        verify(notificationService).send(event);
+        verify(outboxService).enqueue(event);
+        verify(dispatchService).dispatch("INF-1");
     }
 
     @Test
@@ -70,7 +85,7 @@ class NotificationEventListenerTest {
 
         listener.onApprovalCompleted(new ApprovalCompletedEvent("APF-1", "결재완료"));
 
-        verify(notificationService, never()).send(any());
+        verify(outboxService, never()).enqueue(any());
     }
 
     @Test
@@ -82,11 +97,13 @@ class NotificationEventListenerTest {
                 .dcdReqUsid("10001")
                 .build();
         given(applicationRepository.findById("APF-1")).willReturn(Optional.of(application));
+        given(outboxService.enqueue(any())).willReturn("INF-1");
 
         listener.onApprovalCompleted(new ApprovalCompletedEvent("APF-1", "결재완료"));
 
         ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
-        verify(notificationService).send(captor.capture());
+        verify(outboxService).enqueue(captor.capture());
+        verify(dispatchService).dispatch("INF-1");
         assertThat(captor.getValue().recipientEno()).isEqualTo("10001");
         assertThat(captor.getValue().infmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_RESULT);
         assertThat(captor.getValue().infmMsgCone()).isNotBlank();
@@ -100,7 +117,7 @@ class NotificationEventListenerTest {
 
         listener.onApprovalCompleted(new ApprovalCompletedEvent("APF-1", "반려"));
 
-        verify(notificationService, never()).send(any());
+        verify(outboxService, never()).enqueue(any());
     }
 
     @Test
@@ -112,13 +129,15 @@ class NotificationEventListenerTest {
                 .dcdReqUsid("REQUESTER")
                 .build();
         given(applicationRepository.findById("APF-1")).willReturn(Optional.of(application));
+        given(outboxService.enqueue(any())).willReturn("INF-1");
         ApprovalRecalledEvent event = new ApprovalRecalledEvent(
                 "APF-1", "RECALLER", Arrays.asList("APPROVER", " ", null));
 
         listener.onApprovalRecalled(event);
 
         ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
-        verify(notificationService, times(2)).send(captor.capture());
+        verify(outboxService, times(2)).enqueue(captor.capture());
+        verify(dispatchService, times(2)).dispatch("INF-1");
         assertThat(captor.getAllValues()).extracting(value -> value.recipientEno())
                 .containsExactly("REQUESTER", "APPROVER");
         assertThat(captor.getAllValues()).allSatisfy(notification ->
@@ -133,7 +152,7 @@ class NotificationEventListenerTest {
 
         listener.onApprovalRecalled(new ApprovalRecalledEvent("APF-1", "10001", null));
 
-        verify(notificationService, never()).send(any());
+        verify(outboxService, never()).enqueue(any());
     }
 
     @Test
@@ -143,7 +162,7 @@ class NotificationEventListenerTest {
 
         listener.onApprovalRecalled(new ApprovalRecalledEvent("APF-1", "10001", List.of("20001")));
 
-        verify(notificationService, never()).send(any());
+        verify(outboxService, never()).enqueue(any());
     }
 
     @Test
@@ -151,10 +170,11 @@ class NotificationEventListenerTest {
     void onApprovalRecalled_발송실패_예외흡수() {
         Capplm application = Capplm.builder().apfMngNo("APF-1").dcdReqTtl("신청서").dcdReqUsid("10001").build();
         given(applicationRepository.findById("APF-1")).willReturn(Optional.of(application));
-        doThrow(new IllegalStateException("발송 실패")).when(notificationService).send(any());
+        given(outboxService.enqueue(any())).willThrow(new IllegalStateException("적재 실패"));
 
         listener.onApprovalRecalled(new ApprovalRecalledEvent("APF-1", "20001", List.of()));
 
-        verify(notificationService).send(any());
+        verify(outboxService).enqueue(any());
+        verify(dispatchService, never()).dispatch(any());
     }
 }

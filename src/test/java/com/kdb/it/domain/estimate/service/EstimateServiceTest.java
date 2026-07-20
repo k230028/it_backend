@@ -17,6 +17,7 @@ import com.kdb.it.domain.estimate.entity.Besttm;
 import com.kdb.it.domain.estimate.entity.Bestim;
 import com.kdb.it.domain.estimate.repository.EstimateLineRepository;
 import com.kdb.it.domain.estimate.repository.EstimateRepository;
+import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -55,7 +56,8 @@ class EstimateServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new EstimateService(estimateRepository, lineRepository, projectRepository, bprojaSyncService, eaiService);
+        service = new EstimateService(estimateRepository, lineRepository, projectRepository, bprojaSyncService,
+                eaiService, new GweProperties("TEST00000001"));
     }
 
     /** 타인 (소유자가 아닌 일반 사용자) */

@@ -48,7 +48,7 @@ import lombok.RequiredArgsConstructor;
  * </p>
  *
  * <p>
- * Design Ref: §2.1 ScheduleService — Step 2 담당
+ * 설계 참조: §2.1 ScheduleService — 2단계 담당
  * </p>
  */
 @Service

@@ -1,11 +1,10 @@
 package com.kdb.it.common.notification.dispatcher;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
 import com.kdb.it.common.notification.entity.Cinfmm;
+import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,26 +16,26 @@ import org.junit.jupiter.api.Test;
  */
 class StubNotificationDispatcherTest {
 
-    private final NotificationDispatcherRouter dispatcher = new NotificationDispatcherRouter(mock(EaiService.class));
+    private final NotificationDispatcherRouter dispatcher = new NotificationDispatcherRouter(
+            mock(EaiService.class), new GweProperties("TEST00000001"));
 
     @Test
-    @DisplayName("dispatch: 인앱 채널과 페이로드를 알림에 기록한다")
-    void dispatch_정상호출_인앱메타기록() {
+    @DisplayName("dispatch: 인앱 채널은 성공 결과만 반환하고 상태를 변경하지 않는다")
+    void dispatch_정상호출_성공결과() {
         Cinfmm notification = Cinfmm.builder().infmMsgNo("INF-1").build();
 
-        dispatcher.dispatch(notification, "{\"event\":\"created\"}");
+        NotificationDispatchResult result = dispatcher.dispatch(notification, "{\"event\":\"created\"}");
 
-        assertThat(notification.getSdTc()).isEqualTo("01");
-        assertThat(notification.getSdDocCone()).isEqualTo("{\"event\":\"created\"}");
-        assertThat(notification.getSdDtm()).isNotNull();
+        assertThat(result.success()).isTrue();
+        assertThat(notification.getSdTc()).isNull();
+        assertThat(notification.getSdDtm()).isNull();
     }
 
     @Test
-    @DisplayName("dispatch: 메타 기록 예외는 외부로 전파하지 않는다")
-    void dispatch_메타기록실패_예외흡수() {
+    @DisplayName("dispatch: 인앱 처리에서는 엔티티 비즈니스 메서드를 호출하지 않는다")
+    void dispatch_인앱처리_엔티티변경없음() {
         Cinfmm notification = mock(Cinfmm.class);
-        doThrow(new IllegalStateException("기록 실패")).when(notification).markDispatched("01", null);
 
-        assertThatCode(() -> dispatcher.dispatch(notification, null)).doesNotThrowAnyException();
+        assertThat(dispatcher.dispatch(notification, null).success()).isTrue();
     }
 }

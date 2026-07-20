@@ -36,7 +36,15 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
-    /** 본인 알림 목록 페이지 조회. */
+    /**
+     * 본인 알림 목록 페이지 조회.
+     *
+     * @param currentUser 인증된 사용자
+     * @param unreadOnly true면 미읽음만 조회, null이면 전체 조회
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지 크기, 최대 200
+     * @return 본인 알림 페이지
+     */
     @GetMapping
     @Operation(summary = "알림 목록 조회", description = "본인 알림 목록을 최신순으로 페이지 조회한다.")
     public ResponseEntity<Page<NotificationDto.Item>> list(
@@ -52,7 +60,12 @@ public class NotificationController {
         return ResponseEntity.ok(result);
     }
 
-    /** 본인 미읽음 카운트 — 헤더 뱃지용. */
+    /**
+     * 본인 미읽음 카운트 — 헤더 배지용.
+     *
+     * @param currentUser 인증된 사용자
+     * @return 본인 미읽음 알림 건수
+     */
     @GetMapping("/unread-count")
     @Operation(summary = "미읽음 카운트", description = "AppHeader 뱃지용 본인 미읽음 알림 건수.")
     public ResponseEntity<NotificationDto.UnreadCount> unreadCount(
@@ -62,7 +75,15 @@ public class NotificationController {
         return ResponseEntity.ok(NotificationDto.UnreadCount.builder().count(count).build());
     }
 
-    /** 단건 읽음 처리. */
+    /**
+     * 단건 읽음 처리.
+     *
+     * @param currentUser 인증된 사용자
+     * @param infmMsgNo 읽음 처리할 알림 메시지 번호
+     * @return 본문 없는 HTTP 204 응답
+     * @throws IllegalArgumentException 알림이 없거나 이미 삭제된 경우
+     * @throws org.springframework.security.access.AccessDeniedException 본인 알림이 아닌 경우
+     */
     @PatchMapping("/{infmMsgNo}/read")
     @Operation(summary = "단건 읽음 처리", description = "본인 알림 1건을 읽음으로 표시한다.")
     public ResponseEntity<Void> markRead(
@@ -73,7 +94,12 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 본인 미읽음 일괄 읽음. */
+    /**
+     * 본인 미읽음 일괄 읽음.
+     *
+     * @param currentUser 인증된 사용자
+     * @return 읽음으로 변경된 알림 건수
+     */
     @PatchMapping("/read-all")
     @Operation(summary = "일괄 읽음 처리", description = "본인 미읽음 알림을 모두 읽음으로 표시한다.")
     public ResponseEntity<NotificationDto.MarkAllReadResponse> markAllRead(
@@ -83,7 +109,15 @@ public class NotificationController {
         return ResponseEntity.ok(NotificationDto.MarkAllReadResponse.builder().updated(updated).build());
     }
 
-    /** 단건 Soft Delete. */
+    /**
+     * 단건 논리 삭제.
+     *
+     * @param currentUser 인증된 사용자
+     * @param infmMsgNo 삭제할 알림 메시지 번호
+     * @return 본문 없는 HTTP 204 응답
+     * @throws IllegalArgumentException 알림이 없거나 이미 삭제된 경우
+     * @throws org.springframework.security.access.AccessDeniedException 본인 알림이 아닌 경우
+     */
     @DeleteMapping("/{infmMsgNo}")
     @Operation(summary = "알림 삭제", description = "본인 알림 1건을 논리 삭제한다.")
     public ResponseEntity<Void> remove(

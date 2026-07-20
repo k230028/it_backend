@@ -169,6 +169,7 @@ public class CouncilSkipService {
      * 협의회별 생략 판정 요청 단건 조회. 없으면 null.
      *
      * @param asctId 협의회ID
+     * @return 활성 생략 판정 요청, 없으면 null
      */
     public CouncilDto.SkipRequestResponse getSkipRequest(String asctId) {
         return baskpmRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
@@ -178,6 +179,8 @@ public class CouncilSkipService {
 
     /**
      * 활성 생략 판정 요청 전체 조회 (IT기획 판정함 — 협의회 목록 배지/판정용).
+     *
+     * @return 삭제되지 않은 생략 판정 요청 목록
      */
     public List<CouncilDto.SkipRequestResponse> getActiveSkipRequests() {
         return baskpmRepository.findByDelYn("N").stream()

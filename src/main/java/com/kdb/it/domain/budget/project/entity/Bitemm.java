@@ -130,5 +130,37 @@ public class Bitemm extends BaseEntity {
      */
     @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
     private BigDecimal fcAmt;
+
+    /**
+     * 품목 정보 제자리 수정.
+     *
+     * <p>
+     * 복합키({@code GCL_MNG_NO}, {@code SNO})와 연관 필드({@code ABUS_MNG_NO},
+     * {@code FNT_TB_CRY_SNO})는 유지하고 업무 필드만 갱신합니다.
+     * 수정 시 새 레코드를 추가하지 않고 기존 활성 레코드를 그대로 수정하기 위한 메서드입니다
+     * (JPA Dirty Checking으로 트랜잭션 종료 시 UPDATE 실행). 최종여부({@code LST_YN})는 'Y'로 유지합니다.
+     * </p>
+     *
+     * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 서버 재계산 전 원금)
+     */
+    public void update(String ioeC, String gclNm, BigDecimal qty, String curC, BigDecimal xcr,
+            String xcrBseDt, String cncdFdtnCone, String bseYm, String dfrCleC,
+            String sectSysUtzYn, String itrInfrYn, BigDecimal amt, BigDecimal fcAmt, BigDecimal mplAmt) {
+        this.ioeC = ioeC;
+        this.gclNm = gclNm;
+        this.qty = qty;
+        this.curC = curC;
+        this.xcr = xcr;
+        this.xcrBseDt = xcrBseDt;
+        this.cncdFdtnCone = cncdFdtnCone;
+        this.bseYm = bseYm;
+        this.dfrCleC = dfrCleC;
+        this.sectSysUtzYn = sectSysUtzYn;
+        this.itrInfrYn = itrInfrYn;
+        this.amt = amt;
+        this.fcAmt = fcAmt;
+        this.mplAmt = mplAmt;
+        this.lstYn = "Y";
+    }
 }
 

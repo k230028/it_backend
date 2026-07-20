@@ -48,7 +48,7 @@ import java.util.List;
  *   <li>M7: 평가의견, 결과서</li>
  * </ul>
  *
- * <p>Design Ref: §2.5 API 설계</p>
+ * <p>설계 참조: §2.5 API 설계</p>
  */
 @RestController
 @RequestMapping("/api/council")
@@ -370,10 +370,11 @@ public class CouncilController {
     }
 
     /**
-     * 정보화실무협의회 개최준비 시작 (APPROVED → PREPARING)
+     * 정보화실무협의회 개최준비 시작 (일반 협의회 04→05, 계획협의회 01→05)
      *
      * <p>IT관리자가 타당성검토표 검토 후 '개최준비 진행'을 선택한 경우 호출합니다.
-     * 04→05 전이를 평가위원 저장의 부수효과가 아닌 명시적 액션으로 분리했습니다. (PRD_c_20260620 #2)</p>
+     * 일반 협의회는 04→05, 타당성검토·결재 단계가 없는 계획협의회({@code dbrTc=02})는 01→05로 전이합니다.
+     * 평가위원 저장의 부수효과가 아닌 명시적 액션으로 분리했습니다. (PRD_c_20260620 #2)</p>
      *
      * @param asctId 협의회ID
      * @return HTTP 200
@@ -587,6 +588,10 @@ public class CouncilController {
      * 내 일정 조회 (평가위원 본인)
      *
      * <p>로그인한 평가위원이 제출한 일정 슬롯 목록을 반환합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @param userDetails 로그인한 평가위원
+     * @return 본인이 제출한 일정 슬롯 목록
      */
     @Operation(summary = "내 일정 조회", description = "로그인한 평가위원 본인이 제출한 일정을 조회합니다.")
     @GetMapping("/{asctId}/schedule/my")
@@ -1000,6 +1005,10 @@ public class CouncilController {
      * <p>평가위원(간사 제외) 전원의 CNFM_YN이 'Y'면 협의회 상태를
      * RESULT_REVIEW → FINAL_APPROVAL로 전이합니다. 데이터를 직접 수정한 경우
      * 또는 화면 진입 시점에 호출해 자동 전이가 누락되지 않도록 보장합니다.</p>
+     *
+     * @param asctId 협의회ID
+     * @return 이번 호출에서 결과 승인 대기 상태로 전이했으면 true
+     * @throws IllegalArgumentException 협의회가 없는 경우
      */
     @Operation(summary = "검토 진행상황 동기화", description = "위원 전원 확인 시 010→011 전이를 보장합니다.")
     @PostMapping("/{asctId}/result/review/sync")

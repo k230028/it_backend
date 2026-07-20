@@ -132,6 +132,8 @@ public class CodeService {
      * @param cdva   코드값
      * @param sttDt  시작일자
      * @param request 수정 요청 DTO
+     * @return 수정된 코드ID
+     * @throws IllegalArgumentException 공통코드를 찾을 수 없는 경우
      */
     @Transactional
     @Caching(evict = {
@@ -163,6 +165,7 @@ public class CodeService {
      * @param cId   코드ID
      * @param cdva  코드값
      * @param sttDt 시작일자
+     * @throws IllegalArgumentException 공통코드를 찾을 수 없거나 이미 삭제된 경우
      */
     @Transactional
     @Caching(evict = {
@@ -178,6 +181,9 @@ public class CodeService {
 
     /**
      * 예산 신청 기간 조회
+     *
+     * @return 예산 신청 시작일·종료일과 현재 신청 가능 여부
+     * @throws IllegalArgumentException 예산 신청 기간 코드가 없는 경우
      */
     @Cacheable("budgetPeriod")
     public CodeDto.BudgetPeriodResponse getBudgetPeriod() {

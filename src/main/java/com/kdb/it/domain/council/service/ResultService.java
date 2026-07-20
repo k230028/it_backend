@@ -31,7 +31,7 @@ import java.util.List;
  *   RESULT_REVIEW
  * </pre>
  *
- * <p>Design Ref: §2.1 ResultService — Step 3 담당</p>
+ * <p>설계 참조: §2.1 ResultService — 3단계 담당</p>
  */
 @Service
 @RequiredArgsConstructor

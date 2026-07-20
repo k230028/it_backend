@@ -49,6 +49,9 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "DVM_DPM_C", length = 100, comment = "IT부서")
     private String dvmDpmC;
 
+    @Column(name = "DVM_TEM_C", length = 5, comment = "개발팀코드")
+    private String dvmTemC;
+
     @Column(name = "STT_DTM", comment = "시작일자")
     private LocalDate sttDtm;
 

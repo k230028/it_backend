@@ -1,12 +1,20 @@
 package com.kdb.it.common.system.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.List;
+
+import javax.crypto.SecretKey;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 
 /**
  * JwtUtil 단위 테스트
@@ -195,5 +203,144 @@ class JwtUtilTest {
 
         // then: 발급 시각이 같아도 exp 클레임이 다르므로 토큰 값도 다름
         assertThat(accessToken).isNotEqualTo(refreshToken);
+    }
+
+    // ── SEC-04: tokenUse 클레임과 용도 allowlist 검증 ──────────────────────────
+
+    /** 테스트 시크릿에서 파생한 서명 키 (커스텀 tokenUse 값 토큰을 직접 발급하기 위함) */
+    private static final SecretKey TEST_KEY =
+            Keys.hmacShaKeyFor(TEST_SECRET.getBytes(StandardCharsets.UTF_8));
+
+    /** tokenUse 클레임이 없는 레거시(배포 전) 토큰을 실제 서명으로 발급한다. */
+    private String legacyTokenWithoutTokenUse() {
+        return Jwts.builder()
+                .subject("10001")
+                .signWith(TEST_KEY)
+                .compact();
+    }
+
+    /** 지정한 tokenUse 클레임 값(문자열·숫자 등)을 가진 토큰을 실제 서명으로 발급한다. */
+    private String tokenWithTokenUse(Object tokenUseValue) {
+        return Jwts.builder()
+                .subject("10001")
+                .claim(JwtUtil.TOKEN_USE_CLAIM, tokenUseValue)
+                .signWith(TEST_KEY)
+                .compact();
+    }
+
+    @Test
+    @DisplayName("getTokenUse - Access Token은 access 용도를 반환")
+    void getTokenUse_accessToken_access반환() {
+        String token = jwtUtil.generateAccessToken("10001", TEST_ATH_IDS, TEST_BBR_C);
+
+        assertThat(jwtUtil.getTokenUse(token)).isEqualTo(JwtUtil.TOKEN_USE_ACCESS);
+    }
+
+    @Test
+    @DisplayName("getTokenUse - Refresh Token은 refresh 용도를 반환")
+    void getTokenUse_refreshToken_refresh반환() {
+        String token = jwtUtil.generateRefreshToken("10001");
+
+        assertThat(jwtUtil.getTokenUse(token)).isEqualTo(JwtUtil.TOKEN_USE_REFRESH);
+    }
+
+    @Test
+    @DisplayName("용도 검증 - access 토큰 · access 기대 · 레거시 허용 → true")
+    void validateToken_access_access_allowLegacy_true() {
+        String token = jwtUtil.generateAccessToken("10001", TEST_ATH_IDS, TEST_BBR_C);
+
+        assertThat(jwtUtil.validateToken(token, JwtUtil.TOKEN_USE_ACCESS, true)).isTrue();
+    }
+
+    @Test
+    @DisplayName("용도 검증 - refresh 토큰 · access 기대 · 레거시 허용 → false")
+    void validateToken_refresh_access_allowLegacy_false() {
+        String token = jwtUtil.generateRefreshToken("10001");
+
+        assertThat(jwtUtil.validateToken(token, JwtUtil.TOKEN_USE_ACCESS, true)).isFalse();
+    }
+
+    @Test
+    @DisplayName("용도 검증 - tokenUse 없음 · access 기대 · 레거시 허용 → true")
+    void validateToken_none_access_allowLegacy_true() {
+        String token = legacyTokenWithoutTokenUse();
+
+        assertThat(jwtUtil.validateToken(token, JwtUtil.TOKEN_USE_ACCESS, true)).isTrue();
+    }
+
+    @Test
+    @DisplayName("용도 검증 - tokenUse 없음 · access 기대 · 레거시 불허 → false")
+    void validateToken_none_access_disallowLegacy_false() {
+        String token = legacyTokenWithoutTokenUse();
+
+        assertThat(jwtUtil.validateToken(token, JwtUtil.TOKEN_USE_ACCESS, false)).isFalse();
+    }
+
+    @Test
+    @DisplayName("용도 검증 - refresh 토큰 · refresh 기대 · 레거시 불허 → true")
+    void validateToken_refresh_refresh_disallowLegacy_true() {
+        String token = jwtUtil.generateRefreshToken("10001");
+
+        assertThat(jwtUtil.validateToken(token, JwtUtil.TOKEN_USE_REFRESH, false)).isTrue();
+    }
+
+    @Test
+    @DisplayName("용도 검증 - access 토큰 · refresh 기대 · 레거시 불허 → false")
+    void validateToken_access_refresh_disallowLegacy_false() {
+        String token = jwtUtil.generateAccessToken("10001", TEST_ATH_IDS, TEST_BBR_C);
+
+        assertThat(jwtUtil.validateToken(token, JwtUtil.TOKEN_USE_REFRESH, false)).isFalse();
+    }
+
+    @Test
+    @DisplayName("용도 검증 - unknown 용도 · access 기대 → false")
+    void validateToken_unknown_access_false() {
+        String token = tokenWithTokenUse("unknown");
+
+        assertThat(jwtUtil.validateToken(token, JwtUtil.TOKEN_USE_ACCESS, true)).isFalse();
+    }
+
+    @Test
+    @DisplayName("용도 검증 - 숫자 tokenUse · access 기대 → false (문자열이 아니면 거부)")
+    void validateToken_numeric_access_false() {
+        String token = tokenWithTokenUse(1);
+
+        assertThat(jwtUtil.validateToken(token, JwtUtil.TOKEN_USE_ACCESS, true)).isFalse();
+    }
+
+    @Test
+    @DisplayName("용도 검증 - 만료 토큰은 용도가 맞아도 false")
+    void validateToken_expired_용도일치_false() {
+        String expiredAccess = Jwts.builder()
+                .subject("10001")
+                .claim(JwtUtil.TOKEN_USE_CLAIM, JwtUtil.TOKEN_USE_ACCESS)
+                .expiration(new Date(System.currentTimeMillis() - 1_000L))
+                .signWith(TEST_KEY)
+                .compact();
+
+        assertThat(jwtUtil.validateToken(expiredAccess, JwtUtil.TOKEN_USE_ACCESS, true)).isFalse();
+    }
+
+    @Test
+    @DisplayName("용도 검증 - 서명이 위조된 토큰은 용도가 맞아도 false")
+    void validateToken_forged_용도일치_false() {
+        SecretKey otherKey = Keys.hmacShaKeyFor(
+                "another-secret-key-for-forgery-test-minimum-256-bits-ok".getBytes(StandardCharsets.UTF_8));
+        String forgedAccess = Jwts.builder()
+                .subject("10001")
+                .claim(JwtUtil.TOKEN_USE_CLAIM, JwtUtil.TOKEN_USE_ACCESS)
+                .signWith(otherKey)
+                .compact();
+
+        assertThat(jwtUtil.validateToken(forgedAccess, JwtUtil.TOKEN_USE_ACCESS, true)).isFalse();
+    }
+
+    @Test
+    @DisplayName("용도 검증 - 지원하지 않는 기대 용도는 IllegalArgumentException")
+    void validateToken_잘못된기대용도_예외() {
+        String token = jwtUtil.generateAccessToken("10001", TEST_ATH_IDS, TEST_BBR_C);
+
+        assertThatThrownBy(() -> jwtUtil.validateToken(token, "sso", true))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

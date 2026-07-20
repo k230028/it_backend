@@ -18,6 +18,7 @@ import com.kdb.it.domain.payment.entity.Bpaymt;
 import com.kdb.it.domain.payment.repository.PaymentLineRepository;
 import com.kdb.it.domain.payment.repository.PaymentRepository;
 import com.kdb.it.domain.payment.repository.PaymentTargetRow;
+import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -67,7 +68,8 @@ class PaymentServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PaymentService(paymentRepository, lineRepository, projectRepository, costRepository, bprojaSyncService, eaiService);
+        service = new PaymentService(paymentRepository, lineRepository, projectRepository, costRepository,
+                bprojaSyncService, eaiService, new GweProperties("TEST00000001"));
     }
 
     // =========================================================================

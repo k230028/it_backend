@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  * ({@link Clock}, GUID 난수 공급), EAI 전용 {@link RestClient}(타임아웃 적용)를 등록한다.</p>
  */
 @Configuration
-@EnableConfigurationProperties(EaiProperties.class)
+@EnableConfigurationProperties({EaiProperties.class, GweProperties.class})
 public class EaiInfraConfig {
 
     /** GUID 9자리 난수 생성기(스레드 안전). */

@@ -3,12 +3,15 @@ package com.kdb.it.common.system.controller;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.common.util.CookieUtil;
+import com.kdb.it.exception.InvalidRefreshTokenException;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.validation.Valid;
@@ -169,8 +172,14 @@ public class AuthController {
      * <li>새 Access Token 생성 → httpOnly 쿠키로 전달</li>
      * </ol>
      *
+     * <p>
+     * Refresh 쿠키가 없거나 검증에 실패({@link InvalidRefreshTokenException})하면 HTTP 401과 함께
+     * Access·Refresh 쿠키를 모두 삭제({@link #unauthorizedRefreshResponse()})하여 재로그인을 유도합니다.
+     * </p>
+     *
      * @param httpRequest HTTP 요청 객체 (쿠키에서 Refresh Token 추출)
-     * @return HTTP 200 + Set-Cookie(새 accessToken) + "토큰 갱신 성공"
+     * @return 성공 시 HTTP 200 + Set-Cookie(새 accessToken, 회전 시 refreshToken) + "토큰 갱신 성공";
+     *         실패 시 HTTP 401 + Access/Refresh 삭제 Set-Cookie 2개 + "다시 로그인해 주세요."
      */
     @PostMapping("/refresh")
     @Operation(summary = "토큰 갱신", description = "Refresh Token 쿠키를 사용하여 새로운 Access Token을 발급받습니다.")
@@ -179,11 +188,18 @@ public class AuthController {
         String refreshToken = extractCookieValue(httpRequest, CookieUtil.REFRESH_TOKEN_COOKIE);
 
         if (refreshToken == null) {
-            return ResponseEntity.status(401).body("Refresh Token 쿠키가 없습니다.");
+            // Refresh 쿠키가 없으면 재로그인 유도: 401 + Access·Refresh 쿠키 모두 삭제
+            return unauthorizedRefreshResponse();
         }
 
         // Refresh Token 검증 및 새 Access Token 발급 (Refresh Token 회전 포함)
-        AuthDto.RefreshResponse response = authService.refreshAccessToken(refreshToken);
+        final AuthDto.RefreshResponse response;
+        try {
+            response = authService.refreshAccessToken(refreshToken);
+        } catch (InvalidRefreshTokenException exception) {
+            // 잘못된 Refresh 토큰: 401 + Access·Refresh 쿠키 모두 삭제로 재로그인 유도
+            return unauthorizedRefreshResponse();
+        }
 
         // 새 Access Token을 httpOnly 쿠키로 설정
         ResponseCookie accessCookie = cookieUtil.createAccessTokenCookie(response.getAccessToken());
@@ -201,6 +217,25 @@ public class AuthController {
     }
 
     /**
+     * 잘못된 Refresh 요청을 HTTP 401과 인증 쿠키 삭제로 응답합니다.
+     *
+     * <p>Refresh 쿠키가 없거나 {@link InvalidRefreshTokenException}이 발생한 경우 호출됩니다.
+     * Access·Refresh 쿠키를 모두 만료시켜(Max-Age=0) 브라우저에서 제거하고 재로그인을 유도합니다.
+     * 응답 본문에는 재로그인 안내 문구만 노출하고 토큰 값이나 내부 원인은 남기지 않습니다.
+     * 쿠키 속성은 로그아웃과 동일하게 {@code CookieUtil}의 삭제 헬퍼를 재사용합니다.</p>
+     *
+     * @return 401 응답 + Access/Refresh 삭제 Set-Cookie 2개 + 재로그인 안내 메시지
+     */
+    private ResponseEntity<String> unauthorizedRefreshResponse() {
+        ResponseCookie deleteAccess = cookieUtil.deleteAccessTokenCookie();
+        ResponseCookie deleteRefresh = cookieUtil.deleteRefreshTokenCookie();
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .header(HttpHeaders.SET_COOKIE, deleteAccess.toString())
+                .header(HttpHeaders.SET_COOKIE, deleteRefresh.toString())
+                .body("다시 로그인해 주세요.");
+    }
+
+    /**
      * 로그아웃
      *
      * <p>
@@ -214,16 +249,20 @@ public class AuthController {
     @PostMapping("/logout")
     @Operation(summary = "로그아웃", description = "쿠키의 JWT 토큰을 삭제하고 Refresh Token을 무효화합니다.")
     public ResponseEntity<String> logout(HttpServletRequest httpRequest) {
-        // SecurityContextHolder에서 현재 인증된 사용자 정보 조회
+        String refreshToken = extractCookieValue(httpRequest, CookieUtil.REFRESH_TOKEN_COOKIE);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            // JWT에서 추출된 사번
-            String eno = authentication.getName();
-            String ipAddress = getClientIp(httpRequest);
-            String userAgent = httpRequest.getHeader("User-Agent");
+        String authenticatedEno = authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken)
+                ? authentication.getName()
+                : null;
+        String ipAddress = getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
 
-            // Refresh Token 삭제 및 로그아웃 이력 기록
-            authService.logout(eno, ipAddress, userAgent);
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            authService.logoutByRefreshToken(refreshToken, authenticatedEno, ipAddress, userAgent);
+        } else if (authenticatedEno != null) {
+            authService.logout(authenticatedEno, ipAddress, userAgent);
         }
 
         // Access Token, Refresh Token 쿠키를 즉시 만료시켜 삭제

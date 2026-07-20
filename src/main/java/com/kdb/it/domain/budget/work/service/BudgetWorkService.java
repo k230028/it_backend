@@ -147,7 +147,7 @@ public class BudgetWorkService {
      * 5. 각 레코드: 편성금액 = 요청금액 × (dupRt / 100), ROUND HALF UP
      * 6. Upsert BBUGTM
      *
-     * // Plan SC: SC-03 — 편성금액 = Math.round(요청금액 × 편성률 / 100)
+     * // 계획 시나리오: SC-03 — 편성금액 = 요청금액 × 편성률을 100으로 나눈 뒤 소수점 둘째 자리에서 반올림
      * // Plan SC: SC-05 — Upsert 동작 (중복 INSERT 방지)
      *
      * @param request 편성률 적용 요청 (예산년도 + 비목별 편성률 목록)
@@ -414,6 +414,7 @@ public class BudgetWorkService {
      *
      * @param bgYy 예산년도
      * @return 비목별 요약 목록 + 합계
+     * 저장소 조회 오류는 호출자에게 전파합니다.
      */
     public BudgetWorkDto.SummaryResponse getSummary(String bgYy) {
         return getSummary(bgYy, null);
@@ -425,6 +426,8 @@ public class BudgetWorkService {
      * @param bgYy   예산연도
      * @param srcPks 선택 원본 PK 목록(BBUGTM.pkColNm). null/빈 목록이면 연도 전체 집계(예산작업 화면용),
      *               값이 있으면 해당 원본만 집계(정보기술부문 계획 화면의 선택 사업 카드용).
+     * @return 선택 범위의 비목별 요청금액·편성금액과 합계
+     * 저장소 조회 오류는 호출자에게 전파합니다.
      */
     public BudgetWorkDto.SummaryResponse getSummary(String bgYy, java.util.List<String> srcPks) {
         List<Bbugtm> budgets = bbugtmRepository.findByBseYyAndDelYn(bgYy, "N");

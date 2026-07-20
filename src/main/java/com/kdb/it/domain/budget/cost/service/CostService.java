@@ -19,6 +19,7 @@ import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.OwnershipVerifier;
@@ -89,8 +90,6 @@ public class CostService {
     private final OrganizationRepository corgnIRepository;
     /** 사용자(TPRMPP_CUSERI) 리포지토리: 담당자명 조회용 */
     private final UserRepository cuserIRepository;
-    /** 작성자 소속 조직 해석기: 신규 생성 시 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE)을 작성자 기준으로 채움 */
-    private final com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
     /** 조직코드→조직명 해석기: 주관부서명/주관팀명 스냅샷 저장용 */
     private final com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
     /** 결재자(TPRMPP_CDECIM) 리포지토리: 결재선 조회용 */
@@ -249,13 +248,18 @@ public class CostService {
         request.setFcAmt(reconciled[1]);
 
         Bcostm bcostm = request.toEntity(nextSno);
-        // 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE)은 작성자(현재 로그인 사용자) 소속 상위조직코드로 자동 설정 (작성자 기준)
-        bcostm.assignPrlmHrkOgzCCone(authorOrgResolver.resolveCurrent().prlmHrkOgzCCone());
-        // 주관부서명/주관팀명은 코드 설정 시점의 CORGNI 조회 스냅샷으로 함께 저장
+        // 상위조직명(PRLM_HRK_OGZ_C_CONE)/주관팀명(SVN_TEM_NM)은 담당자(CGPR_ID) 소속 CUSERI 스냅샷으로 저장
+        // (프로젝트 저장 로직과 동일하게 담당자 소속 상위조직명을 저장. 팀코드/상위조직은 CORGNI로 명칭을 못 얻음)
+        CostOrgSnapshot orgSnapshot = resolveAuthorOrgNames(bcostm.getCgprId());
+        bcostm.assignPrlmHrkOgzCCone(orgSnapshot.prlmHrkOgzCNm());
+        // 주관부서명은 CORGNI 조회 스냅샷, 주관팀명은 담당자(CUSERI) 팀명 스냅샷으로 저장
         bcostm.assignSvnOrgNames(
                 orgNameResolver.resolveName(bcostm.getCostSvnDpmC()),
-                orgNameResolver.resolveName(bcostm.getSvnTemC()));
+                orgSnapshot.svnTemNm());
         costRepository.save(bcostm);
+
+        // 단말기 팀/부서 코드 정정: 담당자(CGPR_ID) 소속 CUSERI 스냅샷으로 SVN_TEM_C=팀코드, SVN_DPM_C=부서코드 보장
+        applyTerminalOrgCodes(request.getTerminals());
 
         if (request.getTerminals() != null && !request.getTerminals().isEmpty()) {
             for (CostDto.TerminalDto tDto : request.getTerminals()) {
@@ -337,40 +341,150 @@ public class CostService {
                 request.getTmnYn(), request.getAbusTc(), request.getBseYy(), request.getCncdRfrNo(),
                 request.getFcAmt());
 
-        // 수정으로 담당부서/팀 코드가 바뀔 수 있으므로 이름 스냅샷도 같은 시점 기준으로 갱신
+        // 수정으로 담당부서/담당자가 바뀔 수 있으므로 이름 스냅샷도 같은 시점 기준으로 갱신
+        // 상위조직명(PRLM_HRK_OGZ_C_CONE)/주관팀명은 담당자(CUSERI), 주관부서명은 CORGNI 조회 스냅샷
+        CostOrgSnapshot orgSnapshot = resolveAuthorOrgNames(target.getCgprId());
+        target.assignPrlmHrkOgzCCone(orgSnapshot.prlmHrkOgzCNm());
         target.assignSvnOrgNames(
                 orgNameResolver.resolveName(target.getCostSvnDpmC()),
-                orgNameResolver.resolveName(target.getSvnTemC()));
+                orgSnapshot.svnTemNm());
 
-        /* 연관된 단말기 목록 업데이트: 기존 Soft Delete 후 재등록 */
-        List<Btermm> existingTerminals = btermmRepository.findByTermBgNoAndTermBgSno(target.getCostBgNo(),
-                target.getBgSno());
-        for (Btermm et : existingTerminals) {
-            et.delete();
-        }
+        /*
+         * 연관된 단말기 목록 병합(제자리 수정):
+         *  - 기존 활성(DEL_YN='N') 레코드를 PK(TMN_MNG_NO+SNO) 기준으로 매칭해 Dirty Checking으로 수정
+         *  - 요청에만 있는(PK 없는) 행은 채번 후 신규 저장
+         *  - 요청에서 빠진 기존 활성 행만 Soft Delete
+         * (기존 delete+재등록 방식은 매 저장마다 새 PK 레코드를 생성해 이력이 무한 증식하므로 폐기)
+         */
+        List<Btermm> existingTerminals = btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(
+                target.getCostBgNo(), target.getBgSno(), "N");
+        Map<String, Btermm> existingByPk = existingTerminals.stream()
+                .collect(Collectors.toMap(t -> terminalPk(t.getTmnMngNo(), t.getSno()), t -> t, (a, b) -> a));
 
-        if (request.getTerminals() != null && !request.getTerminals().isEmpty()) {
-            for (CostDto.TerminalDto tDto : request.getTerminals()) {
-                /* 새 PK를 발급하여 Soft Delete된 기존 레코드와 충돌 방지 */
-                tDto.setTmnMngNo(generateTmnMngNo());
-                tDto.setSno(1);
+        List<CostDto.TerminalDto> requestTerminals = request.getTerminals() != null
+                ? request.getTerminals()
+                : List.of();
+        // 단말기 팀/부서 코드 정정: 담당자(CGPR_ID) 소속 CUSERI 스냅샷으로 SVN_TEM_C=팀코드, SVN_DPM_C=부서코드 보장
+        applyTerminalOrgCodes(requestTerminals);
 
-                // XCR 표준 조회 (단말기): Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
-                tDto.setXcr(xcrLookupService.resolveXcr(tDto.getCurC(), LocalDate.now()));
+        Set<String> keptPks = new java.util.HashSet<>();
+        for (CostDto.TerminalDto tDto : requestTerminals) {
+            // XCR 표준 조회 (단말기): Ccodem 단일 원천으로 xcr 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
+            tDto.setXcr(xcrLookupService.resolveXcr(tDto.getCurC(), LocalDate.now()));
 
-                // 단말기 외화 재계산 (CONTEXT.md 결정 C)
-                BigDecimal[] tReconciled = BudgetAmountCalculator.reconcileAmount(
-                        tDto.getFcAmt(), tDto.getTermRqmBgAmt(), tDto.getCurC(), tDto.getXcr());
-                tDto.setTermRqmBgAmt(tReconciled[0]);
-                tDto.setFcAmt(tReconciled[1]);
+            // 단말기 외화 재계산 (CONTEXT.md 결정 C)
+            BigDecimal[] tReconciled = BudgetAmountCalculator.reconcileAmount(
+                    tDto.getFcAmt(), tDto.getTermRqmBgAmt(), tDto.getCurC(), tDto.getXcr());
+            tDto.setTermRqmBgAmt(tReconciled[0]);
+            tDto.setFcAmt(tReconciled[1]);
 
+            Btermm existing = (tDto.getTmnMngNo() != null && tDto.getSno() != null)
+                    ? existingByPk.get(terminalPk(tDto.getTmnMngNo(), tDto.getSno()))
+                    : null;
+
+            if (existing != null) {
+                /* 기존 레코드 제자리 수정 (Dirty Checking으로 트랜잭션 종료 시 UPDATE) */
+                existing.update(tDto.getSpfTmnNm(), tDto.getTmnKdTc(), tDto.getNsfUsgCone(), tDto.getTmnClsfC(),
+                        tDto.getTermRqmBgAmt(), tDto.getCurC(), tDto.getXcr(),
+                        DateFormatUtil.toYmd8(tDto.getXcrBseDt()), tDto.getDfrCleC(), tDto.getIndRsn(),
+                        tDto.getCgprId(), tDto.getTermSvnTemC(), tDto.getTermSvnDpmC(), tDto.getRmk(), tDto.getFcAmt());
+                keptPks.add(terminalPk(existing.getTmnMngNo(), existing.getSno()));
+            } else {
+                /* 신규 행: 관리번호 채번 후 저장 */
+                if (tDto.getTmnMngNo() == null || tDto.getTmnMngNo().isEmpty()) {
+                    tDto.setTmnMngNo(generateTmnMngNo());
+                }
+                if (tDto.getSno() == null) {
+                    tDto.setSno(1);
+                }
                 Btermm btermm = tDto.toEntity();
                 btermm.setBcostmInfo(target.getCostBgNo(), target.getBgSno());
                 btermmRepository.save(btermm);
+                keptPks.add(terminalPk(tDto.getTmnMngNo(), tDto.getSno()));
+            }
+        }
+
+        /* 요청에서 빠진 기존 활성 단말기만 Soft Delete */
+        for (Btermm et : existingTerminals) {
+            if (!keptPks.contains(terminalPk(et.getTmnMngNo(), et.getSno()))) {
+                et.delete();
             }
         }
 
         return target.getCostBgNo();
+    }
+
+    /**
+     * 담당자 사번(cgprId)으로 소속 조직 이름 스냅샷(주관팀명 + 상위조직명)을 조회한다.
+     *
+     * <p>주관팀명(SVN_TEM_NM)/상위조직명(PRLM_HRK_OGZ_C_CONE) 스냅샷용. 팀코드(SVN_TEM_C)는 조직마스터(CORGNI)에
+     * 등재되지 않고 상위조직도 코드/명 매핑이 달라 CORGNI 조회로는 명칭을 얻기 어렵다. 따라서 담당자(CUSERI) 레코드의
+     * 팀명·상위조직명을 그대로 저장 시점 스냅샷으로 사용한다(프로젝트 저장 로직과 동일). 담당팀·담당자는 화면에서
+     * 동일 직원 기준으로 함께 설정되므로 담당자 기준 값이 화면 선택과 일치한다.
+     * 담당자 미지정(사번 null/공백)이거나 CUSERI 미조회 시 두 값 모두 {@code null}이다(대상 컬럼 nullable).</p>
+     *
+     * @param cgprId 담당자 사번 (null/공백 허용)
+     * @return 소속 조직 이름 스냅샷. cgprId가 비었거나 사용자 미조회 시 {@link CostOrgSnapshot#EMPTY}
+     */
+    private CostOrgSnapshot resolveAuthorOrgNames(String cgprId) {
+        if (cgprId == null || cgprId.isBlank()) {
+            return CostOrgSnapshot.EMPTY;
+        }
+        return cuserIRepository.findByEno(cgprId)
+                .map(user -> new CostOrgSnapshot(user.getTemNm(), user.getPrlmHrkOgzCNm()))
+                .orElse(CostOrgSnapshot.EMPTY);
+    }
+
+    /**
+     * 담당자 소속 조직 이름 스냅샷(주관팀명 + 상위조직명).
+     *
+     * @param svnTemNm      주관팀명 (CUSERI.TEM_NM, 미조회 시 null)
+     * @param prlmHrkOgzCNm 상위조직명 (CUSERI 상위조직 부점명, 미조회 시 null)
+     */
+    private record CostOrgSnapshot(String svnTemNm, String prlmHrkOgzCNm) {
+        /** 담당자 미지정·미조회 시 사용할 빈 스냅샷(두 값 모두 null). */
+        private static final CostOrgSnapshot EMPTY = new CostOrgSnapshot(null, null);
+    }
+
+    /**
+     * 단말기 목록의 팀/부서 코드를 담당자(CGPR_ID) 소속 CUSERI 스냅샷으로 정정한다.
+     *
+     * <p>물리 컬럼 {@code SVN_TEM_C}(주관팀코드)에는 담당자의 팀코드({@code CUSERI.TEM_C}),
+     * {@code SVN_DPM_C}(주관부서코드)에는 담당자의 부서코드({@code CUSERI.BBR_C})를 채워,
+     * 프론트가 넘긴 값이나 과거 잘못 저장된 값(부서코드가 팀코드 컬럼에 유입되던 문제)을
+     * 저장 시점에 교정한다. 단말기 화면에서 팀/부서는 담당자 선택과 항상 함께 설정되므로
+     * 담당자 기준 값이 화면 의도와 일치한다.</p>
+     *
+     * <p>담당자 사번(cgprId)이 비었거나 CUSERI 미조회인 행은 DTO 값을 그대로 둔다(대상 컬럼 nullable).
+     * 담당자 사번 배치 조회(findByEnoIn)로 N+1을 방지한다.</p>
+     *
+     * @param terminals 정정 대상 단말기 DTO 목록 (null/빈 목록이면 no-op)
+     */
+    private void applyTerminalOrgCodes(List<CostDto.TerminalDto> terminals) {
+        if (terminals == null || terminals.isEmpty()) {
+            return;
+        }
+        Set<String> enos = terminals.stream()
+                .map(CostDto.TerminalDto::getCgprId)
+                .filter(eno -> eno != null && !eno.isBlank())
+                .collect(Collectors.toSet());
+        if (enos.isEmpty()) {
+            return;
+        }
+        Map<String, CuserI> userByEno = cuserIRepository.findByEnoIn(enos).stream()
+                .collect(Collectors.toMap(CuserI::getEno, user -> user, (a, b) -> a));
+        for (CostDto.TerminalDto tDto : terminals) {
+            CuserI user = tDto.getCgprId() == null ? null : userByEno.get(tDto.getCgprId());
+            if (user != null) {
+                tDto.setTermSvnTemC(user.getTemC());
+                tDto.setTermSvnDpmC(user.getBbrC());
+            }
+        }
+    }
+
+    /** 단말기 PK(단말관리번호+일련번호) 매칭용 합성 키. */
+    private static String terminalPk(String tmnMngNo, Integer sno) {
+        return tmnMngNo + "_" + sno;
     }
 
     /**

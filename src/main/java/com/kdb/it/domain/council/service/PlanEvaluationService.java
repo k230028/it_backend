@@ -156,6 +156,7 @@ public class PlanEvaluationService {
             }
         } catch (Exception e) {
             // 파싱 실패 시 빈 목록 폴백
+            // TODO: 유효한 빈 스냅샷과 파싱 오류를 구분하고 문서번호·원인을 진단 로그 또는 오류 응답에 남긴다.
         }
         return result;
     }
@@ -169,6 +170,7 @@ public class PlanEvaluationService {
             JsonNode arr = SNAPSHOT_MAPPER.readTree(json).get("costDetails");
             return (arr != null && arr.isArray()) ? arr.size() : 0;
         } catch (Exception e) {
+            // TODO: 실제 전산업무비 0건과 JSON 파싱 실패를 구분하고 대상 문맥과 원인을 기록한다.
             return 0;
         }
     }
@@ -209,6 +211,7 @@ public class PlanEvaluationService {
                 }
             } catch (Exception e) {
                 // 계획 조회 실패 시 다음 후보로
+                // TODO: 미존재 예외만 다음 후보로 넘기고 DB·권한·시스템 예외는 기록한 뒤 호출자에게 전파한다.
             }
         }
         return null;
@@ -378,6 +381,7 @@ public class PlanEvaluationService {
             }
         } catch (Exception e) {
             // 스냅샷 파싱 실패 시 사업명 미해석(사업관리번호로 폴백)
+            // TODO: 결과서의 사업명 폴백이 발생했음을 문서번호·원인과 함께 경고 로그로 남긴다.
         }
         return map;
     }

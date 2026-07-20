@@ -157,7 +157,7 @@ public class AdminMenuService {
         target.setHrkMnuId(newHrkMnuId);
     }
 
-    // ---- helpers ----
+    // ---- 내부 헬퍼 ----
 
     private Cmenum load(String mnuId) {
         return cmenumRepository.findByMnuIdAndDelYn(mnuId, "N")

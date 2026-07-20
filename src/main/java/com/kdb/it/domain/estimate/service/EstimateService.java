@@ -15,6 +15,7 @@ import com.kdb.it.domain.estimate.entity.Bestim;
 import com.kdb.it.domain.estimate.entity.Besttm;
 import com.kdb.it.domain.estimate.repository.EstimateLineRepository;
 import com.kdb.it.domain.estimate.repository.EstimateRepository;
+import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.dto.EaiRequest;
 import com.kdb.it.infra.eai.dto.EaiResult;
 import com.kdb.it.infra.eai.dto.GwePayload;
@@ -52,6 +53,7 @@ public class EstimateService {
     private final ProjectRepository projectRepository;
     private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
     private final EaiService eaiService;
+    private final GweProperties gweProperties;
 
     /**
      * 소요예산 산정 신규 신청 생성.
@@ -275,7 +277,7 @@ public class EstimateService {
 
     private void sendStatusEai(String domainName, String docNo, String from, String to, CustomUserDetails user) {
         try {
-            EaiResult result = eaiService.sendEai(EaiRequest.gwe("IPPG00000001", GwePayload.builder()
+            EaiResult result = eaiService.sendEai(EaiRequest.gwe(gweProperties.ifId(), GwePayload.builder()
                     .msgGubun("1")
                     .recvIds(user.getEno())
                     .subject("[IT Portal] " + domainName + " 상태 변경")

@@ -24,7 +24,11 @@ public class MenuAuthMapProvider {
 
     private final CmenuaRepository cmenuaRepository;
 
-    /** 활성 Cmenua를 mnuId→권한ID 집합으로 빌드. 캐시명: menuAuthMap. */
+    /**
+     * 활성 메뉴 권한을 메뉴ID별 권한ID 집합으로 구성합니다.
+     *
+     * @return 메뉴ID를 키로 하는 권한ID 집합 맵
+     */
     @Cacheable("menuAuthMap")
     public Map<String, Set<String>> getMenuAuthMap() {
         Map<String, Set<String>> map = new HashMap<>();

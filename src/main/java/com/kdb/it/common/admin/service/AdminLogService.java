@@ -46,6 +46,8 @@ public class AdminLogService {
 
     /**
      * 조회 가능한 상세 로그 테이블 목록을 반환합니다.
+     *
+     * @return 허용된 로그 키·표시명·설명 목록
      */
     public List<AdminLogDto.LogTableResponse> getTables() {
         return definitions.values().stream()

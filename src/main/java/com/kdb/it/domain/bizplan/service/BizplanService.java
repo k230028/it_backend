@@ -89,6 +89,7 @@ public class BizplanService {
      *
      * @param abusMngNo 사업관리번호
      * @param user      요청자 인증 정보
+     * @return 생성 또는 조회된 사업계획 상세
      * @throws IllegalArgumentException 사업 미존재 또는 BPLANA 미포함
      * @throws AccessDeniedException    주관부서도 관리자도 아닌 경우
      */
@@ -124,7 +125,9 @@ public class BizplanService {
      *
      * @param abusMngNo 사업관리번호
      * @param user      요청자 인증 정보
+     * @return 조회된 사업계획 상세
      * @throws IllegalArgumentException 사업 미존재/BPLANA 미포함/사업계획 미생성
+     * @throws AccessDeniedException    주관부서도 관리자도 아닌 경우
      */
     public BizplanDto.Detail get(String abusMngNo, CustomUserDetails user) {
         Bprojm project = loadEligibleProject(abusMngNo);
@@ -141,6 +144,9 @@ public class BizplanService {
      * 저장 마지막에 총소요금액을 활성 품목 금액 합계로 재계산한다.
      * 완료(29) 상태에서도 저장 가능하며 상태는 변경하지 않는다.</p>
      *
+     * @param abusMngNo 사업관리번호
+     * @param req 사업계획 저장 요청
+     * @param user 요청자 인증 정보
      * @throws IllegalArgumentException SNO 중복, cttSno 불일치, 사업계획 미생성
      * @throws AccessDeniedException    주관부서도 관리자도 아닌 경우
      */
@@ -163,8 +169,12 @@ public class BizplanService {
     /**
      * 완료 처리 — BPROJA 상태 21→29 전이만 허용.
      *
+     * @param abusMngNo 사업관리번호
+     * @param req 목표 상태 요청
+     * @param user 요청자 인증 정보
      * @throws IllegalArgumentException 목표 상태가 29가 아닌 경우
      * @throws IllegalStateException    현재 상태가 21이 아닌 경우
+     * @throws AccessDeniedException    주관부서도 관리자도 아닌 경우
      */
     @Transactional
     public void complete(String abusMngNo, BizplanDto.StatusRequest req, CustomUserDetails user) {

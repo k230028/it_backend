@@ -42,7 +42,7 @@ import lombok.RequiredArgsConstructor;
  * </ul>
  *
  * <p>
- * Design Ref: §2.1 EvaluationService — Step 3 담당
+ * 설계 참조: §2.1 EvaluationService — 3단계 담당
  * </p>
  */
 @Service

@@ -46,7 +46,7 @@ import java.util.List;
  *     ↓
  *   쿠키 또는 Authorization 헤더에서 JWT 토큰 추출
  *     ↓
- *   JwtUtil.validateToken() → 토큰 서명/만료 검증
+ *   JwtUtil.validateToken(jwt, TOKEN_USE_ACCESS, true) → 서명·만료·Access 용도(allowlist) 검증
  *     ↓ (유효한 경우)
  *   JwtUtil.getEnoFromToken() → 사번 추출
  *     ↓
@@ -99,8 +99,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 쿠키 우선, Authorization 헤더 폴백으로 JWT 토큰 추출
             String jwt = getJwtFromRequest(request);
 
-            // 토큰이 있고 서명/만료 검증을 통과한 경우에만 인증 설정
-            if (StringUtils.hasText(jwt) && jwtUtil.validateToken(jwt)) {
+            // 토큰이 있고 서명·만료·Access 용도(allowlist) 검증을 통과한 경우에만 인증 설정.
+            // 쿠키·Bearer 두 경로 모두 동일한 오버로드를 추출 이후 한 번만 호출한다.
+            // allowLegacy=true: 용도 클레임이 없는 배포 전 레거시 Access 토큰을 만료 시점까지 한시 허용.
+            if (StringUtils.hasText(jwt) && jwtUtil.validateToken(jwt, JwtUtil.TOKEN_USE_ACCESS, true)) {
                 // 토큰의 Payload에서 사번, 자격등급 목록, 부서코드 추출
                 String       eno    = jwtUtil.getEnoFromToken(jwt);
                 List<String> athIds = jwtUtil.getAthIdsFromToken(jwt);
@@ -121,12 +123,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 logger.debug("JWT 인증 성공: " + eno + " - " + request.getRequestURI());
             } else if (StringUtils.hasText(jwt)) {
-                // 토큰은 있지만 검증 실패(만료, 서명 오류 등)
-                logger.warn("=== JWT 토큰 검증 실패 ===");
-                logger.warn("요청 URI: " + request.getRequestURI());
-                // 보안상 토큰 앞 20자만 로그에 출력
-                logger.warn("토큰: " + jwt.substring(0, Math.min(20, jwt.length())) + "...");
-                logger.warn("=======================");
+                // 토큰은 있지만 서명·만료 또는 Access 용도 검증 실패.
+                // 보안상 토큰 본문·접두부는 로그에 남기지 않고 요청 URI만 기록한다.
+                logger.warn("JWT 서명·만료 또는 Access 용도 검증에 실패했습니다: " + request.getRequestURI());
             }
         } catch (Exception ex) {
             // 예외 발생 시 로그만 기록하고 필터 체인은 계속 진행 (인증 실패로 처리)

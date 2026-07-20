@@ -224,8 +224,8 @@ class ProjectServiceCoverageTest {
                 .abusNm("사업").items(List.of(changedDto)).build());
 
         // Assert: 변경 감지 → 버저닝 save 호출
-        verify(bitemmRepository).save(any(Bitemm.class));
-        assertThat(existingItem.getDelYn()).isEqualTo("Y");
+        verify(bitemmRepository, never()).save(any(Bitemm.class));
+        assertThat(existingItem.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -264,8 +264,8 @@ class ProjectServiceCoverageTest {
                 .abusNm("사업").items(List.of(changedDto)).build());
 
         // Assert
-        verify(bitemmRepository).save(any(Bitemm.class));
-        assertThat(existingItem.getDelYn()).isEqualTo("Y");
+        verify(bitemmRepository, never()).save(any(Bitemm.class));
+        assertThat(existingItem.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -473,8 +473,9 @@ class ProjectServiceCoverageTest {
         projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                 .abusNm("사업").items(List.of(dto)).build());
 
-        assertThat(existing.getDelYn()).isEqualTo("Y");
-        verify(bitemmRepository).save(any(Bitemm.class));
+        assertThat(existing.getDelYn()).isEqualTo("N");
+        assertThat(existing.getIoeC()).isEqualTo("IOE-CHANGED");
+        verify(bitemmRepository, never()).save(any(Bitemm.class));
     }
 
     @Test
@@ -490,7 +491,7 @@ class ProjectServiceCoverageTest {
         projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                 .abusNm("사업").items(List.of(dto)).build());
 
-        assertThat(existing.getDelYn()).isEqualTo("Y");
+        assertThat(existing.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -506,7 +507,7 @@ class ProjectServiceCoverageTest {
         projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                 .abusNm("사업").items(List.of(dto)).build());
 
-        assertThat(existing.getDelYn()).isEqualTo("Y");
+        assertThat(existing.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -522,7 +523,7 @@ class ProjectServiceCoverageTest {
         projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                 .abusNm("사업").items(List.of(dto)).build());
 
-        assertThat(existing.getDelYn()).isEqualTo("Y");
+        assertThat(existing.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -538,7 +539,7 @@ class ProjectServiceCoverageTest {
         projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                 .abusNm("사업").items(List.of(dto)).build());
 
-        assertThat(existing.getDelYn()).isEqualTo("Y");
+        assertThat(existing.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -556,7 +557,7 @@ class ProjectServiceCoverageTest {
                 .abusNm("사업").items(List.of(dto)).build());
 
         // toItdYm("2026-06") = "202606" ≠ "202601" → 변경
-        assertThat(existing.getDelYn()).isEqualTo("Y");
+        assertThat(existing.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -572,7 +573,7 @@ class ProjectServiceCoverageTest {
         projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                 .abusNm("사업").items(List.of(dto)).build());
 
-        assertThat(existing.getDelYn()).isEqualTo("Y");
+        assertThat(existing.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -589,7 +590,7 @@ class ProjectServiceCoverageTest {
         projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                 .abusNm("사업").items(List.of(dto)).build());
 
-        assertThat(existing.getDelYn()).isEqualTo("Y");
+        assertThat(existing.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -606,7 +607,7 @@ class ProjectServiceCoverageTest {
         projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                 .abusNm("사업").items(List.of(dto)).build());
 
-        assertThat(existing.getDelYn()).isEqualTo("Y");
+        assertThat(existing.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -624,7 +625,7 @@ class ProjectServiceCoverageTest {
         projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                 .abusNm("사업").items(List.of(dto)).build());
 
-        assertThat(existing.getDelYn()).isEqualTo("Y");
+        assertThat(existing.getDelYn()).isEqualTo("N");
     }
 
     @Test
@@ -642,7 +643,7 @@ class ProjectServiceCoverageTest {
         projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
                 .abusNm("사업").items(List.of(dto)).build());
 
-        assertThat(existing.getDelYn()).isEqualTo("Y");
+        assertThat(existing.getDelYn()).isEqualTo("N");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

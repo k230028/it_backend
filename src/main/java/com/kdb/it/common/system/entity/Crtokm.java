@@ -57,16 +57,8 @@ public class Crtokm extends BaseEntity {
     @Column(name = "LGN_LOG_SNO", comment = "토큰일련번호 (물리컬럼 LGN_LOG_SNO=메타표준 로그인로그일련번호)")
     private Long tokSno;
 
-    /**
-     * 토큰내용: JWT Refresh Token 값 (최대 2000자)
-     * UNIQUE 제약조건으로 중복 저장 방지.
-     * 물리 컬럼명은 API_TOK_CONE(메타표준 의미=API토큰내용)이며, 여기에 JWT Refresh Token을 저장함
-     */
-    @Column(name = "API_TOK_CONE", nullable = false, unique = true, length = 2000, comment = "토큰내용 (물리컬럼 API_TOK_CONE=메타표준 API토큰내용)")
-    private String tokCone;
-
     /** 암호화갱신발행토큰내용: Refresh Token 원문 대신 조회에 사용하는 SHA-256 HEX 값 */
-    @Column(name = "ECY_RNW_PUB_TOK_CONE", length = 900, comment = "암호화갱신발행토큰내용")
+    @Column(name = "ECY_RNW_PUB_TOK_CONE", nullable = false, length = 900, comment = "암호화갱신발행토큰내용")
     private String ecyRnwPubTokCone;
 
     /**
@@ -109,13 +101,6 @@ public class Crtokm extends BaseEntity {
     /** 회전된(이미 사용된) 토큰인지 — AVL_YN='N' */
     public boolean isRotated() {
         return "N".equals(this.avlYn);
-    }
-
-    /** 기존 토큰 행에는 조회값이 없을 수 있으므로 비어 있을 때만 보강한다. */
-    public void fillEncryptedRenewalTokenIfMissing(String lookupValue) {
-        if (this.ecyRnwPubTokCone == null || this.ecyRnwPubTokCone.isBlank()) {
-            this.ecyRnwPubTokCone = lookupValue;
-        }
     }
 
 }

@@ -102,10 +102,23 @@ public class EnvironmentValidator {
                     "운영 보안 위반: app.dev.user-switch.enabled=true 금지 — 비밀번호 없이 임의 사번 로그인 경로입니다.");
         }
 
+        rejectTrue("sso.mock-enabled", "모의 SSO 로그인 경로입니다.");
+        rejectTrue("app.auth.allow-bearer-header", "Bearer 헤더 인증 폴백입니다.");
+        if (!Boolean.parseBoolean(environment.getProperty("app.cookie.secure", "false"))) {
+            throw new IllegalStateException(
+                    "운영 보안 위반: app.cookie.secure가 true가 아님 — 인증 쿠키에 Secure가 필요합니다.");
+        }
+
         String frontendUrl = environment.getProperty("app.frontend-url");
         if (frontendUrl == null || frontendUrl.isBlank()) {
             throw new IllegalStateException(
                     "운영 필수 키 미설정: app.frontend-url — SSO 완료 리다이렉트 대상이 필요합니다.");
+        }
+    }
+
+    private void rejectTrue(String key, String reason) {
+        if (Boolean.parseBoolean(environment.getProperty(key, "false"))) {
+            throw new IllegalStateException("운영 보안 위반: " + key + "=true 금지 — " + reason);
         }
     }
 

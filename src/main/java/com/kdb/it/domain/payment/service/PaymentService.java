@@ -9,6 +9,7 @@ import com.kdb.it.domain.payment.entity.Bpaymm;
 import com.kdb.it.domain.payment.entity.Bpaymt;
 import com.kdb.it.domain.payment.repository.PaymentLineRepository;
 import com.kdb.it.domain.payment.repository.PaymentRepository;
+import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.dto.EaiRequest;
 import com.kdb.it.infra.eai.dto.EaiResult;
 import com.kdb.it.infra.eai.dto.GwePayload;
@@ -48,6 +49,7 @@ public class PaymentService {
     private final CostRepository costRepository;
     private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
     private final EaiService eaiService;
+    private final GweProperties gweProperties;
 
     /**
      * 대금지급 신규 의뢰를 생성합니다.
@@ -245,7 +247,7 @@ public class PaymentService {
 
     private void sendStatusEai(String domainName, String docNo, String from, String to, CustomUserDetails user) {
         try {
-            EaiResult result = eaiService.sendEai(EaiRequest.gwe("IPPG00000001", GwePayload.builder()
+            EaiResult result = eaiService.sendEai(EaiRequest.gwe(gweProperties.ifId(), GwePayload.builder()
                     .msgGubun("1")
                     .recvIds(user.getEno())
                     .subject("[IT Portal] " + domainName + " 상태 변경")

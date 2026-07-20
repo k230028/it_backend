@@ -16,6 +16,7 @@ import com.kdb.it.domain.contract.dto.ContractDto;
 import com.kdb.it.domain.contract.entity.Bcontm;
 import com.kdb.it.domain.contract.repository.ContractRepository;
 import com.kdb.it.domain.contract.repository.ContractTargetRow;
+import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
 import java.util.List;
@@ -65,7 +66,8 @@ class ContractServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ContractService(contractRepository, projectRepository, costRepository, bprojaSyncService, eaiService);
+        service = new ContractService(contractRepository, projectRepository, costRepository, bprojaSyncService,
+                eaiService, new GweProperties("TEST00000001"));
     }
 
     // =========================================================================

@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
+import org.springframework.data.domain.PageRequest;
 
 /**
  * CinfmmRepositoryImpl 벌크 읽음 처리 통합 테스트.
@@ -60,6 +62,21 @@ class CinfmmRepositoryImplTest extends AbstractOracleRepositoryTest {
         assertThat(reloadedDeleted.getLstChgUsid()).isEqualTo("FIXTURE");
     }
 
+    @Test
+    @DisplayName("findRetryableIds — 명명 파라미터가 바인딩되어 재시도 대상을 조회한다")
+    void findRetryableIds_bindsNamedParametersAndReturnsRetryable() {
+        // INFM_SD_STS_C='01'(PENDING)·fstEnrDtm 1일 전 = 재시도 대상
+        insertNotification("INF-T4-RETRY-01", TARGET_ENO, "N", "N");
+        em.flush();
+        em.clear();
+
+        List<String> ids = cinfmmRepository.findRetryableIds(
+                List.of(Cinfmm.DISPATCH_PENDING, Cinfmm.DISPATCH_FAILED), 5,
+                LocalDateTime.now(), PageRequest.of(0, 50));
+
+        assertThat(ids).contains("INF-T4-RETRY-01");
+    }
+
     private Cinfmm insertNotification(String infmMsgNo, String rmsEno, String inqYn, String delYn) {
         LocalDateTime now = LocalDateTime.now().minusDays(1);
         return em.persist(Cinfmm.builder()
@@ -71,6 +88,8 @@ class CinfmmRepositoryImplTest extends AbstractOracleRepositoryTest {
                 .inqYn(inqYn)
                 .inqDtm("Y".equals(inqYn) ? now : null)
                 .delYn(delYn)
+                .infmSdStsC(Cinfmm.DISPATCH_PENDING)
+                .reTryNot(0)
                 .fstEnrUsid("FIXTURE")
                 .fstEnrDtm(now)
                 .lstChgUsid("FIXTURE")

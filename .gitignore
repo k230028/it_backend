@@ -34,7 +34,7 @@ out/
 /.nb-gradle/
 .gstack/
 
-# Æó¼â¸Á ¹èÆ÷¿ë ºôµå »êÃâ¹° (GitHub 100MB Á¦ÇÑ ÃÊ°ú)
+# íì‡„ë§ ë°°í¬ìš© ë¹Œë“œ ì‚°ì¶œë¬¼ (GitHub 100MB ì œí•œ ì´ˆê³¼)
 *.JAR
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
@@ -42,3 +42,6 @@ out/
 # Office ì„ì‹œ ì ê¸ˆ íŒŒì¼ (Word/PPT/Excel ì—´ëŒ ì‹œ ìƒì„±)
 ~$*
 .worktrees/
+
+# ë¯¸ì •ì˜ Logback ê²½ë¡œ ë³€ìˆ˜ê°€ ë§Œë“  ë¡œì»¬ ë¡œê·¸ ìƒì„±ë¬¼
+/LOG_PATH_IS_UNDEFINED/

@@ -17,13 +17,12 @@ public interface NotificationDispatcher {
      * 알림을 외부 시스템으로 발송한다(또는 발송 페이로드를 기록한다).
      *
      * <p>
-     * 구현체는 발송이 완료되면 {@link Cinfmm#markDispatched(String, String)}을 호출하여
-     * 발송 메타(SD_TC, SD_DTM, SD_DOC_CONE)를 기록할 책임이 있다.
-     * 발송 실패는 예외로 던지지 않고 로깅 후 무시한다 (부수 효과로 취급).
+     * 구현체는 채널 발송만 담당하고 엔티티 상태는 변경하지 않는다.
+     * 예상 가능한 발송 실패는 예외 대신 실패 결과로 반환한다.
      * </p>
      *
      * @param notification 적재 직후의 알림 엔티티 (영속 상태)
      * @param sdPayload    발송 페이로드 (JSON 문자열, null 가능)
      */
-    void dispatch(Cinfmm notification, String sdPayload);
+    NotificationDispatchResult dispatch(Cinfmm notification, String sdPayload);
 }

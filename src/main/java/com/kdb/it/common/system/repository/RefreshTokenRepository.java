@@ -28,18 +28,6 @@ import java.util.Optional;
 public interface RefreshTokenRepository extends JpaRepository<Crtokm, Long> {
 
     /**
-     * 토큰내용으로 갱신토큰 조회
-     *
-     * <p>클라이언트가 전달한 Refresh Token 값으로 DB에서 토큰 정보를 조회합니다.
-     * Access Token 갱신 시 토큰 유효성 검사에 사용됩니다.</p>
-     *
-     * @param tokCone Refresh Token 문자열 (JWT 형식)
-     * @return 해당 토큰 엔티티 (없으면 {@link Optional#empty()})
-     */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<Crtokm> findByTokCone(String tokCone);
-
-    /**
      * 암호화갱신발행토큰내용으로 Refresh Token을 조회합니다.
      *
      * @param ecyRnwPubTokCone Refresh Token SHA-256 HEX 조회값
@@ -79,12 +67,4 @@ public interface RefreshTokenRepository extends JpaRepository<Crtokm, Long> {
      */
     void deleteByEno(String eno);
 
-    /**
-     * 토큰내용으로 갱신토큰 삭제
-     *
-     * <p>특정 토큰 값을 직접 삭제합니다. (현재 직접 사용하지 않으나 예비 메서드)</p>
-     *
-     * @param tokCone 삭제할 Refresh Token 문자열
-     */
-    void deleteByTokCone(String tokCone);
 }

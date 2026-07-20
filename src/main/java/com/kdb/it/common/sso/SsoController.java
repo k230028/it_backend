@@ -315,6 +315,7 @@ public class SsoController {
 
         boolean verified = SSO_SUCCESS_CODE.equals(resultCode) && !resultData.isBlank();
         if (verified) {
+            request.changeSessionId();
             session.setAttribute(SSO_VERIFIED_ENO_SESSION_KEY, resultData);
         }
 

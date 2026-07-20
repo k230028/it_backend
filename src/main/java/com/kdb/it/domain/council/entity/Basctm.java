@@ -27,9 +27,10 @@ import java.time.LocalDate;
  *
  * <p>협의회 ID 형식: {@code ASCT-{연도}-{4자리순번}} (예: ASCT-2026-0001)</p>
  *
- * <p>상태 전이: DRAFT → SUBMITTED → APPROVAL_PENDING → APPROVED → PREPARING
+ * <p>일반 협의회 상태 전이: DRAFT → SUBMITTED → APPROVAL_PENDING → APPROVED → PREPARING
  * → SCHEDULED → IN_PROGRESS → EVALUATING → RESULT_WRITING
- * → RESULT_REVIEW → FINAL_APPROVAL → COMPLETED</p>
+ * → RESULT_REVIEW → FINAL_APPROVAL → RESULT_APPROVAL_PENDING → COMPLETED.
+ * 계획협의회는 타당성검토·결재 단계를 생략하고 DRAFT에서 PREPARING으로 전이합니다.</p>
  */
 @LogTarget(entity = BasctmL.class)
 @Entity

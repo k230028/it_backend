@@ -707,7 +707,7 @@ public class ApplicationService {
      *
      * <p>
      * 집계 로직: {@code apfSts='none'} 조건으로 {@code ProjectRepository} 및
-     * {@code CostRepository}의 {@code searchByCondition}을 호출하여 각각의 건수를 계산합니다.
+     * {@code CostRepository}의 {@code countBySearchCondition} 집계 쿼리를 호출해 각각의 건수를 계산합니다.
      * (CAPPLA 연결이 없는 BPROJM/BCOSTM 레코드 = 아직 결재 상신되지 않은 항목)
      * </p>
      *

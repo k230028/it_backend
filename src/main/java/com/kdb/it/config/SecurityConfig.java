@@ -149,6 +149,10 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/auth/signup").hasRole("ADMIN")
                                                 // 정보기술부문계획 — 관리자 전용 (컨트롤러 실제 경로 /api/plans 와 정합)
                                                 .requestMatchers("/api/plans/**").hasRole("ADMIN")
+                                                // Actuator: health 는 공개(로드밸런서/모니터링 헬스체크),
+                                                // 나머지(metrics 등)는 관리자 전용 — 감사 실패 메트릭 보호 (ERR-06)
+                                                .requestMatchers("/actuator/health").permitAll()
+                                                .requestMatchers("/actuator/**").hasRole("ADMIN")
                                                 // 나머지는 인증 필요 (유효한 JWT 토큰 필수)
                                                 .anyRequest().authenticated())
                                 // 인증/접근 예외 처리 핸들러 설정
@@ -189,7 +193,7 @@ public class SecurityConfig {
          * </p>
          *
          * <p>
-         * 현재 설정 (개발 환경):
+         * 일반 API 설정:
          * </p>
          * <ul>
          * <li>허용 Origin: {@code cors.allowed-origins}에 지정된 명시 Origin</li>
@@ -197,8 +201,10 @@ public class SecurityConfig {
          * <li>허용 헤더: 명시 목록(Content-Type/Authorization/X-Requested-With)</li>
          * <li>자격증명(쿠키 등) 포함 허용: true</li>
          * </ul>
+         * <p>{@code /sso/**}는 브라우저 전체 페이지 콜백 경로이므로 별도 설정을 사용합니다.
+         * 모든 Origin 패턴과 GET/POST/OPTIONS를 허용하되 자격증명 공유는 허용하지 않습니다.</p>
          *
-         * @return 모든 경로({@code /**})에 적용되는 {@link CorsConfigurationSource}
+         * @return {@code /sso/**}와 일반 API 경로를 구분해 적용하는 {@link CorsConfigurationSource}
          */
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {

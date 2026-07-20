@@ -45,7 +45,9 @@
 - Repository는 DB 예외를 임의 변환하지 않고 상위 계층으로 전파합니다.
 - 조회 서비스는 `@Transactional(readOnly = true)`, 쓰기는 `@Transactional`을 사용합니다.
 - Dirty Checking이 가능한 변경에 불필요한 `save()`를 호출하지 않습니다.
-- 공통코드 변경 시 관련 캐시를 함께 무효화합니다.
+- Spring Cache는 `CacheConfig`에 이름·TTL·최대 크기를 등록한 Caffeine 캐시를 사용하고, 기본 `CacheManager`는 `TransactionAwareCacheManagerProxy`를 유지하여 캐시 쓰기·무효화가 트랜잭션 커밋 이후 반영되도록 합니다.
+- `@Cacheable` 원본을 변경하는 모든 쓰기 경로에는 영향 범위에 맞는 `@CacheEvict`를 적용합니다. 단일 키 변경은 같은 키를 제거하고 여러 키에 영향을 주면 `allEntries = true`를 사용합니다. TTL은 외부 변경이나 무효화 누락에 대한 안전망이며 정합성 보장의 주 수단으로 사용하지 않습니다.
+- `@Cacheable`은 Spring 프록시를 통해 호출합니다. 같은 빈 내부 호출이 필요하면 캐시 조회 책임을 별도 빈으로 분리합니다.
 
 Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/persistence/querydsl-and-oracle.md)를 확인합니다.
 
@@ -53,17 +55,21 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 
 - 브라우저 인증은 httpOnly 쿠키 기반 Stateless JWT를 기본으로 합니다. Bearer 헤더 폴백은 `app.auth.allow-bearer-header`가 명시적으로 활성화된 개발·API 테스트 환경에서만 허용합니다.
 - Access Token은 `Path=/`와 15분, Refresh Token은 `Path=/api/auth`와 7일 범위를 유지하며 두 쿠키 모두 SameSite=Lax를 적용합니다.
-- Refresh Token은 사용자별 단일 패밀리로 관리합니다. 갱신 시 DB 쓰기 잠금 아래 토큰을 회전하고, 동시 갱신 유예 기간 이후 회전 토큰이 재사용되면 해당 사용자의 Refresh Token을 모두 폐기합니다.
+- Refresh Token은 사용자별 단일 패밀리로 관리하고 원문 대신 `ECY_RNW_PUB_TOK_CONE`에 소문자 SHA-256 HEX 조회값을 저장합니다. 갱신은 DB 쓰기 잠금 아래 구 토큰을 회전 상태로 남기고 같은 패밀리에 신규 토큰을 발급합니다. 회전 토큰 재사용 시 재로그인을 요구하며, 패밀리 DB 폐기는 삭제 트랜잭션이 실제 커밋되는 구현에서만 보장합니다.
+- `EnvironmentValidator`는 전 프로파일에서 DB 비밀번호와 JWT 시크릿의 빈값을 차단합니다. `prod`에서는 Gemini 키, 활성 EAI URL, 비어 있거나 와일드카드인 CORS Origin, 빈 프론트 URL을 차단하고 SSO 직접 사번, 개발 사용자 전환, 모의 SSO, Bearer 폴백을 비활성화하며 보안 쿠키를 강제합니다. SSO 인증 성공 시 기존 세션 ID를 교체합니다.
+- 매 요청의 권한·부서 범위는 Access Token의 `athIds`·`bbrC` 클레임 스냅샷으로 구성하며 DB를 재조회하지 않습니다. 최신 자격등급과 부서는 로그인·SSO 발급 및 Refresh 시 다시 조회해 새 Access Token에 반영합니다.
+- Access 경로는 `tokenUse=access`를 검증하면서 용도 클레임이 없는 기존 Access Token을 만료까지 한시 허용하고, Refresh 경로는 `tokenUse=refresh`를 필수로 하여 레거시 토큰을 거부합니다.
 - 프론트 라우트 가드와 메뉴 숨김은 UX 보조이며 서버가 최종 보안 경계입니다.
 - 관리자 전용 컨트롤러는 클래스 수준 `@PreAuthorize("hasRole('ADMIN')")`를 적용합니다.
 - 관리자 전용이 아닌 업무 컨트롤러는 서비스 계층에서 소유자·역할·업무 범위를 검증합니다.
 - Cookie 기반 JWT는 Stateless여도 CSRF 검토 대상입니다. `SameSite=None`, CORS 와일드카드, 임의 Origin 추가는 별도 CSRF 보강 없이 적용하지 않습니다.
 - 비밀값은 환경변수로 주입하고 운영 프로파일에서 개발용 폴백을 사용하지 않습니다.
 - 사용자 HTML은 저장 전에 `HtmlSanitizer.sanitize()`를 적용합니다.
-- 파일 쓰기·삭제는 업로더 또는 관리자만 허용합니다. 공통게시판 연결 파일의 읽기는 게시물 공개 여부를 검증합니다. 그 외 업무 파일 읽기는 별도 소유권 제한이 구현된 것으로 간주하지 않습니다.
+- 파일 쓰기·삭제는 업로더 또는 관리자만 허용합니다. 파일 읽기는 파일 종류(PK_COL_NM)별 authorizer가 부모 자원 권한을 재사용해 판정합니다(default-deny, 미등록 종류는 관리자만). 공통게시판=게시물 공개 여부, 요구사항정의서=관리자/작성자/주관부서, 협의회 연계(사업계획서·타당성검토표·협의회관련자료)=관리자/정보보안관리자/협의회 위원/관련부서, 가이드문서=인증 사용자 전체.
 - 클라이언트 IP는 신뢰 프록시에서 온 경우에만 `X-Forwarded-For`를 사용합니다.
 - `it-portal-user`의 사번·역할·부서 값은 변조 가능한 UX 상태로만 취급하고, API 권한과 데이터 범위는 JWT 기반 서버 검증으로 결정합니다.
 - SSO JWT 발급은 외부 토큰 검증 결과를 서버 세션에 저장한 뒤 1회 소비하는 흐름으로 수행합니다. 직접 사번 전달은 운영에서 금지하고, 복귀 Origin은 CORS 허용 목록, 복귀 경로는 같은 사이트 상대 경로로 제한합니다.
+- `/sso/**`는 외부 ESSO의 전체 페이지 콜백 전용으로 Origin 패턴과 GET·POST·OPTIONS를 열되 `allowCredentials=false`를 유지합니다. 이 예외를 `/api/**` 또는 쿠키 자격증명을 사용하는 XHR 경로로 확대하지 않습니다.
 
 세부 정책은 [인증·인가 가이드](docs/guides/security/authentication-authorization.md), 데이터 범위는 [데이터 접근 범위 가이드](docs/guides/security/data-scope.md), 파일은 [파일 보안 가이드](docs/guides/security/file-security.md)를 따릅니다.
 
@@ -79,9 +85,10 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 
 - 원 트랜잭션과 반드시 함께 성공해야 하는 상태 동기화는 동기 `@EventListener`를 사용합니다.
 - 알림·메일처럼 실패가 원 업무를 롤백하면 안 되는 부수효과는 `@TransactionalEventListener(AFTER_COMMIT)`를 사용합니다.
-- AFTER_COMMIT 이후 DB 저장은 `REQUIRES_NEW`로 독립 트랜잭션을 시작합니다.
+- AFTER_COMMIT 이후 outbox 적재와 채널 발송은 각각 `REQUIRES_NEW` 독립 트랜잭션으로 처리합니다. 적재 실패는 원 업무를 롤백하지 않으며 `notification.persist.failure` 메트릭으로 탐지합니다.
+- 알림 발송 상태는 `Cinfmm.DISPATCH_*` 상수를 사용하고, 재시도 주기·배치 크기·최대 횟수는 `notification.retry.*` 설정으로 관리합니다. 서비스나 스케줄러에 별도 값을 중복 하드코딩하지 않습니다.
 - 알림 종류와 채널은 `NotificationEvent.TYPE_*`, `NotificationDispatcherRouter.CHANNEL_*` 상수를 사용합니다.
-- EAI 실패는 `EaiResult`로 표현하고 원 업무를 실패시키지 않으며 민감정보를 평문 로깅하지 않습니다.
+- EAI 실패는 `EaiResult`로 표현하고 원 업무를 실패시키지 않으며 민감정보를 평문 로깅하지 않습니다. GWE의 `IF_ID`는 `eai.gwe.if-id`만 사용합니다.
 - 외부 JSON 응답은 Jackson 버전 특정 `JsonNode`보다 전용 DTO 또는 `Map<String, Object>`로 받습니다.
 
 상세는 [알림 가이드](docs/guides/integrations/notifications.md), [EAI 가이드](docs/guides/integrations/eai.md), [SSO 가이드](docs/guides/integrations/sso.md)를 따릅니다.
@@ -92,6 +99,7 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 사업계획은 `BPLANA`에 포함된 최신·활성 사업만 대상으로 하며, 조회·생성·저장·완료는 사업 주관부서(`BPROJM.SVN_DPM_C`) 또는 관리자에게만 허용합니다.
 - 사업계획 상태는 계획 마스터가 아니라 `BPROJA`의 `(ABUS_MNG_NO, 'BIZ-' + ABUS_MNG_NO)` 행에 기록합니다. 상태 전이는 작성중(21)에서 작성완료(29)로만 허용하되, 완료 후 내용 저장은 허용하고 상태 29를 유지합니다.
 - 사업계획의 일정·품목·계약 목록은 `(ABUS_MNG_NO, SNO)` 기준으로 병합합니다. 같은 SNO의 삭제 행은 복원하고 요청에서 빠진 활성 행은 논리 삭제하며, 중복 SNO와 존재하지 않는 계약 SNO 참조를 저장 전에 거부합니다.
+- 비목(IOE) 코드의 자본예산/일반관리비 판별과 중분류 그룹명 해석은 `IoeCategories`를 단일 기준으로 사용합니다. 예산작업·사업·정보기술부문 예산 조회가 같은 분류 집합(`CAPITAL_CTPS`)을 공유하도록 개별 서비스에 중복 정의하지 않습니다.
 - 정보화사업 집행 4단계의 수정·삭제·상세 저장은 소유자 또는 관리자, 상태 전이는 관리자 권한을 검증합니다.
 - 집행 문서 상태는 인접 단계만 전이하고 작성중 상태에서만 수정·삭제합니다.
 - 알림 조회·읽음·삭제는 현재 사용자 소유권을 검증합니다.

@@ -203,6 +203,26 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 잘못된 Refresh Token 예외 처리 (401 Unauthorized)
+     *
+     * <p>{@link InvalidRefreshTokenException}이 컨트롤러 밖으로 전파된 경우의 방어선입니다.
+     * {@code /api/auth/refresh}는 {@code AuthController}의 helper에서 401과 함께 Access·Refresh
+     * 쿠키를 직접 삭제하므로 정상 흐름에서는 이 handler를 거치지 않습니다. 쿠키를 다룰 수 없는
+     * 비-인증 컨트롤러에서 전파된 경우를 대비해 최소한 상태코드(401)와 재로그인 안내만 보장합니다.
+     * {@link InvalidRefreshTokenException}은 {@code RuntimeException} 하위 타입이지만, 더 구체적인
+     * 이 handler가 포괄 {@code RuntimeException} 핸들러(400)보다 우선 매칭됩니다.</p>
+     *
+     * @param e {@link InvalidRefreshTokenException}
+     * @return 401 응답 + 재로그인 안내 메시지
+     */
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<String> handleInvalidRefreshToken(InvalidRefreshTokenException e) {
+        // 토큰 값은 남기지 않고 재로그인 필요 사실만 경고 로그로 기록
+        log.warn("잘못된 Refresh Token 요청이 전역 핸들러까지 전파되었습니다.");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("다시 로그인해 주세요.");
+    }
+
+    /**
      * cause 체인에 클라이언트 연결 끊김(다운로드 중단, 탭 닫기 등)이 있는지 판별합니다.
      *
      * <p>{@link AsyncRequestNotUsableException} 또는 Tomcat {@code ClientAbortException}이
