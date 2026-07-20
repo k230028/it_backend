@@ -14,7 +14,7 @@ import org.springframework.data.repository.query.Param;
  * </p>
  *
  * <p>
- * 기본키 타입: {@link Long} (apfSno: 신청서일련번호, SEQ_CAPPLA 자동 채번)
+ * 기본키 타입: {@link Long} (apfSno: 신청서일련번호, SQ_TPRMPP_CAPPLA_1 자동 채번)
  * </p>
  *
  * <p>

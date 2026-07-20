@@ -29,7 +29,7 @@ public interface PaymentRepository extends JpaRepository<Bpaymm, BpaymmId>, Paym
      *
      * @return 다음 시퀀스 값
      */
-    @Query(nativeQuery = true, value = "SELECT SEQ_BPAYMM.NEXTVAL FROM DUAL")
+    @Query(nativeQuery = true, value = "SELECT SQ_TPRMPP_BPAYMM_1.NEXTVAL FROM DUAL")
     Long nextDocSeq();
 
     /**

@@ -16,7 +16,7 @@ import java.util.List;
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여
  * 로그인이력 테이블(TPRMPP_CLOGNH)에 대한 CRUD 기능을 제공합니다.</p>
  *
- * <p>기본키 타입: {@link Long} (lgnLogSno: Oracle 시퀀스 SEQ_CLOGNH)</p>
+ * <p>기본키 타입: {@link Long} (lgnLogSno: Oracle 시퀀스 SQ_TPRMPP_CLOGNH_1)</p>
  *
  * <p>로그인구분코드({@code IT_PTL_LGN_TC})는 공통코드 {@code C_ID='IT_PTL_LGN_TC'} 기반 1자리 값입니다.
  * (1=성공, 2=실패, 3=로그아웃)</p>

@@ -37,12 +37,12 @@ import lombok.experimental.SuperBuilder;
 public class Cappla extends BaseEntity {
 
     /**
-     * 신청서일련번호: Oracle 시퀀스(SEQ_CAPPLA) 자동 채번.
+     * 신청서일련번호: Oracle 시퀀스(SQ_TPRMPP_CAPPLA_1) 자동 채번.
      * (물리 PK는 (APF_DCM_NO, APF_SNO) 복합키이나, 본 엔티티는 APF_SNO 단일 @Id로 매핑)
      */
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SEQ_CAPPLA")
-    @SequenceGenerator(name = "SEQ_CAPPLA", sequenceName = "SEQ_CAPPLA", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SQ_TPRMPP_CAPPLA_1")
+    @SequenceGenerator(name = "SQ_TPRMPP_CAPPLA_1", sequenceName = "SQ_TPRMPP_CAPPLA_1", allocationSize = 1)
     @Column(name = "APF_SNO", nullable = false, comment = "신청서일련번호")
     private Long apfSno;
 

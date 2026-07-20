@@ -25,13 +25,13 @@ public interface DeliberationRepository extends JpaRepository<Bdelim, BdelimId>,
     Optional<Bdelim> findByDocMngNoAndLstYnAndDelYn(String docMngNo, String lstYn, String delYn);
 
     /**
-     * Oracle 시퀀스(SEQ_BDELIM) 다음 값 조회.
+     * Oracle 시퀀스(SQ_TPRMPP_BDELIM_1) 다음 값 조회.
      *
      * <p>신규 과업심의 문서관리번호 채번 시 사용합니다.</p>
      *
      * @return 시퀀스의 다음 값 (Long)
      */
-    @Query(nativeQuery = true, value = "SELECT SEQ_BDELIM.NEXTVAL FROM DUAL")
+    @Query(nativeQuery = true, value = "SELECT SQ_TPRMPP_BDELIM_1.NEXTVAL FROM DUAL")
     Long nextDocSeq();
 
     /**

@@ -110,7 +110,7 @@ public class ReviewCommentController {
 
                     - 인라인 의견(I): markId와 qtdCone을 함께 전달해 편집기 하이라이트와 연결합니다.
                     - 전반 의견(G): 문서 전체에 대한 의견이며 markId/qtdCone은 생략할 수 있습니다.
-                    - 의견일련번호는 서버에서 SEQ_BRIVGM 시퀀스로 자동 채번합니다.
+                    - 의견일련번호는 서버에서 SQ_TPRMPP_BRIVGM_1 시퀀스로 자동 채번합니다.
                     """,
             responses = @ApiResponse(responseCode = "201", description = "등록 성공",
                     content = @Content(schema = @Schema(implementation = ReviewCommentDto.Response.class))))

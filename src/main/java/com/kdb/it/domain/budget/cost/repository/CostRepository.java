@@ -81,14 +81,14 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
     List<Bcostm> findByCostBgNoAndDelYnAndLstYn(String costBgNo, String delYn, String lstYn);
 
     /**
-     * Oracle 시퀀스(SEQ_BCOSTM) 다음 값 조회
+     * Oracle 시퀀스(SQ_TPRMPP_BCOSTM_1) 다음 값 조회
      *
      * <p>새로운 전산관리비 생성 시 관리번호용 시퀀스 값을 채번합니다.
      * Oracle DB 전용 Native Query입니다.</p>
      *
      * @return 시퀀스의 다음 값 (Long)
      */
-    @Query(value = "SELECT SEQ_BCOSTM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_BCOSTM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
     /**

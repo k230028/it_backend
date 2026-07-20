@@ -22,9 +22,9 @@ public interface ContractRepository extends JpaRepository<Bcontm, BcontmId>, Con
     /**
      * 입찰계약 문서 채번 시퀀스 다음 값을 반환한다.
      *
-     * @return SEQ_BCONTM.NEXTVAL
+     * @return SQ_TPRMPP_BCONTM_1.NEXTVAL
      */
-    @Query(nativeQuery = true, value = "SELECT SEQ_BCONTM.NEXTVAL FROM DUAL")
+    @Query(nativeQuery = true, value = "SELECT SQ_TPRMPP_BCONTM_1.NEXTVAL FROM DUAL")
     Long nextDocSeq();
 
     /**

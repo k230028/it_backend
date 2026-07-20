@@ -223,7 +223,7 @@ public class BoardCommentService {
         return user.isAdmin() || user.getEno().equals(comment.getFstEnrUsid());
     }
 
-    /** 댓글 식별자 채번 — SEQ_CCMMTM 시퀀스 기반 숫자 일련번호(CMMT_SNO). */
+    /** 댓글 식별자 채번 — SQ_TPRMPP_CCMMTM_1 시퀀스 기반 숫자 일련번호(CMMT_SNO). */
     private Long generateCmmtId() {
         return commentRepository.getNextSequenceValue();
     }

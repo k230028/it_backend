@@ -33,7 +33,7 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
      * @return 채번된 예산관리번호
      */
     @Query(value =
-        "SELECT 'BG-' || :bgYy || '-' || LPAD(SEQ_BBUGTM.NEXTVAL, 4, '0') FROM DUAL",
+        "SELECT 'BG-' || :bgYy || '-' || LPAD(SQ_TPRMPP_BBUGTM_1.NEXTVAL, 4, '0') FROM DUAL",
         nativeQuery = true)
     String generateBgMngNo(@Param("bgYy") String bgYy);
 

@@ -17,7 +17,7 @@ public interface BoardCommentRepository
     boolean existsByHrkCmmtMngNoAndDelYn(Long hrkCmmtMngNo, String delYn);
 
     /** 댓글 채번 시퀀스 */
-    @Query(value = "SELECT SEQ_CCMMTM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_CCMMTM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
     /** 대댓글 삽입을 위한 SQN 밀어내기 */

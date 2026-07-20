@@ -837,11 +837,11 @@ public class CostService {
             String prevYear = String.valueOf(Integer.parseInt(entry.getKey()) - 1);
             List<CostDto.Response> yearGroup = entry.getValue();
 
-            // 전년도 예산(BCOSTM AMT 합계): 계속(abusTc='02') 항목만.
+            // 전년도 예산(BCOSTM AMT 합계): 계속(abusTc='20') 항목만.
             // 전년도 항목은 cncdRfrNo(관련전산업무비번호)로 연결되므로 cncdRfrNo 우선,
             // 미연결(동일 관리번호 연차 데이터)은 costBgNo로 폴백 조회한다.
             List<String> prevAmtKeys = yearGroup.stream()
-                    .filter(r -> "02".equals(r.getAbusTc()))
+                    .filter(r -> "20".equals(r.getAbusTc()))
                     .map(CostService::prevBudgetLookupKey)
                     .filter(k -> k != null && !k.isBlank())
                     .distinct()
@@ -849,7 +849,7 @@ public class CostService {
             if (!prevAmtKeys.isEmpty()) {
                 Map<String, BigDecimal> prevBgMap = costRepository.sumPrevBgByCostBgNos(prevAmtKeys, prevYear);
                 yearGroup.stream()
-                        .filter(r -> "02".equals(r.getAbusTc()))
+                        .filter(r -> "20".equals(r.getAbusTc()))
                         .forEach(r -> r.setPrevBgAmt(
                                 prevBgMap.getOrDefault(prevBudgetLookupKey(r), BigDecimal.ZERO)));
             }
@@ -899,13 +899,13 @@ public class CostService {
     /**
      * 단건 응답에 전년도 예산(prevBgAmt)을 설정합니다.
      *
-     * <p>계속(abusTc='02') 항목만 대상이며, cncdRfrNo(전년도 관리번호) 우선 키로
+     * <p>계속(abusTc='20') 항목만 대상이며, cncdRfrNo(전년도 관리번호) 우선 키로
      * 전년도(bseYy-1) BCOSTM 예산금액 합계를 조회합니다. 목록 배치 보강
      * ({@code enrichCostListBatch})과 동일한 기준입니다.</p>
      */
     private void setPrevBudget(CostDto.Response response) {
         response.setPrevBgAmt(BigDecimal.ZERO);
-        if (!"02".equals(response.getAbusTc())) {
+        if (!"20".equals(response.getAbusTc())) {
             return;
         }
         String bseYy = response.getBseYy();

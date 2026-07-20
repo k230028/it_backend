@@ -128,8 +128,8 @@ class PlanServiceTest {
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
         given(cuserIRepository.findAllById(List.of("USER002"))).willReturn(List.of());
         given(codeService.findCodeEntitiesByCId("ABUS_TC")).willReturn(List.of(
-                Ccodem.builder().cdva("01").cdvaNm("신규").build(),
-                Ccodem.builder().cdva("02").cdvaNm("계속").build()));
+                Ccodem.builder().cdva("10").cdvaNm("신규").build(),
+                Ccodem.builder().cdva("20").cdvaNm("계속").build()));
 
         List<PlanDto.ListResponse> result = service.getPlans();
 

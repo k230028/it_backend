@@ -30,7 +30,7 @@ public interface EstimateRepository extends JpaRepository<Bestim, BestimId>, Est
      *
      * @return 다음 시퀀스 값
      */
-    @Query(nativeQuery = true, value = "SELECT SEQ_BESTIM.NEXTVAL FROM DUAL")
+    @Query(nativeQuery = true, value = "SELECT SQ_TPRMPP_BESTIM_1.NEXTVAL FROM DUAL")
     Long nextDocSeq();
 
     /**

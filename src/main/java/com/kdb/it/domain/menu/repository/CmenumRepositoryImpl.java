@@ -28,7 +28,7 @@ public class CmenumRepositoryImpl implements CmenumRepositoryCustom {
     @Override
     public String nextMnuId() {
         Object val = entityManager
-                .createNativeQuery("SELECT SEQ_CMENUM.NEXTVAL FROM DUAL")
+                .createNativeQuery("SELECT SQ_TPRMPP_CMENUM_1.NEXTVAL FROM DUAL")
                 .getSingleResult();
         long n = ((Number) val).longValue();
         return "MNU" + String.format("%07d", n);

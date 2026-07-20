@@ -213,7 +213,7 @@ public class CouncilDto {
      * @param lglRglYn 법률규제대응여부
      * @param lglRglNm 관련법률규제명
      * @param xptEff 기대효과
-     * @param kpnTc 저장구분코드
+     * @param kpnTc 저장유형구분코드 (10:임시저장 / 20:저장완료)
      * @param performances 성과지표 목록
      * @param flMngNo 첨부파일관리번호
      */
@@ -236,7 +236,7 @@ public class CouncilDto {
         String lglRglNm,
         /** 기대효과 (최대 1000자) */
         String xptEff,
-        /** 저장구분코드 (TEMP:임시저장 / COMPLETE:작성완료) */
+        /** 저장유형구분코드 (10:임시저장 / 20:저장완료) */
         @NotBlank String kpnTc,
         /** 성과지표 목록 (1개 이상) */
         List<PerformanceRequest> performances,

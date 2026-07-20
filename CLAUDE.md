@@ -21,6 +21,7 @@
 - `CURRENT_SCHEMA=ITPOWN`이 세션에 적용되므로 엔티티와 네이티브 쿼리에 `ITPOWN.` 접두사를 하드코딩하지 않습니다.
 - 물리 구조의 SoT는 `../it_database/migrations`, ORM 매핑의 SoT는 엔티티, 사람이 보는 매핑 인덱스는 [data-model.md](docs/guides/persistence/data-model.md)입니다.
 - 엔티티·컬럼명은 `C:\it\meta\meta.txt`의 메타 용어와 [컬럼 명명 가이드](docs/guides/persistence/column-naming.md)를 따릅니다.
+- 시퀀스는 `SQ_{테이블명}_#`(예: `SQ_TPRMPP_CAUTHI_1`), PK 제약이 소유하지 않는 인덱스는 `IX_{테이블명}_##`(예: `IX_TPRMPP_CAUTHI_01`) 명명 규칙을 따릅니다. 감사로그 PK 채번(`AuditLogIdGenerator`)도 이 규칙으로 시퀀스명을 유도합니다.
 - 모든 업무 엔티티는 `BaseEntity`를 상속하고 물리 삭제 대신 `delete()`로 `DEL_YN='Y'`를 설정합니다.
 - 감사 대상 업무 엔티티는 `@LogTarget`, 대응 로그 엔티티는 `BaseLogEntity`를 사용합니다.
 - `@LogTarget` 엔티티의 고유 NOT NULL 기본값은 `@PrePersist`에만 의존하지 말고 생성자·팩토리에서 설정합니다.

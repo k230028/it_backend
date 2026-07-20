@@ -136,7 +136,7 @@ class JwtUtilTest {
         }
 
         // then: 모든 토큰이 서로 달라야 함 — 동일 토큰이 발급되면 TPRMPP_CRTOKM의
-        // SHA-256 조회값 유니크 인덱스(UX_CRTOKM_ECY_RNW_PUB_TOK)와 충돌해 ORA-00001이 발생한다
+        // SHA-256 조회값 유니크 인덱스(IX_TPRMPP_CRTOKM_02)와 충돌해 ORA-00001이 발생한다
         assertThat(tokens).hasSize(issueCount);
     }
 

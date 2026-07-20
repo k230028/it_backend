@@ -76,15 +76,15 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
             String pkColNm, String pkCone, String flTpCone, String delYn);
 
     /**
-     * Oracle 시퀀스(SEQ_CFILEM) 다음 값 조회
+     * Oracle 시퀀스(SQ_TPRMPP_CFILEM_1) 다음 값 조회
      *
      * <p>
      * 파일매핑ID 채번에 사용합니다.
      * 형식: {@code FL_{8자리 시퀀스}} (예: {@code FL_00000001})
      * </p>
      *
-     * @return Oracle 시퀀스(SEQ_CFILEM)의 다음 값
+     * @return Oracle 시퀀스(SQ_TPRMPP_CFILEM_1)의 다음 값
      */
-    @Query(value = "SELECT SEQ_CFILEM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_CFILEM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 }

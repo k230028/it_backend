@@ -11,18 +11,18 @@ import java.sql.Statement;
 /**
  * 로그 테이블 PK({@code LOG_HIS_TGR_SNO}) 생성기.
  *
- * <p>로그 엔티티의 {@code @Table(name)} 값에서 Postfix를 추출하고,
- * Oracle 시퀀스 {@code SEQ_{Postfix}.NEXTVAL}을 조회하여 {@code Long} 값을 반환한다.</p>
+ * <p>로그 엔티티의 {@code @Table(name)} 값(테이블명)으로부터
+ * Oracle 시퀀스 {@code SQ_{테이블명}_1.NEXTVAL}을 조회하여 {@code Long} 값을 반환한다.</p>
  *
- * <p>예: {@code TPRMPP_BPROJL} → {@code SEQ_BPROJL.NEXTVAL} (숫자)</p>
+ * <p>예: {@code TPRMPP_BPROJL} → {@code SQ_TPRMPP_BPROJL_1.NEXTVAL} (숫자)</p>
  */
 public class AuditLogIdGenerator implements IdentifierGenerator {
 
     /**
      * 로그 엔티티의 PK({@code LOG_HIS_TGR_SNO})를 Oracle 시퀀스로 채번합니다.
      *
-     * <p>채번 흐름: {@code @Table(name)} 추출 → Postfix 분리 → {@code SEQ_{Postfix}.NEXTVAL} 조회</p>
-     * <p>예: {@code TPRMPP_BPROJL} → {@code SEQ_BPROJL.NEXTVAL} → Long 값 반환</p>
+     * <p>채번 흐름: {@code @Table(name)} 추출 → {@code SQ_{테이블명}_1.NEXTVAL} 조회</p>
+     * <p>예: {@code TPRMPP_BPROJL} → {@code SQ_TPRMPP_BPROJL_1.NEXTVAL} → Long 값 반환</p>
      *
      * <p>시퀀스 미존재(ORA-02289) 등 DB 오류 발생 시 {@link RuntimeException}으로 래핑하여 전파합니다.
      * 해당 예외는 {@link com.kdb.it.domain.log.listener.ChangeLogEntityListener}가 삼켜
@@ -36,19 +36,16 @@ public class AuditLogIdGenerator implements IdentifierGenerator {
      */
     @Override
     public Object generate(SharedSessionContractImplementor session, Object object) {
-        String postfix = resolvePostfix(object);
-        return fetchNextVal(session, "SEQ_" + postfix);
+        String tableName = resolveTableName(object);
+        return fetchNextVal(session, "SQ_" + tableName + "_1");
     }
 
-    private String resolvePostfix(Object object) {
+    private String resolveTableName(Object object) {
         Table ann = object.getClass().getAnnotation(Table.class);
         if (ann == null) {
             throw new IllegalStateException("@Table 누락: " + object.getClass().getName());
         }
-        // "TPRMPP_BPROJL" → "BPROJL"
-        String tbl = ann.name().toUpperCase();
-        int idx = tbl.indexOf('_');
-        return idx >= 0 ? tbl.substring(idx + 1) : tbl;
+        return ann.name().toUpperCase();
     }
 
     private long fetchNextVal(SharedSessionContractImplementor session, String seqName) {

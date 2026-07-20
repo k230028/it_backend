@@ -48,15 +48,15 @@ public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
     boolean existsByDocMngNoAndDelYn(String docMngNo, String delYn);
 
     /**
-     * Oracle 시퀀스(SEQ_BGDOCM) 다음 값 조회
+     * Oracle 시퀀스(SQ_TPRMPP_BGDOCM_1) 다음 값 조회
      *
      * <p>
      * 신규 가이드 문서 생성 시 문서관리번호 채번에 사용합니다.
      * 형식: {@code GDOC-{연도}-{4자리 시퀀스}} (예: {@code GDOC-2026-0001})
      * </p>
      *
-     * @return Oracle 시퀀스(SEQ_BGDOCM)의 다음 값
+     * @return Oracle 시퀀스(SQ_TPRMPP_BGDOCM_1)의 다음 값
      */
-    @Query(value = "SELECT SEQ_BGDOCM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_BGDOCM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 }

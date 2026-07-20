@@ -48,12 +48,12 @@ import java.time.LocalDateTime;
 public class Crtokm extends BaseEntity {
 
     /**
-     * 토큰일련번호: 기본키. Oracle 시퀀스(SEQ_CRTOKM)로 자동 채번.
+     * 토큰일련번호: 기본키. Oracle 시퀀스(SQ_TPRMPP_CRTOKM_1)로 자동 채번.
      * 물리 컬럼명은 LGN_LOG_SNO(메타표준 의미=로그인로그일련번호)이나, 이 테이블에서는 갱신토큰의 일련번호로 사용함
      */
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SEQ_CRTOKM")
-    @SequenceGenerator(name = "SEQ_CRTOKM", sequenceName = "SEQ_CRTOKM", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SQ_TPRMPP_CRTOKM_1")
+    @SequenceGenerator(name = "SQ_TPRMPP_CRTOKM_1", sequenceName = "SQ_TPRMPP_CRTOKM_1", allocationSize = 1)
     @Column(name = "LGN_LOG_SNO", comment = "토큰일련번호 (물리컬럼 LGN_LOG_SNO=메타표준 로그인로그일련번호)")
     private Long tokSno;
 

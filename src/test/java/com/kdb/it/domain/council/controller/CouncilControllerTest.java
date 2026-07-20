@@ -91,7 +91,7 @@ class CouncilControllerTest {
     private static CouncilDto.FeasibilityRequest validFeasibilityRequest() {
         return new CouncilDto.FeasibilityRequest(
                 null, null, null, null, null, null, null, null, null,
-                "TEMP", null, null);
+                "10", null, null, null);
     }
 
     /** 핵심 필드 제약을 충족하는 평가위원 선정 요청 (members 비어있지 않음) */

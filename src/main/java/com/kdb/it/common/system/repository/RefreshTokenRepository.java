@@ -14,7 +14,7 @@ import java.util.Optional;
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여
  * 갱신토큰 테이블(TPRMPP_CRTOKM)에 대한 CRUD 기능을 제공합니다.</p>
  *
- * <p>기본키 타입: {@link Long} (tokSno: Oracle 시퀀스 SEQ_CRTOKM)</p>
+ * <p>기본키 타입: {@link Long} (tokSno: Oracle 시퀀스 SQ_TPRMPP_CRTOKM_1)</p>
  *
  * <p>Refresh Token 관리 전략:</p>
  * <ul>

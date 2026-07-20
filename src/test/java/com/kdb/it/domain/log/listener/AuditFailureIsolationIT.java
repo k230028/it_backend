@@ -38,7 +38,7 @@ import io.micrometer.core.instrument.MeterRegistry;
  * 감사 저장 실패와 원 업무 트랜잭션의 격리를 실제 로컬 Oracle로 검증하는 통합 테스트(ERR-06).
  *
  * <p>대상 엔티티는 외래키가 없는 전산관리비 마스터 {@link Bcostm}(테이블 {@code TPRMPP_BCOSTM})이며,
- * 대응 감사 로그는 {@code TPRMPP_BCOSTL}(시퀀스 {@code SEQ_BCOSTL})이다. 각 테스트는 {@code ZZIT}로
+ * 대응 감사 로그는 {@code TPRMPP_BCOSTL}(시퀀스 {@code SQ_TPRMPP_BCOSTL_1})이다. 각 테스트는 {@code ZZIT}로
  * 시작하는 고유 업무 PK({@code BG_NO})를 직접 생성하고 종료 시 두 테이블에서 자신의 행만 삭제한다.</p>
  *
  * <p>검증 시나리오</p>

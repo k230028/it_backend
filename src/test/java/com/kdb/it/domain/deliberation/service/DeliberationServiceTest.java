@@ -134,7 +134,7 @@ class DeliberationServiceTest {
                     .thenReturn(Optional.of(draftOwnedByE0001()));
             assertThatThrownBy(() -> service.saveResult(
                     "DLB-2026-0001",
-                    new DeliberationDto.ResultRequest("01", "01", "20260601", "01", "N", null, null, null),
+                    new DeliberationDto.ResultRequest("1", "2", "20260601", "01", "N", null, null, null),
                     other()))
                     .isInstanceOf(AccessDeniedException.class);
         }
@@ -490,7 +490,7 @@ class DeliberationServiceTest {
 
         assertThatThrownBy(() -> service.saveResult(
                 "DLB-2026-0001",
-                new DeliberationDto.ResultRequest("01", "01", "20260601", "01", "N", null, null, null),
+                new DeliberationDto.ResultRequest("1", "2", "20260601", "01", "N", null, null, null),
                 requester()))
                 .isInstanceOf(IllegalStateException.class);
     }
@@ -506,10 +506,10 @@ class DeliberationServiceTest {
 
         service.saveResult(
                 "DLB-2026-0001",
-                new DeliberationDto.ResultRequest("01", "01", "20260601", "01", "N", null, "의견없음", null),
+                new DeliberationDto.ResultRequest("1", "2", "20260601", "01", "N", null, "의견없음", null),
                 requester());
 
-        assertThat(e.getTaskDbrRltTc()).isEqualTo("01");
+        assertThat(e.getTaskDbrRltTc()).isEqualTo("2");
     }
 
     @Test
@@ -523,7 +523,7 @@ class DeliberationServiceTest {
         // Act — taskDbrOmtYn = null 명시적으로 전달
         service.saveResult(
                 "DLB-2026-0001",
-                new DeliberationDto.ResultRequest("01", "02", "20260615", "02", null, null, "결과 의견", "반려사유"),
+                new DeliberationDto.ResultRequest("1", "4", "20260615", "02", null, null, "결과 의견", "불가사유"),
                 requester());
 
         // Assert — null → "N" 기본값 처리 확인 (서비스 내 null 체크 분기)
@@ -541,7 +541,7 @@ class DeliberationServiceTest {
         // Act
         service.saveResult(
                 "DLB-2026-0001",
-                new DeliberationDto.ResultRequest("02", "03", "20260620", "03", "Y", "긴급사유", null, null),
+                new DeliberationDto.ResultRequest("2", "3", "20260620", "03", "Y", "긴급사유", null, null),
                 requester());
 
         // Assert
@@ -560,7 +560,7 @@ class DeliberationServiceTest {
         // Act & Assert
         assertThatThrownBy(() -> service.saveResult(
                 "DLB-2026-0001",
-                new DeliberationDto.ResultRequest("01", "01", "20260601", "01", "N", null, null, null),
+                new DeliberationDto.ResultRequest("1", "2", "20260601", "01", "N", null, null, null),
                 requester()))
                 .isInstanceOf(IllegalStateException.class);
     }
@@ -575,7 +575,7 @@ class DeliberationServiceTest {
         // Act & Assert
         assertThatThrownBy(() -> service.saveResult(
                 "NONE",
-                new DeliberationDto.ResultRequest("01", "01", "20260601", "01", "N", null, null, null),
+                new DeliberationDto.ResultRequest("1", "2", "20260601", "01", "N", null, null, null),
                 requester()))
                 .isInstanceOf(IllegalArgumentException.class);
     }

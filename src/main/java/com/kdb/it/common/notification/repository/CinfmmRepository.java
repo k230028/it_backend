@@ -15,7 +15,7 @@ import java.util.List;
  * <p>표준 CRUD는 {@link JpaRepository}, 동적·집계 쿼리는
  * {@link CinfmmRepositoryCustom} 구현체({@code CinfmmRepositoryImpl})에 위임한다.</p>
  *
- * <p>채번: {@code SEQ_CINFMM.NEXTVAL} Native Query.</p>
+ * <p>채번: {@code SQ_TPRMPP_CINFMM_1.NEXTVAL} Native Query.</p>
  */
 public interface CinfmmRepository extends JpaRepository<Cinfmm, String>, CinfmmRepositoryCustom {
 
@@ -24,7 +24,7 @@ public interface CinfmmRepository extends JpaRepository<Cinfmm, String>, CinfmmR
      *
      * @return 다음 시퀀스 값 (1부터 시작, 99,999,999 도달 시 CYCLE)
      */
-    @Query(value = "SELECT SEQ_CINFMM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_CINFMM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextVal();
 
     /** 재시도 가능한 실패·정체 알림 번호를 오래된 순서로 제한 조회합니다. */

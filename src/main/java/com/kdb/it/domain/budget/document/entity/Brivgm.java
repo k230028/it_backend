@@ -44,10 +44,10 @@ import static jakarta.persistence.GenerationType.SEQUENCE;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Brivgm extends BaseEntity {
 
-    /** 의견일련번호: Oracle 시퀀스 SEQ_BRIVGM에서 자동 채번 */
+    /** 의견일련번호: Oracle 시퀀스 SQ_TPRMPP_BRIVGM_1에서 자동 채번 */
     @Id
     @GeneratedValue(strategy = SEQUENCE, generator = "brivgm_seq")
-    @SequenceGenerator(name = "brivgm_seq", sequenceName = "SEQ_BRIVGM", allocationSize = 1)
+    @SequenceGenerator(name = "brivgm_seq", sequenceName = "SQ_TPRMPP_BRIVGM_1", allocationSize = 1)
     @Column(name = "IPM_OPNN_SNO", nullable = false, precision = 9, comment = "의견일련번호 (물리컬럼 IPM_OPNN_SNO=개선의견일련번호)")
     private Long ipmOpnnSno;
 
@@ -105,7 +105,7 @@ public class Brivgm extends BaseEntity {
     }
 
     /**
-     * 검토의견 생성 팩토리 메서드. 의견일련번호는 영속화 시 SEQ_BRIVGM에서 자동 채번됩니다.
+     * 검토의견 생성 팩토리 메서드. 의견일련번호는 영속화 시 SQ_TPRMPP_BRIVGM_1에서 자동 채번됩니다.
      *
      * @param docMngNo    대상 문서관리번호
      * @param docVrsSno   대상 문서버전
