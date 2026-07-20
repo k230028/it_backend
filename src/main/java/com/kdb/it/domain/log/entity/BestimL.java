@@ -27,9 +27,6 @@ public class BestimL extends BaseLogEntity {
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
-    @Column(name = "IOE_C", length = 7, comment = "IT포탈예산성격구분코드")
-    private String ioeC;
-
     @Column(name = "CNCD_RFR_NO", length = 30, comment = "관련참조번호(대상관리번호)")
     private String cncdRfrNo;
 

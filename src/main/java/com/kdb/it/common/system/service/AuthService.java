@@ -284,8 +284,10 @@ public class AuthService {
         refreshToken.markRotated();
         refreshTokenRepository.save(refreshToken);
         String newRefreshTokenValue = jwtUtil.generateRefreshToken(eno);
+        String newRefreshTokenHash = sha256HexForToken(newRefreshTokenValue);
         Crtokm rotated = Crtokm.builder()
-                .ecyRnwPubTokCone(sha256HexForToken(newRefreshTokenValue))
+                .apiTokCone(newRefreshTokenHash)
+                .ecyRnwPubTokCone(newRefreshTokenHash)
                 .eno(eno)
                 .famNm(refreshToken.getFamNm())
                 .avlYn("Y")
@@ -453,8 +455,10 @@ public class AuthService {
     private String issueNewRefreshFamily(String eno) {
         refreshTokenRepository.deleteByEno(eno);
         String value = jwtUtil.generateRefreshToken(eno);
+        String tokenHash = sha256HexForToken(value);
         Crtokm token = Crtokm.builder()
-                .ecyRnwPubTokCone(sha256HexForToken(value)).eno(eno)
+                .apiTokCone(tokenHash)
+                .ecyRnwPubTokCone(tokenHash).eno(eno)
                 .famNm(java.util.UUID.randomUUID().toString())
                 .avlYn("Y")
                 .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))

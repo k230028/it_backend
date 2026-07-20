@@ -489,7 +489,7 @@ class CouncilControllerTest {
     @WithMockUser(username = "10001")
     void createSkipRequest_인증_200() throws Exception {
         // Arrange
-        var body = new CouncilDto.SkipRequestCreate("01", "보안강화 사유", "FL-2026-00000001");
+        var body = new CouncilDto.SkipRequestCreate("보안강화 사유", "FL-2026-00000001");
 
         // Act & Assert
         mockMvc.perform(post("/api/council/" + ASCT_ID + "/skip-request")
@@ -526,7 +526,7 @@ class CouncilControllerTest {
     void getSkipRequests_인증_200() throws Exception {
         // Arrange
         var response = new CouncilDto.SkipRequestResponse(
-                ASCT_ID, "01", "보안강화", "FL-2026-0001",
+                ASCT_ID, "보안강화", "FL-2026-0001",
                 "10001", null, false, null, null, null, null, null);
         given(councilSkipService.getActiveSkipRequests()).willReturn(List.of(response));
 
@@ -547,7 +547,7 @@ class CouncilControllerTest {
     void getSkipRequest_인증_200() throws Exception {
         // Arrange
         var response = new CouncilDto.SkipRequestResponse(
-                ASCT_ID, "02", "기타 사유", "FL-2026-0002",
+                ASCT_ID, "기타 사유", "FL-2026-0002",
                 "10002", null, false, null, null, null, null, null);
         given(councilSkipService.getSkipRequest(ASCT_ID)).willReturn(response);
 
@@ -555,7 +555,7 @@ class CouncilControllerTest {
         mockMvc.perform(get("/api/council/" + ASCT_ID + "/skip-request"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.asctId").value(ASCT_ID))
-                .andExpect(jsonPath("$.rsnTc").value("02"));
+                .andExpect(jsonPath("$.rsn").value("기타 사유"));
     }
 
     // =========================================================================

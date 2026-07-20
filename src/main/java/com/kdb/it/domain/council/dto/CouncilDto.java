@@ -982,12 +982,10 @@ public class CouncilDto {
      * <p>타당성검토표 첨부는 Step1(Bpovwm)의 기존 첨부를 서버가 재사용하므로 클라이언트가 보내지 않습니다.
      * 사업계획서 첨부만 신규 업로드 후 그 파일관리번호를 전달합니다.</p>
      *
-     * @param rsnTc    생략사유코드 (PRTY_IVG_OMT_RSN_TC, 01~04)
      * @param rsn      담당자의견내용 (요청 설명)
      * @param flMpnId  사업계획서 첨부 파일관리번호 (Cfilem.FL_MPN_ID, 신규 업로드)
      */
     public record SkipRequestCreate(
-        @NotBlank String rsnTc,
         @NotBlank String rsn,
         @NotBlank String flMpnId
     ) {}
@@ -1011,7 +1009,6 @@ public class CouncilDto {
      * <p>{@code decided}=확인일시(cnfmDtm) 존재 여부. 회신 전이면 false(판정 대기).</p>
      *
      * @param asctId   협의회ID
-     * @param rsnTc    생략사유코드
      * @param rsn      담당자의견내용 (요청 설명)
      * @param flMpnId  사업계획서 첨부 파일관리번호
      * @param rqsUsid  신청자 사번
@@ -1025,7 +1022,6 @@ public class CouncilDto {
      */
     public record SkipRequestResponse(
         String asctId,
-        String rsnTc,
         String rsn,
         String flMpnId,
         String rqsUsid,

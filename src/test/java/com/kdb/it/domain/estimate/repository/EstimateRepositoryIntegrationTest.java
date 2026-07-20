@@ -71,7 +71,6 @@ class EstimateRepositoryIntegrationTest extends AbstractOracleRepositoryTest {
                 .sno(1)
                 .abusMngNo(projectNo)
                 .fntTbCrySno(1)
-                .ioeC(ioeC)
                 .lstYn("Y")
                 .amt(new BigDecimal("100000000"))
                 .mplAmt(BigDecimal.ZERO)

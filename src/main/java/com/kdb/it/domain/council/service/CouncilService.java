@@ -233,11 +233,11 @@ public class CouncilService {
         // 협의회 기본정보 생성 (초기 상태: DRAFT)
         Basctm council = Basctm.builder()
                 .itPtlAsctId(asctId)
-                .abusMngNo(isPlanCouncil ? null : request.prjMngNo())  // 계획협의회는 단일 사업 없음
+                // 운영 BASCTM에는 별도 계획키가 없으므로 계획협의회는 ABUS_MNG_NO에 계획관리번호를 저장한다.
+                .abusMngNo(isPlanCouncil ? request.reqDocNo() : request.prjMngNo())
                 .sno(isPlanCouncil ? null : request.prjSno())
                 .itPtlAsctPrgStsTc("01")
                 .itPtlAsctDbrTc(request.dbrTc())
-                .reqDocNo(isPlanCouncil ? request.reqDocNo() : null)   // 계획협의회 심의 대상 계획
                 .build();
 
         // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)

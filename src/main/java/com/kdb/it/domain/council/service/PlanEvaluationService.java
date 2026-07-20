@@ -75,7 +75,7 @@ public class PlanEvaluationService {
     /**
      * 협의회의 심의 대상 조회 (사업 카드·예산 표출용).
      *
-     * <p>협의회의 REQ_DOC_NO(계획관리번호)로 계획 스냅샷의 예산·부서 정보를 얻고,
+     * <p>계획협의회의 ABUS_MNG_NO에 저장된 계획관리번호로 계획 스냅샷의 예산·부서 정보를 얻고,
      * 스냅샷에 없는 사업개요·시작/종료일자는 BPROJM(정보화사업) 상세에서 보강해 병합합니다.
      * 경상사업(ornYn='Y')은 제외하고 정보화사업만 반환합니다.</p>
      *
@@ -85,7 +85,7 @@ public class PlanEvaluationService {
      */
     public CouncilDto.PlanTargetsResponse getPlanTargets(String asctId) {
         Basctm council = councilService.findActiveCouncil(asctId);
-        String reqDocNo = council.getReqDocNo();
+        String reqDocNo = council.getAbusMngNo();
         if (reqDocNo == null || reqDocNo.isBlank()) {
             throw new IllegalStateException("계획이 연결되지 않은 협의회입니다: " + asctId);
         }
@@ -200,7 +200,7 @@ public class PlanEvaluationService {
         List<Basctm> completed = councilRepository
                 .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc("02", "13", "N");
         for (Basctm c : completed) {
-            String rd = c.getReqDocNo();
+            String rd = c.getAbusMngNo();
             if (rd == null || rd.isBlank() || rd.equals(currentReqDocNo)) {
                 continue;
             }
@@ -338,7 +338,7 @@ public class PlanEvaluationService {
         List<CouncilDto.PlanBusinessVerdict> verdicts = aggregateVerdicts(all);
 
         // 사업명 매핑 (계획 스냅샷)
-        Map<String, String> nameById = resolveBusinessNames(council.getReqDocNo());
+        Map<String, String> nameById = resolveBusinessNames(council.getAbusMngNo());
 
         // 사업별 유보 사유 수집 (유보 위원의 사유)
         Map<String, List<String>> reserveOpinions = all.stream()

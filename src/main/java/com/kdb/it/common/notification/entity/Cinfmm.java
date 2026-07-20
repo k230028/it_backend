@@ -44,7 +44,7 @@ public class Cinfmm extends BaseEntity {
     private String infmMsgNo;
 
     /** 알림서비스구분코드 — 공통코드 {@code IT_PTL_INFM_SVC_TC} (01=시스템, 02=결재요청, 03=결재결과, 04=게시물멘션, 05=댓글멘션, 06=결재회수) */
-    @Column(name = "IT_PTL_INFM_SVC_TC", length = 2, nullable = false, comment = "IT포탈알림서비스구분코드")
+    @Column(name = "IT_PTL_INFM_SVC_TC", length = 2, comment = "IT포탈알림서비스구분코드")
     private String itPtlInfmSvcTc;
 
     /** 제목 (최대 100자) */
@@ -84,11 +84,11 @@ public class Cinfmm extends BaseEntity {
     private String sdDocCone;
 
     /** 알림발송상태코드 — 01=PENDING, 02=SENT, 03=FAILED */
-    @Column(name = "INFM_SD_STS_C", length = 2, nullable = false, comment = "알림발송상태코드")
+    @Column(name = "INFM_SD_STS_C", length = 2, comment = "알림발송상태코드")
     private String infmSdStsC;
 
     /** 외부 발송 재시도 횟수 */
-    @Column(name = "RE_TRY_NOT", nullable = false, comment = "재시도횟수")
+    @Column(name = "RE_TRY_NOT", comment = "재시도횟수")
     private Integer reTryNot;
 
     /** 마지막 발송 오류 내용 */
