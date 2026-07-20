@@ -44,10 +44,10 @@ public class UserService {
      * @return 해당 부점의 사용자 목록 DTO ({@link UserDto.ListResponse} 리스트)
      */
     public List<UserDto.ListResponse> getUsersByOrganization(String orgCode) {
-        // 부점코드로 사용자 목록 조회 (CorgnI JOIN FETCH로 N+1 방지)
+        // 사용자와 조직에서 목록 응답에 필요한 컬럼만 ListRow로 조회한다.
         List<UserDto.ListRow> users = userRepository.findListRowsByBbrC(orgCode);
 
-        // 각 사용자 엔티티를 DTO로 변환 (부점명은 연관관계에서 조회)
+        // 조회된 ListRow를 엔티티 접근 없이 목록 응답 DTO로 변환한다.
         return users.stream()
                 .map(UserDto.ListResponse::fromRow)
                 .toList();

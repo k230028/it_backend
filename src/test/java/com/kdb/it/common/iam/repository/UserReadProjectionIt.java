@@ -20,6 +20,7 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 class UserReadProjectionIt extends AbstractOracleRepositoryTest {
 
     private static final String ORG_CODE = "120";
+    private static final String PARENT_ORG_CODE = "P120";
 
     @Autowired
     private UserRepository userRepository;
@@ -29,12 +30,21 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
 
     @BeforeEach
     void setUp() {
+        CorgnI parentOrganization = em.find(CorgnI.class, PARENT_ORG_CODE);
+        if (parentOrganization == null) {
+            em.persist(organization(PARENT_ORG_CODE, "IT부문", null));
+            em.flush();
+        } else {
+            parentOrganization.update("IT부문", parentOrganization.getBbrWrenNm(),
+                    parentOrganization.getItmSqnSno(), parentOrganization.getPrlmHrkOgzCCone());
+        }
+
         CorgnI organization = em.find(CorgnI.class, ORG_CODE);
         if (organization == null) {
-            em.persist(organization(ORG_CODE, "디지털부", null));
+            em.persist(organization(ORG_CODE, "디지털부", PARENT_ORG_CODE));
         } else {
             organization.update("디지털부", organization.getBbrWrenNm(),
-                    organization.getItmSqnSno(), organization.getPrlmHrkOgzCCone());
+                    organization.getItmSqnSno(), PARENT_ORG_CODE);
         }
         persistUser("BE03001", "홍길동", "팀장", ORG_CODE, "12004", "N");
         persistUser("BE03002", "김길동", "사원", ORG_CODE, "12004", "Y");
@@ -81,6 +91,8 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(row.eno()).isEqualTo("BE03001");
         assertThat(row.bbrNm()).isEqualTo("디지털부");
         assertThat(row.etrMilAddrNm()).isEqualTo("BE03001@example.test");
+        assertThat(row.prlmHrkOgzCCone()).isEqualTo(PARENT_ORG_CODE);
+        assertThat(row.prlmHrkOgzCNm()).isEqualTo("IT부문");
     }
 
     @Test
