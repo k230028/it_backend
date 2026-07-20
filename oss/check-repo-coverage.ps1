@@ -24,12 +24,14 @@ param(
 if ($RepoDir) {
     if (-not (Test-Path $RepoDir)) { throw "폴더를 찾을 수 없습니다: $RepoDir" }
     $base = (Resolve-Path $RepoDir).Path
-    $paths = Get-ChildItem $base -File -Recurse |
+    $paths = @(Get-ChildItem $base -File -Recurse |
         ForEach-Object { $_.FullName.Substring($base.Length + 1) -replace '\\', '/' } |
-        Where-Object { $_ -notlike 'gradle-*' }
+        Where-Object { $_ -notlike 'gradle-*' -and $_ -notlike '*.module' })
 } elseif ($ManifestFile) {
     if (-not (Test-Path $ManifestFile)) { throw "manifest 파일을 찾을 수 없습니다: $ManifestFile" }
-    $paths = Get-Content $ManifestFile | Where-Object { $_.Trim() }
+    $paths = @(Get-Content $ManifestFile |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -and $_ -notlike '*.module' })
 } else {
     throw '-RepoDir 또는 -ManifestFile 중 하나를 지정하세요.'
 }
@@ -43,7 +45,7 @@ if ($Username) {
 
 $total = $paths.Count
 $mode = if ($DownloadDir) { "점검 + 다운로드 → $DownloadDir" } else { '점검만' }
-Write-Host "대상: $total개 파일 / 저장소: $RepoUrl / 모드: $mode"
+Write-Host "대상: ${total}개 파일 / 저장소: $RepoUrl / 모드: $mode"
 Write-Host ""
 
 $found = 0; $downloaded = 0; $skippedLocal = 0; $missing = @(); $checked = 0
@@ -100,65 +102,83 @@ if ($missing.Count -gt 0) {
     $missing | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }
 }
 
-# ── 반입신청목록 CSV 생성 (저장소에 없는 누락분만 대상) ──────────────────────
-# 누락 경로를 Maven2 좌표(그룹:아티팩트:버전)로 묶어 좌표당 1건을 기록합니다.
+# Maven2 경로를 좌표(그룹:아티팩트:버전)로 묶어 좌표당 1건으로 변환합니다.
 #   - jar가 있으면 jar, jar 없이 pom만 있으면 pom을 대표 파일로 선택 (타입은 소문자).
-#   - .module/.xml/.asc 등 부가 파일만 누락된 좌표는 제외.
-# 누락이 없으면 헤더만 있는 빈 CSV를 생성합니다(이전 실행의 잔존 파일 방지).
-$coords = [ordered]@{}
-foreach ($rawPath in $missing) {
-    $segs = ($rawPath.Trim()) -split '/'
-    if ($segs.Count -lt 4) { continue }   # Maven2 레이아웃(group/artifact/version/file)이 아니면 제외
-    $file       = $segs[-1]
-    $version    = $segs[-2]
-    $artifactId = $segs[-3]
-    $groupId    = ($segs[0..($segs.Count - 4)] -join '.')
-    $ext        = ([IO.Path]::GetExtension($file)).TrimStart('.').ToLower()
+#   - .xml/.asc 등 부가 파일만 있는 좌표는 제외합니다.
+function ConvertTo-CoordinateRows {
+    param([string[]]$InputPaths)
 
-    # 분류자(classifier) 추출: 파일명이 {artifactId}-{version}-{classifier}.{ext} 형태이면 가운데 부분.
-    #   예: ...-4.1.115.Final-linux-x86_64.jar → linux-x86_64, *-sources.jar → sources. 없으면 공란.
-    $baseName   = [IO.Path]::GetFileNameWithoutExtension($file)
-    $prefix     = $artifactId + '-' + $version
-    $classifier = ''
-    if ($baseName.StartsWith($prefix + '-')) {
-        $classifier = $baseName.Substring($prefix.Length + 1)
+    $coords = [ordered]@{}
+    foreach ($rawPath in $InputPaths) {
+        $segs = ($rawPath.Trim()) -split '/'
+        if ($segs.Count -lt 4) { continue }   # Maven2 레이아웃이 아니면 제외
+        $file       = $segs[-1]
+        $version    = $segs[-2]
+        $artifactId = $segs[-3]
+        $groupId    = ($segs[0..($segs.Count - 4)] -join '.')
+        $ext        = ([IO.Path]::GetExtension($file)).TrimStart('.').ToLower()
+
+        # 분류자는 {artifactId}-{version}-{classifier}.{ext}의 가운데 부분입니다.
+        $baseName   = [IO.Path]::GetFileNameWithoutExtension($file)
+        $prefix     = $artifactId + '-' + $version
+        $classifier = ''
+        if ($baseName.StartsWith($prefix + '-')) {
+            $classifier = $baseName.Substring($prefix.Length + 1)
+        }
+
+        # 분류자가 다르면 별개 산출물이므로 각각 별도 행으로 유지합니다.
+        $key = $groupId + ':' + $artifactId + ':' + $version + ':' + $classifier
+        if (-not $coords.Contains($key)) {
+            $coords[$key] = [ordered]@{
+                groupId = $groupId; artifactId = $artifactId; version = $version
+                classifier = $classifier; files = @{}
+            }
+        }
+        $coords[$key].files[$ext] = $file
     }
 
-    # 분류자가 다르면 별개 산출물이므로 좌표 키에 분류자를 포함해 각각 별도 행으로 유지.
-    $key = $groupId + ':' + $artifactId + ':' + $version + ':' + $classifier
-    if (-not $coords.Contains($key)) {
-        $coords[$key] = [ordered]@{
-            groupId = $groupId; artifactId = $artifactId; version = $version
-            classifier = $classifier; files = @{}
+    foreach ($key in $coords.Keys) {
+        $c = $coords[$key]
+        if     ($c.files.ContainsKey('jar')) { $type = 'jar'; $file = $c.files['jar'] }
+        elseif ($c.files.ContainsKey('pom')) { $type = 'pom'; $file = $c.files['pom'] }
+        else   { continue }                   # jar/pom 없는 좌표는 제외
+
+        [pscustomobject][ordered]@{
+            '그룹'        = $c.groupId
+            '아티팩트'      = $c.artifactId
+            '버전'        = $c.version
+            'classifier' = $c.classifier
+            '타입'        = $type
+            '파일명'       = $file
         }
     }
-    $coords[$key].files[$ext] = $file
 }
 
-$csvRows = foreach ($key in $coords.Keys) {
-    $c = $coords[$key]
-    if     ($c.files.ContainsKey('jar')) { $type = 'jar'; $file = $c.files['jar'] }
-    elseif ($c.files.ContainsKey('pom')) { $type = 'pom'; $file = $c.files['pom'] }
-    else   { continue }                   # jar/pom 없는 좌표는 반입 대상에서 제외
+function Export-CoordinateCsv {
+    param(
+        [object[]]$Rows,
+        [string]$Path
+    )
 
-    [pscustomobject][ordered]@{
-        '그룹'        = $c.groupId
-        '아티팩트'      = $c.artifactId
-        '버전'        = $c.version
-        'classifier' = $c.classifier
-        '타입'        = $type
-        '파일명'       = $file
+    if ($Rows.Count -gt 0) {
+        $Rows | Sort-Object '그룹', '아티팩트', '버전', 'classifier' |
+            Export-Csv -Path $Path -NoTypeInformation -Encoding utf8
+    } else {
+        # 대상이 없으면 이전 실행 결과가 남지 않도록 헤더만 기록합니다.
+        '"그룹","아티팩트","버전","classifier","타입","파일명"' |
+            Out-File -FilePath $Path -Encoding utf8
     }
 }
 
+# 전체 대상 목록과 저장소 누락분을 같은 형식의 CSV로 생성합니다.
+$allCsvPath = Join-Path $PSScriptRoot '전체목록.csv'
+$allCsvRows = @(ConvertTo-CoordinateRows -InputPaths $paths)
+Export-CoordinateCsv -Rows $allCsvRows -Path $allCsvPath
+Write-Host ""
+Write-Host ("전체목록 생성: {0} ({1}건)" -f $allCsvPath, $allCsvRows.Count)
+
 $csvPath = Join-Path $PSScriptRoot '반입신청목록.csv'
-$csvRows = @($csvRows)
-if ($csvRows.Count -gt 0) {
-    $csvRows | Sort-Object '그룹', '아티팩트', '버전' |
-        Export-Csv -Path $csvPath -NoTypeInformation -Encoding utf8
-} else {
-    # 누락이 없으면 Export-Csv가 빈 파일을 만들므로 헤더만 직접 기록
-    '"그룹","아티팩트","버전","classifier","타입","파일명"' | Out-File -FilePath $csvPath -Encoding utf8
-}
+$csvRows = @(ConvertTo-CoordinateRows -InputPaths $missing)
+Export-CoordinateCsv -Rows $csvRows -Path $csvPath
 Write-Host ""
 Write-Host ("반입신청목록(누락분) 생성: {0} ({1}건)" -f $csvPath, $csvRows.Count)
