@@ -20,11 +20,11 @@ import lombok.experimental.SuperBuilder;
  * <p>DB 테이블: {@code TPRMPP_BPLEVM}</p>
  *
  * <p>정보기술부문계획(dbrTc='02') 협의회에서 각 평가위원이 계획에 포함된
- * 정보화사업별로 적정/유보(ADQ_YN)와 사유(EVAL_OPNN_CONE)를 남깁니다.
+ * 정보화사업별로 적정/유보(PPRT_YN)와 사유(EVAL_OPNN_CONE)를 남깁니다.
  * 사업별 최종 판정은 "위원 중 1명이라도 유보(N)면 유보"입니다(집계는 서비스 계층).</p>
  *
  * <p>기존 타당성검토 평가의견(Bevalm)과 구조가 유사하나, 세 번째 복합키가
- * 점검항목코드가 아니라 사업관리번호(ABUS_MNG_NO)이고, 점수 대신 적정여부(ADQ_YN)를 씁니다.</p>
+ * 점검항목코드가 아니라 사업관리번호(ABUS_MNG_NO)이고, 점수 대신 적정여부(PPRT_YN)를 씁니다.</p>
  *
  * <p>복합키: ({@code itPtlAsctId}, {@code eno}, {@code abusMngNo})</p>
  */
@@ -54,8 +54,8 @@ public class Bplevm extends BaseEntity {
     private String abusMngNo;
 
     /** 적정여부: Y(적정) / N(유보). 위원이 사업별로 1택. */
-    @Column(name = "ADQ_YN", length = 1, nullable = false, comment = "적정여부(Y=적정/N=유보)")
-    private String adqYn;
+    @Column(name = "PPRT_YN", length = 1, nullable = false, comment = "적정여부(Y=적정/N=유보)")
+    private String pprtYn;
 
     /** 평가의견내용: 적정/유보 사유 (최대 1000자) */
     @Column(name = "EVAL_OPNN_CONE", length = 1000, comment = "평가의견내용")
@@ -64,11 +64,11 @@ public class Bplevm extends BaseEntity {
     /**
      * 평가의견 업데이트 (위원이 수정 시 재호출)
      *
-     * @param adqYn    적정여부 (Y=적정 / N=유보)
+     * @param pprtYn    적정여부 (Y=적정 / N=유보)
      * @param evalOpnn 평가의견(사유)
      */
-    public void update(String adqYn, String evalOpnn) {
-        this.adqYn = adqYn;
+    public void update(String pprtYn, String evalOpnn) {
+        this.pprtYn = pprtYn;
         this.evalOpnn = evalOpnn;
     }
 }

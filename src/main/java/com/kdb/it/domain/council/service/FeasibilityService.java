@@ -1,10 +1,12 @@
 package com.kdb.it.domain.council.service;
 
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.entity.Bchklm;
 import com.kdb.it.domain.council.entity.Bperfm;
 import com.kdb.it.domain.council.entity.Bpovwm;
 import com.kdb.it.domain.council.repository.PerformanceRepository;
 import com.kdb.it.domain.council.repository.ProjectOverviewRepository;
+import com.kdb.it.domain.council.repository.SelfCheckRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 
 /**
@@ -45,12 +49,24 @@ public class FeasibilityService {
     /** 성과지표 리포지토리 (TPRMPP_BPERFM) */
     private final PerformanceRepository performanceRepository;
 
+    /** 자체점검 리포지토리 (TPRMPP_BCHKLM) */
+    private final SelfCheckRepository selfCheckRepository;
+
     /** 협의회 기본 서비스 — 상태 전이 및 협의회 존재 확인용 */
     private final CouncilService councilService;
 
     /** JPA EntityManager — 성과지표 하드 딜리트 및 persist용 */
     @PersistenceContext
     private EntityManager entityManager;
+
+    /** 점검항목코드 → 한글명 (자체점검 검증 메시지용, BEVALM 평가와 동일 체계) */
+    private static final Map<String, String> CHECK_ITEM_NAMES = Map.of(
+            "01", "경영전략/계획 부합",
+            "02", "재무 효과",
+            "03", "리스크 개선 효과",
+            "04", "평판/이미지 개선 효과",
+            "05", "유사/중복 시스템 유무",
+            "06", "기타");
 
 
 
@@ -75,10 +91,13 @@ public class FeasibilityService {
             return null;
         }
 
+        // 자체점검 목록 조회 (항목 정렬은 프론트에서 고정 순서로 처리)
+        List<Bchklm> selfChecks = selfCheckRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
+
         // 성과지표 목록 조회 (순번 오름차순)
         List<Bperfm> performances = performanceRepository.findByItPtlAsctIdAndDelYnOrderByEvlDtpSnoAsc(asctId, "N");
 
-        return toFeasibilityResponse(overviewOpt.get(), performances);
+        return toFeasibilityResponse(overviewOpt.get(), selfChecks, performances);
     }
 
     // =========================================================================
@@ -111,6 +130,9 @@ public class FeasibilityService {
 
         // 사업개요 저장 (upsert)
         saveOrUpdateOverview(asctId, request);
+
+        // 자체점검 저장 (항목별 upsert)
+        saveOrUpdateSelfChecks(asctId, request);
 
         // 성과지표 저장 (전체 교체)
         if (request.performances() != null && !request.performances().isEmpty()) {
@@ -158,6 +180,56 @@ public class FeasibilityService {
                         entityManager.persist(overview);
                     }
                 );
+    }
+
+    /**
+     * 자체점검 항목별 신규 저장 또는 업데이트 (upsert)
+     *
+     * <p>협의회 단위로 점검항목당 1행(BCHKLM)을 유지한다. 평가위원 평가(BEVALM)와 달리
+     * 사번이 없다. 작성완료(kpnTc='02') 시 모든 항목의 점검점수와 점검의견 입력이 필수이며,
+     * 임시저장('01')은 부분 입력을 허용한다.</p>
+     */
+    private void saveOrUpdateSelfChecks(String asctId, CouncilDto.FeasibilityRequest req) {
+        if (req.selfChecks() == null || req.selfChecks().isEmpty()) {
+            return;
+        }
+        // 작성완료(kpnTc='02') 시 전 항목 점검점수+점검의견 필수. 임시저장('01')은 부분 입력 허용.
+        boolean isComplete = "02".equals(req.kpnTc());
+
+        // 기존 자체점검을 항목코드 기준으로 1회 배치 조회 (항목별 개별 SELECT N+1 제거)
+        Map<String, Bchklm> existingByItem = selfCheckRepository
+                .findByItPtlAsctIdAndDelYn(asctId, "N").stream()
+                .collect(Collectors.toMap(Bchklm::getItPtlCkgItmTc, c -> c, (a, b) -> a));
+
+        for (CouncilDto.SelfCheckItem item : req.selfChecks()) {
+            // 작성완료 시 모든 항목 점검점수+점검의견 필수
+            if (isComplete) {
+                String itemNm = CHECK_ITEM_NAMES.getOrDefault(item.ckgItmC(), item.ckgItmC());
+                if (item.ckgRcrd() == null) {
+                    throw new IllegalArgumentException(
+                            "자체점검은 모든 항목의 점검점수 입력이 필수입니다. 항목: " + itemNm);
+                }
+                if (item.ckgOpnn() == null || item.ckgOpnn().isBlank()) {
+                    throw new IllegalArgumentException(
+                            "자체점검은 모든 항목의 점검의견 입력이 필수입니다. 항목: " + itemNm);
+                }
+            }
+
+            // upsert: 기존 있으면 update, 없으면 신규 INSERT
+            Bchklm existing = existingByItem.get(item.ckgItmC());
+            if (existing != null) {
+                existing.update(item.ckgRcrd(), item.ckgOpnn());
+            } else {
+                Bchklm selfCheck = Bchklm.builder()
+                        .itPtlAsctId(asctId)
+                        .itPtlCkgItmTc(item.ckgItmC())
+                        .quelRcrd(item.ckgRcrd())
+                        .ckgOpnn(item.ckgOpnn())
+                        .build();
+                // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
+                entityManager.persist(selfCheck);
+            }
+        }
     }
 
 
@@ -221,7 +293,13 @@ public class FeasibilityService {
      * 엔티티 → FeasibilityResponse 변환
      */
     private CouncilDto.FeasibilityResponse toFeasibilityResponse(
-            Bpovwm overview, List<Bperfm> performances) {
+            Bpovwm overview, List<Bchklm> selfChecks, List<Bperfm> performances) {
+
+        // 자체점검 변환
+        List<CouncilDto.SelfCheckItemResponse> selfCheckResponses = selfChecks.stream()
+                .map(c -> new CouncilDto.SelfCheckItemResponse(
+                        c.getItPtlCkgItmTc(), c.getQuelRcrd(), c.getCkgOpnn()))
+                .toList();
 
         // 성과지표 변환
         List<CouncilDto.PerformanceResponse> perfResponses = performances.stream()
@@ -234,7 +312,7 @@ public class FeasibilityService {
                 overview.getAbusNm(), overview.getAbusTrmCone(), overview.getAbusNcsCone(),
                 overview.getRqmBgAmt(), overview.getItPtlEdrtTc(), overview.getAbusCone(),
                 overview.getLwRglYn(), overview.getLwFdtn(), overview.getDgogPpoCone(),
-                overview.getKpnTpTc(), perfResponses, overview.getFlMpnId()
+                overview.getKpnTpTc(), perfResponses, overview.getFlMpnId(), selfCheckResponses
         );
     }
 }

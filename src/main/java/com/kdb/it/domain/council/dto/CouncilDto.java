@@ -241,7 +241,9 @@ public class CouncilDto {
         /** 성과지표 목록 (1개 이상) */
         List<PerformanceRequest> performances,
         /** 첨부파일관리번호 (hwp/hwpx/pdf) */
-        String flMngNo
+        String flMngNo,
+        /** 타당성 자체점검 항목 목록 (6개 점검항목, 임시저장 시 일부만 채워질 수 있음) */
+        List<SelfCheckItem> selfChecks
     ) {}
 
     /**
@@ -284,7 +286,9 @@ public class CouncilDto {
         /** 성과지표 목록 */
         List<PerformanceResponse> performances,
         /** 첨부파일관리번호 */
-        String flMngNo
+        String flMngNo,
+        /** 타당성 자체점검 항목 목록 */
+        List<SelfCheckItemResponse> selfChecks
     ) {}
 
 
@@ -331,6 +335,41 @@ public class CouncilDto {
         String clf,
         String msmTpm,
         String msmCle
+    ) {}
+
+    /**
+     * 타당성 자체점검 항목 (요청 — 담당자 저장)
+     *
+     * <p>평가위원 평가({@link EvaluationItem})와 동일한 점검항목 체계(CKG_ITM_C 01~06)를 쓰되,
+     * 위원별이 아니라 협의회 단위 자가진단 값이다. 점수 1~2점 입력 시 의견이 필수다.</p>
+     *
+     * @param ckgItmC 점검항목코드 (01~06)
+     * @param ckgRcrd 문항점수 (1~5)
+     * @param ckgOpnn 점검의견 (1~2점 시 필수)
+     */
+    public record SelfCheckItem(
+        /** 점검항목코드 (01~06) */
+        String ckgItmC,
+        /** 문항점수 (1~5) */
+        Integer ckgRcrd,
+        /** 점검의견 (1~2점 시 필수) */
+        String ckgOpnn
+    ) {}
+
+    /**
+     * 타당성 자체점검 항목 (응답)
+     *
+     * @param ckgItmC 점검항목코드 (01~06)
+     * @param ckgRcrd 문항점수 (1~5)
+     * @param ckgOpnn 점검의견
+     */
+    public record SelfCheckItemResponse(
+        /** 점검항목코드 (01~06) */
+        String ckgItmC,
+        /** 문항점수 (1~5) */
+        Integer ckgRcrd,
+        /** 점검의견 */
+        String ckgOpnn
     ) {}
 
     // =========================================================================
@@ -658,7 +697,7 @@ public class CouncilDto {
         /** 사업관리번호 */
         @NotBlank String abusMngNo,
         /** 적정여부 (Y=적정 / N=유보) */
-        @NotBlank String adqYn,
+        @NotBlank String pprtYn,
         /** 평가의견(사유) — 적정/유보 모두 필수 */
         String evalOpnn
     ) {}
@@ -672,7 +711,7 @@ public class CouncilDto {
         /** 사업관리번호 */
         String abusMngNo,
         /** 적정여부 (Y=적정 / N=유보) */
-        String adqYn,
+        String pprtYn,
         /** 평가의견(사유) */
         String evalOpnn
     ) {}
@@ -682,7 +721,7 @@ public class CouncilDto {
         /** 사업관리번호 */
         String abusMngNo,
         /** 최종 적정여부 (Y=적정 / N=유보) */
-        String finalAdqYn,
+        String finalPprtYn,
         /** 유보(N) 선택 위원 수 */
         long reserveCount,
         /** 평가한 위원 수 */

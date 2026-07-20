@@ -32,7 +32,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * 정보기술부문계획 협의회(dbrTc='02') 사업별 적정/유보 평가 서비스.
  *
- * <p>평가위원이 계획(BPLANM)에 포함된 각 정보화사업에 대해 적정/유보(ADQ_YN)와 사유를 남기고,
+ * <p>평가위원이 계획(BPLANM)에 포함된 각 정보화사업에 대해 적정/유보(PPRT_YN)와 사유를 남기고,
  * 사업별 최종 판정은 "위원 중 1명이라도 유보(N)면 유보, 전원 적정(Y)이면 적정"으로 집계합니다.</p>
  *
  * <p>기존 타당성검토 평가(EvaluationService, 6항목 점수)와 분리된 dbrTc='02' 전용 흐름입니다.
@@ -267,7 +267,7 @@ public class PlanEvaluationService {
                             e.getEno(),
                             user != null ? user.getUsrNm() : null,
                             e.getAbusMngNo(),
-                            e.getAdqYn(),
+                            e.getPprtYn(),
                             e.getEvalOpnn());
                 })
                 .toList();
@@ -288,7 +288,7 @@ public class PlanEvaluationService {
         String eno = userDetails.getEno();
         return planEvaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").stream()
                 .map(e -> new CouncilDto.PlanEvaluationItemResponse(
-                        e.getEno(), null, e.getAbusMngNo(), e.getAdqYn(), e.getEvalOpnn()))
+                        e.getEno(), null, e.getAbusMngNo(), e.getPprtYn(), e.getEvalOpnn()))
                 .toList();
     }
 
@@ -309,11 +309,11 @@ public class PlanEvaluationService {
         List<CouncilDto.PlanBusinessVerdict> verdicts = new ArrayList<>();
         for (Map.Entry<String, List<Bplevm>> entry : byBusiness.entrySet()) {
             List<Bplevm> rows = entry.getValue();
-            long reserveCount = rows.stream().filter(r -> "N".equals(r.getAdqYn())).count();
+            long reserveCount = rows.stream().filter(r -> "N".equals(r.getPprtYn())).count();
             long evaluatorCount = rows.stream().map(Bplevm::getEno).distinct().count();
-            String finalAdqYn = reserveCount > 0 ? "N" : "Y";  // 1명이라도 유보면 유보
+            String finalPprtYn = reserveCount > 0 ? "N" : "Y";  // 1명이라도 유보면 유보
             verdicts.add(new CouncilDto.PlanBusinessVerdict(
-                    entry.getKey(), finalAdqYn, reserveCount, evaluatorCount));
+                    entry.getKey(), finalPprtYn, reserveCount, evaluatorCount));
         }
         return verdicts;
     }
@@ -342,7 +342,7 @@ public class PlanEvaluationService {
 
         // 사업별 유보 사유 수집 (유보 위원의 사유)
         Map<String, List<String>> reserveOpinions = all.stream()
-                .filter(e -> "N".equals(e.getAdqYn()))
+                .filter(e -> "N".equals(e.getPprtYn()))
                 .filter(e -> e.getEvalOpnn() != null && !e.getEvalOpnn().isBlank())
                 .collect(Collectors.groupingBy(Bplevm::getAbusMngNo,
                         Collectors.mapping(Bplevm::getEvalOpnn, Collectors.toList())));
@@ -395,7 +395,7 @@ public class PlanEvaluationService {
           .append("</tr></thead><tbody>");
         for (CouncilDto.PlanBusinessVerdict v : verdicts) {
             String nm = nameById.getOrDefault(v.abusMngNo(), v.abusMngNo());
-            String verdict = "N".equals(v.finalAdqYn()) ? "유보" : "적정";
+            String verdict = "N".equals(v.finalPprtYn()) ? "유보" : "적정";
             long adequate = v.evaluatorCount() - v.reserveCount();
             List<String> ops = reserveOpinions.getOrDefault(v.abusMngNo(), List.of());
             String opinions = ops.isEmpty() ? "-" : String.join(" / ", ops);
@@ -453,7 +453,7 @@ public class PlanEvaluationService {
 
         for (CouncilDto.PlanEvaluationItem item : request.items()) {
             // 적정/유보 값 검증
-            if (!"Y".equals(item.adqYn()) && !"N".equals(item.adqYn())) {
+            if (!"Y".equals(item.pprtYn()) && !"N".equals(item.pprtYn())) {
                 throw new IllegalArgumentException("적정여부는 Y(적정)/N(유보)만 허용됩니다. 사업: " + item.abusMngNo());
             }
             // 사유 필수 (적정/유보 모두)
@@ -464,13 +464,13 @@ public class PlanEvaluationService {
             // upsert: 기존 평가 있으면 update, 없으면 신규 INSERT
             Bplevm existing = existingByBusiness.get(item.abusMngNo());
             if (existing != null) {
-                existing.update(item.adqYn(), item.evalOpnn());
+                existing.update(item.pprtYn(), item.evalOpnn());
             } else {
                 Bplevm evaluation = Bplevm.builder()
                         .itPtlAsctId(asctId)
                         .eno(eno)
                         .abusMngNo(item.abusMngNo())
-                        .adqYn(item.adqYn())
+                        .pprtYn(item.pprtYn())
                         .evalOpnn(item.evalOpnn())
                         .build();
                 // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (§5.12.1.1)
