@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
@@ -11,6 +12,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -79,6 +82,16 @@ class CommitteeServiceTest {
         return user;
     }
 
+    /** findByTemCInAndDelYn 배치 스텁 — 요청된 팀코드에 속한 활성 사용자만 반환한다. */
+    private void stubUsersByTeam(CuserI... users) {
+        given(userRepository.findByTemCInAndDelYn(anyCollection(), eq("N"))).willAnswer(invocation -> {
+            Collection<String> temCs = invocation.getArgument(0);
+            return Arrays.stream(users)
+                    .filter(user -> temCs.contains(user.getTemC()))
+                    .toList();
+        });
+    }
+
     private Bcmmtm mockMember(String eno, String vlrTc) {
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(eno);
@@ -104,11 +117,7 @@ class CommitteeServiceTest {
         CuserI u18301 = mockUser("E10004", "18301", "팀장");
         CuserI u18001 = mockUser("E10005", "18001", "팀장");
 
-        given(userRepository.findByTemC("12004")).willReturn(List.of(u12004));
-        given(userRepository.findByTemC("18010")).willReturn(List.of(u18010));
-        given(userRepository.findByTemC("18501")).willReturn(List.of(u18501));
-        given(userRepository.findByTemC("18301")).willReturn(List.of(u18301));
-        given(userRepository.findByTemC("18001")).willReturn(List.of(u18001));
+        stubUsersByTeam(u12004, u18010, u18501, u18301, u18001);
 
         List<CouncilDto.CommitteeMemberResponse> result =
                 committeeService.getDefaultCommittee(ASCT_ID);
@@ -119,22 +128,22 @@ class CommitteeServiceTest {
     }
 
     @Test
-    @DisplayName("getDefaultCommittee: 팀장이 없으면 첫 번째 사용자를 후보로 선택한다")
-    void getDefaultCommittee_팀장없음_첫번째사용자선택() {
+    @DisplayName("getDefaultCommittee: 팀장이 없으면 사번이 가장 빠른 사용자를 후보로 선택한다")
+    void getDefaultCommittee_팀장없음_사번오름차순대표선택() {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctDbrTc()).willReturn("05");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
-        CuserI member = mockUser("E20001", "12004", "과장");
-        given(userRepository.findByTemC("12004")).willReturn(List.of(member));
-        given(userRepository.findByTemC("18010")).willReturn(List.of());
-        given(userRepository.findByTemC("18501")).willReturn(List.of());
-        given(userRepository.findByTemC("18001")).willReturn(List.of());
+        CuserI laterEnoMember = mockUser("E20002", "12004", "과장");
+        CuserI earlierEnoMember = mockUser("E20001", "12004", "대리");
+        stubUsersByTeam(laterEnoMember, earlierEnoMember);
 
         List<CouncilDto.CommitteeMemberResponse> result =
                 committeeService.getDefaultCommittee(ASCT_ID);
 
-        assertThat(result).filteredOn(r -> "E20001".equals(r.eno())).hasSize(1);
+        assertThat(result)
+                .extracting(CouncilDto.CommitteeMemberResponse::eno)
+                .containsExactly("E20001");
     }
 
     @Test
@@ -147,8 +156,7 @@ class CommitteeServiceTest {
         CuserI u14011 = mockUser("E30001", "14011", "팀장");  // 미래전략팀장 → 당연위원
         CuserI u18001 = mockUser("E30002", "18001", "팀장");  // IT기획팀장 → 당연위원 겸 간사
 
-        given(userRepository.findByTemC("14011")).willReturn(List.of(u14011));
-        given(userRepository.findByTemC("18001")).willReturn(List.of(u18001));
+        stubUsersByTeam(u14011, u18001);
 
         List<CouncilDto.CommitteeMemberResponse> result =
                 committeeService.getDefaultCommittee(ASCT_ID);

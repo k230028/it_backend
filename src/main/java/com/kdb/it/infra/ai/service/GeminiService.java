@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
@@ -267,10 +268,17 @@ public class GeminiService {
             return FilePartResult.skip("DB에서 파일을 찾을 수 없음 (삭제되었거나 존재하지 않는 번호)");
         }
 
+        if (!StringUtils.hasText(cfilem.getFlKpnPth()) || !StringUtils.hasText(cfilem.getFlPysNm())) {
+            return FilePartResult.skip("파일 메타데이터 불완전: " + flMpnId);
+        }
+
         // 2. 파일명 기반 MIME 타입 감지
-        String mimeType = detectMimeType(cfilem.getFlNm());
+        String filename = StringUtils.hasText(cfilem.getFlNm())
+                ? cfilem.getFlNm()
+                : cfilem.getFlPysNm();
+        String mimeType = detectMimeType(filename);
         if (mimeType == null) {
-            return FilePartResult.skip("Gemini 미지원 형식: " + cfilem.getFlNm()
+            return FilePartResult.skip("Gemini 미지원 형식: " + filename
                     + " (지원: jpg/png/gif/webp/pdf/txt/csv)");
         }
 
@@ -307,7 +315,7 @@ public class GeminiService {
         String base64Data = Base64.getEncoder().encodeToString(fileBytes);
 
         log.info("Gemini 파일 첨부 성공 - flMpnId: {}, 파일명: {}, MIME: {}, 크기: {}KB",
-                flMpnId, cfilem.getFlNm(), mimeType, fileBytes.length / 1024);
+                flMpnId, filename, mimeType, fileBytes.length / 1024);
 
         return FilePartResult.success(
                 GeminiDto.Part.builder()

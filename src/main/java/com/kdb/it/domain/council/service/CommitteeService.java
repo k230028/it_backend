@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.iam.service.UserRepresentativeSelector;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
@@ -244,23 +245,26 @@ public class CommitteeService {
     // =========================================================================
 
     /**
-     * 팀코드 목록별 대표 후보(팀장 우선, 없으면 첫 사용자)를 해석합니다.
+     * 팀코드 목록별 대표 후보(팀장 우선→사번 오름차순)를 해석합니다. (BE-10)
      *
-     * <p>팀원이 없는 팀은 결과에서 제외합니다. 반환 Map은 입력 팀코드 순서를 보존합니다(LinkedHashMap).</p>
+     * <p>팀코드 전체의 활성 사용자를 {@code findByTemCInAndDelYn} 1회로 배치 조회(N+1 제거)하고, 팀별 대표자는
+     * {@link UserRepresentativeSelector}가 결정적으로 선택합니다. 팀원이 없는 팀은
+     * 결과에서 제외하며, 반환 Map은 입력 팀코드 순서를 보존합니다(LinkedHashMap).</p>
      *
      * @param temCodes 후보를 뽑을 팀코드 목록
      * @return 팀코드 → 대표 후보(CuserI) 매핑 (순서 보존)
      */
     private Map<String, CuserI> resolveTeamLeads(List<String> temCodes) {
+        if (temCodes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<CuserI>> usersByTeam = userRepository
+                .findByTemCInAndDelYn(temCodes, "N").stream()
+                .collect(Collectors.groupingBy(CuserI::getTemC));
         Map<String, CuserI> leads = new LinkedHashMap<>();
         for (String temC : temCodes) {
-            List<CuserI> users = userRepository.findByTemC(temC);
-            if (users.isEmpty()) continue;
-            CuserI candidate = users.stream()
-                    .filter(u -> "팀장".equals(u.getPtCNm()))
-                    .findFirst()
-                    .orElse(users.get(0));
-            leads.put(temC, candidate);
+            UserRepresentativeSelector.pick(usersByTeam.getOrDefault(temC, List.of()))
+                    .ifPresent(user -> leads.put(temC, user));
         }
         return leads;
     }

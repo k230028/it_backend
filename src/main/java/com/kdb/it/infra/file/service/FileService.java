@@ -415,12 +415,17 @@ public class FileService {
      *
      * @param flMpnId 다운로드할 파일매핑ID
      * @return 파일 Resource (스트림으로 클라이언트에 전송)
-     * @throws CustomGeneralException 파일이 존재하지 않거나 디스크에서 찾을 수 없는 경우
+     * @throws CustomGeneralException 파일이 존재하지 않거나 필수 메타데이터가 비어 있거나 디스크에서 찾을 수 없는 경우
      */
     public FileDownloadResult downloadFile(String flMpnId) {
         // DB에서 메타데이터 조회
         Cfilem cfilem = fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")
                 .orElseThrow(() -> new CustomGeneralException("존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
+
+        if (!StringUtils.hasText(cfilem.getFlKpnPth()) || !StringUtils.hasText(cfilem.getFlPysNm())) {
+            throw new CustomGeneralException(
+                    "파일 메타데이터가 불완전합니다. 파일매핑ID: " + flMpnId);
+        }
 
         // 실제 파일 경로 생성 및 Directory Traversal 방지 검증
         Path base = Paths.get(basePath).normalize().toAbsolutePath();
@@ -444,10 +449,12 @@ public class FileService {
             throw new CustomGeneralException("파일을 찾을 수 없습니다. 파일매핑ID: " + flMpnId);
         }
 
-        // 파일명 기준으로 MIME 타입 감지
-        String contentType = detectContentType(cfilem.getFlNm(), filePath);
+        String originalFilename = StringUtils.hasText(cfilem.getFlNm())
+                ? cfilem.getFlNm()
+                : cfilem.getFlPysNm();
+        String contentType = detectContentType(originalFilename, filePath);
 
-        return new FileDownloadResult(resource, cfilem.getFlNm(), contentType);
+        return new FileDownloadResult(resource, originalFilename, contentType);
     }
 
     /**
