@@ -123,11 +123,8 @@ public class CostService {
      *
      * <p>
      * {@code IT_MNGC_NO}로 삭제되지 않은({@code DEL_YN='N'}) 항목을 조회합니다.
-     * 동일 관리번호에 여러 이력(SNO)이 있을 수 있으므로, 첫 번째 항목을 반환합니다.
-     * </p>
-     *
-     * <p>
-     * 비즈니스 규칙상 {@code IT_MNGC_NO}가 유니크하게 관리된다면 목록 크기는 1입니다.
+     * 동일 관리번호에 여러 이력(SNO)이 있으면 {@link CostRepresentativeSelector#pick(List)}이
+     * 최신·활성 조건(LST_YN='Y' 우선, BG_SNO 내림차순)으로 대표 행을 결정적으로 선택합니다.
      * </p>
      *
      * @param itMngcNo 조회할 전산관리비관리번호
@@ -139,8 +136,9 @@ public class CostService {
         if (costs.isEmpty()) {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
-        CostDto.Response response = CostDto.Response.fromEntity(costs.get(0));
-        enrichResponse(response, costs.get(0));
+        Bcostm primary = CostRepresentativeSelector.pick(costs);
+        CostDto.Response response = CostDto.Response.fromEntity(primary);
+        enrichResponse(response, primary);
         attachTerminals(response);
         return response;
     }
@@ -316,10 +314,7 @@ public class CostService {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
 
-        Bcostm target = costs.stream()
-                .filter(c -> "Y".equals(c.getLstYn()))
-                .findFirst()
-                .orElse(costs.get(0));
+        Bcostm target = CostRepresentativeSelector.pick(costs);
 
         OwnershipVerifier.verifyModifiable(target.getFstEnrUsid(), target.getCostSvnDpmC());
 
@@ -511,7 +506,8 @@ public class CostService {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
 
-        OwnershipVerifier.verifyModifiable(costs.get(0).getFstEnrUsid(), costs.get(0).getCostSvnDpmC());
+        Bcostm primary = CostRepresentativeSelector.pick(costs);
+        OwnershipVerifier.verifyModifiable(primary.getFstEnrUsid(), primary.getCostSvnDpmC());
 
         // 단말기 일괄 조회 (N+1 제거): 미삭제 단말기를 IN 조회로 1회만 적재.
         // DEL_YN='N'만 대상으로 한다 — 이미 삭제(DEL_YN='Y')된 단말기는 재삭제가 불필요하므로 의도적으로 제외(멱등).

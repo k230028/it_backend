@@ -6,6 +6,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.cost.service.CostRepresentativeSelector;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -961,14 +962,17 @@ public class BudgetWorkService {
                 }
             }
         }
-        // 계약명: costBgNo별 첫 행의 cttNm(null 포함)을 채택하기 위해 키 존재 여부로 폴백 판단
+        // 계약명: 비용번호별 대표 행의 cttNm(null 포함)을 채택하기 위해 키 존재 여부로 폴백 판단
         Map<String, String> costNameByNo = new LinkedHashMap<>();
         if (!costGroupNos.isEmpty()) {
-            for (Bcostm c : costRepository.findByCostBgNoInAndDelYn(costGroupNos, "N")) {
-                if (!costNameByNo.containsKey(c.getCostBgNo())) {
-                    costNameByNo.put(c.getCostBgNo(), c.getCttNm());
-                }
-            }
+            costRepository.findByCostBgNoInAndDelYn(costGroupNos, "N").stream()
+                    .collect(Collectors.groupingBy(
+                            Bcostm::getCostBgNo,
+                            LinkedHashMap::new,
+                            Collectors.toList()))
+                    .forEach((costBgNo, histories) -> costNameByNo.put(
+                            costBgNo,
+                            CostRepresentativeSelector.pick(histories).getCttNm()));
         }
 
         List<BudgetWorkDto.ProjectSummaryItem> items = new ArrayList<>();
