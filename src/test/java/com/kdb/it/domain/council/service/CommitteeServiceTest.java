@@ -128,19 +128,22 @@ class CommitteeServiceTest {
     }
 
     @Test
-    @DisplayName("getDefaultCommittee: 팀장이 없으면 첫 번째 사용자를 후보로 선택한다")
-    void getDefaultCommittee_팀장없음_첫번째사용자선택() {
+    @DisplayName("getDefaultCommittee: 팀장이 없으면 사번이 가장 빠른 사용자를 후보로 선택한다")
+    void getDefaultCommittee_팀장없음_사번오름차순대표선택() {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctDbrTc()).willReturn("05");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
-        CuserI member = mockUser("E20001", "12004", "과장");
-        stubUsersByTeam(member);
+        CuserI laterEnoMember = mockUser("E20002", "12004", "과장");
+        CuserI earlierEnoMember = mockUser("E20001", "12004", "대리");
+        stubUsersByTeam(laterEnoMember, earlierEnoMember);
 
         List<CouncilDto.CommitteeMemberResponse> result =
                 committeeService.getDefaultCommittee(ASCT_ID);
 
-        assertThat(result).filteredOn(r -> "E20001".equals(r.eno())).hasSize(1);
+        assertThat(result)
+                .extracting(CouncilDto.CommitteeMemberResponse::eno)
+                .containsExactly("E20001");
     }
 
     @Test
