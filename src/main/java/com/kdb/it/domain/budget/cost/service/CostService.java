@@ -290,8 +290,8 @@ public class CostService {
      * 전산관리비 수정
      *
      * <p>
-     * {@code IT_MNGC_NO}로 조회된 항목 중 {@code LST_YN='Y'}인 최신 이력을 수정합니다.
-     * 최신 이력이 없으면 첫 번째 항목을 수정 대상으로 사용합니다.
+     * {@link CostRepresentativeSelector#pick(List)} 규칙으로 {@code LST_YN='Y'}인 이력을 우선하고,
+     * 같으면 {@code BG_SNO} 내림차순으로 대표 행을 결정해 수정합니다.
      * </p>
      *
      * <p>
