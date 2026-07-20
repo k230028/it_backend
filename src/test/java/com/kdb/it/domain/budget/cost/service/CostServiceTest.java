@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -82,6 +83,69 @@ class CostServiceTest {
 
     /** 테스트 공통 관리번호 */
     private static final String IT_MNGC_NO = "COST_2026_0001";
+
+    @Nested
+    @DisplayName("CostRepresentativeSelector — 대표 행 결정적 선택 (BE-09)")
+    class PickTests {
+
+        private Bcostm cost(int bgSno, String lstYn) {
+            return Bcostm.builder()
+                    .costBgNo("COST_2026_0001")
+                    .bgSno(bgSno)
+                    .lstYn(lstYn)
+                    .build();
+        }
+
+        @Test
+        @DisplayName("단건이면 그 행을 반환한다")
+        void singleRow_returned() {
+            Bcostm only = cost(1, "Y");
+            assertThat(CostRepresentativeSelector.pick(List.of(only))).isSameAs(only);
+        }
+
+        @Test
+        @DisplayName("LST_YN='Y' 행이 'N' 행보다 우선한다")
+        void latestYn_preferred() {
+            Bcostm oldRow = cost(2, "N");
+            Bcostm latest = cost(1, "Y");
+            assertThat(CostRepresentativeSelector.pick(List.of(oldRow, latest))).isSameAs(latest);
+        }
+
+        @Test
+        @DisplayName("같은 LST_YN이면 BG_SNO 내림차순으로 최신 일련번호를 선택한다")
+        void sameLstYn_highestBgSno() {
+            Bcostm sno1 = cost(1, "N");
+            Bcostm sno3 = cost(3, "N");
+            Bcostm sno2 = cost(2, "N");
+            assertThat(CostRepresentativeSelector.pick(List.of(sno1, sno3, sno2))).isSameAs(sno3);
+        }
+
+        @Test
+        @DisplayName("LST_YN='Y' 다건이면 BG_SNO가 큰 행을 선택한다 (WARN 경로)")
+        void duplicateLatest_deterministicTieBreak() {
+            Bcostm dup1 = cost(1, "Y");
+            Bcostm dup2 = cost(2, "Y");
+            assertThat(CostRepresentativeSelector.pick(List.of(dup1, dup2))).isSameAs(dup2);
+        }
+
+        @Test
+        @DisplayName("입력 순서와 무관하게 항상 같은 행을 선택한다")
+        void orderIndependent() {
+            Bcostm a = cost(1, "N");
+            Bcostm b = cost(2, "Y");
+            Bcostm c = cost(3, "N");
+            assertThat(CostRepresentativeSelector.pick(List.of(a, b, c)).getBgSno())
+                    .isEqualTo(CostRepresentativeSelector.pick(List.of(c, b, a)).getBgSno());
+        }
+
+        @Test
+        @DisplayName("빈 목록이면 명시적인 업무 예외를 던진다")
+        void emptyRows_throwsIllegalArgumentException() {
+            assertThatThrownBy(() -> CostRepresentativeSelector.pick(List.of()))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("비용 이력 목록이 비어 있습니다");
+        }
+    }
 
     @org.junit.jupiter.api.BeforeEach
     void setupCodeNameMapperDefaults() {

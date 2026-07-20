@@ -920,6 +920,43 @@ class BudgetWorkServiceTest {
     }
 
     @Test
+    @DisplayName("getProjectSummary: 비용 이력 순서와 무관하게 최신 활성 계약명을 선택한다")
+    void getProjectSummary_비용이력순서무관_최신활성계약명선택() {
+        Ccodem dupCode = Ccodem.builder().cNm("임차료").cdvaDes("임차료").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("101").cNm("237-0100").cdvaDtlC("237-0100").build();
+        Bbugtm costBudget = Bbugtm.builder()
+                .fntTbNm("BCOSTM")
+                .pkColNm("COST-2026-0001")
+                .ioeC("101")
+                .bgDupAmt(BigDecimal.valueOf(500))
+                .asgRt(50)
+                .build();
+        Bcostm oldHistory = Bcostm.builder()
+                .costBgNo("COST-2026-0001")
+                .bgSno(2)
+                .lstYn("N")
+                .cttNm("이전 계약")
+                .build();
+        Bcostm latestHistory = Bcostm.builder()
+                .costBgNo("COST-2026-0001")
+                .bgSno(1)
+                .lstYn("Y")
+                .cttNm("최신 계약")
+                .build();
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(costBudget));
+        given(costRepository.findByCostBgNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(oldHistory, latestHistory), List.of(latestHistory, oldHistory));
+
+        BudgetWorkDto.ProjectSummaryResponse first = budgetWorkService.getProjectSummary("2026");
+        BudgetWorkDto.ProjectSummaryResponse second = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(first.data()).singleElement().extracting(value -> value.name()).isEqualTo("최신 계약");
+        assertThat(second.data()).singleElement().extracting(value -> value.name()).isEqualTo("최신 계약");
+    }
+
+    @Test
     @DisplayName("getProjectSummary: BITEMM 요청금액은 품목 예정금액을 제외한다")
     void getProjectSummary_BITEMM요청금액은_예정금액제외() {
         Ccodem dupCode = Ccodem.builder().cNm("임차료").cdvaDes("임차료").cdva("237").build();
@@ -998,6 +1035,7 @@ class BudgetWorkServiceTest {
                 .asgRt(70)
                 .build();
         Bcostm cost = mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn("COST-2026-0001");
         given(cost.getCttNm()).willReturn("임차 계약");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -1031,6 +1069,7 @@ class BudgetWorkServiceTest {
                 .ioeC("001").bgDupAmt(BigDecimal.valueOf(100)).asgRt(50)
                 .build();
         Bcostm cost = mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn("COST-001");
         given(cost.getCttNm()).willReturn("계약A");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -1059,6 +1098,7 @@ class BudgetWorkServiceTest {
                 .ioeC("005").bgDupAmt(BigDecimal.valueOf(200)).asgRt(80)
                 .build();
         Bcostm cost = mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn("COST-002");
         given(cost.getCttNm()).willReturn("계약B");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -1280,6 +1320,7 @@ class BudgetWorkServiceTest {
                 .ioeC("007").bgDupAmt(BigDecimal.valueOf(100)).asgRt(50)
                 .build();
         Bcostm cost = org.mockito.Mockito.mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn("COST-003");
         given(cost.getCttNm()).willReturn("계약C");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
