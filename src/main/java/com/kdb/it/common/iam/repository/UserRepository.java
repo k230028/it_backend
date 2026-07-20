@@ -108,4 +108,18 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
      * @return 해당 팀의 사용자 목록
      */
     java.util.List<CuserI> findByTemC(String temC);
+
+    /**
+     * 팀코드(TEM_C) 목록으로 사용자 다건 조회 — 팀 대표자 선정용(배치 조회)
+     *
+     * <p>
+     * 팀별 반복 조회로 인한 N+1 쿼리를 방지하기 위해 사용합니다.
+     * 조직 정보는 불필요하므로 EntityGraph 없이 기본 조회합니다.
+     * </p>
+     *
+     * @param temCs 조회할 팀코드 컬렉션
+     * @param delYn 삭제여부 ({@code N}=활성 사용자)
+     * @return 해당 팀들의 활성 사용자 목록
+     */
+    java.util.List<CuserI> findByTemCInAndDelYn(Collection<String> temCs, String delYn);
 }
