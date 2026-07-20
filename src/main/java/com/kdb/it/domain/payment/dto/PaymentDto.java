@@ -14,7 +14,7 @@ public final class PaymentDto {
 
     @Schema(name = "PaymentCreateRequest", description = "대금지급 신규 의뢰 요청")
     public record CreateRequest(
-            @NotBlank @Size(max = 3) String bgPrnTc,
+            @NotBlank @Size(max = 3) String ioeC,
             @NotBlank @Size(max = 30) String cncdRfrNo,
             @Size(max = 300) String reqCone,
             @Size(max = 100) String cttNm,
@@ -45,7 +45,7 @@ public final class PaymentDto {
 
     @Schema(name = "PaymentListItem", description = "대금지급 목록 항목")
     public record ListItem(
-            String docMngNo, Integer docVrsSno, String bgPrnTc, String cncdRfrNo,
+            String docMngNo, Integer docVrsSno, String ioeC, String cncdRfrNo,
             String stsTc, String cttNm, BigDecimal cttAmt, String reqUsid, java.time.LocalDateTime reqDtm
     ) {}
 
@@ -54,7 +54,7 @@ public final class PaymentDto {
 
     @Schema(name = "PaymentDetail", description = "대금지급 상세")
     public record Detail(
-            String docMngNo, Integer docVrsSno, String bgPrnTc, String cncdRfrNo, String tgtNm,
+            String docMngNo, Integer docVrsSno, String ioeC, String cncdRfrNo, String tgtNm,
             String stsTc, String reqCone, String cttNm, BigDecimal cttAmt,
             String reqUsid, java.time.LocalDateTime reqDtm, List<Line> lines
     ) {}

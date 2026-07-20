@@ -65,8 +65,8 @@ public class Brivgm extends BaseEntity {
     private BigDecimal docVrsSno;
 
     /** 의견유형: {@code I}=인라인, {@code G}=전반 */
-    @Column(name = "RPL_OPNN_TC", length = 2, nullable = false, comment = "의견유형 (물리컬럼 RPL_OPNN_TC=회신의견구분코드)")
-    private String rplOpnnTc;
+    @Column(name = "IT_PTL_RPL_OPNN_TC", length = 2, nullable = false, comment = "IT포탈회신의견구분코드")
+    private String itPtlRplOpnnTc;
 
     /** 의견내용: 리뷰 코멘트 본문 (VARCHAR2(2000)) */
     @Column(name = "IVG_OPNN_CONE", length = 2000, comment = "의견내용 (물리컬럼 IVG_OPNN_CONE=검토의견내용)")
@@ -109,19 +109,19 @@ public class Brivgm extends BaseEntity {
      *
      * @param docMngNo    대상 문서관리번호
      * @param docVrsSno   대상 문서버전
-     * @param rplOpnnTc   의견유형 ({@code I}=인라인, {@code G}=전반)
+     * @param itPtlRplOpnnTc   의견유형 ({@code I}=인라인, {@code G}=전반)
      * @param ivgOpnnCone 의견내용 (CLOB)
      * @param rfrId       인라인 전용 Tiptap 표시 ID (전반 코멘트의 경우 {@code null})
      * @param rfrCone     인라인 전용 인용내용 (전반 코멘트의 경우 {@code null})
      * @return 영속화 전 상태의 {@link Brivgm} 인스턴스
      */
     public static Brivgm create(String docMngNo, BigDecimal docVrsSno,
-                                String rplOpnnTc, String ivgOpnnCone,
+                                String itPtlRplOpnnTc, String ivgOpnnCone,
                                 String rfrId, String rfrCone) {
         Brivgm b = new Brivgm();
         b.docMngNo = docMngNo;
         b.docVrsSno = docVrsSno;
-        b.rplOpnnTc = rplOpnnTc;
+        b.itPtlRplOpnnTc = itPtlRplOpnnTc;
         b.ivgOpnnCone = ivgOpnnCone;
         b.rfrId = rfrId;
         b.rfrCone = rfrCone;

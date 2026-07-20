@@ -82,7 +82,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      *   WHERE ca.FNT_TB_NM = 'BCOSTM'
      *     AND ca.PK_COL_NM = c.BG_NO
      *     AND ca.FNT_TB_CRY_SNO = c.BG_SNO
-     *     AND cm.APF_PRG_STS_C = '001'
+     *     AND cm.IT_PTL_APF_PRG_STS_C = '001'
      *     AND ca.APF_SNO = (
      *       SELECT MAX(ca2.APF_SNO) FROM TPRMPP_CAPPLA ca2
      *       WHERE ca2.FNT_TB_NM = 'BCOSTM'
@@ -193,7 +193,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                         cappla.fntTbNm.eq("BCOSTM"),
                                         cappla.pkColNm.eq(bcostm.costBgNo),
                                         cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                        capplm.apfPrgStsC.in(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(), com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()))
+                                        capplm.itPtlApfPrgStsC.in(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(), com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()))
                                 .notExists());
             } else {
                 // 특정 결재상태: 최신 신청서(APF_DCM_NO 최대값)의 결재상태가 일치하는 경우
@@ -205,7 +205,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                         cappla.fntTbNm.eq("BCOSTM"),
                                         cappla.pkColNm.eq(bcostm.costBgNo),
                                         cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                        capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
+                                        capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
                                                 ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
                                                 : apfSts),
                                         // 해당 전산관리비에 연결된 신청서 중 가장 최신(APF_DCM_NO 최대)인 것만 검사

@@ -85,7 +85,7 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, Long> {
                         WHERE c.fntTbNm = :fntTbNm
                         AND c.pkColNm = :pkColNm
                         AND c.fntTbCrySno = :fntTbCrySno
-                        AND m.apfPrgStsC IN :statuses
+                        AND m.itPtlApfPrgStsC IN :statuses
                         """)
         boolean existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                         @Param("fntTbNm") String fntTbNm,

@@ -18,7 +18,7 @@ import lombok.experimental.SuperBuilder;
  * 소요예산 산정 기본(마스터) 엔티티.
  *
  * <p>DB 테이블: {@code TPRMPP_BESTIM}. 정보화화사업(BPROJM)에 대한 소요예산 산정 요청을 관리한다.</p>
- * <p>대상은 사업 고정: {@code BG_PRN_TC='100'}, {@code CNCD_RFR_NO}=사업 관리번호(ABUS_MNG_NO).</p>
+ * <p>대상은 사업 고정: {@code IOE_C='100'}, {@code CNCD_RFR_NO}=사업 관리번호(ABUS_MNG_NO).</p>
  * <p>상태(IT_PTL_STS_TC): 41(작성중) → 42(진행중) → 49(완료).</p>
  */
 @LogTarget(entity = BestimL.class)
@@ -42,8 +42,8 @@ public class Bestim extends BaseEntity {
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
-    @Column(name = "BG_PRN_TC", length = 3, nullable = false, comment = "예산성격구분코드(대상구분)")
-    private String bgPrnTc;
+    @Column(name = "IOE_C", length = 7, nullable = false, comment = "IT포탈예산성격구분코드")
+    private String ioeC;
 
     @Column(name = "CNCD_RFR_NO", length = 30, nullable = false, comment = "관련참조번호(대상관리번호)")
     private String cncdRfrNo;

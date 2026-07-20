@@ -20,7 +20,7 @@ public class BoardMetaDto {
     public static class Response {
         @Schema(description = "게시판관리번호") private String  blbMngNo;
         @Schema(description = "게시판명")      private String  blbNm;
-        @Schema(description = "게시판구분코드 (공통코드 BLB_TC: 001=공지사항, 002=자료실)", example = "001") private String  blbTp;
+        @Schema(description = "게시판구분코드 (공통코드 IT_PTL_BLB_TC: 001=공지사항, 002=자료실)", example = "001") private String  itPtlBlbTc;
         @Schema(description = "답변사용여부")  private String  repUseYn;
         @Schema(description = "댓글사용여부")  private String  cmmtUseYn;
         @Schema(description = "첨부필수여부")  private String  flEsnYn;
@@ -31,7 +31,7 @@ public class BoardMetaDto {
 
         public static Response from(Cblbmm e) {
             return Response.builder()
-                .blbMngNo(e.getBlbMngNo()).blbNm(e.getBlbNm()).blbTp(e.getBlbTp())
+                .blbMngNo(e.getBlbMngNo()).blbNm(e.getBlbNm()).itPtlBlbTc(e.getItPtlBlbTc())
                 .repUseYn(e.getRepUseYn()).cmmtUseYn(e.getCmmtUseYn())
                 .flEsnYn(e.getFlEsnYn())
                 .hedTagUseYn(e.getHedTagUseYn())
@@ -50,7 +50,7 @@ public class BoardMetaDto {
         @NotBlank
         @Schema(description = "게시판명", requiredMode = Schema.RequiredMode.REQUIRED)         private String  blbNm;
         @NotBlank
-        @Schema(description = "게시판구분코드 (공통코드 BLB_TC: 001=공지사항, 002=자료실)", example = "001", requiredMode = Schema.RequiredMode.REQUIRED) private String  blbTp;
+        @Schema(description = "게시판구분코드 (공통코드 IT_PTL_BLB_TC: 001=공지사항, 002=자료실)", example = "001", requiredMode = Schema.RequiredMode.REQUIRED) private String  itPtlBlbTc;
         @Schema(description = "답변사용여부", example = "N")       private String  repUseYn;
         @Schema(description = "댓글사용여부", example = "N")       private String  cmmtUseYn;
         @Schema(description = "첨부필수여부", example = "N")       private String  flEsnYn;

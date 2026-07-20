@@ -38,12 +38,12 @@ public class NotificationDispatchService {
 
         NotificationDispatchResult result = dispatcher.dispatch(row, row.getSdDocCone());
         if (result.success()) {
-            row.markDispatchSent(row.getSdTc(), row.getSdDocCone());
+            row.markDispatchSent(row.getItPtlSdTc(), row.getSdDocCone());
             return;
         }
 
         row.markDispatchFailed(result.errorMessage());
-        String channel = safeChannel(row.getSdTc());
+        String channel = safeChannel(row.getItPtlSdTc());
         meterRegistry.counter("notification.dispatch.failure", "channel", channel).increment();
         if (row.getReTryNot() >= maxAttempts) {
             meterRegistry.counter("notification.dispatch.exhausted", "channel", channel).increment();

@@ -153,7 +153,7 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                         cappla.fntTbNm.eq("BPROJM"),
                                         cappla.pkColNm.eq(bprojm.abusMngNo),
                                         cappla.fntTbCrySno.eq(bprojm.sno),
-                                        capplm.apfPrgStsC.in(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(), com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()))
+                                        capplm.itPtlApfPrgStsC.in(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(), com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()))
                                 .notExists());
             } else {
                 // 특정 결재상태: 최신 신청서(APF_DCM_NO 최대값)의 결재상태가 일치하는 경우
@@ -165,7 +165,7 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                         cappla.fntTbNm.eq("BPROJM"),
                                         cappla.pkColNm.eq(bprojm.abusMngNo),
                                         cappla.fntTbCrySno.eq(bprojm.sno),
-                                        capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
+                                        capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
                                                 ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
                                                 : apfSts),
                                         // 해당 프로젝트에 연결된 신청서 중 가장 최신(APF_DCM_NO 최대)인 것만 검사

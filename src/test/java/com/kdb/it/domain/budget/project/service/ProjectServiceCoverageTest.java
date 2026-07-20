@@ -1038,11 +1038,11 @@ class ProjectServiceCoverageTest {
 
         Capplm capplm1 = Capplm.builder()
                 .apfMngNo("APF-B-001").dcdReqTtl("결재1")
-                .apfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
+                .itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
                 .build();
         Capplm capplm2 = Capplm.builder()
                 .apfMngNo("APF-B-002").dcdReqTtl("결재2")
-                .apfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code())
+                .itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code())
                 .build();
 
         given(projectRepository.findByAbusMngNoAndDelYn(p1, "N")).willReturn(Optional.of(proj1));

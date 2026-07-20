@@ -24,7 +24,7 @@ public class LoginHistoryDto {
      *
      * <p>{@link Clognh} 엔티티의 정보를 클라이언트에 전달합니다.</p>
      *
-     * <p>로그인구분코드({@code lgnTc})는 공통코드 {@code C_ID='LGN_TC'} 기반 1자리 값입니다.</p>
+     * <p>로그인구분코드({@code itPtlLgnTc})는 공통코드 {@code C_ID='IT_PTL_LGN_TC'} 기반 1자리 값입니다.</p>
      * <ul>
      *   <li>{@code 1}: 로그인 성공</li>
      *   <li>{@code 2}: 로그인 실패</li>
@@ -48,10 +48,10 @@ public class LoginHistoryDto {
 
         /**
          * 로그인구분코드
-         * <p>공통코드 C_ID='LGN_TC' 기반 1자리 값. 1=성공, 2=실패, 3=로그아웃</p>
+         * <p>공통코드 C_ID='IT_PTL_LGN_TC' 기반 1자리 값. 1=성공, 2=실패, 3=로그아웃</p>
          */
-        @Schema(description = "로그인구분코드 (공통코드 LGN_TC; 1=성공, 2=실패, 3=로그아웃)")
-        private String lgnTc;
+        @Schema(description = "로그인구분코드 (공통코드 IT_PTL_LGN_TC; 1=성공, 2=실패, 3=로그아웃)")
+        private String itPtlLgnTc;
 
         /** 클라이언트 IP 주소 */
         @Schema(description = "IP 주소")
@@ -67,7 +67,7 @@ public class LoginHistoryDto {
 
         /**
          * 로그인 오류 사유
-         * <p>lgnTc가 {@code "2"}(로그인 실패)인 경우에만 값이 있습니다.</p>
+         * <p>itPtlLgnTc가 {@code "2"}(로그인 실패)인 경우에만 값이 있습니다.</p>
          */
         @Schema(description = "로그인 오류 사유")
         private String lgnErrRsn;
@@ -79,7 +79,7 @@ public class LoginHistoryDto {
             return Response.builder()
                     .id(clognh.getLgnLogSno())                  // 로그인이로그일련번호 → id 키 유지
                     .eno(clognh.getEno())                       // 사원번호
-                    .lgnTc(clognh.getLgnTc())                   // 로그인구분코드
+                    .itPtlLgnTc(clognh.getItPtlLgnTc())                   // 로그인구분코드
                     .ipAddress(clognh.getIpAddr())              // IP주소 → JSON 키 유지
                     .agtVrsCone(clognh.getAgtVrsCone())         // 에이전트버전내용
                     .loginTime(clognh.getLgnDtm())              // 로그인일시 → JSON 키 유지

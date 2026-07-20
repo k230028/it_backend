@@ -23,8 +23,8 @@ import java.time.LocalDateTime;
  *
  * <p>채번 규칙: {@code INF-{YYYY}-{8자리 시퀀스}} (예: {@code INF-2026-00000001})</p>
  *
- * <p>알림서비스구분({@code INFM_SVC_TC})은 공통코드 {@code C_ID='INFM_SVC'} 2자리 값.
- * 발송구분({@code SD_TC})은 공통코드 {@code C_ID='SD'} 2자리 값.</p>
+ * <p>알림서비스구분({@code IT_PTL_INFM_SVC_TC})은 공통코드 {@code IT_PTL_INFM_SVC_TC} 2자리 값.
+ * 발송구분({@code IT_PTL_SD_TC})은 공통코드 {@code IT_PTL_SD_TC} 2자리 값.</p>
  */
 @Entity
 @Table(name = "TPRMPP_CINFMM", comment = "공통알림기본")
@@ -43,9 +43,9 @@ public class Cinfmm extends BaseEntity {
     @Column(name = "INFM_MSG_NO", length = 30, nullable = false, comment = "알림메시지번호")
     private String infmMsgNo;
 
-    /** 알림서비스구분코드 — 공통코드 {@code C_ID='INFM_SVC'} (01=시스템, 02=결재요청, 03=결재결과, 04=게시물멘션, 05=댓글멘션, 06=결재회수) */
-    @Column(name = "INFM_SVC_TC", length = 2, nullable = false, comment = "알림서비스구분코드")
-    private String infmSvcTc;
+    /** 알림서비스구분코드 — 공통코드 {@code IT_PTL_INFM_SVC_TC} (01=시스템, 02=결재요청, 03=결재결과, 04=게시물멘션, 05=댓글멘션, 06=결재회수) */
+    @Column(name = "IT_PTL_INFM_SVC_TC", length = 2, nullable = false, comment = "IT포탈알림서비스구분코드")
+    private String itPtlInfmSvcTc;
 
     /** 제목 (최대 100자) */
     @Column(name = "TTL", length = 100, comment = "제목")
@@ -71,9 +71,9 @@ public class Cinfmm extends BaseEntity {
     @Column(name = "INQ_DTM", comment = "조회일시")
     private LocalDateTime inqDtm;
 
-    /** 발송구분코드 — 공통코드 {@code C_ID='SD'} (01=인앱, 02=알림톡, 03=SMS, 04=이메일) */
-    @Column(name = "SD_TC", length = 2, comment = "발송구분코드")
-    private String sdTc;
+    /** 발송구분코드 — 공통코드 {@code IT_PTL_SD_TC} (01=인앱, 02=알림톡, 03=SMS, 04=이메일) */
+    @Column(name = "IT_PTL_SD_TC", length = 2, comment = "IT포탈발송구분코드")
+    private String itPtlSdTc;
 
     /** 발송일시 (null=미발송). 물리 컬럼 SD_DTM은 Oracle DATE 타입(초 단위) */
     @Column(name = "SD_DTM", comment = "발송일시")
@@ -109,16 +109,16 @@ public class Cinfmm extends BaseEntity {
     /**
      * 발송 완료 메타 기록.
      *
-     * @param sdTc     발송 채널 코드 (공통코드 SD; 01=인앱, 02=알림톡, 03=SMS, 04=이메일)
+     * @param itPtlSdTc     발송 채널 코드 (공통코드 SD; 01=인앱, 02=알림톡, 03=SMS, 04=이메일)
      * @param payload  외부 발송 페이로드 (JSON 또는 null)
      */
-    public void markDispatched(String sdTc, String payload) {
-        markDispatchSent(sdTc, payload);
+    public void markDispatched(String itPtlSdTc, String payload) {
+        markDispatchSent(itPtlSdTc, payload);
     }
 
     /** 발송 성공 상태와 채널 메타를 기록합니다. */
-    public void markDispatchSent(String sdTc, String payload) {
-        this.sdTc = sdTc;
+    public void markDispatchSent(String itPtlSdTc, String payload) {
+        this.itPtlSdTc = itPtlSdTc;
         this.sdDocCone = payload;
         this.sdDtm = LocalDateTime.now();
         this.infmSdStsC = DISPATCH_SENT;

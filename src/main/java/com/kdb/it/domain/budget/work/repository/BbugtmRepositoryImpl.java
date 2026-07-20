@@ -54,7 +54,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      *     WHERE ca.FNT_TB_NM = 'BCOSTM'
      *       AND ca.PK_COL_NM = c.IT_MNGC_NO
      *       AND ca.FNT_TB_CRY_SNO = c.BG_SNO
-     *       AND cm.APF_PRG_STS_C = '002'
+     *       AND cm.IT_PTL_APF_PRG_STS_C = '002'
      *       AND ca.APF_SNO = (
      *         SELECT MAX(ca2.APF_SNO) FROM TPRMPP_CAPPLA ca2
      *         WHERE ca2.FNT_TB_NM = 'BCOSTM'
@@ -93,7 +93,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.fntTbNm.eq("BCOSTM"),
                                 cappla.pkColNm.eq(bcostm.costBgNo),
                                 cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                 cappla.apfDcmNo.eq(
                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                 .from(cappla2)
@@ -134,7 +134,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
      *         WHERE ca.FNT_TB_NM = 'BPROJM'
      *           AND ca.PK_COL_NM = p.PRJ_MNG_NO
      *           AND ca.FNT_TB_CRY_SNO = p.PRJ_SNO
-     *           AND cm.APF_PRG_STS_C = '002'
+     *           AND cm.IT_PTL_APF_PRG_STS_C = '002'
      *           AND ca.APF_SNO = (
      *             SELECT MAX(ca2.APF_SNO) FROM TPRMPP_CAPPLA ca2
      *             WHERE ca2.FNT_TB_NM = 'BPROJM'
@@ -164,7 +164,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.fntTbNm.eq("BPROJM"),
                                 cappla.pkColNm.eq(bprojm.abusMngNo),
                                 cappla.fntTbCrySno.eq(bprojm.sno),
-                                capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                 cappla.apfDcmNo.eq(
                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                 .from(cappla2)
@@ -359,7 +359,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.fntTbNm.eq("BCOSTM"),
                                 cappla.pkColNm.eq(bcostm.costBgNo),
                                 cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                 cappla.apfDcmNo.eq(
                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                 .from(cappla2)
@@ -412,7 +412,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                                 cappla.fntTbNm.eq("BPROJM"),
                                                 cappla.pkColNm.eq(bprojm.abusMngNo),
                                                 cappla.fntTbCrySno.eq(bprojm.sno),
-                                                capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                                capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                                 cappla.apfDcmNo.eq(
                                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                                 .from(cappla2)

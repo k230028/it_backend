@@ -602,8 +602,8 @@ public class CostService {
 
             capplmRepository.findById(cappla.getApfDcmNo())
                     .ifPresent(capplm -> {
-                        response.setApfSts(capplm.getApfPrgStsC() == null ? null
-                                : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC())
+                        response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
+                                : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC())
                                         .label());
                         List<Cdecim> decisions = cdecimRepository
                                 .findByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
@@ -780,8 +780,8 @@ public class CostService {
                 response.setApfMngNo(cappla.getApfDcmNo());
                 Capplm capplm = capplmMap.get(cappla.getApfDcmNo());
                 if (capplm != null) {
-                    response.setApfSts(capplm.getApfPrgStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label());
+                    response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label());
                     List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
                     response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
                 }

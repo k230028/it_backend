@@ -21,7 +21,7 @@ public class BpaymmL extends BaseLogEntity {
     @Column(name = "DOC_MNG_NO", length = 20, comment = "문서관리번호") private String docMngNo;
     @Column(name = "DOC_VRS_SNO", comment = "문서버전일련번호") private Integer docVrsSno;
     @Column(name = "LST_YN", length = 1, comment = "최종여부") private String lstYn;
-    @Column(name = "BG_PRN_TC", length = 3, comment = "예산성격구분코드(대상구분)") private String bgPrnTc;
+    @Column(name = "IOE_C", length = 7, comment = "IT포탈예산성격구분코드") private String ioeC;
     @Column(name = "CNCD_RFR_NO", length = 30, comment = "관련참조번호(대상관리번호)") private String cncdRfrNo;
     @Column(name = "IT_PTL_STS_TC", length = 2, comment = "IT포탈상태구분코드") private String stsTc;
     @Column(name = "REQ_CONE", length = 300, comment = "요청내용") private String reqCone;

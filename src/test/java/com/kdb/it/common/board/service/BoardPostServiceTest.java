@@ -45,15 +45,15 @@ class BoardPostServiceTest {
 
     @BeforeEach
     void setUp() {
-        // 공지사항(BLB_TC='001') — 조회는 전체 공개, 등록은 관리자 전용
+        // 공지사항(IT_PTL_BLB_TC='001') — 조회는 전체 공개, 등록은 관리자 전용
         publicBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0001").blbNm("공지사항").blbTp("001")
+            .blbMngNo("BLBM-2026-0001").blbNm("공지사항").itPtlBlbTc("001")
             .repUseYn("N").cmmtUseYn("N")
             .useYn("Y").delYn("N")
             .build();
 
         adminOnlyBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0099").blbNm("내부게시판").blbTp("001")
+            .blbMngNo("BLBM-2026-0099").blbNm("내부게시판").itPtlBlbTc("001")
             .useYn("Y").delYn("N")
             .build();
 
@@ -123,10 +123,10 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("공지사항(BLB_TC='001') 게시판에 일반 사용자가 게시물을 등록하면 예외가 발생한다")
+    @DisplayName("공지사항(IT_PTL_BLB_TC='001') 게시판에 일반 사용자가 게시물을 등록하면 예외가 발생한다")
     void createPost_noWritePermission_throwsForbidden() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(publicBoard)); // blbTp = 001 → 관리자만 등록
+            .willReturn(Optional.of(publicBoard)); // itPtlBlbTc = 001 → 관리자만 등록
 
         var req = new com.kdb.it.common.board.dto.BoardPostDto.CreateRequest();
         req.setNacNm("제목");
@@ -242,7 +242,7 @@ class BoardPostServiceTest {
         verify(postRepository).save(argThat(reply -> reply.getNacGrpLev() == parent.getNacGrpLev() + 1));
 
         Cblbmm noReplyBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0004").blbNm("답변 미지원").blbTp("002").repUseYn("N")
+            .blbMngNo("BLBM-2026-0004").blbNm("답변 미지원").itPtlBlbTc("002").repUseYn("N")
             .useYn("Y").delYn("N")
             .build();
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0004", "N"))
@@ -256,7 +256,7 @@ class BoardPostServiceTest {
     @DisplayName("공개 시작 전 게시물은 일반 사용자 접근을 차단한다")
     void verifyCanReadPost_beforePublishStart_throws() {
         Cblbmm board = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0005").blbNm("자유게시판").blbTp("002").repUseYn("Y")
+            .blbMngNo("BLBM-2026-0005").blbNm("자유게시판").itPtlBlbTc("002").repUseYn("Y")
             .useYn("Y").delYn("N")
             .build();
         Cblbcm hidden = post("NAC-2026-0002", "OTHER");
@@ -520,7 +520,7 @@ class BoardPostServiceTest {
     void createPost_adminSkipsBbrCValidation() {
         // Arrange: 관리자 전용 등록 게시판
         Cblbmm adminWriteBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0099").blbNm("관리자등록").blbTp("001")
+            .blbMngNo("BLBM-2026-0099").blbNm("관리자등록").itPtlBlbTc("001")
             .repUseYn("N").cmmtUseYn("N")
             .useYn("Y").delYn("N")
             .build();
@@ -542,11 +542,11 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("createReply: 공지사항(BLB_TC='001') 게시판에서 일반 사용자가 답변 등록 시 예외가 발생한다")
+    @DisplayName("createReply: 공지사항(IT_PTL_BLB_TC='001') 게시판에서 일반 사용자가 답변 등록 시 예외가 발생한다")
     void createReply_noWritePermission_throws() {
         // Arrange: 답변 지원되지만 공지사항(001) → 관리자만 등록 가능
         Cblbmm adminWriteReplyBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0020").blbNm("공지답변").blbTp("001")
+            .blbMngNo("BLBM-2026-0020").blbNm("공지답변").itPtlBlbTc("001")
             .repUseYn("Y").cmmtUseYn("N")
             .useYn("Y").delYn("N")
             .build();
@@ -588,9 +588,9 @@ class BoardPostServiceTest {
     @Test
     @DisplayName("verifyCanWrite: 공지사항이 아닌 게시판은 일반 사용자가 등록할 수 있다")
     void verifyCanWrite_roleMatch_allowed() {
-        // Arrange: blbTp = 002 (비공지) → 인증 사용자 등록 허용
+        // Arrange: itPtlBlbTc = 002 (비공지) → 인증 사용자 등록 허용
         Cblbmm roleWriteBoard = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0030").blbNm("자유게시판").blbTp("002")
+            .blbMngNo("BLBM-2026-0030").blbNm("자유게시판").itPtlBlbTc("002")
             .repUseYn("N").cmmtUseYn("N")
             .useYn("Y").delYn("N")
             .build();
@@ -609,9 +609,9 @@ class BoardPostServiceTest {
     }
 
     private Cblbmm writableBoard() {
-        // 공지사항이 아닌 일반 게시판(BLB_TC='002') — 인증 사용자 전체 등록 가능
+        // 공지사항이 아닌 일반 게시판(IT_PTL_BLB_TC='002') — 인증 사용자 전체 등록 가능
         return Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0003").blbNm("자유게시판").blbTp("002")
+            .blbMngNo("BLBM-2026-0003").blbNm("자유게시판").itPtlBlbTc("002")
             .repUseYn("Y").cmmtUseYn("Y")
             .useYn("Y").delYn("N")
             .build();

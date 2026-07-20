@@ -53,17 +53,17 @@ public class ContractService {
      */
     @Transactional
     public String create(ContractDto.CreateRequest req, CustomUserDetails user) {
-        validateTarget(req.bgPrnTc(), req.cncdRfrNo());
-        if (contractRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
-                req.bgPrnTc(), req.cncdRfrNo(), List.of(STS_DRAFT, STS_IN_PROGRESS), "N")) {
+        validateTarget(req.ioeC(), req.cncdRfrNo());
+        if (contractRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
+                req.ioeC(), req.cncdRfrNo(), List.of(STS_DRAFT, STS_IN_PROGRESS), "N")) {
             throw new IllegalStateException("해당 대상에 진행 중인 입찰/계약이 이미 있습니다.");
         }
         String docNo = String.format("CTR-%d-%04d", Year.now().getValue(), contractRepository.nextDocSeq());
         contractRepository.save(Bcontm.builder()
                 .docMngNo(docNo).docVrsSno(1).lstYn("Y")
-                .bgPrnTc(req.bgPrnTc()).cncdRfrNo(req.cncdRfrNo())
+                .ioeC(req.ioeC()).cncdRfrNo(req.cncdRfrNo())
                 .stsTc(STS_DRAFT).reqCone(req.reqCone()).build());
-        if (TGT_PROJECT.equals(req.bgPrnTc())) {
+        if (TGT_PROJECT.equals(req.ioeC())) {
             bprojaSyncService.upsert(req.cncdRfrNo(), docNo, STS_DRAFT);
         }
         return docNo;
@@ -72,20 +72,20 @@ public class ContractService {
     /**
      * 대상 유효성을 검증한다. 대상구분에 따라 사업 또는 전산업무비 존재 여부를 확인한다.
      *
-     * @param bgPrnTc   예산성격구분코드 (100=사업, 200=전산업무비)
+     * @param ioeC   예산성격구분코드 (100=사업, 200=전산업무비)
      * @param cncdRfrNo 관련참조번호
      * @throws IllegalArgumentException 알 수 없는 대상구분 또는 대상 미존재
      */
-    private void validateTarget(String bgPrnTc, String cncdRfrNo) {
+    private void validateTarget(String ioeC, String cncdRfrNo) {
         boolean ok;
-        if (TGT_PROJECT.equals(bgPrnTc)) {
+        if (TGT_PROJECT.equals(ioeC)) {
             ok = projectRepository.existsByAbusMngNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N");
-        } else if (TGT_COST.equals(bgPrnTc)) {
+        } else if (TGT_COST.equals(ioeC)) {
             ok = costRepository.existsByCostBgNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N");
         } else {
-            throw new IllegalArgumentException("알 수 없는 대상구분: " + bgPrnTc);
+            throw new IllegalArgumentException("알 수 없는 대상구분: " + ioeC);
         }
-        if (!ok) throw new IllegalArgumentException("대상을 찾을 수 없습니다: " + bgPrnTc + "/" + cncdRfrNo);
+        if (!ok) throw new IllegalArgumentException("대상을 찾을 수 없습니다: " + ioeC + "/" + cncdRfrNo);
     }
 
     /**
@@ -117,7 +117,7 @@ public class ContractService {
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         e.delete();
-        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+        if (TGT_PROJECT.equals(e.getIoeC())) {
             bprojaSyncService.softDelete(e.getCncdRfrNo(), docNo);
         }
     }
@@ -139,7 +139,7 @@ public class ContractService {
                 || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
         if (!ok) throw new IllegalStateException("허용되지 않은 상태 전이입니다: " + from + " → " + to);
         e.changeStatus(to);
-        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+        if (TGT_PROJECT.equals(e.getIoeC())) {
             bprojaSyncService.upsert(e.getCncdRfrNo(), docNo, to);
         }
         sendStatusEai("입찰계약", docNo, from, to, user);
@@ -158,7 +158,7 @@ public class ContractService {
         Bcontm e = loadCurrent(docNo);
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_IN_PROGRESS.equals(e.getStsTc())) throw new IllegalStateException("진행중 상태에서만 계약 정보를 입력할 수 있습니다.");
-        e.updateContract(req.cttManrC(), req.cttManrRsn(), req.cttNm(), req.cttAmt(), req.cttOppNm(), req.cttDt());
+        e.updateContract(req.itPtlCttManrC(), req.cttManrRsn(), req.cttNm(), req.cttAmt(), req.cttOppNm(), req.cttDt());
     }
 
     /**
@@ -176,8 +176,8 @@ public class ContractService {
         Bcontm e = row.entity();
         String tgtNm = row.targetName();
         return new ContractDto.Detail(
-                e.getDocMngNo(), e.getDocVrsSno(), e.getBgPrnTc(), e.getCncdRfrNo(), tgtNm,
-                e.getStsTc(), e.getReqCone(), e.getCttManrC(), e.getCttManrRsn(), e.getCttNm(),
+                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), tgtNm,
+                e.getStsTc(), e.getReqCone(), e.getItPtlCttManrC(), e.getCttManrRsn(), e.getCttNm(),
                 e.getCttAmt(), e.getCttOppNm(), e.getCttDt(), e.getFstEnrUsid(), e.getFstEnrDtm());
     }
 
@@ -185,14 +185,14 @@ public class ContractService {
      * 입찰계약 목록을 검색한다. 관리자는 전체 조회, 일반 사용자는 소속 부서 조회.
      *
      * @param stsTc     상태구분코드 필터 (nullable)
-     * @param bgPrnTc   예산성격구분코드 필터 (nullable)
+     * @param ioeC   예산성격구분코드 필터 (nullable)
      * @param cncdRfrNo 관련참조번호 필터 (nullable)
      * @param user      요청자 인증 정보
      * @return 목록 항목 리스트
      */
-    public List<ContractDto.ListItem> list(String stsTc, String bgPrnTc, String cncdRfrNo, CustomUserDetails user) {
+    public List<ContractDto.ListItem> list(String stsTc, String ioeC, String cncdRfrNo, CustomUserDetails user) {
         String bbrC = user.isAdmin() ? null : user.getBbrC();
-        return contractRepository.search(stsTc, bgPrnTc, cncdRfrNo, bbrC);
+        return contractRepository.search(stsTc, ioeC, cncdRfrNo, bbrC);
     }
 
     /**

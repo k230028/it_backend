@@ -55,7 +55,7 @@ class NotificationEventListenerTest {
     @Test
     @DisplayName("onNotificationEvent: 수신 이벤트를 알림 서비스에 전달한다")
     void onNotificationEvent_정상요청_서비스전달() {
-        NotificationEvent event = NotificationEvent.builder().recipientEno("10001").infmSvcTc("01").build();
+        NotificationEvent event = NotificationEvent.builder().recipientEno("10001").itPtlInfmSvcTc("01").build();
 
         given(outboxService.enqueue(event)).willReturn("INF-1");
 
@@ -68,7 +68,7 @@ class NotificationEventListenerTest {
     @Test
     @DisplayName("onNotificationEvent: 발송 실패가 발생해도 예외를 전파하지 않는다")
     void onNotificationEvent_발송실패_예외흡수() {
-        NotificationEvent event = NotificationEvent.builder().recipientEno("10001").infmSvcTc("01").build();
+        NotificationEvent event = NotificationEvent.builder().recipientEno("10001").itPtlInfmSvcTc("01").build();
         given(outboxService.enqueue(event)).willReturn("INF-1");
         doThrow(new IllegalStateException("발송 실패")).when(dispatchService).dispatch("INF-1");
 
@@ -105,7 +105,7 @@ class NotificationEventListenerTest {
         verify(outboxService).enqueue(captor.capture());
         verify(dispatchService).dispatch("INF-1");
         assertThat(captor.getValue().recipientEno()).isEqualTo("10001");
-        assertThat(captor.getValue().infmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_RESULT);
+        assertThat(captor.getValue().itPtlInfmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_RESULT);
         assertThat(captor.getValue().infmMsgCone()).isNotBlank();
         assertThat(captor.getValue().infmRcdUrl()).isEqualTo("/approval/list?tab=pending");
     }
@@ -141,7 +141,7 @@ class NotificationEventListenerTest {
         assertThat(captor.getAllValues()).extracting(value -> value.recipientEno())
                 .containsExactly("REQUESTER", "APPROVER");
         assertThat(captor.getAllValues()).allSatisfy(notification ->
-                assertThat(notification.infmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_RECALLED));
+                assertThat(notification.itPtlInfmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_RECALLED));
     }
 
     @Test

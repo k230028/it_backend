@@ -30,9 +30,9 @@ public class Cblbmm extends BaseEntity {
     @Column(name = "BLB_NM", nullable = false, length = 300, comment = "게시판명")
     private String blbNm;
 
-    /** 게시판구분코드 (공통코드 BLB_TC: 001=공지사항, 002=자료실). Java 필드명 blbTp 유지. 컬럼 BLB_TC */
-    @Column(name = "BLB_TC", nullable = false, length = 3, comment = "게시판구분코드")
-    private String blbTp;
+    /** 게시판구분코드 (공통코드 IT_PTL_BLB_TC: 001=공지사항, 002=자료실) */
+    @Column(name = "IT_PTL_BLB_TC", nullable = false, length = 3, comment = "IT포탈게시판구분코드")
+    private String itPtlBlbTc;
 
     @Column(name = "REP_FNC_USE_YN", nullable = false, length = 1, comment = "답변사용여부 (물리컬럼 REP_FNC_USE_YN=답변기능사용여부)")
     private String repUseYn;

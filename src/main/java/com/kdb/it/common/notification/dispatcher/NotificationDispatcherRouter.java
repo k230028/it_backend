@@ -34,14 +34,14 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
 
     @Override
     public NotificationDispatchResult dispatch(Cinfmm notification, String sdPayload) {
-        String channel = StringUtils.hasText(notification.getSdTc()) ? notification.getSdTc() : CHANNEL_INAPP;
+        String channel = StringUtils.hasText(notification.getItPtlSdTc()) ? notification.getItPtlSdTc() : CHANNEL_INAPP;
         if (CHANNEL_INAPP.equals(channel)) {
             return NotificationDispatchResult.sent();
         }
         if (CHANNEL_EAI_GWE.equals(channel)) {
             return dispatchGwe(notification);
         }
-        log.warn("지원하지 않는 알림 발송 채널입니다. 인앱으로 처리합니다: infmMsgNo={}, sdTc={}",
+        log.warn("지원하지 않는 알림 발송 채널입니다. 인앱으로 처리합니다: infmMsgNo={}, itPtlSdTc={}",
                 notification.getInfmMsgNo(), channel);
         return NotificationDispatchResult.sent();
     }

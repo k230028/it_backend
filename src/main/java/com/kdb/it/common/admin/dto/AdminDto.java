@@ -326,7 +326,7 @@ public class AdminDto {
      * @param eno        사번
      * @param usrNm      사용자명
      * @param lgnDtm     로그인 일시
-     * @param lgnTc      로그인 유형 코드
+     * @param itPtlLgnTc      로그인 유형 코드
      * @param ipAddr     IP 주소
      * @param lgnErrRsn  로그인 오류 사유
      * @param agtVrsCone 에이전트 버전 내용
@@ -337,7 +337,7 @@ public class AdminDto {
             String eno,
             String usrNm,    // ENO → 이름 변환
             LocalDateTime lgnDtm,
-            String lgnTc,        // 공통코드 C_ID='LGN_TC' (1=성공, 2=실패, 3=로그아웃)
+            String itPtlLgnTc,        // 공통코드 C_ID='IT_PTL_LGN_TC' (1=성공, 2=실패, 3=로그아웃)
             String ipAddr,
             String lgnErrRsn,    // 로그인오류사유
             String agtVrsCone,   // 에이전트버전내용 (User-Agent)

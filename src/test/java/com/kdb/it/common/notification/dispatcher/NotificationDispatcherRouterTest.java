@@ -28,7 +28,7 @@ class NotificationDispatcherRouterTest {
     private EaiService eaiService;
 
     @Test
-    @DisplayName("sdTc가 없으면 인앱 성공 결과를 반환하고 EAI를 호출하지 않는다")
+    @DisplayName("itPtlSdTc가 없으면 인앱 성공 결과를 반환하고 EAI를 호출하지 않는다")
     void dispatch_nullChannel_returnsSent() {
         NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES);
         Cinfmm notification = notification(null);
@@ -36,7 +36,7 @@ class NotificationDispatcherRouterTest {
         NotificationDispatchResult result = router.dispatch(notification, "{\"id\":1}");
 
         assertThat(result.success()).isTrue();
-        assertThat(notification.getSdTc()).isNull();
+        assertThat(notification.getItPtlSdTc()).isNull();
         assertThat(notification.getSdDtm()).isNull();
         verify(eaiService, never()).sendEai(any());
     }
@@ -58,7 +58,7 @@ class NotificationDispatcherRouterTest {
         GwePayload payload = (GwePayload) captor.getValue().payload();
         assertThat(payload.recvIds()).isEqualTo("E0001");
         assertThat(payload.subject()).isEqualTo("알림 제목");
-        assertThat(notification.getSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
+        assertThat(notification.getItPtlSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
         assertThat(notification.getSdDtm()).isNull();
     }
 
@@ -73,7 +73,7 @@ class NotificationDispatcherRouterTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.errorMessage()).isEqualTo("장애");
-        assertThat(notification.getSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
+        assertThat(notification.getItPtlSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
         assertThat(notification.getSdDtm()).isNull();
     }
 
@@ -83,12 +83,12 @@ class NotificationDispatcherRouterTest {
         NotificationDispatcherRouter router = new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES);
         Cinfmm notification = Cinfmm.builder()
                 .infmMsgNo("INF-2026-00000002")
-                .infmSvcTc("01")
+                .itPtlInfmSvcTc("01")
                 .ttl(" ")
                 .infmMsgCone(null)
                 .rmsEno("E0002")
                 .inqYn("N")
-                .sdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
+                .itPtlSdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
                 .build();
         when(eaiService.sendEai(any())).thenReturn(EaiResult.skip());
 
@@ -127,16 +127,16 @@ class NotificationDispatcherRouterTest {
         assertThat(result.errorMessage()).isEqualTo("연계 중단");
     }
 
-    private Cinfmm notification(String sdTc) {
+    private Cinfmm notification(String itPtlSdTc) {
         return Cinfmm.builder()
                 .infmMsgNo("INF-2026-00000001")
-                .infmSvcTc("01")
+                .itPtlInfmSvcTc("01")
                 .ttl("알림 제목")
                 .infmMsgCone("알림 본문")
                 .infmRcdUrl("/notifications")
                 .rmsEno("E0001")
                 .inqYn("N")
-                .sdTc(sdTc)
+                .itPtlSdTc(itPtlSdTc)
                 .build();
     }
 }

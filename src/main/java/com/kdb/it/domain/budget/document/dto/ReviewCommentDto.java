@@ -42,7 +42,7 @@ public class ReviewCommentDto {
         /** 의견유형: I=인라인, G=전반 */
         @NotBlank
         @Pattern(regexp = "^[IG]$", message = "의견유형은 I(인라인) 또는 G(전반)이어야 합니다")
-        private String rplOpnnTc;
+        private String itPtlRplOpnnTc;
         /** 의견내용 (CLOB) */
         @NotBlank
         private String ivgOpnnCone;
@@ -59,7 +59,7 @@ public class ReviewCommentDto {
          */
         public Brivgm toEntity(String docMngNo) {
             // 화면 소수 버전 → 저장 정수 버전(× 100). Brdocm 버전 키와 동일 규약으로 정합성 유지.
-            return Brivgm.create(docMngNo, DocVersionCodec.toStored(docVrs), rplOpnnTc, ivgOpnnCone, markId, qtdCone);
+            return Brivgm.create(docMngNo, DocVersionCodec.toStored(docVrs), itPtlRplOpnnTc, ivgOpnnCone, markId, qtdCone);
         }
     }
 
@@ -82,7 +82,7 @@ public class ReviewCommentDto {
         /** 문서버전 */
         private final BigDecimal docVrsSno;
         /** 의견유형 (I=인라인, G=전반) */
-        private final String rplOpnnTc;
+        private final String itPtlRplOpnnTc;
         /** 의견내용 */
         private final String ivgOpnnCone;
         /** Tiptap 표시 ID (인라인 전용) */
@@ -109,7 +109,7 @@ public class ReviewCommentDto {
             this.docMngNo   = e.getDocMngNo();
             // 저장 정수 버전 → 화면 소수 버전(÷ 100)
             this.docVrsSno  = DocVersionCodec.toDisplay(e.getDocVrsSno());
-            this.rplOpnnTc  = e.getRplOpnnTc();
+            this.itPtlRplOpnnTc  = e.getItPtlRplOpnnTc();
             this.ivgOpnnCone = e.getIvgOpnnCone();
             this.rfrId      = e.getRfrId();
             this.rfrCone    = e.getRfrCone();

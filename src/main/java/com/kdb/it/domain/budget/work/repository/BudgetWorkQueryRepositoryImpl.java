@@ -68,7 +68,7 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                                         cappla.fntTbNm.eq("BCOSTM"),
                                         cappla.pkColNm.eq(bcostm.costBgNo),
                                         cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                        capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                        capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                         cappla.apfDcmNo.eq(
                                                 JPAExpressions.select(cappla2.apfDcmNo.max())
                                                         .from(cappla2)
@@ -150,7 +150,7 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                                                         cappla.fntTbNm.eq("BPROJM"),
                                                         cappla.pkColNm.eq(bprojm.abusMngNo),
                                                         cappla.fntTbCrySno.eq(bprojm.sno),
-                                                        capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                                        capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                                         cappla.apfDcmNo.eq(
                                                                 JPAExpressions.select(cappla2.apfDcmNo.max())
                                                                         .from(cappla2)
@@ -205,7 +205,7 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                                         cappla.fntTbNm.eq("BCOSTM"),
                                         cappla.pkColNm.eq(bcostm.costBgNo),
                                         cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                        capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                        capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                         cappla.apfDcmNo.eq(
                                                 JPAExpressions.select(cappla2.apfDcmNo.max())
                                                         .from(cappla2)
@@ -241,7 +241,7 @@ public class BudgetWorkQueryRepositoryImpl implements BudgetWorkQueryRepository 
                                                         cappla.fntTbNm.eq("BPROJM"),
                                                         cappla.pkColNm.eq(bprojm.abusMngNo),
                                                         cappla.fntTbCrySno.eq(bprojm.sno),
-                                                        capplm.apfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                                        capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
                                                         cappla.apfDcmNo.eq(
                                                                 JPAExpressions.select(cappla2.apfDcmNo.max())
                                                                         .from(cappla2)

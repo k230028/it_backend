@@ -189,12 +189,12 @@ class ReviewCommentServiceTest {
 
     // 헬퍼: CreateRequest 인스턴스를 reflection으로 생성
     private ReviewCommentDto.CreateRequest createRequest(
-            BigDecimal docVrs, String rplOpnnTc, String ivgOpnnCone,
+            BigDecimal docVrs, String itPtlRplOpnnTc, String ivgOpnnCone,
             String markId, String qtdCone) {
         try {
             var req = new ReviewCommentDto.CreateRequest();
             setField(req, "docVrs", docVrs);
-            setField(req, "rplOpnnTc", rplOpnnTc);
+            setField(req, "itPtlRplOpnnTc", itPtlRplOpnnTc);
             setField(req, "ivgOpnnCone", ivgOpnnCone);
             setField(req, "markId", markId);
             setField(req, "qtdCone", qtdCone);

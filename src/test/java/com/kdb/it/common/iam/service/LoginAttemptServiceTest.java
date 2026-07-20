@@ -34,7 +34,7 @@ class LoginAttemptServiceTest {
     @Test
     @DisplayName("10분 내 실패 4회 — 잠금 없음, 예외 없음")
     void checkLocked_under5Failures_noException() {
-        given(loginHistoryRepository.countByEnoAndLgnTcAndLgnDtmAfter(
+        given(loginHistoryRepository.countByEnoAndItPtlLgnTcAndLgnDtmAfter(
                 eq("E001"), eq("2"), any(LocalDateTime.class)))
                 .willReturn(4L);
 
@@ -45,7 +45,7 @@ class LoginAttemptServiceTest {
     @Test
     @DisplayName("10분 내 실패 5회 — CustomGeneralException 발생 (423 계정 잠금)")
     void checkLocked_exactly5Failures_throwsException() {
-        given(loginHistoryRepository.countByEnoAndLgnTcAndLgnDtmAfter(
+        given(loginHistoryRepository.countByEnoAndItPtlLgnTcAndLgnDtmAfter(
                 eq("E001"), eq("2"), any(LocalDateTime.class)))
                 .willReturn(5L);
 
@@ -57,7 +57,7 @@ class LoginAttemptServiceTest {
     @Test
     @DisplayName("10분 내 실패 6회 — CustomGeneralException 발생")
     void checkLocked_over5Failures_throwsException() {
-        given(loginHistoryRepository.countByEnoAndLgnTcAndLgnDtmAfter(
+        given(loginHistoryRepository.countByEnoAndItPtlLgnTcAndLgnDtmAfter(
                 eq("E001"), eq("2"), any(LocalDateTime.class)))
                 .willReturn(6L);
 
@@ -68,7 +68,7 @@ class LoginAttemptServiceTest {
     @Test
     @DisplayName("최초 로그인 시도(이력 없음) — 예외 없음")
     void checkLocked_noHistory_noException() {
-        given(loginHistoryRepository.countByEnoAndLgnTcAndLgnDtmAfter(
+        given(loginHistoryRepository.countByEnoAndItPtlLgnTcAndLgnDtmAfter(
                 eq("NEWUSER"), eq("2"), any(LocalDateTime.class)))
                 .willReturn(0L);
 

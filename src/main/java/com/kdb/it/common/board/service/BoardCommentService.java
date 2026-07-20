@@ -277,7 +277,7 @@ public class BoardCommentService {
             eventPublisher.publishEvent(
                     NotificationEvent.builder()
                             .recipientEno(eno)
-                            .infmSvcTc(NotificationEvent.TYPE_MENTION_COMMENT)
+                            .itPtlInfmSvcTc(NotificationEvent.TYPE_MENTION_COMMENT)
                             .ttl(NotificationMessageFormatter.abbreviate(title, 100))
                             .infmMsgCone(NotificationMessageFormatter.abbreviate(safe(post.getNacNm()), 4000))
                             .infmRcdUrl(linkUrl)

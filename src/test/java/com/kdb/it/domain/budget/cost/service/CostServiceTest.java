@@ -755,7 +755,7 @@ class CostServiceTest {
         Capplm capplm = Capplm.builder()
                 .apfMngNo("APF-001")
                 .dcdReqTtl("결재")
-                .apfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code())
+                .itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code())
                 .build();
         Cdecim decision = Cdecim.builder()
                 .dcdMngNo("APF-001")
@@ -923,7 +923,7 @@ class CostServiceTest {
                 .pkColNm(IT_MNGC_NO)
                 .fntTbCrySno(1)
                 .build();
-        Capplm capplm = Capplm.builder().apfMngNo("APF-001").apfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code()).build();
+        Capplm capplm = Capplm.builder().apfMngNo("APF-001").itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code()).build();
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost, newCost));
         given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", List.of(IT_MNGC_NO, "COST-NEW")))
                 .willReturn(List.of(cappla));

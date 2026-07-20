@@ -72,7 +72,7 @@ class EstimateServiceTest {
         private Bestim draftOwnedByE0001() {
             return Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001")
                     .stsTc("51").reqCone("내용").fstEnrUsid("E0001").build();
         }
 
@@ -140,7 +140,7 @@ class EstimateServiceTest {
     @DisplayName("신규 신청 생성 시 문서번호를 채번하고 상태 41, 대상구분 100으로 저장한다")
     void create_assignsDocNoAndStatus41() {
         when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-2026-0001", "Y", "N")).thenReturn(true);
-        when(estimateRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(anyString(), anyString(), any(), anyString())).thenReturn(false);
+        when(estimateRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(anyString(), anyString(), any(), anyString())).thenReturn(false);
         when(estimateRepository.nextDocSeq()).thenReturn(1L);
         when(estimateRepository.save(any(Bestim.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -161,7 +161,7 @@ class EstimateServiceTest {
     @DisplayName("동일 대상에 진행중 문서가 있으면 신규 신청을 거부한다")
     void create_rejectsDuplicate() {
         when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-2026-0001", "Y", "N")).thenReturn(true);
-        when(estimateRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(anyString(), anyString(), any(), anyString())).thenReturn(true);
+        when(estimateRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(anyString(), anyString(), any(), anyString())).thenReturn(true);
         assertThatThrownBy(() -> service.create(new EstimateDto.CreateRequest("PRJ-2026-0001", null), requester()))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("진행 중");
     }
@@ -170,7 +170,7 @@ class EstimateServiceTest {
     @DisplayName("시퀀스 번호 99번이면 문서번호를 4자리 포맷으로 채번한다")
     void create_formatsSeqWith4Digits() {
         when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-2026-0001", "Y", "N")).thenReturn(true);
-        when(estimateRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(anyString(), anyString(), any(), anyString())).thenReturn(false);
+        when(estimateRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(anyString(), anyString(), any(), anyString())).thenReturn(false);
         when(estimateRepository.nextDocSeq()).thenReturn(99L);
         when(estimateRepository.save(any(Bestim.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -193,7 +193,7 @@ class EstimateServiceTest {
             // Arrange
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001")
                     .stsTc("51").reqCone("기존 내용").fstEnrUsid("E0001").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn(
                     "REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
@@ -210,7 +210,7 @@ class EstimateServiceTest {
         void update_rejectsWhenNotDraft() {
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
             assertThatThrownBy(() -> service.update("REQ-2026-0001", new EstimateDto.UpdateRequest("x"), requester()))
                     .isInstanceOf(IllegalStateException.class);
@@ -221,7 +221,7 @@ class EstimateServiceTest {
         void update_rejectsWhenDone() {
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("59").fstEnrUsid("E0001").build();
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("59").fstEnrUsid("E0001").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
             assertThatThrownBy(() -> service.update("REQ-2026-0001", new EstimateDto.UpdateRequest("x"), requester()))
                     .isInstanceOf(IllegalStateException.class);
@@ -242,7 +242,7 @@ class EstimateServiceTest {
             // Arrange
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001")
                     .stsTc("51").fstEnrUsid("E0001").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn(
                     "REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
@@ -259,7 +259,7 @@ class EstimateServiceTest {
         void delete_rejectsWhenInProgress() {
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
             assertThatThrownBy(() -> service.delete("REQ-2026-0001", requester()))
                     .isInstanceOf(IllegalStateException.class)
@@ -271,7 +271,7 @@ class EstimateServiceTest {
         void delete_rejectsWhenDone() {
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("59").fstEnrUsid("E0001").build();
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("59").fstEnrUsid("E0001").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
             assertThatThrownBy(() -> service.delete("REQ-2026-0001", requester()))
                     .isInstanceOf(IllegalStateException.class);
@@ -286,7 +286,7 @@ class EstimateServiceTest {
     @DisplayName("작성중(41)→진행중(42) 제출 전이를 허용한다")
     void changeStatus_submitAllowed() {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
+                .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("55"), admin());
         assertThat(e.getStsTc()).isEqualTo("55");
@@ -296,7 +296,7 @@ class EstimateServiceTest {
     @DisplayName("진행중(42)→완료(49) 완료 전이를 허용한다")
     void changeStatus_completeAllowed() {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
+                .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("59"), admin());
         assertThat(e.getStsTc()).isEqualTo("59");
@@ -306,7 +306,7 @@ class EstimateServiceTest {
     @DisplayName("EAI 발송이 실패해도 상태 전이와 사업 진행 동기화는 유지한다")
     void changeStatus_eaiFailure_keepsMainWorkflow() {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
+                .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         when(eaiService.sendEai(any())).thenThrow(new IllegalStateException("EAI 장애"));
 
@@ -320,7 +320,7 @@ class EstimateServiceTest {
     @DisplayName("완료(49)에서 역행 전이를 거부한다")
     void changeStatus_rejectsBackward() {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("59").fstEnrUsid("E0001").build();
+                .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("59").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("55"), admin()))
                 .isInstanceOf(IllegalStateException.class);
@@ -330,7 +330,7 @@ class EstimateServiceTest {
     @DisplayName("작성중(41)→완료(49) 건너뛰기 전이를 거부한다")
     void changeStatus_rejectsSkipTransition() {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
+                .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("59"), admin()))
                 .isInstanceOf(IllegalStateException.class)
@@ -341,7 +341,7 @@ class EstimateServiceTest {
     @DisplayName("진행중(42)에서 작성중(41) 역행을 거부한다")
     void changeStatus_rejectsReverseFromInProgress() {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
+                .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         assertThatThrownBy(() -> service.changeStatus("REQ-2026-0001", new EstimateDto.StatusRequest("51"), admin()))
                 .isInstanceOf(IllegalStateException.class);
@@ -361,7 +361,7 @@ class EstimateServiceTest {
             // Arrange: 마스터
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001")
                     .stsTc("55").reqCone("요청내용").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn(
                     "REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
@@ -397,7 +397,7 @@ class EstimateServiceTest {
             // Arrange
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001")
                     .stsTc("51").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn(
                     "REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
@@ -494,7 +494,7 @@ class EstimateServiceTest {
     @DisplayName("진행중(42)에서 팀별 산정행 저장 — 신규행 추가, 요청에 없는 기존행 soft delete")
     void saveLines_upsertAndSoftDeleteMissing() {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
+                .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         Besttm existing = Besttm.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
                 .svnTemC("12004").ioeC("DEV").rqmBgAmt(new BigDecimal("100")).delYn("N").build();
@@ -510,7 +510,7 @@ class EstimateServiceTest {
     @DisplayName("진행중(42)에서 soft-deleted 행과 동일 키 재추가 시 새로 insert하지 않고 기존 행을 복원·갱신한다")
     void saveLines_revivesSoftDeletedRowOnReAdd() {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
+                .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("55").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         // 이미 soft-delete된 행 (delYn='Y') — 동일 PK가 물리적으로 존재
         Besttm deleted = Besttm.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
@@ -528,7 +528,7 @@ class EstimateServiceTest {
     @DisplayName("진행중이 아닐 때 명세 저장을 거부한다")
     void saveLines_rejectsWhenNotInProgress() {
         Bestim e = Bestim.builder().rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
+                .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001").stsTc("51").fstEnrUsid("E0001").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
         assertThatThrownBy(() -> service.saveLines("REQ-2026-0001", new EstimateDto.LinesRequest(List.of()), requester()))
                 .isInstanceOf(IllegalStateException.class);
@@ -544,7 +544,7 @@ class EstimateServiceTest {
             // Arrange
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001")
                     .stsTc("55").fstEnrUsid("E0001").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn(
                     "REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
@@ -577,7 +577,7 @@ class EstimateServiceTest {
             // Arrange
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001")
                     .stsTc("55").fstEnrUsid("E0001").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn(
                     "REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
@@ -607,7 +607,7 @@ class EstimateServiceTest {
             // Arrange
             Bestim e = Bestim.builder()
                     .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                    .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                    .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001")
                     .stsTc("55").fstEnrUsid("E0001").build();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn(
                     "REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
@@ -651,7 +651,7 @@ class EstimateServiceTest {
     void loadCurrent_returnsEntityWhenFound() {
         Bestim e = Bestim.builder()
                 .rqmBgReqDocNo("REQ-2026-0001").docVrsSno(1)
-                .lstYn("Y").bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                .lstYn("Y").ioeC("100").cncdRfrNo("PRJ-2026-0001")
                 .stsTc("51").build();
         when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn(
                 "REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));

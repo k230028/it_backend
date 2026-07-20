@@ -92,14 +92,14 @@ class ApplicationServiceTest {
         return capplm;
     }
 
-    /** 미결재(dcdStsC="1") 상태의 Cdecim 생성 */
+    /** 미결재(itPtlDcdStsC="1") 상태의 Cdecim 생성 */
     private Cdecim pendingApprover(String eno, int sqn, String lstDcdYn) {
         return Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO)
                 .dcrSqnSno(sqn)
                 .dcrEno(eno)
                 .lstDcdYn(lstDcdYn)
-                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code())
+                .itPtlDcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code())
                 .build();
     }
 
@@ -150,7 +150,7 @@ class ApplicationServiceTest {
         Cdecim completed = Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO).dcrSqnSno(1).dcrEno("E10001")
                 .lstDcdYn("Y")
-                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code()).build();
+                .itPtlDcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code()).build();
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO)).willReturn(List.of(completed));
 
         assertThatThrownBy(() -> applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인")))
@@ -257,7 +257,7 @@ class ApplicationServiceTest {
                 .dcrSqnSno(1)
                 .dcrEno("E10001")
                 .lstDcdYn("N")
-                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.REJECTED.code())
+                .itPtlDcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.REJECTED.code())
                 .build();
         Cdecim pending = pendingApprover("E10002", 2, "Y");
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
@@ -285,8 +285,8 @@ class ApplicationServiceTest {
 
         realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
 
-        assertThat(first.getDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
-        assertThat(second.getDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
+        assertThat(first.getItPtlDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
+        assertThat(second.getItPtlDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
         assertThat(capplm.getDcdReqInf()).contains("\"date\"");
         verify(approverRepository, times(2)).save(any(Cdecim.class));
         verify(eventPublisher, never()).publishEvent(any());
@@ -306,7 +306,7 @@ class ApplicationServiceTest {
 
         realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
 
-        assertThat(capplm.getApfPrgStsC()).isEqualTo(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code());
+        assertThat(capplm.getItPtlApfPrgStsC()).isEqualTo(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code());
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
     }
 
@@ -459,14 +459,14 @@ class ApplicationServiceTest {
     void getApplications_레거시미결재코드_목록반환() {
         Capplm capplm = Capplm.builder()
                 .apfMngNo(APF_MNG_NO)
-                .apfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
+                .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
                 .build();
         Cdecim legacyPending = Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO)
                 .dcrSqnSno(1)
                 .dcrEno("E10001")
                 .lstDcdYn("Y")
-                .dcdStsC("0")
+                .itPtlDcdStsC("0")
                 .build();
         given(applicationRepository.findAll()).willReturn(List.of(capplm));
         given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
@@ -647,8 +647,8 @@ class ApplicationServiceTest {
         ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().recipientEno()).isEqualTo("10002");
-        assertThat(captor.getValue().infmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_REQUEST);
-        assertThat(captor.getValue().sdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
+        assertThat(captor.getValue().itPtlInfmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_REQUEST);
+        assertThat(captor.getValue().itPtlSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
     }
 
     @Test
@@ -697,7 +697,7 @@ class ApplicationServiceTest {
 
         ArgumentCaptor<Capplm> captor = ArgumentCaptor.forClass(Capplm.class);
         verify(applicationRepository).save(captor.capture());
-        assertThat(captor.getValue().getApfPrgStsC()).isEqualTo("1");
+        assertThat(captor.getValue().getItPtlApfPrgStsC()).isEqualTo("1");
     }
 
     @Test

@@ -19,7 +19,7 @@ import lombok.experimental.SuperBuilder;
  * 입찰계약 기본(마스터) 엔티티.
  *
  * <p>DB 테이블: {@code TPRMPP_BCONTM}. 정보화사업/전산업무비에 대한 입찰/계약을 관리한다.</p>
- * <p>대상구분 {@code BG_PRN_TC}: 100=정보화사업, 200=전산업무비. 상태 61→62→69.</p>
+ * <p>대상구분 {@code IOE_C}: 100=정보화사업, 200=전산업무비. 상태 61→62→69.</p>
  */
 @LogTarget(entity = BcontmL.class)
 @Entity
@@ -42,8 +42,8 @@ public class Bcontm extends BaseEntity {
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
-    @Column(name = "BG_PRN_TC", length = 3, nullable = false, comment = "예산성격구분코드(대상구분)")
-    private String bgPrnTc;
+    @Column(name = "IOE_C", length = 7, nullable = false, comment = "IT포탈예산성격구분코드")
+    private String ioeC;
 
     @Column(name = "CNCD_RFR_NO", length = 30, nullable = false, comment = "관련참조번호(대상관리번호)")
     private String cncdRfrNo;
@@ -54,8 +54,8 @@ public class Bcontm extends BaseEntity {
     @Column(name = "REQ_CONE", length = 300, comment = "요청내용")
     private String reqCone;
 
-    @Column(name = "CTT_MANR_C", length = 2, comment = "계약방법코드")
-    private String cttManrC;
+    @Column(name = "IT_PTL_CTT_MANR_C", length = 2, comment = "IT포탈계약방법코드")
+    private String itPtlCttManrC;
 
     @Column(name = "CTT_MANR_RSN", length = 1000, comment = "계약방법사유")
     private String cttManrRsn;
@@ -78,9 +78,9 @@ public class Bcontm extends BaseEntity {
     }
 
     /** 계약 정보 입력 (진행중에서만 서비스가 호출) */
-    public void updateContract(String cttManrC, String cttManrRsn, String cttNm,
+    public void updateContract(String itPtlCttManrC, String cttManrRsn, String cttNm,
                                BigDecimal cttAmt, String cttOppNm, String cttDt) {
-        this.cttManrC = cttManrC;
+        this.itPtlCttManrC = itPtlCttManrC;
         this.cttManrRsn = cttManrRsn;
         this.cttNm = cttNm;
         this.cttAmt = cttAmt;

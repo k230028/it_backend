@@ -53,17 +53,17 @@ public class DeliberationService {
      */
     @Transactional
     public String create(DeliberationDto.CreateRequest req, CustomUserDetails user) {
-        validateTarget(req.bgPrnTc(), req.cncdRfrNo());
-        if (deliberationRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
-                req.bgPrnTc(), req.cncdRfrNo(), List.of(STS_DRAFT, STS_IN_PROGRESS), "N")) {
+        validateTarget(req.ioeC(), req.cncdRfrNo());
+        if (deliberationRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
+                req.ioeC(), req.cncdRfrNo(), List.of(STS_DRAFT, STS_IN_PROGRESS), "N")) {
             throw new IllegalStateException("해당 대상에 진행 중인 과업심의가 이미 있습니다.");
         }
         String docNo = String.format("DLB-%d-%04d", Year.now().getValue(), deliberationRepository.nextDocSeq());
         deliberationRepository.save(Bdelim.builder()
                 .docMngNo(docNo).docVrsSno(1).lstYn("Y")
-                .bgPrnTc(req.bgPrnTc()).cncdRfrNo(req.cncdRfrNo())
+                .ioeC(req.ioeC()).cncdRfrNo(req.cncdRfrNo())
                 .stsTc(STS_DRAFT).reqCone(req.reqCone()).taskDbrOmtYn("N").build());
-        if (TGT_PROJECT.equals(req.bgPrnTc())) {
+        if (TGT_PROJECT.equals(req.ioeC())) {
             bprojaSyncService.upsert(req.cncdRfrNo(), docNo, STS_DRAFT);
         }
         return docNo;
@@ -72,20 +72,20 @@ public class DeliberationService {
     /**
      * 대상 유효성 검증 — 대상구분에 따라 사업 또는 전산업무비 존재 여부 확인.
      *
-     * @param bgPrnTc   예산성격구분코드(대상구분)
+     * @param ioeC   예산성격구분코드(대상구분)
      * @param cncdRfrNo 관련참조번호(대상관리번호)
      * @throws IllegalArgumentException 알 수 없는 대상구분이거나 대상이 존재하지 않는 경우
      */
-    private void validateTarget(String bgPrnTc, String cncdRfrNo) {
+    private void validateTarget(String ioeC, String cncdRfrNo) {
         boolean ok;
-        if (TGT_PROJECT.equals(bgPrnTc)) {
+        if (TGT_PROJECT.equals(ioeC)) {
             ok = projectRepository.existsByAbusMngNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N");
-        } else if (TGT_COST.equals(bgPrnTc)) {
+        } else if (TGT_COST.equals(ioeC)) {
             ok = costRepository.existsByCostBgNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N");
         } else {
-            throw new IllegalArgumentException("알 수 없는 대상구분: " + bgPrnTc);
+            throw new IllegalArgumentException("알 수 없는 대상구분: " + ioeC);
         }
-        if (!ok) throw new IllegalArgumentException("대상을 찾을 수 없습니다: " + bgPrnTc + "/" + cncdRfrNo);
+        if (!ok) throw new IllegalArgumentException("대상을 찾을 수 없습니다: " + ioeC + "/" + cncdRfrNo);
     }
 
     /**
@@ -117,7 +117,7 @@ public class DeliberationService {
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         e.delete();
-        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+        if (TGT_PROJECT.equals(e.getIoeC())) {
             bprojaSyncService.softDelete(e.getCncdRfrNo(), docNo);
         }
     }
@@ -139,7 +139,7 @@ public class DeliberationService {
                 || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
         if (!ok) throw new IllegalStateException("허용되지 않은 상태 전이입니다: " + from + " → " + to);
         e.changeStatus(to);
-        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+        if (TGT_PROJECT.equals(e.getIoeC())) {
             bprojaSyncService.upsert(e.getCncdRfrNo(), docNo, to);
         }
         sendStatusEai("과업심의", docNo, from, to, user);
@@ -177,7 +177,7 @@ public class DeliberationService {
         Bdelim e = row.entity();
         String tgtNm = row.targetName();
         return new DeliberationDto.Detail(
-                e.getDocMngNo(), e.getDocVrsSno(), e.getBgPrnTc(), e.getCncdRfrNo(), tgtNm,
+                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), tgtNm,
                 e.getStsTc(), e.getReqCone(), e.getTaskDbrTc(), e.getTaskDbrRltTc(), e.getTaskDbrDt(),
                 e.getTaskDbrTod(), e.getTaskDbrOmtYn(), e.getTaskDbrOmtRsn(), e.getOpnnCone(), e.getApvTrdnRsnCone(),
                 e.getFstEnrUsid(), e.getFstEnrDtm());
@@ -187,14 +187,14 @@ public class DeliberationService {
      * 목록 조회 — 관리자는 전체, 그 외는 소속 부서 한정.
      *
      * @param stsTc     상태구분코드 필터 (null이면 전체)
-     * @param bgPrnTc   대상구분코드 필터 (null이면 전체)
+     * @param ioeC   대상구분코드 필터 (null이면 전체)
      * @param cncdRfrNo 대상관리번호 필터 (null이면 전체)
      * @param user      요청자 인증 정보
      * @return 목록 항목 리스트
      */
-    public List<DeliberationDto.ListItem> list(String stsTc, String bgPrnTc, String cncdRfrNo, CustomUserDetails user) {
+    public List<DeliberationDto.ListItem> list(String stsTc, String ioeC, String cncdRfrNo, CustomUserDetails user) {
         String bbrC = user.isAdmin() ? null : user.getBbrC();
-        return deliberationRepository.search(stsTc, bgPrnTc, cncdRfrNo, bbrC);
+        return deliberationRepository.search(stsTc, ioeC, cncdRfrNo, bbrC);
     }
 
     /**

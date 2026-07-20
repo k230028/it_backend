@@ -57,7 +57,7 @@ public class BoardMetaService {
 
         Cblbmm entity = Cblbmm.builder()
             .blbMngNo(blbMngNo)
-            .blbTp(request.getBlbTp())
+            .itPtlBlbTc(request.getItPtlBlbTc())
             .build();
         entity.update(request.toUpdateCommand());
         boardMetaRepository.save(entity);

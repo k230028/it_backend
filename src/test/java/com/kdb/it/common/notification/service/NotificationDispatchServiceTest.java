@@ -82,7 +82,7 @@ class NotificationDispatchServiceTest {
     void dispatch_exhaustedBlankChannel_recordsBothMetrics() {
         Cinfmm row = Cinfmm.builder()
                 .infmMsgNo("INF-2026-00000002")
-                .sdTc(" ")
+                .itPtlSdTc(" ")
                 .sdDocCone("payload")
                 .infmSdStsC(Cinfmm.DISPATCH_PENDING)
                 .reTryNot(4)
@@ -105,7 +105,7 @@ class NotificationDispatchServiceTest {
     void dispatch_nullChannel_recordsUnknownMetric() {
         Cinfmm row = Cinfmm.builder()
                 .infmMsgNo("INF-2026-00000003")
-                .sdTc(null)
+                .itPtlSdTc(null)
                 .infmSdStsC(Cinfmm.DISPATCH_PENDING)
                 .reTryNot(0)
                 .build();
@@ -134,7 +134,7 @@ class NotificationDispatchServiceTest {
     private Cinfmm pending() {
         return Cinfmm.builder()
                 .infmMsgNo("INF-2026-00000001")
-                .sdTc("04")
+                .itPtlSdTc("04")
                 .sdDocCone("payload")
                 .infmSdStsC(Cinfmm.DISPATCH_PENDING)
                 .reTryNot(0)

@@ -81,7 +81,7 @@ class CinfmmRepositoryImplTest extends AbstractOracleRepositoryTest {
         LocalDateTime now = LocalDateTime.now().minusDays(1);
         return em.persist(Cinfmm.builder()
                 .infmMsgNo(infmMsgNo)
-                .infmSvcTc("01")
+                .itPtlInfmSvcTc("01")
                 .ttl("테스트 알림")
                 .infmMsgCone("테스트 본문")
                 .rmsEno(rmsEno)

@@ -37,7 +37,7 @@ class EstimateRepositoryTest {
                 .rqmBgReqDocNo("BEG-2026-00000001")
                 .docVrsSno(1)
                 .lstYn("Y")
-                .bgPrnTc("100")
+                .ioeC("100")
                 .cncdRfrNo("PRJ-2026-0001")
                 .stsTc("51")
                 .reqCone("산정 요청합니다")
@@ -91,12 +91,12 @@ class EstimateRepositoryTest {
     void existsActiveDuplicate_returnsTrue() {
         // Arrange
         List<String> activeStatuses = List.of("51", "55");
-        given(repository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
+        given(repository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
                 "100", "PRJ-2026-0001", activeStatuses, "N"))
                 .willReturn(true);
 
         // Act
-        boolean exists = repository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
+        boolean exists = repository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
                 "100", "PRJ-2026-0001", activeStatuses, "N");
 
         // Assert
@@ -108,12 +108,12 @@ class EstimateRepositoryTest {
     void existsActiveDuplicate_noMatch_returnsFalse() {
         // Arrange
         List<String> activeStatuses = List.of("51", "55");
-        given(repository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
+        given(repository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
                 "100", "PRJ-2026-NEW", activeStatuses, "N"))
                 .willReturn(false);
 
         // Act
-        boolean exists = repository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
+        boolean exists = repository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
                 "100", "PRJ-2026-NEW", activeStatuses, "N");
 
         // Assert

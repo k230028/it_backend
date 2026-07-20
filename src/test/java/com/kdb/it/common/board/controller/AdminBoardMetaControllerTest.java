@@ -48,7 +48,7 @@ class AdminBoardMetaControllerTest {
 
         var body = new BoardMetaDto.CreateRequest();
         body.setBlbNm("공지사항");
-        body.setBlbTp("001");
+        body.setItPtlBlbTc("001");
 
         mockMvc.perform(post("/api/admin/boards/meta")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -62,7 +62,7 @@ class AdminBoardMetaControllerTest {
     void create_필수필드누락_400() throws Exception {
         var body = new BoardMetaDto.CreateRequest();
         body.setBlbNm(null);
-        body.setBlbTp("001");
+        body.setItPtlBlbTc("001");
 
         mockMvc.perform(post("/api/admin/boards/meta")
                 .contentType(MediaType.APPLICATION_JSON)

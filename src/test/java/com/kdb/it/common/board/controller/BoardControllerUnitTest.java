@@ -128,7 +128,7 @@ class BoardControllerUnitTest {
         return com.kdb.it.common.board.entity.Cblbmm.builder()
             .blbMngNo(id)
             .blbNm(name)
-            .blbTp("002")
+            .itPtlBlbTc("002")
             .repUseYn("Y")
             .cmmtUseYn("Y")
             .useYn("Y")

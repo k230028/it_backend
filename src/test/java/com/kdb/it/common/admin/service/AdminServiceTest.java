@@ -647,7 +647,7 @@ class AdminServiceTest {
         // given
         Clognh log = Clognh.builder()
                 .eno("10001")
-                .lgnTc("1")
+                .itPtlLgnTc("1")
                 .ipAddr("127.0.0.1")
                 .lgnDtm(java.time.LocalDateTime.of(2026, 4, 1, 9, 0))
                 .build();
@@ -663,7 +663,7 @@ class AdminServiceTest {
         // then: 1건 반환, ENO와 로그인 타입 검증
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().get(0).eno()).isEqualTo("10001");
-        assertThat(result.getContent().get(0).lgnTc()).isEqualTo("1");
+        assertThat(result.getContent().get(0).itPtlLgnTc()).isEqualTo("1");
     }
 
     @Test

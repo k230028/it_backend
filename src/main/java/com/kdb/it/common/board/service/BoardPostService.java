@@ -298,7 +298,7 @@ public class BoardPostService {
             eventPublisher.publishEvent(
                     NotificationEvent.builder()
                             .recipientEno(eno)
-                            .infmSvcTc(type)
+                            .itPtlInfmSvcTc(type)
                             .ttl(NotificationMessageFormatter.abbreviate(title, 100))
                             .infmMsgCone(NotificationMessageFormatter.abbreviate(safe(post.getNacNm()), 4000))
                             .infmRcdUrl(linkUrl)
@@ -364,14 +364,14 @@ public class BoardPostService {
      * 게시물 등록 권한 검증
      *
      * <p>
-     * 공지사항(BLB_TC='001') 게시판은 관리자만 등록할 수 있으며,
+     * 공지사항(IT_PTL_BLB_TC='001') 게시판은 관리자만 등록할 수 있으며,
      * 그 외 게시판은 인증된 모든 사용자가 등록할 수 있습니다.
      * </p>
      */
     private void verifyCanWrite(CustomUserDetails user, Cblbmm board) {
         if (user.isAdmin())
             return;
-        if ("001".equals(board.getBlbTp())) {
+        if ("001".equals(board.getItPtlBlbTc())) {
             throw new CustomGeneralException("공지사항은 관리자만 등록할 수 있습니다.");
         }
     }

@@ -31,8 +31,8 @@ public class BrivgmL extends BaseLogEntity {
     @Column(name = "DOC_VRS_SNO", precision = 5, scale = 2, comment = "문서버전")
     private BigDecimal docVrsSno;
 
-    @Column(name = "RPL_OPNN_TC", length = 1, comment = "의견유형")
-    private String rplOpnnTc;
+    @Column(name = "IT_PTL_RPL_OPNN_TC", length = 2, comment = "IT포탈회신의견구분코드")
+    private String itPtlRplOpnnTc;
 
     @Column(name = "IVG_OPNN_CONE", length = 4000, comment = "의견내용")
     private String ivgOpnnCone;

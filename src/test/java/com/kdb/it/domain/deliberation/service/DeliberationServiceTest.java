@@ -57,10 +57,10 @@ class DeliberationServiceTest {
     }
 
     /** 지정 상태로 과업심의 엔티티 생성 (소유자 E0001) */
-    Bdelim bdelim(String docNo, String bgPrnTc, String cncdRfrNo, String stsTc) {
+    Bdelim bdelim(String docNo, String ioeC, String cncdRfrNo, String stsTc) {
         return Bdelim.builder()
                 .docMngNo(docNo).docVrsSno(1).lstYn("Y")
-                .bgPrnTc(bgPrnTc).cncdRfrNo(cncdRfrNo)
+                .ioeC(ioeC).cncdRfrNo(cncdRfrNo)
                 .stsTc(stsTc).taskDbrOmtYn("N").fstEnrUsid("E0001").build();
     }
 
@@ -86,7 +86,7 @@ class DeliberationServiceTest {
         private Bdelim draftOwnedByE0001() {
             return Bdelim.builder()
                     .docMngNo("DLB-2026-0001").docVrsSno(1).lstYn("Y")
-                    .bgPrnTc("100").cncdRfrNo("PRJ-2026-0001")
+                    .ioeC("100").cncdRfrNo("PRJ-2026-0001")
                     .stsTc("61").reqCone("내용").taskDbrOmtYn("N").fstEnrUsid("E0001").build();
         }
 
@@ -148,7 +148,7 @@ class DeliberationServiceTest {
     @DisplayName("사업 대상 신규 신청 생성 시 문서번호를 채번하고 상태 51, 대상구분 100으로 저장한다")
     void create_project_assignsDocNoAndStatus51() {
         when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N")).thenReturn(true);
-        when(deliberationRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
+        when(deliberationRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
                 anyString(), anyString(), any(), anyString())).thenReturn(false);
         when(deliberationRepository.nextDocSeq()).thenReturn(1L);
         when(deliberationRepository.save(any(Bdelim.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -163,7 +163,7 @@ class DeliberationServiceTest {
     @DisplayName("전산업무비 대상 신규 신청 생성 시 문서번호를 채번하고 상태 51, 대상구분 200으로 저장한다")
     void create_cost_assignsDocNoAndStatus51() {
         when(costRepository.existsByCostBgNoAndLstYnAndDelYn("BG-1", "Y", "N")).thenReturn(true);
-        when(deliberationRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
+        when(deliberationRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
                 anyString(), anyString(), any(), anyString())).thenReturn(false);
         when(deliberationRepository.nextDocSeq()).thenReturn(1L);
         when(deliberationRepository.save(any(Bdelim.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -200,7 +200,7 @@ class DeliberationServiceTest {
 
     @Test
     @DisplayName("알 수 없는 대상구분(999)이면 validateTarget에서 IllegalArgumentException을 던진다")
-    void create_rejectsUnknownBgPrnTc() {
+    void create_rejectsUnknownIoeC() {
         // Act & Assert — validateTarget 에서 else 분기 실행
         assertThatThrownBy(() -> service.create(
                 new DeliberationDto.CreateRequest("999", "ANY-1", null), requester()))
@@ -212,7 +212,7 @@ class DeliberationServiceTest {
     @DisplayName("동일 대상에 진행중 문서가 있으면 신규 신청을 거부한다")
     void create_rejectsDuplicate() {
         when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N")).thenReturn(true);
-        when(deliberationRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
+        when(deliberationRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
                 anyString(), anyString(), any(), anyString())).thenReturn(true);
 
         assertThatThrownBy(() -> service.create(
@@ -226,7 +226,7 @@ class DeliberationServiceTest {
     void create_docNoFormatIncludesSeqPaddedTo4Digits() {
         // Arrange
         when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-2", "Y", "N")).thenReturn(true);
-        when(deliberationRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
+        when(deliberationRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
                 anyString(), anyString(), any(), anyString())).thenReturn(false);
         when(deliberationRepository.nextDocSeq()).thenReturn(42L);
         when(deliberationRepository.save(any(Bdelim.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -366,7 +366,7 @@ class DeliberationServiceTest {
     void changeStatus_submitAllowed() {
         Bdelim e = Bdelim.builder()
                 .docMngNo("DLB-2026-0001").docVrsSno(1).lstYn("Y")
-                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("61").fstEnrUsid("E0001").build();
+                .ioeC("100").cncdRfrNo("PRJ-1").stsTc("61").fstEnrUsid("E0001").build();
         when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
                 .thenReturn(Optional.of(e));
 
@@ -409,7 +409,7 @@ class DeliberationServiceTest {
     void changeStatus_rejectsBackward() {
         Bdelim e = Bdelim.builder()
                 .docMngNo("DLB-2026-0001").docVrsSno(1).lstYn("Y")
-                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("69").fstEnrUsid("E0001").build();
+                .ioeC("100").cncdRfrNo("PRJ-1").stsTc("69").fstEnrUsid("E0001").build();
         when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
                 .thenReturn(Optional.of(e));
 
@@ -484,7 +484,7 @@ class DeliberationServiceTest {
     void saveResult_rejectsWhenNotInProgress() {
         Bdelim e = Bdelim.builder()
                 .docMngNo("DLB-2026-0001").docVrsSno(1).lstYn("Y")
-                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("61").fstEnrUsid("E0001").build();
+                .ioeC("100").cncdRfrNo("PRJ-1").stsTc("61").fstEnrUsid("E0001").build();
         when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
                 .thenReturn(Optional.of(e));
 
@@ -500,7 +500,7 @@ class DeliberationServiceTest {
     void saveResult_inProgress_appliesResult() {
         Bdelim e = Bdelim.builder()
                 .docMngNo("DLB-2026-0001").docVrsSno(1).lstYn("Y")
-                .bgPrnTc("100").cncdRfrNo("PRJ-1").stsTc("65").taskDbrOmtYn("N").fstEnrUsid("E0001").build();
+                .ioeC("100").cncdRfrNo("PRJ-1").stsTc("65").taskDbrOmtYn("N").fstEnrUsid("E0001").build();
         when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
                 .thenReturn(Optional.of(e));
 
@@ -653,8 +653,8 @@ class DeliberationServiceTest {
 
     @Test
     @DisplayName("알 수 없는 대상구분(999)이면 CASE 식이 null을 반환하여 tgtNm은 null이다")
-    void get_unknownBgPrnTc_tgtNmIsNull() {
-        // Arrange — bgPrnTc=999 는 CASE의 otherwise(null) 분기 실행
+    void get_unknownIoeC_tgtNmIsNull() {
+        // Arrange — ioeC=999 는 CASE의 otherwise(null) 분기 실행
         Bdelim e = bdelim("DLB-2026-0003", "999", "ANY-1", "61");
         when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0003"))
                 .thenReturn(Optional.of(new DeliberationTargetRow(e, null)));

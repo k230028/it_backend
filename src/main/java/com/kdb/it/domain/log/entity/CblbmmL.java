@@ -20,7 +20,7 @@ public class CblbmmL extends BaseLogEntity {
 
     @Column(name = "BLB_ID",      length = 32, comment = "게시판관리번호")  private String  blbMngNo;
     @Column(name = "BLB_NM",          length = 100, comment = "게시판명") private String  blbNm;
-    @Column(name = "BLB_TC",          length = 3, comment = "게시판구분코드")  private String  blbTp;
+    @Column(name = "IT_PTL_BLB_TC",          length = 3, comment = "IT포탈게시판구분코드")  private String  itPtlBlbTc;
     @Column(name = "REP_FNC_USE_YN",      length = 1, comment = "답변사용여부")   private String  repUseYn;
     @Column(name = "CMMT_USE_YN",     length = 1, comment = "댓글사용여부")   private String  cmmtUseYn;
     @Column(name = "APG_FL_USE_YN",       length = 1, comment = "파일필수여부")   private String  flEsnYn;

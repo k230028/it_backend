@@ -31,7 +31,7 @@ import java.time.LocalDate;
  * </p>
  *
  * <p>
- * 신청서 상태({@code APF_PRG_STS_C}) 흐름:
+ * 신청서 상태({@code IT_PTL_APF_PRG_STS_C}) 흐름:
  * </p>
  *
  * <pre>
@@ -61,8 +61,8 @@ public class Capplm extends BaseEntity {
     private String apfMngNo;
 
     /** 신청서진행상태코드: Ccodem APF_STS 참조 (01:결재중, 02:결재완료, 03:반려, 04:회수) */
-    @Column(name = "APF_PRG_STS_C", length = 2, nullable = false, comment = "신청서진행상태코드")
-    private String apfPrgStsC;
+    @Column(name = "IT_PTL_APF_PRG_STS_C", length = 2, nullable = false, comment = "IT포탈신청서진행상태코드")
+    private String itPtlApfPrgStsC;
 
     /** 결재요청제목: 신청서의 제목 (최대 255자) */
     @Column(name = "DCD_REQ_TTL", length = 255, comment = "결재요청제목")
@@ -103,7 +103,7 @@ public class Capplm extends BaseEntity {
      * @param status 변경할 상태
      */
     public void updateStatus(ApprovalStatus status) {
-        this.apfPrgStsC = status.code();
+        this.itPtlApfPrgStsC = status.code();
     }
 
     /**

@@ -895,8 +895,8 @@ public class ProjectService {
                 response.setApfMngNo(cappla.getApfDcmNo());
                 Capplm capplm = capplmMap.get(cappla.getApfDcmNo());
                 if (capplm != null) {
-                    response.setApfSts(capplm.getApfPrgStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label());
+                    response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label());
                     List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
                     response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
                 }
@@ -981,8 +981,8 @@ public class ProjectService {
             // 신청서 마스터에서 결재상태 및 상세 정보 조회
             capplmRepository.findById(cappla.getApfDcmNo())
                     .ifPresent(capplm -> {
-                        response.setApfSts(capplm.getApfPrgStsC() == null ? null
-                                : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC())
+                        response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
+                                : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC())
                                         .label()); // 결재상태 설정 (코드→라벨)
 
                         // 결재자 목록 조회 (결재순서 오름차순)

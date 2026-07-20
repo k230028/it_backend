@@ -62,39 +62,39 @@ public class PaymentService {
      */
     @Transactional
     public String create(PaymentDto.CreateRequest req, CustomUserDetails user) {
-        validateTarget(req.bgPrnTc(), req.cncdRfrNo());
-        if (paymentRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
-                req.bgPrnTc(), req.cncdRfrNo(), List.of(STS_DRAFT, STS_IN_PROGRESS), "N")) {
+        validateTarget(req.ioeC(), req.cncdRfrNo());
+        if (paymentRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
+                req.ioeC(), req.cncdRfrNo(), List.of(STS_DRAFT, STS_IN_PROGRESS), "N")) {
             throw new IllegalStateException("해당 대상에 진행 중인 대금지급이 이미 있습니다.");
         }
         String docNo = String.format("PAY-%d-%04d", Year.now().getValue(), paymentRepository.nextDocSeq());
         paymentRepository.save(Bpaymm.builder()
                 .docMngNo(docNo).docVrsSno(1).lstYn("Y")
-                .bgPrnTc(req.bgPrnTc()).cncdRfrNo(req.cncdRfrNo())
+                .ioeC(req.ioeC()).cncdRfrNo(req.cncdRfrNo())
                 .stsTc(STS_DRAFT).reqCone(req.reqCone()).cttNm(req.cttNm()).cttAmt(req.cttAmt()).build());
-        if (TGT_PROJECT.equals(req.bgPrnTc())) {
+        if (TGT_PROJECT.equals(req.ioeC())) {
             bprojaSyncService.upsert(req.cncdRfrNo(), docNo, STS_DRAFT);
         }
         return docNo;
     }
 
     /**
-     * 대상구분(bgPrnTc)에 따라 사업 또는 전산업무비 대상 존재 여부를 검증합니다.
+     * 대상구분(ioeC)에 따라 사업 또는 전산업무비 대상 존재 여부를 검증합니다.
      *
-     * @param bgPrnTc   대상구분 (100=사업, 200=전산업무비)
+     * @param ioeC   대상구분 (100=사업, 200=전산업무비)
      * @param cncdRfrNo 대상관리번호
      * @throws IllegalArgumentException 알 수 없는 대상구분이거나 대상을 찾을 수 없는 경우
      */
-    private void validateTarget(String bgPrnTc, String cncdRfrNo) {
+    private void validateTarget(String ioeC, String cncdRfrNo) {
         boolean ok;
-        if (TGT_PROJECT.equals(bgPrnTc)) {
+        if (TGT_PROJECT.equals(ioeC)) {
             ok = projectRepository.existsByAbusMngNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N");
-        } else if (TGT_COST.equals(bgPrnTc)) {
+        } else if (TGT_COST.equals(ioeC)) {
             ok = costRepository.existsByCostBgNoAndLstYnAndDelYn(cncdRfrNo, "Y", "N");
         } else {
-            throw new IllegalArgumentException("알 수 없는 대상구분: " + bgPrnTc);
+            throw new IllegalArgumentException("알 수 없는 대상구분: " + ioeC);
         }
-        if (!ok) throw new IllegalArgumentException("대상을 찾을 수 없습니다: " + bgPrnTc + "/" + cncdRfrNo);
+        if (!ok) throw new IllegalArgumentException("대상을 찾을 수 없습니다: " + ioeC + "/" + cncdRfrNo);
     }
 
     /**
@@ -126,7 +126,7 @@ public class PaymentService {
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
         if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         e.delete();
-        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+        if (TGT_PROJECT.equals(e.getIoeC())) {
             bprojaSyncService.softDelete(e.getCncdRfrNo(), docNo);
         }
     }
@@ -148,7 +148,7 @@ public class PaymentService {
                 || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
         if (!ok) throw new IllegalStateException("허용되지 않은 상태 전이입니다: " + from + " → " + to);
         e.changeStatus(to);
-        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+        if (TGT_PROJECT.equals(e.getIoeC())) {
             bprojaSyncService.upsert(e.getCncdRfrNo(), docNo, to);
         }
         sendStatusEai("대금지급", docNo, from, to, user);
@@ -212,7 +212,7 @@ public class PaymentService {
                 .toList();
         String tgtNm = row.targetName();
         return new PaymentDto.Detail(
-                e.getDocMngNo(), e.getDocVrsSno(), e.getBgPrnTc(), e.getCncdRfrNo(), tgtNm,
+                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), tgtNm,
                 e.getStsTc(), e.getReqCone(), e.getCttNm(), e.getCttAmt(), e.getFstEnrUsid(), e.getFstEnrDtm(), lines);
     }
 
@@ -220,17 +220,17 @@ public class PaymentService {
      * 대금지급 목록을 조회합니다. 관리자는 전체 조회, 일반 사용자는 소속 부서 기준으로 필터링합니다.
      *
      * @param stsTc     상태코드 필터 (null이면 전체)
-     * @param bgPrnTc   대상구분 필터 (null이면 전체)
+     * @param ioeC   대상구분 필터 (null이면 전체)
      * @param cncdRfrNo 대상관리번호 필터 (null이면 전체)
      * @param user      요청자 인증 정보
      * @return 대금지급 목록 항목 리스트
      */
-    public List<PaymentDto.ListItem> list(String stsTc, String bgPrnTc, String cncdRfrNo, CustomUserDetails user) {
+    public List<PaymentDto.ListItem> list(String stsTc, String ioeC, String cncdRfrNo, CustomUserDetails user) {
         if (!user.isAdmin() && !StringUtils.hasText(user.getBbrC())) {
             throw new AccessDeniedException("부서 정보가 없는 사용자는 전체 조회할 수 없습니다.");
         }
         String bbrC = user.isAdmin() ? null : user.getBbrC();
-        return paymentRepository.search(stsTc, bgPrnTc, cncdRfrNo, bbrC);
+        return paymentRepository.search(stsTc, ioeC, cncdRfrNo, bbrC);
     }
 
     /**

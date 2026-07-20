@@ -12,7 +12,7 @@ public final class ContractDto {
 
     @Schema(name = "ContractCreateRequest", description = "입찰계약 신규 의뢰 요청")
     public record CreateRequest(
-            @NotBlank @Size(max = 3) String bgPrnTc,
+            @NotBlank @Size(max = 3) String ioeC,
             @NotBlank @Size(max = 30) String cncdRfrNo,
             @Size(max = 300) String reqCone
     ) {}
@@ -25,7 +25,7 @@ public final class ContractDto {
 
     @Schema(name = "ContractWorkRequest", description = "계약 정보 입력(진행중)")
     public record WorkRequest(
-            @Size(max = 2) String cttManrC,
+            @Size(max = 2) String itPtlCttManrC,
             @Size(max = 1000) String cttManrRsn,
             @Size(max = 100) String cttNm,
             @DecimalMin(value = "0", message = "계약금액은 0 이상이어야 합니다.") BigDecimal cttAmt,
@@ -35,14 +35,14 @@ public final class ContractDto {
 
     @Schema(name = "ContractListItem", description = "입찰계약 목록 항목")
     public record ListItem(
-            String docMngNo, Integer docVrsSno, String bgPrnTc, String cncdRfrNo,
+            String docMngNo, Integer docVrsSno, String ioeC, String cncdRfrNo,
             String stsTc, String cttNm, BigDecimal cttAmt, String reqUsid, java.time.LocalDateTime reqDtm
     ) {}
 
     @Schema(name = "ContractDetail", description = "입찰계약 상세")
     public record Detail(
-            String docMngNo, Integer docVrsSno, String bgPrnTc, String cncdRfrNo, String tgtNm,
-            String stsTc, String reqCone, String cttManrC, String cttManrRsn, String cttNm,
+            String docMngNo, Integer docVrsSno, String ioeC, String cncdRfrNo, String tgtNm,
+            String stsTc, String reqCone, String itPtlCttManrC, String cttManrRsn, String cttNm,
             BigDecimal cttAmt, String cttOppNm, String cttDt,
             String reqUsid, java.time.LocalDateTime reqDtm
     ) {}

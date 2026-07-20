@@ -18,7 +18,7 @@ import java.util.List;
  *
  * <p>기본키 타입: {@link Long} (lgnLogSno: Oracle 시퀀스 SEQ_CLOGNH)</p>
  *
- * <p>로그인구분코드({@code LGN_TC})는 공통코드 {@code C_ID='LGN_TC'} 기반 1자리 값입니다.
+ * <p>로그인구분코드({@code IT_PTL_LGN_TC})는 공통코드 {@code C_ID='IT_PTL_LGN_TC'} 기반 1자리 값입니다.
  * (1=성공, 2=실패, 3=로그아웃)</p>
  */
 public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
@@ -45,10 +45,10 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
     /**
      * 로그인구분코드로 이력 조회 (최신순)
      *
-     * @param lgnTc 조회할 로그인구분코드 ("1"=성공, "2"=실패, "3"=로그아웃)
+     * @param itPtlLgnTc 조회할 로그인구분코드 ("1"=성공, "2"=실패, "3"=로그아웃)
      * @return 해당 구분코드의 로그인 이력 목록 (로그인일시 내림차순)
      */
-    List<Clognh> findByLgnTcOrderByLgnDtmDesc(String lgnTc);
+    List<Clognh> findByItPtlLgnTcOrderByLgnDtmDesc(String itPtlLgnTc);
 
     /**
      * 특정 사용자의 최근 50개 이력 조회 (최신순)
@@ -77,19 +77,19 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
     /**
      * 특정 사용자의 지정 시각 이후 로그인구분코드별 이력 건수 조회 — SEC-03 Brute-force 감지용
      *
-     * <p>직전 N분 내 로그인 실패({@code LGN_TC='2'}) 횟수를 집계하여 Brute-force 공격 여부를 판단합니다.</p>
+     * <p>직전 N분 내 로그인 실패({@code IT_PTL_LGN_TC='2'}) 횟수를 집계하여 Brute-force 공격 여부를 판단합니다.</p>
      *
      * @param eno    조회할 사용자의 사번
-     * @param lgnTc  로그인구분코드 (예: "2"=로그인 실패)
+     * @param itPtlLgnTc  로그인구분코드 (예: "2"=로그인 실패)
      * @param after  집계 시작 시각 (이 시각 이후 이력만 카운트)
      * @return 해당 조건에 맞는 이력 건수
      */
-    long countByEnoAndLgnTcAndLgnDtmAfter(String eno, String lgnTc, LocalDateTime after);
+    long countByEnoAndItPtlLgnTcAndLgnDtmAfter(String eno, String itPtlLgnTc, LocalDateTime after);
 
     /**
      * 최근 30일 일별 로그인 성공 건수 집계 (대시보드용)
      *
-     * <p>TPRMPP_CLOGNH에서 {@code LGN_TC='1'} 조건으로 최근 30일간의
+     * <p>TPRMPP_CLOGNH에서 {@code IT_PTL_LGN_TC='1'} 조건으로 최근 30일간의
      * 날짜별 로그인 성공 건수를 집계합니다. Oracle TRUNC 함수로 날짜 단위 그룹화.</p>
      *
      * @return [날짜 문자열(YYYY-MM-DD), 건수] 쌍의 배열 목록
@@ -98,7 +98,7 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
             SELECT TO_CHAR(TRUNC(LGN_DTM), 'YYYY-MM-DD') AS LGN_DATE,
                    COUNT(*) AS CNT
             FROM TPRMPP_CLOGNH
-            WHERE LGN_TC = '1'
+            WHERE IT_PTL_LGN_TC = '1'
               AND LGN_DTM >= TRUNC(SYSDATE) - 30
             GROUP BY TRUNC(LGN_DTM)
             ORDER BY TRUNC(LGN_DTM)

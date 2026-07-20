@@ -14,39 +14,39 @@ import lombok.Builder;
  * </p>
  *
  * @param recipientEno 수신자 사원번호 (필수)
- * @param infmSvcTc    알림서비스구분코드 — 공통코드 {@code C_ID='INFM_SVC'} 2자리 값
+ * @param itPtlInfmSvcTc    알림서비스구분코드 — 공통코드 {@code C_ID='INFM_SVC'} 2자리 값
  *                     (01=시스템, 02=결재요청, 03=결재결과, 04=게시물멘션, 05=댓글멘션, 06=결재회수)
  * @param ttl          제목 (최대 100자)
  * @param infmMsgCone  알림메시지내용 — 본문 (최대 4000자)
  * @param infmRcdUrl   알림추천URL — 클릭 시 이동할 앱 내부 라우트 (최대 300자)
- * @param sdTc         발송 채널 코드 — null이면 인앱 기본 채널
+ * @param itPtlSdTc         발송 채널 코드 — null이면 인앱 기본 채널
  * @param sdPayload    발송 페이로드(JSON 문자열). null이면 인앱만 처리
  */
 @Builder
 public record NotificationEvent(
     String recipientEno,
-    String infmSvcTc,
+    String itPtlInfmSvcTc,
     String ttl,
     String infmMsgCone,
     String infmRcdUrl,
-    String sdTc,
+    String itPtlSdTc,
     String sdPayload
 ) {
     public NotificationEvent(
             String recipientEno,
-            String infmSvcTc,
+            String itPtlInfmSvcTc,
             String ttl,
             String infmMsgCone,
             String infmRcdUrl,
             String sdPayload
     ) {
-        this(recipientEno, infmSvcTc, ttl, infmMsgCone, infmRcdUrl, null, sdPayload);
+        this(recipientEno, itPtlInfmSvcTc, ttl, infmMsgCone, infmRcdUrl, null, sdPayload);
     }
 
     /**
      * 알림 종류 상수 — 호출자 측 오타 방지용.
      *
-     * <p>{@code Ccodem.cId='INFM_SVC'} 시드의 CDVA 값과 1:1 매칭. INFM_SVC_TC 컬럼이
+     * <p>{@code Ccodem 그룹 IT_PTL_INFM_SVC_TC} 시드의 CDVA 값과 1:1 매칭. IT_PTL_INFM_SVC_TC 컬럼이
      * VARCHAR2(2)이므로 2자리 코드로 유지한다.</p>
      */
     public static final String TYPE_SYSTEM            = "01"; // 시스템 알림

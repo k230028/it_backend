@@ -48,7 +48,7 @@ public final class EstimateDto {
     public record ListItem(
             String rqmBgReqDocNo,
             Integer docVrsSno,
-            String bgPrnTc,
+            String ioeC,
             String cncdRfrNo,
             String abusNm,
             BigDecimal totalBudget,
@@ -73,7 +73,7 @@ public final class EstimateDto {
     public record Detail(
             String rqmBgReqDocNo,
             Integer docVrsSno,
-            String bgPrnTc,
+            String ioeC,
             String cncdRfrNo,
             String abusNm,
             String stsTc,

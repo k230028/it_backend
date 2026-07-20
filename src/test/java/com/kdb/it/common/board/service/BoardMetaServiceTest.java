@@ -136,7 +136,7 @@ class BoardMetaServiceTest {
         return Cblbmm.builder()
             .blbMngNo(id)
             .blbNm(name)
-            .blbTp("001")
+            .itPtlBlbTc("001")
             .repUseYn("Y")
             .cmmtUseYn("Y")
             .flEsnYn("N")
@@ -148,7 +148,7 @@ class BoardMetaServiceTest {
 
     private static BoardMetaDto.CreateRequest createRequest() {
         BoardMetaDto.CreateRequest request = new BoardMetaDto.CreateRequest();
-        request.setBlbTp("001");
+        request.setItPtlBlbTc("001");
         request.setBlbNm("공지사항");
         request.setRepUseYn("Y");
         request.setCmmtUseYn("Y");

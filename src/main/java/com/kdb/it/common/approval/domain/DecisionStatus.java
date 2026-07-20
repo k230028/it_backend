@@ -1,9 +1,9 @@
 package com.kdb.it.common.approval.domain;
 
 /**
- * 결재선 결재상태 (Ccodem cId='DCD_STS_C').
+ * 결재선 결재상태 (Ccodem cId='IT_PTL_DCD_STS_C').
  *
- * <p>코드값은 현행 CCODEM(DCD_STS_C) 및 업무 컬럼(VARCHAR2(1))과 일치하는 1자리 체계다:
+ * <p>코드값은 현행 CCODEM(IT_PTL_DCD_STS_C) 및 업무 컬럼(VARCHAR2(1))과 일치하는 1자리 체계다:
  * {@code 1=미결재, 2=승인, 3=반려, 4=회수무효}.</p>
  */
 public enum DecisionStatus {
@@ -24,16 +24,16 @@ public enum DecisionStatus {
     public String label() { return label; }
 
     /**
-     * DCD_STS_C 코드값으로 enum 상수를 조회합니다.
+     * IT_PTL_DCD_STS_C 코드값으로 enum 상수를 조회합니다.
      *
-     * @param code DCD_STS_C 코드값 (예: "1"=미결재, "2"=승인, "3"=반려, "4"=회수무효). 레거시 값도 정규화 후 조회.
+     * @param code IT_PTL_DCD_STS_C 코드값 (예: "1"=미결재, "2"=승인, "3"=반려, "4"=회수무효). 레거시 값도 정규화 후 조회.
      * @return 해당 코드의 {@link DecisionStatus}
      * @throws IllegalArgumentException 등록되지 않은 코드값이 입력된 경우 (null 포함)
      */
     public static DecisionStatus ofCode(String code) {
         String normalizedCode = normalizeCode(code);
         for (DecisionStatus s : values()) if (s.code.equals(normalizedCode)) return s;
-        throw new IllegalArgumentException("Unknown DCD_STS_C code: " + code);
+        throw new IllegalArgumentException("Unknown IT_PTL_DCD_STS_C code: " + code);
     }
 
     /** 미결재 코드 여부를 현행값(1)과 레거시값(0, 001) 모두 기준으로 판단합니다. */
@@ -49,7 +49,7 @@ public enum DecisionStatus {
     /** 라벨(한글명)로 enum 조회. (예: "승인" → APPROVED) */
     public static DecisionStatus ofLabel(String label) {
         for (DecisionStatus s : values()) if (s.label.equals(label)) return s;
-        throw new IllegalArgumentException("Unknown DCD_STS_C label: " + label);
+        throw new IllegalArgumentException("Unknown IT_PTL_DCD_STS_C label: " + label);
     }
 
     /**

@@ -377,9 +377,9 @@ public class ApplicationDto {
                     .apfMngNo(capplm.getApfMngNo())       // 신청관리번호
                     .apfNm(capplm.getDcdReqTtl())          // 신청서명(결재요청제목에서 파생)
                     .apfDtlCone(capplm.getDcdReqInf())    // 신청서세부내용(결재요청정보에서 파생)
-                    .apfSts(capplm.getApfPrgStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label()) // 신청상태(라벨, 코드에서 파생)
-                    .apfStsC(capplm.getApfPrgStsC())      // 신청상태코드
+                    .apfSts(capplm.getItPtlApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label()) // 신청상태(라벨, 코드에서 파생)
+                    .apfStsC(capplm.getItPtlApfPrgStsC())      // 신청상태코드
                     .rqsEno(capplm.getDcdReqUsid())       // 신청자 사원번호(결재요청사용자ID에서 파생)
                     .rqsNm(requesterNm)                   // 신청자명
                     .rqsBbrC(capplm.getDcdReqBbrC())       // 신청부서코드
@@ -560,16 +560,16 @@ public class ApplicationDto {
                     .dcdSqn(cdecim.getDcrSqnSno())   // 결재순번
                     .dcdEno(cdecim.getDcrEno())       // 결재자 사원번호
                     // 결재유형: 미결재(001) 또는 null이면 null, 그 외는 "결재"로 표시
-                    .dcdTp(cdecim.getDcdStsC() == null
-                            || DecisionStatus.isPendingCode(cdecim.getDcdStsC())
+                    .dcdTp(cdecim.getItPtlDcdStsC() == null
+                            || DecisionStatus.isPendingCode(cdecim.getItPtlDcdStsC())
                                 ? null : "결재")
                     .dcdDt(cdecim.getDcdDtm())        // 결재일자
                     .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
                     // 결재상태: 코드 → 라벨 변환 (미결재/null이면 null)
-                    .dcdSts(cdecim.getDcdStsC() == null
-                            || DecisionStatus.isPendingCode(cdecim.getDcdStsC())
+                    .dcdSts(cdecim.getItPtlDcdStsC() == null
+                            || DecisionStatus.isPendingCode(cdecim.getItPtlDcdStsC())
                                 ? null
-                                : DecisionStatus.ofCode(cdecim.getDcdStsC()).label())
+                                : DecisionStatus.ofCode(cdecim.getItPtlDcdStsC()).label())
                     .lstDcdYn(cdecim.getLstDcdYn()) // 최종결재자여부
                     .build();
         }

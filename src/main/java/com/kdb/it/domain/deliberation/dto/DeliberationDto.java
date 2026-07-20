@@ -11,7 +11,7 @@ public final class DeliberationDto {
 
     @Schema(name = "DeliberationCreateRequest", description = "과업심의 신규 신청 요청")
     public record CreateRequest(
-            @NotBlank @Size(max = 3) String bgPrnTc,
+            @NotBlank @Size(max = 3) String ioeC,
             @NotBlank @Size(max = 30) String cncdRfrNo,
             @Size(max = 300) String reqCone
     ) {}
@@ -36,13 +36,13 @@ public final class DeliberationDto {
 
     @Schema(name = "DeliberationListItem", description = "과업심의 목록 항목")
     public record ListItem(
-            String docMngNo, Integer docVrsSno, String bgPrnTc, String cncdRfrNo,
+            String docMngNo, Integer docVrsSno, String ioeC, String cncdRfrNo,
             String stsTc, String taskDbrRltTc, String reqUsid, java.time.LocalDateTime reqDtm
     ) {}
 
     @Schema(name = "DeliberationDetail", description = "과업심의 상세")
     public record Detail(
-            String docMngNo, Integer docVrsSno, String bgPrnTc, String cncdRfrNo, String tgtNm,
+            String docMngNo, Integer docVrsSno, String ioeC, String cncdRfrNo, String tgtNm,
             String stsTc, String reqCone, String taskDbrTc, String taskDbrRltTc, String taskDbrDt,
             String taskDbrTod, String taskDbrOmtYn, String taskDbrOmtRsn, String opnnCone, String apvTrdnRsnCone,
             String reqUsid, java.time.LocalDateTime reqDtm

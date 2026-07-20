@@ -660,7 +660,7 @@ public class AdminService {
                                 h.getEno(),
                                 resolveUserName(h.getEno()),
                                 h.getLgnDtm(),
-                                h.getLgnTc(),
+                                h.getItPtlLgnTc(),
                                 h.getIpAddr(),
                                 h.getLgnErrRsn(),
                                 h.getAgtVrsCone(),

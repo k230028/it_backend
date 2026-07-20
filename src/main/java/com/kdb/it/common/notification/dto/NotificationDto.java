@@ -30,7 +30,7 @@ public final class NotificationDto {
         private String infmMsgNo;
 
         @Schema(description = "알림서비스구분코드 (Ccodem cId='INFM_SVC' cdva, 예: '02'=결재요청)", example = "02")
-        private String infmSvcTc;
+        private String itPtlInfmSvcTc;
 
         @Schema(description = "제목 (최대 100자)")
         private String ttl;
@@ -53,7 +53,7 @@ public final class NotificationDto {
         public static Item fromEntity(Cinfmm e) {
             return Item.builder()
                 .infmMsgNo(e.getInfmMsgNo())
-                .infmSvcTc(e.getInfmSvcTc())
+                .itPtlInfmSvcTc(e.getItPtlInfmSvcTc())
                 .ttl(e.getTtl())
                 .infmMsgCone(e.getInfmMsgCone())
                 .infmRcdUrl(e.getInfmRcdUrl())

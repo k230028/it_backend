@@ -69,7 +69,7 @@ public class EstimateService {
         if (!projectRepository.existsByAbusMngNoAndLstYnAndDelYn(req.cncdRfrNo(), "Y", "N")) {
             throw new IllegalArgumentException("대상 사업을 찾을 수 없습니다: " + req.cncdRfrNo());
         }
-        if (estimateRepository.existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
+        if (estimateRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
                 TGT_PROJECT, req.cncdRfrNo(), List.of(STS_DRAFT, STS_IN_PROGRESS), "N")) {
             throw new IllegalStateException("해당 사업에 진행 중인 소요예산 산정이 이미 있습니다.");
         }
@@ -78,13 +78,13 @@ public class EstimateService {
                 .rqmBgReqDocNo(docNo)
                 .docVrsSno(1)
                 .lstYn("Y")
-                .bgPrnTc(TGT_PROJECT)
+                .ioeC(TGT_PROJECT)
                 .cncdRfrNo(req.cncdRfrNo())
                 .stsTc(STS_DRAFT)
                 .reqCone(req.reqCone())
                 .build();
         estimateRepository.save(entity);
-        // 소요예산 산정은 정보화사업(bgPrnTc=100) 전용이므로 조건 없이 적재
+        // 소요예산 산정은 정보화사업(ioeC=100) 전용이므로 조건 없이 적재
         bprojaSyncService.upsert(req.cncdRfrNo(), docNo, STS_DRAFT);
         return docNo;
     }
@@ -122,7 +122,7 @@ public class EstimateService {
             throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         }
         e.delete();
-        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+        if (TGT_PROJECT.equals(e.getIoeC())) {
             bprojaSyncService.softDelete(e.getCncdRfrNo(), docNo);
         }
     }
@@ -147,7 +147,7 @@ public class EstimateService {
             throw new IllegalStateException("허용되지 않은 상태 전이입니다: " + from + " → " + to);
         }
         e.changeStatus(to);
-        if (TGT_PROJECT.equals(e.getBgPrnTc())) {
+        if (TGT_PROJECT.equals(e.getIoeC())) {
             bprojaSyncService.upsert(e.getCncdRfrNo(), docNo, to);
         }
         sendStatusEai("소요예산 산정", docNo, from, to, user);
@@ -172,7 +172,7 @@ public class EstimateService {
                 .map(value -> value.getAbusNm())
                 .orElse(null);
         return new EstimateDto.Detail(
-                e.getRqmBgReqDocNo(), e.getDocVrsSno(), e.getBgPrnTc(), e.getCncdRfrNo(),
+                e.getRqmBgReqDocNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(),
                 abusNm, e.getStsTc(), e.getReqCone(), e.getFstEnrUsid(), e.getFstEnrDtm(), lines);
     }
 

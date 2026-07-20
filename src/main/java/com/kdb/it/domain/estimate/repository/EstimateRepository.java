@@ -38,12 +38,12 @@ public interface EstimateRepository extends JpaRepository<Bestim, BestimId>, Est
      *
      * <p>중복 신청 방지: stsTc가 "51"(작성중) 또는 "55"(진행중)인 건이 있으면 신규 신청 불가.</p>
      *
-     * @param bgPrnTc   예산성격구분코드
+     * @param ioeC   예산성격구분코드
      * @param cncdRfrNo 관련참조번호(사업관리번호)
      * @param stsTc     확인할 상태코드 컬렉션
      * @param delYn     삭제여부 ("N")
      * @return 존재하면 true
      */
-    boolean existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
-            String bgPrnTc, String cncdRfrNo, Collection<String> stsTc, String delYn);
+    boolean existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
+            String ioeC, String cncdRfrNo, Collection<String> stsTc, String delYn);
 }
