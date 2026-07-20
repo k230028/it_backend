@@ -5,6 +5,7 @@ import com.kdb.it.domain.budget.document.service.ReviewerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,20 +21,29 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/reviews")
 @RequiredArgsConstructor
+@Slf4j
 public class ReviewerController {
 
     private final ReviewerService reviewerService;
 
+    @Operation(summary = "검토자 목록 조회", description = "사전협의 공통 검토자 후보를 팀별로 반환합니다.")
+    @GetMapping("/reviewers")
+    public ResponseEntity<List<ReviewerDto.Response>> getReviewers() {
+        return ResponseEntity.ok(reviewerService.getReviewers());
+    }
+
     /**
-     * 사전협의 문서의 검토자 목록을 조회합니다.
+     * 구 문서별 검토자 경로 호환용 엔드포인트.
      *
-     * @param docMngNo 사전협의 관리번호
-     * @return 검토자 목록
+     * @param docMngNo 사용하지 않는 구 사전협의 관리번호
+     * @return 전역 검토자 후보 목록
+     * @deprecated 프론트 전환 확인 후 다음 릴리스에서 제거
      */
-    @Operation(summary = "검토자 목록 조회", description = "사전협의 문서의 검토자 목록을 팀별로 반환합니다.")
+    @Deprecated(forRemoval = true)
     @GetMapping("/{docMngNo}/reviewers")
-    public ResponseEntity<List<ReviewerDto.Response>> getReviewers(
+    public ResponseEntity<List<ReviewerDto.Response>> getReviewersLegacy(
             @PathVariable(name = "docMngNo") String docMngNo) {
-        return ResponseEntity.ok(reviewerService.getReviewers(docMngNo));
+        log.warn("폐기 예정 검토자 경로가 호출되었습니다 (docMngNo={})", docMngNo);
+        return ResponseEntity.ok(reviewerService.getReviewers());
     }
 }
