@@ -566,4 +566,64 @@ class BizplanServiceTest {
             assertThat(planCaptor.getValue().getTotRqmAmt()).isEqualByComparingTo("0");
         }
     }
+
+    @Nested
+    @DisplayName("selectLatestBgKey — BG- 키 결정적 선택 (BE-09)")
+    class SelectLatestBgKeyTests {
+
+        private Bproja app(String cncdRfrNo) {
+            return Bproja.builder()
+                    .abusMngNo(PRJ)
+                    .cncdRfrNo(cncdRfrNo)
+                    .stsTc("09")
+                    .build();
+        }
+
+        @Test
+        @DisplayName("BG- 키가 없으면 null을 반환한다")
+        void noBgKey_returnsNull() {
+            assertThat(BizplanService.selectLatestBgKey(PRJ,
+                    List.of(app("BIZ-" + PRJ))))
+                    .isNull();
+        }
+
+        @Test
+        @DisplayName("BG- 키 1건이면 그 키를 반환한다")
+        void singleBgKey_returned() {
+            assertThat(BizplanService.selectLatestBgKey(PRJ,
+                    List.of(
+                            app("BG-2026-0001"),
+                            app("BIZ-" + PRJ))))
+                    .isEqualTo("BG-2026-0001");
+        }
+
+        @Test
+        @DisplayName("BG- 키 다건이면 채번 키 내림차순으로 최신 키를 선택한다 (WARN 경로)")
+        void multipleBgKeys_latestSelected() {
+            assertThat(BizplanService.selectLatestBgKey(PRJ,
+                    List.of(
+                            app("BG-2026-0001"),
+                            app("BG-2026-0002"))))
+                    .isEqualTo("BG-2026-0002");
+        }
+
+        @Test
+        @DisplayName("입력 순서를 뒤집어도 같은 최신 채번 키를 선택한다")
+        void inputOrder_independent() {
+            assertThat(BizplanService.selectLatestBgKey(PRJ,
+                    List.of(app("BG-2026-0010"), app("BG-2026-0009"))))
+                    .isEqualTo(BizplanService.selectLatestBgKey(PRJ,
+                            List.of(app("BG-2026-0009"), app("BG-2026-0010"))));
+        }
+
+        @Test
+        @DisplayName("cncdRfrNo가 null인 행은 무시한다")
+        void nullKey_ignored() {
+            assertThat(BizplanService.selectLatestBgKey(PRJ,
+                    List.of(
+                            app(null),
+                            app("BG-2026-0001"))))
+                    .isEqualTo("BG-2026-0001");
+        }
+    }
 }
