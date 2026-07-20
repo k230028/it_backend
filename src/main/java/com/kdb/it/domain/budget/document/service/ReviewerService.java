@@ -45,7 +45,8 @@ public class ReviewerService {
      *
      * <p>팀코드 전체의 활성 사용자를 {@code findByTemCInAndDelYn} 1회로 배치 조회(N+1 제거)하고,
      * 각 팀의 대표자는 {@link UserRepresentativeSelector}가 결정적으로 선택합니다.
-     * 사용자가 없는 팀은 결과에서 제외합니다.</p>
+     * 사용자가 없는 팀은 결과에서 제외합니다. 저장소 조회 실패는 변환하지 않고 호출자에게
+     * 그대로 전파합니다.</p>
      *
      * @return 팀별 검토자 DTO 목록 (계약팀→기획팀→PMO팀→개발/운영팀 순서)
      */

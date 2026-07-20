@@ -26,6 +26,14 @@ public class ReviewerController {
 
     private final ReviewerService reviewerService;
 
+    /**
+     * 인증된 사용자에게 사전협의 공통 검토자 후보를 반환합니다.
+     *
+     * <p>미인증 요청은 보안 필터에서 거부되며, 서비스 또는 저장소 조회 실패는
+     * 전역 예외 처리기로 전파됩니다.</p>
+     *
+     * @return 팀별 전역 검토자 후보 목록을 담은 성공 응답
+     */
     @Operation(summary = "검토자 목록 조회", description = "사전협의 공통 검토자 후보를 팀별로 반환합니다.")
     @GetMapping("/reviewers")
     public ResponseEntity<List<ReviewerDto.Response>> getReviewers() {
@@ -35,8 +43,11 @@ public class ReviewerController {
     /**
      * 구 문서별 검토자 경로 호환용 엔드포인트.
      *
+     * <p>미인증 요청은 보안 필터에서 거부되며, 서비스 또는 저장소 조회 실패는
+     * 전역 예외 처리기로 전파됩니다.</p>
+     *
      * @param docMngNo 사용하지 않는 구 사전협의 관리번호
-     * @return 전역 검토자 후보 목록
+     * @return 팀별 전역 검토자 후보 목록을 담은 성공 응답
      * @deprecated 프론트 전환 확인 후 다음 릴리스에서 제거
      */
     @Deprecated(forRemoval = true)
