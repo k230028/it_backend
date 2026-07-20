@@ -63,7 +63,7 @@ public class BoardPostService {
         findActiveBoard(blbMngNo); // 게시판 존재 검증 (조회는 인증 사용자 전체 공개)
         validateSearchCondition(cond);
 
-        return postRepository.searchPosts(
+        return postRepository.searchPostRows(
                 blbMngNo, cond,
                 user.isAdmin())
                 .map(BoardPostDto.ListItem::from);
