@@ -73,11 +73,11 @@ class PlanEvaluationServiceTest {
 
     private static final String ASCT_ID = "ASCT-2026-0001";
 
-    private Bplevm mockEval(String eno, String abusMngNo, String adqYn) {
+    private Bplevm mockEval(String eno, String abusMngNo, String pprtYn) {
         Bplevm e = mock(Bplevm.class);
         given(e.getEno()).willReturn(eno);
         given(e.getAbusMngNo()).willReturn(abusMngNo);
-        given(e.getAdqYn()).willReturn(adqYn);
+        given(e.getPprtYn()).willReturn(pprtYn);
         given(e.getEvalOpnn()).willReturn("의견");
         return e;
     }
@@ -110,9 +110,9 @@ class PlanEvaluationServiceTest {
         assertThat(res.evaluations()).hasSize(4);
         var a = res.verdicts().stream().filter(v -> "PRJ-A".equals(v.abusMngNo())).findFirst().orElseThrow();
         var b = res.verdicts().stream().filter(v -> "PRJ-B".equals(v.abusMngNo())).findFirst().orElseThrow();
-        assertThat(a.finalAdqYn()).isEqualTo("Y");
+        assertThat(a.finalPprtYn()).isEqualTo("Y");
         assertThat(a.reserveCount()).isEqualTo(0L);
-        assertThat(b.finalAdqYn()).isEqualTo("N");
+        assertThat(b.finalPprtYn()).isEqualTo("N");
         assertThat(b.reserveCount()).isEqualTo(1L);
         assertThat(b.evaluatorCount()).isEqualTo(2L);
     }
@@ -147,7 +147,7 @@ class PlanEvaluationServiceTest {
 
     @Test
     @DisplayName("saveEvaluation: 적정여부가 Y/N이 아니면 IllegalArgumentException")
-    void save_invalidAdqYn_rejected() {
+    void save_invalidPprtYn_rejected() {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
         given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N"))
                 .willReturn(Optional.of(mock(Bcmmtm.class)));
@@ -180,7 +180,7 @@ class PlanEvaluationServiceTest {
         CouncilDto.PlanResultSummaryResponse res = planEvaluationService.buildResultSummary(ASCT_ID);
 
         assertThat(res.verdicts()).hasSize(1);
-        assertThat(res.verdicts().get(0).finalAdqYn()).isEqualTo("N");
+        assertThat(res.verdicts().get(0).finalPprtYn()).isEqualTo("N");
         assertThat(res.summaryHtml())
                 .contains("<table>")           // 표 구조
                 .contains("클라우드 전환")      // 스냅샷에서 사업명 해석

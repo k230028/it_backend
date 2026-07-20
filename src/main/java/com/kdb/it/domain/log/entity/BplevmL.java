@@ -31,8 +31,8 @@ public class BplevmL extends BaseLogEntity {
     @Column(name = "ABUS_MNG_NO", length = 32, comment = "사업관리번호")
     private String abusMngNo;
 
-    @Column(name = "ADQ_YN", length = 1, comment = "적정여부(Y=적정/N=유보)")
-    private String adqYn;
+    @Column(name = "PPRT_YN", length = 1, comment = "적정여부(Y=적정/N=유보)")
+    private String pprtYn;
 
     @Column(name = "EVAL_OPNN_CONE", length = 1000, comment = "평가의견내용")
     private String evalOpnn;

@@ -658,7 +658,7 @@ public class CouncilDto {
         /** 사업관리번호 */
         @NotBlank String abusMngNo,
         /** 적정여부 (Y=적정 / N=유보) */
-        @NotBlank String adqYn,
+        @NotBlank String pprtYn,
         /** 평가의견(사유) — 적정/유보 모두 필수 */
         String evalOpnn
     ) {}
@@ -672,7 +672,7 @@ public class CouncilDto {
         /** 사업관리번호 */
         String abusMngNo,
         /** 적정여부 (Y=적정 / N=유보) */
-        String adqYn,
+        String pprtYn,
         /** 평가의견(사유) */
         String evalOpnn
     ) {}
@@ -682,7 +682,7 @@ public class CouncilDto {
         /** 사업관리번호 */
         String abusMngNo,
         /** 최종 적정여부 (Y=적정 / N=유보) */
-        String finalAdqYn,
+        String finalPprtYn,
         /** 유보(N) 선택 위원 수 */
         long reserveCount,
         /** 평가한 위원 수 */
