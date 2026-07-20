@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.UserRepresentativeSelector;
 import com.kdb.it.domain.council.dto.CouncilDto;
@@ -148,16 +147,16 @@ public class CommitteeService {
 
         List<Bcmmtm> members = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
 
-        // 위원 사번 목록으로 사용자 정보 일괄 조회
-        Map<String, CuserI> userMap = buildUserMap(members);
+        // 위원 사번 목록으로 응답용 사용자 정보를 일괄 조회
+        Map<String, UserRepository.CouncilMemberUserRow> userMap = buildUserMap(members);
 
         List<CouncilDto.CommitteeMemberResponse> mandatory = new ArrayList<>();
         List<CouncilDto.CommitteeMemberResponse> call = new ArrayList<>();
         List<CouncilDto.CommitteeMemberResponse> secretary = new ArrayList<>();
 
         for (Bcmmtm m : members) {
-            CuserI user = userMap.get(m.getEno());
-            CouncilDto.CommitteeMemberResponse resp = toMemberResponseFromEntity(m, user);
+            UserRepository.CouncilMemberUserRow user = userMap.get(m.getEno());
+            CouncilDto.CommitteeMemberResponse resp = toMemberResponseFromView(m, user);
 
             switch (m.getItPtlAsctMebTc()) {
                 case "01" -> mandatory.add(resp);   // 당연위원(MAND)
@@ -270,16 +269,16 @@ public class CommitteeService {
     }
 
     /**
-     * 위원 목록의 사번으로 사용자 정보 Map 생성.
+     * 위원 목록의 사번으로 응답용 사용자 정보 Map 생성.
      *
-     * <p>사번 집합을 모아 {@code findByEnoIn}으로 일괄 조회(N+1 제거).</p>
+     * <p>사번 집합을 모아 위원 응답 프로젝션으로 일괄 조회합니다.</p>
      */
-    private Map<String, CuserI> buildUserMap(List<Bcmmtm> members) {
+    private Map<String, UserRepository.CouncilMemberUserRow> buildUserMap(List<Bcmmtm> members) {
         List<String> enos = members.stream().map(member -> member.getEno()).distinct().toList();
         if (enos.isEmpty()) {
             return Map.of();
         }
-        return userRepository.findByEnoIn(enos).stream()
+        return userRepository.findCouncilMemberUserRowsByEnoIn(enos).stream()
                 .collect(Collectors.toMap(user -> user.getEno(), user -> user, (a, b) -> a));
     }
 
@@ -291,12 +290,13 @@ public class CommitteeService {
     }
 
     /**
-     * Bcmmtm + CuserI → CommitteeMemberResponse 변환 (위원 목록 조회용)
+     * 위원 엔티티와 사용자 프로젝션을 위원 응답으로 변환합니다.
      *
      * <p>사용자 정보가 없는 경우(탈퇴 등) 사번만 포함합니다.
      * cnfmYn은 BCMMTM 엔티티의 실제 값을 반영합니다.</p>
      */
-    private CouncilDto.CommitteeMemberResponse toMemberResponseFromEntity(Bcmmtm member, CuserI user) {
+    private CouncilDto.CommitteeMemberResponse toMemberResponseFromView(
+            Bcmmtm member, UserRepository.CouncilMemberUserRow user) {
         return new CouncilDto.CommitteeMemberResponse(
                 member.getEno(),
                 user != null ? user.getUsrNm() : null,

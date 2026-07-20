@@ -71,6 +71,14 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
         String getPtCNm();
     }
 
+    /** 협의회 위원 응답에 필요한 사용자 프로젝션. */
+    interface CouncilMemberUserRow {
+        String getEno();
+        String getUsrNm();
+        String getBbrNm();
+        String getPtCNm();
+    }
+
     /**
      * 사번 목록으로 사용자 이름 프로젝션을 조회합니다.
      *
@@ -115,6 +123,17 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
             + "WHERE u.temC IN :temCs AND u.delYn = :delYn")
     List<CommitteeUserRow> findCommitteeUserRowsByTemCInAndDelYn(
             @Param("temCs") Collection<String> temCs, @Param("delYn") String delYn);
+
+    /**
+     * 사번 목록의 협의회 위원 응답 정보를 조직명과 함께 조회합니다.
+     *
+     * @param enos 사번 목록
+     * @return 협의회 위원 응답 사용자 프로젝션 목록
+     */
+    @Query("SELECT u.eno AS eno, u.usrNm AS usrNm, o.bbrNm AS bbrNm, u.ptCNm AS ptCNm "
+            + "FROM CuserI u LEFT JOIN CorgnI o ON o.prlmOgzCCone = u.bbrC "
+            + "WHERE u.eno IN :enos")
+    List<CouncilMemberUserRow> findCouncilMemberUserRowsByEnoIn(@Param("enos") Collection<String> enos);
 
     /**
      * 부서코드(BBR_C)로 사용자 목록 조회 (조직 정보 즉시 로딩)

@@ -27,7 +27,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
@@ -90,6 +89,14 @@ class ScheduleServiceTest {
         CustomUserDetails user = mock(CustomUserDetails.class);
         given(user.getEno()).willReturn(eno);
         return user;
+    }
+
+    private record CouncilMemberUser(String eno, String usrNm, String bbrNm, String ptCNm)
+            implements UserRepository.CouncilMemberUserRow {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+        @Override public String getBbrNm() { return bbrNm; }
+        @Override public String getPtCNm() { return ptCNm; }
     }
 
     // ───────────────────────────────────────────────────────
@@ -446,7 +453,7 @@ class ScheduleServiceTest {
         // 아직 일정 응답 없음
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(1L);
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of());
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of());
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -479,12 +486,8 @@ class ScheduleServiceTest {
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(slot));
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(0L);
 
-        CuserI user = mock(CuserI.class);
-        given(user.getEno()).willReturn(ENO);
-        given(user.getUsrNm()).willReturn("홍길동");
-        given(user.getBbrNm()).willReturn("IT기획부");
-        given(user.getPtCNm()).willReturn("IT기획팀장");
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(user));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
+                new CouncilMemberUser(ENO, "홍길동", "IT기획부", "IT기획팀장")));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -522,14 +525,9 @@ class ScheduleServiceTest {
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetSlot, itSlot));
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(0L);
 
-        CuserI budgetUser = mock(CuserI.class);
-        CuserI itUser = mock(CuserI.class);
-        given(budgetUser.getEno()).willReturn("12004");
-        given(budgetUser.getTemC()).willReturn("12004");
-        given(itUser.getEno()).willReturn("18001");
-        given(itUser.getTemC()).willReturn("18001");
-        given(userRepository.findByEnoIn(anyCollection()))
-                .willReturn(List.of(budgetUser, itUser));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
+                new CouncilMemberUser("12004", null, null, null),
+                new CouncilMemberUser("18001", null, null, null)));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -554,14 +552,9 @@ class ScheduleServiceTest {
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetSlot));
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(1L);
 
-        CuserI budgetUser = mock(CuserI.class);
-        CuserI itUser = mock(CuserI.class);
-        given(budgetUser.getEno()).willReturn("12004");
-        given(budgetUser.getTemC()).willReturn("12004");
-        given(itUser.getEno()).willReturn("18001");
-        given(itUser.getTemC()).willReturn("18001");
-        given(userRepository.findByEnoIn(anyCollection()))
-                .willReturn(List.of(budgetUser, itUser));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
+                new CouncilMemberUser("12004", null, null, null),
+                new CouncilMemberUser("18001", null, null, null)));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -592,9 +585,8 @@ class ScheduleServiceTest {
         given(slot.getUsePsbYn()).willReturn("Y");
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(slot));
 
-        CuserI u = mock(CuserI.class);
-        given(u.getEno()).willReturn("E1");
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(u));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
+                new CouncilMemberUser("E1", null, null, null)));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -609,8 +601,8 @@ class ScheduleServiceTest {
     }
 
     @Test
-    @DisplayName("위원 사용자명 조회는 findByEnoIn 1회 배치 — findByEno 미호출")
-    void 위원사용자명_findByEnoIn_1회() {
+    @DisplayName("위원 응답 프로젝션은 exactly 1회 배치 — 엔티티 조회 미호출")
+    void 위원응답프로젝션_1회() {
         // given: 평가위원 2명(E001, E002)
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
@@ -626,16 +618,54 @@ class ScheduleServiceTest {
 
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
-        given(userRepository.findByEnoIn(anyCollection()))
-                .willReturn(List.of(
-                        CuserI.builder().eno("E001").usrNm("홍길동").build(),
-                        CuserI.builder().eno("E002").usrNm("김철수").build()));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
+                new CouncilMemberUser("E001", "홍길동", "IT본부", "팀장"),
+                new CouncilMemberUser("E002", "김철수", "IT본부", "대리")));
 
         // when
         scheduleService.getScheduleStatus(ASCT_ID);
 
-        // then: 일괄 조회 1회, 사번별 조회는 호출되지 않음
-        then(userRepository).should(times(1)).findByEnoIn(anyCollection());
+        // then: 응답 프로젝션 일괄 조회 1회, 엔티티 조회는 호출되지 않음
+        then(userRepository).should(times(1)).findCouncilMemberUserRowsByEnoIn(anyCollection());
+        then(userRepository).should(never()).findByEnoIn(anyCollection());
         then(userRepository).should(never()).findByEno(anyString());
+    }
+
+    @Test
+    @DisplayName("getScheduleStatus: 사용자 미존재 시 사번만 유지하고 나머지 사용자 정보는 null이다")
+    void getScheduleStatus_사용자미존재_fallback() {
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
+        Bcmmtm member = mock(Bcmmtm.class);
+        given(member.getEno()).willReturn("UNKNOWN");
+        given(member.getItPtlAsctMebTc()).willReturn("01");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of());
+
+        CouncilDto.MemberScheduleStatus status = scheduleService.getScheduleStatus(ASCT_ID).memberStatuses().get(0);
+
+        assertThat(status.eno()).isEqualTo("UNKNOWN");
+        assertThat(status.usrNm()).isNull();
+        assertThat(status.bbrNm()).isNull();
+        assertThat(status.ptCNm()).isNull();
+    }
+
+    @Test
+    @DisplayName("getScheduleStatus: 조직이 없는 사용자는 이름과 직위는 유지하고 부점명만 null이다")
+    void getScheduleStatus_조직미존재_bbrNmNull() {
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
+        Bcmmtm member = mock(Bcmmtm.class);
+        given(member.getEno()).willReturn(ENO);
+        given(member.getItPtlAsctMebTc()).willReturn("01");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
+                new CouncilMemberUser(ENO, "홍길동", null, "팀장")));
+
+        CouncilDto.MemberScheduleStatus status = scheduleService.getScheduleStatus(ASCT_ID).memberStatuses().get(0);
+
+        assertThat(status.usrNm()).isEqualTo("홍길동");
+        assertThat(status.bbrNm()).isNull();
+        assertThat(status.ptCNm()).isEqualTo("팀장");
     }
 }

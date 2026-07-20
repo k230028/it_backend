@@ -7,8 +7,10 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.service.UserRepresentativeSelector;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,6 +49,7 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
         persistUser("BE03002", "김길동", "사원", "12004", "Y");
         persistUser("BE03010", "팀원", "과장", "18010", "N");
         persistUser("BE03011", "팀장", "팀장", "18010", "N");
+        persistUser("BE03012", "무소속", "대리", "18010", "N", null);
         em.flush();
         em.clear();
     }
@@ -72,12 +75,37 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
                 .get().extracting(UserRepository.CommitteeUserRow::getEno).isEqualTo("BE03011");
     }
 
+    @Test
+    @DisplayName("위원 응답 프로젝션은 정확히 4개 필드만 조회하고 조직이 없어도 사용자를 유지한다")
+    void findCouncilMemberUserRows_returnsExactFieldsWithLeftJoin() {
+        List<UserRepository.CouncilMemberUserRow> rows = userRepository
+                .findCouncilMemberUserRowsByEnoIn(List.of("BE03001", "BE03002", "BE03012", "UNKNOWN"));
+        Map<String, UserRepository.CouncilMemberUserRow> byEno = rows.stream()
+                .collect(Collectors.toMap(UserRepository.CouncilMemberUserRow::getEno, Function.identity()));
+
+        assertThat(Arrays.stream(UserRepository.CouncilMemberUserRow.class.getDeclaredMethods())
+                .map(java.lang.reflect.Method::getName))
+                .containsExactlyInAnyOrder("getEno", "getUsrNm", "getBbrNm", "getPtCNm");
+        assertThat(byEno).containsOnlyKeys("BE03001", "BE03002", "BE03012");
+        assertThat(byEno.get("BE03001").getBbrNm()).isEqualTo("디지털부");
+        assertThat(byEno.get("BE03002").getUsrNm()).isEqualTo("김길동");
+        assertThat(byEno.get("BE03012")).satisfies(row -> {
+            assertThat(row.getUsrNm()).isEqualTo("무소속");
+            assertThat(row.getBbrNm()).isNull();
+            assertThat(row.getPtCNm()).isEqualTo("대리");
+        });
+    }
+
     private void persistUser(String eno, String name, String title, String temC, String delYn) {
+        persistUser(eno, name, title, temC, delYn, "120");
+    }
+
+    private void persistUser(String eno, String name, String title, String temC, String delYn, String bbrC) {
         em.persist(CuserI.builder()
                 .eno(eno)
                 .usrNm(name)
                 .ptCNm(title)
-                .bbrC("120")
+                .bbrC(bbrC)
                 .temC(temC)
                 .delYn(delYn)
                 .fstEnrUsid("FIXTURE")
