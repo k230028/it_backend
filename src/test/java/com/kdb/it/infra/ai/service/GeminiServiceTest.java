@@ -5,14 +5,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Answers.RETURNS_SELF;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -120,6 +126,71 @@ class GeminiServiceTest {
         assertThat(result.getSkippedFiles()).hasSize(1);
         assertThat(result.getSkippedFiles().get(0)).contains("FL_NOTEXIST");
         assertThat(result.getAttachedFileCount()).isEqualTo(0);
+    }
+
+    static Stream<Arguments> incompleteAttachmentMetadata() {
+        return Stream.of(
+                Arguments.of("저장 경로 null", true, null),
+                Arguments.of("저장 경로 공백", true, " "),
+                Arguments.of("물리 파일명 null", false, null),
+                Arguments.of("물리 파일명 공백", false, " ")
+        );
+    }
+
+    @ParameterizedTest(name = "generate: {0}이면 파일을 건너뛴다")
+    @MethodSource("incompleteAttachmentMetadata")
+    void generate_저장경로또는물리파일명없음_메타데이터사유로skip(
+            String caseName, boolean storagePathMissing, String missingValue,
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) {
+        String flMpnId = "FL_00000030";
+        com.kdb.it.infra.file.entity.Cfilem filem = com.kdb.it.infra.file.entity.Cfilem.builder()
+                .flMpnId(flMpnId)
+                .flNm("첨부문서.pdf")
+                .flPysNm(storagePathMissing ? "server.pdf" : missingValue)
+                .flKpnPth(storagePathMissing ? missingValue : tempDir.toString())
+                .build();
+        given(fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")).willReturn(Optional.of(filem));
+        stubApiResponse(buildSuccessResponse("응답"));
+
+        GeminiDto.Response result = geminiService.generate(GeminiDto.Request.builder()
+                .prompt("분석")
+                .flMpnIds(List.of(flMpnId))
+                .build());
+
+        assertThat(result.getAttachedFileCount()).isZero();
+        assertThat(result.getSkippedFiles()).singleElement()
+                .asString()
+                .contains(flMpnId, "파일 메타데이터 불완전")
+                .doesNotContain(tempDir.toString());
+    }
+
+    @Test
+    @DisplayName("generate: 원본 파일명이 없으면 물리 파일명으로 MIME 타입을 판정해 첨부한다")
+    void generate_원본파일명없음_물리파일명Mime폴백(
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) throws Exception {
+        String flMpnId = "FL_00000031";
+        java.nio.file.Files.writeString(tempDir.resolve("server.png"), "PNG");
+        com.kdb.it.infra.file.entity.Cfilem filem = com.kdb.it.infra.file.entity.Cfilem.builder()
+                .flMpnId(flMpnId)
+                .flNm(null)
+                .flPysNm("server.png")
+                .flKpnPth(tempDir.toString())
+                .build();
+        given(fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")).willReturn(Optional.of(filem));
+        stubApiResponse(buildSuccessResponse("응답"));
+
+        GeminiDto.Response result = geminiService.generate(GeminiDto.Request.builder()
+                .prompt("분석")
+                .flMpnIds(List.of(flMpnId))
+                .build());
+
+        assertThat(result.getAttachedFileCount()).isEqualTo(1);
+        assertThat(result.getSkippedFiles()).isEmpty();
+        ArgumentCaptor<GeminiDto.GeminiApiRequest> requestCaptor =
+                ArgumentCaptor.forClass(GeminiDto.GeminiApiRequest.class);
+        verify(chainSpec).body(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().getContents().get(0).getParts().get(0)
+                .getInlineData().getMimeType()).isEqualTo("image/png");
     }
 
     // ───────────────────────────────────────────────────────
