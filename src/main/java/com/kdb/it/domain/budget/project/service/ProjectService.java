@@ -850,9 +850,9 @@ public class ProjectService {
         }
 
         // --- 5. 부서명·사용자명·공통코드명 배치 조회 ---
-        Map<String, String> orgNameMap = corgnIRepository.findAllById(orgCodes).stream()
+        Map<String, String> orgNameMap = corgnIRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
                 .collect(Collectors.toMap(value -> value.getPrlmOgzCCone(), value -> value.getBbrNm()));
-        Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
+        Map<String, String> userNameMap = cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
                 .collect(Collectors.toMap(value -> value.getEno(), value -> value.getUsrNm()));
         Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of()
                 : codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCdvas);
@@ -1017,14 +1017,14 @@ public class ProjectService {
 
         // IT부서코드 → IT부서명
         if (response.getDvmDpmC() != null && !response.getDvmDpmC().isEmpty()) {
-            corgnIRepository.findById(response.getDvmDpmC())
+            corgnIRepository.findNameViewByPrlmOgzCCone(response.getDvmDpmC())
                     .ifPresent(org -> response.setDvmDpmCNm(org.getBbrNm()));
         }
 
         // 주관부서코드 → 주관부서명 (스냅샷이 이미 세팅됐으면 건너뜀)
         if (response.getSvnDpmCNm() == null
                 && response.getSvnDpmC() != null && !response.getSvnDpmC().isEmpty()) {
-            corgnIRepository.findById(response.getSvnDpmC())
+            corgnIRepository.findNameViewByPrlmOgzCCone(response.getSvnDpmC())
                     .ifPresent(org -> response.setSvnDpmCNm(org.getBbrNm()));
         }
 
@@ -1032,25 +1032,25 @@ public class ProjectService {
 
         // IT담당자 사번 → IT담당자명
         if (response.getDvmUsid() != null && !response.getDvmUsid().isEmpty()) {
-            cuserIRepository.findById(response.getDvmUsid())
+            cuserIRepository.findNameViewByEno(response.getDvmUsid())
                     .ifPresent(user -> response.setDvmUsidNm(user.getUsrNm()));
         }
 
         // 주관부서담당팀장 사번 → 주관부서담당팀장명
         if (response.getTlrUsid() != null && !response.getTlrUsid().isEmpty()) {
-            cuserIRepository.findById(response.getTlrUsid())
+            cuserIRepository.findNameViewByEno(response.getTlrUsid())
                     .ifPresent(user -> response.setTlrUsidNm(user.getUsrNm()));
         }
 
         // 주관부서담당자 사번 → 주관부서담당자명
         if (response.getUsid() != null && !response.getUsid().isEmpty()) {
-            cuserIRepository.findById(response.getUsid())
+            cuserIRepository.findNameViewByEno(response.getUsid())
                     .ifPresent(user -> response.setUsidNm(user.getUsrNm()));
         }
 
         // IT부서담당팀장 사번 → IT부서담당팀장명
         if (response.getDvmTlrUsid() != null && !response.getDvmTlrUsid().isEmpty()) {
-            cuserIRepository.findById(response.getDvmTlrUsid())
+            cuserIRepository.findNameViewByEno(response.getDvmTlrUsid())
                     .ifPresent(user -> response.setDvmTlrUsidNm(user.getUsrNm()));
         }
 

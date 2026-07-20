@@ -739,9 +739,9 @@ public class CostService {
         }
 
         // --- 5. 배치 조회 ---
-        Map<String, String> orgNameMap = corgnIRepository.findAllById(orgCodes).stream()
+        Map<String, String> orgNameMap = corgnIRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
                 .collect(Collectors.toMap(value -> value.getPrlmOgzCCone(), value -> value.getBbrNm()));
-        Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
+        Map<String, String> userNameMap = cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
                 .collect(Collectors.toMap(value -> value.getEno(), value -> value.getUsrNm()));
         Map<String, String> bgUntAbusCNameMap = bgUntAbusCdvas.isEmpty() ? Map.of()
                 : codeNameMapBuilder.build(CommonCodeGroups.ABUS_UNIT, bgUntAbusCdvas);
@@ -933,16 +933,16 @@ public class CostService {
         // 담당부서/팀명: 스냅샷이 이미 세팅됐으면 건너뛰고, null일 때만 CORGNI 폴백 조회
         if (response.getCostSvnDpmNm() == null
                 && response.getCostSvnDpmC() != null && !response.getCostSvnDpmC().isEmpty()) {
-            corgnIRepository.findById(response.getCostSvnDpmC())
+            corgnIRepository.findNameViewByPrlmOgzCCone(response.getCostSvnDpmC())
                     .ifPresent(org -> response.setCostSvnDpmNm(org.getBbrNm()));
         }
         if (response.getSvnTemNm() == null
                 && response.getSvnTemC() != null && !response.getSvnTemC().isEmpty()) {
-            corgnIRepository.findById(response.getSvnTemC())
+            corgnIRepository.findNameViewByPrlmOgzCCone(response.getSvnTemC())
                     .ifPresent(org -> response.setSvnTemNm(org.getBbrNm()));
         }
         if (response.getCgprId() != null && !response.getCgprId().isEmpty()) {
-            cuserIRepository.findById(response.getCgprId())
+            cuserIRepository.findNameViewByEno(response.getCgprId())
                     .ifPresent(user -> response.setCgprNm(user.getUsrNm()));
         }
         if (response.getBgUntAbusC() != null && !response.getBgUntAbusC().isEmpty()) {
@@ -990,7 +990,7 @@ public class CostService {
                 .filter(cgprId -> cgprId != null && !cgprId.isEmpty())
                 .collect(Collectors.toSet());
         if (!enos.isEmpty()) {
-            Map<String, String> nameMap = cuserIRepository.findByEnoIn(enos).stream()
+            Map<String, String> nameMap = cuserIRepository.findNameViewsByEnoIn(enos).stream()
                     .collect(Collectors.toMap(
                             value -> value.getEno(),
                             value -> value.getUsrNm()));

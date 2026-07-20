@@ -39,6 +39,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 
 /**
@@ -503,7 +504,7 @@ class ServiceRequestDocServiceTest {
     }
 
     @Test
-    @DisplayName("getDocumentList: 작성자명은 findByEnoIn 1회로 배치 조회하고 findById는 호출하지 않는다")
+    @DisplayName("getDocumentList: 작성자명은 이름 프로젝션 1회로 배치 조회하고 단건 조회는 호출하지 않는다")
     void getDocumentList_batchesAuthorNames() {
         Brdocm d1 = Brdocm.builder()
                 .docMngNo("DOC-1").docVrsSno(new BigDecimal("0.01")).reqTtl("문서1").fstEnrUsid("E001").build();
@@ -511,10 +512,14 @@ class ServiceRequestDocServiceTest {
                 .docMngNo("DOC-2").docVrsSno(new BigDecimal("0.01")).reqTtl("문서2").fstEnrUsid("E002").build();
         Brdocm d3 = Brdocm.builder()
                 .docMngNo("DOC-3").docVrsSno(new BigDecimal("0.01")).reqTtl("문서3").fstEnrUsid("E001").build();
-        CuserI u1 = CuserI.builder().eno("E001").usrNm("홍길동").build();
-        CuserI u2 = CuserI.builder().eno("E002").usrNm("김철수").build();
+        UserRepository.UserNameView u1 = mock(UserRepository.UserNameView.class);
+        UserRepository.UserNameView u2 = mock(UserRepository.UserNameView.class);
+        given(u1.getEno()).willReturn("E001");
+        given(u1.getUsrNm()).willReturn("홍길동");
+        given(u2.getEno()).willReturn("E002");
+        given(u2.getUsrNm()).willReturn("김철수");
         given(repository.findLatestVersionsAll()).willReturn(List.of(d1, d2, d3));
-        given(cuserIRepository.findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
+        given(cuserIRepository.findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
                 .willReturn(List.of(u1, u2));
 
         List<ServiceRequestDocDto.Response> result = service.getDocumentList();
@@ -525,8 +530,9 @@ class ServiceRequestDocServiceTest {
         assertThat(result.get(1).getFstEnrUsNm()).isEqualTo("김철수");
         assertThat(result.get(2).getFstEnrUsNm()).isEqualTo("홍길동");
         then(cuserIRepository).should(times(1))
-                .findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any());
+                .findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any());
         then(cuserIRepository).should(never()).findById(anyString());
+        then(cuserIRepository).should(never()).findNameViewByEno(anyString());
     }
 
     @Test

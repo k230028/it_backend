@@ -103,7 +103,7 @@ public class PlanService {
                                 .toList();
                 Map<String, String> userNameByEno = userEnos.isEmpty()
                                 ? Map.of()
-                                : cuserIRepository.findAllById(userEnos).stream()
+                                : cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
                                                 .collect(Collectors.toMap(value -> value.getEno(),
                                                                 value -> value.getUsrNm(),
                                                                 (a, b) -> a));

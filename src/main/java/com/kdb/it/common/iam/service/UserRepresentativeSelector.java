@@ -1,6 +1,7 @@
 package com.kdb.it.common.iam.service;
 
 import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.UserRepository;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +31,21 @@ public final class UserRepresentativeSelector {
         return users.stream()
                 .min(Comparator.comparing((CuserI u) -> TEAM_LEAD_TITLE.equals(u.getPtCNm()) ? 0 : 1)
                         .thenComparing(CuserI::getEno,
+                                Comparator.nullsLast(Comparator.naturalOrder())));
+    }
+
+    /**
+     * 팀 사용자 프로젝션에서 대표자 1명을 결정적으로 선택합니다.
+     *
+     * @param users 같은 팀의 사용자 프로젝션 목록
+     * @return 대표자 프로젝션, 빈 목록이면 빈 값
+     */
+    public static Optional<UserRepository.CommitteeUserRow> pickView(
+            List<UserRepository.CommitteeUserRow> users) {
+        return users.stream()
+                .min(Comparator.comparing((UserRepository.CommitteeUserRow u) ->
+                                TEAM_LEAD_TITLE.equals(u.getPtCNm()) ? 0 : 1)
+                        .thenComparing(UserRepository.CommitteeUserRow::getEno,
                                 Comparator.nullsLast(Comparator.naturalOrder())));
     }
 }

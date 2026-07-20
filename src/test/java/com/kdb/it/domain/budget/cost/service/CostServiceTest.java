@@ -61,6 +61,17 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class CostServiceTest {
 
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+    }
+
+    private record OrgNameView(String prlmOgzCCone, String bbrNm)
+            implements OrganizationRepository.OrganizationNameView {
+        @Override public String getPrlmOgzCCone() { return prlmOgzCCone; }
+        @Override public String getBbrNm() { return bbrNm; }
+    }
+
     @Mock private CostRepository costRepository;
     @Mock private BtermmRepository btermmRepository;
     @Mock private ApplicationMapRepository capplaRepository;
@@ -841,17 +852,17 @@ class CostServiceTest {
                 "BCOSTM", IT_MNGC_NO, 1)).willReturn(List.of(cappla));
         given(capplmRepository.findById("APF-001")).willReturn(Optional.of(capplm));
         given(cdecimRepository.findByDcdMngNoOrderByDcrSqnSnoAsc("APF-001")).willReturn(List.of(decision));
-        given(corgnIRepository.findById("101")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("101").bbrNm("부서").build()));
-        given(corgnIRepository.findById("102")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
-        given(cuserIRepository.findById("10001")).willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
+        given(corgnIRepository.findNameViewByPrlmOgzCCone("101")).willReturn(Optional.of(new OrgNameView("101", "부서")));
+        given(corgnIRepository.findNameViewByPrlmOgzCCone("102")).willReturn(Optional.of(new OrgNameView("102", "팀")));
+        given(cuserIRepository.findNameViewByEno("10001")).willReturn(Optional.of(new NameView("10001", "담당자")));
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(
                         Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
                         Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("중복개발비").cTp("IOE_DVC").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                 .willReturn(List.of(terminal));
-        given(cuserIRepository.findByEnoIn(java.util.Set.of("10003")))
-                .willReturn(List.of(CuserI.builder().eno("10003").usrNm("단말담당").build()));
+        given(cuserIRepository.findNameViewsByEnoIn(java.util.Set.of("10003")))
+                .willReturn(List.of(new NameView("10003", "단말담당")));
         given(codeNameMapBuilder.build(eq("IT_PTL_TMN_SVC_TC"), eq(java.util.Set.of("SVC01"))))
                 .willReturn(java.util.Map.of("SVC01", "업무용"));
         given(codeNameMapBuilder.build(eq("IT_PTL_TMN_KD_TC"), eq(java.util.Set.of("KIND01"))))
@@ -994,12 +1005,10 @@ class CostServiceTest {
         given(capplmRepository.findAllById(List.of("APF-001"))).willReturn(List.of(capplm));
         given(cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(List.of("APF-001")))
                 .willReturn(List.of(Cdecim.builder().dcdMngNo("APF-001").dcrSqnSno(1).dcrEno("10002").build()));
-        given(corgnIRepository.findAllById(any()))
-                .willReturn(List.of(
-                        CorgnI.builder().prlmOgzCCone("101").bbrNm("부서").build(),
-                        CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
-        given(cuserIRepository.findAllById(any()))
-                .willReturn(List.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(any()))
+                .willReturn(List.of(new OrgNameView("101", "부서"), new OrgNameView("102", "팀")));
+        given(cuserIRepository.findNameViewsByEnoIn(any()))
+                .willReturn(List.of(new NameView("10001", "담당자")));
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(Ccodem.builder().cId("IOE_C").cdva("101").cTp("IOE_IDR").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N")).willReturn(List.of());
@@ -1398,8 +1407,8 @@ class CostServiceTest {
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost));
         given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(eq("BCOSTM"), any()))
                 .willReturn(List.of());
-        given(corgnIRepository.findAllById(any())).willReturn(List.of());
-        given(cuserIRepository.findAllById(any())).willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(any())).willReturn(List.of());
         // 배치 코드명 헬퍼 호출 결과: 각 코드타입 → 코드명 반환
         given(codeNameMapBuilder.build(eq("BG_UNT_ABUS_C"), eq(java.util.Set.of("ABUS01"))))
                 .willReturn(java.util.Map.of("ABUS01", "남용유형"));
@@ -1438,8 +1447,8 @@ class CostServiceTest {
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost));
         given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(eq("BCOSTM"), any()))
                 .willReturn(List.of());
-        given(corgnIRepository.findAllById(any())).willReturn(List.of());
-        given(cuserIRepository.findAllById(any())).willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(any())).willReturn(List.of());
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
 
         // Act
@@ -1616,8 +1625,8 @@ class CostServiceTest {
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost1, cost2));
         given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(eq("BCOSTM"), any()))
                 .willReturn(List.of());
-        given(corgnIRepository.findAllById(any())).willReturn(List.of());
-        given(cuserIRepository.findAllById(any())).willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(any())).willReturn(List.of());
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
                 .willReturn(List.of(term1, term2));

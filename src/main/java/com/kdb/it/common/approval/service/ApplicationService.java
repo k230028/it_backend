@@ -574,7 +574,7 @@ public class ApplicationService {
             return java.util.Map.of();
         }
 
-        return userRepository.findByEnoIn(requesterEnos).stream()
+        return userRepository.findNameViewsByEnoIn(requesterEnos).stream()
                 .collect(java.util.stream.Collectors.toMap(
                         user -> user.getEno(),
                         user -> user.getUsrNm(),
@@ -596,7 +596,7 @@ public class ApplicationService {
             return java.util.Map.of();
         }
 
-        return organizationRepository.findAllById(requesterBbrCs).stream()
+        return organizationRepository.findNameViewsByPrlmOgzCConeIn(requesterBbrCs).stream()
                 .filter(org -> org.getBbrNm() != null)
                 .collect(java.util.stream.Collectors.toMap(
                         organization -> organization.getPrlmOgzCCone(),

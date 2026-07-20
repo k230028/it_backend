@@ -1,8 +1,10 @@
 package com.kdb.it.common.iam.repository;
 
+import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.entity.CuserI;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 사용자(CuserI) 커스텀 리포지토리 인터페이스
@@ -20,6 +22,30 @@ import java.util.List;
  * </ul>
  */
 public interface UserRepositoryCustom {
+
+    /**
+     * 부서코드로 사용자 목록 응답 행을 조회합니다.
+     *
+     * @param bbrC 부서코드
+     * @return 사용자 목록 응답 행
+     */
+    List<UserDto.ListRow> findListRowsByBbrC(String bbrC);
+
+    /**
+     * 사용자명으로 사용자 목록 응답 행을 부분 일치 검색합니다.
+     *
+     * @param name 검색할 사용자명
+     * @return 사용자 목록 응답 행
+     */
+    List<UserDto.ListRow> searchListRowsByName(String name);
+
+    /**
+     * 사번으로 사용자 상세 응답 행을 조회합니다.
+     *
+     * @param eno 사번
+     * @return 사용자 상세 응답 행
+     */
+    Optional<UserDto.DetailRow> findDetailRowByEno(String eno);
 
     /**
      * 사용자명으로 사용자 검색 (부분 일치)

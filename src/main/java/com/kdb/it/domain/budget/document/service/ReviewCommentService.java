@@ -43,13 +43,13 @@ public class ReviewCommentService {
         var comments = brivgmRepository
                 .findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(docMngNo, DocVersionCodec.toStored(docVrsSno), "N");
 
-        // 작성자명 배치 조회 (N+1 제거): 사번 집합 → findByEnoIn 1회 → eno→이름 Map
+        // 작성자명 배치 조회: 사번 집합을 이름 프로젝션 한 번으로 변환한다.
         java.util.Set<String> enos = comments.stream()
                 .map(value -> value.getFstEnrUsid())
                 .filter(eno -> eno != null && !eno.isEmpty())
                 .collect(Collectors.toSet());
         java.util.Map<String, String> nameByEno = enos.isEmpty() ? java.util.Map.of()
-                : userRepository.findByEnoIn(enos).stream()
+                : userRepository.findNameViewsByEnoIn(enos).stream()
                         .collect(Collectors.toMap(
                                 value -> value.getEno(),
                                 value -> value.getUsrNm(),
@@ -99,7 +99,7 @@ public class ReviewCommentService {
      * 사번으로 사용자 이름을 조회합니다.
      *
      * <p>
-     * {@link UserRepository#findById(Object)} 로 {@code CuserI} 를 찾고, 존재하면
+     * {@link UserRepository#findNameViewByEno(String)}로 사용자 이름을 찾고, 존재하면
      * {@code usrNm} 을 반환합니다. 사용자를 찾을 수 없는 경우 사번(eno)을 그대로 반환하여
      * UI에서 식별 가능한 값이 노출되도록 합니다.
      * </p>
@@ -109,7 +109,7 @@ public class ReviewCommentService {
      */
     private String resolveAuthorName(String eno) {
         if (eno == null) return "";
-        return userRepository.findById(eno)
+        return userRepository.findNameViewByEno(eno)
                 .map(user -> user.getUsrNm())
                 .orElse(eno);
     }

@@ -89,7 +89,7 @@ public class ServiceRequestDocService {
                 .filter(eno -> eno != null && !eno.isEmpty())
                 .collect(Collectors.toSet());
         if (!enos.isEmpty()) {
-            java.util.Map<String, String> nameByEno = cuserIRepository.findByEnoIn(enos).stream()
+            java.util.Map<String, String> nameByEno = cuserIRepository.findNameViewsByEnoIn(enos).stream()
                     .collect(Collectors.toMap(
                             value -> value.getEno(),
                             value -> value.getUsrNm(),

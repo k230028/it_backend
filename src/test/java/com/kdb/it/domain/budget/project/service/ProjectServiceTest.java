@@ -66,6 +66,17 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ProjectServiceTest {
 
+        private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+                @Override public String getEno() { return eno; }
+                @Override public String getUsrNm() { return usrNm; }
+        }
+
+        private record OrgNameView(String prlmOgzCCone, String bbrNm)
+                        implements OrganizationRepository.OrganizationNameView {
+                @Override public String getPrlmOgzCCone() { return prlmOgzCCone; }
+                @Override public String getBbrNm() { return bbrNm; }
+        }
+
         @Mock
         private ProjectRepository projectRepository;
         @Mock
@@ -321,8 +332,8 @@ class ProjectServiceTest {
                 // 배치 조회: 신청서·부서·사용자 없음
                 given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                                 anyString(), anyList())).willReturn(List.of());
-                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
-                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
+                given(cuserIRepository.findNameViewsByEnoIn(anyList())).willReturn(List.of());
                 // 예산 합계 계산용 코드 조회
                 given(codeService.findCodeEntitiesByCId(anyString()))
                                 .willReturn(List.of());
@@ -347,8 +358,8 @@ class ProjectServiceTest {
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
                 given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                                 anyString(), anyList())).willReturn(List.of());
-                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
-                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
+                given(cuserIRepository.findNameViewsByEnoIn(anyList())).willReturn(List.of());
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
                 // 네이티브 집계 결과: {ABUS_MNG_NO, MIN(STT_DT), MAX(END_DT)}
@@ -374,8 +385,8 @@ class ProjectServiceTest {
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
                 given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                                 anyString(), anyList())).willReturn(List.of());
-                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
-                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
+                given(cuserIRepository.findNameViewsByEnoIn(anyList())).willReturn(List.of());
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
                 given(projectRepository.findBizplanScheduleRange(anyList())).willReturn(List.of());
@@ -405,8 +416,8 @@ class ProjectServiceTest {
                                 .willReturn(List.of(project));
                 given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                                 anyString(), anyList())).willReturn(List.of());
-                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
-                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
+                given(cuserIRepository.findNameViewsByEnoIn(anyList())).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
@@ -1030,12 +1041,12 @@ class ProjectServiceTest {
                                 "BPROJM", prjMngNo, 1)).willReturn(List.of(cappla));
                 given(capplmRepository.findById("APF-001")).willReturn(Optional.of(capplm));
                 given(cdecimRepository.findByDcdMngNoOrderByDcrSqnSnoAsc("APF-001")).willReturn(List.of(decision));
-                given(corgnIRepository.findById("101")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("101").bbrNm("IT부").build()));
-                given(corgnIRepository.findById("102")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("102").bbrNm("현업부").build()));
-                given(cuserIRepository.findById("10001")).willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
-                given(cuserIRepository.findById("10002")).willReturn(Optional.of(CuserI.builder().eno("10002").usrNm("팀장").build()));
-                given(cuserIRepository.findById("10003")).willReturn(Optional.of(CuserI.builder().eno("10003").usrNm("현업담당").build()));
-                given(cuserIRepository.findById("10004")).willReturn(Optional.of(CuserI.builder().eno("10004").usrNm("현업팀장").build()));
+                given(corgnIRepository.findNameViewByPrlmOgzCCone("101")).willReturn(Optional.of(new OrgNameView("101", "IT부")));
+                given(corgnIRepository.findNameViewByPrlmOgzCCone("102")).willReturn(Optional.of(new OrgNameView("102", "현업부")));
+                given(cuserIRepository.findNameViewByEno("10001")).willReturn(Optional.of(new NameView("10001", "담당자")));
+                given(cuserIRepository.findNameViewByEno("10002")).willReturn(Optional.of(new NameView("10002", "팀장")));
+                given(cuserIRepository.findNameViewByEno("10003")).willReturn(Optional.of(new NameView("10003", "현업담당")));
+                given(cuserIRepository.findNameViewByEno("10004")).willReturn(Optional.of(new NameView("10004", "현업팀장")));
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of(devItem, machItem, costItem,
                                                 Bitemm.builder().ioeC(null).amt(BigDecimal.ONE).build(),
@@ -1166,16 +1177,14 @@ class ProjectServiceTest {
                 given(capplmRepository.findAllById(List.of("APF-001"))).willReturn(List.of(capplm));
                 given(cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(List.of("APF-001")))
                                 .willReturn(List.of(Cdecim.builder().dcdMngNo("APF-001").dcrSqnSno(1).dcrEno("10002").build()));
-                given(corgnIRepository.findAllById(any()))
+                given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(any()))
+                                .willReturn(List.of(new OrgNameView("101", "IT부"), new OrgNameView("102", "현업부")));
+                given(cuserIRepository.findNameViewsByEnoIn(any()))
                                 .willReturn(List.of(
-                                                CorgnI.builder().prlmOgzCCone("101").bbrNm("IT부").build(),
-                                                CorgnI.builder().prlmOgzCCone("102").bbrNm("현업부").build()));
-                given(cuserIRepository.findAllById(any()))
-                                .willReturn(List.of(
-                                                CuserI.builder().eno("10001").usrNm("IT담당").build(),
-                                                CuserI.builder().eno("10002").usrNm("IT팀장").build(),
-                                                CuserI.builder().eno("10003").usrNm("현업담당").build(),
-                                                CuserI.builder().eno("10004").usrNm("현업팀장").build()));
+                                                new NameView("10001", "IT담당"),
+                                                new NameView("10002", "IT팀장"),
+                                                new NameView("10003", "현업담당"),
+                                                new NameView("10004", "현업팀장")));
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn("PRJ-2026-0001", 1, "N"))
                                 .willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
@@ -1274,8 +1283,8 @@ class ProjectServiceTest {
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project1, project2));
                 given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
                                 .willReturn(List.of());
-                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
-                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
+                given(cuserIRepository.findNameViewsByEnoIn(anyList())).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
@@ -1344,8 +1353,8 @@ class ProjectServiceTest {
                 // capplmRepository.findAllById → 빈 목록 → capplmMap.get() == null → capplm null 분기
                 given(capplmRepository.findAllById(anyList())).willReturn(List.of());
                 given(cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(anyList())).willReturn(List.of());
-                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
-                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
+                given(cuserIRepository.findNameViewsByEnoIn(anyList())).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
@@ -1373,8 +1382,8 @@ class ProjectServiceTest {
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
                 given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
                                 .willReturn(List.of());
-                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
-                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
+                given(cuserIRepository.findNameViewsByEnoIn(anyList())).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
                 // codeNameMapBuilder: 요청된 cdva 집합을 전체 코드명 맵에서 필터링(헬퍼 동작 모사)
                 Map<String, String> allCodeNames = Map.of(
@@ -1420,8 +1429,8 @@ class ProjectServiceTest {
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
                 given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
                                 .willReturn(List.of());
-                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
-                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
+                given(cuserIRepository.findNameViewsByEnoIn(anyList())).willReturn(List.of());
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), any(), anyString()))
                                 .willReturn(List.of());
@@ -1977,18 +1986,12 @@ class ProjectServiceTest {
                 given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
 
                 // 부서명/사용자명
-                given(corgnIRepository.findById("101")).willReturn(Optional.of(
-                                CorgnI.builder().prlmOgzCCone("101").bbrNm("IT부").build()));
-                given(corgnIRepository.findById("102")).willReturn(Optional.of(
-                                CorgnI.builder().prlmOgzCCone("102").bbrNm("현업부").build()));
-                given(cuserIRepository.findById("10001")).willReturn(Optional.of(
-                                CuserI.builder().eno("10001").usrNm("담당자1").build()));
-                given(cuserIRepository.findById("10002")).willReturn(Optional.of(
-                                CuserI.builder().eno("10002").usrNm("팀장1").build()));
-                given(cuserIRepository.findById("10003")).willReturn(Optional.of(
-                                CuserI.builder().eno("10003").usrNm("담당자2").build()));
-                given(cuserIRepository.findById("10004")).willReturn(Optional.of(
-                                CuserI.builder().eno("10004").usrNm("팀장2").build()));
+                given(corgnIRepository.findNameViewByPrlmOgzCCone("101")).willReturn(Optional.of(new OrgNameView("101", "IT부")));
+                given(corgnIRepository.findNameViewByPrlmOgzCCone("102")).willReturn(Optional.of(new OrgNameView("102", "현업부")));
+                given(cuserIRepository.findNameViewByEno("10001")).willReturn(Optional.of(new NameView("10001", "담당자1")));
+                given(cuserIRepository.findNameViewByEno("10002")).willReturn(Optional.of(new NameView("10002", "팀장1")));
+                given(cuserIRepository.findNameViewByEno("10003")).willReturn(Optional.of(new NameView("10003", "담당자2")));
+                given(cuserIRepository.findNameViewByEno("10004")).willReturn(Optional.of(new NameView("10004", "팀장2")));
 
                 // 공통코드 코드명 설정 (사업유형/업무구분/기술분야/고객유형은 컬럼값=명이므로 해석 불필요)
                 given(ccodemRepository.findByCIdAndCdvaWithValidDate("IT_PTL_RPR_STS_TC", "RS01", null))
@@ -2059,8 +2062,8 @@ class ProjectServiceTest {
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
                 given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                                 anyString(), anyList())).willReturn(List.of());
-                given(corgnIRepository.findAllById(anyList())).willReturn(List.of());
-                given(cuserIRepository.findAllById(anyList())).willReturn(List.of());
+                given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
+                given(cuserIRepository.findNameViewsByEnoIn(anyList())).willReturn(List.of());
                 given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                                 .willReturn(List.of(item));
                 // IOE 코드 없음 → assetBg=0, costBg=0

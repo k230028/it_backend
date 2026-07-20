@@ -13,7 +13,6 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.code.entity.Ccodem;
@@ -49,6 +48,11 @@ import com.kdb.it.domain.budget.project.service.BprojaSyncService;
  */
 @ExtendWith(MockitoExtension.class)
 class PlanServiceTest {
+
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+    }
 
     @Mock
     private BplanmRepository bplanmRepository;
@@ -87,8 +91,8 @@ class PlanServiceTest {
                 .build();
         ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER001");
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
-        given(cuserIRepository.findAllById(List.of("USER001"))).willReturn(List.of(
-                CuserI.builder().eno("USER001").usrNm("홍길동").build()));
+        given(cuserIRepository.findNameViewsByEnoIn(List.of("USER001")))
+                .willReturn(List.of(new NameView("USER001", "홍길동")));
         given(codeService.findCodeEntitiesByCId("ABUS_TC")).willReturn(List.of());
 
         // when
@@ -126,7 +130,7 @@ class PlanServiceTest {
                 .build();
         ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER002");
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
-        given(cuserIRepository.findAllById(List.of("USER002"))).willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(List.of("USER002"))).willReturn(List.of());
         given(codeService.findCodeEntitiesByCId("ABUS_TC")).willReturn(List.of(
                 Ccodem.builder().cdva("10").cdvaNm("신규").build(),
                 Ccodem.builder().cdva("20").cdvaNm("계속").build()));
@@ -150,7 +154,7 @@ class PlanServiceTest {
                 .build();
         ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER003");
         given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
-        given(cuserIRepository.findAllById(List.of("USER003"))).willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(List.of("USER003"))).willReturn(List.of());
         given(codeService.findCodeEntitiesByCId("ABUS_TC")).willReturn(List.of());
 
         List<PlanDto.ListResponse> result = service.getPlans();

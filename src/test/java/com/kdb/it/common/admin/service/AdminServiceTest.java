@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -56,6 +57,25 @@ import org.springframework.data.domain.PageRequest;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AdminServiceTest {
+
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+    }
+
+    private record AdminUserView(String eno, String usrNm) implements UserRepository.AdminUserView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+        @Override public String getPtCNm() { return null; }
+        @Override public String getTemC() { return null; }
+        @Override public String getTemNm() { return null; }
+        @Override public String getBbrC() { return null; }
+        @Override public String getEtrMilAddrNm() { return null; }
+        @Override public String getInleNo() { return null; }
+        @Override public String getCpnTpn() { return null; }
+        @Override public LocalDateTime getFstEnrDtm() { return null; }
+        @Override public LocalDateTime getLstChgDtm() { return null; }
+    }
 
     @Mock
     private CodeRepository codeRepository;
@@ -410,7 +430,7 @@ class AdminServiceTest {
         // given
         Ccodem code = Ccodem.builder().cId("CODE001").cNm("코드1").build();
         given(codeRepository.findAllActive()).willReturn(List.of(code));
-        given(userRepository.findByEnoIn(any())).willReturn(Collections.emptyList());
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(Collections.emptyList());
 
         // when
         List<AdminDto.CodeResponse> result = adminService.getCodes();
@@ -560,9 +580,8 @@ class AdminServiceTest {
     @DisplayName("getUsers: 삭제되지 않은 사용자 목록을 반환한다")
     void getUsers_삭제되지않은목록반환() {
         // given: DEL_YN='N'/'Y' 혼합
-        CuserI active = CuserI.builder().eno("10001").usrNm("홍길동").delYn("N").build();
-        CuserI deleted = CuserI.builder().eno("99999").usrNm("탈퇴자").delYn("Y").build();
-        given(userRepository.findAll()).willReturn(List.of(active, deleted));
+        given(userRepository.findAdminUserViewsByDelYn("N"))
+                .willReturn(List.of(new AdminUserView("10001", "홍길동")));
 
         // when
         List<AdminDto.UserResponse> result = adminService.getUsers();
@@ -577,7 +596,7 @@ class AdminServiceTest {
     @DisplayName("getUsers: 사용자가 없으면 빈 목록을 반환한다")
     void getUsers_빈목록반환() {
         // given
-        given(userRepository.findAll()).willReturn(Collections.emptyList());
+        given(userRepository.findAdminUserViewsByDelYn("N")).willReturn(Collections.emptyList());
 
         // when
         List<AdminDto.UserResponse> result = adminService.getUsers();
@@ -784,8 +803,8 @@ class AdminServiceTest {
                 .delYn("Y")
                 .build();
         given(fileRepository.findAll()).willReturn(List.of(active, deleted));
-        given(userRepository.findByEno("10001")).willReturn(Optional.of(
-                CuserI.builder().eno("10001").usrNm("홍길동").build()));
+        given(userRepository.findNameViewByEno("10001"))
+                .willReturn(Optional.of(new NameView("10001", "홍길동")));
 
         List<AdminDto.FileResponse> result = adminService.getFiles();
 

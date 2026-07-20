@@ -63,6 +63,17 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ApplicationServiceTest {
 
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+    }
+
+    private record OrgNameView(String prlmOgzCCone, String bbrNm)
+            implements OrganizationRepository.OrganizationNameView {
+        @Override public String getPrlmOgzCCone() { return prlmOgzCCone; }
+        @Override public String getBbrNm() { return bbrNm; }
+    }
+
     @Mock private ApplicationRepository applicationRepository;
     @Mock private ApproverRepository approverRepository;
     @Mock private ApplicationMapRepository applicationMapRepository;
@@ -81,8 +92,8 @@ class ApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        given(userRepository.findByEnoIn(any())).willReturn(List.of());
-        given(organizationRepository.findAllById(any())).willReturn(List.of());
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of());
+        given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of());
     }
 
     /** Capplm Mock — getApfDtlCone() null로 updateApprovalLineInDetail 즉시 리턴 */
@@ -840,10 +851,10 @@ class ApplicationServiceTest {
         given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of(pendingApprover("10002", 1, "Y")));
-        given(userRepository.findByEnoIn(any())).willReturn(List.of(
-                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("18001").build()));
-        given(organizationRepository.findAllById(any())).willReturn(List.of(
-                CorgnI.builder().prlmOgzCCone("18001").bbrNm("정보기술부").build()));
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of(
+                new NameView("10001", "홍길동")));
+        given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of(
+                new OrgNameView("18001", "정보기술부")));
 
         ApplicationDto.Response result = applicationService.getApplication(APF_MNG_NO);
 
@@ -874,11 +885,11 @@ class ApplicationServiceTest {
         given(c.getDcdReqBbrC()).willReturn("18001");
         given(applicationRepository.findAll()).willReturn(List.of(c));
         given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any())).willReturn(List.of());
-        given(userRepository.findByEnoIn(any())).willReturn(List.of(
-                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("18001").build()));
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of(
+                new NameView("10001", "홍길동")));
         // bbrNm이 null인 조직은 filter(bbrNm != null)에서 제외되는 분기 커버
-        given(organizationRepository.findAllById(any())).willReturn(List.of(
-                CorgnI.builder().prlmOgzCCone("18001").bbrNm(null).build()));
+        given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of(
+                new OrgNameView("18001", null)));
 
         List<ApplicationDto.Response> result = applicationService.getApplications();
 

@@ -87,7 +87,7 @@ public class AdminService {
                                 .flatMap(c -> Stream.of(c.getFstEnrUsid(), c.getLstChgUsid()))
                                 .filter(Objects::nonNull)
                                 .collect(Collectors.toSet());
-                Map<String, String> userNameMap = userRepository.findByEnoIn(enos).stream()
+                Map<String, String> userNameMap = userRepository.findNameViewsByEnoIn(enos).stream()
                                 .collect(Collectors.toMap(u -> u.getEno(), u -> u.getUsrNm()));
 
                 return codes.stream()
@@ -470,9 +470,19 @@ public class AdminService {
          * @return 사용자 응답 DTO 목록
          */
         public List<AdminDto.UserResponse> getUsers() {
-                return userRepository.findAll().stream()
-                                .filter(u -> "N".equals(u.getDelYn()))
-                                .map(this::toUserResponse)
+                List<UserRepository.AdminUserView> users = userRepository.findAdminUserViewsByDelYn("N");
+                Set<String> orgCodes = users.stream()
+                                .map(UserRepository.AdminUserView::getBbrC)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet());
+                Map<String, String> orgNames = orgRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
+                                .filter(organization -> organization.getBbrNm() != null)
+                                .collect(Collectors.toMap(
+                                                OrganizationRepository.OrganizationNameView::getPrlmOgzCCone,
+                                                OrganizationRepository.OrganizationNameView::getBbrNm,
+                                                (left, right) -> left));
+                return users.stream()
+                                .map(user -> toUserResponse(user, orgNames.get(user.getBbrC())))
                                 .toList();
         }
 
@@ -535,9 +545,9 @@ public class AdminService {
         }
 
         /**
-         * CuserI 엔티티를 UserResponse DTO로 변환합니다.
+         * 관리자 사용자 프로젝션을 UserResponse DTO로 변환합니다.
          */
-        private AdminDto.UserResponse toUserResponse(CuserI u) {
+        private AdminDto.UserResponse toUserResponse(UserRepository.AdminUserView u, String bbrNm) {
                 return new AdminDto.UserResponse(
                                 u.getEno(),
                                 u.getUsrNm(),
@@ -545,7 +555,7 @@ public class AdminService {
                                 u.getTemC(),
                                 u.getTemNm(),
                                 u.getBbrC(),
-                                u.getBbrNm(),
+                                bbrNm,
                                 u.getEtrMilAddrNm(),
                                 u.getInleNo(),
                                 u.getCpnTpn(),
@@ -744,7 +754,7 @@ public class AdminService {
         private String resolveUserName(String eno) {
                 if (eno == null)
                         return null;
-                return userRepository.findByEno(eno)
+                return userRepository.findNameViewByEno(eno)
                                 .map(value -> value.getUsrNm())
                                 .orElse(eno);
         }
