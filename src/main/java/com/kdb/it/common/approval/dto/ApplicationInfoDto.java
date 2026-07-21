@@ -1,6 +1,8 @@
 package com.kdb.it.common.approval.dto;
 
 import com.kdb.it.common.approval.domain.DecisionStatus;
+import com.kdb.it.common.approval.repository.ApplicationRepository;
+import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -96,6 +98,29 @@ public class ApplicationInfoDto {
     }
 
     /**
+     * 신청서 요약 view와 결재선 read view를 신청서 상세 정보로 변환합니다.
+     *
+     * @param application 신청서 요약 view
+     * @param decisions 결재 순번 오름차순 read view 목록
+     * @return 변환된 신청서 상세 정보 DTO
+     */
+    public static ApplicationInfoDto fromReadViews(
+            ApplicationRepository.ApplicationSummaryView application,
+            List<ApproverRepository.ApproverReadView> decisions) {
+        return ApplicationInfoDto.builder()
+                .apfMngNo(application.getApfMngNo())
+                .apfSts(application.getItPtlApfPrgStsC() == null ? null
+                        : com.kdb.it.common.approval.domain.ApprovalStatus
+                                .ofCode(application.getItPtlApfPrgStsC()).label())
+                .apfNm(application.getDcdReqTtl())
+                .rqsEno(application.getDcdReqUsid())
+                .rqsDt(application.getDcdReqDtm())
+                .rqsOpnn(application.getRgprDcdReqCone())
+                .approvers(decisions.stream().map(ApproverDto::fromReadView).toList())
+                .build();
+    }
+
+    /**
      * 결재자 정보 DTO
      *
      * <p>
@@ -151,6 +176,25 @@ public class ApplicationInfoDto {
                             : DecisionStatus.ofCode(itPtlDcdStsC).label())
                     .dcdDt(cdecim.getDcdDtm())        // 결재일자
                     .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
+                    .build();
+        }
+
+        /**
+         * 결재선 read view를 결재자 DTO로 변환합니다.
+         *
+         * @param view 결재선 read view
+         * @return 변환된 결재자 DTO
+         */
+        public static ApproverDto fromReadView(ApproverRepository.ApproverReadView view) {
+            String status = view.getItPtlDcdStsC();
+            boolean pending = status == null || DecisionStatus.isPendingCode(status);
+            return ApproverDto.builder()
+                    .dcdSqn(view.getDcrSqnSno())
+                    .dcdEno(view.getDcrEno())
+                    .dcdTp(pending ? null : "결재")
+                    .dcdSts(pending ? null : DecisionStatus.ofCode(status).label())
+                    .dcdDt(view.getDcdDtm())
+                    .dcdOpnn(view.getDcrOpnnCone())
                     .build();
         }
     }

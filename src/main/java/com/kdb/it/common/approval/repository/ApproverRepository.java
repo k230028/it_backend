@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
 
 /**
  * 결재 정보(Cdecim) 데이터 접근 리포지토리
@@ -23,6 +24,33 @@ import java.util.Optional;
  * </ul>
  */
 public interface ApproverRepository extends JpaRepository<Cdecim, CdecimId> {
+
+    /** 결재 응답 조립에 필요한 결재선 최소 필드입니다. */
+    interface ApproverReadView {
+        String getDcdMngNo();
+        Integer getDcrSqnSno();
+        String getDcrEno();
+        String getItPtlDcdStsC();
+        LocalDate getDcdDtm();
+        String getDcrOpnnCone();
+        String getLstDcdYn();
+    }
+
+    /**
+     * 신청서 한 건의 결재선을 결재 순번 오름차순으로 조회합니다.
+     *
+     * @param dcdMngNo 신청서 관리번호
+     * @return 결재 순번 오름차순 read view 목록
+     */
+    List<ApproverReadView> findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(String dcdMngNo);
+
+    /**
+     * 여러 신청서의 결재선을 결재 순번 오름차순으로 일괄 조회합니다.
+     *
+     * @param dcdMngNos 신청서 관리번호 목록
+     * @return 결재 순번 오름차순 read view 목록
+     */
+    List<ApproverReadView> findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(Collection<String> dcdMngNos);
 
     /**
      * 결재관리번호로 결재선 목록 조회 (결재자순서 오름차순)

@@ -802,23 +802,28 @@ public class ProjectService {
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
         List<String> prjMngNos = projects.stream().map(value -> value.getAbusMngNo()).toList();
-        List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", prjMngNos);
+        List<com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> allCapplas =
+                capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", prjMngNos);
 
         // prjMngNo → 최신 Cappla (이미 DESC 정렬이므로 첫 번째가 최신)
-        Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();
-        for (Cappla c : allCapplas) {
+        Map<String, com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> latestCappla =
+                new java.util.LinkedHashMap<>();
+        for (com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView c : allCapplas) {
             latestCappla.putIfAbsent(c.getPkColNm(), c);
         }
 
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
                 .map(value -> value.getApfDcmNo()).toList();
-        Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
-                .collect(Collectors.toMap(value -> value.getApfMngNo(), m -> m));
+        Map<String, com.kdb.it.common.approval.repository.ApplicationRepository.ApplicationSummaryView> capplmMap =
+                capplmRepository.findSummaryViewsByApfMngNoIn(apfMngNos).stream()
+                        .collect(Collectors.toMap(value -> value.getApfMngNo(), m -> m));
 
         // --- 3. CDECIM 배치 조회 ---
-        List<Cdecim> allDecisions = cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
-        Map<String, List<Cdecim>> decisionMap = allDecisions.stream()
+        List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> allDecisions =
+                cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
+        Map<String, List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView>> decisionMap =
+                allDecisions.stream()
                 .collect(Collectors.groupingBy(value -> value.getDcdMngNo()));
 
         // --- 4. 부서코드·사원번호·공통코드 수집 ---
@@ -890,15 +895,18 @@ public class ProjectService {
             Bprojm project = projects.get(i);
             ProjectDto.Response response = responses.get(i);
 
-            Cappla cappla = latestCappla.get(project.getAbusMngNo());
+            com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView cappla =
+                    latestCappla.get(project.getAbusMngNo());
             if (cappla != null) {
                 response.setApfMngNo(cappla.getApfDcmNo());
-                Capplm capplm = capplmMap.get(cappla.getApfDcmNo());
+                com.kdb.it.common.approval.repository.ApplicationRepository.ApplicationSummaryView capplm =
+                        capplmMap.get(cappla.getApfDcmNo());
                 if (capplm != null) {
                     response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
                             : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label());
-                    List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
-                    response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
+                    List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> decisions =
+                            decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
+                    response.setApplicationInfo(ApplicationInfoDto.fromReadViews(capplm, decisions));
                 }
             }
 
@@ -971,27 +979,28 @@ public class ProjectService {
      */
     private void setApplicationInfo(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // BPROJM 테이블 코드와 프로젝트 관리번호/순번으로 연결된 신청서 목록 조회 (최신순)
-        List<com.kdb.it.common.approval.entity.Cappla> capplas = capplaRepository
-                .findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BPROJM", prjMngNo, (Integer) prjSno);
+        List<com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> capplas = capplaRepository
+                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BPROJM", prjMngNo, prjSno);
 
         if (!capplas.isEmpty()) {
-            com.kdb.it.common.approval.entity.Cappla cappla = capplas.get(0); // 가장 최신 신청서
+            com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView cappla = capplas.get(0);
             response.setApfMngNo(cappla.getApfDcmNo()); // 신청관리번호 설정
 
             // 신청서 마스터에서 결재상태 및 상세 정보 조회
-            capplmRepository.findById(cappla.getApfDcmNo())
+            capplmRepository.findSummaryViewsByApfMngNoIn(List.of(cappla.getApfDcmNo())).stream()
+                    .findFirst()
                     .ifPresent(capplm -> {
                         response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
                                 : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC())
                                         .label()); // 결재상태 설정 (코드→라벨)
 
                         // 결재자 목록 조회 (결재순서 오름차순)
-                        List<com.kdb.it.common.approval.entity.Cdecim> decisions = cdecimRepository
-                                .findByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
+                        List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> decisions =
+                                cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
 
                         // ApplicationInfoDto 생성 및 설정
                         response.setApplicationInfo(
-                                com.kdb.it.common.approval.dto.ApplicationInfoDto.fromEntities(capplm, decisions));
+                                com.kdb.it.common.approval.dto.ApplicationInfoDto.fromReadViews(capplm, decisions));
                     });
         }
     }

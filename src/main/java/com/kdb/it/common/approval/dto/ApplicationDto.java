@@ -3,6 +3,7 @@ package com.kdb.it.common.approval.dto;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.domain.DecisionStatus;
+import com.kdb.it.common.approval.repository.ApproverRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -391,6 +392,40 @@ public class ApplicationDto {
                             .toList())
                     .build();
         }
+
+        /**
+         * 신청서 엔티티와 결재선 read view를 응답 DTO로 변환합니다.
+         *
+         * @param capplm 신청서 마스터 엔티티
+         * @param approvers 결재 순번 오름차순 read view 목록
+         * @param requesterNm 신청자명
+         * @param requesterBbrNm 신청부서명
+         * @return 변환된 응답 DTO
+         */
+        public static Response fromReadViews(
+                Capplm capplm,
+                List<ApproverRepository.ApproverReadView> approvers,
+                String requesterNm,
+                String requesterBbrNm) {
+            return Response.builder()
+                    .apfMngNo(capplm.getApfMngNo())
+                    .apfNm(capplm.getDcdReqTtl())
+                    .apfDtlCone(capplm.getDcdReqInf())
+                    .apfSts(capplm.getItPtlApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus
+                                    .ofCode(capplm.getItPtlApfPrgStsC()).label())
+                    .apfStsC(capplm.getItPtlApfPrgStsC())
+                    .rqsEno(capplm.getDcdReqUsid())
+                    .rqsNm(requesterNm)
+                    .rqsBbrC(capplm.getDcdReqBbrC())
+                    .rqsBbrNm(requesterBbrNm)
+                    .rqsDt(capplm.getDcdReqDtm())
+                    .rqsOpnn(capplm.getRgprDcdReqCone())
+                    .approvers(approvers.stream()
+                            .map(ApproverResponse::fromReadView)
+                            .toList())
+                    .build();
+        }
     }
 
     /**
@@ -571,6 +606,26 @@ public class ApplicationDto {
                                 ? null
                                 : DecisionStatus.ofCode(cdecim.getItPtlDcdStsC()).label())
                     .lstDcdYn(cdecim.getLstDcdYn()) // 최종결재자여부
+                    .build();
+        }
+
+        /**
+         * 결재선 read view를 결재자 응답 DTO로 변환합니다.
+         *
+         * @param view 결재선 read view
+         * @return 변환된 결재자 응답 DTO
+         */
+        public static ApproverResponse fromReadView(ApproverRepository.ApproverReadView view) {
+            String status = view.getItPtlDcdStsC();
+            boolean pending = status == null || DecisionStatus.isPendingCode(status);
+            return ApproverResponse.builder()
+                    .dcdSqn(view.getDcrSqnSno())
+                    .dcdEno(view.getDcrEno())
+                    .dcdTp(pending ? null : "결재")
+                    .dcdDt(view.getDcdDtm())
+                    .dcdOpnn(view.getDcrOpnnCone())
+                    .dcdSts(pending ? null : DecisionStatus.ofCode(status).label())
+                    .lstDcdYn(view.getLstDcdYn())
                     .build();
         }
     }
