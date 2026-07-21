@@ -255,6 +255,8 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.withType(Javadoc) {
 	options.encoding = 'UTF-8'
+	// BE-06: javadoc 기본 경고 출력 상한(100건)을 해제해 전수 측정을 가능하게 한다.
+	options.addStringOption('Xmaxwarns', '10000')
 }
 
 
