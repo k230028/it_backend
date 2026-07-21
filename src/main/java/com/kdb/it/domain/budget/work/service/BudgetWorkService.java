@@ -47,6 +47,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class BudgetWorkService {
 
+    /** 편성률 기본값(%): 편성률 미지정 항목은 전액(100%) 편성으로 간주한다. */
+    private static final int DEFAULT_DUP_RT = 100;
+
+    /** 백분율(%) 환산 기준값. 요청금액 × (편성률/100) 계산에 사용한다. */
+    private static final BigDecimal PERCENT_BASE = BigDecimal.valueOf(100);
+
     /** 예산 데이터 접근 리포지토리 (TPRMPP_BBUGTM) */
     private final BbugtmRepository bbugtmRepository;
 
@@ -322,8 +328,8 @@ public class BudgetWorkService {
         }
 
         for (BudgetWorkDto.ItemRate item : request.items()) {
-            Integer assetDupRt = item.assetDupRt() != null ? item.assetDupRt() : 100;
-            Integer costDupRt = item.costDupRt() != null ? item.costDupRt() : 100;
+            Integer assetDupRt = item.assetDupRt() != null ? item.assetDupRt() : DEFAULT_DUP_RT;
+            Integer costDupRt = item.costDupRt() != null ? item.costDupRt() : DEFAULT_DUP_RT;
 
             if ("BPROJM".equals(item.orcTb())) {
                 /* 정보화사업: BITEMM에서 해당 프로젝트의 최신 버전 품목(LST_YN='Y')만 조회 */
@@ -962,7 +968,7 @@ public class BudgetWorkService {
             if (b.getBgDupAmt() != null && b.getAsgRt() != null && b.getAsgRt() > 0) {
                 requestAmt =
                         b.getBgDupAmt()
-                                .multiply(BigDecimal.valueOf(100))
+                                .multiply(PERCENT_BASE)
                                 .divide(BigDecimal.valueOf(b.getAsgRt()), 2, RoundingMode.HALF_UP);
             }
             if (sourceItem != null && sourceItem.getAbusMngNo() != null) {
@@ -1075,7 +1081,7 @@ public class BudgetWorkService {
         }
         return requestAmount
                 .multiply(BigDecimal.valueOf(dupRt))
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                .divide(PERCENT_BASE, 2, RoundingMode.HALF_UP);
     }
 
     /**
