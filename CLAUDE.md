@@ -113,6 +113,7 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 기능 변경 후 `./gradlew test`, 인증·결재·파일·QueryDSL·감사로그 공통 변경은 `./gradlew clean test`를 실행합니다.
 - 로컬 Oracle 통합 테스트는 `@Tag("it")`와 `integrationTest` 태스크를 사용합니다.
 - public API와 service 메서드 JavaDoc은 입력값·반환값·실패 조건을 한글로 기록합니다.
+- Javadoc 기본 생성자 경고는 Jackson 역직렬화가 확인된 요청·입력 DTO에 한해 Javadoc을 단 명시적 no-arg 생성자 선언으로 해소합니다. 클래스 레벨 `@Builder`가 붙은 응답 DTO에는 builder용 전체 필드 생성자를 보존하기 위해 no-arg 생성자를 기계적으로 추가하지 않습니다. 전환하지 않은 대량 DTO의 기본 생성자 경고는 허용 잔여로 관리하며, 총량 기준선 수치는 CLAUDE.md가 아닌 `../TASK.md` 항목 메모 또는 `../README.md` 변경 이력에 기록합니다.
 - 설명 가치가 없는 단순 대입·게터에는 주석을 추가하지 않습니다.
 - 로그에 비밀값·토큰·휴대폰·OTP를 기록하지 않습니다.
 - 파일 로깅·롤오버 상세는 [로깅 가이드](docs/guides/operations/logging.md), 실시간 감사 피드는 [실시간 로그 가이드](docs/guides/operations/realtime-logs.md)를 따릅니다.

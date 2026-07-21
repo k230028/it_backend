@@ -45,9 +45,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationOrcItem", description = "원천 데이터 연결 항목")
     public static class OrcItem {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public OrcItem() {
+        }
+
         /** 원천 테이블명 (예: "BPROJM"=정보화사업, "BCOSTM"=전산관리비) */
         @Schema(description = "원천 테이블명")
         private String fntTbNm;
@@ -72,9 +75,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationCreateRequest")
     public static class CreateRequest {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public CreateRequest() {
+        }
+
         /** 신청서명 (예: "전산예산 작성") */
         @Schema(description = "신청서명")
         private String apfNm;
@@ -120,9 +126,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationApproveRequest")
     public static class ApproveRequest {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public ApproveRequest() {
+        }
+
         /**
          * 결재자 사원번호
          * <p>실제 서비스에서는 JWT 토큰에서 추출한 현재 사용자 사번을 사용해야 합니다.
@@ -147,9 +156,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "RecallRequest", description = "신청서 회수 요청")
     public static class RecallRequest {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public RecallRequest() {
+        }
+
         /** 회수 사유 (필수, 최대 1000자) */
         @NotBlank
         @Size(max = 1000)
@@ -165,9 +177,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationBulkApproveRequest", description = "일괄 승인 요청")
     public static class BulkApproveRequest {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public BulkApproveRequest() {
+        }
+
         /** 결재 처리할 신청서 목록 (각 항목에 결재자 정보 포함) */
         @Schema(description = "승인할 신청서 목록")
         private List<ApprovalItem> approvals;
@@ -180,9 +195,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationApprovalItem", description = "개별 신청서 승인 정보")
     public static class ApprovalItem {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public ApprovalItem() {
+        }
+
         /** 결재할 신청관리번호 */
         @Schema(description = "신청관리번호")
         private String apfMngNo;
@@ -255,9 +273,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationBulkGetRequest", description = "일괄 조회 요청")
     public static class BulkGetRequest {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public BulkGetRequest() {
+        }
+
         /** 조회할 신청관리번호 목록 (예: ["APF_202600000001", "APF_202600000002"]) */
         @Schema(description = "조회할 신청관리번호 목록")
         private List<String> apfMngNos;
