@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,11 +23,19 @@ import org.springframework.web.bind.annotation.RestController;
 /** 입찰/계약 REST 컨트롤러. CRUD, 상태 전이, 계약 정보 입력 엔드포인트를 제공합니다. */
 @RestController
 @RequestMapping("/api/project/contracts")
-@RequiredArgsConstructor
 @Tag(name = "Contract", description = "입찰/계약 API")
 public class ContractController {
 
     private final ContractService contractService;
+
+    /**
+     * 입찰·계약 요청을 처리할 컨트롤러를 구성합니다.
+     *
+     * @param contractService 입찰·계약 업무 서비스
+     */
+    public ContractController(ContractService contractService) {
+        this.contractService = contractService;
+    }
 
     /**
      * 입찰계약 목록 조회. 상태·예산구분·참조번호로 필터링 가능합니다.
