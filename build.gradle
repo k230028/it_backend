@@ -3,7 +3,6 @@ plugins {
 	id 'war'
 	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
-	id 'org.asciidoctor.jvm.convert' version '4.0.5'
 	id 'jacoco'
 	id 'com.diffplug.spotless' version '7.0.4'
 }
@@ -87,10 +86,6 @@ repositories {
 //   BOM 관리값을 끌어내리는 다운그레이드가 되므로 제거함. 신규 Snyk 지적 발생 시
 //   resolutionStrategy 대신 BOM 버전 프로퍼티(예: ext['spring-framework.version']) 오버라이드를 우선 검토.
 
-ext {
-	set('snippetsDir', file("build/generated-snippets"))
-}
-
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -136,12 +131,10 @@ dependencies {
 	runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-restdocs'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -229,7 +222,6 @@ tasks.named('check') {
 // ─────────────────────────────────────────────────────────────────────
 
 tasks.named('test') {
-	outputs.dir snippetsDir
 	// 통합 테스트(@Tag("it"))는 로컬 전용 — CI 기본 test 게이트에서 제외
 	useJUnitPlatform {
 		excludeTags 'it'
@@ -249,11 +241,6 @@ tasks.register('integrationTest', Test) {
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
 	shouldRunAfter tasks.named('test')
-}
-
-tasks.named('asciidoctor') {
-	inputs.dir snippetsDir
-	dependsOn test
 }
 
 tasks.named('processResources') {
