@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.project.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.code.CommonCodeGroups;
@@ -143,6 +144,15 @@ class ProjectBudgetSummaryServiceTest {
         assertThat(ProjectItemRepository.ProjectItemBudgetView.class.getDeclaredMethods())
                 .extracting(java.lang.reflect.Method::getName)
                 .containsExactlyInAnyOrder("getGclMngNo", "getAbusMngNo", "getIoeC", "getAmt", "getMplAmt");
+    }
+
+    @Test
+    @DisplayName("프로젝션 합산 입력이 null이면 실패한다")
+    void rejectsNullProjectionInputs() {
+        assertThatThrownBy(() -> service.applyBudgetSummaryViews(ProjectDto.Response.builder().build(), null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> service.applyBudgetSummaryViews(null, List.of()))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test

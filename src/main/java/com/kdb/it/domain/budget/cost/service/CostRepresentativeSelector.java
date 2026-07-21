@@ -4,6 +4,7 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 
 /** 비용 이력 목록의 대표 행 선택 규칙을 공유하는 유틸리티. */
@@ -25,17 +26,7 @@ public final class CostRepresentativeSelector {
      * @throws IllegalArgumentException 목록이 비어 있는 경우
      */
     public static Bcostm pick(List<Bcostm> costs) {
-        Bcostm primary = costs.stream()
-                .min(Comparator.comparing((Bcostm c) -> "Y".equals(c.getLstYn()) ? 0 : 1)
-                        .thenComparing(Bcostm::getBgSno,
-                                Comparator.nullsLast(Comparator.reverseOrder())))
-                .orElseThrow(() -> new IllegalArgumentException("비용 이력 목록이 비어 있습니다."));
-        long latestCount = costs.stream().filter(c -> "Y".equals(c.getLstYn())).count();
-        if (latestCount > 1) {
-            log.warn("전산관리비 LST_YN='Y' 행이 {}건입니다 (costBgNo={}, 선택 bgSno={})",
-                    latestCount, primary.getCostBgNo(), primary.getBgSno());
-        }
-        return primary;
+        return pickByAccessors(costs, Bcostm::getCostBgNo, Bcostm::getBgSno, Bcostm::getLstYn);
     }
 
     /**
@@ -47,16 +38,26 @@ public final class CostRepresentativeSelector {
      */
     public static CostRepository.CostRepresentativeView pickView(
             List<CostRepository.CostRepresentativeView> costs) {
-        CostRepository.CostRepresentativeView primary = costs.stream()
-                .min(Comparator.comparing((CostRepository.CostRepresentativeView c) ->
-                                "Y".equals(c.getLstYn()) ? 0 : 1)
-                        .thenComparing(CostRepository.CostRepresentativeView::getBgSno,
-                                Comparator.nullsLast(Comparator.reverseOrder())))
+        return pickByAccessors(
+                costs,
+                CostRepository.CostRepresentativeView::getCostBgNo,
+                CostRepository.CostRepresentativeView::getBgSno,
+                CostRepository.CostRepresentativeView::getLstYn);
+    }
+
+    private static <T> T pickByAccessors(
+            List<T> costs,
+            Function<T, String> costBgNo,
+            Function<T, Integer> bgSno,
+            Function<T, String> lstYn) {
+        T primary = costs.stream()
+                .min(Comparator.comparing((T cost) -> "Y".equals(lstYn.apply(cost)) ? 0 : 1)
+                        .thenComparing(bgSno, Comparator.nullsLast(Comparator.reverseOrder())))
                 .orElseThrow(() -> new IllegalArgumentException("비용 이력 목록이 비어 있습니다."));
-        long latestCount = costs.stream().filter(c -> "Y".equals(c.getLstYn())).count();
+        long latestCount = costs.stream().filter(cost -> "Y".equals(lstYn.apply(cost))).count();
         if (latestCount > 1) {
             log.warn("전산관리비 LST_YN='Y' 행이 {}건입니다 (costBgNo={}, 선택 bgSno={})",
-                    latestCount, primary.getCostBgNo(), primary.getBgSno());
+                    latestCount, costBgNo.apply(primary), bgSno.apply(primary));
         }
         return primary;
     }

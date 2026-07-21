@@ -2,41 +2,72 @@ package com.kdb.it.domain.budget.plan.repository;
 
 import com.kdb.it.domain.budget.plan.entity.Bplanm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PlanListProjectionIt extends AbstractOracleRepositoryTest {
 
     @Autowired BplanmRepository repository;
+    @Autowired EntityManager entityManager;
 
     @Test
-    void 목록프로젝션이엔티티목록과동일하다() {
-        List<Bplanm> entities = repository.findAllByDelYnOrderByFstEnrDtmDesc("N");
-        List<BplanmRepository.PlanListView> views = repository.findListViewsByDelYnOrderByFstEnrDtmDesc("N");
+    void 고유픽스처의필드필터정렬이프로젝션에정확히매핑된다() {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        String oldNo = "BE03-PLN-OLD-" + suffix;
+        String newNo = "BE03-PLN-NEW-" + suffix;
+        String deletedNo = "BE03-PLN-DEL-" + suffix;
+        LocalDateTime oldTime = LocalDateTime.of(2026, 7, 20, 9, 0);
+        LocalDateTime newTime = oldTime.plusHours(1);
 
-        assertThat(views).hasSameSizeAs(entities);
-        Map<String, Bplanm> byReqDocNo = entities.stream()
-                .collect(Collectors.toMap(Bplanm::getReqDocNo, Function.identity()));
-        for (BplanmRepository.PlanListView view : views) {
-            Bplanm entity = byReqDocNo.get(view.getReqDocNo());
-            assertThat(entity).isNotNull();
-            assertThat(view.getReqDocNo()).isEqualTo(entity.getReqDocNo());
-            assertThat(view.getItPtlPlnTpC()).isEqualTo(entity.getItPtlPlnTpC());
-            assertThat(view.getBseYy()).isEqualTo(entity.getBseYy());
-            assertThat(view.getAduTotAmt()).isEqualTo(entity.getAduTotAmt());
-            assertThat(view.getCpitBgApvAmt()).isEqualTo(entity.getCpitBgApvAmt());
-            assertThat(view.getTotXpAmt()).isEqualTo(entity.getTotXpAmt());
-            assertThat(view.getFstEnrDtm()).isEqualTo(entity.getFstEnrDtm());
-            assertThat(view.getFstEnrUsid()).isEqualTo(entity.getFstEnrUsid());
-            assertThat(view.getRedtConeInf()).isEqualTo(entity.getRedtConeInf());
-        }
+        entityManager.persist(plan(oldNo, oldTime, "{\"prjSnapshots\":[]}", "N"));
+        entityManager.persist(plan(newNo, newTime, "{\"prjSnapshots\":[{\"id\":1}]}", "N"));
+        entityManager.persist(plan(deletedNo, newTime.plusHours(1), "{}", "Y"));
+        entityManager.flush();
+        entityManager.clear();
+
+        List<BplanmRepository.PlanListView> views = repository.findListViewsByDelYnOrderByFstEnrDtmDesc("N");
+        BplanmRepository.PlanListView newView = views.stream()
+                .filter(view -> newNo.equals(view.getReqDocNo()))
+                .findFirst().orElseThrow();
+
+        assertThat(newView.getItPtlPlnTpC()).isEqualTo("01");
+        assertThat(newView.getBseYy()).isEqualTo("2026");
+        assertThat(newView.getAduTotAmt()).isEqualByComparingTo("300");
+        assertThat(newView.getCpitBgApvAmt()).isEqualByComparingTo("200");
+        assertThat(newView.getTotXpAmt()).isEqualByComparingTo("100");
+        assertThat(newView.getFstEnrDtm()).isEqualTo(newTime);
+        assertThat(newView.getFstEnrUsid()).isEqualTo("BE03-TEST");
+        assertThat(newView.getRedtConeInf()).isEqualTo("{\"prjSnapshots\":[{\"id\":1}]}");
+        assertThat(views).extracting(BplanmRepository.PlanListView::getReqDocNo)
+                .contains(oldNo, newNo)
+                .doesNotContain(deletedNo);
+        assertThat(views.indexOf(newView)).isLessThan(views.indexOf(
+                views.stream().filter(view -> oldNo.equals(view.getReqDocNo())).findFirst().orElseThrow()));
         assertThat(BplanmRepository.PlanListView.class.getDeclaredMethods()).hasSize(9);
+    }
+
+    private Bplanm plan(String reqDocNo, LocalDateTime createdAt, String snapshot, String delYn) {
+        return Bplanm.builder()
+                .reqDocNo(reqDocNo)
+                .itPtlPlnTpC("01")
+                .bseYy("2026")
+                .aduTotAmt(new BigDecimal("300"))
+                .cpitBgApvAmt(new BigDecimal("200"))
+                .totXpAmt(new BigDecimal("100"))
+                .redtConeInf(snapshot)
+                .delYn(delYn)
+                .fstEnrDtm(createdAt)
+                .fstEnrUsid("BE03-TEST")
+                .lstChgDtm(createdAt)
+                .lstChgUsid("BE03-TEST")
+                .build();
     }
 }

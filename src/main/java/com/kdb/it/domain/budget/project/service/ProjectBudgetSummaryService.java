@@ -60,6 +60,7 @@ public class ProjectBudgetSummaryService {
      *
      * @param response 예산 합계를 설정할 응답 DTO
      * @param items 합계 계산 대상 품목 프로젝션
+     * @throws NullPointerException 응답 또는 품목 목록이 null인 경우
      */
     public void applyBudgetSummaryViews(
             ProjectDto.Response response,
@@ -160,7 +161,7 @@ public class ProjectBudgetSummaryService {
      *
      * <p>BITEMM.amt는 이미 원화 기준 금액이므로 환율을 다시 적용하지 않습니다.</p>
      *
-     * @param item 품목 엔티티
+     * @param item 품목 예산값
      * @return 저장된 원화 금액, null이면 0
      */
     private BigDecimal resolveKrwAmount(BudgetValues item) {
