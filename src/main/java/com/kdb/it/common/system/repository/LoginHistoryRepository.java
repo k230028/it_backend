@@ -23,6 +23,17 @@ import java.util.List;
  */
 public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
 
+    /** 관리자 로그인 이력 응답에 필요한 프로젝션. */
+    interface LoginHistoryView {
+        String getEno();
+        LocalDateTime getLgnDtm();
+        String getItPtlLgnTc();
+        String getIpAddr();
+        String getLgnErrRsn();
+        String getAgtVrsCone();
+        LocalDateTime getFstEnrDtm();
+    }
+
     /**
      * 사번으로 로그인 이력 조회 (최신순)
      *
@@ -73,6 +84,14 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
      * @return 페이지네이션된 로그인 이력
      */
     Page<Clognh> findAllByOrderByLgnDtmDesc(Pageable pageable);
+
+    /**
+     * 전체 로그인 이력을 관리자 페이지 프로젝션으로 최신순 조회합니다.
+     *
+     * @param pageable 페이지 정보
+     * @return 최신순 로그인 이력 프로젝션 페이지
+     */
+    Page<LoginHistoryView> findPageViewsByOrderByLgnDtmDesc(Pageable pageable);
 
     /**
      * 특정 사용자의 지정 시각 이후 로그인구분코드별 이력 건수 조회 — SEC-03 Brute-force 감지용
