@@ -9,15 +9,11 @@ public interface BoardPostRepositoryCustom {
     /**
      * 게시물 목록 조회 — 권한 필터 + 검색 조건 적용
      *
-     * @param blbMngNo      게시판관리번호
-     * @param cond          검색 조건
-     * @param isAdmin       관리자 여부 (삭제·숨김 게시물도 포함)
+     * @param blbMngNo 게시판관리번호
+     * @param cond 검색 조건
+     * @param isAdmin 관리자 여부 (삭제·숨김 게시물도 포함)
      */
-    Page<Cblbcm> searchPosts(
-        String blbMngNo,
-        BoardPostDto.SearchCondition cond,
-        boolean isAdmin
-    );
+    Page<Cblbcm> searchPosts(String blbMngNo, BoardPostDto.SearchCondition cond, boolean isAdmin);
 
     /**
      * 목록 응답에 필요한 필드만 조회합니다.
@@ -28,8 +24,5 @@ public interface BoardPostRepositoryCustom {
      * @return 권한과 검색 조건을 만족하는 경량 게시물 목록
      */
     Page<BoardPostDto.ListRow> searchPostRows(
-        String blbMngNo,
-        BoardPostDto.SearchCondition cond,
-        boolean isAdmin
-    );
+            String blbMngNo, BoardPostDto.SearchCondition cond, boolean isAdmin);
 }

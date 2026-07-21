@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 /**
  * 결재 상태 enum 단위 테스트
  *
- * <p>코드·라벨 변환, 유효성 검사와 종료 상태 분기를 검증합니다.</p>
+ * <p>코드·라벨 변환, 유효성 검사와 종료 상태 분기를 검증합니다.
  */
 class ApprovalDomainStatusTest {
 

@@ -25,7 +25,8 @@ class CouncilFileReadAuthorizerTest {
     private final CommitteeRepository committeeRepository = mock(CommitteeRepository.class);
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
     private final CouncilFileReadAuthorizer authorizer =
-            new CouncilFileReadAuthorizer(councilRepository, committeeRepository, projectRepository);
+            new CouncilFileReadAuthorizer(
+                    councilRepository, committeeRepository, projectRepository);
 
     private Cfilem file(String asctId) {
         Cfilem f = mock(Cfilem.class);
@@ -64,10 +65,12 @@ class CouncilFileReadAuthorizerTest {
         Basctm council = mock(Basctm.class);
         when(council.getAbusMngNo()).thenReturn("ABUS-1");
         when(council.getSno()).thenReturn(1);
-        given(councilRepository.findByItPtlAsctIdAndDelYn("ASCT-1", "N")).willReturn(Optional.of(council));
+        given(councilRepository.findByItPtlAsctIdAndDelYn("ASCT-1", "N"))
+                .willReturn(Optional.of(council));
         Bprojm project = mock(Bprojm.class);
         when(project.getSvnDpmC()).thenReturn("DEPT-A");
-        given(projectRepository.findById(new BprojmId("ABUS-1", 1))).willReturn(Optional.of(project));
+        given(projectRepository.findById(new BprojmId("ABUS-1", 1)))
+                .willReturn(Optional.of(project));
         CustomUserDetails sameDept = new CustomUserDetails("E001", List.of("ITPZZ001"), "DEPT-A");
         assertThat(authorizer.canRead(file("ASCT-1"), sameDept)).isTrue();
     }
@@ -80,10 +83,12 @@ class CouncilFileReadAuthorizerTest {
         Basctm council = mock(Basctm.class);
         when(council.getAbusMngNo()).thenReturn("ABUS-1");
         when(council.getSno()).thenReturn(1);
-        given(councilRepository.findByItPtlAsctIdAndDelYn("ASCT-1", "N")).willReturn(Optional.of(council));
+        given(councilRepository.findByItPtlAsctIdAndDelYn("ASCT-1", "N"))
+                .willReturn(Optional.of(council));
         Bprojm project = mock(Bprojm.class);
         when(project.getSvnDpmC()).thenReturn("DEPT-A");
-        given(projectRepository.findById(new BprojmId("ABUS-1", 1))).willReturn(Optional.of(project));
+        given(projectRepository.findById(new BprojmId("ABUS-1", 1)))
+                .willReturn(Optional.of(project));
         CustomUserDetails other = new CustomUserDetails("E001", List.of("ITPZZ001"), "DEPT-B");
         assertThat(authorizer.canRead(file("ASCT-1"), other)).isFalse();
     }

@@ -4,6 +4,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.service.MenuQueryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -11,13 +12,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 /**
  * 사용자 메뉴 조회 REST 컨트롤러.
  *
- * <p>기본 URL: {@code /api/menus}. 권한 필터링된 메뉴 트리를 반환하며, 프론트의 사이드바·Breadcrumb
- * 단일 소스로 사용된다. 인증된 사용자라면 접근 가능하고, 노드별 노출 권한은 서비스 계층에서 필터링한다.</p>
+ * <p>기본 URL: {@code /api/menus}. 권한 필터링된 메뉴 트리를 반환하며, 프론트의 사이드바·Breadcrumb 단일 소스로 사용된다. 인증된 사용자라면
+ * 접근 가능하고, 노드별 노출 권한은 서비스 계층에서 필터링한다.
  */
 @RestController
 @RequestMapping("/api/menus")

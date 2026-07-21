@@ -1,18 +1,15 @@
 package com.kdb.it.domain.budget.document.util;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * {@link DocVersionCodec} 단위 테스트
  *
- * <p>
- * 문서버전이 NUMBER(9,0) 정수 컬럼에 절삭 없이 저장되도록 하는 ×100 / ÷100 변환 규약을 검증합니다.
- * </p>
+ * <p>문서버전이 NUMBER(9,0) 정수 컬럼에 절삭 없이 저장되도록 하는 ×100 / ÷100 변환 규약을 검증합니다.
  */
 class DocVersionCodecTest {
 
@@ -49,7 +46,7 @@ class DocVersionCodecTest {
     @Test
     @DisplayName("round-trip: toDisplay(toStored(v)) == v")
     void roundTrip_isStable() {
-        for (String v : new String[]{"0.01", "0.02", "0.10", "1.00", "1.01", "9.99"}) {
+        for (String v : new String[] {"0.01", "0.02", "0.10", "1.00", "1.01", "9.99"}) {
             BigDecimal display = new BigDecimal(v);
             assertThat(DocVersionCodec.toDisplay(DocVersionCodec.toStored(display)))
                     .isEqualByComparingTo(display);
@@ -66,18 +63,16 @@ class DocVersionCodecTest {
     @Test
     @DisplayName("저장 변환은 소수 셋째 자리에서 HALF_UP 반올림한다")
     void toStored_halfUpBoundary_roundsToInteger() {
-        assertThat(DocVersionCodec.toStored(new BigDecimal("1.004")))
-                .isEqualByComparingTo("100");
-        assertThat(DocVersionCodec.toStored(new BigDecimal("1.005")))
-                .isEqualByComparingTo("101");
-        assertThat(DocVersionCodec.toStored(new BigDecimal("-1.005")))
-                .isEqualByComparingTo("-101");
+        assertThat(DocVersionCodec.toStored(new BigDecimal("1.004"))).isEqualByComparingTo("100");
+        assertThat(DocVersionCodec.toStored(new BigDecimal("1.005"))).isEqualByComparingTo("101");
+        assertThat(DocVersionCodec.toStored(new BigDecimal("-1.005"))).isEqualByComparingTo("-101");
     }
 
     @Test
     @DisplayName("표시 변환은 항상 소수 둘째 자리 스케일을 유지한다")
     void toDisplay_integerAndFraction_preservesTwoDigitScale() {
         assertThat(DocVersionCodec.toDisplay(BigDecimal.ZERO)).isEqualTo(new BigDecimal("0.00"));
-        assertThat(DocVersionCodec.toDisplay(new BigDecimal("1.5"))).isEqualTo(new BigDecimal("0.02"));
+        assertThat(DocVersionCodec.toDisplay(new BigDecimal("1.5")))
+                .isEqualTo(new BigDecimal("0.02"));
     }
 }

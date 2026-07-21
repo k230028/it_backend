@@ -1,7 +1,6 @@
 package com.kdb.it.domain.log.annotation;
 
 import com.kdb.it.domain.log.entity.BaseLogEntity;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -11,11 +10,12 @@ import java.lang.annotation.Target;
 /**
  * CUD 변경 로그 대상 엔티티를 지정하는 마커 어노테이션.
  *
- * <p>이 어노테이션이 붙은 엔티티는 {@code @PostPersist} / {@code @PostUpdate} 시
- * {@link com.kdb.it.domain.log.listener.ChangeLogEntityListener}가
- * {@link #entity()}로 지정된 로그 엔티티에 변경 이력을 자동으로 INSERT한다.</p>
+ * <p>이 어노테이션이 붙은 엔티티는 {@code @PostPersist} / {@code @PostUpdate} 시 {@link
+ * com.kdb.it.domain.log.listener.ChangeLogEntityListener}가 {@link #entity()}로 지정된 로그 엔티티에 변경 이력을
+ * 자동으로 INSERT한다.
  *
- * <p>사용 예:</p>
+ * <p>사용 예:
+ *
  * <pre>{@code
  * @LogTarget(entity = BprojmL.class)
  * @Entity

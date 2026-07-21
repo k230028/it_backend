@@ -15,9 +15,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 /**
  * ApplicationContextHolder 단위 테스트
  *
- * <p>JPA EntityListener 가 Spring 빈을 정적으로 조회하는 홀더의
- * 초기화 전/후 동작을 검증합니다. 정적 컨텍스트 필드는 다른 테스트에
- * 영향을 주지 않도록 각 테스트 종료 시 원래 값으로 복원합니다.</p>
+ * <p>JPA EntityListener 가 Spring 빈을 정적으로 조회하는 홀더의 초기화 전/후 동작을 검증합니다. 정적 컨텍스트 필드는 다른 테스트에 영향을 주지 않도록
+ * 각 테스트 종료 시 원래 값으로 복원합니다.
  */
 class ApplicationContextHolderTest {
 
@@ -26,8 +25,9 @@ class ApplicationContextHolderTest {
 
     @BeforeEach
     void setUp() {
-        originalContext = (ApplicationContext) ReflectionTestUtils
-                .getField(ApplicationContextHolder.class, "context");
+        originalContext =
+                (ApplicationContext)
+                        ReflectionTestUtils.getField(ApplicationContextHolder.class, "context");
     }
 
     @AfterEach

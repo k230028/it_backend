@@ -12,7 +12,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 정보기술부문계획 협의회 사업별 평가의견(TPRMPP_BPLEVM) 변경 로그 엔티티.
  *
- * <p>PK(LOG_HIS_TGR_SNO)는 AuditLogIdGenerator가 SQ_TPRMPP_BPLEVL_1.NEXTVAL로 채번한다.</p>
+ * <p>PK(LOG_HIS_TGR_SNO)는 AuditLogIdGenerator가 SQ_TPRMPP_BPLEVL_1.NEXTVAL로 채번한다.
  */
 @Entity
 @Table(name = "TPRMPP_BPLEVL", comment = "프로젝트관리_협의회정보기술부문계획기본변경로그")

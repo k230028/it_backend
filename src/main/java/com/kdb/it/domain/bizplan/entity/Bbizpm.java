@@ -18,9 +18,8 @@ import lombok.experimental.SuperBuilder;
 /**
  * 사업계획 기본(마스터) 엔티티.
  *
- * <p>DB 테이블: {@code TPRMPP_BBIZPM}. 정보화사업(BPROJM)과 1:1(PK=ABUS_MNG_NO)이며,
- * 상태(21 작성중 / 29 작성완료)는 본 테이블이 아니라 BPROJA에
- * {@code CNCD_RFR_NO='BIZ-'+ABUS_MNG_NO} 행으로 기록한다.</p>
+ * <p>DB 테이블: {@code TPRMPP_BBIZPM}. 정보화사업(BPROJM)과 1:1(PK=ABUS_MNG_NO)이며, 상태(21 작성중 / 29 작성완료)는 본
+ * 테이블이 아니라 BPROJA에 {@code CNCD_RFR_NO='BIZ-'+ABUS_MNG_NO} 행으로 기록한다.
  */
 @LogTarget(entity = BbizpmL.class)
 @Entity

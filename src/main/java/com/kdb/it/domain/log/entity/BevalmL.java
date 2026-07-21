@@ -9,9 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-/**
- * 평가위원 평가의견(TPRMPP_BEVALM) 변경 로그 엔티티.
- */
+/** 평가위원 평가의견(TPRMPP_BEVALM) 변경 로그 엔티티. */
 @Entity
 @Table(name = "TPRMPP_BEVALL", comment = "평가위원 평가의견 변경 로그")
 @Getter

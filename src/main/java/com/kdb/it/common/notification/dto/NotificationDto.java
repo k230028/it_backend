@@ -2,17 +2,16 @@ package com.kdb.it.common.notification.dto;
 
 import com.kdb.it.common.notification.entity.Cinfmm;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 /**
  * 알림 도메인 DTO 묶음 (정적 중첩).
  *
- * <p>요청/응답 모델을 한 파일에 모아 Swagger 스키마 등록과 임포트를 단순화한다.</p>
+ * <p>요청/응답 모델을 한 파일에 모아 Swagger 스키마 등록과 임포트를 단순화한다.
  */
 public final class NotificationDto {
 
@@ -29,7 +28,9 @@ public final class NotificationDto {
         @Schema(description = "알림메시지번호", example = "INF-2026-00000001")
         private String infmMsgNo;
 
-        @Schema(description = "알림서비스구분코드 (Ccodem cId='INFM_SVC' cdva, 예: '02'=결재요청)", example = "02")
+        @Schema(
+                description = "알림서비스구분코드 (Ccodem cId='INFM_SVC' cdva, 예: '02'=결재요청)",
+                example = "02")
         private String itPtlInfmSvcTc;
 
         @Schema(description = "제목 (최대 100자)")
@@ -52,15 +53,15 @@ public final class NotificationDto {
 
         public static Item fromEntity(Cinfmm e) {
             return Item.builder()
-                .infmMsgNo(e.getInfmMsgNo())
-                .itPtlInfmSvcTc(e.getItPtlInfmSvcTc())
-                .ttl(e.getTtl())
-                .infmMsgCone(e.getInfmMsgCone())
-                .infmRcdUrl(e.getInfmRcdUrl())
-                .inqYn(e.getInqYn())
-                .inqDtm(e.getInqDtm())
-                .fstEnrDtm(e.getFstEnrDtm())
-                .build();
+                    .infmMsgNo(e.getInfmMsgNo())
+                    .itPtlInfmSvcTc(e.getItPtlInfmSvcTc())
+                    .ttl(e.getTtl())
+                    .infmMsgCone(e.getInfmMsgCone())
+                    .infmRcdUrl(e.getInfmRcdUrl())
+                    .inqYn(e.getInqYn())
+                    .inqDtm(e.getInqDtm())
+                    .fstEnrDtm(e.getFstEnrDtm())
+                    .build();
         }
     }
 

@@ -1,22 +1,22 @@
 package com.kdb.it.common.notification.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * MentionExtractor 단위 테스트.
  *
- * <p>정책 검증:</p>
+ * <p>정책 검증:
+ *
  * <ul>
- *   <li>{@code @4~14자리 숫자} 패턴 추출</li>
- *   <li>작성자 본인 사번은 제외</li>
- *   <li>중복 사번 제거 (LinkedHashSet으로 순서 보존)</li>
- *   <li>null/빈 입력은 빈 집합 반환</li>
+ *   <li>{@code @4~14자리 숫자} 패턴 추출
+ *   <li>작성자 본인 사번은 제외
+ *   <li>중복 사번 제거 (LinkedHashSet으로 순서 보존)
+ *   <li>null/빈 입력은 빈 집합 반환
  * </ul>
  */
 class MentionExtractorTest {
@@ -63,20 +63,15 @@ class MentionExtractorTest {
         @Test
         @DisplayName("여러 KDB 멘션은 입력 순서대로 모두 추출한다")
         void extractsMultipleKdbMentionsInOrder() {
-            Set<String> result = MentionExtractor.extractEnos(
-                "@K140024 그리고 @K140025 검토 부탁드립니다",
-                null
-            );
+            Set<String> result =
+                    MentionExtractor.extractEnos("@K140024 그리고 @K140025 검토 부탁드립니다", null);
             assertThat(result).containsExactly("K140024", "K140025");
         }
 
         @Test
         @DisplayName("동일 사번이 반복되면 1건으로 중복 제거된다")
         void deduplicatesRepeatedEno() {
-            Set<String> result = MentionExtractor.extractEnos(
-                "@K140024 다시 한 번 @K140024",
-                null
-            );
+            Set<String> result = MentionExtractor.extractEnos("@K140024 다시 한 번 @K140024", null);
             assertThat(result).containsExactly("K140024");
         }
 
@@ -103,10 +98,8 @@ class MentionExtractorTest {
         @Test
         @DisplayName("작성자 본인 사번은 결과에서 제외된다")
         void excludesAuthor() {
-            Set<String> result = MentionExtractor.extractEnos(
-                "@K140025 작성자입니다 @K140024",
-                "K140025"
-            );
+            Set<String> result =
+                    MentionExtractor.extractEnos("@K140025 작성자입니다 @K140024", "K140025");
             assertThat(result).containsExactly("K140024");
         }
 

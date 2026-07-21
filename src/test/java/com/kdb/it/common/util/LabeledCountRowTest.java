@@ -1,19 +1,17 @@
 package com.kdb.it.common.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * {@link LabeledCountRow} record 단위 테스트.
  *
- * <p>생성자, 접근자, equals/hashCode, toString,
- * fromRow 팩토리(정상·null count→0 폴백·컬럼 수 예외)를 검증한다.</p>
+ * <p>생성자, 접근자, equals/hashCode, toString, fromRow 팩토리(정상·null count→0 폴백·컬럼 수 예외)를 검증한다.
  */
 @DisplayName("LabeledCountRow")
 class LabeledCountRowTest {
@@ -28,7 +26,7 @@ class LabeledCountRowTest {
         void constructor_validValues_accessorsReturnCorrectValues() {
             // Arrange
             String label = "2026-07";
-            long count   = 42L;
+            long count = 42L;
 
             // Act
             LabeledCountRow row = new LabeledCountRow(label, count);

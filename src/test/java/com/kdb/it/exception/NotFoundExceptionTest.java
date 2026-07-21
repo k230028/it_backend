@@ -5,9 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * NotFoundException 단위 테스트 — 메시지 보존 및 RuntimeException 상속 검증.
- */
+/** NotFoundException 단위 테스트 — 메시지 보존 및 RuntimeException 상속 검증. */
 class NotFoundExceptionTest {
 
     @Test

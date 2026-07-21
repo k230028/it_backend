@@ -1,5 +1,12 @@
 package com.kdb.it.domain.council.service;
 
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.iam.service.UserRepresentativeSelector;
+import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.entity.Bcmmtm;
+import com.kdb.it.domain.council.repository.CommitteeRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -7,36 +14,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.iam.service.UserRepresentativeSelector;
-import com.kdb.it.domain.council.dto.CouncilDto;
-import com.kdb.it.domain.council.entity.Bcmmtm;
-import com.kdb.it.domain.council.repository.CommitteeRepository;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 협의회 평가위원 서비스 (Step 2 — 위원 선정)
  *
- * <p>IT관리자(ITPAD001)가 심의유형에 따라 당연위원/소집위원/간사를 선정합니다.</p>
+ * <p>IT관리자(ITPAD001)가 심의유형에 따라 당연위원/소집위원/간사를 선정합니다.
  *
- * <p>당연위원 자동 매핑 (TEM_C 기준):</p>
+ * <p>당연위원 자동 매핑 (TEM_C 기준):
+ *
  * <ul>
- *   <li>INFO_SYS: 예산(12004), PMO(18010), 디지털기획(18501), 정보보호기획(18301)</li>
- *   <li>INFO_SEC: 예산(12004), IT기획(18001), PMO(18010), 디지털기획(18501)</li>
- *   <li>ETC: 예산(12004), PMO(18010), 디지털기획(18501)</li>
- *   <li>정보기술부문계획(dbrTc=02): 미래전략(14011), IT기획(18001) — IT기획팀장은 평가위원 겸 간사('04')</li>
+ *   <li>INFO_SYS: 예산(12004), PMO(18010), 디지털기획(18501), 정보보호기획(18301)
+ *   <li>INFO_SEC: 예산(12004), IT기획(18001), PMO(18010), 디지털기획(18501)
+ *   <li>ETC: 예산(12004), PMO(18010), 디지털기획(18501)
+ *   <li>정보기술부문계획(dbrTc=02): 미래전략(14011), IT기획(18001) — IT기획팀장은 평가위원 겸 간사('04')
  * </ul>
  *
- * <p>위원 저장 전략: 전체 교체 (기존 Soft Delete + 신규 INSERT)</p>
+ * <p>위원 저장 전략: 전체 교체 (기존 Soft Delete + 신규 INSERT)
  *
- * <p>Design Ref: §2.1 CommitteeService — Step 2 담당</p>
+ * <p>Design Ref: §2.1 CommitteeService — Step 2 담당
  */
 @Service
 @RequiredArgsConstructor
@@ -55,29 +53,30 @@ public class CommitteeService {
     /**
      * JPA EntityManager — 신규 위원 INSERT 전용 persist() 호출용.
      *
-     * <p>JpaRepository.save()는 ID 채워진 detached entity에 대해 merge()를 호출해
-     * BaseEntity 필드(특히 delYn)를 null로 덮어쓰는 회귀가 있어 직접 persist를 사용합니다(PRD §14/§15).</p>
+     * <p>JpaRepository.save()는 ID 채워진 detached entity에 대해 merge()를 호출해 BaseEntity 필드(특히 delYn)를
+     * null로 덮어쓰는 회귀가 있어 직접 persist를 사용합니다(PRD §14/§15).
      */
-    @PersistenceContext
-    private EntityManager entityManager;
+    @PersistenceContext private EntityManager entityManager;
 
     // 심의유형별 당연위원 팀코드 매핑 (TEM_C 기준, Design §2.4)
-    private static final Map<String, List<String>> MANDATORY_TEM_CODES = Map.of(
-        "02", List.of("14011", "18001"),                    // 정보기술부문계획: 미래전략팀장, IT기획팀장
-        "03", List.of("12004", "18010", "18501", "18301"),  // INFO_SYS
-        "04", List.of("12004", "18001", "18010", "18501"),  // INFO_SEC
-        "05", List.of("12004", "18010", "18501")            // ETC
-    );
+    private static final Map<String, List<String>> MANDATORY_TEM_CODES =
+            Map.of(
+                    "02", List.of("14011", "18001"), // 정보기술부문계획: 미래전략팀장, IT기획팀장
+                    "03", List.of("12004", "18010", "18501", "18301"), // INFO_SYS
+                    "04", List.of("12004", "18001", "18010", "18501"), // INFO_SEC
+                    "05", List.of("12004", "18010", "18501") // ETC
+                    );
 
     // 심의유형별 간사 팀코드 매핑 (TEM_C 기준)
     // 003(INFO_SYS) / 005(ETC): IT기획(18001) → 간사
     // 004(INFO_SEC): 정보보호기획(18301) → 간사
-    private static final Map<String, List<String>> SECRETARY_TEM_CODES = Map.of(
-        "02", List.of("18001"),  // 정보기술부문계획: IT기획팀장(당연위원과 동일인 → 겸직 '04')
-        "03", List.of("18001"),  // INFO_SYS
-        "04", List.of("18301"),  // INFO_SEC
-        "05", List.of("18001")   // ETC
-    );
+    private static final Map<String, List<String>> SECRETARY_TEM_CODES =
+            Map.of(
+                    "02", List.of("18001"), // 정보기술부문계획: IT기획팀장(당연위원과 동일인 → 겸직 '04')
+                    "03", List.of("18001"), // INFO_SYS
+                    "04", List.of("18301"), // INFO_SEC
+                    "05", List.of("18001") // ETC
+                    );
 
     /** INFO_SYS 일정 확정 필수 응답 팀코드 (예산:12004, IT기획:18001) */
     static final List<String> INFO_SYS_REQUIRED_TEM_CODES = List.of("12004", "18001");
@@ -89,8 +88,7 @@ public class CommitteeService {
     /**
      * 심의유형별 당연위원 후보 조회 (IT관리자 선정 화면용)
      *
-     * <p>협의회의 dbrTc(심의유형)를 기준으로 당연위원 대상 팀코드를 조회하고,
-     * 각 팀에서 팀장(ptCNm='팀장') 또는 첫 번째 사용자를 후보로 반환합니다.</p>
+     * <p>협의회의 dbrTc(심의유형)를 기준으로 당연위원 대상 팀코드를 조회하고, 각 팀에서 팀장(ptCNm='팀장') 또는 첫 번째 사용자를 후보로 반환합니다.
      *
      * @param asctId 협의회ID
      * @return 당연위원 후보 목록
@@ -104,15 +102,18 @@ public class CommitteeService {
         List<String> secrTemCodes = SECRETARY_TEM_CODES.getOrDefault(dbrTc, List.of());
 
         // 팀코드별 대표 후보(팀장 우선) 해석 — 입력 팀코드 순서 보존
-        Map<String, UserRepository.CommitteeUserRow> mandCandidates = resolveTeamLeads(mandTemCodes);
-        Map<String, UserRepository.CommitteeUserRow> secrCandidates = resolveTeamLeads(secrTemCodes);
+        Map<String, UserRepository.CommitteeUserRow> mandCandidates =
+                resolveTeamLeads(mandTemCodes);
+        Map<String, UserRepository.CommitteeUserRow> secrCandidates =
+                resolveTeamLeads(secrTemCodes);
 
         // 간사 후보 사번 집합 — 당연위원과 겹치면 겸직('04')으로 병합
         // (dbrTc='02' 정보기술부문계획: IT기획팀장이 평가위원 겸 간사. BCMMTM PK=(협의회ID,사번)이라
         //  1인 2행이 불가하므로 '04'(당연위원 겸 간사) 단일 유형으로 표현한다.)
-        Set<String> secrEnos = secrCandidates.values().stream()
-                .map(user -> user.getEno())
-                .collect(Collectors.toSet());
+        Set<String> secrEnos =
+                secrCandidates.values().stream()
+                        .map(user -> user.getEno())
+                        .collect(Collectors.toSet());
 
         List<CouncilDto.CommitteeMemberResponse> result = new ArrayList<>();
         Set<String> emittedEnos = new HashSet<>();
@@ -137,7 +138,7 @@ public class CommitteeService {
     /**
      * 협의회 평가위원 목록 조회
      *
-     * <p>위원유형별(당연/소집/간사)로 분류하여 반환합니다.</p>
+     * <p>위원유형별(당연/소집/간사)로 분류하여 반환합니다.
      *
      * @param asctId 협의회ID
      * @return 위원유형별 목록
@@ -159,9 +160,9 @@ public class CommitteeService {
             CouncilDto.CommitteeMemberResponse resp = toMemberResponseFromView(m, user);
 
             switch (m.getItPtlAsctMebTc()) {
-                case "01" -> mandatory.add(resp);   // 당연위원(MAND)
-                case "02" -> call.add(resp);         // 소집위원(CALL)
-                case "03" -> secretary.add(resp);    // 간사(SECR)
+                case "01" -> mandatory.add(resp); // 당연위원(MAND)
+                case "02" -> call.add(resp); // 소집위원(CALL)
+                case "03" -> secretary.add(resp); // 간사(SECR)
                 // '04' 당연위원 겸 간사(dbrTc='02'): 평가위원 목록(당연위원)에 노출하고,
                 // 간사 여부는 위원유형(mebTc='04')으로 프론트가 판별한다(중복 노출 방지).
                 case "04" -> mandatory.add(resp);
@@ -178,20 +179,20 @@ public class CommitteeService {
     /**
      * 평가위원 선정/수정 (upsert 패턴)
      *
-     * <p>요청 위원 목록과 기존 위원을 사번 기준으로 비교하여:</p>
+     * <p>요청 위원 목록과 기존 위원을 사번 기준으로 비교하여:
+     *
      * <ul>
-     *   <li>이미 등록된 사번 → 영속 객체의 vlrTc만 변경 (JPA Dirty Checking)</li>
-     *   <li>신규 사번 → INSERT</li>
-     *   <li>요청에 없는 기존 사번 → Soft Delete</li>
+     *   <li>이미 등록된 사번 → 영속 객체의 vlrTc만 변경 (JPA Dirty Checking)
+     *   <li>신규 사번 → INSERT
+     *   <li>요청에 없는 기존 사번 → Soft Delete
      * </ul>
      *
-     * <p>이전 구현(전체 Soft Delete 후 신규 INSERT)은 같은 PK(ASCT_ID, ENO)에 대해
-     * 영속성 컨텍스트의 delete 처리 객체와 신규 build 객체가 merge되며 BaseEntity 컬럼이
-     * 비정상 덮어써져, 후속 조회에서 빈 목록이 반환되는 회귀가 있었습니다(PRD §14).</p>
+     * <p>이전 구현(전체 Soft Delete 후 신규 INSERT)은 같은 PK(ASCT_ID, ENO)에 대해 영속성 컨텍스트의 delete 처리 객체와 신규
+     * build 객체가 merge되며 BaseEntity 컬럼이 비정상 덮어써져, 후속 조회에서 빈 목록이 반환되는 회귀가 있었습니다(PRD §14).
      *
-     * <p>위원 확정 시 협의회 상태를 PREPARING으로 전이합니다.</p>
+     * <p>위원 확정 시 협의회 상태를 PREPARING으로 전이합니다.
      *
-     * @param asctId  협의회ID
+     * @param asctId 협의회ID
      * @param request 위원 선정 요청 (심의유형 + 위원 목록)
      */
     @Transactional
@@ -200,9 +201,9 @@ public class CommitteeService {
         councilService.findActiveCouncil(asctId);
 
         // 기존 활성 위원을 사번 기준으로 인덱싱
-        Map<String, Bcmmtm> existingByEno = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
-                .stream()
-                .collect(Collectors.toMap(value -> value.getEno(), m -> m, (a, b) -> a));
+        Map<String, Bcmmtm> existingByEno =
+                committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N").stream()
+                        .collect(Collectors.toMap(value -> value.getEno(), m -> m, (a, b) -> a));
 
         Set<String> requestedEnos = new HashSet<>();
 
@@ -220,11 +221,12 @@ public class CommitteeService {
                  *     영속 객체에 복사돼 DEL_YN=null로 저장되는 회귀가 있었음 (PRD §15)
                  *   - persist()는 새 entity로 처리되며 @PrePersist가 발화해 delYn='N'으로 자동 채움
                  */
-                Bcmmtm member = Bcmmtm.builder()
-                        .itPtlAsctId(asctId)
-                        .eno(req.eno())
-                        .itPtlAsctMebTc(req.vlrTc())
-                        .build();
+                Bcmmtm member =
+                        Bcmmtm.builder()
+                                .itPtlAsctId(asctId)
+                                .eno(req.eno())
+                                .itPtlAsctMebTc(req.vlrTc())
+                                .build();
                 entityManager.persist(member);
             }
         }
@@ -246,9 +248,8 @@ public class CommitteeService {
     /**
      * 팀코드 목록별 대표 후보(팀장 우선→사번 오름차순)를 해석합니다. (BE-10)
      *
-     * <p>팀코드 전체의 활성 사용자를 팀 대표 프로젝션으로 한 번에 조회하고, 팀별 대표자는
-     * {@link UserRepresentativeSelector}가 결정적으로 선택합니다. 팀원이 없는 팀은
-     * 결과에서 제외하며, 반환 Map은 입력 팀코드 순서를 보존합니다(LinkedHashMap).</p>
+     * <p>팀코드 전체의 활성 사용자를 팀 대표 프로젝션으로 한 번에 조회하고, 팀별 대표자는 {@link UserRepresentativeSelector}가 결정적으로
+     * 선택합니다. 팀원이 없는 팀은 결과에서 제외하며, 반환 Map은 입력 팀코드 순서를 보존합니다(LinkedHashMap).
      *
      * @param temCodes 후보를 뽑을 팀코드 목록
      * @return 팀코드 → 대표 후보 프로젝션 매핑 (순서 보존)
@@ -257,9 +258,9 @@ public class CommitteeService {
         if (temCodes.isEmpty()) {
             return Map.of();
         }
-        Map<String, List<UserRepository.CommitteeUserRow>> usersByTeam = userRepository
-                .findCommitteeUserRowsByTemCInAndDelYn(temCodes, "N").stream()
-                .collect(Collectors.groupingBy(user -> user.getTemC()));
+        Map<String, List<UserRepository.CommitteeUserRow>> usersByTeam =
+                userRepository.findCommitteeUserRowsByTemCInAndDelYn(temCodes, "N").stream()
+                        .collect(Collectors.groupingBy(user -> user.getTemC()));
         Map<String, UserRepository.CommitteeUserRow> leads = new LinkedHashMap<>();
         for (String temC : temCodes) {
             UserRepresentativeSelector.pickView(usersByTeam.getOrDefault(temC, List.of()))
@@ -271,7 +272,7 @@ public class CommitteeService {
     /**
      * 위원 목록의 사번으로 응답용 사용자 정보 Map 생성.
      *
-     * <p>사번 집합을 모아 위원 응답 프로젝션으로 일괄 조회합니다.</p>
+     * <p>사번 집합을 모아 위원 응답 프로젝션으로 일괄 조회합니다.
      */
     private Map<String, UserRepository.CouncilMemberUserRow> buildUserMap(List<Bcmmtm> members) {
         List<String> enos = members.stream().map(member -> member.getEno()).distinct().toList();
@@ -292,8 +293,7 @@ public class CommitteeService {
     /**
      * 위원 엔티티와 사용자 프로젝션을 위원 응답으로 변환합니다.
      *
-     * <p>사용자 정보가 없는 경우(탈퇴 등) 사번만 포함합니다.
-     * cnfmYn은 BCMMTM 엔티티의 실제 값을 반영합니다.</p>
+     * <p>사용자 정보가 없는 경우(탈퇴 등) 사번만 포함합니다. cnfmYn은 BCMMTM 엔티티의 실제 값을 반영합니다.
      */
     private CouncilDto.CommitteeMemberResponse toMemberResponseFromView(
             Bcmmtm member, UserRepository.CouncilMemberUserRow user) {
@@ -303,7 +303,7 @@ public class CommitteeService {
                 user != null ? user.getBbrNm() : null,
                 user != null ? user.getPtCNm() : null,
                 member.getItPtlAsctMebTc(),
-                member.getCnfmYn()  // 결과서 검토 확인 여부
-        );
+                member.getCnfmYn() // 결과서 검토 확인 여부
+                );
     }
 }

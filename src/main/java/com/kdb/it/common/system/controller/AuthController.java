@@ -1,60 +1,50 @@
 package com.kdb.it.common.system.controller;
 
 import com.kdb.it.common.system.dto.AuthDto;
-import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.exception.InvalidRefreshTokenException;
-
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
-import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * 인증(Authentication) REST 컨트롤러
  *
- * <p>
- * 관리자 계정 생성, 로그인, 로그아웃, JWT 토큰 갱신 기능을 담당합니다.
- * </p>
+ * <p>관리자 계정 생성, 로그인, 로그아웃, JWT 토큰 갱신 기능을 담당합니다.
  *
- * <p>
- * 기본 URL: {@code /api/auth}
- * </p>
+ * <p>기본 URL: {@code /api/auth}
  *
- * <p>
- * JWT 토큰은 httpOnly 쿠키로 전달됩니다 (XSS 토큰 탈취 방지).
- * </p>
+ * <p>JWT 토큰은 httpOnly 쿠키로 전달됩니다 (XSS 토큰 탈취 방지).
  *
- * <p>
- * 인증 불필요 공개 엔드포인트 (SecurityConfig에서 permitAll 설정):
- * </p>
+ * <p>인증 불필요 공개 엔드포인트 (SecurityConfig에서 permitAll 설정):
+ *
  * <ul>
- * <li>{@code POST /api/auth/login}: 로그인</li>
- * <li>{@code POST /api/auth/refresh}: 토큰 갱신</li>
+ *   <li>{@code POST /api/auth/login}: 로그인
+ *   <li>{@code POST /api/auth/refresh}: 토큰 갱신
  * </ul>
  *
- * <p>
- * 인증 필요 엔드포인트:
- * </p>
+ * <p>인증 필요 엔드포인트:
+ *
  * <ul>
- * <li>{@code POST /api/auth/logout}: 로그아웃 (JWT 토큰 필요)</li>
- * <li>{@code POST /api/auth/signup}: 관리자 권한으로 신규 사용자 생성</li>
+ *   <li>{@code POST /api/auth/logout}: 로그아웃 (JWT 토큰 필요)
+ *   <li>{@code POST /api/auth/signup}: 관리자 권한으로 신규 사용자 생성
  * </ul>
  */
 @RestController // REST API 컨트롤러로 등록
@@ -74,30 +64,30 @@ public class AuthController {
     /**
      * 생성자 — 신뢰 프록시 CSV를 {@code app.trusted-proxies}에서 주입받아 1회 파싱합니다.
      *
-     * @param authService      인증 서비스
-     * @param cookieUtil       토큰 쿠키 유틸리티
+     * @param authService 인증 서비스
+     * @param cookieUtil 토큰 쿠키 유틸리티
      * @param trustedProxiesCsv 신뢰 프록시 IP 목록(CSV). 비어 있으면 XFF를 신뢰하지 않음.
      */
     public AuthController(
             AuthService authService,
             CookieUtil cookieUtil,
-            @org.springframework.beans.factory.annotation.Value("${app.trusted-proxies:}") String trustedProxiesCsv) {
+            @org.springframework.beans.factory.annotation.Value("${app.trusted-proxies:}")
+                    String trustedProxiesCsv) {
         this.authService = authService;
         this.cookieUtil = cookieUtil;
-        this.trustedProxies = (trustedProxiesCsv == null || trustedProxiesCsv.isBlank())
-                ? java.util.Set.of()
-                : java.util.Arrays.stream(trustedProxiesCsv.split(","))
-                        .map(value -> value.trim()).filter(s -> !s.isEmpty())
-                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        this.trustedProxies =
+                (trustedProxiesCsv == null || trustedProxiesCsv.isBlank())
+                        ? java.util.Set.of()
+                        : java.util.Arrays.stream(trustedProxiesCsv.split(","))
+                                .map(value -> value.trim())
+                                .filter(s -> !s.isEmpty())
+                                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     /**
      * 회원가입
      *
-     * <p>
-     * 새로운 사용자 계정을 생성합니다.
-     * 비밀번호는 SHA-256으로 암호화하여 DB에 저장됩니다.
-     * </p>
+     * <p>새로운 사용자 계정을 생성합니다. 비밀번호는 SHA-256으로 암호화하여 DB에 저장됩니다.
      *
      * @param request 회원가입 요청 (사번, 이름, 비밀번호)
      * @return HTTP 200 + "회원가입 성공" 메시지
@@ -112,56 +102,53 @@ public class AuthController {
     /**
      * 로그인 및 JWT 토큰 발급
      *
-     * <p>
-     * 사번과 비밀번호로 인증 후 Access Token과 Refresh Token을
-     * httpOnly 쿠키로 발급합니다.
-     * </p>
+     * <p>사번과 비밀번호로 인증 후 Access Token과 Refresh Token을 httpOnly 쿠키로 발급합니다.
      *
-     * <p>
-     * 처리 흐름:
-     * </p>
+     * <p>처리 흐름:
+     *
      * <ol>
-     * <li>클라이언트 IP 주소 및 User-Agent 추출</li>
-     * <li>AuthService에서 사용자 인증 수행</li>
-     * <li>Access Token → httpOnly 쿠키 (Set-Cookie 헤더)</li>
-     * <li>Refresh Token → httpOnly 쿠키 (Set-Cookie 헤더)</li>
-     * <li>응답 body에는 eno, empNm, athIds, bbrC, temC 포함 (accessToken/refreshToken은 @JsonIgnore로 제외)</li>
+     *   <li>클라이언트 IP 주소 및 User-Agent 추출
+     *   <li>AuthService에서 사용자 인증 수행
+     *   <li>Access Token → httpOnly 쿠키 (Set-Cookie 헤더)
+     *   <li>Refresh Token → httpOnly 쿠키 (Set-Cookie 헤더)
+     *   <li>응답 body에는 eno, empNm, athIds, bbrC, temC 포함 (accessToken/refreshToken은 @JsonIgnore로 제외)
      * </ol>
      *
-     * @param request     로그인 요청 (사번, 비밀번호)
+     * @param request 로그인 요청 (사번, 비밀번호)
      * @param httpRequest HTTP 요청 객체 (IP, User-Agent 추출용)
-     * @return HTTP 200 + Set-Cookie(accessToken, refreshToken) + body(eno, empNm, athIds, bbrC, temC)
+     * @return HTTP 200 + Set-Cookie(accessToken, refreshToken) + body(eno, empNm, athIds, bbrC,
+     *     temC)
      */
     @PostMapping("/login")
     @Operation(summary = "로그인", description = "로그인하여 JWT 토큰을 httpOnly 쿠키로 발급받습니다.")
     public ResponseEntity<AuthDto.LoginResponse> login(
-            @Valid @RequestBody AuthDto.LoginRequest request,
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody AuthDto.LoginRequest request, HttpServletRequest httpRequest) {
         // 클라이언트의 실제 IP 주소 추출 (프록시 환경 고려)
         String ipAddress = getClientIp(httpRequest);
         // 클라이언트 브라우저/기기 정보
         String userAgent = httpRequest.getHeader("User-Agent");
 
         // 인증 처리 및 토큰 발급 (LoginResponse에 토큰 포함, body 직렬화 시 @JsonIgnore)
-        AuthDto.LoginResponse response = authService.login(
-                request.getEno(), request.getPassword(), ipAddress, userAgent);
+        AuthDto.LoginResponse response =
+                authService.login(request.getEno(), request.getPassword(), ipAddress, userAgent);
 
         // Access Token, Refresh Token을 httpOnly 쿠키로 설정
         ResponseCookie accessCookie = cookieUtil.createAccessTokenCookie(response.getAccessToken());
-        ResponseCookie refreshCookie = cookieUtil.createRefreshTokenCookie(response.getRefreshToken());
+        ResponseCookie refreshCookie =
+                cookieUtil.createRefreshTokenCookie(response.getRefreshToken());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
-                .body(response); // body에는 eno, empNm, athIds, bbrC, temC 포함 (accessToken/refreshToken만 @JsonIgnore로 제외)
+                .body(response); // body에는 eno, empNm, athIds, bbrC, temC 포함
+        // (accessToken/refreshToken만 @JsonIgnore로 제외)
     }
 
     /**
      * 현재 Access Token으로 화면 인증 상태를 복원합니다.
      *
-     * <p>SSO 완료 직후 화면용 {@code it-portal-user} 쿠키가 Nuxt 상태에 반영되지 않았거나
-     * 사용자가 해당 쿠키만 삭제한 경우에도, 서버가 검증한 Access Token의 사번으로 최신 사용자 정보를
-     * 반환합니다. 인증되지 않은 요청은 Spring Security에서 401로 거부합니다.</p>
+     * <p>SSO 완료 직후 화면용 {@code it-portal-user} 쿠키가 Nuxt 상태에 반영되지 않았거나 사용자가 해당 쿠키만 삭제한 경우에도, 서버가 검증한
+     * Access Token의 사번으로 최신 사용자 정보를 반환합니다. 인증되지 않은 요청은 Spring Security에서 401로 거부합니다.
      *
      * @param currentUser Access Token 검증으로 생성된 현재 사용자
      * @return 화면 세션 복원에 필요한 사용자·권한·소속 정보
@@ -176,30 +163,24 @@ public class AuthController {
     /**
      * Access Token 갱신
      *
-     * <p>
-     * 만료된 Access Token 대신 유효한 Refresh Token(쿠키)을 사용하여
-     * 새로운 Access Token을 httpOnly 쿠키로 발급받습니다.
-     * </p>
+     * <p>만료된 Access Token 대신 유효한 Refresh Token(쿠키)을 사용하여 새로운 Access Token을 httpOnly 쿠키로 발급받습니다.
      *
-     * <p>
-     * 처리 흐름:
-     * </p>
+     * <p>처리 흐름:
+     *
      * <ol>
-     * <li>요청 쿠키에서 Refresh Token 추출</li>
-     * <li>JwtUtil로 토큰 서명 검증</li>
-     * <li>DB(TPRMPP_CRTOKM 테이블)에서 토큰 조회</li>
-     * <li>토큰 만료 여부 확인</li>
-     * <li>새 Access Token 생성 → httpOnly 쿠키로 전달</li>
+     *   <li>요청 쿠키에서 Refresh Token 추출
+     *   <li>JwtUtil로 토큰 서명 검증
+     *   <li>DB(TPRMPP_CRTOKM 테이블)에서 토큰 조회
+     *   <li>토큰 만료 여부 확인
+     *   <li>새 Access Token 생성 → httpOnly 쿠키로 전달
      * </ol>
      *
-     * <p>
-     * Refresh 쿠키가 없거나 검증에 실패({@link InvalidRefreshTokenException})하면 HTTP 401과 함께
-     * Access·Refresh 쿠키를 모두 삭제({@link #unauthorizedRefreshResponse()})하여 재로그인을 유도합니다.
-     * </p>
+     * <p>Refresh 쿠키가 없거나 검증에 실패({@link InvalidRefreshTokenException})하면 HTTP 401과 함께 Access·Refresh
+     * 쿠키를 모두 삭제({@link #unauthorizedRefreshResponse()})하여 재로그인을 유도합니다.
      *
      * @param httpRequest HTTP 요청 객체 (쿠키에서 Refresh Token 추출)
-     * @return 성공 시 HTTP 200 + Set-Cookie(새 accessToken, 회전 시 refreshToken) + "토큰 갱신 성공";
-     *         실패 시 HTTP 401 + Access/Refresh 삭제 Set-Cookie 2개 + "다시 로그인해 주세요."
+     * @return 성공 시 HTTP 200 + Set-Cookie(새 accessToken, 회전 시 refreshToken) + "토큰 갱신 성공"; 실패 시 HTTP
+     *     401 + Access/Refresh 삭제 Set-Cookie 2개 + "다시 로그인해 주세요."
      */
     @PostMapping("/refresh")
     @Operation(summary = "토큰 갱신", description = "Refresh Token 쿠키를 사용하여 새로운 Access Token을 발급받습니다.")
@@ -224,12 +205,13 @@ public class AuthController {
         // 새 Access Token을 httpOnly 쿠키로 설정
         ResponseCookie accessCookie = cookieUtil.createAccessTokenCookie(response.getAccessToken());
 
-        ResponseEntity.BodyBuilder builder = ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, accessCookie.toString());
+        ResponseEntity.BodyBuilder builder =
+                ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, accessCookie.toString());
 
         // 회전된 Refresh Token이 있으면 로그인과 동일 정책으로 쿠키 재설정 (탈취 재사용 방어)
         if (response.getRefreshToken() != null) {
-            ResponseCookie refreshCookie = cookieUtil.createRefreshTokenCookie(response.getRefreshToken());
+            ResponseCookie refreshCookie =
+                    cookieUtil.createRefreshTokenCookie(response.getRefreshToken());
             builder.header(HttpHeaders.SET_COOKIE, refreshCookie.toString());
         }
 
@@ -239,10 +221,9 @@ public class AuthController {
     /**
      * 잘못된 Refresh 요청을 HTTP 401과 인증 쿠키 삭제로 응답합니다.
      *
-     * <p>Refresh 쿠키가 없거나 {@link InvalidRefreshTokenException}이 발생한 경우 호출됩니다.
-     * Access·Refresh 쿠키를 모두 만료시켜(Max-Age=0) 브라우저에서 제거하고 재로그인을 유도합니다.
-     * 응답 본문에는 재로그인 안내 문구만 노출하고 토큰 값이나 내부 원인은 남기지 않습니다.
-     * 쿠키 속성은 로그아웃과 동일하게 {@code CookieUtil}의 삭제 헬퍼를 재사용합니다.</p>
+     * <p>Refresh 쿠키가 없거나 {@link InvalidRefreshTokenException}이 발생한 경우 호출됩니다. Access·Refresh 쿠키를 모두
+     * 만료시켜(Max-Age=0) 브라우저에서 제거하고 재로그인을 유도합니다. 응답 본문에는 재로그인 안내 문구만 노출하고 토큰 값이나 내부 원인은 남기지 않습니다. 쿠키
+     * 속성은 로그아웃과 동일하게 {@code CookieUtil}의 삭제 헬퍼를 재사용합니다.
      *
      * @return 401 응답 + Access/Refresh 삭제 Set-Cookie 2개 + 재로그인 안내 메시지
      */
@@ -258,10 +239,7 @@ public class AuthController {
     /**
      * 로그아웃
      *
-     * <p>
-     * 현재 로그인한 사용자의 Refresh Token을 DB에서 삭제하여 무효화하고,
-     * Access Token과 Refresh Token 쿠키를 즉시 만료시킵니다.
-     * </p>
+     * <p>현재 로그인한 사용자의 Refresh Token을 DB에서 삭제하여 무효화하고, Access Token과 Refresh Token 쿠키를 즉시 만료시킵니다.
      *
      * @param httpRequest HTTP 요청 객체 (IP, User-Agent 추출 및 이력 기록용)
      * @return HTTP 200 + Set-Cookie(삭제) + "로그아웃 성공"
@@ -271,11 +249,12 @@ public class AuthController {
     public ResponseEntity<String> logout(HttpServletRequest httpRequest) {
         String refreshToken = extractCookieValue(httpRequest, CookieUtil.REFRESH_TOKEN_COOKIE);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String authenticatedEno = authentication != null
-                && authentication.isAuthenticated()
-                && !(authentication instanceof AnonymousAuthenticationToken)
-                ? authentication.getName()
-                : null;
+        String authenticatedEno =
+                authentication != null
+                                && authentication.isAuthenticated()
+                                && !(authentication instanceof AnonymousAuthenticationToken)
+                        ? authentication.getName()
+                        : null;
         String ipAddress = getClientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
 
@@ -298,7 +277,7 @@ public class AuthController {
     /**
      * HTTP 요청 쿠키에서 특정 쿠키 값 추출
      *
-     * @param request    HTTP 요청 객체
+     * @param request HTTP 요청 객체
      * @param cookieName 추출할 쿠키 이름
      * @return 쿠키 값 (없으면 null)
      */
@@ -317,12 +296,9 @@ public class AuthController {
     /**
      * 클라이언트 IP 주소 추출
      *
-     * <p>
-     * 로드밸런서, 리버스 프록시(Nginx, Apache), CDN 등을 경유한
-     * 요청에서 실제 클라이언트 IP를 추출합니다. {@code X-Forwarded-For}는 위조 가능하므로,
-     * 직접 연결한 프록시({@code remoteAddr})가 {@code app.trusted-proxies} allowlist에
-     * 포함된 경우에만 신뢰하고, 멀티 IP는 최좌측(원 클라이언트)만 사용합니다.
-     * </p>
+     * <p>로드밸런서, 리버스 프록시(Nginx, Apache), CDN 등을 경유한 요청에서 실제 클라이언트 IP를 추출합니다. {@code
+     * X-Forwarded-For}는 위조 가능하므로, 직접 연결한 프록시({@code remoteAddr})가 {@code app.trusted-proxies}
+     * allowlist에 포함된 경우에만 신뢰하고, 멀티 IP는 최좌측(원 클라이언트)만 사용합니다.
      *
      * @param request HTTP 요청 객체
      * @return 클라이언트의 실제 IP 주소 문자열

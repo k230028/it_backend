@@ -1,18 +1,17 @@
 package com.kdb.it.common.admin.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-
 import java.time.LocalDateTime;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class AdminListProjectionIt extends AbstractOracleRepositoryTest {
 
@@ -25,19 +24,20 @@ class AdminListProjectionIt extends AbstractOracleRepositoryTest {
         LocalDateTime registeredAt = LocalDateTime.of(2026, 7, 21, 13, 0);
         entityManager.persist(file("FL_BE03_ADMIN_ACTIVE", "N", registeredAt));
         entityManager.persist(file("FL_BE03_ADMIN_DELETED", "Y", registeredAt.plusMinutes(1)));
-        entityManager.persist(Crtokm.builder()
-                .apiTokCone("API-TOKEN-SENTINEL-BE03")
-                .ecyRnwPubTokCone("BE03-ADMIN-LOOKUP-UNIQUE")
-                .eno("BE03-ADMIN-TOKEN")
-                .endDtm(registeredAt.plusDays(7))
-                .famNm("BE03-ADMIN-FAMILY")
-                .avlYn("Y")
-                .fstEnrDtm(registeredAt)
-                .fstEnrUsid("BE03-TEST")
-                .lstChgDtm(registeredAt)
-                .lstChgUsid("BE03-TEST")
-                .delYn("N")
-                .build());
+        entityManager.persist(
+                Crtokm.builder()
+                        .apiTokCone("API-TOKEN-SENTINEL-BE03")
+                        .ecyRnwPubTokCone("BE03-ADMIN-LOOKUP-UNIQUE")
+                        .eno("BE03-ADMIN-TOKEN")
+                        .endDtm(registeredAt.plusDays(7))
+                        .famNm("BE03-ADMIN-FAMILY")
+                        .avlYn("Y")
+                        .fstEnrDtm(registeredAt)
+                        .fstEnrUsid("BE03-TEST")
+                        .lstChgDtm(registeredAt)
+                        .lstChgUsid("BE03-TEST")
+                        .delYn("N")
+                        .build());
         entityManager.flush();
         entityManager.clear();
 
@@ -45,10 +45,11 @@ class AdminListProjectionIt extends AbstractOracleRepositoryTest {
                 fileRepository.findAdminFileViewsByDelYn("N").stream()
                         .filter(view -> view.getFlMpnId().startsWith("FL_BE03_ADMIN_"))
                         .toList();
-        RefreshTokenRepository.AdminTokenView token = refreshTokenRepository.findAllProjectedBy().stream()
-                .filter(view -> "BE03-ADMIN-TOKEN".equals(view.getEno()))
-                .findFirst()
-                .orElseThrow();
+        RefreshTokenRepository.AdminTokenView token =
+                refreshTokenRepository.findAllProjectedBy().stream()
+                        .filter(view -> "BE03-ADMIN-TOKEN".equals(view.getEno()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(files).hasSize(1);
         assertThat(files.getFirst().getFlMpnId()).isEqualTo("FL_BE03_ADMIN_ACTIVE");

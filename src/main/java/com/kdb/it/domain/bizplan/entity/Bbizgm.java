@@ -18,7 +18,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 사업품목 기본 엔티티. DB 테이블: {@code TPRMPP_BBIZGM}, PK=(ABUS_MNG_NO, SNO).
  *
- * <p>{@code CTT_SNO}는 같은 사업계획의 사업계약({@code TPRMPP_BBIZCM}) SNO를 참조한다(선택).</p>
+ * <p>{@code CTT_SNO}는 같은 사업계획의 사업계약({@code TPRMPP_BBIZCM}) SNO를 참조한다(선택).
  */
 @LogTarget(entity = BbizgmL.class)
 @Entity
@@ -66,8 +66,16 @@ public class Bbizgm extends BaseEntity {
     private Integer cttSno;
 
     /** 품목 행 갱신 (save 병합에서 호출) */
-    public void updateItem(String gclNm, String ioeC, Long qty, BigDecimal amt, BigDecimal fcAmt,
-            String curC, BigDecimal xcr, String xcrBseDt, Integer cttSno) {
+    public void updateItem(
+            String gclNm,
+            String ioeC,
+            Long qty,
+            BigDecimal amt,
+            BigDecimal fcAmt,
+            String curC,
+            BigDecimal xcr,
+            String xcrBseDt,
+            Integer cttSno) {
         this.gclNm = gclNm;
         this.ioeC = ioeC;
         this.qty = qty;

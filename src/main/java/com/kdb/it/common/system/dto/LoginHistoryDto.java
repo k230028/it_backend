@@ -2,33 +2,32 @@ package com.kdb.it.common.system.dto;
 
 import com.kdb.it.common.system.entity.Clognh;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 /**
  * 공통로그인이력 관련 DTO 클래스 모음
  *
- * <p>로그인/로그아웃 이력(TPRMPP_CLOGNH) 조회에 사용되는 Response DTO를
- * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.</p>
+ * <p>로그인/로그아웃 이력(TPRMPP_CLOGNH) 조회에 사용되는 Response DTO를 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  */
 public class LoginHistoryDto {
 
     /**
      * 로그인 이력 조회 응답 DTO
      *
-     * <p>{@link Clognh} 엔티티의 정보를 클라이언트에 전달합니다.</p>
+     * <p>{@link Clognh} 엔티티의 정보를 클라이언트에 전달합니다.
      *
-     * <p>로그인구분코드({@code itPtlLgnTc})는 공통코드 {@code C_ID='IT_PTL_LGN_TC'} 기반 1자리 값입니다.</p>
+     * <p>로그인구분코드({@code itPtlLgnTc})는 공통코드 {@code C_ID='IT_PTL_LGN_TC'} 기반 1자리 값입니다.
+     *
      * <ul>
-     *   <li>{@code 1}: 로그인 성공</li>
-     *   <li>{@code 2}: 로그인 실패</li>
-     *   <li>{@code 3}: 로그아웃</li>
+     *   <li>{@code 1}: 로그인 성공
+     *   <li>{@code 2}: 로그인 실패
+     *   <li>{@code 3}: 로그아웃
      * </ul>
      */
     @Getter
@@ -48,7 +47,8 @@ public class LoginHistoryDto {
 
         /**
          * 로그인구분코드
-         * <p>공통코드 C_ID='IT_PTL_LGN_TC' 기반 1자리 값. 1=성공, 2=실패, 3=로그아웃</p>
+         *
+         * <p>공통코드 C_ID='IT_PTL_LGN_TC' 기반 1자리 값. 1=성공, 2=실패, 3=로그아웃
          */
         @Schema(description = "로그인구분코드 (공통코드 IT_PTL_LGN_TC; 1=성공, 2=실패, 3=로그아웃)")
         private String itPtlLgnTc;
@@ -67,33 +67,28 @@ public class LoginHistoryDto {
 
         /**
          * 로그인 오류 사유
-         * <p>itPtlLgnTc가 {@code "2"}(로그인 실패)인 경우에만 값이 있습니다.</p>
+         *
+         * <p>itPtlLgnTc가 {@code "2"}(로그인 실패)인 경우에만 값이 있습니다.
          */
         @Schema(description = "로그인 오류 사유")
         private String lgnErrRsn;
 
-        /**
-         * {@link Clognh} 엔티티를 단건 응답 DTO로 변환합니다.
-         */
+        /** {@link Clognh} 엔티티를 단건 응답 DTO로 변환합니다. */
         public static Response fromEntity(Clognh clognh) {
             return Response.builder()
-                    .id(clognh.getLgnLogSno())                  // 로그인이로그일련번호 → id 키 유지
-                    .eno(clognh.getEno())                       // 사원번호
-                    .itPtlLgnTc(clognh.getItPtlLgnTc())                   // 로그인구분코드
-                    .ipAddress(clognh.getIpAddr())              // IP주소 → JSON 키 유지
-                    .agtVrsCone(clognh.getAgtVrsCone())         // 에이전트버전내용
-                    .loginTime(clognh.getLgnDtm())              // 로그인일시 → JSON 키 유지
-                    .lgnErrRsn(clognh.getLgnErrRsn())           // 로그인오류사유
+                    .id(clognh.getLgnLogSno()) // 로그인이로그일련번호 → id 키 유지
+                    .eno(clognh.getEno()) // 사원번호
+                    .itPtlLgnTc(clognh.getItPtlLgnTc()) // 로그인구분코드
+                    .ipAddress(clognh.getIpAddr()) // IP주소 → JSON 키 유지
+                    .agtVrsCone(clognh.getAgtVrsCone()) // 에이전트버전내용
+                    .loginTime(clognh.getLgnDtm()) // 로그인일시 → JSON 키 유지
+                    .lgnErrRsn(clognh.getLgnErrRsn()) // 로그인오류사유
                     .build();
         }
 
-        /**
-         * {@link Clognh} 엔티티 목록을 응답 DTO 목록으로 변환합니다.
-         */
+        /** {@link Clognh} 엔티티 목록을 응답 DTO 목록으로 변환합니다. */
         public static List<Response> fromEntities(List<Clognh> clognhs) {
-            return clognhs.stream()
-                    .map(Response::fromEntity)
-                    .toList();
+            return clognhs.stream().map(Response::fromEntity).toList();
         }
     }
 }

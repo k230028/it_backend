@@ -1,22 +1,20 @@
 package com.kdb.it.domain.budget.document.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.common.util.NativeRowMapper;
 import com.kdb.it.domain.budget.document.dto.RecentReviewingRow;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 @DisplayName("#6 요구사항정의서 대시보드 native → DTO 매핑 동등성")
 class ServiceRequestDocDashboardMappingIt extends AbstractOracleRepositoryTest {
 
-    @Autowired
-    ServiceRequestDocRepository serviceRequestDocRepository;
+    @Autowired ServiceRequestDocRepository serviceRequestDocRepository;
 
     @Test
     @DisplayName("findMonthlyTrendByBbrC: Object[] 경로와 LabeledCountRow 경로가 컬럼별로 동일하다")
@@ -38,7 +36,8 @@ class ServiceRequestDocDashboardMappingIt extends AbstractOracleRepositoryTest {
     void recentReviewing_objectArray_equals_dto() {
         String bbrC = "ZZZZZ";
         List<Object[]> rows = serviceRequestDocRepository.findRecentReviewingByBbrC(bbrC);
-        List<RecentReviewingRow> dtos = serviceRequestDocRepository.findRecentReviewingRowsByBbrC(bbrC);
+        List<RecentReviewingRow> dtos =
+                serviceRequestDocRepository.findRecentReviewingRowsByBbrC(bbrC);
         assertThat(dtos).hasSameSizeAs(rows);
         for (int i = 0; i < rows.size(); i++) {
             Object[] r = rows.get(i);

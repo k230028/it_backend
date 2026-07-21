@@ -1,20 +1,18 @@
 package com.kdb.it.common.system.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 @DisplayName("#6 일별 로그인 통계 native → LabeledCountRow 매핑 동등성")
 class DailyLoginStatsMappingIt extends AbstractOracleRepositoryTest {
 
-    @Autowired
-    LoginHistoryRepository loginHistoryRepository;
+    @Autowired LoginHistoryRepository loginHistoryRepository;
 
     @Test
     @DisplayName("findDailyLoginStats: Object[] 경로와 LabeledCountRow 경로가 컬럼별로 동일하다")

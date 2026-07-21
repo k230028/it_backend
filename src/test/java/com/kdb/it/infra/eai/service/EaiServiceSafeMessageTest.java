@@ -5,9 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * EaiService.safeMessage 단위 테스트 (T11c) — 예외 메시지 안전 추출 4분기.
- */
+/** EaiService.safeMessage 단위 테스트 (T11c) — 예외 메시지 안전 추출 4분기. */
 class EaiServiceSafeMessageTest {
 
     @Test

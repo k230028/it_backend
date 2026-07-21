@@ -5,17 +5,14 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDate;
-
-/**
- * 정보화실무협의회 기본정보(TPRMPP_BASCTM) 변경 로그 엔티티.
- */
+/** 정보화실무협의회 기본정보(TPRMPP_BASCTM) 변경 로그 엔티티. */
 @Entity
 @Table(name = "TPRMPP_BASCTL", comment = "정보화실무협의회 기본정보 변경 로그")
 @Getter
@@ -57,5 +54,4 @@ public class BasctmL extends BaseLogEntity {
 
     @Column(name = "CSF_HELD_YN", length = 1, comment = "대면개최여부")
     private String csfHeldYn;
-
 }

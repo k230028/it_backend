@@ -15,5 +15,4 @@ public record PaymentDetailRow(
         String cttNm,
         BigDecimal cttAmt,
         String reqUsid,
-        LocalDateTime reqDtm
-) {}
+        LocalDateTime reqDtm) {}

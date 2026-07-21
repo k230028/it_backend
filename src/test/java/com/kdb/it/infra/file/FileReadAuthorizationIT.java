@@ -4,12 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.infra.file.authz.FileReadAuthorizerRegistry;
+import com.kdb.it.infra.file.dto.FileDto;
+import com.kdb.it.infra.file.entity.Cfilem;
+import com.kdb.it.infra.file.service.FileService;
+import com.kdb.it.support.OracleAvailableCondition;
 import java.sql.Date;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,37 +27,33 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.infra.file.authz.FileReadAuthorizerRegistry;
-import com.kdb.it.infra.file.dto.FileDto;
-import com.kdb.it.infra.file.entity.Cfilem;
-import com.kdb.it.infra.file.service.FileService;
-import com.kdb.it.support.OracleAvailableCondition;
-
 /**
  * SEC-05 파일 종류별 읽기 인가를 실제 로컬 Oracle의 부모·부서·위원 조인으로 검증하는 통합 테스트.
  *
- * <p>MockMvc 슬라이스({@code FileControllerTest})가 네 HTTP 경로의 403 계약을 검증하는 것과 달리,
- * 이 테스트는 실제 repository와 authorizer 레지스트리를 사용해 {@link FileReadAuthorizerRegistry},
- * {@link FileOwnershipChecker}, {@link FileService#getFiles}의 판정을 실 데이터로 확인한다.</p>
+ * <p>MockMvc 슬라이스({@code FileControllerTest})가 네 HTTP 경로의 403 계약을 검증하는 것과 달리, 이 테스트는 실제 repository와
+ * authorizer 레지스트리를 사용해 {@link FileReadAuthorizerRegistry}, {@link FileOwnershipChecker}, {@link
+ * FileService#getFiles}의 판정을 실 데이터로 확인한다.
  *
- * <p><b>데이터 격리 원칙</b></p>
+ * <p><b>데이터 격리 원칙</b>
+ *
  * <ul>
- *   <li>모든 픽스처는 {@code SEC05} 접두부 + 테스트별 고유 UUID로 생성하고, {@link #cleanup()}에서
- *       자식(CFILEM) → 부모 순으로 삭제한다. 운영 기준선 행이나 격리 7건은 재사용·수정하지 않는다.</li>
- *   <li>픽스처는 {@link JdbcTemplate}로 직접 INSERT해 {@code @LogTarget} 변경로그 리스너와 감사 채움을
- *       거치지 않고 NOT NULL·부서·작성자 값을 결정적으로 통제한다. 판정(읽기 경로)은 실제 빈을 사용한다.</li>
- *   <li>격리 행 검증은 read-only다. 운영 격리 행을 조회만 하고 일반 사용자에게 노출되지 않음을 단언한다.</li>
+ *   <li>모든 픽스처는 {@code SEC05} 접두부 + 테스트별 고유 UUID로 생성하고, {@link #cleanup()}에서 자식(CFILEM) → 부모 순으로
+ *       삭제한다. 운영 기준선 행이나 격리 7건은 재사용·수정하지 않는다.
+ *   <li>픽스처는 {@link JdbcTemplate}로 직접 INSERT해 {@code @LogTarget} 변경로그 리스너와 감사 채움을 거치지 않고 NOT
+ *       NULL·부서·작성자 값을 결정적으로 통제한다. 판정(읽기 경로)은 실제 빈을 사용한다.
+ *   <li>격리 행 검증은 read-only다. 운영 격리 행을 조회만 하고 일반 사용자에게 노출되지 않음을 단언한다.
  * </ul>
  *
- * <p>{@code test-it} 프로파일은 {@code ddl-auto=none}·Flyway 비활성으로 실 스키마를 변경하지 않으며,
- * 로컬 Oracle이 꺼져 있으면 {@link OracleAvailableCondition}이 컨텍스트 로드 전에 깨끗이 스킵한다.</p>
+ * <p>{@code test-it} 프로파일은 {@code ddl-auto=none}·Flyway 비활성으로 실 스키마를 변경하지 않으며, 로컬 Oracle이 꺼져 있으면
+ * {@link OracleAvailableCondition}이 컨텍스트 로드 전에 깨끗이 스킵한다.
  */
 @Tag("it")
-@SpringBootTest(properties = {
-        // 비-prod 기동 필수값 — application.properties 의 ${JWT_SECRET} 플레이스홀더 대체(EnvironmentValidator 통과).
-        "jwt.secret=test-secret-key-for-junit-test-minimum-256-bits-length-ok"
-})
+@SpringBootTest(
+        properties = {
+            // 비-prod 기동 필수값 — application.properties 의 ${JWT_SECRET} 플레이스홀더 대체(EnvironmentValidator
+            // 통과).
+            "jwt.secret=test-secret-key-for-junit-test-minimum-256-bits-length-ok"
+        })
 @ActiveProfiles("test-it")
 @ExtendWith(OracleAvailableCondition.class)
 class FileReadAuthorizationIT {
@@ -70,19 +71,17 @@ class FileReadAuthorizationIT {
 
     /** 모든 픽스처 네임스페이스 접두부 — 운영 키(FL_/DOC-/ASCT-/NAC- 등)와 충돌하지 않는다. */
     private static final String NS = "SEC05";
+
     /** 자격등급 상수(관리자/정보보안/일반). */
     private static final List<String> ATH_ADMIN = List.of("ITPAD001");
+
     private static final List<String> ATH_INFOSEC = List.of("ITPAD002");
     private static final List<String> ATH_USER = List.of("ITPZZ001");
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-    @Autowired
-    private FileReadAuthorizerRegistry registry;
-    @Autowired
-    private FileOwnershipChecker fileOwnershipChecker;
-    @Autowired
-    private FileService fileService;
+    @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private FileReadAuthorizerRegistry registry;
+    @Autowired private FileOwnershipChecker fileOwnershipChecker;
+    @Autowired private FileService fileService;
 
     /** 테스트별 고유 접미부 — 픽스처 키 충돌을 막는다. */
     private String uid;
@@ -153,15 +152,20 @@ class FileReadAuthorizationIT {
         for (String kind : List.of(KIND_PLAN, KIND_FEASIBILITY, KIND_COUNCIL_DOC)) {
             Cfilem file = fileOfKind(kind, asctId);
             assertThat(registry.canRead(file, user(NS + "ADM", ATH_ADMIN, otherDept)))
-                    .as("관리자 허용 - %s", kind).isTrue();
+                    .as("관리자 허용 - %s", kind)
+                    .isTrue();
             assertThat(registry.canRead(file, user(NS + "SEC", ATH_INFOSEC, otherDept)))
-                    .as("정보보안관리자 허용 - %s", kind).isTrue();
+                    .as("정보보안관리자 허용 - %s", kind)
+                    .isTrue();
             assertThat(registry.canRead(file, user(memberEno, otherDept)))
-                    .as("협의회 위원 허용 - %s", kind).isTrue();
+                    .as("협의회 위원 허용 - %s", kind)
+                    .isTrue();
             assertThat(registry.canRead(file, user(nonMemberEno, owningDept)))
-                    .as("사업 주관부서 허용 - %s", kind).isTrue();
+                    .as("사업 주관부서 허용 - %s", kind)
+                    .isTrue();
             assertThat(registry.canRead(file, user(nonMemberEno, otherDept)))
-                    .as("비위원+타부서 거부 - %s", kind).isFalse();
+                    .as("비위원+타부서 거부 - %s", kind)
+                    .isFalse();
         }
     }
 
@@ -199,12 +203,22 @@ class FileReadAuthorizationIT {
         CustomUserDetails normal = user(NS + "U" + uid, NS + "D" + uid);
         assertThat(registry.canRead(fileOfKind(KIND_BOARD, visible), normal)).as("공개중 허용").isTrue();
         assertThat(registry.canRead(fileOfKind(KIND_BOARD, hidden), normal)).as("숨김 거부").isFalse();
-        assertThat(registry.canRead(fileOfKind(KIND_BOARD, notStarted), normal)).as("시작 전 거부").isFalse();
-        assertThat(registry.canRead(fileOfKind(KIND_BOARD, expired), normal)).as("종료 후 거부").isFalse();
-        assertThat(registry.canRead(fileOfKind(KIND_BOARD, noParent), normal)).as("부모 없음 거부").isFalse();
+        assertThat(registry.canRead(fileOfKind(KIND_BOARD, notStarted), normal))
+                .as("시작 전 거부")
+                .isFalse();
+        assertThat(registry.canRead(fileOfKind(KIND_BOARD, expired), normal))
+                .as("종료 후 거부")
+                .isFalse();
+        assertThat(registry.canRead(fileOfKind(KIND_BOARD, noParent), normal))
+                .as("부모 없음 거부")
+                .isFalse();
         // 관리자는 게시물 조회 없이 허용(숨김 게시물이라도)
-        assertThat(registry.canRead(fileOfKind(KIND_BOARD, hidden), user(NS + "ADM", ATH_ADMIN, NS + "X" + uid)))
-                .as("관리자 우회").isTrue();
+        assertThat(
+                        registry.canRead(
+                                fileOfKind(KIND_BOARD, hidden),
+                                user(NS + "ADM", ATH_ADMIN, NS + "X" + uid)))
+                .as("관리자 우회")
+                .isTrue();
     }
 
     // ═════════════════════════════════════════
@@ -262,10 +276,12 @@ class FileReadAuthorizationIT {
         // authorA: docAllow의 작성자이자 주관부서 → 허용 / docDeny와는 무관 → 거부
         CustomUserDetails viewer = user(authorA, deptA);
 
-        List<FileDto.Response> allowed = fileService.getFiles(condition(KIND_REQUIREMENT, docAllow), viewer);
+        List<FileDto.Response> allowed =
+                fileService.getFiles(condition(KIND_REQUIREMENT, docAllow), viewer);
         assertThat(allowed).hasSize(3);
 
-        List<FileDto.Response> denied = fileService.getFiles(condition(KIND_REQUIREMENT, docDeny), viewer);
+        List<FileDto.Response> denied =
+                fileService.getFiles(condition(KIND_REQUIREMENT, docDeny), viewer);
         assertThat(denied).isEmpty();
     }
 
@@ -286,8 +302,10 @@ class FileReadAuthorizationIT {
         assertThatCode(() -> fileOwnershipChecker.checkReadAccess(flMpnId, user(author, dept)))
                 .doesNotThrowAnyException();
 
-        assertThatThrownBy(() -> fileOwnershipChecker.checkReadAccess(
-                flMpnId, user(NS + "O" + uid, NS + "X" + uid)))
+        assertThatThrownBy(
+                        () ->
+                                fileOwnershipChecker.checkReadAccess(
+                                        flMpnId, user(NS + "O" + uid, NS + "X" + uid)))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("파일 읽기 권한이 없습니다");
     }
@@ -301,19 +319,30 @@ class FileReadAuthorizationIT {
     void quarantineRows_notExposedToNormalUser() {
         // 정규화 기준의 격리 형태: PK_COL_NM null, PK_CONE null, 또는 종류가 6종에 없는 활성 파일.
         // 운영/격리 행만 대상으로 하고(SEC05 제외), 조회만 한다(수정·삭제 금지).
-        List<QuarantineRow> quarantined = jdbcTemplate.query(
-                "SELECT FL_MPN_ID, PK_COL_NM, PK_CONE FROM TPRMPP_CFILEM "
-                        + "WHERE DEL_YN = 'N' AND FL_MPN_ID NOT LIKE '" + NS + "%' "
-                        + "AND (PK_COL_NM IS NULL OR PK_CONE IS NULL OR PK_COL_NM NOT IN "
-                        + "('요구사항정의서','가이드문서','사업계획서','타당성검토표','협의회관련자료','공통게시판'))",
-                (rs, rowNum) -> new QuarantineRow(
-                        rs.getString("FL_MPN_ID"), rs.getString("PK_COL_NM"), rs.getString("PK_CONE")));
+        List<QuarantineRow> quarantined =
+                jdbcTemplate.query(
+                        "SELECT FL_MPN_ID, PK_COL_NM, PK_CONE FROM TPRMPP_CFILEM "
+                                + "WHERE DEL_YN = 'N' AND FL_MPN_ID NOT LIKE '"
+                                + NS
+                                + "%' "
+                                + "AND (PK_COL_NM IS NULL OR PK_CONE IS NULL OR PK_COL_NM NOT IN "
+                                + "('요구사항정의서','가이드문서','사업계획서','타당성검토표','협의회관련자료','공통게시판'))",
+                        (rs, rowNum) ->
+                                new QuarantineRow(
+                                        rs.getString("FL_MPN_ID"),
+                                        rs.getString("PK_COL_NM"),
+                                        rs.getString("PK_CONE")));
 
         // 정규화 직후 기준(50 정상 + 7 격리)으로 격리 행이 존재해야 하며, 그 어느 것도 일반 사용자에게 노출되면 안 된다.
         assertThat(quarantined).isNotEmpty();
         CustomUserDetails normal = user(NS + "U" + uid, NS + "D" + uid);
         for (QuarantineRow row : quarantined) {
-            Cfilem file = Cfilem.builder().flMpnId(row.flMpnId()).pkColNm(row.pkColNm()).pkCone(row.pkCone()).build();
+            Cfilem file =
+                    Cfilem.builder()
+                            .flMpnId(row.flMpnId())
+                            .pkColNm(row.pkColNm())
+                            .pkCone(row.pkCone())
+                            .build();
             assertThat(registry.canRead(file, normal))
                     .as("격리 행 %s 은 일반 사용자에게 거부되어야 한다", row.flMpnId())
                     .isFalse();
@@ -351,7 +380,12 @@ class FileReadAuthorizationIT {
                 "INSERT INTO TPRMPP_BRDOCM (DOC_MNG_NO, DOC_VRS_SNO, REQ_TTL, SVN_DPM_C, "
                         + "FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
                         + "VALUES (?, 100, ?, ?, ?, SYSDATE, 'N', ?, 1, ?, SYSDATE)",
-                docMngNo, NS + " 요구사항", svnDpmC, fstEnrUsid, guid(), fstEnrUsid);
+                docMngNo,
+                NS + " 요구사항",
+                svnDpmC,
+                fstEnrUsid,
+                guid(),
+                fstEnrUsid);
     }
 
     /** 협의회 사업(BPROJM) — 주관부서(SVN_DPM_C)를 통제. */
@@ -360,7 +394,11 @@ class FileReadAuthorizationIT {
                 "INSERT INTO TPRMPP_BPROJM (ABUS_MNG_NO, SNO, ABUS_NM, SVN_DPM_C, "
                         + "FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
                         + "VALUES (?, ?, ?, ?, '00000000000000', SYSDATE, 'N', ?, 1, '00000000000000', SYSDATE)",
-                abusMngNo, sno, NS + " 사업", svnDpmC, guid());
+                abusMngNo,
+                sno,
+                NS + " 사업",
+                svnDpmC,
+                guid());
     }
 
     /** 협의회(BASCTM) — 사업(ABUS_MNG_NO, SNO)과 연결. */
@@ -369,7 +407,10 @@ class FileReadAuthorizationIT {
                 "INSERT INTO TPRMPP_BASCTM (IT_PTL_ASCT_ID, ABUS_MNG_NO, SNO, IT_PTL_ASCT_PRG_STS_TC, "
                         + "FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
                         + "VALUES (?, ?, ?, '01', '00000000000000', SYSDATE, 'N', ?, 1, '00000000000000', SYSDATE)",
-                asctId, abusMngNo, sno, guid());
+                asctId,
+                abusMngNo,
+                sno,
+                guid());
     }
 
     /** 협의회 위원(BCMMTM) — 복합키(협의회ID, 위원유형, 사번). */
@@ -378,7 +419,10 @@ class FileReadAuthorizationIT {
                 "INSERT INTO TPRMPP_BCMMTM (IT_PTL_ASCT_ID, IT_PTL_ASCT_MEB_TC, ENO, CNFM_YN, "
                         + "FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
                         + "VALUES (?, ?, ?, 'Y', '00000000000000', SYSDATE, 'N', ?, 1, '00000000000000', SYSDATE)",
-                asctId, mebTc, eno, guid());
+                asctId,
+                mebTc,
+                eno,
+                guid());
     }
 
     /** 게시물(CBLBCM) — 노출여부(XPO_YN)와 공개기간(STT_DTM~END_DTM) 통제. */
@@ -389,9 +433,18 @@ class FileReadAuthorizationIT {
                         + "FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
                         + "VALUES (?, 'SEC05BLB', ?, 'N', ?, 0, 0, 'N', 0, 0, ?, ?, ?, "
                         + "'00000000000000', SYSDATE, 'N', ?, 1, '00000000000000', SYSDATE)",
-                new Object[] { nacNo, NS + " 게시물", xpoYn, nacNo, sqlDate(sttDt), sqlDate(endDt), guid() },
-                new int[] { Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
-                        Types.DATE, Types.DATE, Types.VARCHAR });
+                new Object[] {
+                    nacNo, NS + " 게시물", xpoYn, nacNo, sqlDate(sttDt), sqlDate(endDt), guid()
+                },
+                new int[] {
+                    Types.VARCHAR,
+                    Types.VARCHAR,
+                    Types.VARCHAR,
+                    Types.VARCHAR,
+                    Types.DATE,
+                    Types.DATE,
+                    Types.VARCHAR
+                });
     }
 
     /** 파일(CFILEM) — 종류·부모·업로더를 통제. */
@@ -401,8 +454,15 @@ class FileReadAuthorizationIT {
                         + "PK_COL_NM, PK_CONE, FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, "
                         + "LST_CHG_USID, LST_CHG_DTM) "
                         + "VALUES (?, ?, ?, ?, '첨부파일', ?, ?, ?, SYSDATE, 'N', ?, 1, ?, SYSDATE)",
-                flMpnId, NS + "-" + flMpnId + ".pdf", NS + "_phys.pdf", "/data/files/sec05",
-                pkColNm, pkCone, fstEnrUsid, guid(), fstEnrUsid);
+                flMpnId,
+                NS + "-" + flMpnId + ".pdf",
+                NS + "_phys.pdf",
+                "/data/files/sec05",
+                pkColNm,
+                pkCone,
+                fstEnrUsid,
+                guid(),
+                fstEnrUsid);
     }
 
     private Date sqlDate(LocalDate d) {
@@ -410,6 +470,5 @@ class FileReadAuthorizationIT {
     }
 
     /** 격리 행 조회용 경량 레코드(FL_MPN_ID·PK_COL_NM·PK_CONE). */
-    private record QuarantineRow(String flMpnId, String pkColNm, String pkCone) {
-    }
+    private record QuarantineRow(String flMpnId, String pkColNm, String pkCone) {}
 }

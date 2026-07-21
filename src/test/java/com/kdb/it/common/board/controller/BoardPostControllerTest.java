@@ -8,6 +8,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.board.dto.BoardPostDto;
+import com.kdb.it.common.board.service.BoardPostService;
+import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.config.JacksonConfig;
+import com.kdb.it.config.TestSecurityConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,34 +25,21 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.board.dto.BoardPostDto;
-import com.kdb.it.common.board.service.BoardPostService;
-import com.kdb.it.common.system.security.JwtUtil;
-import com.kdb.it.common.system.service.CustomUserDetailsService;
-import com.kdb.it.config.JacksonConfig;
-import com.kdb.it.config.TestSecurityConfig;
-
 /**
  * BoardPostController @WebMvcTest
  *
- * <p>게시물 등록 요청의 제목(nacNm) Bean Validation 동작을 검증합니다.</p>
+ * <p>게시물 등록 요청의 제목(nacNm) Bean Validation 동작을 검증합니다.
  */
 @WebMvcTest(BoardPostController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class BoardPostControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private BoardPostService boardPostService;
-    @MockitoBean
-    private JwtUtil jwtUtil;
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private BoardPostService boardPostService;
+    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     private static final String NAC_MNG_NO = "NAC-2026-0001";
 
@@ -57,9 +51,10 @@ class BoardPostControllerTest {
 
         var body = new BoardPostDto.CreateRequest();
         body.setNacNm("정상 제목"); // @NotBlank 충족
-        mockMvc.perform(post("/api/boards/BLB-1/posts")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/boards/BLB-1/posts")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated())
                 .andExpect(content().string(NAC_MNG_NO));
     }
@@ -70,9 +65,10 @@ class BoardPostControllerTest {
     void createPost_제목누락_400() throws Exception {
         var body = new BoardPostDto.CreateRequest();
         body.setNacNm(null); // @NotBlank 위반
-        mockMvc.perform(post("/api/boards/BLB-1/posts")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/boards/BLB-1/posts")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -83,9 +79,10 @@ class BoardPostControllerTest {
         var body = new BoardPostDto.CreateRequest();
         body.setNacNm("정상 제목");
         body.setNacCone("가".repeat(4001));
-        mockMvc.perform(post("/api/boards/BLB-1/posts")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/boards/BLB-1/posts")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -95,9 +92,10 @@ class BoardPostControllerTest {
     void updatePost_제목누락_400() throws Exception {
         var body = new BoardPostDto.UpdateRequest();
         body.setNacNm(null); // @NotBlank 위반
-        mockMvc.perform(put("/api/boards/BLB-1/posts/" + NAC_MNG_NO)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        put("/api/boards/BLB-1/posts/" + NAC_MNG_NO)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -108,9 +106,10 @@ class BoardPostControllerTest {
         var body = new BoardPostDto.UpdateRequest();
         body.setNacNm("정상 제목");
         body.setNacCone("나".repeat(4001));
-        mockMvc.perform(put("/api/boards/BLB-1/posts/" + NAC_MNG_NO)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        put("/api/boards/BLB-1/posts/" + NAC_MNG_NO)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -120,9 +119,10 @@ class BoardPostControllerTest {
     void createReply_제목누락_400() throws Exception {
         var body = new BoardPostDto.ReplyCreateRequest();
         body.setNacNm(null); // @NotBlank 위반
-        mockMvc.perform(post("/api/boards/BLB-1/posts/" + NAC_MNG_NO + "/replies")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/boards/BLB-1/posts/" + NAC_MNG_NO + "/replies")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -133,9 +133,10 @@ class BoardPostControllerTest {
         var body = new BoardPostDto.ReplyCreateRequest();
         body.setNacNm("정상 제목");
         body.setNacCone("다".repeat(4001));
-        mockMvc.perform(post("/api/boards/BLB-1/posts/" + NAC_MNG_NO + "/replies")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/boards/BLB-1/posts/" + NAC_MNG_NO + "/replies")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 }

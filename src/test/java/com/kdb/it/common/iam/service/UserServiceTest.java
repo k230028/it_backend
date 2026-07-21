@@ -7,9 +7,11 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.iam.dto.UserDto;
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import java.util.List;
 import java.util.Optional;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,39 +22,40 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
 
-import com.kdb.it.common.iam.dto.UserDto;
-import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
-
 /**
  * UserService 단위 테스트
  *
- * <p>
- * 사용자 조회 서비스의 3개 메서드(부점별 목록, 사번별 상세, 이름 검색)를 검증합니다.
- * CuserI 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
+ * <p>사용자 조회 서비스의 3개 메서드(부점별 목록, 사번별 상세, 이름 검색)를 검증합니다. CuserI 엔티티는 protected 생성자를 우회하기 위해
+ * Mockito.mock()으로 생성합니다. Oracle DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class UserServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @InjectMocks
-    private UserService userService;
+    @InjectMocks private UserService userService;
 
-    /**
-     * 테스트용 CuserI Mock 생성 — 목록 조회에 필요한 필드만 스텁
-     */
+    /** 테스트용 CuserI Mock 생성 — 목록 조회에 필요한 필드만 스텁 */
     private UserDto.ListRow userRow(String eno, String bbrC, String usrNm) {
         return new UserDto.ListRow(eno, bbrC, "IT본부", "18001", "IT기획팀", usrNm, "과장");
     }
 
     private UserDto.DetailRow detailRow(String eno, String usrNm) {
-        return new UserDto.DetailRow(eno, "001", "IT본부", "18001", "IT기획팀", usrNm, "과장",
-                "hong@bank.co.kr", "1234", "010-1234-5678", "IT 기획 담당", "001", "경영지원본부");
+        return new UserDto.DetailRow(
+                eno,
+                "001",
+                "IT본부",
+                "18001",
+                "IT기획팀",
+                usrNm,
+                "과장",
+                "hong@bank.co.kr",
+                "1234",
+                "010-1234-5678",
+                "IT 기획 담당",
+                "001",
+                "경영지원본부");
     }
 
     // ───────────────────────────────────────────────────────
@@ -101,7 +104,8 @@ class UserServiceTest {
     void getUser_존재하는사번_상세DTO반환() {
         // given
         String eno = "E12345";
-        given(userRepository.findDetailRowByEno(eno)).willReturn(Optional.of(detailRow(eno, "홍길동")));
+        given(userRepository.findDetailRowByEno(eno))
+                .willReturn(Optional.of(detailRow(eno, "홍길동")));
         CustomUserDetails admin = mock(CustomUserDetails.class);
         given(admin.isAdmin()).willReturn(true);
 
@@ -139,7 +143,8 @@ class UserServiceTest {
     @DisplayName("getUser: 본인 사번 상세 조회는 허용된다")
     void getUser_owner_allowed() {
         // given
-        given(userRepository.findDetailRowByEno("E0001")).willReturn(Optional.of(detailRow("E0001", "홍길동")));
+        given(userRepository.findDetailRowByEno("E0001"))
+                .willReturn(Optional.of(detailRow("E0001", "홍길동")));
         CustomUserDetails me = mock(CustomUserDetails.class);
         given(me.isAdmin()).willReturn(false);
         given(me.getEno()).willReturn("E0001");
@@ -152,7 +157,8 @@ class UserServiceTest {
     @DisplayName("getUser: 관리자는 타인 상세 조회가 허용된다")
     void getUser_admin_allowed() {
         // given
-        given(userRepository.findDetailRowByEno("E0002")).willReturn(Optional.of(detailRow("E0002", "홍길동")));
+        given(userRepository.findDetailRowByEno("E0002"))
+                .willReturn(Optional.of(detailRow("E0002", "홍길동")));
         CustomUserDetails admin = mock(CustomUserDetails.class);
         given(admin.isAdmin()).willReturn(true);
 
@@ -253,7 +259,9 @@ class UserServiceTest {
 
         List<UserDto.ListResponse> result = userService.searchUsersByName(null, "001");
 
-        assertThat(result).singleElement().satisfies(item -> assertThat(item.getEno()).isEqualTo("E10001"));
+        assertThat(result)
+                .singleElement()
+                .satisfies(item -> assertThat(item.getEno()).isEqualTo("E10001"));
         verify(userRepository).findListRowsByBbrC("001");
     }
 }

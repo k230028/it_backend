@@ -1,5 +1,9 @@
 package com.kdb.it.common.system;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,26 +14,22 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
 import org.springframework.mock.env.MockEnvironment;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
-
 /**
  * EnvironmentValidator 단위 테스트 — SEC-01
  *
- * <p>구동 시 필수 환경변수(DB_PASSWORD, JWT_SECRET) 빈값 감지 및 즉시 실패 검증</p>
+ * <p>구동 시 필수 환경변수(DB_PASSWORD, JWT_SECRET) 빈값 감지 및 즉시 실패 검증
  */
 @ExtendWith(MockitoExtension.class)
 class EnvironmentValidatorTest {
 
-    @Mock
-    private Environment environment;
+    @Mock private Environment environment;
 
     @Test
     @DisplayName("필수 환경변수 전체 정상 설정 시 예외 없음")
     void validate_allVarsSet_noException() {
         given(environment.getProperty("spring.datasource.password")).willReturn("securePassword!");
-        given(environment.getProperty("jwt.secret")).willReturn("super-secret-key-at-least-256-bits-long");
+        given(environment.getProperty("jwt.secret"))
+                .willReturn("super-secret-key-at-least-256-bits-long");
 
         EnvironmentValidator validator = new EnvironmentValidator(environment);
         assertThatCode(validator::validate).doesNotThrowAnyException();
@@ -75,7 +75,8 @@ class EnvironmentValidatorTest {
         MockEnvironment env = new MockEnvironment();
         env.setActiveProfiles("prod");
         env.setProperty("spring.datasource.password", "pw");
-        env.setProperty("jwt.secret", "super-secret-key-at-least-256-bits-long-xxxxxxxxxxxxxxxxxxxxxxxx");
+        env.setProperty(
+                "jwt.secret", "super-secret-key-at-least-256-bits-long-xxxxxxxxxxxxxxxxxxxxxxxx");
         env.setProperty("gemini.api.key", "gk-real-key");
         env.setProperty("eai.enabled", "true");
         env.setProperty("eai.url", "http://eai.internal/std");
@@ -211,7 +212,8 @@ class EnvironmentValidatorTest {
         MockEnvironment env = new MockEnvironment();
         env.setActiveProfiles("local-ext");
         env.setProperty("spring.datasource.password", "pw");
-        env.setProperty("jwt.secret", "super-secret-key-at-least-256-bits-long-xxxxxxxxxxxxxxxxxxxxxxxx");
+        env.setProperty(
+                "jwt.secret", "super-secret-key-at-least-256-bits-long-xxxxxxxxxxxxxxxxxxxxxxxx");
         // gemini/eai/cors/sso 미설정
         EnvironmentValidator validator = new EnvironmentValidator(env);
         assertThatCode(validator::validate).doesNotThrowAnyException();

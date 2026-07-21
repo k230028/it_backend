@@ -1,18 +1,16 @@
 package com.kdb.it.infra.eai.service;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
  * 표준전문 시스템공통부의 IP/MAC 주소 공급 시임.
  *
- * <p>운영에선 로컬 호스트에서 조회하고, 테스트에선 고정값 구현으로 대체하여
- * 전문 바이트를 결정적으로 만든다. 반환값은 패딩 전 원시 문자열이다.</p>
+ * <p>운영에선 로컬 호스트에서 조회하고, 테스트에선 고정값 구현으로 대체하여 전문 바이트를 결정적으로 만든다. 반환값은 패딩 전 원시 문자열이다.
  */
 public interface HostAddressProvider {
 

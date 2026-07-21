@@ -10,20 +10,15 @@ import lombok.NoArgsConstructor;
 /**
  * 정보화사업(BPROJM) 엔티티의 복합 기본키 클래스
  *
- * <p>
- * JPA의 {@code @IdClass} 방식으로 복합키를 정의합니다.
- * {@link Bprojm} 엔티티의 {@code @Id} 필드({@code prjMngNo}, {@code prjSno})와
- * 동일한 이름과 타입을 가져야 합니다.
- * </p>
+ * <p>JPA의 {@code @IdClass} 방식으로 복합키를 정의합니다. {@link Bprojm} 엔티티의 {@code @Id} 필드({@code prjMngNo},
+ * {@code prjSno})와 동일한 이름과 타입을 가져야 합니다.
  *
- * <p>
- * JPA 복합키 클래스 요구사항:
- * </p>
+ * <p>JPA 복합키 클래스 요구사항:
+ *
  * <ul>
- * <li>{@link Serializable} 구현 필수</li>
- * <li>기본 생성자({@code @NoArgsConstructor}) 필수</li>
- * <li>{@code equals()} 및 {@code hashCode()} 재정의 필수
- * ({@code @EqualsAndHashCode})</li>
+ *   <li>{@link Serializable} 구현 필수
+ *   <li>기본 생성자({@code @NoArgsConstructor}) 필수
+ *   <li>{@code equals()} 및 {@code hashCode()} 재정의 필수 ({@code @EqualsAndHashCode})
  * </ul>
  */
 @Getter // getter 자동 생성 (Lombok)

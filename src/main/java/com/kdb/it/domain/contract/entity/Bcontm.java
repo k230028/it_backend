@@ -18,8 +18,9 @@ import lombok.experimental.SuperBuilder;
 /**
  * 입찰계약 기본(마스터) 엔티티.
  *
- * <p>DB 테이블: {@code TPRMPP_BCONTM}. 정보화사업/전산업무비에 대한 입찰/계약을 관리한다.</p>
- * <p>대상구분 {@code IOE_C}: 100=정보화사업, 200=전산업무비. 상태 61→62→69.</p>
+ * <p>DB 테이블: {@code TPRMPP_BCONTM}. 정보화사업/전산업무비에 대한 입찰/계약을 관리한다.
+ *
+ * <p>대상구분 {@code IOE_C}: 100=정보화사업, 200=전산업무비. 상태 61→62→69.
  */
 @LogTarget(entity = BcontmL.class)
 @Entity
@@ -78,8 +79,13 @@ public class Bcontm extends BaseEntity {
     }
 
     /** 계약 정보 입력 (진행중에서만 서비스가 호출) */
-    public void updateContract(String itPtlCttManrC, String cttManrRsn, String cttNm,
-                               BigDecimal cttAmt, String cttOppNm, String cttDt) {
+    public void updateContract(
+            String itPtlCttManrC,
+            String cttManrRsn,
+            String cttNm,
+            BigDecimal cttAmt,
+            String cttOppNm,
+            String cttDt) {
         this.itPtlCttManrC = itPtlCttManrC;
         this.cttManrRsn = cttManrRsn;
         this.cttNm = cttNm;

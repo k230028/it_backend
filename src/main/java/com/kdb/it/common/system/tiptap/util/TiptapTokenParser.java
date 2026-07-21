@@ -1,26 +1,25 @@
 package com.kdb.it.common.system.tiptap.util;
 
-import org.springframework.stereotype.Component;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.stereotype.Component;
 
 /**
  * Tiptap 변수 토큰 파서.
  *
- * <p>
- * 토큰 구조: {@code <YEAR>.<CATEGORY>[.<PROJECT_CODE>].<ITEM>}
- * 비-사업 카테고리(itBudget/capBudget/opex)는 PROJECT_CODE를 갖지 않으며,
- * 사업 카테고리(proj)는 PROJECT_CODE 세그먼트가 필수입니다.
- * </p>
- *
- * 설계 참조: §3.7 토큰 문법
+ * <p>토큰 구조: {@code <YEAR>.<CATEGORY>[.<PROJECT_CODE>].<ITEM>} 비-사업 카테고리(itBudget/capBudget/opex)는
+ * PROJECT_CODE를 갖지 않으며, 사업 카테고리(proj)는 PROJECT_CODE 세그먼트가 필수입니다. 설계 참조: §3.7 토큰 문법
  */
 @Component
 public class TiptapTokenParser {
 
     /** 토큰에서 허용하는 변수 카테고리. */
-    public enum Category { IT_BUDGET, CAP_BUDGET, OPEX, PROJ }
+    public enum Category {
+        IT_BUDGET,
+        CAP_BUDGET,
+        OPEX,
+        PROJ
+    }
 
     /**
      * 토큰 파싱 결과.
@@ -31,21 +30,21 @@ public class TiptapTokenParser {
      * @param projectCode 사업별 토큰일 때만 존재하는 사업코드
      * @param item 금액/편성률 항목명, invalid 결과에서는 null
      */
-    public record ParseResult(boolean valid, Integer year, Category category,
-                              String projectCode, String item) {
-        /**
-         * 형식 오류를 예외로 던지지 않고 서비스 계층의 INVALID 상태로 전달하기 위한 실패 결과를 생성합니다.
-         */
+    public record ParseResult(
+            boolean valid, Integer year, Category category, String projectCode, String item) {
+        /** 형식 오류를 예외로 던지지 않고 서비스 계층의 INVALID 상태로 전달하기 위한 실패 결과를 생성합니다. */
         public static ParseResult invalid() {
             return new ParseResult(false, null, null, null, null);
         }
     }
 
     private static final Pattern NON_PROJ_PATTERN =
-            Pattern.compile("^(\\d{4})\\.(itBudget|capBudget|opex)\\.(requestAmount|allocatedAmount|allocationRate)$");
+            Pattern.compile(
+                    "^(\\d{4})\\.(itBudget|capBudget|opex)\\.(requestAmount|allocatedAmount|allocationRate)$");
 
     private static final Pattern PROJ_PATTERN =
-            Pattern.compile("^(\\d{4})\\.proj\\.([A-Z0-9_-]+)\\.(requestAmount|allocatedAmount|allocationRate)$");
+            Pattern.compile(
+                    "^(\\d{4})\\.proj\\.([A-Z0-9_-]+)\\.(requestAmount|allocatedAmount|allocationRate)$");
 
     /**
      * Tiptap 변수 토큰을 구조화된 값으로 파싱합니다.
@@ -79,10 +78,10 @@ public class TiptapTokenParser {
 
     private Category mapCategory(String literal) {
         return switch (literal) {
-            case "itBudget"  -> Category.IT_BUDGET;
+            case "itBudget" -> Category.IT_BUDGET;
             case "capBudget" -> Category.CAP_BUDGET;
-            case "opex"      -> Category.OPEX;
-            default          -> throw new IllegalArgumentException("알 수 없는 카테고리 리터럴: " + literal);
+            case "opex" -> Category.OPEX;
+            default -> throw new IllegalArgumentException("알 수 없는 카테고리 리터럴: " + literal);
         };
     }
 }

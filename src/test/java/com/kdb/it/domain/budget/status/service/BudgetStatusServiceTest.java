@@ -4,8 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
+import com.kdb.it.domain.budget.status.repository.BudgetStatusQueryRepository;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,25 +14,18 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
-import com.kdb.it.domain.budget.status.repository.BudgetStatusQueryRepository;
-
 /**
  * BudgetStatusService 단위 테스트
  *
- * <p>
- * 예산 현황 서비스의 3개 조회 메서드가 BudgetStatusQueryRepository에 정확히
- * 위임되는지 검증합니다. Oracle DB 없이 Mock 리포지토리로 실행됩니다.
- * </p>
+ * <p>예산 현황 서비스의 3개 조회 메서드가 BudgetStatusQueryRepository에 정확히 위임되는지 검증합니다. Oracle DB 없이 Mock 리포지토리로
+ * 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 class BudgetStatusServiceTest {
 
-    @Mock
-    private BudgetStatusQueryRepository budgetStatusQueryRepository;
+    @Mock private BudgetStatusQueryRepository budgetStatusQueryRepository;
 
-    @InjectMocks
-    private BudgetStatusService budgetStatusService;
+    @InjectMocks private BudgetStatusService budgetStatusService;
 
     @Test
     @DisplayName("getProjectStatus: 예산년도를 전달하여 정보화사업 현황 목록을 반환한다")

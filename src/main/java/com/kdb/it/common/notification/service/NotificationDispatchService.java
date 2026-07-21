@@ -46,7 +46,9 @@ public class NotificationDispatchService {
         String channel = safeChannel(row.getItPtlSdTc());
         meterRegistry.counter("notification.dispatch.failure", "channel", channel).increment();
         if (row.getReTryNot() >= maxAttempts) {
-            meterRegistry.counter("notification.dispatch.exhausted", "channel", channel).increment();
+            meterRegistry
+                    .counter("notification.dispatch.exhausted", "channel", channel)
+                    .increment();
         }
     }
 

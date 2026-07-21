@@ -1,15 +1,14 @@
 package com.kdb.it.domain.budget.cost.entity;
 
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BcostmL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -19,24 +18,14 @@ import lombok.experimental.SuperBuilder;
 /**
  * 전산관리비(IT 관리비) 마스터 엔티티
  *
- * <p>
- * DB 테이블: {@code TPRMPP_BCOSTM}
- * </p>
+ * <p>DB 테이블: {@code TPRMPP_BCOSTM}
  *
- * <p>
- * 전산관리비는 IT 인프라 유지보수, 소프트웨어 라이선스, 클라우드 서비스 등
- * IT 운영과 관련된 정기 지출 항목을 관리합니다.
- * </p>
+ * <p>전산관리비는 IT 인프라 유지보수, 소프트웨어 라이선스, 클라우드 서비스 등 IT 운영과 관련된 정기 지출 항목을 관리합니다.
  *
- * <p>
- * 복합키 구조: ({@code BG_NO}, {@code BG_SNO})
- * 동일 관리번호에 여러 버전(일련번호)이 존재할 수 있으며, {@code LST_YN='Y'}인
+ * <p>복합키 구조: ({@code BG_NO}, {@code BG_SNO}) 동일 관리번호에 여러 버전(일련번호)이 존재할 수 있으며, {@code LST_YN='Y'}인
  * 레코드가 현재 유효한 버전입니다.
- * </p>
  *
- * <p>
- * 공통 감사 정보({@link BaseEntity})를 상속하여 생성일시, 수정일시 등을 자동 관리합니다.
- * </p>
+ * <p>공통 감사 정보({@link BaseEntity})를 상속하여 생성일시, 수정일시 등을 자동 관리합니다.
  */
 @LogTarget(entity = BcostmL.class)
 @Entity // JPA 엔티티로 등록
@@ -99,7 +88,10 @@ public class Bcostm extends BaseEntity {
     private String xcrBseDt;
 
     /** 정보보호여부: 정보보호 관련 항목 여부 (Y/N) */
-    @Column(name = "SECT_SYS_UTZ_YN", length = 1, comment = "정보보호여부 (물리컬럼 SECT_SYS_UTZ_YN=보안시스템운용여부)")
+    @Column(
+            name = "SECT_SYS_UTZ_YN",
+            length = 1,
+            comment = "정보보호여부 (물리컬럼 SECT_SYS_UTZ_YN=보안시스템운용여부)")
     private String sectSysUtzYn;
 
     /** 증감사유: 전년 대비 예산 증감 이유 (최대 200자) */
@@ -152,11 +144,9 @@ public class Bcostm extends BaseEntity {
 
     /**
      * 외화금액(외화 통화 원금 — 환율 적용 전 값).
-     * <p>
-     * 원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며,
-     * 서버 재계산 로직(plan 03/04)에서 {@code costTotXpAmt = fcAmt × xcr}로 환산된다.
-     * 참고: CONTEXT.md 결정 B (KRW 행 FC_AMT = NULL).
-     * </p>
+     *
+     * <p>원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며, 서버 재계산 로직(plan 03/04)에서 {@code costTotXpAmt = fcAmt
+     * × xcr}로 환산된다. 참고: CONTEXT.md 결정 B (KRW 행 FC_AMT = NULL).
      */
     @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
     private BigDecimal fcAmt;
@@ -164,36 +154,50 @@ public class Bcostm extends BaseEntity {
     /**
      * 전산관리비 정보 업데이트 메서드
      *
-     * <p>
-     * JPA Dirty Checking을 활용하여 트랜잭션 내에서 필드를 변경합니다.
-     * 변경된 필드는 트랜잭션 종료 시 자동으로 DB에 반영됩니다.
-     * </p>
+     * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 필드를 변경합니다. 변경된 필드는 트랜잭션 종료 시 자동으로 DB에 반영됩니다.
      *
-     * @param ioeC          비목코드
-     * @param cttNm         계약명
-     * @param cttOppNm      계약상대처
-     * @param costTotXpAmt  전산업무비예산
-     * @param dfrCleC       지급주기
-     * @param fstDfrDt      지급예정월(최초지급일자)
-     * @param curC          통화
-     * @param xcr           환율
-     * @param xcrBseDt      환율기준일자
-     * @param sectSysUtzYn  정보보호여부
-     * @param indRsn        증감사유
-     * @param cgprId        담당자
-     * @param costSvnDpmC   담당부서
-     * @param svnTemC       담당팀
-     * @param bgUntAbusC    사업코드
-     * @param tmnYn        단말여부 (Y=단말, N=비단말)
-     * @param abusTc        전산업무비구분
-     * @param bseYy         예산연도
-     * @param cncdRfrNo     관련전산업무비번호 (계속항목인 경우 전년도 관리번호)
-     * @param fcAmt         외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
+     * @param ioeC 비목코드
+     * @param cttNm 계약명
+     * @param cttOppNm 계약상대처
+     * @param costTotXpAmt 전산업무비예산
+     * @param dfrCleC 지급주기
+     * @param fstDfrDt 지급예정월(최초지급일자)
+     * @param curC 통화
+     * @param xcr 환율
+     * @param xcrBseDt 환율기준일자
+     * @param sectSysUtzYn 정보보호여부
+     * @param indRsn 증감사유
+     * @param cgprId 담당자
+     * @param costSvnDpmC 담당부서
+     * @param svnTemC 담당팀
+     * @param bgUntAbusC 사업코드
+     * @param tmnYn 단말여부 (Y=단말, N=비단말)
+     * @param abusTc 전산업무비구분
+     * @param bseYy 예산연도
+     * @param cncdRfrNo 관련전산업무비번호 (계속항목인 경우 전년도 관리번호)
+     * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
-    public void update(String ioeC, String cttNm, String cttOppNm, BigDecimal costTotXpAmt,
-            String dfrCleC, String fstDfrDt, String curC, BigDecimal xcr, String xcrBseDt,
-            String sectSysUtzYn, String indRsn, String cgprId, String costSvnDpmC, String svnTemC,
-            String bgUntAbusC, String tmnYn, String abusTc, String bseYy, String cncdRfrNo, BigDecimal fcAmt) {
+    public void update(
+            String ioeC,
+            String cttNm,
+            String cttOppNm,
+            BigDecimal costTotXpAmt,
+            String dfrCleC,
+            String fstDfrDt,
+            String curC,
+            BigDecimal xcr,
+            String xcrBseDt,
+            String sectSysUtzYn,
+            String indRsn,
+            String cgprId,
+            String costSvnDpmC,
+            String svnTemC,
+            String bgUntAbusC,
+            String tmnYn,
+            String abusTc,
+            String bseYy,
+            String cncdRfrNo,
+            BigDecimal fcAmt) {
         this.ioeC = ioeC;
         this.cttNm = cttNm;
         this.cttOppNm = cttOppNm;
@@ -219,8 +223,8 @@ public class Bcostm extends BaseEntity {
     /**
      * 작성자 기준 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE) 설정.
      *
-     * <p>신규 생성 시 작성자(현재 로그인 사용자) 소속 조직의 상위조직코드로 채웁니다.
-     * 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT 이전(save 호출 전)에 호출합니다.</p>
+     * <p>신규 생성 시 작성자(현재 로그인 사용자) 소속 조직의 상위조직코드로 채웁니다. 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT 이전(save 호출 전)에
+     * 호출합니다.
      *
      * @param prlmHrkOgzCCone 작성자 소속 인사상위조직코드내용
      */
@@ -231,8 +235,8 @@ public class Bcostm extends BaseEntity {
     /**
      * 주관부서명/주관팀명 스냅샷 설정.
      *
-     * <p>현재 엔티티에 설정된 담당부서코드/담당팀코드에 대응하는 조직명을 저장합니다.
-     * 코드가 설정/변경되는 지점(생성·수정) 직후, INSERT/UPDATE flush 이전에 호출합니다.</p>
+     * <p>현재 엔티티에 설정된 담당부서코드/담당팀코드에 대응하는 조직명을 저장합니다. 코드가 설정/변경되는 지점(생성·수정) 직후, INSERT/UPDATE flush
+     * 이전에 호출합니다.
      *
      * @param svnDpmNm 주관부서명 (코드 미등록 시 null 허용)
      * @param svnTemNm 주관팀명 (코드 미등록 시 null 허용)

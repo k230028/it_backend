@@ -24,14 +24,13 @@ import org.mockito.quality.Strictness;
 /**
  * CostRepositoryImpl 단위 테스트.
  *
- * <p>DB 없이 QueryDSL 호출 모양을 검증해 목록 화면이 상세 전용 컬럼에 의존하지 않도록 막는다.</p>
+ * <p>DB 없이 QueryDSL 호출 모양을 검증해 목록 화면이 상세 전용 컬럼에 의존하지 않도록 막는다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class CostRepositoryImplTest {
 
-    @Mock
-    private JPAQueryFactory queryFactory;
+    @Mock private JPAQueryFactory queryFactory;
 
     @Mock
     @SuppressWarnings("rawtypes")

@@ -7,8 +7,12 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.approval.entity.Capplm;
+import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.exception.CustomGeneralException;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,26 +22,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.approval.entity.Capplm;
-import com.kdb.it.common.approval.entity.Cdecim;
-import com.kdb.it.exception.CustomGeneralException;
-
 /**
  * ApprovalLineDelegate 단위 테스트
  *
- * <p>TDD Red: 결재선 JSON 업데이트 위임 — 예외 재발생(롤백 보장) 동작을 검증합니다.</p>
+ * <p>TDD Red: 결재선 JSON 업데이트 위임 — 예외 재발생(롤백 보장) 동작을 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ApprovalLineDelegateTest {
 
-    @Mock
-    private ObjectMapper objectMapper;
+    @Mock private ObjectMapper objectMapper;
 
-    @InjectMocks
-    private ApprovalLineDelegate approvalLineDelegate;
+    @InjectMocks private ApprovalLineDelegate approvalLineDelegate;
 
     @Test
     @DisplayName("doUpdate: 상세 JSON이 null이면 아무 작업 없이 정상 종료")
@@ -140,9 +136,12 @@ class ApprovalLineDelegateTest {
         delegateWithRealMapper.doUpdate(capplm, List.of(approver), List.of(approved));
 
         // Assert: date 필드가 추가된 JSON이 updateDetailContent에 전달됨
-        org.mockito.Mockito.verify(capplm).updateDetailContent(
-                org.mockito.ArgumentMatchers.argThat(updatedJson ->
-                        updatedJson.contains("\"date\"") && updatedJson.contains("E001")));
+        org.mockito.Mockito.verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                updatedJson ->
+                                        updatedJson.contains("\"date\"")
+                                                && updatedJson.contains("E001")));
     }
 
     // ───────────────────────────────────────────────────────
@@ -185,8 +184,12 @@ class ApprovalLineDelegateTest {
 
         delegate.applyRecallInfo(capplm, "E001", "재작성 필요");
 
-        verify(capplm).updateDetailContent(org.mockito.ArgumentMatchers.argThat(json ->
-                json.contains("\"recallerEno\":\"E001\"") && json.contains("\"recallOpnn\":\"재작성 필요\"")));
+        verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                json ->
+                                        json.contains("\"recallerEno\":\"E001\"")
+                                                && json.contains("\"recallOpnn\":\"재작성 필요\"")));
     }
 
     @Test
@@ -206,16 +209,21 @@ class ApprovalLineDelegateTest {
     void doUpdate_기안자제외_승인자갱신() {
         ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
         Capplm capplm = mock(Capplm.class);
-        given(capplm.getDcdReqInf()).willReturn(
-                "{\"approvalLine\":{\"drafter\":{\"id\":\"E001\"},\"step1\":{\"id\":\"E001\"},\"caption\":\"text\"}}");
+        given(capplm.getDcdReqInf())
+                .willReturn(
+                        "{\"approvalLine\":{\"drafter\":{\"id\":\"E001\"},\"step1\":{\"id\":\"E001\"},\"caption\":\"text\"}}");
         Cdecim approver = mock(Cdecim.class);
         given(approver.getDcrEno()).willReturn("E001");
         given(approver.getDcrSqnSno()).willReturn(1);
 
         delegate.doUpdate(capplm, List.of(approver), List.of(approver));
 
-        verify(capplm).updateDetailContent(org.mockito.ArgumentMatchers.argThat(json ->
-                json.contains("\"step1\":{\"id\":\"E001\",\"date\"")
-                        && !json.contains("\"drafter\":{\"id\":\"E001\",\"date\"")));
+        verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                json ->
+                                        json.contains("\"step1\":{\"id\":\"E001\",\"date\"")
+                                                && !json.contains(
+                                                        "\"drafter\":{\"id\":\"E001\",\"date\"")));
     }
 }

@@ -1,8 +1,8 @@
 package com.kdb.it.domain.council.entity;
 
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BpqnamL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -16,13 +16,11 @@ import lombok.experimental.SuperBuilder;
 /**
  * 사전질의응답 엔티티
  *
- * <p>DB 테이블: {@code TPRMPP_BPQNAM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BPQNAM}
  *
- * <p>협의회 개최 전 평가위원이 사전 질의를 등록하고,
- * 추진부서 담당자(ITPZZ001)가 답변합니다.
- * REP_YN='N'인 항목이 미답변 상태입니다.</p>
+ * <p>협의회 개최 전 평가위원이 사전 질의를 등록하고, 추진부서 담당자(ITPZZ001)가 답변합니다. REP_YN='N'인 항목이 미답변 상태입니다.
  *
- * <p>QTN_ID 형식: QTN-{협의회ID}-{순번} (예: QTN-ASCT-2026-0001-01)</p>
+ * <p>QTN_ID 형식: QTN-{협의회ID}-{순번} (예: QTN-ASCT-2026-0001-01)
  */
 @LogTarget(entity = BpqnamL.class)
 @Entity
@@ -65,7 +63,7 @@ public class Bpqnam extends BaseEntity {
     /**
      * 답변 등록 (추진부서 담당자가 호출)
      *
-     * @param repDwuUsid  답변자 사번
+     * @param repDwuUsid 답변자 사번
      * @param repCone 답변내용
      */
     public void reply(String repDwuUsid, String repCone) {
@@ -83,4 +81,3 @@ public class Bpqnam extends BaseEntity {
         this.qtnCone = qtnCone;
     }
 }
-

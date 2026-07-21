@@ -5,20 +5,19 @@ import com.kdb.it.domain.menu.service.AdminMenuService;
 import com.kdb.it.domain.menu.service.MenuQueryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.net.URI;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URI;
-import java.util.List;
-
 /**
  * 관리자 메뉴 관리 REST 컨트롤러.
  *
- * <p>기본 URL: {@code /api/admin/menus}. DB 기반 메뉴 트리의 CRUD·정렬·이동(reparent)을 제공한다.
- * 클래스 레벨 {@code @PreAuthorize("hasRole('ADMIN')")}로 관리자 전용이다.</p>
+ * <p>기본 URL: {@code /api/admin/menus}. DB 기반 메뉴 트리의 CRUD·정렬·이동(reparent)을 제공한다. 클래스 레벨
+ * {@code @PreAuthorize("hasRole('ADMIN')")}로 관리자 전용이다.
  */
 @RestController
 @RequestMapping("/api/admin/menus")
@@ -48,8 +47,8 @@ public class AdminMenuController {
      * @return 생성된 메뉴 ID와 Location 헤더
      */
     @PostMapping
-    public ResponseEntity<String> create(@Valid @RequestBody MenuDto.UpsertRequest req,
-                                         UriComponentsBuilder uri) {
+    public ResponseEntity<String> create(
+            @Valid @RequestBody MenuDto.UpsertRequest req, UriComponentsBuilder uri) {
         String mnuId = adminMenuService.create(req);
         URI loc = uri.path("/api/admin/menus/{id}").buildAndExpand(mnuId).toUri();
         return ResponseEntity.created(loc).body(mnuId);
@@ -63,8 +62,9 @@ public class AdminMenuController {
      * @return 응답 본문 없는 204 응답
      */
     @PutMapping("/{mnuId}")
-    public ResponseEntity<Void> update(@PathVariable(name = "mnuId") String mnuId,
-                                       @Valid @RequestBody MenuDto.UpsertRequest req) {
+    public ResponseEntity<Void> update(
+            @PathVariable(name = "mnuId") String mnuId,
+            @Valid @RequestBody MenuDto.UpsertRequest req) {
         adminMenuService.update(mnuId, req);
         return ResponseEntity.noContent().build();
     }
@@ -101,8 +101,9 @@ public class AdminMenuController {
      * @return 응답 본문 없는 204 응답
      */
     @PatchMapping("/{mnuId}/move")
-    public ResponseEntity<Void> move(@PathVariable(name = "mnuId") String mnuId,
-                                     @Valid @RequestBody MenuDto.MoveRequest req) {
+    public ResponseEntity<Void> move(
+            @PathVariable(name = "mnuId") String mnuId,
+            @Valid @RequestBody MenuDto.MoveRequest req) {
         adminMenuService.move(mnuId, req.getNewHrkMnuId());
         return ResponseEntity.noContent().build();
     }

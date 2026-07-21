@@ -1,5 +1,10 @@
 package com.kdb.it.common.notification.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
@@ -11,16 +16,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-
 @ExtendWith(MockitoExtension.class)
 class NotificationOutboxServiceTest {
 
-    @Mock
-    private CinfmmRepository repository;
+    @Mock private CinfmmRepository repository;
 
     private NotificationOutboxService service;
 
@@ -63,13 +62,14 @@ class NotificationOutboxServiceTest {
     @DisplayName("enqueue는 저장 컬럼 길이를 넘는 제목과 본문과 URL을 절단한다")
     void enqueue_longValues_clampsToColumnLengths() {
         given(repository.getNextVal()).willReturn(8L);
-        NotificationEvent event = NotificationEvent.builder()
-                .recipientEno("E0002")
-                .itPtlInfmSvcTc(NotificationEvent.TYPE_SYSTEM)
-                .ttl("가".repeat(101))
-                .infmMsgCone("나".repeat(4001))
-                .infmRcdUrl("/" + "u".repeat(300))
-                .build();
+        NotificationEvent event =
+                NotificationEvent.builder()
+                        .recipientEno("E0002")
+                        .itPtlInfmSvcTc(NotificationEvent.TYPE_SYSTEM)
+                        .ttl("가".repeat(101))
+                        .infmMsgCone("나".repeat(4001))
+                        .infmRcdUrl("/" + "u".repeat(300))
+                        .build();
 
         service.enqueue(event);
 

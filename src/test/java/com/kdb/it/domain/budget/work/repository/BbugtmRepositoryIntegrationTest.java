@@ -14,9 +14,8 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 /**
  * BbugtmRepository 벌크 soft-delete UPDATE 통합 테스트 (P1 #1).
  *
- * <p>실 로컬 Oracle(ITPOWN)에 @DataJpaTest로 연결하며, 모든 픽스처 INSERT/UPDATE는
- * 테스트 종료 시 트랜잭션 롤백되어 dev 데이터에 영향을 주지 않는다. 벌크 UPDATE는
- * 1차 캐시를 우회하므로, clear 후 TestEntityManager로 재조회하여 DB 상태를 검증한다.</p>
+ * <p>실 로컬 Oracle(ITPOWN)에 @DataJpaTest로 연결하며, 모든 픽스처 INSERT/UPDATE는 테스트 종료 시 트랜잭션 롤백되어 dev 데이터에 영향을
+ * 주지 않는다. 벌크 UPDATE는 1차 캐시를 우회하므로, clear 후 TestEntityManager로 재조회하여 DB 상태를 검증한다.
  */
 @DisplayName("BbugtmRepository 벌크 soft-delete UPDATE (P1 #1)")
 class BbugtmRepositoryIntegrationTest extends AbstractOracleRepositoryTest {
@@ -24,36 +23,35 @@ class BbugtmRepositoryIntegrationTest extends AbstractOracleRepositoryTest {
     private static final String YEAR = "9999";
     private static final String OTHER_YEAR = "9998";
 
-    @Autowired
-    private BbugtmRepository bbugtmRepository;
+    @Autowired private BbugtmRepository bbugtmRepository;
 
-    @Autowired
-    private TestEntityManager em;
+    @Autowired private TestEntityManager em;
 
     /**
      * 테스트 픽스처 행 생성 — 고유 bgNo/sno로 PK 충돌 방지.
      *
-     * <p>{@code @DataJpaTest} 슬라이스에는 SecurityContext가 없어 JPA Auditing(@CreatedBy)이
-     * NOT NULL인 FST_ENR_USID/FST_ENR_DTM을 채우지 못한다(ORA-01400). 따라서 감사컬럼을
-     * 픽스처에서 직접 세팅한다. 이는 테스트 픽스처 한정이며 운영 로직과 무관하다.</p>
+     * <p>{@code @DataJpaTest} 슬라이스에는 SecurityContext가 없어 JPA Auditing(@CreatedBy)이 NOT NULL인
+     * FST_ENR_USID/FST_ENR_DTM을 채우지 못한다(ORA-01400). 따라서 감사컬럼을 픽스처에서 직접 세팅한다. 이는 테스트 픽스처 한정이며 운영 로직과
+     * 무관하다.
      */
     private Bbugtm insertRow(String bgNo, int sno, String bseYy, String delYn) {
-        Bbugtm row = Bbugtm.builder()
-                .bgNo(bgNo)
-                .sno(sno)
-                .bseYy(bseYy)
-                .fntTbNm("BITEMM")
-                .pkColNm("PK-" + bgNo)
-                .fntTbCrySno(sno)
-                .ioeC("001")
-                .bgDupAmt(BigDecimal.valueOf(1000))
-                .asgRt(100)
-                .delYn(delYn)
-                .fstEnrUsid("FIXTURE")
-                .fstEnrDtm(LocalDateTime.now())
-                .lstChgUsid("FIXTURE")
-                .lstChgDtm(LocalDateTime.now())
-                .build();
+        Bbugtm row =
+                Bbugtm.builder()
+                        .bgNo(bgNo)
+                        .sno(sno)
+                        .bseYy(bseYy)
+                        .fntTbNm("BITEMM")
+                        .pkColNm("PK-" + bgNo)
+                        .fntTbCrySno(sno)
+                        .ioeC("001")
+                        .bgDupAmt(BigDecimal.valueOf(1000))
+                        .asgRt(100)
+                        .delYn(delYn)
+                        .fstEnrUsid("FIXTURE")
+                        .fstEnrDtm(LocalDateTime.now())
+                        .lstChgUsid("FIXTURE")
+                        .lstChgDtm(LocalDateTime.now())
+                        .build();
         return em.persist(row);
     }
 
@@ -83,7 +81,8 @@ class BbugtmRepositoryIntegrationTest extends AbstractOracleRepositoryTest {
         assertThat(reloaded.getLstChgDtm()).isNotNull();
         assertThat(em.find(Bbugtm.class, idOf(active2)).getDelYn()).isEqualTo("Y");
         // 이미 삭제된 행과 타연도 행은 불변
-        assertThat(em.find(Bbugtm.class, idOf(alreadyDeleted)).getLstChgUsid()).isNotEqualTo("TESTUSER");
+        assertThat(em.find(Bbugtm.class, idOf(alreadyDeleted)).getLstChgUsid())
+                .isNotEqualTo("TESTUSER");
         assertThat(em.find(Bbugtm.class, idOf(otherYear)).getDelYn()).isEqualTo("N");
     }
 

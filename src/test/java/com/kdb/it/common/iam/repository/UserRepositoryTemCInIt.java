@@ -14,8 +14,8 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 /**
  * UserRepository.findByTemCInAndDelYn 활성 사용자 배치 조회 통합 테스트 (BE-10)
  *
- * <p>실 로컬 Oracle(ITPOWN)에 @DataJpaTest로 연결하며, 픽스처는 트랜잭션 롤백으로
- * 정리된다. 존재하지 않는 팀코드 대역(T999x)을 사용해 실 데이터와 격리한다.</p>
+ * <p>실 로컬 Oracle(ITPOWN)에 @DataJpaTest로 연결하며, 픽스처는 트랜잭션 롤백으로 정리된다. 존재하지 않는 팀코드 대역(T999x)을 사용해 실
+ * 데이터와 격리한다.
  */
 @DisplayName("UserRepository.findByTemCInAndDelYn 활성 사용자 배치 조회 (BE-10)")
 class UserRepositoryTemCInIt extends AbstractOracleRepositoryTest {
@@ -24,30 +24,29 @@ class UserRepositoryTemCInIt extends AbstractOracleRepositoryTest {
     private static final String TEAM_B = "T9992";
     private static final String TEAM_EMPTY = "T9993";
 
-    @Autowired
-    private UserRepository userRepository;
+    @Autowired private UserRepository userRepository;
 
-    @Autowired
-    private TestEntityManager em;
+    @Autowired private TestEntityManager em;
 
     /**
      * 테스트 픽스처 사용자 생성.
      *
-     * <p>{@code @DataJpaTest} 슬라이스에는 SecurityContext가 없어 감사컬럼을 직접 세팅한다.
-     * (실행 시 다른 NOT NULL 컬럼으로 ORA-01400이 발생하면 해당 필드에 픽스처 값을 보강한다.)</p>
+     * <p>{@code @DataJpaTest} 슬라이스에는 SecurityContext가 없어 감사컬럼을 직접 세팅한다. (실행 시 다른 NOT NULL 컬럼으로
+     * ORA-01400이 발생하면 해당 필드에 픽스처 값을 보강한다.)
      */
     private CuserI insertUser(String eno, String temC, String ptCNm) {
-        CuserI user = CuserI.builder()
-                .eno(eno)
-                .usrNm("테스트" + eno)
-                .temC(temC)
-                .ptCNm(ptCNm)
-                .delYn("N")
-                .fstEnrUsid("FIXTURE")
-                .fstEnrDtm(LocalDateTime.now())
-                .lstChgUsid("FIXTURE")
-                .lstChgDtm(LocalDateTime.now())
-                .build();
+        CuserI user =
+                CuserI.builder()
+                        .eno(eno)
+                        .usrNm("테스트" + eno)
+                        .temC(temC)
+                        .ptCNm(ptCNm)
+                        .delYn("N")
+                        .fstEnrUsid("FIXTURE")
+                        .fstEnrDtm(LocalDateTime.now())
+                        .lstChgUsid("FIXTURE")
+                        .lstChgDtm(LocalDateTime.now())
+                        .build();
         return em.persist(user);
     }
 
@@ -62,10 +61,11 @@ class UserRepositoryTemCInIt extends AbstractOracleRepositoryTest {
         em.flush();
         em.clear();
 
-        List<CuserI> result = userRepository.findByTemCInAndDelYn(
-                List.of(TEAM_A, TEAM_B, TEAM_EMPTY), "N");
+        List<CuserI> result =
+                userRepository.findByTemCInAndDelYn(List.of(TEAM_A, TEAM_B, TEAM_EMPTY), "N");
 
-        assertThat(result).extracting(u -> u.getEno())
+        assertThat(result)
+                .extracting(u -> u.getEno())
                 .containsExactlyInAnyOrder("TENO9001", "TENO9002", "TENO9003");
         assertThat(result).allSatisfy(u -> assertThat(u.getTemC()).isIn(TEAM_A, TEAM_B));
     }

@@ -14,14 +14,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/**
- * CodeNameMapBuilder 단위 테스트 — cdva 필터, null 코드명 제외, 빈 입력 가드 검증.
- */
+/** CodeNameMapBuilder 단위 테스트 — cdva 필터, null 코드명 제외, 빈 입력 가드 검증. */
 @ExtendWith(MockitoExtension.class)
 class CodeNameMapBuilderTest {
 
-    @Mock
-    private CodeRepository codeRepository;
+    @Mock private CodeRepository codeRepository;
 
     private CodeNameMapBuilder sut() {
         return new CodeNameMapBuilder(codeRepository);

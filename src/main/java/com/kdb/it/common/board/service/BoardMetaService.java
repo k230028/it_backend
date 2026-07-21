@@ -4,16 +4,15 @@ import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.exception.CustomGeneralException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 /**
  * 게시판 메타 서비스
  *
- * <p>게시판 생성·수정·삭제는 관리자 전용. 목록 조회는 인증 사용자 전체.</p>
+ * <p>게시판 생성·수정·삭제는 관리자 전용. 목록 조회는 인증 사용자 전체.
  */
 @Service
 @RequiredArgsConstructor
@@ -29,8 +28,8 @@ public class BoardMetaService {
      */
     public List<BoardMetaDto.Response> getAllActive() {
         return boardMetaRepository.findAllActiveOrdered().stream()
-            .map(BoardMetaDto.Response::from)
-            .toList();
+                .map(BoardMetaDto.Response::from)
+                .toList();
     }
 
     /**
@@ -55,10 +54,8 @@ public class BoardMetaService {
         Long seq = boardMetaRepository.getNextSequenceValue();
         String blbMngNo = String.format("BLBM-%04d", seq);
 
-        Cblbmm entity = Cblbmm.builder()
-            .blbMngNo(blbMngNo)
-            .itPtlBlbTc(request.getItPtlBlbTc())
-            .build();
+        Cblbmm entity =
+                Cblbmm.builder().blbMngNo(blbMngNo).itPtlBlbTc(request.getItPtlBlbTc()).build();
         entity.update(request.toUpdateCommand());
         boardMetaRepository.save(entity);
         return blbMngNo;
@@ -68,7 +65,7 @@ public class BoardMetaService {
      * 게시판 수정 (관리자 전용)
      *
      * @param blbMngNo 게시판관리번호
-     * @param request  수정 요청 DTO
+     * @param request 수정 요청 DTO
      * @throws CustomGeneralException 게시판을 찾을 수 없는 경우
      */
     @Transactional
@@ -95,7 +92,8 @@ public class BoardMetaService {
      * @throws CustomGeneralException 존재하지 않거나 삭제된 게시판인 경우
      */
     Cblbmm findActiveBoard(String blbMngNo) {
-        return boardMetaRepository.findByBlbMngNoAndDelYn(blbMngNo, "N")
-            .orElseThrow(() -> new CustomGeneralException("게시판을 찾을 수 없습니다: " + blbMngNo));
+        return boardMetaRepository
+                .findByBlbMngNoAndDelYn(blbMngNo, "N")
+                .orElseThrow(() -> new CustomGeneralException("게시판을 찾을 수 없습니다: " + blbMngNo));
     }
 }

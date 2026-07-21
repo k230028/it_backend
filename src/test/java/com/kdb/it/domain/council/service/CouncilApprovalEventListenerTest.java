@@ -9,8 +9,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.approval.entity.Cappla;
+import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
+import com.kdb.it.common.approval.repository.ApplicationMapRepository;
+import com.kdb.it.domain.council.dto.CouncilDto;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,34 +23,23 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
-import com.kdb.it.common.approval.repository.ApplicationMapRepository;
-import com.kdb.it.domain.council.dto.CouncilDto;
-
 /**
  * CouncilApprovalEventListener 단위 테스트
  *
- * <p>
- * 결재 완료 이벤트 처리 메서드(handleApprovalCompleted)를 검증합니다.
- * Cappla 엔티티는 Mockito.mock()으로 생성합니다.
- * CouncilApprovalService·ApplicationMapRepository는 @Mock으로 교체합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
- * <p>커버리지 60% 달성을 위해 추가 (2026-04-29)</p>
+ * <p>결재 완료 이벤트 처리 메서드(handleApprovalCompleted)를 검증합니다. Cappla 엔티티는 Mockito.mock()으로 생성합니다.
+ * CouncilApprovalService·ApplicationMapRepository는 @Mock으로 교체합니다. Oracle DB 없이 실행됩니다.
+ *
+ * <p>커버리지 60% 달성을 위해 추가 (2026-04-29)
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class CouncilApprovalEventListenerTest {
 
-    @Mock
-    private ApplicationMapRepository applicationMapRepository;
+    @Mock private ApplicationMapRepository applicationMapRepository;
 
-    @Mock
-    private CouncilApprovalService councilApprovalService;
+    @Mock private CouncilApprovalService councilApprovalService;
 
-    @InjectMocks
-    private CouncilApprovalEventListener councilApprovalEventListener;
+    @InjectMocks private CouncilApprovalEventListener councilApprovalEventListener;
 
     private static final String APF_MNG_NO = "APF_202600000001";
     private static final String ASCT_ID = "ASCT-2026-0001";
@@ -69,8 +61,7 @@ class CouncilApprovalEventListenerTest {
         councilApprovalEventListener.handleApprovalCompleted(event);
 
         // then: councilApprovalService 호출되지 않아야 함
-        verify(councilApprovalService, never())
-                .processApprovalCallback(any(), any());
+        verify(councilApprovalService, never()).processApprovalCallback(any(), any());
     }
 
     // ───────────────────────────────────────────────────────
@@ -92,9 +83,9 @@ class CouncilApprovalEventListenerTest {
         councilApprovalEventListener.handleApprovalCompleted(event);
 
         // then: approved=true로 콜백 호출
-        verify(councilApprovalService).processApprovalCallback(
-                eq(ASCT_ID),
-                eq(new CouncilDto.ApprovalCallbackRequest(true)));
+        verify(councilApprovalService)
+                .processApprovalCallback(
+                        eq(ASCT_ID), eq(new CouncilDto.ApprovalCallbackRequest(true)));
     }
 
     @Test
@@ -112,9 +103,9 @@ class CouncilApprovalEventListenerTest {
         councilApprovalEventListener.handleApprovalCompleted(event);
 
         // then: approved=false로 콜백 호출
-        verify(councilApprovalService).processApprovalCallback(
-                eq(ASCT_ID),
-                eq(new CouncilDto.ApprovalCallbackRequest(false)));
+        verify(councilApprovalService)
+                .processApprovalCallback(
+                        eq(ASCT_ID), eq(new CouncilDto.ApprovalCallbackRequest(false)));
     }
 
     // ───────────────────────────────────────────────────────
@@ -131,13 +122,13 @@ class CouncilApprovalEventListenerTest {
                 .willReturn(List.of(link));
         // void 메서드는 given(...).willThrow(...) 대신 willThrow(...).given(...) 형태로 스텁합니다.
         willThrow(new RuntimeException("상태 전이 실패"))
-                .given(councilApprovalService).processApprovalCallback(any(), any());
+                .given(councilApprovalService)
+                .processApprovalCallback(any(), any());
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, "결재완료");
 
         // when & then: 예외가 다시 전파되어야 함
-        assertThatThrownBy(
-                () -> councilApprovalEventListener.handleApprovalCompleted(event))
+        assertThatThrownBy(() -> councilApprovalEventListener.handleApprovalCompleted(event))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("상태 전이 실패");
     }

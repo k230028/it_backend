@@ -1,5 +1,21 @@
 package com.kdb.it.domain.budget.project.service;
 
+import com.kdb.it.common.approval.dto.ApplicationInfoDto;
+import com.kdb.it.common.code.CommonCodeGroups;
+import com.kdb.it.common.code.IoeCategories;
+import com.kdb.it.common.code.entity.Ccodem;
+import com.kdb.it.common.code.repository.CodeRepository;
+import com.kdb.it.common.system.security.OwnershipVerifier;
+import com.kdb.it.common.util.CodeNameMapBuilder;
+import com.kdb.it.common.util.DateFormatUtil;
+import com.kdb.it.common.util.HtmlSanitizer;
+import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
+import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -8,68 +24,39 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import com.kdb.it.common.approval.dto.ApplicationInfoDto;
-import com.kdb.it.common.code.CommonCodeGroups;
-import com.kdb.it.common.code.IoeCategories;
-import com.kdb.it.common.code.entity.Ccodem;
-import com.kdb.it.common.code.repository.CodeRepository;
-import com.kdb.it.common.system.security.OwnershipVerifier;
-import com.kdb.it.common.util.DateFormatUtil;
-import com.kdb.it.common.util.HtmlSanitizer;
-import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
-import com.kdb.it.common.util.CodeNameMapBuilder;
-import com.kdb.it.domain.budget.cost.util.XcrLookupService;
-import com.kdb.it.domain.budget.project.dto.ProjectDto;
-import com.kdb.it.domain.budget.project.entity.Bitemm;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
-import com.kdb.it.domain.budget.project.repository.ProjectRepository;
-import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
-
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import lombok.RequiredArgsConstructor;
-
 /**
  * 정보화사업(IT 프로젝트) 서비스
  *
- * <p>
- * 정보화사업(TPRMPP_BPROJM) 엔티티의 CRUD 및
- * 품목({@link com.kdb.it.domain.budget.project.entity.Bitemm})
- * 동기화
- * 비즈니스 로직을 처리합니다.
- * </p>
+ * <p>정보화사업(TPRMPP_BPROJM) 엔티티의 CRUD 및 품목({@link com.kdb.it.domain.budget.project.entity.Bitemm})
+ * 동기화 비즈니스 로직을 처리합니다.
  *
- * <p>
- * 결재 연동:
- * </p>
+ * <p>결재 연동:
+ *
  * <ul>
- * <li>수정/삭제 시 해당 프로젝트에 연결된 신청서(CAPPLA)의 결재 상태를 확인합니다</li>
- * <li>"결재중" 또는 "결재완료" 상태인 경우 수정/삭제가 불가합니다</li>
- * <li>원본 테이블 코드: {@code "BPROJM"}</li>
+ *   <li>수정/삭제 시 해당 프로젝트에 연결된 신청서(CAPPLA)의 결재 상태를 확인합니다
+ *   <li>"결재중" 또는 "결재완료" 상태인 경우 수정/삭제가 불가합니다
+ *   <li>원본 테이블 코드: {@code "BPROJM"}
  * </ul>
  *
- * <p>
- * 품목(Bitemm) 동기화 로직 (수정 시):
- * </p>
+ * <p>품목(Bitemm) 동기화 로직 (수정 시):
+ *
  * <ol>
- * <li>요청의 {@code gclMngNo}가 있으면 기존 활성 레코드를 제자리 수정(Dirty Checking) — 새 레코드를 추가하지 않는다</li>
- * <li>요청의 {@code gclMngNo}가 없으면 신규 항목 추가</li>
- * <li>요청에 없는 기존 항목은 Soft Delete</li>
+ *   <li>요청의 {@code gclMngNo}가 있으면 기존 활성 레코드를 제자리 수정(Dirty Checking) — 새 레코드를 추가하지 않는다
+ *   <li>요청의 {@code gclMngNo}가 없으면 신규 항목 추가
+ *   <li>요청에 없는 기존 항목은 Soft Delete
  * </ol>
  *
- * <p>
- * Soft Delete 패턴: {@code DEL_YN='Y'}로 논리 삭제합니다.
- * </p>
+ * <p>Soft Delete 패턴: {@code DEL_YN='Y'}로 논리 삭제합니다.
  *
- * <p>
- * {@code @Transactional(readOnly = true)}: 조회 메서드의 기본값.
- * 쓰기 메서드는 {@code @Transactional}로 오버라이드합니다.
- * </p>
+ * <p>{@code @Transactional(readOnly = true)}: 조회 메서드의 기본값. 쓰기 메서드는 {@code @Transactional}로
+ * 오버라이드합니다.
  */
 @Service // Spring 서비스 빈으로 등록
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
@@ -88,7 +75,8 @@ public class ProjectService {
     private final com.kdb.it.common.approval.repository.ApplicationRepository capplmRepository;
 
     /** 품목 데이터 접근 리포지토리 (TPRMPP_BITEMM) */
-    private final com.kdb.it.domain.budget.project.repository.ProjectItemRepository bitemmRepository;
+    private final com.kdb.it.domain.budget.project.repository.ProjectItemRepository
+            bitemmRepository;
 
     /** 조직(부점) 정보 리포지토리 (TPRMPP_CORGNI): 부서코드→부서명 조회용 */
     private final com.kdb.it.common.iam.repository.OrganizationRepository corgnIRepository;
@@ -129,22 +117,16 @@ public class ProjectService {
     /**
      * 전체 정보화사업 목록 조회
      *
-     * <p>
-     * 삭제되지 않은({@code DEL_YN='N'}) 모든 프로젝트를 조회합니다.
-     * 각 프로젝트에 연결된 최신 신청서 정보(신청관리번호, 결재상태)를 포함합니다.
-     * </p>
+     * <p>삭제되지 않은({@code DEL_YN='N'}) 모든 프로젝트를 조회합니다. 각 프로젝트에 연결된 최신 신청서 정보(신청관리번호, 결재상태)를 포함합니다.
      *
-     * <p>
-     * 목록 조회에서는 품목(Bitemm) 정보를 포함하지 않습니다 (성능 최적화).
-     * </p>
+     * <p>목록 조회에서는 품목(Bitemm) 정보를 포함하지 않습니다 (성능 최적화).
      *
      * @return 전체 정보화사업 응답 DTO 목록 (신청서 정보 포함, 품목 제외)
      */
     public List<ProjectDto.Response> getProjectList() {
         List<Bprojm> projects = projectRepository.findAllByDelYn("N");
-        List<ProjectDto.Response> responses = projects.stream()
-                .map(ProjectDto.Response::fromEntity)
-                .toList();
+        List<ProjectDto.Response> responses =
+                projects.stream().map(ProjectDto.Response::fromEntity).toList();
         enrichProjectListBatch(projects, responses);
         return responses;
     }
@@ -152,32 +134,25 @@ public class ProjectService {
     /**
      * 검색 조건으로 정보화사업 목록 조회
      *
-     * <p>
-     * {@link ProjectDto.SearchCondition}의 조건이 모두 비어있으면 전체
-     * 조회({@link #getProjectList()})와 동일합니다.
-     * </p>
+     * <p>{@link ProjectDto.SearchCondition}의 조건이 모두 비어있으면 전체 조회({@link #getProjectList()})와 동일합니다.
      *
-     * <p>
-     * {@code apfSts} 필터 처리:
-     * </p>
+     * <p>{@code apfSts} 필터 처리:
+     *
      * <ul>
-     * <li>{@code "none"}: 신청서가 없는 프로젝트만 조회 (CAPPLA 연결 없음)</li>
-     * <li>그 외 값: 최신 신청서의 결재상태가 해당 값인 프로젝트만 조회</li>
-     * <li>null/미입력: 결재상태 필터 없음</li>
+     *   <li>{@code "none"}: 신청서가 없는 프로젝트만 조회 (CAPPLA 연결 없음)
+     *   <li>그 외 값: 최신 신청서의 결재상태가 해당 값인 프로젝트만 조회
+     *   <li>null/미입력: 결재상태 필터 없음
      * </ul>
      *
-     * <p>
-     * 목록 조회에서는 품목(Bitemm) 정보를 포함하지 않습니다 (성능 최적화).
-     * </p>
+     * <p>목록 조회에서는 품목(Bitemm) 정보를 포함하지 않습니다 (성능 최적화).
      *
      * @param condition 검색 조건 DTO (apfSts, bgYy, prjSts, prjTp, itDpm, svnDpm)
      * @return 조건에 맞는 정보화사업 응답 DTO 목록 (신청서 정보 포함, 품목 제외)
      */
     public List<ProjectDto.Response> searchProjectList(ProjectDto.SearchCondition condition) {
         List<Bprojm> projects = projectRepository.searchByCondition(condition);
-        List<ProjectDto.Response> responses = projects.stream()
-                .map(ProjectDto.Response::fromEntity)
-                .toList();
+        List<ProjectDto.Response> responses =
+                projects.stream().map(ProjectDto.Response::fromEntity).toList();
         enrichProjectListBatch(projects, responses);
         return responses;
     }
@@ -185,10 +160,8 @@ public class ProjectService {
     /**
      * 단건 정보화사업 상세 조회
      *
-     * <p>
-     * 프로젝트관리번호로 삭제되지 않은 프로젝트를 조회합니다.
-     * 신청서 정보와 품목({@link com.kdb.it.domain.budget.project.entity.Bitemm}) 목록을 포함합니다.
-     * </p>
+     * <p>프로젝트관리번호로 삭제되지 않은 프로젝트를 조회합니다. 신청서 정보와 품목({@link
+     * com.kdb.it.domain.budget.project.entity.Bitemm}) 목록을 포함합니다.
      *
      * @param prjMngNo 조회할 프로젝트관리번호
      * @return 정보화사업 상세 응답 DTO (신청서 정보, 품목 목록 포함)
@@ -196,8 +169,13 @@ public class ProjectService {
      */
     public ProjectDto.Response getProject(String prjMngNo) {
         // 프로젝트 조회 (삭제되지 않은 항목만)
-        Bprojm project = projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
-                .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
+        Bprojm project =
+                projectRepository
+                        .findByAbusMngNoAndDelYn(prjMngNo, "N")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Project not found with id: " + prjMngNo));
 
         ProjectDto.Response response = ProjectDto.Response.fromEntity(project);
         // 최신 신청서 정보 조회 및 설정
@@ -210,26 +188,26 @@ public class ProjectService {
         setCodeNames(response);
 
         // BPROJA 단계 상태 조회(1회). 대표상태(MAX)와 단계별 코드 목록에 함께 사용.
-        java.util.List<com.kdb.it.domain.budget.project.entity.Bproja> bprojaRows = bprojaRepository
-                .findByAbusMngNoAndDelYn(prjMngNo, "N");
+        java.util.List<com.kdb.it.domain.budget.project.entity.Bproja> bprojaRows =
+                bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N");
         // 프로젝트 대표상태(BPROJA 중 IT_PTL_STS_TC 최댓값). BPROJA 미적재면 null.
         response.setStsTc(representativeStatus(bprojaRows));
         // 단계별 카드용: 활성 BPROJA 상태코드 목록(진행 현황 섹션이 대역별로 판정).
-        response.setBprojaStsCodes(bprojaRows.stream()
-                .map(value -> value.getStsTc())
-                .filter(java.util.Objects::nonNull)
-                .toList());
+        response.setBprojaStsCodes(
+                bprojaRows.stream()
+                        .map(value -> value.getStsTc())
+                        .filter(java.util.Objects::nonNull)
+                        .toList());
 
         // 품목 정보 조회 및 설정 (삭제되지 않은 항목만)
         // ABUS_MNG_NO(프로젝트관리번호), SNO(프로젝트일련번호) 기준, DEL_YN='N'인 품목 조회
-        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository
-                .findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo,
-                        project.getSno(), "N");
+        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms =
+                bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
+                        prjMngNo, project.getSno(), "N");
 
         // 품목 엔티티를 DTO로 변환하여 응답 객체에 설정
-        List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
-                .map(ProjectDto.BitemmDto::fromEntity)
-                .toList();
+        List<ProjectDto.BitemmDto> itemDtos =
+                bitemms.stream().map(ProjectDto.BitemmDto::fromEntity).toList();
         // 품목구분명(ioeCNm) IOE 코드 표시명 설정
         enrichItemIoeCNames(itemDtos);
         response.setItems(itemDtos);
@@ -243,23 +221,17 @@ public class ProjectService {
     /**
      * 신규 정보화사업 생성
      *
-     * <p>
-     * 프로젝트관리번호({@code PRJ_MNG_NO})가 없으면 Oracle 시퀀스로 자동 채번합니다.
-     * 제공된 경우 중복 여부를 확인합니다.
-     * </p>
+     * <p>프로젝트관리번호({@code PRJ_MNG_NO})가 없으면 Oracle 시퀀스로 자동 채번합니다. 제공된 경우 중복 여부를 확인합니다.
      *
-     * <p>
-     * 자동 채번 로직:
-     * </p>
+     * <p>자동 채번 로직:
+     *
      * <ul>
-     * <li>요청 객체에 사업연도({@code bgYy})가 없으면 현재 연도를 사용합니다.</li>
-     * <li>데이터베이스 시퀀스({@code SQ_PRJMNGNO})에서 다음 값을 가져옵니다.</li>
-     * <li>관리번호 자동 생성 형식: {@code PRJ-{bgYy}-{seq:04d}}
-     * (예: {@code PRJ-2026-0001})</li>
+     *   <li>요청 객체에 사업연도({@code bgYy})가 없으면 현재 연도를 사용합니다.
+     *   <li>데이터베이스 시퀀스({@code SQ_PRJMNGNO})에서 다음 값을 가져옵니다.
+     *   <li>관리번호 자동 생성 형식: {@code PRJ-{bgYy}-{seq:04d}} (예: {@code PRJ-2026-0001})
      * </ul>
-     * <p>
-     * 예: {@code PRJ-2026-0001}
-     * </p>
+     *
+     * <p>예: {@code PRJ-2026-0001}
      *
      * @param request 정보화사업 생성 요청 DTO (프로젝트명, 예산, 기간, 담당자 등)
      * @return 생성된 프로젝트관리번호
@@ -313,7 +285,8 @@ public class ProjectService {
         project.assignTeamCodes(svnTeam.temC(), dvmTeam.temC());
         // 주관부서명은 CORGNI 조회 스냅샷, 주관팀명은 담당자(CUSERI) 팀명 스냅샷으로 저장
         // (팀코드는 CORGNI에 없어 CORGNI 조회로는 팀명을 얻지 못하므로 담당자 팀명을 사용)
-        project.assignSvnOrgNames(orgNameResolver.resolveName(project.getSvnDpmC()), svnTeam.temNm());
+        project.assignSvnOrgNames(
+                orgNameResolver.resolveName(project.getSvnDpmC()), svnTeam.temNm());
         projectRepository.save(project);
 
         // ===== 품목(Bitemm) 저장 =====
@@ -322,37 +295,53 @@ public class ProjectService {
             int gclSno = 0; // 품목일련번호 (1부터 시작)
             for (ProjectDto.BitemmDto itemDto : request.getItems()) {
                 Long gclSeq = bitemmRepository.getNextSequenceValue(); // Oracle 시퀀스 채번
-                String gclMngNo = String.format("GCL-%s-%04d", java.time.LocalDate.now().getYear(), gclSeq);
+                String gclMngNo =
+                        String.format("GCL-%s-%04d", java.time.LocalDate.now().getYear(), gclSeq);
 
                 // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
                 itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
 
                 // 외화 재계산: gclAmt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
-                BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
-                        itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
+                BigDecimal[] reconciled =
+                        BudgetAmountCalculator.reconcileAmount(
+                                itemDto.getFcAmt(),
+                                itemDto.getAmt(),
+                                itemDto.getCurC(),
+                                itemDto.getXcr());
 
-                com.kdb.it.domain.budget.project.entity.Bitemm newItem = com.kdb.it.domain.budget.project.entity.Bitemm
-                        .builder()
-                        .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
-                        .sno(++gclSno) // 품목일련번호
-                        .abusMngNo(project.getAbusMngNo()) // 프로젝트관리번호
-                        .fntTbCrySno(project.getSno()) // 프로젝트순번
-                        .ioeC(itemDto.getIoeC()) // 품목구분
-                        .gclNm(itemDto.getGclNm()) // 품목명
-                        .qty(itemDto.getQty()) // 품목수량
-                        .curC(itemDto.getCurC()) // 통화
-                        .xcr(itemDto.getXcr()) // 환율
-                        .xcrBseDt(DateFormatUtil.toYmd8(itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
-                        .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
-                        .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
-                        .dfrCleC(itemDto.getDfrCleC()) // 지급주기
-                        .sectSysUtzYn(itemDto.getSectSysUtzYn() == null ? "N" : itemDto.getSectSysUtzYn()) // 정보보호여부
-                        .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
-                        .lstYn("Y") // 최종여부
-                        .amt(reconciled[0]) // 품목금액 (서버 재계산)
-                        .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
-                        .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
-                        .build();
+                com.kdb.it.domain.budget.project.entity.Bitemm newItem =
+                        com.kdb.it.domain.budget.project.entity.Bitemm.builder()
+                                .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
+                                .sno(++gclSno) // 품목일련번호
+                                .abusMngNo(project.getAbusMngNo()) // 프로젝트관리번호
+                                .fntTbCrySno(project.getSno()) // 프로젝트순번
+                                .ioeC(itemDto.getIoeC()) // 품목구분
+                                .gclNm(itemDto.getGclNm()) // 품목명
+                                .qty(itemDto.getQty()) // 품목수량
+                                .curC(itemDto.getCurC()) // 통화
+                                .xcr(itemDto.getXcr()) // 환율
+                                .xcrBseDt(
+                                        DateFormatUtil.toYmd8(
+                                                itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
+                                .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
+                                .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
+                                .dfrCleC(itemDto.getDfrCleC()) // 지급주기
+                                .sectSysUtzYn(
+                                        itemDto.getSectSysUtzYn() == null
+                                                ? "N"
+                                                : itemDto.getSectSysUtzYn()) // 정보보호여부
+                                .itrInfrYn(
+                                        itemDto.getItrInfrYn() == null
+                                                ? "N"
+                                                : itemDto.getItrInfrYn()) // 통합인프라여부
+                                .lstYn("Y") // 최종여부
+                                .amt(reconciled[0]) // 품목금액 (서버 재계산)
+                                .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
+                                .mplAmt(
+                                        clampMpl(
+                                                itemDto.getMplAmt(),
+                                                reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
+                                .build();
                 bitemmRepository.save(newItem);
             }
         }
@@ -368,34 +357,27 @@ public class ProjectService {
     /**
      * 정보화사업 수정
      *
-     * <p>
-     * 프로젝트 기본 정보를 수정하고, 품목(Bitemm) 목록을 동기화합니다.
-     * </p>
+     * <p>프로젝트 기본 정보를 수정하고, 품목(Bitemm) 목록을 동기화합니다.
      *
-     * <p>
-     * 결재 상태 확인: "결재중" 또는 "결재완료" 상태인 경우 수정이 불가합니다.
-     * </p>
+     * <p>결재 상태 확인: "결재중" 또는 "결재완료" 상태인 경우 수정이 불가합니다.
      *
-     * <p>
-     * 품목 동기화 로직:
-     * </p>
+     * <p>품목 동기화 로직:
+     *
      * <ol>
-     * <li>기존 품목 목록 조회 (DEL_YN='N')</li>
-     * <li>요청 품목 처리:
-     * <ul>
-     * <li>{@code gclMngNo}가 있는 경우: 기존 레코드 Soft Delete 후 동일 관리번호 + 일련번호(+1)로 신규 레코드
-     * 저장</li>
-     * <li>{@code gclMngNo}가 없는 경우: 신규 항목으로 시퀀스 채번 후 추가</li>
-     * </ul>
-     * </li>
-     * <li>요청에 없는 기존 항목: Soft Delete ({@code DEL_YN='Y'})</li>
+     *   <li>기존 품목 목록 조회 (DEL_YN='N')
+     *   <li>요청 품목 처리:
+     *       <ul>
+     *         <li>{@code gclMngNo}가 있는 경우: 기존 레코드 Soft Delete 후 동일 관리번호 + 일련번호(+1)로 신규 레코드 저장
+     *         <li>{@code gclMngNo}가 없는 경우: 신규 항목으로 시퀀스 채번 후 추가
+     *       </ul>
+     *   <li>요청에 없는 기존 항목: Soft Delete ({@code DEL_YN='Y'})
      * </ol>
      *
      * @param prjMngNo 수정할 프로젝트관리번호
-     * @param request  수정 요청 DTO (변경할 필드들, 품목 목록)
+     * @param request 수정 요청 DTO (변경할 필드들, 품목 목록)
      * @return 수정된 프로젝트관리번호
      * @throws IllegalArgumentException 해당 관리번호의 프로젝트가 없는 경우
-     * @throws IllegalStateException    결재중/결재완료 상태여서 수정 불가한 경우
+     * @throws IllegalStateException 결재중/결재완료 상태여서 수정 불가한 경우
      */
     // 프로젝트 수정 시 Tiptap 변수 카탈로그가 stale → 전체 evict (P5/T13).
     @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
@@ -405,18 +387,27 @@ public class ProjectService {
         codeService.validateBudgetPeriod();
 
         // 프로젝트 조회 (삭제되지 않은 항목만)
-        Bprojm project = projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
-                .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
+        Bprojm project =
+                projectRepository
+                        .findByAbusMngNoAndDelYn(prjMngNo, "N")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Project not found with id: " + prjMngNo));
 
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
         OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
 
         // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
         // 결재중 또는 결재완료 상태인 경우 수정 불가
-        boolean isProcessingOrApproved = capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                "BPROJM", prjMngNo, project.getSno(), java.util.List.of(
-                        com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
-                        com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
+        boolean isProcessingOrApproved =
+                capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        "BPROJM",
+                        prjMngNo,
+                        project.getSno(),
+                        java.util.List.of(
+                                com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
+                                com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
 
         if (isProcessingOrApproved) {
             throw new IllegalStateException("결재중이거나 결재완료된 프로젝트는 수정할 수 없습니다.");
@@ -427,17 +418,39 @@ public class ProjectService {
         request.setAbusRngCone(HtmlSanitizer.sanitize(request.getAbusRngCone()));
 
         // 프로젝트 기본 정보 수정 (JPA Dirty Checking으로 자동 반영)
-        project.update(new Bprojm.UpdateCommand(
-                request.getAbusNm(), request.getBzTpC(), request.getSvnDpmC(), request.getDvmDpmC(),
-                request.getSttDtm(), request.getEndDtm(),
-                request.getUsid(), request.getDvmUsid(), request.getTlrUsid(), request.getDvmTlrUsid(),
-                request.getEdrtTc(), request.getAbusCone(), request.getCpnSafCone(), request.getAbusNcsCone(),
-                request.getDgogPpoCone(), request.getPlmDes(), request.getAbusRngCone(), request.getMnPrgCone(),
-                request.getHrfPlnCone(),
-                request.getBzDttNm(), request.getSklTpTc(), request.getCstTpTc(), request.getDplYn(),
-                DateFormatUtil.toYmd8(request.getFlfFsgDt()), request.getRprStsTc(), request.getExePttYn(),
-                request.getBseYy(), request.getPrlmHrkOgzCCone(),
-                request.getOdnYn(), request.getAbusTc(), request.getCncdRfrNo()));
+        project.update(
+                new Bprojm.UpdateCommand(
+                        request.getAbusNm(),
+                        request.getBzTpC(),
+                        request.getSvnDpmC(),
+                        request.getDvmDpmC(),
+                        request.getSttDtm(),
+                        request.getEndDtm(),
+                        request.getUsid(),
+                        request.getDvmUsid(),
+                        request.getTlrUsid(),
+                        request.getDvmTlrUsid(),
+                        request.getEdrtTc(),
+                        request.getAbusCone(),
+                        request.getCpnSafCone(),
+                        request.getAbusNcsCone(),
+                        request.getDgogPpoCone(),
+                        request.getPlmDes(),
+                        request.getAbusRngCone(),
+                        request.getMnPrgCone(),
+                        request.getHrfPlnCone(),
+                        request.getBzDttNm(),
+                        request.getSklTpTc(),
+                        request.getCstTpTc(),
+                        request.getDplYn(),
+                        DateFormatUtil.toYmd8(request.getFlfFsgDt()),
+                        request.getRprStsTc(),
+                        request.getExePttYn(),
+                        request.getBseYy(),
+                        request.getPrlmHrkOgzCCone(),
+                        request.getOdnYn(),
+                        request.getAbusTc(),
+                        request.getCncdRfrNo()));
 
         // 담당자(주관=USID, IT=DVM_USID) 변경 시 소속 팀 스냅샷(팀코드+팀명)도 함께 갱신
         TeamSnapshot svnTeam = resolveTeam(project.getUsid());
@@ -445,41 +458,53 @@ public class ProjectService {
         project.assignTeamCodes(svnTeam.temC(), dvmTeam.temC());
         // 주관부서명은 CORGNI 조회 스냅샷, 주관팀명은 담당자(CUSERI) 팀명 스냅샷으로 갱신
         // (팀코드는 CORGNI에 없어 CORGNI 조회로는 팀명을 얻지 못하므로 담당자 팀명을 사용)
-        project.assignSvnOrgNames(orgNameResolver.resolveName(project.getSvnDpmC()), svnTeam.temNm());
+        project.assignSvnOrgNames(
+                orgNameResolver.resolveName(project.getSvnDpmC()), svnTeam.temNm());
 
         // ===== 품목 정보 동기화 (CUD) =====
         if (request.getItems() != null) {
             // 1. 기존 품목 조회 (DEL_YN='N')
-            List<com.kdb.it.domain.budget.project.entity.Bitemm> existingItems = bitemmRepository
-                    .findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, project.getSno(), "N");
+            List<com.kdb.it.domain.budget.project.entity.Bitemm> existingItems =
+                    bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
+                            prjMngNo, project.getSno(), "N");
 
             // 처리된 품목 관리번호 추적 (삭제 대상 식별용)
             java.util.Set<String> processedGclMngNos = new java.util.HashSet<>();
             // 현재 최대 SNO 계산 (신규 추가 시 MAX+1로 설정)
-            int maxGclSno = existingItems.stream()
-                    .mapToInt(value -> value.getSno())
-                    .max().orElse(0);
+            int maxGclSno =
+                    existingItems.stream().mapToInt(value -> value.getSno()).max().orElse(0);
 
             // 2. 요청 품목 처리 (수정 또는 신규 추가)
             for (ProjectDto.BitemmDto itemDto : request.getItems()) {
                 if (itemDto.getGclMngNo() != null && !itemDto.getGclMngNo().isEmpty()) {
                     // === 기존 항목 수정 ===
                     // gclMngNo로 현재 활성(DEL_YN='N') 항목 찾기 (existingItems는 이미 DEL_YN='N' 필터됨)
-                    com.kdb.it.domain.budget.project.entity.Bitemm existingItem = existingItems.stream()
-                            .filter(item -> item.getGclMngNo().equals(itemDto.getGclMngNo()))
-                            .findFirst()
-                            .orElse(null);
+                    com.kdb.it.domain.budget.project.entity.Bitemm existingItem =
+                            existingItems.stream()
+                                    .filter(
+                                            item ->
+                                                    item.getGclMngNo()
+                                                            .equals(itemDto.getGclMngNo()))
+                                    .findFirst()
+                                    .orElse(null);
 
                     if (existingItem != null) {
                         // 변경된 필드가 있을 때만 제자리 수정 (변경 없으면 UPDATE·로그 생성 생략)
                         if (isItemChanged(existingItem, itemDto)) {
                             // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
-                            itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
+                            itemDto.setXcr(
+                                    xcrLookupService.resolveXcr(
+                                            itemDto.getCurC(), LocalDate.now()));
                             // 외화 재계산: amt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
-                            BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
-                                    itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
+                            BigDecimal[] reconciled =
+                                    BudgetAmountCalculator.reconcileAmount(
+                                            itemDto.getFcAmt(),
+                                            itemDto.getAmt(),
+                                            itemDto.getCurC(),
+                                            itemDto.getXcr());
                             // 기존 활성 레코드를 제자리 수정 (버저닝 폐기 — 새 레코드를 추가하지 않는다).
-                            // PK(GCL_MNG_NO, SNO)와 연관 필드(ABUS_MNG_NO, FNT_TB_CRY_SNO)는 유지하고 업무 필드만 갱신.
+                            // PK(GCL_MNG_NO, SNO)와 연관 필드(ABUS_MNG_NO, FNT_TB_CRY_SNO)는 유지하고 업무 필드만
+                            // 갱신.
                             // Dirty Checking으로 트랜잭션 종료 시 UPDATE가 실행된다.
                             existingItem.update(
                                     itemDto.getIoeC(), // 품목구분
@@ -487,7 +512,8 @@ public class ProjectService {
                                     itemDto.getQty(), // 품목수량
                                     itemDto.getCurC(), // 통화
                                     itemDto.getXcr(), // 환율
-                                    DateFormatUtil.toYmd8(itemDto.getXcrBseDt()), // 환율기준일자(yyyyMMdd 정규화)
+                                    DateFormatUtil.toYmd8(
+                                            itemDto.getXcrBseDt()), // 환율기준일자(yyyyMMdd 정규화)
                                     itemDto.getCncdFdtnCone(), // 예산근거
                                     toItdYm(itemDto.getBseYm()), // 도입시기
                                     itemDto.getDfrCleC(), // 지급주기
@@ -495,7 +521,9 @@ public class ProjectService {
                                     defaultYn(itemDto.getItrInfrYn()), // 통합인프라여부
                                     reconciled[0], // 품목금액 (서버 재계산)
                                     reconciled[1], // 외화금액 (외화 행에서만 유효)
-                                    clampMpl(itemDto.getMplAmt(), reconciled[0])); // 예정금액 (0 ≤ mplAmt ≤ amt)
+                                    clampMpl(
+                                            itemDto.getMplAmt(),
+                                            reconciled[0])); // 예정금액 (0 ≤ mplAmt ≤ amt)
                         }
                         processedGclMngNos.add(existingItem.getGclMngNo()); // 변경 여부와 무관하게 처리 완료 표시
                     }
@@ -503,37 +531,54 @@ public class ProjectService {
                     // === 신규 품목 추가 ===
                     // Oracle 시퀀스로 품목관리번호 채번
                     Long gclSeq = bitemmRepository.getNextSequenceValue();
-                    String gclMngNo = String.format("GCL-%s-%04d", java.time.LocalDate.now().getYear(), gclSeq);
+                    String gclMngNo =
+                            String.format(
+                                    "GCL-%s-%04d", java.time.LocalDate.now().getYear(), gclSeq);
 
                     // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
                     itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
 
                     // 외화 재계산: amt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
-                    BigDecimal[] reconciled = BudgetAmountCalculator.reconcileAmount(
-                            itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
+                    BigDecimal[] reconciled =
+                            BudgetAmountCalculator.reconcileAmount(
+                                    itemDto.getFcAmt(),
+                                    itemDto.getAmt(),
+                                    itemDto.getCurC(),
+                                    itemDto.getXcr());
 
-                    com.kdb.it.domain.budget.project.entity.Bitemm newItem = com.kdb.it.domain.budget.project.entity.Bitemm
-                            .builder()
-                            .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
-                            .sno(++maxGclSno) // 품목일련번호 (MAX+1)
-                            .abusMngNo(prjMngNo) // 프로젝트관리번호
-                            .fntTbCrySno(project.getSno()) // 프로젝트순번
-                            .ioeC(itemDto.getIoeC()) // 품목구분
-                            .gclNm(itemDto.getGclNm()) // 품목명
-                            .qty(itemDto.getQty()) // 품목수량
-                            .curC(itemDto.getCurC()) // 통화
-                            .xcr(itemDto.getXcr()) // 환율
-                            .xcrBseDt(DateFormatUtil.toYmd8(itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
-                            .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
-                            .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
-                            .dfrCleC(itemDto.getDfrCleC()) // 지급주기
-                            .sectSysUtzYn(itemDto.getSectSysUtzYn() == null ? "N" : itemDto.getSectSysUtzYn()) // 정보보호여부
-                            .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn()) // 통합인프라여부
-                            .lstYn("Y") // 최종여부
-                            .amt(reconciled[0]) // 품목금액 (서버 재계산)
-                            .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
-                            .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
-                            .build();
+                    com.kdb.it.domain.budget.project.entity.Bitemm newItem =
+                            com.kdb.it.domain.budget.project.entity.Bitemm.builder()
+                                    .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
+                                    .sno(++maxGclSno) // 품목일련번호 (MAX+1)
+                                    .abusMngNo(prjMngNo) // 프로젝트관리번호
+                                    .fntTbCrySno(project.getSno()) // 프로젝트순번
+                                    .ioeC(itemDto.getIoeC()) // 품목구분
+                                    .gclNm(itemDto.getGclNm()) // 품목명
+                                    .qty(itemDto.getQty()) // 품목수량
+                                    .curC(itemDto.getCurC()) // 통화
+                                    .xcr(itemDto.getXcr()) // 환율
+                                    .xcrBseDt(
+                                            DateFormatUtil.toYmd8(
+                                                    itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
+                                    .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
+                                    .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
+                                    .dfrCleC(itemDto.getDfrCleC()) // 지급주기
+                                    .sectSysUtzYn(
+                                            itemDto.getSectSysUtzYn() == null
+                                                    ? "N"
+                                                    : itemDto.getSectSysUtzYn()) // 정보보호여부
+                                    .itrInfrYn(
+                                            itemDto.getItrInfrYn() == null
+                                                    ? "N"
+                                                    : itemDto.getItrInfrYn()) // 통합인프라여부
+                                    .lstYn("Y") // 최종여부
+                                    .amt(reconciled[0]) // 품목금액 (서버 재계산)
+                                    .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
+                                    .mplAmt(
+                                            clampMpl(
+                                                    itemDto.getMplAmt(),
+                                                    reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
+                                    .build();
                     bitemmRepository.save(newItem);
                 }
             }
@@ -553,18 +598,14 @@ public class ProjectService {
     /**
      * 품목 변경 여부 판단
      *
-     * <p>
-     * 기존 엔티티와 요청 DTO의 업무 필드를 비교하여, 하나라도 다르면 {@code true}를 반환합니다.
-     * </p>
-     * <p>
-     * 변경이 없는 품목은 버저닝(D→C 로그)을 건너뜁니다.
-     * </p>
-     * <p>
-     * BigDecimal 필드(xcr, gclQty, gclAmt)는 scale 무관한 수치 비교를 위해 compareTo를 사용합니다.
-     * </p>
+     * <p>기존 엔티티와 요청 DTO의 업무 필드를 비교하여, 하나라도 다르면 {@code true}를 반환합니다.
+     *
+     * <p>변경이 없는 품목은 버저닝(D→C 로그)을 건너뜁니다.
+     *
+     * <p>BigDecimal 필드(xcr, gclQty, gclAmt)는 scale 무관한 수치 비교를 위해 compareTo를 사용합니다.
      *
      * @param existing 현재 활성 품목 엔티티 (DEL_YN='N')
-     * @param dto      클라이언트로부터 전달된 수정 요청 DTO
+     * @param dto 클라이언트로부터 전달된 수정 요청 DTO
      * @return 변경된 필드가 하나라도 있으면 {@code true}
      */
     private boolean isItemChanged(Bitemm existing, ProjectDto.BitemmDto dto) {
@@ -593,10 +634,10 @@ public class ProjectService {
     /**
      * 담당자 사번(eno)으로 소속 팀 스냅샷(팀코드 + 팀명)을 조회한다.
      *
-     * <p>주관팀코드(SVN_TEM_C)/개발팀코드(DVM_TEM_C)는 {@code CUSERI.TEM_C}, 주관팀명(SVN_TEM_NM)은
-     * {@code CUSERI.TEM_NM}에서 직접 가져온다. 팀코드는 조직마스터(CORGNI)에 등재되지 않아
-     * CORGNI 조회로는 팀명을 얻을 수 없으므로, 담당자 레코드의 팀명을 그대로 저장 시점 스냅샷으로 사용한다.
-     * 담당자 미지정(사번 null/공백)이거나 CUSERI 미조회 시 팀코드·팀명 모두 {@code null}이다(대상 컬럼 nullable).</p>
+     * <p>주관팀코드(SVN_TEM_C)/개발팀코드(DVM_TEM_C)는 {@code CUSERI.TEM_C}, 주관팀명(SVN_TEM_NM)은 {@code
+     * CUSERI.TEM_NM}에서 직접 가져온다. 팀코드는 조직마스터(CORGNI)에 등재되지 않아 CORGNI 조회로는 팀명을 얻을 수 없으므로, 담당자 레코드의 팀명을
+     * 그대로 저장 시점 스냅샷으로 사용한다. 담당자 미지정(사번 null/공백)이거나 CUSERI 미조회 시 팀코드·팀명 모두 {@code null}이다(대상 컬럼
+     * nullable).
      *
      * @param eno 담당자 사번 (null/공백 허용)
      * @return 소속 팀 스냅샷. eno가 비었거나 사용자 미조회 시 {@link TeamSnapshot#EMPTY}
@@ -605,7 +646,8 @@ public class ProjectService {
         if (eno == null || eno.isBlank()) {
             return TeamSnapshot.EMPTY;
         }
-        return cuserIRepository.findByEno(eno)
+        return cuserIRepository
+                .findByEno(eno)
                 .map(user -> new TeamSnapshot(user.getTemC(), user.getTemNm()))
                 .orElse(TeamSnapshot.EMPTY);
     }
@@ -613,7 +655,7 @@ public class ProjectService {
     /**
      * 담당자 소속 팀 스냅샷(팀코드 + 팀명).
      *
-     * @param temC  팀코드 (CUSERI.TEM_C, 미조회 시 null)
+     * @param temC 팀코드 (CUSERI.TEM_C, 미조회 시 null)
      * @param temNm 팀명 (CUSERI.TEM_NM, 미조회 시 null)
      */
     private record TeamSnapshot(String temC, String temNm) {
@@ -624,8 +666,8 @@ public class ProjectService {
     /**
      * 네이티브 쿼리 결과의 문자열 컬럼 안전 변환.
      *
-     * <p>Oracle JDBC가 VARCHAR2 컬럼을 Character/String으로 혼용 반환할 수 있어 직접 캐스트 대신
-     * {@code toString()}으로 변환합니다.</p>
+     * <p>Oracle JDBC가 VARCHAR2 컬럼을 Character/String으로 혼용 반환할 수 있어 직접 캐스트 대신 {@code toString()}으로
+     * 변환합니다.
      *
      * @param value 네이티브 결과 컬럼값(null 허용)
      * @return null이면 null, 아니면 문자열 표현
@@ -635,9 +677,8 @@ public class ProjectService {
     }
 
     /**
-     * 도입시기를 DB 컬럼 형식(YYYYMM, 6자)으로 변환.
-     * 프론트에서 "YYYY-MM-DD" 또는 "YYYY-MM" 형식이 올 수 있으므로
-     * 하이픈을 제거한 뒤 앞 6자만 사용한다. 빈값/null은 그대로 반환.
+     * 도입시기를 DB 컬럼 형식(YYYYMM, 6자)으로 변환. 프론트에서 "YYYY-MM-DD" 또는 "YYYY-MM" 형식이 올 수 있으므로 하이픈을 제거한 뒤 앞
+     * 6자만 사용한다. 빈값/null은 그대로 반환.
      */
     private static String toItdYm(String itdYm) {
         if (itdYm == null || itdYm.isBlank()) {
@@ -649,10 +690,8 @@ public class ProjectService {
 
     /** BigDecimal 수치 비교 (scale 무시). 둘 다 null이면 동일, 한쪽만 null이면 변경으로 간주 */
     private static boolean bigDecimalChanged(BigDecimal a, BigDecimal b) {
-        if (a == null && b == null)
-            return false;
-        if (a == null || b == null)
-            return true;
+        if (a == null && b == null) return false;
+        if (a == null || b == null) return true;
         return a.compareTo(b) != 0;
     }
 
@@ -660,33 +699,27 @@ public class ProjectService {
      * 예정금액을 유효 범위 [0, amt]로 보정한다.
      *
      * @param mplAmt 입력 예정금액(null이면 0)
-     * @param amt    품목금액(서버 재계산값, null이면 상한 미적용)
+     * @param amt 품목금액(서버 재계산값, null이면 상한 미적용)
      * @return 0 이상, amt 이하로 클램프된 예정금액
      */
     private static BigDecimal clampMpl(BigDecimal mplAmt, BigDecimal amt) {
         BigDecimal v = (mplAmt == null) ? BigDecimal.ZERO : mplAmt;
-        if (v.signum() < 0)
-            v = BigDecimal.ZERO;
-        if (amt != null && v.compareTo(amt) > 0)
-            v = amt;
+        if (v.signum() < 0) v = BigDecimal.ZERO;
+        if (amt != null && v.compareTo(amt) > 0) v = amt;
         return v;
     }
 
     /**
      * 정보화사업 삭제 (Soft Delete)
      *
-     * <p>
-     * 프로젝트와 연결된 품목({@link com.kdb.it.domain.budget.project.entity.Bitemm}) 모두를
-     * {@code DEL_YN='Y'}로 논리 삭제합니다.
-     * </p>
+     * <p>프로젝트와 연결된 품목({@link com.kdb.it.domain.budget.project.entity.Bitemm}) 모두를 {@code
+     * DEL_YN='Y'}로 논리 삭제합니다.
      *
-     * <p>
-     * 결재 상태 확인: "결재중" 또는 "결재완료" 상태인 경우 삭제가 불가합니다.
-     * </p>
+     * <p>결재 상태 확인: "결재중" 또는 "결재완료" 상태인 경우 삭제가 불가합니다.
      *
      * @param prjMngNo 삭제할 프로젝트관리번호
      * @throws IllegalArgumentException 해당 관리번호의 프로젝트가 없는 경우
-     * @throws IllegalStateException    결재중/결재완료 상태여서 삭제 불가한 경우
+     * @throws IllegalStateException 결재중/결재완료 상태여서 삭제 불가한 경우
      */
     // 프로젝트 삭제 시 Tiptap 변수 카탈로그가 stale → 전체 evict (P5/T13).
     @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
@@ -696,17 +729,26 @@ public class ProjectService {
         codeService.validateBudgetPeriod();
 
         // 프로젝트 조회 (삭제되지 않은 항목만)
-        Bprojm project = projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
-                .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + prjMngNo));
+        Bprojm project =
+                projectRepository
+                        .findByAbusMngNoAndDelYn(prjMngNo, "N")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Project not found with id: " + prjMngNo));
 
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
         OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
 
         // 결재 상태 확인 (결재중/결재완료이면 삭제 불가)
-        boolean isProcessingOrApproved = capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                "BPROJM", prjMngNo, project.getSno(), java.util.List.of(
-                        com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
-                        com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
+        boolean isProcessingOrApproved =
+                capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        "BPROJM",
+                        prjMngNo,
+                        project.getSno(),
+                        java.util.List.of(
+                                com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
+                                com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
 
         if (isProcessingOrApproved) {
             throw new IllegalStateException("결재중이거나 결재완료된 프로젝트는 삭제할 수 없습니다.");
@@ -716,9 +758,8 @@ public class ProjectService {
         project.delete();
 
         // 2. 관련 품목 전체 Soft Delete (DEL_YN 무관하게 모든 품목 조회 후 삭제)
-        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository.findByAbusMngNoAndFntTbCrySno(
-                prjMngNo,
-                project.getSno());
+        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms =
+                bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, project.getSno());
         for (com.kdb.it.domain.budget.project.entity.Bitemm bitemm : bitemms) {
             bitemm.delete(); // BaseEntity.delete() 호출 (DEL_YN='Y')
         }
@@ -727,15 +768,11 @@ public class ProjectService {
     /**
      * 정보화사업 일괄 조회
      *
-     * <p>
-     * 여러 프로젝트관리번호를 한 번에 조회합니다.
-     * 존재하지 않는 항목은 결과에서 제외하되, 누락된 프로젝트관리번호를
-     * {@code failedIds}로 호출자에게 함께 노출합니다 (부분 성공).
-     * </p>
+     * <p>여러 프로젝트관리번호를 한 번에 조회합니다. 존재하지 않는 항목은 결과에서 제외하되, 누락된 프로젝트관리번호를 {@code failedIds}로 호출자에게 함께
+     * 노출합니다 (부분 성공).
      *
      * @param request 일괄 조회 요청 DTO (프로젝트관리번호 목록)
-     * @return 조회 성공 항목({@code items})과 미존재 프로젝트관리번호({@code failedIds})를 함께 담은 결과
-     *         DTO
+     * @return 조회 성공 항목({@code items})과 미존재 프로젝트관리번호({@code failedIds})를 함께 담은 결과 DTO
      */
     public ProjectDto.BulkResponse getProjectsByIds(ProjectDto.BulkGetRequest request) {
         List<ProjectDto.Response> responses = new ArrayList<>();
@@ -754,33 +791,45 @@ public class ProjectService {
         // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
         String bgYy = request.getBseYy();
         if (bgYy != null && !bgYy.isBlank() && !responses.isEmpty()) {
-            List<String> prjMngNos = responses.stream()
-                    .map(value -> value.getAbusMngNo())
-                    .toList();
-            Map<String, BigDecimal> dupBgMap = bbugtmRepository.sumDupBgByPrjMngNos(prjMngNos, bgYy);
+            List<String> prjMngNos = responses.stream().map(value -> value.getAbusMngNo()).toList();
+            Map<String, BigDecimal> dupBgMap =
+                    bbugtmRepository.sumDupBgByPrjMngNos(prjMngNos, bgYy);
 
             // 자본예산/일반관리비 편성예산 분류 (마이그레이션 후 cId=CommonCodeGroups.IOE, cTp 필드로 분류)
             // 자본예산 비목의 cTp는 IOE_HW(기계장치)/IOE_DVC(개발비)/IOE_SW(무형자산) 계열이다.
             // (구코드 IOE_CPIT만 보던 버그로 assetTypes가 비어 자본 편성예산이 항상 0이 되던 문제 수정)
-            List<com.kdb.it.common.code.entity.Ccodem> allIoeForBugt = codeService
-                    .findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE);
-            Set<String> assetTypes = allIoeForBugt.stream()
-                    .filter(c -> IoeCategories.isCapitalCTp(c.getCTp()))
-                    .map(c -> c.getCdva())
-                    .collect(Collectors.toSet());
-            Set<String> costTypes = allIoeForBugt.stream()
-                    .filter(c -> java.util.Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE").contains(c.getCTp()))
-                    .map(c -> c.getCdva())
-                    .collect(Collectors.toSet());
-            Map<String, BigDecimal> assetDupBgMap = bbugtmRepository.sumAssetDupBgByPrjMngNos(prjMngNos, bgYy,
-                    assetTypes);
-            Map<String, BigDecimal> costDupBgMap = bbugtmRepository.sumCostDupBgByPrjMngNos(prjMngNos, bgYy, costTypes);
+            List<com.kdb.it.common.code.entity.Ccodem> allIoeForBugt =
+                    codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE);
+            Set<String> assetTypes =
+                    allIoeForBugt.stream()
+                            .filter(c -> IoeCategories.isCapitalCTp(c.getCTp()))
+                            .map(c -> c.getCdva())
+                            .collect(Collectors.toSet());
+            Set<String> costTypes =
+                    allIoeForBugt.stream()
+                            .filter(
+                                    c ->
+                                            java.util.Set.of(
+                                                            "IOE_IDR",
+                                                            "IOE_SEVS",
+                                                            "IOE_XPN",
+                                                            "IOE_LEAFE")
+                                                    .contains(c.getCTp()))
+                            .map(c -> c.getCdva())
+                            .collect(Collectors.toSet());
+            Map<String, BigDecimal> assetDupBgMap =
+                    bbugtmRepository.sumAssetDupBgByPrjMngNos(prjMngNos, bgYy, assetTypes);
+            Map<String, BigDecimal> costDupBgMap =
+                    bbugtmRepository.sumCostDupBgByPrjMngNos(prjMngNos, bgYy, costTypes);
 
-            responses.forEach(r -> {
-                r.setDupBgAmt(dupBgMap.getOrDefault(r.getAbusMngNo(), BigDecimal.ZERO));
-                r.setAssetDupBg(assetDupBgMap.getOrDefault(r.getAbusMngNo(), BigDecimal.ZERO));
-                r.setCostDupBg(costDupBgMap.getOrDefault(r.getAbusMngNo(), BigDecimal.ZERO));
-            });
+            responses.forEach(
+                    r -> {
+                        r.setDupBgAmt(dupBgMap.getOrDefault(r.getAbusMngNo(), BigDecimal.ZERO));
+                        r.setAssetDupBg(
+                                assetDupBgMap.getOrDefault(r.getAbusMngNo(), BigDecimal.ZERO));
+                        r.setCostDupBg(
+                                costDupBgMap.getOrDefault(r.getAbusMngNo(), BigDecimal.ZERO));
+                    });
         }
         return new ProjectDto.BulkResponse(responses, failedIds);
     }
@@ -788,40 +837,50 @@ public class ProjectService {
     /**
      * 프로젝트 목록 응답에 신청서 정보·코드명·예산 합계를 배치로 주입 (N+1 방지)
      *
-     * <p>
-     * 개별 조회(N×8 쿼리) 대신 배치 조회(5 쿼리)로 처리합니다:
-     * CAPPLA 1회, CAPPLM 1회, CDECIM 1회, CORGNI 1회, CUSERI 1회.
-     * </p>
+     * <p>개별 조회(N×8 쿼리) 대신 배치 조회(5 쿼리)로 처리합니다: CAPPLA 1회, CAPPLM 1회, CDECIM 1회, CORGNI 1회, CUSERI
+     * 1회.
      */
-    private void enrichProjectListBatch(List<Bprojm> projects, List<ProjectDto.Response> responses) {
-        if (projects.isEmpty())
-            return;
+    private void enrichProjectListBatch(
+            List<Bprojm> projects, List<ProjectDto.Response> responses) {
+        if (projects.isEmpty()) return;
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
         List<String> prjMngNos = projects.stream().map(value -> value.getAbusMngNo()).toList();
-        List<com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> allCapplas =
-                capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", prjMngNos);
+        List<com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView>
+                allCapplas =
+                        capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                "BPROJM", prjMngNos);
 
         // prjMngNo → 최신 Cappla (이미 DESC 정렬이므로 첫 번째가 최신)
-        Map<String, com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> latestCappla =
-                new java.util.LinkedHashMap<>();
-        for (com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView c : allCapplas) {
+        Map<
+                        String,
+                        com.kdb.it.common.approval.repository.ApplicationMapRepository
+                                .ApplicationMapView>
+                latestCappla = new java.util.LinkedHashMap<>();
+        for (com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView c :
+                allCapplas) {
             latestCappla.putIfAbsent(c.getPkColNm(), c);
         }
 
         // --- 2. CAPPLM 배치 조회 ---
-        List<String> apfMngNos = latestCappla.values().stream()
-                .map(value -> value.getApfDcmNo()).toList();
-        Map<String, com.kdb.it.common.approval.repository.ApplicationRepository.ApplicationSummaryView> capplmMap =
-                capplmRepository.findSummaryViewsByApfMngNoIn(apfMngNos).stream()
-                        .collect(Collectors.toMap(value -> value.getApfMngNo(), m -> m));
+        List<String> apfMngNos =
+                latestCappla.values().stream().map(value -> value.getApfDcmNo()).toList();
+        Map<
+                        String,
+                        com.kdb.it.common.approval.repository.ApplicationRepository
+                                .ApplicationSummaryView>
+                capplmMap =
+                        capplmRepository.findSummaryViewsByApfMngNoIn(apfMngNos).stream()
+                                .collect(Collectors.toMap(value -> value.getApfMngNo(), m -> m));
 
         // --- 3. CDECIM 배치 조회 ---
-        List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> allDecisions =
-                cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
-        Map<String, List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView>> decisionMap =
-                allDecisions.stream()
-                .collect(Collectors.groupingBy(value -> value.getDcdMngNo()));
+        List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView>
+                allDecisions =
+                        cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
+        Map<String, List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView>>
+                decisionMap =
+                        allDecisions.stream()
+                                .collect(Collectors.groupingBy(value -> value.getDcdMngNo()));
 
         // --- 4. 부서코드·사원번호·공통코드 수집 ---
         Set<String> orgCodes = new java.util.HashSet<>();
@@ -830,16 +889,11 @@ public class ProjectService {
         Set<String> prjPulPttCdvas = new java.util.HashSet<>();
         Set<String> pulDttCdvas = new java.util.HashSet<>();
         for (ProjectDto.Response r : responses) {
-            if (r.getDvmDpmC() != null && !r.getDvmDpmC().isEmpty())
-                orgCodes.add(r.getDvmDpmC());
-            if (r.getSvnDpmC() != null && !r.getSvnDpmC().isEmpty())
-                orgCodes.add(r.getSvnDpmC());
-            if (r.getDvmUsid() != null && !r.getDvmUsid().isEmpty())
-                userEnos.add(r.getDvmUsid());
-            if (r.getTlrUsid() != null && !r.getTlrUsid().isEmpty())
-                userEnos.add(r.getTlrUsid());
-            if (r.getUsid() != null && !r.getUsid().isEmpty())
-                userEnos.add(r.getUsid());
+            if (r.getDvmDpmC() != null && !r.getDvmDpmC().isEmpty()) orgCodes.add(r.getDvmDpmC());
+            if (r.getSvnDpmC() != null && !r.getSvnDpmC().isEmpty()) orgCodes.add(r.getSvnDpmC());
+            if (r.getDvmUsid() != null && !r.getDvmUsid().isEmpty()) userEnos.add(r.getDvmUsid());
+            if (r.getTlrUsid() != null && !r.getTlrUsid().isEmpty()) userEnos.add(r.getTlrUsid());
+            if (r.getUsid() != null && !r.getUsid().isEmpty()) userEnos.add(r.getUsid());
             if (r.getDvmTlrUsid() != null && !r.getDvmTlrUsid().isEmpty())
                 userEnos.add(r.getDvmTlrUsid());
             // 사업유형/업무구분/기술분야/고객유형은 컬럼에 코드값명을 직접 저장 → 별도 코드 해석 불필요
@@ -847,34 +901,54 @@ public class ProjectService {
                 rprStsCdvas.add(r.getRprStsTc());
             if (r.getExePttYn() != null && !r.getExePttYn().isEmpty())
                 prjPulPttCdvas.add(r.getExePttYn());
-            if (r.getAbusTc() != null && !r.getAbusTc().isEmpty())
-                pulDttCdvas.add(r.getAbusTc());
+            if (r.getAbusTc() != null && !r.getAbusTc().isEmpty()) pulDttCdvas.add(r.getAbusTc());
         }
 
         // --- 5. 부서명·사용자명·공통코드명 배치 조회 ---
-        Map<String, String> orgNameMap = corgnIRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
-                .collect(Collectors.toMap(value -> value.getPrlmOgzCCone(), value -> value.getBbrNm()));
-        Map<String, String> userNameMap = cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
-                .collect(Collectors.toMap(value -> value.getEno(), value -> value.getUsrNm()));
-        Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of()
-                : codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCdvas);
-        Map<String, String> prjPulPttNameMap = prjPulPttCdvas.isEmpty() ? Map.of()
-                : codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
-        Map<String, String> pulDttNameMap = pulDttCdvas.isEmpty() ? Map.of()
-                : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
+        Map<String, String> orgNameMap =
+                corgnIRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        value -> value.getPrlmOgzCCone(),
+                                        value -> value.getBbrNm()));
+        Map<String, String> userNameMap =
+                cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        value -> value.getEno(), value -> value.getUsrNm()));
+        Map<String, String> rprStsNameMap =
+                rprStsCdvas.isEmpty()
+                        ? Map.of()
+                        : codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCdvas);
+        Map<String, String> prjPulPttNameMap =
+                prjPulPttCdvas.isEmpty()
+                        ? Map.of()
+                        : codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, prjPulPttCdvas);
+        Map<String, String> pulDttNameMap =
+                pulDttCdvas.isEmpty()
+                        ? Map.of()
+                        : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
 
         // 목록 파생 합산: 대상 프로젝트들의 활성 품목 1회 배치 조회 후 프로젝트별 그룹핑
-        Map<String, List<com.kdb.it.domain.budget.project.repository.ProjectItemRepository.ProjectItemBudgetView>> itemsByPrj =
-                bitemmRepository.findBudgetViewsByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
-                .collect(Collectors.groupingBy(
-                        value -> value.getAbusMngNo()));
+        Map<
+                        String,
+                        List<
+                                com.kdb.it.domain.budget.project.repository.ProjectItemRepository
+                                        .ProjectItemBudgetView>>
+                itemsByPrj =
+                        bitemmRepository
+                                .findBudgetViewsByAbusMngNoInAndDelYn(prjMngNos, "N")
+                                .stream()
+                                .collect(Collectors.groupingBy(value -> value.getAbusMngNo()));
 
         // 대표상태 배치 조회: 대상 프로젝트들의 BPROJA를 1회 조회 후 프로젝트별 MAX(IT_PTL_STS_TC) 계산.
-        Map<String, String> repStatusByPrj = bprojaRepository
-                .findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
-                .collect(Collectors.groupingBy(
-                        value -> value.getAbusMngNo(),
-                        Collectors.collectingAndThen(Collectors.toList(), this::representativeStatus)));
+        Map<String, String> repStatusByPrj =
+                bprojaRepository.findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        value -> value.getAbusMngNo(),
+                                        Collectors.collectingAndThen(
+                                                Collectors.toList(), this::representativeStatus)));
 
         // 사업계획서 사업일정(BBIZSM) 범위 배치 조회: 사업별 MIN(STT_DT)/MAX(END_DT).
         // 대시보드 '사업별 진행현황' 간트 막대를 예산 일정이 아닌 사업계획서 일정 기준으로 표시하기 위함.
@@ -883,7 +957,7 @@ public class ProjectService {
         for (Object[] row : projectRepository.findBizplanScheduleRange(prjMngNos)) {
             String id = toNativeStr(row[0]);
             if (id != null) {
-                bizScheduleByPrj.put(id, new String[] { toNativeStr(row[1]), toNativeStr(row[2]) });
+                bizScheduleByPrj.put(id, new String[] {toNativeStr(row[1]), toNativeStr(row[2])});
             }
         }
 
@@ -892,18 +966,23 @@ public class ProjectService {
             Bprojm project = projects.get(i);
             ProjectDto.Response response = responses.get(i);
 
-            com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView cappla =
-                    latestCappla.get(project.getAbusMngNo());
+            com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView
+                    cappla = latestCappla.get(project.getAbusMngNo());
             if (cappla != null) {
                 response.setApfMngNo(cappla.getApfDcmNo());
-                com.kdb.it.common.approval.repository.ApplicationRepository.ApplicationSummaryView capplm =
-                        capplmMap.get(cappla.getApfDcmNo());
+                com.kdb.it.common.approval.repository.ApplicationRepository.ApplicationSummaryView
+                        capplm = capplmMap.get(cappla.getApfDcmNo());
                 if (capplm != null) {
-                    response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label());
-                    List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> decisions =
-                            decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
-                    response.setApplicationInfo(ApplicationInfoDto.fromReadViews(capplm, decisions));
+                    response.setApfSts(
+                            capplm.getItPtlApfPrgStsC() == null
+                                    ? null
+                                    : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
+                                                    capplm.getItPtlApfPrgStsC())
+                                            .label());
+                    List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView>
+                            decisions = decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
+                    response.setApplicationInfo(
+                            ApplicationInfoDto.fromReadViews(capplm, decisions));
                 }
             }
 
@@ -917,8 +996,7 @@ public class ProjectService {
                 response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
             if (response.getTlrUsid() != null)
                 response.setTlrUsidNm(userNameMap.get(response.getTlrUsid()));
-            if (response.getUsid() != null)
-                response.setUsidNm(userNameMap.get(response.getUsid()));
+            if (response.getUsid() != null) response.setUsidNm(userNameMap.get(response.getUsid()));
             if (response.getDvmTlrUsid() != null)
                 response.setDvmTlrUsidNm(userNameMap.get(response.getDvmTlrUsid()));
             // 사업유형/업무구분/기술분야/고객유형: 컬럼값이 곧 코드값명 → 원본값 그대로 사용
@@ -947,74 +1025,78 @@ public class ProjectService {
 
             // 파생 예산 3종(totRqmAmt/mplCpitAmt/mplMngcAmt) 주입
             projectBudgetSummaryService.applyBudgetSummaryViews(
-                    response,
-                    itemsByPrj.getOrDefault(project.getAbusMngNo(), java.util.List.of()));
+                    response, itemsByPrj.getOrDefault(project.getAbusMngNo(), java.util.List.of()));
         }
     }
 
     /**
      * 프로젝트 응답 DTO에 신청서 정보 설정 (내부 헬퍼 메서드)
      *
-     * <p>
-     * 프로젝트관리번호와 순번으로 연결된 신청서(CAPPLA) 중 가장 최신 신청서를 조회하여
-     * 응답 DTO에 신청관리번호({@code apfMngNo})와 결재상태({@code apfSts})를 설정합니다.
-     * </p>
+     * <p>프로젝트관리번호와 순번으로 연결된 신청서(CAPPLA) 중 가장 최신 신청서를 조회하여 응답 DTO에 신청관리번호({@code apfMngNo})와
+     * 결재상태({@code apfSts})를 설정합니다.
      *
-     * <p>
-     * 조회 기준:
-     * </p>
+     * <p>조회 기준:
+     *
      * <ul>
-     * <li>{@code ORC_TB_CD = 'BPROJM'}: 프로젝트 원본 테이블 코드</li>
-     * <li>{@code ORC_PK_VL = prjMngNo}: 프로젝트관리번호</li>
-     * <li>{@code ORC_SNO_VL = prjSno}: 프로젝트순번</li>
-     * <li>최신순 정렬 ({@code APF_REL_SNO DESC})</li>
+     *   <li>{@code ORC_TB_CD = 'BPROJM'}: 프로젝트 원본 테이블 코드
+     *   <li>{@code ORC_PK_VL = prjMngNo}: 프로젝트관리번호
+     *   <li>{@code ORC_SNO_VL = prjSno}: 프로젝트순번
+     *   <li>최신순 정렬 ({@code APF_REL_SNO DESC})
      * </ul>
      *
      * @param response 신청서 정보를 설정할 응답 DTO
      * @param prjMngNo 프로젝트관리번호
-     * @param prjSno   프로젝트순번
+     * @param prjSno 프로젝트순번
      */
     private void setApplicationInfo(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // BPROJM 테이블 코드와 프로젝트 관리번호/순번으로 연결된 신청서 목록 조회 (최신순)
-        List<com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> capplas = capplaRepository
-                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BPROJM", prjMngNo, prjSno);
+        List<com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView>
+                capplas =
+                        capplaRepository
+                                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                        "BPROJM", prjMngNo, prjSno);
 
         if (!capplas.isEmpty()) {
-            com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView cappla = capplas.get(0);
+            com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView
+                    cappla = capplas.get(0);
             response.setApfMngNo(cappla.getApfDcmNo()); // 신청관리번호 설정
 
             // 신청서 마스터에서 결재상태 및 상세 정보 조회
             capplmRepository.findSummaryViewsByApfMngNoIn(List.of(cappla.getApfDcmNo())).stream()
                     .findFirst()
-                    .ifPresent(capplm -> {
-                        response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
-                                : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC())
-                                        .label()); // 결재상태 설정 (코드→라벨)
+                    .ifPresent(
+                            capplm -> {
+                                response.setApfSts(
+                                        capplm.getItPtlApfPrgStsC() == null
+                                                ? null
+                                                : com.kdb.it.common.approval.domain.ApprovalStatus
+                                                        .ofCode(capplm.getItPtlApfPrgStsC())
+                                                        .label()); // 결재상태 설정 (코드→라벨)
 
-                        // 결재자 목록 조회 (결재순서 오름차순)
-                        List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> decisions =
-                                cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
+                                // 결재자 목록 조회 (결재순서 오름차순)
+                                List<
+                                                com.kdb.it.common.approval.repository
+                                                        .ApproverRepository.ApproverReadView>
+                                        decisions =
+                                                cdecimRepository
+                                                        .findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(
+                                                                cappla.getApfDcmNo());
 
-                        // ApplicationInfoDto 생성 및 설정
-                        response.setApplicationInfo(
-                                com.kdb.it.common.approval.dto.ApplicationInfoDto.fromReadViews(capplm, decisions));
-                    });
+                                // ApplicationInfoDto 생성 및 설정
+                                response.setApplicationInfo(
+                                        com.kdb.it.common.approval.dto.ApplicationInfoDto
+                                                .fromReadViews(capplm, decisions));
+                            });
         }
     }
 
     /**
      * 프로젝트 응답 DTO에 부서명/사용자명 설정 (내부 헬퍼 메서드)
      *
-     * <p>
-     * 부서코드(itDpm, svnDpm)로 TPRMPP_CORGNI에서 부서명(BBR_NM)을 조회하고,
-     * 사원번호(itDpmCgpr, itDpmTlr, svnDpmCgpr, svnDpmTlr)로
-     * TPRMPP_CUSERI에서 사용자명(USR_NM)을 조회하여 응답 DTO에 설정합니다.
-     * </p>
+     * <p>부서코드(itDpm, svnDpm)로 TPRMPP_CORGNI에서 부서명(BBR_NM)을 조회하고, 사원번호(itDpmCgpr, itDpmTlr,
+     * svnDpmCgpr, svnDpmTlr)로 TPRMPP_CUSERI에서 사용자명(USR_NM)을 조회하여 응답 DTO에 설정합니다.
      *
-     * <p>
-     * 코드 값이 null 또는 빈 문자열이면 조회를 건너뛰고,
-     * 조회 결과가 없으면 해당 이름 필드는 null로 유지됩니다.
-     * </p>
+     * <p>코드 값이 null 또는 빈 문자열이면 조회를 건너뛰고, 조회 결과가 없으면 해당 이름 필드는 null로 유지됩니다.
      *
      * @param response 코드명을 설정할 응답 DTO
      */
@@ -1023,14 +1105,17 @@ public class ProjectService {
 
         // IT부서코드 → IT부서명
         if (response.getDvmDpmC() != null && !response.getDvmDpmC().isEmpty()) {
-            corgnIRepository.findNameViewByPrlmOgzCCone(response.getDvmDpmC())
+            corgnIRepository
+                    .findNameViewByPrlmOgzCCone(response.getDvmDpmC())
                     .ifPresent(org -> response.setDvmDpmCNm(org.getBbrNm()));
         }
 
         // 주관부서코드 → 주관부서명 (스냅샷이 이미 세팅됐으면 건너뜀)
         if (response.getSvnDpmCNm() == null
-                && response.getSvnDpmC() != null && !response.getSvnDpmC().isEmpty()) {
-            corgnIRepository.findNameViewByPrlmOgzCCone(response.getSvnDpmC())
+                && response.getSvnDpmC() != null
+                && !response.getSvnDpmC().isEmpty()) {
+            corgnIRepository
+                    .findNameViewByPrlmOgzCCone(response.getSvnDpmC())
                     .ifPresent(org -> response.setSvnDpmCNm(org.getBbrNm()));
         }
 
@@ -1038,25 +1123,29 @@ public class ProjectService {
 
         // IT담당자 사번 → IT담당자명
         if (response.getDvmUsid() != null && !response.getDvmUsid().isEmpty()) {
-            cuserIRepository.findNameViewByEno(response.getDvmUsid())
+            cuserIRepository
+                    .findNameViewByEno(response.getDvmUsid())
                     .ifPresent(user -> response.setDvmUsidNm(user.getUsrNm()));
         }
 
         // 주관부서담당팀장 사번 → 주관부서담당팀장명
         if (response.getTlrUsid() != null && !response.getTlrUsid().isEmpty()) {
-            cuserIRepository.findNameViewByEno(response.getTlrUsid())
+            cuserIRepository
+                    .findNameViewByEno(response.getTlrUsid())
                     .ifPresent(user -> response.setTlrUsidNm(user.getUsrNm()));
         }
 
         // 주관부서담당자 사번 → 주관부서담당자명
         if (response.getUsid() != null && !response.getUsid().isEmpty()) {
-            cuserIRepository.findNameViewByEno(response.getUsid())
+            cuserIRepository
+                    .findNameViewByEno(response.getUsid())
                     .ifPresent(user -> response.setUsidNm(user.getUsrNm()));
         }
 
         // IT부서담당팀장 사번 → IT부서담당팀장명
         if (response.getDvmTlrUsid() != null && !response.getDvmTlrUsid().isEmpty()) {
-            cuserIRepository.findNameViewByEno(response.getDvmTlrUsid())
+            cuserIRepository
+                    .findNameViewByEno(response.getDvmTlrUsid())
                     .ifPresent(user -> response.setDvmTlrUsidNm(user.getUsrNm()));
         }
 
@@ -1068,15 +1157,21 @@ public class ProjectService {
         response.setSklTpTcNm(response.getSklTpTc());
         response.setCstTpTcNm(response.getCstTpTc());
         if (response.getRprStsTc() != null && !response.getRprStsTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.REPORT_STS, response.getRprStsTc(), null)
+            ccodemRepository
+                    .findByCIdAndCdvaWithValidDate(
+                            CommonCodeGroups.REPORT_STS, response.getRprStsTc(), null)
                     .ifPresent(code -> response.setRprStsTcNm(code.getCdvaNm()));
         }
         if (response.getExePttYn() != null && !response.getExePttYn().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.EXE_POSSIBLE, response.getExePttYn(), null)
+            ccodemRepository
+                    .findByCIdAndCdvaWithValidDate(
+                            CommonCodeGroups.EXE_POSSIBLE, response.getExePttYn(), null)
                     .ifPresent(code -> response.setExePttYnNm(code.getCdvaNm()));
         }
         if (response.getAbusTc() != null && !response.getAbusTc().isEmpty()) {
-            ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.ABUS, response.getAbusTc(), null)
+            ccodemRepository
+                    .findByCIdAndCdvaWithValidDate(
+                            CommonCodeGroups.ABUS, response.getAbusTc(), null)
                     .ifPresent(code -> response.setAbusTcNm(code.getCdvaNm()));
         }
     }
@@ -1084,15 +1179,13 @@ public class ProjectService {
     /**
      * BPROJA 관계 행 목록에서 대표상태(IT_PTL_STS_TC 최댓값)를 계산한다.
      *
-     * <p>
-     * 2자리 zero-pad 코드이므로 문자열 사전식 비교 = 숫자 비교. null 상태는 무시.
-     * 행이 없거나 모두 null이면 null 반환.
-     * </p>
+     * <p>2자리 zero-pad 코드이므로 문자열 사전식 비교 = 숫자 비교. null 상태는 무시. 행이 없거나 모두 null이면 null 반환.
      *
      * @param rows 단일 프로젝트의 미삭제 BPROJA 행 목록
      * @return 대표상태 코드 또는 null
      */
-    private String representativeStatus(java.util.List<com.kdb.it.domain.budget.project.entity.Bproja> rows) {
+    private String representativeStatus(
+            java.util.List<com.kdb.it.domain.budget.project.entity.Bproja> rows) {
         return rows.stream()
                 .map(value -> value.getStsTc())
                 .filter(s -> s != null && !s.isEmpty())
@@ -1103,24 +1196,21 @@ public class ProjectService {
     /**
      * 프로젝트 응답 DTO에 자본예산/일반관리비 합계 설정 (품목 조회 포함)
      *
-     * <p>
-     * 프로젝트의 품목(Bitemm)을 조회하여 gclDtt(품목구분) 기준으로
-     * 자본예산과 일반관리비를 계산합니다.
-     * </p>
+     * <p>프로젝트의 품목(Bitemm)을 조회하여 gclDtt(품목구분) 기준으로 자본예산과 일반관리비를 계산합니다.
      *
      * @param response 예산 합계를 설정할 응답 DTO
      * @param prjMngNo 프로젝트관리번호
-     * @param prjSno   프로젝트순번
+     * @param prjSno 프로젝트순번
      */
     private void setBudgetSummary(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // 삭제되지 않은 품목 목록 조회
-        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms = bitemmRepository
-                .findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, (Integer) prjSno, "N");
+        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms =
+                bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
+                        prjMngNo, (Integer) prjSno, "N");
         // 목록 조회 시 items 가 아직 설정되지 않은 경우 DTO 변환 및 enrichment 수행
         if (response.getItems() == null) {
-            List<ProjectDto.BitemmDto> itemDtos = bitemms.stream()
-                    .map(ProjectDto.BitemmDto::fromEntity)
-                    .toList();
+            List<ProjectDto.BitemmDto> itemDtos =
+                    bitemms.stream().map(ProjectDto.BitemmDto::fromEntity).toList();
             enrichItemIoeCNames(itemDtos);
             response.setItems(itemDtos);
         }
@@ -1130,11 +1220,8 @@ public class ProjectService {
     /**
      * IOE 계층 코드(구형 C_ID 형식) 집합을 받아 표시명 맵을 배치 조회합니다.
      *
-     * <p>
-     * ioeC 값은 구형 IOE C_ID 형식 (예: "IOE-351-1100-1")입니다.
-     * 새 CCODEM 에서는 하이픈을 언더스코어로 치환한 뒤 마지막 세그먼트를 CDVA 로,
-     * 나머지 앞부분을 C_ID 로 사용합니다.
-     * </p>
+     * <p>ioeC 값은 구형 IOE C_ID 형식 (예: "IOE-351-1100-1")입니다. 새 CCODEM 에서는 하이픈을 언더스코어로 치환한 뒤 마지막 세그먼트를
+     * CDVA 로, 나머지 앞부분을 C_ID 로 사용합니다.
      *
      * @param ioeCodes 조회할 품목구분 코드 집합 (IOE 계층 코드)
      * @return 원본 코드값 → 표시명 맵
@@ -1144,11 +1231,13 @@ public class ProjectService {
         // C_ID 별로 그룹화하여 배치 조회
         Map<String, List<String>> byCId = new java.util.HashMap<>();
         for (String ioeC : ioeCodes) {
-            if (ioeC == null)
-                continue;
+            if (ioeC == null) continue;
             String normalized = ioeC.replace('-', '_');
             int lastUnderscore = normalized.lastIndexOf('_');
-            String cId = lastUnderscore >= 0 ? normalized.substring(0, lastUnderscore) : CommonCodeGroups.IOE;
+            String cId =
+                    lastUnderscore >= 0
+                            ? normalized.substring(0, lastUnderscore)
+                            : CommonCodeGroups.IOE;
             byCId.computeIfAbsent(cId, k -> new java.util.ArrayList<>()).add(ioeC);
         }
         for (Map.Entry<String, List<String>> entry : byCId.entrySet()) {
@@ -1158,10 +1247,17 @@ public class ProjectService {
                 for (String orig : entry.getValue()) {
                     String normalized = orig.replace('-', '_');
                     int lastUnderscore = normalized.lastIndexOf('_');
-                    String cdva = lastUnderscore >= 0 ? normalized.substring(lastUnderscore + 1) : normalized;
+                    String cdva =
+                            lastUnderscore >= 0
+                                    ? normalized.substring(lastUnderscore + 1)
+                                    : normalized;
                     if (cdva.equals(code.getCdva())) {
-                        String displayName = code.getCdvaNm() != null ? code.getCdvaNm()
-                                : (code.getCdvaDtl() != null ? code.getCdvaDtl() : code.getCdvaNm());
+                        String displayName =
+                                code.getCdvaNm() != null
+                                        ? code.getCdvaNm()
+                                        : (code.getCdvaDtl() != null
+                                                ? code.getCdvaDtl()
+                                                : code.getCdvaNm());
                         if (displayName != null) {
                             String[] parts = displayName.split(" - ");
                             result.put(orig, parts[parts.length - 1].trim());
@@ -1176,26 +1272,22 @@ public class ProjectService {
     /**
      * 품목 DTO 목록의 ioeCNm(품목구분명)을 일괄 설정합니다.
      *
-     * <p>
-     * 품목구분 코드(ioeC)가 IOE 계층 코드인 경우 배치 조회하여
-     * 표시명을 ioeCNm 에 설정합니다.
-     * </p>
+     * <p>품목구분 코드(ioeC)가 IOE 계층 코드인 경우 배치 조회하여 표시명을 ioeCNm 에 설정합니다.
      *
      * @param items 품목 DTO 목록
      */
     private void enrichItemIoeCNames(List<ProjectDto.BitemmDto> items) {
-        if (items == null || items.isEmpty())
-            return;
-        Set<String> ioeCSet = items.stream()
-                .map(value -> value.getIoeC())
-                .filter(v -> v != null && !v.isEmpty())
-                .collect(Collectors.toSet());
-        if (ioeCSet.isEmpty())
-            return;
+        if (items == null || items.isEmpty()) return;
+        Set<String> ioeCSet =
+                items.stream()
+                        .map(value -> value.getIoeC())
+                        .filter(v -> v != null && !v.isEmpty())
+                        .collect(Collectors.toSet());
+        if (ioeCSet.isEmpty()) return;
         Map<String, String> nameMap = buildIoeCNameMap(ioeCSet);
-        items.forEach(item -> {
-            if (item.getIoeC() != null)
-                item.setIoeCNm(nameMap.get(item.getIoeC()));
-        });
+        items.forEach(
+                item -> {
+                    if (item.getIoeC() != null) item.setIoeCNm(nameMap.get(item.getIoeC()));
+                });
     }
 }

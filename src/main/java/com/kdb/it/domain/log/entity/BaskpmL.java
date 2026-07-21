@@ -3,17 +3,14 @@ package com.kdb.it.domain.log.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDateTime;
-
-/**
- * 정보화실무협의회 타당성검토 생략판정요청(TPRMPP_BASKPM) 변경 로그 엔티티. (PRD_c_20260620 #3)
- */
+/** 정보화실무협의회 타당성검토 생략판정요청(TPRMPP_BASKPM) 변경 로그 엔티티. (PRD_c_20260620 #3) */
 @Entity
 @Table(name = "TPRMPP_BASKPL", comment = "프로젝트관리_협의회제외요청변경로그")
 @Getter

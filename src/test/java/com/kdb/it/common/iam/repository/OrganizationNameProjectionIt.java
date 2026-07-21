@@ -17,28 +17,30 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 @DisplayName("조직명 읽기 프로젝션")
 class OrganizationNameProjectionIt extends AbstractOracleRepositoryTest {
 
-    @Autowired
-    private OrganizationRepository organizationRepository;
+    @Autowired private OrganizationRepository organizationRepository;
 
-    @Autowired
-    private TestEntityManager em;
+    @Autowired private TestEntityManager em;
 
     @BeforeEach
     void setUp() {
         CorgnI organization = em.find(CorgnI.class, "120");
         if (organization == null) {
-            em.persist(CorgnI.builder()
-                    .prlmOgzCCone("120")
-                    .bbrNm("디지털부")
-                    .delYn("N")
-                    .fstEnrUsid("FIXTURE")
-                    .fstEnrDtm(LocalDateTime.now())
-                    .lstChgUsid("FIXTURE")
-                    .lstChgDtm(LocalDateTime.now())
-                    .build());
+            em.persist(
+                    CorgnI.builder()
+                            .prlmOgzCCone("120")
+                            .bbrNm("디지털부")
+                            .delYn("N")
+                            .fstEnrUsid("FIXTURE")
+                            .fstEnrDtm(LocalDateTime.now())
+                            .lstChgUsid("FIXTURE")
+                            .lstChgDtm(LocalDateTime.now())
+                            .build());
         } else {
-            organization.update("디지털부", organization.getBbrWrenNm(),
-                    organization.getItmSqnSno(), organization.getPrlmHrkOgzCCone());
+            organization.update(
+                    "디지털부",
+                    organization.getBbrWrenNm(),
+                    organization.getItmSqnSno(),
+                    organization.getPrlmHrkOgzCCone());
         }
         em.flush();
         em.clear();
@@ -50,15 +52,19 @@ class OrganizationNameProjectionIt extends AbstractOracleRepositoryTest {
         List<OrganizationRepository.OrganizationNameView> rows =
                 organizationRepository.findNameViewsByPrlmOgzCConeIn(List.of("120", "없는조직"));
 
-        assertThat(rows).filteredOn(row -> row.getPrlmOgzCCone().equals("120"))
+        assertThat(rows)
+                .filteredOn(row -> row.getPrlmOgzCCone().equals("120"))
                 .singleElement()
                 .satisfies(row -> assertThat(row.getBbrNm()).isEqualTo("디지털부"));
         assertThat(organizationRepository.findNameViewByPrlmOgzCCone("120"))
                 .get()
                 .extracting(row -> row.getBbrNm())
                 .isEqualTo("디지털부");
-        assertThat(Arrays.stream(OrganizationRepository.OrganizationNameView.class.getDeclaredMethods())
-                .map(method -> method.getName()))
+        assertThat(
+                        Arrays.stream(
+                                        OrganizationRepository.OrganizationNameView.class
+                                                .getDeclaredMethods())
+                                .map(method -> method.getName()))
                 .containsExactlyInAnyOrder("getPrlmOgzCCone", "getBbrNm");
     }
 }

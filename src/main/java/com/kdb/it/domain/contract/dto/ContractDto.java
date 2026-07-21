@@ -1,7 +1,6 @@
 package com.kdb.it.domain.contract.dto;
 
 import com.kdb.it.domain.contract.repository.ContractDetailRow;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -16,8 +15,7 @@ public final class ContractDto {
     public record CreateRequest(
             @NotBlank @Size(max = 3) String ioeC,
             @NotBlank @Size(max = 30) String cncdRfrNo,
-            @Size(max = 300) String reqCone
-    ) {}
+            @Size(max = 300) String reqCone) {}
 
     @Schema(name = "ContractUpdateRequest", description = "입찰계약 마스터 수정(작성중)")
     public record UpdateRequest(@Size(max = 300) String reqCone) {}
@@ -32,22 +30,37 @@ public final class ContractDto {
             @Size(max = 100) String cttNm,
             @DecimalMin(value = "0", message = "계약금액은 0 이상이어야 합니다.") BigDecimal cttAmt,
             @Size(max = 100) String cttOppNm,
-            @Size(max = 8) String cttDt
-    ) {}
+            @Size(max = 8) String cttDt) {}
 
     @Schema(name = "ContractListItem", description = "입찰계약 목록 항목")
     public record ListItem(
-            String docMngNo, Integer docVrsSno, String ioeC, String cncdRfrNo,
-            String stsTc, String cttNm, BigDecimal cttAmt, String reqUsid, java.time.LocalDateTime reqDtm
-    ) {}
+            String docMngNo,
+            Integer docVrsSno,
+            String ioeC,
+            String cncdRfrNo,
+            String stsTc,
+            String cttNm,
+            BigDecimal cttAmt,
+            String reqUsid,
+            java.time.LocalDateTime reqDtm) {}
 
     @Schema(name = "ContractDetail", description = "입찰계약 상세")
     public record Detail(
-            String docMngNo, Integer docVrsSno, String ioeC, String cncdRfrNo, String tgtNm,
-            String stsTc, String reqCone, String itPtlCttManrC, String cttManrRsn, String cttNm,
-            BigDecimal cttAmt, String cttOppNm, String cttDt,
-            String reqUsid, java.time.LocalDateTime reqDtm
-    ) {
+            String docMngNo,
+            Integer docVrsSno,
+            String ioeC,
+            String cncdRfrNo,
+            String tgtNm,
+            String stsTc,
+            String reqCone,
+            String itPtlCttManrC,
+            String cttManrRsn,
+            String cttNm,
+            BigDecimal cttAmt,
+            String cttOppNm,
+            String cttDt,
+            String reqUsid,
+            java.time.LocalDateTime reqDtm) {
         /**
          * 조회 프로젝션을 상세 응답으로 변환합니다.
          *
@@ -56,9 +69,21 @@ public final class ContractDto {
          */
         public static Detail fromProjection(ContractDetailRow row) {
             return new Detail(
-                    row.docMngNo(), row.docVrsSno(), row.ioeC(), row.cncdRfrNo(), row.tgtNm(),
-                    row.stsTc(), row.reqCone(), row.itPtlCttManrC(), row.cttManrRsn(), row.cttNm(),
-                    row.cttAmt(), row.cttOppNm(), row.cttDt(), row.reqUsid(), row.reqDtm());
+                    row.docMngNo(),
+                    row.docVrsSno(),
+                    row.ioeC(),
+                    row.cncdRfrNo(),
+                    row.tgtNm(),
+                    row.stsTc(),
+                    row.reqCone(),
+                    row.itPtlCttManrC(),
+                    row.cttManrRsn(),
+                    row.cttNm(),
+                    row.cttAmt(),
+                    row.cttOppNm(),
+                    row.cttDt(),
+                    row.reqUsid(),
+                    row.reqDtm());
         }
     }
 }

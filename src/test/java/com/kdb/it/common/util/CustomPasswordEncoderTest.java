@@ -9,9 +9,7 @@ import org.junit.jupiter.api.Test;
 /**
  * CustomPasswordEncoder 단위 테스트
  *
- * <p>
- * 순수 Java 클래스로 Spring 의존성이 없으므로 직접 인스턴스화하여 테스트합니다.
- * </p>
+ * <p>순수 Java 클래스로 Spring 의존성이 없으므로 직접 인스턴스화하여 테스트합니다.
  */
 class CustomPasswordEncoderTest {
 

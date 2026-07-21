@@ -18,7 +18,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 대금지급 상세(명세) 엔티티 — 회차별 지급.
  *
- * <p>DB 테이블: {@code TPRMPP_BPAYTM}. 마스터(Bpaymm) 1건에 회차(DFR_TOD)별 N행.</p>
+ * <p>DB 테이블: {@code TPRMPP_BPAYTM}. 마스터(Bpaymm) 1건에 회차(DFR_TOD)별 N행.
  */
 @LogTarget(entity = BpaymtL.class)
 @Entity

@@ -3,17 +3,14 @@ package com.kdb.it.domain.log.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDate;
-
-/**
- * 정보화사업(TPRMPP_BPROJM) 변경 로그 엔티티.
- */
+/** 정보화사업(TPRMPP_BPROJM) 변경 로그 엔티티. */
 @Entity
 @Table(name = "TPRMPP_BPROJL", comment = "정보화사업 변경 로그")
 @Getter

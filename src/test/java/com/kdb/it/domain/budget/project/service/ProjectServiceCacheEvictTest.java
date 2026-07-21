@@ -5,8 +5,24 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 
+import com.kdb.it.common.approval.repository.ApplicationMapRepository;
+import com.kdb.it.common.approval.repository.ApplicationRepository;
+import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.code.repository.CodeRepository;
+import com.kdb.it.common.code.service.CodeService;
+import com.kdb.it.common.iam.repository.OrganizationRepository;
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.util.CodeNameMapBuilder;
+import com.kdb.it.config.CacheConfig;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
+import com.kdb.it.domain.budget.project.repository.BprojaRepository;
+import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
+import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import java.util.List;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,45 +35,25 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import com.kdb.it.config.CacheConfig;
-import com.kdb.it.common.approval.repository.ApplicationMapRepository;
-import com.kdb.it.common.approval.repository.ApplicationRepository;
-import com.kdb.it.common.approval.repository.ApproverRepository;
-import com.kdb.it.common.code.repository.CodeRepository;
-import com.kdb.it.common.code.service.CodeService;
-import com.kdb.it.common.iam.repository.OrganizationRepository;
-import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.common.util.CodeNameMapBuilder;
-import com.kdb.it.domain.budget.cost.util.XcrLookupService;
-import com.kdb.it.domain.budget.project.dto.ProjectDto;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
-import com.kdb.it.domain.budget.project.repository.BprojaRepository;
-import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
-import com.kdb.it.domain.budget.project.repository.ProjectRepository;
-import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
-
 /**
  * ProjectService 쓰기 경로의 tiptapMetadata 캐시 무효화 검증.
  *
  * <p>실제 {@link CacheConfig}(Caffeine)와 Spring 캐시 프록시를 띄워, create/update/delete 호출이
- * {@code @CacheEvict(cacheNames="tiptapMetadata", allEntries=true)}를 발화시키는지 확인합니다.
- * DB·협력 서비스는 Mockito로 대체하므로 DB 미접속이며 {@code @Tag("it")}를 부착하지 않습니다.</p>
+ * {@code @CacheEvict(cacheNames="tiptapMetadata", allEntries=true)}를 발화시키는지 확인합니다. DB·협력 서비스는
+ * Mockito로 대체하므로 DB 미접속이며 {@code @Tag("it")}를 부착하지 않습니다.
  *
  * <p>update/delete는 {@code validateModifyPermission}이 SecurityContext의 {@link CustomUserDetails}를
- * 요구하므로, 메서드가 예외 없이 정상 반환해 evict가 발화하도록 ADMIN 컨텍스트를 심습니다(계획 ⚠️ 주석 반영).</p>
+ * 요구하므로, 메서드가 예외 없이 정상 반환해 evict가 발화하도록 ADMIN 컨텍스트를 심습니다(계획 ⚠️ 주석 반영).
  */
 // 주의: 트랜잭션 매니저 빈이 없어 @Transactional은 비활성 — @CacheEvict 발화 자체만 검증하며,
 //       커밋 후 지연(TransactionAwareCacheManagerProxy) 경로는 검증 대상이 아님.
 @SpringBootTest(classes = {CacheConfig.class, ProjectService.class})
 class ProjectServiceCacheEvictTest {
 
-    @Autowired
-    private ProjectService projectService;
+    @Autowired private ProjectService projectService;
 
     // 시드/검증은 위임 대상 Caffeine 매니저를 직접 사용 — 프록시 지연과 무관하게 백킹 스토어를 명시 타깃팅.
-    @Autowired
-    private CaffeineCacheManager caffeineCacheManager;
+    @Autowired private CaffeineCacheManager caffeineCacheManager;
 
     // ProjectService 협력 빈 — 캐시 발화만 검증하므로 동작은 최소 스텁
     @MockitoBean private ProjectRepository projectRepository;
@@ -76,6 +72,7 @@ class ProjectServiceCacheEvictTest {
     @MockitoBean private BprojaSyncService bprojaSyncService;
     @MockitoBean private CodeNameMapBuilder codeNameMapBuilder;
     @MockitoBean private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+
     /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
     @MockitoBean private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
@@ -90,10 +87,12 @@ class ProjectServiceCacheEvictTest {
         tiptapCache.put("D001", "stale");
 
         // validateModifyPermission(update/delete)이 요구하는 인증 컨텍스트 — ADMIN으로 즉시 통과
-        CustomUserDetails admin = new CustomUserDetails("ADMIN01", List.of(CustomUserDetails.ATH_ADMIN), "D001");
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(admin, null, admin.getAuthorities()));
-
+        CustomUserDetails admin =
+                new CustomUserDetails("ADMIN01", List.of(CustomUserDetails.ATH_ADMIN), "D001");
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                admin, null, admin.getAuthorities()));
     }
 
     @AfterEach
@@ -120,8 +119,10 @@ class ProjectServiceCacheEvictTest {
         given(project.getAbusMngNo()).willReturn("PRJ-2026-0001");
         given(projectRepository.findByAbusMngNoAndDelYn(anyString(), anyString()))
                 .willReturn(java.util.Optional.of(project));
-        given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                anyString(), anyString(), any(), any())).willReturn(false);
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                anyString(), anyString(), any(), any()))
+                .willReturn(false);
 
         projectService.updateProject("PRJ-2026-0001", newUpdateRequest());
 
@@ -136,8 +137,10 @@ class ProjectServiceCacheEvictTest {
         given(project.getSno()).willReturn(1);
         given(projectRepository.findByAbusMngNoAndDelYn(anyString(), anyString()))
                 .willReturn(java.util.Optional.of(project));
-        given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                anyString(), anyString(), any(), any())).willReturn(false);
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                anyString(), anyString(), any(), any()))
+                .willReturn(false);
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(anyString(), any()))
                 .willReturn(java.util.List.of());
 

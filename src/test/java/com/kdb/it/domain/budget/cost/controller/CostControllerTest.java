@@ -11,8 +11,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.config.JacksonConfig;
+import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.budget.cost.service.CostService;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,35 +29,21 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.system.security.JwtUtil;
-import com.kdb.it.common.system.service.CustomUserDetailsService;
-import com.kdb.it.config.JacksonConfig;
-import com.kdb.it.config.TestSecurityConfig;
-import com.kdb.it.domain.budget.cost.dto.CostDto;
-import com.kdb.it.domain.budget.cost.service.CostService;
-
 @WebMvcTest(CostController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class CostControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private CostService costService;
-    @MockitoBean
-    private JwtUtil jwtUtil;
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private CostService costService;
+    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     @Test
     @DisplayName("GET /api/cost - 비인증 → 401")
     void getCostList_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/cost"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/cost")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -69,8 +61,7 @@ class CostControllerTest {
     @WithMockUser(username = "10001")
     void getCost_인증_200() throws Exception {
         given(costService.getCost("COST_2026_0001")).willReturn(new CostDto.Response());
-        mockMvc.perform(get("/api/cost/COST_2026_0001"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/cost/COST_2026_0001")).andExpect(status().isOk());
     }
 
     @Test
@@ -81,9 +72,10 @@ class CostControllerTest {
         var body = new CostDto.CreateRequest();
         body.setCurC("KRW");
 
-        mockMvc.perform(post("/api/cost")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/cost")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/cost/COST_2026_0001"));
     }
@@ -95,9 +87,10 @@ class CostControllerTest {
         var body = new CostDto.CreateRequest();
         body.setCurC(null);
 
-        mockMvc.perform(post("/api/cost")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/cost")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -109,9 +102,10 @@ class CostControllerTest {
         var body = new CostDto.UpdateRequest();
         body.setCurC("KRW");
 
-        mockMvc.perform(put("/api/cost/COST_2026_0001")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        put("/api/cost/COST_2026_0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());
     }
 
@@ -122,9 +116,10 @@ class CostControllerTest {
         var body = new CostDto.UpdateRequest();
         body.setCurC(null);
 
-        mockMvc.perform(put("/api/cost/COST_2026_0001")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        put("/api/cost/COST_2026_0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -132,8 +127,7 @@ class CostControllerTest {
     @DisplayName("DELETE /api/cost/{itMngcNo} - 인증된 사용자 → 204 No Content")
     @WithMockUser(username = "10001")
     void deleteCost_인증_204() throws Exception {
-        mockMvc.perform(delete("/api/cost/COST_2026_0001"))
-                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/cost/COST_2026_0001")).andExpect(status().isNoContent());
     }
 
     @Test
@@ -142,9 +136,12 @@ class CostControllerTest {
     void getCostsByIds_인증_200() throws Exception {
         given(costService.getCostsByIds(any()))
                 .willReturn(new CostDto.BulkResponse(List.of(), List.of()));
-        mockMvc.perform(post("/api/cost/bulk-get")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new CostDto.BulkGetRequest())))
+        mockMvc.perform(
+                        post("/api/cost/bulk-get")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new CostDto.BulkGetRequest())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
                 .andExpect(jsonPath("$.failedIds").isArray());

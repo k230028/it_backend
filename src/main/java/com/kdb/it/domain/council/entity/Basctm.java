@@ -1,36 +1,33 @@
 package com.kdb.it.domain.council.entity;
 
 import com.kdb.it.common.util.Yyyymmdd8DateConverter;
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BasctmL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDate;
-
 /**
  * 정보화실무협의회 기본정보 엔티티
  *
- * <p>DB 테이블: {@code TPRMPP_BASCTM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BASCTM}
  *
- * <p>협의회 전체 프로세스의 루트 엔티티입니다.
- * 타당성검토표(Bpovwm), 결과서(Brsltm)가 이 엔티티를 FK로 참조합니다.</p>
+ * <p>협의회 전체 프로세스의 루트 엔티티입니다. 타당성검토표(Bpovwm), 결과서(Brsltm)가 이 엔티티를 FK로 참조합니다.
  *
- * <p>협의회 ID 형식: {@code ASCT-{연도}-{4자리순번}} (예: ASCT-2026-0001)</p>
+ * <p>협의회 ID 형식: {@code ASCT-{연도}-{4자리순번}} (예: ASCT-2026-0001)
  *
- * <p>일반 협의회 상태 전이: DRAFT → SUBMITTED → APPROVAL_PENDING → APPROVED → PREPARING
- * → SCHEDULED → IN_PROGRESS → EVALUATING → RESULT_WRITING
- * → RESULT_REVIEW → FINAL_APPROVAL → RESULT_APPROVAL_PENDING → COMPLETED.
- * 계획협의회는 타당성검토·결재 단계를 생략하고 DRAFT에서 PREPARING으로 전이합니다.</p>
+ * <p>일반 협의회 상태 전이: DRAFT → SUBMITTED → APPROVAL_PENDING → APPROVED → PREPARING → SCHEDULED →
+ * IN_PROGRESS → EVALUATING → RESULT_WRITING → RESULT_REVIEW → FINAL_APPROVAL →
+ * RESULT_APPROVAL_PENDING → COMPLETED. 계획협의회는 타당성검토·결재 단계를 생략하고 DRAFT에서 PREPARING으로 전이합니다.
  */
 @LogTarget(entity = BasctmL.class)
 @Entity
@@ -86,10 +83,8 @@ public class Basctm extends BaseEntity {
     /**
      * 대면개최여부: Y(대면개최) / N(서면개최) (PRD_c_20260620 #1).
      *
-     * <p>개최준비 단계에서 위원들의 대면희망여부(BCMMTM.CSF_HP_YN)를 취합한 결과로 확정됩니다.
-     * 한 명이라도 대면을 희망하면 'Y'(일정·장소 확정 후 대면 진행),
-     * 전원 서면이면 'N'(회의일자/장소/시간 null, 서면질의응답 후 바로 평가).
-     * null이면 미확정(대면 기본 취급).</p>
+     * <p>개최준비 단계에서 위원들의 대면희망여부(BCMMTM.CSF_HP_YN)를 취합한 결과로 확정됩니다. 한 명이라도 대면을 희망하면 'Y'(일정·장소 확정 후 대면
+     * 진행), 전원 서면이면 'N'(회의일자/장소/시간 null, 서면질의응답 후 바로 평가). null이면 미확정(대면 기본 취급).
      */
     @Column(name = "CSF_HELD_YN", length = 1, comment = "대면개최여부")
     private String csfHeldYn;
@@ -97,7 +92,7 @@ public class Basctm extends BaseEntity {
     /**
      * 협의회 상태 변경
      *
-     * <p>상태 전이 시 사용합니다. JPA Dirty Checking으로 자동 반영됩니다.</p>
+     * <p>상태 전이 시 사용합니다. JPA Dirty Checking으로 자동 반영됩니다.
      *
      * @param itPtlAsctPrgStsTc 변경할 상태 코드 (CCODEM ASCT_STS_C 기준)
      */
@@ -108,8 +103,8 @@ public class Basctm extends BaseEntity {
     /**
      * 회의 일정 확정 (SCHEDULED 상태 전이 시 호출)
      *
-     * @param cnrcDt  회의일자
-     * @param cnrcSttTm  회의시간 (10:00/14:00/15:00/16:00)
+     * @param cnrcDt 회의일자
+     * @param cnrcSttTm 회의시간 (10:00/14:00/15:00/16:00)
      * @param cnrcPlc 회의장소
      */
     public void confirmSchedule(LocalDate cnrcDt, String cnrcSttTm, String cnrcPlc) {
@@ -123,8 +118,7 @@ public class Basctm extends BaseEntity {
     /**
      * 서면개최 확정 (PRD_c_20260620 #1)
      *
-     * <p>위원 전원이 대면을 희망하지 않아 서면으로 진행할 때 호출합니다.
-     * 대면개최여부를 'N'으로 설정하고 회의일자/시간/장소를 모두 비웁니다.</p>
+     * <p>위원 전원이 대면을 희망하지 않아 서면으로 진행할 때 호출합니다. 대면개최여부를 'N'으로 설정하고 회의일자/시간/장소를 모두 비웁니다.
      */
     public void markWrittenMeeting() {
         this.csfHeldYn = "N";
@@ -136,11 +130,10 @@ public class Basctm extends BaseEntity {
     /**
      * 타당성검토 생략 판정 결과 기록 (IT기획 판정 시)
      *
-     * <p>정보보호기획의 생략 판정 요청(BASKPM)에 대해 IT기획이 내린 최종 생략여부와 사유를
-     * 협의회 마스터에 기록합니다. 생략 판정의 권위 저장소는 BASCTM이며, BASKPM에는
-     * 요청·판정 접수 메타데이터만 남깁니다.</p>
+     * <p>정보보호기획의 생략 판정 요청(BASKPM)에 대해 IT기획이 내린 최종 생략여부와 사유를 협의회 마스터에 기록합니다. 생략 판정의 권위 저장소는
+     * BASCTM이며, BASKPM에는 요청·판정 접수 메타데이터만 남깁니다.
      *
-     * @param prtyIvgOmtYn  생략여부 (Y=생략 / N=개최)
+     * @param prtyIvgOmtYn 생략여부 (Y=생략 / N=개최)
      * @param prtyIvgOmtRsn 생략(판정) 사유
      */
     public void recordSkipDecision(String prtyIvgOmtYn, String prtyIvgOmtRsn) {
@@ -148,4 +141,3 @@ public class Basctm extends BaseEntity {
         this.prtyIvgOmtRsn = prtyIvgOmtRsn;
     }
 }
-

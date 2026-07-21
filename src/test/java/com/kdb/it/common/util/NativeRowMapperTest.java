@@ -7,7 +7,6 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,9 +14,8 @@ import org.junit.jupiter.api.Test;
 /**
  * NativeRowMapper 단위 테스트.
  *
- * <p>Oracle JDBC + Hibernate 6 조합에서 네이티브 쿼리 결과({@code Object[]})의
- * 환경별 타입 변환 헬퍼(toStr, toLdt, toLd, toLong, toInt)를 검증합니다.
- * 외부 의존 없이 순수 자바 객체로 실행됩니다.</p>
+ * <p>Oracle JDBC + Hibernate 6 조합에서 네이티브 쿼리 결과({@code Object[]})의 환경별 타입 변환 헬퍼(toStr, toLdt, toLd,
+ * toLong, toInt)를 검증합니다. 외부 의존 없이 순수 자바 객체로 실행됩니다.
  */
 class NativeRowMapperTest {
 

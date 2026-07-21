@@ -72,9 +72,11 @@ public class DeliberationController {
      */
     @Operation(summary = "과업심의 신규 신청")
     @PostMapping
-    public ResponseEntity<String> create(@RequestBody @Valid DeliberationDto.CreateRequest req,
+    public ResponseEntity<String> create(
+            @RequestBody @Valid DeliberationDto.CreateRequest req,
             @AuthenticationPrincipal CustomUserDetails user) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(deliberationService.create(req, user));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(deliberationService.create(req, user));
     }
 
     /**
@@ -88,9 +90,12 @@ public class DeliberationController {
      */
     @Operation(summary = "과업심의 마스터 수정(작성중)")
     @PutMapping("/{docNo}")
-    public ResponseEntity<Void> update(@PathVariable(name = "docNo") String docNo,
-            @RequestBody @Valid DeliberationDto.UpdateRequest req, @AuthenticationPrincipal CustomUserDetails user) {
-        deliberationService.update(docNo, req, user); return ResponseEntity.ok().build();
+    public ResponseEntity<Void> update(
+            @PathVariable(name = "docNo") String docNo,
+            @RequestBody @Valid DeliberationDto.UpdateRequest req,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        deliberationService.update(docNo, req, user);
+        return ResponseEntity.ok().build();
     }
 
     /**
@@ -103,9 +108,11 @@ public class DeliberationController {
      */
     @Operation(summary = "과업심의 삭제(작성중)")
     @DeleteMapping("/{docNo}")
-    public ResponseEntity<Void> delete(@PathVariable(name = "docNo") String docNo,
+    public ResponseEntity<Void> delete(
+            @PathVariable(name = "docNo") String docNo,
             @AuthenticationPrincipal CustomUserDetails user) {
-        deliberationService.delete(docNo, user); return ResponseEntity.noContent().build();
+        deliberationService.delete(docNo, user);
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -119,9 +126,12 @@ public class DeliberationController {
      */
     @Operation(summary = "과업심의 상태 전이(제출/완료)")
     @PostMapping("/{docNo}/status")
-    public ResponseEntity<Void> changeStatus(@PathVariable(name = "docNo") String docNo,
-            @RequestBody @Valid DeliberationDto.StatusRequest req, @AuthenticationPrincipal CustomUserDetails user) {
-        deliberationService.changeStatus(docNo, req, user); return ResponseEntity.ok().build();
+    public ResponseEntity<Void> changeStatus(
+            @PathVariable(name = "docNo") String docNo,
+            @RequestBody @Valid DeliberationDto.StatusRequest req,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        deliberationService.changeStatus(docNo, req, user);
+        return ResponseEntity.ok().build();
     }
 
     /**
@@ -135,8 +145,11 @@ public class DeliberationController {
      */
     @Operation(summary = "과업심의 결과 입력(진행중)")
     @PutMapping("/{docNo}/result")
-    public ResponseEntity<Void> saveResult(@PathVariable(name = "docNo") String docNo,
-            @RequestBody @Valid DeliberationDto.ResultRequest req, @AuthenticationPrincipal CustomUserDetails user) {
-        deliberationService.saveResult(docNo, req, user); return ResponseEntity.ok().build();
+    public ResponseEntity<Void> saveResult(
+            @PathVariable(name = "docNo") String docNo,
+            @RequestBody @Valid DeliberationDto.ResultRequest req,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        deliberationService.saveResult(docNo, req, user);
+        return ResponseEntity.ok().build();
     }
 }

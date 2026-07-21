@@ -6,6 +6,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.board.dto.BoardMetaDto;
+import com.kdb.it.common.board.service.BoardMetaService;
+import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.config.JacksonConfig;
+import com.kdb.it.config.TestSecurityConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,29 +23,16 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.board.dto.BoardMetaDto;
-import com.kdb.it.common.board.service.BoardMetaService;
-import com.kdb.it.common.system.security.JwtUtil;
-import com.kdb.it.common.system.service.CustomUserDetailsService;
-import com.kdb.it.config.JacksonConfig;
-import com.kdb.it.config.TestSecurityConfig;
-
 @WebMvcTest(AdminBoardMetaController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class AdminBoardMetaControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private BoardMetaService boardMetaService;
-    @MockitoBean
-    private JwtUtil jwtUtil;
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private BoardMetaService boardMetaService;
+    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     @Test
     @DisplayName("POST /api/admin/boards/meta - 정상 요청 → 201")
@@ -50,9 +44,10 @@ class AdminBoardMetaControllerTest {
         body.setBlbNm("공지사항");
         body.setItPtlBlbTc("001");
 
-        mockMvc.perform(post("/api/admin/boards/meta")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/admin/boards/meta")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated());
     }
 
@@ -64,9 +59,10 @@ class AdminBoardMetaControllerTest {
         body.setBlbNm(null);
         body.setItPtlBlbTc("001");
 
-        mockMvc.perform(post("/api/admin/boards/meta")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/admin/boards/meta")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -77,9 +73,10 @@ class AdminBoardMetaControllerTest {
         var body = new BoardMetaDto.UpdateRequest();
         body.setBlbNm(null);
 
-        mockMvc.perform(put("/api/admin/boards/meta/BLBM-0001")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        put("/api/admin/boards/meta/BLBM-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 }

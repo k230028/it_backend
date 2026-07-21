@@ -1,10 +1,18 @@
 package com.kdb.it.domain.menu.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+
 import com.kdb.it.domain.menu.dto.MenuDto;
-import com.kdb.it.domain.menu.entity.Cmenum;
 import com.kdb.it.domain.menu.entity.Cmenud;
+import com.kdb.it.domain.menu.entity.Cmenum;
 import com.kdb.it.domain.menu.repository.CmenudRepository;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,15 +20,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class AdminRouteServiceTest {
@@ -31,8 +30,7 @@ class AdminRouteServiceTest {
 
     /** 테스트용 Cmenud 엔티티 생성 헬퍼. */
     private Cmenud route(String srePth) {
-        return Cmenud.builder().srePth(srePth).sreMnuNm("테스트화면")
-                .useYn("Y").delYn("N").build();
+        return Cmenud.builder().srePth(srePth).sreMnuNm("테스트화면").useYn("Y").delYn("N").build();
     }
 
     @Test
@@ -47,16 +45,15 @@ class AdminRouteServiceTest {
     @DisplayName("create: 공백이 포함된 경로이면 예외를 던진다")
     void create_공백포함경로_예외() {
         MenuDto.Route r = MenuDto.Route.builder().srePth("/budget list").sreMnuNm("예산").build();
-        assertThatThrownBy(() -> service.create(r))
-                .isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> service.create(r)).isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     @DisplayName("create: http로 시작하는 경로이면 예외를 던진다")
     void create_http경로_예외() {
-        MenuDto.Route r = MenuDto.Route.builder().srePth("http://example.com").sreMnuNm("외부").build();
-        assertThatThrownBy(() -> service.create(r))
-                .isInstanceOf(ResponseStatusException.class);
+        MenuDto.Route r =
+                MenuDto.Route.builder().srePth("http://example.com").sreMnuNm("외부").build();
+        assertThatThrownBy(() -> service.create(r)).isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
@@ -99,9 +96,8 @@ class AdminRouteServiceTest {
     @DisplayName("listAll: 삭제되지 않은 전체 라우트 목록을 반환한다")
     void listAll_전체라우트_반환() {
         // given
-        given(cmenudRepository.findAllActive()).willReturn(List.of(
-                route("/budget/list"), route("/project/list")
-        ));
+        given(cmenudRepository.findAllActive())
+                .willReturn(List.of(route("/budget/list"), route("/project/list")));
 
         // when
         List<Cmenud> result = service.listAll();
@@ -114,10 +110,10 @@ class AdminRouteServiceTest {
     @DisplayName("create: 유효한 경로이면 라우트를 저장한다")
     void create_유효한경로_저장() {
         // given
-        MenuDto.Route r = MenuDto.Route.builder()
-                .srePth("/new/route").sreMnuNm("새화면").useYn("Y")
-                .build();
-        given(cmenudRepository.findBySrePthAndDelYn("/new/route", "N")).willReturn(Optional.empty());
+        MenuDto.Route r =
+                MenuDto.Route.builder().srePth("/new/route").sreMnuNm("새화면").useYn("Y").build();
+        given(cmenudRepository.findBySrePthAndDelYn("/new/route", "N"))
+                .willReturn(Optional.empty());
 
         // when
         service.create(r);
@@ -131,9 +127,12 @@ class AdminRouteServiceTest {
     void update_존재하는경로_수정() {
         // given
         Cmenud existing = route("/budget/list");
-        MenuDto.Route r = MenuDto.Route.builder()
-                .srePth("/budget/list").sreMnuNm("예산목록(수정)").useYn("Y")
-                .build();
+        MenuDto.Route r =
+                MenuDto.Route.builder()
+                        .srePth("/budget/list")
+                        .sreMnuNm("예산목록(수정)")
+                        .useYn("Y")
+                        .build();
         given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
                 .willReturn(Optional.of(existing));
 
@@ -162,7 +161,8 @@ class AdminRouteServiceTest {
     void delete_메뉴참조없음_소프트딜리트() {
         // given
         Cmenud c = route("/budget/list");
-        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N")).willReturn(Optional.of(c));
+        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
+                .willReturn(Optional.of(c));
         given(cmenumRepository.findAllActive()).willReturn(List.of());
 
         // when
@@ -177,10 +177,20 @@ class AdminRouteServiceTest {
     void delete_메뉴참조중_예외() {
         // given
         Cmenud c = route("/budget/list");
-        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N")).willReturn(Optional.of(c));
-        Cmenum menu = Cmenum.builder().mnuId("M1").mnuNm("예산목록").mnuTpC("LNK")
-                .srePth("/budget/list").mnuSotSqnSno(10)
-                .hidYn("N").mnuDep(1).whlMnuPth("/M1").delYn("N").build();
+        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
+                .willReturn(Optional.of(c));
+        Cmenum menu =
+                Cmenum.builder()
+                        .mnuId("M1")
+                        .mnuNm("예산목록")
+                        .mnuTpC("LNK")
+                        .srePth("/budget/list")
+                        .mnuSotSqnSno(10)
+                        .hidYn("N")
+                        .mnuDep(1)
+                        .whlMnuPth("/M1")
+                        .delYn("N")
+                        .build();
         given(cmenumRepository.findAllActive()).willReturn(List.of(menu));
 
         // when & then

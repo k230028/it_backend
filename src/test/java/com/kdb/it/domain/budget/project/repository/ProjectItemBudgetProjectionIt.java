@@ -1,17 +1,16 @@
 package com.kdb.it.domain.budget.project.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class ProjectItemBudgetProjectionIt extends AbstractOracleRepositoryTest {
 
@@ -34,21 +33,29 @@ class ProjectItemBudgetProjectionIt extends AbstractOracleRepositoryTest {
         List<ProjectItemRepository.ProjectItemBudgetView> views =
                 repository.findBudgetViewsByAbusMngNoInAndDelYn(List.of(projectNo), "N");
 
-        assertThat(views).singleElement().satisfies(view -> {
-            assertThat(view.getGclMngNo()).isEqualTo(activeGcl);
-            assertThat(view.getAbusMngNo()).isEqualTo(projectNo);
-            assertThat(view.getIoeC()).isEqualTo("101");
-            assertThat(view.getAmt()).isEqualByComparingTo("123.000");
-            assertThat(view.getMplAmt()).isEqualByComparingTo("23.000");
-        });
-        assertThat(views).extracting(view -> view.getGclMngNo())
-                .doesNotContain(deletedGcl);
-        assertThat(ProjectItemRepository.ProjectItemBudgetView.class.getDeclaredMethods()).hasSize(5);
+        assertThat(views)
+                .singleElement()
+                .satisfies(
+                        view -> {
+                            assertThat(view.getGclMngNo()).isEqualTo(activeGcl);
+                            assertThat(view.getAbusMngNo()).isEqualTo(projectNo);
+                            assertThat(view.getIoeC()).isEqualTo("101");
+                            assertThat(view.getAmt()).isEqualByComparingTo("123.000");
+                            assertThat(view.getMplAmt()).isEqualByComparingTo("23.000");
+                        });
+        assertThat(views).extracting(view -> view.getGclMngNo()).doesNotContain(deletedGcl);
+        assertThat(ProjectItemRepository.ProjectItemBudgetView.class.getDeclaredMethods())
+                .hasSize(5);
     }
 
     private Bitemm item(
-            String gclMngNo, String projectNo, String ioeC,
-            String amt, String mplAmt, String delYn, LocalDateTime now) {
+            String gclMngNo,
+            String projectNo,
+            String ioeC,
+            String amt,
+            String mplAmt,
+            String delYn,
+            LocalDateTime now) {
         return Bitemm.builder()
                 .gclMngNo(gclMngNo)
                 .sno(1)

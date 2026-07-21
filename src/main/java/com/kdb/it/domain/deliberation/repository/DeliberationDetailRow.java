@@ -20,5 +20,4 @@ public record DeliberationDetailRow(
         String opnnCone,
         String apvTrdnRsnCone,
         String reqUsid,
-        LocalDateTime reqDtm
-) {}
+        LocalDateTime reqDtm) {}

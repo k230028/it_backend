@@ -6,8 +6,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.config.JacksonConfig;
+import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.domain.budget.status.service.BudgetStatusService;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,36 +21,25 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.kdb.it.common.system.security.JwtUtil;
-import com.kdb.it.common.system.service.CustomUserDetailsService;
-import com.kdb.it.config.JacksonConfig;
-import com.kdb.it.config.TestSecurityConfig;
-import com.kdb.it.domain.budget.status.service.BudgetStatusService;
-
 /**
  * BudgetStatusController @WebMvcTest
  *
- * <p>예산현황 HTTP 응답 구조와 인증 동작을 검증합니다.</p>
+ * <p>예산현황 HTTP 응답 구조와 인증 동작을 검증합니다.
  */
 @WebMvcTest(BudgetStatusController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class BudgetStatusControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @MockitoBean
-    private BudgetStatusService budgetStatusService;
-    @MockitoBean
-    private JwtUtil jwtUtil;
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private BudgetStatusService budgetStatusService;
+    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     @Test
     @DisplayName("GET /api/budget/status/projects - 비인증 → 401")
     void getProjects_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/budget/status/projects"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/budget/status/projects")).andExpect(status().isUnauthorized());
     }
 
     @Test

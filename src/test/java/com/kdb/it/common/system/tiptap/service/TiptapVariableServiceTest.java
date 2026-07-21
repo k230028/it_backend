@@ -1,23 +1,5 @@
 package com.kdb.it.common.system.tiptap.service;
 
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.MetadataResponse;
-import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ResolveResponse;
-import com.kdb.it.common.system.tiptap.util.TiptapTokenParser;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
-import com.kdb.it.domain.budget.project.repository.ProjectRepository;
-import com.kdb.it.domain.budget.status.repository.BudgetStatusQueryRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.Year;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -27,6 +9,23 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.MetadataResponse;
+import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto.ResolveResponse;
+import com.kdb.it.common.system.tiptap.util.TiptapTokenParser;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
+import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.status.repository.BudgetStatusQueryRepository;
+import java.time.Year;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class TiptapVariableServiceTest {
@@ -38,7 +37,9 @@ class TiptapVariableServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new TiptapVariableService(new TiptapTokenParser(), projectRepository, budgetStatusRepository);
+        service =
+                new TiptapVariableService(
+                        new TiptapTokenParser(), projectRepository, budgetStatusRepository);
     }
 
     /** 관리자 사용자 — 전체 사업(findActiveProjectRefs) 경로를 타도록 한다. */
@@ -49,27 +50,26 @@ class TiptapVariableServiceTest {
     @Test
     @DisplayName("metadata — 4개 카테고리(전산/자본/일반관리비/사업별) 반환")
     void getMetadata_returnsFourCategories() {
-        when(projectRepository.findActiveProjectRefs()).thenReturn(List.of(
-                new Bprojm.Ref("PROJ001", "차세대 시스템 구축")
-        ));
+        when(projectRepository.findActiveProjectRefs())
+                .thenReturn(List.of(new Bprojm.Ref("PROJ001", "차세대 시스템 구축")));
 
         MetadataResponse response = service.getMetadata(adminUser());
 
-        assertThat(response.categories()).extracting("code")
+        assertThat(response.categories())
+                .extracting("code")
                 .containsExactly("IT_BUDGET", "CAP_BUDGET", "OPEX", "PROJ");
     }
 
     @Test
     @DisplayName("metadata — PROJ 카테고리는 사업 목록 포함, 나머지는 null")
     void getMetadata_projectsOnlyOnProjCategory() {
-        when(projectRepository.findActiveProjectRefs()).thenReturn(List.of(
-                new Bprojm.Ref("PROJ001", "차세대 시스템 구축")
-        ));
+        when(projectRepository.findActiveProjectRefs())
+                .thenReturn(List.of(new Bprojm.Ref("PROJ001", "차세대 시스템 구축")));
 
         MetadataResponse response = service.getMetadata(adminUser());
 
-        var byCode = response.categories().stream()
-                .collect(Collectors.toMap(c -> c.code(), c -> c));
+        var byCode =
+                response.categories().stream().collect(Collectors.toMap(c -> c.code(), c -> c));
         assertThat(byCode.get("IT_BUDGET").projects()).isNull();
         assertThat(byCode.get("PROJ").projects()).hasSize(1);
         assertThat(byCode.get("PROJ").projects().get(0).code()).isEqualTo("PROJ001");
@@ -82,9 +82,15 @@ class TiptapVariableServiceTest {
 
         MetadataResponse response = service.getMetadata(adminUser());
 
-        response.categories().forEach(c ->
-                assertThat(c.items()).extracting("key")
-                        .containsExactly("requestAmount", "allocatedAmount", "allocationRate"));
+        response.categories()
+                .forEach(
+                        c ->
+                                assertThat(c.items())
+                                        .extracting("key")
+                                        .containsExactly(
+                                                "requestAmount",
+                                                "allocatedAmount",
+                                                "allocationRate"));
     }
 
     @Test
@@ -95,8 +101,11 @@ class TiptapVariableServiceTest {
         MetadataResponse response = service.getMetadata(adminUser());
         int now = Year.now().getValue();
 
-        response.categories().forEach(c ->
-                assertThat(c.years()).containsExactly(now - 2, now - 1, now, now + 1, now + 2));
+        response.categories()
+                .forEach(
+                        c ->
+                                assertThat(c.years())
+                                        .containsExactly(now - 2, now - 1, now, now + 1, now + 2));
     }
 
     @Test
@@ -108,7 +117,11 @@ class TiptapVariableServiceTest {
 
         MetadataResponse res = service.getMetadata(user);
 
-        var proj = res.categories().stream().filter(c -> c.code().equals("PROJ")).findFirst().orElseThrow();
+        var proj =
+                res.categories().stream()
+                        .filter(c -> c.code().equals("PROJ"))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(proj.projects()).extracting("code").containsExactly("P-D001");
         verify(projectRepository, never()).findActiveProjectRefs();
     }
@@ -122,7 +135,11 @@ class TiptapVariableServiceTest {
 
         MetadataResponse res = service.getMetadata(admin);
 
-        var proj = res.categories().stream().filter(c -> c.code().equals("PROJ")).findFirst().orElseThrow();
+        var proj =
+                res.categories().stream()
+                        .filter(c -> c.code().equals("PROJ"))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(proj.projects()).hasSize(2);
         verify(projectRepository, never()).findActiveProjectRefsByDept(any());
     }
@@ -136,7 +153,11 @@ class TiptapVariableServiceTest {
 
         MetadataResponse res = service.getMetadata(deptManager);
 
-        var proj = res.categories().stream().filter(c -> c.code().equals("PROJ")).findFirst().orElseThrow();
+        var proj =
+                res.categories().stream()
+                        .filter(c -> c.code().equals("PROJ"))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(proj.projects()).extracting("code").containsExactly("P-D001");
         verify(projectRepository).findActiveProjectRefsByDept("D001");
         verify(projectRepository, never()).findActiveProjectRefs();
@@ -153,18 +174,22 @@ class TiptapVariableServiceTest {
     @DisplayName("resolve — 데이터 없으면 MISSING 반환")
     void resolve_noData_returnsMissing() {
         when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
-                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(null, null));
+                .thenReturn(
+                        new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                                null, null));
 
         var response = service.resolve(java.util.List.of("2026.itBudget.requestAmount"), null);
-        assertThat(response.results().get("2026.itBudget.requestAmount").status()).isEqualTo("MISSING");
+        assertThat(response.results().get("2026.itBudget.requestAmount").status())
+                .isEqualTo("MISSING");
     }
 
     @Test
     @DisplayName("resolve — 정상 토큰은 OK + 포맷된 값 반환 (억원 단위)")
     void resolve_okToken_returnsFormattedValue() {
         when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
-                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
-                        90_000_000_000L, 85_000_000_000L));
+                .thenReturn(
+                        new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                                90_000_000_000L, 85_000_000_000L));
 
         var response = service.resolve(java.util.List.of("2026.itBudget.requestAmount"), null);
         var resolved = response.results().get("2026.itBudget.requestAmount");
@@ -176,36 +201,44 @@ class TiptapVariableServiceTest {
     @DisplayName("resolve — 편성률은 % 단위로 포맷")
     void resolve_allocationRate_returnsPercent() {
         when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
-                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
-                        100_000_000_000L, 85_300_000_000L));
+                .thenReturn(
+                        new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                                100_000_000_000L, 85_300_000_000L));
 
         var response = service.resolve(java.util.List.of("2026.itBudget.allocationRate"), null);
-        assertThat(response.results().get("2026.itBudget.allocationRate").value()).isEqualTo("85.3%");
+        assertThat(response.results().get("2026.itBudget.allocationRate").value())
+                .isEqualTo("85.3%");
     }
 
     @Test
     @DisplayName("resolve — 사업별 편성액은 프로젝트 집계에서 만원 단위로 포맷한다")
     void resolve_projectAllocatedAmount_formatsManWon() {
         when(budgetStatusRepository.aggregateByProject(2026, "PRJ001"))
-                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(50_000L, 20_000L));
+                .thenReturn(
+                        new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                                50_000L, 20_000L));
 
         // PROJ 토큰은 관리자/부서매니저만 허용되므로 관리자 사용자로 호출한다.
         CustomUserDetails admin = mock(CustomUserDetails.class);
         given(admin.isAdmin()).willReturn(true);
         var response = service.resolve(List.of("2026.proj.PRJ001.allocatedAmount"), admin);
 
-        assertThat(response.results().get("2026.proj.PRJ001.allocatedAmount").value()).isEqualTo("2만원");
+        assertThat(response.results().get("2026.proj.PRJ001.allocatedAmount").value())
+                .isEqualTo("2만원");
     }
 
     @Test
     @DisplayName("resolve — ADMIN은 어떤 사업이든 PROJ 토큰을 해석할 수 있다")
     void resolve_adminCanResolveAnyProjectToken() {
         when(budgetStatusRepository.aggregateByProject(2026, "PRJ999"))
-                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(50_000L, 20_000L));
+                .thenReturn(
+                        new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                                50_000L, 20_000L));
 
         var response = service.resolve(List.of("2026.proj.PRJ999.allocatedAmount"), adminUser());
 
-        assertThat(response.results().get("2026.proj.PRJ999.allocatedAmount").status()).isEqualTo("OK");
+        assertThat(response.results().get("2026.proj.PRJ999.allocatedAmount").status())
+                .isEqualTo("OK");
         verify(projectRepository, never()).findActiveProjectRefsByDept(any());
         verify(budgetStatusRepository).aggregateByProject(2026, "PRJ999");
     }
@@ -217,11 +250,14 @@ class TiptapVariableServiceTest {
         when(projectRepository.findActiveProjectRefsByDept("D001"))
                 .thenReturn(List.of(new Bprojm.Ref("PRJ001", "같은부서사업")));
         when(budgetStatusRepository.aggregateByProject(2026, "PRJ001"))
-                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(50_000L, 20_000L));
+                .thenReturn(
+                        new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                                50_000L, 20_000L));
 
         var response = service.resolve(List.of("2026.proj.PRJ001.allocatedAmount"), deptManager);
 
-        assertThat(response.results().get("2026.proj.PRJ001.allocatedAmount").status()).isEqualTo("OK");
+        assertThat(response.results().get("2026.proj.PRJ001.allocatedAmount").status())
+                .isEqualTo("OK");
         verify(projectRepository).findActiveProjectRefsByDept("D001");
         verify(budgetStatusRepository).aggregateByProject(2026, "PRJ001");
     }
@@ -235,7 +271,8 @@ class TiptapVariableServiceTest {
 
         var response = service.resolve(List.of("2026.proj.PRJ999.allocatedAmount"), deptManager);
 
-        assertThat(response.results().get("2026.proj.PRJ999.allocatedAmount").status()).isEqualTo("FORBIDDEN");
+        assertThat(response.results().get("2026.proj.PRJ999.allocatedAmount").status())
+                .isEqualTo("FORBIDDEN");
         verify(projectRepository).findActiveProjectRefsByDept("D001");
         verify(budgetStatusRepository, never()).aggregateByProject(anyInt(), any());
     }
@@ -244,7 +281,9 @@ class TiptapVariableServiceTest {
     @DisplayName("resolve — 천원 단위 요청액은 원 단위로 포맷한다")
     void resolve_smallRequestAmount_formatsWon() {
         when(budgetStatusRepository.aggregateByCategory(2026, "OPEX"))
-                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(9_999L, 1L));
+                .thenReturn(
+                        new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                                9_999L, 1L));
 
         var response = service.resolve(List.of("2026.opex.requestAmount"), null);
 
@@ -255,35 +294,44 @@ class TiptapVariableServiceTest {
     @DisplayName("resolve — 편성액이 없으면 MISSING을 반환한다")
     void resolve_allocatedAmountNull_returnsMissing() {
         when(budgetStatusRepository.aggregateByCategory(2026, "CAP_BUDGET"))
-                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(100L, null));
+                .thenReturn(
+                        new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                                100L, null));
 
         var response = service.resolve(List.of("2026.capBudget.allocatedAmount"), null);
 
-        assertThat(response.results().get("2026.capBudget.allocatedAmount").status()).isEqualTo("MISSING");
+        assertThat(response.results().get("2026.capBudget.allocatedAmount").status())
+                .isEqualTo("MISSING");
     }
 
     @Test
     @DisplayName("resolve — 요청액이 0인 편성률은 MISSING을 반환한다")
     void resolve_zeroRequestRate_returnsMissing() {
         when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
-                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(0L, 10L));
+                .thenReturn(
+                        new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                                0L, 10L));
 
         var response = service.resolve(List.of("2026.itBudget.allocationRate"), null);
 
-        assertThat(response.results().get("2026.itBudget.allocationRate").status()).isEqualTo("MISSING");
+        assertThat(response.results().get("2026.itBudget.allocationRate").status())
+                .isEqualTo("MISSING");
     }
 
     @Test
     @DisplayName("resolve: 동일 (year,category) 항목 3종은 집계 쿼리를 1회만 호출한다(인트라요청 메모이즈)")
     void resolve_memoizesAggregatePerRequest() {
         when(budgetStatusRepository.aggregateByCategory(2026, "IT_BUDGET"))
-                .thenReturn(new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
-                        90_000_000_000L, 76_000_000_000L));
+                .thenReturn(
+                        new com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount(
+                                90_000_000_000L, 76_000_000_000L));
 
-        service.resolve(List.of(
-                "2026.itBudget.requestAmount",
-                "2026.itBudget.allocatedAmount",
-                "2026.itBudget.allocationRate"), null);
+        service.resolve(
+                List.of(
+                        "2026.itBudget.requestAmount",
+                        "2026.itBudget.allocatedAmount",
+                        "2026.itBudget.allocationRate"),
+                null);
 
         verify(budgetStatusRepository, times(1)).aggregateByCategory(2026, "IT_BUDGET");
     }
@@ -300,9 +348,11 @@ class TiptapVariableServiceTest {
         ResolveResponse res = service.resolve(List.of("2026.proj.P001.allocationRate"), user);
 
         // Assert
-        assertThat(res.results().get("2026.proj.P001.allocationRate").status()).isEqualTo("FORBIDDEN");
+        assertThat(res.results().get("2026.proj.P001.allocationRate").status())
+                .isEqualTo("FORBIDDEN");
         verify(budgetStatusRepository, never()).aggregateByProject(anyInt(), any());
     }
+
     @Test
     @DisplayName("metadataCacheKey - 부서 없는 일반 사용자는 사용자별 키를 반환한다")
     void metadataCacheKey_noDepartment_returnsUserScopedKey() {
@@ -318,7 +368,11 @@ class TiptapVariableServiceTest {
 
         MetadataResponse res = service.getMetadata(user);
 
-        var proj = res.categories().stream().filter(c -> c.code().equals("PROJ")).findFirst().orElseThrow();
+        var proj =
+                res.categories().stream()
+                        .filter(c -> c.code().equals("PROJ"))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(proj.projects()).isEmpty();
         verify(projectRepository, never()).findActiveProjectRefs();
         verify(projectRepository, never()).findActiveProjectRefsByDept(any());

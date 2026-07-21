@@ -18,7 +18,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 소요예산 산정 상세(명세) 엔티티 — 팀별·비목별 소요예산금액.
  *
- * <p>DB 테이블: {@code TPRMPP_BESTTM}. 마스터(Bestim) 1건에 (담당팀 × 비목) N행.</p>
+ * <p>DB 테이블: {@code TPRMPP_BESTTM}. 마스터(Bestim) 1건에 (담당팀 × 비목) N행.
  */
 @LogTarget(entity = BesttmL.class)
 @Entity

@@ -3,10 +3,6 @@ package com.kdb.it.domain.menu.service;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.entity.Cmenum;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -14,6 +10,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** 메뉴 트리 조회 + 서버 단 권한 필터링. 권한 판단은 전적으로 여기서 수행한다. */
 @Service
@@ -22,8 +21,10 @@ import java.util.Set;
 public class MenuQueryService {
 
     private final CmenumRepository cmenumRepository;
+
     /** 메뉴 권한 매핑(menuAuthMap) 캐시 제공자. self-invocation 회피를 위해 별도 빈으로 분리(§Task T13-C). */
     private final MenuAuthMapProvider menuAuthMapProvider;
+
     /** Spring이 모든 MenuChildrenResolver 빈을 주입한다. DYN 메뉴는 resolver가 자식 노드를 동적으로 생성한다. */
     private final List<MenuChildrenResolver> resolvers;
 
@@ -31,18 +32,19 @@ public class MenuQueryService {
      * 사용자용 메뉴 트리를 조회한다.
      *
      * @param athIds JWT 클레임에서 복원한 자격등급 ID 목록. null이면 공개 메뉴만 반환한다.
-     * @return 숨김 메뉴와 권한 불일치 메뉴를 제거하고, 빈 GRP/DYN/HED 노드를 가지치기한 트리.
-     *         각 노드의 {@code athIds}에는 왕관 아이콘 표시 판정용 권한ID 목록이 채워진다.
+     * @return 숨김 메뉴와 권한 불일치 메뉴를 제거하고, 빈 GRP/DYN/HED 노드를 가지치기한 트리. 각 노드의 {@code athIds}에는 왕관 아이콘 표시
+     *     판정용 권한ID 목록이 채워진다.
      */
     public List<MenuDto.Node> getMenuTree(List<String> athIds) {
         List<Cmenum> all = cmenumRepository.findAllActive();
         Map<String, Set<String>> athByMenu = menuAuthMapProvider.getMenuAuthMap();
         Set<String> userAths = new HashSet<>(athIds == null ? List.of() : athIds);
 
-        List<Cmenum> visible = all.stream()
-                .filter(m -> !"Y".equals(m.getHidYn()))
-                .filter(m -> isAllowed(m.getMnuId(), athByMenu, userAths))
-                .toList();
+        List<Cmenum> visible =
+                all.stream()
+                        .filter(m -> !"Y".equals(m.getHidYn()))
+                        .filter(m -> isAllowed(m.getMnuId(), athByMenu, userAths))
+                        .toList();
 
         List<MenuDto.Node> tree = prune(buildTree(visible, athIds), true);
         // 사이드바/헤더가 관리자 전용 메뉴에 왕관 아이콘을 표시할 수 있도록 노드별 권한ID를 함께 싣는다.
@@ -74,7 +76,8 @@ public class MenuQueryService {
     // ---- 내부 헬퍼 ----
 
     /** 매핑 0건이면 전체 공개, 1건 이상이면 교집합 필요. */
-    private boolean isAllowed(String mnuId, Map<String, Set<String>> athByMenu, Set<String> userAths) {
+    private boolean isAllowed(
+            String mnuId, Map<String, Set<String>> athByMenu, Set<String> userAths) {
         Set<String> required = athByMenu.get(mnuId);
         if (required == null || required.isEmpty()) return true;
         return required.stream().anyMatch(userAths::contains);
@@ -117,7 +120,9 @@ public class MenuQueryService {
     private void sortRecursive(List<MenuDto.Node> nodes) {
         // 빈 리스트는 정렬을 건너뛴다: 불변 빈 리스트(List.of())도 sort() 호출 시 UnsupportedOperationException을 던지므로 방어.
         if (nodes == null || nodes.isEmpty()) return;
-        nodes.sort(Comparator.comparingInt(n -> n.getMnuSotSqnSno() == null ? 0 : n.getMnuSotSqnSno()));
+        nodes.sort(
+                Comparator.comparingInt(
+                        n -> n.getMnuSotSqnSno() == null ? 0 : n.getMnuSotSqnSno()));
         for (MenuDto.Node n : nodes) sortRecursive(n.getChildren());
     }
 
@@ -127,7 +132,10 @@ public class MenuQueryService {
         List<MenuDto.Node> kept = new ArrayList<>();
         for (MenuDto.Node n : nodes) {
             n.setChildren(prune(n.getChildren(), true));
-            boolean container = "GRP".equals(n.getMnuTpC()) || "DYN".equals(n.getMnuTpC()) || "HED".equals(n.getMnuTpC());
+            boolean container =
+                    "GRP".equals(n.getMnuTpC())
+                            || "DYN".equals(n.getMnuTpC())
+                            || "HED".equals(n.getMnuTpC());
             boolean empty = n.getChildren() == null || n.getChildren().isEmpty();
             if (container && empty) continue;
             kept.add(n);
@@ -137,10 +145,15 @@ public class MenuQueryService {
 
     private MenuDto.Node toNode(Cmenum m) {
         return MenuDto.Node.builder()
-                .mnuId(m.getMnuId()).hrkMnuId(m.getHrkMnuId())
-                .mnuNm(m.getMnuNm()).mnuTpC(m.getMnuTpC()).srePth(m.getSrePth())
-                .mnuSotSqnSno(m.getMnuSotSqnSno()).hidYn(m.getHidYn())
-                .mnuDep(m.getMnuDep()).whlMnuPth(m.getWhlMnuPth())
+                .mnuId(m.getMnuId())
+                .hrkMnuId(m.getHrkMnuId())
+                .mnuNm(m.getMnuNm())
+                .mnuTpC(m.getMnuTpC())
+                .srePth(m.getSrePth())
+                .mnuSotSqnSno(m.getMnuSotSqnSno())
+                .hidYn(m.getHidYn())
+                .mnuDep(m.getMnuDep())
+                .whlMnuPth(m.getWhlMnuPth())
                 .children(new ArrayList<>())
                 .build();
     }

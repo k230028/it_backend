@@ -21,6 +21,8 @@ import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,15 +33,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-
 /**
  * {@link CostService} 의 XCR 표준 조회 통합 테스트.
  *
- * <p>CONTEXT.md 결정 E / R3.7: 클라이언트가 보낸 {@code xcr} 을 {@link XcrLookupService}
- * 결과로 덮어쓴 뒤 {@code BudgetAmountCalculator.reconcileAmount} 가
- * 정확한 원화 금액을 산출하는지 검증한다.</p>
+ * <p>CONTEXT.md 결정 E / R3.7: 클라이언트가 보낸 {@code xcr} 을 {@link XcrLookupService} 결과로 덮어쓴 뒤 {@code
+ * BudgetAmountCalculator.reconcileAmount} 가 정확한 원화 금액을 산출하는지 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -56,13 +54,14 @@ class CostServiceXcrLookupTest {
     @Mock private CodeService codeService;
     @Mock private BbugtmRepository bbugtmRepository;
     @Mock private XcrLookupService xcrLookupService;
+
     /** 작성자 소속 조직 해석기 (생성 경로 의존성) */
     @Mock private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+
     /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
     @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
-    @InjectMocks
-    private CostService costService;
+    @InjectMocks private CostService costService;
 
     private static final String IT_MNGC_NO = "COST_2026_0001";
 
@@ -81,14 +80,15 @@ class CostServiceXcrLookupTest {
                 .willReturn(new BigDecimal("1400"));
         given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
 
-        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
-                .costBgNo(IT_MNGC_NO)
-                .cttNm("외화 라이선스")
-                .curC("USD")
-                .fcAmt(new BigDecimal("1000.000"))
-                .xcr(new BigDecimal("999"))         // 클라이언트 위조값
-                .costTotXpAmt(new BigDecimal("0"))   // 클라이언트 위조값
-                .build();
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder()
+                        .costBgNo(IT_MNGC_NO)
+                        .cttNm("외화 라이선스")
+                        .curC("USD")
+                        .fcAmt(new BigDecimal("1000.000"))
+                        .xcr(new BigDecimal("999")) // 클라이언트 위조값
+                        .costTotXpAmt(new BigDecimal("0")) // 클라이언트 위조값
+                        .build();
 
         // when
         costService.createCost(request);
@@ -111,14 +111,15 @@ class CostServiceXcrLookupTest {
                 .willThrow(new IllegalStateException("환율 미등록: XYZ (기준일: 2026-05-24)"));
         given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
 
-        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
-                .costBgNo(IT_MNGC_NO)
-                .cttNm("미등록 통화")
-                .curC("XYZ")
-                .fcAmt(new BigDecimal("1000"))
-                .xcr(new BigDecimal("999"))
-                .costTotXpAmt(new BigDecimal("0"))
-                .build();
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder()
+                        .costBgNo(IT_MNGC_NO)
+                        .cttNm("미등록 통화")
+                        .curC("XYZ")
+                        .fcAmt(new BigDecimal("1000"))
+                        .xcr(new BigDecimal("999"))
+                        .costTotXpAmt(new BigDecimal("0"))
+                        .build();
 
         // when / then
         assertThatThrownBy(() -> costService.createCost(request))
@@ -134,13 +135,14 @@ class CostServiceXcrLookupTest {
         given(xcrLookupService.resolveXcr(eq("KRW"), any(LocalDate.class))).willReturn(null);
         given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
 
-        CostDto.CreateRequest request = CostDto.CreateRequest.builder()
-                .costBgNo(IT_MNGC_NO)
-                .cttNm("원화 계약")
-                .curC("KRW")
-                .costTotXpAmt(new BigDecimal("5000000"))
-                .fcAmt(null)
-                .build();
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder()
+                        .costBgNo(IT_MNGC_NO)
+                        .cttNm("원화 계약")
+                        .curC("KRW")
+                        .costTotXpAmt(new BigDecimal("5000000"))
+                        .fcAmt(null)
+                        .build();
 
         // when
         costService.createCost(request);

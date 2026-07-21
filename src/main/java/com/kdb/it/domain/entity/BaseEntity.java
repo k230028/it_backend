@@ -1,9 +1,13 @@
 package com.kdb.it.domain.entity;
 
+import com.kdb.it.config.JpaAuditConfig;
+import com.kdb.it.domain.log.listener.ChangeLogEntityListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.PrePersist;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,36 +19,23 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import com.kdb.it.config.JpaAuditConfig;
-import com.kdb.it.domain.log.listener.ChangeLogEntityListener;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
-
 /**
  * 공통 감사(Audit) 정보를 담는 추상 기반 엔티티 클래스
  *
- * <p>
- * 모든 업무 엔티티({@code Bprojm}, {@code Bcostm}, {@code Capplm} 등)가
- * 상속하는 공통 필드를 정의합니다.
- * </p>
+ * <p>모든 업무 엔티티({@code Bprojm}, {@code Bcostm}, {@code Capplm} 등)가 상속하는 공통 필드를 정의합니다.
  *
- * <p>
- * 자동 관리 필드:
- * </p>
+ * <p>자동 관리 필드:
+ *
  * <ul>
- * <li>{@code DEL_YN}: 논리 삭제 여부 (기본값: 'N', 삭제 시 'Y')</li>
- * <li>{@code GUID}: UUID 기반 고유 식별자 (자동 생성)</li>
- * <li>{@code FST_ENR_DTM}: 최초 등록일시 (JPA Auditing 자동 기록)</li>
- * <li>{@code FST_ENR_USID}: 최초 등록자 사번 (JPA Auditing 자동 기록)</li>
- * <li>{@code LST_CHG_DTM}: 최종 변경일시 (JPA Auditing 자동 기록)</li>
- * <li>{@code LST_CHG_USID}: 최종 변경자 사번 (JPA Auditing 자동 기록)</li>
+ *   <li>{@code DEL_YN}: 논리 삭제 여부 (기본값: 'N', 삭제 시 'Y')
+ *   <li>{@code GUID}: UUID 기반 고유 식별자 (자동 생성)
+ *   <li>{@code FST_ENR_DTM}: 최초 등록일시 (JPA Auditing 자동 기록)
+ *   <li>{@code FST_ENR_USID}: 최초 등록자 사번 (JPA Auditing 자동 기록)
+ *   <li>{@code LST_CHG_DTM}: 최종 변경일시 (JPA Auditing 자동 기록)
+ *   <li>{@code LST_CHG_USID}: 최종 변경자 사번 (JPA Auditing 자동 기록)
  * </ul>
  *
- * <p>
- * Soft Delete 패턴: {@link #delete()} 메서드로 {@code DEL_YN}을 'Y'로 변경하여
- * 물리적 삭제 대신 논리 삭제를 수행합니다.
- * </p>
+ * <p>Soft Delete 패턴: {@link #delete()} 메서드로 {@code DEL_YN}을 'Y'로 변경하여 물리적 삭제 대신 논리 삭제를 수행합니다.
  *
  * @see JpaAuditConfig JPA Auditing 설정
  */
@@ -53,16 +44,17 @@ import java.util.UUID;
 @SuperBuilder // 부모-자식 상속 구조에서 Builder 패턴 지원 (Lombok)
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // 기본 생성자를 protected로 제한 (외부 직접 생성 방지)
 @AllArgsConstructor // 모든 필드를 받는 생성자 자동 생성 (Lombok)
-@EntityListeners({AuditingEntityListener.class, ChangeLogEntityListener.class}) // JPA Auditing + 변경 로그 리스너
+@EntityListeners({
+    AuditingEntityListener.class,
+    ChangeLogEntityListener.class
+}) // JPA Auditing + 변경 로그 리스너
 public abstract class BaseEntity {
 
     /** 삭제여부: 'N'=미삭제(기본값), 'Y'=삭제 (Soft Delete용 플래그) */
     @Column(name = "DEL_YN", length = 1, comment = "삭제여부")
     private String delYn;
 
-    /**
-     * 일련번호: UUID v4 기반 전역 고유 식별자 (자동 생성, 형식: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-     */
+    /** 일련번호: UUID v4 기반 전역 고유 식별자 (자동 생성, 형식: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) */
     @Column(name = "GUID", length = 38, comment = "GUID")
     private String guid;
 
@@ -71,32 +63,26 @@ public abstract class BaseEntity {
     private Integer guidPrgSno;
 
     /**
-     * 최초생성시간: 엔티티가 처음 저장될 때 자동으로 현재 시각이 기록됩니다.
-     * {@code updatable = false}로 설정하여 이후 업데이트 시 변경되지 않습니다.
+     * 최초생성시간: 엔티티가 처음 저장될 때 자동으로 현재 시각이 기록됩니다. {@code updatable = false}로 설정하여 이후 업데이트 시 변경되지 않습니다.
      */
     @CreatedDate
     @Column(name = "FST_ENR_DTM", updatable = false, comment = "최초등록일시")
     private LocalDateTime fstEnrDtm;
 
     /**
-     * 최초생성자: 엔티티가 처음 저장될 때 현재 로그인한 사용자의 사번이 자동으로 기록됩니다.
-     * {@link JpaAuditConfig#auditorProvider()}에서 현재 인증 사용자를 제공합니다.
-     * {@code updatable = false}로 설정하여 이후 업데이트 시 변경되지 않습니다.
+     * 최초생성자: 엔티티가 처음 저장될 때 현재 로그인한 사용자의 사번이 자동으로 기록됩니다. {@link JpaAuditConfig#auditorProvider()}에서
+     * 현재 인증 사용자를 제공합니다. {@code updatable = false}로 설정하여 이후 업데이트 시 변경되지 않습니다.
      */
     @CreatedBy
     @Column(name = "FST_ENR_USID", length = 14, updatable = false, comment = "최초등록사용자ID")
     private String fstEnrUsid;
 
-    /**
-     * 마지막수정시간: 엔티티가 수정될 때마다 현재 시각이 자동으로 업데이트됩니다.
-     */
+    /** 마지막수정시간: 엔티티가 수정될 때마다 현재 시각이 자동으로 업데이트됩니다. */
     @LastModifiedDate
     @Column(name = "LST_CHG_DTM", comment = "최종변경일시")
     private LocalDateTime lstChgDtm;
 
-    /**
-     * 마지막수정자: 엔티티가 수정될 때마다 현재 로그인한 사용자의 사번이 자동으로 업데이트됩니다.
-     */
+    /** 마지막수정자: 엔티티가 수정될 때마다 현재 로그인한 사용자의 사번이 자동으로 업데이트됩니다. */
     @LastModifiedBy
     @Column(name = "LST_CHG_USID", length = 14, comment = "최종변경사용자ID")
     private String lstChgUsid;
@@ -104,17 +90,14 @@ public abstract class BaseEntity {
     /**
      * JPA 엔티티 최초 저장(INSERT) 전 자동 실행 콜백 메서드
      *
-     * <p>
-     * DB에 INSERT되기 직전에 호출되어 기본값이 없는 필드를 초기화합니다.
-     * </p>
+     * <p>DB에 INSERT되기 직전에 호출되어 기본값이 없는 필드를 초기화합니다.
      *
-     * <p>
-     * 초기화 항목:
-     * </p>
+     * <p>초기화 항목:
+     *
      * <ul>
-     * <li>{@code delYn}: null인 경우 'N'으로 설정 (미삭제 상태)</li>
-     * <li>{@code guid}: null인 경우 UUID v4 랜덤 값으로 자동 생성</li>
-     * <li>{@code guidPrgSno}: null인 경우 1로 설정</li>
+     *   <li>{@code delYn}: null인 경우 'N'으로 설정 (미삭제 상태)
+     *   <li>{@code guid}: null인 경우 UUID v4 랜덤 값으로 자동 생성
+     *   <li>{@code guidPrgSno}: null인 경우 1로 설정
      * </ul>
      */
     @PrePersist
@@ -136,15 +119,10 @@ public abstract class BaseEntity {
     /**
      * 논리 삭제(Soft Delete) 처리 메서드
      *
-     * <p>
-     * 실제 DB 레코드를 삭제하지 않고 {@code DEL_YN}을 'Y'로 변경합니다.
-     * 데이터 이력 보존 및 복구 가능성을 위해 사용합니다.
-     * </p>
+     * <p>실제 DB 레코드를 삭제하지 않고 {@code DEL_YN}을 'Y'로 변경합니다. 데이터 이력 보존 및 복구 가능성을 위해 사용합니다.
      *
-     * <p>
-     * 사용 예:
-     * </p>
-     * 
+     * <p>사용 예:
+     *
      * <pre>{@code
      * project.delete(); // DEL_YN = 'Y'로 변경
      * projectRepository.save(project); // 변경 사항 DB 반영
@@ -157,11 +135,8 @@ public abstract class BaseEntity {
     /**
      * 논리 삭제 복원(Undelete) 처리 메서드
      *
-     * <p>
-     * Soft Delete된 레코드의 {@code DEL_YN}을 'N'으로 되돌립니다.
-     * 동일 복합키 행을 다시 활성화해야 할 때({@link #delete()}의 역연산) 사용합니다.
-     * 신규 INSERT 대신 기존 행을 복원하여 PK 충돌을 방지합니다.
-     * </p>
+     * <p>Soft Delete된 레코드의 {@code DEL_YN}을 'N'으로 되돌립니다. 동일 복합키 행을 다시 활성화해야 할 때({@link #delete()}의
+     * 역연산) 사용합니다. 신규 INSERT 대신 기존 행을 복원하여 PK 충돌을 방지합니다.
      */
     public void restore() {
         this.delYn = "N";

@@ -1,15 +1,14 @@
 package com.kdb.it.domain.budget.project.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class ProjectReferenceProjectionIt extends AbstractOracleRepositoryTest {
 
@@ -29,13 +28,15 @@ class ProjectReferenceProjectionIt extends AbstractOracleRepositoryTest {
         entityManager.flush();
         entityManager.clear();
 
-        ProjectRepository.ProjectNameView view = repository
-                .findNameViewByAbusMngNoAndLstYnAndDelYn(projectNo, "Y", "N")
-                .orElseThrow();
+        ProjectRepository.ProjectNameView view =
+                repository
+                        .findNameViewByAbusMngNoAndLstYnAndDelYn(projectNo, "Y", "N")
+                        .orElseThrow();
 
         assertThat(view.getAbusMngNo()).isEqualTo(projectNo);
         assertThat(view.getAbusNm()).isEqualTo("BE03 최신 사업");
-        assertThat(repository.findNameViewByAbusMngNoAndLstYnAndDelYn(deletedNo, "Y", "N")).isEmpty();
+        assertThat(repository.findNameViewByAbusMngNoAndLstYnAndDelYn(deletedNo, "Y", "N"))
+                .isEmpty();
         assertThat(ProjectRepository.ProjectNameView.class.getDeclaredMethods())
                 .extracting(method -> method.getName())
                 .containsExactlyInAnyOrder("getAbusMngNo", "getAbusNm");

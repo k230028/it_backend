@@ -12,9 +12,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-/**
- * SecurityConfig CORS 설정 단위 테스트 (T9a) — 허용 헤더 명시화/오리진 검증.
- */
+/** SecurityConfig CORS 설정 단위 테스트 (T9a) — 허용 헤더 명시화/오리진 검증. */
 class SecurityConfigCorsTest {
 
     private CorsConfiguration corsFor(String origins) {
@@ -65,7 +63,8 @@ class SecurityConfigCorsTest {
 
     private CorsConfiguration configFor(String uri) {
         SecurityConfig config = new SecurityConfig(Mockito.mock(JwtAuthenticationFilter.class));
-        ReflectionTestUtils.setField(config, "allowedOrigins", "http://localhost:3000,http://localhost:3002");
+        ReflectionTestUtils.setField(
+                config, "allowedOrigins", "http://localhost:3000,http://localhost:3002");
         CorsConfigurationSource source = config.corsConfigurationSource();
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI(uri);

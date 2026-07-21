@@ -9,9 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-/**
- * 사전질의응답(TPRMPP_BPQNAM) 변경 로그 엔티티.
- */
+/** 사전질의응답(TPRMPP_BPQNAM) 변경 로그 엔티티. */
 @Entity
 @Table(name = "TPRMPP_BPQNAL", comment = "사전질의응답 변경 로그")
 @Getter

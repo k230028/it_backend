@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 /**
  * AuditEntityIdentifier 단위 테스트.
  *
- * <p>단일·다중·복합 PK, 미할당+guid, 완전 미할당의 다섯 경우에 대한 식별자 문자열을 검증한다.</p>
+ * <p>단일·다중·복합 PK, 미할당+guid, 완전 미할당의 다섯 경우에 대한 식별자 문자열을 검증한다.
  */
 class AuditEntityIdentifierTest {
 
@@ -47,20 +47,16 @@ class AuditEntityIdentifierTest {
     // ── 테스트 픽스처 ──
 
     static class SingleId {
-        @Id
-        Long id = 5L;
+        @Id Long id = 5L;
     }
 
     static class MultiId {
-        @Id
-        String a = "A";
-        @Id
-        Integer b = 2;
+        @Id String a = "A";
+        @Id Integer b = 2;
     }
 
     static class EmbeddedIdEntity {
-        @EmbeddedId
-        Key key = new Key("X1", 7);
+        @EmbeddedId Key key = new Key("X1", 7);
     }
 
     static class Key {
@@ -74,13 +70,11 @@ class AuditEntityIdentifierTest {
     }
 
     static class UnassignedWithGuid {
-        @Id
-        Long id;
+        @Id Long id;
         String guid = "G-1";
     }
 
     static class AllUnassigned {
-        @Id
-        Long id;
+        @Id Long id;
     }
 }

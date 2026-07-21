@@ -12,10 +12,18 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.entity.Basctm;
+import com.kdb.it.domain.council.entity.Bcmmtm;
+import com.kdb.it.domain.council.entity.Bschdm;
+import com.kdb.it.domain.council.repository.CommitteeRepository;
+import com.kdb.it.domain.council.repository.ScheduleRepository;
+import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,48 +35,28 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.domain.council.dto.CouncilDto;
-import com.kdb.it.domain.council.entity.Basctm;
-import com.kdb.it.domain.council.entity.Bcmmtm;
-import com.kdb.it.domain.council.entity.Bschdm;
-import com.kdb.it.domain.council.repository.CommitteeRepository;
-import com.kdb.it.domain.council.repository.ScheduleRepository;
-
-import jakarta.persistence.EntityManager;
-
 /**
  * ScheduleService 단위 테스트
  *
- * <p>
- * 협의회 일정 서비스의 일정 입력·확정·조회 메서드를 검증합니다.
- * Basctm·Bschdm 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * CouncilService·ScheduleRepository·CommitteeRepository·UserRepository는 @Mock으로 교체합니다.
+ * <p>협의회 일정 서비스의 일정 입력·확정·조회 메서드를 검증합니다. Basctm·Bschdm 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로
+ * 생성합니다. CouncilService·ScheduleRepository·CommitteeRepository·UserRepository는 @Mock으로 교체합니다.
  * Oracle DB 없이 실행됩니다.
- * </p>
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ScheduleServiceTest {
 
-    @Mock
-    private ScheduleRepository scheduleRepository;
+    @Mock private ScheduleRepository scheduleRepository;
 
-    @Mock
-    private CommitteeRepository committeeRepository;
+    @Mock private CommitteeRepository committeeRepository;
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private CouncilService councilService;
+    @Mock private CouncilService councilService;
 
-    @Mock
-    private EntityManager entityManager;
+    @Mock private EntityManager entityManager;
 
-    @InjectMocks
-    private ScheduleService scheduleService;
+    @InjectMocks private ScheduleService scheduleService;
 
     @BeforeEach
     void injectEntityManager() {
@@ -82,6 +70,7 @@ class ScheduleServiceTest {
     private static final String ASCT_ID = "ASCT-2026-0001";
     private static final String ENO = "E10001";
     private static final String TEST_DATE = "20260501";
+
     /** ScheduleConfirmRequest 등 일부 시그니처는 아직 LocalDate를 요구함 — 임시 변환용 */
     private static final LocalDate TEST_DATE_LD = LocalDate.of(2026, 5, 1);
 
@@ -93,10 +82,25 @@ class ScheduleServiceTest {
 
     private record CouncilMemberUser(String eno, String usrNm, String bbrNm, String ptCNm)
             implements UserRepository.CouncilMemberUserRow {
-        @Override public String getEno() { return eno; }
-        @Override public String getUsrNm() { return usrNm; }
-        @Override public String getBbrNm() { return bbrNm; }
-        @Override public String getPtCNm() { return ptCNm; }
+        @Override
+        public String getEno() {
+            return eno;
+        }
+
+        @Override
+        public String getUsrNm() {
+            return usrNm;
+        }
+
+        @Override
+        public String getBbrNm() {
+            return bbrNm;
+        }
+
+        @Override
+        public String getPtCNm() {
+            return ptCNm;
+        }
     }
 
     // ───────────────────────────────────────────────────────
@@ -109,8 +113,9 @@ class ScheduleServiceTest {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
-        CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
-                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "09:00", "Y")), null);
+        CouncilDto.ScheduleRequest request =
+                new CouncilDto.ScheduleRequest(
+                        List.of(new CouncilDto.ScheduleItem(TEST_DATE, "09:00", "Y")), null);
 
         assertThatThrownBy(() -> scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO)))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -128,12 +133,14 @@ class ScheduleServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bschdm existing = mock(Bschdm.class);
-        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
-                ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
+        given(
+                        scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
+                                ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
                 .willReturn(Optional.of(existing));
 
-        CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
-                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "N")), null);
+        CouncilDto.ScheduleRequest request =
+                new CouncilDto.ScheduleRequest(
+                        List.of(new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "N")), null);
 
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
@@ -145,12 +152,14 @@ class ScheduleServiceTest {
     void submitSchedule_기존일정없으면_save호출() {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
-                ASCT_ID, ENO, TEST_DATE, "14:00", "N"))
+        given(
+                        scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
+                                ASCT_ID, ENO, TEST_DATE, "14:00", "N"))
                 .willReturn(Optional.empty());
 
-        CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
-                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "14:00", "Y")), null);
+        CouncilDto.ScheduleRequest request =
+                new CouncilDto.ScheduleRequest(
+                        List.of(new CouncilDto.ScheduleItem(TEST_DATE, "14:00", "Y")), null);
 
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
@@ -205,8 +214,7 @@ class ScheduleServiceTest {
         given(scheduleRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
                 .willReturn(List.of(slot));
 
-        List<CouncilDto.ScheduleSlotResponse> result =
-                scheduleService.getMySchedule(ASCT_ID, ENO);
+        List<CouncilDto.ScheduleSlotResponse> result = scheduleService.getMySchedule(ASCT_ID, ENO);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).dsdTm()).isEqualTo("10:00");
@@ -227,8 +235,7 @@ class ScheduleServiceTest {
                 .willReturn(List.of());
 
         // when
-        List<CouncilDto.ScheduleSlotResponse> result =
-                scheduleService.getMySchedule(ASCT_ID, ENO);
+        List<CouncilDto.ScheduleSlotResponse> result = scheduleService.getMySchedule(ASCT_ID, ENO);
 
         // then: 빈 목록 반환
         assertThat(result).isEmpty();
@@ -260,8 +267,7 @@ class ScheduleServiceTest {
                 .willReturn(List.of(slot1, slot2, slot3));
 
         // when
-        List<CouncilDto.ScheduleSlotResponse> result =
-                scheduleService.getMySchedule(ASCT_ID, ENO);
+        List<CouncilDto.ScheduleSlotResponse> result = scheduleService.getMySchedule(ASCT_ID, ENO);
 
         // then: 3개 슬롯 모두 반환
         assertThat(result).hasSize(3);
@@ -279,12 +285,14 @@ class ScheduleServiceTest {
         // given: 16:00은 허용 시간대
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
-                ASCT_ID, ENO, TEST_DATE, "16:00", "N"))
+        given(
+                        scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
+                                ASCT_ID, ENO, TEST_DATE, "16:00", "N"))
                 .willReturn(Optional.empty());
 
-        CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
-                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "16:00", "Y")), null);
+        CouncilDto.ScheduleRequest request =
+                new CouncilDto.ScheduleRequest(
+                        List.of(new CouncilDto.ScheduleItem(TEST_DATE, "16:00", "Y")), null);
 
         // when
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
@@ -299,17 +307,21 @@ class ScheduleServiceTest {
         // given: 2개 슬롯 (10:00, 14:00) 동시 제출, 모두 신규
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
-                ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
+        given(
+                        scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
+                                ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
                 .willReturn(Optional.empty());
-        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
-                ASCT_ID, ENO, TEST_DATE, "14:00", "N"))
+        given(
+                        scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
+                                ASCT_ID, ENO, TEST_DATE, "14:00", "N"))
                 .willReturn(Optional.empty());
 
-        CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(List.of(
-                new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "Y"),
-                new CouncilDto.ScheduleItem(TEST_DATE, "14:00", "Y")
-        ), null);
+        CouncilDto.ScheduleRequest request =
+                new CouncilDto.ScheduleRequest(
+                        List.of(
+                                new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "Y"),
+                                new CouncilDto.ScheduleItem(TEST_DATE, "14:00", "Y")),
+                        null);
 
         // when
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
@@ -327,16 +339,18 @@ class ScheduleServiceTest {
     void submitSchedule_대면희망여부전달_위원에반영() {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
-                ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
+        given(
+                        scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
+                                ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
                 .willReturn(Optional.empty());
 
         Bcmmtm member = mock(Bcmmtm.class);
         given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
                 .willReturn(Optional.of(member));
 
-        CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
-                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "Y")), "N");
+        CouncilDto.ScheduleRequest request =
+                new CouncilDto.ScheduleRequest(
+                        List.of(new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "Y")), "N");
 
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
@@ -348,17 +362,18 @@ class ScheduleServiceTest {
     void submitSchedule_대면희망여부null_위원미변경() {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
-                ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
+        given(
+                        scheduleRepository.findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
+                                ASCT_ID, ENO, TEST_DATE, "10:00", "N"))
                 .willReturn(Optional.empty());
 
-        CouncilDto.ScheduleRequest request = new CouncilDto.ScheduleRequest(
-                List.of(new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "Y")), null);
+        CouncilDto.ScheduleRequest request =
+                new CouncilDto.ScheduleRequest(
+                        List.of(new CouncilDto.ScheduleItem(TEST_DATE, "10:00", "Y")), null);
 
         scheduleService.submitSchedule(ASCT_ID, request, mockUser(ENO));
 
-        verify(committeeRepository, times(1))
-                .findByItPtlAsctIdAndEnoAndDelYn(any(), any(), any());
+        verify(committeeRepository, times(1)).findByItPtlAsctIdAndEnoAndDelYn(any(), any(), any());
     }
 
     // ───────────────────────────────────────────────────────
@@ -448,12 +463,14 @@ class ScheduleServiceTest {
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
         given(member.getItPtlAsctMebTc()).willReturn("01");
-        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(member));
 
         // 아직 일정 응답 없음
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(1L);
-        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of());
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection()))
+                .willReturn(List.of());
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -475,7 +492,8 @@ class ScheduleServiceTest {
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
         given(member.getItPtlAsctMebTc()).willReturn("01");
-        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(member));
 
         // 해당 위원이 일정을 응답함
         Bschdm slot = mock(Bschdm.class);
@@ -486,8 +504,8 @@ class ScheduleServiceTest {
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(slot));
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(0L);
 
-        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
-                new CouncilMemberUser(ENO, "홍길동", "IT기획부", "IT기획팀장")));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection()))
+                .willReturn(List.of(new CouncilMemberUser(ENO, "홍길동", "IT기획부", "IT기획팀장")));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -510,7 +528,8 @@ class ScheduleServiceTest {
         given(budgetLead.getItPtlAsctMebTc()).willReturn("01");
         given(itLead.getEno()).willReturn("18001");
         given(itLead.getItPtlAsctMebTc()).willReturn("01");
-        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetLead, itLead));
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(budgetLead, itLead));
 
         Bschdm budgetSlot = mock(Bschdm.class);
         Bschdm itSlot = mock(Bschdm.class);
@@ -522,12 +541,15 @@ class ScheduleServiceTest {
         given(itSlot.getCnrcDt()).willReturn(TEST_DATE);
         given(itSlot.getCnrcSttTm()).willReturn("14:00");
         given(itSlot.getUsePsbYn()).willReturn("Y");
-        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetSlot, itSlot));
+        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(budgetSlot, itSlot));
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(0L);
 
-        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
-                new CouncilMemberUser("12004", null, null, null),
-                new CouncilMemberUser("18001", null, null, null)));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection()))
+                .willReturn(
+                        List.of(
+                                new CouncilMemberUser("12004", null, null, null),
+                                new CouncilMemberUser("18001", null, null, null)));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -545,16 +567,20 @@ class ScheduleServiceTest {
         Bcmmtm itLead = mock(Bcmmtm.class);
         given(budgetLead.getEno()).willReturn("12004");
         given(itLead.getEno()).willReturn("18001");
-        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetLead, itLead));
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(budgetLead, itLead));
 
         Bschdm budgetSlot = mock(Bschdm.class);
         given(budgetSlot.getEno()).willReturn("12004");
-        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(budgetSlot));
+        given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(budgetSlot));
         given(scheduleRepository.countPendingMembers(ASCT_ID)).willReturn(1L);
 
-        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
-                new CouncilMemberUser("12004", null, null, null),
-                new CouncilMemberUser("18001", null, null, null)));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection()))
+                .willReturn(
+                        List.of(
+                                new CouncilMemberUser("12004", null, null, null),
+                                new CouncilMemberUser("18001", null, null, null)));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -585,8 +611,8 @@ class ScheduleServiceTest {
         given(slot.getUsePsbYn()).willReturn("Y");
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(slot));
 
-        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
-                new CouncilMemberUser("E1", null, null, null)));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection()))
+                .willReturn(List.of(new CouncilMemberUser("E1", null, null, null)));
 
         CouncilDto.ScheduleStatusResponse result = scheduleService.getScheduleStatus(ASCT_ID);
 
@@ -618,9 +644,11 @@ class ScheduleServiceTest {
 
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
-        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
-                new CouncilMemberUser("E001", "홍길동", "IT본부", "팀장"),
-                new CouncilMemberUser("E002", "김철수", "IT본부", "대리")));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection()))
+                .willReturn(
+                        List.of(
+                                new CouncilMemberUser("E001", "홍길동", "IT본부", "팀장"),
+                                new CouncilMemberUser("E002", "김철수", "IT본부", "대리")));
 
         // when
         scheduleService.getScheduleStatus(ASCT_ID);
@@ -638,11 +666,14 @@ class ScheduleServiceTest {
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn("UNKNOWN");
         given(member.getItPtlAsctMebTc()).willReturn("01");
-        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(member));
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
-        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of());
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection()))
+                .willReturn(List.of());
 
-        CouncilDto.MemberScheduleStatus status = scheduleService.getScheduleStatus(ASCT_ID).memberStatuses().get(0);
+        CouncilDto.MemberScheduleStatus status =
+                scheduleService.getScheduleStatus(ASCT_ID).memberStatuses().get(0);
 
         assertThat(status.eno()).isEqualTo("UNKNOWN");
         assertThat(status.usrNm()).isNull();
@@ -657,12 +688,14 @@ class ScheduleServiceTest {
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
         given(member.getItPtlAsctMebTc()).willReturn("01");
-        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(member));
         given(scheduleRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
-        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
-                new CouncilMemberUser(ENO, "홍길동", null, "팀장")));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection()))
+                .willReturn(List.of(new CouncilMemberUser(ENO, "홍길동", null, "팀장")));
 
-        CouncilDto.MemberScheduleStatus status = scheduleService.getScheduleStatus(ASCT_ID).memberStatuses().get(0);
+        CouncilDto.MemberScheduleStatus status =
+                scheduleService.getScheduleStatus(ASCT_ID).memberStatuses().get(0);
 
         assertThat(status.usrNm()).isEqualTo("홍길동");
         assertThat(status.bbrNm()).isNull();

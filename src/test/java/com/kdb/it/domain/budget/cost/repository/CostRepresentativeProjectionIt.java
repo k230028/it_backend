@@ -1,17 +1,16 @@
 package com.kdb.it.domain.budget.cost.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.service.CostRepresentativeSelector;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class CostRepresentativeProjectionIt extends AbstractOracleRepositoryTest {
 
@@ -20,7 +19,8 @@ class CostRepresentativeProjectionIt extends AbstractOracleRepositoryTest {
 
     @Test
     void 중복이력의네필드매핑과최신대표행선택을검증한다() {
-        String costBgNo = ("BG-DUP-" + UUID.randomUUID().toString().replace("-", "")).substring(0, 15);
+        String costBgNo =
+                ("BG-DUP-" + UUID.randomUUID().toString().replace("-", "")).substring(0, 15);
         LocalDateTime now = LocalDateTime.of(2026, 7, 20, 12, 0);
         entityManager.persist(cost(costBgNo, 1, "N", "구버전", now));
         entityManager.persist(cost(costBgNo, 2, "Y", "최신", now));
@@ -31,11 +31,12 @@ class CostRepresentativeProjectionIt extends AbstractOracleRepositoryTest {
                 repository.findRepresentativeViewsByCostBgNoInAndDelYn(List.of(costBgNo), "N");
 
         assertThat(views).hasSize(2);
-        assertThat(views).extracting(
-                view -> view.getCostBgNo(),
-                view -> view.getBgSno(),
-                view -> view.getLstYn(),
-                view -> view.getCttNm())
+        assertThat(views)
+                .extracting(
+                        view -> view.getCostBgNo(),
+                        view -> view.getBgSno(),
+                        view -> view.getLstYn(),
+                        view -> view.getCttNm())
                 .containsExactlyInAnyOrder(
                         org.assertj.core.groups.Tuple.tuple(costBgNo, 1, "N", "구버전"),
                         org.assertj.core.groups.Tuple.tuple(costBgNo, 2, "Y", "최신"));

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 /**
  * 공통게시판 첨부 읽기 판정기 — 관리자 OR 게시물 공개(화면표시 + 공개기간).
  *
- * <p>기존 {@code FileOwnershipChecker}의 게시물 가시성 규칙을 이관한 것이다.</p>
+ * <p>기존 {@code FileOwnershipChecker}의 게시물 가시성 규칙을 이관한 것이다.
  */
 @Component
 @RequiredArgsConstructor
@@ -43,7 +43,8 @@ public class BoardFileReadAuthorizer implements FileReadAuthorizer {
         if (!org.springframework.util.StringUtils.hasText(file.getPkCone())) {
             return false;
         }
-        return boardPostRepository.findByNacMngNoAndDelYn(file.getPkCone(), "N")
+        return boardPostRepository
+                .findByNacMngNoAndDelYn(file.getPkCone(), "N")
                 .map(this::isPostVisible)
                 .orElse(false);
     }

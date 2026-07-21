@@ -1,16 +1,15 @@
 package com.kdb.it.domain.council.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.kdb.it.common.util.NativeRowMapper;
 import com.kdb.it.domain.council.dto.CouncilProjectRow;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("#5 협의회 신청대상 18컬럼 native → CouncilProjectRow 매핑 동등성")
 class CouncilProjectRowMappingIt extends AbstractOracleRepositoryTest {
@@ -20,8 +19,7 @@ class CouncilProjectRowMappingIt extends AbstractOracleRepositoryTest {
     private static final String IN_PROGRESS = "32";
     private static final String PENDING = "09";
 
-    @Autowired
-    CouncilRepository councilRepository;
+    @Autowired CouncilRepository councilRepository;
 
     @Test
     @DisplayName("findProjectsForCouncilAll: Object[] 경로와 DTO 경로 값이 컬럼별로 동일하다")
@@ -36,12 +34,16 @@ class CouncilProjectRowMappingIt extends AbstractOracleRepositoryTest {
             rows = councilRepository.findProjectsForCouncilAll(IN_PROGRESS, PENDING);
         } catch (RuntimeException objectArrayPathFailure) {
             // Object[] 경로가 실패하면 DTO 경로도 같은 타입으로 실패해야 한다(봉인 래퍼가 거동을 바꾸지 않음).
-            assertThatThrownBy(() -> councilRepository.findProjectRowsForCouncilAll(IN_PROGRESS, PENDING))
+            assertThatThrownBy(
+                            () ->
+                                    councilRepository.findProjectRowsForCouncilAll(
+                                            IN_PROGRESS, PENDING))
                     .isInstanceOf(objectArrayPathFailure.getClass());
             return;
         }
 
-        List<CouncilProjectRow> dtos = councilRepository.findProjectRowsForCouncilAll(IN_PROGRESS, PENDING);
+        List<CouncilProjectRow> dtos =
+                councilRepository.findProjectRowsForCouncilAll(IN_PROGRESS, PENDING);
 
         assertThat(dtos).hasSameSizeAs(rows);
         for (int i = 0; i < rows.size(); i++) {

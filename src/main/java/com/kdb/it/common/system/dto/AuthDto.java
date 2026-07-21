@@ -4,32 +4,26 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
-
 /**
  * 인증(Authentication) 관련 DTO 클래스 모음
  *
- * <p>
- * 로그인, 회원가입, JWT 토큰 갱신에 사용되는 Request/Response DTO를
- * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
- * </p>
+ * <p>로그인, 회원가입, JWT 토큰 갱신에 사용되는 Request/Response DTO를 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  *
- * <p>
- * 포함된 DTO:
- * </p>
+ * <p>포함된 DTO:
+ *
  * <ul>
- * <li>{@link LoginRequest}: 로그인 요청 (사번 + 비밀번호)</li>
- * <li>{@link SignupRequest}: 회원가입 요청 (사번 + 이름 + 비밀번호)</li>
- * <li>{@link LoginResponse}: 로그인 응답 (Access Token + Refresh Token + 사용자
- * 정보)</li>
- * <li>{@link RefreshRequest}: Access Token 갱신 요청 (Refresh Token)</li>
- * <li>{@link RefreshResponse}: Access Token 갱신 응답 (새 Access Token)</li>
+ *   <li>{@link LoginRequest}: 로그인 요청 (사번 + 비밀번호)
+ *   <li>{@link SignupRequest}: 회원가입 요청 (사번 + 이름 + 비밀번호)
+ *   <li>{@link LoginResponse}: 로그인 응답 (Access Token + Refresh Token + 사용자 정보)
+ *   <li>{@link RefreshRequest}: Access Token 갱신 요청 (Refresh Token)
+ *   <li>{@link RefreshResponse}: Access Token 갱신 응답 (새 Access Token)
  * </ul>
  */
 public class AuthDto {
@@ -37,14 +31,9 @@ public class AuthDto {
     /**
      * 로그인 요청 DTO
      *
-     * <p>
-     * 사번({@code eno})과 비밀번호({@code password})를 입력받아 인증을 시도합니다.
-     * </p>
+     * <p>사번({@code eno})과 비밀번호({@code password})를 입력받아 인증을 시도합니다.
      *
-     * <p>
-     * 비밀번호는 평문으로 전송되며, 서버에서 SHA-256 + Base64 방식으로 변환하여
-     * DB에 저장된 암호화된 비밀번호와 비교합니다.
-     * </p>
+     * <p>비밀번호는 평문으로 전송되며, 서버에서 SHA-256 + Base64 방식으로 변환하여 DB에 저장된 암호화된 비밀번호와 비교합니다.
      */
     @Getter
     @Setter
@@ -66,15 +55,9 @@ public class AuthDto {
     /**
      * 회원가입 요청 DTO
      *
-     * <p>
-     * 새 사용자를 등록할 때 사용합니다. 사번 중복 여부를 확인하고
-     * 비밀번호를 암호화하여 저장합니다.
-     * </p>
+     * <p>새 사용자를 등록할 때 사용합니다. 사번 중복 여부를 확인하고 비밀번호를 암호화하여 저장합니다.
      *
-     * <p>
-     * 주의: 현재 구현에서는 외부에서 회원가입이 가능하므로,
-     * 운영 환경에서는 관리자 권한 제한이 필요합니다.
-     * </p>
+     * <p>주의: 현재 구현에서는 외부에서 회원가입이 가능하므로, 운영 환경에서는 관리자 권한 제한이 필요합니다.
      */
     @Getter
     @Setter
@@ -119,17 +102,14 @@ public class AuthDto {
     /**
      * 로그인 응답 DTO
      *
-     * <p>
-     * 로그인 성공 시 기본 사용자 정보를 반환하고, JWT 토큰은 httpOnly 쿠키로 함께 발급합니다.
-     * </p>
+     * <p>로그인 성공 시 기본 사용자 정보를 반환하고, JWT 토큰은 httpOnly 쿠키로 함께 발급합니다.
      *
-     * <p>
-     * 토큰 전달 방식:
-     * </p>
+     * <p>토큰 전달 방식:
+     *
      * <ul>
-     * <li>{@code accessToken}: 응답 본문에는 숨기고 httpOnly 쿠키로 전달</li>
-     * <li>{@code refreshToken}: Access Token 만료 시 {@code /api/auth/refresh}에서 httpOnly 쿠키로 검증</li>
-     * <li>{@code Authorization: Bearer}: API 테스트 도구 호환용 폴백이며 프론트엔드 표준 경로가 아님</li>
+     *   <li>{@code accessToken}: 응답 본문에는 숨기고 httpOnly 쿠키로 전달
+     *   <li>{@code refreshToken}: Access Token 만료 시 {@code /api/auth/refresh}에서 httpOnly 쿠키로 검증
+     *   <li>{@code Authorization: Bearer}: API 테스트 도구 호환용 폴백이며 프론트엔드 표준 경로가 아님
      * </ul>
      */
     @Getter
@@ -141,12 +121,10 @@ public class AuthDto {
     public static class LoginResponse {
         /**
          * JWT Access Token
-         * <p>
-         * 단기 유효 토큰 (기본 15분). httpOnly 쿠키로 전달됩니다.
-         * </p>
-         * <p>
-         * JSON 응답 body에는 포함되지 않습니다 ({@code @JsonIgnore}).
-         * </p>
+         *
+         * <p>단기 유효 토큰 (기본 15분). httpOnly 쿠키로 전달됩니다.
+         *
+         * <p>JSON 응답 body에는 포함되지 않습니다 ({@code @JsonIgnore}).
          */
         @Schema(hidden = true)
         @JsonIgnore
@@ -154,13 +132,10 @@ public class AuthDto {
 
         /**
          * JWT Refresh Token
-         * <p>
-         * 장기 유효 토큰 (기본 7일). httpOnly 쿠키로 전달됩니다.
-         * DB에 저장되어 관리됩니다.
-         * </p>
-         * <p>
-         * JSON 응답 body에는 포함되지 않습니다 ({@code @JsonIgnore}).
-         * </p>
+         *
+         * <p>장기 유효 토큰 (기본 7일). httpOnly 쿠키로 전달됩니다. DB에 저장되어 관리됩니다.
+         *
+         * <p>JSON 응답 body에는 포함되지 않습니다 ({@code @JsonIgnore}).
          */
         @Schema(hidden = true)
         @JsonIgnore
@@ -175,9 +150,8 @@ public class AuthDto {
         private String empNm;
 
         /**
-         * 자격등급 ID 목록 (다중 자격등급 지원)
-         * 예: ["ITPZZ001", "ITPZZ002"]
-         * ITPZZ001=일반사용자, ITPZZ002=기획통할담당자, ITPAD001=시스템관리자
+         * 자격등급 ID 목록 (다중 자격등급 지원) 예: ["ITPZZ001", "ITPZZ002"] ITPZZ001=일반사용자, ITPZZ002=기획통할담당자,
+         * ITPAD001=시스템관리자
          */
         @Schema(description = "자격등급 ID 목록")
         private List<String> athIds;
@@ -194,10 +168,7 @@ public class AuthDto {
     /**
      * Access Token 갱신 요청 DTO
      *
-     * <p>
-     * Access Token이 만료되었을 때 Refresh Token을 제출하여
-     * 새 Access Token을 발급받습니다.
-     * </p>
+     * <p>Access Token이 만료되었을 때 Refresh Token을 제출하여 새 Access Token을 발급받습니다.
      */
     @Getter
     @Setter
@@ -206,9 +177,8 @@ public class AuthDto {
     public static class RefreshRequest {
         /**
          * 기존에 발급받은 Refresh Token
-         * <p>
-         * 만료되지 않아야 하며, DB에 저장된 토큰과 일치해야 합니다.
-         * </p>
+         *
+         * <p>만료되지 않아야 하며, DB에 저장된 토큰과 일치해야 합니다.
          */
         @Schema(description = "Refresh Token")
         private String refreshToken;
@@ -217,9 +187,7 @@ public class AuthDto {
     /**
      * Access Token 갱신 응답 DTO
      *
-     * <p>
-     * Refresh Token 검증 성공 시 새로 발급된 Access Token을 반환합니다.
-     * </p>
+     * <p>Refresh Token 검증 성공 시 새로 발급된 Access Token을 반환합니다.
      */
     @Getter
     @Setter
@@ -230,19 +198,17 @@ public class AuthDto {
     public static class RefreshResponse {
         /**
          * 새로 발급된 JWT Access Token
-         * <p>
-         * 단기 유효 토큰 (기본 15분). 컨트롤러에서 httpOnly 쿠키로 전달됩니다.
-         * </p>
+         *
+         * <p>단기 유효 토큰 (기본 15분). 컨트롤러에서 httpOnly 쿠키로 전달됩니다.
          */
         @Schema(description = "새로운 Access Token")
         private String accessToken;
 
         /**
          * 회전된 JWT Refresh Token
-         * <p>
-         * Refresh 시 기존 토큰을 폐기하고 새로 발급한 Refresh Token입니다.
-         * 컨트롤러가 httpOnly 쿠키로 재설정합니다. (탈취 재사용 방어 — 토큰 회전)
-         * </p>
+         *
+         * <p>Refresh 시 기존 토큰을 폐기하고 새로 발급한 Refresh Token입니다. 컨트롤러가 httpOnly 쿠키로 재설정합니다. (탈취 재사용 방어 —
+         * 토큰 회전)
          */
         @Schema(description = "회전된 Refresh Token")
         private String refreshToken;

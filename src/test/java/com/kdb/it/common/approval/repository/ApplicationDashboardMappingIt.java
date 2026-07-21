@@ -1,21 +1,19 @@
 package com.kdb.it.common.approval.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.common.approval.dto.PendingApprovalRow;
 import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 @DisplayName("#6 결재 대시보드 native → DTO 매핑 동등성")
 class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
 
-    @Autowired
-    ApplicationRepository applicationRepository;
+    @Autowired ApplicationRepository applicationRepository;
 
     @Test
     @DisplayName("findMonthlyTrendByBbrC: Object[] 경로와 LabeledCountRow 경로가 컬럼별로 동일하다")

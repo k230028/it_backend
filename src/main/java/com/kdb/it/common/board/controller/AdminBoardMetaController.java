@@ -5,17 +5,16 @@ import com.kdb.it.common.board.service.BoardMetaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
-
 /**
  * 게시판 메타 관리 컨트롤러 — 관리자 전용
  *
- * <p>관리자 전용 API이므로 클래스 수준 {@code @PreAuthorize}를 적용합니다.</p>
+ * <p>관리자 전용 API이므로 클래스 수준 {@code @PreAuthorize}를 적용합니다.
  */
 @RestController
 @RequestMapping("/api/admin/boards/meta")
@@ -43,7 +42,7 @@ public class AdminBoardMetaController {
      * 게시판 수정
      *
      * @param blbMngNo 게시판관리번호
-     * @param request  수정 요청 DTO
+     * @param request 수정 요청 DTO
      */
     @PutMapping("/{blbMngNo}")
     @Operation(summary = "게시판 수정")

@@ -8,16 +8,17 @@ import org.springframework.stereotype.Component;
 /**
  * 구동 시 필수 비밀값 존재 여부를 검증하는 컴포넌트 — SEC-01
  *
- * <p>{@link PostConstruct}로 스프링 컨텍스트 초기화 직후 실행되며,
- * 운영에 필요한 비밀값(DB 비밀번호, JWT 시크릿)이 빈값이면 즉시 기동을 중단합니다.
- * 단, {@code application.properties}에 기본값이 남아 있으면 환경변수 미설정도 통과하므로
- * 운영 프로파일에서는 기본값 제거 또는 별도 검증이 필요합니다.</p>
+ * <p>{@link PostConstruct}로 스프링 컨텍스트 초기화 직후 실행되며, 운영에 필요한 비밀값(DB 비밀번호, JWT 시크릿)이 빈값이면 즉시 기동을 중단합니다.
+ * 단, {@code application.properties}에 기본값이 남아 있으면 환경변수 미설정도 통과하므로 운영 프로파일에서는 기본값 제거 또는 별도 검증이 필요합니다.
  *
- * <p>검증 대상:</p>
+ * <p>검증 대상:
+ *
  * <ul>
- *   <li>{@code spring.datasource.password} → 환경변수 {@code DB_PASSWORD}</li>
- *   <li>{@code jwt.secret} → 환경변수 {@code JWT_SECRET}</li>
- *   <li>(운영 프로파일 전용) {@code gemini.api.key}/{@code eai.url}(eai.enabled=true)/{@code cors.allowed-origins}(와일드카드 금지)/{@code app.sso.allow-direct-eno}(false 고정)/{@code app.frontend-url}</li>
+ *   <li>{@code spring.datasource.password} → 환경변수 {@code DB_PASSWORD}
+ *   <li>{@code jwt.secret} → 환경변수 {@code JWT_SECRET}
+ *   <li>(운영 프로파일 전용) {@code gemini.api.key}/{@code eai.url}(eai.enabled=true)/{@code
+ *       cors.allowed-origins}(와일드카드 금지)/{@code app.sso.allow-direct-eno}(false 고정)/{@code
+ *       app.frontend-url}
  * </ul>
  */
 @Component
@@ -29,8 +30,8 @@ public class EnvironmentValidator {
     /**
      * 필수 비밀값 전체 검증.
      *
-     * <p>프로퍼티 해석 결과가 빈값 또는 null이면 {@link IllegalStateException}을 던져 구동을 차단합니다.
-     * 환경변수명을 메시지에 포함해 운영자가 즉시 원인을 파악할 수 있도록 합니다.</p>
+     * <p>프로퍼티 해석 결과가 빈값 또는 null이면 {@link IllegalStateException}을 던져 구동을 차단합니다. 환경변수명을 메시지에 포함해 운영자가
+     * 즉시 원인을 파악할 수 있도록 합니다.
      *
      * @throws IllegalStateException 필수 환경변수가 미설정(null 또는 공백)인 경우
      */
@@ -64,12 +65,12 @@ public class EnvironmentValidator {
      * 운영 전용 필수 키 검증 — 빈값/와일드카드/위험 토글을 기동 시 차단합니다.
      *
      * <ul>
-     *   <li>{@code gemini.api.key} → {@code GEMINI_API_KEY} 비공백</li>
-     *   <li>{@code eai.enabled=true}이면 {@code eai.url} → {@code EAI_URL} 비공백</li>
-     *   <li>{@code cors.allowed-origins} 비공백 + 와일드카드({@code *}) 금지</li>
-     *   <li>{@code app.sso.allow-direct-eno} 운영 false 고정</li>
-     *   <li>{@code app.dev.user-switch.enabled} 운영 false 고정 (비밀번호 없이 임의 사번 로그인 경로 차단)</li>
-     *   <li>{@code app.frontend-url} 비공백</li>
+     *   <li>{@code gemini.api.key} → {@code GEMINI_API_KEY} 비공백
+     *   <li>{@code eai.enabled=true}이면 {@code eai.url} → {@code EAI_URL} 비공백
+     *   <li>{@code cors.allowed-origins} 비공백 + 와일드카드({@code *}) 금지
+     *   <li>{@code app.sso.allow-direct-eno} 운영 false 고정
+     *   <li>{@code app.dev.user-switch.enabled} 운영 false 고정 (비밀번호 없이 임의 사번 로그인 경로 차단)
+     *   <li>{@code app.frontend-url} 비공백
      * </ul>
      */
     private void validateProdKeys() {
@@ -87,16 +88,21 @@ public class EnvironmentValidator {
         }
         if (corsOrigins.contains("*")) {
             throw new IllegalStateException(
-                    "운영 보안 위반: cors.allowed-origins 와일드카드(*) 금지 — 실제 오리진을 나열하세요. (현재값=" + corsOrigins + ")");
+                    "운영 보안 위반: cors.allowed-origins 와일드카드(*) 금지 — 실제 오리진을 나열하세요. (현재값="
+                            + corsOrigins
+                            + ")");
         }
 
-        boolean allowDirectEno = Boolean.parseBoolean(environment.getProperty("app.sso.allow-direct-eno", "false"));
+        boolean allowDirectEno =
+                Boolean.parseBoolean(environment.getProperty("app.sso.allow-direct-eno", "false"));
         if (allowDirectEno) {
             throw new IllegalStateException(
                     "운영 보안 위반: app.sso.allow-direct-eno=true 금지 — SSO 우회 로그인 경로입니다.");
         }
 
-        boolean devUserSwitch = Boolean.parseBoolean(environment.getProperty("app.dev.user-switch.enabled", "false"));
+        boolean devUserSwitch =
+                Boolean.parseBoolean(
+                        environment.getProperty("app.dev.user-switch.enabled", "false"));
         if (devUserSwitch) {
             throw new IllegalStateException(
                     "운영 보안 위반: app.dev.user-switch.enabled=true 금지 — 비밀번호 없이 임의 사번 로그인 경로입니다.");

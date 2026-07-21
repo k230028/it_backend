@@ -5,11 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
-import java.lang.reflect.Method;
-import java.util.Optional;
-
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
+import java.lang.reflect.Method;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,22 +25,21 @@ import org.springframework.security.access.AccessDeniedException;
 /**
  * NotificationService 단위 테스트
  *
- * <p>알림 발송, 수신자별 조회, 읽음 처리와 논리 삭제의 주요 분기를 검증합니다.</p>
+ * <p>알림 발송, 수신자별 조회, 읽음 처리와 논리 삭제의 주요 분기를 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
 
-    @Mock
-    private CinfmmRepository cinfmmRepository;
+    @Mock private CinfmmRepository cinfmmRepository;
 
-    @InjectMocks
-    private NotificationService notificationService;
+    @InjectMocks private NotificationService notificationService;
 
     @Test
     @DisplayName("listForCurrentUser: 조회 조건과 페이지 정보를 리포지토리에 전달한다")
     void listForCurrentUser_조건전달() {
         PageRequest pageable = PageRequest.of(1, 5);
-        Page<Cinfmm> page = new PageImpl<>(java.util.List.of(Cinfmm.builder().infmMsgNo("INF-1").build()));
+        Page<Cinfmm> page =
+                new PageImpl<>(java.util.List.of(Cinfmm.builder().infmMsgNo("INF-1").build()));
         given(cinfmmRepository.findInbox("10001", true, pageable)).willReturn(page);
 
         Page<Cinfmm> result = notificationService.listForCurrentUser("10001", true, pageable);
@@ -64,9 +62,11 @@ class NotificationServiceTest {
     @DisplayName("캐시 키는 파라미터명 보존 여부와 무관하게 인덱스 기반 SpEL을 사용한다")
     void cacheAnnotations_useIndexedParameterKeys() throws NoSuchMethodException {
         Method unreadCount = NotificationService.class.getMethod("unreadCount", String.class);
-        Method markRead = NotificationService.class.getMethod("markRead", String.class, String.class);
+        Method markRead =
+                NotificationService.class.getMethod("markRead", String.class, String.class);
         Method markAllRead = NotificationService.class.getMethod("markAllRead", String.class);
-        Method softDelete = NotificationService.class.getMethod("softDelete", String.class, String.class);
+        Method softDelete =
+                NotificationService.class.getMethod("softDelete", String.class, String.class);
 
         assertThat(unreadCount.getAnnotation(Cacheable.class).key()).isEqualTo("#p0");
         assertThat(markRead.getAnnotation(CacheEvict.class).key()).isEqualTo("#p1");
@@ -99,7 +99,8 @@ class NotificationServiceTest {
     @Test
     @DisplayName("markRead: 삭제된 알림이면 예외가 발생한다")
     void markRead_삭제알림_예외발생() {
-        given(cinfmmRepository.findById("INF-1")).willReturn(Optional.of(notification("10001", "N", "Y")));
+        given(cinfmmRepository.findById("INF-1"))
+                .willReturn(Optional.of(notification("10001", "N", "Y")));
 
         assertThatThrownBy(() -> notificationService.markRead("INF-1", "10001"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -109,7 +110,8 @@ class NotificationServiceTest {
     @Test
     @DisplayName("markRead: 타인 알림이면 접근을 거부한다")
     void markRead_타인알림_접근거부() {
-        given(cinfmmRepository.findById("INF-1")).willReturn(Optional.of(notification("20001", "N", "N")));
+        given(cinfmmRepository.findById("INF-1"))
+                .willReturn(Optional.of(notification("20001", "N", "N")));
 
         assertThatThrownBy(() -> notificationService.markRead("INF-1", "10001"))
                 .isInstanceOf(AccessDeniedException.class)

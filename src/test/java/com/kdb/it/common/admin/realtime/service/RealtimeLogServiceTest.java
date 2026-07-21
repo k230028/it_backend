@@ -1,9 +1,19 @@
 package com.kdb.it.common.admin.realtime.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+
 import com.kdb.it.common.admin.dto.AdminLogDto;
 import com.kdb.it.common.admin.realtime.dto.RealtimeLogDto;
 import com.kdb.it.common.admin.realtime.repository.RealtimeLogRepository;
 import com.kdb.it.common.admin.service.AdminLogService;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,17 +22,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Clock;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.lenient;
-
 @ExtendWith(MockitoExtension.class)
 class RealtimeLogServiceTest {
 
@@ -30,17 +29,24 @@ class RealtimeLogServiceTest {
     @Mock private AdminLogService adminLogService;
 
     private RealtimeLogService service;
-    private final Clock fixedClock = Clock.fixed(
-            LocalDateTime.of(2026, 5, 31, 23, 14, 7).atZone(ZoneId.systemDefault()).toInstant(),
-            ZoneId.systemDefault());
+    private final Clock fixedClock =
+            Clock.fixed(
+                    LocalDateTime.of(2026, 5, 31, 23, 14, 7)
+                            .atZone(ZoneId.systemDefault())
+                            .toInstant(),
+                    ZoneId.systemDefault());
 
     @BeforeEach
     void setUp() {
         service = new RealtimeLogService(repository, adminLogService, fixedClock);
-        lenient().when(adminLogService.getTables()).thenReturn(List.of(
-                new AdminLogDto.LogTableResponse("bprojm", "정보화사업 로그", "TPRMPP_BPROJL", "BprojmL"),
-                new AdminLogDto.LogTableResponse("bcostm", "전산업무비 로그", "TPRMPP_BCOSTL", "BcostmL")
-        ));
+        lenient()
+                .when(adminLogService.getTables())
+                .thenReturn(
+                        List.of(
+                                new AdminLogDto.LogTableResponse(
+                                        "bprojm", "정보화사업 로그", "TPRMPP_BPROJL", "BprojmL"),
+                                new AdminLogDto.LogTableResponse(
+                                        "bcostm", "전산업무비 로그", "TPRMPP_BCOSTL", "BcostmL")));
         lenient().when(repository.findFeed(any())).thenReturn(List.of());
         lenient().when(repository.countByTableSince(any())).thenReturn(Map.of());
         lenient().when(repository.perMinuteSince(any(), any())).thenReturn(List.of());
@@ -49,8 +55,10 @@ class RealtimeLogServiceTest {
     @Test
     @DisplayName("허용되지 않은 LOG_KEY 입력 시 IllegalArgumentException")
     void rejectsUnknownTableKey() {
-        assertThatThrownBy(() ->
-                service.snapshot(null, null, null, 200, List.of("bprojm", "unknown"), null))
+        assertThatThrownBy(
+                        () ->
+                                service.snapshot(
+                                        null, null, null, 200, List.of("bprojm", "unknown"), null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("unknown");
     }
@@ -58,8 +66,7 @@ class RealtimeLogServiceTest {
     @Test
     @DisplayName("허용되지 않은 chgType 입력 시 IllegalArgumentException")
     void rejectsUnknownChgType() {
-        assertThatThrownBy(() ->
-                service.snapshot(null, null, null, 200, null, List.of("X")))
+        assertThatThrownBy(() -> service.snapshot(null, null, null, 200, null, List.of("X")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("X");
     }

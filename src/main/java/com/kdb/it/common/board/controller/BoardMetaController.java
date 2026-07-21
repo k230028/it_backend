@@ -4,15 +4,12 @@ import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.service.BoardMetaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
-/**
- * 게시판 메타 조회 컨트롤러 (인증 사용자 공통)
- */
+/** 게시판 메타 조회 컨트롤러 (인증 사용자 공통) */
 @RestController
 @RequestMapping("/api/boards/meta")
 @RequiredArgsConstructor

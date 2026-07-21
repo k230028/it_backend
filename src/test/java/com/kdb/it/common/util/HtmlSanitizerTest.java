@@ -1,10 +1,10 @@
 package com.kdb.it.common.util;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 class HtmlSanitizerTest {
 
@@ -12,7 +12,8 @@ class HtmlSanitizerTest {
     @DisplayName("math-field 태그와 허용된 속성이 삭제되지 않아야 한다.")
     void shouldAllowMathFieldTag() {
         // Given
-        String html = "<math-field data-v-f73b7830=\"\" read-only=\"\" class=\"math-field-inline\" contenteditable=\"true\" tabindex=\"0\" style=\"display: inline-flex;\"></math-field>";
+        String html =
+                "<math-field data-v-f73b7830=\"\" read-only=\"\" class=\"math-field-inline\" contenteditable=\"true\" tabindex=\"0\" style=\"display: inline-flex;\"></math-field>";
 
         // When
         String sanitized = HtmlSanitizer.sanitize(html);
@@ -34,7 +35,8 @@ class HtmlSanitizerTest {
     @DisplayName("인라인 수식 span의 data-latex 속성이 보존되어야 한다.")
     void shouldPreserveInlineMathDataLatex() {
         // Given: InlineMathExtension이 렌더링하는 HTML
-        String html = "<p><span data-type=\"inline-math\" data-latex=\"E=mc^2\" class=\"math-inline-node\"></span></p>";
+        String html =
+                "<p><span data-type=\"inline-math\" data-latex=\"E=mc^2\" class=\"math-inline-node\"></span></p>";
 
         // When
         String sanitized = HtmlSanitizer.sanitize(html);
@@ -49,7 +51,8 @@ class HtmlSanitizerTest {
     @DisplayName("블록 수식 div의 data-latex 속성이 보존되어야 한다.")
     void shouldPreserveBlockMathDataLatex() {
         // Given: BlockMathExtension이 렌더링하는 HTML
-        String html = "<div data-type=\"block-math\" data-latex=\"\\\\frac{a}{b}\" class=\"math-block-node\"></div>";
+        String html =
+                "<div data-type=\"block-math\" data-latex=\"\\\\frac{a}{b}\" class=\"math-block-node\"></div>";
 
         // When
         String sanitized = HtmlSanitizer.sanitize(html);
@@ -64,7 +67,8 @@ class HtmlSanitizerTest {
     @DisplayName("인라인 수식의 data-latex가 XSS 시도 없이 일반 LaTeX를 보존해야 한다.")
     void shouldPreserveComplexLatexFormula() {
         // Given: 복잡한 LaTeX 수식
-        String html = "<p><span data-type=\"inline-math\" data-latex=\"\\\\sum_{i=0}^{n} x_i\" class=\"math-inline-node\"></span></p>";
+        String html =
+                "<p><span data-type=\"inline-math\" data-latex=\"\\\\sum_{i=0}^{n} x_i\" class=\"math-inline-node\"></span></p>";
 
         // When
         String sanitized = HtmlSanitizer.sanitize(html);
@@ -84,7 +88,8 @@ class HtmlSanitizerTest {
     @Test
     @DisplayName("script와 이벤트 핸들러는 제거하고 허용된 링크 프로토콜만 보존한다.")
     void shouldRemoveUnsafeHtmlAndProtocols() {
-        String html = """
+        String html =
+                """
                 <p onclick="alert(1)">본문<script>alert(1)</script></p>
                 <a href="javascript:alert(1)" target="_blank" rel="noopener">위험</a>
                 <a href="https://example.com" target="_blank" rel="noopener">안전</a>

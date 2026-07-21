@@ -8,8 +8,7 @@ import org.springframework.stereotype.Component;
 /**
  * 가이드문서 첨부 읽기 판정기 — 전사 공개(인증 사용자 전체).
  *
- * <p>가이드는 전 직원 참고 자료이므로 인증된 사용자에게 읽기를 허용한다.
- * (default-deny의 명시적 예외)</p>
+ * <p>가이드는 전 직원 참고 자료이므로 인증된 사용자에게 읽기를 허용한다. (default-deny의 명시적 예외)
  */
 @Component
 public class GuideDocFileReadAuthorizer implements FileReadAuthorizer {

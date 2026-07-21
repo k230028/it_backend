@@ -1,11 +1,11 @@
 package com.kdb.it.common.board.repository;
 
 import com.kdb.it.common.board.entity.Ccmmtm;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import java.util.Optional;
 
 /** 댓글 리포지토리 */
 public interface BoardCommentRepository
@@ -22,7 +22,8 @@ public interface BoardCommentRepository
 
     /** 대댓글 삽입을 위한 SQN 밀어내기 */
     @Modifying
-    @Query("""
+    @Query(
+            """
             UPDATE Ccmmtm c
                SET c.cmmtGrpSqn = c.cmmtGrpSqn + 1
              WHERE c.cmmtGrpNo  = :grpNo

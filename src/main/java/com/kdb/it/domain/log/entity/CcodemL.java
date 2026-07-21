@@ -9,9 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-/**
- * 코드 마스터(TPRMPP_CCODEM) 변경 로그 엔티티.
- */
+/** 코드 마스터(TPRMPP_CCODEM) 변경 로그 엔티티. */
 @Entity
 @Table(name = "TPRMPP_CCODEL", comment = "프로젝트관리_공통코드기본변경로그")
 @Getter

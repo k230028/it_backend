@@ -22,8 +22,15 @@ class FileReadAuthorizerRegistryTest {
 
     private FileReadAuthorizer authorizer(Set<String> kinds, boolean result) {
         return new FileReadAuthorizer() {
-            @Override public Set<String> supportedPkColNms() { return kinds; }
-            @Override public boolean canRead(Cfilem file, CustomUserDetails user) { return result; }
+            @Override
+            public Set<String> supportedPkColNms() {
+                return kinds;
+            }
+
+            @Override
+            public boolean canRead(Cfilem file, CustomUserDetails user) {
+                return result;
+            }
         };
     }
 
@@ -58,9 +65,12 @@ class FileReadAuthorizerRegistryTest {
     @Test
     @DisplayName("동일 종류를 두 authorizer가 등록하면 기동 시 예외로 막는다")
     void duplicateKind_throws() {
-        assertThatThrownBy(() -> new FileReadAuthorizerRegistry(List.of(
-                authorizer(Set.of("요구사항정의서"), true),
-                authorizer(Set.of("요구사항정의서"), false))))
+        assertThatThrownBy(
+                        () ->
+                                new FileReadAuthorizerRegistry(
+                                        List.of(
+                                                authorizer(Set.of("요구사항정의서"), true),
+                                                authorizer(Set.of("요구사항정의서"), false))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("중복");
     }

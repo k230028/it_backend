@@ -10,8 +10,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.config.JacksonConfig;
+import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.domain.budget.document.dto.GuideDocDto;
+import com.kdb.it.domain.budget.document.service.GuideDocService;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,35 +28,21 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.system.security.JwtUtil;
-import com.kdb.it.common.system.service.CustomUserDetailsService;
-import com.kdb.it.config.JacksonConfig;
-import com.kdb.it.config.TestSecurityConfig;
-import com.kdb.it.domain.budget.document.dto.GuideDocDto;
-import com.kdb.it.domain.budget.document.service.GuideDocService;
-
 @WebMvcTest(GuideDocController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class GuideDocControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private GuideDocService guideDocService;
-    @MockitoBean
-    private JwtUtil jwtUtil;
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private GuideDocService guideDocService;
+    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     @Test
     @DisplayName("GET /api/guide-documents - 비인증 → 401")
     void getDocuments_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/guide-documents"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/guide-documents")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -68,8 +60,7 @@ class GuideDocControllerTest {
     @WithMockUser(username = "10001")
     void getDocument_인증_200() throws Exception {
         given(guideDocService.getDocument("DOC-2026-0001")).willReturn(new GuideDocDto.Response());
-        mockMvc.perform(get("/api/guide-documents/DOC-2026-0001"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/guide-documents/DOC-2026-0001")).andExpect(status().isOk());
     }
 
     @Test
@@ -80,9 +71,10 @@ class GuideDocControllerTest {
         var body = new GuideDocDto.CreateRequest();
         body.setDocTtlCone("가이드 문서");
 
-        mockMvc.perform(post("/api/guide-documents")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/guide-documents")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated());
     }
 
@@ -93,9 +85,10 @@ class GuideDocControllerTest {
         var body = new GuideDocDto.CreateRequest();
         body.setDocTtlCone(null);
 
-        mockMvc.perform(post("/api/guide-documents")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/guide-documents")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -107,9 +100,10 @@ class GuideDocControllerTest {
         var body = new GuideDocDto.UpdateRequest();
         body.setDocTtlCone("수정 문서");
 
-        mockMvc.perform(put("/api/guide-documents/DOC-2026-0001")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        put("/api/guide-documents/DOC-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());
     }
 
@@ -120,9 +114,10 @@ class GuideDocControllerTest {
         var body = new GuideDocDto.UpdateRequest();
         body.setDocTtlCone(null);
 
-        mockMvc.perform(put("/api/guide-documents/DOC-2026-0001")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        put("/api/guide-documents/DOC-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 

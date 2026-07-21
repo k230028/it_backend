@@ -1,9 +1,15 @@
 package com.kdb.it.common.board.service;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+
 import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.exception.CustomGeneralException;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,21 +18,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
-
 @ExtendWith(MockitoExtension.class)
 class BoardMetaServiceTest {
 
-    @Mock
-    private BoardMetaRepository boardMetaRepository;
+    @Mock private BoardMetaRepository boardMetaRepository;
 
-    @InjectMocks
-    private BoardMetaService service;
+    @InjectMocks private BoardMetaService service;
 
     @Test
     @DisplayName("활성 게시판 목록을 응답 DTO로 변환한다")
@@ -45,7 +42,7 @@ class BoardMetaServiceTest {
     @DisplayName("게시판 단건을 조회한다")
     void getOne_existingBoard_returnsResponse() {
         given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(board("BLBM-2026-0001", "공지사항")));
+                .willReturn(Optional.of(board("BLBM-2026-0001", "공지사항")));
 
         BoardMetaDto.Response result = service.getOne("BLBM-2026-0001");
 
@@ -57,11 +54,11 @@ class BoardMetaServiceTest {
     @DisplayName("없는 게시판 단건 조회는 예외를 던진다")
     void getOne_missingBoard_throws() {
         given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-404", "N"))
-            .willReturn(Optional.empty());
+                .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getOne("BLBM-404"))
-            .isInstanceOf(CustomGeneralException.class)
-            .hasMessageContaining("BLBM-404");
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("BLBM-404");
     }
 
     @Test
@@ -84,7 +81,7 @@ class BoardMetaServiceTest {
     void updateBoard_existingBoard_updatesEntity() {
         Cblbmm board = board("BLBM-2026-0001", "공지사항");
         given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(board));
+                .willReturn(Optional.of(board));
         BoardMetaDto.UpdateRequest request = updateRequest("수정 게시판");
 
         service.updateBoard("BLBM-2026-0001", request);
@@ -97,7 +94,7 @@ class BoardMetaServiceTest {
     void deleteBoard_existingBoard_softDeletes() {
         Cblbmm board = board("BLBM-2026-0001", "공지사항");
         given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(board));
+                .willReturn(Optional.of(board));
 
         service.deleteBoard("BLBM-2026-0001");
 
@@ -115,35 +112,33 @@ class BoardMetaServiceTest {
     @Test
     @DisplayName("updateBoard: 미존재 게시판이면 예외를 던진다")
     void updateBoard_missing_throws() {
-        given(boardMetaRepository.findByBlbMngNoAndDelYn("NOPE", "N"))
-            .willReturn(Optional.empty());
+        given(boardMetaRepository.findByBlbMngNoAndDelYn("NOPE", "N")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.updateBoard("NOPE", updateRequest("X")))
-            .isInstanceOf(CustomGeneralException.class);
+                .isInstanceOf(CustomGeneralException.class);
     }
 
     @Test
     @DisplayName("deleteBoard: 미존재 게시판이면 예외를 던진다")
     void deleteBoard_missing_throws() {
-        given(boardMetaRepository.findByBlbMngNoAndDelYn("NOPE", "N"))
-            .willReturn(Optional.empty());
+        given(boardMetaRepository.findByBlbMngNoAndDelYn("NOPE", "N")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.deleteBoard("NOPE"))
-            .isInstanceOf(CustomGeneralException.class);
+                .isInstanceOf(CustomGeneralException.class);
     }
 
     private static Cblbmm board(String id, String name) {
         return Cblbmm.builder()
-            .blbMngNo(id)
-            .blbNm(name)
-            .itPtlBlbTc("001")
-            .repUseYn("Y")
-            .cmmtUseYn("Y")
-            .flEsnYn("N")
-            .sreSqnNo(1)
-            .useYn("Y")
-            .delYn("N")
-            .build();
+                .blbMngNo(id)
+                .blbNm(name)
+                .itPtlBlbTc("001")
+                .repUseYn("Y")
+                .cmmtUseYn("Y")
+                .flEsnYn("N")
+                .sreSqnNo(1)
+                .useYn("Y")
+                .delYn("N")
+                .build();
     }
 
     private static BoardMetaDto.CreateRequest createRequest() {

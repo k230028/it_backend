@@ -1,40 +1,29 @@
 package com.kdb.it.domain.budget.project.entity;
 
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BprojmL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.Imported;
 
-import java.time.LocalDate;
-
 /**
  * 정보화사업(IT 프로젝트) 마스터 엔티티
  *
- * <p>
- * DB 테이블: {@code BPROJM}
- * </p>
+ * <p>DB 테이블: {@code BPROJM}
  *
- * <p>
- * IT 부문의 정보화사업(신규 시스템 도입, 인프라 구축 등) 계획 및 현황을 관리합니다.
- * 품목 정보({@link Bitemm})와 신청서와 연관됩니다.
- * </p>
+ * <p>IT 부문의 정보화사업(신규 시스템 도입, 인프라 구축 등) 계획 및 현황을 관리합니다. 품목 정보({@link Bitemm})와 신청서와 연관됩니다.
  *
- * <p>
- * 관리번호 형식: {@code PRJ-{사업연도}-{4자리 시퀀스}} (예: {@code PRJ-2026-0001})
- * </p>
+ * <p>관리번호 형식: {@code PRJ-{사업연도}-{4자리 시퀀스}} (예: {@code PRJ-2026-0001})
  *
- * <p>
- * 주의: {@code update()} 메서드가 두 개 존재합니다 (오버로딩).
- * 하나는 {@code sno}를 포함하고, 다른 하나는 포함하지 않습니다.
- * </p>
+ * <p>주의: {@code update()} 메서드가 두 개 존재합니다 (오버로딩). 하나는 {@code sno}를 포함하고, 다른 하나는 포함하지 않습니다.
  */
 @LogTarget(entity = BprojmL.class)
 @Entity // JPA 엔티티로 등록
@@ -45,15 +34,16 @@ import java.time.LocalDate;
 @SuperBuilder // 상속 구조에서 Builder 패턴 지원
 public class Bprojm extends BaseEntity {
 
-    /**
-     * JPA가 정보화사업 엔티티를 복원할 때 사용하는 기본 생성자입니다.
-     */
-    protected Bprojm() {
-    }
+    /** JPA가 정보화사업 엔티티를 복원할 때 사용하는 기본 생성자입니다. */
+    protected Bprojm() {}
 
     /** 프로젝트관리번호: 기본키 (예: PRJ-2026-0001) */
     @Id
-    @Column(name = "ABUS_MNG_NO", nullable = false, length = 30, comment = "프로젝트관리번호 (물리컬럼 ABUS_MNG_NO=사업관리번호)")
+    @Column(
+            name = "ABUS_MNG_NO",
+            nullable = false,
+            length = 30,
+            comment = "프로젝트관리번호 (물리컬럼 ABUS_MNG_NO=사업관리번호)")
     private String abusMngNo;
 
     /** 프로젝트순번: 복합 기본키의 두 번째 컬럼 (동일 관리번호 내 버전 구분, 1부터 시작) */
@@ -66,10 +56,13 @@ public class Bprojm extends BaseEntity {
     private String abusNm;
 
     /**
-     * 사업유형: 코드값이 아닌 코드값명(공통코드 ABUS_PPO)을 직접 저장.
-     * 물리컬럼 ABUS_PPO_CONE(사업목적내용). Java 필드명 bzTpC는 API 계약 안정성을 위해 유지.
+     * 사업유형: 코드값이 아닌 코드값명(공통코드 ABUS_PPO)을 직접 저장. 물리컬럼 ABUS_PPO_CONE(사업목적내용). Java 필드명 bzTpC는 API 계약
+     * 안정성을 위해 유지.
      */
-    @Column(name = "ABUS_PPO_CONE", length = 300, comment = "사업유형명 (물리컬럼 ABUS_PPO_CONE=사업목적내용, 공통코드 ABUS_PPO 코드값명 저장)")
+    @Column(
+            name = "ABUS_PPO_CONE",
+            length = 300,
+            comment = "사업유형명 (물리컬럼 ABUS_PPO_CONE=사업목적내용, 공통코드 ABUS_PPO 코드값명 저장)")
     private String bzTpC;
 
     /** 주관부서: 사업을 주관하는 업무 부서 코드 (최대 20자) */
@@ -161,17 +154,23 @@ public class Bprojm extends BaseEntity {
     private String bzDttNm;
 
     /**
-     * 기술분야: 코드값이 아닌 코드값명(공통코드 SKL_FLD)을 직접 저장.
-     * 물리컬럼 SKL_FLD_NM. Java 필드명 sklTpTc는 API 계약 안정성을 위해 유지.
+     * 기술분야: 코드값이 아닌 코드값명(공통코드 SKL_FLD)을 직접 저장. 물리컬럼 SKL_FLD_NM. Java 필드명 sklTpTc는 API 계약 안정성을 위해
+     * 유지.
      */
-    @Column(name = "SKL_FLD_NM", length = 500, comment = "기술분야명 (물리컬럼 SKL_FLD_NM, 공통코드 SKL_FLD 코드값명 저장)")
+    @Column(
+            name = "SKL_FLD_NM",
+            length = 500,
+            comment = "기술분야명 (물리컬럼 SKL_FLD_NM, 공통코드 SKL_FLD 코드값명 저장)")
     private String sklTpTc;
 
     /**
-     * 주요사용자/고객유형: 코드값이 아닌 코드값명(공통코드 CST_TP_TC)을 직접 저장.
-     * 물리컬럼 CST_TP_TC_NM. Java 필드명 cstTpTc는 API 계약 안정성을 위해 유지.
+     * 주요사용자/고객유형: 코드값이 아닌 코드값명(공통코드 CST_TP_TC)을 직접 저장. 물리컬럼 CST_TP_TC_NM. Java 필드명 cstTpTc는 API 계약
+     * 안정성을 위해 유지.
      */
-    @Column(name = "CST_TP_TC_NM", length = 1000, comment = "고객유형구분코드명 (물리컬럼 CST_TP_TC_NM, 공통코드 CST_TP_TC 코드값명 저장)")
+    @Column(
+            name = "CST_TP_TC_NM",
+            length = 1000,
+            comment = "고객유형구분코드명 (물리컬럼 CST_TP_TC_NM, 공통코드 CST_TP_TC 코드값명 저장)")
     private String cstTpTc;
 
     /** 중복여부: 기존 유사 사업과의 중복 여부 ('Y'=중복, 'N'=미중복) */
@@ -183,7 +182,10 @@ public class Bprojm extends BaseEntity {
     private String flfFsgDt;
 
     /** 보고상태: 상위 보고 단계의 상태 (최대 1자) */
-    @Column(name = "IT_PTL_RPR_STS_TC", length = 2, comment = "보고상태 (물리컬럼 IT_PTL_RPR_STS_TC=보고상태구분코드, 공통코드 2자리)")
+    @Column(
+            name = "IT_PTL_RPR_STS_TC",
+            length = 2,
+            comment = "보고상태 (물리컬럼 IT_PTL_RPR_STS_TC=보고상태구분코드, 공통코드 2자리)")
     private String rprStsTc;
 
     /** 최종여부: 현재 유효한 레코드 여부 ('Y'=최신, 'N'=이전 버전) */
@@ -191,7 +193,10 @@ public class Bprojm extends BaseEntity {
     private String lstYn;
 
     /** 프로젝트추진가능성: 공통코드 PRJ_PUL_PTT cdva 값 (VARCHAR2(1), 예: "1", "2") */
-    @Column(name = "EXE_PTT_YN", length = 1, comment = "프로젝트추진가능성 (물리컬럼 EXE_PTT_YN=실행가능성여부, 공통코드 EXE_PTT_YN 1자리)")
+    @Column(
+            name = "EXE_PTT_YN",
+            length = 1,
+            comment = "프로젝트추진가능성 (물리컬럼 EXE_PTT_YN=실행가능성여부, 공통코드 EXE_PTT_YN 1자리)")
     private String exePttYn;
 
     /** 예산연도: 예산 연도 (4자리 숫자, 예: "2026") */
@@ -199,7 +204,10 @@ public class Bprojm extends BaseEntity {
     private String bseYy;
 
     /** 주관본부/부문: 사업을 총괄하는 본부 또는 부문 명칭 (최대 100자) */
-    @Column(name = "PRLM_HRK_OGZ_C_CONE", length = 100, comment = "주관본부 (물리컬럼 PRLM_HRK_OGZ_C_CONE=인사상위조직코드내용)")
+    @Column(
+            name = "PRLM_HRK_OGZ_C_CONE",
+            length = 100,
+            comment = "주관본부 (물리컬럼 PRLM_HRK_OGZ_C_CONE=인사상위조직코드내용)")
     private String prlmHrkOgzCCone;
 
     /** 경상여부: 경상사업 여부 ('Y'=경상사업, null 또는 'N'=일반 정보화사업) */
@@ -217,8 +225,7 @@ public class Bprojm extends BaseEntity {
     /**
      * 프로젝트 수정 파라미터 레코드 (DB-06)
      *
-     * <p>35+ 개별 파라미터를 하나의 레코드로 압축하여 메서드 시그니처 가독성을 개선합니다.
-     * {@code ProjectService}의 수정 로직에서 사용합니다.</p>
+     * <p>35+ 개별 파라미터를 하나의 레코드로 압축하여 메서드 시그니처 가독성을 개선합니다. {@code ProjectService}의 수정 로직에서 사용합니다.
      *
      * @param abusNm 사업명
      * @param bzTpC 사업유형명 (공통코드 ABUS_PPO 코드값명)
@@ -253,16 +260,37 @@ public class Bprojm extends BaseEntity {
      * @param cncdRfrNo 관련프로젝트관리번호 (계속사업인 경우 전년도 사업 관리번호)
      */
     public record UpdateCommand(
-            String abusNm, String bzTpC, String svnDpmC, String dvmDpmC,
-            LocalDate sttDtm, LocalDate endDtm,
-            String usid, String dvmUsid, String tlrUsid, String dvmTlrUsid,
-            String edrtTc, String abusCone, String cpnSafCone, String abusNcsCone,
-            String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone, String hrfPlnCone,
-            String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
-            String flfFsgDt, String rprStsTc, String exePttYn,
-            String bseYy, String prlmHrkOgzCCone,
-            String odnYn, String abusTc, String cncdRfrNo
-    ) {}
+            String abusNm,
+            String bzTpC,
+            String svnDpmC,
+            String dvmDpmC,
+            LocalDate sttDtm,
+            LocalDate endDtm,
+            String usid,
+            String dvmUsid,
+            String tlrUsid,
+            String dvmTlrUsid,
+            String edrtTc,
+            String abusCone,
+            String cpnSafCone,
+            String abusNcsCone,
+            String dgogPpoCone,
+            String plmDes,
+            String abusRngCone,
+            String mnPrgCone,
+            String hrfPlnCone,
+            String bzDttNm,
+            String sklTpTc,
+            String cstTpTc,
+            String dplYn,
+            String flfFsgDt,
+            String rprStsTc,
+            String exePttYn,
+            String bseYy,
+            String prlmHrkOgzCCone,
+            String odnYn,
+            String abusTc,
+            String cncdRfrNo) {}
 
     /**
      * UpdateCommand 레코드로 프로젝트 정보를 업데이트합니다 (sno 제외).
@@ -270,20 +298,44 @@ public class Bprojm extends BaseEntity {
      * @param cmd 수정 파라미터 레코드
      */
     public void update(UpdateCommand cmd) {
-        update(cmd.abusNm(), cmd.bzTpC(), cmd.svnDpmC(), cmd.dvmDpmC(),
-                cmd.sttDtm(), cmd.endDtm(),
-                cmd.usid(), cmd.dvmUsid(), cmd.tlrUsid(), cmd.dvmTlrUsid(),
-                cmd.edrtTc(), cmd.abusCone(), cmd.cpnSafCone(), cmd.abusNcsCone(),
-                cmd.dgogPpoCone(), cmd.plmDes(), cmd.abusRngCone(), cmd.mnPrgCone(), cmd.hrfPlnCone(),
-                cmd.bzDttNm(), cmd.sklTpTc(), cmd.cstTpTc(), cmd.dplYn(),
-                cmd.flfFsgDt(), cmd.rprStsTc(), cmd.exePttYn(),
-                cmd.bseYy(), cmd.prlmHrkOgzCCone(), cmd.odnYn(), cmd.abusTc(), cmd.cncdRfrNo());
+        update(
+                cmd.abusNm(),
+                cmd.bzTpC(),
+                cmd.svnDpmC(),
+                cmd.dvmDpmC(),
+                cmd.sttDtm(),
+                cmd.endDtm(),
+                cmd.usid(),
+                cmd.dvmUsid(),
+                cmd.tlrUsid(),
+                cmd.dvmTlrUsid(),
+                cmd.edrtTc(),
+                cmd.abusCone(),
+                cmd.cpnSafCone(),
+                cmd.abusNcsCone(),
+                cmd.dgogPpoCone(),
+                cmd.plmDes(),
+                cmd.abusRngCone(),
+                cmd.mnPrgCone(),
+                cmd.hrfPlnCone(),
+                cmd.bzDttNm(),
+                cmd.sklTpTc(),
+                cmd.cstTpTc(),
+                cmd.dplYn(),
+                cmd.flfFsgDt(),
+                cmd.rprStsTc(),
+                cmd.exePttYn(),
+                cmd.bseYy(),
+                cmd.prlmHrkOgzCCone(),
+                cmd.odnYn(),
+                cmd.abusTc(),
+                cmd.cncdRfrNo());
     }
 
     /**
      * 프로젝트 순번을 포함한 정보화사업 정보를 변경합니다.
      *
-     * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 모든 필드를 변경합니다.</p>
+     * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 모든 필드를 변경합니다.
      *
      * @param abusNm 사업명
      * @param bzTpC 사업유형명
@@ -318,13 +370,39 @@ public class Bprojm extends BaseEntity {
      * @param abusTc 사업구분코드
      * @param cncdRfrNo 관련참조번호
      */
-    public void update(String abusNm, String bzTpC, String svnDpmC, String dvmDpmC,
-            LocalDate sttDtm, LocalDate endDtm, String usid, String dvmUsid,
-            String tlrUsid, String dvmTlrUsid, String edrtTc, String abusCone,
-            String cpnSafCone, String abusNcsCone, String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone,
-            String hrfPlnCone, String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
-            String flfFsgDt, String rprStsTc, String exePttYn, String bseYy, String prlmHrkOgzCCone,
-            Integer sno, String odnYn, String abusTc, String cncdRfrNo) {
+    public void update(
+            String abusNm,
+            String bzTpC,
+            String svnDpmC,
+            String dvmDpmC,
+            LocalDate sttDtm,
+            LocalDate endDtm,
+            String usid,
+            String dvmUsid,
+            String tlrUsid,
+            String dvmTlrUsid,
+            String edrtTc,
+            String abusCone,
+            String cpnSafCone,
+            String abusNcsCone,
+            String dgogPpoCone,
+            String plmDes,
+            String abusRngCone,
+            String mnPrgCone,
+            String hrfPlnCone,
+            String bzDttNm,
+            String sklTpTc,
+            String cstTpTc,
+            String dplYn,
+            String flfFsgDt,
+            String rprStsTc,
+            String exePttYn,
+            String bseYy,
+            String prlmHrkOgzCCone,
+            Integer sno,
+            String odnYn,
+            String abusTc,
+            String cncdRfrNo) {
         this.sno = sno;
         this.abusNm = abusNm;
         this.bzTpC = bzTpC;
@@ -362,7 +440,7 @@ public class Bprojm extends BaseEntity {
     /**
      * 프로젝트 순번을 유지하면서 정보화사업 정보를 변경합니다.
      *
-     * <p>프로젝트 순번(sno)은 변경하지 않고 나머지 필드만 업데이트합니다.</p>
+     * <p>프로젝트 순번(sno)은 변경하지 않고 나머지 필드만 업데이트합니다.
      *
      * @param abusNm 사업명
      * @param bzTpC 사업유형명
@@ -396,13 +474,38 @@ public class Bprojm extends BaseEntity {
      * @param abusTc 사업구분코드
      * @param cncdRfrNo 관련참조번호
      */
-    public void update(String abusNm, String bzTpC, String svnDpmC, String dvmDpmC,
-            LocalDate sttDtm, LocalDate endDtm, String usid, String dvmUsid,
-            String tlrUsid, String dvmTlrUsid, String edrtTc, String abusCone,
-            String cpnSafCone, String abusNcsCone, String dgogPpoCone, String plmDes, String abusRngCone, String mnPrgCone,
-            String hrfPlnCone, String bzDttNm, String sklTpTc, String cstTpTc, String dplYn,
-            String flfFsgDt, String rprStsTc, String exePttYn, String bseYy, String prlmHrkOgzCCone,
-            String odnYn, String abusTc, String cncdRfrNo) {
+    public void update(
+            String abusNm,
+            String bzTpC,
+            String svnDpmC,
+            String dvmDpmC,
+            LocalDate sttDtm,
+            LocalDate endDtm,
+            String usid,
+            String dvmUsid,
+            String tlrUsid,
+            String dvmTlrUsid,
+            String edrtTc,
+            String abusCone,
+            String cpnSafCone,
+            String abusNcsCone,
+            String dgogPpoCone,
+            String plmDes,
+            String abusRngCone,
+            String mnPrgCone,
+            String hrfPlnCone,
+            String bzDttNm,
+            String sklTpTc,
+            String cstTpTc,
+            String dplYn,
+            String flfFsgDt,
+            String rprStsTc,
+            String exePttYn,
+            String bseYy,
+            String prlmHrkOgzCCone,
+            String odnYn,
+            String abusTc,
+            String cncdRfrNo) {
         this.abusNm = abusNm;
         this.bzTpC = bzTpC;
         this.svnDpmC = svnDpmC;
@@ -439,9 +542,8 @@ public class Bprojm extends BaseEntity {
     /**
      * 담당자 기준 주관팀코드(SVN_TEM_C)/개발팀코드(DVM_TEM_C) 설정.
      *
-     * <p>주관부서담당자(USID)/IT부서담당자(DVM_USID)의 소속 팀코드를 스냅샷으로 채웁니다.
-     * 생성·수정 시 담당자가 바뀌면 함께 갱신하며, 이름 스냅샷은 {@link #assignSvnOrgNames}로 저장합니다.
-     * 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT/UPDATE flush 이전에 호출합니다.</p>
+     * <p>주관부서담당자(USID)/IT부서담당자(DVM_USID)의 소속 팀코드를 스냅샷으로 채웁니다. 생성·수정 시 담당자가 바뀌면 함께 갱신하며, 이름 스냅샷은
+     * {@link #assignSvnOrgNames}로 저장합니다. 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT/UPDATE flush 이전에 호출합니다.
      *
      * @param svnTemC 주관부서담당자 소속 팀코드 (담당자 미지정·미조회 시 null)
      * @param dvmTemC IT부서담당자 소속 팀코드 (담당자 미지정·미조회 시 null)
@@ -454,8 +556,8 @@ public class Bprojm extends BaseEntity {
     /**
      * 주관부서명/주관팀명 스냅샷 설정.
      *
-     * <p>현재 엔티티에 설정된 주관부서코드/주관팀코드에 대응하는 조직명을 저장합니다.
-     * 코드가 설정/변경되는 지점(생성·수정) 직후, INSERT/UPDATE flush 이전에 호출합니다.</p>
+     * <p>현재 엔티티에 설정된 주관부서코드/주관팀코드에 대응하는 조직명을 저장합니다. 코드가 설정/변경되는 지점(생성·수정) 직후, INSERT/UPDATE flush
+     * 이전에 호출합니다.
      *
      * @param svnDpmNm 주관부서명 (코드 미등록 시 null 허용)
      * @param svnTemNm 주관팀명 (코드 미등록 시 null 허용)
@@ -468,11 +570,9 @@ public class Bprojm extends BaseEntity {
     /**
      * 드롭다운/참조용 경량 DTO.
      *
-     * <p>{@link Imported} 어노테이션은 JPQL {@code new} 생성자 표현식에서
-     * 짧은 이름({@code new Ref(...)})으로 참조하기 위해 필요합니다.
-     * Hibernate HQL 파서는 nested class를 FQN의 점 표기로 해석하지 못하므로,
-     * {@code Bprojm.Ref}를 그대로 사용하려면 {@code Bprojm$Ref} 표기 또는
-     * {@code @Imported} 등록이 필요합니다.</p>
+     * <p>{@link Imported} 어노테이션은 JPQL {@code new} 생성자 표현식에서 짧은 이름({@code new Ref(...)})으로 참조하기 위해
+     * 필요합니다. Hibernate HQL 파서는 nested class를 FQN의 점 표기로 해석하지 못하므로, {@code Bprojm.Ref}를 그대로 사용하려면
+     * {@code Bprojm$Ref} 표기 또는 {@code @Imported} 등록이 필요합니다.
      *
      * @param code 프로젝트관리번호 (ABUS_MNG_NO)
      * @param name 사업명 (ABUS_NM)

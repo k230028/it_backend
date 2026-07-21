@@ -1,16 +1,34 @@
 package com.kdb.it.domain.budget.document.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.AuthorOrg;
 import com.kdb.it.common.iam.service.AuthorOrgResolver;
 import com.kdb.it.common.iam.service.OrgNameResolver;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.domain.budget.document.dto.RecentReviewingRow;
-import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.document.entity.Brdocm;
 import com.kdb.it.domain.budget.document.repository.ServiceRequestDocRepository;
-import org.springframework.security.access.AccessDeniedException;
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,63 +39,33 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-
-import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
+import org.springframework.security.access.AccessDeniedException;
 
 /**
  * ServiceRequestDocService 단위 테스트
  *
- * <p>
- * 복합키 (DOC_MNG_NO, DOC_VRS) 기반 요구사항 정의서 서비스의
- * 버전 관리 로직을 검증합니다.
- * </p>
+ * <p>복합키 (DOC_MNG_NO, DOC_VRS) 기반 요구사항 정의서 서비스의 버전 관리 로직을 검증합니다.
  *
- * <p>
- * TDD Red 단계: 아직 구현되지 않은 메서드(createNewVersion, 버전 지정 조회/삭제)에
- * 대한 기대 동작을 먼저 정의합니다.
- * </p>
+ * <p>TDD Red 단계: 아직 구현되지 않은 메서드(createNewVersion, 버전 지정 조회/삭제)에 대한 기대 동작을 먼저 정의합니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ServiceRequestDocServiceTest {
 
     /** 요구사항 정의서 리포지토리 (mock) */
-    @Mock
-    private ServiceRequestDocRepository repository;
+    @Mock private ServiceRequestDocRepository repository;
 
     /** 사용자 정보 리포지토리 (mock): 서비스 의존성 충족용 */
-    @Mock
-    private UserRepository cuserIRepository;
+    @Mock private UserRepository cuserIRepository;
 
     /** 작성자 소속 조직 해석기 (mock): 신규/새버전 생성 시 주관부서·팀 코드 주입 */
-    @Mock
-    private AuthorOrgResolver authorOrgResolver;
+    @Mock private AuthorOrgResolver authorOrgResolver;
 
     /** 조직코드→조직명 해석기 (mock): 주관부서명/주관팀명 스냅샷 주입 */
-    @Mock
-    private OrgNameResolver orgNameResolver;
+    @Mock private OrgNameResolver orgNameResolver;
 
     /** 테스트 대상 서비스 */
-    @InjectMocks
-    private ServiceRequestDocService service;
+    @InjectMocks private ServiceRequestDocService service;
 
     /** 기본 작성자 조직 스냅샷: 생성 경로가 NPE 없이 통과하도록 빈 스냅샷을 반환한다. */
     @BeforeEach
@@ -107,23 +95,23 @@ class ServiceRequestDocServiceTest {
         // Arrange
         given(repository.getNextSequenceValue()).willReturn(1L);
         given(repository.existsByDocMngNoAndDelYn(anyString(), eq("N"))).willReturn(false);
-        ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
-                .reqTtl("테스트 문서")
-                .build();
-        Brdocm saved = Brdocm.builder()
-                .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("0.01"))
-                .reqTtl("테스트 문서")
-                .build();
+        ServiceRequestDocDto.CreateRequest req =
+                ServiceRequestDocDto.CreateRequest.builder().reqTtl("테스트 문서").build();
+        Brdocm saved =
+                Brdocm.builder()
+                        .docMngNo("DOC-001")
+                        .docVrsSno(new BigDecimal("0.01"))
+                        .reqTtl("테스트 문서")
+                        .build();
         given(repository.save(any(Brdocm.class))).willReturn(saved);
 
         // Act
         String result = service.createDocument(req);
 
         // Assert: 화면 버전 0.01은 저장 정수 1(× 100)로 영속화된다
-        then(repository).should().save(argThat(entity ->
-                new BigDecimal("1").compareTo(entity.getDocVrsSno()) == 0
-        ));
+        then(repository)
+                .should()
+                .save(argThat(entity -> new BigDecimal("1").compareTo(entity.getDocVrsSno()) == 0));
         assertThat(result).isNotBlank();
     }
 
@@ -138,29 +126,34 @@ class ServiceRequestDocServiceTest {
                 .willReturn(new AuthorOrg("BBR001", "18010", "H001"));
         given(orgNameResolver.resolveName("BBR001")).willReturn("정보기술부");
         given(orgNameResolver.resolveName("18010")).willReturn("PMO팀");
-        ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
-                .reqTtl("작성자 조직 문서")
-                .build();
+        ServiceRequestDocDto.CreateRequest req =
+                ServiceRequestDocDto.CreateRequest.builder().reqTtl("작성자 조직 문서").build();
 
         // Act
         service.createDocument(req);
 
         // Assert: 저장 엔티티에 작성자 부서/팀 코드·명이 반영된다 (작성자 기준 스냅샷)
-        then(repository).should().save(argThat(entity ->
-                "BBR001".equals(entity.getSvnDpmC()) && "18010".equals(entity.getSvnTemC())
-                        && "정보기술부".equals(entity.getSvnDpmNm()) && "PMO팀".equals(entity.getSvnTemNm())
-        ));
+        then(repository)
+                .should()
+                .save(
+                        argThat(
+                                entity ->
+                                        "BBR001".equals(entity.getSvnDpmC())
+                                                && "18010".equals(entity.getSvnTemC())
+                                                && "정보기술부".equals(entity.getSvnDpmNm())
+                                                && "PMO팀".equals(entity.getSvnTemNm())));
     }
 
     @Test
     @DisplayName("새 버전 생성 시 주관부서코드/주관팀코드를 새 버전 작성자 기준으로 채운다")
     void createNewVersion_populatesAuthorOrgFromCurrentUser() {
         // Arrange
-        Brdocm latest = Brdocm.builder()
-                .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("1"))
-                .reqTtl("문서")
-                .build();
+        Brdocm latest =
+                Brdocm.builder()
+                        .docMngNo("DOC-001")
+                        .docVrsSno(new BigDecimal("1"))
+                        .reqTtl("문서")
+                        .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
                 .willReturn(Optional.of(latest));
         given(repository.save(any(Brdocm.class))).willAnswer(inv -> inv.getArgument(0));
@@ -173,10 +166,15 @@ class ServiceRequestDocServiceTest {
         service.createNewVersion("DOC-001", admin());
 
         // Assert: 새 버전 행에도 작성자 부서/팀 코드·명이 반영된다
-        then(repository).should().save(argThat(entity ->
-                "BBR002".equals(entity.getSvnDpmC()) && "18501".equals(entity.getSvnTemC())
-                        && "정보보호부".equals(entity.getSvnDpmNm()) && "개발/운영팀".equals(entity.getSvnTemNm())
-        ));
+        then(repository)
+                .should()
+                .save(
+                        argThat(
+                                entity ->
+                                        "BBR002".equals(entity.getSvnDpmC())
+                                                && "18501".equals(entity.getSvnTemC())
+                                                && "정보보호부".equals(entity.getSvnDpmNm())
+                                                && "개발/운영팀".equals(entity.getSvnTemNm())));
     }
 
     @Test
@@ -186,33 +184,36 @@ class ServiceRequestDocServiceTest {
         given(repository.getNextSequenceValue()).willReturn(1L);
         given(repository.existsByDocMngNoAndDelYn(anyString(), eq("N"))).willReturn(false);
         given(repository.save(any(Brdocm.class))).willAnswer(inv -> inv.getArgument(0));
-        given(authorOrgResolver.resolveCurrent())
-                .willReturn(new AuthorOrg("ZZZ99", "99999", null));
+        given(authorOrgResolver.resolveCurrent()).willReturn(new AuthorOrg("ZZZ99", "99999", null));
         given(orgNameResolver.resolveName("ZZZ99")).willReturn(null);
         given(orgNameResolver.resolveName("99999")).willReturn(null);
-        ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
-                .reqTtl("미등록 조직 문서")
-                .build();
+        ServiceRequestDocDto.CreateRequest req =
+                ServiceRequestDocDto.CreateRequest.builder().reqTtl("미등록 조직 문서").build();
 
         // Act
         service.createDocument(req);
 
         // Assert: 코드는 저장되되 이름 스냅샷은 null
-        then(repository).should().save(argThat(entity ->
-                "ZZZ99".equals(entity.getSvnDpmC())
-                        && entity.getSvnDpmNm() == null && entity.getSvnTemNm() == null
-        ));
+        then(repository)
+                .should()
+                .save(
+                        argThat(
+                                entity ->
+                                        "ZZZ99".equals(entity.getSvnDpmC())
+                                                && entity.getSvnDpmNm() == null
+                                                && entity.getSvnTemNm() == null));
     }
 
     @Test
     @DisplayName("새 버전 생성 시 기존 최신 버전 + 0.01 로 생성된다")
     void createNewVersion_incrementsVersion() {
         // Arrange: 최신 버전 엔티티는 저장 정수 1(화면 0.01)을 보유
-        Brdocm latest = Brdocm.builder()
-                .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("1"))
-                .reqTtl("문서")
-                .build();
+        Brdocm latest =
+                Brdocm.builder()
+                        .docMngNo("DOC-001")
+                        .docVrsSno(new BigDecimal("1"))
+                        .reqTtl("문서")
+                        .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
                 .willReturn(Optional.of(latest));
         given(repository.save(any(Brdocm.class))).willAnswer(inv -> inv.getArgument(0));
@@ -222,9 +223,9 @@ class ServiceRequestDocServiceTest {
 
         // Assert: 응답은 화면 소수 0.02, 저장 엔티티는 정수 2(× 100)
         assertThat(newVersion).isEqualByComparingTo(new BigDecimal("0.02"));
-        then(repository).should().save(argThat(entity ->
-                new BigDecimal("2").compareTo(entity.getDocVrsSno()) == 0
-        ));
+        then(repository)
+                .should()
+                .save(argThat(entity -> new BigDecimal("2").compareTo(entity.getDocVrsSno()) == 0));
     }
 
     @Test
@@ -240,11 +241,12 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("version 파라미터 없이 조회 시 최신 버전을 반환한다")
     void getDocument_withoutVersion_returnsLatest() {
-        Brdocm latest = Brdocm.builder()
-                .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("3"))   // 저장 정수 3 = 화면 0.03
-                .reqTtl("최신 문서")
-                .build();
+        Brdocm latest =
+                Brdocm.builder()
+                        .docMngNo("DOC-001")
+                        .docVrsSno(new BigDecimal("3")) // 저장 정수 3 = 화면 0.03
+                        .reqTtl("최신 문서")
+                        .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
                 .willReturn(Optional.of(latest));
 
@@ -256,16 +258,18 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("version 파라미터 지정 시 해당 버전을 반환한다")
     void getDocument_withVersion_returnsSpecific() {
-        Brdocm v1 = Brdocm.builder()
-                .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("1"))   // 저장 정수 1 = 화면 0.01
-                .reqTtl("v0.01 문서")
-                .build();
+        Brdocm v1 =
+                Brdocm.builder()
+                        .docMngNo("DOC-001")
+                        .docVrsSno(new BigDecimal("1")) // 저장 정수 1 = 화면 0.01
+                        .reqTtl("v0.01 문서")
+                        .build();
         // 화면 입력 0.01 → 저장 정수 1로 변환되어 조회된다
         given(repository.findByDocMngNoAndDocVrsSnoAndDelYn("DOC-001", new BigDecimal("1"), "N"))
                 .willReturn(Optional.of(v1));
 
-        ServiceRequestDocDto.Response result = service.getDocument("DOC-001", new BigDecimal("0.01"));
+        ServiceRequestDocDto.Response result =
+                service.getDocument("DOC-001", new BigDecimal("0.01"));
 
         assertThat(result.getDocVrsSno()).isEqualByComparingTo(new BigDecimal("0.01"));
     }
@@ -294,15 +298,11 @@ class ServiceRequestDocServiceTest {
     @DisplayName("특정 버전 삭제 시 해당 버전만 소프트 삭제된다")
     void deleteDocument_withVersion_deletesSpecificVersion() {
         // Arrange: 화면 0.02 버전 엔티티(저장 정수 2) 준비
-        Brdocm v2 = Brdocm.builder()
-                .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("2"))
-                .build();
+        Brdocm v2 = Brdocm.builder().docMngNo("DOC-001").docVrsSno(new BigDecimal("2")).build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
                 .willReturn(Optional.of(v2));
         // 화면 입력 0.02 → 저장 정수 2로 변환되어 조회된다
-        given(repository.findByDocMngNoAndDocVrsSnoAndDelYn(
-                "DOC-001", new BigDecimal("2"), "N"))
+        given(repository.findByDocMngNoAndDocVrsSnoAndDelYn("DOC-001", new BigDecimal("2"), "N"))
                 .willReturn(Optional.of(v2));
 
         // Act
@@ -316,8 +316,7 @@ class ServiceRequestDocServiceTest {
     @DisplayName("전체 버전 삭제 시 문서가 없으면 예외가 발생한다")
     void deleteDocument_withoutVersion_throwsWhenNotFound() {
         // Arrange: 존재하지 않는 문서관리번호
-        given(repository.findAllByDocMngNoAndDelYn("MISSING", "N"))
-                .willReturn(List.of());
+        given(repository.findAllByDocMngNoAndDelYn("MISSING", "N")).willReturn(List.of());
 
         // Act & Assert
         assertThatThrownBy(() -> service.deleteDocument("MISSING", null, admin()))
@@ -328,12 +327,10 @@ class ServiceRequestDocServiceTest {
     @DisplayName("특정 버전 삭제 시 해당 버전이 없으면 예외가 발생한다")
     void deleteDocument_withVersion_throwsWhenNotFound() {
         // Arrange: 소유권 검증용 최신 버전은 존재하되, 화면 0.99(저장 정수 99) 버전은 미존재
-        Brdocm latest = Brdocm.builder()
-                .docMngNo("DOC-001").docVrsSno(new BigDecimal("1")).build();
+        Brdocm latest = Brdocm.builder().docMngNo("DOC-001").docVrsSno(new BigDecimal("1")).build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
                 .willReturn(Optional.of(latest));
-        given(repository.findByDocMngNoAndDocVrsSnoAndDelYn(
-                "DOC-001", new BigDecimal("99"), "N"))
+        given(repository.findByDocMngNoAndDocVrsSnoAndDelYn("DOC-001", new BigDecimal("99"), "N"))
                 .willReturn(Optional.empty());
 
         // Act & Assert
@@ -348,31 +345,37 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("updateDocument: 소유자가 아닌 사용자는 AccessDeniedException")
     void update_deniedForOther() {
-        Brdocm latest = Brdocm.builder()
-                .docMngNo("DOC-2026-0001")
-                .docVrsSno(new BigDecimal("1"))
-                .reqTtl("문서")
-                .fstEnrUsid("E0001")
-                .build();
+        Brdocm latest =
+                Brdocm.builder()
+                        .docMngNo("DOC-2026-0001")
+                        .docVrsSno(new BigDecimal("1"))
+                        .reqTtl("문서")
+                        .fstEnrUsid("E0001")
+                        .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-2026-0001", "N"))
                 .willReturn(Optional.of(latest));
 
-        assertThatThrownBy(() -> service.updateDocument(
-                "DOC-2026-0001",
-                ServiceRequestDocDto.UpdateRequest.builder().reqTtl("수정").build(),
-                other()))
+        assertThatThrownBy(
+                        () ->
+                                service.updateDocument(
+                                        "DOC-2026-0001",
+                                        ServiceRequestDocDto.UpdateRequest.builder()
+                                                .reqTtl("수정")
+                                                .build(),
+                                        other()))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     @DisplayName("createNewVersion: 소유자가 아닌 사용자는 AccessDeniedException")
     void createNewVersion_deniedForOther() {
-        Brdocm latest = Brdocm.builder()
-                .docMngNo("DOC-2026-0001")
-                .docVrsSno(new BigDecimal("1"))
-                .reqTtl("문서")
-                .fstEnrUsid("E0001")
-                .build();
+        Brdocm latest =
+                Brdocm.builder()
+                        .docMngNo("DOC-2026-0001")
+                        .docVrsSno(new BigDecimal("1"))
+                        .reqTtl("문서")
+                        .fstEnrUsid("E0001")
+                        .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-2026-0001", "N"))
                 .willReturn(Optional.of(latest));
 
@@ -383,12 +386,13 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("deleteDocument: 소유자가 아닌 사용자는 AccessDeniedException")
     void delete_deniedForOther() {
-        Brdocm latest = Brdocm.builder()
-                .docMngNo("DOC-2026-0001")
-                .docVrsSno(new BigDecimal("1"))
-                .reqTtl("문서")
-                .fstEnrUsid("E0001")
-                .build();
+        Brdocm latest =
+                Brdocm.builder()
+                        .docMngNo("DOC-2026-0001")
+                        .docVrsSno(new BigDecimal("1"))
+                        .reqTtl("문서")
+                        .fstEnrUsid("E0001")
+                        .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-2026-0001", "N"))
                 .willReturn(Optional.of(latest));
 
@@ -399,19 +403,21 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("updateDocument: 관리자는 소유자가 아니어도 허용된다")
     void update_allowedForAdmin() {
-        Brdocm latest = Brdocm.builder()
-                .docMngNo("DOC-2026-0001")
-                .docVrsSno(new BigDecimal("1"))
-                .reqTtl("기존")
-                .fstEnrUsid("E0001")
-                .build();
+        Brdocm latest =
+                Brdocm.builder()
+                        .docMngNo("DOC-2026-0001")
+                        .docVrsSno(new BigDecimal("1"))
+                        .reqTtl("기존")
+                        .fstEnrUsid("E0001")
+                        .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-2026-0001", "N"))
                 .willReturn(Optional.of(latest));
 
-        String result = service.updateDocument(
-                "DOC-2026-0001",
-                ServiceRequestDocDto.UpdateRequest.builder().reqTtl("관리자 수정").build(),
-                admin());
+        String result =
+                service.updateDocument(
+                        "DOC-2026-0001",
+                        ServiceRequestDocDto.UpdateRequest.builder().reqTtl("관리자 수정").build(),
+                        admin());
 
         assertThat(result).isEqualTo("DOC-2026-0001");
         assertThat(latest.getReqTtl()).isEqualTo("관리자 수정");
@@ -429,12 +435,14 @@ class ServiceRequestDocServiceTest {
                 .willReturn(Optional.empty());
 
         // Act & Assert
-        assertThatThrownBy(() -> service.updateDocument(
-                "MISSING",
-                ServiceRequestDocDto.UpdateRequest.builder()
-                        .reqTtl("수정명")
-                        .build(),
-                admin()))
+        assertThatThrownBy(
+                        () ->
+                                service.updateDocument(
+                                        "MISSING",
+                                        ServiceRequestDocDto.UpdateRequest.builder()
+                                                .reqTtl("수정명")
+                                                .build(),
+                                        admin()))
                 .isInstanceOf(RuntimeException.class);
     }
 
@@ -442,21 +450,21 @@ class ServiceRequestDocServiceTest {
     @DisplayName("updateDocument: 존재하는 최신 버전 문서의 요구사항명을 수정한다")
     void updateDocument_updatesLatestVersion() {
         // Arrange: 최신 버전 존재
-        Brdocm latest = Brdocm.builder()
-                .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("0.02"))
-                .reqTtl("기존 문서명")
-                .build();
+        Brdocm latest =
+                Brdocm.builder()
+                        .docMngNo("DOC-001")
+                        .docVrsSno(new BigDecimal("0.02"))
+                        .reqTtl("기존 문서명")
+                        .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
                 .willReturn(Optional.of(latest));
 
         // Act
-        String result = service.updateDocument(
-                "DOC-001",
-                ServiceRequestDocDto.UpdateRequest.builder()
-                        .reqTtl("수정된 문서명")
-                        .build(),
-                admin());
+        String result =
+                service.updateDocument(
+                        "DOC-001",
+                        ServiceRequestDocDto.UpdateRequest.builder().reqTtl("수정된 문서명").build(),
+                        admin());
 
         // Assert: 문서관리번호 반환, JPA Dirty Checking으로 reqNm 수정 반영
         assertThat(result).isEqualTo("DOC-001");
@@ -472,29 +480,38 @@ class ServiceRequestDocServiceTest {
     void getVersionHistory_returnsAllVersionsDescending() {
         LocalDateTime v200CreatedAt = LocalDateTime.of(2026, 7, 21, 11, 0);
         LocalDateTime v200UpdatedAt = LocalDateTime.of(2026, 7, 21, 11, 5);
-        ServiceRequestDocRepository.VersionHistoryView v200 = versionHistoryView(
-                "DOC-001", "200", v200CreatedAt, v200UpdatedAt, "N");
-        ServiceRequestDocRepository.VersionHistoryView v101 = versionHistoryView(
-                "DOC-001", "101", LocalDateTime.of(2026, 7, 21, 10, 0),
-                LocalDateTime.of(2026, 7, 21, 10, 5), "N");
-        ServiceRequestDocRepository.VersionHistoryView v100 = versionHistoryView(
-                "DOC-001", "100", LocalDateTime.of(2026, 7, 21, 9, 0),
-                LocalDateTime.of(2026, 7, 21, 9, 5), "N");
+        ServiceRequestDocRepository.VersionHistoryView v200 =
+                versionHistoryView("DOC-001", "200", v200CreatedAt, v200UpdatedAt, "N");
+        ServiceRequestDocRepository.VersionHistoryView v101 =
+                versionHistoryView(
+                        "DOC-001",
+                        "101",
+                        LocalDateTime.of(2026, 7, 21, 10, 0),
+                        LocalDateTime.of(2026, 7, 21, 10, 5),
+                        "N");
+        ServiceRequestDocRepository.VersionHistoryView v100 =
+                versionHistoryView(
+                        "DOC-001",
+                        "100",
+                        LocalDateTime.of(2026, 7, 21, 9, 0),
+                        LocalDateTime.of(2026, 7, 21, 9, 5),
+                        "N");
         given(repository.findAllProjectedByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
                 .willReturn(List.of(v200, v101, v100));
 
         List<ServiceRequestDocDto.VersionResponse> result = service.getVersionHistory("DOC-001");
 
         assertThat(result).hasSize(3);
-        assertThat(result).extracting(version -> version.getDocVrsSno())
-                .containsExactly(new BigDecimal("2.00"), new BigDecimal("1.01"), new BigDecimal("1.00"));
-        assertThat(result).extracting(version -> version.getDocMngNo())
-                .containsOnly("DOC-001");
-        assertThat(result).extracting(version -> version.getDelYn())
-                .containsOnly("N");
+        assertThat(result)
+                .extracting(version -> version.getDocVrsSno())
+                .containsExactly(
+                        new BigDecimal("2.00"), new BigDecimal("1.01"), new BigDecimal("1.00"));
+        assertThat(result).extracting(version -> version.getDocMngNo()).containsOnly("DOC-001");
+        assertThat(result).extracting(version -> version.getDelYn()).containsOnly("N");
         assertThat(result.getFirst().getFstEnrDtm()).isEqualTo(v200CreatedAt);
         assertThat(result.getFirst().getLstChgDtm()).isEqualTo(v200UpdatedAt);
-        then(repository).should(never())
+        then(repository)
+                .should(never())
                 .findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc(anyString(), anyString());
     }
 
@@ -531,12 +548,27 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("getDocumentList: 작성자명은 이름 프로젝션 1회로 배치 조회하고 단건 조회는 호출하지 않는다")
     void getDocumentList_batchesAuthorNames() {
-        Brdocm d1 = Brdocm.builder()
-                .docMngNo("DOC-1").docVrsSno(new BigDecimal("0.01")).reqTtl("문서1").fstEnrUsid("E001").build();
-        Brdocm d2 = Brdocm.builder()
-                .docMngNo("DOC-2").docVrsSno(new BigDecimal("0.01")).reqTtl("문서2").fstEnrUsid("E002").build();
-        Brdocm d3 = Brdocm.builder()
-                .docMngNo("DOC-3").docVrsSno(new BigDecimal("0.01")).reqTtl("문서3").fstEnrUsid("E001").build();
+        Brdocm d1 =
+                Brdocm.builder()
+                        .docMngNo("DOC-1")
+                        .docVrsSno(new BigDecimal("0.01"))
+                        .reqTtl("문서1")
+                        .fstEnrUsid("E001")
+                        .build();
+        Brdocm d2 =
+                Brdocm.builder()
+                        .docMngNo("DOC-2")
+                        .docVrsSno(new BigDecimal("0.01"))
+                        .reqTtl("문서2")
+                        .fstEnrUsid("E002")
+                        .build();
+        Brdocm d3 =
+                Brdocm.builder()
+                        .docMngNo("DOC-3")
+                        .docVrsSno(new BigDecimal("0.01"))
+                        .reqTtl("문서3")
+                        .fstEnrUsid("E001")
+                        .build();
         UserRepository.UserNameView u1 = mock(UserRepository.UserNameView.class);
         UserRepository.UserNameView u2 = mock(UserRepository.UserNameView.class);
         given(u1.getEno()).willReturn("E001");
@@ -544,7 +576,9 @@ class ServiceRequestDocServiceTest {
         given(u2.getEno()).willReturn("E002");
         given(u2.getUsrNm()).willReturn("김철수");
         given(repository.findLatestVersionsAll()).willReturn(List.of(d1, d2, d3));
-        given(cuserIRepository.findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
+        given(
+                        cuserIRepository.findNameViewsByEnoIn(
+                                ArgumentMatchers.<java.util.Collection<String>>any()))
                 .willReturn(List.of(u1, u2));
 
         List<ServiceRequestDocDto.Response> result = service.getDocumentList();
@@ -554,7 +588,8 @@ class ServiceRequestDocServiceTest {
         assertThat(result.get(0).getFstEnrUsNm()).isEqualTo("홍길동");
         assertThat(result.get(1).getFstEnrUsNm()).isEqualTo("김철수");
         assertThat(result.get(2).getFstEnrUsNm()).isEqualTo("홍길동");
-        then(cuserIRepository).should(times(1))
+        then(cuserIRepository)
+                .should(times(1))
                 .findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any());
         then(cuserIRepository).should(never()).findById(anyString());
         then(cuserIRepository).should(never()).findNameViewByEno(anyString());
@@ -563,12 +598,13 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("문서 목록 조회 시 최초생성자 사번이 없으면 사용자 조회를 하지 않는다")
     void getDocumentList_skipsUserLookupWhenCreatorEmpty() {
-        Brdocm document = Brdocm.builder()
-                .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("0.01"))
-                .reqTtl("문서")
-                .fstEnrUsid("")
-                .build();
+        Brdocm document =
+                Brdocm.builder()
+                        .docMngNo("DOC-001")
+                        .docVrsSno(new BigDecimal("0.01"))
+                        .reqTtl("문서")
+                        .fstEnrUsid("")
+                        .build();
         given(repository.findLatestVersionsAll()).willReturn(List.of(document));
 
         List<ServiceRequestDocDto.Response> result = service.getDocumentList();
@@ -580,10 +616,11 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("직접 입력한 문서관리번호가 중복이면 생성 예외가 발생한다")
     void createDocument_throwsWhenManualDocumentNumberDuplicated() {
-        ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
-                .docMngNo("DOC-MANUAL")
-                .reqTtl("중복 문서")
-                .build();
+        ServiceRequestDocDto.CreateRequest req =
+                ServiceRequestDocDto.CreateRequest.builder()
+                        .docMngNo("DOC-MANUAL")
+                        .reqTtl("중복 문서")
+                        .build();
         given(repository.existsByDocMngNoAndDelYn("DOC-MANUAL", "N")).willReturn(true);
 
         assertThatThrownBy(() -> service.createDocument(req))
@@ -594,22 +631,27 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("직접 입력한 문서관리번호가 중복이 아니면 저장하고 HTML을 정제한다")
     void createDocument_savesManualDocumentNumberAndSanitizesContent() {
-        ServiceRequestDocDto.CreateRequest req = ServiceRequestDocDto.CreateRequest.builder()
-                .docMngNo("DOC-MANUAL")
-                .reqTtl("직접 문서")
-                .redtConeInf("<p>본문</p><script>alert(1)</script>")
-                .build();
+        ServiceRequestDocDto.CreateRequest req =
+                ServiceRequestDocDto.CreateRequest.builder()
+                        .docMngNo("DOC-MANUAL")
+                        .reqTtl("직접 문서")
+                        .redtConeInf("<p>본문</p><script>alert(1)</script>")
+                        .build();
         given(repository.existsByDocMngNoAndDelYn("DOC-MANUAL", "N")).willReturn(false);
-        given(repository.save(any(Brdocm.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(repository.save(any(Brdocm.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
 
         String result = service.createDocument(req);
 
         assertThat(result).isEqualTo("DOC-MANUAL");
-        then(repository).should().save(argThat(entity ->
-                entity.getDocMngNo().equals("DOC-MANUAL")
-                        && entity.getRedtConeInf().contains("본문")
-                        && !entity.getRedtConeInf().contains("script")
-        ));
+        then(repository)
+                .should()
+                .save(
+                        argThat(
+                                entity ->
+                                        entity.getDocMngNo().equals("DOC-MANUAL")
+                                                && entity.getRedtConeInf().contains("본문")
+                                                && !entity.getRedtConeInf().contains("script")));
     }
 
     @Test
@@ -638,22 +680,28 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("문서 수정 시 내용이 null이면 본문 바이트도 null로 갱신한다")
     void updateDocument_setsContentNullWhenRequestContentNull() {
-        Brdocm latest = Brdocm.builder()
-                .docMngNo("DOC-001")
-                .docVrsSno(new BigDecimal("0.02"))
-                .reqTtl("기존")
-                .redtConeInf("기존")
-                .build();
+        Brdocm latest =
+                Brdocm.builder()
+                        .docMngNo("DOC-001")
+                        .docVrsSno(new BigDecimal("0.02"))
+                        .reqTtl("기존")
+                        .redtConeInf("기존")
+                        .build();
         given(repository.findTopByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
                 .willReturn(Optional.of(latest));
 
-        service.updateDocument("DOC-001", ServiceRequestDocDto.UpdateRequest.builder()
-                .reqTtl("수정")
-                .redtConeInf(null)
-                .reqDttNo("REQ")
-                .bzDttNm("BZ")
-                .rvwFsgTlmDt(LocalDate.now().plusDays(3).format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE))
-                .build(),
+        service.updateDocument(
+                "DOC-001",
+                ServiceRequestDocDto.UpdateRequest.builder()
+                        .reqTtl("수정")
+                        .redtConeInf(null)
+                        .reqDttNo("REQ")
+                        .bzDttNm("BZ")
+                        .rvwFsgTlmDt(
+                                LocalDate.now()
+                                        .plusDays(3)
+                                        .format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE))
+                        .build(),
                 admin());
 
         assertThat(latest.getReqTtl()).isEqualTo("수정");
@@ -669,21 +717,43 @@ class ServiceRequestDocServiceTest {
         given(repository.countCompletedByBbrC("101")).willReturn(1);
         given(repository.countOverdueByBbrC("101")).willReturn(1);
         given(repository.findMonthlyTrendRowsByBbrC("101"))
-                .willReturn(java.util.Collections.singletonList(
-                        LabeledCountRow.fromRow(new Object[]{"2026-05", 2})));
+                .willReturn(
+                        java.util.Collections.singletonList(
+                                LabeledCountRow.fromRow(new Object[] {"2026-05", 2})));
         // Timestamp/Date/null 완료기한이 RecentReviewingRow.fromRow(toLd)에서 LocalDate로 봉인되는지 검증
-        given(repository.findRecentReviewingRowsByBbrC("101")).willReturn(List.of(
-                RecentReviewingRow.fromRow(new Object[]{"DOC-OLD", "지연", "홍길동", "2026-05-01", Timestamp.valueOf(LocalDate.now().minusDays(1).atStartOfDay())}),
-                RecentReviewingRow.fromRow(new Object[]{"DOC-TODAY", "검토", "김길동", "2026-05-02", Date.valueOf(LocalDate.now().plusDays(1))}),
-                RecentReviewingRow.fromRow(new Object[]{"DOC-NULL", "미정", "이길동", "2026-05-03", null})
-        ));
+        given(repository.findRecentReviewingRowsByBbrC("101"))
+                .willReturn(
+                        List.of(
+                                RecentReviewingRow.fromRow(
+                                        new Object[] {
+                                            "DOC-OLD",
+                                            "지연",
+                                            "홍길동",
+                                            "2026-05-01",
+                                            Timestamp.valueOf(
+                                                    LocalDate.now().minusDays(1).atStartOfDay())
+                                        }),
+                                RecentReviewingRow.fromRow(
+                                        new Object[] {
+                                            "DOC-TODAY",
+                                            "검토",
+                                            "김길동",
+                                            "2026-05-02",
+                                            Date.valueOf(LocalDate.now().plusDays(1))
+                                        }),
+                                RecentReviewingRow.fromRow(
+                                        new Object[] {
+                                            "DOC-NULL", "미정", "이길동", "2026-05-03", null
+                                        })));
 
         ServiceRequestDocDto.DashboardResponse result = service.getDashboard("101");
 
         assertThat(result.getTotalCount()).isEqualTo(5);
-        assertThat(result.getMonthlyTrend()).extracting(value -> value.getCount())
+        assertThat(result.getMonthlyTrend())
+                .extracting(value -> value.getCount())
                 .containsExactly(2);
-        assertThat(result.getRecentReviewing()).extracting(value -> value.getStatus())
+        assertThat(result.getRecentReviewing())
+                .extracting(value -> value.getStatus())
                 .containsExactly("delayed", "reviewing", "reviewing");
     }
 

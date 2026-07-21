@@ -2,11 +2,10 @@ package com.kdb.it.domain.menu.repository;
 
 import com.kdb.it.domain.menu.entity.Cmenua;
 import com.kdb.it.domain.menu.entity.CmenuaId;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import java.util.List;
 
 /** 메뉴와 권한의 활성 매핑 및 삭제 이력을 조회하는 저장소입니다. */
 public interface CmenuaRepository extends JpaRepository<Cmenua, CmenuaId> {

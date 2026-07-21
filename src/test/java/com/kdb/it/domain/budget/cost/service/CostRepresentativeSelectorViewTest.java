@@ -1,20 +1,34 @@
 package com.kdb.it.domain.budget.cost.service;
 
-import com.kdb.it.domain.budget.cost.repository.CostRepository;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
 class CostRepresentativeSelectorViewTest {
 
     private record Row(String costBgNo, Integer bgSno, String lstYn, String cttNm)
             implements CostRepository.CostRepresentativeView {
-        @Override public String getCostBgNo() { return costBgNo; }
-        @Override public Integer getBgSno() { return bgSno; }
-        @Override public String getLstYn() { return lstYn; }
-        @Override public String getCttNm() { return cttNm; }
+        @Override
+        public String getCostBgNo() {
+            return costBgNo;
+        }
+
+        @Override
+        public Integer getBgSno() {
+            return bgSno;
+        }
+
+        @Override
+        public String getLstYn() {
+            return lstYn;
+        }
+
+        @Override
+        public String getCttNm() {
+            return cttNm;
+        }
     }
 
     @Test

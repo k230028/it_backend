@@ -1,11 +1,5 @@
 package com.kdb.it.domain.budget.work.repository;
 
-import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
@@ -13,24 +7,24 @@ import com.kdb.it.domain.budget.cost.entity.QBcostm;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.QBitemm;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
+import com.kdb.it.domain.budget.work.entity.QBbugtm;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.kdb.it.domain.budget.work.entity.QBbugtm;
-
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 
 /**
  * 예산(BBUGTM) 커스텀 리포지토리 QueryDSL 구현체
  *
- * <p>
- * 결재완료 필터 + 비목 접두어 매칭 쿼리를 타입 안전하게 처리합니다.
- * 기존 {@code CostRepositoryImpl}, {@code ProjectRepositoryImpl}의
- * CAPPLA+CAPPLM 서브쿼리 패턴을 재사용합니다.
- * </p>
- *
- * // Design Ref: §4.6 — QueryDSL 구현 (결재완료 필터 + 비목 매칭)
+ * <p>결재완료 필터 + 비목 접두어 매칭 쿼리를 타입 안전하게 처리합니다. 기존 {@code CostRepositoryImpl}, {@code
+ * ProjectRepositoryImpl}의 CAPPLA+CAPPLM 서브쿼리 패턴을 재사용합니다. // Design Ref: §4.6 — QueryDSL 구현 (결재완료 필터
+ * + 비목 매칭)
  */
 @RequiredArgsConstructor
 public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
@@ -41,9 +35,8 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
     /**
      * 결재완료 전산업무비(BCOSTM) 중 비목코드가 접두어와 매칭되는 목록 조회
      *
-     * <p>
-     * [생성 SQL 예시]
-     * </p>
+     * <p>[생성 SQL 예시]
+     *
      * <pre>{@code
      * SELECT * FROM TPRMPP_BCOSTM c
      * WHERE c.DEL_YN = 'N' AND c.LST_YN = 'Y'
@@ -93,7 +86,9 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.fntTbNm.eq("BCOSTM"),
                                 cappla.pkColNm.eq(bcostm.costBgNo),
                                 cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                capplm.itPtlApfPrgStsC.eq(
+                                        com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED
+                                                .code()),
                                 cappla.apfDcmNo.eq(
                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                 .from(cappla2)
@@ -103,23 +98,17 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                                         cappla2.fntTbCrySno.eq(bcostm.bgSno))))
                         .exists());
 
-        return queryFactory
-                .selectFrom(bcostm)
-                .where(builder)
-                .fetch();
+        return queryFactory.selectFrom(bcostm).where(builder).fetch();
     }
 
     /**
      * 결재완료 품목(BITEMM) 중 품목구분이 접두어와 매칭되는 목록 조회
      *
-     * <p>
-     * BITEMM은 BPROJM의 하위 테이블이므로, BPROJM 기준으로 결재완료를 확인한 뒤
-     * 해당 BPROJM에 속하는 BITEMM 중 GCL_DTT가 접두어와 매칭되는 것을 반환합니다.
-     * </p>
+     * <p>BITEMM은 BPROJM의 하위 테이블이므로, BPROJM 기준으로 결재완료를 확인한 뒤 해당 BPROJM에 속하는 BITEMM 중 GCL_DTT가 접두어와
+     * 매칭되는 것을 반환합니다.
      *
-     * <p>
-     * [생성 SQL 예시]
-     * </p>
+     * <p>[생성 SQL 예시]
+     *
      * <pre>{@code
      * SELECT i.* FROM TPRMPP_BITEMM i
      * WHERE i.DEL_YN = 'N' AND i.LST_YN = 'Y'
@@ -164,7 +153,9 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.fntTbNm.eq("BPROJM"),
                                 cappla.pkColNm.eq(bprojm.abusMngNo),
                                 cappla.fntTbCrySno.eq(bprojm.sno),
-                                capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                capplm.itPtlApfPrgStsC.eq(
+                                        com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED
+                                                .code()),
                                 cappla.apfDcmNo.eq(
                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                 .from(cappla2)
@@ -193,22 +184,18 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 projApprovalBuilder)
                         .exists());
 
-        return queryFactory
-                .selectFrom(bitemm)
-                .where(builder)
-                .fetch();
+        return queryFactory.selectFrom(bitemm).where(builder).fetch();
     }
 
     /**
      * BBUGTM(편성예산) × BITEMM 조인 후 abusMngNo별 {@code bgDupAmt} 합계를 구한다.
      *
-     * <p>정보화사업 편성은 BITEMM 단위로 저장(ORC_TB='BITEMM', ORC_PK_VL=GCL_MNG_NO)되므로
-     * BITEMM.GCL_MNG_NO 기준으로 JOIN 후 GROUP BY 한다. 세 개의 {@code sum…DupBg…} 메서드가
-     * 공유하던 동일 골격을 추출한 헬퍼이며, 비목코드 필터만 선택적으로 적용된다.</p>
+     * <p>정보화사업 편성은 BITEMM 단위로 저장(ORC_TB='BITEMM', ORC_PK_VL=GCL_MNG_NO)되므로 BITEMM.GCL_MNG_NO 기준으로
+     * JOIN 후 GROUP BY 한다. 세 개의 {@code sum…DupBg…} 메서드가 공유하던 동일 골격을 추출한 헬퍼이며, 비목코드 필터만 선택적으로 적용된다.
      *
      * @param prjMngNos 사업관리번호 목록(null/빈 목록이면 빈 맵)
-     * @param bgYy      기준연도
-     * @param ioeCodes  비목코드 필터. null/빈 집합이면 비목 조건 미적용.
+     * @param bgYy 기준연도
+     * @param ioeCodes 비목코드 필터. null/빈 집합이면 비목 조건 미적용.
      * @return abusMngNo → 합계(없으면 0)
      */
     private Map<String, BigDecimal> sumDupBgByIoe(
@@ -219,26 +206,27 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         QBbugtm bbugtm = QBbugtm.bbugtm;
         QBitemm bitemm = QBitemm.bitemm;
 
-        BooleanBuilder where = new BooleanBuilder()
-                .and(bbugtm.bseYy.eq(bgYy))
-                .and(bbugtm.fntTbNm.eq("BITEMM"))
-                .and(bitemm.abusMngNo.in(prjMngNos))
-                .and(bbugtm.delYn.eq("N"))
-                .and(bitemm.delYn.eq("N"))
-                .and(bitemm.lstYn.eq("Y"));
+        BooleanBuilder where =
+                new BooleanBuilder()
+                        .and(bbugtm.bseYy.eq(bgYy))
+                        .and(bbugtm.fntTbNm.eq("BITEMM"))
+                        .and(bitemm.abusMngNo.in(prjMngNos))
+                        .and(bbugtm.delYn.eq("N"))
+                        .and(bitemm.delYn.eq("N"))
+                        .and(bitemm.lstYn.eq("Y"));
         if (ioeCodes != null && !ioeCodes.isEmpty()) {
             where.and(bitemm.ioeC.in(ioeCodes));
         }
 
-        List<Tuple> results = queryFactory
-                .select(bitemm.abusMngNo, bbugtm.bgDupAmt.sum())
-                .from(bbugtm)
-                .join(bitemm).on(
-                        bbugtm.pkColNm.eq(bitemm.gclMngNo),
-                        bbugtm.fntTbCrySno.eq(bitemm.sno))
-                .where(where)
-                .groupBy(bitemm.abusMngNo)
-                .fetch();
+        List<Tuple> results =
+                queryFactory
+                        .select(bitemm.abusMngNo, bbugtm.bgDupAmt.sum())
+                        .from(bbugtm)
+                        .join(bitemm)
+                        .on(bbugtm.pkColNm.eq(bitemm.gclMngNo), bbugtm.fntTbCrySno.eq(bitemm.sno))
+                        .where(where)
+                        .groupBy(bitemm.abusMngNo)
+                        .fetch();
 
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
@@ -252,10 +240,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
     /**
      * 정보화사업(BPROJM)별 편성예산(DUP_BG) 합계 일괄 조회
      *
-     * <p>
-     * 정보화사업 편성 데이터는 BITEMM 기준으로 저장되므로 BITEMM 조인 후
-     * prjMngNo별 SUM(DUP_BG)를 집계합니다.
-     * </p>
+     * <p>정보화사업 편성 데이터는 BITEMM 기준으로 저장되므로 BITEMM 조인 후 prjMngNo별 SUM(DUP_BG)를 집계합니다.
      */
     @Override
     public Map<String, BigDecimal> sumDupBgByPrjMngNos(List<String> prjMngNos, String bgYy) {
@@ -265,24 +250,23 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
     /**
      * 전산업무비(BCOSTM)별 편성예산(DUP_BG) 합계 일괄 조회
      *
-     * <p>
-     * ORC_TB='BCOSTM' 조건으로 orcPkVl(itMngcNo)별 SUM(DUP_BG)를 집계합니다.
-     * </p>
+     * <p>ORC_TB='BCOSTM' 조건으로 orcPkVl(itMngcNo)별 SUM(DUP_BG)를 집계합니다.
      */
     @Override
     public Map<String, BigDecimal> sumDupBgByItMngcNos(List<String> itMngcNos, String bgYy) {
         if (itMngcNos == null || itMngcNos.isEmpty()) return Map.of();
         QBbugtm bbugtm = QBbugtm.bbugtm;
-        List<Tuple> results = queryFactory
-                .select(bbugtm.pkColNm, bbugtm.bgDupAmt.sum())
-                .from(bbugtm)
-                .where(
-                        bbugtm.bseYy.eq(bgYy),
-                        bbugtm.fntTbNm.eq("BCOSTM"),
-                        bbugtm.pkColNm.in(itMngcNos),
-                        bbugtm.delYn.eq("N"))
-                .groupBy(bbugtm.pkColNm)
-                .fetch();
+        List<Tuple> results =
+                queryFactory
+                        .select(bbugtm.pkColNm, bbugtm.bgDupAmt.sum())
+                        .from(bbugtm)
+                        .where(
+                                bbugtm.bseYy.eq(bgYy),
+                                bbugtm.fntTbNm.eq("BCOSTM"),
+                                bbugtm.pkColNm.in(itMngcNos),
+                                bbugtm.delYn.eq("N"))
+                        .groupBy(bbugtm.pkColNm)
+                        .fetch();
         Map<String, BigDecimal> map = new HashMap<>();
         for (Tuple t : results) {
             String key = t.get(bbugtm.pkColNm);
@@ -292,11 +276,10 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         return map;
     }
 
-    /**
-     * 정보화사업별 자본예산 편성예산(DUP_BG) 합계 조회 (gclDtt 코드 기준)
-     */
+    /** 정보화사업별 자본예산 편성예산(DUP_BG) 합계 조회 (gclDtt 코드 기준) */
     @Override
-    public Map<String, BigDecimal> sumAssetDupBgByPrjMngNos(List<String> prjMngNos, String bgYy, Set<String> assetGclDttCodes) {
+    public Map<String, BigDecimal> sumAssetDupBgByPrjMngNos(
+            List<String> prjMngNos, String bgYy, Set<String> assetGclDttCodes) {
         // 비목 코드 집합이 비면 빈 맵(헬퍼의 null=비목 미필터 동작과 의미가 다르므로 가드 유지)
         if (assetGclDttCodes == null || assetGclDttCodes.isEmpty()) {
             return Map.of();
@@ -304,11 +287,10 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         return sumDupBgByIoe(prjMngNos, bgYy, assetGclDttCodes);
     }
 
-    /**
-     * 정보화사업별 일반관리비 편성예산(DUP_BG) 합계 조회 (gclDtt 코드 기준)
-     */
+    /** 정보화사업별 일반관리비 편성예산(DUP_BG) 합계 조회 (gclDtt 코드 기준) */
     @Override
-    public Map<String, BigDecimal> sumCostDupBgByPrjMngNos(List<String> prjMngNos, String bgYy, Set<String> costGclDttCodes) {
+    public Map<String, BigDecimal> sumCostDupBgByPrjMngNos(
+            List<String> prjMngNos, String bgYy, Set<String> costGclDttCodes) {
         // 비목 코드 집합이 비면 빈 맵(헬퍼의 null=비목 미필터 동작과 의미가 다르므로 가드 유지)
         if (costGclDttCodes == null || costGclDttCodes.isEmpty()) {
             return Map.of();
@@ -319,9 +301,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
     /**
      * 비목 접두어별 결재완료 요청금액 합계 조회
      *
-     * <p>
-     * BCOSTM의 IT_MNGC_BG 합계와 BITEMM의 GCL_AMT 합계를 더합니다.
-     * </p>
+     * <p>BCOSTM의 IT_MNGC_BG 합계와 BITEMM의 GCL_AMT 합계를 더합니다.
      */
     @Override
     public BigDecimal sumApprovedAmountByIoeCValues(Set<String> ioeCValues, String bgYy) {
@@ -335,9 +315,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
         return total;
     }
 
-    /**
-     * 결재완료 BCOSTM의 비목코드 집합별 금액 합계
-     */
+    /** 결재완료 BCOSTM의 비목코드 집합별 금액 합계 */
     private BigDecimal sumApprovedCostAmountByIoeCValues(Set<String> ioeCValues, String bgYy) {
         QBcostm bcostm = QBcostm.bcostm;
         QCappla cappla = new QCappla("cappla");
@@ -359,7 +337,9 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                 cappla.fntTbNm.eq("BCOSTM"),
                                 cappla.pkColNm.eq(bcostm.costBgNo),
                                 cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                capplm.itPtlApfPrgStsC.eq(
+                                        com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED
+                                                .code()),
                                 cappla.apfDcmNo.eq(
                                         JPAExpressions.select(cappla2.apfDcmNo.max())
                                                 .from(cappla2)
@@ -379,9 +359,7 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
     /**
      * 결재완료 BITEMM의 비목코드 집합별 저장 원화 금액 합계
      *
-     * <p>
-     * SUM(GCL_AMT) — 외화 품목도 저장 시점에 원화로 환산된 AMT를 그대로 합산합니다.
-     * </p>
+     * <p>SUM(GCL_AMT) — 외화 품목도 저장 시점에 원화로 환산된 AMT를 그대로 합산합니다.
      */
     private BigDecimal sumApprovedItemAmountByIoeCValues(Set<String> ioeCValues, String bgYy) {
         QBitemm bitemm = QBitemm.bitemm;
@@ -412,22 +390,25 @@ public class BbugtmRepositoryImpl implements BbugtmRepositoryCustom {
                                                 cappla.fntTbNm.eq("BPROJM"),
                                                 cappla.pkColNm.eq(bprojm.abusMngNo),
                                                 cappla.fntTbCrySno.eq(bprojm.sno),
-                                                capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()),
+                                                capplm.itPtlApfPrgStsC.eq(
+                                                        com.kdb.it.common.approval.domain
+                                                                .ApprovalStatus.COMPLETED
+                                                                .code()),
                                                 cappla.apfDcmNo.eq(
-                                                        JPAExpressions.select(cappla2.apfDcmNo.max())
+                                                        JPAExpressions.select(
+                                                                        cappla2.apfDcmNo.max())
                                                                 .from(cappla2)
                                                                 .where(
-                                                                        cappla2.fntTbNm.eq("BPROJM"),
-                                                                        cappla2.pkColNm.eq(bprojm.abusMngNo),
-                                                                        cappla2.fntTbCrySno.eq(bprojm.sno))))
+                                                                        cappla2.fntTbNm.eq(
+                                                                                "BPROJM"),
+                                                                        cappla2.pkColNm.eq(
+                                                                                bprojm.abusMngNo),
+                                                                        cappla2.fntTbCrySno.eq(
+                                                                                bprojm.sno))))
                                         .exists())
                         .exists());
 
         // SUM(GCL_AMT) — 저장 시점에 환산된 원화 금액을 그대로 합산
-        return queryFactory
-                .select(bitemm.amt.sum())
-                .from(bitemm)
-                .where(builder)
-                .fetchOne();
+        return queryFactory.select(bitemm.amt.sum()).from(bitemm).where(builder).fetchOne();
     }
 }

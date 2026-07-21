@@ -2,22 +2,19 @@ package com.kdb.it.domain.budget.it.service;
 
 import com.kdb.it.domain.budget.it.dto.ItBudgetDto;
 import com.kdb.it.domain.budget.it.repository.ItBudgetQueryRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 정보기술부문 예산 서비스
  *
- * <p>
- * IT/정보보호 구분 비목별 편성요청액·편성액 조회 및 전년도 대비 비교 로직을 처리합니다.
- * </p>
+ * <p>IT/정보보호 구분 비목별 편성요청액·편성액 조회 및 전년도 대비 비교 로직을 처리합니다.
  */
 @Service
 @RequiredArgsConstructor
@@ -29,7 +26,7 @@ public class ItBudgetService {
     /**
      * 정보기술부문 예산 요약 조회
      *
-     * <p>비목별 IT/정보보호 편성요청액·편성액을 천원 단위로 반환합니다.</p>
+     * <p>비목별 IT/정보보호 편성요청액·편성액을 천원 단위로 반환합니다.
      *
      * @param bgYy 예산년도
      * @return 요약 응답 (bgYy + 비목별 행 목록)
@@ -42,10 +39,7 @@ public class ItBudgetService {
     /**
      * 정보기술부문 예산 비교 (전년도 대비)
      *
-     * <p>
-     * 금년도와 전년도 편성요청액 합계(IT+정보보호)를 비교하여
-     * 증감액·증감률을 반환합니다.
-     * </p>
+     * <p>금년도와 전년도 편성요청액 합계(IT+정보보호)를 비교하여 증감액·증감률을 반환합니다.
      *
      * @param bgYy 금년도 예산년도
      * @return 비교 응답 (금년/전년도 + 증감 목록)
@@ -56,8 +50,9 @@ public class ItBudgetService {
         List<ItBudgetDto.CategoryRow> currRows = itBudgetQueryRepository.findSummary(bgYy);
         List<ItBudgetDto.CategoryRow> prevRows = itBudgetQueryRepository.findSummary(prevYy);
 
-        Map<String, ItBudgetDto.CategoryRow> prevMap = prevRows.stream()
-                .collect(Collectors.toMap(value -> value.ioeCode(), Function.identity()));
+        Map<String, ItBudgetDto.CategoryRow> prevMap =
+                prevRows.stream()
+                        .collect(Collectors.toMap(value -> value.ioeCode(), Function.identity()));
 
         // 금년도 비목 기준으로 증감 계산
         List<ItBudgetDto.YoyRow> yoyRows = new ArrayList<>();
@@ -66,21 +61,26 @@ public class ItBudgetService {
             long currAmt = curr.totalReqAmt();
             long prevAmt = prev != null ? prev.totalReqAmt() : 0L;
             long diff = currAmt - prevAmt;
-            Double diffRate = prevAmt != 0 ? Math.round((double) diff / prevAmt * 1000.0) / 10.0 : null;
-            yoyRows.add(new ItBudgetDto.YoyRow(curr.ioeCode(), curr.codeNm(), prevAmt, currAmt, diff, diffRate));
+            Double diffRate =
+                    prevAmt != 0 ? Math.round((double) diff / prevAmt * 1000.0) / 10.0 : null;
+            yoyRows.add(
+                    new ItBudgetDto.YoyRow(
+                            curr.ioeCode(), curr.codeNm(), prevAmt, currAmt, diff, diffRate));
         }
 
-        List<ItBudgetDto.FssMappingRow> fssMapping = currRows.stream()
-                .map(row -> new ItBudgetDto.FssMappingRow(
-                        row.ioeCode(),
-                        row.ioeDtlCode(),
-                        resolveBankCategoryNm(row),
-                        row.codeNm(),
-                        row.codeNm(),
-                        row.totalReqAmt(),
-                        "정식 금감원 매핑 테이블 도입 전 임시 동일 비목 매핑"
-                ))
-                .toList();
+        List<ItBudgetDto.FssMappingRow> fssMapping =
+                currRows.stream()
+                        .map(
+                                row ->
+                                        new ItBudgetDto.FssMappingRow(
+                                                row.ioeCode(),
+                                                row.ioeDtlCode(),
+                                                resolveBankCategoryNm(row),
+                                                row.codeNm(),
+                                                row.codeNm(),
+                                                row.totalReqAmt(),
+                                                "정식 금감원 매핑 테이블 도입 전 임시 동일 비목 매핑"))
+                        .toList();
 
         return new ItBudgetDto.ComparisonResponse(bgYy, prevYy, fssMapping, yoyRows);
     }
@@ -88,7 +88,7 @@ public class ItBudgetService {
     /**
      * 당행 비목명 해석 — 코드값약어명(CO_CDVA_ABV_NM)을 우선 사용합니다.
      *
-     * <p>약어명이 없거나 공백이면 코드값명(CDVA_NM)으로 대체해 빈 셀이 표시되지 않게 합니다.</p>
+     * <p>약어명이 없거나 공백이면 코드값명(CDVA_NM)으로 대체해 빈 셀이 표시되지 않게 합니다.
      *
      * @param row 비목별 집계 행
      * @return 표시용 당행 비목명

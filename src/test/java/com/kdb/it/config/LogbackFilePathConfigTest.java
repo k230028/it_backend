@@ -1,16 +1,15 @@
 package com.kdb.it.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.InputStream;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-
-import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.InputStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class LogbackFilePathConfigTest {
 
@@ -20,9 +19,8 @@ class LogbackFilePathConfigTest {
         try (InputStream config = getClass().getResourceAsStream("/logback-spring.xml")) {
             assertThat(config).isNotNull();
 
-            Document document = DocumentBuilderFactory.newInstance()
-                    .newDocumentBuilder()
-                    .parse(config);
+            Document document =
+                    DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(config);
             Element configuration = document.getDocumentElement();
             NodeList children = configuration.getChildNodes();
 

@@ -17,11 +17,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 /**
  * CookieUtil 단위 테스트
  *
- * <p>
- * JWT 쿠키의 보안 속성과 만료 시간이 인증 설정과 어긋나지 않는지 검증합니다.
- * secureCookie 분기(true/false), SSO 쿠키 생성/삭제, 사용자 정보 쿠키 등
- * 모든 퍼블릭 메서드와 분기 경로를 커버합니다.
- * </p>
+ * <p>JWT 쿠키의 보안 속성과 만료 시간이 인증 설정과 어긋나지 않는지 검증합니다. secureCookie 분기(true/false), SSO 쿠키 생성/삭제, 사용자 정보
+ * 쿠키 등 모든 퍼블릭 메서드와 분기 경로를 커버합니다.
  */
 class CookieUtilTest {
 
@@ -541,13 +538,14 @@ class CookieUtilTest {
     @DisplayName("createUserInfoCookie - 프론트 복원용 사용자 정보만 담은 쿠키를 생성한다")
     void createUserInfoCookie_사용자정보쿠키_생성() {
         CookieUtil cookieUtil = new CookieUtil(new ObjectMapper());
-        AuthDto.LoginResponse response = AuthDto.LoginResponse.builder()
-                .eno("10001")
-                .empNm("홍길동")
-                .athIds(List.of("ITPZZ001", "ITPAD001"))
-                .bbrC("D001")
-                .temC("T001")
-                .build();
+        AuthDto.LoginResponse response =
+                AuthDto.LoginResponse.builder()
+                        .eno("10001")
+                        .empNm("홍길동")
+                        .athIds(List.of("ITPZZ001", "ITPAD001"))
+                        .bbrC("D001")
+                        .temC("T001")
+                        .build();
 
         ResponseCookie cookie = cookieUtil.createUserInfoCookie(response);
         String decoded = URLDecoder.decode(cookie.getValue(), StandardCharsets.UTF_8);
@@ -565,13 +563,14 @@ class CookieUtilTest {
     void createUserInfoCookie_7일만료_httpOnlyFalse() {
         // given
         CookieUtil util = cookieUtil();
-        AuthDto.LoginResponse response = AuthDto.LoginResponse.builder()
-                .eno("99999")
-                .empNm("테스트유저")
-                .athIds(List.of("ITPZZ001"))
-                .bbrC("D999")
-                .temC("T999")
-                .build();
+        AuthDto.LoginResponse response =
+                AuthDto.LoginResponse.builder()
+                        .eno("99999")
+                        .empNm("테스트유저")
+                        .athIds(List.of("ITPZZ001"))
+                        .bbrC("D999")
+                        .temC("T999")
+                        .build();
 
         // when
         ResponseCookie cookie = util.createUserInfoCookie(response);
@@ -584,28 +583,30 @@ class CookieUtilTest {
     }
 
     @Test
-    @DisplayName("createUserInfoCookie - JSON 키 순서가 LinkedHashMap 삽입 순서(eno→empNm→athIds→bbrC→temC)와 일치한다")
+    @DisplayName(
+            "createUserInfoCookie - JSON 키 순서가 LinkedHashMap 삽입 순서(eno→empNm→athIds→bbrC→temC)와 일치한다")
     void createUserInfoCookie_JSON키순서_검증() {
         // given
         CookieUtil util = cookieUtil();
-        AuthDto.LoginResponse response = AuthDto.LoginResponse.builder()
-                .eno("10001")
-                .empNm("홍길동")
-                .athIds(List.of("ITPAD001"))
-                .bbrC("D001")
-                .temC("T001")
-                .build();
+        AuthDto.LoginResponse response =
+                AuthDto.LoginResponse.builder()
+                        .eno("10001")
+                        .empNm("홍길동")
+                        .athIds(List.of("ITPAD001"))
+                        .bbrC("D001")
+                        .temC("T001")
+                        .build();
 
         // when
         ResponseCookie cookie = util.createUserInfoCookie(response);
         String decoded = URLDecoder.decode(cookie.getValue(), StandardCharsets.UTF_8);
 
         // then — 삽입 순서 확인 (각 키의 위치 비교)
-        int enoIdx    = decoded.indexOf("\"eno\"");
-        int empNmIdx  = decoded.indexOf("\"empNm\"");
+        int enoIdx = decoded.indexOf("\"eno\"");
+        int empNmIdx = decoded.indexOf("\"empNm\"");
         int athIdsIdx = decoded.indexOf("\"athIds\"");
-        int bbrCIdx   = decoded.indexOf("\"bbrC\"");
-        int temCIdx   = decoded.indexOf("\"temC\"");
+        int bbrCIdx = decoded.indexOf("\"bbrC\"");
+        int temCIdx = decoded.indexOf("\"temC\"");
 
         assertThat(enoIdx).isLessThan(empNmIdx);
         assertThat(empNmIdx).isLessThan(athIdsIdx);
@@ -618,13 +619,14 @@ class CookieUtilTest {
     void createUserInfoCookie_null필드_포함() {
         // given
         CookieUtil util = cookieUtil();
-        AuthDto.LoginResponse response = AuthDto.LoginResponse.builder()
-                .eno("00001")
-                .empNm("김테스트")
-                .athIds(null)
-                .bbrC(null)
-                .temC(null)
-                .build();
+        AuthDto.LoginResponse response =
+                AuthDto.LoginResponse.builder()
+                        .eno("00001")
+                        .empNm("김테스트")
+                        .athIds(null)
+                        .bbrC(null)
+                        .temC(null)
+                        .build();
 
         // when
         ResponseCookie cookie = util.createUserInfoCookie(response);
@@ -640,13 +642,14 @@ class CookieUtilTest {
     void createUserInfoCookie_secureTrue_플래그설정() {
         // given
         CookieUtil util = cookieUtil(true);
-        AuthDto.LoginResponse response = AuthDto.LoginResponse.builder()
-                .eno("10001")
-                .empNm("홍길동")
-                .athIds(List.of("ITPAD001"))
-                .bbrC("D001")
-                .temC("T001")
-                .build();
+        AuthDto.LoginResponse response =
+                AuthDto.LoginResponse.builder()
+                        .eno("10001")
+                        .empNm("홍길동")
+                        .athIds(List.of("ITPAD001"))
+                        .bbrC("D001")
+                        .temC("T001")
+                        .build();
 
         // when
         ResponseCookie cookie = util.createUserInfoCookie(response);
@@ -661,13 +664,14 @@ class CookieUtilTest {
     void createUserInfoCookie_secureFalse_플래그없음() {
         // given
         CookieUtil util = cookieUtil(false);
-        AuthDto.LoginResponse response = AuthDto.LoginResponse.builder()
-                .eno("10001")
-                .empNm("홍길동")
-                .athIds(List.of("ITPAD001"))
-                .bbrC("D001")
-                .temC("T001")
-                .build();
+        AuthDto.LoginResponse response =
+                AuthDto.LoginResponse.builder()
+                        .eno("10001")
+                        .empNm("홍길동")
+                        .athIds(List.of("ITPAD001"))
+                        .bbrC("D001")
+                        .temC("T001")
+                        .build();
 
         // when
         ResponseCookie cookie = util.createUserInfoCookie(response);
@@ -680,11 +684,15 @@ class CookieUtilTest {
     @DisplayName("createUserInfoCookie - 사용자 정보 직렬화 실패 시 IllegalStateException을 던진다")
     void createUserInfoCookie_직렬화실패_IllegalStateException발생() throws Exception {
         ObjectMapper objectMapper = org.mockito.Mockito.mock(ObjectMapper.class);
-        org.mockito.BDDMockito.given(objectMapper.writeValueAsString(org.mockito.ArgumentMatchers.any()))
+        org.mockito.BDDMockito.given(
+                        objectMapper.writeValueAsString(org.mockito.ArgumentMatchers.any()))
                 .willThrow(new com.fasterxml.jackson.core.JsonProcessingException("boom") {});
         CookieUtil cookieUtil = new CookieUtil(objectMapper);
 
-        assertThatThrownBy(() -> cookieUtil.createUserInfoCookie(AuthDto.LoginResponse.builder().build()))
+        assertThatThrownBy(
+                        () ->
+                                cookieUtil.createUserInfoCookie(
+                                        AuthDto.LoginResponse.builder().build()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("사용자 정보 쿠키 직렬화 실패");
     }

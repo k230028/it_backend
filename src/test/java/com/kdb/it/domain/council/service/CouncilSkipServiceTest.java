@@ -9,12 +9,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.approval.dto.ApplicationDto;
+import com.kdb.it.common.approval.service.ApplicationService;
+import com.kdb.it.common.notification.event.NotificationEvent;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.entity.Basctm;
+import com.kdb.it.domain.council.entity.Baskpm;
+import com.kdb.it.domain.council.repository.BaskpmRepository;
+import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
-import jakarta.persistence.EntityManager;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,22 +33,11 @@ import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 
-import com.kdb.it.common.approval.dto.ApplicationDto;
-import com.kdb.it.common.approval.service.ApplicationService;
-import com.kdb.it.common.notification.event.NotificationEvent;
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.domain.council.dto.CouncilDto;
-import com.kdb.it.domain.council.entity.Baskpm;
-import com.kdb.it.domain.council.entity.Basctm;
-import com.kdb.it.domain.council.repository.BaskpmRepository;
-
 /**
  * CouncilSkipService 단위 테스트 (PRD_c_20260620 #3)
  *
- * <p>협의회 타당성검토 생략 판정 워크플로우 서비스의 전체 퍼블릭 메서드,
- * 분기, 권한·상태 검증, 통보 이벤트 발행 흐름을 검증합니다.
- * Baskpm·Basctm 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * Oracle DB 없이 실행됩니다.</p>
+ * <p>협의회 타당성검토 생략 판정 워크플로우 서비스의 전체 퍼블릭 메서드, 분기, 권한·상태 검증, 통보 이벤트 발행 흐름을 검증합니다. Baskpm·Basctm 엔티티는
+ * protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다. Oracle DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -52,29 +47,23 @@ class CouncilSkipServiceTest {
     // 의존성 Mock
     // ─────────────────────────────────────────────────────────────────────────
 
-    @Mock
-    private BaskpmRepository baskpmRepository;
+    @Mock private BaskpmRepository baskpmRepository;
 
-    @Mock
-    private CouncilService councilService;
+    @Mock private CouncilService councilService;
 
-    @Mock
-    private ApplicationService applicationService;
+    @Mock private ApplicationService applicationService;
 
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
-    @Mock
-    private EntityManager entityManager;
+    @Mock private EntityManager entityManager;
 
-    @InjectMocks
-    private CouncilSkipService councilSkipService;
+    @InjectMocks private CouncilSkipService councilSkipService;
 
     // ─────────────────────────────────────────────────────────────────────────
     // 테스트 픽스처 상수
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static final String ASCT_ID    = "ASCT-2026-0001";
+    private static final String ASCT_ID = "ASCT-2026-0001";
     private static final String APF_MNG_NO = "APF-2026-00000001";
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -96,10 +85,7 @@ class CouncilSkipServiceTest {
         return new CustomUserDetails("E30001", List.of("ITPZZ001"), "DEPT03");
     }
 
-    /**
-     * 정보보호시스템(04) + 결재완료(04) 협의회 목(mock) 생성.
-     * 생략 판정 요청 등록이 가능한 '정상' 상태.
-     */
+    /** 정보보호시스템(04) + 결재완료(04) 협의회 목(mock) 생성. 생략 판정 요청 등록이 가능한 '정상' 상태. */
     private Basctm validCouncil() {
         Basctm c = mock(Basctm.class);
         given(c.getItPtlAsctDbrTc()).willReturn("04");
@@ -119,12 +105,12 @@ class CouncilSkipServiceTest {
      * 생략판정요청 엔티티 목(mock) 생성 — 미판정(cnfmDtm=null) 상태.
      *
      * @param rqsUsid 신청자 사번
-     * @param omtYn   생략여부 (판정 전이면 null)
+     * @param omtYn 생략여부 (판정 전이면 null)
      */
     private Baskpm pendingBaskpm(String rqsUsid, String omtYn) {
         Baskpm b = mock(Baskpm.class);
         given(b.getRqsUsid()).willReturn(rqsUsid);
-        given(b.getCnfmDtm()).willReturn(null);          // 미판정 상태
+        given(b.getCnfmDtm()).willReturn(null); // 미판정 상태
         given(b.getItPtlAsctId()).willReturn(ASCT_ID);
         given(b.getCgprOpnnCone()).willReturn("생략 사유");
         given(b.getFlMpnId()).willReturn("FL-0001");
@@ -139,7 +125,7 @@ class CouncilSkipServiceTest {
      * 생략판정요청 엔티티 목(mock) 생성 — 판정 완료(cnfmDtm 설정) 상태.
      *
      * @param rqsUsid 신청자 사번
-     * @param omtYn   생략여부 (Y/N)
+     * @param omtYn 생략여부 (Y/N)
      */
     private Baskpm decidedBaskpm(String rqsUsid, String omtYn) {
         Baskpm b = mock(Baskpm.class);
@@ -179,7 +165,8 @@ class CouncilSkipServiceTest {
             // Arrange
             Basctm council = validCouncil();
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-            given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
+            given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                    .willReturn(Optional.empty());
 
             CustomUserDetails user = infoSecAdminUser();
 
@@ -200,10 +187,12 @@ class CouncilSkipServiceTest {
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
             // Act & Assert
-            assertThatThrownBy(() ->
-                councilSkipService.createSkipRequest(ASCT_ID, skipRequestCreate(), infoSecAdminUser()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("정보보호시스템(04)");
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.createSkipRequest(
+                                            ASCT_ID, skipRequestCreate(), infoSecAdminUser()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("정보보호시스템(04)");
         }
 
         @Test
@@ -216,11 +205,13 @@ class CouncilSkipServiceTest {
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
             // Act & Assert
-            assertThatThrownBy(() ->
-                councilSkipService.createSkipRequest(ASCT_ID, skipRequestCreate(), infoSecAdminUser()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("결재완료(04)")
-                .hasMessageContaining("01");  // 현재 상태 코드 포함 여부 확인
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.createSkipRequest(
+                                            ASCT_ID, skipRequestCreate(), infoSecAdminUser()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("결재완료(04)")
+                    .hasMessageContaining("01"); // 현재 상태 코드 포함 여부 확인
         }
 
         @Test
@@ -231,10 +222,12 @@ class CouncilSkipServiceTest {
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
             // Act & Assert
-            assertThatThrownBy(() ->
-                councilSkipService.createSkipRequest(ASCT_ID, skipRequestCreate(), normalUser()))
-                .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("ITPAD002");
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.createSkipRequest(
+                                            ASCT_ID, skipRequestCreate(), normalUser()))
+                    .isInstanceOf(AccessDeniedException.class)
+                    .hasMessageContaining("ITPAD002");
         }
 
         @Test
@@ -245,9 +238,11 @@ class CouncilSkipServiceTest {
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
             // Act & Assert
-            assertThatThrownBy(() ->
-                councilSkipService.createSkipRequest(ASCT_ID, skipRequestCreate(), adminUser()))
-                .isInstanceOf(AccessDeniedException.class);
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.createSkipRequest(
+                                            ASCT_ID, skipRequestCreate(), adminUser()))
+                    .isInstanceOf(AccessDeniedException.class);
         }
 
         @Test
@@ -259,13 +254,15 @@ class CouncilSkipServiceTest {
             // Mockito 중첩 스터빙(UnfinishedStubbingException) 회피: 헬퍼 호출을 먼저 지역변수로 분리
             Baskpm existing = pendingBaskpm("E10001", null);
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(existing));
+                    .willReturn(Optional.of(existing));
 
             // Act & Assert
-            assertThatThrownBy(() ->
-                councilSkipService.createSkipRequest(ASCT_ID, skipRequestCreate(), infoSecAdminUser()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("이미 진행 중인");
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.createSkipRequest(
+                                            ASCT_ID, skipRequestCreate(), infoSecAdminUser()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("이미 진행 중인");
         }
     }
 
@@ -283,9 +280,9 @@ class CouncilSkipServiceTest {
             // Arrange
             Baskpm baskpm = pendingBaskpm("E10001", null);
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
             given(applicationService.submit(any(ApplicationDto.CreateRequest.class)))
-                .willReturn(APF_MNG_NO);
+                    .willReturn(APF_MNG_NO);
             Basctm council = mock(Basctm.class);
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
@@ -304,9 +301,9 @@ class CouncilSkipServiceTest {
             // Arrange
             Baskpm baskpm = pendingBaskpm("E10001", null);
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
             given(applicationService.submit(any(ApplicationDto.CreateRequest.class)))
-                .willReturn(APF_MNG_NO);
+                    .willReturn(APF_MNG_NO);
             Basctm council = mock(Basctm.class);
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
@@ -322,19 +319,23 @@ class CouncilSkipServiceTest {
         @DisplayName("실패: IT관리자(ITPAD001)가 아닌 사용자는 AccessDeniedException을 던진다")
         void submitDecision_권한없음_AccessDeniedException() {
             // Act & Assert: repository 조회 전 권한 체크
-            assertThatThrownBy(() ->
-                councilSkipService.submitDecision(ASCT_ID, skipDecisionRequest("Y"), normalUser()))
-                .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("ITPAD001");
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.submitDecision(
+                                            ASCT_ID, skipDecisionRequest("Y"), normalUser()))
+                    .isInstanceOf(AccessDeniedException.class)
+                    .hasMessageContaining("ITPAD001");
         }
 
         @Test
         @DisplayName("실패: 정보보호관리자(ITPAD002)도 판정 권한이 없다 (ITPAD001 전용)")
         void submitDecision_정보보호관리자_AccessDeniedException() {
             // Act & Assert
-            assertThatThrownBy(() ->
-                councilSkipService.submitDecision(ASCT_ID, skipDecisionRequest("N"), infoSecAdminUser()))
-                .isInstanceOf(AccessDeniedException.class);
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.submitDecision(
+                                            ASCT_ID, skipDecisionRequest("N"), infoSecAdminUser()))
+                    .isInstanceOf(AccessDeniedException.class);
         }
 
         @Test
@@ -342,13 +343,15 @@ class CouncilSkipServiceTest {
         void submitDecision_요청없음_IllegalArgumentException() {
             // Arrange: 미존재
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.empty());
+                    .willReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() ->
-                councilSkipService.submitDecision(ASCT_ID, skipDecisionRequest("Y"), adminUser()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(ASCT_ID);
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.submitDecision(
+                                            ASCT_ID, skipDecisionRequest("Y"), adminUser()))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining(ASCT_ID);
         }
 
         @Test
@@ -357,13 +360,15 @@ class CouncilSkipServiceTest {
             // Arrange: 판정 완료 상태
             Baskpm baskpm = decidedBaskpm("E10001", "Y");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
 
             // Act & Assert
-            assertThatThrownBy(() ->
-                councilSkipService.submitDecision(ASCT_ID, skipDecisionRequest("N"), adminUser()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("이미 판정");
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.submitDecision(
+                                            ASCT_ID, skipDecisionRequest("N"), adminUser()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("이미 판정");
         }
 
         @Test
@@ -372,16 +377,18 @@ class CouncilSkipServiceTest {
             // Arrange: 미판정 요청은 있지만 결재선 없는 요청
             Baskpm baskpm = pendingBaskpm("E10001", null);
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
 
             CouncilDto.SkipDecisionRequest emptyApprovers =
-                new CouncilDto.SkipDecisionRequest("Y", "사유", List.of());
+                    new CouncilDto.SkipDecisionRequest("Y", "사유", List.of());
 
             // Act & Assert
-            assertThatThrownBy(() ->
-                councilSkipService.submitDecision(ASCT_ID, emptyApprovers, adminUser()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("결재선");
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.submitDecision(
+                                            ASCT_ID, emptyApprovers, adminUser()))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("결재선");
         }
 
         @Test
@@ -390,15 +397,17 @@ class CouncilSkipServiceTest {
             // Arrange
             Baskpm baskpm = pendingBaskpm("E10001", null);
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
 
             CouncilDto.SkipDecisionRequest nullApprovers =
-                new CouncilDto.SkipDecisionRequest("Y", "사유", null);
+                    new CouncilDto.SkipDecisionRequest("Y", "사유", null);
 
             // Act & Assert
-            assertThatThrownBy(() ->
-                councilSkipService.submitDecision(ASCT_ID, nullApprovers, adminUser()))
-                .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(
+                            () ->
+                                    councilSkipService.submitDecision(
+                                            ASCT_ID, nullApprovers, adminUser()))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
@@ -415,12 +424,12 @@ class CouncilSkipServiceTest {
         void handleApprovalCompleted_요청없음_예외롤백() {
             // Arrange: 대상 요청 없음 (데이터 불일치 상황)
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.empty());
+                    .willReturn(Optional.empty());
 
             // Act & Assert: 조용한 조기 반환 대신 예외를 던져 결재 완료 트랜잭션을 롤백시킨다 (리뷰 3-1)
             assertThatThrownBy(() -> councilSkipService.handleApprovalCompleted(ASCT_ID, true))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(ASCT_ID);
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining(ASCT_ID);
 
             // Assert: 협의회 상태 변경·통보 미호출
             then(councilService).shouldHaveNoInteractions();
@@ -433,7 +442,7 @@ class CouncilSkipServiceTest {
             // Arrange
             Baskpm baskpm = pendingBaskpm("E10001", "Y");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
 
             // Act
             councilSkipService.handleApprovalCompleted(ASCT_ID, false);
@@ -449,7 +458,7 @@ class CouncilSkipServiceTest {
             // Arrange: 최종 생략여부 = "Y" (BASCTM)
             Baskpm baskpm = pendingBaskpm("E10001", "Y");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
             Basctm decidedY = decidedCouncil("Y", "사유");
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(decidedY);
 
@@ -468,7 +477,7 @@ class CouncilSkipServiceTest {
             // Arrange: 최종 생략여부 = "N" (BASCTM)
             Baskpm baskpm = pendingBaskpm("E10001", "N");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
             Basctm decidedN = decidedCouncil("N", "사유");
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(decidedN);
 
@@ -488,7 +497,7 @@ class CouncilSkipServiceTest {
             Baskpm baskpm = mock(Baskpm.class);
             given(baskpm.getRqsUsid()).willReturn(null);
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
 
             // Act: 반려 시나리오
             councilSkipService.handleApprovalCompleted(ASCT_ID, false);
@@ -504,7 +513,7 @@ class CouncilSkipServiceTest {
             Baskpm baskpm = mock(Baskpm.class);
             given(baskpm.getRqsUsid()).willReturn("   ");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
 
             // Act: 반려 시나리오
             councilSkipService.handleApprovalCompleted(ASCT_ID, false);
@@ -528,7 +537,7 @@ class CouncilSkipServiceTest {
             // Arrange: 미판정 요청 존재
             Baskpm baskpm = pendingBaskpm("E10001", null);
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
 
             // Act
@@ -546,7 +555,7 @@ class CouncilSkipServiceTest {
         void getSkipRequest_없음_null반환() {
             // Arrange
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.empty());
+                    .willReturn(Optional.empty());
 
             // Act
             CouncilDto.SkipRequestResponse result = councilSkipService.getSkipRequest(ASCT_ID);
@@ -561,7 +570,7 @@ class CouncilSkipServiceTest {
             // Arrange: 판정 완료 요청 (생략Y)
             Baskpm baskpm = decidedBaskpm("E10001", "Y");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
             Basctm decidedY = decidedCouncil("Y", "사유");
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(decidedY);
 
@@ -581,7 +590,7 @@ class CouncilSkipServiceTest {
             // Arrange
             Baskpm baskpm = decidedBaskpm("E10001", "N");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
-                .willReturn(Optional.of(baskpm));
+                    .willReturn(Optional.of(baskpm));
             Basctm decidedN = decidedCouncil("N", "사유");
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(decidedN);
 
@@ -615,7 +624,8 @@ class CouncilSkipServiceTest {
             given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
 
             // Act
-            List<CouncilDto.SkipRequestResponse> result = councilSkipService.getActiveSkipRequests();
+            List<CouncilDto.SkipRequestResponse> result =
+                    councilSkipService.getActiveSkipRequests();
 
             // Assert: 삭제된 요청 제외, 활성 1건만
             assertThat(result).hasSize(1);
@@ -631,7 +641,8 @@ class CouncilSkipServiceTest {
             given(baskpmRepository.findByDelYn("N")).willReturn(List.of());
 
             // Act
-            List<CouncilDto.SkipRequestResponse> result = councilSkipService.getActiveSkipRequests();
+            List<CouncilDto.SkipRequestResponse> result =
+                    councilSkipService.getActiveSkipRequests();
 
             // Assert
             assertThat(result).isEmpty();
@@ -644,7 +655,8 @@ class CouncilSkipServiceTest {
             given(baskpmRepository.findByDelYn("N")).willReturn(List.of());
 
             // Act
-            List<CouncilDto.SkipRequestResponse> result = councilSkipService.getActiveSkipRequests();
+            List<CouncilDto.SkipRequestResponse> result =
+                    councilSkipService.getActiveSkipRequests();
 
             // Assert
             assertThat(result).isEmpty();
@@ -661,11 +673,14 @@ class CouncilSkipServiceTest {
             given(b2.getItPtlAsctId()).willReturn("ASCT-2026-0002");
 
             given(baskpmRepository.findByDelYn("N")).willReturn(List.of(b1, b2));
-            given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(mock(Basctm.class));
-            given(councilService.findActiveCouncil("ASCT-2026-0002")).willReturn(mock(Basctm.class));
+            given(councilService.findActiveCouncil("ASCT-2026-0001"))
+                    .willReturn(mock(Basctm.class));
+            given(councilService.findActiveCouncil("ASCT-2026-0002"))
+                    .willReturn(mock(Basctm.class));
 
             // Act
-            List<CouncilDto.SkipRequestResponse> result = councilSkipService.getActiveSkipRequests();
+            List<CouncilDto.SkipRequestResponse> result =
+                    councilSkipService.getActiveSkipRequests();
 
             // Assert
             assertThat(result).hasSize(2);

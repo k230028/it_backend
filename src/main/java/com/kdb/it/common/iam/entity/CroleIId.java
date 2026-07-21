@@ -2,20 +2,16 @@ package com.kdb.it.common.iam.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
+import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.io.Serializable;
-
 /**
  * 역할관리(TPRMPP_CROLEI) 복합키 클래스
  *
- * <p>
- * ATH_ID(권한ID) + ENO(사원번호)로 구성된 복합 기본키입니다.
- * 한 사용자(ENO)가 여러 자격등급(ATH_ID)을 가질 수 있는 구조를 지원합니다.
- * </p>
+ * <p>ATH_ID(권한ID) + ENO(사원번호)로 구성된 복합 기본키입니다. 한 사용자(ENO)가 여러 자격등급(ATH_ID)을 가질 수 있는 구조를 지원합니다.
  */
 @Embeddable
 @Getter

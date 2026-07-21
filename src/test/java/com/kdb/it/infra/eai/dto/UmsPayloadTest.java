@@ -1,16 +1,16 @@
 package com.kdb.it.infra.eai.dto;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * UmsPayload 레코드 — null 보정 분기(compact constructor) 및 빌더/접근자 커버리지.
  *
- * <p>Branch=50%, Complexity=33.3% 미달 항목을 집중 보완합니다.
- * umsBzDttId와 umsTrSno 두 필드가 null 보정 대상이고, 나머지 필드는 null 그대로 전달됩니다.</p>
+ * <p>Branch=50%, Complexity=33.3% 미달 항목을 집중 보완합니다. umsBzDttId와 umsTrSno 두 필드가 null 보정 대상이고, 나머지 필드는
+ * null 그대로 전달됩니다.
  */
 @DisplayName("UmsPayload null 보정 및 빌더")
 class UmsPayloadTest {
@@ -74,21 +74,24 @@ class UmsPayloadTest {
         @Test
         @DisplayName("emplNum=null이면 null 그대로")
         void null_emplNum_staysNull() {
-            UmsPayload p = UmsPayload.builder().umsBzDttId("ALT0165").umsTrSno("1").emplNum(null).build();
+            UmsPayload p =
+                    UmsPayload.builder().umsBzDttId("ALT0165").umsTrSno("1").emplNum(null).build();
             assertThat(p.emplNum()).isNull();
         }
 
         @Test
         @DisplayName("sendDt=null이면 null 그대로 (당일 발송 의미)")
         void null_sendDt_staysNull() {
-            UmsPayload p = UmsPayload.builder().umsBzDttId("SMS2096").umsTrSno("1").sendDt(null).build();
+            UmsPayload p =
+                    UmsPayload.builder().umsBzDttId("SMS2096").umsTrSno("1").sendDt(null).build();
             assertThat(p.sendDt()).isNull();
         }
 
         @Test
         @DisplayName("sendTime=null이면 null 그대로 (즉시 발송 의미)")
         void null_sendTime_staysNull() {
-            UmsPayload p = UmsPayload.builder().umsBzDttId("SMS2096").umsTrSno("1").sendTime(null).build();
+            UmsPayload p =
+                    UmsPayload.builder().umsBzDttId("SMS2096").umsTrSno("1").sendTime(null).build();
             assertThat(p.sendTime()).isNull();
         }
 
@@ -114,24 +117,25 @@ class UmsPayloadTest {
     @DisplayName("모든 필드를 명시 지정하면 그대로 보존")
     void allFields_preserved() {
         // Arrange
-        UmsPayload p = UmsPayload.builder()
-                .umsBzDttId("SMS2096")
-                .umsTrSno("7")
-                .emplNum("K1234567")
-                .cstNm("홍길동")
-                .reqCh("01012345678")
-                .deptKey("182")
-                .deptNm("디지털금융부")
-                .sendDt("20260101")
-                .sendTime("090000")
-                .umData1("DATA1")
-                .umData2("DATA2")
-                .umData3("DATA3")
-                .umData4("DATA4")
-                .umData5("DATA5")
-                .umData6("DATA6")
-                .umData7("DATA7")
-                .build();
+        UmsPayload p =
+                UmsPayload.builder()
+                        .umsBzDttId("SMS2096")
+                        .umsTrSno("7")
+                        .emplNum("K1234567")
+                        .cstNm("홍길동")
+                        .reqCh("01012345678")
+                        .deptKey("182")
+                        .deptNm("디지털금융부")
+                        .sendDt("20260101")
+                        .sendTime("090000")
+                        .umData1("DATA1")
+                        .umData2("DATA2")
+                        .umData3("DATA3")
+                        .umData4("DATA4")
+                        .umData5("DATA5")
+                        .umData6("DATA6")
+                        .umData7("DATA7")
+                        .build();
 
         // Assert — 모든 접근자 커버
         assertThat(p.umsBzDttId()).isEqualTo("SMS2096");
@@ -170,8 +174,18 @@ class UmsPayloadTest {
     @Test
     @DisplayName("동일 필드 값이면 두 UmsPayload 인스턴스는 동등")
     void equality_sameFields() {
-        UmsPayload a = UmsPayload.builder().umsBzDttId("SMS2096").umsTrSno("7").emplNum("K1234567").build();
-        UmsPayload b = UmsPayload.builder().umsBzDttId("SMS2096").umsTrSno("7").emplNum("K1234567").build();
+        UmsPayload a =
+                UmsPayload.builder()
+                        .umsBzDttId("SMS2096")
+                        .umsTrSno("7")
+                        .emplNum("K1234567")
+                        .build();
+        UmsPayload b =
+                UmsPayload.builder()
+                        .umsBzDttId("SMS2096")
+                        .umsTrSno("7")
+                        .emplNum("K1234567")
+                        .build();
         assertThat(a).isEqualTo(b);
         assertThat(a.hashCode()).isEqualTo(b.hashCode());
     }

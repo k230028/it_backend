@@ -10,8 +10,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 게시판 메타 엔티티 — TPRMPP_CBLBMM
  *
- * <p>게시판 단위 정책(답변·댓글·첨부필수·권한 등)을 관리한다.
- * 변경 시 {@link CblbmmL}에 이력이 자동 적재된다.</p>
+ * <p>게시판 단위 정책(답변·댓글·첨부필수·권한 등)을 관리한다. 변경 시 {@link CblbmmL}에 이력이 자동 적재된다.
  */
 @LogTarget(entity = CblbmmL.class)
 @Entity
@@ -34,13 +33,21 @@ public class Cblbmm extends BaseEntity {
     @Column(name = "IT_PTL_BLB_TC", nullable = false, length = 3, comment = "IT포탈게시판구분코드")
     private String itPtlBlbTc;
 
-    @Column(name = "REP_FNC_USE_YN", nullable = false, length = 1, comment = "답변사용여부 (물리컬럼 REP_FNC_USE_YN=답변기능사용여부)")
+    @Column(
+            name = "REP_FNC_USE_YN",
+            nullable = false,
+            length = 1,
+            comment = "답변사용여부 (물리컬럼 REP_FNC_USE_YN=답변기능사용여부)")
     private String repUseYn;
 
     @Column(name = "CMMT_USE_YN", nullable = false, length = 1, comment = "댓글사용여부")
     private String cmmtUseYn;
 
-    @Column(name = "APG_FL_USE_YN", nullable = false, length = 1, comment = "첨부필수여부 (물리컬럼 APG_FL_USE_YN=첨부파일사용여부)")
+    @Column(
+            name = "APG_FL_USE_YN",
+            nullable = false,
+            length = 1,
+            comment = "첨부필수여부 (물리컬럼 APG_FL_USE_YN=첨부파일사용여부)")
     private String flEsnYn;
 
     @Column(name = "HED_TAG_USE_YN", nullable = false, length = 1, comment = "머리말태그사용여부")
@@ -58,30 +65,34 @@ public class Cblbmm extends BaseEntity {
     /**
      * 게시판 메타 수정 커맨드
      *
-     * @param blbNm         게시판명
-     * @param repUseYn      답변사용여부
-     * @param cmmtUseYn     댓글사용여부
-     * @param flEsnYn       첨부필수여부
-     * @param hedTagUseYn   머리말태그사용여부
-     * @param sreSqnNo      화면순서번호
-     * @param useYn         사용여부
-     * @param rmk           비고
+     * @param blbNm 게시판명
+     * @param repUseYn 답변사용여부
+     * @param cmmtUseYn 댓글사용여부
+     * @param flEsnYn 첨부필수여부
+     * @param hedTagUseYn 머리말태그사용여부
+     * @param sreSqnNo 화면순서번호
+     * @param useYn 사용여부
+     * @param rmk 비고
      */
     public record UpdateCommand(
-        String blbNm, String repUseYn, String cmmtUseYn,
-        String flEsnYn, String hedTagUseYn,
-        Integer sreSqnNo, String useYn, String rmk
-    ) {}
+            String blbNm,
+            String repUseYn,
+            String cmmtUseYn,
+            String flEsnYn,
+            String hedTagUseYn,
+            Integer sreSqnNo,
+            String useYn,
+            String rmk) {}
 
     /** 게시판 메타 정보 수정 — JPA Dirty Checking 활용 */
     public void update(UpdateCommand cmd) {
-        this.blbNm        = cmd.blbNm();
-        this.repUseYn     = cmd.repUseYn();
-        this.cmmtUseYn    = cmd.cmmtUseYn();
-        this.flEsnYn      = cmd.flEsnYn();
-        this.hedTagUseYn  = cmd.hedTagUseYn();
-        this.sreSqnNo     = cmd.sreSqnNo();
-        this.useYn        = cmd.useYn();
-        this.rmk          = cmd.rmk();
+        this.blbNm = cmd.blbNm();
+        this.repUseYn = cmd.repUseYn();
+        this.cmmtUseYn = cmd.cmmtUseYn();
+        this.flEsnYn = cmd.flEsnYn();
+        this.hedTagUseYn = cmd.hedTagUseYn();
+        this.sreSqnNo = cmd.sreSqnNo();
+        this.useYn = cmd.useYn();
+        this.rmk = cmd.rmk();
     }
 }

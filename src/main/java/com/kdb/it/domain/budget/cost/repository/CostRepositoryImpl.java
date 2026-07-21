@@ -1,44 +1,37 @@
 package com.kdb.it.domain.budget.cost.repository;
 
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
+import com.kdb.it.common.approval.entity.QCappla;
+import com.kdb.it.common.approval.entity.QCapplm;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.QBcostm;
-import com.querydsl.core.Tuple;
-import com.kdb.it.common.approval.entity.QCappla;
-import com.kdb.it.common.approval.entity.QCapplm;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 
 /**
  * 전산관리비(Bcostm) 커스텀 리포지토리 QueryDSL 구현체
  *
- * <p>
- * {@link CostRepositoryCustom} 인터페이스의 QueryDSL 구현체입니다.
- * 복잡한 동적 쿼리(apfSts 필터링 서브쿼리 포함)를 타입 안전하게 처리합니다.
- * </p>
+ * <p>{@link CostRepositoryCustom} 인터페이스의 QueryDSL 구현체입니다. 복잡한 동적 쿼리(apfSts 필터링 서브쿼리 포함)를 타입 안전하게
+ * 처리합니다.
  *
- * <p>
- * 클래스 명명 규칙: Spring Data JPA가 자동 감지하려면
- * 반드시 {@code [메인Repository명]Impl} 형태여야 합니다. ({@code CostRepositoryImpl})
- * </p>
+ * <p>클래스 명명 규칙: Spring Data JPA가 자동 감지하려면 반드시 {@code [메인Repository명]Impl} 형태여야 합니다. ({@code
+ * CostRepositoryImpl})
  *
- * <p>
- * {@code apfSts} 서브쿼리 전략:
- * </p>
+ * <p>{@code apfSts} 서브쿼리 전략:
+ *
  * <ul>
- * <li>{@code "none"}: NOT EXISTS — CAPPLA에 연결 레코드가 없는 전산관리비</li>
- * <li>그 외 값: EXISTS — 최신 CAPPLA(APF_SNO MAX)의 CAPPLM 결재상태가 일치하는 전산관리비</li>
+ *   <li>{@code "none"}: NOT EXISTS — CAPPLA에 연결 레코드가 없는 전산관리비
+ *   <li>그 외 값: EXISTS — 최신 CAPPLA(APF_SNO MAX)의 CAPPLM 결재상태가 일치하는 전산관리비
  * </ul>
  */
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
@@ -50,17 +43,10 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
     /**
      * 검색 조건으로 전산관리비 목록 동적 조회
      *
-     * <p>
-     * [처리 순서]
-     * 1. DEL_YN='N' 기본 조건 설정
-     * 2. apfSts 조건 분기 처리 (none / 특정값 / null)
-     * 3. 나머지 단순 필드 조건 추가 (biceDpmC, biceTemC, infPrtYn)
-     * 4. BooleanBuilder로 조합된 WHERE 절로 쿼리 실행
-     * </p>
+     * <p>[처리 순서] 1. DEL_YN='N' 기본 조건 설정 2. apfSts 조건 분기 처리 (none / 특정값 / null) 3. 나머지 단순 필드 조건 추가
+     * (biceDpmC, biceTemC, infPrtYn) 4. BooleanBuilder로 조합된 WHERE 절로 쿼리 실행
      *
-     * <p>
-     * apfSts='none' 생성 SQL (NOT EXISTS):
-     * </p>
+     * <p>apfSts='none' 생성 SQL (NOT EXISTS):
      *
      * <pre>{@code
      * WHERE NOT EXISTS (
@@ -71,9 +57,7 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      * )
      * }</pre>
      *
-     * <p>
-     * apfSts='결재중' 생성 SQL (EXISTS + MAX 서브쿼리):
-     * </p>
+     * <p>apfSts='결재중' 생성 SQL (EXISTS + MAX 서브쿼리):
      *
      * <pre>{@code
      * WHERE EXISTS (
@@ -100,39 +84,37 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         QBcostm bcostm = QBcostm.bcostm;
         BooleanBuilder builder = buildConditionPredicate(condition);
 
-        return queryFactory
-                .selectFrom(bcostm)
-                .where(builder)
-                .fetch();
+        return queryFactory.selectFrom(bcostm).where(builder).fetch();
     }
 
     /**
-     * 목록 경량 프로젝션 조회(#7) — {@link #searchByCondition}와 동일 WHERE,
-     * select만 목록 표시 컬럼으로 축소.
+     * 목록 경량 프로젝션 조회(#7) — {@link #searchByCondition}와 동일 WHERE, select만 목록 표시 컬럼으로 축소.
      *
-     * <p>QueryDSL {@code Projections.constructor}는 위치 기반이므로 select 인자 순서가
-     * {@link CostDto.CostListRow} 컴포넌트 순서와 정확히 일치해야 한다.</p>
+     * <p>QueryDSL {@code Projections.constructor}는 위치 기반이므로 select 인자 순서가 {@link
+     * CostDto.CostListRow} 컴포넌트 순서와 정확히 일치해야 한다.
      */
     @Override
     public List<CostDto.CostListRow> searchListByCondition(CostDto.SearchCondition condition) {
         QBcostm bcostm = QBcostm.bcostm;
         // 동일 WHERE 재사용 — searchByCondition과 결과 행 집합 동일, select만 경량화
         return queryFactory
-                .select(Projections.constructor(CostDto.CostListRow.class,
-                        bcostm.costBgNo,
-                        bcostm.bgSno,
-                        bcostm.lstYn,
-                        bcostm.ioeC,
-                        bcostm.cttNm,
-                        bcostm.cttOppNm,
-                        bcostm.costTotXpAmt,
-                        bcostm.curC,
-                        bcostm.sectSysUtzYn,
-                        bcostm.costSvnDpmC,
-                        bcostm.svnTemC,
-                        bcostm.bseYy,
-                        bcostm.abusTc,
-                        bcostm.delYn))
+                .select(
+                        Projections.constructor(
+                                CostDto.CostListRow.class,
+                                bcostm.costBgNo,
+                                bcostm.bgSno,
+                                bcostm.lstYn,
+                                bcostm.ioeC,
+                                bcostm.cttNm,
+                                bcostm.cttOppNm,
+                                bcostm.costTotXpAmt,
+                                bcostm.curC,
+                                bcostm.sectSysUtzYn,
+                                bcostm.costSvnDpmC,
+                                bcostm.svnTemC,
+                                bcostm.bseYy,
+                                bcostm.abusTc,
+                                bcostm.delYn))
                 .from(bcostm)
                 .where(buildConditionPredicate(condition))
                 .fetch();
@@ -141,26 +123,27 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
     /**
      * 검색 조건에 해당하는 전산관리비 건수 (COUNT 쿼리, 전체 적재 회피)
      *
-     * <p>{@link #searchByCondition(CostDto.SearchCondition)}와 동일한 WHERE 조건을
-     * {@link #buildConditionPredicate(CostDto.SearchCondition)}로 공유하므로
-     * {@code searchByCondition(...).size()}와 결과가 정확히 일치합니다.</p>
+     * <p>{@link #searchByCondition(CostDto.SearchCondition)}와 동일한 WHERE 조건을 {@link
+     * #buildConditionPredicate(CostDto.SearchCondition)}로 공유하므로 {@code
+     * searchByCondition(...).size()}와 결과가 정확히 일치합니다.
      */
     @Override
     public long countBySearchCondition(CostDto.SearchCondition condition) {
         QBcostm bcostm = QBcostm.bcostm;
-        Long cnt = queryFactory
-                .select(bcostm.count())
-                .from(bcostm)
-                .where(buildConditionPredicate(condition))
-                .fetchOne();
+        Long cnt =
+                queryFactory
+                        .select(bcostm.count())
+                        .from(bcostm)
+                        .where(buildConditionPredicate(condition))
+                        .fetchOne();
         return cnt == null ? 0L : cnt;
     }
 
     /**
      * 검색 조건 → QueryDSL WHERE 절(BooleanBuilder) 조립.
      *
-     * <p>{@code searchByCondition}(목록)과 {@code countBySearchCondition}(건수)가 동일 조건을
-     * 공유하도록 조건 조립부를 추출한 헬퍼입니다. apfSts EXISTS/NOT EXISTS 서브쿼리 포함.</p>
+     * <p>{@code searchByCondition}(목록)과 {@code countBySearchCondition}(건수)가 동일 조건을 공유하도록 조건 조립부를
+     * 추출한 헬퍼입니다. apfSts EXISTS/NOT EXISTS 서브쿼리 포함.
      *
      * @param condition 검색 조건 DTO
      * @return DEL_YN='N' 및 동적 조건이 누적된 BooleanBuilder
@@ -193,7 +176,13 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                         cappla.fntTbNm.eq("BCOSTM"),
                                         cappla.pkColNm.eq(bcostm.costBgNo),
                                         cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                        capplm.itPtlApfPrgStsC.in(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(), com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()))
+                                        capplm.itPtlApfPrgStsC.in(
+                                                com.kdb.it.common.approval.domain.ApprovalStatus
+                                                        .IN_PROGRESS
+                                                        .code(),
+                                                com.kdb.it.common.approval.domain.ApprovalStatus
+                                                        .COMPLETED
+                                                        .code()))
                                 .notExists());
             } else {
                 // 특정 결재상태: 최신 신청서(APF_DCM_NO 최대값)의 결재상태가 일치하는 경우
@@ -205,9 +194,13 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                         cappla.fntTbNm.eq("BCOSTM"),
                                         cappla.pkColNm.eq(bcostm.costBgNo),
                                         cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                        capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
-                                                ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
-                                                : apfSts),
+                                        capplm.itPtlApfPrgStsC.eq(
+                                                com.kdb.it.common.approval.domain.ApprovalStatus
+                                                                .hasLabel(apfSts)
+                                                        ? com.kdb.it.common.approval.domain
+                                                                .ApprovalStatus.ofLabel(apfSts)
+                                                                .code()
+                                                        : apfSts),
                                         // 해당 전산관리비에 연결된 신청서 중 가장 최신(APF_DCM_NO 최대)인 것만 검사
                                         cappla.apfDcmNo.eq(
                                                 JPAExpressions.select(cappla2.apfDcmNo.max())
@@ -215,7 +208,8 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                                         .where(
                                                                 cappla2.fntTbNm.eq("BCOSTM"),
                                                                 cappla2.pkColNm.eq(bcostm.costBgNo),
-                                                                cappla2.fntTbCrySno.eq(bcostm.bgSno))))
+                                                                cappla2.fntTbCrySno.eq(
+                                                                        bcostm.bgSno))))
                                 .exists());
             }
         }
@@ -245,36 +239,41 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
     /**
      * 전년도 예산 합계 일괄 조회
      *
-     * <p>costBgNo별 전년도(prevYear) 예산 합계를 집계하여 반환합니다.
-     * 외화(curC≠'KRW') 행은 화면 예산 컬럼과 동일 기준인 FC_AMT(외화금액)를,
-     * 원화 행은 AMT(전산업무비예산금액)를 합산합니다.</p>
+     * <p>costBgNo별 전년도(prevYear) 예산 합계를 집계하여 반환합니다. 외화(curC≠'KRW') 행은 화면 예산 컬럼과 동일 기준인
+     * FC_AMT(외화금액)를, 원화 행은 AMT(전산업무비예산금액)를 합산합니다.
      */
     @Override
     public Map<String, BigDecimal> sumPrevBgByCostBgNos(List<String> costBgNos, String prevYear) {
         if (costBgNos == null || costBgNos.isEmpty()) return Map.of();
         QBcostm bcostm = QBcostm.bcostm;
         // 외화 행은 fcAmt, 원화(또는 외화금액 미입력) 행은 costTotXpAmt 기준
-        NumberExpression<BigDecimal> prevAmt = new CaseBuilder()
-                .when(bcostm.curC.isNotNull()
-                        .and(bcostm.curC.ne("KRW"))
-                        .and(bcostm.fcAmt.isNotNull()))
-                .then(bcostm.fcAmt)
-                .otherwise(bcostm.costTotXpAmt);
+        NumberExpression<BigDecimal> prevAmt =
+                new CaseBuilder()
+                        .when(
+                                bcostm.curC
+                                        .isNotNull()
+                                        .and(bcostm.curC.ne("KRW"))
+                                        .and(bcostm.fcAmt.isNotNull()))
+                        .then(bcostm.fcAmt)
+                        .otherwise(bcostm.costTotXpAmt);
         NumberExpression<BigDecimal> prevAmtSum = prevAmt.sum();
-        List<Tuple> results = queryFactory
-                .select(bcostm.costBgNo, prevAmtSum)
-                .from(bcostm)
-                .where(
-                        bcostm.bseYy.eq(prevYear),
-                        bcostm.costBgNo.in(costBgNos),
-                        bcostm.delYn.eq("N"))
-                .groupBy(bcostm.costBgNo)
-                .fetch();
-        return results.stream().collect(Collectors.toMap(
-                t -> t.get(bcostm.costBgNo),
-                t -> {
-                    BigDecimal sum = t.get(prevAmtSum);
-                    return sum != null ? sum : BigDecimal.ZERO;
-                }));
+        List<Tuple> results =
+                queryFactory
+                        .select(bcostm.costBgNo, prevAmtSum)
+                        .from(bcostm)
+                        .where(
+                                bcostm.bseYy.eq(prevYear),
+                                bcostm.costBgNo.in(costBgNos),
+                                bcostm.delYn.eq("N"))
+                        .groupBy(bcostm.costBgNo)
+                        .fetch();
+        return results.stream()
+                .collect(
+                        Collectors.toMap(
+                                t -> t.get(bcostm.costBgNo),
+                                t -> {
+                                    BigDecimal sum = t.get(prevAmtSum);
+                                    return sum != null ? sum : BigDecimal.ZERO;
+                                }));
     }
 }

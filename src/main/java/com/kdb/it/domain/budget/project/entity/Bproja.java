@@ -15,11 +15,11 @@ import lombok.experimental.SuperBuilder;
 /**
  * 정보화사업관계(BPROJA) 엔티티.
  *
- * <p>DB 테이블: {@code TPRMPP_BPROJA}. 프로젝트({@code ABUS_MNG_NO})와 각 단계 원본문서
- * ({@code CNCD_RFR_NO}=단계 자기 key)의 IT포탈 상태({@code IT_PTL_STS_TC})를 정규화해 관리합니다.
- * 한 프로젝트당 단계별 다건이 존재하며, 프로젝트 대표상태는 그 중 {@code IT_PTL_STS_TC} 최댓값입니다.</p>
+ * <p>DB 테이블: {@code TPRMPP_BPROJA}. 프로젝트({@code ABUS_MNG_NO})와 각 단계 원본문서 ({@code CNCD_RFR_NO}=단계 자기
+ * key)의 IT포탈 상태({@code IT_PTL_STS_TC})를 정규화해 관리합니다. 한 프로젝트당 단계별 다건이 존재하며, 프로젝트 대표상태는 그 중 {@code
+ * IT_PTL_STS_TC} 최댓값입니다.
  *
- * <p>감사 로그 미적용({@code @LogTarget} 부착하지 않음). 적재(단계 서비스 upsert)는 2차 범위.</p>
+ * <p>감사 로그 미적용({@code @LogTarget} 부착하지 않음). 적재(단계 서비스 upsert)는 2차 범위.
  */
 @Entity
 @Table(name = "TPRMPP_BPROJA", comment = "정보화사업관계")

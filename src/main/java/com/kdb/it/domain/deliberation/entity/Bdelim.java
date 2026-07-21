@@ -17,8 +17,9 @@ import lombok.experimental.SuperBuilder;
 /**
  * 과업심의 기본(마스터) 엔티티.
  *
- * <p>DB 테이블: {@code TPRMPP_BDELIM}. 정보화사업/전산업무비에 대한 과업심의위원회 신청을 관리한다.</p>
- * <p>대상구분 {@code IOE_C}: 100=정보화사업, 200=전산업무비. 상태 51→52→59.</p>
+ * <p>DB 테이블: {@code TPRMPP_BDELIM}. 정보화사업/전산업무비에 대한 과업심의위원회 신청을 관리한다.
+ *
+ * <p>대상구분 {@code IOE_C}: 100=정보화사업, 200=전산업무비. 상태 51→52→59.
  */
 @LogTarget(entity = BdelimL.class)
 @Entity
@@ -83,8 +84,15 @@ public class Bdelim extends BaseEntity {
     }
 
     /** 심의 결과 입력 (진행중에서만 서비스가 호출) */
-    public void updateResult(String taskDbrTc, String taskDbrRltTc, String taskDbrDt, String taskDbrTod,
-                             String taskDbrOmtYn, String taskDbrOmtRsn, String opnnCone, String apvTrdnRsnCone) {
+    public void updateResult(
+            String taskDbrTc,
+            String taskDbrRltTc,
+            String taskDbrDt,
+            String taskDbrTod,
+            String taskDbrOmtYn,
+            String taskDbrOmtRsn,
+            String opnnCone,
+            String apvTrdnRsnCone) {
         this.taskDbrTc = taskDbrTc;
         this.taskDbrRltTc = taskDbrRltTc;
         this.taskDbrDt = taskDbrDt;

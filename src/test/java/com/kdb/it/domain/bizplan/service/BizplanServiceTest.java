@@ -21,8 +21,8 @@ import com.kdb.it.domain.bizplan.repository.BizplanRepository;
 import com.kdb.it.domain.budget.plan.repository.BplanaRepository;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bproja;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.entity.BprojaId;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.BprojaRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
@@ -31,12 +31,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
@@ -61,9 +61,17 @@ class BizplanServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new BizplanService(bizplanRepository, bbizsmRepository, bbizgmRepository,
-                bbizcmRepository, projectRepository, projectItemRepository, bplanaRepository,
-                bprojaRepository, bprojaSyncService);
+        service =
+                new BizplanService(
+                        bizplanRepository,
+                        bbizsmRepository,
+                        bbizgmRepository,
+                        bbizcmRepository,
+                        projectRepository,
+                        projectItemRepository,
+                        bplanaRepository,
+                        bprojaRepository,
+                        bprojaSyncService);
     }
 
     /** 주관부서(18001) 사용자 */
@@ -83,8 +91,13 @@ class BizplanServiceTest {
 
     /** 주관부서 18001의 현재 유효 사업 */
     Bprojm project() {
-        return Bprojm.builder().abusMngNo(PRJ).sno(1).abusNm("차세대 시스템 구축")
-                .svnDpmC("18001").lstYn("Y").build();
+        return Bprojm.builder()
+                .abusMngNo(PRJ)
+                .sno(1)
+                .abusNm("차세대 시스템 구축")
+                .svnDpmC("18001")
+                .lstYn("Y")
+                .build();
     }
 
     Bbizpm plan() {
@@ -107,13 +120,20 @@ class BizplanServiceTest {
         void createsPlanWithStatus21AndBgNo() {
             stubEligibleProject();
             when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.empty());
-            when(bprojaRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(List.of(
-                    Bproja.builder().abusMngNo(PRJ).cncdRfrNo("BG-2026-0001").stsTc("09").build()));
+            when(bprojaRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(
+                            List.of(
+                                    Bproja.builder()
+                                            .abusMngNo(PRJ)
+                                            .cncdRfrNo("BG-2026-0001")
+                                            .stsTc("09")
+                                            .build()));
             when(bizplanRepository.save(any(Bbizpm.class))).thenAnswer(inv -> inv.getArgument(0));
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
-            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY))).thenReturn(Optional.empty());
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY)))
+                    .thenReturn(Optional.empty());
 
             BizplanDto.Detail detail = service.getOrCreate(PRJ, deptUser());
 
@@ -127,12 +147,19 @@ class BizplanServiceTest {
         @DisplayName("BBIZPM이 이미 있으면 재생성/상태 upsert 없이 상세만 반환한다(멱등)")
         void idempotentWhenPlanExists() {
             stubEligibleProject();
-            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.of(plan()));
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(Optional.of(plan()));
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
-            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY))).thenReturn(
-                    Optional.of(Bproja.builder().abusMngNo(PRJ).cncdRfrNo(BIZ_KEY).stsTc("29").build()));
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY)))
+                    .thenReturn(
+                            Optional.of(
+                                    Bproja.builder()
+                                            .abusMngNo(PRJ)
+                                            .cncdRfrNo(BIZ_KEY)
+                                            .stsTc("29")
+                                            .build()));
 
             BizplanDto.Detail detail = service.getOrCreate(PRJ, deptUser());
 
@@ -147,14 +174,31 @@ class BizplanServiceTest {
             stubEligibleProject();
             when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.empty());
             // 예산신청 소요예산 상세내용 품목(BITEMM) 최신·유효본 2건
-            when(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(PRJ, "N", "Y")).thenReturn(List.of(
-                    Bitemm.builder().gclMngNo("GCL-2026-0001").sno(1).abusMngNo(PRJ)
-                            .gclNm("서버").ioeC("101").qty(new BigDecimal("2"))
-                            .curC("KRW").amt(new BigDecimal("1000000")).build(),
-                    Bitemm.builder().gclMngNo("GCL-2026-0001").sno(2).abusMngNo(PRJ)
-                            .gclNm("SW 라이선스").ioeC("201").qty(new BigDecimal("1"))
-                            .curC("USD").xcr(new BigDecimal("1300")).fcAmt(new BigDecimal("500"))
-                            .amt(new BigDecimal("650000")).build()));
+            when(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(PRJ, "N", "Y"))
+                    .thenReturn(
+                            List.of(
+                                    Bitemm.builder()
+                                            .gclMngNo("GCL-2026-0001")
+                                            .sno(1)
+                                            .abusMngNo(PRJ)
+                                            .gclNm("서버")
+                                            .ioeC("101")
+                                            .qty(new BigDecimal("2"))
+                                            .curC("KRW")
+                                            .amt(new BigDecimal("1000000"))
+                                            .build(),
+                                    Bitemm.builder()
+                                            .gclMngNo("GCL-2026-0001")
+                                            .sno(2)
+                                            .abusMngNo(PRJ)
+                                            .gclNm("SW 라이선스")
+                                            .ioeC("201")
+                                            .qty(new BigDecimal("1"))
+                                            .curC("USD")
+                                            .xcr(new BigDecimal("1300"))
+                                            .fcAmt(new BigDecimal("500"))
+                                            .amt(new BigDecimal("650000"))
+                                            .build()));
 
             service.getOrCreate(PRJ, deptUser());
 
@@ -180,10 +224,18 @@ class BizplanServiceTest {
         @Test
         @DisplayName("BBIZSM 최초 생성 시 사업(BPROJM)의 시작/종료일자로 기본 일정 1건(일정내용='사업추진')을 시드한다")
         void seedsScheduleFromProjectOnCreate() {
-            when(projectRepository.findByAbusMngNoAndLstYnAndDelYn(PRJ, "Y", "N")).thenReturn(
-                    Optional.of(Bprojm.builder().abusMngNo(PRJ).sno(1).abusNm("차세대 시스템 구축")
-                            .svnDpmC("18001").lstYn("Y")
-                            .sttDtm(LocalDate.of(2026, 3, 1)).endDtm(LocalDate.of(2026, 12, 31)).build()));
+            when(projectRepository.findByAbusMngNoAndLstYnAndDelYn(PRJ, "Y", "N"))
+                    .thenReturn(
+                            Optional.of(
+                                    Bprojm.builder()
+                                            .abusMngNo(PRJ)
+                                            .sno(1)
+                                            .abusNm("차세대 시스템 구축")
+                                            .svnDpmC("18001")
+                                            .lstYn("Y")
+                                            .sttDtm(LocalDate.of(2026, 3, 1))
+                                            .endDtm(LocalDate.of(2026, 12, 31))
+                                            .build()));
             when(bplanaRepository.existsByPrjMngNoAndDelYn(PRJ, "N")).thenReturn(true);
             when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.empty());
 
@@ -216,11 +268,13 @@ class BizplanServiceTest {
             assertThatThrownBy(() -> service.getOrCreate(PRJ, otherDeptUser()))
                     .isInstanceOf(AccessDeniedException.class);
 
-            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.of(plan()));
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(Optional.of(plan()));
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
-            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY))).thenReturn(Optional.empty());
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY)))
+                    .thenReturn(Optional.empty());
             assertThat(service.getOrCreate(PRJ, admin())).isNotNull();
         }
     }
@@ -229,14 +283,15 @@ class BizplanServiceTest {
     @DisplayName("save — 전체 저장(자식 upsert + 합계 재계산)")
     class SaveTests {
 
-        BizplanDto.SaveRequest requestWith(List<BizplanDto.ItemRequest> items,
-                List<BizplanDto.ContractRequest> contracts) {
+        BizplanDto.SaveRequest requestWith(
+                List<BizplanDto.ItemRequest> items, List<BizplanDto.ContractRequest> contracts) {
             return new BizplanDto.SaveRequest("<p>보고서</p>", "21", List.of(), items, contracts);
         }
 
         void stubPlanLoaded() {
             stubEligibleProject();
-            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.of(plan()));
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(Optional.of(plan()));
         }
 
         @Test
@@ -244,15 +299,39 @@ class BizplanServiceTest {
         void mergesRowsAndRecalculatesTotal() {
             stubEligibleProject();
             Bbizpm planRef = plan();
-            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.of(planRef));
-            Bbizgm existing1 = Bbizgm.builder().abusMngNo(PRJ).sno(1).gclNm("서버").amt(new BigDecimal("100")).build();
-            Bbizgm existing2 = Bbizgm.builder().abusMngNo(PRJ).sno(2).gclNm("삭제될 품목").amt(new BigDecimal("50")).build();
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(Optional.of(planRef));
+            Bbizgm existing1 =
+                    Bbizgm.builder()
+                            .abusMngNo(PRJ)
+                            .sno(1)
+                            .gclNm("서버")
+                            .amt(new BigDecimal("100"))
+                            .build();
+            Bbizgm existing2 =
+                    Bbizgm.builder()
+                            .abusMngNo(PRJ)
+                            .sno(2)
+                            .gclNm("삭제될 품목")
+                            .amt(new BigDecimal("50"))
+                            .build();
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
-            when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of(existing1, existing2));
+            when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ))
+                    .thenReturn(List.of(existing1, existing2));
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
 
-            BizplanDto.ItemRequest item1 = new BizplanDto.ItemRequest(
-                    1, "서버", "101", 2L, new BigDecimal("300"), null, "KRW", null, null, null);
+            BizplanDto.ItemRequest item1 =
+                    new BizplanDto.ItemRequest(
+                            1,
+                            "서버",
+                            "101",
+                            2L,
+                            new BigDecimal("300"),
+                            null,
+                            "KRW",
+                            null,
+                            null,
+                            null);
             service.save(PRJ, requestWith(List.of(item1), List.of()), deptUser());
 
             assertThat(existing1.getAmt()).isEqualByComparingTo("300");
@@ -268,8 +347,18 @@ class BizplanServiceTest {
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
 
-            BizplanDto.ItemRequest newItem = new BizplanDto.ItemRequest(
-                    1, "라이선스", "102", 10L, new BigDecimal("500"), null, "KRW", null, null, null);
+            BizplanDto.ItemRequest newItem =
+                    new BizplanDto.ItemRequest(
+                            1,
+                            "라이선스",
+                            "102",
+                            10L,
+                            new BigDecimal("500"),
+                            null,
+                            "KRW",
+                            null,
+                            null,
+                            null);
             service.save(PRJ, requestWith(List.of(newItem), List.of()), deptUser());
 
             verify(bbizgmRepository).save(any(Bbizgm.class));
@@ -281,9 +370,13 @@ class BizplanServiceTest {
             stubPlanLoaded();
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
 
-            BizplanDto.ItemRequest bad = new BizplanDto.ItemRequest(
-                    1, "서버", "101", 1L, new BigDecimal("100"), null, "KRW", null, null, 9);
-            assertThatThrownBy(() -> service.save(PRJ, requestWith(List.of(bad), List.of()), deptUser()))
+            BizplanDto.ItemRequest bad =
+                    new BizplanDto.ItemRequest(
+                            1, "서버", "101", 1L, new BigDecimal("100"), null, "KRW", null, null, 9);
+            assertThatThrownBy(
+                            () ->
+                                    service.save(
+                                            PRJ, requestWith(List.of(bad), List.of()), deptUser()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
 
@@ -291,7 +384,12 @@ class BizplanServiceTest {
         @DisplayName("타부서 일반 사용자는 저장할 수 없다")
         void deniedForOtherDept() {
             stubEligibleProject();
-            assertThatThrownBy(() -> service.save(PRJ, requestWith(List.of(), List.of()), otherDeptUser()))
+            assertThatThrownBy(
+                            () ->
+                                    service.save(
+                                            PRJ,
+                                            requestWith(List.of(), List.of()),
+                                            otherDeptUser()))
                     .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -300,7 +398,8 @@ class BizplanServiceTest {
         void rejectsSaveBeforeCreate() {
             stubEligibleProject();
             when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.empty());
-            assertThatThrownBy(() -> service.save(PRJ, requestWith(List.of(), List.of()), deptUser()))
+            assertThatThrownBy(
+                            () -> service.save(PRJ, requestWith(List.of(), List.of()), deptUser()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
@@ -311,15 +410,22 @@ class BizplanServiceTest {
 
         void stubPlanLoaded() {
             stubEligibleProject();
-            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.of(plan()));
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(Optional.of(plan()));
         }
 
         @Test
         @DisplayName("현재 상태 21이면 29로 upsert한다")
         void completesFrom21() {
             stubPlanLoaded();
-            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY))).thenReturn(
-                    Optional.of(Bproja.builder().abusMngNo(PRJ).cncdRfrNo(BIZ_KEY).stsTc("21").build()));
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY)))
+                    .thenReturn(
+                            Optional.of(
+                                    Bproja.builder()
+                                            .abusMngNo(PRJ)
+                                            .cncdRfrNo(BIZ_KEY)
+                                            .stsTc("21")
+                                            .build()));
 
             service.complete(PRJ, new BizplanDto.StatusRequest("29"), deptUser());
 
@@ -330,10 +436,19 @@ class BizplanServiceTest {
         @DisplayName("이미 29이면 IllegalStateException")
         void rejectsWhenAlreadyDone() {
             stubPlanLoaded();
-            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY))).thenReturn(
-                    Optional.of(Bproja.builder().abusMngNo(PRJ).cncdRfrNo(BIZ_KEY).stsTc("29").build()));
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY)))
+                    .thenReturn(
+                            Optional.of(
+                                    Bproja.builder()
+                                            .abusMngNo(PRJ)
+                                            .cncdRfrNo(BIZ_KEY)
+                                            .stsTc("29")
+                                            .build()));
 
-            assertThatThrownBy(() -> service.complete(PRJ, new BizplanDto.StatusRequest("29"), deptUser()))
+            assertThatThrownBy(
+                            () ->
+                                    service.complete(
+                                            PRJ, new BizplanDto.StatusRequest("29"), deptUser()))
                     .isInstanceOf(IllegalStateException.class);
         }
 
@@ -341,7 +456,10 @@ class BizplanServiceTest {
         @DisplayName("목표 상태가 29가 아니면 IllegalArgumentException")
         void rejectsInvalidTarget() {
             stubPlanLoaded();
-            assertThatThrownBy(() -> service.complete(PRJ, new BizplanDto.StatusRequest("21"), deptUser()))
+            assertThatThrownBy(
+                            () ->
+                                    service.complete(
+                                            PRJ, new BizplanDto.StatusRequest("21"), deptUser()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
@@ -353,11 +471,13 @@ class BizplanServiceTest {
         @DisplayName("사업계획이 있으면 상세를 반환하고 저장/상태 upsert는 하지 않는다")
         void returnsDetailWithoutSideEffects() {
             stubEligibleProject();
-            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.of(plan()));
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(Optional.of(plan()));
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
-            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY))).thenReturn(Optional.empty());
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY)))
+                    .thenReturn(Optional.empty());
 
             BizplanDto.Detail detail = service.get(PRJ, deptUser());
 
@@ -389,14 +509,17 @@ class BizplanServiceTest {
     @DisplayName("병합·시드·권한 분기 보강")
     class MergeBranchTests {
 
-        BizplanDto.SaveRequest req(List<BizplanDto.ScheduleRequest> schedules,
-                List<BizplanDto.ItemRequest> items, List<BizplanDto.ContractRequest> contracts) {
+        BizplanDto.SaveRequest req(
+                List<BizplanDto.ScheduleRequest> schedules,
+                List<BizplanDto.ItemRequest> items,
+                List<BizplanDto.ContractRequest> contracts) {
             return new BizplanDto.SaveRequest("<p>보고서</p>", "01", schedules, items, contracts);
         }
 
         void stubPlanLoaded() {
             stubEligibleProject();
-            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.of(plan()));
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(Optional.of(plan()));
         }
 
         @Test
@@ -405,18 +528,27 @@ class BizplanServiceTest {
             stubPlanLoaded();
             Bbizsm delSchedule =
                     Bbizsm.builder().abusMngNo(PRJ).sno(1).dsdCone("old").delYn("Y").build();
-            Bbizgm delItem = Bbizgm.builder().abusMngNo(PRJ).sno(1).gclNm("old")
-                    .amt(new BigDecimal("10")).delYn("Y").build();
+            Bbizgm delItem =
+                    Bbizgm.builder()
+                            .abusMngNo(PRJ)
+                            .sno(1)
+                            .gclNm("old")
+                            .amt(new BigDecimal("10"))
+                            .delYn("Y")
+                            .build();
             Bbizcm delContract =
                     Bbizcm.builder().abusMngNo(PRJ).sno(1).cttNm("old").delYn("Y").build();
-            when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of(delSchedule));
+            when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ))
+                    .thenReturn(List.of(delSchedule));
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of(delItem));
-            when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of(delContract));
+            when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ))
+                    .thenReturn(List.of(delContract));
 
             BizplanDto.ScheduleRequest s =
                     new BizplanDto.ScheduleRequest(1, "구축", "20260301", "20261231");
-            BizplanDto.ItemRequest i = new BizplanDto.ItemRequest(
-                    1, "서버", "101", 1L, new BigDecimal("100"), null, "KRW", null, null, 1);
+            BizplanDto.ItemRequest i =
+                    new BizplanDto.ItemRequest(
+                            1, "서버", "101", 1L, new BigDecimal("100"), null, "KRW", null, null, 1);
             BizplanDto.ContractRequest c = new BizplanDto.ContractRequest(1, "유지보수", "01", 12);
             service.save(PRJ, req(List.of(s), List.of(i), List.of(c)), deptUser());
 
@@ -439,8 +571,7 @@ class BizplanServiceTest {
 
             BizplanDto.ScheduleRequest upd =
                     new BizplanDto.ScheduleRequest(1, "갱신", "20260101", "20260601");
-            BizplanDto.ScheduleRequest neo =
-                    new BizplanDto.ScheduleRequest(2, "신규", null, null);
+            BizplanDto.ScheduleRequest neo = new BizplanDto.ScheduleRequest(2, "신규", null, null);
             service.save(PRJ, req(List.of(upd, neo), List.of(), List.of()), deptUser());
 
             assertThat(existing.getDsdCone()).isEqualTo("갱신");
@@ -456,7 +587,8 @@ class BizplanServiceTest {
             Bbizcm drop = Bbizcm.builder().abusMngNo(PRJ).sno(2).cttNm("삭제").build();
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
-            when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of(keep, drop));
+            when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ))
+                    .thenReturn(List.of(keep, drop));
 
             BizplanDto.ContractRequest upd = new BizplanDto.ContractRequest(1, "유지보수", "01", 24);
             BizplanDto.ContractRequest neo = new BizplanDto.ContractRequest(3, "신규계약", "02", 12);
@@ -473,12 +605,18 @@ class BizplanServiceTest {
             stubPlanLoaded();
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
 
-            BizplanDto.ItemRequest a = new BizplanDto.ItemRequest(
-                    1, "A", "101", 1L, new BigDecimal("1"), null, "KRW", null, null, null);
-            BizplanDto.ItemRequest b = new BizplanDto.ItemRequest(
-                    1, "B", "101", 1L, new BigDecimal("1"), null, "KRW", null, null, null);
+            BizplanDto.ItemRequest a =
+                    new BizplanDto.ItemRequest(
+                            1, "A", "101", 1L, new BigDecimal("1"), null, "KRW", null, null, null);
+            BizplanDto.ItemRequest b =
+                    new BizplanDto.ItemRequest(
+                            1, "B", "101", 1L, new BigDecimal("1"), null, "KRW", null, null, null);
             assertThatThrownBy(
-                    () -> service.save(PRJ, req(List.of(), List.of(a, b), List.of()), deptUser()))
+                            () ->
+                                    service.save(
+                                            PRJ,
+                                            req(List.of(), List.of(a, b), List.of()),
+                                            deptUser()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
 
@@ -486,12 +624,20 @@ class BizplanServiceTest {
         @DisplayName("BPROJA 상태행이 소프트 삭제 상태면 현재 상태를 21(작성중)로 간주한다")
         void currentStatusTreatsDeletedAsInProgress() {
             stubEligibleProject();
-            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.of(plan()));
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(Optional.of(plan()));
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
-            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY))).thenReturn(Optional.of(
-                    Bproja.builder().abusMngNo(PRJ).cncdRfrNo(BIZ_KEY).stsTc("29").delYn("Y").build()));
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY)))
+                    .thenReturn(
+                            Optional.of(
+                                    Bproja.builder()
+                                            .abusMngNo(PRJ)
+                                            .cncdRfrNo(BIZ_KEY)
+                                            .stsTc("29")
+                                            .delYn("Y")
+                                            .build()));
 
             BizplanDto.Detail detail = service.get(PRJ, deptUser());
 
@@ -509,8 +655,15 @@ class BizplanServiceTest {
         @Test
         @DisplayName("주관부서 코드가 없고 비관리자면 AccessDeniedException")
         void nullSvnDpmCDeniedForNonAdmin() {
-            when(projectRepository.findByAbusMngNoAndLstYnAndDelYn(PRJ, "Y", "N")).thenReturn(
-                    Optional.of(Bprojm.builder().abusMngNo(PRJ).sno(1).abusNm("사업").lstYn("Y").build()));
+            when(projectRepository.findByAbusMngNoAndLstYnAndDelYn(PRJ, "Y", "N"))
+                    .thenReturn(
+                            Optional.of(
+                                    Bprojm.builder()
+                                            .abusMngNo(PRJ)
+                                            .sno(1)
+                                            .abusNm("사업")
+                                            .lstYn("Y")
+                                            .build()));
             when(bplanaRepository.existsByPrjMngNoAndDelYn(PRJ, "N")).thenReturn(true);
 
             assertThatThrownBy(() -> service.get(PRJ, deptUser()))
@@ -522,14 +675,25 @@ class BizplanServiceTest {
         void resolvesBgNoNullAndSeedsScheduleWithNullDates() {
             stubEligibleProject(); // project()는 시작/종료일자 없음 → toYmd(null) 분기
             when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.empty());
-            when(bprojaRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(List.of(
-                    Bproja.builder().abusMngNo(PRJ).cncdRfrNo(BIZ_KEY).stsTc("21").build(), // BIZ-(BG- 아님)
-                    Bproja.builder().abusMngNo(PRJ).cncdRfrNo(null).stsTc("09").build()));   // null 키
+            when(bprojaRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(
+                            List.of(
+                                    Bproja.builder()
+                                            .abusMngNo(PRJ)
+                                            .cncdRfrNo(BIZ_KEY)
+                                            .stsTc("21")
+                                            .build(), // BIZ-(BG- 아님)
+                                    Bproja.builder()
+                                            .abusMngNo(PRJ)
+                                            .cncdRfrNo(null)
+                                            .stsTc("09")
+                                            .build())); // null 키
             when(bizplanRepository.save(any(Bbizpm.class))).thenAnswer(inv -> inv.getArgument(0));
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
-            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY))).thenReturn(Optional.empty());
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY)))
+                    .thenReturn(Optional.empty());
 
             BizplanDto.Detail detail = service.getOrCreate(PRJ, deptUser());
 
@@ -547,13 +711,21 @@ class BizplanServiceTest {
             when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.empty());
             when(bprojaRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(List.of());
             when(bizplanRepository.save(any(Bbizpm.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(PRJ, "N", "Y")).thenReturn(
-                    List.of(Bitemm.builder().gclMngNo("GCL-1").sno(1).abusMngNo(PRJ)
-                            .gclNm("무상지원").ioeC("101").build())); // qty/amt null
+            when(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(PRJ, "N", "Y"))
+                    .thenReturn(
+                            List.of(
+                                    Bitemm.builder()
+                                            .gclMngNo("GCL-1")
+                                            .sno(1)
+                                            .abusMngNo(PRJ)
+                                            .gclNm("무상지원")
+                                            .ioeC("101")
+                                            .build())); // qty/amt null
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
-            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY))).thenReturn(Optional.empty());
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY)))
+                    .thenReturn(Optional.empty());
 
             service.getOrCreate(PRJ, deptUser());
 
@@ -572,57 +744,50 @@ class BizplanServiceTest {
     class SelectLatestBgKeyTests {
 
         private Bproja app(String cncdRfrNo) {
-            return Bproja.builder()
-                    .abusMngNo(PRJ)
-                    .cncdRfrNo(cncdRfrNo)
-                    .stsTc("09")
-                    .build();
+            return Bproja.builder().abusMngNo(PRJ).cncdRfrNo(cncdRfrNo).stsTc("09").build();
         }
 
         @Test
         @DisplayName("BG- 키가 없으면 null을 반환한다")
         void noBgKey_returnsNull() {
-            assertThat(BizplanService.selectLatestBgKey(PRJ,
-                    List.of(app("BIZ-" + PRJ))))
-                    .isNull();
+            assertThat(BizplanService.selectLatestBgKey(PRJ, List.of(app("BIZ-" + PRJ)))).isNull();
         }
 
         @Test
         @DisplayName("BG- 키 1건이면 그 키를 반환한다")
         void singleBgKey_returned() {
-            assertThat(BizplanService.selectLatestBgKey(PRJ,
-                    List.of(
-                            app("BG-2026-0001"),
-                            app("BIZ-" + PRJ))))
+            assertThat(
+                            BizplanService.selectLatestBgKey(
+                                    PRJ, List.of(app("BG-2026-0001"), app("BIZ-" + PRJ))))
                     .isEqualTo("BG-2026-0001");
         }
 
         @Test
         @DisplayName("BG- 키 다건이면 채번 키 내림차순으로 최신 키를 선택한다 (WARN 경로)")
         void multipleBgKeys_latestSelected() {
-            assertThat(BizplanService.selectLatestBgKey(PRJ,
-                    List.of(
-                            app("BG-2026-0001"),
-                            app("BG-2026-0002"))))
+            assertThat(
+                            BizplanService.selectLatestBgKey(
+                                    PRJ, List.of(app("BG-2026-0001"), app("BG-2026-0002"))))
                     .isEqualTo("BG-2026-0002");
         }
 
         @Test
         @DisplayName("입력 순서를 뒤집어도 같은 최신 채번 키를 선택한다")
         void inputOrder_independent() {
-            assertThat(BizplanService.selectLatestBgKey(PRJ,
-                    List.of(app("BG-2026-0010"), app("BG-2026-0009"))))
-                    .isEqualTo(BizplanService.selectLatestBgKey(PRJ,
-                            List.of(app("BG-2026-0009"), app("BG-2026-0010"))));
+            assertThat(
+                            BizplanService.selectLatestBgKey(
+                                    PRJ, List.of(app("BG-2026-0010"), app("BG-2026-0009"))))
+                    .isEqualTo(
+                            BizplanService.selectLatestBgKey(
+                                    PRJ, List.of(app("BG-2026-0009"), app("BG-2026-0010"))));
         }
 
         @Test
         @DisplayName("cncdRfrNo가 null인 행은 무시한다")
         void nullKey_ignored() {
-            assertThat(BizplanService.selectLatestBgKey(PRJ,
-                    List.of(
-                            app(null),
-                            app("BG-2026-0001"))))
+            assertThat(
+                            BizplanService.selectLatestBgKey(
+                                    PRJ, List.of(app(null), app("BG-2026-0001"))))
                     .isEqualTo("BG-2026-0001");
         }
     }

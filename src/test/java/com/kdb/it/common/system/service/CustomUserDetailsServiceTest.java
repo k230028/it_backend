@@ -5,8 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.UserRepository;
 import java.util.Optional;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,26 +17,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.common.iam.repository.UserRepository;
-
 /**
  * CustomUserDetailsService 단위 테스트
  *
- * <p>
- * Spring Security의 UserDetailsService 구현체가 사번으로 사용자를 올바르게 로드하는지
- * 검증합니다. CuserI 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
+ * <p>Spring Security의 UserDetailsService 구현체가 사번으로 사용자를 올바르게 로드하는지 검증합니다. CuserI 엔티티는 protected
+ * 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다. Oracle DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 class CustomUserDetailsServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @InjectMocks
-    private CustomUserDetailsService customUserDetailsService;
+    @InjectMocks private CustomUserDetailsService customUserDetailsService;
 
     @Test
     @DisplayName("loadUserByUsername: 존재하는 사번으로 조회하면 UserDetails를 반환한다")

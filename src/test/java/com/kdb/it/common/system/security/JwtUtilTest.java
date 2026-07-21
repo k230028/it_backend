@@ -3,38 +3,34 @@ package com.kdb.it.common.system.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
-
 import javax.crypto.SecretKey;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-
 /**
  * JwtUtil 단위 테스트
  *
- * <p>
- * Spring Context 없이 직접 생성자를 호출하여 Oracle DB 연결 없이 테스트합니다.
- * 
- * @Value 의존성은 테스트용 고정 값으로 직접 주입합니다.
- *        </p>
+ * <p>Spring Context 없이 직접 생성자를 호출하여 Oracle DB 연결 없이 테스트합니다. @Value 의존성은 테스트용 고정 값으로 직접 주입합니다.
  */
 class JwtUtilTest {
 
     /** 테스트용 고정 시크릿 키 (HMAC-SHA256 최소 256bit 요구) */
-    private static final String TEST_SECRET = "test-secret-key-for-junit-test-minimum-256-bits-length-ok";
+    private static final String TEST_SECRET =
+            "test-secret-key-for-junit-test-minimum-256-bits-length-ok";
+
     private static final long ACCESS_VALIDITY_MS = 900_000L; // 15분
     private static final long REFRESH_VALIDITY_MS = 604_800_000L; // 7일
     private static final long EXPIRED_VALIDITY_MS = 1L; // 즉시 만료 (1ms)
 
     /** 테스트용 기본 자격등급 목록 */
     private static final List<String> TEST_ATH_IDS = List.of("ITPZZ001");
+
     /** 테스트용 기본 부서코드 */
     private static final String TEST_BBR_C = "BBR001";
 
@@ -95,8 +91,7 @@ class JwtUtilTest {
         String token = jwtUtil.generateAccessToken("10001", List.of(), TEST_BBR_C);
 
         // when & then
-        assertThat(jwtUtil.getAthIdsFromToken(token))
-            .containsExactly(CustomUserDetails.ATH_USER);
+        assertThat(jwtUtil.getAthIdsFromToken(token)).containsExactly(CustomUserDetails.ATH_USER);
     }
 
     @Test
@@ -104,8 +99,7 @@ class JwtUtilTest {
     void generateAccessToken_null자격등급_일반사용자기본값() {
         String token = jwtUtil.generateAccessToken("10001", null, TEST_BBR_C);
 
-        assertThat(jwtUtil.getAthIdsFromToken(token))
-            .containsExactly(CustomUserDetails.ATH_USER);
+        assertThat(jwtUtil.getAthIdsFromToken(token)).containsExactly(CustomUserDetails.ATH_USER);
     }
 
     @Test
@@ -213,10 +207,7 @@ class JwtUtilTest {
 
     /** tokenUse 클레임이 없는 레거시(배포 전) 토큰을 실제 서명으로 발급한다. */
     private String legacyTokenWithoutTokenUse() {
-        return Jwts.builder()
-                .subject("10001")
-                .signWith(TEST_KEY)
-                .compact();
+        return Jwts.builder().subject("10001").signWith(TEST_KEY).compact();
     }
 
     /** 지정한 tokenUse 클레임 값(문자열·숫자 등)을 가진 토큰을 실제 서명으로 발급한다. */
@@ -311,12 +302,13 @@ class JwtUtilTest {
     @Test
     @DisplayName("용도 검증 - 만료 토큰은 용도가 맞아도 false")
     void validateToken_expired_용도일치_false() {
-        String expiredAccess = Jwts.builder()
-                .subject("10001")
-                .claim(JwtUtil.TOKEN_USE_CLAIM, JwtUtil.TOKEN_USE_ACCESS)
-                .expiration(new Date(System.currentTimeMillis() - 1_000L))
-                .signWith(TEST_KEY)
-                .compact();
+        String expiredAccess =
+                Jwts.builder()
+                        .subject("10001")
+                        .claim(JwtUtil.TOKEN_USE_CLAIM, JwtUtil.TOKEN_USE_ACCESS)
+                        .expiration(new Date(System.currentTimeMillis() - 1_000L))
+                        .signWith(TEST_KEY)
+                        .compact();
 
         assertThat(jwtUtil.validateToken(expiredAccess, JwtUtil.TOKEN_USE_ACCESS, true)).isFalse();
     }
@@ -324,13 +316,16 @@ class JwtUtilTest {
     @Test
     @DisplayName("용도 검증 - 서명이 위조된 토큰은 용도가 맞아도 false")
     void validateToken_forged_용도일치_false() {
-        SecretKey otherKey = Keys.hmacShaKeyFor(
-                "another-secret-key-for-forgery-test-minimum-256-bits-ok".getBytes(StandardCharsets.UTF_8));
-        String forgedAccess = Jwts.builder()
-                .subject("10001")
-                .claim(JwtUtil.TOKEN_USE_CLAIM, JwtUtil.TOKEN_USE_ACCESS)
-                .signWith(otherKey)
-                .compact();
+        SecretKey otherKey =
+                Keys.hmacShaKeyFor(
+                        "another-secret-key-for-forgery-test-minimum-256-bits-ok"
+                                .getBytes(StandardCharsets.UTF_8));
+        String forgedAccess =
+                Jwts.builder()
+                        .subject("10001")
+                        .claim(JwtUtil.TOKEN_USE_CLAIM, JwtUtil.TOKEN_USE_ACCESS)
+                        .signWith(otherKey)
+                        .compact();
 
         assertThat(jwtUtil.validateToken(forgedAccess, JwtUtil.TOKEN_USE_ACCESS, true)).isFalse();
     }

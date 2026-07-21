@@ -6,6 +6,7 @@ import com.kdb.it.domain.council.service.MainQnaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,12 +21,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 /**
  * 정보화실무협의회 본회의 질의응답 REST 컨트롤러.
  *
- * <p>기본 URL은 {@code /api/council}이며, 본회의 질의응답(PRD §26) 엔드포인트만 담당합니다.</p>
+ * <p>기본 URL은 {@code /api/council}이며, 본회의 질의응답(PRD §26) 엔드포인트만 담당합니다.
  */
 @RestController
 @RequestMapping("/api/council")
@@ -39,7 +38,7 @@ public class CouncilMainQnaController {
     /**
      * 본회의 질의응답 목록 조회 (PRD §26)
      *
-     * <p>평가위원은 평가의견 작성 시 참고용으로 사용합니다.</p>
+     * <p>평가위원은 평가의견 작성 시 참고용으로 사용합니다.
      *
      * @param asctId 협의회ID
      * @return 삭제되지 않은 본회의 질의응답 목록
@@ -124,8 +123,7 @@ public class CouncilMainQnaController {
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{asctId}/main-qna/{qtnId}")
     public ResponseEntity<Void> deleteMainQna(
-            @PathVariable("asctId") String asctId,
-            @PathVariable("qtnId") String qtnId) {
+            @PathVariable("asctId") String asctId, @PathVariable("qtnId") String qtnId) {
         mainQnaService.deleteMainQna(asctId, qtnId);
         return ResponseEntity.noContent().build();
     }

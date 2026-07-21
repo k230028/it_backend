@@ -1,8 +1,12 @@
 package com.kdb.it.domain.menu.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+
 import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.service.BoardMetaService;
 import com.kdb.it.domain.menu.dto.MenuDto;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,31 +14,21 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-
 /**
  * BoardListMenuResolver 단위 테스트
  *
- * <p>DYN 게시판 노드(MBRD0001)의 children을 게시판 목록으로 변환하는 로직을 검증한다.</p>
+ * <p>DYN 게시판 노드(MBRD0001)의 children을 게시판 목록으로 변환하는 로직을 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
 class BoardListMenuResolverTest {
 
-    @Mock
-    private BoardMetaService boardMetaService;
+    @Mock private BoardMetaService boardMetaService;
 
-    @InjectMocks
-    private BoardListMenuResolver resolver;
+    @InjectMocks private BoardListMenuResolver resolver;
 
     /** 테스트용 게시판 메타 응답 DTO 생성 헬퍼. */
     private BoardMetaDto.Response board(String blbMngNo, String blbNm) {
-        return BoardMetaDto.Response.builder()
-                .blbMngNo(blbMngNo)
-                .blbNm(blbNm)
-                .build();
+        return BoardMetaDto.Response.builder().blbMngNo(blbMngNo).blbNm(blbNm).build();
     }
 
     @Test
@@ -61,10 +55,8 @@ class BoardListMenuResolverTest {
     @DisplayName("resolveChildren: 게시판 목록을 LNK 노드로 변환한다")
     void resolveChildren_게시판목록_노드변환() {
         // given
-        given(boardMetaService.getAllActive()).willReturn(List.of(
-                board("BLB-2026-0001", "공지사항"),
-                board("BLB-2026-0002", "자료실")
-        ));
+        given(boardMetaService.getAllActive())
+                .willReturn(List.of(board("BLB-2026-0001", "공지사항"), board("BLB-2026-0002", "자료실")));
 
         // when
         List<MenuDto.Node> result = resolver.resolveChildren(List.of("ITPZZ001"));

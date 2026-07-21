@@ -18,10 +18,13 @@ import org.junit.jupiter.api.Test;
 class BoardFileReadAuthorizerTest {
 
     private final BoardPostRepository boardPostRepository = mock(BoardPostRepository.class);
-    private final BoardFileReadAuthorizer authorizer = new BoardFileReadAuthorizer(boardPostRepository);
+    private final BoardFileReadAuthorizer authorizer =
+            new BoardFileReadAuthorizer(boardPostRepository);
 
-    private final CustomUserDetails normalUser = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
-    private final CustomUserDetails adminUser = new CustomUserDetails("A001", List.of("ITPAD001"), "IT001");
+    private final CustomUserDetails normalUser =
+            new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
+    private final CustomUserDetails adminUser =
+            new CustomUserDetails("A001", List.of("ITPAD001"), "IT001");
 
     private Cfilem boardFile(String nacMngNo) {
         Cfilem file = mock(Cfilem.class);
@@ -31,10 +34,20 @@ class BoardFileReadAuthorizerTest {
 
     private Cblbcm post(String xpoYn, LocalDate stt, LocalDate end) {
         return Cblbcm.builder()
-                .nacMngNo("NAC-1").blbMngNo("BLBM-1").nacNm("게시물")
-                .xpoYn(xpoYn).sttDt(stt).endDt(end)
-                .nacInqNbr(0).flNbr(0).flApgYn("N").ancYn("N")
-                .nacUnqId("NAC-1").nacGrpSqn(0).nacGrpLev(0).delYn("N")
+                .nacMngNo("NAC-1")
+                .blbMngNo("BLBM-1")
+                .nacNm("게시물")
+                .xpoYn(xpoYn)
+                .sttDt(stt)
+                .endDt(end)
+                .nacInqNbr(0)
+                .flNbr(0)
+                .flApgYn("N")
+                .ancYn("N")
+                .nacUnqId("NAC-1")
+                .nacGrpSqn(0)
+                .nacGrpLev(0)
+                .delYn("N")
                 .build();
     }
 
@@ -53,7 +66,8 @@ class BoardFileReadAuthorizerTest {
     @Test
     @DisplayName("게시물이 없으면 읽기 불가")
     void postNotFound_cannotRead() {
-        given(boardPostRepository.findByNacMngNoAndDelYn("NAC-1", "N")).willReturn(Optional.empty());
+        given(boardPostRepository.findByNacMngNoAndDelYn("NAC-1", "N"))
+                .willReturn(Optional.empty());
         assertThat(authorizer.canRead(boardFile("NAC-1"), normalUser)).isFalse();
     }
 
@@ -69,7 +83,12 @@ class BoardFileReadAuthorizerTest {
     @DisplayName("노출중(xpoYn=Y, 기간 내) 게시물은 읽기 가능")
     void visiblePost_canRead() {
         given(boardPostRepository.findByNacMngNoAndDelYn("NAC-1", "N"))
-                .willReturn(Optional.of(post("Y", LocalDate.now().minusDays(1), LocalDate.now().plusDays(1))));
+                .willReturn(
+                        Optional.of(
+                                post(
+                                        "Y",
+                                        LocalDate.now().minusDays(1),
+                                        LocalDate.now().plusDays(1))));
         assertThat(authorizer.canRead(boardFile("NAC-1"), normalUser)).isTrue();
     }
 

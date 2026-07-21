@@ -9,14 +9,13 @@ import java.util.List;
 /**
  * 감사 실패 로그에 사용할 엔티티 식별자를 생성하는 utility.
  *
- * <p>단일 {@code @Id}, 다중 {@code @Id}, {@code @EmbeddedId}를 읽어 {@code field=value} 형태로 결합한다.
- * PK가 아직 할당되지 않았으면 {@code guid}로 대체하고, 둘 다 없으면 {@code <unavailable>}을 반환한다.
- * 식별자는 로그 전용이며 Micrometer 태그에는 사용하지 않는다.</p>
+ * <p>단일 {@code @Id}, 다중 {@code @Id}, {@code @EmbeddedId}를 읽어 {@code field=value} 형태로 결합한다. PK가 아직
+ * 할당되지 않았으면 {@code guid}로 대체하고, 둘 다 없으면 {@code <unavailable>}을 반환한다. 식별자는 로그 전용이며 Micrometer 태그에는
+ * 사용하지 않는다.
  */
 public final class AuditEntityIdentifier {
 
-    private AuditEntityIdentifier() {
-    }
+    private AuditEntityIdentifier() {}
 
     /**
      * 단일·다중·복합 PK를 읽고 아직 할당되지 않았으면 guid로 대체한다.

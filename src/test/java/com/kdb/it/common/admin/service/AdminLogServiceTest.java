@@ -14,8 +14,8 @@ import com.kdb.it.domain.log.entity.BasctmL;
 import com.kdb.it.domain.log.entity.BbugtL;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
-import jakarta.persistence.EntityManager;
 import jakarta.persistence.Column;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,33 +34,27 @@ import org.springframework.test.util.ReflectionTestUtils;
 /**
  * AdminLogService 단위 테스트
  *
- * <p>로그 테이블 메타 정보, 목록 조회, 상세 조회의 공통 변환 흐름을 검증합니다.</p>
+ * <p>로그 테이블 메타 정보, 목록 조회, 상세 조회의 공통 변환 흐름을 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 class AdminLogServiceTest {
 
-    @Mock
-    private EntityManager entityManager;
+    @Mock private EntityManager entityManager;
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @InjectMocks
-    private AdminLogService adminLogService;
+    @InjectMocks private AdminLogService adminLogService;
 
     @AttributeOverrides({
-            @AttributeOverride(name = "logSno", column = @Column(name = "OVERRIDE_LOG_SNO")),
-            @AttributeOverride(name = "chgUsid", column = @Column(name = "OVERRIDE_CHG_USID"))
+        @AttributeOverride(name = "logSno", column = @Column(name = "OVERRIDE_LOG_SNO")),
+        @AttributeOverride(name = "chgUsid", column = @Column(name = "OVERRIDE_CHG_USID"))
     })
-    private static class MultiOverrideLog {
-    }
+    private static class MultiOverrideLog {}
 
     @AttributeOverride(name = "logSno", column = @Column(name = "SINGLE_LOG_SNO"))
-    private static class SingleOverrideLog {
-    }
+    private static class SingleOverrideLog {}
 
-    private static class PlainProbe {
-    }
+    private static class PlainProbe {}
 
     @Test
     @DisplayName("getTables: 허용된 로그 테이블 메타 정보를 키 기준 정렬로 반환한다")
@@ -76,30 +70,35 @@ class AdminLogServiceTest {
     @SuppressWarnings("unchecked")
     @DisplayName("getLogs: 로그 행과 사용자명 매핑을 함께 반환한다")
     void getLogs_로그목록_사용자명포함반환() {
-        BasctmL log = BasctmL.builder()
-                .logSno(1L)
-                .chgTp("C")
-                .chgDtm(LocalDateTime.of(2026, 5, 6, 9, 0))
-                .chgUsid("10001")
-                .itPtlAsctId("ASCT-1")
-                .abusMngNo("PRJ-2026-0001")
-                .cnrcDt(LocalDate.of(2026, 5, 7))
-                .build();
+        BasctmL log =
+                BasctmL.builder()
+                        .logSno(1L)
+                        .chgTp("C")
+                        .chgDtm(LocalDateTime.of(2026, 5, 6, 9, 0))
+                        .chgUsid("10001")
+                        .itPtlAsctId("ASCT-1")
+                        .abusMngNo("PRJ-2026-0001")
+                        .cnrcDt(LocalDate.of(2026, 5, 7))
+                        .build();
         TypedQuery<BasctmL> listQuery = mock(TypedQuery.class);
         TypedQuery<Long> countQuery = mock(TypedQuery.class);
-        given(entityManager.createQuery("select e from BasctmL e order by e.logSno desc", BasctmL.class))
+        given(
+                        entityManager.createQuery(
+                                "select e from BasctmL e order by e.logSno desc", BasctmL.class))
                 .willReturn(listQuery);
         given(listQuery.setFirstResult(0)).willReturn(listQuery);
         given(listQuery.setMaxResults(500)).willReturn(listQuery);
         given(listQuery.getResultList()).willReturn(List.of(log));
-        given(entityManager.createQuery("select count(e) from BasctmL e", Long.class)).willReturn(countQuery);
+        given(entityManager.createQuery("select count(e) from BasctmL e", Long.class))
+                .willReturn(countQuery);
         given(countQuery.getSingleResult()).willReturn(1L);
         UserRepository.UserNameView user = mock(UserRepository.UserNameView.class);
         given(user.getEno()).willReturn("10001");
         given(user.getUsrNm()).willReturn("홍길동");
         given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of(user));
 
-        AdminLogDto.LogPageResponse result = adminLogService.getLogs("basctm", PageRequest.of(0, 999));
+        AdminLogDto.LogPageResponse result =
+                adminLogService.getLogs("basctm", PageRequest.of(0, 999));
 
         assertThat(result.table().key()).isEqualTo("basctm");
         assertThat(result.size()).isEqualTo(500);
@@ -113,12 +112,13 @@ class AdminLogServiceTest {
     @Test
     @DisplayName("getLogDetail: 로그 일련번호로 단건 상세 스냅샷을 반환한다")
     void getLogDetail_존재하는로그_상세반환() {
-        BasctmL log = BasctmL.builder()
-                .logSno(1L)
-                .chgTp("U")
-                .chgUsid("10001")
-                .itPtlAsctId("ASCT-1")
-                .build();
+        BasctmL log =
+                BasctmL.builder()
+                        .logSno(1L)
+                        .chgTp("U")
+                        .chgUsid("10001")
+                        .itPtlAsctId("ASCT-1")
+                        .build();
         given(entityManager.find(eq(BasctmL.class), eq(1L))).willReturn(log);
 
         AdminLogDto.LogDetailResponse result = adminLogService.getLogDetail("basctm", "1");
@@ -144,12 +144,15 @@ class AdminLogServiceTest {
     void getLogs_페이지보정_사용자명없음() {
         TypedQuery<BasctmL> listQuery = mock(TypedQuery.class);
         TypedQuery<Long> countQuery = mock(TypedQuery.class);
-        given(entityManager.createQuery("select e from BasctmL e order by e.logSno desc", BasctmL.class))
+        given(
+                        entityManager.createQuery(
+                                "select e from BasctmL e order by e.logSno desc", BasctmL.class))
                 .willReturn(listQuery);
         given(listQuery.setFirstResult(0)).willReturn(listQuery);
         given(listQuery.setMaxResults(1)).willReturn(listQuery);
         given(listQuery.getResultList()).willReturn(List.of());
-        given(entityManager.createQuery("select count(e) from BasctmL e", Long.class)).willReturn(countQuery);
+        given(entityManager.createQuery("select count(e) from BasctmL e", Long.class))
+                .willReturn(countQuery);
         given(countQuery.getSingleResult()).willReturn(0L);
 
         Pageable pageable = mock(Pageable.class);
@@ -187,37 +190,38 @@ class AdminLogServiceTest {
     void getLogs_다른로그테이블_컬럼메타반환() {
         TypedQuery<BbugtL> listQuery = mock(TypedQuery.class);
         TypedQuery<Long> countQuery = mock(TypedQuery.class);
-        given(entityManager.createQuery("select e from BbugtL e order by e.logSno desc", BbugtL.class))
+        given(
+                        entityManager.createQuery(
+                                "select e from BbugtL e order by e.logSno desc", BbugtL.class))
                 .willReturn(listQuery);
         given(listQuery.setFirstResult(0)).willReturn(listQuery);
         given(listQuery.setMaxResults(10)).willReturn(listQuery);
         given(listQuery.getResultList()).willReturn(List.of());
-        given(entityManager.createQuery("select count(e) from BbugtL e", Long.class)).willReturn(countQuery);
+        given(entityManager.createQuery("select count(e) from BbugtL e", Long.class))
+                .willReturn(countQuery);
         given(countQuery.getSingleResult()).willReturn(0L);
 
-        AdminLogDto.LogPageResponse result = adminLogService.getLogs("bbugt", PageRequest.of(0, 10));
+        AdminLogDto.LogPageResponse result =
+                adminLogService.getLogs("bbugt", PageRequest.of(0, 10));
 
         assertThat(result.columns())
-                .anySatisfy(column -> {
-                    // BbugtL 실제 필드명: bgDupAmt (컬럼 BG_DUP_AMT, comment="편성예산금액")
-                    assertThat(column.field()).isEqualTo("bgDupAmt");
-                    assertThat(column.header()).isEqualTo("편성예산금액");
-                });
+                .anySatisfy(
+                        column -> {
+                            // BbugtL 실제 필드명: bgDupAmt (컬럼 BG_DUP_AMT, comment="편성예산금액")
+                            assertThat(column.field()).isEqualTo("bgDupAmt");
+                            assertThat(column.header()).isEqualTo("편성예산금액");
+                        });
     }
 
     @Test
     @DisplayName("내부 헬퍼: AttributeOverride 단일/다중 선언을 컬럼 맵으로 변환한다")
     void buildAttributeOverrideMap_단일다중선언_컬럼맵반환() {
-        Map<String, Column> multi = ReflectionTestUtils.invokeMethod(
-                adminLogService,
-                "buildAttributeOverrideMap",
-                MultiOverrideLog.class
-        );
-        Map<String, Column> single = ReflectionTestUtils.invokeMethod(
-                adminLogService,
-                "buildAttributeOverrideMap",
-                SingleOverrideLog.class
-        );
+        Map<String, Column> multi =
+                ReflectionTestUtils.invokeMethod(
+                        adminLogService, "buildAttributeOverrideMap", MultiOverrideLog.class);
+        Map<String, Column> single =
+                ReflectionTestUtils.invokeMethod(
+                        adminLogService, "buildAttributeOverrideMap", SingleOverrideLog.class);
 
         assertThat(multi).containsKeys("logSno", "chgUsid");
         assertThat(multi.get("logSno").name()).isEqualTo("OVERRIDE_LOG_SNO");
@@ -228,17 +232,51 @@ class AdminLogServiceTest {
     @Test
     @DisplayName("내부 헬퍼: 사용자 필드 패턴과 필드 조회 실패 경로를 검증한다")
     void privateHelpers_사용자필드와필드미존재_검증() {
-        assertThat((Boolean) ReflectionTestUtils.invokeMethod(adminLogService, "isUserField", "eno")).isTrue();
-        assertThat((Boolean) ReflectionTestUtils.invokeMethod(adminLogService, "isUserField", "mnusr")).isTrue();
-        assertThat((Boolean) ReflectionTestUtils.invokeMethod(adminLogService, "isUserField", "cgpreno")).isTrue();
-        assertThat((Boolean) ReflectionTestUtils.invokeMethod(adminLogService, "isUserField", "regUsid")).isTrue();
-        assertThat((Boolean) ReflectionTestUtils.invokeMethod(adminLogService, "isUserField", "apvCgpreno")).isTrue();
-        assertThat((Boolean) ReflectionTestUtils.invokeMethod(adminLogService, "isUserField", "teamTlr")).isTrue();
-        assertThat((Boolean) ReflectionTestUtils.invokeMethod(adminLogService, "isUserField", "notUserField")).isFalse();
+        assertThat(
+                        (Boolean)
+                                ReflectionTestUtils.invokeMethod(
+                                        adminLogService, "isUserField", "eno"))
+                .isTrue();
+        assertThat(
+                        (Boolean)
+                                ReflectionTestUtils.invokeMethod(
+                                        adminLogService, "isUserField", "mnusr"))
+                .isTrue();
+        assertThat(
+                        (Boolean)
+                                ReflectionTestUtils.invokeMethod(
+                                        adminLogService, "isUserField", "cgpreno"))
+                .isTrue();
+        assertThat(
+                        (Boolean)
+                                ReflectionTestUtils.invokeMethod(
+                                        adminLogService, "isUserField", "regUsid"))
+                .isTrue();
+        assertThat(
+                        (Boolean)
+                                ReflectionTestUtils.invokeMethod(
+                                        adminLogService, "isUserField", "apvCgpreno"))
+                .isTrue();
+        assertThat(
+                        (Boolean)
+                                ReflectionTestUtils.invokeMethod(
+                                        adminLogService, "isUserField", "teamTlr"))
+                .isTrue();
+        assertThat(
+                        (Boolean)
+                                ReflectionTestUtils.invokeMethod(
+                                        adminLogService, "isUserField", "notUserField"))
+                .isFalse();
 
-        assertThat((String) ReflectionTestUtils.invokeMethod(adminLogService, "camelToLabel", "dupBgAmt"))
+        assertThat(
+                        (String)
+                                ReflectionTestUtils.invokeMethod(
+                                        adminLogService, "camelToLabel", "dupBgAmt"))
                 .isEqualTo("dup Bg Amt");
-        assertThat((Object) ReflectionTestUtils.invokeMethod(adminLogService, "readField", new PlainProbe(), "missing"))
+        assertThat(
+                        (Object)
+                                ReflectionTestUtils.invokeMethod(
+                                        adminLogService, "readField", new PlainProbe(), "missing"))
                 .isNull();
     }
 }

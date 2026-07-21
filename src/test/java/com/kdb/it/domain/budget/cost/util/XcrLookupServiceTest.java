@@ -11,6 +11,9 @@ import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,22 +21,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.Optional;
-
 /**
  * {@link XcrLookupService} 단위 테스트.
  *
- * <p>CONTEXT.md 결정 E / REQUIREMENTS.md R3.7 의 표준 환율 조회 헬퍼를 검증한다.</p>
+ * <p>CONTEXT.md 결정 E / REQUIREMENTS.md R3.7 의 표준 환율 조회 헬퍼를 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
 class XcrLookupServiceTest {
 
     @Mock private CodeRepository codeRepository;
 
-    @InjectMocks
-    private XcrLookupService xcrLookupService;
+    @InjectMocks private XcrLookupService xcrLookupService;
 
     private static final LocalDate BASE_DATE = LocalDate.of(2026, 5, 24);
 
@@ -41,13 +39,14 @@ class XcrLookupServiceTest {
     @DisplayName("외화 정상: USD 조회 시 Ccodem.cNm을 BigDecimal로 반환")
     void resolveXcr_외화정상_BigDecimal반환() {
         // given: Ccodem(CUR/USD/XCR, cNm="1400") 존재
-        Ccodem ccodem = Ccodem.builder()
-                .cId("CUR_C")
-                .cdva("USD")
-                .cTp("XCR")
-                .cdvaDtlC("1400")
-                .sttDt("20260101")
-                .build();
+        Ccodem ccodem =
+                Ccodem.builder()
+                        .cId("CUR_C")
+                        .cdva("USD")
+                        .cTp("XCR")
+                        .cdvaDtlC("1400")
+                        .sttDt("20260101")
+                        .build();
         given(codeRepository.findByCIdAndCdvaWithValidDate("CUR_C", "USD", BASE_DATE))
                 .willReturn(Optional.of(ccodem));
 
@@ -63,7 +62,9 @@ class XcrLookupServiceTest {
     @DisplayName("외화 미등록: Ccodem 부재 시 IllegalStateException + 한글 메시지")
     void resolveXcr_외화미등록_IllegalStateException발생() {
         // given: 유효 Ccodem 없음
-        given(codeRepository.findByCIdAndCdvaWithValidDate(eq("CUR_C"), eq("XYZ"), any(LocalDate.class)))
+        given(
+                        codeRepository.findByCIdAndCdvaWithValidDate(
+                                eq("CUR_C"), eq("XYZ"), any(LocalDate.class)))
                 .willReturn(Optional.empty());
 
         // when / then

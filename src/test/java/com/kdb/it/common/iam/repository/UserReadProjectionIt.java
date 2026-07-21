@@ -22,11 +22,9 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     private static final String ORG_CODE = "120";
     private static final String PARENT_ORG_CODE = "P120";
 
-    @Autowired
-    private UserRepository userRepository;
+    @Autowired private UserRepository userRepository;
 
-    @Autowired
-    private TestEntityManager em;
+    @Autowired private TestEntityManager em;
 
     @BeforeEach
     void setUp() {
@@ -35,16 +33,22 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
             em.persist(organization(PARENT_ORG_CODE, "IT부문", null));
             em.flush();
         } else {
-            parentOrganization.update("IT부문", parentOrganization.getBbrWrenNm(),
-                    parentOrganization.getItmSqnSno(), parentOrganization.getPrlmHrkOgzCCone());
+            parentOrganization.update(
+                    "IT부문",
+                    parentOrganization.getBbrWrenNm(),
+                    parentOrganization.getItmSqnSno(),
+                    parentOrganization.getPrlmHrkOgzCCone());
         }
 
         CorgnI organization = em.find(CorgnI.class, ORG_CODE);
         if (organization == null) {
             em.persist(organization(ORG_CODE, "디지털부", PARENT_ORG_CODE));
         } else {
-            organization.update("디지털부", organization.getBbrWrenNm(),
-                    organization.getItmSqnSno(), PARENT_ORG_CODE);
+            organization.update(
+                    "디지털부",
+                    organization.getBbrWrenNm(),
+                    organization.getItmSqnSno(),
+                    PARENT_ORG_CODE);
         }
         persistUser("BE03001", "홍길동", "팀장", ORG_CODE, "12004", "N");
         persistUser("BE03002", "김길동", "사원", ORG_CODE, "12004", "Y");
@@ -58,16 +62,19 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     void findListRowsByBbrC_returnsActiveAndDeletedRows() {
         List<UserDto.ListRow> rows = userRepository.findListRowsByBbrC(ORG_CODE);
 
-        assertThat(rows).filteredOn(row -> row.eno().startsWith("BE03"))
+        assertThat(rows)
+                .filteredOn(row -> row.eno().startsWith("BE03"))
                 .extracting(row -> row.eno())
                 .containsExactlyInAnyOrder("BE03001", "BE03002");
-        assertThat(rows).filteredOn(row -> row.eno().equals("BE03001"))
+        assertThat(rows)
+                .filteredOn(row -> row.eno().equals("BE03001"))
                 .singleElement()
-                .satisfies(row -> {
-                    assertThat(row.bbrNm()).isEqualTo("디지털부");
-                    assertThat(row.temC()).isEqualTo("12004");
-                    assertThat(row.usrNm()).isEqualTo("홍길동");
-                });
+                .satisfies(
+                        row -> {
+                            assertThat(row.bbrNm()).isEqualTo("디지털부");
+                            assertThat(row.temC()).isEqualTo("12004");
+                            assertThat(row.usrNm()).isEqualTo("홍길동");
+                        });
     }
 
     @Test
@@ -102,14 +109,17 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                 .extracting(row -> row.getUsrNm())
                 .containsExactlyInAnyOrder("홍길동", "김길동");
         assertThat(userRepository.findNameViewByEno("BE03001"))
-                .get().extracting(row -> row.getUsrNm()).isEqualTo("홍길동");
+                .get()
+                .extracting(row -> row.getUsrNm())
+                .isEqualTo("홍길동");
 
         assertThat(userRepository.findOrgCodeViewsByEnoIn(List.of("BE03001")))
                 .singleElement()
-                .satisfies(row -> {
-                    assertThat(row.getTemC()).isEqualTo("12004");
-                    assertThat(row.getBbrC()).isEqualTo("120");
-                });
+                .satisfies(
+                        row -> {
+                            assertThat(row.getTemC()).isEqualTo("12004");
+                            assertThat(row.getBbrC()).isEqualTo("120");
+                        });
 
         assertThat(userRepository.findAdminUserViewsByDelYn("N"))
                 .filteredOn(row -> row.getEno().startsWith("BE03"))
@@ -121,19 +131,53 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     @Test
     @DisplayName("사용자 row와 view는 승인된 필드만 노출한다")
     void rowAndViewContracts_areExact() {
-        assertThat(Arrays.stream(UserDto.ListRow.class.getRecordComponents()).map(component -> component.getName()))
+        assertThat(
+                        Arrays.stream(UserDto.ListRow.class.getRecordComponents())
+                                .map(component -> component.getName()))
                 .containsExactly("eno", "bbrC", "bbrNm", "temC", "temNm", "usrNm", "ptCNm");
-        assertThat(Arrays.stream(UserDto.DetailRow.class.getRecordComponents()).map(component -> component.getName()))
-                .containsExactly("eno", "bbrC", "bbrNm", "temC", "temNm", "usrNm", "ptCNm",
-                        "etrMilAddrNm", "inleNo", "cpnTpn", "dtsDtlCone", "prlmHrkOgzCCone", "prlmHrkOgzCNm");
-        assertThat(Arrays.stream(UserRepository.UserNameView.class.getDeclaredMethods()).map(method -> method.getName()))
+        assertThat(
+                        Arrays.stream(UserDto.DetailRow.class.getRecordComponents())
+                                .map(component -> component.getName()))
+                .containsExactly(
+                        "eno",
+                        "bbrC",
+                        "bbrNm",
+                        "temC",
+                        "temNm",
+                        "usrNm",
+                        "ptCNm",
+                        "etrMilAddrNm",
+                        "inleNo",
+                        "cpnTpn",
+                        "dtsDtlCone",
+                        "prlmHrkOgzCCone",
+                        "prlmHrkOgzCNm");
+        assertThat(
+                        Arrays.stream(UserRepository.UserNameView.class.getDeclaredMethods())
+                                .map(method -> method.getName()))
                 .containsExactlyInAnyOrder("getEno", "getUsrNm");
-        assertThat(Arrays.stream(UserRepository.UserOrgCodeView.class.getDeclaredMethods()).map(method -> method.getName()))
+        assertThat(
+                        Arrays.stream(UserRepository.UserOrgCodeView.class.getDeclaredMethods())
+                                .map(method -> method.getName()))
                 .containsExactlyInAnyOrder("getEno", "getTemC", "getBbrC");
-        assertThat(Arrays.stream(UserRepository.AdminUserView.class.getDeclaredMethods()).map(method -> method.getName()))
-                .containsExactlyInAnyOrder("getEno", "getUsrNm", "getPtCNm", "getTemC", "getTemNm", "getBbrC",
-                        "getEtrMilAddrNm", "getInleNo", "getCpnTpn", "getFstEnrDtm", "getLstChgDtm");
-        assertThat(Arrays.stream(UserRepository.CommitteeUserRow.class.getDeclaredMethods()).map(method -> method.getName()))
+        assertThat(
+                        Arrays.stream(UserRepository.AdminUserView.class.getDeclaredMethods())
+                                .map(method -> method.getName()))
+                .containsExactlyInAnyOrder(
+                        "getEno",
+                        "getUsrNm",
+                        "getPtCNm",
+                        "getTemC",
+                        "getTemNm",
+                        "getBbrC",
+                        "getEtrMilAddrNm",
+                        "getInleNo",
+                        "getCpnTpn",
+                        "getFstEnrDtm",
+                        "getLstChgDtm");
+        assertThat(
+                        Arrays.stream(UserRepository.CommitteeUserRow.class.getDeclaredMethods())
+                                .map(method -> method.getName()))
                 .containsExactlyInAnyOrder("getTemC", "getEno", "getUsrNm", "getBbrNm", "getPtCNm");
     }
 
@@ -150,23 +194,25 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                 .build();
     }
 
-    private void persistUser(String eno, String name, String title, String bbrC, String temC, String delYn) {
-        em.persist(CuserI.builder()
-                .eno(eno)
-                .usrNm(name)
-                .ptCNm(title)
-                .bbrC(bbrC)
-                .temC(temC)
-                .temNm("테스트팀")
-                .etrMilAddrNm(eno + "@example.test")
-                .inleNo("1234")
-                .cpnTpn("01000000000")
-                .dtsDtlCone("테스트 직무")
-                .delYn(delYn)
-                .fstEnrUsid("FIXTURE")
-                .fstEnrDtm(LocalDateTime.now())
-                .lstChgUsid("FIXTURE")
-                .lstChgDtm(LocalDateTime.now())
-                .build());
+    private void persistUser(
+            String eno, String name, String title, String bbrC, String temC, String delYn) {
+        em.persist(
+                CuserI.builder()
+                        .eno(eno)
+                        .usrNm(name)
+                        .ptCNm(title)
+                        .bbrC(bbrC)
+                        .temC(temC)
+                        .temNm("테스트팀")
+                        .etrMilAddrNm(eno + "@example.test")
+                        .inleNo("1234")
+                        .cpnTpn("01000000000")
+                        .dtsDtlCone("테스트 직무")
+                        .delYn(delYn)
+                        .fstEnrUsid("FIXTURE")
+                        .fstEnrDtm(LocalDateTime.now())
+                        .lstChgUsid("FIXTURE")
+                        .lstChgDtm(LocalDateTime.now())
+                        .build());
     }
 }

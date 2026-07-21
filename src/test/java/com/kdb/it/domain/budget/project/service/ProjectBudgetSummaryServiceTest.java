@@ -22,8 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 /**
  * ProjectBudgetSummaryService 단위 테스트.
  *
- * <p>저장 시점에 원화로 환산된 품목 금액을 요약에서 그대로 합산하고,
- * MPL_AMT(예정금액) 파생값을 올바르게 계산하는지 검증합니다.</p>
+ * <p>저장 시점에 원화로 환산된 품목 금액을 요약에서 그대로 합산하고, MPL_AMT(예정금액) 파생값을 올바르게 계산하는지 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 class ProjectBudgetSummaryServiceTest {
@@ -31,25 +30,41 @@ class ProjectBudgetSummaryServiceTest {
     private record BudgetView(
             String gclMngNo, String abusMngNo, String ioeC, BigDecimal amt, BigDecimal mplAmt)
             implements ProjectItemRepository.ProjectItemBudgetView {
-        @Override public String getGclMngNo() { return gclMngNo; }
-        @Override public String getAbusMngNo() { return abusMngNo; }
-        @Override public String getIoeC() { return ioeC; }
-        @Override public BigDecimal getAmt() { return amt; }
-        @Override public BigDecimal getMplAmt() { return mplAmt; }
+        @Override
+        public String getGclMngNo() {
+            return gclMngNo;
+        }
+
+        @Override
+        public String getAbusMngNo() {
+            return abusMngNo;
+        }
+
+        @Override
+        public String getIoeC() {
+            return ioeC;
+        }
+
+        @Override
+        public BigDecimal getAmt() {
+            return amt;
+        }
+
+        @Override
+        public BigDecimal getMplAmt() {
+            return mplAmt;
+        }
     }
 
-    @Mock
-    CodeService codeService;
+    @Mock CodeService codeService;
 
-    @InjectMocks
-    ProjectBudgetSummaryService service;
+    @InjectMocks ProjectBudgetSummaryService service;
 
     /**
-     * 테스트용 Ccodem 생성 헬퍼.
-     * Ccodem은 복합 PK(cId, cdva, sttDt)를 가지므로 최소 필드를 채워 빌드합니다.
+     * 테스트용 Ccodem 생성 헬퍼. Ccodem은 복합 PK(cId, cdva, sttDt)를 가지므로 최소 필드를 채워 빌드합니다.
      *
      * @param cdva 코드값ID (비목코드, 예: "C1", "M1")
-     * @param cTp  코드타입 (예: "IOE_DVC", "IOE_SEVS")
+     * @param cTp 코드타입 (예: "IOE_DVC", "IOE_SEVS")
      * @return 테스트용 Ccodem 인스턴스
      */
     private Ccodem code(String cdva, String cTp) {
@@ -62,11 +77,10 @@ class ProjectBudgetSummaryServiceTest {
     }
 
     /**
-     * 테스트용 Bitemm 생성 헬퍼.
-     * Bitemm은 복합 PK(gclMngNo, sno) 및 필수 연관 컬럼을 요구합니다.
+     * 테스트용 Bitemm 생성 헬퍼. Bitemm은 복합 PK(gclMngNo, sno) 및 필수 연관 컬럼을 요구합니다.
      *
-     * @param ioeC   비목코드 (예: "C1", "M1")
-     * @param amt    품목금액 (원화 기준)
+     * @param ioeC 비목코드 (예: "C1", "M1")
+     * @param amt 품목금액 (원화 기준)
      * @param mplAmt 예정금액
      * @return 테스트용 Bitemm 인스턴스
      */
@@ -77,11 +91,11 @@ class ProjectBudgetSummaryServiceTest {
     /**
      * 테스트용 Bitemm 생성 헬퍼.
      *
-     * @param ioeC   비목코드
-     * @param amt    품목금액 (원화 기준)
+     * @param ioeC 비목코드
+     * @param amt 품목금액 (원화 기준)
      * @param mplAmt 예정금액 (원화 기준)
-     * @param xcr    저장 시 적용된 환율
-     * @param fcAmt  원통화 금액
+     * @param xcr 저장 시 적용된 환율
+     * @param fcAmt 원통화 금액
      * @return 테스트용 Bitemm 인스턴스
      */
     private Bitemm item(String ioeC, long amt, long mplAmt, BigDecimal xcr, BigDecimal fcAmt) {
@@ -104,10 +118,10 @@ class ProjectBudgetSummaryServiceTest {
     /**
      * 테스트용 Bitemm 생성 헬퍼.
      *
-     * @param ioeC   비목코드
-     * @param amt    품목금액 (원화 기준)
+     * @param ioeC 비목코드
+     * @param amt 품목금액 (원화 기준)
      * @param mplAmt 예정금액 (원화 기준)
-     * @param xcr    저장 시 적용된 환율
+     * @param xcr 저장 시 적용된 환율
      * @return 테스트용 Bitemm 인스턴스
      */
     private Bitemm item(String ioeC, long amt, long mplAmt, BigDecimal xcr) {
@@ -134,22 +148,30 @@ class ProjectBudgetSummaryServiceTest {
                 .thenReturn(List.of(code("C1", "IOE_DVC"), code("M1", "IOE_SEVS")));
         ProjectDto.Response response = ProjectDto.Response.builder().build();
 
-        service.applyBudgetSummaryViews(response, List.of(
-                new BudgetView("G1", "P1", "C1", new BigDecimal("1000"), new BigDecimal("300")),
-                new BudgetView("G2", "P1", "M1", new BigDecimal("500"), new BigDecimal("200"))));
+        service.applyBudgetSummaryViews(
+                response,
+                List.of(
+                        new BudgetView(
+                                "G1", "P1", "C1", new BigDecimal("1000"), new BigDecimal("300")),
+                        new BudgetView(
+                                "G2", "P1", "M1", new BigDecimal("500"), new BigDecimal("200"))));
 
         assertThat(response.getAssetBg()).isEqualByComparingTo("1000");
         assertThat(response.getCostBg()).isEqualByComparingTo("500");
         assertThat(response.getTotRqmAmt()).isEqualByComparingTo("1000");
         assertThat(ProjectItemRepository.ProjectItemBudgetView.class.getDeclaredMethods())
                 .extracting(method -> method.getName())
-                .containsExactlyInAnyOrder("getGclMngNo", "getAbusMngNo", "getIoeC", "getAmt", "getMplAmt");
+                .containsExactlyInAnyOrder(
+                        "getGclMngNo", "getAbusMngNo", "getIoeC", "getAmt", "getMplAmt");
     }
 
     @Test
     @DisplayName("프로젝션 합산 입력이 null이면 실패한다")
     void rejectsNullProjectionInputs() {
-        assertThatThrownBy(() -> service.applyBudgetSummaryViews(ProjectDto.Response.builder().build(), null))
+        assertThatThrownBy(
+                        () ->
+                                service.applyBudgetSummaryViews(
+                                        ProjectDto.Response.builder().build(), null))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> service.applyBudgetSummaryViews(null, List.of()))
                 .isInstanceOf(NullPointerException.class);
@@ -199,7 +221,8 @@ class ProjectBudgetSummaryServiceTest {
         ProjectDto.Response res = ProjectDto.Response.builder().build();
 
         // Act
-        service.applyBudgetSummary(res, List.of(item("C1", 130000, 0, new BigDecimal("1400"), new BigDecimal("100"))));
+        service.applyBudgetSummary(
+                res, List.of(item("C1", 130000, 0, new BigDecimal("1400"), new BigDecimal("100"))));
 
         // Assert: 원천금액 100이나 이중환산 169000000이 아닌 저장 KRW 금액 130000이어야 한다.
         assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
@@ -216,7 +239,8 @@ class ProjectBudgetSummaryServiceTest {
         ProjectDto.Response res = ProjectDto.Response.builder().build();
 
         // When: 프로젝트 요약을 계산
-        service.applyBudgetSummary(res, List.of(item("C1", 130000, 0, new BigDecimal("1400"), new BigDecimal("100"))));
+        service.applyBudgetSummary(
+                res, List.of(item("C1", 130000, 0, new BigDecimal("1400"), new BigDecimal("100"))));
 
         // Then: fcAmt * xcr = 140000이지만 저장된 amt 130000을 그대로 사용한다
         assertThat(res.getAssetBg()).isEqualByComparingTo("130000");

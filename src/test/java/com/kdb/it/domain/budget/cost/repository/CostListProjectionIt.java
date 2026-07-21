@@ -1,23 +1,21 @@
 package com.kdb.it.domain.budget.cost.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 @DisplayName("#7 전산관리비 목록 경량 프로젝션 동등성 + 미표시 컬럼 제외")
 class CostListProjectionIt extends AbstractOracleRepositoryTest {
 
-    @Autowired
-    CostRepository costRepository;
+    @Autowired CostRepository costRepository;
 
     @Test
     @DisplayName("경량 목록 행의 식별/요약 필드가 엔티티 경로와 일치한다")
@@ -29,9 +27,13 @@ class CostListProjectionIt extends AbstractOracleRepositoryTest {
 
         assertThat(rows).hasSameSizeAs(entities);
 
-        Map<String, Bcostm> byKey = entities.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        e -> e.getCostBgNo() + "#" + e.getBgSno(), Function.identity(), (a, b) -> a));
+        Map<String, Bcostm> byKey =
+                entities.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        e -> e.getCostBgNo() + "#" + e.getBgSno(),
+                                        Function.identity(),
+                                        (a, b) -> a));
         for (CostDto.CostListRow row : rows) {
             Bcostm e = byKey.get(row.costBgNo() + "#" + row.bgSno());
             assertThat(e).as("동일 키 엔티티 존재").isNotNull();

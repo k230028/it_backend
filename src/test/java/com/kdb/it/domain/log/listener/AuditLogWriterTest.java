@@ -10,25 +10,22 @@ import jakarta.persistence.PersistenceException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.InOrder;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * AuditLogWriter 단위 테스트.
  *
- * <p>감사 INSERT를 별도 트랜잭션에서 persist 후 flush까지 완료해 지연 DB 오류를
- * 호출자에게 전파하는지 검증한다.</p>
+ * <p>감사 INSERT를 별도 트랜잭션에서 persist 후 flush까지 완료해 지연 DB 오류를 호출자에게 전파하는지 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
 class AuditLogWriterTest {
 
-    @Mock
-    private EntityManager entityManager;
+    @Mock private EntityManager entityManager;
 
-    @InjectMocks
-    private AuditLogWriter writer;
+    @InjectMocks private AuditLogWriter writer;
 
     @Test
     @DisplayName("writeInNewTransaction - persist 후 flush 순으로 호출한다")
@@ -52,7 +49,6 @@ class AuditLogWriterTest {
 
     /** 테스트용 로그 엔티티(BaseLogEntity 최소 구현체). */
     static class SampleLogEntity extends BaseLogEntity {
-        public SampleLogEntity() {
-        }
+        public SampleLogEntity() {}
     }
 }

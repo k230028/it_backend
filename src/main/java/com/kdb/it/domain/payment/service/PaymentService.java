@@ -28,8 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 /**
- * 대금지급 서비스. 상태 81→85→89. 대상구분 100=사업/200=전산업무비.
- * 마스터(계약 정보) + 회차별 지급 명세(Bpaymt). 명세 저장은 회차(DFR_TOD) 기준 upsert + soft-deleted 복원.
+ * 대금지급 서비스. 상태 81→85→89. 대상구분 100=사업/200=전산업무비. 마스터(계약 정보) + 회차별 지급 명세(Bpaymt). 명세 저장은 회차(DFR_TOD)
+ * 기준 upsert + soft-deleted 복원.
  */
 @Service
 @RequiredArgsConstructor
@@ -54,11 +54,11 @@ public class PaymentService {
     /**
      * 대금지급 신규 의뢰를 생성합니다.
      *
-     * @param req  신규 의뢰 요청 DTO (대상구분, 대상관리번호, 요청내용, 계약명, 계약금액)
+     * @param req 신규 의뢰 요청 DTO (대상구분, 대상관리번호, 요청내용, 계약명, 계약금액)
      * @param user 요청자 인증 정보
      * @return 생성된 문서관리번호 (예: PAY-2026-0001)
      * @throws IllegalArgumentException 대상 미존재 또는 알 수 없는 대상구분
-     * @throws IllegalStateException    동일 대상에 진행 중인 대금지급이 이미 존재
+     * @throws IllegalStateException 동일 대상에 진행 중인 대금지급이 이미 존재
      */
     @Transactional
     public String create(PaymentDto.CreateRequest req, CustomUserDetails user) {
@@ -67,11 +67,20 @@ public class PaymentService {
                 req.ioeC(), req.cncdRfrNo(), List.of(STS_DRAFT, STS_IN_PROGRESS), "N")) {
             throw new IllegalStateException("해당 대상에 진행 중인 대금지급이 이미 있습니다.");
         }
-        String docNo = String.format("PAY-%d-%04d", Year.now().getValue(), paymentRepository.nextDocSeq());
-        paymentRepository.save(Bpaymm.builder()
-                .docMngNo(docNo).docVrsSno(1).lstYn("Y")
-                .ioeC(req.ioeC()).cncdRfrNo(req.cncdRfrNo())
-                .stsTc(STS_DRAFT).reqCone(req.reqCone()).cttNm(req.cttNm()).cttAmt(req.cttAmt()).build());
+        String docNo =
+                String.format("PAY-%d-%04d", Year.now().getValue(), paymentRepository.nextDocSeq());
+        paymentRepository.save(
+                Bpaymm.builder()
+                        .docMngNo(docNo)
+                        .docVrsSno(1)
+                        .lstYn("Y")
+                        .ioeC(req.ioeC())
+                        .cncdRfrNo(req.cncdRfrNo())
+                        .stsTc(STS_DRAFT)
+                        .reqCone(req.reqCone())
+                        .cttNm(req.cttNm())
+                        .cttAmt(req.cttAmt())
+                        .build());
         if (TGT_PROJECT.equals(req.ioeC())) {
             bprojaSyncService.upsert(req.cncdRfrNo(), docNo, STS_DRAFT);
         }
@@ -81,7 +90,7 @@ public class PaymentService {
     /**
      * 대상구분(ioeC)에 따라 사업 또는 전산업무비 대상 존재 여부를 검증합니다.
      *
-     * @param ioeC   대상구분 (100=사업, 200=전산업무비)
+     * @param ioeC 대상구분 (100=사업, 200=전산업무비)
      * @param cncdRfrNo 대상관리번호
      * @throws IllegalArgumentException 알 수 없는 대상구분이거나 대상을 찾을 수 없는 경우
      */
@@ -101,15 +110,16 @@ public class PaymentService {
      * 대금지급 마스터를 수정합니다 (작성중 상태에서만 허용).
      *
      * @param docNo 문서관리번호
-     * @param req   수정 요청 DTO (요청내용, 계약명, 계약금액)
-     * @param user  요청자 인증 정보
+     * @param req 수정 요청 DTO (요청내용, 계약명, 계약금액)
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 작성중(81) 상태가 아닌 경우
      */
     @Transactional
     public void update(String docNo, PaymentDto.UpdateRequest req, CustomUserDetails user) {
         Bpaymm e = loadCurrent(docNo);
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
-        if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 수정할 수 있습니다.");
+        if (!STS_DRAFT.equals(e.getStsTc()))
+            throw new IllegalStateException("작성중 상태에서만 수정할 수 있습니다.");
         e.updateMaster(req.reqCone(), req.cttNm(), req.cttAmt());
     }
 
@@ -117,14 +127,15 @@ public class PaymentService {
      * 대금지급 문서를 논리 삭제합니다 (작성중 상태에서만 허용).
      *
      * @param docNo 문서관리번호
-     * @param user  요청자 인증 정보
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 작성중(81) 상태가 아닌 경우
      */
     @Transactional
     public void delete(String docNo, CustomUserDetails user) {
         Bpaymm e = loadCurrent(docNo);
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
-        if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
+        if (!STS_DRAFT.equals(e.getStsTc()))
+            throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         e.delete();
         if (TGT_PROJECT.equals(e.getIoeC())) {
             bprojaSyncService.softDelete(e.getCncdRfrNo(), docNo);
@@ -135,8 +146,8 @@ public class PaymentService {
      * 대금지급 상태를 전이합니다 (허용 전이: 81→85, 85→89).
      *
      * @param docNo 문서관리번호
-     * @param req   상태 전이 요청 DTO
-     * @param user  요청자 인증 정보
+     * @param req 상태 전이 요청 DTO
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 허용되지 않은 상태 전이인 경우
      */
     @Transactional
@@ -144,8 +155,9 @@ public class PaymentService {
         Bpaymm e = loadCurrent(docNo);
         OwnershipVerifier.verifyAdmin(user);
         String from = e.getStsTc(), to = req.stsTc();
-        boolean ok = (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
-                || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
+        boolean ok =
+                (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
+                        || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
         if (!ok) throw new IllegalStateException("허용되지 않은 상태 전이입니다: " + from + " → " + to);
         e.changeStatus(to);
         if (TGT_PROJECT.equals(e.getIoeC())) {
@@ -157,22 +169,24 @@ public class PaymentService {
     /**
      * 회차별 지급 명세를 일괄 저장합니다 (진행중 상태에서만 허용).
      *
-     * <p>회차(dfrTod) 기준 upsert: soft-delete된 행은 복원, 존재하지 않으면 신규 생성.
-     * 요청에 포함되지 않은 기존 활성 행은 soft-delete 처리합니다.</p>
+     * <p>회차(dfrTod) 기준 upsert: soft-delete된 행은 복원, 존재하지 않으면 신규 생성. 요청에 포함되지 않은 기존 활성 행은 soft-delete
+     * 처리합니다.
      *
      * @param docNo 문서관리번호
-     * @param req   회차별 지급 명세 일괄 저장 요청 DTO
-     * @param user  요청자 인증 정보
+     * @param req 회차별 지급 명세 일괄 저장 요청 DTO
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 진행중(85) 상태가 아닌 경우
      */
     @Transactional
     public void savePayments(String docNo, PaymentDto.LinesRequest req, CustomUserDetails user) {
         Bpaymm e = loadCurrent(docNo);
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
-        if (!STS_IN_PROGRESS.equals(e.getStsTc())) throw new IllegalStateException("진행중 상태에서만 지급 명세를 저장할 수 있습니다.");
+        if (!STS_IN_PROGRESS.equals(e.getStsTc()))
+            throw new IllegalStateException("진행중 상태에서만 지급 명세를 저장할 수 있습니다.");
         Integer vrs = e.getDocVrsSno();
         List<Bpaymt> all = lineRepository.findByDocMngNoAndDocVrsSno(docNo, vrs);
-        Map<Integer, Bpaymt> byTod = all.stream().collect(Collectors.toMap(value -> value.getDfrTod(), b -> b));
+        Map<Integer, Bpaymt> byTod =
+                all.stream().collect(Collectors.toMap(value -> value.getDfrTod(), b -> b));
 
         Set<Integer> incoming = new HashSet<>();
         for (PaymentDto.LineRequest line : req.lines()) {
@@ -182,10 +196,16 @@ public class PaymentService {
                 if ("Y".equals(row.getDelYn())) row.restore();
                 row.updatePayment(line.dfrAmt(), line.dfrDt(), line.dfrMplDt(), line.opnnCone());
             } else {
-                lineRepository.save(Bpaymt.builder()
-                        .docMngNo(docNo).docVrsSno(vrs).dfrTod(line.dfrTod())
-                        .dfrAmt(line.dfrAmt()).dfrDt(line.dfrDt()).dfrMplDt(line.dfrMplDt()).opnnCone(line.opnnCone())
-                        .build());
+                lineRepository.save(
+                        Bpaymt.builder()
+                                .docMngNo(docNo)
+                                .docVrsSno(vrs)
+                                .dfrTod(line.dfrTod())
+                                .dfrAmt(line.dfrAmt())
+                                .dfrDt(line.dfrDt())
+                                .dfrMplDt(line.dfrMplDt())
+                                .opnnCone(line.opnnCone())
+                                .build());
             }
         }
         for (Bpaymt row : all) {
@@ -201,25 +221,31 @@ public class PaymentService {
      * @throws IllegalArgumentException 문서를 찾을 수 없는 경우
      */
     public PaymentDto.Detail get(String docNo) {
-        var row = paymentRepository.findCurrentDetail(docNo)
-                .orElseThrow(() -> new IllegalArgumentException("대금지급 문서를 찾을 수 없습니다: " + docNo));
-        List<PaymentDto.Line> lines = lineRepository
-                .findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(docNo, row.docVrsSno(), "N")
-                .stream().map(PaymentDto.Line::fromProjection)
-                .toList();
+        var row =
+                paymentRepository
+                        .findCurrentDetail(docNo)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("대금지급 문서를 찾을 수 없습니다: " + docNo));
+        List<PaymentDto.Line> lines =
+                lineRepository
+                        .findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(docNo, row.docVrsSno(), "N")
+                        .stream()
+                        .map(PaymentDto.Line::fromProjection)
+                        .toList();
         return PaymentDto.Detail.fromProjection(row, lines);
     }
 
     /**
      * 대금지급 목록을 조회합니다. 관리자는 전체 조회, 일반 사용자는 소속 부서 기준으로 필터링합니다.
      *
-     * @param stsTc     상태코드 필터 (null이면 전체)
-     * @param ioeC   대상구분 필터 (null이면 전체)
+     * @param stsTc 상태코드 필터 (null이면 전체)
+     * @param ioeC 대상구분 필터 (null이면 전체)
      * @param cncdRfrNo 대상관리번호 필터 (null이면 전체)
-     * @param user      요청자 인증 정보
+     * @param user 요청자 인증 정보
      * @return 대금지급 목록 항목 리스트
      */
-    public List<PaymentDto.ListItem> list(String stsTc, String ioeC, String cncdRfrNo, CustomUserDetails user) {
+    public List<PaymentDto.ListItem> list(
+            String stsTc, String ioeC, String cncdRfrNo, CustomUserDetails user) {
         if (!user.isAdmin() && !StringUtils.hasText(user.getBbrC())) {
             throw new AccessDeniedException("부서 정보가 없는 사용자는 전체 조회할 수 없습니다.");
         }
@@ -235,23 +261,40 @@ public class PaymentService {
      * @throws IllegalArgumentException 문서를 찾을 수 없는 경우
      */
     Bpaymm loadCurrent(String docNo) {
-        return paymentRepository.findByDocMngNoAndLstYnAndDelYn(docNo, "Y", "N")
+        return paymentRepository
+                .findByDocMngNoAndLstYnAndDelYn(docNo, "Y", "N")
                 .orElseThrow(() -> new IllegalArgumentException("대금지급 문서를 찾을 수 없습니다: " + docNo));
     }
 
-    private void sendStatusEai(String domainName, String docNo, String from, String to, CustomUserDetails user) {
+    private void sendStatusEai(
+            String domainName, String docNo, String from, String to, CustomUserDetails user) {
         try {
-            EaiResult result = eaiService.sendEai(EaiRequest.gwe(gweProperties.ifId(), GwePayload.builder()
-                    .msgGubun("1")
-                    .recvIds(user.getEno())
-                    .subject("[IT Portal] " + domainName + " 상태 변경")
-                    .contents(domainName + " 문서 " + docNo + " 상태가 " + from + "에서 " + to + "로 변경되었습니다.")
-                    .sendId("systemalert")
-                    .sendName("IT Portal")
-                    .build()));
+            EaiResult result =
+                    eaiService.sendEai(
+                            EaiRequest.gwe(
+                                    gweProperties.ifId(),
+                                    GwePayload.builder()
+                                            .msgGubun("1")
+                                            .recvIds(user.getEno())
+                                            .subject("[IT Portal] " + domainName + " 상태 변경")
+                                            .contents(
+                                                    domainName
+                                                            + " 문서 "
+                                                            + docNo
+                                                            + " 상태가 "
+                                                            + from
+                                                            + "에서 "
+                                                            + to
+                                                            + "로 변경되었습니다.")
+                                            .sendId("systemalert")
+                                            .sendName("IT Portal")
+                                            .build()));
             if (!result.success() && !result.skipped()) {
-                log.warn("EAI 발송 실패 — 원 업무 처리는 유지합니다. domain={}, docNo={}, 사유={}",
-                        domainName, docNo, result.errorMessage());
+                log.warn(
+                        "EAI 발송 실패 — 원 업무 처리는 유지합니다. domain={}, docNo={}, 사유={}",
+                        domainName,
+                        docNo,
+                        result.errorMessage());
             }
         } catch (RuntimeException e) {
             log.warn("EAI 발송 실패 — 원 업무 처리는 유지합니다.", e);

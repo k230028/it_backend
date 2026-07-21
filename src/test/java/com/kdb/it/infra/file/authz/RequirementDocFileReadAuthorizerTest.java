@@ -16,7 +16,8 @@ import org.junit.jupiter.api.Test;
 
 class RequirementDocFileReadAuthorizerTest {
 
-    private final ServiceRequestDocRepository docRepository = mock(ServiceRequestDocRepository.class);
+    private final ServiceRequestDocRepository docRepository =
+            mock(ServiceRequestDocRepository.class);
     private final RequirementDocFileReadAuthorizer authorizer =
             new RequirementDocFileReadAuthorizer(docRepository);
 
@@ -28,10 +29,7 @@ class RequirementDocFileReadAuthorizerTest {
 
     private Brdocm doc(String owner, String svnDpmC) {
         // BaseEntity 상속 엔티티는 목킹 대신 실제 빌더로 생성한다(BoardFileReadAuthorizerTest와 동일 패턴).
-        return Brdocm.builder()
-                .fstEnrUsid(owner)
-                .svnDpmC(svnDpmC)
-                .build();
+        return Brdocm.builder().fstEnrUsid(owner).svnDpmC(svnDpmC).build();
     }
 
     @Test

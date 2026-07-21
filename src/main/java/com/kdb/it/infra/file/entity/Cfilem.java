@@ -14,25 +14,16 @@ import lombok.experimental.SuperBuilder;
 /**
  * 공통 첨부파일 기본 엔티티
  *
- * <p>
- * DB 테이블: {@code TPRMPP_CFILEM}
- * </p>
+ * <p>DB 테이블: {@code TPRMPP_CFILEM}
  *
- * <p>
- * 시스템 전역에서 사용되는 첨부파일(이미지 포함)의 메타데이터를 관리합니다.
- * 주식별자컬럼명({@code PK_COL_NM})과 주식별자내용({@code PK_CONE})으로 어느 도메인 데이터에
- * 연결된 파일인지 식별합니다.
- * </p>
+ * <p>시스템 전역에서 사용되는 첨부파일(이미지 포함)의 메타데이터를 관리합니다. 주식별자컬럼명({@code PK_COL_NM})과 주식별자내용({@code
+ * PK_CONE})으로 어느 도메인 데이터에 연결된 파일인지 식별합니다.
  *
- * <p>
- * 파일매핑ID 형식: {@code FL_{8자리 시퀀스}} (예: {@code FL_00000001}) — 최대 36자.
- * </p>
+ * <p>파일매핑ID 형식: {@code FL_{8자리 시퀀스}} (예: {@code FL_00000001}) — 최대 36자.
  *
- * <p>
- * 파일물리명 채번 규칙: {@code {서버ID}_{yyyyMMddHHmmss}_{UUID}.{확장자}}
- * (예: {@code SVR1_20260315143022_550e8400e29b41d4a716446655440000.pdf})
- * → UUID 기반으로 1번·2번 서버 동시 운영 시에도 파일명 충돌 완전 방지
- * </p>
+ * <p>파일물리명 채번 규칙: {@code {서버ID}_{yyyyMMddHHmmss}_{UUID}.{확장자}} (예: {@code
+ * SVR1_20260315143022_550e8400e29b41d4a716446655440000.pdf}) → UUID 기반으로 1번·2번 서버 동시 운영 시에도 파일명 충돌
+ * 완전 방지
  */
 @Entity
 @Table(name = "TPRMPP_CFILEM", comment = "공통첨부파일기본")
@@ -52,15 +43,18 @@ public class Cfilem extends BaseEntity {
     private String flNm;
 
     /**
-     * 파일물리명: 서버에 저장되는 고유 파일명
-     * 형식: {서버ID}_{yyyyMMddHHmmss}_{UUID}.{확장자}
-     * (예: SVR1_20260315143022_550e8400e29b41d4a716446655440000.pdf)
-     * <p>DB는 NULL 허용(레거시)이며 업로드 플로우가 항상 값을 채운다.</p>
+     * 파일물리명: 서버에 저장되는 고유 파일명 형식: {서버ID}_{yyyyMMddHHmmss}_{UUID}.{확장자} (예:
+     * SVR1_20260315143022_550e8400e29b41d4a716446655440000.pdf)
+     *
+     * <p>DB는 NULL 허용(레거시)이며 업로드 플로우가 항상 값을 채운다.
      */
     @Column(name = "FL_PYS_NM", length = 120, comment = "파일물리명")
     private String flPysNm;
 
-    /** 파일저장경로: 서버 내 실제 저장 디렉토리 경로 (예: /data/files/요구사항정의서/2026/03). DB는 NULL 허용(레거시)이며 업로드 플로우가 항상 값을 채운다. */
+    /**
+     * 파일저장경로: 서버 내 실제 저장 디렉토리 경로 (예: /data/files/요구사항정의서/2026/03). DB는 NULL 허용(레거시)이며 업로드 플로우가 항상
+     * 값을 채운다.
+     */
     @Column(name = "FL_KPN_PTH", length = 255, comment = "파일저장경로")
     private String flKpnPth;
 
@@ -79,13 +73,10 @@ public class Cfilem extends BaseEntity {
     /**
      * 파일 메타데이터 수정 메서드
      *
-     * <p>
-     * 파일이 연결된 원본 도메인 정보를 변경합니다.
-     * 파일 자체(파일물리명, 저장경로)는 변경되지 않습니다.
-     * </p>
+     * <p>파일이 연결된 원본 도메인 정보를 변경합니다. 파일 자체(파일물리명, 저장경로)는 변경되지 않습니다.
      *
-     * @param pkCone   변경할 주식별자내용
-     * @param pkColNm  변경할 주식별자컬럼명
+     * @param pkCone 변경할 주식별자내용
+     * @param pkColNm 변경할 주식별자컬럼명
      */
     public void updateMeta(String pkCone, String pkColNm) {
         if (pkCone != null) this.pkCone = pkCone;

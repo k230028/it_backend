@@ -39,8 +39,9 @@ class PaymentDetailProjectionIt extends AbstractOracleRepositoryTest {
         entityManager.clear();
 
         PaymentDetailRow row = repository.findCurrentDetail(docNo).orElseThrow();
-        List<PaymentLineView> lines = lineRepository
-                .findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(docNo, row.docVrsSno(), "N");
+        List<PaymentLineView> lines =
+                lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(
+                        docNo, row.docVrsSno(), "N");
 
         assertThat(row.docVrsSno()).isEqualTo(101);
         assertThat(row.tgtNm()).isEqualTo("BE03 지급 대상 사업");
@@ -48,36 +49,91 @@ class PaymentDetailProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(row.cttAmt()).isEqualByComparingTo(new BigDecimal("987654.321"));
         assertThat(PaymentDetailRow.class.getRecordComponents())
                 .extracting(component -> component.getName())
-                .containsExactly("docMngNo", "docVrsSno", "ioeC", "cncdRfrNo", "tgtNm",
-                        "stsTc", "reqCone", "cttNm", "cttAmt", "reqUsid", "reqDtm");
-        assertThat(lines).singleElement().satisfies(line -> {
-            assertThat(line.dfrTod()).isEqualTo(1);
-            assertThat(line.opnnCone()).isEqualTo(opinion).hasSize(1000);
-        });
+                .containsExactly(
+                        "docMngNo",
+                        "docVrsSno",
+                        "ioeC",
+                        "cncdRfrNo",
+                        "tgtNm",
+                        "stsTc",
+                        "reqCone",
+                        "cttNm",
+                        "cttAmt",
+                        "reqUsid",
+                        "reqDtm");
+        assertThat(lines)
+                .singleElement()
+                .satisfies(
+                        line -> {
+                            assertThat(line.dfrTod()).isEqualTo(1);
+                            assertThat(line.opnnCone()).isEqualTo(opinion).hasSize(1000);
+                        });
         assertThat(PaymentLineView.class.getRecordComponents())
                 .extracting(component -> component.getName())
                 .containsExactly("dfrTod", "dfrAmt", "dfrDt", "dfrMplDt", "opnnCone");
     }
 
     private Bprojm project(String projectNo, LocalDateTime now) {
-        return Bprojm.builder().abusMngNo(projectNo).sno(1).abusNm("BE03 지급 대상 사업")
-                .lstYn("Y").bseYy("2026").delYn("N")
-                .fstEnrDtm(now).fstEnrUsid("BE03-TEST").lstChgDtm(now).lstChgUsid("BE03-TEST").build();
+        return Bprojm.builder()
+                .abusMngNo(projectNo)
+                .sno(1)
+                .abusNm("BE03 지급 대상 사업")
+                .lstYn("Y")
+                .bseYy("2026")
+                .delYn("N")
+                .fstEnrDtm(now)
+                .fstEnrUsid("BE03-TEST")
+                .lstChgDtm(now)
+                .lstChgUsid("BE03-TEST")
+                .build();
     }
 
-    private Bpaymm payment(String docNo, int version, String latest, String deleted,
-                           String projectNo, String request, LocalDateTime now) {
-        return Bpaymm.builder().docMngNo(docNo).docVrsSno(version).lstYn(latest)
-                .ioeC("100").cncdRfrNo(projectNo).stsTc("85").reqCone(request)
-                .cttNm("BE03 지급 계약").cttAmt(new BigDecimal("987654.321")).delYn(deleted)
-                .fstEnrDtm(now).fstEnrUsid("BE03-TEST").lstChgDtm(now).lstChgUsid("BE03-TEST").build();
+    private Bpaymm payment(
+            String docNo,
+            int version,
+            String latest,
+            String deleted,
+            String projectNo,
+            String request,
+            LocalDateTime now) {
+        return Bpaymm.builder()
+                .docMngNo(docNo)
+                .docVrsSno(version)
+                .lstYn(latest)
+                .ioeC("100")
+                .cncdRfrNo(projectNo)
+                .stsTc("85")
+                .reqCone(request)
+                .cttNm("BE03 지급 계약")
+                .cttAmt(new BigDecimal("987654.321"))
+                .delYn(deleted)
+                .fstEnrDtm(now)
+                .fstEnrUsid("BE03-TEST")
+                .lstChgDtm(now)
+                .lstChgUsid("BE03-TEST")
+                .build();
     }
 
-    private Bpaymt line(String docNo, int version, int turn, String deleted,
-                        String opinion, LocalDateTime now) {
-        return Bpaymt.builder().docMngNo(docNo).docVrsSno(version).dfrTod(turn)
-                .dfrAmt(new BigDecimal("123.456")).dfrDt("20260721").dfrMplDt("20260731")
-                .opnnCone(opinion).delYn(deleted).fstEnrDtm(now).fstEnrUsid("BE03-TEST")
-                .lstChgDtm(now).lstChgUsid("BE03-TEST").build();
+    private Bpaymt line(
+            String docNo,
+            int version,
+            int turn,
+            String deleted,
+            String opinion,
+            LocalDateTime now) {
+        return Bpaymt.builder()
+                .docMngNo(docNo)
+                .docVrsSno(version)
+                .dfrTod(turn)
+                .dfrAmt(new BigDecimal("123.456"))
+                .dfrDt("20260721")
+                .dfrMplDt("20260731")
+                .opnnCone(opinion)
+                .delYn(deleted)
+                .fstEnrDtm(now)
+                .fstEnrUsid("BE03-TEST")
+                .lstChgDtm(now)
+                .lstChgUsid("BE03-TEST")
+                .build();
     }
 }

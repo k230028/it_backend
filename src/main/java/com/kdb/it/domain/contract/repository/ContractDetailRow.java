@@ -19,5 +19,4 @@ public record ContractDetailRow(
         String cttOppNm,
         String cttDt,
         String reqUsid,
-        LocalDateTime reqDtm
-) {}
+        LocalDateTime reqDtm) {}

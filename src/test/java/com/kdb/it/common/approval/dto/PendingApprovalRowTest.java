@@ -1,16 +1,16 @@
 package com.kdb.it.common.approval.dto;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * {@link PendingApprovalRow} record 단위 테스트.
  *
- * <p>생성자, 접근자, equals/hashCode, toString, fromRow 팩토리(정상·예외 경로)를 검증한다.</p>
+ * <p>생성자, 접근자, equals/hashCode, toString, fromRow 팩토리(정상·예외 경로)를 검증한다.
  */
 @DisplayName("PendingApprovalRow")
 class PendingApprovalRowTest {
@@ -25,9 +25,9 @@ class PendingApprovalRowTest {
         void constructor_validValues_accessorsReturnCorrectValues() {
             // Arrange
             String apfDcmNo = "APF-2026-0001";
-            String title    = "IT 사업 예산 결재";
-            String usrNm    = "홍길동";
-            String rqsDt    = "2026-07-01";
+            String title = "IT 사업 예산 결재";
+            String usrNm = "홍길동";
+            String rqsDt = "2026-07-01";
 
             // Act
             PendingApprovalRow row = new PendingApprovalRow(apfDcmNo, title, usrNm, rqsDt);
@@ -164,7 +164,8 @@ class PendingApprovalRowTest {
         @DisplayName("toString 에 apfDcmNo 가 포함된다")
         void toString_containsApfDcmNo() {
             // Arrange
-            PendingApprovalRow row = new PendingApprovalRow("APF-2026-9999", "제목", "홍길동", "2026-07-01");
+            PendingApprovalRow row =
+                    new PendingApprovalRow("APF-2026-9999", "제목", "홍길동", "2026-07-01");
 
             // Assert
             assertThat(row.toString()).contains("APF-2026-9999");

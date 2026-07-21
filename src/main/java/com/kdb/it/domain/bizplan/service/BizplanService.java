@@ -41,12 +41,11 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 사업계획 서비스.
  *
- * <p>정보기술부문 계획(BPLANA)에 포함된 사업만 대상이며, 사업과 1:1(PK=ABUS_MNG_NO)이다.
- * 상태(21 작성중 / 29 작성완료)는 BBIZPM이 아니라 BPROJA에
- * {@code (ABUS_MNG_NO, 'BIZ-'+ABUS_MNG_NO)} 행으로 기록한다(A안).</p>
+ * <p>정보기술부문 계획(BPLANA)에 포함된 사업만 대상이며, 사업과 1:1(PK=ABUS_MNG_NO)이다. 상태(21 작성중 / 29 작성완료)는 BBIZPM이 아니라
+ * BPROJA에 {@code (ABUS_MNG_NO, 'BIZ-'+ABUS_MNG_NO)} 행으로 기록한다(A안).
  *
- * <p>권한: 조회·저장·완료 모두 사업 주관부서({@code Bprojm.svnDpmC == user.bbrC}) 또는 ADMIN.
- * 완료(29) 이후에도 반복 저장을 허용하며 상태는 29를 유지한다.</p>
+ * <p>권한: 조회·저장·완료 모두 사업 주관부서({@code Bprojm.svnDpmC == user.bbrC}) 또는 ADMIN. 완료(29) 이후에도 반복 저장을 허용하며
+ * 상태는 29를 유지한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -57,10 +56,13 @@ public class BizplanService {
 
     static final String STS_IN_PROGRESS = "21";
     static final String STS_DONE = "29";
+
     /** 향후일정 기본 시드 일정내용 */
     static final String DEFAULT_SCHEDULE_DSD_CONE = "사업추진";
+
     /** BPROJA 사업계획 단계 키 접두사 — 협의회가 원본 ABUS_MNG_NO를 키로 쓰므로 충돌 회피 */
     static final String BPROJA_KEY_PREFIX = "BIZ-";
+
     /** BPROJA 예산편성 단계 키 접두사 (BG_NO 자동 연계용) */
     private static final String BG_KEY_PREFIX = "BG-";
 
@@ -88,14 +90,14 @@ public class BizplanService {
     /**
      * 상세 진입(create-or-get) — BBIZPM이 없으면 생성하고 BPROJA에 21을 upsert한다.
      *
-     * <p>생성 시 사업명은 BPROJM에서 복사하고, 예산번호는 BPROJA의 예산편성 행({@code BG-%})에서
-     * 자동 연계한다(없으면 null). 이미 존재하면 부수효과 없이 상세만 반환한다(멱등).</p>
+     * <p>생성 시 사업명은 BPROJM에서 복사하고, 예산번호는 BPROJA의 예산편성 행({@code BG-%})에서 자동 연계한다(없으면 null). 이미 존재하면
+     * 부수효과 없이 상세만 반환한다(멱등).
      *
      * @param abusMngNo 사업관리번호
-     * @param user      요청자 인증 정보
+     * @param user 요청자 인증 정보
      * @return 생성 또는 조회된 사업계획 상세
      * @throws IllegalArgumentException 사업 미존재 또는 BPLANA 미포함
-     * @throws AccessDeniedException    주관부서도 관리자도 아닌 경우
+     * @throws AccessDeniedException 주관부서도 관리자도 아닌 경우
      */
     @Transactional
     public BizplanDto.Detail getOrCreate(String abusMngNo, CustomUserDetails user) {
@@ -104,11 +106,12 @@ public class BizplanService {
 
         Bbizpm plan = bizplanRepository.findByAbusMngNoAndDelYn(abusMngNo, "N").orElse(null);
         if (plan == null) {
-            plan = Bbizpm.builder()
-                    .abusMngNo(abusMngNo)
-                    .abusNm(project.getAbusNm())
-                    .bgNo(resolveBgNo(abusMngNo))
-                    .build();
+            plan =
+                    Bbizpm.builder()
+                            .abusMngNo(abusMngNo)
+                            .abusNm(project.getAbusNm())
+                            .bgNo(resolveBgNo(abusMngNo))
+                            .build();
             bizplanRepository.save(plan);
             bprojaSyncService.upsert(abusMngNo, bprojaKey(abusMngNo), STS_IN_PROGRESS);
         }
@@ -128,10 +131,10 @@ public class BizplanService {
      * 상세 재조회 (부수효과 없음, 진입 이후 refresh 용).
      *
      * @param abusMngNo 사업관리번호
-     * @param user      요청자 인증 정보
+     * @param user 요청자 인증 정보
      * @return 조회된 사업계획 상세
      * @throws IllegalArgumentException 사업 미존재/BPLANA 미포함/사업계획 미생성
-     * @throws AccessDeniedException    주관부서도 관리자도 아닌 경우
+     * @throws AccessDeniedException 주관부서도 관리자도 아닌 경우
      */
     public BizplanDto.Detail get(String abusMngNo, CustomUserDetails user) {
         Bprojm project = loadEligibleProject(abusMngNo);
@@ -142,17 +145,15 @@ public class BizplanService {
     /**
      * 전체 저장 — 보고서/전결권 + 일정/품목/계약 병합.
      *
-     * <p>자식 행은 (ABUS_MNG_NO, SNO) 기준 upsert: 기존 행은 갱신(삭제행 재사용 시 복원),
-     * 미존재 SNO는 INSERT, 요청에 없는 활성 행은 soft delete. SNO는 프론트가 부여한다.
-     * 품목 {@code cttSno}는 요청 계약 목록의 SNO만 허용(null 가능).
-     * 저장 마지막에 총소요금액을 활성 품목 금액 합계로 재계산한다.
-     * 완료(29) 상태에서도 저장 가능하며 상태는 변경하지 않는다.</p>
+     * <p>자식 행은 (ABUS_MNG_NO, SNO) 기준 upsert: 기존 행은 갱신(삭제행 재사용 시 복원), 미존재 SNO는 INSERT, 요청에 없는 활성 행은
+     * soft delete. SNO는 프론트가 부여한다. 품목 {@code cttSno}는 요청 계약 목록의 SNO만 허용(null 가능). 저장 마지막에 총소요금액을 활성
+     * 품목 금액 합계로 재계산한다. 완료(29) 상태에서도 저장 가능하며 상태는 변경하지 않는다.
      *
      * @param abusMngNo 사업관리번호
      * @param req 사업계획 저장 요청
      * @param user 요청자 인증 정보
      * @throws IllegalArgumentException SNO 중복, cttSno 불일치, 사업계획 미생성
-     * @throws AccessDeniedException    주관부서도 관리자도 아닌 경우
+     * @throws AccessDeniedException 주관부서도 관리자도 아닌 경우
      */
     @Transactional
     public void save(String abusMngNo, BizplanDto.SaveRequest req, CustomUserDetails user) {
@@ -160,7 +161,8 @@ public class BizplanService {
         verifyDeptOrAdmin(project.getSvnDpmC(), user);
         Bbizpm plan = loadPlan(abusMngNo);
 
-        String sanitized = req.redtConeInf() == null ? null : HtmlSanitizer.sanitize(req.redtConeInf());
+        String sanitized =
+                req.redtConeInf() == null ? null : HtmlSanitizer.sanitize(req.redtConeInf());
         plan.updateBasics(sanitized, req.itPtlEdrtTc());
 
         Set<Integer> contractSnos = mergeContracts(abusMngNo, req.contracts());
@@ -177,8 +179,8 @@ public class BizplanService {
      * @param req 목표 상태 요청
      * @param user 요청자 인증 정보
      * @throws IllegalArgumentException 목표 상태가 29가 아닌 경우
-     * @throws IllegalStateException    현재 상태가 21이 아닌 경우
-     * @throws AccessDeniedException    주관부서도 관리자도 아닌 경우
+     * @throws IllegalStateException 현재 상태가 21이 아닌 경우
+     * @throws AccessDeniedException 주관부서도 관리자도 아닌 경우
      */
     @Transactional
     public void complete(String abusMngNo, BizplanDto.StatusRequest req, CustomUserDetails user) {
@@ -199,42 +201,45 @@ public class BizplanService {
     // ----- 내부 헬퍼 -----
 
     /**
-     * 해당 사업(BPROJM)의 예산신청 소요예산 상세내용 품목
-     * (BITEMM 최신·유효본, {@code LST_YN='Y'} · {@code DEL_YN='N'})을 사업품목(BBIZGM)으로 복사한다.
-     * SNO는 1부터 순번 부여하고, 총소요금액은 복사한 품목 금액(amt)의 합계로 설정한다.
+     * 해당 사업(BPROJM)의 예산신청 소요예산 상세내용 품목 (BITEMM 최신·유효본, {@code LST_YN='Y'} · {@code DEL_YN='N'})을
+     * 사업품목(BBIZGM)으로 복사한다. SNO는 1부터 순번 부여하고, 총소요금액은 복사한 품목 금액(amt)의 합계로 설정한다.
      *
-     * <p>호출부(getOrCreate)에서 사업품목 행이 하나도 없을 때만 호출하므로, 사용자가 편집·삭제한
-     * 사업품목을 덮어쓰지 않는다(삭제는 soft delete라 행이 남아 재시드되지 않음).
-     * 원본 품목이 없으면 아무 것도 하지 않는다.</p>
+     * <p>호출부(getOrCreate)에서 사업품목 행이 하나도 없을 때만 호출하므로, 사용자가 편집·삭제한 사업품목을 덮어쓰지 않는다(삭제는 soft delete라 행이
+     * 남아 재시드되지 않음). 원본 품목이 없으면 아무 것도 하지 않는다.
      *
      * @param abusMngNo 사업관리번호(= BITEMM.ABUS_MNG_NO)
-     * @param plan      대상 사업계획(총소요금액 설정 대상)
+     * @param plan 대상 사업계획(총소요금액 설정 대상)
      */
     private void seedItemsFromProject(String abusMngNo, Bbizpm plan) {
-        List<Bitemm> sourceItems = projectItemRepository
-                .findByAbusMngNoAndDelYnAndLstYn(abusMngNo, "N", "Y").stream()
-                .sorted(Comparator
-                        .comparing((Bitemm item) -> item.getGclMngNo(), Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparing(item -> item.getSno(), Comparator.nullsLast(Comparator.naturalOrder())))
-                .toList();
+        List<Bitemm> sourceItems =
+                projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(abusMngNo, "N", "Y").stream()
+                        .sorted(
+                                Comparator.comparing(
+                                                (Bitemm item) -> item.getGclMngNo(),
+                                                Comparator.nullsLast(Comparator.naturalOrder()))
+                                        .thenComparing(
+                                                item -> item.getSno(),
+                                                Comparator.nullsLast(Comparator.naturalOrder())))
+                        .toList();
         if (sourceItems.isEmpty()) {
             return;
         }
         int sno = 1;
         BigDecimal total = BigDecimal.ZERO;
         for (Bitemm src : sourceItems) {
-            bbizgmRepository.save(Bbizgm.builder()
-                    .abusMngNo(abusMngNo)
-                    .sno(sno++)
-                    .gclNm(src.getGclNm())
-                    .ioeC(src.getIoeC())
-                    .qty(src.getQty() == null ? null : src.getQty().longValue())
-                    .amt(src.getAmt())
-                    .fcAmt(src.getFcAmt())
-                    .curC(src.getCurC())
-                    .xcr(src.getXcr())
-                    .xcrBseDt(src.getXcrBseDt())
-                    .build());
+            bbizgmRepository.save(
+                    Bbizgm.builder()
+                            .abusMngNo(abusMngNo)
+                            .sno(sno++)
+                            .gclNm(src.getGclNm())
+                            .ioeC(src.getIoeC())
+                            .qty(src.getQty() == null ? null : src.getQty().longValue())
+                            .amt(src.getAmt())
+                            .fcAmt(src.getFcAmt())
+                            .curC(src.getCurC())
+                            .xcr(src.getXcr())
+                            .xcrBseDt(src.getXcrBseDt())
+                            .build());
             if (src.getAmt() != null) {
                 total = total.add(src.getAmt());
             }
@@ -243,23 +248,24 @@ public class BizplanService {
     }
 
     /**
-     * 향후일정이 한 번도 없을 때 — 예산신청 사업(BPROJM)의 시작/종료일자로 기본 일정 1건을 시드한다.
-     * 일정내용 기본값은 '사업추진'이며, 사업 일자가 없으면 해당 일자는 비워 둔다.
+     * 향후일정이 한 번도 없을 때 — 예산신청 사업(BPROJM)의 시작/종료일자로 기본 일정 1건을 시드한다. 일정내용 기본값은 '사업추진'이며, 사업 일자가 없으면 해당
+     * 일자는 비워 둔다.
      *
-     * <p>호출부(getOrCreate)에서 사업일정 행이 하나도 없을 때만 호출하므로, 사용자가 편집·삭제한
-     * 일정을 덮어쓰지 않는다(삭제는 soft delete라 행이 남아 재시드되지 않음).</p>
+     * <p>호출부(getOrCreate)에서 사업일정 행이 하나도 없을 때만 호출하므로, 사용자가 편집·삭제한 일정을 덮어쓰지 않는다(삭제는 soft delete라 행이
+     * 남아 재시드되지 않음).
      *
      * @param abusMngNo 사업관리번호
-     * @param project   대상 사업(시작/종료일자 원본)
+     * @param project 대상 사업(시작/종료일자 원본)
      */
     private void seedSchedulesFromProject(String abusMngNo, Bprojm project) {
-        bbizsmRepository.save(Bbizsm.builder()
-                .abusMngNo(abusMngNo)
-                .sno(1)
-                .dsdCone(DEFAULT_SCHEDULE_DSD_CONE)
-                .sttDt(toYmd(project.getSttDtm()))
-                .endDt(toYmd(project.getEndDtm()))
-                .build());
+        bbizsmRepository.save(
+                Bbizsm.builder()
+                        .abusMngNo(abusMngNo)
+                        .sno(1)
+                        .dsdCone(DEFAULT_SCHEDULE_DSD_CONE)
+                        .sttDt(toYmd(project.getSttDtm()))
+                        .endDt(toYmd(project.getEndDtm()))
+                        .build());
     }
 
     /** LocalDate → YYYYMMDD 문자열 (null이면 null). */
@@ -272,8 +278,11 @@ public class BizplanService {
     }
 
     private Bprojm loadEligibleProject(String abusMngNo) {
-        Bprojm project = projectRepository.findByAbusMngNoAndLstYnAndDelYn(abusMngNo, "Y", "N")
-                .orElseThrow(() -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
+        Bprojm project =
+                projectRepository
+                        .findByAbusMngNoAndLstYnAndDelYn(abusMngNo, "Y", "N")
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
         if (!bplanaRepository.existsByPrjMngNoAndDelYn(abusMngNo, "N")) {
             throw new IllegalArgumentException("정보기술부문 계획에 포함되지 않은 사업입니다: " + abusMngNo);
         }
@@ -281,8 +290,10 @@ public class BizplanService {
     }
 
     private Bbizpm loadPlan(String abusMngNo) {
-        return bizplanRepository.findByAbusMngNoAndDelYn(abusMngNo, "N")
-                .orElseThrow(() -> new IllegalArgumentException("사업계획이 아직 생성되지 않았습니다: " + abusMngNo));
+        return bizplanRepository
+                .findByAbusMngNoAndDelYn(abusMngNo, "N")
+                .orElseThrow(
+                        () -> new IllegalArgumentException("사업계획이 아직 생성되지 않았습니다: " + abusMngNo));
     }
 
     private void verifyDeptOrAdmin(String svnDpmC, CustomUserDetails user) {
@@ -301,40 +312,51 @@ public class BizplanService {
     /**
      * BPROJA 예산편성 행(BG-%)에서 예산번호 자동 연계 (없으면 null).
      *
-     * <p>원칙적으로 사업당 예산편성 BPROJA 행은 1건이나, 다건이 존재하면
-     * {@link #selectLatestBgKey(String, List)}가 최신 키를 결정적으로 선택하고 WARN을 남긴다.</p>
+     * <p>원칙적으로 사업당 예산편성 BPROJA 행은 1건이나, 다건이 존재하면 {@link #selectLatestBgKey(String, List)}가 최신 키를
+     * 결정적으로 선택하고 WARN을 남긴다.
      */
     private String resolveBgNo(String abusMngNo) {
-        return selectLatestBgKey(abusMngNo,
-                bprojaRepository.findByAbusMngNoAndDelYn(abusMngNo, "N"));
+        return selectLatestBgKey(
+                abusMngNo, bprojaRepository.findByAbusMngNoAndDelYn(abusMngNo, "N"));
     }
 
     /**
      * BG- 접두 후보 키 중 최신 키를 결정적으로 선택한다. (BE-09)
      *
-     * <p>선택 규칙: {@code CNCD_RFR_NO} 사전순 내림차순. BG 키는
-     * {@code BG-{예산년도}-{SEQ_BBUGTM 4자리}}로 생성되므로 같은 형식 안에서 키 내림차순이
-     * 최신 채번 순서와 일치한다. 서로 다른 BG- 키가 2건 이상이면 WARN 로그를 남긴다.</p>
+     * <p>선택 규칙: {@code CNCD_RFR_NO} 사전순 내림차순. BG 키는 {@code BG-{예산년도}-{SEQ_BBUGTM 4자리}}로 생성되므로 같은 형식
+     * 안에서 키 내림차순이 최신 채번 순서와 일치한다. 서로 다른 BG- 키가 2건 이상이면 WARN 로그를 남긴다.
      *
      * @param abusMngNo 사업관리번호 (로그 문맥용)
      * @param applications 미삭제 BPROJA 행 목록
      * @return 최신 BG- 키 (후보가 없으면 null)
      */
     static String selectLatestBgKey(String abusMngNo, List<Bproja> applications) {
-        List<Bproja> candidates = applications.stream()
-                .filter(application -> application.getCncdRfrNo() != null
-                        && application.getCncdRfrNo().startsWith(BG_KEY_PREFIX))
-                .sorted(Comparator.comparing((Bproja application) -> application.getCncdRfrNo()).reversed())
-                .toList();
+        List<Bproja> candidates =
+                applications.stream()
+                        .filter(
+                                application ->
+                                        application.getCncdRfrNo() != null
+                                                && application
+                                                        .getCncdRfrNo()
+                                                        .startsWith(BG_KEY_PREFIX))
+                        .sorted(
+                                Comparator.comparing(
+                                                (Bproja application) -> application.getCncdRfrNo())
+                                        .reversed())
+                        .toList();
         if (candidates.size() > 1) {
-            log.warn("BPROJA 예산편성 BG- 키가 {}건입니다 (abusMngNo={}, 선택 키={})",
-                    candidates.size(), abusMngNo, candidates.get(0).getCncdRfrNo());
+            log.warn(
+                    "BPROJA 예산편성 BG- 키가 {}건입니다 (abusMngNo={}, 선택 키={})",
+                    candidates.size(),
+                    abusMngNo,
+                    candidates.get(0).getCncdRfrNo());
         }
         return candidates.isEmpty() ? null : candidates.get(0).getCncdRfrNo();
     }
 
     private String currentStatus(String abusMngNo) {
-        return bprojaRepository.findById(new BprojaId(abusMngNo, bprojaKey(abusMngNo)))
+        return bprojaRepository
+                .findById(new BprojaId(abusMngNo, bprojaKey(abusMngNo)))
                 .filter(a -> !"Y".equals(a.getDelYn()))
                 .map(application -> application.getStsTc())
                 .orElse(STS_IN_PROGRESS);
@@ -351,8 +373,11 @@ public class BizplanService {
 
     private void mergeSchedules(String abusMngNo, List<BizplanDto.ScheduleRequest> rows) {
         verifyUniqueSnos("일정", rows.stream().map(row -> row.sno()).toList());
-        Map<Integer, Bbizsm> bySno = bbizsmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
-                .collect(Collectors.toMap(schedule -> schedule.getSno(), Function.identity()));
+        Map<Integer, Bbizsm> bySno =
+                bbizsmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        schedule -> schedule.getSno(), Function.identity()));
         Set<Integer> incoming = new HashSet<>();
         for (BizplanDto.ScheduleRequest row : rows) {
             incoming.add(row.sno());
@@ -363,26 +388,34 @@ public class BizplanService {
                 }
                 existing.updateSchedule(row.dsdCone(), row.sttDt(), row.endDt());
             } else {
-                bbizsmRepository.save(Bbizsm.builder()
-                        .abusMngNo(abusMngNo).sno(row.sno())
-                        .dsdCone(row.dsdCone()).sttDt(row.sttDt()).endDt(row.endDt())
-                        .build());
+                bbizsmRepository.save(
+                        Bbizsm.builder()
+                                .abusMngNo(abusMngNo)
+                                .sno(row.sno())
+                                .dsdCone(row.dsdCone())
+                                .sttDt(row.sttDt())
+                                .endDt(row.endDt())
+                                .build());
             }
         }
-        softDeleteMissing(bySno.values(), schedule -> schedule.getSno(), incoming, schedule -> schedule.delete());
+        softDeleteMissing(
+                bySno.values(),
+                schedule -> schedule.getSno(),
+                incoming,
+                schedule -> schedule.delete());
     }
 
-    private BigDecimal mergeItems(String abusMngNo, List<BizplanDto.ItemRequest> rows,
-            Set<Integer> contractSnos) {
+    private BigDecimal mergeItems(
+            String abusMngNo, List<BizplanDto.ItemRequest> rows, Set<Integer> contractSnos) {
         verifyUniqueSnos("품목", rows.stream().map(row -> row.sno()).toList());
         for (BizplanDto.ItemRequest row : rows) {
             if (row.cttSno() != null && !contractSnos.contains(row.cttSno())) {
-                throw new IllegalArgumentException(
-                        "품목이 참조하는 계약 일련번호가 존재하지 않습니다: " + row.cttSno());
+                throw new IllegalArgumentException("품목이 참조하는 계약 일련번호가 존재하지 않습니다: " + row.cttSno());
             }
         }
-        Map<Integer, Bbizgm> bySno = bbizgmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
-                .collect(Collectors.toMap(item -> item.getSno(), Function.identity()));
+        Map<Integer, Bbizgm> bySno =
+                bbizgmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
+                        .collect(Collectors.toMap(item -> item.getSno(), Function.identity()));
         Set<Integer> incoming = new HashSet<>();
         for (BizplanDto.ItemRequest row : rows) {
             incoming.add(row.sno());
@@ -391,15 +424,31 @@ public class BizplanService {
                 if ("Y".equals(existing.getDelYn())) {
                     existing.restore();
                 }
-                existing.updateItem(row.gclNm(), row.ioeC(), row.qty(), row.amt(), row.fcAmt(),
-                        row.curC(), row.xcr(), row.xcrBseDt(), row.cttSno());
+                existing.updateItem(
+                        row.gclNm(),
+                        row.ioeC(),
+                        row.qty(),
+                        row.amt(),
+                        row.fcAmt(),
+                        row.curC(),
+                        row.xcr(),
+                        row.xcrBseDt(),
+                        row.cttSno());
             } else {
-                bbizgmRepository.save(Bbizgm.builder()
-                        .abusMngNo(abusMngNo).sno(row.sno())
-                        .gclNm(row.gclNm()).ioeC(row.ioeC()).qty(row.qty())
-                        .amt(row.amt()).fcAmt(row.fcAmt()).curC(row.curC())
-                        .xcr(row.xcr()).xcrBseDt(row.xcrBseDt()).cttSno(row.cttSno())
-                        .build());
+                bbizgmRepository.save(
+                        Bbizgm.builder()
+                                .abusMngNo(abusMngNo)
+                                .sno(row.sno())
+                                .gclNm(row.gclNm())
+                                .ioeC(row.ioeC())
+                                .qty(row.qty())
+                                .amt(row.amt())
+                                .fcAmt(row.fcAmt())
+                                .curC(row.curC())
+                                .xcr(row.xcr())
+                                .xcrBseDt(row.xcrBseDt())
+                                .cttSno(row.cttSno())
+                                .build());
             }
         }
         softDeleteMissing(bySno.values(), item -> item.getSno(), incoming, item -> item.delete());
@@ -412,8 +461,11 @@ public class BizplanService {
 
     private Set<Integer> mergeContracts(String abusMngNo, List<BizplanDto.ContractRequest> rows) {
         verifyUniqueSnos("계약", rows.stream().map(row -> row.sno()).toList());
-        Map<Integer, Bbizcm> bySno = bbizcmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
-                .collect(Collectors.toMap(contract -> contract.getSno(), Function.identity()));
+        Map<Integer, Bbizcm> bySno =
+                bbizcmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        contract -> contract.getSno(), Function.identity()));
         Set<Integer> incoming = new HashSet<>();
         for (BizplanDto.ContractRequest row : rows) {
             incoming.add(row.sno());
@@ -424,20 +476,29 @@ public class BizplanService {
                 }
                 existing.updateContract(row.cttNm(), row.nowCttManrC(), row.cttTrmMmNbr());
             } else {
-                bbizcmRepository.save(Bbizcm.builder()
-                        .abusMngNo(abusMngNo).sno(row.sno())
-                        .cttNm(row.cttNm()).nowCttManrC(row.nowCttManrC())
-                        .cttTrmMmNbr(row.cttTrmMmNbr())
-                        .build());
+                bbizcmRepository.save(
+                        Bbizcm.builder()
+                                .abusMngNo(abusMngNo)
+                                .sno(row.sno())
+                                .cttNm(row.cttNm())
+                                .nowCttManrC(row.nowCttManrC())
+                                .cttTrmMmNbr(row.cttTrmMmNbr())
+                                .build());
             }
         }
-        softDeleteMissing(bySno.values(), contract -> contract.getSno(), incoming, contract -> contract.delete());
+        softDeleteMissing(
+                bySno.values(),
+                contract -> contract.getSno(),
+                incoming,
+                contract -> contract.delete());
         return incoming;
     }
 
     private static <T extends com.kdb.it.domain.entity.BaseEntity> void softDeleteMissing(
-            java.util.Collection<T> existing, Function<T, Integer> snoOf,
-            Set<Integer> incoming, java.util.function.Consumer<T> deleter) {
+            java.util.Collection<T> existing,
+            Function<T, Integer> snoOf,
+            Set<Integer> incoming,
+            java.util.function.Consumer<T> deleter) {
         for (T row : existing) {
             boolean active = !"Y".equals(row.getDelYn());
             if (active && !incoming.contains(snoOf.apply(row))) {
@@ -448,21 +509,55 @@ public class BizplanService {
 
     private BizplanDto.Detail toDetail(Bbizpm plan) {
         String abusMngNo = plan.getAbusMngNo();
-        List<BizplanDto.Schedule> schedules = bbizsmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
-                .filter(r -> !"Y".equals(r.getDelYn()))
-                .map(r -> new BizplanDto.Schedule(r.getSno(), r.getDsdCone(), r.getSttDt(), r.getEndDt()))
-                .toList();
-        List<BizplanDto.Item> items = bbizgmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
-                .filter(r -> !"Y".equals(r.getDelYn()))
-                .map(r -> new BizplanDto.Item(r.getSno(), r.getGclNm(), r.getIoeC(), r.getQty(),
-                        r.getAmt(), r.getFcAmt(), r.getCurC(), r.getXcr(), r.getXcrBseDt(), r.getCttSno()))
-                .toList();
-        List<BizplanDto.Contract> contracts = bbizcmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
-                .filter(r -> !"Y".equals(r.getDelYn()))
-                .map(r -> new BizplanDto.Contract(r.getSno(), r.getCttNm(), r.getNowCttManrC(), r.getCttTrmMmNbr()))
-                .toList();
-        return new BizplanDto.Detail(abusMngNo, plan.getAbusNm(), plan.getBgNo(), plan.getTotRqmAmt(),
-                plan.getItPtlEdrtTc(), plan.getRedtConeInf(), currentStatus(abusMngNo),
-                schedules, items, contracts);
+        List<BizplanDto.Schedule> schedules =
+                bbizsmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
+                        .filter(r -> !"Y".equals(r.getDelYn()))
+                        .map(
+                                r ->
+                                        new BizplanDto.Schedule(
+                                                r.getSno(),
+                                                r.getDsdCone(),
+                                                r.getSttDt(),
+                                                r.getEndDt()))
+                        .toList();
+        List<BizplanDto.Item> items =
+                bbizgmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
+                        .filter(r -> !"Y".equals(r.getDelYn()))
+                        .map(
+                                r ->
+                                        new BizplanDto.Item(
+                                                r.getSno(),
+                                                r.getGclNm(),
+                                                r.getIoeC(),
+                                                r.getQty(),
+                                                r.getAmt(),
+                                                r.getFcAmt(),
+                                                r.getCurC(),
+                                                r.getXcr(),
+                                                r.getXcrBseDt(),
+                                                r.getCttSno()))
+                        .toList();
+        List<BizplanDto.Contract> contracts =
+                bbizcmRepository.findByAbusMngNoOrderBySnoAsc(abusMngNo).stream()
+                        .filter(r -> !"Y".equals(r.getDelYn()))
+                        .map(
+                                r ->
+                                        new BizplanDto.Contract(
+                                                r.getSno(),
+                                                r.getCttNm(),
+                                                r.getNowCttManrC(),
+                                                r.getCttTrmMmNbr()))
+                        .toList();
+        return new BizplanDto.Detail(
+                abusMngNo,
+                plan.getAbusNm(),
+                plan.getBgNo(),
+                plan.getTotRqmAmt(),
+                plan.getItPtlEdrtTc(),
+                plan.getRedtConeInf(),
+                currentStatus(abusMngNo),
+                schedules,
+                items,
+                contracts);
     }
 }

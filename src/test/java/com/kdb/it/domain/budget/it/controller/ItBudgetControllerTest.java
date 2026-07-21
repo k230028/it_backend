@@ -1,7 +1,11 @@
 package com.kdb.it.domain.budget.it.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+
 import com.kdb.it.domain.budget.it.dto.ItBudgetDto;
 import com.kdb.it.domain.budget.it.service.ItBudgetService;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,19 +14,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-
 @ExtendWith(MockitoExtension.class)
 class ItBudgetControllerTest {
 
-    @Mock
-    private ItBudgetService itBudgetService;
+    @Mock private ItBudgetService itBudgetService;
 
-    @InjectMocks
-    private ItBudgetController controller;
+    @InjectMocks private ItBudgetController controller;
 
     @Test
     @DisplayName("getSummary: 서비스 응답을 200 OK로 반환한다")
@@ -39,16 +36,17 @@ class ItBudgetControllerTest {
     @Test
     @DisplayName("getComparison: 서비스 응답을 200 OK로 반환한다")
     void getComparison_returnsOk() {
-        var mapping = new ItBudgetDto.FssMappingRow(
-                "001",
-                "351-1100",
-                "개발비",
-                "개발비(일반)",
-                "개발비(일반)",
-                200,
-                "정식 금감원 매핑 테이블 도입 전 임시 동일 비목 매핑"
-        );
-        var response = new ItBudgetDto.ComparisonResponse("2026", "2025", List.of(mapping), List.of());
+        var mapping =
+                new ItBudgetDto.FssMappingRow(
+                        "001",
+                        "351-1100",
+                        "개발비",
+                        "개발비(일반)",
+                        "개발비(일반)",
+                        200,
+                        "정식 금감원 매핑 테이블 도입 전 임시 동일 비목 매핑");
+        var response =
+                new ItBudgetDto.ComparisonResponse("2026", "2025", List.of(mapping), List.of());
         given(itBudgetService.getComparison("2026")).willReturn(response);
 
         ResponseEntity<ItBudgetDto.ComparisonResponse> result = controller.getComparison("2026");

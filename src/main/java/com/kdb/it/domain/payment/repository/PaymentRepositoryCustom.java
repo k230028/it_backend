@@ -7,7 +7,7 @@ import java.util.Optional;
 /**
  * 대금지급 마스터 동적 목록 조회 인터페이스.
  *
- * <p>QueryDSL 기반 구현체 {@link PaymentRepositoryImpl}에서 검색 조건을 조립합니다.</p>
+ * <p>QueryDSL 기반 구현체 {@link PaymentRepositoryImpl}에서 검색 조건을 조립합니다.
  */
 public interface PaymentRepositoryCustom {
 
@@ -22,9 +22,9 @@ public interface PaymentRepositoryCustom {
     /**
      * 현재 유효 마스터 + 대상명 단일 조회.
      *
-     * <p>마스터(lstYn='Y', delYn='N')와 대상명을 1개 쿼리로 가져옵니다. 대상명은 대상구분(ioeC)에 따라
-     * Bprojm(사업=ABUS_NM) 또는 Bcostm(전산업무비=CTT_NM)을 cncdRfrNo 키로 LEFT JOIN하여 CASE로 분기합니다.
-     * 회차별 지급 명세(1:N)는 본 쿼리에 포함하지 않고 서비스에서 별도 조회합니다.</p>
+     * <p>마스터(lstYn='Y', delYn='N')와 대상명을 1개 쿼리로 가져옵니다. 대상명은 대상구분(ioeC)에 따라 Bprojm(사업=ABUS_NM) 또는
+     * Bcostm(전산업무비=CTT_NM)을 cncdRfrNo 키로 LEFT JOIN하여 CASE로 분기합니다. 회차별 지급 명세(1:N)는 본 쿼리에 포함하지 않고
+     * 서비스에서 별도 조회합니다.
      *
      * @param docNo 문서관리번호
      * @return 마스터 + 대상명 행 (문서 없으면 empty)
@@ -34,13 +34,13 @@ public interface PaymentRepositoryCustom {
     /**
      * 대금지급 목록 동적 검색.
      *
-     * <p>stsTc·ioeC·cncdRfrNo 모두 null/빈값이면 전체 조회합니다.
-     * bbrC가 있으면 사업은 Bprojm.svnDpmC, 전산업무비는 Bcostm.costSvnDpmC로 필터링합니다.</p>
+     * <p>stsTc·ioeC·cncdRfrNo 모두 null/빈값이면 전체 조회합니다. bbrC가 있으면 사업은 Bprojm.svnDpmC, 전산업무비는
+     * Bcostm.costSvnDpmC로 필터링합니다.
      *
-     * @param stsTc     상태구분코드 필터
-     * @param ioeC   예산성격구분코드(대상구분) 필터
+     * @param stsTc 상태구분코드 필터
+     * @param ioeC 예산성격구분코드(대상구분) 필터
      * @param cncdRfrNo 관련참조번호(대상관리번호) 필터
-     * @param bbrC      주관부서코드 필터. null 또는 빈 문자열이면 전체 부서를 조회
+     * @param bbrC 주관부서코드 필터. null 또는 빈 문자열이면 전체 부서를 조회
      * @return 조회된 목록 항목 리스트 (최초등록일시 DESC)
      */
     List<PaymentDto.ListItem> search(String stsTc, String ioeC, String cncdRfrNo, String bbrC);

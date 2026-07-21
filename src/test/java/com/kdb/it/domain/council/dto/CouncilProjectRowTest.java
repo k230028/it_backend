@@ -1,20 +1,19 @@
 package com.kdb.it.domain.council.dto;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * {@link CouncilProjectRow} record 단위 테스트.
  *
- * <p>17 필드 생성자, 접근자, equals/hashCode, toString,
- * fromRow 팩토리(정상·NULL placeholder 가드·컬럼 수 예외 경로)를 검증한다.</p>
+ * <p>17 필드 생성자, 접근자, equals/hashCode, toString, fromRow 팩토리(정상·NULL placeholder 가드·컬럼 수 예외 경로)를
+ * 검증한다.
  */
 @DisplayName("CouncilProjectRow")
 class CouncilProjectRowTest {
@@ -22,24 +21,24 @@ class CouncilProjectRowTest {
     // ------------------------------------------------------------------ 샘플 인스턴스 헬퍼
     private static CouncilProjectRow sample() {
         return new CouncilProjectRow(
-                "MNG-001",               // abusMngNo
-                1,                       // sno
-                "테스트 사업",            // abusNm
-                "ASCT-001",              // itPtlAsctId
-                "진행중",                // itPtlAsctPrgStsTc
-                "일반",                  // itPtlAsctDbrTc
+                "MNG-001", // abusMngNo
+                1, // sno
+                "테스트 사업", // abusNm
+                "ASCT-001", // itPtlAsctId
+                "진행중", // itPtlAsctPrgStsTc
+                "일반", // itPtlAsctDbrTc
                 LocalDate.of(2026, 1, 1), // cnrcDt
-                "09",                    // cnrcSttTm
-                false,                   // applied
-                "2026",                  // prjYy
-                "IT",                    // prjTp
-                "개발팀",                // svnDpm
+                "09", // cnrcSttTm
+                false, // applied
+                "2026", // prjYy
+                "IT", // prjTp
+                "개발팀", // svnDpm
                 LocalDate.of(2026, 3, 1), // sttDt
                 LocalDate.of(2026, 12, 31), // endDt
-                "IT부문",                // itDpm
-                "클라우드 전환",          // abusCone
-                "Y"                      // csfHeldYn
-        );
+                "IT부문", // itDpm
+                "클라우드 전환", // abusCone
+                "Y" // csfHeldYn
+                );
     }
 
     // ------------------------------------------------------------------ 생성 / 접근자
@@ -77,11 +76,25 @@ class CouncilProjectRowTest {
         @DisplayName("applied=true 로 생성 시 접근자가 true 를 반환한다")
         void constructor_appliedTrue_returnsTrue() {
             // Arrange & Act
-            CouncilProjectRow row = new CouncilProjectRow(
-                    "MNG-002", null, "사업2", "ASCT-002", "완료", "특수",
-                    null, null, true, "2026", "BIZ", null,
-                    null, null, null, null, "N"
-            );
+            CouncilProjectRow row =
+                    new CouncilProjectRow(
+                            "MNG-002",
+                            null,
+                            "사업2",
+                            "ASCT-002",
+                            "완료",
+                            "특수",
+                            null,
+                            null,
+                            true,
+                            "2026",
+                            "BIZ",
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            "N");
 
             // Assert
             assertThat(row.applied()).isTrue();
@@ -91,11 +104,10 @@ class CouncilProjectRowTest {
         @DisplayName("null 허용 필드들은 null 로 저장된다")
         void constructor_nullableFields_remainNull() {
             // Arrange & Act
-            CouncilProjectRow row = new CouncilProjectRow(
-                    null, null, null, null, null, null,
-                    null, null, false, null, null, null,
-                    null, null, null, null, null
-            );
+            CouncilProjectRow row =
+                    new CouncilProjectRow(
+                            null, null, null, null, null, null, null, null, false, null, null, null,
+                            null, null, null, null, null);
 
             // Assert
             assertThat(row.abusMngNo()).isNull();
@@ -136,11 +148,25 @@ class CouncilProjectRowTest {
         void equals_differentAbusMngNo_returnsFalse() {
             // Arrange
             CouncilProjectRow a = sample();
-            CouncilProjectRow b = new CouncilProjectRow(
-                    "MNG-999", 1, "테스트 사업", "ASCT-001", "진행중", "일반",
-                    LocalDate.of(2026, 1, 1), "09", false, "2026", "IT", "개발팀",
-                    LocalDate.of(2026, 3, 1), LocalDate.of(2026, 12, 31), "IT부문", "클라우드 전환", "Y"
-            );
+            CouncilProjectRow b =
+                    new CouncilProjectRow(
+                            "MNG-999",
+                            1,
+                            "테스트 사업",
+                            "ASCT-001",
+                            "진행중",
+                            "일반",
+                            LocalDate.of(2026, 1, 1),
+                            "09",
+                            false,
+                            "2026",
+                            "IT",
+                            "개발팀",
+                            LocalDate.of(2026, 3, 1),
+                            LocalDate.of(2026, 12, 31),
+                            "IT부문",
+                            "클라우드 전환",
+                            "Y");
 
             // Assert
             assertThat(a).isNotEqualTo(b);
@@ -151,11 +177,25 @@ class CouncilProjectRowTest {
         void equals_differentApplied_returnsFalse() {
             // Arrange
             CouncilProjectRow a = sample(); // applied=false
-            CouncilProjectRow b = new CouncilProjectRow(
-                    "MNG-001", 1, "테스트 사업", "ASCT-001", "진행중", "일반",
-                    LocalDate.of(2026, 1, 1), "09", true, "2026", "IT", "개발팀",
-                    LocalDate.of(2026, 3, 1), LocalDate.of(2026, 12, 31), "IT부문", "클라우드 전환", "Y"
-            );
+            CouncilProjectRow b =
+                    new CouncilProjectRow(
+                            "MNG-001",
+                            1,
+                            "테스트 사업",
+                            "ASCT-001",
+                            "진행중",
+                            "일반",
+                            LocalDate.of(2026, 1, 1),
+                            "09",
+                            true,
+                            "2026",
+                            "IT",
+                            "개발팀",
+                            LocalDate.of(2026, 3, 1),
+                            LocalDate.of(2026, 12, 31),
+                            "IT부문",
+                            "클라우드 전환",
+                            "Y");
 
             // Assert
             assertThat(a).isNotEqualTo(b);
@@ -166,11 +206,25 @@ class CouncilProjectRowTest {
         void equals_differentCnrcDt_returnsFalse() {
             // Arrange
             CouncilProjectRow a = sample();
-            CouncilProjectRow b = new CouncilProjectRow(
-                    "MNG-001", 1, "테스트 사업", "ASCT-001", "진행중", "일반",
-                    LocalDate.of(2025, 12, 31), "09", false, "2026", "IT", "개발팀",
-                    LocalDate.of(2026, 3, 1), LocalDate.of(2026, 12, 31), "IT부문", "클라우드 전환", "Y"
-            );
+            CouncilProjectRow b =
+                    new CouncilProjectRow(
+                            "MNG-001",
+                            1,
+                            "테스트 사업",
+                            "ASCT-001",
+                            "진행중",
+                            "일반",
+                            LocalDate.of(2025, 12, 31),
+                            "09",
+                            false,
+                            "2026",
+                            "IT",
+                            "개발팀",
+                            LocalDate.of(2026, 3, 1),
+                            LocalDate.of(2026, 12, 31),
+                            "IT부문",
+                            "클라우드 전환",
+                            "Y");
 
             // Assert
             assertThat(a).isNotEqualTo(b);
@@ -215,25 +269,25 @@ class CouncilProjectRowTest {
 
         /** 18컬럼 정상 배열(12번 = null placeholder). */
         private static Object[] validRow() {
-            return new Object[]{
-                    "MNG-001",               // [0] abusMngNo
-                    1L,                      // [1] sno (Number)
-                    "테스트 사업",            // [2] abusNm
-                    "ASCT-001",              // [3] itPtlAsctId
-                    "진행중",                // [4] itPtlAsctPrgStsTc
-                    "일반",                  // [5] itPtlAsctDbrTc
-                    LocalDate.of(2026, 1, 1), // [6] cnrcDt
-                    "09",                    // [7] cnrcSttTm
-                    new BigDecimal("1"),     // [8] applied (NUMBER 0/1)
-                    "2026",                  // [9] prjYy
-                    "IT",                    // [10] prjTp
-                    "개발팀",                // [11] svnDpm
-                    null,                    // [12] rqmBgAmt (NULL placeholder)
-                    LocalDate.of(2026, 3, 1), // [13] sttDt
-                    LocalDate.of(2026, 12, 31), // [14] endDt
-                    "IT부문",                // [15] itDpm
-                    "클라우드 전환",          // [16] abusCone
-                    "Y"                      // [17] csfHeldYn
+            return new Object[] {
+                "MNG-001", // [0] abusMngNo
+                1L, // [1] sno (Number)
+                "테스트 사업", // [2] abusNm
+                "ASCT-001", // [3] itPtlAsctId
+                "진행중", // [4] itPtlAsctPrgStsTc
+                "일반", // [5] itPtlAsctDbrTc
+                LocalDate.of(2026, 1, 1), // [6] cnrcDt
+                "09", // [7] cnrcSttTm
+                new BigDecimal("1"), // [8] applied (NUMBER 0/1)
+                "2026", // [9] prjYy
+                "IT", // [10] prjTp
+                "개발팀", // [11] svnDpm
+                null, // [12] rqmBgAmt (NULL placeholder)
+                LocalDate.of(2026, 3, 1), // [13] sttDt
+                LocalDate.of(2026, 12, 31), // [14] endDt
+                "IT부문", // [15] itDpm
+                "클라우드 전환", // [16] abusCone
+                "Y" // [17] csfHeldYn
             };
         }
 
@@ -248,7 +302,7 @@ class CouncilProjectRowTest {
             assertThat(row.sno()).isEqualTo(1);
             assertThat(row.abusNm()).isEqualTo("테스트 사업");
             assertThat(row.itPtlAsctId()).isEqualTo("ASCT-001");
-            assertThat(row.applied()).isTrue();   // NUMBER 1 → true
+            assertThat(row.applied()).isTrue(); // NUMBER 1 → true
             assertThat(row.prjYy()).isEqualTo("2026");
             assertThat(row.cnrcDt()).isEqualTo(LocalDate.of(2026, 1, 1));
             assertThat(row.sttDt()).isEqualTo(LocalDate.of(2026, 3, 1));

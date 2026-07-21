@@ -72,7 +72,8 @@ public class PaymentController {
      */
     @Operation(summary = "대금지급 신규 의뢰")
     @PostMapping
-    public ResponseEntity<String> create(@RequestBody @Valid PaymentDto.CreateRequest req,
+    public ResponseEntity<String> create(
+            @RequestBody @Valid PaymentDto.CreateRequest req,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(paymentService.create(req, user));
     }
@@ -88,9 +89,12 @@ public class PaymentController {
      */
     @Operation(summary = "대금지급 마스터 수정(작성중)")
     @PutMapping("/{docNo}")
-    public ResponseEntity<Void> update(@PathVariable(name = "docNo") String docNo,
-            @RequestBody @Valid PaymentDto.UpdateRequest req, @AuthenticationPrincipal CustomUserDetails user) {
-        paymentService.update(docNo, req, user); return ResponseEntity.ok().build();
+    public ResponseEntity<Void> update(
+            @PathVariable(name = "docNo") String docNo,
+            @RequestBody @Valid PaymentDto.UpdateRequest req,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        paymentService.update(docNo, req, user);
+        return ResponseEntity.ok().build();
     }
 
     /**
@@ -103,9 +107,11 @@ public class PaymentController {
      */
     @Operation(summary = "대금지급 삭제(작성중)")
     @DeleteMapping("/{docNo}")
-    public ResponseEntity<Void> delete(@PathVariable(name = "docNo") String docNo,
+    public ResponseEntity<Void> delete(
+            @PathVariable(name = "docNo") String docNo,
             @AuthenticationPrincipal CustomUserDetails user) {
-        paymentService.delete(docNo, user); return ResponseEntity.noContent().build();
+        paymentService.delete(docNo, user);
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -119,9 +125,12 @@ public class PaymentController {
      */
     @Operation(summary = "대금지급 상태 전이(제출/완료)")
     @PostMapping("/{docNo}/status")
-    public ResponseEntity<Void> changeStatus(@PathVariable(name = "docNo") String docNo,
-            @RequestBody @Valid PaymentDto.StatusRequest req, @AuthenticationPrincipal CustomUserDetails user) {
-        paymentService.changeStatus(docNo, req, user); return ResponseEntity.ok().build();
+    public ResponseEntity<Void> changeStatus(
+            @PathVariable(name = "docNo") String docNo,
+            @RequestBody @Valid PaymentDto.StatusRequest req,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        paymentService.changeStatus(docNo, req, user);
+        return ResponseEntity.ok().build();
     }
 
     /**
@@ -135,8 +144,11 @@ public class PaymentController {
      */
     @Operation(summary = "회차별 지급 명세 일괄 저장(진행중)")
     @PutMapping("/{docNo}/payments")
-    public ResponseEntity<Void> savePayments(@PathVariable(name = "docNo") String docNo,
-            @RequestBody @Valid PaymentDto.LinesRequest req, @AuthenticationPrincipal CustomUserDetails user) {
-        paymentService.savePayments(docNo, req, user); return ResponseEntity.ok().build();
+    public ResponseEntity<Void> savePayments(
+            @PathVariable(name = "docNo") String docNo,
+            @RequestBody @Valid PaymentDto.LinesRequest req,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        paymentService.savePayments(docNo, req, user);
+        return ResponseEntity.ok().build();
     }
 }

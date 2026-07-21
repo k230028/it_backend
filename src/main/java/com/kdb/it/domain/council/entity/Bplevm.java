@@ -1,8 +1,8 @@
 package com.kdb.it.domain.council.entity;
 
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BplevmL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -17,16 +17,15 @@ import lombok.experimental.SuperBuilder;
 /**
  * 정보기술부문계획 협의회 사업별 평가의견 엔티티
  *
- * <p>DB 테이블: {@code TPRMPP_BPLEVM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BPLEVM}
  *
- * <p>정보기술부문계획(dbrTc='02') 협의회에서 각 평가위원이 계획에 포함된
- * 정보화사업별로 적정/유보(PPRT_YN)와 사유(CKG_OPNN_CONE)를 남깁니다.
- * 사업별 최종 판정은 "위원 중 1명이라도 유보(N)면 유보"입니다(집계는 서비스 계층).</p>
+ * <p>정보기술부문계획(dbrTc='02') 협의회에서 각 평가위원이 계획에 포함된 정보화사업별로 적정/유보(PPRT_YN)와 사유(CKG_OPNN_CONE)를 남깁니다.
+ * 사업별 최종 판정은 "위원 중 1명이라도 유보(N)면 유보"입니다(집계는 서비스 계층).
  *
- * <p>기존 타당성검토 평가의견(Bevalm)과 구조가 유사하나, 세 번째 복합키가
- * 점검항목코드가 아니라 사업관리번호(ABUS_MNG_NO)이고, 점수 대신 적정여부(PPRT_YN)를 씁니다.</p>
+ * <p>기존 타당성검토 평가의견(Bevalm)과 구조가 유사하나, 세 번째 복합키가 점검항목코드가 아니라 사업관리번호(ABUS_MNG_NO)이고, 점수 대신
+ * 적정여부(PPRT_YN)를 씁니다.
  *
- * <p>복합키: ({@code itPtlAsctId}, {@code eno}, {@code abusMngNo})</p>
+ * <p>복합키: ({@code itPtlAsctId}, {@code eno}, {@code abusMngNo})
  */
 @LogTarget(entity = BplevmL.class)
 @Entity
@@ -64,7 +63,7 @@ public class Bplevm extends BaseEntity {
     /**
      * 평가의견 업데이트 (위원이 수정 시 재호출)
      *
-     * @param pprtYn    적정여부 (Y=적정 / N=유보)
+     * @param pprtYn 적정여부 (Y=적정 / N=유보)
      * @param evalOpnn 평가의견(사유)
      */
     public void update(String pprtYn, String evalOpnn) {

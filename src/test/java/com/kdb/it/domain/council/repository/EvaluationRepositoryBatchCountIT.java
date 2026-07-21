@@ -16,17 +16,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 /**
  * #4 평가자별 제출항목 수 배치 COUNT 통합 테스트.
  *
- * <p>per-evaluator COUNT 루프(N+1)를 대체하는 {@code countByEnoForCouncil}이
- * 협의회ID당 1회 GROUP BY로 평가자별 제출 항목 수를 정확히 집계함을 로컬 Oracle로 검증한다.
- * {@code @DataJpaTest} 트랜잭션 롤백으로 픽스처는 테스트 종료 시 사라진다.</p>
+ * <p>per-evaluator COUNT 루프(N+1)를 대체하는 {@code countByEnoForCouncil}이 협의회ID당 1회 GROUP BY로 평가자별 제출 항목
+ * 수를 정확히 집계함을 로컬 Oracle로 검증한다. {@code @DataJpaTest} 트랜잭션 롤백으로 픽스처는 테스트 종료 시 사라진다.
  */
 class EvaluationRepositoryBatchCountIT extends AbstractOracleRepositoryTest {
 
-    @Autowired
-    private EvaluationRepository evaluationRepository;
+    @Autowired private EvaluationRepository evaluationRepository;
 
-    @Autowired
-    private EntityManager entityManager;
+    @Autowired private EntityManager entityManager;
 
     private static final String ASCT_ID = "ASCT-TEST-NPLUS1";
 
@@ -44,8 +41,11 @@ class EvaluationRepositoryBatchCountIT extends AbstractOracleRepositoryTest {
         entityManager.clear();
 
         // Act
-        Map<String, Long> countByEno = evaluationRepository.countByEnoForCouncil(ASCT_ID, "N").stream()
-                .collect(Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
+        Map<String, Long> countByEno =
+                evaluationRepository.countByEnoForCouncil(ASCT_ID, "N").stream()
+                        .collect(
+                                Collectors.toMap(
+                                        r -> (String) r[0], r -> ((Number) r[1]).longValue()));
 
         // Assert
         assertThat(countByEno).containsEntry("ENOA", 6L).containsEntry("ENOB", 4L);
@@ -63,8 +63,11 @@ class EvaluationRepositoryBatchCountIT extends AbstractOracleRepositoryTest {
         entityManager.clear();
 
         // Act
-        Map<String, Long> countByEno = evaluationRepository.countByEnoForCouncil(ASCT_ID, "N").stream()
-                .collect(Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
+        Map<String, Long> countByEno =
+                evaluationRepository.countByEnoForCouncil(ASCT_ID, "N").stream()
+                        .collect(
+                                Collectors.toMap(
+                                        r -> (String) r[0], r -> ((Number) r[1]).longValue()));
 
         // Assert — 활성 3건만 집계되고 소프트삭제 행은 카운트되지 않는다
         assertThat(countByEno).containsEntry("ENOC", 3L);
@@ -73,10 +76,9 @@ class EvaluationRepositoryBatchCountIT extends AbstractOracleRepositoryTest {
     /**
      * 테스트 픽스처 행 생성 (활성 행, delYn="N").
      *
-     * <p>{@code @DataJpaTest} 슬라이스에는 SecurityContext가 없어 JPA Auditing(@CreatedBy)이
-     * NOT NULL인 FST_ENR_USID/FST_ENR_DTM 등을 채우지 못한다(ORA-01400). 따라서 감사컬럼과
-     * delYn을 픽스처에서 직접 세팅한다. 이는 테스트 픽스처 한정이며 운영 로직과 무관하다.
-     * ({@code BbugtmRepositoryIntegrationTest} 동일 패턴.)</p>
+     * <p>{@code @DataJpaTest} 슬라이스에는 SecurityContext가 없어 JPA Auditing(@CreatedBy)이 NOT NULL인
+     * FST_ENR_USID/FST_ENR_DTM 등을 채우지 못한다(ORA-01400). 따라서 감사컬럼과 delYn을 픽스처에서 직접 세팅한다. 이는 테스트 픽스처
+     * 한정이며 운영 로직과 무관하다. ({@code BbugtmRepositoryIntegrationTest} 동일 패턴.)
      */
     private Bevalm fixture(String eno, String itPtlCkgItmTc, int quelRcrd) {
         return fixture(eno, itPtlCkgItmTc, quelRcrd, "N");

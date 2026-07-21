@@ -11,21 +11,14 @@ import lombok.experimental.SuperBuilder;
 /**
  * 프로젝트관리 공통신청서관계 엔티티
  *
- * <p>
- * DB 테이블: {@code TPRMPP_CAPPLA}
- * </p>
+ * <p>DB 테이블: {@code TPRMPP_CAPPLA}
  *
- * <p>
- * 신청서({@link Capplm})와 신청 대상 원천 데이터(프로젝트, 전산관리비 등)를
- * 연결하는 관계 테이블입니다.
- * </p>
+ * <p>신청서({@link Capplm})와 신청 대상 원천 데이터(프로젝트, 전산관리비 등)를 연결하는 관계 테이블입니다.
  *
- * <p>
- * 사용 예시:
- * </p>
+ * <p>사용 예시:
+ *
  * <ul>
- * <li>정보화사업(PRJ_MNG_NO) 신청서 → {@code FNT_TB_NM='BPROJM'},
- * {@code PK_COL_NM=PRJ_MNG_NO}</li>
+ *   <li>정보화사업(PRJ_MNG_NO) 신청서 → {@code FNT_TB_NM='BPROJM'}, {@code PK_COL_NM=PRJ_MNG_NO}
  * </ul>
  */
 @Entity
@@ -37,19 +30,19 @@ import lombok.experimental.SuperBuilder;
 public class Cappla extends BaseEntity {
 
     /**
-     * 신청서일련번호: Oracle 시퀀스(SQ_TPRMPP_CAPPLA_1) 자동 채번.
-     * (물리 PK는 (APF_DCM_NO, APF_SNO) 복합키이나, 본 엔티티는 APF_SNO 단일 @Id로 매핑)
+     * 신청서일련번호: Oracle 시퀀스(SQ_TPRMPP_CAPPLA_1) 자동 채번. (물리 PK는 (APF_DCM_NO, APF_SNO) 복합키이나, 본 엔티티는
+     * APF_SNO 단일 @Id로 매핑)
      */
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SQ_TPRMPP_CAPPLA_1")
-    @SequenceGenerator(name = "SQ_TPRMPP_CAPPLA_1", sequenceName = "SQ_TPRMPP_CAPPLA_1", allocationSize = 1)
+    @SequenceGenerator(
+            name = "SQ_TPRMPP_CAPPLA_1",
+            sequenceName = "SQ_TPRMPP_CAPPLA_1",
+            allocationSize = 1)
     @Column(name = "APF_SNO", nullable = false, comment = "신청서일련번호")
     private Long apfSno;
 
-    /**
-     * 신청서식별번호: 연결된 신청서의 식별번호 (Capplm.apfMngNo 참조)
-     * 형식: APF-{연도}-{8자리 시퀀스} (예: APF-2026-00000001)
-     */
+    /** 신청서식별번호: 연결된 신청서의 식별번호 (Capplm.apfMngNo 참조) 형식: APF-{연도}-{8자리 시퀀스} (예: APF-2026-00000001) */
     @Column(name = "APF_DCM_NO", length = 64, nullable = false, comment = "신청서식별번호")
     private String apfDcmNo;
 
@@ -64,5 +57,4 @@ public class Cappla extends BaseEntity {
     /** 원천테이블적재일련번호: 신청 대상 레코드의 적재 일련번호 */
     @Column(name = "FNT_TB_CRY_SNO", comment = "원천테이블적재일련번호")
     private Integer fntTbCrySno;
-
 }

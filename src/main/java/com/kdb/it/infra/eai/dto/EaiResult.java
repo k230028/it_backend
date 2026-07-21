@@ -3,12 +3,12 @@ package com.kdb.it.infra.eai.dto;
 /**
  * EAI 발송 결과.
  *
- * <p>ePAMS의 어색한 {@code null}/빈 {@code EaiDTO} 반환 패턴을 대체한다.
- * 호출자 흐름을 차단하지 않는 부수효과 원칙을 따른다(실패해도 예외 전파 없음).</p>
+ * <p>ePAMS의 어색한 {@code null}/빈 {@code EaiDTO} 반환 패턴을 대체한다. 호출자 흐름을 차단하지 않는 부수효과 원칙을 따른다(실패해도 예외 전파
+ * 없음).
  *
- * @param success      전송 성공 여부
- * @param skipped      전송 스킵 여부 ({@code eai.enabled=false})
- * @param responseRaw  게이트웨이 원시 응답(성공 시), 그 외 null
+ * @param success 전송 성공 여부
+ * @param skipped 전송 스킵 여부 ({@code eai.enabled=false})
+ * @param responseRaw 게이트웨이 원시 응답(성공 시), 그 외 null
  * @param errorMessage 실패 사유(실패 시), 그 외 null
  */
 public record EaiResult(boolean success, boolean skipped, String responseRaw, String errorMessage) {

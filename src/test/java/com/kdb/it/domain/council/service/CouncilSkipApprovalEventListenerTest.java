@@ -11,8 +11,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.approval.entity.Cappla;
+import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
+import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,35 +24,29 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
-import com.kdb.it.common.approval.repository.ApplicationMapRepository;
-
 /**
  * CouncilSkipApprovalEventListener 단위 테스트.
  *
- * <p>결재 완료 이벤트 처리 메서드({@code handleApprovalCompleted})의 분기를 검증합니다.
- * {@link Cappla} 엔티티는 {@code Mockito.mock()}으로 생성합니다.
- * {@link CouncilSkipService}·{@link ApplicationMapRepository}는 {@code @Mock}으로 교체합니다.
- * Oracle DB 없이 실행됩니다.</p>
+ * <p>결재 완료 이벤트 처리 메서드({@code handleApprovalCompleted})의 분기를 검증합니다. {@link Cappla} 엔티티는 {@code
+ * Mockito.mock()}으로 생성합니다. {@link CouncilSkipService}·{@link ApplicationMapRepository}는
+ * {@code @Mock}으로 교체합니다. Oracle DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class CouncilSkipApprovalEventListenerTest {
 
-    @Mock
-    private ApplicationMapRepository applicationMapRepository;
+    @Mock private ApplicationMapRepository applicationMapRepository;
 
-    @Mock
-    private CouncilSkipService councilSkipService;
+    @Mock private CouncilSkipService councilSkipService;
 
-    @InjectMocks
-    private CouncilSkipApprovalEventListener listener;
+    @InjectMocks private CouncilSkipApprovalEventListener listener;
 
     /** 테스트용 신청서 식별번호 */
     private static final String APF_MNG_NO = "APF-2026-00000001";
+
     /** 테스트용 협의회 ID */
     private static final String ASCT_ID_A = "ASCT-2026-0001";
+
     /** 두 번째 협의회 ID (복수 링크 케이스용) */
     private static final String ASCT_ID_B = "ASCT-2026-0002";
 
@@ -62,7 +58,9 @@ class CouncilSkipApprovalEventListenerTest {
     @DisplayName("handleApprovalCompleted: BASKPM 연결이 없으면 CouncilSkipService를 호출하지 않는다")
     void handleApprovalCompleted_연결없음_처리건너뜀() {
         // given: BASKPM 연결 없음
-        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
+        given(
+                        applicationMapRepository.findByApfDcmNoAndFntTbNm(
+                                APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
                 .willReturn(List.of());
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, "결재완료");
@@ -84,7 +82,9 @@ class CouncilSkipApprovalEventListenerTest {
         // given: BASKPM 연결 1건
         Cappla link = mock(Cappla.class);
         given(link.getPkColNm()).willReturn(ASCT_ID_A);
-        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
+        given(
+                        applicationMapRepository.findByApfDcmNoAndFntTbNm(
+                                APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
                 .willReturn(List.of(link));
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, "결재완료");
@@ -106,7 +106,9 @@ class CouncilSkipApprovalEventListenerTest {
         // given: BASKPM 연결 1건, 상태 '반려'
         Cappla link = mock(Cappla.class);
         given(link.getPkColNm()).willReturn(ASCT_ID_A);
-        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
+        given(
+                        applicationMapRepository.findByApfDcmNoAndFntTbNm(
+                                APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
                 .willReturn(List.of(link));
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, "반려");
@@ -128,7 +130,9 @@ class CouncilSkipApprovalEventListenerTest {
         // given: 상태값이 결재완료도 반려도 아닌 임의 문자열
         Cappla link = mock(Cappla.class);
         given(link.getPkColNm()).willReturn(ASCT_ID_A);
-        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
+        given(
+                        applicationMapRepository.findByApfDcmNoAndFntTbNm(
+                                APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
                 .willReturn(List.of(link));
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, "진행중");
@@ -153,7 +157,9 @@ class CouncilSkipApprovalEventListenerTest {
         Cappla linkB = mock(Cappla.class);
         given(linkB.getPkColNm()).willReturn(ASCT_ID_B);
 
-        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
+        given(
+                        applicationMapRepository.findByApfDcmNoAndFntTbNm(
+                                APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
                 .willReturn(List.of(linkA, linkB));
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, "결재완료");
@@ -176,11 +182,14 @@ class CouncilSkipApprovalEventListenerTest {
         // given: BASKPM 연결 1건, 콜백에서 예외 발생
         Cappla link = mock(Cappla.class);
         given(link.getPkColNm()).willReturn(ASCT_ID_A);
-        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
+        given(
+                        applicationMapRepository.findByApfDcmNoAndFntTbNm(
+                                APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
                 .willReturn(List.of(link));
 
         willThrow(new RuntimeException("생략 판정 처리 실패"))
-                .given(councilSkipService).handleApprovalCompleted(any(), anyBoolean());
+                .given(councilSkipService)
+                .handleApprovalCompleted(any(), anyBoolean());
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, "결재완료");
 
@@ -200,7 +209,9 @@ class CouncilSkipApprovalEventListenerTest {
         // given: 상태값 null (비정상 이벤트 방어)
         Cappla link = mock(Cappla.class);
         given(link.getPkColNm()).willReturn(ASCT_ID_A);
-        given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
+        given(
+                        applicationMapRepository.findByApfDcmNoAndFntTbNm(
+                                APF_MNG_NO, CouncilSkipService.ORC_TB_CD))
                 .willReturn(List.of(link));
 
         ApprovalCompletedEvent event = new ApprovalCompletedEvent(APF_MNG_NO, null);

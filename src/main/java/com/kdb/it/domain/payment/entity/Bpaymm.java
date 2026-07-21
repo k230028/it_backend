@@ -18,8 +18,9 @@ import lombok.experimental.SuperBuilder;
 /**
  * 대금지급 기본(마스터) 엔티티.
  *
- * <p>DB 테이블: {@code TPRMPP_BPAYMM}. 정보화사업/전산업무비에 대한 대금지급을 관리한다.</p>
- * <p>대상구분 {@code IOE_C}: 100=정보화사업, 200=전산업무비. 상태 71→72→79.</p>
+ * <p>DB 테이블: {@code TPRMPP_BPAYMM}. 정보화사업/전산업무비에 대한 대금지급을 관리한다.
+ *
+ * <p>대상구분 {@code IOE_C}: 100=정보화사업, 200=전산업무비. 상태 71→72→79.
  */
 @LogTarget(entity = BpaymmL.class)
 @Entity

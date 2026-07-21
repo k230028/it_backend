@@ -16,9 +16,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
-/**
- * 알림 미읽음 카운트 캐시 동작 검증 — @Cacheable 적용 시 repository 1회만 호출.
- */
+/** 알림 미읽음 카운트 캐시 동작 검증 — @Cacheable 적용 시 repository 1회만 호출. */
 @SpringJUnitConfig(classes = {CacheConfig.class, NotificationService.class})
 class NotificationServiceCacheTest {
 
@@ -30,8 +28,7 @@ class NotificationServiceCacheTest {
     // 캐시는 Spring 컨텍스트에 공유되므로 테스트 간 격리를 위해 매 테스트 전에 초기화한다.
     @BeforeEach
     void clearCaches() {
-        cacheManager.getCacheNames()
-                .forEach(name -> cacheManager.getCache(name).clear());
+        cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
     }
 
     @Test

@@ -1,11 +1,18 @@
 package com.kdb.it.domain.council.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Bmqnam;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.MainQnaRepository;
 import jakarta.persistence.EntityManager;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,30 +22,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
-
 @ExtendWith(MockitoExtension.class)
 class MainQnaServiceTest {
 
     private static final String ASCT_ID = "ASCT-2026-0001";
 
-    @Mock
-    private MainQnaRepository mainQnaRepository;
+    @Mock private MainQnaRepository mainQnaRepository;
 
-    @Mock
-    private CouncilRepository councilRepository;
+    @Mock private CouncilRepository councilRepository;
 
-    @Mock
-    private EntityManager entityManager;
+    @Mock private EntityManager entityManager;
 
-    @InjectMocks
-    private MainQnaService service;
+    @InjectMocks private MainQnaService service;
 
     @Test
     @DisplayName("getMainQnaList: 협의회가 없으면 예외를 던진다")
@@ -53,28 +48,31 @@ class MainQnaServiceTest {
     @Test
     @DisplayName("getMainQnaList: 삭제되지 않은 본회의 QnA를 응답 DTO로 변환한다")
     void getMainQnaList_returnsResponses() {
-        Bmqnam qna = Bmqnam.builder()
-                .qtnId("MQT-1")
-                .itPtlAsctId(ASCT_ID)
-                .qtnDwuUsid("E001")
-                .qtnCone("질의")
-                .repDwuUsid("E002")
-                .repCone("답변")
-                .qtnRpdRltYn("Y")
-                .build();
+        Bmqnam qna =
+                Bmqnam.builder()
+                        .qtnId("MQT-1")
+                        .itPtlAsctId(ASCT_ID)
+                        .qtnDwuUsid("E001")
+                        .qtnCone("질의")
+                        .repDwuUsid("E002")
+                        .repCone("답변")
+                        .qtnRpdRltYn("Y")
+                        .build();
         given(councilRepository.existsById(ASCT_ID)).willReturn(true);
         given(mainQnaRepository.findByItPtlAsctIdAndDelYnOrderByFstEnrDtmAsc(ASCT_ID, "N"))
                 .willReturn(List.of(qna));
 
         List<CouncilDto.QnaResponse> result = service.getMainQnaList(ASCT_ID);
 
-        assertThat(result).singleElement()
-                .satisfies(item -> {
-                    assertThat(item.qtnId()).isEqualTo("MQT-1");
-                    assertThat(item.qtnCone()).isEqualTo("질의");
-                    assertThat(item.repCone()).isEqualTo("답변");
-                    assertThat(item.repYn()).isEqualTo("Y");
-                });
+        assertThat(result)
+                .singleElement()
+                .satisfies(
+                        item -> {
+                            assertThat(item.qtnId()).isEqualTo("MQT-1");
+                            assertThat(item.qtnCone()).isEqualTo("질의");
+                            assertThat(item.repCone()).isEqualTo("답변");
+                            assertThat(item.repYn()).isEqualTo("Y");
+                        });
     }
 
     @Test
@@ -83,14 +81,18 @@ class MainQnaServiceTest {
         ReflectionTestUtils.setField(service, "entityManager", entityManager);
         // createMainQna는 existsById 대신 findByIdForUpdate(비관적 잠금)로 협의회 존재를 검증한다
         given(councilRepository.findByIdForUpdate(ASCT_ID))
-                .willReturn(java.util.Optional.of(org.mockito.Mockito.mock(com.kdb.it.domain.council.entity.Basctm.class)));
+                .willReturn(
+                        java.util.Optional.of(
+                                org.mockito.Mockito.mock(
+                                        com.kdb.it.domain.council.entity.Basctm.class)));
         given(mainQnaRepository.getNextQtnSeq(ASCT_ID)).willReturn(3);
 
-        String result = service.createMainQna(
-                ASCT_ID,
-                new CouncilDto.QnaCreateRequest("본회의 질의"),
-                new CustomUserDetails("E001", List.of(CustomUserDetails.ATH_ADMIN), "D001")
-        );
+        String result =
+                service.createMainQna(
+                        ASCT_ID,
+                        new CouncilDto.QnaCreateRequest("본회의 질의"),
+                        new CustomUserDetails(
+                                "E001", List.of(CustomUserDetails.ATH_ADMIN), "D001"));
 
         assertThat(result).isEqualTo("MQT-ASCT-2026-0001-03");
         ArgumentCaptor<Bmqnam> captor = ArgumentCaptor.forClass(Bmqnam.class);
@@ -107,11 +109,15 @@ class MainQnaServiceTest {
         // createMainQna는 findByIdForUpdate가 empty를 반환하면 IllegalArgumentException을 던진다
         given(councilRepository.findByIdForUpdate(ASCT_ID)).willReturn(java.util.Optional.empty());
 
-        assertThatThrownBy(() -> service.createMainQna(
-                ASCT_ID,
-                new CouncilDto.QnaCreateRequest("본회의 질의"),
-                new CustomUserDetails("E001", List.of(CustomUserDetails.ATH_ADMIN), "D001")
-        ))
+        assertThatThrownBy(
+                        () ->
+                                service.createMainQna(
+                                        ASCT_ID,
+                                        new CouncilDto.QnaCreateRequest("본회의 질의"),
+                                        new CustomUserDetails(
+                                                "E001",
+                                                List.of(CustomUserDetails.ATH_ADMIN),
+                                                "D001")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("존재하지 않는 협의회");
     }
@@ -132,11 +138,10 @@ class MainQnaServiceTest {
     void updateMainQna_missingQna_throws() {
         given(mainQnaRepository.findById("MQT-404")).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.updateMainQna(
-                ASCT_ID,
-                "MQT-404",
-                new CouncilDto.QnaUpdateRequest("수정")
-        ))
+        assertThatThrownBy(
+                        () ->
+                                service.updateMainQna(
+                                        ASCT_ID, "MQT-404", new CouncilDto.QnaUpdateRequest("수정")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("존재하지 않는 본회의 질의응답");
     }
@@ -151,8 +156,7 @@ class MainQnaServiceTest {
                 ASCT_ID,
                 "MQT-1",
                 new CouncilDto.QnaReplyRequest("답변"),
-                new CustomUserDetails("E002", List.of(CustomUserDetails.ATH_ADMIN), "D001")
-        );
+                new CustomUserDetails("E002", List.of(CustomUserDetails.ATH_ADMIN), "D001"));
 
         assertThat(qna.getRepDwuUsid()).isEqualTo("E002");
         assertThat(qna.getRepCone()).isEqualTo("답변");
@@ -164,12 +168,16 @@ class MainQnaServiceTest {
     void replyMainQna_missingQna_throws() {
         given(mainQnaRepository.findById("MQT-404")).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.replyMainQna(
-                ASCT_ID,
-                "MQT-404",
-                new CouncilDto.QnaReplyRequest("답변"),
-                new CustomUserDetails("E002", List.of(CustomUserDetails.ATH_ADMIN), "D001")
-        ))
+        assertThatThrownBy(
+                        () ->
+                                service.replyMainQna(
+                                        ASCT_ID,
+                                        "MQT-404",
+                                        new CouncilDto.QnaReplyRequest("답변"),
+                                        new CustomUserDetails(
+                                                "E002",
+                                                List.of(CustomUserDetails.ATH_ADMIN),
+                                                "D001")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("존재하지 않는 본회의 질의응답");
     }
@@ -201,7 +209,10 @@ class MainQnaServiceTest {
         Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId("OTHER").build();
         given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
 
-        assertThatThrownBy(() -> service.updateMainQna(ASCT_ID, "MQT-1", new CouncilDto.QnaUpdateRequest("수정")))
+        assertThatThrownBy(
+                        () ->
+                                service.updateMainQna(
+                                        ASCT_ID, "MQT-1", new CouncilDto.QnaUpdateRequest("수정")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("협의회ID");
     }
@@ -212,12 +223,16 @@ class MainQnaServiceTest {
         Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId("OTHER").build();
         given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
 
-        assertThatThrownBy(() -> service.replyMainQna(
-                ASCT_ID,
-                "MQT-1",
-                new CouncilDto.QnaReplyRequest("답변"),
-                new CustomUserDetails("E002", List.of(CustomUserDetails.ATH_ADMIN), "D001")
-        ))
+        assertThatThrownBy(
+                        () ->
+                                service.replyMainQna(
+                                        ASCT_ID,
+                                        "MQT-1",
+                                        new CouncilDto.QnaReplyRequest("답변"),
+                                        new CustomUserDetails(
+                                                "E002",
+                                                List.of(CustomUserDetails.ATH_ADMIN),
+                                                "D001")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("협의회ID");
 

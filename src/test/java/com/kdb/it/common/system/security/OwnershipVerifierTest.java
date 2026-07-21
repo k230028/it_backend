@@ -13,9 +13,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-/**
- * OwnershipVerifier 단위 테스트 — 관리자/소유자/타인/널 분기 검증.
- */
+/** OwnershipVerifier 단위 테스트 — 관리자/소유자/타인/널 분기 검증. */
 class OwnershipVerifierTest {
 
     @AfterEach
@@ -31,28 +29,38 @@ class OwnershipVerifierTest {
     @Test
     @DisplayName("소유자 본인이면 통과한다")
     void ownerPasses() {
-        assertThatCode(() -> OwnershipVerifier.verifyOwnerOrAdmin("E0001", user("E0001", "ITPZZ001")))
+        assertThatCode(
+                        () ->
+                                OwnershipVerifier.verifyOwnerOrAdmin(
+                                        "E0001", user("E0001", "ITPZZ001")))
                 .doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("관리자이면 소유자가 아니어도 통과한다")
     void adminPasses() {
-        assertThatCode(() -> OwnershipVerifier.verifyOwnerOrAdmin("E0001", user("E0099", "ITPAD001")))
+        assertThatCode(
+                        () ->
+                                OwnershipVerifier.verifyOwnerOrAdmin(
+                                        "E0001", user("E0099", "ITPAD001")))
                 .doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("소유자도 관리자도 아니면 AccessDeniedException을 던진다")
     void otherDenied() {
-        assertThatThrownBy(() -> OwnershipVerifier.verifyOwnerOrAdmin("E0001", user("E0002", "ITPZZ001")))
+        assertThatThrownBy(
+                        () ->
+                                OwnershipVerifier.verifyOwnerOrAdmin(
+                                        "E0001", user("E0002", "ITPZZ001")))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     @DisplayName("소유자 사번이 null이면 (관리자가 아닌 한) 거부한다")
     void nullOwnerDenied() {
-        assertThatThrownBy(() -> OwnershipVerifier.verifyOwnerOrAdmin(null, user("E0001", "ITPZZ001")))
+        assertThatThrownBy(
+                        () -> OwnershipVerifier.verifyOwnerOrAdmin(null, user("E0001", "ITPZZ001")))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -153,7 +161,9 @@ class OwnershipVerifierTest {
         given(principal.getBbrC()).willReturn(bbrC);
         given(principal.isAdmin()).willReturn(admin);
         given(principal.isDeptManager()).willReturn(deptManager);
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                principal, null, principal.getAuthorities()));
     }
 }

@@ -1,8 +1,10 @@
 package com.kdb.it.domain.budget.document.entity;
 
+import static jakarta.persistence.GenerationType.SEQUENCE;
+
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BrivgmL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -10,31 +12,23 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-
-import static jakarta.persistence.GenerationType.SEQUENCE;
-
 /**
  * 문서 검토의견 엔티티
  *
- * <p>
- * DB 테이블: {@code TPRMPP_BRIVGM}
- * </p>
+ * <p>DB 테이블: {@code TPRMPP_BRIVGM}
  *
- * <p>
- * IT 프로젝트 관련 문서({@link Brdocm} 등)에 대한 검토의견(리뷰 코멘트)을 관리합니다.
- * </p>
+ * <p>IT 프로젝트 관련 문서({@link Brdocm} 등)에 대한 검토의견(리뷰 코멘트)을 관리합니다.
  *
- * <p>
- * 의견유형({@code IVG_TP}):
- * </p>
+ * <p>의견유형({@code IVG_TP}):
+ *
  * <ul>
- * <li>{@code I}: 인라인 코멘트 — Tiptap 표시 ID 및 인용내용({@code IDC_ID}, {@code QOT_CONE})을 사용</li>
- * <li>{@code G}: 전반(General) 코멘트 — 문서 전체에 대한 의견</li>
+ *   <li>{@code I}: 인라인 코멘트 — Tiptap 표시 ID 및 인용내용({@code IDC_ID}, {@code QOT_CONE})을 사용
+ *   <li>{@code G}: 전반(General) 코멘트 — 문서 전체에 대한 의견
  * </ul>
  */
 @LogTarget(entity = BrivgmL.class)
@@ -48,7 +42,11 @@ public class Brivgm extends BaseEntity {
     @Id
     @GeneratedValue(strategy = SEQUENCE, generator = "brivgm_seq")
     @SequenceGenerator(name = "brivgm_seq", sequenceName = "SQ_TPRMPP_BRIVGM_1", allocationSize = 1)
-    @Column(name = "IPM_OPNN_SNO", nullable = false, precision = 9, comment = "의견일련번호 (물리컬럼 IPM_OPNN_SNO=개선의견일련번호)")
+    @Column(
+            name = "IPM_OPNN_SNO",
+            nullable = false,
+            precision = 9,
+            comment = "의견일련번호 (물리컬럼 IPM_OPNN_SNO=개선의견일련번호)")
     private Long ipmOpnnSno;
 
     /** 문서관리번호: {@link Brdocm#getDocMngNo()} 참조 (예: DOC-2026-0001) */
@@ -56,12 +54,16 @@ public class Brivgm extends BaseEntity {
     private String docMngNo;
 
     /**
-     * 문서버전: {@link Brdocm#getDocVrsSno()} 참조.
-     * 물리 컬럼은 Oracle {@code NUMBER(9,0)}(정수)이며, Brdocm과 동일하게 화면 소수 버전 × 100을
-     * 정수로 저장합니다. (예: 화면 1.01 → 저장 101). 변환은
-     * {@link com.kdb.it.domain.budget.document.util.DocVersionCodec} 참조.
+     * 문서버전: {@link Brdocm#getDocVrsSno()} 참조. 물리 컬럼은 Oracle {@code NUMBER(9,0)}(정수)이며, Brdocm과 동일하게
+     * 화면 소수 버전 × 100을 정수로 저장합니다. (예: 화면 1.01 → 저장 101). 변환은 {@link
+     * com.kdb.it.domain.budget.document.util.DocVersionCodec} 참조.
      */
-    @Column(name = "DOC_VRS_SNO", precision = 9, scale = 0, nullable = false, comment = "문서버전 (물리컬럼 DOC_VRS_SNO=문서버전일련번호, NUMBER(9,0) 정수저장=화면버전×100)")
+    @Column(
+            name = "DOC_VRS_SNO",
+            precision = 9,
+            scale = 0,
+            nullable = false,
+            comment = "문서버전 (물리컬럼 DOC_VRS_SNO=문서버전일련번호, NUMBER(9,0) 정수저장=화면버전×100)")
     private BigDecimal docVrsSno;
 
     /** 의견유형: {@code I}=인라인, {@code G}=전반 */
@@ -87,15 +89,11 @@ public class Brivgm extends BaseEntity {
     /**
      * INSERT 시점 기본값 초기화 콜백
      *
-     * <p>
-     * {@link BaseEntity#prePersist()}가 {@code delYn}, {@code guid}, {@code guidPrgSno}를
-     * 초기화하는 것과 별개로, 본 엔티티 고유 필드({@code ivgSno}, {@code fsgYn})의 기본값을 설정합니다.
-     * </p>
+     * <p>{@link BaseEntity#prePersist()}가 {@code delYn}, {@code guid}, {@code guidPrgSno}를 초기화하는 것과
+     * 별개로, 본 엔티티 고유 필드({@code ivgSno}, {@code fsgYn})의 기본값을 설정합니다.
      *
-     * <p>
-     * JPA 규약상 부모 클래스의 {@code @PrePersist}와 자식 클래스의 {@code @PrePersist}는
-     * 메서드 이름이 다를 경우 모두 호출됩니다(부모 먼저 → 자식).
-     * </p>
+     * <p>JPA 규약상 부모 클래스의 {@code @PrePersist}와 자식 클래스의 {@code @PrePersist}는 메서드 이름이 다를 경우 모두
+     * 호출됩니다(부모 먼저 → 자식).
      */
     @PrePersist
     private void prePersistBrivgm() {
@@ -107,17 +105,21 @@ public class Brivgm extends BaseEntity {
     /**
      * 검토의견 생성 팩토리 메서드. 의견일련번호는 영속화 시 SQ_TPRMPP_BRIVGM_1에서 자동 채번됩니다.
      *
-     * @param docMngNo    대상 문서관리번호
-     * @param docVrsSno   대상 문서버전
-     * @param itPtlRplOpnnTc   의견유형 ({@code I}=인라인, {@code G}=전반)
+     * @param docMngNo 대상 문서관리번호
+     * @param docVrsSno 대상 문서버전
+     * @param itPtlRplOpnnTc 의견유형 ({@code I}=인라인, {@code G}=전반)
      * @param ivgOpnnCone 의견내용 (CLOB)
-     * @param rfrId       인라인 전용 Tiptap 표시 ID (전반 코멘트의 경우 {@code null})
-     * @param rfrCone     인라인 전용 인용내용 (전반 코멘트의 경우 {@code null})
+     * @param rfrId 인라인 전용 Tiptap 표시 ID (전반 코멘트의 경우 {@code null})
+     * @param rfrCone 인라인 전용 인용내용 (전반 코멘트의 경우 {@code null})
      * @return 영속화 전 상태의 {@link Brivgm} 인스턴스
      */
-    public static Brivgm create(String docMngNo, BigDecimal docVrsSno,
-                                String itPtlRplOpnnTc, String ivgOpnnCone,
-                                String rfrId, String rfrCone) {
+    public static Brivgm create(
+            String docMngNo,
+            BigDecimal docVrsSno,
+            String itPtlRplOpnnTc,
+            String ivgOpnnCone,
+            String rfrId,
+            String rfrCone) {
         Brivgm b = new Brivgm();
         b.docMngNo = docMngNo;
         b.docVrsSno = docVrsSno;
@@ -138,12 +140,9 @@ public class Brivgm extends BaseEntity {
     /**
      * 검토의견 완료 처리
      *
-     * <p>
-     * {@code FSG_YN}을 {@code 'Y'}로 변경합니다. JPA Dirty Checking으로 트랜잭션 커밋 시 반영됩니다.
-     * </p>
+     * <p>{@code FSG_YN}을 {@code 'Y'}로 변경합니다. JPA Dirty Checking으로 트랜잭션 커밋 시 반영됩니다.
      */
     public void resolve() {
         this.fsgYn = "Y";
     }
 }
-

@@ -7,24 +7,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import org.springframework.security.access.AccessDeniedException;
-
-import java.util.List;
-import java.util.Optional;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import jakarta.persistence.EntityManager;
-
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
@@ -33,35 +15,40 @@ import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bpqnam;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.QnaRepository;
+import jakarta.persistence.EntityManager;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * QnaService 단위 테스트
  *
- * <p>
- * 사전질의응답 서비스의 조회·등록·수정·답변 메서드를 검증합니다.
- * Bpqnam 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * CustomUserDetails도 Mockito.mock()으로 생성합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
+ * <p>사전질의응답 서비스의 조회·등록·수정·답변 메서드를 검증합니다. Bpqnam 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
+ * CustomUserDetails도 Mockito.mock()으로 생성합니다. Oracle DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class QnaServiceTest {
 
-    @Mock
-    private QnaRepository qnaRepository;
+    @Mock private QnaRepository qnaRepository;
 
-    @Mock
-    private CouncilRepository councilRepository;
+    @Mock private CouncilRepository councilRepository;
 
-    @Mock
-    private ProjectRepository projectRepository;
+    @Mock private ProjectRepository projectRepository;
 
-    @Mock
-    private EntityManager entityManager;
+    @Mock private EntityManager entityManager;
 
-    @InjectMocks
-    private QnaService qnaService;
+    @InjectMocks private QnaService qnaService;
 
     @BeforeEach
     void injectEntityManager() {
@@ -70,7 +57,7 @@ class QnaServiceTest {
     }
 
     private static final String ASCT_ID = "ASCT-2026-0001";
-    private static final String QTN_ID  = "QTN-ASCT-2026-0001-01";
+    private static final String QTN_ID = "QTN-ASCT-2026-0001-01";
 
     private Bpqnam mockQna(String qtnId, String asctId, String qtnEno) {
         Bpqnam qna = mock(Bpqnam.class);
@@ -129,8 +116,12 @@ class QnaServiceTest {
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
 
         // when & then
-        assertThatThrownBy(() -> qnaService.createQna(ASCT_ID,
-                new CouncilDto.QnaCreateRequest("질의내용"), userDetails))
+        assertThatThrownBy(
+                        () ->
+                                qnaService.createQna(
+                                        ASCT_ID,
+                                        new CouncilDto.QnaCreateRequest("질의내용"),
+                                        userDetails))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(ASCT_ID);
     }
@@ -141,14 +132,15 @@ class QnaServiceTest {
         // given
         // createQna는 existsById 대신 findByIdForUpdate(비관적 잠금)로 협의회 존재를 검증한다
         given(councilRepository.findByIdForUpdate(ASCT_ID))
-                .willReturn(java.util.Optional.of(mock(com.kdb.it.domain.council.entity.Basctm.class)));
+                .willReturn(
+                        java.util.Optional.of(mock(com.kdb.it.domain.council.entity.Basctm.class)));
         given(qnaRepository.getNextQtnSeq(ASCT_ID)).willReturn(1);
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
         given(userDetails.getEno()).willReturn("E10001");
 
         // when
-        String result = qnaService.createQna(ASCT_ID,
-                new CouncilDto.QnaCreateRequest("질의내용"), userDetails);
+        String result =
+                qnaService.createQna(ASCT_ID, new CouncilDto.QnaCreateRequest("질의내용"), userDetails);
 
         // then
         assertThat(result).startsWith("QTN-").contains(ASCT_ID);
@@ -167,8 +159,13 @@ class QnaServiceTest {
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
 
         // when & then
-        assertThatThrownBy(() -> qnaService.updateQna(ASCT_ID, QTN_ID,
-                new CouncilDto.QnaUpdateRequest("수정내용"), userDetails))
+        assertThatThrownBy(
+                        () ->
+                                qnaService.updateQna(
+                                        ASCT_ID,
+                                        QTN_ID,
+                                        new CouncilDto.QnaUpdateRequest("수정내용"),
+                                        userDetails))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(QTN_ID);
     }
@@ -182,8 +179,13 @@ class QnaServiceTest {
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
 
         // when & then
-        assertThatThrownBy(() -> qnaService.updateQna(ASCT_ID, QTN_ID,
-                new CouncilDto.QnaUpdateRequest("수정내용"), userDetails))
+        assertThatThrownBy(
+                        () ->
+                                qnaService.updateQna(
+                                        ASCT_ID,
+                                        QTN_ID,
+                                        new CouncilDto.QnaUpdateRequest("수정내용"),
+                                        userDetails))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("협의회ID");
     }
@@ -199,8 +201,13 @@ class QnaServiceTest {
         given(userDetails.isAdmin()).willReturn(false);
 
         // when & then
-        assertThatThrownBy(() -> qnaService.updateQna(ASCT_ID, QTN_ID,
-                new CouncilDto.QnaUpdateRequest("수정 시도"), userDetails))
+        assertThatThrownBy(
+                        () ->
+                                qnaService.updateQna(
+                                        ASCT_ID,
+                                        QTN_ID,
+                                        new CouncilDto.QnaUpdateRequest("수정 시도"),
+                                        userDetails))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -216,8 +223,7 @@ class QnaServiceTest {
         given(userDetails.isAdmin()).willReturn(false);
 
         // when
-        qnaService.updateQna(ASCT_ID, QTN_ID,
-                new CouncilDto.QnaUpdateRequest("수정내용"), userDetails);
+        qnaService.updateQna(ASCT_ID, QTN_ID, new CouncilDto.QnaUpdateRequest("수정내용"), userDetails);
 
         // then
         verify(qna).updateQuestion("수정내용");
@@ -235,8 +241,13 @@ class QnaServiceTest {
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
 
         // when & then
-        assertThatThrownBy(() -> qnaService.replyQna(ASCT_ID, QTN_ID,
-                new CouncilDto.QnaReplyRequest("답변내용"), userDetails))
+        assertThatThrownBy(
+                        () ->
+                                qnaService.replyQna(
+                                        ASCT_ID,
+                                        QTN_ID,
+                                        new CouncilDto.QnaReplyRequest("답변내용"),
+                                        userDetails))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(QTN_ID);
     }
@@ -250,8 +261,13 @@ class QnaServiceTest {
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
 
         // Act & Assert: 협의회ID 불일치 분기 진입
-        assertThatThrownBy(() -> qnaService.replyQna(ASCT_ID, QTN_ID,
-                new CouncilDto.QnaReplyRequest("답변내용"), userDetails))
+        assertThatThrownBy(
+                        () ->
+                                qnaService.replyQna(
+                                        ASCT_ID,
+                                        QTN_ID,
+                                        new CouncilDto.QnaReplyRequest("답변내용"),
+                                        userDetails))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("협의회ID");
     }
@@ -267,8 +283,7 @@ class QnaServiceTest {
         given(userDetails.getEno()).willReturn("E20001");
 
         // when
-        qnaService.replyQna(ASCT_ID, QTN_ID,
-                new CouncilDto.QnaReplyRequest("답변내용"), userDetails);
+        qnaService.replyQna(ASCT_ID, QTN_ID, new CouncilDto.QnaReplyRequest("답변내용"), userDetails);
 
         // then
         verify(qna).reply("E20001", "답변내용");
@@ -282,15 +297,21 @@ class QnaServiceTest {
         Bprojm project = mock(Bprojm.class);
         given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
         given(council.getAbusMngNo()).willReturn("PRJ-001");
-        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(Optional.of(council));
         given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-001", "Y", "N"))
                 .willReturn(Optional.of(project));
         given(project.getSvnDpmC()).willReturn("D001");
         CustomUserDetails user = mock(CustomUserDetails.class);
         given(user.getBbrC()).willReturn("D002");
 
-        assertThatThrownBy(() -> qnaService.replyQna(ASCT_ID, QTN_ID,
-                new CouncilDto.QnaReplyRequest("답변내용"), user))
+        assertThatThrownBy(
+                        () ->
+                                qnaService.replyQna(
+                                        ASCT_ID,
+                                        QTN_ID,
+                                        new CouncilDto.QnaReplyRequest("답변내용"),
+                                        user))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("주관부서");
     }
@@ -303,7 +324,8 @@ class QnaServiceTest {
         Bprojm project = mock(Bprojm.class);
         given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
         given(council.getAbusMngNo()).willReturn("PRJ-001");
-        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(Optional.of(council));
         given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-001", "Y", "N"))
                 .willReturn(Optional.of(project));
         given(project.getSvnDpmC()).willReturn("D001");
@@ -324,7 +346,8 @@ class QnaServiceTest {
         Bprojm project = mock(Bprojm.class);
         given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
         given(council.getAbusMngNo()).willReturn("PRJ-001");
-        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(council));
+        given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(Optional.of(council));
         given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-001", "Y", "N"))
                 .willReturn(Optional.of(project));
         given(project.getSvnDpmC()).willReturn("D001");
@@ -348,8 +371,7 @@ class QnaServiceTest {
         given(admin.isAdmin()).willReturn(true);
 
         // Act: 예외 없이 수정 완료
-        qnaService.updateQna(ASCT_ID, QTN_ID,
-                new CouncilDto.QnaUpdateRequest("관리자수정내용"), admin);
+        qnaService.updateQna(ASCT_ID, QTN_ID, new CouncilDto.QnaUpdateRequest("관리자수정내용"), admin);
 
         // Assert
         verify(qna).updateQuestion("관리자수정내용");

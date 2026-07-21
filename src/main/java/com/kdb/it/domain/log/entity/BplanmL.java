@@ -1,20 +1,17 @@
 package com.kdb.it.domain.log.entity;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.math.BigDecimal;
-
-/**
- * 정보기술부문계획(TPRMPP_BPLANM) 변경 로그 엔티티.
- */
+/** 정보기술부문계획(TPRMPP_BPLANM) 변경 로그 엔티티. */
 @Entity
 @Table(name = "TPRMPP_BPLANL", comment = "정보기술부문계획 변경 로그")
 @Getter

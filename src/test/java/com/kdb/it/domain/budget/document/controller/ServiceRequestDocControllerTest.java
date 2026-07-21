@@ -13,9 +13,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.config.JacksonConfig;
+import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
+import com.kdb.it.domain.budget.document.service.ServiceRequestDocService;
 import java.math.BigDecimal;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,36 +33,21 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.common.system.security.JwtUtil;
-import com.kdb.it.common.system.service.CustomUserDetailsService;
-import com.kdb.it.config.JacksonConfig;
-import com.kdb.it.config.TestSecurityConfig;
-import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
-import com.kdb.it.domain.budget.document.service.ServiceRequestDocService;
-
 @WebMvcTest(ServiceRequestDocController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class ServiceRequestDocControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private ServiceRequestDocService serviceRequestDocService;
-    @MockitoBean
-    private JwtUtil jwtUtil;
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private ServiceRequestDocService serviceRequestDocService;
+    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     @Test
     @DisplayName("GET /api/documents - 비인증 → 401")
     void getDocuments_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/documents"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/documents")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -74,8 +66,7 @@ class ServiceRequestDocControllerTest {
     void getDocument_인증_200() throws Exception {
         given(serviceRequestDocService.getDocument(anyString(), any()))
                 .willReturn(new ServiceRequestDocDto.Response());
-        mockMvc.perform(get("/api/documents/DOC-2026-0001"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/documents/DOC-2026-0001")).andExpect(status().isOk());
     }
 
     @Test
@@ -96,9 +87,10 @@ class ServiceRequestDocControllerTest {
         var body = new ServiceRequestDocDto.CreateRequest();
         body.setReqTtl("요구사항 제목");
 
-        mockMvc.perform(post("/api/documents")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/documents")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated());
     }
 
@@ -109,9 +101,10 @@ class ServiceRequestDocControllerTest {
         var body = new ServiceRequestDocDto.CreateRequest();
         body.setReqTtl(null);
 
-        mockMvc.perform(post("/api/documents")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        post("/api/documents")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -129,13 +122,15 @@ class ServiceRequestDocControllerTest {
     @DisplayName("PUT /api/documents/{docMngNo} - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void updateDocument_인증_200() throws Exception {
-        given(serviceRequestDocService.updateDocument(anyString(), any(), any())).willReturn("DOC-2026-0001");
+        given(serviceRequestDocService.updateDocument(anyString(), any(), any()))
+                .willReturn("DOC-2026-0001");
         var body = new ServiceRequestDocDto.UpdateRequest();
         body.setReqTtl("요구사항 제목");
 
-        mockMvc.perform(put("/api/documents/DOC-2026-0001")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        put("/api/documents/DOC-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());
     }
 
@@ -146,9 +141,10 @@ class ServiceRequestDocControllerTest {
         var body = new ServiceRequestDocDto.UpdateRequest();
         body.setReqTtl(null);
 
-        mockMvc.perform(put("/api/documents/DOC-2026-0001")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
+        mockMvc.perform(
+                        put("/api/documents/DOC-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -156,8 +152,7 @@ class ServiceRequestDocControllerTest {
     @DisplayName("DELETE /api/documents/{docMngNo} - 인증된 사용자 → 204 No Content")
     @WithMockUser(username = "10001")
     void deleteDocument_인증_204() throws Exception {
-        mockMvc.perform(delete("/api/documents/DOC-2026-0001"))
-                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/documents/DOC-2026-0001")).andExpect(status().isNoContent());
     }
 
     @Test

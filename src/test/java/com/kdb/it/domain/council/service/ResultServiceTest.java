@@ -8,11 +8,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.entity.Basctm;
+import com.kdb.it.domain.council.entity.Bcmmtm;
+import com.kdb.it.domain.council.entity.Brsltm;
+import com.kdb.it.domain.council.repository.CommitteeRepository;
+import com.kdb.it.domain.council.repository.ResultRepository;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
-
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -22,47 +29,27 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import jakarta.persistence.EntityManager;
-
-import com.kdb.it.domain.council.dto.CouncilDto;
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.domain.council.entity.Bcmmtm;
-import com.kdb.it.domain.council.entity.Basctm;
-import com.kdb.it.domain.council.entity.Brsltm;
-import com.kdb.it.domain.council.repository.CommitteeRepository;
-import com.kdb.it.domain.council.repository.ResultRepository;
-
 /**
  * ResultService 단위 테스트
  *
- * <p>
- * 협의회 결과서 서비스의 조회·저장·확정 메서드를 검증합니다.
- * Basctm·Brsltm 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * CouncilService·EvaluationService는 @Mock으로 교체합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
+ * <p>협의회 결과서 서비스의 조회·저장·확정 메서드를 검증합니다. Basctm·Brsltm 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로
+ * 생성합니다. CouncilService·EvaluationService는 @Mock으로 교체합니다. Oracle DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ResultServiceTest {
 
-    @Mock
-    private ResultRepository resultRepository;
+    @Mock private ResultRepository resultRepository;
 
-    @Mock
-    private CouncilService councilService;
+    @Mock private CouncilService councilService;
 
-    @Mock
-    private EvaluationService evaluationService;
+    @Mock private EvaluationService evaluationService;
 
-    @Mock
-    private CommitteeRepository committeeRepository;
+    @Mock private CommitteeRepository committeeRepository;
 
-    @Mock
-    private EntityManager entityManager;
+    @Mock private EntityManager entityManager;
 
-    @InjectMocks
-    private ResultService resultService;
+    @InjectMocks private ResultService resultService;
 
     @BeforeEach
     void injectEntityManager() {
@@ -80,7 +67,8 @@ class ResultServiceTest {
         // given
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
-        given(resultRepository.findByItPtlAsctIdAndDelYn("ASCT-2026-0001", "N")).willReturn(Optional.empty());
+        given(resultRepository.findByItPtlAsctIdAndDelYn("ASCT-2026-0001", "N"))
+                .willReturn(Optional.empty());
         given(evaluationService.buildAvgScores("ASCT-2026-0001")).willReturn(List.of());
 
         // when
@@ -133,8 +121,8 @@ class ResultServiceTest {
                 .willReturn(Optional.of(existingResult));
 
         // when
-        resultService.saveResult("ASCT-2026-0001",
-                new CouncilDto.ResultRequest("종합의견", "타당성의견", null));
+        resultService.saveResult(
+                "ASCT-2026-0001", new CouncilDto.ResultRequest("종합의견", "타당성의견", null));
 
         // then
         verify(existingResult).update("종합의견", "타당성의견", null);
@@ -148,11 +136,12 @@ class ResultServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctPrgStsTc()).willReturn("09");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
-        given(resultRepository.findByItPtlAsctIdAndDelYn("ASCT-2026-0001", "N")).willReturn(Optional.empty());
+        given(resultRepository.findByItPtlAsctIdAndDelYn("ASCT-2026-0001", "N"))
+                .willReturn(Optional.empty());
 
         // when
-        resultService.saveResult("ASCT-2026-0001",
-                new CouncilDto.ResultRequest("종합의견", "타당성의견", null));
+        resultService.saveResult(
+                "ASCT-2026-0001", new CouncilDto.ResultRequest("종합의견", "타당성의견", null));
 
         // then
         verify(entityManager).persist(any(Brsltm.class));
@@ -165,11 +154,12 @@ class ResultServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctPrgStsTc()).willReturn("08");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
-        given(resultRepository.findByItPtlAsctIdAndDelYn("ASCT-2026-0001", "N")).willReturn(Optional.empty());
+        given(resultRepository.findByItPtlAsctIdAndDelYn("ASCT-2026-0001", "N"))
+                .willReturn(Optional.empty());
 
         // when
-        resultService.saveResult("ASCT-2026-0001",
-                new CouncilDto.ResultRequest("종합의견", "타당성의견", null));
+        resultService.saveResult(
+                "ASCT-2026-0001", new CouncilDto.ResultRequest("종합의견", "타당성의견", null));
 
         // then
         verify(councilService).changeStatus("ASCT-2026-0001", "09");
@@ -185,7 +175,8 @@ class ResultServiceTest {
         // given
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
-        given(resultRepository.findByItPtlAsctIdAndDelYn("ASCT-2026-0001", "N")).willReturn(Optional.empty());
+        given(resultRepository.findByItPtlAsctIdAndDelYn("ASCT-2026-0001", "N"))
+                .willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> resultService.confirmResult("ASCT-2026-0001"))
@@ -225,8 +216,8 @@ class ResultServiceTest {
                 .willReturn(Optional.empty());
 
         // when
-        resultService.saveResult("ASCT-2026-0001",
-                new CouncilDto.ResultRequest("종합의견", "타당성의견", null));
+        resultService.saveResult(
+                "ASCT-2026-0001", new CouncilDto.ResultRequest("종합의견", "타당성의견", null));
 
         // then: EVALUATING 상태가 아니므로 changeStatus 호출 없음
         verify(councilService, never()).changeStatus(any(), any());
@@ -243,8 +234,8 @@ class ResultServiceTest {
                 .willReturn(Optional.empty());
 
         // when
-        resultService.saveResult("ASCT-2026-0001",
-                new CouncilDto.ResultRequest("종합의견", "타당성의견", "FL_00000001"));
+        resultService.saveResult(
+                "ASCT-2026-0001", new CouncilDto.ResultRequest("종합의견", "타당성의견", "FL_00000001"));
 
         // then: 신규 저장 및 EVALUATING → RESULT_WRITING 전이
         verify(entityManager).persist(any(Brsltm.class));
@@ -260,10 +251,10 @@ class ResultServiceTest {
     void getResult_avgScores있음_DTO포함반환() {
         // given: 평가위원의 항목별 평균점수 2건 존재
         Basctm council = mock(Basctm.class);
-        List<CouncilDto.CheckItemAvgScore> avgScores = List.of(
-                new CouncilDto.CheckItemAvgScore("MGMT_STR", "경영전략/계획 부합", 4.5),
-                new CouncilDto.CheckItemAvgScore("FIN_EFC", "재무 효과", 3.0)
-        );
+        List<CouncilDto.CheckItemAvgScore> avgScores =
+                List.of(
+                        new CouncilDto.CheckItemAvgScore("MGMT_STR", "경영전략/계획 부합", 4.5),
+                        new CouncilDto.CheckItemAvgScore("FIN_EFC", "재무 효과", 3.0));
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(resultRepository.findByItPtlAsctIdAndDelYn("ASCT-2026-0001", "N"))
                 .willReturn(Optional.empty());
@@ -288,7 +279,8 @@ class ResultServiceTest {
     @DisplayName("reviewResult: RESULT_REVIEW가 아니면 IllegalStateException을 던진다")
     void reviewResult_RESULT_REVIEW아님_예외발생() {
         Basctm council = mock(Basctm.class);
-        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
         given(council.getItPtlAsctPrgStsTc()).willReturn("09");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
 
@@ -301,7 +293,8 @@ class ResultServiceTest {
     @DisplayName("reviewResult: 협의회 평가위원이 아니면 SecurityException을 던진다")
     void reviewResult_평가위원아님_예외발생() {
         Basctm council = mock(Basctm.class);
-        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
         given(council.getItPtlAsctPrgStsTc()).willReturn("10");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
         given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
@@ -317,7 +310,8 @@ class ResultServiceTest {
     void reviewResult_간사_예외발생() {
         Basctm council = mock(Basctm.class);
         Bcmmtm secretary = mock(Bcmmtm.class);
-        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
         given(council.getItPtlAsctPrgStsTc()).willReturn("10");
         given(secretary.getItPtlAsctMebTc()).willReturn("03");
         given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(council);
@@ -335,7 +329,8 @@ class ResultServiceTest {
         Basctm council = mock(Basctm.class);
         Bcmmtm currentMember = mock(Bcmmtm.class);
         Bcmmtm waitingMember = mock(Bcmmtm.class);
-        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
         given(council.getItPtlAsctPrgStsTc()).willReturn("10");
         given(currentMember.getItPtlAsctMebTc()).willReturn("01");
         given(currentMember.getCnfmYn()).willReturn("Y");
@@ -360,7 +355,8 @@ class ResultServiceTest {
         Bcmmtm mandMember = mock(Bcmmtm.class);
         Bcmmtm callMember = mock(Bcmmtm.class);
         Bcmmtm secretary = mock(Bcmmtm.class);
-        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
         given(council.getItPtlAsctPrgStsTc()).willReturn("10");
         given(mandMember.getItPtlAsctMebTc()).willReturn("01");
         given(mandMember.getCnfmYn()).willReturn("Y");
@@ -458,7 +454,8 @@ class ResultServiceTest {
     @DisplayName("getMyReviewStatus: 본인 확인 여부를 반환하고 없으면 false를 반환한다")
     void getMyReviewStatus_확인여부반환() {
         Bcmmtm member = mock(Bcmmtm.class);
-        CustomUserDetails user = new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "BBR001");
         given(member.getCnfmYn()).willReturn("Y");
         given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn("ASCT-2026-0001", "10001", "N"))
                 .willReturn(Optional.of(member), Optional.empty());

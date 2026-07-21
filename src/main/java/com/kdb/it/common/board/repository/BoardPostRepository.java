@@ -1,11 +1,11 @@
 package com.kdb.it.common.board.repository;
 
 import com.kdb.it.common.board.entity.Cblbcm;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import java.util.Optional;
 
 /** 게시물 리포지토리 */
 public interface BoardPostRepository
@@ -20,13 +20,11 @@ public interface BoardPostRepository
     /**
      * 답변글 삽입을 위한 SQN 밀어내기 (단일 트랜잭션 + 행 단위 락 전제)
      *
-     * <p>
-     * 같은 그룹에서 parentSqn보다 큰 SQN을 가진 행 중
-     * 깊이가 parentLev 이하인 행이 나오기 전까지를 +1 한다.
-     * </p>
+     * <p>같은 그룹에서 parentSqn보다 큰 SQN을 가진 행 중 깊이가 parentLev 이하인 행이 나오기 전까지를 +1 한다.
      */
     @Modifying
-    @Query("""
+    @Query(
+            """
             UPDATE Cblbcm c
                SET c.nacGrpSqn = c.nacGrpSqn + 1
              WHERE c.nacUnqId  = :grpNo

@@ -1,24 +1,22 @@
 package com.kdb.it.infra.eai.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockStatic;
+
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.UnknownHostException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.UnknownHostException;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mockStatic;
-
 /**
- * HostAddressProvider 인터페이스 및 중첩 구현 클래스
- * {@link HostAddressProvider.LocalHostAddressProvider} 커버리지.
+ * HostAddressProvider 인터페이스 및 중첩 구현 클래스 {@link HostAddressProvider.LocalHostAddressProvider} 커버리지.
  *
- * <p>Coverage=0% 상태인 LocalHostAddressProvider의 두 public 메서드(ipAddress/macAddress)와
- * 인터페이스 계약을 테스트합니다. 특정 머신 IP에 의존하지 않도록 형식/비-null 단언만 사용합니다.</p>
+ * <p>Coverage=0% 상태인 LocalHostAddressProvider의 두 public 메서드(ipAddress/macAddress)와 인터페이스 계약을
+ * 테스트합니다. 특정 머신 IP에 의존하지 않도록 형식/비-null 단언만 사용합니다.
  */
 @DisplayName("HostAddressProvider 구현체 테스트")
 class HostAddressProviderTest {
@@ -114,10 +112,18 @@ class HostAddressProviderTest {
         @DisplayName("익명 구현체로 고정 IP/MAC 반환 가능 (테스트 시임 패턴)")
         void anonymousImpl_fixedValues() {
             // Arrange — 테스트에서 사용하는 고정값 시임 패턴
-            HostAddressProvider stub = new HostAddressProvider() {
-                @Override public String ipAddress() { return "10.0.0.1"; }
-                @Override public String macAddress() { return "001122334455"; }
-            };
+            HostAddressProvider stub =
+                    new HostAddressProvider() {
+                        @Override
+                        public String ipAddress() {
+                            return "10.0.0.1";
+                        }
+
+                        @Override
+                        public String macAddress() {
+                            return "001122334455";
+                        }
+                    };
 
             // Assert
             assertThat(stub.ipAddress()).isEqualTo("10.0.0.1");
@@ -201,7 +207,7 @@ class HostAddressProviderTest {
             // Arrange — 실제 루프백 주소를 모킹 전에 확보 후, getByInetAddress가 null을 반환하도록 정적 모킹
             InetAddress loopback = InetAddress.getByName("127.0.0.1");
             try (MockedStatic<InetAddress> ia = mockStatic(InetAddress.class);
-                 MockedStatic<NetworkInterface> ni = mockStatic(NetworkInterface.class)) {
+                    MockedStatic<NetworkInterface> ni = mockStatic(NetworkInterface.class)) {
                 ia.when(InetAddress::getLocalHost).thenReturn(loopback);
                 ni.when(() -> NetworkInterface.getByInetAddress(any())).thenReturn(null);
                 HostAddressProvider provider = new HostAddressProvider.LocalHostAddressProvider();

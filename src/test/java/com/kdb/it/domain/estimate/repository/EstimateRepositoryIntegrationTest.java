@@ -1,7 +1,7 @@
 package com.kdb.it.domain.estimate.repository;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -18,11 +18,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 @DisplayName("EstimateRepository Oracle 통합 테스트")
 class EstimateRepositoryIntegrationTest extends AbstractOracleRepositoryTest {
 
-    @Autowired
-    private EstimateRepository estimateRepository;
+    @Autowired private EstimateRepository estimateRepository;
 
-    @Autowired
-    private EntityManager entityManager;
+    @Autowired private EntityManager entityManager;
 
     @Test
     @DisplayName("search는 Oracle 스키마에서 예외 없이 실행된다")
@@ -51,34 +49,38 @@ class EstimateRepositoryIntegrationTest extends AbstractOracleRepositoryTest {
 
     private void persistProjectWithItem(String projectNo, String ioeC) {
         LocalDateTime now = LocalDateTime.now();
-        Bprojm project = Bprojm.builder()
-                .abusMngNo(projectNo)
-                .sno(1)
-                .abusNm("테스트 사업 " + ioeC)
-                .svnDpmC("18001")
-                .svnDpmNm("IT기획부")
-                .sttDtm(LocalDate.of(2026, 1, 1))
-                .endDtm(LocalDate.of(2026, 12, 31))
-                .lstYn("Y")
-                .fstEnrDtm(now)
-                .fstEnrUsid("TEST")
-                .lstChgDtm(now)
-                .lstChgUsid("TEST")
-                .build();
-        Bitemm item = Bitemm.builder()
-                .gclMngNo(("GCL" + UUID.randomUUID().toString().replace("-", "")).substring(0, 16))
-                .sno(1)
-                .abusMngNo(projectNo)
-                .fntTbCrySno(1)
-                .ioeC(ioeC)
-                .lstYn("Y")
-                .amt(new BigDecimal("100000000"))
-                .mplAmt(BigDecimal.ZERO)
-                .fstEnrDtm(now)
-                .fstEnrUsid("TEST")
-                .lstChgDtm(now)
-                .lstChgUsid("TEST")
-                .build();
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo(projectNo)
+                        .sno(1)
+                        .abusNm("테스트 사업 " + ioeC)
+                        .svnDpmC("18001")
+                        .svnDpmNm("IT기획부")
+                        .sttDtm(LocalDate.of(2026, 1, 1))
+                        .endDtm(LocalDate.of(2026, 12, 31))
+                        .lstYn("Y")
+                        .fstEnrDtm(now)
+                        .fstEnrUsid("TEST")
+                        .lstChgDtm(now)
+                        .lstChgUsid("TEST")
+                        .build();
+        Bitemm item =
+                Bitemm.builder()
+                        .gclMngNo(
+                                ("GCL" + UUID.randomUUID().toString().replace("-", ""))
+                                        .substring(0, 16))
+                        .sno(1)
+                        .abusMngNo(projectNo)
+                        .fntTbCrySno(1)
+                        .ioeC(ioeC)
+                        .lstYn("Y")
+                        .amt(new BigDecimal("100000000"))
+                        .mplAmt(BigDecimal.ZERO)
+                        .fstEnrDtm(now)
+                        .fstEnrUsid("TEST")
+                        .lstChgDtm(now)
+                        .lstChgUsid("TEST")
+                        .build();
         entityManager.persist(project);
         entityManager.persist(item);
     }

@@ -1,5 +1,7 @@
 package com.kdb.it.infra.eai.dto;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -7,12 +9,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * GwePayload 레코드 — null 보정 분기(compact constructor) 및 빌더 접근자 커버리지.
  *
- * <p>Branch / Complexity 미달 항목을 집중 보완합니다.</p>
+ * <p>Branch / Complexity 미달 항목을 집중 보완합니다.
  */
 @DisplayName("GwePayload null 보정 및 빌더")
 class GwePayloadTest {
@@ -29,7 +29,8 @@ class GwePayloadTest {
         @DisplayName("destGubun=null → \"1\" 기본값")
         void null_destGubun_defaultsToOne() {
             // Arrange / Act
-            GwePayload p = GwePayload.builder().msgGubun("1").recvIds("k001").destGubun(null).build();
+            GwePayload p =
+                    GwePayload.builder().msgGubun("1").recvIds("k001").destGubun(null).build();
             // Assert
             assertThat(p.destGubun()).isEqualTo("1");
         }
@@ -39,14 +40,16 @@ class GwePayloadTest {
         @ValueSource(strings = {" ", "\t"})
         @DisplayName("destGubun이 null/빈/공백이면 모두 \"1\"")
         void blank_destGubun_defaultsToOne(String value) {
-            GwePayload p = GwePayload.builder().msgGubun("3").recvIds("k001").destGubun(value).build();
+            GwePayload p =
+                    GwePayload.builder().msgGubun("3").recvIds("k001").destGubun(value).build();
             assertThat(p.destGubun()).isEqualTo("1");
         }
 
         @Test
         @DisplayName("destGubun=\"2\"(부서)이면 그대로 유지")
         void explicit_destGubun_preserved() {
-            GwePayload p = GwePayload.builder().msgGubun("1").recvIds("k001").destGubun("2").build();
+            GwePayload p =
+                    GwePayload.builder().msgGubun("1").recvIds("k001").destGubun("2").build();
             assertThat(p.destGubun()).isEqualTo("2");
         }
     }
@@ -71,7 +74,8 @@ class GwePayloadTest {
         @Test
         @DisplayName("sendId 명시 지정 시 그대로 유지")
         void explicit_sendId_preserved() {
-            GwePayload p = GwePayload.builder().msgGubun("3").recvIds("k001").sendId("k9999999").build();
+            GwePayload p =
+                    GwePayload.builder().msgGubun("3").recvIds("k001").sendId("k9999999").build();
             assertThat(p.sendId()).isEqualTo("k9999999");
         }
     }
@@ -89,14 +93,16 @@ class GwePayloadTest {
         @ValueSource(strings = {"  "})
         @DisplayName("sendName이 null/빈/공백이면 \"관리자\"")
         void blank_sendName_defaultsToAdmin(String value) {
-            GwePayload p = GwePayload.builder().msgGubun("3").recvIds("k001").sendName(value).build();
+            GwePayload p =
+                    GwePayload.builder().msgGubun("3").recvIds("k001").sendName(value).build();
             assertThat(p.sendName()).isEqualTo("관리자");
         }
 
         @Test
         @DisplayName("sendName 명시 지정 시 그대로 유지")
         void explicit_sendName_preserved() {
-            GwePayload p = GwePayload.builder().msgGubun("3").recvIds("k001").sendName("홍길동").build();
+            GwePayload p =
+                    GwePayload.builder().msgGubun("3").recvIds("k001").sendName("홍길동").build();
             assertThat(p.sendName()).isEqualTo("홍길동");
         }
     }
@@ -181,20 +187,21 @@ class GwePayloadTest {
     @DisplayName("모든 필드를 명시 지정하면 보정 없이 그대로 보존")
     void allFields_preserved() {
         // Arrange
-        GwePayload p = GwePayload.builder()
-                .msgGubun("3")
-                .recvIds("k0001,k0002")
-                .subject("제목")
-                .contents("<p>본문</p>")
-                .destGubun("1")
-                .url("http://it.kdb.co.kr")
-                .ccRecvIds("k9999")
-                .bccRecvIds("k8888")
-                .attFlag("Y")
-                .att("file.pdf")
-                .sendId("k1234567")
-                .sendName("홍길동")
-                .build();
+        GwePayload p =
+                GwePayload.builder()
+                        .msgGubun("3")
+                        .recvIds("k0001,k0002")
+                        .subject("제목")
+                        .contents("<p>본문</p>")
+                        .destGubun("1")
+                        .url("http://it.kdb.co.kr")
+                        .ccRecvIds("k9999")
+                        .bccRecvIds("k8888")
+                        .attFlag("Y")
+                        .att("file.pdf")
+                        .sendId("k1234567")
+                        .sendName("홍길동")
+                        .build();
 
         // Assert
         assertThat(p.msgGubun()).isEqualTo("3");

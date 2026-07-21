@@ -1,21 +1,20 @@
 package com.kdb.it.common.approval.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.groups.Tuple.tuple;
+
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.LinkedHashMap;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.groups.Tuple.tuple;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class ApplicationReadProjectionIt extends AbstractOracleRepositoryTest {
 
@@ -45,93 +44,109 @@ class ApplicationReadProjectionIt extends AbstractOracleRepositoryTest {
         entityManager.flush();
         entityManager.clear();
 
-        List<ApplicationMapRepository.ApplicationMapView> projectDetail = applicationMapRepository
-                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BPROJM", "A", 2);
-        List<ApplicationMapRepository.ApplicationMapView> projectBatch = applicationMapRepository
-                .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", List.of("A", "B"));
-        List<ApplicationMapRepository.ApplicationMapView> costBatch = applicationMapRepository
-                .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", List.of("BG-A"));
-        List<ApplicationMapRepository.ApplicationMapView> costDetail = applicationMapRepository
-                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BCOSTM", "BG-A", 2);
+        List<ApplicationMapRepository.ApplicationMapView> projectDetail =
+                applicationMapRepository
+                        .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                "BPROJM", "A", 2);
+        List<ApplicationMapRepository.ApplicationMapView> projectBatch =
+                applicationMapRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                        "BPROJM", List.of("A", "B"));
+        List<ApplicationMapRepository.ApplicationMapView> costBatch =
+                applicationMapRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                        "BCOSTM", List.of("BG-A"));
+        List<ApplicationMapRepository.ApplicationMapView> costDetail =
+                applicationMapRepository
+                        .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                "BCOSTM", "BG-A", 2);
 
-        assertThat(projectDetail).extracting(view -> view.getApfDcmNo())
+        assertThat(projectDetail)
+                .extracting(view -> view.getApfDcmNo())
                 .containsExactly("APF-2026-00000003");
-        assertThat(projectBatch).extracting(view -> view.getApfDcmNo())
+        assertThat(projectBatch)
+                .extracting(view -> view.getApfDcmNo())
                 .containsExactly("APF-2026-00000003", "APF-2026-00000002", "APF-2026-00000001");
-        assertThat(costBatch).extracting(
-                        view -> view.getApfDcmNo(),
-                        view -> view.getFntTbCrySno())
+        assertThat(costBatch)
+                .extracting(view -> view.getApfDcmNo(), view -> view.getFntTbCrySno())
                 .containsExactly(
                         tuple("APF-2026-00000006", 1),
                         tuple("APF-2026-00000005", 2),
                         tuple("APF-2026-00000004", 1));
-        assertThat(costDetail).extracting(view -> view.getApfDcmNo())
+        assertThat(costDetail)
+                .extracting(view -> view.getApfDcmNo())
                 .containsExactly("APF-2026-00000005");
 
         Map<String, String> latestProjectByPk = new LinkedHashMap<>();
-        projectBatch.forEach(view -> latestProjectByPk.putIfAbsent(view.getPkColNm(), view.getApfDcmNo()));
-        assertThat(latestProjectByPk).containsExactly(
-                org.assertj.core.data.MapEntry.entry("A", "APF-2026-00000003"),
-                org.assertj.core.data.MapEntry.entry("B", "APF-2026-00000002"));
+        projectBatch.forEach(
+                view -> latestProjectByPk.putIfAbsent(view.getPkColNm(), view.getApfDcmNo()));
+        assertThat(latestProjectByPk)
+                .containsExactly(
+                        org.assertj.core.data.MapEntry.entry("A", "APF-2026-00000003"),
+                        org.assertj.core.data.MapEntry.entry("B", "APF-2026-00000002"));
 
         Map<String, String> latestCostByPkAndSno = new LinkedHashMap<>();
-        costBatch.forEach(view -> latestCostByPkAndSno.putIfAbsent(
-                view.getPkColNm() + "_" + view.getFntTbCrySno(), view.getApfDcmNo()));
-        assertThat(latestCostByPkAndSno).containsExactly(
-                org.assertj.core.data.MapEntry.entry("BG-A_1", "APF-2026-00000006"),
-                org.assertj.core.data.MapEntry.entry("BG-A_2", "APF-2026-00000005"));
+        costBatch.forEach(
+                view ->
+                        latestCostByPkAndSno.putIfAbsent(
+                                view.getPkColNm() + "_" + view.getFntTbCrySno(),
+                                view.getApfDcmNo()));
+        assertThat(latestCostByPkAndSno)
+                .containsExactly(
+                        org.assertj.core.data.MapEntry.entry("BG-A_1", "APF-2026-00000006"),
+                        org.assertj.core.data.MapEntry.entry("BG-A_2", "APF-2026-00000005"));
 
-        List<ApplicationRepository.ApplicationSummaryView> summaries = applicationRepository
-                .findSummaryViewsByApfMngNoIn(List.of("APF-2026-00000003", "APF-2026-00000002"));
-        assertThat(summaries).extracting(
-                        view -> view.getApfMngNo(),
-                        view -> view.getItPtlApfPrgStsC())
+        List<ApplicationRepository.ApplicationSummaryView> summaries =
+                applicationRepository.findSummaryViewsByApfMngNoIn(
+                        List.of("APF-2026-00000003", "APF-2026-00000002"));
+        assertThat(summaries)
+                .extracting(view -> view.getApfMngNo(), view -> view.getItPtlApfPrgStsC())
                 .containsExactlyInAnyOrder(
-                        tuple("APF-2026-00000003", "3"),
-                        tuple("APF-2026-00000002", "2"));
+                        tuple("APF-2026-00000003", "3"), tuple("APF-2026-00000002", "2"));
 
-        List<ApproverRepository.ApproverReadView> single = approverRepository
-                .findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-2026-00000003");
-        List<ApproverRepository.ApproverReadView> batch = approverRepository
-                .findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(List.of("APF-2026-00000003"));
-        assertThat(single).extracting(view -> view.getDcrSqnSno())
-                .containsExactly(1, 2);
-        assertThat(batch).extracting(view -> view.getDcrSqnSno())
-                .containsExactly(1, 2);
+        List<ApproverRepository.ApproverReadView> single =
+                approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-2026-00000003");
+        List<ApproverRepository.ApproverReadView> batch =
+                approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(
+                        List.of("APF-2026-00000003"));
+        assertThat(single).extracting(view -> view.getDcrSqnSno()).containsExactly(1, 2);
+        assertThat(batch).extracting(view -> view.getDcrSqnSno()).containsExactly(1, 2);
 
-        assertThat(ApplicationMapRepository.ApplicationMapView.class.getDeclaredMethods()).hasSize(3);
-        assertThat(ApplicationRepository.ApplicationSummaryView.class.getDeclaredMethods()).hasSize(6);
+        assertThat(ApplicationMapRepository.ApplicationMapView.class.getDeclaredMethods())
+                .hasSize(3);
+        assertThat(ApplicationRepository.ApplicationSummaryView.class.getDeclaredMethods())
+                .hasSize(6);
         assertThat(ApproverRepository.ApproverReadView.class.getDeclaredMethods()).hasSize(7);
     }
 
     private void persistApplication(String apfMngNo, String status) {
-        entityManager.persist(Capplm.builder()
-                .apfMngNo(apfMngNo)
-                .itPtlApfPrgStsC(status)
-                .dcdReqTtl("제목-" + apfMngNo)
-                .dcdReqUsid("E0001")
-                .dcdReqDtm(LocalDate.of(2026, 7, 21))
-                .rgprDcdReqCone("요청-" + apfMngNo)
-                .fstEnrDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
-                .fstEnrUsid("BE03-TEST")
-                .lstChgDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
-                .lstChgUsid("BE03-TEST")
-                .delYn("N")
-                .build());
+        entityManager.persist(
+                Capplm.builder()
+                        .apfMngNo(apfMngNo)
+                        .itPtlApfPrgStsC(status)
+                        .dcdReqTtl("제목-" + apfMngNo)
+                        .dcdReqUsid("E0001")
+                        .dcdReqDtm(LocalDate.of(2026, 7, 21))
+                        .rgprDcdReqCone("요청-" + apfMngNo)
+                        .fstEnrDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
+                        .fstEnrUsid("BE03-TEST")
+                        .lstChgDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
+                        .lstChgUsid("BE03-TEST")
+                        .delYn("N")
+                        .build());
     }
 
     private void persistMap(String apfMngNo, String table, String pk, int sno) {
-        entityManager.persist(Cappla.builder()
-                .apfDcmNo(apfMngNo)
-                .fntTbNm(table)
-                .pkColNm(pk)
-                .fntTbCrySno(sno)
-                .fstEnrDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
-                .fstEnrUsid("BE03-TEST")
-                .lstChgDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
-                .lstChgUsid("BE03-TEST")
-                .delYn("N")
-                .build());
+        entityManager.persist(
+                Cappla.builder()
+                        .apfDcmNo(apfMngNo)
+                        .fntTbNm(table)
+                        .pkColNm(pk)
+                        .fntTbCrySno(sno)
+                        .fstEnrDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
+                        .fstEnrUsid("BE03-TEST")
+                        .lstChgDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
+                        .lstChgUsid("BE03-TEST")
+                        .delYn("N")
+                        .build());
     }
 
     private Cdecim decision(String apfMngNo, int sequence, String eno, String status) {

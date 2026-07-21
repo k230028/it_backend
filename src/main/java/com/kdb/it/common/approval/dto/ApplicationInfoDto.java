@@ -1,40 +1,33 @@
 package com.kdb.it.common.approval.dto;
 
 import com.kdb.it.common.approval.domain.DecisionStatus;
-import com.kdb.it.common.approval.repository.ApplicationRepository;
-import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.common.approval.repository.ApplicationRepository;
+import com.kdb.it.common.approval.repository.ApproverRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
-import java.util.List;
-
 /**
  * 신청서 상세 정보 공통 DTO
  *
- * <p>
- * 프로젝트({@link com.kdb.it.domain.budget.project.dto.ProjectDto.Response})와
- * 전산관리비({@link com.kdb.it.domain.budget.cost.dto.CostDto.Response}) 응답에
- * 공통으로 포함되는 신청서 상세 정보를 담습니다.
- * </p>
+ * <p>프로젝트({@link com.kdb.it.domain.budget.project.dto.ProjectDto.Response})와 전산관리비({@link
+ * com.kdb.it.domain.budget.cost.dto.CostDto.Response}) 응답에 공통으로 포함되는 신청서 상세 정보를 담습니다.
  *
- * <p>
- * 포함 정보:
- * </p>
+ * <p>포함 정보:
+ *
  * <ul>
- * <li>신청서 기본 정보: 관리번호, 상태, 신청서명, 신청자, 신청일, 의견 ({@link Capplm})</li>
- * <li>결재자 목록: 결재순서별 결재 정보 ({@link Cdecim} → {@link ApproverDto})</li>
+ *   <li>신청서 기본 정보: 관리번호, 상태, 신청서명, 신청자, 신청일, 의견 ({@link Capplm})
+ *   <li>결재자 목록: 결재순서별 결재 정보 ({@link Cdecim} → {@link ApproverDto})
  * </ul>
  *
- * <p>
- * {@link #fromEntities(Capplm, List)} 정적 팩토리 메서드로 엔티티에서 변환합니다.
- * </p>
+ * <p>{@link #fromEntities(Capplm, List)} 정적 팩토리 메서드로 엔티티에서 변환합니다.
  */
 @Getter
 @Setter
@@ -75,23 +68,25 @@ public class ApplicationInfoDto {
     /**
      * {@link Capplm} 엔티티와 {@link Cdecim} 목록을 DTO로 변환하는 정적 팩토리 메서드
      *
-     * @param capplm    신청서 마스터 엔티티
+     * @param capplm 신청서 마스터 엔티티
      * @param decisions 결재선 목록 (결재순서 오름차순 정렬)
      * @return 변환된 신청서 상세 정보 DTO
      */
     public static ApplicationInfoDto fromEntities(Capplm capplm, List<Cdecim> decisions) {
         // 결재선 목록을 ApproverDto 목록으로 변환
-        List<ApproverDto> approverDtos = decisions.stream()
-                .map(ApproverDto::fromEntity)
-                .toList();
+        List<ApproverDto> approverDtos = decisions.stream().map(ApproverDto::fromEntity).toList();
 
         return ApplicationInfoDto.builder()
                 .apfMngNo(capplm.getApfMngNo()) // 신청서관리번호
-                .apfSts(capplm.getItPtlApfPrgStsC() == null ? null
-                        : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label()) // 신청서상태(코드→라벨)
-                .apfNm(capplm.getDcdReqTtl())       // 신청서명(결재요청제목에서 파생)
-                .rqsEno(capplm.getDcdReqUsid())     // 신청자 사번(결재요청사용자ID에서 파생)
-                .rqsDt(capplm.getDcdReqDtm())       // 신청일자(결재요청일시에서 파생)
+                .apfSts(
+                        capplm.getItPtlApfPrgStsC() == null
+                                ? null
+                                : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
+                                                capplm.getItPtlApfPrgStsC())
+                                        .label()) // 신청서상태(코드→라벨)
+                .apfNm(capplm.getDcdReqTtl()) // 신청서명(결재요청제목에서 파생)
+                .rqsEno(capplm.getDcdReqUsid()) // 신청자 사번(결재요청사용자ID에서 파생)
+                .rqsDt(capplm.getDcdReqDtm()) // 신청일자(결재요청일시에서 파생)
                 .rqsOpnn(capplm.getRgprDcdReqCone()) // 신청의견(등록자결재요청내용에서 파생)
                 .approvers(approverDtos) // 결재자 목록
                 .build();
@@ -109,9 +104,12 @@ public class ApplicationInfoDto {
             List<ApproverRepository.ApproverReadView> decisions) {
         return ApplicationInfoDto.builder()
                 .apfMngNo(application.getApfMngNo())
-                .apfSts(application.getItPtlApfPrgStsC() == null ? null
-                        : com.kdb.it.common.approval.domain.ApprovalStatus
-                                .ofCode(application.getItPtlApfPrgStsC()).label())
+                .apfSts(
+                        application.getItPtlApfPrgStsC() == null
+                                ? null
+                                : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
+                                                application.getItPtlApfPrgStsC())
+                                        .label())
                 .apfNm(application.getDcdReqTtl())
                 .rqsEno(application.getDcdReqUsid())
                 .rqsDt(application.getDcdReqDtm())
@@ -123,9 +121,7 @@ public class ApplicationInfoDto {
     /**
      * 결재자 정보 DTO
      *
-     * <p>
-     * {@link Cdecim} 엔티티에서 결재자의 결재 처리 정보를 담습니다.
-     * </p>
+     * <p>{@link Cdecim} 엔티티에서 결재자의 결재 처리 정보를 담습니다.
      */
     @Getter
     @Setter
@@ -169,12 +165,11 @@ public class ApplicationInfoDto {
             String itPtlDcdStsC = cdecim.getItPtlDcdStsC();
             boolean pending = itPtlDcdStsC == null || DecisionStatus.isPendingCode(itPtlDcdStsC);
             return ApproverDto.builder()
-                    .dcdSqn(cdecim.getDcrSqnSno())   // 결재순서
-                    .dcdEno(cdecim.getDcrEno())       // 결재자 사번
-                    .dcdTp(pending ? null : "결재")   // 결재유형(미결재면 null)
-                    .dcdSts(pending ? null
-                            : DecisionStatus.ofCode(itPtlDcdStsC).label())
-                    .dcdDt(cdecim.getDcdDtm())        // 결재일자
+                    .dcdSqn(cdecim.getDcrSqnSno()) // 결재순서
+                    .dcdEno(cdecim.getDcrEno()) // 결재자 사번
+                    .dcdTp(pending ? null : "결재") // 결재유형(미결재면 null)
+                    .dcdSts(pending ? null : DecisionStatus.ofCode(itPtlDcdStsC).label())
+                    .dcdDt(cdecim.getDcdDtm()) // 결재일자
                     .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
                     .build();
         }

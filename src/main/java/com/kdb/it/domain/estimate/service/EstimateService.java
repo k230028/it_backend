@@ -1,12 +1,5 @@
 package com.kdb.it.domain.estimate.service;
 
-import java.time.Year;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
@@ -20,22 +13,23 @@ import com.kdb.it.infra.eai.dto.EaiRequest;
 import com.kdb.it.infra.eai.dto.EaiResult;
 import com.kdb.it.infra.eai.dto.GwePayload;
 import com.kdb.it.infra.eai.service.EaiService;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
+import java.time.Year;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 소요예산 산정 서비스.
  *
- * <p>
- * 상태: 51(작성중) → 55(진행중) → 59(완료). 대상구분 100=정보화사업.
- * </p>
- * <p>
- * 쓰기 주체: 작성중=신청자/부서, 진행중 작업=작업자(부서담당자/관리자). 상태 전이는 인접만 허용.
- * </p>
+ * <p>상태: 51(작성중) → 55(진행중) → 59(완료). 대상구분 100=정보화사업.
+ *
+ * <p>쓰기 주체: 작성중=신청자/부서, 진행중 작업=작업자(부서담당자/관리자). 상태 전이는 인접만 허용.
  */
 @Service
 @RequiredArgsConstructor
@@ -58,11 +52,11 @@ public class EstimateService {
     /**
      * 소요예산 산정 신규 신청 생성.
      *
-     * @param req  신규 신청 요청 (대상 사업 관리번호, 요청내용)
+     * @param req 신규 신청 요청 (대상 사업 관리번호, 요청내용)
      * @param user 요청자 인증 정보
      * @return 채번된 문서번호 (REQ-{YYYY}-{4자리})
      * @throws IllegalArgumentException 대상 사업 미존재
-     * @throws IllegalStateException    동일 대상에 진행 중(51/55) 문서 존재
+     * @throws IllegalStateException 동일 대상에 진행 중(51/55) 문서 존재
      */
     @Transactional
     public String create(EstimateDto.CreateRequest req, CustomUserDetails user) {
@@ -74,14 +68,15 @@ public class EstimateService {
             throw new IllegalStateException("해당 사업에 진행 중인 소요예산 산정이 이미 있습니다.");
         }
         String docNo = generateDocNo();
-        Bestim entity = Bestim.builder()
-                .rqmBgReqDocNo(docNo)
-                .docVrsSno(1)
-                .lstYn("Y")
-                .cncdRfrNo(req.cncdRfrNo())
-                .stsTc(STS_DRAFT)
-                .reqCone(req.reqCone())
-                .build();
+        Bestim entity =
+                Bestim.builder()
+                        .rqmBgReqDocNo(docNo)
+                        .docVrsSno(1)
+                        .lstYn("Y")
+                        .cncdRfrNo(req.cncdRfrNo())
+                        .stsTc(STS_DRAFT)
+                        .reqCone(req.reqCone())
+                        .build();
         estimateRepository.save(entity);
         // 소요예산 산정은 정보화사업(ioeC=100) 전용이므로 조건 없이 적재
         bprojaSyncService.upsert(req.cncdRfrNo(), docNo, STS_DRAFT);
@@ -92,8 +87,8 @@ public class EstimateService {
      * 마스터 수정 — 작성중(51) 상태에서만 가능.
      *
      * @param docNo 소요예산요청문서번호
-     * @param req   수정 요청 (요청내용)
-     * @param user  요청자 인증 정보
+     * @param req 수정 요청 (요청내용)
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 작성중이 아닌 경우
      */
     @Transactional
@@ -110,7 +105,7 @@ public class EstimateService {
      * Soft delete — 작성중(51) 상태에서만 가능.
      *
      * @param docNo 소요예산요청문서번호
-     * @param user  요청자 인증 정보
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 작성중이 아닌 경우
      */
     @Transactional
@@ -128,8 +123,8 @@ public class EstimateService {
      * 상태 전이 — 인접 전이만 허용: 51→55, 55→59.
      *
      * @param docNo 소요예산요청문서번호
-     * @param req   상태 전이 요청 (목표 상태코드)
-     * @param user  요청자 인증 정보
+     * @param req 상태 전이 요청 (목표 상태코드)
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 허용되지 않은 전이인 경우
      */
     @Transactional
@@ -138,8 +133,9 @@ public class EstimateService {
         OwnershipVerifier.verifyAdmin(user);
         String from = e.getStsTc();
         String to = req.stsTc();
-        boolean allowed = (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
-                || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
+        boolean allowed =
+                (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
+                        || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
         if (!allowed) {
             throw new IllegalStateException("허용되지 않은 상태 전이입니다: " + from + " → " + to);
         }
@@ -156,27 +152,43 @@ public class EstimateService {
      */
     public EstimateDto.Detail get(String docNo) {
         Bestim e = loadCurrent(docNo);
-        List<EstimateDto.Line> lines = lineRepository
-                .findByRqmBgReqDocNoAndDocVrsSnoAndDelYn(docNo, e.getDocVrsSno(), "N")
-                .stream()
-                .map(l -> new EstimateDto.Line(l.getSvnTemC(), l.getIoeC(), l.getRqmBgAmt(), l.getOpnnCone()))
-                .toList();
+        List<EstimateDto.Line> lines =
+                lineRepository
+                        .findByRqmBgReqDocNoAndDocVrsSnoAndDelYn(docNo, e.getDocVrsSno(), "N")
+                        .stream()
+                        .map(
+                                l ->
+                                        new EstimateDto.Line(
+                                                l.getSvnTemC(),
+                                                l.getIoeC(),
+                                                l.getRqmBgAmt(),
+                                                l.getOpnnCone()))
+                        .toList();
         // 대상 사업명: 현재 버전 사업을 단건 조회해 채우고, 없으면 null로 둔다.
-        String abusNm = projectRepository
-                .findNameViewByAbusMngNoAndLstYnAndDelYn(e.getCncdRfrNo(), "Y", "N")
-                .map(value -> value.getAbusNm())
-                .orElse(null);
+        String abusNm =
+                projectRepository
+                        .findNameViewByAbusMngNoAndLstYnAndDelYn(e.getCncdRfrNo(), "Y", "N")
+                        .map(value -> value.getAbusNm())
+                        .orElse(null);
         return new EstimateDto.Detail(
-                e.getRqmBgReqDocNo(), e.getDocVrsSno(), TGT_PROJECT, e.getCncdRfrNo(),
-                abusNm, e.getStsTc(), e.getReqCone(), e.getFstEnrUsid(), e.getFstEnrDtm(), lines);
+                e.getRqmBgReqDocNo(),
+                e.getDocVrsSno(),
+                TGT_PROJECT,
+                e.getCncdRfrNo(),
+                abusNm,
+                e.getStsTc(),
+                e.getReqCone(),
+                e.getFstEnrUsid(),
+                e.getFstEnrDtm(),
+                lines);
     }
 
     /**
      * 목록 조회 — 관리자는 전체, 그 외는 소속 부서 한정.
      *
-     * @param stsTc     상태구분코드 필터 (null이면 전체)
+     * @param stsTc 상태구분코드 필터 (null이면 전체)
      * @param cncdRfrNo 사업관리번호 필터 (null이면 전체)
-     * @param user      요청자 인증 정보
+     * @param user 요청자 인증 정보
      * @return 목록 항목 리스트
      */
     public List<EstimateDto.ListItem> list(String stsTc, String cncdRfrNo, CustomUserDetails user) {
@@ -187,14 +199,11 @@ public class EstimateService {
     /**
      * 팀별 산정 명세 일괄 저장 — 진행중(55) 상태에서만 가능.
      *
-     * <p>
-     * 요청에 포함된 (팀코드+비목코드) 행은 추가/수정하고,
-     * 요청에 없는 기존 행은 Soft Delete 처리합니다 (Bitemm 동기화 패턴).
-     * </p>
+     * <p>요청에 포함된 (팀코드+비목코드) 행은 추가/수정하고, 요청에 없는 기존 행은 Soft Delete 처리합니다 (Bitemm 동기화 패턴).
      *
      * @param docNo 소요예산요청문서번호
-     * @param req   명세 일괄 저장 요청
-     * @param user  요청자 인증 정보
+     * @param req 명세 일괄 저장 요청
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 진행중이 아닌 경우
      */
     @Transactional
@@ -209,8 +218,9 @@ public class EstimateService {
         List<Besttm> existing = lineRepository.findByRqmBgReqDocNoAndDocVrsSno(docNo, vrs);
 
         // 기존 행을 (팀코드|비목코드) 복합 키로 색인 (deleted 행 포함)
-        Map<String, Besttm> byKey = existing.stream()
-                .collect(Collectors.toMap(b -> b.getSvnTemC() + "|" + b.getIoeC(), b -> b));
+        Map<String, Besttm> byKey =
+                existing.stream()
+                        .collect(Collectors.toMap(b -> b.getSvnTemC() + "|" + b.getIoeC(), b -> b));
 
         // 요청 행 처리: 기존 행이 있으면 (필요 시 복원 후) 갱신, 없으면 신규 INSERT
         Set<String> incomingKeys = new HashSet<>();
@@ -225,14 +235,15 @@ public class EstimateService {
                 }
                 row.updateEstimate(line.rqmBgAmt(), line.opnnCone());
             } else {
-                lineRepository.save(Besttm.builder()
-                        .rqmBgReqDocNo(docNo)
-                        .docVrsSno(vrs)
-                        .svnTemC(line.svnTemC())
-                        .ioeC(line.ioeC())
-                        .rqmBgAmt(line.rqmBgAmt())
-                        .opnnCone(line.opnnCone())
-                        .build());
+                lineRepository.save(
+                        Besttm.builder()
+                                .rqmBgReqDocNo(docNo)
+                                .docVrsSno(vrs)
+                                .svnTemC(line.svnTemC())
+                                .ioeC(line.ioeC())
+                                .rqmBgAmt(line.rqmBgAmt())
+                                .opnnCone(line.opnnCone())
+                                .build());
             }
         }
 
@@ -257,32 +268,46 @@ public class EstimateService {
      * @throws IllegalArgumentException 문서를 찾을 수 없는 경우
      */
     Bestim loadCurrent(String docNo) {
-        return estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn(docNo, "Y", "N")
+        return estimateRepository
+                .findByRqmBgReqDocNoAndLstYnAndDelYn(docNo, "Y", "N")
                 .orElseThrow(() -> new IllegalArgumentException("소요예산 산정 문서를 찾을 수 없습니다: " + docNo));
     }
 
-    /**
-     * 소요예산요청문서번호 채번.
-     * 형식: REQ-{연도}-{4자리 시퀀스} (예: REQ-2026-0001)
-     */
+    /** 소요예산요청문서번호 채번. 형식: REQ-{연도}-{4자리 시퀀스} (예: REQ-2026-0001) */
     private String generateDocNo() {
         long seq = estimateRepository.nextDocSeq();
         return String.format("REQ-%d-%04d", Year.now().getValue(), seq);
     }
 
-    private void sendStatusEai(String domainName, String docNo, String from, String to, CustomUserDetails user) {
+    private void sendStatusEai(
+            String domainName, String docNo, String from, String to, CustomUserDetails user) {
         try {
-            EaiResult result = eaiService.sendEai(EaiRequest.gwe(gweProperties.ifId(), GwePayload.builder()
-                    .msgGubun("1")
-                    .recvIds(user.getEno())
-                    .subject("[IT Portal] " + domainName + " 상태 변경")
-                    .contents(domainName + " 문서 " + docNo + " 상태가 " + from + "에서 " + to + "로 변경되었습니다.")
-                    .sendId("systemalert")
-                    .sendName("IT Portal")
-                    .build()));
+            EaiResult result =
+                    eaiService.sendEai(
+                            EaiRequest.gwe(
+                                    gweProperties.ifId(),
+                                    GwePayload.builder()
+                                            .msgGubun("1")
+                                            .recvIds(user.getEno())
+                                            .subject("[IT Portal] " + domainName + " 상태 변경")
+                                            .contents(
+                                                    domainName
+                                                            + " 문서 "
+                                                            + docNo
+                                                            + " 상태가 "
+                                                            + from
+                                                            + "에서 "
+                                                            + to
+                                                            + "로 변경되었습니다.")
+                                            .sendId("systemalert")
+                                            .sendName("IT Portal")
+                                            .build()));
             if (!result.success() && !result.skipped()) {
-                log.warn("EAI 발송 실패 — 원 업무 처리는 유지합니다. domain={}, docNo={}, 사유={}",
-                        domainName, docNo, result.errorMessage());
+                log.warn(
+                        "EAI 발송 실패 — 원 업무 처리는 유지합니다. domain={}, docNo={}, 사유={}",
+                        domainName,
+                        docNo,
+                        result.errorMessage());
             }
         } catch (RuntimeException e) {
             log.warn("EAI 발송 실패 — 원 업무 처리는 유지합니다.", e);

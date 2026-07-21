@@ -3,13 +3,12 @@ package com.kdb.it.common.notification.service;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
 
 /** 알림을 발송 대기 상태로 독립 적재하는 서비스입니다. */
 @Service
@@ -25,26 +24,30 @@ public class NotificationOutboxService {
      * @return 생성된 알림 번호, 수신자가 비어 있으면 null
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    @CacheEvict(value = "notificationUnreadCount", key = "#event.recipientEno()",
+    @CacheEvict(
+            value = "notificationUnreadCount",
+            key = "#event.recipientEno()",
             condition = "#event.recipientEno() != null")
     public String enqueue(NotificationEvent event) {
         if (event.recipientEno() == null || event.recipientEno().isBlank()) {
             return null;
         }
-        String id = String.format("INF-%d-%08d", LocalDate.now().getYear(), repository.getNextVal());
-        Cinfmm row = Cinfmm.builder()
-                .infmMsgNo(id)
-                .itPtlInfmSvcTc(event.itPtlInfmSvcTc())
-                .ttl(clamp(event.ttl(), 100))
-                .infmMsgCone(clamp(event.infmMsgCone(), 4000))
-                .infmRcdUrl(clamp(event.infmRcdUrl(), 300))
-                .rmsEno(event.recipientEno())
-                .inqYn("N")
-                .itPtlSdTc(event.itPtlSdTc())
-                .sdDocCone(event.sdPayload())
-                .infmSdStsC(Cinfmm.DISPATCH_PENDING)
-                .reTryNot(0)
-                .build();
+        String id =
+                String.format("INF-%d-%08d", LocalDate.now().getYear(), repository.getNextVal());
+        Cinfmm row =
+                Cinfmm.builder()
+                        .infmMsgNo(id)
+                        .itPtlInfmSvcTc(event.itPtlInfmSvcTc())
+                        .ttl(clamp(event.ttl(), 100))
+                        .infmMsgCone(clamp(event.infmMsgCone(), 4000))
+                        .infmRcdUrl(clamp(event.infmRcdUrl(), 300))
+                        .rmsEno(event.recipientEno())
+                        .inqYn("N")
+                        .itPtlSdTc(event.itPtlSdTc())
+                        .sdDocCone(event.sdPayload())
+                        .infmSdStsC(Cinfmm.DISPATCH_PENDING)
+                        .reTryNot(0)
+                        .build();
         repository.saveAndFlush(row);
         return id;
     }

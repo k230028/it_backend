@@ -9,11 +9,11 @@ import lombok.NoArgsConstructor;
 /**
  * 평가위원(Bcmmtm) 복합 기본키 클래스
  *
- * <p>복합키 구성: ({@code itPtlAsctId}, {@code eno})</p>
+ * <p>복합키 구성: ({@code itPtlAsctId}, {@code eno})
  *
  * <ul>
- *   <li>itPtlAsctId: 협의회ID</li>
- *   <li>eno: 위원 사번</li>
+ *   <li>itPtlAsctId: 협의회ID
+ *   <li>eno: 위원 사번
  * </ul>
  */
 @Getter

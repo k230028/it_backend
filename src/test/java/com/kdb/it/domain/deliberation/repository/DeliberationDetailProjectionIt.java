@@ -40,25 +40,70 @@ class DeliberationDetailProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(row.apvTrdnRsnCone()).isEqualTo("승인 사유");
         assertThat(DeliberationDetailRow.class.getRecordComponents())
                 .extracting(component -> component.getName())
-                .containsExactly("docMngNo", "docVrsSno", "ioeC", "cncdRfrNo", "tgtNm",
-                        "stsTc", "reqCone", "taskDbrTc", "taskDbrRltTc", "taskDbrDt",
-                        "taskDbrTod", "taskDbrOmtYn", "taskDbrOmtRsn", "opnnCone",
-                        "apvTrdnRsnCone", "reqUsid", "reqDtm");
+                .containsExactly(
+                        "docMngNo",
+                        "docVrsSno",
+                        "ioeC",
+                        "cncdRfrNo",
+                        "tgtNm",
+                        "stsTc",
+                        "reqCone",
+                        "taskDbrTc",
+                        "taskDbrRltTc",
+                        "taskDbrDt",
+                        "taskDbrTod",
+                        "taskDbrOmtYn",
+                        "taskDbrOmtRsn",
+                        "opnnCone",
+                        "apvTrdnRsnCone",
+                        "reqUsid",
+                        "reqDtm");
     }
 
     private Bprojm project(String projectNo, LocalDateTime now) {
-        return Bprojm.builder().abusMngNo(projectNo).sno(1).abusNm("BE03 심의 대상 사업")
-                .lstYn("Y").bseYy("2026").delYn("N")
-                .fstEnrDtm(now).fstEnrUsid("BE03-TEST").lstChgDtm(now).lstChgUsid("BE03-TEST").build();
+        return Bprojm.builder()
+                .abusMngNo(projectNo)
+                .sno(1)
+                .abusNm("BE03 심의 대상 사업")
+                .lstYn("Y")
+                .bseYy("2026")
+                .delYn("N")
+                .fstEnrDtm(now)
+                .fstEnrUsid("BE03-TEST")
+                .lstChgDtm(now)
+                .lstChgUsid("BE03-TEST")
+                .build();
     }
 
-    private Bdelim deliberation(String docNo, int version, String latest, String deleted,
-                                String projectNo, String opinion, LocalDateTime now) {
-        return Bdelim.builder().docMngNo(docNo).docVrsSno(version).lstYn(latest)
-                .ioeC("100").cncdRfrNo(projectNo).stsTc("65").reqCone("BE03 심의 요청")
-                .taskDbrTc("01").taskDbrRltTc("02").taskDbrDt("20260721").taskDbrTod("03")
-                .taskDbrOmtYn("N").taskDbrOmtRsn("생략하지 않음").opnnCone(opinion)
-                .apvTrdnRsnCone("승인 사유").delYn(deleted)
-                .fstEnrDtm(now).fstEnrUsid("BE03-TEST").lstChgDtm(now).lstChgUsid("BE03-TEST").build();
+    private Bdelim deliberation(
+            String docNo,
+            int version,
+            String latest,
+            String deleted,
+            String projectNo,
+            String opinion,
+            LocalDateTime now) {
+        return Bdelim.builder()
+                .docMngNo(docNo)
+                .docVrsSno(version)
+                .lstYn(latest)
+                .ioeC("100")
+                .cncdRfrNo(projectNo)
+                .stsTc("65")
+                .reqCone("BE03 심의 요청")
+                .taskDbrTc("01")
+                .taskDbrRltTc("02")
+                .taskDbrDt("20260721")
+                .taskDbrTod("03")
+                .taskDbrOmtYn("N")
+                .taskDbrOmtRsn("생략하지 않음")
+                .opnnCone(opinion)
+                .apvTrdnRsnCone("승인 사유")
+                .delYn(deleted)
+                .fstEnrDtm(now)
+                .fstEnrUsid("BE03-TEST")
+                .lstChgDtm(now)
+                .lstChgUsid("BE03-TEST")
+                .build();
     }
 }

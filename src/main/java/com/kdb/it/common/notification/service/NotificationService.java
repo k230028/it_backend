@@ -14,8 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 알림 비즈니스 로직 서비스.
  *
- * <p>조회·읽음·삭제는 모두 호출자 본인({@code currentEno}) 데이터에 한정한다.
- * 본인 외 알림에 대한 호출은 {@link AccessDeniedException}으로 차단된다.</p>
+ * <p>조회·읽음·삭제는 모두 호출자 본인({@code currentEno}) 데이터에 한정한다. 본인 외 알림에 대한 호출은 {@link
+ * AccessDeniedException}으로 차단된다.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,18 +32,18 @@ public class NotificationService {
      * @param pageable 페이지 번호·크기·정렬 조건
      * @return 삭제되지 않은 본인 알림 페이지
      */
-    public Page<Cinfmm> listForCurrentUser(String currentEno, Boolean unreadOnly, Pageable pageable) {
+    public Page<Cinfmm> listForCurrentUser(
+            String currentEno, Boolean unreadOnly, Pageable pageable) {
         return cinfmmRepository.findInbox(currentEno, unreadOnly, pageable);
     }
 
     /**
      * 본인 미읽음 알림 건수 조회.
      *
-     * <p>AppHeader 배지에서 고빈도 호출되므로 사용자(currentEno)별로 캐시한다. 카운트가 0이면
-     * 캐시하지 않아(unless) 신규 알림 발생 시 즉시 반영되도록 한다. 쓰기 경로(enqueue/markRead/
-     * markAllRead/softDelete)에서 해당 사용자 키를 evict 한다. 캐시는 Caffeine 60초 TTL을
-     * 가지므로(P5/T13, {@link com.kdb.it.config.CacheConfig} 참조), evict 누락 시에도 stale은
-     * 최대 60초로 제한된다(evict-on-write와 TTL 병행).</p>
+     * <p>AppHeader 배지에서 고빈도 호출되므로 사용자(currentEno)별로 캐시한다. 카운트가 0이면 캐시하지 않아(unless) 신규 알림 발생 시 즉시
+     * 반영되도록 한다. 쓰기 경로(enqueue/markRead/ markAllRead/softDelete)에서 해당 사용자 키를 evict 한다. 캐시는 Caffeine
+     * 60초 TTL을 가지므로(P5/T13, {@link com.kdb.it.config.CacheConfig} 참조), evict 누락 시에도 stale은 최대 60초로
+     * 제한된다(evict-on-write와 TTL 병행).
      *
      * @param currentEno 현재 사용자 사번
      * @return 삭제되지 않은 본인 미읽음 알림 건수
@@ -97,12 +97,13 @@ public class NotificationService {
 
     // ── 내부 헬퍼 ───────────────────────────────────────────────────────────
 
-    /**
-     * 알림 조회 및 소유자·삭제여부 검증 헬퍼.
-     */
+    /** 알림 조회 및 소유자·삭제여부 검증 헬퍼. */
     private Cinfmm loadOwned(String infmMsgNo, String currentEno) {
-        Cinfmm notification = cinfmmRepository.findById(infmMsgNo)
-            .orElseThrow(() -> new IllegalArgumentException("알림을 찾을 수 없습니다: " + infmMsgNo));
+        Cinfmm notification =
+                cinfmmRepository
+                        .findById(infmMsgNo)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("알림을 찾을 수 없습니다: " + infmMsgNo));
         if ("Y".equals(notification.getDelYn())) {
             throw new IllegalArgumentException("이미 삭제된 알림입니다: " + infmMsgNo);
         }

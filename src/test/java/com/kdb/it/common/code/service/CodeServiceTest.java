@@ -9,9 +9,12 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.code.dto.CodeDto;
+import com.kdb.it.common.code.entity.Ccodem;
+import com.kdb.it.common.code.repository.CodeRepository;
+import com.kdb.it.exception.CustomGeneralException;
 import java.util.List;
 import java.util.Optional;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,29 +24,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.kdb.it.common.code.dto.CodeDto;
-import com.kdb.it.common.code.entity.Ccodem;
-import com.kdb.it.common.code.repository.CodeRepository;
-import com.kdb.it.exception.CustomGeneralException;
-
 /**
  * CodeService 단위 테스트
  *
- * <p>
- * 공통코드 서비스의 조회·생성·수정·삭제 메서드와 예산신청기간 검증을 테스트합니다.
- * Ccodem 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
+ * <p>공통코드 서비스의 조회·생성·수정·삭제 메서드와 예산신청기간 검증을 테스트합니다. Ccodem 엔티티는 protected 생성자를 우회하기 위해
+ * Mockito.mock()으로 생성합니다. Oracle DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class CodeServiceTest {
 
-    @Mock
-    private CodeRepository codeRepository;
+    @Mock private CodeRepository codeRepository;
 
-    @InjectMocks
-    private CodeService codeService;
+    @InjectMocks private CodeService codeService;
 
     private Ccodem mockCcodem(String cdva, String cTp) {
         Ccodem ccodem = mock(Ccodem.class);
@@ -63,7 +56,8 @@ class CodeServiceTest {
     void getCcodemsByCId_코드ID조회_DTO목록반환() {
         Ccodem c1 = mockCcodem("001", "PRJ_TP");
         Ccodem c2 = mockCcodem("002", "PRJ_TP");
-        given(codeRepository.findByCIdWithValidDate(eq("PRJ_TP"), any())).willReturn(List.of(c1, c2));
+        given(codeRepository.findByCIdWithValidDate(eq("PRJ_TP"), any()))
+                .willReturn(List.of(c1, c2));
 
         List<CodeDto.Response> result = codeService.getCcodemsByCId("PRJ_TP", null);
 
@@ -108,7 +102,8 @@ class CodeServiceTest {
         request.setCId("CD001");
         request.setCdva("001");
         request.setSttDt("20260101");
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CD001", "001", "20260101")).willReturn(true);
+        given(codeRepository.existsByCIdAndCdvaAndSttDt("CD001", "001", "20260101"))
+                .willReturn(true);
 
         assertThatThrownBy(() -> codeService.createCcodem(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -136,7 +131,8 @@ class CodeServiceTest {
         request.setCNm("테스트코드");
         request.setCTp("PRJ_TP");
         request.setSttDt("20260101");
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CD001", "001", "20260101")).willReturn(false);
+        given(codeRepository.existsByCIdAndCdvaAndSttDt("CD001", "001", "20260101"))
+                .willReturn(false);
 
         String result = codeService.createCcodem(request);
 
@@ -155,7 +151,10 @@ class CodeServiceTest {
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("INVALID", "001", sttDt, "N"))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> codeService.updateCcodem("INVALID", "001", sttDt, new CodeDto.UpdateRequest()))
+        assertThatThrownBy(
+                        () ->
+                                codeService.updateCcodem(
+                                        "INVALID", "001", sttDt, new CodeDto.UpdateRequest()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("INVALID");
     }
@@ -173,8 +172,10 @@ class CodeServiceTest {
         String result = codeService.updateCcodem("CD001", "001", sttDt, request);
 
         assertThat(result).isEqualTo("CD001");
-        verify(ccodem).update(eq("수정명"), isNull(), isNull(), isNull(), isNull(),
-                isNull(), isNull(), isNull(), isNull(), isNull());
+        verify(ccodem)
+                .update(
+                        eq("수정명"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
+                        isNull(), isNull(), isNull());
     }
 
     // ───────────────────────────────────────────────────────

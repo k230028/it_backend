@@ -1,8 +1,8 @@
 package com.kdb.it.domain.council.entity;
 
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BperfmL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -14,16 +14,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-
 /**
  * 성과관리 자체계획(성과지표) 엔티티
  *
- * <p>DB 테이블: {@code TPRMPP_BPERFM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BPERFM}
  *
- * <p>협의회 1건당 1개 이상의 성과지표를 등록하며, 담당자가 동적으로 추가/삭제할 수 있습니다.
- * DTP_SNO는 클라이언트 측에서 순번을 관리합니다 (1부터 시작).</p>
+ * <p>협의회 1건당 1개 이상의 성과지표를 등록하며, 담당자가 동적으로 추가/삭제할 수 있습니다. DTP_SNO는 클라이언트 측에서 순번을 관리합니다 (1부터 시작).
  *
- * <p>복합키: ({@code ASCT_ID}, {@code DTP_SNO})</p>
+ * <p>복합키: ({@code ASCT_ID}, {@code DTP_SNO})
  */
 @LogTarget(entity = BperfmL.class)
 @Entity
@@ -68,14 +66,18 @@ public class Bperfm extends BaseEntity {
     /**
      * 성과지표 정보 업데이트
      *
-     * @param evlDtpNm         평가지표명
-     * @param evlDtpDfntCone   평가지표정의내용
-     * @param evlDtpClfCone    평가지표계산식내용
+     * @param evlDtpNm 평가지표명
+     * @param evlDtpDfntCone 평가지표정의내용
+     * @param evlDtpClfCone 평가지표계산식내용
      * @param evlDtpMsmPtmCone 평가지표측정시점내용
      * @param evlDtpMsmCleCone 평가지표측정주기내용
      */
-    public void update(String evlDtpNm, String evlDtpDfntCone, String evlDtpClfCone,
-                       String evlDtpMsmPtmCone, String evlDtpMsmCleCone) { // evlDtpSno PK은 별도
+    public void update(
+            String evlDtpNm,
+            String evlDtpDfntCone,
+            String evlDtpClfCone,
+            String evlDtpMsmPtmCone,
+            String evlDtpMsmCleCone) { // evlDtpSno PK은 별도
         this.evlDtpNm = evlDtpNm;
         this.evlDtpDfntCone = evlDtpDfntCone;
         this.evlDtpClfCone = evlDtpClfCone;
@@ -83,4 +85,3 @@ public class Bperfm extends BaseEntity {
         this.evlDtpMsmCleCone = evlDtpMsmCleCone;
     }
 }
-

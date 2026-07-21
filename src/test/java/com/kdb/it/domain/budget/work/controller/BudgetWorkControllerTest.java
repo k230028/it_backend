@@ -8,8 +8,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.config.JacksonConfig;
+import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
+import com.kdb.it.domain.budget.work.service.BudgetWorkService;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,34 +26,21 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.system.security.JwtUtil;
-import com.kdb.it.common.system.service.CustomUserDetailsService;
-import com.kdb.it.config.JacksonConfig;
-import com.kdb.it.config.TestSecurityConfig;
-import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
-import com.kdb.it.domain.budget.work.service.BudgetWorkService;
-
 /**
  * BudgetWorkController @WebMvcTest
  *
- * <p>예산작업 HTTP 응답 구조와 인증 동작을 검증합니다.</p>
+ * <p>예산작업 HTTP 응답 구조와 인증 동작을 검증합니다.
  */
 @WebMvcTest(BudgetWorkController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class BudgetWorkControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private BudgetWorkService budgetWorkService;
-    @MockitoBean
-    private JwtUtil jwtUtil;
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private BudgetWorkService budgetWorkService;
+    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     @Test
     @DisplayName("GET /api/budget/work/ioe-categories - 비인증 → 401")
@@ -71,9 +64,12 @@ class BudgetWorkControllerTest {
     @WithMockUser(username = "10001")
     void apply_인증_200() throws Exception {
         given(budgetWorkService.applyRates(any())).willReturn(null);
-        mockMvc.perform(post("/api/budget/work/apply")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new BudgetWorkDto.ApplyRequest("2026", List.of()))))
+        mockMvc.perform(
+                        post("/api/budget/work/apply")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new BudgetWorkDto.ApplyRequest("2026", List.of()))))
                 .andExpect(status().isOk());
     }
 
@@ -82,9 +78,13 @@ class BudgetWorkControllerTest {
     @WithMockUser(username = "10001")
     void applyItems_인증_200() throws Exception {
         given(budgetWorkService.applyItemRates(any())).willReturn(null);
-        mockMvc.perform(post("/api/budget/work/apply-items")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new BudgetWorkDto.ItemApplyRequest("2026", List.of()))))
+        mockMvc.perform(
+                        post("/api/budget/work/apply-items")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new BudgetWorkDto.ItemApplyRequest(
+                                                        "2026", List.of()))))
                 .andExpect(status().isOk());
     }
 

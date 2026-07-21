@@ -6,9 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * EaiProperties 컴팩트 생성자 가드 테스트 (T11c).
- */
+/** EaiProperties 컴팩트 생성자 가드 테스트 (T11c). */
 class EaiPropertiesTest {
 
     private EaiProperties props(boolean enabled, String url) {

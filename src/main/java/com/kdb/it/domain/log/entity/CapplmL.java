@@ -4,19 +4,18 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDate;
-
 /**
  * 신청서 마스터(TPRMPP_CAPPLM) 변경 로그 엔티티.
  *
- * <p>공통 컬럼(LOG_HIS_TGR_SNO, CHG_DTT_YN 등)은 {@link BaseLogEntity}에서 상속합니다.
- * 이 테이블 전용으로 {@code CHG_TP}(변경유형구분코드) 컬럼이 추가됩니다.</p>
+ * <p>공통 컬럼(LOG_HIS_TGR_SNO, CHG_DTT_YN 등)은 {@link BaseLogEntity}에서 상속합니다. 이 테이블 전용으로 {@code
+ * CHG_TP}(변경유형구분코드) 컬럼이 추가됩니다.
  */
 @Entity
 @Table(name = "TPRMPP_CAPPLL", comment = "신청서 마스터 변경 로그")
@@ -47,5 +46,4 @@ public class CapplmL extends BaseLogEntity {
 
     @Column(name = "RGPR_DCD_REQ_CONE", length = 1000, comment = "등록자결재요청내용")
     private String rgprDcdReqCone;
-
 }

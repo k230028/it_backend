@@ -27,8 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 파일 1건 업로드의 저장소 쓰기와 DB 메타데이터 저장을 담당합니다.
  *
- * <p>일괄 업로드에서 한 파일 실패가 이전 성공 파일의 커밋 상태를 오염시키지 않도록
- * 호출 단위를 항상 새 트랜잭션으로 분리합니다.</p>
+ * <p>일괄 업로드에서 한 파일 실패가 이전 성공 파일의 커밋 상태를 오염시키지 않도록 호출 단위를 항상 새 트랜잭션으로 분리합니다.
  */
 @Service
 @RequiredArgsConstructor
@@ -37,8 +36,7 @@ public class FileUploadUnitService {
     private final FileRepository fileRepository;
     private final FileValidator fileValidator;
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    @PersistenceContext private EntityManager entityManager;
 
     @Value("${app.server.instance-id:SVR1}")
     private String instanceId;
@@ -77,18 +75,20 @@ public class FileUploadUnitService {
         try {
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
-            throw new CustomGeneralException("파일 저장에 실패했습니다. 파일명: " + file.getOriginalFilename(), e);
+            throw new CustomGeneralException(
+                    "파일 저장에 실패했습니다. 파일명: " + file.getOriginalFilename(), e);
         }
 
-        Cfilem cfilem = Cfilem.builder()
-                .flMpnId(flMpnId)
-                .flNm(file.getOriginalFilename())
-                .flPysNm(flPysNm)
-                .flKpnPth(flKpnPth)
-                .flTpCone(request.getFlTpCone())
-                .pkCone(request.getPkCone())
-                .pkColNm(request.getPkColNm())
-                .build();
+        Cfilem cfilem =
+                Cfilem.builder()
+                        .flMpnId(flMpnId)
+                        .flNm(file.getOriginalFilename())
+                        .flPysNm(flPysNm)
+                        .flKpnPth(flKpnPth)
+                        .flTpCone(request.getFlTpCone())
+                        .pkCone(request.getPkCone())
+                        .pkColNm(request.getPkColNm())
+                        .build();
 
         entityManager.persist(cfilem);
         entityManager.flush();
@@ -108,7 +108,8 @@ public class FileUploadUnitService {
                 ext = "." + originalFilename.substring(dotIdx + 1).toLowerCase();
             }
         }
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String timestamp =
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String uuid = UUID.randomUUID().toString().replace("-", "");
         return instanceId + "_" + timestamp + "_" + uuid + ext;
     }

@@ -1,22 +1,21 @@
 package com.kdb.it.infra.eai.config;
 
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
-import java.security.SecureRandom;
-import java.time.Clock;
-import java.time.Duration;
-import java.util.function.IntFunction;
-import java.util.function.Supplier;
-
 /**
  * EAI 인프라 빈 구성.
  *
- * <p>{@link EaiProperties} 바인딩 활성화, 표준전문의 비결정 필드용 운영 시임 빈
- * ({@link Clock}, GUID 난수 공급), EAI 전용 {@link RestClient}(타임아웃 적용)를 등록한다.</p>
+ * <p>{@link EaiProperties} 바인딩 활성화, 표준전문의 비결정 필드용 운영 시임 빈 ({@link Clock}, GUID 난수 공급), EAI 전용
+ * {@link RestClient}(타임아웃 적용)를 등록한다.
  */
 @Configuration
 @EnableConfigurationProperties({EaiProperties.class, GweProperties.class})

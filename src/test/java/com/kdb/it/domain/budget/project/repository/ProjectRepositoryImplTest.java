@@ -4,17 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
-import java.util.List;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.querydsl.core.types.EntityPath;
@@ -22,25 +11,30 @@ import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 /**
  * ProjectRepositoryImpl 단위 테스트
  *
- * JPAQueryFactory를 Mock 처리하여 DB 없이 searchByCondition()의
- * 동적 쿼리 분기 로직을 검증합니다.
+ * <p>JPAQueryFactory를 Mock 처리하여 DB 없이 searchByCondition()의 동적 쿼리 분기 로직을 검증합니다.
  *
- * [apfSts 서브쿼리 주의]
- * NOT EXISTS / EXISTS 서브쿼리는 실제 DB에서 실행되는 SQL이므로
- * 서브쿼리 SQL 검증은 @DataJpaTest 통합 테스트 범위입니다.
- * 이 단위 테스트는 분기 진입 여부 및 fetch() 결과 전달에 집중합니다.
+ * <p>[apfSts 서브쿼리 주의] NOT EXISTS / EXISTS 서브쿼리는 실제 DB에서 실행되는 SQL이므로 서브쿼리 SQL 검증은 @DataJpaTest 통합
+ * 테스트 범위입니다. 이 단위 테스트는 분기 진입 여부 및 fetch() 결과 전달에 집중합니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ProjectRepositoryImplTest {
 
-    @Mock
-    private JPAQueryFactory queryFactory;
+    @Mock private JPAQueryFactory queryFactory;
 
     @Mock
     @SuppressWarnings("rawtypes")
@@ -51,8 +45,7 @@ class ProjectRepositoryImplTest {
     /**
      * 각 테스트 전: selectFrom -> where -> fetch 체인을 설정합니다.
      *
-     * QueryDSL 체인은 같은 JPAQuery 인스턴스를 계속 반환하므로
-     * 단일 mockQuery로 전 체인을 대응합니다.
+     * <p>QueryDSL 체인은 같은 JPAQuery 인스턴스를 계속 반환하므로 단일 mockQuery로 전 체인을 대응합니다.
      */
     @BeforeEach
     @SuppressWarnings("unchecked")
@@ -84,10 +77,7 @@ class ProjectRepositoryImplTest {
     @DisplayName("fetch 결과에 데이터가 있을 때 해당 리스트가 반환된다")
     void searchByCondition_fetchHasData_returnsData() {
         // Arrange
-        Bprojm dummy = Bprojm.builder()
-                .abusMngNo("PRJ-2026-0001")
-                .sno(1)
-                .build();
+        Bprojm dummy = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).build();
         given(mockQuery.fetch()).willReturn(List.of(dummy));
         ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
         // Act

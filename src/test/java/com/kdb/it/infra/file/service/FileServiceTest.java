@@ -9,6 +9,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.infra.file.FileOwnershipChecker;
+import com.kdb.it.infra.file.FileValidator;
+import com.kdb.it.infra.file.dto.FileDto;
+import com.kdb.it.infra.file.entity.Cfilem;
+import com.kdb.it.infra.file.repository.FileRepository;
 import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,12 +23,11 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
-
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -30,42 +36,26 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.exception.CustomGeneralException;
 import org.springframework.security.access.AccessDeniedException;
-import com.kdb.it.infra.file.FileOwnershipChecker;
-import com.kdb.it.infra.file.FileValidator;
-import com.kdb.it.infra.file.dto.FileDto;
-import com.kdb.it.infra.file.entity.Cfilem;
-import com.kdb.it.infra.file.repository.FileRepository;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * FileService 단위 테스트
  *
- * <p>
- * 공통 첨부파일 서비스의 단건 조회·목록 조회·논리 삭제 메서드를 검증합니다.
- * Cfilem 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * 파일 업로드(uploadFile)는 디스크 I/O·EntityManager를 사용하므로 단위 테스트 범위에서 제외합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
+ * <p>공통 첨부파일 서비스의 단건 조회·목록 조회·논리 삭제 메서드를 검증합니다. Cfilem 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로
+ * 생성합니다. 파일 업로드(uploadFile)는 디스크 I/O·EntityManager를 사용하므로 단위 테스트 범위에서 제외합니다. Oracle DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class FileServiceTest {
 
-    @Mock
-    private FileRepository fileRepository;
+    @Mock private FileRepository fileRepository;
 
-    @Mock
-    private EntityManager entityManager;
+    @Mock private EntityManager entityManager;
 
-    @Mock
-    private FileValidator fileValidator;
+    @Mock private FileValidator fileValidator;
 
-    @Mock
-    private FileOwnershipChecker fileOwnershipChecker;
+    @Mock private FileOwnershipChecker fileOwnershipChecker;
 
     private FileUploadUnitService fileUploadUnitService;
 
@@ -114,8 +104,7 @@ class FileServiceTest {
     @DisplayName("getFile: 존재하는 파일관리번호이면 응답 DTO를 반환한다")
     void getFile_존재하는파일_DTO반환() {
         Cfilem file = mockCfilem(FL_MNG_NO);
-        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N"))
-                .willReturn(Optional.of(file));
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(file));
 
         FileDto.Response result = fileService.getFile(FL_MNG_NO);
 
@@ -151,12 +140,10 @@ class FileServiceTest {
     @Test
     @DisplayName("getFiles: orcDtt만 입력하면 해당 원본구분의 전체 파일 목록을 반환한다")
     void getFiles_orcDtt만있을때_전체목록반환() {
-        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
-                .pkColNm("요구사항정의서")
-                .build();
+        FileDto.SearchCondition condition =
+                FileDto.SearchCondition.builder().pkColNm("요구사항정의서").build();
         Cfilem file = mockCfilem(FL_MNG_NO);
-        given(fileRepository.findAllByPkColNmAndDelYn("요구사항정의서", "N"))
-                .willReturn(List.of(file));
+        given(fileRepository.findAllByPkColNmAndDelYn("요구사항정의서", "N")).willReturn(List.of(file));
         given(fileOwnershipChecker.canRead(file, USER)).willReturn(true);
 
         List<FileDto.Response> result = fileService.getFiles(condition, USER);
@@ -168,10 +155,11 @@ class FileServiceTest {
     @Test
     @DisplayName("getFiles: orcDtt + orcPkVl 입력이면 해당 원본구분·원본PK 파일 목록을 반환한다")
     void getFiles_orcDttAndPkVl_조건필터링반환() {
-        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
-                .pkColNm("요구사항정의서")
-                .pkCone("PRJ-2026-0001")
-                .build();
+        FileDto.SearchCondition condition =
+                FileDto.SearchCondition.builder()
+                        .pkColNm("요구사항정의서")
+                        .pkCone("PRJ-2026-0001")
+                        .build();
         Cfilem file = mockCfilem(FL_MNG_NO);
         given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "PRJ-2026-0001", "N"))
                 .willReturn(List.of(file));
@@ -185,14 +173,16 @@ class FileServiceTest {
     @Test
     @DisplayName("getFiles: orcDtt + orcPkVl + flDtt 입력이면 세 조건으로 필터링한다")
     void getFiles_파일구분포함_조건필터링반환() {
-        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
-                .pkColNm("요구사항정의서")
-                .pkCone("PRJ-2026-0001")
-                .flTpCone("이미지")
-                .build();
+        FileDto.SearchCondition condition =
+                FileDto.SearchCondition.builder()
+                        .pkColNm("요구사항정의서")
+                        .pkCone("PRJ-2026-0001")
+                        .flTpCone("이미지")
+                        .build();
         Cfilem file = mockCfilem(FL_MNG_NO);
-        given(fileRepository.findAllByPkColNmAndPkConeAndFlTpConeAndDelYn(
-                "요구사항정의서", "PRJ-2026-0001", "이미지", "N"))
+        given(
+                        fileRepository.findAllByPkColNmAndPkConeAndFlTpConeAndDelYn(
+                                "요구사항정의서", "PRJ-2026-0001", "이미지", "N"))
                 .willReturn(List.of(file));
         given(fileOwnershipChecker.canRead(file, USER)).willReturn(true);
 
@@ -209,8 +199,7 @@ class FileServiceTest {
     /**
      * 목록 캐시 검증용 파일 mock — 지정한 (종류, 부모)와 파일ID만 스텁한다.
      *
-     * <p>읽기 판정 캐시는 {@code (PK_COL_NM, PK_CONE)} 조합만으로 키를 만들므로
-     * 각 파일이 자신의 종류·부모를 반환하도록 개별 스텁한다.</p>
+     * <p>읽기 판정 캐시는 {@code (PK_COL_NM, PK_CONE)} 조합만으로 키를 만들므로 각 파일이 자신의 종류·부모를 반환하도록 개별 스텁한다.
      */
     private Cfilem mockCfilemWithParent(String flMngNo, String pkColNm, String pkCone) {
         Cfilem f = mock(Cfilem.class);
@@ -223,10 +212,8 @@ class FileServiceTest {
     @Test
     @DisplayName("getFiles: 같은 부모(종류·PK_CONE) 파일 3건이면 canRead를 1회만 호출하고 3건을 반환한다")
     void getFiles_같은부모3건_canRead1회_3건반환() {
-        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
-                .pkColNm("요구사항정의서")
-                .pkCone("DOC-1")
-                .build();
+        FileDto.SearchCondition condition =
+                FileDto.SearchCondition.builder().pkColNm("요구사항정의서").pkCone("DOC-1").build();
         Cfilem first = mockCfilemWithParent("FL_00000001", "요구사항정의서", "DOC-1");
         Cfilem second = mockCfilemWithParent("FL_00000002", "요구사항정의서", "DOC-1");
         Cfilem third = mockCfilemWithParent("FL_00000003", "요구사항정의서", "DOC-1");
@@ -246,9 +233,8 @@ class FileServiceTest {
     @Test
     @DisplayName("getFiles: 부모 PK_CONE가 서로 다른 파일이면 각 부모마다 canRead를 호출한다(2회)")
     void getFiles_서로다른부모2건_canRead2회() {
-        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
-                .pkColNm("요구사항정의서")
-                .build();
+        FileDto.SearchCondition condition =
+                FileDto.SearchCondition.builder().pkColNm("요구사항정의서").build();
         Cfilem doc1 = mockCfilemWithParent("FL_00000001", "요구사항정의서", "DOC-1");
         Cfilem doc2 = mockCfilemWithParent("FL_00000002", "요구사항정의서", "DOC-2");
         given(fileRepository.findAllByPkColNmAndDelYn("요구사항정의서", "N"))
@@ -266,10 +252,8 @@ class FileServiceTest {
     @Test
     @DisplayName("getFiles: 같은 부모가 거부되면 canRead를 1회만 호출하고 빈 목록을 반환한다")
     void getFiles_같은부모거부3건_canRead1회_빈목록() {
-        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
-                .pkColNm("요구사항정의서")
-                .pkCone("DOC-DENY")
-                .build();
+        FileDto.SearchCondition condition =
+                FileDto.SearchCondition.builder().pkColNm("요구사항정의서").pkCone("DOC-DENY").build();
         Cfilem first = mockCfilemWithParent("FL_00000001", "요구사항정의서", "DOC-DENY");
         Cfilem second = mockCfilemWithParent("FL_00000002", "요구사항정의서", "DOC-DENY");
         Cfilem third = mockCfilemWithParent("FL_00000003", "요구사항정의서", "DOC-DENY");
@@ -288,9 +272,8 @@ class FileServiceTest {
     @Test
     @DisplayName("getFiles: 종류가 같아도 PK_CONE가 다르면 캐시를 공유하지 않는다(부모별 개별 판정)")
     void getFiles_같은종류다른부모_캐시미공유() {
-        FileDto.SearchCondition condition = FileDto.SearchCondition.builder()
-                .pkColNm("요구사항정의서")
-                .build();
+        FileDto.SearchCondition condition =
+                FileDto.SearchCondition.builder().pkColNm("요구사항정의서").build();
         Cfilem doc1a = mockCfilemWithParent("FL_00000001", "요구사항정의서", "DOC-1");
         Cfilem doc1b = mockCfilemWithParent("FL_00000002", "요구사항정의서", "DOC-1");
         Cfilem doc2 = mockCfilemWithParent("FL_00000003", "요구사항정의서", "DOC-2");
@@ -302,7 +285,8 @@ class FileServiceTest {
         List<FileDto.Response> result = fileService.getFiles(condition, USER);
 
         // DOC-1 허용 2건만 포함, DOC-2 거부 제외 — 종류가 같아도 부모가 다르면 캐시 미공유
-        assertThat(result).extracting(file -> file.getFlMpnId())
+        assertThat(result)
+                .extracting(file -> file.getFlMpnId())
                 .containsExactly("FL_00000001", "FL_00000002");
         verify(fileOwnershipChecker, times(1)).canRead(doc1a, USER);
         verify(fileOwnershipChecker, never()).canRead(doc1b, USER);
@@ -363,9 +347,13 @@ class FileServiceTest {
         given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "DOC-1", "N"))
                 .willReturn(List.of(mine, others));
 
-        assertThatThrownBy(() -> fileService.deleteFilesByOrc(
-                "요구사항정의서", "DOC-1",
-                new CustomUserDetails("E0001", List.of("ITPZZ001"), "18001")))
+        assertThatThrownBy(
+                        () ->
+                                fileService.deleteFilesByOrc(
+                                        "요구사항정의서",
+                                        "DOC-1",
+                                        new CustomUserDetails(
+                                                "E0001", List.of("ITPZZ001"), "18001")))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -403,9 +391,11 @@ class FileServiceTest {
         given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("요구사항정의서", "DOC-1", "N"))
                 .willReturn(List.of(f1, f2));
 
-        int count = fileService.deleteFilesByOrc(
-                "요구사항정의서", "DOC-1",
-                new CustomUserDetails("E0001", List.of("ITPZZ001"), "18001"));
+        int count =
+                fileService.deleteFilesByOrc(
+                        "요구사항정의서",
+                        "DOC-1",
+                        new CustomUserDetails("E0001", List.of("ITPZZ001"), "18001"));
 
         assertThat(count).isEqualTo(2);
         verify(f1).delete();
@@ -444,10 +434,8 @@ class FileServiceTest {
     @DisplayName("updateFileMeta: 존재하는 파일이면 원본 정보를 변경하고 파일관리번호를 반환한다")
     void updateFileMeta_존재하는파일_메타수정() {
         Cfilem cfilem = mock(Cfilem.class);
-        FileDto.UpdateRequest request = FileDto.UpdateRequest.builder()
-                .pkColNm("정보화사업")
-                .pkCone("PRJ-2026-0002")
-                .build();
+        FileDto.UpdateRequest request =
+                FileDto.UpdateRequest.builder().pkColNm("정보화사업").pkCone("PRJ-2026-0002").build();
         given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
 
         String result = fileService.updateFileMeta(FL_MNG_NO, request);
@@ -509,26 +497,26 @@ class FileServiceTest {
         Files.createDirectories(storageDir);
 
         Object[][] cases = {
-                {"jpg", "image/jpeg"},
-                {"jpeg", "image/jpeg"},
-                {"png", "image/png"},
-                {"gif", "image/gif"},
-                {"webp", "image/webp"},
-                {"svg", "image/svg+xml"},
-                {"bmp", "image/bmp"},
-                {"ico", "image/x-icon"},
-                {"doc", "application/msword"},
-                {"docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
-                {"xls", "application/vnd.ms-excel"},
-                {"xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
-                {"ppt", "application/vnd.ms-powerpoint"},
-                {"pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
-                {"hwp", "application/x-hwp"},
-                {"txt", "text/plain"},
-                {"csv", "text/csv"},
-                {"json", "application/json"},
-                {"zip", "application/zip"},
-                {"bin", "application/octet-stream"}
+            {"jpg", "image/jpeg"},
+            {"jpeg", "image/jpeg"},
+            {"png", "image/png"},
+            {"gif", "image/gif"},
+            {"webp", "image/webp"},
+            {"svg", "image/svg+xml"},
+            {"bmp", "image/bmp"},
+            {"ico", "image/x-icon"},
+            {"doc", "application/msword"},
+            {"docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+            {"xls", "application/vnd.ms-excel"},
+            {"xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+            {"ppt", "application/vnd.ms-powerpoint"},
+            {"pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+            {"hwp", "application/x-hwp"},
+            {"txt", "text/plain"},
+            {"csv", "text/csv"},
+            {"json", "application/json"},
+            {"zip", "application/zip"},
+            {"bin", "application/octet-stream"}
         };
 
         for (Object[] testCase : cases) {
@@ -541,7 +529,8 @@ class FileServiceTest {
             given(cfilem.getFlKpnPth()).willReturn(storageDir.toString());
             given(cfilem.getFlPysNm()).willReturn(svrFlNm);
             given(cfilem.getFlNm()).willReturn("origin." + ext);
-            given(fileRepository.findByFlMpnIdAndDelYn(flMngNo, "N")).willReturn(Optional.of(cfilem));
+            given(fileRepository.findByFlMpnIdAndDelYn(flMngNo, "N"))
+                    .willReturn(Optional.of(cfilem));
 
             FileService.FileDownloadResult result = fileService.downloadFile(flMngNo);
 
@@ -573,18 +562,20 @@ class FileServiceTest {
                 Arguments.of("저장 경로 null", true, null),
                 Arguments.of("저장 경로 공백", true, " "),
                 Arguments.of("물리 파일명 null", false, null),
-                Arguments.of("물리 파일명 공백", false, " ")
-        );
+                Arguments.of("물리 파일명 공백", false, " "));
     }
 
     @ParameterizedTest(name = "downloadFile: {0}이면 불완전 메타데이터 예외를 반환한다")
     @MethodSource("incompleteDownloadMetadata")
     void downloadFile_저장경로또는물리파일명없음_CustomGeneralException발생(
-            String caseName, boolean storagePathMissing, String missingValue,
+            String caseName,
+            boolean storagePathMissing,
+            String missingValue,
             @TempDir java.nio.file.Path tempDir) {
         ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
         Cfilem cfilem = mockCfilem(FL_MNG_NO);
-        given(cfilem.getFlKpnPth()).willReturn(storagePathMissing ? missingValue : tempDir.toString());
+        given(cfilem.getFlKpnPth())
+                .willReturn(storagePathMissing ? missingValue : tempDir.toString());
         given(cfilem.getFlPysNm()).willReturn(storagePathMissing ? "server.pdf" : missingValue);
         given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
 
@@ -618,7 +609,8 @@ class FileServiceTest {
     @Test
     @DisplayName("uploadFile: 빈 파일이면 저장소 접근 없이 예외를 던진다")
     void uploadFile_빈파일_CustomGeneralException발생() {
-        MockMultipartFile emptyFile = new MockMultipartFile("file", "empty.txt", "text/plain", new byte[0]);
+        MockMultipartFile emptyFile =
+                new MockMultipartFile("file", "empty.txt", "text/plain", new byte[0]);
         FileDto.UploadRequest request = FileDto.UploadRequest.builder().pkColNm("요구사항정의서").build();
 
         assertThatThrownBy(() -> fileService.uploadFile(emptyFile, request))
@@ -632,13 +624,18 @@ class FileServiceTest {
     void uploadFileAndGet_정상파일_응답반환(@TempDir java.nio.file.Path tempDir) {
         configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "요구사항.pdf", "application/pdf", "PDF".getBytes(StandardCharsets.UTF_8));
-        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .pkColNm("요구사항정의서")
-                .pkCone("PRJ-2026-0001")
-                .flTpCone("첨부파일")
-                .build();
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "요구사항.pdf",
+                        "application/pdf",
+                        "PDF".getBytes(StandardCharsets.UTF_8));
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder()
+                        .pkColNm("요구사항정의서")
+                        .pkCone("PRJ-2026-0001")
+                        .flTpCone("첨부파일")
+                        .build();
 
         FileDto.Response result = fileService.uploadFileAndGet(file, request);
 
@@ -646,13 +643,15 @@ class FileServiceTest {
         assertThat(result.getFlNm()).isEqualTo("요구사항.pdf");
         assertThat(result.getFlPysNm()).startsWith("SVR1_").endsWith(".pdf");
         assertThat(result.getDownloadUrl()).isEqualTo("/api/files/FL_00000001/download");
-        org.mockito.Mockito.verify(entityManager).persist(org.mockito.ArgumentMatchers.any(Cfilem.class));
+        org.mockito.Mockito.verify(entityManager)
+                .persist(org.mockito.ArgumentMatchers.any(Cfilem.class));
         org.mockito.Mockito.verify(entityManager).flush();
     }
 
     @Test
     @DisplayName("uploadFileInternal: 디렉토리 생성 IOException 발생 시 cause 포함 예외 반환 — ERR-02")
-    void uploadFileInternal_디렉토리생성IOException_cause포함(@TempDir java.nio.file.Path tempDir) throws Exception {
+    void uploadFileInternal_디렉토리생성IOException_cause포함(@TempDir java.nio.file.Path tempDir)
+            throws Exception {
         // orcDtt 이름으로 파일을 미리 생성 → 같은 이름의 하위 디렉토리 생성 불가 (NotADirectoryException)
         java.nio.file.Path blockingFile = tempDir.resolve("요구사항정의서");
         java.nio.file.Files.createFile(blockingFile);
@@ -660,12 +659,14 @@ class FileServiceTest {
         configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
 
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "test.pdf", "application/pdf", "content".getBytes(StandardCharsets.UTF_8));
-        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .pkColNm("요구사항정의서")
-                .flTpCone("첨부파일")
-                .build();
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "test.pdf",
+                        "application/pdf",
+                        "content".getBytes(StandardCharsets.UTF_8));
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder().pkColNm("요구사항정의서").flTpCone("첨부파일").build();
 
         // 현재 구현: CustomGeneralException(메시지, e)로 IOException을 cause로 포함하여 래핑
         assertThatThrownBy(() -> fileService.uploadFileInternal(file, request))
@@ -678,15 +679,16 @@ class FileServiceTest {
     void uploadFiles_부분실패_결과분리(@TempDir java.nio.file.Path tempDir) {
         configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
-        MockMultipartFile okFile = new MockMultipartFile(
-                "files", "ok.txt", "text/plain", "ok".getBytes(StandardCharsets.UTF_8));
-        MockMultipartFile emptyFile = new MockMultipartFile("files", "empty.txt", "text/plain", new byte[0]);
-        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .pkColNm("첨부")
-                .flTpCone("첨부파일")
-                .build();
+        MockMultipartFile okFile =
+                new MockMultipartFile(
+                        "files", "ok.txt", "text/plain", "ok".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile emptyFile =
+                new MockMultipartFile("files", "empty.txt", "text/plain", new byte[0]);
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder().pkColNm("첨부").flTpCone("첨부파일").build();
 
-        FileDto.BulkUploadResponse result = fileService.uploadFiles(List.of(okFile, emptyFile), request);
+        FileDto.BulkUploadResponse result =
+                fileService.uploadFiles(List.of(okFile, emptyFile), request);
 
         assertThat(result.getSuccessList()).hasSize(1);
         assertThat(result.getFailList()).hasSize(1);
@@ -698,26 +700,35 @@ class FileServiceTest {
     void uploadFiles_secondDbSaveFailure_keepsFirstSuccess(@TempDir java.nio.file.Path tempDir) {
         configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(1L, 2L);
-        org.mockito.Mockito.doNothing().doThrow(new RuntimeException("DB 저장 실패")).when(entityManager).flush();
-        MockMultipartFile firstFile = new MockMultipartFile(
-                "files", "first.txt", "text/plain", "first".getBytes(StandardCharsets.UTF_8));
-        MockMultipartFile secondFile = new MockMultipartFile(
-                "files", "second.txt", "text/plain", "second".getBytes(StandardCharsets.UTF_8));
-        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .pkColNm("첨부")
-                .flTpCone("첨부파일")
-                .build();
+        org.mockito.Mockito.doNothing()
+                .doThrow(new RuntimeException("DB 저장 실패"))
+                .when(entityManager)
+                .flush();
+        MockMultipartFile firstFile =
+                new MockMultipartFile(
+                        "files",
+                        "first.txt",
+                        "text/plain",
+                        "first".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile secondFile =
+                new MockMultipartFile(
+                        "files",
+                        "second.txt",
+                        "text/plain",
+                        "second".getBytes(StandardCharsets.UTF_8));
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder().pkColNm("첨부").flTpCone("첨부파일").build();
 
-        FileDto.BulkUploadResponse result = fileService.uploadFiles(List.of(firstFile, secondFile), request);
+        FileDto.BulkUploadResponse result =
+                fileService.uploadFiles(List.of(firstFile, secondFile), request);
 
         assertThat(result.getSuccessList())
                 .extracting(file -> file.getFlNm())
                 .containsExactly("first.txt");
         assertThat(result.getFailList())
                 .singleElement()
-                .satisfies(message -> assertThat(message)
-                        .contains("second.txt")
-                        .contains("DB 저장 실패"));
+                .satisfies(
+                        message -> assertThat(message).contains("second.txt").contains("DB 저장 실패"));
     }
 
     // ───────────────────────────────────────────────────────
@@ -745,12 +756,10 @@ class FileServiceTest {
     @DisplayName("uploadFile: getSize()=0인 파일이면 EntityManager 접근 없이 예외를 던진다")
     void uploadFile_0바이트파일_CustomGeneralException발생() {
         // Arrange: 내용 없는 MockMultipartFile (isEmpty() == true)
-        MockMultipartFile zeroByteFile = new MockMultipartFile(
-                "file", "zero.pdf", "application/pdf", new byte[0]);
-        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .pkColNm("요구사항정의서")
-                .flTpCone("첨부파일")
-                .build();
+        MockMultipartFile zeroByteFile =
+                new MockMultipartFile("file", "zero.pdf", "application/pdf", new byte[0]);
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder().pkColNm("요구사항정의서").flTpCone("첨부파일").build();
 
         // Act & Assert: 빈 파일 → "업로드할 파일이 비어있습니다" 예외, EntityManager 미호출
         assertThatThrownBy(() -> fileService.uploadFile(zeroByteFile, request))
@@ -770,21 +779,23 @@ class FileServiceTest {
         configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(2L);
 
-        MockMultipartFile validFile = new MockMultipartFile(
-                "files", "valid.pdf", "application/pdf",
-                "content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockMultipartFile validFile =
+                new MockMultipartFile(
+                        "files",
+                        "valid.pdf",
+                        "application/pdf",
+                        "content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         // null MultipartFile은 NullPointerException → failList에 포함
-        MockMultipartFile nullContentFile = new MockMultipartFile(
-                "files", "empty.txt", "text/plain", new byte[0]);
+        MockMultipartFile nullContentFile =
+                new MockMultipartFile("files", "empty.txt", "text/plain", new byte[0]);
 
-        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .pkColNm("요구사항정의서")
-                .flTpCone("첨부파일")
-                .build();
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder().pkColNm("요구사항정의서").flTpCone("첨부파일").build();
 
         // Act
-        FileDto.BulkUploadResponse result = fileService.uploadFiles(
-                java.util.Arrays.asList(validFile, nullContentFile), request);
+        FileDto.BulkUploadResponse result =
+                fileService.uploadFiles(
+                        java.util.Arrays.asList(validFile, nullContentFile), request);
 
         // Assert: 정상 1개 성공, 빈 파일 1개 실패
         assertThat(result.getSuccessList()).hasSize(1);
@@ -819,8 +830,10 @@ class FileServiceTest {
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("uploadFileInternal: getInputStream()이 IOException을 던지면 파일 저장 실패 예외가 cause 포함으로 반환된다")
-    void uploadFileInternal_파일copy실패_cause포함IOException(@TempDir java.nio.file.Path tempDir) throws Exception {
+    @DisplayName(
+            "uploadFileInternal: getInputStream()이 IOException을 던지면 파일 저장 실패 예외가 cause 포함으로 반환된다")
+    void uploadFileInternal_파일copy실패_cause포함IOException(@TempDir java.nio.file.Path tempDir)
+            throws Exception {
         // Arrange: MultipartFile.getInputStream()이 IOException을 던지도록 mock 구성
         // MockMultipartFile은 생성 시 바이트를 미리 읽으므로 mock(MultipartFile)을 사용한다
         org.springframework.web.multipart.MultipartFile mockFile =
@@ -832,10 +845,8 @@ class FileServiceTest {
         configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(99L);
 
-        FileDto.UploadRequest request = FileDto.UploadRequest.builder()
-                .pkColNm("파일copy실패")
-                .flTpCone("첨부파일")
-                .build();
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder().pkColNm("파일copy실패").flTpCone("첨부파일").build();
 
         // Act & Assert: Files.copy(inputStream, ...) → IOException → CustomGeneralException(메시지, e)
         assertThatThrownBy(() -> fileService.uploadFileInternal(mockFile, request))

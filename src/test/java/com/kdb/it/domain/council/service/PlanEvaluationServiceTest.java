@@ -9,23 +9,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.test.util.ReflectionTestUtils;
-
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -39,38 +22,43 @@ import com.kdb.it.domain.council.entity.Bplevm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.PlanEvaluationRepository;
-
 import jakarta.persistence.EntityManager;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * PlanEvaluationService 단위 테스트 (dbrTc='02' 사업별 적정/유보)
  *
- * <p>사업별 판정 집계("1명이라도 유보(N)면 유보")와 저장 검증(위원 권한·사유 필수)을 확인합니다.
- * Basctm·Bplevm·Bcmmtm·CuserI는 Mockito.mock()으로 생성하며 Oracle DB 없이 실행됩니다.</p>
+ * <p>사업별 판정 집계("1명이라도 유보(N)면 유보")와 저장 검증(위원 권한·사유 필수)을 확인합니다. Basctm·Bplevm·Bcmmtm·CuserI는
+ * Mockito.mock()으로 생성하며 Oracle DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class PlanEvaluationServiceTest {
 
-    @Mock
-    private PlanEvaluationRepository planEvaluationRepository;
-    @Mock
-    private UserRepository userRepository;
-    @Mock
-    private CouncilService councilService;
-    @Mock
-    private CommitteeRepository committeeRepository;
-    @Mock
-    private PlanService planService;
-    @Mock
-    private ProjectService projectService;
-    @Mock
-    private CouncilRepository councilRepository;
-    @Mock
-    private EntityManager entityManager;
+    @Mock private PlanEvaluationRepository planEvaluationRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private CouncilService councilService;
+    @Mock private CommitteeRepository committeeRepository;
+    @Mock private PlanService planService;
+    @Mock private ProjectService projectService;
+    @Mock private CouncilRepository councilRepository;
+    @Mock private EntityManager entityManager;
 
-    @InjectMocks
-    private PlanEvaluationService planEvaluationService;
+    @InjectMocks private PlanEvaluationService planEvaluationService;
 
     @BeforeEach
     void injectEntityManager() {
@@ -115,11 +103,20 @@ class PlanEvaluationServiceTest {
         UserRepository.UserNameView u2 = mockUser("E2", "김철수");
         given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of(u1, u1, u2));
 
-        CouncilDto.PlanEvaluationSummaryResponse res = planEvaluationService.getAllEvaluations(ASCT_ID);
+        CouncilDto.PlanEvaluationSummaryResponse res =
+                planEvaluationService.getAllEvaluations(ASCT_ID);
 
         assertThat(res.evaluations()).hasSize(4);
-        var a = res.verdicts().stream().filter(v -> "PRJ-A".equals(v.abusMngNo())).findFirst().orElseThrow();
-        var b = res.verdicts().stream().filter(v -> "PRJ-B".equals(v.abusMngNo())).findFirst().orElseThrow();
+        var a =
+                res.verdicts().stream()
+                        .filter(v -> "PRJ-A".equals(v.abusMngNo()))
+                        .findFirst()
+                        .orElseThrow();
+        var b =
+                res.verdicts().stream()
+                        .filter(v -> "PRJ-B".equals(v.abusMngNo()))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(a.finalPprtYn()).isEqualTo("Y");
         assertThat(a.reserveCount()).isEqualTo(0L);
         assertThat(b.finalPprtYn()).isEqualTo("N");
@@ -147,28 +144,29 @@ class PlanEvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getAbusMngNo()).willReturn("PLN-2026-0001");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        PlanDto.DetailResponse plan = PlanDto.DetailResponse.builder()
-                .bseYy("2026")
-                .itPtlPlnTpC("신규")
-                .redtConeInf("""
+        PlanDto.DetailResponse plan =
+                PlanDto.DetailResponse.builder()
+                        .bseYy("2026")
+                        .itPtlPlnTpC("신규")
+                        .redtConeInf(
+                                """
                         {"prjSnapshots":[
                           {"prjMngNo":"PRJ-1","abusNm":"통합사업","pulDtt":"신규","svnHdq":"본부","svnDpmNm":"부서","prjBg":300,"assetBg":200,"costBg":100},
                           {"prjMngNo":"ORN-1","ornYn":"Y"},
                           {"prjMngNo":" "}
                         ],"costDetails":[{},{}]}
                         """)
-                .build();
-        ProjectDto.Response detail = ProjectDto.Response.builder()
-                .abusMngNo("PRJ-1")
-                .abusCone("사업 개요")
-                .sttDtm(LocalDate.of(2026, 1, 1))
-                .endDtm(LocalDate.of(2026, 12, 31))
-                .build();
+                        .build();
+        ProjectDto.Response detail =
+                ProjectDto.Response.builder()
+                        .abusMngNo("PRJ-1")
+                        .abusCone("사업 개요")
+                        .sttDtm(LocalDate.of(2026, 1, 1))
+                        .endDtm(LocalDate.of(2026, 12, 31))
+                        .build();
         given(planService.getPlan("PLN-2026-0001")).willReturn(plan);
-        ProjectDto.Response duplicate = ProjectDto.Response.builder()
-                .abusMngNo("PRJ-1")
-                .abusCone("중복 상세")
-                .build();
+        ProjectDto.Response duplicate =
+                ProjectDto.Response.builder().abusMngNo("PRJ-1").abusCone("중복 상세").build();
         given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
                 .willReturn(new ProjectDto.BulkResponse(List.of(detail, duplicate), List.of()));
 
@@ -176,12 +174,15 @@ class PlanEvaluationServiceTest {
 
         assertThat(result.reqDocNo()).isEqualTo("PLN-2026-0001");
         assertThat(result.costCount()).isEqualTo(2);
-        assertThat(result.businesses()).singleElement().satisfies(business -> {
-            assertThat(business.abusMngNo()).isEqualTo("PRJ-1");
-            assertThat(business.prjDes()).isEqualTo("사업 개요");
-            assertThat(business.prjBg()).isEqualByComparingTo("300");
-            assertThat(business.basePrjBg()).isNull();
-        });
+        assertThat(result.businesses())
+                .singleElement()
+                .satisfies(
+                        business -> {
+                            assertThat(business.abusMngNo()).isEqualTo("PRJ-1");
+                            assertThat(business.prjDes()).isEqualTo("사업 개요");
+                            assertThat(business.prjBg()).isEqualByComparingTo("300");
+                            assertThat(business.basePrjBg()).isNull();
+                        });
     }
 
     @Test
@@ -190,11 +191,13 @@ class PlanEvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getAbusMngNo()).willReturn("PLN-CURRENT");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        PlanDto.DetailResponse current = PlanDto.DetailResponse.builder()
-                .bseYy("2026")
-                .itPtlPlnTpC("조정")
-                .redtConeInf("{\"projects\":[{\"prjMngNo\":\"PRJ-1\",\"prjBg\":250,\"assetBg\":150,\"costBg\":100}]}")
-                .build();
+        PlanDto.DetailResponse current =
+                PlanDto.DetailResponse.builder()
+                        .bseYy("2026")
+                        .itPtlPlnTpC("조정")
+                        .redtConeInf(
+                                "{\"projects\":[{\"prjMngNo\":\"PRJ-1\",\"prjBg\":250,\"assetBg\":150,\"costBg\":100}]}")
+                        .build();
         given(planService.getPlan("PLN-CURRENT")).willReturn(current);
         given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
                 .willReturn(new ProjectDto.BulkResponse(List.of(), List.of("PRJ-1")));
@@ -209,26 +212,35 @@ class PlanEvaluationServiceTest {
         given(broken.getAbusMngNo()).willReturn("PLN-BROKEN");
         given(wrongYear.getAbusMngNo()).willReturn("PLN-OLD");
         given(baseline.getAbusMngNo()).willReturn("PLN-BASE");
-        given(councilRepository
-                .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc("02", "13", "N"))
+        given(
+                        councilRepository
+                                .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(
+                                        "02", "13", "N"))
                 .willReturn(List.of(blank, same, broken, wrongYear, baseline));
         given(planService.getPlan("PLN-BROKEN")).willThrow(new IllegalStateException("조회 실패"));
-        given(planService.getPlan("PLN-OLD")).willReturn(PlanDto.DetailResponse.builder()
-                .bseYy("2025").itPtlPlnTpC("신규").build());
-        given(planService.getPlan("PLN-BASE")).willReturn(PlanDto.DetailResponse.builder()
-                .bseYy("2026")
-                .itPtlPlnTpC("신규")
-                .redtConeInf("{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-1\",\"prjBg\":300,\"assetBg\":200,\"costBg\":100}]}")
-                .build());
+        given(planService.getPlan("PLN-OLD"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder().bseYy("2025").itPtlPlnTpC("신규").build());
+        given(planService.getPlan("PLN-BASE"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .bseYy("2026")
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf(
+                                        "{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-1\",\"prjBg\":300,\"assetBg\":200,\"costBg\":100}]}")
+                                .build());
 
         CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
 
-        assertThat(result.businesses()).singleElement().satisfies(business -> {
-            assertThat(business.prjDes()).isNull();
-            assertThat(business.basePrjBg()).isEqualByComparingTo("300");
-            assertThat(business.baseAssetBg()).isEqualByComparingTo("200");
-            assertThat(business.baseCostBg()).isEqualByComparingTo("100");
-        });
+        assertThat(result.businesses())
+                .singleElement()
+                .satisfies(
+                        business -> {
+                            assertThat(business.prjDes()).isNull();
+                            assertThat(business.basePrjBg()).isEqualByComparingTo("300");
+                            assertThat(business.baseAssetBg()).isEqualByComparingTo("200");
+                            assertThat(business.baseCostBg()).isEqualByComparingTo("100");
+                        });
     }
 
     @Test
@@ -237,10 +249,12 @@ class PlanEvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getAbusMngNo()).willReturn("PLN-BROKEN");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(planService.getPlan("PLN-BROKEN")).willReturn(PlanDto.DetailResponse.builder()
-                .itPtlPlnTpC("조정")
-                .redtConeInf("{broken")
-                .build());
+        given(planService.getPlan("PLN-BROKEN"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("조정")
+                                .redtConeInf("{broken")
+                                .build());
 
         CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
 
@@ -248,13 +262,15 @@ class PlanEvaluationServiceTest {
         assertThat(result.costCount()).isZero();
         verify(projectService, never()).getProjectsByIds(any());
         verify(councilRepository, never())
-                .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(any(), any(), any());
+                .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(
+                        any(), any(), any());
     }
 
     @Test
     @DisplayName("getMyEvaluation: 로그인 위원의 평가만 응답 DTO로 변환한다")
     void getMyEvaluation_returnsCurrentMemberRows() {
-        CustomUserDetails user = new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
+        CustomUserDetails user =
+                new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
         Bplevm evaluation = mockEval("E1", "PRJ-A", "Y", "적정 의견");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
         given(planEvaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N"))
@@ -263,11 +279,14 @@ class PlanEvaluationServiceTest {
         List<CouncilDto.PlanEvaluationItemResponse> result =
                 planEvaluationService.getMyEvaluation(ASCT_ID, user);
 
-        assertThat(result).singleElement().satisfies(item -> {
-            assertThat(item.eno()).isEqualTo("E1");
-            assertThat(item.usrNm()).isNull();
-            assertThat(item.evalOpnn()).isEqualTo("적정 의견");
-        });
+        assertThat(result)
+                .singleElement()
+                .satisfies(
+                        item -> {
+                            assertThat(item.eno()).isEqualTo("E1");
+                            assertThat(item.usrNm()).isNull();
+                            assertThat(item.evalOpnn()).isEqualTo("적정 의견");
+                        });
     }
 
     @Test
@@ -282,18 +301,24 @@ class PlanEvaluationServiceTest {
         CouncilDto.PlanEvaluationSummaryResponse result =
                 planEvaluationService.getAllEvaluations(ASCT_ID);
 
-        assertThat(result.evaluations()).singleElement().satisfies(item -> assertThat(item.usrNm()).isNull());
-        assertThat(result.verdicts()).singleElement().satisfies(verdict -> {
-            assertThat(verdict.finalPprtYn()).isEqualTo("Y");
-            assertThat(verdict.evaluatorCount()).isEqualTo(1);
-        });
+        assertThat(result.evaluations())
+                .singleElement()
+                .satisfies(item -> assertThat(item.usrNm()).isNull());
+        assertThat(result.verdicts())
+                .singleElement()
+                .satisfies(
+                        verdict -> {
+                            assertThat(verdict.finalPprtYn()).isEqualTo("Y");
+                            assertThat(verdict.evaluatorCount()).isEqualTo(1);
+                        });
     }
 
     @Test
     @DisplayName("getAllEvaluations: 평가가 없으면 사용자 조회 없이 빈 목록을 반환한다")
     void getAllEvaluations_emptyRowsSkipsUserLookup() {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
-        given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
+        given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of());
 
         CouncilDto.PlanEvaluationSummaryResponse result =
                 planEvaluationService.getAllEvaluations(ASCT_ID);
@@ -307,10 +332,13 @@ class PlanEvaluationServiceTest {
     @DisplayName("saveEvaluation: 해당 협의회 평가위원이 아니면 AccessDeniedException")
     void save_notMember_denied() {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
-        given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E9", "N")).willReturn(Optional.empty());
-        CustomUserDetails user = new CustomUserDetails("E9", List.of(CustomUserDetails.ATH_USER), "IT001");
-        CouncilDto.PlanEvaluationRequest req = new CouncilDto.PlanEvaluationRequest(
-                List.of(new CouncilDto.PlanEvaluationItem("PRJ-A", "Y", "의견")));
+        given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E9", "N"))
+                .willReturn(Optional.empty());
+        CustomUserDetails user =
+                new CustomUserDetails("E9", List.of(CustomUserDetails.ATH_USER), "IT001");
+        CouncilDto.PlanEvaluationRequest req =
+                new CouncilDto.PlanEvaluationRequest(
+                        List.of(new CouncilDto.PlanEvaluationItem("PRJ-A", "Y", "의견")));
 
         assertThatThrownBy(() -> planEvaluationService.saveEvaluation(ASCT_ID, req, user))
                 .isInstanceOf(AccessDeniedException.class);
@@ -322,10 +350,13 @@ class PlanEvaluationServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
         given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N"))
                 .willReturn(Optional.of(mock(Bcmmtm.class)));
-        given(planEvaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N")).willReturn(List.<Bplevm>of());
-        CustomUserDetails user = new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
-        CouncilDto.PlanEvaluationRequest req = new CouncilDto.PlanEvaluationRequest(
-                List.of(new CouncilDto.PlanEvaluationItem("PRJ-A", "Y", "   ")));
+        given(planEvaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N"))
+                .willReturn(List.<Bplevm>of());
+        CustomUserDetails user =
+                new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
+        CouncilDto.PlanEvaluationRequest req =
+                new CouncilDto.PlanEvaluationRequest(
+                        List.of(new CouncilDto.PlanEvaluationItem("PRJ-A", "Y", "   ")));
 
         assertThatThrownBy(() -> planEvaluationService.saveEvaluation(ASCT_ID, req, user))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -337,10 +368,13 @@ class PlanEvaluationServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
         given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N"))
                 .willReturn(Optional.of(mock(Bcmmtm.class)));
-        given(planEvaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N")).willReturn(List.<Bplevm>of());
-        CustomUserDetails user = new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
-        CouncilDto.PlanEvaluationRequest req = new CouncilDto.PlanEvaluationRequest(
-                List.of(new CouncilDto.PlanEvaluationItem("PRJ-A", "X", "의견")));
+        given(planEvaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N"))
+                .willReturn(List.<Bplevm>of());
+        CustomUserDetails user =
+                new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
+        CouncilDto.PlanEvaluationRequest req =
+                new CouncilDto.PlanEvaluationRequest(
+                        List.of(new CouncilDto.PlanEvaluationItem("PRJ-A", "X", "의견")));
 
         assertThatThrownBy(() -> planEvaluationService.saveEvaluation(ASCT_ID, req, user))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -360,10 +394,13 @@ class PlanEvaluationServiceTest {
         given(duplicate.getAbusMngNo()).willReturn("PRJ-A");
         given(planEvaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N"))
                 .willReturn(List.of(existing, duplicate));
-        CustomUserDetails user = new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
-        CouncilDto.PlanEvaluationRequest request = new CouncilDto.PlanEvaluationRequest(List.of(
-                new CouncilDto.PlanEvaluationItem("PRJ-A", "N", "보완 필요"),
-                new CouncilDto.PlanEvaluationItem("PRJ-B", "Y", "적정")));
+        CustomUserDetails user =
+                new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
+        CouncilDto.PlanEvaluationRequest request =
+                new CouncilDto.PlanEvaluationRequest(
+                        List.of(
+                                new CouncilDto.PlanEvaluationItem("PRJ-A", "N", "보완 필요"),
+                                new CouncilDto.PlanEvaluationItem("PRJ-B", "Y", "적정")));
 
         planEvaluationService.saveEvaluation(ASCT_ID, request, user);
 
@@ -387,7 +424,8 @@ class PlanEvaluationServiceTest {
                 .willReturn(Optional.of(mock(Bcmmtm.class)));
         given(planEvaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N"))
                 .willReturn(List.of());
-        CustomUserDetails user = new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
+        CustomUserDetails user =
+                new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
 
         planEvaluationService.saveEvaluation(
                 ASCT_ID, new CouncilDto.PlanEvaluationRequest(List.of()), user);
@@ -404,9 +442,11 @@ class PlanEvaluationServiceTest {
                 .willReturn(Optional.of(mock(Bcmmtm.class)));
         given(planEvaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, "E1", "N"))
                 .willReturn(List.of());
-        CustomUserDetails user = new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
-        CouncilDto.PlanEvaluationRequest request = new CouncilDto.PlanEvaluationRequest(
-                List.of(new CouncilDto.PlanEvaluationItem("PRJ-A", "N", null)));
+        CustomUserDetails user =
+                new CustomUserDetails("E1", List.of(CustomUserDetails.ATH_USER), "IT001");
+        CouncilDto.PlanEvaluationRequest request =
+                new CouncilDto.PlanEvaluationRequest(
+                        List.of(new CouncilDto.PlanEvaluationItem("PRJ-A", "N", null)));
 
         assertThatThrownBy(() -> planEvaluationService.saveEvaluation(ASCT_ID, request, user))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -425,21 +465,25 @@ class PlanEvaluationServiceTest {
         // PRJ-A: E1 적정 / E2 유보 → 최종 유보
         Bplevm e1 = mockEval("E1", "PRJ-A", "Y");
         Bplevm e2 = mockEval("E2", "PRJ-A", "N");
-        given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(e1, e2));
+        given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(e1, e2));
 
-        PlanDto.DetailResponse plan = PlanDto.DetailResponse.builder()
-                .redtConeInf("{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-A\",\"abusNm\":\"클라우드 전환\"}]}")
-                .build();
+        PlanDto.DetailResponse plan =
+                PlanDto.DetailResponse.builder()
+                        .redtConeInf(
+                                "{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-A\",\"abusNm\":\"클라우드 전환\"}]}")
+                        .build();
         given(planService.getPlan("PLN-2026-0001")).willReturn(plan);
 
-        CouncilDto.PlanResultSummaryResponse res = planEvaluationService.buildResultSummary(ASCT_ID);
+        CouncilDto.PlanResultSummaryResponse res =
+                planEvaluationService.buildResultSummary(ASCT_ID);
 
         assertThat(res.verdicts()).hasSize(1);
         assertThat(res.verdicts().get(0).finalPprtYn()).isEqualTo("N");
         assertThat(res.summaryHtml())
-                .contains("<table>")           // 표 구조
-                .contains("클라우드 전환")      // 스냅샷에서 사업명 해석
-                .contains("유보");             // 최종 판정
+                .contains("<table>") // 표 구조
+                .contains("클라우드 전환") // 스냅샷에서 사업명 해석
+                .contains("유보"); // 최종 판정
     }
 
     @Test
@@ -453,9 +497,8 @@ class PlanEvaluationServiceTest {
         Bplevm adequate = mockEval("E1", "PRJ-B", "Y", "적정");
         given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(List.of(reserve, blankOpinion, adequate));
-        given(planService.getPlan("PLN-BROKEN")).willReturn(PlanDto.DetailResponse.builder()
-                .redtConeInf("{broken")
-                .build());
+        given(planService.getPlan("PLN-BROKEN"))
+                .willReturn(PlanDto.DetailResponse.builder().redtConeInf("{broken").build());
 
         CouncilDto.PlanResultSummaryResponse result =
                 planEvaluationService.buildResultSummary(ASCT_ID);

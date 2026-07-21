@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -17,8 +18,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.config.JacksonConfig;
+import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.infra.file.FileOwnershipChecker;
+import com.kdb.it.infra.file.dto.FileDto;
+import com.kdb.it.infra.file.service.FileService;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -32,40 +41,22 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.common.system.security.JwtUtil;
-import com.kdb.it.common.system.service.CustomUserDetailsService;
-import com.kdb.it.config.JacksonConfig;
-import com.kdb.it.config.TestSecurityConfig;
-import com.kdb.it.infra.file.FileOwnershipChecker;
-import com.kdb.it.infra.file.dto.FileDto;
-import com.kdb.it.infra.file.service.FileService;
-
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-
 /**
  * FileController @WebMvcTest
  *
- * <p>공통 첨부파일 HTTP 응답 구조와 인증 동작을 검증합니다.</p>
+ * <p>공통 첨부파일 HTTP 응답 구조와 인증 동작을 검증합니다.
  */
 @WebMvcTest(FileController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class FileControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private FileService fileService;
-    @MockitoBean
-    private FileOwnershipChecker fileOwnershipChecker;
-    @MockitoBean
-    private JwtUtil jwtUtil;
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private FileService fileService;
+    @MockitoBean private FileOwnershipChecker fileOwnershipChecker;
+    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     private static final String FL_MNG_NO = "FL_00000001";
 
@@ -91,8 +82,7 @@ class FileControllerTest {
     @WithMockUser(username = "10001")
     void getFile_인증_200() throws Exception {
         given(fileService.getFile(FL_MNG_NO)).willReturn(new FileDto.Response());
-        mockMvc.perform(get("/api/files/" + FL_MNG_NO))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/files/" + FL_MNG_NO)).andExpect(status().isOk());
     }
 
     @Test
@@ -101,17 +91,20 @@ class FileControllerTest {
     void uploadFile_인증_201() throws Exception {
         given(fileService.uploadFileAndGet(any(), any())).willReturn(new FileDto.Response());
 
-        MockMultipartFile file = new MockMultipartFile("file", "test.pdf",
-                MediaType.APPLICATION_PDF_VALUE, "pdf content".getBytes());
-        MockMultipartFile flTpCone = new MockMultipartFile("flTpCone", "", MediaType.TEXT_PLAIN_VALUE,
-                "첨부파일".getBytes());
-        MockMultipartFile pkColNm = new MockMultipartFile("pkColNm", "", MediaType.TEXT_PLAIN_VALUE,
-                "요구사항정의서".getBytes());
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "test.pdf",
+                        MediaType.APPLICATION_PDF_VALUE,
+                        "pdf content".getBytes());
+        MockMultipartFile flTpCone =
+                new MockMultipartFile(
+                        "flTpCone", "", MediaType.TEXT_PLAIN_VALUE, "첨부파일".getBytes());
+        MockMultipartFile pkColNm =
+                new MockMultipartFile(
+                        "pkColNm", "", MediaType.TEXT_PLAIN_VALUE, "요구사항정의서".getBytes());
 
-        mockMvc.perform(multipart("/api/files")
-                .file(file)
-                .file(flTpCone)
-                .file(pkColNm))
+        mockMvc.perform(multipart("/api/files").file(file).file(flTpCone).file(pkColNm))
                 .andExpect(status().isCreated());
     }
 
@@ -121,40 +114,50 @@ class FileControllerTest {
     void uploadFiles_인증_200() throws Exception {
         given(fileService.uploadFiles(any(), any())).willReturn(new FileDto.BulkUploadResponse());
 
-        MockMultipartFile file1 = new MockMultipartFile("files", "a.pdf",
-                MediaType.APPLICATION_PDF_VALUE, "a".getBytes());
-        MockMultipartFile flTpCone = new MockMultipartFile("flTpCone", "", MediaType.TEXT_PLAIN_VALUE,
-                "첨부파일".getBytes());
-        MockMultipartFile pkColNm = new MockMultipartFile("pkColNm", "", MediaType.TEXT_PLAIN_VALUE,
-                "요구사항정의서".getBytes());
+        MockMultipartFile file1 =
+                new MockMultipartFile(
+                        "files", "a.pdf", MediaType.APPLICATION_PDF_VALUE, "a".getBytes());
+        MockMultipartFile flTpCone =
+                new MockMultipartFile(
+                        "flTpCone", "", MediaType.TEXT_PLAIN_VALUE, "첨부파일".getBytes());
+        MockMultipartFile pkColNm =
+                new MockMultipartFile(
+                        "pkColNm", "", MediaType.TEXT_PLAIN_VALUE, "요구사항정의서".getBytes());
 
-        mockMvc.perform(multipart("/api/files/bulk")
-                .file(file1)
-                .file(flTpCone)
-                .file(pkColNm))
+        mockMvc.perform(multipart("/api/files/bulk").file(file1).file(flTpCone).file(pkColNm))
                 .andExpect(status().isOk());
     }
 
     @Test
     @DisplayName("PUT /api/files/{flMngNo} - 인증된 사용자 → 200")
     void updateFileMeta_인증_200() throws Exception {
-        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
         given(fileService.updateFileMeta(anyString(), any())).willReturn(FL_MNG_NO);
-        mockMvc.perform(put("/api/files/" + FL_MNG_NO).with(user(userDetails))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new FileDto.UpdateRequest())))
+        mockMvc.perform(
+                        put("/api/files/" + FL_MNG_NO)
+                                .with(user(userDetails))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new FileDto.UpdateRequest())))
                 .andExpect(status().isOk());
     }
 
     @Test
     @DisplayName("PUT /api/files/{flMngNo} - 소유권 검증을 호출한다")
     void updateMeta_callsOwnershipCheck() throws Exception {
-        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
         given(fileService.updateFileMeta(anyString(), any())).willReturn(FL_MNG_NO);
 
-        mockMvc.perform(put("/api/files/" + FL_MNG_NO).with(user(userDetails))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new FileDto.UpdateRequest())))
+        mockMvc.perform(
+                        put("/api/files/" + FL_MNG_NO)
+                                .with(user(userDetails))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new FileDto.UpdateRequest())))
                 .andExpect(status().isOk());
 
         verify(fileOwnershipChecker).verifyWriteAccess(FL_MNG_NO, userDetails);
@@ -163,20 +166,29 @@ class FileControllerTest {
     @Test
     @DisplayName("PUT /api/files/{flMngNo} - 타인 파일 메타수정 시 소유권 위반 → 403")
     void updateMeta_deniedForOther() throws Exception {
-        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
-        doThrow(new org.springframework.security.access.AccessDeniedException("본인 또는 관리자만 수행할 수 있습니다."))
-                .when(fileOwnershipChecker).verifyWriteAccess(anyString(), any());
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        doThrow(
+                        new org.springframework.security.access.AccessDeniedException(
+                                "본인 또는 관리자만 수행할 수 있습니다."))
+                .when(fileOwnershipChecker)
+                .verifyWriteAccess(anyString(), any());
 
-        mockMvc.perform(put("/api/files/" + FL_MNG_NO).with(user(userDetails))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new FileDto.UpdateRequest())))
+        mockMvc.perform(
+                        put("/api/files/" + FL_MNG_NO)
+                                .with(user(userDetails))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new FileDto.UpdateRequest())))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     @DisplayName("DELETE /api/files/{flMngNo} - 인증된 사용자 → 204 No Content")
     void deleteFile_인증_204() throws Exception {
-        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
         mockMvc.perform(delete("/api/files/" + FL_MNG_NO).with(user(userDetails)))
                 .andExpect(status().isNoContent());
     }
@@ -184,9 +196,13 @@ class FileControllerTest {
     @Test
     @DisplayName("DELETE /api/files/{flMngNo} - 타인 파일 삭제 시 소유권 위반 → 403")
     void deleteFile_deniedForOther() throws Exception {
-        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
-        doThrow(new org.springframework.security.access.AccessDeniedException("본인 또는 관리자만 수행할 수 있습니다."))
-                .when(fileOwnershipChecker).verifyWriteAccess(anyString(), any());
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        doThrow(
+                        new org.springframework.security.access.AccessDeniedException(
+                                "본인 또는 관리자만 수행할 수 있습니다."))
+                .when(fileOwnershipChecker)
+                .verifyWriteAccess(anyString(), any());
 
         mockMvc.perform(delete("/api/files/" + FL_MNG_NO).with(user(userDetails)))
                 .andExpect(status().isForbidden());
@@ -195,11 +211,16 @@ class FileControllerTest {
     @Test
     @DisplayName("DELETE /api/files/bulk - 인증된 사용자 → 200")
     void deleteFilesByOrc_인증_200() throws Exception {
-        CustomUserDetails userDetails = new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
         given(fileService.deleteFilesByOrc(anyString(), anyString(), any())).willReturn(3);
-        mockMvc.perform(delete("/api/files/bulk").with(user(userDetails))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new FileDto.BulkDeleteRequest())))
+        mockMvc.perform(
+                        delete("/api/files/bulk")
+                                .with(user(userDetails))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new FileDto.BulkDeleteRequest())))
                 .andExpect(status().isOk());
     }
 
@@ -209,10 +230,11 @@ class FileControllerTest {
     void downloadFile_인증_200() throws Exception {
         ByteArrayResource resource = new ByteArrayResource("content".getBytes());
         given(fileService.downloadFile(FL_MNG_NO))
-                .willReturn(new FileService.FileDownloadResult(resource, "test.pdf", "application/pdf"));
+                .willReturn(
+                        new FileService.FileDownloadResult(
+                                resource, "test.pdf", "application/pdf"));
 
-        mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/download"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/download")).andExpect(status().isOk());
     }
 
     @Test
@@ -223,8 +245,7 @@ class FileControllerTest {
         given(fileService.downloadFile(FL_MNG_NO))
                 .willReturn(new FileService.FileDownloadResult(resource, "photo.png", "image/png"));
 
-        mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/preview"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/preview")).andExpect(status().isOk());
     }
 
     @Test
@@ -238,8 +259,7 @@ class FileControllerTest {
         given(fileService.downloadFile(FL_MNG_NO))
                 .willReturn(new FileService.FileDownloadResult(resource, "photo.png", "image/png"));
 
-        mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/preview"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/preview")).andExpect(status().isOk());
     }
 
     @Test
@@ -251,10 +271,11 @@ class FileControllerTest {
 
         ByteArrayResource resource = new ByteArrayResource("content".getBytes());
         given(fileService.downloadFile(FL_MNG_NO))
-                .willReturn(new FileService.FileDownloadResult(resource, "test.pdf", "application/pdf"));
+                .willReturn(
+                        new FileService.FileDownloadResult(
+                                resource, "test.pdf", "application/pdf"));
 
-        mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/download"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/files/" + FL_MNG_NO + "/download")).andExpect(status().isOk());
     }
 
     // ─────────────────────────────────────────
@@ -264,6 +285,7 @@ class FileControllerTest {
 
     /** 거부 대상 파일매핑ID — checkReadAccess가 AccessDeniedException을 던지도록 스텁하는 공통 값. */
     private static final String FL_DENIED = "FL-DENIED";
+
     /** 허용 대상 파일매핑ID. */
     private static final String FL_OK = "FL-OK";
 
@@ -279,14 +301,18 @@ class FileControllerTest {
         // 서비스가 이미 읽기 권한으로 필터링한 "허용 파일만" 목록을 반환한다고 가정
         given(fileService.getFiles(any(), any())).willReturn(List.of(new FileDto.Response()));
 
-        mockMvc.perform(get("/api/files").with(user(userDetails))
-                .param("pkColNm", "요구사항정의서").param("pkCone", "DOC-1"))
+        mockMvc.perform(
+                        get("/api/files")
+                                .with(user(userDetails))
+                                .param("pkColNm", "요구사항정의서")
+                                .param("pkCone", "DOC-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(1));
 
         // 인증 사용자가 서비스로 정확히 전달되는지 ArgumentCaptor로 검증
-        ArgumentCaptor<CustomUserDetails> userCaptor = ArgumentCaptor.forClass(CustomUserDetails.class);
+        ArgumentCaptor<CustomUserDetails> userCaptor =
+                ArgumentCaptor.forClass(CustomUserDetails.class);
         verify(fileService).getFiles(any(FileDto.SearchCondition.class), userCaptor.capture());
         assertThat(userCaptor.getValue()).isSameAs(userDetails);
     }
@@ -297,8 +323,11 @@ class FileControllerTest {
         CustomUserDetails userDetails = normalUser();
         given(fileService.getFiles(any(), any())).willReturn(List.of());
 
-        mockMvc.perform(get("/api/files").with(user(userDetails))
-                .param("pkColNm", "요구사항정의서").param("pkCone", "DOC-1"))
+        mockMvc.perform(
+                        get("/api/files")
+                                .with(user(userDetails))
+                                .param("pkColNm", "요구사항정의서")
+                                .param("pkCone", "DOC-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));
@@ -309,7 +338,8 @@ class FileControllerTest {
     void getFile_denied_403() throws Exception {
         CustomUserDetails userDetails = normalUser();
         doThrow(new org.springframework.security.access.AccessDeniedException("파일 읽기 권한이 없습니다."))
-                .when(fileOwnershipChecker).checkReadAccess(FL_DENIED, userDetails);
+                .when(fileOwnershipChecker)
+                .checkReadAccess(FL_DENIED, userDetails);
 
         mockMvc.perform(get("/api/files/" + FL_DENIED).with(user(userDetails)))
                 .andExpect(status().isForbidden());
@@ -334,7 +364,8 @@ class FileControllerTest {
     void downloadFile_denied_403() throws Exception {
         CustomUserDetails userDetails = normalUser();
         doThrow(new org.springframework.security.access.AccessDeniedException("파일 읽기 권한이 없습니다."))
-                .when(fileOwnershipChecker).checkReadAccess(FL_DENIED, userDetails);
+                .when(fileOwnershipChecker)
+                .checkReadAccess(FL_DENIED, userDetails);
 
         mockMvc.perform(get("/api/files/" + FL_DENIED + "/download").with(user(userDetails)))
                 .andExpect(status().isForbidden());
@@ -349,7 +380,9 @@ class FileControllerTest {
         CustomUserDetails userDetails = normalUser();
         ByteArrayResource resource = new ByteArrayResource("content".getBytes());
         given(fileService.downloadFile(FL_OK))
-                .willReturn(new FileService.FileDownloadResult(resource, "test.pdf", "application/pdf"));
+                .willReturn(
+                        new FileService.FileDownloadResult(
+                                resource, "test.pdf", "application/pdf"));
 
         mockMvc.perform(get("/api/files/" + FL_OK + "/download").with(user(userDetails)))
                 .andExpect(status().isOk())
@@ -363,7 +396,8 @@ class FileControllerTest {
     void previewFile_denied_403() throws Exception {
         CustomUserDetails userDetails = normalUser();
         doThrow(new org.springframework.security.access.AccessDeniedException("파일 읽기 권한이 없습니다."))
-                .when(fileOwnershipChecker).checkReadAccess(FL_DENIED, userDetails);
+                .when(fileOwnershipChecker)
+                .checkReadAccess(FL_DENIED, userDetails);
 
         mockMvc.perform(get("/api/files/" + FL_DENIED + "/preview").with(user(userDetails)))
                 .andExpect(status().isForbidden());

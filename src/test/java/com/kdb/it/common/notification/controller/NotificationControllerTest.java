@@ -10,8 +10,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.List;
-
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.service.NotificationService;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -19,6 +17,7 @@ import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,49 +32,46 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 /**
  * NotificationController Web 계층 테스트
  *
- * <p>인증 사용자의 알림 조회와 상태 변경 API 응답 및 서비스 위임을 검증합니다.</p>
+ * <p>인증 사용자의 알림 조회와 상태 변경 API 응답 및 서비스 위임을 검증합니다.
  */
 @WebMvcTest(NotificationController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class NotificationControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @MockitoBean
-    private NotificationService notificationService;
+    @MockitoBean private NotificationService notificationService;
 
-    @MockitoBean
-    private JwtUtil jwtUtil;
+    @MockitoBean private JwtUtil jwtUtil;
 
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     @Test
     @DisplayName("GET /api/notifications: 비인증 사용자는 접근할 수 없다")
     void list_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/notifications"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/notifications")).andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("GET /api/notifications: 조회 결과를 알림 DTO 페이지로 반환한다")
     void list_인증사용자_페이지반환() throws Exception {
-        Cinfmm notification = Cinfmm.builder()
-                .infmMsgNo("INF-1")
-                .itPtlInfmSvcTc("01")
-                .ttl("공지")
-                .infmMsgCone("내용")
-                .inqYn("N")
-                .build();
+        Cinfmm notification =
+                Cinfmm.builder()
+                        .infmMsgNo("INF-1")
+                        .itPtlInfmSvcTc("01")
+                        .ttl("공지")
+                        .infmMsgCone("내용")
+                        .inqYn("N")
+                        .build();
         given(notificationService.listForCurrentUser("10001", true, PageRequest.of(1, 5)))
                 .willReturn(new PageImpl<>(List.of(notification), PageRequest.of(1, 5), 1));
 
-        mockMvc.perform(get("/api/notifications")
-                        .with(currentUser())
-                        .param("unreadOnly", "true")
-                        .param("page", "1")
-                        .param("size", "5"))
+        mockMvc.perform(
+                        get("/api/notifications")
+                                .with(currentUser())
+                                .param("unreadOnly", "true")
+                                .param("page", "1")
+                                .param("size", "5"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].infmMsgNo").value("INF-1"))
                 .andExpect(jsonPath("$.content[0].ttl").value("공지"));
@@ -84,9 +80,7 @@ class NotificationControllerTest {
     @Test
     @DisplayName("GET /api/notifications: size가 200을 초과하면 400을 반환한다")
     void list_size상한초과_400() throws Exception {
-        mockMvc.perform(get("/api/notifications")
-                        .with(currentUser())
-                        .param("size", "201"))
+        mockMvc.perform(get("/api/notifications").with(currentUser()).param("size", "201"))
                 .andExpect(status().isBadRequest());
     }
 

@@ -15,6 +15,8 @@ import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
+import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,14 +27,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import java.math.BigDecimal;
-import java.util.List;
-
 /**
  * {@link BudgetWorkService} 의 BITEMM 저장 원화 금액 편성 테스트.
  *
- * <p>BITEMM의 {@code amt}는 저장 시 원화로 환산된 금액이고, {@code fcAmt}가 원천 통화 금액입니다.
- * 편성/조회 경계에서는 {@code amt}를 그대로 사용해 환율 이중 적용을 방지합니다.</p>
+ * <p>BITEMM의 {@code amt}는 저장 시 원화로 환산된 금액이고, {@code fcAmt}가 원천 통화 금액입니다. 편성/조회 경계에서는 {@code amt}를
+ * 그대로 사용해 환율 이중 적용을 방지합니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -46,8 +45,7 @@ class BudgetWorkServiceXcrLookupTest {
     @Mock private BudgetWorkQueryRepository budgetWorkQueryRepository;
     @Mock private org.springframework.data.domain.AuditorAware<String> auditorAware;
 
-    @InjectMocks
-    private BudgetWorkService budgetWorkService;
+    @InjectMocks private BudgetWorkService budgetWorkService;
 
     @Test
     @DisplayName("BPROJM 편성: 저장된 KRW amt를 그대로 사용해 편성금액을 계산")
@@ -67,14 +65,18 @@ class BudgetWorkServiceXcrLookupTest {
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0001");
         given(bitemm.getSno()).willReturn(1);
-        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(eq("PRJ-2026-0001"), eq("N"), eq("Y")))
+        given(
+                        projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(
+                                eq("PRJ-2026-0001"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
 
         // getSummary mocks
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
 
-        BudgetWorkDto.ItemRate rate = new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 100);
-        BudgetWorkDto.ItemApplyRequest request = new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate));
+        BudgetWorkDto.ItemRate rate =
+                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 100);
+        BudgetWorkDto.ItemApplyRequest request =
+                new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate));
 
         // when
         budgetWorkService.applyItemRates(request);
@@ -104,13 +106,17 @@ class BudgetWorkServiceXcrLookupTest {
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0003");
         given(bitemm.getSno()).willReturn(1);
-        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(eq("PRJ-2026-0001"), eq("N"), eq("Y")))
+        given(
+                        projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(
+                                eq("PRJ-2026-0001"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
 
-        BudgetWorkDto.ItemRate rate = new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 100);
-        BudgetWorkDto.ItemApplyRequest request = new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate));
+        BudgetWorkDto.ItemRate rate =
+                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 100);
+        BudgetWorkDto.ItemApplyRequest request =
+                new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate));
 
         // when
         budgetWorkService.applyItemRates(request);
@@ -136,13 +142,17 @@ class BudgetWorkServiceXcrLookupTest {
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0002");
         given(bitemm.getSno()).willReturn(1);
-        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(eq("PRJ-2026-0002"), eq("N"), eq("Y")))
+        given(
+                        projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(
+                                eq("PRJ-2026-0002"), eq("N"), eq("Y")))
                 .willReturn(List.of(bitemm));
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
 
-        BudgetWorkDto.ItemRate rate = new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0002", 100, 100);
-        BudgetWorkDto.ItemApplyRequest request = new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate));
+        BudgetWorkDto.ItemRate rate =
+                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0002", 100, 100);
+        BudgetWorkDto.ItemApplyRequest request =
+                new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate));
 
         // when
         budgetWorkService.applyItemRates(request);
@@ -159,16 +169,22 @@ class BudgetWorkServiceXcrLookupTest {
     void applyRates_외화품목_저장KrwAmt사용() {
         // given
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N")).willReturn(List.of());
-        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BITEMM", "N")).willReturn(List.of());
-        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(
-                com.kdb.it.common.code.entity.Ccodem.builder()
-                        .cId("IOE_C")
-                        .cdva("001")
-                        .cdvaDtlC("237-0100")
-                        .sttDt("20260101")
-                        .build()));
-        given(bbugtmRepository.findApprovedCostsByIoeCValues(eq(java.util.Set.of("001")), eq("2026")))
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N"))
+                .willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BITEMM", "N"))
+                .willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null))
+                .willReturn(
+                        List.of(
+                                com.kdb.it.common.code.entity.Ccodem.builder()
+                                        .cId("IOE_C")
+                                        .cdva("001")
+                                        .cdvaDtlC("237-0100")
+                                        .sttDt("20260101")
+                                        .build()));
+        given(
+                        bbugtmRepository.findApprovedCostsByIoeCValues(
+                                eq(java.util.Set.of("001")), eq("2026")))
                 .willReturn(List.of());
 
         Bitemm bitemm = mock(Bitemm.class);
@@ -178,7 +194,9 @@ class BudgetWorkServiceXcrLookupTest {
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0004");
         given(bitemm.getSno()).willReturn(1);
-        given(bbugtmRepository.findApprovedItemsByIoeCValues(eq(java.util.Set.of("001")), eq("2026")))
+        given(
+                        bbugtmRepository.findApprovedItemsByIoeCValues(
+                                eq(java.util.Set.of("001")), eq("2026")))
                 .willReturn(List.of(bitemm));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
 
@@ -191,7 +209,8 @@ class BudgetWorkServiceXcrLookupTest {
         // then
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
-        assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo(new BigDecimal("130000.00"));
+        assertThat(captor.getValue().getBgDupAmt())
+                .isEqualByComparingTo(new BigDecimal("130000.00"));
     }
 
     @Test
@@ -199,16 +218,22 @@ class BudgetWorkServiceXcrLookupTest {
     void aggregate_foreignCurrency_usesStoredKrwAmt() {
         // given
         given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N")).willReturn(List.of());
-        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BITEMM", "N")).willReturn(List.of());
-        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(
-                com.kdb.it.common.code.entity.Ccodem.builder()
-                        .cId("IOE_C")
-                        .cdva("001")
-                        .cdvaDtlC("237-0100")
-                        .sttDt("20260101")
-                        .build()));
-        given(bbugtmRepository.findApprovedCostsByIoeCValues(eq(java.util.Set.of("001")), eq("2026")))
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N"))
+                .willReturn(List.of());
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BITEMM", "N"))
+                .willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null))
+                .willReturn(
+                        List.of(
+                                com.kdb.it.common.code.entity.Ccodem.builder()
+                                        .cId("IOE_C")
+                                        .cdva("001")
+                                        .cdvaDtlC("237-0100")
+                                        .sttDt("20260101")
+                                        .build()));
+        given(
+                        bbugtmRepository.findApprovedCostsByIoeCValues(
+                                eq(java.util.Set.of("001")), eq("2026")))
                 .willReturn(List.of());
 
         Bitemm bitemm = mock(Bitemm.class);
@@ -219,7 +244,9 @@ class BudgetWorkServiceXcrLookupTest {
         given(bitemm.getIoeC()).willReturn("001");
         given(bitemm.getGclMngNo()).willReturn("GCL-2026-0005");
         given(bitemm.getSno()).willReturn(1);
-        given(bbugtmRepository.findApprovedItemsByIoeCValues(eq(java.util.Set.of("001")), eq("2026")))
+        given(
+                        bbugtmRepository.findApprovedItemsByIoeCValues(
+                                eq(java.util.Set.of("001")), eq("2026")))
                 .willReturn(List.of(bitemm));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
 
@@ -233,6 +260,7 @@ class BudgetWorkServiceXcrLookupTest {
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
         // fcAmt * xcr = 140000이지만 재집계는 저장된 amt 130000을 그대로 쓴다
-        assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo(new BigDecimal("130000.00"));
+        assertThat(captor.getValue().getBgDupAmt())
+                .isEqualByComparingTo(new BigDecimal("130000.00"));
     }
 }

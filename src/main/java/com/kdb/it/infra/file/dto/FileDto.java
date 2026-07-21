@@ -1,28 +1,22 @@
 package com.kdb.it.infra.file.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 /**
  * 공통첨부파일기본 DTO 모음
  *
- * <p>
- * TPRMPP_CFILEM 테이블의 CRUD 및 다운로드 API 요청/응답에 사용되는
- * 정적 중첩 클래스 방식 DTO입니다.
- * </p>
+ * <p>TPRMPP_CFILEM 테이블의 CRUD 및 다운로드 API 요청/응답에 사용되는 정적 중첩 클래스 방식 DTO입니다.
  */
 public class FileDto {
 
-    /**
-     * 파일 업로드 요청 DTO
-     */
+    /** 파일 업로드 요청 DTO */
     @Schema(name = "FileDto.UploadRequest", description = "파일 업로드 요청 DTO")
     @Getter
     @Setter
@@ -31,19 +25,23 @@ public class FileDto {
     @Builder
     public static class UploadRequest {
 
-        @Schema(description = "파일유형내용 ('이미지' 또는 '첨부파일')", example = "첨부파일", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "파일유형내용 ('이미지' 또는 '첨부파일')",
+                example = "첨부파일",
+                requiredMode = Schema.RequiredMode.REQUIRED)
         private String flTpCone;
 
         @Schema(description = "주식별자내용 (연결할 도메인 레코드 기본키)", example = "PRJ-2026-0001")
         private String pkCone;
 
-        @Schema(description = "주식별자컬럼명 (연결할 도메인 종류)", example = "요구사항정의서", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "주식별자컬럼명 (연결할 도메인 종류)",
+                example = "요구사항정의서",
+                requiredMode = Schema.RequiredMode.REQUIRED)
         private String pkColNm;
     }
 
-    /**
-     * 파일 메타데이터 수정 요청 DTO
-     */
+    /** 파일 메타데이터 수정 요청 DTO */
     @Schema(name = "FileDto.UpdateRequest", description = "파일 메타데이터 수정 요청 DTO")
     @Getter
     @Setter
@@ -55,13 +53,14 @@ public class FileDto {
         @Schema(description = "변경할 주식별자내용", example = "PRJ-2026-0002")
         private String pkCone;
 
-        @Schema(description = "변경할 주식별자컬럼명", example = "정보화사업", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "변경할 주식별자컬럼명",
+                example = "정보화사업",
+                requiredMode = Schema.RequiredMode.REQUIRED)
         private String pkColNm;
     }
 
-    /**
-     * 파일 단건·목록 조회 응답 DTO
-     */
+    /** 파일 단건·목록 조회 응답 DTO */
     @Schema(name = "FileDto.Response", description = "파일 조회 응답 DTO")
     @Getter
     @Builder
@@ -75,7 +74,9 @@ public class FileDto {
         @Schema(description = "파일명", example = "요구사항정의서_v1.0.pdf")
         private String flNm;
 
-        @Schema(description = "파일물리명", example = "SVR1_20260315143022_550e8400e29b41d4a716446655440000.pdf")
+        @Schema(
+                description = "파일물리명",
+                example = "SVR1_20260315143022_550e8400e29b41d4a716446655440000.pdf")
         private String flPysNm;
 
         @Schema(description = "파일저장경로", example = "/data/files/요구사항정의서/2026/03")
@@ -96,10 +97,9 @@ public class FileDto {
         @Schema(description = "최초등록자 사번", example = "EMP0001234")
         private String fstEnrUsid;
 
-        /**
-         * 이미지 미리보기 URL — flTpCone='이미지'인 경우 Tiptap img src로 사용.
-         */
-        @Schema(description = "이미지 미리보기 URL (flTpCone='이미지'인 경우 Tiptap img src로 사용)",
+        /** 이미지 미리보기 URL — flTpCone='이미지'인 경우 Tiptap img src로 사용. */
+        @Schema(
+                description = "이미지 미리보기 URL (flTpCone='이미지'인 경우 Tiptap img src로 사용)",
                 example = "/api/files/FL_00000001/preview")
         private String previewUrl;
 
@@ -108,9 +108,7 @@ public class FileDto {
         private String downloadUrl;
     }
 
-    /**
-     * 원본 기준 일괄 삭제 요청 DTO
-     */
+    /** 원본 기준 일괄 삭제 요청 DTO */
     @Schema(name = "FileDto.BulkDeleteRequest", description = "원본 기준 파일 일괄 삭제 요청 DTO")
     @Getter
     @Setter
@@ -119,16 +117,20 @@ public class FileDto {
     @Builder
     public static class BulkDeleteRequest {
 
-        @Schema(description = "주식별자컬럼명", example = "요구사항정의서", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "주식별자컬럼명",
+                example = "요구사항정의서",
+                requiredMode = Schema.RequiredMode.REQUIRED)
         private String pkColNm;
 
-        @Schema(description = "주식별자내용", example = "PRJ-2026-0001", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "주식별자내용",
+                example = "PRJ-2026-0001",
+                requiredMode = Schema.RequiredMode.REQUIRED)
         private String pkCone;
     }
 
-    /**
-     * 파일 목록 조회 조건 DTO
-     */
+    /** 파일 목록 조회 조건 DTO */
     @Schema(name = "FileDto.SearchCondition", description = "파일 목록 조회 조건 DTO")
     @Getter
     @Setter
@@ -147,9 +149,7 @@ public class FileDto {
         private String flTpCone;
     }
 
-    /**
-     * 파일 일괄 업로드 결과 DTO
-     */
+    /** 파일 일괄 업로드 결과 DTO */
     @Schema(name = "FileDto.BulkUploadResponse", description = "파일 일괄 업로드 결과 DTO")
     @Getter
     @Builder

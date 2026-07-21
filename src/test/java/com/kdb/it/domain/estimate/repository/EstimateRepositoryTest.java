@@ -20,27 +20,27 @@ import org.mockito.junit.jupiter.MockitoExtension;
 /**
  * EstimateRepository 단위 테스트.
  *
- * <p>프로젝트 내 기존 테스트 패턴(ProjectRepositoryImplTest)과 동일하게
- * {@link org.mockito.Mockito}로 Repository 인터페이스를 목킹하여 DB 없이 실행합니다.</p>
+ * <p>프로젝트 내 기존 테스트 패턴(ProjectRepositoryImplTest)과 동일하게 {@link org.mockito.Mockito}로 Repository
+ * 인터페이스를 목킹하여 DB 없이 실행합니다.
  */
 @ExtendWith(MockitoExtension.class)
 class EstimateRepositoryTest {
 
-    @Mock
-    private EstimateRepository repository;
+    @Mock private EstimateRepository repository;
 
     private Bestim sampleBestim;
 
     @BeforeEach
     void setUp() {
-        sampleBestim = Bestim.builder()
-                .rqmBgReqDocNo("BEG-2026-00000001")
-                .docVrsSno(1)
-                .lstYn("Y")
-                .cncdRfrNo("PRJ-2026-0001")
-                .stsTc("51")
-                .reqCone("산정 요청합니다")
-                .build();
+        sampleBestim =
+                Bestim.builder()
+                        .rqmBgReqDocNo("BEG-2026-00000001")
+                        .docVrsSno(1)
+                        .lstYn("Y")
+                        .cncdRfrNo("PRJ-2026-0001")
+                        .stsTc("51")
+                        .reqCone("산정 요청합니다")
+                        .build();
     }
 
     // -----------------------------------------------------------------------
@@ -55,8 +55,8 @@ class EstimateRepositoryTest {
                 .willReturn(Optional.of(sampleBestim));
 
         // Act
-        Optional<Bestim> found = repository.findByRqmBgReqDocNoAndLstYnAndDelYn(
-                "BEG-2026-00000001", "Y", "N");
+        Optional<Bestim> found =
+                repository.findByRqmBgReqDocNoAndLstYnAndDelYn("BEG-2026-00000001", "Y", "N");
 
         // Assert
         assertThat(found).isPresent();
@@ -74,8 +74,8 @@ class EstimateRepositoryTest {
                 .willReturn(Optional.empty());
 
         // Act
-        Optional<Bestim> found = repository.findByRqmBgReqDocNoAndLstYnAndDelYn(
-                "NOTEXIST", "Y", "N");
+        Optional<Bestim> found =
+                repository.findByRqmBgReqDocNoAndLstYnAndDelYn("NOTEXIST", "Y", "N");
 
         // Assert
         assertThat(found).isEmpty();
@@ -90,13 +90,13 @@ class EstimateRepositoryTest {
     void existsActiveDuplicate_returnsTrue() {
         // Arrange
         List<String> activeStatuses = List.of("51", "55");
-        given(repository.existsByCncdRfrNoAndStsTcInAndDelYn(
-                "PRJ-2026-0001", activeStatuses, "N"))
+        given(repository.existsByCncdRfrNoAndStsTcInAndDelYn("PRJ-2026-0001", activeStatuses, "N"))
                 .willReturn(true);
 
         // Act
-        boolean exists = repository.existsByCncdRfrNoAndStsTcInAndDelYn(
-                "PRJ-2026-0001", activeStatuses, "N");
+        boolean exists =
+                repository.existsByCncdRfrNoAndStsTcInAndDelYn(
+                        "PRJ-2026-0001", activeStatuses, "N");
 
         // Assert
         assertThat(exists).isTrue();
@@ -107,13 +107,12 @@ class EstimateRepositoryTest {
     void existsActiveDuplicate_noMatch_returnsFalse() {
         // Arrange
         List<String> activeStatuses = List.of("51", "55");
-        given(repository.existsByCncdRfrNoAndStsTcInAndDelYn(
-                "PRJ-2026-NEW", activeStatuses, "N"))
+        given(repository.existsByCncdRfrNoAndStsTcInAndDelYn("PRJ-2026-NEW", activeStatuses, "N"))
                 .willReturn(false);
 
         // Act
-        boolean exists = repository.existsByCncdRfrNoAndStsTcInAndDelYn(
-                "PRJ-2026-NEW", activeStatuses, "N");
+        boolean exists =
+                repository.existsByCncdRfrNoAndStsTcInAndDelYn("PRJ-2026-NEW", activeStatuses, "N");
 
         // Assert
         assertThat(exists).isFalse();
@@ -127,11 +126,21 @@ class EstimateRepositoryTest {
     @DisplayName("조건이 없으면 search가 전체 목록을 반환한다")
     void search_noCondition_returnsAll() {
         // Arrange
-        EstimateDto.ListItem item = new EstimateDto.ListItem(
-                "BEG-2026-00000001", 1, "100", "PRJ-2026-0001",
-                "클라우드 전환 사업", new BigDecimal("500000000"),
-                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
-                "18001", "IT기획부", "51", "EMP001", null);
+        EstimateDto.ListItem item =
+                new EstimateDto.ListItem(
+                        "BEG-2026-00000001",
+                        1,
+                        "100",
+                        "PRJ-2026-0001",
+                        "클라우드 전환 사업",
+                        new BigDecimal("500000000"),
+                        LocalDate.of(2026, 1, 1),
+                        LocalDate.of(2026, 12, 31),
+                        "18001",
+                        "IT기획부",
+                        "51",
+                        "EMP001",
+                        null);
         given(repository.search(null, null, null)).willReturn(List.of(item));
 
         // Act

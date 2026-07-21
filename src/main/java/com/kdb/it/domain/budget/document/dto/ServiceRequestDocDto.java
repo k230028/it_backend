@@ -4,32 +4,26 @@ import com.kdb.it.domain.budget.document.entity.Brdocm;
 import com.kdb.it.domain.budget.document.util.DocVersionCodec;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
 /**
  * 요구사항 정의서(TPRMPP_BRDOCM) 관련 DTO 클래스 모음
  *
- * <p>
- * 요구사항 정의서 엔티티의 생성, 수정, 조회에 사용되는 DTO를
- * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
- * </p>
+ * <p>요구사항 정의서 엔티티의 생성, 수정, 조회에 사용되는 DTO를 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  */
 public class ServiceRequestDocDto {
 
     /**
      * 요구사항 정의서 생성 요청 DTO
      *
-     * <p>
-     * {@code docMngNo}가 null 또는 빈 문자열이면 서비스에서 자동 채번합니다.
-     * 형식: {@code DOC-{연도}-{seq:04d}} (예: DOC-2026-0001)
-     * </p>
+     * <p>{@code docMngNo}가 null 또는 빈 문자열이면 서비스에서 자동 채번합니다. 형식: {@code DOC-{연도}-{seq:04d}} (예:
+     * DOC-2026-0001)
      */
     @Getter
     @Setter
@@ -67,12 +61,10 @@ public class ServiceRequestDocDto {
         /**
          * CreateRequest를 {@link Brdocm} 엔티티로 변환합니다.
          *
-         * <p>
-         * 복합 기본키({@code docMngNo}, {@code docVrsSno})를 구성하기 위해
-         * 서비스 레이어에서 채번된 문서관리번호와 최초 문서버전을 파라미터로 전달받습니다.
-         * </p>
+         * <p>복합 기본키({@code docMngNo}, {@code docVrsSno})를 구성하기 위해 서비스 레이어에서 채번된 문서관리번호와 최초 문서버전을
+         * 파라미터로 전달받습니다.
          *
-         * @param docMngNo  채번된 문서관리번호 (예: DOC-2026-0001)
+         * @param docMngNo 채번된 문서관리번호 (예: DOC-2026-0001)
          * @param docVrsSno 문서버전 (최초 생성 시 일반적으로 0.01)
          * @return 변환된 Brdocm 엔티티
          */
@@ -89,9 +81,7 @@ public class ServiceRequestDocDto {
         }
     }
 
-    /**
-     * 요구사항 정의서 수정 요청 DTO
-     */
+    /** 요구사항 정의서 수정 요청 DTO */
     @Getter
     @Setter
     @NoArgsConstructor
@@ -122,9 +112,7 @@ public class ServiceRequestDocDto {
         private String rvwFsgTlmDt;
     }
 
-    /**
-     * 요구사항 정의서 조회 응답 DTO
-     */
+    /** 요구사항 정의서 조회 응답 DTO */
     @Getter
     @Setter
     @NoArgsConstructor
@@ -223,10 +211,7 @@ public class ServiceRequestDocDto {
     /**
      * 요구사항 정의서 버전 히스토리 응답 DTO
      *
-     * <p>
-     * 동일 {@code docMngNo}에 대한 모든 버전 목록을 반환할 때 사용합니다.
-     * 본문(BLOB)은 제외하고 메타 정보만 포함합니다.
-     * </p>
+     * <p>동일 {@code docMngNo}에 대한 모든 버전 목록을 반환할 때 사용합니다. 본문(BLOB)은 제외하고 메타 정보만 포함합니다.
      */
     @Getter
     @NoArgsConstructor
@@ -296,61 +281,77 @@ public class ServiceRequestDocDto {
         }
     }
 
-    /**
-     * 요구사항 정의서 대시보드 응답 DTO
-     */
+    /** 요구사항 정의서 대시보드 응답 DTO */
     @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(name = "DocumentDashboardResponse", description = "요구사항 정의서 대시보드 응답")
     public static class DashboardResponse {
-        @Schema(description = "전체 문서 수") private int totalCount;
-        @Schema(description = "검토 진행 중 문서 수") private int reviewingCount;
-        @Schema(description = "협의 완료 문서 수") private int completedCount;
-        @Schema(description = "완료기한 초과 문서 수") private int overdueCount;
-        @Schema(description = "최근 6개월 월별 등록 추이") private java.util.List<MonthlyCount> monthlyTrend;
-        @Schema(description = "검토 중인 최근 요청 목록 (최대 3건)") private java.util.List<ReviewingItem> recentReviewing;
+        @Schema(description = "전체 문서 수")
+        private int totalCount;
+
+        @Schema(description = "검토 진행 중 문서 수")
+        private int reviewingCount;
+
+        @Schema(description = "협의 완료 문서 수")
+        private int completedCount;
+
+        @Schema(description = "완료기한 초과 문서 수")
+        private int overdueCount;
+
+        @Schema(description = "최근 6개월 월별 등록 추이")
+        private java.util.List<MonthlyCount> monthlyTrend;
+
+        @Schema(description = "검토 중인 최근 요청 목록 (최대 3건)")
+        private java.util.List<ReviewingItem> recentReviewing;
     }
 
-    /**
-     * 월별 건수 DTO
-     */
+    /** 월별 건수 DTO */
     @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(name = "DocumentMonthlyCount", description = "월별 등록 건수")
     public static class MonthlyCount {
-        @Schema(description = "년월 (YYYY-MM)") private String month;
-        @Schema(description = "건수") private int count;
+        @Schema(description = "년월 (YYYY-MM)")
+        private String month;
+
+        @Schema(description = "건수")
+        private int count;
     }
 
-    /**
-     * 검토 중인 문서 항목 DTO
-     */
+    /** 검토 중인 문서 항목 DTO */
     @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(name = "DocumentReviewingItem", description = "검토 중인 문서 항목")
     public static class ReviewingItem {
-        @Schema(description = "문서관리번호") private String docMngNo;
-        @Schema(description = "요구사항명") private String title;
-        @Schema(description = "작성자명") private String authorName;
-        @Schema(description = "최초 등록 일시 (YYYY-MM-DD)") private String createdAt;
-        @Schema(description = "상태: reviewing(검토중) | delayed(지연)") private String status;
+        @Schema(description = "문서관리번호")
+        private String docMngNo;
+
+        @Schema(description = "요구사항명")
+        private String title;
+
+        @Schema(description = "작성자명")
+        private String authorName;
+
+        @Schema(description = "최초 등록 일시 (YYYY-MM-DD)")
+        private String createdAt;
+
+        @Schema(description = "상태: reviewing(검토중) | delayed(지연)")
+        private String status;
     }
 
-    /**
-     * 사이드바 배지 건수 응답 DTO
-     */
+    /** 사이드바 배지 건수 응답 DTO */
     @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(name = "DocumentBadgeCountResponse", description = "사이드바 배지 건수 응답")
     public static class BadgeCountResponse {
-        @Schema(description = "검토 진행 중 문서 수") private int reviewingCount;
+        @Schema(description = "검토 진행 중 문서 수")
+        private int reviewingCount;
     }
 }

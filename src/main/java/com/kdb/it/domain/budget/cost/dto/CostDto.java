@@ -1,12 +1,10 @@
 package com.kdb.it.domain.budget.cost.dto;
 
-import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.util.DateFormatUtil;
-
+import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,19 +17,16 @@ import lombok.Setter;
 /**
  * 전산관리비(IT 관리비) 관련 DTO 클래스 모음
  *
- * <p>
- * 전산관리비(TPRMPP_BCOSTM) 엔티티의 생성, 수정, 조회, 일괄 조회에 사용되는
- * Request/Response DTO를 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
- * </p>
+ * <p>전산관리비(TPRMPP_BCOSTM) 엔티티의 생성, 수정, 조회, 일괄 조회에 사용되는 Request/Response DTO를 정적 중첩 클래스(Static
+ * Nested Class) 형태로 관리합니다.
  *
- * <p>
- * 포함된 DTO:
- * </p>
+ * <p>포함된 DTO:
+ *
  * <ul>
- * <li>{@link CreateRequest}: 전산관리비 생성 요청</li>
- * <li>{@link UpdateRequest}: 전산관리비 수정 요청</li>
- * <li>{@link Response}: 전산관리비 조회 응답</li>
- * <li>{@link BulkGetRequest}: 일괄 조회 요청</li>
+ *   <li>{@link CreateRequest}: 전산관리비 생성 요청
+ *   <li>{@link UpdateRequest}: 전산관리비 수정 요청
+ *   <li>{@link Response}: 전산관리비 조회 응답
+ *   <li>{@link BulkGetRequest}: 일괄 조회 요청
  * </ul>
  */
 public class CostDto {
@@ -39,24 +34,23 @@ public class CostDto {
     /**
      * 전산관리비 목록 경량 프로젝션 DTO(#7).
      *
-     * <p>목록 화면에 필요한 식별/요약 컬럼만 담는다. Bcostm은 1000자+ 대용량 텍스트가 없어
-     * 제외 본문은 없으나, 목록에 불필요한 환산/외화/연기/담당자 등 미표시 컬럼을 select에서
-     * 빼 적재 폭을 줄인다. 상세는 기존 엔티티 조회 경로를 유지한다(결정 B).</p>
+     * <p>목록 화면에 필요한 식별/요약 컬럼만 담는다. Bcostm은 1000자+ 대용량 텍스트가 없어 제외 본문은 없으나, 목록에 불필요한 환산/외화/연기/담당자 등
+     * 미표시 컬럼을 select에서 빼 적재 폭을 줄인다. 상세는 기존 엔티티 조회 경로를 유지한다(결정 B).
      *
-     * @param costBgNo     전산업무비예산번호
-     * @param bgSno        예산일련번호
-     * @param lstYn        최종여부 ('Y'=현재 유효 레코드)
-     * @param ioeC         비목코드
-     * @param cttNm        계약명
-     * @param cttOppNm     계약상대처명
+     * @param costBgNo 전산업무비예산번호
+     * @param bgSno 예산일련번호
+     * @param lstYn 최종여부 ('Y'=현재 유효 레코드)
+     * @param ioeC 비목코드
+     * @param cttNm 계약명
+     * @param cttOppNm 계약상대처명
      * @param costTotXpAmt 전산업무비예산금액
-     * @param curC         통화코드
+     * @param curC 통화코드
      * @param sectSysUtzYn 정보보호여부 (Y/N)
-     * @param costSvnDpmC  담당부서코드 (주관부서코드)
-     * @param svnTemC      담당팀코드 (주관팀코드)
-     * @param bseYy        예산연도 (기준연도)
-     * @param abusTc       사업구분코드
-     * @param delYn        삭제여부 (Y/N)
+     * @param costSvnDpmC 담당부서코드 (주관부서코드)
+     * @param svnTemC 담당팀코드 (주관팀코드)
+     * @param bseYy 예산연도 (기준연도)
+     * @param abusTc 사업구분코드
+     * @param delYn 삭제여부 (Y/N)
      */
     @Schema(name = "CostListRow")
     public record CostListRow(
@@ -73,23 +67,16 @@ public class CostDto {
             String svnTemC,
             String bseYy,
             String abusTc,
-            String delYn
-    ) {}
+            String delYn) {}
 
     /**
      * 전산관리비 생성 요청 DTO
      *
-     * <p>
-     * 신규 전산관리비 항목을 등록할 때 사용합니다.
-     * </p>
+     * <p>신규 전산관리비 항목을 등록할 때 사용합니다.
      *
-     * <p>
-     * {@code costBgNo}가 null 또는 빈 문자열이면 서비스에서 Oracle 시퀀스로 자동 채번합니다.
-     * </p>
+     * <p>{@code costBgNo}가 null 또는 빈 문자열이면 서비스에서 Oracle 시퀀스로 자동 채번합니다.
      *
-     * <p>
-     * {@link #toEntity(Integer)} 메서드로 엔티티로 변환할 수 있습니다.
-     * </p>
+     * <p>{@link #toEntity(Integer)} 메서드로 엔티티로 변환할 수 있습니다.
      */
     @Getter
     @Setter
@@ -100,10 +87,9 @@ public class CostDto {
     public static class CreateRequest {
         /**
          * 전산관리비관리번호 (BG_NO)
-         * <p>
-         * null 또는 빈 문자열이면 서비스에서 자동 채번됩니다.
-         * 형식: {@code COST_{yyyy}_{seq:04d}} (예: "COST_2026_0001")
-         * </p>
+         *
+         * <p>null 또는 빈 문자열이면 서비스에서 자동 채번됩니다. 형식: {@code COST_{yyyy}_{seq:04d}} (예:
+         * "COST_2026_0001")
          */
         @Schema(description = "전산업무비코드 (IT관리비관리번호)", example = "COST_2026_0001")
         private String costBgNo;
@@ -141,10 +127,7 @@ public class CostDto {
         @Schema(description = "환율", example = "1300")
         private BigDecimal xcr;
 
-        /**
-         * 외화금액(외화 통화 원금 — 원화(KRW) 행은 null.
-         * 외화 행은 서버에서 costTotXpAmt = fcAmt × xcr 재계산)
-         */
+        /** 외화금액(외화 통화 원금 — 원화(KRW) 행은 null. 외화 행은 서버에서 costTotXpAmt = fcAmt × xcr 재계산) */
         @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000")
         private BigDecimal fcAmt;
 
@@ -210,11 +193,15 @@ public class CostDto {
                     .cttOppNm(this.cttOppNm) // 계약상대처
                     .costTotXpAmt(this.costTotXpAmt) // 전산관리비예산
                     .dfrCleC(this.dfrCleC) // 지급주기
-                    .fstDfrDt(DateFormatUtil.toYmd8(this.fstDfrDt)) // 최초지급일자 (YYYYMMDD 8자리 정규화 — VARCHAR2(8) truncate 방지)
+                    .fstDfrDt(
+                            DateFormatUtil.toYmd8(
+                                    this.fstDfrDt)) // 최초지급일자 (YYYYMMDD 8자리 정규화 — VARCHAR2(8)
+                    // truncate 방지)
                     .curC(this.curC) // 통화
                     .xcr(this.xcr) // 환율
                     .xcrBseDt(DateFormatUtil.toYmd8(this.xcrBseDt)) // 환율기준일자
-                    .sectSysUtzYn(this.sectSysUtzYn == null ? "N" : this.sectSysUtzYn) // 정보보호여부 (기본값 "N")
+                    .sectSysUtzYn(
+                            this.sectSysUtzYn == null ? "N" : this.sectSysUtzYn) // 정보보호여부 (기본값 "N")
                     .indRsn(this.indRsn) // 증감사유
                     .cgprId(this.cgprId) // 담당자
                     .costSvnDpmC(this.costSvnDpmC) // 담당부서
@@ -233,10 +220,7 @@ public class CostDto {
     /**
      * 전산관리비 수정 요청 DTO
      *
-     * <p>
-     * 기존 전산관리비 항목의 내용을 수정할 때 사용합니다.
-     * {@code BG_NO}는 URL PathVariable로 받으므로 이 DTO에는 포함하지 않습니다.
-     * </p>
+     * <p>기존 전산관리비 항목의 내용을 수정할 때 사용합니다. {@code BG_NO}는 URL PathVariable로 받으므로 이 DTO에는 포함하지 않습니다.
      */
     @Getter
     @Setter
@@ -278,10 +262,7 @@ public class CostDto {
         @Schema(description = "환율", example = "1300")
         private BigDecimal xcr;
 
-        /**
-         * 외화금액(외화 통화 원금 — 원화(KRW) 행은 null.
-         * 외화 행은 서버에서 costTotXpAmt = fcAmt × xcr 재계산)
-         */
+        /** 외화금액(외화 통화 원금 — 원화(KRW) 행은 null. 외화 행은 서버에서 costTotXpAmt = fcAmt × xcr 재계산) */
         @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000")
         private BigDecimal fcAmt;
 
@@ -336,10 +317,7 @@ public class CostDto {
     /**
      * 전산관리비 조회 응답 DTO
      *
-     * <p>
-     * {@link Bcostm} 엔티티의 모든 필드를 포함합니다.
-     * {@link #fromEntity(Bcostm)} 정적 팩토리 메서드로 엔티티에서 변환합니다.
-     * </p>
+     * <p>{@link Bcostm} 엔티티의 모든 필드를 포함합니다. {@link #fromEntity(Bcostm)} 정적 팩토리 메서드로 엔티티에서 변환합니다.
      */
     @Getter
     @Setter
@@ -392,10 +370,7 @@ public class CostDto {
         @Schema(description = "환율", example = "1300")
         private BigDecimal xcr;
 
-        /**
-         * 외화금액(외화 원금. 원화 행은 null.
-         * 프론트는 curC === 'KRW' ? costTotXpAmt : fcAmt 분기로 표시)
-         */
+        /** 외화금액(외화 원금. 원화 행은 null. 프론트는 curC === 'KRW' ? costTotXpAmt : fcAmt 분기로 표시) */
         @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000")
         private BigDecimal fcAmt;
 
@@ -494,7 +469,10 @@ public class CostDto {
         @Schema(description = "기타무형자산")
         private java.math.BigDecimal swBg;
 
-        /** 일반관리비: ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하면 costTotXpAmt, 아니면 0 */
+        /**
+         * 일반관리비: ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하면 costTotXpAmt,
+         * 아니면 0
+         */
         @Schema(description = "일반관리비")
         private java.math.BigDecimal costBg;
 
@@ -511,8 +489,8 @@ public class CostDto {
         private java.math.BigDecimal costDupBg;
 
         /**
-         * 전년도 예산: abusTc=02(계속)이면 bseYy-1 연도 예산 합계, 신규(abusTc=01)이면 0.
-         * 외화(curC≠'KRW') 행은 FC_AMT(외화금액), 원화 행은 AMT(전산업무비예산금액) 기준.
+         * 전년도 예산: abusTc=02(계속)이면 bseYy-1 연도 예산 합계, 신규(abusTc=01)이면 0. 외화(curC≠'KRW') 행은
+         * FC_AMT(외화금액), 원화 행은 AMT(전산업무비예산금액) 기준.
          */
         @Schema(description = "전년도 예산 (계속 항목은 전년도 예산 합계 — 외화 행은 외화금액 기준, 신규는 0)")
         private BigDecimal prevBgAmt;
@@ -580,9 +558,8 @@ public class CostDto {
         /**
          * 단말여부 코드 정규화.
          *
-         * <p>레거시 데이터는 구 IT_MNGC_TP 값("1"=단말, "0"=비단말)으로 저장되어 있고,
-         * 신규 데이터는 "Y"/"N"으로 저장된다. 프론트 표시·체크 로직은 "Y"/"N" 단일 기준이므로
-         * 응답 경계에서 "1"→"Y", "0"→"N"으로 변환하여 일관성을 보장한다.</p>
+         * <p>레거시 데이터는 구 IT_MNGC_TP 값("1"=단말, "0"=비단말)으로 저장되어 있고, 신규 데이터는 "Y"/"N"으로 저장된다. 프론트 표시·체크
+         * 로직은 "Y"/"N" 단일 기준이므로 응답 경계에서 "1"→"Y", "0"→"N"으로 변환하여 일관성을 보장한다.
          *
          * @param value DB 원본 단말여부 ("Y"/"N"/"1"/"0"/null)
          * @return 정규화된 "Y"/"N" (그 외 값은 원본 그대로)
@@ -601,18 +578,14 @@ public class CostDto {
     /**
      * 전산관리비 목록 조회 검색 조건 DTO
      *
-     * <p>
-     * {@code GET /api/cost} 엔드포인트의 Query Parameter로 전달됩니다.
-     * 모든 필드가 null이면 전체 조회와 동일하게 동작합니다.
-     * </p>
+     * <p>{@code GET /api/cost} 엔드포인트의 Query Parameter로 전달됩니다. 모든 필드가 null이면 전체 조회와 동일하게 동작합니다.
      *
-     * <p>
-     * {@code apfSts} 값 규칙:
-     * </p>
+     * <p>{@code apfSts} 값 규칙:
+     *
      * <ul>
-     * <li>null (파라미터 미입력): 결재상태 필터 없음 → 전체 조회</li>
-     * <li>{@code "none"}: 신청서가 없는 전산관리비 (apfSts IS NULL)</li>
-     * <li>{@code "접수"}, {@code "결재중"}, {@code "결재완료"} 등: 최신 신청서의 결재상태가 해당 값인 전산관리비</li>
+     *   <li>null (파라미터 미입력): 결재상태 필터 없음 → 전체 조회
+     *   <li>{@code "none"}: 신청서가 없는 전산관리비 (apfSts IS NULL)
+     *   <li>{@code "접수"}, {@code "결재중"}, {@code "결재완료"} 등: 최신 신청서의 결재상태가 해당 값인 전산관리비
      * </ul>
      */
     @Getter
@@ -623,10 +596,8 @@ public class CostDto {
 
         /**
          * 결재상태 필터
-         * <p>
-         * "none" → 신청서가 없는 전산관리비, 그 외 값 → 최신 신청서의 결재상태가 해당 값인 전산관리비
-         * null 또는 미입력 → 필터 없음 (전체 조회)
-         * </p>
+         *
+         * <p>"none" → 신청서가 없는 전산관리비, 그 외 값 → 최신 신청서의 결재상태가 해당 값인 전산관리비 null 또는 미입력 → 필터 없음 (전체 조회)
          */
         @Schema(description = "결재상태 필터 (none=신청서없음, 접수/결재중/결재완료 등 실제 상태값). 미입력 시 전체 조회")
         private String apfSts;
@@ -653,7 +624,11 @@ public class CostDto {
          * @return 모든 필드가 null 또는 빈 문자열이면 true
          */
         public boolean isEmpty() {
-            return isBlank(apfSts) && isBlank(costSvnDpmC) && isBlank(svnTemC) && isBlank(sectSysUtzYn) && isBlank(bseYy);
+            return isBlank(apfSts)
+                    && isBlank(costSvnDpmC)
+                    && isBlank(svnTemC)
+                    && isBlank(sectSysUtzYn)
+                    && isBlank(bseYy);
         }
 
         private boolean isBlank(String value) {
@@ -664,10 +639,7 @@ public class CostDto {
     /**
      * 전산관리비 일괄 조회 요청 DTO
      *
-     * <p>
-     * 여러 전산관리비관리번호를 한 번에 조회할 때 사용합니다.
-     * 존재하지 않는 항목은 결과에서 자동 제외됩니다.
-     * </p>
+     * <p>여러 전산관리비관리번호를 한 번에 조회할 때 사용합니다. 존재하지 않는 항목은 결과에서 자동 제외됩니다.
      */
     @Getter
     @Setter
@@ -687,22 +659,18 @@ public class CostDto {
     /**
      * 전산관리비 일괄 조회 결과 DTO (부분 성공)
      *
-     * <p>조회에 성공한 항목({@code items})과 미존재로 조회에 실패한 전산관리비관리번호
-     * 목록({@code failedIds})을 함께 반환합니다. 누락 건을 조용히 버리지 않고
-     * 호출자에게 노출하기 위함입니다.</p>
+     * <p>조회에 성공한 항목({@code items})과 미존재로 조회에 실패한 전산관리비관리번호 목록({@code failedIds})을 함께 반환합니다. 누락 건을
+     * 조용히 버리지 않고 호출자에게 노출하기 위함입니다.
      *
-     * @param items     조회 성공 항목 목록
+     * @param items 조회 성공 항목 목록
      * @param failedIds 조회 실패(미존재) 전산관리비관리번호 목록
      */
     @Schema(name = "CostBulkResponse", description = "전산관리비 일괄 조회 결과 (부분 성공)")
     public record BulkResponse(
             @Schema(description = "조회 성공 항목") List<Response> items,
-            @Schema(description = "조회 실패(미존재) 전산관리비관리번호 목록") List<String> failedIds
-    ) {}
+            @Schema(description = "조회 실패(미존재) 전산관리비관리번호 목록") List<String> failedIds) {}
 
-    /**
-     * 금융정보단말기 정보 DTO
-     */
+    /** 금융정보단말기 정보 DTO */
     @Getter
     @Setter
     @NoArgsConstructor

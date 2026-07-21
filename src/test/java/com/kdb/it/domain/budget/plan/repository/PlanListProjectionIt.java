@@ -1,17 +1,16 @@
 package com.kdb.it.domain.budget.plan.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.domain.budget.plan.entity.Bplanm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class PlanListProjectionIt extends AbstractOracleRepositoryTest {
 
@@ -33,10 +32,13 @@ class PlanListProjectionIt extends AbstractOracleRepositoryTest {
         entityManager.flush();
         entityManager.clear();
 
-        List<BplanmRepository.PlanListView> views = repository.findListViewsByDelYnOrderByFstEnrDtmDesc("N");
-        BplanmRepository.PlanListView newView = views.stream()
-                .filter(view -> newNo.equals(view.getReqDocNo()))
-                .findFirst().orElseThrow();
+        List<BplanmRepository.PlanListView> views =
+                repository.findListViewsByDelYnOrderByFstEnrDtmDesc("N");
+        BplanmRepository.PlanListView newView =
+                views.stream()
+                        .filter(view -> newNo.equals(view.getReqDocNo()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(newView.getItPtlPlnTpC()).isEqualTo("01");
         assertThat(newView.getBseYy()).isEqualTo("2026");
@@ -46,11 +48,17 @@ class PlanListProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(newView.getFstEnrDtm()).isEqualTo(newTime);
         assertThat(newView.getFstEnrUsid()).isEqualTo("BE03-TEST");
         assertThat(newView.getRedtConeInf()).isEqualTo("{\"prjSnapshots\":[{\"id\":1}]}");
-        assertThat(views).extracting(view -> view.getReqDocNo())
+        assertThat(views)
+                .extracting(view -> view.getReqDocNo())
                 .contains(oldNo, newNo)
                 .doesNotContain(deletedNo);
-        assertThat(views.indexOf(newView)).isLessThan(views.indexOf(
-                views.stream().filter(view -> oldNo.equals(view.getReqDocNo())).findFirst().orElseThrow()));
+        assertThat(views.indexOf(newView))
+                .isLessThan(
+                        views.indexOf(
+                                views.stream()
+                                        .filter(view -> oldNo.equals(view.getReqDocNo()))
+                                        .findFirst()
+                                        .orElseThrow()));
         assertThat(BplanmRepository.PlanListView.class.getDeclaredMethods()).hasSize(9);
     }
 

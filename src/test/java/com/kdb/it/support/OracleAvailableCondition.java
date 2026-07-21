@@ -1,19 +1,17 @@
 package com.kdb.it.support;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-
 /**
  * 로컬 Oracle 가용 여부에 따라 통합 테스트 실행을 결정하는 JUnit 5 조건.
  *
- * <p>{@code ExecutionCondition}은 Spring {@code ApplicationContext} 로드보다 먼저 평가되므로,
- * 로컬 Oracle이 꺼져 있으면 컨텍스트 로드 실패(빨간 빌드) 대신 깨끗한 스킵(노란 결과)으로 처리된다.
- * {@code @BeforeAll} 단계는 이미 컨텍스트가 기동된 뒤라 이 목적에 부적합하다.</p>
+ * <p>{@code ExecutionCondition}은 Spring {@code ApplicationContext} 로드보다 먼저 평가되므로, 로컬 Oracle이 꺼져 있으면
+ * 컨텍스트 로드 실패(빨간 빌드) 대신 깨끗한 스킵(노란 결과)으로 처리된다. {@code @BeforeAll} 단계는 이미 컨텍스트가 기동된 뒤라 이 목적에 부적합하다.
  */
 public class OracleAvailableCondition implements ExecutionCondition {
 

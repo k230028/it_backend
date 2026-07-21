@@ -9,11 +9,11 @@ import lombok.NoArgsConstructor;
 /**
  * 성과지표(Bperfm) 복합 기본키 클래스
  *
- * <p>복합키 구성: ({@code itPtlAsctId}, {@code evlDtpSno})</p>
+ * <p>복합키 구성: ({@code itPtlAsctId}, {@code evlDtpSno})
  *
  * <ul>
- *   <li>itPtlAsctId: 협의회ID</li>
- *   <li>evlDtpSno: 지표순번 (1부터 시작, 담당자가 동적으로 추가)</li>
+ *   <li>itPtlAsctId: 협의회ID
+ *   <li>evlDtpSno: 지표순번 (1부터 시작, 담당자가 동적으로 추가)
  * </ul>
  */
 @Getter

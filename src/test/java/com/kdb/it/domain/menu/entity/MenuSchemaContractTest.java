@@ -1,15 +1,14 @@
 package com.kdb.it.domain.menu.entity;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.domain.log.entity.CmenumL;
 import com.kdb.it.domain.menu.dto.MenuDto;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 class MenuSchemaContractTest {
 
@@ -23,8 +22,6 @@ class MenuSchemaContractTest {
     }
 
     private List<String> fieldNames(Class<?> type) {
-        return Arrays.stream(type.getDeclaredFields())
-                .map(Field::getName)
-                .toList();
+        return Arrays.stream(type.getDeclaredFields()).map(Field::getName).toList();
     }
 }

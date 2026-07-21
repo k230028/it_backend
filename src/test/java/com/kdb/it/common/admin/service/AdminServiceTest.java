@@ -7,23 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
 import com.kdb.it.common.admin.dto.AdminDto;
-import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.iam.entity.CauthI;
@@ -37,42 +21,104 @@ import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
+import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.infra.file.repository.FileRepository;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * AdminService 단위 테스트
  *
- * <p>
- * Mockito로 모든 Repository를 Mock 처리하여 Oracle DB 없이
- * 관리자 CRUD 비즈니스 로직(공통코드, 자격등급, 역할, 사용자, 조직)을 검증합니다.
- * </p>
+ * <p>Mockito로 모든 Repository를 Mock 처리하여 Oracle DB 없이 관리자 CRUD 비즈니스 로직(공통코드, 자격등급, 역할, 사용자, 조직)을
+ * 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AdminServiceTest {
 
     private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
-        @Override public String getEno() { return eno; }
-        @Override public String getUsrNm() { return usrNm; }
+        @Override
+        public String getEno() {
+            return eno;
+        }
+
+        @Override
+        public String getUsrNm() {
+            return usrNm;
+        }
     }
 
     private record AdminUserView(String eno, String usrNm) implements UserRepository.AdminUserView {
-        @Override public String getEno() { return eno; }
-        @Override public String getUsrNm() { return usrNm; }
-        @Override public String getPtCNm() { return null; }
-        @Override public String getTemC() { return null; }
-        @Override public String getTemNm() { return null; }
-        @Override public String getBbrC() { return null; }
-        @Override public String getEtrMilAddrNm() { return null; }
-        @Override public String getInleNo() { return null; }
-        @Override public String getCpnTpn() { return null; }
-        @Override public LocalDateTime getFstEnrDtm() { return null; }
-        @Override public LocalDateTime getLstChgDtm() { return null; }
+        @Override
+        public String getEno() {
+            return eno;
+        }
+
+        @Override
+        public String getUsrNm() {
+            return usrNm;
+        }
+
+        @Override
+        public String getPtCNm() {
+            return null;
+        }
+
+        @Override
+        public String getTemC() {
+            return null;
+        }
+
+        @Override
+        public String getTemNm() {
+            return null;
+        }
+
+        @Override
+        public String getBbrC() {
+            return null;
+        }
+
+        @Override
+        public String getEtrMilAddrNm() {
+            return null;
+        }
+
+        @Override
+        public String getInleNo() {
+            return null;
+        }
+
+        @Override
+        public String getCpnTpn() {
+            return null;
+        }
+
+        @Override
+        public LocalDateTime getFstEnrDtm() {
+            return null;
+        }
+
+        @Override
+        public LocalDateTime getLstChgDtm() {
+            return null;
+        }
     }
 
     private record LoginHistoryView(
@@ -82,25 +128,66 @@ class AdminServiceTest {
             String ipAddr,
             String lgnErrRsn,
             String agtVrsCone,
-            LocalDateTime fstEnrDtm) implements LoginHistoryRepository.LoginHistoryView {
-        @Override public String getEno() { return eno; }
-        @Override public LocalDateTime getLgnDtm() { return lgnDtm; }
-        @Override public String getItPtlLgnTc() { return itPtlLgnTc; }
-        @Override public String getIpAddr() { return ipAddr; }
-        @Override public String getLgnErrRsn() { return lgnErrRsn; }
-        @Override public String getAgtVrsCone() { return agtVrsCone; }
-        @Override public LocalDateTime getFstEnrDtm() { return fstEnrDtm; }
+            LocalDateTime fstEnrDtm)
+            implements LoginHistoryRepository.LoginHistoryView {
+        @Override
+        public String getEno() {
+            return eno;
+        }
+
+        @Override
+        public LocalDateTime getLgnDtm() {
+            return lgnDtm;
+        }
+
+        @Override
+        public String getItPtlLgnTc() {
+            return itPtlLgnTc;
+        }
+
+        @Override
+        public String getIpAddr() {
+            return ipAddr;
+        }
+
+        @Override
+        public String getLgnErrRsn() {
+            return lgnErrRsn;
+        }
+
+        @Override
+        public String getAgtVrsCone() {
+            return agtVrsCone;
+        }
+
+        @Override
+        public LocalDateTime getFstEnrDtm() {
+            return fstEnrDtm;
+        }
     }
 
     private record AdminTokenView(
-            String eno,
-            LocalDateTime endDtm,
-            String ecyRnwPubTokCone,
-            LocalDateTime fstEnrDtm) implements RefreshTokenRepository.AdminTokenView {
-        @Override public String getEno() { return eno; }
-        @Override public LocalDateTime getEndDtm() { return endDtm; }
-        @Override public String getEcyRnwPubTokCone() { return ecyRnwPubTokCone; }
-        @Override public LocalDateTime getFstEnrDtm() { return fstEnrDtm; }
+            String eno, LocalDateTime endDtm, String ecyRnwPubTokCone, LocalDateTime fstEnrDtm)
+            implements RefreshTokenRepository.AdminTokenView {
+        @Override
+        public String getEno() {
+            return eno;
+        }
+
+        @Override
+        public LocalDateTime getEndDtm() {
+            return endDtm;
+        }
+
+        @Override
+        public String getEcyRnwPubTokCone() {
+            return ecyRnwPubTokCone;
+        }
+
+        @Override
+        public LocalDateTime getFstEnrDtm() {
+            return fstEnrDtm;
+        }
     }
 
     private record AdminFileView(
@@ -109,36 +196,50 @@ class AdminServiceTest {
             String flTpCone,
             String pkColNm,
             LocalDateTime fstEnrDtm,
-            String fstEnrUsid) implements FileRepository.AdminFileView {
-        @Override public String getFlMpnId() { return flMpnId; }
-        @Override public String getFlNm() { return flNm; }
-        @Override public String getFlTpCone() { return flTpCone; }
-        @Override public String getPkColNm() { return pkColNm; }
-        @Override public LocalDateTime getFstEnrDtm() { return fstEnrDtm; }
-        @Override public String getFstEnrUsid() { return fstEnrUsid; }
+            String fstEnrUsid)
+            implements FileRepository.AdminFileView {
+        @Override
+        public String getFlMpnId() {
+            return flMpnId;
+        }
+
+        @Override
+        public String getFlNm() {
+            return flNm;
+        }
+
+        @Override
+        public String getFlTpCone() {
+            return flTpCone;
+        }
+
+        @Override
+        public String getPkColNm() {
+            return pkColNm;
+        }
+
+        @Override
+        public LocalDateTime getFstEnrDtm() {
+            return fstEnrDtm;
+        }
+
+        @Override
+        public String getFstEnrUsid() {
+            return fstEnrUsid;
+        }
     }
 
-    @Mock
-    private CodeRepository codeRepository;
-    @Mock
-    private AuthRepository authRepository;
-    @Mock
-    private RoleRepository roleRepository;
-    @Mock
-    private UserRepository userRepository;
-    @Mock
-    private OrganizationRepository orgRepository;
-    @Mock
-    private LoginHistoryRepository loginHistoryRepository;
-    @Mock
-    private RefreshTokenRepository refreshTokenRepository;
-    @Mock
-    private FileRepository fileRepository;
-    @Mock
-    private PasswordEncoder passwordEncoder;
+    @Mock private CodeRepository codeRepository;
+    @Mock private AuthRepository authRepository;
+    @Mock private RoleRepository roleRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private OrganizationRepository orgRepository;
+    @Mock private LoginHistoryRepository loginHistoryRepository;
+    @Mock private RefreshTokenRepository refreshTokenRepository;
+    @Mock private FileRepository fileRepository;
+    @Mock private PasswordEncoder passwordEncoder;
 
-    @InjectMocks
-    private AdminService adminService;
+    @InjectMocks private AdminService adminService;
 
     // =========================================================================
     // 공통코드 (Ccodem)
@@ -149,8 +250,10 @@ class AdminServiceTest {
     void createCode_중복코드ID_예외발생() {
         // given: 이미 존재하는 코드ID
         String sttDt = "20260101";
-        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE001", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
+        AdminDto.CodeRequest req =
+                new AdminDto.CodeRequest(
+                        "CODE001", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt,
+                        null, 1);
         given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE001", "001", sttDt)).willReturn(true);
 
         // when & then
@@ -164,8 +267,10 @@ class AdminServiceTest {
     void createCode_정상요청_저장호출() {
         // given
         String sttDt = "20260101";
-        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE002", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
+        AdminDto.CodeRequest req =
+                new AdminDto.CodeRequest(
+                        "CODE002", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt,
+                        null, 1);
         given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "001", sttDt)).willReturn(false);
 
         // when
@@ -180,9 +285,12 @@ class AdminServiceTest {
     void updateCode_미존재코드ID_예외발생() {
         // given
         String sttDt = "20260101";
-        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "NONE", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt, null, 1);
-        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("NONE", "001", sttDt, "N")).willReturn(Optional.empty());
+        AdminDto.CodeRequest req =
+                new AdminDto.CodeRequest(
+                        "NONE", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt,
+                        null, 1);
+        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("NONE", "001", sttDt, "N"))
+                .willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> adminService.updateCode("NONE", "001", sttDt, req))
@@ -196,7 +304,8 @@ class AdminServiceTest {
         // given
         String sttDt = "20260101";
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
-        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N")).willReturn(Optional.of(code));
+        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
+                .willReturn(Optional.of(code));
 
         // when
         adminService.deleteCode("CODE001", "001", sttDt);
@@ -210,13 +319,20 @@ class AdminServiceTest {
     void bulkUpsertCodes_신규수정건수반환() {
         // given: CODE001은 기존 존재, CODE002는 신규
         String sttDt = "20260101";
-        AdminDto.CodeRequest req1 = new AdminDto.CodeRequest("CODE001", "001", "코드1", null, null, null, null, null, null, null, sttDt, null, 1);
-        AdminDto.CodeRequest req2 = new AdminDto.CodeRequest("CODE002", "002", "코드2", null, null, null, null, null, null, null, sttDt, null, 2);
+        AdminDto.CodeRequest req1 =
+                new AdminDto.CodeRequest(
+                        "CODE001", "001", "코드1", null, null, null, null, null, null, null, sttDt,
+                        null, 1);
+        AdminDto.CodeRequest req2 =
+                new AdminDto.CodeRequest(
+                        "CODE002", "002", "코드2", null, null, null, null, null, null, null, sttDt,
+                        null, 2);
         AdminDto.BulkCodeRequest bulkReq = new AdminDto.BulkCodeRequest(List.of(req1, req2));
 
         Ccodem existingCode = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
         given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE001", "001", sttDt)).willReturn(true);
-        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N")).willReturn(Optional.of(existingCode));
+        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
+                .willReturn(Optional.of(existingCode));
         given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "002", sttDt)).willReturn(false);
 
         // when
@@ -233,8 +349,10 @@ class AdminServiceTest {
     void updateCode_동일키_기존항목수정() {
         String sttDt = "20260101";
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).cNm("기존").build();
-        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE001", "001", "수정", "코드값명", "설명", "값", "상세", "타입", "타입설명", null, sttDt, null, 2);
+        AdminDto.CodeRequest req =
+                new AdminDto.CodeRequest(
+                        "CODE001", "001", "수정", "코드값명", "설명", "값", "상세", "타입", "타입설명", null, sttDt,
+                        null, 2);
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
                 .willReturn(Optional.of(code));
 
@@ -249,8 +367,10 @@ class AdminServiceTest {
         String sttDt = "20260101";
         String newSttDt = "20260201";
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
-        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE002", "002", "신규키", null, null, null, null, null, null, null, newSttDt, null, 1);
+        AdminDto.CodeRequest req =
+                new AdminDto.CodeRequest(
+                        "CODE002", "002", "신규키", null, null, null, null, null, null, null, newSttDt,
+                        null, 1);
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
                 .willReturn(Optional.of(code));
 
@@ -266,11 +386,14 @@ class AdminServiceTest {
         String sttDt = "20260101";
         String newSttDt = "20260201";
         Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
-        AdminDto.CodeRequest req = new AdminDto.CodeRequest(
-                "CODE002", "002", "신규키", null, null, null, null, null, null, null, newSttDt, null, 1);
+        AdminDto.CodeRequest req =
+                new AdminDto.CodeRequest(
+                        "CODE002", "002", "신규키", null, null, null, null, null, null, null, newSttDt,
+                        null, 1);
         given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
                 .willReturn(Optional.of(code));
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "002", newSttDt)).willReturn(true);
+        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "002", newSttDt))
+                .willReturn(true);
 
         assertThatThrownBy(() -> adminService.updateCode("CODE001", "001", sttDt, req))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -281,12 +404,17 @@ class AdminServiceTest {
     @DisplayName("createCode - 코드 키 필수값이 없으면 각각 예외를 반환한다")
     void createCode_필수키누락_예외발생() {
         String date = "20260101";
-        AdminDto.CodeRequest noId = new AdminDto.CodeRequest(
-                " ", "001", null, null, null, null, null, null, null, null, date, null, 1);
-        AdminDto.CodeRequest noValue = new AdminDto.CodeRequest(
-                "CODE", null, null, null, null, null, null, null, null, null, date, null, 1);
-        AdminDto.CodeRequest noDate = new AdminDto.CodeRequest(
-                "CODE", "001", null, null, null, null, null, null, null, null, null, null, 1);
+        AdminDto.CodeRequest noId =
+                new AdminDto.CodeRequest(
+                        " ", "001", null, null, null, null, null, null, null, null, date, null, 1);
+        AdminDto.CodeRequest noValue =
+                new AdminDto.CodeRequest(
+                        "CODE", null, null, null, null, null, null, null, null, null, date, null,
+                        1);
+        AdminDto.CodeRequest noDate =
+                new AdminDto.CodeRequest(
+                        "CODE", "001", null, null, null, null, null, null, null, null, null, null,
+                        1);
 
         assertThatThrownBy(() -> adminService.createCode(noId)).hasMessageContaining("코드ID");
         assertThatThrownBy(() -> adminService.createCode(noValue)).hasMessageContaining("코드값");
@@ -301,7 +429,8 @@ class AdminServiceTest {
     @DisplayName("createAuthGrade - 중복 ATH_ID 존재 시 IllegalArgumentException 발생")
     void createAuthGrade_중복ID_예외발생() {
         // given
-        AdminDto.AuthGradeRequest req = new AdminDto.AuthGradeRequest("ITPAD001", "관리자", "관리자 자격", "Y");
+        AdminDto.AuthGradeRequest req =
+                new AdminDto.AuthGradeRequest("ITPAD001", "관리자", "관리자 자격", "Y");
         given(authRepository.existsById("ITPAD001")).willReturn(true);
 
         // when & then
@@ -314,7 +443,8 @@ class AdminServiceTest {
     @DisplayName("createAuthGrade - 정상 요청 시 authRepository.save() 호출")
     void createAuthGrade_정상요청_저장호출() {
         // given
-        AdminDto.AuthGradeRequest req = new AdminDto.AuthGradeRequest("ITPNEW", "신규등급", "신규 자격", "Y");
+        AdminDto.AuthGradeRequest req =
+                new AdminDto.AuthGradeRequest("ITPNEW", "신규등급", "신규 자격", "Y");
         given(authRepository.existsById("ITPNEW")).willReturn(false);
 
         // when
@@ -377,8 +507,8 @@ class AdminServiceTest {
     @DisplayName("createUser - 중복 ENO 존재 시 IllegalArgumentException 발생")
     void createUser_중복ENO_예외발생() {
         // given
-        AdminDto.UserRequest req = new AdminDto.UserRequest(
-                "10001", "홍길동", null, null, null, null, null, null, null);
+        AdminDto.UserRequest req =
+                new AdminDto.UserRequest("10001", "홍길동", null, null, null, null, null, null, null);
         given(userRepository.existsByEno("10001")).willReturn(true);
 
         // when & then
@@ -391,8 +521,8 @@ class AdminServiceTest {
     @DisplayName("createUser - password가 null이면 기본값 'changeme'로 인코딩 후 저장")
     void createUser_passwordNull_기본값인코딩() {
         // given: password 없는 요청
-        AdminDto.UserRequest req = new AdminDto.UserRequest(
-                "10002", "김테스트", null, null, null, null, null, null, null);
+        AdminDto.UserRequest req =
+                new AdminDto.UserRequest("10002", "김테스트", null, null, null, null, null, null, null);
         given(userRepository.existsByEno("10002")).willReturn(false);
         given(passwordEncoder.encode("changeme")).willReturn("encodedDefault");
 
@@ -421,8 +551,9 @@ class AdminServiceTest {
     void updateUser_password포함_비밀번호변경() {
         // given
         CuserI user = CuserI.builder().eno("10001").delYn("N").build();
-        AdminDto.UserRequest req = new AdminDto.UserRequest(
-                "10001", "홍길동", null, null, null, null, null, null, "newPassword");
+        AdminDto.UserRequest req =
+                new AdminDto.UserRequest(
+                        "10001", "홍길동", null, null, null, null, null, null, "newPassword");
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(passwordEncoder.encode("newPassword")).willReturn("encodedNew");
 
@@ -521,7 +652,8 @@ class AdminServiceTest {
     void updateAuthGrade_정상요청_수정성공() {
         // given
         CauthI auth = CauthI.builder().athId("ITPZZ001").qlfGrNm("일반사용자").delYn("N").build();
-        AdminDto.AuthGradeRequest req = new AdminDto.AuthGradeRequest("ITPZZ001", "수정된등급명", "수정된사항", "Y");
+        AdminDto.AuthGradeRequest req =
+                new AdminDto.AuthGradeRequest("ITPZZ001", "수정된등급명", "수정된사항", "Y");
         given(authRepository.findById("ITPZZ001")).willReturn(java.util.Optional.of(auth));
 
         // when
@@ -673,7 +805,8 @@ class AdminServiceTest {
     void updateOrganization_정상요청_수정성공() {
         // given
         CorgnI org = CorgnI.builder().prlmOgzCCone("BBR001").bbrNm("IT부문").delYn("N").build();
-        AdminDto.OrgRequest req = new AdminDto.OrgRequest("BBR001", "수정된부문명", "Updated Division", 2, null);
+        AdminDto.OrgRequest req =
+                new AdminDto.OrgRequest("BBR001", "수정된부문명", "Updated Division", 2, null);
         given(orgRepository.findById("BBR001")).willReturn(java.util.Optional.of(org));
 
         // when
@@ -706,12 +839,20 @@ class AdminServiceTest {
     void getLoginHistory_페이지네이션목록반환() {
         // 준비
         LocalDateTime base = LocalDateTime.of(2026, 4, 1, 9, 0);
-        LoginHistoryView known = new LoginHistoryView(
-                "KNOWN", base.plusMinutes(2), "1", "127.0.0.1", null, "known-agent", base);
-        LoginHistoryView unknown = new LoginHistoryView(
-                "UNKNOWN", base.plusMinutes(1), "2", "127.0.0.2", "실패", "unknown-agent", base);
-        LoginHistoryView nullEno = new LoginHistoryView(
-                null, base, "3", "127.0.0.3", null, "null-agent", base);
+        LoginHistoryView known =
+                new LoginHistoryView(
+                        "KNOWN", base.plusMinutes(2), "1", "127.0.0.1", null, "known-agent", base);
+        LoginHistoryView unknown =
+                new LoginHistoryView(
+                        "UNKNOWN",
+                        base.plusMinutes(1),
+                        "2",
+                        "127.0.0.2",
+                        "실패",
+                        "unknown-agent",
+                        base);
+        LoginHistoryView nullEno =
+                new LoginHistoryView(null, base, "3", "127.0.0.3", null, "null-agent", base);
         org.springframework.data.domain.Pageable pageable = PageRequest.of(0, 10);
         Page<LoginHistoryRepository.LoginHistoryView> page =
                 new PageImpl<>(List.of(known, unknown, nullEno), pageable, 3);
@@ -724,9 +865,8 @@ class AdminServiceTest {
 
         // 검증
         assertThat(result.getTotalElements()).isEqualTo(3);
-        assertThat(result.getContent()).extracting(
-                        response -> response.eno(),
-                        response -> response.usrNm())
+        assertThat(result.getContent())
+                .extracting(response -> response.eno(), response -> response.usrNm())
                 .containsExactly(
                         org.assertj.core.groups.Tuple.tuple("KNOWN", "사용자명"),
                         org.assertj.core.groups.Tuple.tuple("UNKNOWN", "UNKNOWN"),
@@ -742,7 +882,8 @@ class AdminServiceTest {
         org.springframework.data.domain.Pageable pageable = PageRequest.of(0, 10);
         Page<LoginHistoryRepository.LoginHistoryView> emptyPage =
                 new PageImpl<>(Collections.emptyList(), pageable, 0);
-        given(loginHistoryRepository.findPageViewsByOrderByLgnDtmDesc(pageable)).willReturn(emptyPage);
+        given(loginHistoryRepository.findPageViewsByOrderByLgnDtmDesc(pageable))
+                .willReturn(emptyPage);
 
         // 실행
         Page<AdminDto.LoginHistoryResponse> result = adminService.getLoginHistory(pageable);
@@ -760,7 +901,8 @@ class AdminServiceTest {
 
         adminService.createAuthGrade(req);
 
-        org.mockito.ArgumentCaptor<CauthI> captor = org.mockito.ArgumentCaptor.forClass(CauthI.class);
+        org.mockito.ArgumentCaptor<CauthI> captor =
+                org.mockito.ArgumentCaptor.forClass(CauthI.class);
         verify(authRepository).save(captor.capture());
         assertThat(captor.getValue().getUseYn()).isEqualTo("Y");
     }
@@ -773,7 +915,8 @@ class AdminServiceTest {
 
         adminService.createRole(req);
 
-        org.mockito.ArgumentCaptor<CroleI> captor = org.mockito.ArgumentCaptor.forClass(CroleI.class);
+        org.mockito.ArgumentCaptor<CroleI> captor =
+                org.mockito.ArgumentCaptor.forClass(CroleI.class);
         verify(roleRepository).save(captor.capture());
         assertThat(captor.getValue().getUseYn()).isEqualTo("Y");
     }
@@ -792,8 +935,9 @@ class AdminServiceTest {
     @Test
     @DisplayName("createUser: password가 있으면 입력 비밀번호를 인코딩한다")
     void createUser_password있음_입력비밀번호인코딩() {
-        AdminDto.UserRequest req = new AdminDto.UserRequest(
-                "10003", "박테스트", null, null, null, null, null, null, "secret");
+        AdminDto.UserRequest req =
+                new AdminDto.UserRequest(
+                        "10003", "박테스트", null, null, null, null, null, null, "secret");
         given(userRepository.existsByEno("10003")).willReturn(false);
         given(passwordEncoder.encode("secret")).willReturn("encodedSecret");
 
@@ -806,8 +950,8 @@ class AdminServiceTest {
     @DisplayName("updateUser: password가 공백이면 비밀번호를 변경하지 않는다")
     void updateUser_password공백_비밀번호변경안함() {
         CuserI user = CuserI.builder().eno("10001").delYn("N").build();
-        AdminDto.UserRequest req = new AdminDto.UserRequest(
-                "10001", "홍길동", null, null, null, null, null, null, " ");
+        AdminDto.UserRequest req =
+                new AdminDto.UserRequest("10001", "홍길동", null, null, null, null, null, null, " ");
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
 
         adminService.updateUser("10001", req);
@@ -819,18 +963,31 @@ class AdminServiceTest {
     @DisplayName("getTokens: SHA-256 조회값의 null과 20자 경계 및 긴 값을 정확히 마스킹한다")
     void getTokens_토큰마스킹반환() {
         LocalDateTime endDtm = LocalDateTime.of(2026, 7, 28, 9, 0);
-        given(refreshTokenRepository.findAllProjectedBy()).willReturn(List.of(
-                new AdminTokenView("E-NULL", endDtm, null, endDtm.minusDays(1)),
-                new AdminTokenView("E-20", endDtm, "12345678901234567890", endDtm.minusDays(1)),
-                new AdminTokenView("E-21", endDtm, "123456789012345678901", endDtm.minusDays(1)),
-                new AdminTokenView("E-64", endDtm,
-                        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-                        endDtm.minusDays(1))));
+        given(refreshTokenRepository.findAllProjectedBy())
+                .willReturn(
+                        List.of(
+                                new AdminTokenView("E-NULL", endDtm, null, endDtm.minusDays(1)),
+                                new AdminTokenView(
+                                        "E-20",
+                                        endDtm,
+                                        "12345678901234567890",
+                                        endDtm.minusDays(1)),
+                                new AdminTokenView(
+                                        "E-21",
+                                        endDtm,
+                                        "123456789012345678901",
+                                        endDtm.minusDays(1)),
+                                new AdminTokenView(
+                                        "E-64",
+                                        endDtm,
+                                        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+                                        endDtm.minusDays(1))));
         given(userRepository.findNameViewByEno(any())).willReturn(Optional.empty());
 
         List<AdminDto.TokenResponse> result = adminService.getTokens();
 
-        assertThat(result).extracting(value -> value.tokMasked())
+        assertThat(result)
+                .extracting(value -> value.tokMasked())
                 .containsExactly(
                         null,
                         "12345678901234567890",
@@ -841,9 +998,14 @@ class AdminServiceTest {
     @Test
     @DisplayName("getFiles: 삭제되지 않은 파일만 사용자명과 함께 반환한다")
     void getFiles_삭제되지않은파일만반환() {
-        AdminFileView active = new AdminFileView(
-                "FL_00000001", "문서.pdf", "첨부파일", "문서",
-                LocalDateTime.of(2026, 7, 21, 9, 0), "10001");
+        AdminFileView active =
+                new AdminFileView(
+                        "FL_00000001",
+                        "문서.pdf",
+                        "첨부파일",
+                        "문서",
+                        LocalDateTime.of(2026, 7, 21, 9, 0),
+                        "10001");
         given(fileRepository.findAdminFileViewsByDelYn("N")).willReturn(List.of(active));
         given(userRepository.findNameViewByEno("10001"))
                 .willReturn(Optional.of(new NameView("10001", "홍길동")));
@@ -859,8 +1021,9 @@ class AdminServiceTest {
     @DisplayName("getLoginStats: 일별 로그인 통계를 날짜와 건수로 변환한다")
     void getLoginStats_일별통계반환() {
         given(loginHistoryRepository.findDailyLoginStatRows())
-                .willReturn(Collections.singletonList(
-                        LabeledCountRow.fromRow(new Object[]{"2026-05-09", 3L})));
+                .willReturn(
+                        Collections.singletonList(
+                                LabeledCountRow.fromRow(new Object[] {"2026-05-09", 3L})));
 
         List<AdminDto.LoginStatResponse> result = adminService.getLoginStats();
 

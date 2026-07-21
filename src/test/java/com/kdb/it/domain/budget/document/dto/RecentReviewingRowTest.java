@@ -1,21 +1,20 @@
 package com.kdb.it.domain.budget.document.dto;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 /**
  * {@link RecentReviewingRow} record 단위 테스트.
  *
- * <p>생성자, 접근자, equals/hashCode, toString,
- * fromRow 팩토리(정상·DATE/Timestamp/LocalDateTime 혼용·컬럼 수 예외)를 검증한다.</p>
+ * <p>생성자, 접근자, equals/hashCode, toString, fromRow 팩토리(정상·DATE/Timestamp/LocalDateTime 혼용·컬럼 수 예외)를
+ * 검증한다.
  */
 @DisplayName("RecentReviewingRow")
 class RecentReviewingRowTest {
@@ -23,12 +22,12 @@ class RecentReviewingRowTest {
     // ------------------------------------------------------------------ 샘플 인스턴스 헬퍼
     private static RecentReviewingRow sample() {
         return new RecentReviewingRow(
-                "DOC-2026-0001",           // docMngNo
-                "IT 예산 사전협의 검토",    // reqTtl
-                "홍길동",                  // usrNm
-                "2026-07-01",             // createdAt
+                "DOC-2026-0001", // docMngNo
+                "IT 예산 사전협의 검토", // reqTtl
+                "홍길동", // usrNm
+                "2026-07-01", // createdAt
                 LocalDate.of(2026, 8, 31) // fsgTlm
-        );
+                );
     }
 
     // ------------------------------------------------------------------ 생성 / 접근자
@@ -54,9 +53,8 @@ class RecentReviewingRowTest {
         @DisplayName("fsgTlm 이 null 이면 접근자가 null 을 반환한다")
         void constructor_nullFsgTlm_returnsNull() {
             // Arrange & Act
-            RecentReviewingRow row = new RecentReviewingRow(
-                    "DOC-2026-0002", "제목", "이름", "2026-07-01", null
-            );
+            RecentReviewingRow row =
+                    new RecentReviewingRow("DOC-2026-0002", "제목", "이름", "2026-07-01", null);
 
             // Assert
             assertThat(row.fsgTlm()).isNull();
@@ -109,10 +107,13 @@ class RecentReviewingRowTest {
         void equals_differentDocMngNo_returnsFalse() {
             // Arrange
             RecentReviewingRow a = sample();
-            RecentReviewingRow b = new RecentReviewingRow(
-                    "DOC-2026-9999", "IT 예산 사전협의 검토", "홍길동",
-                    "2026-07-01", LocalDate.of(2026, 8, 31)
-            );
+            RecentReviewingRow b =
+                    new RecentReviewingRow(
+                            "DOC-2026-9999",
+                            "IT 예산 사전협의 검토",
+                            "홍길동",
+                            "2026-07-01",
+                            LocalDate.of(2026, 8, 31));
 
             // Assert
             assertThat(a).isNotEqualTo(b);
@@ -123,10 +124,13 @@ class RecentReviewingRowTest {
         void equals_differentReqTtl_returnsFalse() {
             // Arrange
             RecentReviewingRow a = sample();
-            RecentReviewingRow b = new RecentReviewingRow(
-                    "DOC-2026-0001", "다른 제목", "홍길동",
-                    "2026-07-01", LocalDate.of(2026, 8, 31)
-            );
+            RecentReviewingRow b =
+                    new RecentReviewingRow(
+                            "DOC-2026-0001",
+                            "다른 제목",
+                            "홍길동",
+                            "2026-07-01",
+                            LocalDate.of(2026, 8, 31));
 
             // Assert
             assertThat(a).isNotEqualTo(b);
@@ -137,10 +141,13 @@ class RecentReviewingRowTest {
         void equals_differentFsgTlm_returnsFalse() {
             // Arrange
             RecentReviewingRow a = sample();
-            RecentReviewingRow b = new RecentReviewingRow(
-                    "DOC-2026-0001", "IT 예산 사전협의 검토", "홍길동",
-                    "2026-07-01", LocalDate.of(2026, 9, 30)
-            );
+            RecentReviewingRow b =
+                    new RecentReviewingRow(
+                            "DOC-2026-0001",
+                            "IT 예산 사전협의 검토",
+                            "홍길동",
+                            "2026-07-01",
+                            LocalDate.of(2026, 9, 30));
 
             // Assert
             assertThat(a).isNotEqualTo(b);
@@ -151,10 +158,13 @@ class RecentReviewingRowTest {
         void equals_differentUsrNm_returnsFalse() {
             // Arrange
             RecentReviewingRow a = sample();
-            RecentReviewingRow b = new RecentReviewingRow(
-                    "DOC-2026-0001", "IT 예산 사전협의 검토", "이순신",
-                    "2026-07-01", LocalDate.of(2026, 8, 31)
-            );
+            RecentReviewingRow b =
+                    new RecentReviewingRow(
+                            "DOC-2026-0001",
+                            "IT 예산 사전협의 검토",
+                            "이순신",
+                            "2026-07-01",
+                            LocalDate.of(2026, 8, 31));
 
             // Assert
             assertThat(a).isNotEqualTo(b);
@@ -199,12 +209,12 @@ class RecentReviewingRowTest {
 
         /** 5컬럼 정상 배열(fsgTlm = LocalDate). */
         private static Object[] validRow() {
-            return new Object[]{
-                    "DOC-2026-0001",           // [0] docMngNo
-                    "IT 예산 사전협의 검토",    // [1] reqTtl
-                    "홍길동",                  // [2] usrNm
-                    "2026-07-01",             // [3] createdAt
-                    LocalDate.of(2026, 8, 31) // [4] fsgTlm
+            return new Object[] {
+                "DOC-2026-0001", // [0] docMngNo
+                "IT 예산 사전협의 검토", // [1] reqTtl
+                "홍길동", // [2] usrNm
+                "2026-07-01", // [3] createdAt
+                LocalDate.of(2026, 8, 31) // [4] fsgTlm
             };
         }
 
@@ -330,8 +340,7 @@ class RecentReviewingRowTest {
         @DisplayName("컬럼 수가 6개이면 IllegalStateException 이 발생한다")
         void fromRow_sixColumns_throwsIllegalStateException() {
             // Arrange
-            Object[] r = {"DOC001", "제목", "이름", "2026-07-01",
-                    LocalDate.of(2026, 8, 31), "extra"};
+            Object[] r = {"DOC001", "제목", "이름", "2026-07-01", LocalDate.of(2026, 8, 31), "extra"};
 
             // Act & Assert
             assertThatThrownBy(() -> RecentReviewingRow.fromRow(r))

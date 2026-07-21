@@ -7,6 +7,7 @@ import java.util.List;
 public interface MenuChildrenResolver {
     /** 이 resolver가 담당하는 DYN 노드의 MNU_ID. */
     String mnuId();
+
     /** 현재 사용자(athIds) 기준으로 권한 필터링된 children 노드. */
     List<MenuDto.Node> resolveChildren(List<String> athIds);
 }

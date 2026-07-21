@@ -1,9 +1,9 @@
 package com.kdb.it.common.board.repository;
 
 import com.kdb.it.common.board.entity.Cblbmm;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import java.util.Optional;
 
 /** 게시판 메타 리포지토리 */
 public interface BoardMetaRepository

@@ -1,7 +1,5 @@
 package com.kdb.it.domain.budget.project.repository;
 
-import java.util.List;
-
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -12,28 +10,23 @@ import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 
 /**
  * 정보화사업(Bprojm) 커스텀 리포지토리 QueryDSL 구현체
  *
- * <p>
- * {@link ProjectRepositoryCustom} 인터페이스의 QueryDSL 구현체입니다.
- * 복잡한 동적 쿼리(apfSts 필터링 서브쿼리 포함)를 타입 안전하게 처리합니다.
- * </p>
+ * <p>{@link ProjectRepositoryCustom} 인터페이스의 QueryDSL 구현체입니다. 복잡한 동적 쿼리(apfSts 필터링 서브쿼리 포함)를 타입 안전하게
+ * 처리합니다.
  *
- * <p>
- * 클래스 명명 규칙: Spring Data JPA가 자동 감지하려면
- * 반드시 {@code [메인Repository명]Impl} 형태여야 합니다. ({@code ProjectRepositoryImpl})
- * </p>
+ * <p>클래스 명명 규칙: Spring Data JPA가 자동 감지하려면 반드시 {@code [메인Repository명]Impl} 형태여야 합니다. ({@code
+ * ProjectRepositoryImpl})
  *
- * <p>
- * {@code apfSts} 서브쿼리 전략:
- * </p>
+ * <p>{@code apfSts} 서브쿼리 전략:
+ *
  * <ul>
- * <li>{@code "none"}: NOT EXISTS — CAPPLA에 연결 레코드가 없는 프로젝트</li>
- * <li>그 외 값: EXISTS — 최신 CAPPLA(APF_REL_SNO MAX)의 CAPPLM 결재상태가 일치하는 프로젝트</li>
+ *   <li>{@code "none"}: NOT EXISTS — CAPPLA에 연결 레코드가 없는 프로젝트
+ *   <li>그 외 값: EXISTS — 최신 CAPPLA(APF_REL_SNO MAX)의 CAPPLM 결재상태가 일치하는 프로젝트
  * </ul>
  */
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
@@ -45,13 +38,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
     /**
      * 검색 조건으로 정보화사업 목록 동적 조회
      *
-     * <p>
-     * [처리 순서]
-     * 1. DEL_YN='N' 기본 조건 설정
-     * 2. apfSts 조건 분기 처리 (none / 특정값 / null)
-     * 3. 나머지 단순 필드 조건 추가 (bgYy, prjSts, prjTp, itDpm, svnDpm)
-     * 4. BooleanBuilder로 조합된 WHERE 절로 쿼리 실행
-     * </p>
+     * <p>[처리 순서] 1. DEL_YN='N' 기본 조건 설정 2. apfSts 조건 분기 처리 (none / 특정값 / null) 3. 나머지 단순 필드 조건 추가
+     * (bgYy, prjSts, prjTp, itDpm, svnDpm) 4. BooleanBuilder로 조합된 WHERE 절로 쿼리 실행
      *
      * @param condition 검색 조건 DTO
      * @return 조건에 맞는 정보화사업 목록
@@ -61,38 +49,37 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
         QBprojm bprojm = QBprojm.bprojm;
         BooleanBuilder builder = buildConditionPredicate(condition);
 
-        return queryFactory
-                .selectFrom(bprojm)
-                .where(builder)
-                .fetch();
+        return queryFactory.selectFrom(bprojm).where(builder).fetch();
     }
 
     /**
-     * 목록 경량 프로젝션 조회(#7) — {@link #searchByCondition}와 동일 WHERE,
-     * select만 대용량 텍스트 제외 컬럼으로 축소.
+     * 목록 경량 프로젝션 조회(#7) — {@link #searchByCondition}와 동일 WHERE, select만 대용량 텍스트 제외 컬럼으로 축소.
      *
-     * <p>QueryDSL {@code Projections.constructor}는 위치 기반이므로 select 인자 순서가
-     * {@link ProjectDto.ProjectListRow} 컴포넌트 순서와 정확히 일치해야 한다.</p>
+     * <p>QueryDSL {@code Projections.constructor}는 위치 기반이므로 select 인자 순서가 {@link
+     * ProjectDto.ProjectListRow} 컴포넌트 순서와 정확히 일치해야 한다.
      */
     @Override
-    public List<ProjectDto.ProjectListRow> searchListByCondition(ProjectDto.SearchCondition condition) {
+    public List<ProjectDto.ProjectListRow> searchListByCondition(
+            ProjectDto.SearchCondition condition) {
         QBprojm bprojm = QBprojm.bprojm;
         // 동일 WHERE 재사용 — searchByCondition과 결과 행 집합 동일, select만 경량화
         return queryFactory
-                .select(Projections.constructor(ProjectDto.ProjectListRow.class,
-                        bprojm.abusMngNo,
-                        bprojm.sno,
-                        bprojm.abusNm,
-                        bprojm.bzTpC,
-                        bprojm.svnDpmC,
-                        bprojm.dvmDpmC,
-                        bprojm.sttDtm,
-                        bprojm.endDtm,
-                        bprojm.bseYy,
-                        bprojm.odnYn,
-                        bprojm.abusTc,
-                        bprojm.rprStsTc,
-                        bprojm.delYn))
+                .select(
+                        Projections.constructor(
+                                ProjectDto.ProjectListRow.class,
+                                bprojm.abusMngNo,
+                                bprojm.sno,
+                                bprojm.abusNm,
+                                bprojm.bzTpC,
+                                bprojm.svnDpmC,
+                                bprojm.dvmDpmC,
+                                bprojm.sttDtm,
+                                bprojm.endDtm,
+                                bprojm.bseYy,
+                                bprojm.odnYn,
+                                bprojm.abusTc,
+                                bprojm.rprStsTc,
+                                bprojm.delYn))
                 .from(bprojm)
                 .where(buildConditionPredicate(condition))
                 .fetch();
@@ -101,26 +88,27 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
     /**
      * 검색 조건에 해당하는 정보화사업 건수 (COUNT 쿼리, 전체 적재 회피)
      *
-     * <p>{@link #searchByCondition(ProjectDto.SearchCondition)}와 동일한 WHERE 조건을
-     * {@link #buildConditionPredicate(ProjectDto.SearchCondition)}로 공유하므로
-     * {@code searchByCondition(...).size()}와 결과가 정확히 일치합니다.</p>
+     * <p>{@link #searchByCondition(ProjectDto.SearchCondition)}와 동일한 WHERE 조건을 {@link
+     * #buildConditionPredicate(ProjectDto.SearchCondition)}로 공유하므로 {@code
+     * searchByCondition(...).size()}와 결과가 정확히 일치합니다.
      */
     @Override
     public long countBySearchCondition(ProjectDto.SearchCondition condition) {
         QBprojm bprojm = QBprojm.bprojm;
-        Long cnt = queryFactory
-                .select(bprojm.count())
-                .from(bprojm)
-                .where(buildConditionPredicate(condition))
-                .fetchOne();
+        Long cnt =
+                queryFactory
+                        .select(bprojm.count())
+                        .from(bprojm)
+                        .where(buildConditionPredicate(condition))
+                        .fetchOne();
         return cnt == null ? 0L : cnt;
     }
 
     /**
      * 검색 조건 → QueryDSL WHERE 절(BooleanBuilder) 조립.
      *
-     * <p>{@code searchByCondition}(목록)과 {@code countBySearchCondition}(건수)가 동일 조건을
-     * 공유하도록 조건 조립부를 추출한 헬퍼입니다. apfSts EXISTS/NOT EXISTS 서브쿼리 포함.</p>
+     * <p>{@code searchByCondition}(목록)과 {@code countBySearchCondition}(건수)가 동일 조건을 공유하도록 조건 조립부를
+     * 추출한 헬퍼입니다. apfSts EXISTS/NOT EXISTS 서브쿼리 포함.
      *
      * @param condition 검색 조건 DTO
      * @return DEL_YN='N' 및 동적 조건이 누적된 BooleanBuilder
@@ -153,7 +141,13 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                         cappla.fntTbNm.eq("BPROJM"),
                                         cappla.pkColNm.eq(bprojm.abusMngNo),
                                         cappla.fntTbCrySno.eq(bprojm.sno),
-                                        capplm.itPtlApfPrgStsC.in(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(), com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()))
+                                        capplm.itPtlApfPrgStsC.in(
+                                                com.kdb.it.common.approval.domain.ApprovalStatus
+                                                        .IN_PROGRESS
+                                                        .code(),
+                                                com.kdb.it.common.approval.domain.ApprovalStatus
+                                                        .COMPLETED
+                                                        .code()))
                                 .notExists());
             } else {
                 // 특정 결재상태: 최신 신청서(APF_DCM_NO 최대값)의 결재상태가 일치하는 경우
@@ -165,17 +159,23 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                         cappla.fntTbNm.eq("BPROJM"),
                                         cappla.pkColNm.eq(bprojm.abusMngNo),
                                         cappla.fntTbCrySno.eq(bprojm.sno),
-                                        capplm.itPtlApfPrgStsC.eq(com.kdb.it.common.approval.domain.ApprovalStatus.hasLabel(apfSts)
-                                                ? com.kdb.it.common.approval.domain.ApprovalStatus.ofLabel(apfSts).code()
-                                                : apfSts),
+                                        capplm.itPtlApfPrgStsC.eq(
+                                                com.kdb.it.common.approval.domain.ApprovalStatus
+                                                                .hasLabel(apfSts)
+                                                        ? com.kdb.it.common.approval.domain
+                                                                .ApprovalStatus.ofLabel(apfSts)
+                                                                .code()
+                                                        : apfSts),
                                         // 해당 프로젝트에 연결된 신청서 중 가장 최신(APF_DCM_NO 최대)인 것만 검사
                                         cappla.apfDcmNo.eq(
                                                 JPAExpressions.select(cappla2.apfDcmNo.max())
                                                         .from(cappla2)
                                                         .where(
                                                                 cappla2.fntTbNm.eq("BPROJM"),
-                                                                cappla2.pkColNm.eq(bprojm.abusMngNo),
-                                                                cappla2.fntTbCrySno.eq(bprojm.sno))))
+                                                                cappla2.pkColNm.eq(
+                                                                        bprojm.abusMngNo),
+                                                                cappla2.fntTbCrySno.eq(
+                                                                        bprojm.sno))))
                                 .exists());
             }
         }
@@ -202,7 +202,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                             JPAExpressions.select(bprojaMax.stsTc.max())
                                                     .from(bprojaMax)
                                                     .where(
-                                                            bprojaMax.abusMngNo.eq(bprojm.abusMngNo),
+                                                            bprojaMax.abusMngNo.eq(
+                                                                    bprojm.abusMngNo),
                                                             bprojaMax.delYn.eq("N"))))
                             .exists());
         }

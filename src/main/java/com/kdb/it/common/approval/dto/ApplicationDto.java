@@ -1,38 +1,37 @@
 package com.kdb.it.common.approval.dto;
 
+import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
-import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
-import java.util.List;
-
 /**
  * 신청서(결재) 관련 DTO 클래스 모음
  *
- * <p>신청서 등록, 결재(단건/일괄), 조회에 사용되는 Request/Response DTO를
- * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.</p>
+ * <p>신청서 등록, 결재(단건/일괄), 조회에 사용되는 Request/Response DTO를 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  *
- * <p>포함된 DTO:</p>
+ * <p>포함된 DTO:
+ *
  * <ul>
- *   <li>{@link CreateRequest}: 신청서 등록 요청</li>
- *   <li>{@link ApproveRequest}: 단건 결재 요청</li>
- *   <li>{@link BulkApproveRequest}: 일괄 결재 요청</li>
- *   <li>{@link ApprovalItem}: 일괄 결재 요청의 개별 항목</li>
- *   <li>{@link BulkApproveResponse}: 일괄 결재 응답</li>
- *   <li>{@link ApprovalResult}: 일괄 결재 응답의 개별 결과</li>
- *   <li>{@link BulkGetRequest}: 일괄 조회 요청</li>
- *   <li>{@link Response}: 신청서 조회 응답 (결재자 목록 포함)</li>
- *   <li>{@link ApproverResponse}: 결재자 정보 응답</li>
+ *   <li>{@link CreateRequest}: 신청서 등록 요청
+ *   <li>{@link ApproveRequest}: 단건 결재 요청
+ *   <li>{@link BulkApproveRequest}: 일괄 결재 요청
+ *   <li>{@link ApprovalItem}: 일괄 결재 요청의 개별 항목
+ *   <li>{@link BulkApproveResponse}: 일괄 결재 응답
+ *   <li>{@link ApprovalResult}: 일괄 결재 응답의 개별 결과
+ *   <li>{@link BulkGetRequest}: 일괄 조회 요청
+ *   <li>{@link Response}: 신청서 조회 응답 (결재자 목록 포함)
+ *   <li>{@link ApproverResponse}: 결재자 정보 응답
  * </ul>
  */
 public class ApplicationDto {
@@ -40,16 +39,14 @@ public class ApplicationDto {
     /**
      * 원본 데이터 연결 항목 DTO
      *
-     * <p>단일 신청서가 복수의 원본 레코드(정보화사업, 전산관리비 등)를
-     * 연결할 때 {@link CreateRequest#orcItems} 배열의 요소로 사용됩니다.</p>
+     * <p>단일 신청서가 복수의 원본 레코드(정보화사업, 전산관리비 등)를 연결할 때 {@link CreateRequest#orcItems} 배열의 요소로 사용됩니다.
      */
     @Getter
     @Setter
     @Schema(name = "ApplicationOrcItem", description = "원천 데이터 연결 항목")
     public static class OrcItem {
         /** 기본 생성자 — Jackson 역직렬화용. */
-        public OrcItem() {
-        }
+        public OrcItem() {}
 
         /** 원천 테이블명 (예: "BPROJM"=정보화사업, "BCOSTM"=전산관리비) */
         @Schema(description = "원천 테이블명")
@@ -67,19 +64,17 @@ public class ApplicationDto {
     /**
      * 신청서 등록 요청 DTO
      *
-     * <p>신규 신청서를 등록할 때 사용합니다. 복수의 원본 데이터 연결 정보({@link OrcItem} 목록)와
-     * 신청서 본문, 결재자 목록을 포함합니다.</p>
+     * <p>신규 신청서를 등록할 때 사용합니다. 복수의 원본 데이터 연결 정보({@link OrcItem} 목록)와 신청서 본문, 결재자 목록을 포함합니다.
      *
-     * <p>한 번의 상신으로 복수의 원본 레코드(정보화사업, 전산관리비 등)를 하나의 신청서로 묶어
-     * 처리합니다. {@code orcItems}의 각 항목에 대해 {@code TPRMPP_CAPPLA} 행이 생성됩니다.</p>
+     * <p>한 번의 상신으로 복수의 원본 레코드(정보화사업, 전산관리비 등)를 하나의 신청서로 묶어 처리합니다. {@code orcItems}의 각 항목에 대해 {@code
+     * TPRMPP_CAPPLA} 행이 생성됩니다.
      */
     @Getter
     @Setter
     @Schema(name = "ApplicationCreateRequest")
     public static class CreateRequest {
         /** 기본 생성자 — Jackson 역직렬화용. */
-        public CreateRequest() {
-        }
+        public CreateRequest() {}
 
         /** 신청서명 (예: "전산예산 작성") */
         @Schema(description = "신청서명")
@@ -87,17 +82,19 @@ public class ApplicationDto {
 
         /**
          * 신청서 세부 내용 (JSON 형식)
-         * <p>결재선(approvalLine) 정보 및 전체 정보화사업/전산관리비 목록을 포함하는 JSON 문자열.
-         * 결재 처리 시 각 결재자의 date 필드가 업데이트됩니다.</p>
-         * <p>구조 예시: {@code { "projects": [...], "costs": [...], "approvalLine": {...} }}</p>
+         *
+         * <p>결재선(approvalLine) 정보 및 전체 정보화사업/전산관리비 목록을 포함하는 JSON 문자열. 결재 처리 시 각 결재자의 date 필드가
+         * 업데이트됩니다.
+         *
+         * <p>구조 예시: {@code { "projects": [...], "costs": [...], "approvalLine": {...} }}
          */
         @Schema(description = "신청서세부내용 (JSON)")
         private String apfDtlCone;
 
         /**
          * 원본 데이터 연결 항목 목록 (복수 원본 지원)
-         * <p>각 항목마다 {@code TPRMPP_CAPPLA} 행이 생성됩니다.
-         * null 또는 빈 리스트인 경우 Cappla를 저장하지 않습니다.</p>
+         *
+         * <p>각 항목마다 {@code TPRMPP_CAPPLA} 행이 생성됩니다. null 또는 빈 리스트인 경우 Cappla를 저장하지 않습니다.
          */
         @Schema(description = "원본 데이터 연결 항목 목록")
         private List<OrcItem> orcItems;
@@ -112,8 +109,8 @@ public class ApplicationDto {
 
         /**
          * 결재자 사원번호 목록 (순서대로)
-         * <p>순서대로 결재선을 구성합니다. 동일 사원번호가 연속으로 올 수 있으며,
-         * 이 경우 해당 결재자가 한 번 승인하면 연속 항목 모두 승인됩니다.</p>
+         *
+         * <p>순서대로 결재선을 구성합니다. 동일 사원번호가 연속으로 올 수 있으며, 이 경우 해당 결재자가 한 번 승인하면 연속 항목 모두 승인됩니다.
          */
         @Schema(description = "결재자 사원번호 목록 (순서대로)")
         private List<String> approverEnos;
@@ -122,20 +119,19 @@ public class ApplicationDto {
     /**
      * 단건 결재 요청 DTO
      *
-     * <p>특정 신청서에 대해 결재자가 승인 또는 반려할 때 사용합니다.</p>
+     * <p>특정 신청서에 대해 결재자가 승인 또는 반려할 때 사용합니다.
      */
     @Getter
     @Setter
     @Schema(name = "ApplicationApproveRequest")
     public static class ApproveRequest {
         /** 기본 생성자 — Jackson 역직렬화용. */
-        public ApproveRequest() {
-        }
+        public ApproveRequest() {}
 
         /**
          * 결재자 사원번호
-         * <p>실제 서비스에서는 JWT 토큰에서 추출한 현재 사용자 사번을 사용해야 합니다.
-         * 현재는 요청 Body에서 받도록 구현되어 있습니다.</p>
+         *
+         * <p>실제 서비스에서는 JWT 토큰에서 추출한 현재 사용자 사번을 사용해야 합니다. 현재는 요청 Body에서 받도록 구현되어 있습니다.
          */
         @Schema(description = "결재자 사원번호 (실제로는 세션에서 가져와야 함)")
         private String dcdEno;
@@ -152,15 +148,14 @@ public class ApplicationDto {
     /**
      * 신청서 회수 요청 DTO
      *
-     * <p>신청자가 결재 진행 중인 신청서를 회수(상신 취소)할 때 사용합니다.</p>
+     * <p>신청자가 결재 진행 중인 신청서를 회수(상신 취소)할 때 사용합니다.
      */
     @Getter
     @Setter
     @Schema(name = "RecallRequest", description = "신청서 회수 요청")
     public static class RecallRequest {
         /** 기본 생성자 — Jackson 역직렬화용. */
-        public RecallRequest() {
-        }
+        public RecallRequest() {}
 
         /** 회수 사유 (필수, 최대 1000자) */
         @NotBlank
@@ -172,16 +167,14 @@ public class ApplicationDto {
     /**
      * 일괄 결재 요청 DTO
      *
-     * <p>여러 신청서를 한 번에 결재 처리할 때 사용합니다.
-     * 하나라도 실패하면 전체 트랜잭션이 롤백됩니다.</p>
+     * <p>여러 신청서를 한 번에 결재 처리할 때 사용합니다. 하나라도 실패하면 전체 트랜잭션이 롤백됩니다.
      */
     @Getter
     @Setter
     @Schema(name = "ApplicationBulkApproveRequest", description = "일괄 승인 요청")
     public static class BulkApproveRequest {
         /** 기본 생성자 — Jackson 역직렬화용. */
-        public BulkApproveRequest() {
-        }
+        public BulkApproveRequest() {}
 
         /** 결재 처리할 신청서 목록 (각 항목에 결재자 정보 포함) */
         @Schema(description = "승인할 신청서 목록")
@@ -191,15 +184,14 @@ public class ApplicationDto {
     /**
      * 일괄 결재 요청의 개별 항목 DTO
      *
-     * <p>일괄 결재 요청({@link BulkApproveRequest})의 각 신청서별 결재 정보입니다.</p>
+     * <p>일괄 결재 요청({@link BulkApproveRequest})의 각 신청서별 결재 정보입니다.
      */
     @Getter
     @Setter
     @Schema(name = "ApplicationApprovalItem", description = "개별 신청서 승인 정보")
     public static class ApprovalItem {
         /** 기본 생성자 — Jackson 역직렬화용. */
-        public ApprovalItem() {
-        }
+        public ApprovalItem() {}
 
         /** 결재할 신청관리번호 */
         @Schema(description = "신청관리번호")
@@ -221,7 +213,7 @@ public class ApplicationDto {
     /**
      * 일괄 결재 응답 DTO
      *
-     * <p>일괄 결재 처리 후 전체/성공/실패 건수와 개별 결과 목록을 반환합니다.</p>
+     * <p>일괄 결재 처리 후 전체/성공/실패 건수와 개별 결과 목록을 반환합니다.
      */
     @Getter
     @Builder
@@ -247,7 +239,7 @@ public class ApplicationDto {
     /**
      * 일괄 결재 응답의 개별 결과 DTO
      *
-     * <p>각 신청서별 결재 처리 결과입니다.</p>
+     * <p>각 신청서별 결재 처리 결과입니다.
      */
     @Getter
     @Builder
@@ -269,15 +261,14 @@ public class ApplicationDto {
     /**
      * 일괄 조회 요청 DTO
      *
-     * <p>여러 신청관리번호를 한 번에 조회할 때 사용합니다.</p>
+     * <p>여러 신청관리번호를 한 번에 조회할 때 사용합니다.
      */
     @Getter
     @Setter
     @Schema(name = "ApplicationBulkGetRequest", description = "일괄 조회 요청")
     public static class BulkGetRequest {
         /** 기본 생성자 — Jackson 역직렬화용. */
-        public BulkGetRequest() {
-        }
+        public BulkGetRequest() {}
 
         /** 조회할 신청관리번호 목록 (예: ["APF_202600000001", "APF_202600000002"]) */
         @Schema(description = "조회할 신청관리번호 목록")
@@ -287,24 +278,21 @@ public class ApplicationDto {
     /**
      * 신청서 일괄 조회 결과 DTO (부분 성공)
      *
-     * <p>조회에 성공한 신청서 목록({@code items})과 미존재로 실패한
-     * 신청관리번호 목록({@code failedIds})을 함께 반환합니다.
-     * 누락 건을 조용히 버리지 않고 호출자에게 노출하기 위함입니다.</p>
+     * <p>조회에 성공한 신청서 목록({@code items})과 미존재로 실패한 신청관리번호 목록({@code failedIds})을 함께 반환합니다. 누락 건을 조용히
+     * 버리지 않고 호출자에게 노출하기 위함입니다.
      *
-     * @param items     조회 성공 항목
+     * @param items 조회 성공 항목
      * @param failedIds 조회 실패(미존재) 신청관리번호 목록
      */
     @Schema(name = "ApplicationBulkResponse", description = "신청서 일괄 조회 결과 (부분 성공)")
     public record BulkResponse(
             @Schema(description = "조회 성공 항목") java.util.List<Response> items,
-            @Schema(description = "조회 실패(미존재) 신청관리번호 목록") java.util.List<String> failedIds
-    ) {}
+            @Schema(description = "조회 실패(미존재) 신청관리번호 목록") java.util.List<String> failedIds) {}
 
     /**
      * 신청서 조회 응답 DTO
      *
-     * <p>신청서 마스터({@link Capplm}) 정보와 결재자 목록({@link Cdecim})을
-     * 하나의 응답으로 반환합니다.</p>
+     * <p>신청서 마스터({@link Capplm}) 정보와 결재자 목록({@link Cdecim})을 하나의 응답으로 반환합니다.
      */
     @Getter
     @Builder
@@ -361,7 +349,7 @@ public class ApplicationDto {
         /**
          * 엔티티를 응답 DTO로 변환하는 정적 팩토리 메서드
          *
-         * @param capplm    신청서 마스터 엔티티
+         * @param capplm 신청서 마스터 엔티티
          * @param approvers 결재자 목록 엔티티
          * @return 변환된 응답 DTO
          */
@@ -372,45 +360,48 @@ public class ApplicationDto {
         /**
          * 엔티티와 신청자명을 응답 DTO로 변환하는 정적 팩토리 메서드
          *
-         * @param capplm      신청서 마스터 엔티티
-         * @param approvers   결재자 목록 엔티티
+         * @param capplm 신청서 마스터 엔티티
+         * @param approvers 결재자 목록 엔티티
          * @param requesterNm 신청자명
          * @return 변환된 응답 DTO
          */
-        public static Response fromEntity(Capplm capplm, List<Cdecim> approvers, String requesterNm) {
+        public static Response fromEntity(
+                Capplm capplm, List<Cdecim> approvers, String requesterNm) {
             return fromEntity(capplm, approvers, requesterNm, null);
         }
 
         /**
          * 엔티티와 신청자/신청부서명을 응답 DTO로 변환하는 정적 팩토리 메서드
          *
-         * @param capplm        신청서 마스터 엔티티
-         * @param approvers     결재자 목록 엔티티
-         * @param requesterNm   신청자명
+         * @param capplm 신청서 마스터 엔티티
+         * @param approvers 결재자 목록 엔티티
+         * @param requesterNm 신청자명
          * @param requesterBbrNm 신청부서명
          * @return 변환된 응답 DTO
          */
         public static Response fromEntity(
-                Capplm capplm,
-                List<Cdecim> approvers,
-                String requesterNm,
-                String requesterBbrNm) {
+                Capplm capplm, List<Cdecim> approvers, String requesterNm, String requesterBbrNm) {
             return Response.builder()
-                    .apfMngNo(capplm.getApfMngNo())       // 신청관리번호
-                    .apfNm(capplm.getDcdReqTtl())          // 신청서명(결재요청제목에서 파생)
-                    .apfDtlCone(capplm.getDcdReqInf())    // 신청서세부내용(결재요청정보에서 파생)
-                    .apfSts(capplm.getItPtlApfPrgStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label()) // 신청상태(라벨, 코드에서 파생)
-                    .apfStsC(capplm.getItPtlApfPrgStsC())      // 신청상태코드
-                    .rqsEno(capplm.getDcdReqUsid())       // 신청자 사원번호(결재요청사용자ID에서 파생)
-                    .rqsNm(requesterNm)                   // 신청자명
-                    .rqsBbrC(capplm.getDcdReqBbrC())       // 신청부서코드
-                    .rqsBbrNm(requesterBbrNm)              // 신청부서명
-                    .rqsDt(capplm.getDcdReqDtm())         // 신청일자(결재요청일시에서 파생)
-                    .rqsOpnn(capplm.getRgprDcdReqCone())  // 신청의견(등록자결재요청내용에서 파생)
-                    .approvers(approvers.stream()
-                            .map(ApproverResponse::fromEntity) // 각 결재자 엔티티를 DTO로 변환
-                            .toList())
+                    .apfMngNo(capplm.getApfMngNo()) // 신청관리번호
+                    .apfNm(capplm.getDcdReqTtl()) // 신청서명(결재요청제목에서 파생)
+                    .apfDtlCone(capplm.getDcdReqInf()) // 신청서세부내용(결재요청정보에서 파생)
+                    .apfSts(
+                            capplm.getItPtlApfPrgStsC() == null
+                                    ? null
+                                    : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
+                                                    capplm.getItPtlApfPrgStsC())
+                                            .label()) // 신청상태(라벨, 코드에서 파생)
+                    .apfStsC(capplm.getItPtlApfPrgStsC()) // 신청상태코드
+                    .rqsEno(capplm.getDcdReqUsid()) // 신청자 사원번호(결재요청사용자ID에서 파생)
+                    .rqsNm(requesterNm) // 신청자명
+                    .rqsBbrC(capplm.getDcdReqBbrC()) // 신청부서코드
+                    .rqsBbrNm(requesterBbrNm) // 신청부서명
+                    .rqsDt(capplm.getDcdReqDtm()) // 신청일자(결재요청일시에서 파생)
+                    .rqsOpnn(capplm.getRgprDcdReqCone()) // 신청의견(등록자결재요청내용에서 파생)
+                    .approvers(
+                            approvers.stream()
+                                    .map(ApproverResponse::fromEntity) // 각 결재자 엔티티를 DTO로 변환
+                                    .toList())
                     .build();
         }
 
@@ -432,9 +423,12 @@ public class ApplicationDto {
                     .apfMngNo(capplm.getApfMngNo())
                     .apfNm(capplm.getDcdReqTtl())
                     .apfDtlCone(capplm.getDcdReqInf())
-                    .apfSts(capplm.getItPtlApfPrgStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus
-                                    .ofCode(capplm.getItPtlApfPrgStsC()).label())
+                    .apfSts(
+                            capplm.getItPtlApfPrgStsC() == null
+                                    ? null
+                                    : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
+                                                    capplm.getItPtlApfPrgStsC())
+                                            .label())
                     .apfStsC(capplm.getItPtlApfPrgStsC())
                     .rqsEno(capplm.getDcdReqUsid())
                     .rqsNm(requesterNm)
@@ -442,9 +436,7 @@ public class ApplicationDto {
                     .rqsBbrNm(requesterBbrNm)
                     .rqsDt(capplm.getDcdReqDtm())
                     .rqsOpnn(capplm.getRgprDcdReqCone())
-                    .approvers(approvers.stream()
-                            .map(ApproverResponse::fromReadView)
-                            .toList())
+                    .approvers(approvers.stream().map(ApproverResponse::fromReadView).toList())
                     .build();
         }
     }
@@ -452,7 +444,7 @@ public class ApplicationDto {
     /**
      * 신청서 세부내용(APF_DTL_CONE) 조회 응답 DTO
      *
-     * <p>신청관리번호({@code apfMngNo})와 대응하는 세부내용 JSON 문자열만 반환합니다.</p>
+     * <p>신청관리번호({@code apfMngNo})와 대응하는 세부내용 JSON 문자열만 반환합니다.
      */
     @Getter
     @Builder
@@ -465,7 +457,8 @@ public class ApplicationDto {
 
         /**
          * 신청서 세부내용 (APF_DTL_CONE)
-         * <p>신청 시 저장한 JSON 문자열 그대로 반환합니다.</p>
+         *
+         * <p>신청 시 저장한 JSON 문자열 그대로 반환합니다.
          */
         @Schema(description = "신청서 세부내용 (JSON 문자열)")
         private String apfDtlCone;
@@ -478,8 +471,8 @@ public class ApplicationDto {
          */
         public static ApfDtlConeResponse fromEntity(Capplm capplm) {
             return ApfDtlConeResponse.builder()
-                    .apfMngNo(capplm.getApfMngNo())       // 신청관리번호
-                    .apfDtlCone(capplm.getDcdReqInf())    // 세부내용(결재요청정보에서 파생)
+                    .apfMngNo(capplm.getApfMngNo()) // 신청관리번호
+                    .apfDtlCone(capplm.getDcdReqInf()) // 세부내용(결재요청정보에서 파생)
                     .build();
         }
     }
@@ -487,10 +480,9 @@ public class ApplicationDto {
     /**
      * 미결재(미상신) 건수 응답 DTO
      *
-     * <p>사이드바 결재 상신 배지 등에서 사용합니다.
-     * 정보화사업(BPROJM)과 전산업무비(BCOSTM) 중 결재 신청이 없는(CAPPLA 미연결) 건수를 집계합니다.</p>
+     * <p>사이드바 결재 상신 배지 등에서 사용합니다. 정보화사업(BPROJM)과 전산업무비(BCOSTM) 중 결재 신청이 없는(CAPPLA 미연결) 건수를 집계합니다.
      *
-     * <p>전체 건수 집계에 최적화되어 있으며, 상세 목록 조회가 필요하지 않은 경우 사용합니다.</p>
+     * <p>전체 건수 집계에 최적화되어 있으며, 상세 목록 조회가 필요하지 않은 경우 사용합니다.
      */
     @Getter
     @Builder
@@ -509,69 +501,87 @@ public class ApplicationDto {
         private long totalCount;
     }
 
-    /**
-     * 전자결재 대시보드 응답 DTO
-     */
+    /** 전자결재 대시보드 응답 DTO */
     @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(name = "ApprovalDashboardResponse", description = "전자결재 대시보드 응답")
     public static class DashboardResponse {
-        @Schema(description = "결재 대기 수 (본인)") private int pendingCount;
-        @Schema(description = "내가 기안한 진행 중 수") private int inProgressCount;
-        @Schema(description = "이번달 부서 완료 수") private int monthlyCompletedCount;
-        @Schema(description = "내 반려 수") private int rejectedCount;
-        @Schema(description = "최근 6개월 월별 처리 현황") private List<MonthlyCount> monthlyTrend;
-        @Schema(description = "내 결재 대기 목록 (최대 3건)") private List<PendingItem> pendingList;
+        @Schema(description = "결재 대기 수 (본인)")
+        private int pendingCount;
+
+        @Schema(description = "내가 기안한 진행 중 수")
+        private int inProgressCount;
+
+        @Schema(description = "이번달 부서 완료 수")
+        private int monthlyCompletedCount;
+
+        @Schema(description = "내 반려 수")
+        private int rejectedCount;
+
+        @Schema(description = "최근 6개월 월별 처리 현황")
+        private List<MonthlyCount> monthlyTrend;
+
+        @Schema(description = "내 결재 대기 목록 (최대 3건)")
+        private List<PendingItem> pendingList;
     }
 
-    /**
-     * 월별 건수 DTO (결재 대시보드)
-     */
+    /** 월별 건수 DTO (결재 대시보드) */
     @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(name = "ApprovalMonthlyCount", description = "월별 결재 처리 건수")
     public static class MonthlyCount {
-        @Schema(description = "년월 (YYYY-MM)") private String month;
-        @Schema(description = "건수") private int count;
+        @Schema(description = "년월 (YYYY-MM)")
+        private String month;
+
+        @Schema(description = "건수")
+        private int count;
     }
 
-    /**
-     * 결재 대기 항목 DTO
-     */
+    /** 결재 대기 항목 DTO */
     @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(name = "ApprovalPendingItem", description = "결재 대기 항목")
     public static class PendingItem {
-        @Schema(description = "신청서관리번호") private String apfMngNo;
-        @Schema(description = "신청서명") private String title;
-        @Schema(description = "신청자명") private String requesterName;
-        @Schema(description = "신청일자 (YYYY-MM-DD)") private String requestedAt;
-        @Schema(description = "긴급여부: urgent(3일 초과) | normal") private String urgency;
+        @Schema(description = "신청서관리번호")
+        private String apfMngNo;
+
+        @Schema(description = "신청서명")
+        private String title;
+
+        @Schema(description = "신청자명")
+        private String requesterName;
+
+        @Schema(description = "신청일자 (YYYY-MM-DD)")
+        private String requestedAt;
+
+        @Schema(description = "긴급여부: urgent(3일 초과) | normal")
+        private String urgency;
     }
 
-    /**
-     * 사이드바 배지 건수 응답 DTO
-     */
+    /** 사이드바 배지 건수 응답 DTO */
     @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(name = "ApprovalBadgeCountResponse", description = "결재 사이드바 배지 건수 응답")
     public static class ApprovalBadgeCountResponse {
-        @Schema(description = "결재 대기 수") private int pendingCount;
-        @Schema(description = "기안 진행 중 수") private int inProgressCount;
+        @Schema(description = "결재 대기 수")
+        private int pendingCount;
+
+        @Schema(description = "기안 진행 중 수")
+        private int inProgressCount;
     }
 
     /**
      * 결재자 정보 응답 DTO
      *
-     * <p>결재자({@link Cdecim}) 한 명의 결재 정보를 담습니다.</p>
+     * <p>결재자({@link Cdecim}) 한 명의 결재 정보를 담습니다.
      */
     @Getter
     @Builder
@@ -613,19 +623,24 @@ public class ApplicationDto {
          */
         public static ApproverResponse fromEntity(Cdecim cdecim) {
             return ApproverResponse.builder()
-                    .dcdSqn(cdecim.getDcrSqnSno())   // 결재순번
-                    .dcdEno(cdecim.getDcrEno())       // 결재자 사원번호
+                    .dcdSqn(cdecim.getDcrSqnSno()) // 결재순번
+                    .dcdEno(cdecim.getDcrEno()) // 결재자 사원번호
                     // 결재유형: 미결재(001) 또는 null이면 null, 그 외는 "결재"로 표시
-                    .dcdTp(cdecim.getItPtlDcdStsC() == null
-                            || DecisionStatus.isPendingCode(cdecim.getItPtlDcdStsC())
-                                ? null : "결재")
-                    .dcdDt(cdecim.getDcdDtm())        // 결재일자
+                    .dcdTp(
+                            cdecim.getItPtlDcdStsC() == null
+                                            || DecisionStatus.isPendingCode(
+                                                    cdecim.getItPtlDcdStsC())
+                                    ? null
+                                    : "결재")
+                    .dcdDt(cdecim.getDcdDtm()) // 결재일자
                     .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
                     // 결재상태: 코드 → 라벨 변환 (미결재/null이면 null)
-                    .dcdSts(cdecim.getItPtlDcdStsC() == null
-                            || DecisionStatus.isPendingCode(cdecim.getItPtlDcdStsC())
-                                ? null
-                                : DecisionStatus.ofCode(cdecim.getItPtlDcdStsC()).label())
+                    .dcdSts(
+                            cdecim.getItPtlDcdStsC() == null
+                                            || DecisionStatus.isPendingCode(
+                                                    cdecim.getItPtlDcdStsC())
+                                    ? null
+                                    : DecisionStatus.ofCode(cdecim.getItPtlDcdStsC()).label())
                     .lstDcdYn(cdecim.getLstDcdYn()) // 최종결재자여부
                     .build();
         }

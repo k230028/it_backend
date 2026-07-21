@@ -17,9 +17,11 @@ import lombok.experimental.SuperBuilder;
 /**
  * 소요예산 산정 기본(마스터) 엔티티.
  *
- * <p>DB 테이블: {@code TPRMPP_BESTIM}. 정보화화사업(BPROJM)에 대한 소요예산 산정 요청을 관리한다.</p>
- * <p>대상은 정보화사업으로 고정되며 {@code CNCD_RFR_NO}=사업 관리번호(ABUS_MNG_NO)입니다.</p>
- * <p>상태(IT_PTL_STS_TC): 41(작성중) → 42(진행중) → 49(완료).</p>
+ * <p>DB 테이블: {@code TPRMPP_BESTIM}. 정보화화사업(BPROJM)에 대한 소요예산 산정 요청을 관리한다.
+ *
+ * <p>대상은 정보화사업으로 고정되며 {@code CNCD_RFR_NO}=사업 관리번호(ABUS_MNG_NO)입니다.
+ *
+ * <p>상태(IT_PTL_STS_TC): 41(작성중) → 42(진행중) → 49(완료).
  */
 @LogTarget(entity = BestimL.class)
 @Entity

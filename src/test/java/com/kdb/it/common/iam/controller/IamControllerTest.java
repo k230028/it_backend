@@ -8,8 +8,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kdb.it.common.iam.dto.UserDto;
+import com.kdb.it.common.iam.service.OrganizationService;
+import com.kdb.it.common.iam.service.UserService;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.config.JacksonConfig;
+import com.kdb.it.config.TestSecurityConfig;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,35 +26,21 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.kdb.it.common.iam.dto.UserDto;
-import com.kdb.it.common.iam.service.OrganizationService;
-import com.kdb.it.common.iam.service.UserService;
-import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.common.system.security.JwtUtil;
-import com.kdb.it.common.system.service.CustomUserDetailsService;
-import com.kdb.it.config.JacksonConfig;
-import com.kdb.it.config.TestSecurityConfig;
-
 /**
  * OrganizationController + UserController @WebMvcTest
  *
- * <p>조직/사용자 조회 HTTP 응답 구조와 인증 동작을 검증합니다.</p>
+ * <p>조직/사용자 조회 HTTP 응답 구조와 인증 동작을 검증합니다.
  */
-@WebMvcTest({ OrganizationController.class, UserController.class })
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@WebMvcTest({OrganizationController.class, UserController.class})
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class IamControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @MockitoBean
-    private OrganizationService organizationService;
-    @MockitoBean
-    private UserService userService;
-    @MockitoBean
-    private JwtUtil jwtUtil;
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private OrganizationService organizationService;
+    @MockitoBean private UserService userService;
+    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     // -------------------------------------------------------------------------
     // OrganizationController
@@ -56,8 +49,7 @@ class IamControllerTest {
     @Test
     @DisplayName("GET /api/organizations - 비인증 → 401")
     void getOrganizations_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/organizations"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/organizations")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -77,8 +69,7 @@ class IamControllerTest {
     @Test
     @DisplayName("GET /api/users - 비인증 → 401")
     void getUsers_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/users"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/users")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -98,8 +89,14 @@ class IamControllerTest {
         // CustomUserDetails 주체로 요청하고 서비스 스텁은 any()로 매칭한다.
         given(userService.getUser(anyString(), any(CustomUserDetails.class)))
                 .willReturn(new UserDto.DetailResponse());
-        mockMvc.perform(get("/api/users/E10001")
-                        .with(user(new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "D001"))))
+        mockMvc.perform(
+                        get("/api/users/E10001")
+                                .with(
+                                        user(
+                                                new CustomUserDetails(
+                                                        "10001",
+                                                        List.of(CustomUserDetails.ATH_ADMIN),
+                                                        "D001"))))
                 .andExpect(status().isOk());
     }
 

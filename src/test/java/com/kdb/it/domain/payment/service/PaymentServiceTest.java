@@ -15,10 +15,10 @@ import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.payment.dto.PaymentDto;
 import com.kdb.it.domain.payment.entity.Bpaymm;
 import com.kdb.it.domain.payment.entity.Bpaymt;
-import com.kdb.it.domain.payment.repository.PaymentLineRepository;
-import com.kdb.it.domain.payment.repository.PaymentRepository;
 import com.kdb.it.domain.payment.repository.PaymentDetailRow;
+import com.kdb.it.domain.payment.repository.PaymentLineRepository;
 import com.kdb.it.domain.payment.repository.PaymentLineView;
+import com.kdb.it.domain.payment.repository.PaymentRepository;
 import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
@@ -38,7 +38,7 @@ import org.springframework.security.access.AccessDeniedException;
 /**
  * PaymentService 단위 테스트.
  *
- * <p>Mockito로 모든 외부 의존성(Repository)을 대체합니다. 각 테스트는 독립적이며 공유 상태가 없습니다.</p>
+ * <p>Mockito로 모든 외부 의존성(Repository)을 대체합니다. 각 테스트는 독립적이며 공유 상태가 없습니다.
  */
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceTest {
@@ -54,12 +54,22 @@ class PaymentServiceTest {
 
     PaymentDetailRow detailRow(Bpaymm e, String targetName) {
         return new PaymentDetailRow(
-                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), targetName,
-                e.getStsTc(), e.getReqCone(), e.getCttNm(), e.getCttAmt(), e.getFstEnrUsid(), e.getFstEnrDtm());
+                e.getDocMngNo(),
+                e.getDocVrsSno(),
+                e.getIoeC(),
+                e.getCncdRfrNo(),
+                targetName,
+                e.getStsTc(),
+                e.getReqCone(),
+                e.getCttNm(),
+                e.getCttAmt(),
+                e.getFstEnrUsid(),
+                e.getFstEnrDtm());
     }
 
     PaymentLineView lineView(Bpaymt e) {
-        return new PaymentLineView(e.getDfrTod(), e.getDfrAmt(), e.getDfrDt(), e.getDfrMplDt(), e.getOpnnCone());
+        return new PaymentLineView(
+                e.getDfrTod(), e.getDfrAmt(), e.getDfrDt(), e.getDfrMplDt(), e.getOpnnCone());
     }
 
     /** 일반 사용자 인증 정보 생성 헬퍼 */
@@ -79,8 +89,15 @@ class PaymentServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PaymentService(paymentRepository, lineRepository, projectRepository, costRepository,
-                bprojaSyncService, eaiService, new GweProperties("TEST00000001"));
+        service =
+                new PaymentService(
+                        paymentRepository,
+                        lineRepository,
+                        projectRepository,
+                        costRepository,
+                        bprojaSyncService,
+                        eaiService,
+                        new GweProperties("TEST00000001"));
     }
 
     // =========================================================================
@@ -95,16 +112,20 @@ class PaymentServiceTest {
         @DisplayName("사업 대상으로 신규 의뢰 생성 시 PAY-YYYY-0001 문서번호를 채번한다")
         void create_project_assignsDocNo() {
             // Arrange
-            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N")).thenReturn(true);
+            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N"))
+                    .thenReturn(true);
             when(paymentRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
-                    anyString(), anyString(), any(), anyString())).thenReturn(false);
+                            anyString(), anyString(), any(), anyString()))
+                    .thenReturn(false);
             when(paymentRepository.nextDocSeq()).thenReturn(1L);
             when(paymentRepository.save(any(Bpaymm.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // Act
-            String docNo = service.create(
-                    new PaymentDto.CreateRequest("100", "PRJ-1", "요청합니다", "테스트계약", BigDecimal.valueOf(1000000)),
-                    requester());
+            String docNo =
+                    service.create(
+                            new PaymentDto.CreateRequest(
+                                    "100", "PRJ-1", "요청합니다", "테스트계약", BigDecimal.valueOf(1000000)),
+                            requester());
 
             // Assert
             assertThat(docNo).matches("PAY-\\d{4}-0001");
@@ -114,16 +135,19 @@ class PaymentServiceTest {
         @DisplayName("전산업무비 대상으로 신규 의뢰 생성이 정상 처리된다")
         void create_cost_assignsDocNo() {
             // Arrange
-            when(costRepository.existsByCostBgNoAndLstYnAndDelYn("BG-1", "Y", "N")).thenReturn(true);
+            when(costRepository.existsByCostBgNoAndLstYnAndDelYn("BG-1", "Y", "N"))
+                    .thenReturn(true);
             when(paymentRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
-                    anyString(), anyString(), any(), anyString())).thenReturn(false);
+                            anyString(), anyString(), any(), anyString()))
+                    .thenReturn(false);
             when(paymentRepository.nextDocSeq()).thenReturn(1L);
             when(paymentRepository.save(any(Bpaymm.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // Act
-            String docNo = service.create(
-                    new PaymentDto.CreateRequest("200", "BG-1", null, null, null),
-                    requester());
+            String docNo =
+                    service.create(
+                            new PaymentDto.CreateRequest("200", "BG-1", null, null, null),
+                            requester());
 
             // Assert
             assertThat(docNo).matches("PAY-\\d{4}-0001");
@@ -136,24 +160,34 @@ class PaymentServiceTest {
             // validateTarget 내에서 즉시 throw → 중복 체크 Repository는 호출되지 않아야 함
 
             // Act & Assert
-            assertThatThrownBy(() -> service.create(
-                    new PaymentDto.CreateRequest("999", "REF-1", null, null, null), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.create(
+                                            new PaymentDto.CreateRequest(
+                                                    "999", "REF-1", null, null, null),
+                                            requester()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("알 수 없는 대상구분");
 
-            verify(paymentRepository, never()).existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
-                    anyString(), anyString(), any(), anyString());
+            verify(paymentRepository, never())
+                    .existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
+                            anyString(), anyString(), any(), anyString());
         }
 
         @Test
         @DisplayName("사업 대상이 존재하지 않으면 신규 의뢰를 거부한다")
         void create_rejectsWhenProjectTargetMissing() {
             // Arrange
-            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-NONE", "Y", "N")).thenReturn(false);
+            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-NONE", "Y", "N"))
+                    .thenReturn(false);
 
             // Act & Assert
-            assertThatThrownBy(() -> service.create(
-                    new PaymentDto.CreateRequest("100", "PRJ-NONE", null, null, null), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.create(
+                                            new PaymentDto.CreateRequest(
+                                                    "100", "PRJ-NONE", null, null, null),
+                                            requester()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("대상을 찾을 수 없습니다");
         }
@@ -162,11 +196,16 @@ class PaymentServiceTest {
         @DisplayName("전산업무비 대상이 존재하지 않으면 신규 의뢰를 거부한다")
         void create_rejectsWhenCostTargetMissing() {
             // Arrange
-            when(costRepository.existsByCostBgNoAndLstYnAndDelYn("BG-NONE", "Y", "N")).thenReturn(false);
+            when(costRepository.existsByCostBgNoAndLstYnAndDelYn("BG-NONE", "Y", "N"))
+                    .thenReturn(false);
 
             // Act & Assert
-            assertThatThrownBy(() -> service.create(
-                    new PaymentDto.CreateRequest("200", "BG-NONE", null, null, null), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.create(
+                                            new PaymentDto.CreateRequest(
+                                                    "200", "BG-NONE", null, null, null),
+                                            requester()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("대상을 찾을 수 없습니다");
         }
@@ -175,13 +214,19 @@ class PaymentServiceTest {
         @DisplayName("동일 대상에 진행 중인 문서가 있으면 신규 의뢰를 거부한다")
         void create_rejectsDuplicate() {
             // Arrange
-            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N")).thenReturn(true);
+            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N"))
+                    .thenReturn(true);
             when(paymentRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
-                    anyString(), anyString(), any(), anyString())).thenReturn(true);
+                            anyString(), anyString(), any(), anyString()))
+                    .thenReturn(true);
 
             // Act & Assert
-            assertThatThrownBy(() -> service.create(
-                    new PaymentDto.CreateRequest("100", "PRJ-1", null, null, null), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.create(
+                                            new PaymentDto.CreateRequest(
+                                                    "100", "PRJ-1", null, null, null),
+                                            requester()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("진행 중");
         }
@@ -190,15 +235,19 @@ class PaymentServiceTest {
         @DisplayName("채번 결과가 10이면 PAY-YYYY-0010 형식(4자리 패딩)으로 반환된다")
         void create_docNoFormattedWithFourDigits() {
             // Arrange
-            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N")).thenReturn(true);
+            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N"))
+                    .thenReturn(true);
             when(paymentRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
-                    anyString(), anyString(), any(), anyString())).thenReturn(false);
+                            anyString(), anyString(), any(), anyString()))
+                    .thenReturn(false);
             when(paymentRepository.nextDocSeq()).thenReturn(10L);
             when(paymentRepository.save(any(Bpaymm.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // Act
-            String docNo = service.create(
-                    new PaymentDto.CreateRequest("100", "PRJ-1", null, null, null), requester());
+            String docNo =
+                    service.create(
+                            new PaymentDto.CreateRequest("100", "PRJ-1", null, null, null),
+                            requester());
 
             // Assert - 4자리 포맷 검증
             assertThat(docNo).matches("PAY-\\d{4}-0010");
@@ -217,10 +266,19 @@ class PaymentServiceTest {
         @DisplayName("작성중(71) 상태에서 마스터 수정이 정상 처리된다")
         void update_draft_success() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81")
-                    .reqCone("기존내용").cttNm("기존계약명").cttAmt(BigDecimal.valueOf(1000000)).fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("81")
+                            .reqCone("기존내용")
+                            .cttNm("기존계약명")
+                            .cttAmt(BigDecimal.valueOf(1000000))
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -240,17 +298,27 @@ class PaymentServiceTest {
         @DisplayName("진행중(72) 상태에서 마스터 수정을 시도하면 거부한다")
         void update_notDraft_rejected() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.update(
-                    "PAY-2026-0001",
-                    new PaymentDto.UpdateRequest("수정요청", "수정계약명", BigDecimal.valueOf(500000)),
-                    requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.update(
+                                            "PAY-2026-0001",
+                                            new PaymentDto.UpdateRequest(
+                                                    "수정요청", "수정계약명", BigDecimal.valueOf(500000)),
+                                            requester()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("작성중 상태에서만 수정");
         }
@@ -259,17 +327,26 @@ class PaymentServiceTest {
         @DisplayName("완료(79) 상태에서 마스터 수정을 시도하면 거부한다")
         void update_done_rejected() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("89").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("89")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.update(
-                    "PAY-2026-0001",
-                    new PaymentDto.UpdateRequest(null, null, null),
-                    requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.update(
+                                            "PAY-2026-0001",
+                                            new PaymentDto.UpdateRequest(null, null, null),
+                                            requester()))
                     .isInstanceOf(IllegalStateException.class);
         }
     }
@@ -286,9 +363,16 @@ class PaymentServiceTest {
         @DisplayName("작성중(71) 상태에서 논리 삭제가 정상 처리된다")
         void delete_draft_success() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("81")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -303,9 +387,16 @@ class PaymentServiceTest {
         @DisplayName("진행중(72) 상태에서 삭제를 시도하면 거부한다")
         void delete_inProgress_rejected() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -319,9 +410,16 @@ class PaymentServiceTest {
         @DisplayName("완료(79) 상태에서 삭제를 시도하면 거부한다")
         void delete_done_rejected() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("89").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("89")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -343,9 +441,16 @@ class PaymentServiceTest {
         @DisplayName("작성중(71)→진행중(72) 상태 전이를 허용한다")
         void changeStatus_draftToInProgress_allowed() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("81")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -360,9 +465,16 @@ class PaymentServiceTest {
         @DisplayName("진행중(72)→완료(79) 상태 전이를 허용한다")
         void changeStatus_inProgressToDone_allowed() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -376,9 +488,16 @@ class PaymentServiceTest {
         @Test
         @DisplayName("EAI 발송 실패는 대금지급 상태 전이를 막지 않는다")
         void changeStatus_eaiFailure_keepsMainWorkflow() {
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("81")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
             when(eaiService.sendEai(any())).thenThrow(new IllegalStateException("EAI 장애"));
@@ -393,15 +512,26 @@ class PaymentServiceTest {
         @DisplayName("완료(79)→진행중(72) 역전이는 거부한다")
         void changeStatus_doneToInProgress_rejected() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("89").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("89")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("85"), adminUser()))
+            assertThatThrownBy(
+                            () ->
+                                    service.changeStatus(
+                                            "PAY-2026-0001",
+                                            new PaymentDto.StatusRequest("85"),
+                                            adminUser()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
         }
@@ -410,15 +540,26 @@ class PaymentServiceTest {
         @DisplayName("작성중(71)→완료(79) 직접 전이는 허용되지 않는다")
         void changeStatus_draftToDone_rejected() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("81")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("89"), adminUser()))
+            assertThatThrownBy(
+                            () ->
+                                    service.changeStatus(
+                                            "PAY-2026-0001",
+                                            new PaymentDto.StatusRequest("89"),
+                                            adminUser()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
         }
@@ -427,15 +568,26 @@ class PaymentServiceTest {
         @DisplayName("진행중(72)→작성중(71) 역전이는 허용되지 않는다")
         void changeStatus_inProgressToDraft_rejected() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("81"), adminUser()))
+            assertThatThrownBy(
+                            () ->
+                                    service.changeStatus(
+                                            "PAY-2026-0001",
+                                            new PaymentDto.StatusRequest("81"),
+                                            adminUser()))
                     .isInstanceOf(IllegalStateException.class);
         }
     }
@@ -452,18 +604,33 @@ class PaymentServiceTest {
         @DisplayName("작성중(71) 상태에서 지급 명세 저장을 시도하면 거부한다")
         void savePayments_notInProgress_rejected() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("81")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.savePayments(
-                    "PAY-2026-0001",
-                    new PaymentDto.LinesRequest(List.of(
-                            new PaymentDto.LineRequest(1, BigDecimal.valueOf(100000), "20260601", "20260630", null))),
-                    requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.savePayments(
+                                            "PAY-2026-0001",
+                                            new PaymentDto.LinesRequest(
+                                                    List.of(
+                                                            new PaymentDto.LineRequest(
+                                                                    1,
+                                                                    BigDecimal.valueOf(100000),
+                                                                    "20260601",
+                                                                    "20260630",
+                                                                    null))),
+                                            requester()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("진행중 상태에서만");
         }
@@ -472,17 +639,26 @@ class PaymentServiceTest {
         @DisplayName("완료(79) 상태에서 지급 명세 저장을 시도하면 거부한다")
         void savePayments_done_rejected() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("89").fstEnrUsid("E0001").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("89")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.savePayments(
-                    "PAY-2026-0001",
-                    new PaymentDto.LinesRequest(List.of()),
-                    requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.savePayments(
+                                            "PAY-2026-0001",
+                                            new PaymentDto.LinesRequest(List.of()),
+                                            requester()))
                     .isInstanceOf(IllegalStateException.class);
         }
 
@@ -490,24 +666,43 @@ class PaymentServiceTest {
         @DisplayName("진행중(72) 상태에서 명세 저장 시 요청에 없는 기존 활성 회차는 soft-delete된다")
         void savePayments_inProgress_existingLineDeleted() {
             // Arrange
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
             // 기존 활성 1회차 (delYn 기본값 null → 서비스에서 non-"Y"는 활성으로 처리)
-            Bpaymt existing = Bpaymt.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).dfrTod(1)
-                    .dfrAmt(BigDecimal.valueOf(100000)).dfrDt("20260601").dfrMplDt("20260630").build();
+            Bpaymt existing =
+                    Bpaymt.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .dfrTod(1)
+                            .dfrAmt(BigDecimal.valueOf(100000))
+                            .dfrDt("20260601")
+                            .dfrMplDt("20260630")
+                            .build();
             when(lineRepository.findByDocMngNoAndDocVrsSno("PAY-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(existing)));
 
             // 2회차만 요청 (1회차는 포함하지 않음 → soft-delete 대상)
             service.savePayments(
                     "PAY-2026-0001",
-                    new PaymentDto.LinesRequest(List.of(
-                            new PaymentDto.LineRequest(2, BigDecimal.valueOf(200000), "20260701", "20260731", null))),
+                    new PaymentDto.LinesRequest(
+                            List.of(
+                                    new PaymentDto.LineRequest(
+                                            2,
+                                            BigDecimal.valueOf(200000),
+                                            "20260701",
+                                            "20260731",
+                                            null))),
                     requester());
 
             // Assert - 기존 1회차는 delete()가 호출되어 delYn='Y'가 되어야 함
@@ -520,16 +715,29 @@ class PaymentServiceTest {
         @DisplayName("soft-delete된 회차를 재추가하면 복원되고 신규 save는 호출되지 않는다")
         void savePayments_restoresDeletedLine() {
             // Arrange
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
             // soft-deleted 1회차: delete() 호출로 delYn='Y' 설정
-            Bpaymt deleted = Bpaymt.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).dfrTod(1)
-                    .dfrAmt(BigDecimal.valueOf(100000)).dfrDt("20260601").dfrMplDt("20260630").build();
+            Bpaymt deleted =
+                    Bpaymt.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .dfrTod(1)
+                            .dfrAmt(BigDecimal.valueOf(100000))
+                            .dfrDt("20260601")
+                            .dfrMplDt("20260630")
+                            .build();
             deleted.delete(); // delYn = 'Y'
             when(lineRepository.findByDocMngNoAndDocVrsSno("PAY-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(deleted)));
@@ -537,8 +745,14 @@ class PaymentServiceTest {
             // 1회차 재추가 요청
             service.savePayments(
                     "PAY-2026-0001",
-                    new PaymentDto.LinesRequest(List.of(
-                            new PaymentDto.LineRequest(1, BigDecimal.valueOf(150000), "20260601", "20260630", "복원의견"))),
+                    new PaymentDto.LinesRequest(
+                            List.of(
+                                    new PaymentDto.LineRequest(
+                                            1,
+                                            BigDecimal.valueOf(150000),
+                                            "20260601",
+                                            "20260630",
+                                            "복원의견"))),
                     requester());
 
             // Assert - 복원 후 delYn='N'
@@ -553,24 +767,44 @@ class PaymentServiceTest {
         @DisplayName("기존 활성 회차가 요청에 포함되면 updatePayment만 호출되고 삭제되지 않는다")
         void savePayments_existingActiveLineIncluded_updatesOnly() {
             // Arrange
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
             // 기존 활성 1회차 (delYn=null → !="Y" → 활성)
-            Bpaymt existing = Bpaymt.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).dfrTod(1)
-                    .dfrAmt(BigDecimal.valueOf(100000)).dfrDt("20260601").dfrMplDt("20260630").opnnCone("기존의견").build();
+            Bpaymt existing =
+                    Bpaymt.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .dfrTod(1)
+                            .dfrAmt(BigDecimal.valueOf(100000))
+                            .dfrDt("20260601")
+                            .dfrMplDt("20260630")
+                            .opnnCone("기존의견")
+                            .build();
             when(lineRepository.findByDocMngNoAndDocVrsSno("PAY-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(existing)));
 
             // 동일 1회차를 포함한 요청 → soft-delete 없이 updatePayment만 호출
             service.savePayments(
                     "PAY-2026-0001",
-                    new PaymentDto.LinesRequest(List.of(
-                            new PaymentDto.LineRequest(1, BigDecimal.valueOf(999000), "20260610", "20260615", "수정의견"))),
+                    new PaymentDto.LinesRequest(
+                            List.of(
+                                    new PaymentDto.LineRequest(
+                                            1,
+                                            BigDecimal.valueOf(999000),
+                                            "20260610",
+                                            "20260615",
+                                            "수정의견"))),
                     requester());
 
             // Assert - 업데이트만, 삭제 없음
@@ -584,27 +818,40 @@ class PaymentServiceTest {
         @DisplayName("빈 요청 목록으로 저장 시 기존 활성 회차가 모두 soft-delete된다")
         void savePayments_emptyLines_deletesAllExisting() {
             // Arrange
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
             // 기존 활성 1, 2회차
-            Bpaymt line1 = Bpaymt.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).dfrTod(1)
-                    .dfrAmt(BigDecimal.valueOf(100000)).build();
-            Bpaymt line2 = Bpaymt.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).dfrTod(2)
-                    .dfrAmt(BigDecimal.valueOf(200000)).build();
+            Bpaymt line1 =
+                    Bpaymt.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .dfrTod(1)
+                            .dfrAmt(BigDecimal.valueOf(100000))
+                            .build();
+            Bpaymt line2 =
+                    Bpaymt.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .dfrTod(2)
+                            .dfrAmt(BigDecimal.valueOf(200000))
+                            .build();
             when(lineRepository.findByDocMngNoAndDocVrsSno("PAY-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(line1, line2)));
 
             // 빈 목록으로 저장 요청
             service.savePayments(
-                    "PAY-2026-0001",
-                    new PaymentDto.LinesRequest(List.of()),
-                    requester());
+                    "PAY-2026-0001", new PaymentDto.LinesRequest(List.of()), requester());
 
             // Assert - 모든 기존 활성 회차가 삭제되어야 함
             assertThat(line1.getDelYn()).isEqualTo("Y");
@@ -616,9 +863,16 @@ class PaymentServiceTest {
         @DisplayName("기존 DB에 행이 없을 때 신규 요청만 있으면 모두 save된다")
         void savePayments_noExistingLines_savesAllNew() {
             // Arrange
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
@@ -629,9 +883,20 @@ class PaymentServiceTest {
             // 1, 2회차 신규 요청
             service.savePayments(
                     "PAY-2026-0001",
-                    new PaymentDto.LinesRequest(List.of(
-                            new PaymentDto.LineRequest(1, BigDecimal.valueOf(100000), "20260601", "20260630", null),
-                            new PaymentDto.LineRequest(2, BigDecimal.valueOf(200000), "20260701", "20260731", "2차의견"))),
+                    new PaymentDto.LinesRequest(
+                            List.of(
+                                    new PaymentDto.LineRequest(
+                                            1,
+                                            BigDecimal.valueOf(100000),
+                                            "20260601",
+                                            "20260630",
+                                            null),
+                                    new PaymentDto.LineRequest(
+                                            2,
+                                            BigDecimal.valueOf(200000),
+                                            "20260701",
+                                            "20260731",
+                                            "2차의견"))),
                     requester());
 
             // Assert - 2번 save 호출
@@ -642,25 +907,34 @@ class PaymentServiceTest {
         @DisplayName("이미 soft-delete된 회차는 incoming에 없어도 다시 delete() 호출되지 않는다")
         void savePayments_alreadyDeletedLine_notDeletedAgain() {
             // Arrange
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85").fstEnrUsid("E0001").build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
             // 이미 삭제된 1회차 (delYn='Y')
-            Bpaymt alreadyDeleted = Bpaymt.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).dfrTod(1)
-                    .dfrAmt(BigDecimal.valueOf(100000)).build();
+            Bpaymt alreadyDeleted =
+                    Bpaymt.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .dfrTod(1)
+                            .dfrAmt(BigDecimal.valueOf(100000))
+                            .build();
             alreadyDeleted.delete(); // delYn='Y'
             when(lineRepository.findByDocMngNoAndDocVrsSno("PAY-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(alreadyDeleted)));
 
             // 1회차를 포함하지 않는 빈 요청
             service.savePayments(
-                    "PAY-2026-0001",
-                    new PaymentDto.LinesRequest(List.of()),
-                    requester());
+                    "PAY-2026-0001", new PaymentDto.LinesRequest(List.of()), requester());
 
             // Assert - 이미 'Y'이므로 "Y".equals(row.getDelYn()) → delete() 재호출 없이 'Y' 유지
             assertThat(alreadyDeleted.getDelYn()).isEqualTo("Y");
@@ -679,13 +953,22 @@ class PaymentServiceTest {
         @DisplayName("사업(100) 대상 문서 상세 조회 시 단일 쿼리로 프로젝트명이 포함된 Detail을 반환하고 대상별 추가 조회는 호출되지 않는다")
         void get_projectTarget_returnsDetailWithProjectName() {
             // Arrange — 상세 필드와 대상명은 findCurrentDetail로, 회차 명세는 line view로 별도 조회
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81")
-                    .reqCone("요청내용").cttNm("계약명").cttAmt(BigDecimal.valueOf(500000)).build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("81")
+                            .reqCone("요청내용")
+                            .cttNm("계약명")
+                            .cttAmt(BigDecimal.valueOf(500000))
+                            .build();
             when(paymentRepository.findCurrentDetail("PAY-2026-0001"))
                     .thenReturn(Optional.of(detailRow(master, "클라우드 전환 프로젝트")));
-            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0001", 1, "N"))
+            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(
+                            "PAY-2026-0001", 1, "N"))
                     .thenReturn(List.of());
 
             // Act
@@ -698,27 +981,46 @@ class PaymentServiceTest {
             assertThat(detail.lines()).isEmpty();
             // 단일 쿼리로 통합되어 마스터 조회·대상별 조회가 더 이상 호출되지 않음 (회차 명세 조회는 유지)
             verify(paymentRepository).findCurrentDetail("PAY-2026-0001");
-            verify(paymentRepository, never()).findByDocMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
-            verify(projectRepository, never()).findByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
-            verify(costRepository, never()).findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
-            verify(lineRepository).findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0001", 1, "N");
+            verify(paymentRepository, never())
+                    .findByDocMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+            verify(projectRepository, never())
+                    .findByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+            verify(costRepository, never())
+                    .findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+            verify(lineRepository)
+                    .findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0001", 1, "N");
         }
 
         @Test
         @DisplayName("전산업무비(200) 대상 문서 상세 조회 시 단일 쿼리 전산업무비명과 회차 명세 목록을 반환한다")
         void get_costTarget_returnsDetailWithCostName() {
             // Arrange
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0002").docVrsSno(1).lstYn("Y")
-                    .ioeC("200").cncdRfrNo("BG-1").stsTc("85")
-                    .cttNm("유지보수계약").cttAmt(BigDecimal.valueOf(1000000)).build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0002")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("200")
+                            .cncdRfrNo("BG-1")
+                            .stsTc("85")
+                            .cttNm("유지보수계약")
+                            .cttAmt(BigDecimal.valueOf(1000000))
+                            .build();
             when(paymentRepository.findCurrentDetail("PAY-2026-0002"))
                     .thenReturn(Optional.of(detailRow(master, "서버유지보수")));
 
-            Bpaymt line = Bpaymt.builder()
-                    .docMngNo("PAY-2026-0002").docVrsSno(1).dfrTod(1)
-                    .dfrAmt(BigDecimal.valueOf(500000)).dfrDt("20260601").dfrMplDt("20260630").opnnCone("1차지급").build();
-            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0002", 1, "N"))
+            Bpaymt line =
+                    Bpaymt.builder()
+                            .docMngNo("PAY-2026-0002")
+                            .docVrsSno(1)
+                            .dfrTod(1)
+                            .dfrAmt(BigDecimal.valueOf(500000))
+                            .dfrDt("20260601")
+                            .dfrMplDt("20260630")
+                            .opnnCone("1차지급")
+                            .build();
+            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(
+                            "PAY-2026-0002", 1, "N"))
                     .thenReturn(List.of(lineView(line)));
 
             // Act
@@ -728,7 +1030,8 @@ class PaymentServiceTest {
             assertThat(detail.tgtNm()).isEqualTo("서버유지보수");
             assertThat(detail.lines()).hasSize(1);
             assertThat(detail.lines().get(0).dfrTod()).isEqualTo(1);
-            assertThat(detail.lines().get(0).dfrAmt()).isEqualByComparingTo(BigDecimal.valueOf(500000));
+            assertThat(detail.lines().get(0).dfrAmt())
+                    .isEqualByComparingTo(BigDecimal.valueOf(500000));
             assertThat(detail.lines().get(0).opnnCone()).isEqualTo("1차지급");
         }
 
@@ -736,12 +1039,19 @@ class PaymentServiceTest {
         @DisplayName("사업 대상이지만 프로젝트를 찾을 수 없으면 tgtNm이 null이다")
         void get_projectNotFound_tgtNmIsNull() {
             // Arrange — LEFT JOIN 미매칭이면 대상명 null
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0003").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-GONE").stsTc("81").build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0003")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-GONE")
+                            .stsTc("81")
+                            .build();
             when(paymentRepository.findCurrentDetail("PAY-2026-0003"))
                     .thenReturn(Optional.of(detailRow(master, null)));
-            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0003", 1, "N"))
+            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(
+                            "PAY-2026-0003", 1, "N"))
                     .thenReturn(List.of());
 
             // Act
@@ -755,12 +1065,19 @@ class PaymentServiceTest {
         @DisplayName("전산업무비 대상을 찾을 수 없으면 tgtNm이 null이다")
         void get_costNotFound_tgtNmIsNull() {
             // Arrange — LEFT JOIN 미매칭이면 대상명 null
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0005").docVrsSno(1).lstYn("Y")
-                    .ioeC("200").cncdRfrNo("BG-GONE").stsTc("81").build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0005")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("200")
+                            .cncdRfrNo("BG-GONE")
+                            .stsTc("81")
+                            .build();
             when(paymentRepository.findCurrentDetail("PAY-2026-0005"))
                     .thenReturn(Optional.of(detailRow(master, null)));
-            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0005", 1, "N"))
+            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(
+                            "PAY-2026-0005", 1, "N"))
                     .thenReturn(List.of());
 
             // Act
@@ -774,12 +1091,19 @@ class PaymentServiceTest {
         @DisplayName("알 수 없는 대상구분(ioeC=999) 문서의 tgtNm은 null이다")
         void get_unknownIoeC_tgtNmIsNull() {
             // Arrange — CASE otherwise(null) 분기
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0004").docVrsSno(1).lstYn("Y")
-                    .ioeC("999").cncdRfrNo("UNKNOWN").stsTc("81").build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0004")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("999")
+                            .cncdRfrNo("UNKNOWN")
+                            .stsTc("81")
+                            .build();
             when(paymentRepository.findCurrentDetail("PAY-2026-0004"))
                     .thenReturn(Optional.of(detailRow(master, null)));
-            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0004", 1, "N"))
+            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(
+                            "PAY-2026-0004", 1, "N"))
                     .thenReturn(List.of());
 
             // Act
@@ -793,8 +1117,7 @@ class PaymentServiceTest {
         @DisplayName("존재하지 않는 문서번호로 조회하면 IllegalArgumentException을 던진다")
         void get_documentNotFound_throwsIllegalArgument() {
             // Arrange
-            when(paymentRepository.findCurrentDetail("PAY-XXXX-9999"))
-                    .thenReturn(Optional.empty());
+            when(paymentRepository.findCurrentDetail("PAY-XXXX-9999")).thenReturn(Optional.empty());
 
             // Act & Assert
             assertThatThrownBy(() -> service.get("PAY-XXXX-9999"))
@@ -815,10 +1138,28 @@ class PaymentServiceTest {
         @DisplayName("관리자는 bbrC=null로 전체 목록을 조회한다")
         void list_admin_noBbrCFilter() {
             // Arrange
-            List<PaymentDto.ListItem> mockResult = List.of(
-                    new PaymentDto.ListItem("PAY-2026-0001", 1, "100", "PRJ-1", "81", "계약1", BigDecimal.valueOf(1000000), "E0001", null),
-                    new PaymentDto.ListItem("PAY-2026-0002", 1, "200", "BG-1", "85", "계약2", BigDecimal.valueOf(2000000), "E0002", null)
-            );
+            List<PaymentDto.ListItem> mockResult =
+                    List.of(
+                            new PaymentDto.ListItem(
+                                    "PAY-2026-0001",
+                                    1,
+                                    "100",
+                                    "PRJ-1",
+                                    "81",
+                                    "계약1",
+                                    BigDecimal.valueOf(1000000),
+                                    "E0001",
+                                    null),
+                            new PaymentDto.ListItem(
+                                    "PAY-2026-0002",
+                                    1,
+                                    "200",
+                                    "BG-1",
+                                    "85",
+                                    "계약2",
+                                    BigDecimal.valueOf(2000000),
+                                    "E0002",
+                                    null));
             when(paymentRepository.search(null, null, null, null)).thenReturn(mockResult);
 
             // Act
@@ -833,9 +1174,18 @@ class PaymentServiceTest {
         @DisplayName("일반 사용자는 소속 부서코드(bbrC)로 필터링하여 목록을 조회한다")
         void list_regularUser_bbrCFiltered() {
             // Arrange - 사용자 bbrC="18001"
-            List<PaymentDto.ListItem> mockResult = List.of(
-                    new PaymentDto.ListItem("PAY-2026-0001", 1, "100", "PRJ-1", "81", "계약1", BigDecimal.valueOf(1000000), "E0001", null)
-            );
+            List<PaymentDto.ListItem> mockResult =
+                    List.of(
+                            new PaymentDto.ListItem(
+                                    "PAY-2026-0001",
+                                    1,
+                                    "100",
+                                    "PRJ-1",
+                                    "81",
+                                    "계약1",
+                                    BigDecimal.valueOf(1000000),
+                                    "E0001",
+                                    null));
             when(paymentRepository.search("81", null, null, "18001")).thenReturn(mockResult);
 
             // Act
@@ -850,7 +1200,8 @@ class PaymentServiceTest {
         @DisplayName("부서코드가 없는 일반 사용자는 전체 대금지급 목록 조회를 거부한다")
         void list_nonAdminWithoutDepartment_deniesWholeDepartmentSearch() {
             // 부서코드가 없는 비관리자는 전체 조회로 폴백하지 않는다.
-            CustomUserDetails userWithoutDepartment = new CustomUserDetails("E0003", List.of("ITPZZ001"), null);
+            CustomUserDetails userWithoutDepartment =
+                    new CustomUserDetails("E0003", List.of("ITPZZ001"), null);
 
             assertThatThrownBy(() -> service.list(null, null, null, userWithoutDepartment))
                     .isInstanceOf(AccessDeniedException.class)
@@ -897,9 +1248,15 @@ class PaymentServiceTest {
         @DisplayName("유효한 문서번호로 조회하면 마스터 엔티티를 반환한다")
         void loadCurrent_found_returnsMaster() {
             // Arrange
-            Bpaymm e = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81").build();
+            Bpaymm e =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("81")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
@@ -936,9 +1293,14 @@ class PaymentServiceTest {
         /** 소유자(E0001)가 작성한 작성중(71) 마스터 픽스처 */
         private Bpaymm draftOwnedByE0001() {
             return Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81")
-                    .fstEnrUsid("E0001").build();
+                    .docMngNo("PAY-2026-0001")
+                    .docVrsSno(1)
+                    .lstYn("Y")
+                    .ioeC("100")
+                    .cncdRfrNo("PRJ-1")
+                    .stsTc("81")
+                    .fstEnrUsid("E0001")
+                    .build();
         }
 
         @Test
@@ -949,10 +1311,13 @@ class PaymentServiceTest {
                     .thenReturn(Optional.of(draftOwnedByE0001()));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.update(
-                    "PAY-2026-0001",
-                    new PaymentDto.UpdateRequest("수정내용", "수정계약명", BigDecimal.valueOf(2000000)),
-                    other()))
+            assertThatThrownBy(
+                            () ->
+                                    service.update(
+                                            "PAY-2026-0001",
+                                            new PaymentDto.UpdateRequest(
+                                                    "수정내용", "수정계약명", BigDecimal.valueOf(2000000)),
+                                            other()))
                     .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -976,8 +1341,12 @@ class PaymentServiceTest {
                     .thenReturn(Optional.of(draftOwnedByE0001()));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.changeStatus(
-                    "PAY-2026-0001", new PaymentDto.StatusRequest("85"), other()))
+            assertThatThrownBy(
+                            () ->
+                                    service.changeStatus(
+                                            "PAY-2026-0001",
+                                            new PaymentDto.StatusRequest("85"),
+                                            other()))
                     .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -985,18 +1354,26 @@ class PaymentServiceTest {
         @DisplayName("타인이 지급 명세 저장을 시도하면 AccessDeniedException을 던진다")
         void savePayments_byOther_denied() {
             // Arrange - 진행중(72) 상태 마스터, 소유자 E0001
-            Bpaymm master = Bpaymm.builder()
-                    .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
-                    .ioeC("100").cncdRfrNo("PRJ-1").stsTc("85")
-                    .fstEnrUsid("E0001").build();
+            Bpaymm master =
+                    Bpaymm.builder()
+                            .docMngNo("PAY-2026-0001")
+                            .docVrsSno(1)
+                            .lstYn("Y")
+                            .ioeC("100")
+                            .cncdRfrNo("PRJ-1")
+                            .stsTc("85")
+                            .fstEnrUsid("E0001")
+                            .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.savePayments(
-                    "PAY-2026-0001",
-                    new PaymentDto.LinesRequest(List.of()),
-                    other()))
+            assertThatThrownBy(
+                            () ->
+                                    service.savePayments(
+                                            "PAY-2026-0001",
+                                            new PaymentDto.LinesRequest(List.of()),
+                                            other()))
                     .isInstanceOf(AccessDeniedException.class);
         }
 

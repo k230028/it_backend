@@ -7,9 +7,8 @@ import org.springframework.stereotype.Component;
 /**
  * JPA EntityListener에서 Spring 빈에 접근하기 위한 정적 컨텍스트 홀더.
  *
- * <p>{@code ChangeLogEntityListener}는 JPA가 직접 인스턴스화하므로
- * Spring DI를 사용할 수 없다. 이 클래스를 통해 정적으로 {@code ApplicationContext}에
- * 접근하여 {@link AuditLogPersister} 등 Spring 빈을 조회한다.</p>
+ * <p>{@code ChangeLogEntityListener}는 JPA가 직접 인스턴스화하므로 Spring DI를 사용할 수 없다. 이 클래스를 통해 정적으로 {@code
+ * ApplicationContext}에 접근하여 {@link AuditLogPersister} 등 Spring 빈을 조회한다.
  */
 @Component
 public class ApplicationContextHolder implements ApplicationContextAware {
@@ -25,7 +24,7 @@ public class ApplicationContextHolder implements ApplicationContextAware {
      * Spring 빈 조회.
      *
      * @param beanClass 조회할 빈의 클래스
-     * @param <T>       빈 타입
+     * @param <T> 빈 타입
      * @return Spring 컨텍스트에서 조회한 빈 인스턴스
      */
     public static <T> T getBean(Class<T> beanClass) {

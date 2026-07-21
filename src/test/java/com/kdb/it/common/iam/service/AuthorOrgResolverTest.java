@@ -5,8 +5,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.UserRepository;
 import java.util.Optional;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,17 +17,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.common.iam.repository.UserRepository;
-
 @ExtendWith(MockitoExtension.class)
 class AuthorOrgResolverTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @InjectMocks
-    private AuthorOrgResolver resolver;
+    @InjectMocks private AuthorOrgResolver resolver;
 
     @AfterEach
     void clearSecurityContext() {
@@ -75,8 +71,7 @@ class AuthorOrgResolverTest {
         given(user.getPrlmHrkOgzCCone()).willReturn("H001");
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
 
-        assertThat(resolver.resolveCurrent())
-                .isEqualTo(new AuthorOrg("D001", "T001", "H001"));
+        assertThat(resolver.resolveCurrent()).isEqualTo(new AuthorOrg("D001", "T001", "H001"));
     }
 
     private Authentication authentication(boolean authenticated, String name) {

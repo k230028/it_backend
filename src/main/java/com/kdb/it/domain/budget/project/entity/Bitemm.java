@@ -1,15 +1,14 @@
 package com.kdb.it.domain.budget.project.entity;
 
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BitemmL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -19,22 +18,13 @@ import lombok.experimental.SuperBuilder;
 /**
  * 정보화사업 품목 엔티티
  *
- * <p>
- * DB 테이블: {@code TPRMPP_BITEMM}
- * </p>
+ * <p>DB 테이블: {@code TPRMPP_BITEMM}
  *
- * <p>
- * 정보화사업({@link Bprojm})에 속하는 개별 도입 품목(소프트웨어, 하드웨어, 서비스 등)을
- * 관리합니다. 하나의 사업에 여러 품목이 존재할 수 있습니다.
- * </p>
+ * <p>정보화사업({@link Bprojm})에 속하는 개별 도입 품목(소프트웨어, 하드웨어, 서비스 등)을 관리합니다. 하나의 사업에 여러 품목이 존재할 수 있습니다.
  *
- * <p>
- * 복합키 구조: ({@code GCL_MNG_NO}, {@code SNO})
- * </p>
+ * <p>복합키 구조: ({@code GCL_MNG_NO}, {@code SNO})
  *
- * <p>
- * 연관 관계: {@code PRJ_MNG_NO} + {@code FNT_TB_CRY_SNO}로 {@link Bprojm}와 연결됩니다.
- * </p>
+ * <p>연관 관계: {@code PRJ_MNG_NO} + {@code FNT_TB_CRY_SNO}로 {@link Bprojm}와 연결됩니다.
  */
 @LogTarget(entity = BitemmL.class)
 @Entity // JPA 엔티티로 등록
@@ -101,7 +91,10 @@ public class Bitemm extends BaseEntity {
     private String dfrCleC;
 
     /** 정보보호여부: 이 품목이 정보보호 관련 항목인지 여부 (Y/N) */
-    @Column(name = "SECT_SYS_UTZ_YN", length = 1, comment = "정보보호여부 (물리컬럼 SECT_SYS_UTZ_YN=보안시스템운용여부)")
+    @Column(
+            name = "SECT_SYS_UTZ_YN",
+            length = 1,
+            comment = "정보보호여부 (물리컬럼 SECT_SYS_UTZ_YN=보안시스템운용여부)")
     private String sectSysUtzYn;
 
     /** 통합인프라여부: 통합인프라(공동 인프라) 관련 항목인지 여부 (Y/N) */
@@ -122,11 +115,9 @@ public class Bitemm extends BaseEntity {
 
     /**
      * 외화금액(품목 외화 원금 — 환율 적용 전).
-     * <p>
-     * 원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며,
-     * Service에서 {@code gclAmt = fcAmt × xcr}로 재계산한다 (수량 무관).
-     * 참고: CONTEXT.md 결정 B/C.
-     * </p>
+     *
+     * <p>원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며, Service에서 {@code gclAmt = fcAmt × xcr}로 재계산한다 (수량
+     * 무관). 참고: CONTEXT.md 결정 B/C.
      */
     @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
     private BigDecimal fcAmt;
@@ -134,18 +125,27 @@ public class Bitemm extends BaseEntity {
     /**
      * 품목 정보 제자리 수정.
      *
-     * <p>
-     * 복합키({@code GCL_MNG_NO}, {@code SNO})와 연관 필드({@code ABUS_MNG_NO},
-     * {@code FNT_TB_CRY_SNO})는 유지하고 업무 필드만 갱신합니다.
-     * 수정 시 새 레코드를 추가하지 않고 기존 활성 레코드를 그대로 수정하기 위한 메서드입니다
-     * (JPA Dirty Checking으로 트랜잭션 종료 시 UPDATE 실행). 최종여부({@code LST_YN})는 'Y'로 유지합니다.
-     * </p>
+     * <p>복합키({@code GCL_MNG_NO}, {@code SNO})와 연관 필드({@code ABUS_MNG_NO}, {@code FNT_TB_CRY_SNO})는
+     * 유지하고 업무 필드만 갱신합니다. 수정 시 새 레코드를 추가하지 않고 기존 활성 레코드를 그대로 수정하기 위한 메서드입니다 (JPA Dirty Checking으로
+     * 트랜잭션 종료 시 UPDATE 실행). 최종여부({@code LST_YN})는 'Y'로 유지합니다.
      *
      * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 서버 재계산 전 원금)
      */
-    public void update(String ioeC, String gclNm, BigDecimal qty, String curC, BigDecimal xcr,
-            String xcrBseDt, String cncdFdtnCone, String bseYm, String dfrCleC,
-            String sectSysUtzYn, String itrInfrYn, BigDecimal amt, BigDecimal fcAmt, BigDecimal mplAmt) {
+    public void update(
+            String ioeC,
+            String gclNm,
+            BigDecimal qty,
+            String curC,
+            BigDecimal xcr,
+            String xcrBseDt,
+            String cncdFdtnCone,
+            String bseYm,
+            String dfrCleC,
+            String sectSysUtzYn,
+            String itrInfrYn,
+            BigDecimal amt,
+            BigDecimal fcAmt,
+            BigDecimal mplAmt) {
         this.ioeC = ioeC;
         this.gclNm = gclNm;
         this.qty = qty;
@@ -163,4 +163,3 @@ public class Bitemm extends BaseEntity {
         this.lstYn = "Y";
     }
 }
-

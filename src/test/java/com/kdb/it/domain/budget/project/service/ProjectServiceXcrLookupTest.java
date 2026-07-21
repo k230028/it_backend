@@ -22,6 +22,9 @@ import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,15 +40,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-
 /**
  * {@link ProjectService} 의 XCR 표준 조회 통합 테스트.
  *
- * <p>CONTEXT.md 결정 E / R3.7: 외화 품목(Bitemm) 저장 시 클라이언트 {@code xcr} 을
- * {@link XcrLookupService} 결과로 덮어쓴 뒤 gclAmt 가 재계산되는지 검증한다.</p>
+ * <p>CONTEXT.md 결정 E / R3.7: 외화 품목(Bitemm) 저장 시 클라이언트 {@code xcr} 을 {@link XcrLookupService} 결과로
+ * 덮어쓴 뒤 gclAmt 가 재계산되는지 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -65,18 +64,19 @@ class ProjectServiceXcrLookupTest {
     @Mock private ProjectBudgetSummaryService projectBudgetSummaryService;
     @Mock private BprojaSyncService bprojaSyncService;
     @Mock private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
+
     /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
     @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
+
     @Mock private SecurityContext securityContext;
     @Mock private Authentication authentication;
 
-    @InjectMocks
-    private ProjectService projectService;
+    @InjectMocks private ProjectService projectService;
 
     @BeforeEach
     void setUpSecurity() {
-        CustomUserDetails adminUser = new CustomUserDetails(
-                "10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        CustomUserDetails adminUser =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
         given(securityContext.getAuthentication()).willReturn(authentication);
         given(authentication.getPrincipal()).willReturn(adminUser);
         SecurityContextHolder.setContext(securityContext);
@@ -104,14 +104,15 @@ class ProjectServiceXcrLookupTest {
         item.setGclNm("외화 SW");
         item.setCurC("USD");
         item.setFcAmt(new BigDecimal("500.000"));
-        item.setXcr(new BigDecimal("999"));            // 클라이언트 위조값
-        item.setAmt(new BigDecimal("0"));           // 클라이언트 위조값
+        item.setXcr(new BigDecimal("999")); // 클라이언트 위조값
+        item.setAmt(new BigDecimal("0")); // 클라이언트 위조값
 
-        ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                .abusNm("외화 사업")
-                .bseYy("2026")
-                .items(List.of(item))
-                .build();
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("외화 사업")
+                        .bseYy("2026")
+                        .items(List.of(item))
+                        .build();
 
         // when
         projectService.createProject(request);
@@ -143,11 +144,12 @@ class ProjectServiceXcrLookupTest {
         item.setXcr(new BigDecimal("999"));
         item.setAmt(new BigDecimal("0"));
 
-        ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                .abusNm("미등록 통화 사업")
-                .bseYy("2026")
-                .items(List.of(item))
-                .build();
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("미등록 통화 사업")
+                        .bseYy("2026")
+                        .items(List.of(item))
+                        .build();
 
         // when / then
         assertThatThrownBy(() -> projectService.createProject(request))
@@ -171,11 +173,12 @@ class ProjectServiceXcrLookupTest {
         item.setAmt(new BigDecimal("1000000"));
         item.setFcAmt(null);
 
-        ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                .abusNm("원화 사업")
-                .bseYy("2026")
-                .items(List.of(item))
-                .build();
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("원화 사업")
+                        .bseYy("2026")
+                        .items(List.of(item))
+                        .build();
 
         // when
         projectService.createProject(request);

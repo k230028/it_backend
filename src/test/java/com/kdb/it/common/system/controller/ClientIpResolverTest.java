@@ -9,9 +9,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-/**
- * ClientIpResolver 단위 테스트 (T9c) — 멀티 IP 분리 + 신뢰 프록시 게이트.
- */
+/** ClientIpResolver 단위 테스트 (T9c) — 멀티 IP 분리 + 신뢰 프록시 게이트. */
 class ClientIpResolverTest {
 
     private HttpServletRequest req(String remoteAddr, String xff) {

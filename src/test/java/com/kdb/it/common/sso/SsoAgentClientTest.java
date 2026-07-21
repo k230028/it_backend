@@ -1,30 +1,36 @@
 package com.kdb.it.common.sso;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.net.SocketTimeoutException;
+import java.net.URI;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.client.RestClient;
 
-import java.net.URI;
-import java.net.SocketTimeoutException;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 class SsoAgentClientTest {
 
     private static final String HOST = "https://esso-host.test";
 
     private SsoProperties props(String requestData) {
-        return new SsoProperties(false, "K140024", "https://esso-browser.test", HOST, "AGENT-1",
-                requestData, 5000, 5000);
+        return new SsoProperties(
+                false,
+                "K140024",
+                "https://esso-browser.test",
+                HOST,
+                "AGENT-1",
+                requestData,
+                5000,
+                5000);
     }
 
     /** 인증서버 JSON 응답을 모사하는 맵을 만듭니다 (RestClient 컨버터가 반환하는 형태). */
@@ -85,13 +91,14 @@ class SsoAgentClientTest {
         when(restClient.post()).thenReturn(request);
         when(request.uri(any(URI.class))).thenReturn(request);
         when(request.retrieve()).thenReturn(response);
-        when(response.body(any(ParameterizedTypeReference.class))).thenReturn(map(
-                "resultCode", "000000",
-                "resultMessage", "OK",
-                "returnUrl", "/return",
-                "useCSMode", true,
-                "user", map("id", "K150024", "name", "홍길동")
-        ));
+        when(response.body(any(ParameterizedTypeReference.class)))
+                .thenReturn(
+                        map(
+                                "resultCode", "000000",
+                                "resultMessage", "OK",
+                                "returnUrl", "/return",
+                                "useCSMode", true,
+                                "user", map("id", "K150024", "name", "홍길동")));
         SsoAgentClient client = new SsoAgentClient(restClient, props("id, name, missing"));
 
         SsoAgentClient.TokenAuthResult result = client.authorize("tok", "sess", "127.0.0.1");
@@ -148,11 +155,12 @@ class SsoAgentClientTest {
         when(restClient.post()).thenReturn(request);
         when(request.uri(any(URI.class))).thenReturn(request);
         when(request.retrieve()).thenReturn(response);
-        when(response.body(any(ParameterizedTypeReference.class))).thenReturn(map(
-                "resultCode", "000000",
-                "useCSMode", "true",
-                "user", map("id", "K150024")
-        ));
+        when(response.body(any(ParameterizedTypeReference.class)))
+                .thenReturn(
+                        map(
+                                "resultCode", "000000",
+                                "useCSMode", "true",
+                                "user", map("id", "K150024")));
         SsoAgentClient client = new SsoAgentClient(restClient, props("id"));
 
         SsoAgentClient.TokenAuthResult result = client.authorize("tok", "sess", "127.0.0.1");

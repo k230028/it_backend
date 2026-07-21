@@ -14,14 +14,11 @@ import lombok.experimental.SuperBuilder;
 /**
  * 정보기술부문계획 관계(TPRMPP_BPLANA) 엔티티
  *
- * <p>
- * 정보화사업(TPRMPP_BPROJM)과 정보기술부문계획(TPRMPP_BPLANM) 간의
- * N:N 관계를 매핑하는 중간 테이블입니다.
- * </p>
+ * <p>정보화사업(TPRMPP_BPROJM)과 정보기술부문계획(TPRMPP_BPLANM) 간의 N:N 관계를 매핑하는 중간 테이블입니다.
  *
  * <ul>
- * <li>{@code prjMngNo}: 프로젝트관리번호 (BPROJM의 PK)</li>
- * <li>{@code reqDocNo}: 요청문서번호 (BPLANM의 PLN_MNG_NO에 대응)</li>
+ *   <li>{@code prjMngNo}: 프로젝트관리번호 (BPROJM의 PK)
+ *   <li>{@code reqDocNo}: 요청문서번호 (BPLANM의 PLN_MNG_NO에 대응)
  * </ul>
  */
 @Entity

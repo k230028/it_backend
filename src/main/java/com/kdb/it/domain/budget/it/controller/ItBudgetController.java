@@ -16,14 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 정보기술부문 예산 REST 컨트롤러
  *
- * <p>기본 URL: {@code /api/budget/it}</p>
+ * <p>기본 URL: {@code /api/budget/it}
  *
- * <p>
- * 제공 API:
- * </p>
+ * <p>제공 API:
+ *
  * <ul>
- * <li>GET /summary: 비목별 IT/정보보호 구분 편성요청액·편성액 조회</li>
- * <li>GET /comparison: 전년도 대비 비목별 증감 비교</li>
+ *   <li>GET /summary: 비목별 IT/정보보호 구분 편성요청액·편성액 조회
+ *   <li>GET /comparison: 전년도 대비 비목별 증감 비교
  * </ul>
  */
 @RestController
@@ -38,7 +37,7 @@ public class ItBudgetController {
     /**
      * 정보기술부문 예산 요약 조회
      *
-     * <p>비목별 IT/정보보호 편성요청액·편성액을 천원 단위로 반환합니다.</p>
+     * <p>비목별 IT/정보보호 편성요청액·편성액을 천원 단위로 반환합니다.
      *
      * @param bgYy 예산년도 (예: "2026")
      * @return 요약 응답
@@ -46,15 +45,14 @@ public class ItBudgetController {
     @GetMapping("/summary")
     @Operation(summary = "정보기술부문 예산 요약 조회", description = "비목별 IT/정보보호 구분 편성요청액·편성액 (천원)")
     public ResponseEntity<ItBudgetDto.SummaryResponse> getSummary(
-            @Parameter(description = "예산년도", example = "2026")
-            @RequestParam("bgYy") String bgYy) {
+            @Parameter(description = "예산년도", example = "2026") @RequestParam("bgYy") String bgYy) {
         return ResponseEntity.ok(itBudgetService.getSummary(bgYy));
     }
 
     /**
      * 정보기술부문 예산 전년 대비 비교
      *
-     * <p>금년도 vs 전년도 비목별 편성요청액 증감을 반환합니다.</p>
+     * <p>금년도 vs 전년도 비목별 편성요청액 증감을 반환합니다.
      *
      * @param bgYy 금년도 예산년도 (예: "2026")
      * @return 비교 응답
@@ -62,8 +60,8 @@ public class ItBudgetController {
     @GetMapping("/comparison")
     @Operation(summary = "정보기술부문 예산 전년 대비 비교", description = "비목별 금년/전년 편성요청액 증감·증감률 (천원)")
     public ResponseEntity<ItBudgetDto.ComparisonResponse> getComparison(
-            @Parameter(description = "금년도 예산년도", example = "2026")
-            @RequestParam("bgYy") String bgYy) {
+            @Parameter(description = "금년도 예산년도", example = "2026") @RequestParam("bgYy")
+                    String bgYy) {
         return ResponseEntity.ok(itBudgetService.getComparison(bgYy));
     }
 }

@@ -4,30 +4,26 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.kdb.it.domain.budget.plan.entity.Bplanm;
 import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-
 /**
  * 정보기술부문 계획 관련 DTO 클래스 모음
  *
- * <p>
- * 정보기술부문계획(TPRMPP_BPLANM) 엔티티의 생성, 조회에 사용되는 DTO를
- * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
- * </p>
+ * <p>정보기술부문계획(TPRMPP_BPLANM) 엔티티의 생성, 조회에 사용되는 DTO를 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  *
  * <ul>
- * <li>{@link CreateRequest}: 계획 생성 요청 (대상년도, 계획구분, 프로젝트 목록)</li>
- * <li>{@link ListResponse}: 계획 목록 조회 응답 (요약 정보)</li>
- * <li>{@link DetailResponse}: 계획 상세 조회 응답 (JSON 스냅샷 포함)</li>
- * <li>{@link SnapshotDto}: PLN_DTL_CONE에 저장되는 JSON 스냅샷 구조</li>
+ *   <li>{@link CreateRequest}: 계획 생성 요청 (대상년도, 계획구분, 프로젝트 목록)
+ *   <li>{@link ListResponse}: 계획 목록 조회 응답 (요약 정보)
+ *   <li>{@link DetailResponse}: 계획 상세 조회 응답 (JSON 스냅샷 포함)
+ *   <li>{@link SnapshotDto}: PLN_DTL_CONE에 저장되는 JSON 스냅샷 구조
  * </ul>
  */
 public class PlanDto {
@@ -35,11 +31,8 @@ public class PlanDto {
     /**
      * 계획 생성 요청 DTO
      *
-     * <p>
-     * 신규 계획 등록 시 대상년도, 계획구분, 대상 프로젝트 목록을 전달합니다.
-     * 계획관리번호는 서비스에서 Oracle 시퀀스로 자동 채번됩니다.
-     * (형식: {@code PLN-{bseYy}-{seq:04d}})
-     * </p>
+     * <p>신규 계획 등록 시 대상년도, 계획구분, 대상 프로젝트 목록을 전달합니다. 계획관리번호는 서비스에서 Oracle 시퀀스로 자동 채번됩니다. (형식: {@code
+     * PLN-{bseYy}-{seq:04d}})
      */
     @Getter
     @Setter
@@ -122,10 +115,7 @@ public class PlanDto {
     /**
      * 계획 텍스트 필드 수정 요청 DTO
      *
-     * <p>
-     * IT프로젝트내용, IT예산내용, IT예산비고, 자본예산비고, 관리비예산비고 5개 CLOB 필드를 갱신합니다.
-     * null 값은 해당 필드를 null로 초기화합니다.
-     * </p>
+     * <p>IT프로젝트내용, IT예산내용, IT예산비고, 자본예산비고, 관리비예산비고 5개 CLOB 필드를 갱신합니다. null 값은 해당 필드를 null로 초기화합니다.
      */
     @Getter
     @Setter
@@ -159,9 +149,7 @@ public class PlanDto {
     /**
      * 계획 목록 조회 응답 DTO
      *
-     * <p>
-     * 계획 조회 화면에서 데이터테이블 형태로 표시하는 요약 정보입니다.
-     * </p>
+     * <p>계획 조회 화면에서 데이터테이블 형태로 표시하는 요약 정보입니다.
      */
     @Getter
     @Setter
@@ -267,9 +255,7 @@ public class PlanDto {
     /**
      * 계획 상세 조회 응답 DTO
      *
-     * <p>
-     * 계획 상세 화면에서 JSON 스냅샷과 연결된 프로젝트 목록을 포함합니다.
-     * </p>
+     * <p>계획 상세 화면에서 JSON 스냅샷과 연결된 프로젝트 목록을 포함합니다.
      */
     @Getter
     @Setter
@@ -305,10 +291,9 @@ public class PlanDto {
 
         /**
          * 계획세부내용 JSON 스냅샷 문자열
-         * <p>
-         * 계획 저장 시점의 전체 프로젝트 데이터를 JSON으로 직렬화한 값입니다.
-         * 프론트엔드에서 이 문자열을 파싱하여 예산 총계, 부문별/사업유형별 목록을 표시합니다.
-         * </p>
+         *
+         * <p>계획 저장 시점의 전체 프로젝트 데이터를 JSON으로 직렬화한 값입니다. 프론트엔드에서 이 문자열을 파싱하여 예산 총계, 부문별/사업유형별 목록을
+         * 표시합니다.
          */
         @Schema(description = "계획세부내용 (JSON)")
         private String redtConeInf;
@@ -348,7 +333,7 @@ public class PlanDto {
         /**
          * {@link Bplanm} 엔티티에서 상세 응답 DTO로 변환합니다.
          *
-         * @param plan      변환할 Bplanm 엔티티
+         * @param plan 변환할 Bplanm 엔티티
          * @param prjMngNos 연결된 프로젝트관리번호 목록
          * @return 변환된 DetailResponse DTO
          */
@@ -376,10 +361,7 @@ public class PlanDto {
     /**
      * PLN_DTL_INF 컬럼에 저장되는 JSON 스냅샷 구조
      *
-     * <p>
-     * 계획 저장 시점의 전체 프로젝트 데이터를 보관합니다.
-     * ObjectMapper로 직렬화/역직렬화합니다.
-     * </p>
+     * <p>계획 저장 시점의 전체 프로젝트 데이터를 보관합니다. ObjectMapper로 직렬화/역직렬화합니다.
      */
     @Getter
     @Setter
@@ -439,9 +421,7 @@ public class PlanDto {
         private Map<String, String> costPrjNm;
     }
 
-    /**
-     * 스냅샷 내 개별 프로젝트 정보
-     */
+    /** 스냅샷 내 개별 프로젝트 정보 */
     @Getter
     @Setter
     @NoArgsConstructor
@@ -481,9 +461,7 @@ public class PlanDto {
         private BigDecimal costBg;
     }
 
-    /**
-     * 예산배분 항목 — 수익/비용 구분별 배분 금액
-     */
+    /** 예산배분 항목 — 수익/비용 구분별 배분 금액 */
     @Getter
     @Setter
     @NoArgsConstructor
@@ -505,9 +483,7 @@ public class PlanDto {
         private BigDecimal allocBg;
     }
 
-    /**
-     * 자본예산 항목 — 투자자산 구분별 예산
-     */
+    /** 자본예산 항목 — 투자자산 구분별 예산 */
     @Getter
     @Setter
     @NoArgsConstructor
@@ -529,9 +505,7 @@ public class PlanDto {
         private BigDecimal assetBg;
     }
 
-    /**
-     * 경비 항목 — 비용 구분별 경비
-     */
+    /** 경비 항목 — 비용 구분별 경비 */
     @Getter
     @Setter
     @NoArgsConstructor

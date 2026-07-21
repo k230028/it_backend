@@ -1,23 +1,21 @@
 package com.kdb.it.domain.budget.project.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 @DisplayName("#7 정보화사업 목록 경량 프로젝션 동등성 + 대용량 텍스트 제외")
 class ProjectListProjectionIt extends AbstractOracleRepositoryTest {
 
-    @Autowired
-    ProjectRepository projectRepository;
+    @Autowired ProjectRepository projectRepository;
 
     @Test
     @DisplayName("경량 목록 행의 식별/요약 필드가 엔티티 경로와 일치한다")
@@ -29,9 +27,13 @@ class ProjectListProjectionIt extends AbstractOracleRepositoryTest {
 
         assertThat(rows).hasSameSizeAs(entities);
 
-        Map<String, Bprojm> byKey = entities.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        e -> e.getAbusMngNo() + "#" + e.getSno(), Function.identity(), (a, b) -> a));
+        Map<String, Bprojm> byKey =
+                entities.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        e -> e.getAbusMngNo() + "#" + e.getSno(),
+                                        Function.identity(),
+                                        (a, b) -> a));
         for (ProjectDto.ProjectListRow row : rows) {
             Bprojm e = byKey.get(row.abusMngNo() + "#" + row.sno());
             assertThat(e).as("동일 키 엔티티 존재").isNotNull();

@@ -6,8 +6,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.domain.budget.project.entity.Bproja;
+import com.kdb.it.domain.budget.project.entity.BprojaId;
+import com.kdb.it.domain.budget.project.repository.BprojaRepository;
 import java.util.Optional;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,32 +20,26 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.kdb.it.domain.budget.project.entity.Bproja;
-import com.kdb.it.domain.budget.project.entity.BprojaId;
-import com.kdb.it.domain.budget.project.repository.BprojaRepository;
-
 /**
  * BprojaSyncService 단위 테스트.
  *
- * <p>upsert · softDelete 두 공개 메서드의 모든 분기(no-op 가드, 기존 행 갱신, 신규 저장, Soft Delete)를
- * Oracle DB 없이 검증합니다. BprojaRepository는 @Mock으로 교체합니다.</p>
+ * <p>upsert · softDelete 두 공개 메서드의 모든 분기(no-op 가드, 기존 행 갱신, 신규 저장, Soft Delete)를 Oracle DB 없이
+ * 검증합니다. BprojaRepository는 @Mock으로 교체합니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class BprojaSyncServiceTest {
 
-    @Mock
-    private BprojaRepository bprojaRepository;
+    @Mock private BprojaRepository bprojaRepository;
 
-    @InjectMocks
-    private BprojaSyncService bprojaSyncService;
+    @InjectMocks private BprojaSyncService bprojaSyncService;
 
     // ─────────────────────────────────────────────────────────────────────────
     // 공통 상수
     // ─────────────────────────────────────────────────────────────────────────
     private static final String ABUS_MNG_NO = "PROJ-2026-0001";
     private static final String CNCD_RFR_NO = "REQ-2026-0001";
-    private static final String STS_TC      = "42";
+    private static final String STS_TC = "42";
 
     // ─────────────────────────────────────────────────────────────────────────
     // upsert
@@ -57,8 +53,7 @@ class BprojaSyncServiceTest {
         @DisplayName("성공: 행이 존재하지 않으면 신규 Bproja를 save()한다")
         void upsert_행없음_신규저장() {
             // Arrange
-            given(bprojaRepository.findById(any(BprojaId.class)))
-                    .willReturn(Optional.empty());
+            given(bprojaRepository.findById(any(BprojaId.class))).willReturn(Optional.empty());
 
             // Act
             bprojaSyncService.upsert(ABUS_MNG_NO, CNCD_RFR_NO, STS_TC);
@@ -72,8 +67,7 @@ class BprojaSyncServiceTest {
         void upsert_행존재_상태갱신후restore() {
             // Arrange: 기존 행을 Mockito mock으로 생성 (protected 생성자 우회)
             Bproja existing = mock(Bproja.class);
-            given(bprojaRepository.findById(any(BprojaId.class)))
-                    .willReturn(Optional.of(existing));
+            given(bprojaRepository.findById(any(BprojaId.class))).willReturn(Optional.of(existing));
 
             // Act
             bprojaSyncService.upsert(ABUS_MNG_NO, CNCD_RFR_NO, STS_TC);
@@ -160,8 +154,7 @@ class BprojaSyncServiceTest {
         void softDelete_행존재_delete호출() {
             // Arrange
             Bproja existing = mock(Bproja.class);
-            given(bprojaRepository.findById(any(BprojaId.class)))
-                    .willReturn(Optional.of(existing));
+            given(bprojaRepository.findById(any(BprojaId.class))).willReturn(Optional.of(existing));
 
             // Act
             bprojaSyncService.softDelete(ABUS_MNG_NO, CNCD_RFR_NO);
@@ -174,8 +167,7 @@ class BprojaSyncServiceTest {
         @DisplayName("성공: 행이 존재하지 않으면 delete()를 호출하지 않는다 (no-op)")
         void softDelete_행없음_noOp() {
             // Arrange
-            given(bprojaRepository.findById(any(BprojaId.class)))
-                    .willReturn(Optional.empty());
+            given(bprojaRepository.findById(any(BprojaId.class))).willReturn(Optional.empty());
 
             // Act
             bprojaSyncService.softDelete(ABUS_MNG_NO, CNCD_RFR_NO);

@@ -3,16 +3,13 @@ package com.kdb.it.common.code.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kdb.it.common.code.entity.Ccodem;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
-/**
- * 공통코드(Ccodem) 관련 DTO 클래스 모음
- */
+/** 공통코드(Ccodem) 관련 DTO 클래스 모음 */
 public class CodeDto {
 
     @Getter

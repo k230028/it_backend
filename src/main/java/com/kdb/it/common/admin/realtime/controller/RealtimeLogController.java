@@ -4,6 +4,9 @@ import com.kdb.it.common.admin.realtime.dto.RealtimeLogDto;
 import com.kdb.it.common.admin.realtime.service.RealtimeLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,14 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-
 /**
  * 실시간 로그 모니터링 API.
  *
- * <p>관리자(ROLE_ADMIN) 전용. 응답은 표준 로그 컬럼만 포함하며 변경 본문은 제외한다.</p>
+ * <p>관리자(ROLE_ADMIN) 전용. 응답은 표준 로그 컬럼만 포함하며 변경 본문은 제외한다.
  */
 @RestController
 @RequestMapping("/api/admin/realtime-logs")
@@ -33,27 +32,28 @@ public class RealtimeLogController {
     /**
      * 통합 실시간 로그 스냅샷을 반환한다.
      *
-     * @param since         이 시각 이후 로그만 조회. null이면 현재 필터 기준 최신 로그를 조회.
-     * @param cursorLogTbl  복합 커서의 LOG_TBL. since와 함께 사용.
-     * @param cursorLogSno  복합 커서의 LOG_HIS_TGR_SNO. since와 함께 사용.
-     * @param limit         조회 상한. 생략하면 200이며 서비스에서 최대 200으로 제한.
-     * @param tables        쉼표로 구분된 허용 LOG_KEY 목록.
-     * @param chgTypes      쉼표로 구분된 C/U/D 부분집합.
+     * @param since 이 시각 이후 로그만 조회. null이면 현재 필터 기준 최신 로그를 조회.
+     * @param cursorLogTbl 복합 커서의 LOG_TBL. since와 함께 사용.
+     * @param cursorLogSno 복합 커서의 LOG_HIS_TGR_SNO. since와 함께 사용.
+     * @param limit 조회 상한. 생략하면 200이며 서비스에서 최대 200으로 제한.
+     * @param tables 쉼표로 구분된 허용 LOG_KEY 목록.
+     * @param chgTypes 쉼표로 구분된 C/U/D 부분집합.
      */
     @GetMapping
-    @Operation(summary = "통합 실시간 로그 조회",
+    @Operation(
+            summary = "통합 실시간 로그 조회",
             description = "since/복합 커서 기반 증분 조회와 최근 5분/30분 집계를 함께 반환합니다.")
     public RealtimeLogDto.Snapshot get(
             @RequestParam(name = "since", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime since,
+                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    LocalDateTime since,
             @RequestParam(name = "cursorLogTbl", required = false) String cursorLogTbl,
             @RequestParam(name = "cursorLogSno", required = false) Long cursorLogSno,
             @RequestParam(name = "limit", defaultValue = "200") int limit,
             @RequestParam(name = "tables", required = false) String tables,
-            @RequestParam(name = "chgTypes", required = false) String chgTypes
-    ) {
-        return service.snapshot(since, cursorLogTbl, cursorLogSno, limit,
-                split(tables), split(chgTypes));
+            @RequestParam(name = "chgTypes", required = false) String chgTypes) {
+        return service.snapshot(
+                since, cursorLogTbl, cursorLogSno, limit, split(tables), split(chgTypes));
     }
 
     private List<String> split(String csv) {

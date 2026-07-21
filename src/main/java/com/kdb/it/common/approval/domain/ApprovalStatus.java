@@ -1,13 +1,11 @@
 package com.kdb.it.common.approval.domain;
 
-/**
- * 신청서 결재상태 (Ccodem cId='APF_STS').
- */
+/** 신청서 결재상태 (Ccodem cId='APF_STS'). */
 public enum ApprovalStatus {
     IN_PROGRESS("1", "결재중"),
-    COMPLETED  ("2", "결재완료"),
-    REJECTED   ("3", "반려"),
-    RECALLED   ("4", "회수");
+    COMPLETED("2", "결재완료"),
+    REJECTED("3", "반려"),
+    RECALLED("4", "회수");
 
     private final String code;
     private final String label;
@@ -17,8 +15,13 @@ public enum ApprovalStatus {
         this.label = label;
     }
 
-    public String code()  { return code; }
-    public String label() { return label; }
+    public String code() {
+        return code;
+    }
+
+    public String label() {
+        return label;
+    }
 
     /**
      * APF_STS 코드값으로 enum 상수를 조회합니다.
@@ -47,8 +50,8 @@ public enum ApprovalStatus {
     /**
      * 결재 처리가 완전히 종료된 상태인지 반환합니다.
      *
-     * <p>종료 상태: {@link #COMPLETED}(결재완료), {@link #REJECTED}(반려), {@link #RECALLED}(회수).
-     * {@link #IN_PROGRESS}(결재중)는 종료 상태가 아닙니다.</p>
+     * <p>종료 상태: {@link #COMPLETED}(결재완료), {@link #REJECTED}(반려), {@link #RECALLED}(회수). {@link
+     * #IN_PROGRESS}(결재중)는 종료 상태가 아닙니다.
      *
      * @return 종료 상태이면 true
      */

@@ -15,8 +15,7 @@ import org.springframework.data.domain.PageRequest;
 /**
  * CinfmmRepositoryImpl 벌크 읽음 처리 통합 테스트.
  *
- * <p>로컬 Oracle 스키마의 기존 TPRMPP_CINFMM 컬럼만 사용하며,
- * @DataJpaTest 트랜잭션 롤백으로 테스트 데이터를 남기지 않는다.</p>
+ * <p>로컬 Oracle 스키마의 기존 TPRMPP_CINFMM 컬럼만 사용하며, @DataJpaTest 트랜잭션 롤백으로 테스트 데이터를 남기지 않는다.
  */
 @DisplayName("CinfmmRepositoryImpl 벌크 읽음 처리")
 class CinfmmRepositoryImplTest extends AbstractOracleRepositoryTest {
@@ -24,11 +23,9 @@ class CinfmmRepositoryImplTest extends AbstractOracleRepositoryTest {
     private static final String TARGET_ENO = "T4-CINFMM-ENO";
     private static final String OTHER_ENO = "T4-CINFMM-OTHER";
 
-    @Autowired
-    private CinfmmRepository cinfmmRepository;
+    @Autowired private CinfmmRepository cinfmmRepository;
 
-    @Autowired
-    private TestEntityManager em;
+    @Autowired private TestEntityManager em;
 
     @Test
     @DisplayName("수신자의 미읽음 알림만 읽음 처리하고 조회/감사 컬럼을 갱신한다")
@@ -70,31 +67,35 @@ class CinfmmRepositoryImplTest extends AbstractOracleRepositoryTest {
         em.flush();
         em.clear();
 
-        List<String> ids = cinfmmRepository.findRetryableIds(
-                List.of(Cinfmm.DISPATCH_PENDING, Cinfmm.DISPATCH_FAILED), 5,
-                LocalDateTime.now(), PageRequest.of(0, 50));
+        List<String> ids =
+                cinfmmRepository.findRetryableIds(
+                        List.of(Cinfmm.DISPATCH_PENDING, Cinfmm.DISPATCH_FAILED),
+                        5,
+                        LocalDateTime.now(),
+                        PageRequest.of(0, 50));
 
         assertThat(ids).contains("INF-T4-RETRY-01");
     }
 
     private Cinfmm insertNotification(String infmMsgNo, String rmsEno, String inqYn, String delYn) {
         LocalDateTime now = LocalDateTime.now().minusDays(1);
-        return em.persist(Cinfmm.builder()
-                .infmMsgNo(infmMsgNo)
-                .itPtlInfmSvcTc("01")
-                .ttl("테스트 알림")
-                .infmMsgCone("테스트 본문")
-                .rmsEno(rmsEno)
-                .inqYn(inqYn)
-                .inqDtm("Y".equals(inqYn) ? now : null)
-                .delYn(delYn)
-                .infmSdStsC(Cinfmm.DISPATCH_PENDING)
-                .reTryNot(0)
-                .fstEnrUsid("FIXTURE")
-                .fstEnrDtm(now)
-                .lstChgUsid("FIXTURE")
-                .lstChgDtm(now)
-                .build());
+        return em.persist(
+                Cinfmm.builder()
+                        .infmMsgNo(infmMsgNo)
+                        .itPtlInfmSvcTc("01")
+                        .ttl("테스트 알림")
+                        .infmMsgCone("테스트 본문")
+                        .rmsEno(rmsEno)
+                        .inqYn(inqYn)
+                        .inqDtm("Y".equals(inqYn) ? now : null)
+                        .delYn(delYn)
+                        .infmSdStsC(Cinfmm.DISPATCH_PENDING)
+                        .reTryNot(0)
+                        .fstEnrUsid("FIXTURE")
+                        .fstEnrDtm(now)
+                        .lstChgUsid("FIXTURE")
+                        .lstChgDtm(now)
+                        .build());
     }
 
     private void assertReadAndAudited(String infmMsgNo) {

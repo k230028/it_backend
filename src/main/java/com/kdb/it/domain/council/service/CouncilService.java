@@ -1,20 +1,10 @@
 package com.kdb.it.domain.council.service;
 
-import java.math.BigDecimal;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import org.springframework.security.access.AccessDeniedException;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -29,36 +19,36 @@ import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
 import com.kdb.it.domain.council.repository.ProjectOverviewRepository;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 정보화실무협의회 기본 서비스
  *
- * <p>
- * 협의회 목록 조회, 신규 생성, 단건 조회, 상태 전이를 담당합니다.
- * </p>
+ * <p>협의회 목록 조회, 신규 생성, 단건 조회, 상태 전이를 담당합니다.
  *
- * <p>
- * 권한별 조회 범위:
- * </p>
+ * <p>권한별 조회 범위:
+ *
  * <ul>
- * <li>일반사용자(ITPZZ001): 소속 부서(BBR_C) 기준 사업의 협의회만 조회</li>
- * <li>관리자(ITPAD001): 전체 협의회 조회</li>
- * <li>평가위원: BCMMTM에 ENO가 있는 협의회만 조회</li>
+ *   <li>일반사용자(ITPZZ001): 소속 부서(BBR_C) 기준 사업의 협의회만 조회
+ *   <li>관리자(ITPAD001): 전체 협의회 조회
+ *   <li>평가위원: BCMMTM에 ENO가 있는 협의회만 조회
  * </ul>
  *
- * <p>
- * 협의회 ID 채번 형식: {@code ASCT-{연도}-{4자리순번}} (예: ASCT-2026-0001)
- * </p>
+ * <p>협의회 ID 채번 형식: {@code ASCT-{연도}-{4자리순번}} (예: ASCT-2026-0001)
  *
- * <p>
- * 설계 참조: §2.1 아키텍처 결정 — 클린 아키텍처, 서비스 분리
- * </p>
+ * <p>설계 참조: §2.1 아키텍처 결정 — 클린 아키텍처, 서비스 분리
  */
 @Slf4j
 @Service
@@ -97,8 +87,7 @@ public class CouncilService {
     private final OrganizationRepository organizationRepository;
 
     /** JPA EntityManager — 협의회 신규 INSERT persist용 (§5.12.1.1) */
-    @PersistenceContext
-    private EntityManager entityManager;
+    @PersistenceContext private EntityManager entityManager;
 
     // =========================================================================
     // 사업 상태 코드 (공통코드 그룹 IT_PTL_STS_TC, BPROJA.IT_PTL_STS_TC)
@@ -116,8 +105,8 @@ public class CouncilService {
     /**
      * 협의회 진행상태 '생략' 코드 (CCODEM IT_PTL_ASCT_PRG_STS_TC '99')
      *
-     * <p>IT_PTL_ASCT_PRG_STS_TC는 VARCHAR2(2)이므로 이전의 문자열 "SKIPPED"(7자)는
-     * ORA-12899로 저장 실패했다. 선형 흐름(01~13) 밖의 종료 상태로 '99'를 사용한다. (리뷰 C-1)</p>
+     * <p>IT_PTL_ASCT_PRG_STS_TC는 VARCHAR2(2)이므로 이전의 문자열 "SKIPPED"(7자)는 ORA-12899로 저장 실패했다. 선형
+     * 흐름(01~13) 밖의 종료 상태로 '99'를 사용한다. (리뷰 C-1)
      */
     private static final String STS_COUNCIL_SKIPPED = "99";
 
@@ -128,68 +117,74 @@ public class CouncilService {
     /**
      * 권한별 협의회 목록 조회
      *
-     * <p>
-     * Plan SC: Step 1~3 전 과정 온라인 처리 기반 목록 제공
-     * </p>
+     * <p>Plan SC: Step 1~3 전 과정 온라인 처리 기반 목록 제공
      *
-     * <p>
-     * <strong>유니코드 이스케이프 주의</strong>: 쿼리 파라미터에 한글 리터럴 대신
-     * 유니코드 이스케이프({@code &#92;uXXXX})를 사용하는 이유는 Oracle 소스 파일 인코딩(EUC-KR) 환경에서
-     * 한글 직접 삽입 시 문자 깨짐이 발생하는 문제를 방지하기 위함입니다.
-     * 빌드 환경 인코딩 표준화 후 한글 리터럴로 교체할 예정입니다.
-     * </p>
+     * <p><strong>유니코드 이스케이프 주의</strong>: 쿼리 파라미터에 한글 리터럴 대신 유니코드 이스케이프({@code &#92;uXXXX})를 사용하는
+     * 이유는 Oracle 소스 파일 인코딩(EUC-KR) 환경에서 한글 직접 삽입 시 문자 깨짐이 발생하는 문제를 방지하기 위함입니다. 빌드 환경 인코딩 표준화 후 한글
+     * 리터럴로 교체할 예정입니다.
      *
      * @param userDetails 현재 로그인한 사용자 정보
      * @return 권한에 맞는 협의회 목록
      */
     public List<CouncilDto.ListResponse> getCouncilList(CustomUserDetails userDetails) {
-        log.debug("[CouncilList] eno={}, isAdmin={}, isCommitteeMember={}, bbrC={}",
-                userDetails.getEno(), userDetails.isAdmin(), isCommitteeMember(userDetails), userDetails.getBbrC());
+        log.debug(
+                "[CouncilList] eno={}, isAdmin={}, isCommitteeMember={}, bbrC={}",
+                userDetails.getEno(),
+                userDetails.isAdmin(),
+                isCommitteeMember(userDetails),
+                userDetails.getBbrC());
 
         if (userDetails.isAdmin()) {
             // 관리자: 전체 부서 대상으로 결재완료 사업(미신청 포함) + 기신청 협의회 통합 조회
-            List<CouncilProjectRow> rows = councilRepository.findProjectRowsForCouncilAll(
-                    PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
+            List<CouncilProjectRow> rows =
+                    councilRepository.findProjectRowsForCouncilAll(
+                            PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
             log.debug("[CouncilList] admin query result count={}", rows.size());
             // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
-            Map<String, BigDecimal> budgetMap = deriveCurrentYearBudgets(
-                    rows.stream().map(row -> row.abusMngNo()).toList());
+            Map<String, BigDecimal> budgetMap =
+                    deriveCurrentYearBudgets(rows.stream().map(row -> row.abusMngNo()).toList());
             return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
         }
 
         if (userDetails.isInfoSecAdmin()) {
             // 정보보호관리자(ITPAD002): 전체 부서 대상으로 조회하되,
             // 미신청 사업(생성용)과 신청된 정보보호시스템 사업(dbrTc='04') 협의회만 표출. (PRD_c_20260620 #3)
-            List<CouncilProjectRow> rows = councilRepository.findProjectRowsForCouncilAll(
-                    PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
-            Map<String, BigDecimal> budgetMap = deriveCurrentYearBudgets(
-                    rows.stream().map(row -> row.abusMngNo()).toList());
-            List<CouncilDto.ListResponse> result = rows.stream()
-                    .map(row -> toListResponseFromRow(row, budgetMap))
-                    .filter(r -> !r.applied() || "04".equals(r.dbrTc()))
-                    .toList();
+            List<CouncilProjectRow> rows =
+                    councilRepository.findProjectRowsForCouncilAll(
+                            PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
+            Map<String, BigDecimal> budgetMap =
+                    deriveCurrentYearBudgets(rows.stream().map(row -> row.abusMngNo()).toList());
+            List<CouncilDto.ListResponse> result =
+                    rows.stream()
+                            .map(row -> toListResponseFromRow(row, budgetMap))
+                            .filter(r -> !r.applied() || "04".equals(r.dbrTc()))
+                            .toList();
             log.debug("[CouncilList] infosec-admin filtered count={}", result.size());
             return result;
         }
 
         if (isCommitteeMember(userDetails)) {
             // 평가위원: 배정된 협의회만 조회
-            List<Basctm> councils = councilRepository.findByCommitteeMember(userDetails.getEno(), "N");
+            List<Basctm> councils =
+                    councilRepository.findByCommitteeMember(userDetails.getEno(), "N");
             // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
-            Map<String, BigDecimal> budgetMap = deriveCurrentYearBudgets(
-                    councils.stream().map(council -> council.getAbusMngNo()).toList());
-            return councils.stream()
-                    .map(c -> toListResponseFromEntity(c, budgetMap))
-                    .toList();
+            Map<String, BigDecimal> budgetMap =
+                    deriveCurrentYearBudgets(
+                            councils.stream().map(council -> council.getAbusMngNo()).toList());
+            return councils.stream().map(c -> toListResponseFromEntity(c, budgetMap)).toList();
         }
 
         // 일반사용자: SVN_DPM = 사용자 BBR_C 조건으로 결재완료 사업 + 기신청 협의회 통합 조회
-        List<CouncilProjectRow> rows = councilRepository.findProjectRowsForCouncilByDepartment(
-                userDetails.getBbrC(), PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
-        log.debug("[CouncilList] user query bbrC={}, result count={}", userDetails.getBbrC(), rows.size());
+        List<CouncilProjectRow> rows =
+                councilRepository.findProjectRowsForCouncilByDepartment(
+                        userDetails.getBbrC(), PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
+        log.debug(
+                "[CouncilList] user query bbrC={}, result count={}",
+                userDetails.getBbrC(),
+                rows.size());
         // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
-        Map<String, BigDecimal> budgetMap = deriveCurrentYearBudgets(
-                rows.stream().map(row -> row.abusMngNo()).toList());
+        Map<String, BigDecimal> budgetMap =
+                deriveCurrentYearBudgets(rows.stream().map(row -> row.abusMngNo()).toList());
         return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
     }
 
@@ -212,12 +207,9 @@ public class CouncilService {
     /**
      * 협의회 신규 신청
      *
-     * <p>
-     * 소관부서 담당자(ITPZZ001)가 타당성검토표 작성 전 협의회를 신청합니다.
-     * 초기 상태는 DRAFT(작성중)로 설정됩니다.
-     * </p>
+     * <p>소관부서 담당자(ITPZZ001)가 타당성검토표 작성 전 협의회를 신청합니다. 초기 상태는 DRAFT(작성중)로 설정됩니다.
      *
-     * @param request     협의회 신청 요청 (프로젝트 정보, 심의유형)
+     * @param request 협의회 신청 요청 (프로젝트 정보, 심의유형)
      * @param userDetails 신청자 정보
      * @return 생성된 협의회ID
      */
@@ -230,14 +222,15 @@ public class CouncilService {
         boolean isPlanCouncil = "02".equals(request.dbrTc());
 
         // 협의회 기본정보 생성 (초기 상태: DRAFT)
-        Basctm council = Basctm.builder()
-                .itPtlAsctId(asctId)
-                // 운영 BASCTM에는 별도 계획키가 없으므로 계획협의회는 ABUS_MNG_NO에 계획관리번호를 저장한다.
-                .abusMngNo(isPlanCouncil ? request.reqDocNo() : request.prjMngNo())
-                .sno(isPlanCouncil ? null : request.prjSno())
-                .itPtlAsctPrgStsTc("01")
-                .itPtlAsctDbrTc(request.dbrTc())
-                .build();
+        Basctm council =
+                Basctm.builder()
+                        .itPtlAsctId(asctId)
+                        // 운영 BASCTM에는 별도 계획키가 없으므로 계획협의회는 ABUS_MNG_NO에 계획관리번호를 저장한다.
+                        .abusMngNo(isPlanCouncil ? request.reqDocNo() : request.prjMngNo())
+                        .sno(isPlanCouncil ? null : request.prjSno())
+                        .itPtlAsctPrgStsTc("01")
+                        .itPtlAsctDbrTc(request.dbrTc())
+                        .build();
 
         // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
         entityManager.persist(council);
@@ -245,7 +238,8 @@ public class CouncilService {
         // 계획협의회(02)는 단일 사업 상태 전이 대상이 아니므로 사업 상태 동기화를 생략한다.
         if (!isPlanCouncil) {
             // 사업 상태를 '타당성검토 정실협 진행중'(32)으로 전이
-            bprojaSyncService.upsert(request.prjMngNo(), request.prjMngNo(), PRJ_STS_COUNCIL_IN_PROGRESS);
+            bprojaSyncService.upsert(
+                    request.prjMngNo(), request.prjMngNo(), PRJ_STS_COUNCIL_IN_PROGRESS);
         }
 
         return asctId;
@@ -258,11 +252,9 @@ public class CouncilService {
     /**
      * 협의회 상태 변경
      *
-     * <p>
-     * 각 서비스(FeasibilityService, CommitteeService 등)에서 비즈니스 이벤트 완료 시 호출합니다.
-     * </p>
+     * <p>각 서비스(FeasibilityService, CommitteeService 등)에서 비즈니스 이벤트 완료 시 호출합니다.
      *
-     * @param asctId    협의회ID
+     * @param asctId 협의회ID
      * @param targetSts 변경할 상태 코드 (CCODEM ASCT_STS_C 기준)
      */
     @Transactional
@@ -275,10 +267,7 @@ public class CouncilService {
     /**
      * 협의회 개최 시작 처리 (SCHEDULED → IN_PROGRESS)
      *
-     * <p>
-     * IT관리자가 오프라인 협의회 개최를 확인하고 진행 상태로 전이합니다.
-     * SCHEDULED 상태에서만 호출 가능합니다.
-     * </p>
+     * <p>IT관리자가 오프라인 협의회 개최를 확인하고 진행 상태로 전이합니다. SCHEDULED 상태에서만 호출 가능합니다.
      *
      * @param asctId 협의회ID
      * @throws IllegalStateException 현재 상태가 SCHEDULED가 아닌 경우
@@ -289,7 +278,8 @@ public class CouncilService {
 
         if (!"06".equals(council.getItPtlAsctPrgStsTc())) {
             throw new IllegalStateException(
-                    "협의회 개최 시작은 SCHEDULED(006) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
+                    "협의회 개최 시작은 SCHEDULED(006) 상태에서만 가능합니다. 현재 상태: "
+                            + council.getItPtlAsctPrgStsTc());
         }
 
         council.changeStatus("07");
@@ -298,17 +288,13 @@ public class CouncilService {
     /**
      * 협의회 완료 처리 (IN_PROGRESS/EVALUATING → RESULT_WRITING)
      *
-     * <p>
-     * 모든 평가위원의 평가 제출이 확인된 후 IT관리자가 호출합니다.
-     * IN_PROGRESS 또는 EVALUATING 상태에서 호출 가능합니다.
-     * </p>
+     * <p>모든 평가위원의 평가 제출이 확인된 후 IT관리자가 호출합니다. IN_PROGRESS 또는 EVALUATING 상태에서 호출 가능합니다.
      *
-     * <p>
-     * 완료 조건:
-     * </p>
+     * <p>완료 조건:
+     *
      * <ol>
-     * <li>평가위원(간사 제외: MAND + CALL)이 1명 이상 존재</li>
-     * <li>모든 평가위원이 6개 항목 평가의견을 제출 완료</li>
+     *   <li>평가위원(간사 제외: MAND + CALL)이 1명 이상 존재
+     *   <li>모든 평가위원이 6개 항목 평가의견을 제출 완료
      * </ol>
      *
      * @param asctId 협의회ID
@@ -321,15 +307,14 @@ public class CouncilService {
 
         // IN_PROGRESS(평가 미시작) 또는 EVALUATING(평가 진행 중) 상태에서만 가능
         if (!"07".equals(status) && !"08".equals(status)) {
-            throw new IllegalStateException(
-                    "협의회 완료는 진행 중 상태에서만 가능합니다. 현재 상태: " + status);
+            throw new IllegalStateException("협의회 완료는 진행 중 상태에서만 가능합니다. 현재 상태: " + status);
         }
 
         // 평가 대상 위원 조회 (간사 제외: MAND(001) + CALL(002)만 평가 의무)
-        List<Bcmmtm> evaluators = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
-                .stream()
-                .filter(m -> !"03".equals(m.getItPtlAsctMebTc()))
-                .toList();
+        List<Bcmmtm> evaluators =
+                committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N").stream()
+                        .filter(m -> !"03".equals(m.getItPtlAsctMebTc()))
+                        .toList();
 
         if (evaluators.isEmpty()) {
             throw new IllegalStateException("평가위원이 선정되지 않았습니다.");
@@ -339,16 +324,19 @@ public class CouncilService {
         // 행별 findByItPtlAsctIdAndEnoAndDelYn 루프를 단일 배치 COUNT로 대체한다.
         // GROUP BY e.eno이므로 eno는 본래 유일하지만, 데이터 이상으로 중복 키가 들어와도
         // 합산 병합으로 IllegalStateException 없이 부분 카운트를 합산한다(방어적).
-        Map<String, Long> submitCountByEno = evaluationRepository.countByEnoForCouncil(asctId, "N").stream()
-                .collect(Collectors.toMap(
-                        row -> (String) row[0],
-                        row -> ((Number) row[1]).longValue(),
-                        (left, right) -> left + right));
+        Map<String, Long> submitCountByEno =
+                evaluationRepository.countByEnoForCouncil(asctId, "N").stream()
+                        .collect(
+                                Collectors.toMap(
+                                        row -> (String) row[0],
+                                        row -> ((Number) row[1]).longValue(),
+                                        (left, right) -> left + right));
 
         // 6개 항목 미만(미제출 포함=Map 누락 시 0)인 평가자 수 집계
-        long incompleteCount = evaluators.stream()
-                .filter(m -> submitCountByEno.getOrDefault(m.getEno(), 0L) < 6)
-                .count();
+        long incompleteCount =
+                evaluators.stream()
+                        .filter(m -> submitCountByEno.getOrDefault(m.getEno(), 0L) < 6)
+                        .count();
 
         if (incompleteCount > 0) {
             throw new IllegalStateException(
@@ -361,11 +349,8 @@ public class CouncilService {
     /**
      * 추진부서 통보 처리 (COMPLETED)
      *
-     * <p>
-     * 협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다.
-     * 사업 상태(BPROJA.IT_PTL_STS_TC)를 '타당성검토 정실협 완료'(39)로 변경하고,
-     * 수신자(협의회 최초 등록자) 정보를 반환합니다.
-     * </p>
+     * <p>협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다. 사업 상태(BPROJA.IT_PTL_STS_TC)를 '타당성검토 정실협 완료'(39)로
+     * 변경하고, 수신자(협의회 최초 등록자) 정보를 반환합니다.
      *
      * @param asctId 협의회ID
      * @return 수신자(추진부서 담당자) 정보 DTO
@@ -382,7 +367,8 @@ public class CouncilService {
         }
 
         // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
-        bprojaSyncService.upsert(council.getAbusMngNo(), council.getAbusMngNo(), PRJ_STS_COUNCIL_DONE);
+        bprojaSyncService.upsert(
+                council.getAbusMngNo(), council.getAbusMngNo(), PRJ_STS_COUNCIL_DONE);
 
         // 수신자(협의회 최초 등록자 = 추진부서 담당자) 정보 조회
         String recipientEno = council.getFstEnrUsid();
@@ -404,7 +390,10 @@ public class CouncilService {
                 }
             } else {
                 // 수신자 사번은 있으나 사용자 정보를 못 찾음 → 통보 대상 누락 추적용 경고 (리뷰 3-2/M-2)
-                log.warn("[협의회통보] 수신자 사용자 정보 조회 실패 - asctId={}, recipientEno={}", asctId, recipientEno);
+                log.warn(
+                        "[협의회통보] 수신자 사용자 정보 조회 실패 - asctId={}, recipientEno={}",
+                        asctId,
+                        recipientEno);
             }
         } else {
             log.warn("[협의회통보] 수신자 사번 미확인 - asctId={} (FST_ENR_USID null)", asctId);
@@ -416,16 +405,13 @@ public class CouncilService {
     /**
      * 정보화실무협의회 생략 처리 (APPROVED(04) → 생략(99))
      *
-     * <p>
-     * IT관리자가 타당성검토표 검토 후 해당 사업이 협의회 생략 대상임을 확인한 경우 호출합니다.
-     * </p>
+     * <p>IT관리자가 타당성검토표 검토 후 해당 사업이 협의회 생략 대상임을 확인한 경우 호출합니다.
      *
-     * <p>
-     * 처리 내용:
-     * </p>
+     * <p>처리 내용:
+     *
      * <ol>
-     * <li>협의회 상태: 결재완료(04) → 생략(99)</li>
-     * <li>사업 상태(IT_PTL_STS_TC): '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)</li>
+     *   <li>협의회 상태: 결재완료(04) → 생략(99)
+     *   <li>사업 상태(IT_PTL_STS_TC): '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
      * </ol>
      *
      * @param asctId 협의회ID
@@ -445,17 +431,15 @@ public class CouncilService {
         council.changeStatus(STS_COUNCIL_SKIPPED);
 
         // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
-        bprojaSyncService.upsert(council.getAbusMngNo(), council.getAbusMngNo(), PRJ_STS_COUNCIL_DONE);
+        bprojaSyncService.upsert(
+                council.getAbusMngNo(), council.getAbusMngNo(), PRJ_STS_COUNCIL_DONE);
     }
 
     /**
      * 개최준비 시작 (결재완료 → 개최준비)
      *
-     * <p>
-     * IT관리자가 타당성검토표 검토 후 '개최준비 진행'을 선택한 경우 호출합니다.
-     * 기존에는 평가위원 저장(saveCommittee)의 부수효과로 04→05 전이가 일어났으나,
-     * 의사결정 지점(Step1 상세의 '개최준비 진행' 버튼)으로 전이를 명시화했습니다. (PRD_c_20260620 #2)
-     * </p>
+     * <p>IT관리자가 타당성검토표 검토 후 '개최준비 진행'을 선택한 경우 호출합니다. 기존에는 평가위원 저장(saveCommittee)의 부수효과로 04→05 전이가
+     * 일어났으나, 의사결정 지점(Step1 상세의 '개최준비 진행' 버튼)으로 전이를 명시화했습니다. (PRD_c_20260620 #2)
      *
      * @param asctId 협의회ID
      * @throws IllegalStateException 일반 협의회가 결재완료(04)가 아니거나 계획협의회가 신청(01)이 아닌 경우
@@ -470,8 +454,7 @@ public class CouncilService {
         String current = council.getItPtlAsctPrgStsTc();
         boolean allowed = "04".equals(current) || (isPlanCouncil && "01".equals(current));
         if (!allowed) {
-            throw new IllegalStateException(
-                    "개최준비 전이는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + current);
+            throw new IllegalStateException("개최준비 전이는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + current);
         }
 
         // 협의회 상태 전이: → PREPARING(05)
@@ -485,23 +468,17 @@ public class CouncilService {
     /**
      * 협의회 화면 표시용 당해예산(파생) 계산.
      *
-     * <p>
-     * 프로젝트 활성 품목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반으로 산출한다.
-     * TOT_RQM_AMT 컬럼이 제거됨에 따라 협의회 목록/상세에서 사용하는 당해예산을
-     * 품목 단위 파생값으로 대체한다.
-     * </p>
+     * <p>프로젝트 활성 품목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반으로 산출한다. TOT_RQM_AMT 컬럼이 제거됨에 따라 협의회 목록/상세에서
+     * 사용하는 당해예산을 품목 단위 파생값으로 대체한다.
      *
-     * <p>
-     * <strong>N+1 주의</strong>: 현재 협의회 목록 각 행마다 호출되므로 사업 수가 많을 때
-     * 다수의 품목 조회가 발생한다. 추후 배치 조회 방식으로 개선 대상(TASK.md 등록).
-     * </p>
+     * <p><strong>N+1 주의</strong>: 현재 협의회 목록 각 행마다 호출되므로 사업 수가 많을 때 다수의 품목 조회가 발생한다. 추후 배치 조회 방식으로
+     * 개선 대상(TASK.md 등록).
      *
      * @param abusMngNo 프로젝트관리번호 (null 또는 빈 값이면 null 반환)
      * @return 당해예산(파생값), 프로젝트 품목이 없으면 0
      */
     private BigDecimal deriveCurrentYearBudget(String abusMngNo) {
-        if (abusMngNo == null || abusMngNo.isBlank())
-            return null;
+        if (abusMngNo == null || abusMngNo.isBlank()) return null;
         var items = projectItemRepository.findByAbusMngNoAndDelYn(abusMngNo, "N");
         var tmp = ProjectDto.Response.builder().build();
         projectBudgetSummaryService.applyBudgetSummary(tmp, items);
@@ -511,33 +488,30 @@ public class CouncilService {
     /**
      * 협의회 목록의 모든 사업관리번호에 대한 당해예산(파생)을 1회 배치 조회로 계산.
      *
-     * <p>
-     * 행마다 {@link #deriveCurrentYearBudget(String)}를 호출하면 사업 수만큼 품목 조회가
-     * 발생(N+1)한다. 본 메서드는 전체 사업관리번호의 활성 품목(DEL_YN='N')을 1회 배치 조회한 뒤
-     * 메모리에서 사업관리번호별로 그룹핑하여 동일한 합산 로직(applyBudgetSummary + getTotRqmAmt)을
-     * 적용한다. 따라서 행별 단건 조회와 값이 동일하게 보존된다.
-     * </p>
+     * <p>행마다 {@link #deriveCurrentYearBudget(String)}를 호출하면 사업 수만큼 품목 조회가 발생(N+1)한다. 본 메서드는 전체
+     * 사업관리번호의 활성 품목(DEL_YN='N')을 1회 배치 조회한 뒤 메모리에서 사업관리번호별로 그룹핑하여 동일한 합산 로직(applyBudgetSummary +
+     * getTotRqmAmt)을 적용한다. 따라서 행별 단건 조회와 값이 동일하게 보존된다.
      *
      * @param abusMngNos 사업관리번호 목록 (null·빈 값은 무시)
-     * @return 사업관리번호 → 당해예산(파생) 맵. 요청된 모든 사업관리번호에 대해 값이 채워지며,
-     *         품목이 없는 사업관리번호도 빈 품목 목록으로 동일 합산 로직을 적용한 값(예: 0)을 가진다
+     * @return 사업관리번호 → 당해예산(파생) 맵. 요청된 모든 사업관리번호에 대해 값이 채워지며, 품목이 없는 사업관리번호도 빈 품목 목록으로 동일 합산 로직을
+     *     적용한 값(예: 0)을 가진다
      */
     private Map<String, BigDecimal> deriveCurrentYearBudgets(Collection<String> abusMngNos) {
-        List<String> keys = abusMngNos.stream()
-                .filter(v -> v != null && !v.isBlank())
-                .distinct().toList();
+        List<String> keys =
+                abusMngNos.stream().filter(v -> v != null && !v.isBlank()).distinct().toList();
         if (keys.isEmpty()) {
             return new HashMap<>();
         }
         // 전체 사업관리번호의 활성 품목을 1회 배치 조회한 뒤 사업관리번호별로 그룹핑
-        Map<String, List<ProjectItemRepository.ProjectItemBudgetView>> itemsByAbus = projectItemRepository
-                .findBudgetViewsByAbusMngNoInAndDelYn(keys, "N").stream()
-                .collect(Collectors.groupingBy(item -> item.getAbusMngNo()));
+        Map<String, List<ProjectItemRepository.ProjectItemBudgetView>> itemsByAbus =
+                projectItemRepository.findBudgetViewsByAbusMngNoInAndDelYn(keys, "N").stream()
+                        .collect(Collectors.groupingBy(item -> item.getAbusMngNo()));
         Map<String, BigDecimal> result = new HashMap<>();
         // 요청된 모든 키를 순회한다(itemsByAbus가 아님). 품목이 없는 키도 빈 목록으로
         // applyBudgetSummary를 호출해 행별 단건 조회(deriveCurrentYearBudget)와 값이 동일하게 보존된다.
         for (String abusMngNo : keys) {
-            List<ProjectItemRepository.ProjectItemBudgetView> items = itemsByAbus.getOrDefault(abusMngNo, List.of());
+            List<ProjectItemRepository.ProjectItemBudgetView> items =
+                    itemsByAbus.getOrDefault(abusMngNo, List.of());
             var tmp = ProjectDto.Response.builder().build();
             projectBudgetSummaryService.applyBudgetSummaryViews(tmp, items);
             result.put(abusMngNo, tmp.getTotRqmAmt());
@@ -553,8 +527,10 @@ public class CouncilService {
      * @throws IllegalArgumentException 존재하지 않는 경우
      */
     public Basctm findActiveCouncil(String asctId) {
-        return councilRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 협의회입니다. asctId=" + asctId));
+        return councilRepository
+                .findByItPtlAsctIdAndDelYn(asctId, "N")
+                .orElseThrow(
+                        () -> new IllegalArgumentException("존재하지 않는 협의회입니다. asctId=" + asctId));
     }
 
     // =========================================================================
@@ -564,11 +540,11 @@ public class CouncilService {
     /**
      * 협의회 관리 권한 검증 (개최준비·진행·일정·결과 등 관리 액션 공통 가드).
      *
-     * <p>IT관리자(ITPAD001)는 전 심의유형, 정보보호관리자(ITPAD002)는 정보보호시스템(dbrTc='04')
-     * 협의회에 한해 관리할 수 있습니다(PRD_c_20260620 #3). 프론트 canManageCouncil과 동일 스코프이며,
-     * 프론트 가드는 UX 보조이므로 서버 진입 가드가 최종 보안 경계입니다.</p>
+     * <p>IT관리자(ITPAD001)는 전 심의유형, 정보보호관리자(ITPAD002)는 정보보호시스템(dbrTc='04') 협의회에 한해 관리할 수
+     * 있습니다(PRD_c_20260620 #3). 프론트 canManageCouncil과 동일 스코프이며, 프론트 가드는 UX 보조이므로 서버 진입 가드가 최종 보안
+     * 경계입니다.
      *
-     * @param asctId      협의회ID
+     * @param asctId 협의회ID
      * @param userDetails 요청자 (JWT 주입)
      * @throws AccessDeniedException 관리 권한이 없는 경우
      */
@@ -576,7 +552,8 @@ public class CouncilService {
         if (userDetails != null && userDetails.isAdmin()) {
             return;
         }
-        if (userDetails != null && userDetails.isInfoSecAdmin()
+        if (userDetails != null
+                && userDetails.isInfoSecAdmin()
                 && "04".equals(findActiveCouncil(asctId).getItPtlAsctDbrTc())) {
             return;
         }
@@ -586,8 +563,8 @@ public class CouncilService {
     /**
      * IT관리자(ITPAD001) 전용 액션 권한 검증.
      *
-     * <p>협의회 직접 생략·결재 콜백처럼 IT기획 관할이 확정된 액션에 사용합니다.
-     * (정보보호시스템 사업의 생략은 판정 요청→IT기획 결재를 거쳐야 하므로 직접 생략은 IT관리자 전용)</p>
+     * <p>협의회 직접 생략·결재 콜백처럼 IT기획 관할이 확정된 액션에 사용합니다. (정보보호시스템 사업의 생략은 판정 요청→IT기획 결재를 거쳐야 하므로 직접 생략은
+     * IT관리자 전용)
      *
      * @param userDetails 요청자 (JWT 주입)
      * @throws AccessDeniedException IT관리자가 아닌 경우
@@ -601,9 +578,7 @@ public class CouncilService {
     /**
      * 협의회ID 채번
      *
-     * <p>
-     * 형식: ASCT-{연도}-{4자리순번} (예: ASCT-2026-0001)
-     * </p>
+     * <p>형식: ASCT-{연도}-{4자리순번} (예: ASCT-2026-0001)
      *
      * @return 생성된 협의회ID
      */
@@ -616,10 +591,7 @@ public class CouncilService {
     /**
      * 현재 사용자가 평가위원인지 확인
      *
-     * <p>
-     * ITPZZ001이지만 특정 협의회에 배정된 경우 평가위원으로 동작합니다.
-     * 목록 조회 시 권한 분기 판단에 사용합니다.
-     * </p>
+     * <p>ITPZZ001이지만 특정 협의회에 배정된 경우 평가위원으로 동작합니다. 목록 조회 시 권한 분기 판단에 사용합니다.
      *
      * @param userDetails 현재 사용자 정보
      * @return 평가위원이면 true (일반사용자이면서 BCMMTM에 ENO가 있는 경우)
@@ -631,29 +603,29 @@ public class CouncilService {
             return false;
         }
         // BCMMTM에 ENO가 있는 협의회 수 > 0 이면 평가위원
-        List<Basctm> memberCouncils = councilRepository.findByCommitteeMember(userDetails.getEno(), "N");
+        List<Basctm> memberCouncils =
+                councilRepository.findByCommitteeMember(userDetails.getEno(), "N");
         return !memberCouncils.isEmpty();
     }
 
     /**
      * Basctm 엔티티 → ListResponse 변환 (평가위원용, PRD §16)
      *
-     * <p>
-     * 사업명은 BPOVWM 우선, 없으면 BPROJM에서 가져옵니다.
-     * 평가위원 사업카드도 일반사용자/관리자와 동일하게 사업 상세 필드를 채워야 하므로
-     * BPROJM에서 prjYy/prjTp/svnDpm/prjBg/sttDt/endDt/itDpm/prjDes를 함께 매핑합니다.
-     * </p>
+     * <p>사업명은 BPOVWM 우선, 없으면 BPROJM에서 가져옵니다. 평가위원 사업카드도 일반사용자/관리자와 동일하게 사업 상세 필드를 채워야 하므로 BPROJM에서
+     * prjYy/prjTp/svnDpm/prjBg/sttDt/endDt/itDpm/prjDes를 함께 매핑합니다.
      */
-    private CouncilDto.ListResponse toListResponseFromEntity(Basctm council,
-            Map<String, BigDecimal> budgetMap) {
+    private CouncilDto.ListResponse toListResponseFromEntity(
+            Basctm council, Map<String, BigDecimal> budgetMap) {
         // BPROJM 조회 — 사업 상세 정보 원천
-        var projectOpt = projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
+        var projectOpt =
+                projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
 
         // 사업명: BPOVWM(타당성검토표) 우선, 없으면 BPROJM
-        String prjNm = projectOverviewRepository
-                .findByItPtlAsctIdAndDelYn(council.getItPtlAsctId(), "N")
-                .map(value -> value.getAbusNm())
-                .orElseGet(() -> projectOpt.map(p -> p.getAbusNm()).orElse(null));
+        String prjNm =
+                projectOverviewRepository
+                        .findByItPtlAsctIdAndDelYn(council.getItPtlAsctId(), "N")
+                        .map(value -> value.getAbusNm())
+                        .orElseGet(() -> projectOpt.map(p -> p.getAbusNm()).orElse(null));
 
         // 사업 상세 (BPROJM 기반)
         String prjYy = projectOpt.map(p -> p.getBseYy()).orElse(null);
@@ -676,23 +648,28 @@ public class CouncilService {
                 council.getCnrcDt(),
                 council.getCnrcSttTm(),
                 true,
-                prjYy, prjTp, svnDpm, prjBg, sttDt, endDt, itDpm, prjDes,
+                prjYy,
+                prjTp,
+                svnDpm,
+                prjBg,
+                sttDt,
+                endDt,
+                itDpm,
+                prjDes,
                 council.getCsfHeldYn());
     }
 
     /**
      * 협의회 신청대상 DTO 행 → ListResponse 변환 (관리자/일반사용자용)
      *
-     * <p>native {@code Object[]} 인덱스 캐스팅은 {@link CouncilProjectRow#fromRow(Object[])}
-     * 단일 팩토리(§5.5.4 헬퍼 사용)로 봉인되어 서비스로 새지 않는다. 날짜 타입/문자열
-     * yyyyMMdd 변환은 DTO 생성 시점에 이미 {@code LocalDate}로 끝나 있으므로 여기서는
-     * 추가 변환이 없다.</p>
+     * <p>native {@code Object[]} 인덱스 캐스팅은 {@link CouncilProjectRow#fromRow(Object[])} 단일 팩토리(§5.5.4
+     * 헬퍼 사용)로 봉인되어 서비스로 새지 않는다. 날짜 타입/문자열 yyyyMMdd 변환은 DTO 생성 시점에 이미 {@code LocalDate}로 끝나 있으므로
+     * 여기서는 추가 변환이 없다.
      *
-     * <p>당해예산({@code prjBg})은 native 컬럼이 NULL이므로 품목 배치 조회 결과({@code budgetMap})로
-     * 파생 산출한다.</p>
+     * <p>당해예산({@code prjBg})은 native 컬럼이 NULL이므로 품목 배치 조회 결과({@code budgetMap})로 파생 산출한다.
      */
-    private CouncilDto.ListResponse toListResponseFromRow(CouncilProjectRow row,
-            Map<String, BigDecimal> budgetMap) {
+    private CouncilDto.ListResponse toListResponseFromRow(
+            CouncilProjectRow row, Map<String, BigDecimal> budgetMap) {
         return new CouncilDto.ListResponse(
                 row.itPtlAsctId(),
                 row.abusMngNo(),
@@ -714,10 +691,7 @@ public class CouncilService {
                 row.csfHeldYn());
     }
 
-    /**
-     * Basctm → DetailResponse 변환
-     * BPROJM에서 사업명(prjNm)과 전결권자(edrt)를 함께 조회합니다.
-     */
+    /** Basctm → DetailResponse 변환 BPROJM에서 사업명(prjNm)과 전결권자(edrt)를 함께 조회합니다. */
     private CouncilDto.DetailResponse toDetailResponse(Basctm council) {
         // BPROJM에서 타당성검토표 기본값 필드 조회
         String prjNm = null;
@@ -728,7 +702,8 @@ public class CouncilService {
         BigDecimal prjBg = null;
         String prjDes = null;
         String xptEff = null;
-        var projectOpt = projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
+        var projectOpt =
+                projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
         if (projectOpt.isPresent()) {
             var p = projectOpt.get();
             prjNm = p.getAbusNm();

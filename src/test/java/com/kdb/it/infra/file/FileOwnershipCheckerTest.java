@@ -1,10 +1,19 @@
 package com.kdb.it.infra.file;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.authz.FileReadAuthorizerRegistry;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,32 +23,19 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 /**
  * FileOwnershipChecker 단위 테스트 — SEC-02, SEC-05
  *
- * <p>파일 소유권(업로드자 = 현재 사용자) 검증과, 읽기 판정을 종류별 authorizer 레지스트리로
- * 위임하는 동작을 검증합니다. 종류별 읽기 규칙 자체는 각 authorizer 단위 테스트에서 검증합니다.</p>
+ * <p>파일 소유권(업로드자 = 현재 사용자) 검증과, 읽기 판정을 종류별 authorizer 레지스트리로 위임하는 동작을 검증합니다. 종류별 읽기 규칙 자체는 각
+ * authorizer 단위 테스트에서 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 class FileOwnershipCheckerTest {
 
-    @Mock
-    private FileRepository fileRepository;
-    @Mock
-    private FileReadAuthorizerRegistry readAuthorizerRegistry;
+    @Mock private FileRepository fileRepository;
+    @Mock private FileReadAuthorizerRegistry readAuthorizerRegistry;
 
-    @InjectMocks
-    private FileOwnershipChecker fileOwnershipChecker;
+    @InjectMocks private FileOwnershipChecker fileOwnershipChecker;
 
     // ── verifyWriteAccess (owner-or-admin, 403) ──
 
@@ -52,7 +48,8 @@ class FileOwnershipCheckerTest {
         void verifyWriteAccess_owner_noException() {
             Cfilem file = mock(Cfilem.class);
             when(file.getFstEnrUsid()).thenReturn("E001");
-            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N"))
+                    .willReturn(Optional.of(file));
 
             CustomUserDetails owner = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
 
@@ -65,7 +62,8 @@ class FileOwnershipCheckerTest {
         void verifyWriteAccess_admin_bypass() {
             Cfilem file = mock(Cfilem.class);
             when(file.getFstEnrUsid()).thenReturn("E001");
-            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N"))
+                    .willReturn(Optional.of(file));
 
             CustomUserDetails admin = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
 
@@ -78,7 +76,8 @@ class FileOwnershipCheckerTest {
         void verifyWriteAccess_other_throwsAccessDenied() {
             Cfilem file = mock(Cfilem.class);
             when(file.getFstEnrUsid()).thenReturn("E001");
-            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N")).willReturn(Optional.of(file));
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000001", "N"))
+                    .willReturn(Optional.of(file));
 
             CustomUserDetails other = new CustomUserDetails("E002", List.of("ITPZZ001"), "IT001");
 
@@ -89,7 +88,8 @@ class FileOwnershipCheckerTest {
         @Test
         @DisplayName("파일이 존재하지 않으면 CustomGeneralException 발생")
         void verifyWriteAccess_fileNotFound_throws() {
-            given(fileRepository.findByFlMpnIdAndDelYn("FL_99999999", "N")).willReturn(Optional.empty());
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_99999999", "N"))
+                    .willReturn(Optional.empty());
 
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
 
@@ -109,7 +109,8 @@ class FileOwnershipCheckerTest {
         @DisplayName("레지스트리가 읽기 허용하면 예외 없이 통과한다")
         void checkReadAccess_allowed_passes() {
             Cfilem file = mock(Cfilem.class);
-            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000002", "N")).willReturn(Optional.of(file));
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000002", "N"))
+                    .willReturn(Optional.of(file));
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
             given(readAuthorizerRegistry.canRead(file, user)).willReturn(true);
 
@@ -121,7 +122,8 @@ class FileOwnershipCheckerTest {
         @DisplayName("레지스트리가 거부하면 AccessDeniedException 발생")
         void checkReadAccess_denied_throws() {
             Cfilem file = mock(Cfilem.class);
-            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000002", "N")).willReturn(Optional.of(file));
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000002", "N"))
+                    .willReturn(Optional.of(file));
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
             given(readAuthorizerRegistry.canRead(file, user)).willReturn(false);
 
@@ -133,7 +135,8 @@ class FileOwnershipCheckerTest {
         @Test
         @DisplayName("파일이 없으면 CustomGeneralException 발생")
         void checkReadAccess_fileNotFound_throws() {
-            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000099", "N")).willReturn(Optional.empty());
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_00000099", "N"))
+                    .willReturn(Optional.empty());
             CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
 
             assertThatThrownBy(() -> fileOwnershipChecker.checkReadAccess("FL_00000099", user))

@@ -4,16 +4,15 @@ import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.CblbcmL;
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-
-import java.time.LocalDate;
 
 /**
  * 게시물 엔티티 — TPRMPP_CBLBCM
  *
- * <p>답변글 트리는 NAC_UNQ_ID / GRP_SQN_SNO / NAC_LEV_MNG_SNO 3컬럼으로 표현한다.
- * 변경 시 {@link CblbcmL}에 이력이 자동 적재된다.</p>
+ * <p>답변글 트리는 NAC_UNQ_ID / GRP_SQN_SNO / NAC_LEV_MNG_SNO 3컬럼으로 표현한다. 변경 시 {@link CblbcmL}에 이력이 자동
+ * 적재된다.
  */
 @LogTarget(entity = CblbcmL.class)
 @Entity
@@ -80,36 +79,39 @@ public class Cblbcm extends BaseEntity {
     /**
      * 게시물 수정 커맨드
      *
-     * @param nacNm    제목
-     * @param nacCone  본문 HTML (sanitize 완료 값)
-     * @param ancYn    공지여부
-     * @param xpoYn    노출여부
-     * @param bbrC     공개 대상 부서코드
-     * @param sttDt    공개 시작일자
-     * @param endDt    공개 종료일자
+     * @param nacNm 제목
+     * @param nacCone 본문 HTML (sanitize 완료 값)
+     * @param ancYn 공지여부
+     * @param xpoYn 노출여부
+     * @param bbrC 공개 대상 부서코드
+     * @param sttDt 공개 시작일자
+     * @param endDt 공개 종료일자
      */
     public record UpdateCommand(
-        String nacNm, String nacCone,
-        String ancYn, String xpoYn, String bbrC,
-        LocalDate sttDt, LocalDate endDt
-    ) {}
+            String nacNm,
+            String nacCone,
+            String ancYn,
+            String xpoYn,
+            String bbrC,
+            LocalDate sttDt,
+            LocalDate endDt) {}
 
     /**
      * 게시물 내용을 수정합니다.
      *
-     * <p>{@code nacCone}은 서비스 계층에서 {@code HtmlSanitizer.sanitize()}를 적용한
-     * 값만 전달해야 합니다. JPA Dirty Checking으로 변경사항이 저장됩니다.</p>
+     * <p>{@code nacCone}은 서비스 계층에서 {@code HtmlSanitizer.sanitize()}를 적용한 값만 전달해야 합니다. JPA Dirty
+     * Checking으로 변경사항이 저장됩니다.
      *
      * @param cmd 게시물 수정 커맨드
      */
     public void update(UpdateCommand cmd) {
-        this.nacNm    = cmd.nacNm();
-        this.nacCone  = cmd.nacCone();
-        this.ancYn    = cmd.ancYn();
-        this.xpoYn    = cmd.xpoYn();
-        this.bbrC     = cmd.bbrC();
-        this.sttDt    = cmd.sttDt();
-        this.endDt    = cmd.endDt();
+        this.nacNm = cmd.nacNm();
+        this.nacCone = cmd.nacCone();
+        this.ancYn = cmd.ancYn();
+        this.xpoYn = cmd.xpoYn();
+        this.bbrC = cmd.bbrC();
+        this.sttDt = cmd.sttDt();
+        this.endDt = cmd.endDt();
     }
 
     /** 조회수 1 증가 */
@@ -120,12 +122,12 @@ public class Cblbcm extends BaseEntity {
     /** 첨부파일 캐시 갱신 */
     public void updateFileCache(boolean hasFile, int fileCount) {
         this.flApgYn = hasFile ? "Y" : "N";
-        this.flNbr   = fileCount;
+        this.flNbr = fileCount;
     }
 
     /** 그룹 정보 설정 — 원글 등록 시 */
     public void initGroupAsRoot() {
-        this.nacUnqId  = this.nacMngNo;
+        this.nacUnqId = this.nacMngNo;
         this.nacGrpSqn = 0;
         this.nacGrpLev = 0;
     }
@@ -133,15 +135,16 @@ public class Cblbcm extends BaseEntity {
     /**
      * 그룹 정보 설정 — 답변글 등록 시
      *
-     * @param parentGrpNo  부모의 NAC_UNQ_ID (그룹번호)
+     * @param parentGrpNo 부모의 NAC_UNQ_ID (그룹번호)
      * @param parentGrpSqn 부모의 NAC_GRP_SQN
      * @param parentGrpLev 부모의 NAC_GRP_LEV
-     * @param parentPk     부모의 NAC_MNG_NO
+     * @param parentPk 부모의 NAC_MNG_NO
      */
-    public void initGroupAsReply(String parentGrpNo, int parentGrpSqn, int parentGrpLev, String parentPk) {
-        this.nacUnqId    = parentGrpNo;
-        this.nacGrpSqn   = parentGrpSqn + 1;
-        this.nacGrpLev   = parentGrpLev + 1;
-        this.hrkNacNo    = parentPk;
+    public void initGroupAsReply(
+            String parentGrpNo, int parentGrpSqn, int parentGrpLev, String parentPk) {
+        this.nacUnqId = parentGrpNo;
+        this.nacGrpSqn = parentGrpSqn + 1;
+        this.nacGrpLev = parentGrpLev + 1;
+        this.hrkNacNo = parentPk;
     }
 }

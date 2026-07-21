@@ -1,8 +1,8 @@
 package com.kdb.it.domain.council.entity;
 
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BschdmL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -17,15 +17,14 @@ import lombok.experimental.SuperBuilder;
 /**
  * 협의회 일정 엔티티
  *
- * <p>DB 테이블: {@code TPRMPP_BSCHDM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BSCHDM}
  *
- * <p>평가위원별 가능 일정을 수집합니다.
- * IT관리자가 후보 날짜/시간대를 설정하면, 각 위원이 PSB_YN으로 가능 여부를 응답합니다.
- * 전원 응답 완료 후 IT관리자가 최종 일정을 확정하여 BASCTM.CNRC_DT/TM/PLC에 반영합니다.</p>
+ * <p>평가위원별 가능 일정을 수집합니다. IT관리자가 후보 날짜/시간대를 설정하면, 각 위원이 PSB_YN으로 가능 여부를 응답합니다. 전원 응답 완료 후 IT관리자가 최종
+ * 일정을 확정하여 BASCTM.CNRC_DT/TM/PLC에 반영합니다.
  *
- * <p>허용 시간대: 10:00 / 14:00 / 15:00 / 16:00</p>
+ * <p>허용 시간대: 10:00 / 14:00 / 15:00 / 16:00
  *
- * <p>복합키: ({@code ASCT_ID}, {@code ENO}, {@code DSD_DT}, {@code DSD_TM})</p>
+ * <p>복합키: ({@code ASCT_ID}, {@code ENO}, {@code DSD_DT}, {@code DSD_TM})
  */
 @LogTarget(entity = BschdmL.class)
 @Entity
@@ -70,4 +69,3 @@ public class Bschdm extends BaseEntity {
         this.usePsbYn = usePsbYn;
     }
 }
-

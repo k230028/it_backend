@@ -1,5 +1,9 @@
 package com.kdb.it.common.board.service;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.*;
+
 import com.kdb.it.common.board.dto.BoardCommentDto;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.entity.Cblbmm;
@@ -11,7 +15,9 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
-import org.springframework.security.access.AccessDeniedException;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,23 +28,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-
-import java.lang.reflect.Field;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.*;
+import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class BoardCommentServiceTest {
 
-    @Mock BoardMetaRepository    metaRepository;
-    @Mock BoardPostRepository    postRepository;
+    @Mock BoardMetaRepository metaRepository;
+    @Mock BoardPostRepository postRepository;
     @Mock BoardCommentRepository commentRepository;
-    @Mock BoardPostService        postService;
-    @Mock UserRepository           userRepository;
+    @Mock BoardPostService postService;
+    @Mock UserRepository userRepository;
     @Mock ApplicationEventPublisher eventPublisher;
 
     @InjectMocks BoardCommentService service;
@@ -52,26 +51,37 @@ class BoardCommentServiceTest {
 
     @BeforeEach
     void setUp() {
-        boardWithComment = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0001").blbNm("자유게시판").itPtlBlbTc("002")
-            .repUseYn("N").cmmtUseYn("Y")
-            .useYn("Y").delYn("N")
-            .build();
+        boardWithComment =
+                Cblbmm.builder()
+                        .blbMngNo("BLBM-2026-0001")
+                        .blbNm("자유게시판")
+                        .itPtlBlbTc("002")
+                        .repUseYn("N")
+                        .cmmtUseYn("Y")
+                        .useYn("Y")
+                        .delYn("N")
+                        .build();
 
-        boardNoComment = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0002").blbNm("공지사항").itPtlBlbTc("001")
-            .repUseYn("N").cmmtUseYn("N")
-            .useYn("Y").delYn("N")
-            .build();
+        boardNoComment =
+                Cblbmm.builder()
+                        .blbMngNo("BLBM-2026-0002")
+                        .blbNm("공지사항")
+                        .itPtlBlbTc("001")
+                        .repUseYn("N")
+                        .cmmtUseYn("N")
+                        .useYn("Y")
+                        .delYn("N")
+                        .build();
 
-        post = Cblbcm.builder()
-            .nacMngNo("NAC-2026-0001")
-            .blbMngNo("BLBM-2026-0001")
-            .nacNm("테스트 게시물")
-            .delYn("N")
-            .build();
+        post =
+                Cblbcm.builder()
+                        .nacMngNo("NAC-2026-0001")
+                        .blbMngNo("BLBM-2026-0001")
+                        .nacNm("테스트 게시물")
+                        .delYn("N")
+                        .build();
 
-        normalUser = new CustomUserDetails("USER001",  List.of("ITPZZ001"), "10002");
+        normalUser = new CustomUserDetails("USER001", List.of("ITPZZ001"), "10002");
     }
 
     // ── 리플렉션 헬퍼 ──
@@ -98,26 +108,27 @@ class BoardCommentServiceTest {
     @DisplayName("댓글 미지원 게시판에 댓글을 등록하면 예외가 발생한다")
     void createComment_boardNoComment_throws() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0002", "N"))
-            .willReturn(Optional.of(boardNoComment));
+                .willReturn(Optional.of(boardNoComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
 
         var request = new BoardCommentDto.CreateRequest("테스트 댓글 내용");
 
-        assertThatThrownBy(() ->
-            service.createComment("BLBM-2026-0002", "NAC-2026-0001", request, normalUser)
-        )
-            .isInstanceOf(CustomGeneralException.class)
-            .hasMessageContaining("댓글 기능을 지원하지 않습니다");
+        assertThatThrownBy(
+                        () ->
+                                service.createComment(
+                                        "BLBM-2026-0002", "NAC-2026-0001", request, normalUser))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("댓글 기능을 지원하지 않습니다");
     }
 
     @Test
     @DisplayName("댓글 지원 게시판에 댓글을 등록하면 CMMT- 형식의 ID가 반환되고 루트 그룹 정보가 설정된다")
     void createComment_success() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(boardWithComment));
+                .willReturn(Optional.of(boardWithComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
         // verifyCanReadPost는 void 메서드 — 아무 동작 없이 통과
         willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
         given(commentRepository.getNextSequenceValue()).willReturn(1L);
@@ -140,12 +151,13 @@ class BoardCommentServiceTest {
     @DisplayName("명시 멘션이 유효한 사용자이면 댓글 등록 시 알림 이벤트를 발행한다")
     void createComment_유효멘션_알림발행() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(boardWithComment));
+                .willReturn(Optional.of(boardWithComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
         given(commentRepository.getNextSequenceValue()).willReturn(2L);
-        given(userRepository.findByEnoIn(anySet())).willReturn(List.of(
-            com.kdb.it.common.iam.entity.CuserI.builder().eno("E002").build()));
+        given(userRepository.findByEnoIn(anySet()))
+                .willReturn(
+                        List.of(com.kdb.it.common.iam.entity.CuserI.builder().eno("E002").build()));
 
         var request = new BoardCommentDto.CreateRequest("멘션 댓글", List.of("E002", "USER001", " "));
         service.createComment("BLBM-2026-0001", "NAC-2026-0001", request, normalUser);
@@ -157,9 +169,9 @@ class BoardCommentServiceTest {
     @DisplayName("존재하지 않는 멘션 사용자이면 댓글 등록 시 알림을 발행하지 않는다")
     void createComment_없는멘션_알림미발행() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(boardWithComment));
+                .willReturn(Optional.of(boardWithComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
         given(commentRepository.getNextSequenceValue()).willReturn(3L);
         given(userRepository.findByEnoIn(anySet())).willReturn(List.of());
 
@@ -177,15 +189,13 @@ class BoardCommentServiceTest {
         Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
 
-        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
-            .willReturn(Optional.of(comment));
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N")).willReturn(Optional.of(comment));
 
         var request = new BoardCommentDto.UpdateRequest("수정 내용");
 
         // normalUser(USER001)는 OTHER_USER가 작성한 댓글을 수정할 수 없다
-        assertThatThrownBy(() ->
-            service.updateComment(1L, request, normalUser)
-        ).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.updateComment(1L, request, normalUser))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
@@ -194,17 +204,15 @@ class BoardCommentServiceTest {
         Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
 
-        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
-            .willReturn(Optional.of(comment));
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N")).willReturn(Optional.of(comment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
 
         var request = new BoardCommentDto.UpdateRequest("수정된 댓글 내용");
 
         // 예외 없이 완료되어야 한다 (JPA Dirty Checking — 명시적 save() 없음)
-        assertThatCode(() ->
-            service.updateComment(1L, request, normalUser)
-        ).doesNotThrowAnyException();
+        assertThatCode(() -> service.updateComment(1L, request, normalUser))
+                .doesNotThrowAnyException();
 
         // 엔티티 본문이 수정되었는지 확인
         assertThat(comment.getCmmtCone()).isEqualTo("수정된 댓글 내용");
@@ -218,29 +226,31 @@ class BoardCommentServiceTest {
         Long parentId = 1L;
 
         // 부모 댓글 (루트, lev=0)
-        Ccmmtm parent = Ccmmtm.builder()
-            .cmmtMngNo(parentId)
-            .nacMngNo("NAC-2026-0001")
-            .cmmtCone("부모 댓글")
-            .cmmtGrpNo(parentId)
-            .cmmtGrpSqn(0)
-            .cmmtGrpLev(0)
-            .delYn("N")
-            .build();
+        Ccmmtm parent =
+                Ccmmtm.builder()
+                        .cmmtMngNo(parentId)
+                        .nacMngNo("NAC-2026-0001")
+                        .cmmtCone("부모 댓글")
+                        .cmmtGrpNo(parentId)
+                        .cmmtGrpSqn(0)
+                        .cmmtGrpLev(0)
+                        .delYn("N")
+                        .build();
 
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(boardWithComment));
+                .willReturn(Optional.of(boardWithComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
         given(commentRepository.findByCmmtMngNoAndDelYn(parentId, "N"))
-            .willReturn(Optional.of(parent));
+                .willReturn(Optional.of(parent));
         willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
         given(commentRepository.getNextSequenceValue()).willReturn(2L);
         given(commentRepository.save(any(Ccmmtm.class))).willAnswer(inv -> inv.getArgument(0));
 
         var request = new BoardCommentDto.CreateRequest("대댓글 내용");
-        Long result = service.createReply(
-            "BLBM-2026-0001", "NAC-2026-0001", parentId, request, normalUser);
+        Long result =
+                service.createReply(
+                        "BLBM-2026-0001", "NAC-2026-0001", parentId, request, normalUser);
 
         assertThat(result).isNotNull();
 
@@ -259,13 +269,11 @@ class BoardCommentServiceTest {
         Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
 
-        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
-            .willReturn(Optional.of(comment));
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N")).willReturn(Optional.of(comment));
 
         // normalUser(USER001)는 OTHER_USER의 댓글을 삭제할 수 없다
-        assertThatThrownBy(() ->
-            service.deleteComment(1L, normalUser)
-        ).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.deleteComment(1L, normalUser))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
@@ -274,13 +282,10 @@ class BoardCommentServiceTest {
         Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
 
-        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
-            .willReturn(Optional.of(comment));
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N")).willReturn(Optional.of(comment));
 
         // 예외 없이 완료되어야 한다 (JPA Dirty Checking — 명시적 save() 없음)
-        assertThatCode(() ->
-            service.deleteComment(1L, normalUser)
-        ).doesNotThrowAnyException();
+        assertThatCode(() -> service.deleteComment(1L, normalUser)).doesNotThrowAnyException();
 
         // Soft Delete: DEL_YN = 'Y' 로 변경되었는지 확인
         assertThat(comment.getDelYn()).isEqualTo("Y");
@@ -293,9 +298,9 @@ class BoardCommentServiceTest {
     void getComments_emptyList() {
         // Arrange
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(boardWithComment));
+                .willReturn(Optional.of(boardWithComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
         willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
         given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of());
 
@@ -314,9 +319,9 @@ class BoardCommentServiceTest {
         setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
 
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(boardWithComment));
+                .willReturn(Optional.of(boardWithComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
         willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
         given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of(comment));
 
@@ -336,9 +341,9 @@ class BoardCommentServiceTest {
         setFstEnrUsid(comment, "OTHER_USER");
 
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(boardWithComment));
+                .willReturn(Optional.of(boardWithComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
         willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
         given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of(comment));
 
@@ -360,9 +365,9 @@ class BoardCommentServiceTest {
         CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
 
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
-            .willReturn(Optional.of(boardWithComment));
+                .willReturn(Optional.of(boardWithComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
         willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
         given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of(comment));
 
@@ -385,17 +390,15 @@ class BoardCommentServiceTest {
 
         CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
 
-        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
-            .willReturn(Optional.of(comment));
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N")).willReturn(Optional.of(comment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
 
         var request = new BoardCommentDto.UpdateRequest("관리자 수정 내용");
 
         // Act & Assert — 관리자는 예외 없이 수정 가능
-        assertThatCode(() ->
-            service.updateComment(1L, request, adminUser)
-        ).doesNotThrowAnyException();
+        assertThatCode(() -> service.updateComment(1L, request, adminUser))
+                .doesNotThrowAnyException();
     }
 
     @Test
@@ -407,13 +410,10 @@ class BoardCommentServiceTest {
 
         CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
 
-        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
-            .willReturn(Optional.of(comment));
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N")).willReturn(Optional.of(comment));
 
         // Act & Assert — 관리자는 예외 없이 삭제 가능
-        assertThatCode(() ->
-            service.deleteComment(1L, adminUser)
-        ).doesNotThrowAnyException();
+        assertThatCode(() -> service.deleteComment(1L, adminUser)).doesNotThrowAnyException();
 
         assertThat(comment.getDelYn()).isEqualTo("Y");
     }
@@ -425,31 +425,37 @@ class BoardCommentServiceTest {
     void createReply_boardNoComment_throws() {
         // Arrange
         Long parentId = 1L;
-        Ccmmtm parent = Ccmmtm.builder()
-            .cmmtMngNo(parentId)
-            .nacMngNo("NAC-2026-0001")
-            .cmmtCone("부모 댓글")
-            .cmmtGrpNo(parentId)
-            .cmmtGrpSqn(0)
-            .cmmtGrpLev(0)
-            .delYn("N")
-            .build();
+        Ccmmtm parent =
+                Ccmmtm.builder()
+                        .cmmtMngNo(parentId)
+                        .nacMngNo("NAC-2026-0001")
+                        .cmmtCone("부모 댓글")
+                        .cmmtGrpNo(parentId)
+                        .cmmtGrpSqn(0)
+                        .cmmtGrpLev(0)
+                        .delYn("N")
+                        .build();
 
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0002", "N"))
-            .willReturn(Optional.of(boardNoComment));
+                .willReturn(Optional.of(boardNoComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
-            .willReturn(Optional.of(post));
+                .willReturn(Optional.of(post));
         given(commentRepository.findByCmmtMngNoAndDelYn(parentId, "N"))
-            .willReturn(Optional.of(parent));
+                .willReturn(Optional.of(parent));
 
         var request = new BoardCommentDto.CreateRequest("대댓글 내용");
 
         // Act & Assert
-        assertThatThrownBy(() ->
-            service.createReply("BLBM-2026-0002", "NAC-2026-0001", parentId, request, normalUser)
-        )
-            .isInstanceOf(CustomGeneralException.class)
-            .hasMessageContaining("댓글 기능을 지원하지 않습니다");
+        assertThatThrownBy(
+                        () ->
+                                service.createReply(
+                                        "BLBM-2026-0002",
+                                        "NAC-2026-0001",
+                                        parentId,
+                                        request,
+                                        normalUser))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("댓글 기능을 지원하지 않습니다");
     }
 
     // ── 내부 헬퍼 ──
@@ -462,13 +468,13 @@ class BoardCommentServiceTest {
      */
     private Ccmmtm buildComment(Long cmmtMngNo) {
         return Ccmmtm.builder()
-            .cmmtMngNo(cmmtMngNo)
-            .nacMngNo("NAC-2026-0001")
-            .cmmtCone("원본 댓글")
-            .cmmtGrpNo(cmmtMngNo)
-            .cmmtGrpSqn(0)
-            .cmmtGrpLev(0)
-            .delYn("N")
-            .build();
+                .cmmtMngNo(cmmtMngNo)
+                .nacMngNo("NAC-2026-0001")
+                .cmmtCone("원본 댓글")
+                .cmmtGrpNo(cmmtMngNo)
+                .cmmtGrpSqn(0)
+                .cmmtGrpLev(0)
+                .delYn("N")
+                .build();
     }
 }

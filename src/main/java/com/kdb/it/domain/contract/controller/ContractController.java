@@ -80,7 +80,8 @@ public class ContractController {
      */
     @Operation(summary = "입찰계약 신규 의뢰")
     @PostMapping
-    public ResponseEntity<String> create(@RequestBody @Valid ContractDto.CreateRequest req,
+    public ResponseEntity<String> create(
+            @RequestBody @Valid ContractDto.CreateRequest req,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(contractService.create(req, user));
     }
@@ -98,8 +99,10 @@ public class ContractController {
      */
     @Operation(summary = "입찰계약 마스터 수정(작성중)")
     @PutMapping("/{docNo}")
-    public ResponseEntity<Void> update(@PathVariable(name = "docNo") String docNo,
-            @RequestBody @Valid ContractDto.UpdateRequest req, @AuthenticationPrincipal CustomUserDetails user) {
+    public ResponseEntity<Void> update(
+            @PathVariable(name = "docNo") String docNo,
+            @RequestBody @Valid ContractDto.UpdateRequest req,
+            @AuthenticationPrincipal CustomUserDetails user) {
         contractService.update(docNo, req, user);
         return ResponseEntity.ok().build();
     }
@@ -116,7 +119,8 @@ public class ContractController {
      */
     @Operation(summary = "입찰계약 삭제(작성중)")
     @DeleteMapping("/{docNo}")
-    public ResponseEntity<Void> delete(@PathVariable(name = "docNo") String docNo,
+    public ResponseEntity<Void> delete(
+            @PathVariable(name = "docNo") String docNo,
             @AuthenticationPrincipal CustomUserDetails user) {
         contractService.delete(docNo, user);
         return ResponseEntity.noContent().build();
@@ -135,8 +139,10 @@ public class ContractController {
      */
     @Operation(summary = "입찰계약 상태 전이(제출/완료)")
     @PostMapping("/{docNo}/status")
-    public ResponseEntity<Void> changeStatus(@PathVariable(name = "docNo") String docNo,
-            @RequestBody @Valid ContractDto.StatusRequest req, @AuthenticationPrincipal CustomUserDetails user) {
+    public ResponseEntity<Void> changeStatus(
+            @PathVariable(name = "docNo") String docNo,
+            @RequestBody @Valid ContractDto.StatusRequest req,
+            @AuthenticationPrincipal CustomUserDetails user) {
         contractService.changeStatus(docNo, req, user);
         return ResponseEntity.ok().build();
     }
@@ -154,8 +160,10 @@ public class ContractController {
      */
     @Operation(summary = "계약 정보 입력(진행중)")
     @PutMapping("/{docNo}/contract")
-    public ResponseEntity<Void> saveContract(@PathVariable(name = "docNo") String docNo,
-            @RequestBody @Valid ContractDto.WorkRequest req, @AuthenticationPrincipal CustomUserDetails user) {
+    public ResponseEntity<Void> saveContract(
+            @PathVariable(name = "docNo") String docNo,
+            @RequestBody @Valid ContractDto.WorkRequest req,
+            @AuthenticationPrincipal CustomUserDetails user) {
         contractService.saveContract(docNo, req, user);
         return ResponseEntity.ok().build();
     }

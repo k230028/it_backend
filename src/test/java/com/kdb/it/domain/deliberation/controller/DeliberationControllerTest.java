@@ -31,37 +31,35 @@ import org.springframework.test.web.servlet.MockMvc;
 /**
  * DeliberationController @WebMvcTest
  *
- * <p>과업심의위원회 HTTP 응답 구조와 인증 동작을 검증합니다.</p>
+ * <p>과업심의위원회 HTTP 응답 구조와 인증 동작을 검증합니다.
  *
- * <p>인증 설정: TestSecurityConfig(CSRF 비활성화, 비인증 401)를 임포트하고
- * @WithMockUser로 인증을 시뮬레이션합니다. EstimateControllerTest와 동일한 패턴.</p>
+ * <p>인증 설정: TestSecurityConfig(CSRF 비활성화, 비인증 401)를 임포트하고 @WithMockUser로 인증을 시뮬레이션합니다.
+ * EstimateControllerTest와 동일한 패턴.
  */
 @WebMvcTest(DeliberationController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class DeliberationControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private DeliberationService deliberationService;
+    @MockitoBean private DeliberationService deliberationService;
 
-    @MockitoBean
-    private JwtUtil jwtUtil;
+    @MockitoBean private JwtUtil jwtUtil;
 
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     @Test
     @DisplayName("POST /api/project/deliberations - 비인증 → 401")
     void create_비인증_401() throws Exception {
-        mockMvc.perform(post("/api/project/deliberations")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new DeliberationDto.CreateRequest("100", "PRJ-1", "요청"))))
+        mockMvc.perform(
+                        post("/api/project/deliberations")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new DeliberationDto.CreateRequest(
+                                                        "100", "PRJ-1", "요청"))))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -70,13 +68,23 @@ class DeliberationControllerTest {
     @DisplayName("GET /api/project/deliberations → 200 + 목록 반환")
     void list_returns200() throws Exception {
         given(deliberationService.list(any(), any(), any(), any()))
-                .willReturn(List.of(new DeliberationDto.ListItem(
-                        "DLB-2026-0001", 1, "100", "PRJ-1", "61", "01", "10001", null)));
+                .willReturn(
+                        List.of(
+                                new DeliberationDto.ListItem(
+                                        "DLB-2026-0001",
+                                        1,
+                                        "100",
+                                        "PRJ-1",
+                                        "61",
+                                        "01",
+                                        "10001",
+                                        null)));
 
-        mockMvc.perform(get("/api/project/deliberations")
-                        .param("status", "61")
-                        .param("prnTc", "100")
-                        .param("cncdRfrNo", "PRJ-1"))
+        mockMvc.perform(
+                        get("/api/project/deliberations")
+                                .param("status", "61")
+                                .param("prnTc", "100")
+                                .param("cncdRfrNo", "PRJ-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].docMngNo").value("DLB-2026-0001"));
     }
@@ -86,10 +94,25 @@ class DeliberationControllerTest {
     @DisplayName("GET /api/project/deliberations/{docNo} → 200 + 상세 반환")
     void get_returns200() throws Exception {
         given(deliberationService.get("DLB-2026-0001"))
-                .willReturn(new DeliberationDto.Detail(
-                        "DLB-2026-0001", 1, "100", "PRJ-1", "테스트사업",
-                        "61", "요청", "01", "01", "20260601", "1",
-                        "N", null, "의견", "전결사유", "10001", null));
+                .willReturn(
+                        new DeliberationDto.Detail(
+                                "DLB-2026-0001",
+                                1,
+                                "100",
+                                "PRJ-1",
+                                "테스트사업",
+                                "61",
+                                "요청",
+                                "01",
+                                "01",
+                                "20260601",
+                                "1",
+                                "N",
+                                null,
+                                "의견",
+                                "전결사유",
+                                "10001",
+                                null));
 
         mockMvc.perform(get("/api/project/deliberations/DLB-2026-0001"))
                 .andExpect(status().isOk())
@@ -103,10 +126,13 @@ class DeliberationControllerTest {
         given(deliberationService.create(any(DeliberationDto.CreateRequest.class), any()))
                 .willReturn("DLB-2026-0001");
 
-        mockMvc.perform(post("/api/project/deliberations")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new DeliberationDto.CreateRequest("100", "PRJ-1", "요청"))))
+        mockMvc.perform(
+                        post("/api/project/deliberations")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new DeliberationDto.CreateRequest(
+                                                        "100", "PRJ-1", "요청"))))
                 .andExpect(status().isCreated())
                 .andExpect(content().string("DLB-2026-0001"));
     }
@@ -115,10 +141,12 @@ class DeliberationControllerTest {
     @WithMockUser(username = "10001")
     @DisplayName("PUT /api/project/deliberations/{docNo} → 200")
     void update_returns200() throws Exception {
-        mockMvc.perform(put("/api/project/deliberations/DLB-2026-0001")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new DeliberationDto.UpdateRequest("수정"))))
+        mockMvc.perform(
+                        put("/api/project/deliberations/DLB-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new DeliberationDto.UpdateRequest("수정"))))
                 .andExpect(status().isOk());
     }
 
@@ -134,10 +162,12 @@ class DeliberationControllerTest {
     @WithMockUser(username = "10001")
     @DisplayName("POST /api/project/deliberations/{docNo}/status → 200")
     void changeStatus_returns200() throws Exception {
-        mockMvc.perform(post("/api/project/deliberations/DLB-2026-0001/status")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new DeliberationDto.StatusRequest("65"))))
+        mockMvc.perform(
+                        post("/api/project/deliberations/DLB-2026-0001/status")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new DeliberationDto.StatusRequest("65"))))
                 .andExpect(status().isOk());
     }
 
@@ -145,11 +175,20 @@ class DeliberationControllerTest {
     @WithMockUser(username = "10001")
     @DisplayName("PUT /api/project/deliberations/{docNo}/result → 200")
     void saveResult_returns200() throws Exception {
-        mockMvc.perform(put("/api/project/deliberations/DLB-2026-0001/result")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new DeliberationDto.ResultRequest(
-                                        "01", "01", "20260601", "1", "N", null, "의견", "전결사유"))))
+        mockMvc.perform(
+                        put("/api/project/deliberations/DLB-2026-0001/result")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new DeliberationDto.ResultRequest(
+                                                        "01",
+                                                        "01",
+                                                        "20260601",
+                                                        "1",
+                                                        "N",
+                                                        null,
+                                                        "의견",
+                                                        "전결사유"))))
                 .andExpect(status().isOk());
     }
 }

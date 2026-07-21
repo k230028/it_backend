@@ -1,8 +1,8 @@
 package com.kdb.it.domain.council.entity;
 
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BevalmL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -17,15 +17,13 @@ import lombok.experimental.SuperBuilder;
 /**
  * 평가위원 평가의견 엔티티
  *
- * <p>DB 테이블: {@code TPRMPP_BEVALM}</p>
+ * <p>DB 테이블: {@code TPRMPP_BEVALM}
  *
- * <p>협의회 당일 또는 이후 각 평가위원이 6개 점검항목에 대해
- * 점수(1~5)와 의견을 작성합니다.
- * 1~2점 입력 시 의견(CKG_OPNN) 작성이 필수입니다.</p>
+ * <p>협의회 당일 또는 이후 각 평가위원이 6개 점검항목에 대해 점수(1~5)와 의견을 작성합니다. 1~2점 입력 시 의견(CKG_OPNN) 작성이 필수입니다.
  *
- * <p>점검항목 코드는 공통코드(CCODEM CKG_ITM_C) 체계를 사용합니다.</p>
+ * <p>점검항목 코드는 공통코드(CCODEM CKG_ITM_C) 체계를 사용합니다.
  *
- * <p>복합키: ({@code ASCT_ID}, {@code ENO}, {@code CKG_ITM_C})</p>
+ * <p>복합키: ({@code ASCT_ID}, {@code ENO}, {@code CKG_ITM_C})
  */
 @LogTarget(entity = BevalmL.class)
 @Entity
@@ -71,4 +69,3 @@ public class Bevalm extends BaseEntity {
         this.ckgOpnn = ckgOpnn;
     }
 }
-

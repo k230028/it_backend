@@ -19,10 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 과업심의 서비스. 상태 61→65→69. 대상구분 100=사업/200=전산업무비.
- * 쓰기 주체: 작성중=신청자/부서, 진행중 결과입력=작업자. 상태 전이는 인접만 허용.
- */
+/** 과업심의 서비스. 상태 61→65→69. 대상구분 100=사업/200=전산업무비. 쓰기 주체: 작성중=신청자/부서, 진행중 결과입력=작업자. 상태 전이는 인접만 허용. */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -45,11 +42,11 @@ public class DeliberationService {
     /**
      * 과업심의 신규 신청 생성.
      *
-     * @param req  신규 신청 요청 (대상구분, 대상관리번호, 요청내용)
+     * @param req 신규 신청 요청 (대상구분, 대상관리번호, 요청내용)
      * @param user 요청자 인증 정보
      * @return 채번된 문서번호 (DLB-{YYYY}-{4자리})
      * @throws IllegalArgumentException 알 수 없는 대상구분 또는 대상 미존재
-     * @throws IllegalStateException    동일 대상에 진행 중(61/65) 문서 존재
+     * @throws IllegalStateException 동일 대상에 진행 중(61/65) 문서 존재
      */
     @Transactional
     public String create(DeliberationDto.CreateRequest req, CustomUserDetails user) {
@@ -58,11 +55,20 @@ public class DeliberationService {
                 req.ioeC(), req.cncdRfrNo(), List.of(STS_DRAFT, STS_IN_PROGRESS), "N")) {
             throw new IllegalStateException("해당 대상에 진행 중인 과업심의가 이미 있습니다.");
         }
-        String docNo = String.format("DLB-%d-%04d", Year.now().getValue(), deliberationRepository.nextDocSeq());
-        deliberationRepository.save(Bdelim.builder()
-                .docMngNo(docNo).docVrsSno(1).lstYn("Y")
-                .ioeC(req.ioeC()).cncdRfrNo(req.cncdRfrNo())
-                .stsTc(STS_DRAFT).reqCone(req.reqCone()).taskDbrOmtYn("N").build());
+        String docNo =
+                String.format(
+                        "DLB-%d-%04d", Year.now().getValue(), deliberationRepository.nextDocSeq());
+        deliberationRepository.save(
+                Bdelim.builder()
+                        .docMngNo(docNo)
+                        .docVrsSno(1)
+                        .lstYn("Y")
+                        .ioeC(req.ioeC())
+                        .cncdRfrNo(req.cncdRfrNo())
+                        .stsTc(STS_DRAFT)
+                        .reqCone(req.reqCone())
+                        .taskDbrOmtYn("N")
+                        .build());
         if (TGT_PROJECT.equals(req.ioeC())) {
             bprojaSyncService.upsert(req.cncdRfrNo(), docNo, STS_DRAFT);
         }
@@ -72,7 +78,7 @@ public class DeliberationService {
     /**
      * 대상 유효성 검증 — 대상구분에 따라 사업 또는 전산업무비 존재 여부 확인.
      *
-     * @param ioeC   예산성격구분코드(대상구분)
+     * @param ioeC 예산성격구분코드(대상구분)
      * @param cncdRfrNo 관련참조번호(대상관리번호)
      * @throws IllegalArgumentException 알 수 없는 대상구분이거나 대상이 존재하지 않는 경우
      */
@@ -92,15 +98,16 @@ public class DeliberationService {
      * 마스터 수정 — 작성중(61) 상태에서만 가능.
      *
      * @param docNo 문서관리번호
-     * @param req   수정 요청 (요청내용)
-     * @param user  요청자 인증 정보
+     * @param req 수정 요청 (요청내용)
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 작성중이 아닌 경우
      */
     @Transactional
     public void update(String docNo, DeliberationDto.UpdateRequest req, CustomUserDetails user) {
         Bdelim e = loadCurrent(docNo);
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
-        if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 수정할 수 있습니다.");
+        if (!STS_DRAFT.equals(e.getStsTc()))
+            throw new IllegalStateException("작성중 상태에서만 수정할 수 있습니다.");
         e.updateRequest(req.reqCone());
     }
 
@@ -108,14 +115,15 @@ public class DeliberationService {
      * Soft delete — 작성중(61) 상태에서만 가능.
      *
      * @param docNo 문서관리번호
-     * @param user  요청자 인증 정보
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 작성중이 아닌 경우
      */
     @Transactional
     public void delete(String docNo, CustomUserDetails user) {
         Bdelim e = loadCurrent(docNo);
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
-        if (!STS_DRAFT.equals(e.getStsTc())) throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
+        if (!STS_DRAFT.equals(e.getStsTc()))
+            throw new IllegalStateException("작성중 상태에서만 삭제할 수 있습니다.");
         e.delete();
         if (TGT_PROJECT.equals(e.getIoeC())) {
             bprojaSyncService.softDelete(e.getCncdRfrNo(), docNo);
@@ -126,17 +134,19 @@ public class DeliberationService {
      * 상태 전이 — 인접 전이만 허용: 61→65, 65→69.
      *
      * @param docNo 문서관리번호
-     * @param req   상태 전이 요청 (목표 상태코드)
-     * @param user  요청자 인증 정보
+     * @param req 상태 전이 요청 (목표 상태코드)
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 허용되지 않은 전이인 경우
      */
     @Transactional
-    public void changeStatus(String docNo, DeliberationDto.StatusRequest req, CustomUserDetails user) {
+    public void changeStatus(
+            String docNo, DeliberationDto.StatusRequest req, CustomUserDetails user) {
         Bdelim e = loadCurrent(docNo);
         OwnershipVerifier.verifyAdmin(user);
         String from = e.getStsTc(), to = req.stsTc();
-        boolean ok = (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
-                || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
+        boolean ok =
+                (STS_DRAFT.equals(from) && STS_IN_PROGRESS.equals(to))
+                        || (STS_IN_PROGRESS.equals(from) && STS_DONE.equals(to));
         if (!ok) throw new IllegalStateException("허용되지 않은 상태 전이입니다: " + from + " → " + to);
         e.changeStatus(to);
         if (TGT_PROJECT.equals(e.getIoeC())) {
@@ -149,18 +159,27 @@ public class DeliberationService {
      * 심의 결과 입력 — 진행중(65) 상태에서만 가능.
      *
      * @param docNo 문서관리번호
-     * @param req   결과 입력 요청 (심의구분, 결과구분, 심의일자 등)
-     * @param user  요청자 인증 정보
+     * @param req 결과 입력 요청 (심의구분, 결과구분, 심의일자 등)
+     * @param user 요청자 인증 정보
      * @throws IllegalStateException 진행중이 아닌 경우
      */
     @Transactional
-    public void saveResult(String docNo, DeliberationDto.ResultRequest req, CustomUserDetails user) {
+    public void saveResult(
+            String docNo, DeliberationDto.ResultRequest req, CustomUserDetails user) {
         Bdelim e = loadCurrent(docNo);
         OwnershipVerifier.verifyOwnerOrAdmin(e.getFstEnrUsid(), user);
-        if (!STS_IN_PROGRESS.equals(e.getStsTc())) throw new IllegalStateException("진행중 상태에서만 심의 결과를 입력할 수 있습니다.");
+        if (!STS_IN_PROGRESS.equals(e.getStsTc()))
+            throw new IllegalStateException("진행중 상태에서만 심의 결과를 입력할 수 있습니다.");
         String omt = req.taskDbrOmtYn() == null ? "N" : req.taskDbrOmtYn();
-        e.updateResult(req.taskDbrTc(), req.taskDbrRltTc(), req.taskDbrDt(), req.taskDbrTod(),
-                omt, req.taskDbrOmtRsn(), req.opnnCone(), req.apvTrdnRsnCone());
+        e.updateResult(
+                req.taskDbrTc(),
+                req.taskDbrRltTc(),
+                req.taskDbrDt(),
+                req.taskDbrTod(),
+                omt,
+                req.taskDbrOmtRsn(),
+                req.opnnCone(),
+                req.apvTrdnRsnCone());
     }
 
     /**
@@ -170,21 +189,25 @@ public class DeliberationService {
      * @return 상세 응답 DTO
      */
     public DeliberationDto.Detail get(String docNo) {
-        var row = deliberationRepository.findCurrentDetail(docNo)
-                .orElseThrow(() -> new IllegalArgumentException("과업심의 문서를 찾을 수 없습니다: " + docNo));
+        var row =
+                deliberationRepository
+                        .findCurrentDetail(docNo)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("과업심의 문서를 찾을 수 없습니다: " + docNo));
         return DeliberationDto.Detail.fromProjection(row);
     }
 
     /**
      * 목록 조회 — 관리자는 전체, 그 외는 소속 부서 한정.
      *
-     * @param stsTc     상태구분코드 필터 (null이면 전체)
-     * @param ioeC   대상구분코드 필터 (null이면 전체)
+     * @param stsTc 상태구분코드 필터 (null이면 전체)
+     * @param ioeC 대상구분코드 필터 (null이면 전체)
      * @param cncdRfrNo 대상관리번호 필터 (null이면 전체)
-     * @param user      요청자 인증 정보
+     * @param user 요청자 인증 정보
      * @return 목록 항목 리스트
      */
-    public List<DeliberationDto.ListItem> list(String stsTc, String ioeC, String cncdRfrNo, CustomUserDetails user) {
+    public List<DeliberationDto.ListItem> list(
+            String stsTc, String ioeC, String cncdRfrNo, CustomUserDetails user) {
         String bbrC = user.isAdmin() ? null : user.getBbrC();
         return deliberationRepository.search(stsTc, ioeC, cncdRfrNo, bbrC);
     }
@@ -197,23 +220,40 @@ public class DeliberationService {
      * @throws IllegalArgumentException 문서를 찾을 수 없는 경우
      */
     Bdelim loadCurrent(String docNo) {
-        return deliberationRepository.findByDocMngNoAndLstYnAndDelYn(docNo, "Y", "N")
+        return deliberationRepository
+                .findByDocMngNoAndLstYnAndDelYn(docNo, "Y", "N")
                 .orElseThrow(() -> new IllegalArgumentException("과업심의 문서를 찾을 수 없습니다: " + docNo));
     }
 
-    private void sendStatusEai(String domainName, String docNo, String from, String to, CustomUserDetails user) {
+    private void sendStatusEai(
+            String domainName, String docNo, String from, String to, CustomUserDetails user) {
         try {
-            EaiResult result = eaiService.sendEai(EaiRequest.gwe(gweProperties.ifId(), GwePayload.builder()
-                    .msgGubun("1")
-                    .recvIds(user.getEno())
-                    .subject("[IT Portal] " + domainName + " 상태 변경")
-                    .contents(domainName + " 문서 " + docNo + " 상태가 " + from + "에서 " + to + "로 변경되었습니다.")
-                    .sendId("systemalert")
-                    .sendName("IT Portal")
-                    .build()));
+            EaiResult result =
+                    eaiService.sendEai(
+                            EaiRequest.gwe(
+                                    gweProperties.ifId(),
+                                    GwePayload.builder()
+                                            .msgGubun("1")
+                                            .recvIds(user.getEno())
+                                            .subject("[IT Portal] " + domainName + " 상태 변경")
+                                            .contents(
+                                                    domainName
+                                                            + " 문서 "
+                                                            + docNo
+                                                            + " 상태가 "
+                                                            + from
+                                                            + "에서 "
+                                                            + to
+                                                            + "로 변경되었습니다.")
+                                            .sendId("systemalert")
+                                            .sendName("IT Portal")
+                                            .build()));
             if (!result.success() && !result.skipped()) {
-                log.warn("EAI 발송 실패 — 원 업무 처리는 유지합니다. domain={}, docNo={}, 사유={}",
-                        domainName, docNo, result.errorMessage());
+                log.warn(
+                        "EAI 발송 실패 — 원 업무 처리는 유지합니다. domain={}, docNo={}, 사유={}",
+                        domainName,
+                        docNo,
+                        result.errorMessage());
             }
         } catch (RuntimeException e) {
             log.warn("EAI 발송 실패 — 원 업무 처리는 유지합니다.", e);

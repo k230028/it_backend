@@ -2,24 +2,20 @@ package com.kdb.it.domain.budget.status.service;
 
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
 import com.kdb.it.domain.budget.status.repository.BudgetStatusQueryRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 /**
  * 예산 현황 서비스
  *
- * <p>
- * 3개 탭(정보화사업/전산업무비/경상사업)의 예산 현황 데이터를 제공합니다.
- * 피벗 집계 및 소계/합계/단가 계산은 QueryDSL 구현체에서 처리되며,
- * 서비스는 트랜잭션 관리와 리포지토리 호출을 담당합니다.
- * </p>
+ * <p>3개 탭(정보화사업/전산업무비/경상사업)의 예산 현황 데이터를 제공합니다. 피벗 집계 및 소계/합계/단가 계산은 QueryDSL 구현체에서 처리되며, 서비스는 트랜잭션
+ * 관리와 리포지토리 호출을 담당합니다. 조회 전용 트랜잭션에서 탭별 예산 현황 집계를 제공합니다.
  *
- * 조회 전용 트랜잭션에서 탭별 예산 현황 집계를 제공합니다.
- * <p>주의: 클래스 수준 @Transactional(readOnly=true) 적용 중.</p>
- * <p>향후 쓰기 메서드 추가 시 반드시 @Transactional 오버라이드 필요 (readOnly=false).</p>
+ * <p>주의: 클래스 수준 @Transactional(readOnly=true) 적용 중.
+ *
+ * <p>향후 쓰기 메서드 추가 시 반드시 @Transactional 오버라이드 필요 (readOnly=false).
  */
 @Service
 @RequiredArgsConstructor

@@ -7,9 +7,11 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.domain.budget.document.dto.GuideDocDto;
+import com.kdb.it.domain.budget.document.entity.Bgdocm;
+import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
 import java.util.List;
 import java.util.Optional;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,28 +21,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.kdb.it.domain.budget.document.dto.GuideDocDto;
-import com.kdb.it.domain.budget.document.entity.Bgdocm;
-import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
-
 /**
  * GuideDocService 단위 테스트
  *
- * <p>
- * 가이드 문서 서비스의 CRUD 메서드를 검증합니다.
- * Bgdocm 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
+ * <p>가이드 문서 서비스의 CRUD 메서드를 검증합니다. Bgdocm 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다. Oracle
+ * DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class GuideDocServiceTest {
 
-    @Mock
-    private GuideDocRepository guideDocRepository;
+    @Mock private GuideDocRepository guideDocRepository;
 
-    @InjectMocks
-    private GuideDocService guideDocService;
+    @InjectMocks private GuideDocService guideDocService;
 
     private Bgdocm mockDocument(String docMngNo, String docNm) {
         Bgdocm doc = mock(Bgdocm.class);
@@ -93,7 +86,8 @@ class GuideDocServiceTest {
     void getDocument_존재하는문서_DTO반환() {
         // given
         Bgdocm doc = mockDocument("GDOC-2026-0001", "가이드문서");
-        given(guideDocRepository.findByDocMngNoAndDelYn("GDOC-2026-0001", "N")).willReturn(Optional.of(doc));
+        given(guideDocRepository.findByDocMngNoAndDelYn("GDOC-2026-0001", "N"))
+                .willReturn(Optional.of(doc));
 
         // when
         GuideDocDto.Response result = guideDocService.getDocument("GDOC-2026-0001");
@@ -106,7 +100,8 @@ class GuideDocServiceTest {
     @DisplayName("getDocument: 존재하지 않는 문서관리번호이면 IllegalArgumentException을 던진다")
     void getDocument_존재하지않는문서_IllegalArgumentException발생() {
         // given
-        given(guideDocRepository.findByDocMngNoAndDelYn("INVALID", "N")).willReturn(Optional.empty());
+        given(guideDocRepository.findByDocMngNoAndDelYn("INVALID", "N"))
+                .willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> guideDocService.getDocument("INVALID"))
@@ -123,10 +118,11 @@ class GuideDocServiceTest {
     void createDocument_번호미입력_자동채번생성() {
         // given
         given(guideDocRepository.getNextSequenceValue()).willReturn(1L);
-        GuideDocDto.CreateRequest request = GuideDocDto.CreateRequest.builder()
-                .docTtlCone("가이드문서")
-                .nacTxtInf("<p>내용</p>")
-                .build();
+        GuideDocDto.CreateRequest request =
+                GuideDocDto.CreateRequest.builder()
+                        .docTtlCone("가이드문서")
+                        .nacTxtInf("<p>내용</p>")
+                        .build();
 
         // when
         String result = guideDocService.createDocument(request);
@@ -141,10 +137,11 @@ class GuideDocServiceTest {
     void createDocument_중복번호_IllegalArgumentException발생() {
         // given
         given(guideDocRepository.existsByDocMngNoAndDelYn("GDOC-2026-0001", "N")).willReturn(true);
-        GuideDocDto.CreateRequest request = GuideDocDto.CreateRequest.builder()
-                .docMngNo("GDOC-2026-0001")
-                .docTtlCone("가이드문서")
-                .build();
+        GuideDocDto.CreateRequest request =
+                GuideDocDto.CreateRequest.builder()
+                        .docMngNo("GDOC-2026-0001")
+                        .docTtlCone("가이드문서")
+                        .build();
 
         // when & then
         assertThatThrownBy(() -> guideDocService.createDocument(request))
@@ -160,10 +157,14 @@ class GuideDocServiceTest {
     @DisplayName("updateDocument: 존재하지 않는 문서관리번호이면 IllegalArgumentException을 던진다")
     void updateDocument_존재하지않는문서_IllegalArgumentException발생() {
         // given
-        given(guideDocRepository.findByDocMngNoAndDelYn("INVALID", "N")).willReturn(Optional.empty());
+        given(guideDocRepository.findByDocMngNoAndDelYn("INVALID", "N"))
+                .willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> guideDocService.updateDocument("INVALID", new GuideDocDto.UpdateRequest()))
+        assertThatThrownBy(
+                        () ->
+                                guideDocService.updateDocument(
+                                        "INVALID", new GuideDocDto.UpdateRequest()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("INVALID");
     }
@@ -176,7 +177,8 @@ class GuideDocServiceTest {
     @DisplayName("deleteDocument: 존재하지 않는 문서관리번호이면 IllegalArgumentException을 던진다")
     void deleteDocument_존재하지않는문서_IllegalArgumentException발생() {
         // given
-        given(guideDocRepository.findByDocMngNoAndDelYn("INVALID", "N")).willReturn(Optional.empty());
+        given(guideDocRepository.findByDocMngNoAndDelYn("INVALID", "N"))
+                .willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> guideDocService.deleteDocument("INVALID"))
@@ -189,7 +191,8 @@ class GuideDocServiceTest {
     void deleteDocument_존재하는문서_논리삭제수행() {
         // given
         Bgdocm doc = mockDocument("GDOC-2026-0001", "가이드문서");
-        given(guideDocRepository.findByDocMngNoAndDelYn("GDOC-2026-0001", "N")).willReturn(Optional.of(doc));
+        given(guideDocRepository.findByDocMngNoAndDelYn("GDOC-2026-0001", "N"))
+                .willReturn(Optional.of(doc));
 
         // when
         guideDocService.deleteDocument("GDOC-2026-0001");
@@ -206,10 +209,7 @@ class GuideDocServiceTest {
     @DisplayName("updateDocument: 존재하는 문서를 수정하면 문서관리번호를 반환한다")
     void updateDocument_존재하는문서_수정성공() {
         // given: 실제 Bgdocm 엔티티 사용 (update() 호출 후 필드 변경 검증)
-        Bgdocm doc = Bgdocm.builder()
-                .docMngNo("GDOC-2026-0001")
-                .docTtlCone("기존 가이드문서")
-                .build();
+        Bgdocm doc = Bgdocm.builder().docMngNo("GDOC-2026-0001").docTtlCone("기존 가이드문서").build();
         given(guideDocRepository.findByDocMngNoAndDelYn("GDOC-2026-0001", "N"))
                 .willReturn(Optional.of(doc));
 
@@ -247,12 +247,12 @@ class GuideDocServiceTest {
     @DisplayName("createDocument: 문서관리번호 직접 지정 시 중복 확인 후 저장한다")
     void createDocument_번호직접지정_저장성공() {
         // given: 지정한 번호가 존재하지 않음
-        given(guideDocRepository.existsByDocMngNoAndDelYn("GDOC-2026-9999", "N"))
-                .willReturn(false);
-        GuideDocDto.CreateRequest request = GuideDocDto.CreateRequest.builder()
-                .docMngNo("GDOC-2026-9999")
-                .docTtlCone("직접지정 가이드문서")
-                .build();
+        given(guideDocRepository.existsByDocMngNoAndDelYn("GDOC-2026-9999", "N")).willReturn(false);
+        GuideDocDto.CreateRequest request =
+                GuideDocDto.CreateRequest.builder()
+                        .docMngNo("GDOC-2026-9999")
+                        .docTtlCone("직접지정 가이드문서")
+                        .build();
 
         // when
         String result = guideDocService.createDocument(request);

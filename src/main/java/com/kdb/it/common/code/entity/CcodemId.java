@@ -1,15 +1,14 @@
 package com.kdb.it.common.code.entity;
 
+import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
-import java.io.Serializable;
-
 /**
  * 공통코드마스터(Ccodem) 엔티티의 복합 기본키 클래스
  *
- * <p>JPA의 {@code @IdClass} 방식으로 {@link Ccodem} 엔티티의 복합키(CO_C_ID_NM, CDVA_ID, STT_DT)를 정의합니다.</p>
+ * <p>JPA의 {@code @IdClass} 방식으로 {@link Ccodem} 엔티티의 복합키(CO_C_ID_NM, CDVA_ID, STT_DT)를 정의합니다.
  */
 @NoArgsConstructor
 @AllArgsConstructor

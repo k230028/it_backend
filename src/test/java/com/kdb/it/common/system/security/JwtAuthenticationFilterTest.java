@@ -9,13 +9,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import java.util.List;
-
+import com.kdb.it.common.util.CookieUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,38 +30,30 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.kdb.it.common.util.CookieUtil;
-
 /**
  * JwtAuthenticationFilter 단위 테스트
  *
- * <p>
- * JWT 토큰 추출(쿠키/Authorization 헤더)·용도 검증·SecurityContext 설정 흐름을 검증합니다.
- * HttpServletRequest·HttpServletResponse·FilterChain은 Mockito.mock()으로 대체합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
- * <p>커버리지 60% 달성을 위해 추가 (2026-04-29)</p>
- * <p>
- * SEC-04: 필터는 Access 용도 allowlist 오버로드
- * {@code jwtUtil.validateToken(jwt, JwtUtil.TOKEN_USE_ACCESS, true)}만 호출합니다.
- * {@code access} 또는 클레임 없는 레거시 토큰만 인증되고 {@code refresh}·unknown 용도는 거부됩니다.
- * 쿠키·Bearer 두 경로가 동일한 오버로드를 사용하므로 스텁은 3-인자 형태로 통일합니다 (기존 단일 인자 스텁 마이그레이션 완료).
- * </p>
- * <p>
- * Authorization Bearer 헤더 폴백은 {@code app.auth.allow-bearer-header}로 게이트됩니다
- * (운영 기본 false, dev/swagger만 true). 헤더 폴백을 검증하는 테스트는
- * {@link ReflectionTestUtils}로 {@code allowBearerHeader}=true를 설정합니다 (TASK 보안 #1).
- * </p>
+ * <p>JWT 토큰 추출(쿠키/Authorization 헤더)·용도 검증·SecurityContext 설정 흐름을 검증합니다.
+ * HttpServletRequest·HttpServletResponse·FilterChain은 Mockito.mock()으로 대체합니다. Oracle DB 없이 실행됩니다.
+ *
+ * <p>커버리지 60% 달성을 위해 추가 (2026-04-29)
+ *
+ * <p>SEC-04: 필터는 Access 용도 allowlist 오버로드 {@code jwtUtil.validateToken(jwt,
+ * JwtUtil.TOKEN_USE_ACCESS, true)}만 호출합니다. {@code access} 또는 클레임 없는 레거시 토큰만 인증되고 {@code
+ * refresh}·unknown 용도는 거부됩니다. 쿠키·Bearer 두 경로가 동일한 오버로드를 사용하므로 스텁은 3-인자 형태로 통일합니다 (기존 단일 인자 스텁
+ * 마이그레이션 완료).
+ *
+ * <p>Authorization Bearer 헤더 폴백은 {@code app.auth.allow-bearer-header}로 게이트됩니다 (운영 기본 false,
+ * dev/swagger만 true). 헤더 폴백을 검증하는 테스트는 {@link ReflectionTestUtils}로 {@code allowBearerHeader}=true를
+ * 설정합니다 (TASK 보안 #1).
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class JwtAuthenticationFilterTest {
 
-    @Mock
-    private JwtUtil jwtUtil;
+    @Mock private JwtUtil jwtUtil;
 
-    @InjectMocks
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @InjectMocks private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     /** 각 테스트 기본값: 헤더 폴백 비활성(운영 기본). 헤더 검증 테스트에서만 true로 오버라이드. */
     @BeforeEach
@@ -84,7 +75,7 @@ class JwtAuthenticationFilterTest {
     private HttpServletRequest cookieRequest(String tokenValue) {
         HttpServletRequest request = mock(HttpServletRequest.class);
         Cookie accessCookie = new Cookie(CookieUtil.ACCESS_TOKEN_COOKIE, tokenValue);
-        given(request.getCookies()).willReturn(new Cookie[]{accessCookie});
+        given(request.getCookies()).willReturn(new Cookie[] {accessCookie});
         given(request.getRequestURI()).willReturn("/api/test");
         return request;
     }
@@ -237,7 +228,8 @@ class JwtAuthenticationFilterTest {
         // then: 헤더 폴백 비활성이므로 토큰이 추출되지 않아 용도 검증이 호출되지 않는다
         verify(jwtUtil, never()).validateToken(anyString(), anyString(), anyBoolean());
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-        verify(filterChain).doFilter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        verify(filterChain)
+                .doFilter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     // ───────────────────────────────────────────────────────
@@ -294,7 +286,8 @@ class JwtAuthenticationFilterTest {
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("doFilterInternal: 헤더 폴백 허용(true) + accessToken 쿠키 없음 + 다른 쿠키만이면 Authorization 헤더로 폴백한다")
+    @DisplayName(
+            "doFilterInternal: 헤더 폴백 허용(true) + accessToken 쿠키 없음 + 다른 쿠키만이면 Authorization 헤더로 폴백한다")
     void doFilterInternal_다른이름쿠키_Authorization헤더폴백() throws Exception {
         // given
         ReflectionTestUtils.setField(jwtAuthenticationFilter, "allowBearerHeader", true);
@@ -304,7 +297,7 @@ class JwtAuthenticationFilterTest {
 
         // accessToken이 아닌 다른 쿠키
         Cookie otherCookie = new Cookie("sessionId", "some-session");
-        given(request.getCookies()).willReturn(new Cookie[]{otherCookie});
+        given(request.getCookies()).willReturn(new Cookie[] {otherCookie});
         given(request.getHeader("Authorization")).willReturn(null);
 
         // when
@@ -325,12 +318,14 @@ class JwtAuthenticationFilterTest {
         ReflectionTestUtils.setField(jwtAuthenticationFilter, "allowBearerHeader", true);
         MockHttpServletRequest req = new MockHttpServletRequest();
         req.addHeader("Authorization", "Bearer some.jwt.token");
-        given(jwtUtil.validateToken("some.jwt.token", JwtUtil.TOKEN_USE_ACCESS, true)).willReturn(false);
+        given(jwtUtil.validateToken("some.jwt.token", JwtUtil.TOKEN_USE_ACCESS, true))
+                .willReturn(false);
         FilterChain chain = mock(FilterChain.class);
 
         jwtAuthenticationFilter.doFilter(req, new MockHttpServletResponse(), chain);
 
         verify(jwtUtil, times(1)).validateToken("some.jwt.token", JwtUtil.TOKEN_USE_ACCESS, true);
-        verify(chain).doFilter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        verify(chain)
+                .doFilter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 }

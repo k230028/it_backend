@@ -12,22 +12,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import java.util.List;
-import java.util.Optional;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import jakarta.persistence.EntityManager;
-
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
@@ -37,38 +21,42 @@ import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bevalm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
+import jakarta.persistence.EntityManager;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * EvaluationService 단위 테스트
  *
- * <p>
- * 평가의견 서비스의 저장(upsert)·조회·상태 전이 메서드를 검증합니다.
- * Bevalm·Basctm 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * CouncilService·EvaluationRepository·UserRepository는 @Mock으로 교체합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
+ * <p>평가의견 서비스의 저장(upsert)·조회·상태 전이 메서드를 검증합니다. Bevalm·Basctm 엔티티는 protected 생성자를 우회하기 위해
+ * Mockito.mock()으로 생성합니다. CouncilService·EvaluationRepository·UserRepository는 @Mock으로 교체합니다. Oracle
+ * DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class EvaluationServiceTest {
 
-    @Mock
-    private EvaluationRepository evaluationRepository;
+    @Mock private EvaluationRepository evaluationRepository;
 
-    @Mock
-    private CommitteeRepository committeeRepository;
+    @Mock private CommitteeRepository committeeRepository;
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private CouncilService councilService;
+    @Mock private CouncilService councilService;
 
-    @Mock
-    private EntityManager entityManager;
+    @Mock private EntityManager entityManager;
 
-    @InjectMocks
-    private EvaluationService evaluationService;
+    @InjectMocks private EvaluationService evaluationService;
 
     @BeforeEach
     void setUp() {
@@ -102,11 +90,10 @@ class EvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
-        CouncilDto.EvaluationRequest request = new CouncilDto.EvaluationRequest(
-                List.of(item("01", 1, null)));
+        CouncilDto.EvaluationRequest request =
+                new CouncilDto.EvaluationRequest(List.of(item("01", 1, null)));
 
-        assertThatThrownBy(() -> evaluationService.saveEvaluation(
-                ASCT_ID, request, mockUser(ENO)))
+        assertThatThrownBy(() -> evaluationService.saveEvaluation(ASCT_ID, request, mockUser(ENO)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("필수");
     }
@@ -121,7 +108,8 @@ class EvaluationServiceTest {
                 .willReturn(List.of());
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
-        evaluationService.saveEvaluation(ASCT_ID,
+        evaluationService.saveEvaluation(
+                ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("01", 3, null))),
                 mockUser(ENO));
 
@@ -145,7 +133,8 @@ class EvaluationServiceTest {
         given(evaluationRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
                 .willReturn(List.of(existing));
 
-        evaluationService.saveEvaluation(ASCT_ID,
+        evaluationService.saveEvaluation(
+                ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("02", 4, "좋음"))),
                 mockUser(ENO));
 
@@ -163,7 +152,8 @@ class EvaluationServiceTest {
                 .willReturn(List.of());
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
-        evaluationService.saveEvaluation(ASCT_ID,
+        evaluationService.saveEvaluation(
+                ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("03", 5, null))),
                 mockUser(ENO));
 
@@ -180,11 +170,14 @@ class EvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctPrgStsTc()).willReturn("07");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(evaluationRepository.findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(ASCT_ID, ENO, "06", "N"))
+        given(
+                        evaluationRepository.findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(
+                                ASCT_ID, ENO, "06", "N"))
                 .willReturn(Optional.empty());
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
-        evaluationService.saveEvaluation(ASCT_ID,
+        evaluationService.saveEvaluation(
+                ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("06", 5, null))),
                 mockUser(ENO));
 
@@ -197,11 +190,14 @@ class EvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctPrgStsTc()).willReturn("08");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(evaluationRepository.findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(ASCT_ID, ENO, "06", "N"))
+        given(
+                        evaluationRepository.findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(
+                                ASCT_ID, ENO, "06", "N"))
                 .willReturn(Optional.empty());
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
-        evaluationService.saveEvaluation(ASCT_ID,
+        evaluationService.saveEvaluation(
+                ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("06", 5, null))),
                 mockUser(ENO));
 
@@ -249,13 +245,13 @@ class EvaluationServiceTest {
         given(eval.getItPtlCkgItmTc()).willReturn("01");
         given(eval.getQuelRcrd()).willReturn(4);
         given(eval.getCkgOpnn()).willReturn("좋음");
-        given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
+        given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(eval));
 
         given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
         given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N")).willReturn(List.of());
 
-        CouncilDto.EvaluationSummaryResponse result =
-                evaluationService.getAllEvaluations(ASCT_ID);
+        CouncilDto.EvaluationSummaryResponse result = evaluationService.getAllEvaluations(ASCT_ID);
 
         assertThat(result).isNotNull();
         assertThat(result.evaluations()).hasSize(1);
@@ -273,7 +269,8 @@ class EvaluationServiceTest {
         given(eval.getItPtlCkgItmTc()).willReturn("01");
         given(eval.getQuelRcrd()).willReturn(4);
         given(eval.getCkgOpnn()).willReturn("좋음");
-        given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
+        given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(eval));
         given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
         given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N")).willReturn(List.of());
 
@@ -292,12 +289,11 @@ class EvaluationServiceTest {
     @DisplayName("buildAvgScores: 항목별 평균점수 DTO를 반환한다")
     void buildAvgScores_평균점수반환() {
         // native Object[]를 fromRow로 봉인한 DTO 경로(findAvgRowsByItem)를 stub해 변환 의미를 그대로 검증
-        EvaluationItemAvgRow row = EvaluationItemAvgRow.fromRow(new Object[]{"01", 4.0});
+        EvaluationItemAvgRow row = EvaluationItemAvgRow.fromRow(new Object[] {"01", 4.0});
         given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N"))
                 .willReturn(java.util.Collections.singletonList(row));
 
-        List<CouncilDto.CheckItemAvgScore> result =
-                evaluationService.buildAvgScores(ASCT_ID);
+        List<CouncilDto.CheckItemAvgScore> result = evaluationService.buildAvgScores(ASCT_ID);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).ckgItmC()).isEqualTo("01");
@@ -310,10 +306,13 @@ class EvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
-        assertThatThrownBy(() -> evaluationService.saveEvaluation(
-                ASCT_ID,
-                new CouncilDto.EvaluationRequest(List.of(item("UNKNOWN", 2, "   "))),
-                mockUser(ENO)))
+        assertThatThrownBy(
+                        () ->
+                                evaluationService.saveEvaluation(
+                                        ASCT_ID,
+                                        new CouncilDto.EvaluationRequest(
+                                                List.of(item("UNKNOWN", 2, "   "))),
+                                        mockUser(ENO)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("UNKNOWN");
     }
@@ -324,18 +323,27 @@ class EvaluationServiceTest {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctPrgStsTc()).willReturn("08");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
-        given(evaluationRepository.findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(ASCT_ID, ENO, "06", "N"))
+        given(
+                        evaluationRepository.findByItPtlAsctIdAndEnoAndItPtlCkgItmTcAndDelYn(
+                                ASCT_ID, ENO, "06", "N"))
                 .willReturn(Optional.empty());
 
         Bcmmtm member = mock(Bcmmtm.class);
         given(member.getEno()).willReturn(ENO);
-        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
-        List<Bevalm> submitted = List.of(
-                evalOf("01"), evalOf("02"), evalOf("03"),
-                evalOf("04"), evalOf("05"), evalOf("06"));
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(member));
+        List<Bevalm> submitted =
+                List.of(
+                        evalOf("01"),
+                        evalOf("02"),
+                        evalOf("03"),
+                        evalOf("04"),
+                        evalOf("05"),
+                        evalOf("06"));
         given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(submitted);
 
-        evaluationService.saveEvaluation(ASCT_ID,
+        evaluationService.saveEvaluation(
+                ASCT_ID,
                 new CouncilDto.EvaluationRequest(List.of(item("06", 5, null))),
                 mockUser(ENO));
 
@@ -351,14 +359,16 @@ class EvaluationServiceTest {
         given(eval.getEno()).willReturn(ENO);
         given(eval.getItPtlCkgItmTc()).willReturn("UNKNOWN");
         given(eval.getQuelRcrd()).willReturn(3);
-        given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
+        given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(eval));
         UserRepository.UserNameView user = mock(UserRepository.UserNameView.class);
         given(user.getEno()).willReturn(ENO);
         given(user.getUsrNm()).willReturn("홍길동");
         given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of(user));
         given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N"))
-                .willReturn(java.util.Collections.singletonList(
-                        EvaluationItemAvgRow.fromRow(new Object[]{"UNKNOWN", 2.5})));
+                .willReturn(
+                        java.util.Collections.singletonList(
+                                EvaluationItemAvgRow.fromRow(new Object[] {"UNKNOWN", 2.5})));
 
         CouncilDto.EvaluationSummaryResponse result = evaluationService.getAllEvaluations(ASCT_ID);
 

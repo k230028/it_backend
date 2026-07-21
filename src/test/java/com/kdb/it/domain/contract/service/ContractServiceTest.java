@@ -14,8 +14,8 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.contract.dto.ContractDto;
 import com.kdb.it.domain.contract.entity.Bcontm;
-import com.kdb.it.domain.contract.repository.ContractRepository;
 import com.kdb.it.domain.contract.repository.ContractDetailRow;
+import com.kdb.it.domain.contract.repository.ContractRepository;
 import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
@@ -59,22 +59,45 @@ class ContractServiceTest {
     /** 공통 테스트용 Bcontm 빌더 헬퍼. 최초등록자(소유자)는 requester()와 동일한 E0001. */
     Bcontm entityWith(String stsTc, String ioeC, String cncdRfrNo) {
         return Bcontm.builder()
-                .docMngNo("CTR-2026-0001").docVrsSno(1).lstYn("Y")
-                .ioeC(ioeC).cncdRfrNo(cncdRfrNo).stsTc(stsTc)
-                .fstEnrUsid("E0001").build();
+                .docMngNo("CTR-2026-0001")
+                .docVrsSno(1)
+                .lstYn("Y")
+                .ioeC(ioeC)
+                .cncdRfrNo(cncdRfrNo)
+                .stsTc(stsTc)
+                .fstEnrUsid("E0001")
+                .build();
     }
 
     ContractDetailRow detailRow(Bcontm e, String targetName) {
         return new ContractDetailRow(
-                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), targetName,
-                e.getStsTc(), e.getReqCone(), e.getItPtlCttManrC(), e.getCttManrRsn(), e.getCttNm(),
-                e.getCttAmt(), e.getCttOppNm(), e.getCttDt(), e.getFstEnrUsid(), e.getFstEnrDtm());
+                e.getDocMngNo(),
+                e.getDocVrsSno(),
+                e.getIoeC(),
+                e.getCncdRfrNo(),
+                targetName,
+                e.getStsTc(),
+                e.getReqCone(),
+                e.getItPtlCttManrC(),
+                e.getCttManrRsn(),
+                e.getCttNm(),
+                e.getCttAmt(),
+                e.getCttOppNm(),
+                e.getCttDt(),
+                e.getFstEnrUsid(),
+                e.getFstEnrDtm());
     }
 
     @BeforeEach
     void setUp() {
-        service = new ContractService(contractRepository, projectRepository, costRepository, bprojaSyncService,
-                eaiService, new GweProperties("TEST00000001"));
+        service =
+                new ContractService(
+                        contractRepository,
+                        projectRepository,
+                        costRepository,
+                        bprojaSyncService,
+                        eaiService,
+                        new GweProperties("TEST00000001"));
     }
 
     // =========================================================================
@@ -89,15 +112,18 @@ class ContractServiceTest {
         @DisplayName("사업 대상 신규 의뢰 생성 시 문서번호를 채번하고 상태 61, 대상구분 100으로 저장한다")
         void create_project_assignsDocNoAndStatus61() {
             // Arrange
-            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N")).thenReturn(true);
+            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N"))
+                    .thenReturn(true);
             when(contractRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
-                    anyString(), anyString(), any(), anyString())).thenReturn(false);
+                            anyString(), anyString(), any(), anyString()))
+                    .thenReturn(false);
             when(contractRepository.nextDocSeq()).thenReturn(1L);
             when(contractRepository.save(any(Bcontm.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // Act
-            String docNo = service.create(
-                    new ContractDto.CreateRequest("100", "PRJ-1", "입찰 의뢰합니다"), requester());
+            String docNo =
+                    service.create(
+                            new ContractDto.CreateRequest("100", "PRJ-1", "입찰 의뢰합니다"), requester());
 
             // Assert
             assertThat(docNo).matches("CTR-\\d{4}-0001");
@@ -107,15 +133,19 @@ class ContractServiceTest {
         @DisplayName("전산업무비 대상 신규 의뢰 생성 시 문서번호를 채번하고 상태 61, 대상구분 200으로 저장한다")
         void create_cost_assignsDocNoAndStatus61() {
             // Arrange
-            when(costRepository.existsByCostBgNoAndLstYnAndDelYn("BG-1", "Y", "N")).thenReturn(true);
+            when(costRepository.existsByCostBgNoAndLstYnAndDelYn("BG-1", "Y", "N"))
+                    .thenReturn(true);
             when(contractRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
-                    anyString(), anyString(), any(), anyString())).thenReturn(false);
+                            anyString(), anyString(), any(), anyString()))
+                    .thenReturn(false);
             when(contractRepository.nextDocSeq()).thenReturn(1L);
             when(contractRepository.save(any(Bcontm.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // Act
-            String docNo = service.create(
-                    new ContractDto.CreateRequest("200", "BG-1", "전산업무비 입찰 의뢰"), requester());
+            String docNo =
+                    service.create(
+                            new ContractDto.CreateRequest("200", "BG-1", "전산업무비 입찰 의뢰"),
+                            requester());
 
             // Assert
             assertThat(docNo).matches("CTR-\\d{4}-0001");
@@ -125,11 +155,15 @@ class ContractServiceTest {
         @DisplayName("대상 사업이 없으면 신규 의뢰를 거부한다")
         void create_rejectsWhenTargetProjectMissing() {
             // Arrange
-            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-X", "Y", "N")).thenReturn(false);
+            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-X", "Y", "N"))
+                    .thenReturn(false);
 
             // Act & Assert
-            assertThatThrownBy(() -> service.create(
-                    new ContractDto.CreateRequest("100", "PRJ-X", null), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.create(
+                                            new ContractDto.CreateRequest("100", "PRJ-X", null),
+                                            requester()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("대상");
         }
@@ -138,11 +172,15 @@ class ContractServiceTest {
         @DisplayName("전산업무비 대상이 없으면 신규 의뢰를 거부한다")
         void create_rejectsWhenTargetCostMissing() {
             // Arrange — 전산업무비 대상 미존재
-            when(costRepository.existsByCostBgNoAndLstYnAndDelYn("BG-X", "Y", "N")).thenReturn(false);
+            when(costRepository.existsByCostBgNoAndLstYnAndDelYn("BG-X", "Y", "N"))
+                    .thenReturn(false);
 
             // Act & Assert
-            assertThatThrownBy(() -> service.create(
-                    new ContractDto.CreateRequest("200", "BG-X", null), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.create(
+                                            new ContractDto.CreateRequest("200", "BG-X", null),
+                                            requester()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("대상");
         }
@@ -154,8 +192,11 @@ class ContractServiceTest {
             // validateTarget → IllegalArgumentException("알 수 없는 대상구분: ...")
 
             // Act & Assert
-            assertThatThrownBy(() -> service.create(
-                    new ContractDto.CreateRequest("999", "ANY-1", null), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.create(
+                                            new ContractDto.CreateRequest("999", "ANY-1", null),
+                                            requester()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("알 수 없는 대상구분");
         }
@@ -164,13 +205,18 @@ class ContractServiceTest {
         @DisplayName("동일 대상에 진행중 문서가 있으면 신규 의뢰를 거부한다")
         void create_rejectsDuplicate() {
             // Arrange
-            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N")).thenReturn(true);
+            when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N"))
+                    .thenReturn(true);
             when(contractRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
-                    anyString(), anyString(), any(), anyString())).thenReturn(true);
+                            anyString(), anyString(), any(), anyString()))
+                    .thenReturn(true);
 
             // Act & Assert
-            assertThatThrownBy(() -> service.create(
-                    new ContractDto.CreateRequest("100", "PRJ-1", null), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.create(
+                                            new ContractDto.CreateRequest("100", "PRJ-1", null),
+                                            requester()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("진행 중");
         }
@@ -208,8 +254,12 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.update(
-                    "CTR-2026-0001", new ContractDto.UpdateRequest("수정 내용"), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.update(
+                                            "CTR-2026-0001",
+                                            new ContractDto.UpdateRequest("수정 내용"),
+                                            requester()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("작성중");
         }
@@ -223,8 +273,12 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.update(
-                    "CTR-2026-0001", new ContractDto.UpdateRequest("변경 시도"), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.update(
+                                            "CTR-2026-0001",
+                                            new ContractDto.UpdateRequest("변경 시도"),
+                                            requester()))
                     .isInstanceOf(IllegalStateException.class);
         }
     }
@@ -341,8 +395,12 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("75"), admin()))
+            assertThatThrownBy(
+                            () ->
+                                    service.changeStatus(
+                                            "CTR-2026-0001",
+                                            new ContractDto.StatusRequest("75"),
+                                            admin()))
                     .isInstanceOf(IllegalStateException.class);
         }
 
@@ -355,8 +413,12 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("79"), admin()))
+            assertThatThrownBy(
+                            () ->
+                                    service.changeStatus(
+                                            "CTR-2026-0001",
+                                            new ContractDto.StatusRequest("79"),
+                                            admin()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
         }
@@ -370,8 +432,12 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("71"), admin()))
+            assertThatThrownBy(
+                            () ->
+                                    service.changeStatus(
+                                            "CTR-2026-0001",
+                                            new ContractDto.StatusRequest("71"),
+                                            admin()))
                     .isInstanceOf(IllegalStateException.class);
         }
     }
@@ -393,10 +459,18 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.saveContract(
-                    "CTR-2026-0001",
-                    new ContractDto.WorkRequest("01", "수의계약 사유", "계약A", new BigDecimal("1000"), "상대처A", "20260601"),
-                    requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.saveContract(
+                                            "CTR-2026-0001",
+                                            new ContractDto.WorkRequest(
+                                                    "01",
+                                                    "수의계약 사유",
+                                                    "계약A",
+                                                    new BigDecimal("1000"),
+                                                    "상대처A",
+                                                    "20260601"),
+                                            requester()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("진행중");
         }
@@ -410,10 +484,18 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.saveContract(
-                    "CTR-2026-0001",
-                    new ContractDto.WorkRequest("02", "사유", "계약B", BigDecimal.ZERO, "상대처B", "20260602"),
-                    requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.saveContract(
+                                            "CTR-2026-0001",
+                                            new ContractDto.WorkRequest(
+                                                    "02",
+                                                    "사유",
+                                                    "계약B",
+                                                    BigDecimal.ZERO,
+                                                    "상대처B",
+                                                    "20260602"),
+                                            requester()))
                     .isInstanceOf(IllegalStateException.class);
         }
 
@@ -428,7 +510,8 @@ class ContractServiceTest {
             // Act
             service.saveContract(
                     "CTR-2026-0001",
-                    new ContractDto.WorkRequest("01", "수의계약 사유", "계약A", new BigDecimal("1000"), "상대처A", "20260601"),
+                    new ContractDto.WorkRequest(
+                            "01", "수의계약 사유", "계약A", new BigDecimal("1000"), "상대처A", "20260601"),
                     requester());
 
             // Assert
@@ -458,8 +541,12 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.update(
-                    "CTR-2026-0001", new ContractDto.UpdateRequest("수정 시도"), other()))
+            assertThatThrownBy(
+                            () ->
+                                    service.update(
+                                            "CTR-2026-0001",
+                                            new ContractDto.UpdateRequest("수정 시도"),
+                                            other()))
                     .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -485,8 +572,12 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-2026-0001", new ContractDto.StatusRequest("75"), other()))
+            assertThatThrownBy(
+                            () ->
+                                    service.changeStatus(
+                                            "CTR-2026-0001",
+                                            new ContractDto.StatusRequest("75"),
+                                            other()))
                     .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -499,10 +590,18 @@ class ContractServiceTest {
                     .thenReturn(Optional.of(e));
 
             // Act & Assert
-            assertThatThrownBy(() -> service.saveContract(
-                    "CTR-2026-0001",
-                    new ContractDto.WorkRequest("01", "수의계약 사유", "계약A", new BigDecimal("1000"), "상대처A", "20260601"),
-                    other()))
+            assertThatThrownBy(
+                            () ->
+                                    service.saveContract(
+                                            "CTR-2026-0001",
+                                            new ContractDto.WorkRequest(
+                                                    "01",
+                                                    "수의계약 사유",
+                                                    "계약A",
+                                                    new BigDecimal("1000"),
+                                                    "상대처A",
+                                                    "20260601"),
+                                            other()))
                     .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -548,9 +647,12 @@ class ContractServiceTest {
             assertThat(detail.ioeC()).isEqualTo("100");
             // 단일 쿼리로 통합되어 마스터 조회·대상별 조회가 더 이상 호출되지 않음
             verify(contractRepository).findCurrentDetail("CTR-2026-0001");
-            verify(contractRepository, never()).findByDocMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
-            verify(projectRepository, never()).findByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
-            verify(costRepository, never()).findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+            verify(contractRepository, never())
+                    .findByDocMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+            verify(projectRepository, never())
+                    .findByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+            verify(costRepository, never())
+                    .findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
         }
 
         @Test
@@ -582,7 +684,8 @@ class ContractServiceTest {
             // Assert
             assertThat(detail.tgtNm()).isEqualTo("서버 유지보수");
             assertThat(detail.ioeC()).isEqualTo("200");
-            verify(costRepository, never()).findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
+            verify(costRepository, never())
+                    .findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
         }
 
         @Test
@@ -619,8 +722,7 @@ class ContractServiceTest {
         @DisplayName("문서가 없으면 조회 시 IllegalArgumentException이 발생한다")
         void get_notFound_throwsIllegalArgumentException() {
             // Arrange — 단일 쿼리 → Optional.empty() → throws
-            when(contractRepository.findCurrentDetail("CTR-NONE"))
-                    .thenReturn(Optional.empty());
+            when(contractRepository.findCurrentDetail("CTR-NONE")).thenReturn(Optional.empty());
 
             // Act & Assert
             assertThatThrownBy(() -> service.get("CTR-NONE"))
@@ -655,10 +757,10 @@ class ContractServiceTest {
         @DisplayName("일반 사용자는 소속 부서코드로 목록을 조회한다")
         void list_normalUser_usesBbrCFromToken() {
             // Arrange — 일반 사용자의 bbrC="18001"
-            ContractDto.ListItem item = new ContractDto.ListItem(
-                    "CTR-2026-0001", 1, "100", "PRJ-1", "71", null, null, "E0001", null);
-            when(contractRepository.search("71", "100", null, "18001"))
-                    .thenReturn(List.of(item));
+            ContractDto.ListItem item =
+                    new ContractDto.ListItem(
+                            "CTR-2026-0001", 1, "100", "PRJ-1", "71", null, null, "E0001", null);
+            when(contractRepository.search("71", "100", null, "18001")).thenReturn(List.of(item));
 
             // Act
             List<ContractDto.ListItem> result = service.list("71", "100", null, requester());
@@ -699,8 +801,12 @@ class ContractServiceTest {
                     .thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> service.update(
-                    "CTR-9999", new ContractDto.UpdateRequest("내용"), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.update(
+                                            "CTR-9999",
+                                            new ContractDto.UpdateRequest("내용"),
+                                            requester()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("입찰계약 문서를 찾을 수 없습니다: CTR-9999");
         }
@@ -726,8 +832,12 @@ class ContractServiceTest {
                     .thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> service.changeStatus(
-                    "CTR-7777", new ContractDto.StatusRequest("75"), requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.changeStatus(
+                                            "CTR-7777",
+                                            new ContractDto.StatusRequest("75"),
+                                            requester()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
 
@@ -739,10 +849,13 @@ class ContractServiceTest {
                     .thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> service.saveContract(
-                    "CTR-6666",
-                    new ContractDto.WorkRequest(null, null, null, null, null, null),
-                    requester()))
+            assertThatThrownBy(
+                            () ->
+                                    service.saveContract(
+                                            "CTR-6666",
+                                            new ContractDto.WorkRequest(
+                                                    null, null, null, null, null, null),
+                                            requester()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }

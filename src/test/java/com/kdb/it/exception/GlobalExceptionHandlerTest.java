@@ -2,26 +2,22 @@ package com.kdb.it.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpMethod;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
-
-import java.util.Map;
 
 /**
  * GlobalExceptionHandler 단위 테스트
  *
- * <p>
- * GlobalExceptionHandler 를 직접 인스턴스화하여 각 @ExceptionHandler 메서드가
- * 올바른 HTTP 상태코드와 JSON 오류 응답 본문(timestamp/status/message)을 반환하는지 검증합니다.
- * Spring 컨텍스트 없이 순수 단위 테스트로 동작합니다.
- * </p>
+ * <p>GlobalExceptionHandler 를 직접 인스턴스화하여 각 @ExceptionHandler 메서드가 올바른 HTTP 상태코드와 JSON 오류 응답
+ * 본문(timestamp/status/message)을 반환하는지 검증합니다. Spring 컨텍스트 없이 순수 단위 테스트로 동작합니다.
  */
 class GlobalExceptionHandlerTest {
 
@@ -87,10 +83,7 @@ class GlobalExceptionHandlerTest {
 
     // ---- 실패 케이스 ----
 
-    /**
-     * RuntimeException 발생 시 원본 메시지가 아닌 고정 오류 메시지를 반환해야 합니다.
-     * 인증 오류 등 내부 정보 노출을 방지하기 위한 설계입니다.
-     */
+    /** RuntimeException 발생 시 원본 메시지가 아닌 고정 오류 메시지를 반환해야 합니다. 인증 오류 등 내부 정보 노출을 방지하기 위한 설계입니다. */
     @Test
     @DisplayName("handleRuntimeException - 런타임 예외 발생 시 고정 메시지로 400 반환")
     void handleRuntimeException_런타임예외_고정메시지400반환() {
@@ -121,8 +114,8 @@ class GlobalExceptionHandlerTest {
     }
 
     /**
-     * CustomGeneralException 은 RuntimeException 하위 클래스이지만,
-     * 더 구체적인 핸들러가 우선 처리되어 원본 메시지를 그대로 반환해야 합니다.
+     * CustomGeneralException 은 RuntimeException 하위 클래스이지만, 더 구체적인 핸들러가 우선 처리되어 원본 메시지를 그대로 반환해야
+     * 합니다.
      */
     @Test
     @DisplayName("handleCustomGeneralException - RuntimeException 핸들러보다 우선 처리되어 원본 메시지 반환")
@@ -177,8 +170,9 @@ class GlobalExceptionHandlerTest {
     @DisplayName("handleResponseStatus - 지정 상태코드를 보존하여 반환")
     void handleResponseStatus_상태코드보존() {
         // Arrange
-        ResponseStatusException ex = new ResponseStatusException(
-                HttpStatus.INTERNAL_SERVER_ERROR, "계획 스냅샷 직렬화에 실패했습니다.");
+        ResponseStatusException ex =
+                new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "계획 스냅샷 직렬화에 실패했습니다.");
 
         // Act
         ResponseEntity<Map<String, Object>> response = handler.handleResponseStatus(ex);
@@ -191,15 +185,16 @@ class GlobalExceptionHandlerTest {
     }
 
     /**
-     * NoResourceFoundException(예: /favicon.ico)은 ERROR/500이 아니라 조용한 404로 처리되어야 합니다.
-     * 전용 핸들러가 없으면 포괄 Exception 핸들러(500, 스택트레이스)로 떨어져 로그를 오염시킵니다.
+     * NoResourceFoundException(예: /favicon.ico)은 ERROR/500이 아니라 조용한 404로 처리되어야 합니다. 전용 핸들러가 없으면 포괄
+     * Exception 핸들러(500, 스택트레이스)로 떨어져 로그를 오염시킵니다.
      */
     @Test
     @DisplayName("handleNoResourceFound - 정적 리소스 미존재 시 404 반환(서버 오류 아님)")
     void handleNoResourceFound_정적리소스미존재_404반환() {
         // Arrange
         NoResourceFoundException ex =
-                new NoResourceFoundException(HttpMethod.GET, "favicon.ico", "No static resource favicon.ico");
+                new NoResourceFoundException(
+                        HttpMethod.GET, "favicon.ico", "No static resource favicon.ico");
 
         // Act
         ResponseEntity<Map<String, Object>> response = handler.handleNoResourceFound(ex);
@@ -229,9 +224,8 @@ class GlobalExceptionHandlerTest {
     }
 
     /**
-     * InvalidRefreshTokenException 이 advice 까지 전파되면 401 Unauthorized 와
-     * 재로그인 안내 메시지를 반환해야 합니다. {@code /api/auth/refresh}는 컨트롤러 helper 에서
-     * 쿠키까지 삭제하지만, 쿠키를 다룰 수 없는 비-인증 컨트롤러를 위한 방어선입니다.
+     * InvalidRefreshTokenException 이 advice 까지 전파되면 401 Unauthorized 와 재로그인 안내 메시지를 반환해야 합니다.
+     * {@code /api/auth/refresh}는 컨트롤러 helper 에서 쿠키까지 삭제하지만, 쿠키를 다룰 수 없는 비-인증 컨트롤러를 위한 방어선입니다.
      */
     @Test
     @DisplayName("handleInvalidRefreshToken - 잘못된 Refresh 토큰 예외 시 401 + 재로그인 안내 반환")

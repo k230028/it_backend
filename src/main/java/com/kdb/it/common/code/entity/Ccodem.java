@@ -1,8 +1,8 @@
 package com.kdb.it.common.code.entity;
 
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.CcodemL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -17,9 +17,11 @@ import lombok.experimental.SuperBuilder;
 /**
  * 공통코드마스터 엔티티
  *
- * <p>DB 테이블: {@code TPRMPP_CCODEM} — PK: (CO_C_ID_NM, CDVA_ID, STT_DT)</p>
- * <p>Java 필드명은 기존 명칭을 유지하고 {@code @Column} 매핑만 신규 컬럼에 연결합니다.</p>
- * <p>시작·종료일자(sttDt/endDt)는 {@code VARCHAR2(8)} 'YYYYMMDD' 문자열입니다.</p>
+ * <p>DB 테이블: {@code TPRMPP_CCODEM} — PK: (CO_C_ID_NM, CDVA_ID, STT_DT)
+ *
+ * <p>Java 필드명은 기존 명칭을 유지하고 {@code @Column} 매핑만 신규 컬럼에 연결합니다.
+ *
+ * <p>시작·종료일자(sttDt/endDt)는 {@code VARCHAR2(8)} 'YYYYMMDD' 문자열입니다.
  */
 @LogTarget(entity = CcodemL.class)
 @Entity
@@ -89,48 +91,63 @@ public class Ccodem extends BaseEntity {
     /**
      * 공통코드 정보 업데이트
      *
-     * @param cNm      코드명
-     * @param cdvaDes  코드값설명
-     * @param cdvaDtl  코드값상세
-     * @param cTp      코드타입
-     * @param cTpDes   코드타입설명
-     * @param hrkC     상위코드
-     * @param cSqn     코드순서
-     * @param endDt    종료일자 (YYYYMMDD)
+     * @param cNm 코드명
+     * @param cdvaDes 코드값설명
+     * @param cdvaDtl 코드값상세
+     * @param cTp 코드타입
+     * @param cTpDes 코드타입설명
+     * @param hrkC 상위코드
+     * @param cSqn 코드순서
+     * @param endDt 종료일자 (YYYYMMDD)
      * @param cdvaDtlC 코드값상세코드
      */
-    public void update(String cNm, String cdvaDes, String cdvaDtl,
-                       String cTp, String cTpDes, String hrkC,
-                       Integer cSqn, String endDt, String cdvaDtlC) {
+    public void update(
+            String cNm,
+            String cdvaDes,
+            String cdvaDtl,
+            String cTp,
+            String cTpDes,
+            String hrkC,
+            Integer cSqn,
+            String endDt,
+            String cdvaDtlC) {
         update(cNm, cdvaDes, cdvaDtl, this.cdvaNm, cTp, cTpDes, hrkC, cSqn, endDt, cdvaDtlC);
     }
 
     /**
      * 공통코드 정보 업데이트
      *
-     * @param cNm      코드명
-     * @param cdvaDes  코드값설명
-     * @param cdvaDtl  코드값상세
-     * @param cdvaNm   코드값명
-     * @param cTp      코드타입
-     * @param cTpDes   코드타입설명
-     * @param hrkC     상위코드
-     * @param cSqn     코드순서
-     * @param endDt    종료일자 (YYYYMMDD)
+     * @param cNm 코드명
+     * @param cdvaDes 코드값설명
+     * @param cdvaDtl 코드값상세
+     * @param cdvaNm 코드값명
+     * @param cTp 코드타입
+     * @param cTpDes 코드타입설명
+     * @param hrkC 상위코드
+     * @param cSqn 코드순서
+     * @param endDt 종료일자 (YYYYMMDD)
      * @param cdvaDtlC 코드값상세코드
      */
-    public void update(String cNm, String cdvaDes, String cdvaDtl, String cdvaNm,
-                       String cTp, String cTpDes, String hrkC,
-                       Integer cSqn, String endDt, String cdvaDtlC) {
-        this.cNm      = cNm;
-        this.cdvaDes  = cdvaDes;
-        this.cdvaDtl  = cdvaDtl;
-        this.cdvaNm   = cdvaNm;
-        this.cTp      = cTp;
-        this.cTpDes   = cTpDes;
-        this.hrkC     = hrkC;
-        this.cSqn     = cSqn;
-        this.endDt    = endDt;
+    public void update(
+            String cNm,
+            String cdvaDes,
+            String cdvaDtl,
+            String cdvaNm,
+            String cTp,
+            String cTpDes,
+            String hrkC,
+            Integer cSqn,
+            String endDt,
+            String cdvaDtlC) {
+        this.cNm = cNm;
+        this.cdvaDes = cdvaDes;
+        this.cdvaDtl = cdvaDtl;
+        this.cdvaNm = cdvaNm;
+        this.cTp = cTp;
+        this.cTpDes = cTpDes;
+        this.hrkC = hrkC;
+        this.cSqn = cSqn;
+        this.endDt = endDt;
         this.cdvaDtlC = cdvaDtlC;
     }
 }

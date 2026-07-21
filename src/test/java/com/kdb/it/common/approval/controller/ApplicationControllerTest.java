@@ -9,8 +9,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.approval.dto.ApplicationDto;
+import com.kdb.it.common.approval.service.ApplicationService;
+import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.config.JacksonConfig;
+import com.kdb.it.config.TestSecurityConfig;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,40 +27,26 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.approval.dto.ApplicationDto;
-import com.kdb.it.common.approval.service.ApplicationService;
-import com.kdb.it.common.system.security.JwtUtil;
-import com.kdb.it.common.system.service.CustomUserDetailsService;
-import com.kdb.it.config.JacksonConfig;
-import com.kdb.it.config.TestSecurityConfig;
-
 /**
  * ApplicationController @WebMvcTest
  *
- * <p>전자결재 신청 HTTP 응답 구조와 인증 동작을 검증합니다.</p>
+ * <p>전자결재 신청 HTTP 응답 구조와 인증 동작을 검증합니다.
  */
 @WebMvcTest(ApplicationController.class)
-@Import({ TestSecurityConfig.class, JacksonConfig.class })
+@Import({TestSecurityConfig.class, JacksonConfig.class})
 class ApplicationControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private ApplicationService applicationService;
-    @MockitoBean
-    private JwtUtil jwtUtil;
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private ApplicationService applicationService;
+    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     @Test
     @DisplayName("GET /api/applications - 비인증 → 401")
     void getApplications_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/applications"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/applications")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -71,18 +63,18 @@ class ApplicationControllerTest {
     @DisplayName("GET /api/applications/pending-count - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void getPendingCount_인증_200() throws Exception {
-        given(applicationService.getPendingCount(null)).willReturn(ApplicationDto.PendingCountResponse.builder().build());
-        mockMvc.perform(get("/api/applications/pending-count"))
-                .andExpect(status().isOk());
+        given(applicationService.getPendingCount(null))
+                .willReturn(ApplicationDto.PendingCountResponse.builder().build());
+        mockMvc.perform(get("/api/applications/pending-count")).andExpect(status().isOk());
     }
 
     @Test
     @DisplayName("GET /api/applications/{apfMngNo} - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void getApplication_인증_200() throws Exception {
-        given(applicationService.getApplication("APF_20260001")).willReturn(ApplicationDto.Response.builder().build());
-        mockMvc.perform(get("/api/applications/APF_20260001"))
-                .andExpect(status().isOk());
+        given(applicationService.getApplication("APF_20260001"))
+                .willReturn(ApplicationDto.Response.builder().build());
+        mockMvc.perform(get("/api/applications/APF_20260001")).andExpect(status().isOk());
     }
 
     @Test
@@ -91,9 +83,12 @@ class ApplicationControllerTest {
     void bulkGet_인증_200() throws Exception {
         given(applicationService.getApplicationsByIds(any()))
                 .willReturn(new ApplicationDto.BulkResponse(List.of(), List.of()));
-        mockMvc.perform(post("/api/applications/bulk-get")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new ApplicationDto.BulkGetRequest())))
+        mockMvc.perform(
+                        post("/api/applications/bulk-get")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new ApplicationDto.BulkGetRequest())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
                 .andExpect(jsonPath("$.failedIds").isArray());
@@ -103,9 +98,12 @@ class ApplicationControllerTest {
     @DisplayName("POST /api/applications/{apfMngNo}/approve - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void approve_인증_200() throws Exception {
-        mockMvc.perform(post("/api/applications/APF_20260001/approve")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new ApplicationDto.ApproveRequest())))
+        mockMvc.perform(
+                        post("/api/applications/APF_20260001/approve")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new ApplicationDto.ApproveRequest())))
                 .andExpect(status().isOk());
     }
 
@@ -113,10 +111,14 @@ class ApplicationControllerTest {
     @DisplayName("POST /api/applications/bulk-approve - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void bulkApprove_인증_200() throws Exception {
-        given(applicationService.bulkApprove(any())).willReturn(ApplicationDto.BulkApproveResponse.builder().build());
-        mockMvc.perform(post("/api/applications/bulk-approve")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new ApplicationDto.BulkApproveRequest())))
+        given(applicationService.bulkApprove(any()))
+                .willReturn(ApplicationDto.BulkApproveResponse.builder().build());
+        mockMvc.perform(
+                        post("/api/applications/bulk-approve")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new ApplicationDto.BulkApproveRequest())))
                 .andExpect(status().isOk());
     }
 
@@ -126,9 +128,10 @@ class ApplicationControllerTest {
     void getDashboard_인증_200() throws Exception {
         given(applicationService.getDashboard(anyString(), anyString()))
                 .willReturn(new ApplicationDto.DashboardResponse());
-        mockMvc.perform(get("/api/applications/dashboard")
-                .param("bbrC", "IT001")
-                .param("eno", "E10001"))
+        mockMvc.perform(
+                        get("/api/applications/dashboard")
+                                .param("bbrC", "IT001")
+                                .param("eno", "E10001"))
                 .andExpect(status().isOk());
     }
 
@@ -138,9 +141,10 @@ class ApplicationControllerTest {
     void getApprovalBadge_인증_200() throws Exception {
         given(applicationService.getApprovalBadgeCount(anyString(), anyString()))
                 .willReturn(new ApplicationDto.ApprovalBadgeCountResponse());
-        mockMvc.perform(get("/api/applications/approval-badge")
-                .param("bbrC", "IT001")
-                .param("eno", "E10001"))
+        mockMvc.perform(
+                        get("/api/applications/approval-badge")
+                                .param("bbrC", "IT001")
+                                .param("eno", "E10001"))
                 .andExpect(status().isOk());
     }
 
@@ -172,9 +176,12 @@ class ApplicationControllerTest {
         given(applicationService.submit(any())).willReturn("APF_202600000001");
 
         // Act & Assert
-        mockMvc.perform(post("/api/applications")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new ApplicationDto.CreateRequest())))
+        mockMvc.perform(
+                        post("/api/applications")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new ApplicationDto.CreateRequest())))
                 .andExpect(status().isCreated())
                 .andExpect(header().exists("Location"));
     }
@@ -182,9 +189,10 @@ class ApplicationControllerTest {
     @Test
     @DisplayName("POST /api/applications - 비인증 → 401")
     void submit_비인증_401() throws Exception {
-        mockMvc.perform(post("/api/applications")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+        mockMvc.perform(
+                        post("/api/applications")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}"))
                 .andExpect(status().isUnauthorized());
     }
 }

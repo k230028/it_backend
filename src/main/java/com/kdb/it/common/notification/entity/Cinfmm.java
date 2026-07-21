@@ -5,26 +5,23 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDateTime;
-
 /**
  * 공통알림기본 엔티티 — {@code TPRMPP_CINFMM}
  *
- * <p>
- * 결재요청·결재결과·게시판 멘션·시스템 알림 등 사내 알림을 1행 = 1수신자 구조로 보관한다.
- * BaseEntity 상속으로 공통 컬럼(DEL_YN, GUID, FST_ENR_*, LST_CHG_*)을 자동 포함한다.
- * </p>
+ * <p>결재요청·결재결과·게시판 멘션·시스템 알림 등 사내 알림을 1행 = 1수신자 구조로 보관한다. BaseEntity 상속으로 공통 컬럼(DEL_YN, GUID,
+ * FST_ENR_*, LST_CHG_*)을 자동 포함한다.
  *
- * <p>채번 규칙: {@code INF-{YYYY}-{8자리 시퀀스}} (예: {@code INF-2026-00000001})</p>
+ * <p>채번 규칙: {@code INF-{YYYY}-{8자리 시퀀스}} (예: {@code INF-2026-00000001})
  *
- * <p>알림서비스구분({@code IT_PTL_INFM_SVC_TC})은 공통코드 {@code IT_PTL_INFM_SVC_TC} 2자리 값.
- * 발송구분({@code IT_PTL_SD_TC})은 공통코드 {@code IT_PTL_SD_TC} 2자리 값.</p>
+ * <p>알림서비스구분({@code IT_PTL_INFM_SVC_TC})은 공통코드 {@code IT_PTL_INFM_SVC_TC} 2자리 값. 발송구분({@code
+ * IT_PTL_SD_TC})은 공통코드 {@code IT_PTL_SD_TC} 2자리 값.
  */
 @Entity
 @Table(name = "TPRMPP_CINFMM", comment = "공통알림기본")
@@ -43,7 +40,10 @@ public class Cinfmm extends BaseEntity {
     @Column(name = "INFM_MSG_NO", length = 30, nullable = false, comment = "알림메시지번호")
     private String infmMsgNo;
 
-    /** 알림서비스구분코드 — 공통코드 {@code IT_PTL_INFM_SVC_TC} (01=시스템, 02=결재요청, 03=결재결과, 04=게시물멘션, 05=댓글멘션, 06=결재회수) */
+    /**
+     * 알림서비스구분코드 — 공통코드 {@code IT_PTL_INFM_SVC_TC} (01=시스템, 02=결재요청, 03=결재결과, 04=게시물멘션, 05=댓글멘션,
+     * 06=결재회수)
+     */
     @Column(name = "IT_PTL_INFM_SVC_TC", length = 2, comment = "IT포탈알림서비스구분코드")
     private String itPtlInfmSvcTc;
 
@@ -60,7 +60,11 @@ public class Cinfmm extends BaseEntity {
     private String infmRcdUrl;
 
     /** 수신자사원번호 (1행 = 1수신자) */
-    @Column(name = "RMS_ENO", length = 32, nullable = false, comment = "수신자사원번호 (물리컬럼 RMS_ENO=메타표준 수신사원번호)")
+    @Column(
+            name = "RMS_ENO",
+            length = 32,
+            nullable = false,
+            comment = "수신자사원번호 (물리컬럼 RMS_ENO=메타표준 수신사원번호)")
     private String rmsEno;
 
     /** 조회여부: 'N' 미조회(기본), 'Y' 조회(=읽음) */
@@ -109,8 +113,8 @@ public class Cinfmm extends BaseEntity {
     /**
      * 발송 완료 메타 기록.
      *
-     * @param itPtlSdTc     발송 채널 코드 (공통코드 SD; 01=인앱, 02=알림톡, 03=SMS, 04=이메일)
-     * @param payload  외부 발송 페이로드 (JSON 또는 null)
+     * @param itPtlSdTc 발송 채널 코드 (공통코드 SD; 01=인앱, 02=알림톡, 03=SMS, 04=이메일)
+     * @param payload 외부 발송 페이로드 (JSON 또는 null)
      */
     public void markDispatched(String itPtlSdTc, String payload) {
         markDispatchSent(itPtlSdTc, payload);
@@ -130,14 +134,14 @@ public class Cinfmm extends BaseEntity {
         this.infmSdStsC = DISPATCH_FAILED;
         this.reTryNot = (this.reTryNot == null ? 0 : this.reTryNot) + 1;
         this.sdDtm = LocalDateTime.now();
-        this.errCone = errorMessage == null
-                ? null
-                : errorMessage.substring(0, Math.min(100, errorMessage.length()));
+        this.errCone =
+                errorMessage == null
+                        ? null
+                        : errorMessage.substring(0, Math.min(100, errorMessage.length()));
     }
 
     /** 최대 시도 횟수에 도달하지 않은 미발송 알림인지 반환합니다. */
     public boolean canRetry(int maxAttempts) {
-        return !DISPATCH_SENT.equals(infmSdStsC)
-                && (reTryNot == null ? 0 : reTryNot) < maxAttempts;
+        return !DISPATCH_SENT.equals(infmSdStsC) && (reTryNot == null ? 0 : reTryNot) < maxAttempts;
     }
 }

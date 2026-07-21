@@ -9,9 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-/**
- * 성과관리 자체계획(TPRMPP_BPERFM) 변경 로그 엔티티.
- */
+/** 성과관리 자체계획(TPRMPP_BPERFM) 변경 로그 엔티티. */
 @Entity
 @Table(name = "TPRMPP_BPERFL", comment = "성과관리 자체계획 변경 로그")
 @Getter
@@ -32,12 +30,8 @@ public class BperfmL extends BaseLogEntity {
     @Column(name = "EVL_DTP_DFNT_CONE", length = 4000, comment = "성과지표정의")
     private String evlDtpDfntCone;
 
-
     @Column(name = "EVL_DTP_CLF_CONE", length = 4000, comment = "산식")
     private String evlDtpClfCone;
-
-
-
 
     @Column(name = "EVL_DTP_MSM_PTM_CONE", length = 300, comment = "측정시점내용")
     private String evlDtpMsmPtmCone;

@@ -1,30 +1,28 @@
 package com.kdb.it.common.sso;
 
-import com.sun.net.httpserver.HttpServer;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 
 /**
  * 실제 {@link RestClient} 메시지 컨버터를 거치는 SSO 클라이언트 회귀 테스트.
  *
- * <p>RestClient를 mock하는 단위 테스트는 JSON 역직렬화 경로를 건너뛰므로, "내부망에서만"
- * 재현되던 {@code HttpMessageConversionException: Type definition error [JsonNode]}를
- * 잡지 못했습니다(외부망은 SSO 서버 미도달→타임아웃→폴백이라 컨버터 미실행). 본 테스트는
- * 로컬 {@link HttpServer}로 실제 ISign+ JSON 응답을 흉내내고 {@link SsoInfraConfig}의 실제
- * RestClient로 호출해, Spring Boot 4(Jackson 2/3 공존) 환경의 기본 컨버터가 응답을 정상
- * 역직렬화하는지 검증합니다. 과거 Jackson 2 {@code JsonNode} 구현에서는 이 테스트가 실패합니다.</p>
+ * <p>RestClient를 mock하는 단위 테스트는 JSON 역직렬화 경로를 건너뛰므로, "내부망에서만" 재현되던 {@code
+ * HttpMessageConversionException: Type definition error [JsonNode]}를 잡지 못했습니다(외부망은 SSO 서버
+ * 미도달→타임아웃→폴백이라 컨버터 미실행). 본 테스트는 로컬 {@link HttpServer}로 실제 ISign+ JSON 응답을 흉내내고 {@link
+ * SsoInfraConfig}의 실제 RestClient로 호출해, Spring Boot 4(Jackson 2/3 공존) 환경의 기본 컨버터가 응답을 정상 역직렬화하는지
+ * 검증합니다. 과거 Jackson 2 {@code JsonNode} 구현에서는 이 테스트가 실패합니다.
  */
 class SsoAgentClientHttpIntegrationTest {
 
@@ -47,18 +45,22 @@ class SsoAgentClientHttpIntegrationTest {
 
     /** 지정 경로에 JSON 응답을 반환하는 핸들러를 등록합니다. */
     private void respondJson(String path, String json) {
-        server.createContext(path, exchange -> {
-            byte[] payload = json.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Content-Type", "application/json;charset=UTF-8");
-            exchange.sendResponseHeaders(200, payload.length);
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(payload);
-            }
-        });
+        server.createContext(
+                path,
+                exchange -> {
+                    byte[] payload = json.getBytes(StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders()
+                            .add("Content-Type", "application/json;charset=UTF-8");
+                    exchange.sendResponseHeaders(200, payload.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(payload);
+                    }
+                });
     }
 
     private SsoProperties props() {
-        return new SsoProperties(false, "K140024", baseUrl, baseUrl, "AGENT-1", "id, name", 3000, 3000);
+        return new SsoProperties(
+                false, "K140024", baseUrl, baseUrl, "AGENT-1", "id, name", 3000, 3000);
     }
 
     private SsoAgentClient client() {
@@ -81,24 +83,30 @@ class SsoAgentClientHttpIntegrationTest {
         String originalToken = "gF9s+rs6/rAb+cd==";
         AtomicReference<String> decodedToken = new AtomicReference<>();
 
-        server.createContext("/token/authorization", exchange -> {
-            // 서버(ISign+)가 쿼리를 폼 디코딩하는 것을 모사: %2B→'+', '+'→' '(공백)
-            String rawQuery = exchange.getRequestURI().getRawQuery();
-            for (String pair : rawQuery.split("&")) {
-                int eq = pair.indexOf('=');
-                String key = pair.substring(0, eq);
-                if ("secureToken".equals(key)) {
-                    decodedToken.set(URLDecoder.decode(pair.substring(eq + 1), StandardCharsets.UTF_8));
-                }
-            }
-            byte[] payload = "{\"resultCode\":\"000000\",\"user\":{\"id\":\"K150024\"}}"
-                    .getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Content-Type", "application/json;charset=UTF-8");
-            exchange.sendResponseHeaders(200, payload.length);
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(payload);
-            }
-        });
+        server.createContext(
+                "/token/authorization",
+                exchange -> {
+                    // 서버(ISign+)가 쿼리를 폼 디코딩하는 것을 모사: %2B→'+', '+'→' '(공백)
+                    String rawQuery = exchange.getRequestURI().getRawQuery();
+                    for (String pair : rawQuery.split("&")) {
+                        int eq = pair.indexOf('=');
+                        String key = pair.substring(0, eq);
+                        if ("secureToken".equals(key)) {
+                            decodedToken.set(
+                                    URLDecoder.decode(
+                                            pair.substring(eq + 1), StandardCharsets.UTF_8));
+                        }
+                    }
+                    byte[] payload =
+                            "{\"resultCode\":\"000000\",\"user\":{\"id\":\"K150024\"}}"
+                                    .getBytes(StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders()
+                            .add("Content-Type", "application/json;charset=UTF-8");
+                    exchange.sendResponseHeaders(200, payload.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(payload);
+                    }
+                });
 
         client().authorize(originalToken, "sess", "127.0.0.1");
 
@@ -110,7 +118,9 @@ class SsoAgentClientHttpIntegrationTest {
     @Test
     @DisplayName("authorize: 실제 컨버터로 token/authorization JSON을 역직렬화해 사용자 데이터를 추출한다")
     void authorize_realConverter_extractsUser() {
-        respondJson("/token/authorization", """
+        respondJson(
+                "/token/authorization",
+                """
                 {
                   "resultCode": "000000",
                   "resultMessage": "OK",

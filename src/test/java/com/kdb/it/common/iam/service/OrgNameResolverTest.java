@@ -1,7 +1,13 @@
 package com.kdb.it.common.iam.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -9,24 +15,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
-
-/**
- * {@link OrgNameResolver} 단위 테스트.
- */
+/** {@link OrgNameResolver} 단위 테스트. */
 @ExtendWith(MockitoExtension.class)
 class OrgNameResolverTest {
 
-    @Mock
-    private OrganizationRepository organizationRepository;
+    @Mock private OrganizationRepository organizationRepository;
 
-    @InjectMocks
-    private OrgNameResolver orgNameResolver;
+    @InjectMocks private OrgNameResolver orgNameResolver;
 
     @Test
     @DisplayName("조직코드로 CORGNI를 조회해 조직명을 반환한다")

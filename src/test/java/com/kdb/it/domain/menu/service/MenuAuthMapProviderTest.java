@@ -24,8 +24,8 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 /**
  * MenuAuthMapProvider 단위 테스트.
  *
- * <p>메뉴ID→권한ID 집합 매핑 빌드 로직과 {@code @Cacheable} 동작을 검증합니다.
- * {@link CmenuaRepository}는 {@code @MockitoBean}으로 교체하며 Oracle DB 없이 실행됩니다.</p>
+ * <p>메뉴ID→권한ID 집합 매핑 빌드 로직과 {@code @Cacheable} 동작을 검증합니다. {@link CmenuaRepository}는
+ * {@code @MockitoBean}으로 교체하며 Oracle DB 없이 실행됩니다.
  */
 @SpringJUnitConfig(classes = {CacheConfig.class, MenuAuthMapProvider.class})
 class MenuAuthMapProviderTest {
@@ -37,8 +37,7 @@ class MenuAuthMapProviderTest {
     // 캐시는 Spring 컨텍스트에 공유되므로 테스트 간 격리를 위해 매 테스트 전에 초기화한다.
     @BeforeEach
     void clearCaches() {
-        cacheManager.getCacheNames()
-                .forEach(name -> cacheManager.getCache(name).clear());
+        cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
     }
 
     @Test

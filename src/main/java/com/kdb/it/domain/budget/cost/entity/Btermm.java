@@ -1,8 +1,8 @@
 package com.kdb.it.domain.budget.cost.entity;
 
+import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BtermmL;
-import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -13,7 +13,6 @@ import jakarta.persistence.JoinColumns;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.experimental.SuperBuilder;
@@ -21,13 +20,9 @@ import lombok.experimental.SuperBuilder;
 /**
  * 단말기관리마스터 엔티티
  *
- * <p>
- * DB 테이블: {@code TPRMPP_BTERMM}
- * </p>
+ * <p>DB 테이블: {@code TPRMPP_BTERMM}
  *
- * <p>
- * 금융정보단말기 관련 상세 정보를 관리하며, 전산관리비({@link Bcostm})와 1:N 관계를 가집니다.
- * </p>
+ * <p>금융정보단말기 관련 상세 정보를 관리하며, 전산관리비({@link Bcostm})와 1:N 관계를 가집니다.
  */
 @LogTarget(entity = BtermmL.class)
 @Entity
@@ -38,11 +33,8 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 public class Btermm extends BaseEntity {
 
-    /**
-     * JPA가 단말기관리 엔티티를 복원할 때 사용하는 기본 생성자입니다.
-     */
-    protected Btermm() {
-    }
+    /** JPA가 단말기관리 엔티티를 복원할 때 사용하는 기본 생성자입니다. */
+    protected Btermm() {}
 
     /** 단말기관리번호 */
     @Id
@@ -65,8 +57,16 @@ public class Btermm extends BaseEntity {
     /** 전산관리비와의 연관관계 */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumns({
-            @JoinColumn(name = "BG_NO", referencedColumnName = "BG_NO", insertable = false, updatable = false),
-            @JoinColumn(name = "BG_SNO", referencedColumnName = "BG_SNO", insertable = false, updatable = false)
+        @JoinColumn(
+                name = "BG_NO",
+                referencedColumnName = "BG_NO",
+                insertable = false,
+                updatable = false),
+        @JoinColumn(
+                name = "BG_SNO",
+                referencedColumnName = "BG_SNO",
+                insertable = false,
+                updatable = false)
     })
     private Bcostm bcostm;
 
@@ -75,7 +75,10 @@ public class Btermm extends BaseEntity {
     private String spfTmnNm;
 
     /** 단말기이용방법 (최대 2자) */
-    @Column(name = "IT_PTL_TMN_KD_TC", length = 2, comment = "단말기이용방법 (물리컬럼 IT_PTL_TMN_KD_TC=단말종류구분코드)")
+    @Column(
+            name = "IT_PTL_TMN_KD_TC",
+            length = 2,
+            comment = "단말기이용방법 (물리컬럼 IT_PTL_TMN_KD_TC=단말종류구분코드)")
     private String tmnKdTc;
 
     /** 소요자금용도내용 */
@@ -83,7 +86,10 @@ public class Btermm extends BaseEntity {
     private String nsfUsgCone;
 
     /** 단말기서비스 (최대 2자) */
-    @Column(name = "IT_PTL_TMN_SVC_TC", length = 2, comment = "단말기서비스 (물리컬럼 IT_PTL_TMN_SVC_TC=단말서비스구분코드)")
+    @Column(
+            name = "IT_PTL_TMN_SVC_TC",
+            length = 2,
+            comment = "단말기서비스 (물리컬럼 IT_PTL_TMN_SVC_TC=단말서비스구분코드)")
     private String tmnClsfC;
 
     /** 단말기금액 (최대 18자리, 소수점 3자리) */
@@ -128,11 +134,9 @@ public class Btermm extends BaseEntity {
 
     /**
      * 외화금액(단말기 외화 원금 — 환율 적용 전).
-     * <p>
-     * 원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며,
-     * 서버 재계산 로직(plan 03/04)에서 {@code termRqmBgAmt = fcAmt × xcr}로 환산된다.
-     * 참고: CONTEXT.md 결정 B (KRW 행 FC_AMT = NULL).
-     * </p>
+     *
+     * <p>원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며, 서버 재계산 로직(plan 03/04)에서 {@code termRqmBgAmt = fcAmt
+     * × xcr}로 환산된다. 참고: CONTEXT.md 결정 B (KRW 행 FC_AMT = NULL).
      */
     @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
     private BigDecimal fcAmt;
@@ -156,9 +160,22 @@ public class Btermm extends BaseEntity {
      * @param rmk 비고
      * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
-    public void update(String spfTmnNm, String tmnKdTc, String nsfUsgCone, String tmnClsfC, BigDecimal termRqmBgAmt,
-            String curC, BigDecimal xcr, String xcrBseDt, String dfrCleC, String indRsn,
-            String cgprId, String termSvnTemC, String termSvnDpmC, String rmk, BigDecimal fcAmt) {
+    public void update(
+            String spfTmnNm,
+            String tmnKdTc,
+            String nsfUsgCone,
+            String tmnClsfC,
+            BigDecimal termRqmBgAmt,
+            String curC,
+            BigDecimal xcr,
+            String xcrBseDt,
+            String dfrCleC,
+            String indRsn,
+            String cgprId,
+            String termSvnTemC,
+            String termSvnDpmC,
+            String rmk,
+            BigDecimal fcAmt) {
         this.spfTmnNm = spfTmnNm;
         this.tmnKdTc = tmnKdTc;
         this.nsfUsgCone = nsfUsgCone;

@@ -3,34 +3,29 @@ package com.kdb.it.domain.budget.project.dto;
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
 /**
  * 정보화사업(IT 프로젝트) 관련 DTO 클래스 모음
  *
- * <p>
- * 정보화사업(TPRMPP_BPROJM) 엔티티의 생성, 수정, 조회, 일괄 조회 및
- * 연관 품목(TPRMPP_BITEMM) 정보 전달에 사용되는 DTO를
- * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
- * </p>
+ * <p>정보화사업(TPRMPP_BPROJM) 엔티티의 생성, 수정, 조회, 일괄 조회 및 연관 품목(TPRMPP_BITEMM) 정보 전달에 사용되는 DTO를 정적 중첩
+ * 클래스(Static Nested Class) 형태로 관리합니다.
  *
- * <p>
- * 포함된 DTO:
- * </p>
+ * <p>포함된 DTO:
+ *
  * <ul>
- * <li>{@link CreateRequest}: 정보화사업 생성 요청 (품목 목록 포함)</li>
- * <li>{@link UpdateRequest}: 정보화사업 수정 요청 (품목 동기화 포함)</li>
- * <li>{@link Response}: 정보화사업 조회 응답 (신청서 정보, 품목 목록 포함)</li>
- * <li>{@link BitemmDto}: 품목 정보 DTO (생성/수정/조회 공통)</li>
- * <li>{@link BulkGetRequest}: 일괄 조회 요청</li>
+ *   <li>{@link CreateRequest}: 정보화사업 생성 요청 (품목 목록 포함)
+ *   <li>{@link UpdateRequest}: 정보화사업 수정 요청 (품목 동기화 포함)
+ *   <li>{@link Response}: 정보화사업 조회 응답 (신청서 정보, 품목 목록 포함)
+ *   <li>{@link BitemmDto}: 품목 정보 DTO (생성/수정/조회 공통)
+ *   <li>{@link BulkGetRequest}: 일괄 조회 요청
  * </ul>
  */
 public class ProjectDto {
@@ -38,23 +33,22 @@ public class ProjectDto {
     /**
      * 정보화사업 목록 경량 프로젝션 DTO(#7).
      *
-     * <p>목록 화면에 필요한 식별/요약 컬럼만 담으며, 1000자+ 대용량 텍스트
-     * (사업설명/현황/기대효과/문제/추진경과/고객유형 등)는 select하지 않는다.
-     * 상세는 기존 엔티티 조회 경로를 유지한다.</p>
+     * <p>목록 화면에 필요한 식별/요약 컬럼만 담으며, 1000자+ 대용량 텍스트 (사업설명/현황/기대효과/문제/추진경과/고객유형 등)는 select하지 않는다. 상세는
+     * 기존 엔티티 조회 경로를 유지한다.
      *
      * @param abusMngNo 사업관리번호 (프로젝트관리번호, 예: "PRJ-2026-0001")
-     * @param sno       프로젝트 순번
-     * @param abusNm    사업명
-     * @param bzTpC     사업유형명 (물리컬럼 ABUS_PPO_CONE, 공통코드 ABUS_PPO 코드값명 저장)
-     * @param svnDpmC   주관부서코드
-     * @param dvmDpmC   개발부서코드 (IT부서)
-     * @param sttDtm    시작일자 (사업 개시 예정일)
-     * @param endDtm    종료일자 (사업 완료 예정일)
-     * @param bseYy     기준연도 (예산연도, YYYY)
-     * @param odnYn     경상여부 ('Y'=경상사업, null 또는 'N'=일반 정보화사업)
-     * @param abusTc    사업구분코드 (신규/계속 여부)
-     * @param rprStsTc  보고상태구분코드 (공통코드 2자리)
-     * @param delYn     삭제여부 ('Y'=삭제)
+     * @param sno 프로젝트 순번
+     * @param abusNm 사업명
+     * @param bzTpC 사업유형명 (물리컬럼 ABUS_PPO_CONE, 공통코드 ABUS_PPO 코드값명 저장)
+     * @param svnDpmC 주관부서코드
+     * @param dvmDpmC 개발부서코드 (IT부서)
+     * @param sttDtm 시작일자 (사업 개시 예정일)
+     * @param endDtm 종료일자 (사업 완료 예정일)
+     * @param bseYy 기준연도 (예산연도, YYYY)
+     * @param odnYn 경상여부 ('Y'=경상사업, null 또는 'N'=일반 정보화사업)
+     * @param abusTc 사업구분코드 (신규/계속 여부)
+     * @param rprStsTc 보고상태구분코드 (공통코드 2자리)
+     * @param delYn 삭제여부 ('Y'=삭제)
      */
     @Schema(name = "ProjectListRow")
     public record ProjectListRow(
@@ -70,25 +64,17 @@ public class ProjectDto {
             String odnYn,
             String abusTc,
             String rprStsTc,
-            String delYn
-    ) {}
+            String delYn) {}
 
     /**
      * 정보화사업 생성 요청 DTO
      *
-     * <p>
-     * 신규 정보화사업을 등록할 때 사용합니다.
-     * 약 30개 이상의 필드로 구성된 대형 DTO입니다.
-     * </p>
+     * <p>신규 정보화사업을 등록할 때 사용합니다. 약 30개 이상의 필드로 구성된 대형 DTO입니다.
      *
-     * <p>
-     * {@code abusMngNo}가 null 또는 빈 문자열이면 서비스에서 Oracle 시퀀스로 자동 채번합니다.
-     * 형식: {@code PRJ-{bseYy}-{seq:04d}} (예: "PRJ-2026-0001")
-     * </p>
+     * <p>{@code abusMngNo}가 null 또는 빈 문자열이면 서비스에서 Oracle 시퀀스로 자동 채번합니다. 형식: {@code
+     * PRJ-{bseYy}-{seq:04d}} (예: "PRJ-2026-0001")
      *
-     * <p>
-     * {@link #toEntity()} 메서드로 {@link Bprojm} 엔티티로 변환합니다.
-     * </p>
+     * <p>{@link #toEntity()} 메서드로 {@link Bprojm} 엔티티로 변환합니다.
      */
     @Getter
     @Setter
@@ -99,9 +85,8 @@ public class ProjectDto {
     public static class CreateRequest {
         /**
          * 프로젝트관리번호 (ABUS_MNG_NO, PK)
-         * <p>
-         * null 또는 빈 문자열이면 자동 채번됩니다. 형식: {@code PRJ-{bseYy}-{seq:04d}}
-         * </p>
+         *
+         * <p>null 또는 빈 문자열이면 자동 채번됩니다. 형식: {@code PRJ-{bseYy}-{seq:04d}}
          */
         @Schema(description = "프로젝트관리번호")
         private String abusMngNo;
@@ -236,10 +221,8 @@ public class ProjectDto {
 
         /**
          * 품목 목록
-         * <p>
-         * 프로젝트와 함께 등록할 품목({@link BitemmDto}) 목록입니다.
-         * 생성 시 품목도 함께 저장됩니다.
-         * </p>
+         *
+         * <p>프로젝트와 함께 등록할 품목({@link BitemmDto}) 목록입니다. 생성 시 품목도 함께 저장됩니다.
          */
         @Schema(description = "품목 목록")
         private java.util.List<BitemmDto> items;
@@ -247,9 +230,7 @@ public class ProjectDto {
         /**
          * 요청 DTO를 {@link Bprojm} 엔티티로 변환하는 메서드
          *
-         * <p>
-         * {@code dplYn}이 null인 경우 기본값 "N"으로 설정합니다.
-         * </p>
+         * <p>{@code dplYn}이 null인 경우 기본값 "N"으로 설정합니다.
          *
          * @return 변환된 Bprojm 엔티티
          */
@@ -296,15 +277,10 @@ public class ProjectDto {
     /**
      * 정보화사업 수정 요청 DTO
      *
-     * <p>
-     * 기존 정보화사업 정보를 수정할 때 사용합니다.
-     * {@code abusMngNo}는 URL PathVariable로 받으므로 이 DTO에는 포함하지 않습니다.
-     * </p>
+     * <p>기존 정보화사업 정보를 수정할 때 사용합니다. {@code abusMngNo}는 URL PathVariable로 받으므로 이 DTO에는 포함하지 않습니다.
      *
-     * <p>
-     * 품목({@code items}) 목록을 포함하며, 동기화 로직(추가/수정/삭제)은
-     * {@link com.kdb.it.domain.budget.project.service.ProjectService#updateProject}에서 처리합니다.
-     * </p>
+     * <p>품목({@code items}) 목록을 포함하며, 동기화 로직(추가/수정/삭제)은 {@link
+     * com.kdb.it.domain.budget.project.service.ProjectService#updateProject}에서 처리합니다.
      */
     @Getter
     @Setter
@@ -443,10 +419,8 @@ public class ProjectDto {
 
         /**
          * 품목 목록 (동기화 대상)
-         * <p>
-         * 수정 요청에 포함된 목록을 기준으로 기존 품목과 비교하여
-         * 추가/수정/삭제가 처리됩니다.
-         * </p>
+         *
+         * <p>수정 요청에 포함된 목록을 기준으로 기존 품목과 비교하여 추가/수정/삭제가 처리됩니다.
          */
         @Schema(description = "품목 목록")
         private java.util.List<BitemmDto> items;
@@ -455,19 +429,12 @@ public class ProjectDto {
     /**
      * 정보화사업 조회 응답 DTO
      *
-     * <p>
-     * 프로젝트의 모든 정보를 반환합니다. {@link Bprojm} 엔티티 필드 외에
-     * 조직명, 상태 등의 추가 정보를 API 응답에 맞춰 제공합니다.
-     * </p>
+     * <p>프로젝트의 모든 정보를 반환합니다. {@link Bprojm} 엔티티 필드 외에 조직명, 상태 등의 추가 정보를 API 응답에 맞춰 제공합니다.
      *
-     * <p>
-     * 품목 정보({@code items})는 배열 형태로 포함됩니다.
-     * </p>
+     * <p>품목 정보({@code items})는 배열 형태로 포함됩니다.
      *
-     * <p>
-     * {@link #fromEntity(Bprojm)} 정적 팩토리 메서드로 엔티티에서 변환합니다.
-     * 신청서 정보와 품목 목록은 서비스에서 별도로 {@code setApfMngNo()}, {@code setItems()}로 설정합니다.
-     * </p>
+     * <p>{@link #fromEntity(Bprojm)} 정적 팩토리 메서드로 엔티티에서 변환합니다. 신청서 정보와 품목 목록은 서비스에서 별도로 {@code
+     * setApfMngNo()}, {@code setItems()}로 설정합니다.
      */
     @Getter
     @Setter
@@ -658,29 +625,25 @@ public class ProjectDto {
 
         /**
          * 연결된 신청서관리번호
-         * <p>
-         * 서비스에서 {@link com.kdb.it.common.approval.entity.Cappla}를 통해 조회하여 설정합니다.
-         * 신청서가 없으면 null입니다.
-         * </p>
+         *
+         * <p>서비스에서 {@link com.kdb.it.common.approval.entity.Cappla}를 통해 조회하여 설정합니다. 신청서가 없으면
+         * null입니다.
          */
         @Schema(description = "신청서관리번호")
         private String apfMngNo;
 
         /**
          * 신청서 결재상태
-         * <p>
-         * 연결된 신청서의 현재 결재 상태 (예: "결재중", "결재완료", "반려").
-         * 신청서가 없으면 null입니다.
-         * </p>
+         *
+         * <p>연결된 신청서의 현재 결재 상태 (예: "결재중", "결재완료", "반려"). 신청서가 없으면 null입니다.
          */
         @Schema(description = "신청서상태")
         private String apfSts;
 
         /**
          * 품목 목록
-         * <p>
-         * 단건 조회 시에만 포함됩니다. 목록 조회 시에는 포함되지 않습니다 (성능 최적화).
-         * </p>
+         *
+         * <p>단건 조회 시에만 포함됩니다. 목록 조회 시에는 포함되지 않습니다 (성능 최적화).
          */
         @Schema(description = "품목 목록")
         private java.util.List<BitemmDto> items;
@@ -753,7 +716,10 @@ public class ProjectDto {
         @Schema(description = "기타무형자산")
         private BigDecimal swBg;
 
-        /** 일반관리비: Bitemm의 ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하는 항목의 amt 합계 */
+        /**
+         * 일반관리비: Bitemm의 ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하는 항목의 amt
+         * 합계
+         */
         @Schema(description = "일반관리비")
         private BigDecimal costBg;
 
@@ -770,8 +736,12 @@ public class ProjectDto {
         private BigDecimal costDupBg;
 
         /** 예산 합계 일괄 설정 (Lombok 어노테이션 프로세싱 문제 방지용 명시적 메서드) */
-        public void setBudgetAmounts(BigDecimal assetBg, BigDecimal dvcBg, BigDecimal hwBg,
-                BigDecimal swBg, BigDecimal costBg) {
+        public void setBudgetAmounts(
+                BigDecimal assetBg,
+                BigDecimal dvcBg,
+                BigDecimal hwBg,
+                BigDecimal swBg,
+                BigDecimal costBg) {
             this.assetBg = assetBg;
             this.dvcBg = dvcBg;
             this.hwBg = hwBg;
@@ -786,11 +756,7 @@ public class ProjectDto {
         /**
          * {@link Bprojm} 엔티티를 응답 DTO로 변환하는 정적 팩토리 메서드
          *
-         * <p>
-         * 엔티티의 모든 필드를 DTO로 복사합니다.
-         * 연결된 품목 리스트 및 조직, 예산 요약 정보 등은
-         * 서비스 계층에서 추가로 세팅해야 합니다.
-         * </p>
+         * <p>엔티티의 모든 필드를 DTO로 복사합니다. 연결된 품목 리스트 및 조직, 예산 요약 정보 등은 서비스 계층에서 추가로 세팅해야 합니다.
          *
          * @param project 변환할 Bprojm 엔티티
          * @return 변환된 ProjectDto.Response DTO
@@ -842,17 +808,14 @@ public class ProjectDto {
     /**
      * 품목(Bitemm) 정보 DTO
      *
-     * <p>
-     * 정보화사업 생성/수정 요청 및 조회 응답에 공통으로 사용됩니다.
-     * {@link com.kdb.it.domain.budget.project.entity.Bitemm} 엔티티와 매핑됩니다.
-     * </p>
+     * <p>정보화사업 생성/수정 요청 및 조회 응답에 공통으로 사용됩니다. {@link com.kdb.it.domain.budget.project.entity.Bitemm}
+     * 엔티티와 매핑됩니다.
      *
-     * <p>
-     * 수정 시 동작:
-     * </p>
+     * <p>수정 시 동작:
+     *
      * <ul>
-     * <li>{@code gclMngNo}가 있는 경우: 기존 품목 수정</li>
-     * <li>{@code gclMngNo}가 null 또는 빈 문자열인 경우: 신규 품목 추가</li>
+     *   <li>{@code gclMngNo}가 있는 경우: 기존 품목 수정
+     *   <li>{@code gclMngNo}가 null 또는 빈 문자열인 경우: 신규 품목 추가
      * </ul>
      */
     @Getter
@@ -864,19 +827,17 @@ public class ProjectDto {
     public static class BitemmDto {
         /**
          * 품목관리번호 (GCL_MNG_NO, PK 일부)
-         * <p>
-         * 수정 시 기존 품목 식별에 사용. 신규 추가 시 null 또는 빈 문자열.
-         * 형식: {@code GCL-{yyyy}-{seq:04d}} (예: "GCL-2026-0001")
-         * </p>
+         *
+         * <p>수정 시 기존 품목 식별에 사용. 신규 추가 시 null 또는 빈 문자열. 형식: {@code GCL-{yyyy}-{seq:04d}} (예:
+         * "GCL-2026-0001")
          */
         @Schema(description = "품목관리번호")
         private String gclMngNo;
 
         /**
          * 품목일련번호 (SNO, PK 일부)
-         * <p>
-         * 동일 관리번호 내의 순번. 신규는 MAX+1로 자동 설정.
-         * </p>
+         *
+         * <p>동일 관리번호 내의 순번. 신규는 MAX+1로 자동 설정.
          */
         @Schema(description = "품목일련번호")
         private Integer sno;
@@ -933,10 +894,7 @@ public class ProjectDto {
         @Schema(description = "최종여부")
         private String lstYn;
 
-        /**
-         * 외화금액(품목 외화 원금 — 원화 행은 null.
-         * Service에서 amt = fcAmt × xcr 재계산)
-         */
+        /** 외화금액(품목 외화 원금 — 원화 행은 null. Service에서 amt = fcAmt × xcr 재계산) */
         @Schema(description = "외화금액 (외화 원금. 원화 행은 null. 서버에서 amt 재계산)", example = "1000")
         private BigDecimal fcAmt;
 
@@ -980,18 +938,14 @@ public class ProjectDto {
     /**
      * 정보화사업 목록 조회 검색 조건 DTO
      *
-     * <p>
-     * {@code GET /api/projects} 엔드포인트의 Query Parameter로 전달됩니다.
-     * 모든 필드가 null이면 전체 조회와 동일하게 동작합니다.
-     * </p>
+     * <p>{@code GET /api/projects} 엔드포인트의 Query Parameter로 전달됩니다. 모든 필드가 null이면 전체 조회와 동일하게 동작합니다.
      *
-     * <p>
-     * {@code apfSts} 값 규칙:
-     * </p>
+     * <p>{@code apfSts} 값 규칙:
+     *
      * <ul>
-     * <li>null (파라미터 미입력): 결재상태 필터 없음 → 전체 조회</li>
-     * <li>{@code "none"}: 신청서가 없는 프로젝트 (apfSts IS NULL)</li>
-     * <li>{@code "접수"}, {@code "결재중"}, {@code "결재완료"} 등: 최신 신청서의 결재상태가 해당 값인 프로젝트</li>
+     *   <li>null (파라미터 미입력): 결재상태 필터 없음 → 전체 조회
+     *   <li>{@code "none"}: 신청서가 없는 프로젝트 (apfSts IS NULL)
+     *   <li>{@code "접수"}, {@code "결재중"}, {@code "결재완료"} 등: 최신 신청서의 결재상태가 해당 값인 프로젝트
      * </ul>
      */
     @Getter
@@ -1002,10 +956,8 @@ public class ProjectDto {
 
         /**
          * 결재상태 필터
-         * <p>
-         * "none" → 신청서가 없는 프로젝트, 그 외 값 → 최신 신청서의 결재상태가 해당 값인 프로젝트
-         * null 또는 미입력 → 필터 없음 (전체 조회)
-         * </p>
+         *
+         * <p>"none" → 신청서가 없는 프로젝트, 그 외 값 → 최신 신청서의 결재상태가 해당 값인 프로젝트 null 또는 미입력 → 필터 없음 (전체 조회)
          */
         @Schema(description = "결재상태 필터 (none=신청서없음, 접수/결재중/결재완료 등 실제 상태값). 미입력 시 전체 조회")
         private String apfSts;
@@ -1032,10 +984,8 @@ public class ProjectDto {
 
         /**
          * 경상여부 필터
-         * <p>
-         * "Y" → 경상사업만 조회, "N" → 일반 정보화사업만 조회 (ODN_YN IS NULL 또는 'N')
-         * null 또는 미입력 → 필터 없음 (전체 조회)
-         * </p>
+         *
+         * <p>"Y" → 경상사업만 조회, "N" → 일반 정보화사업만 조회 (ODN_YN IS NULL 또는 'N') null 또는 미입력 → 필터 없음 (전체 조회)
          */
         @Schema(description = "경상여부 (Y=경상사업만, N=일반사업만). 미입력 시 전체 조회")
         private String odnYn;
@@ -1046,8 +996,13 @@ public class ProjectDto {
          * @return 모든 필드가 null 또는 빈 문자열이면 true
          */
         public boolean isEmpty() {
-            return isBlank(apfSts) && isBlank(bseYy) && isBlank(stsTc)
-                    && isBlank(bzTpC) && isBlank(dvmDpmC) && isBlank(svnDpmC) && isBlank(odnYn);
+            return isBlank(apfSts)
+                    && isBlank(bseYy)
+                    && isBlank(stsTc)
+                    && isBlank(bzTpC)
+                    && isBlank(dvmDpmC)
+                    && isBlank(svnDpmC)
+                    && isBlank(odnYn);
         }
 
         private boolean isBlank(String value) {
@@ -1058,10 +1013,7 @@ public class ProjectDto {
     /**
      * 정보화사업 일괄 조회 요청 DTO
      *
-     * <p>
-     * 여러 프로젝트관리번호를 한 번에 조회할 때 사용합니다.
-     * 존재하지 않는 항목은 결과에서 자동 제외됩니다.
-     * </p>
+     * <p>여러 프로젝트관리번호를 한 번에 조회할 때 사용합니다. 존재하지 않는 항목은 결과에서 자동 제외됩니다.
      */
     @Getter
     @Setter
@@ -1080,16 +1032,14 @@ public class ProjectDto {
     /**
      * 정보화사업 일괄 조회 결과 DTO (부분 성공)
      *
-     * <p>조회에 성공한 항목({@code items})과 미존재로 조회에 실패한 프로젝트관리번호
-     * 목록({@code failedIds})을 함께 반환합니다. 누락 건을 조용히 버리지 않고
-     * 호출자에게 노출하기 위함입니다.</p>
+     * <p>조회에 성공한 항목({@code items})과 미존재로 조회에 실패한 프로젝트관리번호 목록({@code failedIds})을 함께 반환합니다. 누락 건을
+     * 조용히 버리지 않고 호출자에게 노출하기 위함입니다.
      *
-     * @param items     조회 성공 항목 목록
+     * @param items 조회 성공 항목 목록
      * @param failedIds 조회 실패(미존재) 프로젝트관리번호 목록
      */
     @Schema(name = "ProjectBulkResponse", description = "정보화사업 일괄 조회 결과 (부분 성공)")
     public record BulkResponse(
             @Schema(description = "조회 성공 항목") java.util.List<Response> items,
-            @Schema(description = "조회 실패(미존재) 프로젝트관리번호 목록") java.util.List<String> failedIds
-    ) {}
+            @Schema(description = "조회 실패(미존재) 프로젝트관리번호 목록") java.util.List<String> failedIds) {}
 }

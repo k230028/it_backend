@@ -4,30 +4,22 @@ import com.kdb.it.domain.log.id.AuditLogId;
 import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDateTime;
-
 /**
  * 변경 로그 엔티티의 공통 필드를 정의하는 추상 기반 클래스.
  *
- * <p>
- * 모든 로그 엔티티({@code BprojmL}, {@code BitemlL} 등)가 상속한다.
- * </p>
+ * <p>모든 로그 엔티티({@code BprojmL}, {@code BitemlL} 등)가 상속한다.
  *
- * <p>
- * PK({@code LOG_HIS_TGR_SNO})는 {@code AuditLogIdGenerator}가
- * {@code SQ_{테이블명}_1.NEXTVAL}을 조회하여 Long 값으로 생성한다.
- * </p>
+ * <p>PK({@code LOG_HIS_TGR_SNO})는 {@code AuditLogIdGenerator}가 {@code SQ_{테이블명}_1.NEXTVAL}을 조회하여
+ * Long 값으로 생성한다.
  *
- * <p>
- * BaseEntity 스냅샷 필드(DEL_YN, GUID, FST_ENR_DTM 등)는
- * INSERT 시점 원본 엔티티의 값을 리플렉션으로 복사하여 저장한다.
- * </p>
+ * <p>BaseEntity 스냅샷 필드(DEL_YN, GUID, FST_ENR_DTM 등)는 INSERT 시점 원본 엔티티의 값을 리플렉션으로 복사하여 저장한다.
  */
 @MappedSuperclass
 @Getter
@@ -45,11 +37,9 @@ public abstract class BaseLogEntity {
     /**
      * 변경구분여부: C(생성) / U(수정) / D(논리삭제).
      *
-     * <p>
-     * 모든 *L 테이블에서 {@code CHG_DTT_YN} 컬럼으로 매핑됩니다.
-     * {@link com.kdb.it.domain.log.listener.AuditLogPersister#persist}가
-     * {@code setField(logEntity, "chgTp", chgTp)}로 'C'/'U'/'D'를 채웁니다.
-     * </p>
+     * <p>모든 *L 테이블에서 {@code CHG_DTT_YN} 컬럼으로 매핑됩니다. {@link
+     * com.kdb.it.domain.log.listener.AuditLogPersister#persist}가 {@code setField(logEntity,
+     * "chgTp", chgTp)}로 'C'/'U'/'D'를 채웁니다.
      */
     @Column(name = "CHG_DTT_YN", length = 1, comment = "변경구분여부")
     private String chgTp;

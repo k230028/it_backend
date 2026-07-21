@@ -10,9 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-/**
- * 가이드 문서(TPRMPP_BGDOCM) 변경 로그 엔티티.
- */
+/** 가이드 문서(TPRMPP_BGDOCM) 변경 로그 엔티티. */
 @Entity
 @Table(name = "TPRMPP_BGDOCL", comment = "가이드 문서 변경 로그")
 @Getter

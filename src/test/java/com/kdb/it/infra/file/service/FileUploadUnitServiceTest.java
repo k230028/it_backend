@@ -28,22 +28,17 @@ import org.springframework.test.util.ReflectionTestUtils;
 /**
  * FileUploadUnitService 단위 테스트
  *
- * <p>
- * FileServiceTest가 FileService 관점에서 업로드 성공/부분실패 흐름을 이미 검증하므로,
- * 본 테스트는 {@code uploadFileInNewTransaction}이 직접 노출하는 분기 경로 —
- * null 파일 파라미터, 원본 파일명의 확장자 유무(점 없음/점으로 끝남/공백) — 에 집중합니다.
- * EntityManager는 필드 주입 대상이라 Mockito {@code mock()}으로 생성 후
- * {@code ReflectionTestUtils}로 주입합니다.
- * </p>
+ * <p>FileServiceTest가 FileService 관점에서 업로드 성공/부분실패 흐름을 이미 검증하므로, 본 테스트는 {@code
+ * uploadFileInNewTransaction}이 직접 노출하는 분기 경로 — null 파일 파라미터, 원본 파일명의 확장자 유무(점 없음/점으로 끝남/공백) — 에
+ * 집중합니다. EntityManager는 필드 주입 대상이라 Mockito {@code mock()}으로 생성 후 {@code ReflectionTestUtils}로
+ * 주입합니다.
  */
 @ExtendWith(MockitoExtension.class)
 class FileUploadUnitServiceTest {
 
-    @Mock
-    private FileRepository fileRepository;
+    @Mock private FileRepository fileRepository;
 
-    @Mock
-    private FileValidator fileValidator;
+    @Mock private FileValidator fileValidator;
 
     private EntityManager entityManager;
 
@@ -59,10 +54,7 @@ class FileUploadUnitServiceTest {
     }
 
     private FileDto.UploadRequest request() {
-        return FileDto.UploadRequest.builder()
-                .pkColNm("첨부")
-                .flTpCone("첨부파일")
-                .build();
+        return FileDto.UploadRequest.builder().pkColNm("첨부").flTpCone("첨부파일").build();
     }
 
     // ───────────────────────────────────────────────────────
@@ -86,11 +78,13 @@ class FileUploadUnitServiceTest {
     @DisplayName("uploadFileInNewTransaction: 빈 파일(isEmpty=true)이면 저장소·DB 접근 없이 예외를 던진다")
     void uploadFileInNewTransaction_빈파일이면_예외발생() {
         // Arrange
-        MockMultipartFile emptyFile = new MockMultipartFile("file", "empty.txt", "text/plain", new byte[0]);
+        MockMultipartFile emptyFile =
+                new MockMultipartFile("file", "empty.txt", "text/plain", new byte[0]);
         FileDto.UploadRequest request = request();
 
         // Act & Assert
-        assertThatThrownBy(() -> fileUploadUnitService.uploadFileInNewTransaction(emptyFile, request))
+        assertThatThrownBy(
+                        () -> fileUploadUnitService.uploadFileInNewTransaction(emptyFile, request))
                 .isInstanceOf(CustomGeneralException.class)
                 .hasMessageContaining("업로드할 파일이 비어있습니다");
         verifyNoInteractions(fileValidator, entityManager, fileRepository);
@@ -105,8 +99,9 @@ class FileUploadUnitServiceTest {
     void uploadFileInNewTransaction_확장자없는파일명_점없이저장() {
         // Arrange: 확장자를 구분하는 점(.)이 전혀 없는 파일명
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "README", "text/plain", "content".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file", "README", "text/plain", "content".getBytes(StandardCharsets.UTF_8));
 
         // Act
         Cfilem result = fileUploadUnitService.uploadFileInNewTransaction(file, request());
@@ -122,8 +117,9 @@ class FileUploadUnitServiceTest {
     void uploadFileInNewTransaction_점으로끝나는파일명_확장자없이저장() {
         // Arrange: 마지막 문자가 점(.)이라 점 뒤에 확장자 문자가 없는 경우 (dotIdx == length-1)
         given(fileRepository.getNextSequenceValue()).willReturn(2L);
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "notes.", "text/plain", "content".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file", "notes.", "text/plain", "content".getBytes(StandardCharsets.UTF_8));
 
         // Act
         Cfilem result = fileUploadUnitService.uploadFileInNewTransaction(file, request());
@@ -137,8 +133,9 @@ class FileUploadUnitServiceTest {
     void uploadFileInNewTransaction_원본파일명공백_확장자없이저장() {
         // Arrange: StringUtils.hasText()가 false를 반환하는 공백 파일명
         given(fileRepository.getNextSequenceValue()).willReturn(3L);
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "   ", "text/plain", "content".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file", "   ", "text/plain", "content".getBytes(StandardCharsets.UTF_8));
 
         // Act
         Cfilem result = fileUploadUnitService.uploadFileInNewTransaction(file, request());
@@ -153,8 +150,12 @@ class FileUploadUnitServiceTest {
     void uploadFileInNewTransaction_정상확장자파일명_확장자포함저장() {
         // Arrange: 대문자 확장자 → 소문자로 정규화되어 저장되는지 함께 확인
         given(fileRepository.getNextSequenceValue()).willReturn(4L);
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "report.PDF", "application/pdf", "content".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "report.PDF",
+                        "application/pdf",
+                        "content".getBytes(StandardCharsets.UTF_8));
 
         // Act
         Cfilem result = fileUploadUnitService.uploadFileInNewTransaction(file, request());

@@ -1,5 +1,11 @@
 package com.kdb.it.domain.menu.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
@@ -8,6 +14,7 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.entity.Cmenud;
 import com.kdb.it.domain.menu.service.AdminRouteService;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,44 +27,28 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doThrow;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
 /**
  * AdminRouteController @WebMvcTest
  *
- * <p>라우트 카탈로그 CRUD API의 HTTP 응답을 검증한다.</p>
+ * <p>라우트 카탈로그 CRUD API의 HTTP 응답을 검증한다.
  */
 @WebMvcTest(AdminRouteController.class)
 @Import({TestSecurityConfig.class, JacksonConfig.class})
 class AdminRouteControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private AdminRouteService adminRouteService;
+    @MockitoBean private AdminRouteService adminRouteService;
 
-    @MockitoBean
-    private JwtUtil jwtUtil;
+    @MockitoBean private JwtUtil jwtUtil;
 
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     /** 테스트용 Cmenud 엔티티 생성 헬퍼. */
     private Cmenud route(String srePth, String sreMnuNm) {
-        return Cmenud.builder()
-                .srePth(srePth).sreMnuNm(sreMnuNm)
-                .useYn("Y").delYn("N")
-                .build();
+        return Cmenud.builder().srePth(srePth).sreMnuNm(sreMnuNm).useYn("Y").delYn("N").build();
     }
 
     // =========================================================================
@@ -67,8 +58,7 @@ class AdminRouteControllerTest {
     @Test
     @DisplayName("GET /api/admin/routes - 비인증 요청 → 401")
     void usable_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/admin/routes"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/admin/routes")).andExpect(status().isUnauthorized());
     }
 
     // =========================================================================
@@ -80,10 +70,8 @@ class AdminRouteControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void usable_관리자인증_200반환() throws Exception {
         // given
-        given(adminRouteService.listUsable()).willReturn(List.of(
-                route("/budget/list", "예산목록"),
-                route("/project/list", "사업목록")
-        ));
+        given(adminRouteService.listUsable())
+                .willReturn(List.of(route("/budget/list", "예산목록"), route("/project/list", "사업목록")));
 
         // when & then
         mockMvc.perform(get("/api/admin/routes"))
@@ -131,14 +119,14 @@ class AdminRouteControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void create_정상요청_204반환() throws Exception {
         // given
-        MenuDto.Route req = MenuDto.Route.builder()
-                .srePth("/new/route").sreMnuNm("새화면").useYn("Y")
-                .build();
+        MenuDto.Route req =
+                MenuDto.Route.builder().srePth("/new/route").sreMnuNm("새화면").useYn("Y").build();
 
         // when & then
-        mockMvc.perform(post("/api/admin/routes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(
+                        post("/api/admin/routes")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isNoContent());
     }
 
@@ -147,13 +135,13 @@ class AdminRouteControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void create_srePth누락_400반환() throws Exception {
         // given: @NotBlank 위반
-        MenuDto.Route req = MenuDto.Route.builder()
-                .srePth("").sreMnuNm("새화면").build();
+        MenuDto.Route req = MenuDto.Route.builder().srePth("").sreMnuNm("새화면").build();
 
         // when & then
-        mockMvc.perform(post("/api/admin/routes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(
+                        post("/api/admin/routes")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -162,15 +150,16 @@ class AdminRouteControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void create_중복경로_409반환() throws Exception {
         // given
-        MenuDto.Route req = MenuDto.Route.builder()
-                .srePth("/dup/route").sreMnuNm("중복화면").build();
+        MenuDto.Route req = MenuDto.Route.builder().srePth("/dup/route").sreMnuNm("중복화면").build();
         doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "중복된 화면경로"))
-                .when(adminRouteService).create(any());
+                .when(adminRouteService)
+                .create(any());
 
         // when & then
-        mockMvc.perform(post("/api/admin/routes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(
+                        post("/api/admin/routes")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isConflict());
     }
 
@@ -183,14 +172,18 @@ class AdminRouteControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void update_정상요청_204반환() throws Exception {
         // given
-        MenuDto.Route req = MenuDto.Route.builder()
-                .srePth("/budget/list").sreMnuNm("예산목록(수정)").useYn("Y")
-                .build();
+        MenuDto.Route req =
+                MenuDto.Route.builder()
+                        .srePth("/budget/list")
+                        .sreMnuNm("예산목록(수정)")
+                        .useYn("Y")
+                        .build();
 
         // when & then
-        mockMvc.perform(put("/api/admin/routes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(
+                        put("/api/admin/routes")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isNoContent());
     }
 
@@ -199,15 +192,16 @@ class AdminRouteControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void update_존재하지않는경로_404반환() throws Exception {
         // given
-        MenuDto.Route req = MenuDto.Route.builder()
-                .srePth("/no/route").sreMnuNm("없는화면").build();
+        MenuDto.Route req = MenuDto.Route.builder().srePth("/no/route").sreMnuNm("없는화면").build();
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "없는 경로"))
-                .when(adminRouteService).update(any());
+                .when(adminRouteService)
+                .update(any());
 
         // when & then
-        mockMvc.perform(put("/api/admin/routes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(
+                        put("/api/admin/routes")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isNotFound());
     }
 
@@ -220,8 +214,7 @@ class AdminRouteControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void delete_정상요청_204반환() throws Exception {
         // when & then
-        mockMvc.perform(delete("/api/admin/routes")
-                        .param("srePth", "/budget/list"))
+        mockMvc.perform(delete("/api/admin/routes").param("srePth", "/budget/list"))
                 .andExpect(status().isNoContent());
     }
 
@@ -231,11 +224,11 @@ class AdminRouteControllerTest {
     void delete_메뉴참조중_409반환() throws Exception {
         // given
         doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "메뉴에서 참조 중인 경로"))
-                .when(adminRouteService).delete("/in-use");
+                .when(adminRouteService)
+                .delete("/in-use");
 
         // when & then
-        mockMvc.perform(delete("/api/admin/routes")
-                        .param("srePth", "/in-use"))
+        mockMvc.perform(delete("/api/admin/routes").param("srePth", "/in-use"))
                 .andExpect(status().isConflict());
     }
 }

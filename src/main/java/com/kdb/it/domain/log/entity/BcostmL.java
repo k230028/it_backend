@@ -3,17 +3,14 @@ package com.kdb.it.domain.log.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.math.BigDecimal;
-
-/**
- * 전산관리비(TPRMPP_BCOSTM) 변경 로그 엔티티.
- */
+/** 전산관리비(TPRMPP_BCOSTM) 변경 로그 엔티티. */
 @Entity
 @Table(name = "TPRMPP_BCOSTL", comment = "전산관리비 변경 로그")
 @Getter

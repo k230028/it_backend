@@ -9,12 +9,12 @@ import lombok.NoArgsConstructor;
 /**
  * 평가의견(Bevalm) 복합 기본키 클래스
  *
- * <p>복합키 구성: ({@code itPtlAsctId}, {@code eno}, {@code itPtlCkgItmTc})</p>
+ * <p>복합키 구성: ({@code itPtlAsctId}, {@code eno}, {@code itPtlCkgItmTc})
  *
  * <ul>
- *   <li>itPtlAsctId: 협의회ID</li>
- *   <li>eno: 평가위원 사번</li>
- *   <li>itPtlCkgItmTc: 점검항목코드 (CCODEM CKG_ITM_C 체계)</li>
+ *   <li>itPtlAsctId: 협의회ID
+ *   <li>eno: 평가위원 사번
+ *   <li>itPtlCkgItmTc: 점검항목코드 (CCODEM CKG_ITM_C 체계)
  * </ul>
  */
 @Getter

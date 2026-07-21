@@ -10,26 +10,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-import java.time.LocalDate;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
@@ -50,24 +30,42 @@ import com.kdb.it.domain.budget.project.repository.BprojaRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * ProjectService 커버리지 보강 테스트
  *
- * <p>
- * Jacoco Complexity 70% 이상 달성을 위해 미커버 분기를 추가 검증합니다:
- * </p>
+ * <p>Jacoco Complexity 70% 이상 달성을 위해 미커버 분기를 추가 검증합니다:
+ *
  * <ul>
- * <li>{@code bigDecimalChanged}: null/null=false, 한쪽만null=true, 스케일 다른 동일값=false, 값 다름=true</li>
- * <li>{@code clampMpl}: null→0, 음수→0, amt 초과→amt, 범위 내→그대로, amt=null→상한 없음</li>
- * <li>{@code isItemChanged}: 각 필드별 변경 탐지(ioeC·gclNm·curC·xcr·xcrBseDt·cncdFdtnCone·bseYm·dfrCleC·sectSysUtzYn·itrInfrYn·fcAmt·mplAmt)</li>
- * <li>{@code setCodeNames}: rprStsTc·exePttYn·abusTc 코드명 조회; null이면 skip</li>
- * <li>{@code representativeStatus}: 여러 행 MAX, 일부 null, 전부 null, 빈 리스트</li>
- * <li>{@code enrichItemIoeCNames}: ioeC=null/빈값 혼재 시 필터 람다 커버</li>
- * <li>{@code getProject} 단건 상세: bproja 있을 때 stsTc·bprojaStsCodes 설정</li>
- * <li>{@code createProject}: items=null 분기; sectSysUtzYn/itrInfrYn null 기본값 처리</li>
- * <li>{@code updateProject}: gclMngNo 있으나 기존 품목에 없을 때 무처리 분기</li>
- * <li>{@code getProjectsByIds}: setApplicationInfo 내부 capplm.ifPresent 람다</li>
+ *   <li>{@code bigDecimalChanged}: null/null=false, 한쪽만null=true, 스케일 다른 동일값=false, 값 다름=true
+ *   <li>{@code clampMpl}: null→0, 음수→0, amt 초과→amt, 범위 내→그대로, amt=null→상한 없음
+ *   <li>{@code isItemChanged}: 각 필드별 변경
+ *       탐지(ioeC·gclNm·curC·xcr·xcrBseDt·cncdFdtnCone·bseYm·dfrCleC·sectSysUtzYn·itrInfrYn·fcAmt·mplAmt)
+ *   <li>{@code setCodeNames}: rprStsTc·exePttYn·abusTc 코드명 조회; null이면 skip
+ *   <li>{@code representativeStatus}: 여러 행 MAX, 일부 null, 전부 null, 빈 리스트
+ *   <li>{@code enrichItemIoeCNames}: ioeC=null/빈값 혼재 시 필터 람다 커버
+ *   <li>{@code getProject} 단건 상세: bproja 있을 때 stsTc·bprojaStsCodes 설정
+ *   <li>{@code createProject}: items=null 분기; sectSysUtzYn/itrInfrYn null 기본값 처리
+ *   <li>{@code updateProject}: gclMngNo 있으나 기존 품목에 없을 때 무처리 분기
+ *   <li>{@code getProjectsByIds}: setApplicationInfo 내부 capplm.ifPresent 람다
  * </ul>
  */
 @ExtendWith(MockitoExtension.class)
@@ -76,93 +74,131 @@ class ProjectServiceCoverageTest {
 
     private record OrgNameView(String prlmOgzCCone, String bbrNm)
             implements OrganizationRepository.OrganizationNameView {
-        @Override public String getPrlmOgzCCone() { return prlmOgzCCone; }
-        @Override public String getBbrNm() { return bbrNm; }
+        @Override
+        public String getPrlmOgzCCone() {
+            return prlmOgzCCone;
+        }
+
+        @Override
+        public String getBbrNm() {
+            return bbrNm;
+        }
     }
 
     private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
-        @Override public String getEno() { return eno; }
-        @Override public String getUsrNm() { return usrNm; }
+        @Override
+        public String getEno() {
+            return eno;
+        }
+
+        @Override
+        public String getUsrNm() {
+            return usrNm;
+        }
     }
 
     private record ApplicationMapView(String apfDcmNo, String pkColNm, Integer fntTbCrySno)
             implements ApplicationMapRepository.ApplicationMapView {
-        @Override public String getApfDcmNo() { return apfDcmNo; }
-        @Override public String getPkColNm() { return pkColNm; }
-        @Override public Integer getFntTbCrySno() { return fntTbCrySno; }
+        @Override
+        public String getApfDcmNo() {
+            return apfDcmNo;
+        }
+
+        @Override
+        public String getPkColNm() {
+            return pkColNm;
+        }
+
+        @Override
+        public Integer getFntTbCrySno() {
+            return fntTbCrySno;
+        }
     }
 
     private record ApplicationSummaryView(
-            String apfMngNo, String itPtlApfPrgStsC, String dcdReqTtl,
-            String dcdReqUsid, LocalDate dcdReqDtm, String rgprDcdReqCone)
+            String apfMngNo,
+            String itPtlApfPrgStsC,
+            String dcdReqTtl,
+            String dcdReqUsid,
+            LocalDate dcdReqDtm,
+            String rgprDcdReqCone)
             implements ApplicationRepository.ApplicationSummaryView {
-        @Override public String getApfMngNo() { return apfMngNo; }
-        @Override public String getItPtlApfPrgStsC() { return itPtlApfPrgStsC; }
-        @Override public String getDcdReqTtl() { return dcdReqTtl; }
-        @Override public String getDcdReqUsid() { return dcdReqUsid; }
-        @Override public LocalDate getDcdReqDtm() { return dcdReqDtm; }
-        @Override public String getRgprDcdReqCone() { return rgprDcdReqCone; }
+        @Override
+        public String getApfMngNo() {
+            return apfMngNo;
+        }
+
+        @Override
+        public String getItPtlApfPrgStsC() {
+            return itPtlApfPrgStsC;
+        }
+
+        @Override
+        public String getDcdReqTtl() {
+            return dcdReqTtl;
+        }
+
+        @Override
+        public String getDcdReqUsid() {
+            return dcdReqUsid;
+        }
+
+        @Override
+        public LocalDate getDcdReqDtm() {
+            return dcdReqDtm;
+        }
+
+        @Override
+        public String getRgprDcdReqCone() {
+            return rgprDcdReqCone;
+        }
     }
 
-    @Mock
-    private ProjectRepository projectRepository;
-    @Mock
-    private ApplicationMapRepository capplaRepository;
-    @Mock
-    private ApplicationRepository capplmRepository;
-    @Mock
-    private ProjectItemRepository bitemmRepository;
-    @Mock
-    private CodeRepository ccodemRepository;
-    @Mock
-    private CodeService codeService;
-    @Mock
-    private OrganizationRepository corgnIRepository;
-    @Mock
-    private UserRepository cuserIRepository;
-    @Mock
-    private ApproverRepository cdecimRepository;
-    @Mock
-    private BbugtmRepository bbugtmRepository;
-    @Mock
-    private XcrLookupService xcrLookupService;
-    @Mock
-    private ProjectBudgetSummaryService projectBudgetSummaryService;
-    @Mock
-    private BprojaRepository bprojaRepository;
-    @Mock
-    private BprojaSyncService bprojaSyncService;
-    @Mock
-    private CodeNameMapBuilder codeNameMapBuilder;
-    @Mock
-    private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
-    /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
-    @Mock
-    private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
-    @Mock
-    private SecurityContext securityContext;
-    @Mock
-    private Authentication authentication;
+    @Mock private ProjectRepository projectRepository;
+    @Mock private ApplicationMapRepository capplaRepository;
+    @Mock private ApplicationRepository capplmRepository;
+    @Mock private ProjectItemRepository bitemmRepository;
+    @Mock private CodeRepository ccodemRepository;
+    @Mock private CodeService codeService;
+    @Mock private OrganizationRepository corgnIRepository;
+    @Mock private UserRepository cuserIRepository;
+    @Mock private ApproverRepository cdecimRepository;
+    @Mock private BbugtmRepository bbugtmRepository;
+    @Mock private XcrLookupService xcrLookupService;
+    @Mock private ProjectBudgetSummaryService projectBudgetSummaryService;
+    @Mock private BprojaRepository bprojaRepository;
+    @Mock private BprojaSyncService bprojaSyncService;
+    @Mock private CodeNameMapBuilder codeNameMapBuilder;
+    @Mock private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
 
-    @InjectMocks
-    private ProjectService projectService;
+    /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
+    @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
+
+    @Mock private SecurityContext securityContext;
+    @Mock private Authentication authentication;
+
+    @InjectMocks private ProjectService projectService;
 
     @BeforeEach
     void setUpSecurity() {
         // 기본 인증 주체: ADMIN — 권한 검증 통과용
-        CustomUserDetails adminUser = new CustomUserDetails(
-                "10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        CustomUserDetails adminUser =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
         given(securityContext.getAuthentication()).willReturn(authentication);
         given(authentication.getPrincipal()).willReturn(adminUser);
         SecurityContextHolder.setContext(securityContext);
 
         // projectBudgetSummaryService mock: 실제 구현 위임
-        doAnswer(invocation -> {
-            ProjectDto.Response response = invocation.getArgument(0);
-            List<Bitemm> items = invocation.getArgument(1);
-            new ProjectBudgetSummaryService(codeService).applyBudgetSummary(response, items);
-            return null;
-        }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
+        doAnswer(
+                        invocation -> {
+                            ProjectDto.Response response = invocation.getArgument(0);
+                            List<Bitemm> items = invocation.getArgument(1);
+                            new ProjectBudgetSummaryService(codeService)
+                                    .applyBudgetSummary(response, items);
+                            return null;
+                        })
+                .when(projectBudgetSummaryService)
+                .applyBudgetSummary(any(ProjectDto.Response.class), anyList());
         // 작성자 조직 스냅샷 기본값: 생성 경로 NPE 방지용 빈 스냅샷
         org.mockito.Mockito.lenient()
                 .when(authorOrgResolver.resolveCurrent())
@@ -184,31 +220,52 @@ class ProjectServiceCoverageTest {
         // Arrange: xcr/qty/amt/fcAmt 모두 null로 일치 — bigDecimalChanged(null,null)=false
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        Bitemm existingItem = Bitemm.builder()
-                .gclMngNo("GCL-BD-001").sno(1)
-                .abusMngNo(prjMngNo).fntTbCrySno(1)
-                .ioeC("IOE-001").gclNm("품목A")
-                .qty(null).curC("KRW")
-                .xcr(null).amt(null).fcAmt(null).mplAmt(null)
-                .sectSysUtzYn("N").itrInfrYn("N")
-                .delYn("N").build();
-        ProjectDto.BitemmDto sameDto = ProjectDto.BitemmDto.builder()
-                .gclMngNo("GCL-BD-001")
-                .ioeC("IOE-001").gclNm("품목A")
-                .qty(null).curC("KRW")
-                .xcr(null).amt(null).fcAmt(null).mplAmt(null)
-                .sectSysUtzYn("N").itrInfrYn("N")
-                .build();
+        Bitemm existingItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-BD-001")
+                        .sno(1)
+                        .abusMngNo(prjMngNo)
+                        .fntTbCrySno(1)
+                        .ioeC("IOE-001")
+                        .gclNm("품목A")
+                        .qty(null)
+                        .curC("KRW")
+                        .xcr(null)
+                        .amt(null)
+                        .fcAmt(null)
+                        .mplAmt(null)
+                        .sectSysUtzYn("N")
+                        .itrInfrYn("N")
+                        .delYn("N")
+                        .build();
+        ProjectDto.BitemmDto sameDto =
+                ProjectDto.BitemmDto.builder()
+                        .gclMngNo("GCL-BD-001")
+                        .ioeC("IOE-001")
+                        .gclNm("품목A")
+                        .qty(null)
+                        .curC("KRW")
+                        .xcr(null)
+                        .amt(null)
+                        .fcAmt(null)
+                        .mplAmt(null)
+                        .sectSysUtzYn("N")
+                        .itrInfrYn("N")
+                        .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(Optional.of(project));
-        given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                eq("BPROJM"), eq(prjMngNo), eq(1), anyList())).willReturn(false);
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of(existingItem));
 
         // Act
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(sameDto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(sameDto)).build());
 
         // Assert: 변경 없으므로 버저닝 save 미호출
         verify(bitemmRepository, never()).save(any(Bitemm.class));
@@ -221,34 +278,49 @@ class ProjectServiceCoverageTest {
         // Arrange: 기존 xcr=null, DTO xcr=1.0 → bigDecimalChanged=true
         String prjMngNo = "PRJ-2026-0011";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        Bitemm existingItem = Bitemm.builder()
-                .gclMngNo("GCL-BD-011").sno(1)
-                .abusMngNo(prjMngNo).fntTbCrySno(1)
-                .ioeC("IOE-001").gclNm("품목B")
-                .qty(BigDecimal.ONE).curC("KRW")
-                .xcr(null) // 기존 xcr=null
-                .amt(BigDecimal.valueOf(1000))
-                .sectSysUtzYn("N").itrInfrYn("N")
-                .delYn("N").build();
-        ProjectDto.BitemmDto changedDto = ProjectDto.BitemmDto.builder()
-                .gclMngNo("GCL-BD-011")
-                .ioeC("IOE-001").gclNm("품목B")
-                .qty(BigDecimal.ONE).curC("KRW")
-                .xcr(BigDecimal.ONE) // 값이 있음 → 변경
-                .amt(BigDecimal.valueOf(1000))
-                .sectSysUtzYn("N").itrInfrYn("N")
-                .build();
+        Bitemm existingItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-BD-011")
+                        .sno(1)
+                        .abusMngNo(prjMngNo)
+                        .fntTbCrySno(1)
+                        .ioeC("IOE-001")
+                        .gclNm("품목B")
+                        .qty(BigDecimal.ONE)
+                        .curC("KRW")
+                        .xcr(null) // 기존 xcr=null
+                        .amt(BigDecimal.valueOf(1000))
+                        .sectSysUtzYn("N")
+                        .itrInfrYn("N")
+                        .delYn("N")
+                        .build();
+        ProjectDto.BitemmDto changedDto =
+                ProjectDto.BitemmDto.builder()
+                        .gclMngNo("GCL-BD-011")
+                        .ioeC("IOE-001")
+                        .gclNm("품목B")
+                        .qty(BigDecimal.ONE)
+                        .curC("KRW")
+                        .xcr(BigDecimal.ONE) // 값이 있음 → 변경
+                        .amt(BigDecimal.valueOf(1000))
+                        .sectSysUtzYn("N")
+                        .itrInfrYn("N")
+                        .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(Optional.of(project));
-        given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                eq("BPROJM"), eq(prjMngNo), eq(1), anyList())).willReturn(false);
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of(existingItem));
         given(xcrLookupService.resolveXcr(any(), any())).willReturn(BigDecimal.ONE);
 
         // Act
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(changedDto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(changedDto)).build());
 
         // Assert: 변경 감지 → 버저닝 save 호출
         verify(bitemmRepository, never()).save(any(Bitemm.class));
@@ -261,34 +333,47 @@ class ProjectServiceCoverageTest {
         // Arrange: 기존 qty=1, DTO qty=null → bigDecimalChanged=true
         String prjMngNo = "PRJ-2026-0012";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        Bitemm existingItem = Bitemm.builder()
-                .gclMngNo("GCL-BD-012").sno(1)
-                .abusMngNo(prjMngNo).fntTbCrySno(1)
-                .ioeC("IOE-001").gclNm("품목C")
-                .qty(BigDecimal.ONE) // 기존 qty=1
-                .curC("KRW")
-                .amt(BigDecimal.valueOf(1000))
-                .sectSysUtzYn("N").itrInfrYn("N")
-                .delYn("N").build();
-        ProjectDto.BitemmDto changedDto = ProjectDto.BitemmDto.builder()
-                .gclMngNo("GCL-BD-012")
-                .ioeC("IOE-001").gclNm("품목C")
-                .qty(null) // null → 변경
-                .curC("KRW")
-                .amt(BigDecimal.valueOf(1000))
-                .sectSysUtzYn("N").itrInfrYn("N")
-                .build();
+        Bitemm existingItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-BD-012")
+                        .sno(1)
+                        .abusMngNo(prjMngNo)
+                        .fntTbCrySno(1)
+                        .ioeC("IOE-001")
+                        .gclNm("품목C")
+                        .qty(BigDecimal.ONE) // 기존 qty=1
+                        .curC("KRW")
+                        .amt(BigDecimal.valueOf(1000))
+                        .sectSysUtzYn("N")
+                        .itrInfrYn("N")
+                        .delYn("N")
+                        .build();
+        ProjectDto.BitemmDto changedDto =
+                ProjectDto.BitemmDto.builder()
+                        .gclMngNo("GCL-BD-012")
+                        .ioeC("IOE-001")
+                        .gclNm("품목C")
+                        .qty(null) // null → 변경
+                        .curC("KRW")
+                        .amt(BigDecimal.valueOf(1000))
+                        .sectSysUtzYn("N")
+                        .itrInfrYn("N")
+                        .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(Optional.of(project));
-        given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                eq("BPROJM"), eq(prjMngNo), eq(1), anyList())).willReturn(false);
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of(existingItem));
         given(xcrLookupService.resolveXcr(any(), any())).willReturn(null);
 
         // Act
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(changedDto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(changedDto)).build());
 
         // Assert
         verify(bitemmRepository, never()).save(any(Bitemm.class));
@@ -301,35 +386,48 @@ class ProjectServiceCoverageTest {
         // Arrange: amt=1000.0 (scale=1), DTO amt=1000.00 (scale=2) → compareTo=0 → 변경 없음
         String prjMngNo = "PRJ-2026-0013";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        Bitemm existingItem = Bitemm.builder()
-                .gclMngNo("GCL-BD-013").sno(1)
-                .abusMngNo(prjMngNo).fntTbCrySno(1)
-                .ioeC("IOE-001").gclNm("품목D")
-                .qty(new BigDecimal("1.0"))
-                .curC("KRW")
-                .xcr(new BigDecimal("1300.0"))
-                .amt(new BigDecimal("1000.0"))
-                .sectSysUtzYn("N").itrInfrYn("N")
-                .delYn("N").build();
-        ProjectDto.BitemmDto sameDto = ProjectDto.BitemmDto.builder()
-                .gclMngNo("GCL-BD-013")
-                .ioeC("IOE-001").gclNm("품목D")
-                .qty(new BigDecimal("1.00"))       // scale 다름, 값 동일
-                .curC("KRW")
-                .xcr(new BigDecimal("1300.00"))    // scale 다름, 값 동일
-                .amt(new BigDecimal("1000.00"))    // scale 다름, 값 동일
-                .sectSysUtzYn("N").itrInfrYn("N")
-                .build();
+        Bitemm existingItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-BD-013")
+                        .sno(1)
+                        .abusMngNo(prjMngNo)
+                        .fntTbCrySno(1)
+                        .ioeC("IOE-001")
+                        .gclNm("품목D")
+                        .qty(new BigDecimal("1.0"))
+                        .curC("KRW")
+                        .xcr(new BigDecimal("1300.0"))
+                        .amt(new BigDecimal("1000.0"))
+                        .sectSysUtzYn("N")
+                        .itrInfrYn("N")
+                        .delYn("N")
+                        .build();
+        ProjectDto.BitemmDto sameDto =
+                ProjectDto.BitemmDto.builder()
+                        .gclMngNo("GCL-BD-013")
+                        .ioeC("IOE-001")
+                        .gclNm("품목D")
+                        .qty(new BigDecimal("1.00")) // scale 다름, 값 동일
+                        .curC("KRW")
+                        .xcr(new BigDecimal("1300.00")) // scale 다름, 값 동일
+                        .amt(new BigDecimal("1000.00")) // scale 다름, 값 동일
+                        .sectSysUtzYn("N")
+                        .itrInfrYn("N")
+                        .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(Optional.of(project));
-        given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                eq("BPROJM"), eq(prjMngNo), eq(1), anyList())).willReturn(false);
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of(existingItem));
 
         // Act
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(sameDto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(sameDto)).build());
 
         // Assert: compareTo=0 → 변경 없음
         verify(bitemmRepository, never()).save(any(Bitemm.class));
@@ -353,8 +451,12 @@ class ProjectServiceCoverageTest {
         item.setAmt(BigDecimal.valueOf(1000));
         item.setMplAmt(null); // null → 0
 
-        ProjectDto.CreateRequest req = ProjectDto.CreateRequest.builder()
-                .abusNm("clamp null 테스트").bseYy("2026").items(List.of(item)).build();
+        ProjectDto.CreateRequest req =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("clamp null 테스트")
+                        .bseYy("2026")
+                        .items(List.of(item))
+                        .build();
 
         // Act
         projectService.createProject(req);
@@ -379,8 +481,12 @@ class ProjectServiceCoverageTest {
         item.setAmt(BigDecimal.valueOf(1000));
         item.setMplAmt(BigDecimal.valueOf(-500)); // 음수 → 0
 
-        ProjectDto.CreateRequest req = ProjectDto.CreateRequest.builder()
-                .abusNm("clamp 음수 테스트").bseYy("2026").items(List.of(item)).build();
+        ProjectDto.CreateRequest req =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("clamp 음수 테스트")
+                        .bseYy("2026")
+                        .items(List.of(item))
+                        .build();
 
         // Act
         projectService.createProject(req);
@@ -405,8 +511,12 @@ class ProjectServiceCoverageTest {
         item.setAmt(BigDecimal.valueOf(1000));
         item.setMplAmt(BigDecimal.valueOf(500)); // 범위 내
 
-        ProjectDto.CreateRequest req = ProjectDto.CreateRequest.builder()
-                .abusNm("clamp 범위 테스트").bseYy("2026").items(List.of(item)).build();
+        ProjectDto.CreateRequest req =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("clamp 범위 테스트")
+                        .bseYy("2026")
+                        .items(List.of(item))
+                        .build();
 
         // Act
         projectService.createProject(req);
@@ -428,11 +538,15 @@ class ProjectServiceCoverageTest {
         ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
         item.setIoeC("IOE-001");
         item.setGclNm("품목amt없음");
-        item.setAmt(null);                         // amt=null → reconciled[0]=null
-        item.setMplAmt(BigDecimal.valueOf(9999));  // clampMpl(9999, null) → 9999
+        item.setAmt(null); // amt=null → reconciled[0]=null
+        item.setMplAmt(BigDecimal.valueOf(9999)); // clampMpl(9999, null) → 9999
 
-        ProjectDto.CreateRequest req = ProjectDto.CreateRequest.builder()
-                .abusNm("clamp amt null 테스트").bseYy("2026").items(List.of(item)).build();
+        ProjectDto.CreateRequest req =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("clamp amt null 테스트")
+                        .bseYy("2026")
+                        .items(List.of(item))
+                        .build();
 
         // Act
         projectService.createProject(req);
@@ -447,41 +561,59 @@ class ProjectServiceCoverageTest {
     // isItemChanged — 각 필드별 변경 탐지 (updateProject 경로)
     // ═══════════════════════════════════════════════════════════════════════
 
-    /**
-     * 기본 기존 품목(변경 없음 기준선)을 생성하는 헬퍼.
-     * 각 테스트에서 단일 필드만 변경하여 isItemChanged 분기를 격리 검증한다.
-     */
+    /** 기본 기존 품목(변경 없음 기준선)을 생성하는 헬퍼. 각 테스트에서 단일 필드만 변경하여 isItemChanged 분기를 격리 검증한다. */
     private Bitemm baseExistingItem(String prjMngNo, String gclMngNo) {
         return Bitemm.builder()
-                .gclMngNo(gclMngNo).sno(1)
-                .abusMngNo(prjMngNo).fntTbCrySno(1)
-                .ioeC("IOE-BASE").gclNm("기준품목")
-                .qty(BigDecimal.ONE).curC("KRW")
-                .xcr(BigDecimal.ONE).xcrBseDt("20260101")
-                .cncdFdtnCone("기준근거").bseYm("202601").dfrCleC("1")
-                .sectSysUtzYn("N").itrInfrYn("N")
-                .amt(BigDecimal.valueOf(1000)).mplAmt(BigDecimal.valueOf(500))
-                .fcAmt(null).delYn("N").build();
+                .gclMngNo(gclMngNo)
+                .sno(1)
+                .abusMngNo(prjMngNo)
+                .fntTbCrySno(1)
+                .ioeC("IOE-BASE")
+                .gclNm("기준품목")
+                .qty(BigDecimal.ONE)
+                .curC("KRW")
+                .xcr(BigDecimal.ONE)
+                .xcrBseDt("20260101")
+                .cncdFdtnCone("기준근거")
+                .bseYm("202601")
+                .dfrCleC("1")
+                .sectSysUtzYn("N")
+                .itrInfrYn("N")
+                .amt(BigDecimal.valueOf(1000))
+                .mplAmt(BigDecimal.valueOf(500))
+                .fcAmt(null)
+                .delYn("N")
+                .build();
     }
 
     /** 기존 품목과 동일한 필드를 가진 DTO 빌더 기준선 */
     private ProjectDto.BitemmDto.BitemmDtoBuilder baseDtoBuilder(String gclMngNo) {
         return ProjectDto.BitemmDto.builder()
                 .gclMngNo(gclMngNo)
-                .ioeC("IOE-BASE").gclNm("기준품목")
-                .qty(BigDecimal.ONE).curC("KRW")
-                .xcr(BigDecimal.ONE).xcrBseDt("20260101")
-                .cncdFdtnCone("기준근거").bseYm("202601").dfrCleC("1")
-                .sectSysUtzYn("N").itrInfrYn("N")
-                .amt(BigDecimal.valueOf(1000)).mplAmt(BigDecimal.valueOf(500))
+                .ioeC("IOE-BASE")
+                .gclNm("기준품목")
+                .qty(BigDecimal.ONE)
+                .curC("KRW")
+                .xcr(BigDecimal.ONE)
+                .xcrBseDt("20260101")
+                .cncdFdtnCone("기준근거")
+                .bseYm("202601")
+                .dfrCleC("1")
+                .sectSysUtzYn("N")
+                .itrInfrYn("N")
+                .amt(BigDecimal.valueOf(1000))
+                .mplAmt(BigDecimal.valueOf(500))
                 .fcAmt(null);
     }
 
     /** updateProject 공통 mock 설정 헬퍼 */
     private void setupUpdateMocks(String prjMngNo, Bprojm project, List<Bitemm> existing) {
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(Optional.of(project));
-        given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                eq("BPROJM"), eq(prjMngNo), eq(1), anyList())).willReturn(false);
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(existing);
         given(xcrLookupService.resolveXcr(any(), any())).willReturn(BigDecimal.ONE);
@@ -497,8 +629,9 @@ class ProjectServiceCoverageTest {
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         assertThat(existing.getDelYn()).isEqualTo("N");
         assertThat(existing.getIoeC()).isEqualTo("IOE-CHANGED");
@@ -515,8 +648,9 @@ class ProjectServiceCoverageTest {
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         assertThat(existing.getDelYn()).isEqualTo("N");
     }
@@ -531,8 +665,9 @@ class ProjectServiceCoverageTest {
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         assertThat(existing.getDelYn()).isEqualTo("N");
     }
@@ -547,8 +682,9 @@ class ProjectServiceCoverageTest {
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         assertThat(existing.getDelYn()).isEqualTo("N");
     }
@@ -563,8 +699,9 @@ class ProjectServiceCoverageTest {
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         assertThat(existing.getDelYn()).isEqualTo("N");
     }
@@ -580,8 +717,9 @@ class ProjectServiceCoverageTest {
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         // toItdYm("2026-06") = "202606" ≠ "202601" → 변경
         assertThat(existing.getDelYn()).isEqualTo("N");
@@ -597,8 +735,9 @@ class ProjectServiceCoverageTest {
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         assertThat(existing.getDelYn()).isEqualTo("N");
     }
@@ -614,8 +753,9 @@ class ProjectServiceCoverageTest {
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         assertThat(existing.getDelYn()).isEqualTo("N");
     }
@@ -631,8 +771,9 @@ class ProjectServiceCoverageTest {
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         assertThat(existing.getDelYn()).isEqualTo("N");
     }
@@ -644,13 +785,14 @@ class ProjectServiceCoverageTest {
         String prjMngNo = "PRJ-IC-010";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
         Bitemm existing = baseExistingItem(prjMngNo, "GCL-IC-010");
-        ProjectDto.BitemmDto dto = baseDtoBuilder("GCL-IC-010")
-                .fcAmt(BigDecimal.valueOf(100)).build();
+        ProjectDto.BitemmDto dto =
+                baseDtoBuilder("GCL-IC-010").fcAmt(BigDecimal.valueOf(100)).build();
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         assertThat(existing.getDelYn()).isEqualTo("N");
     }
@@ -662,13 +804,14 @@ class ProjectServiceCoverageTest {
         String prjMngNo = "PRJ-IC-011";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
         Bitemm existing = baseExistingItem(prjMngNo, "GCL-IC-011");
-        ProjectDto.BitemmDto dto = baseDtoBuilder("GCL-IC-011")
-                .mplAmt(BigDecimal.valueOf(300)).build();
+        ProjectDto.BitemmDto dto =
+                baseDtoBuilder("GCL-IC-011").mplAmt(BigDecimal.valueOf(300)).build();
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
         assertThat(existing.getDelYn()).isEqualTo("N");
     }
@@ -683,37 +826,57 @@ class ProjectServiceCoverageTest {
     void setCodeNames_rprStsTc_exePttYn_abusTc_코드명조회() {
         // Arrange: 세 가지 코드 필드가 모두 존재하는 프로젝트
         String prjMngNo = "PRJ-CODE-001";
-        Bprojm project = Bprojm.builder()
-                .abusMngNo(prjMngNo).sno(1).delYn("N")
-                .rprStsTc("01").exePttYn("Y").abusTc("TC01")
-                .build();
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo(prjMngNo)
+                        .sno(1)
+                        .delYn("N")
+                        .rprStsTc("01")
+                        .exePttYn("Y")
+                        .abusTc("TC01")
+                        .build();
 
         given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
                 .willReturn(Optional.of(project));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
+        given(
+                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                anyString(), eq(prjMngNo), eq(1)))
+                .willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of());
         given(bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(List.of());
 
         // ccodemRepository: rprStsTc 코드명
-        given(ccodemRepository.findByCIdAndCdvaWithValidDate(
-                CommonCodeGroups.REPORT_STS, "01", null))
-                .willReturn(Optional.of(
-                        Ccodem.builder().cId(CommonCodeGroups.REPORT_STS)
-                                .cdva("01").cdvaNm("진행중").build()));
+        given(
+                        ccodemRepository.findByCIdAndCdvaWithValidDate(
+                                CommonCodeGroups.REPORT_STS, "01", null))
+                .willReturn(
+                        Optional.of(
+                                Ccodem.builder()
+                                        .cId(CommonCodeGroups.REPORT_STS)
+                                        .cdva("01")
+                                        .cdvaNm("진행중")
+                                        .build()));
         // ccodemRepository: exePttYn 코드명
-        given(ccodemRepository.findByCIdAndCdvaWithValidDate(
-                CommonCodeGroups.EXE_POSSIBLE, "Y", null))
-                .willReturn(Optional.of(
-                        Ccodem.builder().cId(CommonCodeGroups.EXE_POSSIBLE)
-                                .cdva("Y").cdvaNm("가능").build()));
+        given(
+                        ccodemRepository.findByCIdAndCdvaWithValidDate(
+                                CommonCodeGroups.EXE_POSSIBLE, "Y", null))
+                .willReturn(
+                        Optional.of(
+                                Ccodem.builder()
+                                        .cId(CommonCodeGroups.EXE_POSSIBLE)
+                                        .cdva("Y")
+                                        .cdvaNm("가능")
+                                        .build()));
         // ccodemRepository: abusTc 코드명
-        given(ccodemRepository.findByCIdAndCdvaWithValidDate(
-                CommonCodeGroups.ABUS, "TC01", null))
-                .willReturn(Optional.of(
-                        Ccodem.builder().cId(CommonCodeGroups.ABUS)
-                                .cdva("TC01").cdvaNm("사업구분01").build()));
+        given(ccodemRepository.findByCIdAndCdvaWithValidDate(CommonCodeGroups.ABUS, "TC01", null))
+                .willReturn(
+                        Optional.of(
+                                Ccodem.builder()
+                                        .cId(CommonCodeGroups.ABUS)
+                                        .cdva("TC01")
+                                        .cdvaNm("사업구분01")
+                                        .build()));
 
         // Act
         ProjectDto.Response result = projectService.getProject(prjMngNo);
@@ -729,15 +892,22 @@ class ProjectServiceCoverageTest {
     void setCodeNames_필드null_코드명조회skip() {
         // Arrange: 코드 필드가 모두 null
         String prjMngNo = "PRJ-CODE-002";
-        Bprojm project = Bprojm.builder()
-                .abusMngNo(prjMngNo).sno(1).delYn("N")
-                .rprStsTc(null).exePttYn(null).abusTc(null)
-                .build();
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo(prjMngNo)
+                        .sno(1)
+                        .delYn("N")
+                        .rprStsTc(null)
+                        .exePttYn(null)
+                        .abusTc(null)
+                        .build();
 
         given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
                 .willReturn(Optional.of(project));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
+        given(
+                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                anyString(), eq(prjMngNo), eq(1)))
+                .willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of());
         given(bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(List.of());
@@ -746,7 +916,8 @@ class ProjectServiceCoverageTest {
         ProjectDto.Response result = projectService.getProject(prjMngNo);
 
         // Assert: ccodemRepository 미호출
-        verify(ccodemRepository, never()).findByCIdAndCdvaWithValidDate(anyString(), anyString(), any());
+        verify(ccodemRepository, never())
+                .findByCIdAndCdvaWithValidDate(anyString(), anyString(), any());
         assertThat(result.getRprStsTcNm()).isNull();
     }
 
@@ -755,17 +926,25 @@ class ProjectServiceCoverageTest {
     void setCodeNames_부서담당자코드_명칭조회() {
         // Arrange
         String prjMngNo = "PRJ-CODE-003";
-        Bprojm project = Bprojm.builder()
-                .abusMngNo(prjMngNo).sno(1).delYn("N")
-                .dvmDpmC("DEPT-001").svnDpmC("DEPT-002")
-                .dvmUsid("EMP001").tlrUsid("EMP002")
-                .usid("EMP003").dvmTlrUsid("EMP004")
-                .build();
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo(prjMngNo)
+                        .sno(1)
+                        .delYn("N")
+                        .dvmDpmC("DEPT-001")
+                        .svnDpmC("DEPT-002")
+                        .dvmUsid("EMP001")
+                        .tlrUsid("EMP002")
+                        .usid("EMP003")
+                        .dvmTlrUsid("EMP004")
+                        .build();
 
         given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
                 .willReturn(Optional.of(project));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
+        given(
+                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                anyString(), eq(prjMngNo), eq(1)))
+                .willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of());
         given(bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(List.of());
@@ -806,15 +985,16 @@ class ProjectServiceCoverageTest {
         String prjMngNo = "PRJ-RS-001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        Bproja row1 = Bproja.builder()
-                .abusMngNo(prjMngNo).cncdRfrNo(prjMngNo).stsTc("01").build();
-        Bproja row2 = Bproja.builder()
-                .abusMngNo(prjMngNo).cncdRfrNo("DLB-2026-0001").stsTc("09").build();
+        Bproja row1 = Bproja.builder().abusMngNo(prjMngNo).cncdRfrNo(prjMngNo).stsTc("01").build();
+        Bproja row2 =
+                Bproja.builder().abusMngNo(prjMngNo).cncdRfrNo("DLB-2026-0001").stsTc("09").build();
 
         given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
                 .willReturn(Optional.of(project));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
+        given(
+                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                anyString(), eq(prjMngNo), eq(1)))
+                .willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of());
         given(bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
@@ -835,15 +1015,16 @@ class ProjectServiceCoverageTest {
         String prjMngNo = "PRJ-RS-002";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        Bproja nullRow = Bproja.builder()
-                .abusMngNo(prjMngNo).cncdRfrNo("REF-NULL").stsTc(null).build();
-        Bproja row02 = Bproja.builder()
-                .abusMngNo(prjMngNo).cncdRfrNo("REF-02").stsTc("02").build();
+        Bproja nullRow =
+                Bproja.builder().abusMngNo(prjMngNo).cncdRfrNo("REF-NULL").stsTc(null).build();
+        Bproja row02 = Bproja.builder().abusMngNo(prjMngNo).cncdRfrNo("REF-02").stsTc("02").build();
 
         given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
                 .willReturn(Optional.of(project));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
+        given(
+                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                anyString(), eq(prjMngNo), eq(1)))
+                .willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of());
         given(bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
@@ -864,17 +1045,18 @@ class ProjectServiceCoverageTest {
         String prjMngNo = "PRJ-RS-003";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        Bproja nullRow = Bproja.builder()
-                .abusMngNo(prjMngNo).cncdRfrNo("REF-N1").stsTc(null).build();
+        Bproja nullRow =
+                Bproja.builder().abusMngNo(prjMngNo).cncdRfrNo("REF-N1").stsTc(null).build();
 
         given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
                 .willReturn(Optional.of(project));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
+        given(
+                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                anyString(), eq(prjMngNo), eq(1)))
+                .willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of());
-        given(bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
-                .willReturn(List.of(nullRow));
+        given(bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(List.of(nullRow));
 
         // Act
         ProjectDto.Response result = projectService.getProject(prjMngNo);
@@ -895,32 +1077,39 @@ class ProjectServiceCoverageTest {
         String prjMngNo = "PRJ-IOE-001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        Bitemm nullIoeItem  = Bitemm.builder().ioeC(null).amt(BigDecimal.valueOf(100)).build();
-        Bitemm validIoeItem = Bitemm.builder().ioeC("IOE-351-0100").amt(BigDecimal.valueOf(200)).build();
+        Bitemm nullIoeItem = Bitemm.builder().ioeC(null).amt(BigDecimal.valueOf(100)).build();
+        Bitemm validIoeItem =
+                Bitemm.builder().ioeC("IOE-351-0100").amt(BigDecimal.valueOf(200)).build();
         Bitemm emptyIoeItem = Bitemm.builder().ioeC("").amt(BigDecimal.valueOf(50)).build();
 
         given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
                 .willReturn(Optional.of(project));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
+        given(
+                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                anyString(), eq(prjMngNo), eq(1)))
+                .willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of(nullIoeItem, validIoeItem, emptyIoeItem));
         given(bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(List.of());
 
         // ccodemRepository: IOE-351-0100 코드명
         given(ccodemRepository.findByCIdWithValidDate(anyString(), any()))
-                .willReturn(List.of(
-                        Ccodem.builder()
-                                .cId("IOE_351").cdva("0100").cdvaNm("소프트웨어 구매").build()));
+                .willReturn(
+                        List.of(
+                                Ccodem.builder()
+                                        .cId("IOE_351")
+                                        .cdva("0100")
+                                        .cdvaNm("소프트웨어 구매")
+                                        .build()));
 
         // Act
         ProjectDto.Response result = projectService.getProject(prjMngNo);
 
         // Assert: 3건 반환
         assertThat(result.getItems()).hasSize(3);
-        assertThat(result.getItems().get(0).getIoeCNm()).isNull();               // ioeC=null → 조회 안 됨
+        assertThat(result.getItems().get(0).getIoeCNm()).isNull(); // ioeC=null → 조회 안 됨
         assertThat(result.getItems().get(1).getIoeCNm()).isEqualTo("소프트웨어 구매"); // 조회됨
-        assertThat(result.getItems().get(2).getIoeCNm()).isNull();               // ioeC="" → ioeCSet 미포함
+        assertThat(result.getItems().get(2).getIoeCNm()).isNull(); // ioeC="" → ioeCSet 미포함
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -936,8 +1125,10 @@ class ProjectServiceCoverageTest {
 
         given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
                 .willReturn(Optional.of(project));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(prjMngNo), eq(1))).willReturn(List.of());
+        given(
+                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                anyString(), eq(prjMngNo), eq(1)))
+                .willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of());
         given(bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
@@ -962,10 +1153,10 @@ class ProjectServiceCoverageTest {
         Bprojm p1 = Bprojm.builder().abusMngNo("PRJ-L-001").sno(1).delYn("N").build();
         Bprojm p2 = Bprojm.builder().abusMngNo("PRJ-L-002").sno(2).delYn("N").build();
 
-        Bproja b1 = Bproja.builder()
-                .abusMngNo("PRJ-L-001").cncdRfrNo("PRJ-L-001").stsTc("01").build();
-        Bproja b2 = Bproja.builder()
-                .abusMngNo("PRJ-L-002").cncdRfrNo("PRJ-L-002").stsTc("09").build();
+        Bproja b1 =
+                Bproja.builder().abusMngNo("PRJ-L-001").cncdRfrNo("PRJ-L-001").stsTc("01").build();
+        Bproja b2 =
+                Bproja.builder().abusMngNo("PRJ-L-002").cncdRfrNo("PRJ-L-002").stsTc("09").build();
 
         given(projectRepository.findAllByDelYn("N")).willReturn(List.of(p1, p2));
         given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
@@ -975,8 +1166,7 @@ class ProjectServiceCoverageTest {
         // BPROJA 배치 조회: 두 행 반환
         given(bprojaRepository.findByAbusMngNoInAndDelYn(anyList(), eq("N")))
                 .willReturn(List.of(b1, b2));
-        given(bitemmRepository.findByAbusMngNoInAndDelYn(anyList(), eq("N")))
-                .willReturn(List.of());
+        given(bitemmRepository.findByAbusMngNoInAndDelYn(anyList(), eq("N"))).willReturn(List.of());
 
         // Act
         List<ProjectDto.Response> result = projectService.getProjectList();
@@ -997,11 +1187,12 @@ class ProjectServiceCoverageTest {
         // Arrange
         given(projectRepository.getNextSequenceValue()).willReturn(99L);
 
-        ProjectDto.CreateRequest request = ProjectDto.CreateRequest.builder()
-                .abusNm("품목없는 사업")
-                .bseYy("2026")
-                .items(null) // items=null → 저장 skip
-                .build();
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("품목없는 사업")
+                        .bseYy("2026")
+                        .items(null) // items=null → 저장 skip
+                        .build();
 
         // Act
         String result = projectService.createProject(request);
@@ -1025,21 +1216,31 @@ class ProjectServiceCoverageTest {
         String prjMngNo = "PRJ-ORPHAN-001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(Optional.of(project));
-        given(capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                eq("BPROJM"), eq(prjMngNo), eq(1), anyList())).willReturn(false);
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(List.of()); // 기존 품목 없음
 
-        ProjectDto.BitemmDto dto = ProjectDto.BitemmDto.builder()
-                .gclMngNo("GCL-ORPHAN") // gclMngNo 있음 but 기존에 없음 → existingItem=null
-                .ioeC("IOE-001").gclNm("고아 품목")
-                .amt(BigDecimal.valueOf(100))
-                .build();
+        ProjectDto.BitemmDto dto =
+                ProjectDto.BitemmDto.builder()
+                        .gclMngNo("GCL-ORPHAN") // gclMngNo 있음 but 기존에 없음 → existingItem=null
+                        .ioeC("IOE-001")
+                        .gclNm("고아 품목")
+                        .amt(BigDecimal.valueOf(100))
+                        .build();
 
         // Act
-        String result = projectService.updateProject(prjMngNo, ProjectDto.UpdateRequest.builder()
-                .abusNm("사업").items(List.of(dto)).build());
+        String result =
+                projectService.updateProject(
+                        prjMngNo,
+                        ProjectDto.UpdateRequest.builder()
+                                .abusNm("사업")
+                                .items(List.of(dto))
+                                .build());
 
         // Assert: 저장 없음
         assertThat(result).isEqualTo(prjMngNo);
@@ -1062,21 +1263,40 @@ class ProjectServiceCoverageTest {
 
         given(projectRepository.findByAbusMngNoAndDelYn(p1, "N")).willReturn(Optional.of(proj1));
         given(projectRepository.findByAbusMngNoAndDelYn(p2, "N")).willReturn(Optional.of(proj2));
-        given(capplaRepository.findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(p1), eq(1)))
+        given(
+                        capplaRepository
+                                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                        anyString(), eq(p1), eq(1)))
                 .willReturn(List.of(new ApplicationMapView("APF-B-001", p1, 1)));
-        given(capplaRepository.findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(p2), eq(1)))
+        given(
+                        capplaRepository
+                                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                        anyString(), eq(p2), eq(1)))
                 .willReturn(List.of(new ApplicationMapView("APF-B-002", p2, 1)));
         given(capplmRepository.findSummaryViewsByApfMngNoIn(List.of("APF-B-001")))
-                .willReturn(List.of(new ApplicationSummaryView(
-                        "APF-B-001", com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
-                        "결재1", null, null, null)));
+                .willReturn(
+                        List.of(
+                                new ApplicationSummaryView(
+                                        "APF-B-001",
+                                        com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS
+                                                .code(),
+                                        "결재1",
+                                        null,
+                                        null,
+                                        null)));
         given(capplmRepository.findSummaryViewsByApfMngNoIn(List.of("APF-B-002")))
-                .willReturn(List.of(new ApplicationSummaryView(
-                        "APF-B-002", com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code(),
-                        "결재2", null, null, null)));
-        given(cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(anyString())).willReturn(List.of());
+                .willReturn(
+                        List.of(
+                                new ApplicationSummaryView(
+                                        "APF-B-002",
+                                        com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED
+                                                .code(),
+                                        "결재2",
+                                        null,
+                                        null,
+                                        null)));
+        given(cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(anyString()))
+                .willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), eq(1), eq("N")))
                 .willReturn(List.of());
         given(bprojaRepository.findByAbusMngNoAndDelYn(anyString(), eq("N"))).willReturn(List.of());

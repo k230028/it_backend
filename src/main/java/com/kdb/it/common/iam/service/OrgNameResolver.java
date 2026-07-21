@@ -8,11 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 조직코드 → 조직명 공통 해석기.
  *
- * <p>
- * 부서/팀 코드 모두 조직 마스터({@code TPRMPP_CORGNI})의 {@code PRLM_OGZ_C_CONE}을
- * 키로 사용하므로 단일 메서드로 해석합니다. 마스터 레코드에 주관부서명/주관팀명
- * 스냅샷(SVN_DPM_NM/SVN_TEM_NM)을 저장할 때 사용합니다.
- * </p>
+ * <p>부서/팀 코드 모두 조직 마스터({@code TPRMPP_CORGNI})의 {@code PRLM_OGZ_C_CONE}을 키로 사용하므로 단일 메서드로 해석합니다. 마스터
+ * 레코드에 주관부서명/주관팀명 스냅샷(SVN_DPM_NM/SVN_TEM_NM)을 저장할 때 사용합니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -32,7 +29,8 @@ public class OrgNameResolver {
         if (orgCode == null || orgCode.isBlank()) {
             return null;
         }
-        return organizationRepository.findById(orgCode)
+        return organizationRepository
+                .findById(orgCode)
                 .map(organization -> organization.getBbrNm())
                 .orElse(null);
     }

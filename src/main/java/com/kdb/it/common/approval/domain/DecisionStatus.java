@@ -3,13 +3,13 @@ package com.kdb.it.common.approval.domain;
 /**
  * 결재선 결재상태 (Ccodem cId='IT_PTL_DCD_STS_C').
  *
- * <p>코드값은 현행 CCODEM(IT_PTL_DCD_STS_C) 및 업무 컬럼(VARCHAR2(1))과 일치하는 1자리 체계다:
- * {@code 1=미결재, 2=승인, 3=반려, 4=회수무효}.</p>
+ * <p>코드값은 현행 CCODEM(IT_PTL_DCD_STS_C) 및 업무 컬럼(VARCHAR2(1))과 일치하는 1자리 체계다: {@code 1=미결재, 2=승인, 3=반려,
+ * 4=회수무효}.
  */
 public enum DecisionStatus {
-    PENDING    ("1", "미결재"),
-    APPROVED   ("2", "승인"),
-    REJECTED   ("3", "반려"),
+    PENDING("1", "미결재"),
+    APPROVED("2", "승인"),
+    REJECTED("3", "반려"),
     INVALIDATED("4", "회수무효");
 
     private final String code;
@@ -20,8 +20,13 @@ public enum DecisionStatus {
         this.label = label;
     }
 
-    public String code()  { return code; }
-    public String label() { return label; }
+    public String code() {
+        return code;
+    }
+
+    public String label() {
+        return label;
+    }
 
     /**
      * IT_PTL_DCD_STS_C 코드값으로 enum 상수를 조회합니다.
@@ -56,9 +61,9 @@ public enum DecisionStatus {
      * 레거시 코드값을 현행 1자리 체계로 정규화합니다.
      *
      * <ul>
-     *   <li>구 3자리 표준값: 001→1, 002→2, 003→3, 004→4</li>
-     *   <li>구 0-based 미결재값: 0→1</li>
-     *   <li>현행 1자리값(1~4): 그대로 통과</li>
+     *   <li>구 3자리 표준값: 001→1, 002→2, 003→3, 004→4
+     *   <li>구 0-based 미결재값: 0→1
+     *   <li>현행 1자리값(1~4): 그대로 통과
      * </ul>
      */
     private static String normalizeCode(String code) {
@@ -68,7 +73,7 @@ public enum DecisionStatus {
             case "002" -> APPROVED.code;
             case "003" -> REJECTED.code;
             case "004" -> INVALIDATED.code;
-            case "0"   -> PENDING.code;
+            case "0" -> PENDING.code;
             default -> code.trim();
         };
     }

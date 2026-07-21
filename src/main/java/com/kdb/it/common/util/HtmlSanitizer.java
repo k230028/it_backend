@@ -7,25 +7,23 @@ import org.jsoup.safety.Safelist;
 /**
  * HTML 새니타이징 유틸리티
  *
- * <p>
- * Tiptap 에디터에서 생성한 Rich Text(HTML)를 서버 측에서 새니타이징합니다.
- * 프론트엔드(DOMPurify)와 함께 이중 방어 체계를 구성합니다.
- * </p>
+ * <p>Tiptap 에디터에서 생성한 Rich Text(HTML)를 서버 측에서 새니타이징합니다. 프론트엔드(DOMPurify)와 함께 이중 방어 체계를 구성합니다.
  *
- * <p>
- * {@code <script>}, {@code onclick} 등 위험 요소는 자동으로 제거됩니다.
- * </p>
+ * <p>{@code <script>}, {@code onclick} 등 위험 요소는 자동으로 제거됩니다.
  *
- * <p>
- * 허용 태그 목록:
- * </p>
+ * <p>허용 태그 목록:
+ *
  * <ul>
- * <li>블록: {@code p(style), blockquote, h1~h6(style,id), pre, ol, ul(data-type), li(data-type,data-checked), div(data-type,data-latex,class)}</li>
- * <li>인라인: {@code strong, em, u, s, br, span(data-type,data-file-id,data-file-name,data-file-size,data-latex), code, mark, sub, sup}</li>
- * <li>테이블: {@code table, thead, tbody, tfoot, tr, th, td, colgroup, col}</li>
- * <li>체크리스트: {@code label, input(type,checked)}</li>
- * <li>미디어/링크: {@code a(href,target,rel), img(src,alt,style,data-scene,data-align,width,height), figure(data-type)}</li>
- * <li>수식: {@code math-field(read-only,class,contenteditable,tabindex,style)}</li>
+ *   <li>블록: {@code p(style), blockquote, h1~h6(style,id), pre, ol, ul(data-type),
+ *       li(data-type,data-checked), div(data-type,data-latex,class)}
+ *   <li>인라인: {@code strong, em, u, s, br,
+ *       span(data-type,data-file-id,data-file-name,data-file-size,data-latex), code, mark, sub,
+ *       sup}
+ *   <li>테이블: {@code table, thead, tbody, tfoot, tr, th, td, colgroup, col}
+ *   <li>체크리스트: {@code label, input(type,checked)}
+ *   <li>미디어/링크: {@code a(href,target,rel), img(src,alt,style,data-scene,data-align,width,height),
+ *       figure(data-type)}
+ *   <li>수식: {@code math-field(read-only,class,contenteditable,tabindex,style)}
  * </ul>
  */
 public final class HtmlSanitizer {
@@ -41,19 +39,28 @@ public final class HtmlSanitizer {
     /**
      * Tiptap 리치에디터 허용 태그/속성 Safelist 생성
      *
-     * <p>
-     * {@link Safelist#none()} 기반으로 시작하여 Tiptap 에디터에서
-     * 사용하는 태그와 속성만 허용 목록에 추가합니다.
-     * </p>
+     * <p>{@link Safelist#none()} 기반으로 시작하여 Tiptap 에디터에서 사용하는 태그와 속성만 허용 목록에 추가합니다.
      *
      * @return Tiptap 리치에디터 전용 Safelist
      */
     private static Safelist createQuillSafelist() {
         return new Safelist()
                 // ── 블록 요소 ──
-                .addTags("p", "br", "blockquote", "pre", "div",
-                        "h1", "h2", "h3", "h4", "h5", "h6",
-                        "ol", "ul", "li")
+                .addTags(
+                        "p",
+                        "br",
+                        "blockquote",
+                        "pre",
+                        "div",
+                        "h1",
+                        "h2",
+                        "h3",
+                        "h4",
+                        "h5",
+                        "h6",
+                        "ol",
+                        "ul",
+                        "li")
                 // pre/code: class 허용 (FR-03: CodeBlockLowlight가 language-xxx class 주입)
                 .addAttributes("pre", "class")
                 .addAttributes("code", "class")
@@ -81,9 +88,17 @@ public final class HtmlSanitizer {
                 // data-latex: 인라인 수식 LaTeX 내용 보존 (FR-07: InlineMathExtension)
                 // data-comment-id: 사전협의 인라인 코멘트 마크 ID 보존
                 // data-resolved: 사전협의 인라인 코멘트 해결 여부 보존
-                .addAttributes("span", "style", "class",
-                        "data-type", "data-file-id", "data-file-name", "data-file-size",
-                        "data-latex", "data-comment-id", "data-resolved")
+                .addAttributes(
+                        "span",
+                        "style",
+                        "class",
+                        "data-type",
+                        "data-file-id",
+                        "data-file-name",
+                        "data-file-size",
+                        "data-latex",
+                        "data-comment-id",
+                        "data-resolved")
 
                 // ── 체크리스트 요소 (FR-02: Tiptap TaskItem 구조) ──
                 // <label><input type="checkbox"></label><div>내용</div>
@@ -91,17 +106,37 @@ public final class HtmlSanitizer {
                 .addAttributes("input", "type", "checked", "disabled")
 
                 // ── 테이블 요소 ──
-                .addTags("table", "thead", "tbody", "tfoot", "tr", "th", "td",
-                        "colgroup", "col")
+                .addTags("table", "thead", "tbody", "tfoot", "tr", "th", "td", "colgroup", "col")
                 // 테이블 관련 스타일/속성 허용 (셀 병합, 너비, 배경색, 정렬 등)
-                .addAttributes("table", "style", "class", "border", "cellpadding", "cellspacing", "width")
+                .addAttributes(
+                        "table", "style", "class", "border", "cellpadding", "cellspacing", "width")
                 .addAttributes("thead", "style", "class")
                 .addAttributes("tbody", "style", "class")
                 .addAttributes("tfoot", "style", "class")
                 .addAttributes("tr", "style", "class")
                 // th/td: colwidth 추가 (Tiptap 표 열 너비 보존)
-                .addAttributes("th", "colspan", "rowspan", "colwidth", "style", "class", "width", "height", "align", "valign")
-                .addAttributes("td", "colspan", "rowspan", "colwidth", "style", "class", "width", "height", "align", "valign")
+                .addAttributes(
+                        "th",
+                        "colspan",
+                        "rowspan",
+                        "colwidth",
+                        "style",
+                        "class",
+                        "width",
+                        "height",
+                        "align",
+                        "valign")
+                .addAttributes(
+                        "td",
+                        "colspan",
+                        "rowspan",
+                        "colwidth",
+                        "style",
+                        "class",
+                        "width",
+                        "height",
+                        "align",
+                        "valign")
                 .addAttributes("col", "span", "style", "width")
                 .addAttributes("colgroup", "span")
 
@@ -113,27 +148,27 @@ public final class HtmlSanitizer {
 
                 // ── Excalidraw / 미디어 래퍼 ──
                 .addTags("figure")
-                .addAttributes("figure", "data-type", "data-scene", "data-attachment-id", "class", "style")
+                .addAttributes(
+                        "figure", "data-type", "data-scene", "data-attachment-id", "class", "style")
 
                 // ── 이미지 ──
                 // style 허용 (ResizableImage width), data-align 허용 (정렬)
                 .addTags("img")
-                .addAttributes("img", "src", "alt", "style", "data-scene", "data-align", "width", "height")
+                .addAttributes(
+                        "img", "src", "alt", "style", "data-scene", "data-align", "width", "height")
                 .addProtocols("img", "src", "http", "https", "data")
 
                 // ── 수식 (MathLive) ──
                 .addTags("math-field")
-                .addAttributes("math-field", "read-only", "class", "contenteditable", "tabindex", "style");
+                .addAttributes(
+                        "math-field", "read-only", "class", "contenteditable", "tabindex", "style");
     }
 
     /**
      * HTML 문자열에서 위험 요소를 제거하고 안전한 HTML만 반환
      *
-     * <p>
-     * {@code null} 또는 빈 문자열은 입력값 그대로 반환합니다.
-     * Tiptap 에디터 허용 태그/속성 외의 모든 요소는 자동 제거됩니다.
-     * (예: {@code <script>}, {@code onclick}, {@code onerror} 등)
-     * </p>
+     * <p>{@code null} 또는 빈 문자열은 입력값 그대로 반환합니다. Tiptap 에디터 허용 태그/속성 외의 모든 요소는 자동 제거됩니다. (예: {@code
+     * <script>}, {@code onclick}, {@code onerror} 등)
      *
      * @param html 새니타이징할 HTML 문자열
      * @return 안전한 HTML 문자열 (위험 요소 제거됨)

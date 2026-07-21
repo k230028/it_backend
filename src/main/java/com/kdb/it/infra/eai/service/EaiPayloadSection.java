@@ -5,7 +5,7 @@ import com.kdb.it.infra.eai.dto.EaiPayload;
 /**
  * 표준전문 개별부(param07) 채널 1개를 책임지는 전략(SPI).
  *
- * <p>무상태 {@code @Component}로 구현한다. 신규 채널 = 새 페이로드 record + 새 섹션 1개.</p>
+ * <p>무상태 {@code @Component}로 구현한다. 신규 채널 = 새 페이로드 record + 새 섹션 1개.
  */
 public interface EaiPayloadSection {
 

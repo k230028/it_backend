@@ -5,8 +5,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.iam.dto.OrganizationDto;
+import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.repository.OrganizationRepository;
 import java.util.List;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,27 +16,18 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.kdb.it.common.iam.dto.OrganizationDto;
-import com.kdb.it.common.iam.entity.CorgnI;
-import com.kdb.it.common.iam.repository.OrganizationRepository;
-
 /**
  * OrganizationService 단위 테스트
  *
- * <p>
- * 조직 목록 조회 서비스가 리포지토리에 정확히 위임하고 DTO로 변환하는지 검증합니다.
- * CorgnI 엔티티는 protected 생성자를 우회하기 위해 Mockito.mock()으로 생성합니다.
- * Oracle DB 없이 실행됩니다.
- * </p>
+ * <p>조직 목록 조회 서비스가 리포지토리에 정확히 위임하고 DTO로 변환하는지 검증합니다. CorgnI 엔티티는 protected 생성자를 우회하기 위해
+ * Mockito.mock()으로 생성합니다. Oracle DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 class OrganizationServiceTest {
 
-    @Mock
-    private OrganizationRepository organizationRepository;
+    @Mock private OrganizationRepository organizationRepository;
 
-    @InjectMocks
-    private OrganizationService organizationService;
+    @InjectMocks private OrganizationService organizationService;
 
     private CorgnI mockCorgnI(String orgCode, String parentCode, String name) {
         CorgnI org = mock(CorgnI.class);

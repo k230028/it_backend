@@ -10,8 +10,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 게시판 댓글 엔티티 — TPRMPP_CCMMTM
  *
- * <p>댓글 트리는 게시물과 동일한 GRP_NO / GRP_SQN / GRP_LEV 패턴을 사용한다.
- * 변경 시 {@link CcmmtmL}에 이력 자동 적재.</p>
+ * <p>댓글 트리는 게시물과 동일한 GRP_NO / GRP_SQN / GRP_LEV 패턴을 사용한다. 변경 시 {@link CcmmtmL}에 이력 자동 적재.
  */
 @LogTarget(entity = CcmmtmL.class)
 @Entity
@@ -24,7 +23,11 @@ public class Ccmmtm extends BaseEntity {
 
     /** 댓글관리번호 PK. 형식: CMMT-{YYYY}-{0001} */
     @Id
-    @Column(name = "CMMT_SNO", nullable = false, precision = 9, comment = "댓글관리번호 (물리컬럼 CMMT_SNO=댓글일련번호)")
+    @Column(
+            name = "CMMT_SNO",
+            nullable = false,
+            precision = 9,
+            comment = "댓글관리번호 (물리컬럼 CMMT_SNO=댓글일련번호)")
     private Long cmmtMngNo;
 
     @Column(name = "NAC_NO", nullable = false, length = 16, comment = "게시물관리번호 (물리컬럼 NAC_NO=게시물번호)")
@@ -35,14 +38,26 @@ public class Ccmmtm extends BaseEntity {
     private String cmmtCone;
 
     /** 댓글 그룹번호 — 최상위 댓글의 CMMT_MNG_NO */
-    @Column(name = "CMMT_TGT_SNO", nullable = false, precision = 9, comment = "댓글그룹번호 (물리컬럼 CMMT_TGT_SNO=댓글대상일련번호)")
+    @Column(
+            name = "CMMT_TGT_SNO",
+            nullable = false,
+            precision = 9,
+            comment = "댓글그룹번호 (물리컬럼 CMMT_TGT_SNO=댓글대상일련번호)")
     private Long cmmtGrpNo;
 
-    @Column(name = "CMMT_SQN_SNO", nullable = false, precision = 9, comment = "댓글그룹순서 (물리컬럼 CMMT_SQN_SNO=댓글순서일련번호)")
+    @Column(
+            name = "CMMT_SQN_SNO",
+            nullable = false,
+            precision = 9,
+            comment = "댓글그룹순서 (물리컬럼 CMMT_SQN_SNO=댓글순서일련번호)")
     private Integer cmmtGrpSqn;
 
     /** 댓글 트리 깊이 (0=원댓글, 1=대댓글…) */
-    @Column(name = "CMMT_DEP_NBR", nullable = false, precision = 4, comment = "댓글그룹레벨 (물리컬럼 CMMT_DEP_NBR=댓글깊이수)")
+    @Column(
+            name = "CMMT_DEP_NBR",
+            nullable = false,
+            precision = 4,
+            comment = "댓글그룹레벨 (물리컬럼 CMMT_DEP_NBR=댓글깊이수)")
     private Integer cmmtGrpLev;
 
     @Column(name = "HRK_CMMT_SNO", precision = 9, comment = "상위댓글관리번호 (물리컬럼 HRK_CMMT_SNO=상위댓글일련번호)")
@@ -55,7 +70,7 @@ public class Ccmmtm extends BaseEntity {
 
     /** 그룹 정보 설정 — 최상위 댓글 등록 시 */
     public void initGroupAsRoot() {
-        this.cmmtGrpNo  = this.cmmtMngNo;
+        this.cmmtGrpNo = this.cmmtMngNo;
         this.cmmtGrpSqn = 0;
         this.cmmtGrpLev = 0;
     }
@@ -63,15 +78,16 @@ public class Ccmmtm extends BaseEntity {
     /**
      * 그룹 정보 설정 — 대댓글 등록 시
      *
-     * @param parentGrpNo  부모의 CMMT_GRP_NO
+     * @param parentGrpNo 부모의 CMMT_GRP_NO
      * @param parentGrpSqn 부모의 CMMT_GRP_SQN
      * @param parentGrpLev 부모의 CMMT_GRP_LEV
-     * @param parentPk     부모의 CMMT_MNG_NO
+     * @param parentPk 부모의 CMMT_MNG_NO
      */
-    public void initGroupAsReply(Long parentGrpNo, int parentGrpSqn, int parentGrpLev, Long parentPk) {
-        this.cmmtGrpNo    = parentGrpNo;
-        this.cmmtGrpSqn   = parentGrpSqn + 1;
-        this.cmmtGrpLev   = parentGrpLev + 1;
+    public void initGroupAsReply(
+            Long parentGrpNo, int parentGrpSqn, int parentGrpLev, Long parentPk) {
+        this.cmmtGrpNo = parentGrpNo;
+        this.cmmtGrpSqn = parentGrpSqn + 1;
+        this.cmmtGrpLev = parentGrpLev + 1;
         this.hrkCmmtMngNo = parentPk;
     }
 }

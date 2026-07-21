@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 /**
  * 정보화사업관계(BPROJA) 엔티티의 복합 기본키 클래스.
  *
- * <p>{@link Bproja}의 {@code @Id} 필드({@code abusMngNo}, {@code cncdRfrNo})와
- * 동일한 이름·타입을 가져야 합니다. {@link Serializable} 구현 + 기본 생성자 + equals/hashCode 필수.</p>
+ * <p>{@link Bproja}의 {@code @Id} 필드({@code abusMngNo}, {@code cncdRfrNo})와 동일한 이름·타입을 가져야 합니다.
+ * {@link Serializable} 구현 + 기본 생성자 + equals/hashCode 필수.
  */
 @Getter
 @NoArgsConstructor

@@ -3,31 +3,25 @@ package com.kdb.it.domain.budget.document.dto;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
 /**
  * 가이드 문서(TPRMPP_BGDOCM) 관련 DTO 클래스 모음
  *
- * <p>
- * 가이드 문서 엔티티의 생성, 수정, 조회에 사용되는 DTO를
- * 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
- * </p>
+ * <p>가이드 문서 엔티티의 생성, 수정, 조회에 사용되는 DTO를 정적 중첩 클래스(Static Nested Class) 형태로 관리합니다.
  */
 public class GuideDocDto {
 
     /**
      * 가이드 문서 생성 요청 DTO
      *
-     * <p>
-     * {@code docMngNo}가 null 또는 빈 문자열이면 서비스에서 자동 채번합니다.
-     * 형식: {@code GDOC-{연도}-{seq:04d}} (예: GDOC-2026-0001)
-     * </p>
+     * <p>{@code docMngNo}가 null 또는 빈 문자열이면 서비스에서 자동 채번합니다. 형식: {@code GDOC-{연도}-{seq:04d}} (예:
+     * GDOC-2026-0001)
      */
     @Getter
     @Setter
@@ -64,9 +58,7 @@ public class GuideDocDto {
         }
     }
 
-    /**
-     * 가이드 문서 수정 요청 DTO
-     */
+    /** 가이드 문서 수정 요청 DTO */
     @Getter
     @Setter
     @NoArgsConstructor
@@ -85,9 +77,7 @@ public class GuideDocDto {
         private String nacTxtInf;
     }
 
-    /**
-     * 가이드 문서 조회 응답 DTO
-     */
+    /** 가이드 문서 조회 응답 DTO */
     @Getter
     @Setter
     @NoArgsConstructor

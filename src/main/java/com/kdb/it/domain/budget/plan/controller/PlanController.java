@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.net.URI;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,24 +25,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URI;
-import java.util.List;
-
 /**
  * 정보기술부문 계획 컨트롤러
  *
- * <p>
- * 정보기술부문 계획(TPRMPP_BPLANM) 등록, 조회, 삭제 API를 제공합니다.
- * </p>
+ * <p>정보기술부문 계획(TPRMPP_BPLANM) 등록, 조회, 삭제 API를 제공합니다.
  *
- * <p>
- * 엔드포인트 목록:
- * </p>
+ * <p>엔드포인트 목록:
+ *
  * <ul>
- * <li>GET /api/plans - 전체 계획 목록 조회</li>
- * <li>GET /api/plans/{id} - 단건 계획 상세 조회</li>
- * <li>POST /api/plans - 계획 등록</li>
- * <li>DELETE /api/plans/{id} - 계획 논리 삭제</li>
+ *   <li>GET /api/plans - 전체 계획 목록 조회
+ *   <li>GET /api/plans/{id} - 단건 계획 상세 조회
+ *   <li>POST /api/plans - 계획 등록
+ *   <li>DELETE /api/plans/{id} - 계획 논리 삭제
  * </ul>
  */
 @RestController
@@ -50,25 +46,41 @@ import java.util.List;
 @Tag(name = "정보기술부문 계획", description = "IT 부문 연도별 계획 관리 API")
 public class PlanController {
 
-        private final PlanService planService;
+    private final PlanService planService;
 
-        /**
-         * 전체 계획 목록 조회
-         *
-         * <p>
-         * 삭제되지 않은 전체 계획을 등록일시 내림차순으로 반환합니다.
-         * </p>
-         *
-         * @return 계획 목록 (200 OK)
-         */
-        @GetMapping
-        @Operation(summary = "계획 목록 조회", description = """
+    /**
+     * 전체 계획 목록 조회
+     *
+     * <p>삭제되지 않은 전체 계획을 등록일시 내림차순으로 반환합니다.
+     *
+     * @return 계획 목록 (200 OK)
+     */
+    @GetMapping
+    @Operation(
+            summary = "계획 목록 조회",
+            description =
+                    """
                         삭제되지 않은 IT 부문 연도별 계획 목록을 등록일시 내림차순으로 조회합니다.
 
                         - 조회 대상: TPRMPP_BPLANM
                         - 포함 정보: 계획관리번호, 계획구분, 대상년도, 총예산, 자본예산, 일반관리비
                         - 화면 용도: 계획 관리 목록 화면
-                        """, responses = @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(implementation = PlanDto.ListResponse.class), examples = @ExampleObject(name = "계획 목록 응답 예시", value = """
+                        """,
+            responses =
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "조회 성공",
+                            content =
+                                    @Content(
+                                            schema =
+                                                    @Schema(
+                                                            implementation =
+                                                                    PlanDto.ListResponse.class),
+                                            examples =
+                                                    @ExampleObject(
+                                                            name = "계획 목록 응답 예시",
+                                                            value =
+                                                                    """
                         [
                           {
                             "plnMngNo": "PLN-2026-0001",
@@ -80,56 +92,83 @@ public class PlanController {
                           }
                         ]
                         """))))
-        public ResponseEntity<List<PlanDto.ListResponse>> getPlans() {
-                return ResponseEntity.ok(planService.getPlans());
-        }
+    public ResponseEntity<List<PlanDto.ListResponse>> getPlans() {
+        return ResponseEntity.ok(planService.getPlans());
+    }
 
-        /**
-         * 단건 계획 상세 조회
-         *
-         * <p>
-         * 계획관리번호로 단건 계획과 JSON 스냅샷, 연결된 프로젝트 목록을 조회합니다.
-         * </p>
-         *
-         * @param plnMngNo 계획관리번호 (예: PLN-2026-0001)
-         * @return 계획 상세 정보 (200 OK) 또는 404 Not Found
-         */
-        @GetMapping("/{plnMngNo}")
-        @Operation(summary = "계획 상세 조회", description = """
+    /**
+     * 단건 계획 상세 조회
+     *
+     * <p>계획관리번호로 단건 계획과 JSON 스냅샷, 연결된 프로젝트 목록을 조회합니다.
+     *
+     * @param plnMngNo 계획관리번호 (예: PLN-2026-0001)
+     * @return 계획 상세 정보 (200 OK) 또는 404 Not Found
+     */
+    @GetMapping("/{plnMngNo}")
+    @Operation(
+            summary = "계획 상세 조회",
+            description =
+                    """
                         계획관리번호로 단건 계획 상세와 저장 시점의 JSON 스냅샷을 조회합니다.
 
                         - 조회 대상: TPRMPP_BPLANM, TPRMPP_BPLANA
                         - 스냅샷: 계획 생성 당시 프로젝트 목록과 예산 집계 정보를 JSON 문자열로 보관합니다.
                         - 존재하지 않는 계획관리번호는 서비스 계층에서 404로 처리됩니다.
-                        """, responses = @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(implementation = PlanDto.DetailResponse.class))))
-        public ResponseEntity<PlanDto.DetailResponse> getPlan(
-                        @Parameter(description = "계획관리번호", required = true, example = "PLN-2026-0001") @PathVariable("plnMngNo") String plnMngNo) {
-                return ResponseEntity.ok(planService.getPlan(plnMngNo));
-        }
+                        """,
+            responses =
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "조회 성공",
+                            content =
+                                    @Content(
+                                            schema =
+                                                    @Schema(
+                                                            implementation =
+                                                                    PlanDto.DetailResponse.class))))
+    public ResponseEntity<PlanDto.DetailResponse> getPlan(
+            @Parameter(description = "계획관리번호", required = true, example = "PLN-2026-0001")
+                    @PathVariable("plnMngNo")
+                    String plnMngNo) {
+        return ResponseEntity.ok(planService.getPlan(plnMngNo));
+    }
 
-        /**
-         * 계획 등록
-         *
-         * <p>
-         * 대상년도, 계획구분, 대상 프로젝트 목록을 받아 계획을 등록합니다.
-         * 대상 프로젝트의 예산 합계와 JSON 스냅샷을 자동으로 생성하여 저장합니다.
-         * </p>
-         *
-         * @param request    계획 생성 요청 DTO
-         * @param uriBuilder URI 빌더 (Location 헤더 생성용)
-         * @return 201 Created (Location: /api/plans/{plnMngNo}, body: plnMngNo)
-         */
-        @PostMapping
-        @Operation(summary = "계획 등록", description = """
+    /**
+     * 계획 등록
+     *
+     * <p>대상년도, 계획구분, 대상 프로젝트 목록을 받아 계획을 등록합니다. 대상 프로젝트의 예산 합계와 JSON 스냅샷을 자동으로 생성하여 저장합니다.
+     *
+     * @param request 계획 생성 요청 DTO
+     * @param uriBuilder URI 빌더 (Location 헤더 생성용)
+     * @return 201 Created (Location: /api/plans/{plnMngNo}, body: plnMngNo)
+     */
+    @PostMapping
+    @Operation(
+            summary = "계획 등록",
+            description =
+                    """
                         대상년도, 계획구분, 대상 프로젝트/전산업무비 목록을 받아 IT 부문 계획을 등록합니다.
 
                         - 계획관리번호는 서버에서 자동 채번합니다.
                         - 대상 프로젝트와 전산업무비의 예산을 집계하여 총예산/자본예산/일반관리비를 산출합니다.
                         - 생성된 리소스 경로는 Location 헤더(/api/plans/{plnMngNo})로 반환합니다.
                         - 생성된 계획관리번호는 응답 본문으로도 반환합니다.
-                        """, responses = @ApiResponse(responseCode = "201", description = "등록 성공"))
-        public ResponseEntity<String> createPlan(
-                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "계획 생성 요청. 대상년도, 계획구분, 프로젝트/전산업무비 관리번호 목록을 전달합니다.", required = true, content = @Content(schema = @Schema(implementation = PlanDto.CreateRequest.class), examples = @ExampleObject(name = "계획 등록 요청 예시", value = """
+                        """,
+            responses = @ApiResponse(responseCode = "201", description = "등록 성공"))
+    public ResponseEntity<String> createPlan(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                            description = "계획 생성 요청. 대상년도, 계획구분, 프로젝트/전산업무비 관리번호 목록을 전달합니다.",
+                            required = true,
+                            content =
+                                    @Content(
+                                            schema =
+                                                    @Schema(
+                                                            implementation =
+                                                                    PlanDto.CreateRequest.class),
+                                            examples =
+                                                    @ExampleObject(
+                                                            name = "계획 등록 요청 예시",
+                                                            value =
+                                                                    """
                                         {
                                           "plnYy": "2026",
                                           "itPtlPlnTpC": "신규",
@@ -141,57 +180,67 @@ public class PlanController {
                                             "COST-2026-0001"
                                           ]
                                         }
-                                        """))) @Valid @RequestBody PlanDto.CreateRequest request,
-                        UriComponentsBuilder uriBuilder) {
-                String plnMngNo = planService.createPlan(request);
-                URI location = uriBuilder.path("/api/plans/{plnMngNo}").buildAndExpand(plnMngNo).toUri();
-                return ResponseEntity.created(location).body(plnMngNo);
-        }
+                                        """)))
+                    @Valid
+                    @RequestBody
+                    PlanDto.CreateRequest request,
+            UriComponentsBuilder uriBuilder) {
+        String plnMngNo = planService.createPlan(request);
+        URI location = uriBuilder.path("/api/plans/{plnMngNo}").buildAndExpand(plnMngNo).toUri();
+        return ResponseEntity.created(location).body(plnMngNo);
+    }
 
-        /**
-         * 계획 텍스트 필드 수정
-         *
-         * <p>
-         * IT프로젝트내용, IT예산내용, IT예산비고, 자본예산비고, 관리비예산비고 5개 CLOB 필드를 수정합니다.
-         * </p>
-         *
-         * @param plnMngNo 계획관리번호
-         * @param request  수정 요청 DTO
-         * @return 204 No Content 또는 404 Not Found
-         */
-        @PatchMapping("/{plnMngNo}")
-        @Operation(summary = "계획 텍스트 수정", description = """
+    /**
+     * 계획 텍스트 필드 수정
+     *
+     * <p>IT프로젝트내용, IT예산내용, IT예산비고, 자본예산비고, 관리비예산비고 5개 CLOB 필드를 수정합니다.
+     *
+     * @param plnMngNo 계획관리번호
+     * @param request 수정 요청 DTO
+     * @return 204 No Content 또는 404 Not Found
+     */
+    @PatchMapping("/{plnMngNo}")
+    @Operation(
+            summary = "계획 텍스트 수정",
+            description =
+                    """
                         IT프로젝트내용, IT예산내용, IT예산비고, 자본예산비고, 관리비예산비고 5개 CLOB 필드를 수정합니다.
-                        """, responses = @ApiResponse(responseCode = "204", description = "수정 성공"))
-        public ResponseEntity<Void> updatePlanText(
-                        @Parameter(description = "계획관리번호", required = true, example = "PLN-2026-0001") @PathVariable("plnMngNo") String plnMngNo,
-                        @Valid @RequestBody PlanDto.UpdateRequest request) {
-                planService.updatePlanText(plnMngNo, request);
-                return ResponseEntity.noContent().build();
-        }
+                        """,
+            responses = @ApiResponse(responseCode = "204", description = "수정 성공"))
+    public ResponseEntity<Void> updatePlanText(
+            @Parameter(description = "계획관리번호", required = true, example = "PLN-2026-0001")
+                    @PathVariable("plnMngNo")
+                    String plnMngNo,
+            @Valid @RequestBody PlanDto.UpdateRequest request) {
+        planService.updatePlanText(plnMngNo, request);
+        return ResponseEntity.noContent().build();
+    }
 
-        /**
-         * 계획 논리 삭제
-         *
-         * <p>
-         * 계획 엔티티의 DEL_YN을 'Y'로 변경합니다.
-         * 연결된 정보화사업 관계(BPROJA) 레코드도 함께 논리 삭제됩니다.
-         * </p>
-         *
-         * @param plnMngNo 계획관리번호
-         * @return 204 No Content 또는 404 Not Found
-         */
-        @DeleteMapping("/{plnMngNo}")
-        @Operation(summary = "계획 삭제", description = """
+    /**
+     * 계획 논리 삭제
+     *
+     * <p>계획 엔티티의 DEL_YN을 'Y'로 변경합니다. 연결된 정보화사업 관계(BPROJA) 레코드도 함께 논리 삭제됩니다.
+     *
+     * @param plnMngNo 계획관리번호
+     * @return 204 No Content 또는 404 Not Found
+     */
+    @DeleteMapping("/{plnMngNo}")
+    @Operation(
+            summary = "계획 삭제",
+            description =
+                    """
                         계획과 연결 정보기술부문계획 관계를 논리 삭제합니다.
 
                         - 삭제 방식: DEL_YN='Y'로 변경
                         - 대상 테이블: TPRMPP_BPLANM, TPRMPP_BPLANA
                         - 실제 레코드는 제거하지 않아 이력 추적이 가능합니다.
-                        """, responses = @ApiResponse(responseCode = "204", description = "삭제 성공"))
-        public ResponseEntity<Void> deletePlan(
-                        @Parameter(description = "계획관리번호", required = true, example = "PLN-2026-0001") @PathVariable("plnMngNo") String plnMngNo) {
-                planService.deletePlan(plnMngNo);
-                return ResponseEntity.noContent().build();
-        }
+                        """,
+            responses = @ApiResponse(responseCode = "204", description = "삭제 성공"))
+    public ResponseEntity<Void> deletePlan(
+            @Parameter(description = "계획관리번호", required = true, example = "PLN-2026-0001")
+                    @PathVariable("plnMngNo")
+                    String plnMngNo) {
+        planService.deletePlan(plnMngNo);
+        return ResponseEntity.noContent().build();
+    }
 }

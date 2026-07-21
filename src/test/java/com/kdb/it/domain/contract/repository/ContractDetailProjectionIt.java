@@ -42,24 +42,67 @@ class ContractDetailProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(row.cttAmt()).isEqualByComparingTo(new BigDecimal("123456.789"));
         assertThat(ContractDetailRow.class.getRecordComponents())
                 .extracting(component -> component.getName())
-                .containsExactly("docMngNo", "docVrsSno", "ioeC", "cncdRfrNo", "tgtNm",
-                        "stsTc", "reqCone", "itPtlCttManrC", "cttManrRsn", "cttNm",
-                        "cttAmt", "cttOppNm", "cttDt", "reqUsid", "reqDtm");
+                .containsExactly(
+                        "docMngNo",
+                        "docVrsSno",
+                        "ioeC",
+                        "cncdRfrNo",
+                        "tgtNm",
+                        "stsTc",
+                        "reqCone",
+                        "itPtlCttManrC",
+                        "cttManrRsn",
+                        "cttNm",
+                        "cttAmt",
+                        "cttOppNm",
+                        "cttDt",
+                        "reqUsid",
+                        "reqDtm");
     }
 
     private Bprojm project(String projectNo, LocalDateTime now) {
-        return Bprojm.builder().abusMngNo(projectNo).sno(1).abusNm("BE03 집행 대상 사업")
-                .lstYn("Y").bseYy("2026").delYn("N")
-                .fstEnrDtm(now).fstEnrUsid("BE03-TEST").lstChgDtm(now).lstChgUsid("BE03-TEST").build();
+        return Bprojm.builder()
+                .abusMngNo(projectNo)
+                .sno(1)
+                .abusNm("BE03 집행 대상 사업")
+                .lstYn("Y")
+                .bseYy("2026")
+                .delYn("N")
+                .fstEnrDtm(now)
+                .fstEnrUsid("BE03-TEST")
+                .lstChgDtm(now)
+                .lstChgUsid("BE03-TEST")
+                .build();
     }
 
-    private Bcontm contract(String docNo, int version, String latest, String deleted,
-                            String projectNo, String request, String reason, LocalDateTime now) {
-        return Bcontm.builder().docMngNo(docNo).docVrsSno(version).lstYn(latest)
-                .ioeC("100").cncdRfrNo(projectNo).stsTc("75").reqCone(request)
-                .itPtlCttManrC("01").cttManrRsn(reason).cttNm("BE03 계약")
-                .cttAmt(new BigDecimal("123456.789")).cttOppNm("BE03 상대").cttDt("20260721")
-                .delYn(deleted).fstEnrDtm(now).fstEnrUsid("BE03-TEST")
-                .lstChgDtm(now).lstChgUsid("BE03-TEST").build();
+    private Bcontm contract(
+            String docNo,
+            int version,
+            String latest,
+            String deleted,
+            String projectNo,
+            String request,
+            String reason,
+            LocalDateTime now) {
+        return Bcontm.builder()
+                .docMngNo(docNo)
+                .docVrsSno(version)
+                .lstYn(latest)
+                .ioeC("100")
+                .cncdRfrNo(projectNo)
+                .stsTc("75")
+                .reqCone(request)
+                .itPtlCttManrC("01")
+                .cttManrRsn(reason)
+                .cttNm("BE03 계약")
+                .cttAmt(new BigDecimal("123456.789"))
+                .cttOppNm("BE03 상대")
+                .cttDt("20260721")
+                .delYn(deleted)
+                .fstEnrDtm(now)
+                .fstEnrUsid("BE03-TEST")
+                .lstChgDtm(now)
+                .lstChgUsid("BE03-TEST")
+                .build();
     }
 }

@@ -1,19 +1,18 @@
 package com.kdb.it.domain.council.dto;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * {@link EvaluationItemAvgRow} record 단위 테스트.
  *
- * <p>생성자, 접근자, equals/hashCode(BigDecimal 동일 스케일), toString,
- * fromRow 팩토리(정상·BigDecimal 직접 전달·toString 경유·컬럼 수 예외)를 검증한다.</p>
+ * <p>생성자, 접근자, equals/hashCode(BigDecimal 동일 스케일), toString, fromRow 팩토리(정상·BigDecimal 직접
+ * 전달·toString 경유·컬럼 수 예외)를 검증한다.
  */
 @DisplayName("EvaluationItemAvgRow")
 class EvaluationItemAvgRowTest {
@@ -27,7 +26,7 @@ class EvaluationItemAvgRowTest {
         @DisplayName("정상 값으로 생성 시 각 접근자가 해당 값을 반환한다")
         void constructor_validValues_accessorsReturnCorrectValues() {
             // Arrange
-            String code    = "CHK001";
+            String code = "CHK001";
             BigDecimal avg = new BigDecimal("4.25");
 
             // Act
@@ -149,7 +148,8 @@ class EvaluationItemAvgRowTest {
         @Test
         @DisplayName("toString 에 itPtlCkgItmTc 가 포함된다")
         void toString_containsCode() {
-            EvaluationItemAvgRow row = new EvaluationItemAvgRow("CHK-UNIQUE-999", new BigDecimal("5.00"));
+            EvaluationItemAvgRow row =
+                    new EvaluationItemAvgRow("CHK-UNIQUE-999", new BigDecimal("5.00"));
             assertThat(row.toString()).contains("CHK-UNIQUE-999");
         }
     }
