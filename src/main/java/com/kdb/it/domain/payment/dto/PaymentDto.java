@@ -1,5 +1,8 @@
 package com.kdb.it.domain.payment.dto;
 
+import com.kdb.it.domain.payment.repository.PaymentDetailRow;
+import com.kdb.it.domain.payment.repository.PaymentLineView;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -50,12 +53,35 @@ public final class PaymentDto {
     ) {}
 
     @Schema(name = "PaymentLine", description = "회차별 지급 응답")
-    public record Line(Integer dfrTod, BigDecimal dfrAmt, String dfrDt, String dfrMplDt, String opnnCone) {}
+    public record Line(Integer dfrTod, BigDecimal dfrAmt, String dfrDt, String dfrMplDt, String opnnCone) {
+        /**
+         * 지급 명세 조회 행을 응답으로 변환합니다.
+         *
+         * @param row 지급 명세 조회 행
+         * @return 지급 명세 응답
+         */
+        public static Line fromProjection(PaymentLineView row) {
+            return new Line(row.dfrTod(), row.dfrAmt(), row.dfrDt(), row.dfrMplDt(), row.opnnCone());
+        }
+    }
 
     @Schema(name = "PaymentDetail", description = "대금지급 상세")
     public record Detail(
             String docMngNo, Integer docVrsSno, String ioeC, String cncdRfrNo, String tgtNm,
             String stsTc, String reqCone, String cttNm, BigDecimal cttAmt,
             String reqUsid, java.time.LocalDateTime reqDtm, List<Line> lines
-    ) {}
+    ) {
+        /**
+         * 상세 조회 행과 지급 명세를 상세 응답으로 변환합니다.
+         *
+         * @param row 대금지급 상세 조회 행
+         * @param lines 지급 명세 응답 목록
+         * @return 상세 응답
+         */
+        public static Detail fromProjection(PaymentDetailRow row, List<Line> lines) {
+            return new Detail(
+                    row.docMngNo(), row.docVrsSno(), row.ioeC(), row.cncdRfrNo(), row.tgtNm(),
+                    row.stsTc(), row.reqCone(), row.cttNm(), row.cttAmt(), row.reqUsid(), row.reqDtm(), lines);
+        }
+    }
 }

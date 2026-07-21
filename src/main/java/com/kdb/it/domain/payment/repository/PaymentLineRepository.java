@@ -4,6 +4,8 @@ import com.kdb.it.domain.payment.entity.Bpaymt;
 import com.kdb.it.domain.payment.entity.BpaymtId;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * 대금지급 상세(회차별 지급) Repository.
@@ -11,6 +13,27 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * <p>마스터(Bpaymm) 1건에 N행의 회차별 지급 명세(Bpaymt)를 관리합니다.</p>
  */
 public interface PaymentLineRepository extends JpaRepository<Bpaymt, BpaymtId> {
+
+    /**
+     * 문서번호·버전·삭제여부로 활성 지급 명세 스칼라 행을 조회합니다.
+     *
+     * @param docMngNo 문서관리번호
+     * @param docVrsSno 문서버전일련번호
+     * @param delYn 삭제여부
+     * @return 지급 명세 스칼라 행 목록
+     */
+    @Query("""
+            select new com.kdb.it.domain.payment.repository.PaymentLineView(
+                p.dfrTod, p.dfrAmt, p.dfrDt, p.dfrMplDt, p.opnnCone)
+            from Bpaymt p
+            where p.docMngNo = :docMngNo
+              and p.docVrsSno = :docVrsSno
+              and p.delYn = :delYn
+            """)
+    List<PaymentLineView> findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(
+            @Param("docMngNo") String docMngNo,
+            @Param("docVrsSno") Integer docVrsSno,
+            @Param("delYn") String delYn);
 
     /**
      * 문서번호·버전으로 지급 명세 행 목록을 삭제여부와 무관하게 조회합니다.

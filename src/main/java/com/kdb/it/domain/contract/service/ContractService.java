@@ -169,16 +169,9 @@ public class ContractService {
      * @throws IllegalArgumentException 문서 미존재
      */
     public ContractDto.Detail get(String docNo) {
-        // 마스터 + 대상명을 단일 쿼리로 조회 (기존 마스터/대상명 2쿼리 → 1쿼리 통합).
-        // 대상명은 대상구분(100=사업 ABUS_NM, 200=전산업무비 CTT_NM)에 따라 LEFT JOIN + CASE로 해석.
-        var row = contractRepository.findCurrentWithTargetName(docNo)
+        var row = contractRepository.findCurrentDetail(docNo)
                 .orElseThrow(() -> new IllegalArgumentException("입찰계약 문서를 찾을 수 없습니다: " + docNo));
-        Bcontm e = row.entity();
-        String tgtNm = row.targetName();
-        return new ContractDto.Detail(
-                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), tgtNm,
-                e.getStsTc(), e.getReqCone(), e.getItPtlCttManrC(), e.getCttManrRsn(), e.getCttNm(),
-                e.getCttAmt(), e.getCttOppNm(), e.getCttDt(), e.getFstEnrUsid(), e.getFstEnrDtm());
+        return ContractDto.Detail.fromProjection(row);
     }
 
     /**

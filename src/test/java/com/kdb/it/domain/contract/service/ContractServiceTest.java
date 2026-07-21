@@ -15,7 +15,7 @@ import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.contract.dto.ContractDto;
 import com.kdb.it.domain.contract.entity.Bcontm;
 import com.kdb.it.domain.contract.repository.ContractRepository;
-import com.kdb.it.domain.contract.repository.ContractTargetRow;
+import com.kdb.it.domain.contract.repository.ContractDetailRow;
 import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
@@ -62,6 +62,13 @@ class ContractServiceTest {
                 .docMngNo("CTR-2026-0001").docVrsSno(1).lstYn("Y")
                 .ioeC(ioeC).cncdRfrNo(cncdRfrNo).stsTc(stsTc)
                 .fstEnrUsid("E0001").build();
+    }
+
+    ContractDetailRow detailRow(Bcontm e, String targetName) {
+        return new ContractDetailRow(
+                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), targetName,
+                e.getStsTc(), e.getReqCone(), e.getItPtlCttManrC(), e.getCttManrRsn(), e.getCttNm(),
+                e.getCttAmt(), e.getCttOppNm(), e.getCttDt(), e.getFstEnrUsid(), e.getFstEnrDtm());
     }
 
     @BeforeEach
@@ -528,8 +535,9 @@ class ContractServiceTest {
         void get_project_returnsDetailWithTargetName() {
             // Arrange — 단일 쿼리(findCurrentWithTargetName)가 마스터+대상명을 함께 반환
             Bcontm e = entityWith("75", "100", "PRJ-1");
-            when(contractRepository.findCurrentWithTargetName("CTR-2026-0001"))
-                    .thenReturn(Optional.of(new ContractTargetRow(e, "클라우드 전환 사업")));
+            ContractDetailRow row = detailRow(e, "클라우드 전환 사업");
+            when(contractRepository.findCurrentDetail("CTR-2026-0001"))
+                    .thenReturn(Optional.of(row));
 
             // Act
             ContractDto.Detail detail = service.get("CTR-2026-0001");
@@ -539,7 +547,7 @@ class ContractServiceTest {
             assertThat(detail.tgtNm()).isEqualTo("클라우드 전환 사업");
             assertThat(detail.ioeC()).isEqualTo("100");
             // 단일 쿼리로 통합되어 마스터 조회·대상별 조회가 더 이상 호출되지 않음
-            verify(contractRepository).findCurrentWithTargetName("CTR-2026-0001");
+            verify(contractRepository).findCurrentDetail("CTR-2026-0001");
             verify(contractRepository, never()).findByDocMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
             verify(projectRepository, never()).findByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
             verify(costRepository, never()).findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
@@ -550,8 +558,8 @@ class ContractServiceTest {
         void get_project_returnsNullTargetNameWhenAbsent() {
             // Arrange — LEFT JOIN 미매칭이면 대상명 null
             Bcontm e = entityWith("75", "100", "PRJ-NONE");
-            when(contractRepository.findCurrentWithTargetName("CTR-2026-0001"))
-                    .thenReturn(Optional.of(new ContractTargetRow(e, null)));
+            when(contractRepository.findCurrentDetail("CTR-2026-0001"))
+                    .thenReturn(Optional.of(detailRow(e, null)));
 
             // Act
             ContractDto.Detail detail = service.get("CTR-2026-0001");
@@ -565,8 +573,8 @@ class ContractServiceTest {
         void get_cost_returnsDetailWithTargetName() {
             // Arrange
             Bcontm e = entityWith("71", "200", "BG-1");
-            when(contractRepository.findCurrentWithTargetName("CTR-2026-0001"))
-                    .thenReturn(Optional.of(new ContractTargetRow(e, "서버 유지보수")));
+            when(contractRepository.findCurrentDetail("CTR-2026-0001"))
+                    .thenReturn(Optional.of(detailRow(e, "서버 유지보수")));
 
             // Act
             ContractDto.Detail detail = service.get("CTR-2026-0001");
@@ -582,8 +590,8 @@ class ContractServiceTest {
         void get_cost_returnsNullTargetNameWhenAbsent() {
             // Arrange — LEFT JOIN 미매칭이면 대상명 null
             Bcontm e = entityWith("71", "200", "BG-NONE");
-            when(contractRepository.findCurrentWithTargetName("CTR-2026-0001"))
-                    .thenReturn(Optional.of(new ContractTargetRow(e, null)));
+            when(contractRepository.findCurrentDetail("CTR-2026-0001"))
+                    .thenReturn(Optional.of(detailRow(e, null)));
 
             // Act
             ContractDto.Detail detail = service.get("CTR-2026-0001");
@@ -597,8 +605,8 @@ class ContractServiceTest {
         void get_unknownIoeC_returnsNullTargetName() {
             // Arrange — CASE otherwise(null) 분기
             Bcontm e = entityWith("71", "999", "ANY-1");
-            when(contractRepository.findCurrentWithTargetName("CTR-2026-0001"))
-                    .thenReturn(Optional.of(new ContractTargetRow(e, null)));
+            when(contractRepository.findCurrentDetail("CTR-2026-0001"))
+                    .thenReturn(Optional.of(detailRow(e, null)));
 
             // Act
             ContractDto.Detail detail = service.get("CTR-2026-0001");
@@ -611,7 +619,7 @@ class ContractServiceTest {
         @DisplayName("문서가 없으면 조회 시 IllegalArgumentException이 발생한다")
         void get_notFound_throwsIllegalArgumentException() {
             // Arrange — 단일 쿼리 → Optional.empty() → throws
-            when(contractRepository.findCurrentWithTargetName("CTR-NONE"))
+            when(contractRepository.findCurrentDetail("CTR-NONE"))
                     .thenReturn(Optional.empty());
 
             // Act & Assert

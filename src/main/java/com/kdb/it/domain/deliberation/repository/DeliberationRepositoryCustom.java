@@ -8,6 +8,14 @@ import java.util.Optional;
 public interface DeliberationRepositoryCustom {
 
     /**
+     * 현재 유효한 과업심의 상세 스칼라 행을 조회합니다.
+     *
+     * @param docNo 문서관리번호
+     * @return 상세 행, 문서가 없으면 빈 값
+     */
+    Optional<DeliberationDetailRow> findCurrentDetail(String docNo);
+
+    /**
      * 현재 유효 마스터 + 대상명 단일 조회.
      *
      * <p>마스터(lstYn='Y', delYn='N')와 대상명을 1개 쿼리로 가져옵니다. 대상명은 대상구분(ioeC)에 따라

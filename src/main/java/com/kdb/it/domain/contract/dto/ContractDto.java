@@ -1,5 +1,7 @@
 package com.kdb.it.domain.contract.dto;
 
+import com.kdb.it.domain.contract.repository.ContractDetailRow;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -45,5 +47,18 @@ public final class ContractDto {
             String stsTc, String reqCone, String itPtlCttManrC, String cttManrRsn, String cttNm,
             BigDecimal cttAmt, String cttOppNm, String cttDt,
             String reqUsid, java.time.LocalDateTime reqDtm
-    ) {}
+    ) {
+        /**
+         * 조회 프로젝션을 상세 응답으로 변환합니다.
+         *
+         * @param row 입찰계약 상세 조회 행
+         * @return 상세 응답
+         */
+        public static Detail fromProjection(ContractDetailRow row) {
+            return new Detail(
+                    row.docMngNo(), row.docVrsSno(), row.ioeC(), row.cncdRfrNo(), row.tgtNm(),
+                    row.stsTc(), row.reqCone(), row.itPtlCttManrC(), row.cttManrRsn(), row.cttNm(),
+                    row.cttAmt(), row.cttOppNm(), row.cttDt(), row.reqUsid(), row.reqDtm());
+        }
+    }
 }

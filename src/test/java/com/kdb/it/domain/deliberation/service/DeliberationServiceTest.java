@@ -17,7 +17,7 @@ import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.deliberation.dto.DeliberationDto;
 import com.kdb.it.domain.deliberation.entity.Bdelim;
 import com.kdb.it.domain.deliberation.repository.DeliberationRepository;
-import com.kdb.it.domain.deliberation.repository.DeliberationTargetRow;
+import com.kdb.it.domain.deliberation.repository.DeliberationDetailRow;
 import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import java.util.List;
@@ -41,6 +41,14 @@ class DeliberationServiceTest {
     @Mock EaiService eaiService;
 
     DeliberationService service;
+
+    DeliberationDetailRow detailRow(Bdelim e, String targetName) {
+        return new DeliberationDetailRow(
+                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), targetName,
+                e.getStsTc(), e.getReqCone(), e.getTaskDbrTc(), e.getTaskDbrRltTc(), e.getTaskDbrDt(),
+                e.getTaskDbrTod(), e.getTaskDbrOmtYn(), e.getTaskDbrOmtRsn(), e.getOpnnCone(),
+                e.getApvTrdnRsnCone(), e.getFstEnrUsid(), e.getFstEnrDtm());
+    }
 
     // -----------------------------------------------------------------------
     // 테스트 픽스처 헬퍼
@@ -589,8 +597,8 @@ class DeliberationServiceTest {
     void get_project_returnsTgtNm() {
         // Arrange — 단일 쿼리(findCurrentWithTargetName)가 마스터+대상명을 함께 반환
         Bdelim e = bdelim("DLB-2026-0001", "100", "PRJ-1", "61");
-        when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0001"))
-                .thenReturn(Optional.of(new DeliberationTargetRow(e, "클라우드 전환 사업")));
+        when(deliberationRepository.findCurrentDetail("DLB-2026-0001"))
+                .thenReturn(Optional.of(detailRow(e, "클라우드 전환 사업")));
 
         // Act
         DeliberationDto.Detail detail = service.get("DLB-2026-0001");
@@ -599,7 +607,7 @@ class DeliberationServiceTest {
         assertThat(detail.tgtNm()).isEqualTo("클라우드 전환 사업");
         assertThat(detail.docMngNo()).isEqualTo("DLB-2026-0001");
         // 단일 쿼리로 통합되어 마스터 조회·대상별 조회가 더 이상 호출되지 않음
-        verify(deliberationRepository).findCurrentWithTargetName("DLB-2026-0001");
+        verify(deliberationRepository).findCurrentDetail("DLB-2026-0001");
         verify(deliberationRepository, never()).findByDocMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
         verify(projectRepository, never()).findByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
         verify(costRepository, never()).findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
@@ -610,8 +618,8 @@ class DeliberationServiceTest {
     void get_project_notFound_tgtNmIsNull() {
         // Arrange — LEFT JOIN 미매칭이면 대상명 null
         Bdelim e = bdelim("DLB-2026-0001", "100", "PRJ-NONE", "61");
-        when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0001"))
-                .thenReturn(Optional.of(new DeliberationTargetRow(e, null)));
+        when(deliberationRepository.findCurrentDetail("DLB-2026-0001"))
+                .thenReturn(Optional.of(detailRow(e, null)));
 
         // Act
         DeliberationDto.Detail detail = service.get("DLB-2026-0001");
@@ -625,8 +633,8 @@ class DeliberationServiceTest {
     void get_cost_returnsCttNm() {
         // Arrange
         Bdelim e = bdelim("DLB-2026-0002", "200", "BG-1", "65");
-        when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0002"))
-                .thenReturn(Optional.of(new DeliberationTargetRow(e, "서버 유지보수 계약")));
+        when(deliberationRepository.findCurrentDetail("DLB-2026-0002"))
+                .thenReturn(Optional.of(detailRow(e, "서버 유지보수 계약")));
 
         // Act
         DeliberationDto.Detail detail = service.get("DLB-2026-0002");
@@ -641,8 +649,8 @@ class DeliberationServiceTest {
     void get_cost_notFound_tgtNmIsNull() {
         // Arrange
         Bdelim e = bdelim("DLB-2026-0002", "200", "BG-NONE", "65");
-        when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0002"))
-                .thenReturn(Optional.of(new DeliberationTargetRow(e, null)));
+        when(deliberationRepository.findCurrentDetail("DLB-2026-0002"))
+                .thenReturn(Optional.of(detailRow(e, null)));
 
         // Act
         DeliberationDto.Detail detail = service.get("DLB-2026-0002");
@@ -656,8 +664,8 @@ class DeliberationServiceTest {
     void get_unknownIoeC_tgtNmIsNull() {
         // Arrange — ioeC=999 는 CASE의 otherwise(null) 분기 실행
         Bdelim e = bdelim("DLB-2026-0003", "999", "ANY-1", "61");
-        when(deliberationRepository.findCurrentWithTargetName("DLB-2026-0003"))
-                .thenReturn(Optional.of(new DeliberationTargetRow(e, null)));
+        when(deliberationRepository.findCurrentDetail("DLB-2026-0003"))
+                .thenReturn(Optional.of(detailRow(e, null)));
 
         // Act
         DeliberationDto.Detail detail = service.get("DLB-2026-0003");
@@ -670,7 +678,7 @@ class DeliberationServiceTest {
     @DisplayName("문서가 없으면 get은 IllegalArgumentException을 던진다")
     void get_throwsWhenDocNotFound() {
         // Arrange
-        when(deliberationRepository.findCurrentWithTargetName("NONE"))
+        when(deliberationRepository.findCurrentDetail("NONE"))
                 .thenReturn(Optional.empty());
 
         // Act & Assert

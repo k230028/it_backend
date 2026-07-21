@@ -17,7 +17,8 @@ import com.kdb.it.domain.payment.entity.Bpaymm;
 import com.kdb.it.domain.payment.entity.Bpaymt;
 import com.kdb.it.domain.payment.repository.PaymentLineRepository;
 import com.kdb.it.domain.payment.repository.PaymentRepository;
-import com.kdb.it.domain.payment.repository.PaymentTargetRow;
+import com.kdb.it.domain.payment.repository.PaymentDetailRow;
+import com.kdb.it.domain.payment.repository.PaymentLineView;
 import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
 import java.math.BigDecimal;
@@ -50,6 +51,16 @@ class PaymentServiceTest {
     @Mock EaiService eaiService;
 
     PaymentService service;
+
+    PaymentDetailRow detailRow(Bpaymm e, String targetName) {
+        return new PaymentDetailRow(
+                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), targetName,
+                e.getStsTc(), e.getReqCone(), e.getCttNm(), e.getCttAmt(), e.getFstEnrUsid(), e.getFstEnrDtm());
+    }
+
+    PaymentLineView lineView(Bpaymt e) {
+        return new PaymentLineView(e.getDfrTod(), e.getDfrAmt(), e.getDfrDt(), e.getDfrMplDt(), e.getOpnnCone());
+    }
 
     /** 일반 사용자 인증 정보 생성 헬퍼 */
     CustomUserDetails requester() {
@@ -672,9 +683,9 @@ class PaymentServiceTest {
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
                     .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81")
                     .reqCone("요청내용").cttNm("계약명").cttAmt(BigDecimal.valueOf(500000)).build();
-            when(paymentRepository.findCurrentWithTargetName("PAY-2026-0001"))
-                    .thenReturn(Optional.of(new PaymentTargetRow(master, "클라우드 전환 프로젝트")));
-            when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0001", 1, "N"))
+            when(paymentRepository.findCurrentDetail("PAY-2026-0001"))
+                    .thenReturn(Optional.of(detailRow(master, "클라우드 전환 프로젝트")));
+            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0001", 1, "N"))
                     .thenReturn(List.of());
 
             // Act
@@ -686,11 +697,11 @@ class PaymentServiceTest {
             assertThat(detail.tgtNm()).isEqualTo("클라우드 전환 프로젝트");
             assertThat(detail.lines()).isEmpty();
             // 단일 쿼리로 통합되어 마스터 조회·대상별 조회가 더 이상 호출되지 않음 (회차 명세 조회는 유지)
-            verify(paymentRepository).findCurrentWithTargetName("PAY-2026-0001");
+            verify(paymentRepository).findCurrentDetail("PAY-2026-0001");
             verify(paymentRepository, never()).findByDocMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
             verify(projectRepository, never()).findByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
             verify(costRepository, never()).findByCostBgNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
-            verify(lineRepository).findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0001", 1, "N");
+            verify(lineRepository).findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0001", 1, "N");
         }
 
         @Test
@@ -701,14 +712,14 @@ class PaymentServiceTest {
                     .docMngNo("PAY-2026-0002").docVrsSno(1).lstYn("Y")
                     .ioeC("200").cncdRfrNo("BG-1").stsTc("85")
                     .cttNm("유지보수계약").cttAmt(BigDecimal.valueOf(1000000)).build();
-            when(paymentRepository.findCurrentWithTargetName("PAY-2026-0002"))
-                    .thenReturn(Optional.of(new PaymentTargetRow(master, "서버유지보수")));
+            when(paymentRepository.findCurrentDetail("PAY-2026-0002"))
+                    .thenReturn(Optional.of(detailRow(master, "서버유지보수")));
 
             Bpaymt line = Bpaymt.builder()
                     .docMngNo("PAY-2026-0002").docVrsSno(1).dfrTod(1)
                     .dfrAmt(BigDecimal.valueOf(500000)).dfrDt("20260601").dfrMplDt("20260630").opnnCone("1차지급").build();
-            when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0002", 1, "N"))
-                    .thenReturn(List.of(line));
+            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0002", 1, "N"))
+                    .thenReturn(List.of(lineView(line)));
 
             // Act
             PaymentDto.Detail detail = service.get("PAY-2026-0002");
@@ -728,9 +739,9 @@ class PaymentServiceTest {
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0003").docVrsSno(1).lstYn("Y")
                     .ioeC("100").cncdRfrNo("PRJ-GONE").stsTc("81").build();
-            when(paymentRepository.findCurrentWithTargetName("PAY-2026-0003"))
-                    .thenReturn(Optional.of(new PaymentTargetRow(master, null)));
-            when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0003", 1, "N"))
+            when(paymentRepository.findCurrentDetail("PAY-2026-0003"))
+                    .thenReturn(Optional.of(detailRow(master, null)));
+            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0003", 1, "N"))
                     .thenReturn(List.of());
 
             // Act
@@ -747,9 +758,9 @@ class PaymentServiceTest {
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0005").docVrsSno(1).lstYn("Y")
                     .ioeC("200").cncdRfrNo("BG-GONE").stsTc("81").build();
-            when(paymentRepository.findCurrentWithTargetName("PAY-2026-0005"))
-                    .thenReturn(Optional.of(new PaymentTargetRow(master, null)));
-            when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0005", 1, "N"))
+            when(paymentRepository.findCurrentDetail("PAY-2026-0005"))
+                    .thenReturn(Optional.of(detailRow(master, null)));
+            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0005", 1, "N"))
                     .thenReturn(List.of());
 
             // Act
@@ -766,9 +777,9 @@ class PaymentServiceTest {
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0004").docVrsSno(1).lstYn("Y")
                     .ioeC("999").cncdRfrNo("UNKNOWN").stsTc("81").build();
-            when(paymentRepository.findCurrentWithTargetName("PAY-2026-0004"))
-                    .thenReturn(Optional.of(new PaymentTargetRow(master, null)));
-            when(lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0004", 1, "N"))
+            when(paymentRepository.findCurrentDetail("PAY-2026-0004"))
+                    .thenReturn(Optional.of(detailRow(master, null)));
+            when(lineRepository.findLineViewsByDocMngNoAndDocVrsSnoAndDelYn("PAY-2026-0004", 1, "N"))
                     .thenReturn(List.of());
 
             // Act
@@ -782,7 +793,7 @@ class PaymentServiceTest {
         @DisplayName("존재하지 않는 문서번호로 조회하면 IllegalArgumentException을 던진다")
         void get_documentNotFound_throwsIllegalArgument() {
             // Arrange
-            when(paymentRepository.findCurrentWithTargetName("PAY-XXXX-9999"))
+            when(paymentRepository.findCurrentDetail("PAY-XXXX-9999"))
                     .thenReturn(Optional.empty());
 
             // Act & Assert

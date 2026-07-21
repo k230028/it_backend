@@ -1,5 +1,7 @@
 package com.kdb.it.domain.deliberation.dto;
 
+import com.kdb.it.domain.deliberation.repository.DeliberationDetailRow;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -46,5 +48,19 @@ public final class DeliberationDto {
             String stsTc, String reqCone, String taskDbrTc, String taskDbrRltTc, String taskDbrDt,
             String taskDbrTod, String taskDbrOmtYn, String taskDbrOmtRsn, String opnnCone, String apvTrdnRsnCone,
             String reqUsid, java.time.LocalDateTime reqDtm
-    ) {}
+    ) {
+        /**
+         * 조회 프로젝션을 상세 응답으로 변환합니다.
+         *
+         * @param row 과업심의 상세 조회 행
+         * @return 상세 응답
+         */
+        public static Detail fromProjection(DeliberationDetailRow row) {
+            return new Detail(
+                    row.docMngNo(), row.docVrsSno(), row.ioeC(), row.cncdRfrNo(), row.tgtNm(),
+                    row.stsTc(), row.reqCone(), row.taskDbrTc(), row.taskDbrRltTc(), row.taskDbrDt(),
+                    row.taskDbrTod(), row.taskDbrOmtYn(), row.taskDbrOmtRsn(), row.opnnCone(),
+                    row.apvTrdnRsnCone(), row.reqUsid(), row.reqDtm());
+        }
+    }
 }
