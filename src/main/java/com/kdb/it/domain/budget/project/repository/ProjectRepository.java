@@ -26,6 +26,12 @@ import org.springframework.data.jpa.repository.Query;
  */
 public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, ProjectRepositoryCustom {
 
+    /** 소요예산 상세의 사업명 표시에 필요한 단건 프로젝션입니다. */
+    interface ProjectNameView {
+        String getAbusMngNo();
+        String getAbusNm();
+    }
+
     /**
      * 프로젝트 관리번호와 삭제여부로 단건 조회
      *
@@ -67,6 +73,17 @@ public interface ProjectRepository extends JpaRepository<Bprojm, BprojmId>, Proj
      * @return 현재 버전 사업 (없으면 {@link Optional#empty()})
      */
     Optional<Bprojm> findByAbusMngNoAndLstYnAndDelYn(String abusMngNo, String lstYn, String delYn);
+
+    /**
+     * 현재 유효 사업의 관리번호와 사업명만 조회합니다.
+     *
+     * @param abusMngNo 사업관리번호
+     * @param lstYn 최종여부
+     * @param delYn 삭제여부
+     * @return 사업명 프로젝션
+     */
+    Optional<ProjectNameView> findNameViewByAbusMngNoAndLstYnAndDelYn(
+            String abusMngNo, String lstYn, String delYn);
 
     /**
      * 프로젝트 관리번호와 삭제여부로 존재 여부 확인

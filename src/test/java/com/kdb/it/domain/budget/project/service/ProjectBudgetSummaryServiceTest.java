@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.project.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.code.CommonCodeGroups;
@@ -8,6 +9,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
+import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +27,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
  */
 @ExtendWith(MockitoExtension.class)
 class ProjectBudgetSummaryServiceTest {
+
+    private record BudgetView(
+            String gclMngNo, String abusMngNo, String ioeC, BigDecimal amt, BigDecimal mplAmt)
+            implements ProjectItemRepository.ProjectItemBudgetView {
+        @Override public String getGclMngNo() { return gclMngNo; }
+        @Override public String getAbusMngNo() { return abusMngNo; }
+        @Override public String getIoeC() { return ioeC; }
+        @Override public BigDecimal getAmt() { return amt; }
+        @Override public BigDecimal getMplAmt() { return mplAmt; }
+    }
 
     @Mock
     CodeService codeService;
@@ -113,6 +125,34 @@ class ProjectBudgetSummaryServiceTest {
                 .mplAmt(BigDecimal.valueOf(mplAmt))
                 .lstYn("Y")
                 .build();
+    }
+
+    @Test
+    @DisplayName("프로젝션 경로도 엔티티 경로와 같은 예산 합계를 계산한다")
+    void appliesSameSummaryFromBudgetViews() {
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("C1", "IOE_DVC"), code("M1", "IOE_SEVS")));
+        ProjectDto.Response response = ProjectDto.Response.builder().build();
+
+        service.applyBudgetSummaryViews(response, List.of(
+                new BudgetView("G1", "P1", "C1", new BigDecimal("1000"), new BigDecimal("300")),
+                new BudgetView("G2", "P1", "M1", new BigDecimal("500"), new BigDecimal("200"))));
+
+        assertThat(response.getAssetBg()).isEqualByComparingTo("1000");
+        assertThat(response.getCostBg()).isEqualByComparingTo("500");
+        assertThat(response.getTotRqmAmt()).isEqualByComparingTo("1000");
+        assertThat(ProjectItemRepository.ProjectItemBudgetView.class.getDeclaredMethods())
+                .extracting(java.lang.reflect.Method::getName)
+                .containsExactlyInAnyOrder("getGclMngNo", "getAbusMngNo", "getIoeC", "getAmt", "getMplAmt");
+    }
+
+    @Test
+    @DisplayName("프로젝션 합산 입력이 null이면 실패한다")
+    void rejectsNullProjectionInputs() {
+        assertThatThrownBy(() -> service.applyBudgetSummaryViews(ProjectDto.Response.builder().build(), null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> service.applyBudgetSummaryViews(null, List.of()))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test

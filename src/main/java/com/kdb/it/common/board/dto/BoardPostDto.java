@@ -16,6 +16,25 @@ public class BoardPostDto {
 
     private BoardPostDto() {}
 
+    /** 게시물 목록 응답에 필요한 필드만 담는 조회 전용 행입니다. */
+    @Schema(name = "BoardPostListRow", description = "게시물 목록 조회 전용 행")
+    public record ListRow(
+        String nacMngNo,
+        String blbMngNo,
+        String nacNm,
+        Integer nacInqNbr,
+        String nacUnqId,
+        String ancYn,
+        String sreYn,
+        String flApgYn,
+        Integer flNbr,
+        Integer nacGrpLev,
+        LocalDate sttYmd,
+        LocalDate endYmd,
+        String fstEnrUsid,
+        LocalDateTime fstEnrDtm
+    ) {}
+
     @Getter
     @Builder
     @NoArgsConstructor
@@ -47,6 +66,25 @@ public class BoardPostDto {
                 .nacGrpLev(e.getNacGrpLev())
                 .sttYmd(e.getSttDt()).endYmd(e.getEndDt())
                 .fstEnrUsid(e.getFstEnrUsid()).fstEnrDtm(e.getFstEnrDtm())
+                .build();
+        }
+
+        /**
+         * 경량 조회 행을 목록 응답으로 변환합니다.
+         *
+         * @param row 게시물 목록 조회 행
+         * @return 게시물 목록 응답
+         */
+        public static ListItem from(ListRow row) {
+            return ListItem.builder()
+                .nacMngNo(row.nacMngNo()).blbMngNo(row.blbMngNo())
+                .nacNm(row.nacNm()).nacInqNbr(row.nacInqNbr())
+                .nacUnqId(row.nacUnqId())
+                .ancYn(row.ancYn()).sreYn(row.sreYn())
+                .flApgYn(row.flApgYn()).flNbr(row.flNbr())
+                .nacGrpLev(row.nacGrpLev())
+                .sttYmd(row.sttYmd()).endYmd(row.endYmd())
+                .fstEnrUsid(row.fstEnrUsid()).fstEnrDtm(row.fstEnrDtm())
                 .build();
         }
     }

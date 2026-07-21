@@ -5,6 +5,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +27,21 @@ import java.util.Optional;
  * </ul>
  */
 public interface RefreshTokenRepository extends JpaRepository<Crtokm, Long> {
+
+    /** 관리자 토큰 목록 응답에 필요한 프로젝션. */
+    interface AdminTokenView {
+        String getEno();
+        LocalDateTime getEndDtm();
+        String getEcyRnwPubTokCone();
+        LocalDateTime getFstEnrDtm();
+    }
+
+    /**
+     * 전체 갱신토큰을 관리자 목록 프로젝션으로 조회합니다.
+     *
+     * @return 관리자 토큰 목록 프로젝션
+     */
+    List<AdminTokenView> findAllProjectedBy();
 
     /**
      * 암호화갱신발행토큰내용으로 Refresh Token을 조회합니다.

@@ -965,14 +965,14 @@ public class BudgetWorkService {
         // 계약명: 비용번호별 대표 행의 cttNm(null 포함)을 채택하기 위해 키 존재 여부로 폴백 판단
         Map<String, String> costNameByNo = new LinkedHashMap<>();
         if (!costGroupNos.isEmpty()) {
-            costRepository.findByCostBgNoInAndDelYn(costGroupNos, "N").stream()
+            costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(costGroupNos, "N").stream()
                     .collect(Collectors.groupingBy(
-                            Bcostm::getCostBgNo,
+                            CostRepository.CostRepresentativeView::getCostBgNo,
                             LinkedHashMap::new,
                             Collectors.toList()))
                     .forEach((costBgNo, histories) -> costNameByNo.put(
                             costBgNo,
-                            CostRepresentativeSelector.pick(histories).getCttNm()));
+                            CostRepresentativeSelector.pickView(histories).getCttNm()));
         }
 
         List<BudgetWorkDto.ProjectSummaryItem> items = new ArrayList<>();

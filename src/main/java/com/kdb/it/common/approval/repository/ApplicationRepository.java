@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Collection;
+import java.time.LocalDate;
 
 /**
  * 신청서 마스터(Capplm) 데이터 접근 리포지토리
@@ -26,6 +28,24 @@ import java.util.List;
  * </ul>
  */
 public interface ApplicationRepository extends JpaRepository<Capplm, String> {
+
+    /** 프로젝트·관리비 응답 조립에 필요한 신청서 마스터 최소 필드입니다. */
+    interface ApplicationSummaryView {
+        String getApfMngNo();
+        String getItPtlApfPrgStsC();
+        String getDcdReqTtl();
+        String getDcdReqUsid();
+        LocalDate getDcdReqDtm();
+        String getRgprDcdReqCone();
+    }
+
+    /**
+     * 여러 신청서의 응답 조립용 요약 필드를 조회합니다.
+     *
+     * @param apfMngNos 신청서 관리번호 목록
+     * @return 신청서 요약 view 목록
+     */
+    List<ApplicationSummaryView> findSummaryViewsByApfMngNoIn(Collection<String> apfMngNos);
 
     /**
      * Oracle 시퀀스(SQ_TPRMPP_CAPPLM_1) 다음 값 조회

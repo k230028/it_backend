@@ -85,7 +85,8 @@ public class PlanService {
          * @return 계획 목록 응답 DTO 리스트
          */
         public List<PlanDto.ListResponse> getPlans() {
-                List<Bplanm> plans = bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N");
+                List<BplanmRepository.PlanListView> plans =
+                                bplanmRepository.findListViewsByDelYnOrderByFstEnrDtmDesc("N");
                 if (plans.isEmpty()) {
                         return List.of();
                 }
@@ -103,14 +104,14 @@ public class PlanService {
                                 .toList();
                 Map<String, String> userNameByEno = userEnos.isEmpty()
                                 ? Map.of()
-                                : cuserIRepository.findAllById(userEnos).stream()
+                                : cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
                                                 .collect(Collectors.toMap(value -> value.getEno(),
                                                                 value -> value.getUsrNm(),
                                                                 (a, b) -> a));
 
                 return plans.stream()
                                 .map(plan -> {
-                                        PlanDto.ListResponse dto = PlanDto.ListResponse.fromEntity(plan);
+                                        PlanDto.ListResponse dto = PlanDto.ListResponse.fromView(plan);
                                         dto.setFstEnrUsNm(userNameByEno.get(plan.getFstEnrUsid()));
                                         // 계획 저장 시점의 스냅샷 JSON 의 prjSnapshots 를 그대로 사용한다.
                                         // - prjSnapshots 는 폼 단계에서 경상사업을 신규 정보화사업 대표 1건으로 합산해 구성됨

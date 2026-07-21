@@ -1,11 +1,16 @@
 package com.kdb.it.common.iam.repository;
 
+import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.entity.QCorgnI;
 import com.kdb.it.common.iam.entity.QCuserI;
+import com.querydsl.core.types.Projections;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 사용자(CuserI) 커스텀 리포지토리 구현 클래스
@@ -27,6 +32,67 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
 
     /** QueryDSL 쿼리 팩토리: JPA 쿼리 생성 및 실행 담당 */
     private final JPAQueryFactory queryFactory;
+
+    @Override
+    public List<UserDto.ListRow> findListRowsByBbrC(String bbrC) {
+        QCuserI user = QCuserI.cuserI;
+        QCorgnI organization = new QCorgnI("listOrganization");
+        return selectListRows(user, organization)
+                .where(user.bbrC.eq(bbrC))
+                .fetch();
+    }
+
+    @Override
+    public List<UserDto.ListRow> searchListRowsByName(String name) {
+        QCuserI user = QCuserI.cuserI;
+        QCorgnI organization = new QCorgnI("searchOrganization");
+        return selectListRows(user, organization)
+                .where(user.usrNm.contains(name))
+                .fetch();
+    }
+
+    @Override
+    public Optional<UserDto.DetailRow> findDetailRowByEno(String eno) {
+        QCuserI user = QCuserI.cuserI;
+        QCorgnI organization = new QCorgnI("detailOrganization");
+        QCorgnI parent = new QCorgnI("parentOrganization");
+        UserDto.DetailRow row = queryFactory
+                .select(Projections.constructor(UserDto.DetailRow.class,
+                        user.eno,
+                        user.bbrC,
+                        organization.bbrNm,
+                        user.temC,
+                        user.temNm,
+                        user.usrNm,
+                        user.ptCNm,
+                        user.etrMilAddrNm,
+                        user.inleNo,
+                        user.cpnTpn,
+                        user.dtsDtlCone,
+                        organization.prlmHrkOgzCCone,
+                        parent.bbrNm))
+                .from(user)
+                .leftJoin(organization).on(organization.prlmOgzCCone.eq(user.bbrC))
+                .leftJoin(parent).on(parent.prlmOgzCCone.eq(organization.prlmHrkOgzCCone))
+                .where(user.eno.eq(eno))
+                .fetchFirst();
+        return Optional.ofNullable(row);
+    }
+
+    private JPAQuery<UserDto.ListRow> selectListRows(
+            QCuserI user, QCorgnI organization) {
+        return queryFactory
+                .select(Projections.constructor(UserDto.ListRow.class,
+                        user.eno,
+                        user.bbrC,
+                        organization.bbrNm,
+                        user.temC,
+                        user.temNm,
+                        user.usrNm,
+                        user.ptCNm))
+                .from(user)
+                .leftJoin(organization).on(organization.prlmOgzCCone.eq(user.bbrC));
+    }
 
     /**
      * 사용자명으로 사용자 검색 (QueryDSL 부분 일치 검색)

@@ -1,8 +1,11 @@
 package com.kdb.it.common.iam.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.repository.UserRepository;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,5 +46,29 @@ class UserRepresentativeSelectorTest {
     @DisplayName("빈 목록이면 empty를 반환한다")
     void emptyList_returnsEmpty() {
         assertThat(UserRepresentativeSelector.pick(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("프로젝션 대표자는 팀장을 우선하고 같은 직위에서는 사번 오름차순으로 선택한다")
+    void pickView_prefersTeamLeadThenLowestEno() {
+        UserRepository.CommitteeUserRow staff = committeeUser("E0001", "과장");
+        UserRepository.CommitteeUserRow secondLead = committeeUser("E0005", "팀장");
+        UserRepository.CommitteeUserRow firstLead = committeeUser("E0003", "팀장");
+
+        assertThat(UserRepresentativeSelector.pickView(List.of(staff, secondLead, firstLead)))
+                .contains(firstLead);
+    }
+
+    @Test
+    @DisplayName("프로젝션 사용자 목록이 비어 있으면 대표자가 없다")
+    void pickView_empty_returnsEmpty() {
+        assertThat(UserRepresentativeSelector.pickView(List.of())).isEmpty();
+    }
+
+    private UserRepository.CommitteeUserRow committeeUser(String eno, String ptCNm) {
+        UserRepository.CommitteeUserRow row = mock(UserRepository.CommitteeUserRow.class);
+        when(row.getEno()).thenReturn(eno);
+        when(row.getPtCNm()).thenReturn(ptCNm);
+        return row;
     }
 }

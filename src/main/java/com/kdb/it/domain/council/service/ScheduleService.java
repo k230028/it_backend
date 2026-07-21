@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
@@ -113,8 +112,8 @@ public class ScheduleService {
                                 .map(value -> value.getEno())
                                 .collect(Collectors.toSet());
 
-                // 위원별 사용자 정보 Map
-                Map<String, CuserI> userMap = buildUserMap(members);
+                // 위원별 응답용 사용자 정보 Map
+                Map<String, UserRepository.CouncilMemberUserRow> userMap = buildUserMap(members);
 
                 // 위원별 일정 응답 목록 Map (eno → slots)
                 Map<String, List<Bschdm>> scheduleByEno = allSchedules.stream()
@@ -124,7 +123,7 @@ public class ScheduleService {
                 List<CouncilDto.MemberScheduleStatus> memberStatuses = members.stream()
                                 .map(m -> {
                                         boolean responded = respondedEnos.contains(m.getEno());
-                                        CuserI user = userMap.get(m.getEno());
+                                        UserRepository.CouncilMemberUserRow user = userMap.get(m.getEno());
 
                                         List<CouncilDto.ScheduleSlotResponse> slots = scheduleByEno
                                                         .getOrDefault(m.getEno(), List.of()).stream()
@@ -387,16 +386,16 @@ public class ScheduleService {
         // =========================================================================
 
         /**
-         * 위원 목록의 사번으로 사용자 정보 Map 생성.
+         * 위원 목록의 사번으로 응답용 사용자 정보 Map 생성.
          *
-         * <p>사번 집합을 모아 {@code findByEnoIn}으로 일괄 조회(N+1 제거).</p>
+         * <p>사번 집합을 모아 위원 응답 프로젝션으로 일괄 조회합니다.</p>
          */
-        private Map<String, CuserI> buildUserMap(List<Bcmmtm> members) {
+        private Map<String, UserRepository.CouncilMemberUserRow> buildUserMap(List<Bcmmtm> members) {
                 List<String> enos = members.stream().map(member -> member.getEno()).distinct().toList();
                 if (enos.isEmpty()) {
                         return Map.of();
                 }
-                return userRepository.findByEnoIn(enos).stream()
+                return userRepository.findCouncilMemberUserRowsByEnoIn(enos).stream()
                                 .collect(Collectors.toMap(user -> user.getEno(), user -> user, (a, b) -> a));
         }
 }

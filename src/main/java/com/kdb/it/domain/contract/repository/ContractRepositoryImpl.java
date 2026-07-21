@@ -74,6 +74,29 @@ public class ContractRepositoryImpl implements ContractRepositoryCustom {
                 .fetch();
     }
 
+    @Override
+    public Optional<ContractDetailRow> findCurrentDetail(String docNo) {
+        QBcontm ct = QBcontm.bcontm;
+        QBprojm p = QBprojm.bprojm;
+        QBcostm c = QBcostm.bcostm;
+        ContractDetailRow row = queryFactory
+                .select(Projections.constructor(ContractDetailRow.class,
+                        ct.docMngNo, ct.docVrsSno, ct.ioeC, ct.cncdRfrNo,
+                        new CaseBuilder()
+                                .when(ct.ioeC.eq("100")).then(p.abusNm)
+                                .when(ct.ioeC.eq("200")).then(c.cttNm)
+                                .otherwise(Expressions.nullExpression(String.class)),
+                        ct.stsTc, ct.reqCone, ct.itPtlCttManrC, ct.cttManrRsn, ct.cttNm,
+                        ct.cttAmt, ct.cttOppNm, ct.cttDt, ct.fstEnrUsid, ct.fstEnrDtm))
+                .distinct()
+                .from(ct)
+                .leftJoin(p).on(p.abusMngNo.eq(ct.cncdRfrNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
+                .leftJoin(c).on(c.costBgNo.eq(ct.cncdRfrNo).and(c.lstYn.eq("Y")).and(c.delYn.eq("N")))
+                .where(ct.docMngNo.eq(docNo).and(ct.lstYn.eq("Y")).and(ct.delYn.eq("N")))
+                .fetchOne();
+        return Optional.ofNullable(row);
+    }
+
     /**
      * 현재 유효 마스터 + 대상명 단일 조회.
      *

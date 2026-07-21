@@ -1,6 +1,5 @@
 package com.kdb.it.common.iam.service;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -20,9 +19,7 @@ import java.util.Objects;
  * <p>부점코드({@code BBR_C})별 사용자 목록과 사번({@code ENO})별 사용자 상세 정보를
  * 제공합니다.</p>
  *
- * <p>부점명({@code bbrNm})은 {@link CuserI} 엔티티의 {@code @ManyToOne} 관계
- * ({@link com.kdb.it.common.iam.entity.CorgnI})에서 조회합니다.
- * {@code @EntityGraph}로 N+1 문제를 방지합니다.</p>
+ * <p>목록·상세 응답은 필요한 사용자·조직 컬럼만 읽기 전용 프로젝션으로 조회합니다.</p>
  *
  * <p>현재는 조회 기능만 제공합니다. 사용자 생성/수정은 {@link com.kdb.it.common.system.service.AuthService#signup}에서 처리합니다.</p>
  *
@@ -39,9 +36,7 @@ public class UserService {
     /**
      * 부점코드별 사용자 목록 조회
      *
-     * <p>특정 부점({@code orgCode})에 소속된 모든 사용자를 조회합니다.
-     * {@code @EntityGraph}를 사용하여 {@link com.kdb.it.common.iam.entity.CorgnI} 관계를
-     * 즉시 로딩(Eager)하여 N+1 문제를 방지합니다.</p>
+     * <p>특정 부점({@code orgCode})에 소속된 모든 사용자를 조직명과 함께 프로젝션으로 조회합니다.</p>
      *
      * <p>응답에는 사번, 부점명, 팀명, 사용자명, 직위명이 포함됩니다.</p>
      *
@@ -49,12 +44,12 @@ public class UserService {
      * @return 해당 부점의 사용자 목록 DTO ({@link UserDto.ListResponse} 리스트)
      */
     public List<UserDto.ListResponse> getUsersByOrganization(String orgCode) {
-        // 부점코드로 사용자 목록 조회 (CorgnI JOIN FETCH로 N+1 방지)
-        List<CuserI> users = userRepository.findByBbrC(orgCode);
+        // 사용자와 조직에서 목록 응답에 필요한 컬럼만 ListRow로 조회한다.
+        List<UserDto.ListRow> users = userRepository.findListRowsByBbrC(orgCode);
 
-        // 각 사용자 엔티티를 DTO로 변환 (부점명은 연관관계에서 조회)
+        // 조회된 ListRow를 엔티티 접근 없이 목록 응답 DTO로 변환한다.
         return users.stream()
-                .map(user -> UserDto.ListResponse.fromEntity(user, user.getBbrNm())) // getBbrNm(): CorgnI.bbrNm
+                .map(UserDto.ListResponse::fromRow)
                 .toList();
     }
 
@@ -77,11 +72,11 @@ public class UserService {
         OwnershipVerifier.verifyOwnerOrAdmin(eno, currentUser);
 
         // 사번으로 사용자 조회 (없으면 예외)
-        CuserI user = userRepository.findByEno(eno)
+        UserDto.DetailRow user = userRepository.findDetailRowByEno(eno)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with eno: " + eno));
 
         // 엔티티를 DTO로 변환 (부점명은 연관관계에서 조회)
-        return UserDto.DetailResponse.fromEntity(user, user.getBbrNm());
+        return UserDto.DetailResponse.fromRow(user);
     }
 
     /**
@@ -109,16 +104,16 @@ public class UserService {
             return getUsersByOrganization(orgCode);
         }
 
-        List<CuserI> users = userRepository.searchByName(keyword);
+        List<UserDto.ListRow> users = userRepository.searchListRowsByName(keyword);
         if (!orgBlank) {
             // orgBlank 검증 뒤 null 불가 값을 명시해 정적 분석 경고를 제거한다.
             final String orgFilter = Objects.requireNonNull(orgCode);
             users = users.stream()
-                    .filter(u -> orgFilter.equals(u.getBbrC()))
+                    .filter(u -> orgFilter.equals(u.bbrC()))
                     .toList();
         }
         return users.stream()
-                .map(user -> UserDto.ListResponse.fromEntity(user, user.getBbrNm()))
+                .map(UserDto.ListResponse::fromRow)
                 .toList();
     }
 }

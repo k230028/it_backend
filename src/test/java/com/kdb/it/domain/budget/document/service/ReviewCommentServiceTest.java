@@ -1,6 +1,5 @@
 package com.kdb.it.domain.budget.document.service;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.budget.document.dto.ReviewCommentDto;
 import com.kdb.it.domain.budget.document.entity.Brivgm;
@@ -29,6 +28,11 @@ import static org.mockito.Mockito.times;
  */
 @ExtendWith(MockitoExtension.class)
 class ReviewCommentServiceTest {
+
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+    }
 
     @Mock BrivgmRepository brivgmRepository;
     @Mock UserRepository userRepository;
@@ -89,8 +93,8 @@ class ReviewCommentServiceTest {
                 "DOC-2026-0010", new BigDecimal("101"), "N"))   // 화면 1.01 → 저장 정수 101(× 100)
                 .willReturn(List.of(comment));
 
-        var user = CuserI.builder().eno("E12345").usrNm("홍길동").build();
-        given(userRepository.findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
+        var user = new NameView("E12345", "홍길동");
+        given(userRepository.findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
                 .willReturn(List.of(user));
 
         // 실행
@@ -112,7 +116,7 @@ class ReviewCommentServiceTest {
         given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
                 "DOC-2026-0010", new BigDecimal("101"), "N"))   // 화면 1.01 → 저장 정수 101(× 100)
                 .willReturn(List.of(comment));
-        given(userRepository.findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
+        given(userRepository.findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
                 .willReturn(List.of());
 
         // 실행
@@ -125,7 +129,7 @@ class ReviewCommentServiceTest {
     }
 
     @Test
-    void getComments_작성자명은_findByEnoIn_1회_배치조회하고_findById는_호출하지_않는다() {
+    void getComments_작성자명은_이름프로젝션_1회_배치조회하고_단건조회는_호출하지_않는다() {
         // 준비: 동일 사번(E001) 2건 + 다른 사번(E002) 1건 → 사번 집합은 {E001, E002}
         var c1 = Brivgm.create("DOC-1", new BigDecimal("0.01"), "G", "코멘트1", null, null);
         var c2 = Brivgm.create("DOC-1", new BigDecimal("0.01"), "G", "코멘트2", null, null);
@@ -136,9 +140,9 @@ class ReviewCommentServiceTest {
         given(brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
                 eq("DOC-1"), any(), eq("N")))
                 .willReturn(List.of(c1, c2, c3));
-        var u1 = CuserI.builder().eno("E001").usrNm("홍길동").build();
-        var u2 = CuserI.builder().eno("E002").usrNm("김철수").build();
-        given(userRepository.findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
+        var u1 = new NameView("E001", "홍길동");
+        var u2 = new NameView("E002", "김철수");
+        given(userRepository.findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
                 .willReturn(List.of(u1, u2));
 
         List<ReviewCommentDto.Response> result =
@@ -146,8 +150,9 @@ class ReviewCommentServiceTest {
 
         assertThat(result).hasSize(3);
         then(userRepository).should(times(1))
-                .findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any());
+                .findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any());
         then(userRepository).should(never()).findById(anyString());
+        then(userRepository).should(never()).findNameViewByEno(anyString());
     }
 
     // 헬퍼: BaseEntity.fstEnrUsid를 리플렉션으로 주입 (JPA Auditing 대체)

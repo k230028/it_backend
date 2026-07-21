@@ -27,7 +27,6 @@ import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -94,8 +93,8 @@ class PlanEvaluationServiceTest {
         return e;
     }
 
-    private CuserI mockUser(String eno, String nm) {
-        CuserI u = mock(CuserI.class);
+    private UserRepository.UserNameView mockUser(String eno, String nm) {
+        UserRepository.UserNameView u = mock(UserRepository.UserNameView.class);
         given(u.getEno()).willReturn(eno);
         given(u.getUsrNm()).willReturn(nm);
         return u;
@@ -113,9 +112,9 @@ class PlanEvaluationServiceTest {
         Bplevm bE2 = mockEval("E2", "PRJ-B", "N");
         given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(List.of(aE1, aE2, bE1, bE2));
-        CuserI u1 = mockUser("E1", "홍길동");
-        CuserI u2 = mockUser("E2", "김철수");
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(u1, u1, u2));
+        UserRepository.UserNameView u1 = mockUser("E1", "홍길동");
+        UserRepository.UserNameView u2 = mockUser("E2", "김철수");
+        given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of(u1, u1, u2));
 
         CouncilDto.PlanEvaluationSummaryResponse res = planEvaluationService.getAllEvaluations(ASCT_ID);
 
@@ -279,7 +278,7 @@ class PlanEvaluationServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
         given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(List.of(evaluation));
-        given(userRepository.findByEnoIn(List.of("UNKNOWN"))).willReturn(List.of());
+        given(userRepository.findNameViewsByEnoIn(List.of("UNKNOWN"))).willReturn(List.of());
 
         CouncilDto.PlanEvaluationSummaryResponse result =
                 planEvaluationService.getAllEvaluations(ASCT_ID);
@@ -302,7 +301,7 @@ class PlanEvaluationServiceTest {
 
         assertThat(result.evaluations()).isEmpty();
         assertThat(result.verdicts()).isEmpty();
-        verify(userRepository, never()).findByEnoIn(anyCollection());
+        verify(userRepository, never()).findNameViewsByEnoIn(anyCollection());
     }
 
     @Test

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -24,9 +25,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.entity.Capplm;
-import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
@@ -60,6 +58,49 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class CostServiceTest {
+
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+    }
+
+    private record OrgNameView(String prlmOgzCCone, String bbrNm)
+            implements OrganizationRepository.OrganizationNameView {
+        @Override public String getPrlmOgzCCone() { return prlmOgzCCone; }
+        @Override public String getBbrNm() { return bbrNm; }
+    }
+
+    private record ApplicationMapView(String apfDcmNo, String pkColNm, Integer fntTbCrySno)
+            implements ApplicationMapRepository.ApplicationMapView {
+        @Override public String getApfDcmNo() { return apfDcmNo; }
+        @Override public String getPkColNm() { return pkColNm; }
+        @Override public Integer getFntTbCrySno() { return fntTbCrySno; }
+    }
+
+    private record ApplicationSummaryView(
+            String apfMngNo, String itPtlApfPrgStsC, String dcdReqTtl,
+            String dcdReqUsid, LocalDate dcdReqDtm, String rgprDcdReqCone)
+            implements ApplicationRepository.ApplicationSummaryView {
+        @Override public String getApfMngNo() { return apfMngNo; }
+        @Override public String getItPtlApfPrgStsC() { return itPtlApfPrgStsC; }
+        @Override public String getDcdReqTtl() { return dcdReqTtl; }
+        @Override public String getDcdReqUsid() { return dcdReqUsid; }
+        @Override public LocalDate getDcdReqDtm() { return dcdReqDtm; }
+        @Override public String getRgprDcdReqCone() { return rgprDcdReqCone; }
+    }
+
+    private record ApproverReadView(
+            String dcdMngNo, Integer dcrSqnSno, String dcrEno, String itPtlDcdStsC,
+            LocalDate dcdDtm, String dcrOpnnCone, String lstDcdYn)
+            implements ApproverRepository.ApproverReadView {
+        @Override public String getDcdMngNo() { return dcdMngNo; }
+        @Override public Integer getDcrSqnSno() { return dcrSqnSno; }
+        @Override public String getDcrEno() { return dcrEno; }
+        @Override public String getItPtlDcdStsC() { return itPtlDcdStsC; }
+        @Override public LocalDate getDcdDtm() { return dcdDtm; }
+        @Override public String getDcrOpnnCone() { return dcrOpnnCone; }
+        @Override public String getLstDcdYn() { return lstDcdYn; }
+    }
 
     @Mock private CostRepository costRepository;
     @Mock private BtermmRepository btermmRepository;
@@ -811,21 +852,6 @@ class CostServiceTest {
                 .cgprId("10001")
                 .delYn("N")
                 .build();
-        Cappla cappla = Cappla.builder()
-                .apfDcmNo("APF-001")
-                .pkColNm(IT_MNGC_NO)
-                .fntTbCrySno(1)
-                .build();
-        Capplm capplm = Capplm.builder()
-                .apfMngNo("APF-001")
-                .dcdReqTtl("결재")
-                .itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code())
-                .build();
-        Cdecim decision = Cdecim.builder()
-                .dcdMngNo("APF-001")
-                .dcrSqnSno(1)
-                .dcrEno("10002")
-                .build();
         Btermm terminal = Btermm.builder()
                 .tmnMngNo("TER-001")
                 .sno(1)
@@ -837,21 +863,27 @@ class CostServiceTest {
                 .dfrCleC("DFR01")
                 .build();
         given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                "BCOSTM", IT_MNGC_NO, 1)).willReturn(List.of(cappla));
-        given(capplmRepository.findById("APF-001")).willReturn(Optional.of(capplm));
-        given(cdecimRepository.findByDcdMngNoOrderByDcrSqnSnoAsc("APF-001")).willReturn(List.of(decision));
-        given(corgnIRepository.findById("101")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("101").bbrNm("부서").build()));
-        given(corgnIRepository.findById("102")).willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
-        given(cuserIRepository.findById("10001")).willReturn(Optional.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
+        given(capplaRepository.findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                "BCOSTM", IT_MNGC_NO, 1))
+                .willReturn(List.of(new ApplicationMapView("APF-001", IT_MNGC_NO, 1)));
+        given(capplmRepository.findSummaryViewsByApfMngNoIn(List.of("APF-001")))
+                .willReturn(List.of(new ApplicationSummaryView(
+                        "APF-001", com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code(),
+                        "결재", "10001", LocalDate.of(2026, 7, 21), "요청")));
+        given(cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-001"))
+                .willReturn(List.of(new ApproverReadView(
+                        "APF-001", 1, "10002", "1", null, null, "Y")));
+        given(corgnIRepository.findNameViewByPrlmOgzCCone("101")).willReturn(Optional.of(new OrgNameView("101", "부서")));
+        given(corgnIRepository.findNameViewByPrlmOgzCCone("102")).willReturn(Optional.of(new OrgNameView("102", "팀")));
+        given(cuserIRepository.findNameViewByEno("10001")).willReturn(Optional.of(new NameView("10001", "담당자")));
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(
                         Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("개발비").cTp("IOE_DVC").build(),
                         Ccodem.builder().cId("IOE_C").cdva("101").cdvaNm("중복개발비").cTp("IOE_DVC").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                 .willReturn(List.of(terminal));
-        given(cuserIRepository.findByEnoIn(java.util.Set.of("10003")))
-                .willReturn(List.of(CuserI.builder().eno("10003").usrNm("단말담당").build()));
+        given(cuserIRepository.findNameViewsByEnoIn(java.util.Set.of("10003")))
+                .willReturn(List.of(new NameView("10003", "단말담당")));
         given(codeNameMapBuilder.build(eq("IT_PTL_TMN_SVC_TC"), eq(java.util.Set.of("SVC01"))))
                 .willReturn(java.util.Map.of("SVC01", "업무용"));
         given(codeNameMapBuilder.build(eq("IT_PTL_TMN_KD_TC"), eq(java.util.Set.of("KIND01"))))
@@ -863,6 +895,8 @@ class CostServiceTest {
 
         assertThat(result.getApfMngNo()).isEqualTo("APF-001");
         assertThat(result.getApfSts()).isEqualTo("결재완료");
+        assertThat(result.getApplicationInfo().getApfMngNo()).isEqualTo("APF-001");
+        assertThat(result.getApplicationInfo().getApprovers()).hasSize(1);
         assertThat(result.getCostSvnDpmNm()).isEqualTo("부서");
         assertThat(result.getSvnTemNm()).isEqualTo("팀");
         assertThat(result.getCgprNm()).isEqualTo("담당자");
@@ -875,6 +909,10 @@ class CostServiceTest {
         assertThat(result.getTerminals().get(0).getTmnClsfCNm()).isEqualTo("업무용");
         assertThat(result.getTerminals().get(0).getTmnKdTcNm()).isEqualTo("노트북");
         assertThat(result.getTerminals().get(0).getDfrCleCNm()).isEqualTo("월납");
+        verify(capplaRepository).findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                "BCOSTM", IT_MNGC_NO, 1);
+        verify(capplmRepository).findSummaryViewsByApfMngNoIn(List.of("APF-001"));
+        verify(cdecimRepository).findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-001");
     }
 
     @Test
@@ -982,24 +1020,21 @@ class CostServiceTest {
                 .bseYy("2026")
                 .delYn("N")
                 .build();
-        Cappla cappla = Cappla.builder()
-                .apfDcmNo("APF-001")
-                .pkColNm(IT_MNGC_NO)
-                .fntTbCrySno(1)
-                .build();
-        Capplm capplm = Capplm.builder().apfMngNo("APF-001").itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code()).build();
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost, newCost));
-        given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", List.of(IT_MNGC_NO, "COST-NEW")))
-                .willReturn(List.of(cappla));
-        given(capplmRepository.findAllById(List.of("APF-001"))).willReturn(List.of(capplm));
-        given(cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(List.of("APF-001")))
-                .willReturn(List.of(Cdecim.builder().dcdMngNo("APF-001").dcrSqnSno(1).dcrEno("10002").build()));
-        given(corgnIRepository.findAllById(any()))
-                .willReturn(List.of(
-                        CorgnI.builder().prlmOgzCCone("101").bbrNm("부서").build(),
-                        CorgnI.builder().prlmOgzCCone("102").bbrNm("팀").build()));
-        given(cuserIRepository.findAllById(any()))
-                .willReturn(List.of(CuserI.builder().eno("10001").usrNm("담당자").build()));
+        given(capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                "BCOSTM", List.of(IT_MNGC_NO, "COST-NEW")))
+                .willReturn(List.of(new ApplicationMapView("APF-001", IT_MNGC_NO, 1)));
+        given(capplmRepository.findSummaryViewsByApfMngNoIn(List.of("APF-001")))
+                .willReturn(List.of(new ApplicationSummaryView(
+                        "APF-001", com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
+                        "결재", "10001", LocalDate.of(2026, 7, 21), "요청")));
+        given(cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(List.of("APF-001")))
+                .willReturn(List.of(new ApproverReadView(
+                        "APF-001", 1, "10002", "1", null, null, "Y")));
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(any()))
+                .willReturn(List.of(new OrgNameView("101", "부서"), new OrgNameView("102", "팀")));
+        given(cuserIRepository.findNameViewsByEnoIn(any()))
+                .willReturn(List.of(new NameView("10001", "담당자")));
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(Ccodem.builder().cId("IOE_C").cdva("101").cTp("IOE_IDR").build()));
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N")).willReturn(List.of());
@@ -1013,12 +1048,17 @@ class CostServiceTest {
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getApfMngNo()).isEqualTo("APF-001");
+        assertThat(result.get(0).getApplicationInfo().getApfMngNo()).isEqualTo("APF-001");
         assertThat(result.get(0).getCostSvnDpmNm()).isEqualTo("부서");
         assertThat(result.get(0).getCgprNm()).isEqualTo("담당자");
         assertThat(result.get(0).getCostBg()).isEqualByComparingTo("1000");
         assertThat(result.get(0).getPrevBgAmt()).isEqualByComparingTo("900");
         assertThat(result.get(0).getPrevDupBg()).isEqualByComparingTo("800");
         assertThat(result.get(1).getPrevDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(capplaRepository).findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                "BCOSTM", List.of(IT_MNGC_NO, "COST-NEW"));
+        verify(capplmRepository).findSummaryViewsByApfMngNoIn(List.of("APF-001"));
+        verify(cdecimRepository).findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(List.of("APF-001"));
     }
 
     @Test
@@ -1398,8 +1438,8 @@ class CostServiceTest {
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost));
         given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(eq("BCOSTM"), any()))
                 .willReturn(List.of());
-        given(corgnIRepository.findAllById(any())).willReturn(List.of());
-        given(cuserIRepository.findAllById(any())).willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(any())).willReturn(List.of());
         // 배치 코드명 헬퍼 호출 결과: 각 코드타입 → 코드명 반환
         given(codeNameMapBuilder.build(eq("BG_UNT_ABUS_C"), eq(java.util.Set.of("ABUS01"))))
                 .willReturn(java.util.Map.of("ABUS01", "남용유형"));
@@ -1438,8 +1478,8 @@ class CostServiceTest {
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost));
         given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(eq("BCOSTM"), any()))
                 .willReturn(List.of());
-        given(corgnIRepository.findAllById(any())).willReturn(List.of());
-        given(cuserIRepository.findAllById(any())).willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(any())).willReturn(List.of());
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
 
         // Act
@@ -1616,8 +1656,8 @@ class CostServiceTest {
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost1, cost2));
         given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(eq("BCOSTM"), any()))
                 .willReturn(List.of());
-        given(corgnIRepository.findAllById(any())).willReturn(List.of());
-        given(cuserIRepository.findAllById(any())).willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(any())).willReturn(List.of());
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
                 .willReturn(List.of(term1, term2));

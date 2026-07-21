@@ -80,6 +80,28 @@ public class PaymentRepositoryImpl implements PaymentRepositoryCustom {
                 .fetch();
     }
 
+    @Override
+    public Optional<PaymentDetailRow> findCurrentDetail(String docNo) {
+        QBpaymm pm = QBpaymm.bpaymm;
+        QBprojm p = QBprojm.bprojm;
+        QBcostm c = QBcostm.bcostm;
+        PaymentDetailRow row = queryFactory
+                .select(Projections.constructor(PaymentDetailRow.class,
+                        pm.docMngNo, pm.docVrsSno, pm.ioeC, pm.cncdRfrNo,
+                        new CaseBuilder()
+                                .when(pm.ioeC.eq("100")).then(p.abusNm)
+                                .when(pm.ioeC.eq("200")).then(c.cttNm)
+                                .otherwise(Expressions.nullExpression(String.class)),
+                        pm.stsTc, pm.reqCone, pm.cttNm, pm.cttAmt, pm.fstEnrUsid, pm.fstEnrDtm))
+                .distinct()
+                .from(pm)
+                .leftJoin(p).on(p.abusMngNo.eq(pm.cncdRfrNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
+                .leftJoin(c).on(c.costBgNo.eq(pm.cncdRfrNo).and(c.lstYn.eq("Y")).and(c.delYn.eq("N")))
+                .where(pm.docMngNo.eq(docNo).and(pm.lstYn.eq("Y")).and(pm.delYn.eq("N")))
+                .fetchOne();
+        return Optional.ofNullable(row);
+    }
+
     /**
      * 현재 유효 마스터 + 대상명 단일 조회.
      *

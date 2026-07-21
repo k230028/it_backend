@@ -1,5 +1,6 @@
 package com.kdb.it.common.board.service;
 
+import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
@@ -20,6 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -62,11 +64,22 @@ class BoardPostServiceTest {
     }
 
     @Test
+    @DisplayName("게시물 목록 프로젝션은 응답에 필요한 14개 필드만 가진다")
+    void listRow_hasExactFourteenFields() {
+        assertThat(BoardPostDto.ListRow.class.getRecordComponents())
+            .extracting(component -> component.getName())
+            .containsExactly(
+                "nacMngNo", "blbMngNo", "nacNm", "nacInqNbr", "nacUnqId", "ancYn", "sreYn",
+                "flApgYn", "flNbr", "nacGrpLev", "sttYmd", "endYmd", "fstEnrUsid", "fstEnrDtm"
+            );
+    }
+
+    @Test
     @DisplayName("일반 사용자도 모든 게시판 게시물 목록을 조회할 수 있다 (조회 전체 공개)")
     void searchPosts_normalUser_anyBoard_success() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0099", "N"))
             .willReturn(Optional.of(adminOnlyBoard));
-        given(postRepository.searchPosts(any(), any(), anyBoolean()))
+        given(postRepository.searchPostRows(any(), any(), anyBoolean()))
             .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         var result = service.searchPosts(
@@ -79,7 +92,7 @@ class BoardPostServiceTest {
     void searchPosts_publicBoard_normalUser_success() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
             .willReturn(Optional.of(publicBoard));
-        given(postRepository.searchPosts(any(), any(), anyBoolean()))
+        given(postRepository.searchPostRows(any(), any(), anyBoolean()))
             .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         var result = service.searchPosts(
@@ -101,7 +114,7 @@ class BoardPostServiceTest {
         assertThatThrownBy(() -> service.searchPosts("BLBM-2026-0001", cond, normalUser))
             .isInstanceOf(CustomGeneralException.class)
             .hasMessageContaining("2자 이상");
-        verify(postRepository, never()).searchPosts(any(), any(), anyBoolean());
+        verify(postRepository, never()).searchPostRows(any(), any(), anyBoolean());
     }
 
     @Test
@@ -109,8 +122,12 @@ class BoardPostServiceTest {
     void searchPosts_returnsPagedResult() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
             .willReturn(Optional.of(publicBoard));
-        given(postRepository.searchPosts(any(), any(), anyBoolean()))
-            .willReturn(new PageImpl<>(List.of(post("NAC-2026-0001", "USER001")), PageRequest.of(1, 20), 21));
+        var row = new BoardPostDto.ListRow(
+            "NAC-2026-0001", "BLBM-2026-0001", "제목", 3, "NAC-2026-0001", "N", "Y",
+            "N", 0, 0, null, null, "USER001", LocalDateTime.of(2026, 7, 20, 10, 0)
+        );
+        given(postRepository.searchPostRows(any(), any(), anyBoolean()))
+            .willReturn(new PageImpl<>(List.of(row), PageRequest.of(1, 20), 21));
 
         var cond = new com.kdb.it.common.board.dto.BoardPostDto.SearchCondition();
         cond.setPage(1);
@@ -118,8 +135,11 @@ class BoardPostServiceTest {
         var result = service.searchPosts("BLBM-2026-0001", cond, normalUser);
 
         assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().getFirst().getNacMngNo()).isEqualTo("NAC-2026-0001");
         assertThat(result.getTotalElements()).isEqualTo(21);
         assertThat(result.getNumber()).isEqualTo(1);
+        verify(postRepository).searchPostRows("BLBM-2026-0001", cond, false);
+        verify(postRepository, never()).searchPosts(any(), any(), anyBoolean());
     }
 
     @Test

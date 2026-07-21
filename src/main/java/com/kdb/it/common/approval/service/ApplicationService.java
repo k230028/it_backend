@@ -479,10 +479,11 @@ public class ApplicationService {
         Capplm capplm = applicationRepository.findById(apfMngNo)
                 .orElseThrow(() -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
         // 결재자 목록 조회 (순번 오름차순)
-        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
+        List<ApproverRepository.ApproverReadView> approvers =
+                approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
         String requesterNm = requesterName(resolveRequesterNames(List.of(capplm)), capplm.getDcdReqUsid());
         String requesterBbrNm = requesterDeptName(resolveRequesterDeptNames(List.of(capplm)), capplm.getDcdReqBbrC());
-        return ApplicationDto.Response.fromEntity(capplm, approvers, requesterNm, requesterBbrNm);
+        return ApplicationDto.Response.fromReadViews(capplm, approvers, requesterNm, requesterBbrNm);
     }
 
     /**
@@ -499,16 +500,16 @@ public class ApplicationService {
         List<String> apfMngNos = capplms.stream().map(value -> value.getApfMngNo()).toList();
 
         // 결재선 배치 조회 (N+1 제거): 신청번호별 결재자 목록 Map 선구성.
-        // findByDcdMngNoInOrderByDcrSqnSnoAsc가 DCR_SQN_SNO 오름차순으로 반환하므로
+        // findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc가 DCR_SQN_SNO 오름차순으로 반환하므로
         // groupingBy가 각 신청번호 그룹 내 결재자 순서를 보존한다.
-        java.util.Map<String, List<Cdecim>> approversByApf =
-                approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos).stream()
+        java.util.Map<String, List<ApproverRepository.ApproverReadView>> approversByApf =
+                approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos).stream()
                         .collect(java.util.stream.Collectors.groupingBy(value -> value.getDcdMngNo()));
         java.util.Map<String, String> requesterNamesByEno = resolveRequesterNames(capplms);
         java.util.Map<String, String> requesterDeptNamesByBbrC = resolveRequesterDeptNames(capplms);
 
         return capplms.stream()
-                .map(capplm -> ApplicationDto.Response.fromEntity(
+                .map(capplm -> ApplicationDto.Response.fromReadViews(
                         capplm,
                         approversByApf.getOrDefault(capplm.getApfMngNo(), List.of()),
                         requesterName(requesterNamesByEno, capplm.getDcdReqUsid()),
@@ -574,7 +575,7 @@ public class ApplicationService {
             return java.util.Map.of();
         }
 
-        return userRepository.findByEnoIn(requesterEnos).stream()
+        return userRepository.findNameViewsByEnoIn(requesterEnos).stream()
                 .collect(java.util.stream.Collectors.toMap(
                         user -> user.getEno(),
                         user -> user.getUsrNm(),
@@ -596,7 +597,7 @@ public class ApplicationService {
             return java.util.Map.of();
         }
 
-        return organizationRepository.findAllById(requesterBbrCs).stream()
+        return organizationRepository.findNameViewsByPrlmOgzCConeIn(requesterBbrCs).stream()
                 .filter(org -> org.getBbrNm() != null)
                 .collect(java.util.stream.Collectors.toMap(
                         organization -> organization.getPrlmOgzCCone(),

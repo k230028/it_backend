@@ -13,7 +13,6 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.code.entity.Ccodem;
@@ -50,6 +49,27 @@ import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 @ExtendWith(MockitoExtension.class)
 class PlanServiceTest {
 
+    private record PlanListViewRow(
+            String reqDocNo, String itPtlPlnTpC, String bseYy,
+            BigDecimal aduTotAmt, BigDecimal cpitBgApvAmt, BigDecimal totXpAmt,
+            java.time.LocalDateTime fstEnrDtm, String fstEnrUsid, String redtConeInf)
+            implements BplanmRepository.PlanListView {
+        @Override public String getReqDocNo() { return reqDocNo; }
+        @Override public String getItPtlPlnTpC() { return itPtlPlnTpC; }
+        @Override public String getBseYy() { return bseYy; }
+        @Override public BigDecimal getAduTotAmt() { return aduTotAmt; }
+        @Override public BigDecimal getCpitBgApvAmt() { return cpitBgApvAmt; }
+        @Override public BigDecimal getTotXpAmt() { return totXpAmt; }
+        @Override public java.time.LocalDateTime getFstEnrDtm() { return fstEnrDtm; }
+        @Override public String getFstEnrUsid() { return fstEnrUsid; }
+        @Override public String getRedtConeInf() { return redtConeInf; }
+    }
+
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+    }
+
     @Mock
     private BplanmRepository bplanmRepository;
     @Mock
@@ -80,15 +100,12 @@ class PlanServiceTest {
     @DisplayName("getPlans - 삭제되지 않은 계획 목록을 반환한다")
     void getPlans_목록반환() {
         // given
-        Bplanm plan = Bplanm.builder()
-                .reqDocNo("PLN-2026-0001")
-                .bseYy("2026")
-                .itPtlPlnTpC("신규")
-                .build();
-        ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER001");
-        given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
-        given(cuserIRepository.findAllById(List.of("USER001"))).willReturn(List.of(
-                CuserI.builder().eno("USER001").usrNm("홍길동").build()));
+        BplanmRepository.PlanListView plan = new PlanListViewRow(
+                "PLN-2026-0001", "신규", "2026", null, null, null,
+                null, "USER001", null);
+        given(bplanmRepository.findListViewsByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
+        given(cuserIRepository.findNameViewsByEnoIn(List.of("USER001")))
+                .willReturn(List.of(new NameView("USER001", "홍길동")));
         given(codeService.findCodeEntitiesByCId("ABUS_TC")).willReturn(List.of());
 
         // when
@@ -103,7 +120,7 @@ class PlanServiceTest {
     @DisplayName("getPlans - 계획이 없으면 빈 목록을 반환한다")
     void getPlans_빈목록반환() {
         // given
-        given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of());
+        given(bplanmRepository.findListViewsByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of());
 
         // when
         List<PlanDto.ListResponse> result = planService.getPlans();
@@ -118,15 +135,12 @@ class PlanServiceTest {
         PlanService service = new PlanService(
                 bplanmRepository, bplanaRepository, projectService, costService,
                 codeService, cuserIRepository, new ObjectMapper(), bprojaSyncService);
-        Bplanm plan = Bplanm.builder()
-                .reqDocNo("PLN-2026-0002")
-                .bseYy("2026")
-                .itPtlPlnTpC("신규")
-                .redtConeInf("{\"prjSnapshots\":[{\"pulDtt\":\"001\"},{\"pulDtt\":\"002\"},{\"pulDtt\":\"001\"}]}")
-                .build();
-        ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER002");
-        given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
-        given(cuserIRepository.findAllById(List.of("USER002"))).willReturn(List.of());
+        BplanmRepository.PlanListView plan = new PlanListViewRow(
+                "PLN-2026-0002", "신규", "2026", null, null, null,
+                null, "USER002",
+                "{\"prjSnapshots\":[{\"id\":1,\"pulDtt\":\"001\"},{\"id\":2,\"pulDtt\":\"002\"},{\"id\":3,\"pulDtt\":\"001\"}]}");
+        given(bplanmRepository.findListViewsByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
+        given(cuserIRepository.findNameViewsByEnoIn(List.of("USER002"))).willReturn(List.of());
         given(codeService.findCodeEntitiesByCId("ABUS_TC")).willReturn(List.of(
                 Ccodem.builder().cdva("10").cdvaNm("신규").build(),
                 Ccodem.builder().cdva("20").cdvaNm("계속").build()));
@@ -144,13 +158,11 @@ class PlanServiceTest {
         PlanService service = new PlanService(
                 bplanmRepository, bplanaRepository, projectService, costService,
                 codeService, cuserIRepository, new ObjectMapper(), bprojaSyncService);
-        Bplanm plan = Bplanm.builder()
-                .reqDocNo("PLN-2026-0003")
-                .redtConeInf("{")
-                .build();
-        ReflectionTestUtils.setField(plan, "fstEnrUsid", "USER003");
-        given(bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
-        given(cuserIRepository.findAllById(List.of("USER003"))).willReturn(List.of());
+        BplanmRepository.PlanListView plan = new PlanListViewRow(
+                "PLN-2026-0003", null, null, null, null, null,
+                null, "USER003", "{");
+        given(bplanmRepository.findListViewsByDelYnOrderByFstEnrDtmDesc("N")).willReturn(List.of(plan));
+        given(cuserIRepository.findNameViewsByEnoIn(List.of("USER003"))).willReturn(List.of());
         given(codeService.findCodeEntitiesByCId("ABUS_TC")).willReturn(List.of());
 
         List<PlanDto.ListResponse> result = service.getPlans();

@@ -531,15 +531,16 @@ public class CouncilService {
             return new HashMap<>();
         }
         // 전체 사업관리번호의 활성 품목을 1회 배치 조회한 뒤 사업관리번호별로 그룹핑
-        Map<String, List<Bitemm>> itemsByAbus = projectItemRepository.findByAbusMngNoInAndDelYn(keys, "N").stream()
+        Map<String, List<ProjectItemRepository.ProjectItemBudgetView>> itemsByAbus = projectItemRepository
+                .findBudgetViewsByAbusMngNoInAndDelYn(keys, "N").stream()
                 .collect(Collectors.groupingBy(item -> item.getAbusMngNo()));
         Map<String, BigDecimal> result = new HashMap<>();
         // 요청된 모든 키를 순회한다(itemsByAbus가 아님). 품목이 없는 키도 빈 목록으로
         // applyBudgetSummary를 호출해 행별 단건 조회(deriveCurrentYearBudget)와 값이 동일하게 보존된다.
         for (String abusMngNo : keys) {
-            List<Bitemm> items = itemsByAbus.getOrDefault(abusMngNo, List.of());
+            List<ProjectItemRepository.ProjectItemBudgetView> items = itemsByAbus.getOrDefault(abusMngNo, List.of());
             var tmp = ProjectDto.Response.builder().build();
-            projectBudgetSummaryService.applyBudgetSummary(tmp, items);
+            projectBudgetSummaryService.applyBudgetSummaryViews(tmp, items);
             result.put(abusMngNo, tmp.getTotRqmAmt());
         }
         return result;

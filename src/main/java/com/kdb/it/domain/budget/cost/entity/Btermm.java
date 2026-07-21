@@ -14,10 +14,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
-import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
@@ -36,10 +34,15 @@ import lombok.experimental.SuperBuilder;
 @Table(name = "TPRMPP_BTERMM", comment = "단말기관리마스터")
 @IdClass(BtermmId.class)
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @SuperBuilder
 public class Btermm extends BaseEntity {
+
+    /**
+     * JPA가 단말기관리 엔티티를 복원할 때 사용하는 기본 생성자입니다.
+     */
+    protected Btermm() {
+    }
 
     /** 단말기관리번호 */
     @Id
@@ -135,8 +138,22 @@ public class Btermm extends BaseEntity {
     private BigDecimal fcAmt;
 
     /**
-     * 정보 업데이트 메서드
+     * 단말기 관리 정보를 변경합니다.
      *
+     * @param spfTmnNm 특정단말명
+     * @param tmnKdTc IT포탈 단말종류구분코드
+     * @param nsfUsgCone 소요자금용도내용
+     * @param tmnClsfC IT포탈 단말서비스구분코드
+     * @param termRqmBgAmt 단말기 금액
+     * @param curC 통화코드
+     * @param xcr 환율
+     * @param xcrBseDt 환율기준일자
+     * @param dfrCleC 지급주기코드
+     * @param indRsn 증감사유
+     * @param cgprId 담당자 ID
+     * @param termSvnTemC 주관팀코드
+     * @param termSvnDpmC 주관부서코드
+     * @param rmk 비고
      * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
     public void update(String spfTmnNm, String tmnKdTc, String nsfUsgCone, String tmnClsfC, BigDecimal termRqmBgAmt,
@@ -159,7 +176,12 @@ public class Btermm extends BaseEntity {
         this.fcAmt = fcAmt;
     }
 
-    /** 외래키 설정을 위한 편의 메서드 */
+    /**
+     * 단말기에 연결할 전산관리비의 외래키를 설정합니다.
+     *
+     * @param termBgNo 예산번호
+     * @param termBgSno 예산일련번호
+     */
     public void setBcostmInfo(String termBgNo, Integer termBgSno) {
         this.termBgNo = termBgNo;
         this.termBgSno = termBgSno;

@@ -10,9 +10,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.entity.Capplm;
-import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.IoeCategories;
 import com.kdb.it.common.code.entity.Ccodem;
@@ -802,23 +799,28 @@ public class ProjectService {
 
         // --- 1. CAPPLA 배치 조회 (BPROJM에 연결된 모든 신청서) ---
         List<String> prjMngNos = projects.stream().map(value -> value.getAbusMngNo()).toList();
-        List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", prjMngNos);
+        List<com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> allCapplas =
+                capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BPROJM", prjMngNos);
 
         // prjMngNo → 최신 Cappla (이미 DESC 정렬이므로 첫 번째가 최신)
-        Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();
-        for (Cappla c : allCapplas) {
+        Map<String, com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> latestCappla =
+                new java.util.LinkedHashMap<>();
+        for (com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView c : allCapplas) {
             latestCappla.putIfAbsent(c.getPkColNm(), c);
         }
 
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
                 .map(value -> value.getApfDcmNo()).toList();
-        Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
-                .collect(Collectors.toMap(value -> value.getApfMngNo(), m -> m));
+        Map<String, com.kdb.it.common.approval.repository.ApplicationRepository.ApplicationSummaryView> capplmMap =
+                capplmRepository.findSummaryViewsByApfMngNoIn(apfMngNos).stream()
+                        .collect(Collectors.toMap(value -> value.getApfMngNo(), m -> m));
 
         // --- 3. CDECIM 배치 조회 ---
-        List<Cdecim> allDecisions = cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
-        Map<String, List<Cdecim>> decisionMap = allDecisions.stream()
+        List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> allDecisions =
+                cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
+        Map<String, List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView>> decisionMap =
+                allDecisions.stream()
                 .collect(Collectors.groupingBy(value -> value.getDcdMngNo()));
 
         // --- 4. 부서코드·사원번호·공통코드 수집 ---
@@ -850,9 +852,9 @@ public class ProjectService {
         }
 
         // --- 5. 부서명·사용자명·공통코드명 배치 조회 ---
-        Map<String, String> orgNameMap = corgnIRepository.findAllById(orgCodes).stream()
+        Map<String, String> orgNameMap = corgnIRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
                 .collect(Collectors.toMap(value -> value.getPrlmOgzCCone(), value -> value.getBbrNm()));
-        Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
+        Map<String, String> userNameMap = cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
                 .collect(Collectors.toMap(value -> value.getEno(), value -> value.getUsrNm()));
         Map<String, String> rprStsNameMap = rprStsCdvas.isEmpty() ? Map.of()
                 : codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCdvas);
@@ -862,8 +864,8 @@ public class ProjectService {
                 : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
 
         // 목록 파생 합산: 대상 프로젝트들의 활성 품목 1회 배치 조회 후 프로젝트별 그룹핑
-        Map<String, List<com.kdb.it.domain.budget.project.entity.Bitemm>> itemsByPrj = bitemmRepository
-                .findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
+        Map<String, List<com.kdb.it.domain.budget.project.repository.ProjectItemRepository.ProjectItemBudgetView>> itemsByPrj =
+                bitemmRepository.findBudgetViewsByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
                 .collect(Collectors.groupingBy(
                         value -> value.getAbusMngNo()));
 
@@ -890,15 +892,18 @@ public class ProjectService {
             Bprojm project = projects.get(i);
             ProjectDto.Response response = responses.get(i);
 
-            Cappla cappla = latestCappla.get(project.getAbusMngNo());
+            com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView cappla =
+                    latestCappla.get(project.getAbusMngNo());
             if (cappla != null) {
                 response.setApfMngNo(cappla.getApfDcmNo());
-                Capplm capplm = capplmMap.get(cappla.getApfDcmNo());
+                com.kdb.it.common.approval.repository.ApplicationRepository.ApplicationSummaryView capplm =
+                        capplmMap.get(cappla.getApfDcmNo());
                 if (capplm != null) {
                     response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
                             : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label());
-                    List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
-                    response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
+                    List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> decisions =
+                            decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
+                    response.setApplicationInfo(ApplicationInfoDto.fromReadViews(capplm, decisions));
                 }
             }
 
@@ -941,7 +946,7 @@ public class ProjectService {
             setBudgetSummary(response, project.getAbusMngNo(), project.getSno());
 
             // 파생 예산 3종(totRqmAmt/mplCpitAmt/mplMngcAmt) 주입
-            projectBudgetSummaryService.applyBudgetSummary(
+            projectBudgetSummaryService.applyBudgetSummaryViews(
                     response,
                     itemsByPrj.getOrDefault(project.getAbusMngNo(), java.util.List.of()));
         }
@@ -971,27 +976,28 @@ public class ProjectService {
      */
     private void setApplicationInfo(ProjectDto.Response response, String prjMngNo, Integer prjSno) {
         // BPROJM 테이블 코드와 프로젝트 관리번호/순번으로 연결된 신청서 목록 조회 (최신순)
-        List<com.kdb.it.common.approval.entity.Cappla> capplas = capplaRepository
-                .findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BPROJM", prjMngNo, (Integer) prjSno);
+        List<com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> capplas = capplaRepository
+                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BPROJM", prjMngNo, prjSno);
 
         if (!capplas.isEmpty()) {
-            com.kdb.it.common.approval.entity.Cappla cappla = capplas.get(0); // 가장 최신 신청서
+            com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView cappla = capplas.get(0);
             response.setApfMngNo(cappla.getApfDcmNo()); // 신청관리번호 설정
 
             // 신청서 마스터에서 결재상태 및 상세 정보 조회
-            capplmRepository.findById(cappla.getApfDcmNo())
+            capplmRepository.findSummaryViewsByApfMngNoIn(List.of(cappla.getApfDcmNo())).stream()
+                    .findFirst()
                     .ifPresent(capplm -> {
                         response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
                                 : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC())
                                         .label()); // 결재상태 설정 (코드→라벨)
 
                         // 결재자 목록 조회 (결재순서 오름차순)
-                        List<com.kdb.it.common.approval.entity.Cdecim> decisions = cdecimRepository
-                                .findByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
+                        List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> decisions =
+                                cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
 
                         // ApplicationInfoDto 생성 및 설정
                         response.setApplicationInfo(
-                                com.kdb.it.common.approval.dto.ApplicationInfoDto.fromEntities(capplm, decisions));
+                                com.kdb.it.common.approval.dto.ApplicationInfoDto.fromReadViews(capplm, decisions));
                     });
         }
     }
@@ -1017,14 +1023,14 @@ public class ProjectService {
 
         // IT부서코드 → IT부서명
         if (response.getDvmDpmC() != null && !response.getDvmDpmC().isEmpty()) {
-            corgnIRepository.findById(response.getDvmDpmC())
+            corgnIRepository.findNameViewByPrlmOgzCCone(response.getDvmDpmC())
                     .ifPresent(org -> response.setDvmDpmCNm(org.getBbrNm()));
         }
 
         // 주관부서코드 → 주관부서명 (스냅샷이 이미 세팅됐으면 건너뜀)
         if (response.getSvnDpmCNm() == null
                 && response.getSvnDpmC() != null && !response.getSvnDpmC().isEmpty()) {
-            corgnIRepository.findById(response.getSvnDpmC())
+            corgnIRepository.findNameViewByPrlmOgzCCone(response.getSvnDpmC())
                     .ifPresent(org -> response.setSvnDpmCNm(org.getBbrNm()));
         }
 
@@ -1032,25 +1038,25 @@ public class ProjectService {
 
         // IT담당자 사번 → IT담당자명
         if (response.getDvmUsid() != null && !response.getDvmUsid().isEmpty()) {
-            cuserIRepository.findById(response.getDvmUsid())
+            cuserIRepository.findNameViewByEno(response.getDvmUsid())
                     .ifPresent(user -> response.setDvmUsidNm(user.getUsrNm()));
         }
 
         // 주관부서담당팀장 사번 → 주관부서담당팀장명
         if (response.getTlrUsid() != null && !response.getTlrUsid().isEmpty()) {
-            cuserIRepository.findById(response.getTlrUsid())
+            cuserIRepository.findNameViewByEno(response.getTlrUsid())
                     .ifPresent(user -> response.setTlrUsidNm(user.getUsrNm()));
         }
 
         // 주관부서담당자 사번 → 주관부서담당자명
         if (response.getUsid() != null && !response.getUsid().isEmpty()) {
-            cuserIRepository.findById(response.getUsid())
+            cuserIRepository.findNameViewByEno(response.getUsid())
                     .ifPresent(user -> response.setUsidNm(user.getUsrNm()));
         }
 
         // IT부서담당팀장 사번 → IT부서담당팀장명
         if (response.getDvmTlrUsid() != null && !response.getDvmTlrUsid().isEmpty()) {
-            cuserIRepository.findById(response.getDvmTlrUsid())
+            cuserIRepository.findNameViewByEno(response.getDvmTlrUsid())
                     .ifPresent(user -> response.setDvmTlrUsidNm(user.getUsrNm()));
         }
 

@@ -264,7 +264,7 @@ public class AdminLogService {
             return Map.of();
         }
 
-        return userRepository.findByEnoIn(enos).stream()
+        return userRepository.findNameViewsByEnoIn(enos).stream()
                 .collect(LinkedHashMap::new, (map, user) -> map.put(user.getEno(), user.getUsrNm()), (target, source) -> target.putAll(source));
     }
 

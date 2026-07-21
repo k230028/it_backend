@@ -12,7 +12,6 @@ import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
-import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -74,7 +73,7 @@ class BudgetWorkServiceBatchTest {
         Bprojm project = org.mockito.Mockito.mock(Bprojm.class);
         given(project.getAbusMngNo()).willReturn("PRJ-2026-0001");
         given(project.getAbusNm()).willReturn("정보화사업");
-        Bcostm cost = org.mockito.Mockito.mock(Bcostm.class);
+        CostRepository.CostRepresentativeView cost = org.mockito.Mockito.mock(CostRepository.CostRepresentativeView.class);
         given(cost.getCostBgNo()).willReturn("COST-2026-0001");
         given(cost.getCttNm()).willReturn("유지보수계약");
 
@@ -85,7 +84,7 @@ class BudgetWorkServiceBatchTest {
                 .willReturn(List.of(item));
         given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of(project));
-        given(costRepository.findByCostBgNoInAndDelYn(anyCollection(), eq("N")))
+        given(costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of(cost));
 
         // Act
@@ -97,11 +96,15 @@ class BudgetWorkServiceBatchTest {
 
         // Assert: In-쿼리 1회 배치, 단건 finder 미호출
         verify(projectItemRepository, times(1)).findByGclMngNoInAndDelYn(anyCollection(), eq("N"));
+        verify(projectItemRepository, never()).findBudgetViewsByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
         verify(projectItemRepository, never()).findByGclMngNoAndDelYn(anyString(), anyString());
         verify(projectRepository, times(1)).findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
+        verify(projectRepository, never()).findNameViewByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
         verify(projectRepository, never()).findByAbusMngNoAndDelYn(anyString(), anyString());
-        verify(costRepository, times(1)).findByCostBgNoInAndDelYn(anyCollection(), eq("N"));
+        verify(costRepository, times(1)).findRepresentativeViewsByCostBgNoInAndDelYn(anyCollection(), eq("N"));
+        verify(costRepository, never()).findByCostBgNoInAndDelYn(anyCollection(), eq("N"));
         verify(costRepository, never()).findByCostBgNoAndDelYn(anyString(), anyString());
+        verify(bbugtmRepository, times(1)).findByBseYyAndDelYn("2026", "N");
     }
 
     @Test
@@ -169,6 +172,9 @@ class BudgetWorkServiceBatchTest {
         assertThat(result.data().get(0).dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(400));
 
         // computeMplAdjustment 경로의 단건 finder 미호출 검증
+        verify(projectItemRepository, times(1)).findByGclMngNoInAndDelYn(anyCollection(), eq("N"));
+        verify(projectRepository, times(1)).findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
+        verify(projectRepository, never()).findNameViewByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
         verify(projectItemRepository, never()).findByGclMngNoAndDelYn(anyString(), anyString());
         verify(projectRepository, never()).findByAbusMngNoAndDelYn(anyString(), anyString());
     }

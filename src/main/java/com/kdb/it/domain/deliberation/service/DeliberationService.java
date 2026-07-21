@@ -170,17 +170,9 @@ public class DeliberationService {
      * @return 상세 응답 DTO
      */
     public DeliberationDto.Detail get(String docNo) {
-        // 마스터 + 대상명을 단일 쿼리로 조회 (기존 마스터/대상명 2쿼리 → 1쿼리 통합).
-        // 대상명은 대상구분(100=사업 ABUS_NM, 200=전산업무비 CTT_NM)에 따라 LEFT JOIN + CASE로 해석.
-        var row = deliberationRepository.findCurrentWithTargetName(docNo)
+        var row = deliberationRepository.findCurrentDetail(docNo)
                 .orElseThrow(() -> new IllegalArgumentException("과업심의 문서를 찾을 수 없습니다: " + docNo));
-        Bdelim e = row.entity();
-        String tgtNm = row.targetName();
-        return new DeliberationDto.Detail(
-                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), tgtNm,
-                e.getStsTc(), e.getReqCone(), e.getTaskDbrTc(), e.getTaskDbrRltTc(), e.getTaskDbrDt(),
-                e.getTaskDbrTod(), e.getTaskDbrOmtYn(), e.getTaskDbrOmtRsn(), e.getOpnnCone(), e.getApvTrdnRsnCone(),
-                e.getFstEnrUsid(), e.getFstEnrDtm());
+        return DeliberationDto.Detail.fromProjection(row);
     }
 
     /**

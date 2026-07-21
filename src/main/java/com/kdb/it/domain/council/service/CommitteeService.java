@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.UserRepresentativeSelector;
 import com.kdb.it.domain.council.dto.CouncilDto;
@@ -105,28 +104,28 @@ public class CommitteeService {
         List<String> secrTemCodes = SECRETARY_TEM_CODES.getOrDefault(dbrTc, List.of());
 
         // 팀코드별 대표 후보(팀장 우선) 해석 — 입력 팀코드 순서 보존
-        Map<String, CuserI> mandCandidates = resolveTeamLeads(mandTemCodes);
-        Map<String, CuserI> secrCandidates = resolveTeamLeads(secrTemCodes);
+        Map<String, UserRepository.CommitteeUserRow> mandCandidates = resolveTeamLeads(mandTemCodes);
+        Map<String, UserRepository.CommitteeUserRow> secrCandidates = resolveTeamLeads(secrTemCodes);
 
         // 간사 후보 사번 집합 — 당연위원과 겹치면 겸직('04')으로 병합
         // (dbrTc='02' 정보기술부문계획: IT기획팀장이 평가위원 겸 간사. BCMMTM PK=(협의회ID,사번)이라
         //  1인 2행이 불가하므로 '04'(당연위원 겸 간사) 단일 유형으로 표현한다.)
         Set<String> secrEnos = secrCandidates.values().stream()
-                .map(CuserI::getEno)
+                .map(UserRepository.CommitteeUserRow::getEno)
                 .collect(Collectors.toSet());
 
         List<CouncilDto.CommitteeMemberResponse> result = new ArrayList<>();
         Set<String> emittedEnos = new HashSet<>();
 
         // 당연위원 배정: 간사 겸직이면 '04'(당연위원 겸 간사), 아니면 '01'
-        for (CuserI candidate : mandCandidates.values()) {
+        for (UserRepository.CommitteeUserRow candidate : mandCandidates.values()) {
             String mebTc = secrEnos.contains(candidate.getEno()) ? "04" : "01";
             result.add(toMemberResponse(candidate, mebTc));
             emittedEnos.add(candidate.getEno());
         }
 
         // 당연위원과 겹치지 않는 순수 간사만 '03'으로 추가(겸직은 위에서 '04'로 이미 배정)
-        for (CuserI candidate : secrCandidates.values()) {
+        for (UserRepository.CommitteeUserRow candidate : secrCandidates.values()) {
             if (emittedEnos.contains(candidate.getEno())) continue;
             result.add(toMemberResponse(candidate, "03"));
             emittedEnos.add(candidate.getEno());
@@ -148,16 +147,16 @@ public class CommitteeService {
 
         List<Bcmmtm> members = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
 
-        // 위원 사번 목록으로 사용자 정보 일괄 조회
-        Map<String, CuserI> userMap = buildUserMap(members);
+        // 위원 사번 목록으로 응답용 사용자 정보를 일괄 조회
+        Map<String, UserRepository.CouncilMemberUserRow> userMap = buildUserMap(members);
 
         List<CouncilDto.CommitteeMemberResponse> mandatory = new ArrayList<>();
         List<CouncilDto.CommitteeMemberResponse> call = new ArrayList<>();
         List<CouncilDto.CommitteeMemberResponse> secretary = new ArrayList<>();
 
         for (Bcmmtm m : members) {
-            CuserI user = userMap.get(m.getEno());
-            CouncilDto.CommitteeMemberResponse resp = toMemberResponseFromEntity(m, user);
+            UserRepository.CouncilMemberUserRow user = userMap.get(m.getEno());
+            CouncilDto.CommitteeMemberResponse resp = toMemberResponseFromView(m, user);
 
             switch (m.getItPtlAsctMebTc()) {
                 case "01" -> mandatory.add(resp);   // 당연위원(MAND)
@@ -247,65 +246,57 @@ public class CommitteeService {
     /**
      * 팀코드 목록별 대표 후보(팀장 우선→사번 오름차순)를 해석합니다. (BE-10)
      *
-     * <p>팀코드 전체의 활성 사용자를 {@code findByTemCInAndDelYn} 1회로 배치 조회(N+1 제거)하고, 팀별 대표자는
+     * <p>팀코드 전체의 활성 사용자를 팀 대표 프로젝션으로 한 번에 조회하고, 팀별 대표자는
      * {@link UserRepresentativeSelector}가 결정적으로 선택합니다. 팀원이 없는 팀은
      * 결과에서 제외하며, 반환 Map은 입력 팀코드 순서를 보존합니다(LinkedHashMap).</p>
      *
      * @param temCodes 후보를 뽑을 팀코드 목록
-     * @return 팀코드 → 대표 후보(CuserI) 매핑 (순서 보존)
+     * @return 팀코드 → 대표 후보 프로젝션 매핑 (순서 보존)
      */
-    private Map<String, CuserI> resolveTeamLeads(List<String> temCodes) {
+    private Map<String, UserRepository.CommitteeUserRow> resolveTeamLeads(List<String> temCodes) {
         if (temCodes.isEmpty()) {
             return Map.of();
         }
-        Map<String, List<CuserI>> usersByTeam = userRepository
-                .findByTemCInAndDelYn(temCodes, "N").stream()
-                .collect(Collectors.groupingBy(CuserI::getTemC));
-        Map<String, CuserI> leads = new LinkedHashMap<>();
+        Map<String, List<UserRepository.CommitteeUserRow>> usersByTeam = userRepository
+                .findCommitteeUserRowsByTemCInAndDelYn(temCodes, "N").stream()
+                .collect(Collectors.groupingBy(UserRepository.CommitteeUserRow::getTemC));
+        Map<String, UserRepository.CommitteeUserRow> leads = new LinkedHashMap<>();
         for (String temC : temCodes) {
-            UserRepresentativeSelector.pick(usersByTeam.getOrDefault(temC, List.of()))
+            UserRepresentativeSelector.pickView(usersByTeam.getOrDefault(temC, List.of()))
                     .ifPresent(user -> leads.put(temC, user));
         }
         return leads;
     }
 
     /**
-     * 위원 목록의 사번으로 사용자 정보 Map 생성.
+     * 위원 목록의 사번으로 응답용 사용자 정보 Map 생성.
      *
-     * <p>사번 집합을 모아 {@code findByEnoIn}으로 일괄 조회(N+1 제거).</p>
+     * <p>사번 집합을 모아 위원 응답 프로젝션으로 일괄 조회합니다.</p>
      */
-    private Map<String, CuserI> buildUserMap(List<Bcmmtm> members) {
+    private Map<String, UserRepository.CouncilMemberUserRow> buildUserMap(List<Bcmmtm> members) {
         List<String> enos = members.stream().map(member -> member.getEno()).distinct().toList();
         if (enos.isEmpty()) {
             return Map.of();
         }
-        return userRepository.findByEnoIn(enos).stream()
+        return userRepository.findCouncilMemberUserRowsByEnoIn(enos).stream()
                 .collect(Collectors.toMap(user -> user.getEno(), user -> user, (a, b) -> a));
     }
 
-    /**
-     * CuserI → CommitteeMemberResponse 변환 (당연위원 후보 조회용)
-     *
-     * <p>후보 조회 시점에는 BCMMTM 레코드가 없으므로 cfdYn은 'N'으로 초기화합니다.</p>
-     */
-    private CouncilDto.CommitteeMemberResponse toMemberResponse(CuserI user, String vlrTc) {
+    /** 팀 대표 사용자 프로젝션을 당연위원 후보 응답으로 변환합니다. */
+    private CouncilDto.CommitteeMemberResponse toMemberResponse(
+            UserRepository.CommitteeUserRow user, String vlrTc) {
         return new CouncilDto.CommitteeMemberResponse(
-                user.getEno(),
-                user.getUsrNm(),
-                user.getBbrNm(),
-                user.getPtCNm(),
-                vlrTc,
-                "N"  // 후보 조회 시점에는 항상 미확인
-        );
+                user.getEno(), user.getUsrNm(), user.getBbrNm(), user.getPtCNm(), vlrTc, "N");
     }
 
     /**
-     * Bcmmtm + CuserI → CommitteeMemberResponse 변환 (위원 목록 조회용)
+     * 위원 엔티티와 사용자 프로젝션을 위원 응답으로 변환합니다.
      *
      * <p>사용자 정보가 없는 경우(탈퇴 등) 사번만 포함합니다.
      * cnfmYn은 BCMMTM 엔티티의 실제 값을 반영합니다.</p>
      */
-    private CouncilDto.CommitteeMemberResponse toMemberResponseFromEntity(Bcmmtm member, CuserI user) {
+    private CouncilDto.CommitteeMemberResponse toMemberResponseFromView(
+            Bcmmtm member, UserRepository.CouncilMemberUserRow user) {
         return new CouncilDto.CommitteeMemberResponse(
                 member.getEno(),
                 user != null ? user.getUsrNm() : null,

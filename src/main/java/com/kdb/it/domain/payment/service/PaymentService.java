@@ -201,19 +201,13 @@ public class PaymentService {
      * @throws IllegalArgumentException 문서를 찾을 수 없는 경우
      */
     public PaymentDto.Detail get(String docNo) {
-        // 마스터 + 대상명을 단일 쿼리로 조회 (기존 마스터/대상명 2쿼리 → 1쿼리 통합).
-        // 대상명은 대상구분(100=사업 ABUS_NM, 200=전산업무비 CTT_NM)에 따라 LEFT JOIN + CASE로 해석.
-        var row = paymentRepository.findCurrentWithTargetName(docNo)
+        var row = paymentRepository.findCurrentDetail(docNo)
                 .orElseThrow(() -> new IllegalArgumentException("대금지급 문서를 찾을 수 없습니다: " + docNo));
-        Bpaymm e = row.entity();
-        // 회차별 지급 명세(1:N)는 별도 데이터이므로 기존대로 별도 조회 유지.
-        List<PaymentDto.Line> lines = lineRepository.findByDocMngNoAndDocVrsSnoAndDelYn(docNo, e.getDocVrsSno(), "N")
-                .stream().map(l -> new PaymentDto.Line(l.getDfrTod(), l.getDfrAmt(), l.getDfrDt(), l.getDfrMplDt(), l.getOpnnCone()))
+        List<PaymentDto.Line> lines = lineRepository
+                .findLineViewsByDocMngNoAndDocVrsSnoAndDelYn(docNo, row.docVrsSno(), "N")
+                .stream().map(PaymentDto.Line::fromProjection)
                 .toList();
-        String tgtNm = row.targetName();
-        return new PaymentDto.Detail(
-                e.getDocMngNo(), e.getDocVrsSno(), e.getIoeC(), e.getCncdRfrNo(), tgtNm,
-                e.getStsTc(), e.getReqCone(), e.getCttNm(), e.getCttAmt(), e.getFstEnrUsid(), e.getFstEnrDtm(), lines);
+        return PaymentDto.Detail.fromProjection(row, lines);
     }
 
     /**

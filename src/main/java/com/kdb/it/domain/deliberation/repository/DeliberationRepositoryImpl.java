@@ -74,6 +74,30 @@ public class DeliberationRepositoryImpl implements DeliberationRepositoryCustom 
                 .fetch();
     }
 
+    @Override
+    public Optional<DeliberationDetailRow> findCurrentDetail(String docNo) {
+        QBdelim d = QBdelim.bdelim;
+        QBprojm p = QBprojm.bprojm;
+        QBcostm c = QBcostm.bcostm;
+        DeliberationDetailRow row = queryFactory
+                .select(Projections.constructor(DeliberationDetailRow.class,
+                        d.docMngNo, d.docVrsSno, d.ioeC, d.cncdRfrNo,
+                        new CaseBuilder()
+                                .when(d.ioeC.eq("100")).then(p.abusNm)
+                                .when(d.ioeC.eq("200")).then(c.cttNm)
+                                .otherwise(Expressions.nullExpression(String.class)),
+                        d.stsTc, d.reqCone, d.taskDbrTc, d.taskDbrRltTc, d.taskDbrDt,
+                        d.taskDbrTod, d.taskDbrOmtYn, d.taskDbrOmtRsn, d.opnnCone,
+                        d.apvTrdnRsnCone, d.fstEnrUsid, d.fstEnrDtm))
+                .distinct()
+                .from(d)
+                .leftJoin(p).on(p.abusMngNo.eq(d.cncdRfrNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
+                .leftJoin(c).on(c.costBgNo.eq(d.cncdRfrNo).and(c.lstYn.eq("Y")).and(c.delYn.eq("N")))
+                .where(d.docMngNo.eq(docNo).and(d.lstYn.eq("Y")).and(d.delYn.eq("N")))
+                .fetchOne();
+        return Optional.ofNullable(row);
+    }
+
     /**
      * 현재 유효 마스터 + 대상명 단일 조회.
      *

@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.plan.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.kdb.it.domain.budget.plan.entity.Bplanm;
+import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -225,6 +226,28 @@ public class PlanDto {
          * @return 변환된 ListResponse DTO (카운트는 0으로 초기화)
          */
         public static ListResponse fromEntity(Bplanm plan) {
+            return ListResponse.builder()
+                    .reqDocNo(plan.getReqDocNo())
+                    .itPtlPlnTpC(plan.getItPtlPlnTpC())
+                    .bseYy(plan.getBseYy())
+                    .aduTotAmt(plan.getAduTotAmt())
+                    .cpitBgApvAmt(plan.getCpitBgApvAmt())
+                    .totXpAmt(plan.getTotXpAmt())
+                    .fstEnrDtm(plan.getFstEnrDtm())
+                    .fstEnrUsid(plan.getFstEnrUsid())
+                    .itPrjCnt(0)
+                    .newPrjCnt(0)
+                    .contPrjCnt(0)
+                    .build();
+        }
+
+        /**
+         * 목록 전용 프로젝션에서 응답 DTO를 생성합니다.
+         *
+         * @param plan 변환할 목록 프로젝션
+         * @return 카운트가 0으로 초기화된 목록 응답
+         */
+        public static ListResponse fromView(BplanmRepository.PlanListView plan) {
             return ListResponse.builder()
                     .reqDocNo(plan.getReqDocNo())
                     .itPtlPlnTpC(plan.getItPtlPlnTpC())

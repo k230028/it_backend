@@ -10,9 +10,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.entity.Capplm;
-import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
@@ -589,21 +586,22 @@ public class CostService {
      * @param itMngcSno 전산관리비일련번호
      */
     private void setApplicationInfo(CostDto.Response response, String costBgNo, Integer bgSno) {
-        List<Cappla> capplas = capplaRepository
-                .findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BCOSTM", costBgNo, bgSno);
+        List<com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> capplas = capplaRepository
+                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BCOSTM", costBgNo, bgSno);
 
         if (!capplas.isEmpty()) {
-            Cappla cappla = capplas.get(0);
+            com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView cappla = capplas.get(0);
             response.setApfMngNo(cappla.getApfDcmNo());
 
-            capplmRepository.findById(cappla.getApfDcmNo())
+            capplmRepository.findSummaryViewsByApfMngNoIn(List.of(cappla.getApfDcmNo())).stream()
+                    .findFirst()
                     .ifPresent(capplm -> {
                         response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
                                 : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC())
                                         .label());
-                        List<Cdecim> decisions = cdecimRepository
-                                .findByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
-                        response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
+                        List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> decisions =
+                                cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(cappla.getApfDcmNo());
+                        response.setApplicationInfo(ApplicationInfoDto.fromReadViews(capplm, decisions));
                     });
         }
     }
@@ -688,11 +686,13 @@ public class CostService {
 
         // --- 1. CAPPLA 배치 조회 ---
         List<String> costBgNos = costs.stream().map(value -> value.getCostBgNo()).distinct().toList();
-        List<Cappla> allCapplas = capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", costBgNos);
+        List<com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> allCapplas =
+                capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc("BCOSTM", costBgNos);
 
         // costBgNo+sno 복합키 → 최신 Cappla
-        Map<String, Cappla> latestCappla = new java.util.LinkedHashMap<>();
-        for (Cappla c : allCapplas) {
+        Map<String, com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView> latestCappla =
+                new java.util.LinkedHashMap<>();
+        for (com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView c : allCapplas) {
             String key = c.getPkColNm() + "_" + c.getFntTbCrySno();
             latestCappla.putIfAbsent(key, c);
         }
@@ -700,12 +700,15 @@ public class CostService {
         // --- 2. CAPPLM 배치 조회 ---
         List<String> apfMngNos = latestCappla.values().stream()
                 .map(value -> value.getApfDcmNo()).toList();
-        Map<String, Capplm> capplmMap = capplmRepository.findAllById(apfMngNos).stream()
-                .collect(Collectors.toMap(value -> value.getApfMngNo(), m -> m));
+        Map<String, com.kdb.it.common.approval.repository.ApplicationRepository.ApplicationSummaryView> capplmMap =
+                capplmRepository.findSummaryViewsByApfMngNoIn(apfMngNos).stream()
+                        .collect(Collectors.toMap(value -> value.getApfMngNo(), m -> m));
 
         // --- 3. CDECIM 배치 조회 ---
-        List<Cdecim> allDecisions = cdecimRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
-        Map<String, List<Cdecim>> decisionMap = allDecisions.stream()
+        List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> allDecisions =
+                cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
+        Map<String, List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView>> decisionMap =
+                allDecisions.stream()
                 .collect(Collectors.groupingBy(value -> value.getDcdMngNo()));
 
         // --- 4. 부서코드·사원번호·공통코드 CDVA 수집 ---
@@ -739,9 +742,9 @@ public class CostService {
         }
 
         // --- 5. 배치 조회 ---
-        Map<String, String> orgNameMap = corgnIRepository.findAllById(orgCodes).stream()
+        Map<String, String> orgNameMap = corgnIRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
                 .collect(Collectors.toMap(value -> value.getPrlmOgzCCone(), value -> value.getBbrNm()));
-        Map<String, String> userNameMap = cuserIRepository.findAllById(userEnos).stream()
+        Map<String, String> userNameMap = cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
                 .collect(Collectors.toMap(value -> value.getEno(), value -> value.getUsrNm()));
         Map<String, String> bgUntAbusCNameMap = bgUntAbusCdvas.isEmpty() ? Map.of()
                 : codeNameMapBuilder.build(CommonCodeGroups.ABUS_UNIT, bgUntAbusCdvas);
@@ -771,15 +774,18 @@ public class CostService {
             CostDto.Response response = responses.get(i);
 
             String key = cost.getCostBgNo() + "_" + cost.getBgSno();
-            Cappla cappla = latestCappla.get(key);
+            com.kdb.it.common.approval.repository.ApplicationMapRepository.ApplicationMapView cappla =
+                    latestCappla.get(key);
             if (cappla != null) {
                 response.setApfMngNo(cappla.getApfDcmNo());
-                Capplm capplm = capplmMap.get(cappla.getApfDcmNo());
+                com.kdb.it.common.approval.repository.ApplicationRepository.ApplicationSummaryView capplm =
+                        capplmMap.get(cappla.getApfDcmNo());
                 if (capplm != null) {
                     response.setApfSts(capplm.getItPtlApfPrgStsC() == null ? null
                             : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label());
-                    List<Cdecim> decisions = decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
-                    response.setApplicationInfo(ApplicationInfoDto.fromEntities(capplm, decisions));
+                    List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView> decisions =
+                            decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of());
+                    response.setApplicationInfo(ApplicationInfoDto.fromReadViews(capplm, decisions));
                 }
             }
 
@@ -933,16 +939,16 @@ public class CostService {
         // 담당부서/팀명: 스냅샷이 이미 세팅됐으면 건너뛰고, null일 때만 CORGNI 폴백 조회
         if (response.getCostSvnDpmNm() == null
                 && response.getCostSvnDpmC() != null && !response.getCostSvnDpmC().isEmpty()) {
-            corgnIRepository.findById(response.getCostSvnDpmC())
+            corgnIRepository.findNameViewByPrlmOgzCCone(response.getCostSvnDpmC())
                     .ifPresent(org -> response.setCostSvnDpmNm(org.getBbrNm()));
         }
         if (response.getSvnTemNm() == null
                 && response.getSvnTemC() != null && !response.getSvnTemC().isEmpty()) {
-            corgnIRepository.findById(response.getSvnTemC())
+            corgnIRepository.findNameViewByPrlmOgzCCone(response.getSvnTemC())
                     .ifPresent(org -> response.setSvnTemNm(org.getBbrNm()));
         }
         if (response.getCgprId() != null && !response.getCgprId().isEmpty()) {
-            cuserIRepository.findById(response.getCgprId())
+            cuserIRepository.findNameViewByEno(response.getCgprId())
                     .ifPresent(user -> response.setCgprNm(user.getUsrNm()));
         }
         if (response.getBgUntAbusC() != null && !response.getBgUntAbusC().isEmpty()) {
@@ -990,7 +996,7 @@ public class CostService {
                 .filter(cgprId -> cgprId != null && !cgprId.isEmpty())
                 .collect(Collectors.toSet());
         if (!enos.isEmpty()) {
-            Map<String, String> nameMap = cuserIRepository.findByEnoIn(enos).stream()
+            Map<String, String> nameMap = cuserIRepository.findNameViewsByEnoIn(enos).stream()
                     .collect(Collectors.toMap(
                             value -> value.getEno(),
                             value -> value.getUsrNm()));

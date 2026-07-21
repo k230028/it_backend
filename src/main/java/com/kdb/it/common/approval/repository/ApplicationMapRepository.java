@@ -27,6 +27,34 @@ import org.springframework.data.repository.query.Param;
  */
 public interface ApplicationMapRepository extends JpaRepository<Cappla, Long> {
 
+        /** 결재 응답 조립에 필요한 신청서 연결 최소 필드입니다. */
+        interface ApplicationMapView {
+                String getApfDcmNo();
+                String getPkColNm();
+                Integer getFntTbCrySno();
+        }
+
+        /**
+         * 원천 테이블·키·일련번호에 연결된 신청서를 최신 문서번호 순으로 조회합니다.
+         *
+         * @param fntTbNm 원천 테이블명
+         * @param pkColNm 원천 데이터 키
+         * @param fntTbCrySno 원천 데이터 일련번호
+         * @return 최신 문서번호가 먼저인 신청서 연결 view 목록
+         */
+        java.util.List<ApplicationMapView> findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                        String fntTbNm, String pkColNm, Integer fntTbCrySno);
+
+        /**
+         * 여러 원천 데이터 키에 연결된 신청서를 최신 문서번호 순으로 조회합니다.
+         *
+         * @param fntTbNm 원천 테이블명
+         * @param pkColNms 원천 데이터 키 목록
+         * @return 최신 문서번호가 먼저인 신청서 연결 view 목록
+         */
+        java.util.List<ApplicationMapView> findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                        String fntTbNm, java.util.List<String> pkColNms);
+
         /**
          * 원천 테이블명, PK컬럼명, 적재SNO로 신청서 관계 목록 조회 (최신 신청서 우선).
          *

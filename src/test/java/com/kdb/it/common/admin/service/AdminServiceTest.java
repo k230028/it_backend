@@ -10,7 +10,9 @@ import static org.mockito.Mockito.verify;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,11 +35,8 @@ import com.kdb.it.common.iam.repository.AuthRepository;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.system.entity.Clognh;
-import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
-import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -56,6 +55,68 @@ import org.springframework.data.domain.PageRequest;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AdminServiceTest {
+
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+    }
+
+    private record AdminUserView(String eno, String usrNm) implements UserRepository.AdminUserView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+        @Override public String getPtCNm() { return null; }
+        @Override public String getTemC() { return null; }
+        @Override public String getTemNm() { return null; }
+        @Override public String getBbrC() { return null; }
+        @Override public String getEtrMilAddrNm() { return null; }
+        @Override public String getInleNo() { return null; }
+        @Override public String getCpnTpn() { return null; }
+        @Override public LocalDateTime getFstEnrDtm() { return null; }
+        @Override public LocalDateTime getLstChgDtm() { return null; }
+    }
+
+    private record LoginHistoryView(
+            String eno,
+            LocalDateTime lgnDtm,
+            String itPtlLgnTc,
+            String ipAddr,
+            String lgnErrRsn,
+            String agtVrsCone,
+            LocalDateTime fstEnrDtm) implements LoginHistoryRepository.LoginHistoryView {
+        @Override public String getEno() { return eno; }
+        @Override public LocalDateTime getLgnDtm() { return lgnDtm; }
+        @Override public String getItPtlLgnTc() { return itPtlLgnTc; }
+        @Override public String getIpAddr() { return ipAddr; }
+        @Override public String getLgnErrRsn() { return lgnErrRsn; }
+        @Override public String getAgtVrsCone() { return agtVrsCone; }
+        @Override public LocalDateTime getFstEnrDtm() { return fstEnrDtm; }
+    }
+
+    private record AdminTokenView(
+            String eno,
+            LocalDateTime endDtm,
+            String ecyRnwPubTokCone,
+            LocalDateTime fstEnrDtm) implements RefreshTokenRepository.AdminTokenView {
+        @Override public String getEno() { return eno; }
+        @Override public LocalDateTime getEndDtm() { return endDtm; }
+        @Override public String getEcyRnwPubTokCone() { return ecyRnwPubTokCone; }
+        @Override public LocalDateTime getFstEnrDtm() { return fstEnrDtm; }
+    }
+
+    private record AdminFileView(
+            String flMpnId,
+            String flNm,
+            String flTpCone,
+            String pkColNm,
+            LocalDateTime fstEnrDtm,
+            String fstEnrUsid) implements FileRepository.AdminFileView {
+        @Override public String getFlMpnId() { return flMpnId; }
+        @Override public String getFlNm() { return flNm; }
+        @Override public String getFlTpCone() { return flTpCone; }
+        @Override public String getPkColNm() { return pkColNm; }
+        @Override public LocalDateTime getFstEnrDtm() { return fstEnrDtm; }
+        @Override public String getFstEnrUsid() { return fstEnrUsid; }
+    }
 
     @Mock
     private CodeRepository codeRepository;
@@ -410,7 +471,7 @@ class AdminServiceTest {
         // given
         Ccodem code = Ccodem.builder().cId("CODE001").cNm("코드1").build();
         given(codeRepository.findAllActive()).willReturn(List.of(code));
-        given(userRepository.findByEnoIn(any())).willReturn(Collections.emptyList());
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(Collections.emptyList());
 
         // when
         List<AdminDto.CodeResponse> result = adminService.getCodes();
@@ -560,9 +621,8 @@ class AdminServiceTest {
     @DisplayName("getUsers: 삭제되지 않은 사용자 목록을 반환한다")
     void getUsers_삭제되지않은목록반환() {
         // given: DEL_YN='N'/'Y' 혼합
-        CuserI active = CuserI.builder().eno("10001").usrNm("홍길동").delYn("N").build();
-        CuserI deleted = CuserI.builder().eno("99999").usrNm("탈퇴자").delYn("Y").build();
-        given(userRepository.findAll()).willReturn(List.of(active, deleted));
+        given(userRepository.findAdminUserViewsByDelYn("N"))
+                .willReturn(List.of(new AdminUserView("10001", "홍길동")));
 
         // when
         List<AdminDto.UserResponse> result = adminService.getUsers();
@@ -577,7 +637,7 @@ class AdminServiceTest {
     @DisplayName("getUsers: 사용자가 없으면 빈 목록을 반환한다")
     void getUsers_빈목록반환() {
         // given
-        given(userRepository.findAll()).willReturn(Collections.emptyList());
+        given(userRepository.findAdminUserViewsByDelYn("N")).willReturn(Collections.emptyList());
 
         // when
         List<AdminDto.UserResponse> result = adminService.getUsers();
@@ -644,40 +704,50 @@ class AdminServiceTest {
     @Test
     @DisplayName("getLoginHistory: 페이지네이션으로 로그인 이력 목록을 반환한다")
     void getLoginHistory_페이지네이션목록반환() {
-        // given
-        Clognh log = Clognh.builder()
-                .eno("10001")
-                .itPtlLgnTc("1")
-                .ipAddr("127.0.0.1")
-                .lgnDtm(java.time.LocalDateTime.of(2026, 4, 1, 9, 0))
-                .build();
+        // 준비
+        LocalDateTime base = LocalDateTime.of(2026, 4, 1, 9, 0);
+        LoginHistoryView known = new LoginHistoryView(
+                "KNOWN", base.plusMinutes(2), "1", "127.0.0.1", null, "known-agent", base);
+        LoginHistoryView unknown = new LoginHistoryView(
+                "UNKNOWN", base.plusMinutes(1), "2", "127.0.0.2", "실패", "unknown-agent", base);
+        LoginHistoryView nullEno = new LoginHistoryView(
+                null, base, "3", "127.0.0.3", null, "null-agent", base);
         org.springframework.data.domain.Pageable pageable = PageRequest.of(0, 10);
-        Page<Clognh> page = new PageImpl<>(List.of(log), pageable, 1);
-        given(loginHistoryRepository.findAllByOrderByLgnDtmDesc(pageable)).willReturn(page);
-        // resolveUserName 조회 mock
-        given(userRepository.findByEno("10001")).willReturn(java.util.Optional.empty());
+        Page<LoginHistoryRepository.LoginHistoryView> page =
+                new PageImpl<>(List.of(known, unknown, nullEno), pageable, 3);
+        given(loginHistoryRepository.findPageViewsByOrderByLgnDtmDesc(pageable)).willReturn(page);
+        given(userRepository.findNameViewsByEnoIn(any()))
+                .willReturn(List.of(new NameView("KNOWN", "사용자명")));
 
-        // when
+        // 실행
         Page<AdminDto.LoginHistoryResponse> result = adminService.getLoginHistory(pageable);
 
-        // then: 1건 반환, ENO와 로그인 타입 검증
-        assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent().get(0).eno()).isEqualTo("10001");
-        assertThat(result.getContent().get(0).itPtlLgnTc()).isEqualTo("1");
+        // 검증
+        assertThat(result.getTotalElements()).isEqualTo(3);
+        assertThat(result.getContent()).extracting(
+                        AdminDto.LoginHistoryResponse::eno,
+                        AdminDto.LoginHistoryResponse::usrNm)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("KNOWN", "사용자명"),
+                        org.assertj.core.groups.Tuple.tuple("UNKNOWN", "UNKNOWN"),
+                        org.assertj.core.groups.Tuple.tuple(null, null));
+        verify(userRepository, times(1)).findNameViewsByEnoIn(Set.of("KNOWN", "UNKNOWN"));
+        verify(userRepository, times(0)).findNameViewByEno(any());
     }
 
     @Test
     @DisplayName("getLoginHistory: 이력이 없으면 빈 페이지를 반환한다")
     void getLoginHistory_이력없음_빈페이지반환() {
-        // given
+        // 준비
         org.springframework.data.domain.Pageable pageable = PageRequest.of(0, 10);
-        Page<Clognh> emptyPage = new PageImpl<>(Collections.emptyList(), pageable, 0);
-        given(loginHistoryRepository.findAllByOrderByLgnDtmDesc(pageable)).willReturn(emptyPage);
+        Page<LoginHistoryRepository.LoginHistoryView> emptyPage =
+                new PageImpl<>(Collections.emptyList(), pageable, 0);
+        given(loginHistoryRepository.findPageViewsByOrderByLgnDtmDesc(pageable)).willReturn(emptyPage);
 
-        // when
+        // 실행
         Page<AdminDto.LoginHistoryResponse> result = adminService.getLoginHistory(pageable);
 
-        // then
+        // 검증
         assertThat(result.getTotalElements()).isZero();
         assertThat(result.getContent()).isEmpty();
     }
@@ -746,46 +816,37 @@ class AdminServiceTest {
     }
 
     @Test
-    @DisplayName("getTokens: 긴 SHA-256 조회값은 마스킹하고 짧은 값은 그대로 반환한다")
+    @DisplayName("getTokens: SHA-256 조회값의 null과 20자 경계 및 긴 값을 정확히 마스킹한다")
     void getTokens_토큰마스킹반환() {
-        Crtokm longToken = Crtokm.builder()
-                .eno("10001")
-                .ecyRnwPubTokCone("1234567890123456789012345")
-                .endDtm(java.time.LocalDateTime.now().plusDays(1))
-                .build();
-        Crtokm shortToken = Crtokm.builder()
-                .eno("10002")
-                .ecyRnwPubTokCone("short")
-                .endDtm(java.time.LocalDateTime.now().plusDays(1))
-                .build();
-        given(refreshTokenRepository.findAll()).willReturn(List.of(longToken, shortToken));
-        given(userRepository.findByEno(any())).willReturn(Optional.empty());
+        LocalDateTime endDtm = LocalDateTime.of(2026, 7, 28, 9, 0);
+        given(refreshTokenRepository.findAllProjectedBy()).willReturn(List.of(
+                new AdminTokenView("E-NULL", endDtm, null, endDtm.minusDays(1)),
+                new AdminTokenView("E-20", endDtm, "12345678901234567890", endDtm.minusDays(1)),
+                new AdminTokenView("E-21", endDtm, "123456789012345678901", endDtm.minusDays(1)),
+                new AdminTokenView("E-64", endDtm,
+                        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+                        endDtm.minusDays(1))));
+        given(userRepository.findNameViewByEno(any())).willReturn(Optional.empty());
 
         List<AdminDto.TokenResponse> result = adminService.getTokens();
 
         assertThat(result).extracting(value -> value.tokMasked())
-                .containsExactly("12345678901234567890...", "short");
+                .containsExactly(
+                        null,
+                        "12345678901234567890",
+                        "12345678901234567890...",
+                        "abcdef0123456789abcd...");
     }
 
     @Test
     @DisplayName("getFiles: 삭제되지 않은 파일만 사용자명과 함께 반환한다")
     void getFiles_삭제되지않은파일만반환() {
-        Cfilem active = Cfilem.builder()
-                .flMpnId("FL_00000001")
-                .flNm("문서.pdf")
-                .flTpCone("첨부파일")
-                .pkColNm("문서")
-                .fstEnrUsid("10001")
-                .delYn("N")
-                .build();
-        Cfilem deleted = Cfilem.builder()
-                .flMpnId("FL_00000002")
-                .flNm("삭제.pdf")
-                .delYn("Y")
-                .build();
-        given(fileRepository.findAll()).willReturn(List.of(active, deleted));
-        given(userRepository.findByEno("10001")).willReturn(Optional.of(
-                CuserI.builder().eno("10001").usrNm("홍길동").build()));
+        AdminFileView active = new AdminFileView(
+                "FL_00000001", "문서.pdf", "첨부파일", "문서",
+                LocalDateTime.of(2026, 7, 21, 9, 0), "10001");
+        given(fileRepository.findAdminFileViewsByDelYn("N")).willReturn(List.of(active));
+        given(userRepository.findNameViewByEno("10001"))
+                .willReturn(Optional.of(new NameView("10001", "홍길동")));
 
         List<AdminDto.FileResponse> result = adminService.getFiles();
 

@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -258,11 +257,11 @@ public class PlanEvaluationService {
         councilService.findActiveCouncil(asctId);
 
         List<Bplevm> all = planEvaluationRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
-        Map<String, CuserI> userMap = buildUserMap(all);
+        Map<String, UserRepository.UserNameView> userMap = buildUserMap(all);
 
         List<CouncilDto.PlanEvaluationItemResponse> evaluations = all.stream()
                 .map(e -> {
-                    CuserI user = userMap.get(e.getEno());
+                    UserRepository.UserNameView user = userMap.get(e.getEno());
                     return new CouncilDto.PlanEvaluationItemResponse(
                             e.getEno(),
                             user != null ? user.getUsrNm() : null,
@@ -489,14 +488,14 @@ public class PlanEvaluationService {
     // =========================================================================
 
     /**
-     * 평가 목록의 사번으로 사용자 정보 Map 생성 (findByEnoIn 1회 배치, N+1 제거).
+     * 평가 목록의 사번으로 사용자 이름 프로젝션 Map을 생성합니다.
      */
-    private Map<String, CuserI> buildUserMap(List<Bplevm> rows) {
+    private Map<String, UserRepository.UserNameView> buildUserMap(List<Bplevm> rows) {
         List<String> enos = rows.stream().map(Bplevm::getEno).distinct().toList();
         if (enos.isEmpty()) {
             return Map.of();
         }
-        return userRepository.findByEnoIn(enos).stream()
-                .collect(Collectors.toMap(CuserI::getEno, u -> u, (a, b) -> a));
+        return userRepository.findNameViewsByEnoIn(enos).stream()
+                .collect(Collectors.toMap(UserRepository.UserNameView::getEno, u -> u, (a, b) -> a));
     }
 }

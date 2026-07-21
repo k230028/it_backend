@@ -1,6 +1,5 @@
 package com.kdb.it.domain.budget.document.service;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.budget.document.dto.ReviewerDto;
 import java.util.Arrays;
@@ -36,18 +35,22 @@ class ReviewerServiceTest {
     @InjectMocks
     private ReviewerService reviewerService;
 
-    private CuserI makeUser(String eno, String usrNm, String temC, String ptCNm) {
-        return CuserI.builder()
-                .eno(eno)
-                .usrNm(usrNm)
-                .temC(temC)
-                .ptCNm(ptCNm)
-                .build();
+    private UserRepository.CommitteeUserRow makeUser(String eno, String usrNm, String temC, String ptCNm) {
+        return new CommitteeUser(temC, eno, usrNm, "IT본부", ptCNm);
+    }
+
+    private record CommitteeUser(String temC, String eno, String usrNm, String bbrNm, String ptCNm)
+            implements UserRepository.CommitteeUserRow {
+        @Override public String getTemC() { return temC; }
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+        @Override public String getBbrNm() { return bbrNm; }
+        @Override public String getPtCNm() { return ptCNm; }
     }
 
     /** 실제 요청된 팀코드에 속한 활성 사용자만 반환하는 배치 조회 스텁. */
-    private void stubUsersByRequestedTeam(CuserI... users) {
-        given(userRepository.findByTemCInAndDelYn(anyCollection(), eq("N"))).willAnswer(inv -> {
+    private void stubUsersByRequestedTeam(UserRepository.CommitteeUserRow... users) {
+        given(userRepository.findCommitteeUserRowsByTemCInAndDelYn(anyCollection(), eq("N"))).willAnswer(inv -> {
             Collection<String> requestedTeamCodes = inv.getArgument(0);
             return Arrays.stream(users)
                     .filter(user -> requestedTeamCodes.contains(user.getTemC()))
@@ -62,7 +65,7 @@ class ReviewerServiceTest {
 
         reviewerService.getReviewers();
 
-        verify(userRepository, times(1)).findByTemCInAndDelYn(
+        verify(userRepository, times(1)).findCommitteeUserRowsByTemCInAndDelYn(
                 eq(Set.of("12004", "18001", "18010", "18501")), eq("N"));
     }
 
