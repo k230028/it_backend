@@ -7,6 +7,23 @@ import lombok.Builder;
  *
  * <p>기존 {@code EaiRequest}의 UMS 필드를 그대로 이전했다. 헤더용 {@code ifId}/{@code systemCode}는
  * 페이로드가 아니라 {@link EaiRequest}/섹션이 책임진다.</p>
+ *
+ * @param umsBzDttId UMS 업무구분 ID 또는 템플릿 ID
+ * @param umsTrSno UMS 거래일련번호
+ * @param emplNum 수신자 행번
+ * @param cstNm 수신자명
+ * @param reqCh 휴대전화번호 또는 이메일 주소인 수신 채널값
+ * @param deptKey 요청 부점 코드
+ * @param deptNm 요청 부점명
+ * @param sendDt 발송예정일자, 당일 발송이면 {@code null}
+ * @param sendTime 발송예정시각, 즉시 발송이면 {@code null}
+ * @param umData1 첫 번째 템플릿 치환 데이터
+ * @param umData2 두 번째 템플릿 치환 데이터
+ * @param umData3 세 번째 템플릿 치환 데이터
+ * @param umData4 네 번째 템플릿 치환 데이터
+ * @param umData5 다섯 번째 템플릿 치환 데이터
+ * @param umData6 여섯 번째 템플릿 치환 데이터
+ * @param umData7 일곱 번째 템플릿 치환 데이터
  */
 @Builder
 public record UmsPayload(
