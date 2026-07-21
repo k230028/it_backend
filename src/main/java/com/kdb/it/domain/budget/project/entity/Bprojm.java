@@ -8,10 +8,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
-import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.Imported;
 
@@ -43,10 +41,15 @@ import java.time.LocalDate;
 @Table(name = "TPRMPP_BPROJM", comment = "정보화사업(IT 프로젝트) 마스터") // 매핑할 DB 테이블명
 @IdClass(BprojmId.class) // 복합키 클래스 지정 (PRJ_MNG_NO + PRJ_SNO)
 @Getter // 모든 필드의 getter 자동 생성 (Lombok)
-@NoArgsConstructor(access = AccessLevel.PROTECTED) // protected 기본 생성자 (JPA 요구사항)
 @AllArgsConstructor // 전체 필드 생성자 자동 생성
 @SuperBuilder // 상속 구조에서 Builder 패턴 지원
 public class Bprojm extends BaseEntity {
+
+    /**
+     * JPA가 정보화사업 엔티티를 복원할 때 사용하는 기본 생성자입니다.
+     */
+    protected Bprojm() {
+    }
 
     /** 프로젝트관리번호: 기본키 (예: PRJ-2026-0001) */
     @Id
@@ -278,9 +281,42 @@ public class Bprojm extends BaseEntity {
     }
 
     /**
-     * 정보화사업 정보 업데이트 메서드 (sno 포함)
+     * 프로젝트 순번을 포함한 정보화사업 정보를 변경합니다.
      *
      * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 모든 필드를 변경합니다.</p>
+     *
+     * @param abusNm 사업명
+     * @param bzTpC 사업유형명
+     * @param svnDpmC 주관부서코드
+     * @param dvmDpmC 개발부서코드
+     * @param sttDtm 시작일자
+     * @param endDtm 종료일자
+     * @param usid 주관부서 담당자 사용자 ID
+     * @param dvmUsid 개발부서 담당자 사용자 ID
+     * @param tlrUsid 주관부서 담당 팀장 사용자 ID
+     * @param dvmTlrUsid 개발부서 담당 팀장 사용자 ID
+     * @param edrtTc IT포탈 전결권 구분 코드
+     * @param abusCone 사업내용
+     * @param cpnSafCone 회사현황내용
+     * @param abusNcsCone 사업필요성내용
+     * @param dgogPpoCone 효과성목적내용
+     * @param plmDes 문제설명
+     * @param abusRngCone 사업범위내용
+     * @param mnPrgCone 주요진행내용
+     * @param hrfPlnCone 향후계획내용
+     * @param bzDttNm 업무구분명
+     * @param sklTpTc 기술분야명
+     * @param cstTpTc 고객유형구분코드명
+     * @param dplYn 중복여부
+     * @param flfFsgDt 이행완료일자
+     * @param rprStsTc 보고상태구분코드
+     * @param exePttYn 실행가능성여부
+     * @param bseYy 기준연도
+     * @param prlmHrkOgzCCone 인사상위조직코드내용
+     * @param sno 프로젝트 일련번호
+     * @param odnYn 경상여부
+     * @param abusTc 사업구분코드
+     * @param cncdRfrNo 관련참조번호
      */
     public void update(String abusNm, String bzTpC, String svnDpmC, String dvmDpmC,
             LocalDate sttDtm, LocalDate endDtm, String usid, String dvmUsid,
@@ -324,9 +360,41 @@ public class Bprojm extends BaseEntity {
     }
 
     /**
-     * 정보화사업 정보 업데이트 메서드 (sno 제외)
+     * 프로젝트 순번을 유지하면서 정보화사업 정보를 변경합니다.
      *
      * <p>프로젝트 순번(sno)은 변경하지 않고 나머지 필드만 업데이트합니다.</p>
+     *
+     * @param abusNm 사업명
+     * @param bzTpC 사업유형명
+     * @param svnDpmC 주관부서코드
+     * @param dvmDpmC 개발부서코드
+     * @param sttDtm 시작일자
+     * @param endDtm 종료일자
+     * @param usid 주관부서 담당자 사용자 ID
+     * @param dvmUsid 개발부서 담당자 사용자 ID
+     * @param tlrUsid 주관부서 담당 팀장 사용자 ID
+     * @param dvmTlrUsid 개발부서 담당 팀장 사용자 ID
+     * @param edrtTc IT포탈 전결권 구분 코드
+     * @param abusCone 사업내용
+     * @param cpnSafCone 회사현황내용
+     * @param abusNcsCone 사업필요성내용
+     * @param dgogPpoCone 효과성목적내용
+     * @param plmDes 문제설명
+     * @param abusRngCone 사업범위내용
+     * @param mnPrgCone 주요진행내용
+     * @param hrfPlnCone 향후계획내용
+     * @param bzDttNm 업무구분명
+     * @param sklTpTc 기술분야명
+     * @param cstTpTc 고객유형구분코드명
+     * @param dplYn 중복여부
+     * @param flfFsgDt 이행완료일자
+     * @param rprStsTc 보고상태구분코드
+     * @param exePttYn 실행가능성여부
+     * @param bseYy 기준연도
+     * @param prlmHrkOgzCCone 인사상위조직코드내용
+     * @param odnYn 경상여부
+     * @param abusTc 사업구분코드
+     * @param cncdRfrNo 관련참조번호
      */
     public void update(String abusNm, String bzTpC, String svnDpmC, String dvmDpmC,
             LocalDate sttDtm, LocalDate endDtm, String usid, String dvmUsid,
