@@ -78,13 +78,18 @@ public class MenuDto {
         private List<String> orderedMnuIds;
     }
 
-    /** 부모 이동. */
+    /**
+     * 부모 이동 요청.
+     *
+     * <p>검증 규칙: {@code newHrkMnuId}가 null이면 루트(최상위)로 이동한다. 루트 이동이 합법이므로 필드 단위 필수 검증(@NotNull)을 두지
+     * 않으며, 빈 본문({})의 요청도 루트 이동으로 해석된다. 잘못된 대상 메뉴·순환 계층은 서비스 계층에서 검증한다.
+     */
     @Getter
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(name = "MenuMoveRequest")
+    @Schema(name = "MenuMoveRequest", description = "newHrkMnuId가 null이면 루트(최상위)로 이동")
     public static class MoveRequest {
         @Schema(description = "새 상위메뉴ID(루트로 이동하면 null)")
         private String newHrkMnuId;

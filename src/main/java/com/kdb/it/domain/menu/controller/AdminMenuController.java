@@ -97,7 +97,7 @@ public class AdminMenuController {
      * 메뉴를 새 상위 메뉴 아래로 이동합니다. 순환 계층이면 서비스 검증 예외가 발생합니다.
      *
      * @param mnuId 이동할 메뉴 ID
-     * @param req 새 상위 메뉴 ID
+     * @param req 새 상위 메뉴 ID(newHrkMnuId가 null이면 루트로 이동 — 필드 필수 검증을 두지 않는 이유)
      * @return 응답 본문 없는 204 응답
      */
     @PatchMapping("/{mnuId}/move")
