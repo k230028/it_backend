@@ -124,7 +124,11 @@ public class CouncilSkipService {
 
         String apfMngNo = applicationService.submit(createRequest);
 
-        baskpm.submitForDecision(req.omtYn(), req.cnfmCone(), userDetails.getEno(), apfMngNo);
+        // 최종 생략여부·사유는 협의회 마스터(BASCTM)에 기록한다(권위 저장소).
+        Basctm council = councilService.findActiveCouncil(asctId);
+        council.recordSkipDecision(req.omtYn(), req.cnfmCone());
+        // BASKPM에는 판정 접수 메타데이터(확인자·확인일시·결재번호)만 기록한다.
+        baskpm.submitForDecision(userDetails.getEno(), apfMngNo);
         log.info("[생략판정요청] 판정·상신 - asctId={}, omtYn={}, apfMngNo={}", asctId, req.omtYn(), apfMngNo);
     }
 
@@ -154,7 +158,9 @@ public class CouncilSkipService {
             return;
         }
 
-        if ("Y".equals(baskpm.getPrtyIvgOmtYn())) {
+        // 최종 생략여부는 협의회 마스터(BASCTM)에서 읽는다(권위 저장소).
+        Basctm council = councilService.findActiveCouncil(asctId);
+        if ("Y".equals(council.getPrtyIvgOmtYn())) {
             councilService.skipCouncil(asctId);
             notify(recipient, "협의회 생략 확정",
                     "타당성검토 생략 판정이 결재 완료되어 협의회가 생략 처리되었습니다.", asctId);
@@ -173,7 +179,7 @@ public class CouncilSkipService {
      */
     public CouncilDto.SkipRequestResponse getSkipRequest(String asctId) {
         return baskpmRepository.findByItPtlAsctIdAndDelYn(asctId, "N")
-                .map(this::toResponse)
+                .map(b -> toResponse(b, councilService.findActiveCouncil(asctId)))
                 .orElse(null);
     }
 
@@ -184,17 +190,18 @@ public class CouncilSkipService {
      */
     public List<CouncilDto.SkipRequestResponse> getActiveSkipRequests() {
         return baskpmRepository.findByDelYn("N").stream()
-                .map(this::toResponse)
+                .map(b -> toResponse(b, councilService.findActiveCouncil(b.getItPtlAsctId())))
                 .toList();
     }
 
-    /** Baskpm → 응답 DTO 변환. */
-    private CouncilDto.SkipRequestResponse toResponse(Baskpm b) {
+    /** Baskpm(요청·접수 메타) + Basctm(최종 생략여부·사유) → 응답 DTO 변환. */
+    private CouncilDto.SkipRequestResponse toResponse(Baskpm b, Basctm council) {
         return new CouncilDto.SkipRequestResponse(
                 b.getItPtlAsctId(), b.getPrtyIvgOmtRsnTc(), b.getCgprOpnnCone(),
                 b.getFlMpnId(), b.getRqsUsid(), b.getRqsDtm(),
                 b.getCnfmDtm() != null,
-                b.getPrtyIvgOmtYn(), b.getCgprRpdCone(), b.getCnfmUsid(), b.getCnfmDtm(), b.getApfMngNo());
+                council.getPrtyIvgOmtYn(), council.getPrtyIvgOmtRsn(),
+                b.getCnfmUsid(), b.getCnfmDtm(), b.getApfMngNo());
     }
 
     /** 요청자(정보보호기획)에게 결재 결과 통보. */

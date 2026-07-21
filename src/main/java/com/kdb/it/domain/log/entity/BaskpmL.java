@@ -40,12 +40,6 @@ public class BaskpmL extends BaseLogEntity {
     @Column(name = "RQS_DTM", comment = "신청일시")
     private LocalDateTime rqsDtm;
 
-    @Column(name = "PRTY_IVG_OMT_YN", length = 1, comment = "타당성검토생략여부")
-    private String prtyIvgOmtYn;
-
-    @Column(name = "CGPR_RPD_CONE", length = 4000, comment = "담당자응답내용")
-    private String cgprRpdCone;
-
     @Column(name = "CNFM_USID", length = 14, comment = "확인사용자ID")
     private String cnfmUsid;
 

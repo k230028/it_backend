@@ -107,6 +107,14 @@ class CouncilSkipServiceTest {
         return c;
     }
 
+    /** 판정 결과(최종 생략여부·사유)가 기록된 협의회(BASCTM) 목 생성. */
+    private Basctm decidedCouncil(String omtYn, String rsn) {
+        Basctm c = mock(Basctm.class);
+        given(c.getPrtyIvgOmtYn()).willReturn(omtYn);
+        given(c.getPrtyIvgOmtRsn()).willReturn(rsn);
+        return c;
+    }
+
     /**
      * 생략판정요청 엔티티 목(mock) 생성 — 미판정(cnfmDtm=null) 상태.
      *
@@ -117,13 +125,11 @@ class CouncilSkipServiceTest {
         Baskpm b = mock(Baskpm.class);
         given(b.getRqsUsid()).willReturn(rqsUsid);
         given(b.getCnfmDtm()).willReturn(null);          // 미판정 상태
-        given(b.getPrtyIvgOmtYn()).willReturn(omtYn);
         given(b.getItPtlAsctId()).willReturn(ASCT_ID);
         given(b.getPrtyIvgOmtRsnTc()).willReturn("01");
         given(b.getCgprOpnnCone()).willReturn("생략 사유");
         given(b.getFlMpnId()).willReturn("FL-0001");
         given(b.getRqsDtm()).willReturn(LocalDateTime.of(2026, 6, 20, 9, 0));
-        given(b.getCgprRpdCone()).willReturn(null);
         given(b.getCnfmUsid()).willReturn(null);
         given(b.getApfMngNo()).willReturn(null);
         given(b.getDelYn()).willReturn("N");
@@ -140,13 +146,11 @@ class CouncilSkipServiceTest {
         Baskpm b = mock(Baskpm.class);
         given(b.getRqsUsid()).willReturn(rqsUsid);
         given(b.getCnfmDtm()).willReturn(LocalDateTime.of(2026, 6, 21, 10, 0)); // 판정 완료 상태
-        given(b.getPrtyIvgOmtYn()).willReturn(omtYn);
         given(b.getItPtlAsctId()).willReturn(ASCT_ID);
         given(b.getPrtyIvgOmtRsnTc()).willReturn("02");
         given(b.getCgprOpnnCone()).willReturn("확인 완료");
         given(b.getFlMpnId()).willReturn("FL-0002");
         given(b.getRqsDtm()).willReturn(LocalDateTime.of(2026, 6, 20, 9, 0));
-        given(b.getCgprRpdCone()).willReturn("판정 응답");
         given(b.getCnfmUsid()).willReturn("E20001");
         given(b.getApfMngNo()).willReturn(APF_MNG_NO);
         given(b.getDelYn()).willReturn("N");
@@ -284,13 +288,16 @@ class CouncilSkipServiceTest {
                 .willReturn(Optional.of(baskpm));
             given(applicationService.submit(any(ApplicationDto.CreateRequest.class)))
                 .willReturn(APF_MNG_NO);
+            Basctm council = mock(Basctm.class);
+            given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
             // Act
             councilSkipService.submitDecision(ASCT_ID, skipDecisionRequest("Y"), adminUser());
 
             // Assert
             verify(applicationService).submit(any(ApplicationDto.CreateRequest.class));
-            verify(baskpm).submitForDecision("Y", "확인 사유", "E20001", APF_MNG_NO);
+            verify(council).recordSkipDecision("Y", "확인 사유"); // 최종 판정은 BASCTM에 기록
+            verify(baskpm).submitForDecision("E20001", APF_MNG_NO); // BASKPM엔 접수 메타만
         }
 
         @Test
@@ -302,12 +309,15 @@ class CouncilSkipServiceTest {
                 .willReturn(Optional.of(baskpm));
             given(applicationService.submit(any(ApplicationDto.CreateRequest.class)))
                 .willReturn(APF_MNG_NO);
+            Basctm council = mock(Basctm.class);
+            given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
             // Act
             councilSkipService.submitDecision(ASCT_ID, skipDecisionRequest("N"), adminUser());
 
             // Assert
-            verify(baskpm).submitForDecision("N", "확인 사유", "E20001", APF_MNG_NO);
+            verify(council).recordSkipDecision("N", "확인 사유");
+            verify(baskpm).submitForDecision("E20001", APF_MNG_NO);
         }
 
         @Test
@@ -438,10 +448,12 @@ class CouncilSkipServiceTest {
         @Test
         @DisplayName("결재 완료 + 생략(Y): skipCouncil 호출 후 통보 발행")
         void handleApprovalCompleted_승인_생략Y_skipCouncil() {
-            // Arrange: omtYn = "Y" (생략)
+            // Arrange: 최종 생략여부 = "Y" (BASCTM)
             Baskpm baskpm = pendingBaskpm("E10001", "Y");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(baskpm));
+            Basctm decidedY = decidedCouncil("Y", "사유");
+            given(councilService.findActiveCouncil(ASCT_ID)).willReturn(decidedY);
 
             // Act
             councilSkipService.handleApprovalCompleted(ASCT_ID, true);
@@ -455,10 +467,12 @@ class CouncilSkipServiceTest {
         @Test
         @DisplayName("결재 완료 + 개최(N): startPreparation 호출 후 통보 발행")
         void handleApprovalCompleted_승인_개최N_startPreparation() {
-            // Arrange: omtYn = "N" (개최)
+            // Arrange: 최종 생략여부 = "N" (BASCTM)
             Baskpm baskpm = pendingBaskpm("E10001", "N");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(baskpm));
+            Basctm decidedN = decidedCouncil("N", "사유");
+            given(councilService.findActiveCouncil(ASCT_ID)).willReturn(decidedN);
 
             // Act
             councilSkipService.handleApprovalCompleted(ASCT_ID, true);
@@ -475,7 +489,6 @@ class CouncilSkipServiceTest {
             // Arrange: 수신자(rqsUsid) = null
             Baskpm baskpm = mock(Baskpm.class);
             given(baskpm.getRqsUsid()).willReturn(null);
-            given(baskpm.getPrtyIvgOmtYn()).willReturn("Y");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(baskpm));
 
@@ -492,7 +505,6 @@ class CouncilSkipServiceTest {
             // Arrange: 수신자(rqsUsid) = 공백 문자열
             Baskpm baskpm = mock(Baskpm.class);
             given(baskpm.getRqsUsid()).willReturn("   ");
-            given(baskpm.getPrtyIvgOmtYn()).willReturn("N");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(baskpm));
 
@@ -519,6 +531,7 @@ class CouncilSkipServiceTest {
             Baskpm baskpm = pendingBaskpm("E10001", null);
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(baskpm));
+            given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
 
             // Act
             CouncilDto.SkipRequestResponse result = councilSkipService.getSkipRequest(ASCT_ID);
@@ -551,6 +564,8 @@ class CouncilSkipServiceTest {
             Baskpm baskpm = decidedBaskpm("E10001", "Y");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(baskpm));
+            Basctm decidedY = decidedCouncil("Y", "사유");
+            given(councilService.findActiveCouncil(ASCT_ID)).willReturn(decidedY);
 
             // Act
             CouncilDto.SkipRequestResponse result = councilSkipService.getSkipRequest(ASCT_ID);
@@ -569,6 +584,8 @@ class CouncilSkipServiceTest {
             Baskpm baskpm = decidedBaskpm("E10001", "N");
             given(baskpmRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(baskpm));
+            Basctm decidedN = decidedCouncil("N", "사유");
+            given(councilService.findActiveCouncil(ASCT_ID)).willReturn(decidedN);
 
             // Act
             CouncilDto.SkipRequestResponse result = councilSkipService.getSkipRequest(ASCT_ID);
@@ -597,6 +614,7 @@ class CouncilSkipServiceTest {
             given(deleted.getDelYn()).willReturn("Y");
 
             given(baskpmRepository.findByDelYn("N")).willReturn(List.of(active));
+            given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
 
             // Act
             List<CouncilDto.SkipRequestResponse> result = councilSkipService.getActiveSkipRequests();
@@ -645,6 +663,8 @@ class CouncilSkipServiceTest {
             given(b2.getItPtlAsctId()).willReturn("ASCT-2026-0002");
 
             given(baskpmRepository.findByDelYn("N")).willReturn(List.of(b1, b2));
+            given(councilService.findActiveCouncil("ASCT-2026-0001")).willReturn(mock(Basctm.class));
+            given(councilService.findActiveCouncil("ASCT-2026-0002")).willReturn(mock(Basctm.class));
 
             // Act
             List<CouncilDto.SkipRequestResponse> result = councilSkipService.getActiveSkipRequests();

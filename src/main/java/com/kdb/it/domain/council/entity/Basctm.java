@@ -141,5 +141,20 @@ public class Basctm extends BaseEntity {
         this.cnrcSttTm = null;
         this.cnrcPlc = null;
     }
+
+    /**
+     * 타당성검토 생략 판정 결과 기록 (IT기획 판정 시)
+     *
+     * <p>정보보호기획의 생략 판정 요청(BASKPM)에 대해 IT기획이 내린 최종 생략여부와 사유를
+     * 협의회 마스터에 기록합니다. 생략 판정의 권위 저장소는 BASCTM이며, BASKPM에는
+     * 요청·판정 접수 메타데이터만 남깁니다.</p>
+     *
+     * @param prtyIvgOmtYn  생략여부 (Y=생략 / N=개최)
+     * @param prtyIvgOmtRsn 생략(판정) 사유
+     */
+    public void recordSkipDecision(String prtyIvgOmtYn, String prtyIvgOmtRsn) {
+        this.prtyIvgOmtYn = prtyIvgOmtYn;
+        this.prtyIvgOmtRsn = prtyIvgOmtRsn;
+    }
 }
 

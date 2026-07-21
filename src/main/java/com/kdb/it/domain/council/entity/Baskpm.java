@@ -59,14 +59,6 @@ public class Baskpm extends BaseEntity {
     @Column(name = "RQS_DTM", nullable = false, comment = "신청일시")
     private LocalDateTime rqsDtm;
 
-    /** 타당성검토생략여부 (확인 결과 Y/N) */
-    @Column(name = "PRTY_IVG_OMT_YN", length = 1, comment = "타당성검토생략여부")
-    private String prtyIvgOmtYn;
-
-    /** 담당자응답내용 (응답측 IT기획 응답) */
-    @Column(name = "CGPR_RPD_CONE", length = 4000, comment = "담당자응답내용")
-    private String cgprRpdCone;
-
     /** 확인사용자ID (IT기획) */
     @Column(name = "CNFM_USID", length = 14, comment = "확인사용자ID")
     private String cnfmUsid;
@@ -103,19 +95,16 @@ public class Baskpm extends BaseEntity {
     }
 
     /**
-     * IT기획 생략여부 확인 기록 + 결재 상신.
+     * IT기획 판정 접수 기록 + 결재 상신 (확인자·확인일시·결재번호).
      *
-     * <p>확인 결과(생략여부)·확인자·확인일시·결재번호를 기록합니다. 회신 전(요청) 상태는
-     * 확인일시(CNFM_DTM) null 여부로 판별하므로 별도 처리상태 컬럼을 두지 않습니다.</p>
+     * <p>최종 생략여부·사유는 협의회 마스터(BASCTM)에 기록하고, 이 테이블에는 판정 접수
+     * 메타데이터만 남깁니다. 회신 전(요청) 상태는 확인일시(CNFM_DTM) null 여부로 판별하므로
+     * 별도 처리상태 컬럼을 두지 않습니다.</p>
      *
-     * @param omtYn     생략여부(Y=생략 / N=개최)
-     * @param rpd       담당자응답내용(판정 사유)
      * @param cnfmUsid  확인자(IT기획) 사용자ID
      * @param apfMngNo  전자결재 신청관리번호
      */
-    public void submitForDecision(String omtYn, String rpd, String cnfmUsid, String apfMngNo) {
-        this.prtyIvgOmtYn = omtYn;
-        this.cgprRpdCone = rpd;
+    public void submitForDecision(String cnfmUsid, String apfMngNo) {
         this.cnfmUsid = cnfmUsid;
         this.cnfmDtm = LocalDateTime.now();
         this.apfMngNo = apfMngNo;
