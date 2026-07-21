@@ -34,9 +34,6 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.AccessDeniedException;
 
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.entity.Capplm;
-import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.iam.entity.CorgnI;
@@ -1039,21 +1036,6 @@ class ProjectServiceTest {
                                 .tlrUsid("10004")
                                 .delYn("N")
                                 .build();
-                Cappla cappla = Cappla.builder()
-                                .apfDcmNo("APF-001")
-                                .pkColNm(prjMngNo)
-                                .fntTbCrySno(1)
-                                .build();
-                Capplm capplm = Capplm.builder()
-                                .apfMngNo("APF-001")
-                                .dcdReqTtl("결재")
-                                .itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
-                                .build();
-                Cdecim decision = Cdecim.builder()
-                                .dcdMngNo("APF-001")
-                                .dcrSqnSno(1)
-                                .dcrEno("10002")
-                                .build();
                 Bitemm devItem = Bitemm.builder()
                                 .ioeC("101")
                                 .amt(BigDecimal.valueOf(100))
@@ -1202,20 +1184,6 @@ class ProjectServiceTest {
                                 .usid("10003")
                                 .tlrUsid("10004")
                                 .delYn("N")
-                                .build();
-                Cappla latest = Cappla.builder()
-                                .apfDcmNo("APF-001")
-                                .pkColNm("PRJ-2026-0001")
-                                .fntTbCrySno(1)
-                                .build();
-                Cappla old = Cappla.builder()
-                                .apfDcmNo("APF-OLD")
-                                .pkColNm("PRJ-2026-0001")
-                                .fntTbCrySno(1)
-                                .build();
-                Capplm capplm = Capplm.builder()
-                                .apfMngNo("APF-001")
-                                .itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
                                 .build();
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
                 given(capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
@@ -1399,16 +1367,10 @@ class ProjectServiceTest {
                 // given: cappla 있음, capplmRepository 반환 없음 → capplm == null 분기 커버
                 Bprojm project = Bprojm.builder()
                                 .abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
-                Cappla cappla = Cappla.builder()
-                                .apfDcmNo("APF-NOCAPLM")
-                                .pkColNm("PRJ-2026-0001")
-                                .fntTbCrySno(1)
-                                .build();
-
                 given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
                 given(capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
                                 .willReturn(List.of(new ApplicationMapView("APF-NOCAPLM", "PRJ-2026-0001", 1)));
-                // capplmRepository.findAllById → 빈 목록 → capplmMap.get() == null → capplm null 분기
+                // capplmRepository.findSummaryViewsByApfMngNoIn → 빈 목록 → capplmMap.get() == null → capplm null 분기
                 given(capplmRepository.findSummaryViewsByApfMngNoIn(anyList())).willReturn(List.of());
                 given(cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(anyList())).willReturn(List.of());
                 given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
@@ -1809,9 +1771,6 @@ class ProjectServiceTest {
                 String prjMngNo = "PRJ-2026-0001";
                 Bprojm project = Bprojm.builder()
                                 .abusMngNo(prjMngNo).sno(1).delYn("N").build();
-                Cappla cappla = Cappla.builder()
-                                .apfDcmNo("APF-001").pkColNm(prjMngNo).fntTbCrySno(1).build();
-
                 given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
                                 .willReturn(Optional.of(project));
                 given(capplaRepository.findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(

@@ -10,9 +10,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.entity.Capplm;
-import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;

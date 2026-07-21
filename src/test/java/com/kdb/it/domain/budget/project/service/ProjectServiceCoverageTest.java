@@ -30,8 +30,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
@@ -1063,18 +1061,6 @@ class ProjectServiceCoverageTest {
 
         Bprojm proj1 = Bprojm.builder().abusMngNo(p1).sno(1).delYn("N").build();
         Bprojm proj2 = Bprojm.builder().abusMngNo(p2).sno(1).delYn("N").build();
-
-        Cappla cappla1 = Cappla.builder().apfDcmNo("APF-B-001").pkColNm(p1).fntTbCrySno(1).build();
-        Cappla cappla2 = Cappla.builder().apfDcmNo("APF-B-002").pkColNm(p2).fntTbCrySno(1).build();
-
-        Capplm capplm1 = Capplm.builder()
-                .apfMngNo("APF-B-001").dcdReqTtl("결재1")
-                .itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
-                .build();
-        Capplm capplm2 = Capplm.builder()
-                .apfMngNo("APF-B-002").dcdReqTtl("결재2")
-                .itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code())
-                .build();
 
         given(projectRepository.findByAbusMngNoAndDelYn(p1, "N")).willReturn(Optional.of(proj1));
         given(projectRepository.findByAbusMngNoAndDelYn(p2, "N")).willReturn(Optional.of(proj2));

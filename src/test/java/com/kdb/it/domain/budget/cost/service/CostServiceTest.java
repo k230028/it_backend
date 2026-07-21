@@ -25,9 +25,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.entity.Capplm;
-import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
@@ -855,21 +852,6 @@ class CostServiceTest {
                 .cgprId("10001")
                 .delYn("N")
                 .build();
-        Cappla cappla = Cappla.builder()
-                .apfDcmNo("APF-001")
-                .pkColNm(IT_MNGC_NO)
-                .fntTbCrySno(1)
-                .build();
-        Capplm capplm = Capplm.builder()
-                .apfMngNo("APF-001")
-                .dcdReqTtl("결재")
-                .itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code())
-                .build();
-        Cdecim decision = Cdecim.builder()
-                .dcdMngNo("APF-001")
-                .dcrSqnSno(1)
-                .dcrEno("10002")
-                .build();
         Btermm terminal = Btermm.builder()
                 .tmnMngNo("TER-001")
                 .sno(1)
@@ -1038,12 +1020,6 @@ class CostServiceTest {
                 .bseYy("2026")
                 .delYn("N")
                 .build();
-        Cappla cappla = Cappla.builder()
-                .apfDcmNo("APF-001")
-                .pkColNm(IT_MNGC_NO)
-                .fntTbCrySno(1)
-                .build();
-        Capplm capplm = Capplm.builder().apfMngNo("APF-001").itPtlApfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code()).build();
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(cost, newCost));
         given(capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                 "BCOSTM", List.of(IT_MNGC_NO, "COST-NEW")))
