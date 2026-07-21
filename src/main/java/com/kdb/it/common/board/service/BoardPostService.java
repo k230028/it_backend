@@ -122,7 +122,7 @@ public class BoardPostService {
                 .nacNm(request.getNacNm())
                 .nacCone(sanitizedCone)
                 .ancYn(request.getAncYn() != null ? request.getAncYn() : "N")
-                .sreYn(request.getSreYn() != null ? request.getSreYn() : "Y")
+                .xpoYn(request.getXpoYn() != null ? request.getXpoYn() : "Y")
                 .bbrC(request.getBbrC())
                 .sttDt(request.getSttYmd())
                 .endDt(request.getEndYmd())
@@ -221,7 +221,7 @@ public class BoardPostService {
                 .nacNm(request.getNacNm())
                 .nacCone(sanitizedCone)
                 .ancYn("N")
-                .sreYn("Y")
+                .xpoYn("Y")
                 .bbrC(request.getBbrC())
                 .sttDt(request.getSttYmd())
                 .endDt(request.getEndYmd())
@@ -330,7 +330,7 @@ public class BoardPostService {
             return;
 
         LocalDate today = LocalDate.now();
-        boolean visible = "Y".equals(post.getSreYn())
+        boolean visible = "Y".equals(post.getXpoYn())
                 && (post.getSttDt() == null || !post.getSttDt().isAfter(today))
                 && (post.getEndDt() == null || !post.getEndDt().isBefore(today));
 

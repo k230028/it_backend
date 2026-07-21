@@ -69,7 +69,7 @@ class BoardPostServiceTest {
         assertThat(BoardPostDto.ListRow.class.getRecordComponents())
             .extracting(component -> component.getName())
             .containsExactly(
-                "nacMngNo", "blbMngNo", "nacNm", "nacInqNbr", "nacUnqId", "ancYn", "sreYn",
+                "nacMngNo", "blbMngNo", "nacNm", "nacInqNbr", "nacUnqId", "ancYn", "xpoYn",
                 "flApgYn", "flNbr", "nacGrpLev", "sttYmd", "endYmd", "fstEnrUsid", "fstEnrDtm"
             );
     }
@@ -177,7 +177,7 @@ class BoardPostServiceTest {
             "제목".equals(post.getNacNm())
                 && "10002".equals(post.getBbrC())
                 && "N".equals(post.getAncYn())
-                && "Y".equals(post.getSreYn())
+                && "Y".equals(post.getXpoYn())
         ));
     }
 
@@ -210,7 +210,7 @@ class BoardPostServiceTest {
         ok.setNacNm("수정 제목");
         ok.setNacCone("<p>수정</p>");
         ok.setAncYn("N");
-        ok.setSreYn("Y");
+        ok.setXpoYn("Y");
         ok.setBbrC("10002");
 
         service.updatePost("BLBM-2026-0003", "NAC-2026-0001", ok, normalUser);
@@ -295,7 +295,7 @@ class BoardPostServiceTest {
     @Test
     @DisplayName("시작일/종료일이 null인 게시물은 일반 사용자가 접근할 수 있다")
     void verifyCanReadPost_nullDates_allowed() {
-        // Arrange: sttDt = null, endDt = null, sreYn = Y
+        // 준비: sttDt = null, endDt = null, xpoYn = Y
         Cblbmm board = writableBoard();
         Cblbcm openPost = post("NAC-2026-0010", "OTHER");
         // sttDt, endDt은 기본 null
@@ -323,9 +323,9 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("화면여부가 N인 게시물은 일반 사용자 접근을 차단한다")
-    void verifyCanReadPost_sreYnN_throws() {
-        // Arrange: sreYn = N → 비공개
+    @DisplayName("노출여부가 N인 게시물은 일반 사용자 접근을 차단한다")
+    void verifyCanReadPost_xpoYnN_throws() {
+        // 준비: xpoYn = N이면 비노출
         Cblbmm board = writableBoard();
         Cblbcm hiddenPost = post("NAC-2026-0012", "OTHER");
         hiddenPost.update(new Cblbcm.UpdateCommand(
@@ -424,7 +424,7 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("createPost: ancYn/sreYn이 null인 경우 기본값이 적용된다")
+    @DisplayName("createPost: ancYn/xpoYn이 null인 경우 기본값이 적용된다")
     void createPost_nullOptions_defaultsApplied() {
         // Arrange
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
@@ -437,7 +437,7 @@ class BoardPostServiceTest {
         req.setNacCone("<p>본문</p>");
         req.setBbrC("10002");
         req.setAncYn(null); // → 기본값 N
-        req.setSreYn(null);    // → 기본값 Y
+        req.setXpoYn(null);    // 기본값 Y
 
         // Act
         String result = service.createPost("BLBM-2026-0003", req, normalUser);
@@ -446,12 +446,12 @@ class BoardPostServiceTest {
         assertThat(result).startsWith("NAC-");
         verify(postRepository).save(argThat(savedPost ->
             "N".equals(savedPost.getAncYn())
-                && "Y".equals(savedPost.getSreYn())
+                && "Y".equals(savedPost.getXpoYn())
         ));
     }
 
     @Test
-    @DisplayName("createPost: ancYn/sreYn이 명시된 경우 해당 값이 사용된다")
+    @DisplayName("createPost: ancYn/xpoYn이 명시된 경우 해당 값이 사용된다")
     void createPost_explicitOptions_usedAsProvided() {
         // Arrange
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
@@ -464,7 +464,7 @@ class BoardPostServiceTest {
         req.setNacCone("<p>본문</p>");
         req.setBbrC("10002");
         req.setAncYn("Y");
-        req.setSreYn("N");
+        req.setXpoYn("N");
 
         // Act
         String result = service.createPost("BLBM-2026-0003", req, normalUser);
@@ -473,7 +473,7 @@ class BoardPostServiceTest {
         assertThat(result).startsWith("NAC-");
         verify(postRepository).save(argThat(savedPost ->
             "Y".equals(savedPost.getAncYn())
-                && "N".equals(savedPost.getSreYn())
+                && "N".equals(savedPost.getXpoYn())
         ));
     }
 
@@ -644,7 +644,7 @@ class BoardPostServiceTest {
             .nacNm("테스트 게시물")
             .nacCone("<p>본문</p>")
             .ancYn("N")
-            .sreYn("Y")
+            .xpoYn("Y")
             .bbrC("10002")
             .nacInqNbr(0)
             .nacUnqId(id)

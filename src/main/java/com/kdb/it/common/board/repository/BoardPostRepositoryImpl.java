@@ -92,7 +92,7 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
                 p.nacInqNbr,
                 p.nacUnqId,
                 p.ancYn,
-                p.sreYn,
+                p.xpoYn,
                 p.flApgYn,
                 p.flNbr,
                 p.nacGrpLev,
@@ -127,7 +127,7 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
 
         if (!isAdmin) {
             LocalDate today = LocalDate.now();
-            builder.and(p.sreYn.eq("Y"));
+            builder.and(p.xpoYn.eq("Y"));
             builder.and(p.sttDt.isNull().or(p.sttDt.loe(today)));
             builder.and(p.endDt.isNull().or(p.endDt.goe(today)));
         }

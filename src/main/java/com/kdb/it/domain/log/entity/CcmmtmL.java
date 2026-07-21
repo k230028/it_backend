@@ -18,7 +18,6 @@ public class CcmmtmL extends BaseLogEntity {
     @Column(name = "CMMT_SNO",      precision = 9, comment = "댓글관리번호") private Long  cmmtMngNo;
     @Column(name = "NAC_NO",       length = 32, comment = "게시물관리번호") private String  nacMngNo;
     @Column(name = "CMMT_CONE", length = 4000, comment = "댓글내용")     private String  cmmtCone;
-    @Column(name = "SRE_USE_YN",           length = 1, comment = "화면여부")  private String  sreYn;
     @Column(name = "CMMT_TGT_SNO",      precision = 9, comment = "댓글그룹번호") private Long  cmmtGrpNo;
     @Column(name = "CMMT_SQN_SNO", comment = "댓글그룹순서")                  private Integer cmmtGrpSqn;
     @Column(name = "CMMT_DEP_NBR", comment = "댓글그룹레벨")                  private Integer cmmtGrpLev;

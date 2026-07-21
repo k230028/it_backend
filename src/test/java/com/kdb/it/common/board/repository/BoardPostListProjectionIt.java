@@ -57,7 +57,7 @@ class BoardPostListProjectionIt extends AbstractOracleRepositoryTest {
             .nacInqNbr(0)
             .nacUnqId(String.valueOf(uniqueId))
             .ancYn(notice)
-            .sreYn(visible)
+            .xpoYn(visible)
             .sttDt(startDate)
             .endDt(endDate)
             .flApgYn("N")

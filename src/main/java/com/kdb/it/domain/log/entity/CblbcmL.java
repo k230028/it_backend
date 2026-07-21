@@ -23,7 +23,7 @@ public class CblbcmL extends BaseLogEntity {
     @Column(name = "NAC_INQ_NBR", comment = "게시물조회수")                  private Integer   nacInqNbr;
     @Column(name = "NAC_UNQ_ID", length = 16, comment = "게시물고유ID")  private String    nacUnqId;
     @Column(name = "ANC_YN",     length = 1, comment = "공지여부")   private String    ancYn;
-    @Column(name = "SRE_USE_YN",         length = 1, comment = "화면사용여부")   private String    sreYn;
+    @Column(name = "XPO_YN",         length = 1, comment = "노출여부")   private String    xpoYn;
     @Column(name = "BBR_C",          length = 8, comment = "부점코드")   private String    bbrC;
     @Column(name = "STT_DTM", comment = "시작일시")                      private LocalDate sttDt;
     @Column(name = "END_DTM", comment = "종료일시")                      private LocalDate endDt;

@@ -22,7 +22,6 @@ public class BoardCommentDto {
         @Schema(description = "댓글관리번호")   private Long        cmmtMngNo;
         @Schema(description = "게시물관리번호") private String        nacMngNo;
         @Schema(description = "댓글내용")       private String        cmmtCone;
-        @Schema(description = "화면여부")       private String        sreYn;
         @Schema(description = "그룹번호")       private Long        cmmtGrpNo;
         @Schema(description = "그룹순서")       private Integer       cmmtGrpSqn;
         @Schema(description = "그룹레벨 (들여쓰기 계산용)") private Integer cmmtGrpLev;
@@ -40,7 +39,7 @@ public class BoardCommentDto {
                 : e.getCmmtCone();
             return Response.builder()
                 .cmmtMngNo(e.getCmmtMngNo()).nacMngNo(e.getNacMngNo())
-                .cmmtCone(displayCone).sreYn(e.getSreYn())
+                .cmmtCone(displayCone)
                 .cmmtGrpNo(e.getCmmtGrpNo()).cmmtGrpSqn(e.getCmmtGrpSqn()).cmmtGrpLev(e.getCmmtGrpLev())
                 .hrkCmmtMngNo(e.getHrkCmmtMngNo()).delYn(e.getDelYn())
                 .fstEnrUsid(e.getFstEnrUsid()).fstEnrDtm(e.getFstEnrDtm())
