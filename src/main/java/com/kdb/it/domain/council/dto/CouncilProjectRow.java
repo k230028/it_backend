@@ -14,6 +14,24 @@ import java.time.LocalDate;
  * <p>컬럼 순서(0-based): abusMngNo, sno, abusNm, itPtlAsctId, itPtlAsctPrgStsTc,
  * itPtlAsctDbrTc, cnrcDt, cnrcSttTm, applied(NUMBER 0/1), prjYy, prjTp, svnDpm,
  * rqmBgAmt(NULL·미사용), sttDt, endDt, itDpm, abusCone, csfHeldYn.</p>
+ *
+ * @param abusMngNo 사업관리번호
+ * @param sno 사업 일련번호
+ * @param abusNm 사업명
+ * @param itPtlAsctId IT포탈 협의회 ID
+ * @param itPtlAsctPrgStsTc IT포탈 협의회 진행상태구분코드
+ * @param itPtlAsctDbrTc IT포탈 협의회 심의구분코드
+ * @param cnrcDt 협의회 개최일자
+ * @param cnrcSttTm 협의회 개최시작시각
+ * @param applied 협의회 신청 여부
+ * @param prjYy 프로젝트 연도
+ * @param prjTp 프로젝트 유형
+ * @param svnDpm 주관부서
+ * @param sttDt 사업 시작일자
+ * @param endDt 사업 종료일자
+ * @param itDpm IT부서
+ * @param abusCone 사업내용
+ * @param csfHeldYn 자체협의회 개최여부
  */
 public record CouncilProjectRow(
         String abusMngNo,
