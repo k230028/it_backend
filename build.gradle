@@ -169,6 +169,8 @@ jacocoTestReport {
 }
 
 jacocoTestCoverageVerification {
+	// 실행 데이터(.exec) 확보를 위해 test 이후 실행되도록 보장
+	dependsOn test
 	afterEvaluate {
 		classDirectories.setFrom(files(classDirectories.files.collect {
 			fileTree(dir: it, exclude: jacocoExcludes)
@@ -205,6 +207,11 @@ jacocoTestCoverageVerification {
 			}
 		}
 	}
+}
+
+// CQ-13: 커버리지 기준을 기본 품질 게이트에 연결 — `check`만 실행해도 자동 검증된다
+tasks.named('check') {
+	dependsOn jacocoTestCoverageVerification
 }
 // ─────────────────────────────────────────────────────────────────────
 

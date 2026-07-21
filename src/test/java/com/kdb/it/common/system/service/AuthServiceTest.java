@@ -311,6 +311,39 @@ class AuthServiceTest {
         }
 
         @Test
+        @DisplayName("refreshAccessToken - 회전 후 패밀리 활성 토큰이 2개 이상 남으면 IllegalStateException을 던진다")
+        void refreshAccessToken_패밀리활성토큰중복_예외발생() {
+                // given: 회전 자체는 정상 진행되지만 검증 시점에 활성 토큰이 2개 조회되는 이상 상태
+                String oldRefresh = "dup-family-token";
+                Crtokm stored = Crtokm.builder()
+                                .ecyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh))
+                                .eno("10001").famNm("FAM-1").avlYn("Y")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                Crtokm extraActive = Crtokm.builder()
+                                .ecyRnwPubTokCone("other-hash")
+                                .eno("10001").famNm("FAM-1").avlYn("Y")
+                                .endDtm(LocalDateTime.now().plusDays(7))
+                                .build();
+                given(jwtUtil.validateToken(oldRefresh, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
+                given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh)))
+                                .willReturn(Optional.of(stored));
+                given(userRepository.findByEno("10001")).willReturn(Optional.of(
+                                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").delYn("N").build()));
+                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
+                                .willReturn(Collections.emptyList());
+                given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access-token");
+                given(jwtUtil.generateRefreshToken("10001")).willReturn("new-refresh-token");
+                given(refreshTokenRepository.findByFamNmAndAvlYn("FAM-1", "Y"))
+                                .willReturn(List.of(stored, extraActive));
+
+                // when & then: 패밀리 단일 활성 토큰 불변식 위반은 IllegalStateException
+                assertThatThrownBy(() -> authService.refreshAccessToken(oldRefresh))
+                                .isInstanceOf(IllegalStateException.class)
+                                .hasMessageContaining("패밀리당 1개만 허용");
+        }
+
+        @Test
         @DisplayName("refreshAccessToken - 재사용 탐지: 이미 회전된 토큰 재제출 시 패밀리 폐기 후 예외")
         void refreshAccessToken_재사용탐지_패밀리폐기() {
                 String reused = "rotated-old-token";

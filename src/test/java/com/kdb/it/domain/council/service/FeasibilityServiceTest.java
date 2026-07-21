@@ -25,6 +25,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.entity.Bchklm;
 import com.kdb.it.domain.council.entity.Bpovwm;
 import com.kdb.it.domain.council.repository.PerformanceRepository;
 import com.kdb.it.domain.council.repository.ProjectOverviewRepository;
@@ -191,6 +192,144 @@ class FeasibilityServiceTest {
         inOrder.verify(deleteQuery).executeUpdate();
         inOrder.verify(entityManager).flush();
         inOrder.verify(entityManager).persist(any(com.kdb.it.domain.council.entity.Bperfm.class));
+    }
+
+    // ───────────────────────────────────────────────────────
+    // saveFeasibility — 자체점검(saveOrUpdateSelfChecks) 경로
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("saveFeasibility: COMPLETE 타입에 첨부파일 번호가 공백이면 IllegalArgumentException을 던진다")
+    void saveFeasibility_COMPLETE_첨부파일공백_예외발생() {
+        CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
+                "테스트사업", "2026", null, null, null, null, "N", null, null,
+                "20", null, " ", null);
+
+        assertThatThrownBy(() -> feasibilityService.saveFeasibility(ASCT_ID, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("첨부파일");
+    }
+
+    @Test
+    @DisplayName("saveFeasibility: 자체점검·성과지표가 빈 목록이면 두 저장을 모두 건너뛴다")
+    void saveFeasibility_자체점검빈목록_저장건너뜀() {
+        given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
+        CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
+                "테스트사업", "2026", null, null, null, null, "N", null, null,
+                "10", List.of(), null, List.of());
+
+        feasibilityService.saveFeasibility(ASCT_ID, request);
+
+        verify(selfCheckRepository, never()).findByItPtlAsctIdAndDelYn(any(), any());
+        verify(performanceRepository, never()).findByItPtlAsctIdAndDelYnOrderByEvlDtpSnoAsc(any(), any());
+    }
+
+    @Test
+    @DisplayName("saveFeasibility: 임시저장 시 기존 자체점검 항목은 update, 신규 항목은 persist한다")
+    void saveFeasibility_임시저장_자체점검upsert() {
+        given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
+        Bchklm existing = mock(Bchklm.class);
+        given(existing.getItPtlCkgItmTc()).willReturn("01");
+        Bchklm duplicate = mock(Bchklm.class);
+        given(duplicate.getItPtlCkgItmTc()).willReturn("01"); // 중복 항목코드는 첫 행 유지(merge 분기)
+        given(selfCheckRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(existing, duplicate));
+        List<CouncilDto.SelfCheckItem> selfChecks = List.of(
+                new CouncilDto.SelfCheckItem("01", 4, "기존 항목 수정"),
+                new CouncilDto.SelfCheckItem("02", null, null)); // 임시저장은 부분 입력 허용
+        CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
+                "테스트사업", "2026", null, null, null, null, "N", null, null,
+                "10", null, null, selfChecks);
+
+        feasibilityService.saveFeasibility(ASCT_ID, request);
+
+        verify(existing).update(4, "기존 항목 수정");
+        verify(entityManager).persist(any(Bchklm.class));
+    }
+
+    @Test
+    @DisplayName("saveFeasibility: 작성완료 시 전 항목이 채워져 있으면 자체점검을 저장하고 상태를 전이한다")
+    void saveFeasibility_작성완료_자체점검정상_저장및전이() {
+        given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
+        given(selfCheckRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
+        List<CouncilDto.SelfCheckItem> selfChecks = List.of(
+                new CouncilDto.SelfCheckItem("01", 4, "적정"));
+        CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
+                "테스트사업", "2026", null, null, null, null, "N", null, null,
+                "20", null, "FL_00000001", selfChecks);
+
+        feasibilityService.saveFeasibility(ASCT_ID, request);
+
+        verify(entityManager).persist(any(Bchklm.class));
+        verify(councilService).changeStatus(ASCT_ID, "02");
+    }
+
+    @Test
+    @DisplayName("saveFeasibility: 작성완료 시 점검점수 누락 항목이 있으면 항목명을 포함한 예외를 던진다")
+    void saveFeasibility_작성완료_점검점수누락_예외발생() {
+        given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
+        List<CouncilDto.SelfCheckItem> selfChecks = List.of(
+                new CouncilDto.SelfCheckItem("01", null, "의견"));
+        CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
+                "테스트사업", "2026", null, null, null, null, "N", null, null,
+                "20", null, "FL_00000001", selfChecks);
+
+        assertThatThrownBy(() -> feasibilityService.saveFeasibility(ASCT_ID, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("점검점수")
+                .hasMessageContaining("경영전략/계획 부합");
+    }
+
+    @Test
+    @DisplayName("saveFeasibility: 작성완료 시 점검의견이 null인 항목이 있으면 예외를 던진다")
+    void saveFeasibility_작성완료_점검의견null_예외발생() {
+        given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
+        List<CouncilDto.SelfCheckItem> selfChecks = List.of(
+                new CouncilDto.SelfCheckItem("02", 3, null));
+        CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
+                "테스트사업", "2026", null, null, null, null, "N", null, null,
+                "20", null, "FL_00000001", selfChecks);
+
+        assertThatThrownBy(() -> feasibilityService.saveFeasibility(ASCT_ID, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("점검의견")
+                .hasMessageContaining("재무 효과");
+    }
+
+    @Test
+    @DisplayName("saveFeasibility: 작성완료 시 점검의견이 공백인 미등록 항목코드는 코드를 그대로 표기해 예외를 던진다")
+    void saveFeasibility_작성완료_점검의견공백_미등록코드표기_예외발생() {
+        given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
+        List<CouncilDto.SelfCheckItem> selfChecks = List.of(
+                new CouncilDto.SelfCheckItem("99", 3, " ")); // 미등록 코드 → getOrDefault 폴백
+        CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
+                "테스트사업", "2026", null, null, null, null, "N", null, null,
+                "20", null, "FL_00000001", selfChecks);
+
+        assertThatThrownBy(() -> feasibilityService.saveFeasibility(ASCT_ID, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("점검의견")
+                .hasMessageContaining("99");
+    }
+
+    @Test
+    @DisplayName("getFeasibility: 자체점검 엔티티를 응답 DTO로 변환한다")
+    void getFeasibility_자체점검있음_DTO변환() {
+        Bpovwm overview = mock(Bpovwm.class);
+        given(overview.getLwRglYn()).willReturn("N");
+        given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
+        Bchklm check = mock(Bchklm.class);
+        given(check.getItPtlCkgItmTc()).willReturn("01");
+        given(check.getQuelRcrd()).willReturn(4);
+        given(check.getCkgOpnn()).willReturn("적정");
+        given(selfCheckRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(check));
+        given(performanceRepository.findByItPtlAsctIdAndDelYnOrderByEvlDtpSnoAsc(ASCT_ID, "N")).willReturn(List.of());
+
+        CouncilDto.FeasibilityResponse result = feasibilityService.getFeasibility(ASCT_ID);
+
+        assertThat(result.selfChecks()).hasSize(1);
+        assertThat(result.selfChecks().get(0).ckgItmC()).isEqualTo("01");
+        assertThat(result.selfChecks().get(0).ckgRcrd()).isEqualTo(4);
     }
 
     @Test
