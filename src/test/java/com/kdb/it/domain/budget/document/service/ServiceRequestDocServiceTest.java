@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -470,30 +471,39 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("getVersionHistory: 동일 문서의 전체 버전 목록을 내림차순으로 반환한다")
     void getVersionHistory_returnsAllVersionsDescending() {
-        // Arrange: 저장 정수 3,2,1(화면 0.03,0.02,0.01) 내림차순 반환
-        Brdocm v3 = Brdocm.builder()
-                .docMngNo("DOC-001").docVrsSno(new BigDecimal("3")).reqTtl("v3").build();
-        Brdocm v2 = Brdocm.builder()
-                .docMngNo("DOC-001").docVrsSno(new BigDecimal("2")).reqTtl("v2").build();
-        Brdocm v1 = Brdocm.builder()
-                .docMngNo("DOC-001").docVrsSno(new BigDecimal("1")).reqTtl("v1").build();
-        given(repository.findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
-                .willReturn(List.of(v3, v2, v1));
+        LocalDateTime v200CreatedAt = LocalDateTime.of(2026, 7, 21, 11, 0);
+        LocalDateTime v200UpdatedAt = LocalDateTime.of(2026, 7, 21, 11, 5);
+        ServiceRequestDocRepository.VersionHistoryView v200 = versionHistoryView(
+                "DOC-001", "200", v200CreatedAt, v200UpdatedAt, "N");
+        ServiceRequestDocRepository.VersionHistoryView v101 = versionHistoryView(
+                "DOC-001", "101", LocalDateTime.of(2026, 7, 21, 10, 0),
+                LocalDateTime.of(2026, 7, 21, 10, 5), "N");
+        ServiceRequestDocRepository.VersionHistoryView v100 = versionHistoryView(
+                "DOC-001", "100", LocalDateTime.of(2026, 7, 21, 9, 0),
+                LocalDateTime.of(2026, 7, 21, 9, 5), "N");
+        given(repository.findAllProjectedByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
+                .willReturn(List.of(v200, v101, v100));
 
-        // Act
         List<ServiceRequestDocDto.VersionResponse> result = service.getVersionHistory("DOC-001");
 
-        // Assert: 3개 버전, 첫 번째가 최신 버전(0.03)
         assertThat(result).hasSize(3);
-        assertThat(result.get(0).getDocVrsSno()).isEqualByComparingTo(new BigDecimal("0.03"));
-        assertThat(result.get(2).getDocVrsSno()).isEqualByComparingTo(new BigDecimal("0.01"));
+        assertThat(result).extracting(ServiceRequestDocDto.VersionResponse::getDocVrsSno)
+                .containsExactly(new BigDecimal("2.00"), new BigDecimal("1.01"), new BigDecimal("1.00"));
+        assertThat(result).extracting(ServiceRequestDocDto.VersionResponse::getDocMngNo)
+                .containsOnly("DOC-001");
+        assertThat(result).extracting(ServiceRequestDocDto.VersionResponse::getDelYn)
+                .containsOnly("N");
+        assertThat(result.getFirst().getFstEnrDtm()).isEqualTo(v200CreatedAt);
+        assertThat(result.getFirst().getLstChgDtm()).isEqualTo(v200UpdatedAt);
+        then(repository).should(never())
+                .findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc(anyString(), anyString());
     }
 
     @Test
     @DisplayName("getVersionHistory: 이력이 없으면 빈 목록을 반환한다")
     void getVersionHistory_returnsEmptyWhenNoHistory() {
         // Arrange
-        given(repository.findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc("NONE", "N"))
+        given(repository.findAllProjectedByDocMngNoAndDelYnOrderByDocVrsSnoDesc("NONE", "N"))
                 .willReturn(List.of());
 
         // Act
@@ -501,6 +511,22 @@ class ServiceRequestDocServiceTest {
 
         // Assert
         assertThat(result).isEmpty();
+    }
+
+    private ServiceRequestDocRepository.VersionHistoryView versionHistoryView(
+            String docMngNo,
+            String storedVersion,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            String delYn) {
+        ServiceRequestDocRepository.VersionHistoryView view =
+                mock(ServiceRequestDocRepository.VersionHistoryView.class);
+        given(view.getDocMngNo()).willReturn(docMngNo);
+        given(view.getDocVrsSno()).willReturn(new BigDecimal(storedVersion));
+        given(view.getFstEnrDtm()).willReturn(createdAt);
+        given(view.getLstChgDtm()).willReturn(updatedAt);
+        given(view.getDelYn()).willReturn(delYn);
+        return view;
     }
 
     @Test

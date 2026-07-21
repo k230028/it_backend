@@ -147,8 +147,13 @@ public class ServiceRequestDocService {
      */
     public List<ServiceRequestDocDto.VersionResponse> getVersionHistory(String docMngNo) {
         return serviceRequestDocRepository
-                .findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N").stream()
-                .map(ServiceRequestDocDto.VersionResponse::fromEntity)
+                .findAllProjectedByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N").stream()
+                .map(view -> ServiceRequestDocDto.VersionResponse.fromValues(
+                        view.getDocMngNo(),
+                        view.getDocVrsSno(),
+                        view.getFstEnrDtm(),
+                        view.getLstChgDtm(),
+                        view.getDelYn()))
                 .toList();
     }
 

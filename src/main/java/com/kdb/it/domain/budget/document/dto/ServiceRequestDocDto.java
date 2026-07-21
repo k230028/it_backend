@@ -262,13 +262,36 @@ public class ServiceRequestDocDto {
          * @return 변환된 VersionResponse DTO
          */
         public static VersionResponse fromEntity(Brdocm entity) {
+            return fromValues(
+                    entity.getDocMngNo(),
+                    entity.getDocVrsSno(),
+                    entity.getFstEnrDtm(),
+                    entity.getLstChgDtm(),
+                    entity.getDelYn());
+        }
+
+        /**
+         * 버전 이력 프로젝션 값을 응답 DTO로 변환합니다.
+         *
+         * @param docMngNo 문서관리번호
+         * @param storedDocVrsSno DB에 저장된 정수 버전
+         * @param fstEnrDtm 최초등록일시
+         * @param lstChgDtm 최종변경일시
+         * @param delYn 삭제여부
+         * @return 화면 표시 버전으로 변환된 버전 이력 응답
+         */
+        public static VersionResponse fromValues(
+                String docMngNo,
+                BigDecimal storedDocVrsSno,
+                LocalDateTime fstEnrDtm,
+                LocalDateTime lstChgDtm,
+                String delYn) {
             return VersionResponse.builder()
-                    .docMngNo(entity.getDocMngNo())
-                    // 저장 정수 버전 → 화면 소수 버전(÷ 100)
-                    .docVrsSno(DocVersionCodec.toDisplay(entity.getDocVrsSno()))
-                    .fstEnrDtm(entity.getFstEnrDtm())
-                    .lstChgDtm(entity.getLstChgDtm())
-                    .delYn(entity.getDelYn())
+                    .docMngNo(docMngNo)
+                    .docVrsSno(DocVersionCodec.toDisplay(storedDocVrsSno))
+                    .fstEnrDtm(fstEnrDtm)
+                    .lstChgDtm(lstChgDtm)
+                    .delYn(delYn)
                     .build();
         }
     }
