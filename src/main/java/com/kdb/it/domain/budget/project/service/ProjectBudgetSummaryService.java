@@ -5,6 +5,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
+import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,26 @@ public class ProjectBudgetSummaryService {
      * @param bitemms  합계 계산 대상 품목 목록
      */
     public void applyBudgetSummary(ProjectDto.Response response, List<Bitemm> bitemms) {
+        applyBudgetSummaryValues(response, bitemms.stream()
+                .map(item -> new BudgetValues(item.getIoeC(), item.getAmt(), item.getMplAmt()))
+                .toList());
+    }
+
+    /**
+     * 품목 예산 프로젝션으로 자본예산과 일반관리비 합계를 응답에 설정합니다.
+     *
+     * @param response 예산 합계를 설정할 응답 DTO
+     * @param items 합계 계산 대상 품목 프로젝션
+     */
+    public void applyBudgetSummaryViews(
+            ProjectDto.Response response,
+            List<ProjectItemRepository.ProjectItemBudgetView> items) {
+        applyBudgetSummaryValues(response, items.stream()
+                .map(item -> new BudgetValues(item.getIoeC(), item.getAmt(), item.getMplAmt()))
+                .toList());
+    }
+
+    private void applyBudgetSummaryValues(ProjectDto.Response response, List<BudgetValues> bitemms) {
         List<Ccodem> allIoeCodes = codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE);
         List<Ccodem> assetCodes = allIoeCodes.stream()
                 .filter(c -> CAPITAL_DETAIL_CTPS.contains(c.getCTp()) || "IOE_CPIT".equals(c.getCTp()))
@@ -80,10 +101,10 @@ public class ProjectBudgetSummaryService {
                 .map(value -> value.getCdva())
                 .collect(Collectors.toSet());
 
-        Function<Bitemm, BigDecimal> calcAmt = this::resolveKrwAmount;
+        Function<BudgetValues, BigDecimal> calcAmt = this::resolveKrwAmount;
 
-        List<Bitemm> validItems = bitemms.stream()
-                .filter(item -> item.getIoeC() != null)
+        List<BudgetValues> validItems = bitemms.stream()
+                .filter(item -> item.ioeC() != null)
                 .toList();
 
         BigDecimal assetBg = sumByIoe(validItems, assetTypes, calcAmt);
@@ -96,12 +117,12 @@ public class ProjectBudgetSummaryService {
 
         // === 예정금액(MPL_AMT) 파생 합산 (Bprojm 3개 컬럼 대체) ===
         // MPL_AMT도 저장 시점 금액을 그대로 사용해 AMT와 동일한 집계 기준을 유지합니다.
-        Function<Bitemm, BigDecimal> calcMpl = i -> {
-            if (i.getMplAmt() == null) return BigDecimal.ZERO;
-            return i.getMplAmt();
+        Function<BudgetValues, BigDecimal> calcMpl = i -> {
+            if (i.mplAmt() == null) return BigDecimal.ZERO;
+            return i.mplAmt();
         };
-        List<Bitemm> mplItems = bitemms.stream()
-                .filter(i -> i.getIoeC() != null)
+        List<BudgetValues> mplItems = bitemms.stream()
+                .filter(i -> i.ioeC() != null)
                 .toList();
         BigDecimal mplCpit = sumByIoe(mplItems, assetTypes, calcMpl);
         BigDecimal mplMngc = sumByIoe(mplItems, costTypes, calcMpl);
@@ -124,9 +145,12 @@ public class ProjectBudgetSummaryService {
      * @param calcAmt  품목 금액 계산 함수
      * @return 합계 금액
      */
-    private BigDecimal sumByIoe(List<Bitemm> items, Set<String> ioeTypes, Function<Bitemm, BigDecimal> calcAmt) {
+    private BigDecimal sumByIoe(
+            List<BudgetValues> items,
+            Set<String> ioeTypes,
+            Function<BudgetValues, BigDecimal> calcAmt) {
         return items.stream()
-                .filter(item -> ioeTypes.contains(item.getIoeC()))
+                .filter(item -> ioeTypes.contains(item.ioeC()))
                 .map(calcAmt)
                 .reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
     }
@@ -139,7 +163,10 @@ public class ProjectBudgetSummaryService {
      * @param item 품목 엔티티
      * @return 저장된 원화 금액, null이면 0
      */
-    private BigDecimal resolveKrwAmount(Bitemm item) {
-        return item.getAmt() == null ? BigDecimal.ZERO : item.getAmt();
+    private BigDecimal resolveKrwAmount(BudgetValues item) {
+        return item.amt() == null ? BigDecimal.ZERO : item.amt();
+    }
+
+    private record BudgetValues(String ioeC, BigDecimal amt, BigDecimal mplAmt) {
     }
 }

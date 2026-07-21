@@ -274,15 +274,15 @@ class CouncilServiceTest {
                 "Y"                                          // csfHeldYn (PRD_c_20260620 #1)
         });
         // 품목 파생 당해예산: 배치 조회로 활성 품목 1건(amt=5000, mplAmt=0) → totRqmAmt=5000 반환 시뮬레이션
-        Bitemm item = mock(Bitemm.class);
+        ProjectItemRepository.ProjectItemBudgetView item = mock(ProjectItemRepository.ProjectItemBudgetView.class);
         given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
-        given(projectItemRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+        given(projectItemRepository.findBudgetViewsByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of(item));
         doAnswer(inv -> {
             ProjectDto.Response resp = inv.getArgument(0);
             resp.setTotRqmAmt(new BigDecimal("5000"));
             return null;
-        }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
+        }).when(projectBudgetSummaryService).applyBudgetSummaryViews(any(ProjectDto.Response.class), anyList());
         given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
                 .willReturn(java.util.Collections.singletonList(row));
 
@@ -385,15 +385,15 @@ class CouncilServiceTest {
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
         given(projectRepository.findById(any())).willReturn(Optional.of(project));
         // 품목 파생 당해예산: 배치 조회 후 applyBudgetSummary가 totRqmAmt=3000 설정 시뮬레이션
-        Bitemm bitemm = mock(Bitemm.class);
+        ProjectItemRepository.ProjectItemBudgetView bitemm = mock(ProjectItemRepository.ProjectItemBudgetView.class);
         given(bitemm.getAbusMngNo()).willReturn("PRJ-2026-0001");
-        given(projectItemRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+        given(projectItemRepository.findBudgetViewsByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of(bitemm));
         doAnswer(inv -> {
             ProjectDto.Response resp = inv.getArgument(0);
             resp.setTotRqmAmt(new BigDecimal("3000"));
             return null;
-        }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
+        }).when(projectBudgetSummaryService).applyBudgetSummaryViews(any(ProjectDto.Response.class), anyList());
 
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(user);
 
@@ -436,25 +436,26 @@ class CouncilServiceTest {
         given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
                 .willReturn(List.of(row1, row2));
         // 품목은 1회 배치 조회로만 가져온다. PRJ-2026-0001만 활성 품목 1건을 가진다.
-        Bitemm item = mock(Bitemm.class);
+        ProjectItemRepository.ProjectItemBudgetView item = mock(ProjectItemRepository.ProjectItemBudgetView.class);
         given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
-        given(projectItemRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+        given(projectItemRepository.findBudgetViewsByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of(item));
         // 품목이 있는 사업은 applyBudgetSummary가 totRqmAmt=7000을 설정, 빈 목록은 설정하지 않아 null 유지.
         doAnswer(inv -> {
-            List<Bitemm> items = inv.getArgument(1);
+            List<ProjectItemRepository.ProjectItemBudgetView> items = inv.getArgument(1);
             if (!items.isEmpty()) {
                 ProjectDto.Response resp = inv.getArgument(0);
                 resp.setTotRqmAmt(new BigDecimal("7000"));
             }
             return null;
-        }).when(projectBudgetSummaryService).applyBudgetSummary(any(ProjectDto.Response.class), anyList());
+        }).when(projectBudgetSummaryService).applyBudgetSummaryViews(any(ProjectDto.Response.class), anyList());
 
         // when
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
 
         // then: 배치 조회 1회, 행별 단건 조회는 0회
-        then(projectItemRepository).should(times(1)).findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
+        then(projectItemRepository).should(times(1)).findBudgetViewsByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
+        then(projectItemRepository).should(never()).findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
         then(projectItemRepository).should(never()).findByAbusMngNoAndDelYn(anyString(), anyString());
         // 그리고 품목이 있는 행(PRJ-2026-0001)의 당해예산은 배치 합산 결과(7000)와 동일하다.
         assertThat(result).hasSize(2);

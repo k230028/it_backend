@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.estimate.dto.EstimateDto;
@@ -375,9 +374,9 @@ class EstimateServiceTest {
                     "REQ-2026-0001", 1, "N")).thenReturn(List.of(line));
 
             // 사업명 조회 성공
-            Bprojm proj = Bprojm.builder()
-                    .abusMngNo("PRJ-2026-0001").lstYn("Y").build();
-            when(projectRepository.findByAbusMngNoAndLstYnAndDelYn(
+            ProjectRepository.ProjectNameView proj = org.mockito.Mockito.mock(ProjectRepository.ProjectNameView.class);
+            when(proj.getAbusNm()).thenReturn("사업명");
+            when(projectRepository.findNameViewByAbusMngNoAndLstYnAndDelYn(
                     "PRJ-2026-0001", "Y", "N")).thenReturn(Optional.of(proj));
 
             // Act
@@ -403,7 +402,7 @@ class EstimateServiceTest {
                     "REQ-2026-0001", "Y", "N")).thenReturn(Optional.of(e));
             when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoAndDelYn(
                     "REQ-2026-0001", 1, "N")).thenReturn(List.of());
-            when(projectRepository.findByAbusMngNoAndLstYnAndDelYn(
+            when(projectRepository.findNameViewByAbusMngNoAndLstYnAndDelYn(
                     "PRJ-2026-0001", "Y", "N")).thenReturn(Optional.empty());
 
             // Act

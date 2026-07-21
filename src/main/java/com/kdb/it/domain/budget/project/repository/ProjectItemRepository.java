@@ -17,6 +17,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
 
+    /** 사업별 예산 합산에 필요한 품목 필드만 읽는 프로젝션입니다. */
+    interface ProjectItemBudgetView {
+        String getGclMngNo();
+        String getAbusMngNo();
+        String getIoeC();
+        java.math.BigDecimal getAmt();
+        java.math.BigDecimal getMplAmt();
+    }
+
     /**
      * 프로젝트 관리번호와 순번으로 품목 목록 조회 (삭제 여부 무관)
      *
@@ -97,6 +106,16 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      * @return 조건에 맞는 품목 목록
      */
     List<Bitemm> findByAbusMngNoInAndDelYn(java.util.Collection<String> prjMngNos, String delYn);
+
+    /**
+     * 사업관리번호 집합의 활성 품목을 예산 합산 전용 프로젝션으로 조회합니다.
+     *
+     * @param abusMngNos 사업관리번호 집합
+     * @param delYn 삭제여부
+     * @return 예산 합산용 품목 행
+     */
+    List<ProjectItemBudgetView> findBudgetViewsByAbusMngNoInAndDelYn(
+            java.util.Collection<String> abusMngNos, String delYn);
 
     /**
      * 프로젝트 관리번호의 최신 버전 품목 목록 조회

@@ -862,8 +862,8 @@ public class ProjectService {
                 : codeNameMapBuilder.build(CommonCodeGroups.ABUS, pulDttCdvas);
 
         // 목록 파생 합산: 대상 프로젝트들의 활성 품목 1회 배치 조회 후 프로젝트별 그룹핑
-        Map<String, List<com.kdb.it.domain.budget.project.entity.Bitemm>> itemsByPrj = bitemmRepository
-                .findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
+        Map<String, List<com.kdb.it.domain.budget.project.repository.ProjectItemRepository.ProjectItemBudgetView>> itemsByPrj =
+                bitemmRepository.findBudgetViewsByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
                 .collect(Collectors.groupingBy(
                         value -> value.getAbusMngNo()));
 
@@ -941,7 +941,7 @@ public class ProjectService {
             setBudgetSummary(response, project.getAbusMngNo(), project.getSno());
 
             // 파생 예산 3종(totRqmAmt/mplCpitAmt/mplMngcAmt) 주입
-            projectBudgetSummaryService.applyBudgetSummary(
+            projectBudgetSummaryService.applyBudgetSummaryViews(
                     response,
                     itemsByPrj.getOrDefault(project.getAbusMngNo(), java.util.List.of()));
         }
