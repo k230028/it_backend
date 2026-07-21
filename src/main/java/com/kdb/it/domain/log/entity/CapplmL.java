@@ -29,8 +29,8 @@ public class CapplmL extends BaseLogEntity {
     @Column(name = "APF_DCM_NO", length = 64, comment = "신청서식별번호")
     private String apfMngNo;
 
-    @Column(name = "APF_PRG_STS_C", length = 3, comment = "신청서진행상태코드")
-    private String apfPrgStsC;
+    @Column(name = "IT_PTL_APF_PRG_STS_C", length = 2, comment = "IT포탈신청서진행상태코드")
+    private String itPtlApfPrgStsC;
 
     @Column(name = "DCD_REQ_TTL", length = 255, comment = "결재요청제목")
     private String dcdReqTtl;

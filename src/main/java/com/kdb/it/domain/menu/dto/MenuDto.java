@@ -64,7 +64,6 @@ public class MenuDto {
     public static class Route {
         @NotBlank private String srePth;
         @NotBlank private String sreMnuNm;
-        private String sysHrkMnuId;
         private String useYn;
         private String rmk;
     }

@@ -61,7 +61,7 @@ class ApplicationServiceRecallTest {
     private Capplm capplm(String stsC) {
         return Capplm.builder()
             .apfMngNo(APF)
-            .apfPrgStsC(stsC)
+            .itPtlApfPrgStsC(stsC)
             .dcdReqUsid("E001")
             .build();
     }
@@ -72,7 +72,7 @@ class ApplicationServiceRecallTest {
             .dcdMngNo(APF)
             .dcrSqnSno(sqn)
             .dcrEno(eno)
-            .dcdStsC(stsC)
+            .itPtlDcdStsC(stsC)
             .lstDcdYn(last)
             .build();
     }
@@ -152,8 +152,8 @@ class ApplicationServiceRecallTest {
 
         service.recall(APF, req(), "E002", false);
 
-        assertThat(a1.getDcdStsC()).isEqualTo("2");
-        assertThat(a2.getDcdStsC()).isEqualTo("4");
-        assertThat(a3.getDcdStsC()).isEqualTo("4");
+        assertThat(a1.getItPtlDcdStsC()).isEqualTo("2");
+        assertThat(a2.getItPtlDcdStsC()).isEqualTo("4");
+        assertThat(a3.getItPtlDcdStsC()).isEqualTo("4");
     }
 }

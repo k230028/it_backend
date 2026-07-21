@@ -17,6 +17,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
 
+    /** 사업별 예산 합산에 필요한 품목 필드만 읽는 프로젝션입니다. */
+    interface ProjectItemBudgetView {
+        String getGclMngNo();
+        String getAbusMngNo();
+        String getIoeC();
+        java.math.BigDecimal getAmt();
+        java.math.BigDecimal getMplAmt();
+    }
+
     /**
      * 프로젝트 관리번호와 순번으로 품목 목록 조회 (삭제 여부 무관)
      *
@@ -43,7 +52,7 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
     List<Bitemm> findByAbusMngNoAndFntTbCrySnoAndDelYn(String prjMngNo, Integer prjSno, String delYn);
 
     /**
-     * Oracle 시퀀스(SEQ_BITEMM) 다음 값 조회
+     * Oracle 시퀀스(SQ_TPRMPP_BITEMM_1) 다음 값 조회
      *
      * <p>신규 품목 생성 시 품목관리번호(GCL_MNG_NO) 채번에 사용합니다.
      * Oracle DB 전용 Native Query입니다.</p>
@@ -99,6 +108,16 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
     List<Bitemm> findByAbusMngNoInAndDelYn(java.util.Collection<String> prjMngNos, String delYn);
 
     /**
+     * 사업관리번호 집합의 활성 품목을 예산 합산 전용 프로젝션으로 조회합니다.
+     *
+     * @param abusMngNos 사업관리번호 집합
+     * @param delYn 삭제여부
+     * @return 예산 합산용 품목 행
+     */
+    List<ProjectItemBudgetView> findBudgetViewsByAbusMngNoInAndDelYn(
+            java.util.Collection<String> abusMngNos, String delYn);
+
+    /**
      * 프로젝트 관리번호의 최신 버전 품목 목록 조회
      *
      * <p>동일 프로젝트의 여러 버전(PRJ_SNO) 중 최신 버전({@code LST_YN='Y'}) 품목만 조회합니다.
@@ -111,6 +130,6 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      */
     List<Bitemm> findByAbusMngNoAndDelYnAndLstYn(String prjMngNo, String delYn, String lstYn);
 
-    @org.springframework.data.jpa.repository.Query(value = "SELECT SEQ_BITEMM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @org.springframework.data.jpa.repository.Query(value = "SELECT SQ_TPRMPP_BITEMM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 }

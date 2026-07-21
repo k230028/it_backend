@@ -1,6 +1,5 @@
 package com.kdb.it.common.iam.service;
 
-import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

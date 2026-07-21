@@ -20,6 +20,14 @@ import org.springframework.data.repository.query.Param;
  */
 public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRepositoryCustom {
 
+    /** 비용 대표행 선정과 계약명 표시에 필요한 필드만 읽는 프로젝션입니다. */
+    interface CostRepresentativeView {
+        String getCostBgNo();
+        Integer getBgSno();
+        String getLstYn();
+        String getCttNm();
+    }
+
     /**
      * 특정 전산관리비 단건 조회 (삭제되지 않은 항목)
      *
@@ -68,6 +76,16 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
     List<Bcostm> findByCostBgNoInAndDelYn(java.util.Collection<String> costBgNos, String delYn);
 
     /**
+     * 비용관리번호 집합의 이력을 대표행 선정 전용 프로젝션으로 조회합니다.
+     *
+     * @param costBgNos 비용관리번호 집합
+     * @param delYn 삭제여부
+     * @return 비용 대표행 후보
+     */
+    List<CostRepresentativeView> findRepresentativeViewsByCostBgNoInAndDelYn(
+            java.util.Collection<String> costBgNos, String delYn);
+
+    /**
      * 관리번호별 전산관리비 최신 버전 목록 조회
      *
      * <p>동일 관리번호의 여러 버전 중 최신({@code LST_YN='Y'}) 레코드만 조회합니다.
@@ -81,14 +99,14 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
     List<Bcostm> findByCostBgNoAndDelYnAndLstYn(String costBgNo, String delYn, String lstYn);
 
     /**
-     * Oracle 시퀀스(SEQ_BCOSTM) 다음 값 조회
+     * Oracle 시퀀스(SQ_TPRMPP_BCOSTM_1) 다음 값 조회
      *
      * <p>새로운 전산관리비 생성 시 관리번호용 시퀀스 값을 채번합니다.
      * Oracle DB 전용 Native Query입니다.</p>
      *
      * @return 시퀀스의 다음 값 (Long)
      */
-    @Query(value = "SELECT SEQ_BCOSTM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_BCOSTM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
     /**

@@ -56,7 +56,7 @@ class AdminRouteControllerTest {
     private Cmenud route(String srePth, String sreMnuNm) {
         return Cmenud.builder()
                 .srePth(srePth).sreMnuNm(sreMnuNm)
-                .sysHrkMnuId("01").useYn("Y").delYn("N")
+                .useYn("Y").delYn("N")
                 .build();
     }
 
@@ -132,7 +132,7 @@ class AdminRouteControllerTest {
     void create_정상요청_204반환() throws Exception {
         // given
         MenuDto.Route req = MenuDto.Route.builder()
-                .srePth("/new/route").sreMnuNm("새화면").sysHrkMnuId("01").useYn("Y")
+                .srePth("/new/route").sreMnuNm("새화면").useYn("Y")
                 .build();
 
         // when & then

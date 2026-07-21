@@ -6,6 +6,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.cost.service.CostRepresentativeSelector;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -943,9 +944,9 @@ public class BudgetWorkService {
 
         // 3. 응답 구성
         // 사업명(BPROJM)/계약명(BCOSTM) 배치 선조회 (N+1 제거): 그룹키를 원본테이블별로 분류하여
-        // 각 1회 IN 조회한 뒤 Map으로 보관한다. 원본 resolveProjectName과 동일하게 첫 행을 채택하며,
-        // BPROJM은 사업명이 null이면 orcPkVl로 폴백(null 이름은 Map에 넣지 않음), BCOSTM은 첫 행의
-        // 계약명(null 포함)을 그대로 채택한다.
+        // 각 1회 IN 조회한 뒤 Map으로 보관한다. BPROJM은 원본 resolveProjectName과 동일하게 첫 행을 채택하며,
+        // 사업명이 null이면 orcPkVl로 폴백한다(null 이름은 Map에 넣지 않음). BCOSTM은 비용번호별 이력을 그룹화해
+        // CostRepresentativeSelector로 대표 행을 선택하고 계약명(null 포함)을 보관한다.
         java.util.Set<String> prjGroupNos = new java.util.LinkedHashSet<>();
         java.util.Set<String> costGroupNos = new java.util.LinkedHashSet<>();
         for (Map.Entry<String, String> e : orcTbMap.entrySet()) {
@@ -961,14 +962,17 @@ public class BudgetWorkService {
                 }
             }
         }
-        // 계약명: costBgNo별 첫 행의 cttNm(null 포함)을 채택하기 위해 키 존재 여부로 폴백 판단
+        // 계약명: 비용번호별 대표 행의 cttNm(null 포함)을 채택하기 위해 키 존재 여부로 폴백 판단
         Map<String, String> costNameByNo = new LinkedHashMap<>();
         if (!costGroupNos.isEmpty()) {
-            for (Bcostm c : costRepository.findByCostBgNoInAndDelYn(costGroupNos, "N")) {
-                if (!costNameByNo.containsKey(c.getCostBgNo())) {
-                    costNameByNo.put(c.getCostBgNo(), c.getCttNm());
-                }
-            }
+            costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(costGroupNos, "N").stream()
+                    .collect(Collectors.groupingBy(
+                            history -> history.getCostBgNo(),
+                            LinkedHashMap::new,
+                            Collectors.toList()))
+                    .forEach((costBgNo, histories) -> costNameByNo.put(
+                            costBgNo,
+                            CostRepresentativeSelector.pickView(histories).getCttNm()));
         }
 
         List<BudgetWorkDto.ProjectSummaryItem> items = new ArrayList<>();

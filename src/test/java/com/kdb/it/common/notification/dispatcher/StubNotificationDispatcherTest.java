@@ -27,7 +27,7 @@ class StubNotificationDispatcherTest {
         NotificationDispatchResult result = dispatcher.dispatch(notification, "{\"event\":\"created\"}");
 
         assertThat(result.success()).isTrue();
-        assertThat(notification.getSdTc()).isNull();
+        assertThat(notification.getItPtlSdTc()).isNull();
         assertThat(notification.getSdDtm()).isNull();
     }
 

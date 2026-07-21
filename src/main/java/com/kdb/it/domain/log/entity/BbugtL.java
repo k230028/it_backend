@@ -40,7 +40,7 @@ public class BbugtL extends BaseLogEntity {
     @Column(name = "FNT_TB_CRY_SNO", comment = "원본일련번호값")
     private Integer fntTbCrySno;
 
-    @Column(name = "IOE_C", length = 3, comment = "비목코드")
+    @Column(name = "IOE_C", length = 7, comment = "비목코드")
     private String ioeC;
 
     @Column(name = "BG_DUP_AMT", precision = 18, scale = 3, comment = "편성예산금액")

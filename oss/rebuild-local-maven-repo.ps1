@@ -12,7 +12,7 @@
 #   4. 빈 캐시에서 clean build → 현재 빌드가 실제로 필요로 하는 의존성만 새로 다운로드.
 #   5. make-local-maven-repo.ps1 호출 → 캐시를 Maven2 레이아웃으로 변환 + manifest 재생성.
 #
-# 사용 예 (원격 저장소 접근 가능한 외부망 PC, it_backend 디렉토리에서):
+# 사용 예 (원격 저장소 접근 가능한 외부망 PC, it_backend\oss 디렉토리에서):
 #   .\rebuild-local-maven-repo.ps1
 #   .\rebuild-local-maven-repo.ps1 -GradleUserHome 'C:\it\.gradle' -OutDir 'C:\maven-repo'
 #
@@ -37,11 +37,12 @@ catch {
     Write-Verbose '콘솔 UTF-8 인코딩을 설정하지 못해 현재 인코딩으로 계속합니다.'
 }
 
-$gradlew  = Join-Path $PSScriptRoot 'gradlew.bat'
-$makeRepo = Join-Path $PSScriptRoot 'make-local-maven-repo.ps1'
-$cacheDir = Join-Path $GradleUserHome 'caches\modules-2'
-$filesDir = Join-Path $cacheDir 'files-2.1'
-$backup   = "$OutDir.bak"
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$gradlew     = Join-Path $projectRoot 'gradlew.bat'
+$makeRepo    = Join-Path $PSScriptRoot 'make-local-maven-repo.ps1'
+$cacheDir    = Join-Path $GradleUserHome 'caches\modules-2'
+$filesDir    = Join-Path $cacheDir 'files-2.1'
+$backup      = "$OutDir.bak"
 
 if (-not (Test-Path $gradlew))  { throw "gradlew.bat를 찾을 수 없습니다: $gradlew" }
 if (-not (Test-Path $makeRepo)) { throw "make-local-maven-repo.ps1을 찾을 수 없습니다: $makeRepo" }
@@ -57,7 +58,7 @@ function Restore-Backup {
 # 1) GRADLE_USER_HOME 고정 + 데몬 정지 (캐시 파일 잠금 해제)
 $env:GRADLE_USER_HOME = $GradleUserHome
 Write-Host "[1/5] GRADLE_USER_HOME = $GradleUserHome / Gradle 데몬 정지"
-& $gradlew --stop
+& $gradlew --project-dir $projectRoot --stop
 
 # 2) 의존성 캐시 완전 삭제
 if (Test-Path $cacheDir) {
@@ -78,7 +79,7 @@ if (Test-Path $OutDir) {
 
 # 4) 빈 캐시에서 새로 받기 (실패 시 백업 복원 후 중단)
 Write-Host "[4/5] clean build (의존성 새로 다운로드)"
-& $gradlew --no-daemon clean build
+& $gradlew --project-dir $projectRoot --no-daemon clean build
 if ($LASTEXITCODE -ne 0) {
     Restore-Backup
     throw "gradle clean build 실패 (exit code $LASTEXITCODE) — 미러 변환을 중단합니다."

@@ -32,6 +32,34 @@ import lombok.Setter;
  */
 public class UserDto {
 
+    /** 사용자 목록 조회에 필요한 컬럼만 담는 읽기 전용 행. */
+    public record ListRow(
+            String eno,
+            String bbrC,
+            String bbrNm,
+            String temC,
+            String temNm,
+            String usrNm,
+            String ptCNm) {
+    }
+
+    /** 사용자 상세 조회에 필요한 컬럼만 담는 읽기 전용 행. */
+    public record DetailRow(
+            String eno,
+            String bbrC,
+            String bbrNm,
+            String temC,
+            String temNm,
+            String usrNm,
+            String ptCNm,
+            String etrMilAddrNm,
+            String inleNo,
+            String cpnTpn,
+            String dtsDtlCone,
+            String prlmHrkOgzCCone,
+            String prlmHrkOgzCNm) {
+    }
+
     /**
      * 사용자 목록 조회 응답 DTO
      *
@@ -106,6 +134,24 @@ public class UserDto {
                     .temNm(user.getTemNm()) // 팀명
                     .usrNm(user.getUsrNm()) // 사용자명
                     .ptCNm(user.getPtCNm()) // 직위명
+                    .build();
+        }
+
+        /**
+         * 읽기 전용 조회 행을 목록 응답으로 변환합니다.
+         *
+         * @param row 사용자 목록 조회 행
+         * @return 사용자 목록 응답
+         */
+        public static ListResponse fromRow(ListRow row) {
+            return ListResponse.builder()
+                    .eno(row.eno())
+                    .bbrC(row.bbrC())
+                    .bbrNm(row.bbrNm())
+                    .temC(row.temC())
+                    .temNm(row.temNm())
+                    .usrNm(row.usrNm())
+                    .ptCNm(row.ptCNm())
                     .build();
         }
     }
@@ -203,6 +249,30 @@ public class UserDto {
                     .dtsDtlCone(user.getDtsDtlCone()) // 상세직무내용
                     .prlmHrkOgzCCone(user.getPrlmHrkOgzCCone()) // 상위조직코드
                     .prlmHrkOgzCNm(user.getPrlmHrkOgzCNm()) // 상위조직명
+                    .build();
+        }
+
+        /**
+         * 읽기 전용 조회 행을 상세 응답으로 변환합니다.
+         *
+         * @param row 사용자 상세 조회 행
+         * @return 사용자 상세 응답
+         */
+        public static DetailResponse fromRow(DetailRow row) {
+            return DetailResponse.builder()
+                    .eno(row.eno())
+                    .bbrC(row.bbrC())
+                    .bbrNm(row.bbrNm())
+                    .temC(row.temC())
+                    .temNm(row.temNm())
+                    .usrNm(row.usrNm())
+                    .ptCNm(row.ptCNm())
+                    .etrMilAddrNm(row.etrMilAddrNm())
+                    .inleNo(row.inleNo())
+                    .cpnTpn(row.cpnTpn())
+                    .dtsDtlCone(row.dtsDtlCone())
+                    .prlmHrkOgzCCone(row.prlmHrkOgzCCone())
+                    .prlmHrkOgzCNm(row.prlmHrkOgzCNm())
                     .build();
         }
     }

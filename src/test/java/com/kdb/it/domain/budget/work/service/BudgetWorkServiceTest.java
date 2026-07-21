@@ -84,6 +84,7 @@ class BudgetWorkServiceTest {
 
         // then
         assertThat(result).isEmpty();
+        verify(bbugtmRepository, Mockito.times(1)).findByBseYyAndDelYn("2026", "N");
     }
 
     @Test
@@ -185,6 +186,7 @@ class BudgetWorkServiceTest {
         assertThat(result.data()).isEmpty();
         assertThat(result.totals().requestAmount()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.totals().dupAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(bbugtmRepository, Mockito.times(1)).findByBseYyAndDelYn("2026", "N");
     }
 
     @Test
@@ -899,7 +901,7 @@ class BudgetWorkServiceTest {
         Bprojm project = mock(Bprojm.class);
         given(project.getAbusMngNo()).willReturn("PRJ-2026-0001");
         given(project.getAbusNm()).willReturn("정보화사업");
-        Bcostm cost = mock(Bcostm.class);
+        CostRepository.CostRepresentativeView cost = mock(CostRepository.CostRepresentativeView.class);
         given(cost.getCostBgNo()).willReturn("COST-2026-0001");
         given(cost.getCttNm()).willReturn("유지보수계약");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
@@ -908,7 +910,7 @@ class BudgetWorkServiceTest {
         // Phase 4 T12: 배치 조회로 변경
         given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(item));
         given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of(project));
-        given(costRepository.findByCostBgNoInAndDelYn(any(), eq("N"))).willReturn(List.of(cost));
+        given(costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(any(), eq("N"))).willReturn(List.of(cost));
 
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
@@ -917,6 +919,45 @@ class BudgetWorkServiceTest {
                 .containsExactly("정보화사업", "유지보수계약");
         assertThat(result.totals().requestAmount()).isEqualByComparingTo("2000.00");
         assertThat(result.totals().dupAmount()).isEqualByComparingTo("1300");
+        verify(bbugtmRepository, Mockito.times(1)).findByBseYyAndDelYn("2026", "N");
+        assertThat(java.util.Arrays.stream(BbugtmRepository.class.getDeclaredMethods())
+                .map(method -> method.getName())
+                .noneMatch(name -> name.toLowerCase().contains("view"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("getProjectSummary: 비용 이력 순서와 무관하게 최신 활성 계약명을 선택한다")
+    void getProjectSummary_비용이력순서무관_최신활성계약명선택() {
+        Ccodem dupCode = Ccodem.builder().cNm("임차료").cdvaDes("임차료").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("101").cNm("237-0100").cdvaDtlC("237-0100").build();
+        Bbugtm costBudget = Bbugtm.builder()
+                .fntTbNm("BCOSTM")
+                .pkColNm("COST-2026-0001")
+                .ioeC("101")
+                .bgDupAmt(BigDecimal.valueOf(500))
+                .asgRt(50)
+                .build();
+        CostRepository.CostRepresentativeView oldHistory = mock(CostRepository.CostRepresentativeView.class);
+        given(oldHistory.getCostBgNo()).willReturn("COST-2026-0001");
+        given(oldHistory.getBgSno()).willReturn(2);
+        given(oldHistory.getLstYn()).willReturn("N");
+        given(oldHistory.getCttNm()).willReturn("이전 계약");
+        CostRepository.CostRepresentativeView latestHistory = mock(CostRepository.CostRepresentativeView.class);
+        given(latestHistory.getCostBgNo()).willReturn("COST-2026-0001");
+        given(latestHistory.getBgSno()).willReturn(1);
+        given(latestHistory.getLstYn()).willReturn("Y");
+        given(latestHistory.getCttNm()).willReturn("최신 계약");
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(costBudget));
+        given(costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(oldHistory, latestHistory)).willReturn(List.of(latestHistory, oldHistory));
+
+        BudgetWorkDto.ProjectSummaryResponse first = budgetWorkService.getProjectSummary("2026");
+        BudgetWorkDto.ProjectSummaryResponse second = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(first.data()).singleElement().extracting(value -> value.name()).isEqualTo("최신 계약");
+        assertThat(second.data()).singleElement().extracting(value -> value.name()).isEqualTo("최신 계약");
     }
 
     @Test
@@ -998,6 +1039,7 @@ class BudgetWorkServiceTest {
                 .asgRt(70)
                 .build();
         Bcostm cost = mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn("COST-2026-0001");
         given(cost.getCttNm()).willReturn("임차 계약");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -1031,6 +1073,7 @@ class BudgetWorkServiceTest {
                 .ioeC("001").bgDupAmt(BigDecimal.valueOf(100)).asgRt(50)
                 .build();
         Bcostm cost = mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn("COST-001");
         given(cost.getCttNm()).willReturn("계약A");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -1059,6 +1102,7 @@ class BudgetWorkServiceTest {
                 .ioeC("005").bgDupAmt(BigDecimal.valueOf(200)).asgRt(80)
                 .build();
         Bcostm cost = mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn("COST-002");
         given(cost.getCttNm()).willReturn("계약B");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -1280,6 +1324,7 @@ class BudgetWorkServiceTest {
                 .ioeC("007").bgDupAmt(BigDecimal.valueOf(100)).asgRt(50)
                 .build();
         Bcostm cost = org.mockito.Mockito.mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn("COST-003");
         given(cost.getCttNm()).willReturn("계약C");
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));

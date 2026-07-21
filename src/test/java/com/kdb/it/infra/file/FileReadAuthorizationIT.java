@@ -381,15 +381,15 @@ class FileReadAuthorizationIT {
                 asctId, mebTc, eno, guid());
     }
 
-    /** 게시물(CBLBCM) — 화면표시여부(SRE_USE_YN)와 공개기간(STT_DTM~END_DTM) 통제. */
-    private void insertBoardPost(String nacNo, String sreYn, LocalDate sttDt, LocalDate endDt) {
+    /** 게시물(CBLBCM) — 노출여부(XPO_YN)와 공개기간(STT_DTM~END_DTM) 통제. */
+    private void insertBoardPost(String nacNo, String xpoYn, LocalDate sttDt, LocalDate endDt) {
         jdbcTemplate.update(
-                "INSERT INTO TPRMPP_CBLBCM (NAC_NO, BLB_ID, NAC_TTL, ANC_YN, SRE_USE_YN, NAC_INQ_NBR, "
+                "INSERT INTO TPRMPP_CBLBCM (NAC_NO, BLB_ID, NAC_TTL, ANC_YN, XPO_YN, NAC_INQ_NBR, "
                         + "APG_FL_NBR, FL_APG_YN, GRP_SQN_SNO, NAC_LEV_MNG_SNO, NAC_UNQ_ID, STT_DTM, END_DTM, "
                         + "FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
                         + "VALUES (?, 'SEC05BLB', ?, 'N', ?, 0, 0, 'N', 0, 0, ?, ?, ?, "
                         + "'00000000000000', SYSDATE, 'N', ?, 1, '00000000000000', SYSDATE)",
-                new Object[] { nacNo, NS + " 게시물", sreYn, nacNo, sqlDate(sttDt), sqlDate(endDt), guid() },
+                new Object[] { nacNo, NS + " 게시물", xpoYn, nacNo, sqlDate(sttDt), sqlDate(endDt), guid() },
                 new int[] { Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
                         Types.DATE, Types.DATE, Types.VARCHAR });
     }

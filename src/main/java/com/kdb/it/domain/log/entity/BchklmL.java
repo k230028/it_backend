@@ -12,7 +12,7 @@ import lombok.experimental.SuperBuilder;
 /**
  * 타당성 자체점검(TPRMPP_BCHKLM) 변경 로그 엔티티.
  *
- * <p>PK(LOG_HIS_TGR_SNO)는 AuditLogIdGenerator가 SEQ_BCHKLL.NEXTVAL로 채번한다.</p>
+ * <p>PK(LOG_HIS_TGR_SNO)는 AuditLogIdGenerator가 SQ_TPRMPP_BCHKLL_1.NEXTVAL로 채번한다.</p>
  */
 @Entity
 @Table(name = "TPRMPP_BCHKLL", comment = "타당성 자체점검 변경 로그")

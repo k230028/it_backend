@@ -38,7 +38,6 @@ import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
-import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
@@ -63,6 +62,30 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ApplicationServiceTest {
 
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+    }
+
+    private record OrgNameView(String prlmOgzCCone, String bbrNm)
+            implements OrganizationRepository.OrganizationNameView {
+        @Override public String getPrlmOgzCCone() { return prlmOgzCCone; }
+        @Override public String getBbrNm() { return bbrNm; }
+    }
+
+    private record ApproverReadView(
+            String dcdMngNo, Integer dcrSqnSno, String dcrEno, String itPtlDcdStsC,
+            LocalDate dcdDtm, String dcrOpnnCone, String lstDcdYn)
+            implements ApproverRepository.ApproverReadView {
+        @Override public String getDcdMngNo() { return dcdMngNo; }
+        @Override public Integer getDcrSqnSno() { return dcrSqnSno; }
+        @Override public String getDcrEno() { return dcrEno; }
+        @Override public String getItPtlDcdStsC() { return itPtlDcdStsC; }
+        @Override public LocalDate getDcdDtm() { return dcdDtm; }
+        @Override public String getDcrOpnnCone() { return dcrOpnnCone; }
+        @Override public String getLstDcdYn() { return lstDcdYn; }
+    }
+
     @Mock private ApplicationRepository applicationRepository;
     @Mock private ApproverRepository approverRepository;
     @Mock private ApplicationMapRepository applicationMapRepository;
@@ -81,8 +104,8 @@ class ApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        given(userRepository.findByEnoIn(any())).willReturn(List.of());
-        given(organizationRepository.findAllById(any())).willReturn(List.of());
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of());
+        given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of());
     }
 
     /** Capplm Mock — getApfDtlCone() null로 updateApprovalLineInDetail 즉시 리턴 */
@@ -92,14 +115,14 @@ class ApplicationServiceTest {
         return capplm;
     }
 
-    /** 미결재(dcdStsC="1") 상태의 Cdecim 생성 */
+    /** 미결재(itPtlDcdStsC="1") 상태의 Cdecim 생성 */
     private Cdecim pendingApprover(String eno, int sqn, String lstDcdYn) {
         return Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO)
                 .dcrSqnSno(sqn)
                 .dcrEno(eno)
                 .lstDcdYn(lstDcdYn)
-                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code())
+                .itPtlDcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.PENDING.code())
                 .build();
     }
 
@@ -150,7 +173,7 @@ class ApplicationServiceTest {
         Cdecim completed = Cdecim.builder()
                 .dcdMngNo(APF_MNG_NO).dcrSqnSno(1).dcrEno("E10001")
                 .lstDcdYn("Y")
-                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code()).build();
+                .itPtlDcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code()).build();
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO)).willReturn(List.of(completed));
 
         assertThatThrownBy(() -> applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인")))
@@ -257,7 +280,7 @@ class ApplicationServiceTest {
                 .dcrSqnSno(1)
                 .dcrEno("E10001")
                 .lstDcdYn("N")
-                .dcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.REJECTED.code())
+                .itPtlDcdStsC(com.kdb.it.common.approval.domain.DecisionStatus.REJECTED.code())
                 .build();
         Cdecim pending = pendingApprover("E10002", 2, "Y");
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
@@ -285,8 +308,8 @@ class ApplicationServiceTest {
 
         realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
 
-        assertThat(first.getDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
-        assertThat(second.getDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
+        assertThat(first.getItPtlDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
+        assertThat(second.getItPtlDcdStsC()).isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
         assertThat(capplm.getDcdReqInf()).contains("\"date\"");
         verify(approverRepository, times(2)).save(any(Cdecim.class));
         verify(eventPublisher, never()).publishEvent(any());
@@ -306,7 +329,7 @@ class ApplicationServiceTest {
 
         realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
 
-        assertThat(capplm.getApfPrgStsC()).isEqualTo(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code());
+        assertThat(capplm.getItPtlApfPrgStsC()).isEqualTo(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code());
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
     }
 
@@ -424,7 +447,7 @@ class ApplicationServiceTest {
         given(c2.getApfMngNo()).willReturn("APF_202600000002");
         given(applicationRepository.findAll()).willReturn(List.of(c1, c2));
         // 결재자 목록은 In-쿼리 1회 배치 조회 (빈 목록 반환)
-        given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any())).willReturn(List.of());
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any())).willReturn(List.of());
 
         List<ApplicationDto.Response> result = applicationService.getApplications();
 
@@ -440,18 +463,21 @@ class ApplicationServiceTest {
         given(a2.getApfMngNo()).willReturn("APF-2");
         given(applicationRepository.findAll()).willReturn(List.of(a1, a2));
         // APF-1 결재선 2건(순서 유지 검증), APF-2 결재선 없음
-        Cdecim d1 = Cdecim.builder().dcdMngNo("APF-1").dcrSqnSno(1).dcrEno("E001").build();
-        Cdecim d2 = Cdecim.builder().dcdMngNo("APF-1").dcrSqnSno(2).dcrEno("E002").build();
-        given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
+        ApproverReadView d1 = new ApproverReadView("APF-1", 1, "E001", "1", null, null, "N");
+        ApproverReadView d2 = new ApproverReadView("APF-1", 2, "E002", "2", LocalDate.now(), "승인", "Y");
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of(d1, d2));
 
         List<ApplicationDto.Response> result = applicationService.getApplications();
 
         assertThat(result).hasSize(2);
+        assertThat(result.getFirst().getApprovers())
+                .extracting(approver -> approver.getDcdSqn())
+                .containsExactly(1, 2);
         verify(approverRepository, times(1))
-                .findByDcdMngNoInOrderByDcrSqnSnoAsc(any());
+                .findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any());
         verify(approverRepository, never())
-                .findByDcdMngNoOrderByDcrSqnSnoAsc(org.mockito.ArgumentMatchers.anyString());
+                .findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -459,17 +485,12 @@ class ApplicationServiceTest {
     void getApplications_레거시미결재코드_목록반환() {
         Capplm capplm = Capplm.builder()
                 .apfMngNo(APF_MNG_NO)
-                .apfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
+                .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
                 .build();
-        Cdecim legacyPending = Cdecim.builder()
-                .dcdMngNo(APF_MNG_NO)
-                .dcrSqnSno(1)
-                .dcrEno("E10001")
-                .lstDcdYn("Y")
-                .dcdStsC("0")
-                .build();
+        ApproverReadView legacyPending =
+                new ApproverReadView(APF_MNG_NO, 1, "E10001", "0", null, null, "Y");
         given(applicationRepository.findAll()).willReturn(List.of(capplm));
-        given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of(legacyPending));
 
         List<ApplicationDto.Response> result = applicationService.getApplications();
@@ -501,7 +522,7 @@ class ApplicationServiceTest {
         given(capplm.getApfMngNo()).willReturn(APF_MNG_NO);
         given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
         given(applicationRepository.findById("APF_NONE")).willReturn(Optional.empty());
-        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO)).willReturn(List.of());
+        given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO)).willReturn(List.of());
 
         ApplicationDto.BulkGetRequest request = new ApplicationDto.BulkGetRequest();
         request.setApfMngNos(List.of(APF_MNG_NO, "APF_NONE"));
@@ -519,7 +540,7 @@ class ApplicationServiceTest {
         given(found.getApfMngNo()).willReturn("APF-1");
         given(applicationRepository.findById("APF-1")).willReturn(Optional.of(found));
         given(applicationRepository.findById("APF-X")).willReturn(Optional.empty());
-        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc("APF-1")).willReturn(List.of());
+        given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-1")).willReturn(List.of());
         ApplicationDto.BulkGetRequest req = new ApplicationDto.BulkGetRequest();
         req.setApfMngNos(List.of("APF-1", "APF-X"));
 
@@ -647,8 +668,8 @@ class ApplicationServiceTest {
         ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().recipientEno()).isEqualTo("10002");
-        assertThat(captor.getValue().infmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_REQUEST);
-        assertThat(captor.getValue().sdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
+        assertThat(captor.getValue().itPtlInfmSvcTc()).isEqualTo(NotificationEvent.TYPE_APPROVAL_REQUEST);
+        assertThat(captor.getValue().itPtlSdTc()).isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
     }
 
     @Test
@@ -697,7 +718,7 @@ class ApplicationServiceTest {
 
         ArgumentCaptor<Capplm> captor = ArgumentCaptor.forClass(Capplm.class);
         verify(applicationRepository).save(captor.capture());
-        assertThat(captor.getValue().getApfPrgStsC()).isEqualTo("1");
+        assertThat(captor.getValue().getItPtlApfPrgStsC()).isEqualTo("1");
     }
 
     @Test
@@ -840,10 +861,10 @@ class ApplicationServiceTest {
         given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of(pendingApprover("10002", 1, "Y")));
-        given(userRepository.findByEnoIn(any())).willReturn(List.of(
-                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("18001").build()));
-        given(organizationRepository.findAllById(any())).willReturn(List.of(
-                CorgnI.builder().prlmOgzCCone("18001").bbrNm("정보기술부").build()));
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of(
+                new NameView("10001", "홍길동")));
+        given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of(
+                new OrgNameView("18001", "정보기술부")));
 
         ApplicationDto.Response result = applicationService.getApplication(APF_MNG_NO);
 
@@ -874,11 +895,11 @@ class ApplicationServiceTest {
         given(c.getDcdReqBbrC()).willReturn("18001");
         given(applicationRepository.findAll()).willReturn(List.of(c));
         given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any())).willReturn(List.of());
-        given(userRepository.findByEnoIn(any())).willReturn(List.of(
-                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("18001").build()));
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of(
+                new NameView("10001", "홍길동")));
         // bbrNm이 null인 조직은 filter(bbrNm != null)에서 제외되는 분기 커버
-        given(organizationRepository.findAllById(any())).willReturn(List.of(
-                CorgnI.builder().prlmOgzCCone("18001").bbrNm(null).build()));
+        given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of(
+                new OrgNameView("18001", null)));
 
         List<ApplicationDto.Response> result = applicationService.getApplications();
 

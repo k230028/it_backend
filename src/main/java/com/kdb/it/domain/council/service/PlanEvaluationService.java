@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -75,7 +74,7 @@ public class PlanEvaluationService {
     /**
      * 협의회의 심의 대상 조회 (사업 카드·예산 표출용).
      *
-     * <p>협의회의 REQ_DOC_NO(계획관리번호)로 계획 스냅샷의 예산·부서 정보를 얻고,
+     * <p>계획협의회의 ABUS_MNG_NO에 저장된 계획관리번호로 계획 스냅샷의 예산·부서 정보를 얻고,
      * 스냅샷에 없는 사업개요·시작/종료일자는 BPROJM(정보화사업) 상세에서 보강해 병합합니다.
      * 경상사업(ornYn='Y')은 제외하고 정보화사업만 반환합니다.</p>
      *
@@ -85,7 +84,7 @@ public class PlanEvaluationService {
      */
     public CouncilDto.PlanTargetsResponse getPlanTargets(String asctId) {
         Basctm council = councilService.findActiveCouncil(asctId);
-        String reqDocNo = council.getReqDocNo();
+        String reqDocNo = council.getAbusMngNo();
         if (reqDocNo == null || reqDocNo.isBlank()) {
             throw new IllegalStateException("계획이 연결되지 않은 협의회입니다: " + asctId);
         }
@@ -184,7 +183,7 @@ public class PlanEvaluationService {
         req.setPrjMngNos(prjMngNos);
         req.setBseYy(bseYy);
         return projectService.getProjectsByIds(req).items().stream()
-                .collect(Collectors.toMap(ProjectDto.Response::getAbusMngNo, r -> r, (a, b) -> a));
+                .collect(Collectors.toMap(r -> r.getAbusMngNo(), r -> r, (a, b) -> a));
     }
 
     /**
@@ -200,7 +199,7 @@ public class PlanEvaluationService {
         List<Basctm> completed = councilRepository
                 .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc("02", "13", "N");
         for (Basctm c : completed) {
-            String rd = c.getReqDocNo();
+            String rd = c.getAbusMngNo();
             if (rd == null || rd.isBlank() || rd.equals(currentReqDocNo)) {
                 continue;
             }
@@ -258,11 +257,11 @@ public class PlanEvaluationService {
         councilService.findActiveCouncil(asctId);
 
         List<Bplevm> all = planEvaluationRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
-        Map<String, CuserI> userMap = buildUserMap(all);
+        Map<String, UserRepository.UserNameView> userMap = buildUserMap(all);
 
         List<CouncilDto.PlanEvaluationItemResponse> evaluations = all.stream()
                 .map(e -> {
-                    CuserI user = userMap.get(e.getEno());
+                    UserRepository.UserNameView user = userMap.get(e.getEno());
                     return new CouncilDto.PlanEvaluationItemResponse(
                             e.getEno(),
                             user != null ? user.getUsrNm() : null,
@@ -304,13 +303,13 @@ public class PlanEvaluationService {
      */
     private List<CouncilDto.PlanBusinessVerdict> aggregateVerdicts(List<Bplevm> all) {
         Map<String, List<Bplevm>> byBusiness = all.stream()
-                .collect(Collectors.groupingBy(Bplevm::getAbusMngNo, LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(e -> e.getAbusMngNo(), LinkedHashMap::new, Collectors.toList()));
 
         List<CouncilDto.PlanBusinessVerdict> verdicts = new ArrayList<>();
         for (Map.Entry<String, List<Bplevm>> entry : byBusiness.entrySet()) {
             List<Bplevm> rows = entry.getValue();
             long reserveCount = rows.stream().filter(r -> "N".equals(r.getPprtYn())).count();
-            long evaluatorCount = rows.stream().map(Bplevm::getEno).distinct().count();
+            long evaluatorCount = rows.stream().map(r -> r.getEno()).distinct().count();
             String finalPprtYn = reserveCount > 0 ? "N" : "Y";  // 1명이라도 유보면 유보
             verdicts.add(new CouncilDto.PlanBusinessVerdict(
                     entry.getKey(), finalPprtYn, reserveCount, evaluatorCount));
@@ -338,14 +337,14 @@ public class PlanEvaluationService {
         List<CouncilDto.PlanBusinessVerdict> verdicts = aggregateVerdicts(all);
 
         // 사업명 매핑 (계획 스냅샷)
-        Map<String, String> nameById = resolveBusinessNames(council.getReqDocNo());
+        Map<String, String> nameById = resolveBusinessNames(council.getAbusMngNo());
 
         // 사업별 유보 사유 수집 (유보 위원의 사유)
         Map<String, List<String>> reserveOpinions = all.stream()
                 .filter(e -> "N".equals(e.getPprtYn()))
                 .filter(e -> e.getEvalOpnn() != null && !e.getEvalOpnn().isBlank())
-                .collect(Collectors.groupingBy(Bplevm::getAbusMngNo,
-                        Collectors.mapping(Bplevm::getEvalOpnn, Collectors.toList())));
+                .collect(Collectors.groupingBy(e -> e.getAbusMngNo(),
+                        Collectors.mapping(e -> e.getEvalOpnn(), Collectors.toList())));
 
         return new CouncilDto.PlanResultSummaryResponse(
                 renderSummaryHtml(verdicts, nameById, reserveOpinions), verdicts);
@@ -449,7 +448,7 @@ public class PlanEvaluationService {
         // 기존 내 평가를 사업관리번호 기준으로 1회 배치 조회 (사업별 개별 SELECT N+1 제거)
         Map<String, Bplevm> existingByBusiness = planEvaluationRepository
                 .findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").stream()
-                .collect(Collectors.toMap(Bplevm::getAbusMngNo, e -> e, (a, b) -> a));
+                .collect(Collectors.toMap(e -> e.getAbusMngNo(), e -> e, (a, b) -> a));
 
         for (CouncilDto.PlanEvaluationItem item : request.items()) {
             // 적정/유보 값 검증
@@ -489,14 +488,14 @@ public class PlanEvaluationService {
     // =========================================================================
 
     /**
-     * 평가 목록의 사번으로 사용자 정보 Map 생성 (findByEnoIn 1회 배치, N+1 제거).
+     * 평가 목록의 사번으로 사용자 이름 프로젝션 Map을 생성합니다.
      */
-    private Map<String, CuserI> buildUserMap(List<Bplevm> rows) {
-        List<String> enos = rows.stream().map(Bplevm::getEno).distinct().toList();
+    private Map<String, UserRepository.UserNameView> buildUserMap(List<Bplevm> rows) {
+        List<String> enos = rows.stream().map(r -> r.getEno()).distinct().toList();
         if (enos.isEmpty()) {
             return Map.of();
         }
-        return userRepository.findByEnoIn(enos).stream()
-                .collect(Collectors.toMap(CuserI::getEno, u -> u, (a, b) -> a));
+        return userRepository.findNameViewsByEnoIn(enos).stream()
+                .collect(Collectors.toMap(u -> u.getEno(), u -> u, (a, b) -> a));
     }
 }

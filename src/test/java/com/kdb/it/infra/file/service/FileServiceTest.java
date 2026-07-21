@@ -15,12 +15,16 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -298,7 +302,7 @@ class FileServiceTest {
         List<FileDto.Response> result = fileService.getFiles(condition, USER);
 
         // DOC-1 허용 2건만 포함, DOC-2 거부 제외 — 종류가 같아도 부모가 다르면 캐시 미공유
-        assertThat(result).extracting(FileDto.Response::getFlMpnId)
+        assertThat(result).extracting(file -> file.getFlMpnId())
                 .containsExactly("FL_00000001", "FL_00000002");
         verify(fileOwnershipChecker, times(1)).canRead(doc1a, USER);
         verify(fileOwnershipChecker, never()).canRead(doc1b, USER);
@@ -561,6 +565,34 @@ class FileServiceTest {
         FileService.FileDownloadResult result = fileService.downloadFile(FL_MNG_NO);
 
         assertThat(result.contentType()).isEqualTo("image/png");
+        assertThat(result.originalFilename()).isEqualTo("server.png");
+    }
+
+    static Stream<Arguments> incompleteDownloadMetadata() {
+        return Stream.of(
+                Arguments.of("저장 경로 null", true, null),
+                Arguments.of("저장 경로 공백", true, " "),
+                Arguments.of("물리 파일명 null", false, null),
+                Arguments.of("물리 파일명 공백", false, " ")
+        );
+    }
+
+    @ParameterizedTest(name = "downloadFile: {0}이면 불완전 메타데이터 예외를 반환한다")
+    @MethodSource("incompleteDownloadMetadata")
+    void downloadFile_저장경로또는물리파일명없음_CustomGeneralException발생(
+            String caseName, boolean storagePathMissing, String missingValue,
+            @TempDir java.nio.file.Path tempDir) {
+        ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(cfilem.getFlKpnPth()).willReturn(storagePathMissing ? missingValue : tempDir.toString());
+        given(cfilem.getFlPysNm()).willReturn(storagePathMissing ? "server.pdf" : missingValue);
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+
+        assertThatThrownBy(() -> fileService.downloadFile(FL_MNG_NO))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("파일 메타데이터가 불완전")
+                .hasMessageContaining(FL_MNG_NO)
+                .hasMessageNotContaining(tempDir.toString());
     }
 
     @Test

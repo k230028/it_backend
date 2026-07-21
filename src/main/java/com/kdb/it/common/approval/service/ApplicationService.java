@@ -14,8 +14,6 @@ import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
-import com.kdb.it.common.iam.entity.CorgnI;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
@@ -156,7 +154,7 @@ public class ApplicationService {
                 .apfMngNo(apfMngNo)                        // 신청관리번호 (PK)
                 .dcdReqTtl(request.getApfNm())             // 결재요청제목
                 .dcdReqInf(request.getApfDtlCone())        // 결재요청정보 (JSON)
-                .apfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
+                .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
                 .dcdReqUsid(request.getRqsEno())           // 결재요청사용자ID
                 .dcdReqBbrC(resolveRequesterBbrC(request.getRqsEno())) // 결재요청부점코드
                 .dcdReqDtm(LocalDate.now())                // 결재요청일시 = 오늘
@@ -194,7 +192,7 @@ public class ApplicationService {
                     .dcdMngNo(apfMngNo) // 결재관리번호 (FK)
                     .dcrSqnSno(i + 1) // 결재순번 (1부터 시작)
                     .dcrEno(approverEnos.get(i)) // 결재자 사원번호
-                    .dcdStsC(DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(1) — NOT NULL
+                    .itPtlDcdStsC(DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(1) — NOT NULL
                     .lstDcdYn(i == approverEnos.size() - 1 ? "Y" : "N") // 마지막 결재자 여부
                     .build();
             approverRepository.save(cdecim);
@@ -212,13 +210,13 @@ public class ApplicationService {
     /**
      * 결재선에서 다음 차례인 결재자에게 결재요청 알림을 발행한다.
      *
-     * <p>{@code DCD_STS_C = '1'(미결재)}인 결재 항목 중 가장 작은 {@code DCD_SQN}의 결재자가 대상.
+     * <p>{@code IT_PTL_DCD_STS_C = '1'(미결재)}인 결재 항목 중 가장 작은 {@code DCD_SQN}의 결재자가 대상.
      * 발견되지 않으면(=결재선 모두 처리됨) 알림을 발행하지 않는다.</p>
      */
     private void publishApprovalRequestNotification(Capplm capplm) {
         List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(capplm.getApfMngNo());
         Cdecim next = approvers.stream()
-            .filter(a -> DecisionStatus.isPendingCode(a.getDcdStsC()))
+            .filter(a -> DecisionStatus.isPendingCode(a.getItPtlDcdStsC()))
             .findFirst()
             .orElse(null);
         if (next == null || next.getDcrEno() == null || next.getDcrEno().isBlank()) {
@@ -234,13 +232,13 @@ public class ApplicationService {
         eventPublisher.publishEvent(
             NotificationEvent.builder()
                 .recipientEno(next.getDcrEno())
-                .infmSvcTc(NotificationEvent.TYPE_APPROVAL_REQUEST)
+                .itPtlInfmSvcTc(NotificationEvent.TYPE_APPROVAL_REQUEST)
                 .ttl(NotificationMessageFormatter.abbreviate("결재요청: " + safeText(capplm.getDcdReqTtl()), 100))
                 .infmMsgCone(NotificationMessageFormatter.abbreviate(safeText(capplm.getDcdReqTtl()), 4000))
                 // 결재 알림은 결재 대기 목록 화면으로 고정 (사용자 정책).
                 // 상대 path 사용 — Nuxt navigateTo가 내부 라우팅으로 처리하며 운영 호스트와 무관.
                 .infmRcdUrl("/approval/list?tab=pending")
-                .sdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
+                .itPtlSdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
                 .build()
         );
     }
@@ -290,7 +288,7 @@ public class ApplicationService {
         boolean isPreviousApproved = true; // 이전 결재자가 모두 승인했는지 여부
 
         for (Cdecim approver : approvers) {
-            String stsC = approver.getDcdStsC(); // 결재상태 코드 (DCD_STS_C)
+            String stsC = approver.getItPtlDcdStsC(); // 결재상태 코드 (IT_PTL_DCD_STS_C)
 
             if (DecisionStatus.isPendingCode(stsC)) {
                 // 미결재 항목: 이전이 모두 승인되었을 때만 현재 차례
@@ -479,10 +477,11 @@ public class ApplicationService {
         Capplm capplm = applicationRepository.findById(apfMngNo)
                 .orElseThrow(() -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
         // 결재자 목록 조회 (순번 오름차순)
-        List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
+        List<ApproverRepository.ApproverReadView> approvers =
+                approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
         String requesterNm = requesterName(resolveRequesterNames(List.of(capplm)), capplm.getDcdReqUsid());
         String requesterBbrNm = requesterDeptName(resolveRequesterDeptNames(List.of(capplm)), capplm.getDcdReqBbrC());
-        return ApplicationDto.Response.fromEntity(capplm, approvers, requesterNm, requesterBbrNm);
+        return ApplicationDto.Response.fromReadViews(capplm, approvers, requesterNm, requesterBbrNm);
     }
 
     /**
@@ -499,16 +498,16 @@ public class ApplicationService {
         List<String> apfMngNos = capplms.stream().map(value -> value.getApfMngNo()).toList();
 
         // 결재선 배치 조회 (N+1 제거): 신청번호별 결재자 목록 Map 선구성.
-        // findByDcdMngNoInOrderByDcrSqnSnoAsc가 DCR_SQN_SNO 오름차순으로 반환하므로
+        // findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc가 DCR_SQN_SNO 오름차순으로 반환하므로
         // groupingBy가 각 신청번호 그룹 내 결재자 순서를 보존한다.
-        java.util.Map<String, List<Cdecim>> approversByApf =
-                approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos).stream()
+        java.util.Map<String, List<ApproverRepository.ApproverReadView>> approversByApf =
+                approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos).stream()
                         .collect(java.util.stream.Collectors.groupingBy(value -> value.getDcdMngNo()));
         java.util.Map<String, String> requesterNamesByEno = resolveRequesterNames(capplms);
         java.util.Map<String, String> requesterDeptNamesByBbrC = resolveRequesterDeptNames(capplms);
 
         return capplms.stream()
-                .map(capplm -> ApplicationDto.Response.fromEntity(
+                .map(capplm -> ApplicationDto.Response.fromReadViews(
                         capplm,
                         approversByApf.getOrDefault(capplm.getApfMngNo(), List.of()),
                         requesterName(requesterNamesByEno, capplm.getDcdReqUsid()),
@@ -574,7 +573,7 @@ public class ApplicationService {
             return java.util.Map.of();
         }
 
-        return userRepository.findByEnoIn(requesterEnos).stream()
+        return userRepository.findNameViewsByEnoIn(requesterEnos).stream()
                 .collect(java.util.stream.Collectors.toMap(
                         user -> user.getEno(),
                         user -> user.getUsrNm(),
@@ -596,7 +595,7 @@ public class ApplicationService {
             return java.util.Map.of();
         }
 
-        return organizationRepository.findAllById(requesterBbrCs).stream()
+        return organizationRepository.findNameViewsByPrlmOgzCConeIn(requesterBbrCs).stream()
                 .filter(org -> org.getBbrNm() != null)
                 .collect(java.util.stream.Collectors.toMap(
                         organization -> organization.getPrlmOgzCCone(),
@@ -752,14 +751,14 @@ public class ApplicationService {
         Capplm capplm = applicationRepository.findById(apfMngNo)
             .orElseThrow(() -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
 
-        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfPrgStsC())) {
-            throw new IllegalStateException("회수 가능한 상태가 아닙니다. 현재 상태: " + capplm.getApfPrgStsC());
+        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getItPtlApfPrgStsC())) {
+            throw new IllegalStateException("회수 가능한 상태가 아닙니다. 현재 상태: " + capplm.getItPtlApfPrgStsC());
         }
 
         List<Cdecim> approvers = approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
         boolean lastApproved = approvers.stream()
             .anyMatch(a -> "Y".equals(a.getLstDcdYn())
-                        && DecisionStatus.isApprovedCode(a.getDcdStsC()));
+                        && DecisionStatus.isApprovedCode(a.getItPtlDcdStsC()));
         if (lastApproved) {
             throw new IllegalStateException("최종 결재자 승인 후에는 회수할 수 없습니다.");
         }
@@ -772,7 +771,7 @@ public class ApplicationService {
         approvalLineDelegate.applyRecallInfo(capplm, currentEno, request.getRecallOpnn());
 
         for (Cdecim a : approvers) {
-            if (DecisionStatus.isPendingCode(a.getDcdStsC())) {
+            if (DecisionStatus.isPendingCode(a.getItPtlDcdStsC())) {
                 a.invalidateByRecall();
                 approverRepository.save(a);
             }
@@ -780,7 +779,7 @@ public class ApplicationService {
 
         List<String> approvedMiddle = approvers.stream()
             .filter(a -> "N".equals(a.getLstDcdYn())
-                      && DecisionStatus.isApprovedCode(a.getDcdStsC()))
+                      && DecisionStatus.isApprovedCode(a.getItPtlDcdStsC()))
             .map(value -> value.getDcrEno())
             .distinct()
             .toList();
@@ -809,7 +808,7 @@ public class ApplicationService {
      * @return 회수 가능 여부 (true=허용, false=거부)
      */
     private boolean canRecall(Capplm capplm, List<Cdecim> approvers, String currentEno, boolean isAdmin) {
-        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getApfPrgStsC())) return false;
+        if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getItPtlApfPrgStsC())) return false;
         if (isAdmin) return true;
         if (currentEno.equals(capplm.getDcdReqUsid())) return true;
         return approvers.stream()

@@ -34,9 +34,6 @@ public class Ccmmtm extends BaseEntity {
     @Column(name = "CMMT_CONE", nullable = false, length = 1000, comment = "댓글내용")
     private String cmmtCone;
 
-    @Column(name = "SRE_USE_YN", nullable = false, length = 1, comment = "화면사용여부")
-    private String sreYn;
-
     /** 댓글 그룹번호 — 최상위 댓글의 CMMT_MNG_NO */
     @Column(name = "CMMT_TGT_SNO", nullable = false, precision = 9, comment = "댓글그룹번호 (물리컬럼 CMMT_TGT_SNO=댓글대상일련번호)")
     private Long cmmtGrpNo;

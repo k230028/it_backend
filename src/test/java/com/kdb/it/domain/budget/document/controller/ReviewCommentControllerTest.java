@@ -75,7 +75,7 @@ class ReviewCommentControllerTest {
                 .willReturn(null);
         mockMvc.perform(post("/api/documents/" + DOC_ID + "/review-comments")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"docVrs\":1.0,\"rplOpnnTc\":\"G\",\"ivgOpnnCone\":\"테스트 의견\"}"))
+                .content("{\"docVrs\":1.0,\"itPtlRplOpnnTc\":\"G\",\"ivgOpnnCone\":\"테스트 의견\"}"))
                 .andExpect(status().isCreated());
     }
 

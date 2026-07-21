@@ -54,7 +54,7 @@ public class CouncilSkipService {
      * 생략 판정 요청 등록 (정보보호기획).
      *
      * @param asctId      협의회ID
-     * @param req         요청 내용 (사유코드/설명/첨부 2종)
+     * @param req         요청 내용 (설명/사업계획서 첨부)
      * @param userDetails 요청자 (정보보호관리자 ITPAD002)
      * @throws IllegalStateException 협의회가 정보보호시스템(04)·결재완료(04)가 아니거나 이미 요청이 있는 경우
      * @throws AccessDeniedException 정보보호관리자가 아닌 경우
@@ -79,10 +79,9 @@ public class CouncilSkipService {
 
         // 타당성검토표는 협의회 구조화 데이터(Bpovwm)로 활용하므로 별도 파일참조 없음. 첨부는 사업계획서 1종.
         // 신규 INSERT 보장(@PrePersist 발화 → 감사로그 스냅샷 정합) — it_backend §5.12.1.1
-        Baskpm baskpm = Baskpm.create(
-                asctId, req.rsnTc(), req.rsn(), req.flMpnId(), userDetails.getEno());
+        Baskpm baskpm = Baskpm.create(asctId, req.rsn(), req.flMpnId(), userDetails.getEno());
         entityManager.persist(baskpm);
-        log.info("[생략판정요청] 등록 - asctId={}, rqsUsid={}, rsnTc={}", asctId, userDetails.getEno(), req.rsnTc());
+        log.info("[생략판정요청] 등록 - asctId={}, rqsUsid={}", asctId, userDetails.getEno());
     }
 
     /**
@@ -197,7 +196,7 @@ public class CouncilSkipService {
     /** Baskpm(요청·접수 메타) + Basctm(최종 생략여부·사유) → 응답 DTO 변환. */
     private CouncilDto.SkipRequestResponse toResponse(Baskpm b, Basctm council) {
         return new CouncilDto.SkipRequestResponse(
-                b.getItPtlAsctId(), b.getPrtyIvgOmtRsnTc(), b.getCgprOpnnCone(),
+                b.getItPtlAsctId(), b.getCgprOpnnCone(),
                 b.getFlMpnId(), b.getRqsUsid(), b.getRqsDtm(),
                 b.getCnfmDtm() != null,
                 council.getPrtyIvgOmtYn(), council.getPrtyIvgOmtRsn(),

@@ -21,6 +21,7 @@
 - `CURRENT_SCHEMA=ITPOWN`이 세션에 적용되므로 엔티티와 네이티브 쿼리에 `ITPOWN.` 접두사를 하드코딩하지 않습니다.
 - 물리 구조의 SoT는 `../it_database/migrations`, ORM 매핑의 SoT는 엔티티, 사람이 보는 매핑 인덱스는 [data-model.md](docs/guides/persistence/data-model.md)입니다.
 - 엔티티·컬럼명은 `C:\it\meta\meta.txt`의 메타 용어와 [컬럼 명명 가이드](docs/guides/persistence/column-naming.md)를 따릅니다.
+- 시퀀스는 `SQ_{테이블명}_#`(예: `SQ_TPRMPP_CAUTHI_1`), PK 제약이 소유하지 않는 인덱스는 `IX_{테이블명}_##`(예: `IX_TPRMPP_CAUTHI_01`) 명명 규칙을 따릅니다. 감사로그 PK 채번(`AuditLogIdGenerator`)도 이 규칙으로 시퀀스명을 유도합니다.
 - 모든 업무 엔티티는 `BaseEntity`를 상속하고 물리 삭제 대신 `delete()`로 `DEL_YN='Y'`를 설정합니다.
 - 감사 대상 업무 엔티티는 `@LogTarget`, 대응 로그 엔티티는 `BaseLogEntity`를 사용합니다.
 - `@LogTarget` 엔티티의 고유 NOT NULL 기본값은 `@PrePersist`에만 의존하지 말고 생성자·팩토리에서 설정합니다.
@@ -112,6 +113,7 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 기능 변경 후 `./gradlew test`, 인증·결재·파일·QueryDSL·감사로그 공통 변경은 `./gradlew clean test`를 실행합니다.
 - 로컬 Oracle 통합 테스트는 `@Tag("it")`와 `integrationTest` 태스크를 사용합니다.
 - public API와 service 메서드 JavaDoc은 입력값·반환값·실패 조건을 한글로 기록합니다.
+- Javadoc 기본 생성자 경고는 Jackson 역직렬화가 확인된 요청·입력 DTO에 한해 Javadoc을 단 명시적 no-arg 생성자 선언으로 해소합니다. 클래스 레벨 `@Builder`가 붙은 응답 DTO에는 builder용 전체 필드 생성자를 보존하기 위해 no-arg 생성자를 기계적으로 추가하지 않습니다. 전환하지 않은 대량 DTO의 기본 생성자 경고는 허용 잔여로 관리하며, 총량 기준선 수치는 CLAUDE.md가 아닌 `../TASK.md` 항목 메모 또는 `../README.md` 변경 이력에 기록합니다.
 - 설명 가치가 없는 단순 대입·게터에는 주석을 추가하지 않습니다.
 - 로그에 비밀값·토큰·휴대폰·OTP를 기록하지 않습니다.
 - 파일 로깅·롤오버 상세는 [로깅 가이드](docs/guides/operations/logging.md), 실시간 감사 피드는 [실시간 로그 가이드](docs/guides/operations/realtime-logs.md)를 따릅니다.

@@ -9,7 +9,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +26,6 @@ import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -94,8 +92,8 @@ class PlanEvaluationServiceTest {
         return e;
     }
 
-    private CuserI mockUser(String eno, String nm) {
-        CuserI u = mock(CuserI.class);
+    private UserRepository.UserNameView mockUser(String eno, String nm) {
+        UserRepository.UserNameView u = mock(UserRepository.UserNameView.class);
         given(u.getEno()).willReturn(eno);
         given(u.getUsrNm()).willReturn(nm);
         return u;
@@ -113,9 +111,9 @@ class PlanEvaluationServiceTest {
         Bplevm bE2 = mockEval("E2", "PRJ-B", "N");
         given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(List.of(aE1, aE2, bE1, bE2));
-        CuserI u1 = mockUser("E1", "홍길동");
-        CuserI u2 = mockUser("E2", "김철수");
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(u1, u1, u2));
+        UserRepository.UserNameView u1 = mockUser("E1", "홍길동");
+        UserRepository.UserNameView u2 = mockUser("E2", "김철수");
+        given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of(u1, u1, u2));
 
         CouncilDto.PlanEvaluationSummaryResponse res = planEvaluationService.getAllEvaluations(ASCT_ID);
 
@@ -133,7 +131,7 @@ class PlanEvaluationServiceTest {
     @DisplayName("getPlanTargets: 계획 연결이 없으면 예외를 반환한다")
     void getPlanTargets_missingPlan_rejected() {
         Basctm council = mock(Basctm.class);
-        given(council.getReqDocNo()).willReturn(" ");
+        given(council.getAbusMngNo()).willReturn(" ");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         assertThatThrownBy(() -> planEvaluationService.getPlanTargets(ASCT_ID))
@@ -147,7 +145,7 @@ class PlanEvaluationServiceTest {
     @DisplayName("getPlanTargets: 정보화사업만 추려 상세와 전산업무비 건수를 병합한다")
     void getPlanTargets_mergesProjectDetailsAndExcludesOperatingBusiness() {
         Basctm council = mock(Basctm.class);
-        given(council.getReqDocNo()).willReturn("PLN-2026-0001");
+        given(council.getAbusMngNo()).willReturn("PLN-2026-0001");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         PlanDto.DetailResponse plan = PlanDto.DetailResponse.builder()
                 .bseYy("2026")
@@ -190,7 +188,7 @@ class PlanEvaluationServiceTest {
     @DisplayName("getPlanTargets: 조정계획은 조회 실패 후보를 건너뛰고 직전 수립계획 예산을 사용한다")
     void getPlanTargets_adjustmentUsesLatestMatchingBaseline() {
         Basctm council = mock(Basctm.class);
-        given(council.getReqDocNo()).willReturn("PLN-CURRENT");
+        given(council.getAbusMngNo()).willReturn("PLN-CURRENT");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         PlanDto.DetailResponse current = PlanDto.DetailResponse.builder()
                 .bseYy("2026")
@@ -206,11 +204,11 @@ class PlanEvaluationServiceTest {
         Basctm broken = mock(Basctm.class);
         Basctm wrongYear = mock(Basctm.class);
         Basctm baseline = mock(Basctm.class);
-        given(blank.getReqDocNo()).willReturn(null);
-        given(same.getReqDocNo()).willReturn("PLN-CURRENT");
-        given(broken.getReqDocNo()).willReturn("PLN-BROKEN");
-        given(wrongYear.getReqDocNo()).willReturn("PLN-OLD");
-        given(baseline.getReqDocNo()).willReturn("PLN-BASE");
+        given(blank.getAbusMngNo()).willReturn(null);
+        given(same.getAbusMngNo()).willReturn("PLN-CURRENT");
+        given(broken.getAbusMngNo()).willReturn("PLN-BROKEN");
+        given(wrongYear.getAbusMngNo()).willReturn("PLN-OLD");
+        given(baseline.getAbusMngNo()).willReturn("PLN-BASE");
         given(councilRepository
                 .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc("02", "13", "N"))
                 .willReturn(List.of(blank, same, broken, wrongYear, baseline));
@@ -237,7 +235,7 @@ class PlanEvaluationServiceTest {
     @DisplayName("getPlanTargets: 손상된 스냅샷과 대상년도 없음은 빈 결과로 안전하게 처리한다")
     void getPlanTargets_invalidSnapshotReturnsEmptyTargets() {
         Basctm council = mock(Basctm.class);
-        given(council.getReqDocNo()).willReturn("PLN-BROKEN");
+        given(council.getAbusMngNo()).willReturn("PLN-BROKEN");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(planService.getPlan("PLN-BROKEN")).willReturn(PlanDto.DetailResponse.builder()
                 .itPtlPlnTpC("조정")
@@ -279,7 +277,7 @@ class PlanEvaluationServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
         given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(List.of(evaluation));
-        given(userRepository.findByEnoIn(List.of("UNKNOWN"))).willReturn(List.of());
+        given(userRepository.findNameViewsByEnoIn(List.of("UNKNOWN"))).willReturn(List.of());
 
         CouncilDto.PlanEvaluationSummaryResponse result =
                 planEvaluationService.getAllEvaluations(ASCT_ID);
@@ -302,7 +300,7 @@ class PlanEvaluationServiceTest {
 
         assertThat(result.evaluations()).isEmpty();
         assertThat(result.verdicts()).isEmpty();
-        verify(userRepository, never()).findByEnoIn(anyCollection());
+        verify(userRepository, never()).findNameViewsByEnoIn(anyCollection());
     }
 
     @Test
@@ -421,7 +419,7 @@ class PlanEvaluationServiceTest {
     @DisplayName("buildResultSummary: 사업별 판정 표(HTML) 생성 — 유보 사업은 '유보', 사업명은 스냅샷에서 해석")
     void buildResultSummary_rendersTable() {
         Basctm council = mock(Basctm.class);
-        given(council.getReqDocNo()).willReturn("PLN-2026-0001");
+        given(council.getAbusMngNo()).willReturn("PLN-2026-0001");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         // PRJ-A: E1 적정 / E2 유보 → 최종 유보
@@ -448,7 +446,7 @@ class PlanEvaluationServiceTest {
     @DisplayName("buildResultSummary: 사업명과 의견을 이스케이프하고 적정 사업은 의견 없음으로 표시한다")
     void buildResultSummary_escapesHtmlAndFallsBackToBusinessId() {
         Basctm council = mock(Basctm.class);
-        given(council.getReqDocNo()).willReturn("PLN-BROKEN");
+        given(council.getAbusMngNo()).willReturn("PLN-BROKEN");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         Bplevm reserve = mockEval("E1", "PRJ-<A>", "N", "보완 & 재검토");
         Bplevm blankOpinion = mockEval("E2", "PRJ-<A>", "N", " ");

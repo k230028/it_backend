@@ -20,7 +20,7 @@ import lombok.experimental.SuperBuilder;
  * <p>DB 테이블: {@code TPRMPP_BPLEVM}</p>
  *
  * <p>정보기술부문계획(dbrTc='02') 협의회에서 각 평가위원이 계획에 포함된
- * 정보화사업별로 적정/유보(PPRT_YN)와 사유(EVAL_OPNN_CONE)를 남깁니다.
+ * 정보화사업별로 적정/유보(PPRT_YN)와 사유(CKG_OPNN_CONE)를 남깁니다.
  * 사업별 최종 판정은 "위원 중 1명이라도 유보(N)면 유보"입니다(집계는 서비스 계층).</p>
  *
  * <p>기존 타당성검토 평가의견(Bevalm)과 구조가 유사하나, 세 번째 복합키가
@@ -30,7 +30,7 @@ import lombok.experimental.SuperBuilder;
  */
 @LogTarget(entity = BplevmL.class)
 @Entity
-@Table(name = "TPRMPP_BPLEVM", comment = "정보기술부문계획 협의회 사업별 평가의견")
+@Table(name = "TPRMPP_BPLEVM", comment = "프로젝트관리_협의회정보기술부문계획기본")
 @IdClass(BplevmId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -50,15 +50,15 @@ public class Bplevm extends BaseEntity {
 
     /** 사업관리번호: 복합키 세 번째 컬럼 (심의 대상 정보화사업) */
     @Id
-    @Column(name = "ABUS_MNG_NO", length = 32, nullable = false, comment = "사업관리번호")
+    @Column(name = "ABUS_MNG_NO", length = 30, nullable = false, comment = "사업관리번호")
     private String abusMngNo;
 
     /** 적정여부: Y(적정) / N(유보). 위원이 사업별로 1택. */
-    @Column(name = "PPRT_YN", length = 1, nullable = false, comment = "적정여부(Y=적정/N=유보)")
+    @Column(name = "PPRT_YN", length = 1, comment = "적정여부")
     private String pprtYn;
 
     /** 평가의견내용: 적정/유보 사유 (최대 1000자) */
-    @Column(name = "EVAL_OPNN_CONE", length = 1000, comment = "평가의견내용")
+    @Column(name = "CKG_OPNN_CONE", length = 1000, comment = "점검의견내용")
     private String evalOpnn;
 
     /**

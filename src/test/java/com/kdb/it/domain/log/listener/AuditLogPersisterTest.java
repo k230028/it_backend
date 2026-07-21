@@ -50,7 +50,7 @@ class AuditLogPersisterTest {
         TransactionSynchronizationManager.initSynchronization();
         persister.persist(source, SampleLogEntity.class, "U");
         verifyNoInteractions(writer);
-        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+        TransactionSynchronizationManager.getSynchronizations().forEach(sync -> sync.afterCommit());
         verify(writer).writeInNewTransaction(any(SampleLogEntity.class));
     }
 
@@ -71,7 +71,7 @@ class AuditLogPersisterTest {
                 .writeInNewTransaction(any(BaseLogEntity.class));
         TransactionSynchronizationManager.initSynchronization();
         persister.persist(source, SampleLogEntity.class, "U");
-        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+        TransactionSynchronizationManager.getSynchronizations().forEach(sync -> sync.afterCommit());
         verify(failureRecorder).record(eq("SampleEntity"), anyString(), eq("U"), eq("afterCommit"), any());
     }
 

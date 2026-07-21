@@ -41,11 +41,11 @@ public interface BtermmRepository extends JpaRepository<Btermm, BtermmId> {
     List<Btermm> findByTermBgNoInAndDelYn(java.util.Collection<String> termBgNos, String delYn);
 
     /**
-     * Oracle 시퀀스(SEQ_BTERMM) 다음 값 조회
+     * Oracle 시퀀스(SQ_TPRMPP_BTERMM_1) 다음 값 조회
      *
      * @return 시퀀스의 다음 값 (Long)
      */
-    @Query(value = "SELECT SEQ_BTERMM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_BTERMM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
     /**

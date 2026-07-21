@@ -83,7 +83,7 @@ class FeasibilityServiceTest {
         given(overview.getAbusNm()).willReturn("테스트사업");
         given(overview.getAbusTrmCone()).willReturn("2026");
         given(overview.getLwRglYn()).willReturn("N");
-        given(overview.getKpnTpTc()).willReturn("02");
+        given(overview.getKpnTpTc()).willReturn("20");
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
         given(performanceRepository.findByItPtlAsctIdAndDelYnOrderByEvlDtpSnoAsc(ASCT_ID, "N")).willReturn(List.of());
 
@@ -103,7 +103,7 @@ class FeasibilityServiceTest {
     void saveFeasibility_COMPLETE_첨부파일없음_IllegalArgumentException발생() {
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "테스트사업", "2026", null, null, null, null, "N", null, null,
-                "02", null, null, null);
+                "20", null, null, null);
 
         assertThatThrownBy(() -> feasibilityService.saveFeasibility(ASCT_ID, request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -119,7 +119,7 @@ class FeasibilityServiceTest {
     void saveFeasibility_COMPLETE_정상요청_SUBMITTED전이() {
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "테스트사업", "2026", null, null, null, null, "N", null, null,
-                "02", null, "FL_00000001", null);
+                "20", null, "FL_00000001", null);
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
 
         feasibilityService.saveFeasibility(ASCT_ID, request);
@@ -132,7 +132,7 @@ class FeasibilityServiceTest {
     void saveFeasibility_TEMP_상태전이없음() {
         CouncilDto.FeasibilityRequest request = new CouncilDto.FeasibilityRequest(
                 "테스트사업", "2026", null, null, null, null, "N", null, null,
-                "01", null, null, null);
+                "10", null, null, null);
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.empty());
 
         feasibilityService.saveFeasibility(ASCT_ID, request);
@@ -199,7 +199,7 @@ class FeasibilityServiceTest {
         Bpovwm overview = mock(Bpovwm.class);
         given(overview.getAbusNm()).willReturn("성과사업");
         given(overview.getLwRglYn()).willReturn("Y");
-        given(overview.getKpnTpTc()).willReturn("01");
+        given(overview.getKpnTpTc()).willReturn("10");
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(Optional.of(overview));
         com.kdb.it.domain.council.entity.Bperfm perf = mock(com.kdb.it.domain.council.entity.Bperfm.class);
         given(perf.getEvlDtpSno()).willReturn(1);

@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
  *
  * <p>
  * PK({@code LOG_HIS_TGR_SNO})는 {@code AuditLogIdGenerator}가
- * {@code SEQ_{Postfix}.NEXTVAL}을 조회하여 Long 값으로 생성한다.
+ * {@code SQ_{테이블명}_1.NEXTVAL}을 조회하여 Long 값으로 생성한다.
  * </p>
  *
  * <p>
@@ -36,7 +36,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public abstract class BaseLogEntity {
 
-    /** 로그이력전문일련번호: PK. Oracle 시퀀스 SEQ_{테이블Postfix}에서 발급 */
+    /** 로그이력전문일련번호: PK. Oracle 시퀀스 SQ_{테이블명}_1에서 발급 */
     @Id
     @AuditLogId
     @Column(name = "LOG_HIS_TGR_SNO", nullable = false, updatable = false, comment = "로그이력전문일련번호")

@@ -29,10 +29,10 @@ class BoardFileReadAuthorizerTest {
         return file;
     }
 
-    private Cblbcm post(String sreYn, LocalDate stt, LocalDate end) {
+    private Cblbcm post(String xpoYn, LocalDate stt, LocalDate end) {
         return Cblbcm.builder()
                 .nacMngNo("NAC-1").blbMngNo("BLBM-1").nacNm("게시물")
-                .sreYn(sreYn).sttDt(stt).endDt(end)
+                .xpoYn(xpoYn).sttDt(stt).endDt(end)
                 .nacInqNbr(0).flNbr(0).flApgYn("N").ancYn("N")
                 .nacUnqId("NAC-1").nacGrpSqn(0).nacGrpLev(0).delYn("N")
                 .build();
@@ -58,7 +58,7 @@ class BoardFileReadAuthorizerTest {
     }
 
     @Test
-    @DisplayName("비공개(sreYn=N) 게시물은 읽기 불가")
+    @DisplayName("비노출(xpoYn=N) 게시물은 읽기 불가")
     void hiddenPost_cannotRead() {
         given(boardPostRepository.findByNacMngNoAndDelYn("NAC-1", "N"))
                 .willReturn(Optional.of(post("N", null, null)));
@@ -66,7 +66,7 @@ class BoardFileReadAuthorizerTest {
     }
 
     @Test
-    @DisplayName("공개중(sreYn=Y, 기간 내) 게시물은 읽기 가능")
+    @DisplayName("노출중(xpoYn=Y, 기간 내) 게시물은 읽기 가능")
     void visiblePost_canRead() {
         given(boardPostRepository.findByNacMngNoAndDelYn("NAC-1", "N"))
                 .willReturn(Optional.of(post("Y", LocalDate.now().minusDays(1), LocalDate.now().plusDays(1))));

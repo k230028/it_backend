@@ -29,8 +29,8 @@ import java.util.stream.Collectors;
  *
  * <p>저장 방식:</p>
  * <ul>
- *   <li>KPN_TC=001(임시저장): 상태 DRAFT 유지, 빈 값 허용</li>
- *   <li>KPN_TC=002(저장/작성완료): 상태 SUBMITTED 전이, 첨부파일 필수</li>
+ *   <li>KPN_TP_TC=10(임시저장): 상태 DRAFT 유지, 빈 값 허용</li>
+ *   <li>KPN_TP_TC=20(저장완료): 상태 SUBMITTED 전이, 첨부파일 필수</li>
  * </ul>
  *
  * <p>성과지표 저장 전략: 요청에 포함된 전체 목록으로 교체 (기존 삭제 + 신규 저장)</p>
@@ -109,7 +109,7 @@ public class FeasibilityService {
      *
      * <p>신규 작성이면 INSERT, 기존 데이터가 있으면 UPDATE합니다.</p>
      *
-     * <p>작성완료(KPN_TC=002) 시 처리:</p>
+     * <p>작성완료(KPN_TP_TC=20) 시 처리:</p>
      * <ul>
      *   <li>첨부파일(hwp/hwpx/pdf) 필수 확인</li>
      *   <li>협의회 상태를 SUBMITTED로 전이</li>
@@ -124,7 +124,7 @@ public class FeasibilityService {
         councilService.findActiveCouncil(asctId);
 
         // 작성완료 시 첨부파일 필수 검증
-        if ("02".equals(request.kpnTc())) { // KPN_TC 002 = 저장(작성완료)
+        if ("20".equals(request.kpnTc())) { // KPN_TP_TC 20 = 저장완료
             validateAttachment(request.flMngNo());
         }
 
@@ -140,7 +140,7 @@ public class FeasibilityService {
         }
 
         // 작성완료 시 상태 전이: DRAFT → SUBMITTED
-        if ("02".equals(request.kpnTc())) { // KPN_TC 002 = 저장(작성완료)
+        if ("20".equals(request.kpnTc())) { // KPN_TP_TC 20 = 저장완료
             councilService.changeStatus(asctId, "02");
         }
     }
@@ -186,20 +186,20 @@ public class FeasibilityService {
      * 자체점검 항목별 신규 저장 또는 업데이트 (upsert)
      *
      * <p>협의회 단위로 점검항목당 1행(BCHKLM)을 유지한다. 평가위원 평가(BEVALM)와 달리
-     * 사번이 없다. 작성완료(kpnTc='02') 시 모든 항목의 점검점수와 점검의견 입력이 필수이며,
-     * 임시저장('01')은 부분 입력을 허용한다.</p>
+     * 사번이 없다. 작성완료(kpnTc='20') 시 모든 항목의 점검점수와 점검의견 입력이 필수이며,
+     * 임시저장('10')은 부분 입력을 허용한다.</p>
      */
     private void saveOrUpdateSelfChecks(String asctId, CouncilDto.FeasibilityRequest req) {
         if (req.selfChecks() == null || req.selfChecks().isEmpty()) {
             return;
         }
-        // 작성완료(kpnTc='02') 시 전 항목 점검점수+점검의견 필수. 임시저장('01')은 부분 입력 허용.
-        boolean isComplete = "02".equals(req.kpnTc());
+        // 작성완료(kpnTc='20') 시 전 항목 점검점수+점검의견 필수. 임시저장('10')은 부분 입력 허용.
+        boolean isComplete = "20".equals(req.kpnTc());
 
         // 기존 자체점검을 항목코드 기준으로 1회 배치 조회 (항목별 개별 SELECT N+1 제거)
         Map<String, Bchklm> existingByItem = selfCheckRepository
                 .findByItPtlAsctIdAndDelYn(asctId, "N").stream()
-                .collect(Collectors.toMap(Bchklm::getItPtlCkgItmTc, c -> c, (a, b) -> a));
+                .collect(Collectors.toMap(c -> c.getItPtlCkgItmTc(), c -> c, (a, b) -> a));
 
         for (CouncilDto.SelfCheckItem item : req.selfChecks()) {
             // 작성완료 시 모든 항목 점검점수+점검의견 필수

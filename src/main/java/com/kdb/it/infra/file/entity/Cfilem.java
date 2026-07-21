@@ -47,20 +47,21 @@ public class Cfilem extends BaseEntity {
     @Column(name = "FL_MPN_ID", nullable = false, length = 36, comment = "파일매핑ID")
     private String flMpnId;
 
-    /** 파일명: 사용자가 업로드한 실제 파일명 (예: 요구사항정의서_v1.0.pdf) */
-    @Column(name = "FL_NM", nullable = false, length = 100, comment = "파일명")
+    /** 파일명: 사용자가 업로드한 실제 파일명 (예: 요구사항정의서_v1.0.pdf). DB는 NULL 허용(레거시)이며 업로드 플로우가 항상 값을 채운다. */
+    @Column(name = "FL_NM", length = 100, comment = "파일명")
     private String flNm;
 
     /**
      * 파일물리명: 서버에 저장되는 고유 파일명
      * 형식: {서버ID}_{yyyyMMddHHmmss}_{UUID}.{확장자}
      * (예: SVR1_20260315143022_550e8400e29b41d4a716446655440000.pdf)
+     * <p>DB는 NULL 허용(레거시)이며 업로드 플로우가 항상 값을 채운다.</p>
      */
-    @Column(name = "FL_PYS_NM", nullable = false, length = 120, comment = "파일물리명")
+    @Column(name = "FL_PYS_NM", length = 120, comment = "파일물리명")
     private String flPysNm;
 
-    /** 파일저장경로: 서버 내 실제 저장 디렉토리 경로 (예: /data/files/요구사항정의서/2026/03) */
-    @Column(name = "FL_KPN_PTH", nullable = false, length = 255, comment = "파일저장경로")
+    /** 파일저장경로: 서버 내 실제 저장 디렉토리 경로 (예: /data/files/요구사항정의서/2026/03). DB는 NULL 허용(레거시)이며 업로드 플로우가 항상 값을 채운다. */
+    @Column(name = "FL_KPN_PTH", length = 255, comment = "파일저장경로")
     private String flKpnPth;
 
     /** 파일유형내용: 파일 유형 구분 (예: '이미지' 또는 '첨부파일') */

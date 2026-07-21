@@ -9,7 +9,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.admin.dto.AdminLogDto;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.log.entity.BasctmL;
 import com.kdb.it.domain.log.entity.BbugtL;
@@ -95,8 +94,10 @@ class AdminLogServiceTest {
         given(listQuery.getResultList()).willReturn(List.of(log));
         given(entityManager.createQuery("select count(e) from BasctmL e", Long.class)).willReturn(countQuery);
         given(countQuery.getSingleResult()).willReturn(1L);
-        CuserI user = CuserI.builder().eno("10001").usrNm("홍길동").build();
-        given(userRepository.findByEnoIn(any())).willReturn(List.of(user));
+        UserRepository.UserNameView user = mock(UserRepository.UserNameView.class);
+        given(user.getEno()).willReturn("10001");
+        given(user.getUsrNm()).willReturn("홍길동");
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of(user));
 
         AdminLogDto.LogPageResponse result = adminLogService.getLogs("basctm", PageRequest.of(0, 999));
 

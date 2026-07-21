@@ -23,8 +23,8 @@ import java.time.LocalDate;
  *
  * <p>결재 처리 흐름:</p>
  * <pre>
- *   신청서 생성 시: DCD_STS_C='1'(미결재), 나머지 null
- *   결재 처리 후:   DCD_STS_C='2'(승인) 또는 '3'(반려)
+ *   신청서 생성 시: IT_PTL_DCD_STS_C='1'(미결재), 나머지 null
+ *   결재 처리 후:   IT_PTL_DCD_STS_C='2'(승인) 또는 '3'(반려)
  * </pre>
  *
  * <p>순차 결재: {@code DCR_SQN_SNO} 순서대로 결재가 진행됩니다.
@@ -74,9 +74,9 @@ public class Cdecim extends BaseEntity {
     @Column(name = "DCR_OPNN_CONE", length = 2000, comment = "결재자의견내용")
     private String dcrOpnnCone;
 
-    /** 결재상태코드: Ccodem DCD_STS_C 참조 (1:미결재, 2:승인, 3:반려, 4:회수무효). */
-    @Column(name = "DCD_STS_C", length = 1, nullable = false, comment = "결재상태코드")
-    private String dcdStsC;
+    /** 결재상태코드: Ccodem IT_PTL_DCD_STS_C 참조 (1:미결재, 2:승인, 3:반려, 4:회수무효). */
+    @Column(name = "IT_PTL_DCD_STS_C", length = 1, nullable = false, comment = "IT포탈결재상태코드")
+    private String itPtlDcdStsC;
 
     /**
      * 최종결재여부: 이 결재자가 결재선의 마지막 결재자인지 여부
@@ -98,13 +98,13 @@ public class Cdecim extends BaseEntity {
      * @param status  결재 상태 ({@link DecisionStatus#APPROVED} 또는 {@link DecisionStatus#REJECTED})
      */
     public void approve(String opinion, DecisionStatus status) {
-        this.dcdStsC    = status.code();
+        this.itPtlDcdStsC    = status.code();
         this.dcdDtm     = LocalDate.now();
         this.dcrOpnnCone = opinion;
     }
 
     /** 회수로 인한 미결재 항목 무효화 */
     public void invalidateByRecall() {
-        this.dcdStsC = DecisionStatus.INVALIDATED.code();
+        this.itPtlDcdStsC = DecisionStatus.INVALIDATED.code();
     }
 }

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
@@ -11,6 +12,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +27,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
@@ -69,14 +71,32 @@ class CommitteeServiceTest {
 
     private static final String ASCT_ID = "ASCT-2026-0001";
 
-    private CuserI mockUser(String eno, String temC, String ptCNm) {
-        CuserI user = mock(CuserI.class);
+    private UserRepository.CommitteeUserRow mockCommitteeUser(String eno, String temC, String ptCNm) {
+        UserRepository.CommitteeUserRow user = mock(UserRepository.CommitteeUserRow.class);
         given(user.getEno()).willReturn(eno);
         given(user.getTemC()).willReturn(temC);
         given(user.getPtCNm()).willReturn(ptCNm);
         given(user.getUsrNm()).willReturn("홍길동");
         given(user.getBbrNm()).willReturn("IT본부");
         return user;
+    }
+
+    private record CouncilMemberUser(String eno, String usrNm, String bbrNm, String ptCNm)
+            implements UserRepository.CouncilMemberUserRow {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+        @Override public String getBbrNm() { return bbrNm; }
+        @Override public String getPtCNm() { return ptCNm; }
+    }
+
+    /** findByTemCInAndDelYn 배치 스텁 — 요청된 팀코드에 속한 활성 사용자만 반환한다. */
+    private void stubUsersByTeam(UserRepository.CommitteeUserRow... users) {
+        given(userRepository.findCommitteeUserRowsByTemCInAndDelYn(anyCollection(), eq("N"))).willAnswer(invocation -> {
+            Collection<String> temCs = invocation.getArgument(0);
+            return Arrays.stream(users)
+                    .filter(user -> temCs.contains(user.getTemC()))
+                    .toList();
+        });
     }
 
     private Bcmmtm mockMember(String eno, String vlrTc) {
@@ -98,17 +118,13 @@ class CommitteeServiceTest {
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         // mockUser 내부에도 given()이 있으므로 변수에 먼저 생성 후 willReturn에 전달
-        CuserI u12004 = mockUser("E10001", "12004", "팀장");
-        CuserI u18010 = mockUser("E10002", "18010", "팀장");
-        CuserI u18501 = mockUser("E10003", "18501", "팀장");
-        CuserI u18301 = mockUser("E10004", "18301", "팀장");
-        CuserI u18001 = mockUser("E10005", "18001", "팀장");
+        UserRepository.CommitteeUserRow u12004 = mockCommitteeUser("E10001", "12004", "팀장");
+        UserRepository.CommitteeUserRow u18010 = mockCommitteeUser("E10002", "18010", "팀장");
+        UserRepository.CommitteeUserRow u18501 = mockCommitteeUser("E10003", "18501", "팀장");
+        UserRepository.CommitteeUserRow u18301 = mockCommitteeUser("E10004", "18301", "팀장");
+        UserRepository.CommitteeUserRow u18001 = mockCommitteeUser("E10005", "18001", "팀장");
 
-        given(userRepository.findByTemC("12004")).willReturn(List.of(u12004));
-        given(userRepository.findByTemC("18010")).willReturn(List.of(u18010));
-        given(userRepository.findByTemC("18501")).willReturn(List.of(u18501));
-        given(userRepository.findByTemC("18301")).willReturn(List.of(u18301));
-        given(userRepository.findByTemC("18001")).willReturn(List.of(u18001));
+        stubUsersByTeam(u12004, u18010, u18501, u18301, u18001);
 
         List<CouncilDto.CommitteeMemberResponse> result =
                 committeeService.getDefaultCommittee(ASCT_ID);
@@ -119,22 +135,22 @@ class CommitteeServiceTest {
     }
 
     @Test
-    @DisplayName("getDefaultCommittee: 팀장이 없으면 첫 번째 사용자를 후보로 선택한다")
-    void getDefaultCommittee_팀장없음_첫번째사용자선택() {
+    @DisplayName("getDefaultCommittee: 팀장이 없으면 사번이 가장 빠른 사용자를 후보로 선택한다")
+    void getDefaultCommittee_팀장없음_사번오름차순대표선택() {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctDbrTc()).willReturn("05");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
-        CuserI member = mockUser("E20001", "12004", "과장");
-        given(userRepository.findByTemC("12004")).willReturn(List.of(member));
-        given(userRepository.findByTemC("18010")).willReturn(List.of());
-        given(userRepository.findByTemC("18501")).willReturn(List.of());
-        given(userRepository.findByTemC("18001")).willReturn(List.of());
+        UserRepository.CommitteeUserRow laterEnoMember = mockCommitteeUser("E20002", "12004", "과장");
+        UserRepository.CommitteeUserRow earlierEnoMember = mockCommitteeUser("E20001", "12004", "대리");
+        stubUsersByTeam(laterEnoMember, earlierEnoMember);
 
         List<CouncilDto.CommitteeMemberResponse> result =
                 committeeService.getDefaultCommittee(ASCT_ID);
 
-        assertThat(result).filteredOn(r -> "E20001".equals(r.eno())).hasSize(1);
+        assertThat(result)
+                .extracting(r -> r.eno())
+                .containsExactly("E20001");
     }
 
     @Test
@@ -144,11 +160,10 @@ class CommitteeServiceTest {
         given(council.getItPtlAsctDbrTc()).willReturn("02");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
-        CuserI u14011 = mockUser("E30001", "14011", "팀장");  // 미래전략팀장 → 당연위원
-        CuserI u18001 = mockUser("E30002", "18001", "팀장");  // IT기획팀장 → 당연위원 겸 간사
+        UserRepository.CommitteeUserRow u14011 = mockCommitteeUser("E30001", "14011", "팀장");  // 미래전략팀장 → 당연위원
+        UserRepository.CommitteeUserRow u18001 = mockCommitteeUser("E30002", "18001", "팀장");  // IT기획팀장 → 당연위원 겸 간사
 
-        given(userRepository.findByTemC("14011")).willReturn(List.of(u14011));
-        given(userRepository.findByTemC("18001")).willReturn(List.of(u18001));
+        stubUsersByTeam(u14011, u18001);
 
         List<CouncilDto.CommitteeMemberResponse> result =
                 committeeService.getDefaultCommittee(ASCT_ID);
@@ -157,11 +172,11 @@ class CommitteeServiceTest {
         assertThat(result).hasSize(2);
         assertThat(result)
                 .filteredOn(r -> "E30001".equals(r.eno()))
-                .extracting(CouncilDto.CommitteeMemberResponse::vlrTc)
+                .extracting(r -> r.vlrTc())
                 .containsExactly("01");
         assertThat(result)
                 .filteredOn(r -> "E30002".equals(r.eno()))
-                .extracting(CouncilDto.CommitteeMemberResponse::vlrTc)
+                .extracting(r -> r.vlrTc())
                 .containsExactly("04");
     }
 
@@ -181,10 +196,10 @@ class CommitteeServiceTest {
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(List.of(mand, call, secr));
 
-        CuserI ue1 = mockUser("E10001", "18001", "팀장");
-        CuserI ue2 = mockUser("E10002", "18010", "대리");
-        CuserI ue3 = mockUser("E10003", "18301", "과장");
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(ue1, ue2, ue3));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
+                new CouncilMemberUser("E10001", "홍길동", "IT본부", "팀장"),
+                new CouncilMemberUser("E10002", "홍길동", "IT본부", "대리"),
+                new CouncilMemberUser("E10003", "홍길동", "IT본부", "과장")));
 
         CouncilDto.CommitteeListResponse result = committeeService.getCommittee(ASCT_ID);
 
@@ -204,8 +219,8 @@ class CommitteeServiceTest {
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(List.of(dual));
 
-        CuserI u18001 = mockUser("E30002", "18001", "팀장");
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(u18001));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
+                new CouncilMemberUser("E30002", "홍길동", "IT본부", "팀장")));
 
         CouncilDto.CommitteeListResponse result = committeeService.getCommittee(ASCT_ID);
 
@@ -215,22 +230,54 @@ class CommitteeServiceTest {
     }
 
     @Test
-    @DisplayName("getCommittee: 사용자명은 findByEnoIn 1회 배치 — findByEno 미호출")
-    void getCommittee_findByEnoIn_1회() {
+    @DisplayName("getCommittee: 위원 응답 프로젝션 exactly 1 배치 — 엔티티 조회 미호출")
+    void getCommittee_위원응답프로젝션_1회() {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         Bcmmtm mand = mockMember("E10001", "01");
         Bcmmtm call = mockMember("E10002", "02");
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(mand, call));
-        // mockUser 내부에도 given()이 있으므로 변수에 먼저 생성 후 willReturn에 전달
-        CuserI ue1 = mockUser("E10001", "18001", "팀장");
-        CuserI ue2 = mockUser("E10002", "18010", "대리");
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(ue1, ue2));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
+                new CouncilMemberUser("E10001", "홍길동", "IT본부", "팀장"),
+                new CouncilMemberUser("E10002", "김길동", "IT본부", "대리")));
 
         committeeService.getCommittee(ASCT_ID);
 
-        then(userRepository).should(times(1)).findByEnoIn(anyCollection());
+        then(userRepository).should(times(1)).findCouncilMemberUserRowsByEnoIn(anyCollection());
+        then(userRepository).should(never()).findByEnoIn(anyCollection());
         then(userRepository).should(never()).findByEno(anyString());
+    }
+
+    @Test
+    @DisplayName("getCommittee: 사용자 미존재 시 사번만 유지하고 나머지 사용자 정보는 null이다")
+    void getCommittee_사용자미존재_fallback() {
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
+        Bcmmtm member = mockMember("UNKNOWN", "01");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of());
+
+        CouncilDto.CommitteeMemberResponse response = committeeService.getCommittee(ASCT_ID).mandatory().get(0);
+
+        assertThat(response.eno()).isEqualTo("UNKNOWN");
+        assertThat(response.usrNm()).isNull();
+        assertThat(response.bbrNm()).isNull();
+        assertThat(response.ptCNm()).isNull();
+    }
+
+    @Test
+    @DisplayName("getCommittee: 조직이 없는 사용자는 이름과 직위는 유지하고 부점명만 null이다")
+    void getCommittee_조직미존재_bbrNmNull() {
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
+        Bcmmtm member = mockMember("E10001", "01");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(member));
+        given(userRepository.findCouncilMemberUserRowsByEnoIn(anyCollection())).willReturn(List.of(
+                new CouncilMemberUser("E10001", "홍길동", null, "팀장")));
+
+        CouncilDto.CommitteeMemberResponse response = committeeService.getCommittee(ASCT_ID).mandatory().get(0);
+
+        assertThat(response.usrNm()).isEqualTo("홍길동");
+        assertThat(response.bbrNm()).isNull();
+        assertThat(response.ptCNm()).isEqualTo("팀장");
     }
 
     // ───────────────────────────────────────────────────────

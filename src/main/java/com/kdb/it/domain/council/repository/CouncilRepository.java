@@ -58,14 +58,14 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
             String itPtlAsctDbrTc, String itPtlAsctPrgStsTc, String delYn);
 
     /**
-     * Oracle 시퀀스(SEQ_BASCTM) 다음 값 조회
+     * Oracle 시퀀스(SQ_TPRMPP_BASCTM_1) 다음 값 조회
      *
      * <p>새로운 협의회 생성 시 IT_PTL_ASCT_ID 채번에 사용합니다.
      * ID 형식: {@code ASCT-{연도}-{4자리}} (예: ASCT-2026-0001)</p>
      *
      * @return 시퀀스의 다음 값
      */
-    @Query(value = "SELECT SEQ_BASCTM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_BASCTM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
     /**

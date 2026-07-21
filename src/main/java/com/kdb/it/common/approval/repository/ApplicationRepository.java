@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Collection;
+import java.time.LocalDate;
 
 /**
  * 신청서 마스터(Capplm) 데이터 접근 리포지토리
@@ -27,8 +29,26 @@ import java.util.List;
  */
 public interface ApplicationRepository extends JpaRepository<Capplm, String> {
 
+    /** 프로젝트·관리비 응답 조립에 필요한 신청서 마스터 최소 필드입니다. */
+    interface ApplicationSummaryView {
+        String getApfMngNo();
+        String getItPtlApfPrgStsC();
+        String getDcdReqTtl();
+        String getDcdReqUsid();
+        LocalDate getDcdReqDtm();
+        String getRgprDcdReqCone();
+    }
+
     /**
-     * Oracle 시퀀스(SEQ_CAPPLM) 다음 값 조회
+     * 여러 신청서의 응답 조립용 요약 필드를 조회합니다.
+     *
+     * @param apfMngNos 신청서 관리번호 목록
+     * @return 신청서 요약 view 목록
+     */
+    List<ApplicationSummaryView> findSummaryViewsByApfMngNoIn(Collection<String> apfMngNos);
+
+    /**
+     * Oracle 시퀀스(SQ_TPRMPP_CAPPLM_1) 다음 값 조회
      *
      * <p>신청서 생성 시 신청서관리번호(APF_MNG_NO) 채번에 사용합니다.
      * 형식: {@code APF_{연도}{String.format("%08d", seq)}}
@@ -36,9 +56,9 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      *
      * <p>Oracle DB 전용 Native Query입니다.</p>
      *
-     * @return Oracle 시퀀스(SEQ_CAPPLM)의 다음 값 (Long)
+     * @return Oracle 시퀀스(SQ_TPRMPP_CAPPLM_1)의 다음 값 (Long)
      */
-    @Query(value = "SELECT SEQ_CAPPLM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_CAPPLM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextVal();
 
     /**
@@ -53,9 +73,9 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         SELECT COUNT(DISTINCT a.APF_DCM_NO)
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
-        WHERE a.APF_PRG_STS_C = '1'
+        WHERE a.IT_PTL_APF_PRG_STS_C = '1'
           AND d.DCR_ENO = :eno
-          AND d.DCD_STS_C = '1'
+          AND d.IT_PTL_DCD_STS_C = '1'
         """, nativeQuery = true)
     int countPendingByEno(@Param("eno") String eno);
 
@@ -63,7 +83,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
-        WHERE a.APF_PRG_STS_C = '1'
+        WHERE a.IT_PTL_APF_PRG_STS_C = '1'
           AND a.DCD_REQ_USID = :eno
         """, nativeQuery = true)
     int countInProgressByEno(@Param("eno") String eno);
@@ -73,7 +93,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
-        WHERE a.APF_PRG_STS_C = '2'
+        WHERE a.IT_PTL_APF_PRG_STS_C = '2'
           AND u.BBR_C = :bbrC
           AND a.DCD_REQ_DTM >= TRUNC(SYSDATE, 'MM')
         """, nativeQuery = true)
@@ -83,7 +103,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     @Query(value = """
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
-        WHERE a.APF_PRG_STS_C = '3'
+        WHERE a.IT_PTL_APF_PRG_STS_C = '3'
           AND a.DCD_REQ_USID = :eno
         """, nativeQuery = true)
     int countRejectedByEno(@Param("eno") String eno);
@@ -114,9 +134,9 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
         JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
-        WHERE a.APF_PRG_STS_C = '1'
+        WHERE a.IT_PTL_APF_PRG_STS_C = '1'
           AND d.DCR_ENO = :eno
-          AND d.DCD_STS_C = '1'
+          AND d.IT_PTL_DCD_STS_C = '1'
         ORDER BY a.DCD_REQ_DTM DESC
         FETCH FIRST 3 ROWS ONLY
         """, nativeQuery = true)

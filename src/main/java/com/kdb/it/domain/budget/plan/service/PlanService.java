@@ -85,7 +85,8 @@ public class PlanService {
          * @return 계획 목록 응답 DTO 리스트
          */
         public List<PlanDto.ListResponse> getPlans() {
-                List<Bplanm> plans = bplanmRepository.findAllByDelYnOrderByFstEnrDtmDesc("N");
+                List<BplanmRepository.PlanListView> plans =
+                                bplanmRepository.findListViewsByDelYnOrderByFstEnrDtmDesc("N");
                 if (plans.isEmpty()) {
                         return List.of();
                 }
@@ -103,14 +104,14 @@ public class PlanService {
                                 .toList();
                 Map<String, String> userNameByEno = userEnos.isEmpty()
                                 ? Map.of()
-                                : cuserIRepository.findAllById(userEnos).stream()
+                                : cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
                                                 .collect(Collectors.toMap(value -> value.getEno(),
                                                                 value -> value.getUsrNm(),
                                                                 (a, b) -> a));
 
                 return plans.stream()
                                 .map(plan -> {
-                                        PlanDto.ListResponse dto = PlanDto.ListResponse.fromEntity(plan);
+                                        PlanDto.ListResponse dto = PlanDto.ListResponse.fromView(plan);
                                         dto.setFstEnrUsNm(userNameByEno.get(plan.getFstEnrUsid()));
                                         // 계획 저장 시점의 스냅샷 JSON 의 prjSnapshots 를 그대로 사용한다.
                                         // - prjSnapshots 는 폼 단계에서 경상사업을 신규 정보화사업 대표 1건으로 합산해 구성됨
@@ -554,15 +555,16 @@ public class PlanService {
         }
 
         /**
-         * 스냅샷에 저장된 추진유형 값을 현행 ABUS_TC 코드값ID(01/02)로 정규화한다.
+         * 스냅샷에 저장된 추진유형 값을 현행 ABUS_TC 코드값ID(10/20, 운영 표준)로 정규화한다.
          *
          * <p>
-         * 마이그레이션 이전 스냅샷은 구 PUL_DTT 값(001/002) 또는 그룹ID 접두 형식
-         * (PUL_DTT_001 등)을 저장했을 수 있어 현행 코드값과 매칭되도록 변환한다.
+         * 마이그레이션 이전 스냅샷은 구 PUL_DTT 값(001/002), 그룹ID 접두 형식
+         * (PUL_DTT_001 등) 또는 구 개발 체계 값(01/02)을 저장했을 수 있어
+         * 현행 코드값과 매칭되도록 변환한다.
          * </p>
          *
          * @param raw 스냅샷 항목의 추진유형 원본값(null 허용)
-         * @return 정규화된 코드값ID(예: "01", "02"). 입력이 null 이면 null.
+         * @return 정규화된 코드값ID(예: "10", "20"). 입력이 null 이면 null.
          */
         private static String normalizeAbusTc(Object raw) {
                 if (raw == null) {
@@ -572,9 +574,16 @@ public class PlanService {
                 if (code.startsWith("PUL_DTT_")) {
                         code = code.substring("PUL_DTT_".length());
                 }
-                // 구 3자리(001/002) → 신 2자리(01/02)
+                // 구 3자리(001/002) → 구 2자리(01/02)
                 if (code.length() == 3 && code.startsWith("0")) {
                         code = code.substring(1);
+                }
+                // 구 개발 체계(01=신규/02=계속) → 운영 표준(10/20)
+                if ("01".equals(code)) {
+                        return "10";
+                }
+                if ("02".equals(code)) {
+                        return "20";
                 }
                 return code;
         }

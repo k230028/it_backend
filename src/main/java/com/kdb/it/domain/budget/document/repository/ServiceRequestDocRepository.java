@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,6 +30,15 @@ import java.util.Optional;
  * </p>
  */
 public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, BrdocmId> {
+
+    /** 요구사항 정의서 버전 이력 응답에 필요한 필드만 읽는 프로젝션입니다. */
+    interface VersionHistoryView {
+        String getDocMngNo();
+        BigDecimal getDocVrsSno();
+        LocalDateTime getFstEnrDtm();
+        LocalDateTime getLstChgDtm();
+        String getDelYn();
+    }
 
     /**
      * 문서관리번호로 최신 버전 단건 조회 (일반 조회/수정/삭제의 기본 진입점)
@@ -57,6 +67,16 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
      * @return 전체 버전 목록 (버전 내림차순)
      */
     List<Brdocm> findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc(String docMngNo, String delYn);
+
+    /**
+     * 문서관리번호의 활성 버전 이력을 경량 프로젝션으로 조회합니다.
+     *
+     * @param docMngNo 문서관리번호
+     * @param delYn 삭제여부
+     * @return 문서 버전 내림차순 이력 목록
+     */
+    List<VersionHistoryView> findAllProjectedByDocMngNoAndDelYnOrderByDocVrsSnoDesc(
+            String docMngNo, String delYn);
 
     /**
      * 문서관리번호의 전체 버전 조회 (소프트 삭제 일괄 처리용, 순서 무관)
@@ -107,16 +127,16 @@ public interface ServiceRequestDocRepository extends JpaRepository<Brdocm, Brdoc
     List<Brdocm> findLatestVersionsAll();
 
     /**
-     * Oracle 시퀀스(SEQ_BRDOCM) 다음 값 조회
+     * Oracle 시퀀스(SQ_TPRMPP_BRDOCM_1) 다음 값 조회
      *
      * <p>
      * 신규 요구사항 정의서 생성 시 문서관리번호 채번에 사용합니다.
      * 형식: {@code DOC-{연도}-{4자리 시퀀스}} (예: {@code DOC-2026-0001})
      * </p>
      *
-     * @return Oracle 시퀀스(SEQ_BRDOCM)의 다음 값
+     * @return Oracle 시퀀스(SQ_TPRMPP_BRDOCM_1)의 다음 값
      */
-    @Query(value = "SELECT SEQ_BRDOCM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_BRDOCM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
     /** 부서 기준 전체 미삭제 문서 수 (DOC_MNG_NO 기준 distinct) */

@@ -3,6 +3,10 @@ package com.kdb.it.common.iam.repository;
 import com.kdb.it.common.iam.entity.CorgnI;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+
 /**
  * 조직(부점) 정보(CorgnI) 데이터 접근 리포지토리
  *
@@ -21,4 +25,26 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * 조직 정보는 읽기 전용으로 주로 활용됩니다.</p>
  */
 public interface OrganizationRepository extends JpaRepository<CorgnI, String> {
+
+    /** 조직명 응답에 필요한 조직코드와 이름 프로젝션. */
+    interface OrganizationNameView {
+        String getPrlmOgzCCone();
+        String getBbrNm();
+    }
+
+    /**
+     * 조직코드 목록으로 조직명 프로젝션을 조회합니다.
+     *
+     * @param prlmOgzCCones 조직코드 목록
+     * @return 조직명 프로젝션 목록
+     */
+    List<OrganizationNameView> findNameViewsByPrlmOgzCConeIn(Collection<String> prlmOgzCCones);
+
+    /**
+     * 조직코드로 조직명 프로젝션을 조회합니다.
+     *
+     * @param prlmOgzCCone 조직코드
+     * @return 조직명 프로젝션
+     */
+    Optional<OrganizationNameView> findNameViewByPrlmOgzCCone(String prlmOgzCCone);
 }

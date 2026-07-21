@@ -66,7 +66,7 @@ public class NotificationEventListener {
             enqueueAndDispatch(
                 NotificationEvent.builder()
                     .recipientEno(capplm.getDcdReqUsid())
-                    .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RESULT)
+                    .itPtlInfmSvcTc(NotificationEvent.TYPE_APPROVAL_RESULT)
                     .ttl(NotificationMessageFormatter.abbreviate(title, 100))
                     .infmMsgCone(NotificationMessageFormatter.abbreviate(body, 4000))
                     // 결재 결과 알림도 결재 대기 목록 화면으로 고정 (사용자 정책).
@@ -101,7 +101,7 @@ public class NotificationEventListener {
                 enqueueAndDispatch(
                     NotificationEvent.builder()
                         .recipientEno(capplm.getDcdReqUsid())
-                        .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RECALLED)
+                        .itPtlInfmSvcTc(NotificationEvent.TYPE_APPROVAL_RECALLED)
                         .ttl(title)
                         .infmMsgCone(NotificationMessageFormatter.abbreviate("신청서가 회수되었습니다: " + apfNm, 4000))
                         .infmRcdUrl(linkUrl)
@@ -116,7 +116,7 @@ public class NotificationEventListener {
                     enqueueAndDispatch(
                         NotificationEvent.builder()
                             .recipientEno(eno)
-                            .infmSvcTc(NotificationEvent.TYPE_APPROVAL_RECALLED)
+                            .itPtlInfmSvcTc(NotificationEvent.TYPE_APPROVAL_RECALLED)
                             .ttl(title)
                             .infmMsgCone(NotificationMessageFormatter.abbreviate("귀하가 결재한 신청서가 회수되었습니다: " + apfNm, 4000))
                             .infmRcdUrl(linkUrl)
@@ -139,8 +139,8 @@ public class NotificationEventListener {
         try {
             id = outboxService.enqueue(event);
         } catch (Exception ex) {
-            meterRegistry.counter("notification.persist.failure", "type", safeType(event.infmSvcTc())).increment();
-            log.error("알림 outbox 적재 실패: svcTc={}", event.infmSvcTc(), ex);
+            meterRegistry.counter("notification.persist.failure", "type", safeType(event.itPtlInfmSvcTc())).increment();
+            log.error("알림 outbox 적재 실패: svcTc={}", event.itPtlInfmSvcTc(), ex);
             return;
         }
         if (id == null) {
@@ -149,8 +149,8 @@ public class NotificationEventListener {
         try {
             dispatchService.dispatch(id);
         } catch (Exception ex) {
-            meterRegistry.counter("notification.dispatch.unexpected", "type", safeType(event.infmSvcTc())).increment();
-            log.error("알림 발송 처리 중 예상 밖 오류: infmMsgNo={}, svcTc={}", id, event.infmSvcTc(), ex);
+            meterRegistry.counter("notification.dispatch.unexpected", "type", safeType(event.itPtlInfmSvcTc())).increment();
+            log.error("알림 발송 처리 중 예상 밖 오류: infmMsgNo={}, svcTc={}", id, event.itPtlInfmSvcTc(), ex);
         }
     }
 

@@ -12,10 +12,10 @@ import lombok.experimental.SuperBuilder;
 /**
  * 정보기술부문계획 협의회 사업별 평가의견(TPRMPP_BPLEVM) 변경 로그 엔티티.
  *
- * <p>PK(LOG_HIS_TGR_SNO)는 AuditLogIdGenerator가 SEQ_BPLEVL.NEXTVAL로 채번한다.</p>
+ * <p>PK(LOG_HIS_TGR_SNO)는 AuditLogIdGenerator가 SQ_TPRMPP_BPLEVL_1.NEXTVAL로 채번한다.</p>
  */
 @Entity
-@Table(name = "TPRMPP_BPLEVL", comment = "정보기술부문계획 협의회 사업별 평가의견 변경 로그")
+@Table(name = "TPRMPP_BPLEVL", comment = "프로젝트관리_협의회정보기술부문계획기본변경로그")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -28,12 +28,12 @@ public class BplevmL extends BaseLogEntity {
     @Column(name = "ENO", length = 32, comment = "사번")
     private String eno;
 
-    @Column(name = "ABUS_MNG_NO", length = 32, comment = "사업관리번호")
+    @Column(name = "ABUS_MNG_NO", length = 30, comment = "사업관리번호")
     private String abusMngNo;
 
-    @Column(name = "PPRT_YN", length = 1, comment = "적정여부(Y=적정/N=유보)")
+    @Column(name = "PPRT_YN", length = 1, comment = "적정여부")
     private String pprtYn;
 
-    @Column(name = "EVAL_OPNN_CONE", length = 1000, comment = "평가의견내용")
+    @Column(name = "CKG_OPNN_CONE", length = 1000, comment = "점검의견내용")
     private String evalOpnn;
 }

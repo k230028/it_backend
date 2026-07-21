@@ -48,10 +48,10 @@ public class BoardFileReadAuthorizer implements FileReadAuthorizer {
                 .orElse(false);
     }
 
-    /** 게시물 공개 여부 — 화면표시(sreYn=Y)이고 공개기간(sttDt~endDt) 내. */
+    /** 게시물 공개 여부 — 노출여부(xpoYn=Y)이고 공개기간(sttDt~endDt) 내. */
     private boolean isPostVisible(Cblbcm post) {
         LocalDate today = LocalDate.now();
-        return "Y".equals(post.getSreYn())
+        return "Y".equals(post.getXpoYn())
                 && (post.getSttDt() == null || !post.getSttDt().isAfter(today))
                 && (post.getEndDt() == null || !post.getEndDt().isBefore(today));
     }

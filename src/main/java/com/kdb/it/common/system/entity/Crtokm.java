@@ -48,17 +48,21 @@ import java.time.LocalDateTime;
 public class Crtokm extends BaseEntity {
 
     /**
-     * 토큰일련번호: 기본키. Oracle 시퀀스(SEQ_CRTOKM)로 자동 채번.
+     * 토큰일련번호: 기본키. Oracle 시퀀스(SQ_TPRMPP_CRTOKM_1)로 자동 채번.
      * 물리 컬럼명은 LGN_LOG_SNO(메타표준 의미=로그인로그일련번호)이나, 이 테이블에서는 갱신토큰의 일련번호로 사용함
      */
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SEQ_CRTOKM")
-    @SequenceGenerator(name = "SEQ_CRTOKM", sequenceName = "SEQ_CRTOKM", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SQ_TPRMPP_CRTOKM_1")
+    @SequenceGenerator(name = "SQ_TPRMPP_CRTOKM_1", sequenceName = "SQ_TPRMPP_CRTOKM_1", allocationSize = 1)
     @Column(name = "LGN_LOG_SNO", comment = "토큰일련번호 (물리컬럼 LGN_LOG_SNO=메타표준 로그인로그일련번호)")
     private Long tokSno;
 
+    /** API토큰내용: 운영 NOT NULL 계약을 충족하기 위해 Refresh Token 원문이 아닌 SHA-256 HEX 값을 저장합니다. */
+    @Column(name = "API_TOK_CONE", nullable = false, length = 2000, comment = "API토큰내용")
+    private String apiTokCone;
+
     /** 암호화갱신발행토큰내용: Refresh Token 원문 대신 조회에 사용하는 SHA-256 HEX 값 */
-    @Column(name = "ECY_RNW_PUB_TOK_CONE", nullable = false, length = 900, comment = "암호화갱신발행토큰내용")
+    @Column(name = "ECY_RNW_PUB_TOK_CONE", length = 900, comment = "암호화갱신발행토큰내용")
     private String ecyRnwPubTokCone;
 
     /**

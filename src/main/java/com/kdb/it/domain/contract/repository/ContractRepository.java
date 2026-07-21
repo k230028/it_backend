@@ -22,20 +22,20 @@ public interface ContractRepository extends JpaRepository<Bcontm, BcontmId>, Con
     /**
      * 입찰계약 문서 채번 시퀀스 다음 값을 반환한다.
      *
-     * @return SEQ_BCONTM.NEXTVAL
+     * @return SQ_TPRMPP_BCONTM_1.NEXTVAL
      */
-    @Query(nativeQuery = true, value = "SELECT SEQ_BCONTM.NEXTVAL FROM DUAL")
+    @Query(nativeQuery = true, value = "SELECT SQ_TPRMPP_BCONTM_1.NEXTVAL FROM DUAL")
     Long nextDocSeq();
 
     /**
      * 동일 대상에 처리 중인 입찰계약 문서가 이미 존재하는지 확인한다.
      *
-     * @param bgPrnTc   예산성격구분코드
+     * @param ioeC   예산성격구분코드
      * @param cncdRfrNo 관련참조번호
      * @param stsTc     체크할 상태코드 목록
      * @param delYn     삭제여부 (통상 "N")
      * @return 존재하면 true
      */
-    boolean existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
-            String bgPrnTc, String cncdRfrNo, java.util.Collection<String> stsTc, String delYn);
+    boolean existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
+            String ioeC, String cncdRfrNo, java.util.Collection<String> stsTc, String delYn);
 }

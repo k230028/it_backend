@@ -2,6 +2,7 @@ package com.kdb.it.common.system.controller;
 
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.service.AuthService;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.exception.InvalidRefreshTokenException;
 
@@ -16,9 +17,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -151,6 +154,23 @@ public class AuthController {
                 .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
                 .body(response); // body에는 eno, empNm, athIds, bbrC, temC 포함 (accessToken/refreshToken만 @JsonIgnore로 제외)
+    }
+
+    /**
+     * 현재 Access Token으로 화면 인증 상태를 복원합니다.
+     *
+     * <p>SSO 완료 직후 화면용 {@code it-portal-user} 쿠키가 Nuxt 상태에 반영되지 않았거나
+     * 사용자가 해당 쿠키만 삭제한 경우에도, 서버가 검증한 Access Token의 사번으로 최신 사용자 정보를
+     * 반환합니다. 인증되지 않은 요청은 Spring Security에서 401로 거부합니다.</p>
+     *
+     * @param currentUser Access Token 검증으로 생성된 현재 사용자
+     * @return 화면 세션 복원에 필요한 사용자·권한·소속 정보
+     */
+    @GetMapping("/session")
+    @Operation(summary = "현재 인증 세션 조회", description = "Access Token으로 화면 인증 상태를 복원합니다.")
+    public ResponseEntity<AuthDto.LoginResponse> session(
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(authService.getSessionUser(currentUser.getEno()));
     }
 
     /**

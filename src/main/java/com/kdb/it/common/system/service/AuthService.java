@@ -284,8 +284,10 @@ public class AuthService {
         refreshToken.markRotated();
         refreshTokenRepository.save(refreshToken);
         String newRefreshTokenValue = jwtUtil.generateRefreshToken(eno);
+        String newRefreshTokenHash = sha256HexForToken(newRefreshTokenValue);
         Crtokm rotated = Crtokm.builder()
-                .ecyRnwPubTokCone(sha256HexForToken(newRefreshTokenValue))
+                .apiTokCone(newRefreshTokenHash)
+                .ecyRnwPubTokCone(newRefreshTokenHash)
                 .eno(eno)
                 .famNm(refreshToken.getFamNm())
                 .avlYn("Y")
@@ -297,6 +299,32 @@ public class AuthService {
         return AuthDto.RefreshResponse.builder()
                 .accessToken(newAccessToken) // 새 Access Token
                 .refreshToken(newRefreshTokenValue) // 회전된 Refresh Token (컨트롤러가 쿠키 재설정)
+                .build();
+    }
+
+    /**
+     * 유효한 Access Token으로 확인된 사용자의 화면 세션 정보를 조회합니다.
+     *
+     * <p>브라우저의 {@code it-portal-user} 쿠키가 없거나 아직 Nuxt 상태에 반영되지 않은 경우,
+     * 서버가 검증한 사번을 기준으로 최신 사용자·권한 정보를 다시 구성합니다. JWT나 Refresh Token은
+     * 응답에 포함하지 않습니다.</p>
+     *
+     * @param eno Access Token 검증으로 확인된 사용자 사번
+     * @return 화면 인증 상태 복원에 필요한 사용자·권한·소속 정보
+     * @throws RuntimeException 사번에 해당하는 사용자가 존재하지 않는 경우
+     */
+    @Transactional(readOnly = true)
+    public AuthDto.LoginResponse getSessionUser(String eno) {
+        CuserI user = userRepository.findByEno(eno)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + eno));
+        List<String> athIds = loadAthIds(eno);
+
+        return AuthDto.LoginResponse.builder()
+                .eno(eno)
+                .empNm(user.getUsrNm())
+                .athIds(athIds)
+                .bbrC(user.getBbrC())
+                .temC(user.getTemC())
                 .build();
     }
 
@@ -453,8 +481,10 @@ public class AuthService {
     private String issueNewRefreshFamily(String eno) {
         refreshTokenRepository.deleteByEno(eno);
         String value = jwtUtil.generateRefreshToken(eno);
+        String tokenHash = sha256HexForToken(value);
         Crtokm token = Crtokm.builder()
-                .ecyRnwPubTokCone(sha256HexForToken(value)).eno(eno)
+                .apiTokCone(tokenHash)
+                .ecyRnwPubTokCone(tokenHash).eno(eno)
                 .famNm(java.util.UUID.randomUUID().toString())
                 .avlYn("Y")
                 .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))

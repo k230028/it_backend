@@ -89,7 +89,7 @@ public class ServiceRequestDocService {
                 .filter(eno -> eno != null && !eno.isEmpty())
                 .collect(Collectors.toSet());
         if (!enos.isEmpty()) {
-            java.util.Map<String, String> nameByEno = cuserIRepository.findByEnoIn(enos).stream()
+            java.util.Map<String, String> nameByEno = cuserIRepository.findNameViewsByEnoIn(enos).stream()
                     .collect(Collectors.toMap(
                             value -> value.getEno(),
                             value -> value.getUsrNm(),
@@ -147,8 +147,13 @@ public class ServiceRequestDocService {
      */
     public List<ServiceRequestDocDto.VersionResponse> getVersionHistory(String docMngNo) {
         return serviceRequestDocRepository
-                .findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N").stream()
-                .map(ServiceRequestDocDto.VersionResponse::fromEntity)
+                .findAllProjectedByDocMngNoAndDelYnOrderByDocVrsSnoDesc(docMngNo, "N").stream()
+                .map(view -> ServiceRequestDocDto.VersionResponse.fromValues(
+                        view.getDocMngNo(),
+                        view.getDocVrsSno(),
+                        view.getFstEnrDtm(),
+                        view.getLstChgDtm(),
+                        view.getDelYn()))
                 .toList();
     }
 

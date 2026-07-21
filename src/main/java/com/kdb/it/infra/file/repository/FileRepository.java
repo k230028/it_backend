@@ -4,6 +4,7 @@ import com.kdb.it.infra.file.entity.Cfilem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,6 +21,24 @@ import java.util.Optional;
  * </p>
  */
 public interface FileRepository extends JpaRepository<Cfilem, String> {
+
+    /** 관리자 파일 목록 응답에 필요한 프로젝션. */
+    interface AdminFileView {
+        String getFlMpnId();
+        String getFlNm();
+        String getFlTpCone();
+        String getPkColNm();
+        LocalDateTime getFstEnrDtm();
+        String getFstEnrUsid();
+    }
+
+    /**
+     * 삭제 여부로 관리자 파일 목록 프로젝션을 조회합니다.
+     *
+     * @param delYn 삭제 여부
+     * @return 관리자 파일 목록 프로젝션
+     */
+    List<AdminFileView> findAdminFileViewsByDelYn(String delYn);
 
     /**
      * 파일매핑ID와 삭제여부로 단건 조회
@@ -76,15 +95,15 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
             String pkColNm, String pkCone, String flTpCone, String delYn);
 
     /**
-     * Oracle 시퀀스(SEQ_CFILEM) 다음 값 조회
+     * Oracle 시퀀스(SQ_TPRMPP_CFILEM_1) 다음 값 조회
      *
      * <p>
      * 파일매핑ID 채번에 사용합니다.
      * 형식: {@code FL_{8자리 시퀀스}} (예: {@code FL_00000001})
      * </p>
      *
-     * @return Oracle 시퀀스(SEQ_CFILEM)의 다음 값
+     * @return Oracle 시퀀스(SQ_TPRMPP_CFILEM_1)의 다음 값
      */
-    @Query(value = "SELECT SEQ_CFILEM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_CFILEM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 }

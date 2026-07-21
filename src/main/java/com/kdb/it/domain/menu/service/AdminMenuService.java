@@ -58,7 +58,7 @@ public class AdminMenuService {
                 .mnuId(mnuId).hrkMnuId(req.getHrkMnuId())
                 .mnuNm(req.getMnuNm()).mnuTpC(req.getMnuTpC()).srePth(req.getSrePth())
                 .mnuSotSqnSno(SORT_STEP).hidYn(req.getHidYn() == null ? "N" : req.getHidYn())
-                .mnuDep(depth).whlMnuPth(whlPth).sysHrkMnuId(sysRootOf(whlPth, depth)).delYn("N")
+                .mnuDep(depth).whlMnuPth(whlPth).delYn("N")
                 .build();
         cmenumRepository.save(menu);
         replaceRoles(mnuId, req.getAthIds());
@@ -151,8 +151,6 @@ public class AdminMenuService {
         for (Cmenum n : subtree) {
             n.setWhlMnuPth(newPrefix + n.getWhlMnuPth().substring(oldPrefix.length()));
             n.setMnuDep(n.getMnuDep() + depthDelta);
-            // 이동으로 트리 최상위 조상이 바뀔 수 있어 시스템상위메뉴ID를 재산출한다.
-            n.setSysHrkMnuId(sysRootOf(n.getWhlMnuPth(), n.getMnuDep()));
         }
         target.setHrkMnuId(newHrkMnuId);
     }
@@ -162,20 +160,6 @@ public class AdminMenuService {
     private Cmenum load(String mnuId) {
         return cmenumRepository.findByMnuIdAndDelYn(mnuId, "N")
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 메뉴: " + mnuId));
-    }
-
-    /**
-     * 전체메뉴경로에서 트리 최상위(루트, HED) 조상의 메뉴 ID를 추출한다.
-     *
-     * @param whlMnuPth 전체메뉴경로 (예: {@code /MHED0001/MDOC0002/MDOC0003})
-     * @param depth     메뉴 깊이 (1 = 루트)
-     * @return 최상위 메뉴 ID. 루트 노드(depth ≤ 1)이거나 경로가 비어 있으면 null
-     */
-    private String sysRootOf(String whlMnuPth, int depth) {
-        if (depth <= 1 || whlMnuPth == null) return null;
-        String[] segments = whlMnuPth.split("/");
-        // 경로가 '/'로 시작하므로 segments[0]은 빈 문자열, segments[1]이 첫 세그먼트(루트 ID)다.
-        return segments.length > 1 ? segments[1] : null;
     }
 
     private void validateTypePath(String mnuTpC, String srePth) {

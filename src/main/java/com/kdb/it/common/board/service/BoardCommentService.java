@@ -95,7 +95,6 @@ public class BoardCommentService {
                 .cmmtMngNo(cmmtMngNo)
                 .nacMngNo(nacMngNo)
                 .cmmtCone(sanitized)
-                .sreYn("Y")
                 .cmmtGrpNo(cmmtMngNo)
                 .cmmtGrpSqn(0)
                 .cmmtGrpLev(0)
@@ -144,7 +143,6 @@ public class BoardCommentService {
                 .cmmtMngNo(cmmtMngNo)
                 .nacMngNo(nacMngNo)
                 .cmmtCone(sanitized)
-                .sreYn("Y")
                 .cmmtGrpNo(parent.getCmmtGrpNo())
                 .cmmtGrpSqn(0)
                 .cmmtGrpLev(0)
@@ -223,7 +221,7 @@ public class BoardCommentService {
         return user.isAdmin() || user.getEno().equals(comment.getFstEnrUsid());
     }
 
-    /** 댓글 식별자 채번 — SEQ_CCMMTM 시퀀스 기반 숫자 일련번호(CMMT_SNO). */
+    /** 댓글 식별자 채번 — SQ_TPRMPP_CCMMTM_1 시퀀스 기반 숫자 일련번호(CMMT_SNO). */
     private Long generateCmmtId() {
         return commentRepository.getNextSequenceValue();
     }
@@ -277,7 +275,7 @@ public class BoardCommentService {
             eventPublisher.publishEvent(
                     NotificationEvent.builder()
                             .recipientEno(eno)
-                            .infmSvcTc(NotificationEvent.TYPE_MENTION_COMMENT)
+                            .itPtlInfmSvcTc(NotificationEvent.TYPE_MENTION_COMMENT)
                             .ttl(NotificationMessageFormatter.abbreviate(title, 100))
                             .infmMsgCone(NotificationMessageFormatter.abbreviate(safe(post.getNacNm()), 4000))
                             .infmRcdUrl(linkUrl)

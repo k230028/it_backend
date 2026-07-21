@@ -30,20 +30,19 @@ public interface EstimateRepository extends JpaRepository<Bestim, BestimId>, Est
      *
      * @return 다음 시퀀스 값
      */
-    @Query(nativeQuery = true, value = "SELECT SEQ_BESTIM.NEXTVAL FROM DUAL")
+    @Query(nativeQuery = true, value = "SELECT SQ_TPRMPP_BESTIM_1.NEXTVAL FROM DUAL")
     Long nextDocSeq();
 
     /**
-     * 동일 사업·대상구분에 대해 지정 상태 중 하나인 미삭제 산정 문서가 이미 존재하는지 확인합니다.
+     * 동일 사업에 대해 지정 상태 중 하나인 미삭제 산정 문서가 이미 존재하는지 확인합니다.
      *
      * <p>중복 신청 방지: stsTc가 "51"(작성중) 또는 "55"(진행중)인 건이 있으면 신규 신청 불가.</p>
      *
-     * @param bgPrnTc   예산성격구분코드
      * @param cncdRfrNo 관련참조번호(사업관리번호)
      * @param stsTc     확인할 상태코드 컬렉션
      * @param delYn     삭제여부 ("N")
      * @return 존재하면 true
      */
-    boolean existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
-            String bgPrnTc, String cncdRfrNo, Collection<String> stsTc, String delYn);
+    boolean existsByCncdRfrNoAndStsTcInAndDelYn(
+            String cncdRfrNo, Collection<String> stsTc, String delYn);
 }

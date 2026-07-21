@@ -251,7 +251,7 @@ class EvaluationServiceTest {
         given(eval.getCkgOpnn()).willReturn("좋음");
         given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
 
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of());
+        given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
         given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N")).willReturn(List.of());
 
         CouncilDto.EvaluationSummaryResponse result =
@@ -264,8 +264,8 @@ class EvaluationServiceTest {
     }
 
     @Test
-    @DisplayName("getAllEvaluations: 사용자명은 findByEnoIn 1회 배치 — findByEno 미호출")
-    void getAllEvaluations_findByEnoIn_1회() {
+    @DisplayName("getAllEvaluations: 사용자명은 이름 프로젝션 1회 배치 — 단건 조회 미호출")
+    void getAllEvaluations_이름프로젝션_1회() {
         Basctm council = mock(Basctm.class);
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         Bevalm eval = mock(Bevalm.class);
@@ -274,13 +274,14 @@ class EvaluationServiceTest {
         given(eval.getQuelRcrd()).willReturn(4);
         given(eval.getCkgOpnn()).willReturn("좋음");
         given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of());
+        given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
         given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N")).willReturn(List.of());
 
         evaluationService.getAllEvaluations(ASCT_ID);
 
-        then(userRepository).should(times(1)).findByEnoIn(anyCollection());
+        then(userRepository).should(times(1)).findNameViewsByEnoIn(anyCollection());
         then(userRepository).should(never()).findByEno(anyString());
+        then(userRepository).should(never()).findNameViewByEno(anyString());
     }
 
     // ───────────────────────────────────────────────────────
@@ -351,10 +352,10 @@ class EvaluationServiceTest {
         given(eval.getItPtlCkgItmTc()).willReturn("UNKNOWN");
         given(eval.getQuelRcrd()).willReturn(3);
         given(evaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of(eval));
-        com.kdb.it.common.iam.entity.CuserI user = mock(com.kdb.it.common.iam.entity.CuserI.class);
+        UserRepository.UserNameView user = mock(UserRepository.UserNameView.class);
         given(user.getEno()).willReturn(ENO);
         given(user.getUsrNm()).willReturn("홍길동");
-        given(userRepository.findByEnoIn(anyCollection())).willReturn(List.of(user));
+        given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of(user));
         given(evaluationRepository.findAvgRowsByItem(ASCT_ID, "N"))
                 .willReturn(java.util.Collections.singletonList(
                         EvaluationItemAvgRow.fromRow(new Object[]{"UNKNOWN", 2.5})));

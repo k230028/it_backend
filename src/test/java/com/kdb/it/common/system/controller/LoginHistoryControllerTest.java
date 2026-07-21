@@ -50,7 +50,7 @@ class LoginHistoryControllerTest {
         LoginHistoryDto.Response history = LoginHistoryDto.Response.builder()
                 .id(1L)
                 .eno("10001")
-                .lgnTc("1")
+                .itPtlLgnTc("1")
                 .ipAddress("127.0.0.1")
                 .agtVrsCone("JUnit")
                 .loginTime(LocalDateTime.of(2026, 5, 6, 9, 0))
@@ -60,7 +60,7 @@ class LoginHistoryControllerTest {
         mockMvc.perform(get("/api/login-history"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].eno").value("10001"))
-                .andExpect(jsonPath("$[0].lgnTc").value("1"))
+                .andExpect(jsonPath("$[0].itPtlLgnTc").value("1"))
                 .andExpect(jsonPath("$[0].ipAddress").value("127.0.0.1"));
     }
 

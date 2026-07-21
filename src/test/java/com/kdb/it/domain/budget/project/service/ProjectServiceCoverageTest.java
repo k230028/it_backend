@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,8 +30,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import com.kdb.it.common.approval.entity.Cappla;
-import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
@@ -38,8 +37,6 @@ import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.code.service.CodeService;
-import com.kdb.it.common.iam.entity.CorgnI;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -76,6 +73,36 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ProjectServiceCoverageTest {
+
+    private record OrgNameView(String prlmOgzCCone, String bbrNm)
+            implements OrganizationRepository.OrganizationNameView {
+        @Override public String getPrlmOgzCCone() { return prlmOgzCCone; }
+        @Override public String getBbrNm() { return bbrNm; }
+    }
+
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override public String getEno() { return eno; }
+        @Override public String getUsrNm() { return usrNm; }
+    }
+
+    private record ApplicationMapView(String apfDcmNo, String pkColNm, Integer fntTbCrySno)
+            implements ApplicationMapRepository.ApplicationMapView {
+        @Override public String getApfDcmNo() { return apfDcmNo; }
+        @Override public String getPkColNm() { return pkColNm; }
+        @Override public Integer getFntTbCrySno() { return fntTbCrySno; }
+    }
+
+    private record ApplicationSummaryView(
+            String apfMngNo, String itPtlApfPrgStsC, String dcdReqTtl,
+            String dcdReqUsid, LocalDate dcdReqDtm, String rgprDcdReqCone)
+            implements ApplicationRepository.ApplicationSummaryView {
+        @Override public String getApfMngNo() { return apfMngNo; }
+        @Override public String getItPtlApfPrgStsC() { return itPtlApfPrgStsC; }
+        @Override public String getDcdReqTtl() { return dcdReqTtl; }
+        @Override public String getDcdReqUsid() { return dcdReqUsid; }
+        @Override public LocalDate getDcdReqDtm() { return dcdReqDtm; }
+        @Override public String getRgprDcdReqCone() { return rgprDcdReqCone; }
+    }
 
     @Mock
     private ProjectRepository projectRepository;
@@ -743,18 +770,18 @@ class ProjectServiceCoverageTest {
                 .willReturn(List.of());
         given(bprojaRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(List.of());
 
-        given(corgnIRepository.findById("DEPT-001"))
-                .willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("DEPT-001").bbrNm("IT기획부").build()));
-        given(corgnIRepository.findById("DEPT-002"))
-                .willReturn(Optional.of(CorgnI.builder().prlmOgzCCone("DEPT-002").bbrNm("현업부").build()));
-        given(cuserIRepository.findById("EMP001"))
-                .willReturn(Optional.of(CuserI.builder().eno("EMP001").usrNm("IT담당자").build()));
-        given(cuserIRepository.findById("EMP002"))
-                .willReturn(Optional.of(CuserI.builder().eno("EMP002").usrNm("주관팀장").build()));
-        given(cuserIRepository.findById("EMP003"))
-                .willReturn(Optional.of(CuserI.builder().eno("EMP003").usrNm("주관담당자").build()));
-        given(cuserIRepository.findById("EMP004"))
-                .willReturn(Optional.of(CuserI.builder().eno("EMP004").usrNm("IT팀장").build()));
+        given(corgnIRepository.findNameViewByPrlmOgzCCone("DEPT-001"))
+                .willReturn(Optional.of(new OrgNameView("DEPT-001", "IT기획부")));
+        given(corgnIRepository.findNameViewByPrlmOgzCCone("DEPT-002"))
+                .willReturn(Optional.of(new OrgNameView("DEPT-002", "현업부")));
+        given(cuserIRepository.findNameViewByEno("EMP001"))
+                .willReturn(Optional.of(new NameView("EMP001", "IT담당자")));
+        given(cuserIRepository.findNameViewByEno("EMP002"))
+                .willReturn(Optional.of(new NameView("EMP002", "주관팀장")));
+        given(cuserIRepository.findNameViewByEno("EMP003"))
+                .willReturn(Optional.of(new NameView("EMP003", "주관담당자")));
+        given(cuserIRepository.findNameViewByEno("EMP004"))
+                .willReturn(Optional.of(new NameView("EMP004", "IT팀장")));
 
         // Act
         ProjectDto.Response result = projectService.getProject(prjMngNo);
@@ -1033,27 +1060,23 @@ class ProjectServiceCoverageTest {
         Bprojm proj1 = Bprojm.builder().abusMngNo(p1).sno(1).delYn("N").build();
         Bprojm proj2 = Bprojm.builder().abusMngNo(p2).sno(1).delYn("N").build();
 
-        Cappla cappla1 = Cappla.builder().apfDcmNo("APF-B-001").pkColNm(p1).fntTbCrySno(1).build();
-        Cappla cappla2 = Cappla.builder().apfDcmNo("APF-B-002").pkColNm(p2).fntTbCrySno(1).build();
-
-        Capplm capplm1 = Capplm.builder()
-                .apfMngNo("APF-B-001").dcdReqTtl("결재1")
-                .apfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code())
-                .build();
-        Capplm capplm2 = Capplm.builder()
-                .apfMngNo("APF-B-002").dcdReqTtl("결재2")
-                .apfPrgStsC(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code())
-                .build();
-
         given(projectRepository.findByAbusMngNoAndDelYn(p1, "N")).willReturn(Optional.of(proj1));
         given(projectRepository.findByAbusMngNoAndDelYn(p2, "N")).willReturn(Optional.of(proj2));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(p1), eq(1))).willReturn(List.of(cappla1));
-        given(capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                anyString(), eq(p2), eq(1))).willReturn(List.of(cappla2));
-        given(capplmRepository.findById("APF-B-001")).willReturn(Optional.of(capplm1));
-        given(capplmRepository.findById("APF-B-002")).willReturn(Optional.of(capplm2));
-        given(cdecimRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(anyString())).willReturn(List.of());
+        given(capplaRepository.findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                anyString(), eq(p1), eq(1)))
+                .willReturn(List.of(new ApplicationMapView("APF-B-001", p1, 1)));
+        given(capplaRepository.findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                anyString(), eq(p2), eq(1)))
+                .willReturn(List.of(new ApplicationMapView("APF-B-002", p2, 1)));
+        given(capplmRepository.findSummaryViewsByApfMngNoIn(List.of("APF-B-001")))
+                .willReturn(List.of(new ApplicationSummaryView(
+                        "APF-B-001", com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
+                        "결재1", null, null, null)));
+        given(capplmRepository.findSummaryViewsByApfMngNoIn(List.of("APF-B-002")))
+                .willReturn(List.of(new ApplicationSummaryView(
+                        "APF-B-002", com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code(),
+                        "결재2", null, null, null)));
+        given(cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(anyString())).willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), eq(1), eq("N")))
                 .willReturn(List.of());
         given(bprojaRepository.findByAbusMngNoAndDelYn(anyString(), eq("N"))).willReturn(List.of());

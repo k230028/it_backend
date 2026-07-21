@@ -63,7 +63,7 @@ class NotificationControllerTest {
     void list_인증사용자_페이지반환() throws Exception {
         Cinfmm notification = Cinfmm.builder()
                 .infmMsgNo("INF-1")
-                .infmSvcTc("01")
+                .itPtlInfmSvcTc("01")
                 .ttl("공지")
                 .infmMsgCone("내용")
                 .inqYn("N")

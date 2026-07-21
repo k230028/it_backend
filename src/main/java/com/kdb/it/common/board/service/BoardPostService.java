@@ -63,7 +63,7 @@ public class BoardPostService {
         findActiveBoard(blbMngNo); // 게시판 존재 검증 (조회는 인증 사용자 전체 공개)
         validateSearchCondition(cond);
 
-        return postRepository.searchPosts(
+        return postRepository.searchPostRows(
                 blbMngNo, cond,
                 user.isAdmin())
                 .map(BoardPostDto.ListItem::from);
@@ -122,7 +122,7 @@ public class BoardPostService {
                 .nacNm(request.getNacNm())
                 .nacCone(sanitizedCone)
                 .ancYn(request.getAncYn() != null ? request.getAncYn() : "N")
-                .sreYn(request.getSreYn() != null ? request.getSreYn() : "Y")
+                .xpoYn(request.getXpoYn() != null ? request.getXpoYn() : "Y")
                 .bbrC(request.getBbrC())
                 .sttDt(request.getSttYmd())
                 .endDt(request.getEndYmd())
@@ -221,7 +221,7 @@ public class BoardPostService {
                 .nacNm(request.getNacNm())
                 .nacCone(sanitizedCone)
                 .ancYn("N")
-                .sreYn("Y")
+                .xpoYn("Y")
                 .bbrC(request.getBbrC())
                 .sttDt(request.getSttYmd())
                 .endDt(request.getEndYmd())
@@ -298,7 +298,7 @@ public class BoardPostService {
             eventPublisher.publishEvent(
                     NotificationEvent.builder()
                             .recipientEno(eno)
-                            .infmSvcTc(type)
+                            .itPtlInfmSvcTc(type)
                             .ttl(NotificationMessageFormatter.abbreviate(title, 100))
                             .infmMsgCone(NotificationMessageFormatter.abbreviate(safe(post.getNacNm()), 4000))
                             .infmRcdUrl(linkUrl)
@@ -330,7 +330,7 @@ public class BoardPostService {
             return;
 
         LocalDate today = LocalDate.now();
-        boolean visible = "Y".equals(post.getSreYn())
+        boolean visible = "Y".equals(post.getXpoYn())
                 && (post.getSttDt() == null || !post.getSttDt().isAfter(today))
                 && (post.getEndDt() == null || !post.getEndDt().isBefore(today));
 
@@ -364,14 +364,14 @@ public class BoardPostService {
      * 게시물 등록 권한 검증
      *
      * <p>
-     * 공지사항(BLB_TC='001') 게시판은 관리자만 등록할 수 있으며,
+     * 공지사항(IT_PTL_BLB_TC='001') 게시판은 관리자만 등록할 수 있으며,
      * 그 외 게시판은 인증된 모든 사용자가 등록할 수 있습니다.
      * </p>
      */
     private void verifyCanWrite(CustomUserDetails user, Cblbmm board) {
         if (user.isAdmin())
             return;
-        if ("001".equals(board.getBlbTp())) {
+        if ("001".equals(board.getItPtlBlbTc())) {
             throw new CustomGeneralException("공지사항은 관리자만 등록할 수 있습니다.");
         }
     }

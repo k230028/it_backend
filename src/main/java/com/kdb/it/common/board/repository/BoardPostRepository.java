@@ -14,7 +14,7 @@ public interface BoardPostRepository
     Optional<Cblbcm> findByNacMngNoAndDelYn(String nacMngNo, String delYn);
 
     /** 게시물 채번 시퀀스 — NAC-{YYYY}-{0001} */
-    @Query(value = "SELECT SEQ_CBLBCM.NEXTVAL FROM DUAL", nativeQuery = true)
+    @Query(value = "SELECT SQ_TPRMPP_CBLBCM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
     /**

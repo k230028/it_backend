@@ -38,11 +38,11 @@ class LoginHistoryServiceTest {
     @InjectMocks
     private LoginHistoryService loginHistoryService;
 
-    private Clognh mockClognh(Long sno, String eno, String lgnTc) {
+    private Clognh mockClognh(Long sno, String eno, String itPtlLgnTc) {
         Clognh history = mock(Clognh.class);
         given(history.getLgnLogSno()).willReturn(sno);
         given(history.getEno()).willReturn(eno);
-        given(history.getLgnTc()).willReturn(lgnTc);
+        given(history.getItPtlLgnTc()).willReturn(itPtlLgnTc);
         given(history.getIpAddr()).willReturn("127.0.0.1");
         given(history.getAgtVrsCone()).willReturn("Mozilla/5.0");
         given(history.getLgnDtm()).willReturn(LocalDateTime.of(2026, 4, 25, 9, 0));
@@ -69,8 +69,8 @@ class LoginHistoryServiceTest {
         // then
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getEno()).isEqualTo(eno);
-        assertThat(result.get(0).getLgnTc()).isEqualTo("1");
-        assertThat(result.get(1).getLgnTc()).isEqualTo("3");
+        assertThat(result.get(0).getItPtlLgnTc()).isEqualTo("1");
+        assertThat(result.get(1).getItPtlLgnTc()).isEqualTo("3");
         verify(loginHistoryRepository).findTop50ByEnoOrderByLgnDtmDesc(eno);
     }
 

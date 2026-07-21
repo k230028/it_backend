@@ -21,11 +21,8 @@ import com.kdb.it.common.iam.repository.AuthRepository;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.system.entity.Clognh;
-import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
-import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 
 import org.springframework.data.domain.Page;
@@ -87,7 +84,7 @@ public class AdminService {
                                 .flatMap(c -> Stream.of(c.getFstEnrUsid(), c.getLstChgUsid()))
                                 .filter(Objects::nonNull)
                                 .collect(Collectors.toSet());
-                Map<String, String> userNameMap = userRepository.findByEnoIn(enos).stream()
+                Map<String, String> userNameMap = userRepository.findNameViewsByEnoIn(enos).stream()
                                 .collect(Collectors.toMap(u -> u.getEno(), u -> u.getUsrNm()));
 
                 return codes.stream()
@@ -470,9 +467,19 @@ public class AdminService {
          * @return 사용자 응답 DTO 목록
          */
         public List<AdminDto.UserResponse> getUsers() {
-                return userRepository.findAll().stream()
-                                .filter(u -> "N".equals(u.getDelYn()))
-                                .map(this::toUserResponse)
+                List<UserRepository.AdminUserView> users = userRepository.findAdminUserViewsByDelYn("N");
+                Set<String> orgCodes = users.stream()
+                                .map(user -> user.getBbrC())
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet());
+                Map<String, String> orgNames = orgRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
+                                .filter(organization -> organization.getBbrNm() != null)
+                                .collect(Collectors.toMap(
+                                                organization -> organization.getPrlmOgzCCone(),
+                                                organization -> organization.getBbrNm(),
+                                                (left, right) -> left));
+                return users.stream()
+                                .map(user -> toUserResponse(user, orgNames.get(user.getBbrC())))
                                 .toList();
         }
 
@@ -535,9 +542,9 @@ public class AdminService {
         }
 
         /**
-         * CuserI 엔티티를 UserResponse DTO로 변환합니다.
+         * 관리자 사용자 프로젝션을 UserResponse DTO로 변환합니다.
          */
-        private AdminDto.UserResponse toUserResponse(CuserI u) {
+        private AdminDto.UserResponse toUserResponse(UserRepository.AdminUserView u, String bbrNm) {
                 return new AdminDto.UserResponse(
                                 u.getEno(),
                                 u.getUsrNm(),
@@ -545,7 +552,7 @@ public class AdminService {
                                 u.getTemC(),
                                 u.getTemNm(),
                                 u.getBbrC(),
-                                u.getBbrNm(),
+                                bbrNm,
                                 u.getEtrMilAddrNm(),
                                 u.getInleNo(),
                                 u.getCpnTpn(),
@@ -645,22 +652,27 @@ public class AdminService {
          * @return 페이지네이션된 로그인 이력 응답
          */
         public Page<AdminDto.LoginHistoryResponse> getLoginHistory(Pageable pageable) {
-                Page<Clognh> page = loginHistoryRepository.findAllByOrderByLgnDtmDesc(pageable);
+                Page<LoginHistoryRepository.LoginHistoryView> page =
+                                loginHistoryRepository.findPageViewsByOrderByLgnDtmDesc(pageable);
+                Map<String, String> userNameMap = loadUserNameMap(page.getContent().stream()
+                                .map(history -> history.getEno()));
                 List<AdminDto.LoginHistoryResponse> content = page.getContent().stream()
-                                .map(this::toLoginHistoryResponse)
+                                .map(history -> toLoginHistoryResponse(history, userNameMap))
                                 .toList();
                 return new PageImpl<>(content, pageable, page.getTotalElements());
         }
 
         /**
-         * Clognh 엔티티를 LoginHistoryResponse DTO로 변환합니다.
+         * 로그인 이력 프로젝션을 LoginHistoryResponse DTO로 변환합니다.
          */
-        private AdminDto.LoginHistoryResponse toLoginHistoryResponse(Clognh h) {
+        private AdminDto.LoginHistoryResponse toLoginHistoryResponse(
+                        LoginHistoryRepository.LoginHistoryView h,
+                        Map<String, String> userNameMap) {
                 return new AdminDto.LoginHistoryResponse(
                                 h.getEno(),
-                                resolveUserName(h.getEno()),
+                                resolveUserName(h.getEno(), userNameMap),
                                 h.getLgnDtm(),
-                                h.getLgnTc(),
+                                h.getItPtlLgnTc(),
                                 h.getIpAddr(),
                                 h.getLgnErrRsn(),
                                 h.getAgtVrsCone(),
@@ -678,16 +690,16 @@ public class AdminService {
          * @return 갱신토큰 응답 DTO 목록
          */
         public List<AdminDto.TokenResponse> getTokens() {
-                return refreshTokenRepository.findAll().stream()
+                return refreshTokenRepository.findAllProjectedBy().stream()
                                 .map(this::toTokenResponse)
                                 .toList();
         }
 
         /**
-         * Crtokm 엔티티를 TokenResponse DTO로 변환합니다.
+         * 갱신토큰 프로젝션을 TokenResponse DTO로 변환합니다.
          * DB에는 원문이 없으므로 SHA-256 조회값만 마스킹합니다.
          */
-        private AdminDto.TokenResponse toTokenResponse(Crtokm t) {
+        private AdminDto.TokenResponse toTokenResponse(RefreshTokenRepository.AdminTokenView t) {
                 String lookupValue = t.getEcyRnwPubTokCone();
                 String masked = (lookupValue != null && lookupValue.length() > 20)
                                 ? lookupValue.substring(0, 20) + "..."
@@ -710,16 +722,15 @@ public class AdminService {
          * @return 첨부파일 응답 DTO 목록
          */
         public List<AdminDto.FileResponse> getFiles() {
-                return fileRepository.findAll().stream()
-                                .filter(f -> "N".equals(f.getDelYn()))
+                return fileRepository.findAdminFileViewsByDelYn("N").stream()
                                 .map(this::toFileResponse)
                                 .toList();
         }
 
         /**
-         * Cfilem 엔티티를 FileResponse DTO로 변환합니다.
+         * 파일 프로젝션을 FileResponse DTO로 변환합니다.
          */
-        private AdminDto.FileResponse toFileResponse(Cfilem f) {
+        private AdminDto.FileResponse toFileResponse(FileRepository.AdminFileView f) {
                 return new AdminDto.FileResponse(
                                 f.getFlMpnId(),
                                 f.getFlNm(),
@@ -744,9 +755,41 @@ public class AdminService {
         private String resolveUserName(String eno) {
                 if (eno == null)
                         return null;
-                return userRepository.findByEno(eno)
+                return userRepository.findNameViewByEno(eno)
                                 .map(value -> value.getUsrNm())
                                 .orElse(eno);
+        }
+
+        /**
+         * 사번 스트림을 한 번의 조회로 사용자명 맵으로 변환합니다.
+         *
+         * @param enos 사용자명을 조회할 사번 스트림
+         * @return 사번별 사용자명 맵
+         */
+        private Map<String, String> loadUserNameMap(Stream<String> enos) {
+                Set<String> enoSet = enos.filter(Objects::nonNull).collect(Collectors.toSet());
+                if (enoSet.isEmpty()) {
+                        return Map.of();
+                }
+                return userRepository.findNameViewsByEnoIn(enoSet).stream()
+                                .filter(user -> user.getUsrNm() != null)
+                                .collect(Collectors.toMap(
+                                                user -> user.getEno(),
+                                                user -> user.getUsrNm()));
+        }
+
+        /**
+         * 배치 조회된 사용자명 맵에서 이름을 찾고 미등록 사번은 원문을 반환합니다.
+         *
+         * @param eno         사번
+         * @param userNameMap 사번별 사용자명 맵
+         * @return 사용자명, 미등록 사번 원문 또는 null
+         */
+        private String resolveUserName(String eno, Map<String, String> userNameMap) {
+                if (eno == null) {
+                        return null;
+                }
+                return userNameMap.getOrDefault(eno, eno);
         }
 
         // =========================================================================

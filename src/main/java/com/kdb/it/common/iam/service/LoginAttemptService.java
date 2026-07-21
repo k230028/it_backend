@@ -38,7 +38,7 @@ public class LoginAttemptService {
      */
     public void checkLocked(String eno) {
         LocalDateTime windowStart = LocalDateTime.now().minusMinutes(WINDOW_MINUTES);
-        long failureCount = loginHistoryRepository.countByEnoAndLgnTcAndLgnDtmAfter(
+        long failureCount = loginHistoryRepository.countByEnoAndItPtlLgnTcAndLgnDtmAfter(
                 eno, Clognh.LOGIN_FAILURE, windowStart);
 
         if (failureCount >= MAX_FAILURES) {

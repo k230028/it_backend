@@ -18,7 +18,7 @@ import lombok.experimental.SuperBuilder;
  * 과업심의 기본(마스터) 엔티티.
  *
  * <p>DB 테이블: {@code TPRMPP_BDELIM}. 정보화사업/전산업무비에 대한 과업심의위원회 신청을 관리한다.</p>
- * <p>대상구분 {@code BG_PRN_TC}: 100=정보화사업, 200=전산업무비. 상태 51→52→59.</p>
+ * <p>대상구분 {@code IOE_C}: 100=정보화사업, 200=전산업무비. 상태 51→52→59.</p>
  */
 @LogTarget(entity = BdelimL.class)
 @Entity
@@ -41,8 +41,8 @@ public class Bdelim extends BaseEntity {
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
-    @Column(name = "BG_PRN_TC", length = 3, nullable = false, comment = "예산성격구분코드(대상구분)")
-    private String bgPrnTc;
+    @Column(name = "IOE_C", length = 7, nullable = false, comment = "IT포탈예산성격구분코드")
+    private String ioeC;
 
     @Column(name = "CNCD_RFR_NO", length = 30, nullable = false, comment = "관련참조번호(대상관리번호)")
     private String cncdRfrNo;

@@ -18,7 +18,7 @@ public final class CommonCodeGroups {
     /** 기술분야 (구 TCHN_TP → IT_PTL_TCHN_TP_TC, 그룹ID 통일) */
     public static final String TECH_TYPE = "SKL_FLD";
     /** 발송구분코드 (구 SD) */
-    public static final String SEND_DTT = "SD_TC";
+    public static final String SEND_DTT = "IT_PTL_SD_TC";
     /** 보고상태 (구 RPR_STS) */
     public static final String REPORT_STS = "IT_PTL_RPR_STS_TC";
     /** 추진가능성 (구 PRJ_PUL_PTT) */
@@ -30,18 +30,18 @@ public final class CommonCodeGroups {
     /** 비목코드 (구 IOE) */
     public static final String IOE = "IOE_C";
     /** 알림서비스 (구 INFM_SVC) */
-    public static final String INFM_SVC = "INFM_SVC_TC";
+    public static final String INFM_SVC = "IT_PTL_INFM_SVC_TC";
     /** 전결권 (구 EDRT_MNGC/EDRT_CPIT 병합) */
     public static final String EDRT = "IT_PTL_EDRT_TC";
-    /** 지급주기코드 (구 DFR_CLE) */
+    /** 지급주기코드 (구 DFR_CLE, 값 1/2/3/4→운영 표준 M/Q/H/Y 등 1자리 영문) */
     public static final String DFR_CLE = "DFR_CLE_C";
     /** 통화코드 (구 CUR) */
     public static final String CURRENCY = "CUR_C";
     /** 신청서진행상태코드 (구 APF_STS, 값 01~04→1~4) */
-    public static final String APF_STS = "APF_PRG_STS_C";
+    public static final String APF_STS = "IT_PTL_APF_PRG_STS_C";
     /** 예산단위사업코드 (구 ABUS_C, 값 01→501) */
     public static final String ABUS_UNIT = "BG_UNT_ABUS_C";
-    /** 사업구분코드 (구 PUL_DTT, 값 001/002→01/02) */
+    /** 사업구분코드 (구 PUL_DTT, 값 001/002→01/02→운영 표준 10/20, 0=해당없음) */
     public static final String ABUS = "ABUS_TC";
 
     // 사업/업무 관련 그룹 — 상수 집약용

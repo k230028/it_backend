@@ -50,7 +50,7 @@ public class BpovwmL extends BaseLogEntity {
     @Column(name = "DGOG_PPO_CONE", length = 4000, comment = "기대효과내용")
     private String dgogPpoCone;
 
-    @Column(name = "KPN_TP_TC", length = 2, comment = "저장구분코드")
+    @Column(name = "KPN_TP_TC", length = 2, comment = "저장유형구분코드")
     private String kpnTpTc;
 
     @Column(name = "FL_MPN_ID", length = 36, comment = "첨부파일관리번호")

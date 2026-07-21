@@ -23,7 +23,7 @@ import java.math.BigDecimal;
  * <p>BASCTM과 1:1 관계이며, Step 1(타당성검토표 작성) 단계에서 입력됩니다.
  * 주요 필드는 TPRMPP_BPROJM 스키마와 동일하게 맞춰 데이터 일관성을 유지합니다.</p>
  *
- * <p>KPN_TC(저장유형): TEMP(임시저장) / COMPLETE(작성완료)</p>
+ * <p>KPN_TP_TC(저장유형구분코드): 10(임시저장) / 20(저장완료)</p>
  */
 @LogTarget(entity = BpovwmL.class)
 @Entity
@@ -75,8 +75,8 @@ public class Bpovwm extends BaseEntity {
     @Column(name = "DGOG_PPO_CONE", length = 4000, comment = "기대효과내용")
     private String dgogPpoCone;
 
-    /** 저장구분코드: TEMP(임시저장) / COMPLETE(작성완료), CCODEM KPN_TC 기준 */
-    @Column(name = "KPN_TP_TC", length = 2, comment = "저장구분코드")
+    /** 저장유형구분코드: 10(임시저장) / 20(저장완료), CCODEM KPN_TP_TC 기준 */
+    @Column(name = "KPN_TP_TC", length = 2, comment = "저장유형구분코드")
     private String kpnTpTc;
 
     /** 첨부파일관리번호: TPRMPP_CFILEM.FL_MNG_NO (FK, hwp/hwpx/pdf만 허용) */
@@ -95,7 +95,7 @@ public class Bpovwm extends BaseEntity {
      * @param lwRglYn  법률규제대응여부
      * @param lwFdtn  관련법률규제명
      * @param dgogPpoCone    기대효과
-     * @param kpnTpTc     저장유형 (TEMP/COMPLETE)
+     * @param kpnTpTc     저장유형구분코드 (10:임시저장 / 20:저장완료)
      * @param flMpnId   첨부파일관리번호
      */
     public void update(String abusNm, String abusTrmCone, String abusNcsCone, BigDecimal rqmBgAmt, String itPtlEdrtTc,

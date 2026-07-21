@@ -126,7 +126,6 @@ class CouncilSkipServiceTest {
         given(b.getRqsUsid()).willReturn(rqsUsid);
         given(b.getCnfmDtm()).willReturn(null);          // 미판정 상태
         given(b.getItPtlAsctId()).willReturn(ASCT_ID);
-        given(b.getPrtyIvgOmtRsnTc()).willReturn("01");
         given(b.getCgprOpnnCone()).willReturn("생략 사유");
         given(b.getFlMpnId()).willReturn("FL-0001");
         given(b.getRqsDtm()).willReturn(LocalDateTime.of(2026, 6, 20, 9, 0));
@@ -147,7 +146,6 @@ class CouncilSkipServiceTest {
         given(b.getRqsUsid()).willReturn(rqsUsid);
         given(b.getCnfmDtm()).willReturn(LocalDateTime.of(2026, 6, 21, 10, 0)); // 판정 완료 상태
         given(b.getItPtlAsctId()).willReturn(ASCT_ID);
-        given(b.getPrtyIvgOmtRsnTc()).willReturn("02");
         given(b.getCgprOpnnCone()).willReturn("확인 완료");
         given(b.getFlMpnId()).willReturn("FL-0002");
         given(b.getRqsDtm()).willReturn(LocalDateTime.of(2026, 6, 20, 9, 0));
@@ -159,7 +157,7 @@ class CouncilSkipServiceTest {
 
     /** SkipRequestCreate 요청 레코드 생성 */
     private CouncilDto.SkipRequestCreate skipRequestCreate() {
-        return new CouncilDto.SkipRequestCreate("01", "생략 요청 사유 설명", "FL-0001");
+        return new CouncilDto.SkipRequestCreate("생략 요청 사유 설명", "FL-0001");
     }
 
     /** SkipDecisionRequest 요청 레코드 생성 (유효한 결재선 포함) */

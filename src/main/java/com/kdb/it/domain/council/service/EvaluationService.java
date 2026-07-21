@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
@@ -100,12 +99,12 @@ public class EvaluationService {
         List<Bevalm> allEvaluations = evaluationRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
 
         // 위원별 사용자 정보 Map (N+1 방지)
-        Map<String, CuserI> userMap = buildUserMapFromEvaluations(allEvaluations);
+        Map<String, UserRepository.UserNameView> userMap = buildUserMapFromEvaluations(allEvaluations);
 
         // 평가의견 → 응답 DTO 변환
         List<CouncilDto.EvaluationItemResponse> evaluationResponses = allEvaluations.stream()
                 .map(e -> {
-                    CuserI user = userMap.get(e.getEno());
+                    UserRepository.UserNameView user = userMap.get(e.getEno());
                     return new CouncilDto.EvaluationItemResponse(
                             e.getEno(),
                             user != null ? user.getUsrNm() : null,
@@ -268,14 +267,14 @@ public class EvaluationService {
     /**
      * 평가의견 목록에서 사번 중복 없이 사용자 정보 Map 생성.
      *
-     * <p>사번 집합을 모아 {@code findByEnoIn}으로 일괄 조회(N+1 제거).</p>
+     * <p>사번 집합을 모아 사용자 이름 프로젝션으로 일괄 조회합니다.</p>
      */
-    private Map<String, CuserI> buildUserMapFromEvaluations(List<Bevalm> evaluations) {
+    private Map<String, UserRepository.UserNameView> buildUserMapFromEvaluations(List<Bevalm> evaluations) {
         List<String> enos = evaluations.stream().map(evaluation -> evaluation.getEno()).distinct().toList();
         if (enos.isEmpty()) {
             return Map.of();
         }
-        return userRepository.findByEnoIn(enos).stream()
+        return userRepository.findNameViewsByEnoIn(enos).stream()
                 .collect(Collectors.toMap(user -> user.getEno(), user -> user, (a, b) -> a));
     }
 

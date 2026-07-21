@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.kdb.it.common.iam.entity.CorgnI;
-import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
@@ -233,11 +232,11 @@ public class CouncilService {
         // 협의회 기본정보 생성 (초기 상태: DRAFT)
         Basctm council = Basctm.builder()
                 .itPtlAsctId(asctId)
-                .abusMngNo(isPlanCouncil ? null : request.prjMngNo())  // 계획협의회는 단일 사업 없음
+                // 운영 BASCTM에는 별도 계획키가 없으므로 계획협의회는 ABUS_MNG_NO에 계획관리번호를 저장한다.
+                .abusMngNo(isPlanCouncil ? request.reqDocNo() : request.prjMngNo())
                 .sno(isPlanCouncil ? null : request.prjSno())
                 .itPtlAsctPrgStsTc("01")
                 .itPtlAsctDbrTc(request.dbrTc())
-                .reqDocNo(isPlanCouncil ? request.reqDocNo() : null)   // 계획협의회 심의 대상 계획
                 .build();
 
         // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
@@ -531,15 +530,16 @@ public class CouncilService {
             return new HashMap<>();
         }
         // 전체 사업관리번호의 활성 품목을 1회 배치 조회한 뒤 사업관리번호별로 그룹핑
-        Map<String, List<Bitemm>> itemsByAbus = projectItemRepository.findByAbusMngNoInAndDelYn(keys, "N").stream()
+        Map<String, List<ProjectItemRepository.ProjectItemBudgetView>> itemsByAbus = projectItemRepository
+                .findBudgetViewsByAbusMngNoInAndDelYn(keys, "N").stream()
                 .collect(Collectors.groupingBy(item -> item.getAbusMngNo()));
         Map<String, BigDecimal> result = new HashMap<>();
         // 요청된 모든 키를 순회한다(itemsByAbus가 아님). 품목이 없는 키도 빈 목록으로
         // applyBudgetSummary를 호출해 행별 단건 조회(deriveCurrentYearBudget)와 값이 동일하게 보존된다.
         for (String abusMngNo : keys) {
-            List<Bitemm> items = itemsByAbus.getOrDefault(abusMngNo, List.of());
+            List<ProjectItemRepository.ProjectItemBudgetView> items = itemsByAbus.getOrDefault(abusMngNo, List.of());
             var tmp = ProjectDto.Response.builder().build();
-            projectBudgetSummaryService.applyBudgetSummary(tmp, items);
+            projectBudgetSummaryService.applyBudgetSummaryViews(tmp, items);
             result.put(abusMngNo, tmp.getTotRqmAmt());
         }
         return result;

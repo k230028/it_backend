@@ -2,7 +2,10 @@ package com.kdb.it.common.iam.repository;
 
 import com.kdb.it.common.iam.entity.CuserI;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +33,107 @@ import java.util.Optional;
  * </ul>
  */
 public interface UserRepository extends JpaRepository<CuserI, String>, UserRepositoryCustom {
+
+    /** 이름 응답에 필요한 사용자 프로젝션. */
+    interface UserNameView {
+        String getEno();
+        String getUsrNm();
+    }
+
+    /** 사용자 조직코드 응답에 필요한 프로젝션. */
+    interface UserOrgCodeView {
+        String getEno();
+        String getTemC();
+        String getBbrC();
+    }
+
+    /** 관리자 사용자 목록 응답에 필요한 프로젝션. */
+    interface AdminUserView {
+        String getEno();
+        String getUsrNm();
+        String getPtCNm();
+        String getTemC();
+        String getTemNm();
+        String getBbrC();
+        String getEtrMilAddrNm();
+        String getInleNo();
+        String getCpnTpn();
+        LocalDateTime getFstEnrDtm();
+        LocalDateTime getLstChgDtm();
+    }
+
+    /** 협의회·검토자 팀 대표 응답에 필요한 프로젝션. */
+    interface CommitteeUserRow {
+        String getTemC();
+        String getEno();
+        String getUsrNm();
+        String getBbrNm();
+        String getPtCNm();
+    }
+
+    /** 협의회 위원 응답에 필요한 사용자 프로젝션. */
+    interface CouncilMemberUserRow {
+        String getEno();
+        String getUsrNm();
+        String getBbrNm();
+        String getPtCNm();
+    }
+
+    /**
+     * 사번 목록으로 사용자 이름 프로젝션을 조회합니다.
+     *
+     * @param enos 사번 목록
+     * @return 사용자 이름 프로젝션 목록
+     */
+    List<UserNameView> findNameViewsByEnoIn(Collection<String> enos);
+
+    /**
+     * 사번으로 사용자 이름 프로젝션을 조회합니다.
+     *
+     * @param eno 사번
+     * @return 사용자 이름 프로젝션
+     */
+    Optional<UserNameView> findNameViewByEno(String eno);
+
+    /**
+     * 사번 목록으로 사용자 조직코드 프로젝션을 조회합니다.
+     *
+     * @param enos 사번 목록
+     * @return 사용자 조직코드 프로젝션 목록
+     */
+    List<UserOrgCodeView> findOrgCodeViewsByEnoIn(Collection<String> enos);
+
+    /**
+     * 삭제 여부로 관리자 사용자 목록 프로젝션을 조회합니다.
+     *
+     * @param delYn 삭제 여부
+     * @return 관리자 사용자 목록 프로젝션
+     */
+    List<AdminUserView> findAdminUserViewsByDelYn(String delYn);
+
+    /**
+     * 팀코드 목록의 활성 사용자를 조직명과 함께 조회합니다.
+     *
+     * @param temCs 팀코드 목록
+     * @param delYn 삭제 여부
+     * @return 팀 대표 후보 사용자 프로젝션 목록
+     */
+    @Query("SELECT u.temC AS temC, u.eno AS eno, u.usrNm AS usrNm, o.bbrNm AS bbrNm, u.ptCNm AS ptCNm "
+            + "FROM CuserI u LEFT JOIN CorgnI o ON o.prlmOgzCCone = u.bbrC "
+            + "WHERE u.temC IN :temCs AND u.delYn = :delYn")
+    List<CommitteeUserRow> findCommitteeUserRowsByTemCInAndDelYn(
+            @Param("temCs") Collection<String> temCs, @Param("delYn") String delYn);
+
+    /**
+     * 사번 목록의 협의회 위원 응답 정보를 조직명과 함께 조회합니다.
+     *
+     * @param enos 사번 목록
+     * @return 협의회 위원 응답 사용자 프로젝션 목록
+     */
+    @Query("SELECT u.eno AS eno, u.usrNm AS usrNm, o.bbrNm AS bbrNm, u.ptCNm AS ptCNm "
+            + "FROM CuserI u LEFT JOIN CorgnI o ON o.prlmOgzCCone = u.bbrC "
+            + "WHERE u.eno IN :enos")
+    List<CouncilMemberUserRow> findCouncilMemberUserRowsByEnoIn(@Param("enos") Collection<String> enos);
 
     /**
      * 부서코드(BBR_C)로 사용자 목록 조회 (조직 정보 즉시 로딩)
@@ -108,4 +212,18 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
      * @return 해당 팀의 사용자 목록
      */
     java.util.List<CuserI> findByTemC(String temC);
+
+    /**
+     * 팀코드(TEM_C) 목록으로 사용자 다건 조회 — 팀 대표자 선정용(배치 조회)
+     *
+     * <p>
+     * 팀별 반복 조회로 인한 N+1 쿼리를 방지하기 위해 사용합니다.
+     * 조직 정보는 불필요하므로 EntityGraph 없이 기본 조회합니다.
+     * </p>
+     *
+     * @param temCs 조회할 팀코드 컬렉션
+     * @param delYn 삭제여부 ({@code N}=활성 사용자)
+     * @return 해당 팀들의 활성 사용자 목록
+     */
+    java.util.List<CuserI> findByTemCInAndDelYn(Collection<String> temCs, String delYn);
 }

@@ -15,7 +15,7 @@ class CinfmmTest {
         notification.markDispatchSent("04", "payload");
 
         assertThat(notification.getInfmSdStsC()).isEqualTo(Cinfmm.DISPATCH_SENT);
-        assertThat(notification.getSdTc()).isEqualTo("04");
+        assertThat(notification.getItPtlSdTc()).isEqualTo("04");
         assertThat(notification.getSdDocCone()).isEqualTo("payload");
         assertThat(notification.getSdDtm()).isNotNull();
         assertThat(notification.getErrCone()).isNull();

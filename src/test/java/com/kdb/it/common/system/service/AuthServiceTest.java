@@ -227,6 +227,33 @@ class AuthServiceTest {
         // ── Refresh Token 갱신 테스트 ──────────────────────────────────────
 
         @Test
+        @DisplayName("getSessionUser - 인증 사용자의 최신 화면 복원 정보 반환")
+        void getSessionUser_인증사용자_최신정보반환() {
+                CuserI user = CuserI.builder()
+                                .eno("10001")
+                                .usrNm("홍길동")
+                                .bbrC("BBR001")
+                                .temC("TEM001")
+                                .delYn("N")
+                                .build();
+                CroleI role = org.mockito.Mockito.mock(CroleI.class);
+                given(role.getAthId()).willReturn("ITPZZ002");
+                given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+                given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
+                                .willReturn(List.of(role));
+
+                AuthDto.LoginResponse response = authService.getSessionUser("10001");
+
+                assertThat(response.getEno()).isEqualTo("10001");
+                assertThat(response.getEmpNm()).isEqualTo("홍길동");
+                assertThat(response.getAthIds()).containsExactly("ITPZZ002");
+                assertThat(response.getBbrC()).isEqualTo("BBR001");
+                assertThat(response.getTemC()).isEqualTo("TEM001");
+                assertThat(response.getAccessToken()).isNull();
+                assertThat(response.getRefreshToken()).isNull();
+        }
+
+        @Test
         @DisplayName("refreshAccessToken - 유효한 Refresh Token → 새 Access Token 반환")
         void refreshAccessToken_유효한토큰_새AccessToken반환() {
                 // given

@@ -65,7 +65,7 @@ class NotificationOutboxServiceTest {
         given(repository.getNextVal()).willReturn(8L);
         NotificationEvent event = NotificationEvent.builder()
                 .recipientEno("E0002")
-                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
+                .itPtlInfmSvcTc(NotificationEvent.TYPE_SYSTEM)
                 .ttl("가".repeat(101))
                 .infmMsgCone("나".repeat(4001))
                 .infmRcdUrl("/" + "u".repeat(300))
@@ -83,10 +83,10 @@ class NotificationOutboxServiceTest {
     private NotificationEvent event(String recipientEno) {
         return NotificationEvent.builder()
                 .recipientEno(recipientEno)
-                .infmSvcTc(NotificationEvent.TYPE_SYSTEM)
+                .itPtlInfmSvcTc(NotificationEvent.TYPE_SYSTEM)
                 .ttl("제목")
                 .infmMsgCone("본문")
-                .sdTc("04")
+                .itPtlSdTc("04")
                 .sdPayload("payload")
                 .build();
     }

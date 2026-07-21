@@ -46,18 +46,49 @@ class ReviewerControllerTest {
     private static final String DOC_ID = "DOC-2026-0001";
 
     @Test
-    @DisplayName("GET /api/reviews/{docMngNo}/reviewers - 비인증 → 401")
+    @DisplayName("GET /api/reviews/reviewers - 비인증 → 401")
     void getReviewers_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/reviews/" + DOC_ID + "/reviewers"))
+        mockMvc.perform(get("/api/reviews/reviewers"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("GET /api/reviews/{docMngNo}/reviewers - 인증된 사용자 → 200 + 검토자 배열")
+    @DisplayName("GET /api/reviews/reviewers - 인증된 사용자 → 200 + 검토자 배열")
     @WithMockUser(username = "10001")
     void getReviewers_인증_200() throws Exception {
         ReviewerDto.Response reviewer = new ReviewerDto.Response("E001", "홍길동", "PMO팀");
-        given(reviewerService.getReviewers(DOC_ID)).willReturn(List.of(reviewer));
+        given(reviewerService.getReviewers()).willReturn(List.of(reviewer));
+
+        mockMvc.perform(get("/api/reviews/reviewers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].eno").value("E001"))
+                .andExpect(jsonPath("$[0].empNm").value("홍길동"))
+                .andExpect(jsonPath("$[0].teamName").value("PMO팀"));
+
+        verify(reviewerService).getReviewers();
+    }
+
+    @Test
+    @DisplayName("GET /api/reviews/reviewers - 검토자 없음 → 200 + 빈 배열")
+    @WithMockUser(username = "10001")
+    void getReviewers_검토자없음_빈배열() throws Exception {
+        given(reviewerService.getReviewers()).willReturn(List.of());
+
+        mockMvc.perform(get("/api/reviews/reviewers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        verify(reviewerService).getReviewers();
+    }
+
+    @Test
+    @DisplayName("GET /api/reviews/{docMngNo}/reviewers - 인증된 사용자 → 200 + 호환 응답")
+    @WithMockUser(username = "10001")
+    void getReviewers_구경로호환_200() throws Exception {
+        ReviewerDto.Response reviewer = new ReviewerDto.Response("E001", "홍길동", "PMO팀");
+        given(reviewerService.getReviewers()).willReturn(List.of(reviewer));
 
         mockMvc.perform(get("/api/reviews/" + DOC_ID + "/reviewers"))
                 .andExpect(status().isOk())
@@ -66,18 +97,6 @@ class ReviewerControllerTest {
                 .andExpect(jsonPath("$[0].empNm").value("홍길동"))
                 .andExpect(jsonPath("$[0].teamName").value("PMO팀"));
 
-        verify(reviewerService).getReviewers(DOC_ID);
-    }
-
-    @Test
-    @DisplayName("GET /api/reviews/{docMngNo}/reviewers - 검토자 없음 → 200 + 빈 배열")
-    @WithMockUser(username = "10001")
-    void getReviewers_검토자없음_빈배열() throws Exception {
-        given(reviewerService.getReviewers(DOC_ID)).willReturn(List.of());
-
-        mockMvc.perform(get("/api/reviews/" + DOC_ID + "/reviewers"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+        verify(reviewerService).getReviewers();
     }
 }

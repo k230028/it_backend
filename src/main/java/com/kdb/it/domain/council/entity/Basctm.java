@@ -46,7 +46,7 @@ public class Basctm extends BaseEntity {
     @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String itPtlAsctId;
 
-    /** 프로젝트관리번호: TPRMPP_BPROJM.PRJ_MNG_NO (FK, 협의회 대상 사업) */
+    /** 사업관리번호: 일반 협의회는 사업번호, 계획 협의회는 운영 스키마 계약에 따라 계획관리번호를 저장합니다. */
     @Column(name = "ABUS_MNG_NO", length = 30, comment = "프로젝트관리번호")
     private String abusMngNo;
 
@@ -93,15 +93,6 @@ public class Basctm extends BaseEntity {
      */
     @Column(name = "CSF_HELD_YN", length = 1, comment = "대면개최여부")
     private String csfHeldYn;
-
-    /**
-     * 계획관리번호: 정보기술부문계획(dbrTc='02') 협의회의 심의 대상 계획.
-     *
-     * <p>BPLANM.REQ_DOC_NO(계획관리번호 PLN-YYYY-NNNN)를 참조합니다.
-     * dbrTc='02'에서만 사용하며, 그 외 심의유형(03/04/05)은 null입니다.</p>
-     */
-    @Column(name = "REQ_DOC_NO", length = 30, comment = "계획관리번호(dbrTc=02 대상 정보기술부문계획)")
-    private String reqDocNo;
 
     /**
      * 협의회 상태 변경

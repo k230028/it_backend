@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -20,6 +21,7 @@ import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.common.util.CookieUtil;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.exception.InvalidRefreshTokenException;
 
@@ -32,7 +34,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -142,6 +146,35 @@ class AuthControllerTest {
                                 .header("User-Agent", "TestAgent")
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("GET /api/auth/session - Access Token 인증 사용자의 화면 복원 정보 반환")
+        void session_인증사용자_화면복원정보반환() throws Exception {
+                CustomUserDetails principal = new CustomUserDetails(
+                                "10001", List.of("ITPZZ002"), "BBR001");
+                UsernamePasswordAuthenticationToken authentication =
+                                UsernamePasswordAuthenticationToken.authenticated(
+                                                principal, "", principal.getAuthorities());
+                AuthDto.LoginResponse sessionUser = AuthDto.LoginResponse.builder()
+                                .eno("10001")
+                                .empNm("홍길동")
+                                .athIds(List.of("ITPZZ002"))
+                                .bbrC("BBR001")
+                                .temC("TEM001")
+                                .build();
+                given(authService.getSessionUser("10001")).willReturn(sessionUser);
+
+                mockMvc.perform(get("/api/auth/session")
+                                .with(SecurityMockMvcRequestPostProcessors.authentication(authentication)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.eno").value("10001"))
+                                .andExpect(jsonPath("$.empNm").value("홍길동"))
+                                .andExpect(jsonPath("$.athIds[0]").value("ITPZZ002"))
+                                .andExpect(jsonPath("$.bbrC").value("BBR001"))
+                                .andExpect(jsonPath("$.temC").value("TEM001"));
+
+                verify(authService).getSessionUser("10001");
         }
 
         @Test

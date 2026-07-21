@@ -3,6 +3,7 @@ package com.kdb.it.common.approval.dto;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.domain.DecisionStatus;
+import com.kdb.it.common.approval.repository.ApproverRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -44,9 +45,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationOrcItem", description = "원천 데이터 연결 항목")
     public static class OrcItem {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public OrcItem() {
+        }
+
         /** 원천 테이블명 (예: "BPROJM"=정보화사업, "BCOSTM"=전산관리비) */
         @Schema(description = "원천 테이블명")
         private String fntTbNm;
@@ -71,9 +75,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationCreateRequest")
     public static class CreateRequest {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public CreateRequest() {
+        }
+
         /** 신청서명 (예: "전산예산 작성") */
         @Schema(description = "신청서명")
         private String apfNm;
@@ -119,9 +126,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationApproveRequest")
     public static class ApproveRequest {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public ApproveRequest() {
+        }
+
         /**
          * 결재자 사원번호
          * <p>실제 서비스에서는 JWT 토큰에서 추출한 현재 사용자 사번을 사용해야 합니다.
@@ -146,9 +156,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "RecallRequest", description = "신청서 회수 요청")
     public static class RecallRequest {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public RecallRequest() {
+        }
+
         /** 회수 사유 (필수, 최대 1000자) */
         @NotBlank
         @Size(max = 1000)
@@ -164,9 +177,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationBulkApproveRequest", description = "일괄 승인 요청")
     public static class BulkApproveRequest {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public BulkApproveRequest() {
+        }
+
         /** 결재 처리할 신청서 목록 (각 항목에 결재자 정보 포함) */
         @Schema(description = "승인할 신청서 목록")
         private List<ApprovalItem> approvals;
@@ -179,9 +195,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationApprovalItem", description = "개별 신청서 승인 정보")
     public static class ApprovalItem {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public ApprovalItem() {
+        }
+
         /** 결재할 신청관리번호 */
         @Schema(description = "신청관리번호")
         private String apfMngNo;
@@ -254,9 +273,12 @@ public class ApplicationDto {
      */
     @Getter
     @Setter
-    @NoArgsConstructor
     @Schema(name = "ApplicationBulkGetRequest", description = "일괄 조회 요청")
     public static class BulkGetRequest {
+        /** 기본 생성자 — Jackson 역직렬화용. */
+        public BulkGetRequest() {
+        }
+
         /** 조회할 신청관리번호 목록 (예: ["APF_202600000001", "APF_202600000002"]) */
         @Schema(description = "조회할 신청관리번호 목록")
         private List<String> apfMngNos;
@@ -377,9 +399,9 @@ public class ApplicationDto {
                     .apfMngNo(capplm.getApfMngNo())       // 신청관리번호
                     .apfNm(capplm.getDcdReqTtl())          // 신청서명(결재요청제목에서 파생)
                     .apfDtlCone(capplm.getDcdReqInf())    // 신청서세부내용(결재요청정보에서 파생)
-                    .apfSts(capplm.getApfPrgStsC() == null ? null
-                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label()) // 신청상태(라벨, 코드에서 파생)
-                    .apfStsC(capplm.getApfPrgStsC())      // 신청상태코드
+                    .apfSts(capplm.getItPtlApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label()) // 신청상태(라벨, 코드에서 파생)
+                    .apfStsC(capplm.getItPtlApfPrgStsC())      // 신청상태코드
                     .rqsEno(capplm.getDcdReqUsid())       // 신청자 사원번호(결재요청사용자ID에서 파생)
                     .rqsNm(requesterNm)                   // 신청자명
                     .rqsBbrC(capplm.getDcdReqBbrC())       // 신청부서코드
@@ -388,6 +410,40 @@ public class ApplicationDto {
                     .rqsOpnn(capplm.getRgprDcdReqCone())  // 신청의견(등록자결재요청내용에서 파생)
                     .approvers(approvers.stream()
                             .map(ApproverResponse::fromEntity) // 각 결재자 엔티티를 DTO로 변환
+                            .toList())
+                    .build();
+        }
+
+        /**
+         * 신청서 엔티티와 결재선 read view를 응답 DTO로 변환합니다.
+         *
+         * @param capplm 신청서 마스터 엔티티
+         * @param approvers 결재 순번 오름차순 read view 목록
+         * @param requesterNm 신청자명
+         * @param requesterBbrNm 신청부서명
+         * @return 변환된 응답 DTO
+         */
+        public static Response fromReadViews(
+                Capplm capplm,
+                List<ApproverRepository.ApproverReadView> approvers,
+                String requesterNm,
+                String requesterBbrNm) {
+            return Response.builder()
+                    .apfMngNo(capplm.getApfMngNo())
+                    .apfNm(capplm.getDcdReqTtl())
+                    .apfDtlCone(capplm.getDcdReqInf())
+                    .apfSts(capplm.getItPtlApfPrgStsC() == null ? null
+                            : com.kdb.it.common.approval.domain.ApprovalStatus
+                                    .ofCode(capplm.getItPtlApfPrgStsC()).label())
+                    .apfStsC(capplm.getItPtlApfPrgStsC())
+                    .rqsEno(capplm.getDcdReqUsid())
+                    .rqsNm(requesterNm)
+                    .rqsBbrC(capplm.getDcdReqBbrC())
+                    .rqsBbrNm(requesterBbrNm)
+                    .rqsDt(capplm.getDcdReqDtm())
+                    .rqsOpnn(capplm.getRgprDcdReqCone())
+                    .approvers(approvers.stream()
+                            .map(ApproverResponse::fromReadView)
                             .toList())
                     .build();
         }
@@ -560,17 +616,37 @@ public class ApplicationDto {
                     .dcdSqn(cdecim.getDcrSqnSno())   // 결재순번
                     .dcdEno(cdecim.getDcrEno())       // 결재자 사원번호
                     // 결재유형: 미결재(001) 또는 null이면 null, 그 외는 "결재"로 표시
-                    .dcdTp(cdecim.getDcdStsC() == null
-                            || DecisionStatus.isPendingCode(cdecim.getDcdStsC())
+                    .dcdTp(cdecim.getItPtlDcdStsC() == null
+                            || DecisionStatus.isPendingCode(cdecim.getItPtlDcdStsC())
                                 ? null : "결재")
                     .dcdDt(cdecim.getDcdDtm())        // 결재일자
                     .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
                     // 결재상태: 코드 → 라벨 변환 (미결재/null이면 null)
-                    .dcdSts(cdecim.getDcdStsC() == null
-                            || DecisionStatus.isPendingCode(cdecim.getDcdStsC())
+                    .dcdSts(cdecim.getItPtlDcdStsC() == null
+                            || DecisionStatus.isPendingCode(cdecim.getItPtlDcdStsC())
                                 ? null
-                                : DecisionStatus.ofCode(cdecim.getDcdStsC()).label())
+                                : DecisionStatus.ofCode(cdecim.getItPtlDcdStsC()).label())
                     .lstDcdYn(cdecim.getLstDcdYn()) // 최종결재자여부
+                    .build();
+        }
+
+        /**
+         * 결재선 read view를 결재자 응답 DTO로 변환합니다.
+         *
+         * @param view 결재선 read view
+         * @return 변환된 결재자 응답 DTO
+         */
+        public static ApproverResponse fromReadView(ApproverRepository.ApproverReadView view) {
+            String status = view.getItPtlDcdStsC();
+            boolean pending = status == null || DecisionStatus.isPendingCode(status);
+            return ApproverResponse.builder()
+                    .dcdSqn(view.getDcrSqnSno())
+                    .dcdEno(view.getDcrEno())
+                    .dcdTp(pending ? null : "결재")
+                    .dcdDt(view.getDcdDtm())
+                    .dcdOpnn(view.getDcrOpnnCone())
+                    .dcdSts(pending ? null : DecisionStatus.ofCode(status).label())
+                    .lstDcdYn(view.getLstDcdYn())
                     .build();
         }
     }

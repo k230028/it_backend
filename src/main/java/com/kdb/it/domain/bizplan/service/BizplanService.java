@@ -32,6 +32,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +52,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BizplanService {
+
+    private static final Logger log = LoggerFactory.getLogger(BizplanService.class);
 
     static final String STS_IN_PROGRESS = "21";
     static final String STS_DONE = "29";
@@ -297,15 +301,36 @@ public class BizplanService {
     /**
      * BPROJA 예산편성 행(BG-%)에서 예산번호 자동 연계 (없으면 null).
      *
-     * <p>한 사업의 예산편성 단계 BPROJA 행은 1건이라는 전제로 첫 BG- 키를 사용한다.
-     * 다건이 존재할 경우 어느 행이 선택될지는 보장되지 않는다.</p>
+     * <p>원칙적으로 사업당 예산편성 BPROJA 행은 1건이나, 다건이 존재하면
+     * {@link #selectLatestBgKey(String, List)}가 최신 키를 결정적으로 선택하고 WARN을 남긴다.</p>
      */
     private String resolveBgNo(String abusMngNo) {
-        return bprojaRepository.findByAbusMngNoAndDelYn(abusMngNo, "N").stream()
-                .map(application -> application.getCncdRfrNo())
-                .filter(key -> key != null && key.startsWith(BG_KEY_PREFIX))
-                .findFirst()
-                .orElse(null);
+        return selectLatestBgKey(abusMngNo,
+                bprojaRepository.findByAbusMngNoAndDelYn(abusMngNo, "N"));
+    }
+
+    /**
+     * BG- 접두 후보 키 중 최신 키를 결정적으로 선택한다. (BE-09)
+     *
+     * <p>선택 규칙: {@code CNCD_RFR_NO} 사전순 내림차순. BG 키는
+     * {@code BG-{예산년도}-{SEQ_BBUGTM 4자리}}로 생성되므로 같은 형식 안에서 키 내림차순이
+     * 최신 채번 순서와 일치한다. 서로 다른 BG- 키가 2건 이상이면 WARN 로그를 남긴다.</p>
+     *
+     * @param abusMngNo 사업관리번호 (로그 문맥용)
+     * @param applications 미삭제 BPROJA 행 목록
+     * @return 최신 BG- 키 (후보가 없으면 null)
+     */
+    static String selectLatestBgKey(String abusMngNo, List<Bproja> applications) {
+        List<Bproja> candidates = applications.stream()
+                .filter(application -> application.getCncdRfrNo() != null
+                        && application.getCncdRfrNo().startsWith(BG_KEY_PREFIX))
+                .sorted(Comparator.comparing((Bproja application) -> application.getCncdRfrNo()).reversed())
+                .toList();
+        if (candidates.size() > 1) {
+            log.warn("BPROJA 예산편성 BG- 키가 {}건입니다 (abusMngNo={}, 선택 키={})",
+                    candidates.size(), abusMngNo, candidates.get(0).getCncdRfrNo());
+        }
+        return candidates.isEmpty() ? null : candidates.get(0).getCncdRfrNo();
     }
 
     private String currentStatus(String abusMngNo) {

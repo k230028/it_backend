@@ -1,7 +1,6 @@
 package com.kdb.it.domain.budget.document.service;
 
 import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.service.AuthorOrg;
 import com.kdb.it.common.iam.service.AuthorOrgResolver;
 import com.kdb.it.common.iam.service.OrgNameResolver;
@@ -27,6 +26,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,6 +39,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 
 /**
@@ -469,30 +470,39 @@ class ServiceRequestDocServiceTest {
     @Test
     @DisplayName("getVersionHistory: 동일 문서의 전체 버전 목록을 내림차순으로 반환한다")
     void getVersionHistory_returnsAllVersionsDescending() {
-        // Arrange: 저장 정수 3,2,1(화면 0.03,0.02,0.01) 내림차순 반환
-        Brdocm v3 = Brdocm.builder()
-                .docMngNo("DOC-001").docVrsSno(new BigDecimal("3")).reqTtl("v3").build();
-        Brdocm v2 = Brdocm.builder()
-                .docMngNo("DOC-001").docVrsSno(new BigDecimal("2")).reqTtl("v2").build();
-        Brdocm v1 = Brdocm.builder()
-                .docMngNo("DOC-001").docVrsSno(new BigDecimal("1")).reqTtl("v1").build();
-        given(repository.findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
-                .willReturn(List.of(v3, v2, v1));
+        LocalDateTime v200CreatedAt = LocalDateTime.of(2026, 7, 21, 11, 0);
+        LocalDateTime v200UpdatedAt = LocalDateTime.of(2026, 7, 21, 11, 5);
+        ServiceRequestDocRepository.VersionHistoryView v200 = versionHistoryView(
+                "DOC-001", "200", v200CreatedAt, v200UpdatedAt, "N");
+        ServiceRequestDocRepository.VersionHistoryView v101 = versionHistoryView(
+                "DOC-001", "101", LocalDateTime.of(2026, 7, 21, 10, 0),
+                LocalDateTime.of(2026, 7, 21, 10, 5), "N");
+        ServiceRequestDocRepository.VersionHistoryView v100 = versionHistoryView(
+                "DOC-001", "100", LocalDateTime.of(2026, 7, 21, 9, 0),
+                LocalDateTime.of(2026, 7, 21, 9, 5), "N");
+        given(repository.findAllProjectedByDocMngNoAndDelYnOrderByDocVrsSnoDesc("DOC-001", "N"))
+                .willReturn(List.of(v200, v101, v100));
 
-        // Act
         List<ServiceRequestDocDto.VersionResponse> result = service.getVersionHistory("DOC-001");
 
-        // Assert: 3개 버전, 첫 번째가 최신 버전(0.03)
         assertThat(result).hasSize(3);
-        assertThat(result.get(0).getDocVrsSno()).isEqualByComparingTo(new BigDecimal("0.03"));
-        assertThat(result.get(2).getDocVrsSno()).isEqualByComparingTo(new BigDecimal("0.01"));
+        assertThat(result).extracting(version -> version.getDocVrsSno())
+                .containsExactly(new BigDecimal("2.00"), new BigDecimal("1.01"), new BigDecimal("1.00"));
+        assertThat(result).extracting(version -> version.getDocMngNo())
+                .containsOnly("DOC-001");
+        assertThat(result).extracting(version -> version.getDelYn())
+                .containsOnly("N");
+        assertThat(result.getFirst().getFstEnrDtm()).isEqualTo(v200CreatedAt);
+        assertThat(result.getFirst().getLstChgDtm()).isEqualTo(v200UpdatedAt);
+        then(repository).should(never())
+                .findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc(anyString(), anyString());
     }
 
     @Test
     @DisplayName("getVersionHistory: 이력이 없으면 빈 목록을 반환한다")
     void getVersionHistory_returnsEmptyWhenNoHistory() {
         // Arrange
-        given(repository.findAllByDocMngNoAndDelYnOrderByDocVrsSnoDesc("NONE", "N"))
+        given(repository.findAllProjectedByDocMngNoAndDelYnOrderByDocVrsSnoDesc("NONE", "N"))
                 .willReturn(List.of());
 
         // Act
@@ -502,8 +512,24 @@ class ServiceRequestDocServiceTest {
         assertThat(result).isEmpty();
     }
 
+    private ServiceRequestDocRepository.VersionHistoryView versionHistoryView(
+            String docMngNo,
+            String storedVersion,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            String delYn) {
+        ServiceRequestDocRepository.VersionHistoryView view =
+                mock(ServiceRequestDocRepository.VersionHistoryView.class);
+        given(view.getDocMngNo()).willReturn(docMngNo);
+        given(view.getDocVrsSno()).willReturn(new BigDecimal(storedVersion));
+        given(view.getFstEnrDtm()).willReturn(createdAt);
+        given(view.getLstChgDtm()).willReturn(updatedAt);
+        given(view.getDelYn()).willReturn(delYn);
+        return view;
+    }
+
     @Test
-    @DisplayName("getDocumentList: 작성자명은 findByEnoIn 1회로 배치 조회하고 findById는 호출하지 않는다")
+    @DisplayName("getDocumentList: 작성자명은 이름 프로젝션 1회로 배치 조회하고 단건 조회는 호출하지 않는다")
     void getDocumentList_batchesAuthorNames() {
         Brdocm d1 = Brdocm.builder()
                 .docMngNo("DOC-1").docVrsSno(new BigDecimal("0.01")).reqTtl("문서1").fstEnrUsid("E001").build();
@@ -511,10 +537,14 @@ class ServiceRequestDocServiceTest {
                 .docMngNo("DOC-2").docVrsSno(new BigDecimal("0.01")).reqTtl("문서2").fstEnrUsid("E002").build();
         Brdocm d3 = Brdocm.builder()
                 .docMngNo("DOC-3").docVrsSno(new BigDecimal("0.01")).reqTtl("문서3").fstEnrUsid("E001").build();
-        CuserI u1 = CuserI.builder().eno("E001").usrNm("홍길동").build();
-        CuserI u2 = CuserI.builder().eno("E002").usrNm("김철수").build();
+        UserRepository.UserNameView u1 = mock(UserRepository.UserNameView.class);
+        UserRepository.UserNameView u2 = mock(UserRepository.UserNameView.class);
+        given(u1.getEno()).willReturn("E001");
+        given(u1.getUsrNm()).willReturn("홍길동");
+        given(u2.getEno()).willReturn("E002");
+        given(u2.getUsrNm()).willReturn("김철수");
         given(repository.findLatestVersionsAll()).willReturn(List.of(d1, d2, d3));
-        given(cuserIRepository.findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
+        given(cuserIRepository.findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any()))
                 .willReturn(List.of(u1, u2));
 
         List<ServiceRequestDocDto.Response> result = service.getDocumentList();
@@ -525,8 +555,9 @@ class ServiceRequestDocServiceTest {
         assertThat(result.get(1).getFstEnrUsNm()).isEqualTo("김철수");
         assertThat(result.get(2).getFstEnrUsNm()).isEqualTo("홍길동");
         then(cuserIRepository).should(times(1))
-                .findByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any());
+                .findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any());
         then(cuserIRepository).should(never()).findById(anyString());
+        then(cuserIRepository).should(never()).findNameViewByEno(anyString());
     }
 
     @Test

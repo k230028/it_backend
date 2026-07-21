@@ -16,6 +16,25 @@ public class BoardPostDto {
 
     private BoardPostDto() {}
 
+    /** 게시물 목록 응답에 필요한 필드만 담는 조회 전용 행입니다. */
+    @Schema(name = "BoardPostListRow", description = "게시물 목록 조회 전용 행")
+    public record ListRow(
+        String nacMngNo,
+        String blbMngNo,
+        String nacNm,
+        Integer nacInqNbr,
+        String nacUnqId,
+        String ancYn,
+        String xpoYn,
+        String flApgYn,
+        Integer flNbr,
+        Integer nacGrpLev,
+        LocalDate sttYmd,
+        LocalDate endYmd,
+        String fstEnrUsid,
+        LocalDateTime fstEnrDtm
+    ) {}
+
     @Getter
     @Builder
     @NoArgsConstructor
@@ -28,7 +47,7 @@ public class BoardPostDto {
         @Schema(description = "조회수")         private Integer       nacInqNbr;
         @Schema(description = "게시물고유ID") private String        nacUnqId;
         @Schema(description = "공지여부")   private String        ancYn;
-        @Schema(description = "화면여부")       private String        sreYn;
+        @Schema(description = "노출여부")       private String        xpoYn;
         @Schema(description = "파일첨부여부")   private String        flApgYn;
         @Schema(description = "파일수")         private Integer       flNbr;
         @Schema(description = "그룹레벨 (들여쓰기 계산용)") private Integer nacGrpLev;
@@ -42,11 +61,30 @@ public class BoardPostDto {
                 .nacMngNo(e.getNacMngNo()).blbMngNo(e.getBlbMngNo())
                 .nacNm(e.getNacNm()).nacInqNbr(e.getNacInqNbr())
                 .nacUnqId(e.getNacUnqId())
-                .ancYn(e.getAncYn()).sreYn(e.getSreYn())
+                .ancYn(e.getAncYn()).xpoYn(e.getXpoYn())
                 .flApgYn(e.getFlApgYn()).flNbr(e.getFlNbr())
                 .nacGrpLev(e.getNacGrpLev())
                 .sttYmd(e.getSttDt()).endYmd(e.getEndDt())
                 .fstEnrUsid(e.getFstEnrUsid()).fstEnrDtm(e.getFstEnrDtm())
+                .build();
+        }
+
+        /**
+         * 경량 조회 행을 목록 응답으로 변환합니다.
+         *
+         * @param row 게시물 목록 조회 행
+         * @return 게시물 목록 응답
+         */
+        public static ListItem from(ListRow row) {
+            return ListItem.builder()
+                .nacMngNo(row.nacMngNo()).blbMngNo(row.blbMngNo())
+                .nacNm(row.nacNm()).nacInqNbr(row.nacInqNbr())
+                .nacUnqId(row.nacUnqId())
+                .ancYn(row.ancYn()).xpoYn(row.xpoYn())
+                .flApgYn(row.flApgYn()).flNbr(row.flNbr())
+                .nacGrpLev(row.nacGrpLev())
+                .sttYmd(row.sttYmd()).endYmd(row.endYmd())
+                .fstEnrUsid(row.fstEnrUsid()).fstEnrDtm(row.fstEnrDtm())
                 .build();
         }
     }
@@ -64,7 +102,7 @@ public class BoardPostDto {
         @Schema(description = "조회수")         private Integer       nacInqNbr;
         @Schema(description = "게시물고유ID") private String        nacUnqId;
         @Schema(description = "공지여부")   private String        ancYn;
-        @Schema(description = "화면여부")       private String        sreYn;
+        @Schema(description = "노출여부")       private String        xpoYn;
         @Schema(description = "담당부서코드")   private String        bbrC;
         @Schema(description = "공개시작일")     private LocalDate     sttYmd;
         @Schema(description = "공개종료일")     private LocalDate     endYmd;
@@ -83,7 +121,7 @@ public class BoardPostDto {
                 .nacMngNo(e.getNacMngNo()).blbMngNo(e.getBlbMngNo())
                 .nacNm(e.getNacNm()).nacCone(e.getNacCone())
                 .nacInqNbr(e.getNacInqNbr()).nacUnqId(e.getNacUnqId())
-                .ancYn(e.getAncYn()).sreYn(e.getSreYn())
+                .ancYn(e.getAncYn()).xpoYn(e.getXpoYn())
                 .bbrC(e.getBbrC()).sttYmd(e.getSttDt()).endYmd(e.getEndDt())
                 .flApgYn(e.getFlApgYn()).flNbr(e.getFlNbr())
                 .nacGrpSqn(e.getNacGrpSqn()).nacGrpLev(e.getNacGrpLev())
@@ -105,7 +143,7 @@ public class BoardPostDto {
         @Size(max = 4000)
         @Schema(description = "본문 HTML (최대 4000자)")                         private String    nacCone;
         @Schema(description = "공지여부", example = "N")        private String   ancYn;
-        @Schema(description = "화면여부", example = "Y")            private String   sreYn;
+        @Schema(description = "노출여부", example = "Y")            private String   xpoYn;
         @Schema(description = "담당부서코드")                       private String   bbrC;
         @Schema(description = "공개시작일")                         private LocalDate sttYmd;
         @Schema(description = "공개종료일")                         private LocalDate endYmd;
@@ -124,7 +162,7 @@ public class BoardPostDto {
         @Size(max = 4000)
         @Schema(description = "본문 HTML (최대 4000자)")     private String    nacCone;
         @Schema(description = "공지여부")  private String    ancYn;
-        @Schema(description = "화면여부")      private String    sreYn;
+        @Schema(description = "노출여부")      private String    xpoYn;
         @Schema(description = "담당부서코드")  private String    bbrC;
         @Schema(description = "공개시작일")    private LocalDate sttYmd;
         @Schema(description = "공개종료일")    private LocalDate endYmd;
@@ -135,7 +173,7 @@ public class BoardPostDto {
             return new Cblbcm.UpdateCommand(
                 nacNm, sanitizedCone,
                 ancYn == null ? "N" : ancYn,
-                sreYn == null ? "Y" : sreYn,
+                xpoYn == null ? "Y" : xpoYn,
                 bbrC, sttYmd, endYmd
             );
         }

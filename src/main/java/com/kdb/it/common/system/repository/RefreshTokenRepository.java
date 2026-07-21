@@ -5,6 +5,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,7 +15,7 @@ import java.util.Optional;
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여
  * 갱신토큰 테이블(TPRMPP_CRTOKM)에 대한 CRUD 기능을 제공합니다.</p>
  *
- * <p>기본키 타입: {@link Long} (tokSno: Oracle 시퀀스 SEQ_CRTOKM)</p>
+ * <p>기본키 타입: {@link Long} (tokSno: Oracle 시퀀스 SQ_TPRMPP_CRTOKM_1)</p>
  *
  * <p>Refresh Token 관리 전략:</p>
  * <ul>
@@ -26,6 +27,21 @@ import java.util.Optional;
  * </ul>
  */
 public interface RefreshTokenRepository extends JpaRepository<Crtokm, Long> {
+
+    /** 관리자 토큰 목록 응답에 필요한 프로젝션. */
+    interface AdminTokenView {
+        String getEno();
+        LocalDateTime getEndDtm();
+        String getEcyRnwPubTokCone();
+        LocalDateTime getFstEnrDtm();
+    }
+
+    /**
+     * 전체 갱신토큰을 관리자 목록 프로젝션으로 조회합니다.
+     *
+     * @return 관리자 토큰 목록 프로젝션
+     */
+    List<AdminTokenView> findAllProjectedBy();
 
     /**
      * 암호화갱신발행토큰내용으로 Refresh Token을 조회합니다.

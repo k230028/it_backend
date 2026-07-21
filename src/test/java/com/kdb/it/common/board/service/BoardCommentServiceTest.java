@@ -53,13 +53,13 @@ class BoardCommentServiceTest {
     @BeforeEach
     void setUp() {
         boardWithComment = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0001").blbNm("자유게시판").blbTp("002")
+            .blbMngNo("BLBM-2026-0001").blbNm("자유게시판").itPtlBlbTc("002")
             .repUseYn("N").cmmtUseYn("Y")
             .useYn("Y").delYn("N")
             .build();
 
         boardNoComment = Cblbmm.builder()
-            .blbMngNo("BLBM-2026-0002").blbNm("공지사항").blbTp("001")
+            .blbMngNo("BLBM-2026-0002").blbNm("공지사항").itPtlBlbTc("001")
             .repUseYn("N").cmmtUseYn("N")
             .useYn("Y").delYn("N")
             .build();
@@ -222,7 +222,6 @@ class BoardCommentServiceTest {
             .cmmtMngNo(parentId)
             .nacMngNo("NAC-2026-0001")
             .cmmtCone("부모 댓글")
-            .sreYn("Y")
             .cmmtGrpNo(parentId)
             .cmmtGrpSqn(0)
             .cmmtGrpLev(0)
@@ -430,7 +429,6 @@ class BoardCommentServiceTest {
             .cmmtMngNo(parentId)
             .nacMngNo("NAC-2026-0001")
             .cmmtCone("부모 댓글")
-            .sreYn("Y")
             .cmmtGrpNo(parentId)
             .cmmtGrpSqn(0)
             .cmmtGrpLev(0)
@@ -467,7 +465,6 @@ class BoardCommentServiceTest {
             .cmmtMngNo(cmmtMngNo)
             .nacMngNo("NAC-2026-0001")
             .cmmtCone("원본 댓글")
-            .sreYn("Y")
             .cmmtGrpNo(cmmtMngNo)
             .cmmtGrpSqn(0)
             .cmmtGrpLev(0)

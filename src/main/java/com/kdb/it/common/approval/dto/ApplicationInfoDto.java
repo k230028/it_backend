@@ -1,6 +1,8 @@
 package com.kdb.it.common.approval.dto;
 
 import com.kdb.it.common.approval.domain.DecisionStatus;
+import com.kdb.it.common.approval.repository.ApplicationRepository;
+import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -85,13 +87,36 @@ public class ApplicationInfoDto {
 
         return ApplicationInfoDto.builder()
                 .apfMngNo(capplm.getApfMngNo()) // 신청서관리번호
-                .apfSts(capplm.getApfPrgStsC() == null ? null
-                        : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getApfPrgStsC()).label()) // 신청서상태(코드→라벨)
+                .apfSts(capplm.getItPtlApfPrgStsC() == null ? null
+                        : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(capplm.getItPtlApfPrgStsC()).label()) // 신청서상태(코드→라벨)
                 .apfNm(capplm.getDcdReqTtl())       // 신청서명(결재요청제목에서 파생)
                 .rqsEno(capplm.getDcdReqUsid())     // 신청자 사번(결재요청사용자ID에서 파생)
                 .rqsDt(capplm.getDcdReqDtm())       // 신청일자(결재요청일시에서 파생)
                 .rqsOpnn(capplm.getRgprDcdReqCone()) // 신청의견(등록자결재요청내용에서 파생)
                 .approvers(approverDtos) // 결재자 목록
+                .build();
+    }
+
+    /**
+     * 신청서 요약 view와 결재선 read view를 신청서 상세 정보로 변환합니다.
+     *
+     * @param application 신청서 요약 view
+     * @param decisions 결재 순번 오름차순 read view 목록
+     * @return 변환된 신청서 상세 정보 DTO
+     */
+    public static ApplicationInfoDto fromReadViews(
+            ApplicationRepository.ApplicationSummaryView application,
+            List<ApproverRepository.ApproverReadView> decisions) {
+        return ApplicationInfoDto.builder()
+                .apfMngNo(application.getApfMngNo())
+                .apfSts(application.getItPtlApfPrgStsC() == null ? null
+                        : com.kdb.it.common.approval.domain.ApprovalStatus
+                                .ofCode(application.getItPtlApfPrgStsC()).label())
+                .apfNm(application.getDcdReqTtl())
+                .rqsEno(application.getDcdReqUsid())
+                .rqsDt(application.getDcdReqDtm())
+                .rqsOpnn(application.getRgprDcdReqCone())
+                .approvers(decisions.stream().map(ApproverDto::fromReadView).toList())
                 .build();
     }
 
@@ -122,7 +147,7 @@ public class ApplicationInfoDto {
         @Schema(description = "결재유형")
         private String dcdTp;
 
-        /** 결재상태 (DCD_STS_C, null=미결재, "승인", "반려") */
+        /** 결재상태 (IT_PTL_DCD_STS_C, null=미결재, "승인", "반려") */
         @Schema(description = "결재상태")
         private String dcdSts;
 
@@ -141,16 +166,35 @@ public class ApplicationInfoDto {
          * @return 변환된 결재자 DTO
          */
         public static ApproverDto fromEntity(Cdecim cdecim) {
-            String dcdStsC = cdecim.getDcdStsC();
-            boolean pending = dcdStsC == null || DecisionStatus.isPendingCode(dcdStsC);
+            String itPtlDcdStsC = cdecim.getItPtlDcdStsC();
+            boolean pending = itPtlDcdStsC == null || DecisionStatus.isPendingCode(itPtlDcdStsC);
             return ApproverDto.builder()
                     .dcdSqn(cdecim.getDcrSqnSno())   // 결재순서
                     .dcdEno(cdecim.getDcrEno())       // 결재자 사번
                     .dcdTp(pending ? null : "결재")   // 결재유형(미결재면 null)
                     .dcdSts(pending ? null
-                            : DecisionStatus.ofCode(dcdStsC).label())
+                            : DecisionStatus.ofCode(itPtlDcdStsC).label())
                     .dcdDt(cdecim.getDcdDtm())        // 결재일자
                     .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
+                    .build();
+        }
+
+        /**
+         * 결재선 read view를 결재자 DTO로 변환합니다.
+         *
+         * @param view 결재선 read view
+         * @return 변환된 결재자 DTO
+         */
+        public static ApproverDto fromReadView(ApproverRepository.ApproverReadView view) {
+            String status = view.getItPtlDcdStsC();
+            boolean pending = status == null || DecisionStatus.isPendingCode(status);
+            return ApproverDto.builder()
+                    .dcdSqn(view.getDcrSqnSno())
+                    .dcdEno(view.getDcrEno())
+                    .dcdTp(pending ? null : "결재")
+                    .dcdSts(pending ? null : DecisionStatus.ofCode(status).label())
+                    .dcdDt(view.getDcdDtm())
+                    .dcdOpnn(view.getDcrOpnnCone())
                     .build();
         }
     }

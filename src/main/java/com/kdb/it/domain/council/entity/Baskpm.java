@@ -27,7 +27,7 @@ import java.time.LocalDateTime;
  */
 @LogTarget(entity = BaskpmL.class)
 @Entity
-@Table(name = "TPRMPP_BASKPM", comment = "정보화실무협의회 타당성검토 생략판정요청")
+@Table(name = "TPRMPP_BASKPM", comment = "프로젝트관리_협의회제외요청기본")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -39,16 +39,12 @@ public class Baskpm extends BaseEntity {
     @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String itPtlAsctId;
 
-    /** 타당성검토생략사유구분코드 (PRTY_IVG_OMT_RSN_TC 01~04) */
-    @Column(name = "PRTY_IVG_OMT_RSN_TC", length = 2, nullable = false, comment = "타당성검토생략사유구분코드")
-    private String prtyIvgOmtRsnTc;
-
     /** 담당자의견내용 (요청측 정보보호기획 의견) */
     @Column(name = "CGPR_OPNN_CONE", length = 4000, nullable = false, comment = "담당자의견내용")
     private String cgprOpnnCone;
 
     /** 첨부파일관리번호 (사업계획서, Cfilem.FL_MPN_ID) */
-    @Column(name = "FL_MPN_ID", length = 36, nullable = false, comment = "첨부파일관리번호")
+    @Column(name = "FL_MPN_ID", length = 36, nullable = false, comment = "파일매핑ID")
     private String flMpnId;
 
     /** 신청사용자ID (정보보호기획 요청자) */
@@ -77,16 +73,13 @@ public class Baskpm extends BaseEntity {
      * <p>NOT NULL 컬럼은 감사로그 스냅샷 타이밍을 위해 생성 시점에 모두 채웁니다(it_backend §5.12.1.1).</p>
      *
      * @param itPtlAsctId 협의회ID
-     * @param rsnTc       생략사유코드(4종)
      * @param opnn        담당자의견내용(요청 설명)
      * @param flMpnId     사업계획서 첨부파일관리번호
      * @param rqsUsid     신청자(정보보호기획) 사용자ID
      */
-    public static Baskpm create(
-            String itPtlAsctId, String rsnTc, String opnn, String flMpnId, String rqsUsid) {
+    public static Baskpm create(String itPtlAsctId, String opnn, String flMpnId, String rqsUsid) {
         Baskpm b = new Baskpm();
         b.itPtlAsctId = itPtlAsctId;
-        b.prtyIvgOmtRsnTc = rsnTc;
         b.cgprOpnnCone = opnn;
         b.flMpnId = flMpnId;
         b.rqsUsid = rqsUsid;

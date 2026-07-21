@@ -27,6 +27,22 @@ public class BbizpmL extends BaseLogEntity {
     private String abusNm;
 
     @Lob
+    @Column(name = "ABUS_PUL_NCS_INF", comment = "사업추진필요성정보")
+    private String abusPulNcsInf;
+
+    @Lob
+    @Column(name = "ABUS_PUL_DRCN_INF", comment = "사업추진방향정보")
+    private String abusPulDrcnInf;
+
+    @Lob
+    @Column(name = "ABUS_PUL_CONE_INF", comment = "사업추진내용정보")
+    private String abusPulConeInf;
+
+    @Lob
+    @Column(name = "ABUS_XPT_EFF_INF", comment = "사업기대효과정보")
+    private String abusXptEffInf;
+
+    @Lob
     @Column(name = "REDT_CONE_INF", comment = "보고서내용정보")
     private String redtConeInf;
 

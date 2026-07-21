@@ -25,26 +25,26 @@ public interface DeliberationRepository extends JpaRepository<Bdelim, BdelimId>,
     Optional<Bdelim> findByDocMngNoAndLstYnAndDelYn(String docMngNo, String lstYn, String delYn);
 
     /**
-     * Oracle 시퀀스(SEQ_BDELIM) 다음 값 조회.
+     * Oracle 시퀀스(SQ_TPRMPP_BDELIM_1) 다음 값 조회.
      *
      * <p>신규 과업심의 문서관리번호 채번 시 사용합니다.</p>
      *
      * @return 시퀀스의 다음 값 (Long)
      */
-    @Query(nativeQuery = true, value = "SELECT SEQ_BDELIM.NEXTVAL FROM DUAL")
+    @Query(nativeQuery = true, value = "SELECT SQ_TPRMPP_BDELIM_1.NEXTVAL FROM DUAL")
     Long nextDocSeq();
 
     /**
      * 동일 대상에 진행 중인 심의 신청이 있는지 확인 (중복 신청 방지).
      *
-     * <p>대상구분(bgPrnTc) + 대상관리번호(cncdRfrNo) + 지정 상태 목록 + 미삭제 조건으로 존재 여부를 확인합니다.</p>
+     * <p>대상구분(ioeC) + 대상관리번호(cncdRfrNo) + 지정 상태 목록 + 미삭제 조건으로 존재 여부를 확인합니다.</p>
      *
-     * @param bgPrnTc   예산성격구분코드(대상구분)
+     * @param ioeC   예산성격구분코드(대상구분)
      * @param cncdRfrNo 관련참조번호(대상관리번호)
      * @param stsTc     확인할 상태 코드 집합
      * @param delYn     삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 레코드가 하나라도 있으면 true
      */
-    boolean existsByBgPrnTcAndCncdRfrNoAndStsTcInAndDelYn(
-            String bgPrnTc, String cncdRfrNo, java.util.Collection<String> stsTc, String delYn);
+    boolean existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
+            String ioeC, String cncdRfrNo, java.util.Collection<String> stsTc, String delYn);
 }
