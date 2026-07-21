@@ -302,7 +302,7 @@ class FileServiceTest {
         List<FileDto.Response> result = fileService.getFiles(condition, USER);
 
         // DOC-1 허용 2건만 포함, DOC-2 거부 제외 — 종류가 같아도 부모가 다르면 캐시 미공유
-        assertThat(result).extracting(FileDto.Response::getFlMpnId)
+        assertThat(result).extracting(file -> file.getFlMpnId())
                 .containsExactly("FL_00000001", "FL_00000002");
         verify(fileOwnershipChecker, times(1)).canRead(doc1a, USER);
         verify(fileOwnershipChecker, never()).canRead(doc1b, USER);

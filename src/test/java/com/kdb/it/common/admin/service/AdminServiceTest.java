@@ -725,8 +725,8 @@ class AdminServiceTest {
         // 검증
         assertThat(result.getTotalElements()).isEqualTo(3);
         assertThat(result.getContent()).extracting(
-                        AdminDto.LoginHistoryResponse::eno,
-                        AdminDto.LoginHistoryResponse::usrNm)
+                        response -> response.eno(),
+                        response -> response.usrNm())
                 .containsExactly(
                         org.assertj.core.groups.Tuple.tuple("KNOWN", "사용자명"),
                         org.assertj.core.groups.Tuple.tuple("UNKNOWN", "UNKNOWN"),

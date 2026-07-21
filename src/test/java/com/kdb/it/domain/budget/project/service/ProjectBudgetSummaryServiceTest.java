@@ -142,7 +142,7 @@ class ProjectBudgetSummaryServiceTest {
         assertThat(response.getCostBg()).isEqualByComparingTo("500");
         assertThat(response.getTotRqmAmt()).isEqualByComparingTo("1000");
         assertThat(ProjectItemRepository.ProjectItemBudgetView.class.getDeclaredMethods())
-                .extracting(java.lang.reflect.Method::getName)
+                .extracting(method -> method.getName())
                 .containsExactlyInAnyOrder("getGclMngNo", "getAbusMngNo", "getIoeC", "getAmt", "getMplAmt");
     }
 

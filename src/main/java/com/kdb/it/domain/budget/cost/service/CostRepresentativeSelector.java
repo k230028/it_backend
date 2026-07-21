@@ -26,7 +26,7 @@ public final class CostRepresentativeSelector {
      * @throws IllegalArgumentException 목록이 비어 있는 경우
      */
     public static Bcostm pick(List<Bcostm> costs) {
-        return pickByAccessors(costs, Bcostm::getCostBgNo, Bcostm::getBgSno, Bcostm::getLstYn);
+        return pickByAccessors(costs, cost -> cost.getCostBgNo(), cost -> cost.getBgSno(), cost -> cost.getLstYn());
     }
 
     /**
@@ -40,9 +40,9 @@ public final class CostRepresentativeSelector {
             List<CostRepository.CostRepresentativeView> costs) {
         return pickByAccessors(
                 costs,
-                CostRepository.CostRepresentativeView::getCostBgNo,
-                CostRepository.CostRepresentativeView::getBgSno,
-                CostRepository.CostRepresentativeView::getLstYn);
+                cost -> cost.getCostBgNo(),
+                cost -> cost.getBgSno(),
+                cost -> cost.getLstYn());
     }
 
     private static <T> T pickByAccessors(

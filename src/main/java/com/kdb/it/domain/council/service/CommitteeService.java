@@ -111,7 +111,7 @@ public class CommitteeService {
         // (dbrTc='02' 정보기술부문계획: IT기획팀장이 평가위원 겸 간사. BCMMTM PK=(협의회ID,사번)이라
         //  1인 2행이 불가하므로 '04'(당연위원 겸 간사) 단일 유형으로 표현한다.)
         Set<String> secrEnos = secrCandidates.values().stream()
-                .map(UserRepository.CommitteeUserRow::getEno)
+                .map(user -> user.getEno())
                 .collect(Collectors.toSet());
 
         List<CouncilDto.CommitteeMemberResponse> result = new ArrayList<>();
@@ -259,7 +259,7 @@ public class CommitteeService {
         }
         Map<String, List<UserRepository.CommitteeUserRow>> usersByTeam = userRepository
                 .findCommitteeUserRowsByTemCInAndDelYn(temCodes, "N").stream()
-                .collect(Collectors.groupingBy(UserRepository.CommitteeUserRow::getTemC));
+                .collect(Collectors.groupingBy(user -> user.getTemC()));
         Map<String, UserRepository.CommitteeUserRow> leads = new LinkedHashMap<>();
         for (String temC : temCodes) {
             UserRepresentativeSelector.pickView(usersByTeam.getOrDefault(temC, List.of()))

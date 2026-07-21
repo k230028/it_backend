@@ -41,7 +41,7 @@ class ContractDetailProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(row.cttManrRsn()).isEqualTo(reason).hasSize(1000);
         assertThat(row.cttAmt()).isEqualByComparingTo(new BigDecimal("123456.789"));
         assertThat(ContractDetailRow.class.getRecordComponents())
-                .extracting(java.lang.reflect.RecordComponent::getName)
+                .extracting(component -> component.getName())
                 .containsExactly("docMngNo", "docVrsSno", "ioeC", "cncdRfrNo", "tgtNm",
                         "stsTc", "reqCone", "itPtlCttManrC", "cttManrRsn", "cttNm",
                         "cttAmt", "cttOppNm", "cttDt", "reqUsid", "reqDtm");

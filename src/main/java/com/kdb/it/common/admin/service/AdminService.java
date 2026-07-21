@@ -469,14 +469,14 @@ public class AdminService {
         public List<AdminDto.UserResponse> getUsers() {
                 List<UserRepository.AdminUserView> users = userRepository.findAdminUserViewsByDelYn("N");
                 Set<String> orgCodes = users.stream()
-                                .map(UserRepository.AdminUserView::getBbrC)
+                                .map(user -> user.getBbrC())
                                 .filter(Objects::nonNull)
                                 .collect(Collectors.toSet());
                 Map<String, String> orgNames = orgRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
                                 .filter(organization -> organization.getBbrNm() != null)
                                 .collect(Collectors.toMap(
-                                                OrganizationRepository.OrganizationNameView::getPrlmOgzCCone,
-                                                OrganizationRepository.OrganizationNameView::getBbrNm,
+                                                organization -> organization.getPrlmOgzCCone(),
+                                                organization -> organization.getBbrNm(),
                                                 (left, right) -> left));
                 return users.stream()
                                 .map(user -> toUserResponse(user, orgNames.get(user.getBbrC())))
@@ -655,7 +655,7 @@ public class AdminService {
                 Page<LoginHistoryRepository.LoginHistoryView> page =
                                 loginHistoryRepository.findPageViewsByOrderByLgnDtmDesc(pageable);
                 Map<String, String> userNameMap = loadUserNameMap(page.getContent().stream()
-                                .map(LoginHistoryRepository.LoginHistoryView::getEno));
+                                .map(history -> history.getEno()));
                 List<AdminDto.LoginHistoryResponse> content = page.getContent().stream()
                                 .map(history -> toLoginHistoryResponse(history, userNameMap))
                                 .toList();
@@ -774,8 +774,8 @@ public class AdminService {
                 return userRepository.findNameViewsByEnoIn(enoSet).stream()
                                 .filter(user -> user.getUsrNm() != null)
                                 .collect(Collectors.toMap(
-                                                UserRepository.UserNameView::getEno,
-                                                UserRepository.UserNameView::getUsrNm));
+                                                user -> user.getEno(),
+                                                user -> user.getUsrNm()));
         }
 
         /**

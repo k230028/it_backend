@@ -59,7 +59,7 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
         List<UserDto.ListRow> rows = userRepository.findListRowsByBbrC(ORG_CODE);
 
         assertThat(rows).filteredOn(row -> row.eno().startsWith("BE03"))
-                .extracting(UserDto.ListRow::eno)
+                .extracting(row -> row.eno())
                 .containsExactlyInAnyOrder("BE03001", "BE03002");
         assertThat(rows).filteredOn(row -> row.eno().equals("BE03001"))
                 .singleElement()
@@ -75,7 +75,7 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     void searchListRowsByName_preservesExistingFilterPolicy() {
         assertThat(userRepository.searchListRowsByName("길동"))
                 .filteredOn(row -> row.eno().startsWith("BE03"))
-                .extracting(UserDto.ListRow::eno)
+                .extracting(row -> row.eno())
                 .containsExactlyInAnyOrder("BE03001", "BE03002");
         assertThat(userRepository.searchListRowsByName("null조직"))
                 .filteredOn(row -> row.eno().equals("BE03003"))
@@ -99,10 +99,10 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     @DisplayName("이름·조직코드·관리자 사용자 view는 용도별 필드와 삭제 조건을 반환한다")
     void readViews_returnPurposeSpecificFields() {
         assertThat(userRepository.findNameViewsByEnoIn(List.of("BE03001", "BE03002")))
-                .extracting(UserRepository.UserNameView::getUsrNm)
+                .extracting(row -> row.getUsrNm())
                 .containsExactlyInAnyOrder("홍길동", "김길동");
         assertThat(userRepository.findNameViewByEno("BE03001"))
-                .get().extracting(UserRepository.UserNameView::getUsrNm).isEqualTo("홍길동");
+                .get().extracting(row -> row.getUsrNm()).isEqualTo("홍길동");
 
         assertThat(userRepository.findOrgCodeViewsByEnoIn(List.of("BE03001")))
                 .singleElement()
@@ -113,7 +113,7 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
 
         assertThat(userRepository.findAdminUserViewsByDelYn("N"))
                 .filteredOn(row -> row.getEno().startsWith("BE03"))
-                .extracting(UserRepository.AdminUserView::getEno)
+                .extracting(row -> row.getEno())
                 .contains("BE03001", "BE03003")
                 .doesNotContain("BE03002");
     }

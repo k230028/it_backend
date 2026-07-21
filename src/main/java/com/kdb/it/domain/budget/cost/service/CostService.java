@@ -457,14 +457,14 @@ public class CostService {
             return;
         }
         Set<String> enos = terminals.stream()
-                .map(CostDto.TerminalDto::getCgprId)
+                .map(terminal -> terminal.getCgprId())
                 .filter(eno -> eno != null && !eno.isBlank())
                 .collect(Collectors.toSet());
         if (enos.isEmpty()) {
             return;
         }
         Map<String, CuserI> userByEno = cuserIRepository.findByEnoIn(enos).stream()
-                .collect(Collectors.toMap(CuserI::getEno, user -> user, (a, b) -> a));
+                .collect(Collectors.toMap(user -> user.getEno(), user -> user, (a, b) -> a));
         for (CostDto.TerminalDto tDto : terminals) {
             CuserI user = tDto.getCgprId() == null ? null : userByEno.get(tDto.getCgprId());
             if (user != null) {

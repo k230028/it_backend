@@ -39,7 +39,7 @@ class DeliberationDetailProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(row.taskDbrTc()).isEqualTo("01");
         assertThat(row.apvTrdnRsnCone()).isEqualTo("승인 사유");
         assertThat(DeliberationDetailRow.class.getRecordComponents())
-                .extracting(java.lang.reflect.RecordComponent::getName)
+                .extracting(component -> component.getName())
                 .containsExactly("docMngNo", "docVrsSno", "ioeC", "cncdRfrNo", "tgtNm",
                         "stsTc", "reqCone", "taskDbrTc", "taskDbrRltTc", "taskDbrDt",
                         "taskDbrTod", "taskDbrOmtYn", "taskDbrOmtRsn", "opnnCone",

@@ -37,7 +37,7 @@ class ProjectReferenceProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(view.getAbusNm()).isEqualTo("BE03 최신 사업");
         assertThat(repository.findNameViewByAbusMngNoAndLstYnAndDelYn(deletedNo, "Y", "N")).isEmpty();
         assertThat(ProjectRepository.ProjectNameView.class.getDeclaredMethods())
-                .extracting(java.lang.reflect.Method::getName)
+                .extracting(method -> method.getName())
                 .containsExactlyInAnyOrder("getAbusMngNo", "getAbusNm");
     }
 

@@ -55,7 +55,7 @@ class OrganizationNameProjectionIt extends AbstractOracleRepositoryTest {
                 .satisfies(row -> assertThat(row.getBbrNm()).isEqualTo("디지털부"));
         assertThat(organizationRepository.findNameViewByPrlmOgzCCone("120"))
                 .get()
-                .extracting(OrganizationRepository.OrganizationNameView::getBbrNm)
+                .extracting(row -> row.getBbrNm())
                 .isEqualTo("디지털부");
         assertThat(Arrays.stream(OrganizationRepository.OrganizationNameView.class.getDeclaredMethods())
                 .map(method -> method.getName()))

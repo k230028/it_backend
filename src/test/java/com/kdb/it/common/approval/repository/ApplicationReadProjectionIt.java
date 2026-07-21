@@ -54,18 +54,18 @@ class ApplicationReadProjectionIt extends AbstractOracleRepositoryTest {
         List<ApplicationMapRepository.ApplicationMapView> costDetail = applicationMapRepository
                 .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc("BCOSTM", "BG-A", 2);
 
-        assertThat(projectDetail).extracting(ApplicationMapRepository.ApplicationMapView::getApfDcmNo)
+        assertThat(projectDetail).extracting(view -> view.getApfDcmNo())
                 .containsExactly("APF-2026-00000003");
-        assertThat(projectBatch).extracting(ApplicationMapRepository.ApplicationMapView::getApfDcmNo)
+        assertThat(projectBatch).extracting(view -> view.getApfDcmNo())
                 .containsExactly("APF-2026-00000003", "APF-2026-00000002", "APF-2026-00000001");
         assertThat(costBatch).extracting(
-                        ApplicationMapRepository.ApplicationMapView::getApfDcmNo,
-                        ApplicationMapRepository.ApplicationMapView::getFntTbCrySno)
+                        view -> view.getApfDcmNo(),
+                        view -> view.getFntTbCrySno())
                 .containsExactly(
                         tuple("APF-2026-00000006", 1),
                         tuple("APF-2026-00000005", 2),
                         tuple("APF-2026-00000004", 1));
-        assertThat(costDetail).extracting(ApplicationMapRepository.ApplicationMapView::getApfDcmNo)
+        assertThat(costDetail).extracting(view -> view.getApfDcmNo())
                 .containsExactly("APF-2026-00000005");
 
         Map<String, String> latestProjectByPk = new LinkedHashMap<>();
@@ -84,8 +84,8 @@ class ApplicationReadProjectionIt extends AbstractOracleRepositoryTest {
         List<ApplicationRepository.ApplicationSummaryView> summaries = applicationRepository
                 .findSummaryViewsByApfMngNoIn(List.of("APF-2026-00000003", "APF-2026-00000002"));
         assertThat(summaries).extracting(
-                        ApplicationRepository.ApplicationSummaryView::getApfMngNo,
-                        ApplicationRepository.ApplicationSummaryView::getItPtlApfPrgStsC)
+                        view -> view.getApfMngNo(),
+                        view -> view.getItPtlApfPrgStsC())
                 .containsExactlyInAnyOrder(
                         tuple("APF-2026-00000003", "3"),
                         tuple("APF-2026-00000002", "2"));
@@ -94,9 +94,9 @@ class ApplicationReadProjectionIt extends AbstractOracleRepositoryTest {
                 .findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-2026-00000003");
         List<ApproverRepository.ApproverReadView> batch = approverRepository
                 .findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(List.of("APF-2026-00000003"));
-        assertThat(single).extracting(ApproverRepository.ApproverReadView::getDcrSqnSno)
+        assertThat(single).extracting(view -> view.getDcrSqnSno())
                 .containsExactly(1, 2);
-        assertThat(batch).extracting(ApproverRepository.ApproverReadView::getDcrSqnSno)
+        assertThat(batch).extracting(view -> view.getDcrSqnSno())
                 .containsExactly(1, 2);
 
         assertThat(ApplicationMapRepository.ApplicationMapView.class.getDeclaredMethods()).hasSize(3);

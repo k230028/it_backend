@@ -63,16 +63,16 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
                 .filter(row -> row.getEno().startsWith("BE03"))
                 .toList();
         Map<String, List<UserRepository.CommitteeUserRow>> byTeam = rows.stream()
-                .collect(Collectors.groupingBy(UserRepository.CommitteeUserRow::getTemC));
+                .collect(Collectors.groupingBy(row -> row.getTemC()));
 
         assertThat(byTeam.get("12004")).singleElement().satisfies(row -> {
             assertThat(row.getEno()).isEqualTo("BE03001");
             assertThat(row.getBbrNm()).isEqualTo("디지털부");
         });
         assertThat(UserRepresentativeSelector.pickView(byTeam.get("12004")))
-                .get().extracting(UserRepository.CommitteeUserRow::getEno).isEqualTo("BE03001");
+                .get().extracting(row -> row.getEno()).isEqualTo("BE03001");
         assertThat(UserRepresentativeSelector.pickView(byTeam.get("18010")))
-                .get().extracting(UserRepository.CommitteeUserRow::getEno).isEqualTo("BE03011");
+                .get().extracting(row -> row.getEno()).isEqualTo("BE03011");
     }
 
     @Test
@@ -81,10 +81,10 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
         List<UserRepository.CouncilMemberUserRow> rows = userRepository
                 .findCouncilMemberUserRowsByEnoIn(List.of("BE03001", "BE03002", "BE03012", "UNKNOWN"));
         Map<String, UserRepository.CouncilMemberUserRow> byEno = rows.stream()
-                .collect(Collectors.toMap(UserRepository.CouncilMemberUserRow::getEno, Function.identity()));
+                .collect(Collectors.toMap(row -> row.getEno(), Function.identity()));
 
         assertThat(Arrays.stream(UserRepository.CouncilMemberUserRow.class.getDeclaredMethods())
-                .map(java.lang.reflect.Method::getName))
+                .map(method -> method.getName()))
                 .containsExactlyInAnyOrder("getEno", "getUsrNm", "getBbrNm", "getPtCNm");
         assertThat(byEno).containsOnlyKeys("BE03001", "BE03002", "BE03012");
         assertThat(byEno.get("BE03001").getBbrNm()).isEqualTo("디지털부");

@@ -38,7 +38,6 @@ import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
-import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
@@ -473,7 +472,7 @@ class ApplicationServiceTest {
 
         assertThat(result).hasSize(2);
         assertThat(result.getFirst().getApprovers())
-                .extracting(ApplicationDto.ApproverResponse::getDcdSqn)
+                .extracting(approver -> approver.getDcdSqn())
                 .containsExactly(1, 2);
         verify(approverRepository, times(1))
                 .findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any());

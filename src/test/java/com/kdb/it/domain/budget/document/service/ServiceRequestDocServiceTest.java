@@ -1,7 +1,6 @@
 package com.kdb.it.domain.budget.document.service;
 
 import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.service.AuthorOrg;
 import com.kdb.it.common.iam.service.AuthorOrgResolver;
 import com.kdb.it.common.iam.service.OrgNameResolver;
@@ -487,11 +486,11 @@ class ServiceRequestDocServiceTest {
         List<ServiceRequestDocDto.VersionResponse> result = service.getVersionHistory("DOC-001");
 
         assertThat(result).hasSize(3);
-        assertThat(result).extracting(ServiceRequestDocDto.VersionResponse::getDocVrsSno)
+        assertThat(result).extracting(version -> version.getDocVrsSno())
                 .containsExactly(new BigDecimal("2.00"), new BigDecimal("1.01"), new BigDecimal("1.00"));
-        assertThat(result).extracting(ServiceRequestDocDto.VersionResponse::getDocMngNo)
+        assertThat(result).extracting(version -> version.getDocMngNo())
                 .containsOnly("DOC-001");
-        assertThat(result).extracting(ServiceRequestDocDto.VersionResponse::getDelYn)
+        assertThat(result).extracting(version -> version.getDelYn())
                 .containsOnly("N");
         assertThat(result.getFirst().getFstEnrDtm()).isEqualTo(v200CreatedAt);
         assertThat(result.getFirst().getLstChgDtm()).isEqualTo(v200UpdatedAt);

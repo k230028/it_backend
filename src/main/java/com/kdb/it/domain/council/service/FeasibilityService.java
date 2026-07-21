@@ -199,7 +199,7 @@ public class FeasibilityService {
         // 기존 자체점검을 항목코드 기준으로 1회 배치 조회 (항목별 개별 SELECT N+1 제거)
         Map<String, Bchklm> existingByItem = selfCheckRepository
                 .findByItPtlAsctIdAndDelYn(asctId, "N").stream()
-                .collect(Collectors.toMap(Bchklm::getItPtlCkgItmTc, c -> c, (a, b) -> a));
+                .collect(Collectors.toMap(c -> c.getItPtlCkgItmTc(), c -> c, (a, b) -> a));
 
         for (CouncilDto.SelfCheckItem item : req.selfChecks()) {
             // 작성완료 시 모든 항목 점검점수+점검의견 필수

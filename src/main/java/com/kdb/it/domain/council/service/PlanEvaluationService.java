@@ -183,7 +183,7 @@ public class PlanEvaluationService {
         req.setPrjMngNos(prjMngNos);
         req.setBseYy(bseYy);
         return projectService.getProjectsByIds(req).items().stream()
-                .collect(Collectors.toMap(ProjectDto.Response::getAbusMngNo, r -> r, (a, b) -> a));
+                .collect(Collectors.toMap(r -> r.getAbusMngNo(), r -> r, (a, b) -> a));
     }
 
     /**
@@ -303,13 +303,13 @@ public class PlanEvaluationService {
      */
     private List<CouncilDto.PlanBusinessVerdict> aggregateVerdicts(List<Bplevm> all) {
         Map<String, List<Bplevm>> byBusiness = all.stream()
-                .collect(Collectors.groupingBy(Bplevm::getAbusMngNo, LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(e -> e.getAbusMngNo(), LinkedHashMap::new, Collectors.toList()));
 
         List<CouncilDto.PlanBusinessVerdict> verdicts = new ArrayList<>();
         for (Map.Entry<String, List<Bplevm>> entry : byBusiness.entrySet()) {
             List<Bplevm> rows = entry.getValue();
             long reserveCount = rows.stream().filter(r -> "N".equals(r.getPprtYn())).count();
-            long evaluatorCount = rows.stream().map(Bplevm::getEno).distinct().count();
+            long evaluatorCount = rows.stream().map(r -> r.getEno()).distinct().count();
             String finalPprtYn = reserveCount > 0 ? "N" : "Y";  // 1명이라도 유보면 유보
             verdicts.add(new CouncilDto.PlanBusinessVerdict(
                     entry.getKey(), finalPprtYn, reserveCount, evaluatorCount));
@@ -343,8 +343,8 @@ public class PlanEvaluationService {
         Map<String, List<String>> reserveOpinions = all.stream()
                 .filter(e -> "N".equals(e.getPprtYn()))
                 .filter(e -> e.getEvalOpnn() != null && !e.getEvalOpnn().isBlank())
-                .collect(Collectors.groupingBy(Bplevm::getAbusMngNo,
-                        Collectors.mapping(Bplevm::getEvalOpnn, Collectors.toList())));
+                .collect(Collectors.groupingBy(e -> e.getAbusMngNo(),
+                        Collectors.mapping(e -> e.getEvalOpnn(), Collectors.toList())));
 
         return new CouncilDto.PlanResultSummaryResponse(
                 renderSummaryHtml(verdicts, nameById, reserveOpinions), verdicts);
@@ -448,7 +448,7 @@ public class PlanEvaluationService {
         // 기존 내 평가를 사업관리번호 기준으로 1회 배치 조회 (사업별 개별 SELECT N+1 제거)
         Map<String, Bplevm> existingByBusiness = planEvaluationRepository
                 .findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").stream()
-                .collect(Collectors.toMap(Bplevm::getAbusMngNo, e -> e, (a, b) -> a));
+                .collect(Collectors.toMap(e -> e.getAbusMngNo(), e -> e, (a, b) -> a));
 
         for (CouncilDto.PlanEvaluationItem item : request.items()) {
             // 적정/유보 값 검증
@@ -491,11 +491,11 @@ public class PlanEvaluationService {
      * 평가 목록의 사번으로 사용자 이름 프로젝션 Map을 생성합니다.
      */
     private Map<String, UserRepository.UserNameView> buildUserMap(List<Bplevm> rows) {
-        List<String> enos = rows.stream().map(Bplevm::getEno).distinct().toList();
+        List<String> enos = rows.stream().map(r -> r.getEno()).distinct().toList();
         if (enos.isEmpty()) {
             return Map.of();
         }
         return userRepository.findNameViewsByEnoIn(enos).stream()
-                .collect(Collectors.toMap(UserRepository.UserNameView::getEno, u -> u, (a, b) -> a));
+                .collect(Collectors.toMap(u -> u.getEno(), u -> u, (a, b) -> a));
     }
 }

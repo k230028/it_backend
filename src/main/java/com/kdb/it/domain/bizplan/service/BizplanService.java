@@ -324,7 +324,7 @@ public class BizplanService {
         List<Bproja> candidates = applications.stream()
                 .filter(application -> application.getCncdRfrNo() != null
                         && application.getCncdRfrNo().startsWith(BG_KEY_PREFIX))
-                .sorted(Comparator.comparing(Bproja::getCncdRfrNo).reversed())
+                .sorted(Comparator.comparing((Bproja application) -> application.getCncdRfrNo()).reversed())
                 .toList();
         if (candidates.size() > 1) {
             log.warn("BPROJA 예산편성 BG- 키가 {}건입니다 (abusMngNo={}, 선택 키={})",

@@ -36,21 +36,21 @@ class ServiceRequestDocVersionProjectionIt extends AbstractOracleRepositoryTest 
                 .findAllProjectedByDocMngNoAndDelYnOrderByDocVrsSnoDesc(DOC_MNG_NO, "N");
 
         assertThat(views).hasSize(3);
-        assertThat(views).extracting(ServiceRequestDocRepository.VersionHistoryView::getDocMngNo)
+        assertThat(views).extracting(view -> view.getDocMngNo())
                 .containsOnly(DOC_MNG_NO);
-        assertThat(views).extracting(ServiceRequestDocRepository.VersionHistoryView::getDocVrsSno)
+        assertThat(views).extracting(view -> view.getDocVrsSno())
                 .containsExactly(new BigDecimal("200"), new BigDecimal("101"), new BigDecimal("100"));
-        assertThat(views).extracting(ServiceRequestDocRepository.VersionHistoryView::getFstEnrDtm)
+        assertThat(views).extracting(view -> view.getFstEnrDtm())
                 .containsExactly(
                         LocalDateTime.of(2026, 7, 21, 11, 0),
                         LocalDateTime.of(2026, 7, 21, 10, 0),
                         LocalDateTime.of(2026, 7, 21, 9, 0));
-        assertThat(views).extracting(ServiceRequestDocRepository.VersionHistoryView::getLstChgDtm)
+        assertThat(views).extracting(view -> view.getLstChgDtm())
                 .containsExactly(
                         LocalDateTime.of(2026, 7, 21, 11, 5),
                         LocalDateTime.of(2026, 7, 21, 10, 5),
                         LocalDateTime.of(2026, 7, 21, 9, 5));
-        assertThat(views).extracting(ServiceRequestDocRepository.VersionHistoryView::getDelYn)
+        assertThat(views).extracting(view -> view.getDelYn())
                 .containsOnly("N");
         assertThat(ServiceRequestDocRepository.VersionHistoryView.class.getDeclaredMethods()).hasSize(5);
     }

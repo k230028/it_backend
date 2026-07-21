@@ -52,7 +52,7 @@ public class ReviewerService {
     public List<ReviewerDto.Response> getReviewers() {
         Map<String, List<UserRepository.CommitteeUserRow>> usersByTeam = userRepository
                 .findCommitteeUserRowsByTemCInAndDelYn(REVIEW_TEAM_MAP.keySet(), "N").stream()
-                .collect(Collectors.groupingBy(UserRepository.CommitteeUserRow::getTemC));
+                .collect(Collectors.groupingBy(user -> user.getTemC()));
 
         List<ReviewerDto.Response> reviewers = new ArrayList<>();
         REVIEW_TEAM_MAP.forEach((temC, teamName) ->

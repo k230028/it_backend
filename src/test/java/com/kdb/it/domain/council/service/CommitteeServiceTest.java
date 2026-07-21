@@ -27,7 +27,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
@@ -71,16 +70,6 @@ class CommitteeServiceTest {
     }
 
     private static final String ASCT_ID = "ASCT-2026-0001";
-
-    private CuserI mockUser(String eno, String temC, String ptCNm) {
-        CuserI user = mock(CuserI.class);
-        given(user.getEno()).willReturn(eno);
-        given(user.getTemC()).willReturn(temC);
-        given(user.getPtCNm()).willReturn(ptCNm);
-        given(user.getUsrNm()).willReturn("홍길동");
-        given(user.getBbrNm()).willReturn("IT본부");
-        return user;
-    }
 
     private UserRepository.CommitteeUserRow mockCommitteeUser(String eno, String temC, String ptCNm) {
         UserRepository.CommitteeUserRow user = mock(UserRepository.CommitteeUserRow.class);
@@ -160,7 +149,7 @@ class CommitteeServiceTest {
                 committeeService.getDefaultCommittee(ASCT_ID);
 
         assertThat(result)
-                .extracting(CouncilDto.CommitteeMemberResponse::eno)
+                .extracting(r -> r.eno())
                 .containsExactly("E20001");
     }
 
@@ -183,11 +172,11 @@ class CommitteeServiceTest {
         assertThat(result).hasSize(2);
         assertThat(result)
                 .filteredOn(r -> "E30001".equals(r.eno()))
-                .extracting(CouncilDto.CommitteeMemberResponse::vlrTc)
+                .extracting(r -> r.vlrTc())
                 .containsExactly("01");
         assertThat(result)
                 .filteredOn(r -> "E30002".equals(r.eno()))
-                .extracting(CouncilDto.CommitteeMemberResponse::vlrTc)
+                .extracting(r -> r.vlrTc())
                 .containsExactly("04");
     }
 

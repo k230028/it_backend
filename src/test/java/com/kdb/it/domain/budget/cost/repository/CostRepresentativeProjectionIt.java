@@ -32,10 +32,10 @@ class CostRepresentativeProjectionIt extends AbstractOracleRepositoryTest {
 
         assertThat(views).hasSize(2);
         assertThat(views).extracting(
-                CostRepository.CostRepresentativeView::getCostBgNo,
-                CostRepository.CostRepresentativeView::getBgSno,
-                CostRepository.CostRepresentativeView::getLstYn,
-                CostRepository.CostRepresentativeView::getCttNm)
+                view -> view.getCostBgNo(),
+                view -> view.getBgSno(),
+                view -> view.getLstYn(),
+                view -> view.getCttNm())
                 .containsExactlyInAnyOrder(
                         org.assertj.core.groups.Tuple.tuple(costBgNo, 1, "N", "구버전"),
                         org.assertj.core.groups.Tuple.tuple(costBgNo, 2, "Y", "최신"));

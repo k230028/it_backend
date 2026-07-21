@@ -31,13 +31,13 @@ class LoginHistoryProjectionIt extends AbstractOracleRepositoryTest {
                 loginHistoryRepository.findPageViewsByOrderByLgnDtmDesc(PageRequest.of(0, 2));
 
         assertThat(page.getContent()).extracting(
-                        LoginHistoryRepository.LoginHistoryView::getEno,
-                        LoginHistoryRepository.LoginHistoryView::getLgnDtm,
-                        LoginHistoryRepository.LoginHistoryView::getItPtlLgnTc,
-                        LoginHistoryRepository.LoginHistoryView::getIpAddr,
-                        LoginHistoryRepository.LoginHistoryView::getLgnErrRsn,
-                        LoginHistoryRepository.LoginHistoryView::getAgtVrsCone,
-                        LoginHistoryRepository.LoginHistoryView::getFstEnrDtm)
+                        view -> view.getEno(),
+                        view -> view.getLgnDtm(),
+                        view -> view.getItPtlLgnTc(),
+                        view -> view.getIpAddr(),
+                        view -> view.getLgnErrRsn(),
+                        view -> view.getAgtVrsCone(),
+                        view -> view.getFstEnrDtm())
                 .containsExactly(
                         tuple("BE03-LOGIN-NEWER", base.plusMinutes(1), "2", "10.0.0.2", "BE03 실패", "agent-new", base.plusMinutes(1)),
                         tuple("BE03-LOGIN-OLDER", base, "1", "10.0.0.1", null, "agent-old", base));

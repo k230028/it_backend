@@ -41,7 +41,7 @@ class BoardPostListProjectionIt extends AbstractOracleRepositoryTest {
 
         assertThat(result.getTotalElements()).isEqualTo(3);
         assertThat(result.getContent())
-            .extracting(BoardPostDto.ListRow::nacMngNo)
+            .extracting(row -> row.nacMngNo())
             .containsExactly("BE03-A", "BE03-C", "BE03-B");
     }
 

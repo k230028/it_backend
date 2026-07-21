@@ -80,7 +80,7 @@ class ReviewerServiceTest {
 
         assertThat(result)
                 .filteredOn(r -> "PMO팀".equals(r.getTeamName()))
-                .extracting(ReviewerDto.Response::getEno)
+                .extracting(r -> r.getEno())
                 .containsExactly("E009");
     }
 
@@ -95,7 +95,7 @@ class ReviewerServiceTest {
 
         assertThat(result)
                 .filteredOn(r -> "PMO팀".equals(r.getTeamName()))
-                .extracting(ReviewerDto.Response::getEno)
+                .extracting(r -> r.getEno())
                 .containsExactly("E001");
     }
 
@@ -118,7 +118,7 @@ class ReviewerServiceTest {
 
         List<ReviewerDto.Response> result = reviewerService.getReviewers();
 
-        assertThat(result).extracting(ReviewerDto.Response::getTeamName)
+        assertThat(result).extracting(r -> r.getTeamName())
                 .containsExactly("계약팀", "기획팀", "PMO팀", "개발/운영팀");
     }
 }

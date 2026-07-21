@@ -921,7 +921,7 @@ class BudgetWorkServiceTest {
         assertThat(result.totals().dupAmount()).isEqualByComparingTo("1300");
         verify(bbugtmRepository, Mockito.times(1)).findByBseYyAndDelYn("2026", "N");
         assertThat(java.util.Arrays.stream(BbugtmRepository.class.getDeclaredMethods())
-                .map(java.lang.reflect.Method::getName)
+                .map(method -> method.getName())
                 .noneMatch(name -> name.toLowerCase().contains("view"))).isTrue();
     }
 
@@ -951,7 +951,7 @@ class BudgetWorkServiceTest {
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(costBudget));
         given(costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(any(), eq("N")))
-                .willReturn(List.of(oldHistory, latestHistory), List.of(latestHistory, oldHistory));
+                .willReturn(List.of(oldHistory, latestHistory)).willReturn(List.of(latestHistory, oldHistory));
 
         BudgetWorkDto.ProjectSummaryResponse first = budgetWorkService.getProjectSummary("2026");
         BudgetWorkDto.ProjectSummaryResponse second = budgetWorkService.getProjectSummary("2026");

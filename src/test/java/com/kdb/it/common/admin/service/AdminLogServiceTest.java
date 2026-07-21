@@ -9,7 +9,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.admin.dto.AdminLogDto;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.log.entity.BasctmL;
 import com.kdb.it.domain.log.entity.BbugtL;

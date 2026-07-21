@@ -47,7 +47,7 @@ class PaymentDetailProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(row.reqCone()).isEqualTo(request).hasSize(300);
         assertThat(row.cttAmt()).isEqualByComparingTo(new BigDecimal("987654.321"));
         assertThat(PaymentDetailRow.class.getRecordComponents())
-                .extracting(java.lang.reflect.RecordComponent::getName)
+                .extracting(component -> component.getName())
                 .containsExactly("docMngNo", "docVrsSno", "ioeC", "cncdRfrNo", "tgtNm",
                         "stsTc", "reqCone", "cttNm", "cttAmt", "reqUsid", "reqDtm");
         assertThat(lines).singleElement().satisfies(line -> {
@@ -55,7 +55,7 @@ class PaymentDetailProjectionIt extends AbstractOracleRepositoryTest {
             assertThat(line.opnnCone()).isEqualTo(opinion).hasSize(1000);
         });
         assertThat(PaymentLineView.class.getRecordComponents())
-                .extracting(java.lang.reflect.RecordComponent::getName)
+                .extracting(component -> component.getName())
                 .containsExactly("dfrTod", "dfrAmt", "dfrDt", "dfrMplDt", "opnnCone");
     }
 

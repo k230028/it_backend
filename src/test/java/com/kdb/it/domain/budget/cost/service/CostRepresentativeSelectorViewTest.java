@@ -28,7 +28,7 @@ class CostRepresentativeSelectorViewTest {
     @Test
     void 프로젝션은정확히네필드만노출한다() {
         assertThat(CostRepository.CostRepresentativeView.class.getDeclaredMethods())
-                .extracting(java.lang.reflect.Method::getName)
+                .extracting(method -> method.getName())
                 .containsExactlyInAnyOrder("getCostBgNo", "getBgSno", "getLstYn", "getCttNm");
     }
 }

@@ -65,7 +65,7 @@ class UserRepositoryTemCInIt extends AbstractOracleRepositoryTest {
         List<CuserI> result = userRepository.findByTemCInAndDelYn(
                 List.of(TEAM_A, TEAM_B, TEAM_EMPTY), "N");
 
-        assertThat(result).extracting(CuserI::getEno)
+        assertThat(result).extracting(u -> u.getEno())
                 .containsExactlyInAnyOrder("TENO9001", "TENO9002", "TENO9003");
         assertThat(result).allSatisfy(u -> assertThat(u.getTemC()).isIn(TEAM_A, TEAM_B));
     }

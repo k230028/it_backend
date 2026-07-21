@@ -30,7 +30,7 @@ public final class UserRepresentativeSelector {
     public static Optional<CuserI> pick(List<CuserI> users) {
         return users.stream()
                 .min(Comparator.comparing((CuserI u) -> TEAM_LEAD_TITLE.equals(u.getPtCNm()) ? 0 : 1)
-                        .thenComparing(CuserI::getEno,
+                        .thenComparing(u -> u.getEno(),
                                 Comparator.nullsLast(Comparator.naturalOrder())));
     }
 
@@ -45,7 +45,7 @@ public final class UserRepresentativeSelector {
         return users.stream()
                 .min(Comparator.comparing((UserRepository.CommitteeUserRow u) ->
                                 TEAM_LEAD_TITLE.equals(u.getPtCNm()) ? 0 : 1)
-                        .thenComparing(UserRepository.CommitteeUserRow::getEno,
+                        .thenComparing(u -> u.getEno(),
                                 Comparator.nullsLast(Comparator.naturalOrder())));
     }
 }

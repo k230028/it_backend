@@ -41,7 +41,7 @@ class ProjectItemBudgetProjectionIt extends AbstractOracleRepositoryTest {
             assertThat(view.getAmt()).isEqualByComparingTo("123.000");
             assertThat(view.getMplAmt()).isEqualByComparingTo("23.000");
         });
-        assertThat(views).extracting(ProjectItemRepository.ProjectItemBudgetView::getGclMngNo)
+        assertThat(views).extracting(view -> view.getGclMngNo())
                 .doesNotContain(deletedGcl);
         assertThat(ProjectItemRepository.ProjectItemBudgetView.class.getDeclaredMethods()).hasSize(5);
     }

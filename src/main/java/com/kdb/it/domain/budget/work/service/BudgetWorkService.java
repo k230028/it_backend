@@ -967,7 +967,7 @@ public class BudgetWorkService {
         if (!costGroupNos.isEmpty()) {
             costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(costGroupNos, "N").stream()
                     .collect(Collectors.groupingBy(
-                            CostRepository.CostRepresentativeView::getCostBgNo,
+                            history -> history.getCostBgNo(),
                             LinkedHashMap::new,
                             Collectors.toList()))
                     .forEach((costBgNo, histories) -> costNameByNo.put(

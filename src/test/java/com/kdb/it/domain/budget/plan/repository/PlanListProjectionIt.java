@@ -46,7 +46,7 @@ class PlanListProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(newView.getFstEnrDtm()).isEqualTo(newTime);
         assertThat(newView.getFstEnrUsid()).isEqualTo("BE03-TEST");
         assertThat(newView.getRedtConeInf()).isEqualTo("{\"prjSnapshots\":[{\"id\":1}]}");
-        assertThat(views).extracting(BplanmRepository.PlanListView::getReqDocNo)
+        assertThat(views).extracting(view -> view.getReqDocNo())
                 .contains(oldNo, newNo)
                 .doesNotContain(deletedNo);
         assertThat(views.indexOf(newView)).isLessThan(views.indexOf(
