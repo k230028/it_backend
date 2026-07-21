@@ -32,7 +32,7 @@ class AdminRouteServiceTest {
     /** 테스트용 Cmenud 엔티티 생성 헬퍼. */
     private Cmenud route(String srePth) {
         return Cmenud.builder().srePth(srePth).sreMnuNm("테스트화면")
-                .sysHrkMnuId("01").useYn("Y").delYn("N").build();
+                .useYn("Y").delYn("N").build();
     }
 
     @Test
@@ -115,7 +115,7 @@ class AdminRouteServiceTest {
     void create_유효한경로_저장() {
         // given
         MenuDto.Route r = MenuDto.Route.builder()
-                .srePth("/new/route").sreMnuNm("새화면").sysHrkMnuId("01").useYn("Y")
+                .srePth("/new/route").sreMnuNm("새화면").useYn("Y")
                 .build();
         given(cmenudRepository.findBySrePthAndDelYn("/new/route", "N")).willReturn(Optional.empty());
 
