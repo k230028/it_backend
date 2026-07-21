@@ -523,7 +523,7 @@ class ContractServiceTest {
     }
 
     // =========================================================================
-    // get — 상세 조회 (단일 쿼리 findCurrentWithTargetName: CASE 모든 분기 포함)
+    // get — 상세 조회 (스칼라 프로젝션 findCurrentDetail: CASE 모든 분기 포함)
     // =========================================================================
 
     @Nested
@@ -533,7 +533,7 @@ class ContractServiceTest {
         @Test
         @DisplayName("사업(100) 대상 문서 조회 시 단일 쿼리로 사업명이 포함된 상세를 반환하고 대상별 추가 조회는 호출되지 않는다")
         void get_project_returnsDetailWithTargetName() {
-            // Arrange — 단일 쿼리(findCurrentWithTargetName)가 마스터+대상명을 함께 반환
+            // Arrange — 스칼라 프로젝션(findCurrentDetail)이 상세 필드와 대상명을 함께 반환
             Bcontm e = entityWith("75", "100", "PRJ-1");
             ContractDetailRow row = detailRow(e, "클라우드 전환 사업");
             when(contractRepository.findCurrentDetail("CTR-2026-0001"))

@@ -595,7 +595,7 @@ class DeliberationServiceTest {
     @Test
     @DisplayName("사업 대상(100) 문서 상세 조회 시 단일 쿼리로 사업명이 tgtNm으로 반환되고 대상별 추가 조회는 호출되지 않는다")
     void get_project_returnsTgtNm() {
-        // Arrange — 단일 쿼리(findCurrentWithTargetName)가 마스터+대상명을 함께 반환
+        // Arrange — 스칼라 프로젝션(findCurrentDetail)이 상세 필드와 대상명을 함께 반환
         Bdelim e = bdelim("DLB-2026-0001", "100", "PRJ-1", "61");
         when(deliberationRepository.findCurrentDetail("DLB-2026-0001"))
                 .thenReturn(Optional.of(detailRow(e, "클라우드 전환 사업")));

@@ -678,7 +678,7 @@ class PaymentServiceTest {
         @Test
         @DisplayName("사업(100) 대상 문서 상세 조회 시 단일 쿼리로 프로젝트명이 포함된 Detail을 반환하고 대상별 추가 조회는 호출되지 않는다")
         void get_projectTarget_returnsDetailWithProjectName() {
-            // Arrange — 마스터+대상명은 단일 쿼리(findCurrentWithTargetName)로, 회차 명세는 기존대로 별도 조회
+            // Arrange — 상세 필드와 대상명은 findCurrentDetail로, 회차 명세는 line view로 별도 조회
             Bpaymm master = Bpaymm.builder()
                     .docMngNo("PAY-2026-0001").docVrsSno(1).lstYn("Y")
                     .ioeC("100").cncdRfrNo("PRJ-1").stsTc("81")
