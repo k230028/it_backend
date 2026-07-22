@@ -35,10 +35,14 @@ pluginManagement {
 		if (new File('C:/maven-repo').isDirectory()) {
 			maven {
 				url = 'file:///C:/maven-repo'
+				// 미러는 Gradle 캐시를 그대로 복사한 것이라 .module을 포함합니다.
+				// KMP 아티팩트(예: com.squareup.okio:okio)는 .module의 variant 리다이렉션으로만
+				// 실제 JVM jar(okio-jvm)에 도달하므로, Nexus용 ignoreGradleMetadataRedirection()을
+				// 여기 적용하면 존재하지 않는 okio-<ver>.jar를 찾다가 해석에 실패합니다.
 				metadataSources {
+					gradleMetadata()
 					mavenPom()
 					artifact()
-					ignoreGradleMetadataRedirection()
 				}
 			}
 		}

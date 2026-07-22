@@ -55,10 +55,13 @@ repositories {
 	if (file('C:/maven-repo').isDirectory()) {
 		maven {
 			url = 'file:///C:/maven-repo'
+			// 미러는 Gradle 캐시 사본이라 .module을 포함합니다. KMP 아티팩트는 .module의
+			// variant 리다이렉션으로만 실제 JVM jar에 도달하므로 Nexus용 우회 옵션을 쓰지 않습니다.
+			// 상세 사유는 settings.gradle의 같은 저장소 선언 주석 참조.
 			metadataSources {
+				gradleMetadata()
 				mavenPom()
 				artifact()
-				ignoreGradleMetadataRedirection()
 			}
 		}
 	}
