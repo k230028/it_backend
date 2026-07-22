@@ -133,6 +133,26 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 
 운영에서는 개발·로컬 프로파일의 기본값을 사용하지 않습니다. `EnvironmentValidator`가 필수 비밀값 누락을 검사합니다.
 
+### 내부망 IP로 접속할 때 (CORS)
+
+`cors.allowed-origins`는 **명시한 Origin만** 허용합니다(와일드카드 기본값 없음). `local-int` 기본값은 `http://localhost`, `http://localhost:3000`, `http://localhost:3002`뿐이므로, 프론트를 `http://<내부IP>:3000`처럼 IP로 접속하면 모든 `/api/**` 요청이 CORS 단계에서 차단됩니다.
+
+```powershell
+# 백엔드 기동 전 (IP 접속 + localhost 병행 허용)
+setx APP_FRONTEND_URL "http://10.9.16.109:3000"
+setx CORS_ALLOWED_ORIGINS "http://10.9.16.109:3000,http://localhost:3000"
+```
+
+- `APP_FRONTEND_URL`은 SSO 복귀 대상과 기본 CORS Origin을 함께 정합니다. 여러 Origin이 필요할 때만 `CORS_ALLOWED_ORIGINS`로 CORS만 따로 지정합니다.
+- 프론트도 같은 호스트를 보도록 `NUXT_PUBLIC_API_BASE=http://<내부IP>:28080`을 맞춰야 합니다. 쿠키는 포트가 아니라 호스트 기준이라 페이지와 API 호스트가 다르면 인증 쿠키가 실리지 않습니다.
+- `setx`는 새 프로세스부터 적용되므로 IDE·터미널을 재시작해야 합니다.
+
+확인 방법 — 허용 Origin이면 `401`과 함께 `Access-Control-Allow-Origin`이 오고, 비허용이면 헤더 없는 `403`이 옵니다.
+
+```powershell
+curl -i -H "Origin: http://10.9.16.109:3000" http://127.0.0.1:28080/api/menus
+```
+
 ## 데이터베이스 변경
 
 DDL과 데이터 마이그레이션은 `C:\it\it_database\migrations`에 새 Flyway 스크립트로 추가합니다.
