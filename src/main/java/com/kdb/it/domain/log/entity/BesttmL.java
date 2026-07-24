@@ -25,6 +25,9 @@ public class BesttmL extends BaseLogEntity {
     @Column(name = "DOC_VRS_SNO", comment = "문서버전일련번호")
     private Integer docVrsSno;
 
+    @Column(name = "IPM_OPNN_SNO", precision = 9, comment = "개선의견일련번호")
+    private Integer ipmOpnnSno;
+
     @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드")
     private String svnTemC;
 
@@ -34,6 +37,6 @@ public class BesttmL extends BaseLogEntity {
     @Column(name = "RQM_BG_AMT", precision = 18, comment = "소요예산금액")
     private BigDecimal rqmBgAmt;
 
-    @Column(name = "OPNN_CONE", length = 1000, comment = "의견내용")
+    @Column(name = "OPNN_CONE", length = 6000, comment = "의견내용")
     private String opnnCone;
 }

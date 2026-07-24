@@ -6,7 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** 소요예산 산정 명세(Besttm) 복합 기본키. (문서번호 + 버전 + 팀 + 비목) */
+/** 소요예산 산정 명세(Besttm) 복합 기본키. (문서번호 + 버전 + 개선의견일련번호) */
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,7 +17,5 @@ public class BesttmId implements Serializable {
 
     private Integer docVrsSno;
 
-    private String svnTemC;
-
-    private String ioeC;
+    private Integer ipmOpnnSno;
 }
