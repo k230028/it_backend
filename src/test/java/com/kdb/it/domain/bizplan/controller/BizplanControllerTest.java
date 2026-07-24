@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -171,6 +172,27 @@ class BizplanControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(invalidBody))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PUT /api/project/bizplans/{abusMngNo} - 계약행 계약방법 공백 → 400 검증 오류, 서비스 미호출")
+    @WithMockUser(username = "10001")
+    void save_계약방법공백_400반환_서비스미호출() throws Exception {
+        // TPRMPP_BBIZCM.NOW_CTT_MANR_C는 NOT NULL이며 유효한 기본값이 없다(FIX 2).
+        // 계약방법이 빈 계약행은 서비스·엔티티에 도달하기 전에 @NotBlank 검증으로 거부되어야 한다.
+        BizplanDto.ContractRequest blankContract =
+                new BizplanDto.ContractRequest(1, "계약명", "", null);
+        BizplanDto.SaveRequest req =
+                new BizplanDto.SaveRequest(
+                        "<p>보고서</p>", "01", List.of(), List.of(), List.of(blankContract));
+
+        mockMvc.perform(
+                        put(BASE + "/" + PRJ)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest());
+
+        verify(bizplanService, never()).save(eq(PRJ), any(BizplanDto.SaveRequest.class), any());
     }
 
     @Test

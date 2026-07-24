@@ -27,6 +27,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
@@ -220,6 +221,31 @@ class DeliberationServiceTest {
                         new DeliberationDto.CreateRequest("100", "PRJ-1", "심의 요청합니다"), requester());
 
         assertThat(docNo).matches("DLB-\\d{4}-0001");
+    }
+
+    @Test
+    @DisplayName("신규 신청 생성 시 과업심의구분·결과구분·회차코드에 NOT NULL 기본값이 채번된다")
+    void create_assignsRequiredCodeDefaults() {
+        // Arrange — TPRMPP_BDELIM.TASK_DBR_TC/TASK_DBR_RLT_TC/TASK_DBR_TOD는 NOT NULL이며
+        // 생성 경로가 값을 넘기지 않으면 ORA-01400이 발생한다(FIX 1).
+        when(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N"))
+                .thenReturn(true);
+        when(deliberationRepository.existsByIoeCAndCncdRfrNoAndStsTcInAndDelYn(
+                        anyString(), anyString(), any(), anyString()))
+                .thenReturn(false);
+        when(deliberationRepository.nextDocSeq()).thenReturn(1L);
+        ArgumentCaptor<Bdelim> captor = ArgumentCaptor.forClass(Bdelim.class);
+        when(deliberationRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // Act
+        service.create(
+                new DeliberationDto.CreateRequest("100", "PRJ-1", "심의 요청합니다"), requester());
+
+        // Assert
+        Bdelim saved = captor.getValue();
+        assertThat(saved.getTaskDbrTc()).isEqualTo(Bdelim.TYPE_CONFIRM);
+        assertThat(saved.getTaskDbrRltTc()).isEqualTo(Bdelim.RESULT_PENDING);
+        assertThat(saved.getTaskDbrTod()).isEqualTo(Bdelim.ROUND_FIRST);
     }
 
     @Test
@@ -698,6 +724,42 @@ class DeliberationServiceTest {
         // Assert
         assertThat(e.getTaskDbrOmtYn()).isEqualTo("Y");
         assertThat(e.getTaskDbrOmtRsn()).isEqualTo("긴급사유");
+    }
+
+    @Test
+    @DisplayName("결과 저장 요청에서 필드가 생략(null)되면 기존 값을 NULL로 덮어쓰지 않고 유지한다")
+    void saveResult_omittedFields_keepsExistingValues() {
+        // Arrange — 프론트가 '' || undefined로 일부 필드만 보내는 부분 저장 시나리오.
+        // taskDbrTc/taskDbrRltTc/taskDbrTod는 NOT NULL이므로 null로 넘어와도 기존 값을 유지해야 한다(FIX 1).
+        Bdelim e =
+                Bdelim.builder()
+                        .docMngNo("DLB-2026-0001")
+                        .docVrsSno(1)
+                        .lstYn("Y")
+                        .ioeC("100")
+                        .cncdRfrNo("PRJ-1")
+                        .stsTc("65")
+                        .taskDbrTc("1")
+                        .taskDbrRltTc("1")
+                        .taskDbrTod("1")
+                        .taskDbrOmtYn("N")
+                        .fstEnrUsid("E0001")
+                        .build();
+        when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
+                .thenReturn(Optional.of(e));
+
+        // Act — 세 필드 모두 null로 부분 저장, 의견만 갱신
+        service.saveResult(
+                "DLB-2026-0001",
+                new DeliberationDto.ResultRequest(
+                        null, null, null, null, null, null, "의견만 갱신", null),
+                requester());
+
+        // Assert — NOT NULL 세 필드는 기존 값 유지, 의견은 갱신
+        assertThat(e.getTaskDbrTc()).isEqualTo("1");
+        assertThat(e.getTaskDbrRltTc()).isEqualTo("1");
+        assertThat(e.getTaskDbrTod()).isEqualTo("1");
+        assertThat(e.getOpnnCone()).isEqualTo("의견만 갱신");
     }
 
     @Test

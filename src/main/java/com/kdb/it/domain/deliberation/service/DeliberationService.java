@@ -67,6 +67,9 @@ public class DeliberationService {
                         .cncdRfrNo(req.cncdRfrNo())
                         .stsTc(STS_DRAFT)
                         .reqCone(req.reqCone())
+                        .taskDbrTc(Bdelim.TYPE_CONFIRM)
+                        .taskDbrRltTc(Bdelim.RESULT_PENDING)
+                        .taskDbrTod(Bdelim.ROUND_FIRST)
                         .taskDbrOmtYn("N")
                         .build());
         if (TGT_PROJECT.equals(req.ioeC())) {
@@ -171,11 +174,14 @@ public class DeliberationService {
         if (!STS_IN_PROGRESS.equals(e.getStsTc()))
             throw new IllegalStateException("진행중 상태에서만 심의 결과를 입력할 수 있습니다.");
         String omt = req.taskDbrOmtYn() == null ? "N" : req.taskDbrOmtYn();
+        // taskDbrTc/taskDbrRltTc/taskDbrTod는 NOT NULL 컬럼이다. 프론트가 '' || undefined로
+        // 일부 필드만 보내는 부분 저장을 허용하므로, 요청에 값이 없으면(null) 기존 값을 유지해
+        // NULL로 덮어쓰지 않는다.
         e.updateResult(
-                req.taskDbrTc(),
-                req.taskDbrRltTc(),
+                req.taskDbrTc() != null ? req.taskDbrTc() : e.getTaskDbrTc(),
+                req.taskDbrRltTc() != null ? req.taskDbrRltTc() : e.getTaskDbrRltTc(),
                 req.taskDbrDt(),
-                req.taskDbrTod(),
+                req.taskDbrTod() != null ? req.taskDbrTod() : e.getTaskDbrTod(),
                 omt,
                 req.taskDbrOmtRsn(),
                 req.opnnCone(),

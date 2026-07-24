@@ -1027,6 +1027,76 @@ class EstimateServiceTest {
     }
 
     @Nested
+    @DisplayName("saveLines — DB에 이미 (팀+비목) 중복 행이 존재하는 혼합 사례")
+    class ExistingDuplicateKeyInDatabaseTests {
+
+        private Bestim inProgress() {
+            return Bestim.builder()
+                    .rqmBgReqDocNo("REQ-2026-0001")
+                    .docVrsSno(1)
+                    .lstYn("Y")
+                    .cncdRfrNo("PRJ-001")
+                    .stsTc("55")
+                    .build();
+        }
+
+        @Test
+        @DisplayName(
+                "DB에 동일 (팀+비목) 물리행이 이미 2건 있고 요청에도 같은 키가 2번 오면 예외 없이 "
+                        + "낮은 일련번호 행이 마지막 요청값으로 갱신된다")
+        void existingDuplicateKeyAndRequestDuplicate_mergesWithoutException() {
+            // Arrange — 운영 3컬럼 PK(문서번호+버전+개선의견일련번호)는 동일 (팀+비목) 쌍을 가진
+            // 물리 행이 2건 이상 존재하는 것을 막지 않는다. 이 상태에서 재저장을 시도하는 시나리오.
+            Bestim master = inProgress();
+            when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(master));
+
+            Besttm existingLow =
+                    Besttm.builder()
+                            .rqmBgReqDocNo("REQ-2026-0001")
+                            .docVrsSno(1)
+                            .ipmOpnnSno(1)
+                            .svnTemC("T001")
+                            .ioeC("1010")
+                            .rqmBgAmt(new BigDecimal("100"))
+                            .delYn("N")
+                            .build();
+            Besttm existingHigh =
+                    Besttm.builder()
+                            .rqmBgReqDocNo("REQ-2026-0001")
+                            .docVrsSno(1)
+                            .ipmOpnnSno(2)
+                            .svnTemC("T001")
+                            .ioeC("1010")
+                            .rqmBgAmt(new BigDecimal("999"))
+                            .delYn("N")
+                            .build();
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSno("REQ-2026-0001", 1))
+                    .thenReturn(new ArrayList<>(List.of(existingLow, existingHigh)));
+
+            // Act — 동일 (T001, 1010) 키를 값만 다르게 요청에 두 번 포함
+            service.saveLines(
+                    "REQ-2026-0001",
+                    new EstimateDto.LinesRequest(
+                            List.of(
+                                    new EstimateDto.LineRequest(
+                                            "T001", "1010", new BigDecimal("300"), "첫번째"),
+                                    new EstimateDto.LineRequest(
+                                            "T001", "1010", new BigDecimal("777"), "두번째"))),
+                    admin());
+
+            // Assert — 예외 없이 저장되고, 색인에서 살아남은 낮은 일련번호(1) 행이 최종 요청값으로 갱신된다.
+            assertThat(existingLow.getRqmBgAmt()).isEqualByComparingTo(new BigDecimal("777"));
+            assertThat(existingLow.getOpnnCone()).isEqualTo("두번째");
+            // 색인에서 밀린 중복 행(2번)은 이번 저장에서 건드리지 않는다 — 요청에 같은 키가 있어
+            // soft-delete 대상도 아니고, byKey에서 밀려 갱신 대상도 아니다(알려진 잔여 상태).
+            assertThat(existingHigh.getRqmBgAmt()).isEqualByComparingTo(new BigDecimal("999"));
+            assertThat(existingHigh.getDelYn()).isEqualTo("N");
+            verify(lineRepository, never()).save(any(Besttm.class));
+        }
+    }
+
+    @Nested
     @DisplayName("saveLines — 요청 내 (팀+비목) 중복 처리")
     class DuplicateKeyWithinRequestTests {
 

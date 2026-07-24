@@ -54,14 +54,26 @@ public class Bdelim extends BaseEntity {
     @Column(name = "REQ_CONE", length = 300, comment = "요청내용")
     private String reqCone;
 
+    /** 과업심의구분 기본값 — 확정심의. 코드셋은 1=확정심의/2=변경심의뿐이며 신규 신청은 통상 확정심의이고 진행중 단계에서 변경할 수 있다. 운영 스키마의
+     * TASK_DBR_TC NOT NULL 제약 때문에 생성 시점에 반드시 값을 채워야 한다. */
+    public static final String TYPE_CONFIRM = "1";
+
     @Column(name = "TASK_DBR_TC", length = 2, nullable = false, comment = "과업심의구분코드")
     private String taskDbrTc;
+
+    /** 과업심의결과 기본값 — 심의결과전. 신규 신청 시점에는 아직 결과가 없으므로 이 값으로 시작한다. 운영 스키마의 TASK_DBR_RLT_TC NOT NULL
+     * 제약 때문에 생성 시점에 반드시 값을 채워야 한다. */
+    public static final String RESULT_PENDING = "1";
 
     @Column(name = "TASK_DBR_RLT_TC", length = 2, nullable = false, comment = "과업심의결과구분코드")
     private String taskDbrRltTc;
 
     @Column(name = "TASK_DBR_DT", length = 8, comment = "과업심의일자")
     private String taskDbrDt;
+
+    /** 과업심의회차 기본값 — 1회차. 공통코드 그룹이 없는 단순 회차 번호이며 신규 신청은 항상 1회차로 시작한다. 운영 스키마의 TASK_DBR_TOD NOT
+     * NULL 제약 때문에 생성 시점에 반드시 값을 채워야 한다. */
+    public static final String ROUND_FIRST = "1";
 
     @Column(name = "TASK_DBR_TOD", length = 2, nullable = false, comment = "과업심의회차")
     private String taskDbrTod;

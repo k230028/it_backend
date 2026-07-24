@@ -84,7 +84,7 @@ public final class BizplanDto {
     public record ContractRequest(
             @NotNull @Min(1) Integer sno,
             @Size(max = 100) String cttNm,
-            @Size(max = 2) String nowCttManrC,
+            @NotBlank(message = "계약방법을 선택해야 합니다.") @Size(max = 2) String nowCttManrC,
             @Min(0) Integer cttTrmMmNbr) {}
 
     @Schema(name = "BizplanSaveRequest", description = "사업계획 전체 저장 요청 (보고서+일정/품목/계약)")
