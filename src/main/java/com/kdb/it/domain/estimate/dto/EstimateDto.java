@@ -30,7 +30,7 @@ public final class EstimateDto {
             @NotBlank @Size(max = 5) String svnTemC,
             @NotBlank @Size(max = 7) String ioeC,
             @NotNull @DecimalMin(value = "0", message = "산정 예산액은 0 이상이어야 합니다.") BigDecimal rqmBgAmt,
-            @Size(max = 1000) String opnnCone) {}
+            @Size(max = 6000) String opnnCone) {}
 
     @Schema(name = "EstimateLinesRequest", description = "팀별 산정 명세 일괄 저장 요청(진행중)")
     public record LinesRequest(@NotNull List<LineRequest> lines) {}

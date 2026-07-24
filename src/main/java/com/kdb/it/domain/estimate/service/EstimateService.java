@@ -201,6 +201,10 @@ public class EstimateService {
      *
      * <p>요청에 포함된 (팀코드+비목코드) 행은 추가/수정하고, 요청에 없는 기존 행은 Soft Delete 처리합니다 (Bitemm 동기화 패턴).
      *
+     * <p>물리 PK는 (문서번호 + 버전 + 개선의견일련번호)이므로 신규 행에는 문서·버전 안에서 가장 큰 일련번호 다음 값을 부여합니다.
+     * 삭제된 행의 번호는 재사용하지 않아 로그 이력과 번호가 어긋나지 않도록 합니다. (담당팀+비목)의 유일성은 더 이상 DB
+     * 제약이 아니므로, 기존 행 매칭·갱신을 통해 이 메서드가 계속 업무 규칙으로 보장합니다.
+     *
      * @param docNo 소요예산요청문서번호
      * @param req 명세 일괄 저장 요청
      * @param user 요청자 인증 정보
@@ -214,13 +218,23 @@ public class EstimateService {
             throw new IllegalStateException("진행중 상태에서만 산정 명세를 저장할 수 있습니다.");
         }
         Integer vrs = e.getDocVrsSno();
-        // 삭제여부와 무관하게 모든 행을 조회 — soft-delete된 행도 동일 복합키 충돌 방지를 위해 포함한다.
+        // 삭제여부와 무관하게 모든 행을 조회 — soft-delete된 행도 (팀+비목) 중복 저장 방지를 위해 포함한다.
         List<Besttm> existing = lineRepository.findByRqmBgReqDocNoAndDocVrsSno(docNo, vrs);
 
-        // 기존 행을 (팀코드|비목코드) 복합 키로 색인 (deleted 행 포함)
+        // 기존 행을 (팀코드|비목코드) 업무 키로 색인 (deleted 행 포함)
         Map<String, Besttm> byKey =
                 existing.stream()
                         .collect(Collectors.toMap(b -> b.getSvnTemC() + "|" + b.getIoeC(), b -> b));
+
+        // 신규 행 채번 시작값 — 삭제 행을 포함한 최대 일련번호 + 1
+        int nextSno =
+                existing.stream()
+                                .map(Besttm::getIpmOpnnSno)
+                                .filter(java.util.Objects::nonNull)
+                                .mapToInt(Integer::intValue)
+                                .max()
+                                .orElse(0)
+                        + 1;
 
         // 요청 행 처리: 기존 행이 있으면 (필요 시 복원 후) 갱신, 없으면 신규 INSERT
         Set<String> incomingKeys = new HashSet<>();
@@ -239,6 +253,7 @@ public class EstimateService {
                         Besttm.builder()
                                 .rqmBgReqDocNo(docNo)
                                 .docVrsSno(vrs)
+                                .ipmOpnnSno(nextSno++)
                                 .svnTemC(line.svnTemC())
                                 .ioeC(line.ioeC())
                                 .rqmBgAmt(line.rqmBgAmt())

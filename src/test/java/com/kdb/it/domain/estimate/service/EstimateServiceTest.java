@@ -933,6 +933,98 @@ class EstimateServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("명세 저장 — 개선의견일련번호 채번")
+    class SaveLinesSnoTests {
+
+        private Bestim inProgress() {
+            return Bestim.builder()
+                    .rqmBgReqDocNo("REQ-2026-0001")
+                    .docVrsSno(1)
+                    .lstYn("Y")
+                    .cncdRfrNo("PRJ-001")
+                    .stsTc("55")
+                    .build();
+        }
+
+        @Test
+        @DisplayName("빈 문서에 2행을 저장하면 일련번호 1, 2가 부여된다")
+        void assignsSequentialSnoForNewRows() {
+            Bestim master = inProgress();
+            when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(master));
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSno("REQ-2026-0001", 1))
+                    .thenReturn(new ArrayList<>());
+
+            List<Besttm> saved = new ArrayList<>();
+            when(lineRepository.save(any(Besttm.class)))
+                    .thenAnswer(
+                            invocation -> {
+                                Besttm row = invocation.getArgument(0);
+                                saved.add(row);
+                                return row;
+                            });
+
+            service.saveLines(
+                    "REQ-2026-0001",
+                    new EstimateDto.LinesRequest(
+                            List.of(
+                                    new EstimateDto.LineRequest(
+                                            "T001", "1010", new BigDecimal("100"), "의견1"),
+                                    new EstimateDto.LineRequest(
+                                            "T002", "1020", new BigDecimal("200"), "의견2"))),
+                    admin());
+
+            assertThat(saved).hasSize(2);
+            assertThat(saved).extracting(Besttm::getIpmOpnnSno).containsExactly(1, 2);
+        }
+
+        @Test
+        @DisplayName("기존 행이 있으면 최대 일련번호 다음 번호를 이어서 부여한다")
+        void continuesFromExistingMaxSno() {
+            Bestim master = inProgress();
+            when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(master));
+
+            Besttm existing =
+                    Besttm.builder()
+                            .rqmBgReqDocNo("REQ-2026-0001")
+                            .docVrsSno(1)
+                            .ipmOpnnSno(7)
+                            .svnTemC("T001")
+                            .ioeC("1010")
+                            .rqmBgAmt(new BigDecimal("100"))
+                            .build();
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSno("REQ-2026-0001", 1))
+                    .thenReturn(new ArrayList<>(List.of(existing)));
+
+            List<Besttm> saved = new ArrayList<>();
+            when(lineRepository.save(any(Besttm.class)))
+                    .thenAnswer(
+                            invocation -> {
+                                Besttm row = invocation.getArgument(0);
+                                saved.add(row);
+                                return row;
+                            });
+
+            service.saveLines(
+                    "REQ-2026-0001",
+                    new EstimateDto.LinesRequest(
+                            List.of(
+                                    new EstimateDto.LineRequest(
+                                            "T001", "1010", new BigDecimal("150"), "수정"),
+                                    new EstimateDto.LineRequest(
+                                            "T003", "1030", new BigDecimal("300"), "신규"))),
+                    admin());
+
+            // 기존 (T001,1010)은 갱신되므로 save 호출 없음. 신규 1건만 8번으로 채번된다.
+            assertThat(saved).hasSize(1);
+            assertThat(saved.get(0).getIpmOpnnSno()).isEqualTo(8);
+            assertThat(saved.get(0).getSvnTemC()).isEqualTo("T003");
+            assertThat(existing.getRqmBgAmt()).isEqualByComparingTo(new BigDecimal("150"));
+        }
+    }
+
     // =========================================================================
     // loadCurrent — 내부 헬퍼 (package-private 직접 테스트)
     // =========================================================================
