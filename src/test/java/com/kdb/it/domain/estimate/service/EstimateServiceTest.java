@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -1022,6 +1023,58 @@ class EstimateServiceTest {
             assertThat(saved.get(0).getIpmOpnnSno()).isEqualTo(8);
             assertThat(saved.get(0).getSvnTemC()).isEqualTo("T003");
             assertThat(existing.getRqmBgAmt()).isEqualByComparingTo(new BigDecimal("150"));
+        }
+    }
+
+    @Nested
+    @DisplayName("saveLines — 요청 내 (팀+비목) 중복 처리")
+    class DuplicateKeyWithinRequestTests {
+
+        private Bestim inProgress() {
+            return Bestim.builder()
+                    .rqmBgReqDocNo("REQ-2026-0001")
+                    .docVrsSno(1)
+                    .lstYn("Y")
+                    .cncdRfrNo("PRJ-001")
+                    .stsTc("55")
+                    .build();
+        }
+
+        @Test
+        @DisplayName("한 요청에 동일한 (팀+비목)이 두 번 오면 한 행만 남고 마지막 값이 반영된다")
+        void duplicateKeyInSingleRequest_resolvesToOneRowWithLastValueWinning() {
+            Bestim master = inProgress();
+            when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(master));
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSno("REQ-2026-0001", 1))
+                    .thenReturn(new ArrayList<>());
+
+            List<Besttm> saved = new ArrayList<>();
+            when(lineRepository.save(any(Besttm.class)))
+                    .thenAnswer(
+                            invocation -> {
+                                Besttm row = invocation.getArgument(0);
+                                saved.add(row);
+                                return row;
+                            });
+
+            // 동일 (T001, 1010) 키를 금액·의견만 다르게 두 번 요청에 포함
+            service.saveLines(
+                    "REQ-2026-0001",
+                    new EstimateDto.LinesRequest(
+                            List.of(
+                                    new EstimateDto.LineRequest(
+                                            "T001", "1010", new BigDecimal("100"), "첫번째"),
+                                    new EstimateDto.LineRequest(
+                                            "T001", "1010", new BigDecimal("250"), "두번째"))),
+                    admin());
+
+            // Assert: 물리 행은 1건만 생성되고, 요청에서 나중에 온 값이 최종 반영된다
+            assertThat(saved).hasSize(1);
+            assertThat(saved.get(0).getRqmBgAmt()).isEqualByComparingTo(new BigDecimal("250"));
+            assertThat(saved.get(0).getOpnnCone()).isEqualTo("두번째");
+            assertThat(saved.get(0).getIpmOpnnSno()).isEqualTo(1);
+            verify(lineRepository, times(1)).save(any(Besttm.class));
         }
     }
 

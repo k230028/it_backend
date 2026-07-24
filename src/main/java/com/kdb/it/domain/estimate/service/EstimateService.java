@@ -17,6 +17,7 @@ import java.time.Year;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -203,7 +204,9 @@ public class EstimateService {
      *
      * <p>물리 PK는 (문서번호 + 버전 + 개선의견일련번호)이므로 신규 행에는 문서·버전 안에서 가장 큰 일련번호 다음 값을 부여합니다.
      * 삭제된 행의 번호는 재사용하지 않아 로그 이력과 번호가 어긋나지 않도록 합니다. (담당팀+비목)의 유일성은 더 이상 DB
-     * 제약이 아니므로, 기존 행 매칭·갱신을 통해 이 메서드가 계속 업무 규칙으로 보장합니다.
+     * 제약이 아니므로 이 메서드가 기존 행 매칭·갱신으로 계속 보장합니다. 한 번의 호출에 전달된 {@code req.lines()}
+     * 안에 동일한 (담당팀+비목) 쌍이 두 번 이상 있어도 물리 행은 하나만 생성·유지되며, 값은 요청 목록에서 더 나중에
+     * 나온 행이 최종 반영됩니다(같은 쌍을 두 번의 별도 요청으로 나눠 보낸 것과 동일한 결과).
      *
      * @param docNo 소요예산요청문서번호
      * @param req 명세 일괄 저장 요청
@@ -230,7 +233,7 @@ public class EstimateService {
         int nextSno =
                 existing.stream()
                                 .map(Besttm::getIpmOpnnSno)
-                                .filter(java.util.Objects::nonNull)
+                                .filter(Objects::nonNull)
                                 .mapToInt(Integer::intValue)
                                 .max()
                                 .orElse(0)
@@ -249,16 +252,19 @@ public class EstimateService {
                 }
                 row.updateEstimate(line.rqmBgAmt(), line.opnnCone());
             } else {
-                lineRepository.save(
-                        Besttm.builder()
-                                .rqmBgReqDocNo(docNo)
-                                .docVrsSno(vrs)
-                                .ipmOpnnSno(nextSno++)
-                                .svnTemC(line.svnTemC())
-                                .ioeC(line.ioeC())
-                                .rqmBgAmt(line.rqmBgAmt())
-                                .opnnCone(line.opnnCone())
-                                .build());
+                Besttm created =
+                        lineRepository.save(
+                                Besttm.builder()
+                                        .rqmBgReqDocNo(docNo)
+                                        .docVrsSno(vrs)
+                                        .ipmOpnnSno(nextSno++)
+                                        .svnTemC(line.svnTemC())
+                                        .ioeC(line.ioeC())
+                                        .rqmBgAmt(line.rqmBgAmt())
+                                        .opnnCone(line.opnnCone())
+                                        .build());
+                // 같은 요청 안에 동일 키가 다시 나오면 새 INSERT 대신 방금 만든 행을 갱신하도록 색인을 즉시 갱신
+                byKey.put(key, created);
             }
         }
 
