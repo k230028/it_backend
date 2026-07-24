@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /** 과업심의 서비스. 상태 61→65→69. 대상구분 100=사업/200=전산업무비. 쓰기 주체: 작성중=신청자/부서, 진행중 결과입력=작업자. 상태 전이는 인접만 허용. */
 @Service
@@ -175,13 +176,14 @@ public class DeliberationService {
             throw new IllegalStateException("진행중 상태에서만 심의 결과를 입력할 수 있습니다.");
         String omt = req.taskDbrOmtYn() == null ? "N" : req.taskDbrOmtYn();
         // taskDbrTc/taskDbrRltTc/taskDbrTod는 NOT NULL 컬럼이다. 프론트가 '' || undefined로
-        // 일부 필드만 보내는 부분 저장을 허용하므로, 요청에 값이 없으면(null) 기존 값을 유지해
-        // NULL로 덮어쓰지 않는다.
+        // 일부 필드만 보내는 부분 저장을 허용하므로, 요청에 값이 없으면(null 또는 '') 기존 값을
+        // 유지해 NULL로 덮어쓰지 않는다. Oracle은 ''를 NULL로 저장하므로 blank도 null과
+        // 동일하게 취급해야 한다(직접 API 호출은 DTO @Size(max=2) 검증만으로는 ''을 막지 못한다).
         e.updateResult(
-                req.taskDbrTc() != null ? req.taskDbrTc() : e.getTaskDbrTc(),
-                req.taskDbrRltTc() != null ? req.taskDbrRltTc() : e.getTaskDbrRltTc(),
+                StringUtils.hasText(req.taskDbrTc()) ? req.taskDbrTc() : e.getTaskDbrTc(),
+                StringUtils.hasText(req.taskDbrRltTc()) ? req.taskDbrRltTc() : e.getTaskDbrRltTc(),
                 req.taskDbrDt(),
-                req.taskDbrTod() != null ? req.taskDbrTod() : e.getTaskDbrTod(),
+                StringUtils.hasText(req.taskDbrTod()) ? req.taskDbrTod() : e.getTaskDbrTod(),
                 omt,
                 req.taskDbrOmtRsn(),
                 req.opnnCone(),

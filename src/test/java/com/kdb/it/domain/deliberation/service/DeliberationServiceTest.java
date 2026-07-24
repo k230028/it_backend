@@ -763,6 +763,43 @@ class DeliberationServiceTest {
     }
 
     @Test
+    @DisplayName("결과 저장 요청에서 필드가 빈 문자열(\"\")이면 기존 값을 NULL로 덮어쓰지 않고 유지한다")
+    void saveResult_blankFields_keepsExistingValues() {
+        // Arrange — 직접 API 호출은 DTO의 @Size(max=2) 검증만 통과하면 ''(빈 문자열)을 보낼 수 있다.
+        // Oracle은 ''를 NULL로 저장하므로 NOT NULL인 세 컬럼에 빈 문자열이 오면 null과 동일하게
+        // 기존 값을 유지해야 한다(FIX A: null-aware coalesce를 blank-aware로 확장).
+        Bdelim e =
+                Bdelim.builder()
+                        .docMngNo("DLB-2026-0001")
+                        .docVrsSno(1)
+                        .lstYn("Y")
+                        .ioeC("100")
+                        .cncdRfrNo("PRJ-1")
+                        .stsTc("65")
+                        .taskDbrTc("1")
+                        .taskDbrRltTc("1")
+                        .taskDbrTod("1")
+                        .taskDbrOmtYn("N")
+                        .fstEnrUsid("E0001")
+                        .build();
+        when(deliberationRepository.findByDocMngNoAndLstYnAndDelYn("DLB-2026-0001", "Y", "N"))
+                .thenReturn(Optional.of(e));
+
+        // Act — 세 필드 모두 빈 문자열로 부분 저장, 의견만 갱신
+        service.saveResult(
+                "DLB-2026-0001",
+                new DeliberationDto.ResultRequest(
+                        "", "", null, "", null, null, "의견만 갱신", null),
+                requester());
+
+        // Assert — NOT NULL 세 필드는 기존 값 유지, 의견은 갱신
+        assertThat(e.getTaskDbrTc()).isEqualTo("1");
+        assertThat(e.getTaskDbrRltTc()).isEqualTo("1");
+        assertThat(e.getTaskDbrTod()).isEqualTo("1");
+        assertThat(e.getOpnnCone()).isEqualTo("의견만 갱신");
+    }
+
+    @Test
     @DisplayName("완료(59) 상태에서 심의 결과 입력을 거부한다")
     void saveResult_rejectsWhenDone() {
         // Arrange

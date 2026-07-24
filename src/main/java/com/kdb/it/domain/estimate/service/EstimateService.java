@@ -222,13 +222,17 @@ public class EstimateService {
         }
         Integer vrs = e.getDocVrsSno();
         // 삭제여부와 무관하게 모든 행을 조회 — soft-delete된 행도 (팀+비목) 중복 저장 방지를 위해 포함한다.
-        List<Besttm> existing = lineRepository.findByRqmBgReqDocNoAndDocVrsSno(docNo, vrs);
+        // 개선의견일련번호 오름차순 조회이므로 아래 byKey 병합에서 "낮은 일련번호 행이 대표로 남는다"는
+        // 규칙이 스트림 순서(=쿼리 순서)로 실제 보장된다.
+        List<Besttm> existing =
+                lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(docNo, vrs);
 
         // 기존 행을 (팀코드|비목코드) 업무 키로 색인 (deleted 행 포함).
         // 운영 PK는 (문서번호+버전+개선의견일련번호) 3컬럼이라 (팀+비목) 쌍의 유일성을 DB가 더 이상
         // 보장하지 않는다. 동일 키를 가진 물리 행이 2건 이상이어도 merge 함수 없이는
         // Collectors.toMap이 IllegalStateException을 던져 문서 저장 자체가 불가능해지므로,
-        // 먼저 나온(=낮은 일련번호) 행을 대표로 남기는 merge 함수를 지정한다.
+        // 먼저 나온(=낮은 일련번호) 행을 대표로 남기는 merge 함수를 지정한다. 위 조회가 오름차순을
+        // 보장하므로 "먼저 나온" 것이 곧 "일련번호가 낮은" 것과 일치한다.
         Map<String, Besttm> byKey =
                 existing.stream()
                         .collect(
