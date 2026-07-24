@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.project.entity;
 
+import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BprojmL;
@@ -433,7 +434,7 @@ public class Bprojm extends BaseEntity {
         this.bseYy = bseYy;
         this.prlmHrkOgzCCone = prlmHrkOgzCCone;
         this.odnYn = odnYn;
-        this.abusTc = abusTc;
+        this.abusTc = CodeDefaults.orNotApplicable(abusTc);
         this.cncdRfrNo = cncdRfrNo;
     }
 
@@ -535,7 +536,7 @@ public class Bprojm extends BaseEntity {
         this.bseYy = bseYy;
         this.prlmHrkOgzCCone = prlmHrkOgzCCone;
         this.odnYn = odnYn;
-        this.abusTc = abusTc;
+        this.abusTc = CodeDefaults.orNotApplicable(abusTc);
         this.cncdRfrNo = cncdRfrNo;
     }
 

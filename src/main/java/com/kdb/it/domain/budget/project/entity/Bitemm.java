@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.project.entity;
 
+import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BitemmL;
@@ -154,7 +155,7 @@ public class Bitemm extends BaseEntity {
         this.xcrBseDt = xcrBseDt;
         this.cncdFdtnCone = cncdFdtnCone;
         this.bseYm = bseYm;
-        this.dfrCleC = dfrCleC;
+        this.dfrCleC = CodeDefaults.orNotApplicable(dfrCleC);
         this.sectSysUtzYn = sectSysUtzYn;
         this.itrInfrYn = itrInfrYn;
         this.amt = amt;

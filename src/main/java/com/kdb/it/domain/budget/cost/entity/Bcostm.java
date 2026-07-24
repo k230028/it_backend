@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.cost.entity;
 
+import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BcostmL;
@@ -202,7 +203,7 @@ public class Bcostm extends BaseEntity {
         this.cttNm = cttNm;
         this.cttOppNm = cttOppNm;
         this.costTotXpAmt = costTotXpAmt;
-        this.dfrCleC = dfrCleC;
+        this.dfrCleC = CodeDefaults.orNotApplicable(dfrCleC);
         this.fstDfrDt = fstDfrDt;
         this.curC = curC;
         this.xcr = xcr;
@@ -214,7 +215,7 @@ public class Bcostm extends BaseEntity {
         this.svnTemC = svnTemC;
         this.bgUntAbusC = bgUntAbusC;
         this.tmnYn = tmnYn;
-        this.abusTc = abusTc;
+        this.abusTc = CodeDefaults.orNotApplicable(abusTc);
         this.bseYy = bseYy;
         this.cncdRfrNo = cncdRfrNo;
         this.fcAmt = fcAmt;

@@ -186,6 +186,7 @@ public class ApplicationService {
                             .itPtlDcdStsC(
                                     DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(1) — NOT NULL
                             .lstDcdYn(i == approverEnos.size() - 1 ? "Y" : "N") // 마지막 결재자 여부
+                            .dcdTpC(Cdecim.DECISION_TYPE_REQUEST) // 결재유형: 요청(10) — NOT NULL
                             .build();
             approverRepository.save(cdecim);
             savedApprovers.add(cdecim);

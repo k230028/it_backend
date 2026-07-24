@@ -722,6 +722,27 @@ class ApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("submit: 결재선 생성 시 결재유형코드(DCD_TP_C)가 요청('10')으로 채워진다")
+    void submit_결재선생성_결재유형코드요청기본값() {
+        given(applicationRepository.getNextVal()).willReturn(1L);
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("10001");
+        request.setApproverEnos(List.of("10002", "10003"));
+
+        applicationService.submit(request);
+
+        ArgumentCaptor<Cdecim> captor = ArgumentCaptor.forClass(Cdecim.class);
+        verify(approverRepository, times(2)).save(captor.capture());
+        List<Cdecim> savedDecisions = captor.getAllValues();
+
+        assertThat(savedDecisions)
+                .isNotEmpty()
+                .allSatisfy(d -> assertThat(d.getDcdTpC()).isEqualTo(Cdecim.DECISION_TYPE_REQUEST));
+    }
+
+    @Test
     @DisplayName("submit: 1차 결재자 알림은 EAI 채널로 발행한다")
     void submit_결재요청알림_EAI채널발행() {
         given(applicationRepository.getNextVal()).willReturn(1L);

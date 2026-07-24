@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.cost.entity;
 
+import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BtermmL;
@@ -184,7 +185,7 @@ public class Btermm extends BaseEntity {
         this.curC = curC;
         this.xcr = xcr;
         this.xcrBseDt = xcrBseDt;
-        this.dfrCleC = dfrCleC;
+        this.dfrCleC = CodeDefaults.orNotApplicable(dfrCleC);
         this.indRsn = indRsn;
         this.cgprId = cgprId;
         this.termSvnTemC = termSvnTemC;

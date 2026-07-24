@@ -51,7 +51,10 @@ public class Cdecim extends BaseEntity {
     @Column(name = "DCR_ENO", length = 32, comment = "결재자사원번호")
     private String dcrEno;
 
-    /** 결재유형코드: Ccodem DCD_TP_C 참조 (미결재 시 null) */
+    /** 결재유형 기본값 — 요청. 운영 스키마의 DCD_TP_C DEFAULT와 같은 값이다. */
+    public static final String DECISION_TYPE_REQUEST = "10";
+
+    /** 결재유형코드: Ccodem DCD_TP_C 참조. 운영 스키마가 NOT NULL이므로 결재선 생성 시 '10'(요청)으로 시작한다. */
     @Column(name = "DCD_TP_C", length = 2, nullable = false, comment = "결재유형코드")
     private String dcdTpC;
 

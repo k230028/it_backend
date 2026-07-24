@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.project.service;
 
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
+import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.IoeCategories;
 import com.kdb.it.common.code.entity.Ccodem;
@@ -325,7 +326,7 @@ public class ProjectService {
                                                 itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
                                 .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
                                 .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
-                                .dfrCleC(itemDto.getDfrCleC()) // 지급주기
+                                .dfrCleC(CodeDefaults.orNotApplicable(itemDto.getDfrCleC())) // 지급주기
                                 .sectSysUtzYn(
                                         itemDto.getSectSysUtzYn() == null
                                                 ? "N"
@@ -562,7 +563,9 @@ public class ProjectService {
                                                     itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
                                     .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
                                     .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
-                                    .dfrCleC(itemDto.getDfrCleC()) // 지급주기
+                                    .dfrCleC(
+                                            CodeDefaults.orNotApplicable(
+                                                    itemDto.getDfrCleC())) // 지급주기
                                     .sectSysUtzYn(
                                             itemDto.getSectSysUtzYn() == null
                                                     ? "N"

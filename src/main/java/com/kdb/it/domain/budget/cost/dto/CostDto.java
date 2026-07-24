@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.cost.dto;
 
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
+import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -192,7 +193,7 @@ public class CostDto {
                     .cttNm(this.cttNm) // 계약명
                     .cttOppNm(this.cttOppNm) // 계약상대처
                     .costTotXpAmt(this.costTotXpAmt) // 전산관리비예산
-                    .dfrCleC(this.dfrCleC) // 지급주기
+                    .dfrCleC(CodeDefaults.orNotApplicable(this.dfrCleC)) // 지급주기
                     .fstDfrDt(
                             DateFormatUtil.toYmd8(
                                     this.fstDfrDt)) // 최초지급일자 (YYYYMMDD 8자리 정규화 — VARCHAR2(8)
@@ -208,7 +209,7 @@ public class CostDto {
                     .svnTemC(this.svnTemC) // 담당팀
                     .bgUntAbusC(this.bgUntAbusC) // 사업코드
                     .tmnYn(this.tmnYn) // 전산업무비유형
-                    .abusTc(this.abusTc) // 전산업무비구분
+                    .abusTc(CodeDefaults.orNotApplicable(this.abusTc)) // 전산업무비구분
                     .bseYy(this.bseYy) // 예산연도
                     .cncdRfrNo(this.cncdRfrNo) // 관련전산업무비번호
                     .fcAmt(this.fcAmt) // 외화금액 (plan 04 서버 재계산 결과로 costTotXpAmt와 동기화)
@@ -759,7 +760,7 @@ public class CostDto {
                     .curC(this.curC)
                     .xcr(this.xcr)
                     .xcrBseDt(DateFormatUtil.toYmd8(this.xcrBseDt))
-                    .dfrCleC(this.dfrCleC)
+                    .dfrCleC(CodeDefaults.orNotApplicable(this.dfrCleC))
                     .indRsn(this.indRsn)
                     .cgprId(this.cgprId)
                     .termSvnTemC(this.termSvnTemC)
