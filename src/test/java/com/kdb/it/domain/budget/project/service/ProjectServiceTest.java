@@ -698,6 +698,32 @@ class ProjectServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
+    // 사업구분(ABUS_TC) NOT NULL 정규화 — ORA-01400 회귀 방지
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("createProject: 사업구분(abusTc) 빈값을 해당없음('0')으로 정규화하여 저장한다")
+    void createProject_사업구분_빈값_정규화() {
+        // given: 프론트에서 사업구분을 선택하지 않아 빈 문자열이 전달됨
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("신규 정보화사업")
+                        .bseYy("2026")
+                        .abusTc("")
+                        .build();
+        given(projectRepository.getNextSequenceValue()).willReturn(1L);
+
+        // when
+        projectService.createProject(request);
+
+        // then: Oracle은 빈 문자열을 NULL로 저장해 ABUS_TC NOT NULL 제약(ORA-01400)에 걸리므로
+        // '0'(해당없음)으로 정규화되어야 한다
+        ArgumentCaptor<Bprojm> captor = ArgumentCaptor.forClass(Bprojm.class);
+        verify(projectRepository).save(captor.capture());
+        assertThat(captor.getValue().getAbusTc()).isEqualTo("0");
+    }
+
+    // ───────────────────────────────────────────────────────
     // getProjectsByIds (신규) — 존재+미존재 필터링
     // ───────────────────────────────────────────────────────
 

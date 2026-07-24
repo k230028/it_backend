@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.project.dto;
 
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
+import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -268,7 +269,7 @@ public class ProjectDto {
                     .exePttYn(exePttYn) // 프로젝트추진가능성
                     .bseYy(bseYy) // 사업연도
                     .odnYn(odnYn) // 경상여부
-                    .abusTc(abusTc) // 사업구분
+                    .abusTc(CodeDefaults.orNotApplicable(abusTc)) // 사업구분 (NOT NULL, 빈값은 해당없음 '0')
                     .cncdRfrNo(cncdRfrNo) // 관련프로젝트관리번호
                     .build();
         }
