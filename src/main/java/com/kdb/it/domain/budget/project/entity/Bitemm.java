@@ -87,7 +87,7 @@ public class Bitemm extends BaseEntity {
     private String bseYm;
 
     /** 지급주기코드: 비용 지급 주기 코드 (예: 일시, 매월, 분기) */
-    @Column(name = "DFR_CLE_C", length = 1, comment = "지급주기코드")
+    @Column(name = "DFR_CLE_C", length = 1, nullable = false, comment = "지급주기코드")
     private String dfrCleC;
 
     /** 정보보호여부: 이 품목이 정보보호 관련 항목인지 여부 (Y/N) */

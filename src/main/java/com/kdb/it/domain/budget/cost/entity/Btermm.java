@@ -109,7 +109,7 @@ public class Btermm extends BaseEntity {
     private String xcrBseDt;
 
     /** 지급주기코드 (최대 1자) */
-    @Column(name = "DFR_CLE_C", length = 1, comment = "지급주기코드")
+    @Column(name = "DFR_CLE_C", length = 1, nullable = false, comment = "지급주기코드")
     private String dfrCleC;
 
     /** 증감사유 (최대 200자) */

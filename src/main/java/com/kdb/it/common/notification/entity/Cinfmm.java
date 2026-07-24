@@ -88,7 +88,7 @@ public class Cinfmm extends BaseEntity {
     private String sdDocCone;
 
     /** 알림발송상태코드 — 01=PENDING, 02=SENT, 03=FAILED */
-    @Column(name = "INFM_SD_STS_C", length = 2, comment = "알림발송상태코드")
+    @Column(name = "INFM_SD_STS_C", length = 2, nullable = false, comment = "알림발송상태코드")
     private String infmSdStsC;
 
     /** 외부 발송 재시도 횟수 */

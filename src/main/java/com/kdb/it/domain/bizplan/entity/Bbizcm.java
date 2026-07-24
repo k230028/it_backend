@@ -36,7 +36,7 @@ public class Bbizcm extends BaseEntity {
     @Column(name = "CTT_NM", length = 100, comment = "계약명")
     private String cttNm;
 
-    @Column(name = "NOW_CTT_MANR_C", length = 2, comment = "현재계약방법코드")
+    @Column(name = "NOW_CTT_MANR_C", length = 2, nullable = false, comment = "현재계약방법코드")
     private String nowCttManrC;
 
     @Column(name = "CTT_TRM_MM_NBR", comment = "계약기간월수")

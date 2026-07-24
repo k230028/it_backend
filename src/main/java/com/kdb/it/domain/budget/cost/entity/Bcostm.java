@@ -68,7 +68,7 @@ public class Bcostm extends BaseEntity {
     private BigDecimal costTotXpAmt;
 
     /** 지급주기코드: 비용 지급 주기 코드 (예: 매월, 분기, 반기, 연간) */
-    @Column(name = "DFR_CLE_C", length = 1, comment = "지급주기코드")
+    @Column(name = "DFR_CLE_C", length = 1, nullable = false, comment = "지급주기코드")
     private String dfrCleC;
 
     /** 지급예정월(최초지급일자): 첫 번째 지급 예정 날짜 (YYYYMMDD, 8자리) */
@@ -135,7 +135,7 @@ public class Bcostm extends BaseEntity {
     private String tmnYn;
 
     /** 전산업무비구분 (최대 2자) */
-    @Column(name = "ABUS_TC", length = 2, comment = "전산업무비구분 (물리컬럼 ABUS_TC=사업구분코드)")
+    @Column(name = "ABUS_TC", length = 2, nullable = false, comment = "전산업무비구분 (물리컬럼 ABUS_TC=사업구분코드)")
     private String abusTc;
 
     /** 관련전산업무비번호: 계속항목인 경우 전년도 항목의 관리번호 (최대 30자) */

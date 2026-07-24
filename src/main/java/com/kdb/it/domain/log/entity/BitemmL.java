@@ -55,7 +55,7 @@ public class BitemmL extends BaseLogEntity {
     @Column(name = "BSE_YM", length = 6, comment = "추진년월")
     private String bseYm;
 
-    @Column(name = "DFR_CLE_C", length = 3, comment = "지급주기코드")
+    @Column(name = "DFR_CLE_C", length = 1, nullable = false, comment = "지급주기코드")
     private String dfrCleC;
 
     @Column(name = "SECT_SYS_UTZ_YN", length = 1, comment = "정보보호여부")

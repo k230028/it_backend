@@ -215,7 +215,7 @@ public class Bprojm extends BaseEntity {
     private String odnYn;
 
     /** 사업구분: 사업의 신규/계속 여부 (예: '신규', '계속') */
-    @Column(name = "ABUS_TC", length = 2, comment = "사업구분 (물리컬럼 ABUS_TC=사업구분코드)")
+    @Column(name = "ABUS_TC", length = 2, nullable = false, comment = "사업구분 (물리컬럼 ABUS_TC=사업구분코드)")
     private String abusTc;
 
     /** 관련프로젝트관리번호: 계속사업인 경우 전년도 사업의 관리번호 (최대 30자) */

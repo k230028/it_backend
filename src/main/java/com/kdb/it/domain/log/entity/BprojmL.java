@@ -127,6 +127,6 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "ODN_YN", length = 1, comment = "경상여부")
     private String odnYn;
 
-    @Column(name = "ABUS_TC", length = 32, comment = "사업구분")
+    @Column(name = "ABUS_TC", length = 2, nullable = false, comment = "사업구분")
     private String abusTc;
 }

@@ -52,7 +52,7 @@ public class Cdecim extends BaseEntity {
     private String dcrEno;
 
     /** 결재유형코드: Ccodem DCD_TP_C 참조 (미결재 시 null) */
-    @Column(name = "DCD_TP_C", length = 2, comment = "결재유형코드")
+    @Column(name = "DCD_TP_C", length = 2, nullable = false, comment = "결재유형코드")
     private String dcdTpC;
 
     /**

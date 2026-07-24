@@ -40,7 +40,7 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "AMT", precision = 18, scale = 3, comment = "전산업무비예산금액")
     private BigDecimal costTotXpAmt;
 
-    @Column(name = "DFR_CLE_C", length = 1, comment = "지급주기코드")
+    @Column(name = "DFR_CLE_C", length = 1, nullable = false, comment = "지급주기코드")
     private String dfrCleC;
 
     @Column(name = "FST_DFR_DT", comment = "지급예정월")
@@ -88,7 +88,7 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "TMN_YN", length = 1, comment = "단말여부")
     private String tmnYn;
 
-    @Column(name = "ABUS_TC", length = 2, comment = "전산업무비구분")
+    @Column(name = "ABUS_TC", length = 2, nullable = false, comment = "전산업무비구분")
     private String abusTc;
 
     /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */

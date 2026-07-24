@@ -38,16 +38,16 @@ public class BdelimL extends BaseLogEntity {
     @Column(name = "REQ_CONE", length = 300, comment = "요청내용")
     private String reqCone;
 
-    @Column(name = "TASK_DBR_TC", length = 2, comment = "과업심의구분코드")
+    @Column(name = "TASK_DBR_TC", length = 2, nullable = false, comment = "과업심의구분코드")
     private String taskDbrTc;
 
-    @Column(name = "TASK_DBR_RLT_TC", length = 2, comment = "과업심의결과구분코드")
+    @Column(name = "TASK_DBR_RLT_TC", length = 2, nullable = false, comment = "과업심의결과구분코드")
     private String taskDbrRltTc;
 
     @Column(name = "TASK_DBR_DT", length = 8, comment = "과업심의일자")
     private String taskDbrDt;
 
-    @Column(name = "TASK_DBR_TOD", length = 2, comment = "과업심의회차")
+    @Column(name = "TASK_DBR_TOD", length = 2, nullable = false, comment = "과업심의회차")
     private String taskDbrTod;
 
     @Column(name = "TASK_DBR_OMT_YN", length = 1, comment = "과업심의생략여부")

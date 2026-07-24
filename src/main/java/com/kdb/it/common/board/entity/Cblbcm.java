@@ -47,7 +47,7 @@ public class Cblbcm extends BaseEntity {
     @Column(name = "ANC_YN", nullable = false, length = 1, comment = "공지여부")
     private String ancYn;
 
-    @Column(name = "XPO_YN", nullable = false, length = 1, comment = "노출여부")
+    @Column(name = "XPO_YN", length = 1, comment = "노출여부")
     private String xpoYn;
 
     /** 공개 대상 부서코드 — NULL이면 전체 */
