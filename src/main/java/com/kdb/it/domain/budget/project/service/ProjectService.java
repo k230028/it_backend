@@ -17,6 +17,7 @@ import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import com.kdb.it.exception.DataCorruptionException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -778,18 +779,41 @@ public class ProjectService {
      * @return 조회 성공 항목({@code items})과 미존재 프로젝트관리번호({@code failedIds})를 함께 담은 결과 DTO
      */
     public ProjectDto.BulkResponse getProjectsByIds(ProjectDto.BulkGetRequest request) {
+        if (request == null
+                || request.getPrjMngNos() == null
+                || request.getPrjMngNos().isEmpty()) {
+            return new ProjectDto.BulkResponse(List.of(), List.of());
+        }
+
+        Map<String, Bprojm> projectById =
+                projectRepository.findByAbusMngNoInAndDelYn(request.getPrjMngNos(), "N").stream()
+                        .collect(
+                                Collectors.toMap(
+                                        Bprojm::getAbusMngNo,
+                                        java.util.function.Function.identity(),
+                                        (first, second) -> {
+                                            throw new DataCorruptionException(
+                                                    "활성 사업 기본행이 둘 이상입니다: abusMngNo="
+                                                            + first.getAbusMngNo());
+                                        }));
+
+        List<Bprojm> projects = new ArrayList<>();
         List<ProjectDto.Response> responses = new ArrayList<>();
         List<String> failedIds = new ArrayList<>();
         for (String prjMngNo : request.getPrjMngNos()) {
-            try {
-                responses.add(getProject(prjMngNo)); // 개별 상세 조회 (품목 포함)
-            } catch (IllegalArgumentException e) {
-                failedIds.add(prjMngNo); // 미존재 항목은 failedIds로 수집
+            Bprojm project = projectById.get(prjMngNo);
+            if (project == null) {
+                failedIds.add(prjMngNo);
+                continue;
             }
+            projects.add(project);
+            responses.add(ProjectDto.Response.fromEntity(project));
         }
         if (!failedIds.isEmpty()) {
             log.warn("bulk-get 누락: type=project, failedIds={}", failedIds);
         }
+
+        enrichProjectBulkDetail(projects, responses);
 
         // TPRMPP_BBUGTM 기준 편성예산(DUP_BG) 일괄 조회 후 각 응답에 설정
         String bgYy = request.getBseYy();
@@ -835,6 +859,178 @@ public class ProjectService {
                     });
         }
         return new ProjectDto.BulkResponse(responses, failedIds);
+    }
+
+    /**
+     * 일괄 상세 응답에 단건 조회와 같은 연관 정보를 배치로 주입합니다.
+     *
+     * @param projects 조회된 사업 엔티티
+     * @param responses 주입 대상 응답
+     */
+    private void enrichProjectBulkDetail(
+            List<Bprojm> projects, List<ProjectDto.Response> responses) {
+        if (projects.isEmpty()) {
+            return;
+        }
+        List<String> prjMngNos =
+                projects.stream().map(Bprojm::getAbusMngNo).distinct().toList();
+
+        Map<
+                        String,
+                        com.kdb.it.common.approval.repository.ApplicationMapRepository
+                                .ApplicationMapView>
+                latestCappla = new java.util.LinkedHashMap<>();
+        for (var cappla :
+                capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                        "BPROJM", prjMngNos)) {
+            latestCappla.putIfAbsent(
+                    cappla.getPkColNm() + "|" + cappla.getFntTbCrySno(), cappla);
+        }
+
+        List<String> apfMngNos =
+                latestCappla.values().stream()
+                        .map(value -> value.getApfDcmNo())
+                        .distinct()
+                        .toList();
+        Map<
+                        String,
+                        com.kdb.it.common.approval.repository.ApplicationRepository
+                                .ApplicationSummaryView>
+                capplmMap =
+                        capplmRepository.findSummaryViewsByApfMngNoIn(apfMngNos).stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                value -> value.getApfMngNo(),
+                                                java.util.function.Function.identity()));
+        Map<
+                        String,
+                        List<
+                                com.kdb.it.common.approval.repository.ApproverRepository
+                                        .ApproverReadView>>
+                decisionMap =
+                        cdecimRepository
+                                .findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos)
+                                .stream()
+                                .collect(Collectors.groupingBy(value -> value.getDcdMngNo()));
+
+        Map<String, List<com.kdb.it.domain.budget.project.entity.Bproja>> bprojaByPrj =
+                bprojaRepository.findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
+                        .collect(Collectors.groupingBy(value -> value.getAbusMngNo()));
+        Map<String, List<Bitemm>> itemsByPrj =
+                bitemmRepository.findByAbusMngNoInAndDelYn(prjMngNos, "N").stream()
+                        .collect(Collectors.groupingBy(Bitemm::getAbusMngNo));
+
+        Set<String> orgCodes = new java.util.HashSet<>();
+        Set<String> userEnos = new java.util.HashSet<>();
+        Set<String> rprStsCodes = new java.util.HashSet<>();
+        Set<String> exePossibleCodes = new java.util.HashSet<>();
+        Set<String> abusCodes = new java.util.HashSet<>();
+        for (ProjectDto.Response response : responses) {
+            addNonBlank(orgCodes, response.getDvmDpmC());
+            addNonBlank(orgCodes, response.getSvnDpmC());
+            addNonBlank(userEnos, response.getDvmUsid());
+            addNonBlank(userEnos, response.getTlrUsid());
+            addNonBlank(userEnos, response.getUsid());
+            addNonBlank(userEnos, response.getDvmTlrUsid());
+            addNonBlank(rprStsCodes, response.getRprStsTc());
+            addNonBlank(exePossibleCodes, response.getExePttYn());
+            addNonBlank(abusCodes, response.getAbusTc());
+        }
+        Map<String, String> orgNameMap =
+                corgnIRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        value -> value.getPrlmOgzCCone(),
+                                        value -> value.getBbrNm()));
+        Map<String, String> userNameMap =
+                cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        value -> value.getEno(), value -> value.getUsrNm()));
+        Map<String, String> rprStsNameMap =
+                codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCodes);
+        Map<String, String> exePossibleNameMap =
+                codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, exePossibleCodes);
+        Map<String, String> abusNameMap =
+                codeNameMapBuilder.build(CommonCodeGroups.ABUS, abusCodes);
+
+        List<ProjectDto.BitemmDto> allItemDtos = new ArrayList<>();
+        for (int index = 0; index < projects.size(); index++) {
+            Bprojm project = projects.get(index);
+            ProjectDto.Response response = responses.get(index);
+            var cappla = latestCappla.get(project.getAbusMngNo() + "|" + project.getSno());
+            if (cappla != null) {
+                response.setApfMngNo(cappla.getApfDcmNo());
+                var capplm = capplmMap.get(cappla.getApfDcmNo());
+                if (capplm != null) {
+                    response.setApfSts(
+                            capplm.getItPtlApfPrgStsC() == null
+                                    ? null
+                                    : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
+                                                    capplm.getItPtlApfPrgStsC())
+                                            .label());
+                    response.setApplicationInfo(
+                            ApplicationInfoDto.fromReadViews(
+                                    capplm,
+                                    decisionMap.getOrDefault(
+                                            cappla.getApfDcmNo(), List.of())));
+                }
+            }
+
+            if (response.getDvmDpmC() != null)
+                response.setDvmDpmCNm(orgNameMap.get(response.getDvmDpmC()));
+            if (project.getSvnDpmNm() != null)
+                response.setSvnDpmCNm(project.getSvnDpmNm());
+            else if (response.getSvnDpmC() != null)
+                response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC()));
+            if (response.getDvmUsid() != null)
+                response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
+            if (response.getTlrUsid() != null)
+                response.setTlrUsidNm(userNameMap.get(response.getTlrUsid()));
+            if (response.getUsid() != null)
+                response.setUsidNm(userNameMap.get(response.getUsid()));
+            if (response.getDvmTlrUsid() != null)
+                response.setDvmTlrUsidNm(userNameMap.get(response.getDvmTlrUsid()));
+            response.setBzTpCNm(response.getBzTpC());
+            response.setBzDttNmNm(response.getBzDttNm());
+            response.setSklTpTcNm(response.getSklTpTc());
+            response.setCstTpTcNm(response.getCstTpTc());
+            if (response.getRprStsTc() != null)
+                response.setRprStsTcNm(rprStsNameMap.get(response.getRprStsTc()));
+            if (response.getExePttYn() != null)
+                response.setExePttYnNm(exePossibleNameMap.get(response.getExePttYn()));
+            if (response.getAbusTc() != null)
+                response.setAbusTcNm(abusNameMap.get(response.getAbusTc()));
+
+            List<com.kdb.it.domain.budget.project.entity.Bproja> bprojaRows =
+                    bprojaByPrj.getOrDefault(project.getAbusMngNo(), List.of());
+            response.setStsTc(representativeStatus(bprojaRows));
+            response.setBprojaStsCodes(
+                    bprojaRows.stream()
+                            .map(value -> value.getStsTc())
+                            .filter(Objects::nonNull)
+                            .toList());
+
+            List<Bitemm> bitemms =
+                    itemsByPrj.getOrDefault(project.getAbusMngNo(), List.of()).stream()
+                            .filter(
+                                    item ->
+                                            Objects.equals(
+                                                    item.getFntTbCrySno(), project.getSno()))
+                            .toList();
+            List<ProjectDto.BitemmDto> itemDtos =
+                    bitemms.stream().map(ProjectDto.BitemmDto::fromEntity).toList();
+            response.setItems(itemDtos);
+            allItemDtos.addAll(itemDtos);
+            projectBudgetSummaryService.applyBudgetSummary(response, bitemms);
+        }
+        enrichItemIoeCNames(allItemDtos);
+    }
+
+    private static void addNonBlank(Set<String> values, String value) {
+        if (value != null && !value.isBlank()) {
+            values.add(value);
+        }
     }
 
     /**
