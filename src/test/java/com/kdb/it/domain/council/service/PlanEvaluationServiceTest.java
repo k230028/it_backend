@@ -7,8 +7,11 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -22,7 +25,6 @@ import com.kdb.it.domain.council.entity.Bplevm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.PlanEvaluationRepository;
-import com.kdb.it.exception.DataCorruptionException;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.List;
@@ -141,7 +143,7 @@ class PlanEvaluationServiceTest {
     }
 
     @Test
-    @DisplayName("getPlanTargets: 정보화사업만 추려 상세와 전산업무비 건수를 병합한다")
+    @DisplayName("getPlanTargets: 정보화사업만 추려 상세와 전산업무비 건수를 병합한다 (누락 prjMngNo 원소는 손상으로 표시)")
     void getPlanTargets_mergesProjectDetailsAndExcludesOperatingBusiness() {
         Basctm council = mock(Basctm.class);
         given(council.getAbusMngNo()).willReturn("PLN-2026-0001");
@@ -176,6 +178,8 @@ class PlanEvaluationServiceTest {
 
         assertThat(result.reqDocNo()).isEqualTo("PLN-2026-0001");
         assertThat(result.costCount()).isEqualTo(2);
+        // 빈 prjMngNo("ORN-1" 다음 원소)는 구조 손상으로 제외되므로 불완전 플래그가 서야 한다
+        assertThat(result.snapshotIncomplete()).isTrue();
         assertThat(result.businesses())
                 .singleElement()
                 .satisfies(
@@ -269,8 +273,8 @@ class PlanEvaluationServiceTest {
     }
 
     @Test
-    @DisplayName("getPlanTargets: 손상된 스냅샷은 계획관리번호를 포함한 데이터 손상 예외를 반환한다")
-    void getPlanTargets_invalidSnapshotThrowsDataCorruption() {
+    @DisplayName("getPlanTargets: 스냅샷 JSON 구문 오류는 예외 대신 빈 부분결과 + snapshotIncomplete=true를 반환한다")
+    void getPlanTargets_syntaxErrorSnapshotReturnsIncompletePartial() {
         Basctm council = mock(Basctm.class);
         given(council.getAbusMngNo()).willReturn("PLN-BROKEN");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
@@ -281,16 +285,310 @@ class PlanEvaluationServiceTest {
                                 .redtConeInf("{broken")
                                 .build());
 
-        assertThatThrownBy(() -> planEvaluationService.getPlanTargets(ASCT_ID))
-                .isInstanceOf(DataCorruptionException.class)
-                .hasMessageContaining("PLN-BROKEN");
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).isEmpty();
+        assertThat(result.costCount()).isZero();
+        assertThat(result.snapshotIncomplete()).isTrue();
         verify(projectService, never()).getProjectsByIds(any());
         verify(councilRepository, never())
                 .findBaselineReqDocNos(any(), any(), any(), any(), any(), any(Pageable.class));
     }
 
     @Test
-    @DisplayName("getPlanTargets: 비어 있는 유효 스냅샷은 빈 심의 대상을 반환한다")
+    @DisplayName("getPlanTargets: 현재 계획 조회(getPlan) 예외는 삼키지 않고 전파한다")
+    void getPlanTargets_currentPlanLookupFailurePropagates() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-DBERROR");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-DBERROR")).willThrow(new IllegalStateException("DB 커넥션 오류"));
+
+        assertThatThrownBy(() -> planEvaluationService.getPlanTargets(ASCT_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("DB 커넥션 오류");
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: null 스냅샷은 정상적인 빈 심의 대상(snapshotIncomplete=false)을 반환한다")
+    void getPlanTargets_nullSnapshotIsNormalEmpty() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-NULL");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-NULL"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf(null)
+                                .build());
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).isEmpty();
+        assertThat(result.costCount()).isZero();
+        assertThat(result.snapshotIncomplete()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 공백 스냅샷은 정상적인 빈 심의 대상(snapshotIncomplete=false)을 반환한다")
+    void getPlanTargets_blankSnapshotIsNormalEmpty() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-BLANK");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-BLANK"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf("   ")
+                                .build());
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).isEmpty();
+        assertThat(result.snapshotIncomplete()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 빈 객체({}) 스냅샷은 구조 손상으로 취급해 snapshotIncomplete=true를 반환한다")
+    void getPlanTargets_emptyObjectSnapshotIsIncompletePartial() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-EMPTYOBJ");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-EMPTYOBJ"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf("{}")
+                                .build());
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).isEmpty();
+        assertThat(result.costCount()).isZero();
+        assertThat(result.snapshotIncomplete()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 알려진 루트 키가 전혀 없는 객체 스냅샷은 구조 손상으로 취급한다")
+    void getPlanTargets_unknownRootKeysSnapshotIsIncompletePartial() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-UNKNOWNKEYS");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-UNKNOWNKEYS"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf("{\"foo\":\"bar\"}")
+                                .build());
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).isEmpty();
+        assertThat(result.snapshotIncomplete()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 루트가 배열이면 구조 손상으로 취급한다")
+    void getPlanTargets_arrayRootSnapshotIsIncompletePartial() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-ARRAYROOT");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-ARRAYROOT"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf("[1,2,3]")
+                                .build());
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).isEmpty();
+        assertThat(result.snapshotIncomplete()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 루트가 스칼라 값이면 구조 손상으로 취급한다")
+    void getPlanTargets_scalarRootSnapshotIsIncompletePartial() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-SCALARROOT");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-SCALARROOT"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf("\"just-a-string\"")
+                                .build());
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).isEmpty();
+        assertThat(result.snapshotIncomplete()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: prjSnapshots가 배열이 아니면 그 부분만 제외하고 costDetails는 유지한다")
+    void getPlanTargets_nonArrayBusinessListExcludedButCostDetailsSurvive() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-NONARRAY-BIZ");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-NONARRAY-BIZ"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf(
+                                        "{\"prjSnapshots\":\"not-an-array\",\"costDetails\":[{},{}]}")
+                                .build());
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).isEmpty();
+        assertThat(result.costCount()).isEqualTo(2);
+        assertThat(result.snapshotIncomplete()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: costDetails가 배열이 아니면 그 부분만 제외하고 사업 목록은 유지한다")
+    void getPlanTargets_nonArrayCostDetailsExcludedButBusinessesSurvive() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-NONARRAY-COST");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-NONARRAY-COST"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf(
+                                        "{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-1\",\"abusNm\":\"A사업\"}],\"costDetails\":\"broken\"}")
+                                .build());
+        given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
+                .willReturn(new ProjectDto.BulkResponse(List.of(), List.of()));
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).extracting("abusMngNo").containsExactly("PRJ-1");
+        assertThat(result.costCount()).isZero();
+        assertThat(result.snapshotIncomplete()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 배열 원소가 객체가 아니면 그 원소만 제외하고 유효한 사업은 살린다")
+    void getPlanTargets_nonObjectArrayElementExcludedButValidElementsSurvive() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-NONOBJ-ELEM");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-NONOBJ-ELEM"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf(
+                                        "{\"prjSnapshots\":[42,{\"prjMngNo\":\"PRJ-1\",\"abusNm\":\"A사업\"}]}")
+                                .build());
+        given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
+                .willReturn(new ProjectDto.BulkResponse(List.of(), List.of()));
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).extracting("abusMngNo").containsExactly("PRJ-1");
+        assertThat(result.snapshotIncomplete()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: prjMngNo가 없는 사업 원소는 제외하되 다른 유효 사업은 그대로 반환한다(부분 성공)")
+    void getPlanTargets_missingPrjMngNoElementExcludedButOthersSurvive() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-MIXED");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-MIXED"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf(
+                                        "{\"prjSnapshots\":[{\"abusNm\":\"관리번호없음\"},{\"prjMngNo\":\"PRJ-1\",\"abusNm\":\"A사업\"}]}")
+                                .build());
+        given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
+                .willReturn(new ProjectDto.BulkResponse(List.of(), List.of()));
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses())
+                .singleElement()
+                .satisfies(business -> assertThat(business.abusMngNo()).isEqualTo("PRJ-1"));
+        assertThat(result.snapshotIncomplete()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: abusNm이 없는 사업은 제외하지 않고 유지하되 불완전 플래그를 세운다")
+    void getPlanTargets_missingAbusNmKeepsBusinessButFlagsIncomplete() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-NONAME");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-NONAME"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf("{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-1\"}]}")
+                                .build());
+        given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
+                .willReturn(new ProjectDto.BulkResponse(List.of(), List.of()));
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses())
+                .singleElement()
+                .satisfies(
+                        business -> {
+                            assertThat(business.abusMngNo()).isEqualTo("PRJ-1");
+                            assertThat(business.abusNm()).isNull();
+                        });
+        assertThat(result.snapshotIncomplete()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: ornYn 필드가 아예 없는 사업은 기존과 동일하게 포함하고 불완전 플래그를 세우지 않는다")
+    void getPlanTargets_missingOrnYnFieldIncludedWithoutIncompleteFlag() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-NOORN");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-NOORN"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf(
+                                        "{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-1\",\"abusNm\":\"A사업\"}]}")
+                                .build());
+        given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
+                .willReturn(new ProjectDto.BulkResponse(List.of(), List.of()));
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).extracting("abusMngNo").containsExactly("PRJ-1");
+        assertThat(result.snapshotIncomplete()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 스냅샷 JSON은 요청당 정확히 1회만 파싱한다(단일 파싱 지점 검증)")
+    void getPlanTargets_parsesSnapshotExactlyOnce()
+            throws com.fasterxml.jackson.core.JsonProcessingException {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-ONCE");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        String snapshotJson = "{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-1\",\"abusNm\":\"A사업\"}]}";
+        given(planService.getPlan("PLN-ONCE"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf(snapshotJson)
+                                .build());
+        given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
+                .willReturn(new ProjectDto.BulkResponse(List.of(), List.of()));
+        ObjectMapper spyMapper = spy(new ObjectMapper());
+        ReflectionTestUtils.setField(planEvaluationService, "snapshotMapper", spyMapper);
+
+        planEvaluationService.getPlanTargets(ASCT_ID);
+
+        verify(spyMapper, times(1)).readTree(snapshotJson);
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 비어 있는 유효 스냅샷은 빈 심의 대상을 반환한다(snapshotIncomplete=false)")
     void getPlanTargets_emptySnapshotReturnsEmptyTargets() {
         Basctm council = mock(Basctm.class);
         given(council.getAbusMngNo()).willReturn("PLN-EMPTY");
@@ -307,6 +605,7 @@ class PlanEvaluationServiceTest {
 
         assertThat(result.businesses()).isEmpty();
         assertThat(result.costCount()).isZero();
+        assertThat(result.snapshotIncomplete()).isFalse();
     }
 
     @Test
@@ -527,6 +826,44 @@ class PlanEvaluationServiceTest {
                 .contains("<table>") // 표 구조
                 .contains("클라우드 전환") // 스냅샷에서 사업명 해석
                 .contains("유보"); // 최종 판정
+        assertThat(res.snapshotIncomplete()).isFalse();
+    }
+
+    @Test
+    @DisplayName("buildResultSummary: 계획 조회(getPlan) 예외는 삼키지 않고 전파한다")
+    void buildResultSummary_planLookupFailurePropagates() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-DBERROR");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of());
+        given(planService.getPlan("PLN-DBERROR")).willThrow(new IllegalStateException("DB 커넥션 오류"));
+
+        assertThatThrownBy(() -> planEvaluationService.buildResultSummary(ASCT_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("DB 커넥션 오류");
+    }
+
+    @Test
+    @DisplayName("buildResultSummary: abusNm이 없는 사업은 관리번호로 대체 표시하고 snapshotIncomplete=true를 반환한다")
+    void buildResultSummary_missingAbusNmFallsBackToMngNoAndFlagsIncomplete() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-NONAME");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        Bplevm e1 = mockEval("E1", "PRJ-NONAME", "Y");
+        given(planEvaluationRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(e1));
+        given(planService.getPlan("PLN-NONAME"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .redtConeInf("{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-NONAME\"}]}")
+                                .build());
+
+        CouncilDto.PlanResultSummaryResponse result =
+                planEvaluationService.buildResultSummary(ASCT_ID);
+
+        assertThat(result.summaryHtml()).contains("PRJ-NONAME"); // 이름 없음 → 관리번호로 대체
+        assertThat(result.snapshotIncomplete()).isTrue();
     }
 
     @Test
@@ -551,5 +888,6 @@ class PlanEvaluationServiceTest {
                 .contains("보완 &amp; 재검토")
                 .contains("적정 1, 유보 0")
                 .contains("<td>-</td>");
+        assertThat(result.snapshotIncomplete()).isTrue();
     }
 }

@@ -1,6 +1,8 @@
 package com.kdb.it.domain.council.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -13,7 +15,6 @@ import com.kdb.it.domain.council.entity.Bplevm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.PlanEvaluationRepository;
-import com.kdb.it.exception.DataCorruptionException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
@@ -66,6 +67,12 @@ public class PlanEvaluationService {
     /** JPA EntityManager — 평가 신규 INSERT persist용 (§5.12.1.1) */
     @PersistenceContext private EntityManager entityManager;
 
+    /**
+     * 계획 스냅샷 JSON(redtConeInf) 파서 — {@link #parseSnapshot}의 단일 파싱 지점 전용(Jackson 기본 설정). 정적 상수가 아닌
+     * 인스턴스 필드로 두어 단위 테스트에서 스파이(spy)로 교체해 파싱 호출 횟수를 검증할 수 있게 한다.
+     */
+    private final ObjectMapper snapshotMapper = new ObjectMapper();
+
     // =========================================================================
     // 심의 대상(계획) 조회
     // =========================================================================
@@ -88,30 +95,31 @@ public class PlanEvaluationService {
         }
         PlanDto.DetailResponse plan = planService.getPlan(reqDocNo);
 
-        // 계획 스냅샷에서 정보화사업(경상 제외) 노드 추출 (예산·부서·진행구분)
-        List<JsonNode> snapBusinesses = parseSnapshotBusinesses(plan.getRedtConeInf(), reqDocNo);
+        // 계획 스냅샷 1회 파싱 — 정보화사업(경상 제외) 노드·전산업무비 건수를 동시에 얻는다
+        ParsedSnapshot parsed = parseSnapshot(plan.getRedtConeInf(), reqDocNo);
+        boolean incomplete = parsed.incomplete();
 
         // 사업개요·시작/종료일자는 스냅샷에 없어 BPROJM 상세에서 보강
         List<String> prjMngNos =
-                snapBusinesses.stream()
-                        .map(n -> textOf(n, "prjMngNo"))
-                        .filter(s -> s != null && !s.isBlank())
-                        .toList();
+                parsed.businesses().stream().map(n -> textOf(n, "prjMngNo")).toList();
         Map<String, ProjectDto.Response> detailMap =
                 fetchProjectDetails(prjMngNos, plan.getBseYy());
 
         // 조정 협의회는 '직전 승인(수립) 계획'의 사업별 예산을 최초값으로 병합(예산 최초/조정 비교)
-        Map<String, JsonNode> baselineByBiz =
-                "조정".equals(plan.getItPtlPlnTpC())
-                        ? baselineBudgetByBusiness(findBaselinePlan(plan.getBseYy(), reqDocNo))
-                        : Map.of();
+        Map<String, JsonNode> baselineByBiz = Map.of();
+        if ("조정".equals(plan.getItPtlPlnTpC())) {
+            PlanDto.DetailResponse baselinePlan = findBaselinePlan(plan.getBseYy(), reqDocNo);
+            if (baselinePlan != null) {
+                ParsedSnapshot baselineParsed =
+                        parseSnapshot(baselinePlan.getRedtConeInf(), baselinePlan.getReqDocNo());
+                baselineByBiz = businessesByMngNo(baselineParsed.businesses());
+                incomplete = incomplete || baselineParsed.incomplete();
+            }
+        }
 
         List<CouncilDto.PlanTargetBusiness> businesses = new ArrayList<>();
-        for (JsonNode n : snapBusinesses) {
+        for (JsonNode n : parsed.businesses()) {
             String id = textOf(n, "prjMngNo");
-            if (id == null || id.isBlank()) {
-                continue;
-            }
             ProjectDto.Response d = detailMap.get(id);
             JsonNode base = baselineByBiz.get(id);
             businesses.add(
@@ -137,61 +145,148 @@ public class PlanEvaluationService {
                 plan.getBseYy(),
                 plan.getItPtlPlnTpC(),
                 businesses,
-                countCostDetails(plan.getRedtConeInf(), reqDocNo));
+                parsed.costCount(),
+                incomplete);
     }
 
     /**
-     * 계획 스냅샷에서 정보화사업 노드를 추출합니다.
+     * 계획 스냅샷(redtConeInf JSON) 파싱 결과 — 단일 파싱 지점({@link #parseSnapshot})의 반환값.
      *
-     * @param json 계획 스냅샷 JSON
-     * @param reqDocNo 진단용 계획관리번호
-     * @return 경상사업을 제외한 정보화사업 노드
-     * @throws DataCorruptionException JSON 파싱에 실패한 경우
+     * @param businesses 유효한(구조 손상이 없는) 정보화사업 노드 목록(경상사업 제외)
+     * @param costCount 전산업무비 참고 건수
+     * @param nameByBusiness 사업관리번호 → 사업명 매핑(abusNm이 있는 사업만 포함)
+     * @param incomplete 구문/구조 손상으로 원본 데이터 일부가 제외됐는지 여부
      */
-    private List<JsonNode> parseSnapshotBusinesses(String json, String reqDocNo) {
-        List<JsonNode> result = new ArrayList<>();
-        if (json == null || json.isBlank()) {
-            return result;
+    private record ParsedSnapshot(
+            List<JsonNode> businesses,
+            int costCount,
+            Map<String, String> nameByBusiness,
+            boolean incomplete) {
+
+        private static ParsedSnapshot empty(boolean incomplete) {
+            return new ParsedSnapshot(List.of(), 0, Map.of(), incomplete);
         }
+    }
+
+    /** 계획 스냅샷(redtConeInf JSON)의 알려진 최상위 배열 키(사업 목록 별칭 2종 + 전산업무비). */
+    private static final String SNAPSHOT_KEY_PROJECTS = "projects";
+
+    private static final String SNAPSHOT_KEY_PRJ_SNAPSHOTS = "prjSnapshots";
+    private static final String SNAPSHOT_KEY_COST_DETAILS = "costDetails";
+
+    /**
+     * 계획 스냅샷(redtConeInf JSON)의 단일 파서 — 요청당 정확히 1회만 {@code readTree()}를 호출한다.
+     *
+     * <p>구문/구조 손상이 있어도 예외를 던지지 않고 유효한 부분만 살려 반환하며, {@code incomplete=true}로 원본 데이터 일부가 제외됐음을 알린다.
+     * DB/권한/{@code planService.getPlan()} 오류는 이 메서드 밖(호출자)에서 발생하므로 그대로 전파되며 이 메서드가 삼키지 않는다.
+     *
+     * <p>구조 판정 흐름(ASCII):
+     *
+     * <pre>
+     * json == null || blank?
+     *   YES -&gt; 정상 빈 결과 (incomplete=false)
+     *   NO  -&gt; readTree() 시도
+     *          구문 오류(JsonProcessingException)?
+     *            YES -&gt; 빈 결과 (incomplete=true)
+     *            NO  -&gt; root.isObject()?
+     *                     NO  -&gt; 빈 결과 (incomplete=true)              // 배열/스칼라 루트
+     *                     YES -&gt; projects/prjSnapshots/costDetails 중 하나라도 존재?
+     *                              NO  -&gt; 빈 결과 (incomplete=true)     // 알려진 루트 키 없음
+     *                              YES -&gt; 부분별(사업 배열 · 전산업무비 배열) 개별 검증:
+     *                                       존재하지만 배열 아님 -&gt; 그 부분만 제외 + incomplete=true
+     *                                       배열 -&gt; 원소별 검증
+     *                                         객체 아님          -&gt; 그 원소 제외 + incomplete=true
+     *                                         prjMngNo 없음/공백 -&gt; 그 원소 제외 + incomplete=true
+     *                                         ornYn='Y'          -&gt; 경상사업 제외(손상 아님, 플래그 없음)
+     *                                         abusNm 없음        -&gt; 사업은 유지, 이름매핑만 생략 +
+     *                                                                incomplete=true(호출부는 관리번호로 대체)
+     * </pre>
+     *
+     * <p>입력 계약을 변경하면 이 주석과 {@code PlanEvaluationServiceTest}의 대응 테스트를 함께 갱신한다.
+     *
+     * @param json 계획 스냅샷 JSON (redtConeInf)
+     * @param reqDocNo 진단 로그용 계획관리번호
+     * @return 유효 사업/전산업무비 건수/사업명 매핑과 구조 손상 여부를 담은 파싱 결과
+     */
+    private ParsedSnapshot parseSnapshot(String json, String reqDocNo) {
+        if (json == null || json.isBlank()) {
+            return ParsedSnapshot.empty(false);
+        }
+
+        JsonNode root;
         try {
-            JsonNode root = SNAPSHOT_MAPPER.readTree(json);
-            JsonNode arr =
-                    root.has("prjSnapshots") ? root.get("prjSnapshots") : root.get("projects");
-            if (arr != null && arr.isArray()) {
-                for (JsonNode n : arr) {
+            root = snapshotMapper.readTree(json);
+        } catch (JsonProcessingException e) {
+            log.warn("계획 스냅샷 구문 손상(JSON 파싱 실패): reqDocNo={}", reqDocNo);
+            return ParsedSnapshot.empty(true);
+        }
+
+        if (root == null || !root.isObject()) {
+            log.warn("계획 스냅샷 구조 손상(루트가 객체가 아님): reqDocNo={}", reqDocNo);
+            return ParsedSnapshot.empty(true);
+        }
+
+        boolean hasKnownRootKey =
+                root.has(SNAPSHOT_KEY_PROJECTS)
+                        || root.has(SNAPSHOT_KEY_PRJ_SNAPSHOTS)
+                        || root.has(SNAPSHOT_KEY_COST_DETAILS);
+        if (!hasKnownRootKey) {
+            log.warn("계획 스냅샷 구조 손상(알려진 루트 키 없음): reqDocNo={}", reqDocNo);
+            return ParsedSnapshot.empty(true);
+        }
+
+        boolean incomplete = false;
+
+        // 사업 목록: prjSnapshots 우선, 없으면 projects
+        JsonNode businessArr =
+                root.has(SNAPSHOT_KEY_PRJ_SNAPSHOTS)
+                        ? root.get(SNAPSHOT_KEY_PRJ_SNAPSHOTS)
+                        : root.get(SNAPSHOT_KEY_PROJECTS);
+        List<JsonNode> businesses = new ArrayList<>();
+        Map<String, String> nameByBusiness = new LinkedHashMap<>();
+        if (businessArr != null) {
+            if (!businessArr.isArray()) {
+                log.warn("계획 스냅샷 구조 손상(사업 목록이 배열이 아님): reqDocNo={}", reqDocNo);
+                incomplete = true;
+            } else {
+                for (JsonNode n : businessArr) {
+                    if (!n.isObject()) {
+                        incomplete = true;
+                        continue;
+                    }
                     JsonNode orn = n.get("ornYn");
                     if (orn != null && "Y".equals(orn.asText())) {
-                        continue; // 경상사업 제외 → 정보화사업만
+                        continue; // 경상사업 제외 → 정보화사업만 (구조 손상 아님)
                     }
-                    result.add(n);
+                    String id = textOf(n, "prjMngNo");
+                    if (id == null || id.isBlank()) {
+                        incomplete = true;
+                        continue;
+                    }
+                    businesses.add(n);
+                    String nm = textOf(n, "abusNm");
+                    if (nm != null) {
+                        nameByBusiness.put(id, nm);
+                    } else {
+                        incomplete = true; // 사업은 유지하되 이름 매핑은 생략(호출부 관리번호 대체)
+                    }
                 }
             }
-        } catch (Exception e) {
-            log.error("계획 스냅샷 파싱 실패: reqDocNo={}", reqDocNo, e);
-            throw new DataCorruptionException("계획 스냅샷(JSON)이 손상되었습니다: reqDocNo=" + reqDocNo, e);
         }
-        return result;
-    }
 
-    /**
-     * 계획 스냅샷의 전산업무비 건수를 계산합니다.
-     *
-     * @param json 계획 스냅샷 JSON
-     * @param reqDocNo 진단용 계획관리번호
-     * @return 전산업무비 건수
-     * @throws DataCorruptionException JSON 파싱에 실패한 경우
-     */
-    private int countCostDetails(String json, String reqDocNo) {
-        if (json == null || json.isBlank()) {
-            return 0;
+        // 전산업무비 참고 건수
+        JsonNode costArr = root.get(SNAPSHOT_KEY_COST_DETAILS);
+        int costCount = 0;
+        if (costArr != null) {
+            if (!costArr.isArray()) {
+                log.warn("계획 스냅샷 구조 손상(전산업무비 목록이 배열이 아님): reqDocNo={}", reqDocNo);
+                incomplete = true;
+            } else {
+                costCount = costArr.size();
+            }
         }
-        try {
-            JsonNode arr = SNAPSHOT_MAPPER.readTree(json).get("costDetails");
-            return (arr != null && arr.isArray()) ? arr.size() : 0;
-        } catch (Exception e) {
-            log.error("전산업무비 스냅샷 파싱 실패: reqDocNo={}", reqDocNo, e);
-            throw new DataCorruptionException("계획 스냅샷(JSON)이 손상되었습니다: reqDocNo=" + reqDocNo, e);
-        }
+
+        return new ParsedSnapshot(businesses, costCount, nameByBusiness, incomplete);
     }
 
     /** BPROJM 상세를 사업관리번호별로 조회(사업개요/기간 보강). 대상년도로 편성예산 컨텍스트 전달. */
@@ -234,18 +329,11 @@ public class PlanEvaluationService {
         return planService.getPlan(reqDocNos.getFirst());
     }
 
-    /** 기준 계획 스냅샷에서 사업관리번호 → 예산 노드 매핑(prjBg/assetBg/costBg 조회용). */
-    private Map<String, JsonNode> baselineBudgetByBusiness(PlanDto.DetailResponse baseline) {
+    /** 파싱된 사업 노드 목록을 사업관리번호 기준 맵으로 변환(prjBg/assetBg/costBg 조회용). */
+    private static Map<String, JsonNode> businessesByMngNo(List<JsonNode> businesses) {
         Map<String, JsonNode> map = new LinkedHashMap<>();
-        if (baseline == null) {
-            return map;
-        }
-        for (JsonNode n :
-                parseSnapshotBusinesses(baseline.getRedtConeInf(), baseline.getReqDocNo())) {
-            String id = textOf(n, "prjMngNo");
-            if (id != null && !id.isBlank()) {
-                map.put(id, n);
-            }
+        for (JsonNode n : businesses) {
+            map.put(textOf(n, "prjMngNo"), n);
         }
         return map;
     }
@@ -369,8 +457,16 @@ public class PlanEvaluationService {
         List<Bplevm> all = planEvaluationRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
         List<CouncilDto.PlanBusinessVerdict> verdicts = aggregateVerdicts(all);
 
-        // 사업명 매핑 (계획 스냅샷)
-        Map<String, String> nameById = resolveBusinessNames(council.getAbusMngNo());
+        // 사업명 매핑 (계획 스냅샷) — getPlan()은 파싱 밖에서 호출되므로 DB/권한 오류는 그대로 전파된다
+        Map<String, String> nameById = Map.of();
+        boolean incomplete = false;
+        String reqDocNo = council.getAbusMngNo();
+        if (reqDocNo != null && !reqDocNo.isBlank()) {
+            ParsedSnapshot parsed =
+                    parseSnapshot(planService.getPlan(reqDocNo).getRedtConeInf(), reqDocNo);
+            nameById = parsed.nameByBusiness();
+            incomplete = parsed.incomplete();
+        }
 
         // 사업별 유보 사유 수집 (유보 위원의 사유)
         Map<String, List<String>> reserveOpinions =
@@ -384,42 +480,7 @@ public class PlanEvaluationService {
                                                 e -> e.getEvalOpnn(), Collectors.toList())));
 
         return new CouncilDto.PlanResultSummaryResponse(
-                renderSummaryHtml(verdicts, nameById, reserveOpinions), verdicts);
-    }
-
-    /** 계획 스냅샷 JSON(redtConeInf) 파서 — 사업명 해석 전용(Jackson 2, 로컬 인스턴스). */
-    private static final com.fasterxml.jackson.databind.ObjectMapper SNAPSHOT_MAPPER =
-            new com.fasterxml.jackson.databind.ObjectMapper();
-
-    /**
-     * 대상 계획의 스냅샷(redtConeInf JSON)에서 사업관리번호(prjMngNo) → 사업명(abusNm) 매핑을 해석한다. 파싱 실패/부재 시 빈 맵(호출부에서
-     * 사업관리번호로 폴백).
-     */
-    private Map<String, String> resolveBusinessNames(String reqDocNo) {
-        Map<String, String> map = new LinkedHashMap<>();
-        if (reqDocNo == null || reqDocNo.isBlank()) {
-            return map;
-        }
-        String json = planService.getPlan(reqDocNo).getRedtConeInf();
-        if (json == null || json.isBlank()) {
-            return map;
-        }
-        try {
-            com.fasterxml.jackson.databind.JsonNode snaps =
-                    SNAPSHOT_MAPPER.readTree(json).get("prjSnapshots");
-            if (snaps != null && snaps.isArray()) {
-                for (com.fasterxml.jackson.databind.JsonNode s : snaps) {
-                    com.fasterxml.jackson.databind.JsonNode id = s.get("prjMngNo");
-                    com.fasterxml.jackson.databind.JsonNode nm = s.get("abusNm");
-                    if (id != null && nm != null) {
-                        map.put(id.asText(), nm.asText());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("결과서 사업명 스냅샷 파싱 실패 — 관리번호로 폴백: reqDocNo={}", reqDocNo, e);
-        }
-        return map;
+                renderSummaryHtml(verdicts, nameById, reserveOpinions), verdicts, incomplete);
     }
 
     /** 사업별 판정 요약 HTML 표 렌더링(텍스트 셀은 이스케이프). */
