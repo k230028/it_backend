@@ -24,6 +24,7 @@ import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.exception.InvalidRefreshTokenException;
+import com.kdb.it.exception.LoginRejectedException;
 import jakarta.servlet.http.Cookie;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -140,6 +141,30 @@ class AuthControllerTest {
 
         given(authService.login(anyString(), anyString(), anyString(), anyString()))
                 .willThrow(new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        // when & then
+        mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("User-Agent", "TestAgent")
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+            "POST /api/auth/login - LoginRejectedException 발생 시 일반 RuntimeException과 동일한 400 계약을 유지한다")
+    void login_로그인거부예외_일반예외와동일한400반환() throws Exception {
+        // given — SEC-09: 사용자 미존재·비밀번호 불일치는 서비스가 전용 LoginRejectedException을 던진다.
+        // GlobalExceptionHandler에는 이 타입 전용 핸들러가 없으므로 포괄 RuntimeException 핸들러(400)로
+        // 처리되며, 기존 login_서비스예외_500반환 테스트(바닐라 RuntimeException 스텁)와 같은 HTTP 계약을
+        // 유지하는지 이 테스트로 고정 검증한다.
+        AuthDto.LoginRequest request = new AuthDto.LoginRequest();
+        request.setEno("99999");
+        request.setPassword("wrong-password");
+
+        given(authService.login(anyString(), anyString(), anyString(), anyString()))
+                .willThrow(new LoginRejectedException("비밀번호가 일치하지 않습니다."));
 
         // when & then
         mockMvc.perform(
