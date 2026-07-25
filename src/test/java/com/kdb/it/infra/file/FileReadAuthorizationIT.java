@@ -391,9 +391,9 @@ class FileReadAuthorizationIT {
     /** 협의회 사업(BPROJM) — 주관부서(SVN_DPM_C)를 통제. */
     private void insertProject(String abusMngNo, int sno, String svnDpmC) {
         jdbcTemplate.update(
-                "INSERT INTO TPRMPP_BPROJM (ABUS_MNG_NO, SNO, ABUS_NM, SVN_DPM_C, "
+                "INSERT INTO TPRMPP_BPROJM (ABUS_MNG_NO, SNO, ABUS_NM, ABUS_TC, SVN_DPM_C, "
                         + "FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
-                        + "VALUES (?, ?, ?, ?, '00000000000000', SYSDATE, 'N', ?, 1, '00000000000000', SYSDATE)",
+                        + "VALUES (?, ?, ?, '0', ?, '00000000000000', SYSDATE, 'N', ?, 1, '00000000000000', SYSDATE)",
                 abusMngNo,
                 sno,
                 NS + " 사업",
