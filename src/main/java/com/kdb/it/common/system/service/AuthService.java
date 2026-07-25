@@ -273,14 +273,12 @@ public class AuthService {
         String newRefreshTokenValue = jwtUtil.generateRefreshToken(eno);
         String newRefreshTokenHash = sha256HexForToken(newRefreshTokenValue);
         Crtokm rotated =
-                Crtokm.builder()
-                        .apiTokCone(newRefreshTokenHash)
-                        .ecyRnwPubTokCone(newRefreshTokenHash)
-                        .eno(eno)
-                        .famNm(refreshToken.getFamNm())
-                        .avlYn("Y")
-                        .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
-                        .build();
+                Crtokm.create(
+                        newRefreshTokenHash,
+                        newRefreshTokenHash,
+                        eno,
+                        refreshToken.getFamNm(),
+                        LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)));
         refreshTokenRepository.save(rotated);
         validateSingleActiveToken(refreshToken.getFamNm());
 
@@ -463,14 +461,12 @@ public class AuthService {
         String value = jwtUtil.generateRefreshToken(eno);
         String tokenHash = sha256HexForToken(value);
         Crtokm token =
-                Crtokm.builder()
-                        .apiTokCone(tokenHash)
-                        .ecyRnwPubTokCone(tokenHash)
-                        .eno(eno)
-                        .famNm(java.util.UUID.randomUUID().toString())
-                        .avlYn("Y")
-                        .endDtm(LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)))
-                        .build();
+                Crtokm.create(
+                        tokenHash,
+                        tokenHash,
+                        eno,
+                        java.util.UUID.randomUUID().toString(),
+                        LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)));
         refreshTokenRepository.save(token);
         return value;
     }

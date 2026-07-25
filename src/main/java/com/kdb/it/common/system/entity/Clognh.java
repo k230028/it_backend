@@ -79,10 +79,20 @@ public class Clognh extends BaseEntity {
     public static final String LOGOUT = "3";
 
     /**
-     * 로그인 이력 감사자 고정값
+     * 로그인 이력 감사자 폴백(fallback) 값
      *
-     * <p>로그인/로그인 실패/로그아웃 이력은 인증이 성립하기 전(또는 인증이 없는) 시점에 생성되므로 {@link
-     * com.kdb.it.config.JpaAuditConfig}의 AuditorAware가 감사자를 채울 수 없습니다. 이 상수를 통해 감사자를 명시적으로 고정합니다.
+     * <p>세 팩토리 모두 객체 생성 시점에는 이 값을 감사자로 명시 기록합니다. 다만 실제 저장(@PrePersist) 시점에 {@link
+     * com.kdb.it.config.JpaAuditConfig}의 AuditorAware가 유효한 인증 사용자를 반환하면, Spring Data JPA의 {@code
+     * AuditingEntityListener}가 {@code FST_ENR_USID}/{@code LST_CHG_USID}를 그 사용자의 사번으로 덮어씁니다({@code
+     * @CreatedBy}/{@code @LastModifiedBy} 표준 동작). 즉 이 상수가 실제 DB에 남는지 여부는 저장 시점의 인증 상태에 달려 있습니다:
+     *
+     * <ul>
+     *   <li>{@link #createLoginSuccess}/{@link #createLoginFailure}: 로그인 성립 이전(비인증) 요청이므로 저장 시점에도
+     *       AuditorAware가 항상 {@code Optional.empty()}를 반환 → 이 값이 그대로 저장됩니다.
+     *   <li>{@link #createLogout}: {@code /api/auth/logout}의 정상 경로는 유효한 Access Token 인증이 필요하므로, 저장
+     *       시점에 실제 로그아웃한 사용자의 사번으로 덮어써집니다. 이 값은 Refresh 쿠키만으로 폐기하는({@code
+     *       logoutByRefreshToken}) 만료/비인증 경로에서만 그대로 저장됩니다.
+     * </ul>
      */
     public static final String SYSTEM_AUDITOR = "SYSTEM";
 
@@ -134,10 +144,15 @@ public class Clognh extends BaseEntity {
     /**
      * 로그아웃 이력 생성 정적 팩토리 메서드
      *
+     * <p>객체 생성 시점의 감사자 폴백은 {@value #SYSTEM_AUDITOR}이지만, {@code /api/auth/logout}의 정상(인증됨) 경로에서는
+     * 저장 시점에 {@code AuditingEntityListener}가 실제 로그아웃한 사용자의 사번으로 덮어씁니다 — {@link #SYSTEM_AUDITOR} 상세
+     * 참조.
+     *
      * @param eno 로그아웃한 사용자의 사번
      * @param ipAddr 접속 IP 주소
      * @param agtVrsCone 접속 브라우저/기기 정보
-     * @return 로그아웃 이력 엔티티 ({@code itPtlLgnTc = "3"}, 감사자 = {@value #SYSTEM_AUDITOR})
+     * @return 로그아웃 이력 엔티티 ({@code itPtlLgnTc = "3"}, 감사자 폴백 = {@value #SYSTEM_AUDITOR}, 인증된 로그아웃은 저장
+     *     시 실제 사번으로 대체됨)
      */
     public static Clognh createLogout(String eno, String ipAddr, String agtVrsCone) {
         Clognh clognh =
