@@ -1265,9 +1265,8 @@ class ProjectServiceCoverageTest {
         given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of(proj1, proj2));
         given(
-                        capplaRepository
-                                .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
-                                        eq("BPROJM"), anyList()))
+                        capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                eq("BPROJM"), anyList()))
                 .willReturn(
                         List.of(
                                 new ApplicationMapView("APF-B-001", p1, 1),

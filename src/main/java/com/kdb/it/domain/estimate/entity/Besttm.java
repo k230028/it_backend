@@ -20,8 +20,8 @@ import lombok.experimental.SuperBuilder;
  *
  * <p>DB 테이블: {@code TPRMPP_BESTTM}. 마스터(Bestim) 1건에 (담당팀 × 비목) N행.
  *
- * <p>물리 PK는 (문서번호 + 버전 + 개선의견일련번호)이며, (담당팀 + 비목)의 유일성은 DB 제약이 아니라
- * {@code EstimateService.saveLines}가 보장하는 업무 규칙이다.
+ * <p>물리 PK는 (문서번호 + 버전 + 개선의견일련번호)이며, (담당팀 + 비목)의 유일성은 DB 제약이 아니라 {@code
+ * EstimateService.saveLines}가 보장하는 업무 규칙이다.
  */
 @LogTarget(entity = BesttmL.class)
 @Entity

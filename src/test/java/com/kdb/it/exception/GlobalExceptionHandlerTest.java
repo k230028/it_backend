@@ -84,15 +84,13 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("handleDataCorruption - 서버 데이터 손상은 진단 문맥을 포함해 500 반환")
     void handleDataCorruption_서버데이터손상_500반환() {
-        DataCorruptionException ex =
-                new DataCorruptionException("계획 스냅샷 손상: reqDocNo=PLN-BROKEN");
+        DataCorruptionException ex = new DataCorruptionException("계획 스냅샷 손상: reqDocNo=PLN-BROKEN");
 
         ResponseEntity<Map<String, Object>> response = handler.handleDataCorruption(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).containsEntry("status", 500);
-        assertThat(response.getBody())
-                .containsEntry("message", "계획 스냅샷 손상: reqDocNo=PLN-BROKEN");
+        assertThat(response.getBody()).containsEntry("message", "계획 스냅샷 손상: reqDocNo=PLN-BROKEN");
     }
 
     // ---- 실패 케이스 ----

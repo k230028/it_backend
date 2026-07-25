@@ -37,8 +37,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -205,14 +205,13 @@ class PlanEvaluationServiceTest {
                 .willReturn(new ProjectDto.BulkResponse(List.of(), List.of("PRJ-1")));
 
         given(
-                        councilRepository
-                                .findBaselineReqDocNos(
-                                        org.mockito.ArgumentMatchers.eq("02"),
-                                        org.mockito.ArgumentMatchers.eq("13"),
-                                        org.mockito.ArgumentMatchers.eq("2026"),
-                                        org.mockito.ArgumentMatchers.eq("신규"),
-                                        org.mockito.ArgumentMatchers.eq("PLN-CURRENT"),
-                                        any(Pageable.class)))
+                        councilRepository.findBaselineReqDocNos(
+                                org.mockito.ArgumentMatchers.eq("02"),
+                                org.mockito.ArgumentMatchers.eq("13"),
+                                org.mockito.ArgumentMatchers.eq("2026"),
+                                org.mockito.ArgumentMatchers.eq("신규"),
+                                org.mockito.ArgumentMatchers.eq("PLN-CURRENT"),
+                                any(Pageable.class)))
                 .willReturn(List.of("PLN-BASE"));
         given(planService.getPlan("PLN-BASE"))
                 .willReturn(
@@ -287,8 +286,7 @@ class PlanEvaluationServiceTest {
                 .hasMessageContaining("PLN-BROKEN");
         verify(projectService, never()).getProjectsByIds(any());
         verify(councilRepository, never())
-                .findBaselineReqDocNos(
-                        any(), any(), any(), any(), any(), any(Pageable.class));
+                .findBaselineReqDocNos(any(), any(), any(), any(), any(), any(Pageable.class));
     }
 
     @Test

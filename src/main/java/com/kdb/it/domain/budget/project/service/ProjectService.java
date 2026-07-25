@@ -779,9 +779,7 @@ public class ProjectService {
      * @return 조회 성공 항목({@code items})과 미존재 프로젝트관리번호({@code failedIds})를 함께 담은 결과 DTO
      */
     public ProjectDto.BulkResponse getProjectsByIds(ProjectDto.BulkGetRequest request) {
-        if (request == null
-                || request.getPrjMngNos() == null
-                || request.getPrjMngNos().isEmpty()) {
+        if (request == null || request.getPrjMngNos() == null || request.getPrjMngNos().isEmpty()) {
             return new ProjectDto.BulkResponse(List.of(), List.of());
         }
 
@@ -872,8 +870,7 @@ public class ProjectService {
         if (projects.isEmpty()) {
             return;
         }
-        List<String> prjMngNos =
-                projects.stream().map(Bprojm::getAbusMngNo).distinct().toList();
+        List<String> prjMngNos = projects.stream().map(Bprojm::getAbusMngNo).distinct().toList();
 
         Map<
                         String,
@@ -883,8 +880,7 @@ public class ProjectService {
         for (var cappla :
                 capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                         "BPROJM", prjMngNos)) {
-            latestCappla.putIfAbsent(
-                    cappla.getPkColNm() + "|" + cappla.getFntTbCrySno(), cappla);
+            latestCappla.putIfAbsent(cappla.getPkColNm() + "|" + cappla.getFntTbCrySno(), cappla);
         }
 
         List<String> apfMngNos =
@@ -902,11 +898,7 @@ public class ProjectService {
                                         Collectors.toMap(
                                                 value -> value.getApfMngNo(),
                                                 java.util.function.Function.identity()));
-        Map<
-                        String,
-                        List<
-                                com.kdb.it.common.approval.repository.ApproverRepository
-                                        .ApproverReadView>>
+        Map<String, List<com.kdb.it.common.approval.repository.ApproverRepository.ApproverReadView>>
                 decisionMap =
                         cdecimRepository
                                 .findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos)
@@ -972,23 +964,20 @@ public class ProjectService {
                     response.setApplicationInfo(
                             ApplicationInfoDto.fromReadViews(
                                     capplm,
-                                    decisionMap.getOrDefault(
-                                            cappla.getApfDcmNo(), List.of())));
+                                    decisionMap.getOrDefault(cappla.getApfDcmNo(), List.of())));
                 }
             }
 
             if (response.getDvmDpmC() != null)
                 response.setDvmDpmCNm(orgNameMap.get(response.getDvmDpmC()));
-            if (project.getSvnDpmNm() != null)
-                response.setSvnDpmCNm(project.getSvnDpmNm());
+            if (project.getSvnDpmNm() != null) response.setSvnDpmCNm(project.getSvnDpmNm());
             else if (response.getSvnDpmC() != null)
                 response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC()));
             if (response.getDvmUsid() != null)
                 response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
             if (response.getTlrUsid() != null)
                 response.setTlrUsidNm(userNameMap.get(response.getTlrUsid()));
-            if (response.getUsid() != null)
-                response.setUsidNm(userNameMap.get(response.getUsid()));
+            if (response.getUsid() != null) response.setUsidNm(userNameMap.get(response.getUsid()));
             if (response.getDvmTlrUsid() != null)
                 response.setDvmTlrUsidNm(userNameMap.get(response.getDvmTlrUsid()));
             response.setBzTpCNm(response.getBzTpC());
@@ -1013,10 +1002,7 @@ public class ProjectService {
 
             List<Bitemm> bitemms =
                     itemsByPrj.getOrDefault(project.getAbusMngNo(), List.of()).stream()
-                            .filter(
-                                    item ->
-                                            Objects.equals(
-                                                    item.getFntTbCrySno(), project.getSno()))
+                            .filter(item -> Objects.equals(item.getFntTbCrySno(), project.getSno()))
                             .toList();
             List<ProjectDto.BitemmDto> itemDtos =
                     bitemms.stream().map(ProjectDto.BitemmDto::fromEntity).toList();

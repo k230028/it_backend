@@ -229,9 +229,8 @@ class ProjectServiceTest {
         given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of(projects));
         given(
-                        capplaRepository
-                                .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
-                                        eq("BPROJM"), anyList()))
+                        capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                eq("BPROJM"), anyList()))
                 .willReturn(List.of());
         given(capplmRepository.findSummaryViewsByApfMngNoIn(anyList())).willReturn(List.of());
         given(cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(anyList()))
@@ -764,9 +763,8 @@ class ProjectServiceTest {
         given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of(project));
         given(
-                        capplaRepository
-                                .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
-                                        eq("BPROJM"), anyList()))
+                        capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                eq("BPROJM"), anyList()))
                 .willReturn(List.of());
         given(bprojaRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of());
@@ -786,8 +784,7 @@ class ProjectServiceTest {
         assertThat(result.items()).hasSize(1);
         assertThat(result.items().get(0).getAbusMngNo()).isEqualTo(existingNo);
         assertThat(result.failedIds()).containsExactly(missingNo);
-        verify(projectRepository, times(1))
-                .findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
+        verify(projectRepository, times(1)).findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
         verify(projectRepository, never()).findByAbusMngNoAndDelYn(any(), any());
     }
 
@@ -855,18 +852,15 @@ class ProjectServiceTest {
                                         "BPROJM", projectNo, 1))
                 .willReturn(List.of(cappla));
         given(
-                        capplaRepository
-                                .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
-                                        eq("BPROJM"), anyList()))
+                        capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                eq("BPROJM"), anyList()))
                 .willReturn(List.of(cappla));
-        given(capplmRepository.findSummaryViewsByApfMngNoIn(anyList()))
-                .willReturn(List.of(capplm));
+        given(capplmRepository.findSummaryViewsByApfMngNoIn(anyList())).willReturn(List.of(capplm));
         given(cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-PARITY"))
                 .willReturn(List.of());
         given(cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(anyList()))
                 .willReturn(List.of());
-        given(bprojaRepository.findByAbusMngNoAndDelYn(projectNo, "N"))
-                .willReturn(List.of(status));
+        given(bprojaRepository.findByAbusMngNoAndDelYn(projectNo, "N")).willReturn(List.of(status));
         given(bprojaRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of(status));
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(projectNo, 1, "N"))
@@ -877,7 +871,13 @@ class ProjectServiceTest {
                 .willReturn(List.of());
         given(cuserIRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
         given(ccodemRepository.findByCIdWithValidDate("IOE_351_1100", null))
-                .willReturn(List.of(Ccodem.builder().cId("IOE_351_1100").cdva("1").cdvaNm("개발비").build()));
+                .willReturn(
+                        List.of(
+                                Ccodem.builder()
+                                        .cId("IOE_351_1100")
+                                        .cdva("1")
+                                        .cdvaNm("개발비")
+                                        .build()));
 
         ProjectDto.Response single = projectService.getProject(projectNo);
         ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
@@ -912,15 +912,13 @@ class ProjectServiceTest {
                                         .ioeC("IOE-351-1100-2")
                                         .delYn("N")
                                         .build()));
-        given(ccodemRepository.findByCIdWithValidDate("IOE_351_1100", null))
-                .willReturn(List.of());
+        given(ccodemRepository.findByCIdWithValidDate("IOE_351_1100", null)).willReturn(List.of());
         ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
         request.setPrjMngNos(List.of("PRJ-IOE-1", "PRJ-IOE-2"));
 
         projectService.getProjectsByIds(request);
 
-        verify(ccodemRepository, times(1))
-                .findByCIdWithValidDate("IOE_351_1100", null);
+        verify(ccodemRepository, times(1)).findByCIdWithValidDate("IOE_351_1100", null);
     }
 
     // ───────────────────────────────────────────────────────

@@ -37,12 +37,7 @@ class CouncilBaselineLookupIt extends AbstractOracleRepositoryTest {
 
         List<String> result =
                 repository.findBaselineReqDocNos(
-                        "02",
-                        "13",
-                        year,
-                        "신규",
-                        "BE13-CURRENT-" + suffix,
-                        PageRequest.of(0, 1));
+                        "02", "13", year, "신규", "BE13-CURRENT-" + suffix, PageRequest.of(0, 1));
 
         assertThat(result).containsExactly(planB);
     }
@@ -55,23 +50,18 @@ class CouncilBaselineLookupIt extends AbstractOracleRepositoryTest {
         String current = "BE13-PLN-C-" + suffix;
         entityManager.persist(plan(current, "2126", "신규", createdAt));
         entityManager.persist(council("BE13-ASCT-3-" + suffix, current, "13", createdAt));
-        entityManager.persist(council("BE13-ASCT-4-" + suffix, current, "07", createdAt.plusHours(1)));
+        entityManager.persist(
+                council("BE13-ASCT-4-" + suffix, current, "07", createdAt.plusHours(1)));
         entityManager.flush();
         entityManager.clear();
 
         assertThat(
                         repository.findBaselineReqDocNos(
-                                "02",
-                                "13",
-                                "2126",
-                                "신규",
-                                current,
-                                PageRequest.of(0, 1)))
+                                "02", "13", "2126", "신규", current, PageRequest.of(0, 1)))
                 .isEmpty();
     }
 
-    private Bplanm plan(
-            String reqDocNo, String year, String planType, LocalDateTime createdAt) {
+    private Bplanm plan(String reqDocNo, String year, String planType, LocalDateTime createdAt) {
         return Bplanm.builder()
                 .reqDocNo(reqDocNo)
                 .bseYy(year)
@@ -85,8 +75,7 @@ class CouncilBaselineLookupIt extends AbstractOracleRepositoryTest {
                 .build();
     }
 
-    private Basctm council(
-            String asctId, String reqDocNo, String status, LocalDateTime createdAt) {
+    private Basctm council(String asctId, String reqDocNo, String status, LocalDateTime createdAt) {
         return Basctm.builder()
                 .itPtlAsctId(asctId)
                 .abusMngNo(reqDocNo)

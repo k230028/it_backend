@@ -168,8 +168,7 @@ public class PlanEvaluationService {
             }
         } catch (Exception e) {
             log.error("계획 스냅샷 파싱 실패: reqDocNo={}", reqDocNo, e);
-            throw new DataCorruptionException(
-                    "계획 스냅샷(JSON)이 손상되었습니다: reqDocNo=" + reqDocNo, e);
+            throw new DataCorruptionException("계획 스냅샷(JSON)이 손상되었습니다: reqDocNo=" + reqDocNo, e);
         }
         return result;
     }
@@ -191,8 +190,7 @@ public class PlanEvaluationService {
             return (arr != null && arr.isArray()) ? arr.size() : 0;
         } catch (Exception e) {
             log.error("전산업무비 스냅샷 파싱 실패: reqDocNo={}", reqDocNo, e);
-            throw new DataCorruptionException(
-                    "계획 스냅샷(JSON)이 손상되었습니다: reqDocNo=" + reqDocNo, e);
+            throw new DataCorruptionException("계획 스냅샷(JSON)이 손상되었습니다: reqDocNo=" + reqDocNo, e);
         }
     }
 

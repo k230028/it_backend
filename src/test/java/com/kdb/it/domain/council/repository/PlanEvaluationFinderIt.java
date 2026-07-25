@@ -33,8 +33,7 @@ class PlanEvaluationFinderIt extends AbstractOracleRepositoryTest {
         entityManager.clear();
 
         List<Bplevm> all = repository.findByItPtlAsctIdAndDelYn(asctId, "N");
-        List<Bplevm> mine =
-                repository.findByItPtlAsctIdAndEnoAndDelYn(asctId, secondEno, "N");
+        List<Bplevm> mine = repository.findByItPtlAsctIdAndEnoAndDelYn(asctId, secondEno, "N");
 
         assertThat(all).hasSize(3);
         assertThat(mine).singleElement().extracting(Bplevm::getPprtYn).isEqualTo("Y");
