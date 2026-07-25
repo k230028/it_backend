@@ -7,6 +7,9 @@ import com.kdb.it.common.iam.service.LoginAttemptService;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.entity.Crtokm;
+import com.kdb.it.common.system.exception.ConcurrentRefreshException;
+import com.kdb.it.common.system.exception.FamilyRevocationRequiredException;
+import com.kdb.it.common.system.exception.RefreshTokenNotFoundException;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -70,13 +73,14 @@ public class AuthService {
     /** JWT Access/Refresh Token 생성 및 검증 유틸리티 */
     private final JwtUtil jwtUtil;
 
+    /** Refresh Token 회전 전용 트랜잭션 컴포넌트 — 비관적 쓰기 잠금 하 조회·회전 담당 (SEC-08 Phase A Task 4/5) */
+    private final RefreshTokenRotator refreshTokenRotator;
+
+    /** Refresh Token 패밀리 폐기 전용 트랜잭션 컴포넌트({@code REQUIRES_NEW}) (SEC-08 Phase A Task 4/5) */
+    private final RefreshTokenRevoker refreshTokenRevoker;
+
     @Value("${jwt.refresh-token-validity}")
     private long refreshTokenValidityMs;
-
-    /** Refresh Token 회전 직후 동시 새로고침(다중 탭) 허용 grace 기간(초). 이 기간 내 회전된 토큰 재제출은 패밀리 폐기 없이 거부만 한다. */
-    @org.springframework.beans.factory.annotation.Value(
-            "${app.auth.refresh-rotation-grace-seconds:30}")
-    private long rotationGraceSeconds;
 
     /**
      * 회원가입 (사용자 등록)
@@ -202,100 +206,75 @@ public class AuthService {
     }
 
     /**
-     * Access Token 갱신
+     * Access Token 갱신 — 비-트랜잭션 오케스트레이터 (SEC-08 Phase A Task 5).
      *
-     * <p>만료된 Access Token 대신 유효한 Refresh Token을 사용하여 새로운 Access Token을 발급합니다.
+     * <p>이 메서드 자체는 {@code @Transactional}이 아닙니다. 실제 DB 비관적 쓰기 잠금 하 조회·회전은 {@link
+     * RefreshTokenRotator#rotate(String)}의 별도 트랜잭션이 담당하고, 패밀리 폐기는 {@link
+     * RefreshTokenRevoker#revokeByEno(String)}의 {@code REQUIRES_NEW} 트랜잭션이 그 회전 트랜잭션이 완전히 종료되어 잠금이
+     * 풀린 뒤에만 수행합니다. 두 책임을 하나의 트랜잭션으로 묶지 않는 이유는, 같은 행에 대한 폐기 DELETE가 회전 SELECT ... FOR UPDATE의 잠금을
+     * 기다리며 불필요한 대기·교착 위험을 만들기 때문입니다.
      *
-     * <p>처리 흐름:
+     * <p>SEC-08 상태 전이(ASCII):
      *
-     * <ol>
-     *   <li>Refresh Token JWT 서명/만료 검증
-     *   <li>DB에서 Refresh Token 존재 여부 확인
-     *   <li>DB 저장 만료일 기준 만료 여부 재확인 (보안 이중 검증)
-     *   <li>새로운 Access Token 생성
-     *   <li>Refresh Token 회전: 제출된 토큰 폐기 후 신규 발급·저장 (탈취 재사용 방어)
-     *   <li>새 Access Token + 회전된 Refresh Token 반환
-     * </ol>
+     * <pre>{@code
+     * [JWT 용도/서명/만료 검증]
+     *      |
+     *      +--실패--------------------------------> InvalidRefreshTokenException (rotate() 미호출)
+     *      |
+     *      v 성공
+     * [rotate() 트랜잭션: 비관적 쓰기 잠금 하 조회]
+     *      |
+     *      +--정상 회전-----------------------------> RefreshResponse 반환
+     *      |
+     *      +--ConcurrentRefreshException(grace 내)---> 재시도 가능 예외("잠시 후 다시 시도")
+     *      |     (패밀리 유지, Revoker 미호출)
+     *      |
+     *      +--RefreshTokenNotFoundException---------> InvalidRefreshTokenException (Revoker 미호출)
+     *      |     (조회 자체가 실패 — 폐기할 패밀리 없음)
+     *      |
+     *      +--FamilyRevocationRequiredException------> [revokeByEno(eno): REQUIRES_NEW]
+     *      |     (REUSED 재사용 | EXPIRED 만료)              |
+     *      |                                                  +--성공--> InvalidRefreshTokenException
+     *      |                                                  +--실패--> 원본 예외 그대로 전파
+     *      |                                                        (실패한 폐기를 성공처럼 감추지 않음)
+     *      |
+     *      +--그 외 예기치 못한 예외------------------> 원본 타입 그대로 전파 (변환·캐치 금지)
+     * }</pre>
      *
      * @param refreshTokenValue 클라이언트가 제출한 Refresh Token 문자열
      * @return 토큰 갱신 응답 DTO (새로운 Access Token + 회전된 Refresh Token)
-     * @throws InvalidRefreshTokenException 재로그인이 필요한 분기 — 용도·서명·만료 검증 실패, DB 미존재, 저장 만료, 재사용 감지(패밀리
-     *     폐기)
-     * @throws RuntimeException 일시적 동시 새로고침(grace 내 재제출)이거나 사용자 미존재인 경우
+     * @throws InvalidRefreshTokenException 재로그인이 필요한 분기 — 용도·서명·만료 검증 실패, DB 미존재, 재사용·만료 감지 후 패밀리
+     *     폐기 완료
+     * @throws RuntimeException 일시적 동시 새로고침(grace 내 재제출, 재시도 가능)이거나, 패밀리 폐기 실패, 그 외 예기치 못한 오류인 경우
+     *     (원본 타입 그대로 전파)
      */
-    @Transactional
     public AuthDto.RefreshResponse refreshAccessToken(String refreshTokenValue) {
         // 용도 강제(1차 검증: JwtUtil) — 서명·만료와 함께 tokenUse=refresh만 허용한다.
         // 레거시(용도 클레임 없음) Refresh 토큰은 allowLegacy=false로 거부해 재로그인을 유도한다.
+        // rotate()의 사전조건이며, 트랜잭션·비관적 쓰기 잠금 진입 전에 fail-fast로 걸러내 락 보유 시간을 최소화한다.
         if (!jwtUtil.validateToken(refreshTokenValue, JwtUtil.TOKEN_USE_REFRESH, false)) {
             throw new InvalidRefreshTokenException();
         }
 
-        // DB에서 Refresh Token 조회 (2차 검증: DB 존재 여부)
-        Crtokm refreshToken = findRefreshTokenByValue(refreshTokenValue);
-
-        // 참고: 배포 전 토큰은 FAM_NM='LEGACY'로 백필됨 — 동일 사용자의 LEGACY 행이 한 패밀리명을 공유하나,
-        // 폐기는 deleteByEno(사용자 단위)라 보안상 안전(과다 폐기=재로그인 유도). 다음 로그인 시 LEGACY 행 정리됨.
-        // 재사용 탐지(AVL_YN='N' 구 토큰 재제출). 단, 회전 직후 grace 기간 내 재제출은
-        // 다중 탭 동시 새로고침으로 간주 → 패밀리 유지, 이 요청만 거부(공유 쿠키의 신규 토큰으로 사용자는 유지됨).
-        if (refreshToken.isRotated()) {
-            java.time.LocalDateTime rotatedAt = refreshToken.getLstChgDtm();
-            boolean withinGrace =
-                    rotatedAt != null
-                            && java.time.Duration.between(rotatedAt, java.time.LocalDateTime.now())
-                                            .getSeconds()
-                                    <= rotationGraceSeconds;
-            if (withinGrace) {
-                throw new RuntimeException("토큰이 방금 갱신되었습니다. 잠시 후 다시 시도하세요.");
-            }
-            log.warn(
-                    "Refresh Token 재사용 탐지 — 패밀리 폐기: eno={}, famNm={}",
-                    refreshToken.getEno(),
-                    refreshToken.getFamNm());
-            refreshTokenRepository.deleteByEno(refreshToken.getEno());
-            // 재사용 감지는 재로그인 대상 — 전용 예외로 통일(원인은 위 warn 로그로만 구분, 토큰 값 미기록).
+        try {
+            RefreshRotationResult result = refreshTokenRotator.rotate(refreshTokenValue);
+            return AuthDto.RefreshResponse.builder()
+                    .accessToken(result.accessToken()) // 새 Access Token
+                    .refreshToken(result.refreshToken()) // 회전된 Refresh Token (컨트롤러가 쿠키 재설정)
+                    .build();
+        } catch (ConcurrentRefreshException e) {
+            // grace 기간 내 다중 탭 동시 새로고침 — 패밀리는 유지하고 이번 요청만 거부한다(재시도 가능).
+            // InvalidRefreshTokenException과 타입을 분리해야 컨트롤러가 재로그인을 강제하지 않는다.
+            throw new RuntimeException(e.getMessage(), e);
+        } catch (FamilyRevocationRequiredException e) {
+            // rotate()의 트랜잭션(및 비관적 쓰기 잠금)이 이미 종료된 뒤이므로 여기서 폐기를 확정한다.
+            // revokeByEno 실패는 삼키지 않고 그대로 전파 — 실패한 폐기가 성공한 것처럼 보이면 안 된다.
+            refreshTokenRevoker.revokeByEno(e.getEno());
+            throw new InvalidRefreshTokenException();
+        } catch (RefreshTokenNotFoundException e) {
+            // 조회 자체가 실패했으므로 폐기할 패밀리가 없다 — Revoker를 호출하지 않는다.
             throw new InvalidRefreshTokenException();
         }
-
-        // DB 저장 만료일 기준 만료 여부 확인 (3차 검증: endDtm 필드)
-        if (refreshToken.isExpired()) {
-            // 만료도 재로그인 대상 — 원인은 서버 로그로만 구분(토큰 값 미기록), 전용 예외로 통일.
-            log.warn("만료된 Refresh Token — 삭제 후 재로그인 유도: eno={}", refreshToken.getEno());
-            refreshTokenRepository.delete(refreshToken); // 만료된 토큰 즉시 삭제
-            throw new InvalidRefreshTokenException();
-        }
-
-        // Refresh 시에도 최신 자격등급 반영 (자격등급 변경 시 즉시 적용)
-        String eno = refreshToken.getEno();
-        CuserI user =
-                userRepository
-                        .findByEno(eno)
-                        .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
-
-        List<String> athIds = loadAthIds(eno);
-
-        // 새로운 Access Token 생성 (최신 자격등급 및 부서코드 반영)
-        String newAccessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
-
-        // 회전: 구 토큰을 삭제하지 않고 '회전됨' 표식 유지(재사용 탐지용), 신규 토큰을 동일 패밀리로 저장
-        refreshToken.markRotated();
-        refreshTokenRepository.save(refreshToken);
-        String newRefreshTokenValue = jwtUtil.generateRefreshToken(eno);
-        String newRefreshTokenHash = sha256HexForToken(newRefreshTokenValue);
-        Crtokm rotated =
-                Crtokm.create(
-                        newRefreshTokenHash,
-                        newRefreshTokenHash,
-                        eno,
-                        refreshToken.getFamNm(),
-                        LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)));
-        refreshTokenRepository.save(rotated);
-        validateSingleActiveToken(refreshToken.getFamNm());
-
-        return AuthDto.RefreshResponse.builder()
-                .accessToken(newAccessToken) // 새 Access Token
-                .refreshToken(newRefreshTokenValue) // 회전된 Refresh Token (컨트롤러가 쿠키 재설정)
-                .build();
     }
 
     /**
@@ -495,37 +474,6 @@ public class AuthService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다.", e);
         }
-    }
-
-    /** Refresh Token 원문을 SHA-256 조회값으로 변환해 저장 행을 조회합니다. */
-    private Crtokm findRefreshTokenByValue(String refreshTokenValue) {
-        String lookupValue = sha256HexForToken(refreshTokenValue);
-        return refreshTokenRepository
-                .findByEcyRnwPubTokCone(lookupValue)
-                // DB 미존재도 재로그인 대상 — 원인은 서버 로그로만 구분하고 토큰 값은 기록하지 않습니다.
-                .orElseThrow(
-                        () -> {
-                            log.warn("Refresh Token 조회 실패 — DB에 활성 토큰 없음");
-                            return new InvalidRefreshTokenException();
-                        });
-    }
-
-    /**
-     * 회전 완료 후 같은 패밀리에 활성 Refresh Token이 1개만 남았는지 검증합니다.
-     *
-     * @param famNm 검증할 토큰 패밀리명
-     * @throws IllegalStateException 패밀리에 활성 토큰이 2개 이상 남은 경우
-     */
-    private void validateSingleActiveToken(String famNm) {
-        List<Crtokm> activeTokens = refreshTokenRepository.findByFamNmAndAvlYn(famNm, "Y");
-        if (activeTokens.size() <= 1) {
-            return;
-        }
-        log.warn(
-                "Refresh Token 패밀리 활성 토큰 중복 탐지: famNm={}, activeCount={}",
-                famNm,
-                activeTokens.size());
-        throw new IllegalStateException("활성 Refresh Token은 패밀리당 1개만 허용됩니다.");
     }
 
     private List<String> loadAthIds(String eno) {

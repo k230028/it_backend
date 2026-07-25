@@ -16,6 +16,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.exception.ConcurrentRefreshException;
 import com.kdb.it.common.system.exception.FamilyRevocationRequiredException;
+import com.kdb.it.common.system.exception.RefreshTokenNotFoundException;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.common.system.security.JwtUtil;
 import java.time.LocalDateTime;
@@ -252,6 +253,25 @@ class RefreshTokenRotatorTest {
     }
 
     @Test
+    @DisplayName("rotate - DB에 활성 토큰이 없으면 RefreshTokenNotFoundException을 던진다")
+    void rotate_DB토큰없음_RefreshTokenNotFoundException() {
+        // given: 조회값에 해당하는 저장 행이 아예 없는 상태(예: 만료 삭제·로그아웃 이후 재제출)
+        String tokenValue = "missing-refresh-token";
+        given(
+                        refreshTokenRepository.findByEcyRnwPubTokCone(
+                                AuthService.sha256HexForToken(tokenValue)))
+                .willReturn(Optional.empty());
+
+        // when & then: 타입 기반 마커 예외 — 이 시점엔 폐기할 패밀리가 없으므로 삭제 호출도 없어야 한다.
+        assertThatThrownBy(() -> rotator.rotate(tokenValue))
+                .isInstanceOf(RefreshTokenNotFoundException.class);
+
+        verify(refreshTokenRepository, never()).deleteByEno(anyString());
+        verify(refreshTokenRepository, never()).delete(any(Crtokm.class));
+        verify(refreshTokenRepository, never()).save(any(Crtokm.class));
+    }
+
+    @Test
     @DisplayName("rotate - 토큰 사용자가 없으면 원본 RuntimeException이 그대로 전파된다 (마커 예외로 변환되지 않음)")
     void rotate_사용자없음_원본예외전파() {
         // given
@@ -275,6 +295,7 @@ class RefreshTokenRotatorTest {
                 .isInstanceOf(RuntimeException.class)
                 .isNotInstanceOf(ConcurrentRefreshException.class)
                 .isNotInstanceOf(FamilyRevocationRequiredException.class)
+                .isNotInstanceOf(RefreshTokenNotFoundException.class)
                 .hasMessageContaining("사용자를 찾을 수 없습니다");
     }
 

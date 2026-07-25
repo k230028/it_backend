@@ -6,6 +6,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.exception.ConcurrentRefreshException;
 import com.kdb.it.common.system.exception.FamilyRevocationRequiredException;
+import com.kdb.it.common.system.exception.RefreshTokenNotFoundException;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
@@ -27,19 +28,20 @@ import org.springframework.transaction.annotation.Transactional;
  * RefreshTokenRevoker#revokeByEno(String)}가 별도 {@code REQUIRES_NEW} 트랜잭션에서, 이 트랜잭션이 종료되어 비관적 쓰기 잠금이
  * 풀린 뒤 수행한다(동일 행에 대한 락 경합으로 인한 교착·롤백 위험 회피).
  *
- * <p><b>롤백 보장</b>: {@link ConcurrentRefreshException}, {@link FamilyRevocationRequiredException} 모두
- * unchecked({@link RuntimeException})이므로, 이 메서드에서 두 예외가 발생하면 별도 {@code rollbackFor} 지정 없이 Spring 기본
- * 정책에 따라 트랜잭션이 롤백된다. 이 롤백이 곧 비관적 쓰기 잠금 해제 시점이므로, 오케스트레이터(호출자)는 반드시 이 메서드 호출(및 그 트랜잭션 종료)이 끝난 뒤에
- * Revoker를 호출해야 한다(오케스트레이션은 Task 5 범위).
+ * <p><b>롤백 보장</b>: {@link ConcurrentRefreshException}, {@link FamilyRevocationRequiredException},
+ * {@link RefreshTokenNotFoundException} 모두 unchecked({@link RuntimeException})이므로, 이 메서드에서 발생하면 별도
+ * {@code rollbackFor} 지정 없이 Spring 기본 정책에 따라 트랜잭션이 롤백된다. 이 롤백이 곧 비관적 쓰기 잠금 해제 시점이므로, 오케스트레이터({@link
+ * com.kdb.it.common.system.service.AuthService#refreshAccessToken(String)})는 반드시 이 메서드 호출(및 그 트랜잭션
+ * 종료)이 끝난 뒤에 Revoker를 호출한다.
  *
- * <p>사용자 미존재, 리포지토리 저장 오류처럼 이 두 마커에 해당하지 않는 예기치 못한 오류는 변환하지 않고 원본 예외 그대로 전파한다.
+ * <p>사용자 미존재, 리포지토리 저장 오류처럼 위 세 마커에 해당하지 않는 예기치 못한 오류는 변환하지 않고 원본 예외 그대로 전파한다.
  *
  * <p>이 클래스는 {@link com.kdb.it.exception.InvalidRefreshTokenException}을 던지지 않는다 — 그 예외로의 변환은
  * 호출자(오케스트레이터)의 책임이다.
  *
- * <p><b>오케스트레이션 계약(Task 5)</b>: {@link #rotate(String)} 호출 전, 오케스트레이터는 반드시 {@code
+ * <p><b>오케스트레이션 계약</b>: {@link #rotate(String)} 호출 전, 오케스트레이터({@code AuthService})는 반드시 {@code
  * jwtUtil.validateToken(refreshTokenValue, JwtUtil.TOKEN_USE_REFRESH, false)}로 JWT 서명·형식·만료·용도를 먼저
- * 검증해 실패 시 {@link com.kdb.it.exception.InvalidRefreshTokenException}으로 거부해야 한다 — 자세한 사유는 {@link
+ * 검증해 실패 시 {@link com.kdb.it.exception.InvalidRefreshTokenException}으로 거부한다 — 자세한 사유는 {@link
  * #rotate(String)} Javadoc 참조.
  */
 @Slf4j
@@ -56,8 +58,8 @@ public class RefreshTokenRotator {
     private long refreshTokenValidityMs;
 
     /**
-     * Refresh Token 회전 직후 동시 새로고침(다중 탭) 허용 grace 기간(초). {@link
-     * com.kdb.it.common.system.service.AuthService}와 동일 설정 키를 공유한다.
+     * Refresh Token 회전 직후 동시 새로고침(다중 탭) 허용 grace 기간(초). SEC-08 Phase A Task 5부터 오케스트레이터({@code
+     * AuthService})는 회전 판단을 전부 이 클래스에 위임하므로, 이 설정값도 이 클래스가 단독으로 소유한다.
      */
     @Value("${app.auth.refresh-rotation-grace-seconds:30}")
     private long rotationGraceSeconds;
@@ -73,15 +75,17 @@ public class RefreshTokenRotator {
      * 귀결되어야 하는데, 이 클래스는 그 예외를 던질 수 없다(마커 예외 전용 계약). (2) 이 검증은 트랜잭션·비관적 쓰기 잠금을 시작하기 전에 실패로 빠르게 끝나야
      * 한다(fail-fast) — 오케스트레이터가 non-transactional 경계에서 먼저 걸러낸 뒤에만 이 잠금 구간에 진입해야 락 보유 시간을 최소화할 수 있다.
      *
-     * <p>TODO(Task 5): 오케스트레이터(향후 {@code AuthService})는 이 사전조건을 생략하면 안 된다 — 생략 시 서명·만료·용도가 검증되지 않은
-     * 문자열이 그대로 DB 조회(비관적 쓰기 잠금)까지 도달한다.
+     * <p>오케스트레이터({@code AuthService#refreshAccessToken(String)})는 이 사전조건을 생략하면 안 된다 — 생략 시
+     * 서명·만료·용도가 검증되지 않은 문자열이 그대로 DB 조회(비관적 쓰기 잠금)까지 도달한다.
      *
      * @param refreshTokenValue 클라이언트가 제출한 Refresh Token 원문 — 호출자가 이미 JWT 검증을 통과시킨 값이어야 한다
      * @return 정상 회전 결과 (새 Access/Refresh Token, 소유자 사번)
      * @throws ConcurrentRefreshException grace 기간 내 회전된 토큰이 재제출된 경우 — 재시도 가능, 패밀리는 유지된다
      * @throws FamilyRevocationRequiredException grace 기간 밖 재사용 또는 만료가 감지된 경우 — 호출자가 {@link
      *     RefreshTokenRevoker#revokeByEno(String)}로 패밀리를 폐기해야 한다
-     * @throws RuntimeException 그 외 예기치 못한 조회·사용자 미존재·저장 오류 (원인 그대로 전파)
+     * @throws RefreshTokenNotFoundException 조회값으로 DB에 활성 토큰을 찾지 못한 경우 — 폐기할 패밀리가 없으므로 호출자는 Revoker를
+     *     호출하지 않고 재로그인 예외로만 변환해야 한다
+     * @throws RuntimeException 그 외 예기치 못한 사용자 미존재·저장 오류 (원인 그대로 전파)
      */
     @Transactional
     public RefreshRotationResult rotate(String refreshTokenValue) {
@@ -140,7 +144,11 @@ public class RefreshTokenRotator {
         return new RefreshRotationResult(newAccessToken, newRefreshTokenValue, eno);
     }
 
-    /** Refresh Token 원문을 SHA-256 조회값으로 변환해 저장 행을 비관적 쓰기 잠금과 함께 조회한다. */
+    /**
+     * Refresh Token 원문을 SHA-256 조회값으로 변환해 저장 행을 비관적 쓰기 잠금과 함께 조회한다.
+     *
+     * @throws RefreshTokenNotFoundException 조회값에 해당하는 저장 행이 없는 경우
+     */
     private Crtokm findRefreshTokenByValue(String refreshTokenValue) {
         String lookupValue = AuthService.sha256HexForToken(refreshTokenValue);
         return refreshTokenRepository
@@ -148,7 +156,7 @@ public class RefreshTokenRotator {
                 .orElseThrow(
                         () -> {
                             log.warn("Refresh Token 조회 실패 — DB에 활성 토큰 없음");
-                            return new RuntimeException("Refresh Token을 찾을 수 없습니다.");
+                            return new RefreshTokenNotFoundException();
                         });
     }
 
