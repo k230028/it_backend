@@ -16,6 +16,8 @@ import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.infra.file.repository.FileRepository;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -242,15 +244,25 @@ public class AdminService {
      */
     @Transactional
     public Map<String, Integer> bulkUpsertCodes(AdminDto.BulkCodeRequest req) {
-        int created = 0;
-        int updated = 0;
         for (AdminDto.CodeRequest item : req.codes()) {
             validateCodeKey(item.cId(), item.cdva(), item.sttDt());
-            Optional<Ccodem> existing =
-                    codeRepository.findByCIdAndCdvaAndSttDtAndDelYn(
-                            item.cId(), item.cdva(), item.sttDt(), "N");
-            if (existing.isPresent()) {
-                existing.get()
+        }
+
+        Set<String> cIds =
+                req.codes().stream().map(AdminDto.CodeRequest::cId).collect(Collectors.toSet());
+        Map<CodeKey, Ccodem> byKey = new LinkedHashMap<>();
+        for (Ccodem code : codeRepository.findAllByCIdInAndDelYn(cIds, "N")) {
+            byKey.put(new CodeKey(code.getCId(), code.getCdva(), code.getSttDt()), code);
+        }
+
+        int created = 0;
+        int updated = 0;
+        List<Ccodem> newCodes = new ArrayList<>();
+        for (AdminDto.CodeRequest item : req.codes()) {
+            CodeKey key = new CodeKey(item.cId(), item.cdva(), item.sttDt());
+            Ccodem existing = byKey.get(key);
+            if (existing != null) {
+                existing
                         .update(
                                 item.cNm(),
                                 item.cdvaDes(),
@@ -280,12 +292,16 @@ public class AdminService {
                                 .endDt(item.endDt())
                                 .cSqn(item.cSqn())
                                 .build();
-                codeRepository.save(code);
+                newCodes.add(code);
+                byKey.put(key, code);
                 created++;
             }
         }
+        codeRepository.saveAll(newCodes);
         return Map.of("created", created, "updated", updated);
     }
+
+    private record CodeKey(String cId, String cdva, String sttDt) {}
 
     /** 공통코드 복합키 필수값을 검증합니다. */
     private void validateCodeKey(String cId, String cdva, String sttDt) {
