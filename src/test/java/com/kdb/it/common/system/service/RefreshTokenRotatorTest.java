@@ -20,6 +20,7 @@ import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.common.system.security.JwtUtil;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -101,6 +102,58 @@ class RefreshTokenRotatorTest {
         assertThat(savedNew.getLstChgUsid()).isEqualTo("10001");
         assertThat(savedNew.getEcyRnwPubTokCone())
                 .isEqualTo(AuthService.sha256HexForToken("new-refresh"));
+        // 갓 회전된 신규 토큰은 활성(AVL_YN='Y') 상태여야 한다 — 여기가 깨지면 다음 refresh 요청이 거부된다(SEC-01 단일활성 불변식).
+        assertThat(savedNew.getAvlYn()).isEqualTo("Y");
+        assertThat(savedNew.isRotated()).isFalse();
+    }
+
+    @Test
+    @DisplayName("rotate - 회전 후 패밀리 활성 토큰이 2개 이상 남으면 IllegalStateException을 던진다")
+    void rotate_회전후활성토큰2개이상_IllegalStateException() {
+        // given: 회전 자체는 정상 진행되지만 검증 시점에 활성 토큰이 2개 조회되는 이상 상태
+        // (Mockito 기본값인 빈 리스트로는 이 분기가 절대 실행되지 않으므로 명시적으로 2개 이상을 스텁해야 한다).
+        String oldRefresh = "dup-family-token";
+        Crtokm stored =
+                Crtokm.builder()
+                        .ecyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh))
+                        .eno("10001")
+                        .famNm("FAM-1")
+                        .avlYn("Y")
+                        .endDtm(LocalDateTime.now().plusDays(7))
+                        .build();
+        Crtokm extraActive =
+                Crtokm.builder()
+                        .ecyRnwPubTokCone("other-hash")
+                        .eno("10001")
+                        .famNm("FAM-1")
+                        .avlYn("Y")
+                        .endDtm(LocalDateTime.now().plusDays(7))
+                        .build();
+        given(
+                        refreshTokenRepository.findByEcyRnwPubTokCone(
+                                AuthService.sha256HexForToken(oldRefresh)))
+                .willReturn(Optional.of(stored));
+        given(userRepository.findByEno("10001"))
+                .willReturn(
+                        Optional.of(
+                                CuserI.builder()
+                                        .eno("10001")
+                                        .usrNm("홍길동")
+                                        .bbrC("BBR001")
+                                        .delYn("N")
+                                        .build()));
+        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
+                .willReturn(Collections.emptyList());
+        given(jwtUtil.generateAccessToken(anyString(), anyList(), any()))
+                .willReturn("new-access-token");
+        given(jwtUtil.generateRefreshToken("10001")).willReturn("new-refresh-token");
+        given(refreshTokenRepository.findByFamNmAndAvlYn("FAM-1", "Y"))
+                .willReturn(List.of(stored, extraActive));
+
+        // when & then: 패밀리 단일 활성 토큰 불변식(SEC-01) 위반은 IllegalStateException
+        assertThatThrownBy(() -> rotator.rotate(oldRefresh))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("활성 Refresh Token은 패밀리당 1개만 허용됩니다.");
     }
 
     @Test
