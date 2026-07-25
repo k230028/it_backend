@@ -12,6 +12,7 @@ import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.exception.InvalidRefreshTokenException;
+import com.kdb.it.exception.LoginRejectedException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -143,31 +144,40 @@ public class AuthService {
      *   <li>토큰 및 사용자 정보 반환 (컨트롤러에서 httpOnly 쿠키로 변환)
      * </ol>
      *
+     * <p>SEC-09: 사용자 미존재·비밀번호 불일치는 "예상된 로그인 거부"로 간주해 {@link LoginRejectedException}을 던집니다.
+     * {@code login()}은 {@code noRollbackFor = LoginRejectedException.class}로 선언되어 있어, 이 예외가 발생해도
+     * 트랜잭션은 롤백되지 않고 직전에 저장한 실패 이력이 그대로 커밋됩니다. 그래야 {@link LoginAttemptService#checkLocked}가
+     * 커밋된 이력을 기준으로 잠금 여부를 정확히 판단할 수 있습니다. 반대로 잠금 예외, 이력 저장 중 DB 오류, 토큰 발급 등 성공 경로
+     * 이후의 예기치 못한 오류는 이 타입으로 변환되지 않고 원래 예외 그대로 전파되어 트랜잭션이 정상적으로 롤백됩니다.
+     *
      * @param eno 로그인할 사번
      * @param password 입력한 비밀번호 (평문)
      * @param ipAddress 클라이언트 IP 주소 (이력 기록용)
      * @param userAgent 클라이언트 User-Agent 문자열 (이력 기록용)
      * @return 로그인 응답 DTO (쿠키 생성에 사용할 토큰, 사번, 사용자명, 자격등급)
-     * @throws RuntimeException 사용자 미존재, 비밀번호 불일치, 실패 횟수 초과 잠금 시
+     * @throws LoginRejectedException 사용자 미존재, 비밀번호 불일치 시 (실패 이력은 커밋됨)
+     * @throws RuntimeException 실패 횟수 초과로 계정이 잠긴 경우({@code CustomGeneralException}), 그 외 예기치 못한 오류 시
      */
-    @Transactional
+    @Transactional(noRollbackFor = LoginRejectedException.class)
     public AuthDto.LoginResponse login(
             String eno, String password, String ipAddress, String userAgent) {
         // Brute-force 차단 — 10분 내 5회 이상 실패 시 계정 잠금 (SEC-03)
+        // 잠금 예외는 사용자 조회 이전에 발생하므로 실패 이력을 추가로 남기지 않으며, LoginRejectedException으로도
+        // 변환되지 않는다 (잠금 판정 자체를 재시도로 흐리지 않기 위해 트랜잭션은 그대로 롤백된다).
         loginAttemptService.checkLocked(eno);
 
         // 사용자 조회 — 없으면 실패 이력 기록 후 예외 (메시지 문자열 매칭 없이 타입으로 분기)
         Optional<CuserI> userOpt = userRepository.findByEno(eno);
         if (userOpt.isEmpty()) {
             recordLoginFailure(eno, ipAddress, userAgent, "존재하지 않는 사번");
-            throw new RuntimeException("사용자를 찾을 수 없습니다.");
+            throw new LoginRejectedException("사용자를 찾을 수 없습니다.");
         }
         CuserI user = userOpt.get();
 
         // 비밀번호 검증 (SHA-256 + Base64 방식)
         if (!passwordEncoder.matches(password, user.getUsrEcyPwd())) {
             recordLoginFailure(eno, ipAddress, userAgent, "비밀번호 불일치");
-            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+            throw new LoginRejectedException("비밀번호가 일치하지 않습니다.");
         }
 
         // 사용자의 모든 활성 자격등급 조회 (다중 자격등급 지원)

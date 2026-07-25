@@ -22,7 +22,9 @@ import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.exception.InvalidRefreshTokenException;
+import com.kdb.it.exception.LoginRejectedException;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -96,19 +98,22 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("login - 존재하지 않는 사번 → RuntimeException 발생")
+    @DisplayName("login - 존재하지 않는 사번 → LoginRejectedException 발생 및 실패 이력 1회 저장")
     void login_존재하지않는사번_예외발생() {
         // given
         given(userRepository.findByEno("99999")).willReturn(Optional.empty());
 
-        // when & then
+        // when & then: 커밋 대상 전용 예외(LoginRejectedException)로 통일 — SEC-09
         assertThatThrownBy(() -> authService.login("99999", "pwd", "127.0.0.1", "Agent"))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(LoginRejectedException.class)
                 .hasMessageContaining("사용자를 찾을 수 없습니다");
+
+        // 실패 이력은 정확히 1회만 저장되어야 한다 (같은 트랜잭션 내 저장 유지)
+        verify(loginHistoryRepository, times(1)).save(any(Clognh.class));
     }
 
     @Test
-    @DisplayName("login - 비밀번호 불일치 → RuntimeException 발생")
+    @DisplayName("login - 비밀번호 불일치 → LoginRejectedException 발생 및 실패 이력 1회 저장")
     void login_비밀번호불일치_예외발생() {
         // given
         CuserI user =
@@ -122,10 +127,71 @@ class AuthServiceTest {
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(passwordEncoder.matches("wrongPwd", "encodedPwd")).willReturn(false);
 
-        // when & then
+        // when & then: 커밋 대상 전용 예외(LoginRejectedException)로 통일 — SEC-09
         assertThatThrownBy(() -> authService.login("10001", "wrongPwd", "127.0.0.1", "Agent"))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(LoginRejectedException.class)
                 .hasMessageContaining("비밀번호가 일치하지 않습니다");
+
+        verify(loginHistoryRepository, times(1)).save(any(Clognh.class));
+    }
+
+    @Test
+    @DisplayName("login - 계정 잠금 시 기존 잠금 예외를 유지하고 신규 실패 이력을 추가하지 않는다")
+    void login_계정잠금_기존잠금예외유지_이력미추가() {
+        // given: LoginAttemptService.checkLocked가 login() 진입 직후(사용자 조회 이전)에 호출되어
+        // 잠금 판정 자체는 이번 SEC-09 변경으로 손대지 않는 기존 계약이다.
+        CustomGeneralException lockException =
+                new CustomGeneralException("계정 잠금: 10분 내 로그인 실패가 5회 이상입니다. 잠시 후 다시 시도하세요.");
+        org.mockito.BDDMockito.willThrow(lockException)
+                .given(loginAttemptService)
+                .checkLocked("10001");
+
+        // when & then: 잠금 예외는 LoginRejectedException으로 변환되지 않고 그대로 전파된다.
+        assertThatThrownBy(() -> authService.login("10001", "pwd", "127.0.0.1", "Agent"))
+                .isSameAs(lockException)
+                .isNotInstanceOf(LoginRejectedException.class);
+
+        // 잠금 시점에는 실패 이력을 추가로 남기지 않는다 (사용자 조회 이전에 차단되므로 DB 접근 없음).
+        verifyNoInteractions(loginHistoryRepository, userRepository);
+    }
+
+    @Test
+    @DisplayName("login - 실패 이력 저장 중 DB 오류 발생 시 원본 예외가 그대로 전파된다")
+    void login_실패이력저장중DB오류_원본예외전파() {
+        // given: loginHistoryRepository.save()가 실제 DB 오류를 던지는 상황을 시뮬레이션한다.
+        given(userRepository.findByEno("99999")).willReturn(Optional.empty());
+        RuntimeException dbError = new RuntimeException("DB 저장 오류");
+        given(loginHistoryRepository.save(any(Clognh.class))).willThrow(dbError);
+
+        // when & then: DB 오류는 LoginRejectedException으로 삼켜지거나 변환되지 않고 그대로 전파되어야
+        // 트랜잭션이 정상적으로 롤백된다.
+        assertThatThrownBy(() -> authService.login("99999", "pwd", "127.0.0.1", "Agent"))
+                .isSameAs(dbError)
+                .isNotInstanceOf(LoginRejectedException.class);
+    }
+
+    @Test
+    @DisplayName("login - 성공 경로 이후(토큰 발급) 예기치 못한 예외는 LoginRejectedException으로 변환되지 않는다")
+    void login_토큰발급중예외_LoginRejectedException으로변환되지않음() {
+        // given: 사용자 조회·비밀번호 검증까지 모두 성공한 뒤 토큰 발급 단계에서 예기치 못한 오류가 발생하는 상황.
+        CuserI user =
+                CuserI.builder()
+                        .eno("10001")
+                        .usrNm("홍길동")
+                        .usrEcyPwd("encodedPwd")
+                        .delYn("N")
+                        .build();
+        given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
+        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
+                .willReturn(Collections.emptyList());
+        IllegalStateException tokenError = new IllegalStateException("토큰 발급 실패");
+        given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willThrow(tokenError);
+
+        // when & then: 성공 경로 이후의 예기치 못한 예외는 원래 타입 그대로 전파되어야 트랜잭션이 롤백된다.
+        assertThatThrownBy(() -> authService.login("10001", "password", "127.0.0.1", "Agent"))
+                .isSameAs(tokenError)
+                .isNotInstanceOf(LoginRejectedException.class);
     }
 
     @Test
