@@ -3,11 +3,14 @@ package com.kdb.it.domain.budget.project.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
@@ -27,6 +30,7 @@ import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import com.kdb.it.exception.DataCorruptionException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -736,19 +740,20 @@ class ProjectServiceTest {
 
         Bprojm project = Bprojm.builder().abusMngNo(existingNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(existingNo, "N"))
-                .willReturn(Optional.of(project));
-        given(projectRepository.findByAbusMngNoAndDelYn(missingNo, "N"))
-                .willReturn(Optional.empty());
-
-        // 단건 조회 경로 내부 mock
+        given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(project));
         given(
-                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                                anyString(), eq(existingNo), eq(1)))
+                        capplaRepository
+                                .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                        eq("BPROJM"), anyList()))
                 .willReturn(List.of());
-        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(existingNo, 1, "N"))
+        given(bprojaRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of());
-        given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
+        given(bitemmRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyCollection()))
+                .willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
 
         ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
         request.setPrjMngNos(List.of(existingNo, missingNo));
@@ -760,6 +765,24 @@ class ProjectServiceTest {
         assertThat(result.items()).hasSize(1);
         assertThat(result.items().get(0).getAbusMngNo()).isEqualTo(existingNo);
         assertThat(result.failedIds()).containsExactly(missingNo);
+        verify(projectRepository, times(1))
+                .findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
+        verify(projectRepository, never()).findByAbusMngNoAndDelYn(any(), any());
+    }
+
+    @Test
+    @DisplayName("getProjectsByIds: 같은 관리번호의 활성 기본행이 둘이면 데이터 손상으로 실패한다")
+    void getProjectsByIds_중복활성행_데이터손상예외() {
+        Bprojm first = Bprojm.builder().abusMngNo("PRJ-DUP").sno(1).delYn("N").build();
+        Bprojm second = Bprojm.builder().abusMngNo("PRJ-DUP").sno(2).delYn("N").build();
+        given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(first, second));
+        ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+        request.setPrjMngNos(List.of("PRJ-DUP"));
+
+        assertThatThrownBy(() -> projectService.getProjectsByIds(request))
+                .isInstanceOf(DataCorruptionException.class)
+                .hasMessageContaining("PRJ-DUP");
     }
 
     // ───────────────────────────────────────────────────────
