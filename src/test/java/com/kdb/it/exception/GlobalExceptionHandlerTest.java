@@ -81,6 +81,18 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).containsKey("timestamp");
     }
 
+    @Test
+    @DisplayName("handleDataCorruption - 서버 데이터 손상은 진단 문맥을 포함해 500 반환")
+    void handleDataCorruption_서버데이터손상_500반환() {
+        DataCorruptionException ex = new DataCorruptionException("계획 스냅샷 손상: reqDocNo=PLN-BROKEN");
+
+        ResponseEntity<Map<String, Object>> response = handler.handleDataCorruption(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody()).containsEntry("status", 500);
+        assertThat(response.getBody()).containsEntry("message", "계획 스냅샷 손상: reqDocNo=PLN-BROKEN");
+    }
+
     // ---- 실패 케이스 ----
 
     /** RuntimeException 발생 시 원본 메시지가 아닌 고정 오류 메시지를 반환해야 합니다. 인증 오류 등 내부 정보 노출을 방지하기 위한 설계입니다. */

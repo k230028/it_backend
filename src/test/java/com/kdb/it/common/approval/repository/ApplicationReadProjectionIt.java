@@ -155,6 +155,7 @@ class ApplicationReadProjectionIt extends AbstractOracleRepositoryTest {
                 .dcrSqnSno(sequence)
                 .dcrEno(eno)
                 .itPtlDcdStsC(status)
+                .dcdTpC(Cdecim.DECISION_TYPE_REQUEST)
                 .dcdDtm(LocalDate.of(2026, 7, 21))
                 .dcrOpnnCone("의견-" + sequence)
                 .lstDcdYn(sequence == 2 ? "Y" : "N")

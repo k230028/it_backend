@@ -3,11 +3,14 @@ package com.kdb.it.domain.budget.project.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
@@ -23,10 +26,12 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
+import com.kdb.it.domain.budget.project.entity.Bproja;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import com.kdb.it.exception.DataCorruptionException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -219,6 +224,25 @@ class ProjectServiceTest {
     @Mock private Authentication authentication;
 
     @InjectMocks private ProjectService projectService;
+
+    private void stubBulkDetail(Bprojm... projects) {
+        given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(projects));
+        given(
+                        capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                eq("BPROJM"), anyList()))
+                .willReturn(List.of());
+        given(capplmRepository.findSummaryViewsByApfMngNoIn(anyList())).willReturn(List.of());
+        given(cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(anyList()))
+                .willReturn(List.of());
+        given(bprojaRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of());
+        given(bitemmRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyCollection()))
+                .willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
+    }
 
     @BeforeEach
     void setUpSecurity() {
@@ -736,19 +760,19 @@ class ProjectServiceTest {
 
         Bprojm project = Bprojm.builder().abusMngNo(existingNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(existingNo, "N"))
-                .willReturn(Optional.of(project));
-        given(projectRepository.findByAbusMngNoAndDelYn(missingNo, "N"))
-                .willReturn(Optional.empty());
-
-        // 단건 조회 경로 내부 mock
+        given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(project));
         given(
-                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                                anyString(), eq(existingNo), eq(1)))
+                        capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                eq("BPROJM"), anyList()))
                 .willReturn(List.of());
-        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(existingNo, 1, "N"))
+        given(bprojaRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of());
-        given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
+        given(bitemmRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyCollection()))
+                .willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
 
         ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
         request.setPrjMngNos(List.of(existingNo, missingNo));
@@ -760,6 +784,141 @@ class ProjectServiceTest {
         assertThat(result.items()).hasSize(1);
         assertThat(result.items().get(0).getAbusMngNo()).isEqualTo(existingNo);
         assertThat(result.failedIds()).containsExactly(missingNo);
+        verify(projectRepository, times(1)).findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
+        verify(projectRepository, never()).findByAbusMngNoAndDelYn(any(), any());
+    }
+
+    @Test
+    @DisplayName("getProjectsByIds: 같은 관리번호의 활성 기본행이 둘이면 데이터 손상으로 실패한다")
+    void getProjectsByIds_중복활성행_데이터손상예외() {
+        Bprojm first = Bprojm.builder().abusMngNo("PRJ-DUP").sno(1).delYn("N").build();
+        Bprojm second = Bprojm.builder().abusMngNo("PRJ-DUP").sno(2).delYn("N").build();
+        given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(first, second));
+        ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+        request.setPrjMngNos(List.of("PRJ-DUP"));
+
+        assertThatThrownBy(() -> projectService.getProjectsByIds(request))
+                .isInstanceOf(DataCorruptionException.class)
+                .hasMessageContaining("PRJ-DUP");
+    }
+
+    @Test
+    @DisplayName("getProjectsByIds: 단건과 일괄 상세의 신청·상태·품목 응답이 같다")
+    void getProjectsByIds_단건일괄_상세동등성() {
+        String projectNo = "PRJ-PARITY";
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo(projectNo)
+                        .sno(1)
+                        .abusNm("동등성 사업")
+                        .svnDpmNm("주관부서 스냅샷")
+                        .delYn("N")
+                        .build();
+        Bproja status =
+                Bproja.builder()
+                        .abusMngNo(projectNo)
+                        .cncdRfrNo("BIZ-" + projectNo)
+                        .stsTc("29")
+                        .delYn("N")
+                        .build();
+        Bitemm item =
+                Bitemm.builder()
+                        .gclMngNo("GCL-PARITY")
+                        .sno(1)
+                        .abusMngNo(projectNo)
+                        .fntTbCrySno(1)
+                        .ioeC("IOE-351-1100-1")
+                        .amt(BigDecimal.valueOf(100))
+                        .delYn("N")
+                        .build();
+        ApplicationMapView cappla = new ApplicationMapView("APF-PARITY", projectNo, 1);
+        ApplicationSummaryView capplm =
+                new ApplicationSummaryView(
+                        "APF-PARITY",
+                        ApprovalStatus.IN_PROGRESS.code(),
+                        "동등성 결재",
+                        null,
+                        null,
+                        null);
+
+        given(projectRepository.findByAbusMngNoAndDelYn(projectNo, "N"))
+                .willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(project));
+        given(
+                        capplaRepository
+                                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                        "BPROJM", projectNo, 1))
+                .willReturn(List.of(cappla));
+        given(
+                        capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                eq("BPROJM"), anyList()))
+                .willReturn(List.of(cappla));
+        given(capplmRepository.findSummaryViewsByApfMngNoIn(anyList())).willReturn(List.of(capplm));
+        given(cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-PARITY"))
+                .willReturn(List.of());
+        given(cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(anyList()))
+                .willReturn(List.of());
+        given(bprojaRepository.findByAbusMngNoAndDelYn(projectNo, "N")).willReturn(List.of(status));
+        given(bprojaRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(status));
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(projectNo, 1, "N"))
+                .willReturn(List.of(item));
+        given(bitemmRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(item));
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyCollection()))
+                .willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
+        given(ccodemRepository.findByCIdWithValidDate("IOE_351_1100", null))
+                .willReturn(
+                        List.of(
+                                Ccodem.builder()
+                                        .cId("IOE_351_1100")
+                                        .cdva("1")
+                                        .cdvaNm("개발비")
+                                        .build()));
+
+        ProjectDto.Response single = projectService.getProject(projectNo);
+        ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+        request.setPrjMngNos(List.of(projectNo));
+        ProjectDto.Response bulk = projectService.getProjectsByIds(request).items().getFirst();
+
+        assertThat(bulk).usingRecursiveComparison().isEqualTo(single);
+    }
+
+    @Test
+    @DisplayName("getProjectsByIds: 여러 사업의 같은 IOE 코드그룹은 한 번만 조회한다")
+    void getProjectsByIds_동일Ioe그룹_한번조회() {
+        Bprojm first = Bprojm.builder().abusMngNo("PRJ-IOE-1").sno(1).delYn("N").build();
+        Bprojm second = Bprojm.builder().abusMngNo("PRJ-IOE-2").sno(1).delYn("N").build();
+        stubBulkDetail(first, second);
+        given(bitemmRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(
+                        List.of(
+                                Bitemm.builder()
+                                        .gclMngNo("GCL-IOE-1")
+                                        .sno(1)
+                                        .abusMngNo("PRJ-IOE-1")
+                                        .fntTbCrySno(1)
+                                        .ioeC("IOE-351-1100-1")
+                                        .delYn("N")
+                                        .build(),
+                                Bitemm.builder()
+                                        .gclMngNo("GCL-IOE-2")
+                                        .sno(1)
+                                        .abusMngNo("PRJ-IOE-2")
+                                        .fntTbCrySno(1)
+                                        .ioeC("IOE-351-1100-2")
+                                        .delYn("N")
+                                        .build()));
+        given(ccodemRepository.findByCIdWithValidDate("IOE_351_1100", null)).willReturn(List.of());
+        ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+        request.setPrjMngNos(List.of("PRJ-IOE-1", "PRJ-IOE-2"));
+
+        projectService.getProjectsByIds(request);
+
+        verify(ccodemRepository, times(1)).findByCIdWithValidDate("IOE_351_1100", null);
     }
 
     // ───────────────────────────────────────────────────────
@@ -1101,14 +1260,7 @@ class ProjectServiceTest {
     void getProjectsByIds_배경연도있음_편성예산분류() {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
-                .willReturn(Optional.of(project));
-        given(
-                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                                anyString(), eq(prjMngNo), eq(1)))
-                .willReturn(List.of());
-        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
-                .willReturn(List.of());
+        stubBulkDetail(project);
         given(codeService.findCodeEntitiesByCId("IOE_CPIT"))
                 .willReturn(List.of(Ccodem.builder().cId("IOE-ASSET").cdvaDes("개발비").build()));
         given(codeService.findCodeEntitiesByCId("IOE_IDR"))
@@ -1517,15 +1669,7 @@ class ProjectServiceTest {
         // given
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
-                .willReturn(Optional.of(project));
-        given(
-                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                                anyString(), eq(prjMngNo), eq(1)))
-                .willReturn(List.of());
-        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
-                .willReturn(List.of());
-        given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
+        stubBulkDetail(project);
 
         ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
         request.setPrjMngNos(List.of(prjMngNo));
@@ -1755,15 +1899,7 @@ class ProjectServiceTest {
         // given
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
-                .willReturn(Optional.of(project));
-        given(
-                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                                anyString(), eq(prjMngNo), eq(1)))
-                .willReturn(List.of());
-        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
-                .willReturn(List.of());
-        given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
+        stubBulkDetail(project);
 
         ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
         request.setPrjMngNos(List.of(prjMngNo));
@@ -1784,15 +1920,7 @@ class ProjectServiceTest {
         // given
         String prjMngNo = "PRJ-2026-0002";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
-                .willReturn(Optional.of(project));
-        given(
-                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                                anyString(), eq(prjMngNo), eq(1)))
-                .willReturn(List.of());
-        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
-                .willReturn(List.of());
-        given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
+        stubBulkDetail(project);
 
         ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
         request.setPrjMngNos(List.of(prjMngNo));

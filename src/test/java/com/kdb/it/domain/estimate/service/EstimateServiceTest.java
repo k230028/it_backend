@@ -825,7 +825,8 @@ class EstimateServiceTest {
                             .rqmBgAmt(new BigDecimal("100"))
                             .delYn("N")
                             .build();
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(active)));
 
             // 동일 키로 금액/의견 변경
@@ -870,7 +871,8 @@ class EstimateServiceTest {
                             .rqmBgAmt(new BigDecimal("100"))
                             .delYn("Y")
                             .build();
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(alreadyDeleted)));
 
             when(lineRepository.save(any(Besttm.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -920,7 +922,8 @@ class EstimateServiceTest {
                             .rqmBgAmt(new BigDecimal("300"))
                             .delYn("N")
                             .build();
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(row1, row2)));
 
             // Act: 빈 lines
@@ -954,7 +957,8 @@ class EstimateServiceTest {
             Bestim master = inProgress();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>());
 
             List<Besttm> saved = new ArrayList<>();
@@ -996,7 +1000,8 @@ class EstimateServiceTest {
                             .ioeC("1010")
                             .rqmBgAmt(new BigDecimal("100"))
                             .build();
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(existing)));
 
             List<Besttm> saved = new ArrayList<>();
@@ -1042,8 +1047,7 @@ class EstimateServiceTest {
 
         @Test
         @DisplayName(
-                "DB에 동일 (팀+비목) 물리행이 이미 2건 있고 요청에도 같은 키가 2번 오면 예외 없이 "
-                        + "낮은 일련번호 행이 마지막 요청값으로 갱신된다")
+                "DB에 동일 (팀+비목) 물리행이 이미 2건 있고 요청에도 같은 키가 2번 오면 예외 없이 " + "낮은 일련번호 행이 마지막 요청값으로 갱신된다")
         void existingDuplicateKeyAndRequestDuplicate_mergesWithoutException() {
             // Arrange — 운영 3컬럼 PK(문서번호+버전+개선의견일련번호)는 동일 (팀+비목) 쌍을 가진
             // 물리 행이 2건 이상 존재하는 것을 막지 않는다. 이 상태에서 재저장을 시도하는 시나리오.
@@ -1071,7 +1075,8 @@ class EstimateServiceTest {
                             .rqmBgAmt(new BigDecimal("999"))
                             .delYn("N")
                             .build();
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(existingLow, existingHigh)));
 
             // Act — 동일 (T001, 1010) 키를 값만 다르게 요청에 두 번 포함
@@ -1116,7 +1121,8 @@ class EstimateServiceTest {
             Bestim master = inProgress();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>());
 
             List<Besttm> saved = new ArrayList<>();

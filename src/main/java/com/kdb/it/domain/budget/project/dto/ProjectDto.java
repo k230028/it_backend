@@ -4,6 +4,9 @@ import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -1022,8 +1025,9 @@ public class ProjectDto {
     @Schema(name = "ProjectBulkGetRequest", description = "일괄 조회 요청")
     public static class BulkGetRequest {
         /** 조회할 프로젝트관리번호 목록 (예: ["PRJ-2026-0001", "PRJ-2026-0002"]) */
+        @NotEmpty
         @Schema(description = "조회할 프로젝트관리번호 목록")
-        private java.util.List<String> prjMngNos;
+        private java.util.List<@NotBlank @Size(max = 30) String> prjMngNos;
 
         /** 편성예산 집계용 사업연도 (YYYY, 예: "2026") — TPRMPP_BBUGTM 조회 조건 */
         @Schema(description = "사업연도 (예: 2026). BBUGTM 편성예산 집계에 사용")

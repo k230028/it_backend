@@ -51,6 +51,8 @@ class CostRepresentativeProjectionIt extends AbstractOracleRepositoryTest {
                 .lstYn(lstYn)
                 .cttNm(name)
                 .bseYy("2026")
+                .dfrCleC("0")
+                .abusTc("0")
                 .delYn("N")
                 .fstEnrDtm(now)
                 .fstEnrUsid("BE03-TEST")

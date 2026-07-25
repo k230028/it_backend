@@ -90,6 +90,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 서버 데이터 정합성 오류 처리.
+     *
+     * @param e 데이터 손상 예외
+     * @return 500 응답과 진단 문맥
+     */
+    @ExceptionHandler(DataCorruptionException.class)
+    public ResponseEntity<Map<String, Object>> handleDataCorruption(DataCorruptionException e) {
+        log.error("서버 데이터 정합성 오류: {}", e.getMessage(), e);
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+    }
+
+    /**
      * Bean Validation 실패 예외 처리 (400 Bad Request)
      *
      * <p>{@code @Valid} 어노테이션이 붙은 요청 DTO의 필드 검증 실패 시 발생합니다. 실패한 필드명과 오류 메시지를 쉼표로 구분하여 반환합니다.

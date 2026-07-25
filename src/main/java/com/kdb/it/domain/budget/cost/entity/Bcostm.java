@@ -136,7 +136,11 @@ public class Bcostm extends BaseEntity {
     private String tmnYn;
 
     /** 전산업무비구분 (최대 2자) */
-    @Column(name = "ABUS_TC", length = 2, nullable = false, comment = "전산업무비구분 (물리컬럼 ABUS_TC=사업구분코드)")
+    @Column(
+            name = "ABUS_TC",
+            length = 2,
+            nullable = false,
+            comment = "전산업무비구분 (물리컬럼 ABUS_TC=사업구분코드)")
     private String abusTc;
 
     /** 관련전산업무비번호: 계속항목인 경우 전년도 항목의 관리번호 (최대 30자) */

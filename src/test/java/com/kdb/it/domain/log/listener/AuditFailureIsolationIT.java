@@ -212,6 +212,8 @@ class AuditFailureIsolationIT {
                 .lstYn("Y")
                 .bseYy("2026")
                 .cttNm("ERR-06 격리 통합 테스트")
+                .dfrCleC("0")
+                .abusTc("0")
                 .build();
     }
 

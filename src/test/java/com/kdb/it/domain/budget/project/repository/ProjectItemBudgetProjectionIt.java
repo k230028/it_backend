@@ -61,6 +61,7 @@ class ProjectItemBudgetProjectionIt extends AbstractOracleRepositoryTest {
                 .sno(1)
                 .abusMngNo(projectNo)
                 .fntTbCrySno(1)
+                .dfrCleC("0")
                 .ioeC(ioeC)
                 .lstYn("Y")
                 .amt(new BigDecimal(amt))

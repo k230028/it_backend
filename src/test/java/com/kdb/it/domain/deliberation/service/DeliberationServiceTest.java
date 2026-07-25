@@ -238,8 +238,7 @@ class DeliberationServiceTest {
         when(deliberationRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        service.create(
-                new DeliberationDto.CreateRequest("100", "PRJ-1", "심의 요청합니다"), requester());
+        service.create(new DeliberationDto.CreateRequest("100", "PRJ-1", "심의 요청합니다"), requester());
 
         // Assert
         Bdelim saved = captor.getValue();
@@ -788,8 +787,7 @@ class DeliberationServiceTest {
         // Act — 세 필드 모두 빈 문자열로 부분 저장, 의견만 갱신
         service.saveResult(
                 "DLB-2026-0001",
-                new DeliberationDto.ResultRequest(
-                        "", "", null, "", null, null, "의견만 갱신", null),
+                new DeliberationDto.ResultRequest("", "", null, "", null, null, "의견만 갱신", null),
                 requester());
 
         // Assert — NOT NULL 세 필드는 기존 값 유지, 의견은 갱신

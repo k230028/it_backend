@@ -3,6 +3,8 @@ package com.kdb.it.common.admin.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -330,10 +332,8 @@ class AdminServiceTest {
         AdminDto.BulkCodeRequest bulkReq = new AdminDto.BulkCodeRequest(List.of(req1, req2));
 
         Ccodem existingCode = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE001", "001", sttDt)).willReturn(true);
-        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
-                .willReturn(Optional.of(existingCode));
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "002", sttDt)).willReturn(false);
+        given(codeRepository.findAllByCIdInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(existingCode));
 
         // when
         var result = adminService.bulkUpsertCodes(bulkReq);
@@ -341,7 +341,7 @@ class AdminServiceTest {
         // then
         assertThat(result.get("updated")).isEqualTo(1);
         assertThat(result.get("created")).isEqualTo(1);
-        verify(codeRepository, times(1)).save(any(Ccodem.class));
+        verify(codeRepository, times(1)).saveAll(anyCollection());
     }
 
     @Test

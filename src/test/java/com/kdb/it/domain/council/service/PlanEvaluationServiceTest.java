@@ -22,6 +22,7 @@ import com.kdb.it.domain.council.entity.Bplevm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.PlanEvaluationRepository;
+import com.kdb.it.exception.DataCorruptionException;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.List;
@@ -36,6 +37,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -186,7 +188,7 @@ class PlanEvaluationServiceTest {
     }
 
     @Test
-    @DisplayName("getPlanTargets: 조정계획은 조회 실패 후보를 건너뛰고 직전 수립계획 예산을 사용한다")
+    @DisplayName("getPlanTargets: 조정계획은 조인 단건 조회로 직전 수립계획 예산을 사용한다")
     void getPlanTargets_adjustmentUsesLatestMatchingBaseline() {
         Basctm council = mock(Basctm.class);
         given(council.getAbusMngNo()).willReturn("PLN-CURRENT");
@@ -202,25 +204,15 @@ class PlanEvaluationServiceTest {
         given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
                 .willReturn(new ProjectDto.BulkResponse(List.of(), List.of("PRJ-1")));
 
-        Basctm blank = mock(Basctm.class);
-        Basctm same = mock(Basctm.class);
-        Basctm broken = mock(Basctm.class);
-        Basctm wrongYear = mock(Basctm.class);
-        Basctm baseline = mock(Basctm.class);
-        given(blank.getAbusMngNo()).willReturn(null);
-        given(same.getAbusMngNo()).willReturn("PLN-CURRENT");
-        given(broken.getAbusMngNo()).willReturn("PLN-BROKEN");
-        given(wrongYear.getAbusMngNo()).willReturn("PLN-OLD");
-        given(baseline.getAbusMngNo()).willReturn("PLN-BASE");
         given(
-                        councilRepository
-                                .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(
-                                        "02", "13", "N"))
-                .willReturn(List.of(blank, same, broken, wrongYear, baseline));
-        given(planService.getPlan("PLN-BROKEN")).willThrow(new IllegalStateException("조회 실패"));
-        given(planService.getPlan("PLN-OLD"))
-                .willReturn(
-                        PlanDto.DetailResponse.builder().bseYy("2025").itPtlPlnTpC("신규").build());
+                        councilRepository.findBaselineReqDocNos(
+                                org.mockito.ArgumentMatchers.eq("02"),
+                                org.mockito.ArgumentMatchers.eq("13"),
+                                org.mockito.ArgumentMatchers.eq("2026"),
+                                org.mockito.ArgumentMatchers.eq("신규"),
+                                org.mockito.ArgumentMatchers.eq("PLN-CURRENT"),
+                                any(Pageable.class)))
+                .willReturn(List.of("PLN-BASE"));
         given(planService.getPlan("PLN-BASE"))
                 .willReturn(
                         PlanDto.DetailResponse.builder()
@@ -241,11 +233,44 @@ class PlanEvaluationServiceTest {
                             assertThat(business.baseAssetBg()).isEqualByComparingTo("200");
                             assertThat(business.baseCostBg()).isEqualByComparingTo("100");
                         });
+        verify(councilRepository)
+                .findBaselineReqDocNos(
+                        org.mockito.ArgumentMatchers.eq("02"),
+                        org.mockito.ArgumentMatchers.eq("13"),
+                        org.mockito.ArgumentMatchers.eq("2026"),
+                        org.mockito.ArgumentMatchers.eq("신규"),
+                        org.mockito.ArgumentMatchers.eq("PLN-CURRENT"),
+                        any(Pageable.class));
     }
 
     @Test
-    @DisplayName("getPlanTargets: 손상된 스냅샷과 대상년도 없음은 빈 결과로 안전하게 처리한다")
-    void getPlanTargets_invalidSnapshotReturnsEmptyTargets() {
+    @DisplayName("getPlanTargets: 기준 계획 조회 예외를 삼키지 않고 전파한다")
+    void getPlanTargets_baselineLookupFailurePropagates() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-CURRENT");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-CURRENT"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .bseYy("2026")
+                                .itPtlPlnTpC("조정")
+                                .redtConeInf("{\"prjSnapshots\":[]}")
+                                .build());
+        given(
+                        councilRepository.findBaselineReqDocNos(
+                                any(), any(), any(), any(), any(), any(Pageable.class)))
+                .willReturn(List.of("PLN-BROKEN"));
+        given(planService.getPlan("PLN-BROKEN"))
+                .willThrow(new IllegalStateException("기준 계획 DB 오류"));
+
+        assertThatThrownBy(() -> planEvaluationService.getPlanTargets(ASCT_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("기준 계획 DB 오류");
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 손상된 스냅샷은 계획관리번호를 포함한 데이터 손상 예외를 반환한다")
+    void getPlanTargets_invalidSnapshotThrowsDataCorruption() {
         Basctm council = mock(Basctm.class);
         given(council.getAbusMngNo()).willReturn("PLN-BROKEN");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
@@ -256,14 +281,32 @@ class PlanEvaluationServiceTest {
                                 .redtConeInf("{broken")
                                 .build());
 
+        assertThatThrownBy(() -> planEvaluationService.getPlanTargets(ASCT_ID))
+                .isInstanceOf(DataCorruptionException.class)
+                .hasMessageContaining("PLN-BROKEN");
+        verify(projectService, never()).getProjectsByIds(any());
+        verify(councilRepository, never())
+                .findBaselineReqDocNos(any(), any(), any(), any(), any(), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 비어 있는 유효 스냅샷은 빈 심의 대상을 반환한다")
+    void getPlanTargets_emptySnapshotReturnsEmptyTargets() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-EMPTY");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-EMPTY"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .bseYy("2026")
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf("{\"prjSnapshots\":[],\"costDetails\":[]}")
+                                .build());
+
         CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
 
         assertThat(result.businesses()).isEmpty();
         assertThat(result.costCount()).isZero();
-        verify(projectService, never()).getProjectsByIds(any());
-        verify(councilRepository, never())
-                .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(
-                        any(), any(), any());
     }
 
     @Test

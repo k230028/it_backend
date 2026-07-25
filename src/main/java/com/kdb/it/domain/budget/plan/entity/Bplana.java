@@ -32,11 +32,11 @@ public class Bplana extends BaseEntity {
 
     /** 프로젝트관리번호 (복합 PK의 첫 번째 키) */
     @Id
-    @Column(name = "ABUS_MNG_NO", length = 32, comment = "프로젝트관리번호")
+    @Column(name = "ABUS_MNG_NO", length = 30, comment = "프로젝트관리번호")
     private String prjMngNo;
 
     /** 요청문서번호 (복합 PK의 두 번째 키, BPLANM의 PLN_MNG_NO에 대응) */
     @Id
-    @Column(name = "REQ_DOC_NO", length = 32, comment = "요청문서번호")
+    @Column(name = "REQ_DOC_NO", length = 30, comment = "요청문서번호")
     private String reqDocNo;
 }

@@ -13,6 +13,7 @@ import com.kdb.it.domain.council.entity.Bplevm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.PlanEvaluationRepository;
+import com.kdb.it.exception.DataCorruptionException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 재사용합니다(PlanService).
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PlanEvaluationService {
@@ -86,7 +89,7 @@ public class PlanEvaluationService {
         PlanDto.DetailResponse plan = planService.getPlan(reqDocNo);
 
         // 계획 스냅샷에서 정보화사업(경상 제외) 노드 추출 (예산·부서·진행구분)
-        List<JsonNode> snapBusinesses = parseSnapshotBusinesses(plan.getRedtConeInf());
+        List<JsonNode> snapBusinesses = parseSnapshotBusinesses(plan.getRedtConeInf(), reqDocNo);
 
         // 사업개요·시작/종료일자는 스냅샷에 없어 BPROJM 상세에서 보강
         List<String> prjMngNos =
@@ -134,11 +137,18 @@ public class PlanEvaluationService {
                 plan.getBseYy(),
                 plan.getItPtlPlnTpC(),
                 businesses,
-                countCostDetails(plan.getRedtConeInf()));
+                countCostDetails(plan.getRedtConeInf(), reqDocNo));
     }
 
-    /** 계획 스냅샷(redtConeInf)에서 정보화사업(경상 제외) 노드 목록 추출. 실패 시 빈 목록. */
-    private List<JsonNode> parseSnapshotBusinesses(String json) {
+    /**
+     * 계획 스냅샷에서 정보화사업 노드를 추출합니다.
+     *
+     * @param json 계획 스냅샷 JSON
+     * @param reqDocNo 진단용 계획관리번호
+     * @return 경상사업을 제외한 정보화사업 노드
+     * @throws DataCorruptionException JSON 파싱에 실패한 경우
+     */
+    private List<JsonNode> parseSnapshotBusinesses(String json, String reqDocNo) {
         List<JsonNode> result = new ArrayList<>();
         if (json == null || json.isBlank()) {
             return result;
@@ -157,14 +167,21 @@ public class PlanEvaluationService {
                 }
             }
         } catch (Exception e) {
-            // 파싱 실패 시 빈 목록 폴백
-            // TODO: 유효한 빈 스냅샷과 파싱 오류를 구분하고 문서번호·원인을 진단 로그 또는 오류 응답에 남긴다.
+            log.error("계획 스냅샷 파싱 실패: reqDocNo={}", reqDocNo, e);
+            throw new DataCorruptionException("계획 스냅샷(JSON)이 손상되었습니다: reqDocNo=" + reqDocNo, e);
         }
         return result;
     }
 
-    /** 스냅샷의 전산업무비(costDetails) 건수. 실패 시 0. */
-    private int countCostDetails(String json) {
+    /**
+     * 계획 스냅샷의 전산업무비 건수를 계산합니다.
+     *
+     * @param json 계획 스냅샷 JSON
+     * @param reqDocNo 진단용 계획관리번호
+     * @return 전산업무비 건수
+     * @throws DataCorruptionException JSON 파싱에 실패한 경우
+     */
+    private int countCostDetails(String json, String reqDocNo) {
         if (json == null || json.isBlank()) {
             return 0;
         }
@@ -172,8 +189,8 @@ public class PlanEvaluationService {
             JsonNode arr = SNAPSHOT_MAPPER.readTree(json).get("costDetails");
             return (arr != null && arr.isArray()) ? arr.size() : 0;
         } catch (Exception e) {
-            // TODO: 실제 전산업무비 0건과 JSON 파싱 실패를 구분하고 대상 문맥과 원인을 기록한다.
-            return 0;
+            log.error("전산업무비 스냅샷 파싱 실패: reqDocNo={}", reqDocNo, e);
+            throw new DataCorruptionException("계획 스냅샷(JSON)이 손상되었습니다: reqDocNo=" + reqDocNo, e);
         }
     }
 
@@ -193,33 +210,28 @@ public class PlanEvaluationService {
     /**
      * 조정 협의회 기준: 같은 대상년도의 '직전 승인(완료 13) 수립(신규) 계획'을 찾는다.
      *
-     * <p>완료된 계획협의회(dbrTc='02', 상태13)를 최근 등록순으로 훑어, 대상 계획이 같은 대상년도이고 계획구분이 '신규'(수립)이며 현재 계획과 다른 첫
-     * 계획을 반환한다. 없으면 null.
+     * <p>완료 협의회와 활성 계획을 조인해 최근 등록순 후보 한 건을 결정한다. 후보가 없으면 null을 반환하고 후보 계획 조회 실패는 호출자에게 전파한다.
+     *
+     * @param bseYy 대상년도
+     * @param currentReqDocNo 제외할 현재 계획관리번호
+     * @return 기준 계획 상세, 후보가 없으면 null
      */
     private PlanDto.DetailResponse findBaselinePlan(String bseYy, String currentReqDocNo) {
         if (bseYy == null) {
             return null;
         }
-        List<Basctm> completed =
-                councilRepository
-                        .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(
-                                "02", "13", "N");
-        for (Basctm c : completed) {
-            String rd = c.getAbusMngNo();
-            if (rd == null || rd.isBlank() || rd.equals(currentReqDocNo)) {
-                continue;
-            }
-            try {
-                PlanDto.DetailResponse p = planService.getPlan(rd);
-                if (bseYy.equals(p.getBseYy()) && "신규".equals(p.getItPtlPlnTpC())) {
-                    return p; // 최근 등록순 첫 매칭 = 직전 승인 수립 계획
-                }
-            } catch (Exception e) {
-                // 계획 조회 실패 시 다음 후보로
-                // TODO: 미존재 예외만 다음 후보로 넘기고 DB·권한·시스템 예외는 기록한 뒤 호출자에게 전파한다.
-            }
+        List<String> reqDocNos =
+                councilRepository.findBaselineReqDocNos(
+                        "02",
+                        "13",
+                        bseYy,
+                        "신규",
+                        currentReqDocNo,
+                        org.springframework.data.domain.PageRequest.of(0, 1));
+        if (reqDocNos.isEmpty()) {
+            return null;
         }
-        return null;
+        return planService.getPlan(reqDocNos.getFirst());
     }
 
     /** 기준 계획 스냅샷에서 사업관리번호 → 예산 노드 매핑(prjBg/assetBg/costBg 조회용). */
@@ -228,7 +240,8 @@ public class PlanEvaluationService {
         if (baseline == null) {
             return map;
         }
-        for (JsonNode n : parseSnapshotBusinesses(baseline.getRedtConeInf())) {
+        for (JsonNode n :
+                parseSnapshotBusinesses(baseline.getRedtConeInf(), baseline.getReqDocNo())) {
             String id = textOf(n, "prjMngNo");
             if (id != null && !id.isBlank()) {
                 map.put(id, n);
@@ -404,8 +417,7 @@ public class PlanEvaluationService {
                 }
             }
         } catch (Exception e) {
-            // 스냅샷 파싱 실패 시 사업명 미해석(사업관리번호로 폴백)
-            // TODO: 결과서의 사업명 폴백이 발생했음을 문서번호·원인과 함께 경고 로그로 남긴다.
+            log.warn("결과서 사업명 스냅샷 파싱 실패 — 관리번호로 폴백: reqDocNo={}", reqDocNo, e);
         }
         return map;
     }

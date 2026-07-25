@@ -176,7 +176,7 @@ public class ProjectController {
             summary = "정보화사업 일괄 조회",
             description = "여러 개의 정보화사업을 한 번에 조회합니다. 존재하지 않는 프로젝트는 failedIds로 함께 반환됩니다 (부분 성공).")
     public ResponseEntity<ProjectDto.BulkResponse> bulkGetProjects(
-            @RequestBody ProjectDto.BulkGetRequest request) {
+            @Valid @RequestBody ProjectDto.BulkGetRequest request) {
         ProjectDto.BulkResponse responses = projectService.getProjectsByIds(request);
         return ResponseEntity.ok(responses);
     }
