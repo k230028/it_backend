@@ -22,6 +22,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -1160,11 +1161,14 @@ public class CouncilController {
      * <p>평가위원(간사 제외) 전원의 CNFM_YN이 'Y'면 협의회 상태를 RESULT_REVIEW → FINAL_APPROVAL로 전이합니다. 데이터를 직접 수정한
      * 경우 또는 화면 진입 시점에 호출해 자동 전이가 누락되지 않도록 보장합니다.
      *
+     * <p>상태를 임의로 전이시킬 수 있는 관리 성격의 API이므로 서버에서 관리자 권한을 강제합니다. 프론트 라우트 가드는 UX 보조일 뿐 보안 경계가 아닙니다.
+     *
      * @param asctId 협의회ID
      * @return 이번 호출에서 결과 승인 대기 상태로 전이했으면 true
      * @throws IllegalArgumentException 협의회가 없는 경우
      */
     @Operation(summary = "검토 진행상황 동기화", description = "위원 전원 확인 시 010→011 전이를 보장합니다.")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{asctId}/result/review/sync")
     public ResponseEntity<Boolean> syncReviewStatus(@PathVariable("asctId") String asctId) {
         return ResponseEntity.ok(resultService.syncReviewStatus(asctId));
