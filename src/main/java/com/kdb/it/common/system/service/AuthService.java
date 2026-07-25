@@ -214,6 +214,11 @@ public class AuthService {
      * 풀린 뒤에만 수행합니다. 두 책임을 하나의 트랜잭션으로 묶지 않는 이유는, 같은 행에 대한 폐기 DELETE가 회전 SELECT ... FOR UPDATE의 잠금을
      * 기다리며 불필요한 대기·교착 위험을 만들기 때문입니다.
      *
+     * <p><b>호출 제약</b>: 이 메서드는 이미 열려 있는 트랜잭션 안에서 호출되면 안 됩니다. 그렇게 호출되면 {@code rotate()}가 {@code
+     * REQUIRED} 전파로 그 트랜잭션에 합류해, {@code rotate()}가 반환된 뒤에도 PESSIMISTIC_WRITE 잠금이 바깥 트랜잭션이 끝날 때까지
+     * 유지되어 이 설계로 없애려던 락 경합·교착 위험이 되살아납니다. 현재 유일한 호출자인 {@code
+     * AuthController#refresh(HttpServletRequest)}도 트랜잭션 없이 호출합니다.
+     *
      * <p>SEC-08 상태 전이(ASCII):
      *
      * <pre>{@code
@@ -245,8 +250,8 @@ public class AuthService {
      * @return 토큰 갱신 응답 DTO (새로운 Access Token + 회전된 Refresh Token)
      * @throws InvalidRefreshTokenException 재로그인이 필요한 분기 — 용도·서명·만료 검증 실패, DB 미존재, 재사용·만료 감지 후 패밀리
      *     폐기 완료
-     * @throws RuntimeException 일시적 동시 새로고침(grace 내 재제출, 재시도 가능)이거나, 패밀리 폐기 실패, 그 외 예기치 못한 오류인 경우
-     *     (원본 타입 그대로 전파)
+     * @throws ConcurrentRefreshException 일시적 동시 새로고침(grace 내 재제출) — 재시도 가능, 패밀리는 유지된다
+     * @throws RuntimeException 패밀리 폐기(revokeByEno) 자체가 실패했거나, 그 외 예기치 못한 오류인 경우 (원본 타입 그대로 전파)
      */
     public AuthDto.RefreshResponse refreshAccessToken(String refreshTokenValue) {
         // 용도 강제(1차 검증: JwtUtil) — 서명·만료와 함께 tokenUse=refresh만 허용한다.
@@ -264,12 +269,24 @@ public class AuthService {
                     .build();
         } catch (ConcurrentRefreshException e) {
             // grace 기간 내 다중 탭 동시 새로고침 — 패밀리는 유지하고 이번 요청만 거부한다(재시도 가능).
-            // InvalidRefreshTokenException과 타입을 분리해야 컨트롤러가 재로그인을 강제하지 않는다.
-            throw new RuntimeException(e.getMessage(), e);
+            // 이미 unchecked RuntimeException이며 InvalidRefreshTokenException이 아니므로 그대로 던지면
+            // 컨트롤러가 재로그인을 강제하지 않는다 — 재래핑은 타입만 잃을 뿐 이득이 없다.
+            throw e;
         } catch (FamilyRevocationRequiredException e) {
             // rotate()의 트랜잭션(및 비관적 쓰기 잠금)이 이미 종료된 뒤이므로 여기서 폐기를 확정한다.
-            // revokeByEno 실패는 삼키지 않고 그대로 전파 — 실패한 폐기가 성공한 것처럼 보이면 안 된다.
-            refreshTokenRevoker.revokeByEno(e.getEno());
+            try {
+                refreshTokenRevoker.revokeByEno(e.getEno());
+            } catch (RuntimeException revokeFailure) {
+                // 탈취 의심(재사용)·만료로 확정된 패밀리의 폐기 자체가 실패한 상황 — 삼키지 않고 그대로
+                // 전파해야 한다(실패한 폐기가 성공처럼 보이면 안 된다). 일반 400과 구분되도록 원인 사번·사유를
+                // 남겨 알림·모니터링에서 그렙 가능하게 한다.
+                log.error(
+                        "Refresh Token 패밀리 폐기 실패 — eno={}, reason={}",
+                        e.getEno(),
+                        e.getReason(),
+                        revokeFailure);
+                throw revokeFailure;
+            }
             throw new InvalidRefreshTokenException();
         } catch (RefreshTokenNotFoundException e) {
             // 조회 자체가 실패했으므로 폐기할 패밀리가 없다 — Revoker를 호출하지 않는다.

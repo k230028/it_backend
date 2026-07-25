@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -372,15 +373,18 @@ class AuthServiceTest {
         // given: rotate()가 grace 기간 내 재제출을 감지해 ConcurrentRefreshException을 던지는 경우
         String recent = "just-rotated-token";
         given(jwtUtil.validateToken(recent, JwtUtil.TOKEN_USE_REFRESH, false)).willReturn(true);
-        given(refreshTokenRotator.rotate(recent))
-                .willThrow(new ConcurrentRefreshException("토큰이 방금 갱신되었습니다. 잠시 후 다시 시도하세요."));
+        ConcurrentRefreshException graceException =
+                new ConcurrentRefreshException("토큰이 방금 갱신되었습니다. 잠시 후 다시 시도하세요.");
+        given(refreshTokenRotator.rotate(recent)).willThrow(graceException);
 
         // when & then: 패밀리는 유지되므로 InvalidRefreshTokenException이 아닌 재시도 가능 예외로 구분되어야
-        // 컨트롤러가 재로그인을 강제하지 않는다. 원래 grace 계약(메시지)도 그대로 보존한다.
+        // 컨트롤러가 재로그인을 강제하지 않는다. 이미 unchecked이므로 재래핑 없이 그대로 전파되어야 한다
+        // (isSameAs) — 원래 grace 계약(메시지)도 그대로 보존한다.
         assertThatThrownBy(() -> authService.refreshAccessToken(recent))
+                .isSameAs(graceException)
                 .isNotInstanceOf(InvalidRefreshTokenException.class)
                 .hasMessageContaining("다시 시도");
-        verifyNoInteractions(refreshTokenRevoker);
+        verify(refreshTokenRevoker, never()).revokeByEno(any());
     }
 
     @Test
@@ -625,6 +629,87 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.issueSsoTokens("99999"))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("사용자를 찾을 수 없습니다");
+    }
+
+    // ── 개발 편의용 사용자 전환 테스트 ──────────────────────────────────
+
+    @Test
+    @DisplayName("issueDevSwitchTokens - 사용자 존재 시 DEV-SWITCH 이력과 함께 토큰을 발급한다")
+    void issueDevSwitchTokens_사용자존재_토큰발급() {
+        CuserI user =
+                CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").temC("TEM001").build();
+        given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
+                .willReturn(Collections.emptyList());
+        given(jwtUtil.generateAccessToken(anyString(), anyList(), any()))
+                .willReturn("access-token");
+        given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
+
+        AuthDto.LoginResponse response = authService.issueDevSwitchTokens("10001");
+
+        assertThat(response.getEno()).isEqualTo("10001");
+        assertThat(response.getEmpNm()).isEqualTo("홍길동");
+        assertThat(response.getAccessToken()).isEqualTo("access-token");
+        assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
+        assertThat(response.getAthIds()).containsExactly("ITPZZ001");
+        // 개발 전환은 일반 로그인과 동일하게 기존 패밀리를 삭제하고 신규 토큰을 저장한다.
+        verify(refreshTokenRepository).deleteByEno("10001");
+        verify(refreshTokenRepository).save(any(Crtokm.class));
+        // DEV-SWITCH 식별자로 성공 이력을 남겨 일반 로그인·SSO와 구분한다.
+        verify(loginHistoryRepository).save(any(Clognh.class));
+    }
+
+    @Test
+    @DisplayName("issueDevSwitchTokens - 사용자가 없으면 RuntimeException을 던진다")
+    void issueDevSwitchTokens_사용자없음_예외발생() {
+        given(userRepository.findByEno("99999")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.issueDevSwitchTokens("99999"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("사용자를 찾을 수 없습니다");
+        verifyNoInteractions(loginHistoryRepository);
+    }
+
+    // ── getSessionUser 예외 분기 ────────────────────────────────────────
+
+    @Test
+    @DisplayName("getSessionUser - 사용자가 없으면 RuntimeException을 던진다")
+    void getSessionUser_사용자없음_예외발생() {
+        given(userRepository.findByEno("99999")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.getSessionUser("99999"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("사용자를 찾을 수 없습니다");
+    }
+
+    // ── logoutByRefreshToken 추가 분기 ──────────────────────────────────
+
+    @Test
+    @DisplayName("logoutByRefreshToken - Refresh 쿠키가 없고 Access 인증만 있으면 인증 사번 패밀리만 폐기한다")
+    void logoutByRefreshToken_쿠키없음_Access사번만폐기() {
+        // given: refreshTokenValue가 blank → 조회 자체를 시도하지 않는다(널 가드 분기).
+        authService.logoutByRefreshToken(null, "10001", "127.0.0.1", "Agent");
+
+        verify(refreshTokenRepository, never())
+                .findByEcyRnwPubTokCone(org.mockito.ArgumentMatchers.anyString());
+        verify(refreshTokenRepository, times(1)).deleteByEno("10001");
+        verify(loginHistoryRepository, times(1)).save(any(Clognh.class));
+    }
+
+    @Test
+    @DisplayName("logoutByRefreshToken - 쿠키 값이 있어도 DB에 없으면 조회 실패로 삭제·이력 모두 생략한다")
+    void logoutByRefreshToken_쿠키값DB미존재_삭제및이력생략() {
+        // given: 쿠키 해시로 저장 행을 찾지 못하고, 인증 사번도 없는 경우 — 아무 폐기 대상도 없다.
+        given(
+                        refreshTokenRepository.findByEcyRnwPubTokCone(
+                                AuthService.sha256HexForToken("stale-token")))
+                .willReturn(Optional.empty());
+
+        authService.logoutByRefreshToken("stale-token", null, "127.0.0.1", "Agent");
+
+        verify(refreshTokenRepository, never())
+                .deleteByEno(org.mockito.ArgumentMatchers.anyString());
+        verifyNoInteractions(loginHistoryRepository);
     }
 
     @Test
