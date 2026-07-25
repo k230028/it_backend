@@ -83,8 +83,15 @@ public class PlanEvaluationService {
      * <p>계획협의회의 ABUS_MNG_NO에 저장된 계획관리번호로 계획 스냅샷의 예산·부서 정보를 얻고, 스냅샷에 없는 사업개요·시작/종료일자는 BPROJM(정보화사업)
      * 상세에서 보강해 병합합니다. 경상사업(ornYn='Y')은 제외하고 정보화사업만 반환합니다.
      *
+     * <p>계획 스냅샷(redtConeInf)이 구문 오류(JSON 파싱 실패)이거나 구조가 손상된 경우 더 이상 예외로 전체 응답을 실패시키지 않습니다({@link
+     * #parseSnapshot} 참고). 대신 손상된 원소/부분만 조용히 제외하고 유효한 나머지 데이터로 부분 응답을 구성하며, {@link
+     * CouncilDto.PlanTargetsResponse#snapshotIncomplete()}를 true로 설정해 호출부(프론트)가 데이터 누락을 인지하도록 합니다.
+     * 이 플래그는 다음 중 하나라도 해당하면 true입니다: (1) 현재 계획 자체의 스냅샷이 손상된 경우, (2) 조정(itPtlPlnTpC='조정') 협의회에서 예산
+     * 최초/조정 비교에 쓰이는 기준(직전 승인) 계획의 스냅샷이 손상된 경우. 단, DB/권한 오류나 {@code planService.getPlan()} 조회 실패(대상
+     * 계획·기준 계획 모두)는 파싱 손상과 무관하므로 그대로 전파합니다.
+     *
      * @param asctId 협의회ID
-     * @return 심의 대상 (계획 요약 + 사업별 기본정보)
+     * @return 심의 대상 (계획 요약 + 사업별 기본정보), 스냅샷 손상 시 부분 데이터 + snapshotIncomplete=true
      * @throws IllegalStateException 계획이 연결되지 않은 협의회(dbrTc≠'02' 등)
      */
     public CouncilDto.PlanTargetsResponse getPlanTargets(String asctId) {

@@ -248,6 +248,54 @@ class PlanEvaluationServiceTest {
     }
 
     @Test
+    @DisplayName(
+            "getPlanTargets: 조정계획의 기준(baseline) 스냅샷이 구조 손상이면 현재 사업 목록은 유지하고 기준 예산은"
+                    + " 비운 채 snapshotIncomplete=true를 반환한다")
+    void getPlanTargets_corruptedBaselineSnapshotKeepsCurrentBusinessesButFlagsIncomplete() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-CURRENT");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        // 현재 계획 스냅샷은 완전히 유효(abusNm 포함) — 불완전 플래그가 오직 기준 계획 손상에서만 기인함을 증명
+        PlanDto.DetailResponse current =
+                PlanDto.DetailResponse.builder()
+                        .bseYy("2026")
+                        .itPtlPlnTpC("조정")
+                        .redtConeInf(
+                                "{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-1\",\"abusNm\":\"A사업\",\"prjBg\":250,\"assetBg\":150,\"costBg\":100}]}")
+                        .build();
+        given(planService.getPlan("PLN-CURRENT")).willReturn(current);
+        given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
+                .willReturn(new ProjectDto.BulkResponse(List.of(), List.of("PRJ-1")));
+
+        given(
+                        councilRepository.findBaselineReqDocNos(
+                                any(), any(), any(), any(), any(), any(Pageable.class)))
+                .willReturn(List.of("PLN-BASE"));
+        // 기준 계획 조회 자체는 성공하지만 스냅샷 구조가 손상(알려진 루트 키 없음)
+        given(planService.getPlan("PLN-BASE"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .bseYy("2026")
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf("{}")
+                                .build());
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses())
+                .singleElement()
+                .satisfies(
+                        business -> {
+                            assertThat(business.abusMngNo()).isEqualTo("PRJ-1");
+                            assertThat(business.prjBg()).isEqualByComparingTo("250");
+                            assertThat(business.basePrjBg()).isNull();
+                            assertThat(business.baseAssetBg()).isNull();
+                            assertThat(business.baseCostBg()).isNull();
+                        });
+        assertThat(result.snapshotIncomplete()).isTrue();
+    }
+
+    @Test
     @DisplayName("getPlanTargets: 기준 계획 조회 예외를 삼키지 않고 전파한다")
     void getPlanTargets_baselineLookupFailurePropagates() {
         Basctm council = mock(Basctm.class);
