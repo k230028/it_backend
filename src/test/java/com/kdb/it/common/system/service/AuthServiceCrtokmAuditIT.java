@@ -31,13 +31,14 @@ import org.springframework.test.context.ActiveProfiles;
  * LST_CHG_USID}(NOT NULL 컬럼, 실 스키마 확인됨)가 {@code Crtokm.create}/{@code markRotated}를 통해 토큰 소유자 사번으로
  * 채워지는지 — 즉 감사자 미기록으로 인한 ORA-01400 없이 로그인·토큰 회전이 성공하는지 — 확인한다.
  *
- * <p>{@code AuthServiceTest}(순수 Mockito)는 실제 EntityManager/DB 없이 동작하므로 이 결함을 잡아낼 수 없었다. 감사 컬럼
- * 길이 제약(14자, 실 스키마 확인됨) 때문에 테스트 사번({@link #TEST_ENO})도 14자 이하로 고정한다.
+ * <p>{@code AuthServiceTest}(순수 Mockito)는 실제 EntityManager/DB 없이 동작하므로 이 결함을 잡아낼 수 없었다. 감사 컬럼 길이
+ * 제약(14자, 실 스키마 확인됨) 때문에 테스트 사번({@link #TEST_ENO})도 14자 이하로 고정한다.
  */
 @Tag("it")
 @SpringBootTest(
         properties = {
-            // 비-prod 기동 필수값 — application.properties 의 ${JWT_SECRET} 플레이스홀더를 대체(EnvironmentValidator
+            // 비-prod 기동 필수값 — application.properties 의 ${JWT_SECRET} 플레이스홀더를
+            // 대체(EnvironmentValidator
             // 통과).
             "jwt.secret=test-secret-key-for-junit-test-minimum-256-bits-length-ok"
         })
@@ -59,8 +60,7 @@ class AuthServiceCrtokmAuditIT {
      * 테스트 사용자를 시드한다.
      *
      * <p>{@code CuserI}도 BaseEntity를 상속해 FST_ENR_USID/LST_CHG_USID가 NOT NULL이므로, 시드 저장 한 번에 한해 인증
-     * 컨텍스트("ITEST01")를 심어 일반 JPA Auditing 경로로 채운다. 이후 로그인 API의 실제 런타임 상태(익명)를 재현하기 위해 컨텍스트를
-     * 비운다.
+     * 컨텍스트("ITEST01")를 심어 일반 JPA Auditing 경로로 채운다. 이후 로그인 API의 실제 런타임 상태(익명)를 재현하기 위해 컨텍스트를 비운다.
      */
     @BeforeEach
     void seedUser() {

@@ -144,11 +144,11 @@ public class AuthService {
      *   <li>토큰 및 사용자 정보 반환 (컨트롤러에서 httpOnly 쿠키로 변환)
      * </ol>
      *
-     * <p>SEC-09: 사용자 미존재·비밀번호 불일치는 "예상된 로그인 거부"로 간주해 {@link LoginRejectedException}을 던집니다.
-     * {@code login()}은 {@code noRollbackFor = LoginRejectedException.class}로 선언되어 있어, 이 예외가 발생해도
-     * 트랜잭션은 롤백되지 않고 직전에 저장한 실패 이력이 그대로 커밋됩니다. 그래야 {@link LoginAttemptService#checkLocked}가
-     * 커밋된 이력을 기준으로 잠금 여부를 정확히 판단할 수 있습니다. 반대로 잠금 예외, 이력 저장 중 DB 오류, 토큰 발급 등 성공 경로
-     * 이후의 예기치 못한 오류는 이 타입으로 변환되지 않고 원래 예외 그대로 전파되어 트랜잭션이 정상적으로 롤백됩니다.
+     * <p>SEC-09: 사용자 미존재·비밀번호 불일치는 "예상된 로그인 거부"로 간주해 {@link LoginRejectedException}을 던집니다. {@code
+     * login()}은 {@code noRollbackFor = LoginRejectedException.class}로 선언되어 있어, 이 예외가 발생해도 트랜잭션은
+     * 롤백되지 않고 직전에 저장한 실패 이력이 그대로 커밋됩니다. 그래야 {@link LoginAttemptService#checkLocked}가 커밋된 이력을 기준으로
+     * 잠금 여부를 정확히 판단할 수 있습니다. 반대로 잠금 예외, 이력 저장 중 DB 오류, 토큰 발급 등 성공 경로 이후의 예기치 못한 오류는 이 타입으로 변환되지 않고
+     * 원래 예외 그대로 전파되어 트랜잭션이 정상적으로 롤백됩니다.
      *
      * @param eno 로그인할 사번
      * @param password 입력한 비밀번호 (평문)

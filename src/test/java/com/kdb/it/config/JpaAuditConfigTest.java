@@ -55,7 +55,8 @@ class JpaAuditConfigTest {
         List<GrantedAuthority> authorities = AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS");
         SecurityContextHolder.getContext()
                 .setAuthentication(
-                        new AnonymousAuthenticationToken("anonymousKey", "anonymousUser", authorities));
+                        new AnonymousAuthenticationToken(
+                                "anonymousKey", "anonymousUser", authorities));
 
         Optional<String> auditor = config.auditorProvider().getCurrentAuditor();
 

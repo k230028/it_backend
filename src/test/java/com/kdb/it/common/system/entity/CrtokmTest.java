@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Crtokm 단위 테스트
  *
- * <p>신규 갱신토큰 생성 시 소유자 사번이 최초/최종 감사자로 명시 기록되는지, {@link Crtokm#markRotated()} 호출 시 최종 변경 감사자가
- * 소유자 사번으로 갱신되는지, 공백 감사자가 거부되는지 검증합니다.
+ * <p>신규 갱신토큰 생성 시 소유자 사번이 최초/최종 감사자로 명시 기록되는지, {@link Crtokm#markRotated()} 호출 시 최종 변경 감사자가 소유자
+ * 사번으로 갱신되는지, 공백 감사자가 거부되는지 검증합니다.
  */
 class CrtokmTest {
 

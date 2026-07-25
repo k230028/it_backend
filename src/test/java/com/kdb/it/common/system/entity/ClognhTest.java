@@ -8,15 +8,15 @@ import org.junit.jupiter.api.Test;
 /**
  * Clognh 단위 테스트
  *
- * <p>로그인 성공/실패/로그아웃 이력 생성 직후 감사자(FST_ENR_USID/LST_CHG_USID)가 팩토리 폴백값 "SYSTEM"으로 명시 기록되는지
- * 검증합니다. 이 테스트는 엔티티를 실제로 저장(persist)하지 않으므로 {@code AuditingEntityListener}는 전혀 개입하지 않습니다 —
- * 즉 여기서 검증하는 값은 "팩토리가 만든 객체의 초기 상태"이지 "DB에 최종 저장되는 값"이 아닙니다.
+ * <p>로그인 성공/실패/로그아웃 이력 생성 직후 감사자(FST_ENR_USID/LST_CHG_USID)가 팩토리 폴백값 "SYSTEM"으로 명시 기록되는지 검증합니다. 이
+ * 테스트는 엔티티를 실제로 저장(persist)하지 않으므로 {@code AuditingEntityListener}는 전혀 개입하지 않습니다 — 즉 여기서 검증하는 값은
+ * "팩토리가 만든 객체의 초기 상태"이지 "DB에 최종 저장되는 값"이 아닙니다.
  *
  * <p>로그인 성공/실패는 인증 성립 이전(비인증) 흐름이므로 실제 저장 시에도 {@link com.kdb.it.config.JpaAuditConfig}의
- * AuditorAware가 항상 빈 값을 반환해 이 SYSTEM 폴백이 그대로 DB에 남습니다. 반면 로그아웃은 {@code /api/auth/logout}의
- * 정상 경로가 유효한 인증을 요구하므로, 실제 저장 시점에는 {@code AuditingEntityListener}가 이 SYSTEM 폴백을 로그아웃한
- * 사용자의 실제 사번으로 덮어씁니다(SYSTEM은 Refresh 쿠키만으로 폐기하는 비인증 로그아웃 경로에서만 그대로 저장됨). 상세는 {@link
- * Clognh#SYSTEM_AUDITOR} Javadoc 참조.
+ * AuditorAware가 항상 빈 값을 반환해 이 SYSTEM 폴백이 그대로 DB에 남습니다. 반면 로그아웃은 {@code /api/auth/logout}의 정상 경로가
+ * 유효한 인증을 요구하므로, 실제 저장 시점에는 {@code AuditingEntityListener}가 이 SYSTEM 폴백을 로그아웃한 사용자의 실제 사번으로
+ * 덮어씁니다(SYSTEM은 Refresh 쿠키만으로 폐기하는 비인증 로그아웃 경로에서만 그대로 저장됨). 상세는 {@link Clognh#SYSTEM_AUDITOR}
+ * Javadoc 참조.
  */
 class ClognhTest {
 
@@ -32,8 +32,7 @@ class ClognhTest {
     @Test
     @DisplayName("로그인 실패 이력은 감사자를 SYSTEM으로 기록한다 (비인증 흐름 — 저장 시에도 그대로 유지됨)")
     void createLoginFailure_감사자SYSTEM기록() {
-        Clognh clognh =
-                Clognh.createLoginFailure("E0001", "127.0.0.1", "Mozilla/5.0", "비밀번호 불일치");
+        Clognh clognh = Clognh.createLoginFailure("E0001", "127.0.0.1", "Mozilla/5.0", "비밀번호 불일치");
 
         assertThat(clognh.getFstEnrUsid()).isEqualTo("SYSTEM");
         assertThat(clognh.getLstChgUsid()).isEqualTo("SYSTEM");

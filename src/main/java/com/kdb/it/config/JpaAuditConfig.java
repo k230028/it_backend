@@ -45,10 +45,10 @@ public class JpaAuditConfig {
      * <p>로그인/SSO/토큰 회전처럼 이 Bean이 빈 값을 반환하는(anonymous) 흐름에서 감사자 기록이 필요한 엔티티는 이 Bean에 의존하지 않고 {@link
      * com.kdb.it.domain.entity.BaseEntity#initializeAuditActors(String)} / {@link
      * com.kdb.it.domain.entity.BaseEntity#changeAuditActor(String)}로 감사자를 명시적으로 채웁니다. 실제 적용 사례:
-     * {@code Clognh.createLoginSuccess}/{@code createLoginFailure}/{@code createLogout}은 고정값 {@code "SYSTEM"}을,
-     * {@code Crtokm.create}/{@code markRotated}는 토큰 소유자 사번을 채우며, {@code AuthService}의 로그인·SSO·토큰 회전
-     * 경로가 이 팩토리들을 통해 Refresh Token/로그인 이력을 생성합니다. 이 Bean 내부에 "SYSTEM" 등 전역 기본값을 두지 않는 이유는, 그런
-     * 기본값이 배치/스케줄러 등 실제로 감사자를 채워야 하는 경로의 누락을 감춰버리기 때문입니다.
+     * {@code Clognh.createLoginSuccess}/{@code createLoginFailure}/{@code createLogout}은 고정값 {@code
+     * "SYSTEM"}을, {@code Crtokm.create}/{@code markRotated}는 토큰 소유자 사번을 채우며, {@code AuthService}의
+     * 로그인·SSO·토큰 회전 경로가 이 팩토리들을 통해 Refresh Token/로그인 이력을 생성합니다. 이 Bean 내부에 "SYSTEM" 등 전역 기본값을 두지 않는
+     * 이유는, 그런 기본값이 배치/스케줄러 등 실제로 감사자를 채워야 하는 경로의 누락을 감춰버리기 때문입니다.
      *
      * @return 현재 인증된 사용자의 사번을 담은 {@link Optional} (비인증 시 {@link Optional#empty()})
      */

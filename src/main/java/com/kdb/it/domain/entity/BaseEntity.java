@@ -119,8 +119,8 @@ public abstract class BaseEntity {
     /**
      * 신규 엔티티 생성 시 최초/최종 감사자를 함께 초기화합니다.
      *
-     * <p>로그인 실패 이력, Refresh Token 발급 등 {@link com.kdb.it.config.JpaAuditConfig}의 AuditorAware가 개입할 수
-     * 없는 비인증 흐름에서, 하위 엔티티가 감사자를 명시적으로 기록하기 위해 호출합니다. {@code fstEnrUsid}, {@code lstChgUsid} 두 필드를
+     * <p>로그인 실패 이력, Refresh Token 발급 등 {@link com.kdb.it.config.JpaAuditConfig}의 AuditorAware가 개입할
+     * 수 없는 비인증 흐름에서, 하위 엔티티가 감사자를 명시적으로 기록하기 위해 호출합니다. {@code fstEnrUsid}, {@code lstChgUsid} 두 필드를
      * 동일한 값으로 설정합니다.
      *
      * @param actor 감사자로 기록할 식별자 (예: 로그인 시도 사번, 고정값 "SYSTEM")

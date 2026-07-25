@@ -81,8 +81,8 @@ public class Crtokm extends BaseEntity {
     /**
      * 신규 갱신토큰 생성 정적 팩토리 메서드
      *
-     * <p>로그인/SSO/토큰 회전 시점에는 {@link com.kdb.it.config.JpaAuditConfig}의 AuditorAware가 개입할 수 없는 비인증 흐름이
-     * 대부분이므로, 토큰 소유자 사번({@code eno})을 최초·최종 감사자로 명시적으로 기록합니다. 신규 토큰은 항상 활성({@code avlYn = "Y"})
+     * <p>로그인/SSO/토큰 회전 시점에는 {@link com.kdb.it.config.JpaAuditConfig}의 AuditorAware가 개입할 수 없는 비인증
+     * 흐름이 대부분이므로, 토큰 소유자 사번({@code eno})을 최초·최종 감사자로 명시적으로 기록합니다. 신규 토큰은 항상 활성({@code avlYn = "Y"})
      * 상태로 생성됩니다.
      *
      * @param apiTokCone API토큰내용 (Refresh Token 원문의 SHA-256 HEX 해시)
