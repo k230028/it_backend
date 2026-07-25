@@ -219,7 +219,7 @@ class RefreshTokenIsolationIT {
                     .isEqualTo(1);
             // 회전된(구) 토큰(AVL_YN='N') + 신규 활성 토큰(AVL_YN='Y') = 2행, 패밀리는 폐기되지 않았다.
             assertThat(countFamilyRows(TEST_ENO)).isEqualTo(2);
-        } catch (AssertionError timeoutOrAssertionFailure) {
+        } catch (AssertionError | RuntimeException timeoutOrAssertionFailure) {
             logAllThreadStacks();
             throw timeoutOrAssertionFailure;
         } finally {
