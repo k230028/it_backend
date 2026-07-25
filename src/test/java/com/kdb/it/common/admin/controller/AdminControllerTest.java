@@ -3,6 +3,7 @@ package com.kdb.it.common.admin.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -215,8 +216,35 @@ class AdminControllerTest {
         mockMvc.perform(
                         post("/api/admin/codes/bulk")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"codes\":[]}"))
+                                .content(
+                                        """
+                                        {"codes":[{"cId":"CODE001","cdva":"001","sttDt":"20260101"}]}
+                                        """))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("POST /api/admin/codes/bulk - 빈 목록은 400을 반환하고 서비스를 호출하지 않는다")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void bulkUpsertCodes_빈목록_400반환() throws Exception {
+        mockMvc.perform(
+                        post("/api/admin/codes/bulk")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"codes\":[]}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(adminService);
+    }
+
+    @Test
+    @DisplayName("POST /api/admin/codes/bulk - 시작일자 누락은 400을 반환한다")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void bulkUpsertCodes_시작일자누락_400반환() throws Exception {
+        mockMvc.perform(
+                        post("/api/admin/codes/bulk")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"codes\":[{\"cId\":\"CODE001\",\"cdva\":\"001\"}]}"))
+                .andExpect(status().isBadRequest());
     }
 
     // =========================================================================
