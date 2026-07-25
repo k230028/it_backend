@@ -3,13 +3,20 @@ package com.kdb.it.common.util;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 /**
  * NativeRowMapper 단위 테스트.
@@ -214,6 +221,150 @@ class NativeRowMapperTest {
         void toLd_지원없는타입_Long_null반환() {
             // Long은 String도 아니고 다른 분기에도 해당하지 않으므로 메서드 끝의 return null에 도달한다
             assertThat(NativeRowMapper.toLd(20260701L)).isNull();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // toLd — 변환 실패 시 안전한 제한 경고 로그 (ERR-09)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("toLd 메서드 — 변환 실패를 DB NULL과 구분하는 안전한 제한 경고 로그(ERR-09)")
+    class ToLdWarningLogTests {
+
+        private ListAppender<ILoggingEvent> listAppender;
+        private Logger nativeRowMapperLogger;
+
+        @BeforeEach
+        void setUp() {
+            NativeRowMapper.resetLogLimiter();
+            nativeRowMapperLogger = (Logger) LoggerFactory.getLogger(NativeRowMapper.class);
+            listAppender = new ListAppender<>();
+            listAppender.start();
+            nativeRowMapperLogger.addAppender(listAppender);
+        }
+
+        @AfterEach
+        void tearDown() {
+            nativeRowMapperLogger.detachAppender(listAppender);
+            listAppender.stop();
+            NativeRowMapper.resetLogLimiter();
+        }
+
+        @Test
+        @DisplayName("경계: null이면 경고를 남기지 않는다")
+        void toLd_null_경고없음() {
+            assertThat(NativeRowMapper.toLd(null)).isNull();
+            assertThat(listAppender.list).isEmpty();
+        }
+
+        @Test
+        @DisplayName("경계: 빈 문자열/공백 문자열이면 경고를 남기지 않는다")
+        void toLd_공백문자열_경고없음() {
+            assertThat(NativeRowMapper.toLd("")).isNull();
+            assertThat(NativeRowMapper.toLd("   ")).isNull();
+            assertThat(listAppender.list).isEmpty();
+        }
+
+        @Test
+        @DisplayName("성공 경로(지원 타입/정상 문자열)에서는 결과가 그대로이고 경고가 없다")
+        void toLd_정상변환_결과불변_경고없음() {
+            LocalDate expected = LocalDate.of(2026, 7, 1);
+            LocalDateTime ldt = LocalDateTime.of(2026, 7, 1, 9, 0);
+
+            assertThat(NativeRowMapper.toLd(expected)).isEqualTo(expected);
+            assertThat(NativeRowMapper.toLd(ldt)).isEqualTo(expected);
+            assertThat(NativeRowMapper.toLd(java.sql.Date.valueOf(expected))).isEqualTo(expected);
+            assertThat(NativeRowMapper.toLd(Timestamp.valueOf(ldt))).isEqualTo(expected);
+            assertThat(NativeRowMapper.toLd("20260701")).isEqualTo(expected);
+
+            assertThat(listAppender.list).isEmpty();
+        }
+
+        @Test
+        @DisplayName("오류: 잘못된 날짜 문자열이면 null을 반환하고 경고를 정확히 1건 남긴다")
+        void toLd_잘못된날짜문자열_경고1건() {
+            assertThat(NativeRowMapper.toLd("20269901")).isNull();
+
+            assertThat(listAppender.list).hasSize(1);
+            assertThat(listAppender.list.get(0).getLevel()).isEqualTo(Level.WARN);
+        }
+
+        @Test
+        @DisplayName("오류: 지원하지 않는 타입이면 null을 반환하고 경고를 정확히 1건 남긴다")
+        void toLd_지원없는타입_경고1건() {
+            assertThat(NativeRowMapper.toLd(20260701L)).isNull();
+
+            assertThat(listAppender.list).hasSize(1);
+            assertThat(listAppender.list.get(0).getLevel()).isEqualTo(Level.WARN);
+        }
+
+        @Test
+        @DisplayName("경고 메시지는 클래스명과 정제된 값만 포함하고 스택트레이스를 남기지 않는다")
+        void toLd_경고메시지_클래스명과값만_스택트레이스없음() {
+            assertThat(NativeRowMapper.toLd(20260701L)).isNull();
+
+            ILoggingEvent event = listAppender.list.get(0);
+            assertThat(event.getFormattedMessage()).contains("Long").contains("20260701");
+            assertThat(event.getThrowableProxy()).isNull();
+        }
+
+        @Test
+        @DisplayName("경고 메시지에 SQL/사용자/문서 등 부가 컨텍스트가 포함되지 않는다")
+        void toLd_경고메시지_부가컨텍스트없음() {
+            assertThat(NativeRowMapper.toLd("bad-date-value")).isNull();
+
+            String message = listAppender.list.get(0).getFormattedMessage();
+            assertThat(message).doesNotContainIgnoringCase("select");
+            assertThat(message).doesNotContainIgnoringCase("sql");
+        }
+
+        @Test
+        @DisplayName("정제: 128자를 초과하는 값은 축약되어 로그에 남는다")
+        void toLd_긴값_128자이내로축약() {
+            String longBadValue = "x".repeat(300);
+
+            assertThat(NativeRowMapper.toLd(longBadValue)).isNull();
+
+            String message = listAppender.list.get(0).getFormattedMessage();
+            assertThat(message).doesNotContain("x".repeat(150));
+            assertThat(message.length()).isLessThan(250);
+        }
+
+        @Test
+        @DisplayName("정제: 개행/캐리지리턴/탭 문자는 공백으로 치환되어 로그에 남는다")
+        void toLd_제어문자_공백치환() {
+            assertThat(NativeRowMapper.toLd("bad\r\n\tvalue")).isNull();
+
+            String message = listAppender.list.get(0).getFormattedMessage();
+            assertThat(message).doesNotContain("\r").doesNotContain("\n").doesNotContain("\t");
+            assertThat(message).contains("bad").contains("value");
+        }
+
+        @Test
+        @DisplayName("같은 1분 윈도우 내 반복 실패는 경고를 추가로 남기지 않고 억제 건수만 누적한다")
+        void toLd_윈도우내_반복실패_경고1건만() {
+            assertThat(NativeRowMapper.toLd(1L)).isNull(); // 첫 실패 — 경고 발행
+            assertThat(NativeRowMapper.toLd(2L)).isNull(); // 억제
+            assertThat(NativeRowMapper.toLd(3L)).isNull(); // 억제
+
+            assertThat(listAppender.list).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("윈도우 경과 후 다음 경고는 직전 윈도우의 억제 건수를 포함한다")
+        void toLd_윈도우경과후_억제건수_포함() {
+            assertThat(NativeRowMapper.toLd(1L)).isNull(); // 첫 실패 — 경고 발행(1건)
+            assertThat(NativeRowMapper.toLd(2L)).isNull(); // 억제 1
+            assertThat(NativeRowMapper.toLd(3L)).isNull(); // 억제 2
+
+            // 억제 카운트는 유지한 채 윈도우만 경과시켜(테스트 전용 훅) 실시간 대기 없이 검증한다.
+            NativeRowMapper.expireWarnWindowForTest();
+
+            assertThat(NativeRowMapper.toLd(4L)).isNull(); // 윈도우 경과 후 재발행 — 억제 2건 포함
+
+            assertThat(listAppender.list).hasSize(2);
+            assertThat(listAppender.list.get(1).getFormattedMessage()).contains("2");
         }
     }
 
