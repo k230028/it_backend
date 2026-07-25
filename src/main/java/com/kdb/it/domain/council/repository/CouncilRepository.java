@@ -5,6 +5,7 @@ import com.kdb.it.domain.council.entity.Basctm;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -54,6 +55,39 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      */
     List<Basctm> findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(
             String itPtlAsctDbrTc, String itPtlAsctPrgStsTc, String delYn);
+
+    /**
+     * 조정 계획의 기준이 되는 직전 완료 수립 계획관리번호를 조회합니다.
+     *
+     * @param dbrTc 협의회 심의구분
+     * @param stsTc 협의회 진행상태
+     * @param bseYy 대상년도
+     * @param plnTp 계획구분
+     * @param currentReqDocNo 제외할 현재 계획관리번호
+     * @param pageable 결과 제한
+     * @return 최근 등록순 계획관리번호 목록
+     */
+    @Query(
+            """
+            SELECT c.abusMngNo
+              FROM Basctm c, Bplanm p
+             WHERE c.itPtlAsctDbrTc = :dbrTc
+               AND c.itPtlAsctPrgStsTc = :stsTc
+               AND c.delYn = 'N'
+               AND p.reqDocNo = c.abusMngNo
+               AND p.delYn = 'N'
+               AND p.bseYy = :bseYy
+               AND p.itPtlPlnTpC = :plnTp
+               AND c.abusMngNo <> :currentReqDocNo
+             ORDER BY c.fstEnrDtm DESC, c.itPtlAsctId DESC
+            """)
+    List<String> findBaselineReqDocNos(
+            @Param("dbrTc") String dbrTc,
+            @Param("stsTc") String stsTc,
+            @Param("bseYy") String bseYy,
+            @Param("plnTp") String plnTp,
+            @Param("currentReqDocNo") String currentReqDocNo,
+            Pageable pageable);
 
     /**
      * Oracle 시퀀스(SQ_TPRMPP_BASCTM_1) 다음 값 조회
