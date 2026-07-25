@@ -193,33 +193,28 @@ public class PlanEvaluationService {
     /**
      * 조정 협의회 기준: 같은 대상년도의 '직전 승인(완료 13) 수립(신규) 계획'을 찾는다.
      *
-     * <p>완료된 계획협의회(dbrTc='02', 상태13)를 최근 등록순으로 훑어, 대상 계획이 같은 대상년도이고 계획구분이 '신규'(수립)이며 현재 계획과 다른 첫
-     * 계획을 반환한다. 없으면 null.
+     * <p>완료 협의회와 활성 계획을 조인해 최근 등록순 후보 한 건을 결정한다. 후보가 없으면 null을 반환하고 후보 계획 조회 실패는 호출자에게 전파한다.
+     *
+     * @param bseYy 대상년도
+     * @param currentReqDocNo 제외할 현재 계획관리번호
+     * @return 기준 계획 상세, 후보가 없으면 null
      */
     private PlanDto.DetailResponse findBaselinePlan(String bseYy, String currentReqDocNo) {
         if (bseYy == null) {
             return null;
         }
-        List<Basctm> completed =
-                councilRepository
-                        .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(
-                                "02", "13", "N");
-        for (Basctm c : completed) {
-            String rd = c.getAbusMngNo();
-            if (rd == null || rd.isBlank() || rd.equals(currentReqDocNo)) {
-                continue;
-            }
-            try {
-                PlanDto.DetailResponse p = planService.getPlan(rd);
-                if (bseYy.equals(p.getBseYy()) && "신규".equals(p.getItPtlPlnTpC())) {
-                    return p; // 최근 등록순 첫 매칭 = 직전 승인 수립 계획
-                }
-            } catch (Exception e) {
-                // 계획 조회 실패 시 다음 후보로
-                // TODO: 미존재 예외만 다음 후보로 넘기고 DB·권한·시스템 예외는 기록한 뒤 호출자에게 전파한다.
-            }
+        List<String> reqDocNos =
+                councilRepository.findBaselineReqDocNos(
+                        "02",
+                        "13",
+                        bseYy,
+                        "신규",
+                        currentReqDocNo,
+                        org.springframework.data.domain.PageRequest.of(0, 1));
+        if (reqDocNos.isEmpty()) {
+            return null;
         }
-        return null;
+        return planService.getPlan(reqDocNos.getFirst());
     }
 
     /** 기준 계획 스냅샷에서 사업관리번호 → 예산 노드 매핑(prjBg/assetBg/costBg 조회용). */

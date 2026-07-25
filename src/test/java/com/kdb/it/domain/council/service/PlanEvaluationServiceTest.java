@@ -287,8 +287,8 @@ class PlanEvaluationServiceTest {
         assertThat(result.costCount()).isZero();
         verify(projectService, never()).getProjectsByIds(any());
         verify(councilRepository, never())
-                .findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(
-                        any(), any(), any());
+                .findBaselineReqDocNos(
+                        any(), any(), any(), any(), any(), any(Pageable.class));
     }
 
     @Test

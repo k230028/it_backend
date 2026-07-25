@@ -49,14 +49,6 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
     List<Basctm> findByAbusMngNoAndDelYn(String abusMngNo, String delYn);
 
     /**
-     * 특정 심의유형·진행상태의 협의회 목록 (최근 등록순).
-     *
-     * <p>정보기술부문계획 협의회(dbrTc='02')의 완료(13) 이력에서 '직전 승인 계획'을 찾을 때 사용합니다(조정 협의회의 예산 최초/조정 비교).
-     */
-    List<Basctm> findByItPtlAsctDbrTcAndItPtlAsctPrgStsTcAndDelYnOrderByFstEnrDtmDesc(
-            String itPtlAsctDbrTc, String itPtlAsctPrgStsTc, String delYn);
-
-    /**
      * 조정 계획의 기준이 되는 직전 완료 수립 계획관리번호를 조회합니다.
      *
      * @param dbrTc 협의회 심의구분
