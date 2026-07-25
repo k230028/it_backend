@@ -669,10 +669,14 @@ class CouncilControllerTest {
     /**
      * syncReviewStatus: POST /api/council/{asctId}/result/review/sync
      * resultService.syncReviewStatus(asctId) 위임 및 Boolean 응답 확인
+     *
+     * <p>이 슬라이스는 {@code @EnableMethodSecurity}를 활성화하지 않아 {@code @PreAuthorize}가 적용되지 않으므로,
+     * ADMIN/비-ADMIN 권한 경계 검증은 다루지 않습니다(해당 경계는 {@code CouncilControllerSecurityTest}가 검증). 이 테스트는
+     * ADMIN 신원으로 서비스 위임과 Boolean 응답 매핑만 확인합니다.
      */
     @Test
-    @DisplayName("POST /api/council/{asctId}/result/review/sync - 인증된 사용자 → 200 + Boolean 반환")
-    @WithMockUser(username = "10001")
+    @DisplayName("POST /api/council/{asctId}/result/review/sync - ADMIN → 200 + Boolean 반환")
+    @WithMockUser(username = "10001", roles = "ADMIN")
     void syncReviewStatus_인증_200() throws Exception {
         // Arrange
         given(resultService.syncReviewStatus(ASCT_ID)).willReturn(true);
