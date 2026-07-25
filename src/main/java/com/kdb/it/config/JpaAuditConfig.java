@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -36,11 +37,17 @@ public class JpaAuditConfig {
      *
      * <ol>
      *   <li>Spring Security의 {@link SecurityContextHolder}에서 현재 인증 정보 조회
-     *   <li>인증되지 않은 경우(비로그인, anonymous) → {@link Optional#empty()} 반환 (필드 미기록)
-     *   <li>인증된 경우 → {@code authentication.getName()}으로 JWT principal의 사번 반환
+     *   <li>인증 정보가 없거나(null), 미인증 상태이거나, {@link AnonymousAuthenticationToken}인 경우 → {@link
+     *       Optional#empty()} 반환 (필드 미기록)
+     *   <li>정상 인증된 경우 → {@code authentication.getName()}으로 JWT principal의 사번 반환
      * </ol>
      *
-     * @return 현재 인증된 사용자의 사번을 담은 {@link Optional} (비로그인 시 {@link Optional#empty()})
+     * <p>로그인 실패 이력, Refresh Token 발급 등 비인증 흐름에서 감사자 기록이 필요한 엔티티는 이 Bean에 의존하지 않고 {@link
+     * com.kdb.it.domain.entity.BaseEntity#initializeAuditActors(String)} / {@link
+     * com.kdb.it.domain.entity.BaseEntity#changeAuditActor(String)}로 감사자를 명시적으로 채웁니다. 이 Bean 내부에
+     * "SYSTEM" 등 전역 기본값을 두지 않는 이유는, 그런 기본값이 배치/스케줄러 등 실제로 감사자를 채워야 하는 경로의 누락을 감춰버리기 때문입니다.
+     *
+     * @return 현재 인증된 사용자의 사번을 담은 {@link Optional} (비인증 시 {@link Optional#empty()})
      */
     @Bean
     public AuditorAware<String> auditorProvider() {
@@ -48,10 +55,15 @@ public class JpaAuditConfig {
             // SecurityContextHolder에서 현재 요청의 인증 정보 조회
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-            if (authentication == null || !authentication.isAuthenticated()) {
-                // 로그인되지 않은 경우(비인증 요청): Optional.empty() 반환
+            boolean isNotAuthenticated =
+                    authentication == null
+                            || !authentication.isAuthenticated()
+                            || authentication instanceof AnonymousAuthenticationToken;
+
+            if (isNotAuthenticated) {
+                // 비인증 요청(인증정보 없음/미인증/anonymous): Optional.empty() 반환
                 // → JPA Auditing이 FST_ENR_USID/LST_CHG_USID 필드를 기록하지 않음 (null 유지)
-                // 배치/스케줄러 등 비HTTP 컨텍스트에서는 "SYSTEM" 등 기본값 설정을 검토할 수 있습니다.
+                // anonymous 토큰은 isAuthenticated()가 true를 반환하므로 별도로 명시 검사한다.
                 return Optional.empty();
             }
 

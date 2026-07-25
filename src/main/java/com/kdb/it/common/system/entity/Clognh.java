@@ -79,21 +79,32 @@ public class Clognh extends BaseEntity {
     public static final String LOGOUT = "3";
 
     /**
+     * 로그인 이력 감사자 고정값
+     *
+     * <p>로그인/로그인 실패/로그아웃 이력은 인증이 성립하기 전(또는 인증이 없는) 시점에 생성되므로 {@link
+     * com.kdb.it.config.JpaAuditConfig}의 AuditorAware가 감사자를 채울 수 없습니다. 이 상수를 통해 감사자를 명시적으로 고정합니다.
+     */
+    public static final String SYSTEM_AUDITOR = "SYSTEM";
+
+    /**
      * 로그인 성공 이력 생성 정적 팩토리 메서드
      *
      * @param eno 로그인에 성공한 사용자의 사번
      * @param ipAddr 접속 IP 주소
      * @param agtVrsCone 접속 브라우저/기기 정보
-     * @return 로그인 성공 이력 엔티티 ({@code itPtlLgnTc = "1"})
+     * @return 로그인 성공 이력 엔티티 ({@code itPtlLgnTc = "1"}, 감사자 = {@value #SYSTEM_AUDITOR})
      */
     public static Clognh createLoginSuccess(String eno, String ipAddr, String agtVrsCone) {
-        return Clognh.builder()
-                .eno(eno)
-                .itPtlLgnTc(LOGIN_SUCCESS)
-                .ipAddr(ipAddr)
-                .agtVrsCone(agtVrsCone)
-                .lgnDtm(LocalDateTime.now())
-                .build();
+        Clognh clognh =
+                Clognh.builder()
+                        .eno(eno)
+                        .itPtlLgnTc(LOGIN_SUCCESS)
+                        .ipAddr(ipAddr)
+                        .agtVrsCone(agtVrsCone)
+                        .lgnDtm(LocalDateTime.now())
+                        .build();
+        clognh.initializeAuditActors(SYSTEM_AUDITOR);
+        return clognh;
     }
 
     /**
@@ -103,18 +114,21 @@ public class Clognh extends BaseEntity {
      * @param ipAddr 접속 IP 주소
      * @param agtVrsCone 접속 브라우저/기기 정보
      * @param lgnErrRsn 실패 사유 (예: "비밀번호 불일치", "존재하지 않는 사번")
-     * @return 로그인 실패 이력 엔티티 ({@code itPtlLgnTc = "2"})
+     * @return 로그인 실패 이력 엔티티 ({@code itPtlLgnTc = "2"}, 감사자 = {@value #SYSTEM_AUDITOR})
      */
     public static Clognh createLoginFailure(
             String eno, String ipAddr, String agtVrsCone, String lgnErrRsn) {
-        return Clognh.builder()
-                .eno(eno)
-                .itPtlLgnTc(LOGIN_FAILURE)
-                .ipAddr(ipAddr)
-                .agtVrsCone(agtVrsCone)
-                .lgnDtm(LocalDateTime.now())
-                .lgnErrRsn(lgnErrRsn)
-                .build();
+        Clognh clognh =
+                Clognh.builder()
+                        .eno(eno)
+                        .itPtlLgnTc(LOGIN_FAILURE)
+                        .ipAddr(ipAddr)
+                        .agtVrsCone(agtVrsCone)
+                        .lgnDtm(LocalDateTime.now())
+                        .lgnErrRsn(lgnErrRsn)
+                        .build();
+        clognh.initializeAuditActors(SYSTEM_AUDITOR);
+        return clognh;
     }
 
     /**
@@ -123,15 +137,18 @@ public class Clognh extends BaseEntity {
      * @param eno 로그아웃한 사용자의 사번
      * @param ipAddr 접속 IP 주소
      * @param agtVrsCone 접속 브라우저/기기 정보
-     * @return 로그아웃 이력 엔티티 ({@code itPtlLgnTc = "3"})
+     * @return 로그아웃 이력 엔티티 ({@code itPtlLgnTc = "3"}, 감사자 = {@value #SYSTEM_AUDITOR})
      */
     public static Clognh createLogout(String eno, String ipAddr, String agtVrsCone) {
-        return Clognh.builder()
-                .eno(eno)
-                .itPtlLgnTc(LOGOUT)
-                .ipAddr(ipAddr)
-                .agtVrsCone(agtVrsCone)
-                .lgnDtm(LocalDateTime.now())
-                .build();
+        Clognh clognh =
+                Clognh.builder()
+                        .eno(eno)
+                        .itPtlLgnTc(LOGOUT)
+                        .ipAddr(ipAddr)
+                        .agtVrsCone(agtVrsCone)
+                        .lgnDtm(LocalDateTime.now())
+                        .build();
+        clognh.initializeAuditActors(SYSTEM_AUDITOR);
+        return clognh;
     }
 }

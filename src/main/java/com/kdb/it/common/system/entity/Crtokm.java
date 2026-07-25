@@ -79,6 +79,40 @@ public class Crtokm extends BaseEntity {
     private String avlYn;
 
     /**
+     * 신규 갱신토큰 생성 정적 팩토리 메서드
+     *
+     * <p>로그인/SSO/토큰 회전 시점에는 {@link com.kdb.it.config.JpaAuditConfig}의 AuditorAware가 개입할 수 없는 비인증 흐름이
+     * 대부분이므로, 토큰 소유자 사번({@code eno})을 최초·최종 감사자로 명시적으로 기록합니다. 신규 토큰은 항상 활성({@code avlYn = "Y"})
+     * 상태로 생성됩니다.
+     *
+     * @param apiTokCone API토큰내용 (Refresh Token 원문의 SHA-256 HEX 해시)
+     * @param ecyRnwPubTokCone 암호화갱신발행토큰내용 (조회용 SHA-256 HEX 해시)
+     * @param eno 토큰 소유자 사번 (감사자로도 함께 기록됨)
+     * @param famNm 토큰 패밀리명
+     * @param endDtm 토큰 종료일시
+     * @return 소유자 사번이 감사자로 기록된 신규 Crtokm 엔티티
+     * @throws IllegalArgumentException eno가 null이거나 공백인 경우
+     */
+    public static Crtokm create(
+            String apiTokCone,
+            String ecyRnwPubTokCone,
+            String eno,
+            String famNm,
+            LocalDateTime endDtm) {
+        Crtokm token =
+                Crtokm.builder()
+                        .apiTokCone(apiTokCone)
+                        .ecyRnwPubTokCone(ecyRnwPubTokCone)
+                        .eno(eno)
+                        .famNm(famNm)
+                        .avlYn("Y")
+                        .endDtm(endDtm)
+                        .build();
+        token.initializeAuditActors(eno);
+        return token;
+    }
+
+    /**
      * 토큰 만료 여부 확인 메서드
      *
      * @return true이면 만료됨 (삭제 필요), false이면 유효함
@@ -87,9 +121,16 @@ public class Crtokm extends BaseEntity {
         return LocalDateTime.now().isAfter(endDtm);
     }
 
-    /** 회전 표식 — 신규 토큰 발급 후 이 토큰을 '회전됨(비활성)'으로 표시(삭제 대신 유지하여 재사용 탐지) */
+    /**
+     * 회전 표식 — 신규 토큰 발급 후 이 토큰을 '회전됨(비활성)'으로 표시(삭제 대신 유지하여 재사용 탐지)
+     *
+     * <p>최종 변경 감사자를 토큰 소유자 사번으로 갱신합니다.
+     *
+     * @throws IllegalArgumentException 소유자 사번({@code eno})이 공백인 경우
+     */
     public void markRotated() {
         this.avlYn = "N";
+        changeAuditActor(this.eno);
     }
 
     /** 회전된(이미 사용된) 토큰인지 — AVL_YN='N' */

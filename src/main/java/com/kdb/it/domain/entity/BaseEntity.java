@@ -117,6 +117,46 @@ public abstract class BaseEntity {
     }
 
     /**
+     * 신규 엔티티 생성 시 최초/최종 감사자를 함께 초기화합니다.
+     *
+     * <p>로그인 실패 이력, Refresh Token 발급 등 {@link com.kdb.it.config.JpaAuditConfig}의 AuditorAware가 개입할 수
+     * 없는 비인증 흐름에서, 하위 엔티티가 감사자를 명시적으로 기록하기 위해 호출합니다. {@code fstEnrUsid}, {@code lstChgUsid} 두 필드를
+     * 동일한 값으로 설정합니다.
+     *
+     * @param actor 감사자로 기록할 식별자 (예: 로그인 시도 사번, 고정값 "SYSTEM")
+     * @throws IllegalArgumentException actor가 null이거나 공백인 경우
+     */
+    protected final void initializeAuditActors(String actor) {
+        validateActor(actor);
+        this.fstEnrUsid = actor;
+        this.lstChgUsid = actor;
+    }
+
+    /**
+     * 기존 엔티티 갱신 시 최종 변경 감사자만 갱신합니다.
+     *
+     * <p>최초 생성자({@code fstEnrUsid})는 변경하지 않고 {@code lstChgUsid}만 갱신합니다.
+     *
+     * @param actor 감사자로 기록할 식별자
+     * @throws IllegalArgumentException actor가 null이거나 공백인 경우
+     */
+    protected final void changeAuditActor(String actor) {
+        validateActor(actor);
+        this.lstChgUsid = actor;
+    }
+
+    /**
+     * 감사자 식별자의 공백 여부를 검증합니다.
+     *
+     * @throws IllegalArgumentException actor가 null이거나 공백인 경우
+     */
+    private static void validateActor(String actor) {
+        if (actor == null || actor.isBlank()) {
+            throw new IllegalArgumentException("감사자(actor)는 공백일 수 없습니다.");
+        }
+    }
+
+    /**
      * 논리 삭제(Soft Delete) 처리 메서드
      *
      * <p>실제 DB 레코드를 삭제하지 않고 {@code DEL_YN}을 'Y'로 변경합니다. 데이터 이력 보존 및 복구 가능성을 위해 사용합니다.
