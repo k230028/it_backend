@@ -36,6 +36,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>이 클래스는 {@link com.kdb.it.exception.InvalidRefreshTokenException}을 던지지 않는다 — 그 예외로의 변환은
  * 호출자(오케스트레이터)의 책임이다.
+ *
+ * <p><b>오케스트레이션 계약(Task 5)</b>: {@link #rotate(String)} 호출 전, 오케스트레이터는 반드시 {@code
+ * jwtUtil.validateToken(refreshTokenValue, JwtUtil.TOKEN_USE_REFRESH, false)}로 JWT 서명·형식·만료·용도를 먼저
+ * 검증해 실패 시 {@link com.kdb.it.exception.InvalidRefreshTokenException}으로 거부해야 한다 — 자세한 사유는 {@link
+ * #rotate(String)} Javadoc 참조.
  */
 @Slf4j
 @Component
@@ -60,7 +65,18 @@ public class RefreshTokenRotator {
     /**
      * Refresh Token을 비관적 쓰기 잠금 하에 조회하고, 정상 상태면 회전시켜 결과를 반환한다.
      *
-     * @param refreshTokenValue 클라이언트가 제출한 Refresh Token 원문
+     * <p><b>사전조건(호출자 책임)</b>: 이 메서드를 호출하기 전에 호출자가 {@code jwtUtil.validateToken(refreshTokenValue,
+     * JwtUtil.TOKEN_USE_REFRESH, false)}로 JWT 서명·형식·만료(exp 클레임)와 {@code tokenUse=refresh} 용도를 이미
+     * 검증하고, 실패 시 {@link com.kdb.it.exception.InvalidRefreshTokenException}으로 거부했어야 한다. {@code
+     * rotate()}는 구조적으로 유효한 Refresh JWT가 들어온다고 가정하며, DB 상태 기반 회전·재사용·만료 판단만 수행한다. 이 검증을 rotate() 안으로
+     * 들여오지 않는 이유는 두 가지다: (1) JWT 형식·용도 거부는 오케스트레이터가 소유한 {@code InvalidRefreshTokenException}으로
+     * 귀결되어야 하는데, 이 클래스는 그 예외를 던질 수 없다(마커 예외 전용 계약). (2) 이 검증은 트랜잭션·비관적 쓰기 잠금을 시작하기 전에 실패로 빠르게 끝나야
+     * 한다(fail-fast) — 오케스트레이터가 non-transactional 경계에서 먼저 걸러낸 뒤에만 이 잠금 구간에 진입해야 락 보유 시간을 최소화할 수 있다.
+     *
+     * <p>TODO(Task 5): 오케스트레이터(향후 {@code AuthService})는 이 사전조건을 생략하면 안 된다 — 생략 시 서명·만료·용도가 검증되지 않은
+     * 문자열이 그대로 DB 조회(비관적 쓰기 잠금)까지 도달한다.
+     *
+     * @param refreshTokenValue 클라이언트가 제출한 Refresh Token 원문 — 호출자가 이미 JWT 검증을 통과시킨 값이어야 한다
      * @return 정상 회전 결과 (새 Access/Refresh Token, 소유자 사번)
      * @throws ConcurrentRefreshException grace 기간 내 회전된 토큰이 재제출된 경우 — 재시도 가능, 패밀리는 유지된다
      * @throws FamilyRevocationRequiredException grace 기간 밖 재사용 또는 만료가 감지된 경우 — 호출자가 {@link
@@ -69,6 +85,8 @@ public class RefreshTokenRotator {
      */
     @Transactional
     public RefreshRotationResult rotate(String refreshTokenValue) {
+        // 전제: 호출자가 jwtUtil.validateToken(refreshTokenValue, TOKEN_USE_REFRESH, false)로 이미
+        // JWT 서명·형식·만료·용도를 검증했다. 이 메서드는 DB 상태(AVL_YN/END_DTM) 판단만 담당한다.
         Crtokm refreshToken = findRefreshTokenByValue(refreshTokenValue);
 
         if (refreshToken.isRotated()) {
