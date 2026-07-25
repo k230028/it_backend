@@ -182,12 +182,13 @@ public class PlanEvaluationService {
     private static final String SNAPSHOT_KEY_COST_DETAILS = "costDetails";
 
     /**
-     * 계획 스냅샷(redtConeInf JSON)의 단일 파서 — 요청당 정확히 1회만 {@code readTree()}를 호출한다.
+     * 계획 스냅샷(redtConeInf JSON)의 단일 파서 — 스냅샷 문자열 1건당 정확히 1회만 {@code readTree()}를 호출한다(조정 협의회는 현재
+     * 계획·기준 계획 스냅샷이 서로 다른 문자열이라 각각 1회씩, 요청당 최대 2회).
      *
      * <p>구문/구조 손상이 있어도 예외를 던지지 않고 유효한 부분만 살려 반환하며, {@code incomplete=true}로 원본 데이터 일부가 제외됐음을 알린다.
      * DB/권한/{@code planService.getPlan()} 오류는 이 메서드 밖(호출자)에서 발생하므로 그대로 전파되며 이 메서드가 삼키지 않는다.
      *
-     * <p>구조 판정 흐름(ASCII):
+     * <p>구조 판정 흐름(ASCII, 원소별 검증 순서는 실제 코드 순서와 동일):
      *
      * <pre>
      * json == null || blank?
@@ -201,12 +202,17 @@ public class PlanEvaluationService {
      *                              NO  -&gt; 빈 결과 (incomplete=true)     // 알려진 루트 키 없음
      *                              YES -&gt; 부분별(사업 배열 · 전산업무비 배열) 개별 검증:
      *                                       존재하지만 배열 아님 -&gt; 그 부분만 제외 + incomplete=true
-     *                                       배열 -&gt; 원소별 검증
-     *                                         객체 아님          -&gt; 그 원소 제외 + incomplete=true
-     *                                         prjMngNo 없음/공백 -&gt; 그 원소 제외 + incomplete=true
-     *                                         ornYn='Y'          -&gt; 경상사업 제외(손상 아님, 플래그 없음)
-     *                                         abusNm 없음        -&gt; 사업은 유지, 이름매핑만 생략 +
-     *                                                                incomplete=true(호출부는 관리번호로 대체)
+     *                                       배열 -&gt; 원소별로 아래 순서대로 검증
+     *                                         1) 객체 아님?
+     *                                              YES -&gt; 그 원소 제외 + incomplete=true
+     *                                         2) ornYn='Y'(경상사업)?
+     *                                              YES -&gt; 그 원소 제외, incomplete 플래그는 세우지
+     *                                                      않음(정상 필터링이지 손상이 아님)
+     *                                         3) prjMngNo 없음/공백? (경상사업이 아닌 원소만 해당)
+     *                                              YES -&gt; 그 원소 제외 + incomplete=true
+     *                                         4) abusNm 없음?
+     *                                              YES -&gt; 사업 노드는 유지하되 이름매핑만 생략 +
+     *                                                      incomplete=true(호출부는 관리번호로 대체)
      * </pre>
      *
      * <p>입력 계약을 변경하면 이 주석과 {@code PlanEvaluationServiceTest}의 대응 테스트를 함께 갱신한다.
@@ -455,8 +461,13 @@ public class PlanEvaluationService {
      * <p>사업별 최종 판정과 유보 사유를 HTML 표로 렌더링해 결과서(BRSLTM) 본문 프리필에 사용합니다. 사업명은 대상 계획 스냅샷(prjSnapshots의
      * prjMngNo→abusNm)에서 해석하며, 없으면 사업관리번호로 대체합니다.
      *
+     * <p>사업명 해석도 {@link #parseSnapshot}을 통하므로 스냅샷이 구문/구조 손상이어도 예외로 실패하지 않습니다. 손상 시 사업명 매핑이 비거나 일부
+     * 누락된 채 사업관리번호 대체 표시로 부분 응답을 구성하고, {@link
+     * CouncilDto.PlanResultSummaryResponse#snapshotIncomplete()}를 true로 설정합니다. 다만 DB/권한 오류나 {@code
+     * planService.getPlan()} 조회 실패는 파싱 손상과 무관하므로 그대로 전파합니다.
+     *
      * @param asctId 협의회ID
-     * @return 요약 HTML + 구조화 판정
+     * @return 요약 HTML + 구조화 판정, 스냅샷 손상 시 부분 데이터 + snapshotIncomplete=true
      */
     public CouncilDto.PlanResultSummaryResponse buildResultSummary(String asctId) {
         Basctm council = councilService.findActiveCouncil(asctId);
