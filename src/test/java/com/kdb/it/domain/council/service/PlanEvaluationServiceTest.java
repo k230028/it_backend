@@ -22,6 +22,7 @@ import com.kdb.it.domain.council.entity.Bplevm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.PlanEvaluationRepository;
+import com.kdb.it.exception.DataCorruptionException;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.List;
@@ -269,8 +270,8 @@ class PlanEvaluationServiceTest {
     }
 
     @Test
-    @DisplayName("getPlanTargets: 손상된 스냅샷과 대상년도 없음은 빈 결과로 안전하게 처리한다")
-    void getPlanTargets_invalidSnapshotReturnsEmptyTargets() {
+    @DisplayName("getPlanTargets: 손상된 스냅샷은 계획관리번호를 포함한 데이터 손상 예외를 반환한다")
+    void getPlanTargets_invalidSnapshotThrowsDataCorruption() {
         Basctm council = mock(Basctm.class);
         given(council.getAbusMngNo()).willReturn("PLN-BROKEN");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
@@ -281,14 +282,33 @@ class PlanEvaluationServiceTest {
                                 .redtConeInf("{broken")
                                 .build());
 
-        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
-
-        assertThat(result.businesses()).isEmpty();
-        assertThat(result.costCount()).isZero();
+        assertThatThrownBy(() -> planEvaluationService.getPlanTargets(ASCT_ID))
+                .isInstanceOf(DataCorruptionException.class)
+                .hasMessageContaining("PLN-BROKEN");
         verify(projectService, never()).getProjectsByIds(any());
         verify(councilRepository, never())
                 .findBaselineReqDocNos(
                         any(), any(), any(), any(), any(), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("getPlanTargets: 비어 있는 유효 스냅샷은 빈 심의 대상을 반환한다")
+    void getPlanTargets_emptySnapshotReturnsEmptyTargets() {
+        Basctm council = mock(Basctm.class);
+        given(council.getAbusMngNo()).willReturn("PLN-EMPTY");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        given(planService.getPlan("PLN-EMPTY"))
+                .willReturn(
+                        PlanDto.DetailResponse.builder()
+                                .bseYy("2026")
+                                .itPtlPlnTpC("신규")
+                                .redtConeInf("{\"prjSnapshots\":[],\"costDetails\":[]}")
+                                .build());
+
+        CouncilDto.PlanTargetsResponse result = planEvaluationService.getPlanTargets(ASCT_ID);
+
+        assertThat(result.businesses()).isEmpty();
+        assertThat(result.costCount()).isZero();
     }
 
     @Test
