@@ -69,8 +69,7 @@ public class ReviewCommentDto {
      * 검토의견 조회 응답 DTO
      *
      * <p>작성자 사번({@code authorEno})은 {@link Brivgm}의 {@code FST_ENR_USID}에서 가져오며, 작성자 이름({@code
-     * authorName})은 별도 조회(TPRMPP_CUSERI JOIN)하여 주입합니다. 후속 과제: 프론트엔드의 {@code
-     * ReviewComment.authorTeam} 임시값을 제거할 수 있도록 조직 테이블(TPRMPP_CORGNI) 조인 기반 작성자 팀명 응답 필드를 추가해야 합니다.
+     * authorName})과 팀명({@code authorTeam})은 사용자 프로젝션으로 주입합니다.
      */
     @Getter
     public static class Response {
@@ -104,16 +103,20 @@ public class ReviewCommentDto {
         /** 작성자 이름 (CuserI JOIN 결과) */
         private final String authorName;
 
+        /** 작성자 팀명 (CuserI JOIN 결과, 미등록 시 빈 문자열) */
+        private final String authorTeam;
+
         /** 생성일시 (yyyy-MM-dd'T'HH:mm:ss 포맷 문자열) */
         private final String createdAt;
 
         /**
-         * {@link Brivgm} 엔티티와 작성자 이름으로 Response를 생성합니다.
+         * {@link Brivgm} 엔티티와 작성자 정보로 Response를 생성합니다.
          *
          * @param e 검토의견 엔티티
-         * @param authorName 작성자 이름 (미조회 시 null 허용)
+         * @param authorName 작성자 이름 (미조회 또는 빈값이면 사번으로 보정된 값)
+         * @param authorTeam 작성자 팀명 (미조회 시 빈 문자열)
          */
-        public Response(Brivgm e, String authorName) {
+        public Response(Brivgm e, String authorName, String authorTeam) {
             this.ipmOpnnSno = e.getIpmOpnnSno();
             this.docMngNo = e.getDocMngNo();
             // 저장 정수 버전 → 화면 소수 버전(÷ 100)
@@ -125,6 +128,7 @@ public class ReviewCommentDto {
             this.rslvYn = e.getFsgYn();
             this.authorEno = e.getFstEnrUsid();
             this.authorName = authorName;
+            this.authorTeam = authorTeam == null ? "" : authorTeam;
             this.createdAt = e.getFstEnrDtm() != null ? e.getFstEnrDtm().format(FORMATTER) : null;
         }
     }
