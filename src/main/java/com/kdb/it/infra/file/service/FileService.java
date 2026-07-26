@@ -89,6 +89,7 @@ public class FileService {
                 .flPysNm(cfilem.getFlPysNm())
                 .flKpnPth(cfilem.getFlKpnPth())
                 .flTpCone(cfilem.getFlTpCone())
+                .apgFlSz(cfilem.getApgFlSz())
                 .pkCone(cfilem.getPkCone())
                 .pkColNm(cfilem.getPkColNm())
                 .fstEnrDtm(cfilem.getFstEnrDtm())

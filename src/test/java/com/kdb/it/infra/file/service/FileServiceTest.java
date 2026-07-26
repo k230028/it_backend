@@ -90,6 +90,7 @@ class FileServiceTest {
         given(f.getFlTpCone()).willReturn("첨부파일");
         given(f.getPkCone()).willReturn("PRJ-2026-0001");
         given(f.getPkColNm()).willReturn("요구사항정의서");
+        given(f.getApgFlSz()).willReturn(1234L);
         given(f.getFstEnrUsid()).willReturn("E0001");
         return f;
     }
@@ -118,6 +119,7 @@ class FileServiceTest {
 
         assertThat(result.getFlMpnId()).isEqualTo(FL_MNG_NO);
         assertThat(result.getFlNm()).isEqualTo("테스트파일.pdf");
+        assertThat(result.getApgFlSz()).isEqualTo(1234L);
         assertThat(result.getDownloadUrl()).isEqualTo("/api/files/" + FL_MNG_NO + "/download");
     }
 
