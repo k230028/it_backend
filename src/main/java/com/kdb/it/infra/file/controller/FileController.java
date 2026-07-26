@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -67,6 +69,28 @@ public class FileController {
             @ModelAttribute FileDto.SearchCondition condition,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.ok(fileService.getFiles(condition, userDetails));
+    }
+
+    /**
+     * 여러 부모 키에 연결된 파일을 한 번에 조회합니다.
+     *
+     * @param pkColNm 주식별자컬럼명
+     * @param pkCones 반복 가능한 주식별자내용
+     * @param userDetails 인증 사용자
+     * @return 요청한 부모 키별 접근 가능한 파일 목록
+     * @throws com.kdb.it.exception.CustomGeneralException 종류나 부모 키가 비어 있거나 공백인 경우
+     */
+    @GetMapping("/batch")
+    @Operation(
+            summary = "여러 부모의 파일 일괄 조회",
+            description =
+                    "pkCone 쿼리 파라미터를 반복해 여러 부모의 파일을 한 번에 조회합니다. "
+                            + "파일이 없거나 읽기 권한이 없는 부모는 빈 목록으로 반환합니다.")
+    public ResponseEntity<Map<String, List<FileDto.Response>>> getFilesBatch(
+            @RequestParam("pkColNm") String pkColNm,
+            @RequestParam("pkCone") List<String> pkCones,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(fileService.getFilesBatch(pkColNm, pkCones, userDetails));
     }
 
     /**

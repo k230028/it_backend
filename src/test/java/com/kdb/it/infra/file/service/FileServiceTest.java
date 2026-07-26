@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -301,6 +303,62 @@ class FileServiceTest {
         verify(fileOwnershipChecker, times(1)).canRead(doc1a, USER);
         verify(fileOwnershipChecker, never()).canRead(doc1b, USER);
         verify(fileOwnershipChecker, times(1)).canRead(doc2, USER);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // getFilesBatch — 여러 부모 일괄 조회
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getFilesBatch: 중복 부모를 제거해 한 번 조회하고 요청한 모든 부모를 결과에 포함한다")
+    void getFilesBatch_중복부모_한번조회_빈그룹포함() {
+        Cfilem first = mockCfilemWithParent("FL_00000002", "검토의견", "101");
+        Cfilem second = mockCfilemWithParent("FL_00000001", "검토의견", "101");
+        Cfilem denied = mockCfilemWithParent("FL_00000003", "검토의견", "102");
+        given(
+                        fileRepository.findAllByPkColNmAndPkConeInAndDelYn(
+                                "검토의견", Set.of("101", "102", "103"), "N"))
+                .willReturn(List.of(first, denied, second));
+        given(fileOwnershipChecker.canRead(first, USER)).willReturn(true);
+        given(fileOwnershipChecker.canRead(denied, USER)).willReturn(false);
+
+        Map<String, List<FileDto.Response>> result =
+                fileService.getFilesBatch("검토의견", List.of("101", "102", "101", "103"), USER);
+
+        assertThat(result.keySet()).containsExactly("101", "102", "103");
+        assertThat(result.get("101"))
+                .extracting(FileDto.Response::getFlMpnId)
+                .containsExactly("FL_00000001", "FL_00000002");
+        assertThat(result.get("102")).isEmpty();
+        assertThat(result.get("103")).isEmpty();
+        verify(fileRepository, times(1))
+                .findAllByPkColNmAndPkConeInAndDelYn("검토의견", Set.of("101", "102", "103"), "N");
+        verify(fileOwnershipChecker, times(1)).canRead(first, USER);
+        verify(fileOwnershipChecker, never()).canRead(second, USER);
+        verify(fileOwnershipChecker, times(1)).canRead(denied, USER);
+    }
+
+    @Test
+    @DisplayName("getFilesBatch: 부모 키 목록이 비어 있으면 조회하지 않고 거부한다")
+    void getFilesBatch_빈부모목록_거부() {
+        assertThatThrownBy(() -> fileService.getFilesBatch("검토의견", List.of(), USER))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("pkCone");
+
+        verifyNoInteractions(fileRepository);
+    }
+
+    @Test
+    @DisplayName("getFilesBatch: 종류나 부모 키에 공백이 있으면 조회하지 않고 거부한다")
+    void getFilesBatch_공백입력_거부() {
+        assertThatThrownBy(() -> fileService.getFilesBatch(" ", List.of("101"), USER))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("pkColNm");
+        assertThatThrownBy(() -> fileService.getFilesBatch("검토의견", List.of("101", " "), USER))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("pkCone");
+
+        verifyNoInteractions(fileRepository);
     }
 
     // ───────────────────────────────────────────────────────

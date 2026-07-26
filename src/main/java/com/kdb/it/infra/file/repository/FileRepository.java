@@ -4,6 +4,7 @@ import com.kdb.it.infra.file.entity.Cfilem;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -59,6 +60,17 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
      * @return 조건에 맞는 파일 목록
      */
     List<Cfilem> findAllByPkColNmAndPkConeAndDelYn(String pkColNm, String pkCone, String delYn);
+
+    /**
+     * 주식별자컬럼명과 여러 주식별자내용으로 파일 목록을 한 번에 조회합니다.
+     *
+     * @param pkColNm 주식별자컬럼명
+     * @param pkCones 중복이 제거된 주식별자내용 집합
+     * @param delYn 삭제여부
+     * @return 조건에 맞는 파일 목록
+     */
+    List<Cfilem> findAllByPkColNmAndPkConeInAndDelYn(
+            String pkColNm, Set<String> pkCones, String delYn);
 
     /**
      * 주식별자컬럼명과 주식별자내용에 연결된 파일 수를 삭제 여부별로 집계합니다.

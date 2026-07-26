@@ -11,9 +11,13 @@ import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -176,6 +180,58 @@ public class FileService {
                                         ignored -> fileOwnershipChecker.canRead(file, user)))
                 .map(this::toResponse)
                 .toList();
+    }
+
+    /**
+     * 여러 부모에 연결된 파일을 한 번에 조회하고 부모별 읽기 권한을 적용합니다.
+     *
+     * <p>중복 부모 키는 최초 요청 순서로 한 번만 처리하며, 파일이 없거나 읽을 수 없는 부모도 빈 목록으로 결과에 포함합니다. 파일 조회는 한 번만 수행하고 같은
+     * 부모의 읽기 권한도 한 번만 판정합니다.
+     *
+     * @param pkColNm 주식별자컬럼명
+     * @param pkCones 조회할 부모 키 목록
+     * @param user 현재 인증 사용자
+     * @return 부모 키를 키로 하는 접근 가능한 파일 목록
+     * @throws CustomGeneralException 종류 또는 부모 키가 비어 있거나 공백인 경우
+     */
+    public Map<String, List<FileDto.Response>> getFilesBatch(
+            String pkColNm, List<String> pkCones, CustomUserDetails user) {
+        if (!StringUtils.hasText(pkColNm)) {
+            throw new CustomGeneralException("주식별자컬럼명(pkColNm)은 필수입니다.");
+        }
+        if (pkCones == null
+                || pkCones.isEmpty()
+                || pkCones.stream().anyMatch(pkCone -> !StringUtils.hasText(pkCone))) {
+            throw new CustomGeneralException("주식별자내용(pkCone)은 한 건 이상 필요하며 공백일 수 없습니다.");
+        }
+
+        Set<String> distinctParents = new LinkedHashSet<>(pkCones);
+        Map<String, List<Cfilem>> filesByParent = new LinkedHashMap<>();
+        distinctParents.forEach(parent -> filesByParent.put(parent, new ArrayList<>()));
+        fileRepository
+                .findAllByPkColNmAndPkConeInAndDelYn(pkColNm, distinctParents, "N")
+                .forEach(
+                        file -> {
+                            List<Cfilem> group = filesByParent.get(file.getPkCone());
+                            if (group != null) {
+                                group.add(file);
+                            }
+                        });
+
+        Map<String, List<FileDto.Response>> result = new LinkedHashMap<>();
+        Comparator<Cfilem> byFileId =
+                Comparator.comparing(
+                        Cfilem::getFlMpnId, Comparator.nullsLast(Comparator.naturalOrder()));
+        filesByParent.forEach(
+                (parent, files) -> {
+                    if (files.isEmpty() || !fileOwnershipChecker.canRead(files.getFirst(), user)) {
+                        result.put(parent, List.of());
+                        return;
+                    }
+                    result.put(
+                            parent, files.stream().sorted(byFileId).map(this::toResponse).toList());
+                });
+        return result;
     }
 
     // ─────────────────────────────────────────
