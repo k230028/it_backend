@@ -335,15 +335,10 @@ class FileServiceTest {
         given(cfilem.getPkColNm()).willReturn("공통게시판");
         given(cfilem.getPkCone()).willReturn("NAC-001");
         given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
-        given(fileRepository.countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N"))
-                .willReturn(1L);
-
         fileService.deleteFile(FL_MNG_NO);
 
-        var order = org.mockito.Mockito.inOrder(cfilem, fileRepository, boardPostFileCacheService);
-        order.verify(cfilem).delete();
-        order.verify(fileRepository).countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N");
-        order.verify(boardPostFileCacheService).sync("NAC-001", 1);
+        verify(cfilem).delete();
+        verify(boardPostFileCacheService).syncFromActiveFiles("NAC-001");
     }
 
     @Test
@@ -354,10 +349,7 @@ class FileServiceTest {
 
         fileService.deleteFile(FL_MNG_NO);
 
-        verify(boardPostFileCacheService, never())
-                .sync(
-                        org.mockito.ArgumentMatchers.anyString(),
-                        org.mockito.ArgumentMatchers.anyInt());
+        verifyNoInteractions(boardPostFileCacheService);
     }
 
     // ───────────────────────────────────────────────────────
@@ -666,8 +658,6 @@ class FileServiceTest {
     void uploadFile_공통게시판_활성파일수동기화(@TempDir java.nio.file.Path tempDir) {
         configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
-        given(fileRepository.countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N"))
-                .willReturn(2L);
         MockMultipartFile file =
                 new MockMultipartFile(
                         "file",
@@ -684,7 +674,7 @@ class FileServiceTest {
         String result = fileService.uploadFile(file, request);
 
         assertThat(result).isEqualTo("FL_00000001");
-        verify(boardPostFileCacheService).sync("NAC-001", 2);
+        verify(boardPostFileCacheService).syncFromActiveFiles("NAC-001");
     }
 
     @Test
@@ -692,8 +682,6 @@ class FileServiceTest {
     void uploadFileAndGet_공통게시판_활성파일수동기화(@TempDir java.nio.file.Path tempDir) {
         configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
-        given(fileRepository.countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N"))
-                .willReturn(3L);
         MockMultipartFile file =
                 new MockMultipartFile(
                         "file",
@@ -710,7 +698,7 @@ class FileServiceTest {
         FileDto.Response result = fileService.uploadFileAndGet(file, request);
 
         assertThat(result.getFlNm()).isEqualTo("설계서.pdf");
-        verify(boardPostFileCacheService).sync("NAC-001", 3);
+        verify(boardPostFileCacheService).syncFromActiveFiles("NAC-001");
     }
 
     @Test
@@ -794,8 +782,6 @@ class FileServiceTest {
     void uploadFiles_공통게시판부분성공_활성파일수동기화(@TempDir java.nio.file.Path tempDir) {
         configureUploadUnit(tempDir);
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
-        given(fileRepository.countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N"))
-                .willReturn(1L);
         MockMultipartFile okFile =
                 new MockMultipartFile(
                         "files", "ok.txt", "text/plain", "ok".getBytes(StandardCharsets.UTF_8));
@@ -813,7 +799,7 @@ class FileServiceTest {
 
         assertThat(result.getSuccessList()).hasSize(1);
         assertThat(result.getFailList()).hasSize(1);
-        verify(boardPostFileCacheService).sync("NAC-001", 1);
+        verify(boardPostFileCacheService).syncFromActiveFiles("NAC-001");
     }
 
     @Test

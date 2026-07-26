@@ -349,8 +349,7 @@ public class FileService {
         if (!"공통게시판".equals(pkColNm) || !StringUtils.hasText(pkCone)) {
             return;
         }
-        long activeFileCount = fileRepository.countByPkColNmAndPkConeAndDelYn(pkColNm, pkCone, "N");
-        boardPostFileCacheService.sync(pkCone, Math.toIntExact(activeFileCount));
+        boardPostFileCacheService.syncFromActiveFiles(pkCone);
     }
 
     /**
