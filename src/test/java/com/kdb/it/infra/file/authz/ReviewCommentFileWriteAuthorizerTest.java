@@ -89,4 +89,26 @@ class ReviewCommentFileWriteAuthorizerTest {
 
         verifyNoInteractions(commentRepository);
     }
+
+    @Test
+    @DisplayName("대상 부모 판정도 활성 검토의견 작성자 또는 관리자만 허용한다")
+    void targetWriteUsesActiveCommentAuthor() {
+        given(commentRepository.findByIpmOpnnSnoAndDelYn(101L, "N"))
+                .willReturn(Optional.of(comment("AUTHOR")));
+
+        assertThat(authorizer.canWrite("101", user("AUTHOR"))).isTrue();
+        assertThat(authorizer.canWrite("101", user("OTHER"))).isFalse();
+    }
+
+    @Test
+    @DisplayName("대상 부모가 없거나 숫자가 아니면 관리자도 거부한다")
+    void targetWriteRejectsMissingOrMalformedParentForAdmin() {
+        CustomUserDetails admin =
+                new CustomUserDetails("ADMIN", List.of(CustomUserDetails.ATH_ADMIN), "D999");
+        given(commentRepository.findByIpmOpnnSnoAndDelYn(404L, "N")).willReturn(Optional.empty());
+
+        assertThat(authorizer.canWrite("404", admin)).isFalse();
+        assertThat(authorizer.canWrite("not-a-number", admin)).isFalse();
+        assertThat(authorizer.canWrite((String) null, admin)).isFalse();
+    }
 }
