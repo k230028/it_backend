@@ -337,6 +337,9 @@ public class BoardPostDto {
         @Schema(description = "담당부서코드")
         private String bbrC;
 
+        @Schema(description = "관리자도 공개 게시물과 공개기간 내 게시물만 조회할지 여부", example = "false")
+        private boolean publicOnly;
+
         @Schema(description = "페이지 번호 (0-based)", example = "0")
         private int page;
 

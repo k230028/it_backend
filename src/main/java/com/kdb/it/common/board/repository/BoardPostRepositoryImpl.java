@@ -27,7 +27,8 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
     /**
      * 게시물 목록을 검색합니다.
      *
-     * <p>관리자가 아닌 사용자는 {@code SRE_YN='Y'}와 공개 기간을 모두 만족하는 게시물만 조회합니다. 검색어는 제목, 본문, 작성자 사번에 적용합니다.
+     * <p>관리자가 아닌 사용자와 {@code publicOnly=true} 요청은 노출여부와 공개 기간을 모두 만족하는 게시물만 조회합니다. 검색어는 제목, 본문, 작성자
+     * 사번에 적용합니다.
      *
      * @param blbMngNo 게시판관리번호
      * @param cond 검색 조건과 페이지 조건
@@ -114,7 +115,7 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
         builder.and(p.blbMngNo.eq(blbMngNo));
         builder.and(p.delYn.eq("N"));
 
-        if (!isAdmin) {
+        if (!isAdmin || cond.isPublicOnly()) {
             LocalDate today = LocalDate.now();
             builder.and(p.xpoYn.eq("Y"));
             builder.and(p.sttDt.isNull().or(p.sttDt.loe(today)));
