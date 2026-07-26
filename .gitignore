@@ -46,3 +46,9 @@ out/
 
 # 미정의 Logback 경로 변수가 만든 로컬 로그 생성물
 /LOG_PATH_IS_UNDEFINED/
+
+# 미사용 중복 아티팩트 (lombok은 Gradle 의존성으로 관리)
+/lib/lombok.jar
+
+# SSO 벤더 배포물 (로컬 사본만 유지, 저장소 추적 제외)
+/sso/
