@@ -47,15 +47,12 @@ public class ReviewCommentFileReadAuthorizer implements FileReadAuthorizer {
             return false;
         }
 
-        if (user.isAdmin()) {
-            return true;
-        }
-
         return brivgmRepository
                 .findByIpmOpnnSnoAndDelYn(commentId, "N")
                 .map(
                         comment -> {
-                            if (Objects.equals(user.getEno(), comment.getFstEnrUsid())) {
+                            if (user.isAdmin()
+                                    || Objects.equals(user.getEno(), comment.getFstEnrUsid())) {
                                 return true;
                             }
                             return serviceRequestDocRepository

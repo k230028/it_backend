@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.authz.FileReadAuthorizerRegistry;
+import com.kdb.it.infra.file.authz.ReviewCommentFileWriteAuthorizer;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import java.util.List;
@@ -34,6 +35,7 @@ class FileOwnershipCheckerTest {
 
     @Mock private FileRepository fileRepository;
     @Mock private FileReadAuthorizerRegistry readAuthorizerRegistry;
+    @Mock private ReviewCommentFileWriteAuthorizer reviewCommentFileWriteAuthorizer;
 
     @InjectMocks private FileOwnershipChecker fileOwnershipChecker;
 
@@ -83,6 +85,40 @@ class FileOwnershipCheckerTest {
 
             assertThatThrownBy(() -> fileOwnershipChecker.verifyWriteAccess("FL_00000001", other))
                     .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("검토의견 첨부는 업로더가 달라도 댓글 작성자 판정이 허용하면 통과한다")
+        void verifyWriteAccess_reviewComment_authorizerAllowsAuthor() {
+            Cfilem file = mock(Cfilem.class);
+            given(file.getPkColNm())
+                    .willReturn(ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND);
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_REVIEW_01", "N"))
+                    .willReturn(Optional.of(file));
+            CustomUserDetails author =
+                    new CustomUserDetails("AUTHOR", List.of("ITPZZ001"), "IT001");
+            given(reviewCommentFileWriteAuthorizer.canWrite(file, author)).willReturn(true);
+
+            assertThatCode(() -> fileOwnershipChecker.verifyWriteAccess("FL_REVIEW_01", author))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("검토의견 첨부 업로더라도 댓글 작성자 판정이 거부하면 403이 발생한다")
+        void verifyWriteAccess_reviewComment_authorizerDeniesUploader() {
+            Cfilem file = mock(Cfilem.class);
+            given(file.getPkColNm())
+                    .willReturn(ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND);
+            given(fileRepository.findByFlMpnIdAndDelYn("FL_REVIEW_02", "N"))
+                    .willReturn(Optional.of(file));
+            CustomUserDetails uploader =
+                    new CustomUserDetails("UPLOADER", List.of("ITPZZ001"), "IT001");
+            given(reviewCommentFileWriteAuthorizer.canWrite(file, uploader)).willReturn(false);
+
+            assertThatThrownBy(
+                            () -> fileOwnershipChecker.verifyWriteAccess("FL_REVIEW_02", uploader))
+                    .isInstanceOf(AccessDeniedException.class)
+                    .hasMessageContaining("파일 쓰기 권한이 없습니다");
         }
 
         @Test

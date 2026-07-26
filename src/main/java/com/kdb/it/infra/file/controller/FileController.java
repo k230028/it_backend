@@ -215,12 +215,13 @@ public class FileController {
             description =
                     "파일이 연결된 원본 도메인 정보(주식별자컬럼명, 주식별자내용)를 변경합니다. "
                             + "파일 자체(파일물리명, 저장경로)는 변경되지 않습니다. "
-                            + "파일 교체가 필요하면 삭제 후 재업로드를 사용하세요.")
+                            + "파일 교체가 필요하면 삭제 후 재업로드를 사용하세요. "
+                            + "검토의견 첨부는 활성 댓글 작성자 또는 관리자만 수정할 수 있으며, 다른 종류는 업로더 또는 관리자만 수정할 수 있습니다.")
     public ResponseEntity<String> updateFileMeta(
             @PathVariable("flMpnId") String flMpnId,
             @org.springframework.web.bind.annotation.RequestBody FileDto.UpdateRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        // 쓰기 권한 검증 — 본인 또는 관리자만 허용(403). 단건 삭제와 동일 정책
+        // 쓰기 권한 검증 — 파일 종류별 작성자 또는 관리자 정책을 적용한다.
         fileOwnershipChecker.verifyWriteAccess(flMpnId, userDetails);
         String updatedFlMpnId = fileService.updateFileMeta(flMpnId, request);
         return ResponseEntity.ok(updatedFlMpnId);
@@ -241,11 +242,13 @@ public class FileController {
     @DeleteMapping("/{flMpnId}")
     @Operation(
             summary = "파일 단건 삭제",
-            description = "파일을 논리 삭제합니다(DEL_YN='Y'). 본인이 업로드한 파일만 삭제 가능합니다. 물리 파일은 서버에 유지됩니다.")
+            description =
+                    "파일을 논리 삭제합니다(DEL_YN='Y'). 검토의견 첨부는 활성 댓글 작성자 또는 관리자만 삭제할 수 있으며, "
+                            + "다른 종류는 업로더 또는 관리자만 삭제할 수 있습니다. 물리 파일은 서버에 유지됩니다.")
     public ResponseEntity<Void> deleteFile(
             @PathVariable("flMpnId") String flMpnId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        // 쓰기 권한 검증 — 본인 또는 관리자만 허용(403). 관리자는 타인 파일도 삭제 가능 (SEC-02)
+        // 쓰기 권한 검증 — 파일 종류별 작성자 또는 관리자 정책을 적용한다.
         fileOwnershipChecker.verifyWriteAccess(flMpnId, userDetails);
         fileService.deleteFile(flMpnId);
         return ResponseEntity.noContent().build();

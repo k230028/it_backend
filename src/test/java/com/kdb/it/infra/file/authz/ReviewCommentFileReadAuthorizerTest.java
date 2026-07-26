@@ -60,12 +60,41 @@ class ReviewCommentFileReadAuthorizerTest {
     }
 
     @Test
-    @DisplayName("유효한 부모 키의 관리자는 부모 조회 없이 읽을 수 있다")
-    void adminCanReadValidParentWithoutLookup() {
+    @DisplayName("유효한 검토의견 부모를 확인한 관리자는 읽을 수 있다")
+    void adminCanReadAfterParentLookup() {
+        Brivgm comment = comment("E001", "DOC-1", "101");
+        given(commentRepository.findByIpmOpnnSnoAndDelYn(101L, "N"))
+                .willReturn(Optional.of(comment));
         CustomUserDetails admin =
                 new CustomUserDetails("A001", List.of(CustomUserDetails.ATH_ADMIN), "OTHER");
 
         assertThat(authorizer.canRead(file("101"), admin)).isTrue();
+
+        verify(commentRepository).findByIpmOpnnSnoAndDelYn(101L, "N");
+        verifyNoInteractions(docRepository);
+    }
+
+    @Test
+    @DisplayName("관리자도 존재하지 않는 검토의견 부모는 읽을 수 없다")
+    void adminCannotReadUnknownParent() {
+        given(commentRepository.findByIpmOpnnSnoAndDelYn(404L, "N")).willReturn(Optional.empty());
+        CustomUserDetails admin =
+                new CustomUserDetails("A001", List.of(CustomUserDetails.ATH_ADMIN), "OTHER");
+
+        assertThat(authorizer.canRead(file("404"), admin)).isFalse();
+
+        verify(commentRepository).findByIpmOpnnSnoAndDelYn(404L, "N");
+        verifyNoInteractions(docRepository);
+    }
+
+    @Test
+    @DisplayName("관리자도 null 또는 숫자가 아닌 검토의견 부모는 읽을 수 없다")
+    void adminCannotReadMissingOrMalformedParent() {
+        CustomUserDetails admin =
+                new CustomUserDetails("A001", List.of(CustomUserDetails.ATH_ADMIN), "OTHER");
+
+        assertThat(authorizer.canRead(file(null), admin)).isFalse();
+        assertThat(authorizer.canRead(file("not-a-number"), admin)).isFalse();
 
         verifyNoInteractions(commentRepository, docRepository);
     }

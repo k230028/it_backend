@@ -3,6 +3,8 @@ package com.kdb.it.infra.file;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.infra.file.authz.FileReadAuthorizerRegistry;
@@ -23,9 +25,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * SEC-05 파일 종류별 읽기 인가를 실제 로컬 Oracle의 부모·부서·위원 조인으로 검증하는 통합 테스트.
@@ -48,6 +52,7 @@ import org.springframework.test.context.ActiveProfiles;
  * {@link OracleAvailableCondition}이 컨텍스트 로드 전에 깨끗이 스킵한다.
  */
 @Tag("it")
+@AutoConfigureMockMvc
 @SpringBootTest(
         properties = {
             // 비-prod 기동 필수값 — application.properties 의 ${JWT_SECRET} 플레이스홀더 대체(EnvironmentValidator
@@ -67,6 +72,7 @@ class FileReadAuthorizationIT {
     private static final String KIND_FEASIBILITY = "타당성검토표";
     private static final String KIND_COUNCIL_DOC = "협의회관련자료";
     private static final String KIND_BOARD = "공통게시판";
+    private static final String KIND_REVIEW_COMMENT = "검토의견";
     private static final String KIND_UNREGISTERED = "정보화사업";
 
     /** 모든 픽스처 네임스페이스 접두부 — 운영 키(FL_/DOC-/ASCT-/NAC- 등)와 충돌하지 않는다. */
@@ -82,6 +88,7 @@ class FileReadAuthorizationIT {
     @Autowired private FileReadAuthorizerRegistry registry;
     @Autowired private FileOwnershipChecker fileOwnershipChecker;
     @Autowired private FileService fileService;
+    @Autowired private MockMvc mockMvc;
 
     /** 테스트별 고유 접미부 — 픽스처 키 충돌을 막는다. */
     private String uid;
@@ -103,6 +110,7 @@ class FileReadAuthorizationIT {
         jdbcTemplate.update("DELETE FROM TPRMPP_BCMMTM WHERE IT_PTL_ASCT_ID LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_BASCTM WHERE IT_PTL_ASCT_ID LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_BPROJM WHERE ABUS_MNG_NO LIKE '" + NS + "%'");
+        jdbcTemplate.update("DELETE FROM TPRMPP_BRIVGM WHERE DOC_MNG_NO LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_BRDOCM WHERE DOC_MNG_NO LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_CBLBCM WHERE NAC_NO LIKE '" + NS + "%'");
     }
@@ -310,6 +318,36 @@ class FileReadAuthorizationIT {
                 .hasMessageContaining("파일 읽기 권한이 없습니다");
     }
 
+    @Test
+    @DisplayName("검토의견 첨부 HTTP: 무관한 사용자의 다운로드와 미리보기는 실제 인가 경로에서 403")
+    void reviewCommentAttachment_httpDownloadAndPreview_deniedByRealAuthorization()
+            throws Exception {
+        String docMngNo = NS + "DOC" + uid;
+        String author = NS + "A" + uid;
+        String unrelated = NS + "U" + uid;
+        String leadDept = NS + "D" + uid;
+        String otherDept = NS + "X" + uid;
+        String flMpnId = NS + "FLHTTP" + uid;
+        insertRequirementDoc(docMngNo, leadDept, author);
+        long commentId = insertReviewComment(docMngNo, author);
+        insertFile(flMpnId, KIND_REVIEW_COMMENT, Long.toString(commentId), author);
+
+        CustomUserDetails viewer = user(unrelated, otherDept);
+
+        mockMvc.perform(
+                        get("/api/files/{flMpnId}/download", flMpnId)
+                                .with(
+                                        org.springframework.security.test.web.servlet.request
+                                                .SecurityMockMvcRequestPostProcessors.user(viewer)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(
+                        get("/api/files/{flMpnId}/preview", flMpnId)
+                                .with(
+                                        org.springframework.security.test.web.servlet.request
+                                                .SecurityMockMvcRequestPostProcessors.user(viewer)))
+                .andExpect(status().isForbidden());
+    }
+
     // ═════════════════════════════════════════
     // 격리(read-only) — 격리 행은 일반 사용자에게 노출되지 않는다
     // ═════════════════════════════════════════
@@ -326,7 +364,7 @@ class FileReadAuthorizationIT {
                                 + NS
                                 + "%' "
                                 + "AND (PK_COL_NM IS NULL OR PK_CONE IS NULL OR PK_COL_NM NOT IN "
-                                + "('요구사항정의서','가이드문서','사업계획서','타당성검토표','협의회관련자료','공통게시판'))",
+                                + "('요구사항정의서','가이드문서','사업계획서','타당성검토표','협의회관련자료','공통게시판','검토의견'))",
                         (rs, rowNum) ->
                                 new QuarantineRow(
                                         rs.getString("FL_MPN_ID"),
@@ -386,6 +424,28 @@ class FileReadAuthorizationIT {
                 fstEnrUsid,
                 guid(),
                 fstEnrUsid);
+    }
+
+    /** 검토의견(BRIVGM) — 실제 시퀀스로 부모 의견일련번호를 생성하고 작성자를 통제합니다. */
+    private long insertReviewComment(String docMngNo, String fstEnrUsid) {
+        Long commentId =
+                jdbcTemplate.queryForObject(
+                        "SELECT SQ_TPRMPP_BRIVGM_1.NEXTVAL FROM DUAL", Long.class);
+        if (commentId == null) {
+            throw new IllegalStateException("검토의견 시퀀스 값을 생성하지 못했습니다.");
+        }
+        jdbcTemplate.update(
+                "INSERT INTO TPRMPP_BRIVGM (IPM_OPNN_SNO, DOC_MNG_NO, DOC_VRS_SNO, "
+                        + "IT_PTL_RPL_OPNN_TC, IVG_OPNN_CONE, FSG_YN, FST_ENR_USID, FST_ENR_DTM, "
+                        + "DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
+                        + "VALUES (?, ?, 100, 'G', ?, 'N', ?, SYSDATE, 'N', ?, 1, ?, SYSDATE)",
+                commentId,
+                docMngNo,
+                NS + " 검토의견",
+                fstEnrUsid,
+                guid(),
+                fstEnrUsid);
+        return commentId;
     }
 
     /** 협의회 사업(BPROJM) — 주관부서(SVN_DPM_C)를 통제. */
