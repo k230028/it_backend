@@ -165,5 +165,6 @@ class FileUploadUnitServiceTest {
         assertThat(result.getFlMpnId()).isEqualTo("FL_00000004");
         assertThat(result.getPkColNm()).isEqualTo("첨부");
         assertThat(result.getFlTpCone()).isEqualTo("첨부파일");
+        assertThat(result.getApgFlSz()).isEqualTo(7L);
     }
 }

@@ -85,6 +85,9 @@ public class FileDto {
         @Schema(description = "파일유형내용 ('이미지' 또는 '첨부파일')", example = "첨부파일")
         private String flTpCone;
 
+        @Schema(description = "첨부파일크기(바이트). 레거시 파일은 null", example = "102400")
+        private Long apgFlSz;
+
         @Schema(description = "주식별자내용", example = "PRJ-2026-0001")
         private String pkCone;
 

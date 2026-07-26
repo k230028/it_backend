@@ -2,15 +2,21 @@ package com.kdb.it.domain.budget.document.service;
 
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.budget.document.dto.ReviewCommentDto;
+import com.kdb.it.domain.budget.document.entity.Brivgm;
 import com.kdb.it.domain.budget.document.repository.BrivgmRepository;
 import com.kdb.it.domain.budget.document.util.DocVersionCodec;
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -24,7 +30,7 @@ public class ReviewCommentService {
 
     private final BrivgmRepository brivgmRepository;
 
-    /** 사용자 정보 리포지토리 (TPRMPP_CUSERI): 사번→사용자명 조회용 */
+    /** 사용자 정보 리포지토리 (TPRMPP_CUSERI): 사번→작성자 정보 배치 조회용 */
     private final UserRepository userRepository;
 
     /**
@@ -41,32 +47,7 @@ public class ReviewCommentService {
                 brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
                         docMngNo, DocVersionCodec.toStored(docVrsSno), "N");
 
-        // 작성자명 배치 조회: 사번 집합을 이름 프로젝션 한 번으로 변환한다.
-        java.util.Set<String> enos =
-                comments.stream()
-                        .map(value -> value.getFstEnrUsid())
-                        .filter(eno -> eno != null && !eno.isEmpty())
-                        .collect(Collectors.toSet());
-        java.util.Map<String, String> nameByEno =
-                enos.isEmpty()
-                        ? java.util.Map.of()
-                        : userRepository.findNameViewsByEnoIn(enos).stream()
-                                .collect(
-                                        Collectors.toMap(
-                                                value -> value.getEno(),
-                                                value -> value.getUsrNm(),
-                                                (a, b) -> a));
-
-        return comments.stream()
-                .map(
-                        e ->
-                                new ReviewCommentDto.Response(
-                                        e,
-                                        e.getFstEnrUsid() == null
-                                                ? ""
-                                                : nameByEno.getOrDefault(
-                                                        e.getFstEnrUsid(), e.getFstEnrUsid())))
-                .toList();
+        return toResponses(comments);
     }
 
     /**
@@ -80,7 +61,7 @@ public class ReviewCommentService {
     public ReviewCommentDto.Response addComment(
             String docMngNo, ReviewCommentDto.CreateRequest request) {
         var saved = brivgmRepository.save(request.toEntity(docMngNo));
-        return new ReviewCommentDto.Response(saved, resolveAuthorName(saved.getFstEnrUsid()));
+        return toResponses(List.of(saved)).getFirst();
     }
 
     /**
@@ -107,16 +88,64 @@ public class ReviewCommentService {
     }
 
     /**
-     * 사번으로 사용자 이름을 조회합니다.
+     * 검토의견 목록을 작성자 정보가 포함된 응답으로 변환합니다.
      *
-     * <p>{@link UserRepository#findNameViewByEno(String)}로 사용자 이름을 찾고, 존재하면 {@code usrNm} 을 반환합니다.
-     * 사용자를 찾을 수 없는 경우 사번(eno)을 그대로 반환하여 UI에서 식별 가능한 값이 노출되도록 합니다.
+     * <p>작성자 사번 집합을 한 번만 조회하여 의견 행마다 사용자 조회가 발생하지 않도록 합니다.
      *
-     * @param eno 사번
-     * @return 사용자 이름 (미존재 시 사번, null 입력 시 빈 문자열)
+     * @param comments 변환할 검토의견 목록
+     * @return 작성자 이름과 팀명이 보정된 검토의견 응답 목록
      */
-    private String resolveAuthorName(String eno) {
-        if (eno == null) return "";
-        return userRepository.findNameViewByEno(eno).map(user -> user.getUsrNm()).orElse(eno);
+    private List<ReviewCommentDto.Response> toResponses(Collection<Brivgm> comments) {
+        var authorByEno =
+                findAuthorsByEno(
+                        comments.stream()
+                                .map(Brivgm::getFstEnrUsid)
+                                .filter(StringUtils::hasText)
+                                .collect(Collectors.toCollection(LinkedHashSet::new)));
+        return comments.stream().map(comment -> toResponse(comment, authorByEno)).toList();
+    }
+
+    /**
+     * 사번 집합의 작성자 정보를 한 번에 조회합니다.
+     *
+     * @param enos 조회할 작성자 사번 집합
+     * @return 사번을 키로 하는 작성자 정보 맵
+     */
+    private Map<String, UserRepository.ReviewCommentAuthorView> findAuthorsByEno(Set<String> enos) {
+        if (enos.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findReviewCommentAuthorViewsByEnoIn(enos).stream()
+                .collect(
+                        Collectors.toMap(
+                                UserRepository.ReviewCommentAuthorView::getEno,
+                                value -> value,
+                                (a, b) -> a));
+    }
+
+    /**
+     * 검토의견 엔티티를 작성자 정보가 보정된 응답으로 변환합니다.
+     *
+     * <p>사용자 또는 이름이 없으면 사번을 이름으로 사용하고, 팀명이 없으면 빈 문자열을 반환합니다.
+     *
+     * @param comment 변환할 검토의견 엔티티
+     * @param authorByEno 사번별 작성자 정보
+     * @return 작성자 정보가 포함된 검토의견 응답
+     */
+    private ReviewCommentDto.Response toResponse(
+            Brivgm comment, Map<String, UserRepository.ReviewCommentAuthorView> authorByEno) {
+        var eno = comment.getFstEnrUsid();
+        if (!StringUtils.hasText(eno)) {
+            return new ReviewCommentDto.Response(comment, "", "");
+        }
+
+        var author = authorByEno.get(eno);
+        if (author == null) {
+            return new ReviewCommentDto.Response(comment, eno, "");
+        }
+
+        var authorName = StringUtils.hasText(author.getUsrNm()) ? author.getUsrNm() : eno;
+        var authorTeam = author.getTemNm() == null ? "" : author.getTemNm();
+        return new ReviewCommentDto.Response(comment, authorName, authorTeam);
     }
 }

@@ -3,6 +3,9 @@ package com.kdb.it.infra.file;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.infra.file.authz.FileReadAuthorizerRegistry;
@@ -14,6 +17,7 @@ import java.sql.Date;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,9 +27,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * SEC-05 파일 종류별 읽기 인가를 실제 로컬 Oracle의 부모·부서·위원 조인으로 검증하는 통합 테스트.
@@ -48,6 +54,7 @@ import org.springframework.test.context.ActiveProfiles;
  * {@link OracleAvailableCondition}이 컨텍스트 로드 전에 깨끗이 스킵한다.
  */
 @Tag("it")
+@AutoConfigureMockMvc
 @SpringBootTest(
         properties = {
             // 비-prod 기동 필수값 — application.properties 의 ${JWT_SECRET} 플레이스홀더 대체(EnvironmentValidator
@@ -67,6 +74,7 @@ class FileReadAuthorizationIT {
     private static final String KIND_FEASIBILITY = "타당성검토표";
     private static final String KIND_COUNCIL_DOC = "협의회관련자료";
     private static final String KIND_BOARD = "공통게시판";
+    private static final String KIND_REVIEW_COMMENT = "검토의견";
     private static final String KIND_UNREGISTERED = "정보화사업";
 
     /** 모든 픽스처 네임스페이스 접두부 — 운영 키(FL_/DOC-/ASCT-/NAC- 등)와 충돌하지 않는다. */
@@ -82,6 +90,7 @@ class FileReadAuthorizationIT {
     @Autowired private FileReadAuthorizerRegistry registry;
     @Autowired private FileOwnershipChecker fileOwnershipChecker;
     @Autowired private FileService fileService;
+    @Autowired private MockMvc mockMvc;
 
     /** 테스트별 고유 접미부 — 픽스처 키 충돌을 막는다. */
     private String uid;
@@ -103,6 +112,7 @@ class FileReadAuthorizationIT {
         jdbcTemplate.update("DELETE FROM TPRMPP_BCMMTM WHERE IT_PTL_ASCT_ID LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_BASCTM WHERE IT_PTL_ASCT_ID LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_BPROJM WHERE ABUS_MNG_NO LIKE '" + NS + "%'");
+        jdbcTemplate.update("DELETE FROM TPRMPP_BRIVGM WHERE DOC_MNG_NO LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_BRDOCM WHERE DOC_MNG_NO LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_CBLBCM WHERE NAC_NO LIKE '" + NS + "%'");
     }
@@ -310,6 +320,88 @@ class FileReadAuthorizationIT {
                 .hasMessageContaining("파일 읽기 권한이 없습니다");
     }
 
+    @Test
+    @DisplayName("검토의견 첨부 HTTP: 무관한 사용자의 다운로드와 미리보기는 실제 인가 경로에서 403")
+    void reviewCommentAttachment_httpDownloadAndPreview_deniedByRealAuthorization()
+            throws Exception {
+        String docMngNo = NS + "DOC" + uid;
+        String author = NS + "A" + uid;
+        String unrelated = NS + "U" + uid;
+        String leadDept = NS + "D" + uid;
+        String otherDept = NS + "X" + uid;
+        String flMpnId = NS + "FLHTTP" + uid;
+        insertRequirementDoc(docMngNo, leadDept, author);
+        long commentId = insertReviewComment(docMngNo, author);
+        insertFile(flMpnId, KIND_REVIEW_COMMENT, Long.toString(commentId), author);
+
+        CustomUserDetails viewer = user(unrelated, otherDept);
+
+        mockMvc.perform(
+                        get("/api/files/{flMpnId}/download", flMpnId)
+                                .with(
+                                        org.springframework.security.test.web.servlet.request
+                                                .SecurityMockMvcRequestPostProcessors.user(viewer)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(
+                        get("/api/files/{flMpnId}/preview", flMpnId)
+                                .with(
+                                        org.springframework.security.test.web.servlet.request
+                                                .SecurityMockMvcRequestPostProcessors.user(viewer)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("첨부 대상 HTTP: 파일 소유자도 타인 게시물로 메타 재연결하면 403이고 원본 연결은 유지")
+    void boardTarget_httpMetadataReparent_deniedWithoutMutation() throws Exception {
+        String fileOwner = NS + "U" + uid;
+        String boardAuthor = NS + "A" + uid;
+        String boardNo = NS + "B" + uid;
+        String flMpnId = NS + "FB" + uid;
+        insertBoardPostOwned(
+                boardNo,
+                "Y",
+                LocalDate.now().minusDays(1),
+                LocalDate.now().plusDays(1),
+                boardAuthor);
+        insertFile(flMpnId, KIND_REQUIREMENT, NS + "OLD" + uid, fileOwner);
+
+        mockMvc.perform(
+                        put("/api/files/{flMpnId}", flMpnId)
+                                .with(
+                                        org.springframework.security.test.web.servlet.request
+                                                .SecurityMockMvcRequestPostProcessors.user(
+                                                user(fileOwner, NS + "D" + uid)))
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                .content("{\"pkColNm\":\"공통게시판\",\"pkCone\":\"" + boardNo + "\"}"))
+                .andExpect(status().isForbidden());
+
+        assertFileTarget(flMpnId, KIND_REQUIREMENT, NS + "OLD" + uid);
+    }
+
+    @Test
+    @DisplayName("첨부 대상 HTTP: 파일 소유자도 타인 검토의견으로 메타 재연결하면 403이고 원본 연결은 유지")
+    void reviewTarget_httpMetadataReparent_deniedWithoutMutation() throws Exception {
+        String docMngNo = NS + "DOC" + uid;
+        String fileOwner = NS + "U" + uid;
+        String commentAuthor = NS + "A" + uid;
+        String flMpnId = NS + "FR" + uid;
+        insertRequirementDoc(docMngNo, NS + "D" + uid, commentAuthor);
+        long commentId = insertReviewComment(docMngNo, commentAuthor);
+        insertFile(flMpnId, KIND_REQUIREMENT, NS + "OLD" + uid, fileOwner);
+
+        mockMvc.perform(
+                        put("/api/files/{flMpnId}", flMpnId)
+                                .with(
+                                        org.springframework.security.test.web.servlet.request
+                                                .SecurityMockMvcRequestPostProcessors.user(
+                                                user(fileOwner, NS + "X" + uid)))
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                .content("{\"pkColNm\":\"검토의견\",\"pkCone\":\"" + commentId + "\"}"))
+                .andExpect(status().isForbidden());
+
+        assertFileTarget(flMpnId, KIND_REQUIREMENT, NS + "OLD" + uid);
+    }
+
     // ═════════════════════════════════════════
     // 격리(read-only) — 격리 행은 일반 사용자에게 노출되지 않는다
     // ═════════════════════════════════════════
@@ -326,7 +418,7 @@ class FileReadAuthorizationIT {
                                 + NS
                                 + "%' "
                                 + "AND (PK_COL_NM IS NULL OR PK_CONE IS NULL OR PK_COL_NM NOT IN "
-                                + "('요구사항정의서','가이드문서','사업계획서','타당성검토표','협의회관련자료','공통게시판'))",
+                                + "('요구사항정의서','가이드문서','사업계획서','타당성검토표','협의회관련자료','공통게시판','검토의견'))",
                         (rs, rowNum) ->
                                 new QuarantineRow(
                                         rs.getString("FL_MPN_ID"),
@@ -388,6 +480,28 @@ class FileReadAuthorizationIT {
                 fstEnrUsid);
     }
 
+    /** 검토의견(BRIVGM) — 실제 시퀀스로 부모 의견일련번호를 생성하고 작성자를 통제합니다. */
+    private long insertReviewComment(String docMngNo, String fstEnrUsid) {
+        Long commentId =
+                jdbcTemplate.queryForObject(
+                        "SELECT SQ_TPRMPP_BRIVGM_1.NEXTVAL FROM DUAL", Long.class);
+        if (commentId == null) {
+            throw new IllegalStateException("검토의견 시퀀스 값을 생성하지 못했습니다.");
+        }
+        jdbcTemplate.update(
+                "INSERT INTO TPRMPP_BRIVGM (IPM_OPNN_SNO, DOC_MNG_NO, DOC_VRS_SNO, "
+                        + "IT_PTL_RPL_OPNN_TC, IVG_OPNN_CONE, FSG_YN, FST_ENR_USID, FST_ENR_DTM, "
+                        + "DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
+                        + "VALUES (?, ?, 100, 'G', ?, 'N', ?, SYSDATE, 'N', ?, 1, ?, SYSDATE)",
+                commentId,
+                docMngNo,
+                NS + " 검토의견",
+                fstEnrUsid,
+                guid(),
+                fstEnrUsid);
+        return commentId;
+    }
+
     /** 협의회 사업(BPROJM) — 주관부서(SVN_DPM_C)를 통제. */
     private void insertProject(String abusMngNo, int sno, String svnDpmC) {
         jdbcTemplate.update(
@@ -427,14 +541,28 @@ class FileReadAuthorizationIT {
 
     /** 게시물(CBLBCM) — 노출여부(XPO_YN)와 공개기간(STT_DTM~END_DTM) 통제. */
     private void insertBoardPost(String nacNo, String xpoYn, LocalDate sttDt, LocalDate endDt) {
+        insertBoardPostOwned(nacNo, xpoYn, sttDt, endDt, "00000000000000");
+    }
+
+    /** 게시물(CBLBCM) — 작성자를 지정해 첨부 대상 쓰기 권한을 검증합니다. */
+    private void insertBoardPostOwned(
+            String nacNo, String xpoYn, LocalDate sttDt, LocalDate endDt, String fstEnrUsid) {
         jdbcTemplate.update(
                 "INSERT INTO TPRMPP_CBLBCM (NAC_NO, BLB_ID, NAC_TTL, ANC_YN, XPO_YN, NAC_INQ_NBR, "
                         + "APG_FL_NBR, FL_APG_YN, GRP_SQN_SNO, NAC_LEV_MNG_SNO, NAC_UNQ_ID, STT_DTM, END_DTM, "
                         + "FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
                         + "VALUES (?, 'SEC05BLB', ?, 'N', ?, 0, 0, 'N', 0, 0, ?, ?, ?, "
-                        + "'00000000000000', SYSDATE, 'N', ?, 1, '00000000000000', SYSDATE)",
+                        + "?, SYSDATE, 'N', ?, 1, ?, SYSDATE)",
                 new Object[] {
-                    nacNo, NS + " 게시물", xpoYn, nacNo, sqlDate(sttDt), sqlDate(endDt), guid()
+                    nacNo,
+                    NS + " 게시물",
+                    xpoYn,
+                    nacNo,
+                    sqlDate(sttDt),
+                    sqlDate(endDt),
+                    fstEnrUsid,
+                    guid(),
+                    fstEnrUsid
                 },
                 new int[] {
                     Types.VARCHAR,
@@ -443,8 +571,20 @@ class FileReadAuthorizationIT {
                     Types.VARCHAR,
                     Types.DATE,
                     Types.DATE,
+                    Types.VARCHAR,
+                    Types.VARCHAR,
                     Types.VARCHAR
                 });
+    }
+
+    /** 파일 연결 대상이 거부 전 값으로 유지됐는지 확인합니다. */
+    private void assertFileTarget(String flMpnId, String expectedKind, String expectedParent) {
+        Map<String, Object> row =
+                jdbcTemplate.queryForMap(
+                        "SELECT PK_COL_NM, PK_CONE FROM TPRMPP_CFILEM WHERE FL_MPN_ID = ?",
+                        flMpnId);
+        assertThat(row.get("PK_COL_NM")).isEqualTo(expectedKind);
+        assertThat(row.get("PK_CONE")).isEqualTo(expectedParent);
     }
 
     /** 파일(CFILEM) — 종류·부모·업로더를 통제. */

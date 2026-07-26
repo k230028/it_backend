@@ -4,6 +4,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.authz.FileReadAuthorizerRegistry;
+import com.kdb.it.infra.file.authz.ReviewCommentFileWriteAuthorizer;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Component;
 /**
  * 파일 소유권·읽기 권한 검증 컴포넌트 — SEC-02, SEC-05
  *
- * <p>파일 쓰기(수정·삭제)는 업로더 본인 또는 관리자만 허용합니다. 소유권 기준: {@code CFILEM.FST_ENR_USID}(최초등록자사번) = 현재 사용자 사번.
+ * <p>파일 쓰기(수정·삭제)는 기본적으로 업로더 본인 또는 관리자만 허용합니다. 검토의견 첨부는 파일 업로더가 아니라 활성 검토의견 작성자 또는 관리자에게 허용합니다.
  *
  * <p>파일 읽기는 파일 종류(PK_COL_NM)별 authorizer로 판정합니다(미등록=관리자만). 판정은 {@link FileReadAuthorizerRegistry}에
  * 위임하며, 종류별 규칙은 각 authorizer가 소유합니다.
@@ -24,23 +25,30 @@ public class FileOwnershipChecker {
 
     private final FileRepository fileRepository;
     private final FileReadAuthorizerRegistry readAuthorizerRegistry;
+    private final ReviewCommentFileWriteAuthorizer reviewCommentFileWriteAuthorizer;
 
     /**
-     * 파일 쓰기(수정/삭제) 권한 검증 — 본인 또는 관리자만 허용(403).
+     * 파일 쓰기(수정/삭제) 권한을 검증합니다.
      *
-     * <p>나머지 쓰기 경로의 "owner OR admin" 표준({@link OwnershipVerifier})과 일관되게, 소유자 본인 또는 시스템관리자만 파일 메타
-     * 수정·삭제를 허용합니다.
+     * <p>검토의견 첨부는 활성 부모의 댓글 작성자 또는 관리자만 허용합니다. 다른 파일 종류는 "업로더 OR 관리자" 표준({@link
+     * OwnershipVerifier})을 적용합니다.
      *
      * @param flMpnId 검증할 파일매핑ID
      * @param user 현재 인증 사용자
      * @throws CustomGeneralException 파일 미존재
-     * @throws org.springframework.security.access.AccessDeniedException 본인도 관리자도 아닌 경우
+     * @throws org.springframework.security.access.AccessDeniedException 해당 파일 종류의 쓰기 권한이 없는 경우
      */
     public void verifyWriteAccess(String flMpnId, CustomUserDetails user) {
         Cfilem file =
                 fileRepository
                         .findByFlMpnIdAndDelYn(flMpnId, "N")
                         .orElseThrow(() -> new CustomGeneralException("파일을 찾을 수 없습니다: " + flMpnId));
+        if (ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND.equals(file.getPkColNm())) {
+            if (!reviewCommentFileWriteAuthorizer.canWrite(file, user)) {
+                throw new AccessDeniedException("파일 쓰기 권한이 없습니다.");
+            }
+            return;
+        }
         OwnershipVerifier.verifyOwnerOrAdmin(file.getFstEnrUsid(), user);
     }
 

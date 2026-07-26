@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.kdb.it.common.board.service.BoardPostFileCacheService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
@@ -21,7 +22,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -57,6 +60,8 @@ class FileServiceTest {
 
     @Mock private FileOwnershipChecker fileOwnershipChecker;
 
+    @Mock private BoardPostFileCacheService boardPostFileCacheService;
+
     private FileUploadUnitService fileUploadUnitService;
 
     private FileService fileService;
@@ -66,7 +71,12 @@ class FileServiceTest {
     @BeforeEach
     void setUp() {
         fileUploadUnitService = new FileUploadUnitService(fileRepository, fileValidator);
-        fileService = new FileService(fileRepository, fileOwnershipChecker, fileUploadUnitService);
+        fileService =
+                new FileService(
+                        fileRepository,
+                        fileOwnershipChecker,
+                        fileUploadUnitService,
+                        boardPostFileCacheService);
     }
 
     /** 목록 조회 권한 필터링용 일반 사용자 (canRead 기본 허용 가정) */
@@ -82,6 +92,7 @@ class FileServiceTest {
         given(f.getFlTpCone()).willReturn("첨부파일");
         given(f.getPkCone()).willReturn("PRJ-2026-0001");
         given(f.getPkColNm()).willReturn("요구사항정의서");
+        given(f.getApgFlSz()).willReturn(1234L);
         given(f.getFstEnrUsid()).willReturn("E0001");
         return f;
     }
@@ -110,6 +121,7 @@ class FileServiceTest {
 
         assertThat(result.getFlMpnId()).isEqualTo(FL_MNG_NO);
         assertThat(result.getFlNm()).isEqualTo("테스트파일.pdf");
+        assertThat(result.getApgFlSz()).isEqualTo(1234L);
         assertThat(result.getDownloadUrl()).isEqualTo("/api/files/" + FL_MNG_NO + "/download");
     }
 
@@ -294,6 +306,62 @@ class FileServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
+    // getFilesBatch — 여러 부모 일괄 조회
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getFilesBatch: 중복 부모를 제거해 한 번 조회하고 요청한 모든 부모를 결과에 포함한다")
+    void getFilesBatch_중복부모_한번조회_빈그룹포함() {
+        Cfilem first = mockCfilemWithParent("FL_00000002", "검토의견", "101");
+        Cfilem second = mockCfilemWithParent("FL_00000001", "검토의견", "101");
+        Cfilem denied = mockCfilemWithParent("FL_00000003", "검토의견", "102");
+        given(
+                        fileRepository.findAllByPkColNmAndPkConeInAndDelYn(
+                                "검토의견", Set.of("101", "102", "103"), "N"))
+                .willReturn(List.of(first, denied, second));
+        given(fileOwnershipChecker.canRead(first, USER)).willReturn(true);
+        given(fileOwnershipChecker.canRead(denied, USER)).willReturn(false);
+
+        Map<String, List<FileDto.Response>> result =
+                fileService.getFilesBatch("검토의견", List.of("101", "102", "101", "103"), USER);
+
+        assertThat(result.keySet()).containsExactly("101", "102", "103");
+        assertThat(result.get("101"))
+                .extracting(FileDto.Response::getFlMpnId)
+                .containsExactly("FL_00000001", "FL_00000002");
+        assertThat(result.get("102")).isEmpty();
+        assertThat(result.get("103")).isEmpty();
+        verify(fileRepository, times(1))
+                .findAllByPkColNmAndPkConeInAndDelYn("검토의견", Set.of("101", "102", "103"), "N");
+        verify(fileOwnershipChecker, times(1)).canRead(first, USER);
+        verify(fileOwnershipChecker, never()).canRead(second, USER);
+        verify(fileOwnershipChecker, times(1)).canRead(denied, USER);
+    }
+
+    @Test
+    @DisplayName("getFilesBatch: 부모 키 목록이 비어 있으면 조회하지 않고 거부한다")
+    void getFilesBatch_빈부모목록_거부() {
+        assertThatThrownBy(() -> fileService.getFilesBatch("검토의견", List.of(), USER))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("pkCone");
+
+        verifyNoInteractions(fileRepository);
+    }
+
+    @Test
+    @DisplayName("getFilesBatch: 종류나 부모 키에 공백이 있으면 조회하지 않고 거부한다")
+    void getFilesBatch_공백입력_거부() {
+        assertThatThrownBy(() -> fileService.getFilesBatch(" ", List.of("101"), USER))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("pkColNm");
+        assertThatThrownBy(() -> fileService.getFilesBatch("검토의견", List.of("101", " "), USER))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("pkCone");
+
+        verifyNoInteractions(fileRepository);
+    }
+
+    // ───────────────────────────────────────────────────────
     // deleteFile
     // ───────────────────────────────────────────────────────
 
@@ -316,6 +384,30 @@ class FileServiceTest {
         fileService.deleteFile(FL_MNG_NO);
 
         verify(cfilem).delete();
+    }
+
+    @Test
+    @DisplayName("deleteFile: 공통게시판 파일 삭제 뒤 활성 파일 수를 다시 세어 부모 캐시를 동기화한다")
+    void deleteFile_공통게시판_활성파일수동기화() {
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(cfilem.getPkColNm()).willReturn("공통게시판");
+        given(cfilem.getPkCone()).willReturn("NAC-001");
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+        fileService.deleteFile(FL_MNG_NO);
+
+        verify(cfilem).delete();
+        verify(boardPostFileCacheService).syncFromActiveFiles("NAC-001");
+    }
+
+    @Test
+    @DisplayName("deleteFile: 공통게시판 외 파일은 게시물 캐시를 동기화하지 않는다")
+    void deleteFile_다른종류_게시물캐시미동기화() {
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+
+        fileService.deleteFile(FL_MNG_NO);
+
+        verifyNoInteractions(boardPostFileCacheService);
     }
 
     // ───────────────────────────────────────────────────────
@@ -620,6 +712,54 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("uploadFile: 공통게시판 단건 업로드 성공 뒤 실제 활성 파일 수로 부모 캐시를 동기화한다")
+    void uploadFile_공통게시판_활성파일수동기화(@TempDir java.nio.file.Path tempDir) {
+        configureUploadUnit(tempDir);
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "보고서.pdf",
+                        "application/pdf",
+                        "PDF".getBytes(StandardCharsets.UTF_8));
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder()
+                        .pkColNm("공통게시판")
+                        .pkCone("NAC-001")
+                        .flTpCone("첨부파일")
+                        .build();
+
+        String result = fileService.uploadFile(file, request);
+
+        assertThat(result).isEqualTo("FL_00000001");
+        verify(boardPostFileCacheService).syncFromActiveFiles("NAC-001");
+    }
+
+    @Test
+    @DisplayName("uploadFileAndGet: 공통게시판 단건 업로드 성공 뒤 실제 활성 파일 수로 부모 캐시를 동기화한다")
+    void uploadFileAndGet_공통게시판_활성파일수동기화(@TempDir java.nio.file.Path tempDir) {
+        configureUploadUnit(tempDir);
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "설계서.pdf",
+                        "application/pdf",
+                        "PDF".getBytes(StandardCharsets.UTF_8));
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder()
+                        .pkColNm("공통게시판")
+                        .pkCone("NAC-001")
+                        .flTpCone("첨부파일")
+                        .build();
+
+        FileDto.Response result = fileService.uploadFileAndGet(file, request);
+
+        assertThat(result.getFlNm()).isEqualTo("설계서.pdf");
+        verify(boardPostFileCacheService).syncFromActiveFiles("NAC-001");
+    }
+
+    @Test
     @DisplayName("uploadFileAndGet: 파일을 저장하고 업로드 응답 DTO를 반환한다")
     void uploadFileAndGet_정상파일_응답반환(@TempDir java.nio.file.Path tempDir) {
         configureUploadUnit(tempDir);
@@ -693,6 +833,31 @@ class FileServiceTest {
         assertThat(result.getSuccessList()).hasSize(1);
         assertThat(result.getFailList()).hasSize(1);
         assertThat(result.getFailList().get(0)).contains("empty.txt");
+    }
+
+    @Test
+    @DisplayName("uploadFiles: 공통게시판 부분 성공 완료 뒤 실제 활성 파일 수로 한 번 동기화한다")
+    void uploadFiles_공통게시판부분성공_활성파일수동기화(@TempDir java.nio.file.Path tempDir) {
+        configureUploadUnit(tempDir);
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+        MockMultipartFile okFile =
+                new MockMultipartFile(
+                        "files", "ok.txt", "text/plain", "ok".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile emptyFile =
+                new MockMultipartFile("files", "empty.txt", "text/plain", new byte[0]);
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder()
+                        .pkColNm("공통게시판")
+                        .pkCone("NAC-001")
+                        .flTpCone("첨부파일")
+                        .build();
+
+        FileDto.BulkUploadResponse result =
+                fileService.uploadFiles(List.of(okFile, emptyFile), request);
+
+        assertThat(result.getSuccessList()).hasSize(1);
+        assertThat(result.getFailList()).hasSize(1);
+        verify(boardPostFileCacheService).syncFromActiveFiles("NAC-001");
     }
 
     @Test

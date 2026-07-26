@@ -47,6 +47,7 @@ class BoardFileReadAuthorizerTest {
                 .nacUnqId("NAC-1")
                 .nacGrpSqn(0)
                 .nacGrpLev(0)
+                .fstEnrUsid("E001")
                 .delYn("N")
                 .build();
     }
@@ -72,11 +73,19 @@ class BoardFileReadAuthorizerTest {
     }
 
     @Test
-    @DisplayName("비노출(xpoYn=N) 게시물은 읽기 불가")
-    void hiddenPost_cannotRead() {
+    @DisplayName("작성자 본인도 비노출(xpoYn=N) 게시물 파일은 읽기 불가")
+    void hiddenPost_ownerCannotRead() {
         given(boardPostRepository.findByNacMngNoAndDelYn("NAC-1", "N"))
                 .willReturn(Optional.of(post("N", null, null)));
         assertThat(authorizer.canRead(boardFile("NAC-1"), normalUser)).isFalse();
+    }
+
+    @Test
+    @DisplayName("공개 시작일과 종료일 당일에는 일반 사용자가 읽기 가능")
+    void visibleBoundaryDates_canRead() {
+        given(boardPostRepository.findByNacMngNoAndDelYn("NAC-1", "N"))
+                .willReturn(Optional.of(post("Y", LocalDate.now(), LocalDate.now())));
+        assertThat(authorizer.canRead(boardFile("NAC-1"), normalUser)).isTrue();
     }
 
     @Test

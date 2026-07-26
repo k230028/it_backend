@@ -120,6 +120,137 @@ class BoardPostListProjectionIt extends AbstractOracleRepositoryTest {
                 .containsExactly("BE03-A", "BE03-C", "BE03-B");
     }
 
+    @Test
+    @DisplayName("관리자의 publicOnly 검색은 비공개와 공개기간 외 게시물을 페이지·총계 전에 제외한다")
+    void searchPostRows_publicOnlyFiltersAdminBeforePaginationAndCount() {
+        LocalDate today = LocalDate.now();
+        postRepository.saveAllAndFlush(
+                List.of(
+                        post("FE01-V1", "공개 1", "본문", "writer", "N", "Y", 9300, 1, null, null, "N"),
+                        post("FE01-V2", "공개 2", "본문", "writer", "N", "Y", 9200, 1, null, null, "N"),
+                        post("FE01-V3", "공개 3", "본문", "writer", "N", "Y", 9100, 1, null, null, "N"),
+                        post(
+                                "FE01-HIDDEN",
+                                "숨김",
+                                "본문",
+                                "writer",
+                                "N",
+                                "N",
+                                9500,
+                                1,
+                                null,
+                                null,
+                                "N"),
+                        post(
+                                "FE01-FUTURE",
+                                "미래",
+                                "본문",
+                                "writer",
+                                "N",
+                                "Y",
+                                9400,
+                                1,
+                                today.plusDays(1),
+                                null,
+                                "N"),
+                        post(
+                                "FE01-EXPIRED",
+                                "종료",
+                                "본문",
+                                "writer",
+                                "N",
+                                "Y",
+                                9350,
+                                1,
+                                null,
+                                today.minusDays(1),
+                                "N")));
+
+        BoardPostDto.SearchCondition publicOnly = new BoardPostDto.SearchCondition();
+        publicOnly.setPublicOnly(true);
+        publicOnly.setPage(0);
+        publicOnly.setSize(2);
+
+        var firstPage = postRepository.searchPostRows("BLB-BE03", publicOnly, true);
+        assertThat(firstPage.getTotalElements()).isEqualTo(3);
+        assertThat(firstPage.getContent())
+                .extracting(BoardPostDto.ListRow::nacMngNo)
+                .containsExactly("FE01-V1", "FE01-V2");
+
+        publicOnly.setPage(1);
+        var secondPage = postRepository.searchPostRows("BLB-BE03", publicOnly, true);
+        assertThat(secondPage.getTotalElements()).isEqualTo(3);
+        assertThat(secondPage.getContent())
+                .extracting(BoardPostDto.ListRow::nacMngNo)
+                .containsExactly("FE01-V3");
+    }
+
+    @Test
+    @DisplayName("관리자의 기본 검색은 publicOnly를 지정하지 않아도 기존처럼 비공개와 기간 외 게시물을 포함한다")
+    void searchPostRows_adminDefaultStillIncludesPrivateAndOutOfPeriodPosts() {
+        LocalDate today = LocalDate.now();
+        postRepository.saveAllAndFlush(
+                List.of(
+                        post(
+                                "FE01-D-VIS",
+                                "공개",
+                                "본문",
+                                "writer",
+                                "N",
+                                "Y",
+                                8300,
+                                1,
+                                null,
+                                null,
+                                "N"),
+                        post(
+                                "FE01-D-HIDE",
+                                "숨김",
+                                "본문",
+                                "writer",
+                                "N",
+                                "N",
+                                8500,
+                                1,
+                                null,
+                                null,
+                                "N"),
+                        post(
+                                "FE01-D-FUT",
+                                "미래",
+                                "본문",
+                                "writer",
+                                "N",
+                                "Y",
+                                8400,
+                                1,
+                                today.plusDays(1),
+                                null,
+                                "N"),
+                        post(
+                                "FE01-D-EXP",
+                                "종료",
+                                "본문",
+                                "writer",
+                                "N",
+                                "Y",
+                                8600,
+                                1,
+                                null,
+                                today.minusDays(1),
+                                "N")));
+
+        BoardPostDto.SearchCondition condition = new BoardPostDto.SearchCondition();
+        condition.setPage(0);
+        condition.setSize(20);
+
+        var result = postRepository.searchPostRows("BLB-BE03", condition, true);
+        assertThat(result.getTotalElements()).isEqualTo(4);
+        assertThat(result.getContent())
+                .extracting(BoardPostDto.ListRow::nacMngNo)
+                .containsExactly("FE01-D-EXP", "FE01-D-HIDE", "FE01-D-FUT", "FE01-D-VIS");
+    }
+
     private Cblbcm post(
             String nacMngNo,
             String title,
