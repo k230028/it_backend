@@ -51,4 +51,6 @@ out/
 /lib/lombok.jar
 
 # SSO 벤더 배포물 (로컬 사본만 유지, 저장소 추적 제외)
-/sso/
+/sso/*
+# 벤더 배포물 보존 거버넌스 문서는 추적 유지
+!/sso/README.md
