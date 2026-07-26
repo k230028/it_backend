@@ -61,6 +61,16 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
     List<Cfilem> findAllByPkColNmAndPkConeAndDelYn(String pkColNm, String pkCone, String delYn);
 
     /**
+     * 주식별자컬럼명과 주식별자내용에 연결된 파일 수를 삭제 여부별로 집계합니다.
+     *
+     * @param pkColNm 주식별자컬럼명
+     * @param pkCone 주식별자내용
+     * @param delYn 삭제 여부
+     * @return 조건에 맞는 파일 수
+     */
+    long countByPkColNmAndPkConeAndDelYn(String pkColNm, String pkCone, String delYn);
+
+    /**
      * 주식별자컬럼명으로 파일 목록 전체 조회
      *
      * <p>특정 도메인 종류(예: 요구사항정의서)에 속한 모든 파일을 조회합니다. pkCone 미지정 시 사용합니다.

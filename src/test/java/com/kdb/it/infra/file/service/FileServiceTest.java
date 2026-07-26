@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.kdb.it.common.board.service.BoardPostFileCacheService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
@@ -57,6 +58,8 @@ class FileServiceTest {
 
     @Mock private FileOwnershipChecker fileOwnershipChecker;
 
+    @Mock private BoardPostFileCacheService boardPostFileCacheService;
+
     private FileUploadUnitService fileUploadUnitService;
 
     private FileService fileService;
@@ -66,7 +69,12 @@ class FileServiceTest {
     @BeforeEach
     void setUp() {
         fileUploadUnitService = new FileUploadUnitService(fileRepository, fileValidator);
-        fileService = new FileService(fileRepository, fileOwnershipChecker, fileUploadUnitService);
+        fileService =
+                new FileService(
+                        fileRepository,
+                        fileOwnershipChecker,
+                        fileUploadUnitService,
+                        boardPostFileCacheService);
     }
 
     /** 목록 조회 권한 필터링용 일반 사용자 (canRead 기본 허용 가정) */
@@ -316,6 +324,38 @@ class FileServiceTest {
         fileService.deleteFile(FL_MNG_NO);
 
         verify(cfilem).delete();
+    }
+
+    @Test
+    @DisplayName("deleteFile: 공통게시판 파일 삭제 뒤 활성 파일 수를 다시 세어 부모 캐시를 동기화한다")
+    void deleteFile_공통게시판_활성파일수동기화() {
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(cfilem.getPkColNm()).willReturn("공통게시판");
+        given(cfilem.getPkCone()).willReturn("NAC-001");
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+        given(fileRepository.countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N"))
+                .willReturn(1L);
+
+        fileService.deleteFile(FL_MNG_NO);
+
+        var order = org.mockito.Mockito.inOrder(cfilem, fileRepository, boardPostFileCacheService);
+        order.verify(cfilem).delete();
+        order.verify(fileRepository).countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N");
+        order.verify(boardPostFileCacheService).sync("NAC-001", 1);
+    }
+
+    @Test
+    @DisplayName("deleteFile: 공통게시판 외 파일은 게시물 캐시를 동기화하지 않는다")
+    void deleteFile_다른종류_게시물캐시미동기화() {
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+
+        fileService.deleteFile(FL_MNG_NO);
+
+        verify(boardPostFileCacheService, never())
+                .sync(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyInt());
     }
 
     // ───────────────────────────────────────────────────────
@@ -620,6 +660,58 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("uploadFile: 공통게시판 단건 업로드 성공 뒤 실제 활성 파일 수로 부모 캐시를 동기화한다")
+    void uploadFile_공통게시판_활성파일수동기화(@TempDir java.nio.file.Path tempDir) {
+        configureUploadUnit(tempDir);
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+        given(fileRepository.countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N"))
+                .willReturn(2L);
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "보고서.pdf",
+                        "application/pdf",
+                        "PDF".getBytes(StandardCharsets.UTF_8));
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder()
+                        .pkColNm("공통게시판")
+                        .pkCone("NAC-001")
+                        .flTpCone("첨부파일")
+                        .build();
+
+        String result = fileService.uploadFile(file, request);
+
+        assertThat(result).isEqualTo("FL_00000001");
+        verify(boardPostFileCacheService).sync("NAC-001", 2);
+    }
+
+    @Test
+    @DisplayName("uploadFileAndGet: 공통게시판 단건 업로드 성공 뒤 실제 활성 파일 수로 부모 캐시를 동기화한다")
+    void uploadFileAndGet_공통게시판_활성파일수동기화(@TempDir java.nio.file.Path tempDir) {
+        configureUploadUnit(tempDir);
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+        given(fileRepository.countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N"))
+                .willReturn(3L);
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "설계서.pdf",
+                        "application/pdf",
+                        "PDF".getBytes(StandardCharsets.UTF_8));
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder()
+                        .pkColNm("공통게시판")
+                        .pkCone("NAC-001")
+                        .flTpCone("첨부파일")
+                        .build();
+
+        FileDto.Response result = fileService.uploadFileAndGet(file, request);
+
+        assertThat(result.getFlNm()).isEqualTo("설계서.pdf");
+        verify(boardPostFileCacheService).sync("NAC-001", 3);
+    }
+
+    @Test
     @DisplayName("uploadFileAndGet: 파일을 저장하고 업로드 응답 DTO를 반환한다")
     void uploadFileAndGet_정상파일_응답반환(@TempDir java.nio.file.Path tempDir) {
         configureUploadUnit(tempDir);
@@ -693,6 +785,33 @@ class FileServiceTest {
         assertThat(result.getSuccessList()).hasSize(1);
         assertThat(result.getFailList()).hasSize(1);
         assertThat(result.getFailList().get(0)).contains("empty.txt");
+    }
+
+    @Test
+    @DisplayName("uploadFiles: 공통게시판 부분 성공 완료 뒤 실제 활성 파일 수로 한 번 동기화한다")
+    void uploadFiles_공통게시판부분성공_활성파일수동기화(@TempDir java.nio.file.Path tempDir) {
+        configureUploadUnit(tempDir);
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+        given(fileRepository.countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N"))
+                .willReturn(1L);
+        MockMultipartFile okFile =
+                new MockMultipartFile(
+                        "files", "ok.txt", "text/plain", "ok".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile emptyFile =
+                new MockMultipartFile("files", "empty.txt", "text/plain", new byte[0]);
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder()
+                        .pkColNm("공통게시판")
+                        .pkCone("NAC-001")
+                        .flTpCone("첨부파일")
+                        .build();
+
+        FileDto.BulkUploadResponse result =
+                fileService.uploadFiles(List.of(okFile, emptyFile), request);
+
+        assertThat(result.getSuccessList()).hasSize(1);
+        assertThat(result.getFailList()).hasSize(1);
+        verify(boardPostFileCacheService).sync("NAC-001", 1);
     }
 
     @Test

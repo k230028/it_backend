@@ -1,5 +1,6 @@
 package com.kdb.it.infra.file.service;
 
+import com.kdb.it.common.board.service.BoardPostFileCacheService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
@@ -63,6 +64,9 @@ public class FileService {
 
     /** 파일별 업로드를 독립 트랜잭션으로 처리하는 단위 서비스 */
     private final FileUploadUnitService fileUploadUnitService;
+
+    /** 공통게시판 게시물의 첨부파일 수 캐시 동기화 서비스 */
+    private final BoardPostFileCacheService boardPostFileCacheService;
 
     /** 파일 저장 기본 경로 운영 환경에서는 공유 스토리지 또는 NAS 경로를 지정하는 것을 권장합니다. */
     @Value("${app.file.base-path:/data/files}")
@@ -197,7 +201,9 @@ public class FileService {
      */
     @Transactional
     public String uploadFile(MultipartFile file, FileDto.UploadRequest request) {
-        return uploadFileInternal(file, request).getFlMpnId();
+        Cfilem saved = uploadFileInternal(file, request);
+        syncBoardFileCacheIfNeeded(request.getPkColNm(), request.getPkCone());
+        return saved.getFlMpnId();
     }
 
     /**
@@ -232,6 +238,7 @@ public class FileService {
     @Transactional
     public FileDto.Response uploadFileAndGet(MultipartFile file, FileDto.UploadRequest request) {
         Cfilem saved = uploadFileInternal(file, request);
+        syncBoardFileCacheIfNeeded(request.getPkColNm(), request.getPkCone());
         return toResponse(saved);
     }
 
@@ -266,6 +273,7 @@ public class FileService {
             }
         }
 
+        syncBoardFileCacheIfNeeded(request.getPkColNm(), request.getPkCone());
         return FileDto.BulkUploadResponse.builder()
                 .successList(successList)
                 .failList(failList)
@@ -333,6 +341,15 @@ public class FileService {
 
         // Soft Delete (DEL_YN = 'Y')
         cfilem.delete();
+        syncBoardFileCacheIfNeeded(cfilem.getPkColNm(), cfilem.getPkCone());
+    }
+
+    private void syncBoardFileCacheIfNeeded(String pkColNm, String pkCone) {
+        if (!"공통게시판".equals(pkColNm) || !StringUtils.hasText(pkCone)) {
+            return;
+        }
+        long activeFileCount = fileRepository.countByPkColNmAndPkConeAndDelYn(pkColNm, pkCone, "N");
+        boardPostFileCacheService.sync(pkCone, Math.toIntExact(activeFileCount));
     }
 
     /**
