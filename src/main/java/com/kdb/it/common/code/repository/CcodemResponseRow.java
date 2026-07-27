@@ -9,19 +9,19 @@ import java.time.LocalDateTime;
  * {@code guidPrgSno}는 제외). QueryDSL {@code Projections.constructor}는 위치 기반이므로 select 인자 순서가 이 레코드의
  * 컴포넌트 순서와 정확히 일치해야 한다.
  *
- * @param cId 코드ID
- * @param cdva 코드값
- * @param cdvaNm 코드값명
- * @param cNm 공통코드명 (구 CDVA)
- * @param cdvaDes 공통코드값약어명 (구 CDVA_DES)
- * @param cdvaDtl 공통코드값적요 (구 C_NM)
- * @param cdvaDtlC 공통코드값명 (구 CDVA_DTL_C)
- * @param cTp 공통코드인스턴스명 (구 C_TP)
- * @param cTpDes 공통코드인스턴스내용 (구 C_TP_DES)
- * @param hrkC 상위코드값ID
- * @param cSqn 코드순서일련번호
- * @param sttDt 시작일자 (YYYYMMDD)
- * @param endDt 종료일자 (YYYYMMDD)
+ * @param cId 코드ID (컬럼 CO_C_ID_NM)
+ * @param cdva 코드값 (컬럼 CDVA_ID)
+ * @param cdvaNm 코드값명 (컬럼 CDVA_NM)
+ * @param cNm 공통코드명 (컬럼 CO_C_NM)
+ * @param cdvaDes 공통코드값약어명 (컬럼 CO_CDVA_ABV_NM)
+ * @param cdvaDtl 공통코드값적요 (컬럼 CO_CDVA_SPS)
+ * @param cdvaDtlC 공통코드값명 (컬럼 CO_CDVA_NM)
+ * @param cTp 공통코드인스턴스명 (컬럼 CO_C_INTN_NM)
+ * @param cTpDes 공통코드인스턴스내용 (컬럼 CO_C_INTN_CONE)
+ * @param hrkC 상위코드값ID (컬럼 HRK_CDVA_ID)
+ * @param cSqn 코드순서일련번호 (컬럼 C_SQN_SNO)
+ * @param sttDt 시작일자 (YYYYMMDD, 컬럼 STT_DT)
+ * @param endDt 종료일자 (YYYYMMDD, 컬럼 END_DT)
  * @param delYn 삭제여부
  * @param fstEnrDtm 최초등록일시
  * @param fstEnrUsid 최초등록사용자ID
