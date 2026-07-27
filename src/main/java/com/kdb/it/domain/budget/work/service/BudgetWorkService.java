@@ -884,9 +884,10 @@ public class BudgetWorkService {
 
         // 2. 사업별 + 비목별 이중 그룹핑
         // BITEMM → prjMngNo로 변환하여 프로젝트 단위로 그룹핑
-        // key: 프로젝트관리번호 또는 전산업무비관리번호, value: { prefix → [요청금액, 편성금액] }
-        Map<String, Map<String, BigDecimal[]>> projectCategoryMap = new LinkedHashMap<>();
-        Map<String, String> orcTbMap = new LinkedHashMap<>();
+        // key: (원본테이블, 프로젝트관리번호|전산업무비관리번호) 복합키 — 사업번호와 비용번호가
+        // 같은 문자열이어도 병합되지 않도록 네임스페이스를 분리한다 (BE-17 결정 #5)
+        // value: { prefix → [요청금액, 편성금액] }
+        Map<SourceKey, Map<String, BigDecimal[]>> projectCategoryMap = new LinkedHashMap<>();
 
         // BITEMM gclMngNo → prjMngNo 선조회 Map (N+1 제거): BITEMM 원본의 품목 PK 집합을
         // 1회 배치 조회한 뒤 gclMngNo→abusMngNo 매핑을 미리 구성한다. 품목별 대표 행은
@@ -955,20 +956,18 @@ public class BudgetWorkService {
             if (b.getPkColNm() == null) continue;
 
             // 그룹핑 키 결정: BITEMM은 프로젝트 단위로 통합
-            String groupKey;
-            String groupOrcTb;
+            SourceKey groupKey;
             Bitemm sourceItem = null;
             if ("BITEMM".equals(b.getFntTbNm())) {
                 // gclMngNo → prjMngNo 변환 (선조회 Map, 매핑 없으면 gclMngNo 자체)
                 sourceItem = bitemmByGcl.get(b.getPkColNm());
-                groupKey = gclToPrj.getOrDefault(b.getPkColNm(), b.getPkColNm());
-                groupOrcTb = "BPROJM";
+                groupKey =
+                        new SourceKey(
+                                "BPROJM", gclToPrj.getOrDefault(b.getPkColNm(), b.getPkColNm()));
             } else {
-                groupKey = b.getPkColNm();
-                groupOrcTb = b.getFntTbNm();
+                groupKey = new SourceKey(b.getFntTbNm(), b.getPkColNm());
             }
 
-            orcTbMap.putIfAbsent(groupKey, groupOrcTb);
             projectCategoryMap.computeIfAbsent(groupKey, k -> new LinkedHashMap<>());
 
             // ioeC("101") → cNm("304-1100") → DUP_IOE 접두어("304") 매칭
@@ -1021,9 +1020,9 @@ public class BudgetWorkService {
         // 계약명(null 포함)을 보관한다.
         java.util.Set<String> prjGroupNos = new java.util.LinkedHashSet<>();
         java.util.Set<String> costGroupNos = new java.util.LinkedHashSet<>();
-        for (Map.Entry<String, String> e : orcTbMap.entrySet()) {
-            if ("BPROJM".equals(e.getValue())) prjGroupNos.add(e.getKey());
-            else if ("BCOSTM".equals(e.getValue())) costGroupNos.add(e.getKey());
+        for (SourceKey key : projectCategoryMap.keySet()) {
+            if ("BPROJM".equals(key.orcTb())) prjGroupNos.add(key.pkVl());
+            else if ("BCOSTM".equals(key.orcTb())) costGroupNos.add(key.pkVl());
         }
         // 사업명 대표 행: LST_YN='Y' 행만 인정(단건 조회와 통일), 없으면 관리번호 폴백 (BE-17 결정 #3)
         Map<String, String> prjNameByNo = new LinkedHashMap<>();
@@ -1059,10 +1058,11 @@ public class BudgetWorkService {
         BigDecimal totalRequest = BigDecimal.ZERO;
         BigDecimal totalDup = BigDecimal.ZERO;
 
-        for (Map.Entry<String, Map<String, BigDecimal[]>> entry : projectCategoryMap.entrySet()) {
-            String orcPkVl = entry.getKey();
+        for (Map.Entry<SourceKey, Map<String, BigDecimal[]>> entry :
+                projectCategoryMap.entrySet()) {
+            String orcPkVl = entry.getKey().pkVl();
             Map<String, BigDecimal[]> catMap = entry.getValue();
-            String orcTb = orcTbMap.get(orcPkVl);
+            String orcTb = entry.getKey().orcTb();
             // 원본 resolveProjectName(orcTb, orcPkVl)와 동치: 선조회 Map 참조
             String name;
             if ("BPROJM".equals(orcTb)) {
@@ -1149,4 +1149,7 @@ public class BudgetWorkService {
     private String extractPrefix(String cdva) {
         return cdva.replace("DUP-", "");
     }
+
+    /** getProjectSummary 그룹 키: 원본 테이블 네임스페이스 + 원본 PK 복합키 (BE-17 결정 #5) */
+    private record SourceKey(String orcTb, String pkVl) {}
 }

@@ -1898,4 +1898,57 @@ class BudgetWorkServiceTest {
         assertThat(result.data()).hasSize(1);
         assertThat(result.data().get(0).name()).isEqualTo("PRJ-1");
     }
+
+    @Test
+    @DisplayName("getProjectSummary - 사업번호와 비용번호가 같은 문자열이어도 별도 행으로 분리 집계한다")
+    void getProjectSummary_동일키충돌_orcTb별분리() {
+        // given: BCOSTM 원본 pk "X-1"과, BITEMM→사업 변환 결과가 같은 "X-1"인 두 편성행
+        Ccodem dupCode = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm costBudget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .fntTbNm("BCOSTM")
+                        .pkColNm("X-1")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("800"))
+                        .build();
+        Bbugtm itemBudget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(2)
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-1")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("400"))
+                        .build();
+        Bitemm item =
+                Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("Y").abusMngNo("X-1").build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
+                .willReturn(List.of(costBudget, itemBudget));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of());
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(item));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of());
+        given(costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of());
+
+        // when
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        // then: 단일 문자열 키였다면 1행으로 병합되지만, 복합키 분리 후 BCOSTM/BPROJM 2행
+        assertThat(result.data()).hasSize(2);
+        assertThat(result.data())
+                .extracting(summaryItem -> summaryItem.orcTb())
+                .containsExactlyInAnyOrder("BCOSTM", "BPROJM");
+    }
 }
