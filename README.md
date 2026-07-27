@@ -153,6 +153,19 @@ setx CORS_ALLOWED_ORIGINS "http://10.9.16.109:3000,http://localhost:3000"
 curl -i -H "Origin: http://10.9.16.109:3000" http://127.0.0.1:28080/api/menus
 ```
 
+### 리버스 프록시(same-origin) 배포 시
+
+프론트 정적 빌드(`npm run generate`)를 nginx·WebTobe로 서빙하고 `/api/`·`/sso/`를 백엔드로 프록시하는 구조에서는 API 호출이 same-origin이라 CORS가 발생하지 않습니다. 다만 두 가지는 여전히 백엔드 설정에 의존합니다.
+
+- **SSO 복귀 origin 검증**: SSO 완료 후 복귀 주소는 `cors.allowed-origins` 목록으로 검증합니다(`SsoController.resolveFrontendBaseUrl`). 프론트 접속 origin(로컬 nginx `http://localhost`, 운영 프론트 URL)이 목록에 없으면 SSO 성공 후 `app.frontend-url` 기본값으로 되돌아갑니다.
+- **프로파일·환경변수 우선순위**: `local-ext`/`local-int` 기본값에는 `http://localhost`가 포함되어 있지만, 프로파일 없이 기동하면 허용 목록이 비어 모든 교차 출처가 차단되고, `APP_FRONTEND_URL`·`CORS_ALLOWED_ORIGINS` 환경변수가 등록되어 있으면 기본 목록을 통째로 덮어씁니다. 로컬 nginx 검증 시에는 프로파일을 지정해 기동하거나 `CORS_ALLOWED_ORIGINS`에 `http://localhost`를 직접 포함시킵니다.
+
+```powershell
+# 로컬 nginx(http://localhost) 검증용 기동 예시
+$env:SPRING_PROFILES_ACTIVE = "local-ext"
+./gradlew bootRun
+```
+
 ## 데이터베이스 변경
 
 DDL과 데이터 마이그레이션은 `C:\it\it_database\migrations`에 새 Flyway 스크립트로 추가합니다.
