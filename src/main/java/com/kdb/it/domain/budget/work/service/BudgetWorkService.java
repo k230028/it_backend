@@ -840,9 +840,10 @@ public class BudgetWorkService {
             ioeCdvaToCapital.put(code.getCdva(), isCapitalCTp(code.getCTp()));
         }
 
-        // 비목별 편성률 맵 (prefix → dupRt)
+        // 비목별 편성률 맵 (prefix → dupRt): 접두어별로 그룹핑한 뒤
+        // 최신 편성 실행(bgNo 최대) 행의 편성률을 대표값으로 사용 (BE-17 결정 #2)
         // ioeC("101") → cNm("304-1100") → startsWith("304") 방식으로 DUP_IOE 접두어 매칭
-        Map<String, Integer> rateByPrefix = new LinkedHashMap<>();
+        Map<String, List<Bbugtm>> budgetsByPrefix = new LinkedHashMap<>();
         for (Bbugtm b : budgets) {
             if (b.getIoeC() != null && b.getAsgRt() != null) {
                 String ioeHierarchyCode = ioeCdvaToHierarchyCode.get(b.getIoeC());
@@ -850,11 +851,17 @@ public class BudgetWorkService {
                 for (Ccodem code : ioeCodes) {
                     String prefix = extractPrefix(code.getCdva());
                     if (ioeHierarchyCode.startsWith(prefix)) {
-                        rateByPrefix.putIfAbsent(prefix, b.getAsgRt());
+                        budgetsByPrefix.computeIfAbsent(prefix, k -> new ArrayList<>()).add(b);
                         break;
                     }
                 }
             }
+        }
+        Map<String, Integer> rateByPrefix = new LinkedHashMap<>();
+        for (Map.Entry<String, List<Bbugtm>> prefixEntry : budgetsByPrefix.entrySet()) {
+            rateByPrefix.put(
+                    prefixEntry.getKey(),
+                    BudgetRepresentativeSelector.pick(prefixEntry.getValue()).getAsgRt());
         }
 
         // 컬럼 헤더 정보 구성
@@ -895,15 +902,21 @@ public class BudgetWorkService {
 
         // 사업별 결과에서도 예정금액은 예산년도분 요청/편성에서 제외한다.
         // 품목 예정금액은 사업+자본구분 그룹 내 품목금액 합계 대비 비율로 배분한다.
-        Map<String, Bbugtm> firstBudgetByGcl = new LinkedHashMap<>();
+        // 품목별 대표 편성행은 최신 편성 실행(bgNo 최대) 행 기준 (BE-17 결정 #2)
+        Map<String, List<Bbugtm>> budgetsByGcl = new LinkedHashMap<>();
         for (Bbugtm b : budgets) {
             if ("BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null && b.getIoeC() != null) {
-                firstBudgetByGcl.putIfAbsent(b.getPkColNm(), b);
+                budgetsByGcl.computeIfAbsent(b.getPkColNm(), k -> new ArrayList<>()).add(b);
             }
+        }
+        Map<String, Bbugtm> representativeBudgetByGcl = new LinkedHashMap<>();
+        for (Map.Entry<String, List<Bbugtm>> gclEntry : budgetsByGcl.entrySet()) {
+            representativeBudgetByGcl.put(
+                    gclEntry.getKey(), BudgetRepresentativeSelector.pick(gclEntry.getValue()));
         }
         Map<String, BigDecimal> groupReqSum = new LinkedHashMap<>();
         Map<String, BigDecimal> groupMplSum = new LinkedHashMap<>();
-        for (Map.Entry<String, Bbugtm> e : firstBudgetByGcl.entrySet()) {
+        for (Map.Entry<String, Bbugtm> e : representativeBudgetByGcl.entrySet()) {
             Bitemm item = bitemmByGcl.get(e.getKey());
             if (item == null || item.getAbusMngNo() == null) continue;
             boolean capital = Boolean.TRUE.equals(ioeCdvaToCapital.get(e.getValue().getIoeC()));

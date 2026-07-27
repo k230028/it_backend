@@ -1654,4 +1654,53 @@ class BudgetWorkServiceTest {
         // getSummary가 부르는 findByBseYyAndDelYn는 정확히 1회 (선정리용 추가 호출 없음)
         Mockito.verify(bbugtmRepository, Mockito.times(1)).findByBseYyAndDelYn("2026", "N");
     }
+
+    // =========================================================================
+    // getProjectSummary — 대표행 결정론화 (BE-17)
+    // =========================================================================
+
+    @Test
+    @DisplayName("getProjectSummary - 헤더 편성률은 최신 편성 실행(bgNo 최대) 행 기준")
+    void getProjectSummary_헤더편성률_최신bgNo행기준() {
+        // given: 같은 비목 접두어에 편성률이 다른 두 실행 행 — 앞에 구 실행(80), 뒤에 신 실행(50)
+        Ccodem dupCode = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm olderRun =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .fntTbNm("BCOSTM")
+                        .pkColNm("COST-2026-0001")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("800"))
+                        .build();
+        Bbugtm newerRun =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0002")
+                        .sno(1)
+                        .fntTbNm("BCOSTM")
+                        .pkColNm("COST-2026-0002")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(50)
+                        .bgDupAmt(new BigDecimal("500"))
+                        .build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
+                .willReturn(List.of(olderRun, newerRun));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of());
+        given(costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of());
+
+        // when
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        // then: encounter order(80)가 아니라 최신 편성 실행(50) 기준
+        assertThat(result.categories().get(0).dupRt()).isEqualTo(50);
+    }
 }
