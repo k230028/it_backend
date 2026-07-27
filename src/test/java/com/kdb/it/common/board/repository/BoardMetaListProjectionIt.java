@@ -21,10 +21,11 @@ class BoardMetaListProjectionIt extends AbstractOracleRepositoryTest {
     void findAllActiveOrderedRows_matchesEntityQuery() {
         metaRepository.saveAllAndFlush(
                 List.of(
-                        board("BE03RW-02", "두번째", 2, "Y", "N"),
-                        board("BE03RW-01", "첫번째", 1, "Y", "N"),
-                        board("BE03RW-NU", "미사용", 1, "N", "N"), // useYn='N' → 제외
-                        board("BE03RW-DL", "삭제됨", 1, "Y", "Y"))); // delYn='Y' → 제외
+                        // Y/N 플래그 4개를 서로 다른 조합으로 채워 Projections.constructor 인자 순서 실수를 검출한다
+                        board("BE03RW-02", "두번째", 2, "Y", "N", "Y", "N", "N", "Y"),
+                        board("BE03RW-01", "첫번째", 1, "Y", "N", "N", "Y", "Y", "N"),
+                        board("BE03RW-NU", "미사용", 1, "N", "N", "N", "N", "N", "N"), // useYn='N' → 제외
+                        board("BE03RW-DL", "삭제됨", 1, "Y", "Y", "N", "N", "N", "N"))); // delYn='Y' → 제외
 
         List<Cblbmm> entities = metaRepository.findAllActiveOrdered();
         List<BoardMetaListRow> rows = metaRepository.findAllActiveOrderedRows();
@@ -64,16 +65,25 @@ class BoardMetaListProjectionIt extends AbstractOracleRepositoryTest {
         }
     }
 
-    private Cblbmm board(String id, String name, int sreSqnNo, String useYn, String delYn) {
+    private Cblbmm board(
+            String id,
+            String name,
+            int sreSqnNo,
+            String useYn,
+            String delYn,
+            String repUseYn,
+            String cmmtUseYn,
+            String flEsnYn,
+            String hedTagUseYn) {
         LocalDateTime now = LocalDateTime.of(2026, 7, 21, 12, 0);
         return Cblbmm.builder()
                 .blbMngNo(id)
                 .blbNm(name)
                 .itPtlBlbTc("001")
-                .repUseYn("N")
-                .cmmtUseYn("N")
-                .flEsnYn("N")
-                .hedTagUseYn("N")
+                .repUseYn(repUseYn)
+                .cmmtUseYn(cmmtUseYn)
+                .flEsnYn(flEsnYn)
+                .hedTagUseYn(hedTagUseYn)
                 .sreSqnNo(sreSqnNo)
                 .useYn(useYn)
                 .delYn(delYn)

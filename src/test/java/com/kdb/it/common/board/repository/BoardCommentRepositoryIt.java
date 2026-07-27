@@ -80,7 +80,7 @@ class BoardCommentRepositoryIt extends AbstractOracleRepositoryTest {
                 .cmmtCone("댓글")
                 .cmmtGrpNo(groupId)
                 .cmmtGrpSqn(sequence)
-                .cmmtGrpLev(sequence)
+                .cmmtGrpLev(sequence + 10) // sqn과 다른 값으로 분리하여 필드 순서 실수를 검출
                 .fstEnrUsid("TEST")
                 .fstEnrDtm(now)
                 .lstChgUsid("TEST")
