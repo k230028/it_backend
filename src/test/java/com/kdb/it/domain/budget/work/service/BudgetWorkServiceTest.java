@@ -937,6 +937,85 @@ class BudgetWorkServiceTest {
     }
 
     @Test
+    @DisplayName("getSummary - MPL 차감(computeMplAdjustment)도 BITEMM 구버전 행이 앞에 와도 LST_YN='Y' 대표행 기준으로 계산한다")
+    void getSummary_MPL차감_BITEMM대표행_lstYnY기준() {
+        // 시나리오: 같은 gclMngNo(GCL-MPL-002)의 구버전(N, PRJ-OLD)이 리스트 앞, 최신(Y, PRJ-MPL-002)이 뒤.
+        // projectRepository는 PRJ-MPL-002만 존재 응답 → 구버전(PRJ-OLD)이 대표로 뽑히면
+        // prjByNo에 없어 해당 품목의 MPL 차감 자체가 스킵되고 requestAmount는 원시집계(2000) 그대로 남는다.
+        // 최신 행(PRJ-MPL-002, mplAmt=800)이 대표로 뽑혀야 factor=800/2000=0.4가 적용되어 1200이 된다.
+        Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
+        Ccodem detailCode =
+                Ccodem.builder()
+                        .cdva("101")
+                        .cNm("237-0700")
+                        .cdvaDtlC("237-0700")
+                        .cdvaNm("국내전산임차료")
+                        .cTp("IOE_LEAFE")
+                        .cTpDes("전산임차료")
+                        .build();
+        Bbugtm bbugtm =
+                Bbugtm.builder()
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-MPL-002")
+                        .ioeC("101")
+                        .bgDupAmt(BigDecimal.valueOf(1600)) // 편성액
+                        .asgRt(80)
+                        .build();
+        // 구버전(N): 리스트 앞, 다른 사업번호(PRJ-OLD)·다른 금액 — putIfAbsent였다면 이 행이 채택된다.
+        Bitemm oldVersion =
+                Bitemm.builder()
+                        .gclMngNo("GCL-MPL-002")
+                        .sno(1)
+                        .lstYn("N")
+                        .abusMngNo("PRJ-OLD")
+                        .amt(BigDecimal.valueOf(500))
+                        .xcr(BigDecimal.ONE)
+                        .mplAmt(BigDecimal.valueOf(100))
+                        .build();
+        // 최신(Y): 리스트 뒤, 실제 대표로 채택되어야 하는 행
+        Bitemm latest =
+                Bitemm.builder()
+                        .gclMngNo("GCL-MPL-002")
+                        .sno(2)
+                        .lstYn("Y")
+                        .abusMngNo("PRJ-MPL-002")
+                        .amt(BigDecimal.valueOf(2000))
+                        .xcr(BigDecimal.ONE)
+                        .mplAmt(BigDecimal.valueOf(800))
+                        .build();
+        Bprojm project = Bprojm.builder().abusMngNo("PRJ-MPL-002").build();
+
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(bbugtm));
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(detailCode));
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
+                .willReturn(java.util.Map.of());
+        // 결재완료 원본 집계: 비목 "101" → 2000 (raw, MPL_AMT 차감 전, 대표행 선택과 무관하게 동일)
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
+                .willReturn(java.util.Map.of("101", BigDecimal.valueOf(2000)));
+        // 배치 조회: 구버전이 앞, 최신이 뒤 순서로 반환 (encounter order 함정 재현)
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(oldVersion, latest));
+        // 사업 마스터는 최신 행의 사업번호(PRJ-MPL-002)만 존재
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(project));
+
+        BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
+
+        assertThat(result.data()).hasSize(1);
+        BudgetWorkDto.SummaryItem summaryItem = result.data().get(0);
+
+        // 편성요청액 = 원시집계(2000) − 최신행 기준 예정금액비례차감(800) = 1200
+        assertThat(summaryItem.requestAmount())
+                .as("MPL 차감은 LST_YN='Y' 최신행(PRJ-MPL-002, mplAmt 800) 기준으로 1200이어야 한다")
+                .isEqualByComparingTo(BigDecimal.valueOf(1200));
+        // 만약 구버전(PRJ-OLD)이 대표로 채택됐다면 prjByNo에 없어 차감이 스킵되고 2000이 반환된다.
+        assertThat(summaryItem.requestAmount())
+                .as("구버전(PRJ-OLD) 대표 채택 시 차감이 스킵된 원시 AMT 합계(2000)면 버그")
+                .isNotEqualByComparingTo(BigDecimal.valueOf(2000));
+    }
+
+    @Test
     @DisplayName("getSummary: 그룹 접두어가 있는 세부명과 CCODEM 등록 코드는 BBUGTM 유무와 무관하게 표시된다")
     void getSummary_세부명접두어제거와미등록원본포함() {
         // 마이그레이션 후 CCODEM 구조:
