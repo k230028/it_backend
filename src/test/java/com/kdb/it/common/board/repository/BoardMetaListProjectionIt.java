@@ -21,8 +21,10 @@ class BoardMetaListProjectionIt extends AbstractOracleRepositoryTest {
     void findAllActiveOrderedRows_matchesEntityQuery() {
         metaRepository.saveAllAndFlush(
                 List.of(
-                        // Y/N 플래그 4개를 서로 다른 조합으로 채워 Projections.constructor 인자 순서 실수를 검출한다
-                        board("BE03RW-02", "두번째", 2, "Y", "N", "Y", "N", "N", "Y"),
+                        // Y/N 플래그 4개 조합이 두 행 사이에서 여집합 관계가 되지 않도록 구성한다.
+                        // (여집합이면 두 필드를 함께 스왑해도 각 행 내부 비교가 우연히 통과할 수 있다)
+                        // 01행: N,Y,Y,N / 02행: Y,Y,N,N — 6개 필드쌍 모두 최소 한 행에서 값이 달라진다.
+                        board("BE03RW-02", "두번째", 2, "Y", "N", "Y", "Y", "N", "N"),
                         board("BE03RW-01", "첫번째", 1, "Y", "N", "N", "Y", "Y", "N"),
                         board("BE03RW-NU", "미사용", 1, "N", "N", "N", "N", "N", "N"), // useYn='N' → 제외
                         board("BE03RW-DL", "삭제됨", 1, "Y", "Y", "N", "N", "N", "N"))); // delYn='Y' → 제외
