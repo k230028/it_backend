@@ -744,7 +744,8 @@ public class BudgetWorkService {
             Bitemm it = bitemmByGcl.get(e.getKey());
             if (it == null || it.getAbusMngNo() == null || !prjByNo.containsKey(it.getAbusMngNo()))
                 continue;
-            String ioeC = e.getValue().get(0).getIoeC();
+            // 대표 편성행(bgNo 최대) 기준 (BE-17 결정 #2) — encounter order 대신 결정론적 선택
+            String ioeC = BudgetRepresentativeSelector.pick(e.getValue()).getIoeC();
             boolean capital = Boolean.TRUE.equals(cdvaToCapital.get(ioeC));
             BigDecimal req = it.getAmt() != null ? it.getAmt() : BigDecimal.ZERO;
             BigDecimal dup =
