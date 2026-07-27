@@ -11,6 +11,8 @@ import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.ItemRepresentativeSelector;
+import com.kdb.it.domain.budget.project.service.ProjectRepresentativeSelector;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
@@ -111,17 +113,20 @@ public class BudgetWorkService {
                                 requestAmount = BigDecimal.ZERO;
                             }
 
-                            // 3. 기존 편성률 조회 (ioeC IN ioeCValues 기반)
-                            Integer dupRt =
+                            // 3. 기존 편성률 조회: 최신 편성 실행(bgNo 최대) 행 기준 (BE-17 결정 #2)
+                            List<Bbugtm> matchedBudgets =
                                     existingBudgets.stream()
                                             .filter(
                                                     b ->
                                                             b.getIoeC() != null
                                                                     && ioeCValues.contains(
                                                                             b.getIoeC()))
-                                            .map(value -> value.getAsgRt())
-                                            .findFirst()
-                                            .orElse(null);
+                                            .toList();
+                            Integer dupRt =
+                                    matchedBudgets.isEmpty()
+                                            ? null
+                                            : BudgetRepresentativeSelector.pick(matchedBudgets)
+                                                    .getAsgRt();
 
                             return new BudgetWorkDto.IoeCategoryResponse(
                                     code.getCdva(),
@@ -703,10 +708,15 @@ public class BudgetWorkService {
         if (byGcl.isEmpty()) return;
 
         // gclMngNo → Bitemm(품목금액/환율/사업관리번호) — 품목 PK 집합 1회 배치 조회 (N+1 제거)
-        // 원본 단건 로직과 동일하게 gclMngNo별 첫 행만 채택(putIfAbsent).
-        Map<String, Bitemm> bitemmByGcl = new LinkedHashMap<>();
+        // 품목별 대표 행은 LST_YN='Y' 우선, 없으면 SNO 최대 폴백 (BE-17 결정 #1).
+        Map<String, List<Bitemm>> itemsByGcl = new LinkedHashMap<>();
         for (Bitemm it : projectItemRepository.findByGclMngNoInAndDelYn(byGcl.keySet(), "N")) {
-            bitemmByGcl.putIfAbsent(it.getGclMngNo(), it);
+            itemsByGcl.computeIfAbsent(it.getGclMngNo(), k -> new ArrayList<>()).add(it);
+        }
+        Map<String, Bitemm> bitemmByGcl = new LinkedHashMap<>();
+        for (Map.Entry<String, List<Bitemm>> itemEntry : itemsByGcl.entrySet()) {
+            bitemmByGcl.put(
+                    itemEntry.getKey(), ItemRepresentativeSelector.pick(itemEntry.getValue()));
         }
         // 사업관리번호 → Bprojm(예정금액) — 사업관리번호 집합 1회 배치 조회 (N+1 제거)
         // 원본 단건 로직과 동일하게 abusMngNo별 첫 행만 채택(putIfAbsent).
@@ -734,7 +744,8 @@ public class BudgetWorkService {
             Bitemm it = bitemmByGcl.get(e.getKey());
             if (it == null || it.getAbusMngNo() == null || !prjByNo.containsKey(it.getAbusMngNo()))
                 continue;
-            String ioeC = e.getValue().get(0).getIoeC();
+            // 대표 편성행(bgNo 최대) 기준 (BE-17 결정 #2) — encounter order 대신 결정론적 선택
+            String ioeC = BudgetRepresentativeSelector.pick(e.getValue()).getIoeC();
             boolean capital = Boolean.TRUE.equals(cdvaToCapital.get(ioeC));
             BigDecimal req = it.getAmt() != null ? it.getAmt() : BigDecimal.ZERO;
             BigDecimal dup =
@@ -837,9 +848,10 @@ public class BudgetWorkService {
             ioeCdvaToCapital.put(code.getCdva(), isCapitalCTp(code.getCTp()));
         }
 
-        // 비목별 편성률 맵 (prefix → dupRt)
+        // 비목별 편성률 맵 (prefix → dupRt): 접두어별로 그룹핑한 뒤
+        // 최신 편성 실행(bgNo 최대) 행의 편성률을 대표값으로 사용 (BE-17 결정 #2)
         // ioeC("101") → cNm("304-1100") → startsWith("304") 방식으로 DUP_IOE 접두어 매칭
-        Map<String, Integer> rateByPrefix = new LinkedHashMap<>();
+        Map<String, List<Bbugtm>> budgetsByPrefix = new LinkedHashMap<>();
         for (Bbugtm b : budgets) {
             if (b.getIoeC() != null && b.getAsgRt() != null) {
                 String ioeHierarchyCode = ioeCdvaToHierarchyCode.get(b.getIoeC());
@@ -847,11 +859,17 @@ public class BudgetWorkService {
                 for (Ccodem code : ioeCodes) {
                     String prefix = extractPrefix(code.getCdva());
                     if (ioeHierarchyCode.startsWith(prefix)) {
-                        rateByPrefix.putIfAbsent(prefix, b.getAsgRt());
+                        budgetsByPrefix.computeIfAbsent(prefix, k -> new ArrayList<>()).add(b);
                         break;
                     }
                 }
             }
+        }
+        Map<String, Integer> rateByPrefix = new LinkedHashMap<>();
+        for (Map.Entry<String, List<Bbugtm>> prefixEntry : budgetsByPrefix.entrySet()) {
+            rateByPrefix.put(
+                    prefixEntry.getKey(),
+                    BudgetRepresentativeSelector.pick(prefixEntry.getValue()).getAsgRt());
         }
 
         // 컬럼 헤더 정보 구성
@@ -867,13 +885,15 @@ public class BudgetWorkService {
 
         // 2. 사업별 + 비목별 이중 그룹핑
         // BITEMM → prjMngNo로 변환하여 프로젝트 단위로 그룹핑
-        // key: 프로젝트관리번호 또는 전산업무비관리번호, value: { prefix → [요청금액, 편성금액] }
-        Map<String, Map<String, BigDecimal[]>> projectCategoryMap = new LinkedHashMap<>();
-        Map<String, String> orcTbMap = new LinkedHashMap<>();
+        // key: (원본테이블, 프로젝트관리번호|전산업무비관리번호) 복합키 — 사업번호와 비용번호가
+        // 같은 문자열이어도 병합되지 않도록 네임스페이스를 분리한다 (BE-17 결정 #5)
+        // value: { prefix → [요청금액, 편성금액] }
+        Map<SourceKey, Map<String, BigDecimal[]>> projectCategoryMap = new LinkedHashMap<>();
 
         // BITEMM gclMngNo → prjMngNo 선조회 Map (N+1 제거): BITEMM 원본의 품목 PK 집합을
-        // 1회 배치 조회한 뒤 gclMngNo→abusMngNo 매핑을 미리 구성한다. 원본 단건 로직과 동일하게
-        // gclMngNo별 첫 행만 채택(putIfAbsent)하고, 매핑이 없으면 gclMngNo 자체를 키로 사용한다.
+        // 1회 배치 조회한 뒤 gclMngNo→abusMngNo 매핑을 미리 구성한다. 품목별 대표 행은
+        // LST_YN='Y' 우선, 없으면 SNO 최대 폴백(BE-17 결정 #1)이며, 매핑이 없으면
+        // gclMngNo 자체를 키로 사용한다.
         java.util.Set<String> gclPks =
                 budgets.stream()
                         .filter(b -> "BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null)
@@ -884,23 +904,34 @@ public class BudgetWorkService {
         Map<String, Bitemm> bitemmByGcl = new LinkedHashMap<>();
         Map<String, String> gclToPrj = new LinkedHashMap<>();
         if (!gclPks.isEmpty()) {
+            Map<String, List<Bitemm>> itemsByGcl = new LinkedHashMap<>();
             for (Bitemm it : projectItemRepository.findByGclMngNoInAndDelYn(gclPks, "N")) {
-                bitemmByGcl.putIfAbsent(it.getGclMngNo(), it);
-                gclToPrj.putIfAbsent(it.getGclMngNo(), it.getAbusMngNo());
+                itemsByGcl.computeIfAbsent(it.getGclMngNo(), k -> new ArrayList<>()).add(it);
+            }
+            for (Map.Entry<String, List<Bitemm>> itemEntry : itemsByGcl.entrySet()) {
+                Bitemm representative = ItemRepresentativeSelector.pick(itemEntry.getValue());
+                bitemmByGcl.put(itemEntry.getKey(), representative);
+                gclToPrj.put(itemEntry.getKey(), representative.getAbusMngNo());
             }
         }
 
         // 사업별 결과에서도 예정금액은 예산년도분 요청/편성에서 제외한다.
         // 품목 예정금액은 사업+자본구분 그룹 내 품목금액 합계 대비 비율로 배분한다.
-        Map<String, Bbugtm> firstBudgetByGcl = new LinkedHashMap<>();
+        // 품목별 대표 편성행은 최신 편성 실행(bgNo 최대) 행 기준 (BE-17 결정 #2)
+        Map<String, List<Bbugtm>> budgetsByGcl = new LinkedHashMap<>();
         for (Bbugtm b : budgets) {
             if ("BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null && b.getIoeC() != null) {
-                firstBudgetByGcl.putIfAbsent(b.getPkColNm(), b);
+                budgetsByGcl.computeIfAbsent(b.getPkColNm(), k -> new ArrayList<>()).add(b);
             }
+        }
+        Map<String, Bbugtm> representativeBudgetByGcl = new LinkedHashMap<>();
+        for (Map.Entry<String, List<Bbugtm>> gclEntry : budgetsByGcl.entrySet()) {
+            representativeBudgetByGcl.put(
+                    gclEntry.getKey(), BudgetRepresentativeSelector.pick(gclEntry.getValue()));
         }
         Map<String, BigDecimal> groupReqSum = new LinkedHashMap<>();
         Map<String, BigDecimal> groupMplSum = new LinkedHashMap<>();
-        for (Map.Entry<String, Bbugtm> e : firstBudgetByGcl.entrySet()) {
+        for (Map.Entry<String, Bbugtm> e : representativeBudgetByGcl.entrySet()) {
             Bitemm item = bitemmByGcl.get(e.getKey());
             if (item == null || item.getAbusMngNo() == null) continue;
             boolean capital = Boolean.TRUE.equals(ioeCdvaToCapital.get(e.getValue().getIoeC()));
@@ -926,20 +957,18 @@ public class BudgetWorkService {
             if (b.getPkColNm() == null) continue;
 
             // 그룹핑 키 결정: BITEMM은 프로젝트 단위로 통합
-            String groupKey;
-            String groupOrcTb;
+            SourceKey groupKey;
             Bitemm sourceItem = null;
             if ("BITEMM".equals(b.getFntTbNm())) {
                 // gclMngNo → prjMngNo 변환 (선조회 Map, 매핑 없으면 gclMngNo 자체)
                 sourceItem = bitemmByGcl.get(b.getPkColNm());
-                groupKey = gclToPrj.getOrDefault(b.getPkColNm(), b.getPkColNm());
-                groupOrcTb = "BPROJM";
+                groupKey =
+                        new SourceKey(
+                                "BPROJM", gclToPrj.getOrDefault(b.getPkColNm(), b.getPkColNm()));
             } else {
-                groupKey = b.getPkColNm();
-                groupOrcTb = b.getFntTbNm();
+                groupKey = new SourceKey(b.getFntTbNm(), b.getPkColNm());
             }
 
-            orcTbMap.putIfAbsent(groupKey, groupOrcTb);
             projectCategoryMap.computeIfAbsent(groupKey, k -> new LinkedHashMap<>());
 
             // ioeC("101") → cNm("304-1100") → DUP_IOE 접두어("304") 매칭
@@ -987,22 +1016,26 @@ public class BudgetWorkService {
 
         // 3. 응답 구성
         // 사업명(BPROJM)/계약명(BCOSTM) 배치 선조회 (N+1 제거): 그룹키를 원본테이블별로 분류하여
-        // 각 1회 IN 조회한 뒤 Map으로 보관한다. BPROJM은 원본 resolveProjectName과 동일하게 첫 행을 채택하며,
-        // 사업명이 null이면 orcPkVl로 폴백한다(null 이름은 Map에 넣지 않음). BCOSTM은 비용번호별 이력을 그룹화해
-        // CostRepresentativeSelector로 대표 행을 선택하고 계약명(null 포함)을 보관한다.
+        // 각 1회 IN 조회한 뒤 Map으로 보관한다. BPROJM 대표행 정책은 아래 BE-17 결정 #3 주석 참조.
+        // BCOSTM은 비용번호별 이력을 그룹화해 CostRepresentativeSelector로 대표 행을 선택하고
+        // 계약명(null 포함)을 보관한다.
         java.util.Set<String> prjGroupNos = new java.util.LinkedHashSet<>();
         java.util.Set<String> costGroupNos = new java.util.LinkedHashSet<>();
-        for (Map.Entry<String, String> e : orcTbMap.entrySet()) {
-            if ("BPROJM".equals(e.getValue())) prjGroupNos.add(e.getKey());
-            else if ("BCOSTM".equals(e.getValue())) costGroupNos.add(e.getKey());
+        for (SourceKey key : projectCategoryMap.keySet()) {
+            if ("BPROJM".equals(key.orcTb())) prjGroupNos.add(key.pkVl());
+            else if ("BCOSTM".equals(key.orcTb())) costGroupNos.add(key.pkVl());
         }
+        // 사업명 대표 행: LST_YN='Y' 행만 인정(단건 조회와 통일), 없으면 관리번호 폴백 (BE-17 결정 #3)
         Map<String, String> prjNameByNo = new LinkedHashMap<>();
         if (!prjGroupNos.isEmpty()) {
+            Map<String, List<Bprojm>> projectsByNo = new LinkedHashMap<>();
             for (Bprojm p : projectRepository.findByAbusMngNoInAndDelYn(prjGroupNos, "N")) {
-                // 첫 행 채택 + 사업명이 null/blank가 아닐 때만 등록 (없으면 orcPkVl 폴백)
-                if (p.getAbusNm() != null) {
-                    prjNameByNo.putIfAbsent(p.getAbusMngNo(), p.getAbusNm());
-                }
+                projectsByNo.computeIfAbsent(p.getAbusMngNo(), k -> new ArrayList<>()).add(p);
+            }
+            for (Map.Entry<String, List<Bprojm>> projectEntry : projectsByNo.entrySet()) {
+                ProjectRepresentativeSelector.pickLatest(projectEntry.getValue())
+                        .map(p -> p.getAbusNm())
+                        .ifPresent(nm -> prjNameByNo.put(projectEntry.getKey(), nm));
             }
         }
         // 계약명: 비용번호별 대표 행의 cttNm(null 포함)을 채택하기 위해 키 존재 여부로 폴백 판단
@@ -1026,10 +1059,11 @@ public class BudgetWorkService {
         BigDecimal totalRequest = BigDecimal.ZERO;
         BigDecimal totalDup = BigDecimal.ZERO;
 
-        for (Map.Entry<String, Map<String, BigDecimal[]>> entry : projectCategoryMap.entrySet()) {
-            String orcPkVl = entry.getKey();
+        for (Map.Entry<SourceKey, Map<String, BigDecimal[]>> entry :
+                projectCategoryMap.entrySet()) {
+            String orcPkVl = entry.getKey().pkVl();
             Map<String, BigDecimal[]> catMap = entry.getValue();
-            String orcTb = orcTbMap.get(orcPkVl);
+            String orcTb = entry.getKey().orcTb();
             // 원본 resolveProjectName(orcTb, orcPkVl)와 동치: 선조회 Map 참조
             String name;
             if ("BPROJM".equals(orcTb)) {
@@ -1116,4 +1150,7 @@ public class BudgetWorkService {
     private String extractPrefix(String cdva) {
         return cdva.replace("DUP-", "");
     }
+
+    /** getProjectSummary 그룹 키: 원본 테이블 네임스페이스 + 원본 PK 복합키 (BE-17 결정 #5) */
+    private record SourceKey(String orcTb, String pkVl) {}
 }
