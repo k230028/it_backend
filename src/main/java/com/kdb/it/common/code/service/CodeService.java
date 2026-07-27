@@ -3,6 +3,7 @@ package com.kdb.it.common.code.service;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.dto.CodeDto;
 import com.kdb.it.common.code.entity.Ccodem;
+import com.kdb.it.common.code.repository.CcodemResponseRow;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.exception.CustomGeneralException;
 import java.time.LocalDate;
@@ -40,8 +41,8 @@ public class CodeService {
      * @return 해당 코드ID의 유효한 공통코드 응답 DTO 목록 (없으면 빈 리스트)
      */
     public List<CodeDto.Response> getCcodemsByCId(String cId, LocalDate targetDate) {
-        return codeRepository.findByCIdWithValidDate(cId, targetDate).stream()
-                .map(CodeDto.Response::fromEntity)
+        return codeRepository.findResponseRowsByCIdWithValidDate(cId, targetDate).stream()
+                .map(CodeDto.Response::fromRow)
                 .toList();
     }
 
@@ -55,14 +56,14 @@ public class CodeService {
      * @throws IllegalArgumentException 코드가 존재하지 않거나 유효기간을 벗어난 경우
      */
     public CodeDto.Response getCcodem(String cId, String cdva, LocalDate targetDate) {
-        Ccodem ccodem =
+        CcodemResponseRow row =
                 codeRepository
-                        .findByCIdAndCdvaWithValidDate(cId, cdva, targetDate)
+                        .findResponseRowByCIdAndCdvaWithValidDate(cId, cdva, targetDate)
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
                                                 "유효하지 않거나 존재하지 않는 코드입니다: " + cId + "/" + cdva));
-        return CodeDto.Response.fromEntity(ccodem);
+        return CodeDto.Response.fromRow(row);
     }
 
     /**
@@ -73,8 +74,8 @@ public class CodeService {
      * @return 해당 코드타입의 유효한 공통코드 응답 DTO 목록 (없으면 빈 리스트)
      */
     public List<CodeDto.Response> getCcodemsByCTp(String cTp, LocalDate targetDate) {
-        return codeRepository.findByCTpWithValidDate(cTp, targetDate).stream()
-                .map(CodeDto.Response::fromEntity)
+        return codeRepository.findResponseRowsByCTpWithValidDate(cTp, targetDate).stream()
+                .map(CodeDto.Response::fromRow)
                 .toList();
     }
 
