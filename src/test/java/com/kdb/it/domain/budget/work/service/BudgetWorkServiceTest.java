@@ -1703,4 +1703,43 @@ class BudgetWorkServiceTest {
         // then: encounter order(80)가 아니라 최신 편성 실행(50) 기준
         assertThat(result.categories().get(0).dupRt()).isEqualTo(50);
     }
+
+    @Test
+    @DisplayName("getProjectSummary - BITEMM 구버전 행이 앞에 와도 LST_YN='Y' 행의 사업번호로 그룹핑한다")
+    void getProjectSummary_BITEMM대표행_lstYnY기준() {
+        // given: 같은 gclMngNo의 구버전(N, PRJ-OLD)이 리스트 앞, 최신(Y, PRJ-NEW)이 뒤
+        Ccodem dupCode = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm budget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-1")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("800"))
+                        .build();
+        Bitemm oldVersion =
+                Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("N").abusMngNo("PRJ-OLD").build();
+        Bitemm latest =
+                Bitemm.builder().gclMngNo("GCL-1").sno(2).lstYn("Y").abusMngNo("PRJ-NEW").build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of());
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(oldVersion, latest));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of());
+
+        // when
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        // then: encounter order(PRJ-OLD)가 아니라 LST_YN='Y' 행(PRJ-NEW)의 사업번호로 그룹핑
+        assertThat(result.data()).hasSize(1);
+        assertThat(result.data().get(0).orcPkVl()).isEqualTo("PRJ-NEW");
+    }
 }

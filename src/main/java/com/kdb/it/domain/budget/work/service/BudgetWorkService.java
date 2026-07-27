@@ -11,6 +11,7 @@ import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.ItemRepresentativeSelector;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
@@ -706,10 +707,15 @@ public class BudgetWorkService {
         if (byGcl.isEmpty()) return;
 
         // gclMngNo → Bitemm(품목금액/환율/사업관리번호) — 품목 PK 집합 1회 배치 조회 (N+1 제거)
-        // 원본 단건 로직과 동일하게 gclMngNo별 첫 행만 채택(putIfAbsent).
-        Map<String, Bitemm> bitemmByGcl = new LinkedHashMap<>();
+        // 품목별 대표 행은 LST_YN='Y' 우선, 없으면 SNO 최대 폴백 (BE-17 결정 #1).
+        Map<String, List<Bitemm>> itemsByGcl = new LinkedHashMap<>();
         for (Bitemm it : projectItemRepository.findByGclMngNoInAndDelYn(byGcl.keySet(), "N")) {
-            bitemmByGcl.putIfAbsent(it.getGclMngNo(), it);
+            itemsByGcl.computeIfAbsent(it.getGclMngNo(), k -> new ArrayList<>()).add(it);
+        }
+        Map<String, Bitemm> bitemmByGcl = new LinkedHashMap<>();
+        for (Map.Entry<String, List<Bitemm>> itemEntry : itemsByGcl.entrySet()) {
+            bitemmByGcl.put(
+                    itemEntry.getKey(), ItemRepresentativeSelector.pick(itemEntry.getValue()));
         }
         // 사업관리번호 → Bprojm(예정금액) — 사업관리번호 집합 1회 배치 조회 (N+1 제거)
         // 원본 단건 로직과 동일하게 abusMngNo별 첫 행만 채택(putIfAbsent).
@@ -882,8 +888,9 @@ public class BudgetWorkService {
         Map<String, String> orcTbMap = new LinkedHashMap<>();
 
         // BITEMM gclMngNo → prjMngNo 선조회 Map (N+1 제거): BITEMM 원본의 품목 PK 집합을
-        // 1회 배치 조회한 뒤 gclMngNo→abusMngNo 매핑을 미리 구성한다. 원본 단건 로직과 동일하게
-        // gclMngNo별 첫 행만 채택(putIfAbsent)하고, 매핑이 없으면 gclMngNo 자체를 키로 사용한다.
+        // 1회 배치 조회한 뒤 gclMngNo→abusMngNo 매핑을 미리 구성한다. 품목별 대표 행은
+        // LST_YN='Y' 우선, 없으면 SNO 최대 폴백(BE-17 결정 #1)이며, 매핑이 없으면
+        // gclMngNo 자체를 키로 사용한다.
         java.util.Set<String> gclPks =
                 budgets.stream()
                         .filter(b -> "BITEMM".equals(b.getFntTbNm()) && b.getPkColNm() != null)
@@ -894,9 +901,14 @@ public class BudgetWorkService {
         Map<String, Bitemm> bitemmByGcl = new LinkedHashMap<>();
         Map<String, String> gclToPrj = new LinkedHashMap<>();
         if (!gclPks.isEmpty()) {
+            Map<String, List<Bitemm>> itemsByGcl = new LinkedHashMap<>();
             for (Bitemm it : projectItemRepository.findByGclMngNoInAndDelYn(gclPks, "N")) {
-                bitemmByGcl.putIfAbsent(it.getGclMngNo(), it);
-                gclToPrj.putIfAbsent(it.getGclMngNo(), it.getAbusMngNo());
+                itemsByGcl.computeIfAbsent(it.getGclMngNo(), k -> new ArrayList<>()).add(it);
+            }
+            for (Map.Entry<String, List<Bitemm>> itemEntry : itemsByGcl.entrySet()) {
+                Bitemm representative = ItemRepresentativeSelector.pick(itemEntry.getValue());
+                bitemmByGcl.put(itemEntry.getKey(), representative);
+                gclToPrj.put(itemEntry.getKey(), representative.getAbusMngNo());
             }
         }
 
