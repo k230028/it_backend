@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.document.repository;
 
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -31,6 +32,41 @@ public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
      * @return 조건에 맞는 가이드 문서 목록
      */
     List<Bgdocm> findAllByDelYn(String delYn);
+
+    /**
+     * 삭제여부로 목록 조회용 경량 프로젝션 조회
+     *
+     * <p>본문({@code nacTxtInf}, CLOB)을 제외한 목록 화면 전용 필드만 조회하여 불필요한 CLOB 로딩을 방지합니다.
+     *
+     * @param delYn 삭제여부 ('N'=미삭제)
+     * @return 조건에 맞는 가이드 문서 목록 프로젝션
+     */
+    List<GuideDocListView> findListViewsByDelYn(String delYn);
+
+    /** 가이드 문서 목록 조회용 경량 프로젝션 (본문 {@code nacTxtInf} 제외) */
+    interface GuideDocListView {
+
+        /** 문서관리번호 */
+        String getDocMngNo();
+
+        /** 문서명 */
+        String getDocTtlCone();
+
+        /** 삭제여부 */
+        String getDelYn();
+
+        /** 최초생성시간 */
+        LocalDateTime getFstEnrDtm();
+
+        /** 최초생성자 사번 */
+        String getFstEnrUsid();
+
+        /** 마지막수정시간 */
+        LocalDateTime getLstChgDtm();
+
+        /** 마지막수정자 사번 */
+        String getLstChgUsid();
+    }
 
     /**
      * 문서관리번호와 삭제여부로 존재 여부 확인

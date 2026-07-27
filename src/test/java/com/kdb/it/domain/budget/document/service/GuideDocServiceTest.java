@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import com.kdb.it.domain.budget.document.dto.GuideDocDto;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
+import com.kdb.it.domain.budget.document.repository.GuideDocRepository.GuideDocListView;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -44,34 +45,47 @@ class GuideDocServiceTest {
         return doc;
     }
 
+    private GuideDocListView mockListView(String docMngNo, String docNm) {
+        GuideDocListView view = mock(GuideDocListView.class);
+        given(view.getDocMngNo()).willReturn(docMngNo);
+        given(view.getDocTtlCone()).willReturn(docNm);
+        given(view.getDelYn()).willReturn("N");
+        return view;
+    }
+
     // ───────────────────────────────────────────────────────
     // getDocumentList
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("getDocumentList: 삭제되지 않은 문서 목록을 DTO로 반환한다")
-    void getDocumentList_문서있음_DTO목록반환() {
+    @DisplayName("getDocumentList: 삭제되지 않은 문서 목록을 본문 없는 DTO로 반환한다")
+    void getDocumentList_문서있음_본문없는DTO목록반환() {
         // given
-        Bgdocm doc1 = mockDocument("GDOC-2026-0001", "가이드문서1");
-        Bgdocm doc2 = mockDocument("GDOC-2026-0002", "가이드문서2");
-        given(guideDocRepository.findAllByDelYn("N")).willReturn(List.of(doc1, doc2));
+        GuideDocListView view1 = mockListView("GDOC-2026-0001", "가이드문서1");
+        GuideDocListView view2 = mockListView("GDOC-2026-0002", "가이드문서2");
+        given(guideDocRepository.findListViewsByDelYn("N")).willReturn(List.of(view1, view2));
 
         // when
-        List<GuideDocDto.Response> result = guideDocService.getDocumentList();
+        List<GuideDocDto.ListResponse> result = guideDocService.getDocumentList();
 
-        // then
+        // then: 목록 응답에는 본문(nacTxtInf) 필드 자체가 존재하지 않는다
         assertThat(result).hasSize(2);
-        verify(guideDocRepository).findAllByDelYn("N");
+        assertThat(result.get(0).docMngNo()).isEqualTo("GDOC-2026-0001");
+        assertThat(result.get(0).docTtlCone()).isEqualTo("가이드문서1");
+        assertThat(GuideDocDto.ListResponse.class.getDeclaredMethods())
+                .extracting(java.lang.reflect.Method::getName)
+                .doesNotContain("nacTxtInf");
+        verify(guideDocRepository).findListViewsByDelYn("N");
     }
 
     @Test
     @DisplayName("getDocumentList: 문서가 없으면 빈 목록을 반환한다")
     void getDocumentList_문서없음_빈목록반환() {
         // given
-        given(guideDocRepository.findAllByDelYn("N")).willReturn(List.of());
+        given(guideDocRepository.findListViewsByDelYn("N")).willReturn(List.of());
 
         // when
-        List<GuideDocDto.Response> result = guideDocService.getDocumentList();
+        List<GuideDocDto.ListResponse> result = guideDocService.getDocumentList();
 
         // then
         assertThat(result).isEmpty();
