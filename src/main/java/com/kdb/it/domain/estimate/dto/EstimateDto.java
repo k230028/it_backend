@@ -65,5 +65,36 @@ public final class EstimateDto {
             String reqCone,
             String reqUsid,
             LocalDateTime reqDtm,
-            List<Line> lines) {}
+            List<Line> lines) {
+
+        /** 대상구분: 소요예산 산정은 정보화사업(100) 전용이므로 고정값을 사용합니다. */
+        private static final String TGT_PROJECT = "100";
+
+        /**
+         * 상세 응답 전용 프로젝션({@link
+         * com.kdb.it.domain.estimate.repository.EstimateRepository.EstimateDetailView})으로부터 상세
+         * DTO를 조립합니다. 엔티티 전체를 적재하는 기존 생성 방식과 동일한 필드 구성을 유지합니다.
+         *
+         * @param view 상세 조회용 마스터 프로젝션 (7개 필드)
+         * @param abusNm 대상 사업명 (미존재 시 null)
+         * @param lines 팀별 산정 명세 목록
+         * @return 상세 응답 DTO
+         */
+        public static Detail fromView(
+                com.kdb.it.domain.estimate.repository.EstimateRepository.EstimateDetailView view,
+                String abusNm,
+                List<Line> lines) {
+            return new Detail(
+                    view.getRqmBgReqDocNo(),
+                    view.getDocVrsSno(),
+                    TGT_PROJECT,
+                    view.getCncdRfrNo(),
+                    abusNm,
+                    view.getStsTc(),
+                    view.getReqCone(),
+                    view.getFstEnrUsid(),
+                    view.getFstEnrDtm(),
+                    lines);
+        }
+    }
 }

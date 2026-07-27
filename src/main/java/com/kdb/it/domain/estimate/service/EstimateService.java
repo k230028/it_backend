@@ -41,7 +41,6 @@ public class EstimateService {
     static final String STS_DRAFT = "51";
     static final String STS_IN_PROGRESS = "55";
     static final String STS_DONE = "59";
-    static final String TGT_PROJECT = "100";
 
     private final EstimateRepository estimateRepository;
     private final EstimateLineRepository lineRepository;
@@ -152,10 +151,16 @@ public class EstimateService {
      * @return 상세 응답 DTO
      */
     public EstimateDto.Detail get(String docNo) {
-        Bestim e = loadCurrent(docNo);
+        EstimateRepository.EstimateDetailView view =
+                estimateRepository
+                        .findDetailViewByRqmBgReqDocNoAndLstYnAndDelYn(docNo, "Y", "N")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "소요예산 산정 문서를 찾을 수 없습니다: " + docNo));
         List<EstimateDto.Line> lines =
                 lineRepository
-                        .findByRqmBgReqDocNoAndDocVrsSnoAndDelYn(docNo, e.getDocVrsSno(), "N")
+                        .findByRqmBgReqDocNoAndDocVrsSnoAndDelYn(docNo, view.getDocVrsSno(), "N")
                         .stream()
                         .map(
                                 l ->
@@ -168,20 +173,10 @@ public class EstimateService {
         // 대상 사업명: 현재 버전 사업을 단건 조회해 채우고, 없으면 null로 둔다.
         String abusNm =
                 projectRepository
-                        .findNameViewByAbusMngNoAndLstYnAndDelYn(e.getCncdRfrNo(), "Y", "N")
+                        .findNameViewByAbusMngNoAndLstYnAndDelYn(view.getCncdRfrNo(), "Y", "N")
                         .map(value -> value.getAbusNm())
                         .orElse(null);
-        return new EstimateDto.Detail(
-                e.getRqmBgReqDocNo(),
-                e.getDocVrsSno(),
-                TGT_PROJECT,
-                e.getCncdRfrNo(),
-                abusNm,
-                e.getStsTc(),
-                e.getReqCone(),
-                e.getFstEnrUsid(),
-                e.getFstEnrDtm(),
-                lines);
+        return EstimateDto.Detail.fromView(view, abusNm, lines);
     }
 
     /**
