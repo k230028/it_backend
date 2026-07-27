@@ -146,6 +146,29 @@ class BudgetWorkServiceTest {
         assertThat(result.get(0).dupRt()).isNull();
     }
 
+    @Test
+    @DisplayName("getIoeCategories - 혼합 편성률이면 최신 편성 실행(bgNo 최대) 행의 편성률을 반환한다")
+    void getIoeCategories_혼합편성률_최신bgNo행기준() {
+        // given: 같은 비목 집합에 편성률이 다른 두 행 — 리스트 앞에 구 실행(80), 뒤에 신 실행(50)
+        Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm olderRun = Bbugtm.builder().bgNo("BG-2026-0001").sno(1).ioeC("001").asgRt(80).build();
+        Bbugtm newerRun = Bbugtm.builder().bgNo("BG-2026-0002").sno(1).ioeC("001").asgRt(50).build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
+                .willReturn(List.of(olderRun, newerRun));
+        given(bbugtmRepository.sumApprovedAmountByIoeCValues(any(), eq("2026")))
+                .willReturn(BigDecimal.TEN);
+
+        // when
+        List<BudgetWorkDto.IoeCategoryResponse> result = budgetWorkService.getIoeCategories("2026");
+
+        // then: encounter order(80)가 아니라 최신 편성 실행(50) 기준
+        assertThat(result.get(0).dupRt()).isEqualTo(50);
+    }
+
     // =========================================================================
     // getSummary — 편성 결과 조회
     // =========================================================================

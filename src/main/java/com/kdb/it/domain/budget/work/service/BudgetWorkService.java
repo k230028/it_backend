@@ -111,17 +111,20 @@ public class BudgetWorkService {
                                 requestAmount = BigDecimal.ZERO;
                             }
 
-                            // 3. 기존 편성률 조회 (ioeC IN ioeCValues 기반)
-                            Integer dupRt =
+                            // 3. 기존 편성률 조회: 최신 편성 실행(bgNo 최대) 행 기준 (BE-17 결정 #2)
+                            List<Bbugtm> matchedBudgets =
                                     existingBudgets.stream()
                                             .filter(
                                                     b ->
                                                             b.getIoeC() != null
                                                                     && ioeCValues.contains(
                                                                             b.getIoeC()))
-                                            .map(value -> value.getAsgRt())
-                                            .findFirst()
-                                            .orElse(null);
+                                            .toList();
+                            Integer dupRt =
+                                    matchedBudgets.isEmpty()
+                                            ? null
+                                            : BudgetRepresentativeSelector.pick(matchedBudgets)
+                                                    .getAsgRt();
 
                             return new BudgetWorkDto.IoeCategoryResponse(
                                     code.getCdva(),
