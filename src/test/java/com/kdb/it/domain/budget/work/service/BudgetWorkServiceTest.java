@@ -1091,6 +1091,7 @@ class BudgetWorkServiceTest {
         Bprojm project = mock(Bprojm.class);
         given(project.getAbusMngNo()).willReturn("PRJ-2026-0001");
         given(project.getAbusNm()).willReturn("정보화사업");
+        given(project.getLstYn()).willReturn("Y");
         CostRepository.CostRepresentativeView cost =
                 mock(CostRepository.CostRepresentativeView.class);
         given(cost.getCostBgNo()).willReturn("COST-2026-0001");
@@ -1820,5 +1821,81 @@ class BudgetWorkServiceTest {
         // then: encounter order(PRJ-OLD)가 아니라 LST_YN='Y' 행(PRJ-NEW)의 사업번호로 그룹핑
         assertThat(result.data()).hasSize(1);
         assertThat(result.data().get(0).orcPkVl()).isEqualTo("PRJ-NEW");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary - 사업명은 LST_YN='Y' 행 이름, 구버전 행이 앞에 와도 최신명 표시")
+    void getProjectSummary_사업명_lstYnY행이름() {
+        Ccodem dupCode = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm budget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-1")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("800"))
+                        .build();
+        Bitemm item =
+                Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("Y").abusMngNo("PRJ-1").build();
+        Bprojm oldVersion =
+                Bprojm.builder().abusMngNo("PRJ-1").sno(1).lstYn("N").abusNm("구버전명").build();
+        Bprojm latest =
+                Bprojm.builder().abusMngNo("PRJ-1").sno(2).lstYn("Y").abusNm("최신명").build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of());
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(item));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(oldVersion, latest));
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.data()).hasSize(1);
+        assertThat(result.data().get(0).name()).isEqualTo("최신명");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary - LST_YN='Y' 행이 없으면 사업명 대신 관리번호로 폴백한다")
+    void getProjectSummary_사업명_lstYnY없음_관리번호폴백() {
+        Ccodem dupCode = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm budget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-1")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("800"))
+                        .build();
+        Bitemm item =
+                Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("Y").abusMngNo("PRJ-1").build();
+        Bprojm oldOnly =
+                Bprojm.builder().abusMngNo("PRJ-1").sno(1).lstYn("N").abusNm("구버전명").build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of());
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(item));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(oldOnly));
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.data()).hasSize(1);
+        assertThat(result.data().get(0).name()).isEqualTo("PRJ-1");
     }
 }

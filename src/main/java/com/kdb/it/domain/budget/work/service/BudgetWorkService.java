@@ -12,6 +12,7 @@ import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ItemRepresentativeSelector;
+import com.kdb.it.domain.budget.project.service.ProjectRepresentativeSelector;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
@@ -1024,13 +1025,18 @@ public class BudgetWorkService {
             if ("BPROJM".equals(e.getValue())) prjGroupNos.add(e.getKey());
             else if ("BCOSTM".equals(e.getValue())) costGroupNos.add(e.getKey());
         }
+        // 사업명 대표 행: LST_YN='Y' 행만 인정(단건 조회와 통일), 없으면 관리번호 폴백 (BE-17 결정 #3)
         Map<String, String> prjNameByNo = new LinkedHashMap<>();
         if (!prjGroupNos.isEmpty()) {
+            Map<String, List<Bprojm>> projectsByNo = new LinkedHashMap<>();
             for (Bprojm p : projectRepository.findByAbusMngNoInAndDelYn(prjGroupNos, "N")) {
-                // 첫 행 채택 + 사업명이 null/blank가 아닐 때만 등록 (없으면 orcPkVl 폴백)
-                if (p.getAbusNm() != null) {
-                    prjNameByNo.putIfAbsent(p.getAbusMngNo(), p.getAbusNm());
-                }
+                projectsByNo.computeIfAbsent(p.getAbusMngNo(), k -> new ArrayList<>()).add(p);
+            }
+            for (Map.Entry<String, List<Bprojm>> projectEntry : projectsByNo.entrySet()) {
+                ProjectRepresentativeSelector.pickLatest(projectEntry.getValue())
+                        .map(p -> p.getAbusNm())
+                        .filter(nm -> nm != null)
+                        .ifPresent(nm -> prjNameByNo.put(projectEntry.getKey(), nm));
             }
         }
         // 계약명: 비용번호별 대표 행의 cttNm(null 포함)을 채택하기 위해 키 존재 여부로 폴백 판단
