@@ -27,7 +27,7 @@ public class BoardMetaService {
      * @return 사용 중이고 삭제되지 않은 게시판을 표시순서 오름차순으로 정렬한 목록
      */
     public List<BoardMetaDto.Response> getAllActive() {
-        return boardMetaRepository.findAllActiveOrdered().stream()
+        return boardMetaRepository.findAllActiveOrderedRows().stream()
                 .map(BoardMetaDto.Response::from)
                 .toList();
     }

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.entity.Cblbmm;
+import com.kdb.it.common.board.repository.BoardMetaListRow;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.exception.CustomGeneralException;
 import java.util.List;
@@ -28,8 +29,8 @@ class BoardMetaServiceTest {
     @Test
     @DisplayName("활성 게시판 목록을 응답 DTO로 변환한다")
     void getAllActive_returnsResponses() {
-        Cblbmm board = board("BLBM-2026-0001", "공지사항");
-        given(boardMetaRepository.findAllActiveOrdered()).willReturn(List.of(board));
+        BoardMetaListRow row = metaRow("BLBM-2026-0001", "공지사항");
+        given(boardMetaRepository.findAllActiveOrderedRows()).willReturn(List.of(row));
 
         List<BoardMetaDto.Response> result = service.getAllActive();
 
@@ -104,7 +105,7 @@ class BoardMetaServiceTest {
     @Test
     @DisplayName("getAllActive: 활성 게시판이 없으면 빈 리스트를 반환한다")
     void getAllActive_empty_returnsEmpty() {
-        given(boardMetaRepository.findAllActiveOrdered()).willReturn(List.of());
+        given(boardMetaRepository.findAllActiveOrderedRows()).willReturn(List.of());
 
         assertThat(service.getAllActive()).isEmpty();
     }
@@ -139,6 +140,17 @@ class BoardMetaServiceTest {
                 .useYn("Y")
                 .delYn("N")
                 .build();
+    }
+
+    /**
+     * 목록 프로젝션 테스트 픽스처 생성 헬퍼.
+     *
+     * @param id 게시판관리번호
+     * @param name 게시판명
+     * @return {@link BoardMetaListRow} 픽스처
+     */
+    private static BoardMetaListRow metaRow(String id, String name) {
+        return new BoardMetaListRow(id, name, "001", "Y", "Y", "N", "N", 1, "Y", null);
     }
 
     private static BoardMetaDto.CreateRequest createRequest() {

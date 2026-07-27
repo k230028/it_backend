@@ -54,8 +54,8 @@ public class BoardCommentService {
         Cblbcm post = findPost(nacMngNo);
         postService.verifyCanReadPost(user, post, board);
 
-        return commentRepository.findCommentsByPost(nacMngNo).stream()
-                .map(c -> BoardCommentDto.Response.from(c, canModify(user, c)))
+        return commentRepository.findCommentRowsByPost(nacMngNo).stream()
+                .map(row -> BoardCommentDto.Response.from(row, canModify(user, row.fstEnrUsid())))
                 .toList();
     }
 
@@ -214,8 +214,8 @@ public class BoardCommentService {
         OwnershipVerifier.verifyOwnerOrAdmin(comment.getFstEnrUsid(), user);
     }
 
-    private boolean canModify(CustomUserDetails user, Ccmmtm comment) {
-        return user.isAdmin() || user.getEno().equals(comment.getFstEnrUsid());
+    private boolean canModify(CustomUserDetails user, String fstEnrUsid) {
+        return user.isAdmin() || user.getEno().equals(fstEnrUsid);
     }
 
     /** 댓글 식별자 채번 — SQ_TPRMPP_CCMMTM_1 시퀀스 기반 숫자 일련번호(CMMT_SNO). */

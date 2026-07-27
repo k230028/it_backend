@@ -8,6 +8,7 @@ import com.kdb.it.common.board.dto.BoardCommentDto;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.entity.Ccmmtm;
+import com.kdb.it.common.board.repository.BoardCommentListRow;
 import com.kdb.it.common.board.repository.BoardCommentRepository;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
@@ -302,7 +303,7 @@ class BoardCommentServiceTest {
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
                 .willReturn(Optional.of(post));
         willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
-        given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of());
+        given(commentRepository.findCommentRowsByPost("NAC-2026-0001")).willReturn(List.of());
 
         // Act
         var result = service.getComments("BLBM-2026-0001", "NAC-2026-0001", normalUser);
@@ -315,15 +316,14 @@ class BoardCommentServiceTest {
     @DisplayName("getComments — 본인 댓글은 canModify=true로 반환된다")
     void getComments_ownComment_canModifyTrue() {
         // Arrange
-        Ccmmtm comment = buildComment(1L);
-        setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
+        BoardCommentListRow row = buildCommentRow(1L, "USER001"); // normalUser.getEno()
 
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
                 .willReturn(Optional.of(boardWithComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
                 .willReturn(Optional.of(post));
         willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
-        given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of(comment));
+        given(commentRepository.findCommentRowsByPost("NAC-2026-0001")).willReturn(List.of(row));
 
         // Act
         var result = service.getComments("BLBM-2026-0001", "NAC-2026-0001", normalUser);
@@ -337,15 +337,14 @@ class BoardCommentServiceTest {
     @DisplayName("getComments — 타인 댓글은 canModify=false로 반환된다")
     void getComments_otherComment_canModifyFalse() {
         // Arrange
-        Ccmmtm comment = buildComment(1L);
-        setFstEnrUsid(comment, "OTHER_USER");
+        BoardCommentListRow row = buildCommentRow(1L, "OTHER_USER");
 
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
                 .willReturn(Optional.of(boardWithComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
                 .willReturn(Optional.of(post));
         willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
-        given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of(comment));
+        given(commentRepository.findCommentRowsByPost("NAC-2026-0001")).willReturn(List.of(row));
 
         // Act
         var result = service.getComments("BLBM-2026-0001", "NAC-2026-0001", normalUser);
@@ -359,8 +358,7 @@ class BoardCommentServiceTest {
     @DisplayName("getComments — 관리자는 타인 댓글도 canModify=true로 반환된다")
     void getComments_admin_canModifyTrue() {
         // Arrange
-        Ccmmtm comment = buildComment(1L);
-        setFstEnrUsid(comment, "OTHER_USER");
+        BoardCommentListRow row = buildCommentRow(1L, "OTHER_USER");
 
         CustomUserDetails adminUser = new CustomUserDetails("ADMIN1", List.of("ITPAD001"), "IT001");
 
@@ -369,7 +367,7 @@ class BoardCommentServiceTest {
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
                 .willReturn(Optional.of(post));
         willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
-        given(commentRepository.findCommentsByPost("NAC-2026-0001")).willReturn(List.of(comment));
+        given(commentRepository.findCommentRowsByPost("NAC-2026-0001")).willReturn(List.of(row));
 
         // Act
         var result = service.getComments("BLBM-2026-0001", "NAC-2026-0001", adminUser);
@@ -476,5 +474,27 @@ class BoardCommentServiceTest {
                 .cmmtGrpLev(0)
                 .delYn("N")
                 .build();
+    }
+
+    /**
+     * 목록 프로젝션 테스트 픽스처 생성 헬퍼 — getComments 전용.
+     *
+     * @param cmmtMngNo 댓글관리번호
+     * @param fstEnrUsid 최초등록사용자ID (canModify 판정용)
+     * @return {@link BoardCommentListRow} 픽스처
+     */
+    private BoardCommentListRow buildCommentRow(Long cmmtMngNo, String fstEnrUsid) {
+        return new BoardCommentListRow(
+                cmmtMngNo,
+                "NAC-2026-0001",
+                "원본 댓글",
+                cmmtMngNo,
+                0,
+                0,
+                null,
+                "N",
+                fstEnrUsid,
+                null,
+                null);
     }
 }

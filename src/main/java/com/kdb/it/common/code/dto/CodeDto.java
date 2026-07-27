@@ -2,6 +2,7 @@ package com.kdb.it.common.code.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kdb.it.common.code.entity.Ccodem;
+import com.kdb.it.common.code.repository.CcodemResponseRow;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -200,6 +201,37 @@ public class CodeDto {
                     .fstEnrUsid(ccodem.getFstEnrUsid())
                     .lstChgDtm(ccodem.getLstChgDtm())
                     .lstChgUsid(ccodem.getLstChgUsid())
+                    .build();
+        }
+
+        /**
+         * REST 응답 전용 경량 프로젝션({@link CcodemResponseRow})으로부터 응답 DTO를 생성합니다. {@link
+         * #fromEntity(Ccodem)}와 동일한 18개 필드를 동일한 순서로 매핑합니다.
+         *
+         * @param row 공통코드 응답 프로젝션 행
+         * @return 응답 DTO (row가 null이면 null)
+         */
+        public static Response fromRow(CcodemResponseRow row) {
+            if (row == null) return null;
+            return Response.builder()
+                    .cId(row.cId())
+                    .cdva(row.cdva())
+                    .cdvaNm(row.cdvaNm())
+                    .cNm(row.cNm())
+                    .cdvaDes(row.cdvaDes())
+                    .cdvaDtl(row.cdvaDtl())
+                    .cdvaDtlC(row.cdvaDtlC())
+                    .cTp(row.cTp())
+                    .cTpDes(row.cTpDes())
+                    .hrkC(row.hrkC())
+                    .cSqn(row.cSqn())
+                    .sttDt(row.sttDt())
+                    .endDt(row.endDt())
+                    .delYn(row.delYn())
+                    .fstEnrDtm(row.fstEnrDtm())
+                    .fstEnrUsid(row.fstEnrUsid())
+                    .lstChgDtm(row.lstChgDtm())
+                    .lstChgUsid(row.lstChgUsid())
                     .build();
         }
     }

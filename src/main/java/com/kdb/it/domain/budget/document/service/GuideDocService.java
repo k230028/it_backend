@@ -31,13 +31,14 @@ public class GuideDocService {
     /**
      * 가이드 문서 목록 조회
      *
-     * <p>삭제되지 않은({@code DEL_YN='N'}) 모든 가이드 문서를 조회합니다.
+     * <p>삭제되지 않은({@code DEL_YN='N'}) 모든 가이드 문서를 조회합니다. 목록 응답은 본문({@code nacTxtInf}, CLOB)을 제외한 경량
+     * 프로젝션을 사용합니다.
      *
-     * @return 가이드 문서 응답 DTO 목록
+     * @return 가이드 문서 목록 응답 DTO 목록 (본문 제외)
      */
-    public List<GuideDocDto.Response> getDocumentList() {
-        return guideDocRepository.findAllByDelYn("N").stream()
-                .map(GuideDocDto.Response::fromEntity)
+    public List<GuideDocDto.ListResponse> getDocumentList() {
+        return guideDocRepository.findListViewsByDelYn("N").stream()
+                .map(GuideDocDto.ListResponse::fromView)
                 .toList();
     }
 

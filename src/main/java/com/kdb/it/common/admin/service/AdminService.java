@@ -637,10 +637,7 @@ public class AdminService {
      * @return 조직 응답 DTO 목록
      */
     public List<AdminDto.OrgResponse> getOrganizations() {
-        return orgRepository.findAll().stream()
-                .filter(o -> "N".equals(o.getDelYn()))
-                .map(this::toOrgResponse)
-                .toList();
+        return orgRepository.findAdminViewsByDelYn("N").stream().map(this::toOrgResponse).toList();
     }
 
     /**
@@ -696,8 +693,8 @@ public class AdminService {
         org.delete();
     }
 
-    /** CorgnI 엔티티를 OrgResponse DTO로 변환합니다. */
-    private AdminDto.OrgResponse toOrgResponse(CorgnI o) {
+    /** 관리자 조직 프로젝션을 OrgResponse DTO로 변환합니다. */
+    private AdminDto.OrgResponse toOrgResponse(OrganizationRepository.OrganizationAdminView o) {
         return new AdminDto.OrgResponse(
                 o.getPrlmOgzCCone(),
                 o.getBbrNm(),

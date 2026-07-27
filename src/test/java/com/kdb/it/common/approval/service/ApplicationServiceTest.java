@@ -83,6 +83,57 @@ class ApplicationServiceTest {
         }
     }
 
+    private record ApplicationReadView(
+            String apfMngNo,
+            String itPtlApfPrgStsC,
+            String dcdReqTtl,
+            String dcdReqInf,
+            String dcdReqUsid,
+            LocalDate dcdReqDtm,
+            String rgprDcdReqCone,
+            String dcdReqBbrC)
+            implements ApplicationRepository.ApplicationReadView {
+        @Override
+        public String getApfMngNo() {
+            return apfMngNo;
+        }
+
+        @Override
+        public String getItPtlApfPrgStsC() {
+            return itPtlApfPrgStsC;
+        }
+
+        @Override
+        public String getDcdReqTtl() {
+            return dcdReqTtl;
+        }
+
+        @Override
+        public String getDcdReqInf() {
+            return dcdReqInf;
+        }
+
+        @Override
+        public String getDcdReqUsid() {
+            return dcdReqUsid;
+        }
+
+        @Override
+        public LocalDate getDcdReqDtm() {
+            return dcdReqDtm;
+        }
+
+        @Override
+        public String getRgprDcdReqCone() {
+            return rgprDcdReqCone;
+        }
+
+        @Override
+        public String getDcdReqBbrC() {
+            return dcdReqBbrC;
+        }
+    }
+
     private record ApproverReadView(
             String dcdMngNo,
             Integer dcrSqnSno,
@@ -422,7 +473,7 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplication: 존재하지 않는 신청서 번호이면 IllegalArgumentException을 던진다")
     void getApplication_신청서없음_IllegalArgumentException발생() {
-        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.empty());
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> applicationService.getApplication(APF_MNG_NO))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -477,7 +528,7 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApfDtlCone: 존재하지 않는 신청서이면 IllegalArgumentException을 던진다")
     void getApfDtlCone_신청서없음_IllegalArgumentException발생() {
-        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.empty());
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> applicationService.getApfDtlCone(APF_MNG_NO))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -487,16 +538,18 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApfDtlCone: 존재하는 신청서이면 세부내용 응답 DTO를 반환한다")
     void getApfDtlCone_존재하는신청서_DTO반환() {
-        // Capplm.ApfDtlConeResponse.fromEntity() 가 호출되므로 필요한 필드만 설정
-        Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfMngNo()).willReturn(APF_MNG_NO);
-        given(capplm.getDcdReqInf()).willReturn("{\"test\":\"value\"}");
-        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+        // ApfDtlConeResponse.fromReadView() 가 호출되므로 필요한 필드만 설정
+        ApplicationReadView view =
+                new ApplicationReadView(
+                        APF_MNG_NO, null, null, "{\"test\":\"value\"}", null, null, null, null);
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
+                .willReturn(Optional.of(view));
 
         ApplicationDto.ApfDtlConeResponse result = applicationService.getApfDtlCone(APF_MNG_NO);
 
         assertThat(result).isNotNull();
         assertThat(result.getApfMngNo()).isEqualTo(APF_MNG_NO);
+        assertThat(result.getApfDtlCone()).isEqualTo("{\"test\":\"value\"}");
     }
 
     // ───────────────────────────────────────────────────────
@@ -506,12 +559,13 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplications: 전체 신청서 목록을 반환한다")
     void getApplications_전체목록반환() {
-        // given: 두 개의 Capplm Mock 준비
-        Capplm c1 = mock(Capplm.class);
-        Capplm c2 = mock(Capplm.class);
-        given(c1.getApfMngNo()).willReturn(APF_MNG_NO);
-        given(c2.getApfMngNo()).willReturn("APF_202600000002");
-        given(applicationRepository.findAll()).willReturn(List.of(c1, c2));
+        // given: 두 개의 신청서 read view 준비
+        ApplicationReadView v1 =
+                new ApplicationReadView(APF_MNG_NO, null, null, null, null, null, null, null);
+        ApplicationReadView v2 =
+                new ApplicationReadView(
+                        "APF_202600000002", null, null, null, null, null, null, null);
+        given(applicationRepository.findAllProjectedBy()).willReturn(List.of(v1, v2));
         // 결재자 목록은 In-쿼리 1회 배치 조회 (빈 목록 반환)
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of());
@@ -524,11 +578,11 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplications: 결재자 목록은 findByDcdMngNoIn 1회로 배치 조회한다")
     void getApplications_batchesApprovers() {
-        Capplm a1 = mock(Capplm.class);
-        Capplm a2 = mock(Capplm.class);
-        given(a1.getApfMngNo()).willReturn("APF-1");
-        given(a2.getApfMngNo()).willReturn("APF-2");
-        given(applicationRepository.findAll()).willReturn(List.of(a1, a2));
+        ApplicationReadView a1 =
+                new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
+        ApplicationReadView a2 =
+                new ApplicationReadView("APF-2", null, null, null, null, null, null, null);
+        given(applicationRepository.findAllProjectedBy()).willReturn(List.of(a1, a2));
         // APF-1 결재선 2건(순서 유지 검증), APF-2 결재선 없음
         ApproverReadView d1 = new ApproverReadView("APF-1", 1, "E001", "1", null, null, "N");
         ApproverReadView d2 =
@@ -551,14 +605,19 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplications: 레거시 1자리 미결재 코드가 있어도 목록을 반환한다")
     void getApplications_레거시미결재코드_목록반환() {
-        Capplm capplm =
-                Capplm.builder()
-                        .apfMngNo(APF_MNG_NO)
-                        .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
-                        .build();
+        ApplicationReadView view =
+                new ApplicationReadView(
+                        APF_MNG_NO,
+                        ApprovalStatus.IN_PROGRESS.code(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null);
         ApproverReadView legacyPending =
                 new ApproverReadView(APF_MNG_NO, 1, "E10001", "0", null, null, "Y");
-        given(applicationRepository.findAll()).willReturn(List.of(capplm));
+        given(applicationRepository.findAllProjectedBy()).willReturn(List.of(view));
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of(legacyPending));
 
@@ -572,7 +631,7 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplications: 신청서가 없으면 빈 목록을 반환한다")
     void getApplications_신청서없음_빈목록반환() {
-        given(applicationRepository.findAll()).willReturn(List.of());
+        given(applicationRepository.findAllProjectedBy()).willReturn(List.of());
 
         List<ApplicationDto.Response> result = applicationService.getApplications();
 
@@ -587,10 +646,12 @@ class ApplicationServiceTest {
     @DisplayName("getApplicationsByIds: 존재하는 신청서만 반환하고 없는 항목은 제외된다")
     void getApplicationsByIds_존재하는것만반환() {
         // given: APF_MNG_NO는 존재, "APF_NONE"은 없음
-        Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfMngNo()).willReturn(APF_MNG_NO);
-        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
-        given(applicationRepository.findById("APF_NONE")).willReturn(Optional.empty());
+        ApplicationReadView view =
+                new ApplicationReadView(APF_MNG_NO, null, null, null, null, null, null, null);
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
+                .willReturn(Optional.of(view));
+        given(applicationRepository.findReadViewByApfMngNo("APF_NONE"))
+                .willReturn(Optional.empty());
         given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of());
 
@@ -606,10 +667,11 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplicationsByIds: 일부 미존재 ID는 failedIds에 담기고 items는 정상분만 반환")
     void getApplicationsByIds_partialMissing_returnsItemsAndFailedIds() {
-        Capplm found = mock(Capplm.class);
-        given(found.getApfMngNo()).willReturn("APF-1");
-        given(applicationRepository.findById("APF-1")).willReturn(Optional.of(found));
-        given(applicationRepository.findById("APF-X")).willReturn(Optional.empty());
+        ApplicationReadView found =
+                new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
+        given(applicationRepository.findReadViewByApfMngNo("APF-1"))
+                .willReturn(Optional.of(found));
+        given(applicationRepository.findReadViewByApfMngNo("APF-X")).willReturn(Optional.empty());
         given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-1"))
                 .willReturn(List.of());
         ApplicationDto.BulkGetRequest req = new ApplicationDto.BulkGetRequest();
@@ -624,7 +686,7 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplicationsByIds: 모두 존재하지 않으면 빈 목록을 반환한다")
     void getApplicationsByIds_모두없음_빈목록반환() {
-        given(applicationRepository.findById(any())).willReturn(Optional.empty());
+        given(applicationRepository.findReadViewByApfMngNo(any())).willReturn(Optional.empty());
 
         ApplicationDto.BulkGetRequest request = new ApplicationDto.BulkGetRequest();
         request.setApfMngNos(List.of("APF_NONE1", "APF_NONE2"));
@@ -968,11 +1030,11 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplication: 신청자 사번·부점코드를 이름/부서명으로 해석해 채운다")
     void getApplication_신청자명_부서명_해석() {
-        Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfMngNo()).willReturn(APF_MNG_NO);
-        given(capplm.getDcdReqUsid()).willReturn("10001");
-        given(capplm.getDcdReqBbrC()).willReturn("18001");
-        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+        ApplicationReadView view =
+                new ApplicationReadView(
+                        APF_MNG_NO, null, null, null, "10001", null, null, "18001");
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
+                .willReturn(Optional.of(view));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of(pendingApprover("10002", 1, "Y")));
         given(userRepository.findNameViewsByEnoIn(any()))
@@ -983,16 +1045,17 @@ class ApplicationServiceTest {
         ApplicationDto.Response result = applicationService.getApplication(APF_MNG_NO);
 
         assertThat(result.getApfMngNo()).isEqualTo(APF_MNG_NO);
+        assertThat(result.getRqsNm()).isEqualTo("홍길동");
+        assertThat(result.getRqsBbrNm()).isEqualTo("정보기술부");
     }
 
     @Test
     @DisplayName("getApplication: 신청자 사번·부점코드가 없으면 이름 해석 없이 반환한다")
     void getApplication_신청자정보없음_null유지() {
-        Capplm capplm = mock(Capplm.class);
-        given(capplm.getApfMngNo()).willReturn(APF_MNG_NO);
-        given(capplm.getDcdReqUsid()).willReturn(null);
-        given(capplm.getDcdReqBbrC()).willReturn(null);
-        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
+        ApplicationReadView view =
+                new ApplicationReadView(APF_MNG_NO, null, null, null, null, null, null, null);
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
+                .willReturn(Optional.of(view));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of());
 
@@ -1004,11 +1067,10 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplications: 부서명이 null인 조직은 매핑에서 제외된다")
     void getApplications_부서명null조직_제외() {
-        Capplm c = mock(Capplm.class);
-        given(c.getApfMngNo()).willReturn(APF_MNG_NO);
-        given(c.getDcdReqUsid()).willReturn("10001");
-        given(c.getDcdReqBbrC()).willReturn("18001");
-        given(applicationRepository.findAll()).willReturn(List.of(c));
+        ApplicationReadView view =
+                new ApplicationReadView(
+                        APF_MNG_NO, null, null, null, "10001", null, null, "18001");
+        given(applicationRepository.findAllProjectedBy()).willReturn(List.of(view));
         given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any())).willReturn(List.of());
         given(userRepository.findNameViewsByEnoIn(any()))
                 .willReturn(List.of(new NameView("10001", "홍길동")));

@@ -42,13 +42,18 @@ public class GuideDocController {
     /**
      * 가이드 문서 목록 조회
      *
-     * <p>DEL_YN='N'인 삭제되지 않은 가이드 문서 전체 목록을 반환합니다.
+     * <p>DEL_YN='N'인 삭제되지 않은 가이드 문서 전체 목록을 반환합니다. 목록 응답은 본문({@code nacTxtInf})을 제외한 경량 응답입니다. 문서 본문이
+     * 필요하면 단건 조회({@code GET /api/guide-documents/{docMngNo}})를 사용합니다.
      *
-     * @return HTTP 200 + 가이드 문서 목록
+     * @return HTTP 200 + 가이드 문서 목록 (본문 제외)
      */
     @GetMapping
-    @Operation(summary = "가이드 문서 목록 조회", description = "삭제되지 않은 가이드 문서 전체 목록을 조회합니다.")
-    public ResponseEntity<List<GuideDocDto.Response>> getDocuments() {
+    @Operation(
+            summary = "가이드 문서 목록 조회",
+            description =
+                    "삭제되지 않은 가이드 문서 전체 목록을 조회합니다. 본문(nacTxtInf)은 포함되지 않으며 "
+                            + "본문이 필요하면 단건 조회(GET /api/guide-documents/{docMngNo})를 사용합니다.")
+    public ResponseEntity<List<GuideDocDto.ListResponse>> getDocuments() {
         return ResponseEntity.ok(guideDocService.getDocumentList());
     }
 

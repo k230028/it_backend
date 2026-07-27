@@ -1,6 +1,7 @@
 package com.kdb.it.common.board.dto;
 
 import com.kdb.it.common.board.entity.Cblbmm;
+import com.kdb.it.common.board.repository.BoardMetaListRow;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
@@ -58,6 +59,28 @@ public class BoardMetaDto {
                     .sreSqnNo(e.getSreSqnNo())
                     .useYn(e.getUseYn())
                     .rmk(e.getRmk())
+                    .build();
+        }
+
+        /**
+         * REST 응답 전용 경량 프로젝션({@link BoardMetaListRow})으로부터 응답 DTO를 생성합니다. {@link
+         * #from(Cblbmm)}와 동일한 10개 필드를 동일한 순서로 매핑합니다.
+         *
+         * @param row 게시판 메타 목록 프로젝션 행
+         * @return 응답 DTO
+         */
+        public static Response from(BoardMetaListRow row) {
+            return Response.builder()
+                    .blbMngNo(row.blbMngNo())
+                    .blbNm(row.blbNm())
+                    .itPtlBlbTc(row.itPtlBlbTc())
+                    .repUseYn(row.repUseYn())
+                    .cmmtUseYn(row.cmmtUseYn())
+                    .flEsnYn(row.flEsnYn())
+                    .hedTagUseYn(row.hedTagUseYn())
+                    .sreSqnNo(row.sreSqnNo())
+                    .useYn(row.useYn())
+                    .rmk(row.rmk())
                     .build();
         }
     }

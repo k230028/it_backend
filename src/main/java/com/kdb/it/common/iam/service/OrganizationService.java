@@ -40,8 +40,8 @@ public class OrganizationService {
      * @return 전체 조직 목록 DTO ({@link OrganizationDto.Response} 리스트)
      */
     public List<OrganizationDto.Response> getOrganizations() {
-        return organizationRepository.findAll().stream() // 전체 조직 엔티티 조회
-                .map(OrganizationDto.Response::fromEntity) // 각 엔티티를 DTO로 변환
+        return organizationRepository.findListViewsBy().stream() // 목록 응답 전용 프로젝션 조회
+                .map(OrganizationDto.Response::fromView) // 각 프로젝션 행을 DTO로 변환
                 .toList(); // 리스트로 수집(불변)
     }
 }

@@ -15,6 +15,23 @@ import org.springframework.data.jpa.repository.Query;
 public interface EstimateRepository
         extends JpaRepository<Bestim, BestimId>, EstimateRepositoryCustom {
 
+    /** 상세 조회 응답 조립에 필요한 마스터 최소 필드입니다. */
+    interface EstimateDetailView {
+        String getRqmBgReqDocNo();
+
+        Integer getDocVrsSno();
+
+        String getCncdRfrNo();
+
+        String getStsTc();
+
+        String getReqCone();
+
+        String getFstEnrUsid();
+
+        java.time.LocalDateTime getFstEnrDtm();
+    }
+
     /**
      * 문서번호·최종여부·삭제여부로 현재 유효 마스터를 조회합니다.
      *
@@ -24,6 +41,22 @@ public interface EstimateRepository
      * @return 현재 유효 마스터 (없으면 empty)
      */
     Optional<Bestim> findByRqmBgReqDocNoAndLstYnAndDelYn(
+            String rqmBgReqDocNo, String lstYn, String delYn);
+
+    /**
+     * 상세 응답 조립에 필요한 필드만 조회합니다 (문서번호·최종여부·삭제여부 기준).
+     *
+     * <p>{@link #findByRqmBgReqDocNoAndLstYnAndDelYn}과 동일한 조건이지만 엔티티 전체 대신 응답이 실제 사용하는 7개
+     * 필드만 적재하는 인터페이스 프로젝션입니다. 쓰기 흐름({@code update}/{@code delete}/{@code changeStatus}/{@code
+     * saveLines})은 영속성 컨텍스트 관리가 필요하므로 계속 엔티티 조회를 사용하고, 순수 읽기 전용인 상세 조회({@code get})만 이 메서드로
+     * 전환합니다.
+     *
+     * @param rqmBgReqDocNo 소요예산요청문서번호
+     * @param lstYn 최종여부 ("Y")
+     * @param delYn 삭제여부 ("N")
+     * @return 현재 유효 마스터의 상세 view (없으면 empty)
+     */
+    Optional<EstimateDetailView> findDetailViewByRqmBgReqDocNoAndLstYnAndDelYn(
             String rqmBgReqDocNo, String lstYn, String delYn);
 
     /**

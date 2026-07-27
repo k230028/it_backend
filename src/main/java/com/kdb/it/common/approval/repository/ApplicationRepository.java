@@ -6,6 +6,7 @@ import com.kdb.it.common.util.LabeledCountRow;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -50,6 +51,42 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      * @return 신청서 요약 view 목록
      */
     List<ApplicationSummaryView> findSummaryViewsByApfMngNoIn(Collection<String> apfMngNos);
+
+    /** 신청서 조회 응답(ApplicationDto.Response, ApfDtlConeResponse) 조립에 필요한 신청서 마스터 8필드입니다. */
+    interface ApplicationReadView {
+        String getApfMngNo();
+
+        String getItPtlApfPrgStsC();
+
+        String getDcdReqTtl();
+
+        String getDcdReqInf();
+
+        String getDcdReqUsid();
+
+        LocalDate getDcdReqDtm();
+
+        String getRgprDcdReqCone();
+
+        String getDcdReqBbrC();
+    }
+
+    /**
+     * 전체 신청서를 응답 조립용 read view로 조회합니다.
+     *
+     * <p>{@code findAll()}과 동일하게 별도 정렬·삭제여부 필터를 적용하지 않습니다.
+     *
+     * @return 신청서 read view 목록 (정렬 없음)
+     */
+    List<ApplicationReadView> findAllProjectedBy();
+
+    /**
+     * 신청관리번호로 단건 신청서를 응답 조립용 read view로 조회합니다.
+     *
+     * @param apfMngNo 신청서 관리번호
+     * @return 해당 신청서 read view (없으면 {@link Optional#empty()})
+     */
+    Optional<ApplicationReadView> findReadViewByApfMngNo(String apfMngNo);
 
     /**
      * Oracle 시퀀스(SQ_TPRMPP_CAPPLM_1) 다음 값 조회

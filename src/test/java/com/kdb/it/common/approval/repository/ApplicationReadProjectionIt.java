@@ -115,6 +115,83 @@ class ApplicationReadProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(ApplicationRepository.ApplicationSummaryView.class.getDeclaredMethods())
                 .hasSize(6);
         assertThat(ApproverRepository.ApproverReadView.class.getDeclaredMethods()).hasSize(7);
+        assertThat(ApplicationRepository.ApplicationReadView.class.getDeclaredMethods())
+                .hasSize(8);
+    }
+
+    @Test
+    void 신청서읽기뷰가엔티티조회와동일한필드를반환한다() {
+        entityManager.persist(
+                Capplm.builder()
+                        .apfMngNo("APF-2026-00000101")
+                        .itPtlApfPrgStsC("1")
+                        .dcdReqTtl("제목-APF-2026-00000101")
+                        .dcdReqInf("{\"projects\":[{\"prjMngNo\":\"PRJ-1\"}]}") // CLOB 필드 포함 검증
+                        .dcdReqUsid("E0001")
+                        .dcdReqDtm(LocalDate.of(2026, 7, 21))
+                        .rgprDcdReqCone("요청-APF-2026-00000101")
+                        .dcdReqBbrC("180")
+                        .fstEnrDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
+                        .fstEnrUsid("BE03-TEST")
+                        .lstChgDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
+                        .lstChgUsid("BE03-TEST")
+                        .delYn("N")
+                        .build());
+        entityManager.persist(
+                Capplm.builder()
+                        .apfMngNo("APF-2026-00000102")
+                        .itPtlApfPrgStsC("2")
+                        .dcdReqTtl("제목-APF-2026-00000102")
+                        .dcdReqInf(null) // CLOB null 케이스
+                        .dcdReqUsid("E0002")
+                        .dcdReqDtm(LocalDate.of(2026, 7, 22))
+                        .rgprDcdReqCone("요청-APF-2026-00000102")
+                        .dcdReqBbrC("181")
+                        .fstEnrDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
+                        .fstEnrUsid("BE03-TEST")
+                        .lstChgDtm(LocalDateTime.of(2026, 7, 21, 9, 0))
+                        .lstChgUsid("BE03-TEST")
+                        .delYn("N")
+                        .build());
+        entityManager.flush();
+        entityManager.clear();
+
+        // 단건: entity findById vs view findReadViewByApfMngNo 8필드 동등성(CLOB 포함)
+        Capplm entity = applicationRepository.findById("APF-2026-00000101").orElseThrow();
+        ApplicationRepository.ApplicationReadView view =
+                applicationRepository.findReadViewByApfMngNo("APF-2026-00000101").orElseThrow();
+        assertThat(view.getApfMngNo()).isEqualTo(entity.getApfMngNo());
+        assertThat(view.getItPtlApfPrgStsC()).isEqualTo(entity.getItPtlApfPrgStsC());
+        assertThat(view.getDcdReqTtl()).isEqualTo(entity.getDcdReqTtl());
+        assertThat(view.getDcdReqInf()).isEqualTo(entity.getDcdReqInf());
+        assertThat(view.getDcdReqUsid()).isEqualTo(entity.getDcdReqUsid());
+        assertThat(view.getDcdReqDtm()).isEqualTo(entity.getDcdReqDtm());
+        assertThat(view.getRgprDcdReqCone()).isEqualTo(entity.getRgprDcdReqCone());
+        assertThat(view.getDcdReqBbrC()).isEqualTo(entity.getDcdReqBbrC());
+
+        // 미존재 신청관리번호는 empty 계약을 유지한다
+        assertThat(applicationRepository.findReadViewByApfMngNo("APF-NONE-EXIST")).isEmpty();
+
+        // 전체목록: findAll() vs findAllProjectedBy() 건수·필드 동등성 (CLOB 포함, 정렬 없음 동일 의미)
+        List<Capplm> allEntities = applicationRepository.findAll();
+        List<ApplicationRepository.ApplicationReadView> allViews =
+                applicationRepository.findAllProjectedBy();
+        assertThat(allViews).hasSameSizeAs(allEntities);
+
+        Map<String, Capplm> entityByPk =
+                allEntities.stream()
+                        .collect(java.util.stream.Collectors.toMap(Capplm::getApfMngNo, e -> e));
+        for (ApplicationRepository.ApplicationReadView v : allViews) {
+            Capplm matching = entityByPk.get(v.getApfMngNo());
+            assertThat(matching).isNotNull();
+            assertThat(v.getItPtlApfPrgStsC()).isEqualTo(matching.getItPtlApfPrgStsC());
+            assertThat(v.getDcdReqTtl()).isEqualTo(matching.getDcdReqTtl());
+            assertThat(v.getDcdReqInf()).isEqualTo(matching.getDcdReqInf());
+            assertThat(v.getDcdReqUsid()).isEqualTo(matching.getDcdReqUsid());
+            assertThat(v.getDcdReqDtm()).isEqualTo(matching.getDcdReqDtm());
+            assertThat(v.getRgprDcdReqCone()).isEqualTo(matching.getRgprDcdReqCone());
+            assertThat(v.getDcdReqBbrC()).isEqualTo(matching.getDcdReqBbrC());
+        }
     }
 
     private void persistApplication(String apfMngNo, String status) {
