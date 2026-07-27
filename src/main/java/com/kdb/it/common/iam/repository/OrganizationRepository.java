@@ -1,6 +1,7 @@
 package com.kdb.it.common.iam.repository;
 
 import com.kdb.it.common.iam.entity.CorgnI;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +32,36 @@ public interface OrganizationRepository extends JpaRepository<CorgnI, String> {
         String getBbrNm();
     }
 
+    /** 조직 목록(일반 조회) 응답에 필요한 프로젝션. */
+    interface OrganizationListView {
+        String getPrlmOgzCCone();
+
+        String getPrlmHrkOgzCCone();
+
+        String getBbrNm();
+    }
+
+    /** 관리자 조직 목록 응답에 필요한 프로젝션. */
+    interface OrganizationAdminView {
+        String getPrlmOgzCCone();
+
+        String getBbrNm();
+
+        String getBbrWrenNm();
+
+        Integer getItmSqnSno();
+
+        String getPrlmHrkOgzCCone();
+
+        LocalDateTime getFstEnrDtm();
+
+        String getFstEnrUsid();
+
+        LocalDateTime getLstChgDtm();
+
+        String getLstChgUsid();
+    }
+
     /**
      * 조직코드 목록으로 조직명 프로젝션을 조회합니다.
      *
@@ -46,4 +77,20 @@ public interface OrganizationRepository extends JpaRepository<CorgnI, String> {
      * @return 조직명 프로젝션
      */
     Optional<OrganizationNameView> findNameViewByPrlmOgzCCone(String prlmOgzCCone);
+
+    /**
+     * 전체 조직 목록을 목록 조회 전용 프로젝션으로 조회합니다. 삭제 여부와 무관하게 전건을 반환하여 기존 {@code findAll()} 무필터 의미를
+     * 보존합니다.
+     *
+     * @return 조직 목록 프로젝션 (무필터, 무정렬)
+     */
+    List<OrganizationListView> findListViewsBy();
+
+    /**
+     * 삭제 여부로 관리자 조직 목록 프로젝션을 조회합니다.
+     *
+     * @param delYn 삭제 여부
+     * @return 관리자 조직 목록 프로젝션
+     */
+    List<OrganizationAdminView> findAdminViewsByDelYn(String delYn);
 }

@@ -231,6 +231,54 @@ class AdminServiceTest {
         }
     }
 
+    private record OrganizationAdminView(String prlmOgzCCone, String bbrNm)
+            implements OrganizationRepository.OrganizationAdminView {
+        @Override
+        public String getPrlmOgzCCone() {
+            return prlmOgzCCone;
+        }
+
+        @Override
+        public String getBbrNm() {
+            return bbrNm;
+        }
+
+        @Override
+        public String getBbrWrenNm() {
+            return null;
+        }
+
+        @Override
+        public Integer getItmSqnSno() {
+            return null;
+        }
+
+        @Override
+        public String getPrlmHrkOgzCCone() {
+            return null;
+        }
+
+        @Override
+        public LocalDateTime getFstEnrDtm() {
+            return null;
+        }
+
+        @Override
+        public String getFstEnrUsid() {
+            return null;
+        }
+
+        @Override
+        public LocalDateTime getLstChgDtm() {
+            return null;
+        }
+
+        @Override
+        public String getLstChgUsid() {
+            return null;
+        }
+    }
+
     @Mock private CodeRepository codeRepository;
     @Mock private AuthRepository authRepository;
     @Mock private RoleRepository roleRepository;
@@ -785,19 +833,18 @@ class AdminServiceTest {
     @Test
     @DisplayName("getOrganizations: 삭제되지 않은 조직 목록을 반환한다")
     void getOrganizations_삭제되지않은목록반환() {
-        // given: DEL_YN='N'/'Y' 혼합
-        CorgnI active = CorgnI.builder().prlmOgzCCone("BBR001").bbrNm("IT부문").delYn("N").build();
-        CorgnI deleted = CorgnI.builder().prlmOgzCCone("BBR999").bbrNm("폐지부서").delYn("Y").build();
-        given(orgRepository.findAll()).willReturn(List.of(active, deleted));
-        given(userRepository.findByEno(any())).willReturn(java.util.Optional.empty());
+        // given: delYn='N' 쿼리 필터로 활성 조직만 조회됨(폐지 조직은 리포지토리 조회 결과에서 이미 제외)
+        given(orgRepository.findAdminViewsByDelYn("N"))
+                .willReturn(List.of(new OrganizationAdminView("BBR001", "IT부문")));
 
         // when
         List<AdminDto.OrgResponse> result = adminService.getOrganizations();
 
-        // then: DEL_YN='Y' 항목 제외하여 1건만 반환
+        // then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).prlmOgzCCone()).isEqualTo("BBR001");
         assertThat(result.get(0).bbrNm()).isEqualTo("IT부문");
+        verify(orgRepository).findAdminViewsByDelYn("N");
     }
 
     @Test

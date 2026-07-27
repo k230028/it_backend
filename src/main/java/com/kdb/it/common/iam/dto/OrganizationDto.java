@@ -1,6 +1,7 @@
 package com.kdb.it.common.iam.dto;
 
 import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.repository.OrganizationRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -80,6 +81,21 @@ public class OrganizationDto {
                     .prlmOgzCCone(corgnI.getPrlmOgzCCone()) // 조직코드
                     .prlmHrkOgzCCone(corgnI.getPrlmHrkOgzCCone()) // 상위조직코드
                     .bbrNm(corgnI.getBbrNm()) // 부점명
+                    .build();
+        }
+
+        /**
+         * 조직 목록 조회 전용 프로젝션({@link OrganizationRepository.OrganizationListView})으로부터 응답 DTO를
+         * 생성합니다. {@link #fromEntity(CorgnI)}와 동일한 3개 필드를 동일한 순서로 매핑합니다.
+         *
+         * @param row 조직 목록 프로젝션 행
+         * @return 변환된 응답 DTO
+         */
+        public static Response fromView(OrganizationRepository.OrganizationListView row) {
+            return Response.builder()
+                    .prlmOgzCCone(row.getPrlmOgzCCone()) // 조직코드
+                    .prlmHrkOgzCCone(row.getPrlmHrkOgzCCone()) // 상위조직코드
+                    .bbrNm(row.getBbrNm()) // 부점명
                     .build();
         }
     }
