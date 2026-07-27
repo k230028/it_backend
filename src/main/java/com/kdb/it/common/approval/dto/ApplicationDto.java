@@ -407,45 +407,10 @@ public class ApplicationDto {
         }
 
         /**
-         * 신청서 엔티티와 결재선 read view를 응답 DTO로 변환합니다.
-         *
-         * @param capplm 신청서 마스터 엔티티
-         * @param approvers 결재 순번 오름차순 read view 목록
-         * @param requesterNm 신청자명
-         * @param requesterBbrNm 신청부서명
-         * @return 변환된 응답 DTO
-         */
-        public static Response fromReadViews(
-                Capplm capplm,
-                List<ApproverRepository.ApproverReadView> approvers,
-                String requesterNm,
-                String requesterBbrNm) {
-            return Response.builder()
-                    .apfMngNo(capplm.getApfMngNo())
-                    .apfNm(capplm.getDcdReqTtl())
-                    .apfDtlCone(capplm.getDcdReqInf())
-                    .apfSts(
-                            capplm.getItPtlApfPrgStsC() == null
-                                    ? null
-                                    : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
-                                                    capplm.getItPtlApfPrgStsC())
-                                            .label())
-                    .apfStsC(capplm.getItPtlApfPrgStsC())
-                    .rqsEno(capplm.getDcdReqUsid())
-                    .rqsNm(requesterNm)
-                    .rqsBbrC(capplm.getDcdReqBbrC())
-                    .rqsBbrNm(requesterBbrNm)
-                    .rqsDt(capplm.getDcdReqDtm())
-                    .rqsOpnn(capplm.getRgprDcdReqCone())
-                    .approvers(approvers.stream().map(ApproverResponse::fromReadView).toList())
-                    .build();
-        }
-
-        /**
          * 신청서 마스터 read view와 결재선 read view를 응답 DTO로 변환합니다.
          *
-         * <p>{@link #fromReadViews(Capplm, List, String, String)}와 동일한 응답을 생성하되, 신청서 마스터 조회를 15컬럼 엔티티
-         * 대신 응답이 실제 사용하는 8컬럼 read view로 대체합니다(BE-03).
+         * <p>{@link #fromEntity(Capplm, List, String, String)}와 동일한 응답을 생성하되, 신청서 마스터 조회를 15컬럼 엔티티 대신
+         * 응답이 실제 사용하는 8컬럼 read view로 대체합니다(BE-03).
          *
          * @param view 신청서 마스터 read view
          * @param approvers 결재 순번 오름차순 read view 목록

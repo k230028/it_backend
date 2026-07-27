@@ -549,6 +549,7 @@ class ApplicationServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getApfMngNo()).isEqualTo(APF_MNG_NO);
+        assertThat(result.getApfDtlCone()).isEqualTo("{\"test\":\"value\"}");
     }
 
     // ───────────────────────────────────────────────────────
@@ -1044,6 +1045,8 @@ class ApplicationServiceTest {
         ApplicationDto.Response result = applicationService.getApplication(APF_MNG_NO);
 
         assertThat(result.getApfMngNo()).isEqualTo(APF_MNG_NO);
+        assertThat(result.getRqsNm()).isEqualTo("홍길동");
+        assertThat(result.getRqsBbrNm()).isEqualTo("정보기술부");
     }
 
     @Test
