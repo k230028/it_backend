@@ -1,6 +1,5 @@
 package com.kdb.it.common.iam.dto;
 
-import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -27,7 +26,7 @@ public class OrganizationDto {
     /**
      * 조직(부점) 정보 조회 응답 DTO
      *
-     * <p>{@link CorgnI} 엔티티에서 클라이언트에 필요한 정보만 선택하여 반환합니다.
+     * <p>조직 목록 조회 전용 프로젝션에서 클라이언트에 필요한 정보만 선택하여 반환합니다.
      *
      * <p>주요 활용처:
      *
@@ -37,7 +36,8 @@ public class OrganizationDto {
      *   <li>신청서 결재선 구성 시 조직 조회
      * </ul>
      *
-     * <p>{@link #fromEntity(CorgnI)} 정적 팩토리 메서드로 엔티티에서 변환합니다.
+     * <p>{@link #fromView(OrganizationRepository.OrganizationListView)} 정적 팩토리 메서드로 프로젝션에서
+     * 변환합니다.
      */
     @Getter
     @Setter
@@ -71,22 +71,8 @@ public class OrganizationDto {
         private String bbrNm;
 
         /**
-         * {@link CorgnI} 엔티티를 응답 DTO로 변환하는 정적 팩토리 메서드
-         *
-         * @param corgnI 변환할 CorgnI 엔티티
-         * @return 변환된 응답 DTO
-         */
-        public static Response fromEntity(CorgnI corgnI) {
-            return Response.builder()
-                    .prlmOgzCCone(corgnI.getPrlmOgzCCone()) // 조직코드
-                    .prlmHrkOgzCCone(corgnI.getPrlmHrkOgzCCone()) // 상위조직코드
-                    .bbrNm(corgnI.getBbrNm()) // 부점명
-                    .build();
-        }
-
-        /**
          * 조직 목록 조회 전용 프로젝션({@link OrganizationRepository.OrganizationListView})으로부터 응답 DTO를
-         * 생성합니다. {@link #fromEntity(CorgnI)}와 동일한 3개 필드를 동일한 순서로 매핑합니다.
+         * 생성합니다.
          *
          * @param row 조직 목록 프로젝션 행
          * @return 변환된 응답 DTO
