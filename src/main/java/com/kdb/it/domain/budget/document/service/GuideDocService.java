@@ -147,7 +147,7 @@ public class GuideDocService {
                                         new IllegalArgumentException(
                                                 "존재하지 않는 문서관리번호입니다: " + docMngNo));
 
-        // Soft Delete (DEL_YN='Y')
+        // 논리 삭제(DEL_YN='Y')
         document.delete();
     }
 }

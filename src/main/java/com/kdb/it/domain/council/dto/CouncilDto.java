@@ -811,7 +811,7 @@ public class CouncilDto {
      * @param apfMngNo 생성된 신청관리번호
      */
     public record ApprovalResponse(
-            /** 생성된 신청관리번호 (예: APF_202600000001) */
+            /** 생성된 신청관리번호 (예: APF-2026-00000001) */
             String apfMngNo) {}
 
     /**

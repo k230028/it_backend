@@ -81,9 +81,9 @@ public class ApplicationController {
     /**
      * 특정 신청서 단건 조회
      *
-     * <p>신청서 관리번호(APF_MNG_NO)로 신청서 상세 정보와 결재자 목록을 조회합니다.
+     * <p>신청서식별번호(APF_DCM_NO)로 신청서 상세 정보와 결재자 목록을 조회합니다.
      *
-     * @param apfMngNo 신청서 관리번호 (예: {@code APF_20260001})
+     * @param apfMngNo 신청서식별번호 (예: {@code APF-2026-00000001})
      * @return HTTP 200 + 신청서 상세 정보 ({@link ApplicationDto.Response})
      */
     @GetMapping("/{apfMngNo}")
@@ -95,12 +95,12 @@ public class ApplicationController {
     }
 
     /**
-     * 신청서 세부내용(APF_DTL_CONE) 조회
+     * 신청서 결재요청정보(DCD_REQ_INF) 조회
      *
-     * <p>신청서 관리번호(APF_MNG_NO)로 해당 신청서의 세부내용({@code APF_DTL_CONE})만 조회합니다. 전체 신청서 정보가 필요 없고 본문 JSON만
+     * <p>신청서식별번호(APF_DCM_NO)로 해당 신청서의 결재요청정보({@code DCD_REQ_INF})만 조회합니다. 전체 신청서 정보가 필요 없고 본문 JSON만
      * 필요한 경우에 사용합니다.
      *
-     * @param apfMngNo 신청서 관리번호 (예: {@code APF_202600000001})
+     * @param apfMngNo 신청서식별번호 (예: {@code APF-2026-00000001})
      * @return HTTP 200 + 신청관리번호 및 세부내용 ({@link ApplicationDto.ApfDtlConeResponse})
      */
     @GetMapping("/{apfMngNo}/apfDtlCone")
@@ -140,7 +140,7 @@ public class ApplicationController {
      * <p>생성 흐름:
      *
      * <ol>
-     *   <li>시퀀스로 신청서 관리번호 생성 (예: {@code APF_202600000001})
+     *   <li>시퀀스로 신청서 관리번호 생성 (예: {@code APF-2026-00000001})
      *   <li>신청서 마스터(TPRMPP_CAPPLM) 저장
      *   <li>원본 데이터 연결(TPRMPP_CAPPLA) 저장
      *   <li>결재선 목록(TPRMPP_CDECIM) 저장

@@ -228,9 +228,9 @@ public class ProjectService {
      * <p>자동 채번 로직:
      *
      * <ul>
-     *   <li>요청 객체에 사업연도({@code bgYy})가 없으면 현재 연도를 사용합니다.
-     *   <li>데이터베이스 시퀀스({@code SQ_PRJMNGNO})에서 다음 값을 가져옵니다.
-     *   <li>관리번호 자동 생성 형식: {@code PRJ-{bgYy}-{seq:04d}} (예: {@code PRJ-2026-0001})
+     *   <li>요청 객체에 기준연도({@code bseYy})가 없으면 현재 연도를 사용합니다.
+     *   <li>데이터베이스 시퀀스({@code SQ_TPRMPP_BPROJM_1})에서 다음 값을 가져옵니다.
+     *   <li>관리번호 자동 생성 형식: {@code PRJ-{bseYy}-{seq:04d}} (예: {@code PRJ-2026-0001})
      * </ul>
      *
      * <p>예: {@code PRJ-2026-0001}
@@ -369,7 +369,7 @@ public class ProjectService {
      *   <li>기존 품목 목록 조회 (DEL_YN='N')
      *   <li>요청 품목 처리:
      *       <ul>
-     *         <li>{@code gclMngNo}가 있는 경우: 기존 레코드 Soft Delete 후 동일 관리번호 + 일련번호(+1)로 신규 레코드 저장
+     *         <li>{@code gclMngNo}가 있는 경우: 기존 활성 품목의 업무 필드를 제자리 수정하고 기본키와 연관키 유지
      *         <li>{@code gclMngNo}가 없는 경우: 신규 항목으로 시퀀스 채번 후 추가
      *       </ul>
      *   <li>요청에 없는 기존 항목: Soft Delete ({@code DEL_YN='Y'})
@@ -604,7 +604,7 @@ public class ProjectService {
      *
      * <p>기존 엔티티와 요청 DTO의 업무 필드를 비교하여, 하나라도 다르면 {@code true}를 반환합니다.
      *
-     * <p>변경이 없는 품목은 버저닝(D→C 로그)을 건너뜁니다.
+     * <p>변경이 없는 품목은 UPDATE와 감사 변경 로그 생성을 건너뜁니다.
      *
      * <p>BigDecimal 필드(xcr, gclQty, gclAmt)는 scale 무관한 수치 비교를 위해 compareTo를 사용합니다.
      *

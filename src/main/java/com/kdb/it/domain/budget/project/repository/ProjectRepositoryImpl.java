@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <ul>
  *   <li>{@code "none"}: NOT EXISTS — CAPPLA에 연결 레코드가 없는 프로젝트
- *   <li>그 외 값: EXISTS — 최신 CAPPLA(APF_REL_SNO MAX)의 CAPPLM 결재상태가 일치하는 프로젝트
+ *   <li>그 외 값: EXISTS — 최신 신청서(APF_DCM_NO MAX)의 CAPPLM 결재상태가 일치하는 프로젝트
  * </ul>
  */
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)

@@ -110,9 +110,9 @@ public class ApplicationService {
      *
      * <p>신청서 마스터({@link Capplm})를 생성하고, 원본 데이터 연결({@link Cappla}) 및 결재선({@link Cdecim})을 함께 저장합니다.
      *
-     * <p>신청관리번호 생성 규칙: {@code APF_{yyyy}{시퀀스8자리}}
+     * <p>신청관리번호 생성 규칙: {@code APF-{yyyy}-{시퀀스8자리}}
      *
-     * <p>예: {@code APF_202600000001}
+     * <p>예: {@code APF-2026-00000001}
      *
      * <p>처리 순서:
      *
@@ -124,7 +124,7 @@ public class ApplicationService {
      * </ol>
      *
      * @param request 신청서 생성 요청 DTO (신청서명, 세부내용, 신청자, 결재자 목록 등)
-     * @return 생성된 신청관리번호 (예: "APF_202600000001")
+     * @return 생성된 신청관리번호 (예: "APF-2026-00000001")
      */
     @Transactional
     public String submit(ApplicationDto.CreateRequest request) {

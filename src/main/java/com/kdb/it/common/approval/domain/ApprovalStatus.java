@@ -26,7 +26,7 @@ public enum ApprovalStatus {
     /**
      * APF_STS 코드값으로 enum 상수를 조회합니다.
      *
-     * @param code APF_STS 코드값 (예: "01"=결재중, "02"=결재완료)
+     * @param code APF_STS 코드값 (예: "1"=결재중, "2"=결재완료)
      * @return 해당 코드의 {@link ApprovalStatus}
      * @throws IllegalArgumentException 등록되지 않은 코드값이 입력된 경우 (null 포함)
      */

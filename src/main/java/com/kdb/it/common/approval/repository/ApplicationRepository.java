@@ -174,7 +174,10 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
             nativeQuery = true)
     List<Object[]> findMonthlyTrendByBbrC(@Param("bbrC") String bbrC);
 
-    /** 본인 결재 대기 최근 3건 반환 컬럼: [0]=APF_MNG_NO, [1]=APF_NM, [2]=USR_NM, [3]=RQS_DT(YYYY-MM-DD) */
+    /**
+     * 본인 결재 대기 최근 3건 반환 컬럼: [0]=APF_DCM_NO, [1]=DCD_REQ_TTL, [2]=USR_NM,
+     * [3]=DCD_REQ_DTM(YYYY-MM-DD)
+     */
     @Query(
             value =
                     """

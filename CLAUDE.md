@@ -34,6 +34,8 @@
 - 적용된 스크립트는 수정하지 않고 후속 변경은 새 버전으로 작성합니다.
 - 컬럼 rename·타입 변경은 `ddl-auto=update`에 맡기지 않습니다.
 - 로컬 프로파일만 Flyway 자동 적용을 허용하고 dev/prod는 DBA 검토 후 수동 적용합니다.
+- `local-ext`/`local-int`는 IDE 기동과 `bootRun` 모두 `filesystem:../it_database/migrations`를 읽으므로 `it_database` 형제 디렉터리 구조를 유지합니다.
+- Gradle `processResources`가 같은 디렉터리의 `V*.sql`을 WAR의 `db/migration`에 포함하므로 마이그레이션 경로나 리소스 태스크를 변경할 때 두 실행 경로를 함께 검증합니다.
 
 상세는 [Flyway 운영 가이드](docs/guides/operations/flyway.md)를 따릅니다.
 
@@ -111,6 +113,7 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 ## 9. 테스트·주석·운영
 
 - 기능 변경 후 `./gradlew test`, 인증·결재·파일·QueryDSL·감사로그 공통 변경은 `./gradlew clean test`를 실행합니다.
+- `./gradlew test`는 Oracle 통합 태그를 제외하고 JaCoCo 보고서를 생성합니다. 병합 전 전체 품질 게이트는 Spotless와 JaCoCo 검증이 연결된 `./gradlew check`를 사용합니다.
 - 로컬 Oracle 통합 테스트는 `@Tag("it")`와 `integrationTest` 태스크를 사용합니다.
 - 신규 QueryDSL·JPQL·네이티브 조회를 추가할 때는 `AbstractOracleRepositoryTest` 기반 Oracle 통합 테스트로 결과 동등성, 정렬, null 계약을 함께 검증합니다.
 - public API와 service 메서드 JavaDoc은 입력값·반환값·실패 조건을 한글로 기록합니다.

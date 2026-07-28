@@ -46,7 +46,7 @@ public class Capplm extends BaseEntity {
     @Column(name = "APF_DCM_NO", length = 64, nullable = false, comment = "신청서식별번호")
     private String apfMngNo;
 
-    /** 신청서진행상태코드: Ccodem APF_STS 참조 (01:결재중, 02:결재완료, 03:반려, 04:회수) */
+    /** 신청서진행상태코드: Ccodem APF_STS 참조 (1:결재중, 2:결재완료, 3:반려, 4:회수) */
     @Column(name = "IT_PTL_APF_PRG_STS_C", length = 2, nullable = false, comment = "IT포탈신청서진행상태코드")
     private String itPtlApfPrgStsC;
 

@@ -396,7 +396,7 @@ public class FileService {
                                         new CustomGeneralException(
                                                 "존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
-        // Soft Delete (DEL_YN = 'Y')
+        // 논리 삭제(DEL_YN = 'Y')
         cfilem.delete();
         syncBoardFileCacheIfNeeded(cfilem.getPkColNm(), cfilem.getPkCone());
     }

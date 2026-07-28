@@ -2,6 +2,7 @@ package com.kdb.it.infra.file.authz;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 
 import com.kdb.it.common.board.entity.Cblbcm;
@@ -66,5 +67,19 @@ class BoardFileTargetWriteAuthorizerTest {
         assertThat(authorizer.canWrite("NAC-2026-9999", admin)).isFalse();
         assertThat(authorizer.canWrite(" ", admin)).isFalse();
         assertThat(authorizer.canWrite(null, admin)).isFalse();
+    }
+
+    @Test
+    @DisplayName("공통게시판 종류만 담당한다")
+    void supportsOnlyBoardKind() {
+        assertThat(authorizer.supportedPkColNms()).containsExactly("공통게시판");
+    }
+
+    @Test
+    @DisplayName("인증 정보가 없으면 게시물을 조회하지 않고 거부한다")
+    void anonymousCannotWriteBoardTarget() {
+        assertThat(authorizer.canWrite("NAC-2026-0001", null)).isFalse();
+
+        then(boardPostRepository).shouldHaveNoInteractions();
     }
 }

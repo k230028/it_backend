@@ -12,6 +12,13 @@
 
 정확한 버전은 `build.gradle`과 Gradle lock·의존성 결과를 기준으로 확인합니다.
 
+## 사전 준비
+
+- JDK 25를 설치하고 `JAVA_HOME`과 `java -version`이 같은 JDK를 가리키는지 확인합니다. 별도 Gradle 설치는 필요하지 않으며 저장소의 Wrapper를 사용합니다.
+- 로컬 Oracle(`127.0.0.1:11521/XEPDB1`)과 접속 계정 `ITPAPP`을 준비합니다. 객체는 `ITPOWN` 스키마에 있으며 커넥션 생성 시 `CURRENT_SCHEMA=ITPOWN`이 적용됩니다.
+- `it_backend`와 `it_database`를 `C:\it` 아래 형제 디렉터리로 둡니다. 로컬 프로파일의 Flyway는 `../it_database/migrations`를 직접 읽고, Gradle `processResources`도 같은 경로의 `V*.sql`을 빌드 리소스에 포함합니다.
+- 폐쇄망에서는 `C:\maven-repo`에 Gradle 9.2.1 배포본과 필요한 Maven 아티팩트가 반입되어 있어야 합니다. `gradle/wrapper/gradle-wrapper.properties`에서 온라인 `distributionUrl`을 주석 처리하고 안내된 로컬 `file:///c:/maven-repo/gradle-9.2.1-bin.zip` 항목을 활성화합니다.
+
 ## 빠른 시작
 
 ```powershell
@@ -34,6 +41,8 @@ $env:SPRING_PROFILES_ACTIVE = "local-ext"
 | `dev`       | 개발 서버        | ESSO 실연동 | 비활성 | Secure 해제 / 허용       |
 | `prod`      | 운영 서버        | ESSO 실연동 | 비활성 | Secure 적용 / 허용 안 함 |
 
+프로파일을 지정하지 않으면 공통 설정의 보수적 기본값이 적용됩니다. 이 경우 Flyway와 개발 사용자 전환·Bearer 폴백은 꺼지고, `DB_PASSWORD`·`JWT_SECRET`이 필요하며, 프론트 URL과 CORS 허용 Origin의 기본값은 비어 있습니다. 일반 로컬 개발은 프로파일 없는 기동보다 `local-ext` 또는 `local-int`를 사용합니다.
+
 ## 주요 명령어
 
 | 명령                                       | 용도                      |
@@ -42,21 +51,33 @@ $env:SPRING_PROFILES_ACTIVE = "local-ext"
 | `./gradlew test`                           | 기본 단위·슬라이스 테스트 |
 | `./gradlew clean test`                     | 전체 재검증               |
 | `./gradlew integrationTest`                | 로컬 Oracle 통합 테스트   |
-| `./gradlew build`                          | 테스트와 WAR 빌드         |
+| `./gradlew spotlessCheck`                  | Java 포맷 검사            |
+| `./gradlew spotlessApply`                  | Java 포맷 자동 적용        |
+| `./gradlew check`                          | 포맷·테스트·커버리지 게이트 |
+| `./gradlew build`                          | 품질 게이트와 WAR 빌드     |
 | `./gradlew jacocoTestReport`               | 커버리지 보고서 생성      |
 | `./gradlew jacocoTestCoverageVerification` | 설정된 커버리지 기준 검증 |
 
-Gradle Wrapper는 9.2.1을 사용합니다. 일반 의존성은 `C:\maven-repo` → 접속 가능한 내부 Nexus → Maven Central 순서로 탐색하며, 플러그인은 내부 Nexus → 로컬 저장소 → Gradle Plugin Portal/Maven Central 순서로 해석합니다. 폐쇄망에서는 Wrapper 배포본과 필요한 Maven 아티팩트를 `C:\maven-repo`에 먼저 반입합니다.
+`test`는 `@Tag("it")` 통합 테스트를 제외하고 종료 후 JaCoCo 보고서를 생성합니다. `check`와 `build`는 `spotlessCheck`와 JaCoCo 검증까지 실행하므로 단순 테스트보다 강한 게이트이며, 현재 전체·클래스별 라인과 클래스별 분기·복잡도 커버리지 기준은 `build.gradle`의 70% 설정을 따릅니다.
+
+Gradle Wrapper는 9.2.1을 사용합니다. 일반 의존성은 `C:\maven-repo` → 접속 가능한 내부 Nexus → Maven Central 순서로 탐색하며, 플러그인은 내부 Nexus → 로컬 저장소 → Gradle Plugin Portal/Maven Central 순서로 해석합니다. 폐쇄망에서는 Wrapper 배포본과 필요한 Maven 아티팩트를 `C:\maven-repo`에 먼저 반입하고 `gradle-wrapper.properties`의 로컬 `distributionUrl`을 활성화합니다.
 
 ## 프로젝트 구조
 
 ```text
-src/main/java/com/kdb/it/
-├── config/       Security, JPA, QueryDSL, Swagger 설정
-├── common/       인증, IAM, 결재, 게시판, 코드, 알림, 관리자 공통 기능
-├── domain/       예산, 협의회, 사업 집행, 메뉴, 감사 도메인
-├── exception/    전역 예외 처리
-└── infra/        파일, AI, EAI 외부 연동
+it_backend/
+├── src/main/java/com/kdb/it/
+│   ├── config/       Security, JPA, QueryDSL, Swagger 설정
+│   ├── common/       인증, SSO, IAM, 결재, 게시판, 코드, 알림, 관리자 공통 기능
+│   ├── domain/       예산, 사업계획, 협의회, 사업 집행, 메뉴, 감사 도메인
+│   ├── exception/    전역 예외 처리
+│   └── infra/        파일, AI, EAI 외부 연동
+├── src/main/resources/
+│   └── application*.properties   공통·프로파일별 설정
+├── src/test/java/                단위·슬라이스·Oracle 통합 테스트
+├── docs/guides/                  아키텍처·보안·DB·연동 상세 가이드
+├── build.gradle                  의존성·품질 게이트·Flyway 리소스 구성
+└── gradle/wrapper/               Gradle 9.2.1 Wrapper
 ```
 
 기본 호출 방향은 Controller → Service → Repository → Oracle입니다. 자세한 패키지 책임은 [아키텍처 가이드](docs/guides/architecture/layering-and-packages.md)를 확인합니다.
@@ -80,12 +101,15 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | 영역                                                                          | 주요 책임                                              | 연결되는 영역                                                        |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
 | `common.system`, `common.iam`                                                 | JWT 인증, Refresh Token, 로그인 이력, 사용자·조직·권한 | 전체 API의 인증 주체와 부서 범위를 제공                              |
+| `common.sso`                                                                  | ESSO 연동, SSO 상태 보관, 인증 완료 복귀                | 검증한 외부 인증 결과를 `common.system`의 JWT 발급 흐름으로 전달     |
 | `common.approval`                                                             | 신청서, 결재선, 승인·반려·회수                         | 사업·협의회 상태 동기화와 알림 이벤트 발행                           |
+| `common.board`, `common.code`, `common.admin`                                 | 공통 게시판·코드와 관리자 운영 API                     | 파일·메뉴·사용자·감사로그 등 공통 관리 기능을 조합                   |
 | `common.notification`                                                         | 인앱 알림 저장, 소유권 검증, 채널 라우팅               | 결재·게시판 이벤트와 `infra.eai` 연결                                |
 | `domain.budget`                                                               | 정보화사업, 비용, 계획, 문서 검토, 예산 현황·작업      | 협의회와 사업 집행의 기준 사업 데이터를 제공                         |
 | `domain.bizplan`                                                              | 정보기술부문 계획에 포함된 사업의 사업계획             | `budget.plan`, `budget.project`의 계획 관계·사업·품목·단계 상태 사용 |
 | `domain.council`                                                              | 정보화실무협의회 일정·평가·질의·결과                   | 결재 완료 이벤트를 같은 트랜잭션에서 상태에 반영                     |
 | `domain.estimate`, `domain.deliberation`, `domain.contract`, `domain.payment` | 사업 집행의 소요예산·심의·계약·지급 단계               | 정보화사업을 기준으로 단계별 문서와 상태를 관리                      |
+| `domain.menu`                                                                 | 사용자 메뉴 조회와 관리자 메뉴·라우트 관리             | 인증 주체의 권한에 맞는 프론트 메뉴 구성을 제공                      |
 | `domain.log`                                                                  | 업무 엔티티 변경 스냅샷                                | `@LogTarget`이 지정된 엔티티의 생성·수정·논리삭제를 기록             |
 | `infra.file`, `infra.eai`, `infra.ai`                                         | 파일 저장, 표준전문 외부 전송, Gemini 연동             | 공통·도메인 서비스가 외부 자원을 사용할 때 호출                      |
 
@@ -121,17 +145,27 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 
 주요 운영 값은 환경변수로 주입합니다.
 
-| 환경변수               | 용도                                   |
-| ---------------------- | -------------------------------------- |
-| `DB_PASSWORD`          | 애플리케이션 DB 비밀번호               |
-| `JWT_SECRET`           | JWT 서명 키                            |
-| `APP_FRONTEND_URL`     | SSO 복귀 URL과 기본 CORS Origin        |
-| `CORS_ALLOWED_ORIGINS` | 다중 CORS Origin이 필요할 때 별도 지정 |
-| `FILE_BASE_PATH`       | 첨부파일 저장 경로                     |
-| `GEMINI_API_KEY`       | Gemini 기능을 사용할 때만 지정         |
-| `DB_SCHEMA`            | 기본값 `ITPOWN`                        |
+| 환경변수                | 용도                                                                 |
+| ----------------------- | -------------------------------------------------------------------- |
+| `DB_URL`                | Oracle JDBC URL. 공통 로컬 기본값은 `127.0.0.1:11521/XEPDB1`        |
+| `DB_USERNAME`           | DB 접속 계정. 기본값은 `ITPAPP`                                     |
+| `DB_PASSWORD`           | 애플리케이션 DB 비밀번호                                             |
+| `DB_SCHEMA`             | 객체 소유 스키마. 기본값은 `ITPOWN`                                 |
+| `JWT_SECRET`            | JWT 서명 키                                                          |
+| `APP_FRONTEND_URL`      | SSO 기본 복귀 URL과 기본 CORS Origin                                 |
+| `CORS_ALLOWED_ORIGINS`  | 다중 CORS Origin이 필요할 때 콤마 구분으로 별도 지정                 |
+| `APP_TRUSTED_PROXIES`   | `X-Forwarded-For`를 신뢰할 프록시 IP 목록                            |
+| `SSO_BROWSER_BASE_URL`  | 브라우저가 접근하는 ESSO 기준 URL                                   |
+| `SSO_HOST_BASE_URL`     | 백엔드가 접근하는 ESSO 기준 URL                                     |
+| `SSO_AGENT_ID`          | ESSO가 발급한 업무 시스템 식별 번호                                 |
+| `FILE_BASE_PATH`        | 첨부파일 저장 경로                                                   |
+| `SERVER_INSTANCE_ID`    | 멀티 서버 파일명 충돌 방지용 인스턴스 ID                            |
+| `GEMINI_API_KEY`        | Gemini API 키. `prod`에서는 기동 시 필수 검증                        |
+| `EAI_ENABLED`           | EAI 전송 활성화 여부. 공통 기본값 `false`, `prod` 기본값 `true`     |
+| `EAI_URL`               | EAI 전송 URL. `prod`에서 EAI가 활성화되면 기동 시 필수 검증         |
+| `EAI_GWE_IF_ID`         | 그룹웨어 EAI 인터페이스 ID                                          |
 
-운영에서는 개발·로컬 프로파일의 기본값을 사용하지 않습니다. `EnvironmentValidator`가 필수 비밀값 누락을 검사합니다.
+운영에서는 개발·로컬 프로파일의 기본값을 사용하지 않습니다. `EnvironmentValidator`는 모든 프로파일에서 DB 비밀번호와 JWT 시크릿의 빈값을 차단하고, `prod`에서는 Gemini 키, 활성 EAI URL, 프론트 URL, 명시적 CORS Origin과 운영 보안 토글을 추가로 검증합니다.
 
 ### 내부망 IP로 접속할 때 (CORS)
 
@@ -159,6 +193,7 @@ curl -i -H "Origin: http://10.9.16.109:3000" http://127.0.0.1:28080/api/menus
 
 - **SSO 복귀 origin 검증**: SSO 완료 후 복귀 주소는 `cors.allowed-origins` 목록으로 검증합니다(`SsoController.resolveFrontendBaseUrl`). 프론트 접속 origin(로컬 nginx `http://localhost`, 운영 프론트 URL)이 목록에 없으면 SSO 성공 후 `app.frontend-url` 기본값으로 되돌아갑니다.
 - **프로파일·환경변수 우선순위**: `local-ext`/`local-int` 기본값에는 `http://localhost`가 포함되어 있지만, 프로파일 없이 기동하면 허용 목록이 비어 모든 교차 출처가 차단되고, `APP_FRONTEND_URL`·`CORS_ALLOWED_ORIGINS` 환경변수가 등록되어 있으면 기본 목록을 통째로 덮어씁니다. 로컬 nginx 검증 시에는 프로파일을 지정해 기동하거나 `CORS_ALLOWED_ORIGINS`에 `http://localhost`를 직접 포함시킵니다.
+- **Origin 문자열 형식**: 허용 여부는 문자열을 정확히 비교하므로 `scheme://host[:port]`만 등록합니다. 경로나 끝 슬래시가 붙은 URL은 브라우저 Origin과 일치하지 않습니다.
 
 ```powershell
 # 로컬 nginx(http://localhost) 검증용 기동 예시

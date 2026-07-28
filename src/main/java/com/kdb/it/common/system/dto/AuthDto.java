@@ -120,7 +120,7 @@ public class AuthDto {
     @Schema(name = "LoginResponse", description = "로그인 응답")
     public static class LoginResponse {
         /**
-         * JWT Access Token
+         * JWT 접근 토큰
          *
          * <p>단기 유효 토큰 (기본 15분). httpOnly 쿠키로 전달됩니다.
          *
@@ -131,7 +131,7 @@ public class AuthDto {
         private String accessToken;
 
         /**
-         * JWT Refresh Token
+         * JWT 갱신 토큰
          *
          * <p>장기 유효 토큰 (기본 7일). httpOnly 쿠키로 전달됩니다. DB에 저장되어 관리됩니다.
          *
@@ -197,7 +197,7 @@ public class AuthDto {
     @Schema(name = "RefreshResponse", description = "토큰 갱신 응답")
     public static class RefreshResponse {
         /**
-         * 새로 발급된 JWT Access Token
+         * 새로 발급된 JWT 접근 토큰
          *
          * <p>단기 유효 토큰 (기본 15분). 컨트롤러에서 httpOnly 쿠키로 전달됩니다.
          */
@@ -205,7 +205,7 @@ public class AuthDto {
         private String accessToken;
 
         /**
-         * 회전된 JWT Refresh Token
+         * 회전된 JWT 갱신 토큰
          *
          * <p>Refresh 시 기존 토큰을 폐기하고 새로 발급한 Refresh Token입니다. 컨트롤러가 httpOnly 쿠키로 재설정합니다. (탈취 재사용 방어 —
          * 토큰 회전)
