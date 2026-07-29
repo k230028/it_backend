@@ -218,7 +218,7 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("게시물 상세 조회는 조회수를 증가시키고 작성자 수정 가능 여부를 반환한다")
+    @DisplayName("게시물 상세 GET은 조회수를 변경하지 않고 작성자 수정 가능 여부를 반환한다")
     void getPostDetail_owner_success() {
         Cblbmm writableBoard = writableBoard();
         Cblbcm post = post("NAC-2026-0001", "USER001");
@@ -231,7 +231,67 @@ class BoardPostServiceTest {
 
         assertThat(result.getNacMngNo()).isEqualTo("NAC-2026-0001");
         assertThat(result.isCanModify()).isTrue();
-        assertThat(post.getNacInqNbr()).isEqualTo(1);
+        assertThat(post.getNacInqNbr()).isZero();
+        verify(postRepository, never()).incrementViewCount(anyString());
+    }
+
+    @Test
+    @DisplayName("게시물 조회수 POST는 읽기 권한을 확인한 뒤 DB 조회수를 정확히 한 번 증가시킨다")
+    void incrementPostView_authorized_incrementsExactlyOnce() {
+        Cblbcm post = post("NAC-2026-0001", "USER001");
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+                .willReturn(Optional.of(post));
+        given(postRepository.incrementViewCount("NAC-2026-0001")).willReturn(1);
+
+        service.incrementPostView("BLBM-2026-0003", "NAC-2026-0001", normalUser);
+
+        verify(postRepository, times(1)).incrementViewCount("NAC-2026-0001");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게시물 조회수 POST는 404 계약 예외를 유지하고 DB를 변경하지 않는다")
+    void incrementPostView_notFound_doesNotMutate() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-NOT-EXIST", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () ->
+                                service.incrementPostView(
+                                        "BLBM-2026-0003", "NAC-NOT-EXIST", normalUser))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("게시물을 찾을 수 없습니다");
+        verify(postRepository, never()).incrementViewCount(anyString());
+    }
+
+    @Test
+    @DisplayName("비공개 게시물 조회수 POST는 읽기 권한을 유지하고 DB를 변경하지 않는다")
+    void incrementPostView_forbidden_doesNotMutate() {
+        Cblbcm hidden = post("NAC-2026-0002", "OTHER");
+        hidden.update(
+                new Cblbcm.UpdateCommand(
+                        hidden.getNacNm(),
+                        hidden.getNacCone(),
+                        hidden.getAncYn(),
+                        "N",
+                        hidden.getBbrC(),
+                        null,
+                        null));
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0002", "N"))
+                .willReturn(Optional.of(hidden));
+
+        assertThatThrownBy(
+                        () ->
+                                service.incrementPostView(
+                                        "BLBM-2026-0003", "NAC-2026-0002", normalUser))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("접근할 권한");
+        verify(postRepository, never()).incrementViewCount(anyString());
     }
 
     @Test

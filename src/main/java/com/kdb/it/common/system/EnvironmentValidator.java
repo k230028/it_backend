@@ -2,6 +2,8 @@ package com.kdb.it.common.system;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.web.server.Cookie;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -20,7 +22,7 @@ import org.springframework.stereotype.Component;
  *   <li>(운영 프로파일 전용) {@code gemini.api.key}/{@code eai.url}(eai.enabled=true)/{@code
  *       cors.allowed-origins}(와일드카드 금지)/{@code app.sso.allow-direct-eno}(false 고정)/{@code
  *       app.frontend-url}/{@code springdoc.api-docs.enabled}(false 고정)/{@code
- *       springdoc.swagger-ui.enabled}(false 고정)
+ *       springdoc.swagger-ui.enabled}(false 고정)/세션 쿠키 Secure·HttpOnly·SameSite=Lax
  * </ul>
  */
 @Component
@@ -79,6 +81,7 @@ public class EnvironmentValidator {
      *   <li>{@code app.dev.user-switch.enabled} 운영 false 고정 (비밀번호 없이 임의 사번 로그인 경로 차단)
      *   <li>{@code app.frontend-url} 비공백
      *   <li>{@code springdoc.api-docs.enabled}/{@code springdoc.swagger-ui.enabled} 운영 false 고정
+     *   <li>{@code server.servlet.session.cookie}의 Secure·HttpOnly=true, SameSite=Lax 고정
      * </ul>
      */
     private void validateProdKeys() {
@@ -108,6 +111,9 @@ public class EnvironmentValidator {
         requireFalse("springdoc.api-docs.enabled");
         requireFalse("springdoc.swagger-ui.enabled");
         requireTrue("app.cookie.secure");
+        requireTrue("server.servlet.session.cookie.secure");
+        requireTrue("server.servlet.session.cookie.http-only");
+        requireSameSiteLax("server.servlet.session.cookie.same-site");
 
         String frontendUrl = environment.getProperty("app.frontend-url");
         if (frontendUrl == null || frontendUrl.isBlank()) {
@@ -130,6 +136,22 @@ public class EnvironmentValidator {
 
     private void requireTrue(String key) {
         if (environment.getProperty(key) == null || !booleanProperty(key, false)) {
+            throw securityViolation(key);
+        }
+    }
+
+    private void requireSameSiteLax(String key) {
+        String rawValue = environment.getProperty(key);
+        if (rawValue == null || rawValue.isBlank()) {
+            throw securityViolation(key);
+        }
+        try {
+            Cookie.SameSite sameSite =
+                    Binder.get(environment).bind(key, Cookie.SameSite.class).orElse(null);
+            if (sameSite != Cookie.SameSite.LAX) {
+                throw securityViolation(key);
+            }
+        } catch (RuntimeException conversionFailure) {
             throw securityViolation(key);
         }
     }

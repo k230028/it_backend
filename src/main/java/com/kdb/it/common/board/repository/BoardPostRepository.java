@@ -31,6 +31,17 @@ public interface BoardPostRepository
     @Query(value = "SELECT SQ_TPRMPP_CBLBCM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
+    /** 삭제되지 않은 게시물의 조회수를 원자적으로 1 증가시킵니다. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            """
+            UPDATE Cblbcm c
+               SET c.nacInqNbr = c.nacInqNbr + 1
+             WHERE c.nacMngNo = :nacMngNo
+               AND c.delYn = 'N'
+            """)
+    int incrementViewCount(@Param("nacMngNo") String nacMngNo);
+
     /**
      * 답변글 삽입을 위한 SQN 밀어내기 (단일 트랜잭션 + 행 단위 락 전제)
      *

@@ -62,7 +62,7 @@ public class BoardPostService {
     }
 
     /**
-     * 게시물 상세 조회 (조회수 +1 포함)
+     * 게시물 상세 조회
      *
      * @param blbMngNo 게시판관리번호
      * @param nacMngNo 게시물관리번호
@@ -70,7 +70,6 @@ public class BoardPostService {
      * @return 게시물 상세 DTO
      * @throws CustomGeneralException 접근 권한 없음 또는 존재하지 않는 게시물
      */
-    @Transactional
     public BoardPostDto.Detail getPostDetail(
             String blbMngNo, String nacMngNo, CustomUserDetails user) {
 
@@ -78,10 +77,28 @@ public class BoardPostService {
         Cblbcm post = findPost(nacMngNo);
 
         verifyCanReadPost(user, post, board);
-        post.incrementViewCount();
 
         boolean canModify = user.isAdmin() || user.getEno().equals(post.getFstEnrUsid());
         return BoardPostDto.Detail.from(post, canModify);
+    }
+
+    /**
+     * 게시물 조회수를 증가시킵니다.
+     *
+     * @param blbMngNo 게시판관리번호
+     * @param nacMngNo 게시물관리번호
+     * @param user 인증 사용자
+     * @throws CustomGeneralException 접근 권한이 없거나 게시판·게시물이 존재하지 않는 경우
+     */
+    @Transactional
+    public void incrementPostView(String blbMngNo, String nacMngNo, CustomUserDetails user) {
+        Cblbmm board = findActiveBoard(blbMngNo);
+        Cblbcm post = findPost(nacMngNo);
+        verifyCanReadPost(user, post, board);
+
+        if (postRepository.incrementViewCount(nacMngNo) != 1) {
+            throw new CustomGeneralException("게시물을 찾을 수 없습니다.");
+        }
     }
 
     /**

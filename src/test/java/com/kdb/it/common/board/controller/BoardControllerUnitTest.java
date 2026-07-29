@@ -88,6 +88,7 @@ class BoardControllerUnitTest {
         assertThat(controller.getDetail("BLBM-2026-0001", "NAC-1", user).getBody())
                 .isEqualTo(detail);
         var created = controller.create("BLBM-2026-0001", createRequest, user);
+        var viewed = controller.incrementViewCount("BLBM-2026-0001", "NAC-1", user);
         var updated = controller.update("BLBM-2026-0001", "NAC-1", updateRequest, user);
         var deleted = controller.delete("BLBM-2026-0001", "NAC-1", user);
         var replied = controller.createReply("BLBM-2026-0001", "NAC-1", replyRequest, user);
@@ -95,10 +96,12 @@ class BoardControllerUnitTest {
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(created.getHeaders().getLocation())
                 .hasToString("/api/boards/BLBM-2026-0001/posts/NAC-2");
+        assertThat(viewed.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(replied.getBody()).isEqualTo("NAC-3");
         verify(service).updatePost("BLBM-2026-0001", "NAC-1", updateRequest, user);
+        verify(service).incrementPostView("BLBM-2026-0001", "NAC-1", user);
         verify(service).deletePost("BLBM-2026-0001", "NAC-1", user);
     }
 

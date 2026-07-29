@@ -99,6 +99,9 @@ class EnvironmentValidatorTest {
         env.setProperty("springdoc.api-docs.enabled", "false");
         env.setProperty("springdoc.swagger-ui.enabled", "false");
         env.setProperty("app.cookie.secure", "true");
+        env.setProperty("server.servlet.session.cookie.secure", "true");
+        env.setProperty("server.servlet.session.cookie.http-only", "true");
+        env.setProperty("server.servlet.session.cookie.same-site", "lax");
         env.setProperty("app.frontend-url", "https://it.kdb.co.kr");
         return env;
     }
@@ -174,6 +177,103 @@ class EnvironmentValidatorTest {
         assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("app.cookie.secure");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "server.servlet.session.cookie.secure",
+                "server.servlet.session.cookie.http-only"
+            })
+    @DisplayName("운영 세션 쿠키의 Secure·HttpOnly가 false이면 기동 차단")
+    void validate_prodSessionCookieBooleanFalse_throws(String key) {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty(key, "false");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: " + key);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "server.servlet.session.cookie.secure",
+                "server.servlet.session.cookie.http-only"
+            })
+    @DisplayName("운영 세션 쿠키 Boolean의 공백·잘못된 값은 fail-closed로 기동 차단")
+    void validate_prodSessionCookieBooleanInvalid_throws(String key) {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty(key, "invalid");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: " + key);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"lax", "LAX", "Lax"})
+    @DisplayName("운영 세션 쿠키 SameSite는 Spring enum 바인딩으로 Lax 표현을 허용")
+    void validate_prodSessionCookieSameSiteLax_noException(String rawValue) {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("server.servlet.session.cookie.same-site", rawValue);
+
+        assertThatCode(() -> new EnvironmentValidator(env).validate()).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "strict", "invalid", " "})
+    @DisplayName("운영 세션 쿠키 SameSite가 Lax가 아니거나 잘못된 값이면 기동 차단")
+    void validate_prodSessionCookieSameSiteUnsafe_throws(String rawValue) {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("server.servlet.session.cookie.same-site", rawValue);
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: server.servlet.session.cookie.same-site");
+    }
+
+    @ParameterizedTest(name = "{0} -> {1}")
+    @MethodSource("unsafeSessionCookieSystemEnvironmentProperties")
+    @DisplayName("운영 세션 쿠키의 OS 환경변수 override는 실제 Spring 바인딩 후 기동 차단")
+    void validate_prodSessionCookieSystemEnvironmentOverride_throws(
+            String environmentKey, String propertyKey) throws IOException {
+        StandardEnvironment env =
+                prodEnvironmentWithSystemEnvironment(Map.of(environmentKey, "false"));
+
+        assertThat(env.getProperty(propertyKey, Boolean.class)).isFalse();
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: " + propertyKey);
+    }
+
+    @Test
+    @DisplayName("운영 세션 쿠키 SameSite의 OS 환경변수 none override는 기동 차단")
+    void validate_prodSessionCookieSameSiteSystemEnvironmentOverride_throws() throws IOException {
+        StandardEnvironment env =
+                prodEnvironmentWithSystemEnvironment(
+                        Map.of("SERVER_SERVLET_SESSION_COOKIE_SAME_SITE", "none"));
+
+        assertThat(env.getProperty("server.servlet.session.cookie.same-site")).isEqualTo("none");
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: server.servlet.session.cookie.same-site");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "server.servlet.session.cookie.secure",
+                "server.servlet.session.cookie.http-only",
+                "server.servlet.session.cookie.same-site"
+            })
+    @DisplayName("운영 세션 쿠키 보안 속성이 명시되지 않으면 기동 차단")
+    void validate_prodSessionCookiePropertyMissing_throws(String missingKey) throws IOException {
+        StandardEnvironment env = prodEnvironmentWithoutProperty(missingKey);
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: " + missingKey);
     }
 
     @Test
@@ -429,6 +529,20 @@ class EnvironmentValidatorTest {
         return prodEnvironment(overrides, Map.of(), false);
     }
 
+    /** 운영 프로파일 파일과 특정 보안 기본값이 모두 없는 배포 구성을 재현한다. */
+    private StandardEnvironment prodEnvironmentWithoutProperty(String missingKey)
+            throws IOException {
+        StandardEnvironment env =
+                prodEnvironmentWithoutProfileFile(
+                        Map.of(
+                                "springdoc.api-docs.enabled", "false",
+                                "springdoc.swagger-ui.enabled", "false"));
+        MapPropertySource overrides =
+                (MapPropertySource) env.getPropertySources().get("test-overrides");
+        overrides.getSource().remove(missingKey);
+        return env;
+    }
+
     private StandardEnvironment prodEnvironment(
             Map<String, Object> overrides,
             Map<String, Object> systemEnvironment,
@@ -451,6 +565,9 @@ class EnvironmentValidatorTest {
         requiredProperties.put("sso.mock-enabled", "false");
         requiredProperties.put("app.auth.allow-bearer-header", "false");
         requiredProperties.put("app.cookie.secure", "true");
+        requiredProperties.put("server.servlet.session.cookie.secure", "true");
+        requiredProperties.put("server.servlet.session.cookie.http-only", "true");
+        requiredProperties.put("server.servlet.session.cookie.same-site", "lax");
         requiredProperties.put("app.frontend-url", "https://it.kdb.co.kr");
         requiredProperties.putAll(overrides);
 
@@ -486,5 +603,15 @@ class EnvironmentValidatorTest {
                 Arguments.of("APP_AUTH_ALLOW_BEARER_HEADER", "app.auth.allow-bearer-header"),
                 Arguments.of("SPRINGDOC_API_DOCS_ENABLED", "springdoc.api-docs.enabled"),
                 Arguments.of("SPRINGDOC_SWAGGER_UI_ENABLED", "springdoc.swagger-ui.enabled"));
+    }
+
+    private static Stream<Arguments> unsafeSessionCookieSystemEnvironmentProperties() {
+        return Stream.of(
+                Arguments.of(
+                        "SERVER_SERVLET_SESSION_COOKIE_SECURE",
+                        "server.servlet.session.cookie.secure"),
+                Arguments.of(
+                        "SERVER_SERVLET_SESSION_COOKIE_HTTP_ONLY",
+                        "server.servlet.session.cookie.http-only"));
     }
 }

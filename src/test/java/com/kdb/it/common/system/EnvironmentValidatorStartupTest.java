@@ -28,6 +28,17 @@ class EnvironmentValidatorStartupTest {
     }
 
     @Test
+    @DisplayName("전역 lazy 초기화가 켜져도 운영 세션 쿠키 Secure=false는 기동 중 차단")
+    void lazyProd_insecureSessionCookie_failsDuringStartup() {
+        assertStartupFails(
+                Map.of(
+                        "spring.profiles.active", "prod",
+                        "spring.main.lazy-initialization", "true",
+                        "server.servlet.session.cookie.secure", "false"),
+                "server.servlet.session.cookie.secure");
+    }
+
+    @Test
     @DisplayName("active 없이 default profile이 prod여도 운영 위험 설정은 기동 차단")
     void defaultProd_dangerousToggle_failsDuringStartup() {
         assertStartupFails(
@@ -117,6 +128,9 @@ class EnvironmentValidatorStartupTest {
         properties.put("sso.mock-enabled", "false");
         properties.put("app.auth.allow-bearer-header", "false");
         properties.put("app.cookie.secure", "true");
+        properties.put("server.servlet.session.cookie.secure", "true");
+        properties.put("server.servlet.session.cookie.http-only", "true");
+        properties.put("server.servlet.session.cookie.same-site", "lax");
         properties.put("app.frontend-url", "https://it.kdb.co.kr");
         properties.put("springdoc.api-docs.enabled", "false");
         properties.put("springdoc.swagger-ui.enabled", "false");
