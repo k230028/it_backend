@@ -69,7 +69,8 @@ public class BoardPostService {
      * @param nacMngNo 게시물관리번호
      * @param user 인증 사용자
      * @return 게시물 상세 DTO
-     * @throws CustomGeneralException 접근 권한 없음 또는 존재하지 않는 게시물
+     * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
+     * @throws CustomGeneralException 비공개 또는 공개기간 외 게시물에 대한 접근 권한이 없는 경우
      */
     public BoardPostDto.Detail getPostDetail(
             String blbMngNo, String nacMngNo, CustomUserDetails user) {
@@ -89,7 +90,8 @@ public class BoardPostService {
      * @param blbMngNo 게시판관리번호
      * @param nacMngNo 게시물관리번호
      * @param user 인증 사용자
-     * @throws CustomGeneralException 접근 권한이 없거나 게시판·게시물이 존재하지 않는 경우
+     * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
+     * @throws CustomGeneralException 비공개 또는 공개기간 외 게시물에 대한 접근 권한이 없는 경우
      */
     @Transactional
     public void incrementPostView(String blbMngNo, String nacMngNo, CustomUserDetails user) {
