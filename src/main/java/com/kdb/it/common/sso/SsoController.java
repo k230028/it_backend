@@ -391,9 +391,9 @@ public class SsoController {
             String target = resolveFrontendBaseUrl(effectiveOrigin) + dest;
             // 복귀 대상이 비어 보이면(app.frontend-url/origin 미설정) 백엔드 자신으로 가 401이 난다.
             log.debug(
-                    "SSO 인증 완료 - eno: {}, 토큰 쿠키 발급, 복귀 대상: {}",
+                    "SSO 인증 완료 - eno: {}, 토큰 쿠키 발급, 사용자 지정 복귀 경로: {}",
                     SsoLogSanitizer.masked(verifiedEno),
-                    target);
+                    !"/".equals(dest));
             response.sendRedirect(target);
         } catch (Exception e) {
             log.error(

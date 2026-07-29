@@ -18,6 +18,7 @@ import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.TestSecurityConfig;
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -62,6 +63,8 @@ class SsoControllerTest {
 
     private static final String FORWARDED_IP_SENTINEL = "203.0.113.77";
     private static final String REMOTE_ADDR_SENTINEL = "198.51.100.42";
+    private static final String TARGET_TOKEN_SENTINEL = "token-RAW-7Q2";
+    private static final String TARGET_SESSION_SENTINEL = "session-RAW-8R3";
 
     @Autowired private MockMvc mockMvc;
 
@@ -732,6 +735,54 @@ class SsoControllerTest {
                     .noneMatch(message -> message.contains(REMOTE_ADDR_SENTINEL));
         } finally {
             logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("complete: next 쿼리의 토큰·세션 원문을 성공 로그에 남기지 않고 그대로 리다이렉트한다")
+    void complete_next쿼리민감정보로그미노출_리다이렉트유지() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        ReflectionTestUtils.setField(controller, "allowDirectEno", true);
+        AuthDto.LoginResponse loginResponse =
+                AuthDto.LoginResponse.builder()
+                        .eno("K150024")
+                        .accessToken("access-token")
+                        .refreshToken("refresh-token")
+                        .build();
+        given(authService.issueSsoTokens("K150024")).willReturn(loginResponse);
+        given(cookieUtil.createAccessTokenCookie("access-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "a").build());
+        given(cookieUtil.createRefreshTokenCookie("refresh-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "r").build());
+        given(cookieUtil.createUserInfoCookie(loginResponse))
+                .willReturn(ResponseCookie.from("it-portal-user", "u").build());
+        String next =
+                "/x?secureToken="
+                        + TARGET_TOKEN_SENTINEL
+                        + "&secureSessionId="
+                        + TARGET_SESSION_SENTINEL;
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        Level originalLevel = logger.getLevel();
+        logger.setLevel(Level.DEBUG);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.complete("K150024", next, "http://localhost:3000", request, response);
+
+            assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000" + next);
+            assertThat(formattedMessages(appender))
+                    .noneMatch(message -> message.contains(TARGET_TOKEN_SENTINEL))
+                    .noneMatch(message -> message.contains(TARGET_SESSION_SENTINEL));
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(originalLevel);
             appender.stop();
         }
     }
