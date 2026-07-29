@@ -19,10 +19,13 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 게시판 답글 보정 Flyway 스크립트를 폐기 가능한 전용 Oracle 스키마에서 검증합니다.
@@ -31,11 +34,12 @@ import org.springframework.test.context.ActiveProfiles;
  * DDL/DML을 실행합니다.
  */
 @Tag("it")
-@SpringBootTest(
-        properties = {"jwt.secret=test-secret-key-for-junit-test-minimum-256-bits-length-ok"})
+@JdbcTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("migration-it")
 @EnabledIfEnvironmentVariable(named = "SEC15_MIGRATION_IT_ENABLED", matches = "true")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 class BoardReplySequenceMigrationIT {
 
     private static final String DATA_MIGRATION =

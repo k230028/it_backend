@@ -7,9 +7,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Properties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.test.context.ActiveProfiles;
 
 /** Oracle 마이그레이션 통합 테스트가 기본 공유 스키마에서 실행되지 않는지 검증합니다. */
@@ -35,6 +41,32 @@ class BoardReplySequenceMigrationSafetyTest {
 
         assertThat(profiles).isNotNull();
         assertThat(Arrays.asList(profiles.value())).containsExactly("migration-it");
+    }
+
+    @Test
+    @DisplayName("마이그레이션 IT는 전체 애플리케이션 대신 JDBC 전용 슬라이스만 로드한다")
+    void integrationTest_loadsOnlyJdbcSliceWithoutProductionImports() {
+        assertThat(BoardReplySequenceMigrationIT.class.getAnnotation(SpringBootTest.class))
+                .isNull();
+        assertThat(BoardReplySequenceMigrationIT.class.getAnnotation(JdbcTest.class)).isNotNull();
+        assertThat(BoardReplySequenceMigrationIT.class.getAnnotation(Import.class)).isNull();
+    }
+
+    @Test
+    @DisplayName("마이그레이션 프로파일은 공유 DB 기본값과 스케줄러를 모두 차단한다")
+    void migrationProfile_hasNoSharedFallbackAndDisablesSchedulers() throws Exception {
+        Properties properties =
+                PropertiesLoaderUtils.loadProperties(
+                        new ClassPathResource("application-migration-it.properties"));
+
+        assertThat(properties.getProperty("spring.datasource.url"))
+                .isEqualTo("${SEC15_MIGRATION_DB_URL}");
+        assertThat(properties.getProperty("spring.datasource.username"))
+                .isEqualTo("${SEC15_MIGRATION_DB_USERNAME}");
+        assertThat(properties.getProperty("spring.datasource.password"))
+                .isEqualTo("${SEC15_MIGRATION_DB_PASSWORD}");
+        assertThat(properties.getProperty("notification.retry.enabled")).isEqualTo("false");
+        assertThat(properties.getProperty("spring.task.scheduling.enabled")).isEqualTo("false");
     }
 
     @Test
