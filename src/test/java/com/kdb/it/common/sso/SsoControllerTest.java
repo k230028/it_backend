@@ -36,6 +36,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -586,6 +587,60 @@ class SsoControllerTest {
         controller.complete("K150024", "//evil.example", null, request, response);
 
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+    }
+
+    @Test
+    @DisplayName("complete: 안전한 쿼리가 있으면 malformed 상태 쿠키를 읽지 않고 성공한다")
+    void complete_안전한쿼리_malformed쿠키미사용_성공() throws Exception {
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(
+                new Cookie(CookieUtil.SSO_NEXT_COOKIE, "%"),
+                new Cookie(CookieUtil.SSO_ORIGIN_COOKIE, "%"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(
+                "K150024", "/info/projects", "http://localhost:3000", request, response);
+
+        assertThat(response.getStatus()).isEqualTo(302);
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/info/projects");
+        assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
+                .anyMatch(value -> value.startsWith(CookieUtil.SSO_NEXT_COOKIE + "="))
+                .anyMatch(value -> value.startsWith(CookieUtil.SSO_ORIGIN_COOKIE + "="));
+    }
+
+    @Test
+    @DisplayName("complete: 쿼리가 없고 상태 쿠키가 malformed이면 비밀값 없이 루트로 복구한다")
+    void complete_쿼리없음_malformed쿠키_로그미노출_루트복구() throws Exception {
+        String cookieSecret = "%COOKIE-SECRET-RAW-9Q7";
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(
+                new Cookie(CookieUtil.SSO_NEXT_COOKIE, cookieSecret),
+                new Cookie(CookieUtil.SSO_ORIGIN_COOKIE, cookieSecret));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.complete("K150024", null, null, request, response);
+
+            assertThat(response.getStatus()).isEqualTo(302);
+            assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+            assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
+                    .anyMatch(value -> value.startsWith(CookieUtil.SSO_NEXT_COOKIE + "="))
+                    .anyMatch(value -> value.startsWith(CookieUtil.SSO_ORIGIN_COOKIE + "="));
+            assertThat(formattedMessages(appender))
+                    .noneMatch(message -> message.contains(cookieSecret));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 
     /** mock 모드 SsoController를 직접 구성합니다 (next/origin 세션 저장 + 인증서버 통신 없이 mock 사번 주입 검증용). */

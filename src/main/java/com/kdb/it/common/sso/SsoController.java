@@ -363,13 +363,17 @@ public class SsoController {
             HttpServletRequest request,
             HttpServletResponse response)
             throws IOException {
-        // 최초 요청 URL(next)은 쿼리 파라미터가 생략된 경우에만 SSO 시작 시 심은 쿠키에서
-        // 복원한다(세션이 ESSO 교차 출처 왕복에서 끊겨도 원본 URL로 복귀하기 위함).
-        String effectiveNext =
-                next != null ? next : readCookie(request, CookieUtil.SSO_NEXT_COOKIE);
-        String effectiveOrigin =
-                firstNonBlank(origin, readCookie(request, CookieUtil.SSO_ORIGIN_COOKIE));
+        String effectiveNext = next;
+        String effectiveOrigin = origin;
         try {
+            // 쿼리 파라미터가 생략된 상태만 쿠키에서 복원해 명시적인 빈 값도 우선순위를 유지한다.
+            if (effectiveNext == null) {
+                effectiveNext = readCookie(request, CookieUtil.SSO_NEXT_COOKIE);
+            }
+            if (effectiveOrigin == null) {
+                effectiveOrigin = readCookie(request, CookieUtil.SSO_ORIGIN_COOKIE);
+            }
+
             String verifiedEno = resolveVerifiedEno(request, eno);
             AuthDto.LoginResponse loginResponse = authService.issueSsoTokens(verifiedEno);
 
@@ -571,21 +575,17 @@ public class SsoController {
         for (Cookie cookie : cookies) {
             if (name.equals(cookie.getName())) {
                 String value = cookie.getValue();
-                return value == null ? "" : URLDecoder.decode(value, StandardCharsets.UTF_8);
+                if (value == null) {
+                    return "";
+                }
+                try {
+                    return URLDecoder.decode(value, StandardCharsets.UTF_8);
+                } catch (IllegalArgumentException ignored) {
+                    return "";
+                }
             }
         }
         return "";
-    }
-
-    /**
-     * 첫 번째 비어 있지 않은 값을 반환합니다(파라미터 우선, 없으면 쿠키 폴백 용도).
-     *
-     * @param primary 우선 값
-     * @param fallback 폴백 값
-     * @return primary가 비어 있지 않으면 primary, 아니면 fallback
-     */
-    private static String firstNonBlank(String primary, String fallback) {
-        return (primary != null && !primary.isBlank()) ? primary : fallback;
     }
 
     /**
