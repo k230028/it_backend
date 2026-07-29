@@ -2,10 +2,10 @@ package com.kdb.it.common.board.repository;
 
 import com.kdb.it.common.board.entity.Ccmmtm;
 import jakarta.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -75,19 +75,24 @@ public interface BoardCommentRepository
     @Query(value = "SELECT SQ_TPRMPP_CCMMTM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
-    /** 대댓글 삽입을 위한 SQN 밀어내기 */
-    @Modifying
+    /**
+     * 삽입 지점 뒤의 활성 그룹 행을 큰 순서부터 잠가 managed update 대상으로 반환합니다.
+     *
+     * <p>계층 깊이와 무관하게 뒤쪽 행을 모두 이동해 순서 중복을 막고 엔티티 감사 이벤트를 남깁니다. 처리 비용은 그룹 꼬리 길이에 비례합니다.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query(
             """
-            UPDATE Ccmmtm c
-               SET c.cmmtGrpSqn = c.cmmtGrpSqn + 1
-             WHERE c.cmmtGrpNo  = :grpNo
+            SELECT c
+              FROM Ccmmtm c
+             WHERE c.nacMngNo = :nacMngNo
+               AND c.cmmtGrpNo = :groupId
                AND c.cmmtGrpSqn > :parentSqn
-               AND c.cmmtGrpLev > :parentLev
-               AND c.delYn      = 'N'
+               AND c.delYn = 'N'
+             ORDER BY c.cmmtGrpSqn DESC, c.cmmtMngNo DESC
             """)
-    int shiftGroupSqn(
-            @Param("grpNo") Long grpNo,
-            @Param("parentSqn") int parentSqn,
-            @Param("parentLev") int parentLev);
+    List<Ccmmtm> findActiveGroupTailForUpdate(
+            @Param("nacMngNo") String nacMngNo,
+            @Param("groupId") Long groupId,
+            @Param("parentSqn") int parentSqn);
 }

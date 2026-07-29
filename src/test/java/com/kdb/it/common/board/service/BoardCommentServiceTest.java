@@ -74,6 +74,14 @@ class BoardCommentServiceTest {
                                         invocation.getArgument(1), "N"));
         lenient()
                 .when(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+                                anyString(), anyString(), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                        invocation.getArgument(0), invocation.getArgument(1), "N"));
+        lenient()
+                .when(
                         commentRepository.findByCmmtMngNoAndNacMngNoAndDelYn(
                                 anyLong(), anyString(), eq("N")))
                 .thenAnswer(
@@ -243,7 +251,8 @@ class BoardCommentServiceTest {
 
         verify(commentRepository, never()).findCommentRowsByPost(anyString());
         verify(commentRepository, never()).getNextSequenceValue();
-        verify(commentRepository, never()).shiftGroupSqn(anyLong(), anyInt(), anyInt());
+        verify(commentRepository, never())
+                .findActiveGroupTailForUpdate(anyString(), anyLong(), anyInt());
         verify(commentRepository, never()).save(any(Ccmmtm.class));
     }
 
@@ -281,7 +290,8 @@ class BoardCommentServiceTest {
 
         assertThat(otherPostComment.getCmmtCone()).isEqualTo("원본 댓글");
         assertThat(otherPostComment.getDelYn()).isEqualTo("N");
-        verify(commentRepository, never()).shiftGroupSqn(anyLong(), anyInt(), anyInt());
+        verify(commentRepository, never())
+                .findActiveGroupTailForUpdate(anyString(), anyLong(), anyInt());
         verify(commentRepository, never()).save(any(Ccmmtm.class));
     }
 
@@ -329,6 +339,10 @@ class BoardCommentServiceTest {
     void createReply_locksGroupAnchorThenParentBeforeShift() {
         stubActiveBoardAndPost();
         Ccmmtm parent = buildComment(1L);
+        Ccmmtm firstFollowing = buildComment(2L);
+        Ccmmtm secondFollowing = buildComment(3L);
+        ReflectionTestUtils.setField(firstFollowing, "cmmtGrpSqn", 1);
+        ReflectionTestUtils.setField(secondFollowing, "cmmtGrpSqn", 2);
         given(commentRepository.findReplyGroupId(1L, "NAC-2026-0001", "N"))
                 .willReturn(Optional.of(1L));
         given(commentRepository.findReplyGroupAnchorForUpdate("NAC-2026-0001", 1L))
@@ -337,6 +351,8 @@ class BoardCommentServiceTest {
                         commentRepository.findByCmmtMngNoAndNacMngNoAndDelYnForUpdate(
                                 1L, "NAC-2026-0001", "N"))
                 .willReturn(Optional.of(parent));
+        given(commentRepository.findActiveGroupTailForUpdate("NAC-2026-0001", 1L, 0))
+                .willReturn(List.of(secondFollowing, firstFollowing));
         given(commentRepository.getNextSequenceValue()).willReturn(2L);
 
         service.createReply(
@@ -351,7 +367,9 @@ class BoardCommentServiceTest {
         order.verify(commentRepository).findReplyGroupAnchorForUpdate("NAC-2026-0001", 1L);
         order.verify(commentRepository)
                 .findByCmmtMngNoAndNacMngNoAndDelYnForUpdate(1L, "NAC-2026-0001", "N");
-        order.verify(commentRepository).shiftGroupSqn(1L, 0, 0);
+        order.verify(commentRepository).findActiveGroupTailForUpdate("NAC-2026-0001", 1L, 0);
+        assertThat(firstFollowing.getCmmtGrpSqn()).isEqualTo(2);
+        assertThat(secondFollowing.getCmmtGrpSqn()).isEqualTo(3);
     }
 
     @Test
@@ -372,7 +390,8 @@ class BoardCommentServiceTest {
                                         new BoardCommentDto.CreateRequest("차단 대댓글"),
                                         normalUser))
                 .isInstanceOf(NotFoundException.class);
-        verify(commentRepository, never()).shiftGroupSqn(anyLong(), anyInt(), anyInt());
+        verify(commentRepository, never())
+                .findActiveGroupTailForUpdate(anyString(), anyLong(), anyInt());
         verify(commentRepository, never()).getNextSequenceValue();
         verify(commentRepository, never()).save(any(Ccmmtm.class));
     }

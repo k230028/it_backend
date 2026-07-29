@@ -2,10 +2,10 @@ package com.kdb.it.common.board.repository;
 
 import com.kdb.it.common.board.entity.Cblbcm;
 import jakarta.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -85,22 +85,23 @@ public interface BoardPostRepository
             @Param("blbMngNo") String blbMngNo, @Param("groupId") String groupId);
 
     /**
-     * 답변글 삽입을 위한 SQN 밀어내기 (단일 트랜잭션 + 행 단위 락 전제)
+     * 삽입 지점 뒤의 활성 그룹 행을 큰 순서부터 잠가 managed update 대상으로 반환합니다.
      *
-     * <p>같은 그룹에서 parentSqn보다 큰 SQN을 가진 행 중 깊이가 parentLev 이하인 행이 나오기 전까지를 +1 한다.
+     * <p>계층 깊이와 무관하게 뒤쪽 행을 모두 이동해 순서 중복을 막고 엔티티 감사 이벤트를 남깁니다. 처리 비용은 그룹 꼬리 길이에 비례합니다.
      */
-    @Modifying
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query(
             """
-            UPDATE Cblbcm c
-               SET c.nacGrpSqn = c.nacGrpSqn + 1
-             WHERE c.nacUnqId  = :grpNo
+            SELECT c
+              FROM Cblbcm c
+             WHERE c.blbMngNo = :blbMngNo
+               AND c.nacUnqId = :groupId
                AND c.nacGrpSqn > :parentSqn
-               AND c.nacGrpLev > :parentLev
-               AND c.delYn     = 'N'
+               AND c.delYn = 'N'
+             ORDER BY c.nacGrpSqn DESC, c.nacMngNo DESC
             """)
-    int shiftGroupSqn(
-            @Param("grpNo") String grpNo,
-            @Param("parentSqn") int parentSqn,
-            @Param("parentLev") int parentLev);
+    List<Cblbcm> findActiveGroupTailForUpdate(
+            @Param("blbMngNo") String blbMngNo,
+            @Param("groupId") String groupId,
+            @Param("parentSqn") int parentSqn);
 }

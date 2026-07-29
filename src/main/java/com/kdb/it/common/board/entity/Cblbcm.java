@@ -147,4 +147,9 @@ public class Cblbcm extends BaseEntity {
         this.nacGrpLev = parentGrpLev + 1;
         this.hrkNacNo = parentPk;
     }
+
+    /** 답글 삽입 지점 뒤의 그룹 순서를 한 칸 이동합니다. */
+    public void shiftGroupSequence() {
+        this.nacGrpSqn = this.nacGrpSqn + 1;
+    }
 }

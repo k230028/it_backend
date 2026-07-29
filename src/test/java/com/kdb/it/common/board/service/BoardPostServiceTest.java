@@ -268,6 +268,10 @@ class BoardPostServiceTest {
     @DisplayName("게시물 답글은 그룹 루트와 부모를 순서대로 잠근 뒤 순서를 이동한다")
     void createReply_locksGroupAnchorThenParentBeforeShift() {
         Cblbcm parent = post("NAC-2026-0001", "USER001");
+        Cblbcm firstFollowing = post("NAC-2026-0002", "USER001");
+        Cblbcm secondFollowing = post("NAC-2026-0003", "USER001");
+        ReflectionTestUtils.setField(firstFollowing, "nacGrpSqn", 1);
+        ReflectionTestUtils.setField(secondFollowing, "nacGrpSqn", 2);
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
                 .willReturn(Optional.of(writableBoard()));
         given(postRepository.findReplyGroupId("BLBM-2026-0003", "NAC-2026-0001", "N"))
@@ -278,6 +282,8 @@ class BoardPostServiceTest {
                         postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
                                 "BLBM-2026-0003", "NAC-2026-0001", "N"))
                 .willReturn(Optional.of(parent));
+        given(postRepository.findActiveGroupTailForUpdate("BLBM-2026-0003", "NAC-2026-0001", 0))
+                .willReturn(List.of(secondFollowing, firstFollowing));
         given(postRepository.getNextSequenceValue()).willReturn(10L);
         var request = new BoardPostDto.ReplyCreateRequest();
         request.setNacNm("잠금 답글");
@@ -291,7 +297,10 @@ class BoardPostServiceTest {
                 .findReplyGroupAnchorForUpdate("BLBM-2026-0003", "NAC-2026-0001");
         order.verify(postRepository)
                 .findByBlbMngNoAndNacMngNoAndDelYnForUpdate("BLBM-2026-0003", "NAC-2026-0001", "N");
-        order.verify(postRepository).shiftGroupSqn("NAC-2026-0001", 0, 0);
+        order.verify(postRepository)
+                .findActiveGroupTailForUpdate("BLBM-2026-0003", "NAC-2026-0001", 0);
+        assertThat(firstFollowing.getNacGrpSqn()).isEqualTo(2);
+        assertThat(secondFollowing.getNacGrpSqn()).isEqualTo(3);
     }
 
     @Test
@@ -311,7 +320,8 @@ class BoardPostServiceTest {
                                 service.createReply(
                                         "BLBM-2026-0003", "NAC-2026-0001", request, normalUser))
                 .isInstanceOf(NotFoundException.class);
-        verify(postRepository, never()).shiftGroupSqn(anyString(), anyInt(), anyInt());
+        verify(postRepository, never())
+                .findActiveGroupTailForUpdate(anyString(), anyString(), anyInt());
         verify(postRepository, never()).getNextSequenceValue();
         verify(postRepository, never()).save(any(Cblbcm.class));
     }
@@ -639,7 +649,8 @@ class BoardPostServiceTest {
 
         assertThat(result).startsWith("NAC-");
         verify(postRepository)
-                .shiftGroupSqn(parent.getNacUnqId(), parent.getNacGrpSqn(), parent.getNacGrpLev());
+                .findActiveGroupTailForUpdate(
+                        "BLBM-2026-0003", parent.getNacUnqId(), parent.getNacGrpSqn());
         verify(postRepository)
                 .save(argThat(reply -> reply.getNacGrpLev() == parent.getNacGrpLev() + 1));
 

@@ -13,9 +13,12 @@ import com.kdb.it.common.board.repository.BoardCommentRepository;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.exception.NotFoundException;
 import com.kdb.it.support.OracleAvailableCondition;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +33,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -65,9 +70,11 @@ class BoardWriteConcurrencyIT {
     private String replyRootId;
     private String replyParentId;
     private String replyChildId;
+    private String replySiblingId;
     private Long commentRootId;
     private Long commentParentId;
     private Long commentChildId;
+    private Long commentSiblingId;
     private CustomUserDetails user;
 
     @BeforeEach
@@ -78,9 +85,11 @@ class BoardWriteConcurrencyIT {
         replyRootId = "R5R0" + suffix;
         replyParentId = "R5R1" + suffix;
         replyChildId = "R5R2" + suffix;
+        replySiblingId = "R5R3" + suffix;
         commentRootId = nextCommentId();
         commentParentId = nextCommentId();
         commentChildId = nextCommentId();
+        commentSiblingId = nextCommentId();
         user = new CustomUserDetails(AUDITOR, List.of("ITPZZ001"), "100");
         authenticate();
 
@@ -105,7 +114,14 @@ class BoardWriteConcurrencyIT {
                                                     2,
                                                     2,
                                                     replyParentId,
-                                                    "답글 자식")));
+                                                    "답글 자식"),
+                                            post(
+                                                    replySiblingId,
+                                                    replyRootId,
+                                                    3,
+                                                    1,
+                                                    replyRootId,
+                                                    "답글 형제")));
                             commentRepository.saveAll(
                                     List.of(
                                             comment(
@@ -128,7 +144,14 @@ class BoardWriteConcurrencyIT {
                                                     2,
                                                     2,
                                                     commentParentId,
-                                                    "댓글 자식")));
+                                                    "댓글 자식"),
+                                            comment(
+                                                    commentSiblingId,
+                                                    commentRootId,
+                                                    3,
+                                                    1,
+                                                    commentRootId,
+                                                    "댓글 형제")));
                         });
     }
 
@@ -284,31 +307,167 @@ class BoardWriteConcurrencyIT {
     }
 
     @Test
-    @DisplayName("같은 게시물 그룹의 서로 다른 부모 답글은 고유하고 연속된 순서를 가진다")
-    void concurrentPostReplies_sameGroup_haveDistinctOrderedSequence() throws Exception {
-        CountDownLatch childAtShift = new CountDownLatch(1);
-        CountDownLatch releaseChild = new CountDownLatch(1);
-        CountDownLatch parentAtShift = new CountDownLatch(1);
+    @DisplayName("분기된 게시물 트리의 부모 답글은 모든 후속 행을 이동하고 감사 delta를 정확히 남긴다")
+    void branchyPostReply_shiftsEveryFollowingRowAndAuditsExactDelta() throws Exception {
+        int beforeCreate = queryPostGroupAuditCount("C");
+        int beforeUpdate = queryPostGroupAuditCount("U");
+        LocalDateTime childChangedBefore = queryPostLastChangedAt(replyChildId);
+        LocalDateTime siblingChangedBefore = queryPostLastChangedAt(replySiblingId);
+        Thread.sleep(1100);
+
+        String createdId =
+                postService.createReply(boardId, replyParentId, replyRequest("분기 게시물 답글"), user);
+
+        assertThat(queryPostGroupOrder())
+                .containsExactly(
+                        replyRootId + ":0",
+                        replyParentId + ":1",
+                        createdId + ":2",
+                        replyChildId + ":3",
+                        replySiblingId + ":4");
+        assertThat(queryPostGroupAuditCount("C") - beforeCreate).isOne();
+        assertThat(queryPostGroupAuditCount("U") - beforeUpdate).isEqualTo(2);
+        assertThat(queryPostLastChangedAt(replyChildId)).isAfter(childChangedBefore);
+        assertThat(queryPostLastChangedAt(replySiblingId)).isAfter(siblingChangedBefore);
+        assertThat(queryPostLastChangedBy(replyChildId)).isEqualTo(AUDITOR);
+        assertThat(queryPostLastChangedBy(replySiblingId)).isEqualTo(AUDITOR);
+    }
+
+    @Test
+    @DisplayName("분기된 댓글 트리의 부모 대댓글은 모든 후속 행을 이동하고 감사 delta를 정확히 남긴다")
+    void branchyCommentReply_shiftsEveryFollowingRowAndAuditsExactDelta() throws Exception {
+        int beforeCreate = queryCommentGroupAuditCount("C");
+        int beforeUpdate = queryCommentGroupAuditCount("U");
+        LocalDateTime childChangedBefore = queryCommentLastChangedAt(commentChildId);
+        LocalDateTime siblingChangedBefore = queryCommentLastChangedAt(commentSiblingId);
+        Thread.sleep(1100);
+
+        Long createdId =
+                commentService.createReply(
+                        boardId,
+                        postId,
+                        commentParentId,
+                        new BoardCommentDto.CreateRequest("분기 댓글 대댓글"),
+                        user);
+
+        assertThat(queryCommentGroupOrder())
+                .containsExactly(
+                        commentRootId + ":0",
+                        commentParentId + ":1",
+                        createdId + ":2",
+                        commentChildId + ":3",
+                        commentSiblingId + ":4");
+        assertThat(queryCommentGroupAuditCount("C") - beforeCreate).isOne();
+        assertThat(queryCommentGroupAuditCount("U") - beforeUpdate).isEqualTo(2);
+        assertThat(queryCommentLastChangedAt(commentChildId)).isAfter(childChangedBefore);
+        assertThat(queryCommentLastChangedAt(commentSiblingId)).isAfter(siblingChangedBefore);
+        assertThat(queryCommentLastChangedBy(commentChildId)).isEqualTo(AUDITOR);
+        assertThat(queryCommentLastChangedBy(commentSiblingId)).isEqualTo(AUDITOR);
+    }
+
+    @ParameterizedTest(name = "게시물 삭제 경합 시 댓글 {0}은 삭제된 게시물 아래에 반영되지 않는다")
+    @EnumSource(CommentWriteOperation.class)
+    void commentWrite_concurrentWithPostDelete_doesNotMutateDeletedPost(
+            CommentWriteOperation operation) throws Exception {
+        CountDownLatch deleteLocked = new CountDownLatch(1);
+        CountDownLatch releaseDelete = new CountDownLatch(1);
+        CountDownLatch commentReachedPost = new CountDownLatch(1);
+        CountDownLatch releaseComment = new CountDownLatch(1);
+        int commentsBefore = queryActiveCommentCount();
+        String contentBefore = queryCommentContent(commentParentId);
+        String deletedBefore = queryCommentDeleted(commentParentId);
 
         doAnswer(
                         invocation -> {
+                            if ("post-delete".equals(Thread.currentThread().getName())) {
+                                Object result = findPostAssociation(true);
+                                deleteLocked.countDown();
+                                await(releaseDelete, "게시물 삭제 해제");
+                                return result;
+                            }
+                            if ("comment-write".equals(Thread.currentThread().getName())) {
+                                commentReachedPost.countDown();
+                            }
+                            return findPostAssociation(true);
+                        })
+                .when(postRepository)
+                .findByBlbMngNoAndNacMngNoAndDelYnForUpdate(eq(boardId), eq(postId), eq("N"));
+        doAnswer(
+                        invocation -> {
+                            Object result = findPostAssociation(false);
+                            if ("comment-write".equals(Thread.currentThread().getName())) {
+                                commentReachedPost.countDown();
+                                await(releaseComment, "댓글 쓰기 해제");
+                            }
+                            return result;
+                        })
+                .when(postRepository)
+                .findByBlbMngNoAndNacMngNoAndDelYn(eq(boardId), eq(postId), eq("N"));
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            Future<?> delete =
+                    executor.submit(
+                            () ->
+                                    runAs(
+                                            "post-delete",
+                                            () -> postService.deletePost(boardId, postId, user)));
+            assertThat(deleteLocked.await(10, TimeUnit.SECONDS)).isTrue();
+
+            Future<Throwable> commentWrite =
+                    executor.submit(
+                            () ->
+                                    runAsCatching(
+                                            "comment-write", () -> executeCommentWrite(operation)));
+            assertThat(commentReachedPost.await(10, TimeUnit.SECONDS)).isTrue();
+            releaseDelete.countDown();
+            delete.get(20, TimeUnit.SECONDS);
+            releaseComment.countDown();
+            Throwable failure = commentWrite.get(20, TimeUnit.SECONDS);
+
+            assertThat(failure).isInstanceOf(NotFoundException.class);
+        } finally {
+            releaseDelete.countDown();
+            releaseComment.countDown();
+        }
+
+        assertThat(queryPostDeleted(postId)).isEqualTo("Y");
+        switch (operation) {
+            case CREATE, REPLY -> assertThat(queryActiveCommentCount()).isEqualTo(commentsBefore);
+            case UPDATE ->
+                    assertThat(queryCommentContent(commentParentId)).isEqualTo(contentBefore);
+            case DELETE ->
+                    assertThat(queryCommentDeleted(commentParentId)).isEqualTo(deletedBefore);
+        }
+    }
+
+    @Test
+    @DisplayName("같은 게시물 그룹의 서로 다른 부모 답글은 고유하고 연속된 순서를 가진다")
+    void concurrentPostReplies_sameGroup_haveDistinctOrderedSequence() throws Exception {
+        CountDownLatch childLockedTail = new CountDownLatch(1);
+        CountDownLatch releaseChild = new CountDownLatch(1);
+        CountDownLatch parentLockedTail = new CountDownLatch(1);
+        int beforeCreate = queryPostGroupAuditCount("C");
+        int beforeUpdate = queryPostGroupAuditCount("U");
+
+        doAnswer(
+                        invocation -> {
+                            List<Cblbcm> tail =
+                                    findPostGroupTailForUpdate(
+                                            invocation.getArgument(0),
+                                            invocation.getArgument(1),
+                                            invocation.getArgument(2));
                             if ("child-post-reply".equals(Thread.currentThread().getName())) {
-                                childAtShift.countDown();
+                                childLockedTail.countDown();
                                 await(releaseChild, "자식 게시물 답글 해제");
                             } else if ("parent-post-reply"
                                     .equals(Thread.currentThread().getName())) {
-                                parentAtShift.countDown();
+                                parentLockedTail.countDown();
                             }
-                            return shiftPostGroup(
-                                    invocation.getArgument(0),
-                                    invocation.getArgument(1),
-                                    invocation.getArgument(2));
+                            return tail;
                         })
                 .when(postRepository)
-                .shiftGroupSqn(
-                        eq(replyRootId),
-                        org.mockito.ArgumentMatchers.anyInt(),
-                        org.mockito.ArgumentMatchers.anyInt());
+                .findActiveGroupTailForUpdate(
+                        eq(boardId), eq(replyRootId), org.mockito.ArgumentMatchers.anyInt());
 
         try (var executor = Executors.newFixedThreadPool(2)) {
             Future<?> childReply =
@@ -322,7 +481,7 @@ class BoardWriteConcurrencyIT {
                                                             replyChildId,
                                                             replyRequest("자식의 답글"),
                                                             user)));
-            assertThat(childAtShift.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(childLockedTail.await(10, TimeUnit.SECONDS)).isTrue();
 
             Future<?> parentReply =
                     executor.submit(
@@ -335,7 +494,7 @@ class BoardWriteConcurrencyIT {
                                                             replyParentId,
                                                             replyRequest("부모의 답글"),
                                                             user)));
-            if (parentAtShift.await(2, TimeUnit.SECONDS)) {
+            if (parentLockedTail.await(2, TimeUnit.SECONDS)) {
                 parentReply.get(10, TimeUnit.SECONDS);
             }
             releaseChild.countDown();
@@ -346,37 +505,40 @@ class BoardWriteConcurrencyIT {
         }
 
         assertThat(queryPostGroupSequences())
-                .containsExactly(0, 1, 2, 3, 4)
+                .containsExactly(0, 1, 2, 3, 4, 5)
                 .doesNotHaveDuplicates();
-        assertThat(queryPostCreateAuditCount()).isGreaterThanOrEqualTo(2);
+        assertThat(queryPostGroupAuditCount("C") - beforeCreate).isEqualTo(2);
+        assertThat(queryPostGroupAuditCount("U") - beforeUpdate).isEqualTo(4);
     }
 
     @Test
     @DisplayName("같은 댓글 그룹의 서로 다른 부모 대댓글은 고유하고 연속된 순서를 가진다")
     void concurrentCommentReplies_sameGroup_haveDistinctOrderedSequence() throws Exception {
-        CountDownLatch childAtShift = new CountDownLatch(1);
+        CountDownLatch childLockedTail = new CountDownLatch(1);
         CountDownLatch releaseChild = new CountDownLatch(1);
-        CountDownLatch parentAtShift = new CountDownLatch(1);
+        CountDownLatch parentLockedTail = new CountDownLatch(1);
+        int beforeCreate = queryCommentGroupAuditCount("C");
+        int beforeUpdate = queryCommentGroupAuditCount("U");
 
         doAnswer(
                         invocation -> {
+                            List<Ccmmtm> tail =
+                                    findCommentGroupTailForUpdate(
+                                            invocation.getArgument(0),
+                                            invocation.getArgument(1),
+                                            invocation.getArgument(2));
                             if ("child-comment-reply".equals(Thread.currentThread().getName())) {
-                                childAtShift.countDown();
+                                childLockedTail.countDown();
                                 await(releaseChild, "자식 댓글 답글 해제");
                             } else if ("parent-comment-reply"
                                     .equals(Thread.currentThread().getName())) {
-                                parentAtShift.countDown();
+                                parentLockedTail.countDown();
                             }
-                            return shiftCommentGroup(
-                                    invocation.getArgument(0),
-                                    invocation.getArgument(1),
-                                    invocation.getArgument(2));
+                            return tail;
                         })
                 .when(commentRepository)
-                .shiftGroupSqn(
-                        eq(commentRootId),
-                        org.mockito.ArgumentMatchers.anyInt(),
-                        org.mockito.ArgumentMatchers.anyInt());
+                .findActiveGroupTailForUpdate(
+                        eq(postId), eq(commentRootId), org.mockito.ArgumentMatchers.anyInt());
 
         try (var executor = Executors.newFixedThreadPool(2)) {
             Future<?> childReply =
@@ -392,7 +554,7 @@ class BoardWriteConcurrencyIT {
                                                             new BoardCommentDto.CreateRequest(
                                                                     "자식의 대댓글"),
                                                             user)));
-            assertThat(childAtShift.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(childLockedTail.await(10, TimeUnit.SECONDS)).isTrue();
 
             Future<?> parentReply =
                     executor.submit(
@@ -407,7 +569,7 @@ class BoardWriteConcurrencyIT {
                                                             new BoardCommentDto.CreateRequest(
                                                                     "부모의 대댓글"),
                                                             user)));
-            if (parentAtShift.await(2, TimeUnit.SECONDS)) {
+            if (parentLockedTail.await(2, TimeUnit.SECONDS)) {
                 parentReply.get(10, TimeUnit.SECONDS);
             }
             releaseChild.countDown();
@@ -418,9 +580,10 @@ class BoardWriteConcurrencyIT {
         }
 
         assertThat(queryCommentGroupSequences())
-                .containsExactly(0, 1, 2, 3, 4)
+                .containsExactly(0, 1, 2, 3, 4, 5)
                 .doesNotHaveDuplicates();
-        assertThat(queryCommentCreateAuditCount()).isGreaterThanOrEqualTo(2);
+        assertThat(queryCommentGroupAuditCount("C") - beforeCreate).isEqualTo(2);
+        assertThat(queryCommentGroupAuditCount("U") - beforeUpdate).isEqualTo(4);
     }
 
     private Optional<Cblbcm> findPostAssociation(boolean forUpdate) {
@@ -443,24 +606,46 @@ class BoardWriteConcurrencyIT {
         return query.getResultStream().findFirst();
     }
 
-    private int shiftPostGroup(String groupId, int parentSequence, int parentLevel) {
-        return jdbcTemplate.update(
-                "UPDATE TPRMPP_CBLBCM SET GRP_SQN_SNO = GRP_SQN_SNO + 1 "
-                        + "WHERE NAC_UNQ_ID = ? AND GRP_SQN_SNO > ? "
-                        + "AND NAC_LEV_MNG_SNO > ? AND DEL_YN = 'N'",
-                groupId,
-                parentSequence,
-                parentLevel);
+    private List<Cblbcm> findPostGroupTailForUpdate(
+            String targetBoardId, String groupId, int parentSequence) {
+        return entityManager
+                .createQuery(
+                        """
+                        SELECT c
+                          FROM Cblbcm c
+                         WHERE c.blbMngNo = :blbMngNo
+                           AND c.nacUnqId = :groupId
+                           AND c.nacGrpSqn > :parentSqn
+                           AND c.delYn = 'N'
+                         ORDER BY c.nacGrpSqn DESC, c.nacMngNo DESC
+                        """,
+                        Cblbcm.class)
+                .setParameter("blbMngNo", targetBoardId)
+                .setParameter("groupId", groupId)
+                .setParameter("parentSqn", parentSequence)
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+                .getResultList();
     }
 
-    private int shiftCommentGroup(Long groupId, int parentSequence, int parentLevel) {
-        return jdbcTemplate.update(
-                "UPDATE TPRMPP_CCMMTM SET CMMT_SQN_SNO = CMMT_SQN_SNO + 1 "
-                        + "WHERE CMMT_TGT_SNO = ? AND CMMT_SQN_SNO > ? "
-                        + "AND CMMT_DEP_NBR > ? AND DEL_YN = 'N'",
-                groupId,
-                parentSequence,
-                parentLevel);
+    private List<Ccmmtm> findCommentGroupTailForUpdate(
+            String targetPostId, Long groupId, int parentSequence) {
+        return entityManager
+                .createQuery(
+                        """
+                        SELECT c
+                          FROM Ccmmtm c
+                         WHERE c.nacMngNo = :nacMngNo
+                           AND c.cmmtGrpNo = :groupId
+                           AND c.cmmtGrpSqn > :parentSqn
+                           AND c.delYn = 'N'
+                         ORDER BY c.cmmtGrpSqn DESC, c.cmmtMngNo DESC
+                        """,
+                        Ccmmtm.class)
+                .setParameter("nacMngNo", targetPostId)
+                .setParameter("groupId", groupId)
+                .setParameter("parentSqn", parentSequence)
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+                .getResultList();
     }
 
     private void runAs(String threadName, Runnable action) {
@@ -470,6 +655,38 @@ class BoardWriteConcurrencyIT {
             action.run();
         } finally {
             SecurityContextHolder.clearContext();
+        }
+    }
+
+    private Throwable runAsCatching(String threadName, Runnable action) {
+        try {
+            runAs(threadName, action);
+            return null;
+        } catch (Throwable failure) {
+            return failure;
+        }
+    }
+
+    private void executeCommentWrite(CommentWriteOperation operation) {
+        switch (operation) {
+            case CREATE ->
+                    commentService.createComment(
+                            boardId, postId, new BoardCommentDto.CreateRequest("삭제 경합 댓글"), user);
+            case REPLY ->
+                    commentService.createReply(
+                            boardId,
+                            postId,
+                            commentParentId,
+                            new BoardCommentDto.CreateRequest("삭제 경합 대댓글"),
+                            user);
+            case UPDATE ->
+                    commentService.updateComment(
+                            boardId,
+                            postId,
+                            commentParentId,
+                            new BoardCommentDto.UpdateRequest("삭제 경합 수정"),
+                            user);
+            case DELETE -> commentService.deleteComment(boardId, postId, commentParentId, user);
         }
     }
 
@@ -610,6 +827,41 @@ class BoardWriteConcurrencyIT {
                 id);
     }
 
+    private List<String> queryPostGroupOrder() {
+        return jdbcTemplate.queryForList(
+                "SELECT NAC_NO || ':' || TO_CHAR(GRP_SQN_SNO) "
+                        + "FROM TPRMPP_CBLBCM "
+                        + "WHERE BLB_ID = ? AND NAC_UNQ_ID = ? AND DEL_YN = 'N' "
+                        + "ORDER BY GRP_SQN_SNO, NAC_NO",
+                String.class,
+                boardId,
+                replyRootId);
+    }
+
+    private int queryPostGroupAuditCount(String changeType) {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM TPRMPP_CBLBCL "
+                        + "WHERE BLB_ID = ? AND NAC_UNQ_ID = ? AND CHG_DTT_YN = ?",
+                Integer.class,
+                boardId,
+                replyRootId,
+                changeType);
+    }
+
+    private LocalDateTime queryPostLastChangedAt(String id) {
+        Timestamp value =
+                jdbcTemplate.queryForObject(
+                        "SELECT LST_CHG_DTM FROM TPRMPP_CBLBCM WHERE NAC_NO = ?",
+                        Timestamp.class,
+                        id);
+        return value.toLocalDateTime();
+    }
+
+    private String queryPostLastChangedBy(String id) {
+        return jdbcTemplate.queryForObject(
+                "SELECT LST_CHG_USID FROM TPRMPP_CBLBCM WHERE NAC_NO = ?", String.class, id);
+    }
+
     private List<Integer> queryPostGroupSequences() {
         return jdbcTemplate.queryForList(
                 "SELECT GRP_SQN_SNO FROM TPRMPP_CBLBCM "
@@ -620,13 +872,56 @@ class BoardWriteConcurrencyIT {
                 replyRootId);
     }
 
-    private int queryPostCreateAuditCount() {
+    private List<String> queryCommentGroupOrder() {
+        return jdbcTemplate.queryForList(
+                "SELECT TO_CHAR(CMMT_SNO) || ':' || TO_CHAR(CMMT_SQN_SNO) "
+                        + "FROM TPRMPP_CCMMTM "
+                        + "WHERE NAC_NO = ? AND CMMT_TGT_SNO = ? AND DEL_YN = 'N' "
+                        + "ORDER BY CMMT_SQN_SNO, CMMT_SNO",
+                String.class,
+                postId,
+                commentRootId);
+    }
+
+    private int queryCommentGroupAuditCount(String changeType) {
         return jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM TPRMPP_CBLBCL "
-                        + "WHERE BLB_ID = ? AND NAC_UNQ_ID = ? AND CHG_DTT_YN = 'C'",
+                "SELECT COUNT(*) FROM TPRMPP_CCMMTL "
+                        + "WHERE NAC_NO = ? AND CMMT_TGT_SNO = ? AND CHG_DTT_YN = ?",
                 Integer.class,
-                boardId,
-                replyRootId);
+                postId,
+                commentRootId,
+                changeType);
+    }
+
+    private LocalDateTime queryCommentLastChangedAt(Long id) {
+        Timestamp value =
+                jdbcTemplate.queryForObject(
+                        "SELECT LST_CHG_DTM FROM TPRMPP_CCMMTM WHERE CMMT_SNO = ?",
+                        Timestamp.class,
+                        id);
+        return value.toLocalDateTime();
+    }
+
+    private String queryCommentLastChangedBy(Long id) {
+        return jdbcTemplate.queryForObject(
+                "SELECT LST_CHG_USID FROM TPRMPP_CCMMTM WHERE CMMT_SNO = ?", String.class, id);
+    }
+
+    private int queryActiveCommentCount() {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM TPRMPP_CCMMTM WHERE NAC_NO = ? AND DEL_YN = 'N'",
+                Integer.class,
+                postId);
+    }
+
+    private String queryCommentContent(Long id) {
+        return jdbcTemplate.queryForObject(
+                "SELECT CMMT_CONE FROM TPRMPP_CCMMTM WHERE CMMT_SNO = ?", String.class, id);
+    }
+
+    private String queryCommentDeleted(Long id) {
+        return jdbcTemplate.queryForObject(
+                "SELECT DEL_YN FROM TPRMPP_CCMMTM WHERE CMMT_SNO = ?", String.class, id);
     }
 
     private List<Integer> queryCommentGroupSequences() {
@@ -639,12 +934,10 @@ class BoardWriteConcurrencyIT {
                 commentRootId);
     }
 
-    private int queryCommentCreateAuditCount() {
-        return jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM TPRMPP_CCMMTL "
-                        + "WHERE NAC_NO = ? AND CMMT_TGT_SNO = ? AND CHG_DTT_YN = 'C'",
-                Integer.class,
-                postId,
-                commentRootId);
+    private enum CommentWriteOperation {
+        CREATE,
+        REPLY,
+        UPDATE,
+        DELETE
     }
 }

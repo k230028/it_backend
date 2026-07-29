@@ -27,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 게시판 댓글 서비스
  *
  * <p>원댓글·대댓글 CRUD, 트리 알고리즘을 담당한다.
+ *
+ * <p>댓글 쓰기는 게시물 삭제와 원자성을 보장하기 위해 게시물 → 그룹 루트 → 부모 또는 대상 → 뒤쪽 그룹 행 순서로 잠근다.
  */
 @Service
 @RequiredArgsConstructor
@@ -82,7 +84,7 @@ public class BoardCommentService {
             CustomUserDetails user) {
 
         Cblbmm board = findUserActiveBoard(blbMngNo);
-        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
 
@@ -125,7 +127,7 @@ public class BoardCommentService {
             CustomUserDetails user) {
 
         Cblbmm board = findUserActiveBoard(blbMngNo);
-        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
 
@@ -133,8 +135,10 @@ public class BoardCommentService {
         lockReplyGroup(nacMngNo, groupId);
         Ccmmtm parent = findCommentInPostForUpdate(nacMngNo, hrkCmmtMngNo);
 
-        commentRepository.shiftGroupSqn(
-                parent.getCmmtGrpNo(), parent.getCmmtGrpSqn(), parent.getCmmtGrpLev());
+        commentRepository
+                .findActiveGroupTailForUpdate(
+                        nacMngNo, parent.getCmmtGrpNo(), parent.getCmmtGrpSqn())
+                .forEach(Ccmmtm::shiftGroupSequence);
 
         String sanitized = HtmlSanitizer.sanitize(request.getCmmtCone());
         Long cmmtMngNo = generateCmmtId();
@@ -179,7 +183,7 @@ public class BoardCommentService {
             CustomUserDetails user) {
 
         Cblbmm board = findUserActiveBoard(blbMngNo);
-        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
         Ccmmtm comment = findCommentInPostForUpdate(nacMngNo, cmmtMngNo);
@@ -205,7 +209,7 @@ public class BoardCommentService {
     public void deleteComment(
             String blbMngNo, String nacMngNo, Long cmmtMngNo, CustomUserDetails user) {
         Cblbmm board = findUserActiveBoard(blbMngNo);
-        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
         Ccmmtm comment = findCommentInPostForUpdate(nacMngNo, cmmtMngNo);
@@ -227,6 +231,12 @@ public class BoardCommentService {
                 .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
     }
 
+    private Cblbcm findPostInBoardForUpdate(String blbMngNo, String nacMngNo) {
+        return postRepository
+                .findByBlbMngNoAndNacMngNoAndDelYnForUpdate(blbMngNo, nacMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+    }
+
     private Ccmmtm findCommentInPostForUpdate(String nacMngNo, Long cmmtMngNo) {
         return commentRepository
                 .findByCmmtMngNoAndNacMngNoAndDelYnForUpdate(cmmtMngNo, nacMngNo, "N")
@@ -242,8 +252,8 @@ public class BoardCommentService {
     /**
      * 대댓글 쓰기 잠금 순서의 첫 행인 그룹 루트를 잠급니다.
      *
-     * <p>모든 대댓글 경로는 {@code 그룹 루트 → 부모 댓글} 순서로만 잠급니다. 일반 댓글 수정·삭제는 대상 댓글 한 행만 잠그며 그룹 루트를 추가로 기다리지
-     * 않으므로 역순 대기 사이클이 생기지 않습니다.
+     * <p>모든 댓글 쓰기는 게시물 행을 먼저 잠급니다. 대댓글은 이어서 {@code 그룹 루트 → 부모 댓글 → 후속 그룹 행} 순서로 잠급니다. 일반 댓글 수정·삭제는
+     * 대상 댓글 한 행만 추가로 잠그므로 게시물 삭제와 역순 대기 사이클이 생기지 않습니다.
      */
     private void lockReplyGroup(String nacMngNo, Long groupId) {
         commentRepository

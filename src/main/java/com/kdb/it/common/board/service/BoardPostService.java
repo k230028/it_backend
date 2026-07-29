@@ -221,8 +221,9 @@ public class BoardPostService {
         Cblbcm parent = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCanReadPost(user, parent, board);
 
-        postRepository.shiftGroupSqn(
-                parent.getNacUnqId(), parent.getNacGrpSqn(), parent.getNacGrpLev());
+        postRepository
+                .findActiveGroupTailForUpdate(blbMngNo, parent.getNacUnqId(), parent.getNacGrpSqn())
+                .forEach(Cblbcm::shiftGroupSequence);
 
         String sanitizedCone = HtmlSanitizer.sanitize(request.getNacCone());
         Long seq = postRepository.getNextSequenceValue();
@@ -391,8 +392,8 @@ public class BoardPostService {
     /**
      * 답글 쓰기 잠금 순서의 첫 행인 그룹 루트를 잠급니다.
      *
-     * <p>모든 답글 경로는 {@code 그룹 루트 → 부모 게시물} 순서로만 잠급니다. 일반 수정·삭제·조회수 갱신은 대상 게시물 한 행만 잠그며 그룹 루트를 추가로
-     * 기다리지 않으므로 역순 대기 사이클이 생기지 않습니다.
+     * <p>모든 답글 경로는 {@code 그룹 루트 → 부모 게시물 → 후속 그룹 행} 순서로만 잠급니다. 일반 수정·삭제·조회수 갱신은 대상 게시물 한 행만 잠그며 그룹
+     * 루트를 추가로 기다리지 않으므로 역순 대기 사이클이 생기지 않습니다.
      */
     private void lockReplyGroup(String blbMngNo, String groupId) {
         postRepository
