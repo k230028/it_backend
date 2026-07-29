@@ -75,7 +75,7 @@ class BoardReplySequenceMigrationSourceTest {
         assertThat(source).exists().isRegularFile();
         byte[] databaseSource = Files.readAllBytes(source);
         assertThat(packaged).isEqualTo(databaseSource);
-        assertThat(sha256(packaged)).isEqualTo(expectedHash);
+        assertThat(sha256(canonicalLineEndings(packaged))).isEqualTo(expectedHash);
     }
 
     private byte[] classpathMigration(String fileName) throws IOException {
@@ -93,6 +93,13 @@ class BoardReplySequenceMigrationSourceTest {
             }
         }
         return executable.toString().toUpperCase();
+    }
+
+    private byte[] canonicalLineEndings(byte[] source) {
+        return new String(source, StandardCharsets.UTF_8)
+                .replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .getBytes(StandardCharsets.UTF_8);
     }
 
     private String sha256(byte[] source) throws NoSuchAlgorithmException {
