@@ -681,6 +681,22 @@ class CookieUtilTest {
     }
 
     @Test
+    @DisplayName("deleteUserInfoCookie - 사용자 정보 삭제 쿠키는 생성 쿠키와 같은 속성으로 즉시 만료된다")
+    void deleteUserInfoCookie_동일속성_즉시만료() {
+        CookieUtil util = cookieUtil(true);
+
+        ResponseCookie cookie = util.deleteUserInfoCookie();
+
+        assertThat(cookie.getName()).isEqualTo("it-portal-user");
+        assertThat(cookie.getValue()).isEmpty();
+        assertThat(cookie.isHttpOnly()).isFalse();
+        assertThat(cookie.isSecure()).isTrue();
+        assertThat(cookie.getPath()).isEqualTo("/");
+        assertThat(cookie.getMaxAge().getSeconds()).isZero();
+        assertThat(cookie.getSameSite()).isEqualTo("Lax");
+    }
+
+    @Test
     @DisplayName("createUserInfoCookie - 사용자 정보 직렬화 실패 시 IllegalStateException을 던진다")
     void createUserInfoCookie_직렬화실패_IllegalStateException발생() throws Exception {
         ObjectMapper objectMapper = org.mockito.Mockito.mock(ObjectMapper.class);

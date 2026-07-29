@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -240,15 +241,17 @@ public class AuthController {
     /**
      * 로그아웃
      *
-     * <p>현재 로그인한 사용자의 Refresh Token을 DB에서 삭제하여 무효화하고, 서버 세션을 종료한 뒤 Access Token과 Refresh Token 쿠키를
-     * 즉시 만료시킵니다.
+     * <p>현재 로그인한 사용자의 Refresh Token을 DB에서 삭제하여 무효화하고, 서버 세션을 종료한 뒤 Access·Refresh·User 쿠키를 즉시
+     * 만료시킵니다. 서버 토큰 폐기가 실패해도 로컬 세션과 쿠키 정리는 완료한 뒤 예외를 기존 전역 오류 계약으로 전파합니다.
      *
      * @param httpRequest HTTP 요청 객체 (IP, User-Agent 추출 및 이력 기록용)
-     * @return HTTP 200 + Set-Cookie(삭제) + "로그아웃 성공"
+     * @param httpResponse 서비스 처리 결과와 무관하게 로컬 인증 쿠키를 삭제할 응답 객체
+     * @return HTTP 200 + Access·Refresh·User 삭제 Set-Cookie + "로그아웃 성공"
      */
     @PostMapping("/logout")
     @Operation(summary = "로그아웃", description = "쿠키의 JWT 토큰과 서버 세션을 삭제하고 Refresh Token을 무효화합니다.")
-    public ResponseEntity<String> logout(HttpServletRequest httpRequest) {
+    public ResponseEntity<String> logout(
+            HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         String refreshToken = extractCookieValue(httpRequest, CookieUtil.REFRESH_TOKEN_COOKIE);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String authenticatedEno =
@@ -269,16 +272,18 @@ public class AuthController {
             }
         } finally {
             invalidateSession(httpRequest);
+            addLogoutCookieHeaders(httpResponse);
         }
 
-        // Access Token, Refresh Token 쿠키를 즉시 만료시켜 삭제
-        ResponseCookie deleteAccess = cookieUtil.deleteAccessTokenCookie();
-        ResponseCookie deleteRefresh = cookieUtil.deleteRefreshTokenCookie();
+        return ResponseEntity.ok("로그아웃 성공");
+    }
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, deleteAccess.toString())
-                .header(HttpHeaders.SET_COOKIE, deleteRefresh.toString())
-                .body("로그아웃 성공");
+    /** Access·Refresh·User 쿠키를 서비스 처리 결과와 무관하게 즉시 만료시킵니다. */
+    private void addLogoutCookieHeaders(HttpServletResponse response) {
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteAccessTokenCookie().toString());
+        response.addHeader(
+                HttpHeaders.SET_COOKIE, cookieUtil.deleteRefreshTokenCookie().toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteUserInfoCookie().toString());
     }
 
     /** 현재 요청에 연결된 서버 세션을 새로 만들지 않고 안전하게 무효화합니다. */

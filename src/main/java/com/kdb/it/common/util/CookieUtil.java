@@ -224,4 +224,19 @@ public class CookieUtil {
                 .sameSite("Lax")
                 .build();
     }
+
+    /**
+     * 프론트엔드 인증 상태 복원용 사용자 정보 쿠키를 삭제합니다.
+     *
+     * @return 생성 쿠키와 같은 속성에 {@code maxAge=0}을 적용한 삭제용 쿠키
+     */
+    public ResponseCookie deleteUserInfoCookie() {
+        return ResponseCookie.from("it-portal-user", "")
+                .httpOnly(false)
+                .secure(secureCookie)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+    }
 }

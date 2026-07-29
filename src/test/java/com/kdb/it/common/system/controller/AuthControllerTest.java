@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -37,6 +38,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -328,15 +330,7 @@ class AuthControllerTest {
     @WithMockUser(username = "10001")
     @DisplayName("POST /api/auth/logout - 인증 사용자가 있으면 서비스 로그아웃과 쿠키 삭제를 수행한다")
     void logout_인증사용자_서비스호출및쿠키삭제() throws Exception {
-        ResponseCookie deleteAccess =
-                ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "").maxAge(0).path("/").build();
-        ResponseCookie deleteRefresh =
-                ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "")
-                        .maxAge(0)
-                        .path("/api/auth")
-                        .build();
-        given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
-        given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
+        stubLogoutDeleteCookies();
 
         mockMvc.perform(
                         post("/api/auth/logout")
@@ -357,18 +351,11 @@ class AuthControllerTest {
     @DisplayName("logout - 인증 정보가 없으면 서비스 호출 없이 쿠키만 삭제한다")
     void logout_인증정보없음_쿠키만삭제() {
         SecurityContextHolder.clearContext();
-        ResponseCookie deleteAccess =
-                ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "").maxAge(0).path("/").build();
-        ResponseCookie deleteRefresh =
-                ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "")
-                        .maxAge(0)
-                        .path("/api/auth")
-                        .build();
-        given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
-        given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
+        stubLogoutDeleteCookies();
         AuthController controller = new AuthController(authService, cookieUtil, "");
 
-        var response = controller.logout(new MockHttpServletRequest());
+        var response =
+                controller.logout(new MockHttpServletRequest(), new MockHttpServletResponse());
 
         assert response.getStatusCode().is2xxSuccessful();
         verify(authService, never()).logout(anyString(), anyString(), anyString());
@@ -378,15 +365,7 @@ class AuthControllerTest {
     @DisplayName("POST /api/auth/logout - Access 인증이 없어도 Refresh 쿠키로 패밀리를 폐기한다")
     void logout_Access만료_Refresh쿠키로폐기() throws Exception {
         SecurityContextHolder.clearContext();
-        ResponseCookie deleteAccess =
-                ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "").maxAge(0).path("/").build();
-        ResponseCookie deleteRefresh =
-                ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "")
-                        .maxAge(0)
-                        .path("/api/auth")
-                        .build();
-        given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
-        given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
+        stubLogoutDeleteCookies();
 
         mockMvc.perform(
                         post("/api/auth/logout")
@@ -525,7 +504,7 @@ class AuthControllerTest {
     }
 
     // -----------------------------------------------------------------------
-    // logout — 쿠키 삭제 결과 Set-Cookie 헤더가 두 개 설정되는지 검증
+    // logout — 로컬 인증 쿠키 세 개의 삭제 Set-Cookie 헤더 검증
     // -----------------------------------------------------------------------
 
     @Test
@@ -534,33 +513,58 @@ class AuthControllerTest {
     void logout_쿠키삭제헤더_존재() throws Exception {
         // given — 삭제용 만료 쿠키 스텁
         MockHttpSession session = new MockHttpSession();
-        ResponseCookie deleteAccess =
-                ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "").maxAge(0).path("/").build();
-        ResponseCookie deleteRefresh =
-                ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "")
-                        .maxAge(0)
-                        .path("/api/auth")
-                        .build();
-        given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteAccess);
-        given(cookieUtil.deleteRefreshTokenCookie()).willReturn(deleteRefresh);
+        stubLogoutDeleteCookies();
 
         // when & then — IP/User-Agent를 함께 제공해 logout 인자(ipAddress·userAgent) null을 회피
-        mockMvc.perform(
-                        post("/api/auth/logout")
-                                .session(session)
-                                .header("User-Agent", "TestAgent")
-                                .with(
-                                        request -> {
-                                            request.setRemoteAddr("198.51.100.2");
-                                            return request;
-                                        }))
-                .andExpect(status().isOk())
-                .andExpect(content().string("로그아웃 성공"))
-                .andExpect(header().exists("Set-Cookie"));
+        MvcResult result =
+                mockMvc.perform(
+                                post("/api/auth/logout")
+                                        .session(session)
+                                        .header("User-Agent", "TestAgent")
+                                        .with(
+                                                request -> {
+                                                    request.setRemoteAddr("198.51.100.2");
+                                                    return request;
+                                                }))
+                        .andExpect(status().isOk())
+                        .andExpect(content().string("로그아웃 성공"))
+                        .andReturn();
 
         // authService.logout 이 인증 사용자(20001)에 대해 호출되었는지 검증
         verify(authService).logout(eq("20001"), eq("198.51.100.2"), eq("TestAgent"));
         assertThat(session.isInvalid()).isTrue();
+        assertLogoutDeleteCookies(result);
+    }
+
+    @Test
+    @WithMockUser(username = "20001")
+    @DisplayName("POST /api/auth/logout - 서버 폐기 실패 시 400 응답과 로컬 인증 상태 삭제를 함께 보장한다")
+    void logout_서비스실패_오류응답과로컬상태삭제() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        stubLogoutDeleteCookies();
+        willThrow(new RuntimeException("DB 폐기 실패"))
+                .given(authService)
+                .logout("20001", "198.51.100.2", "TestAgent");
+
+        MvcResult result =
+                mockMvc.perform(
+                                post("/api/auth/logout")
+                                        .session(session)
+                                        .accept(MediaType.APPLICATION_JSON)
+                                        .header("User-Agent", "TestAgent")
+                                        .with(
+                                                request -> {
+                                                    request.setRemoteAddr("198.51.100.2");
+                                                    return request;
+                                                }))
+                        .andExpect(status().isBadRequest())
+                        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                        .andExpect(jsonPath("$.status").value(400))
+                        .andExpect(jsonPath("$.message").value("요청을 처리할 수 없습니다."))
+                        .andReturn();
+
+        assertThat(session.isInvalid()).isTrue();
+        assertLogoutDeleteCookies(result);
     }
 
     @Test
@@ -571,12 +575,58 @@ class AuthControllerTest {
         MockHttpSession session = (MockHttpSession) request.getSession(true);
         session.invalidate();
         SecurityContextHolder.clearContext();
-        stubDeleteCookies();
+        stubLogoutDeleteCookies();
 
-        ResponseEntity<String> response = controller.logout(request);
+        ResponseEntity<String> response = controller.logout(request, new MockHttpServletResponse());
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isEqualTo("로그아웃 성공");
+    }
+
+    /** 로그아웃 응답용 Access·Refresh·User 삭제 쿠키를 운영 속성과 동일하게 준비합니다. */
+    private void stubLogoutDeleteCookies() {
+        stubDeleteCookies();
+        ResponseCookie deleteUser =
+                ResponseCookie.from("it-portal-user", "")
+                        .httpOnly(false)
+                        .path("/")
+                        .maxAge(0)
+                        .sameSite("Lax")
+                        .build();
+        given(cookieUtil.deleteUserInfoCookie()).willReturn(deleteUser);
+    }
+
+    /** 로그아웃의 세 로컬 인증 쿠키가 중복 없이 올바른 속성으로 삭제되는지 검증합니다. */
+    private void assertLogoutDeleteCookies(MvcResult result) {
+        List<String> setCookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
+        assertThat(setCookies).hasSize(3);
+        assertThat(setCookies)
+                .anySatisfy(
+                        cookie ->
+                                assertThat(cookie)
+                                        .contains(CookieUtil.ACCESS_TOKEN_COOKIE + "=")
+                                        .contains("Path=/;")
+                                        .contains("Max-Age=0")
+                                        .contains("HttpOnly")
+                                        .contains("SameSite=Lax"));
+        assertThat(setCookies)
+                .anySatisfy(
+                        cookie ->
+                                assertThat(cookie)
+                                        .contains(CookieUtil.REFRESH_TOKEN_COOKIE + "=")
+                                        .contains("Path=/api/auth")
+                                        .contains("Max-Age=0")
+                                        .contains("HttpOnly")
+                                        .contains("SameSite=Lax"));
+        assertThat(setCookies)
+                .anySatisfy(
+                        cookie ->
+                                assertThat(cookie)
+                                        .contains("it-portal-user=")
+                                        .contains("Path=/;")
+                                        .contains("Max-Age=0")
+                                        .contains("SameSite=Lax")
+                                        .doesNotContain("HttpOnly"));
     }
 
     /**
