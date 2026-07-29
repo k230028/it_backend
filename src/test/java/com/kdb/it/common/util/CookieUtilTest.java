@@ -697,6 +697,34 @@ class CookieUtilTest {
                 .hasMessageContaining("사용자 정보 쿠키 직렬화 실패");
     }
 
+    @Test
+    @DisplayName("인증·사용자·SSO 상태 쿠키 생성과 삭제는 모두 SameSite=Lax를 유지한다")
+    void authenticationAndSsoCookies_sameSiteLax() {
+        CookieUtil util = cookieUtil();
+        AuthDto.LoginResponse response =
+                AuthDto.LoginResponse.builder()
+                        .eno("10001")
+                        .empNm("홍길동")
+                        .athIds(List.of("ITPAD001"))
+                        .bbrC("D001")
+                        .temC("T001")
+                        .build();
+
+        List<ResponseCookie> cookies =
+                List.of(
+                        util.createAccessTokenCookie("access-token"),
+                        util.createRefreshTokenCookie("refresh-token"),
+                        util.createUserInfoCookie(response),
+                        util.createSsoNextCookie("/info/projects/1"),
+                        util.createSsoOriginCookie("http://localhost:3000"),
+                        util.deleteAccessTokenCookie(),
+                        util.deleteRefreshTokenCookie(),
+                        util.deleteSsoNextCookie(),
+                        util.deleteSsoOriginCookie());
+
+        assertThat(cookies).allSatisfy(cookie -> assertThat(cookie.getSameSite()).isEqualTo("Lax"));
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // 상수 검증
     // ─────────────────────────────────────────────────────────────────

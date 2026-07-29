@@ -65,7 +65,7 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 프론트 라우트 가드와 메뉴 숨김은 UX 보조이며 서버가 최종 보안 경계입니다.
 - 관리자 전용 컨트롤러는 클래스 수준 `@PreAuthorize("hasRole('ADMIN')")`를 적용합니다.
 - 관리자 전용이 아닌 업무 컨트롤러는 서비스 계층에서 소유자·역할·업무 범위를 검증합니다.
-- Cookie 기반 JWT는 Stateless여도 CSRF 검토 대상입니다. `SameSite=None`, CORS 와일드카드, 임의 Origin 추가는 별도 CSRF 보강 없이 적용하지 않습니다.
+- Cookie 기반 JWT는 Stateless여도 CSRF 검토 대상입니다. Access/Refresh/User/SSO 상태 쿠키의 `SameSite=None` 전환, credentialed `/api/**`의 새 교차 사이트 Origin·와일드카드·패턴 허용, cross-site iframe/별도 사이트 SPA의 쿠키 API 호출, 업무 상태 변경 GET 추가, `/sso/**`의 `allowCredentials=true` 전환 중 하나라도 발생하면 같은 배포 단위에서 CSRF 토큰 또는 동등한 서버 검증 Origin/nonce 방어를 적용합니다.
 - 비밀값은 환경변수로 주입하고 운영 프로파일에서 개발용 폴백을 사용하지 않습니다.
 - 사용자 HTML은 저장 전에 `HtmlSanitizer.sanitize()`를 적용합니다.
 - 파일 쓰기·삭제는 업로더 또는 관리자만 허용합니다. 파일 읽기는 파일 종류(PK_COL_NM)별 authorizer가 부모 자원 권한을 재사용해 판정합니다(default-deny, 미등록 종류는 관리자만). 공통게시판=게시물 공개 여부, 요구사항정의서=관리자/작성자/주관부서, 협의회 연계(사업계획서·타당성검토표·협의회관련자료)=관리자/정보보안관리자/협의회 위원/관련부서, 가이드문서=인증 사용자 전체.

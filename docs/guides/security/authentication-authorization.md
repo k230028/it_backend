@@ -41,6 +41,31 @@ SSO 인증 성공 경계에서는 기존 HTTP 세션 ID를 교체하여 세션 �
 - `SameSite=None`, 와일드카드 Origin, 임의 Origin 추가는 별도 CSRF 보강 없이 허용하지 않습니다.
 - `/sso/**` 전체 페이지 콜백 예외를 일반 SPA API로 확대하지 않습니다.
 
+### 현재 위협 모델
+
+현재 전역 `csrf.disable()`은 아래 경계가 모두 유지되는 동안에만 적용합니다. 각 경로의 자동 전송 자격증명, 상태 변경 여부와 방어 수단을 함께 검토합니다.
+
+| 경로 | 자동 전송 자격증명 | 상태 변경 | 현재 방어 | 잔여 위험 |
+| --- | --- | --- | --- | --- |
+| `POST /api/auth/login` | 기존 JWT 불필요 | Access/Refresh 발급 | 명시 CORS, 로그인 검증·잠금 | 로그인 CSRF는 공격자 계정 세션 주입 관점에서 별도 관찰 |
+| `POST /api/auth/refresh` | Refresh 쿠키(`/api/auth`) | 토큰 회전 | SameSite=Lax, 명시 Origin, POST | SameSite 완화 시 최우선 CSRF 토큰 대상 |
+| `POST /api/auth/logout` 및 인증 변경 API | Access/Refresh 쿠키 | 세션/DB 변경 | SameSite=Lax, 명시 Origin, unsafe method | CORS만 단독 방어로 간주하지 않음 |
+| `POST/PUT/PATCH/DELETE /api/**` | Access 쿠키(`/`) | 업무 데이터 변경 | SameSite=Lax, 명시 Origin, 인증·인가 | 교차 사이트 SPA/iframe 도입 시 보강 필요 |
+| `GET/POST /sso/**` | API 자격증명 공유 안 함 | 외부 인증 콜백 | `allowCredentials=false`, 서버 검증 세션 | 예외를 `/api/**`로 확대 금지 |
+| `GET /api/auth/sso/complete` | 검증된 SSO 세션/상태 쿠키 | JWT 쿠키 발급 | 검증 사번 1회 소비, origin allowlist, safe next | 일반 상태 변경 GET의 선례로 확대 금지 |
+
+### CSRF 보강 트리거와 목표 구현
+
+다음 중 하나라도 발생하면 현재 `csrf.disable()` 유지는 금지됩니다. 해당 변경과 같은 배포 단위에서 CSRF 토큰 또는 동등한 서버 검증 Origin/nonce 방어를 활성화해야 합니다.
+
+1. Access/Refresh/User/SSO 상태 쿠키 중 하나를 `SameSite=None`으로 변경한다.
+2. credentialed `/api/**`에 새 교차 사이트 Origin을 추가하거나 wildcard/pattern으로 완화한다.
+3. 프론트를 cross-site iframe에 임베드하거나 별도 사이트의 SPA가 쿠키 API를 호출한다.
+4. GET으로 업무 상태 변경 엔드포인트를 추가한다.
+5. `/sso/**`의 `allowCredentials`를 `true`로 변경한다.
+
+목표 구현은 Spring Security `CookieCsrfTokenRepository` 또는 동등한 synchronizer/double-submit token을 사용합니다. 프론트의 `$apiFetch`/`useApiFetch`는 unsafe method에 토큰 헤더를 전송하고, 로그인·refresh·logout·SSO complete의 토큰 발급·회전 예외를 별도 테스트로 검증합니다. Origin/Referer 검증만으로 대체하려면 누락 헤더 정책과 신뢰 프록시 경계를 문서화하고 보안 리뷰 승인을 받아야 합니다.
+
 ## 운영 비밀값
 
 DB 비밀번호, JWT secret, 외부 API 키는 환경변수로 주입합니다. `EnvironmentValidator`의 운영 기동 차단 규칙을 우회하지 않습니다.

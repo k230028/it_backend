@@ -1,6 +1,10 @@
 package com.kdb.it.config;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -10,6 +14,7 @@ import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.domain.log.listener.AuditFailureRecorder;
 import jakarta.servlet.http.Cookie;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,8 +23,11 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Actuator 엔드포인트 접근 제어 검증 (ERR-06 감사 실패 메트릭 보호).
@@ -91,6 +99,29 @@ class SecurityConfigTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    @DisplayName("악성 Origin의 인증된 API POST는 CORS 필터에서 403으로 차단한다")
+    void securityProbe_maliciousOrigin_returns403() throws Exception {
+        mockMvc.perform(
+                        post("/api/security-probe")
+                                .header(HttpHeaders.ORIGIN, "https://evil.example")
+                                .cookie(accessTokenCookie(List.of(CustomUserDetails.ATH_USER))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("허용 Origin의 인증된 API POST는 probe 응답과 CORS 헤더를 함께 반환한다")
+    void securityProbe_allowedOrigin_returns200WithCorsHeader() throws Exception {
+        mockMvc.perform(
+                        post("/api/security-probe")
+                                .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+                                .cookie(accessTokenCookie(List.of(CustomUserDetails.ATH_USER))))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:3000"))
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.status").value("ok"));
+    }
+
     /**
      * 주어진 자격등급으로 유효한 {@code accessToken} JWT 쿠키를 생성합니다(운영 브라우저 인증 경로와 동일).
      *
@@ -116,7 +147,17 @@ class SecurityConfigTest {
         SwaggerConfig.class,
         JwtAuthenticationFilter.class,
         JwtUtil.class,
-        AuditFailureRecorder.class
+        AuditFailureRecorder.class,
+        SecurityProbeController.class
     })
     static class ActuatorSecurityTestApp {}
+
+    @RestController
+    static class SecurityProbeController {
+
+        @PostMapping("/api/security-probe")
+        Map<String, String> mutate() {
+            return Map.of("status", "ok");
+        }
+    }
 }
