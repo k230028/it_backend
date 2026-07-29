@@ -163,8 +163,7 @@ public class CodeRepositoryImpl implements CodeRepositoryCustom {
     }
 
     /**
-     * {@link CcodemResponseRow} 18개 필드에 대한 QueryDSL 생성자 프로젝션. 컴포넌트 순서와 select 인자 순서가 정확히 일치해야
-     * 합니다.
+     * {@link CcodemResponseRow} 18개 필드에 대한 QueryDSL 생성자 프로젝션. 컴포넌트 순서와 select 인자 순서가 정확히 일치해야 합니다.
      */
     private ConstructorExpression<CcodemResponseRow> responseRowProjection(QCcodem q) {
         return Projections.constructor(

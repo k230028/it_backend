@@ -72,7 +72,8 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
         // 프로젝션 인터페이스에는 본문(nacTxtInf) getter가 존재하지 않고 정확히 7개 getter만 선언되어 있다
         assertThat(
                         Arrays.stream(
-                                        GuideDocRepository.GuideDocListView.class.getDeclaredMethods())
+                                        GuideDocRepository.GuideDocListView.class
+                                                .getDeclaredMethods())
                                 .map(method -> method.getName()))
                 .containsExactlyInAnyOrder(
                         "getDocMngNo",

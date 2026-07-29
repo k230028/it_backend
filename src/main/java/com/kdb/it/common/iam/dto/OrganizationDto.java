@@ -36,8 +36,7 @@ public class OrganizationDto {
      *   <li>신청서 결재선 구성 시 조직 조회
      * </ul>
      *
-     * <p>{@link #fromView(OrganizationRepository.OrganizationListView)} 정적 팩토리 메서드로 프로젝션에서
-     * 변환합니다.
+     * <p>{@link #fromView(OrganizationRepository.OrganizationListView)} 정적 팩토리 메서드로 프로젝션에서 변환합니다.
      */
     @Getter
     @Setter
@@ -71,8 +70,7 @@ public class OrganizationDto {
         private String bbrNm;
 
         /**
-         * 조직 목록 조회 전용 프로젝션({@link OrganizationRepository.OrganizationListView})으로부터 응답 DTO를
-         * 생성합니다.
+         * 조직 목록 조회 전용 프로젝션({@link OrganizationRepository.OrganizationListView})으로부터 응답 DTO를 생성합니다.
          *
          * @param row 조직 목록 프로젝션 행
          * @return 변환된 응답 DTO

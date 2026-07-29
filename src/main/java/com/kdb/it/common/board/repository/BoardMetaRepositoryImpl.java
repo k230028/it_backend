@@ -29,10 +29,7 @@ public class BoardMetaRepositoryImpl implements BoardMetaRepositoryCustom {
                 .fetch();
     }
 
-    /**
-     * 사이드바용 목록 조회 — REST 응답 전용 경량 프로젝션. {@link #findAllActiveOrdered()}와 동일한 where·정렬을
-     * 재사용합니다.
-     */
+    /** 사이드바용 목록 조회 — REST 응답 전용 경량 프로젝션. {@link #findAllActiveOrdered()}와 동일한 where·정렬을 재사용합니다. */
     @Override
     public List<BoardMetaListRow> findAllActiveOrderedRows() {
         QCblbmm m = QCblbmm.cblbmm;
@@ -45,8 +42,7 @@ public class BoardMetaRepositoryImpl implements BoardMetaRepositoryCustom {
     }
 
     /**
-     * {@link BoardMetaListRow} 10개 필드에 대한 QueryDSL 생성자 프로젝션. 컴포넌트 순서와 select 인자 순서가 정확히 일치해야
-     * 합니다.
+     * {@link BoardMetaListRow} 10개 필드에 대한 QueryDSL 생성자 프로젝션. 컴포넌트 순서와 select 인자 순서가 정확히 일치해야 합니다.
      */
     private ConstructorExpression<BoardMetaListRow> listRowProjection(QCblbmm m) {
         return Projections.constructor(

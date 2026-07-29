@@ -409,8 +409,8 @@ public class ApplicationDto {
         /**
          * 신청서 마스터 read view와 결재선 read view를 응답 DTO로 변환합니다.
          *
-         * <p>{@link #fromEntity(Capplm, List, String, String)}와 동일한 응답을 생성하되, 신청서 마스터 조회를 15컬럼 엔티티 대신
-         * 응답이 실제 사용하는 8컬럼 read view로 대체합니다(BE-03).
+         * <p>{@link #fromEntity(Capplm, List, String, String)}와 동일한 응답을 생성하되, 신청서 마스터 조회를 15컬럼 엔티티
+         * 대신 응답이 실제 사용하는 8컬럼 read view로 대체합니다(BE-03).
          *
          * @param view 신청서 마스터 read view
          * @param approvers 결재 순번 오름차순 read view 목록
@@ -489,7 +489,8 @@ public class ApplicationDto {
          * @param view 신청서 마스터 read view
          * @return 변환된 ApfDtlConeResponse
          */
-        public static ApfDtlConeResponse fromReadView(ApplicationRepository.ApplicationReadView view) {
+        public static ApfDtlConeResponse fromReadView(
+                ApplicationRepository.ApplicationReadView view) {
             return ApfDtlConeResponse.builder()
                     .apfMngNo(view.getApfMngNo()) // 신청관리번호
                     .apfDtlCone(view.getDcdReqInf()) // 세부내용(결재요청정보에서 파생)

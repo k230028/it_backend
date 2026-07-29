@@ -96,7 +96,9 @@ class CodeServiceTest {
     @DisplayName("getCcodem: 유효한 코드ID+코드값으로 조회하면 Response DTO를 반환한다")
     void getCcodem_유효한코드_Response반환() {
         CcodemResponseRow row = responseRow("CD001", "001", "PRJ_TP");
-        given(codeRepository.findResponseRowByCIdAndCdvaWithValidDate(eq("CD001"), eq("001"), any()))
+        given(
+                        codeRepository.findResponseRowByCIdAndCdvaWithValidDate(
+                                eq("CD001"), eq("001"), any()))
                 .willReturn(Optional.of(row));
 
         CodeDto.Response result = codeService.getCcodem("CD001", "001", null);
@@ -107,7 +109,9 @@ class CodeServiceTest {
     @Test
     @DisplayName("getCcodem: 존재하지 않으면 IllegalArgumentException을 던진다")
     void getCcodem_존재하지않음_IllegalArgumentException발생() {
-        given(codeRepository.findResponseRowByCIdAndCdvaWithValidDate(eq("INVALID"), eq("001"), any()))
+        given(
+                        codeRepository.findResponseRowByCIdAndCdvaWithValidDate(
+                                eq("INVALID"), eq("001"), any()))
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> codeService.getCcodem("INVALID", "001", null))

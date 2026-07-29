@@ -473,7 +473,8 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplication: 존재하지 않는 신청서 번호이면 IllegalArgumentException을 던진다")
     void getApplication_신청서없음_IllegalArgumentException발생() {
-        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO)).willReturn(Optional.empty());
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
+                .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> applicationService.getApplication(APF_MNG_NO))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -528,7 +529,8 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApfDtlCone: 존재하지 않는 신청서이면 IllegalArgumentException을 던진다")
     void getApfDtlCone_신청서없음_IllegalArgumentException발생() {
-        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO)).willReturn(Optional.empty());
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
+                .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> applicationService.getApfDtlCone(APF_MNG_NO))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -669,8 +671,7 @@ class ApplicationServiceTest {
     void getApplicationsByIds_partialMissing_returnsItemsAndFailedIds() {
         ApplicationReadView found =
                 new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
-        given(applicationRepository.findReadViewByApfMngNo("APF-1"))
-                .willReturn(Optional.of(found));
+        given(applicationRepository.findReadViewByApfMngNo("APF-1")).willReturn(Optional.of(found));
         given(applicationRepository.findReadViewByApfMngNo("APF-X")).willReturn(Optional.empty());
         given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-1"))
                 .willReturn(List.of());
@@ -1031,8 +1032,7 @@ class ApplicationServiceTest {
     @DisplayName("getApplication: 신청자 사번·부점코드를 이름/부서명으로 해석해 채운다")
     void getApplication_신청자명_부서명_해석() {
         ApplicationReadView view =
-                new ApplicationReadView(
-                        APF_MNG_NO, null, null, null, "10001", null, null, "18001");
+                new ApplicationReadView(APF_MNG_NO, null, null, null, "10001", null, null, "18001");
         given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
                 .willReturn(Optional.of(view));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
@@ -1068,8 +1068,7 @@ class ApplicationServiceTest {
     @DisplayName("getApplications: 부서명이 null인 조직은 매핑에서 제외된다")
     void getApplications_부서명null조직_제외() {
         ApplicationReadView view =
-                new ApplicationReadView(
-                        APF_MNG_NO, null, null, null, "10001", null, null, "18001");
+                new ApplicationReadView(APF_MNG_NO, null, null, null, "10001", null, null, "18001");
         given(applicationRepository.findAllProjectedBy()).willReturn(List.of(view));
         given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any())).willReturn(List.of());
         given(userRepository.findNameViewsByEnoIn(any()))

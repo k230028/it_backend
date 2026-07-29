@@ -164,8 +164,7 @@ class EnvironmentValidatorTest {
     @DisplayName("운영 프로파일에서 SPRINGDOC_API_DOCS_ENABLED=true 환경변수는 기동 차단")
     void validate_prodApiDocsSystemEnvironmentOverride_throws() throws IOException {
         StandardEnvironment env =
-                prodEnvironmentWithSystemEnvironment(
-                        Map.of("SPRINGDOC_API_DOCS_ENABLED", "true"));
+                prodEnvironmentWithSystemEnvironment(Map.of("SPRINGDOC_API_DOCS_ENABLED", "true"));
 
         assertThat(env.getProperty("springdoc.api-docs.enabled")).isEqualTo("true");
         assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
@@ -191,7 +190,8 @@ class EnvironmentValidatorTest {
     @DisplayName("운영 프로파일에서 OpenAPI 비활성화 키가 누락되면 기동 차단")
     void validate_prodOpenApiPropertyMissing_throws(String missingKey) throws IOException {
         StandardEnvironment env =
-                prodEnvironmentWithoutProfileFile(Map.of(otherOpenApiProperty(missingKey), "false"));
+                prodEnvironmentWithoutProfileFile(
+                        Map.of(otherOpenApiProperty(missingKey), "false"));
 
         assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
                 .isInstanceOf(IllegalStateException.class)
@@ -333,7 +333,8 @@ class EnvironmentValidatorTest {
             boolean includeProdProfile)
             throws IOException {
         StandardEnvironment env = new StandardEnvironment();
-        env.getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
+        env.getPropertySources()
+                .remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
         env.getPropertySources().remove(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME);
         env.setActiveProfiles("prod");
 
@@ -358,7 +359,8 @@ class EnvironmentValidatorTest {
                                     "prod-profile",
                                     new ClassPathResource("application-prod.properties")));
         }
-        env.getPropertySources().addFirst(new MapPropertySource("test-overrides", requiredProperties));
+        env.getPropertySources()
+                .addFirst(new MapPropertySource("test-overrides", requiredProperties));
         if (!systemEnvironment.isEmpty()) {
             env.getPropertySources()
                     .addFirst(

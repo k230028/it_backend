@@ -18,9 +18,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 /**
  * 공통코드 REST 응답 전용 프로젝션({@link CcodemResponseRow}) Oracle 통합 테스트.
  *
- * <p>기존 엔티티 조회(findByCIdWithValidDate/findByCIdAndCdvaWithValidDate/findByCTpWithValidDate)와 신규 view
- * 조회(findResponseRowsByCIdWithValidDate 등)가 (a) 18개 필드 값 동등성, (b) 정렬 계약(cSqn 오름차순·null 마지막), (c) 유효일
- * 경계(만료·미래 코드 제외) 동등성, (d) 단건 empty 계약을 동일하게 지키는지 검증한다.
+ * <p>기존 엔티티 조회(findByCIdWithValidDate/findByCIdAndCdvaWithValidDate/findByCTpWithValidDate)와 신규
+ * view 조회(findResponseRowsByCIdWithValidDate 등)가 (a) 18개 필드 값 동등성, (b) 정렬 계약(cSqn 오름차순·null 마지막),
+ * (c) 유효일 경계(만료·미래 코드 제외) 동등성, (d) 단건 empty 계약을 동일하게 지키는지 검증한다.
  */
 class CodeResponseProjectionIt extends AbstractOracleRepositoryTest {
 
@@ -103,8 +103,7 @@ class CodeResponseProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(rowOne.get().endDt()).isEqualTo(entityOne.get().getEndDt());
 
         // 만료 코드는 유효일 조건에 걸려 양쪽 모두 empty
-        assertThat(codeRepository.findByCIdAndCdvaWithValidDate(cId, "EXP", TARGET_DATE))
-                .isEmpty();
+        assertThat(codeRepository.findByCIdAndCdvaWithValidDate(cId, "EXP", TARGET_DATE)).isEmpty();
         assertThat(codeRepository.findResponseRowByCIdAndCdvaWithValidDate(cId, "EXP", TARGET_DATE))
                 .isEmpty();
 

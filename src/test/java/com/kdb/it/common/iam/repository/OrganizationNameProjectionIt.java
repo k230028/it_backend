@@ -31,12 +31,7 @@ class OrganizationNameProjectionIt extends AbstractOracleRepositoryTest {
 
     /** 조직 fixture를 코드 존재 여부에 따라 신규 등록하거나 필드값을 결정적으로 갱신합니다. */
     private void upsertOrganization(
-            String code,
-            String name,
-            String enName,
-            Integer seq,
-            String parentCode,
-            String delYn) {
+            String code, String name, String enName, Integer seq, String parentCode, String delYn) {
         CorgnI organization = em.find(CorgnI.class, code);
         if (organization == null) {
             em.persist(

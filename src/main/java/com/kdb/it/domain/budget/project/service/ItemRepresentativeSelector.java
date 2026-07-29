@@ -14,8 +14,8 @@ public final class ItemRepresentativeSelector {
     /**
      * 같은 품목관리번호의 버전 행 목록에서 대표 행을 결정적으로 선택합니다.
      *
-     * <p>선택 규칙: ① {@code LST_YN='Y'} 행 우선 → ② {@code SNO} 내림차순 폴백. {@code LST_YN='Y'} 행이 2건
-     * 이상이면 데이터 정합성 이상이므로 WARN 로그를 남기고 tie-break 결과를 사용합니다(장애 없이 동작).
+     * <p>선택 규칙: ① {@code LST_YN='Y'} 행 우선 → ② {@code SNO} 내림차순 폴백. {@code LST_YN='Y'} 행이 2건 이상이면
+     * 데이터 정합성 이상이므로 WARN 로그를 남기고 tie-break 결과를 사용합니다(장애 없이 동작).
      *
      * @param items 같은 {@code gclMngNo}의 미삭제 버전 행 목록
      * @return 대표 행

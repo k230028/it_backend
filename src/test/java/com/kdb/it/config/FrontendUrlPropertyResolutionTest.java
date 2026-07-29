@@ -30,7 +30,8 @@ class FrontendUrlPropertyResolutionTest {
      * 실패합니다. 본 테스트의 목적은 properties 파일의 플레이스홀더 체이닝 검증이므로 두 소스를 제거하고 오버라이드 맵만으로 환경변수를 모사합니다.
      */
     private void isolateFromRealEnvironment(StandardEnvironment env) {
-        env.getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
+        env.getPropertySources()
+                .remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
         env.getPropertySources().remove(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME);
     }
 

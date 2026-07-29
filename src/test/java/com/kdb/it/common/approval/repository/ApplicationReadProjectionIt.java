@@ -115,8 +115,7 @@ class ApplicationReadProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(ApplicationRepository.ApplicationSummaryView.class.getDeclaredMethods())
                 .hasSize(6);
         assertThat(ApproverRepository.ApproverReadView.class.getDeclaredMethods()).hasSize(7);
-        assertThat(ApplicationRepository.ApplicationReadView.class.getDeclaredMethods())
-                .hasSize(8);
+        assertThat(ApplicationRepository.ApplicationReadView.class.getDeclaredMethods()).hasSize(8);
     }
 
     @Test

@@ -72,8 +72,8 @@ public final class EstimateDto {
 
         /**
          * 상세 응답 전용 프로젝션({@link
-         * com.kdb.it.domain.estimate.repository.EstimateRepository.EstimateDetailView})으로부터 상세
-         * DTO를 조립합니다. 엔티티 전체를 적재하는 기존 생성 방식과 동일한 필드 구성을 유지합니다.
+         * com.kdb.it.domain.estimate.repository.EstimateRepository.EstimateDetailView})으로부터 상세 DTO를
+         * 조립합니다. 엔티티 전체를 적재하는 기존 생성 방식과 동일한 필드 구성을 유지합니다.
          *
          * @param view 상세 조회용 마스터 프로젝션 (7개 필드)
          * @param abusNm 대상 사업명 (미존재 시 null)

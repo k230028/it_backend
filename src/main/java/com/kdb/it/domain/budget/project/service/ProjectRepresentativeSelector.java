@@ -15,10 +15,9 @@ public final class ProjectRepresentativeSelector {
     /**
      * 같은 사업관리번호의 버전 행 목록에서 최신 대표 행을 결정적으로 선택합니다.
      *
-     * <p>선택 규칙: {@code LST_YN='Y'} 행만 대표로 인정합니다(단건 조회
-     * {@code findByAbusMngNoAndLstYnAndDelYn}과 동일 의미). 해당 행이 없으면 empty를 반환하며 호출부는
-     * 관리번호 폴백을 적용합니다. {@code LST_YN='Y'} 행이 2건 이상이면 데이터 정합성 이상이므로 WARN 로그를 남기고
-     * {@code SNO} 내림차순 tie-break 결과를 사용합니다(장애 없이 동작).
+     * <p>선택 규칙: {@code LST_YN='Y'} 행만 대표로 인정합니다(단건 조회 {@code findByAbusMngNoAndLstYnAndDelYn}과 동일
+     * 의미). 해당 행이 없으면 empty를 반환하며 호출부는 관리번호 폴백을 적용합니다. {@code LST_YN='Y'} 행이 2건 이상이면 데이터 정합성 이상이므로
+     * WARN 로그를 남기고 {@code SNO} 내림차순 tie-break 결과를 사용합니다(장애 없이 동작).
      *
      * @param projects 같은 {@code abusMngNo}의 미삭제 버전 행 목록
      * @return {@code LST_YN='Y'} 대표 행, 없으면 empty

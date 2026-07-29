@@ -29,8 +29,7 @@ public class BoardCommentRepositoryImpl implements BoardCommentRepositoryCustom 
     }
 
     /**
-     * 게시물의 댓글 목록 조회 — REST 응답 전용 경량 프로젝션. {@link #findCommentsByPost(String)}와 동일한 조건·정렬을
-     * 재사용합니다.
+     * 게시물의 댓글 목록 조회 — REST 응답 전용 경량 프로젝션. {@link #findCommentsByPost(String)}와 동일한 조건·정렬을 재사용합니다.
      */
     @Override
     public List<BoardCommentListRow> findCommentRowsByPost(String nacMngNo) {
@@ -44,8 +43,8 @@ public class BoardCommentRepositoryImpl implements BoardCommentRepositoryCustom 
     }
 
     /**
-     * {@link BoardCommentListRow} 11개 필드에 대한 QueryDSL 생성자 프로젝션. 컴포넌트 순서와 select 인자 순서가 정확히
-     * 일치해야 합니다.
+     * {@link BoardCommentListRow} 11개 필드에 대한 QueryDSL 생성자 프로젝션. 컴포넌트 순서와 select 인자 순서가 정확히 일치해야
+     * 합니다.
      */
     private ConstructorExpression<BoardCommentListRow> listRowProjection(QCcmmtm c) {
         return Projections.constructor(

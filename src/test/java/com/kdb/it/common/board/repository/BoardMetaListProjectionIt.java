@@ -17,7 +17,8 @@ class BoardMetaListProjectionIt extends AbstractOracleRepositoryTest {
     @Autowired BoardMetaRepository metaRepository;
 
     @Test
-    @DisplayName("findAllActiveOrderedRows는 findAllActiveOrdered와 동일한 useYn/delYn 필터·정렬·10개 필드값을 반환한다")
+    @DisplayName(
+            "findAllActiveOrderedRows는 findAllActiveOrdered와 동일한 useYn/delYn 필터·정렬·10개 필드값을 반환한다")
     void findAllActiveOrderedRows_matchesEntityQuery() {
         metaRepository.saveAllAndFlush(
                 List.of(
@@ -26,8 +27,26 @@ class BoardMetaListProjectionIt extends AbstractOracleRepositoryTest {
                         // 01행: N,Y,Y,N / 02행: Y,Y,N,N — 6개 필드쌍 모두 최소 한 행에서 값이 달라진다.
                         board("BE03RW-02", "두번째", 2, "Y", "N", "Y", "Y", "N", "N"),
                         board("BE03RW-01", "첫번째", 1, "Y", "N", "N", "Y", "Y", "N"),
-                        board("BE03RW-NU", "미사용", 1, "N", "N", "N", "N", "N", "N"), // useYn='N' → 제외
-                        board("BE03RW-DL", "삭제됨", 1, "Y", "Y", "N", "N", "N", "N"))); // delYn='Y' → 제외
+                        board(
+                                "BE03RW-NU",
+                                "미사용",
+                                1,
+                                "N",
+                                "N",
+                                "N",
+                                "N",
+                                "N",
+                                "N"), // useYn='N' → 제외
+                        board(
+                                "BE03RW-DL",
+                                "삭제됨",
+                                1,
+                                "Y",
+                                "Y",
+                                "N",
+                                "N",
+                                "N",
+                                "N"))); // delYn='Y' → 제외
 
         List<Cblbmm> entities = metaRepository.findAllActiveOrdered();
         List<BoardMetaListRow> rows = metaRepository.findAllActiveOrderedRows();

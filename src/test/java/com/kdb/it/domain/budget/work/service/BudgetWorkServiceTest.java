@@ -152,8 +152,10 @@ class BudgetWorkServiceTest {
         // given: 같은 비목 집합에 편성률이 다른 두 행 — 리스트 앞에 구 실행(80), 뒤에 신 실행(50)
         Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
         Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
-        Bbugtm olderRun = Bbugtm.builder().bgNo("BG-2026-0001").sno(1).ioeC("001").asgRt(80).build();
-        Bbugtm newerRun = Bbugtm.builder().bgNo("BG-2026-0002").sno(1).ioeC("001").asgRt(50).build();
+        Bbugtm olderRun =
+                Bbugtm.builder().bgNo("BG-2026-0001").sno(1).ioeC("001").asgRt(80).build();
+        Bbugtm newerRun =
+                Bbugtm.builder().bgNo("BG-2026-0002").sno(1).ioeC("001").asgRt(50).build();
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -937,7 +939,8 @@ class BudgetWorkServiceTest {
     }
 
     @Test
-    @DisplayName("getSummary - MPL 차감(computeMplAdjustment)도 BITEMM 구버전 행이 앞에 와도 LST_YN='Y' 대표행 기준으로 계산한다")
+    @DisplayName(
+            "getSummary - MPL 차감(computeMplAdjustment)도 BITEMM 구버전 행이 앞에 와도 LST_YN='Y' 대표행 기준으로 계산한다")
     void getSummary_MPL차감_BITEMM대표행_lstYnY기준() {
         // 시나리오: 같은 gclMngNo(GCL-MPL-002)의 구버전(N, PRJ-OLD)이 리스트 앞, 최신(Y, PRJ-MPL-002)이 뒤.
         // projectRepository는 PRJ-MPL-002만 존재 응답 → 구버전(PRJ-OLD)이 대표로 뽑히면
@@ -1843,8 +1846,7 @@ class BudgetWorkServiceTest {
                 Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("Y").abusMngNo("PRJ-1").build();
         Bprojm oldVersion =
                 Bprojm.builder().abusMngNo("PRJ-1").sno(1).lstYn("N").abusNm("구버전명").build();
-        Bprojm latest =
-                Bprojm.builder().abusMngNo("PRJ-1").sno(2).lstYn("Y").abusNm("최신명").build();
+        Bprojm latest = Bprojm.builder().abusMngNo("PRJ-1").sno(2).lstYn("Y").abusNm("최신명").build();
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -1927,8 +1929,7 @@ class BudgetWorkServiceTest {
                         .asgRt(80)
                         .bgDupAmt(new BigDecimal("400"))
                         .build();
-        Bitemm item =
-                Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("Y").abusMngNo("X-1").build();
+        Bitemm item = Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("Y").abusMngNo("X-1").build();
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));

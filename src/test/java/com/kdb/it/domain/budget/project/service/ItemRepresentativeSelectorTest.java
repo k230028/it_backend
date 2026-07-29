@@ -27,9 +27,12 @@ class ItemRepresentativeSelectorTest {
     @Test
     @DisplayName("pick - LST_YN='Y' 행이 없으면 SNO 최대 행으로 폴백한다")
     void pick_lstYnY없음_sno최대폴백() {
-        Bitemm sno1 = Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("N").abusMngNo("PRJ-1").build();
-        Bitemm sno3 = Bitemm.builder().gclMngNo("GCL-1").sno(3).lstYn("N").abusMngNo("PRJ-3").build();
-        Bitemm sno2 = Bitemm.builder().gclMngNo("GCL-1").sno(2).lstYn("N").abusMngNo("PRJ-2").build();
+        Bitemm sno1 =
+                Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("N").abusMngNo("PRJ-1").build();
+        Bitemm sno3 =
+                Bitemm.builder().gclMngNo("GCL-1").sno(3).lstYn("N").abusMngNo("PRJ-3").build();
+        Bitemm sno2 =
+                Bitemm.builder().gclMngNo("GCL-1").sno(2).lstYn("N").abusMngNo("PRJ-2").build();
 
         Bitemm result = ItemRepresentativeSelector.pick(List.of(sno1, sno3, sno2));
 

@@ -63,8 +63,8 @@ public class BoardMetaDto {
         }
 
         /**
-         * REST 응답 전용 경량 프로젝션({@link BoardMetaListRow})으로부터 응답 DTO를 생성합니다. {@link
-         * #from(Cblbmm)}와 동일한 10개 필드를 동일한 순서로 매핑합니다.
+         * REST 응답 전용 경량 프로젝션({@link BoardMetaListRow})으로부터 응답 DTO를 생성합니다. {@link #from(Cblbmm)}와
+         * 동일한 10개 필드를 동일한 순서로 매핑합니다.
          *
          * @param row 게시판 메타 목록 프로젝션 행
          * @return 응답 DTO

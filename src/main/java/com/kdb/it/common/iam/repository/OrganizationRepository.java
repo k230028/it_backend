@@ -79,8 +79,7 @@ public interface OrganizationRepository extends JpaRepository<CorgnI, String> {
     Optional<OrganizationNameView> findNameViewByPrlmOgzCCone(String prlmOgzCCone);
 
     /**
-     * 전체 조직 목록을 목록 조회 전용 프로젝션으로 조회합니다. 삭제 여부와 무관하게 전건을 반환하여 기존 {@code findAll()} 무필터 의미를
-     * 보존합니다.
+     * 전체 조직 목록을 목록 조회 전용 프로젝션으로 조회합니다. 삭제 여부와 무관하게 전건을 반환하여 기존 {@code findAll()} 무필터 의미를 보존합니다.
      *
      * @return 조직 목록 프로젝션 (무필터, 무정렬)
      */

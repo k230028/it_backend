@@ -74,8 +74,8 @@ public class BoardCommentDto {
         }
 
         /**
-         * REST 응답 전용 경량 프로젝션({@link BoardCommentListRow})으로부터 응답 DTO를 생성합니다. {@link
-         * #from(Ccmmtm, boolean)}와 동일한 삭제 댓글 마스킹 규칙을 적용합니다.
+         * REST 응답 전용 경량 프로젝션({@link BoardCommentListRow})으로부터 응답 DTO를 생성합니다. {@link #from(Ccmmtm,
+         * boolean)}와 동일한 삭제 댓글 마스킹 규칙을 적용합니다.
          *
          * @param row 댓글 목록 프로젝션 행
          * @param canModify 현재 사용자의 수정 가능 여부

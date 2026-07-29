@@ -63,7 +63,13 @@ class GuideDocControllerTest {
                 .willReturn(
                         List.of(
                                 new GuideDocDto.ListResponse(
-                                        "GDOC-2026-0001", "가이드문서", "N", null, "10001", null, "10001")));
+                                        "GDOC-2026-0001",
+                                        "가이드문서",
+                                        "N",
+                                        null,
+                                        "10001",
+                                        null,
+                                        "10001")));
 
         mockMvc.perform(get("/api/guide-documents"))
                 .andExpect(status().isOk())

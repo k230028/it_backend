@@ -23,8 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class OrganizationServiceTest {
 
-    private record OrganizationListView(
-            String prlmOgzCCone, String prlmHrkOgzCCone, String bbrNm)
+    private record OrganizationListView(String prlmOgzCCone, String prlmHrkOgzCCone, String bbrNm)
             implements OrganizationRepository.OrganizationListView {
         @Override
         public String getPrlmOgzCCone() {

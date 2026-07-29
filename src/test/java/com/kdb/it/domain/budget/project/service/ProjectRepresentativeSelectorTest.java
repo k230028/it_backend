@@ -16,8 +16,7 @@ class ProjectRepresentativeSelectorTest {
     void pickLatest_lstYnY행선택() {
         Bprojm oldVersion =
                 Bprojm.builder().abusMngNo("PRJ-1").sno(1).lstYn("N").abusNm("구버전명").build();
-        Bprojm latest =
-                Bprojm.builder().abusMngNo("PRJ-1").sno(2).lstYn("Y").abusNm("최신명").build();
+        Bprojm latest = Bprojm.builder().abusMngNo("PRJ-1").sno(2).lstYn("Y").abusNm("최신명").build();
 
         Optional<Bprojm> result =
                 ProjectRepresentativeSelector.pickLatest(List.of(oldVersion, latest));

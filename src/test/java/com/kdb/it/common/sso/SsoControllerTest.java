@@ -12,17 +12,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.TestSecurityConfig;
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.http.Cookie;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +30,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -43,7 +44,6 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
-import org.slf4j.LoggerFactory;
 
 /**
  * SSO 완료 컨트롤러 테스트
@@ -513,7 +513,11 @@ class SsoControllerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         controller.complete(
-                "K150024", "//evil.example", "http://localhost:3000", new MockHttpServletRequest(), response);
+                "K150024",
+                "//evil.example",
+                "http://localhost:3000",
+                new MockHttpServletRequest(),
+                response);
 
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
     }
@@ -526,7 +530,11 @@ class SsoControllerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         controller.complete(
-                "K150024", "/\\evil.example", "http://localhost:3000", new MockHttpServletRequest(), response);
+                "K150024",
+                "/\\evil.example",
+                "http://localhost:3000",
+                new MockHttpServletRequest(),
+                response);
 
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
     }
@@ -539,7 +547,11 @@ class SsoControllerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         controller.complete(
-                "K150024", "/login?next=/admin", "http://localhost:3000", new MockHttpServletRequest(), response);
+                "K150024",
+                "/login?next=/admin",
+                "http://localhost:3000",
+                new MockHttpServletRequest(),
+                response);
 
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
     }
@@ -553,7 +565,8 @@ class SsoControllerTest {
         stubSsoTokenIssue();
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        controller.complete("K150024", "//evil.example", null, new MockHttpServletRequest(), response);
+        controller.complete(
+                "K150024", "//evil.example", null, new MockHttpServletRequest(), response);
 
         assertThat(response.getRedirectedUrl()).isEqualTo("/");
     }
@@ -879,7 +892,8 @@ class SsoControllerTest {
         try {
             controller.checkauth("000000", "secure-token", "sess-1", request, response);
 
-            assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/login?error=sso");
+            assertThat(response.getRedirectedUrl())
+                    .isEqualTo("http://localhost:3000/login?error=sso");
             assertThat(formattedMessages(appender))
                     .noneMatch(message -> message.contains(FORWARDED_IP_SENTINEL))
                     .noneMatch(message -> message.contains(REMOTE_ADDR_SENTINEL));

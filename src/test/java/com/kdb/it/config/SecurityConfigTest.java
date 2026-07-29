@@ -117,7 +117,10 @@ class SecurityConfigTest {
                                 .header(HttpHeaders.ORIGIN, "http://localhost:3000")
                                 .cookie(accessTokenCookie(List.of(CustomUserDetails.ATH_USER))))
                 .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:3000"))
+                .andExpect(
+                        header().string(
+                                        HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                                        "http://localhost:3000"))
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.status").value("ok"));
     }
