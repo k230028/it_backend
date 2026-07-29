@@ -30,6 +30,7 @@ class SsoAgentClientTest {
     private static final String SESSION_SENTINEL = "session-RAW-8R3";
     private static final String ENO_SENTINEL = "K999999";
     private static final String BODY_SENTINEL = "response-body-RAW-9S4";
+    private static final String RESULT_CODE_SENTINEL = "result-code-RAW-4U6";
 
     private SsoProperties props(String requestData) {
         return new SsoProperties(
@@ -262,6 +263,52 @@ class SsoAgentClientTest {
                     .noneMatch(message -> message.contains(ENO_SENTINEL))
                     .noneMatch(message -> message.contains(BODY_SENTINEL));
             assertThat(result.resultData()).isEqualTo(ENO_SENTINEL);
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("authorize: 인증서버의 비정상 resultCode를 안전하게 기록하고 반환값은 유지한다")
+    @SuppressWarnings("unchecked")
+    void authorize_비정상resultCode_로그주입차단_반환값유지() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.RequestBodyUriSpec request = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.ResponseSpec response = mock(RestClient.ResponseSpec.class);
+        String unsafeResultCode = RESULT_CODE_SENTINEL + "\r\nFORGED";
+        when(restClient.post()).thenReturn(request);
+        when(request.uri(any(URI.class))).thenReturn(request);
+        when(request.retrieve()).thenReturn(response);
+        when(response.body(any(ParameterizedTypeReference.class)))
+                .thenReturn(map("resultCode", unsafeResultCode, "resultMessage", "거부"));
+        SsoAgentClient client = new SsoAgentClient(restClient, props("id"));
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoAgentClient.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            SsoAgentClient.TokenAuthResult result =
+                    client.authorize("secure-token", "secure-session", "127.0.0.1");
+
+            assertThat(result.resultCode()).isEqualTo(unsafeResultCode);
+            assertThat(formattedMessages(appender))
+                    .allSatisfy(
+                            message ->
+                                    assertThat(message)
+                                            .doesNotContain(
+                                                    RESULT_CODE_SENTINEL,
+                                                    "\r",
+                                                    "\n",
+                                                    "\t",
+                                                    "\u001b",
+                                                    "\u0000",
+                                                    "\u2028",
+                                                    "\u2029"))
+                    .anySatisfy(
+                            message -> assertThat(message).contains("resultCode: <invalid>(len="));
         } finally {
             logger.detachAppender(appender);
             appender.stop();

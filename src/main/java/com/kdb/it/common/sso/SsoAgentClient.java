@@ -119,11 +119,11 @@ public class SsoAgentClient {
                 resultData = extractRequestData(asMap(body.get("user")));
                 log.info(
                         "SSO 토큰 검증 성공 - resultCode: {}, useCSMode: {}, 사용자 식별값 존재: {}",
-                        resultCode,
+                        SsoLogSanitizer.resultCode(resultCode),
                         useCSMode,
                         !resultData.isBlank());
             } else {
-                log.warn("SSO 토큰 검증 거부 - resultCode: {}", resultCode);
+                log.warn("SSO 토큰 검증 거부 - resultCode: {}", SsoLogSanitizer.resultCode(resultCode));
             }
             return new TokenAuthResult(resultCode, resultMessage, resultData, returnUrl, useCSMode);
         } catch (Exception e) {

@@ -179,7 +179,9 @@ public class SsoController {
         // 반복), 진입점 재시작 대신 루프를 끊는다. origin은 SSO 시작 시 심은 쿠키에서 복원한다.
         if (!SSO_SUCCESS_CODE.equals(resultCode) || secureToken == null || secureToken.isBlank()) {
             String origin = readCookie(request, CookieUtil.SSO_ORIGIN_COOKIE);
-            log.warn("SSO checkauth 비정상 호출 - resultCode: {} → 수동 로그인으로 폴백(루프 차단)", resultCode);
+            log.warn(
+                    "SSO checkauth 비정상 호출 - resultCode: {} → 수동 로그인으로 폴백(루프 차단)",
+                    SsoLogSanitizer.resultCode(resultCode));
             response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoNextCookie().toString());
             response.addHeader(
                     HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoOriginCookie().toString());
@@ -221,7 +223,7 @@ public class SsoController {
         // 검증 실패(권한 실패 310017/310012 포함) → 수동 로그인 폴백.
         log.warn(
                 "SSO 토큰 검증 실패 - resultCode: {}, 프록시 헤더 존재: {}",
-                result.resultCode(),
+                SsoLogSanitizer.resultCode(result.resultCode()),
                 request.getHeader("X-Forwarded-For") != null);
         String origin = readSessionString(session, SSO_ORIGIN_SESSION_KEY);
         response.sendRedirect(
@@ -327,9 +329,10 @@ public class SsoController {
         }
 
         log.debug(
-                "SSO {} - resultCode: {}, ssoVerifiedEno 설정: {}, complete로 이동 (복귀 경로 존재: {}, origin 존재: {})",
+                "SSO {} - resultCode: {}, ssoVerifiedEno 설정: {}, complete로 이동 (복귀 경로 존재: {}, origin"
+                        + " 존재: {})",
                 stage,
-                resultCode,
+                SsoLogSanitizer.resultCode(resultCode),
                 verified,
                 !next.isBlank(),
                 !origin.isBlank());

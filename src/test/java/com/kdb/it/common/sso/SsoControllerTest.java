@@ -27,9 +27,12 @@ import jakarta.servlet.http.Cookie;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -67,6 +70,7 @@ class SsoControllerTest {
     private static final String TARGET_TOKEN_SENTINEL = "token-RAW-7Q2";
     private static final String TARGET_SESSION_SENTINEL = "session-RAW-8R3";
     private static final String ORIGIN_SENTINEL = "origin-RAW-5T9";
+    private static final String RESULT_CODE_SENTINEL = "result-code-RAW-4U6";
 
     @Autowired private MockMvc mockMvc;
 
@@ -126,6 +130,17 @@ class SsoControllerTest {
 
     private List<String> formattedMessages(ListAppender<ILoggingEvent> appender) {
         return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+    }
+
+    private static Stream<String> unsafeResultCodes() {
+        return Stream.of(
+                RESULT_CODE_SENTINEL + "\rCR",
+                RESULT_CODE_SENTINEL + "\nLF",
+                RESULT_CODE_SENTINEL + "\tTAB",
+                RESULT_CODE_SENTINEL + "\u001bESC\u0000NUL",
+                RESULT_CODE_SENTINEL + "\u2028LS\u2029PS",
+                RESULT_CODE_SENTINEL + "A".repeat(40),
+                RESULT_CODE_SENTINEL + "{}%n%s");
     }
 
     @Test
@@ -188,6 +203,51 @@ class SsoControllerTest {
 
         org.assertj.core.api.Assertions.assertThat(session.getAttribute("ssoVerifiedEno"))
                 .isEqualTo("K150024");
+    }
+
+    @Test
+    @DisplayName("loginProc: 비정상 세션 resultCode를 한 줄 안전 표현으로 기록하고 인증 결과는 유지한다")
+    void loginProc_비정상resultCode_로그주입차단_인증결과유지() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        String unsafeResultCode = RESULT_CODE_SENTINEL + "\r\nFORGED";
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true).setAttribute("resultCode", unsafeResultCode);
+        request.getSession().setAttribute("resultData", "K150024");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        Level originalLevel = logger.getLevel();
+        logger.setLevel(Level.DEBUG);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.loginProc(response, request);
+
+            assertThat(response.getRedirectedUrl()).isEqualTo("/api/auth/sso/complete");
+            assertThat(request.getSession().getAttribute("ssoVerifiedEno")).isNull();
+            assertThat(formattedMessages(appender))
+                    .singleElement()
+                    .satisfies(
+                            message ->
+                                    assertThat(message)
+                                            .contains("resultCode: <invalid>(len=")
+                                            .doesNotContain(
+                                                    RESULT_CODE_SENTINEL,
+                                                    "\r",
+                                                    "\n",
+                                                    "\t",
+                                                    "\u001b",
+                                                    "\u0000",
+                                                    "\u2028",
+                                                    "\u2029"));
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(originalLevel);
+            appender.stop();
+        }
     }
 
     @Test
@@ -773,7 +833,8 @@ class SsoControllerTest {
 
     @Test
     @DisplayName(
-            "checkauth: CS 모드이면 saveToken.html로 POST 자동제출 폼을 렌더링한다(agentId/errCode/secureSessionId)")
+            "checkauth: CS 모드이면 saveToken.html로 POST 자동제출 폼을"
+                    + " 렌더링한다(agentId/errCode/secureSessionId)")
     void checkauth_CS모드_saveToken_POST폼렌더링() throws Exception {
         SsoProperties props =
                 new SsoProperties(
@@ -952,6 +1013,146 @@ class SsoControllerTest {
             assertThat(formattedMessages(appender))
                     .noneMatch(message -> message.contains(FORWARDED_IP_SENTINEL))
                     .noneMatch(message -> message.contains(REMOTE_ADDR_SENTINEL));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("unsafeResultCodes")
+    @DisplayName("checkauth: 제어문자·과대·형식 문자열 resultCode를 한 줄 안전 표현으로 기록한다")
+    void checkauth_비정상resultCode_로그주입차단(String unsafeResultCode) throws Exception {
+        SsoProperties props =
+                new SsoProperties(
+                        false,
+                        "K140024",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "3",
+                        "id",
+                        5000,
+                        5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.checkauth(unsafeResultCode, null, null, request, response);
+
+            assertThat(response.getRedirectedUrl())
+                    .isEqualTo("http://localhost:3000/login?error=sso");
+            assertThat(formattedMessages(appender))
+                    .singleElement()
+                    .satisfies(
+                            message ->
+                                    assertThat(message)
+                                            .contains("resultCode: <invalid>(len=")
+                                            .doesNotContain(
+                                                    RESULT_CODE_SENTINEL,
+                                                    "\r",
+                                                    "\n",
+                                                    "\t",
+                                                    "\u001b",
+                                                    "\u0000",
+                                                    "\u2028",
+                                                    "\u2029"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("checkauth: 유효한 벤더 resultCode는 기존 진단 값을 유지한다")
+    void checkauth_유효resultCode_로그진단유지() throws Exception {
+        SsoProperties props =
+                new SsoProperties(
+                        false,
+                        "K140024",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "3",
+                        "id",
+                        5000,
+                        5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.checkauth("310017", null, null, request, response);
+
+            assertThat(response.getRedirectedUrl())
+                    .isEqualTo("http://localhost:3000/login?error=sso");
+            assertThat(formattedMessages(appender))
+                    .singleElement()
+                    .satisfies(message -> assertThat(message).contains("resultCode: 310017"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("checkauth: 인증서버의 비정상 resultCode도 한 줄 안전 표현으로 기록한다")
+    void checkauth_인증서버비정상resultCode_로그주입차단() throws Exception {
+        SsoProperties props =
+                new SsoProperties(
+                        false,
+                        "K140024",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "3",
+                        "id",
+                        5000,
+                        5000);
+        SsoController controller = newController(props);
+        String unsafeResultCode = RESULT_CODE_SENTINEL + "\r\nFORGED";
+        given(ssoAgentClient.authorize("secure-token", "sess-1", "127.0.0.1"))
+                .willReturn(
+                        new SsoAgentClient.TokenAuthResult(
+                                unsafeResultCode, "권한없음", "", null, false));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.checkauth("000000", "secure-token", "sess-1", request, response);
+
+            assertThat(response.getRedirectedUrl())
+                    .isEqualTo("http://localhost:3000/login?error=sso");
+            assertThat(request.getSession().getAttribute("resultCode")).isEqualTo(unsafeResultCode);
+            assertThat(formattedMessages(appender))
+                    .singleElement()
+                    .satisfies(
+                            message ->
+                                    assertThat(message)
+                                            .contains("resultCode: <invalid>(len=")
+                                            .doesNotContain(
+                                                    RESULT_CODE_SENTINEL,
+                                                    "\r",
+                                                    "\n",
+                                                    "\t",
+                                                    "\u001b",
+                                                    "\u0000",
+                                                    "\u2028",
+                                                    "\u2029"));
         } finally {
             logger.detachAppender(appender);
             appender.stop();
