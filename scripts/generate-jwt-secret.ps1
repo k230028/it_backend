@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     운영용 JWT_SECRET(HMAC-SHA 서명키)을 암호학적 난수로 생성합니다.
 
