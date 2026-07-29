@@ -1,7 +1,10 @@
 package com.kdb.it.common.board.service;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.board.dto.BoardMetaDto;
@@ -9,8 +12,10 @@ import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.repository.BoardMetaListRow;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.exception.NotFoundException;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +30,18 @@ class BoardMetaServiceTest {
     @Mock private BoardMetaRepository boardMetaRepository;
 
     @InjectMocks private BoardMetaService service;
+
+    @BeforeEach
+    void bridgeLegacyLookupStubs() {
+        lenient()
+                .when(
+                        boardMetaRepository.findByBlbMngNoAndUseYnAndDelYn(
+                                anyString(), eq("Y"), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                boardMetaRepository.findByBlbMngNoAndDelYn(
+                                        invocation.getArgument(0), "N"));
+    }
 
     @Test
     @DisplayName("활성 게시판 목록을 응답 DTO로 변환한다")
@@ -58,8 +75,18 @@ class BoardMetaServiceTest {
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getOne("BLBM-404"))
-                .isInstanceOf(CustomGeneralException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("BLBM-404");
+    }
+
+    @Test
+    @DisplayName("사용 중지 게시판 단건은 사용자에게 404로 숨긴다")
+    void getOne_inactiveBoard_throwsNotFound() {
+        given(boardMetaRepository.findByBlbMngNoAndUseYnAndDelYn("BLBM-2026-0001", "Y", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getOne("BLBM-2026-0001"))
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -88,6 +115,20 @@ class BoardMetaServiceTest {
         service.updateBoard("BLBM-2026-0001", request);
 
         assertThat(board.getBlbNm()).isEqualTo("수정 게시판");
+    }
+
+    @Test
+    @DisplayName("관리자는 사용 중지 게시판도 del-only 조회로 재활성화할 수 있다")
+    void updateBoard_inactiveBoard_canReactivate() {
+        Cblbmm inactive = board("BLBM-2026-0001", "중지 게시판");
+        inactive.update(new Cblbmm.UpdateCommand("중지 게시판", "Y", "Y", "N", "N", 1, "N", null));
+        given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+                .willReturn(Optional.of(inactive));
+
+        service.updateBoard("BLBM-2026-0001", updateRequest("재활성화"));
+
+        assertThat(inactive.getUseYn()).isEqualTo("Y");
+        assertThat(inactive.getBlbNm()).isEqualTo("재활성화");
     }
 
     @Test

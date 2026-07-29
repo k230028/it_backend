@@ -54,7 +54,7 @@ public class BoardPostService {
     public Page<BoardPostDto.ListItem> searchPosts(
             String blbMngNo, BoardPostDto.SearchCondition cond, CustomUserDetails user) {
 
-        findActiveBoard(blbMngNo); // 게시판 존재 검증 (조회는 인증 사용자 전체 공개)
+        findUserActiveBoard(blbMngNo); // 사용 중인 게시판만 사용자 목록 조회 허용
         validateSearchCondition(cond);
 
         return postRepository
@@ -75,7 +75,7 @@ public class BoardPostService {
     public BoardPostDto.Detail getPostDetail(
             String blbMngNo, String nacMngNo, CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoardResource(blbMngNo);
+        Cblbmm board = findUserActiveBoard(blbMngNo);
         Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
 
         verifyCanReadPost(user, post, board);
@@ -95,7 +95,7 @@ public class BoardPostService {
      */
     @Transactional
     public void incrementPostView(String blbMngNo, String nacMngNo, CustomUserDetails user) {
-        Cblbmm board = findActiveBoardResource(blbMngNo);
+        Cblbmm board = findUserActiveBoard(blbMngNo);
         Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCanReadPost(user, post, board);
         post.incrementViewCount();
@@ -114,7 +114,7 @@ public class BoardPostService {
     public String createPost(
             String blbMngNo, BoardPostDto.CreateRequest request, CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
+        Cblbmm board = findUserActiveBoard(blbMngNo);
         verifyCanWrite(user, board);
         verifyBbrC(user, request.getBbrC());
 
@@ -161,8 +161,8 @@ public class BoardPostService {
             BoardPostDto.UpdateRequest request,
             CustomUserDetails user) {
 
-        findActiveBoard(blbMngNo);
-        Cblbcm post = findPost(nacMngNo);
+        findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
         verifyCanModify(user, post);
         verifyBbrC(user, request.getBbrC());
 
@@ -181,8 +181,8 @@ public class BoardPostService {
      */
     @Transactional
     public void deletePost(String blbMngNo, String nacMngNo, CustomUserDetails user) {
-        findActiveBoard(blbMngNo);
-        Cblbcm post = findPost(nacMngNo);
+        findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
         verifyCanModify(user, post);
         post.delete();
     }
@@ -204,8 +204,8 @@ public class BoardPostService {
             BoardPostDto.ReplyCreateRequest request,
             CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
-        Cblbcm parent = findPost(nacMngNo);
+        Cblbmm board = findUserActiveBoard(blbMngNo);
+        Cblbcm parent = findPostInBoard(blbMngNo, nacMngNo);
 
         if (!"Y".equals(board.getRepUseYn())) {
             throw new CustomGeneralException("해당 게시판은 답변 기능을 지원하지 않습니다.");
@@ -260,7 +260,8 @@ public class BoardPostService {
     private void publishMentionNotifications(
             Cblbcm post, String authorEno, boolean isComment, java.util.List<String> explicitEnos) {
         log.debug(
-                "[멘션 진단] publishMentionNotifications 진입: nacMngNo={}, author={}, contentLen={}, explicitEnos={}",
+                "[멘션 진단] publishMentionNotifications 진입: nacMngNo={}, author={}, contentLen={},"
+                        + " explicitEnos={}",
                 post.getNacMngNo(),
                 authorEno,
                 post.getNacCone() == null ? 0 : post.getNacCone().length(),
@@ -355,15 +356,9 @@ public class BoardPostService {
 
     // ── 내부 헬퍼 ──
 
-    private Cblbmm findActiveBoard(String blbMngNo) {
+    private Cblbmm findUserActiveBoard(String blbMngNo) {
         return metaRepository
-                .findByBlbMngNoAndDelYn(blbMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("게시판을 찾을 수 없습니다: " + blbMngNo));
-    }
-
-    private Cblbmm findActiveBoardResource(String blbMngNo) {
-        return metaRepository
-                .findByBlbMngNoAndDelYn(blbMngNo, "N")
+                .findByBlbMngNoAndUseYnAndDelYn(blbMngNo, "Y", "N")
                 .orElseThrow(() -> new NotFoundException("게시판을 찾을 수 없습니다: " + blbMngNo));
     }
 
@@ -377,12 +372,6 @@ public class BoardPostService {
         return postRepository
                 .findByBlbMngNoAndNacMngNoAndDelYnForUpdate(blbMngNo, nacMngNo, "N")
                 .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
-    }
-
-    private Cblbcm findPost(String nacMngNo) {
-        return postRepository
-                .findByNacMngNoAndDelYn(nacMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("게시물을 찾을 수 없습니다: " + nacMngNo));
     }
 
     private void validateSearchCondition(BoardPostDto.SearchCondition cond) {

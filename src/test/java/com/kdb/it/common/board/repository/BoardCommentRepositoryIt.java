@@ -72,6 +72,21 @@ class BoardCommentRepositoryIt extends AbstractOracleRepositoryTest {
         }
     }
 
+    @Test
+    @DisplayName("댓글 단건 association 조회는 실제 대상 게시물과 삭제 상태를 함께 검증한다")
+    void findCommentAssociation_requiresTargetPost() {
+        commentRepository.saveAndFlush(comment(900000201L, "POST-R4-A", 900000201L, 0, "N"));
+
+        assertThat(
+                        commentRepository.findByCmmtMngNoAndNacMngNoAndDelYn(
+                                900000201L, "POST-R4-A", "N"))
+                .isPresent();
+        assertThat(
+                        commentRepository.findByCmmtMngNoAndNacMngNoAndDelYn(
+                                900000201L, "POST-R4-B", "N"))
+                .isEmpty();
+    }
+
     private Ccmmtm comment(Long id, String postId, Long groupId, int sequence, String deleted) {
         LocalDateTime now = LocalDateTime.of(2026, 7, 21, 12, 0);
         return Ccmmtm.builder()

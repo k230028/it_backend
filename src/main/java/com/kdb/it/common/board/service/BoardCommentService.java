@@ -15,6 +15,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.exception.NotFoundException;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -50,8 +51,9 @@ public class BoardCommentService {
     public List<BoardCommentDto.Response> getComments(
             String blbMngNo, String nacMngNo, CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
-        Cblbcm post = findPost(nacMngNo);
+        Cblbmm board = findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
 
         return commentRepository.findCommentRowsByPost(nacMngNo).stream()
@@ -76,12 +78,9 @@ public class BoardCommentService {
             BoardCommentDto.CreateRequest request,
             CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
-        Cblbcm post = findPost(nacMngNo);
-
-        if (!"Y".equals(board.getCmmtUseYn())) {
-            throw new CustomGeneralException("해당 게시판은 댓글 기능을 지원하지 않습니다.");
-        }
+        Cblbmm board = findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
 
         String sanitized = HtmlSanitizer.sanitize(request.getCmmtCone());
@@ -121,13 +120,10 @@ public class BoardCommentService {
             BoardCommentDto.CreateRequest request,
             CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
-        Cblbcm post = findPost(nacMngNo);
-        Ccmmtm parent = findComment(hrkCmmtMngNo);
-
-        if (!"Y".equals(board.getCmmtUseYn())) {
-            throw new CustomGeneralException("해당 게시판은 댓글 기능을 지원하지 않습니다.");
-        }
+        Cblbmm board = findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        Ccmmtm parent = findCommentInPost(nacMngNo, hrkCmmtMngNo);
+        verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
 
         commentRepository.shiftGroupSqn(
@@ -158,6 +154,8 @@ public class BoardCommentService {
     /**
      * 댓글 수정
      *
+     * @param blbMngNo 게시판관리번호
+     * @param nacMngNo 게시물관리번호
      * @param cmmtMngNo 댓글관리번호
      * @param request 수정 요청 DTO
      * @param user 인증 사용자
@@ -165,12 +163,19 @@ public class BoardCommentService {
      */
     @Transactional
     public void updateComment(
-            Long cmmtMngNo, BoardCommentDto.UpdateRequest request, CustomUserDetails user) {
+            String blbMngNo,
+            String nacMngNo,
+            Long cmmtMngNo,
+            BoardCommentDto.UpdateRequest request,
+            CustomUserDetails user) {
 
-        Ccmmtm comment = findComment(cmmtMngNo);
+        Cblbmm board = findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        verifyCommentsEnabled(board);
+        postService.verifyCanReadPost(user, post, board);
+        Ccmmtm comment = findCommentInPost(nacMngNo, cmmtMngNo);
         verifyCanModify(user, comment);
         comment.updateContent(HtmlSanitizer.sanitize(request.getCmmtCone()));
-        Cblbcm post = findPost(comment.getNacMngNo());
         publishMentionNotifications(comment, post, user.getEno(), request.getMentionedEnos());
     }
 
@@ -179,35 +184,48 @@ public class BoardCommentService {
      *
      * <p>자식 댓글이 있으면 본문이 "삭제된 댓글입니다."로 표시되고 트리 구조는 유지된다.
      *
+     * @param blbMngNo 게시판관리번호
+     * @param nacMngNo 게시물관리번호
      * @param cmmtMngNo 댓글관리번호
      * @param user 인증 사용자
      * @throws CustomGeneralException 삭제 권한 없음
      */
     @Transactional
-    public void deleteComment(Long cmmtMngNo, CustomUserDetails user) {
-        Ccmmtm comment = findComment(cmmtMngNo);
+    public void deleteComment(
+            String blbMngNo, String nacMngNo, Long cmmtMngNo, CustomUserDetails user) {
+        Cblbmm board = findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        verifyCommentsEnabled(board);
+        postService.verifyCanReadPost(user, post, board);
+        Ccmmtm comment = findCommentInPost(nacMngNo, cmmtMngNo);
         verifyCanModify(user, comment);
         comment.delete();
     }
 
     // ── 내부 헬퍼 ──
 
-    private Cblbmm findActiveBoard(String blbMngNo) {
+    private Cblbmm findUserActiveBoard(String blbMngNo) {
         return metaRepository
-                .findByBlbMngNoAndDelYn(blbMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("게시판을 찾을 수 없습니다: " + blbMngNo));
+                .findByBlbMngNoAndUseYnAndDelYn(blbMngNo, "Y", "N")
+                .orElseThrow(() -> new NotFoundException("게시판을 찾을 수 없습니다: " + blbMngNo));
     }
 
-    private Cblbcm findPost(String nacMngNo) {
+    private Cblbcm findPostInBoard(String blbMngNo, String nacMngNo) {
         return postRepository
-                .findByNacMngNoAndDelYn(nacMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("게시물을 찾을 수 없습니다: " + nacMngNo));
+                .findByBlbMngNoAndNacMngNoAndDelYn(blbMngNo, nacMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
     }
 
-    private Ccmmtm findComment(Long cmmtMngNo) {
+    private Ccmmtm findCommentInPost(String nacMngNo, Long cmmtMngNo) {
         return commentRepository
-                .findByCmmtMngNoAndDelYn(cmmtMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("댓글을 찾을 수 없습니다: " + cmmtMngNo));
+                .findByCmmtMngNoAndNacMngNoAndDelYn(cmmtMngNo, nacMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("댓글을 찾을 수 없습니다: " + cmmtMngNo));
+    }
+
+    private void verifyCommentsEnabled(Cblbmm board) {
+        if (!"Y".equals(board.getCmmtUseYn())) {
+            throw new CustomGeneralException("해당 게시판은 댓글 기능을 지원하지 않습니다.");
+        }
     }
 
     private void verifyCanModify(CustomUserDetails user, Ccmmtm comment) {

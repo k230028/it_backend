@@ -13,6 +13,9 @@ public interface BoardCommentRepository
 
     Optional<Ccmmtm> findByCmmtMngNoAndDelYn(Long cmmtMngNo, String delYn);
 
+    Optional<Ccmmtm> findByCmmtMngNoAndNacMngNoAndDelYn(
+            Long cmmtMngNo, String nacMngNo, String delYn);
+
     /** 자식 댓글 존재 여부 — 소프트 삭제 시 트리 유지 판단 */
     boolean existsByHrkCmmtMngNoAndDelYn(Long hrkCmmtMngNo, String delYn);
 

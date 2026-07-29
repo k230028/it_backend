@@ -3,9 +3,11 @@ package com.kdb.it.common.board.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -82,11 +84,56 @@ class BoardPostControllerTest {
     @DisplayName("다른 게시판 경로의 조회수 POST는 실제 404 응답을 반환한다")
     @WithMockUser(username = "10001", roles = "USER")
     void incrementViewCount_wrongBoard_returns404() throws Exception {
-        org.mockito.BDDMockito.willThrow(new NotFoundException("게시물을 찾을 수 없습니다"))
+        willThrow(new NotFoundException("게시물을 찾을 수 없습니다"))
                 .given(boardPostService)
                 .incrementPostView(anyString(), anyString(), any());
 
         mockMvc.perform(post("/api/boards/BOARD-A/posts/POST-B/views"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 수정 PUT은 실제 404 응답을 반환한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void update_wrongBoard_returns404() throws Exception {
+        willThrow(new NotFoundException("게시물을 찾을 수 없습니다"))
+                .given(boardPostService)
+                .updatePost(anyString(), anyString(), any(), any());
+        var body = new BoardPostDto.UpdateRequest();
+        body.setNacNm("수정 제목");
+
+        mockMvc.perform(
+                        put("/api/boards/BOARD-A/posts/POST-B")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 삭제 DELETE는 실제 404 응답을 반환한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void delete_wrongBoard_returns404() throws Exception {
+        willThrow(new NotFoundException("게시물을 찾을 수 없습니다"))
+                .given(boardPostService)
+                .deletePost(anyString(), anyString(), any());
+
+        mockMvc.perform(delete("/api/boards/BOARD-A/posts/POST-B"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 답글 POST는 실제 404 응답을 반환한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void createReply_wrongBoard_returns404() throws Exception {
+        given(boardPostService.createReply(anyString(), anyString(), any(), any()))
+                .willThrow(new NotFoundException("게시물을 찾을 수 없습니다"));
+        var body = new BoardPostDto.ReplyCreateRequest();
+        body.setNacNm("답글 제목");
+
+        mockMvc.perform(
+                        post("/api/boards/BOARD-A/posts/POST-B/replies")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isNotFound());
     }
 

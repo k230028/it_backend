@@ -86,6 +86,15 @@ class BoardMetaListProjectionIt extends AbstractOracleRepositoryTest {
         }
     }
 
+    @Test
+    @DisplayName("사용자 active 조회는 useYn=N을 숨기고 관리자 del-only 조회는 유지한다")
+    void userActiveLookup_excludesInactive_manageableLookupIncludesIt() {
+        metaRepository.saveAndFlush(board("SEC15R4-N", "중지", 9, "N", "N", "Y", "Y", "N", "N"));
+
+        assertThat(metaRepository.findByBlbMngNoAndUseYnAndDelYn("SEC15R4-N", "Y", "N")).isEmpty();
+        assertThat(metaRepository.findByBlbMngNoAndDelYn("SEC15R4-N", "N")).isPresent();
+    }
+
     private Cblbmm board(
             String id,
             String name,

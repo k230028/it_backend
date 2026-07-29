@@ -3,6 +3,9 @@ package com.kdb.it.common.board.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.board.dto.BoardCommentDto;
 import com.kdb.it.common.board.entity.Cblbcm;
@@ -16,6 +19,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.exception.NotFoundException;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +34,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class BoardCommentServiceTest {
@@ -52,6 +57,29 @@ class BoardCommentServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient()
+                .when(metaRepository.findByBlbMngNoAndUseYnAndDelYn(anyString(), eq("Y"), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                metaRepository.findByBlbMngNoAndDelYn(
+                                        invocation.getArgument(0), "N"));
+        lenient()
+                .when(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                anyString(), anyString(), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                postRepository.findByNacMngNoAndDelYn(
+                                        invocation.getArgument(1), "N"));
+        lenient()
+                .when(
+                        commentRepository.findByCmmtMngNoAndNacMngNoAndDelYn(
+                                anyLong(), anyString(), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                commentRepository.findByCmmtMngNoAndDelYn(
+                                        invocation.getArgument(0), "N"));
+
         boardWithComment =
                 Cblbmm.builder()
                         .blbMngNo("BLBM-2026-0001")
@@ -87,6 +115,13 @@ class BoardCommentServiceTest {
 
     // ── 리플렉션 헬퍼 ──
 
+    private void stubActiveBoardAndPost() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+                .willReturn(Optional.of(boardWithComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+                .willReturn(Optional.of(post));
+    }
+
     /**
      * BaseEntity.fstEnrUsid 를 리플렉션으로 설정하는 공통 헬퍼.
      *
@@ -101,6 +136,128 @@ class BoardCommentServiceTest {
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException("fstEnrUsid 리플렉션 설정 실패", e);
         }
+    }
+
+    @Test
+    @DisplayName("사용 중지 게시판은 댓글 사용자 API 5개를 모두 404로 차단한다")
+    void inactiveBoard_rejectsAllCommentUserOperations() {
+        given(metaRepository.findByBlbMngNoAndUseYnAndDelYn("BLBM-2026-0001", "Y", "N"))
+                .willReturn(Optional.empty());
+        var create = new BoardCommentDto.CreateRequest();
+        var update = new BoardCommentDto.UpdateRequest();
+
+        assertThatThrownBy(() -> service.getComments("BLBM-2026-0001", "NAC-2026-0001", normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.createComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", create, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.createReply(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, create, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.updateComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, update, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.deleteComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, normalUser))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("다른 게시판 게시물 경로의 댓글 API 5개는 404이고 변경은 없다")
+    void commentEndpoints_wrongBoardPost_throwNotFoundWithoutMutation() {
+        Cblbcm otherBoardPost =
+                Cblbcm.builder()
+                        .nacMngNo("NAC-2026-0001")
+                        .blbMngNo("BLBM-2026-9999")
+                        .nacNm("다른 게시판 게시물")
+                        .delYn("N")
+                        .build();
+        given(metaRepository.findByBlbMngNoAndUseYnAndDelYn("BLBM-2026-0001", "Y", "N"))
+                .willReturn(Optional.of(boardWithComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+                .willReturn(Optional.of(otherBoardPost));
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                "BLBM-2026-0001", "NAC-2026-0001", "N"))
+                .willReturn(Optional.empty());
+        var create = new BoardCommentDto.CreateRequest();
+        create.setCmmtCone("변조 댓글");
+        var update = new BoardCommentDto.UpdateRequest();
+        update.setCmmtCone("변조 수정");
+
+        assertThatThrownBy(() -> service.getComments("BLBM-2026-0001", "NAC-2026-0001", normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.createComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", create, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.createReply(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, create, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.updateComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, update, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.deleteComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, normalUser))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(commentRepository, never()).findCommentRowsByPost(anyString());
+        verify(commentRepository, never()).getNextSequenceValue();
+        verify(commentRepository, never()).shiftGroupSqn(anyLong(), anyInt(), anyInt());
+        verify(commentRepository, never()).save(any(Ccmmtm.class));
+    }
+
+    @Test
+    @DisplayName("다른 게시물 댓글로 답글·수정·삭제를 요청하면 404이고 변경은 없다")
+    void commentMutations_wrongPostComment_throwNotFoundWithoutMutation() {
+        stubActiveBoardAndPost();
+        Ccmmtm otherPostComment = buildComment(1L);
+        setFstEnrUsid(otherPostComment, "USER001");
+        ReflectionTestUtils.setField(otherPostComment, "nacMngNo", "NAC-2026-9999");
+        given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N"))
+                .willReturn(Optional.of(otherPostComment));
+        given(commentRepository.findByCmmtMngNoAndNacMngNoAndDelYn(1L, "NAC-2026-0001", "N"))
+                .willReturn(Optional.empty());
+        var create = new BoardCommentDto.CreateRequest();
+        create.setCmmtCone("변조 답글");
+        var update = new BoardCommentDto.UpdateRequest();
+        update.setCmmtCone("변조 수정");
+
+        assertThatThrownBy(
+                        () ->
+                                service.createReply(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, create, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.updateComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, update, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.deleteComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, normalUser))
+                .isInstanceOf(NotFoundException.class);
+
+        assertThat(otherPostComment.getCmmtCone()).isEqualTo("원본 댓글");
+        assertThat(otherPostComment.getDelYn()).isEqualTo("N");
+        verify(commentRepository, never()).shiftGroupSqn(anyLong(), anyInt(), anyInt());
+        verify(commentRepository, never()).save(any(Ccmmtm.class));
     }
 
     // ── 댓글 생성 ──
@@ -187,6 +344,7 @@ class BoardCommentServiceTest {
     @Test
     @DisplayName("본인 댓글이 아닌 댓글을 수정하려 하면 예외가 발생한다")
     void updateComment_notOwner_throws() {
+        stubActiveBoardAndPost();
         Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
 
@@ -195,13 +353,17 @@ class BoardCommentServiceTest {
         var request = new BoardCommentDto.UpdateRequest("수정 내용");
 
         // normalUser(USER001)는 OTHER_USER가 작성한 댓글을 수정할 수 없다
-        assertThatThrownBy(() -> service.updateComment(1L, request, normalUser))
+        assertThatThrownBy(
+                        () ->
+                                service.updateComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, request, normalUser))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     @DisplayName("본인 댓글을 수정하면 예외 없이 본문이 변경된다")
     void updateComment_ownerSuccess() {
+        stubActiveBoardAndPost();
         Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
 
@@ -212,7 +374,10 @@ class BoardCommentServiceTest {
         var request = new BoardCommentDto.UpdateRequest("수정된 댓글 내용");
 
         // 예외 없이 완료되어야 한다 (JPA Dirty Checking — 명시적 save() 없음)
-        assertThatCode(() -> service.updateComment(1L, request, normalUser))
+        assertThatCode(
+                        () ->
+                                service.updateComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, request, normalUser))
                 .doesNotThrowAnyException();
 
         // 엔티티 본문이 수정되었는지 확인
@@ -267,26 +432,35 @@ class BoardCommentServiceTest {
     @Test
     @DisplayName("타인의 댓글을 일반 사용자가 삭제하려 하면 예외가 발생한다")
     void deleteComment_notOwner_throws() {
+        stubActiveBoardAndPost();
         Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
 
         given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N")).willReturn(Optional.of(comment));
 
         // normalUser(USER001)는 OTHER_USER의 댓글을 삭제할 수 없다
-        assertThatThrownBy(() -> service.deleteComment(1L, normalUser))
+        assertThatThrownBy(
+                        () ->
+                                service.deleteComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, normalUser))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     @DisplayName("본인 댓글을 삭제하면 예외 없이 소프트 딜리트된다")
     void deleteComment_owner_success() {
+        stubActiveBoardAndPost();
         Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "USER001"); // normalUser.getEno()
 
         given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N")).willReturn(Optional.of(comment));
 
         // 예외 없이 완료되어야 한다 (JPA Dirty Checking — 명시적 save() 없음)
-        assertThatCode(() -> service.deleteComment(1L, normalUser)).doesNotThrowAnyException();
+        assertThatCode(
+                        () ->
+                                service.deleteComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, normalUser))
+                .doesNotThrowAnyException();
 
         // Soft Delete: DEL_YN = 'Y' 로 변경되었는지 확인
         assertThat(comment.getDelYn()).isEqualTo("Y");
@@ -382,6 +556,7 @@ class BoardCommentServiceTest {
     @Test
     @DisplayName("관리자는 타인의 댓글도 수정할 수 있다")
     void updateComment_admin_canModifyOthers() {
+        stubActiveBoardAndPost();
         // Arrange
         Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
@@ -395,13 +570,17 @@ class BoardCommentServiceTest {
         var request = new BoardCommentDto.UpdateRequest("관리자 수정 내용");
 
         // Act & Assert — 관리자는 예외 없이 수정 가능
-        assertThatCode(() -> service.updateComment(1L, request, adminUser))
+        assertThatCode(
+                        () ->
+                                service.updateComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, request, adminUser))
                 .doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("관리자는 타인의 댓글도 삭제할 수 있다")
     void deleteComment_admin_canDeleteOthers() {
+        stubActiveBoardAndPost();
         // Arrange
         Ccmmtm comment = buildComment(1L);
         setFstEnrUsid(comment, "OTHER_USER");
@@ -411,7 +590,11 @@ class BoardCommentServiceTest {
         given(commentRepository.findByCmmtMngNoAndDelYn(1L, "N")).willReturn(Optional.of(comment));
 
         // Act & Assert — 관리자는 예외 없이 삭제 가능
-        assertThatCode(() -> service.deleteComment(1L, adminUser)).doesNotThrowAnyException();
+        assertThatCode(
+                        () ->
+                                service.deleteComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, adminUser))
+                .doesNotThrowAnyException();
 
         assertThat(comment.getDelYn()).isEqualTo("Y");
     }

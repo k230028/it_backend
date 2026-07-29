@@ -3,6 +3,9 @@ package com.kdb.it.common.board.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.board.entity.Cblbcm;
@@ -47,6 +50,21 @@ class BoardPostServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient()
+                .when(metaRepository.findByBlbMngNoAndUseYnAndDelYn(anyString(), eq("Y"), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                metaRepository.findByBlbMngNoAndDelYn(
+                                        invocation.getArgument(0), "N"));
+        lenient()
+                .when(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                anyString(), anyString(), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                postRepository.findByNacMngNoAndDelYn(
+                                        invocation.getArgument(1), "N"));
+
         // 공지사항(IT_PTL_BLB_TC='001') — 조회는 전체 공개, 등록은 관리자 전용
         publicBoard =
                 Cblbmm.builder()
@@ -108,6 +126,79 @@ class BoardPostServiceTest {
                         new com.kdb.it.common.board.dto.BoardPostDto.SearchCondition(),
                         normalUser);
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("사용 중지 게시판은 게시물 사용자 API 7개를 모두 404로 차단한다")
+    void inactiveBoard_rejectsAllPostUserOperations() {
+        given(metaRepository.findByBlbMngNoAndUseYnAndDelYn("BLBM-2026-0003", "Y", "N"))
+                .willReturn(Optional.empty());
+        var search = new BoardPostDto.SearchCondition();
+        var create = new BoardPostDto.CreateRequest();
+        var update = new BoardPostDto.UpdateRequest();
+        var reply = new BoardPostDto.ReplyCreateRequest();
+
+        assertThatThrownBy(() -> service.searchPosts("BLBM-2026-0003", search, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () -> service.getPostDetail("BLBM-2026-0003", "NAC-2026-0001", normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.incrementPostView(
+                                        "BLBM-2026-0003", "NAC-2026-0001", normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.createPost("BLBM-2026-0003", create, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.updatePost(
+                                        "BLBM-2026-0003", "NAC-2026-0001", update, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.deletePost("BLBM-2026-0003", "NAC-2026-0001", normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.createReply(
+                                        "BLBM-2026-0003", "NAC-2026-0001", reply, normalUser))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("다른 게시판 게시물로 수정·삭제·답글을 요청하면 404이고 변경은 없다")
+    void mutationEndpoints_wrongBoardPost_throwNotFoundWithoutMutation() {
+        Cblbcm otherBoardPost = post("NAC-2026-0001", "USER001");
+        ReflectionTestUtils.setField(otherBoardPost, "blbMngNo", "BLBM-2026-9999");
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+                .willReturn(Optional.of(otherBoardPost));
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                "BLBM-2026-0003", "NAC-2026-0001", "N"))
+                .willReturn(Optional.empty());
+        var update = new BoardPostDto.UpdateRequest();
+        update.setNacNm("변조된 제목");
+        var reply = new BoardPostDto.ReplyCreateRequest();
+        reply.setNacNm("변조된 답글");
+
+        assertThatThrownBy(
+                        () ->
+                                service.updatePost(
+                                        "BLBM-2026-0003", "NAC-2026-0001", update, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.deletePost("BLBM-2026-0003", "NAC-2026-0001", normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.createReply(
+                                        "BLBM-2026-0003", "NAC-2026-0001", reply, normalUser))
+                .isInstanceOf(NotFoundException.class);
+
+        assertThat(otherBoardPost.getNacNm()).isEqualTo("테스트 게시물");
+        assertThat(otherBoardPost.getDelYn()).isEqualTo("N");
+        verify(postRepository, never()).getNextSequenceValue();
+        verify(postRepository, never()).save(any(Cblbcm.class));
     }
 
     @Test
@@ -577,7 +668,7 @@ class BoardPostServiceTest {
                                         new com.kdb.it.common.board.dto.BoardPostDto
                                                 .SearchCondition(),
                                         normalUser))
-                .isInstanceOf(CustomGeneralException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("게시판을 찾을 수 없습니다");
     }
 

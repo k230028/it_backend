@@ -131,8 +131,8 @@ class BoardControllerUnitTest {
         assertThat(replied.getBody()).isEqualTo(2L);
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        verify(service).updateComment(1L, updateRequest, user);
-        verify(service).deleteComment(1L, user);
+        verify(service).updateComment("BLBM-2026-0001", "NAC-1", 1L, updateRequest, user);
+        verify(service).deleteComment("BLBM-2026-0001", "NAC-1", 1L, user);
     }
 
     private static com.kdb.it.common.board.entity.Cblbmm board(String id, String name) {

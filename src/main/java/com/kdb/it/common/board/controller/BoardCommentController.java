@@ -115,7 +115,7 @@ public class BoardCommentController {
             @PathVariable("cmmtMngNo") Long cmmtMngNo,
             @Valid @RequestBody BoardCommentDto.UpdateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
-        boardCommentService.updateComment(cmmtMngNo, request, user);
+        boardCommentService.updateComment(blbMngNo, nacMngNo, cmmtMngNo, request, user);
         return ResponseEntity.ok().build();
     }
 
@@ -134,7 +134,7 @@ public class BoardCommentController {
             @PathVariable("nacMngNo") String nacMngNo,
             @PathVariable("cmmtMngNo") Long cmmtMngNo,
             @AuthenticationPrincipal CustomUserDetails user) {
-        boardCommentService.deleteComment(cmmtMngNo, user);
+        boardCommentService.deleteComment(blbMngNo, nacMngNo, cmmtMngNo, user);
         return ResponseEntity.noContent().build();
     }
 }
