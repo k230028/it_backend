@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +15,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.ResourcePropertySource;
 import org.springframework.mock.env.MockEnvironment;
 
 /**
@@ -120,6 +127,36 @@ class EnvironmentValidatorTest {
     }
 
     @Test
+    @DisplayName("운영 프로파일에서 상위 우선순위 API docs=true override는 기동 차단")
+    void validate_prodApiDocsEnabledOverride_throws() throws IOException {
+        StandardEnvironment env =
+                prodEnvironmentWithFileOverrides(Map.of("springdoc.api-docs.enabled", "true"));
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("springdoc.api-docs.enabled");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 상위 우선순위 Swagger UI=true override는 기동 차단")
+    void validate_prodSwaggerUiEnabledOverride_throws() throws IOException {
+        StandardEnvironment env =
+                prodEnvironmentWithFileOverrides(Map.of("springdoc.swagger-ui.enabled", "true"));
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("springdoc.swagger-ui.enabled");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 파일 기본값의 OpenAPI 비활성화는 정상 기동")
+    void validate_prodOpenApiDisabledByProfileFile_noException() throws IOException {
+        StandardEnvironment env = prodEnvironmentWithFileOverrides(Map.of());
+
+        assertThatCode(() -> new EnvironmentValidator(env).validate()).doesNotThrowAnyException();
+    }
+
+    @Test
     @DisplayName("운영 프로파일에서 gemini.api.key 빈값이면 기동 차단")
     void validate_prodBlankGeminiKey_throws() {
         MockEnvironment env = prodEnvWithAllRequired();
@@ -217,5 +254,35 @@ class EnvironmentValidatorTest {
         // gemini/eai/cors/sso 미설정
         EnvironmentValidator validator = new EnvironmentValidator(env);
         assertThatCode(validator::validate).doesNotThrowAnyException();
+    }
+
+    /** prod 파일보다 우선하는 override를 포함한 격리 Environment를 구성한다. */
+    private StandardEnvironment prodEnvironmentWithFileOverrides(Map<String, Object> overrides)
+            throws IOException {
+        StandardEnvironment env = new StandardEnvironment();
+        env.getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
+        env.getPropertySources().remove(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME);
+        env.setActiveProfiles("prod");
+
+        Map<String, Object> requiredProperties = new HashMap<>();
+        requiredProperties.put("spring.datasource.password", "pw");
+        requiredProperties.put(
+                "jwt.secret", "super-secret-key-at-least-256-bits-long-xxxxxxxxxxxxxxxxxxxxxxxx");
+        requiredProperties.put("gemini.api.key", "gk-real-key");
+        requiredProperties.put("eai.enabled", "false");
+        requiredProperties.put("cors.allowed-origins", "https://it.kdb.co.kr");
+        requiredProperties.put("app.sso.allow-direct-eno", "false");
+        requiredProperties.put("sso.mock-enabled", "false");
+        requiredProperties.put("app.auth.allow-bearer-header", "false");
+        requiredProperties.put("app.cookie.secure", "true");
+        requiredProperties.put("app.frontend-url", "https://it.kdb.co.kr");
+        requiredProperties.putAll(overrides);
+
+        env.getPropertySources()
+                .addLast(
+                        new ResourcePropertySource(
+                                "prod-profile", new ClassPathResource("application-prod.properties")));
+        env.getPropertySources().addFirst(new MapPropertySource("test-overrides", requiredProperties));
+        return env;
     }
 }

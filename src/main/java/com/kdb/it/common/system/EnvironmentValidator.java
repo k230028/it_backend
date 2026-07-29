@@ -18,7 +18,8 @@ import org.springframework.stereotype.Component;
  *   <li>{@code jwt.secret} → 환경변수 {@code JWT_SECRET}
  *   <li>(운영 프로파일 전용) {@code gemini.api.key}/{@code eai.url}(eai.enabled=true)/{@code
  *       cors.allowed-origins}(와일드카드 금지)/{@code app.sso.allow-direct-eno}(false 고정)/{@code
- *       app.frontend-url}
+ *       app.frontend-url}/{@code springdoc.api-docs.enabled}(false 고정)/{@code
+ *       springdoc.swagger-ui.enabled}(false 고정)
  * </ul>
  */
 @Component
@@ -71,6 +72,7 @@ public class EnvironmentValidator {
      *   <li>{@code app.sso.allow-direct-eno} 운영 false 고정
      *   <li>{@code app.dev.user-switch.enabled} 운영 false 고정 (비밀번호 없이 임의 사번 로그인 경로 차단)
      *   <li>{@code app.frontend-url} 비공백
+     *   <li>{@code springdoc.api-docs.enabled}/{@code springdoc.swagger-ui.enabled} 운영 false 고정
      * </ul>
      */
     private void validateProdKeys() {
@@ -110,6 +112,8 @@ public class EnvironmentValidator {
 
         rejectTrue("sso.mock-enabled", "모의 SSO 로그인 경로입니다.");
         rejectTrue("app.auth.allow-bearer-header", "Bearer 헤더 인증 폴백입니다.");
+        rejectTrue("springdoc.api-docs.enabled", "운영 API 명세 노출입니다.");
+        rejectTrue("springdoc.swagger-ui.enabled", "운영 Swagger UI 노출입니다.");
         if (!Boolean.parseBoolean(environment.getProperty("app.cookie.secure", "false"))) {
             throw new IllegalStateException(
                     "운영 보안 위반: app.cookie.secure가 true가 아님 — 인증 쿠키에 Secure가 필요합니다.");
