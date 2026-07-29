@@ -47,6 +47,8 @@ public class BoardCommentService {
      * @param nacMngNo 게시물관리번호
      * @param user 인증 사용자
      * @return 트리 정렬된 댓글 목록
+     * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
+     * @throws CustomGeneralException 댓글 미지원 게시판이거나 게시물 접근 권한이 없는 경우
      */
     public List<BoardCommentDto.Response> getComments(
             String blbMngNo, String nacMngNo, CustomUserDetails user) {
@@ -69,6 +71,7 @@ public class BoardCommentService {
      * @param request 댓글 등록 요청 DTO
      * @param user 인증 사용자
      * @return 생성된 댓글관리번호
+     * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
      * @throws CustomGeneralException 게시판이 댓글 미지원 / 게시물 접근 불가
      */
     @Transactional
@@ -110,6 +113,7 @@ public class BoardCommentService {
      * @param request 댓글 등록 요청 DTO
      * @param user 인증 사용자
      * @return 생성된 댓글관리번호
+     * @throws NotFoundException 게시판·게시물·부모 댓글·댓글 그룹이 없거나 소속이 다른 경우
      * @throws CustomGeneralException 게시판이 댓글 미지원 / 게시물 접근 불가
      */
     @Transactional
@@ -122,9 +126,12 @@ public class BoardCommentService {
 
         Cblbmm board = findUserActiveBoard(blbMngNo);
         Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
-        Ccmmtm parent = findCommentInPost(nacMngNo, hrkCmmtMngNo);
         verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
+
+        Long groupId = findReplyGroupId(nacMngNo, hrkCmmtMngNo);
+        lockReplyGroup(nacMngNo, groupId);
+        Ccmmtm parent = findCommentInPostForUpdate(nacMngNo, hrkCmmtMngNo);
 
         commentRepository.shiftGroupSqn(
                 parent.getCmmtGrpNo(), parent.getCmmtGrpSqn(), parent.getCmmtGrpLev());
@@ -159,7 +166,9 @@ public class BoardCommentService {
      * @param cmmtMngNo 댓글관리번호
      * @param request 수정 요청 DTO
      * @param user 인증 사용자
-     * @throws CustomGeneralException 수정 권한 없음
+     * @throws NotFoundException 게시판·게시물·댓글이 없거나 부모-자식 소속이 다른 경우
+     * @throws CustomGeneralException 댓글 미지원 게시판이거나 게시물 접근 권한이 없는 경우
+     * @throws org.springframework.security.access.AccessDeniedException 댓글 수정 권한이 없는 경우
      */
     @Transactional
     public void updateComment(
@@ -173,7 +182,7 @@ public class BoardCommentService {
         Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
         verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
-        Ccmmtm comment = findCommentInPost(nacMngNo, cmmtMngNo);
+        Ccmmtm comment = findCommentInPostForUpdate(nacMngNo, cmmtMngNo);
         verifyCanModify(user, comment);
         comment.updateContent(HtmlSanitizer.sanitize(request.getCmmtCone()));
         publishMentionNotifications(comment, post, user.getEno(), request.getMentionedEnos());
@@ -188,7 +197,9 @@ public class BoardCommentService {
      * @param nacMngNo 게시물관리번호
      * @param cmmtMngNo 댓글관리번호
      * @param user 인증 사용자
-     * @throws CustomGeneralException 삭제 권한 없음
+     * @throws NotFoundException 게시판·게시물·댓글이 없거나 부모-자식 소속이 다른 경우
+     * @throws CustomGeneralException 댓글 미지원 게시판이거나 게시물 접근 권한이 없는 경우
+     * @throws org.springframework.security.access.AccessDeniedException 댓글 삭제 권한이 없는 경우
      */
     @Transactional
     public void deleteComment(
@@ -197,7 +208,7 @@ public class BoardCommentService {
         Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
         verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
-        Ccmmtm comment = findCommentInPost(nacMngNo, cmmtMngNo);
+        Ccmmtm comment = findCommentInPostForUpdate(nacMngNo, cmmtMngNo);
         verifyCanModify(user, comment);
         comment.delete();
     }
@@ -216,10 +227,28 @@ public class BoardCommentService {
                 .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
     }
 
-    private Ccmmtm findCommentInPost(String nacMngNo, Long cmmtMngNo) {
+    private Ccmmtm findCommentInPostForUpdate(String nacMngNo, Long cmmtMngNo) {
         return commentRepository
-                .findByCmmtMngNoAndNacMngNoAndDelYn(cmmtMngNo, nacMngNo, "N")
+                .findByCmmtMngNoAndNacMngNoAndDelYnForUpdate(cmmtMngNo, nacMngNo, "N")
                 .orElseThrow(() -> new NotFoundException("댓글을 찾을 수 없습니다: " + cmmtMngNo));
+    }
+
+    private Long findReplyGroupId(String nacMngNo, Long cmmtMngNo) {
+        return commentRepository
+                .findReplyGroupId(cmmtMngNo, nacMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("댓글을 찾을 수 없습니다: " + cmmtMngNo));
+    }
+
+    /**
+     * 대댓글 쓰기 잠금 순서의 첫 행인 그룹 루트를 잠급니다.
+     *
+     * <p>모든 대댓글 경로는 {@code 그룹 루트 → 부모 댓글} 순서로만 잠급니다. 일반 댓글 수정·삭제는 대상 댓글 한 행만 잠그며 그룹 루트를 추가로 기다리지
+     * 않으므로 역순 대기 사이클이 생기지 않습니다.
+     */
+    private void lockReplyGroup(String nacMngNo, Long groupId) {
+        commentRepository
+                .findReplyGroupAnchorForUpdate(nacMngNo, groupId)
+                .orElseThrow(() -> new NotFoundException("댓글 그룹을 찾을 수 없습니다: " + groupId));
     }
 
     private void verifyCommentsEnabled(Cblbmm board) {

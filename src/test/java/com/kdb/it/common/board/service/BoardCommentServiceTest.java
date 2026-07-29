@@ -3,6 +3,7 @@ package com.kdb.it.common.board.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -79,6 +80,30 @@ class BoardCommentServiceTest {
                         invocation ->
                                 commentRepository.findByCmmtMngNoAndDelYn(
                                         invocation.getArgument(0), "N"));
+        lenient()
+                .when(
+                        commentRepository.findByCmmtMngNoAndNacMngNoAndDelYnForUpdate(
+                                anyLong(), anyString(), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                commentRepository.findByCmmtMngNoAndNacMngNoAndDelYn(
+                                        invocation.getArgument(0), invocation.getArgument(1), "N"));
+        lenient()
+                .when(commentRepository.findReplyGroupId(anyLong(), anyString(), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                commentRepository
+                                        .findByCmmtMngNoAndNacMngNoAndDelYn(
+                                                invocation.getArgument(0),
+                                                invocation.getArgument(1),
+                                                "N")
+                                        .map(Ccmmtm::getCmmtGrpNo));
+        lenient()
+                .when(commentRepository.findReplyGroupAnchorForUpdate(anyString(), anyLong()))
+                .thenAnswer(
+                        invocation ->
+                                commentRepository.findByCmmtMngNoAndNacMngNoAndDelYn(
+                                        invocation.getArgument(1), invocation.getArgument(0), "N"));
 
         boardWithComment =
                 Cblbmm.builder()
@@ -257,6 +282,98 @@ class BoardCommentServiceTest {
         assertThat(otherPostComment.getCmmtCone()).isEqualTo("원본 댓글");
         assertThat(otherPostComment.getDelYn()).isEqualTo("N");
         verify(commentRepository, never()).shiftGroupSqn(anyLong(), anyInt(), anyInt());
+        verify(commentRepository, never()).save(any(Ccmmtm.class));
+    }
+
+    @Test
+    @DisplayName("댓글 수정은 복합 소속 쓰기 잠금 조회가 실패하면 변경하지 않는다")
+    void updateComment_lockedAssociationMissing_doesNotMutate() {
+        stubActiveBoardAndPost();
+        Ccmmtm comment = buildComment(1L);
+        setFstEnrUsid(comment, "USER001");
+        given(
+                        commentRepository.findByCmmtMngNoAndNacMngNoAndDelYnForUpdate(
+                                1L, "NAC-2026-0001", "N"))
+                .willReturn(Optional.empty());
+        var update = new BoardCommentDto.UpdateRequest("변경되면 안 되는 댓글");
+
+        assertThatThrownBy(
+                        () ->
+                                service.updateComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, update, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThat(comment.getCmmtCone()).isEqualTo("원본 댓글");
+    }
+
+    @Test
+    @DisplayName("댓글 삭제는 복합 소속 쓰기 잠금 조회가 실패하면 삭제하지 않는다")
+    void deleteComment_lockedAssociationMissing_doesNotMutate() {
+        stubActiveBoardAndPost();
+        Ccmmtm comment = buildComment(1L);
+        setFstEnrUsid(comment, "USER001");
+        given(
+                        commentRepository.findByCmmtMngNoAndNacMngNoAndDelYnForUpdate(
+                                1L, "NAC-2026-0001", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () ->
+                                service.deleteComment(
+                                        "BLBM-2026-0001", "NAC-2026-0001", 1L, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThat(comment.getDelYn()).isEqualTo("N");
+    }
+
+    @Test
+    @DisplayName("대댓글은 그룹 루트와 부모를 순서대로 잠근 뒤 순서를 이동한다")
+    void createReply_locksGroupAnchorThenParentBeforeShift() {
+        stubActiveBoardAndPost();
+        Ccmmtm parent = buildComment(1L);
+        given(commentRepository.findReplyGroupId(1L, "NAC-2026-0001", "N"))
+                .willReturn(Optional.of(1L));
+        given(commentRepository.findReplyGroupAnchorForUpdate("NAC-2026-0001", 1L))
+                .willReturn(Optional.of(parent));
+        given(
+                        commentRepository.findByCmmtMngNoAndNacMngNoAndDelYnForUpdate(
+                                1L, "NAC-2026-0001", "N"))
+                .willReturn(Optional.of(parent));
+        given(commentRepository.getNextSequenceValue()).willReturn(2L);
+
+        service.createReply(
+                "BLBM-2026-0001",
+                "NAC-2026-0001",
+                1L,
+                new BoardCommentDto.CreateRequest("잠금 대댓글"),
+                normalUser);
+
+        var order = inOrder(commentRepository);
+        order.verify(commentRepository).findReplyGroupId(1L, "NAC-2026-0001", "N");
+        order.verify(commentRepository).findReplyGroupAnchorForUpdate("NAC-2026-0001", 1L);
+        order.verify(commentRepository)
+                .findByCmmtMngNoAndNacMngNoAndDelYnForUpdate(1L, "NAC-2026-0001", "N");
+        order.verify(commentRepository).shiftGroupSqn(1L, 0, 0);
+    }
+
+    @Test
+    @DisplayName("대댓글 그룹 루트 검증 실패 전에는 순서와 시퀀스를 변경하지 않는다")
+    void createReply_missingGroupAnchor_doesNotMutate() {
+        stubActiveBoardAndPost();
+        given(commentRepository.findReplyGroupId(1L, "NAC-2026-0001", "N"))
+                .willReturn(Optional.of(1L));
+        given(commentRepository.findReplyGroupAnchorForUpdate("NAC-2026-0001", 1L))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () ->
+                                service.createReply(
+                                        "BLBM-2026-0001",
+                                        "NAC-2026-0001",
+                                        1L,
+                                        new BoardCommentDto.CreateRequest("차단 대댓글"),
+                                        normalUser))
+                .isInstanceOf(NotFoundException.class);
+        verify(commentRepository, never()).shiftGroupSqn(anyLong(), anyInt(), anyInt());
+        verify(commentRepository, never()).getNextSequenceValue();
         verify(commentRepository, never()).save(any(Ccmmtm.class));
     }
 
@@ -606,23 +723,10 @@ class BoardCommentServiceTest {
     void createReply_boardNoComment_throws() {
         // Arrange
         Long parentId = 1L;
-        Ccmmtm parent =
-                Ccmmtm.builder()
-                        .cmmtMngNo(parentId)
-                        .nacMngNo("NAC-2026-0001")
-                        .cmmtCone("부모 댓글")
-                        .cmmtGrpNo(parentId)
-                        .cmmtGrpSqn(0)
-                        .cmmtGrpLev(0)
-                        .delYn("N")
-                        .build();
-
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0002", "N"))
                 .willReturn(Optional.of(boardNoComment));
         given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
                 .willReturn(Optional.of(post));
-        given(commentRepository.findByCmmtMngNoAndDelYn(parentId, "N"))
-                .willReturn(Optional.of(parent));
 
         var request = new BoardCommentDto.CreateRequest("대댓글 내용");
 

@@ -49,7 +49,8 @@ public class BoardPostService {
      * @param cond 검색 조건
      * @param user 인증 사용자
      * @return 게시물 페이지
-     * @throws CustomGeneralException 게시판을 찾을 수 없음
+     * @throws NotFoundException 사용 중인 게시판을 찾을 수 없는 경우
+     * @throws CustomGeneralException 검색어가 최소 길이보다 짧은 경우
      */
     public Page<BoardPostDto.ListItem> searchPosts(
             String blbMngNo, BoardPostDto.SearchCondition cond, CustomUserDetails user) {
@@ -108,7 +109,8 @@ public class BoardPostService {
      * @param request 등록 요청 DTO
      * @param user 인증 사용자
      * @return 생성된 게시물관리번호
-     * @throws CustomGeneralException 등록 권한 없음
+     * @throws NotFoundException 사용 중인 게시판을 찾을 수 없는 경우
+     * @throws CustomGeneralException 등록 권한이 없거나 요청 부서가 사용자 부서와 다른 경우
      */
     @Transactional
     public String createPost(
@@ -152,7 +154,9 @@ public class BoardPostService {
      * @param nacMngNo 게시물관리번호
      * @param request 수정 요청 DTO
      * @param user 인증 사용자
-     * @throws CustomGeneralException 수정 권한 없음
+     * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
+     * @throws CustomGeneralException 요청 부서가 사용자 부서와 다른 경우
+     * @throws org.springframework.security.access.AccessDeniedException 게시물 수정 권한이 없는 경우
      */
     @Transactional
     public void updatePost(
@@ -162,7 +166,7 @@ public class BoardPostService {
             CustomUserDetails user) {
 
         findUserActiveBoard(blbMngNo);
-        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCanModify(user, post);
         verifyBbrC(user, request.getBbrC());
 
@@ -177,12 +181,13 @@ public class BoardPostService {
      * @param blbMngNo 게시판관리번호
      * @param nacMngNo 게시물관리번호
      * @param user 인증 사용자
-     * @throws CustomGeneralException 삭제 권한 없음
+     * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
+     * @throws org.springframework.security.access.AccessDeniedException 게시물 삭제 권한이 없는 경우
      */
     @Transactional
     public void deletePost(String blbMngNo, String nacMngNo, CustomUserDetails user) {
         findUserActiveBoard(blbMngNo);
-        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
+        Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCanModify(user, post);
         post.delete();
     }
@@ -195,6 +200,7 @@ public class BoardPostService {
      * @param request 답변글 등록 요청 DTO
      * @param user 인증 사용자
      * @return 생성된 게시물관리번호
+     * @throws NotFoundException 게시판·부모 게시물·답글 그룹을 찾을 수 없거나 소속이 다른 경우
      * @throws CustomGeneralException 게시판이 답변 미지원 / 부모 게시물 접근 불가 / 등록 권한 없음
      */
     @Transactional
@@ -205,13 +211,15 @@ public class BoardPostService {
             CustomUserDetails user) {
 
         Cblbmm board = findUserActiveBoard(blbMngNo);
-        Cblbcm parent = findPostInBoard(blbMngNo, nacMngNo);
-
         if (!"Y".equals(board.getRepUseYn())) {
             throw new CustomGeneralException("해당 게시판은 답변 기능을 지원하지 않습니다.");
         }
-        verifyCanReadPost(user, parent, board);
         verifyCanWrite(user, board);
+
+        String groupId = findReplyGroupId(blbMngNo, nacMngNo);
+        lockReplyGroup(blbMngNo, groupId);
+        Cblbcm parent = findPostInBoardForUpdate(blbMngNo, nacMngNo);
+        verifyCanReadPost(user, parent, board);
 
         postRepository.shiftGroupSqn(
                 parent.getNacUnqId(), parent.getNacGrpSqn(), parent.getNacGrpLev());
@@ -372,6 +380,24 @@ public class BoardPostService {
         return postRepository
                 .findByBlbMngNoAndNacMngNoAndDelYnForUpdate(blbMngNo, nacMngNo, "N")
                 .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+    }
+
+    private String findReplyGroupId(String blbMngNo, String nacMngNo) {
+        return postRepository
+                .findReplyGroupId(blbMngNo, nacMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+    }
+
+    /**
+     * 답글 쓰기 잠금 순서의 첫 행인 그룹 루트를 잠급니다.
+     *
+     * <p>모든 답글 경로는 {@code 그룹 루트 → 부모 게시물} 순서로만 잠급니다. 일반 수정·삭제·조회수 갱신은 대상 게시물 한 행만 잠그며 그룹 루트를 추가로
+     * 기다리지 않으므로 역순 대기 사이클이 생기지 않습니다.
+     */
+    private void lockReplyGroup(String blbMngNo, String groupId) {
+        postRepository
+                .findReplyGroupAnchorForUpdate(blbMngNo, groupId)
+                .orElseThrow(() -> new NotFoundException("게시물 답글 그룹을 찾을 수 없습니다: " + groupId));
     }
 
     private void validateSearchCondition(BoardPostDto.SearchCondition cond) {

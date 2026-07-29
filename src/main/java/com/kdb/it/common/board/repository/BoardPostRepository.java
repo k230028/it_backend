@@ -18,6 +18,24 @@ public interface BoardPostRepository
     Optional<Cblbcm> findByBlbMngNoAndNacMngNoAndDelYn(
             String blbMngNo, String nacMngNo, String delYn);
 
+    /**
+     * 답글 그룹 잠금 전에 부모의 그룹 식별자만 조회합니다.
+     *
+     * <p>엔티티를 영속성 컨텍스트에 올리지 않아 그룹 잠금 대기 뒤 부모를 최신 상태로 다시 읽을 수 있습니다.
+     */
+    @Query(
+            """
+            SELECT c.nacUnqId
+              FROM Cblbcm c
+             WHERE c.blbMngNo = :blbMngNo
+               AND c.nacMngNo = :nacMngNo
+               AND c.delYn = :delYn
+            """)
+    Optional<String> findReplyGroupId(
+            @Param("blbMngNo") String blbMngNo,
+            @Param("nacMngNo") String nacMngNo,
+            @Param("delYn") String delYn);
+
     /** 첨부파일 수 캐시 갱신 시 게시물 행을 잠급니다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query(
@@ -48,6 +66,23 @@ public interface BoardPostRepository
             @Param("blbMngNo") String blbMngNo,
             @Param("nacMngNo") String nacMngNo,
             @Param("delYn") String delYn);
+
+    /**
+     * 게시판 범위의 답글 그룹 루트 행을 잠급니다.
+     *
+     * <p>루트가 소프트 삭제되어도 남은 자식의 순서를 직렬화해야 하므로 삭제 여부는 조건에 포함하지 않습니다.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query(
+            """
+            SELECT c
+              FROM Cblbcm c
+             WHERE c.blbMngNo = :blbMngNo
+               AND c.nacMngNo = :groupId
+               AND c.nacUnqId = :groupId
+            """)
+    Optional<Cblbcm> findReplyGroupAnchorForUpdate(
+            @Param("blbMngNo") String blbMngNo, @Param("groupId") String groupId);
 
     /**
      * 답변글 삽입을 위한 SQN 밀어내기 (단일 트랜잭션 + 행 단위 락 전제)

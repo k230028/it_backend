@@ -3,6 +3,7 @@ package com.kdb.it.common.board.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -64,6 +65,30 @@ class BoardPostServiceTest {
                         invocation ->
                                 postRepository.findByNacMngNoAndDelYn(
                                         invocation.getArgument(1), "N"));
+        lenient()
+                .when(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+                                anyString(), anyString(), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                        invocation.getArgument(0), invocation.getArgument(1), "N"));
+        lenient()
+                .when(postRepository.findReplyGroupId(anyString(), anyString(), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                postRepository
+                                        .findByBlbMngNoAndNacMngNoAndDelYn(
+                                                invocation.getArgument(0),
+                                                invocation.getArgument(1),
+                                                "N")
+                                        .map(Cblbcm::getNacUnqId));
+        lenient()
+                .when(postRepository.findReplyGroupAnchorForUpdate(anyString(), anyString()))
+                .thenAnswer(
+                        invocation ->
+                                postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                        invocation.getArgument(0), invocation.getArgument(1), "N"));
 
         // 공지사항(IT_PTL_BLB_TC='001') — 조회는 전체 공개, 등록은 관리자 전용
         publicBoard =
@@ -197,6 +222,96 @@ class BoardPostServiceTest {
 
         assertThat(otherBoardPost.getNacNm()).isEqualTo("테스트 게시물");
         assertThat(otherBoardPost.getDelYn()).isEqualTo("N");
+        verify(postRepository, never()).getNextSequenceValue();
+        verify(postRepository, never()).save(any(Cblbcm.class));
+    }
+
+    @Test
+    @DisplayName("게시물 수정은 복합 소속 쓰기 잠금 조회가 실패하면 변경하지 않는다")
+    void updatePost_lockedAssociationMissing_doesNotMutate() {
+        Cblbcm post = post("NAC-2026-0001", "USER001");
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+                                "BLBM-2026-0003", "NAC-2026-0001", "N"))
+                .willReturn(Optional.empty());
+        var update = new BoardPostDto.UpdateRequest();
+        update.setNacNm("변경되면 안 되는 제목");
+        update.setBbrC("10002");
+
+        assertThatThrownBy(
+                        () ->
+                                service.updatePost(
+                                        "BLBM-2026-0003", "NAC-2026-0001", update, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThat(post.getNacNm()).isEqualTo("테스트 게시물");
+    }
+
+    @Test
+    @DisplayName("게시물 삭제는 복합 소속 쓰기 잠금 조회가 실패하면 삭제하지 않는다")
+    void deletePost_lockedAssociationMissing_doesNotMutate() {
+        Cblbcm post = post("NAC-2026-0001", "USER001");
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+                                "BLBM-2026-0003", "NAC-2026-0001", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deletePost("BLBM-2026-0003", "NAC-2026-0001", normalUser))
+                .isInstanceOf(NotFoundException.class);
+        assertThat(post.getDelYn()).isEqualTo("N");
+    }
+
+    @Test
+    @DisplayName("게시물 답글은 그룹 루트와 부모를 순서대로 잠근 뒤 순서를 이동한다")
+    void createReply_locksGroupAnchorThenParentBeforeShift() {
+        Cblbcm parent = post("NAC-2026-0001", "USER001");
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(postRepository.findReplyGroupId("BLBM-2026-0003", "NAC-2026-0001", "N"))
+                .willReturn(Optional.of("NAC-2026-0001"));
+        given(postRepository.findReplyGroupAnchorForUpdate("BLBM-2026-0003", "NAC-2026-0001"))
+                .willReturn(Optional.of(parent));
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+                                "BLBM-2026-0003", "NAC-2026-0001", "N"))
+                .willReturn(Optional.of(parent));
+        given(postRepository.getNextSequenceValue()).willReturn(10L);
+        var request = new BoardPostDto.ReplyCreateRequest();
+        request.setNacNm("잠금 답글");
+        request.setBbrC("10002");
+
+        service.createReply("BLBM-2026-0003", "NAC-2026-0001", request, normalUser);
+
+        var order = inOrder(postRepository);
+        order.verify(postRepository).findReplyGroupId("BLBM-2026-0003", "NAC-2026-0001", "N");
+        order.verify(postRepository)
+                .findReplyGroupAnchorForUpdate("BLBM-2026-0003", "NAC-2026-0001");
+        order.verify(postRepository)
+                .findByBlbMngNoAndNacMngNoAndDelYnForUpdate("BLBM-2026-0003", "NAC-2026-0001", "N");
+        order.verify(postRepository).shiftGroupSqn("NAC-2026-0001", 0, 0);
+    }
+
+    @Test
+    @DisplayName("게시물 답글 그룹 루트 검증 실패 전에는 순서와 시퀀스를 변경하지 않는다")
+    void createReply_missingGroupAnchor_doesNotMutate() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(postRepository.findReplyGroupId("BLBM-2026-0003", "NAC-2026-0001", "N"))
+                .willReturn(Optional.of("NAC-2026-0001"));
+        given(postRepository.findReplyGroupAnchorForUpdate("BLBM-2026-0003", "NAC-2026-0001"))
+                .willReturn(Optional.empty());
+        var request = new BoardPostDto.ReplyCreateRequest();
+        request.setNacNm("차단 답글");
+
+        assertThatThrownBy(
+                        () ->
+                                service.createReply(
+                                        "BLBM-2026-0003", "NAC-2026-0001", request, normalUser))
+                .isInstanceOf(NotFoundException.class);
+        verify(postRepository, never()).shiftGroupSqn(anyString(), anyInt(), anyInt());
         verify(postRepository, never()).getNextSequenceValue();
         verify(postRepository, never()).save(any(Cblbcm.class));
     }
@@ -890,11 +1005,8 @@ class BoardPostServiceTest {
                         .useYn("Y")
                         .delYn("N")
                         .build();
-        Cblbcm parent = post("NAC-2026-0060", "ADMIN001");
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0020", "N"))
                 .willReturn(java.util.Optional.of(adminWriteReplyBoard));
-        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0060", "N"))
-                .willReturn(java.util.Optional.of(parent));
 
         var req = new com.kdb.it.common.board.dto.BoardPostDto.ReplyCreateRequest();
         req.setNacNm("답변 시도");
