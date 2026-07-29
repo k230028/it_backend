@@ -22,6 +22,6 @@ final class SsoLogSanitizer {
         }
         return RESULT_CODE_PATTERN.matcher(value).matches()
                 ? value
-                : "<invalid>(len=" + value.length() + ")";
+                : "<invalid>(len=" + value.codePointCount(0, value.length()) + ")";
     }
 }

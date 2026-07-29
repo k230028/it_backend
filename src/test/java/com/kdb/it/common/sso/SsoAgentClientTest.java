@@ -69,6 +69,12 @@ class SsoAgentClientTest {
     }
 
     @Test
+    @DisplayName("SSO 결과 코드의 비정상 길이는 Unicode 코드 포인트 기준으로 기록한다")
+    void ssoLogSanitizer_resultCode_보충문자길이코드포인트기준() {
+        assertThat(SsoLogSanitizer.resultCode("A\uD83D\uDE00B")).isEqualTo("<invalid>(len=3)");
+    }
+
+    @Test
     @DisplayName("isServerAlive: 성공 resultCode이면 true를 반환한다")
     @SuppressWarnings("unchecked")
     void isServerAlive_successCode_true() {
