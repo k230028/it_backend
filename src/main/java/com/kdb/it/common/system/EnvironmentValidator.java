@@ -112,8 +112,8 @@ public class EnvironmentValidator {
 
         rejectTrue("sso.mock-enabled", "모의 SSO 로그인 경로입니다.");
         rejectTrue("app.auth.allow-bearer-header", "Bearer 헤더 인증 폴백입니다.");
-        rejectTrue("springdoc.api-docs.enabled", "운영 API 명세 노출입니다.");
-        rejectTrue("springdoc.swagger-ui.enabled", "운영 Swagger UI 노출입니다.");
+        requireFalse("springdoc.api-docs.enabled");
+        requireFalse("springdoc.swagger-ui.enabled");
         if (!Boolean.parseBoolean(environment.getProperty("app.cookie.secure", "false"))) {
             throw new IllegalStateException(
                     "운영 보안 위반: app.cookie.secure가 true가 아님 — 인증 쿠키에 Secure가 필요합니다.");
@@ -129,6 +129,12 @@ public class EnvironmentValidator {
     private void rejectTrue(String key, String reason) {
         if (Boolean.parseBoolean(environment.getProperty(key, "false"))) {
             throw new IllegalStateException("운영 보안 위반: " + key + "=true 금지 — " + reason);
+        }
+    }
+
+    private void requireFalse(String key) {
+        if (!"false".equalsIgnoreCase(environment.getProperty(key))) {
+            throw new IllegalStateException("운영 보안 위반: " + key);
         }
     }
 

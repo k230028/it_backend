@@ -1,5 +1,6 @@
 package com.kdb.it.common.system;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -17,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.env.SystemEnvironmentPropertySource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.ResourcePropertySource;
 import org.springframework.mock.env.MockEnvironment;
@@ -91,6 +93,8 @@ class EnvironmentValidatorTest {
         env.setProperty("app.sso.allow-direct-eno", "false");
         env.setProperty("sso.mock-enabled", "false");
         env.setProperty("app.auth.allow-bearer-header", "false");
+        env.setProperty("springdoc.api-docs.enabled", "false");
+        env.setProperty("springdoc.swagger-ui.enabled", "false");
         env.setProperty("app.cookie.secure", "true");
         env.setProperty("app.frontend-url", "https://it.kdb.co.kr");
         return env;
@@ -134,7 +138,7 @@ class EnvironmentValidatorTest {
 
         assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("springdoc.api-docs.enabled");
+                .hasMessage("운영 보안 위반: springdoc.api-docs.enabled");
     }
 
     @Test
@@ -145,7 +149,7 @@ class EnvironmentValidatorTest {
 
         assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("springdoc.swagger-ui.enabled");
+                .hasMessage("운영 보안 위반: springdoc.swagger-ui.enabled");
     }
 
     @Test
@@ -154,6 +158,55 @@ class EnvironmentValidatorTest {
         StandardEnvironment env = prodEnvironmentWithFileOverrides(Map.of());
 
         assertThatCode(() -> new EnvironmentValidator(env).validate()).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 SPRINGDOC_API_DOCS_ENABLED=true 환경변수는 기동 차단")
+    void validate_prodApiDocsSystemEnvironmentOverride_throws() throws IOException {
+        StandardEnvironment env =
+                prodEnvironmentWithSystemEnvironment(
+                        Map.of("SPRINGDOC_API_DOCS_ENABLED", "true"));
+
+        assertThat(env.getProperty("springdoc.api-docs.enabled")).isEqualTo("true");
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: springdoc.api-docs.enabled");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 SPRINGDOC_SWAGGER_UI_ENABLED=true 환경변수는 기동 차단")
+    void validate_prodSwaggerUiSystemEnvironmentOverride_throws() throws IOException {
+        StandardEnvironment env =
+                prodEnvironmentWithSystemEnvironment(
+                        Map.of("SPRINGDOC_SWAGGER_UI_ENABLED", "true"));
+
+        assertThat(env.getProperty("springdoc.swagger-ui.enabled")).isEqualTo("true");
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: springdoc.swagger-ui.enabled");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"springdoc.api-docs.enabled", "springdoc.swagger-ui.enabled"})
+    @DisplayName("운영 프로파일에서 OpenAPI 비활성화 키가 누락되면 기동 차단")
+    void validate_prodOpenApiPropertyMissing_throws(String missingKey) throws IOException {
+        StandardEnvironment env =
+                prodEnvironmentWithoutProfileFile(Map.of(otherOpenApiProperty(missingKey), "false"));
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: " + missingKey);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"springdoc.api-docs.enabled", "springdoc.swagger-ui.enabled"})
+    @DisplayName("운영 프로파일에서 OpenAPI 비활성화 키가 빈값이면 기동 차단")
+    void validate_prodOpenApiPropertyBlank_throws(String blankKey) throws IOException {
+        StandardEnvironment env = prodEnvironmentWithFileOverrides(Map.of(blankKey, ""));
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: " + blankKey);
     }
 
     @Test
@@ -256,8 +309,28 @@ class EnvironmentValidatorTest {
         assertThatCode(validator::validate).doesNotThrowAnyException();
     }
 
-    /** prod 파일보다 우선하는 override를 포함한 격리 Environment를 구성한다. */
+    /** prod 파일보다 우선하는 canonical override를 포함한 격리 Environment를 구성한다. */
     private StandardEnvironment prodEnvironmentWithFileOverrides(Map<String, Object> overrides)
+            throws IOException {
+        return prodEnvironment(overrides, Map.of(), true);
+    }
+
+    /** 실제 OS 환경변수와 같은 relaxed binding 입력을 포함한 격리 Environment를 구성한다. */
+    private StandardEnvironment prodEnvironmentWithSystemEnvironment(
+            Map<String, Object> systemEnvironment) throws IOException {
+        return prodEnvironment(Map.of(), systemEnvironment, true);
+    }
+
+    /** prod 파일에서 springdoc 키가 누락된 배포 구성을 재현한다. */
+    private StandardEnvironment prodEnvironmentWithoutProfileFile(Map<String, Object> overrides)
+            throws IOException {
+        return prodEnvironment(overrides, Map.of(), false);
+    }
+
+    private StandardEnvironment prodEnvironment(
+            Map<String, Object> overrides,
+            Map<String, Object> systemEnvironment,
+            boolean includeProdProfile)
             throws IOException {
         StandardEnvironment env = new StandardEnvironment();
         env.getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
@@ -278,11 +351,26 @@ class EnvironmentValidatorTest {
         requiredProperties.put("app.frontend-url", "https://it.kdb.co.kr");
         requiredProperties.putAll(overrides);
 
-        env.getPropertySources()
-                .addLast(
-                        new ResourcePropertySource(
-                                "prod-profile", new ClassPathResource("application-prod.properties")));
+        if (includeProdProfile) {
+            env.getPropertySources()
+                    .addLast(
+                            new ResourcePropertySource(
+                                    "prod-profile",
+                                    new ClassPathResource("application-prod.properties")));
+        }
         env.getPropertySources().addFirst(new MapPropertySource("test-overrides", requiredProperties));
+        if (!systemEnvironment.isEmpty()) {
+            env.getPropertySources()
+                    .addFirst(
+                            new SystemEnvironmentPropertySource(
+                                    "test-system-environment", systemEnvironment));
+        }
         return env;
+    }
+
+    private String otherOpenApiProperty(String property) {
+        return "springdoc.api-docs.enabled".equals(property)
+                ? "springdoc.swagger-ui.enabled"
+                : "springdoc.api-docs.enabled";
     }
 }
