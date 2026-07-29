@@ -65,6 +65,7 @@ class SsoControllerTest {
     private static final String REMOTE_ADDR_SENTINEL = "198.51.100.42";
     private static final String TARGET_TOKEN_SENTINEL = "token-RAW-7Q2";
     private static final String TARGET_SESSION_SENTINEL = "session-RAW-8R3";
+    private static final String ORIGIN_SENTINEL = "origin-RAW-5T9";
 
     @Autowired private MockMvc mockMvc;
 
@@ -186,6 +187,48 @@ class SsoControllerTest {
 
         org.assertj.core.api.Assertions.assertThat(session.getAttribute("ssoVerifiedEno"))
                 .isEqualTo("K150024");
+    }
+
+    @Test
+    @DisplayName("loginProc: 세션 복귀 경로의 토큰·세션·origin 원문을 로그에 남기지 않고 리다이렉트한다")
+    void loginProc_세션복귀경로민감정보로그미노출_리다이렉트유지() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        String next =
+                "/x?secureToken="
+                        + TARGET_TOKEN_SENTINEL
+                        + "&secureSessionId="
+                        + TARGET_SESSION_SENTINEL;
+        String origin = "https://" + ORIGIN_SENTINEL + ".example";
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true).setAttribute("resultCode", "000000");
+        request.getSession().setAttribute("resultData", "K150024");
+        request.getSession().setAttribute("ssoNext", next);
+        request.getSession().setAttribute("ssoOrigin", origin);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        Level originalLevel = logger.getLevel();
+        logger.setLevel(Level.DEBUG);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.loginProc(response, request);
+
+            assertThat(response.getRedirectedUrl())
+                    .isEqualTo(
+                            "/api/auth/sso/complete?next=%2Fx%3FsecureToken%3Dtoken-RAW-7Q2%26secureSessionId%3Dsession-RAW-8R3&origin=https%3A%2F%2Forigin-RAW-5T9.example");
+            assertThat(formattedMessages(appender))
+                    .noneMatch(message -> message.contains(TARGET_TOKEN_SENTINEL))
+                    .noneMatch(message -> message.contains(TARGET_SESSION_SENTINEL))
+                    .noneMatch(message -> message.contains(ORIGIN_SENTINEL));
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(originalLevel);
+            appender.stop();
+        }
     }
 
     @Test

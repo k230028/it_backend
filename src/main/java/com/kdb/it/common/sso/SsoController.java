@@ -326,12 +326,12 @@ public class SsoController {
         }
 
         log.debug(
-                "SSO {} - resultCode: {}, ssoVerifiedEno 설정: {}, complete로 이동 (next: {}, origin: {})",
+                "SSO {} - resultCode: {}, ssoVerifiedEno 설정: {}, complete로 이동 (복귀 경로 존재: {}, origin 존재: {})",
                 stage,
                 resultCode,
                 verified,
-                next,
-                origin);
+                !next.isBlank(),
+                !origin.isBlank());
         response.sendRedirect(buildCompleteRedirect(next, origin));
     }
 
