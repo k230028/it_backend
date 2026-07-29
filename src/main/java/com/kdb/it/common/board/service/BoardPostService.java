@@ -13,6 +13,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.exception.NotFoundException;
 import java.time.LocalDate;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -73,8 +74,8 @@ public class BoardPostService {
     public BoardPostDto.Detail getPostDetail(
             String blbMngNo, String nacMngNo, CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
-        Cblbcm post = findPost(nacMngNo);
+        Cblbmm board = findActiveBoardResource(blbMngNo);
+        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
 
         verifyCanReadPost(user, post, board);
 
@@ -92,13 +93,10 @@ public class BoardPostService {
      */
     @Transactional
     public void incrementPostView(String blbMngNo, String nacMngNo, CustomUserDetails user) {
-        Cblbmm board = findActiveBoard(blbMngNo);
-        Cblbcm post = findPost(nacMngNo);
+        Cblbmm board = findActiveBoardResource(blbMngNo);
+        Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCanReadPost(user, post, board);
-
-        if (postRepository.incrementViewCount(nacMngNo) != 1) {
-            throw new CustomGeneralException("게시물을 찾을 수 없습니다.");
-        }
+        post.incrementViewCount();
     }
 
     /**
@@ -359,6 +357,24 @@ public class BoardPostService {
         return metaRepository
                 .findByBlbMngNoAndDelYn(blbMngNo, "N")
                 .orElseThrow(() -> new CustomGeneralException("게시판을 찾을 수 없습니다: " + blbMngNo));
+    }
+
+    private Cblbmm findActiveBoardResource(String blbMngNo) {
+        return metaRepository
+                .findByBlbMngNoAndDelYn(blbMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("게시판을 찾을 수 없습니다: " + blbMngNo));
+    }
+
+    private Cblbcm findPostInBoard(String blbMngNo, String nacMngNo) {
+        return postRepository
+                .findByBlbMngNoAndNacMngNoAndDelYn(blbMngNo, nacMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+    }
+
+    private Cblbcm findPostInBoardForUpdate(String blbMngNo, String nacMngNo) {
+        return postRepository
+                .findByBlbMngNoAndNacMngNoAndDelYnForUpdate(blbMngNo, nacMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
     }
 
     private Cblbcm findPost(String nacMngNo) {

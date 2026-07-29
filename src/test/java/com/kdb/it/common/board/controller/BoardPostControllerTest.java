@@ -19,6 +19,7 @@ import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.exception.NotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,6 +66,28 @@ class BoardPostControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(boardPostService, times(1)).incrementPostView(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 상세 GET은 실제 404 응답을 반환한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void getDetail_wrongBoard_returns404() throws Exception {
+        given(boardPostService.getPostDetail(anyString(), anyString(), any()))
+                .willThrow(new NotFoundException("게시물을 찾을 수 없습니다"));
+
+        mockMvc.perform(get("/api/boards/BOARD-A/posts/POST-B")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 조회수 POST는 실제 404 응답을 반환한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void incrementViewCount_wrongBoard_returns404() throws Exception {
+        org.mockito.BDDMockito.willThrow(new NotFoundException("게시물을 찾을 수 없습니다"))
+                .given(boardPostService)
+                .incrementPostView(anyString(), anyString(), any());
+
+        mockMvc.perform(post("/api/boards/BOARD-A/posts/POST-B/views"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

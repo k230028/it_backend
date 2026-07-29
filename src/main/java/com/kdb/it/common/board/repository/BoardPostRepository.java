@@ -15,6 +15,9 @@ public interface BoardPostRepository
 
     Optional<Cblbcm> findByNacMngNoAndDelYn(String nacMngNo, String delYn);
 
+    Optional<Cblbcm> findByBlbMngNoAndNacMngNoAndDelYn(
+            String blbMngNo, String nacMngNo, String delYn);
+
     /** 첨부파일 수 캐시 갱신 시 게시물 행을 잠급니다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query(
@@ -31,16 +34,20 @@ public interface BoardPostRepository
     @Query(value = "SELECT SQ_TPRMPP_CBLBCM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();
 
-    /** 삭제되지 않은 게시물의 조회수를 원자적으로 1 증가시킵니다. */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    /** 조회수 갱신 시 게시판 소속을 함께 확인하고 게시물 행을 잠급니다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query(
             """
-            UPDATE Cblbcm c
-               SET c.nacInqNbr = c.nacInqNbr + 1
-             WHERE c.nacMngNo = :nacMngNo
-               AND c.delYn = 'N'
+            SELECT c
+              FROM Cblbcm c
+             WHERE c.blbMngNo = :blbMngNo
+               AND c.nacMngNo = :nacMngNo
+               AND c.delYn = :delYn
             """)
-    int incrementViewCount(@Param("nacMngNo") String nacMngNo);
+    Optional<Cblbcm> findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+            @Param("blbMngNo") String blbMngNo,
+            @Param("nacMngNo") String nacMngNo,
+            @Param("delYn") String delYn);
 
     /**
      * 답변글 삽입을 위한 SQN 밀어내기 (단일 트랜잭션 + 행 단위 락 전제)

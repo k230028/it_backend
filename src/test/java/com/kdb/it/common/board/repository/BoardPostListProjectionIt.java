@@ -17,14 +17,18 @@ class BoardPostListProjectionIt extends AbstractOracleRepositoryTest {
     @Autowired BoardPostRepository postRepository;
 
     @Test
-    @DisplayName("조회수 갱신 쿼리는 활성 게시물 한 행만 원자적으로 증가시킨다")
+    @DisplayName("조회수 갱신 잠금 조회는 게시판 소속을 확인하고 managed entity를 증가시킨다")
     void incrementViewCount_updatesExactlyOneActivePost() {
         Cblbcm post = post("SEC15-VIEW", "조회수", "본문", "writer", "N", "Y", 7000, 1, null, null, "N");
         postRepository.saveAndFlush(post);
 
-        int updated = postRepository.incrementViewCount("SEC15-VIEW");
+        Cblbcm locked =
+                postRepository
+                        .findByBlbMngNoAndNacMngNoAndDelYnForUpdate("BLB-BE03", "SEC15-VIEW", "N")
+                        .orElseThrow();
+        locked.incrementViewCount();
+        postRepository.flush();
 
-        assertThat(updated).isOne();
         assertThat(postRepository.findByNacMngNoAndDelYn("SEC15-VIEW", "N"))
                 .get()
                 .extracting(Cblbcm::getNacInqNbr)

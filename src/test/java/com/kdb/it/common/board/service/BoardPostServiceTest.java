@@ -13,6 +13,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.exception.NotFoundException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -224,7 +225,9 @@ class BoardPostServiceTest {
         Cblbcm post = post("NAC-2026-0001", "USER001");
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
                 .willReturn(Optional.of(writableBoard));
-        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                "BLBM-2026-0003", "NAC-2026-0001", "N"))
                 .willReturn(Optional.of(post));
 
         var result = service.getPostDetail("BLBM-2026-0003", "NAC-2026-0001", normalUser);
@@ -232,7 +235,25 @@ class BoardPostServiceTest {
         assertThat(result.getNacMngNo()).isEqualTo("NAC-2026-0001");
         assertThat(result.isCanModify()).isTrue();
         assertThat(post.getNacInqNbr()).isZero();
-        verify(postRepository, never()).incrementViewCount(anyString());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 상세 GET은 게시물을 찾을 수 없는 것으로 처리한다")
+    void getPostDetail_wrongBoard_throwsNotFound() {
+        Cblbcm otherBoardPost = post("NAC-2026-0001", "USER001");
+        ReflectionTestUtils.setField(otherBoardPost, "blbMngNo", "BLBM-2026-0099");
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                "BLBM-2026-0003", "NAC-2026-0001", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () -> service.getPostDetail("BLBM-2026-0003", "NAC-2026-0001", normalUser))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("게시물을 찾을 수 없습니다");
+        assertThat(otherBoardPost.getNacInqNbr()).isZero();
     }
 
     @Test
@@ -241,13 +262,35 @@ class BoardPostServiceTest {
         Cblbcm post = post("NAC-2026-0001", "USER001");
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
                 .willReturn(Optional.of(writableBoard()));
-        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+                                "BLBM-2026-0003", "NAC-2026-0001", "N"))
                 .willReturn(Optional.of(post));
-        given(postRepository.incrementViewCount("NAC-2026-0001")).willReturn(1);
 
         service.incrementPostView("BLBM-2026-0003", "NAC-2026-0001", normalUser);
 
-        verify(postRepository, times(1)).incrementViewCount("NAC-2026-0001");
+        assertThat(post.getNacInqNbr()).isOne();
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 조회수 POST는 404로 처리하고 게시물을 변경하지 않는다")
+    void incrementPostView_wrongBoard_throwsNotFoundWithoutMutation() {
+        Cblbcm otherBoardPost = post("NAC-2026-0001", "USER001");
+        ReflectionTestUtils.setField(otherBoardPost, "blbMngNo", "BLBM-2026-0099");
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+                                "BLBM-2026-0003", "NAC-2026-0001", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () ->
+                                service.incrementPostView(
+                                        "BLBM-2026-0003", "NAC-2026-0001", normalUser))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("게시물을 찾을 수 없습니다");
+        assertThat(otherBoardPost.getNacInqNbr()).isZero();
     }
 
     @Test
@@ -255,16 +298,17 @@ class BoardPostServiceTest {
     void incrementPostView_notFound_doesNotMutate() {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
                 .willReturn(Optional.of(writableBoard()));
-        given(postRepository.findByNacMngNoAndDelYn("NAC-NOT-EXIST", "N"))
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+                                "BLBM-2026-0003", "NAC-NOT-EXIST", "N"))
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(
                         () ->
                                 service.incrementPostView(
                                         "BLBM-2026-0003", "NAC-NOT-EXIST", normalUser))
-                .isInstanceOf(CustomGeneralException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("게시물을 찾을 수 없습니다");
-        verify(postRepository, never()).incrementViewCount(anyString());
     }
 
     @Test
@@ -282,7 +326,9 @@ class BoardPostServiceTest {
                         null));
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
                 .willReturn(Optional.of(writableBoard()));
-        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0002", "N"))
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+                                "BLBM-2026-0003", "NAC-2026-0002", "N"))
                 .willReturn(Optional.of(hidden));
 
         assertThatThrownBy(
@@ -291,7 +337,36 @@ class BoardPostServiceTest {
                                         "BLBM-2026-0003", "NAC-2026-0002", normalUser))
                 .isInstanceOf(CustomGeneralException.class)
                 .hasMessageContaining("접근할 권한");
-        verify(postRepository, never()).incrementViewCount(anyString());
+        assertThat(hidden.getNacInqNbr()).isZero();
+    }
+
+    @Test
+    @DisplayName("공개기간 전 게시물 조회수 POST는 DB를 변경하지 않는다")
+    void incrementPostView_beforePublishDate_doesNotMutate() {
+        Cblbcm future = post("NAC-2026-0003", "OTHER");
+        future.update(
+                new Cblbcm.UpdateCommand(
+                        future.getNacNm(),
+                        future.getNacCone(),
+                        future.getAncYn(),
+                        "Y",
+                        future.getBbrC(),
+                        LocalDate.now().plusDays(1),
+                        null));
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard()));
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYnForUpdate(
+                                "BLBM-2026-0003", "NAC-2026-0003", "N"))
+                .willReturn(Optional.of(future));
+
+        assertThatThrownBy(
+                        () ->
+                                service.incrementPostView(
+                                        "BLBM-2026-0003", "NAC-2026-0003", normalUser))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("접근할 권한");
+        assertThat(future.getNacInqNbr()).isZero();
     }
 
     @Test
@@ -512,13 +587,15 @@ class BoardPostServiceTest {
         // Arrange
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
                 .willReturn(java.util.Optional.of(writableBoard()));
-        given(postRepository.findByNacMngNoAndDelYn("NAC-NOT-EXIST", "N"))
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                "BLBM-2026-0003", "NAC-NOT-EXIST", "N"))
                 .willReturn(java.util.Optional.empty());
 
         // Act & Assert
         assertThatThrownBy(
                         () -> service.getPostDetail("BLBM-2026-0003", "NAC-NOT-EXIST", normalUser))
-                .isInstanceOf(CustomGeneralException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("게시물을 찾을 수 없습니다");
     }
 
@@ -750,7 +827,9 @@ class BoardPostServiceTest {
         Cblbcm otherPost = post("NAC-2026-0070", "OTHER");
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
                 .willReturn(java.util.Optional.of(board));
-        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0070", "N"))
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                "BLBM-2026-0003", "NAC-2026-0070", "N"))
                 .willReturn(java.util.Optional.of(otherPost));
 
         // Act

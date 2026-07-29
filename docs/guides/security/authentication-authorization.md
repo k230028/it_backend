@@ -55,7 +55,7 @@ SSO 인증 성공 경계에서는 기존 HTTP 세션 ID를 교체하여 세션 �
 | `POST /api/auth/logout` 및 인증 변경 API | Access/Refresh 쿠키 | 세션/DB 변경 | SameSite=Lax, 명시 Origin, unsafe method | CORS만 단독 방어로 간주하지 않음 |
 | `POST/PUT/PATCH/DELETE /api/**` | Access 쿠키(`/`) | 업무 데이터 변경 | SameSite=Lax, 명시 Origin, 인증·인가 | 교차 사이트 SPA/iframe 도입 시 보강 필요 |
 | `GET /api/boards/{blbMngNo}/posts/{nacMngNo}` | Access 쿠키(`/`) | 없음(순수 상세 조회) | read-only 서비스, 조회수 변경 미호출 회귀 테스트 | GET에 DB 변경을 다시 결합하지 않음 |
-| `POST /api/boards/{blbMngNo}/posts/{nacMngNo}/views` | Access 쿠키(`/`) | 조회수 1 증가 | SameSite=Lax, 명시 Origin, 읽기 권한 검증 | 조회수 실패는 상세 조회와 분리 |
+| `POST /api/boards/{blbMngNo}/posts/{nacMngNo}/views` | Access 쿠키(`/`) | 조회수 1 증가 | SameSite=Lax, 명시 Origin, 게시판-게시물 소속·읽기 권한 검증, 비관적 쓰기 잠금과 managed entity 변경으로 감사 로그 유지 | 조회수 실패는 상세 조회와 분리 |
 | `GET/POST /sso/**` | SSO 상태 `JSESSIONID`; 같은 사이트에서는 `Path=/` Access 쿠키도 전송 가능 | 외부 인증 콜백 | SSO 상태를 JWT와 분리된 서버 검증 세션에 보관, `JSESSIONID` Secure/HttpOnly/SameSite=Lax, CORS `allowCredentials=false` | Access 쿠키를 SSO 검증 상태로 사용하지 않으며 예외를 `/api/**`로 확대 금지 |
 | `GET /api/auth/sso/complete` | 검증된 `JSESSIONID`/SSO 상태 쿠키 | JWT 쿠키 발급 | 검증 사번 1회 소비, origin allowlist, safe next | SSO 완료 전용 예외이며 일반 상태 변경 GET의 선례로 확대 금지 |
 
