@@ -8,10 +8,13 @@ import static org.mockito.BDDMockito.given;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -112,6 +115,56 @@ class EnvironmentValidatorTest {
                 .hasMessageContaining(key);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"true", "on", "yes", "1"})
+    @DisplayName("운영 위험 토글은 Spring이 true로 바인딩하는 모든 표현을 차단")
+    void validate_prodDirectEnoSpringTrueAliases_throws(String rawValue) {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.sso.allow-direct-eno", rawValue);
+
+        assertThat(env.getProperty("app.sso.allow-direct-eno", Boolean.class)).isTrue();
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: app.sso.allow-direct-eno");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"false", "off", "no", "0"})
+    @DisplayName("운영 위험 토글은 Spring이 false로 바인딩하는 모든 표현을 허용")
+    void validate_prodDirectEnoSpringFalseAliases_noException(String rawValue) {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.sso.allow-direct-eno", rawValue);
+
+        assertThat(env.getProperty("app.sso.allow-direct-eno", Boolean.class)).isFalse();
+        assertThatCode(() -> new EnvironmentValidator(env).validate()).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {" ", "invalid"})
+    @DisplayName("운영 위험 토글의 공백·잘못된 값은 fail-closed로 기동 차단")
+    void validate_prodDirectEnoInvalidBoolean_throwsWithoutValue(String rawValue) {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.sso.allow-direct-eno", rawValue);
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: app.sso.allow-direct-eno");
+    }
+
+    @ParameterizedTest(name = "{0} -> {1}")
+    @MethodSource("dangerousSystemEnvironmentProperties")
+    @DisplayName("운영 위험 환경변수의 on 표현은 런타임 Boolean 바인딩과 동일하게 기동 차단")
+    void validate_prodDangerousSystemEnvironmentOn_throws(String environmentKey, String propertyKey)
+            throws IOException {
+        StandardEnvironment env =
+                prodEnvironmentWithSystemEnvironment(Map.of(environmentKey, "on"));
+
+        assertThat(env.getProperty(propertyKey, Boolean.class)).isTrue();
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: " + propertyKey);
+    }
+
     @Test
     @DisplayName("운영 프로파일에서 app.cookie.secure=false면 기동 차단")
     void validate_prodCookieNotSecure_throws() {
@@ -128,6 +181,19 @@ class EnvironmentValidatorTest {
     void validate_prodAllKeysSet_noException() {
         EnvironmentValidator validator = new EnvironmentValidator(prodEnvWithAllRequired());
         assertThatCode(validator::validate).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("active profile이 없어도 default profile이 prod이면 운영 검증 수행")
+    void validate_defaultProdProfile_dangerousToggleThrows() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setActiveProfiles();
+        env.setDefaultProfiles("prod");
+        env.setProperty("app.sso.allow-direct-eno", "true");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: app.sso.allow-direct-eno");
     }
 
     @Test
@@ -374,5 +440,15 @@ class EnvironmentValidatorTest {
         return "springdoc.api-docs.enabled".equals(property)
                 ? "springdoc.swagger-ui.enabled"
                 : "springdoc.api-docs.enabled";
+    }
+
+    private static Stream<Arguments> dangerousSystemEnvironmentProperties() {
+        return Stream.of(
+                Arguments.of("APP_SSO_ALLOW_DIRECT_ENO", "app.sso.allow-direct-eno"),
+                Arguments.of("APP_DEV_USER_SWITCH_ENABLED", "app.dev.user-switch.enabled"),
+                Arguments.of("SSO_MOCK_ENABLED", "sso.mock-enabled"),
+                Arguments.of("APP_AUTH_ALLOW_BEARER_HEADER", "app.auth.allow-bearer-header"),
+                Arguments.of("SPRINGDOC_API_DOCS_ENABLED", "springdoc.api-docs.enabled"),
+                Arguments.of("SPRINGDOC_SWAGGER_UI_ENABLED", "springdoc.swagger-ui.enabled"));
     }
 }

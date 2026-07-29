@@ -2,7 +2,9 @@ package com.kdb.it.common.system;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
+@Lazy(false)
 @RequiredArgsConstructor
 public class EnvironmentValidator {
 
@@ -48,18 +51,9 @@ public class EnvironmentValidator {
         }
     }
 
-    /** 활성 프로파일에 {@code prod}가 포함되어 있으면 운영 검증을 수행합니다. */
+    /** 활성 또는 기본 프로파일에 {@code prod}가 적용되면 운영 검증을 수행합니다. */
     private boolean isProdProfile() {
-        String[] activeProfiles = environment.getActiveProfiles();
-        if (activeProfiles == null) {
-            return false;
-        }
-        for (String profile : activeProfiles) {
-            if ("prod".equalsIgnoreCase(profile)) {
-                return true;
-            }
-        }
-        return false;
+        return environment.acceptsProfiles(Profiles.of("prod"));
     }
 
     /**
@@ -78,7 +72,7 @@ public class EnvironmentValidator {
     private void validateProdKeys() {
         checkRequired("gemini.api.key", "GEMINI_API_KEY");
 
-        boolean eaiEnabled = Boolean.parseBoolean(environment.getProperty("eai.enabled", "false"));
+        boolean eaiEnabled = booleanProperty("eai.enabled", false);
         if (eaiEnabled) {
             checkRequired("eai.url", "EAI_URL");
         }
@@ -95,29 +89,13 @@ public class EnvironmentValidator {
                             + ")");
         }
 
-        boolean allowDirectEno =
-                Boolean.parseBoolean(environment.getProperty("app.sso.allow-direct-eno", "false"));
-        if (allowDirectEno) {
-            throw new IllegalStateException(
-                    "운영 보안 위반: app.sso.allow-direct-eno=true 금지 — SSO 우회 로그인 경로입니다.");
-        }
-
-        boolean devUserSwitch =
-                Boolean.parseBoolean(
-                        environment.getProperty("app.dev.user-switch.enabled", "false"));
-        if (devUserSwitch) {
-            throw new IllegalStateException(
-                    "운영 보안 위반: app.dev.user-switch.enabled=true 금지 — 비밀번호 없이 임의 사번 로그인 경로입니다.");
-        }
-
-        rejectTrue("sso.mock-enabled", "모의 SSO 로그인 경로입니다.");
-        rejectTrue("app.auth.allow-bearer-header", "Bearer 헤더 인증 폴백입니다.");
+        rejectTrue("app.sso.allow-direct-eno");
+        rejectTrue("app.dev.user-switch.enabled");
+        rejectTrue("sso.mock-enabled");
+        rejectTrue("app.auth.allow-bearer-header");
         requireFalse("springdoc.api-docs.enabled");
         requireFalse("springdoc.swagger-ui.enabled");
-        if (!Boolean.parseBoolean(environment.getProperty("app.cookie.secure", "false"))) {
-            throw new IllegalStateException(
-                    "운영 보안 위반: app.cookie.secure가 true가 아님 — 인증 쿠키에 Secure가 필요합니다.");
-        }
+        requireTrue("app.cookie.secure");
 
         String frontendUrl = environment.getProperty("app.frontend-url");
         if (frontendUrl == null || frontendUrl.isBlank()) {
@@ -126,16 +104,45 @@ public class EnvironmentValidator {
         }
     }
 
-    private void rejectTrue(String key, String reason) {
-        if (Boolean.parseBoolean(environment.getProperty(key, "false"))) {
-            throw new IllegalStateException("운영 보안 위반: " + key + "=true 금지 — " + reason);
+    private void rejectTrue(String key) {
+        if (booleanProperty(key, false)) {
+            throw securityViolation(key);
         }
     }
 
     private void requireFalse(String key) {
-        if (!"false".equalsIgnoreCase(environment.getProperty(key))) {
-            throw new IllegalStateException("운영 보안 위반: " + key);
+        if (environment.getProperty(key) == null || booleanProperty(key, false)) {
+            throw securityViolation(key);
         }
+    }
+
+    private void requireTrue(String key) {
+        if (environment.getProperty(key) == null || !booleanProperty(key, false)) {
+            throw securityViolation(key);
+        }
+    }
+
+    private boolean booleanProperty(String key, boolean defaultValue) {
+        String rawValue = environment.getProperty(key);
+        if (rawValue == null) {
+            return defaultValue;
+        }
+        if (rawValue.isBlank()) {
+            throw securityViolation(key);
+        }
+        try {
+            Boolean value = environment.getProperty(key, Boolean.class);
+            if (value == null) {
+                throw securityViolation(key);
+            }
+            return value;
+        } catch (RuntimeException conversionFailure) {
+            throw securityViolation(key);
+        }
+    }
+
+    private IllegalStateException securityViolation(String key) {
+        return new IllegalStateException("운영 보안 위반: " + key);
     }
 
     private void checkRequired(String propertyKey, String envVarName) {
