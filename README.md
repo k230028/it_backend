@@ -32,6 +32,8 @@ $env:SPRING_PROFILES_ACTIVE = "local-ext"
 - Health: http://localhost:28080/actuator/health
 - Oracle: `ITPAPP@127.0.0.1:11521/XEPDB1`, CURRENT_SCHEMA=`ITPOWN`
 
+Swagger UI와 API 명세는 `local-ext`·`local-int`·`dev`에서만 활성화하며, `prod`에서는 둘 다 비활성화합니다.
+
 `local-ext`는 외부망 개발용 프로파일로 모의 SSO, 로컬 HTTP 쿠키, Swagger의 Bearer 인증 폴백과 Flyway 자동 적용을 활성화합니다. 내부 ESSO에 연결할 수 있는 환경에서는 `local-int`를 사용합니다. 두 로컬 프로파일은 개발 전용 DB·JWT 기본값을 제공하며, 환경변수를 지정하면 해당 값이 우선합니다.
 
 | 프로파일    | 용도             | SSO         | Flyway | 쿠키 / Bearer 헤더       |

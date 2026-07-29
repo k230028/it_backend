@@ -58,6 +58,12 @@ class SecurityConfigTest {
     }
 
     @Test
+    @DisplayName("기본값에서는 비인증 /v3/api-docs 가 공개되어 200")
+    void openApiDocs_unauthenticated_returns200WhenEnabled() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("비인증 /actuator/metrics 는 인증이 필요해 401")
     void metrics_unauthenticated_returns401() throws Exception {
         mockMvc.perform(get("/actuator/metrics")).andExpect(status().isUnauthorized());
@@ -107,6 +113,7 @@ class SecurityConfigTest {
     @EnableAutoConfiguration
     @Import({
         SecurityConfig.class,
+        SwaggerConfig.class,
         JwtAuthenticationFilter.class,
         JwtUtil.class,
         AuditFailureRecorder.class

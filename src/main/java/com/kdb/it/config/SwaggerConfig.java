@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -20,9 +21,13 @@ import org.springframework.context.annotation.Configuration;
  *   <li>API 명세 JSON: {@code http://localhost:28080/v3/api-docs}
  * </ul>
  *
- * <p>인증 없이 접근 가능 (SecurityConfig에서 permitAll 처리됨)
+ * <p>OpenAPI 문서가 활성화된 프로파일에서만 등록하며, 공개 여부는 {@link SecurityConfig}가 함께 제어합니다.
  */
 @Configuration // Spring 설정 클래스로 등록
+@ConditionalOnProperty(
+        name = "springdoc.api-docs.enabled",
+        havingValue = "true",
+        matchIfMissing = true)
 public class SwaggerConfig {
 
     /**

@@ -46,8 +46,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * <ul>
  *   <li>{@code POST /api/auth/login}: 로그인
  *   <li>{@code POST /api/auth/refresh}: 토큰 갱신
- *   <li>{@code /swagger-ui/**}: Swagger UI
- *   <li>{@code /v3/api-docs/**}: OpenAPI 명세
+ *   <li>OpenAPI가 활성화된 프로파일의 {@code /swagger-ui/**}, {@code /v3/api-docs/**}: API 문서
  * </ul>
  */
 @Configuration
@@ -57,6 +56,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
+    private static final String[] OPEN_API_PATHS = {
+        "/swagger-ui/**",
+        "/swagger-resources/**",
+        "/webjars/**",
+        "/swagger-ui.html",
+        "/v3/api-docs",
+        "/v3/api-docs/**",
+        "/v3/api-docs.yaml"
+    };
 
     /** JWT 인증 처리 필터 (매 요청마다 JWT 토큰 검증) */
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -68,6 +77,10 @@ public class SecurityConfig {
      */
     @Value("${cors.allowed-origins:}")
     private String allowedOrigins;
+
+    /** OpenAPI 문서 공개 여부 (미설정 시 springdoc 기본값인 활성 상태) */
+    @Value("${springdoc.api-docs.enabled:true}")
+    private boolean apiDocsEnabled;
 
     /**
      * Spring Security 필터 체인 설정
@@ -122,44 +135,45 @@ public class SecurityConfig {
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // URL별 접근 권한 설정
                 .authorizeHttpRequests(
-                        auth ->
-                                auth
-                                        // 인증 없이 접근 가능한 엔드포인트
-                                        .requestMatchers(
-                                                "/api/auth/login",
-                                                "/api/auth/refresh",
-                                                "/swagger-ui/**",
-                                                "/v3/api-docs/**",
-                                                "/swagger-resources/**",
-                                                "/webjars/**",
-                                                "/swagger-ui.html",
-                                                "/error",
-                                                // 브라우저 기본 요청 — 인증 불필요(인증 실패 WARN 로그 노이즈 제거)
-                                                "/favicon.ico",
-                                                // SSO 흐름 — business/checkauth/loginProc/logout
-                                                // (SsoController)
-                                                "/sso/**",
-                                                // SSO 브리지 — loginProc에서 리다이렉트되는 JWT 발급 엔드포인트
-                                                "/api/auth/sso/complete")
-                                        .permitAll()
-                                        // 관리자 전용 엔드포인트 (ITPAD001만 접근 가능)
-                                        .requestMatchers("/api/admin/**")
-                                        .hasRole("ADMIN")
-                                        // 회원가입 — 관리자만 신규 계정 생성 가능 (임직원 포털 특성상 자유 가입 금지)
-                                        .requestMatchers("/api/auth/signup")
-                                        .hasRole("ADMIN")
-                                        // 정보기술부문계획 — 관리자 전용 (컨트롤러 실제 경로 /api/plans 와 정합)
-                                        .requestMatchers("/api/plans/**")
-                                        .hasRole("ADMIN")
-                                        // Actuator: health 는 공개(로드밸런서/모니터링 헬스체크),
-                                        // 나머지(metrics 등)는 관리자 전용 — 감사 실패 메트릭 보호 (ERR-06)
-                                        .requestMatchers("/actuator/health")
-                                        .permitAll()
-                                        .requestMatchers("/actuator/**")
-                                        .hasRole("ADMIN")
-                                        // 나머지는 인증 필요 (유효한 JWT 토큰 필수)
-                                        .anyRequest()
-                                        .authenticated())
+                        auth -> {
+                            auth
+                                    // 인증 없이 접근 가능한 엔드포인트
+                                    .requestMatchers(
+                                            "/api/auth/login",
+                                            "/api/auth/refresh",
+                                            "/error",
+                                            // 브라우저 기본 요청 — 인증 불필요(인증 실패 WARN 로그 노이즈 제거)
+                                            "/favicon.ico",
+                                            // SSO 흐름 — business/checkauth/loginProc/logout
+                                            // (SsoController)
+                                            "/sso/**",
+                                            // SSO 브리지 — loginProc에서 리다이렉트되는 JWT 발급 엔드포인트
+                                            "/api/auth/sso/complete")
+                                    .permitAll();
+                            // API 문서는 활성 프로파일에서만 익명 접근을 허용한다.
+                            if (apiDocsEnabled) {
+                                auth.requestMatchers(OPEN_API_PATHS).permitAll();
+                            }
+                            auth
+                                    // 관리자 전용 엔드포인트 (ITPAD001만 접근 가능)
+                                    .requestMatchers("/api/admin/**")
+                                    .hasRole("ADMIN")
+                                    // 회원가입 — 관리자만 신규 계정 생성 가능 (임직원 포털 특성상 자유 가입 금지)
+                                    .requestMatchers("/api/auth/signup")
+                                    .hasRole("ADMIN")
+                                    // 정보기술부문계획 — 관리자 전용 (컨트롤러 실제 경로 /api/plans 와 정합)
+                                    .requestMatchers("/api/plans/**")
+                                    .hasRole("ADMIN")
+                                    // Actuator: health 는 공개(로드밸런서/모니터링 헬스체크),
+                                    // 나머지(metrics 등)는 관리자 전용 — 감사 실패 메트릭 보호 (ERR-06)
+                                    .requestMatchers("/actuator/health")
+                                    .permitAll()
+                                    .requestMatchers("/actuator/**")
+                                    .hasRole("ADMIN")
+                                    // 나머지는 인증 필요 (유효한 JWT 토큰 필수)
+                                    .anyRequest()
+                                    .authenticated();
+                        })
                 // 인증/접근 예외 처리 핸들러 설정
                 .exceptionHandling(
                         exception ->
