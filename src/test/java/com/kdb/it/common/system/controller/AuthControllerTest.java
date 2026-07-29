@@ -35,7 +35,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -531,6 +533,7 @@ class AuthControllerTest {
     @DisplayName("POST /api/auth/logout - 쿠키 삭제 헤더(Set-Cookie)가 응답에 포함된다")
     void logout_쿠키삭제헤더_존재() throws Exception {
         // given — 삭제용 만료 쿠키 스텁
+        MockHttpSession session = new MockHttpSession();
         ResponseCookie deleteAccess =
                 ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "").maxAge(0).path("/").build();
         ResponseCookie deleteRefresh =
@@ -544,6 +547,7 @@ class AuthControllerTest {
         // when & then — IP/User-Agent를 함께 제공해 logout 인자(ipAddress·userAgent) null을 회피
         mockMvc.perform(
                         post("/api/auth/logout")
+                                .session(session)
                                 .header("User-Agent", "TestAgent")
                                 .with(
                                         request -> {
@@ -556,6 +560,23 @@ class AuthControllerTest {
 
         // authService.logout 이 인증 사용자(20001)에 대해 호출되었는지 검증
         verify(authService).logout(eq("20001"), eq("198.51.100.2"), eq("TestAgent"));
+        assertThat(session.isInvalid()).isTrue();
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/logout - 이미 무효화된 세션도 예외 없이 처리한다")
+    void logout_이미무효화된세션_안전처리() {
+        AuthController controller = new AuthController(authService, cookieUtil, "");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = (MockHttpSession) request.getSession(true);
+        session.invalidate();
+        SecurityContextHolder.clearContext();
+        stubDeleteCookies();
+
+        ResponseEntity<String> response = controller.logout(request);
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).isEqualTo("로그아웃 성공");
     }
 
     /**

@@ -81,6 +81,16 @@ class SecurityConfigCorsTest {
     }
 
     @Test
+    @DisplayName("/sso/logout POST는 SSO CORS 경계를 사용하되 교차 출처 자격증명은 허용하지 않는다")
+    void ssoLogout_postAllowedWithoutCredentials() {
+        CorsConfiguration cfg = configFor("/sso/logout");
+
+        assertThat(cfg).isNotNull();
+        assertThat(cfg.getAllowedMethods()).contains("POST");
+        assertThat(cfg.getAllowCredentials()).isFalse();
+    }
+
+    @Test
     @DisplayName("일반 API 경로는 allowlist origin만 허용하고 그 외 origin은 거부한다")
     void apiPath_restrictsToAllowlist() {
         CorsConfiguration cfg = configFor("/api/projects");

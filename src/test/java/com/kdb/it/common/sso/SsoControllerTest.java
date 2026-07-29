@@ -27,6 +27,12 @@ import jakarta.servlet.http.Cookie;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -305,6 +311,112 @@ class SsoControllerTest {
 
         assertThat(session.getId()).isNotEqualTo(oldId);
         assertThat(session.getAttribute("ssoVerifiedEno")).isEqualTo("K150024");
+    }
+
+    @Test
+    @DisplayName("SSO 세션 결과는 loginProc에서 1회 소비되고 complete 후 재사용할 수 없다")
+    void sso세션결과_첫완료후loginProc재실행_토큰재발급차단() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = (MockHttpSession) request.getSession(true);
+        session.setAttribute("resultCode", "000000");
+        session.setAttribute("resultData", "K150024");
+        session.setAttribute("secureSessionId", "secure-session");
+        stubSsoTokenIssue();
+
+        controller.loginProc(new MockHttpServletResponse(), request);
+
+        assertThat(session.getAttribute("resultCode")).isNull();
+        assertThat(session.getAttribute("resultData")).isNull();
+        assertThat(session.getAttribute("secureSessionId")).isNull();
+        controller.complete(null, null, null, request, new MockHttpServletResponse());
+        assertThat(session.isInvalid()).isTrue();
+
+        controller.loginProc(new MockHttpServletResponse(), request);
+        controller.complete(null, null, null, request, new MockHttpServletResponse());
+
+        verify(authService).issueSsoTokens("K150024");
+    }
+
+    @Test
+    @DisplayName("SSO complete는 검증 실패 시에도 세션을 무효화한다")
+    void complete_검증실패_세션무효화() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = (MockHttpSession) request.getSession(true);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(null, "/info/projects", null, request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/login?error=sso");
+        assertThat(session.isInvalid()).isTrue();
+        verify(authService, never()).issueSsoTokens(anyString());
+    }
+
+    @Test
+    @DisplayName("동시 loginProc는 같은 SSO 결과를 한 요청만 소비한다")
+    void loginProc_동시호출_SSO결과한번만소비() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("resultCode", "000000");
+        session.setAttribute("resultData", "K150024");
+        session.setAttribute("secureSessionId", "secure-session");
+        AtomicInteger sessionIdChanges = new AtomicInteger();
+        CountingSessionIdRequest firstRequest =
+                new CountingSessionIdRequest(session, sessionIdChanges);
+        CountingSessionIdRequest secondRequest =
+                new CountingSessionIdRequest(session, sessionIdChanges);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            Future<?> first =
+                    executor.submit(
+                            () -> {
+                                start.await();
+                                controller.loginProc(new MockHttpServletResponse(), firstRequest);
+                                return null;
+                            });
+            Future<?> second =
+                    executor.submit(
+                            () -> {
+                                start.await();
+                                controller.loginProc(new MockHttpServletResponse(), secondRequest);
+                                return null;
+                            });
+
+            start.countDown();
+            first.get(10, TimeUnit.SECONDS);
+            second.get(10, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertThat(sessionIdChanges).hasValue(1);
+        assertThat(session.getAttribute("resultCode")).isNull();
+        assertThat(session.getAttribute("resultData")).isNull();
+        assertThat(session.getAttribute("secureSessionId")).isNull();
+        assertThat(session.getAttribute("ssoVerifiedEno")).isEqualTo("K150024");
+    }
+
+    @Test
+    @DisplayName("loginProc는 실패하거나 불완전한 SSO 결과 속성도 모두 제거한다")
+    void loginProc_실패결과_민감세션속성정리() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("resultCode", "999999");
+        session.setAttribute("resultData", "K150024");
+        session.setAttribute("secureSessionId", "secure-session");
+
+        mockMvc.perform(get("/sso/loginProc").session(session))
+                .andExpect(status().is3xxRedirection());
+
+        assertThat(session.getAttribute("resultCode")).isNull();
+        assertThat(session.getAttribute("resultData")).isNull();
+        assertThat(session.getAttribute("secureSessionId")).isNull();
+        assertThat(session.getAttribute("ssoVerifiedEno")).isNull();
     }
 
     @Test
@@ -1283,6 +1395,32 @@ class SsoControllerTest {
                 .isEqualTo("https://dintesso.kdb.co.kr:20443/logout.html");
     }
 
+    @Test
+    @DisplayName("GET /sso/logout은 세션을 변경하지 않고 405를 반환한다")
+    void ssoLogout_GET_세션무변경_405() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("ssoVerifiedEno", "K150024");
+
+        mockMvc.perform(get("/sso/logout").session(session))
+                .andExpect(status().isMethodNotAllowed());
+
+        assertThat(session.getAttribute("ssoVerifiedEno")).isEqualTo("K150024");
+        assertThat(session.isInvalid()).isFalse();
+    }
+
+    @Test
+    @DisplayName("POST /sso/logout은 세션을 무효화하고 로그인 화면으로 이동한다")
+    void ssoLogout_POST_세션무효화_로그인화면이동() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("ssoVerifiedEno", "K150024");
+
+        mockMvc.perform(post("/sso/logout").session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:3000/login"));
+
+        assertThat(session.isInvalid()).isTrue();
+    }
+
     // ──────────────────────────────────────────────────────────────────────────────
     // business: 누락 분기 커버 (null/blank next·origin, origin 허용 여부)
     // ──────────────────────────────────────────────────────────────────────────────
@@ -1633,16 +1771,16 @@ class SsoControllerTest {
         given(cookieUtil.createUserInfoCookie(loginResponse))
                 .willReturn(ResponseCookie.from("it-portal-user", "u").build());
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.getSession(true).setAttribute("ssoVerifiedEno", "K150024");
+        MockHttpSession session = (MockHttpSession) request.getSession(true);
+        session.setAttribute("ssoVerifiedEno", "K150024");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // Act
         controller.complete(null, "/dashboard", null, request, response);
 
-        // Assert — 사번이 사용된 뒤 세션에서 제거됐는지 확인 (재사용 방지)
+        // Assert — 사번이 사용된 뒤 세션 전체가 무효화됐는지 확인 (재사용 방지)
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/dashboard");
-        assertThat(request.getSession(false)).isNotNull();
-        assertThat(request.getSession(false).getAttribute("ssoVerifiedEno")).isNull();
+        assertThat(session.isInvalid()).isTrue();
     }
 
     // ──────────────────────────────────────────────────────────────────────────────
@@ -1864,5 +2002,21 @@ class SsoControllerTest {
 
         // Assert — browserBaseUrl blank → frontendUrl/login으로 이동
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/login");
+    }
+
+    private static final class CountingSessionIdRequest extends MockHttpServletRequest {
+
+        private final AtomicInteger sessionIdChanges;
+
+        private CountingSessionIdRequest(MockHttpSession session, AtomicInteger sessionIdChanges) {
+            setSession(session);
+            this.sessionIdChanges = sessionIdChanges;
+        }
+
+        @Override
+        public String changeSessionId() {
+            sessionIdChanges.incrementAndGet();
+            return super.changeSessionId();
+        }
     }
 }

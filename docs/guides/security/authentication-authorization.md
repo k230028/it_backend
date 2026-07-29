@@ -52,12 +52,13 @@ SSO 인증 성공 경계에서는 기존 HTTP 세션 ID를 교체하여 세션 �
 | --- | --- | --- | --- | --- |
 | `POST /api/auth/login` | 기존 JWT 불필요 | Access/Refresh 발급 | 명시 CORS, 로그인 검증·잠금 | 로그인 CSRF는 공격자 계정 세션 주입 관점에서 별도 관찰 |
 | `POST /api/auth/refresh` | Refresh 쿠키(`/api/auth`) | 토큰 회전 | SameSite=Lax, 명시 Origin, POST | SameSite 완화 시 최우선 CSRF 토큰 대상 |
-| `POST /api/auth/logout` 및 인증 변경 API | Access/Refresh 쿠키 | 세션/DB 변경 | SameSite=Lax, 명시 Origin, unsafe method | CORS만 단독 방어로 간주하지 않음 |
+| `POST /api/auth/logout` 및 인증 변경 API | Access/Refresh 쿠키와 서버 세션 | 서버 세션 무효화/DB 변경 | SameSite=Lax, 명시 Origin, unsafe method | CORS만 단독 방어로 간주하지 않음 |
 | `POST/PUT/PATCH/DELETE /api/**` | Access 쿠키(`/`) | 업무 데이터 변경 | SameSite=Lax, 명시 Origin, 인증·인가 | 교차 사이트 SPA/iframe 도입 시 보강 필요 |
 | `GET /api/boards/{blbMngNo}/posts/{nacMngNo}` | Access 쿠키(`/`) | 없음(순수 상세 조회) | read-only 서비스, 조회수 변경 미호출 회귀 테스트 | GET에 DB 변경을 다시 결합하지 않음 |
 | `POST /api/boards/{blbMngNo}/posts/{nacMngNo}/views` | Access 쿠키(`/`) | 조회수 1 증가 | SameSite=Lax, 명시 Origin, 게시판-게시물 소속·읽기 권한 검증, 비관적 쓰기 잠금과 managed entity 변경으로 감사 로그 유지 | 조회수 실패는 상세 조회와 분리 |
-| `GET/POST /sso/**` | SSO 상태 `JSESSIONID`; 같은 사이트에서는 `Path=/` Access 쿠키도 전송 가능 | 외부 인증 콜백 | SSO 상태를 JWT와 분리된 서버 검증 세션에 보관, `JSESSIONID` Secure/HttpOnly/SameSite=Lax, CORS `allowCredentials=false` | Access 쿠키를 SSO 검증 상태로 사용하지 않으며 예외를 `/api/**`로 확대 금지 |
-| `GET /api/auth/sso/complete` | 검증된 `JSESSIONID`/SSO 상태 쿠키 | JWT 쿠키 발급 | 검증 사번 1회 소비, origin allowlist, safe next | SSO 완료 전용 예외이며 일반 상태 변경 GET의 선례로 확대 금지 |
+| `GET/POST /sso/{business,checkauth,loginProc,agentProc}` | SSO 상태 `JSESSIONID`; 같은 사이트에서는 `Path=/` Access 쿠키도 전송 가능 | 외부 인증 콜백 | SSO 상태를 JWT와 분리된 서버 검증 세션에 보관, Agent 결과 원자적 1회 소비, `JSESSIONID` Secure/HttpOnly/SameSite=Lax, CORS `allowCredentials=false` | Access 쿠키를 SSO 검증 상태로 사용하지 않으며 예외를 `/api/**`로 확대 금지 |
+| `POST /sso/logout` | SSO 상태 `JSESSIONID` | 서버 세션 무효화 | POST 전용, SameSite=Lax, SSO CORS `allowCredentials=false` | `GET /sso/logout`은 405이며 세션을 변경하지 않음 |
+| `GET /api/auth/sso/complete` | 검증된 `JSESSIONID`/SSO 상태 쿠키 | JWT 쿠키 발급 후 SSO 세션 무효화 | 검증 사번 원자적 1회 소비, origin allowlist, safe next, 성공·실패 세션 종료 | SSO 완료 전용 예외이며 일반 상태 변경 GET의 선례로 확대 금지 |
 
 ### CSRF 보강 트리거와 목표 구현
 

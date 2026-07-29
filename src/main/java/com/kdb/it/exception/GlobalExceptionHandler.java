@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -164,6 +165,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleNoResourceFound(NoResourceFoundException e) {
         log.debug("정적 리소스 미존재: {}", e.getResourcePath());
         return buildErrorResponse(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다.");
+    }
+
+    /**
+     * 지원하지 않는 HTTP 메서드 요청을 처리합니다.
+     *
+     * @param e 지원하지 않는 HTTP 메서드 예외
+     * @return 405 응답
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException e) {
+        log.debug("지원하지 않는 HTTP 메서드: {}", e.getMethod());
+        return buildErrorResponse(HttpStatus.METHOD_NOT_ALLOWED, "지원하지 않는 HTTP 메서드입니다.");
     }
 
     /**

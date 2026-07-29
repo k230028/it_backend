@@ -20,6 +20,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -41,7 +42,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  *   <li>{@code /sso/loginProc} / {@code /sso/agentProc}: SSO 세션 결과 검증 후 JWT 발급 단계로 연결 ({@code
  *       agentProc}는 레퍼런스 SA-WEB 완료 페이지명과 정합되는 별칭).
  *   <li>{@code /api/auth/sso/complete}: JWT 발급 및 프론트엔드 복귀
- *   <li>{@code /sso/logout}: 세션 무효화 후 ESSO 통합 로그아웃 페이지로 이동(실연동 시)
+ *   <li>{@code POST /sso/logout}: 세션 무효화 후 ESSO 통합 로그아웃 페이지로 이동(실연동 시)
  * </ol>
  */
 @Controller
@@ -233,24 +234,17 @@ public class SsoController {
     /**
      * SSO 통합 로그아웃입니다.
      *
-     * <p>업무 세션을 무효화한 뒤, 실연동 모드에서는 ESSO 통합 로그아웃 페이지로 이동합니다. 모의 모드이거나 ESSO URL이 비어 있으면 프론트 로그인 화면으로
-     * 복귀합니다. JWT 쿠키 제거는 별도의 {@code /api/auth/logout}에서 수행합니다.
+     * <p>POST 요청에서만 업무 세션을 무효화한 뒤, 실연동 모드에서는 ESSO 통합 로그아웃 페이지로 이동합니다. 모의 모드이거나 ESSO URL이 비어 있으면 프론트
+     * 로그인 화면으로 복귀합니다. JWT 쿠키 제거는 별도의 {@code /api/auth/logout}에서 수행합니다.
      *
      * @param request 세션 무효화를 위한 요청
      * @param response 리다이렉트 응답
      * @throws IOException 리다이렉트 응답 작성 실패 시
      */
-    @GetMapping("/sso/logout")
+    @PostMapping("/sso/logout")
     public void ssoLogout(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            try {
-                session.invalidate();
-            } catch (IllegalStateException ignored) {
-                // 이미 무효화된 세션 — 무시
-            }
-        }
+        invalidateSession(request);
 
         if (ssoProperties.mockEnabled() || ssoProperties.browserBaseUrl().isBlank()) {
             response.sendRedirect(frontendUrl + "/login");
@@ -310,22 +304,38 @@ public class SsoController {
     private void proceedToComplete(
             HttpServletRequest request, HttpServletResponse response, String stage)
             throws IOException {
-        HttpSession session = request.getSession(false);
+        HttpSession session = getActiveSession(request);
         if (session == null) {
             log.info("SSO {} - 세션 없음, complete 기본 경로로 이동", stage);
             response.sendRedirect(buildCompleteRedirect(null, null));
             return;
         }
 
-        String resultCode = readSessionString(session, SSO_RESULT_CODE_SESSION_KEY);
-        String resultData = readSessionString(session, SSO_RESULT_DATA_SESSION_KEY);
-        String next = readSessionString(session, SSO_NEXT_SESSION_KEY);
-        String origin = readSessionString(session, SSO_ORIGIN_SESSION_KEY);
-
-        boolean verified = SSO_SUCCESS_CODE.equals(resultCode) && !resultData.isBlank();
-        if (verified) {
-            request.changeSessionId();
-            session.setAttribute(SSO_VERIFIED_ENO_SESSION_KEY, resultData);
+        String resultCode;
+        String resultData;
+        String next;
+        String origin;
+        boolean verified;
+        try {
+            synchronized (session) {
+                resultCode = readSessionString(session, SSO_RESULT_CODE_SESSION_KEY);
+                resultData = readSessionString(session, SSO_RESULT_DATA_SESSION_KEY);
+                next = readSessionString(session, SSO_NEXT_SESSION_KEY);
+                origin = readSessionString(session, SSO_ORIGIN_SESSION_KEY);
+                verified = SSO_SUCCESS_CODE.equals(resultCode) && !resultData.isBlank();
+                try {
+                    if (verified) {
+                        request.changeSessionId();
+                        session.setAttribute(SSO_VERIFIED_ENO_SESSION_KEY, resultData);
+                    }
+                } finally {
+                    clearSsoResultState(session);
+                }
+            }
+        } catch (IllegalStateException ignored) {
+            log.info("SSO {} - 유효한 세션 없음, complete 기본 경로로 이동", stage);
+            response.sendRedirect(buildCompleteRedirect(null, null));
+            return;
         }
 
         log.debug(
@@ -421,6 +431,8 @@ public class SsoController {
                         SsoLogSanitizer.masked(eno),
                         SsoLogSanitizer.exceptionType(redirectEx));
             }
+        } finally {
+            invalidateSession(request);
         }
     }
 
@@ -603,14 +615,20 @@ public class SsoController {
      * @throws IllegalStateException 유효한 SSO 세션이 없고 직접 전달도 허용되지 않는 경우
      */
     private String resolveVerifiedEno(HttpServletRequest request, String directEno) {
-        HttpSession session = request.getSession(false);
+        HttpSession session = getActiveSession(request);
         if (session != null) {
-            Object sessionEno = session.getAttribute(SSO_VERIFIED_ENO_SESSION_KEY);
-            session.removeAttribute(SSO_VERIFIED_ENO_SESSION_KEY);
-            session.removeAttribute(SSO_NEXT_SESSION_KEY);
-            session.removeAttribute(SSO_ORIGIN_SESSION_KEY);
-            if (sessionEno != null && !sessionEno.toString().isBlank()) {
-                return sessionEno.toString();
+            try {
+                synchronized (session) {
+                    Object sessionEno = session.getAttribute(SSO_VERIFIED_ENO_SESSION_KEY);
+                    session.removeAttribute(SSO_VERIFIED_ENO_SESSION_KEY);
+                    session.removeAttribute(SSO_NEXT_SESSION_KEY);
+                    session.removeAttribute(SSO_ORIGIN_SESSION_KEY);
+                    if (sessionEno != null && !sessionEno.toString().isBlank()) {
+                        return sessionEno.toString();
+                    }
+                }
+            } catch (IllegalStateException ignored) {
+                // 다른 요청이 먼저 세션을 무효화한 경우 직접 전달 허용 여부를 이어서 검사한다.
             }
         }
 
@@ -619,5 +637,41 @@ public class SsoController {
         }
 
         throw new IllegalStateException("SSO 인증 세션이 없습니다.");
+    }
+
+    /** SSO Agent가 남긴 인증 결과와 세션 식별자를 한 번의 소비 시도 후 제거합니다. */
+    private static void clearSsoResultState(HttpSession session) {
+        session.removeAttribute(SSO_RESULT_CODE_SESSION_KEY);
+        session.removeAttribute(SSO_RESULT_DATA_SESSION_KEY);
+        session.removeAttribute(SSO_SECURE_SESSION_ID_KEY);
+    }
+
+    /** 이미 무효화된 세션을 제외하고 현재 요청의 활성 세션만 반환합니다. */
+    private static HttpSession getActiveSession(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            return null;
+        }
+        try {
+            session.getCreationTime();
+            return session;
+        } catch (IllegalStateException ignored) {
+            return null;
+        }
+    }
+
+    /** 현재 요청의 세션을 새로 만들지 않고 안전하게 무효화합니다. */
+    private static void invalidateSession(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            return;
+        }
+        try {
+            synchronized (session) {
+                session.invalidate();
+            }
+        } catch (IllegalStateException ignored) {
+            // 이미 무효화된 세션은 추가 처리가 필요하지 않다.
+        }
     }
 }

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -239,13 +240,14 @@ public class AuthController {
     /**
      * 로그아웃
      *
-     * <p>현재 로그인한 사용자의 Refresh Token을 DB에서 삭제하여 무효화하고, Access Token과 Refresh Token 쿠키를 즉시 만료시킵니다.
+     * <p>현재 로그인한 사용자의 Refresh Token을 DB에서 삭제하여 무효화하고, 서버 세션을 종료한 뒤 Access Token과 Refresh Token 쿠키를
+     * 즉시 만료시킵니다.
      *
      * @param httpRequest HTTP 요청 객체 (IP, User-Agent 추출 및 이력 기록용)
      * @return HTTP 200 + Set-Cookie(삭제) + "로그아웃 성공"
      */
     @PostMapping("/logout")
-    @Operation(summary = "로그아웃", description = "쿠키의 JWT 토큰을 삭제하고 Refresh Token을 무효화합니다.")
+    @Operation(summary = "로그아웃", description = "쿠키의 JWT 토큰과 서버 세션을 삭제하고 Refresh Token을 무효화합니다.")
     public ResponseEntity<String> logout(HttpServletRequest httpRequest) {
         String refreshToken = extractCookieValue(httpRequest, CookieUtil.REFRESH_TOKEN_COOKIE);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -258,10 +260,15 @@ public class AuthController {
         String ipAddress = getClientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
 
-        if (refreshToken != null && !refreshToken.isBlank()) {
-            authService.logoutByRefreshToken(refreshToken, authenticatedEno, ipAddress, userAgent);
-        } else if (authenticatedEno != null) {
-            authService.logout(authenticatedEno, ipAddress, userAgent);
+        try {
+            if (refreshToken != null && !refreshToken.isBlank()) {
+                authService.logoutByRefreshToken(
+                        refreshToken, authenticatedEno, ipAddress, userAgent);
+            } else if (authenticatedEno != null) {
+                authService.logout(authenticatedEno, ipAddress, userAgent);
+            }
+        } finally {
+            invalidateSession(httpRequest);
         }
 
         // Access Token, Refresh Token 쿠키를 즉시 만료시켜 삭제
@@ -272,6 +279,21 @@ public class AuthController {
                 .header(HttpHeaders.SET_COOKIE, deleteAccess.toString())
                 .header(HttpHeaders.SET_COOKIE, deleteRefresh.toString())
                 .body("로그아웃 성공");
+    }
+
+    /** 현재 요청에 연결된 서버 세션을 새로 만들지 않고 안전하게 무효화합니다. */
+    private static void invalidateSession(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            return;
+        }
+        try {
+            synchronized (session) {
+                session.invalidate();
+            }
+        } catch (IllegalStateException ignored) {
+            // 이미 무효화된 세션은 추가 처리가 필요하지 않다.
+        }
     }
 
     /**
