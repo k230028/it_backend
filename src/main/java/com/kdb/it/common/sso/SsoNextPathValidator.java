@@ -12,8 +12,9 @@ final class SsoNextPathValidator {
             "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
     private static final Pattern FORBIDDEN_INPUT =
             Pattern.compile(
-                    "[\\x00-\\x20\\x7F]|%(?![0-9A-Fa-f]{2})|(?i:%(?:0[0-9a-f]|1[0-9a-f]|20|2f|5c|7f))");
-    private static final Pattern PATH_SUFFIX = Pattern.compile("[?#].*$");
+                    "[\\x00-\\x20\\x7F]|%(?![0-9A-Fa-f]{2})|(?i:%(?:0[0-9a-f]|1[0-9a-f]|7f))");
+    private static final Pattern FORBIDDEN_PATH_ENCODING = Pattern.compile("(?i:%(?:20|2f|5c))");
+    private static final Pattern SUFFIX_START = Pattern.compile("[?#]");
     private static final Pattern LEADING_SLASHES = Pattern.compile("^/+");
 
     private SsoNextPathValidator() {}
@@ -23,17 +24,23 @@ final class SsoNextPathValidator {
                 || value.isBlank()
                 || !value.startsWith("/")
                 || value.startsWith("//")
-                || value.contains("\\")
-                || FORBIDDEN_INPUT.matcher(value).find()) {
+                || value.contains("\\")) {
             return Optional.empty();
         }
 
-        String rawPath = PATH_SUFFIX.matcher(value).replaceFirst("");
+        var suffixMatcher = SUFFIX_START.matcher(value);
+        int suffixStart = suffixMatcher.find() ? suffixMatcher.start() : value.length();
+        String rawPath = value.substring(0, suffixStart);
+        if (FORBIDDEN_INPUT.matcher(value).find()
+                || FORBIDDEN_PATH_ENCODING.matcher(rawPath).find()) {
+            return Optional.empty();
+        }
+
         String canonicalPath = canonicalizePath(rawPath);
         if (hasLoginFirstSegment(canonicalPath)) {
             return Optional.empty();
         }
-        return Optional.of(canonicalPath + value.substring(rawPath.length()));
+        return Optional.of(canonicalPath + value.substring(suffixStart));
     }
 
     static String safePathOrRoot(String value) {

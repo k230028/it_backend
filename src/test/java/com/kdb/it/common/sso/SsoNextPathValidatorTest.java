@@ -10,7 +10,17 @@ import org.junit.jupiter.params.provider.ValueSource;
 class SsoNextPathValidatorTest {
 
     @ParameterizedTest
-    @ValueSource(strings = {"/", "/info/projects", "/info/projects?tab=1#top"})
+    @ValueSource(
+            strings = {
+                "/",
+                "/info/projects",
+                "/info/projects?tab=1#top",
+                "/search?q=hello%20world",
+                "/info?return=%2Fprojects",
+                "/info?value=%5Cserver",
+                "/info#section%20one/%2F/%5C",
+                "/search?q=%ED%95%9C%EA%B8%80"
+            })
     void safePath_내부경로는허용(String value) {
         assertThat(SsoNextPathValidator.safePath(value)).contains(value);
     }
@@ -35,6 +45,8 @@ class SsoNextPathValidatorTest {
                 "https://evil.example",
                 "//evil.example",
                 "/\\evil.example",
+                "/%2F%2Fevil.example",
+                "/info%5Cadmin",
                 "/login",
                 "/LOGIN",
                 "/login?next=/",
@@ -44,6 +56,10 @@ class SsoNextPathValidatorTest {
                 "/%2e%2e/LOGIN",
                 "/info\r\nLocation:https://evil.example",
                 "/info%0d%0aLocation:evil",
+                "/info?q=line%0Abreak",
+                "/info#fragment%00tail",
+                "/info?q=ok\r\nLocation:https://evil.example",
+                "/info?q=%",
                 "/invalid%"
             })
     void safePath_외부경로와로그인재진입은거부(String value) {
