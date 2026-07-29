@@ -519,6 +519,19 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("complete: 역슬래시 외부 경로 next는 허용 origin의 루트로 이동한다")
+    void complete_역슬래시외부경로next_루트로이동() throws Exception {
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(
+                "K150024", "/\\evil.example", "http://localhost:3000", new MockHttpServletRequest(), response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+    }
+
+    @Test
     @DisplayName("complete: 로그인 재진입 next는 허용 origin의 루트로 이동한다")
     void complete_로그인재진입next_루트로이동() throws Exception {
         SsoController controller = directEnoController();
@@ -1462,9 +1475,9 @@ class SsoControllerTest {
     }
 
     @Test
-    @DisplayName("firstNonBlank: primary가 blank이면 fallback을 반환한다")
-    void firstNonBlank_primaryBlank_fallback반환() throws Exception {
-        // Arrange — next 파라미터 공백, 쿠키에 next 존재
+    @DisplayName("complete: 빈 next 파라미터는 안전한 쿠키 next로 재폴백하지 않는다")
+    void complete_빈파라미터next_안전한쿠키로재폴백안함() throws Exception {
+        // Arrange — 빈 next 파라미터와 안전한 next 쿠키가 공존
         SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
         SsoController controller = newController(props);
         ReflectionTestUtils.setField(controller, "allowDirectEno", true);
@@ -1491,11 +1504,11 @@ class SsoControllerTest {
                         URLEncoder.encode("http://localhost:3000", StandardCharsets.UTF_8)));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        // Act — next 파라미터가 공백 문자열
-        controller.complete("K150024", "  ", "  ", request, response);
+        // Act — next 파라미터가 명시적인 빈 문자열
+        controller.complete("K150024", "", "  ", request, response);
 
-        // Assert — 공백 primary → 쿠키 fallback 사용
-        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/blank-fallback");
+        // Assert — 명시적 빈 파라미터는 쿠키로 재폴백하지 않고 루트로 이동
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
     }
 
     // ──────────────────────────────────────────────────────────────────────────────

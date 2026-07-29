@@ -21,6 +21,7 @@ class SsoNextPathValidatorTest {
                 " ",
                 "https://evil.example",
                 "//evil.example",
+                "/\\evil.example",
                 "/login",
                 "/login?next=/",
                 "/login/callback"

@@ -363,9 +363,10 @@ public class SsoController {
             HttpServletRequest request,
             HttpServletResponse response)
             throws IOException {
-        // 최초 요청 URL(next)·origin은 쿼리 파라미터를 우선하되, 비어 있으면 SSO 시작 시 심은
-        // 쿠키에서 복원한다(세션이 ESSO 교차 출처 왕복에서 끊겨도 원본 URL로 복귀하기 위함).
-        String effectiveNext = firstNonBlank(next, readCookie(request, CookieUtil.SSO_NEXT_COOKIE));
+        // 최초 요청 URL(next)은 쿼리 파라미터가 생략된 경우에만 SSO 시작 시 심은 쿠키에서
+        // 복원한다(세션이 ESSO 교차 출처 왕복에서 끊겨도 원본 URL로 복귀하기 위함).
+        String effectiveNext =
+                next != null ? next : readCookie(request, CookieUtil.SSO_NEXT_COOKIE);
         String effectiveOrigin =
                 firstNonBlank(origin, readCookie(request, CookieUtil.SSO_ORIGIN_COOKIE));
         try {

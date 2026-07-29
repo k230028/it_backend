@@ -13,6 +13,7 @@ final class SsoNextPathValidator {
                 || value.isBlank()
                 || !value.startsWith("/")
                 || value.startsWith("//")
+                || value.contains("\\")
                 || value.startsWith(LOGIN_PATH)) {
             return Optional.empty();
         }
