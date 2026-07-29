@@ -218,16 +218,10 @@ public class SsoController {
         }
 
         // 검증 실패(권한 실패 310017/310012 포함) → 수동 로그인 폴백.
-        // clientIP 불일치 진단을 위해 가능한 IP 출처를 모두 남긴다. X-Forwarded-For 등이 채워져 있으면
-        // 앞단 프록시가 있다는 뜻이고, 그 경우 getRemoteAddr()(=ISign+로 보낸 값)는 프록시 IP라 거부될 수 있다.
         log.warn(
-                "SSO 토큰 검증 실패 - resultCode: {}, IP출처[remoteAddr={}, X-Forwarded-For={}, X-Real-IP={}, Proxy-Client-IP={}, WL-Proxy-Client-IP={}]",
+                "SSO 토큰 검증 실패 - resultCode: {}, 프록시 헤더 존재: {}",
                 result.resultCode(),
-                request.getRemoteAddr(),
-                request.getHeader("X-Forwarded-For"),
-                request.getHeader("X-Real-IP"),
-                request.getHeader("Proxy-Client-IP"),
-                request.getHeader("WL-Proxy-Client-IP"));
+                request.getHeader("X-Forwarded-For") != null);
         String origin = readSessionString(session, SSO_ORIGIN_SESSION_KEY);
         response.sendRedirect(
                 resolveFrontendBaseUrl(origin.isBlank() ? null : origin) + "/login?error=sso");
@@ -396,10 +390,16 @@ public class SsoController {
                     (effectiveNext != null && effectiveNext.startsWith("/")) ? effectiveNext : "/";
             String target = resolveFrontendBaseUrl(effectiveOrigin) + dest;
             // 복귀 대상이 비어 보이면(app.frontend-url/origin 미설정) 백엔드 자신으로 가 401이 난다.
-            log.debug("SSO 인증 완료 - eno: {}, 토큰 쿠키 발급, 복귀 대상: {}", verifiedEno, target);
+            log.debug(
+                    "SSO 인증 완료 - eno: {}, 토큰 쿠키 발급, 복귀 대상: {}",
+                    SsoLogSanitizer.masked(verifiedEno),
+                    target);
             response.sendRedirect(target);
         } catch (Exception e) {
-            log.error("SSO 인증 실패 - eno: {}, reason: {}", eno, e.getMessage(), e);
+            log.error(
+                    "SSO 인증 실패 - eno: {}, 오류 유형: {}",
+                    SsoLogSanitizer.masked(eno),
+                    SsoLogSanitizer.exceptionType(e));
             // 오류 리다이렉트 자체도 IOException(클라이언트 연결 종료 등)을 던질 수 있으므로
             // 별도 try-catch로 감싸 2차 예외가 핸들러 밖으로 전파되지 않게 한다.
             try {
@@ -409,7 +409,10 @@ public class SsoController {
                         HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoOriginCookie().toString());
                 response.sendRedirect(resolveFrontendBaseUrl(effectiveOrigin) + "/login?error=sso");
             } catch (IOException redirectEx) {
-                log.warn("SSO 오류 리다이렉트 실패 - eno: {}", eno, redirectEx);
+                log.warn(
+                        "SSO 오류 리다이렉트 실패 - eno: {}, 오류 유형: {}",
+                        SsoLogSanitizer.masked(eno),
+                        SsoLogSanitizer.exceptionType(redirectEx));
             }
         }
     }

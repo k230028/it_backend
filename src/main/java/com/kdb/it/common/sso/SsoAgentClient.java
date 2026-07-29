@@ -59,9 +59,9 @@ public class SsoAgentClient {
             return body != null && SUCCESS_CODE.equals(text(body, "resultCode"));
         } catch (Exception e) {
             log.warn(
-                    "SSO 인증서버 통신 점검 실패 - url: {}, reason: {}",
+                    "SSO 인증서버 통신 점검 실패 - url: {}, 오류 유형: {}",
                     props.checkServerUrl(),
-                    e.toString());
+                    SsoLogSanitizer.exceptionType(e));
             return false;
         }
     }
@@ -95,16 +95,12 @@ public class SsoAgentClient {
                         .build(true)
                         .toUri();
 
-        // 토큰 검증 요청 컨텍스트(전송 파라미터)를 남겨 거부 원인 추적을 돕는다.
-        // secureToken은 민감값이라 앞 8자+길이로 마스킹한다.
         log.info(
-                "SSO 토큰 검증 요청 - url: {}, 전송[agentId='{}', clientIP={}, secureSessionId={}, requestData='{}', secureToken={}]",
+                "SSO 토큰 검증 요청 - url: {}, agentId: {}, requestData: {}, secureSessionId: {}",
                 props.tokenAuthorizationUrl(),
                 props.agentId(),
-                clientIp,
-                secureSessionId,
                 props.requestData(),
-                mask(secureToken));
+                SsoLogSanitizer.masked(secureSessionId));
 
         try {
             Map<String, Object> body = restClient.post().uri(uri).retrieve().body(MAP_TYPE);
@@ -122,36 +118,19 @@ public class SsoAgentClient {
             if (SUCCESS_CODE.equals(resultCode)) {
                 resultData = extractRequestData(asMap(body.get("user")));
                 log.info(
-                        "SSO 토큰 검증 성공 - resultCode: {}, useCSMode: {}, resultData(추출 사용자 데이터): {}",
+                        "SSO 토큰 검증 성공 - resultCode: {}, useCSMode: {}, 사용자 식별값 존재: {}",
                         resultCode,
                         useCSMode,
-                        resultData);
+                        !resultData.isBlank());
             } else {
-                // 인증서버가 토큰을 거부한 경우(예: 310001) 원인 추적용 컨텍스트를 남긴다.
-                // agentId 누락/불일치, clientIP 불일치, 미등록 agent 등이 전형적 원인이다.
-                // 응답 본문 전체를 남겨 resultMessage 외 ISign+가 돌려준 모든 필드를 확인할 수 있게 한다.
-                // (검증 실패 시 본문에는 user PII가 없으므로 전체 로깅이 안전하다.)
-                log.warn(
-                        "SSO 토큰 검증 거부 - resultCode: {}, resultMessage: {}, 전송[agentId='{}', clientIP={}, secureSessionId={}, requestData='{}', secureToken={}], 응답본문: {}",
-                        resultCode,
-                        resultMessage,
-                        props.agentId(),
-                        clientIp,
-                        secureSessionId,
-                        props.requestData(),
-                        mask(secureToken),
-                        body);
+                log.warn("SSO 토큰 검증 거부 - resultCode: {}", resultCode);
             }
             return new TokenAuthResult(resultCode, resultMessage, resultData, returnUrl, useCSMode);
         } catch (Exception e) {
             log.warn(
-                    "SSO 토큰 검증 통신 실패 - url: {}, 전송[agentId='{}', clientIP={}, secureSessionId={}], reason: {}",
+                    "SSO 토큰 검증 통신 실패 - url: {}, 오류 유형: {}",
                     props.tokenAuthorizationUrl(),
-                    props.agentId(),
-                    clientIp,
-                    secureSessionId,
-                    e.toString(),
-                    e);
+                    SsoLogSanitizer.exceptionType(e));
             return TokenAuthResult.failure("999999");
         }
     }
@@ -230,20 +209,6 @@ public class SsoAgentClient {
      */
     private static String enc(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
-    }
-
-    /**
-     * 로그용 토큰 마스킹 — 앞 8자와 길이만 노출합니다(전체 토큰 평문 로깅 방지).
-     *
-     * @param token 원본 토큰
-     * @return 마스킹된 표현 (없으면 {@code (없음)})
-     */
-    private static String mask(String token) {
-        if (token == null || token.isEmpty()) {
-            return "(없음)";
-        }
-        int len = token.length();
-        return token.substring(0, Math.min(8, len)) + "...(len=" + len + ")";
     }
 
     /**

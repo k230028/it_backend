@@ -18,9 +18,14 @@ import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.TestSecurityConfig;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.http.Cookie;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +42,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
+import org.slf4j.LoggerFactory;
 
 /**
  * SSO 완료 컨트롤러 테스트
@@ -53,6 +59,9 @@ import org.springframework.test.web.servlet.MockMvc;
             "app.sso.allow-direct-eno=false"
         })
 class SsoControllerTest {
+
+    private static final String FORWARDED_IP_SENTINEL = "203.0.113.77";
+    private static final String REMOTE_ADDR_SENTINEL = "198.51.100.42";
 
     @Autowired private MockMvc mockMvc;
 
@@ -108,6 +117,10 @@ class SsoControllerTest {
                                 .path("/")
                                 .maxAge(0)
                                 .build());
+    }
+
+    private List<String> formattedMessages(ListAppender<ILoggingEvent> appender) {
+        return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
     }
 
     @Test
@@ -682,6 +695,45 @@ class SsoControllerTest {
         controller.checkauth("000000", "secure-token", "sess-1", request, response);
 
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/login?error=sso");
+    }
+
+    @Test
+    @DisplayName("checkauth: 토큰 검증 실패 로그에 프록시와 원격 IP 원문을 남기지 않는다")
+    void checkauth_검증실패_IP원문로그미노출() throws Exception {
+        SsoProperties props =
+                new SsoProperties(
+                        false,
+                        "K140024",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "3",
+                        "id",
+                        5000,
+                        5000);
+        SsoController controller = newController(props);
+        given(ssoAgentClient.authorize("secure-token", "sess-1", REMOTE_ADDR_SENTINEL))
+                .willReturn(new SsoAgentClient.TokenAuthResult("310017", "권한없음", "", null, false));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr(REMOTE_ADDR_SENTINEL);
+        request.addHeader("X-Forwarded-For", FORWARDED_IP_SENTINEL);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.checkauth("000000", "secure-token", "sess-1", request, response);
+
+            assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/login?error=sso");
+            assertThat(formattedMessages(appender))
+                    .noneMatch(message -> message.contains(FORWARDED_IP_SENTINEL))
+                    .noneMatch(message -> message.contains(REMOTE_ADDR_SENTINEL));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 
     @Test
