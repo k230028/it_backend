@@ -111,6 +111,11 @@ public class SsoController {
             HttpServletResponse response)
             throws IOException {
         HttpSession session = request.getSession(true);
+        session.removeAttribute(SSO_NEXT_SESSION_KEY);
+        session.removeAttribute(SSO_ORIGIN_SESSION_KEY);
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoNextCookie().toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoOriginCookie().toString());
+
         String safeNext = SsoNextPathValidator.safePath(next).orElse(null);
         if (safeNext != null) {
             session.setAttribute(SSO_NEXT_SESSION_KEY, safeNext);

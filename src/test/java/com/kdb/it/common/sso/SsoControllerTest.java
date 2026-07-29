@@ -682,6 +682,37 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("business: 새 next가 안전하지 않으면 이전 복귀 상태를 제거하고 루트 복귀로 초기화한다")
+    void business_안전하지않은새next_이전복귀상태제거() throws Exception {
+        SsoProperties props = new SsoProperties(true, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = (MockHttpSession) request.getSession(true);
+        session.setAttribute("ssoNext", "/info/projects/old");
+        session.setAttribute("ssoOrigin", "http://localhost:3002");
+        request.setCookies(
+                new Cookie(CookieUtil.SSO_NEXT_COOKIE, "%2Finfo%2Fprojects%2Fold"),
+                new Cookie(CookieUtil.SSO_ORIGIN_COOKIE, "http%3A%2F%2Flocalhost%3A3002"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.business("//evil.example", null, request, response);
+
+        assertThat(session.getAttribute("ssoNext")).isNull();
+        assertThat(session.getAttribute("ssoOrigin")).isNull();
+        assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
+                .hasSize(2)
+                .allSatisfy(cookie -> assertThat(cookie).contains("Max-Age=0"))
+                .anyMatch(cookie -> cookie.startsWith(CookieUtil.SSO_NEXT_COOKIE + "="))
+                .anyMatch(cookie -> cookie.startsWith(CookieUtil.SSO_ORIGIN_COOKIE + "="));
+        verify(cookieUtil, never()).createSsoNextCookie(anyString());
+        verify(cookieUtil, never()).createSsoOriginCookie(anyString());
+
+        MockHttpServletResponse loginProcResponse = new MockHttpServletResponse();
+        controller.loginProc(loginProcResponse, request);
+        assertThat(loginProcResponse.getRedirectedUrl()).isEqualTo("/api/auth/sso/complete");
+    }
+
+    @Test
     @DisplayName("complete: 프로토콜 상대 next는 허용 origin의 루트로 이동한다")
     void complete_프로토콜상대next_루트로이동() throws Exception {
         SsoController controller = directEnoController();
