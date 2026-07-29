@@ -110,8 +110,9 @@ public class SsoController {
             HttpServletResponse response)
             throws IOException {
         HttpSession session = request.getSession(true);
-        if (next != null && !next.isBlank()) {
-            session.setAttribute(SSO_NEXT_SESSION_KEY, next);
+        String safeNext = SsoNextPathValidator.safePath(next).orElse(null);
+        if (safeNext != null) {
+            session.setAttribute(SSO_NEXT_SESSION_KEY, safeNext);
         }
         if (origin != null && !origin.isBlank()) {
             session.setAttribute(SSO_ORIGIN_SESSION_KEY, origin);
@@ -120,9 +121,9 @@ public class SsoController {
         // 세션과 별개로 next/origin을 쿠키에도 보관한다. ESSO 교차 출처 왕복(특히 CS 모드 POST 콜백)
         // 중에는 서버 세션이 끊겨(checkauth가 새 세션 생성) next/origin이 유실될 수 있으나, 이 쿠키는
         // 마지막 same-site complete 내비게이션에 전달되어 원본 요청 URL을 복원하게 한다.
-        if (next != null && !next.isBlank()) {
+        if (safeNext != null) {
             response.addHeader(
-                    HttpHeaders.SET_COOKIE, cookieUtil.createSsoNextCookie(next).toString());
+                    HttpHeaders.SET_COOKIE, cookieUtil.createSsoNextCookie(safeNext).toString());
         }
         if (origin != null && !origin.isBlank()) {
             response.addHeader(
@@ -385,9 +386,7 @@ public class SsoController {
             response.addHeader(
                     HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoOriginCookie().toString());
 
-            // 오픈 리다이렉트 방지: '/'로 시작하는 상대 경로만 허용
-            String dest =
-                    (effectiveNext != null && effectiveNext.startsWith("/")) ? effectiveNext : "/";
+            String dest = SsoNextPathValidator.safePathOrRoot(effectiveNext);
             String target = resolveFrontendBaseUrl(effectiveOrigin) + dest;
             // 복귀 대상이 비어 보이면(app.frontend-url/origin 미설정) 백엔드 자신으로 가 401이 난다.
             log.debug(
@@ -460,8 +459,9 @@ public class SsoController {
     private String buildCompleteRedirect(String next, String origin) {
         StringBuilder redirect = new StringBuilder("/api/auth/sso/complete");
         String sep = "?";
-        if (next != null && !next.isBlank()) {
-            redirect.append(sep).append("next=").append(encode(next));
+        Optional<String> safeNext = SsoNextPathValidator.safePath(next);
+        if (safeNext.isPresent()) {
+            redirect.append(sep).append("next=").append(encode(safeNext.get()));
             sep = "&";
         }
         if (origin != null && !origin.isBlank()) {

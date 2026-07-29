@@ -491,6 +491,77 @@ class SsoControllerTest {
         verify(cookieUtil).createSsoOriginCookie("http://localhost:3002");
     }
 
+    @Test
+    @DisplayName("business: 외부 프로토콜 상대 next는 세션과 쿠키에 저장하지 않는다")
+    void business_프로토콜상대next_세션쿠키저장안함() throws Exception {
+        SsoProperties props = new SsoProperties(true, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.business("//evil.example", "http://localhost:3002", request, response);
+
+        assertThat(request.getSession(false).getAttribute("ssoNext")).isNull();
+        verify(cookieUtil, never()).createSsoNextCookie(anyString());
+    }
+
+    @Test
+    @DisplayName("complete: 프로토콜 상대 next는 허용 origin의 루트로 이동한다")
+    void complete_프로토콜상대next_루트로이동() throws Exception {
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(
+                "K150024", "//evil.example", "http://localhost:3000", new MockHttpServletRequest(), response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+    }
+
+    @Test
+    @DisplayName("complete: 로그인 재진입 next는 허용 origin의 루트로 이동한다")
+    void complete_로그인재진입next_루트로이동() throws Exception {
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(
+                "K150024", "/login?next=/admin", "http://localhost:3000", new MockHttpServletRequest(), response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+    }
+
+    @Test
+    @DisplayName("complete: 프론트 URL과 허용 origin이 없으면 외부 next 없이 백엔드 루트로 이동한다")
+    void complete_프론트URL미설정_프로토콜상대next_백엔드루트이동() throws Exception {
+        SsoController controller = directEnoController();
+        ReflectionTestUtils.setField(controller, "frontendUrl", "");
+        ReflectionTestUtils.setField(controller, "allowedOrigins", "");
+        stubSsoTokenIssue();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete("K150024", "//evil.example", null, new MockHttpServletRequest(), response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("/");
+    }
+
+    @Test
+    @DisplayName("complete: 안전하지 않은 next 파라미터는 안전한 쿠키 next로 재폴백하지 않는다")
+    void complete_안전하지않은파라미터next_안전한쿠키로재폴백안함() throws Exception {
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(
+                new Cookie(
+                        CookieUtil.SSO_NEXT_COOKIE,
+                        URLEncoder.encode("/safe-cookie-path", StandardCharsets.UTF_8)));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete("K150024", "//evil.example", null, request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+    }
+
     /** mock 모드 SsoController를 직접 구성합니다 (next/origin 세션 저장 + 인증서버 통신 없이 mock 사번 주입 검증용). */
     private SsoController newController(SsoProperties props) {
         SsoController controller =
@@ -500,6 +571,29 @@ class SsoControllerTest {
                 controller, "allowedOrigins", "http://localhost:3000,http://localhost:3002");
         ReflectionTestUtils.setField(controller, "allowDirectEno", false);
         return controller;
+    }
+
+    private SsoController directEnoController() {
+        SsoController controller =
+                newController(new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000));
+        ReflectionTestUtils.setField(controller, "allowDirectEno", true);
+        return controller;
+    }
+
+    private void stubSsoTokenIssue() {
+        AuthDto.LoginResponse loginResponse =
+                AuthDto.LoginResponse.builder()
+                        .eno("K150024")
+                        .accessToken("access-token")
+                        .refreshToken("refresh-token")
+                        .build();
+        given(authService.issueSsoTokens("K150024")).willReturn(loginResponse);
+        given(cookieUtil.createAccessTokenCookie("access-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "a").build());
+        given(cookieUtil.createRefreshTokenCookie("refresh-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "r").build());
+        given(cookieUtil.createUserInfoCookie(loginResponse))
+                .willReturn(ResponseCookie.from("it-portal-user", "u").build());
     }
 
     @Test
