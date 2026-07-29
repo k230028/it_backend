@@ -197,6 +197,42 @@ class EnvironmentValidatorTest {
     }
 
     @Test
+    @DisplayName("대문자 active PROD도 운영 프로파일로 판정")
+    void validate_uppercaseActiveProd_dangerousToggleThrows() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setActiveProfiles("PROD");
+        env.setProperty("app.sso.allow-direct-eno", "true");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: app.sso.allow-direct-eno");
+    }
+
+    @Test
+    @DisplayName("active가 없을 때 대문자 default PROD도 운영 프로파일로 판정")
+    void validate_uppercaseDefaultProd_dangerousToggleThrows() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setActiveProfiles();
+        env.setDefaultProfiles("PROD");
+        env.setProperty("app.sso.allow-direct-eno", "true");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: app.sso.allow-direct-eno");
+    }
+
+    @Test
+    @DisplayName("active non-prod가 있으면 default prod보다 active를 우선")
+    void validate_activeNonProdWithDefaultProd_skipsProdValidation() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setActiveProfiles("local-ext");
+        env.setDefaultProfiles("prod");
+        env.setProperty("app.sso.allow-direct-eno", "true");
+
+        assertThatCode(() -> new EnvironmentValidator(env).validate()).doesNotThrowAnyException();
+    }
+
+    @Test
     @DisplayName("운영 프로파일에서 상위 우선순위 API docs=true override는 기동 차단")
     void validate_prodApiDocsEnabledOverride_throws() throws IOException {
         StandardEnvironment env =

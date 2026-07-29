@@ -37,7 +37,59 @@ class EnvironmentValidatorStartupTest {
                 "app.sso.allow-direct-eno");
     }
 
+    @Test
+    @DisplayName("대문자 active PROD도 실제 기동 중 운영 위험 설정을 차단")
+    void uppercaseActiveProd_dangerousToggle_failsDuringStartup() {
+        assertStartupFails(
+                Map.of(
+                        "spring.profiles.active", "PROD",
+                        "app.sso.allow-direct-eno", "true"),
+                "app.sso.allow-direct-eno");
+    }
+
+    @Test
+    @DisplayName("active가 없으면 대문자 default PROD도 실제 기동 중 운영 위험 설정을 차단")
+    void uppercaseDefaultProd_dangerousToggle_failsDuringStartup() {
+        assertStartupFails(
+                Map.of(
+                        "spring.profiles.default", "PROD",
+                        "app.sso.allow-direct-eno", "true"),
+                "app.sso.allow-direct-eno");
+    }
+
+    @Test
+    @DisplayName("active non-prod가 있으면 default prod보다 active를 우선해 정상 기동")
+    void activeNonProdWithDefaultProd_startsSuccessfully() {
+        assertStartupSucceeds(
+                Map.of(
+                        "spring.profiles.active", "local-ext",
+                        "spring.profiles.default", "prod",
+                        "app.sso.allow-direct-eno", "true"));
+    }
+
     private void assertStartupFails(Map<String, String> overrides, String propertyKey) {
+        SpringApplication application = application();
+
+        assertThatThrownBy(
+                        () -> {
+                            try (ConfigurableApplicationContext ignored =
+                                    application.run(arguments(overrides))) {
+                                // 기동 성공 자체가 보안 경계 실패다.
+                            }
+                        })
+                .rootCause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("운영 보안 위반: " + propertyKey);
+    }
+
+    private void assertStartupSucceeds(Map<String, String> overrides) {
+        SpringApplication application = application();
+        try (ConfigurableApplicationContext ignored = application.run(arguments(overrides))) {
+            // 컨텍스트 refresh 완료가 active profile 우선순위 계약의 관찰 결과다.
+        }
+    }
+
+    private SpringApplication application() {
         SpringApplication application = new SpringApplication(ValidatorOnlyApplication.class);
         application.setWebApplicationType(WebApplicationType.NONE);
         application.setLogStartupInfo(false);
@@ -50,17 +102,7 @@ class EnvironmentValidatorStartupTest {
                 .getPropertySources()
                 .remove(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME);
         application.setEnvironment(environment);
-
-        assertThatThrownBy(
-                        () -> {
-                            try (ConfigurableApplicationContext ignored =
-                                    application.run(arguments(overrides))) {
-                                // 기동 성공 자체가 보안 경계 실패다.
-                            }
-                        })
-                .rootCause()
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("운영 보안 위반: " + propertyKey);
+        return application;
     }
 
     private String[] arguments(Map<String, String> overrides) {

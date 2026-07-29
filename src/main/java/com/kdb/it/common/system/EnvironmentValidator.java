@@ -4,7 +4,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 
 /**
@@ -53,7 +52,20 @@ public class EnvironmentValidator {
 
     /** 활성 또는 기본 프로파일에 {@code prod}가 적용되면 운영 검증을 수행합니다. */
     private boolean isProdProfile() {
-        return environment.acceptsProfiles(Profiles.of("prod"));
+        String[] activeProfiles = environment.getActiveProfiles();
+        String[] selectedProfiles =
+                activeProfiles != null && activeProfiles.length > 0
+                        ? activeProfiles
+                        : environment.getDefaultProfiles();
+        if (selectedProfiles == null) {
+            return false;
+        }
+        for (String profile : selectedProfiles) {
+            if ("prod".equalsIgnoreCase(profile)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
