@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.project.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -1261,19 +1262,16 @@ class ProjectServiceCoverageTest {
         Bprojm proj1 = Bprojm.builder().abusMngNo(p1).sno(1).delYn("N").build();
         Bprojm proj2 = Bprojm.builder().abusMngNo(p2).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(p1, "N")).willReturn(Optional.of(proj1));
-        given(projectRepository.findByAbusMngNoAndDelYn(p2, "N")).willReturn(Optional.of(proj2));
+        given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(proj1, proj2));
         given(
-                        capplaRepository
-                                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                                        anyString(), eq(p1), eq(1)))
-                .willReturn(List.of(new ApplicationMapView("APF-B-001", p1, 1)));
-        given(
-                        capplaRepository
-                                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
-                                        anyString(), eq(p2), eq(1)))
-                .willReturn(List.of(new ApplicationMapView("APF-B-002", p2, 1)));
-        given(capplmRepository.findSummaryViewsByApfMngNoIn(List.of("APF-B-001")))
+                        capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                eq("BPROJM"), anyList()))
+                .willReturn(
+                        List.of(
+                                new ApplicationMapView("APF-B-001", p1, 1),
+                                new ApplicationMapView("APF-B-002", p2, 1)));
+        given(capplmRepository.findSummaryViewsByApfMngNoIn(anyList()))
                 .willReturn(
                         List.of(
                                 new ApplicationSummaryView(
@@ -1283,10 +1281,7 @@ class ProjectServiceCoverageTest {
                                         "결재1",
                                         null,
                                         null,
-                                        null)));
-        given(capplmRepository.findSummaryViewsByApfMngNoIn(List.of("APF-B-002")))
-                .willReturn(
-                        List.of(
+                                        null),
                                 new ApplicationSummaryView(
                                         "APF-B-002",
                                         com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED
@@ -1295,11 +1290,15 @@ class ProjectServiceCoverageTest {
                                         null,
                                         null,
                                         null)));
-        given(cdecimRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(anyString()))
+        given(cdecimRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(anyList()))
                 .willReturn(List.of());
-        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(anyString(), eq(1), eq("N")))
+        given(bitemmRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of());
-        given(bprojaRepository.findByAbusMngNoAndDelYn(anyString(), eq("N"))).willReturn(List.of());
+        given(bprojaRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyCollection()))
+                .willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
 
         ProjectDto.BulkGetRequest req = new ProjectDto.BulkGetRequest();
         req.setPrjMngNos(List.of(p1, p2));

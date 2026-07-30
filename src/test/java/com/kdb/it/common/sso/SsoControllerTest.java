@@ -8,10 +8,17 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.AuthService;
@@ -21,14 +28,27 @@ import com.kdb.it.config.TestSecurityConfig;
 import jakarta.servlet.http.Cookie;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -53,6 +73,13 @@ import org.springframework.test.web.servlet.MockMvc;
             "app.sso.allow-direct-eno=false"
         })
 class SsoControllerTest {
+
+    private static final String FORWARDED_IP_SENTINEL = "203.0.113.77";
+    private static final String REMOTE_ADDR_SENTINEL = "198.51.100.42";
+    private static final String TARGET_TOKEN_SENTINEL = "token-RAW-7Q2";
+    private static final String TARGET_SESSION_SENTINEL = "session-RAW-8R3";
+    private static final String ORIGIN_SENTINEL = "origin-RAW-5T9";
+    private static final String RESULT_CODE_SENTINEL = "result-code-RAW-4U6";
 
     @Autowired private MockMvc mockMvc;
 
@@ -108,6 +135,21 @@ class SsoControllerTest {
                                 .path("/")
                                 .maxAge(0)
                                 .build());
+    }
+
+    private List<String> formattedMessages(ListAppender<ILoggingEvent> appender) {
+        return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+    }
+
+    private static Stream<String> unsafeResultCodes() {
+        return Stream.of(
+                RESULT_CODE_SENTINEL + "\rCR",
+                RESULT_CODE_SENTINEL + "\nLF",
+                RESULT_CODE_SENTINEL + "\tTAB",
+                RESULT_CODE_SENTINEL + "\u001bESC\u0000NUL",
+                RESULT_CODE_SENTINEL + "\u2028LS\u2029PS",
+                RESULT_CODE_SENTINEL + "A".repeat(40),
+                RESULT_CODE_SENTINEL + "{}%n%s");
     }
 
     @Test
@@ -173,6 +215,93 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("loginProc: 비정상 세션 resultCode를 한 줄 안전 표현으로 기록하고 인증 결과는 유지한다")
+    void loginProc_비정상resultCode_로그주입차단_인증결과유지() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        String unsafeResultCode = RESULT_CODE_SENTINEL + "\r\nFORGED";
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true).setAttribute("resultCode", unsafeResultCode);
+        request.getSession().setAttribute("resultData", "K150024");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        Level originalLevel = logger.getLevel();
+        logger.setLevel(Level.DEBUG);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.loginProc(response, request);
+
+            assertThat(response.getRedirectedUrl()).isEqualTo("/api/auth/sso/complete");
+            assertThat(request.getSession().getAttribute("ssoVerifiedEno")).isNull();
+            assertThat(formattedMessages(appender))
+                    .singleElement()
+                    .satisfies(
+                            message ->
+                                    assertThat(message)
+                                            .contains("resultCode: <invalid>(len=")
+                                            .doesNotContain(
+                                                    RESULT_CODE_SENTINEL,
+                                                    "\r",
+                                                    "\n",
+                                                    "\t",
+                                                    "\u001b",
+                                                    "\u0000",
+                                                    "\u2028",
+                                                    "\u2029"));
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(originalLevel);
+            appender.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("loginProc: 세션 복귀 경로의 토큰·세션·origin 원문을 로그에 남기지 않고 리다이렉트한다")
+    void loginProc_세션복귀경로민감정보로그미노출_리다이렉트유지() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        String next =
+                "/x?secureToken="
+                        + TARGET_TOKEN_SENTINEL
+                        + "&secureSessionId="
+                        + TARGET_SESSION_SENTINEL;
+        String origin = "https://" + ORIGIN_SENTINEL + ".example";
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true).setAttribute("resultCode", "000000");
+        request.getSession().setAttribute("resultData", "K150024");
+        request.getSession().setAttribute("ssoNext", next);
+        request.getSession().setAttribute("ssoOrigin", origin);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        Level originalLevel = logger.getLevel();
+        logger.setLevel(Level.DEBUG);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.loginProc(response, request);
+
+            assertThat(response.getRedirectedUrl())
+                    .isEqualTo(
+                            "/api/auth/sso/complete?next=%2Fx%3FsecureToken%3Dtoken-RAW-7Q2%26secureSessionId%3Dsession-RAW-8R3&origin=https%3A%2F%2Forigin-RAW-5T9.example");
+            assertThat(formattedMessages(appender))
+                    .noneMatch(message -> message.contains(TARGET_TOKEN_SENTINEL))
+                    .noneMatch(message -> message.contains(TARGET_SESSION_SENTINEL))
+                    .noneMatch(message -> message.contains(ORIGIN_SENTINEL));
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(originalLevel);
+            appender.stop();
+        }
+    }
+
+    @Test
     @DisplayName("GET /sso/loginProc - 인증 성공 시 세션 ID를 교체하고 검증 사번을 보존한다")
     void loginProc_성공_세션ID교체() throws Exception {
         MockHttpSession session = new MockHttpSession();
@@ -185,6 +314,112 @@ class SsoControllerTest {
 
         assertThat(session.getId()).isNotEqualTo(oldId);
         assertThat(session.getAttribute("ssoVerifiedEno")).isEqualTo("K150024");
+    }
+
+    @Test
+    @DisplayName("SSO 세션 결과는 loginProc에서 1회 소비되고 complete 후 재사용할 수 없다")
+    void sso세션결과_첫완료후loginProc재실행_토큰재발급차단() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = (MockHttpSession) request.getSession(true);
+        session.setAttribute("resultCode", "000000");
+        session.setAttribute("resultData", "K150024");
+        session.setAttribute("secureSessionId", "secure-session");
+        stubSsoTokenIssue();
+
+        controller.loginProc(new MockHttpServletResponse(), request);
+
+        assertThat(session.getAttribute("resultCode")).isNull();
+        assertThat(session.getAttribute("resultData")).isNull();
+        assertThat(session.getAttribute("secureSessionId")).isNull();
+        controller.complete(null, null, null, request, new MockHttpServletResponse());
+        assertThat(session.isInvalid()).isTrue();
+
+        controller.loginProc(new MockHttpServletResponse(), request);
+        controller.complete(null, null, null, request, new MockHttpServletResponse());
+
+        verify(authService).issueSsoTokens("K150024");
+    }
+
+    @Test
+    @DisplayName("SSO complete는 검증 실패 시에도 세션을 무효화한다")
+    void complete_검증실패_세션무효화() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = (MockHttpSession) request.getSession(true);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(null, "/info/projects", null, request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/login?error=sso");
+        assertThat(session.isInvalid()).isTrue();
+        verify(authService, never()).issueSsoTokens(anyString());
+    }
+
+    @Test
+    @DisplayName("동시 loginProc는 같은 SSO 결과를 한 요청만 소비한다")
+    void loginProc_동시호출_SSO결과한번만소비() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("resultCode", "000000");
+        session.setAttribute("resultData", "K150024");
+        session.setAttribute("secureSessionId", "secure-session");
+        AtomicInteger sessionIdChanges = new AtomicInteger();
+        CountingSessionIdRequest firstRequest =
+                new CountingSessionIdRequest(session, sessionIdChanges);
+        CountingSessionIdRequest secondRequest =
+                new CountingSessionIdRequest(session, sessionIdChanges);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            Future<?> first =
+                    executor.submit(
+                            () -> {
+                                start.await();
+                                controller.loginProc(new MockHttpServletResponse(), firstRequest);
+                                return null;
+                            });
+            Future<?> second =
+                    executor.submit(
+                            () -> {
+                                start.await();
+                                controller.loginProc(new MockHttpServletResponse(), secondRequest);
+                                return null;
+                            });
+
+            start.countDown();
+            first.get(10, TimeUnit.SECONDS);
+            second.get(10, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertThat(sessionIdChanges).hasValue(1);
+        assertThat(session.getAttribute("resultCode")).isNull();
+        assertThat(session.getAttribute("resultData")).isNull();
+        assertThat(session.getAttribute("secureSessionId")).isNull();
+        assertThat(session.getAttribute("ssoVerifiedEno")).isEqualTo("K150024");
+    }
+
+    @Test
+    @DisplayName("loginProc는 실패하거나 불완전한 SSO 결과 속성도 모두 제거한다")
+    void loginProc_실패결과_민감세션속성정리() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("resultCode", "999999");
+        session.setAttribute("resultData", "K150024");
+        session.setAttribute("secureSessionId", "secure-session");
+
+        mockMvc.perform(get("/sso/loginProc").session(session))
+                .andExpect(status().is3xxRedirection());
+
+        assertThat(session.getAttribute("resultCode")).isNull();
+        assertThat(session.getAttribute("resultData")).isNull();
+        assertThat(session.getAttribute("secureSessionId")).isNull();
+        assertThat(session.getAttribute("ssoVerifiedEno")).isNull();
     }
 
     @Test
@@ -432,6 +667,188 @@ class SsoControllerTest {
         verify(cookieUtil).createSsoOriginCookie("http://localhost:3002");
     }
 
+    @Test
+    @DisplayName("business: 외부 프로토콜 상대 next는 세션과 쿠키에 저장하지 않는다")
+    void business_프로토콜상대next_세션쿠키저장안함() throws Exception {
+        SsoProperties props = new SsoProperties(true, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.business("//evil.example", "http://localhost:3002", request, response);
+
+        assertThat(request.getSession(false).getAttribute("ssoNext")).isNull();
+        verify(cookieUtil, never()).createSsoNextCookie(anyString());
+    }
+
+    @Test
+    @DisplayName("business: 새 next가 안전하지 않으면 이전 복귀 상태를 제거하고 루트 복귀로 초기화한다")
+    void business_안전하지않은새next_이전복귀상태제거() throws Exception {
+        SsoProperties props = new SsoProperties(true, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = (MockHttpSession) request.getSession(true);
+        session.setAttribute("ssoNext", "/info/projects/old");
+        session.setAttribute("ssoOrigin", "http://localhost:3002");
+        request.setCookies(
+                new Cookie(CookieUtil.SSO_NEXT_COOKIE, "%2Finfo%2Fprojects%2Fold"),
+                new Cookie(CookieUtil.SSO_ORIGIN_COOKIE, "http%3A%2F%2Flocalhost%3A3002"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.business("//evil.example", null, request, response);
+
+        assertThat(session.getAttribute("ssoNext")).isNull();
+        assertThat(session.getAttribute("ssoOrigin")).isNull();
+        assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
+                .hasSize(2)
+                .allSatisfy(cookie -> assertThat(cookie).contains("Max-Age=0"))
+                .anyMatch(cookie -> cookie.startsWith(CookieUtil.SSO_NEXT_COOKIE + "="))
+                .anyMatch(cookie -> cookie.startsWith(CookieUtil.SSO_ORIGIN_COOKIE + "="));
+        verify(cookieUtil, never()).createSsoNextCookie(anyString());
+        verify(cookieUtil, never()).createSsoOriginCookie(anyString());
+
+        MockHttpServletResponse loginProcResponse = new MockHttpServletResponse();
+        controller.loginProc(loginProcResponse, request);
+        assertThat(loginProcResponse.getRedirectedUrl()).isEqualTo("/api/auth/sso/complete");
+    }
+
+    @Test
+    @DisplayName("complete: 프로토콜 상대 next는 허용 origin의 루트로 이동한다")
+    void complete_프로토콜상대next_루트로이동() throws Exception {
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(
+                "K150024",
+                "//evil.example",
+                "http://localhost:3000",
+                new MockHttpServletRequest(),
+                response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+    }
+
+    @Test
+    @DisplayName("complete: 역슬래시 외부 경로 next는 허용 origin의 루트로 이동한다")
+    void complete_역슬래시외부경로next_루트로이동() throws Exception {
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(
+                "K150024",
+                "/\\evil.example",
+                "http://localhost:3000",
+                new MockHttpServletRequest(),
+                response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+    }
+
+    @Test
+    @DisplayName("complete: 로그인 재진입 next는 허용 origin의 루트로 이동한다")
+    void complete_로그인재진입next_루트로이동() throws Exception {
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(
+                "K150024",
+                "/login?next=/admin",
+                "http://localhost:3000",
+                new MockHttpServletRequest(),
+                response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+    }
+
+    @Test
+    @DisplayName("complete: 프론트 URL과 허용 origin이 없으면 외부 next 없이 백엔드 루트로 이동한다")
+    void complete_프론트URL미설정_프로토콜상대next_백엔드루트이동() throws Exception {
+        SsoController controller = directEnoController();
+        ReflectionTestUtils.setField(controller, "frontendUrl", "");
+        ReflectionTestUtils.setField(controller, "allowedOrigins", "");
+        stubSsoTokenIssue();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(
+                "K150024", "//evil.example", null, new MockHttpServletRequest(), response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("/");
+    }
+
+    @Test
+    @DisplayName("complete: 안전하지 않은 next 파라미터는 안전한 쿠키 next로 재폴백하지 않는다")
+    void complete_안전하지않은파라미터next_안전한쿠키로재폴백안함() throws Exception {
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(
+                new Cookie(
+                        CookieUtil.SSO_NEXT_COOKIE,
+                        URLEncoder.encode("/safe-cookie-path", StandardCharsets.UTF_8)));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete("K150024", "//evil.example", null, request, response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+    }
+
+    @Test
+    @DisplayName("complete: 안전한 쿼리가 있으면 malformed 상태 쿠키를 읽지 않고 성공한다")
+    void complete_안전한쿼리_malformed쿠키미사용_성공() throws Exception {
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(
+                new Cookie(CookieUtil.SSO_NEXT_COOKIE, "%"),
+                new Cookie(CookieUtil.SSO_ORIGIN_COOKIE, "%"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(
+                "K150024", "/info/projects", "http://localhost:3000", request, response);
+
+        assertThat(response.getStatus()).isEqualTo(302);
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/info/projects");
+        assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
+                .anyMatch(value -> value.startsWith(CookieUtil.SSO_NEXT_COOKIE + "="))
+                .anyMatch(value -> value.startsWith(CookieUtil.SSO_ORIGIN_COOKIE + "="));
+    }
+
+    @Test
+    @DisplayName("complete: 쿼리가 없고 상태 쿠키가 malformed이면 비밀값 없이 루트로 복구한다")
+    void complete_쿼리없음_malformed쿠키_로그미노출_루트복구() throws Exception {
+        String cookieSecret = "%COOKIE-SECRET-RAW-9Q7";
+        SsoController controller = directEnoController();
+        stubSsoTokenIssue();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(
+                new Cookie(CookieUtil.SSO_NEXT_COOKIE, cookieSecret),
+                new Cookie(CookieUtil.SSO_ORIGIN_COOKIE, cookieSecret));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.complete("K150024", null, null, request, response);
+
+            assertThat(response.getStatus()).isEqualTo(302);
+            assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
+            assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
+                    .anyMatch(value -> value.startsWith(CookieUtil.SSO_NEXT_COOKIE + "="))
+                    .anyMatch(value -> value.startsWith(CookieUtil.SSO_ORIGIN_COOKIE + "="));
+            assertThat(formattedMessages(appender))
+                    .noneMatch(message -> message.contains(cookieSecret));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
     /** mock 모드 SsoController를 직접 구성합니다 (next/origin 세션 저장 + 인증서버 통신 없이 mock 사번 주입 검증용). */
     private SsoController newController(SsoProperties props) {
         SsoController controller =
@@ -441,6 +858,29 @@ class SsoControllerTest {
                 controller, "allowedOrigins", "http://localhost:3000,http://localhost:3002");
         ReflectionTestUtils.setField(controller, "allowDirectEno", false);
         return controller;
+    }
+
+    private SsoController directEnoController() {
+        SsoController controller =
+                newController(new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000));
+        ReflectionTestUtils.setField(controller, "allowDirectEno", true);
+        return controller;
+    }
+
+    private void stubSsoTokenIssue() {
+        AuthDto.LoginResponse loginResponse =
+                AuthDto.LoginResponse.builder()
+                        .eno("K150024")
+                        .accessToken("access-token")
+                        .refreshToken("refresh-token")
+                        .build();
+        given(authService.issueSsoTokens("K150024")).willReturn(loginResponse);
+        given(cookieUtil.createAccessTokenCookie("access-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "a").build());
+        given(cookieUtil.createRefreshTokenCookie("refresh-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "r").build());
+        given(cookieUtil.createUserInfoCookie(loginResponse))
+                .willReturn(ResponseCookie.from("it-portal-user", "u").build());
     }
 
     @Test
@@ -539,7 +979,8 @@ class SsoControllerTest {
 
     @Test
     @DisplayName(
-            "checkauth: CS 모드이면 saveToken.html로 POST 자동제출 폼을 렌더링한다(agentId/errCode/secureSessionId)")
+            "checkauth: CS 모드이면 saveToken.html로 POST 자동제출 폼을"
+                    + " 렌더링한다(agentId/errCode/secureSessionId)")
     void checkauth_CS모드_saveToken_POST폼렌더링() throws Exception {
         SsoProperties props =
                 new SsoProperties(
@@ -685,6 +1126,234 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("checkauth: 토큰 검증 실패 로그에 프록시와 원격 IP 원문을 남기지 않는다")
+    void checkauth_검증실패_IP원문로그미노출() throws Exception {
+        SsoProperties props =
+                new SsoProperties(
+                        false,
+                        "K140024",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "3",
+                        "id",
+                        5000,
+                        5000);
+        SsoController controller = newController(props);
+        given(ssoAgentClient.authorize("secure-token", "sess-1", REMOTE_ADDR_SENTINEL))
+                .willReturn(new SsoAgentClient.TokenAuthResult("310017", "권한없음", "", null, false));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr(REMOTE_ADDR_SENTINEL);
+        request.addHeader("X-Forwarded-For", FORWARDED_IP_SENTINEL);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.checkauth("000000", "secure-token", "sess-1", request, response);
+
+            assertThat(response.getRedirectedUrl())
+                    .isEqualTo("http://localhost:3000/login?error=sso");
+            assertThat(formattedMessages(appender))
+                    .noneMatch(message -> message.contains(FORWARDED_IP_SENTINEL))
+                    .noneMatch(message -> message.contains(REMOTE_ADDR_SENTINEL));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("unsafeResultCodes")
+    @DisplayName("checkauth: 제어문자·과대·형식 문자열 resultCode를 한 줄 안전 표현으로 기록한다")
+    void checkauth_비정상resultCode_로그주입차단(String unsafeResultCode) throws Exception {
+        SsoProperties props =
+                new SsoProperties(
+                        false,
+                        "K140024",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "3",
+                        "id",
+                        5000,
+                        5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.checkauth(unsafeResultCode, null, null, request, response);
+
+            assertThat(response.getRedirectedUrl())
+                    .isEqualTo("http://localhost:3000/login?error=sso");
+            assertThat(formattedMessages(appender))
+                    .singleElement()
+                    .satisfies(
+                            message ->
+                                    assertThat(message)
+                                            .contains("resultCode: <invalid>(len=")
+                                            .doesNotContain(
+                                                    RESULT_CODE_SENTINEL,
+                                                    "\r",
+                                                    "\n",
+                                                    "\t",
+                                                    "\u001b",
+                                                    "\u0000",
+                                                    "\u2028",
+                                                    "\u2029"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("checkauth: 유효한 벤더 resultCode는 기존 진단 값을 유지한다")
+    void checkauth_유효resultCode_로그진단유지() throws Exception {
+        SsoProperties props =
+                new SsoProperties(
+                        false,
+                        "K140024",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "3",
+                        "id",
+                        5000,
+                        5000);
+        SsoController controller = newController(props);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.checkauth("310017", null, null, request, response);
+
+            assertThat(response.getRedirectedUrl())
+                    .isEqualTo("http://localhost:3000/login?error=sso");
+            assertThat(formattedMessages(appender))
+                    .singleElement()
+                    .satisfies(message -> assertThat(message).contains("resultCode: 310017"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("checkauth: 인증서버의 비정상 resultCode도 한 줄 안전 표현으로 기록한다")
+    void checkauth_인증서버비정상resultCode_로그주입차단() throws Exception {
+        SsoProperties props =
+                new SsoProperties(
+                        false,
+                        "K140024",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "https://dintesso.kdb.co.kr:20443",
+                        "3",
+                        "id",
+                        5000,
+                        5000);
+        SsoController controller = newController(props);
+        String unsafeResultCode = RESULT_CODE_SENTINEL + "\r\nFORGED";
+        given(ssoAgentClient.authorize("secure-token", "sess-1", "127.0.0.1"))
+                .willReturn(
+                        new SsoAgentClient.TokenAuthResult(
+                                unsafeResultCode, "권한없음", "", null, false));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.checkauth("000000", "secure-token", "sess-1", request, response);
+
+            assertThat(response.getRedirectedUrl())
+                    .isEqualTo("http://localhost:3000/login?error=sso");
+            assertThat(request.getSession().getAttribute("resultCode")).isEqualTo(unsafeResultCode);
+            assertThat(formattedMessages(appender))
+                    .singleElement()
+                    .satisfies(
+                            message ->
+                                    assertThat(message)
+                                            .contains("resultCode: <invalid>(len=")
+                                            .doesNotContain(
+                                                    RESULT_CODE_SENTINEL,
+                                                    "\r",
+                                                    "\n",
+                                                    "\t",
+                                                    "\u001b",
+                                                    "\u0000",
+                                                    "\u2028",
+                                                    "\u2029"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("complete: next 쿼리의 토큰·세션 원문을 성공 로그에 남기지 않고 그대로 리다이렉트한다")
+    void complete_next쿼리민감정보로그미노출_리다이렉트유지() throws Exception {
+        SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
+        SsoController controller = newController(props);
+        ReflectionTestUtils.setField(controller, "allowDirectEno", true);
+        AuthDto.LoginResponse loginResponse =
+                AuthDto.LoginResponse.builder()
+                        .eno("K150024")
+                        .accessToken("access-token")
+                        .refreshToken("refresh-token")
+                        .build();
+        given(authService.issueSsoTokens("K150024")).willReturn(loginResponse);
+        given(cookieUtil.createAccessTokenCookie("access-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "a").build());
+        given(cookieUtil.createRefreshTokenCookie("refresh-token"))
+                .willReturn(ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "r").build());
+        given(cookieUtil.createUserInfoCookie(loginResponse))
+                .willReturn(ResponseCookie.from("it-portal-user", "u").build());
+        String next =
+                "/x?secureToken="
+                        + TARGET_TOKEN_SENTINEL
+                        + "&secureSessionId="
+                        + TARGET_SESSION_SENTINEL;
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoController.class);
+        Level originalLevel = logger.getLevel();
+        logger.setLevel(Level.DEBUG);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.complete("K150024", next, "http://localhost:3000", request, response);
+
+            assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000" + next);
+            assertThat(formattedMessages(appender))
+                    .noneMatch(message -> message.contains(TARGET_TOKEN_SENTINEL))
+                    .noneMatch(message -> message.contains(TARGET_SESSION_SENTINEL));
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(originalLevel);
+            appender.stop();
+        }
+    }
+
+    @Test
     @DisplayName("complete: 토큰 발급 실패 시 로그인 오류 페이지로 이동한다")
     void complete_토큰발급실패_로그인오류() throws Exception {
         SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
@@ -758,6 +1427,35 @@ class SsoControllerTest {
 
         assertThat(response.getRedirectedUrl())
                 .isEqualTo("https://dintesso.kdb.co.kr:20443/logout.html");
+    }
+
+    @Test
+    @DisplayName("GET /sso/logout은 세션을 변경하지 않고 405를 반환한다")
+    void ssoLogout_GET_세션무변경_405() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("ssoVerifiedEno", "K150024");
+
+        mockMvc.perform(get("/sso/logout").session(session).accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().string(HttpHeaders.ALLOW, "POST"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(405));
+
+        assertThat(session.getAttribute("ssoVerifiedEno")).isEqualTo("K150024");
+        assertThat(session.isInvalid()).isFalse();
+    }
+
+    @Test
+    @DisplayName("POST /sso/logout은 세션을 무효화하고 로그인 화면으로 이동한다")
+    void ssoLogout_POST_세션무효화_로그인화면이동() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("ssoVerifiedEno", "K150024");
+
+        mockMvc.perform(post("/sso/logout").session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:3000/login"));
+
+        assertThat(session.isInvalid()).isTrue();
     }
 
     // ──────────────────────────────────────────────────────────────────────────────
@@ -1110,16 +1808,16 @@ class SsoControllerTest {
         given(cookieUtil.createUserInfoCookie(loginResponse))
                 .willReturn(ResponseCookie.from("it-portal-user", "u").build());
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.getSession(true).setAttribute("ssoVerifiedEno", "K150024");
+        MockHttpSession session = (MockHttpSession) request.getSession(true);
+        session.setAttribute("ssoVerifiedEno", "K150024");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // Act
         controller.complete(null, "/dashboard", null, request, response);
 
-        // Assert — 사번이 사용된 뒤 세션에서 제거됐는지 확인 (재사용 방지)
+        // Assert — 사번이 사용된 뒤 세션 전체가 무효화됐는지 확인 (재사용 방지)
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/dashboard");
-        assertThat(request.getSession(false)).isNotNull();
-        assertThat(request.getSession(false).getAttribute("ssoVerifiedEno")).isNull();
+        assertThat(session.isInvalid()).isTrue();
     }
 
     // ──────────────────────────────────────────────────────────────────────────────
@@ -1222,9 +1920,9 @@ class SsoControllerTest {
     }
 
     @Test
-    @DisplayName("firstNonBlank: primary가 blank이면 fallback을 반환한다")
-    void firstNonBlank_primaryBlank_fallback반환() throws Exception {
-        // Arrange — next 파라미터 공백, 쿠키에 next 존재
+    @DisplayName("complete: 빈 next 파라미터는 안전한 쿠키 next로 재폴백하지 않는다")
+    void complete_빈파라미터next_안전한쿠키로재폴백안함() throws Exception {
+        // Arrange — 빈 next 파라미터와 안전한 next 쿠키가 공존
         SsoProperties props = new SsoProperties(false, "K140024", "", "", "", "id", 5000, 5000);
         SsoController controller = newController(props);
         ReflectionTestUtils.setField(controller, "allowDirectEno", true);
@@ -1251,11 +1949,11 @@ class SsoControllerTest {
                         URLEncoder.encode("http://localhost:3000", StandardCharsets.UTF_8)));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        // Act — next 파라미터가 공백 문자열
-        controller.complete("K150024", "  ", "  ", request, response);
+        // Act — next 파라미터가 명시적인 빈 문자열
+        controller.complete("K150024", "", "  ", request, response);
 
-        // Assert — 공백 primary → 쿠키 fallback 사용
-        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/blank-fallback");
+        // Assert — 명시적 빈 파라미터는 쿠키로 재폴백하지 않고 루트로 이동
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/");
     }
 
     // ──────────────────────────────────────────────────────────────────────────────
@@ -1341,5 +2039,21 @@ class SsoControllerTest {
 
         // Assert — browserBaseUrl blank → frontendUrl/login으로 이동
         assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/login");
+    }
+
+    private static final class CountingSessionIdRequest extends MockHttpServletRequest {
+
+        private final AtomicInteger sessionIdChanges;
+
+        private CountingSessionIdRequest(MockHttpSession session, AtomicInteger sessionIdChanges) {
+            setSession(session);
+            this.sessionIdChanges = sessionIdChanges;
+        }
+
+        @Override
+        public String changeSessionId() {
+            sessionIdChanges.incrementAndGet();
+            return super.changeSessionId();
+        }
     }
 }

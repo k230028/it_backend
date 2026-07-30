@@ -2,6 +2,8 @@ package com.kdb.it.common.board.repository;
 
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.entity.QCblbmm;
+import com.querydsl.core.types.ConstructorExpression;
+import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -25,5 +27,35 @@ public class BoardMetaRepositoryImpl implements BoardMetaRepositoryCustom {
                 .where(m.useYn.eq("Y").and(m.delYn.eq("N")))
                 .orderBy(m.sreSqnNo.asc())
                 .fetch();
+    }
+
+    /** 사이드바용 목록 조회 — REST 응답 전용 경량 프로젝션. {@link #findAllActiveOrdered()}와 동일한 where·정렬을 재사용합니다. */
+    @Override
+    public List<BoardMetaListRow> findAllActiveOrderedRows() {
+        QCblbmm m = QCblbmm.cblbmm;
+        return queryFactory
+                .select(listRowProjection(m))
+                .from(m)
+                .where(m.useYn.eq("Y").and(m.delYn.eq("N")))
+                .orderBy(m.sreSqnNo.asc())
+                .fetch();
+    }
+
+    /**
+     * {@link BoardMetaListRow} 10개 필드에 대한 QueryDSL 생성자 프로젝션. 컴포넌트 순서와 select 인자 순서가 정확히 일치해야 합니다.
+     */
+    private ConstructorExpression<BoardMetaListRow> listRowProjection(QCblbmm m) {
+        return Projections.constructor(
+                BoardMetaListRow.class,
+                m.blbMngNo,
+                m.blbNm,
+                m.itPtlBlbTc,
+                m.repUseYn,
+                m.cmmtUseYn,
+                m.flEsnYn,
+                m.hedTagUseYn,
+                m.sreSqnNo,
+                m.useYn,
+                m.rmk);
     }
 }

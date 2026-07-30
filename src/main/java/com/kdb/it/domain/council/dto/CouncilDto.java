@@ -708,7 +708,9 @@ public class CouncilDto {
             /** 사업별 판정 요약 표 (HTML, 결과서 본문 프리필용) */
             String summaryHtml,
             /** 사업별 최종 판정 */
-            List<PlanBusinessVerdict> verdicts) {}
+            List<PlanBusinessVerdict> verdicts,
+            /** 계획 스냅샷(redtConeInf) 구문/구조 손상으로 일부 데이터가 제외됐는지 여부 */
+            boolean snapshotIncomplete) {}
 
     /** 계획협의회 심의 대상: 계획 요약 + 사업별 기본정보(스냅샷 예산 + 사업상세 개요/기간 병합) */
     public record PlanTargetsResponse(
@@ -721,7 +723,9 @@ public class CouncilDto {
             /** 심의 대상 정보화사업 목록 */
             List<PlanTargetBusiness> businesses,
             /** 전산업무비 참고 건수 (평가 대상 아님) */
-            int costCount) {}
+            int costCount,
+            /** 계획 스냅샷(redtConeInf) 구문/구조 손상으로 일부 데이터가 제외됐는지 여부 */
+            boolean snapshotIncomplete) {}
 
     /** 심의 대상 사업 1건 (계획 스냅샷 예산 + BPROJM 사업개요/기간) */
     public record PlanTargetBusiness(
@@ -807,7 +811,7 @@ public class CouncilDto {
      * @param apfMngNo 생성된 신청관리번호
      */
     public record ApprovalResponse(
-            /** 생성된 신청관리번호 (예: APF_202600000001) */
+            /** 생성된 신청관리번호 (예: APF-2026-00000001) */
             String apfMngNo) {}
 
     /**

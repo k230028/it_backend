@@ -13,6 +13,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.exception.NotFoundException;
 import java.time.LocalDate;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -48,12 +49,13 @@ public class BoardPostService {
      * @param cond 검색 조건
      * @param user 인증 사용자
      * @return 게시물 페이지
-     * @throws CustomGeneralException 게시판을 찾을 수 없음
+     * @throws NotFoundException 사용 중인 게시판을 찾을 수 없는 경우
+     * @throws CustomGeneralException 검색어가 최소 길이보다 짧은 경우
      */
     public Page<BoardPostDto.ListItem> searchPosts(
             String blbMngNo, BoardPostDto.SearchCondition cond, CustomUserDetails user) {
 
-        findActiveBoard(blbMngNo); // 게시판 존재 검증 (조회는 인증 사용자 전체 공개)
+        findUserActiveBoard(blbMngNo); // 사용 중인 게시판만 사용자 목록 조회 허용
         validateSearchCondition(cond);
 
         return postRepository
@@ -62,26 +64,42 @@ public class BoardPostService {
     }
 
     /**
-     * 게시물 상세 조회 (조회수 +1 포함)
+     * 게시물 상세 조회
      *
      * @param blbMngNo 게시판관리번호
      * @param nacMngNo 게시물관리번호
      * @param user 인증 사용자
      * @return 게시물 상세 DTO
-     * @throws CustomGeneralException 접근 권한 없음 또는 존재하지 않는 게시물
+     * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
+     * @throws CustomGeneralException 비공개 또는 공개기간 외 게시물에 대한 접근 권한이 없는 경우
      */
-    @Transactional
     public BoardPostDto.Detail getPostDetail(
             String blbMngNo, String nacMngNo, CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
-        Cblbcm post = findPost(nacMngNo);
+        Cblbmm board = findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoard(blbMngNo, nacMngNo);
 
         verifyCanReadPost(user, post, board);
-        post.incrementViewCount();
 
         boolean canModify = user.isAdmin() || user.getEno().equals(post.getFstEnrUsid());
         return BoardPostDto.Detail.from(post, canModify);
+    }
+
+    /**
+     * 게시물 조회수를 증가시킵니다.
+     *
+     * @param blbMngNo 게시판관리번호
+     * @param nacMngNo 게시물관리번호
+     * @param user 인증 사용자
+     * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
+     * @throws CustomGeneralException 비공개 또는 공개기간 외 게시물에 대한 접근 권한이 없는 경우
+     */
+    @Transactional
+    public void incrementPostView(String blbMngNo, String nacMngNo, CustomUserDetails user) {
+        Cblbmm board = findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
+        verifyCanReadPost(user, post, board);
+        post.incrementViewCount();
     }
 
     /**
@@ -91,13 +109,14 @@ public class BoardPostService {
      * @param request 등록 요청 DTO
      * @param user 인증 사용자
      * @return 생성된 게시물관리번호
-     * @throws CustomGeneralException 등록 권한 없음
+     * @throws NotFoundException 사용 중인 게시판을 찾을 수 없는 경우
+     * @throws CustomGeneralException 등록 권한이 없거나 요청 부서가 사용자 부서와 다른 경우
      */
     @Transactional
     public String createPost(
             String blbMngNo, BoardPostDto.CreateRequest request, CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
+        Cblbmm board = findUserActiveBoard(blbMngNo);
         verifyCanWrite(user, board);
         verifyBbrC(user, request.getBbrC());
 
@@ -135,7 +154,9 @@ public class BoardPostService {
      * @param nacMngNo 게시물관리번호
      * @param request 수정 요청 DTO
      * @param user 인증 사용자
-     * @throws CustomGeneralException 수정 권한 없음
+     * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
+     * @throws CustomGeneralException 요청 부서가 사용자 부서와 다른 경우
+     * @throws org.springframework.security.access.AccessDeniedException 게시물 수정 권한이 없는 경우
      */
     @Transactional
     public void updatePost(
@@ -144,8 +165,8 @@ public class BoardPostService {
             BoardPostDto.UpdateRequest request,
             CustomUserDetails user) {
 
-        findActiveBoard(blbMngNo);
-        Cblbcm post = findPost(nacMngNo);
+        findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCanModify(user, post);
         verifyBbrC(user, request.getBbrC());
 
@@ -160,12 +181,13 @@ public class BoardPostService {
      * @param blbMngNo 게시판관리번호
      * @param nacMngNo 게시물관리번호
      * @param user 인증 사용자
-     * @throws CustomGeneralException 삭제 권한 없음
+     * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
+     * @throws org.springframework.security.access.AccessDeniedException 게시물 삭제 권한이 없는 경우
      */
     @Transactional
     public void deletePost(String blbMngNo, String nacMngNo, CustomUserDetails user) {
-        findActiveBoard(blbMngNo);
-        Cblbcm post = findPost(nacMngNo);
+        findUserActiveBoard(blbMngNo);
+        Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCanModify(user, post);
         post.delete();
     }
@@ -178,6 +200,7 @@ public class BoardPostService {
      * @param request 답변글 등록 요청 DTO
      * @param user 인증 사용자
      * @return 생성된 게시물관리번호
+     * @throws NotFoundException 게시판·부모 게시물·답글 그룹을 찾을 수 없거나 소속이 다른 경우
      * @throws CustomGeneralException 게시판이 답변 미지원 / 부모 게시물 접근 불가 / 등록 권한 없음
      */
     @Transactional
@@ -187,17 +210,20 @@ public class BoardPostService {
             BoardPostDto.ReplyCreateRequest request,
             CustomUserDetails user) {
 
-        Cblbmm board = findActiveBoard(blbMngNo);
-        Cblbcm parent = findPost(nacMngNo);
-
+        Cblbmm board = findUserActiveBoard(blbMngNo);
         if (!"Y".equals(board.getRepUseYn())) {
             throw new CustomGeneralException("해당 게시판은 답변 기능을 지원하지 않습니다.");
         }
-        verifyCanReadPost(user, parent, board);
         verifyCanWrite(user, board);
 
-        postRepository.shiftGroupSqn(
-                parent.getNacUnqId(), parent.getNacGrpSqn(), parent.getNacGrpLev());
+        String groupId = findReplyGroupId(blbMngNo, nacMngNo);
+        lockReplyGroup(blbMngNo, groupId);
+        Cblbcm parent = findPostInBoardForUpdate(blbMngNo, nacMngNo);
+        verifyCanReadPost(user, parent, board);
+
+        postRepository
+                .findActiveGroupTailForUpdate(blbMngNo, parent.getNacUnqId(), parent.getNacGrpSqn())
+                .forEach(Cblbcm::shiftGroupSequence);
 
         String sanitizedCone = HtmlSanitizer.sanitize(request.getNacCone());
         Long seq = postRepository.getNextSequenceValue();
@@ -243,7 +269,8 @@ public class BoardPostService {
     private void publishMentionNotifications(
             Cblbcm post, String authorEno, boolean isComment, java.util.List<String> explicitEnos) {
         log.debug(
-                "[멘션 진단] publishMentionNotifications 진입: nacMngNo={}, author={}, contentLen={}, explicitEnos={}",
+                "[멘션 진단] publishMentionNotifications 진입: nacMngNo={}, author={}, contentLen={},"
+                        + " explicitEnos={}",
                 post.getNacMngNo(),
                 authorEno,
                 post.getNacCone() == null ? 0 : post.getNacCone().length(),
@@ -338,16 +365,40 @@ public class BoardPostService {
 
     // ── 내부 헬퍼 ──
 
-    private Cblbmm findActiveBoard(String blbMngNo) {
+    private Cblbmm findUserActiveBoard(String blbMngNo) {
         return metaRepository
-                .findByBlbMngNoAndDelYn(blbMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("게시판을 찾을 수 없습니다: " + blbMngNo));
+                .findByBlbMngNoAndUseYnAndDelYn(blbMngNo, "Y", "N")
+                .orElseThrow(() -> new NotFoundException("게시판을 찾을 수 없습니다: " + blbMngNo));
     }
 
-    private Cblbcm findPost(String nacMngNo) {
+    private Cblbcm findPostInBoard(String blbMngNo, String nacMngNo) {
         return postRepository
-                .findByNacMngNoAndDelYn(nacMngNo, "N")
-                .orElseThrow(() -> new CustomGeneralException("게시물을 찾을 수 없습니다: " + nacMngNo));
+                .findByBlbMngNoAndNacMngNoAndDelYn(blbMngNo, nacMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+    }
+
+    private Cblbcm findPostInBoardForUpdate(String blbMngNo, String nacMngNo) {
+        return postRepository
+                .findByBlbMngNoAndNacMngNoAndDelYnForUpdate(blbMngNo, nacMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+    }
+
+    private String findReplyGroupId(String blbMngNo, String nacMngNo) {
+        return postRepository
+                .findReplyGroupId(blbMngNo, nacMngNo, "N")
+                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+    }
+
+    /**
+     * 답글 쓰기 잠금 순서의 첫 행인 그룹 루트를 잠급니다.
+     *
+     * <p>모든 답글 경로는 {@code 그룹 루트 → 부모 게시물 → 후속 그룹 행} 순서로만 잠급니다. 일반 수정·삭제·조회수 갱신은 대상 게시물 한 행만 잠그며 그룹
+     * 루트를 추가로 기다리지 않으므로 역순 대기 사이클이 생기지 않습니다.
+     */
+    private void lockReplyGroup(String blbMngNo, String groupId) {
+        postRepository
+                .findReplyGroupAnchorForUpdate(blbMngNo, groupId)
+                .orElseThrow(() -> new NotFoundException("게시물 답글 그룹을 찾을 수 없습니다: " + groupId));
     }
 
     private void validateSearchCondition(BoardPostDto.SearchCondition cond) {

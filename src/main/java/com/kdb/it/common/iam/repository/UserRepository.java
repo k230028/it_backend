@@ -33,6 +33,15 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
         String getUsrNm();
     }
 
+    /** 검토의견 작성자 응답에 필요한 사용자 프로젝션입니다. */
+    interface ReviewCommentAuthorView {
+        String getEno();
+
+        String getUsrNm();
+
+        String getTemNm();
+    }
+
     /** 사용자 조직코드 응답에 필요한 프로젝션. */
     interface UserOrgCodeView {
         String getEno();
@@ -98,6 +107,14 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
      * @return 사용자 이름 프로젝션 목록
      */
     List<UserNameView> findNameViewsByEnoIn(Collection<String> enos);
+
+    /**
+     * 사번 목록으로 검토의견 작성자의 이름과 팀명 프로젝션을 한 번에 조회합니다.
+     *
+     * @param enos 중복을 제거한 작성자 사번 목록
+     * @return 사번별 작성자 이름과 팀명 프로젝션 목록
+     */
+    List<ReviewCommentAuthorView> findReviewCommentAuthorViewsByEnoIn(Collection<String> enos);
 
     /**
      * 사번으로 사용자 이름 프로젝션을 조회합니다.

@@ -21,9 +21,24 @@ import org.springframework.core.io.support.ResourcePropertySource;
  */
 class FrontendUrlPropertyResolutionTest {
 
+    /**
+     * 실제 OS 환경변수·시스템 프로퍼티를 제거해 테스트를 실행 환경으로부터 격리합니다.
+     *
+     * <p>{@link org.springframework.core.env.SystemEnvironmentPropertySource}는 완화된 바인딩(relaxed
+     * binding)을 적용하므로 {@code app.frontend-url} 조회가 실제 OS 환경변수 {@code APP_FRONTEND_URL}로 직접 해석됩니다. 이
+     * 소스는 나중에 추가되는 properties 파일보다 우선순위가 높아, 개발자 PC나 CI에 해당 환경변수가 설정되어 있으면 테스트가 오버라이드 맵 대신 실제 값을 읽어
+     * 실패합니다. 본 테스트의 목적은 properties 파일의 플레이스홀더 체이닝 검증이므로 두 소스를 제거하고 오버라이드 맵만으로 환경변수를 모사합니다.
+     */
+    private void isolateFromRealEnvironment(StandardEnvironment env) {
+        env.getPropertySources()
+                .remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
+        env.getPropertySources().remove(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME);
+    }
+
     /** 실제 application.properties를 로드한 Environment를 구성합니다. overrides는 환경변수처럼 최우선 적용. */
     private StandardEnvironment env(Map<String, Object> overrides) throws IOException {
         StandardEnvironment env = new StandardEnvironment();
+        isolateFromRealEnvironment(env);
         if (!overrides.isEmpty()) {
             env.getPropertySources().addFirst(new MapPropertySource("test-overrides", overrides));
         }
@@ -71,6 +86,7 @@ class FrontendUrlPropertyResolutionTest {
     /** local-int 프로파일 properties만 로드한 Environment(실 SSO 테스트 프로파일). */
     private StandardEnvironment localIntEnv(Map<String, Object> overrides) throws IOException {
         StandardEnvironment env = new StandardEnvironment();
+        isolateFromRealEnvironment(env);
         if (!overrides.isEmpty()) {
             env.getPropertySources().addFirst(new MapPropertySource("test-overrides", overrides));
         }

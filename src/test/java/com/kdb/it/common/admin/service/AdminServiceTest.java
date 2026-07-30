@@ -3,6 +3,8 @@ package com.kdb.it.common.admin.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -229,6 +231,54 @@ class AdminServiceTest {
         }
     }
 
+    private record OrganizationAdminView(String prlmOgzCCone, String bbrNm)
+            implements OrganizationRepository.OrganizationAdminView {
+        @Override
+        public String getPrlmOgzCCone() {
+            return prlmOgzCCone;
+        }
+
+        @Override
+        public String getBbrNm() {
+            return bbrNm;
+        }
+
+        @Override
+        public String getBbrWrenNm() {
+            return null;
+        }
+
+        @Override
+        public Integer getItmSqnSno() {
+            return null;
+        }
+
+        @Override
+        public String getPrlmHrkOgzCCone() {
+            return null;
+        }
+
+        @Override
+        public LocalDateTime getFstEnrDtm() {
+            return null;
+        }
+
+        @Override
+        public String getFstEnrUsid() {
+            return null;
+        }
+
+        @Override
+        public LocalDateTime getLstChgDtm() {
+            return null;
+        }
+
+        @Override
+        public String getLstChgUsid() {
+            return null;
+        }
+    }
+
     @Mock private CodeRepository codeRepository;
     @Mock private AuthRepository authRepository;
     @Mock private RoleRepository roleRepository;
@@ -330,10 +380,8 @@ class AdminServiceTest {
         AdminDto.BulkCodeRequest bulkReq = new AdminDto.BulkCodeRequest(List.of(req1, req2));
 
         Ccodem existingCode = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE001", "001", sttDt)).willReturn(true);
-        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
-                .willReturn(Optional.of(existingCode));
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "002", sttDt)).willReturn(false);
+        given(codeRepository.findAllByCIdInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(existingCode));
 
         // when
         var result = adminService.bulkUpsertCodes(bulkReq);
@@ -341,7 +389,7 @@ class AdminServiceTest {
         // then
         assertThat(result.get("updated")).isEqualTo(1);
         assertThat(result.get("created")).isEqualTo(1);
-        verify(codeRepository, times(1)).save(any(Ccodem.class));
+        verify(codeRepository, times(1)).saveAll(anyCollection());
     }
 
     @Test
@@ -785,19 +833,18 @@ class AdminServiceTest {
     @Test
     @DisplayName("getOrganizations: 삭제되지 않은 조직 목록을 반환한다")
     void getOrganizations_삭제되지않은목록반환() {
-        // given: DEL_YN='N'/'Y' 혼합
-        CorgnI active = CorgnI.builder().prlmOgzCCone("BBR001").bbrNm("IT부문").delYn("N").build();
-        CorgnI deleted = CorgnI.builder().prlmOgzCCone("BBR999").bbrNm("폐지부서").delYn("Y").build();
-        given(orgRepository.findAll()).willReturn(List.of(active, deleted));
-        given(userRepository.findByEno(any())).willReturn(java.util.Optional.empty());
+        // given: delYn='N' 쿼리 필터로 활성 조직만 조회됨(폐지 조직은 리포지토리 조회 결과에서 이미 제외)
+        given(orgRepository.findAdminViewsByDelYn("N"))
+                .willReturn(List.of(new OrganizationAdminView("BBR001", "IT부문")));
 
         // when
         List<AdminDto.OrgResponse> result = adminService.getOrganizations();
 
-        // then: DEL_YN='Y' 항목 제외하여 1건만 반환
+        // then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).prlmOgzCCone()).isEqualTo("BBR001");
         assertThat(result.get(0).bbrNm()).isEqualTo("IT부문");
+        verify(orgRepository).findAdminViewsByDelYn("N");
     }
 
     @Test

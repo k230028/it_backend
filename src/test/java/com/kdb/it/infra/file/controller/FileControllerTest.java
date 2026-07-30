@@ -25,6 +25,7 @@ import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.infra.file.FileOwnershipChecker;
+import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
 import java.util.List;
@@ -55,6 +56,7 @@ class FileControllerTest {
 
     @MockitoBean private FileService fileService;
     @MockitoBean private FileOwnershipChecker fileOwnershipChecker;
+    @MockitoBean private FileTargetWriteAuthorizerRegistry targetWriteAuthorizerRegistry;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
@@ -129,6 +131,88 @@ class FileControllerTest {
     }
 
     @Test
+    @DisplayName("POST /api/files - 게시물 대상 권한이 없으면 저장 전에 403")
+    void uploadFile_boardTargetDeniedBeforeStorage() throws Exception {
+        CustomUserDetails userDetails =
+                new CustomUserDetails("OTHER", List.of("ITPZZ001"), "DEPT01");
+        doThrow(new org.springframework.security.access.AccessDeniedException("첨부 대상 쓰기 권한이 없습니다."))
+                .when(targetWriteAuthorizerRegistry)
+                .verifyTargetWriteAccess("공통게시판", "NAC-2026-0001", userDetails);
+
+        mockMvc.perform(
+                        multipart("/api/files")
+                                .file(
+                                        new MockMultipartFile(
+                                                "file",
+                                                "test.pdf",
+                                                MediaType.APPLICATION_PDF_VALUE,
+                                                "pdf".getBytes()))
+                                .file(
+                                        new MockMultipartFile(
+                                                "flTpCone",
+                                                "",
+                                                MediaType.TEXT_PLAIN_VALUE,
+                                                "첨부파일".getBytes()))
+                                .file(
+                                        new MockMultipartFile(
+                                                "pkColNm",
+                                                "",
+                                                MediaType.TEXT_PLAIN_VALUE,
+                                                "공통게시판".getBytes()))
+                                .file(
+                                        new MockMultipartFile(
+                                                "pkCone",
+                                                "",
+                                                MediaType.TEXT_PLAIN_VALUE,
+                                                "NAC-2026-0001".getBytes()))
+                                .with(user(userDetails)))
+                .andExpect(status().isForbidden());
+
+        verify(fileService, never()).uploadFileAndGet(any(), any());
+    }
+
+    @Test
+    @DisplayName("POST /api/files/bulk - 검토의견 대상 권한이 없으면 저장 전에 403")
+    void uploadFiles_reviewTargetDeniedBeforeStorage() throws Exception {
+        CustomUserDetails userDetails =
+                new CustomUserDetails("OTHER", List.of("ITPZZ001"), "DEPT01");
+        doThrow(new org.springframework.security.access.AccessDeniedException("첨부 대상 쓰기 권한이 없습니다."))
+                .when(targetWriteAuthorizerRegistry)
+                .verifyTargetWriteAccess("검토의견", "101", userDetails);
+
+        mockMvc.perform(
+                        multipart("/api/files/bulk")
+                                .file(
+                                        new MockMultipartFile(
+                                                "files",
+                                                "test.pdf",
+                                                MediaType.APPLICATION_PDF_VALUE,
+                                                "pdf".getBytes()))
+                                .file(
+                                        new MockMultipartFile(
+                                                "flTpCone",
+                                                "",
+                                                MediaType.TEXT_PLAIN_VALUE,
+                                                "첨부파일".getBytes()))
+                                .file(
+                                        new MockMultipartFile(
+                                                "pkColNm",
+                                                "",
+                                                MediaType.TEXT_PLAIN_VALUE,
+                                                "검토의견".getBytes()))
+                                .file(
+                                        new MockMultipartFile(
+                                                "pkCone",
+                                                "",
+                                                MediaType.TEXT_PLAIN_VALUE,
+                                                "101".getBytes()))
+                                .with(user(userDetails)))
+                .andExpect(status().isForbidden());
+
+        verify(fileService, never()).uploadFiles(any(), any());
+    }
+
+    @Test
     @DisplayName("PUT /api/files/{flMngNo} - 인증된 사용자 → 200")
     void updateFileMeta_인증_200() throws Exception {
         CustomUserDetails userDetails =
@@ -182,6 +266,28 @@ class FileControllerTest {
                                         objectMapper.writeValueAsString(
                                                 new FileDto.UpdateRequest())))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("PUT /api/files/{flMngNo} - 현재 파일 소유자라도 무권한 검토의견 대상으로 재연결하면 403")
+    void updateMeta_deniedForUnauthorizedReviewTarget() throws Exception {
+        CustomUserDetails userDetails =
+                new CustomUserDetails("OWNER", List.of("ITPZZ001"), "DEPT01");
+        doThrow(new org.springframework.security.access.AccessDeniedException("첨부 대상 쓰기 권한이 없습니다."))
+                .when(targetWriteAuthorizerRegistry)
+                .verifyTargetWriteAccess("검토의견", "404", userDetails);
+        FileDto.UpdateRequest request =
+                FileDto.UpdateRequest.builder().pkColNm("검토의견").pkCone("404").build();
+
+        mockMvc.perform(
+                        put("/api/files/" + FL_MNG_NO)
+                                .with(user(userDetails))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+
+        verify(fileOwnershipChecker).verifyWriteAccess(FL_MNG_NO, userDetails);
+        verify(fileService, never()).updateFileMeta(anyString(), any());
     }
 
     @Test

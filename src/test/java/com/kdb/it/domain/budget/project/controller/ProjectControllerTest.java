@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.project.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -160,5 +161,29 @@ class ProjectControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].abusMngNo").value("PRJ-2026-0001"))
                 .andExpect(jsonPath("$.failedIds[0]").value("PRJ-2026-0002"));
+    }
+
+    @Test
+    @DisplayName("POST /api/projects/bulk-get - 빈 목록은 400이고 서비스를 호출하지 않는다")
+    @WithMockUser(username = "10001")
+    void bulkGetProjects_빈목록_400반환() throws Exception {
+        mockMvc.perform(
+                        post("/api/projects/bulk-get")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"prjMngNos\":[]}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(projectService);
+    }
+
+    @Test
+    @DisplayName("POST /api/projects/bulk-get - 공백 관리번호는 400을 반환한다")
+    @WithMockUser(username = "10001")
+    void bulkGetProjects_공백관리번호_400반환() throws Exception {
+        mockMvc.perform(
+                        post("/api/projects/bulk-get")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"prjMngNos\":[\" \"]}"))
+                .andExpect(status().isBadRequest());
     }
 }

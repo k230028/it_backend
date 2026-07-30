@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <ul>
  *   <li>{@code "none"}: NOT EXISTS — CAPPLA에 연결 레코드가 없는 전산관리비
- *   <li>그 외 값: EXISTS — 최신 CAPPLA(APF_SNO MAX)의 CAPPLM 결재상태가 일치하는 전산관리비
+ *   <li>그 외 값: EXISTS — 최신 신청서(APF_DCM_NO MAX)의 CAPPLM 결재상태가 일치하는 전산관리비
  * </ul>
  */
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
@@ -66,9 +66,9 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      *   WHERE ca.FNT_TB_NM = 'BCOSTM'
      *     AND ca.PK_COL_NM = c.BG_NO
      *     AND ca.FNT_TB_CRY_SNO = c.BG_SNO
-     *     AND cm.IT_PTL_APF_PRG_STS_C = '001'
-     *     AND ca.APF_SNO = (
-     *       SELECT MAX(ca2.APF_SNO) FROM TPRMPP_CAPPLA ca2
+     *     AND cm.IT_PTL_APF_PRG_STS_C = '1'
+     *     AND ca.APF_DCM_NO = (
+     *       SELECT MAX(ca2.APF_DCM_NO) FROM TPRMPP_CAPPLA ca2
      *       WHERE ca2.FNT_TB_NM = 'BCOSTM'
      *         AND ca2.PK_COL_NM = c.BG_NO
      *         AND ca2.FNT_TB_CRY_SNO = c.BG_SNO

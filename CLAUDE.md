@@ -34,6 +34,8 @@
 - 적용된 스크립트는 수정하지 않고 후속 변경은 새 버전으로 작성합니다.
 - 컬럼 rename·타입 변경은 `ddl-auto=update`에 맡기지 않습니다.
 - 로컬 프로파일만 Flyway 자동 적용을 허용하고 dev/prod는 DBA 검토 후 수동 적용합니다.
+- `local-ext`/`local-int`는 IDE 기동과 `bootRun` 모두 `filesystem:../it_database/migrations`를 읽으므로 `it_database` 형제 디렉터리 구조를 유지합니다.
+- Gradle `processResources`가 같은 디렉터리의 `V*.sql`을 WAR의 `db/migration`에 포함하므로 마이그레이션 경로나 리소스 태스크를 변경할 때 두 실행 경로를 함께 검증합니다.
 
 상세는 [Flyway 운영 가이드](docs/guides/operations/flyway.md)를 따릅니다.
 
@@ -63,14 +65,14 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 프론트 라우트 가드와 메뉴 숨김은 UX 보조이며 서버가 최종 보안 경계입니다.
 - 관리자 전용 컨트롤러는 클래스 수준 `@PreAuthorize("hasRole('ADMIN')")`를 적용합니다.
 - 관리자 전용이 아닌 업무 컨트롤러는 서비스 계층에서 소유자·역할·업무 범위를 검증합니다.
-- Cookie 기반 JWT는 Stateless여도 CSRF 검토 대상입니다. `SameSite=None`, CORS 와일드카드, 임의 Origin 추가는 별도 CSRF 보강 없이 적용하지 않습니다.
+- Cookie 기반 JWT는 Stateless여도 CSRF 검토 대상입니다. Access/Refresh/User/SSO 상태 쿠키 또는 `JSESSIONID`의 `SameSite=None` 전환, credentialed `/api/**`의 새 교차 사이트 Origin·와일드카드·패턴 허용, cross-site iframe/별도 사이트 SPA의 쿠키 API 호출, `/sso/**`의 `allowCredentials=true` 전환 중 하나라도 발생하면 같은 배포 단위에서 CSRF 토큰 또는 동등한 서버 검증 Origin/nonce 방어를 적용합니다. 모든 GET은 순수 조회로 유지하고 상태 변경 GET은 금지합니다.
 - 비밀값은 환경변수로 주입하고 운영 프로파일에서 개발용 폴백을 사용하지 않습니다.
 - 사용자 HTML은 저장 전에 `HtmlSanitizer.sanitize()`를 적용합니다.
 - 파일 쓰기·삭제는 업로더 또는 관리자만 허용합니다. 파일 읽기는 파일 종류(PK_COL_NM)별 authorizer가 부모 자원 권한을 재사용해 판정합니다(default-deny, 미등록 종류는 관리자만). 공통게시판=게시물 공개 여부, 요구사항정의서=관리자/작성자/주관부서, 협의회 연계(사업계획서·타당성검토표·협의회관련자료)=관리자/정보보안관리자/협의회 위원/관련부서, 가이드문서=인증 사용자 전체.
 - 클라이언트 IP는 신뢰 프록시에서 온 경우에만 `X-Forwarded-For`를 사용합니다.
 - `it-portal-user`의 사번·역할·부서 값은 변조 가능한 UX 상태로만 취급하고, API 권한과 데이터 범위는 JWT 기반 서버 검증으로 결정합니다.
 - SSO JWT 발급은 외부 토큰 검증 결과를 서버 세션에 저장한 뒤 1회 소비하는 흐름으로 수행합니다. 직접 사번 전달은 운영에서 금지하고, 복귀 Origin은 CORS 허용 목록, 복귀 경로는 같은 사이트 상대 경로로 제한합니다.
-- `/sso/**`는 외부 ESSO의 전체 페이지 콜백 전용으로 Origin 패턴과 GET·POST·OPTIONS를 열되 `allowCredentials=false`를 유지합니다. 이 예외를 `/api/**` 또는 쿠키 자격증명을 사용하는 XHR 경로로 확대하지 않습니다.
+- `/sso/**`는 외부 ESSO의 전체 페이지 콜백 전용으로 Origin 패턴과 GET·POST·OPTIONS를 열되 `allowCredentials=false`를 유지합니다. `Path=/` Access 쿠키가 같은 사이트 요청에 포함될 수 있어도 SSO 검증 상태는 Secure·HttpOnly·SameSite=Lax인 `JSESSIONID` 서버 세션으로 분리하며, 이 예외를 `/api/**` 또는 쿠키 자격증명을 사용하는 XHR 경로로 확대하지 않습니다.
 
 세부 정책은 [인증·인가 가이드](docs/guides/security/authentication-authorization.md), 데이터 범위는 [데이터 접근 범위 가이드](docs/guides/security/data-scope.md), 파일은 [파일 보안 가이드](docs/guides/security/file-security.md)를 따릅니다.
 
@@ -111,9 +113,11 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 ## 9. 테스트·주석·운영
 
 - 기능 변경 후 `./gradlew test`, 인증·결재·파일·QueryDSL·감사로그 공통 변경은 `./gradlew clean test`를 실행합니다.
+- `./gradlew test`는 Oracle 통합 태그를 제외하고 JaCoCo 보고서를 생성합니다. 병합 전 전체 품질 게이트는 Spotless와 JaCoCo 검증이 연결된 `./gradlew check`를 사용합니다.
 - 로컬 Oracle 통합 테스트는 `@Tag("it")`와 `integrationTest` 태스크를 사용합니다.
+- 신규 QueryDSL·JPQL·네이티브 조회를 추가할 때는 `AbstractOracleRepositoryTest` 기반 Oracle 통합 테스트로 결과 동등성, 정렬, null 계약을 함께 검증합니다.
 - public API와 service 메서드 JavaDoc은 입력값·반환값·실패 조건을 한글로 기록합니다.
-- Javadoc 기본 생성자 경고는 Jackson 역직렬화가 확인된 요청·입력 DTO에 한해 Javadoc을 단 명시적 no-arg 생성자 선언으로 해소합니다. 클래스 레벨 `@Builder`가 붙은 응답 DTO에는 builder용 전체 필드 생성자를 보존하기 위해 no-arg 생성자를 기계적으로 추가하지 않습니다. 전환하지 않은 대량 DTO의 기본 생성자 경고는 허용 잔여로 관리하며, 총량 기준선 수치는 CLAUDE.md가 아닌 `../TASK.md` 항목 메모 또는 `../README.md` 변경 이력에 기록합니다.
+- Javadoc 기본 생성자 경고는 Jackson 역직렬화가 확인된 요청·입력 DTO에 한해 Javadoc을 단 명시적 no-arg 생성자 선언으로 해소합니다. 클래스 레벨 `@Builder`가 붙은 응답 DTO에는 builder용 전체 필드 생성자를 보존하기 위해 no-arg 생성자를 기계적으로 추가하지 않습니다. 전환하지 않은 대량 DTO의 기본 생성자 경고는 허용 잔여로 관리하며, 총량 기준선 수치는 CLAUDE.md가 아닌 `../TASK.md` 항목 메모 또는 `../README.md` 변경 이력에 기록합니다. 신규 코드에서 미분류 Javadoc 경고를 늘리지 않으며, 기존 허용 잔여는 기능 변경 시 의미 있는 공개 계약부터 점진 정리합니다.
 - 설명 가치가 없는 단순 대입·게터에는 주석을 추가하지 않습니다.
 - 로그에 비밀값·토큰·휴대폰·OTP를 기록하지 않습니다.
 - 파일 로깅·롤오버 상세는 [로깅 가이드](docs/guides/operations/logging.md), 실시간 감사 피드는 [실시간 로그 가이드](docs/guides/operations/realtime-logs.md)를 따릅니다.

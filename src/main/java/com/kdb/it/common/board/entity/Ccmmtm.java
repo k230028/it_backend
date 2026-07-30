@@ -90,4 +90,9 @@ public class Ccmmtm extends BaseEntity {
         this.cmmtGrpLev = parentGrpLev + 1;
         this.hrkCmmtMngNo = parentPk;
     }
+
+    /** 대댓글 삽입 지점 뒤의 그룹 순서를 한 칸 이동합니다. */
+    public void shiftGroupSequence() {
+        this.cmmtGrpSqn = this.cmmtGrpSqn + 1;
+    }
 }

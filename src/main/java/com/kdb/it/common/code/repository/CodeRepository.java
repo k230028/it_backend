@@ -2,6 +2,8 @@ package com.kdb.it.common.code.repository;
 
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.entity.CcodemId;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -23,6 +25,17 @@ public interface CodeRepository extends JpaRepository<Ccodem, CcodemId>, CodeRep
             @Param("cdva") String cdva,
             @Param("sttDt") String sttDt,
             @Param("delYn") String delYn);
+
+    /**
+     * 코드ID 집합에 속한 활성 공통코드를 일괄 조회합니다.
+     *
+     * @param cIds 조회할 코드ID 집합
+     * @param delYn 삭제여부
+     * @return 코드ID 집합에 속한 공통코드 목록
+     */
+    @Query("SELECT c FROM Ccodem c WHERE c.cId IN :cIds AND c.delYn = :delYn")
+    List<Ccodem> findAllByCIdInAndDelYn(
+            @Param("cIds") Collection<String> cIds, @Param("delYn") String delYn);
 
     /** 복합키 존재 여부 확인 (삭제여부 무관) */
     @Query(

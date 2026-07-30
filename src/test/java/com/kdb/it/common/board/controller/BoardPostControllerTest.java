@@ -3,6 +3,12 @@ package com.kdb.it.common.board.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -15,6 +21,7 @@ import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.exception.NotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +49,93 @@ class BoardPostControllerTest {
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     private static final String NAC_MNG_NO = "NAC-2026-0001";
+
+    @Test
+    @DisplayName("GET /api/boards/{blbMngNo}/posts/{nacMngNo}는 상세 조회만 수행한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void getDetail_doesNotIncrementViewCount() throws Exception {
+        mockMvc.perform(get("/api/boards/BLB-1/posts/" + NAC_MNG_NO)).andExpect(status().isOk());
+
+        verify(boardPostService, times(1)).getPostDetail(anyString(), anyString(), any());
+        verify(boardPostService, never()).incrementPostView(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("POST /api/boards/{blbMngNo}/posts/{nacMngNo}/views는 조회수를 한 번 증가시킨다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void incrementViewCount_once_returns204() throws Exception {
+        mockMvc.perform(post("/api/boards/BLB-1/posts/" + NAC_MNG_NO + "/views"))
+                .andExpect(status().isNoContent());
+
+        verify(boardPostService, times(1)).incrementPostView(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 상세 GET은 실제 404 응답을 반환한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void getDetail_wrongBoard_returns404() throws Exception {
+        given(boardPostService.getPostDetail(anyString(), anyString(), any()))
+                .willThrow(new NotFoundException("게시물을 찾을 수 없습니다"));
+
+        mockMvc.perform(get("/api/boards/BOARD-A/posts/POST-B")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 조회수 POST는 실제 404 응답을 반환한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void incrementViewCount_wrongBoard_returns404() throws Exception {
+        willThrow(new NotFoundException("게시물을 찾을 수 없습니다"))
+                .given(boardPostService)
+                .incrementPostView(anyString(), anyString(), any());
+
+        mockMvc.perform(post("/api/boards/BOARD-A/posts/POST-B/views"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 수정 PUT은 실제 404 응답을 반환한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void update_wrongBoard_returns404() throws Exception {
+        willThrow(new NotFoundException("게시물을 찾을 수 없습니다"))
+                .given(boardPostService)
+                .updatePost(anyString(), anyString(), any(), any());
+        var body = new BoardPostDto.UpdateRequest();
+        body.setNacNm("수정 제목");
+
+        mockMvc.perform(
+                        put("/api/boards/BOARD-A/posts/POST-B")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 삭제 DELETE는 실제 404 응답을 반환한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void delete_wrongBoard_returns404() throws Exception {
+        willThrow(new NotFoundException("게시물을 찾을 수 없습니다"))
+                .given(boardPostService)
+                .deletePost(anyString(), anyString(), any());
+
+        mockMvc.perform(delete("/api/boards/BOARD-A/posts/POST-B"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("다른 게시판 경로의 답글 POST는 실제 404 응답을 반환한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void createReply_wrongBoard_returns404() throws Exception {
+        given(boardPostService.createReply(anyString(), anyString(), any(), any()))
+                .willThrow(new NotFoundException("게시물을 찾을 수 없습니다"));
+        var body = new BoardPostDto.ReplyCreateRequest();
+        body.setNacNm("답글 제목");
+
+        mockMvc.perform(
+                        post("/api/boards/BOARD-A/posts/POST-B/replies")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isNotFound());
+    }
 
     @Test
     @DisplayName("POST /api/boards/{blbMngNo}/posts - 정상 등록 → 201 + 생성된 게시물관리번호 반환")

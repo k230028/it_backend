@@ -1,6 +1,7 @@
 package com.kdb.it.common.board.dto;
 
 import com.kdb.it.common.board.entity.Ccmmtm;
+import com.kdb.it.common.board.repository.BoardCommentListRow;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
@@ -68,6 +69,33 @@ public class BoardCommentDto {
                     .fstEnrUsid(e.getFstEnrUsid())
                     .fstEnrDtm(e.getFstEnrDtm())
                     .lstChgDtm(e.getLstChgDtm())
+                    .canModify(canModify)
+                    .build();
+        }
+
+        /**
+         * REST 응답 전용 경량 프로젝션({@link BoardCommentListRow})으로부터 응답 DTO를 생성합니다. {@link #from(Ccmmtm,
+         * boolean)}와 동일한 삭제 댓글 마스킹 규칙을 적용합니다.
+         *
+         * @param row 댓글 목록 프로젝션 행
+         * @param canModify 현재 사용자의 수정 가능 여부
+         * @return 응답 DTO
+         */
+        public static Response from(BoardCommentListRow row, boolean canModify) {
+            // 삭제된 댓글은 본문을 마스킹한다
+            String displayCone = "Y".equals(row.delYn()) ? "삭제된 댓글입니다." : row.cmmtCone();
+            return Response.builder()
+                    .cmmtMngNo(row.cmmtMngNo())
+                    .nacMngNo(row.nacMngNo())
+                    .cmmtCone(displayCone)
+                    .cmmtGrpNo(row.cmmtGrpNo())
+                    .cmmtGrpSqn(row.cmmtGrpSqn())
+                    .cmmtGrpLev(row.cmmtGrpLev())
+                    .hrkCmmtMngNo(row.hrkCmmtMngNo())
+                    .delYn(row.delYn())
+                    .fstEnrUsid(row.fstEnrUsid())
+                    .fstEnrDtm(row.fstEnrDtm())
+                    .lstChgDtm(row.lstChgDtm())
                     .canModify(canModify)
                     .build();
         }

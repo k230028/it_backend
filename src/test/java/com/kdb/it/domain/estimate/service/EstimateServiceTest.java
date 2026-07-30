@@ -520,21 +520,28 @@ class EstimateServiceTest {
     @DisplayName("get — 상세 조회")
     class GetTests {
 
+        /** 상세 조회 전용 프로젝션 mock — 응답이 사용하는 7개 필드만 스텁한다. */
+        private EstimateRepository.EstimateDetailView detailView(
+                String docNo, Integer docVrsSno, String cncdRfrNo, String stsTc, String reqCone) {
+            EstimateRepository.EstimateDetailView view =
+                    org.mockito.Mockito.mock(EstimateRepository.EstimateDetailView.class);
+            when(view.getRqmBgReqDocNo()).thenReturn(docNo);
+            when(view.getDocVrsSno()).thenReturn(docVrsSno);
+            when(view.getCncdRfrNo()).thenReturn(cncdRfrNo);
+            when(view.getStsTc()).thenReturn(stsTc);
+            when(view.getReqCone()).thenReturn(reqCone);
+            return view;
+        }
+
         @Test
         @DisplayName("명세 행이 있고 사업명도 조회될 때 상세 DTO를 정상 반환한다")
         void get_returnsDetailWithLinesAndAbusNm() {
-            // Arrange: 마스터
-            Bestim e =
-                    Bestim.builder()
-                            .rqmBgReqDocNo("REQ-2026-0001")
-                            .docVrsSno(1)
-                            .lstYn("Y")
-                            .cncdRfrNo("PRJ-2026-0001")
-                            .stsTc("55")
-                            .reqCone("요청내용")
-                            .build();
-            when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
-                    .thenReturn(Optional.of(e));
+            // Arrange: 상세 조회 전용 view
+            EstimateRepository.EstimateDetailView view =
+                    detailView("REQ-2026-0001", 1, "PRJ-2026-0001", "55", "요청내용");
+            when(estimateRepository.findDetailViewByRqmBgReqDocNoAndLstYnAndDelYn(
+                            "REQ-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(view));
 
             // 명세 행 1건
             Besttm line =
@@ -562,7 +569,12 @@ class EstimateServiceTest {
 
             // Assert
             assertThat(detail.rqmBgReqDocNo()).isEqualTo("REQ-2026-0001");
+            assertThat(detail.docVrsSno()).isEqualTo(1);
+            assertThat(detail.ioeC()).isEqualTo("100");
+            assertThat(detail.cncdRfrNo()).isEqualTo("PRJ-2026-0001");
+            assertThat(detail.abusNm()).isEqualTo("사업명");
             assertThat(detail.stsTc()).isEqualTo("55");
+            assertThat(detail.reqCone()).isEqualTo("요청내용");
             assertThat(detail.lines()).hasSize(1);
             assertThat(detail.lines().get(0).svnTemC()).isEqualTo("18010");
             assertThat(detail.lines().get(0).rqmBgAmt())
@@ -573,16 +585,11 @@ class EstimateServiceTest {
         @DisplayName("사업이 삭제되어 projectRepository가 empty를 반환하면 abusNm이 null이다")
         void get_returnsDetailWithNullAbusNmWhenProjectMissing() {
             // Arrange
-            Bestim e =
-                    Bestim.builder()
-                            .rqmBgReqDocNo("REQ-2026-0001")
-                            .docVrsSno(1)
-                            .lstYn("Y")
-                            .cncdRfrNo("PRJ-2026-0001")
-                            .stsTc("51")
-                            .build();
-            when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
-                    .thenReturn(Optional.of(e));
+            EstimateRepository.EstimateDetailView view =
+                    detailView("REQ-2026-0001", 1, "PRJ-2026-0001", "51", null);
+            when(estimateRepository.findDetailViewByRqmBgReqDocNoAndLstYnAndDelYn(
+                            "REQ-2026-0001", "Y", "N"))
+                    .thenReturn(Optional.of(view));
             when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoAndDelYn("REQ-2026-0001", 1, "N"))
                     .thenReturn(List.of());
             when(projectRepository.findNameViewByAbusMngNoAndLstYnAndDelYn(
@@ -600,7 +607,8 @@ class EstimateServiceTest {
         @Test
         @DisplayName("존재하지 않는 문서번호로 조회 시 IllegalArgumentException을 던진다")
         void get_throwsWhenDocNotFound() {
-            when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("NOT-EXISTS", "Y", "N"))
+            when(estimateRepository.findDetailViewByRqmBgReqDocNoAndLstYnAndDelYn(
+                            "NOT-EXISTS", "Y", "N"))
                     .thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.get("NOT-EXISTS"))
@@ -825,7 +833,8 @@ class EstimateServiceTest {
                             .rqmBgAmt(new BigDecimal("100"))
                             .delYn("N")
                             .build();
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(active)));
 
             // 동일 키로 금액/의견 변경
@@ -870,7 +879,8 @@ class EstimateServiceTest {
                             .rqmBgAmt(new BigDecimal("100"))
                             .delYn("Y")
                             .build();
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(alreadyDeleted)));
 
             when(lineRepository.save(any(Besttm.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -920,7 +930,8 @@ class EstimateServiceTest {
                             .rqmBgAmt(new BigDecimal("300"))
                             .delYn("N")
                             .build();
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(row1, row2)));
 
             // Act: 빈 lines
@@ -954,7 +965,8 @@ class EstimateServiceTest {
             Bestim master = inProgress();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>());
 
             List<Besttm> saved = new ArrayList<>();
@@ -996,7 +1008,8 @@ class EstimateServiceTest {
                             .ioeC("1010")
                             .rqmBgAmt(new BigDecimal("100"))
                             .build();
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(existing)));
 
             List<Besttm> saved = new ArrayList<>();
@@ -1042,8 +1055,7 @@ class EstimateServiceTest {
 
         @Test
         @DisplayName(
-                "DB에 동일 (팀+비목) 물리행이 이미 2건 있고 요청에도 같은 키가 2번 오면 예외 없이 "
-                        + "낮은 일련번호 행이 마지막 요청값으로 갱신된다")
+                "DB에 동일 (팀+비목) 물리행이 이미 2건 있고 요청에도 같은 키가 2번 오면 예외 없이 " + "낮은 일련번호 행이 마지막 요청값으로 갱신된다")
         void existingDuplicateKeyAndRequestDuplicate_mergesWithoutException() {
             // Arrange — 운영 3컬럼 PK(문서번호+버전+개선의견일련번호)는 동일 (팀+비목) 쌍을 가진
             // 물리 행이 2건 이상 존재하는 것을 막지 않는다. 이 상태에서 재저장을 시도하는 시나리오.
@@ -1071,7 +1083,8 @@ class EstimateServiceTest {
                             .rqmBgAmt(new BigDecimal("999"))
                             .delYn("N")
                             .build();
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>(List.of(existingLow, existingHigh)));
 
             // Act — 동일 (T001, 1010) 키를 값만 다르게 요청에 두 번 포함
@@ -1116,7 +1129,8 @@ class EstimateServiceTest {
             Bestim master = inProgress();
             when(estimateRepository.findByRqmBgReqDocNoAndLstYnAndDelYn("REQ-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(master));
-            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc("REQ-2026-0001", 1))
+            when(lineRepository.findByRqmBgReqDocNoAndDocVrsSnoOrderByIpmOpnnSnoAsc(
+                            "REQ-2026-0001", 1))
                     .thenReturn(new ArrayList<>());
 
             List<Besttm> saved = new ArrayList<>();

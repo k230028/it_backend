@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.document.dto;
 
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
+import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
@@ -135,6 +136,47 @@ public class GuideDocDto {
                     .lstChgDtm(entity.getLstChgDtm())
                     .lstChgUsid(entity.getLstChgUsid())
                     .build();
+        }
+    }
+
+    /**
+     * 가이드 문서 목록 조회 응답 DTO
+     *
+     * <p>본문({@code nacTxtInf}, CLOB)을 제외한 경량 목록 응답입니다. 단건 상세 조회는 {@link Response}를 계속 사용합니다.
+     *
+     * @param docMngNo 문서관리번호
+     * @param docTtlCone 문서명
+     * @param delYn 삭제여부
+     * @param fstEnrDtm 최초생성시간
+     * @param fstEnrUsid 최초생성자 사번
+     * @param lstChgDtm 마지막수정시간
+     * @param lstChgUsid 마지막수정자 사번
+     */
+    @Schema(name = "GuideDocListResponse", description = "가이드 문서 목록 조회 응답 (본문 제외)")
+    public record ListResponse(
+            @Schema(description = "문서관리번호") String docMngNo,
+            @Schema(description = "문서명") String docTtlCone,
+            @Schema(description = "삭제여부") String delYn,
+            @Schema(description = "최초생성시간") LocalDateTime fstEnrDtm,
+            @Schema(description = "최초생성자") String fstEnrUsid,
+            @Schema(description = "마지막수정시간") LocalDateTime lstChgDtm,
+            @Schema(description = "마지막수정자") String lstChgUsid) {
+
+        /**
+         * {@link GuideDocRepository.GuideDocListView} 프로젝션을 ListResponse로 변환합니다.
+         *
+         * @param view 변환할 목록 프로젝션
+         * @return 변환된 ListResponse
+         */
+        public static ListResponse fromView(GuideDocRepository.GuideDocListView view) {
+            return new ListResponse(
+                    view.getDocMngNo(),
+                    view.getDocTtlCone(),
+                    view.getDelYn(),
+                    view.getFstEnrDtm(),
+                    view.getFstEnrUsid(),
+                    view.getLstChgDtm(),
+                    view.getLstChgUsid());
         }
     }
 }

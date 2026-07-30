@@ -62,20 +62,20 @@ public class CommitteeService {
     private static final Map<String, List<String>> MANDATORY_TEM_CODES =
             Map.of(
                     "02", List.of("14011", "18001"), // 정보기술부문계획: 미래전략팀장, IT기획팀장
-                    "03", List.of("12004", "18010", "18501", "18301"), // INFO_SYS
-                    "04", List.of("12004", "18001", "18010", "18501"), // INFO_SEC
-                    "05", List.of("12004", "18010", "18501") // ETC
+                    "03", List.of("12004", "18010", "18501", "18301"), // 정보시스템
+                    "04", List.of("12004", "18001", "18010", "18501"), // 정보보안
+                    "05", List.of("12004", "18010", "18501") // 기타
                     );
 
     // 심의유형별 간사 팀코드 매핑 (TEM_C 기준)
-    // 003(INFO_SYS) / 005(ETC): IT기획(18001) → 간사
-    // 004(INFO_SEC): 정보보호기획(18301) → 간사
+    // 03(정보시스템) / 05(기타): IT기획(18001) → 간사
+    // 04(정보보안): 정보보호기획(18301) → 간사
     private static final Map<String, List<String>> SECRETARY_TEM_CODES =
             Map.of(
                     "02", List.of("18001"), // 정보기술부문계획: IT기획팀장(당연위원과 동일인 → 겸직 '04')
-                    "03", List.of("18001"), // INFO_SYS
-                    "04", List.of("18301"), // INFO_SEC
-                    "05", List.of("18001") // ETC
+                    "03", List.of("18001"), // 정보시스템
+                    "04", List.of("18301"), // 정보보안
+                    "05", List.of("18001") // 기타
                     );
 
     /** INFO_SYS 일정 확정 필수 응답 팀코드 (예산:12004, IT기획:18001) */

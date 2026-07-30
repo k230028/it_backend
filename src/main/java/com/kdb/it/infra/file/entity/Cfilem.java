@@ -62,6 +62,10 @@ public class Cfilem extends BaseEntity {
     @Column(name = "FL_TP_CONE", length = 100, comment = "파일유형내용")
     private String flTpCone;
 
+    /** 첨부파일크기: 업로드 시점의 바이트 크기이며 레거시 파일은 NULL일 수 있습니다. */
+    @Column(name = "APG_FL_SZ", precision = 10, comment = "첨부파일크기")
+    private Long apgFlSz;
+
     /** 주식별자컬럼명: 파일이 연결된 도메인 종류 (예: 요구사항정의서, 정보화사업, 전산관리비) */
     @Column(name = "PK_COL_NM", length = 4000, comment = "주식별자컬럼명")
     private String pkColNm;

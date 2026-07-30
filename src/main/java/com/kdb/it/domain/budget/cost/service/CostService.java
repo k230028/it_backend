@@ -179,9 +179,9 @@ public class CostService {
      * <p>전산관리비관리번호({@code IT_MNGC_NO})가 없으면 Oracle 시퀀스로 자동 채번합니다. 일련번호({@code BG_SNO})는 기존 데이터 기준
      * MAX+1로 설정합니다.
      *
-     * <p>관리번호 자동 생성 형식: {@code COST_{yyyy}_{seq:04d}}
+     * <p>관리번호 자동 생성 형식: {@code COST-{yyyy}-{seq:04d}}
      *
-     * <p>예: {@code COST_2026_0001}
+     * <p>예: {@code COST-2026-0001}
      *
      * <p>일련번호(SNO) 채번:
      *

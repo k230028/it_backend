@@ -110,9 +110,9 @@ public class ApplicationService {
      *
      * <p>신청서 마스터({@link Capplm})를 생성하고, 원본 데이터 연결({@link Cappla}) 및 결재선({@link Cdecim})을 함께 저장합니다.
      *
-     * <p>신청관리번호 생성 규칙: {@code APF_{yyyy}{시퀀스8자리}}
+     * <p>신청관리번호 생성 규칙: {@code APF-{yyyy}-{시퀀스8자리}}
      *
-     * <p>예: {@code APF_202600000001}
+     * <p>예: {@code APF-2026-00000001}
      *
      * <p>처리 순서:
      *
@@ -124,7 +124,7 @@ public class ApplicationService {
      * </ol>
      *
      * @param request 신청서 생성 요청 DTO (신청서명, 세부내용, 신청자, 결재자 목록 등)
-     * @return 생성된 신청관리번호 (예: "APF_202600000001")
+     * @return 생성된 신청관리번호 (예: "APF-2026-00000001")
      */
     @Transactional
     public String submit(ApplicationDto.CreateRequest request) {
@@ -457,12 +457,12 @@ public class ApplicationService {
      * @throws IllegalArgumentException 해당 신청관리번호의 신청서가 없는 경우
      */
     public ApplicationDto.ApfDtlConeResponse getApfDtlCone(String apfMngNo) {
-        Capplm capplm =
+        ApplicationRepository.ApplicationReadView view =
                 applicationRepository
-                        .findById(apfMngNo)
+                        .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
-        return ApplicationDto.ApfDtlConeResponse.fromEntity(capplm);
+        return ApplicationDto.ApfDtlConeResponse.fromReadView(view);
     }
 
     /**
@@ -475,22 +475,20 @@ public class ApplicationService {
      * @throws IllegalArgumentException 해당 신청관리번호의 신청서가 없는 경우
      */
     public ApplicationDto.Response getApplication(String apfMngNo) {
-        // 신청서 마스터 조회
-        Capplm capplm =
+        // 신청서 마스터 read view 조회 (응답이 실제 사용하는 8컬럼만 조회)
+        ApplicationRepository.ApplicationReadView view =
                 applicationRepository
-                        .findById(apfMngNo)
+                        .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
         // 결재자 목록 조회 (순번 오름차순)
         List<ApproverRepository.ApproverReadView> approvers =
                 approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
         String requesterNm =
-                requesterName(resolveRequesterNames(List.of(capplm)), capplm.getDcdReqUsid());
+                requesterName(resolveRequesterNames(List.of(view)), view.getDcdReqUsid());
         String requesterBbrNm =
-                requesterDeptName(
-                        resolveRequesterDeptNames(List.of(capplm)), capplm.getDcdReqBbrC());
-        return ApplicationDto.Response.fromReadViews(
-                capplm, approvers, requesterNm, requesterBbrNm);
+                requesterDeptName(resolveRequesterDeptNames(List.of(view)), view.getDcdReqBbrC());
+        return ApplicationDto.Response.fromReadViews(view, approvers, requesterNm, requesterBbrNm);
     }
 
     /**
@@ -501,8 +499,10 @@ public class ApplicationService {
      * @return 전체 신청서 응답 DTO 목록 (각각 결재자 목록 포함)
      */
     public List<ApplicationDto.Response> getApplications() {
-        List<Capplm> capplms = applicationRepository.findAll();
-        List<String> apfMngNos = capplms.stream().map(value -> value.getApfMngNo()).toList();
+        // 신청서 마스터 read view 조회 (응답이 실제 사용하는 8컬럼만 조회, findAll()과 동일하게 정렬 없음)
+        List<ApplicationRepository.ApplicationReadView> views =
+                applicationRepository.findAllProjectedBy();
+        List<String> apfMngNos = views.stream().map(value -> value.getApfMngNo()).toList();
 
         // 결재선 배치 조회 (N+1 제거): 신청번호별 결재자 목록 Map 선구성.
         // findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc가 DCR_SQN_SNO 오름차순으로 반환하므로
@@ -512,19 +512,18 @@ public class ApplicationService {
                         .collect(
                                 java.util.stream.Collectors.groupingBy(
                                         value -> value.getDcdMngNo()));
-        java.util.Map<String, String> requesterNamesByEno = resolveRequesterNames(capplms);
-        java.util.Map<String, String> requesterDeptNamesByBbrC = resolveRequesterDeptNames(capplms);
+        java.util.Map<String, String> requesterNamesByEno = resolveRequesterNames(views);
+        java.util.Map<String, String> requesterDeptNamesByBbrC = resolveRequesterDeptNames(views);
 
-        return capplms.stream()
+        return views.stream()
                 .map(
-                        capplm ->
+                        view ->
                                 ApplicationDto.Response.fromReadViews(
-                                        capplm,
-                                        approversByApf.getOrDefault(
-                                                capplm.getApfMngNo(), List.of()),
-                                        requesterName(requesterNamesByEno, capplm.getDcdReqUsid()),
+                                        view,
+                                        approversByApf.getOrDefault(view.getApfMngNo(), List.of()),
+                                        requesterName(requesterNamesByEno, view.getDcdReqUsid()),
                                         requesterDeptName(
-                                                requesterDeptNamesByBbrC, capplm.getDcdReqBbrC())))
+                                                requesterDeptNamesByBbrC, view.getDcdReqBbrC())))
                 .toList();
     }
 
@@ -571,14 +570,15 @@ public class ApplicationService {
     }
 
     /**
-     * 신청서 목록의 신청자 사번을 사용자명으로 일괄 변환합니다.
+     * 신청서 read view 목록의 신청자 사번을 사용자명으로 일괄 변환합니다.
      *
-     * @param capplms 신청서 마스터 목록
+     * @param views 신청서 마스터 read view 목록
      * @return 사번을 키로 하는 사용자명 맵
      */
-    private java.util.Map<String, String> resolveRequesterNames(List<Capplm> capplms) {
+    private java.util.Map<String, String> resolveRequesterNames(
+            List<ApplicationRepository.ApplicationReadView> views) {
         java.util.Set<String> requesterEnos =
-                capplms.stream()
+                views.stream()
                         .map(application -> application.getDcdReqUsid())
                         .filter(eno -> eno != null && !eno.isBlank())
                         .collect(java.util.stream.Collectors.toSet());
@@ -595,14 +595,15 @@ public class ApplicationService {
     }
 
     /**
-     * 신청서 목록의 신청부서코드를 부서명으로 일괄 변환합니다.
+     * 신청서 read view 목록의 신청부서코드를 부서명으로 일괄 변환합니다.
      *
-     * @param capplms 신청서 마스터 목록
+     * @param views 신청서 마스터 read view 목록
      * @return 부점코드를 키로 하는 부점명 맵
      */
-    private java.util.Map<String, String> resolveRequesterDeptNames(List<Capplm> capplms) {
+    private java.util.Map<String, String> resolveRequesterDeptNames(
+            List<ApplicationRepository.ApplicationReadView> views) {
         java.util.Set<String> requesterBbrCs =
-                capplms.stream()
+                views.stream()
                         .map(application -> application.getDcdReqBbrC())
                         .filter(bbrC -> bbrC != null && !bbrC.isBlank())
                         .collect(java.util.stream.Collectors.toSet());

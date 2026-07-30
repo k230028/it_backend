@@ -11,6 +11,8 @@ public interface BoardMetaRepository
 
     Optional<Cblbmm> findByBlbMngNoAndDelYn(String blbMngNo, String delYn);
 
+    Optional<Cblbmm> findByBlbMngNoAndUseYnAndDelYn(String blbMngNo, String useYn, String delYn);
+
     /** 게시판 메타 채번 시퀀스 — BLBM-{0001} 형식 */
     @Query(value = "SELECT SQ_TPRMPP_CBLBMM_1.NEXTVAL FROM DUAL", nativeQuery = true)
     Long getNextSequenceValue();

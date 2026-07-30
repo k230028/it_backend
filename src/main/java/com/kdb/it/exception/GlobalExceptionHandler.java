@@ -3,12 +3,15 @@ package com.kdb.it.exception;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -90,6 +93,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 서버 데이터 정합성 오류 처리.
+     *
+     * @param e 데이터 손상 예외
+     * @return 500 응답과 진단 문맥
+     */
+    @ExceptionHandler(DataCorruptionException.class)
+    public ResponseEntity<Map<String, Object>> handleDataCorruption(DataCorruptionException e) {
+        log.error("서버 데이터 정합성 오류: {}", e.getMessage(), e);
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+    }
+
+    /**
      * Bean Validation 실패 예외 처리 (400 Bad Request)
      *
      * <p>{@code @Valid} 어노테이션이 붙은 요청 DTO의 필드 검증 실패 시 발생합니다. 실패한 필드명과 오류 메시지를 쉼표로 구분하여 반환합니다.
@@ -152,6 +167,27 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleNoResourceFound(NoResourceFoundException e) {
         log.debug("정적 리소스 미존재: {}", e.getResourcePath());
         return buildErrorResponse(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다.");
+    }
+
+    /**
+     * 지원하지 않는 HTTP 메서드 요청을 처리합니다.
+     *
+     * @param e 지원하지 않는 HTTP 메서드 예외
+     * @return 405 응답
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException e) {
+        log.debug("지원하지 않는 HTTP 메서드: {}", e.getMethod());
+        ResponseEntity<Map<String, Object>> errorResponse =
+                buildErrorResponse(HttpStatus.METHOD_NOT_ALLOWED, "지원하지 않는 HTTP 메서드입니다.");
+        Set<HttpMethod> supportedMethods = e.getSupportedHttpMethods();
+        if (supportedMethods == null || supportedMethods.isEmpty()) {
+            return errorResponse;
+        }
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .allow(supportedMethods.toArray(HttpMethod[]::new))
+                .body(errorResponse.getBody());
     }
 
     /**

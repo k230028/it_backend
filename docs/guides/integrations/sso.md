@@ -3,9 +3,11 @@
 SSO 완료 흐름은 사내 인증 결과를 검증한 뒤 애플리케이션 JWT 쿠키를 발급합니다.
 
 - 직접 사번 입력 우회는 기본 비활성화하고 개발 프로파일에서만 제한적으로 허용합니다.
-- 검증 완료 세션 키는 사용 즉시 제거합니다.
+- `loginProc`/`agentProc`는 Agent 결과(`resultCode`, `resultData`, `secureSessionId`)를 세션 잠금 안에서 한 번만 소비하고 성공한 사번만 완료 단계로 승격합니다.
+- 완료 단계는 검증 사번을 한 번만 소비하며 성공·실패와 관계없이 SSO 서버 세션을 무효화합니다.
 - 복귀 URL은 허용 Origin 목록에서 선택하여 오픈 리다이렉트를 방지합니다.
 - `/sso/**` CORS 예외는 전체 페이지 콜백 전용이며 일반 SPA API에 적용하지 않습니다.
+- SSO 통합 로그아웃은 `POST /sso/logout`만 허용합니다. `GET /sso/logout`은 `Allow: POST`와 함께 405를 반환하며 세션 상태를 변경하지 않습니다.
 - 암호화 토큰 쿼리 값의 `+`는 명시적으로 percent-encoding합니다.
 - 외부 JSON 응답은 DTO 또는 `Map<String, Object>`로 받습니다.
 - 실제 HTTP 메시지 컨버터와 폼 디코딩을 지나는 통합 테스트를 유지합니다.

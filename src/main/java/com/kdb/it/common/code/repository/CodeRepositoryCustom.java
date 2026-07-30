@@ -42,4 +42,39 @@ public interface CodeRepositoryCustom {
 
     /** 논리 삭제되지 않은 전체 공통코드를 코드순서 오름차순(null 마지막)으로 조회 */
     List<Ccodem> findAllActive();
+
+    /**
+     * 코드ID 기준 다건 조회 — REST 응답 전용 경량 프로젝션 (guid, guidPrgSno 제외)
+     *
+     * <p>{@link #findByCIdWithValidDate(String, LocalDate)}와 동일한 조건·정렬을 사용한다. {@code
+     * CodeService.getCcodemsByCId} 전용이며 캐시 경로({@code findCodeEntitiesByCId})는 이 메서드를 사용하지 않는다.
+     *
+     * @param cId 코드ID
+     * @param targetDate 기준일자 (null이면 시스템 현재 날짜)
+     */
+    List<CcodemResponseRow> findResponseRowsByCIdWithValidDate(String cId, LocalDate targetDate);
+
+    /**
+     * 코드ID + 코드값 + 기준일자로 단건 조회 — REST 응답 전용 경량 프로젝션 (guid, guidPrgSno 제외)
+     *
+     * <p>{@link #findByCIdAndCdvaWithValidDate(String, String, LocalDate)}와 동일한 조건을 사용한다. {@code
+     * CodeService.getCcodem} 전용이며 {@code getBudgetPeriod} 등 엔티티 소비 경로는 이 메서드를 사용하지 않는다.
+     *
+     * @param cId 코드ID
+     * @param cdva 코드값
+     * @param targetDate 기준일자 (null이면 시스템 현재 날짜)
+     */
+    Optional<CcodemResponseRow> findResponseRowByCIdAndCdvaWithValidDate(
+            String cId, String cdva, LocalDate targetDate);
+
+    /**
+     * 코드타입(C_TP) 기준 다건 조회 — REST 응답 전용 경량 프로젝션 (guid, guidPrgSno 제외)
+     *
+     * <p>{@link #findByCTpWithValidDate(String, LocalDate)}와 동일한 조건·정렬을 사용한다. {@code
+     * CodeService.getCcodemsByCTp} 전용이다.
+     *
+     * @param cTp 코드타입 (예: IOE_LEAFE, IOE_XPN)
+     * @param targetDate 기준일자 (null이면 시스템 현재 날짜)
+     */
+    List<CcodemResponseRow> findResponseRowsByCTpWithValidDate(String cTp, LocalDate targetDate);
 }

@@ -7,19 +7,30 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.client.RestClient;
 
 class SsoAgentClientTest {
 
     private static final String HOST = "https://esso-host.test";
+    private static final String TOKEN_SENTINEL = "token-RAW-7Q2";
+    private static final String SESSION_SENTINEL = "session-RAW-8R3";
+    private static final String ENO_SENTINEL = "K999999";
+    private static final String BODY_SENTINEL = "response-body-RAW-9S4";
+    private static final String RESULT_CODE_SENTINEL = "result-code-RAW-4U6";
 
     private SsoProperties props(String requestData) {
         return new SsoProperties(
@@ -40,6 +51,27 @@ class SsoAgentClientTest {
             m.put((String) kv[i], kv[i + 1]);
         }
         return m;
+    }
+
+    private List<String> formattedMessages(ListAppender<ILoggingEvent> appender) {
+        return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+    }
+
+    @Test
+    @DisplayName("SSO 로그 마스킹은 값의 길이와 예외 유형만 남긴다")
+    void ssoLogSanitizer_원문대신길이와예외유형만반환() {
+        assertThat(SsoLogSanitizer.masked(SESSION_SENTINEL))
+                .isEqualTo("***(len=" + SESSION_SENTINEL.length() + ")");
+        assertThat(SsoLogSanitizer.masked(" ")).isEqualTo("(없음)");
+        assertThat(SsoLogSanitizer.exceptionType(new IllegalStateException(BODY_SENTINEL)))
+                .isEqualTo("IllegalStateException");
+        assertThat(SsoLogSanitizer.exceptionType(null)).isEqualTo("Unknown");
+    }
+
+    @Test
+    @DisplayName("SSO 결과 코드의 비정상 길이는 Unicode 코드 포인트 기준으로 기록한다")
+    void ssoLogSanitizer_resultCode_보충문자길이코드포인트기준() {
+        assertThat(SsoLogSanitizer.resultCode("A\uD83D\uDE00B")).isEqualTo("<invalid>(len=3)");
     }
 
     @Test
@@ -197,5 +229,124 @@ class SsoAgentClientTest {
         assertThat(exception.returnUrl()).isNull();
 
         verify(request, org.mockito.Mockito.times(3)).uri(any(URI.class));
+    }
+
+    @Test
+    @DisplayName("authorize: 성공·거부·통신 실패 로그에 토큰·세션·사번·응답 원문을 남기지 않는다")
+    @SuppressWarnings("unchecked")
+    void authorize_민감정보로그미노출() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.RequestBodyUriSpec request = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.ResponseSpec response = mock(RestClient.ResponseSpec.class);
+        when(restClient.post()).thenReturn(request);
+        when(request.uri(any(URI.class))).thenReturn(request);
+        when(request.retrieve()).thenReturn(response);
+        when(response.body(any(ParameterizedTypeReference.class)))
+                .thenReturn(map("resultCode", "000000", "user", map("id", ENO_SENTINEL)))
+                .thenReturn(
+                        map(
+                                "resultCode", "310017",
+                                "resultMessage", BODY_SENTINEL,
+                                "vendorField", BODY_SENTINEL))
+                .thenThrow(new IllegalStateException(BODY_SENTINEL));
+        SsoAgentClient client = new SsoAgentClient(restClient, props("id"));
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoAgentClient.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            SsoAgentClient.TokenAuthResult result =
+                    client.authorize(TOKEN_SENTINEL, SESSION_SENTINEL, "127.0.0.1");
+            client.authorize(TOKEN_SENTINEL, SESSION_SENTINEL, "127.0.0.1");
+            client.authorize(TOKEN_SENTINEL, SESSION_SENTINEL, "127.0.0.1");
+
+            List<String> logs = formattedMessages(appender);
+            assertThat(logs)
+                    .noneMatch(message -> message.contains(TOKEN_SENTINEL))
+                    .noneMatch(message -> message.contains(SESSION_SENTINEL))
+                    .noneMatch(message -> message.contains(ENO_SENTINEL))
+                    .noneMatch(message -> message.contains(BODY_SENTINEL));
+            assertThat(result.resultData()).isEqualTo(ENO_SENTINEL);
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("authorize: 인증서버의 비정상 resultCode를 안전하게 기록하고 반환값은 유지한다")
+    @SuppressWarnings("unchecked")
+    void authorize_비정상resultCode_로그주입차단_반환값유지() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.RequestBodyUriSpec request = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.ResponseSpec response = mock(RestClient.ResponseSpec.class);
+        String unsafeResultCode = RESULT_CODE_SENTINEL + "\r\nFORGED";
+        when(restClient.post()).thenReturn(request);
+        when(request.uri(any(URI.class))).thenReturn(request);
+        when(request.retrieve()).thenReturn(response);
+        when(response.body(any(ParameterizedTypeReference.class)))
+                .thenReturn(map("resultCode", unsafeResultCode, "resultMessage", "거부"));
+        SsoAgentClient client = new SsoAgentClient(restClient, props("id"));
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoAgentClient.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            SsoAgentClient.TokenAuthResult result =
+                    client.authorize("secure-token", "secure-session", "127.0.0.1");
+
+            assertThat(result.resultCode()).isEqualTo(unsafeResultCode);
+            assertThat(formattedMessages(appender))
+                    .allSatisfy(
+                            message ->
+                                    assertThat(message)
+                                            .doesNotContain(
+                                                    RESULT_CODE_SENTINEL,
+                                                    "\r",
+                                                    "\n",
+                                                    "\t",
+                                                    "\u001b",
+                                                    "\u0000",
+                                                    "\u2028",
+                                                    "\u2029"))
+                    .anySatisfy(
+                            message -> assertThat(message).contains("resultCode: <invalid>(len="));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("isServerAlive: 통신 실패 로그에 예외 메시지 원문을 남기지 않는다")
+    @SuppressWarnings("unchecked")
+    void isServerAlive_통신실패_예외메시지로그미노출() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.RequestHeadersUriSpec<?> request = mock(RestClient.RequestHeadersUriSpec.class);
+        RestClient.ResponseSpec response = mock(RestClient.ResponseSpec.class);
+        doReturn(request).when(restClient).get();
+        doReturn(request).when(request).uri(HOST + "/openapi/checkserver");
+        when(request.retrieve()).thenReturn(response);
+        when(response.body(any(ParameterizedTypeReference.class)))
+                .thenThrow(new IllegalStateException(BODY_SENTINEL));
+        SsoAgentClient client = new SsoAgentClient(restClient, props("id"));
+        Logger logger = (Logger) LoggerFactory.getLogger(SsoAgentClient.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            assertThat(client.isServerAlive()).isFalse();
+            assertThat(formattedMessages(appender))
+                    .noneMatch(message -> message.contains(BODY_SENTINEL));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 }

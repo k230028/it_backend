@@ -1,15 +1,21 @@
 package com.kdb.it.common.board.service;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.entity.Cblbmm;
+import com.kdb.it.common.board.repository.BoardMetaListRow;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.exception.NotFoundException;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,11 +31,23 @@ class BoardMetaServiceTest {
 
     @InjectMocks private BoardMetaService service;
 
+    @BeforeEach
+    void bridgeLegacyLookupStubs() {
+        lenient()
+                .when(
+                        boardMetaRepository.findByBlbMngNoAndUseYnAndDelYn(
+                                anyString(), eq("Y"), eq("N")))
+                .thenAnswer(
+                        invocation ->
+                                boardMetaRepository.findByBlbMngNoAndDelYn(
+                                        invocation.getArgument(0), "N"));
+    }
+
     @Test
     @DisplayName("활성 게시판 목록을 응답 DTO로 변환한다")
     void getAllActive_returnsResponses() {
-        Cblbmm board = board("BLBM-2026-0001", "공지사항");
-        given(boardMetaRepository.findAllActiveOrdered()).willReturn(List.of(board));
+        BoardMetaListRow row = metaRow("BLBM-2026-0001", "공지사항");
+        given(boardMetaRepository.findAllActiveOrderedRows()).willReturn(List.of(row));
 
         List<BoardMetaDto.Response> result = service.getAllActive();
 
@@ -57,8 +75,18 @@ class BoardMetaServiceTest {
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getOne("BLBM-404"))
-                .isInstanceOf(CustomGeneralException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("BLBM-404");
+    }
+
+    @Test
+    @DisplayName("사용 중지 게시판 단건은 사용자에게 404로 숨긴다")
+    void getOne_inactiveBoard_throwsNotFound() {
+        given(boardMetaRepository.findByBlbMngNoAndUseYnAndDelYn("BLBM-2026-0001", "Y", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getOne("BLBM-2026-0001"))
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -90,6 +118,20 @@ class BoardMetaServiceTest {
     }
 
     @Test
+    @DisplayName("관리자는 사용 중지 게시판도 del-only 조회로 재활성화할 수 있다")
+    void updateBoard_inactiveBoard_canReactivate() {
+        Cblbmm inactive = board("BLBM-2026-0001", "중지 게시판");
+        inactive.update(new Cblbmm.UpdateCommand("중지 게시판", "Y", "Y", "N", "N", 1, "N", null));
+        given(boardMetaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+                .willReturn(Optional.of(inactive));
+
+        service.updateBoard("BLBM-2026-0001", updateRequest("재활성화"));
+
+        assertThat(inactive.getUseYn()).isEqualTo("Y");
+        assertThat(inactive.getBlbNm()).isEqualTo("재활성화");
+    }
+
+    @Test
     @DisplayName("게시판 삭제는 활성 엔티티를 소프트 삭제한다")
     void deleteBoard_existingBoard_softDeletes() {
         Cblbmm board = board("BLBM-2026-0001", "공지사항");
@@ -104,7 +146,7 @@ class BoardMetaServiceTest {
     @Test
     @DisplayName("getAllActive: 활성 게시판이 없으면 빈 리스트를 반환한다")
     void getAllActive_empty_returnsEmpty() {
-        given(boardMetaRepository.findAllActiveOrdered()).willReturn(List.of());
+        given(boardMetaRepository.findAllActiveOrderedRows()).willReturn(List.of());
 
         assertThat(service.getAllActive()).isEmpty();
     }
@@ -139,6 +181,17 @@ class BoardMetaServiceTest {
                 .useYn("Y")
                 .delYn("N")
                 .build();
+    }
+
+    /**
+     * 목록 프로젝션 테스트 픽스처 생성 헬퍼.
+     *
+     * @param id 게시판관리번호
+     * @param name 게시판명
+     * @return {@link BoardMetaListRow} 픽스처
+     */
+    private static BoardMetaListRow metaRow(String id, String name) {
+        return new BoardMetaListRow(id, name, "001", "Y", "Y", "N", "N", 1, "Y", null);
     }
 
     private static BoardMetaDto.CreateRequest createRequest() {

@@ -146,6 +146,31 @@ class BudgetWorkServiceTest {
         assertThat(result.get(0).dupRt()).isNull();
     }
 
+    @Test
+    @DisplayName("getIoeCategories - 혼합 편성률이면 최신 편성 실행(bgNo 최대) 행의 편성률을 반환한다")
+    void getIoeCategories_혼합편성률_최신bgNo행기준() {
+        // given: 같은 비목 집합에 편성률이 다른 두 행 — 리스트 앞에 구 실행(80), 뒤에 신 실행(50)
+        Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm olderRun =
+                Bbugtm.builder().bgNo("BG-2026-0001").sno(1).ioeC("001").asgRt(80).build();
+        Bbugtm newerRun =
+                Bbugtm.builder().bgNo("BG-2026-0002").sno(1).ioeC("001").asgRt(50).build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
+                .willReturn(List.of(olderRun, newerRun));
+        given(bbugtmRepository.sumApprovedAmountByIoeCValues(any(), eq("2026")))
+                .willReturn(BigDecimal.TEN);
+
+        // when
+        List<BudgetWorkDto.IoeCategoryResponse> result = budgetWorkService.getIoeCategories("2026");
+
+        // then: encounter order(80)가 아니라 최신 편성 실행(50) 기준
+        assertThat(result.get(0).dupRt()).isEqualTo(50);
+    }
+
     // =========================================================================
     // getSummary — 편성 결과 조회
     // =========================================================================
@@ -914,6 +939,86 @@ class BudgetWorkServiceTest {
     }
 
     @Test
+    @DisplayName(
+            "getSummary - MPL 차감(computeMplAdjustment)도 BITEMM 구버전 행이 앞에 와도 LST_YN='Y' 대표행 기준으로 계산한다")
+    void getSummary_MPL차감_BITEMM대표행_lstYnY기준() {
+        // 시나리오: 같은 gclMngNo(GCL-MPL-002)의 구버전(N, PRJ-OLD)이 리스트 앞, 최신(Y, PRJ-MPL-002)이 뒤.
+        // projectRepository는 PRJ-MPL-002만 존재 응답 → 구버전(PRJ-OLD)이 대표로 뽑히면
+        // prjByNo에 없어 해당 품목의 MPL 차감 자체가 스킵되고 requestAmount는 원시집계(2000) 그대로 남는다.
+        // 최신 행(PRJ-MPL-002, mplAmt=800)이 대표로 뽑혀야 factor=800/2000=0.4가 적용되어 1200이 된다.
+        Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
+        Ccodem detailCode =
+                Ccodem.builder()
+                        .cdva("101")
+                        .cNm("237-0700")
+                        .cdvaDtlC("237-0700")
+                        .cdvaNm("국내전산임차료")
+                        .cTp("IOE_LEAFE")
+                        .cTpDes("전산임차료")
+                        .build();
+        Bbugtm bbugtm =
+                Bbugtm.builder()
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-MPL-002")
+                        .ioeC("101")
+                        .bgDupAmt(BigDecimal.valueOf(1600)) // 편성액
+                        .asgRt(80)
+                        .build();
+        // 구버전(N): 리스트 앞, 다른 사업번호(PRJ-OLD)·다른 금액 — putIfAbsent였다면 이 행이 채택된다.
+        Bitemm oldVersion =
+                Bitemm.builder()
+                        .gclMngNo("GCL-MPL-002")
+                        .sno(1)
+                        .lstYn("N")
+                        .abusMngNo("PRJ-OLD")
+                        .amt(BigDecimal.valueOf(500))
+                        .xcr(BigDecimal.ONE)
+                        .mplAmt(BigDecimal.valueOf(100))
+                        .build();
+        // 최신(Y): 리스트 뒤, 실제 대표로 채택되어야 하는 행
+        Bitemm latest =
+                Bitemm.builder()
+                        .gclMngNo("GCL-MPL-002")
+                        .sno(2)
+                        .lstYn("Y")
+                        .abusMngNo("PRJ-MPL-002")
+                        .amt(BigDecimal.valueOf(2000))
+                        .xcr(BigDecimal.ONE)
+                        .mplAmt(BigDecimal.valueOf(800))
+                        .build();
+        Bprojm project = Bprojm.builder().abusMngNo("PRJ-MPL-002").build();
+
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(bbugtm));
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(detailCode));
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
+                .willReturn(java.util.Map.of());
+        // 결재완료 원본 집계: 비목 "101" → 2000 (raw, MPL_AMT 차감 전, 대표행 선택과 무관하게 동일)
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
+                .willReturn(java.util.Map.of("101", BigDecimal.valueOf(2000)));
+        // 배치 조회: 구버전이 앞, 최신이 뒤 순서로 반환 (encounter order 함정 재현)
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(oldVersion, latest));
+        // 사업 마스터는 최신 행의 사업번호(PRJ-MPL-002)만 존재
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(project));
+
+        BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
+
+        assertThat(result.data()).hasSize(1);
+        BudgetWorkDto.SummaryItem summaryItem = result.data().get(0);
+
+        // 편성요청액 = 원시집계(2000) − 최신행 기준 예정금액비례차감(800) = 1200
+        assertThat(summaryItem.requestAmount())
+                .as("MPL 차감은 LST_YN='Y' 최신행(PRJ-MPL-002, mplAmt 800) 기준으로 1200이어야 한다")
+                .isEqualByComparingTo(BigDecimal.valueOf(1200));
+        // 만약 구버전(PRJ-OLD)이 대표로 채택됐다면 prjByNo에 없어 차감이 스킵되고 2000이 반환된다.
+        assertThat(summaryItem.requestAmount())
+                .as("구버전(PRJ-OLD) 대표 채택 시 차감이 스킵된 원시 AMT 합계(2000)면 버그")
+                .isNotEqualByComparingTo(BigDecimal.valueOf(2000));
+    }
+
+    @Test
     @DisplayName("getSummary: 그룹 접두어가 있는 세부명과 CCODEM 등록 코드는 BBUGTM 유무와 무관하게 표시된다")
     void getSummary_세부명접두어제거와미등록원본포함() {
         // 마이그레이션 후 CCODEM 구조:
@@ -989,6 +1094,7 @@ class BudgetWorkServiceTest {
         Bprojm project = mock(Bprojm.class);
         given(project.getAbusMngNo()).willReturn("PRJ-2026-0001");
         given(project.getAbusNm()).willReturn("정보화사업");
+        given(project.getLstYn()).willReturn("Y");
         CostRepository.CostRepresentativeView cost =
                 mock(CostRepository.CostRepresentativeView.class);
         given(cost.getCostBgNo()).willReturn("COST-2026-0001");
@@ -1630,5 +1736,220 @@ class BudgetWorkServiceTest {
         verify(bbugtmRepository).softDeleteByBseYy(eq("2026"), any(), any());
         // getSummary가 부르는 findByBseYyAndDelYn는 정확히 1회 (선정리용 추가 호출 없음)
         Mockito.verify(bbugtmRepository, Mockito.times(1)).findByBseYyAndDelYn("2026", "N");
+    }
+
+    // =========================================================================
+    // getProjectSummary — 대표행 결정론화 (BE-17)
+    // =========================================================================
+
+    @Test
+    @DisplayName("getProjectSummary - 헤더 편성률은 최신 편성 실행(bgNo 최대) 행 기준")
+    void getProjectSummary_헤더편성률_최신bgNo행기준() {
+        // given: 같은 비목 접두어에 편성률이 다른 두 실행 행 — 앞에 구 실행(80), 뒤에 신 실행(50)
+        Ccodem dupCode = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm olderRun =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .fntTbNm("BCOSTM")
+                        .pkColNm("COST-2026-0001")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("800"))
+                        .build();
+        Bbugtm newerRun =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0002")
+                        .sno(1)
+                        .fntTbNm("BCOSTM")
+                        .pkColNm("COST-2026-0002")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(50)
+                        .bgDupAmt(new BigDecimal("500"))
+                        .build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
+                .willReturn(List.of(olderRun, newerRun));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of());
+        given(costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of());
+
+        // when
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        // then: encounter order(80)가 아니라 최신 편성 실행(50) 기준
+        assertThat(result.categories().get(0).dupRt()).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("getProjectSummary - BITEMM 구버전 행이 앞에 와도 LST_YN='Y' 행의 사업번호로 그룹핑한다")
+    void getProjectSummary_BITEMM대표행_lstYnY기준() {
+        // given: 같은 gclMngNo의 구버전(N, PRJ-OLD)이 리스트 앞, 최신(Y, PRJ-NEW)이 뒤
+        Ccodem dupCode = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm budget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-1")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("800"))
+                        .build();
+        Bitemm oldVersion =
+                Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("N").abusMngNo("PRJ-OLD").build();
+        Bitemm latest =
+                Bitemm.builder().gclMngNo("GCL-1").sno(2).lstYn("Y").abusMngNo("PRJ-NEW").build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of());
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(oldVersion, latest));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of());
+
+        // when
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        // then: encounter order(PRJ-OLD)가 아니라 LST_YN='Y' 행(PRJ-NEW)의 사업번호로 그룹핑
+        assertThat(result.data()).hasSize(1);
+        assertThat(result.data().get(0).orcPkVl()).isEqualTo("PRJ-NEW");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary - 사업명은 LST_YN='Y' 행 이름, 구버전 행이 앞에 와도 최신명 표시")
+    void getProjectSummary_사업명_lstYnY행이름() {
+        Ccodem dupCode = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm budget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-1")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("800"))
+                        .build();
+        Bitemm item =
+                Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("Y").abusMngNo("PRJ-1").build();
+        Bprojm oldVersion =
+                Bprojm.builder().abusMngNo("PRJ-1").sno(1).lstYn("N").abusNm("구버전명").build();
+        Bprojm latest = Bprojm.builder().abusMngNo("PRJ-1").sno(2).lstYn("Y").abusNm("최신명").build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of());
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(item));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(oldVersion, latest));
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.data()).hasSize(1);
+        assertThat(result.data().get(0).name()).isEqualTo("최신명");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary - LST_YN='Y' 행이 없으면 사업명 대신 관리번호로 폴백한다")
+    void getProjectSummary_사업명_lstYnY없음_관리번호폴백() {
+        Ccodem dupCode = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm budget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-1")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("800"))
+                        .build();
+        Bitemm item =
+                Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("Y").abusMngNo("PRJ-1").build();
+        Bprojm oldOnly =
+                Bprojm.builder().abusMngNo("PRJ-1").sno(1).lstYn("N").abusNm("구버전명").build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of());
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(item));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(oldOnly));
+
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        assertThat(result.data()).hasSize(1);
+        assertThat(result.data().get(0).name()).isEqualTo("PRJ-1");
+    }
+
+    @Test
+    @DisplayName("getProjectSummary - 사업번호와 비용번호가 같은 문자열이어도 별도 행으로 분리 집계한다")
+    void getProjectSummary_동일키충돌_orcTb별분리() {
+        // given: BCOSTM 원본 pk "X-1"과, BITEMM→사업 변환 결과가 같은 "X-1"인 두 편성행
+        Ccodem dupCode = Ccodem.builder().cNm("자산비").cdva("237").build();
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
+        Bbugtm costBudget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .fntTbNm("BCOSTM")
+                        .pkColNm("X-1")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("800"))
+                        .build();
+        Bbugtm itemBudget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(2)
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-1")
+                        .fntTbCrySno(1)
+                        .ioeC("001")
+                        .asgRt(80)
+                        .bgDupAmt(new BigDecimal("400"))
+                        .build();
+        Bitemm item = Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("Y").abusMngNo("X-1").build();
+
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
+                .willReturn(List.of(costBudget, itemBudget));
+        given(budgetWorkQueryRepository.findApprovedSourcePks("2026"))
+                .willReturn(java.util.Set.of());
+        given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of(item));
+        given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N"))).willReturn(List.of());
+        given(costRepository.findRepresentativeViewsByCostBgNoInAndDelYn(any(), eq("N")))
+                .willReturn(List.of());
+
+        // when
+        BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
+
+        // then: 단일 문자열 키였다면 1행으로 병합되지만, 복합키 분리 후 BCOSTM/BPROJM 2행
+        assertThat(result.data()).hasSize(2);
+        assertThat(result.data())
+                .extracting(summaryItem -> summaryItem.orcTb())
+                .containsExactlyInAnyOrder("BCOSTM", "BPROJM");
     }
 }

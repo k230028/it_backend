@@ -2,6 +2,8 @@ package com.kdb.it.common.code.repository;
 
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.entity.QCcodem;
+import com.querydsl.core.types.ConstructorExpression;
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDate;
@@ -94,6 +96,96 @@ public class CodeRepositoryImpl implements CodeRepositoryCustom {
                 .where(q.cTp.eq(cTp), q.delYn.eq("N"), isValidDate(q, date))
                 .orderBy(q.cSqn.asc().nullsLast(), q.cdva.asc())
                 .fetch();
+    }
+
+    /**
+     * cId 기준 다건 조회 — REST 응답 전용 경량 프로젝션(guid, guidPrgSno 제외). {@link
+     * #findByCIdWithValidDate(String, LocalDate)}와 동일한 where·정렬을 재사용합니다.
+     *
+     * @param targetDate null이면 현재 날짜 기준
+     */
+    @Override
+    public List<CcodemResponseRow> findResponseRowsByCIdWithValidDate(
+            String cId, LocalDate targetDate) {
+        QCcodem q = QCcodem.ccodem;
+        String date = toYmd(targetDate);
+
+        return queryFactory
+                .select(responseRowProjection(q))
+                .from(q)
+                .where(q.cId.eq(cId), q.delYn.eq("N"), isValidDate(q, date))
+                .orderBy(q.cSqn.asc().nullsLast(), q.cdva.asc())
+                .fetch();
+    }
+
+    /**
+     * cId + cdva + 유효일 기준 단건 조회 — REST 응답 전용 경량 프로젝션(guid, guidPrgSno 제외). {@link
+     * #findByCIdAndCdvaWithValidDate(String, String, LocalDate)}와 동일한 where를 재사용합니다.
+     *
+     * @param targetDate null이면 현재 날짜 기준
+     */
+    @Override
+    public Optional<CcodemResponseRow> findResponseRowByCIdAndCdvaWithValidDate(
+            String cId, String cdva, LocalDate targetDate) {
+        QCcodem q = QCcodem.ccodem;
+        String date = toYmd(targetDate);
+
+        return Optional.ofNullable(
+                queryFactory
+                        .select(responseRowProjection(q))
+                        .from(q)
+                        .where(
+                                q.cId.eq(cId),
+                                q.cdva.eq(cdva),
+                                q.delYn.eq("N"),
+                                isValidDate(q, date))
+                        .fetchOne());
+    }
+
+    /**
+     * 코드타입(C_TP) 기준 다건 조회 — REST 응답 전용 경량 프로젝션(guid, guidPrgSno 제외). {@link
+     * #findByCTpWithValidDate(String, LocalDate)}와 동일한 where·정렬을 재사용합니다.
+     *
+     * @param targetDate null이면 현재 날짜 기준
+     */
+    @Override
+    public List<CcodemResponseRow> findResponseRowsByCTpWithValidDate(
+            String cTp, LocalDate targetDate) {
+        QCcodem q = QCcodem.ccodem;
+        String date = toYmd(targetDate);
+
+        return queryFactory
+                .select(responseRowProjection(q))
+                .from(q)
+                .where(q.cTp.eq(cTp), q.delYn.eq("N"), isValidDate(q, date))
+                .orderBy(q.cSqn.asc().nullsLast(), q.cdva.asc())
+                .fetch();
+    }
+
+    /**
+     * {@link CcodemResponseRow} 18개 필드에 대한 QueryDSL 생성자 프로젝션. 컴포넌트 순서와 select 인자 순서가 정확히 일치해야 합니다.
+     */
+    private ConstructorExpression<CcodemResponseRow> responseRowProjection(QCcodem q) {
+        return Projections.constructor(
+                CcodemResponseRow.class,
+                q.cId,
+                q.cdva,
+                q.cdvaNm,
+                q.cNm,
+                q.cdvaDes,
+                q.cdvaDtl,
+                q.cdvaDtlC,
+                q.cTp,
+                q.cTpDes,
+                q.hrkC,
+                q.cSqn,
+                q.sttDt,
+                q.endDt,
+                q.delYn,
+                q.fstEnrDtm,
+                q.fstEnrUsid,
+                q.lstChgDtm,
+                q.lstChgUsid);
     }
 
     /** 기준일자가 시작~종료 범위 내인지 검증. 시작·종료일자는 'YYYYMMDD' 문자열이므로 사전식 비교가 곧 날짜 비교와 일치합니다. */

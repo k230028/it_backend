@@ -681,6 +681,22 @@ class CookieUtilTest {
     }
 
     @Test
+    @DisplayName("deleteUserInfoCookie - 사용자 정보 삭제 쿠키는 생성 쿠키와 같은 속성으로 즉시 만료된다")
+    void deleteUserInfoCookie_동일속성_즉시만료() {
+        CookieUtil util = cookieUtil(true);
+
+        ResponseCookie cookie = util.deleteUserInfoCookie();
+
+        assertThat(cookie.getName()).isEqualTo("it-portal-user");
+        assertThat(cookie.getValue()).isEmpty();
+        assertThat(cookie.isHttpOnly()).isFalse();
+        assertThat(cookie.isSecure()).isTrue();
+        assertThat(cookie.getPath()).isEqualTo("/");
+        assertThat(cookie.getMaxAge().getSeconds()).isZero();
+        assertThat(cookie.getSameSite()).isEqualTo("Lax");
+    }
+
+    @Test
     @DisplayName("createUserInfoCookie - 사용자 정보 직렬화 실패 시 IllegalStateException을 던진다")
     void createUserInfoCookie_직렬화실패_IllegalStateException발생() throws Exception {
         ObjectMapper objectMapper = org.mockito.Mockito.mock(ObjectMapper.class);
@@ -695,6 +711,34 @@ class CookieUtilTest {
                                         AuthDto.LoginResponse.builder().build()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("사용자 정보 쿠키 직렬화 실패");
+    }
+
+    @Test
+    @DisplayName("인증·사용자·SSO 상태 쿠키 생성과 삭제는 모두 SameSite=Lax를 유지한다")
+    void authenticationAndSsoCookies_sameSiteLax() {
+        CookieUtil util = cookieUtil();
+        AuthDto.LoginResponse response =
+                AuthDto.LoginResponse.builder()
+                        .eno("10001")
+                        .empNm("홍길동")
+                        .athIds(List.of("ITPAD001"))
+                        .bbrC("D001")
+                        .temC("T001")
+                        .build();
+
+        List<ResponseCookie> cookies =
+                List.of(
+                        util.createAccessTokenCookie("access-token"),
+                        util.createRefreshTokenCookie("refresh-token"),
+                        util.createUserInfoCookie(response),
+                        util.createSsoNextCookie("/info/projects/1"),
+                        util.createSsoOriginCookie("http://localhost:3000"),
+                        util.deleteAccessTokenCookie(),
+                        util.deleteRefreshTokenCookie(),
+                        util.deleteSsoNextCookie(),
+                        util.deleteSsoOriginCookie());
+
+        assertThat(cookies).allSatisfy(cookie -> assertThat(cookie.getSameSite()).isEqualTo("Lax"));
     }
 
     // ─────────────────────────────────────────────────────────────────

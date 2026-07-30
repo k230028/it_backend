@@ -78,6 +78,7 @@ class PaymentDetailProjectionIt extends AbstractOracleRepositoryTest {
                 .abusMngNo(projectNo)
                 .sno(1)
                 .abusNm("BE03 지급 대상 사업")
+                .abusTc("0")
                 .lstYn("Y")
                 .bseYy("2026")
                 .delYn("N")

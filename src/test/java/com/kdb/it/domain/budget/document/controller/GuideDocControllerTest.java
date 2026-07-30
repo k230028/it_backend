@@ -56,6 +56,28 @@ class GuideDocControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/guide-documents - 목록 응답 JSON에 본문(nacTxtInf) 필드가 없다")
+    @WithMockUser(username = "10001")
+    void getDocuments_목록응답_본문필드없음() throws Exception {
+        given(guideDocService.getDocumentList())
+                .willReturn(
+                        List.of(
+                                new GuideDocDto.ListResponse(
+                                        "GDOC-2026-0001",
+                                        "가이드문서",
+                                        "N",
+                                        null,
+                                        "10001",
+                                        null,
+                                        "10001")));
+
+        mockMvc.perform(get("/api/guide-documents"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].docMngNo").value("GDOC-2026-0001"))
+                .andExpect(jsonPath("$[0].nacTxtInf").doesNotExist());
+    }
+
+    @Test
     @DisplayName("GET /api/guide-documents/{docMngNo} - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void getDocument_인증_200() throws Exception {

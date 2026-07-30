@@ -82,6 +82,7 @@ class BudgetWorkServiceBatchTest {
         Bprojm project = org.mockito.Mockito.mock(Bprojm.class);
         given(project.getAbusMngNo()).willReturn("PRJ-2026-0001");
         given(project.getAbusNm()).willReturn("정보화사업");
+        given(project.getLstYn()).willReturn("Y");
         CostRepository.CostRepresentativeView cost =
                 org.mockito.Mockito.mock(CostRepository.CostRepresentativeView.class);
         given(cost.getCostBgNo()).willReturn("COST-2026-0001");

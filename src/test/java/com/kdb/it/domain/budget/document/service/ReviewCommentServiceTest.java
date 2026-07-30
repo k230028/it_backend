@@ -25,7 +25,8 @@ import org.springframework.web.server.ResponseStatusException;
 @ExtendWith(MockitoExtension.class)
 class ReviewCommentServiceTest {
 
-    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+    private record AuthorView(String eno, String usrNm, String temNm)
+            implements UserRepository.ReviewCommentAuthorView {
         @Override
         public String getEno() {
             return eno;
@@ -34,6 +35,11 @@ class ReviewCommentServiceTest {
         @Override
         public String getUsrNm() {
             return usrNm;
+        }
+
+        @Override
+        public String getTemNm() {
+            return temNm;
         }
     }
 
@@ -103,9 +109,9 @@ class ReviewCommentServiceTest {
                                 "N")) // 화면 1.01 → 저장 정수 101(× 100)
                 .willReturn(List.of(comment));
 
-        var user = new NameView("E12345", "홍길동");
+        var user = new AuthorView("E12345", "홍길동", "디지털기획팀");
         given(
-                        userRepository.findNameViewsByEnoIn(
+                        userRepository.findReviewCommentAuthorViewsByEnoIn(
                                 ArgumentMatchers.<java.util.Collection<String>>any()))
                 .willReturn(List.of(user));
 
@@ -116,6 +122,7 @@ class ReviewCommentServiceTest {
         // 검증: 사번이 아닌 사용자명이 반환되어야 함
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getAuthorName()).isEqualTo("홍길동");
+        assertThat(result.get(0).getAuthorTeam()).isEqualTo("디지털기획팀");
     }
 
     @Test
@@ -132,7 +139,7 @@ class ReviewCommentServiceTest {
                                 "N")) // 화면 1.01 → 저장 정수 101(× 100)
                 .willReturn(List.of(comment));
         given(
-                        userRepository.findNameViewsByEnoIn(
+                        userRepository.findReviewCommentAuthorViewsByEnoIn(
                                 ArgumentMatchers.<java.util.Collection<String>>any()))
                 .willReturn(List.of());
 
@@ -143,11 +150,12 @@ class ReviewCommentServiceTest {
         // 검증: 미존재 사용자는 사번(eno) 자체를 fallback으로 반환
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getAuthorName()).isEqualTo("UNKNOWN_ENO");
+        assertThat(result.get(0).getAuthorTeam()).isEmpty();
     }
 
     @Test
-    void getComments_작성자명은_이름프로젝션_1회_배치조회하고_단건조회는_호출하지_않는다() {
-        // 준비: 동일 사번(E001) 2건 + 다른 사번(E002) 1건 → 사번 집합은 {E001, E002}
+    void getComments_작성자정보는_사번으로_1회_배치조회하여_동일이름의_서로다른팀을_정확히_반환한다() {
+        // 준비: 동일 사번(E001) 2건 + 같은 이름의 다른 사번(E002) 1건 → 사번 집합은 {E001, E002}
         var c1 = Brivgm.create("DOC-1", new BigDecimal("0.01"), "G", "코멘트1", null, null);
         var c2 = Brivgm.create("DOC-1", new BigDecimal("0.01"), "G", "코멘트2", null, null);
         var c3 = Brivgm.create("DOC-1", new BigDecimal("0.01"), "G", "코멘트3", null, null);
@@ -158,10 +166,10 @@ class ReviewCommentServiceTest {
                         brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
                                 eq("DOC-1"), any(), eq("N")))
                 .willReturn(List.of(c1, c2, c3));
-        var u1 = new NameView("E001", "홍길동");
-        var u2 = new NameView("E002", "김철수");
+        var u1 = new AuthorView("E001", "홍길동", "디지털기획팀");
+        var u2 = new AuthorView("E002", "홍길동", "인프라운영팀");
         given(
-                        userRepository.findNameViewsByEnoIn(
+                        userRepository.findReviewCommentAuthorViewsByEnoIn(
                                 ArgumentMatchers.<java.util.Collection<String>>any()))
                 .willReturn(List.of(u1, u2));
 
@@ -169,10 +177,64 @@ class ReviewCommentServiceTest {
                 reviewCommentService.getComments("DOC-1", new BigDecimal("0.01"));
 
         assertThat(result).hasSize(3);
+        assertThat(result)
+                .extracting(ReviewCommentDto.Response::getAuthorTeam)
+                .containsExactly("디지털기획팀", "인프라운영팀", "디지털기획팀");
         then(userRepository)
                 .should(times(1))
-                .findNameViewsByEnoIn(ArgumentMatchers.<java.util.Collection<String>>any());
+                .findReviewCommentAuthorViewsByEnoIn(java.util.Set.of("E001", "E002"));
         then(userRepository).should(never()).findById(anyString());
+        then(userRepository).should(never()).findNameViewByEno(anyString());
+    }
+
+    @Test
+    void getComments_팀명이_없거나_이름이_비어있으면_안전한기본값을_반환한다() {
+        var noTeam = Brivgm.create("DOC-1", new BigDecimal("0.01"), "G", "코멘트1", null, null);
+        var blankName = Brivgm.create("DOC-1", new BigDecimal("0.01"), "G", "코멘트2", null, null);
+        setFstEnrUsid(noTeam, "E001");
+        setFstEnrUsid(blankName, "E002");
+        given(
+                        brivgmRepository.findByDocMngNoAndDocVrsSnoAndDelYnOrderByFstEnrDtmAsc(
+                                eq("DOC-1"), any(), eq("N")))
+                .willReturn(List.of(noTeam, blankName));
+        given(
+                        userRepository.findReviewCommentAuthorViewsByEnoIn(
+                                ArgumentMatchers.<java.util.Collection<String>>any()))
+                .willReturn(
+                        List.of(
+                                new AuthorView("E001", "홍길동", null),
+                                new AuthorView("E002", " ", "기획팀")));
+
+        var result = reviewCommentService.getComments("DOC-1", new BigDecimal("0.01"));
+
+        assertThat(result)
+                .extracting(
+                        ReviewCommentDto.Response::getAuthorName,
+                        ReviewCommentDto.Response::getAuthorTeam)
+                .containsExactly(tuple("홍길동", ""), tuple("E002", "기획팀"));
+    }
+
+    @Test
+    void addComment_목록과_동일한_작성자정보_매핑계약을_사용한다() {
+        var entity =
+                Brivgm.create("DOC-2026-0010", new BigDecimal("1.01"), "G", "테스트 코멘트", null, null);
+        setFstEnrUsid(entity, "E12345");
+        given(brivgmRepository.save(any(Brivgm.class))).willReturn(entity);
+        given(
+                        userRepository.findReviewCommentAuthorViewsByEnoIn(
+                                ArgumentMatchers.<java.util.Collection<String>>any()))
+                .willReturn(List.of(new AuthorView("E12345", "홍길동", "디지털기획팀")));
+
+        var result =
+                reviewCommentService.addComment(
+                        "DOC-2026-0010",
+                        createRequest(new BigDecimal("1.01"), "G", "테스트 코멘트", null, null));
+
+        assertThat(result.getAuthorName()).isEqualTo("홍길동");
+        assertThat(result.getAuthorTeam()).isEqualTo("디지털기획팀");
+        then(userRepository)
+                .should(times(1))
+                .findReviewCommentAuthorViewsByEnoIn(java.util.Set.of("E12345"));
         then(userRepository).should(never()).findNameViewByEno(anyString());
     }
 

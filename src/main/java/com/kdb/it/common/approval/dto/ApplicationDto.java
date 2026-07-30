@@ -3,6 +3,7 @@ package com.kdb.it.common.approval.dto;
 import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -406,36 +407,39 @@ public class ApplicationDto {
         }
 
         /**
-         * 신청서 엔티티와 결재선 read view를 응답 DTO로 변환합니다.
+         * 신청서 마스터 read view와 결재선 read view를 응답 DTO로 변환합니다.
          *
-         * @param capplm 신청서 마스터 엔티티
+         * <p>{@link #fromEntity(Capplm, List, String, String)}와 동일한 응답을 생성하되, 신청서 마스터 조회를 15컬럼 엔티티
+         * 대신 응답이 실제 사용하는 8컬럼 read view로 대체합니다(BE-03).
+         *
+         * @param view 신청서 마스터 read view
          * @param approvers 결재 순번 오름차순 read view 목록
          * @param requesterNm 신청자명
          * @param requesterBbrNm 신청부서명
          * @return 변환된 응답 DTO
          */
         public static Response fromReadViews(
-                Capplm capplm,
+                ApplicationRepository.ApplicationReadView view,
                 List<ApproverRepository.ApproverReadView> approvers,
                 String requesterNm,
                 String requesterBbrNm) {
             return Response.builder()
-                    .apfMngNo(capplm.getApfMngNo())
-                    .apfNm(capplm.getDcdReqTtl())
-                    .apfDtlCone(capplm.getDcdReqInf())
+                    .apfMngNo(view.getApfMngNo())
+                    .apfNm(view.getDcdReqTtl())
+                    .apfDtlCone(view.getDcdReqInf())
                     .apfSts(
-                            capplm.getItPtlApfPrgStsC() == null
+                            view.getItPtlApfPrgStsC() == null
                                     ? null
                                     : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
-                                                    capplm.getItPtlApfPrgStsC())
+                                                    view.getItPtlApfPrgStsC())
                                             .label())
-                    .apfStsC(capplm.getItPtlApfPrgStsC())
-                    .rqsEno(capplm.getDcdReqUsid())
+                    .apfStsC(view.getItPtlApfPrgStsC())
+                    .rqsEno(view.getDcdReqUsid())
                     .rqsNm(requesterNm)
-                    .rqsBbrC(capplm.getDcdReqBbrC())
+                    .rqsBbrC(view.getDcdReqBbrC())
                     .rqsBbrNm(requesterBbrNm)
-                    .rqsDt(capplm.getDcdReqDtm())
-                    .rqsOpnn(capplm.getRgprDcdReqCone())
+                    .rqsDt(view.getDcdReqDtm())
+                    .rqsOpnn(view.getRgprDcdReqCone())
                     .approvers(approvers.stream().map(ApproverResponse::fromReadView).toList())
                     .build();
         }
@@ -473,6 +477,23 @@ public class ApplicationDto {
             return ApfDtlConeResponse.builder()
                     .apfMngNo(capplm.getApfMngNo()) // 신청관리번호
                     .apfDtlCone(capplm.getDcdReqInf()) // 세부내용(결재요청정보에서 파생)
+                    .build();
+        }
+
+        /**
+         * {@link ApplicationRepository.ApplicationReadView}로부터 DTO 생성
+         *
+         * <p>{@link #fromEntity(Capplm)}와 동일한 응답을 생성하되, 신청서 마스터 조회를 15컬럼 엔티티 대신 응답이 실제 사용하는 2컬럼
+         * read view로 대체합니다(BE-03).
+         *
+         * @param view 신청서 마스터 read view
+         * @return 변환된 ApfDtlConeResponse
+         */
+        public static ApfDtlConeResponse fromReadView(
+                ApplicationRepository.ApplicationReadView view) {
+            return ApfDtlConeResponse.builder()
+                    .apfMngNo(view.getApfMngNo()) // 신청관리번호
+                    .apfDtlCone(view.getDcdReqInf()) // 세부내용(결재요청정보에서 파생)
                     .build();
         }
     }

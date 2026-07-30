@@ -1,7 +1,9 @@
 package com.kdb.it.common.admin.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -45,7 +47,7 @@ public class AdminDto {
             @Schema(description = "코드타입 (구 CTT_TP)") String cTp,
             @Schema(description = "코드타입설명") String cTpDes,
             @Schema(description = "상위코드 {C_ID}_{CDVA}") String hrkC,
-            @Schema(description = "시작일자 (YYYYMMDD)") String sttDt,
+            @NotBlank @Schema(description = "시작일자 (YYYYMMDD)") String sttDt,
             @Schema(description = "종료일자 (YYYYMMDD)") String endDt,
             @Schema(description = "코드순서") Integer cSqn) {}
 
@@ -56,7 +58,8 @@ public class AdminDto {
      */
     @Schema(name = "AdminDto.BulkCodeRequest", description = "공통코드 일괄 업로드 요청")
     public record BulkCodeRequest(
-            @Schema(description = "업로드할 코드 목록") java.util.List<CodeRequest> codes) {}
+            @NotEmpty @Schema(description = "업로드할 코드 목록")
+                    java.util.List<@Valid CodeRequest> codes) {}
 
     /**
      * 공통코드 조회 응답 DTO 최초생성자·마지막수정자 사원번호를 이름으로 변환하여 제공합니다.

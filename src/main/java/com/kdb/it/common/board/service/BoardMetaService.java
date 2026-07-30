@@ -4,6 +4,7 @@ import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.exception.NotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,7 @@ public class BoardMetaService {
      * @return 사용 중이고 삭제되지 않은 게시판을 표시순서 오름차순으로 정렬한 목록
      */
     public List<BoardMetaDto.Response> getAllActive() {
-        return boardMetaRepository.findAllActiveOrdered().stream()
+        return boardMetaRepository.findAllActiveOrderedRows().stream()
                 .map(BoardMetaDto.Response::from)
                 .toList();
     }
@@ -37,10 +38,10 @@ public class BoardMetaService {
      *
      * @param blbMngNo 게시판관리번호 (예: BLBM-0001)
      * @return 게시판 메타 응답 DTO
-     * @throws com.kdb.it.exception.CustomGeneralException 게시판을 찾을 수 없거나 삭제된 경우 (DEL_YN='Y')
+     * @throws NotFoundException 게시판이 사용 중이 아니거나 삭제된 경우
      */
     public BoardMetaDto.Response getOne(String blbMngNo) {
-        return BoardMetaDto.Response.from(findActiveBoard(blbMngNo));
+        return BoardMetaDto.Response.from(findUserActiveBoard(blbMngNo));
     }
 
     /**
@@ -70,7 +71,7 @@ public class BoardMetaService {
      */
     @Transactional
     public void updateBoard(String blbMngNo, BoardMetaDto.UpdateRequest request) {
-        findActiveBoard(blbMngNo).update(request.toUpdateCommand());
+        findManageableBoard(blbMngNo).update(request.toUpdateCommand());
     }
 
     /**
@@ -81,7 +82,7 @@ public class BoardMetaService {
      */
     @Transactional
     public void deleteBoard(String blbMngNo) {
-        findActiveBoard(blbMngNo).delete();
+        findManageableBoard(blbMngNo).delete();
     }
 
     /**
@@ -89,9 +90,15 @@ public class BoardMetaService {
      *
      * @param blbMngNo 게시판관리번호
      * @return Cblbmm 엔티티
-     * @throws CustomGeneralException 존재하지 않거나 삭제된 게시판인 경우
+     * @throws NotFoundException 사용 중이 아니거나 삭제된 게시판인 경우
      */
-    Cblbmm findActiveBoard(String blbMngNo) {
+    Cblbmm findUserActiveBoard(String blbMngNo) {
+        return boardMetaRepository
+                .findByBlbMngNoAndUseYnAndDelYn(blbMngNo, "Y", "N")
+                .orElseThrow(() -> new NotFoundException("게시판을 찾을 수 없습니다: " + blbMngNo));
+    }
+
+    Cblbmm findManageableBoard(String blbMngNo) {
         return boardMetaRepository
                 .findByBlbMngNoAndDelYn(blbMngNo, "N")
                 .orElseThrow(() -> new CustomGeneralException("게시판을 찾을 수 없습니다: " + blbMngNo));

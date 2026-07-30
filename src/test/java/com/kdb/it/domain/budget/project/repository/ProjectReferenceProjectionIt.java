@@ -48,6 +48,7 @@ class ProjectReferenceProjectionIt extends AbstractOracleRepositoryTest {
                 .abusMngNo(projectNo)
                 .sno(sno)
                 .abusNm(name)
+                .abusTc("0")
                 .lstYn(lstYn)
                 .bseYy("2026")
                 .delYn(delYn)

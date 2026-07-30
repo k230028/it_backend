@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.code.dto.CodeDto;
 import com.kdb.it.common.code.entity.Ccodem;
+import com.kdb.it.common.code.repository.CcodemResponseRow;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.exception.CustomGeneralException;
 import java.util.List;
@@ -47,6 +48,29 @@ class CodeServiceTest {
         return ccodem;
     }
 
+    /** REST 응답 경로(getCcodemsByCId/getCcodem/getCcodemsByCTp) 테스트용 응답 프로젝션 행 생성 */
+    private CcodemResponseRow responseRow(String cId, String cdva, String cTp) {
+        return new CcodemResponseRow(
+                cId,
+                cdva,
+                "테스트코드값명",
+                "테스트코드",
+                "테스트약어",
+                "테스트적요",
+                "테스트상세코드",
+                cTp,
+                "테스트인스턴스내용",
+                null,
+                1,
+                "20260101",
+                "20991231",
+                "N",
+                null,
+                null,
+                null,
+                null);
+    }
+
     // ───────────────────────────────────────────────────────
     // getCcodemsByCId (카테고리 다건 조회)
     // ───────────────────────────────────────────────────────
@@ -54,10 +78,10 @@ class CodeServiceTest {
     @Test
     @DisplayName("getCcodemsByCId: 코드ID로 조회하면 DTO 목록을 반환한다")
     void getCcodemsByCId_코드ID조회_DTO목록반환() {
-        Ccodem c1 = mockCcodem("001", "PRJ_TP");
-        Ccodem c2 = mockCcodem("002", "PRJ_TP");
-        given(codeRepository.findByCIdWithValidDate(eq("PRJ_TP"), any()))
-                .willReturn(List.of(c1, c2));
+        CcodemResponseRow r1 = responseRow("PRJ_TP", "001", "PRJ_TP");
+        CcodemResponseRow r2 = responseRow("PRJ_TP", "002", "PRJ_TP");
+        given(codeRepository.findResponseRowsByCIdWithValidDate(eq("PRJ_TP"), any()))
+                .willReturn(List.of(r1, r2));
 
         List<CodeDto.Response> result = codeService.getCcodemsByCId("PRJ_TP", null);
 
@@ -71,9 +95,11 @@ class CodeServiceTest {
     @Test
     @DisplayName("getCcodem: 유효한 코드ID+코드값으로 조회하면 Response DTO를 반환한다")
     void getCcodem_유효한코드_Response반환() {
-        Ccodem ccodem = mockCcodem("001", "PRJ_TP");
-        given(codeRepository.findByCIdAndCdvaWithValidDate(eq("CD001"), eq("001"), any()))
-                .willReturn(Optional.of(ccodem));
+        CcodemResponseRow row = responseRow("CD001", "001", "PRJ_TP");
+        given(
+                        codeRepository.findResponseRowByCIdAndCdvaWithValidDate(
+                                eq("CD001"), eq("001"), any()))
+                .willReturn(Optional.of(row));
 
         CodeDto.Response result = codeService.getCcodem("CD001", "001", null);
 
@@ -83,12 +109,32 @@ class CodeServiceTest {
     @Test
     @DisplayName("getCcodem: 존재하지 않으면 IllegalArgumentException을 던진다")
     void getCcodem_존재하지않음_IllegalArgumentException발생() {
-        given(codeRepository.findByCIdAndCdvaWithValidDate(eq("INVALID"), eq("001"), any()))
+        given(
+                        codeRepository.findResponseRowByCIdAndCdvaWithValidDate(
+                                eq("INVALID"), eq("001"), any()))
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> codeService.getCcodem("INVALID", "001", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("INVALID");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // getCcodemsByCTp (코드타입 다건 조회)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getCcodemsByCTp: 코드타입으로 조회하면 DTO 목록을 반환한다")
+    void getCcodemsByCTp_코드타입조회_DTO목록반환() {
+        CcodemResponseRow r1 = responseRow("CD001", "001", "IOE_LEAFE");
+        CcodemResponseRow r2 = responseRow("CD001", "002", "IOE_LEAFE");
+        given(codeRepository.findResponseRowsByCTpWithValidDate(eq("IOE_LEAFE"), any()))
+                .willReturn(List.of(r1, r2));
+
+        List<CodeDto.Response> result = codeService.getCcodemsByCTp("IOE_LEAFE", null);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getCTp()).isEqualTo("IOE_LEAFE");
     }
 
     // ───────────────────────────────────────────────────────

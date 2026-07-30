@@ -1,6 +1,9 @@
 package com.kdb.it.config;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -18,8 +21,12 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Actuator 엔드포인트 접근 제어 검증 (ERR-06 감사 실패 메트릭 보호).
@@ -58,6 +65,12 @@ class SecurityConfigTest {
     }
 
     @Test
+    @DisplayName("기본값에서는 비인증 /v3/api-docs 가 공개되어 200")
+    void openApiDocs_unauthenticated_returns200WhenEnabled() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("비인증 /actuator/metrics 는 인증이 필요해 401")
     void metrics_unauthenticated_returns401() throws Exception {
         mockMvc.perform(get("/actuator/metrics")).andExpect(status().isUnauthorized());
@@ -85,6 +98,31 @@ class SecurityConfigTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    @DisplayName("악성 Origin의 게시물 조회수 POST는 CORS 필터에서 403으로 차단한다")
+    void postView_maliciousOrigin_returns403() throws Exception {
+        mockMvc.perform(
+                        post("/api/boards/BLB-1/posts/NAC-1/views")
+                                .header(HttpHeaders.ORIGIN, "https://evil.example")
+                                .cookie(accessTokenCookie(List.of(CustomUserDetails.ATH_USER))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("허용 Origin의 게시물 조회수 POST는 성공 응답과 CORS 헤더를 함께 반환한다")
+    void postView_allowedOrigin_returns204WithCorsHeader() throws Exception {
+        mockMvc.perform(
+                        post("/api/boards/BLB-1/posts/NAC-1/views")
+                                .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+                                .cookie(accessTokenCookie(List.of(CustomUserDetails.ATH_USER))))
+                .andExpect(status().isNoContent())
+                .andExpect(
+                        header().string(
+                                        HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                                        "http://localhost:3000"))
+                .andExpect(content().string(""));
+    }
+
     /**
      * 주어진 자격등급으로 유효한 {@code accessToken} JWT 쿠키를 생성합니다(운영 브라우저 인증 경로와 동일).
      *
@@ -107,9 +145,21 @@ class SecurityConfigTest {
     @EnableAutoConfiguration
     @Import({
         SecurityConfig.class,
+        SwaggerConfig.class,
         JwtAuthenticationFilter.class,
         JwtUtil.class,
-        AuditFailureRecorder.class
+        AuditFailureRecorder.class,
+        SecurityProbeController.class
     })
     static class ActuatorSecurityTestApp {}
+
+    @RestController
+    static class SecurityProbeController {
+
+        @PostMapping("/api/boards/{blbMngNo}/posts/{nacMngNo}/views")
+        ResponseEntity<Void> mutate() {
+            // 실제 조회수 명령 경로가 FilterChain의 CORS 경계를 통과하는지만 검증한다.
+            return ResponseEntity.noContent().build();
+        }
+    }
 }

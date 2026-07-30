@@ -86,6 +86,7 @@ public class FileUploadUnitService {
                         .flPysNm(flPysNm)
                         .flKpnPth(flKpnPth)
                         .flTpCone(request.getFlTpCone())
+                        .apgFlSz(file.getSize())
                         .pkCone(request.getPkCone())
                         .pkColNm(request.getPkColNm())
                         .build();

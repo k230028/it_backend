@@ -40,7 +40,7 @@ public class BoardPostController {
     }
 
     /**
-     * 게시물 상세 조회 (조회수 +1)
+     * 게시물 상세 조회
      *
      * @param blbMngNo 게시판관리번호
      * @param nacMngNo 게시물관리번호
@@ -48,12 +48,30 @@ public class BoardPostController {
      * @return 게시물 상세 DTO
      */
     @GetMapping("/{nacMngNo}")
-    @Operation(summary = "게시물 상세 조회 (조회수 +1)")
+    @Operation(summary = "게시물 상세 조회")
     public ResponseEntity<BoardPostDto.Detail> getDetail(
             @PathVariable("blbMngNo") String blbMngNo,
             @PathVariable("nacMngNo") String nacMngNo,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(boardPostService.getPostDetail(blbMngNo, nacMngNo, user));
+    }
+
+    /**
+     * 게시물 조회수 증가
+     *
+     * @param blbMngNo 게시판관리번호
+     * @param nacMngNo 게시물관리번호
+     * @param user 인증 사용자
+     * @return 본문 없는 성공 응답
+     */
+    @PostMapping("/{nacMngNo}/views")
+    @Operation(summary = "게시물 조회수 증가")
+    public ResponseEntity<Void> incrementViewCount(
+            @PathVariable("blbMngNo") String blbMngNo,
+            @PathVariable("nacMngNo") String nacMngNo,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        boardPostService.incrementPostView(blbMngNo, nacMngNo, user);
+        return ResponseEntity.noContent().build();
     }
 
     /**

@@ -114,7 +114,7 @@ public class AdminController {
     @PostMapping("/codes/bulk")
     @Operation(summary = "공통코드 일괄 업로드", description = "엑셀에서 파싱한 코드 목록을 일괄 생성/수정(Upsert)합니다.")
     public ResponseEntity<java.util.Map<String, Integer>> bulkUpsertCodes(
-            @RequestBody AdminDto.BulkCodeRequest req) {
+            @Valid @RequestBody AdminDto.BulkCodeRequest req) {
         return ResponseEntity.ok(adminService.bulkUpsertCodes(req));
     }
 

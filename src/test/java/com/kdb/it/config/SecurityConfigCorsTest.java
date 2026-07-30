@@ -81,6 +81,16 @@ class SecurityConfigCorsTest {
     }
 
     @Test
+    @DisplayName("/sso/logout POST는 SSO CORS 경계를 사용하되 교차 출처 자격증명은 허용하지 않는다")
+    void ssoLogout_postAllowedWithoutCredentials() {
+        CorsConfiguration cfg = configFor("/sso/logout");
+
+        assertThat(cfg).isNotNull();
+        assertThat(cfg.getAllowedMethods()).contains("POST");
+        assertThat(cfg.getAllowCredentials()).isFalse();
+    }
+
+    @Test
     @DisplayName("일반 API 경로는 allowlist origin만 허용하고 그 외 origin은 거부한다")
     void apiPath_restrictsToAllowlist() {
         CorsConfiguration cfg = configFor("/api/projects");
@@ -88,5 +98,30 @@ class SecurityConfigCorsTest {
         assertThat(cfg.checkOrigin("http://localhost:3000")).isEqualTo("http://localhost:3000");
         // allowlist에 없는 origin은 거부(null) → SPA 보안 정책 유지
         assertThat(cfg.checkOrigin(EXTERNAL_ORIGIN)).isNull();
+    }
+
+    @Test
+    @DisplayName("API와 SSO CORS는 자격증명·허용 Origin·메서드 경계를 분리한다")
+    void apiAndSsoCors_credentialAndOriginBoundaries() {
+        SecurityConfig config = new SecurityConfig(Mockito.mock(JwtAuthenticationFilter.class));
+        ReflectionTestUtils.setField(config, "allowedOrigins", "http://localhost:3000");
+        CorsConfigurationSource source = config.corsConfigurationSource();
+
+        CorsConfiguration apiCors = corsFor(source, "/api/projects");
+        CorsConfiguration ssoCors = corsFor(source, "/sso/checkauth");
+
+        assertThat(apiCors.getAllowCredentials()).isTrue();
+        assertThat(apiCors.getAllowedOriginPatterns()).isNullOrEmpty();
+        assertThat(apiCors.checkOrigin("https://evil.example")).isNull();
+
+        assertThat(ssoCors.getAllowCredentials()).isFalse();
+        assertThat(ssoCors.checkOrigin("https://esso.example")).isNotNull();
+        assertThat(ssoCors.getAllowedMethods()).containsExactlyInAnyOrder("GET", "POST", "OPTIONS");
+    }
+
+    private CorsConfiguration corsFor(CorsConfigurationSource source, String uri) {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI(uri);
+        return source.getCorsConfiguration(request);
     }
 }
