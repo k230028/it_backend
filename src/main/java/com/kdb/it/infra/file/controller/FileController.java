@@ -135,7 +135,7 @@ public class FileController {
                     "multipart/form-data 형식으로 파일 1개를 업로드합니다. "
                             + "공통게시판과 검토의견 첨부는 활성 부모 작성자 또는 관리자만 업로드할 수 있습니다. "
                             + "파일물리명은 {서버ID}_{타임스탬프}_{UUID}.{확장자} 형식으로 자동 채번됩니다. "
-                            + "파일매핑ID는 Oracle 시퀀스(SQ_TPRMPP_CFILEM_1) 기반으로 FL_{8자리} 형식으로 생성됩니다.")
+                            + "파일매핑ID는 Oracle 시퀀스(SQ_TPRMPP_CFILEM_1) 기반으로 FL-{8자리} 형식으로 생성됩니다.")
     public ResponseEntity<FileDto.Response> uploadFile(
             @Parameter(description = "업로드할 파일", required = true) @RequestPart("file")
                     MultipartFile file,

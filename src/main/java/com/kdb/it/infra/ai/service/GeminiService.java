@@ -253,7 +253,7 @@ public class GeminiService {
      *
      * <p>실패 시 예외 대신 {@link FilePartResult#skip(String)}을 반환하여 호출자가 건너뜀 사유를 로그/응답에 포함할 수 있습니다.
      *
-     * @param flMpnId 파일매핑ID (예: FL_00000001)
+     * @param flMpnId 파일매핑ID (예: FL-00000001)
      * @return FilePartResult (성공 시 part 포함, 실패 시 skipReason 포함)
      */
     private FilePartResult buildFilePartFromFlMngNo(String flMpnId) {

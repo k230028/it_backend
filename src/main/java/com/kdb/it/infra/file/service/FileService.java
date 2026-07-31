@@ -111,7 +111,7 @@ public class FileService {
     /**
      * 파일 단건 조회
      *
-     * @param flMpnId 파일매핑ID (예: FL_00000001)
+     * @param flMpnId 파일매핑ID (예: FL-00000001)
      * @return 파일 조회 응답 DTO
      * @throws CustomGeneralException 파일이 존재하지 않는 경우
      */

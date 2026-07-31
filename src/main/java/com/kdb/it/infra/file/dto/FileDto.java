@@ -68,7 +68,7 @@ public class FileDto {
     @AllArgsConstructor
     public static class Response {
 
-        @Schema(description = "파일매핑ID", example = "FL_00000001")
+        @Schema(description = "파일매핑ID", example = "FL-00000001")
         private String flMpnId;
 
         @Schema(description = "파일명", example = "요구사항정의서_v1.0.pdf")
@@ -103,11 +103,11 @@ public class FileDto {
         /** 이미지 미리보기 URL — flTpCone='이미지'인 경우 Tiptap img src로 사용. */
         @Schema(
                 description = "이미지 미리보기 URL (flTpCone='이미지'인 경우 Tiptap img src로 사용)",
-                example = "/api/files/FL_00000001/preview")
+                example = "/api/files/FL-00000001/preview")
         private String previewUrl;
 
         /** 파일 다운로드 URL */
-        @Schema(description = "파일 다운로드 URL", example = "/api/files/FL_00000001/download")
+        @Schema(description = "파일 다운로드 URL", example = "/api/files/FL-00000001/download")
         private String downloadUrl;
     }
 

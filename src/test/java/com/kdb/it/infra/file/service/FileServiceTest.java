@@ -731,7 +731,7 @@ class FileServiceTest {
 
         String result = fileService.uploadFile(file, request);
 
-        assertThat(result).isEqualTo("FL_00000001");
+        assertThat(result).isEqualTo("FL-00000001");
         verify(boardPostFileCacheService).syncFromActiveFiles("NAC-001");
     }
 
@@ -779,10 +779,10 @@ class FileServiceTest {
 
         FileDto.Response result = fileService.uploadFileAndGet(file, request);
 
-        assertThat(result.getFlMpnId()).isEqualTo("FL_00000001");
+        assertThat(result.getFlMpnId()).isEqualTo("FL-00000001");
         assertThat(result.getFlNm()).isEqualTo("요구사항.pdf");
         assertThat(result.getFlPysNm()).startsWith("SVR1_").endsWith(".pdf");
-        assertThat(result.getDownloadUrl()).isEqualTo("/api/files/FL_00000001/download");
+        assertThat(result.getDownloadUrl()).isEqualTo("/api/files/FL-00000001/download");
         org.mockito.Mockito.verify(entityManager)
                 .persist(org.mockito.ArgumentMatchers.any(Cfilem.class));
         org.mockito.Mockito.verify(entityManager).flush();

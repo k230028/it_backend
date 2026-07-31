@@ -98,7 +98,7 @@ public class FileUploadUnitService {
 
     private String generateFlMpnId() {
         Long seq = fileRepository.getNextSequenceValue();
-        return String.format("FL_%08d", seq);
+        return String.format("FL-%08d", seq);
     }
 
     private String generateFlPysNm(String originalFilename) {

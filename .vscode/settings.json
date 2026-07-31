@@ -9,9 +9,22 @@
     "java.debug.settings.onBuildFailureProceed": true,
     "files.encoding": "utf8",
     "files.autoGuessEncoding": false,
+    // bin은 JDT(Buildship) 컴파일 출력 폴더입니다. 탐색기에서만 숨깁니다.
+    // 주의: files.exclude는 UI·검색 필터일 뿐 클래스패스나 프로젝트 임포트에 영향이 없습니다.
     "files.exclude": {
-        "**/bin": true // vscode에서 build와 bin 영역 class가 충돌(already defined)나는 문제 해결
+        "**/bin": true
     },
+    // bin 아래에 .project/build.gradle이 생기면 JDT가 이를 별도 프로젝트로 임포트해
+    // 같은 클래스가 두 출력 루트(bin/main, build/classes/java/main)로 올라가고
+    // Spring 기동이 BeanDefinitionOverrideException(already defined)으로 실패합니다.
+    // 아래 목록은 확장 기본값 4개 + **/bin/** 입니다.
+    "java.import.exclusions": [
+        "**/node_modules/**",
+        "**/.metadata/**",
+        "**/archetype-resources/**",
+        "**/META-INF/maven/**",
+        "**/bin/**"
+    ],
     "editor.defaultFormatter": "redhat.java",
     "[java]": {
         "editor.defaultFormatter": "redhat.java", // 또는 google-java-format

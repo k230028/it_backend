@@ -64,10 +64,32 @@ def nexusReachable = {
 	}
 }()
 
+// 로컬 폴더 저장소 사용 가능 여부를 "폴더 존재"가 아니라 "jar 보유"로 판정.
+// 백신 정책 등으로 jar만 삭제되면 POM·.module은 남으므로, Gradle이 이 저장소로 모듈을
+// 확정한 뒤 아티팩트를 찾지 못해 실패하며 뒤 순위 저장소로 폴백하지 않습니다.
+// jar이 하나도 없으면 아예 등록하지 않아 Nexus·Maven Central로 자동 전환되게 합니다.
+def localMavenRepoDir = file('C:/maven-repo')
+def localMavenRepoUsable = {
+	if (!localMavenRepoDir.isDirectory()) {
+		return false
+	}
+	try {
+		// anyMatch는 첫 jar에서 단축 평가되므로 저장소가 커도 비용이 작습니다.
+		java.nio.file.Files.walk(localMavenRepoDir.toPath()).withCloseable { paths ->
+			paths.anyMatch { it.fileName.toString().endsWith('.jar') }
+		}
+	} catch (Exception ignored) {
+		false
+	}
+}()
+if (localMavenRepoDir.isDirectory() && !localMavenRepoUsable) {
+	logger.warn("[저장소] {} 에 jar이 없어 로컬 폴더 저장소를 건너뜁니다. 외부망 저장소로 해석합니다.", localMavenRepoDir)
+}
+
 // 저장소 탐색 우선순위: Gradle은 선언 순서대로 저장소를 시도합니다 (1순위 → 3순위).
 repositories {
-	// 1순위: 반입한 로컬 폴더 저장소 (make-local-maven-repo.ps1 산출물) — 폴더 존재 시에만 등록
-	if (file('C:/maven-repo').isDirectory()) {
+	// 1순위: 반입한 로컬 폴더 저장소 (make-local-maven-repo.ps1 산출물) — jar 보유 시에만 등록
+	if (localMavenRepoUsable) {
 		maven {
 			url = 'file:///C:/maven-repo'
 			// 미러는 Gradle 캐시 사본이라 .module을 포함합니다. KMP 아티팩트는 .module의

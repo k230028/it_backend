@@ -43,7 +43,7 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
     /**
      * 파일매핑ID와 삭제여부로 단건 조회
      *
-     * @param flMpnId 파일매핑ID (예: FL_00000001)
+     * @param flMpnId 파일매핑ID (예: FL-00000001)
      * @param delYn 삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 파일 메타데이터
      */
@@ -110,7 +110,7 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
     /**
      * Oracle 시퀀스(SQ_TPRMPP_CFILEM_1) 다음 값 조회
      *
-     * <p>파일매핑ID 채번에 사용합니다. 형식: {@code FL_{8자리 시퀀스}} (예: {@code FL_00000001})
+     * <p>파일매핑ID 채번에 사용합니다. 형식: {@code FL-{8자리 시퀀스}} (예: {@code FL-00000001})
      *
      * @return Oracle 시퀀스(SQ_TPRMPP_CFILEM_1)의 다음 값
      */

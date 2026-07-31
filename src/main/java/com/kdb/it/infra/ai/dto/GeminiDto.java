@@ -46,7 +46,7 @@ public class GeminiDto {
          *
          * <p>Gemini 지원 파일 형식: 이미지(jpg/png/gif/webp), PDF 미지원 형식(hwp, doc 등)은 무시됩니다. 파일당 최대 20MB 제한.
          */
-        @Schema(description = "첨부파일 매핑ID 목록 (선택, 최대 10개, 예: [\"FL_00000001\", \"FL_00000002\"])")
+        @Schema(description = "첨부파일 매핑ID 목록 (선택, 최대 10개, 예: [\"FL-00000001\", \"FL-00000002\"])")
         @Size(max = 10, message = "첨부파일은 최대 10개까지 가능합니다.")
         private List<String> flMpnIds;
     }

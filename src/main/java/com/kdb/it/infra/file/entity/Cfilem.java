@@ -19,7 +19,10 @@ import lombok.experimental.SuperBuilder;
  * <p>시스템 전역에서 사용되는 첨부파일(이미지 포함)의 메타데이터를 관리합니다. 주식별자컬럼명({@code PK_COL_NM})과 주식별자내용({@code
  * PK_CONE})으로 어느 도메인 데이터에 연결된 파일인지 식별합니다.
  *
- * <p>파일매핑ID 형식: {@code FL_{8자리 시퀀스}} (예: {@code FL_00000001}) — 최대 36자.
+ * <p>파일매핑ID 형식: {@code FL-{8자리 시퀀스}} (예: {@code FL-00000001}) — 최대 36자.
+ *
+ * <p>구분자는 2026-07-30에 {@code _}에서 {@code -}로 통일했습니다. 그 이전에 채번된 기존 행은 {@code FL_00000001} 형식을 그대로
+ * 유지하므로 두 형식이 공존합니다. 이 값은 정확히 일치 조회로만 사용하고 접두어를 파싱하지 않습니다.
  *
  * <p>파일물리명 채번 규칙: {@code {서버ID}_{yyyyMMddHHmmss}_{UUID}.{확장자}} (예: {@code
  * SVR1_20260315143022_550e8400e29b41d4a716446655440000.pdf}) → UUID 기반으로 1번·2번 서버 동시 운영 시에도 파일명 충돌
@@ -33,7 +36,7 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 public class Cfilem extends BaseEntity {
 
-    /** 파일매핑ID: 기본키 (형식: FL_{8자리 시퀀스}, 예: FL_00000001) */
+    /** 파일매핑ID: 기본키 (형식: FL-{8자리 시퀀스}, 예: FL-00000001) */
     @Id
     @Column(name = "FL_MPN_ID", nullable = false, length = 36, comment = "파일매핑ID")
     private String flMpnId;
