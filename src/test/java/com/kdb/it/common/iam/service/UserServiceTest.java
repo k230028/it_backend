@@ -3,18 +3,25 @@ package com.kdb.it.common.iam.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.exception.CustomGeneralException;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -35,6 +42,8 @@ class UserServiceTest {
     @Mock private UserRepository userRepository;
 
     @InjectMocks private UserService userService;
+
+    @Captor private ArgumentCaptor<Integer> limitCaptor;
 
     /** 테스트용 CuserI Mock 생성 — 목록 조회에 필요한 필드만 스텁 */
     private UserDto.ListRow userRow(String eno, String bbrC, String usrNm) {
@@ -180,35 +189,61 @@ class UserServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
-    // searchUsersByName
+    // searchUsers (이름·팀명·사번 검색)
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("searchUsersByName: orgCode가 null이면 키워드 매칭 전체 결과를 반환한다")
-    void searchUsersByName_orgCode없음_전체결과반환() {
+    @DisplayName("searchUsers: orgCode가 null이면 키워드 매칭 전체 결과를 반환한다")
+    void searchUsers_orgCode없음_전체결과반환() {
         // given
         UserDto.ListRow user1 = userRow("E10001", "001", "홍길동");
         UserDto.ListRow user2 = userRow("E10002", "002", "홍철수");
-        given(userRepository.searchListRowsByName("홍")).willReturn(List.of(user1, user2));
+        given(userRepository.searchListRowsByKeyword(eq("홍길"), anyInt()))
+                .willReturn(List.of(user1, user2));
 
         // when
-        List<UserDto.ListResponse> result = userService.searchUsersByName("홍", null);
+        List<UserDto.ListResponse> result = userService.searchUsers("홍길", null);
 
         // then
         assertThat(result).hasSize(2);
-        verify(userRepository).searchListRowsByName("홍");
+        verify(userRepository).searchListRowsByKeyword(eq("홍길"), anyInt());
     }
 
     @Test
-    @DisplayName("searchUsersByName: orgCode가 지정되면 해당 부점 사용자만 반환한다")
-    void searchUsersByName_orgCode지정_해당부점만반환() {
+    @DisplayName("searchUsers: 검색어 앞뒤 공백을 제거하고 결과 상한을 함께 전달한다")
+    void searchUsers_검색어정리_상한전달() {
+        // given
+        given(userRepository.searchListRowsByKeyword(anyString(), anyInt())).willReturn(List.of());
+
+        // when — 팀명 검색어도 같은 경로로 전달된다
+        userService.searchUsers("  IT기획팀  ", null);
+
+        // then
+        verify(userRepository).searchListRowsByKeyword(eq("IT기획팀"), limitCaptor.capture());
+        assertThat(limitCaptor.getValue()).isPositive();
+    }
+
+    @Test
+    @DisplayName("searchUsers: 검색어가 2자 미만이면 예외를 던지고 조회하지 않는다")
+    void searchUsers_검색어2자미만_예외() {
+        assertThatThrownBy(() -> userService.searchUsers("홍", null))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("2자 이상");
+
+        verify(userRepository, never()).searchListRowsByKeyword(anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("searchUsers: orgCode가 지정되면 해당 부점 사용자만 반환한다")
+    void searchUsers_orgCode지정_해당부점만반환() {
         // given
         UserDto.ListRow user1 = userRow("E10001", "001", "홍길동");
         UserDto.ListRow user2 = userRow("E10002", "002", "홍철수");
-        given(userRepository.searchListRowsByName("홍")).willReturn(List.of(user1, user2));
+        given(userRepository.searchListRowsByKeyword(eq("홍길"), anyInt()))
+                .willReturn(List.of(user1, user2));
 
         // when — 부점코드 "001"만 통과
-        List<UserDto.ListResponse> result = userService.searchUsersByName("홍", "001");
+        List<UserDto.ListResponse> result = userService.searchUsers("홍길", "001");
 
         // then
         assertThat(result).hasSize(1);
@@ -216,48 +251,49 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("searchUsersByName: orgCode가 공백이면 필터 없이 전체 결과를 반환한다")
-    void searchUsersByName_orgCode공백_필터없이전체반환() {
+    @DisplayName("searchUsers: orgCode가 공백이면 필터 없이 전체 결과를 반환한다")
+    void searchUsers_orgCode공백_필터없이전체반환() {
         // given
         UserDto.ListRow user1 = userRow("E10001", "001", "홍길동");
         UserDto.ListRow user2 = userRow("E10002", "002", "홍철수");
-        given(userRepository.searchListRowsByName("홍")).willReturn(List.of(user1, user2));
+        given(userRepository.searchListRowsByKeyword(eq("홍길"), anyInt()))
+                .willReturn(List.of(user1, user2));
 
         // when — 공백 orgCode는 isBlank() 판정으로 필터 미적용
-        List<UserDto.ListResponse> result = userService.searchUsersByName("홍", "   ");
+        List<UserDto.ListResponse> result = userService.searchUsers("홍길", "   ");
 
         // then
         assertThat(result).hasSize(2);
     }
 
     @Test
-    @DisplayName("searchUsersByName: 검색 결과가 없으면 빈 목록을 반환한다")
-    void searchUsersByName_검색결과없음_빈목록반환() {
+    @DisplayName("searchUsers: 검색 결과가 없으면 빈 목록을 반환한다")
+    void searchUsers_검색결과없음_빈목록반환() {
         // given
-        given(userRepository.searchListRowsByName("없는이름")).willReturn(List.of());
+        given(userRepository.searchListRowsByKeyword(eq("없는이름"), anyInt())).willReturn(List.of());
 
         // when
-        List<UserDto.ListResponse> result = userService.searchUsersByName("없는이름", null);
+        List<UserDto.ListResponse> result = userService.searchUsers("없는이름", null);
 
         // then
         assertThat(result).isEmpty();
     }
 
     @Test
-    @DisplayName("searchUsersByName: 키워드와 부점코드가 모두 비어 있으면 조회 없이 빈 목록을 반환한다")
-    void searchUsersByName_키워드부점모두없음_빈목록반환() {
-        List<UserDto.ListResponse> result = userService.searchUsersByName(" ", null);
+    @DisplayName("searchUsers: 키워드와 부점코드가 모두 비어 있으면 조회 없이 빈 목록을 반환한다")
+    void searchUsers_키워드부점모두없음_빈목록반환() {
+        List<UserDto.ListResponse> result = userService.searchUsers(" ", null);
 
         assertThat(result).isEmpty();
     }
 
     @Test
-    @DisplayName("searchUsersByName: 키워드가 없고 부점코드가 있으면 부점 목록을 반환한다")
-    void searchUsersByName_키워드없고부점있음_부점목록반환() {
+    @DisplayName("searchUsers: 키워드가 없고 부점코드가 있으면 부점 목록을 반환한다")
+    void searchUsers_키워드없고부점있음_부점목록반환() {
         UserDto.ListRow user = userRow("E10001", "001", "홍길동");
         given(userRepository.findListRowsByBbrC("001")).willReturn(List.of(user));
 
-        List<UserDto.ListResponse> result = userService.searchUsersByName(null, "001");
+        List<UserDto.ListResponse> result = userService.searchUsers(null, "001");
 
         assertThat(result)
                 .singleElement()

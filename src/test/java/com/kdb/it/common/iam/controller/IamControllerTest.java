@@ -104,8 +104,8 @@ class IamControllerTest {
     @DisplayName("GET /api/users/search - 인증된 사용자 → 200 + 배열 반환")
     @WithMockUser(username = "10001")
     void searchUsers_인증_200() throws Exception {
-        given(userService.searchUsersByName(anyString(), any())).willReturn(List.of());
-        mockMvc.perform(get("/api/users/search").param("keyword", "홍"))
+        given(userService.searchUsers(anyString(), any())).willReturn(List.of());
+        mockMvc.perform(get("/api/users/search").param("keyword", "홍길"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
     }

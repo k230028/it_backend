@@ -6,16 +6,26 @@ import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
+import org.springframework.data.domain.Sort;
 
 /** 조직 읽기 프로젝션(이름·목록·관리자 목록)의 Oracle 통합 테스트. */
 @DisplayName("조직 읽기 프로젝션")
 class OrganizationNameProjectionIt extends AbstractOracleRepositoryTest {
+
+    /**
+     * 조직 트리 표시 순서. {@code OrganizationService}가 사용하는 정렬과 동일하게 유지합니다.
+     *
+     * <p>서비스가 이 정렬을 전달하는지는 단위 테스트가, 이 정렬이 Oracle에서 실제로 만드는 순서는 이 통합 테스트가 검증합니다.
+     */
+    private static final Sort DISPLAY_ORDER =
+            Sort.by(Sort.Order.asc("itmSqnSno").nullsLast(), Sort.Order.asc("prlmOgzCCone"));
 
     @Autowired private OrganizationRepository organizationRepository;
 
@@ -84,7 +94,7 @@ class OrganizationNameProjectionIt extends AbstractOracleRepositoryTest {
     void findListViewsBy_matchesEntityFindAllRegardlessOfDelYn() {
         List<CorgnI> entities = organizationRepository.findAll();
         List<OrganizationRepository.OrganizationListView> views =
-                organizationRepository.findListViewsBy();
+                organizationRepository.findListViewsBy(DISPLAY_ORDER);
 
         // findAll()과 동일한 무필터 의미: 삭제된 조직(129)도 결과에 포함되고 전체 건수가 일치한다
         assertThat(views).hasSameSizeAs(entities);
@@ -103,6 +113,30 @@ class OrganizationNameProjectionIt extends AbstractOracleRepositoryTest {
                                                 .getDeclaredMethods())
                                 .map(method -> method.getName()))
                 .containsExactlyInAnyOrder("getPrlmOgzCCone", "getPrlmHrkOgzCCone", "getBbrNm");
+    }
+
+    @Test
+    @DisplayName("목록 조회 프로젝션은 항목순서일련번호 오름차순(미지정은 뒤)·조직코드 순으로 정렬한다")
+    void findListViewsBy_ordersByItmSqnSnoAscNullsLast() {
+        // 인메모리 정렬(항목순서일련번호 오름차순 + null 뒤 + 조직코드 동순위)과 Oracle 정렬 결과가 같아야 한다
+        List<String> expectedOrder =
+                organizationRepository.findAll().stream()
+                        .sorted(
+                                Comparator.comparing(
+                                                CorgnI::getItmSqnSno,
+                                                Comparator.nullsLast(Comparator.naturalOrder()))
+                                        .thenComparing(CorgnI::getPrlmOgzCCone))
+                        .map(CorgnI::getPrlmOgzCCone)
+                        .toList();
+
+        List<String> actualOrder =
+                organizationRepository.findListViewsBy(DISPLAY_ORDER).stream()
+                        .map(OrganizationRepository.OrganizationListView::getPrlmOgzCCone)
+                        .toList();
+
+        assertThat(actualOrder).containsExactlyElementsOf(expectedOrder);
+        // 픽스처 기준 순번 10(120)이 순번 99(129)보다 앞선다
+        assertThat(actualOrder.indexOf("120")).isLessThan(actualOrder.indexOf("129"));
     }
 
     @Test

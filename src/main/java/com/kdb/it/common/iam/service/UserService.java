@@ -4,6 +4,7 @@ import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
+import com.kdb.it.exception.CustomGeneralException;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
 @Transactional(readOnly = true) // 읽기 전용 트랜잭션
 public class UserService {
+
+    /** 전체 조직 대상 검색에 필요한 최소 검색어 길이 */
+    private static final int MIN_KEYWORD_LENGTH = 2;
+
+    /** 전체 조직 대상 검색의 최대 반환 건수 */
+    private static final int SEARCH_RESULT_LIMIT = 200;
 
     /** 사용자 정보 데이터 접근 리포지토리 (TPRMPP_CUSERI) */
     private final UserRepository userRepository;
@@ -81,21 +88,25 @@ public class UserService {
     }
 
     /**
-     * 이름으로 사용자 검색 (자동완성용)
+     * 사용자 검색 (이름·팀명·사번 부분 일치)
      *
      * <p>분기:
      *
      * <ul>
      *   <li>keyword 비어있고 orgCode 지정 → 해당 부서 사용자 전체 (멘션 default 목록용)
      *   <li>keyword 비어있고 orgCode도 비어있음 → 빈 리스트 (전체 사용자 dump 방지)
-     *   <li>keyword 있음 → 사용자명 LIKE 검색 + orgCode 있으면 부서 필터링
+     *   <li>keyword 있음 → 전체 조직 대상 이름·팀명·사번 LIKE 검색 + orgCode 있으면 부서 필터링
      * </ul>
      *
-     * @param keyword 검색할 사용자명 (부분 일치, null/blank 허용)
+     * <p>전체 조직이 대상이므로 검색어는 {@link #MIN_KEYWORD_LENGTH}자 이상이어야 하며 결과는 {@link
+     * #SEARCH_RESULT_LIMIT}건까지만 반환합니다.
+     *
+     * @param keyword 검색어 (이름·팀명·사번 부분 일치, null/blank 허용)
      * @param orgCode 부서코드 (null이면 전체 부서 대상)
-     * @return 검색 결과 사용자 목록 DTO
+     * @return 검색 결과 사용자 목록 DTO (최대 {@link #SEARCH_RESULT_LIMIT}건)
+     * @throws CustomGeneralException 검색어가 있으나 {@link #MIN_KEYWORD_LENGTH}자 미만인 경우
      */
-    public List<UserDto.ListResponse> searchUsersByName(String keyword, String orgCode) {
+    public List<UserDto.ListResponse> searchUsers(String keyword, String orgCode) {
         boolean keywordBlank = keyword == null || keyword.isBlank();
         boolean orgBlank = orgCode == null || orgCode.isBlank();
 
@@ -106,7 +117,14 @@ public class UserService {
             return getUsersByOrganization(orgCode);
         }
 
-        List<UserDto.ListRow> users = userRepository.searchListRowsByName(keyword);
+        // 전체 조직 대상 LIKE 검색이므로 너무 짧은 검색어는 서버에서 차단한다.
+        String trimmedKeyword = keyword.trim();
+        if (trimmedKeyword.length() < MIN_KEYWORD_LENGTH) {
+            throw new CustomGeneralException("검색어는 " + MIN_KEYWORD_LENGTH + "자 이상 입력하세요.");
+        }
+
+        List<UserDto.ListRow> users =
+                userRepository.searchListRowsByKeyword(trimmedKeyword, SEARCH_RESULT_LIMIT);
         if (!orgBlank) {
             // orgBlank 검증 뒤 null 불가 값을 명시해 정적 분석 경고를 제거한다.
             final String orgFilter = Objects.requireNonNull(orgCode);

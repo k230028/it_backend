@@ -79,22 +79,26 @@ public class UserController {
     }
 
     /**
-     * 사용자 이름 검색 (자동완성용)
+     * 사용자 검색 (이름·팀명·사번)
      *
-     * <p>사용자명(USR_NM)에 검색어를 포함하는 사용자 목록을 반환합니다. 부서코드(orgCode)를 추가로 전달하면 해당 부서 소속만 필터링합니다.
+     * <p>전체 조직을 대상으로 사용자명(USR_NM)·팀명(TEM_NM)·사번(ENO)에 검색어를 포함하는 사용자 목록을 반환합니다. 부서코드(orgCode)를 추가로
+     * 전달하면 해당 부서 소속만 필터링합니다.
      *
-     * @param keyword 검색할 사용자명 (부분 일치)
-     * @param orgCode 부서코드 (선택, 미입력 시 전체 부서 대상)
+     * <p>검색어는 2자 이상이어야 하며 결과 건수는 서버에서 제한합니다.
+     *
+     * @param keyword 검색어 (이름·팀명·사번 부분 일치)
+     * @param orgCode 부서코드 (선택, 미입력 시 전체 조직 대상)
      * @return HTTP 200 + 검색 결과 사용자 목록
      */
     @GetMapping("/search")
     @Operation(
-            summary = "사용자 이름 검색",
+            summary = "사용자 검색 (이름·팀명·사번)",
             description =
-                    "사용자명으로 검색합니다. keyword 비어있고 orgCode 지정 시 해당 부서 사용자 전체 반환. 둘 다 비어있으면 빈 리스트.")
+                    "전체 조직에서 이름·팀명·사번 부분 일치로 검색합니다(2자 이상, 결과 건수 제한). "
+                            + "keyword 비어있고 orgCode 지정 시 해당 부서 사용자 전체 반환. 둘 다 비어있으면 빈 리스트.")
     public ResponseEntity<List<UserDto.ListResponse>> searchUsers(
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "orgCode", required = false) String orgCode) {
-        return ResponseEntity.ok(userService.searchUsersByName(keyword, orgCode));
+        return ResponseEntity.ok(userService.searchUsers(keyword, orgCode));
     }
 }

@@ -22,6 +22,9 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     private static final String ORG_CODE = "120";
     private static final String PARENT_ORG_CODE = "P120";
 
+    /** 키워드 검색 상한 — 픽스처 전건이 들어오도록 충분히 큰 값 */
+    private static final int SEARCH_LIMIT = 200;
+
     @Autowired private UserRepository userRepository;
 
     @Autowired private TestEntityManager em;
@@ -78,16 +81,39 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     }
 
     @Test
-    @DisplayName("이름 검색은 삭제 필터와 정렬을 추가하지 않고 조직 없는 사용자도 반환한다")
-    void searchListRowsByName_preservesExistingFilterPolicy() {
-        assertThat(userRepository.searchListRowsByName("길동"))
+    @DisplayName("키워드 검색은 이름·팀명·사번을 대상으로 하고 삭제 필터 없이 조직 없는 사용자도 반환한다")
+    void searchListRowsByKeyword_matchesNameTeamAndEno() {
+        // 이름 부분 일치 — 삭제된 사용자(BE03002)도 기존 정책대로 포함한다
+        assertThat(userRepository.searchListRowsByKeyword("길동", SEARCH_LIMIT))
                 .filteredOn(row -> row.eno().startsWith("BE03"))
                 .extracting(row -> row.eno())
                 .containsExactlyInAnyOrder("BE03001", "BE03002");
-        assertThat(userRepository.searchListRowsByName("null조직"))
+
+        // 조직이 없는 사용자도 left join으로 반환한다 (부점명은 null)
+        assertThat(userRepository.searchListRowsByKeyword("null조직", SEARCH_LIMIT))
                 .filteredOn(row -> row.eno().equals("BE03003"))
                 .singleElement()
                 .satisfies(row -> assertThat(row.bbrNm()).isNull());
+
+        // 팀명 부분 일치 — 이름이 서로 달라도 같은 팀이면 모두 조회된다
+        assertThat(userRepository.searchListRowsByKeyword("테스트팀", SEARCH_LIMIT))
+                .extracting(row -> row.eno())
+                .contains("BE03001", "BE03002", "BE03003");
+
+        // 사번 부분 일치(대소문자 무시)와 이름 오름차순 정렬
+        List<String> names =
+                userRepository.searchListRowsByKeyword("be0300", SEARCH_LIMIT).stream()
+                        .map(UserDto.ListRow::usrNm)
+                        .toList();
+        assertThat(names).contains("홍길동", "김길동", "null조직");
+        assertThat(names.indexOf("김길동")).isLessThan(names.indexOf("홍길동"));
+    }
+
+    @Test
+    @DisplayName("키워드 검색은 요청한 상한까지만 반환한다")
+    void searchListRowsByKeyword_appliesLimit() {
+        assertThat(userRepository.searchListRowsByKeyword("테스트팀", 1)).hasSize(1);
+        assertThat(userRepository.searchListRowsByKeyword("테스트팀", 2)).hasSize(2);
     }
 
     @Test

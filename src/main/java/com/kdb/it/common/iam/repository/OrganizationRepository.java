@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
@@ -81,9 +82,13 @@ public interface OrganizationRepository extends JpaRepository<CorgnI, String> {
     /**
      * 전체 조직 목록을 목록 조회 전용 프로젝션으로 조회합니다. 삭제 여부와 무관하게 전건을 반환하여 기존 {@code findAll()} 무필터 의미를 보존합니다.
      *
-     * @return 조직 목록 프로젝션 (무필터, 무정렬)
+     * <p>정렬은 호출자가 {@link Sort}로 지정합니다. 프론트 조직 트리의 형제 노드 표시 순서가 이 정렬 결과를 그대로 따르므로 정렬 기준을 바꾸면 화면 순서도
+     * 함께 바뀝니다.
+     *
+     * @param sort 정렬 기준 (필수, 정렬이 필요 없으면 {@link Sort#unsorted()})
+     * @return 조직 목록 프로젝션 (무필터)
      */
-    List<OrganizationListView> findListViewsBy();
+    List<OrganizationListView> findListViewsBy(Sort sort);
 
     /**
      * 삭제 여부로 관리자 조직 목록 프로젝션을 조회합니다.

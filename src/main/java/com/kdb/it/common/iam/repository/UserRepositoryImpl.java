@@ -41,10 +41,20 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
     }
 
     @Override
-    public List<UserDto.ListRow> searchListRowsByName(String name) {
+    public List<UserDto.ListRow> searchListRowsByKeyword(String keyword, int limit) {
         QCuserI user = QCuserI.cuserI;
         QCorgnI organization = new QCorgnI("searchOrganization");
-        return selectListRows(user, organization).where(user.usrNm.contains(name)).fetch();
+        return selectListRows(user, organization)
+                // 이름·팀명·사번 중 하나라도 부분 일치하면 결과에 포함한다 (대소문자 무시)
+                .where(
+                        user.usrNm
+                                .containsIgnoreCase(keyword)
+                                .or(user.temNm.containsIgnoreCase(keyword))
+                                .or(user.eno.containsIgnoreCase(keyword)))
+                // 전체 조직이 대상이므로 표시 순서를 고정하고 반환 건수를 제한한다
+                .orderBy(user.usrNm.asc(), user.eno.asc())
+                .limit(limit)
+                .fetch();
     }
 
     @Override
