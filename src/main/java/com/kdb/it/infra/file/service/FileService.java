@@ -132,15 +132,15 @@ public class FileService {
      * <p>조회 우선순위:
      *
      * <ol>
-     *   <li>orcDtt + orcPkVl + flDtt 모두 입력 → 세 조건으로 필터링
-     *   <li>orcDtt + orcPkVl 입력 → 두 조건으로 필터링
-     *   <li>orcDtt만 입력 → 해당 원본구분 전체 조회
+     *   <li>pkColNm + pkCone + flTpCone 모두 입력 → 세 조건으로 필터링
+     *   <li>pkColNm + pkCone 입력 → 두 조건으로 필터링
+     *   <li>pkColNm만 입력 → 해당 주식별자컬럼명 전체 조회
      * </ol>
      *
-     * @param condition 검색 조건 (orcDtt 필수, orcPkVl·flDtt 선택)
+     * @param condition 검색 조건 (pkColNm 필수, pkCone·flTpCone 선택)
      * @param user 현재 사용자 — 읽기 권한 필터링에 사용 (게시판 비공개 파일 제외)
      * @return 파일 조회 응답 DTO 목록 (읽기 가능한 파일만)
-     * @throws CustomGeneralException orcDtt 미입력 시
+     * @throws CustomGeneralException pkColNm 미입력 시
      */
     public List<FileDto.Response> getFiles(
             FileDto.SearchCondition condition, CustomUserDetails user) {
@@ -351,11 +351,11 @@ public class FileService {
     /**
      * 파일 메타데이터 수정
      *
-     * <p>파일이 연결된 원본 도메인 정보(원본구분, 원본PK값)를 변경합니다. 파일 자체(서버파일명, 저장경로)는 변경되지 않습니다. 파일 교체가 필요한 경우 삭제 후
-     * 재업로드를 사용하세요.
+     * <p>파일이 연결된 원본 도메인 정보(주식별자컬럼명, 주식별자내용)를 변경합니다. 파일 자체(서버파일명, 저장경로)는 변경되지 않습니다. 파일 교체가 필요한 경우 삭제
+     * 후 재업로드를 사용하세요.
      *
      * @param flMpnId 수정할 파일매핑ID
-     * @param request 수정 요청 DTO (orcPkVl, orcDtt)
+     * @param request 수정 요청 DTO (pkColNm, pkCone)
      * @return 수정된 파일매핑ID
      * @throws CustomGeneralException 파일이 존재하지 않는 경우
      */

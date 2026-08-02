@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>기본 URL: {@code /api/guide-documents}
  *
- * <p>첨부파일 연동: 공통 첨부파일 API({@code /api/files})에서 {@code orcDtt=가이드문서}, {@code orcPkVl={docMngNo}}로
+ * <p>첨부파일 연동: 공통 첨부파일 API({@code /api/files})에서 {@code pkColNm=가이드문서}, {@code pkCone={docMngNo}}로
  * 파일을 관리합니다.
  *
  * <p>보안: JWT 토큰 인증 필요
@@ -75,7 +75,7 @@ public class GuideDocController {
      *
      * <p>채번 규칙: {@code GDOC-{연도}-{4자리 시퀀스}} (예: GDOC-2026-0001) {@code docMngNo}를 미입력 시 자동 채번됩니다.
      *
-     * <p>생성 후 첨부파일 등록은 {@code POST /api/files}에서 {@code orcDtt=가이드문서}, {@code orcPkVl={docMngNo}}로
+     * <p>생성 후 첨부파일 등록은 {@code POST /api/files}에서 {@code pkColNm=가이드문서}, {@code pkCone={docMngNo}}로
      * 요청합니다.
      *
      * @param request 가이드 문서 생성 요청

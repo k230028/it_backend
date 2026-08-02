@@ -64,6 +64,8 @@ Swagger UI와 API 명세는 `local-ext`·`local-int`·`dev`에서만 활성화�
 
 Gradle Wrapper는 9.2.1을 사용합니다. 일반 의존성은 `C:\maven-repo` → 접속 가능한 내부 Nexus → Maven Central 순서로 탐색하며, 플러그인은 내부 Nexus → 로컬 저장소 → Gradle Plugin Portal/Maven Central 순서로 해석합니다. 폐쇄망에서는 Wrapper 배포본과 필요한 Maven 아티팩트를 `C:\maven-repo`에 먼저 반입하고 `gradle-wrapper.properties`의 로컬 `distributionUrl`을 활성화합니다.
 
+로컬 폴더 저장소는 **폴더 존재가 아니라 jar 보유 여부**로 등록합니다(`build.gradle`·`settings.gradle`의 `localMavenRepoUsable`). 백신 정책 등으로 jar만 지워지면 POM과 `.module`은 남기 때문에, Gradle이 이 저장소로 모듈을 확정한 뒤 아티팩트를 찾지 못해 실패하고 뒤 순위 저장소로 폴백하지 않습니다. jar이 하나도 없으면 경고를 남기고 저장소를 아예 등록하지 않아 Nexus·Maven Central로 자동 전환됩니다. 폐쇄망 빌드가 갑자기 외부망 저장소를 찾는다면 이 경고 로그부터 확인합니다.
+
 ## 프로젝트 구조
 
 ```text

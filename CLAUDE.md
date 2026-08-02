@@ -24,6 +24,7 @@
 - 시퀀스는 `SQ_{테이블명}_#`(예: `SQ_TPRMPP_CAUTHI_1`), PK 제약이 소유하지 않는 인덱스는 `IX_{테이블명}_##`(예: `IX_TPRMPP_CAUTHI_01`) 명명 규칙을 따릅니다. 감사로그 PK 채번(`AuditLogIdGenerator`)도 이 규칙으로 시퀀스명을 유도합니다.
 - 시퀀스는 `NOCACHE NOCYCLE`을 명시하고 MAXVALUE를 반드시 지정합니다. MAXVALUE 기준은 숫자 컬럼에 직접 저장하면 대상 컬럼 `NUMBER(p)`의 p자리, 문자열 식별번호를 만들면 채번 포맷의 zero-padding 폭입니다. 기준표의 SoT는 `../it_database/migrations/V20260730_003__NormalizeSequenceMaxValues.sql`입니다.
 - Oracle `LPAD(seq, n, '0')`는 자릿수를 넘는 값을 잘라내 번호가 조용히 충돌하므로, LPAD로 채번하는 시퀀스는 MAXVALUE를 LPAD 자릿수 이하로 유지합니다. Java `String.format("%0nd", ...)`는 자르지 않고 늘어납니다.
+- 문자열 식별번호 채번은 접두어와 일련번호 사이 구분자로 `_`를 쓰지 않습니다. 구분자를 두면 `-`를 사용합니다(`FL-%08d`, `PRJ-%s-%04d`, `NAC-%d-%04d` 등. 메뉴 `MNU%07d`처럼 구분자 없는 형식도 있습니다). 채번 형식을 바꿔도 기존 행은 구 형식으로 남아 두 형식이 공존하므로, 식별번호는 정확히 일치 조회로만 사용하고 접두어를 파싱해 의미를 꺼내지 않습니다.
 - 모든 업무 엔티티는 `BaseEntity`를 상속하고 물리 삭제 대신 `delete()`로 `DEL_YN='Y'`를 설정합니다.
 - 감사 대상 업무 엔티티는 `@LogTarget`, 대응 로그 엔티티는 `BaseLogEntity`를 사용합니다.
 - `@LogTarget` 엔티티의 고유 NOT NULL 기본값은 `@PrePersist`에만 의존하지 말고 생성자·팩토리에서 설정합니다.

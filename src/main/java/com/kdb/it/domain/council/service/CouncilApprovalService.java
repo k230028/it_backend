@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   DRAFT  (재작성 필요)
  * </pre>
  *
- * <p>원본 데이터 연결: {@code orcTbCd="BASCTM"}, {@code orcPkVl=asctId}
+ * <p>원본 데이터 연결: {@code ApplicationDto.OrcItem}에 {@code fntTbNm="BASCTM"}, {@code pkColNm=asctId}
  *
  * <p>설계 참조: §2.1 M5 — 전자결재 연동
  */
@@ -220,7 +220,8 @@ public class CouncilApprovalService {
     /**
      * ApplicationDto.CreateRequest 생성
      *
-     * <p>orcTbCd="BASCTM", orcPkVl=asctId 로 원본 데이터를 연결합니다. 결재자 1인(팀장)으로 단일 결재선을 구성합니다.
+     * <p>{@code OrcItem.fntTbNm="BASCTM"}, {@code OrcItem.pkColNm=asctId} 로 원본 데이터를 연결합니다. 결재자
+     * 1인(팀장)으로 단일 결재선을 구성합니다.
      */
     private ApplicationDto.CreateRequest buildApprovalRequest(
             String apfNm, String asctId, List<String> approverEnos, String rqsOpnn, String rqsEno) {

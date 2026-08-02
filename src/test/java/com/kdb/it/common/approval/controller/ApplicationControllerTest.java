@@ -1,8 +1,13 @@
 package com.kdb.it.common.approval.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -19,6 +24,7 @@ import com.kdb.it.config.TestSecurityConfig;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -152,11 +158,11 @@ class ApplicationControllerTest {
     @DisplayName("GET /api/applications/{apfMngNo}/apfDtlCone - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void getApfDtlCone_인증_200() throws Exception {
-        // Arrange
+        // 준비
         given(applicationService.getApfDtlCone("APF_202600000001"))
                 .willReturn(ApplicationDto.ApfDtlConeResponse.builder().build());
 
-        // Act & Assert
+        // 실행 및 검증
         mockMvc.perform(get("/api/applications/APF_202600000001/apfDtlCone"))
                 .andExpect(status().isOk());
     }
@@ -172,10 +178,10 @@ class ApplicationControllerTest {
     @DisplayName("POST /api/applications - 신규 신청서 생성 → 201 Created + Location 헤더")
     @WithMockUser(username = "10001")
     void submit_인증_201() throws Exception {
-        // Arrange
+        // 준비
         given(applicationService.submit(any())).willReturn("APF_202600000001");
 
-        // Act & Assert
+        // 실행 및 검증
         mockMvc.perform(
                         post("/api/applications")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -194,5 +200,81 @@ class ApplicationControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /api/applications/{apfMngNo}/recall - 일반 사용자 회수 → 204 + 관리자 아님 전달")
+    @WithMockUser(username = "10001", roles = "USER")
+    void recall_일반사용자_204() throws Exception {
+        // 준비
+        ArgumentCaptor<ApplicationDto.RecallRequest> requestCaptor =
+                ArgumentCaptor.forClass(ApplicationDto.RecallRequest.class);
+
+        // 실행
+        mockMvc.perform(
+                        post("/api/applications/APF_202600000001/recall")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"recallOpnn\":\"결재선 오기재\"}"))
+                .andExpect(status().isNoContent());
+
+        // 검증
+        verify(applicationService)
+                .recall(eq("APF_202600000001"), requestCaptor.capture(), eq("10001"), eq(false));
+        assertThat(requestCaptor.getValue().getRecallOpnn()).isEqualTo("결재선 오기재");
+    }
+
+    @Test
+    @DisplayName("POST /api/applications/{apfMngNo}/recall - 관리자 회수 → 204 + 관리자 권한 전달")
+    @WithMockUser(
+            username = "90001",
+            roles = {"USER", "ADMIN"})
+    void recall_관리자_204() throws Exception {
+        // 준비
+        String requestBody = "{\"recallOpnn\":\"관리자 직권 회수\"}";
+
+        // 실행
+        mockMvc.perform(
+                        post("/api/applications/APF_202600000002/recall")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestBody))
+                .andExpect(status().isNoContent());
+
+        // 검증
+        verify(applicationService).recall(eq("APF_202600000002"), any(), eq("90001"), eq(true));
+    }
+
+    @Test
+    @DisplayName("POST /api/applications/{apfMngNo}/recall - 회수 사유 공백 → 400")
+    @WithMockUser(username = "10001", roles = "USER")
+    void recall_회수사유공백_400() throws Exception {
+        // 준비
+        String requestBody = "{\"recallOpnn\":\"   \"}";
+
+        // 실행
+        mockMvc.perform(
+                        post("/api/applications/APF_202600000001/recall")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestBody))
+                .andExpect(status().isBadRequest());
+
+        // 검증
+        verify(applicationService, never()).recall(anyString(), any(), anyString(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("POST /api/applications/{apfMngNo}/recall - 비인증 → 401")
+    void recall_비인증_401() throws Exception {
+        // 준비
+        String requestBody = "{\"recallOpnn\":\"결재선 오기재\"}";
+
+        // 실행
+        mockMvc.perform(
+                        post("/api/applications/APF_202600000001/recall")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestBody))
+                .andExpect(status().isUnauthorized());
+
+        // 검증
+        verify(applicationService, never()).recall(anyString(), any(), anyString(), anyBoolean());
     }
 }
