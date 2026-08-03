@@ -238,6 +238,19 @@ class CouncilServiceTest {
     }
 
     @Test
+    @DisplayName("getCouncilList: IT_PTL_STS_TC 필터로 진행중 45 / 신청대상 09를 전달한다")
+    void getCouncilList_사업상태코드_45와09를전달한다() {
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "IT001");
+        given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
+                .willReturn(List.of());
+
+        councilService.getCouncilList(admin);
+
+        verify(councilRepository).findProjectRowsForCouncilAll("45", "09");
+    }
+
+    @Test
     @DisplayName("getCouncilList: 관리자 조회 행은 날짜 타입과 적용 여부를 변환하고 당해예산을 품목 파생값으로 반환한다")
     void getCouncilList_관리자_행변환() {
         CustomUserDetails admin =
@@ -596,7 +609,8 @@ class CouncilServiceTest {
 
         assertThat(result).startsWith("ASCT-");
         verify(entityManager).persist(any(Basctm.class));
-        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "32");
+        // 협의회 신청 시 사업 상태는 '타당성검토 정실협 진행중'(IT_PTL_STS_TC=45)으로 전이한다
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "45");
     }
 
     // ───────────────────────────────────────────────────────

@@ -16,8 +16,10 @@ import lombok.experimental.SuperBuilder;
  * 정보화사업관계(BPROJA) 엔티티.
  *
  * <p>DB 테이블: {@code TPRMPP_BPROJA}. 프로젝트({@code ABUS_MNG_NO})와 각 단계 원본문서 ({@code CNCD_RFR_NO}=단계 자기
- * key)의 IT포탈 상태({@code IT_PTL_STS_TC})를 정규화해 관리합니다. 한 프로젝트당 단계별 다건이 존재하며, 프로젝트 대표상태는 그 중 {@code
- * IT_PTL_STS_TC} 최댓값입니다.
+ * key)의 IT포탈 상태({@code IT_PTL_STS_TC})를 정규화해 관리합니다. 한 프로젝트당 단계별 다건이 존재합니다.
+ *
+ * <p>사업 자신의 상태는 {@code CNCD_RFR_NO = ABUS_MNG_NO}인 행입니다. 나머지 행은 상위 계획({@code PLN-...})·사업계획({@code
+ * BIZ-...}) 등 다른 문서의 상태이므로, 사업 상태를 읽을 때 {@code MAX(IT_PTL_STS_TC)} 같은 집계를 쓰면 다른 단계 코드가 사업 상태를 가립니다.
  *
  * <p>감사 로그 미적용({@code @LogTarget} 부착하지 않음). 적재(단계 서비스 upsert)는 2차 범위.
  */
