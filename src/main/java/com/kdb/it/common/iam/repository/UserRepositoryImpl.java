@@ -2,7 +2,9 @@ package com.kdb.it.common.iam.repository;
 
 import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.common.iam.entity.QCauthI;
 import com.kdb.it.common.iam.entity.QCorgnI;
+import com.kdb.it.common.iam.entity.QCroleI;
 import com.kdb.it.common.iam.entity.QCuserI;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -88,6 +90,25 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
                         .where(user.eno.eq(eno))
                         .fetchFirst();
         return Optional.ofNullable(row);
+    }
+
+    @Override
+    public List<String> findActiveQualificationGradeNamesByEno(String eno) {
+        QCroleI role = QCroleI.croleI;
+        QCauthI qualification = QCauthI.cauthI;
+        return queryFactory
+                .selectDistinct(qualification.qlfGrNm)
+                .from(role)
+                .join(qualification)
+                .on(qualification.athId.eq(role.id.athId))
+                .where(
+                        role.id.eno.eq(eno),
+                        role.useYn.eq("Y"),
+                        role.delYn.eq("N"),
+                        qualification.useYn.eq("Y"),
+                        qualification.delYn.eq("N"))
+                .orderBy(qualification.qlfGrNm.asc())
+                .fetch();
     }
 
     private JPAQuery<UserDto.ListRow> selectListRows(QCuserI user, QCorgnI organization) {

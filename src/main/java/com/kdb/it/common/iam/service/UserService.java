@@ -83,8 +83,9 @@ public class UserService {
                                         new IllegalArgumentException(
                                                 "User not found with eno: " + eno));
 
-        // 엔티티를 DTO로 변환 (부점명은 연관관계에서 조회)
-        return UserDto.DetailResponse.fromRow(user);
+        List<String> qlfGrNms = userRepository.findActiveQualificationGradeNamesByEno(eno);
+
+        return UserDto.DetailResponse.fromRow(user, qlfGrNms);
     }
 
     /**

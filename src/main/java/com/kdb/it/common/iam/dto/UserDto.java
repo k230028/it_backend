@@ -2,6 +2,7 @@ package com.kdb.it.common.iam.dto;
 
 import com.kdb.it.common.iam.entity.CuserI;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -197,6 +198,11 @@ public class UserDto {
         @Schema(description = "상세직무내용")
         private String dtsDtlCone;
 
+        /** 보유 자격등급명 (TPRMPP_CROLEI → TPRMPP_CAUTHI.QLF_GR_NM) */
+        @Builder.Default
+        @Schema(description = "보유 자격등급명 목록")
+        private List<String> qlfGrNms = List.of();
+
         /** 상위조직코드 (PRLM_HRK_OGZ_C_CONE, 소속 부점의 상위 조직 코드) */
         @Schema(description = "상위조직코드")
         private String prlmHrkOgzCCone;
@@ -225,6 +231,7 @@ public class UserDto {
                     .inleNo(user.getInleNo()) // 내선번호
                     .cpnTpn(user.getCpnTpn()) // 휴대폰번호
                     .dtsDtlCone(user.getDtsDtlCone()) // 상세직무내용
+                    .qlfGrNms(List.of())
                     .prlmHrkOgzCCone(user.getPrlmHrkOgzCCone()) // 상위조직코드
                     .prlmHrkOgzCNm(user.getPrlmHrkOgzCNm()) // 상위조직명
                     .build();
@@ -234,9 +241,10 @@ public class UserDto {
          * 읽기 전용 조회 행을 상세 응답으로 변환합니다.
          *
          * @param row 사용자 상세 조회 행
+         * @param qlfGrNms 활성 보유 자격등급명 목록
          * @return 사용자 상세 응답
          */
-        public static DetailResponse fromRow(DetailRow row) {
+        public static DetailResponse fromRow(DetailRow row, List<String> qlfGrNms) {
             return DetailResponse.builder()
                     .eno(row.eno())
                     .bbrC(row.bbrC())
@@ -249,6 +257,7 @@ public class UserDto {
                     .inleNo(row.inleNo())
                     .cpnTpn(row.cpnTpn())
                     .dtsDtlCone(row.dtsDtlCone())
+                    .qlfGrNms(List.copyOf(qlfGrNms))
                     .prlmHrkOgzCCone(row.prlmHrkOgzCCone())
                     .prlmHrkOgzCNm(row.prlmHrkOgzCNm())
                     .build();

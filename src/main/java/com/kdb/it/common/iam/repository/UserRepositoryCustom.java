@@ -52,6 +52,16 @@ public interface UserRepositoryCustom {
     Optional<UserDto.DetailRow> findDetailRowByEno(String eno);
 
     /**
+     * 사번으로 활성 보유 자격등급명을 조회합니다.
+     *
+     * <p>역할 매핑과 자격등급 정의가 모두 사용 중이고 삭제되지 않은 행만 이름순으로 반환합니다.
+     *
+     * @param eno 사번
+     * @return 활성 보유 자격등급명 목록
+     */
+    List<String> findActiveQualificationGradeNamesByEno(String eno);
+
+    /**
      * 사용자명으로 사용자 검색 (부분 일치)
      *
      * <p>QueryDSL을 사용하여 {@code USR_NM} 컬럼에서 입력 문자열을 포함하는 사용자를 검색합니다 (LIKE '%name%' 검색).
