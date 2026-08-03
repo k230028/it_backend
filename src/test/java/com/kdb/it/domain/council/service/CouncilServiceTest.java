@@ -277,7 +277,8 @@ class CouncilServiceTest {
                             LocalDateTime.of(2026, 12, 31, 0, 0),
                             "IT",
                             "설명",
-                            "Y" // csfHeldYn (PRD_c_20260620 #1)
+                            "Y", // csfHeldYn (PRD_c_20260620 #1)
+                            BigDecimal.ZERO // hasInfoSecResource (PRD_c_20260803 #1)
                         });
         // 품목 파생 당해예산: 배치 조회로 활성 품목 1건(amt=5000, mplAmt=0) → totRqmAmt=5000 반환 시뮬레이션
         ProjectItemRepository.ProjectItemBudgetView item =
@@ -335,7 +336,8 @@ class CouncilServiceTest {
                             "invalid",
                             "IT",
                             "설명",
-                            null // csfHeldYn (미확정)
+                            null, // csfHeldYn (미확정)
+                            BigDecimal.ZERO // hasInfoSecResource
                         });
         given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
                 .willReturn(java.util.Collections.singletonList(row));
@@ -526,7 +528,8 @@ class CouncilServiceTest {
                     LocalDateTime.of(2026, 12, 31, 0, 0), // row[14] endDt
                     "IT", // row[15] itDpm
                     "설명", // row[16] prjDes
-                    "Y" // row[17] csfHeldYn
+                    "Y", // row[17] csfHeldYn
+                    BigDecimal.ZERO // row[18] hasInfoSecResource
                 });
     }
 

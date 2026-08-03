@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 /**
  * {@link CouncilProjectRow} record 단위 테스트.
  *
- * <p>17 필드 생성자, 접근자, equals/hashCode, toString, fromRow 팩토리(정상·NULL placeholder 가드·컬럼 수 예외 경로)를
+ * <p>18 필드 생성자, 접근자, equals/hashCode, toString, fromRow 팩토리(정상·NULL placeholder 가드·컬럼 수 예외 경로)를
  * 검증한다.
  */
 @DisplayName("CouncilProjectRow")
@@ -37,7 +37,8 @@ class CouncilProjectRowTest {
                 LocalDate.of(2026, 12, 31), // endDt
                 "IT부문", // itDpm
                 "클라우드 전환", // abusCone
-                "Y" // csfHeldYn
+                "Y", // csfHeldYn
+                false // hasInfoSecResource
                 );
     }
 
@@ -47,7 +48,7 @@ class CouncilProjectRowTest {
     class ConstructionAndAccessors {
 
         @Test
-        @DisplayName("17개 필드로 생성 시 모든 접근자가 올바른 값을 반환한다")
+        @DisplayName("18개 필드로 생성 시 모든 접근자가 올바른 값을 반환한다")
         void constructor_allFields_accessorsReturnCorrectValues() {
             // Arrange & Act
             CouncilProjectRow row = sample();
@@ -70,6 +71,7 @@ class CouncilProjectRowTest {
             assertThat(row.itDpm()).isEqualTo("IT부문");
             assertThat(row.abusCone()).isEqualTo("클라우드 전환");
             assertThat(row.csfHeldYn()).isEqualTo("Y");
+            assertThat(row.hasInfoSecResource()).isFalse();
         }
 
         @Test
@@ -94,7 +96,8 @@ class CouncilProjectRowTest {
                             null,
                             null,
                             null,
-                            "N");
+                            "N",
+                            false);
 
             // Assert
             assertThat(row.applied()).isTrue();
@@ -107,7 +110,7 @@ class CouncilProjectRowTest {
             CouncilProjectRow row =
                     new CouncilProjectRow(
                             null, null, null, null, null, null, null, null, false, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, false);
 
             // Assert
             assertThat(row.abusMngNo()).isNull();
@@ -166,7 +169,8 @@ class CouncilProjectRowTest {
                             LocalDate.of(2026, 12, 31),
                             "IT부문",
                             "클라우드 전환",
-                            "Y");
+                            "Y",
+                            false);
 
             // Assert
             assertThat(a).isNotEqualTo(b);
@@ -195,7 +199,8 @@ class CouncilProjectRowTest {
                             LocalDate.of(2026, 12, 31),
                             "IT부문",
                             "클라우드 전환",
-                            "Y");
+                            "Y",
+                            false);
 
             // Assert
             assertThat(a).isNotEqualTo(b);
@@ -224,7 +229,8 @@ class CouncilProjectRowTest {
                             LocalDate.of(2026, 12, 31),
                             "IT부문",
                             "클라우드 전환",
-                            "Y");
+                            "Y",
+                            false);
 
             // Assert
             assertThat(a).isNotEqualTo(b);
@@ -267,7 +273,7 @@ class CouncilProjectRowTest {
     @DisplayName("fromRow 팩토리")
     class FromRow {
 
-        /** 18컬럼 정상 배열(12번 = null placeholder). */
+        /** 19컬럼 정상 배열(12번 = null placeholder). */
         private static Object[] validRow() {
             return new Object[] {
                 "MNG-001", // [0] abusMngNo
@@ -287,12 +293,13 @@ class CouncilProjectRowTest {
                 LocalDate.of(2026, 12, 31), // [14] endDt
                 "IT부문", // [15] itDpm
                 "클라우드 전환", // [16] abusCone
-                "Y" // [17] csfHeldYn
+                "Y", // [17] csfHeldYn
+                new BigDecimal("1") // [18] hasInfoSecResource (NUMBER 0/1)
             };
         }
 
         @Test
-        @DisplayName("18컬럼 정상 배열로 올바르게 매핑된다")
+        @DisplayName("19컬럼 정상 배열로 올바르게 매핑된다")
         void fromRow_validArray_mapsAllColumns() {
             // Act
             CouncilProjectRow row = CouncilProjectRow.fromRow(validRow());
@@ -307,6 +314,7 @@ class CouncilProjectRowTest {
             assertThat(row.cnrcDt()).isEqualTo(LocalDate.of(2026, 1, 1));
             assertThat(row.sttDt()).isEqualTo(LocalDate.of(2026, 3, 1));
             assertThat(row.csfHeldYn()).isEqualTo("Y");
+            assertThat(row.hasInfoSecResource()).isTrue(); // [18]=1 → true
         }
 
         @Test
