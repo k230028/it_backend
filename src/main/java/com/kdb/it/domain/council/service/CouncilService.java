@@ -637,6 +637,10 @@ public class CouncilService {
         java.time.LocalDate endDt = projectOpt.map(p -> p.getEndDtm()).orElse(null);
         String itDpm = projectOpt.map(p -> p.getDvmDpmC()).orElse(null);
         String prjDes = projectOpt.map(p -> p.getAbusCone()).orElse(null);
+        // 소요자원(BITEMM) 정보보호 항목 존재 여부 — 심의유형 04 노출 조건
+        boolean hasInfoSecResource =
+                projectItemRepository.existsByAbusMngNoAndSectSysUtzYnAndDelYn(
+                        council.getAbusMngNo(), "Y", "N");
 
         return new CouncilDto.ListResponse(
                 council.getItPtlAsctId(),
@@ -656,7 +660,8 @@ public class CouncilService {
                 endDt,
                 itDpm,
                 prjDes,
-                council.getCsfHeldYn());
+                council.getCsfHeldYn(),
+                hasInfoSecResource);
     }
 
     /**
@@ -688,7 +693,8 @@ public class CouncilService {
                 row.endDt(),
                 row.itDpm(),
                 row.abusCone(),
-                row.csfHeldYn());
+                row.csfHeldYn(),
+                row.hasInfoSecResource());
     }
 
     /** Basctm → DetailResponse 변환 BPROJM에서 사업명(prjNm)과 전결권자(edrt)를 함께 조회합니다. */

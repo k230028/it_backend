@@ -133,4 +133,18 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
             value = "SELECT SQ_TPRMPP_BITEMM_1.NEXTVAL FROM DUAL",
             nativeQuery = true)
     Long getNextSequenceValue();
+
+    /**
+     * 사업에 정보보호(보안시스템운용) 소요자원이 하나라도 있는지 확인
+     *
+     * <p>협의회 신청 시 심의유형 04(정보보호시스템) 노출 조건 판정에 사용합니다. 활성(미삭제) 품목 중 {@code
+     * SECT_SYS_UTZ_YN='Y'}가 하나라도 있으면 true.
+     *
+     * @param abusMngNo 사업관리번호
+     * @param sectSysUtzYn 정보보호여부 ('Y')
+     * @param delYn 삭제여부 ('N'=미삭제)
+     * @return 정보보호 품목 존재 여부
+     */
+    boolean existsByAbusMngNoAndSectSysUtzYnAndDelYn(
+            String abusMngNo, String sectSysUtzYn, String delYn);
 }

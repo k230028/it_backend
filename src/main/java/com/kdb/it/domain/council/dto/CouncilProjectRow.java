@@ -12,7 +12,7 @@ import java.time.LocalDate;
  *
  * <p>컬럼 순서(0-based): abusMngNo, sno, abusNm, itPtlAsctId, itPtlAsctPrgStsTc, itPtlAsctDbrTc,
  * cnrcDt, cnrcSttTm, applied(NUMBER 0/1), prjYy, prjTp, svnDpm, rqmBgAmt(NULL·미사용), sttDt, endDt,
- * itDpm, abusCone, csfHeldYn.
+ * itDpm, abusCone, csfHeldYn, hasInfoSecResource(NUMBER 0/1).
  *
  * @param abusMngNo 사업관리번호
  * @param sno 사업 일련번호
@@ -31,6 +31,7 @@ import java.time.LocalDate;
  * @param itDpm IT부서
  * @param abusCone 사업내용
  * @param csfHeldYn 자체협의회 개최여부
+ * @param hasInfoSecResource 소요자원(BITEMM)에 정보보호(SECT_SYS_UTZ_YN='Y') 항목 존재 여부
  */
 public record CouncilProjectRow(
         String abusMngNo,
@@ -49,9 +50,10 @@ public record CouncilProjectRow(
         LocalDate endDt,
         String itDpm,
         String abusCone,
-        String csfHeldYn) {
+        String csfHeldYn,
+        boolean hasInfoSecResource) {
     /** 컬럼 수 가드: SELECT 절 길이가 바뀌면 즉시 드러나도록 한다. */
-    private static final int EXPECTED_COLUMNS = 18;
+    private static final int EXPECTED_COLUMNS = 19;
 
     /**
      * native {@code Object[]} 1행을 DTO로 매핑한다.
@@ -92,7 +94,8 @@ public record CouncilProjectRow(
                 NativeRowMapper.toLd(r[14]), // endDt
                 NativeRowMapper.toStr(r[15]), // itDpm
                 NativeRowMapper.toStr(r[16]), // abusCone
-                NativeRowMapper.toStr(r[17]) // csfHeldYn (VARCHAR2(1))
+                NativeRowMapper.toStr(r[17]), // csfHeldYn (VARCHAR2(1))
+                NativeRowMapper.toInt(r[18], 0) == 1 // hasInfoSecResource (NUMBER 0/1)
                 );
     }
 }

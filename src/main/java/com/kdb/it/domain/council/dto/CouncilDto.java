@@ -98,7 +98,9 @@ public class CouncilDto {
             /** 사업설명 (최대 1000자) */
             String prjDes,
             /** 대면개최여부 (Y=대면 / N=서면 / null=미확정) (PRD_c_20260620 #1) */
-            String csfHeldYn) {}
+            String csfHeldYn,
+            /** 소요자원(BITEMM)에 정보보호(SECT_SYS_UTZ_YN='Y') 항목 존재 여부 — 참이면 심의유형 04(정보보호시스템) 신청 가능 */
+            boolean hasInfoSecResource) {}
 
     /**
      * 협의회 신청 요청 (신규 생성)

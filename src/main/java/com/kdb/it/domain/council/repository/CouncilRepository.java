@@ -195,7 +195,13 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.END_DTM        AS endDt,
                 p.DVM_DPM_C        AS itDpm,
                 p.ABUS_CONE       AS abusCone,
-                a.CSF_HELD_YN       AS csfHeldYn
+                a.CSF_HELD_YN       AS csfHeldYn,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM TPRMPP_BITEMM i
+                     WHERE i.ABUS_MNG_NO = p.ABUS_MNG_NO
+                       AND i.SECT_SYS_UTZ_YN = 'Y'
+                       AND i.DEL_YN = 'N'
+                ) THEN 1 ELSE 0 END AS hasInfoSecResource
             FROM TPRMPP_BPROJM p
             JOIN (
                 SELECT ABUS_MNG_NO, MAX(IT_PTL_STS_TC) AS IT_PTL_STS_TC
@@ -256,7 +262,13 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.END_DTM        AS endDt,
                 p.DVM_DPM_C        AS itDpm,
                 p.ABUS_CONE       AS abusCone,
-                a.CSF_HELD_YN       AS csfHeldYn
+                a.CSF_HELD_YN       AS csfHeldYn,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM TPRMPP_BITEMM i
+                     WHERE i.ABUS_MNG_NO = p.ABUS_MNG_NO
+                       AND i.SECT_SYS_UTZ_YN = 'Y'
+                       AND i.DEL_YN = 'N'
+                ) THEN 1 ELSE 0 END AS hasInfoSecResource
             FROM TPRMPP_BPROJM p
             JOIN (
                 SELECT ABUS_MNG_NO, MAX(IT_PTL_STS_TC) AS IT_PTL_STS_TC
