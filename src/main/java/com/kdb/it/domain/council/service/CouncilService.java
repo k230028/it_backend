@@ -708,6 +708,7 @@ public class CouncilService {
         BigDecimal prjBg = null;
         String prjDes = null;
         String xptEff = null;
+        String svnDpm = null; // 주관부서코드 — 추진부서 담당자 식별용(사전 Q&A 답변 권한)
         var projectOpt =
                 projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
         if (projectOpt.isPresent()) {
@@ -720,6 +721,7 @@ public class CouncilService {
             prjBg = deriveCurrentYearBudget(p.getAbusMngNo()); // 당해예산: 품목 ∑AMT − ∑MPL_AMT 파생값
             prjDes = p.getAbusCone();
             xptEff = p.getDgogPpoCone();
+            svnDpm = p.getSvnDpmC();
         }
 
         return new CouncilDto.DetailResponse(
@@ -739,6 +741,7 @@ public class CouncilService {
                 prjBg,
                 prjDes,
                 xptEff,
-                council.getCsfHeldYn());
+                council.getCsfHeldYn(),
+                svnDpm);
     }
 }
