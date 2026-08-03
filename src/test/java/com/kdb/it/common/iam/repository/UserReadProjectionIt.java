@@ -3,7 +3,10 @@ package com.kdb.it.common.iam.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.iam.dto.UserDto;
+import com.kdb.it.common.iam.entity.CauthI;
 import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CroleI;
+import com.kdb.it.common.iam.entity.CroleIId;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.time.LocalDateTime;
@@ -129,6 +132,27 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     }
 
     @Test
+    @DisplayName("보유 자격등급은 활성 역할과 활성 자격등급의 명칭만 반환한다")
+    void findActiveQualificationGradeNamesByEno_filtersInactiveAndDeletedRows() {
+        em.persist(qualification("TSTBEA01", "시스템관리자", "Y", "N"));
+        em.persist(qualification("TSTBEA02", "정보보호관리자", "Y", "N"));
+        em.persist(qualification("TSTBEA03", "미사용역할등급", "Y", "N"));
+        em.persist(qualification("TSTBEA04", "미사용자격등급", "N", "N"));
+        em.persist(qualification("TSTBEA05", "삭제자격등급", "Y", "Y"));
+        em.persist(qualification("TSTBEA06", "삭제역할등급", "Y", "N"));
+        em.persist(role("TSTBEA01", "BE03001", "Y", "N"));
+        em.persist(role("TSTBEA02", "BE03001", "Y", "N"));
+        em.persist(role("TSTBEA03", "BE03001", "N", "N"));
+        em.persist(role("TSTBEA04", "BE03001", "Y", "N"));
+        em.persist(role("TSTBEA05", "BE03001", "Y", "N"));
+        em.persist(role("TSTBEA06", "BE03001", "Y", "Y"));
+        em.flush();
+
+        assertThat(userRepository.findActiveQualificationGradeNamesByEno("BE03001"))
+                .containsExactly("시스템관리자", "정보보호관리자");
+    }
+
+    @Test
     @DisplayName("이름·조직코드·관리자 사용자 view는 용도별 필드와 삭제 조건을 반환한다")
     void readViews_returnPurposeSpecificFields() {
         assertThat(userRepository.findNameViewsByEnoIn(List.of("BE03001", "BE03002")))
@@ -213,6 +237,31 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                 .bbrNm(name)
                 .prlmHrkOgzCCone(parentCode)
                 .delYn("N")
+                .fstEnrUsid("FIXTURE")
+                .fstEnrDtm(LocalDateTime.now())
+                .lstChgUsid("FIXTURE")
+                .lstChgDtm(LocalDateTime.now())
+                .build();
+    }
+
+    private CauthI qualification(String athId, String name, String useYn, String delYn) {
+        return CauthI.builder()
+                .athId(athId)
+                .qlfGrNm(name)
+                .useYn(useYn)
+                .delYn(delYn)
+                .fstEnrUsid("FIXTURE")
+                .fstEnrDtm(LocalDateTime.now())
+                .lstChgUsid("FIXTURE")
+                .lstChgDtm(LocalDateTime.now())
+                .build();
+    }
+
+    private CroleI role(String athId, String eno, String useYn, String delYn) {
+        return CroleI.builder()
+                .id(new CroleIId(athId, eno))
+                .useYn(useYn)
+                .delYn(delYn)
                 .fstEnrUsid("FIXTURE")
                 .fstEnrDtm(LocalDateTime.now())
                 .lstChgUsid("FIXTURE")
