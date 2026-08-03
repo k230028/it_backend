@@ -310,26 +310,28 @@ public class CostService {
         request.setFcAmt(reconciled[1]);
 
         target.update(
-                request.getIoeC(),
-                request.getCttNm(),
-                request.getCttOppNm(),
-                request.getCostTotXpAmt(),
-                request.getDfrCleC(),
-                DateFormatUtil.toYmd8(request.getFstDfrDt()),
-                request.getCurC(),
-                request.getXcr(),
-                DateFormatUtil.toYmd8(request.getXcrBseDt()),
-                request.getSectSysUtzYn(),
-                request.getIndRsn(),
-                request.getCgprId(),
-                request.getCostSvnDpmC(),
-                request.getSvnTemC(),
-                request.getBgUntAbusC(),
-                request.getTmnYn(),
-                request.getAbusTc(),
-                request.getBseYy(),
-                request.getCncdRfrNo(),
-                request.getFcAmt());
+                Bcostm.UpdateCommand.builder()
+                        .ioeC(request.getIoeC())
+                        .cttNm(request.getCttNm())
+                        .cttOppNm(request.getCttOppNm())
+                        .costTotXpAmt(request.getCostTotXpAmt())
+                        .dfrCleC(request.getDfrCleC())
+                        .fstDfrDt(DateFormatUtil.toYmd8(request.getFstDfrDt()))
+                        .curC(request.getCurC())
+                        .xcr(request.getXcr())
+                        .xcrBseDt(DateFormatUtil.toYmd8(request.getXcrBseDt()))
+                        .sectSysUtzYn(request.getSectSysUtzYn())
+                        .indRsn(request.getIndRsn())
+                        .cgprId(request.getCgprId())
+                        .costSvnDpmC(request.getCostSvnDpmC())
+                        .svnTemC(request.getSvnTemC())
+                        .bgUntAbusC(request.getBgUntAbusC())
+                        .tmnYn(request.getTmnYn())
+                        .abusTc(request.getAbusTc())
+                        .bseYy(request.getBseYy())
+                        .cncdRfrNo(request.getCncdRfrNo())
+                        .fcAmt(request.getFcAmt())
+                        .build());
 
         // 수정으로 담당부서/담당자가 바뀔 수 있으므로 이름 스냅샷도 같은 시점 기준으로 갱신
         // 상위조직명(PRLM_HRK_OGZ_C_CONE)/주관팀명은 담당자(CUSERI), 주관부서명은 CORGNI 조회 스냅샷
