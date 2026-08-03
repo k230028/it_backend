@@ -1,9 +1,9 @@
 package com.kdb.it.common.system.service;
 
 import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.LoginAttemptService;
+import com.kdb.it.common.iam.service.UserRoleResolver;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.entity.Crtokm;
@@ -12,7 +12,6 @@ import com.kdb.it.common.system.exception.FamilyRevocationRequiredException;
 import com.kdb.it.common.system.exception.RefreshTokenNotFoundException;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.exception.InvalidRefreshTokenException;
 import com.kdb.it.exception.LoginRejectedException;
@@ -64,8 +63,8 @@ public class AuthService {
     /** 비밀번호 암호화 및 검증 (SHA-256 + Base64) */
     private final PasswordEncoder passwordEncoder;
 
-    /** 역할관리(사용자↔자격등급 매핑) 데이터 접근 리포지토리 (TPRMPP_CROLEI) */
-    private final RoleRepository roleRepository;
+    /** 사용자 자격등급 조회와 기본 역할 보정을 담당하는 공통 해석기 */
+    private final UserRoleResolver userRoleResolver;
 
     /** 로그인 Brute-force 감지 서비스 — SEC-03 */
     private final LoginAttemptService loginAttemptService;
@@ -185,7 +184,7 @@ public class AuthService {
         }
 
         // 사용자의 모든 활성 자격등급 조회 (다중 자격등급 지원)
-        List<String> athIds = loadAthIds(eno);
+        List<String> athIds = userRoleResolver.resolveAthIds(eno);
 
         String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
 
@@ -310,7 +309,7 @@ public class AuthService {
                 userRepository
                         .findByEno(eno)
                         .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + eno));
-        List<String> athIds = loadAthIds(eno);
+        List<String> athIds = userRoleResolver.resolveAthIds(eno);
 
         return AuthDto.LoginResponse.builder()
                 .eno(eno)
@@ -394,7 +393,7 @@ public class AuthService {
                         .findByEno(eno)
                         .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + eno));
 
-        List<String> athIds = loadAthIds(eno);
+        List<String> athIds = userRoleResolver.resolveAthIds(eno);
 
         String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
         String refreshTokenValue = issueNewRefreshFamily(eno);
@@ -439,7 +438,7 @@ public class AuthService {
                         .findByEno(eno)
                         .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + eno));
 
-        List<String> athIds = loadAthIds(eno);
+        List<String> athIds = userRoleResolver.resolveAthIds(eno);
 
         String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
         String refreshTokenValue = issueNewRefreshFamily(eno);
@@ -491,14 +490,6 @@ public class AuthService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다.", e);
         }
-    }
-
-    private List<String> loadAthIds(String eno) {
-        List<String> athIds =
-                roleRepository.findAllByIdEnoAndUseYnAndDelYn(eno, "Y", "N").stream()
-                        .map(value -> value.getAthId())
-                        .toList();
-        return athIds.isEmpty() ? List.of(CustomUserDetails.ATH_USER) : athIds;
     }
 
     /**

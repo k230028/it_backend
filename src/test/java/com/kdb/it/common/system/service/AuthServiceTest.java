@@ -11,11 +11,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.kdb.it.common.iam.entity.CroleI;
 import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.LoginAttemptService;
+import com.kdb.it.common.iam.service.UserRoleResolver;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.entity.Crtokm;
@@ -24,12 +23,12 @@ import com.kdb.it.common.system.exception.FamilyRevocationRequiredException;
 import com.kdb.it.common.system.exception.RefreshTokenNotFoundException;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.exception.InvalidRefreshTokenException;
 import com.kdb.it.exception.LoginRejectedException;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -52,7 +51,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class AuthServiceTest {
 
     @Mock private UserRepository userRepository;
-    @Mock private RoleRepository roleRepository;
+    @Mock private UserRoleResolver userRoleResolver;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private LoginHistoryRepository loginHistoryRepository;
     @Mock private PasswordEncoder passwordEncoder;
@@ -85,7 +84,9 @@ class AuthServiceTest {
 
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
-        given(jwtUtil.generateAccessToken(anyString(), anyList(), any()))
+        given(userRoleResolver.resolveAthIds("10001"))
+                .willReturn(List.of(CustomUserDetails.ATH_USER));
+        given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), null))
                 .willReturn("access-token");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
 
@@ -186,10 +187,11 @@ class AuthServiceTest {
                         .build();
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
-        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
-                .willReturn(Collections.emptyList());
+        given(userRoleResolver.resolveAthIds("10001"))
+                .willReturn(List.of(CustomUserDetails.ATH_USER));
         IllegalStateException tokenError = new IllegalStateException("토큰 발급 실패");
-        given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willThrow(tokenError);
+        given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), null))
+                .willThrow(tokenError);
 
         // when & then: 성공 경로 이후의 예기치 못한 예외는 원래 타입 그대로 전파되어야 트랜잭션이 롤백된다.
         assertThatThrownBy(() -> authService.login("10001", "password", "127.0.0.1", "Agent"))
@@ -236,7 +238,9 @@ class AuthServiceTest {
 
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(passwordEncoder.matches(anyString(), anyString())).willReturn(true);
-        given(jwtUtil.generateAccessToken(anyString(), anyList(), any()))
+        given(userRoleResolver.resolveAthIds("10001"))
+                .willReturn(List.of(CustomUserDetails.ATH_USER));
+        given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), null))
                 .willReturn("access-token");
         given(jwtUtil.generateRefreshToken(anyString())).willReturn("refresh-token");
 
@@ -262,7 +266,10 @@ class AuthServiceTest {
 
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(passwordEncoder.matches(anyString(), anyString())).willReturn(true);
-        given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("access");
+        given(userRoleResolver.resolveAthIds("10001"))
+                .willReturn(List.of(CustomUserDetails.ATH_USER));
+        given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), null))
+                .willReturn("access");
         given(jwtUtil.generateRefreshToken(anyString())).willReturn("refresh");
 
         // when
@@ -321,11 +328,8 @@ class AuthServiceTest {
                         .temC("TEM001")
                         .delYn("N")
                         .build();
-        CroleI role = org.mockito.Mockito.mock(CroleI.class);
-        given(role.getAthId()).willReturn("ITPZZ002");
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
-        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
-                .willReturn(List.of(role));
+        given(userRoleResolver.resolveAthIds("10001")).willReturn(List.of("ITPZZ002"));
 
         AuthDto.LoginResponse response = authService.getSessionUser("10001");
 
@@ -582,22 +586,21 @@ class AuthServiceTest {
                         .bbrC("BBR001")
                         .temC("TEM001")
                         .build();
-        CroleI role = org.mockito.Mockito.mock(CroleI.class);
-        given(role.getAthId()).willReturn("ITPAD001");
+        List<String> loginAthIds = List.of("ITPAD001");
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
-        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
-                .willReturn(List.of(role));
-        given(jwtUtil.generateAccessToken("10001", List.of("ITPAD001"), "BBR001"))
+        given(userRoleResolver.resolveAthIds("10001")).willReturn(loginAthIds);
+        given(jwtUtil.generateAccessToken("10001", loginAthIds, "BBR001"))
                 .willReturn("access-token");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
 
         AuthDto.LoginResponse response =
                 authService.login("10001", "password", "127.0.0.1", "Agent");
 
-        assertThat(response.getAthIds()).containsExactly("ITPAD001");
+        assertThat(response.getAthIds()).containsExactlyElementsOf(loginAthIds);
         assertThat(response.getBbrC()).isEqualTo("BBR001");
         assertThat(response.getTemC()).isEqualTo("TEM001");
+        verify(jwtUtil).generateAccessToken("10001", loginAthIds, "BBR001");
     }
 
     @Test
@@ -605,17 +608,18 @@ class AuthServiceTest {
     void issueSsoTokens_사용자존재_토큰발급() {
         CuserI user =
                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").temC("TEM001").build();
+        List<String> ssoAthIds = List.of("ITPAD001", "ITPZZ002");
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
-        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
-                .willReturn(Collections.emptyList());
-        given(jwtUtil.generateAccessToken(anyString(), anyList(), any()))
+        given(userRoleResolver.resolveAthIds("10001")).willReturn(ssoAthIds);
+        given(jwtUtil.generateAccessToken("10001", ssoAthIds, "BBR001"))
                 .willReturn("access-token");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
 
         AuthDto.LoginResponse response = authService.issueSsoTokens("10001");
 
         assertThat(response.getEno()).isEqualTo("10001");
-        assertThat(response.getAthIds()).containsExactly("ITPZZ001");
+        assertThat(response.getAthIds()).containsExactlyElementsOf(ssoAthIds);
+        verify(jwtUtil).generateAccessToken("10001", ssoAthIds, "BBR001");
         verify(refreshTokenRepository).deleteByEno("10001");
         verify(refreshTokenRepository).save(any(Crtokm.class));
         verify(loginHistoryRepository).save(any(Clognh.class));
@@ -638,10 +642,10 @@ class AuthServiceTest {
     void issueDevSwitchTokens_사용자존재_토큰발급() {
         CuserI user =
                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").temC("TEM001").build();
+        List<String> devAthIds = List.of("ITPZZ002");
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
-        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
-                .willReturn(Collections.emptyList());
-        given(jwtUtil.generateAccessToken(anyString(), anyList(), any()))
+        given(userRoleResolver.resolveAthIds("10001")).willReturn(devAthIds);
+        given(jwtUtil.generateAccessToken("10001", devAthIds, "BBR001"))
                 .willReturn("access-token");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
 
@@ -651,7 +655,8 @@ class AuthServiceTest {
         assertThat(response.getEmpNm()).isEqualTo("홍길동");
         assertThat(response.getAccessToken()).isEqualTo("access-token");
         assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
-        assertThat(response.getAthIds()).containsExactly("ITPZZ001");
+        assertThat(response.getAthIds()).containsExactlyElementsOf(devAthIds);
+        verify(jwtUtil).generateAccessToken("10001", devAthIds, "BBR001");
         // 개발 전환은 일반 로그인과 동일하게 기존 패밀리를 삭제하고 신규 토큰을 저장한다.
         verify(refreshTokenRepository).deleteByEno("10001");
         verify(refreshTokenRepository).save(any(Crtokm.class));
@@ -713,9 +718,9 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("login - 활성 자격등급이 없으면 기본값 ITPZZ001을 athIds에 포함하여 반환한다")
-    void login_빈역할목록_ITPZZ001폴백() {
-        // Arrange: 역할 매핑이 없는 사용자
+    @DisplayName("login - 역할 해석기의 기본 자격등급을 응답과 토큰 발급에 반영한다")
+    void login_resolver기본역할_ITPZZ001반영() {
+        // Arrange: 역할 해석기가 반환한 기본 자격등급을 로그인 응답과 JWT 발급에 그대로 사용한다.
         CuserI user =
                 CuserI.builder()
                         .eno("10001")
@@ -726,10 +731,10 @@ class AuthServiceTest {
 
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
-        // 역할 조회 결과 빈 목록 → loadAthIds에서 ITPZZ001 폴백 분기 진입
-        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
-                .willReturn(Collections.emptyList());
-        given(jwtUtil.generateAccessToken(anyString(), anyList(), any()))
+        // 역할 해석기가 활성 역할 없음을 기본 자격등급으로 보정해 반환한다
+        given(userRoleResolver.resolveAthIds("10001"))
+                .willReturn(List.of(CustomUserDetails.ATH_USER));
+        given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), null))
                 .willReturn("access-token");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
 
@@ -737,7 +742,8 @@ class AuthServiceTest {
         AuthDto.LoginResponse response =
                 authService.login("10001", "password", "127.0.0.1", "Agent");
 
-        // Assert: 기본 자격등급 ITPZZ001이 응답에 포함되어야 한다
-        assertThat(response.getAthIds()).containsExactly("ITPZZ001");
+        // Assert: 기본 자격등급 ITPZZ001이 응답과 토큰 발급에 그대로 반영되어야 한다
+        assertThat(response.getAthIds()).containsExactly(CustomUserDetails.ATH_USER);
+        verify(jwtUtil).generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), null);
     }
 }
