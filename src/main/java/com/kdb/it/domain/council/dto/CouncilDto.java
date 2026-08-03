@@ -158,6 +158,7 @@ public class CouncilDto {
      * @param prjDes 사업내용
      * @param xptEff 기대효과
      * @param csfHeldYn 대면개최여부
+     * @param svnDpm 주관부서코드 (추진부서 담당자 식별용)
      */
     public record DetailResponse(
             /** 협의회ID */
@@ -193,7 +194,9 @@ public class CouncilDto {
             /** 기대효과 (BPROJM.XPT_EFF) */
             String xptEff,
             /** 대면개최여부 (Y=대면 / N=서면 / null=미확정) (PRD_c_20260620 #1) */
-            String csfHeldYn) {}
+            String csfHeldYn,
+            /** 주관부서코드 (BPROJM.SVN_DPM_C) — 추진부서 담당자 식별용 (사전 Q&A 답변 권한) */
+            String svnDpm) {}
 
     // =========================================================================
     // M4: 타당성검토표 관련

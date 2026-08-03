@@ -166,21 +166,25 @@ public class QnaService {
         }
 
         /*
-         * 답변 권한 검증 — 답변은 사업 주관부서(추진부서) 담당자만 등록 가능. (리뷰 1-4)
+         * 답변 권한 검증 — IT관리자(ITPAD001)는 개최준비 단계에서 대리 답변을 허용하고,
+         * 그 외에는 사업 주관부서(추진부서) 담당자만 등록 가능. (리뷰 1-4)
          * 판정 가능할 때만(주관부서·요청자 부서가 모두 확인될 때) 부서 일치를 강제하고,
          * 데이터가 불완전하면(부서 미확인) 기존 동작을 보존한다.
          */
-        Basctm council = councilRepository.findByItPtlAsctIdAndDelYn(asctId, "N").orElse(null);
-        String svnDpm =
-                council == null
-                        ? null
-                        : projectRepository
-                                .findByAbusMngNoAndLstYnAndDelYn(council.getAbusMngNo(), "Y", "N")
-                                .map(project -> project.getSvnDpmC())
-                                .orElse(null);
-        String bbrC = userDetails.getBbrC();
-        if (svnDpm != null && bbrC != null && !svnDpm.equals(bbrC)) {
-            throw new AccessDeniedException("답변은 사업 주관부서 담당자만 등록할 수 있습니다.");
+        if (!userDetails.isAdmin()) {
+            Basctm council = councilRepository.findByItPtlAsctIdAndDelYn(asctId, "N").orElse(null);
+            String svnDpm =
+                    council == null
+                            ? null
+                            : projectRepository
+                                    .findByAbusMngNoAndLstYnAndDelYn(council.getAbusMngNo(), "Y", "N")
+                                    .map(project -> project.getSvnDpmC())
+                                    .orElse(null);
+            String bbrC = userDetails.getBbrC();
+            if (svnDpm != null && bbrC != null && !svnDpm.equals(bbrC)) {
+                throw new AccessDeniedException(
+                        "답변은 사업 주관부서 담당자 또는 IT관리자만 등록할 수 있습니다.");
+            }
         }
 
         qna.reply(userDetails.getEno(), request.repCone());
