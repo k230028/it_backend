@@ -11,8 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 사용자 자격등급 공통 해석기.
  *
- * <p>활성·미삭제 역할만 조회하고 역할이 없는 사용자는 일반 사용자 자격등급으로 보정합니다. 로그인, 세션 복원, 개발 사용자 전환, SSO 토큰 발급, Refresh Token
- * 회전이 모두 이 해석기를 통해 동일한 자격등급 정책을 사용합니다.
+ * <p>활성·미삭제 역할만 조회하고 역할이 없는 사용자는 일반 사용자 자격등급으로 보정합니다. 로그인, 세션 복원, 개발 사용자 전환, SSO 토큰 발급, Refresh
+ * Token 회전이 모두 이 해석기를 통해 동일한 자격등급 정책을 사용합니다.
  */
 @Component
 @RequiredArgsConstructor

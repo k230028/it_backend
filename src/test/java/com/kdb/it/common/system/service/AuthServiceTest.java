@@ -3,7 +3,6 @@ package com.kdb.it.common.system.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -611,8 +610,7 @@ class AuthServiceTest {
         List<String> ssoAthIds = List.of("ITPAD001", "ITPZZ002");
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(userRoleResolver.resolveAthIds("10001")).willReturn(ssoAthIds);
-        given(jwtUtil.generateAccessToken("10001", ssoAthIds, "BBR001"))
-                .willReturn("access-token");
+        given(jwtUtil.generateAccessToken("10001", ssoAthIds, "BBR001")).willReturn("access-token");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
 
         AuthDto.LoginResponse response = authService.issueSsoTokens("10001");
@@ -645,8 +643,7 @@ class AuthServiceTest {
         List<String> devAthIds = List.of("ITPZZ002");
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(userRoleResolver.resolveAthIds("10001")).willReturn(devAthIds);
-        given(jwtUtil.generateAccessToken("10001", devAthIds, "BBR001"))
-                .willReturn("access-token");
+        given(jwtUtil.generateAccessToken("10001", devAthIds, "BBR001")).willReturn("access-token");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
 
         AuthDto.LoginResponse response = authService.issueDevSwitchTokens("10001");

@@ -210,8 +210,8 @@ public class Bcostm extends BaseEntity {
     /**
      * 명령에 담긴 전산업무비 변경값을 적용합니다.
      *
-     * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 필드를 변경합니다. 변경된 필드는 트랜잭션 종료 시 자동으로 DB에 반영됩니다. 필수 코드인 지급주기코드와
-     * 전산업무비구분은 빈값이면 여기에서 기본값으로 보정합니다.
+     * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 필드를 변경합니다. 변경된 필드는 트랜잭션 종료 시 자동으로 DB에 반영됩니다. 필수 코드인
+     * 지급주기코드와 전산업무비구분은 빈값이면 여기에서 기본값으로 보정합니다.
      *
      * @param command 이름이 명시된 전산업무비 변경 명령
      * @throws NullPointerException command가 null인 경우 (어떤 필드도 변경하기 전에 실패)
