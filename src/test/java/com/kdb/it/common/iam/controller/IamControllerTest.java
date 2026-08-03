@@ -88,7 +88,11 @@ class IamControllerTest {
         // 본인/관리자 권한이 서비스 계층(OwnershipVerifier)에서 검증되므로
         // CustomUserDetails 주체로 요청하고 서비스 스텁은 any()로 매칭한다.
         given(userService.getUser(anyString(), any(CustomUserDetails.class)))
-                .willReturn(new UserDto.DetailResponse());
+                .willReturn(
+                        UserDto.DetailResponse.builder()
+                                .dtsDtlCone("IT 기획 담당")
+                                .qlfGrNms(List.of("시스템관리자", "정보보호관리자"))
+                                .build());
         mockMvc.perform(
                         get("/api/users/E10001")
                                 .with(
@@ -97,7 +101,10 @@ class IamControllerTest {
                                                         "10001",
                                                         List.of(CustomUserDetails.ATH_ADMIN),
                                                         "D001"))))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dtsDtlCone").value("IT 기획 담당"))
+                .andExpect(jsonPath("$.qlfGrNms[0]").value("시스템관리자"))
+                .andExpect(jsonPath("$.qlfGrNms[1]").value("정보보호관리자"));
     }
 
     @Test

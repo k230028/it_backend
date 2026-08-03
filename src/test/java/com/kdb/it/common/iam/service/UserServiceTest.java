@@ -115,6 +115,8 @@ class UserServiceTest {
         String eno = "E12345";
         given(userRepository.findDetailRowByEno(eno))
                 .willReturn(Optional.of(detailRow(eno, "홍길동")));
+        given(userRepository.findActiveQualificationGradeNamesByEno(eno))
+                .willReturn(List.of("시스템관리자", "정보보호관리자"));
         CustomUserDetails admin = mock(CustomUserDetails.class);
         given(admin.isAdmin()).willReturn(true);
 
@@ -126,7 +128,10 @@ class UserServiceTest {
         assertThat(result.getUsrNm()).isEqualTo("홍길동");
         assertThat(result.getInleNo()).isEqualTo("1234");
         assertThat(result.getBbrNm()).isEqualTo("IT본부");
+        assertThat(result.getDtsDtlCone()).isEqualTo("IT 기획 담당");
+        assertThat(result.getQlfGrNms()).containsExactly("시스템관리자", "정보보호관리자");
         verify(userRepository).findDetailRowByEno(eno);
+        verify(userRepository).findActiveQualificationGradeNamesByEno(eno);
     }
 
     @Test
