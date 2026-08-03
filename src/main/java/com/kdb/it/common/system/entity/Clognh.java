@@ -65,9 +65,12 @@ public class Clognh extends BaseEntity {
     @Column(name = "IT_PTL_LGN_TC", nullable = false, length = 1, comment = "IT포탈로그인구분코드")
     private String itPtlLgnTc;
 
-    /** 에이전트버전내용: 클라이언트 브라우저/기기 정보 (최대 100자) */
+    /** 에이전트버전내용: 클라이언트 브라우저/기기 정보 (최대 100자, 초과분은 팩토리에서 잘라냄) */
     @Column(name = "AGT_VRS_CONE", length = 100, comment = "에이전트버전내용")
     private String agtVrsCone;
+
+    /** 에이전트버전내용 최대 길이: 물리 컬럼 {@code AGT_VRS_CONE VARCHAR2(100 CHAR)} 기준 */
+    public static final int AGT_VRS_CONE_MAX_LENGTH = 100;
 
     /** 로그인 성공 코드값 (공통코드 IT_PTL_LGN_TC) */
     public static final String LOGIN_SUCCESS = "1";
@@ -102,7 +105,7 @@ public class Clognh extends BaseEntity {
      *
      * @param eno 로그인에 성공한 사용자의 사번
      * @param ipAddr 접속 IP 주소
-     * @param agtVrsCone 접속 브라우저/기기 정보
+     * @param agtVrsCone 접속 브라우저/기기 정보 ({@value #AGT_VRS_CONE_MAX_LENGTH}자 초과분은 잘림)
      * @return 로그인 성공 이력 엔티티 ({@code itPtlLgnTc = "1"}, 감사자 = {@value #SYSTEM_AUDITOR})
      */
     public static Clognh createLoginSuccess(String eno, String ipAddr, String agtVrsCone) {
@@ -111,7 +114,7 @@ public class Clognh extends BaseEntity {
                         .eno(eno)
                         .itPtlLgnTc(LOGIN_SUCCESS)
                         .ipAddr(ipAddr)
-                        .agtVrsCone(agtVrsCone)
+                        .agtVrsCone(truncateAgtVrsCone(agtVrsCone))
                         .lgnDtm(LocalDateTime.now())
                         .build();
         clognh.initializeAuditActors(SYSTEM_AUDITOR);
@@ -123,7 +126,7 @@ public class Clognh extends BaseEntity {
      *
      * @param eno 로그인을 시도한 사번 (DB에 없는 사번일 수 있음)
      * @param ipAddr 접속 IP 주소
-     * @param agtVrsCone 접속 브라우저/기기 정보
+     * @param agtVrsCone 접속 브라우저/기기 정보 ({@value #AGT_VRS_CONE_MAX_LENGTH}자 초과분은 잘림)
      * @param lgnErrRsn 실패 사유 (예: "비밀번호 불일치", "존재하지 않는 사번")
      * @return 로그인 실패 이력 엔티티 ({@code itPtlLgnTc = "2"}, 감사자 = {@value #SYSTEM_AUDITOR})
      */
@@ -134,7 +137,7 @@ public class Clognh extends BaseEntity {
                         .eno(eno)
                         .itPtlLgnTc(LOGIN_FAILURE)
                         .ipAddr(ipAddr)
-                        .agtVrsCone(agtVrsCone)
+                        .agtVrsCone(truncateAgtVrsCone(agtVrsCone))
                         .lgnDtm(LocalDateTime.now())
                         .lgnErrRsn(lgnErrRsn)
                         .build();
@@ -150,7 +153,7 @@ public class Clognh extends BaseEntity {
      *
      * @param eno 로그아웃한 사용자의 사번
      * @param ipAddr 접속 IP 주소
-     * @param agtVrsCone 접속 브라우저/기기 정보
+     * @param agtVrsCone 접속 브라우저/기기 정보 ({@value #AGT_VRS_CONE_MAX_LENGTH}자 초과분은 잘림)
      * @return 로그아웃 이력 엔티티 ({@code itPtlLgnTc = "3"}, 감사자 폴백 = {@value #SYSTEM_AUDITOR}, 인증된 로그아웃은
      *     저장 시 실제 사번으로 대체됨)
      */
@@ -160,10 +163,32 @@ public class Clognh extends BaseEntity {
                         .eno(eno)
                         .itPtlLgnTc(LOGOUT)
                         .ipAddr(ipAddr)
-                        .agtVrsCone(agtVrsCone)
+                        .agtVrsCone(truncateAgtVrsCone(agtVrsCone))
                         .lgnDtm(LocalDateTime.now())
                         .build();
         clognh.initializeAuditActors(SYSTEM_AUDITOR);
         return clognh;
+    }
+
+    /**
+     * 에이전트버전내용을 물리 컬럼 길이에 맞게 잘라냅니다.
+     *
+     * <p>User-Agent 헤더는 길이 제한이 없어 {@code AGT_VRS_CONE VARCHAR2(100 CHAR)}를 초과할 수 있습니다. 원문 그대로 저장하면
+     * ORA-12899(value too large)로 이력 저장이 실패하고, 같은 트랜잭션의 로그인·로그아웃 처리까지 함께 실패합니다. 이력 기록이 인증 흐름을 막지
+     * 않도록 초과분은 버립니다.
+     *
+     * @param agtVrsCone 원본 에이전트버전내용 (null 허용)
+     * @return null이면 null, {@value #AGT_VRS_CONE_MAX_LENGTH}자 이하면 원본, 초과하면 앞쪽 {@value
+     *     #AGT_VRS_CONE_MAX_LENGTH}자 (경계가 서로게이트 쌍을 쪼개면 한 자 앞에서 자름)
+     */
+    private static String truncateAgtVrsCone(String agtVrsCone) {
+        if (agtVrsCone == null || agtVrsCone.length() <= AGT_VRS_CONE_MAX_LENGTH) {
+            return agtVrsCone;
+        }
+        int end = AGT_VRS_CONE_MAX_LENGTH;
+        if (Character.isHighSurrogate(agtVrsCone.charAt(end - 1))) {
+            end--;
+        }
+        return agtVrsCone.substring(0, end);
     }
 }
