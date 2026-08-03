@@ -14,9 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 @DisplayName("#5 협의회 신청대상 18컬럼 native → CouncilProjectRow 매핑 동등성")
 class CouncilProjectRowMappingIt extends AbstractOracleRepositoryTest {
 
-    // 사업 상태코드: CouncilService PRJ_STS_COUNCIL_IN_PROGRESS('32' 정실협 진행중) /
-    // PRJ_STS_COUNCIL_TARGET('09' 예산편성 작업 완료=신청 대상). 현재 소스 상수와 동일하게 사용.
-    private static final String IN_PROGRESS = "32";
+    // 사업 상태코드: CouncilService PRJ_STS_COUNCIL_IN_PROGRESS('45' 타당성검토 정실협 진행중) /
+    // PRJ_STS_COUNCIL_TARGET('09' 예산편성 요청 결재완료=신청 대상). 현재 소스 상수와 동일하게 사용.
+    private static final String IN_PROGRESS = "45";
     private static final String PENDING = "09";
 
     @Autowired CouncilRepository councilRepository;

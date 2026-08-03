@@ -49,4 +49,41 @@ class ClognhTest {
         assertThat(clognh.getFstEnrUsid()).isEqualTo("SYSTEM");
         assertThat(clognh.getLstChgUsid()).isEqualTo("SYSTEM");
     }
+
+    @Test
+    @DisplayName("100자를 초과한 User-Agent는 세 팩토리 모두 100자로 잘라 기록한다")
+    void 에이전트버전내용_100자초과시_잘라서기록() {
+        String longAgent = "A".repeat(150);
+
+        assertThat(Clognh.createLoginSuccess("E0001", "127.0.0.1", longAgent).getAgtVrsCone())
+                .hasSize(Clognh.AGT_VRS_CONE_MAX_LENGTH)
+                .isEqualTo("A".repeat(100));
+        assertThat(
+                        Clognh.createLoginFailure("E0001", "127.0.0.1", longAgent, "비밀번호 불일치")
+                                .getAgtVrsCone())
+                .hasSize(Clognh.AGT_VRS_CONE_MAX_LENGTH);
+        assertThat(Clognh.createLogout("E0001", "127.0.0.1", longAgent).getAgtVrsCone())
+                .hasSize(Clognh.AGT_VRS_CONE_MAX_LENGTH);
+    }
+
+    @Test
+    @DisplayName("100자 이하 User-Agent와 null은 원본 그대로 유지한다")
+    void 에이전트버전내용_길이이내면_원본유지() {
+        String agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+
+        assertThat(Clognh.createLoginSuccess("E0001", "127.0.0.1", agent).getAgtVrsCone())
+                .isEqualTo(agent);
+        assertThat(Clognh.createLoginSuccess("E0001", "127.0.0.1", null).getAgtVrsCone()).isNull();
+    }
+
+    @Test
+    @DisplayName("자르는 경계가 서로게이트 쌍을 쪼개면 한 자 앞에서 잘라 깨진 문자를 남기지 않는다")
+    void 에이전트버전내용_서로게이트쌍_경계보호() {
+        // 99자 + 이모지(서로게이트 쌍 2 char) → 100번째 char가 high surrogate
+        String agent = "A".repeat(99) + "😀" + "B".repeat(10);
+
+        String truncated = Clognh.createLoginSuccess("E0001", "127.0.0.1", agent).getAgtVrsCone();
+
+        assertThat(truncated).hasSize(99).isEqualTo("A".repeat(99));
+    }
 }

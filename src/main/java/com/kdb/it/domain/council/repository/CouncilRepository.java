@@ -162,15 +162,19 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * <p>부서 필터 없이 전체 사업을 대상으로 조회합니다. 상태는 IT_PTL_STS_TC 코드 기준입니다 (공통코드 그룹 IT_PTL_STS_TC).
      *
      * <ul>
-     *   <li>협의회 미신청 대상: IT_PTL_STS_TC = '19'(예산편성 작업 완료) 이면서 BASCTM 미존재
-     *   <li>협의회 신청된 건: IT_PTL_STS_TC = '21'(정실협 진행중) 이면서 BASCTM 존재
+     *   <li>협의회 미신청 대상: IT_PTL_STS_TC = '09'(예산편성 요청 결재완료) 이면서 BASCTM 미존재
+     *   <li>협의회 신청된 건: IT_PTL_STS_TC = '45'(타당성검토 정실협 진행중) 이면서 BASCTM 존재
      * </ul>
      *
-     * <p>상태코드 '19'는 예산편성 단계의 전자결재·작업 완료를 이미 의미하므로, 과거의 별도 결재완료(CAPPLA/CAPPLM) EXISTS 조건은 상태코드로
+     * <p>BPROJA는 {@code (ABUS_MNG_NO, CNCD_RFR_NO)} 단위로 단계 문서별 상태를 보관합니다. 사업 자신의 상태는 {@code
+     * CNCD_RFR_NO = ABUS_MNG_NO}인 행이므로 그 행만 조인합니다. 상위 계획({@code PLN-...})·사업계획({@code BIZ-...}) 행을
+     * 함께 집계하면 다른 단계의 상태가 사업 상태를 가립니다.
+     *
+     * <p>상태코드 '09'는 예산편성 단계의 전자결재·작업 완료를 이미 의미하므로, 과거의 별도 결재완료(CAPPLA/CAPPLM) EXISTS 조건은 상태코드로
      * 대체했습니다.
      *
-     * @param stsInProgress 정실협 진행중 코드 ('21')
-     * @param stsPending 정실협 신청 대상 코드 ('19')
+     * @param stsInProgress 타당성검토 정실협 진행중 코드 ('45')
+     * @param stsPending 정실협 신청 대상 코드 ('09')
      * @return abusMngNo, sno, abusNm, itPtlAsctId(null 가능), itPtlAsctPrgStsTc(null 가능),
      *     itPtlAsctDbrTc(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
      */
@@ -203,12 +207,10 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                        AND i.DEL_YN = 'N'
                 ) THEN 1 ELSE 0 END AS hasInfoSecResource
             FROM TPRMPP_BPROJM p
-            JOIN (
-                SELECT ABUS_MNG_NO, MAX(IT_PTL_STS_TC) AS IT_PTL_STS_TC
-                FROM TPRMPP_BPROJA
-                WHERE DEL_YN = 'N'
-                GROUP BY ABUS_MNG_NO
-            ) ps ON ps.ABUS_MNG_NO = p.ABUS_MNG_NO
+            JOIN TPRMPP_BPROJA ps
+                ON ps.ABUS_MNG_NO = p.ABUS_MNG_NO
+               AND ps.CNCD_RFR_NO = p.ABUS_MNG_NO
+               AND ps.DEL_YN      = 'N'
             LEFT JOIN TPRMPP_BASCTM a
                 ON p.ABUS_MNG_NO = a.ABUS_MNG_NO
                AND p.SNO    = a.SNO
@@ -231,13 +233,16 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * <p>부서 필터: 사용자의 BBR_C = BPROJM.SVN_DPM_C. 상태는 IT_PTL_STS_TC 코드 기준입니다.
      *
      * <ul>
-     *   <li>협의회 미신청 대상: IT_PTL_STS_TC = '19'(예산편성 작업 완료) 이면서 BASCTM 미존재
-     *   <li>협의회 신청된 건: IT_PTL_STS_TC = '21'(정실협 진행중) 이면서 BASCTM 존재
+     *   <li>협의회 미신청 대상: IT_PTL_STS_TC = '09'(예산편성 요청 결재완료) 이면서 BASCTM 미존재
+     *   <li>협의회 신청된 건: IT_PTL_STS_TC = '45'(타당성검토 정실협 진행중) 이면서 BASCTM 존재
      * </ul>
      *
+     * <p>{@link #findProjectsForCouncilAll(String, String)}과 동일하게 사업 자신의 BPROJA 행({@code
+     * CNCD_RFR_NO = ABUS_MNG_NO})만 조인합니다.
+     *
      * @param svnDpm 사용자 소속부서코드 (CustomUserDetails.getBbrC())
-     * @param stsInProgress 정실협 진행중 코드 ('21')
-     * @param stsPending 정실협 신청 대상 코드 ('19')
+     * @param stsInProgress 타당성검토 정실협 진행중 코드 ('45')
+     * @param stsPending 정실협 신청 대상 코드 ('09')
      * @return abusMngNo, sno, abusNm, itPtlAsctId(null 가능), itPtlAsctPrgStsTc(null 가능),
      *     itPtlAsctDbrTc(null 가능), cnrcDt(null 가능), applied(0/1) 컬럼 순서의 결과
      */
@@ -270,12 +275,10 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                        AND i.DEL_YN = 'N'
                 ) THEN 1 ELSE 0 END AS hasInfoSecResource
             FROM TPRMPP_BPROJM p
-            JOIN (
-                SELECT ABUS_MNG_NO, MAX(IT_PTL_STS_TC) AS IT_PTL_STS_TC
-                FROM TPRMPP_BPROJA
-                WHERE DEL_YN = 'N'
-                GROUP BY ABUS_MNG_NO
-            ) ps ON ps.ABUS_MNG_NO = p.ABUS_MNG_NO
+            JOIN TPRMPP_BPROJA ps
+                ON ps.ABUS_MNG_NO = p.ABUS_MNG_NO
+               AND ps.CNCD_RFR_NO = p.ABUS_MNG_NO
+               AND ps.DEL_YN      = 'N'
             LEFT JOIN TPRMPP_BASCTM a
                 ON p.ABUS_MNG_NO = a.ABUS_MNG_NO
                AND p.SNO    = a.SNO
