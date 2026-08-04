@@ -35,7 +35,7 @@ public class AdminMenuService {
      *
      * @param req 메뉴명, 유형, 부모, 화면 경로, 권한 목록
      * @return 신규 메뉴 ID
-     * @throws ResponseStatusException 메뉴 유형/경로가 유효하지 않거나 깊이가 3단을 초과하는 경우
+     * @throws ResponseStatusException 메뉴 유형·경로·계층이 유효하지 않거나 깊이가 4단을 초과하는 경우
      */
     // 권한 매핑(Cmenua)이 신규 생성되므로 menuAuthMap 캐시를 전체 무효화한다(정합 보장).
     @CacheEvict(value = "menuAuthMap", allEntries = true)
@@ -76,13 +76,15 @@ public class AdminMenuService {
      *
      * @param mnuId 수정할 메뉴 ID
      * @param req 변경할 메뉴 속성
-     * @throws ResponseStatusException 메뉴가 없거나 LNK/GRP/DYN 경로 규칙을 위반하는 경우
+     * @throws ResponseStatusException 메뉴가 없거나 유형·경로·계층 규칙을 위반하는 경우
      */
     // replaceRoles로 권한 매핑이 변경되므로 menuAuthMap 캐시를 전체 무효화한다.
     @CacheEvict(value = "menuAuthMap", allEntries = true)
     public void update(String mnuId, MenuDto.UpsertRequest req) {
         validateTypePath(req.getMnuTpC(), req.getSrePth());
         Cmenum menu = load(mnuId);
+        // 대상의 현재 계층 위치를 기준으로 다시 검증한다. 이 호출이 없으면 루트 메뉴의 유형만 바꿔 "루트는 GRP" 규칙을 우회할 수 있다.
+        validateHierarchy(req.getMnuTpC(), menu.getHrkMnuId());
         menu.setMnuNm(req.getMnuNm());
         menu.setMnuTpC(req.getMnuTpC());
         menu.setSrePth(req.getSrePth());
@@ -127,7 +129,7 @@ public class AdminMenuService {
      *
      * @param mnuId 이동할 메뉴 ID
      * @param newHrkMnuId 새 부모 메뉴 ID. null이면 루트로 이동한다.
-     * @throws ResponseStatusException 순환 참조가 발생하거나 이동 후 깊이가 3단을 초과하는 경우
+     * @throws ResponseStatusException 계층 규칙을 위반하거나 순환 참조가 발생하거나 이동 후 깊이가 4단을 초과하는 경우
      */
     // move/reorder는 Cmenua(권한 매핑)를 변경하지 않으므로 menuAuthMap 캐시 evict 불필요.
     public void move(String mnuId, String newHrkMnuId) {
@@ -172,11 +174,23 @@ public class AdminMenuService {
                                         HttpStatus.NOT_FOUND, "존재하지 않는 메뉴: " + mnuId));
     }
 
+    /**
+     * 메뉴유형코드와 화면경로의 조합을 검증한다.
+     *
+     * <p>유효한 유형은 공통코드 MNU_TP_C가 정의한 GRP·LNK·PGE 셋뿐이다. PGE(페이지화면)는 내부 화면이므로 화면경로가 필수이고 라우트 카탈로그에 등록돼
+     * 있어야 한다. GRP(메뉴그룹)는 컨테이너라 화면경로를 가질 수 없다. LNK(링크메뉴)는 외부 링크 전용 값으로 신설했으나 아직 렌더링·URL 검증을 구현하지 않아
+     * 저장을 막는다.
+     *
+     * @param mnuTpC 메뉴유형코드
+     * @param srePth 화면경로 (없으면 null)
+     * @throws ResponseStatusException 유형이 목록 밖이거나, LNK이거나, 유형·경로 조합이 규칙에 어긋나는 경우
+     */
     private void validateTypePath(String mnuTpC, String srePth) {
-        if (!List.of("LNK", "GRP", "DYN", "HED").contains(mnuTpC))
+        if (!List.of("GRP", "LNK", "PGE").contains(mnuTpC))
             throw badRequest("잘못된 메뉴유형코드: " + mnuTpC);
-        if ("LNK".equals(mnuTpC)) {
-            if (srePth == null || srePth.isBlank()) throw badRequest("LNK 메뉴는 화면경로가 필수입니다.");
+        if ("LNK".equals(mnuTpC)) throw badRequest("외부링크 메뉴는 아직 지원하지 않습니다.");
+        if ("PGE".equals(mnuTpC)) {
+            if (srePth == null || srePth.isBlank()) throw badRequest("PGE 메뉴는 화면경로가 필수입니다.");
             cmenudRepository
                     .findBySrePthAndDelYn(srePth, "N")
                     .orElseThrow(() -> badRequest("라우트 카탈로그에 없는 경로: " + srePth));
@@ -186,19 +200,18 @@ public class AdminMenuService {
     }
 
     /**
-     * HED(헤더)는 최상위 전용, 비-HED는 반드시 상위 메뉴를 가져야 한다.
+     * 최상위(루트) 메뉴는 메뉴그룹(GRP)만 허용한다.
+     *
+     * <p>종전에는 헤더 유형이 "루트 전용"을 뜻해 유형과 계층 위치가 같은 사실을 이중으로 표현했다. 헤더 유형을 GRP로 흡수하면서 판정 근거를 계층 위치 하나로
+     * 합쳤다. 그 결과 GRP는 루트와 하위 어디에도 놓일 수 있고, 기존 헤더를 다른 메뉴 하위로 이동하는 것도 허용된다.
      *
      * @param mnuTpC 메뉴유형코드
      * @param hrkMnuId 상위메뉴ID (루트면 null)
-     * @throws ResponseStatusException HED가 상위를 갖거나, 비-HED가 루트로 지정된 경우
+     * @throws ResponseStatusException 루트인데 GRP가 아닌 경우
      */
     private void validateHierarchy(String mnuTpC, String hrkMnuId) {
-        boolean isHed = "HED".equals(mnuTpC);
-        if (isHed && hrkMnuId != null) {
-            throw badRequest("헤더(HED) 메뉴는 최상위에만 위치할 수 있습니다.");
-        }
-        if (!isHed && hrkMnuId == null) {
-            throw badRequest("헤더(HED)가 아닌 메뉴는 최상위(루트)로 둘 수 없습니다. 상위 헤더를 지정하세요.");
+        if (hrkMnuId == null && !"GRP".equals(mnuTpC)) {
+            throw badRequest("최상위(루트) 메뉴는 메뉴그룹(GRP)만 가능합니다. 상위 메뉴를 지정하세요.");
         }
     }
 

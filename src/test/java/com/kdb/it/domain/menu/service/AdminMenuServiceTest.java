@@ -120,13 +120,13 @@ class AdminMenuServiceTest {
     // =========================================================================
 
     @Test
-    @DisplayName("create: LNK 유형이고 유효한 화면경로이면 메뉴를 저장하고 ID를 반환한다")
-    void create_LNK유형_메뉴저장및ID반환() {
+    @DisplayName("create: PGE 유형이고 유효한 화면경로이면 메뉴를 저장하고 ID를 반환한다")
+    void create_PGE유형_메뉴저장및ID반환() {
         // given
         MenuDto.UpsertRequest req =
                 MenuDto.UpsertRequest.builder()
                         .mnuNm("예산목록")
-                        .mnuTpC("LNK")
+                        .mnuTpC("PGE")
                         .hrkMnuId("P1")
                         .srePth("/budget/list")
                         .hidYn("N")
@@ -151,17 +151,20 @@ class AdminMenuServiceTest {
 
         // then
         assertThat(result).isEqualTo("MNU0000001");
-        verify(cmenumRepository).save(any(Cmenum.class));
+        ArgumentCaptor<Cmenum> captor = ArgumentCaptor.forClass(Cmenum.class);
+        verify(cmenumRepository).save(captor.capture());
+        assertThat(captor.getValue().getMnuTpC()).isEqualTo("PGE");
+        assertThat(captor.getValue().getSrePth()).isEqualTo("/budget/list");
     }
 
     @Test
-    @DisplayName("create: HED 유형이고 화면경로가 없으면 루트 헤더를 저장한다")
-    void create_HED유형_루트헤더저장() {
+    @DisplayName("create: GRP 유형이고 화면경로가 없으면 루트 그룹을 저장한다")
+    void create_GRP유형_루트그룹저장() {
         // given
         MenuDto.UpsertRequest req =
                 MenuDto.UpsertRequest.builder()
-                        .mnuNm("새 헤더")
-                        .mnuTpC("HED")
+                        .mnuNm("새 그룹")
+                        .mnuTpC("GRP")
                         .hrkMnuId(null)
                         .srePth(null)
                         .hidYn("N")
@@ -229,29 +232,49 @@ class AdminMenuServiceTest {
     }
 
     @Test
-    @DisplayName("create: LNK 메뉴에 화면경로가 없으면 예외를 던진다")
-    void create_LNK유형_화면경로없음_예외() {
+    @DisplayName("create: PGE 메뉴에 화면경로가 없으면 예외를 던진다")
+    void create_PGE유형_화면경로없음_예외() {
         // given
         MenuDto.UpsertRequest req =
-                MenuDto.UpsertRequest.builder().mnuNm("링크메뉴").mnuTpC("LNK").srePth(null).build();
+                MenuDto.UpsertRequest.builder().mnuNm("페이지").mnuTpC("PGE").srePth(null).build();
 
         // when & then
         assertThatThrownBy(() -> service.create(req))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("화면경로가 필수");
+                .hasMessageContaining("PGE 메뉴는 화면경로가 필수입니다.");
     }
 
     @Test
-    @DisplayName("create: 잘못된 메뉴유형코드이면 예외를 던진다")
-    void create_잘못된메뉴유형_예외() {
+    @DisplayName("create: LNK 메뉴는 아직 지원하지 않으므로 예외를 던진다")
+    void create_LNK유형_미지원_예외() {
         // given
         MenuDto.UpsertRequest req =
-                MenuDto.UpsertRequest.builder().mnuNm("잘못된타입").mnuTpC("XXX").build();
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("외부링크")
+                        .mnuTpC("LNK")
+                        .srePth("https://example.com")
+                        .hrkMnuId("P1")
+                        .build();
 
         // when & then
         assertThatThrownBy(() -> service.create(req))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("잘못된 메뉴유형코드");
+                .hasMessageContaining("외부링크 메뉴는 아직 지원하지 않습니다.");
+    }
+
+    @Test
+    @DisplayName("create: 알 수 없는 메뉴유형코드이면 예외를 던진다")
+    void create_알수없는유형_예외() {
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("알 수 없는 유형")
+                        .mnuTpC("XXX")
+                        .hrkMnuId(null)
+                        .build();
+
+        assertThatThrownBy(() -> service.create(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("잘못된 메뉴유형코드: XXX");
     }
 
     @Test
@@ -388,15 +411,15 @@ class AdminMenuServiceTest {
     // =========================================================================
 
     @Test
-    @DisplayName("move: HED를 루트로 이동하면 depth=1로 재계산한다")
-    void move_HED를루트로이동() {
-        // given: 비-HED는 루트 이동이 금지되므로 HED를 대상으로 루트 이동 재계산을 검증한다.
+    @DisplayName("move: GRP를 루트로 이동하면 depth=1로 재계산한다")
+    void move_GRP를루트로이동() {
+        // given: 루트에는 GRP만 놓을 수 있으므로 GRP를 대상으로 루트 이동 재계산을 검증한다.
         Cmenum target =
                 Cmenum.builder()
                         .mnuId("MHED0009")
                         .hrkMnuId("X")
-                        .mnuNm("헤더")
-                        .mnuTpC("HED")
+                        .mnuNm("그룹")
+                        .mnuTpC("GRP")
                         .mnuSotSqnSno(10)
                         .hidYn("N")
                         .mnuDep(2)
@@ -417,40 +440,82 @@ class AdminMenuServiceTest {
     }
 
     @Test
-    @DisplayName("create: 비-HED 메뉴를 루트로 생성하면 예외를 던진다")
-    void create_비HED루트_예외() {
+    @DisplayName("create: GRP가 아닌 메뉴를 루트로 생성하면 예외를 던진다")
+    void create_비GRP루트_예외() {
         MenuDto.UpsertRequest req =
                 MenuDto.UpsertRequest.builder()
-                        .mnuNm("루트GRP")
-                        .mnuTpC("GRP")
+                        .mnuNm("루트페이지")
+                        .mnuTpC("PGE")
                         .hrkMnuId(null)
-                        .srePth(null)
+                        .srePth("/budget/list")
                         .build();
+        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
+                .willReturn(
+                        Optional.of(Cmenud.builder().srePth("/budget/list").delYn("N").build()));
+
         assertThatThrownBy(() -> service.create(req))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("최상위");
+                .hasMessageContaining("최상위(루트) 메뉴는 메뉴그룹(GRP)만 가능합니다.");
     }
 
     @Test
-    @DisplayName("move: HED 헤더를 다른 메뉴 밑으로 이동하면 예외를 던진다")
-    void move_HED를하위로이동_예외() {
-        Cmenum header =
+    @DisplayName("update: 루트 메뉴의 유형을 PGE로 바꾸면 예외를 던진다")
+    void update_루트메뉴를PGE로변경_예외() {
+        Cmenum root = node("MHED0009", null, 1, "/MHED0009");
+        given(cmenumRepository.findByMnuIdAndDelYn("MHED0009", "N")).willReturn(Optional.of(root));
+        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
+                .willReturn(
+                        Optional.of(Cmenud.builder().srePth("/budget/list").delYn("N").build()));
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("루트")
+                        .mnuTpC("PGE")
+                        .srePth("/budget/list")
+                        .build();
+
+        assertThatThrownBy(() -> service.update("MHED0009", req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("최상위(루트) 메뉴는 메뉴그룹(GRP)만 가능합니다.");
+    }
+
+    @Test
+    @DisplayName("move: PGE 메뉴를 루트로 이동하면 예외를 던진다")
+    void move_PGE를루트로이동_예외() {
+        Cmenum target =
                 Cmenum.builder()
-                        .mnuId("MHED0009")
-                        .hrkMnuId(null)
-                        .mnuNm("헤더")
-                        .mnuTpC("HED")
+                        .mnuId("M0002")
+                        .hrkMnuId("P1")
+                        .mnuNm("예산목록")
+                        .mnuTpC("PGE")
+                        .srePth("/budget/list")
                         .mnuSotSqnSno(10)
                         .hidYn("N")
-                        .mnuDep(1)
-                        .whlMnuPth("/MHED0009")
+                        .mnuDep(3)
+                        .whlMnuPth("/H/P1/M0002")
                         .delYn("N")
                         .build();
-        given(cmenumRepository.findByMnuIdAndDelYn("MHED0009", "N"))
-                .willReturn(Optional.of(header));
+        given(cmenumRepository.findByMnuIdAndDelYn("M0002", "N")).willReturn(Optional.of(target));
 
-        assertThatThrownBy(() -> service.move("MHED0009", "MHED0002"))
+        assertThatThrownBy(() -> service.move("M0002", null))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("최상위");
+                .hasMessageContaining("최상위(루트) 메뉴는 메뉴그룹(GRP)만 가능합니다.");
+    }
+
+    @Test
+    @DisplayName("move: GRP 메뉴를 다른 메뉴 하위로 이동하면 허용한다")
+    void move_GRP를하위로이동_허용() {
+        Cmenum target = node("MHED0009", null, 1, "/MHED0009");
+        Cmenum newParent = node("MHED0001", null, 1, "/MHED0001");
+        given(cmenumRepository.findByMnuIdAndDelYn("MHED0009", "N"))
+                .willReturn(Optional.of(target));
+        given(cmenumRepository.findByMnuIdAndDelYn("MHED0001", "N"))
+                .willReturn(Optional.of(newParent));
+        given(cmenumRepository.findSubtreeByPathPrefix("/MHED0009")).willReturn(List.of(target));
+
+        service.move("MHED0009", "MHED0001");
+
+        assertThat(target.getHrkMnuId()).isEqualTo("MHED0001");
+        assertThat(target.getMnuDep()).isEqualTo(2);
+        assertThat(target.getWhlMnuPth()).isEqualTo("/MHED0001/MHED0009");
     }
 }
