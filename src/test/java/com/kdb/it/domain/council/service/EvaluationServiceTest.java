@@ -33,6 +33,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -114,6 +115,27 @@ class EvaluationServiceTest {
                 mockUser(ENO));
 
         verify(entityManager).persist(any(Bevalm.class));
+    }
+
+    @Test
+    @DisplayName("saveEvaluation: 간사(03)는 평가의견을 제출할 수 없다 (AccessDeniedException)")
+    void saveEvaluation_간사03_제출차단() {
+        Basctm council = mock(Basctm.class);
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
+        // 이 위원의 위원유형을 순수 간사(03)로 설정 — 평가의견 작성 대상이 아님
+        Bcmmtm secretary = mock(Bcmmtm.class);
+        given(secretary.getItPtlAsctMebTc()).willReturn("03");
+        given(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ASCT_ID, ENO, "N"))
+                .willReturn(Optional.of(secretary));
+
+        assertThatThrownBy(
+                        () ->
+                                evaluationService.saveEvaluation(
+                                        ASCT_ID,
+                                        new CouncilDto.EvaluationRequest(
+                                                List.of(item("01", 3, null))),
+                                        mockUser(ENO)))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     // ───────────────────────────────────────────────────────

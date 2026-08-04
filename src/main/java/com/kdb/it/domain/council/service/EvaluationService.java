@@ -169,7 +169,12 @@ public class EvaluationService {
         String eno = userDetails.getEno();
 
         // 평가의견은 해당 협의회 평가위원 본인만 제출 가능 (비위원 평가 주입 차단, 리뷰 1-4)
-        if (committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").isEmpty()) {
+        // 간사(03)는 회의 진행 담당이라 평가의견 작성 대상이 아니다(전원 제출 판정·일정 취합과 동일 기준).
+        // 당연위원겸간사(04) 등 간사 외 위원유형을 하나라도 보유하면 제출 허용.
+        boolean isEvaluator =
+                committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(asctId, eno, "N").stream()
+                        .anyMatch(m -> !"03".equals(m.getItPtlAsctMebTc()));
+        if (!isEvaluator) {
             throw new AccessDeniedException("해당 협의회의 평가위원만 평가의견을 제출할 수 있습니다.");
         }
 
@@ -237,8 +242,14 @@ public class EvaluationService {
         List<Bcmmtm> members = committeeRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
         if (members.isEmpty()) return false;
 
+        // 간사(03)는 회의 진행 담당이라 평가의견 작성 대상이 아니므로 전원 제출 판정에서 제외한다.
+        // (ScheduleService의 일정 취합 전원 판정과 동일 기준 — 당연위원겸간사(04)는 평가 대상 유지)
         Set<String> memberEnos =
-                members.stream().map(value -> value.getEno()).collect(Collectors.toSet());
+                members.stream()
+                        .filter(m -> !"03".equals(m.getItPtlAsctMebTc()))
+                        .map(value -> value.getEno())
+                        .collect(Collectors.toSet());
+        if (memberEnos.isEmpty()) return false;
 
         // 제출된 평가의견에서 6개 항목을 모두 제출한 사번 목록 추출
         List<Bevalm> allEvaluations = evaluationRepository.findByItPtlAsctIdAndDelYn(asctId, "N");
