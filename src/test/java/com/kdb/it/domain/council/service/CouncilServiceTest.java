@@ -899,7 +899,8 @@ class CouncilServiceTest {
         CustomUserDetails admin =
                 new CustomUserDetails("S001", List.of(CustomUserDetails.ATH_INFOSEC_ADMIN), "D001");
         // 미신청은 '정보보호 소요자원 보유'(심의유형 04 노출 조건)일 때만 표출된다.
-        CouncilProjectRow notAppliedInfoSec = listRowWithAbusMngNo("PRJ-001", null); // 미신청+소요자원 → 표출
+        CouncilProjectRow notAppliedInfoSec =
+                listRowWithAbusMngNo("PRJ-001", null); // 미신청+소요자원 → 표출
         CouncilProjectRow notAppliedPlain = listRowWithAbusMngNo("PRJ-004", null); // 미신청+소요자원X → 제외
         CouncilProjectRow infoSec = listRowWithAbusMngNo("PRJ-002", "ASCT-002"); // 신청 04 → 표출
         CouncilProjectRow general = listRowWithAbusMngNo("PRJ-003", "ASCT-003"); // 신청 03 → 제외
