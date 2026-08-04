@@ -754,28 +754,10 @@ class CostServiceTest {
             String result = costService.updateCost(IT_MNGC_NO, request);
 
             assertThat(result).isEqualTo(IT_MNGC_NO);
-            verify(first)
-                    .update(
-                            any(),
-                            eq("수정 계약"),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any());
+            ArgumentCaptor<Bcostm.UpdateCommand> commandCaptor =
+                    ArgumentCaptor.forClass(Bcostm.UpdateCommand.class);
+            verify(first).update(commandCaptor.capture());
+            assertThat(commandCaptor.getValue().cttNm()).isEqualTo("수정 계약");
             verify(oldTerminal).delete();
             verify(btermmRepository).save(any(Btermm.class));
             assertThat(newTerminal.getTmnMngNo()).matches("TER-\\d{4}-0008");
@@ -1846,6 +1828,92 @@ class CostServiceTest {
     }
 
     @Test
+    @DisplayName("updateCost: 보정된 요청의 모든 필드를 이름 기반 UpdateCommand로 전달한다")
+    void updateCost_보정된요청전체필드_UpdateCommand전달() {
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext context =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(context.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(context);
+
+        try {
+            Bcostm target = mock(Bcostm.class);
+            given(target.getCostBgNo()).willReturn(IT_MNGC_NO);
+            given(target.getBgSno()).willReturn(1);
+            given(target.getLstYn()).willReturn("Y");
+            given(target.getFstEnrUsid()).willReturn("10001");
+            given(target.getCostSvnDpmC()).willReturn("BBR001");
+            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
+                    .willReturn(List.of(target));
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
+                    .willReturn(List.of());
+            given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
+                    .willReturn(new BigDecimal("1300.5000"));
+
+            CostDto.UpdateRequest request =
+                    CostDto.UpdateRequest.builder()
+                            .ioeC("IOE001")
+                            .cttNm("계약명")
+                            .cttOppNm("계약상대")
+                            .costTotXpAmt(BigDecimal.ONE)
+                            .dfrCleC("M")
+                            .fstDfrDt("2026-07-31")
+                            .curC("USD")
+                            .xcr(BigDecimal.ONE)
+                            .xcrBseDt("2026-07-29")
+                            .sectSysUtzYn("Y")
+                            .indRsn("증액")
+                            .cgprId("10001")
+                            .costSvnDpmC("180")
+                            .svnTemC("18001")
+                            .bgUntAbusC("101")
+                            .tmnYn("N")
+                            .abusTc("20")
+                            .bseYy("2026")
+                            .cncdRfrNo("COST-2025-1")
+                            .fcAmt(new BigDecimal("1000.000"))
+                            .terminals(List.of())
+                            .build();
+
+            costService.updateCost(IT_MNGC_NO, request);
+
+            ArgumentCaptor<Bcostm.UpdateCommand> commandCaptor =
+                    ArgumentCaptor.forClass(Bcostm.UpdateCommand.class);
+            verify(target).update(commandCaptor.capture());
+            assertThat(commandCaptor.getValue())
+                    .isEqualTo(
+                            Bcostm.UpdateCommand.builder()
+                                    .ioeC("IOE001")
+                                    .cttNm("계약명")
+                                    .cttOppNm("계약상대")
+                                    .costTotXpAmt(new BigDecimal("1300500.000"))
+                                    .dfrCleC("M")
+                                    .fstDfrDt("20260731")
+                                    .curC("USD")
+                                    .xcr(new BigDecimal("1300.5000"))
+                                    .xcrBseDt("20260729")
+                                    .sectSysUtzYn("Y")
+                                    .indRsn("증액")
+                                    .cgprId("10001")
+                                    .costSvnDpmC("180")
+                                    .svnTemC("18001")
+                                    .bgUntAbusC("101")
+                                    .tmnYn("N")
+                                    .abusTc("20")
+                                    .bseYy("2026")
+                                    .cncdRfrNo("COST-2025-1")
+                                    .fcAmt(new BigDecimal("1000.000"))
+                                    .build());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
     @DisplayName("updateCost: 외화 수정 시 itMngcBgAmt = fcAmt × xcr로 서버 재계산되어 target.update에 전달된다")
     void updateCost_외화수정_itMngcBgAmt_서버재계산() {
         // given: 관리자 인증
@@ -1886,35 +1954,15 @@ class CostServiceTest {
             // when
             costService.updateCost(IT_MNGC_NO, request);
 
-            // then: target.update의 itMngcBgAmt 인자(4번째) 및 fcAmt 인자(마지막)를 캡처해 검증
-            ArgumentCaptor<BigDecimal> itMngcBgCaptor = ArgumentCaptor.forClass(BigDecimal.class);
-            ArgumentCaptor<BigDecimal> fcAmtCaptor = ArgumentCaptor.forClass(BigDecimal.class);
-            verify(target)
-                    .update(
-                            any(),
-                            any(),
-                            any(),
-                            itMngcBgCaptor.capture(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            any(),
-                            fcAmtCaptor.capture());
-            assertThat(itMngcBgCaptor.getValue())
+            // then: target.update에 전달된 명령의 전산업무비예산금액·외화금액을 캡처해 검증
+            ArgumentCaptor<Bcostm.UpdateCommand> commandCaptor =
+                    ArgumentCaptor.forClass(Bcostm.UpdateCommand.class);
+            verify(target).update(commandCaptor.capture());
+            assertThat(commandCaptor.getValue().costTotXpAmt())
                     .as("서버 재계산: 1000.000 × 1300.5000 = 1300500.0000")
                     .isEqualByComparingTo(new BigDecimal("1300500.0000"));
-            assertThat(fcAmtCaptor.getValue()).isEqualByComparingTo(new BigDecimal("1000.000"));
+            assertThat(commandCaptor.getValue().fcAmt())
+                    .isEqualByComparingTo(new BigDecimal("1000.000"));
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }

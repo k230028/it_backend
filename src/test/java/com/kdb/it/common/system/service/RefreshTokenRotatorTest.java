@@ -3,7 +3,6 @@ package com.kdb.it.common.system.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -11,16 +10,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.iam.service.UserRoleResolver;
 import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.exception.ConcurrentRefreshException;
 import com.kdb.it.common.system.exception.FamilyRevocationRequiredException;
 import com.kdb.it.common.system.exception.RefreshTokenNotFoundException;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +42,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class RefreshTokenRotatorTest {
 
     @Mock private UserRepository userRepository;
-    @Mock private RoleRepository roleRepository;
+    @Mock private UserRoleResolver userRoleResolver;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private JwtUtil jwtUtil;
 
@@ -81,15 +80,17 @@ class RefreshTokenRotatorTest {
                                         .bbrC("BBR001")
                                         .delYn("N")
                                         .build()));
-        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
-                .willReturn(Collections.emptyList());
-        given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access");
+        List<String> refreshAthIds = List.of("ITPAD002");
+        given(userRoleResolver.resolveAthIds("10001")).willReturn(refreshAthIds);
+        given(jwtUtil.generateAccessToken("10001", refreshAthIds, "BBR001"))
+                .willReturn("new-access");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("new-refresh");
 
         // when
         RefreshRotationResult result = rotator.rotate(oldRefresh);
 
         // then
+        verify(jwtUtil).generateAccessToken("10001", refreshAthIds, "BBR001");
         assertThat(result.accessToken()).isEqualTo("new-access");
         assertThat(result.refreshToken()).isEqualTo("new-refresh");
         assertThat(result.eno()).isEqualTo("10001");
@@ -143,9 +144,9 @@ class RefreshTokenRotatorTest {
                                         .bbrC("BBR001")
                                         .delYn("N")
                                         .build()));
-        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
-                .willReturn(Collections.emptyList());
-        given(jwtUtil.generateAccessToken(anyString(), anyList(), any()))
+        given(userRoleResolver.resolveAthIds("10001"))
+                .willReturn(List.of(CustomUserDetails.ATH_USER));
+        given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), "BBR001"))
                 .willReturn("new-access-token");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("new-refresh-token");
         given(refreshTokenRepository.findByFamNmAndAvlYn("FAM-1", "Y"))
@@ -325,9 +326,10 @@ class RefreshTokenRotatorTest {
                                         .bbrC("BBR001")
                                         .delYn("N")
                                         .build()));
-        given(roleRepository.findAllByIdEnoAndUseYnAndDelYn("10001", "Y", "N"))
-                .willReturn(Collections.emptyList());
-        given(jwtUtil.generateAccessToken(anyString(), anyList(), any())).willReturn("new-access");
+        given(userRoleResolver.resolveAthIds("10001"))
+                .willReturn(List.of(CustomUserDetails.ATH_USER));
+        given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), "BBR001"))
+                .willReturn("new-access");
         RuntimeException dbError = new RuntimeException("DB 저장 오류");
         given(refreshTokenRepository.save(any(Crtokm.class))).willThrow(dbError);
 

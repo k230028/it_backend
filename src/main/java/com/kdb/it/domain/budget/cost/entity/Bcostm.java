@@ -10,8 +10,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -157,16 +159,16 @@ public class Bcostm extends BaseEntity {
     private BigDecimal fcAmt;
 
     /**
-     * 전산관리비 정보 업데이트 메서드
+     * 전산업무비 변경값을 이름이 명시된 단일 명령으로 전달합니다.
      *
-     * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 필드를 변경합니다. 변경된 필드는 트랜잭션 종료 시 자동으로 DB에 반영됩니다.
+     * <p>같은 타입의 필드가 많아 위치 인자로는 값이 뒤바뀌어도 컴파일러가 잡지 못하므로 builder로만 조립합니다.
      *
      * @param ioeC 비목코드
      * @param cttNm 계약명
-     * @param cttOppNm 계약상대처
-     * @param costTotXpAmt 전산업무비예산
-     * @param dfrCleC 지급주기
-     * @param fstDfrDt 지급예정월(최초지급일자)
+     * @param cttOppNm 계약상대처명
+     * @param costTotXpAmt 전산업무비예산금액
+     * @param dfrCleC 지급주기코드 (빈값이면 적용 시 기본값으로 보정)
+     * @param fstDfrDt 최초지급일자
      * @param curC 통화
      * @param xcr 환율
      * @param xcrBseDt 환율기준일자
@@ -177,12 +179,13 @@ public class Bcostm extends BaseEntity {
      * @param svnTemC 담당팀
      * @param bgUntAbusC 사업코드
      * @param tmnYn 단말여부 (Y=단말, N=비단말)
-     * @param abusTc 전산업무비구분
+     * @param abusTc 전산업무비구분 (빈값이면 적용 시 기본값으로 보정)
      * @param bseYy 예산연도
      * @param cncdRfrNo 관련전산업무비번호 (계속항목인 경우 전년도 관리번호)
      * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
-    public void update(
+    @Builder
+    public record UpdateCommand(
             String ioeC,
             String cttNm,
             String cttOppNm,
@@ -202,27 +205,39 @@ public class Bcostm extends BaseEntity {
             String abusTc,
             String bseYy,
             String cncdRfrNo,
-            BigDecimal fcAmt) {
-        this.ioeC = ioeC;
-        this.cttNm = cttNm;
-        this.cttOppNm = cttOppNm;
-        this.costTotXpAmt = costTotXpAmt;
-        this.dfrCleC = CodeDefaults.orNotApplicable(dfrCleC);
-        this.fstDfrDt = fstDfrDt;
-        this.curC = curC;
-        this.xcr = xcr;
-        this.xcrBseDt = xcrBseDt;
-        this.sectSysUtzYn = sectSysUtzYn;
-        this.indRsn = indRsn;
-        this.cgprId = cgprId;
-        this.costSvnDpmC = costSvnDpmC;
-        this.svnTemC = svnTemC;
-        this.bgUntAbusC = bgUntAbusC;
-        this.tmnYn = tmnYn;
-        this.abusTc = CodeDefaults.orNotApplicable(abusTc);
-        this.bseYy = bseYy;
-        this.cncdRfrNo = cncdRfrNo;
-        this.fcAmt = fcAmt;
+            BigDecimal fcAmt) {}
+
+    /**
+     * 명령에 담긴 전산업무비 변경값을 적용합니다.
+     *
+     * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 필드를 변경합니다. 변경된 필드는 트랜잭션 종료 시 자동으로 DB에 반영됩니다. 필수 코드인
+     * 지급주기코드와 전산업무비구분은 빈값이면 여기에서 기본값으로 보정합니다.
+     *
+     * @param command 이름이 명시된 전산업무비 변경 명령
+     * @throws NullPointerException command가 null인 경우 (어떤 필드도 변경하기 전에 실패)
+     */
+    public void update(UpdateCommand command) {
+        Objects.requireNonNull(command, "command");
+        this.ioeC = command.ioeC();
+        this.cttNm = command.cttNm();
+        this.cttOppNm = command.cttOppNm();
+        this.costTotXpAmt = command.costTotXpAmt();
+        this.dfrCleC = CodeDefaults.orNotApplicable(command.dfrCleC());
+        this.fstDfrDt = command.fstDfrDt();
+        this.curC = command.curC();
+        this.xcr = command.xcr();
+        this.xcrBseDt = command.xcrBseDt();
+        this.sectSysUtzYn = command.sectSysUtzYn();
+        this.indRsn = command.indRsn();
+        this.cgprId = command.cgprId();
+        this.costSvnDpmC = command.costSvnDpmC();
+        this.svnTemC = command.svnTemC();
+        this.bgUntAbusC = command.bgUntAbusC();
+        this.tmnYn = command.tmnYn();
+        this.abusTc = CodeDefaults.orNotApplicable(command.abusTc());
+        this.bseYy = command.bseYy();
+        this.cncdRfrNo = command.cncdRfrNo();
+        this.fcAmt = command.fcAmt();
     }
 
     /**

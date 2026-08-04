@@ -1,14 +1,13 @@
 package com.kdb.it.common.system.service;
 
 import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.iam.service.UserRoleResolver;
 import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.exception.ConcurrentRefreshException;
 import com.kdb.it.common.system.exception.FamilyRevocationRequiredException;
 import com.kdb.it.common.system.exception.RefreshTokenNotFoundException;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -51,7 +50,7 @@ public class RefreshTokenRotator {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final RoleRepository roleRepository;
+    private final UserRoleResolver userRoleResolver;
     private final JwtUtil jwtUtil;
 
     @Value("${jwt.refresh-token-validity}")
@@ -122,7 +121,7 @@ public class RefreshTokenRotator {
                         .findByEno(eno)
                         .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        List<String> athIds = loadAthIds(eno);
+        List<String> athIds = userRoleResolver.resolveAthIds(eno);
         String newAccessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
 
         // 회전: 구 토큰을 삭제하지 않고 '회전됨' 표식만 남기고(재사용 탐지용), 신규 토큰을 동일 패밀리로 저장한다.
@@ -175,13 +174,5 @@ public class RefreshTokenRotator {
                 famNm,
                 activeTokens.size());
         throw new IllegalStateException("활성 Refresh Token은 패밀리당 1개만 허용됩니다.");
-    }
-
-    private List<String> loadAthIds(String eno) {
-        List<String> athIds =
-                roleRepository.findAllByIdEnoAndUseYnAndDelYn(eno, "Y", "N").stream()
-                        .map(value -> value.getAthId())
-                        .toList();
-        return athIds.isEmpty() ? List.of(CustomUserDetails.ATH_USER) : athIds;
     }
 }
