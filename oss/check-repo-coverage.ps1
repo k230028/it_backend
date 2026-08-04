@@ -17,24 +17,42 @@ param(
     [string]$RepoUrl = 'http://10.6.65.151:20080/repository/maven-releases',
     [string]$DownloadDir,               # 지정 시 존재 파일을 이 폴더에 다운로드 (Maven2 레이아웃 유지)
     [string]$Username,
-    [string]$Password
+    [string]$Password,
+    [switch]$IncludeSources             # 지정 시 소스 첨부용 *-sources.jar도 점검 대상에 포함
 )
+
+# 점검 대상 여부를 판정합니다.
+#   - .module        : .module을 호스팅하지 않는 Nexus/Maven 저장소가 대상이므로 제외.
+#   - *-sources.jar  : IDE 소스 첨부용이라 컴파일·실행에 불필요하므로 기본 제외.
+#                      Gradle 캐시에 소스가 받아져 있으면 매니페스트에 섞여 들어와
+#                      저장소에 없는 것이 본 jar 누락처럼 보고되므로 기본값을 제외로 둡니다.
+#                      소스까지 반입해야 하면 -IncludeSources를 지정합니다.
+function Test-TargetPath {
+    param([string]$Path)
+
+    if (-not $Path) { return $false }
+    if ($Path -like '*.module') { return $false }
+    if (-not $IncludeSources -and $Path -like '*-sources.jar') { return $false }
+    return $true
+}
 
 # 기준 파일 목록 수집 (Gradle 배포판 zip은 Maven 저장소 대상이 아니므로 제외)
 if ($RepoDir) {
     if (-not (Test-Path $RepoDir)) { throw "폴더를 찾을 수 없습니다: $RepoDir" }
     $base = (Resolve-Path $RepoDir).Path
-    $paths = @(Get-ChildItem $base -File -Recurse |
+    $rawPaths = @(Get-ChildItem $base -File -Recurse |
         ForEach-Object { $_.FullName.Substring($base.Length + 1) -replace '\\', '/' } |
-        Where-Object { $_ -notlike 'gradle-*' -and $_ -notlike '*.module' })
+        Where-Object { $_ -notlike 'gradle-*' })
 } elseif ($ManifestFile) {
     if (-not (Test-Path $ManifestFile)) { throw "manifest 파일을 찾을 수 없습니다: $ManifestFile" }
-    $paths = @(Get-Content $ManifestFile |
-        ForEach-Object { $_.Trim() } |
-        Where-Object { $_ -and $_ -notlike '*.module' })
+    $rawPaths = @(Get-Content $ManifestFile | ForEach-Object { $_.Trim() })
 } else {
     throw '-RepoDir 또는 -ManifestFile 중 하나를 지정하세요.'
 }
+
+$paths = @($rawPaths | Where-Object { Test-TargetPath $_ })
+$excludedSources = @($rawPaths | Where-Object { $_ -like '*-sources.jar' }).Count
+if ($paths.Count -eq 0) { throw '점검 대상이 없습니다. 기준 목록과 제외 조건을 확인하세요.' }
 
 # 인증 헤더 (선택)
 $headers = @{}
@@ -46,6 +64,9 @@ if ($Username) {
 $total = $paths.Count
 $mode = if ($DownloadDir) { "점검 + 다운로드 → $DownloadDir" } else { '점검만' }
 Write-Host "대상: ${total}개 파일 / 저장소: $RepoUrl / 모드: $mode"
+if (-not $IncludeSources -and $excludedSources -gt 0) {
+    Write-Host ("제외: 소스 첨부용 *-sources.jar {0}건 (반입이 필요하면 -IncludeSources)" -f $excludedSources)
+}
 Write-Host ""
 
 $found = 0; $downloaded = 0; $skippedLocal = 0; $missing = @(); $checked = 0

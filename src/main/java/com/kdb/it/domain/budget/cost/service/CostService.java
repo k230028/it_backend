@@ -777,11 +777,20 @@ public class CostService {
                                 Collectors.toMap(
                                         value -> value.getPrlmOgzCCone(),
                                         value -> value.getBbrNm()));
+        List<com.kdb.it.common.iam.repository.UserRepository.UserNameView> userNameViews =
+                cuserIRepository.findNameViewsByEnoIn(userEnos);
         Map<String, String> userNameMap =
-                cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
+                userNameViews.stream()
                         .collect(
                                 Collectors.toMap(
                                         value -> value.getEno(), value -> value.getUsrNm()));
+        /* 직위명이 비어 있는 사용자는 Collectors.toMap의 null 값 제약 때문에 맵에서 제외한다. */
+        Map<String, String> userPositionMap = new java.util.HashMap<>();
+        for (com.kdb.it.common.iam.repository.UserRepository.UserNameView view : userNameViews) {
+            if (view.getPtCNm() != null && !view.getPtCNm().isBlank()) {
+                userPositionMap.put(view.getEno(), view.getPtCNm());
+            }
+        }
         Map<String, String> bgUntAbusCNameMap =
                 bgUntAbusCdvas.isEmpty()
                         ? Map.of()
@@ -849,8 +858,10 @@ public class CostService {
             if (cost.getSvnTemNm() != null) response.setSvnTemNm(cost.getSvnTemNm());
             else if (response.getSvnTemC() != null)
                 response.setSvnTemNm(orgNameMap.get(response.getSvnTemC()));
-            if (response.getCgprId() != null)
+            if (response.getCgprId() != null) {
                 response.setCgprNm(userNameMap.get(response.getCgprId()));
+                response.setCgprPtCNm(userPositionMap.get(response.getCgprId()));
+            }
             if (response.getBgUntAbusC() != null)
                 response.setBgUntAbusCNm(bgUntAbusCNameMap.get(response.getBgUntAbusC()));
             if (response.getDfrCleC() != null)
@@ -1013,7 +1024,11 @@ public class CostService {
         if (response.getCgprId() != null && !response.getCgprId().isEmpty()) {
             cuserIRepository
                     .findNameViewByEno(response.getCgprId())
-                    .ifPresent(user -> response.setCgprNm(user.getUsrNm()));
+                    .ifPresent(
+                            user -> {
+                                response.setCgprNm(user.getUsrNm());
+                                response.setCgprPtCNm(user.getPtCNm());
+                            });
         }
         if (response.getBgUntAbusC() != null && !response.getBgUntAbusC().isEmpty()) {
             ccodemRepository

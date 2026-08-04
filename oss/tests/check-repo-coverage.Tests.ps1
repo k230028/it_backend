@@ -25,6 +25,7 @@ try {
         'com/example/demo/1.0/demo-1.0.jar'
         'com/example/demo/1.0/demo-1.0.pom'
         'com/example/demo/1.0/demo-1.0.module'
+        'com/example/demo/1.0/demo-1.0-sources.jar'
         'org/example/example-bom/2.0/example-bom-2.0.pom'
     )
     $manifestPaths | Out-File -LiteralPath $manifestFile -Encoding utf8
@@ -50,7 +51,21 @@ try {
     $moduleRows = @($allRows | Where-Object { $_.PSObject.Properties[$fileNameHeader].Value -like '*.module' })
     Assert-True ($moduleRows.Count -eq 0) 'The complete-list CSV must not contain .module files.'
 
-    Write-Host 'PASS: module exclusion and complete-list CSV generation'
+    $sourcesRows = @($allRows | Where-Object { $_.PSObject.Properties[$fileNameHeader].Value -like '*-sources.jar' })
+    Assert-True ($sourcesRows.Count -eq 0) 'The complete-list CSV must not contain -sources.jar files by default.'
+
+    Write-Host 'PASS: module/sources exclusion and complete-list CSV generation'
+
+    # -IncludeSources를 지정하면 소스 첨부용 jar도 점검 대상에 포함됩니다.
+    $sourcesOutput = (& $copiedScript -ManifestFile $manifestFile -DownloadDir $mirrorDir -IncludeSources 6>&1 | Out-String)
+    Assert-True ($sourcesOutput -match '/ [^0-9\r\n]*4\s+\(') 'The -IncludeSources run must count four files.'
+
+    $withSourcesRows = @(Import-Csv -LiteralPath $allCsvPath -Encoding utf8)
+    Assert-True ($withSourcesRows.Count -eq 3) 'The -IncludeSources run must add the sources coordinate.'
+    $includedSourcesRows = @($withSourcesRows | Where-Object { $_.PSObject.Properties[$fileNameHeader].Value -like '*-sources.jar' })
+    Assert-True ($includedSourcesRows.Count -eq 1) 'The -IncludeSources run must keep the sources jar row.'
+
+    Write-Host 'PASS: -IncludeSources opt-in'
 }
 finally {
     if (Test-Path -LiteralPath $testRoot) {

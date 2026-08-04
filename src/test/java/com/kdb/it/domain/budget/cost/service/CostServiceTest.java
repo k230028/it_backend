@@ -51,7 +51,13 @@ import org.mockito.quality.Strictness;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class CostServiceTest {
 
-    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+    private record NameView(String eno, String usrNm, String ptCNm)
+            implements UserRepository.UserNameView {
+        /** 직위명이 검증 대상이 아닌 기존 케이스용 축약 생성자. */
+        private NameView(String eno, String usrNm) {
+            this(eno, usrNm, null);
+        }
+
         @Override
         public String getEno() {
             return eno;
@@ -60,6 +66,11 @@ class CostServiceTest {
         @Override
         public String getUsrNm() {
             return usrNm;
+        }
+
+        @Override
+        public String getPtCNm() {
+            return ptCNm;
         }
     }
 
@@ -998,7 +1009,7 @@ class CostServiceTest {
         given(corgnIRepository.findNameViewByPrlmOgzCCone("102"))
                 .willReturn(Optional.of(new OrgNameView("102", "팀")));
         given(cuserIRepository.findNameViewByEno("10001"))
-                .willReturn(Optional.of(new NameView("10001", "담당자")));
+                .willReturn(Optional.of(new NameView("10001", "담당자", "과장")));
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(
                         List.of(
@@ -1034,6 +1045,7 @@ class CostServiceTest {
         assertThat(result.getCostSvnDpmNm()).isEqualTo("부서");
         assertThat(result.getSvnTemNm()).isEqualTo("팀");
         assertThat(result.getCgprNm()).isEqualTo("담당자");
+        assertThat(result.getCgprPtCNm()).isEqualTo("과장");
         assertThat(result.getAssetBg()).isEqualByComparingTo("1000");
         assertThat(result.getDvcBg()).isEqualByComparingTo("1000");
         assertThat(result.getIoeCNm()).isEqualTo("개발비");
@@ -1200,7 +1212,7 @@ class CostServiceTest {
         given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(any()))
                 .willReturn(List.of(new OrgNameView("101", "부서"), new OrgNameView("102", "팀")));
         given(cuserIRepository.findNameViewsByEnoIn(any()))
-                .willReturn(List.of(new NameView("10001", "담당자")));
+                .willReturn(List.of(new NameView("10001", "담당자", "과장")));
         given(ccodemRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(
                         List.of(Ccodem.builder().cId("IOE_C").cdva("101").cTp("IOE_IDR").build()));
@@ -1219,6 +1231,7 @@ class CostServiceTest {
         assertThat(result.get(0).getApplicationInfo().getApfMngNo()).isEqualTo("APF-001");
         assertThat(result.get(0).getCostSvnDpmNm()).isEqualTo("부서");
         assertThat(result.get(0).getCgprNm()).isEqualTo("담당자");
+        assertThat(result.get(0).getCgprPtCNm()).isEqualTo("과장");
         assertThat(result.get(0).getCostBg()).isEqualByComparingTo("1000");
         assertThat(result.get(0).getPrevBgAmt()).isEqualByComparingTo("900");
         assertThat(result.get(0).getPrevDupBg()).isEqualByComparingTo("800");

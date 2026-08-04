@@ -65,7 +65,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ProjectServiceTest {
 
-    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+    private record NameView(String eno, String usrNm, String ptCNm)
+            implements UserRepository.UserNameView {
+        /** 직위명이 검증 대상이 아닌 기존 케이스용 축약 생성자. */
+        private NameView(String eno, String usrNm) {
+            this(eno, usrNm, null);
+        }
+
         @Override
         public String getEno() {
             return eno;
@@ -74,6 +80,11 @@ class ProjectServiceTest {
         @Override
         public String getUsrNm() {
             return usrNm;
+        }
+
+        @Override
+        public String getPtCNm() {
+            return ptCNm;
         }
     }
 
@@ -789,6 +800,63 @@ class ProjectServiceTest {
     }
 
     @Test
+    @DisplayName("getProjectsByIds: 사번을 이름·직위명으로, 전결권 코드를 코드명으로 채운다")
+    void getProjectsByIds_이름직위전결권명_채움() {
+        // given: 담당자 4명과 전결권 코드가 있는 사업 1건
+        String prjMngNo = "PRJ-2026-0001";
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo(prjMngNo)
+                        .sno(1)
+                        .delYn("N")
+                        .dvmUsid("10001")
+                        .dvmTlrUsid("10002")
+                        .usid("10003")
+                        .tlrUsid("10004")
+                        .edrtTc("3")
+                        .build();
+
+        given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(project));
+        given(
+                        capplaRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                eq("BPROJM"), anyList()))
+                .willReturn(List.of());
+        given(bprojaRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of());
+        given(bitemmRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of());
+        given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyCollection()))
+                .willReturn(List.of());
+        given(cuserIRepository.findNameViewsByEnoIn(anyCollection()))
+                .willReturn(
+                        List.of(
+                                new NameView("10001", "이아이티", "대리"),
+                                new NameView("10002", "최아이티", "팀장"),
+                                new NameView("10003", "박현업", "차장"),
+                                new NameView("10004", "김팀장", null)));
+        given(codeNameMapBuilder.build(eq(com.kdb.it.common.code.CommonCodeGroups.EDRT), any()))
+                .willReturn(java.util.Map.of("3", "부장"));
+
+        ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+        request.setPrjMngNos(List.of(prjMngNo));
+
+        // when
+        ProjectDto.BulkResponse result = projectService.getProjectsByIds(request);
+
+        // then
+        ProjectDto.Response item = result.items().get(0);
+        assertThat(item.getDvmUsidNm()).isEqualTo("이아이티");
+        assertThat(item.getDvmUsidPtCNm()).isEqualTo("대리");
+        assertThat(item.getDvmTlrUsidPtCNm()).isEqualTo("팀장");
+        assertThat(item.getUsidPtCNm()).isEqualTo("차장");
+        // 직위 미등록 사용자는 이름만 채우고 직위명은 null로 남긴다
+        assertThat(item.getTlrUsidNm()).isEqualTo("김팀장");
+        assertThat(item.getTlrUsidPtCNm()).isNull();
+        assertThat(item.getEdrtTcNm()).isEqualTo("부장");
+    }
+
+    @Test
     @DisplayName("getProjectsByIds: 같은 관리번호의 활성 기본행이 둘이면 데이터 손상으로 실패한다")
     void getProjectsByIds_중복활성행_데이터손상예외() {
         Bprojm first = Bprojm.builder().abusMngNo("PRJ-DUP").sno(1).delYn("N").build();
@@ -1344,13 +1412,13 @@ class ProjectServiceTest {
         given(corgnIRepository.findNameViewByPrlmOgzCCone("102"))
                 .willReturn(Optional.of(new OrgNameView("102", "현업부")));
         given(cuserIRepository.findNameViewByEno("10001"))
-                .willReturn(Optional.of(new NameView("10001", "담당자")));
+                .willReturn(Optional.of(new NameView("10001", "담당자", "차장")));
         given(cuserIRepository.findNameViewByEno("10002"))
-                .willReturn(Optional.of(new NameView("10002", "팀장")));
+                .willReturn(Optional.of(new NameView("10002", "팀장", "팀장")));
         given(cuserIRepository.findNameViewByEno("10003"))
-                .willReturn(Optional.of(new NameView("10003", "현업담당")));
+                .willReturn(Optional.of(new NameView("10003", "현업담당", "대리")));
         given(cuserIRepository.findNameViewByEno("10004"))
-                .willReturn(Optional.of(new NameView("10004", "현업팀장")));
+                .willReturn(Optional.of(new NameView("10004", "현업팀장", "부장")));
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(
                         List.of(
@@ -1401,6 +1469,10 @@ class ProjectServiceTest {
         assertThat(result.getDvmDpmCNm()).isEqualTo("IT부");
         assertThat(result.getSvnDpmCNm()).isEqualTo("현업부");
         assertThat(result.getDvmUsidNm()).isEqualTo("담당자");
+        assertThat(result.getDvmUsidPtCNm()).isEqualTo("차장");
+        assertThat(result.getDvmTlrUsidPtCNm()).isEqualTo("팀장");
+        assertThat(result.getUsidPtCNm()).isEqualTo("대리");
+        assertThat(result.getTlrUsidPtCNm()).isEqualTo("부장");
         assertThat(result.getAssetBg()).isEqualByComparingTo("300");
         assertThat(result.getDvcBg()).isEqualByComparingTo("100");
         assertThat(result.getHwBg()).isEqualByComparingTo("200");
@@ -1525,10 +1597,10 @@ class ProjectServiceTest {
         given(cuserIRepository.findNameViewsByEnoIn(any()))
                 .willReturn(
                         List.of(
-                                new NameView("10001", "IT담당"),
-                                new NameView("10002", "IT팀장"),
-                                new NameView("10003", "현업담당"),
-                                new NameView("10004", "현업팀장")));
+                                new NameView("10001", "IT담당", "대리"),
+                                new NameView("10002", "IT팀장", "팀장"),
+                                new NameView("10003", "현업담당", "차장"),
+                                new NameView("10004", "현업팀장", "부장")));
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn("PRJ-2026-0001", 1, "N"))
                 .willReturn(List.of());
         given(codeService.findCodeEntitiesByCId(anyString())).willReturn(List.of());
@@ -1543,6 +1615,8 @@ class ProjectServiceTest {
         assertThat(result.get(0).getSvnDpmCNm()).isEqualTo("현업부");
         assertThat(result.get(0).getDvmUsidNm()).isEqualTo("IT담당");
         assertThat(result.get(0).getTlrUsidNm()).isEqualTo("현업팀장");
+        assertThat(result.get(0).getDvmUsidPtCNm()).isEqualTo("대리");
+        assertThat(result.get(0).getTlrUsidPtCNm()).isEqualTo("부장");
         verify(capplaRepository)
                 .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                         "BPROJM", List.of("PRJ-2026-0001"));

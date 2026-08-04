@@ -676,6 +676,26 @@ public class ProjectDto {
         @Schema(description = "IT부서담당팀장명")
         private String dvmTlrUsidNm;
 
+        /** IT담당자 직위명: dvmUsid(사번) 기준 TPRMPP_CUSERI에서 PT_C_NM 조회 */
+        @Schema(description = "IT담당자 직위명")
+        private String dvmUsidPtCNm;
+
+        /** 주관부서담당팀장 직위명: tlrUsid(사번) 기준 TPRMPP_CUSERI에서 PT_C_NM 조회 */
+        @Schema(description = "주관부서담당팀장 직위명")
+        private String tlrUsidPtCNm;
+
+        /** 주관부서담당자 직위명: usid(사번) 기준 TPRMPP_CUSERI에서 PT_C_NM 조회 */
+        @Schema(description = "주관부서담당자 직위명")
+        private String usidPtCNm;
+
+        /** IT부서담당팀장 직위명: dvmTlrUsid(사번) 기준 TPRMPP_CUSERI에서 PT_C_NM 조회 */
+        @Schema(description = "IT부서담당팀장 직위명")
+        private String dvmTlrUsidPtCNm;
+
+        /** 전결권명: edrtTc 기준 TPRMPP_CCODEM C_NM */
+        @Schema(description = "전결권명")
+        private String edrtTcNm;
+
         /** 사업유형명: 컬럼(ABUS_PPO_CONE)에 코드값명을 직접 저장하므로 bzTpC 원본값과 동일 */
         @Schema(description = "사업유형명")
         private String bzTpCNm;

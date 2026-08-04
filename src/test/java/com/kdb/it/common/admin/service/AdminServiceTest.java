@@ -54,7 +54,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AdminServiceTest {
 
-    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+    private record NameView(String eno, String usrNm, String ptCNm)
+            implements UserRepository.UserNameView {
+        /** 직위명이 검증 대상이 아닌 기존 케이스용 축약 생성자. */
+        private NameView(String eno, String usrNm) {
+            this(eno, usrNm, null);
+        }
+
         @Override
         public String getEno() {
             return eno;
@@ -63,6 +69,11 @@ class AdminServiceTest {
         @Override
         public String getUsrNm() {
             return usrNm;
+        }
+
+        @Override
+        public String getPtCNm() {
+            return ptCNm;
         }
     }
 
