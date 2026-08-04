@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -147,17 +148,28 @@ public class CouncilService {
         }
 
         if (userDetails.isInfoSecAdmin()) {
-            // 정보보호관리자(ITPAD002): 전체 부서 대상으로 조회하되,
-            // 미신청 사업(생성용)과 신청된 정보보호시스템 사업(dbrTc='04') 협의회만 표출. (PRD_c_20260620 #3)
+            // 정보보호관리자(ITPAD002): 전체 부서 대상으로 조회하되 다음만 표출한다.
+            //  1) 미신청 사업 중 '정보보호 소요자원(BITEMM.SECT_SYS_UTZ_YN='Y')' 보유 사업 —
+            //     타당성검토 신청 시 심의유형 '04(정보보호시스템)'가 드롭다운에 뜨는 것과 동일 조건(생성 대상). (PRD_c_20260803 #1)
+            //  2) 신청된 정보보호시스템(dbrTc='04') 협의회
+            //  3) 본인이 평가위원으로 배정된 협의회(심의유형 무관 — 정보시스템(03) 등 배정 건을 놓치지 않도록)
             List<CouncilProjectRow> rows =
                     councilRepository.findProjectRowsForCouncilAll(
                             PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
             Map<String, BigDecimal> budgetMap =
                     deriveCurrentYearBudgets(rows.stream().map(row -> row.abusMngNo()).toList());
+            Set<String> memberAsctIds =
+                    councilRepository.findByCommitteeMember(userDetails.getEno(), "N").stream()
+                            .map(Basctm::getItPtlAsctId)
+                            .collect(Collectors.toSet());
             List<CouncilDto.ListResponse> result =
                     rows.stream()
                             .map(row -> toListResponseFromRow(row, budgetMap))
-                            .filter(r -> !r.applied() || "04".equals(r.dbrTc()))
+                            .filter(
+                                    r ->
+                                            (!r.applied() && r.hasInfoSecResource())
+                                                    || "04".equals(r.dbrTc())
+                                                    || memberAsctIds.contains(r.asctId()))
                             .toList();
             log.debug("[CouncilList] infosec-admin filtered count={}", result.size());
             return result;

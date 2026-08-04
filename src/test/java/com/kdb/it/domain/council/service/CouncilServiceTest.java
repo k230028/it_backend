@@ -894,25 +894,64 @@ class CouncilServiceTest {
     }
 
     @Test
-    @DisplayName("getCouncilList: 정보보호관리자는 미신청 사업과 정보보호 심의만 조회한다")
+    @DisplayName("getCouncilList: 정보보호관리자는 정보보호 소요자원 있는 미신청 사업과 정보보호(04) 심의만 조회한다")
     void getCouncilList_정보보호관리자_허용범위필터() {
+        CustomUserDetails admin =
+                new CustomUserDetails("S001", List.of(CustomUserDetails.ATH_INFOSEC_ADMIN), "D001");
+        // 미신청은 '정보보호 소요자원 보유'(심의유형 04 노출 조건)일 때만 표출된다.
+        CouncilProjectRow notAppliedInfoSec = listRowWithAbusMngNo("PRJ-001", null); // 미신청+소요자원 → 표출
+        CouncilProjectRow notAppliedPlain = listRowWithAbusMngNo("PRJ-004", null); // 미신청+소요자원X → 제외
+        CouncilProjectRow infoSec = listRowWithAbusMngNo("PRJ-002", "ASCT-002"); // 신청 04 → 표출
+        CouncilProjectRow general = listRowWithAbusMngNo("PRJ-003", "ASCT-003"); // 신청 03 → 제외
+        notAppliedInfoSec = org.mockito.Mockito.spy(notAppliedInfoSec);
+        notAppliedPlain = org.mockito.Mockito.spy(notAppliedPlain);
+        infoSec = org.mockito.Mockito.spy(infoSec);
+        general = org.mockito.Mockito.spy(general);
+        org.mockito.Mockito.doReturn(false).when(notAppliedInfoSec).applied();
+        org.mockito.Mockito.doReturn(true).when(notAppliedInfoSec).hasInfoSecResource();
+        org.mockito.Mockito.doReturn(false).when(notAppliedPlain).applied();
+        org.mockito.Mockito.doReturn(false).when(notAppliedPlain).hasInfoSecResource();
+        org.mockito.Mockito.doReturn("04").when(infoSec).itPtlAsctDbrTc();
+        org.mockito.Mockito.doReturn("03").when(general).itPtlAsctDbrTc();
+        given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
+                .willReturn(List.of(notAppliedInfoSec, notAppliedPlain, infoSec, general));
+
+        List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
+
+        // 정보보호 소요자원 미신청(PRJ-001) + 신청 04(PRJ-002) = 2건. 소요자원 없는 미신청·신청 03은 제외.
+        assertThat(result).hasSize(2);
+        assertThat(result)
+                .extracting(CouncilDto.ListResponse::prjMngNo)
+                .containsExactlyInAnyOrder("PRJ-001", "PRJ-002");
+    }
+
+    @Test
+    @DisplayName("getCouncilList: 정보보호관리자 겸 평가위원은 배정된 정보시스템(03) 협의회도 조회한다")
+    void getCouncilList_정보보호관리자_평가위원배정건_심의유형무관표출() {
         CustomUserDetails admin =
                 new CustomUserDetails("S001", List.of(CustomUserDetails.ATH_INFOSEC_ADMIN), "D001");
         CouncilProjectRow notApplied = listRowWithAbusMngNo("PRJ-001", null);
         CouncilProjectRow infoSec = listRowWithAbusMngNo("PRJ-002", "ASCT-002");
         CouncilProjectRow general = listRowWithAbusMngNo("PRJ-003", "ASCT-003");
-        // 적용된 행의 심의유형을 필터에서 구분하도록 native row mock의 접근값을 지정한다.
+        notApplied = org.mockito.Mockito.spy(notApplied);
         infoSec = org.mockito.Mockito.spy(infoSec);
         general = org.mockito.Mockito.spy(general);
-        notApplied = org.mockito.Mockito.spy(notApplied);
         org.mockito.Mockito.doReturn(false).when(notApplied).applied();
+        org.mockito.Mockito.doReturn(true).when(notApplied).hasInfoSecResource();
         org.mockito.Mockito.doReturn("04").when(infoSec).itPtlAsctDbrTc();
         org.mockito.Mockito.doReturn("03").when(general).itPtlAsctDbrTc();
         given(councilRepository.findProjectRowsForCouncilAll(anyString(), anyString()))
                 .willReturn(List.of(notApplied, infoSec, general));
+        // 본인이 평가위원으로 배정된 정보시스템(03) 협의회 — 심의유형과 무관하게 표출되어야 함
+        Basctm memberCouncil = mock(Basctm.class);
+        given(memberCouncil.getItPtlAsctId()).willReturn("ASCT-003");
+        given(councilRepository.findByCommitteeMember("S001", "N"))
+                .willReturn(List.of(memberCouncil));
 
         List<CouncilDto.ListResponse> result = councilService.getCouncilList(admin);
 
-        assertThat(result).hasSize(2);
+        // 정보보호 소요자원 미신청(PRJ-001) + 정보보호(04) + 평가위원 배정 정보시스템(03) = 3건
+        assertThat(result).hasSize(3);
+        assertThat(result).extracting(CouncilDto.ListResponse::asctId).contains("ASCT-003");
     }
 }
