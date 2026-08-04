@@ -21,7 +21,7 @@ public class AdminRouteService {
     private final CmenumRepository cmenumRepository;
 
     /**
-     * LNK 메뉴 생성 시 선택 가능한 사용 중 라우트 목록을 조회한다.
+     * PGE 메뉴 생성 시 선택 가능한 사용 중 라우트 목록을 조회한다.
      *
      * @return useYn='Y'이고 삭제되지 않은 라우트 카탈로그
      */

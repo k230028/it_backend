@@ -183,7 +183,7 @@ class AdminRouteServiceTest {
                 Cmenum.builder()
                         .mnuId("M1")
                         .mnuNm("예산목록")
-                        .mnuTpC("LNK")
+                        .mnuTpC("PGE")
                         .srePth("/budget/list")
                         .mnuSotSqnSno(10)
                         .hidYn("N")

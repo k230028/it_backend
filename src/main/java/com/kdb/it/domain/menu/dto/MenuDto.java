@@ -24,7 +24,7 @@ public class MenuDto {
         private String mnuId;
         private String hrkMnuId;
         private String mnuNm;
-        private String mnuTpC; // LNK / GRP / DYN
+        private String mnuTpC; // GRP / LNK / PGE
         private String srePth;
         private Integer mnuSotSqnSno;
         private String hidYn;
@@ -49,13 +49,13 @@ public class MenuDto {
         private String mnuNm;
 
         @NotBlank
-        @Schema(description = "메뉴유형코드 LNK/GRP/DYN/HED")
+        @Schema(description = "메뉴유형코드 GRP/LNK/PGE")
         private String mnuTpC;
 
         @Schema(description = "상위메뉴ID(루트면 null)")
         private String hrkMnuId;
 
-        @Schema(description = "화면경로(LNK 필수)")
+        @Schema(description = "화면경로(PGE 필수)")
         private String srePth;
 
         @Schema(description = "숨김여부 Y/N")
