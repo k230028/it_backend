@@ -454,6 +454,10 @@ public class CostDto {
         @Schema(description = "담당자명")
         private String cgprNm;
 
+        /** 담당자 직위명: cgprId(사번) 기준 TPRMPP_CUSERI에서 PT_C_NM 조회 */
+        @Schema(description = "담당자 직위명")
+        private String cgprPtCNm;
+
         /** 자본예산: ioeC(비목코드)가 공통코드 코드값구분 IOE_CPIT에 해당하면 costTotXpAmt, 아니면 0 */
         @Schema(description = "자본예산")
         private java.math.BigDecimal assetBg;

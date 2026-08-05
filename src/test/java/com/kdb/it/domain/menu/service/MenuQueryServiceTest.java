@@ -44,13 +44,13 @@ class MenuQueryServiceTest {
 
     @Test
     void buildsTree_andFiltersByRole_pruningEmptyGroups() {
-        // GRP 'G' (admin-only) with one LNK child 'C'; and public LNK 'P'
+        // GRP 'G' (admin-only) with one PGE child 'C'; and public PGE 'P'
         given(cmenumRepository.findAllActive())
                 .willReturn(
                         List.of(
                                 node("G", null, "GRP", 1, "/G"),
-                                node("C", "G", "LNK", 2, "/G/C"),
-                                node("P", null, "LNK", 1, "/P")));
+                                node("C", "G", "PGE", 2, "/G/C"),
+                                node("P", null, "PGE", 1, "/P")));
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of("G", Set.of("ITPAD001")));
 
         // non-admin user: only 'P' visible (G+C pruned because G requires ITPAD001)
@@ -72,7 +72,7 @@ class MenuQueryServiceTest {
         // 사용자 트리도 노드별 athIds를 실어야 사이드바/헤더가 관리자(왕관) 메뉴를 표시할 수 있다.
         given(cmenumRepository.findAllActive())
                 .willReturn(
-                        List.of(node("A", null, "LNK", 1, "/A"), node("P", null, "LNK", 1, "/P")));
+                        List.of(node("A", null, "PGE", 1, "/A"), node("P", null, "PGE", 1, "/P")));
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of("A", Set.of("ITPAD001")));
 
         List<MenuDto.Node> tree = service.getMenuTree(List.of("ITPAD001"));
@@ -89,7 +89,7 @@ class MenuQueryServiceTest {
     @Test
     void adminTree_returnsEverything_withoutPruning() {
         given(cmenumRepository.findAllActive())
-                .willReturn(List.of(node("H", null, "LNK", 1, "/H")));
+                .willReturn(List.of(node("H", null, "PGE", 1, "/H")));
         // 관리 트리는 가지치기 없이 전체를 반환하고, 편집 폼용으로 노드별 athIds를 함께 싣는다.
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of("H", Set.of("ITPAD001")));
         List<MenuDto.Node> all = service.getAdminMenuTree();
@@ -99,20 +99,20 @@ class MenuQueryServiceTest {
     }
 
     @Test
-    void dynNode_getsChildrenFromMatchingResolver() {
-        Cmenum dyn =
+    void registeredNode_getsChildrenFromMatchingResolver() {
+        Cmenum dynamicGroup =
                 Cmenum.builder()
                         .mnuId("MBRD0001")
                         .hrkMnuId(null)
                         .mnuNm("게시판")
-                        .mnuTpC("DYN")
+                        .mnuTpC("GRP")
                         .mnuSotSqnSno(10)
                         .hidYn("N")
                         .mnuDep(1)
                         .whlMnuPth("/MBRD0001")
                         .delYn("N")
                         .build();
-        given(cmenumRepository.findAllActive()).willReturn(List.of(dyn));
+        given(cmenumRepository.findAllActive()).willReturn(List.of(dynamicGroup));
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
 
         MenuChildrenResolver fake =
@@ -128,7 +128,7 @@ class MenuQueryServiceTest {
                                 MenuDto.Node.builder()
                                         .mnuId("MBRD-B1")
                                         .mnuNm("공지")
-                                        .mnuTpC("LNK")
+                                        .mnuTpC("PGE")
                                         .srePth("/board/BLBM-0001")
                                         .children(List.of())
                                         .build());
@@ -145,22 +145,22 @@ class MenuQueryServiceTest {
     }
 
     @Test
-    void hedHeader_isPruned_whenAllChildrenUnauthorized_butKept_whenPlaceholderVisible() {
-        // 관리자 헤더 H1: admin 전용 자식 A. CDP 헤더 H2: 공개 플레이스홀더 P.
+    void rootGroup_isPruned_whenAllChildrenUnauthorized_butKept_whenPlaceholderVisible() {
+        // 관리자 그룹 H1: admin 전용 자식 A. CDP 그룹 H2: 공개 플레이스홀더 P.
         given(cmenumRepository.findAllActive())
                 .willReturn(
                         List.of(
-                                node("H1", null, "HED", 1, "/H1"),
-                                node("A", "H1", "LNK", 2, "/H1/A"),
-                                node("H2", null, "HED", 1, "/H2"),
-                                node("P", "H2", "LNK", 2, "/H2/P")));
+                                node("H1", null, "GRP", 1, "/H1"),
+                                node("A", "H1", "PGE", 2, "/H1/A"),
+                                node("H2", null, "GRP", 1, "/H2"),
+                                node("P", "H2", "PGE", 2, "/H2/P")));
         given(menuAuthMapProvider.getMenuAuthMap())
                 .willReturn(
                         Map.of(
                                 "H1", Set.of("ITPAD001"),
                                 "A", Set.of("ITPAD001")));
 
-        // 비관리자: H1(관리자 헤더) 숨김, H2(CDP)는 플레이스홀더 P 덕분에 유지
+        // 비관리자: H1(관리자 그룹) 숨김, H2(CDP)는 플레이스홀더 P 덕분에 유지
         List<MenuDto.Node> userTree = service.getMenuTree(List.of("ITPZZ001"));
         assertThat(userTree).extracting(value -> value.getMnuId()).containsExactly("H2");
 
@@ -169,5 +169,20 @@ class MenuQueryServiceTest {
         assertThat(adminTree)
                 .extracting(value -> value.getMnuId())
                 .containsExactlyInAnyOrder("H1", "H2");
+    }
+
+    @Test
+    void grpWithoutResolver_isNotExpanded() {
+        Cmenum grp = node("G1", null, "GRP", 1, "/G1");
+        Cmenum child = node("C1", "G1", "PGE", 2, "/G1/C1");
+        given(cmenumRepository.findAllActive()).willReturn(List.of(grp, child));
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
+
+        List<MenuDto.Node> tree = service.getMenuTree(List.of("ITPZZ001"));
+
+        assertThat(tree).extracting(MenuDto.Node::getMnuId).containsExactly("G1");
+        assertThat(tree.get(0).getChildren())
+                .extracting(MenuDto.Node::getMnuId)
+                .containsExactly("C1");
     }
 }

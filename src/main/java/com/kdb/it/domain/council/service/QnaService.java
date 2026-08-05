@@ -177,13 +177,13 @@ public class QnaService {
                     council == null
                             ? null
                             : projectRepository
-                                    .findByAbusMngNoAndLstYnAndDelYn(council.getAbusMngNo(), "Y", "N")
+                                    .findByAbusMngNoAndLstYnAndDelYn(
+                                            council.getAbusMngNo(), "Y", "N")
                                     .map(project -> project.getSvnDpmC())
                                     .orElse(null);
             String bbrC = userDetails.getBbrC();
             if (svnDpm != null && bbrC != null && !svnDpm.equals(bbrC)) {
-                throw new AccessDeniedException(
-                        "답변은 사업 주관부서 담당자 또는 IT관리자만 등록할 수 있습니다.");
+                throw new AccessDeniedException("답변은 사업 주관부서 담당자 또는 IT관리자만 등록할 수 있습니다.");
             }
         }
 

@@ -917,6 +917,7 @@ public class ProjectService {
         Set<String> rprStsCodes = new java.util.HashSet<>();
         Set<String> exePossibleCodes = new java.util.HashSet<>();
         Set<String> abusCodes = new java.util.HashSet<>();
+        Set<String> edrtCodes = new java.util.HashSet<>();
         for (ProjectDto.Response response : responses) {
             addNonBlank(orgCodes, response.getDvmDpmC());
             addNonBlank(orgCodes, response.getSvnDpmC());
@@ -927,6 +928,7 @@ public class ProjectService {
             addNonBlank(rprStsCodes, response.getRprStsTc());
             addNonBlank(exePossibleCodes, response.getExePttYn());
             addNonBlank(abusCodes, response.getAbusTc());
+            addNonBlank(edrtCodes, response.getEdrtTc());
         }
         Map<String, String> orgNameMap =
                 corgnIRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
@@ -934,17 +936,22 @@ public class ProjectService {
                                 Collectors.toMap(
                                         value -> value.getPrlmOgzCCone(),
                                         value -> value.getBbrNm()));
+        List<com.kdb.it.common.iam.repository.UserRepository.UserNameView> userNameViews =
+                cuserIRepository.findNameViewsByEnoIn(userEnos);
         Map<String, String> userNameMap =
-                cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
+                userNameViews.stream()
                         .collect(
                                 Collectors.toMap(
                                         value -> value.getEno(), value -> value.getUsrNm()));
+        Map<String, String> userPositionMap = toUserPositionMap(userNameViews);
         Map<String, String> rprStsNameMap =
                 codeNameMapBuilder.build(CommonCodeGroups.REPORT_STS, rprStsCodes);
         Map<String, String> exePossibleNameMap =
                 codeNameMapBuilder.build(CommonCodeGroups.EXE_POSSIBLE, exePossibleCodes);
         Map<String, String> abusNameMap =
                 codeNameMapBuilder.build(CommonCodeGroups.ABUS, abusCodes);
+        Map<String, String> edrtNameMap =
+                codeNameMapBuilder.build(CommonCodeGroups.EDRT, edrtCodes);
 
         List<ProjectDto.BitemmDto> allItemDtos = new ArrayList<>();
         for (int index = 0; index < projects.size(); index++) {
@@ -973,13 +980,22 @@ public class ProjectService {
             if (project.getSvnDpmNm() != null) response.setSvnDpmCNm(project.getSvnDpmNm());
             else if (response.getSvnDpmC() != null)
                 response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC()));
-            if (response.getDvmUsid() != null)
+            if (response.getDvmUsid() != null) {
                 response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
-            if (response.getTlrUsid() != null)
+                response.setDvmUsidPtCNm(userPositionMap.get(response.getDvmUsid()));
+            }
+            if (response.getTlrUsid() != null) {
                 response.setTlrUsidNm(userNameMap.get(response.getTlrUsid()));
-            if (response.getUsid() != null) response.setUsidNm(userNameMap.get(response.getUsid()));
-            if (response.getDvmTlrUsid() != null)
+                response.setTlrUsidPtCNm(userPositionMap.get(response.getTlrUsid()));
+            }
+            if (response.getUsid() != null) {
+                response.setUsidNm(userNameMap.get(response.getUsid()));
+                response.setUsidPtCNm(userPositionMap.get(response.getUsid()));
+            }
+            if (response.getDvmTlrUsid() != null) {
                 response.setDvmTlrUsidNm(userNameMap.get(response.getDvmTlrUsid()));
+                response.setDvmTlrUsidPtCNm(userPositionMap.get(response.getDvmTlrUsid()));
+            }
             response.setBzTpCNm(response.getBzTpC());
             response.setBzDttNmNm(response.getBzDttNm());
             response.setSklTpTcNm(response.getSklTpTc());
@@ -990,6 +1006,8 @@ public class ProjectService {
                 response.setExePttYnNm(exePossibleNameMap.get(response.getExePttYn()));
             if (response.getAbusTc() != null)
                 response.setAbusTcNm(abusNameMap.get(response.getAbusTc()));
+            if (response.getEdrtTc() != null)
+                response.setEdrtTcNm(edrtNameMap.get(response.getEdrtTc()));
 
             List<com.kdb.it.domain.budget.project.entity.Bproja> bprojaRows =
                     bprojaByPrj.getOrDefault(project.getAbusMngNo(), List.of());
@@ -1017,6 +1035,25 @@ public class ProjectService {
         if (value != null && !value.isBlank()) {
             values.add(value);
         }
+    }
+
+    /**
+     * 사번 → 직위명 맵 생성.
+     *
+     * <p>직위명이 비어 있는 사용자는 Collectors.toMap의 null 값 제약 때문에 맵에서 제외합니다(조회 결과는 null).
+     *
+     * @param views 사번·이름·직위명 프로젝션 목록
+     * @return 직위명이 있는 사용자만 담은 사번 기준 맵
+     */
+    private static Map<String, String> toUserPositionMap(
+            List<com.kdb.it.common.iam.repository.UserRepository.UserNameView> views) {
+        Map<String, String> positions = new java.util.HashMap<>();
+        for (com.kdb.it.common.iam.repository.UserRepository.UserNameView view : views) {
+            if (view.getPtCNm() != null && !view.getPtCNm().isBlank()) {
+                positions.put(view.getEno(), view.getPtCNm());
+            }
+        }
+        return positions;
     }
 
     /**
@@ -1096,11 +1133,14 @@ public class ProjectService {
                                 Collectors.toMap(
                                         value -> value.getPrlmOgzCCone(),
                                         value -> value.getBbrNm()));
+        List<com.kdb.it.common.iam.repository.UserRepository.UserNameView> userNameViews =
+                cuserIRepository.findNameViewsByEnoIn(userEnos);
         Map<String, String> userNameMap =
-                cuserIRepository.findNameViewsByEnoIn(userEnos).stream()
+                userNameViews.stream()
                         .collect(
                                 Collectors.toMap(
                                         value -> value.getEno(), value -> value.getUsrNm()));
+        Map<String, String> userPositionMap = toUserPositionMap(userNameViews);
         Map<String, String> rprStsNameMap =
                 rprStsCdvas.isEmpty()
                         ? Map.of()
@@ -1177,13 +1217,22 @@ public class ProjectService {
                 response.setSvnDpmCNm(project.getSvnDpmNm()); // 저장 스냅샷 우선
             else if (response.getSvnDpmC() != null)
                 response.setSvnDpmCNm(orgNameMap.get(response.getSvnDpmC())); // 구데이터 폴백
-            if (response.getDvmUsid() != null)
+            if (response.getDvmUsid() != null) {
                 response.setDvmUsidNm(userNameMap.get(response.getDvmUsid()));
-            if (response.getTlrUsid() != null)
+                response.setDvmUsidPtCNm(userPositionMap.get(response.getDvmUsid()));
+            }
+            if (response.getTlrUsid() != null) {
                 response.setTlrUsidNm(userNameMap.get(response.getTlrUsid()));
-            if (response.getUsid() != null) response.setUsidNm(userNameMap.get(response.getUsid()));
-            if (response.getDvmTlrUsid() != null)
+                response.setTlrUsidPtCNm(userPositionMap.get(response.getTlrUsid()));
+            }
+            if (response.getUsid() != null) {
+                response.setUsidNm(userNameMap.get(response.getUsid()));
+                response.setUsidPtCNm(userPositionMap.get(response.getUsid()));
+            }
+            if (response.getDvmTlrUsid() != null) {
                 response.setDvmTlrUsidNm(userNameMap.get(response.getDvmTlrUsid()));
+                response.setDvmTlrUsidPtCNm(userPositionMap.get(response.getDvmTlrUsid()));
+            }
             // 사업유형/업무구분/기술분야/고객유형: 컬럼값이 곧 코드값명 → 원본값 그대로 사용
             response.setBzTpCNm(response.getBzTpC());
             response.setBzDttNmNm(response.getBzDttNm());
@@ -1310,28 +1359,44 @@ public class ProjectService {
         if (response.getDvmUsid() != null && !response.getDvmUsid().isEmpty()) {
             cuserIRepository
                     .findNameViewByEno(response.getDvmUsid())
-                    .ifPresent(user -> response.setDvmUsidNm(user.getUsrNm()));
+                    .ifPresent(
+                            user -> {
+                                response.setDvmUsidNm(user.getUsrNm());
+                                response.setDvmUsidPtCNm(user.getPtCNm());
+                            });
         }
 
         // 주관부서담당팀장 사번 → 주관부서담당팀장명
         if (response.getTlrUsid() != null && !response.getTlrUsid().isEmpty()) {
             cuserIRepository
                     .findNameViewByEno(response.getTlrUsid())
-                    .ifPresent(user -> response.setTlrUsidNm(user.getUsrNm()));
+                    .ifPresent(
+                            user -> {
+                                response.setTlrUsidNm(user.getUsrNm());
+                                response.setTlrUsidPtCNm(user.getPtCNm());
+                            });
         }
 
         // 주관부서담당자 사번 → 주관부서담당자명
         if (response.getUsid() != null && !response.getUsid().isEmpty()) {
             cuserIRepository
                     .findNameViewByEno(response.getUsid())
-                    .ifPresent(user -> response.setUsidNm(user.getUsrNm()));
+                    .ifPresent(
+                            user -> {
+                                response.setUsidNm(user.getUsrNm());
+                                response.setUsidPtCNm(user.getPtCNm());
+                            });
         }
 
         // IT부서담당팀장 사번 → IT부서담당팀장명
         if (response.getDvmTlrUsid() != null && !response.getDvmTlrUsid().isEmpty()) {
             cuserIRepository
                     .findNameViewByEno(response.getDvmTlrUsid())
-                    .ifPresent(user -> response.setDvmTlrUsidNm(user.getUsrNm()));
+                    .ifPresent(
+                            user -> {
+                                response.setDvmTlrUsidNm(user.getUsrNm());
+                                response.setDvmTlrUsidPtCNm(user.getPtCNm());
+                            });
         }
 
         // === 공통코드 코드값 → 코드명 변환 (TPRMPP_CCODEM) ===
@@ -1358,6 +1423,12 @@ public class ProjectService {
                     .findByCIdAndCdvaWithValidDate(
                             CommonCodeGroups.ABUS, response.getAbusTc(), null)
                     .ifPresent(code -> response.setAbusTcNm(code.getCdvaNm()));
+        }
+        if (response.getEdrtTc() != null && !response.getEdrtTc().isEmpty()) {
+            ccodemRepository
+                    .findByCIdAndCdvaWithValidDate(
+                            CommonCodeGroups.EDRT, response.getEdrtTc(), null)
+                    .ifPresent(code -> response.setEdrtTcNm(code.getCdvaNm()));
         }
     }
 

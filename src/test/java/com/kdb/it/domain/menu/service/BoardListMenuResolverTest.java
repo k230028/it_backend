@@ -17,7 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 /**
  * BoardListMenuResolver 단위 테스트
  *
- * <p>DYN 게시판 노드(MBRD0001)의 children을 게시판 목록으로 변환하는 로직을 검증한다.
+ * <p>게시판 동적 노드(MBRD0001)의 children을 게시판 목록으로 변환하는 로직을 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
 class BoardListMenuResolverTest {
@@ -52,7 +52,7 @@ class BoardListMenuResolverTest {
     }
 
     @Test
-    @DisplayName("resolveChildren: 게시판 목록을 LNK 노드로 변환한다")
+    @DisplayName("resolveChildren: 게시판 목록을 PGE 노드로 변환한다")
     void resolveChildren_게시판목록_노드변환() {
         // given
         given(boardMetaService.getAllActive())
@@ -68,7 +68,7 @@ class BoardListMenuResolverTest {
         assertThat(first.getMnuId()).isEqualTo("MBRD-BLB-2026-0001");
         assertThat(first.getHrkMnuId()).isEqualTo("MBRD0001");
         assertThat(first.getMnuNm()).isEqualTo("공지사항");
-        assertThat(first.getMnuTpC()).isEqualTo("LNK");
+        assertThat(first.getMnuTpC()).isEqualTo("PGE");
         assertThat(first.getSrePth()).isEqualTo("/board/BLB-2026-0001");
         assertThat(first.getMnuDep()).isEqualTo(3);
         assertThat(first.getWhlMnuPth()).isEqualTo("/MHED0006/MBRD0001/MBRD-BLB-2026-0001");

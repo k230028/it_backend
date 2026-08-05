@@ -31,6 +31,9 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
         String getEno();
 
         String getUsrNm();
+
+        /** 직위코드명 (예: "차장"). 미등록 사용자는 null입니다. */
+        String getPtCNm();
     }
 
     /** 검토의견 작성자 응답에 필요한 사용자 프로젝션입니다. */
