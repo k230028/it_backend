@@ -386,20 +386,32 @@ class ProjectQueryAssemblerTest {
                 Bprojm.builder()
                         .abusMngNo(projectId)
                         .sno(1)
-                        .svnDpmNm("주관부서 스냅샷")
+                        .dvmDpmC("D001")
+                        .svnDpmC("D002")
+                        .dvmUsid("10001")
+                        .dvmTlrUsid("10002")
+                        .usid("10003")
+                        .tlrUsid("10004")
+                        .rprStsTc("R1")
+                        .exePttYn("Y")
+                        .abusTc("A1")
+                        .edrtTc("E1")
                         .delYn("N")
                         .build();
-        ApplicationMapView applicationMap = new ApplicationMapView("APF-PARITY", projectId, 1);
-        ApplicationSummaryView application =
+        ApplicationMapView latestApplicationMap =
+                new ApplicationMapView("APF-PARITY-LATEST", projectId, 1);
+        ApplicationMapView olderApplicationMap =
+                new ApplicationMapView("APF-PARITY-OLDER", projectId, 1);
+        ApplicationSummaryView latestApplication =
                 new ApplicationSummaryView(
-                        "APF-PARITY",
+                        "APF-PARITY-LATEST",
                         ApprovalStatus.IN_PROGRESS.code(),
-                        "동등성 결재",
+                        "최신 동등성 결재",
                         "10001",
                         LocalDate.of(2026, 8, 5),
                         "동등성 검증");
         ApproverReadView approver =
-                new ApproverReadView("APF-PARITY", 1, "20001", "2", null, "승인", "Y");
+                new ApproverReadView("APF-PARITY-LATEST", 1, "20001", "2", null, "승인", "Y");
         Bproja status =
                 Bproja.builder().abusMngNo(projectId).cncdRfrNo("STEP-1").stsTc("09").build();
         Bitemm item =
@@ -416,18 +428,18 @@ class ProjectQueryAssemblerTest {
                         applicationMapRepository
                                 .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                         "BPROJM", projectId, 1))
-                .willReturn(List.of(applicationMap));
+                .willReturn(List.of(latestApplicationMap, olderApplicationMap));
         given(
                         applicationMapRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                                 "BPROJM", List.of(projectId)))
-                .willReturn(List.of(applicationMap));
-        given(applicationRepository.findSummaryViewsByApfMngNoIn(List.of("APF-PARITY")))
-                .willReturn(List.of(application));
-        given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-PARITY"))
+                .willReturn(List.of(latestApplicationMap, olderApplicationMap));
+        given(applicationRepository.findSummaryViewsByApfMngNoIn(List.of("APF-PARITY-LATEST")))
+                .willReturn(List.of(latestApplication));
+        given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-PARITY-LATEST"))
                 .willReturn(List.of(approver));
         given(
                         approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(
-                                List.of("APF-PARITY")))
+                                List.of("APF-PARITY-LATEST")))
                 .willReturn(List.of(approver));
         given(bprojaRepository.findByAbusMngNoAndDelYn(projectId, "N")).willReturn(List.of(status));
         given(bprojaRepository.findByAbusMngNoInAndDelYn(List.of(projectId), "N"))
@@ -446,9 +458,32 @@ class ProjectQueryAssemblerTest {
                                         BigDecimal.valueOf(100),
                                         BigDecimal.valueOf(30))));
         given(projectRepository.findBizplanScheduleRange(List.of(projectId))).willReturn(List.of());
+        given(organizationRepository.findNameViewByPrlmOgzCCone("D001"))
+                .willReturn(Optional.of(new OrgNameView("D001", "IT부")));
+        given(organizationRepository.findNameViewByPrlmOgzCCone("D002"))
+                .willReturn(Optional.of(new OrgNameView("D002", "현업부")));
         given(organizationRepository.findNameViewsByPrlmOgzCConeIn(anyCollection()))
-                .willReturn(List.of());
-        given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
+                .willReturn(
+                        List.of(new OrgNameView("D001", "IT부"), new OrgNameView("D002", "현업부")));
+        given(userRepository.findNameViewByEno("10001"))
+                .willReturn(Optional.of(new UserNameView("10001", "IT담당", "차장")));
+        given(userRepository.findNameViewByEno("10002"))
+                .willReturn(Optional.of(new UserNameView("10002", "IT팀장", "팀장")));
+        given(userRepository.findNameViewByEno("10003"))
+                .willReturn(Optional.of(new UserNameView("10003", "현업담당", "대리")));
+        given(userRepository.findNameViewByEno("10004"))
+                .willReturn(Optional.of(new UserNameView("10004", "현업팀장", "부장")));
+        given(userRepository.findNameViewsByEnoIn(anyCollection()))
+                .willReturn(
+                        List.of(
+                                new UserNameView("10001", "IT담당", "차장"),
+                                new UserNameView("10002", "IT팀장", "팀장"),
+                                new UserNameView("10003", "현업담당", "대리"),
+                                new UserNameView("10004", "현업팀장", "부장")));
+        stubCodeName(CommonCodeGroups.REPORT_STS, "R1", "보고완료");
+        stubCodeName(CommonCodeGroups.EXE_POSSIBLE, "Y", "실행가능");
+        stubCodeName(CommonCodeGroups.ABUS, "A1", "신규사업");
+        stubCodeName(CommonCodeGroups.EDRT, "E1", "편집대상");
         stubIoeCode();
 
         ProjectDto.Response detail = assembler.assembleDetail(project);
@@ -458,12 +493,27 @@ class ProjectQueryAssemblerTest {
         assertThat(List.of(list, bulk))
                 .allSatisfy(
                         result -> {
-                            assertThat(result.getApfMngNo()).isEqualTo(detail.getApfMngNo());
+                            assertThat(result.getApfMngNo()).isEqualTo("APF-PARITY-LATEST");
                             assertThat(result.getApfSts()).isEqualTo(detail.getApfSts());
+                            assertThat(result.getApplicationInfo().getApfNm())
+                                    .isEqualTo("최신 동등성 결재");
                             assertThat(result.getApplicationInfo().getApprovers())
                                     .extracting(value -> value.getDcdEno())
                                     .containsExactly("20001");
-                            assertThat(result.getSvnDpmCNm()).isEqualTo("주관부서 스냅샷");
+                            assertThat(result.getDvmDpmCNm()).isEqualTo("IT부");
+                            assertThat(result.getSvnDpmCNm()).isEqualTo("현업부");
+                            assertThat(result.getDvmUsidNm()).isEqualTo("IT담당");
+                            assertThat(result.getDvmUsidPtCNm()).isEqualTo("차장");
+                            assertThat(result.getDvmTlrUsidNm()).isEqualTo("IT팀장");
+                            assertThat(result.getDvmTlrUsidPtCNm()).isEqualTo("팀장");
+                            assertThat(result.getUsidNm()).isEqualTo("현업담당");
+                            assertThat(result.getUsidPtCNm()).isEqualTo("대리");
+                            assertThat(result.getTlrUsidNm()).isEqualTo("현업팀장");
+                            assertThat(result.getTlrUsidPtCNm()).isEqualTo("부장");
+                            assertThat(result.getRprStsTcNm()).isEqualTo("보고완료");
+                            assertThat(result.getExePttYnNm()).isEqualTo("실행가능");
+                            assertThat(result.getAbusTcNm()).isEqualTo("신규사업");
+                            assertThat(result.getEdrtTcNm()).isEqualTo("편집대상");
                             assertThat(result.getStsTc()).isEqualTo(detail.getStsTc());
                             assertThat(result.getItems())
                                     .extracting(ProjectDto.BitemmDto::getGclNm)
@@ -477,9 +527,10 @@ class ProjectQueryAssemblerTest {
     }
 
     private void stubCodeName(String group, String value, String name) {
+        Ccodem code = Ccodem.builder().cId(group).cdva(value).cdvaNm(name).build();
         given(codeRepository.findByCIdAndCdvaWithValidDate(group, value, null))
-                .willReturn(
-                        Optional.of(Ccodem.builder().cId(group).cdva(value).cdvaNm(name).build()));
+                .willReturn(Optional.of(code));
+        given(codeRepository.findByCIdWithValidDate(group, null)).willReturn(List.of(code));
     }
 
     private void stubIoeCode() {
