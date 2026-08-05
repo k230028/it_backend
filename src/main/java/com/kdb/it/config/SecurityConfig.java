@@ -46,6 +46,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * <ul>
  *   <li>{@code POST /api/auth/login}: 로그인
  *   <li>{@code POST /api/auth/refresh}: 토큰 갱신
+ *   <li>{@code POST /api/auth/logout}: 로그아웃 — Refresh 쿠키로 소유자를 확인하므로 Access 인증이 만료된 뒤에도 폐기가 가능해야 한다
  *   <li>OpenAPI가 활성화된 프로파일의 {@code /swagger-ui/**}, {@code /v3/api-docs/**}: API 문서
  * </ul>
  */
@@ -141,6 +142,13 @@ public class SecurityConfig {
                                     .requestMatchers(
                                             "/api/auth/login",
                                             "/api/auth/refresh",
+                                            // 로그아웃 — Access Token이 이미 만료·삭제된 상태에서만 호출되는
+                                            // 정리 API다. 인증을 요구하면 정작 필요한 순간에 401이 되어
+                                            // 서버 패밀리가 남고 401 로그만 반복된다. 소유자 확인은
+                                            // AuthController#logout이 Refresh 쿠키 값으로 수행하며,
+                                            // 쿠키가 없으면 아무것도 폐기하지 않는다(무자격 폐기 불가).
+                                            // 쿠키는 SameSite=Lax이므로 교차 사이트 POST에는 실리지 않는다.
+                                            "/api/auth/logout",
                                             "/error",
                                             // 브라우저 기본 요청 — 인증 불필요(인증 실패 WARN 로그 노이즈 제거)
                                             "/favicon.ico",
