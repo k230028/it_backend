@@ -5,11 +5,11 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
-import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
@@ -351,25 +351,17 @@ public class CouncilService {
             throw new IllegalStateException("평가위원이 선정되지 않았습니다.");
         }
 
-        // 미완료 평가자 수 집계 — 심의유형에 따라 평가 저장소가 다르다.
         long incompleteCount;
         if ("02".equals(council.getItPtlAsctDbrTc())) {
-            // 계획협의회(dbrTc='02')는 6항목(BEVALM)이 아니라 사업별 적정/유보(BPLEVM)로 평가한다.
-            // PlanPprtForm이 대상 사업을 일괄 제출하므로 위원이 한 건이라도 제출했으면 완료로 본다(사업 수 가변 대응).
+            // 계획협의회는 사업별 적정/유보를 일괄 제출하므로 위원이 한 건이라도 제출했으면 완료로 본다.
             Set<String> submittedEnos =
                     planEvaluationRepository.findByItPtlAsctIdAndDelYn(asctId, "N").stream()
                             .map(Bplevm::getEno)
                             .collect(Collectors.toSet());
             incompleteCount =
-                    evaluators.stream()
-                            .filter(m -> !submittedEnos.contains(m.getEno()))
-                            .count();
+                    evaluators.stream().filter(m -> !submittedEnos.contains(m.getEno())).count();
         } else {
-            // 사업 협의회(03/04): 평가자별 6개 항목(BEVALM) 제출 여부로 판정.
-            // 제출 항목 수를 협의회ID당 1회 GROUP BY로 일괄 집계 (#4 N+1 제거).
-            // 행별 findByItPtlAsctIdAndEnoAndDelYn 루프를 단일 배치 COUNT로 대체한다.
-            // GROUP BY e.eno이므로 eno는 본래 유일하지만, 데이터 이상으로 중복 키가 들어와도
-            // 합산 병합으로 IllegalStateException 없이 부분 카운트를 합산한다(방어적).
+            // 협의회별 GROUP BY 집계로 N+1을 막고, 데이터 이상으로 중복 키가 있어도 합산한다.
             Map<String, Long> submitCountByEno =
                     evaluationRepository.countByEnoForCouncil(asctId, "N").stream()
                             .collect(
