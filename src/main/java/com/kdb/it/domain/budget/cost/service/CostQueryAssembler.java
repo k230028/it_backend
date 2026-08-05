@@ -71,6 +71,11 @@ public class CostQueryAssembler {
      * @return 입력 순서와 같은 응답 목록
      */
     public List<CostDto.Response> assembleList(List<Bcostm> costs) {
+        return assembleBatch(costs, TerminalPolicy.LIST);
+    }
+
+    private List<CostDto.Response> assembleBatch(
+            List<Bcostm> costs, TerminalPolicy terminalPolicy) {
         List<CostDto.Response> responses =
                 costs.stream().map(CostDto.Response::fromEntity).toList();
         if (costs.isEmpty()) {
@@ -80,7 +85,11 @@ public class CostQueryAssembler {
         for (int index = 0; index < costs.size(); index++) {
             applyBatch(costs.get(index), responses.get(index), data);
         }
-        terminalAssembler.attachBatch(costs, responses);
+        if (terminalPolicy == TerminalPolicy.LIST) {
+            terminalAssembler.attachList(costs, responses);
+        } else {
+            terminalAssembler.attachBulk(costs, responses);
+        }
         applyPreviousBudgets(responses);
         return responses;
     }
@@ -93,7 +102,7 @@ public class CostQueryAssembler {
      * @return 입력 순서와 같은 상세 응답 목록
      */
     public List<CostDto.Response> assembleBulk(List<Bcostm> costs, String budgetYear) {
-        List<CostDto.Response> responses = assembleList(costs);
+        List<CostDto.Response> responses = assembleBatch(costs, TerminalPolicy.BULK);
         applyComposedBudgets(responses, budgetYear);
         return responses;
     }
@@ -510,4 +519,9 @@ public class CostQueryAssembler {
             Map<String, String> terminalNames,
             Map<String, String> businessNames,
             Map<String, String> itemNames) {}
+
+    private enum TerminalPolicy {
+        LIST,
+        BULK
+    }
 }

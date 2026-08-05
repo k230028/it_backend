@@ -47,13 +47,26 @@ public class CostTerminalAssembler {
      * @param costs 응답의 원본 비용 행
      * @param responses 원본과 같은 순서의 응답
      */
-    public void attachBatch(List<Bcostm> costs, List<CostDto.Response> responses) {
+    public void attachList(List<Bcostm> costs, List<CostDto.Response> responses) {
+        attachBatch(costs, responses, cost -> "Y".equals(cost.getTmnYn()));
+    }
+
+    /**
+     * 일괄 조회 응답에 관리번호별 활성 단말기를 한 번에 조회해 조립합니다.
+     *
+     * @param costs 일괄 조회에서 선택된 대표 비용 행
+     * @param responses 원본과 같은 순서의 응답
+     */
+    public void attachBulk(List<Bcostm> costs, List<CostDto.Response> responses) {
+        attachBatch(costs, responses, cost -> true);
+    }
+
+    private void attachBatch(
+            List<Bcostm> costs,
+            List<CostDto.Response> responses,
+            java.util.function.Predicate<Bcostm> terminalTarget) {
         List<String> terminalCostNos =
-                costs.stream()
-                        .filter(cost -> "Y".equals(cost.getTmnYn()))
-                        .map(Bcostm::getCostBgNo)
-                        .distinct()
-                        .toList();
+                costs.stream().filter(terminalTarget).map(Bcostm::getCostBgNo).distinct().toList();
         if (terminalCostNos.isEmpty()) {
             return;
         }
@@ -67,7 +80,7 @@ public class CostTerminalAssembler {
                                                         terminal.getTermBgSno())));
         for (int index = 0; index < costs.size(); index++) {
             Bcostm cost = costs.get(index);
-            if (!"Y".equals(cost.getTmnYn())) {
+            if (!terminalTarget.test(cost)) {
                 continue;
             }
             List<CostDto.TerminalDto> terminals =

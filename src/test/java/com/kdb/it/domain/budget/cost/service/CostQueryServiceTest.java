@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
@@ -15,6 +17,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
+import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
@@ -26,12 +29,13 @@ import org.junit.jupiter.api.Test;
 class CostQueryServiceTest {
 
     private CostRepository costRepository;
+    private BtermmRepository terminalRepository;
     private CostQueryService queryService;
 
     @BeforeEach
     void setUp() {
         costRepository = mock(CostRepository.class);
-        BtermmRepository terminalRepository = mock(BtermmRepository.class);
+        terminalRepository = mock(BtermmRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
         CodeRepository codeRepository = mock(CodeRepository.class);
         CostTerminalAssembler terminalAssembler =
@@ -155,6 +159,63 @@ class CostQueryServiceTest {
                 .containsExactly("COST-1", "COST-3", "COST-1");
         assertThat(result.items()).extracting(CostDto.Response::getBgSno).containsExactly(1, 2, 1);
         assertThat(result.failedIds()).containsExactly("COST-2");
+    }
+
+    @Test
+    @DisplayName("일괄 조회: 단말여부 N이어도 단건과 같은 활성 단말기를 한 번의 배치 조회로 반환한다")
+    void getCostsByIds_단말여부N_단건과단말기동등() {
+        assertSingleAndBulkTerminalsEqual("N", "COST-TERMINAL-N", "TER-N");
+    }
+
+    @Test
+    @DisplayName("일괄 조회: 단말여부 null이어도 단건과 같은 활성 단말기를 한 번의 배치 조회로 반환한다")
+    void getCostsByIds_단말여부Null_단건과단말기동등() {
+        assertSingleAndBulkTerminalsEqual(null, "COST-TERMINAL-NULL", "TER-NULL");
+    }
+
+    private void assertSingleAndBulkTerminalsEqual(
+            String terminalYn, String costBgNo, String terminalNo) {
+        Bcostm cost =
+                Bcostm.builder()
+                        .costBgNo(costBgNo)
+                        .bgSno(1)
+                        .lstYn("Y")
+                        .tmnYn(terminalYn)
+                        .delYn("N")
+                        .build();
+        Btermm terminal =
+                Btermm.builder()
+                        .tmnMngNo(terminalNo)
+                        .sno(1)
+                        .termBgNo(costBgNo)
+                        .termBgSno(1)
+                        .delYn("N")
+                        .build();
+        given(costRepository.findByCostBgNoAndDelYn(costBgNo, "N")).willReturn(List.of(cost));
+        given(costRepository.findByCostBgNoInAndDelYn(List.of(costBgNo), "N"))
+                .willReturn(List.of(cost));
+        given(terminalRepository.findByTermBgNoAndTermBgSnoAndDelYn(costBgNo, 1, "N"))
+                .willReturn(List.of(terminal));
+        given(terminalRepository.findByTermBgNoInAndDelYn(List.of(costBgNo), "N"))
+                .willReturn(List.of(terminal));
+
+        CostDto.Response detail = queryService.getCost(costBgNo);
+        CostDto.Response bulk =
+                queryService
+                        .getCostsByIds(new CostDto.BulkGetRequest(List.of(costBgNo), null))
+                        .items()
+                        .getFirst();
+
+        assertThat(detail.getTerminals())
+                .extracting(CostDto.TerminalDto::getTmnMngNo)
+                .containsExactly(terminalNo);
+        assertThat(bulk.getTerminals())
+                .extracting(CostDto.TerminalDto::getTmnMngNo)
+                .containsExactlyElementsOf(
+                        detail.getTerminals().stream()
+                                .map(CostDto.TerminalDto::getTmnMngNo)
+                                .toList());
+        verify(terminalRepository, times(1)).findByTermBgNoInAndDelYn(List.of(costBgNo), "N");
     }
 
     private static Bcostm cost(String costBgNo, int bgSno, String lstYn) {
