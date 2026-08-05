@@ -17,25 +17,25 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
 import java.math.BigDecimal;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 /**
- * {@link BudgetWorkService} 의 BITEMM 저장 원화 금액 편성 테스트.
+ * {@link BudgetRateApplicationService} 의 BITEMM 저장 원화 금액 편성 테스트.
  *
  * <p>BITEMM의 {@code amt}는 저장 시 원화로 환산된 금액이고, {@code fcAmt}가 원천 통화 금액입니다. 편성/조회 경계에서는 {@code amt}를
  * 그대로 사용해 환율 이중 적용을 방지합니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-class BudgetWorkServiceXcrLookupTest {
+class BudgetRateApplicationServiceXcrLookupTest {
 
     @Mock private BbugtmRepository bbugtmRepository;
     @Mock private CodeRepository codeRepository;
@@ -45,7 +45,27 @@ class BudgetWorkServiceXcrLookupTest {
     @Mock private BudgetWorkQueryRepository budgetWorkQueryRepository;
     @Mock private org.springframework.data.domain.AuditorAware<String> auditorAware;
 
-    @InjectMocks private BudgetWorkService budgetWorkService;
+    private BudgetRateApplicationService budgetWorkService;
+
+    @BeforeEach
+    void setUp() {
+        BudgetIoeCatalog ioeCatalog = new BudgetIoeCatalog(codeRepository);
+        BudgetSummaryService summaryService =
+                new BudgetSummaryService(
+                        bbugtmRepository,
+                        budgetWorkQueryRepository,
+                        projectRepository,
+                        projectItemRepository,
+                        ioeCatalog);
+        budgetWorkService =
+                new BudgetRateApplicationService(
+                        bbugtmRepository,
+                        projectItemRepository,
+                        costRepository,
+                        auditorAware,
+                        ioeCatalog,
+                        summaryService);
+    }
 
     @Test
     @DisplayName("BPROJM 편성: 저장된 KRW amt를 그대로 사용해 편성금액을 계산")
