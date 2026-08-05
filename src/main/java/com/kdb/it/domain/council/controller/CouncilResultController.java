@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
  * /result/approval}), 결과 통보({@code /{asctId}/notify}).
  *
  * <p>{@code POST /{asctId}/result/review/sync}는 메서드 수준 {@code @PreAuthorize("hasRole('ADMIN')")}로
- * 보호합니다. 원본에서 옮길 때 이 애노테이션을 반드시 함께 가져가십시오.
+ * 보호합니다.
  */
 @RestController
 @RequestMapping("/api/council")

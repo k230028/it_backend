@@ -26,7 +26,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * CouncilController 결과 검토 상태 동기화(syncReviewStatus) 관리자 권한 경계 테스트 (ERR-10 Phase C4-1).
+ * CouncilResultController 결과 검토 상태 동기화(syncReviewStatus) 관리자 권한 경계 테스트 (ERR-10 Phase C4-1).
  *
  * <p>{@code POST /api/council/{asctId}/result/review/sync}는 프론트 라우트 가드로만 보호되던 엔드포인트로, 인증만 되어 있으면 어떤
  * 사용자든 협의회 검토 상태를 임의로 전이시킬 수 있었습니다. 메서드 수준 {@code @PreAuthorize("hasRole('ADMIN')")}가 실제로 강제되는지
