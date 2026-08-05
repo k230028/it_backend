@@ -86,7 +86,7 @@ public class GuideDocController {
             summary = "가이드 문서 생성",
             description =
                     "신규 가이드 문서를 생성합니다. docMngNo 미입력 시 자동 채번됩니다. "
-                            + "첨부파일은 생성 후 POST /api/files (orcDtt=가이드문서, orcPkVl={docMngNo})로 별도 등록합니다.")
+                            + "첨부파일은 생성 후 POST /api/files (pkColNm=가이드문서, pkCone={docMngNo})로 별도 등록합니다.")
     public ResponseEntity<String> createDocument(
             @Valid @RequestBody GuideDocDto.CreateRequest request) {
         String docMngNo = guideDocService.createDocument(request);
@@ -123,7 +123,7 @@ public class GuideDocController {
             summary = "가이드 문서 삭제",
             description =
                     "가이드 문서를 논리 삭제합니다 (DEL_YN='Y'). "
-                            + "연결된 첨부파일은 DELETE /api/files/bulk (orcDtt=가이드문서, orcPkVl={docMngNo})로 별도 정리합니다.")
+                            + "연결된 첨부파일은 DELETE /api/files/bulk (pkColNm=가이드문서, pkCone={docMngNo})로 별도 정리합니다.")
     public ResponseEntity<Void> deleteDocument(@PathVariable("docMngNo") String docMngNo) {
         guideDocService.deleteDocument(docMngNo);
         return ResponseEntity.noContent().build();
