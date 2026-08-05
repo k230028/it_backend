@@ -9,15 +9,18 @@ import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.dto.CouncilProjectRow;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
+import com.kdb.it.domain.council.entity.Bplevm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
+import com.kdb.it.domain.council.repository.PlanEvaluationRepository;
 import com.kdb.it.domain.council.repository.ProjectOverviewRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -78,8 +81,14 @@ public class CouncilService {
     /** 평가위원 리포지토리 — completeCouncil 완료 검증용 */
     private final CommitteeRepository committeeRepository;
 
-    /** 평가의견 리포지토리 — completeCouncil 완료 검증용 */
+    /** 평가의견 리포지토리 — completeCouncil 완료 검증용 (사업 협의회 6항목) */
     private final EvaluationRepository evaluationRepository;
+
+    /** 계획협의회 사업별 적정/유보 리포지토리 — completeCouncil 완료 검증용 (dbrTc='02') */
+    private final PlanEvaluationRepository planEvaluationRepository;
+
+    /** 계획 마스터 리포지토리 — 계획협의회(dbrTc='02') 목록 제목(정보기술부문계획 수립/조정) 조회용 */
+    private final BplanmRepository bplanmRepository;
 
     /** 사용자 리포지토리 — 수신자 정보 조회용 */
     private final UserRepository userRepository;
@@ -144,7 +153,17 @@ public class CouncilService {
             // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
             Map<String, BigDecimal> budgetMap =
                     deriveCurrentYearBudgets(rows.stream().map(row -> row.abusMngNo()).toList());
-            return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
+            List<CouncilDto.ListResponse> result =
+                    new java.util.ArrayList<>(
+                            rows.stream()
+                                    .map(row -> toListResponseFromRow(row, budgetMap))
+                                    .toList());
+            // 계획협의회(dbrTc='02')는 사업이 아닌 계획(BPLANM)을 참조해 사업 기반 쿼리에 잡히지 않으므로 별도로 덧붙인다.
+            result.addAll(
+                    councilRepository.findByItPtlAsctDbrTcAndDelYn("02", "N").stream()
+                            .map(council -> toListResponseFromEntity(council, budgetMap))
+                            .toList());
+            return result;
         }
 
         if (userDetails.isInfoSecAdmin()) {
@@ -332,23 +351,38 @@ public class CouncilService {
             throw new IllegalStateException("평가위원이 선정되지 않았습니다.");
         }
 
-        // 평가자별 제출 항목 수를 협의회ID당 1회 GROUP BY로 일괄 집계 (#4 N+1 제거).
-        // 행별 findByItPtlAsctIdAndEnoAndDelYn 루프를 단일 배치 COUNT로 대체한다.
-        // GROUP BY e.eno이므로 eno는 본래 유일하지만, 데이터 이상으로 중복 키가 들어와도
-        // 합산 병합으로 IllegalStateException 없이 부분 카운트를 합산한다(방어적).
-        Map<String, Long> submitCountByEno =
-                evaluationRepository.countByEnoForCouncil(asctId, "N").stream()
-                        .collect(
-                                Collectors.toMap(
-                                        row -> (String) row[0],
-                                        row -> ((Number) row[1]).longValue(),
-                                        (left, right) -> left + right));
-
-        // 6개 항목 미만(미제출 포함=Map 누락 시 0)인 평가자 수 집계
-        long incompleteCount =
-                evaluators.stream()
-                        .filter(m -> submitCountByEno.getOrDefault(m.getEno(), 0L) < 6)
-                        .count();
+        // 미완료 평가자 수 집계 — 심의유형에 따라 평가 저장소가 다르다.
+        long incompleteCount;
+        if ("02".equals(council.getItPtlAsctDbrTc())) {
+            // 계획협의회(dbrTc='02')는 6항목(BEVALM)이 아니라 사업별 적정/유보(BPLEVM)로 평가한다.
+            // PlanPprtForm이 대상 사업을 일괄 제출하므로 위원이 한 건이라도 제출했으면 완료로 본다(사업 수 가변 대응).
+            Set<String> submittedEnos =
+                    planEvaluationRepository.findByItPtlAsctIdAndDelYn(asctId, "N").stream()
+                            .map(Bplevm::getEno)
+                            .collect(Collectors.toSet());
+            incompleteCount =
+                    evaluators.stream()
+                            .filter(m -> !submittedEnos.contains(m.getEno()))
+                            .count();
+        } else {
+            // 사업 협의회(03/04): 평가자별 6개 항목(BEVALM) 제출 여부로 판정.
+            // 제출 항목 수를 협의회ID당 1회 GROUP BY로 일괄 집계 (#4 N+1 제거).
+            // 행별 findByItPtlAsctIdAndEnoAndDelYn 루프를 단일 배치 COUNT로 대체한다.
+            // GROUP BY e.eno이므로 eno는 본래 유일하지만, 데이터 이상으로 중복 키가 들어와도
+            // 합산 병합으로 IllegalStateException 없이 부분 카운트를 합산한다(방어적).
+            Map<String, Long> submitCountByEno =
+                    evaluationRepository.countByEnoForCouncil(asctId, "N").stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            row -> (String) row[0],
+                                            row -> ((Number) row[1]).longValue(),
+                                            (left, right) -> left + right));
+            // 6개 항목 미만(미제출 포함=Map 누락 시 0)인 평가자 수 집계
+            incompleteCount =
+                    evaluators.stream()
+                            .filter(m -> submitCountByEno.getOrDefault(m.getEno(), 0L) < 6)
+                            .count();
+        }
 
         if (incompleteCount > 0) {
             throw new IllegalStateException(
@@ -632,12 +666,27 @@ public class CouncilService {
         var projectOpt =
                 projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
 
-        // 사업명: BPOVWM(타당성검토표) 우선, 없으면 BPROJM
-        String prjNm =
-                projectOverviewRepository
-                        .findByItPtlAsctIdAndDelYn(council.getItPtlAsctId(), "N")
-                        .map(value -> value.getAbusNm())
-                        .orElseGet(() -> projectOpt.map(p -> p.getAbusNm()).orElse(null));
+        // 사업명: 계획협의회(dbrTc='02')는 사업이 아닌 계획 단위이므로 '정보기술부문계획 수립/조정'을 제목으로 쓴다.
+        // 그 외 사업 협의회는 BPOVWM(타당성검토표) 우선, 없으면 BPROJM.
+        String prjNm;
+        if ("02".equals(council.getItPtlAsctDbrTc())) {
+            prjNm =
+                    bplanmRepository
+                            .findByReqDocNoAndDelYn(council.getAbusMngNo(), "N")
+                            .map(
+                                    plan ->
+                                            "정보기술부문계획 "
+                                                    + ("조정".equals(plan.getItPtlPlnTpC())
+                                                            ? "조정"
+                                                            : "수립"))
+                            .orElse("정보기술부문계획");
+        } else {
+            prjNm =
+                    projectOverviewRepository
+                            .findByItPtlAsctIdAndDelYn(council.getItPtlAsctId(), "N")
+                            .map(value -> value.getAbusNm())
+                            .orElseGet(() -> projectOpt.map(p -> p.getAbusNm()).orElse(null));
+        }
 
         // 사업 상세 (BPROJM 기반)
         String prjYy = projectOpt.map(p -> p.getBseYy()).orElse(null);
