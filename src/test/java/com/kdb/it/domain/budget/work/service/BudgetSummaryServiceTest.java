@@ -275,8 +275,8 @@ class BudgetSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("getSummary - 같은 표시명은 최신 bgNo와 sno 대표행의 비목코드와 편성률을 함께 사용한다")
-    void getSummary_같은표시명_대표행의비목코드와편성률사용() {
+    @DisplayName("getSummary - 같은 표시명은 sno가 작아도 최신 bgNo 대표행의 비목코드와 편성률을 함께 사용한다")
+    void getSummary_같은표시명_최신bgNo대표행의비목코드와편성률사용() {
         Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
         Ccodem olderCode =
                 Ccodem.builder()
@@ -294,8 +294,8 @@ class BudgetSummaryServiceTest {
                         .build();
         Bbugtm older =
                 Bbugtm.builder()
-                        .bgNo("BG-2026-0002")
-                        .sno(1)
+                        .bgNo("BG-2026-0001")
+                        .sno(99)
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(800))
                         .asgRt(80)
@@ -303,7 +303,7 @@ class BudgetSummaryServiceTest {
         Bbugtm representative =
                 Bbugtm.builder()
                         .bgNo("BG-2026-0002")
-                        .sno(2)
+                        .sno(1)
                         .ioeC("102")
                         .bgDupAmt(BigDecimal.valueOf(500))
                         .asgRt(50)

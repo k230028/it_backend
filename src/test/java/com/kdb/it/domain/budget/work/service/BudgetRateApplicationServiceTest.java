@@ -615,36 +615,122 @@ class BudgetRateApplicationServiceTest {
     // =========================================================================
 
     @Test
-    @DisplayName("applyRates - 저장 내용을 flush한 뒤 같은 쓰기 흐름에서 만든 요약을 응답한다")
-    void applyRates_저장후Flush결과를요약에반영() {
-        BbugtmRepository repository = mock(BbugtmRepository.class);
-        BudgetSummaryService summaryService = mock(BudgetSummaryService.class);
-        BudgetIoeCatalog ioeCatalog = mock(BudgetIoeCatalog.class);
+    @DisplayName("applyRates - 비용 한 행을 저장하고 flush한 뒤 같은 쓰기 흐름의 요약을 응답한다")
+    void applyRates_한행저장후Flush결과를요약에반영() {
+        BudgetSummaryService summaryMock = mock(BudgetSummaryService.class);
         BudgetWorkDto.SummaryResponse expectedSummary =
                 new BudgetWorkDto.SummaryResponse(
                         List.of(), new BudgetWorkDto.SummaryTotals(BigDecimal.TEN, BigDecimal.ONE));
-        given(repository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
-        given(repository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N"))
+        Ccodem ioeCode = Ccodem.builder().cdva("001").cdvaDtlC("237-0700").build();
+        Bcostm cost =
+                Bcostm.builder()
+                        .costBgNo("COST-2026-0001")
+                        .bgSno(7)
+                        .ioeC("001")
+                        .costTotXpAmt(BigDecimal.valueOf(1_000_000))
+                        .build();
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N"))
                 .willReturn(List.of());
-        given(repository.findByBseYyAndFntTbNmAndDelYn("2026", "BITEMM", "N"))
+        given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BITEMM", "N"))
                 .willReturn(List.of());
-        given(ioeCatalog.findCodes("IOE_C")).willReturn(List.of());
-        given(summaryService.getSummary("2026")).willReturn(expectedSummary);
+        given(
+                        bbugtmRepository.findApprovedCostsByIoeCValues(
+                                eq(java.util.Set.of("001")), eq("2026")))
+                .willReturn(List.of(cost));
+        given(
+                        bbugtmRepository.findApprovedItemsByIoeCValues(
+                                eq(java.util.Set.of("001")), eq("2026")))
+                .willReturn(List.of());
+        given(summaryMock.getSummary("2026")).willReturn(expectedSummary);
         BudgetRateApplicationService service =
                 new BudgetRateApplicationService(
-                        repository,
-                        mock(ProjectItemRepository.class),
-                        mock(CostRepository.class),
-                        mock(AuditorAware.class),
+                        bbugtmRepository,
+                        projectItemRepository,
+                        costRepository,
+                        auditorAware,
                         ioeCatalog,
-                        summaryService);
+                        summaryMock);
 
         BudgetWorkDto.ApplyResponse response =
-                service.applyRates(new BudgetWorkDto.ApplyRequest("2026", List.of()));
+                service.applyRates(
+                        new BudgetWorkDto.ApplyRequest(
+                                "2026", List.of(new BudgetWorkDto.RateItem("237", 80))));
 
-        InOrder order = inOrder(repository, summaryService);
-        order.verify(repository).flush();
-        order.verify(summaryService).getSummary("2026");
+        ArgumentCaptor<Bbugtm> saved = ArgumentCaptor.forClass(Bbugtm.class);
+        InOrder order = inOrder(bbugtmRepository, summaryMock);
+        order.verify(bbugtmRepository).save(saved.capture());
+        order.verify(bbugtmRepository).flush();
+        order.verify(summaryMock).getSummary("2026");
+        assertThat(saved.getValue().getBgNo()).isEqualTo("BG-2026-0001");
+        assertThat(saved.getValue().getSno()).isEqualTo(1);
+        assertThat(saved.getValue().getBseYy()).isEqualTo("2026");
+        assertThat(saved.getValue().getFntTbNm()).isEqualTo("BCOSTM");
+        assertThat(saved.getValue().getPkColNm()).isEqualTo("COST-2026-0001");
+        assertThat(saved.getValue().getFntTbCrySno()).isEqualTo(7);
+        assertThat(saved.getValue().getIoeC()).isEqualTo("001");
+        assertThat(saved.getValue().getBgDupAmt())
+                .isEqualByComparingTo(BigDecimal.valueOf(800_000));
+        assertThat(saved.getValue().getAsgRt()).isEqualTo(80);
+        assertThat(response.totalRecords()).isEqualTo(1);
+        assertThat(response.summary()).isSameAs(expectedSummary);
+    }
+
+    @Test
+    @DisplayName("applyItemRates - 사업별 비용 한 행을 저장하고 flush한 뒤 같은 쓰기 흐름의 요약을 응답한다")
+    void applyItemRates_한행저장후Flush결과를요약에반영() {
+        BudgetSummaryService summaryMock = mock(BudgetSummaryService.class);
+        BudgetWorkDto.SummaryResponse expectedSummary =
+                new BudgetWorkDto.SummaryResponse(
+                        List.of(), new BudgetWorkDto.SummaryTotals(BigDecimal.ONE, BigDecimal.TEN));
+        Bcostm cost =
+                Bcostm.builder()
+                        .costBgNo("COST-2026-0002")
+                        .bgSno(3)
+                        .ioeC("IOE-237-0700")
+                        .costTotXpAmt(BigDecimal.valueOf(500_000))
+                        .build();
+        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0002");
+        given(auditorAware.getCurrentAuditor()).willReturn(java.util.Optional.of("TESTER"));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
+        given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
+        given(costRepository.findByCostBgNoAndDelYnAndLstYn("COST-2026-0002", "N", "Y"))
+                .willReturn(List.of(cost));
+        given(summaryMock.getSummary("2026")).willReturn(expectedSummary);
+        BudgetRateApplicationService service =
+                new BudgetRateApplicationService(
+                        bbugtmRepository,
+                        projectItemRepository,
+                        costRepository,
+                        auditorAware,
+                        ioeCatalog,
+                        summaryMock);
+
+        BudgetWorkDto.ApplyResponse response =
+                service.applyItemRates(
+                        new BudgetWorkDto.ItemApplyRequest(
+                                "2026",
+                                List.of(
+                                        new BudgetWorkDto.ItemRate(
+                                                "BCOSTM", "COST-2026-0002", 100, 80))));
+
+        ArgumentCaptor<Bbugtm> saved = ArgumentCaptor.forClass(Bbugtm.class);
+        InOrder order = inOrder(bbugtmRepository, summaryMock);
+        order.verify(bbugtmRepository).save(saved.capture());
+        order.verify(bbugtmRepository).flush();
+        order.verify(summaryMock).getSummary("2026");
+        assertThat(saved.getValue().getBgNo()).isEqualTo("BG-2026-0002");
+        assertThat(saved.getValue().getSno()).isEqualTo(1);
+        assertThat(saved.getValue().getBseYy()).isEqualTo("2026");
+        assertThat(saved.getValue().getFntTbNm()).isEqualTo("BCOSTM");
+        assertThat(saved.getValue().getPkColNm()).isEqualTo("COST-2026-0002");
+        assertThat(saved.getValue().getFntTbCrySno()).isEqualTo(3);
+        assertThat(saved.getValue().getIoeC()).isEqualTo("IOE-237-0700");
+        assertThat(saved.getValue().getBgDupAmt())
+                .isEqualByComparingTo(BigDecimal.valueOf(400_000));
+        assertThat(saved.getValue().getAsgRt()).isEqualTo(80);
+        assertThat(response.totalRecords()).isEqualTo(1);
         assertThat(response.summary()).isSameAs(expectedSummary);
     }
 }
