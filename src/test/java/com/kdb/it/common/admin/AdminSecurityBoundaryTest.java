@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kdb.it.common.admin.controller.AdminController;
+import com.kdb.it.common.admin.service.AdminCodeService;
 import com.kdb.it.common.admin.service.AdminLogService;
 import com.kdb.it.common.admin.service.AdminService;
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
@@ -42,6 +43,7 @@ class AdminSecurityBoundaryTest {
 
     // AdminController 의존성 (보안 체인 검증이 목적이므로 동작은 mock)
     @MockitoBean private AdminService adminService;
+    @MockitoBean private AdminCodeService adminCodeService;
     @MockitoBean private AdminLogService adminLogService;
 
     @Test
