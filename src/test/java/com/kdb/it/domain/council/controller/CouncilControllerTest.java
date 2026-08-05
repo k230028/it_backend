@@ -47,7 +47,17 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>정보화실무협의회 HTTP 응답 구조와 인증 동작을 검증합니다.
  */
-@WebMvcTest({CouncilController.class, CouncilMainQnaController.class, CouncilQnaController.class})
+@WebMvcTest({
+    CouncilController.class,
+    CouncilFeasibilityController.class,
+    CouncilLifecycleController.class,
+    CouncilCommitteeController.class,
+    CouncilScheduleController.class,
+    CouncilEvaluationController.class,
+    CouncilResultController.class,
+    CouncilMainQnaController.class,
+    CouncilQnaController.class
+})
 @Import({TestSecurityConfig.class, JacksonConfig.class})
 class CouncilControllerTest {
 

@@ -11,15 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.TestSecurityConfig;
-import com.kdb.it.domain.council.service.CommitteeService;
 import com.kdb.it.domain.council.service.CouncilApprovalService;
 import com.kdb.it.domain.council.service.CouncilService;
-import com.kdb.it.domain.council.service.CouncilSkipService;
-import com.kdb.it.domain.council.service.EvaluationService;
-import com.kdb.it.domain.council.service.FeasibilityService;
-import com.kdb.it.domain.council.service.PlanEvaluationService;
 import com.kdb.it.domain.council.service.ResultService;
-import com.kdb.it.domain.council.service.ScheduleService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,7 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>다른 협의회 엔드포인트(목록 조회, 신청 등)는 이 메서드 수준 변경의 영향을 받지 않으므로 별도로 검증하지 않습니다.
  */
-@WebMvcTest(CouncilController.class)
+@WebMvcTest(CouncilResultController.class)
 @Import({TestSecurityConfig.class, CouncilControllerSecurityTest.MethodSecurityTestConfig.class})
 class CouncilControllerSecurityTest {
 
@@ -52,14 +46,8 @@ class CouncilControllerSecurityTest {
     @Autowired private MockMvc mockMvc;
 
     @MockitoBean private CouncilService councilService;
-    @MockitoBean private FeasibilityService feasibilityService;
     @MockitoBean private CouncilApprovalService councilApprovalService;
-    @MockitoBean private CommitteeService committeeService;
-    @MockitoBean private ScheduleService scheduleService;
-    @MockitoBean private EvaluationService evaluationService;
     @MockitoBean private ResultService resultService;
-    @MockitoBean private CouncilSkipService councilSkipService;
-    @MockitoBean private PlanEvaluationService planEvaluationService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 

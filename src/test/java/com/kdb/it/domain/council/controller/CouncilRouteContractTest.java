@@ -34,7 +34,15 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  * <p>슬라이스에 등재된 컨트롤러의 매핑만 관측하므로 QnA 컨트롤러({@code /api/council/{asctId}/qna}, {@code /main-qna})의 라우트는
  * 이 목록에 포함되지 않습니다.
  */
-@WebMvcTest(CouncilController.class)
+@WebMvcTest({
+    CouncilController.class,
+    CouncilFeasibilityController.class,
+    CouncilLifecycleController.class,
+    CouncilCommitteeController.class,
+    CouncilScheduleController.class,
+    CouncilEvaluationController.class,
+    CouncilResultController.class
+})
 @Import(TestSecurityConfig.class)
 class CouncilRouteContractTest {
 
