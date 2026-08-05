@@ -33,6 +33,9 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  *
  * <p>슬라이스에 등재된 컨트롤러의 매핑만 관측하므로 QnA 컨트롤러({@code /api/council/{asctId}/qna}, {@code /main-qna})의 라우트는
  * 이 목록에 포함되지 않습니다.
+ *
+ * <p>슬라이스 목록은 자동 수집이 아니라 수동 유지 목록입니다. {@code /api/council}을 다루는 컨트롤러를 새로 추가하면 아래
+ * {@code @WebMvcTest} 목록에도 반드시 등재하십시오. 등재하지 않으면 이 테스트는 통과하면서도 협의회 라우트 전체를 더 이상 기술하지 못합니다.
  */
 @WebMvcTest({
     CouncilController.class,
@@ -111,7 +114,9 @@ class CouncilRouteContractTest {
     @Test
     @DisplayName("/api/council 라우트 42개가 정확히 일치한다 — 개수·경로·HTTP 메서드·중복 없음")
     void 라우트_계약이_유지된다() {
-        assertThat(actualRoutes())
+        List<String> actualRoutes = actualRoutes();
+
+        assertThat(actualRoutes)
                 .withFailMessage(
                         """
                         /api/council 라우트 계약이 깨졌습니다.
@@ -126,8 +131,8 @@ class CouncilRouteContractTest {
                                 .formatted(
                                         EXPECTED_ROUTES.size(),
                                         EXPECTED_ROUTES,
-                                        actualRoutes().size(),
-                                        actualRoutes()))
+                                        actualRoutes.size(),
+                                        actualRoutes))
                 .isEqualTo(EXPECTED_ROUTES);
     }
 

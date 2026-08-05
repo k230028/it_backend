@@ -36,8 +36,11 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>다른 협의회 엔드포인트(목록 조회, 신청 등)는 이 메서드 수준 변경의 영향을 받지 않으므로 별도로 검증하지 않습니다.
  */
 @WebMvcTest(CouncilResultController.class)
-@Import({TestSecurityConfig.class, CouncilControllerSecurityTest.MethodSecurityTestConfig.class})
-class CouncilControllerSecurityTest {
+@Import({
+    TestSecurityConfig.class,
+    CouncilResultControllerSecurityTest.MethodSecurityTestConfig.class
+})
+class CouncilResultControllerSecurityTest {
 
     /** WebMvcTest 슬라이스는 기본적으로 {@code @EnableMethodSecurity}를 로드하지 않으므로 별도로 활성화합니다. */
     @EnableMethodSecurity

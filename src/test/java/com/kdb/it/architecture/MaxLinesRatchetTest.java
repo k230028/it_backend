@@ -63,7 +63,7 @@ class MaxLinesRatchetTest {
                                 .formatted(path));
             } else if (measured > expected) {
                 violations.add(
-                        "[증가] %s — 기준 %d줄, 실측 %d줄 (+%d). 같은 PR에서 동등 이상 분량을 추출해 상쇄하거나, 분해 후 기준값을 낮추십시오."
+                        "[증가] %s — 기준 %d줄, 실측 %d줄 (+%d). 같은 PR에서 동등 이상 분량을 추출해 상쇄하거나, 분해 후 기준값을 낮추십시오. 기준값 상향은 허용된 해소 수단이 아닙니다."
                                 .formatted(path, expected, measured, measured - expected));
             } else if (measured < expected) {
                 violations.add(
@@ -76,7 +76,7 @@ class MaxLinesRatchetTest {
             String path = entry.getKey();
             if (!baseline.containsKey(path) && entry.getValue() > limit) {
                 violations.add(
-                        "[신규 초과] %s — %d줄. %d줄을 넘는 신규 파일은 허용하지 않습니다. 관심사를 분리하십시오."
+                        "[신규 초과] %s — %d줄. %d줄을 넘는 신규 파일은 허용하지 않습니다. 관심사를 분리하십시오. 기준선 항목 추가는 기본 해소 수단이 아니며, 불가피하면 리뷰어 승인과 PR 사유 기재가 필요합니다."
                                 .formatted(path, entry.getValue(), limit));
             }
         }
@@ -158,6 +158,7 @@ class MaxLinesRatchetTest {
                         %s
 
                         기준선 파일: src/test/resources%s
+                        정책: 기준값 상향은 허용된 해소 수단이 아니며, 신규 항목 추가도 기본 해소 수단이 아닙니다(리뷰어 승인 + PR 사유 기재 필요).
                         배경: TASK.md CQ-01 / docs/superpowers/plans/2026-08-05-cq01-council-controller-decomposition.md
                         """
                                 .formatted(
