@@ -276,6 +276,62 @@ class BudgetWorkServiceTest {
     }
 
     @Test
+    @DisplayName("getSummary - 같은 표시명은 최신 bgNo와 sno 대표행의 비목코드와 편성률을 함께 사용한다")
+    void getSummary_같은표시명_대표행의비목코드와편성률사용() {
+        Ccodem dupCode =
+                Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
+        Ccodem olderCode =
+                Ccodem.builder()
+                        .cdva("101")
+                        .cdvaDtlC("237-0100")
+                        .cdvaNm("공통 표시명")
+                        .cTp("IOE_IDR")
+                        .build();
+        Ccodem representativeCode =
+                Ccodem.builder()
+                        .cdva("102")
+                        .cdvaDtlC("237-0200")
+                        .cdvaNm("공통 표시명")
+                        .cTp("IOE_IDR")
+                        .build();
+        Bbugtm older =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0002")
+                        .sno(1)
+                        .ioeC("101")
+                        .bgDupAmt(BigDecimal.valueOf(800))
+                        .asgRt(80)
+                        .build();
+        Bbugtm representative =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0002")
+                        .sno(2)
+                        .ioeC("102")
+                        .bgDupAmt(BigDecimal.valueOf(500))
+                        .asgRt(50)
+                        .build();
+
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
+                .willReturn(List.of(representative, older));
+        given(codeRepository.findByCIdWithValidDate("DUP_IOE", null))
+                .willReturn(List.of(dupCode));
+        given(codeRepository.findByCIdWithValidDate("IOE_C", null))
+                .willReturn(List.of(olderCode, representativeCode));
+        given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
+                .willReturn(
+                        java.util.Map.of(
+                                "101", BigDecimal.valueOf(1000),
+                                "102", BigDecimal.valueOf(1000)));
+        given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
+                .willReturn(java.util.Map.of());
+
+        BudgetWorkDto.SummaryItem result = budgetWorkService.getSummary("2026").data().get(0);
+
+        assertThat(result.ioeC()).isEqualTo("102");
+        assertThat(result.dupRt()).isEqualTo(50);
+    }
+
+    @Test
     @DisplayName("getSummary: 사업 예정금액을 품목 비율로 차감한다")
     void getSummary_예정금액_비율차감() {
         Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();

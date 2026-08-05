@@ -584,8 +584,15 @@ public class BudgetWorkService {
                     allRecords.addAll(budgetsByIoeC.getOrDefault(ioeC, List.of()));
                 }
 
-                // 대표 ioeC (첫 번째 코드)
-                String representativeIoeC = ioeCodes.get(0);
+                // 대표행의 비목코드와 편성률을 함께 사용해 encounter order에 따른 혼합을 막는다.
+                Bbugtm representativeBudget =
+                        allRecords.isEmpty()
+                                ? null
+                                : BudgetRepresentativeSelector.pick(allRecords);
+                String representativeIoeC =
+                        representativeBudget != null
+                                ? representativeBudget.getIoeC()
+                                : ioeCodes.get(0);
 
                 // 편성금액 합계 (BBUGTM 기반)
                 BigDecimal dupAmount =
@@ -619,7 +626,7 @@ public class BudgetWorkService {
 
                 // 편성률 (BBUGTM 레코드가 있으면 해당 값, 없으면 null)
                 Integer dupRt =
-                        allRecords.stream().map(value -> value.getAsgRt()).findFirst().orElse(null);
+                        representativeBudget != null ? representativeBudget.getAsgRt() : null;
 
                 // 자본예산 여부: 대표 코드의 C_TP가 IOE_DVC/HW/SW이면 자본예산
                 boolean capital = Boolean.TRUE.equals(cdvaToCapital.get(representativeIoeC));
