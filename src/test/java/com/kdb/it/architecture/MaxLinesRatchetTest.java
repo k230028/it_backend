@@ -23,9 +23,10 @@ import org.junit.jupiter.api.Test;
  * <p>기준선은 {@code src/test/resources/architecture/max-lines-baselines.properties}가 단일 진실 공급원입니다. 기준값
  * 변경이 diff에 한 줄로 드러나도록 테스트 코드와 분리했습니다.
  *
- * <p>줄 수 측정 정의는 {@code Files.readAllLines(path, UTF_8).size()}입니다. spotless의 {@code
- * endWithNewline()}이 강제되므로 이 값은 {@code wc -l}, PowerShell {@code Measure-Object -Line} 결과와 일치합니다.
- * 다른 방식으로 세면 기준값이 흔들리므로 이 정의를 바꾸지 마십시오.
+ * <p>줄 수 측정 정의는 {@code Files.readAllLines(path, UTF_8).size()}입니다. PowerShell {@code Get-Content |
+ * Measure-Object -Line}은 BOM 없는 UTF-8 + 한글 주석 조합에서 줄 수를 과소 집계하므로(이 저장소 파일로 확인됨) 기준값 스팟체크에 쓰지 마십시오.
+ * 대신 {@code [System.IO.File]::ReadAllLines(path, [System.Text.Encoding]::UTF8)} 또는 이 테스트 자체를
+ * 신뢰하십시오. 다른 방식으로 세면 기준값이 흔들리므로 이 정의를 바꾸지 마십시오.
  */
 class MaxLinesRatchetTest {
 
