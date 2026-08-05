@@ -410,6 +410,99 @@ class CouncilControllerTest {
     }
 
     // =========================================================================
+    // 계획협의회(dbrTc='02') — 심의 대상 + 사업별 적정/유보
+    // =========================================================================
+
+    @Test
+    @DisplayName("GET /api/council/{asctId}/plan-targets - 인증된 사용자 → 200 + 계획 요약")
+    @WithMockUser(username = "10001")
+    void getPlanTargets_인증_200() throws Exception {
+        given(planEvaluationService.getPlanTargets(ASCT_ID))
+                .willReturn(
+                        new CouncilDto.PlanTargetsResponse(
+                                "PLN-2026-0001", "2026", "10", List.of(), 0, false));
+
+        mockMvc.perform(get("/api/council/" + ASCT_ID + "/plan-targets"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reqDocNo").value("PLN-2026-0001"))
+                .andExpect(jsonPath("$.snapshotIncomplete").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /api/council/{asctId}/plan-evaluation - 인증된 사용자 → 200 + 평가·판정 배열")
+    @WithMockUser(username = "10001")
+    void getPlanEvaluations_인증_200() throws Exception {
+        given(planEvaluationService.getAllEvaluations(ASCT_ID))
+                .willReturn(new CouncilDto.PlanEvaluationSummaryResponse(List.of(), List.of()));
+
+        mockMvc.perform(get("/api/council/" + ASCT_ID + "/plan-evaluation"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.evaluations").isArray())
+                .andExpect(jsonPath("$.verdicts").isArray());
+    }
+
+    @Test
+    @DisplayName("GET /api/council/{asctId}/plan-evaluation/my - 인증된 사용자 → 200 + 본인 평가 목록")
+    @WithMockUser(username = "10001")
+    void getMyPlanEvaluation_인증_200() throws Exception {
+        given(planEvaluationService.getMyEvaluation(anyString(), any()))
+                .willReturn(
+                        List.of(
+                                new CouncilDto.PlanEvaluationItemResponse(
+                                        "10001", "홍길동", "ABUS-2026-0001", "Y", "적정 사유")));
+
+        mockMvc.perform(get("/api/council/" + ASCT_ID + "/plan-evaluation/my"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].pprtYn").value("Y"));
+    }
+
+    @Test
+    @DisplayName("POST /api/council/{asctId}/plan-evaluation - 인증된 사용자 → 200")
+    @WithMockUser(username = "10001")
+    void savePlanEvaluation_인증_200() throws Exception {
+        mockMvc.perform(
+                        post("/api/council/" + ASCT_ID + "/plan-evaluation")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new CouncilDto.PlanEvaluationRequest(
+                                                        List.of(
+                                                                new CouncilDto.PlanEvaluationItem(
+                                                                        "ABUS-2026-0001",
+                                                                        "Y",
+                                                                        "적정 사유"))))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("POST /api/council/{asctId}/plan-evaluation - items 비어있음 → 400 (@NotEmpty)")
+    @WithMockUser(username = "10001")
+    void savePlanEvaluation_빈항목_400() throws Exception {
+        mockMvc.perform(
+                        post("/api/council/" + ASCT_ID + "/plan-evaluation")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new CouncilDto.PlanEvaluationRequest(List.of()))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+            "GET /api/council/{asctId}/plan-evaluation/result-summary - 인증된 사용자 → 200 + 요약 HTML")
+    @WithMockUser(username = "10001")
+    void getPlanResultSummary_인증_200() throws Exception {
+        given(planEvaluationService.buildResultSummary(ASCT_ID))
+                .willReturn(
+                        new CouncilDto.PlanResultSummaryResponse(
+                                "<table></table>", List.of(), false));
+
+        mockMvc.perform(get("/api/council/" + ASCT_ID + "/plan-evaluation/result-summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summaryHtml").value("<table></table>"));
+    }
+
+    // =========================================================================
     // M7: 결과서
     // =========================================================================
 
