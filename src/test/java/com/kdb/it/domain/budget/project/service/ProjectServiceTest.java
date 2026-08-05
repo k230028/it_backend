@@ -276,6 +276,25 @@ class ProjectServiceTest {
         org.mockito.Mockito.lenient()
                 .when(orgNameResolver.resolveName(org.mockito.ArgumentMatchers.anyString()))
                 .thenReturn(null);
+        ProjectQueryAssembler queryAssembler =
+                new ProjectQueryAssembler(
+                        capplaRepository,
+                        capplmRepository,
+                        bitemmRepository,
+                        corgnIRepository,
+                        cuserIRepository,
+                        cdecimRepository,
+                        ccodemRepository,
+                        bbugtmRepository,
+                        codeService,
+                        projectBudgetSummaryService,
+                        bprojaRepository,
+                        codeNameMapBuilder,
+                        projectRepository);
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                projectService,
+                "projectQueryService",
+                new ProjectQueryService(projectRepository, queryAssembler));
     }
 
     @AfterEach
