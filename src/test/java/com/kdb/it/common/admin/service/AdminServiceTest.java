@@ -3,7 +3,11 @@ package com.kdb.it.common.admin.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -658,6 +662,30 @@ class AdminServiceTest {
         assertThat(result.get(0).prlmOgzCCone()).isEqualTo("BBR001");
         assertThat(result.get(0).bbrNm()).isEqualTo("IT부문");
         verify(orgRepository).findAdminViewsByDelYn("N");
+    }
+
+    @Test
+    @DisplayName("getOrganizations: 등록자·변경자명을 배치 1회로 조회한다 (BE-26 N+1 방지)")
+    void getOrganizations_사용자명_배치조회_1회() {
+        OrganizationRepository.OrganizationAdminView first =
+                mock(OrganizationRepository.OrganizationAdminView.class);
+        given(first.getPrlmOgzCCone()).willReturn("120");
+        given(first.getFstEnrUsid()).willReturn("E001");
+        given(first.getLstChgUsid()).willReturn("E002");
+        OrganizationRepository.OrganizationAdminView second =
+                mock(OrganizationRepository.OrganizationAdminView.class);
+        given(second.getPrlmOgzCCone()).willReturn("130");
+        given(second.getFstEnrUsid()).willReturn("E003");
+        given(second.getLstChgUsid()).willReturn("E004");
+
+        given(orgRepository.findAdminViewsByDelYn("N")).willReturn(List.of(first, second));
+        given(userRepository.findNameViewsByEnoIn(anySet())).willReturn(List.of());
+
+        adminService.getOrganizations();
+
+        // 배치 조회는 정확히 1회, 단건 조회는 0회여야 한다
+        verify(userRepository, times(1)).findNameViewsByEnoIn(anySet());
+        verify(userRepository, never()).findNameViewByEno(anyString());
     }
 
     @Test

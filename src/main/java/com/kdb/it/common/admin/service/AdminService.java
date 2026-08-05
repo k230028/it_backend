@@ -347,12 +347,21 @@ public class AdminService {
     // =========================================================================
 
     /**
-     * 삭제되지 않은 전체 조직 목록을 조회합니다.
+     * 삭제되지 않은 전체 조직 목록을 조회합니다. 등록자·변경자명은 배치 조회로 일괄 변환합니다.
      *
      * @return 조직 응답 DTO 목록
      */
     public List<AdminDto.OrgResponse> getOrganizations() {
-        return orgRepository.findAdminViewsByDelYn("N").stream().map(this::toOrgResponse).toList();
+        List<OrganizationRepository.OrganizationAdminView> organizations =
+                orgRepository.findAdminViewsByDelYn("N");
+
+        // 감사 필드(등록자·변경자)의 고유 ENO를 한 번의 배치 쿼리로 이름 조회 (N+1 방지 — BE-26)
+        Map<String, String> userNameMap =
+                loadUserNameMap(
+                        organizations.stream()
+                                .flatMap(o -> Stream.of(o.getFstEnrUsid(), o.getLstChgUsid())));
+
+        return organizations.stream().map(o -> toOrgResponse(o, userNameMap)).toList();
     }
 
     /**
@@ -408,8 +417,9 @@ public class AdminService {
         org.delete();
     }
 
-    /** 관리자 조직 프로젝션을 OrgResponse DTO로 변환합니다. */
-    private AdminDto.OrgResponse toOrgResponse(OrganizationRepository.OrganizationAdminView o) {
+    /** 관리자 조직 프로젝션을 OrgResponse DTO로 변환합니다. 등록자·변경자명은 배치 조회된 맵에서 찾습니다. */
+    private AdminDto.OrgResponse toOrgResponse(
+            OrganizationRepository.OrganizationAdminView o, Map<String, String> userNameMap) {
         return new AdminDto.OrgResponse(
                 o.getPrlmOgzCCone(),
                 o.getBbrNm(),
@@ -418,10 +428,10 @@ public class AdminService {
                 o.getPrlmHrkOgzCCone(),
                 o.getFstEnrDtm(),
                 o.getFstEnrUsid(),
-                resolveUserName(o.getFstEnrUsid()),
+                resolveUserName(o.getFstEnrUsid(), userNameMap),
                 o.getLstChgDtm(),
                 o.getLstChgUsid(),
-                resolveUserName(o.getLstChgUsid()));
+                resolveUserName(o.getLstChgUsid(), userNameMap));
     }
 
     // =========================================================================
