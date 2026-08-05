@@ -30,12 +30,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -209,10 +209,38 @@ class CostServiceTest {
     /** 조직코드→조직명 해석기 (주관부서명/주관팀명 스냅샷 주입) */
     @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
-    @InjectMocks private CostService costService;
+    private CostService costService;
 
     /** 테스트 공통 관리번호 */
     private static final String IT_MNGC_NO = "COST_2026_0001";
+
+    @BeforeEach
+    void setUp() {
+        CostTerminalAssembler terminalAssembler =
+                new CostTerminalAssembler(btermmRepository, cuserIRepository, codeNameMapBuilder);
+        CostQueryAssembler queryAssembler =
+                new CostQueryAssembler(
+                        capplaRepository,
+                        capplmRepository,
+                        corgnIRepository,
+                        cuserIRepository,
+                        cdecimRepository,
+                        ccodemRepository,
+                        bbugtmRepository,
+                        costRepository,
+                        codeNameMapBuilder,
+                        terminalAssembler);
+        CostQueryService queryService = new CostQueryService(costRepository, queryAssembler);
+        costService =
+                new CostService(
+                        costRepository,
+                        btermmRepository,
+                        cuserIRepository,
+                        orgNameResolver,
+                        codeService,
+                        xcrLookupService,
+                        queryService);
+    }
 
     @Nested
     @DisplayName("CostRepresentativeSelector — 대표 행 결정적 선택 (BE-09)")
@@ -596,10 +624,10 @@ class CostServiceTest {
         given(cost2.getCostBgNo()).willReturn("COST_2026_0002");
         given(cost2.getBgSno()).willReturn(1);
 
-        given(costRepository.findByCostBgNoAndDelYn("COST_2026_0001", "N"))
-                .willReturn(List.of(cost1));
-        given(costRepository.findByCostBgNoAndDelYn("COST_2026_0002", "N"))
-                .willReturn(List.of(cost2));
+        given(
+                        costRepository.findByCostBgNoInAndDelYn(
+                                List.of("COST_2026_0001", "COST_2026_0002"), "N"))
+                .willReturn(List.of(cost1, cost2));
 
         // 단건 조회 경로에서 호출되는 cappla/termm mock
         given(
@@ -918,10 +946,8 @@ class CostServiceTest {
         given(costCost.getBgSno()).willReturn(1);
         given(costCost.getIoeC()).willReturn("102");
         given(costCost.getCostTotXpAmt()).willReturn(BigDecimal.valueOf(2000));
-        given(costRepository.findByCostBgNoAndDelYn("COST-ASSET", "N"))
-                .willReturn(List.of(assetCost));
-        given(costRepository.findByCostBgNoAndDelYn("COST-COST", "N"))
-                .willReturn(List.of(costCost));
+        given(costRepository.findByCostBgNoInAndDelYn(List.of("COST-ASSET", "COST-COST"), "N"))
+                .willReturn(List.of(assetCost, costCost));
         given(
                         capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
                                 eq("BCOSTM"), any(), any()))

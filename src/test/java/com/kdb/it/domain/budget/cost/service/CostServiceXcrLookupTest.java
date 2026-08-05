@@ -54,6 +54,7 @@ class CostServiceXcrLookupTest {
     @Mock private CodeService codeService;
     @Mock private BbugtmRepository bbugtmRepository;
     @Mock private XcrLookupService xcrLookupService;
+    @Mock private CostQueryService queryService;
 
     /** 작성자 소속 조직 해석기 (생성 경로 의존성) */
     @Mock private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
