@@ -120,6 +120,10 @@ public class CouncilService {
      */
     private static final String STS_COUNCIL_SKIPPED = "99";
 
+    /** 개최준비(05) 이상 진행된 협의회 진행상태 — startPreparation 멱등 처리(재신청 시 되돌리지 않음)에 사용. */
+    private static final Set<String> PREPARATION_OR_LATER_STATUSES =
+            Set.of("05", "06", "07", "08", "09", "10", "11", "12", "13");
+
     // =========================================================================
     // 조회
     // =========================================================================
@@ -246,11 +250,23 @@ public class CouncilService {
      */
     @Transactional
     public String createCouncil(CouncilDto.CreateRequest request, CustomUserDetails userDetails) {
-        // 협의회ID 채번: ASCT-{연도}-{4자리순번}
-        String asctId = generateItPtlAsctId();
-
         // 정보기술부문계획 협의회(dbrTc='02')는 단일 사업이 아니라 계획(BPLANM)을 심의 대상으로 가진다.
         boolean isPlanCouncil = "02".equals(request.dbrTc());
+
+        // 계획협의회는 계획(reqDocNo)당 하나만 진행한다. 이미 신청된 계획협의회가 있으면 새로 만들지 않고
+        // 기존 협의회ID를 반환한다(중복 생성 방지 · 계획 상세에서 재신청 시 기존 신청서 재사용).
+        if (isPlanCouncil) {
+            var existing =
+                    councilRepository.findByAbusMngNoAndDelYn(request.reqDocNo(), "N").stream()
+                            .filter(council -> "02".equals(council.getItPtlAsctDbrTc()))
+                            .findFirst();
+            if (existing.isPresent()) {
+                return existing.get().getItPtlAsctId();
+            }
+        }
+
+        // 협의회ID 채번: ASCT-{연도}-{4자리순번}
+        String asctId = generateItPtlAsctId();
 
         // 협의회 기본정보 생성 (초기 상태: DRAFT)
         Basctm council =
@@ -499,12 +515,17 @@ public class CouncilService {
         boolean isPlanCouncil = "02".equals(council.getItPtlAsctDbrTc());
         String current = council.getItPtlAsctPrgStsTc();
         boolean allowed = "04".equals(current) || (isPlanCouncil && "01".equals(current));
-        if (!allowed) {
-            throw new IllegalStateException("개최준비 전이는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + current);
+        if (allowed) {
+            // 협의회 상태 전이: → PREPARING(05)
+            council.changeStatus("05");
+            return;
         }
-
-        // 협의회 상태 전이: → PREPARING(05)
-        council.changeStatus("05");
+        // 이미 개최준비(05) 이상 진행된 협의회는 재신청(계획 상세에서 기존 협의회 재사용) 시
+        // 상태를 되돌리지 않고 그대로 둔다(멱등). 그 외(비정상 상태)만 예외로 막는다.
+        if (PREPARATION_OR_LATER_STATUSES.contains(current)) {
+            return;
+        }
+        throw new IllegalStateException("개최준비 전이는 결재완료(004) 상태에서만 가능합니다. 현재 상태: " + current);
     }
 
     // =========================================================================
