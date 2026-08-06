@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -74,7 +75,7 @@ public class ProjectController {
                             + "apfSts=none은 신청서가 없는 프로젝트, "
                             + "apfSts=결재중/결재완료 등은 해당 결재상태의 프로젝트를 조회합니다.")
     public ResponseEntity<List<ProjectDto.Response>> getProjects(
-            @ModelAttribute ProjectDto.SearchCondition condition) {
+            @ParameterObject @ModelAttribute ProjectDto.SearchCondition condition) {
         return ResponseEntity.ok(projectService.searchProjectList(condition));
     }
 

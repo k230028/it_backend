@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,7 +35,7 @@ public class BoardPostController {
     @Operation(summary = "게시물 목록 조회")
     public ResponseEntity<Page<BoardPostDto.ListItem>> searchPosts(
             @PathVariable("blbMngNo") String blbMngNo,
-            @ModelAttribute BoardPostDto.SearchCondition cond,
+            @ParameterObject @ModelAttribute BoardPostDto.SearchCondition cond,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(boardPostService.searchPosts(blbMngNo, cond, user));
     }

@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -363,7 +364,8 @@ public class AdminController {
     @GetMapping("/login-history")
     @Operation(summary = "로그인 이력 조회", description = "전체 로그인 이력을 최신순으로 페이지네이션하여 반환합니다.")
     public ResponseEntity<Page<AdminDto.LoginHistoryResponse>> getLoginHistory(
-            @PageableDefault(size = 50, sort = "lgnDtm", direction = Sort.Direction.DESC)
+            @ParameterObject
+                    @PageableDefault(size = 50, sort = "lgnDtm", direction = Sort.Direction.DESC)
                     Pageable pageable) {
         return ResponseEntity.ok(adminService.getLoginHistory(pageable));
     }
@@ -423,7 +425,8 @@ public class AdminController {
     @GetMapping("/logs/{logKey}")
     @Operation(summary = "상세 로그 목록 조회", description = "선택한 로그 테이블의 변경 이력을 최신순으로 조회합니다.")
     public ResponseEntity<AdminLogDto.LogPageResponse> getLogs(
-            @PathVariable("logKey") String logKey, @PageableDefault(size = 100) Pageable pageable) {
+            @PathVariable("logKey") String logKey,
+            @ParameterObject @PageableDefault(size = 100) Pageable pageable) {
         return ResponseEntity.ok(adminLogService.getLogs(logKey, pageable));
     }
 
