@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -68,7 +69,7 @@ public class FileController {
                             + "pkCone(주식별자내용)을 추가하면 특정 레코드의 파일만 조회합니다. "
                             + "flTpCone('이미지' 또는 '첨부파일')로 파일 종류를 필터링할 수 있습니다.")
     public ResponseEntity<List<FileDto.Response>> getFiles(
-            @ModelAttribute FileDto.SearchCondition condition,
+            @ParameterObject @ModelAttribute FileDto.SearchCondition condition,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.ok(fileService.getFiles(condition, userDetails));
     }

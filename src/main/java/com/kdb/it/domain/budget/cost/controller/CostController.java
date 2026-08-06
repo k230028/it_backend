@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -165,7 +166,7 @@ public class CostController {
             })
     @GetMapping
     public ResponseEntity<List<CostDto.Response>> getCostList(
-            @ModelAttribute CostDto.SearchCondition condition) {
+            @ParameterObject @ModelAttribute CostDto.SearchCondition condition) {
         return ResponseEntity.ok(costService.searchCostList(condition));
     }
 
