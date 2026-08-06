@@ -7,6 +7,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
@@ -29,6 +30,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -160,7 +162,10 @@ public class CouncilService {
             List<CouncilDto.ListResponse> result =
                     new java.util.ArrayList<>(
                             rows.stream()
-                                    .map(row -> toListResponseFromRow(row, budgetMap))
+                                    .map(
+                                            row ->
+                                                    CouncilResponseMapper.toListResponse(
+                                                            row, budgetMap))
                                     .toList());
             // 계획협의회(dbrTc='02')는 사업이 아닌 계획(BPLANM)을 참조해 사업 기반 쿼리에 잡히지 않으므로 별도로 덧붙인다.
             result.addAll(
@@ -187,7 +192,7 @@ public class CouncilService {
                             .collect(Collectors.toSet());
             List<CouncilDto.ListResponse> result =
                     rows.stream()
-                            .map(row -> toListResponseFromRow(row, budgetMap))
+                            .map(row -> CouncilResponseMapper.toListResponse(row, budgetMap))
                             .filter(
                                     r ->
                                             (!r.applied() && r.hasInfoSecResource())
@@ -220,7 +225,9 @@ public class CouncilService {
         // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
         Map<String, BigDecimal> budgetMap =
                 deriveCurrentYearBudgets(rows.stream().map(row -> row.abusMngNo()).toList());
-        return rows.stream().map(row -> toListResponseFromRow(row, budgetMap)).toList();
+        return rows.stream()
+                .map(row -> CouncilResponseMapper.toListResponse(row, budgetMap))
+                .toList();
     }
 
     /**
@@ -670,105 +677,47 @@ public class CouncilService {
     /**
      * Basctm 엔티티 → ListResponse 변환 (평가위원용, PRD §16)
      *
-     * <p>사업명은 BPOVWM 우선, 없으면 BPROJM에서 가져옵니다. 평가위원 사업카드도 일반사용자/관리자와 동일하게 사업 상세 필드를 채워야 하므로 BPROJM에서
-     * prjYy/prjTp/svnDpm/prjBg/sttDt/endDt/itDpm/prjDes를 함께 매핑합니다.
+     * <p>리포지토리 조회만 여기서 수행하고 필드 매핑은 {@link CouncilResponseMapper}에 위임합니다.
      */
     private CouncilDto.ListResponse toListResponseFromEntity(
             Basctm council, Map<String, BigDecimal> budgetMap) {
         // BPROJM 조회 — 사업 상세 정보 원천
         var projectOpt =
                 projectRepository.findById(new BprojmId(council.getAbusMngNo(), council.getSno()));
-
-        // 사업명: 계획협의회(dbrTc='02')는 사업이 아닌 계획 단위이므로 '정보기술부문계획 수립/조정'을 제목으로 쓴다.
-        // 그 외 사업 협의회는 BPOVWM(타당성검토표) 우선, 없으면 BPROJM.
-        String prjNm;
-        if ("02".equals(council.getItPtlAsctDbrTc())) {
-            prjNm =
-                    bplanmRepository
-                            .findByReqDocNoAndDelYn(council.getAbusMngNo(), "N")
-                            .map(
-                                    plan ->
-                                            "정보기술부문계획 "
-                                                    + ("조정".equals(plan.getItPtlPlnTpC())
-                                                            ? "조정"
-                                                            : "수립"))
-                            .orElse("정보기술부문계획");
-        } else {
-            prjNm =
-                    projectOverviewRepository
-                            .findByItPtlAsctIdAndDelYn(council.getItPtlAsctId(), "N")
-                            .map(value -> value.getAbusNm())
-                            .orElseGet(() -> projectOpt.map(p -> p.getAbusNm()).orElse(null));
-        }
-
-        // 사업 상세 (BPROJM 기반)
-        String prjYy = projectOpt.map(p -> p.getBseYy()).orElse(null);
-        String prjTp = projectOpt.map(p -> p.getBzTpC()).orElse(null);
-        String svnDpm = projectOpt.map(p -> p.getSvnDpmC()).orElse(null);
-        // 당해예산: 품목 활성 항목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반 파생값 (배치 조회 결과 사용)
-        BigDecimal prjBg = budgetMap.get(council.getAbusMngNo());
-        java.time.LocalDate sttDt = projectOpt.map(p -> p.getSttDtm()).orElse(null);
-        java.time.LocalDate endDt = projectOpt.map(p -> p.getEndDtm()).orElse(null);
-        String itDpm = projectOpt.map(p -> p.getDvmDpmC()).orElse(null);
-        String prjDes = projectOpt.map(p -> p.getAbusCone()).orElse(null);
         // 소요자원(BITEMM) 정보보호 항목 존재 여부 — 심의유형 04 노출 조건
         boolean hasInfoSecResource =
                 projectItemRepository.existsByAbusMngNoAndSectSysUtzYnAndDelYn(
                         council.getAbusMngNo(), "Y", "N");
-
-        return new CouncilDto.ListResponse(
-                council.getItPtlAsctId(),
-                council.getAbusMngNo(),
-                council.getSno(),
-                prjNm,
-                council.getItPtlAsctPrgStsTc(),
-                council.getItPtlAsctDbrTc(),
-                council.getCnrcDt(),
-                council.getCnrcSttTm(),
-                true,
-                prjYy,
-                prjTp,
-                svnDpm,
-                prjBg,
-                sttDt,
-                endDt,
-                itDpm,
-                prjDes,
-                council.getCsfHeldYn(),
+        return CouncilResponseMapper.toListResponse(
+                council,
+                projectOpt.orElse(null),
+                resolveListTitle(council, projectOpt),
+                // 당해예산: 품목 활성 항목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반 파생값 (배치 조회 결과 사용)
+                budgetMap.get(council.getAbusMngNo()),
                 hasInfoSecResource);
     }
 
     /**
-     * 협의회 신청대상 DTO 행 → ListResponse 변환 (관리자/일반사용자용)
+     * 협의회 목록 제목 해석
      *
-     * <p>native {@code Object[]} 인덱스 캐스팅은 {@link CouncilProjectRow#fromRow(Object[])} 단일 팩토리(§5.5.4
-     * 헬퍼 사용)로 봉인되어 서비스로 새지 않는다. 날짜 타입/문자열 yyyyMMdd 변환은 DTO 생성 시점에 이미 {@code LocalDate}로 끝나 있으므로
-     * 여기서는 추가 변환이 없다.
+     * <p>계획협의회(dbrTc='02')는 사업이 아닌 계획 단위이므로 '정보기술부문계획 수립/조정'을 제목으로 씁니다. 그 외 사업 협의회는 BPOVWM(타당성검토표)의
+     * 사업명을 우선하고, 없으면 BPROJM의 사업명을 씁니다.
      *
-     * <p>당해예산({@code prjBg})은 native 컬럼이 NULL이므로 품목 배치 조회 결과({@code budgetMap})로 파생 산출한다.
+     * @param council 협의회 엔티티
+     * @param projectOpt BPROJM 조회 결과. 비어 있으면 BPOVWM도 없을 때 null을 반환한다
+     * @return 목록에 표시할 제목. 어느 원천에서도 이름을 찾지 못하면 null
      */
-    private CouncilDto.ListResponse toListResponseFromRow(
-            CouncilProjectRow row, Map<String, BigDecimal> budgetMap) {
-        return new CouncilDto.ListResponse(
-                row.itPtlAsctId(),
-                row.abusMngNo(),
-                row.sno(),
-                row.abusNm(),
-                row.itPtlAsctPrgStsTc(),
-                row.itPtlAsctDbrTc(),
-                row.cnrcDt(),
-                row.cnrcSttTm(),
-                row.applied(),
-                row.prjYy(),
-                row.prjTp(),
-                row.svnDpm(),
-                budgetMap.get(row.abusMngNo()),
-                row.sttDt(),
-                row.endDt(),
-                row.itDpm(),
-                row.abusCone(),
-                row.csfHeldYn(),
-                row.hasInfoSecResource());
+    private String resolveListTitle(Basctm council, Optional<Bprojm> projectOpt) {
+        if ("02".equals(council.getItPtlAsctDbrTc())) {
+            return bplanmRepository
+                    .findByReqDocNoAndDelYn(council.getAbusMngNo(), "N")
+                    .map(plan -> "정보기술부문계획 " + ("조정".equals(plan.getItPtlPlnTpC()) ? "조정" : "수립"))
+                    .orElse("정보기술부문계획");
+        }
+        return projectOverviewRepository
+                .findByItPtlAsctIdAndDelYn(council.getItPtlAsctId(), "N")
+                .map(value -> value.getAbusNm())
+                .orElseGet(() -> projectOpt.map(p -> p.getAbusNm()).orElse(null));
     }
 
     /** Basctm → DetailResponse 변환 BPROJM에서 사업명(prjNm)과 전결권자(edrt)를 함께 조회합니다. */

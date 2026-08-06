@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
 class MaxLinesRatchetTest {
 
     /** 기준선에 없는 파일에 허용되는 최대 줄 수 */
-    private static final int LIMIT = 850;
+    private static final int LIMIT = 800;
 
     private static final String BASELINE_RESOURCE = "/architecture/max-lines-baselines.properties";
 
@@ -67,7 +67,7 @@ class MaxLinesRatchetTest {
                                 .formatted(path, expected, measured, measured - expected));
             } else if (measured < expected) {
                 violations.add(
-                        "[감소] %s — 기준 %d줄, 실측 %d줄 (%d). 분해했다면 기준값을 실측값으로 낮추십시오. 850줄 이하가 되면 항목을 지우십시오."
+                        "[감소] %s — 기준 %d줄, 실측 %d줄 (%d). 분해했다면 기준값을 실측값으로 낮추십시오. 800줄 이하가 되면 항목을 지우십시오."
                                 .formatted(path, expected, measured, measured - expected));
             }
         }
@@ -120,7 +120,7 @@ class MaxLinesRatchetTest {
     @Test
     @DisplayName("기준선 밖 파일이 한계를 넘으면 위반을 낸다")
     void 신규_초과를_검출한다() {
-        List<String> violations = findViolations(Map.of(), Map.of("a/New.java", 851), LIMIT);
+        List<String> violations = findViolations(Map.of(), Map.of("a/New.java", 801), LIMIT);
 
         assertThat(violations).hasSize(1);
         assertThat(violations.get(0)).startsWith("[신규 초과] a/New.java");
@@ -143,7 +143,7 @@ class MaxLinesRatchetTest {
     // =====================================================================
 
     @Test
-    @DisplayName("운영 소스가 기준선과 일치하고 기준선 밖 파일이 850줄을 넘지 않는다")
+    @DisplayName("운영 소스가 기준선과 일치하고 기준선 밖 파일이 800줄을 넘지 않는다")
     void 운영_소스가_동결선을_지킨다() throws IOException {
         Map<String, Integer> baseline = loadBaseline();
         Map<String, Integer> actual = measureSourceTree(sourceRoot());
