@@ -1,8 +1,6 @@
 package com.kdb.it.common.admin.service;
 
 import com.kdb.it.common.admin.dto.AdminDto;
-import com.kdb.it.common.code.entity.Ccodem;
-import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.iam.entity.CauthI;
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CroleI;
@@ -16,8 +14,6 @@ import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.infra.file.repository.FileRepository;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -37,11 +33,14 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>기존 리포지토리를 DI 받아 관리자 전용 로직을 처리합니다. 엔티티/리포지토리는 신규 생성 없이 기존 패키지를 재사용합니다.
  *
+ * <p>공통코드(TPRMPP_CCODEM) 관리는 캐시 무효화 책임과 함께 {@link AdminCodeService}로 분리되어 있습니다.
+ *
  * <p>의존 패키지:
  *
  * <ul>
- *   <li>{@code common/code} — 공통코드(Ccodem, CodeRepository)
- *   <li>{@code common/iam} — 사용자(CuserI, UserRepository) — 이름 변환용
+ *   <li>{@code common/iam} — 자격등급·역할·사용자·조직(CauthI, CroleI, CuserI, CorgnI)
+ *   <li>{@code common/system} — 로그인 이력, Refresh 토큰
+ *   <li>{@code infra/file} — 첨부파일
  * </ul>
  */
 @Service
@@ -50,7 +49,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminService {
 
     // 각 관리 기능은 기존 도메인 리포지토리를 생성자 주입으로 재사용합니다.
-    private final CodeRepository codeRepository;
     private final AuthRepository authRepository;
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
@@ -59,289 +57,6 @@ public class AdminService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final FileRepository fileRepository;
     private final PasswordEncoder passwordEncoder;
-
-    // =========================================================================
-    // 공통코드 (TPRMPP_CCODEM)
-    // =========================================================================
-
-    /**
-     * 삭제되지 않은 전체 공통코드 목록을 조회합니다. 최초생성자·마지막수정자 사원번호를 이름으로 일괄 변환하여 반환합니다.
-     *
-     * @return 공통코드 응답 DTO 목록
-     */
-    public List<AdminDto.CodeResponse> getCodes() {
-        List<Ccodem> codes = codeRepository.findAllActive();
-
-        // 감사 필드의 고유 ENO를 한 번의 배치 쿼리로 이름 조회 (N+1 방지)
-        Set<String> enos =
-                codes.stream()
-                        .flatMap(c -> Stream.of(c.getFstEnrUsid(), c.getLstChgUsid()))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toSet());
-        Map<String, String> userNameMap =
-                userRepository.findNameViewsByEnoIn(enos).stream()
-                        .collect(Collectors.toMap(u -> u.getEno(), u -> u.getUsrNm()));
-
-        return codes.stream().map(c -> toCodeResponse(c, userNameMap)).toList();
-    }
-
-    /**
-     * 신규 공통코드를 추가합니다. C_ID와 시작일자가 모두 중복되면 예외를 발생시킵니다.
-     *
-     * @param req 공통코드 생성 요청 DTO
-     * @throws IllegalArgumentException 코드ID/시작일자 중복 시
-     */
-    @Transactional
-    public void createCode(AdminDto.CodeRequest req) {
-        validateCodeKey(req.cId(), req.cdva(), req.sttDt());
-        if (codeRepository.existsByCIdAndCdvaAndSttDt(req.cId(), req.cdva(), req.sttDt())) {
-            throw new IllegalArgumentException(
-                    "이미 존재하는 코드입니다: " + req.cId() + "/" + req.cdva() + ", " + req.sttDt());
-        }
-        Ccodem code =
-                Ccodem.builder()
-                        .cId(req.cId())
-                        .cNm(req.cNm())
-                        .cdvaNm(req.cdvaNm())
-                        .cdva(req.cdva())
-                        .cdvaDes(req.cdvaDes())
-                        .cdvaDtl(req.cdvaDtl())
-                        .cdvaDtlC(req.cdvaDtlC())
-                        .cTp(req.cTp())
-                        .cTpDes(req.cTpDes())
-                        .hrkC(req.hrkC())
-                        .sttDt(req.sttDt())
-                        .endDt(req.endDt())
-                        .cSqn(req.cSqn())
-                        .build();
-        codeRepository.save(code);
-    }
-
-    /**
-     * 공통코드 정보를 수정합니다.
-     *
-     * <p>요청의 PK(cId/cdva/sttDt)가 path PK와 동일하면 Dirty Checking으로 비PK 필드만 갱신합니다. PK가 다르면 PK rename 으로
-     * 간주하여 다음 절차로 처리합니다:
-     *
-     * <ol>
-     *   <li>새 PK 충돌 검증 — 동일 PK의 활성 행이 이미 있으면 거절
-     *   <li>기존 행 soft delete ({@code DEL_YN='Y'})
-     *   <li>새 PK + 새 비PK 값으로 신규 행 생성·저장
-     * </ol>
-     *
-     * <p>두 단계 모두 {@code ChangeLogEntityListener}가 자동 기록하므로 변경 이력은 보존됩니다.
-     *
-     * @param cId path 원본 코드ID
-     * @param cdva path 원본 코드값
-     * @param sttDt path 원본 시작일자
-     * @param req 공통코드 수정 요청 DTO (req 안의 PK는 새 값, path와 다르면 rename)
-     * @throws IllegalArgumentException 원본 코드를 찾을 수 없거나, 새 PK가 이미 존재하는 경우
-     */
-    @Transactional
-    public void updateCode(String cId, String cdva, String sttDt, AdminDto.CodeRequest req) {
-        validateCodeKey(cId, cdva, sttDt);
-        Ccodem code =
-                codeRepository
-                        .findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
-                        .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "존재하지 않는 코드입니다: "
-                                                        + cId
-                                                        + "/"
-                                                        + cdva
-                                                        + ", "
-                                                        + sttDt));
-
-        // 요청 PK 결정: req에 값이 있으면 새 PK, 없으면 path PK 유지
-        String newCId = (req.cId() != null && !req.cId().isBlank()) ? req.cId() : cId;
-        String newCdva = (req.cdva() != null && !req.cdva().isBlank()) ? req.cdva() : cdva;
-        String newSttDt = (req.sttDt() != null && !req.sttDt().isBlank()) ? req.sttDt() : sttDt;
-
-        boolean pkChanged =
-                !Objects.equals(newCId, cId)
-                        || !Objects.equals(newCdva, cdva)
-                        || !Objects.equals(newSttDt, sttDt);
-
-        if (!pkChanged) {
-            // PK 동일 — 기존 setter 기반 update (Dirty Checking)
-            code.update(
-                    req.cNm(),
-                    req.cdvaDes(),
-                    req.cdvaDtl(),
-                    req.cdvaNm(),
-                    req.cTp(),
-                    req.cTpDes(),
-                    req.hrkC(),
-                    req.cSqn(),
-                    req.endDt(),
-                    req.cdvaDtlC());
-            return;
-        }
-
-        // PK rename — 새 PK 충돌 검증
-        validateCodeKey(newCId, newCdva, newSttDt);
-        if (codeRepository.existsByCIdAndCdvaAndSttDt(newCId, newCdva, newSttDt)) {
-            throw new IllegalArgumentException(
-                    "이미 존재하는 코드입니다: " + newCId + "/" + newCdva + ", " + newSttDt);
-        }
-
-        // 기존 행 soft delete
-        code.delete();
-
-        // 새 PK로 신규 행 생성·저장
-        Ccodem renamed =
-                Ccodem.builder()
-                        .cId(newCId)
-                        .cdva(newCdva)
-                        .sttDt(newSttDt)
-                        .cNm(req.cNm())
-                        .cdvaNm(req.cdvaNm())
-                        .cdvaDes(req.cdvaDes())
-                        .cdvaDtl(req.cdvaDtl())
-                        .cdvaDtlC(req.cdvaDtlC())
-                        .cTp(req.cTp())
-                        .cTpDes(req.cTpDes())
-                        .hrkC(req.hrkC())
-                        .endDt(req.endDt())
-                        .cSqn(req.cSqn())
-                        .build();
-        codeRepository.save(renamed);
-    }
-
-    /**
-     * 공통코드를 논리 삭제(Soft Delete)합니다. DEL_YN='Y' 처리 — 물리 삭제 금지.
-     *
-     * @param cId 코드ID
-     * @param cdva 코드값
-     * @param sttDt 시작일자
-     * @throws IllegalArgumentException 코드를 찾을 수 없는 경우
-     */
-    @Transactional
-    public void deleteCode(String cId, String cdva, String sttDt) {
-        validateCodeKey(cId, cdva, sttDt);
-        Ccodem code =
-                codeRepository
-                        .findByCIdAndCdvaAndSttDtAndDelYn(cId, cdva, sttDt, "N")
-                        .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "존재하지 않는 코드입니다: "
-                                                        + cId
-                                                        + "/"
-                                                        + cdva
-                                                        + ", "
-                                                        + sttDt));
-        code.delete();
-    }
-
-    /**
-     * 공통코드 일괄 업로드(Upsert) 처리합니다. 코드ID가 이미 존재하면 수정, 없으면 신규 생성합니다.
-     *
-     * @param req 일괄 업로드 요청 DTO (코드 목록)
-     * @return 처리 결과 (created: 신규 건수, updated: 수정 건수)
-     */
-    @Transactional
-    public Map<String, Integer> bulkUpsertCodes(AdminDto.BulkCodeRequest req) {
-        for (AdminDto.CodeRequest item : req.codes()) {
-            validateCodeKey(item.cId(), item.cdva(), item.sttDt());
-        }
-
-        Set<String> cIds =
-                req.codes().stream().map(AdminDto.CodeRequest::cId).collect(Collectors.toSet());
-        Map<CodeKey, Ccodem> byKey = new LinkedHashMap<>();
-        for (Ccodem code : codeRepository.findAllByCIdInAndDelYn(cIds, "N")) {
-            byKey.put(new CodeKey(code.getCId(), code.getCdva(), code.getSttDt()), code);
-        }
-
-        int created = 0;
-        int updated = 0;
-        List<Ccodem> newCodes = new ArrayList<>();
-        for (AdminDto.CodeRequest item : req.codes()) {
-            CodeKey key = new CodeKey(item.cId(), item.cdva(), item.sttDt());
-            Ccodem existing = byKey.get(key);
-            if (existing != null) {
-                existing.update(
-                        item.cNm(),
-                        item.cdvaDes(),
-                        item.cdvaDtl(),
-                        item.cdvaNm(),
-                        item.cTp(),
-                        item.cTpDes(),
-                        item.hrkC(),
-                        item.cSqn(),
-                        item.endDt(),
-                        item.cdvaDtlC());
-                updated++;
-            } else {
-                Ccodem code =
-                        Ccodem.builder()
-                                .cId(item.cId())
-                                .cNm(item.cNm())
-                                .cdvaNm(item.cdvaNm())
-                                .cdva(item.cdva())
-                                .cdvaDes(item.cdvaDes())
-                                .cdvaDtl(item.cdvaDtl())
-                                .cdvaDtlC(item.cdvaDtlC())
-                                .cTp(item.cTp())
-                                .cTpDes(item.cTpDes())
-                                .hrkC(item.hrkC())
-                                .sttDt(item.sttDt())
-                                .endDt(item.endDt())
-                                .cSqn(item.cSqn())
-                                .build();
-                newCodes.add(code);
-                byKey.put(key, code);
-                created++;
-            }
-        }
-        codeRepository.saveAll(newCodes);
-        return Map.of("created", created, "updated", updated);
-    }
-
-    private record CodeKey(String cId, String cdva, String sttDt) {}
-
-    /** 공통코드 복합키 필수값을 검증합니다. */
-    private void validateCodeKey(String cId, String cdva, String sttDt) {
-        if (cId == null || cId.isBlank()) {
-            throw new IllegalArgumentException("코드ID는 필수입니다.");
-        }
-        if (cdva == null || cdva.isBlank()) {
-            throw new IllegalArgumentException("코드값은 필수입니다.");
-        }
-        if (sttDt == null || sttDt.isBlank()) {
-            throw new IllegalArgumentException("시작일자는 필수입니다.");
-        }
-    }
-
-    /**
-     * Ccodem 엔티티를 CodeResponse DTO로 변환합니다.
-     *
-     * @param c 공통코드 엔티티
-     * @param userNameMap ENO → 사용자명 매핑 (배치 조회 결과)
-     */
-    private AdminDto.CodeResponse toCodeResponse(Ccodem c, Map<String, String> userNameMap) {
-        return new AdminDto.CodeResponse(
-                c.getCId(),
-                c.getCdva(),
-                c.getCNm(),
-                c.getCdvaNm(),
-                c.getCdvaDes(),
-                c.getCdvaDtl(),
-                c.getCdvaDtlC(),
-                c.getCTp(),
-                c.getCTpDes(),
-                c.getHrkC(),
-                c.getSttDt(),
-                c.getEndDt(),
-                c.getCSqn(),
-                c.getFstEnrDtm(),
-                c.getFstEnrUsid(),
-                userNameMap.getOrDefault(c.getFstEnrUsid(), c.getFstEnrUsid()),
-                c.getLstChgDtm(),
-                c.getLstChgUsid(),
-                userNameMap.getOrDefault(c.getLstChgUsid(), c.getLstChgUsid()));
-    }
 
     // =========================================================================
     // 자격등급 (TPRMPP_CAUTHI) — M3
@@ -632,12 +347,21 @@ public class AdminService {
     // =========================================================================
 
     /**
-     * 삭제되지 않은 전체 조직 목록을 조회합니다.
+     * 삭제되지 않은 전체 조직 목록을 조회합니다. 등록자·변경자명은 배치 조회로 일괄 변환합니다.
      *
      * @return 조직 응답 DTO 목록
      */
     public List<AdminDto.OrgResponse> getOrganizations() {
-        return orgRepository.findAdminViewsByDelYn("N").stream().map(this::toOrgResponse).toList();
+        List<OrganizationRepository.OrganizationAdminView> organizations =
+                orgRepository.findAdminViewsByDelYn("N");
+
+        // 감사 필드(등록자·변경자)의 고유 ENO를 한 번의 배치 쿼리로 이름 조회 (N+1 방지 — BE-26)
+        Map<String, String> userNameMap =
+                loadUserNameMap(
+                        organizations.stream()
+                                .flatMap(o -> Stream.of(o.getFstEnrUsid(), o.getLstChgUsid())));
+
+        return organizations.stream().map(o -> toOrgResponse(o, userNameMap)).toList();
     }
 
     /**
@@ -693,8 +417,9 @@ public class AdminService {
         org.delete();
     }
 
-    /** 관리자 조직 프로젝션을 OrgResponse DTO로 변환합니다. */
-    private AdminDto.OrgResponse toOrgResponse(OrganizationRepository.OrganizationAdminView o) {
+    /** 관리자 조직 프로젝션을 OrgResponse DTO로 변환합니다. 등록자·변경자명은 배치 조회된 맵에서 찾습니다. */
+    private AdminDto.OrgResponse toOrgResponse(
+            OrganizationRepository.OrganizationAdminView o, Map<String, String> userNameMap) {
         return new AdminDto.OrgResponse(
                 o.getPrlmOgzCCone(),
                 o.getBbrNm(),
@@ -703,10 +428,10 @@ public class AdminService {
                 o.getPrlmHrkOgzCCone(),
                 o.getFstEnrDtm(),
                 o.getFstEnrUsid(),
-                resolveUserName(o.getFstEnrUsid()),
+                resolveUserName(o.getFstEnrUsid(), userNameMap),
                 o.getLstChgDtm(),
                 o.getLstChgUsid(),
-                resolveUserName(o.getLstChgUsid()));
+                resolveUserName(o.getLstChgUsid(), userNameMap));
     }
 
     // =========================================================================

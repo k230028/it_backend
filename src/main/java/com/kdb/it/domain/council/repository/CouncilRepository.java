@@ -51,8 +51,8 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
     /**
      * 심의유형별 협의회 목록 조회 (삭제되지 않은 항목).
      *
-     * <p>계획협의회(dbrTc='02')는 사업(BPROJM)이 아닌 계획(BPLANM)을 참조하므로 사업 기반 목록 쿼리에 잡히지 않는다.
-     * 관리자 목록에 계획협의회를 덧붙일 때 사용한다.
+     * <p>계획협의회(dbrTc='02')는 사업(BPROJM)이 아닌 계획(BPLANM)을 참조하므로 사업 기반 목록 쿼리에 잡히지 않는다. 관리자 목록에 계획협의회를
+     * 덧붙일 때 사용한다.
      *
      * @param itPtlAsctDbrTc 협의회 심의구분 (예: '02')
      * @param delYn 삭제여부 ('N')

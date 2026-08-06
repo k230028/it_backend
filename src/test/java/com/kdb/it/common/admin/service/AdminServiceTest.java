@@ -3,15 +3,15 @@ package com.kdb.it.common.admin.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.admin.dto.AdminDto;
-import com.kdb.it.common.code.entity.Ccodem;
-import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.iam.entity.CauthI;
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CroleI;
@@ -47,8 +47,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 /**
  * AdminService 단위 테스트
  *
- * <p>Mockito로 모든 Repository를 Mock 처리하여 Oracle DB 없이 관리자 CRUD 비즈니스 로직(공통코드, 자격등급, 역할, 사용자, 조직)을
- * 검증합니다.
+ * <p>Mockito로 모든 Repository를 Mock 처리하여 Oracle DB 없이 관리자 CRUD 비즈니스 로직(자격등급, 역할, 사용자, 조직)을 검증합니다.
+ *
+ * <p>공통코드 CRUD는 {@link AdminCodeService}로 분리되어 {@code AdminCodeServiceTest}가 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -290,7 +291,6 @@ class AdminServiceTest {
         }
     }
 
-    @Mock private CodeRepository codeRepository;
     @Mock private AuthRepository authRepository;
     @Mock private RoleRepository roleRepository;
     @Mock private UserRepository userRepository;
@@ -301,184 +301,6 @@ class AdminServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
 
     @InjectMocks private AdminService adminService;
-
-    // =========================================================================
-    // 공통코드 (Ccodem)
-    // =========================================================================
-
-    @Test
-    @DisplayName("createCode - 중복 코드ID 존재 시 IllegalArgumentException 발생")
-    void createCode_중복코드ID_예외발생() {
-        // given: 이미 존재하는 코드ID
-        String sttDt = "20260101";
-        AdminDto.CodeRequest req =
-                new AdminDto.CodeRequest(
-                        "CODE001", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt,
-                        null, 1);
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE001", "001", sttDt)).willReturn(true);
-
-        // when & then
-        assertThatThrownBy(() -> adminService.createCode(req))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("이미 존재하는 코드입니다");
-    }
-
-    @Test
-    @DisplayName("createCode - 정상 요청 시 codeRepository.save() 호출")
-    void createCode_정상요청_저장호출() {
-        // given
-        String sttDt = "20260101";
-        AdminDto.CodeRequest req =
-                new AdminDto.CodeRequest(
-                        "CODE002", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt,
-                        null, 1);
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "001", sttDt)).willReturn(false);
-
-        // when
-        adminService.createCode(req);
-
-        // then
-        verify(codeRepository, times(1)).save(any(Ccodem.class));
-    }
-
-    @Test
-    @DisplayName("updateCode - 미존재 코드ID 수정 시 IllegalArgumentException 발생")
-    void updateCode_미존재코드ID_예외발생() {
-        // given
-        String sttDt = "20260101";
-        AdminDto.CodeRequest req =
-                new AdminDto.CodeRequest(
-                        "NONE", "001", "코드명", "코드값명", "설명", "값", "구분", "구분설명", null, null, sttDt,
-                        null, 1);
-        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("NONE", "001", sttDt, "N"))
-                .willReturn(Optional.empty());
-
-        // when & then
-        assertThatThrownBy(() -> adminService.updateCode("NONE", "001", sttDt, req))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("존재하지 않는 코드입니다");
-    }
-
-    @Test
-    @DisplayName("deleteCode - 정상 삭제 시 code.delete() 호출 (Soft Delete)")
-    void deleteCode_정상삭제_SoftDelete() {
-        // given
-        String sttDt = "20260101";
-        Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
-        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
-                .willReturn(Optional.of(code));
-
-        // when
-        adminService.deleteCode("CODE001", "001", sttDt);
-
-        // then: DEL_YN='Y' 처리 검증
-        assertThat(code.getDelYn()).isEqualTo("Y");
-    }
-
-    @Test
-    @DisplayName("bulkUpsertCodes - 신규/수정 건수를 정확히 반환한다")
-    void bulkUpsertCodes_신규수정건수반환() {
-        // given: CODE001은 기존 존재, CODE002는 신규
-        String sttDt = "20260101";
-        AdminDto.CodeRequest req1 =
-                new AdminDto.CodeRequest(
-                        "CODE001", "001", "코드1", null, null, null, null, null, null, null, sttDt,
-                        null, 1);
-        AdminDto.CodeRequest req2 =
-                new AdminDto.CodeRequest(
-                        "CODE002", "002", "코드2", null, null, null, null, null, null, null, sttDt,
-                        null, 2);
-        AdminDto.BulkCodeRequest bulkReq = new AdminDto.BulkCodeRequest(List.of(req1, req2));
-
-        Ccodem existingCode = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
-        given(codeRepository.findAllByCIdInAndDelYn(anyCollection(), eq("N")))
-                .willReturn(List.of(existingCode));
-
-        // when
-        var result = adminService.bulkUpsertCodes(bulkReq);
-
-        // then
-        assertThat(result.get("updated")).isEqualTo(1);
-        assertThat(result.get("created")).isEqualTo(1);
-        verify(codeRepository, times(1)).saveAll(anyCollection());
-    }
-
-    @Test
-    @DisplayName("updateCode - 복합키가 같으면 기존 코드의 일반 필드만 수정한다")
-    void updateCode_동일키_기존항목수정() {
-        String sttDt = "20260101";
-        Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).cNm("기존").build();
-        AdminDto.CodeRequest req =
-                new AdminDto.CodeRequest(
-                        "CODE001", "001", "수정", "코드값명", "설명", "값", "상세", "타입", "타입설명", null, sttDt,
-                        null, 2);
-        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
-                .willReturn(Optional.of(code));
-
-        adminService.updateCode("CODE001", "001", sttDt, req);
-
-        assertThat(code.getCNm()).isEqualTo("수정");
-    }
-
-    @Test
-    @DisplayName("updateCode - 복합키 변경 시 기존 코드를 삭제하고 새 코드를 저장한다")
-    void updateCode_키변경_새항목저장() {
-        String sttDt = "20260101";
-        String newSttDt = "20260201";
-        Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
-        AdminDto.CodeRequest req =
-                new AdminDto.CodeRequest(
-                        "CODE002", "002", "신규키", null, null, null, null, null, null, null, newSttDt,
-                        null, 1);
-        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
-                .willReturn(Optional.of(code));
-
-        adminService.updateCode("CODE001", "001", sttDt, req);
-
-        assertThat(code.getDelYn()).isEqualTo("Y");
-        verify(codeRepository).save(any(Ccodem.class));
-    }
-
-    @Test
-    @DisplayName("updateCode - 변경 대상 복합키가 이미 있으면 저장을 거절한다")
-    void updateCode_변경키중복_예외발생() {
-        String sttDt = "20260101";
-        String newSttDt = "20260201";
-        Ccodem code = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
-        AdminDto.CodeRequest req =
-                new AdminDto.CodeRequest(
-                        "CODE002", "002", "신규키", null, null, null, null, null, null, null, newSttDt,
-                        null, 1);
-        given(codeRepository.findByCIdAndCdvaAndSttDtAndDelYn("CODE001", "001", sttDt, "N"))
-                .willReturn(Optional.of(code));
-        given(codeRepository.existsByCIdAndCdvaAndSttDt("CODE002", "002", newSttDt))
-                .willReturn(true);
-
-        assertThatThrownBy(() -> adminService.updateCode("CODE001", "001", sttDt, req))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("이미 존재하는 코드입니다");
-    }
-
-    @Test
-    @DisplayName("createCode - 코드 키 필수값이 없으면 각각 예외를 반환한다")
-    void createCode_필수키누락_예외발생() {
-        String date = "20260101";
-        AdminDto.CodeRequest noId =
-                new AdminDto.CodeRequest(
-                        " ", "001", null, null, null, null, null, null, null, null, date, null, 1);
-        AdminDto.CodeRequest noValue =
-                new AdminDto.CodeRequest(
-                        "CODE", null, null, null, null, null, null, null, null, null, date, null,
-                        1);
-        AdminDto.CodeRequest noDate =
-                new AdminDto.CodeRequest(
-                        "CODE", "001", null, null, null, null, null, null, null, null, null, null,
-                        1);
-
-        assertThatThrownBy(() -> adminService.createCode(noId)).hasMessageContaining("코드ID");
-        assertThatThrownBy(() -> adminService.createCode(noValue)).hasMessageContaining("코드값");
-        assertThatThrownBy(() -> adminService.createCode(noDate)).hasMessageContaining("시작일자");
-    }
 
     // =========================================================================
     // 자격등급 (CauthI)
@@ -653,22 +475,6 @@ class AdminServiceTest {
 
         // then
         assertThat(org.getDelYn()).isEqualTo("Y");
-    }
-
-    @Test
-    @DisplayName("getCodes - 활성 코드 목록을 반환하며 감사 필드를 이름으로 변환한다")
-    void getCodes_활성코드목록반환() {
-        // given
-        Ccodem code = Ccodem.builder().cId("CODE001").cNm("코드1").build();
-        given(codeRepository.findAllActive()).willReturn(List.of(code));
-        given(userRepository.findNameViewsByEnoIn(any())).willReturn(Collections.emptyList());
-
-        // when
-        List<AdminDto.CodeResponse> result = adminService.getCodes();
-
-        // then
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).cId()).isEqualTo("CODE001");
     }
 
     // =========================================================================
@@ -856,6 +662,30 @@ class AdminServiceTest {
         assertThat(result.get(0).prlmOgzCCone()).isEqualTo("BBR001");
         assertThat(result.get(0).bbrNm()).isEqualTo("IT부문");
         verify(orgRepository).findAdminViewsByDelYn("N");
+    }
+
+    @Test
+    @DisplayName("getOrganizations: 등록자·변경자명을 배치 1회로 조회한다 (BE-26 N+1 방지)")
+    void getOrganizations_사용자명_배치조회_1회() {
+        OrganizationRepository.OrganizationAdminView first =
+                mock(OrganizationRepository.OrganizationAdminView.class);
+        given(first.getPrlmOgzCCone()).willReturn("120");
+        given(first.getFstEnrUsid()).willReturn("E001");
+        given(first.getLstChgUsid()).willReturn("E002");
+        OrganizationRepository.OrganizationAdminView second =
+                mock(OrganizationRepository.OrganizationAdminView.class);
+        given(second.getPrlmOgzCCone()).willReturn("130");
+        given(second.getFstEnrUsid()).willReturn("E003");
+        given(second.getLstChgUsid()).willReturn("E004");
+
+        given(orgRepository.findAdminViewsByDelYn("N")).willReturn(List.of(first, second));
+        given(userRepository.findNameViewsByEnoIn(anySet())).willReturn(List.of());
+
+        adminService.getOrganizations();
+
+        // 배치 조회는 정확히 1회, 단건 조회는 0회여야 한다
+        verify(userRepository, times(1)).findNameViewsByEnoIn(anySet());
+        verify(userRepository, never()).findNameViewByEno(anyString());
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.kdb.it.common.admin.controller;
 
 import com.kdb.it.common.admin.dto.AdminDto;
 import com.kdb.it.common.admin.dto.AdminLogDto;
+import com.kdb.it.common.admin.service.AdminCodeService;
 import com.kdb.it.common.admin.service.AdminLogService;
 import com.kdb.it.common.admin.service.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,6 +36,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final AdminService adminService;
+    private final AdminCodeService adminCodeService;
     private final AdminLogService adminLogService;
 
     // =========================================================================
@@ -49,7 +51,7 @@ public class AdminController {
     @GetMapping("/codes")
     @Operation(summary = "공통코드 목록 조회", description = "삭제되지 않은 전체 공통코드를 코드순서 오름차순으로 반환합니다.")
     public ResponseEntity<List<AdminDto.CodeResponse>> getCodes() {
-        return ResponseEntity.ok(adminService.getCodes());
+        return ResponseEntity.ok(adminCodeService.getCodes());
     }
 
     /**
@@ -61,7 +63,7 @@ public class AdminController {
     @PostMapping("/codes")
     @Operation(summary = "공통코드 추가", description = "새로운 공통코드를 추가합니다. C_ID 중복 시 400 반환.")
     public ResponseEntity<Void> createCode(@Valid @RequestBody AdminDto.CodeRequest req) {
-        adminService.createCode(req);
+        adminCodeService.createCode(req);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
@@ -82,7 +84,7 @@ public class AdminController {
             @Parameter(description = "시작일자 (YYYYMMDD)", required = true) @RequestParam("sttDt")
                     String sttDt,
             @Valid @RequestBody AdminDto.CodeRequest req) {
-        adminService.updateCode(cId, cdva, sttDt, req);
+        adminCodeService.updateCode(cId, cdva, sttDt, req);
         return ResponseEntity.ok().build();
     }
 
@@ -101,7 +103,7 @@ public class AdminController {
             @PathVariable("cdva") String cdva,
             @Parameter(description = "시작일자 (YYYYMMDD)", required = true) @RequestParam("sttDt")
                     String sttDt) {
-        adminService.deleteCode(cId, cdva, sttDt);
+        adminCodeService.deleteCode(cId, cdva, sttDt);
         return ResponseEntity.noContent().build();
     }
 
@@ -115,7 +117,7 @@ public class AdminController {
     @Operation(summary = "공통코드 일괄 업로드", description = "엑셀에서 파싱한 코드 목록을 일괄 생성/수정(Upsert)합니다.")
     public ResponseEntity<java.util.Map<String, Integer>> bulkUpsertCodes(
             @Valid @RequestBody AdminDto.BulkCodeRequest req) {
-        return ResponseEntity.ok(adminService.bulkUpsertCodes(req));
+        return ResponseEntity.ok(adminCodeService.bulkUpsertCodes(req));
     }
 
     // =========================================================================

@@ -205,7 +205,7 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(
                         Arrays.stream(UserRepository.UserNameView.class.getDeclaredMethods())
                                 .map(method -> method.getName()))
-                .containsExactlyInAnyOrder("getEno", "getUsrNm");
+                .containsExactlyInAnyOrder("getEno", "getUsrNm", "getPtCNm");
         assertThat(
                         Arrays.stream(UserRepository.UserOrgCodeView.class.getDeclaredMethods())
                                 .map(method -> method.getName()))

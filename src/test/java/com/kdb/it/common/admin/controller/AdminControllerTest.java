@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.admin.dto.AdminDto;
+import com.kdb.it.common.admin.service.AdminCodeService;
 import com.kdb.it.common.admin.service.AdminLogService;
 import com.kdb.it.common.admin.service.AdminService;
 import com.kdb.it.common.system.security.JwtUtil;
@@ -45,6 +46,7 @@ class AdminControllerTest {
     @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private AdminService adminService;
+    @MockitoBean private AdminCodeService adminCodeService;
     @MockitoBean private AdminLogService adminLogService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
@@ -64,7 +66,7 @@ class AdminControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void getCodes_관리자인증_200반환() throws Exception {
         // given
-        given(adminService.getCodes()).willReturn(List.of());
+        given(adminCodeService.getCodes()).willReturn(List.of());
 
         // when & then
         mockMvc.perform(get("/api/admin/codes")).andExpect(status().isOk());
@@ -99,7 +101,7 @@ class AdminControllerTest {
     void createCode_중복코드ID_400반환() throws Exception {
         // given: 서비스에서 IllegalArgumentException 발생
         doThrow(new IllegalArgumentException("이미 존재하는 코드ID입니다: CODE001"))
-                .when(adminService)
+                .when(adminCodeService)
                 .createCode(any(AdminDto.CodeRequest.class));
 
         AdminDto.CodeRequest req =
@@ -212,7 +214,8 @@ class AdminControllerTest {
     @DisplayName("POST /api/admin/codes/bulk - 일괄 업로드 → 200 OK")
     @WithMockUser(username = "10001", roles = "ADMIN")
     void bulkUpsertCodes_정상요청_200반환() throws Exception {
-        given(adminService.bulkUpsertCodes(any())).willReturn(Map.of("created", 0, "updated", 0));
+        given(adminCodeService.bulkUpsertCodes(any()))
+                .willReturn(Map.of("created", 0, "updated", 0));
         mockMvc.perform(
                         post("/api/admin/codes/bulk")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -233,7 +236,7 @@ class AdminControllerTest {
                                 .content("{\"codes\":[]}"))
                 .andExpect(status().isBadRequest());
 
-        verifyNoInteractions(adminService);
+        verifyNoInteractions(adminCodeService);
     }
 
     @Test
