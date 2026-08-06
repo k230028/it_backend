@@ -44,4 +44,7 @@ public class CmenumL extends BaseLogEntity {
 
     @Column(name = "WHL_MNU_PTH", length = 500, comment = "전체메뉴경로")
     private String whlMnuPth;
+
+    @Column(name = "IMK_NM", length = 100, comment = "이미지키명")
+    private String imkNm;
 }

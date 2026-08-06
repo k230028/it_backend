@@ -1,5 +1,6 @@
 package com.kdb.it.domain.menu.service;
 
+import com.kdb.it.common.board.service.BoardMetaService;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.entity.Cmenum;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
@@ -10,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,28 +27,30 @@ public class MenuQueryService {
     /** 메뉴 권한 매핑(menuAuthMap) 캐시 제공자. self-invocation 회피를 위해 별도 빈으로 분리(§Task T13-C). */
     private final MenuAuthMapProvider menuAuthMapProvider;
 
-    /** Spring이 모든 MenuChildrenResolver 빈을 주입한다. 등록된 메뉴 ID의 자식 노드를 동적으로 생성한다. */
-    private final List<MenuChildrenResolver> resolvers;
+    /** BRD 메뉴가 가리키는 게시판이 아직 사용 중인지 판정하는 원천. */
+    private final BoardMetaService boardMetaService;
 
     /**
      * 사용자용 메뉴 트리를 조회한다.
      *
      * @param athIds JWT 클레임에서 복원한 자격등급 ID 목록. null이면 공개 메뉴만 반환한다.
-     * @return 숨김 메뉴와 권한 불일치 메뉴를 제거하고, 빈 GRP 노드를 가지치기한 트리. 각 노드의 {@code athIds}에는 왕관 아이콘 표시 판정용 권한ID
-     *     목록이 채워진다.
+     * @return 숨김 메뉴, 권한 불일치 메뉴, 사용 중이 아닌 게시판을 가리키는 BRD 메뉴를 제거하고, 빈 GRP 노드를 가지치기한 트리. 각 노드의 {@code
+     *     athIds}에는 왕관 아이콘 표시 판정용 권한ID 목록이 채워진다.
      */
     public List<MenuDto.Node> getMenuTree(List<String> athIds) {
         List<Cmenum> all = cmenumRepository.findAllActive();
         Map<String, Set<String>> athByMenu = menuAuthMapProvider.getMenuAuthMap();
         Set<String> userAths = new HashSet<>(athIds == null ? List.of() : athIds);
+        Set<String> activeBoardPaths = activeBoardPaths(all);
 
         List<Cmenum> visible =
                 all.stream()
                         .filter(m -> !"Y".equals(m.getHidYn()))
                         .filter(m -> isAllowed(m.getMnuId(), athByMenu, userAths))
+                        .filter(m -> isLinkedBoardUsable(m, activeBoardPaths))
                         .toList();
 
-        List<MenuDto.Node> tree = prune(buildTree(visible, athIds), true);
+        List<MenuDto.Node> tree = prune(buildTree(visible), true);
         // 사이드바/헤더가 관리자 전용 메뉴에 왕관 아이콘을 표시할 수 있도록 노드별 권한ID를 함께 싣는다.
         applyAthIds(tree, athByMenu);
         return tree;
@@ -58,7 +62,7 @@ public class MenuQueryService {
      * @return 숨김·권한·빈 그룹을 제거하지 않고 노드별 권한ID를 포함한 전체 트리
      */
     public List<MenuDto.Node> getAdminMenuTree() {
-        List<MenuDto.Node> tree = buildTree(cmenumRepository.findAllActive(), null);
+        List<MenuDto.Node> tree = buildTree(cmenumRepository.findAllActive());
         applyAthIds(tree, menuAuthMapProvider.getMenuAuthMap());
         return tree;
     }
@@ -83,17 +87,37 @@ public class MenuQueryService {
         return required.stream().anyMatch(userAths::contains);
     }
 
-    private List<MenuDto.Node> buildTree(List<Cmenum> rows, List<String> athIds) {
+    /**
+     * 사용 중인 게시판의 화면경로 집합.
+     *
+     * <p>BRD 메뉴가 하나도 없으면 게시판을 조회하지 않는다 — 메뉴 조회는 모든 화면 진입마다 도는 경로라 쓰이지 않을 쿼리를 붙이지 않는다.
+     */
+    private Set<String> activeBoardPaths(List<Cmenum> rows) {
+        boolean hasBoardMenu =
+                rows.stream().anyMatch(m -> BoardMenuLink.isBoardMenu(m.getMnuTpC()));
+        if (!hasBoardMenu) return Set.of();
+        return boardMetaService.getAllActive().stream()
+                .map(b -> BoardMenuLink.pathOf(b.getBlbMngNo()))
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * 게시판 메뉴가 아직 열 수 있는 화면을 가리키는지 판정한다.
+     *
+     * <p>게시판이 삭제·미사용으로 바뀌어도 메뉴 행은 남긴다(관리자가 다른 게시판으로 바꾸거나 지울 수 있어야 한다). 대신 사용자 트리에서만 감춰 죽은 링크가 노출되지
+     * 않게 한다.
+     */
+    private boolean isLinkedBoardUsable(Cmenum m, Set<String> activeBoardPaths) {
+        if (!BoardMenuLink.isBoardMenu(m.getMnuTpC())) return true;
+        return m.getSrePth() != null && activeBoardPaths.contains(m.getSrePth());
+    }
+
+    private List<MenuDto.Node> buildTree(List<Cmenum> rows) {
         Map<String, MenuDto.Node> byId = new HashMap<>();
         for (Cmenum m : rows) byId.put(m.getMnuId(), toNode(m));
         List<MenuDto.Node> roots = new ArrayList<>();
         for (Cmenum m : rows) {
             MenuDto.Node nodeDto = byId.get(m.getMnuId());
-            // 동적 확장 여부는 유형이 아니라 resolver 등록 여부로 판단한다. resolveDyn이 이미
-            // mnuId 일치로 resolver를 고르므로 유형 게이트는 같은 사실을 중복 표현한 것이었다.
-            if (athIds != null && hasResolver(m.getMnuId())) {
-                nodeDto.setChildren(resolveDyn(m.getMnuId(), athIds));
-            }
             if (m.getHrkMnuId() == null) {
                 roots.add(nodeDto);
             } else {
@@ -106,23 +130,6 @@ public class MenuQueryService {
         }
         sortRecursive(roots);
         return roots;
-    }
-
-    /** 이 메뉴 ID를 담당하는 동적 확장 resolver가 등록돼 있는지 확인한다. */
-    private boolean hasResolver(String mnuId) {
-        return resolvers != null && resolvers.stream().anyMatch(r -> r.mnuId().equals(mnuId));
-    }
-
-    /** 등록된 resolver로 동적 하위 노드를 만든다. 담당 resolver가 없으면 빈 목록을 돌려준다. */
-    private List<MenuDto.Node> resolveDyn(String mnuId, List<String> athIds) {
-        if (resolvers == null) return new ArrayList<>();
-        return resolvers.stream()
-                .filter(r -> r.mnuId().equals(mnuId))
-                .findFirst()
-                // resolver가 불변 리스트를 반환해도 이후 정렬/가지치기에서 제자리 변형이 가능하도록 복사한다.
-                .map(r -> new ArrayList<>(r.resolveChildren(athIds)))
-                .map(list -> (List<MenuDto.Node>) list)
-                .orElseGet(ArrayList::new);
     }
 
     private void sortRecursive(List<MenuDto.Node> nodes) {
@@ -159,6 +166,7 @@ public class MenuQueryService {
                 .hidYn(m.getHidYn())
                 .mnuDep(m.getMnuDep())
                 .whlMnuPth(m.getWhlMnuPth())
+                .imkNm(m.getImkNm())
                 .children(new ArrayList<>())
                 .build();
     }

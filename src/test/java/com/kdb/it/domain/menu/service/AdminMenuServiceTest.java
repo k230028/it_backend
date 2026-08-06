@@ -5,7 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.kdb.it.common.board.dto.BoardMetaDto;
+import com.kdb.it.common.board.service.BoardMetaService;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.entity.Cmenua;
 import com.kdb.it.domain.menu.entity.Cmenud;
@@ -30,6 +33,10 @@ class AdminMenuServiceTest {
     @Mock CmenumRepository cmenumRepository;
     @Mock CmenuaRepository cmenuaRepository;
     @Mock CmenudRepository cmenudRepository;
+
+    /** BRD(게시판) 메뉴는 라우트 카탈로그가 아니라 활성 게시판 목록으로 검증한다. */
+    @Mock BoardMetaService boardMetaService;
+
     @InjectMocks AdminMenuService service;
 
     private Cmenum node(String id, String parent, int dep, String path) {
@@ -307,6 +314,169 @@ class AdminMenuServiceTest {
         assertThatThrownBy(() -> service.create(req))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("깊이");
+    }
+
+    // =========================================================================
+    // IMK_NM(아이콘) 저장 검증
+    // =========================================================================
+
+    private MenuDto.UpsertRequest groupRequestWithIcon(String imkNm) {
+        return MenuDto.UpsertRequest.builder()
+                .mnuNm("아이콘그룹")
+                .mnuTpC("GRP")
+                .hrkMnuId(null)
+                .srePth(null)
+                .hidYn("N")
+                .imkNm(imkNm)
+                .athIds(List.of())
+                .build();
+    }
+
+    @Test
+    @DisplayName("create: 아이콘 클래스를 그대로 저장한다")
+    void create_아이콘저장() {
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0000020");
+        given(cmenuaRepository.findByMnuId("MNU0000020")).willReturn(List.of());
+
+        service.create(groupRequestWithIcon("pi pi-home"));
+
+        ArgumentCaptor<Cmenum> captor = ArgumentCaptor.forClass(Cmenum.class);
+        verify(cmenumRepository).save(captor.capture());
+        assertThat(captor.getValue().getImkNm()).isEqualTo("pi pi-home");
+    }
+
+    @Test
+    @DisplayName("create: 공백뿐인 아이콘은 미지정(null)으로 저장한다")
+    void create_공백아이콘_null저장() {
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0000021");
+        given(cmenuaRepository.findByMnuId("MNU0000021")).willReturn(List.of());
+
+        service.create(groupRequestWithIcon("   "));
+
+        ArgumentCaptor<Cmenum> captor = ArgumentCaptor.forClass(Cmenum.class);
+        verify(cmenumRepository).save(captor.capture());
+        assertThat(captor.getValue().getImkNm()).isNull();
+    }
+
+    @Test
+    @DisplayName("create: 아이콘 클래스에 쓸 수 없는 문자가 있으면 예외를 던진다")
+    void create_잘못된아이콘_예외() {
+        // 이 값은 프론트에서 class 속성으로 바인딩된다. 따옴표·꺾쇠는 서버에서 막는다.
+        assertThatThrownBy(() -> service.create(groupRequestWithIcon("pi pi-home\" onload=x")))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("아이콘");
+    }
+
+    @Test
+    @DisplayName("update: 아이콘을 비우면 미지정으로 되돌린다")
+    void update_아이콘해제() {
+        Cmenum menu = node("M9", null, 1, "/M9");
+        menu.setImkNm("pi pi-home");
+        given(cmenumRepository.findByMnuIdAndDelYn("M9", "N")).willReturn(Optional.of(menu));
+        given(cmenuaRepository.findByMnuId("M9")).willReturn(List.of());
+
+        service.update("M9", groupRequestWithIcon(null));
+
+        assertThat(menu.getImkNm()).isNull();
+    }
+
+    // =========================================================================
+    // BRD(게시판) 메뉴 검증
+    // =========================================================================
+
+    /** 활성 게시판 한 건을 돌려주는 목록 대역. */
+    private BoardMetaDto.Response board(String blbMngNo, String blbNm) {
+        return BoardMetaDto.Response.builder().blbMngNo(blbMngNo).blbNm(blbNm).useYn("Y").build();
+    }
+
+    private MenuDto.UpsertRequest boardMenuRequest(String srePth) {
+        return MenuDto.UpsertRequest.builder()
+                .mnuNm("공지사항")
+                .mnuTpC("BRD")
+                .hrkMnuId("MBRD0001")
+                .srePth(srePth)
+                .hidYn("N")
+                .athIds(List.of())
+                .build();
+    }
+
+    @Test
+    @DisplayName("create: BRD 메뉴는 활성 게시판 경로면 저장한다 (라우트 카탈로그는 조회하지 않는다)")
+    void create_BRD유형_활성게시판_저장() {
+        given(boardMetaService.getAllActive())
+                .willReturn(List.of(board("BLBM-0001", "공지사항"), board("BLBM-0002", "자료실")));
+        given(cmenumRepository.findByMnuIdAndDelYn("MBRD0001", "N"))
+                .willReturn(Optional.of(node("MBRD0001", "MHED0006", 2, "/MHED0006/MBRD0001")));
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0000010");
+        given(cmenuaRepository.findByMnuId("MNU0000010")).willReturn(List.of());
+
+        String result = service.create(boardMenuRequest("/board/BLBM-0001"));
+
+        assertThat(result).isEqualTo("MNU0000010");
+        ArgumentCaptor<Cmenum> captor = ArgumentCaptor.forClass(Cmenum.class);
+        verify(cmenumRepository).save(captor.capture());
+        assertThat(captor.getValue().getMnuTpC()).isEqualTo("BRD");
+        assertThat(captor.getValue().getSrePth()).isEqualTo("/board/BLBM-0001");
+        // 게시판 경로는 라우트 카탈로그에 없다 — 카탈로그로 검증하면 저장이 항상 실패한다.
+        verifyNoInteractions(cmenudRepository);
+    }
+
+    @Test
+    @DisplayName("create: BRD 메뉴에 화면경로가 없으면 예외를 던진다")
+    void create_BRD유형_경로없음_예외() {
+        assertThatThrownBy(() -> service.create(boardMenuRequest(null)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("게시판을 선택해야 합니다");
+    }
+
+    @Test
+    @DisplayName("create: BRD 메뉴의 화면경로가 게시판 경로 형식이 아니면 예외를 던진다")
+    void create_BRD유형_형식위반_예외() {
+        assertThatThrownBy(() -> service.create(boardMenuRequest("/budget/list")))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("게시판 화면경로 형식이 아닙니다");
+    }
+
+    @Test
+    @DisplayName("create: 사용 중이 아닌 게시판을 가리키면 예외를 던진다")
+    void create_BRD유형_없는게시판_예외() {
+        given(boardMetaService.getAllActive()).willReturn(List.of(board("BLBM-0001", "공지사항")));
+
+        assertThatThrownBy(() -> service.create(boardMenuRequest("/board/BLBM-9999")))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("사용 중인 게시판이 아닙니다");
+    }
+
+    @Test
+    @DisplayName("create: BRD 메뉴를 루트로 생성하면 예외를 던진다")
+    void create_BRD유형_루트_예외() {
+        given(boardMetaService.getAllActive()).willReturn(List.of(board("BLBM-0001", "공지사항")));
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("공지사항")
+                        .mnuTpC("BRD")
+                        .hrkMnuId(null)
+                        .srePth("/board/BLBM-0001")
+                        .build();
+
+        assertThatThrownBy(() -> service.create(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("최상위(루트) 메뉴는 메뉴그룹(GRP)만 가능합니다.");
+    }
+
+    @Test
+    @DisplayName("update: PGE 메뉴를 BRD로 바꾸면 게시판 경로로 검증한다")
+    void update_PGE를BRD로변경_게시판검증() {
+        Cmenum menu = node("M1", "MBRD0001", 3, "/MHED0006/MBRD0001/M1");
+        menu.setMnuTpC("PGE");
+        given(cmenumRepository.findByMnuIdAndDelYn("M1", "N")).willReturn(Optional.of(menu));
+        given(boardMetaService.getAllActive()).willReturn(List.of(board("BLBM-0003", "질의응답")));
+        given(cmenuaRepository.findByMnuId("M1")).willReturn(List.of());
+
+        service.update("M1", boardMenuRequest("/board/BLBM-0003"));
+
+        assertThat(menu.getMnuTpC()).isEqualTo("BRD");
+        assertThat(menu.getSrePth()).isEqualTo("/board/BLBM-0003");
     }
 
     // =========================================================================

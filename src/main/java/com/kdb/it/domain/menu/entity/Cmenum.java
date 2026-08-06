@@ -52,4 +52,8 @@ public class Cmenum extends BaseEntity {
 
     @Column(name = "WHL_MNU_PTH", length = 500, nullable = false, comment = "전체메뉴경로")
     private String whlMnuPth;
+
+    /** 사이드바 아이콘 클래스(예: {@code pi pi-home}). 비어 있으면 화면이 기본 아이콘을 쓴다. */
+    @Column(name = "IMK_NM", length = 100, comment = "이미지키명")
+    private String imkNm;
 }

@@ -13,7 +13,7 @@ import lombok.Setter;
 /** 메뉴 관리 API의 요청/응답 DTO 모음 (네임스페이스 클래스). */
 public class MenuDto {
 
-    /** 사이드바·Breadcrumb 공용 트리 노드. 아이콘/배지는 프론트 규약 맵 소관이라 미포함. */
+    /** 사이드바·Breadcrumb 공용 트리 노드. 아이콘은 메뉴 행({@code imkNm})이 단일 출처이고, 배지만 프론트 규약 맵 소관이다. */
     @Getter
     @Setter
     @NoArgsConstructor
@@ -30,6 +30,10 @@ public class MenuDto {
         private String hidYn;
         private Integer mnuDep;
         private String whlMnuPth;
+
+        /** 사이드바 아이콘 클래스(예: {@code pi pi-home}). 미지정이면 null. */
+        private String imkNm;
+
         private List<Node> children;
 
         /** 노출 권한ID 목록. 빈 목록=전체 공개. 관리 트리는 편집 폼 복원용, 사용자 트리는 왕관 아이콘 표시 판정용. */
@@ -60,6 +64,9 @@ public class MenuDto {
 
         @Schema(description = "숨김여부 Y/N")
         private String hidYn;
+
+        @Schema(description = "아이콘 클래스(예: pi pi-home). 비우면 미지정", example = "pi pi-home")
+        private String imkNm;
 
         @Schema(description = "노출 권한ID 목록(비우면 전체 공개)")
         private List<String> athIds;

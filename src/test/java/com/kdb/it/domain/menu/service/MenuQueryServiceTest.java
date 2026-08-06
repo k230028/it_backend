@@ -1,8 +1,12 @@
 package com.kdb.it.domain.menu.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.kdb.it.common.board.dto.BoardMetaDto;
+import com.kdb.it.common.board.service.BoardMetaService;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.entity.Cmenum;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
@@ -21,11 +25,14 @@ class MenuQueryServiceTest {
     @Mock CmenumRepository cmenumRepository;
     // 권한 매핑은 별도 캐시 빈(MenuAuthMapProvider)에서 제공받으므로 provider를 모킹한다(self-invocation 회피, T13-C).
     @Mock MenuAuthMapProvider menuAuthMapProvider;
-    MenuQueryService service; // resolvers가 테스트마다 달라 per-test로 생성
+    // BRD 메뉴가 가리키는 게시판이 아직 살아 있는지 판정하는 원천.
+    @Mock BoardMetaService boardMetaService;
+
+    MenuQueryService service;
 
     @BeforeEach
     void setUp() {
-        service = new MenuQueryService(cmenumRepository, menuAuthMapProvider, List.of());
+        service = new MenuQueryService(cmenumRepository, menuAuthMapProvider, boardMetaService);
     }
 
     private Cmenum node(String id, String parent, String type, int dep, String path) {
@@ -68,6 +75,22 @@ class MenuQueryServiceTest {
     }
 
     @Test
+    void tree_carriesMenuIcon() {
+        // 아이콘은 프론트 하드코딩 맵이 아니라 메뉴 행이 단일 출처다 — 트리에 실려 나가야 한다.
+        Cmenum withIcon = node("A", null, "PGE", 1, "/A");
+        withIcon.setImkNm("pi pi-home");
+        given(cmenumRepository.findAllActive())
+                .willReturn(List.of(withIcon, node("B", null, "PGE", 1, "/B")));
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
+
+        List<MenuDto.Node> tree = service.getMenuTree(List.of("ITPZZ001"));
+
+        assertThat(tree)
+                .extracting(MenuDto.Node::getMnuId, MenuDto.Node::getImkNm)
+                .containsExactly(tuple("A", "pi pi-home"), tuple("B", null));
+    }
+
+    @Test
     void userTree_carriesAthIds_forCrownIndicator() {
         // 사용자 트리도 노드별 athIds를 실어야 사이드바/헤더가 관리자(왕관) 메뉴를 표시할 수 있다.
         given(cmenumRepository.findAllActive())
@@ -98,50 +121,87 @@ class MenuQueryServiceTest {
         assertThat(all.get(0).getAthIds()).containsExactly("ITPAD001");
     }
 
+    // =========================================================================
+    // BRD(게시판) 메뉴 — 연결된 게시판 상태에 따른 노출
+    // =========================================================================
+
+    /** 게시판 메뉴 노드. 화면경로가 게시판을 가리키는 유일한 연결 고리다. */
+    private Cmenum boardNode(String id, String blbMngNo) {
+        Cmenum n = node(id, "MBRD0001", "BRD", 3, "/MHED0006/MBRD0001/" + id);
+        n.setSrePth("/board/" + blbMngNo);
+        return n;
+    }
+
+    private BoardMetaDto.Response activeBoard(String blbMngNo) {
+        return BoardMetaDto.Response.builder()
+                .blbMngNo(blbMngNo)
+                .blbNm(blbMngNo)
+                .useYn("Y")
+                .build();
+    }
+
     @Test
-    void registeredNode_getsChildrenFromMatchingResolver() {
-        Cmenum dynamicGroup =
-                Cmenum.builder()
-                        .mnuId("MBRD0001")
-                        .hrkMnuId(null)
-                        .mnuNm("게시판")
-                        .mnuTpC("GRP")
-                        .mnuSotSqnSno(10)
-                        .hidYn("N")
-                        .mnuDep(1)
-                        .whlMnuPth("/MBRD0001")
-                        .delYn("N")
-                        .build();
-        given(cmenumRepository.findAllActive()).willReturn(List.of(dynamicGroup));
+    void boardMenu_isHiddenFromUserTree_whenLinkedBoardIsInactive() {
+        // 게시판이 삭제·미사용으로 바뀌어도 메뉴 행은 남는다 — 사용자 트리에서만 감춰야 한다.
+        given(cmenumRepository.findAllActive())
+                .willReturn(
+                        List.of(
+                                node("MBRD0001", null, "GRP", 1, "/MBRD0001"),
+                                boardNode("B1", "BLBM-0001"),
+                                boardNode("B2", "BLBM-0002")));
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
+        given(boardMetaService.getAllActive()).willReturn(List.of(activeBoard("BLBM-0001")));
+
+        List<MenuDto.Node> tree = service.getMenuTree(List.of("ITPZZ001"));
+
+        assertThat(tree).extracting(MenuDto.Node::getMnuId).containsExactly("MBRD0001");
+        assertThat(tree.get(0).getChildren())
+                .extracting(MenuDto.Node::getMnuId)
+                .containsExactly("B1");
+    }
+
+    @Test
+    void boardMenu_staysInAdminTree_evenWhenLinkedBoardIsInactive() {
+        // 관리자는 끊어진 연결을 보고 고쳐야 하므로 관리 트리에서는 감추지 않는다.
+        given(cmenumRepository.findAllActive())
+                .willReturn(
+                        List.of(
+                                node("MBRD0001", null, "GRP", 1, "/MBRD0001"),
+                                boardNode("B2", "BLBM-0002")));
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
 
-        MenuChildrenResolver fake =
-                new MenuChildrenResolver() {
-                    public String mnuId() {
-                        return "MBRD0001";
-                    }
+        List<MenuDto.Node> tree = service.getAdminMenuTree();
 
-                    public List<MenuDto.Node> resolveChildren(List<String> athIds) {
-                        // 실제 BoardListMenuResolver처럼 자식 노드의 children을 불변 빈 리스트로 설정해
-                        // sortRecursive의 in-place 정렬이 UnsupportedOperationException을 던지지 않는지 회귀 검증.
-                        return List.of(
-                                MenuDto.Node.builder()
-                                        .mnuId("MBRD-B1")
-                                        .mnuNm("공지")
-                                        .mnuTpC("PGE")
-                                        .srePth("/board/BLBM-0001")
-                                        .children(List.of())
-                                        .build());
-                    }
-                };
-        MenuQueryService svc =
-                new MenuQueryService(cmenumRepository, menuAuthMapProvider, List.of(fake));
-        List<MenuDto.Node> tree = svc.getMenuTree(List.of("ITPZZ001"));
-
-        assertThat(tree).extracting(value -> value.getMnuId()).containsExactly("MBRD0001");
         assertThat(tree.get(0).getChildren())
-                .extracting(value -> value.getMnuId())
-                .containsExactly("MBRD-B1");
+                .extracting(MenuDto.Node::getMnuId)
+                .containsExactly("B2");
+    }
+
+    @Test
+    void boardListIsNotQueried_whenTreeHasNoBoardMenu() {
+        // 게시판 메뉴가 없는 트리에서까지 게시판을 조회하면 메뉴 조회마다 불필요한 쿼리가 는다.
+        given(cmenumRepository.findAllActive())
+                .willReturn(List.of(node("P", null, "PGE", 1, "/P")));
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
+
+        service.getMenuTree(List.of("ITPZZ001"));
+
+        verifyNoInteractions(boardMetaService);
+    }
+
+    @Test
+    void boardMenu_withoutPath_isHiddenFromUserTree() {
+        // 경로가 없으면 열 화면이 없다 — 깨진 링크를 노출하지 않는다.
+        Cmenum broken = node("B0", "MBRD0001", "BRD", 3, "/MHED0006/MBRD0001/B0");
+        given(cmenumRepository.findAllActive())
+                .willReturn(List.of(node("MBRD0001", null, "GRP", 1, "/MBRD0001"), broken));
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
+        given(boardMetaService.getAllActive()).willReturn(List.of(activeBoard("BLBM-0001")));
+
+        List<MenuDto.Node> tree = service.getMenuTree(List.of("ITPZZ001"));
+
+        // 자식이 모두 사라진 GRP는 가지치기된다.
+        assertThat(tree).isEmpty();
     }
 
     @Test
@@ -172,7 +232,7 @@ class MenuQueryServiceTest {
     }
 
     @Test
-    void grpWithoutResolver_isNotExpanded() {
+    void grp_keepsStaticChildrenFromMenuTable() {
         Cmenum grp = node("G1", null, "GRP", 1, "/G1");
         Cmenum child = node("C1", "G1", "PGE", 2, "/G1/C1");
         given(cmenumRepository.findAllActive()).willReturn(List.of(grp, child));

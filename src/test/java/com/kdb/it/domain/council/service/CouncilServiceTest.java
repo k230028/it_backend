@@ -818,16 +818,17 @@ class CouncilServiceTest {
     }
 
     @Test
-    @DisplayName("startPreparation: 결재완료 상태가 아니면 전이를 거부한다")
-    void startPreparation_결재완료아님_상태예외() {
+    @DisplayName("startPreparation: 이미 개최준비 상태이면 상태를 유지한다")
+    void startPreparation_개최준비_멱등처리() {
         Basctm council = mock(Basctm.class);
         given(council.getItPtlAsctPrgStsTc()).willReturn("05");
         given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(council));
 
-        assertThatThrownBy(() -> councilService.startPreparation(ASCT_ID))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("04");
+        org.assertj.core.api.Assertions.assertThatCode(
+                        () -> councilService.startPreparation(ASCT_ID))
+                .doesNotThrowAnyException();
+        verify(council, never()).changeStatus(anyString());
     }
 
     @Test

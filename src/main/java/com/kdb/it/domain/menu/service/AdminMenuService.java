@@ -1,5 +1,6 @@
 package com.kdb.it.domain.menu.service;
 
+import com.kdb.it.common.board.service.BoardMetaService;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.entity.Cmenua;
 import com.kdb.it.domain.menu.entity.Cmenum;
@@ -10,6 +11,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.HttpStatus;
@@ -26,9 +28,15 @@ public class AdminMenuService {
     private static final int MAX_DEPTH = 4;
     private static final int SORT_STEP = 10;
 
+    /** 아이콘 클래스 허용 문자 — 화면에서 class 속성으로 쓰이므로 클래스명 문자만 통과시킨다. */
+    private static final Pattern ICON_CLASS = Pattern.compile("^[a-z0-9 -]{1,100}$");
+
     private final CmenumRepository cmenumRepository;
     private final CmenuaRepository cmenuaRepository;
     private final CmenudRepository cmenudRepository;
+
+    /** BRD 메뉴가 가리키는 게시판이 실제로 사용 중인지 확인하는 원천. */
+    private final BoardMetaService boardMetaService;
 
     /**
      * 메뉴를 생성하고 권한 매핑을 저장한다.
@@ -64,6 +72,7 @@ public class AdminMenuService {
                         .hidYn(req.getHidYn() == null ? "N" : req.getHidYn())
                         .mnuDep(depth)
                         .whlMnuPth(whlPth)
+                        .imkNm(normalizeIcon(req.getImkNm()))
                         .delYn("N")
                         .build();
         cmenumRepository.save(menu);
@@ -89,6 +98,7 @@ public class AdminMenuService {
         menu.setMnuTpC(req.getMnuTpC());
         menu.setSrePth(req.getSrePth());
         menu.setHidYn(req.getHidYn() == null ? "N" : req.getHidYn());
+        menu.setImkNm(normalizeIcon(req.getImkNm()));
         // JPA dirty checking으로 flush되며, @LogTarget 스냅샷은 @PreUpdate에서 자동 생성된다.
         replaceRoles(mnuId, req.getAthIds());
     }
@@ -177,16 +187,16 @@ public class AdminMenuService {
     /**
      * 메뉴유형코드와 화면경로의 조합을 검증한다.
      *
-     * <p>유효한 유형은 공통코드 MNU_TP_C가 정의한 GRP·LNK·PGE 셋뿐이다. PGE(페이지화면)는 내부 화면이므로 화면경로가 필수이고 라우트 카탈로그에 등록돼
-     * 있어야 한다. GRP(메뉴그룹)는 컨테이너라 화면경로를 가질 수 없다. LNK(링크메뉴)는 외부 링크 전용 값으로 신설했으나 아직 렌더링·URL 검증을 구현하지 않아
-     * 저장을 막는다.
+     * <p>유효한 유형은 공통코드 MNU_TP_C가 정의한 GRP·LNK·PGE·BRD 넷뿐이다. PGE(페이지화면)는 내부 화면이므로 화면경로가 필수이고 라우트 카탈로그에
+     * 등록돼 있어야 한다. BRD(게시판)는 게시판마다 경로가 만들어져 라우트 카탈로그에 없으므로, 카탈로그 대신 활성 게시판 목록으로 검증한다. GRP(메뉴그룹)는
+     * 컨테이너라 화면경로를 가질 수 없다. LNK(링크메뉴)는 외부 링크 전용 값으로 신설했으나 아직 렌더링·URL 검증을 구현하지 않아 저장을 막는다.
      *
      * @param mnuTpC 메뉴유형코드
      * @param srePth 화면경로 (없으면 null)
      * @throws ResponseStatusException 유형이 목록 밖이거나, LNK이거나, 유형·경로 조합이 규칙에 어긋나는 경우
      */
     private void validateTypePath(String mnuTpC, String srePth) {
-        if (!List.of("GRP", "LNK", "PGE").contains(mnuTpC))
+        if (!List.of("GRP", "LNK", "PGE", BoardMenuLink.MENU_TYPE).contains(mnuTpC))
             throw badRequest("잘못된 메뉴유형코드: " + mnuTpC);
         if ("LNK".equals(mnuTpC)) throw badRequest("외부링크 메뉴는 아직 지원하지 않습니다.");
         if ("PGE".equals(mnuTpC)) {
@@ -194,9 +204,46 @@ public class AdminMenuService {
             cmenudRepository
                     .findBySrePthAndDelYn(srePth, "N")
                     .orElseThrow(() -> badRequest("라우트 카탈로그에 없는 경로: " + srePth));
+        } else if (BoardMenuLink.isBoardMenu(mnuTpC)) {
+            validateBoardPath(srePth);
         } else if (srePth != null) {
             throw badRequest(mnuTpC + " 메뉴는 화면경로를 가질 수 없습니다.");
         }
+    }
+
+    /**
+     * 아이콘 클래스를 저장 가능한 형태로 정규화한다.
+     *
+     * <p>이 값은 화면에서 요소의 class 속성으로 바인딩되므로 클래스명에 쓰이는 문자만 허용한다. 공백뿐인 값은 "아이콘 미지정"과 같은 뜻이므로 null로 접는다.
+     *
+     * @param imkNm 아이콘 클래스 (없으면 null)
+     * @return 앞뒤 공백을 제거한 값. 비어 있으면 null
+     * @throws ResponseStatusException 허용하지 않는 문자가 포함된 경우
+     */
+    private String normalizeIcon(String imkNm) {
+        if (imkNm == null) return null;
+        String trimmed = imkNm.trim();
+        if (trimmed.isEmpty()) return null;
+        if (!ICON_CLASS.matcher(trimmed).matches()) {
+            throw badRequest("아이콘 값에는 영문 소문자·숫자·하이픈·공백만 쓸 수 있습니다: " + imkNm);
+        }
+        return trimmed;
+    }
+
+    /**
+     * 게시판 메뉴의 화면경로가 사용 중인 게시판을 가리키는지 검증한다.
+     *
+     * @param srePth 화면경로 ({@code /board/{게시판관리번호}})
+     * @throws ResponseStatusException 경로가 없거나 형식이 아니거나 사용 중인 게시판이 아닌 경우
+     */
+    private void validateBoardPath(String srePth) {
+        if (srePth == null || srePth.isBlank()) throw badRequest("게시판 메뉴는 게시판을 선택해야 합니다.");
+        String blbMngNo = BoardMenuLink.boardNoOf(srePth);
+        if (blbMngNo == null) throw badRequest("게시판 화면경로 형식이 아닙니다: " + srePth);
+        boolean usable =
+                boardMetaService.getAllActive().stream()
+                        .anyMatch(b -> blbMngNo.equals(b.getBlbMngNo()));
+        if (!usable) throw badRequest("사용 중인 게시판이 아닙니다: " + blbMngNo);
     }
 
     /**
