@@ -22,8 +22,16 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 @DisplayName("사용자 읽기 프로젝션")
 class UserReadProjectionIt extends AbstractOracleRepositoryTest {
 
-    private static final String ORG_CODE = "120";
-    private static final String PARENT_ORG_CODE = "P120";
+    /*
+     * BE-27: 조직 픽스처는 클래스마다 고유 코드를 쓴다.
+     *
+     * 종전에는 이 클래스와 OrganizationNameProjectionIt·CommitteeUserProjectionIt이 모두
+     * "120" 행을 각자 upsert/변형해 공유했다. 순차 실행에서는 우연히 안전했지만 Gradle 병렬
+     * 테스트를 켜는 순간 경합한다. BBR_C가 VARCHAR2(3)이라 접두사를 길게 붙일 수 없으므로
+     * 운영 조직코드와 겹치지 않는 3자 코드를 클래스별로 나눠 쓴다.
+     */
+    private static final String ORG_CODE = "Z71";
+    private static final String PARENT_ORG_CODE = "P-Z71";
 
     /** 키워드 검색 상한 — 픽스처 전건이 들어오도록 충분히 큰 값 */
     private static final int SEARCH_LIMIT = 200;
@@ -168,7 +176,7 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                 .satisfies(
                         row -> {
                             assertThat(row.getTemC()).isEqualTo("12004");
-                            assertThat(row.getBbrC()).isEqualTo("120");
+                            assertThat(row.getBbrC()).isEqualTo(ORG_CODE);
                         });
 
         assertThat(userRepository.findAdminUserViewsByDelYn("N"))

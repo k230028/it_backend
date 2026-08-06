@@ -22,17 +22,23 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 @DisplayName("팀 대표 사용자 읽기 프로젝션")
 class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
 
+    /*
+     * BE-27: 조직 픽스처는 클래스마다 고유 코드를 쓴다 — 종전 "120" 공유는 Gradle 병렬
+     * 테스트에서 다른 프로젝션 IT와 경합한다. BBR_C가 VARCHAR2(3)이라 3자로 제한된다.
+     */
+    private static final String ORG_CODE = "Z72";
+
     @Autowired private UserRepository userRepository;
 
     @Autowired private TestEntityManager em;
 
     @BeforeEach
     void setUp() {
-        CorgnI organization = em.find(CorgnI.class, "120");
+        CorgnI organization = em.find(CorgnI.class, ORG_CODE);
         if (organization == null) {
             em.persist(
                     CorgnI.builder()
-                            .prlmOgzCCone("120")
+                            .prlmOgzCCone(ORG_CODE)
                             .bbrNm("디지털부")
                             .delYn("N")
                             .fstEnrUsid("FIXTURE")
@@ -47,11 +53,11 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
                     organization.getItmSqnSno(),
                     organization.getPrlmHrkOgzCCone());
         }
-        persistUser("BE03001", "홍길동", "팀장", "12004", "N");
-        persistUser("BE03002", "김길동", "사원", "12004", "Y");
-        persistUser("BE03010", "팀원", "과장", "18010", "N");
-        persistUser("BE03011", "팀장", "팀장", "18010", "N");
-        persistUser("BE03012", "무소속", "대리", "18010", "N", null);
+        persistUser("BE27CU001", "홍길동", "팀장", "12004", "N");
+        persistUser("BE27CU002", "김길동", "사원", "12004", "Y");
+        persistUser("BE27CU010", "팀원", "과장", "18010", "N");
+        persistUser("BE27CU011", "팀장", "팀장", "18010", "N");
+        persistUser("BE27CU012", "무소속", "대리", "18010", "N", null);
         em.flush();
         em.clear();
     }
@@ -64,7 +70,7 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
                         .findCommitteeUserRowsByTemCInAndDelYn(
                                 List.of("12004", "18001", "18010", "18501"), "N")
                         .stream()
-                        .filter(row -> row.getEno().startsWith("BE03"))
+                        .filter(row -> row.getEno().startsWith("BE27CU"))
                         .toList();
         Map<String, List<UserRepository.CommitteeUserRow>> byTeam =
                 rows.stream().collect(Collectors.groupingBy(row -> row.getTemC()));
@@ -73,17 +79,17 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
                 .singleElement()
                 .satisfies(
                         row -> {
-                            assertThat(row.getEno()).isEqualTo("BE03001");
+                            assertThat(row.getEno()).isEqualTo("BE27CU001");
                             assertThat(row.getBbrNm()).isEqualTo("디지털부");
                         });
         assertThat(UserRepresentativeSelector.pickView(byTeam.get("12004")))
                 .get()
                 .extracting(row -> row.getEno())
-                .isEqualTo("BE03001");
+                .isEqualTo("BE27CU001");
         assertThat(UserRepresentativeSelector.pickView(byTeam.get("18010")))
                 .get()
                 .extracting(row -> row.getEno())
-                .isEqualTo("BE03011");
+                .isEqualTo("BE27CU011");
     }
 
     @Test
@@ -91,7 +97,7 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
     void findCouncilMemberUserRows_returnsExactFieldsWithLeftJoin() {
         List<UserRepository.CouncilMemberUserRow> rows =
                 userRepository.findCouncilMemberUserRowsByEnoIn(
-                        List.of("BE03001", "BE03002", "BE03012", "UNKNOWN"));
+                        List.of("BE27CU001", "BE27CU002", "BE27CU012", "UNKNOWN"));
         Map<String, UserRepository.CouncilMemberUserRow> byEno =
                 rows.stream().collect(Collectors.toMap(row -> row.getEno(), Function.identity()));
 
@@ -101,10 +107,10 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
                                                 .getDeclaredMethods())
                                 .map(method -> method.getName()))
                 .containsExactlyInAnyOrder("getEno", "getUsrNm", "getBbrNm", "getPtCNm");
-        assertThat(byEno).containsOnlyKeys("BE03001", "BE03002", "BE03012");
-        assertThat(byEno.get("BE03001").getBbrNm()).isEqualTo("디지털부");
-        assertThat(byEno.get("BE03002").getUsrNm()).isEqualTo("김길동");
-        assertThat(byEno.get("BE03012"))
+        assertThat(byEno).containsOnlyKeys("BE27CU001", "BE27CU002", "BE27CU012");
+        assertThat(byEno.get("BE27CU001").getBbrNm()).isEqualTo("디지털부");
+        assertThat(byEno.get("BE27CU002").getUsrNm()).isEqualTo("김길동");
+        assertThat(byEno.get("BE27CU012"))
                 .satisfies(
                         row -> {
                             assertThat(row.getUsrNm()).isEqualTo("무소속");
@@ -114,7 +120,7 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
     }
 
     private void persistUser(String eno, String name, String title, String temC, String delYn) {
-        persistUser(eno, name, title, temC, delYn, "120");
+        persistUser(eno, name, title, temC, delYn, ORG_CODE);
     }
 
     private void persistUser(
