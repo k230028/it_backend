@@ -14,7 +14,9 @@ import jakarta.persistence.JoinColumns;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.util.Objects;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.experimental.SuperBuilder;
 
@@ -143,7 +145,10 @@ public class Btermm extends BaseEntity {
     private BigDecimal fcAmt;
 
     /**
-     * 단말기 관리 정보를 변경합니다.
+     * 단말기 관리 변경 명령.
+     *
+     * <p>필드가 15개라 위치 인자로는 인접한 같은 타입끼리 뒤바뀌어도 컴파일러가 잡지 못합니다(예: {@code termSvnTemC}와 {@code
+     * termSvnDpmC}). 호출부가 이름을 명시하도록 {@link Bcostm.UpdateCommand}와 같은 형태로 묶습니다.
      *
      * @param spfTmnNm 특정단말명
      * @param tmnKdTc IT포탈 단말종류구분코드
@@ -153,7 +158,7 @@ public class Btermm extends BaseEntity {
      * @param curC 통화코드
      * @param xcr 환율
      * @param xcrBseDt 환율기준일자
-     * @param dfrCleC 지급주기코드
+     * @param dfrCleC 지급주기코드 (빈값이면 {@link #update(UpdateCommand)}에서 기본값 보정)
      * @param indRsn 증감사유
      * @param cgprId 담당자 ID
      * @param termSvnTemC 주관팀코드
@@ -161,7 +166,8 @@ public class Btermm extends BaseEntity {
      * @param rmk 비고
      * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
-    public void update(
+    @Builder
+    public record UpdateCommand(
             String spfTmnNm,
             String tmnKdTc,
             String nsfUsgCone,
@@ -176,22 +182,33 @@ public class Btermm extends BaseEntity {
             String termSvnTemC,
             String termSvnDpmC,
             String rmk,
-            BigDecimal fcAmt) {
-        this.spfTmnNm = spfTmnNm;
-        this.tmnKdTc = tmnKdTc;
-        this.nsfUsgCone = nsfUsgCone;
-        this.tmnClsfC = tmnClsfC;
-        this.termRqmBgAmt = termRqmBgAmt;
-        this.curC = curC;
-        this.xcr = xcr;
-        this.xcrBseDt = xcrBseDt;
-        this.dfrCleC = CodeDefaults.orNotApplicable(dfrCleC);
-        this.indRsn = indRsn;
-        this.cgprId = cgprId;
-        this.termSvnTemC = termSvnTemC;
-        this.termSvnDpmC = termSvnDpmC;
-        this.rmk = rmk;
-        this.fcAmt = fcAmt;
+            BigDecimal fcAmt) {}
+
+    /**
+     * 명령에 담긴 단말기 관리 변경값을 적용합니다.
+     *
+     * <p>JPA Dirty Checking을 활용하여 트랜잭션 내에서 필드를 변경합니다. 필수 코드인 지급주기코드는 빈값이면 여기에서 기본값으로 보정합니다.
+     *
+     * @param command 이름이 명시된 단말기 변경 명령
+     * @throws NullPointerException command가 null인 경우 (어떤 필드도 변경하기 전에 실패)
+     */
+    public void update(UpdateCommand command) {
+        Objects.requireNonNull(command, "command");
+        this.spfTmnNm = command.spfTmnNm();
+        this.tmnKdTc = command.tmnKdTc();
+        this.nsfUsgCone = command.nsfUsgCone();
+        this.tmnClsfC = command.tmnClsfC();
+        this.termRqmBgAmt = command.termRqmBgAmt();
+        this.curC = command.curC();
+        this.xcr = command.xcr();
+        this.xcrBseDt = command.xcrBseDt();
+        this.dfrCleC = CodeDefaults.orNotApplicable(command.dfrCleC());
+        this.indRsn = command.indRsn();
+        this.cgprId = command.cgprId();
+        this.termSvnTemC = command.termSvnTemC();
+        this.termSvnDpmC = command.termSvnDpmC();
+        this.rmk = command.rmk();
+        this.fcAmt = command.fcAmt();
     }
 
     /**

@@ -848,11 +848,14 @@ class CostServiceTest {
             String result = costService.updateCost(IT_MNGC_NO, request);
 
             assertThat(result).isEqualTo(IT_MNGC_NO);
-            // 제자리 수정: existing.update() 1회 호출 (Btermm.update 인자 15개)
-            verify(existing)
-                    .update(
-                            any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
-                            any(), any(), any(), any(), any());
+            // 제자리 수정: existing.update() 1회 호출. 명령 객체 전환(CQ-19)으로 요청 값이 실제로
+            // 전달됐는지까지 확인한다 — 종전 any() 15개는 호출 여부만 봤다.
+            ArgumentCaptor<Btermm.UpdateCommand> terminalCommandCaptor =
+                    ArgumentCaptor.forClass(Btermm.UpdateCommand.class);
+            verify(existing).update(terminalCommandCaptor.capture());
+            assertThat(terminalCommandCaptor.getValue().spfTmnNm()).isEqualTo("수정단말");
+            assertThat(terminalCommandCaptor.getValue().termRqmBgAmt())
+                    .isEqualByComparingTo(BigDecimal.valueOf(3000));
             // 신규 저장·Soft Delete·시퀀스 채번은 발생하지 않음
             verify(existing, never()).delete();
             verify(btermmRepository, never()).save(any(Btermm.class));

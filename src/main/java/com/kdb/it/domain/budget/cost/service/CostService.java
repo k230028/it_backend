@@ -282,22 +282,27 @@ public class CostService {
     }
 
     private static void updateTerminal(Btermm existing, CostDto.TerminalDto terminal) {
-        existing.update(
-                terminal.getSpfTmnNm(),
-                terminal.getTmnKdTc(),
-                terminal.getNsfUsgCone(),
-                terminal.getTmnClsfC(),
-                terminal.getTermRqmBgAmt(),
-                terminal.getCurC(),
-                terminal.getXcr(),
-                DateFormatUtil.toYmd8(terminal.getXcrBseDt()),
-                terminal.getDfrCleC(),
-                terminal.getIndRsn(),
-                terminal.getCgprId(),
-                terminal.getTermSvnTemC(),
-                terminal.getTermSvnDpmC(),
-                terminal.getRmk(),
-                terminal.getFcAmt());
+        existing.update(toTerminalUpdateCommand(terminal));
+    }
+
+    private static Btermm.UpdateCommand toTerminalUpdateCommand(CostDto.TerminalDto terminal) {
+        return Btermm.UpdateCommand.builder()
+                .spfTmnNm(terminal.getSpfTmnNm())
+                .tmnKdTc(terminal.getTmnKdTc())
+                .nsfUsgCone(terminal.getNsfUsgCone())
+                .tmnClsfC(terminal.getTmnClsfC())
+                .termRqmBgAmt(terminal.getTermRqmBgAmt())
+                .curC(terminal.getCurC())
+                .xcr(terminal.getXcr())
+                .xcrBseDt(DateFormatUtil.toYmd8(terminal.getXcrBseDt()))
+                .dfrCleC(terminal.getDfrCleC())
+                .indRsn(terminal.getIndRsn())
+                .cgprId(terminal.getCgprId())
+                .termSvnTemC(terminal.getTermSvnTemC())
+                .termSvnDpmC(terminal.getTermSvnDpmC())
+                .rmk(terminal.getRmk())
+                .fcAmt(terminal.getFcAmt())
+                .build();
     }
 
     private CostOrgSnapshot resolveAuthorOrgNames(String cgprId) {
