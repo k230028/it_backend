@@ -26,13 +26,21 @@ public class ItBudgetDto {
      * @param totalReqAmt 합계 편성요청액 (천원)
      * @param totalAdjAmt 합계 편성액 (천원)
      */
-    @Schema(name = "ItBudgetCategoryRow", description = "비목별 IT/정보보호 구분 집계 행")
+    @Schema(
+            name = "ItBudgetCategoryRow",
+            description = "비목별 IT/정보보호 구분 집계 행",
+            requiredProperties = {
+                "ioeCode", "ioeDtlCode", "codeNm", "codeAbbrNm", "groupName", "capital",
+                "itReqAmt", "itAdjAmt", "secReqAmt", "secAdjAmt", "totalReqAmt", "totalAdjAmt"
+            })
     public record CategoryRow(
             @Schema(description = "비목코드값", example = "001") String ioeCode,
-            @Schema(description = "비목 코드값상세코드", example = "237-0700") String ioeDtlCode,
+            @Schema(description = "비목 코드값상세코드", example = "237-0700", nullable = true)
+                    String ioeDtlCode,
             @Schema(description = "비목코드값명", example = "개발비") String codeNm,
-            @Schema(description = "비목 코드값약어명", example = "외주용역") String codeAbbrNm,
-            @Schema(description = "비목 중분류 그룹명", example = "전산임차료") String groupName,
+            @Schema(description = "비목 코드값약어명", example = "외주용역", nullable = true) String codeAbbrNm,
+            @Schema(description = "비목 중분류 그룹명", example = "전산임차료", nullable = true)
+                    String groupName,
             @Schema(description = "자본예산 여부") boolean capital,
             @Schema(description = "정보기술 편성요청액 (천원)") long itReqAmt,
             @Schema(description = "정보기술 편성액 (천원)") long itAdjAmt,
@@ -47,7 +55,10 @@ public class ItBudgetDto {
      * @param bgYy 예산년도
      * @param rows 비목별 집계 행 목록
      */
-    @Schema(name = "ItBudgetSummaryResponse", description = "정보기술부문 예산 조회 응답")
+    @Schema(
+            name = "ItBudgetSummaryResponse",
+            description = "정보기술부문 예산 조회 응답",
+            requiredProperties = {"bgYy", "rows"})
     public record SummaryResponse(
             @Schema(description = "예산년도", example = "2026") String bgYy,
             @Schema(description = "비목별 집계 행 목록") List<CategoryRow> rows) {}
@@ -62,14 +73,24 @@ public class ItBudgetDto {
      * @param diff 증감액 (천원)
      * @param diffRate 증감률 (%), 전년도 0이면 null
      */
-    @Schema(name = "ItBudgetYoyRow", description = "전년 대비 증감 행")
+    @Schema(
+            name = "ItBudgetYoyRow",
+            description = "전년 대비 증감 행",
+            requiredProperties = {
+                "ioeCode",
+                "categoryNm",
+                "prevAmt",
+                "currAmt",
+                "diff",
+                "diffRate"
+            })
     public record YoyRow(
             @Schema(description = "비목코드값") String ioeCode,
             @Schema(description = "비목코드값명") String categoryNm,
             @Schema(description = "전년도 편성요청액 합계 (천원)") long prevAmt,
             @Schema(description = "금년도 편성요청액 합계 (천원)") long currAmt,
             @Schema(description = "증감액 (천원)") long diff,
-            @Schema(description = "증감률 (%), 전년도 0이면 null") Double diffRate) {}
+            @Schema(description = "증감률 (%), 전년도 0이면 null", nullable = true) Double diffRate) {}
 
     /**
      * 금감원 비목 매핑 행
@@ -82,10 +103,22 @@ public class ItBudgetDto {
      * @param currAmt 금년도 편성요청액 합계 (천원)
      * @param note 매핑 산출 기준 비고
      */
-    @Schema(name = "ItBudgetFssMappingRow", description = "금감원 비목 매핑 행")
+    @Schema(
+            name = "ItBudgetFssMappingRow",
+            description = "금감원 비목 매핑 행",
+            requiredProperties = {
+                "ioeCode",
+                "ioeDtlCode",
+                "bankCategoryNm",
+                "categoryNm",
+                "fssCategory",
+                "currAmt",
+                "note"
+            })
     public record FssMappingRow(
             @Schema(description = "비목코드값", example = "008") String ioeCode,
-            @Schema(description = "당행 비목코드 (코드값상세코드)", example = "239-0200") String ioeDtlCode,
+            @Schema(description = "당행 비목코드 (코드값상세코드)", example = "239-0200", nullable = true)
+                    String ioeDtlCode,
             @Schema(description = "당행 비목명 (코드값약어명)", example = "외주용역") String bankCategoryNm,
             @Schema(description = "당행 비목코드값명") String categoryNm,
             @Schema(description = "금감원 분류명") String fssCategory,
@@ -100,7 +133,10 @@ public class ItBudgetDto {
      * @param fssMapping 금감원 비목 매핑표
      * @param yoyComparison 전년 대비 증감 목록
      */
-    @Schema(name = "ItBudgetComparisonResponse", description = "정보기술부문 예산 비교 응답")
+    @Schema(
+            name = "ItBudgetComparisonResponse",
+            description = "정보기술부문 예산 비교 응답",
+            requiredProperties = {"currYy", "prevYy", "fssMapping", "yoyComparison"})
     public record ComparisonResponse(
             @Schema(description = "금년도") String currYy,
             @Schema(description = "전년도") String prevYy,

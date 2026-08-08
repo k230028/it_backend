@@ -84,13 +84,16 @@ public class BudgetWorkDto {
      * @param dupRt 기존 편성률 (미적용 시 null)
      * @param requestAmount 결재완료 요청금액 합계
      */
-    @Schema(name = "BudgetWorkIoeCategoryResponse", description = "편성비목 목록 조회 응답")
+    @Schema(
+            name = "BudgetWorkIoeCategoryResponse",
+            description = "편성비목 목록 조회 응답",
+            requiredProperties = {"cdId", "cdNm", "cdva", "prefix", "dupRt", "requestAmount"})
     public record IoeCategoryResponse(
             @Schema(description = "편성비목 코드ID", example = "DUP-IOE-237") String cdId,
             @Schema(description = "편성비목명", example = "전산임차료(SW)") String cdNm,
             @Schema(description = "코드값") String cdva,
             @Schema(description = "비목 접두어", example = "237") String prefix,
-            @Schema(description = "기존 편성률 (0~100)") Integer dupRt,
+            @Schema(description = "기존 편성률 (0~100)", nullable = true) Integer dupRt,
             @Schema(description = "결재완료 요청금액 합계") BigDecimal requestAmount) {}
 
     /**
@@ -99,7 +102,10 @@ public class BudgetWorkDto {
      * @param data 비목별 요약 항목 목록
      * @param totals 합계
      */
-    @Schema(name = "BudgetWorkSummaryResponse", description = "편성 결과 요약 응답")
+    @Schema(
+            name = "BudgetWorkSummaryResponse",
+            description = "편성 결과 요약 응답",
+            requiredProperties = {"data", "totals"})
     public record SummaryResponse(
             @Schema(description = "비목별 요약 항목 목록") List<SummaryItem> data,
             @Schema(description = "합계") SummaryTotals totals) {}
@@ -116,7 +122,19 @@ public class BudgetWorkDto {
      * @param dupAmount 편성금액 합계
      * @param dupRt 편성률
      */
-    @Schema(name = "BudgetWorkSummaryItem", description = "비목별 요약 항목")
+    @Schema(
+            name = "BudgetWorkSummaryItem",
+            description = "비목별 요약 항목",
+            requiredProperties = {
+                "ioeCategory",
+                "ioeC",
+                "ioePrefix",
+                "groupName",
+                "capital",
+                "requestAmount",
+                "dupAmount",
+                "dupRt"
+            })
     public record SummaryItem(
             @Schema(description = "세부 비목명", example = "국외전산임차료") String ioeCategory,
             @Schema(description = "실제 IOE 코드", example = "IOE-237-0100") String ioeC,
@@ -133,7 +151,10 @@ public class BudgetWorkDto {
      * @param requestAmount 요청금액 총합계
      * @param dupAmount 편성금액 총합계
      */
-    @Schema(name = "BudgetWorkSummaryTotals", description = "합계")
+    @Schema(
+            name = "BudgetWorkSummaryTotals",
+            description = "합계",
+            requiredProperties = {"requestAmount", "dupAmount"})
     public record SummaryTotals(
             @Schema(description = "요청금액 총합계") BigDecimal requestAmount,
             @Schema(description = "편성금액 총합계") BigDecimal dupAmount) {}
@@ -145,7 +166,10 @@ public class BudgetWorkDto {
      * @param totalRecords 처리된 총 레코드 수
      * @param summary 편성 결과 요약
      */
-    @Schema(name = "BudgetWorkApplyResponse", description = "편성률 적용 결과 응답")
+    @Schema(
+            name = "BudgetWorkApplyResponse",
+            description = "편성률 적용 결과 응답",
+            requiredProperties = {"message", "totalRecords", "summary"})
     public record ApplyResponse(
             @Schema(description = "처리 결과 메시지") String message,
             @Schema(description = "처리된 총 레코드 수") int totalRecords,
@@ -158,7 +182,10 @@ public class BudgetWorkDto {
      * @param data 사업별 요약 항목 목록
      * @param totals 합계
      */
-    @Schema(name = "BudgetWorkProjectSummaryResponse", description = "사업별 편성 결과 요약 응답")
+    @Schema(
+            name = "BudgetWorkProjectSummaryResponse",
+            description = "사업별 편성 결과 요약 응답",
+            requiredProperties = {"categories", "data", "totals"})
     public record ProjectSummaryResponse(
             @Schema(description = "편성비목 목록 (컬럼 헤더용)") List<ProjectSummaryCategory> categories,
             @Schema(description = "사업별 요약 항목 목록") List<ProjectSummaryItem> data,
@@ -172,11 +199,14 @@ public class BudgetWorkDto {
      * @param cdDes 코드 설명 (예: 전산임차료 편성 비율)
      * @param dupRt 편성률 (0~100)
      */
-    @Schema(name = "BudgetWorkProjectSummaryCategory", description = "편성비목 컬럼 정보")
+    @Schema(
+            name = "BudgetWorkProjectSummaryCategory",
+            description = "편성비목 컬럼 정보",
+            requiredProperties = {"ioePrefix", "cdNm", "cdDes", "dupRt"})
     public record ProjectSummaryCategory(
             @Schema(description = "비목 접두어", example = "IOE-237") String ioePrefix,
             @Schema(description = "비목명", example = "전산임차료") String cdNm,
-            @Schema(description = "코드 설명", example = "전산임차료 편성 비율") String cdDes,
+            @Schema(description = "코드 설명", example = "전산임차료 편성 비율", nullable = true) String cdDes,
             @Schema(description = "편성률 (0~100)") Integer dupRt) {}
 
     /**
@@ -189,7 +219,17 @@ public class BudgetWorkDto {
      * @param dupAmount 편성금액 합계
      * @param categoryAmounts 비목별 금액 맵 (key: ioePrefix, value: [요청금액, 편성금액])
      */
-    @Schema(name = "BudgetWorkProjectSummaryItem", description = "사업별 편성 결과 요약 항목")
+    @Schema(
+            name = "BudgetWorkProjectSummaryItem",
+            description = "사업별 편성 결과 요약 항목",
+            requiredProperties = {
+                "orcPkVl",
+                "orcTb",
+                "name",
+                "requestAmount",
+                "dupAmount",
+                "categoryAmounts"
+            })
     public record ProjectSummaryItem(
             @Schema(description = "원본PK값") String orcPkVl,
             @Schema(description = "원본테이블 (BPROJM/BCOSTM)") String orcTb,
@@ -205,7 +245,10 @@ public class BudgetWorkDto {
      * @param requestAmount 요청금액
      * @param dupAmount 편성금액
      */
-    @Schema(name = "BudgetWorkCategoryAmount", description = "비목별 금액")
+    @Schema(
+            name = "BudgetWorkCategoryAmount",
+            description = "비목별 금액",
+            requiredProperties = {"requestAmount", "dupAmount"})
     public record CategoryAmount(
             @Schema(description = "요청금액") BigDecimal requestAmount,
             @Schema(description = "편성금액") BigDecimal dupAmount) {}

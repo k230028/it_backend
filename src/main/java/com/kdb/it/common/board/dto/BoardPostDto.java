@@ -35,7 +35,13 @@ public class BoardPostDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "BoardPostListItem", description = "게시물 목록 아이템")
+    @Schema(
+            name = "BoardPostListItem",
+            description = "게시물 목록 아이템",
+            requiredProperties = {
+                "nacMngNo", "blbMngNo", "nacNm", "nacInqNbr", "nacUnqId", "ancYn", "xpoYn",
+                "flApgYn", "flNbr", "nacGrpLev", "sttYmd", "endYmd", "fstEnrUsid", "fstEnrDtm"
+            })
     public static class ListItem {
         @Schema(description = "게시물관리번호")
         private String nacMngNo;
@@ -49,16 +55,22 @@ public class BoardPostDto {
         @Schema(description = "조회수")
         private Integer nacInqNbr;
 
-        @Schema(description = "게시물고유ID")
+        @Schema(description = "게시물고유ID", nullable = true)
         private String nacUnqId;
 
-        @Schema(description = "공지여부")
+        @Schema(
+                description = "공지여부",
+                allowableValues = {"Y", "N"})
         private String ancYn;
 
-        @Schema(description = "노출여부")
+        @Schema(
+                description = "노출여부",
+                allowableValues = {"Y", "N"})
         private String xpoYn;
 
-        @Schema(description = "파일첨부여부")
+        @Schema(
+                description = "파일첨부여부",
+                allowableValues = {"Y", "N"})
         private String flApgYn;
 
         @Schema(description = "파일수")
@@ -67,10 +79,10 @@ public class BoardPostDto {
         @Schema(description = "그룹레벨 (들여쓰기 계산용)")
         private Integer nacGrpLev;
 
-        @Schema(description = "공개시작일")
+        @Schema(description = "공개시작일", nullable = true)
         private LocalDate sttYmd;
 
-        @Schema(description = "공개종료일")
+        @Schema(description = "공개종료일", nullable = true)
         private LocalDate endYmd;
 
         @Schema(description = "작성자사번")
@@ -128,7 +140,14 @@ public class BoardPostDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "BoardPostDetail", description = "게시물 상세")
+    @Schema(
+            name = "BoardPostDetail",
+            description = "게시물 상세",
+            requiredProperties = {
+                "nacMngNo", "blbMngNo", "nacNm", "nacCone", "nacInqNbr", "nacUnqId", "ancYn",
+                "xpoYn", "bbrC", "sttYmd", "endYmd", "flApgYn", "flNbr", "nacGrpSqn",
+                "nacGrpLev", "hrkNacNo", "fstEnrUsid", "fstEnrDtm", "lstChgDtm", "canModify"
+            })
     public static class Detail {
         @Schema(description = "게시물관리번호")
         private String nacMngNo;
@@ -145,25 +164,31 @@ public class BoardPostDto {
         @Schema(description = "조회수")
         private Integer nacInqNbr;
 
-        @Schema(description = "게시물고유ID")
+        @Schema(description = "게시물고유ID", nullable = true)
         private String nacUnqId;
 
-        @Schema(description = "공지여부")
+        @Schema(
+                description = "공지여부",
+                allowableValues = {"Y", "N"})
         private String ancYn;
 
-        @Schema(description = "노출여부")
+        @Schema(
+                description = "노출여부",
+                allowableValues = {"Y", "N"})
         private String xpoYn;
 
-        @Schema(description = "담당부서코드")
+        @Schema(description = "담당부서코드", nullable = true)
         private String bbrC;
 
-        @Schema(description = "공개시작일")
+        @Schema(description = "공개시작일", nullable = true)
         private LocalDate sttYmd;
 
-        @Schema(description = "공개종료일")
+        @Schema(description = "공개종료일", nullable = true)
         private LocalDate endYmd;
 
-        @Schema(description = "파일첨부여부")
+        @Schema(
+                description = "파일첨부여부",
+                allowableValues = {"Y", "N"})
         private String flApgYn;
 
         @Schema(description = "파일수")
@@ -175,7 +200,7 @@ public class BoardPostDto {
         @Schema(description = "그룹레벨")
         private Integer nacGrpLev;
 
-        @Schema(description = "상위게시물번호")
+        @Schema(description = "상위게시물번호", nullable = true)
         private String hrkNacNo;
 
         @Schema(description = "작성자사번")

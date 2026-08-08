@@ -2,10 +2,16 @@ package com.kdb.it.architecture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.kdb.it.common.board.dto.BoardCommentDto;
+import com.kdb.it.common.board.dto.BoardMetaDto;
+import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.notification.dto.NotificationDto;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto;
 import com.kdb.it.domain.bizplan.dto.BizplanDto;
+import com.kdb.it.domain.budget.it.dto.ItBudgetDto;
+import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
+import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.contract.dto.ContractDto;
 import com.kdb.it.domain.deliberation.dto.DeliberationDto;
 import com.kdb.it.domain.estimate.dto.EstimateDto;
@@ -18,6 +24,76 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ApiResponseOpenApiContractTest {
+
+    @Test
+    void boardResponsesExposeRequiredNullableAndEnumContracts() {
+        assertAllPropertiesRequired(BoardMetaDto.Response.class, "rmk");
+        assertAllPropertiesRequired(BoardPostDto.ListItem.class, "nacUnqId", "sttYmd", "endYmd");
+        assertAllPropertiesRequired(
+                BoardPostDto.Detail.class, "nacUnqId", "sttYmd", "endYmd", "bbrC", "hrkNacNo");
+        assertAllPropertiesRequired(BoardCommentDto.Response.class, "hrkCmmtMngNo");
+        assertEnum(BoardMetaDto.Response.class, "repUseYn", "Y", "N");
+        assertEnum(BoardMetaDto.Response.class, "cmmtUseYn", "Y", "N");
+        assertEnum(BoardMetaDto.Response.class, "flEsnYn", "Y", "N");
+        assertEnum(BoardMetaDto.Response.class, "hedTagUseYn", "Y", "N");
+        assertEnum(BoardMetaDto.Response.class, "useYn", "Y", "N");
+        assertEnum(BoardPostDto.ListItem.class, "ancYn", "Y", "N");
+        assertEnum(BoardPostDto.ListItem.class, "xpoYn", "Y", "N");
+        assertEnum(BoardPostDto.ListItem.class, "flApgYn", "Y", "N");
+        assertEnum(BoardCommentDto.Response.class, "delYn", "Y", "N");
+    }
+
+    @Test
+    void budgetResponsesExposeRequiredAndNullableContracts() {
+        assertAllPropertiesRequired(BudgetWorkDto.IoeCategoryResponse.class, "dupRt");
+        assertAllPropertiesRequired(BudgetWorkDto.SummaryResponse.class);
+        assertAllPropertiesRequired(BudgetWorkDto.SummaryItem.class);
+        assertAllPropertiesRequired(BudgetWorkDto.SummaryTotals.class);
+        assertAllPropertiesRequired(BudgetWorkDto.ApplyResponse.class);
+        assertAllPropertiesRequired(BudgetWorkDto.ProjectSummaryResponse.class);
+        assertAllPropertiesRequired(BudgetWorkDto.ProjectSummaryCategory.class, "cdDes");
+        assertAllPropertiesRequired(BudgetWorkDto.ProjectSummaryItem.class);
+        assertAllPropertiesRequired(BudgetWorkDto.CategoryAmount.class);
+
+        assertAllPropertiesRequired(
+                BudgetStatusDto.ProjectResponse.class,
+                "svnDpmCNm",
+                "tlrUsidNm",
+                "usidNm",
+                "dvmDpmCNm",
+                "dvmTlrUsidNm",
+                "dvmUsidNm",
+                "exePttYn",
+                "rprStsNm",
+                "adjDevBg",
+                "adjMachBg",
+                "adjIntanBg",
+                "adjAssetBg",
+                "adjRentBg",
+                "adjTravelBg",
+                "adjServiceBg",
+                "adjMiscBg",
+                "adjCostBg",
+                "adjTotalBg");
+        assertAllPropertiesRequired(
+                BudgetStatusDto.CostResponse.class,
+                "ioeCNm",
+                "costSvnDpmNm",
+                "svnTemNm",
+                "adjRentBg",
+                "adjTravelBg",
+                "adjServiceBg",
+                "adjMiscBg",
+                "adjTotalBg");
+        assertAllPropertiesRequired(BudgetStatusDto.OrdinaryResponse.class, "machCur", "intanCur");
+
+        assertAllPropertiesRequired(
+                ItBudgetDto.CategoryRow.class, "ioeDtlCode", "codeAbbrNm", "groupName");
+        assertAllPropertiesRequired(ItBudgetDto.SummaryResponse.class);
+        assertAllPropertiesRequired(ItBudgetDto.YoyRow.class, "diffRate");
+        assertAllPropertiesRequired(ItBudgetDto.FssMappingRow.class, "ioeDtlCode");
+        assertAllPropertiesRequired(ItBudgetDto.ComparisonResponse.class);
+    }
 
     @Test
     void authAndBizplanResponsesExposeRequiredAndNullableContracts() {
@@ -312,6 +388,12 @@ class ApiResponseOpenApiContractTest {
                         assertThat(Boolean.TRUE.equals(property(schema, name).getNullable()))
                                 .as("%s.%s nullable", type.getSimpleName(), name)
                                 .isEqualTo(nullable.contains(name)));
+    }
+
+    private static void assertAllPropertiesRequired(Class<?> type, String... nullableProperties) {
+        Schema<?> schema = resolve(type);
+        Set<String> properties = schema.getProperties().keySet();
+        assertContract(type, properties, Set.of(nullableProperties));
     }
 
     private static void assertEnum(Class<?> type, String property, String... values) {

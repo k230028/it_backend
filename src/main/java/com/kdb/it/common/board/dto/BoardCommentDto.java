@@ -16,7 +16,13 @@ public class BoardCommentDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "BoardCommentResponse", description = "댓글 응답")
+    @Schema(
+            name = "BoardCommentResponse",
+            description = "댓글 응답",
+            requiredProperties = {
+                "cmmtMngNo", "nacMngNo", "cmmtCone", "cmmtGrpNo", "cmmtGrpSqn", "cmmtGrpLev",
+                "hrkCmmtMngNo", "delYn", "fstEnrUsid", "fstEnrDtm", "lstChgDtm", "canModify"
+            })
     public static class Response {
         @Schema(description = "댓글관리번호")
         private Long cmmtMngNo;
@@ -36,10 +42,12 @@ public class BoardCommentDto {
         @Schema(description = "그룹레벨 (들여쓰기 계산용)")
         private Integer cmmtGrpLev;
 
-        @Schema(description = "상위댓글번호")
+        @Schema(description = "상위댓글번호", nullable = true)
         private Long hrkCmmtMngNo;
 
-        @Schema(description = "삭제여부")
+        @Schema(
+                description = "삭제여부",
+                allowableValues = {"Y", "N"})
         private String delYn;
 
         @Schema(description = "작성자사번")

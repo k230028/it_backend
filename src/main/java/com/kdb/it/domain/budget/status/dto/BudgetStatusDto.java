@@ -62,7 +62,55 @@ public class BudgetStatusDto {
      * @param adjCostBg 일반관리비 조정액 합계
      * @param adjTotalBg 전체 조정액 합계
      */
-    @Schema(name = "BudgetStatusProjectResponse", description = "예산 현황 - 정보화사업 응답")
+    @Schema(
+            name = "BudgetStatusProjectResponse",
+            description = "예산 현황 - 정보화사업 응답",
+            requiredProperties = {
+                "abusMngNo",
+                "bzTpC",
+                "abusTc",
+                "abusNm",
+                "abusCone",
+                "prlmHrkOgzCCone",
+                "svnDpmC",
+                "svnDpmCNm",
+                "tlrUsid",
+                "tlrUsidNm",
+                "usid",
+                "usidNm",
+                "dvmDpmC",
+                "dvmDpmCNm",
+                "dvmTlrUsid",
+                "dvmTlrUsidNm",
+                "dvmUsid",
+                "dvmUsidNm",
+                "exePttYn",
+                "sttDt",
+                "endDt",
+                "rprSts",
+                "rprStsNm",
+                "edrt",
+                "reqDevBg",
+                "reqMachBg",
+                "reqIntanBg",
+                "reqAssetBg",
+                "reqRentBg",
+                "reqTravelBg",
+                "reqServiceBg",
+                "reqMiscBg",
+                "reqCostBg",
+                "reqTotalBg",
+                "adjDevBg",
+                "adjMachBg",
+                "adjIntanBg",
+                "adjAssetBg",
+                "adjRentBg",
+                "adjTravelBg",
+                "adjServiceBg",
+                "adjMiscBg",
+                "adjCostBg",
+                "adjTotalBg"
+            })
     public record ProjectResponse(
             String abusMngNo,
             String bzTpC,
@@ -71,22 +119,22 @@ public class BudgetStatusDto {
             String abusCone,
             String prlmHrkOgzCCone,
             String svnDpmC,
-            String svnDpmCNm,
+            @Schema(nullable = true) String svnDpmCNm,
             String tlrUsid,
-            String tlrUsidNm,
+            @Schema(nullable = true) String tlrUsidNm,
             String usid,
-            String usidNm,
+            @Schema(nullable = true) String usidNm,
             String dvmDpmC,
-            String dvmDpmCNm,
+            @Schema(nullable = true) String dvmDpmCNm,
             String dvmTlrUsid,
-            String dvmTlrUsidNm,
+            @Schema(nullable = true) String dvmTlrUsidNm,
             String dvmUsid,
-            String dvmUsidNm,
-            String exePttYn,
+            @Schema(nullable = true) String dvmUsidNm,
+            @Schema(nullable = true) String exePttYn,
             LocalDate sttDt,
             LocalDate endDt,
             String rprSts,
-            String rprStsNm,
+            @Schema(nullable = true) String rprStsNm,
             String edrt,
             // 편성요청 금액
             BigDecimal reqDevBg,
@@ -100,16 +148,16 @@ public class BudgetStatusDto {
             BigDecimal reqCostBg,
             BigDecimal reqTotalBg,
             // 조정(편성) 금액
-            BigDecimal adjDevBg,
-            BigDecimal adjMachBg,
-            BigDecimal adjIntanBg,
-            BigDecimal adjAssetBg,
-            BigDecimal adjRentBg,
-            BigDecimal adjTravelBg,
-            BigDecimal adjServiceBg,
-            BigDecimal adjMiscBg,
-            BigDecimal adjCostBg,
-            BigDecimal adjTotalBg) {}
+            @Schema(nullable = true) BigDecimal adjDevBg,
+            @Schema(nullable = true) BigDecimal adjMachBg,
+            @Schema(nullable = true) BigDecimal adjIntanBg,
+            @Schema(nullable = true) BigDecimal adjAssetBg,
+            @Schema(nullable = true) BigDecimal adjRentBg,
+            @Schema(nullable = true) BigDecimal adjTravelBg,
+            @Schema(nullable = true) BigDecimal adjServiceBg,
+            @Schema(nullable = true) BigDecimal adjMiscBg,
+            @Schema(nullable = true) BigDecimal adjCostBg,
+            @Schema(nullable = true) BigDecimal adjTotalBg) {}
 
     /**
      * 전산업무비 예산 현황 응답 DTO
@@ -140,17 +188,44 @@ public class BudgetStatusDto {
      * @param adjMiscBg 기타관리비 조정액
      * @param adjTotalBg 조정액 합계
      */
-    @Schema(name = "BudgetStatusCostResponse", description = "예산 현황 - 전산업무비 응답")
+    @Schema(
+            name = "BudgetStatusCostResponse",
+            description = "예산 현황 - 전산업무비 응답",
+            requiredProperties = {
+                "costBgNo",
+                "abusTc",
+                "bgUntAbusC",
+                "ioeC",
+                "ioeCNm",
+                "costSvnDpmC",
+                "costSvnDpmNm",
+                "svnTemC",
+                "svnTemNm",
+                "cttNm",
+                "cttOppNm",
+                "infPrtYn",
+                "tmnYn",
+                "reqRentBg",
+                "reqTravelBg",
+                "reqServiceBg",
+                "reqMiscBg",
+                "reqTotalBg",
+                "adjRentBg",
+                "adjTravelBg",
+                "adjServiceBg",
+                "adjMiscBg",
+                "adjTotalBg"
+            })
     public record CostResponse(
             String costBgNo,
             String abusTc,
             String bgUntAbusC,
             String ioeC,
-            String ioeCNm,
+            @Schema(nullable = true) String ioeCNm,
             String costSvnDpmC,
-            String costSvnDpmNm,
+            @Schema(nullable = true) String costSvnDpmNm,
             String svnTemC,
-            String svnTemNm,
+            @Schema(nullable = true) String svnTemNm,
             String cttNm,
             String cttOppNm,
             String infPrtYn,
@@ -162,11 +237,11 @@ public class BudgetStatusDto {
             BigDecimal reqMiscBg,
             BigDecimal reqTotalBg,
             // 조정(편성) 금액
-            BigDecimal adjRentBg,
-            BigDecimal adjTravelBg,
-            BigDecimal adjServiceBg,
-            BigDecimal adjMiscBg,
-            BigDecimal adjTotalBg) {}
+            @Schema(nullable = true) BigDecimal adjRentBg,
+            @Schema(nullable = true) BigDecimal adjTravelBg,
+            @Schema(nullable = true) BigDecimal adjServiceBg,
+            @Schema(nullable = true) BigDecimal adjMiscBg,
+            @Schema(nullable = true) BigDecimal adjTotalBg) {}
 
     /**
      * 경상사업 예산 현황 응답 DTO
@@ -188,20 +263,27 @@ public class BudgetStatusDto {
      * @param intanAmt 기타무형자산 금액
      * @param intanAmtKrw 기타무형자산 원화환산금액
      */
-    @Schema(name = "BudgetStatusOrdinaryResponse", description = "예산 현황 - 경상사업 응답")
+    @Schema(
+            name = "BudgetStatusOrdinaryResponse",
+            description = "예산 현황 - 경상사업 응답",
+            requiredProperties = {
+                "abusMngNo", "abusTc", "abusNm", "abusCone", "machCur", "machQtt",
+                "machUnitPrice", "machAmt", "machAmtKrw", "intanCur", "intanQtt", "intanUnitPrice",
+                "intanAmt", "intanAmtKrw"
+            })
     public record OrdinaryResponse(
             String abusMngNo,
             String abusTc,
             String abusNm,
             String abusCone,
             // 기계장치
-            String machCur,
+            @Schema(nullable = true) String machCur,
             BigDecimal machQtt,
             BigDecimal machUnitPrice,
             BigDecimal machAmt,
             BigDecimal machAmtKrw,
             // 기타무형자산
-            String intanCur,
+            @Schema(nullable = true) String intanCur,
             BigDecimal intanQtt,
             BigDecimal intanUnitPrice,
             BigDecimal intanAmt,

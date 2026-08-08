@@ -15,7 +15,21 @@ public class BoardMetaDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "BoardMetaResponse", description = "게시판 메타 응답")
+    @Schema(
+            name = "BoardMetaResponse",
+            description = "게시판 메타 응답",
+            requiredProperties = {
+                "blbMngNo",
+                "blbNm",
+                "itPtlBlbTc",
+                "repUseYn",
+                "cmmtUseYn",
+                "flEsnYn",
+                "hedTagUseYn",
+                "sreSqnNo",
+                "useYn",
+                "rmk"
+            })
     public static class Response {
         @Schema(description = "게시판관리번호")
         private String blbMngNo;
@@ -26,25 +40,35 @@ public class BoardMetaDto {
         @Schema(description = "게시판구분코드 (공통코드 IT_PTL_BLB_TC: 001=공지사항, 002=자료실)", example = "001")
         private String itPtlBlbTc;
 
-        @Schema(description = "답변사용여부")
+        @Schema(
+                description = "답변사용여부",
+                allowableValues = {"Y", "N"})
         private String repUseYn;
 
-        @Schema(description = "댓글사용여부")
+        @Schema(
+                description = "댓글사용여부",
+                allowableValues = {"Y", "N"})
         private String cmmtUseYn;
 
-        @Schema(description = "첨부필수여부")
+        @Schema(
+                description = "첨부필수여부",
+                allowableValues = {"Y", "N"})
         private String flEsnYn;
 
-        @Schema(description = "머리말태그사용여부")
+        @Schema(
+                description = "머리말태그사용여부",
+                allowableValues = {"Y", "N"})
         private String hedTagUseYn;
 
         @Schema(description = "화면순서번호")
         private Integer sreSqnNo;
 
-        @Schema(description = "사용여부")
+        @Schema(
+                description = "사용여부",
+                allowableValues = {"Y", "N"})
         private String useYn;
 
-        @Schema(description = "비고")
+        @Schema(description = "비고", nullable = true)
         private String rmk;
 
         public static Response from(Cblbmm e) {
