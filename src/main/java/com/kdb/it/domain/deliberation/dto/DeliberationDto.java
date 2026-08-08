@@ -33,36 +33,69 @@ public final class DeliberationDto {
             @Size(max = 1000) String opnnCone,
             @Size(max = 300) String apvTrdnRsnCone) {}
 
-    @Schema(name = "DeliberationListItem", description = "과업심의 목록 항목")
+    @Schema(
+            name = "DeliberationListItem",
+            description = "과업심의 목록 항목",
+            requiredProperties = {
+                "docMngNo",
+                "docVrsSno",
+                "ioeC",
+                "cncdRfrNo",
+                "stsTc",
+                "taskDbrRltTc",
+                "reqUsid",
+                "reqDtm"
+            })
     public record ListItem(
             String docMngNo,
             Integer docVrsSno,
             String ioeC,
             String cncdRfrNo,
             String stsTc,
-            String taskDbrRltTc,
-            String reqUsid,
-            java.time.LocalDateTime reqDtm) {}
+            @Schema(nullable = true) String taskDbrRltTc,
+            @Schema(nullable = true) String reqUsid,
+            @Schema(nullable = true) java.time.LocalDateTime reqDtm) {}
 
-    @Schema(name = "DeliberationDetail", description = "과업심의 상세")
+    @Schema(
+            name = "DeliberationDetail",
+            description = "과업심의 상세",
+            requiredProperties = {
+                "docMngNo",
+                "docVrsSno",
+                "ioeC",
+                "cncdRfrNo",
+                "tgtNm",
+                "stsTc",
+                "reqCone",
+                "taskDbrTc",
+                "taskDbrRltTc",
+                "taskDbrDt",
+                "taskDbrTod",
+                "taskDbrOmtYn",
+                "taskDbrOmtRsn",
+                "opnnCone",
+                "apvTrdnRsnCone",
+                "reqUsid",
+                "reqDtm"
+            })
     public record Detail(
             String docMngNo,
             Integer docVrsSno,
             String ioeC,
             String cncdRfrNo,
-            String tgtNm,
+            @Schema(nullable = true) String tgtNm,
             String stsTc,
-            String reqCone,
-            String taskDbrTc,
-            String taskDbrRltTc,
-            String taskDbrDt,
-            String taskDbrTod,
-            String taskDbrOmtYn,
-            String taskDbrOmtRsn,
-            String opnnCone,
-            String apvTrdnRsnCone,
-            String reqUsid,
-            java.time.LocalDateTime reqDtm) {
+            @Schema(nullable = true) String reqCone,
+            @Schema(nullable = true) String taskDbrTc,
+            @Schema(nullable = true) String taskDbrRltTc,
+            @Schema(nullable = true) String taskDbrDt,
+            @Schema(nullable = true) String taskDbrTod,
+            @Schema(nullable = true) String taskDbrOmtYn,
+            @Schema(nullable = true) String taskDbrOmtRsn,
+            @Schema(nullable = true) String opnnCone,
+            @Schema(nullable = true) String apvTrdnRsnCone,
+            @Schema(nullable = true) String reqUsid,
+            @Schema(nullable = true) java.time.LocalDateTime reqDtm) {
         /**
          * 조회 프로젝션을 상세 응답으로 변환합니다.
          *

@@ -12,21 +12,34 @@ public final class TiptapVariableDto {
 
     private TiptapVariableDto() {}
 
-    @Schema(name = "TiptapVariableMetadataResponse", description = "변수 카탈로그 응답")
+    @Schema(
+            name = "TiptapVariableMetadataResponse",
+            description = "변수 카탈로그 응답",
+            requiredProperties = "categories")
     public record MetadataResponse(List<CategoryMetadata> categories) {}
 
-    @Schema(name = "TiptapVariableCategoryMetadata", description = "카테고리 메타데이터")
+    @Schema(
+            name = "TiptapVariableCategoryMetadata",
+            description = "카테고리 메타데이터",
+            requiredProperties = {"code", "label", "years", "projects", "items"})
     public record CategoryMetadata(
             @Schema(description = "카테고리 코드", example = "IT_BUDGET") String code,
             @Schema(description = "표시 라벨", example = "전산예산") String label,
             @Schema(description = "지원 연도 목록") List<Integer> years,
-            @Schema(description = "사업 목록 (PROJ 카테고리 전용)") List<ProjectRef> projects,
+            @Schema(description = "사업 목록 (PROJ 카테고리 전용)", nullable = true)
+                    List<ProjectRef> projects,
             @Schema(description = "항목 목록") List<ItemRef> items) {}
 
-    @Schema(name = "TiptapVariableProjectRef", description = "사업 참조")
+    @Schema(
+            name = "TiptapVariableProjectRef",
+            description = "사업 참조",
+            requiredProperties = {"code", "name"})
     public record ProjectRef(String code, String name) {}
 
-    @Schema(name = "TiptapVariableItemRef", description = "항목 참조")
+    @Schema(
+            name = "TiptapVariableItemRef",
+            description = "항목 참조",
+            requiredProperties = {"key", "label"})
     public record ItemRef(String key, String label) {}
 
     @Schema(name = "TiptapVariableResolveRequest", description = "변수 해석 요청")
@@ -37,10 +50,16 @@ public final class TiptapVariableDto {
                     @Schema(description = "해석할 토큰 배열")
                     List<String> tokens) {}
 
-    @Schema(name = "TiptapVariableResolveResponse", description = "변수 해석 응답")
+    @Schema(
+            name = "TiptapVariableResolveResponse",
+            description = "변수 해석 응답",
+            requiredProperties = "results")
     public record ResolveResponse(Map<String, ResolvedValue> results) {}
 
-    @Schema(name = "TiptapVariableResolvedValue", description = "해석된 값")
+    @Schema(
+            name = "TiptapVariableResolvedValue",
+            description = "해석된 값",
+            requiredProperties = {"value", "status"})
     public record ResolvedValue(
             @Schema(description = "표시값 (포맷팅된 문자열). 상태가 OK가 아니면 빈 문자열.", example = "900억원")
                     String value,

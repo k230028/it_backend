@@ -17,44 +17,98 @@ public final class BizplanDto {
 
     private BizplanDto() {}
 
-    @Schema(name = "BizplanListItem", description = "사업계획 목록 항목 (BPLANA 포함 사업 기준)")
+    @Schema(
+            name = "BizplanListItem",
+            description = "사업계획 목록 항목 (BPLANA 포함 사업 기준)",
+            requiredProperties = {
+                "abusMngNo",
+                "abusNm",
+                "svnDpmC",
+                "svnDpmNm",
+                "bseYy",
+                "totRqmAmt",
+                "stsTc",
+                "lstChgDtm"
+            })
     public record ListItem(
             String abusMngNo,
-            String abusNm,
-            String svnDpmC,
-            String svnDpmNm,
-            String bseYy,
-            BigDecimal totRqmAmt,
-            String stsTc, // 21/29, null=미작성
-            LocalDateTime lstChgDtm) {}
+            @Schema(nullable = true) String abusNm,
+            @Schema(nullable = true) String svnDpmC,
+            @Schema(nullable = true) String svnDpmNm,
+            @Schema(nullable = true) String bseYy,
+            @Schema(nullable = true) BigDecimal totRqmAmt,
+            @Schema(nullable = true) String stsTc, // 21/29, null=미작성
+            @Schema(nullable = true) LocalDateTime lstChgDtm) {}
 
-    @Schema(name = "BizplanSchedule", description = "사업일정 행 응답")
-    public record Schedule(Integer sno, String dsdCone, String sttDt, String endDt) {}
+    @Schema(
+            name = "BizplanSchedule",
+            description = "사업일정 행 응답",
+            requiredProperties = {"sno", "dsdCone", "sttDt", "endDt"})
+    public record Schedule(
+            Integer sno,
+            @Schema(nullable = true) String dsdCone,
+            @Schema(nullable = true) String sttDt,
+            @Schema(nullable = true) String endDt) {}
 
-    @Schema(name = "BizplanItem", description = "사업품목 행 응답")
+    @Schema(
+            name = "BizplanItem",
+            description = "사업품목 행 응답",
+            requiredProperties = {
+                "sno",
+                "gclNm",
+                "ioeC",
+                "qty",
+                "amt",
+                "fcAmt",
+                "curC",
+                "xcr",
+                "xcrBseDt",
+                "cttSno"
+            })
     public record Item(
             Integer sno,
-            String gclNm,
-            String ioeC,
-            Long qty,
-            BigDecimal amt,
-            BigDecimal fcAmt,
-            String curC,
-            BigDecimal xcr,
-            String xcrBseDt,
-            Integer cttSno) {}
+            @Schema(nullable = true) String gclNm,
+            @Schema(nullable = true) String ioeC,
+            @Schema(nullable = true) Long qty,
+            @Schema(nullable = true) BigDecimal amt,
+            @Schema(nullable = true) BigDecimal fcAmt,
+            @Schema(nullable = true) String curC,
+            @Schema(nullable = true) BigDecimal xcr,
+            @Schema(nullable = true) String xcrBseDt,
+            @Schema(nullable = true) Integer cttSno) {}
 
-    @Schema(name = "BizplanContract", description = "사업계약 행 응답")
-    public record Contract(Integer sno, String cttNm, String nowCttManrC, Integer cttTrmMmNbr) {}
+    @Schema(
+            name = "BizplanContract",
+            description = "사업계약 행 응답",
+            requiredProperties = {"sno", "cttNm", "nowCttManrC", "cttTrmMmNbr"})
+    public record Contract(
+            Integer sno,
+            @Schema(nullable = true) String cttNm,
+            @Schema(nullable = true) String nowCttManrC,
+            @Schema(nullable = true) Integer cttTrmMmNbr) {}
 
-    @Schema(name = "BizplanDetail", description = "사업계획 상세")
+    @Schema(
+            name = "BizplanDetail",
+            description = "사업계획 상세",
+            requiredProperties = {
+                "abusMngNo",
+                "abusNm",
+                "bgNo",
+                "totRqmAmt",
+                "itPtlEdrtTc",
+                "redtConeInf",
+                "stsTc",
+                "schedules",
+                "items",
+                "contracts"
+            })
     public record Detail(
             String abusMngNo,
-            String abusNm,
-            String bgNo,
-            BigDecimal totRqmAmt,
-            String itPtlEdrtTc,
-            String redtConeInf,
+            @Schema(nullable = true) String abusNm,
+            @Schema(nullable = true) String bgNo,
+            @Schema(nullable = true) BigDecimal totRqmAmt,
+            @Schema(nullable = true) String itPtlEdrtTc,
+            @Schema(nullable = true) String redtConeInf,
             String stsTc, // BPROJA의 사업계획 단계 상태(21/29)
             List<Schedule> schedules,
             List<Item> items,

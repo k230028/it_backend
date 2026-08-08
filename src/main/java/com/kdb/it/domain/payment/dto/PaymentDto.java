@@ -42,21 +42,41 @@ public final class PaymentDto {
     @Schema(name = "PaymentLinesRequest", description = "회차별 지급 일괄 저장(진행중)")
     public record LinesRequest(@NotNull List<LineRequest> lines) {}
 
-    @Schema(name = "PaymentListItem", description = "대금지급 목록 항목")
+    @Schema(
+            name = "PaymentListItem",
+            description = "대금지급 목록 항목",
+            requiredProperties = {
+                "docMngNo",
+                "docVrsSno",
+                "ioeC",
+                "cncdRfrNo",
+                "stsTc",
+                "cttNm",
+                "cttAmt",
+                "reqUsid",
+                "reqDtm"
+            })
     public record ListItem(
             String docMngNo,
             Integer docVrsSno,
             String ioeC,
             String cncdRfrNo,
             String stsTc,
-            String cttNm,
-            BigDecimal cttAmt,
-            String reqUsid,
-            java.time.LocalDateTime reqDtm) {}
+            @Schema(nullable = true) String cttNm,
+            @Schema(nullable = true) BigDecimal cttAmt,
+            @Schema(nullable = true) String reqUsid,
+            @Schema(nullable = true) java.time.LocalDateTime reqDtm) {}
 
-    @Schema(name = "PaymentLine", description = "회차별 지급 응답")
+    @Schema(
+            name = "PaymentLine",
+            description = "회차별 지급 응답",
+            requiredProperties = {"dfrTod", "dfrAmt", "dfrDt", "dfrMplDt", "opnnCone"})
     public record Line(
-            Integer dfrTod, BigDecimal dfrAmt, String dfrDt, String dfrMplDt, String opnnCone) {
+            Integer dfrTod,
+            @Schema(nullable = true) BigDecimal dfrAmt,
+            @Schema(nullable = true) String dfrDt,
+            @Schema(nullable = true) String dfrMplDt,
+            @Schema(nullable = true) String opnnCone) {
         /**
          * 지급 명세 조회 행을 응답으로 변환합니다.
          *
@@ -69,19 +89,35 @@ public final class PaymentDto {
         }
     }
 
-    @Schema(name = "PaymentDetail", description = "대금지급 상세")
+    @Schema(
+            name = "PaymentDetail",
+            description = "대금지급 상세",
+            requiredProperties = {
+                "docMngNo",
+                "docVrsSno",
+                "ioeC",
+                "cncdRfrNo",
+                "tgtNm",
+                "stsTc",
+                "reqCone",
+                "cttNm",
+                "cttAmt",
+                "reqUsid",
+                "reqDtm",
+                "lines"
+            })
     public record Detail(
             String docMngNo,
             Integer docVrsSno,
             String ioeC,
             String cncdRfrNo,
-            String tgtNm,
+            @Schema(nullable = true) String tgtNm,
             String stsTc,
-            String reqCone,
-            String cttNm,
-            BigDecimal cttAmt,
-            String reqUsid,
-            java.time.LocalDateTime reqDtm,
+            @Schema(nullable = true) String reqCone,
+            @Schema(nullable = true) String cttNm,
+            @Schema(nullable = true) BigDecimal cttAmt,
+            @Schema(nullable = true) String reqUsid,
+            @Schema(nullable = true) java.time.LocalDateTime reqDtm,
             List<Line> lines) {
         /**
          * 상세 조회 행과 지급 명세를 상세 응답으로 변환합니다.

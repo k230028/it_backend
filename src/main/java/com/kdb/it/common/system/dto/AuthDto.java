@@ -117,7 +117,10 @@ public class AuthDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(name = "LoginResponse", description = "로그인 응답")
+    @Schema(
+            name = "LoginResponse",
+            description = "로그인 응답",
+            requiredProperties = {"eno", "empNm", "athIds", "bbrC", "temC"})
     public static class LoginResponse {
         /**
          * JWT 접근 토큰

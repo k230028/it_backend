@@ -22,7 +22,19 @@ public final class NotificationDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "NotificationItem", description = "알림 단건")
+    @Schema(
+            name = "NotificationItem",
+            description = "알림 단건",
+            requiredProperties = {
+                "infmMsgNo",
+                "itPtlInfmSvcTc",
+                "ttl",
+                "infmMsgCone",
+                "infmRcdUrl",
+                "inqYn",
+                "inqDtm",
+                "fstEnrDtm"
+            })
     public static class Item {
 
         @Schema(description = "알림메시지번호", example = "INF-2026-00000001")
@@ -30,22 +42,25 @@ public final class NotificationDto {
 
         @Schema(
                 description = "알림서비스구분코드 (Ccodem cId='INFM_SVC' cdva, 예: '02'=결재요청)",
-                example = "02")
+                example = "02",
+                allowableValues = {"01", "02", "03", "04", "05", "06"})
         private String itPtlInfmSvcTc;
 
-        @Schema(description = "제목 (최대 100자)")
+        @Schema(description = "제목 (최대 100자)", nullable = true)
         private String ttl;
 
-        @Schema(description = "알림메시지내용 (본문)")
+        @Schema(description = "알림메시지내용 (본문)", nullable = true)
         private String infmMsgCone;
 
-        @Schema(description = "알림추천URL (클릭 시 이동할 앱 내부 경로)")
+        @Schema(description = "알림추천URL (클릭 시 이동할 앱 내부 경로)", nullable = true)
         private String infmRcdUrl;
 
-        @Schema(description = "조회여부 (Y/N) — Y=읽음")
+        @Schema(
+                description = "조회여부 (Y/N) — Y=읽음",
+                allowableValues = {"Y", "N"})
         private String inqYn;
 
-        @Schema(description = "조회일시 (읽은 시각)")
+        @Schema(description = "조회일시 (읽은 시각)", nullable = true)
         private LocalDateTime inqDtm;
 
         @Schema(description = "최초 등록 일시")
@@ -70,7 +85,10 @@ public final class NotificationDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "NotificationUnreadCount", description = "미조회(미읽음) 알림 건수")
+    @Schema(
+            name = "NotificationUnreadCount",
+            description = "미조회(미읽음) 알림 건수",
+            requiredProperties = "count")
     public static class UnreadCount {
 
         @Schema(description = "미조회 건수", example = "5")
@@ -82,7 +100,10 @@ public final class NotificationDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "NotificationMarkAllReadResponse", description = "일괄 조회(읽음) 처리 응답")
+    @Schema(
+            name = "NotificationMarkAllReadResponse",
+            description = "일괄 조회(읽음) 처리 응답",
+            requiredProperties = "updated")
     public static class MarkAllReadResponse {
 
         @Schema(description = "조회로 갱신된 건수", example = "5")

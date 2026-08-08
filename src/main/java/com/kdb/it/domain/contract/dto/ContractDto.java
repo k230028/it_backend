@@ -32,35 +32,67 @@ public final class ContractDto {
             @Size(max = 100) String cttOppNm,
             @Size(max = 8) String cttDt) {}
 
-    @Schema(name = "ContractListItem", description = "입찰계약 목록 항목")
+    @Schema(
+            name = "ContractListItem",
+            description = "입찰계약 목록 항목",
+            requiredProperties = {
+                "docMngNo",
+                "docVrsSno",
+                "ioeC",
+                "cncdRfrNo",
+                "stsTc",
+                "cttNm",
+                "cttAmt",
+                "reqUsid",
+                "reqDtm"
+            })
     public record ListItem(
             String docMngNo,
             Integer docVrsSno,
             String ioeC,
             String cncdRfrNo,
             String stsTc,
-            String cttNm,
-            BigDecimal cttAmt,
-            String reqUsid,
-            java.time.LocalDateTime reqDtm) {}
+            @Schema(nullable = true) String cttNm,
+            @Schema(nullable = true) BigDecimal cttAmt,
+            @Schema(nullable = true) String reqUsid,
+            @Schema(nullable = true) java.time.LocalDateTime reqDtm) {}
 
-    @Schema(name = "ContractDetail", description = "입찰계약 상세")
+    @Schema(
+            name = "ContractDetail",
+            description = "입찰계약 상세",
+            requiredProperties = {
+                "docMngNo",
+                "docVrsSno",
+                "ioeC",
+                "cncdRfrNo",
+                "tgtNm",
+                "stsTc",
+                "reqCone",
+                "itPtlCttManrC",
+                "cttManrRsn",
+                "cttNm",
+                "cttAmt",
+                "cttOppNm",
+                "cttDt",
+                "reqUsid",
+                "reqDtm"
+            })
     public record Detail(
             String docMngNo,
             Integer docVrsSno,
             String ioeC,
             String cncdRfrNo,
-            String tgtNm,
+            @Schema(nullable = true) String tgtNm,
             String stsTc,
-            String reqCone,
-            String itPtlCttManrC,
-            String cttManrRsn,
-            String cttNm,
-            BigDecimal cttAmt,
-            String cttOppNm,
-            String cttDt,
-            String reqUsid,
-            java.time.LocalDateTime reqDtm) {
+            @Schema(nullable = true) String reqCone,
+            @Schema(nullable = true) String itPtlCttManrC,
+            @Schema(nullable = true) String cttManrRsn,
+            @Schema(nullable = true) String cttNm,
+            @Schema(nullable = true) BigDecimal cttAmt,
+            @Schema(nullable = true) String cttOppNm,
+            @Schema(nullable = true) String cttDt,
+            @Schema(nullable = true) String reqUsid,
+            @Schema(nullable = true) java.time.LocalDateTime reqDtm) {
         /**
          * 조회 프로젝션을 상세 응답으로 변환합니다.
          *

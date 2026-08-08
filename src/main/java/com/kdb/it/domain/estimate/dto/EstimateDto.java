@@ -35,36 +35,74 @@ public final class EstimateDto {
     @Schema(name = "EstimateLinesRequest", description = "팀별 산정 명세 일괄 저장 요청(진행중)")
     public record LinesRequest(@NotNull List<LineRequest> lines) {}
 
-    @Schema(name = "EstimateListItem", description = "소요예산 산정 목록 항목")
+    @Schema(
+            name = "EstimateListItem",
+            description = "소요예산 산정 목록 항목",
+            requiredProperties = {
+                "rqmBgReqDocNo",
+                "docVrsSno",
+                "ioeC",
+                "cncdRfrNo",
+                "abusNm",
+                "totalBudget",
+                "sttDtm",
+                "endDtm",
+                "svnDpmC",
+                "svnDpmNm",
+                "stsTc",
+                "reqUsid",
+                "reqDtm"
+            })
     public record ListItem(
-            String rqmBgReqDocNo,
-            Integer docVrsSno,
+            @Schema(nullable = true) String rqmBgReqDocNo,
+            @Schema(nullable = true) Integer docVrsSno,
             String ioeC,
             String cncdRfrNo,
-            String abusNm,
-            BigDecimal totalBudget,
-            LocalDate sttDtm,
-            LocalDate endDtm,
-            String svnDpmC,
-            String svnDpmNm,
-            String stsTc,
-            String reqUsid,
-            LocalDateTime reqDtm) {}
+            @Schema(nullable = true) String abusNm,
+            @Schema(nullable = true) BigDecimal totalBudget,
+            @Schema(nullable = true) LocalDate sttDtm,
+            @Schema(nullable = true) LocalDate endDtm,
+            @Schema(nullable = true) String svnDpmC,
+            @Schema(nullable = true) String svnDpmNm,
+            @Schema(nullable = true) String stsTc,
+            @Schema(nullable = true) String reqUsid,
+            @Schema(nullable = true) LocalDateTime reqDtm) {}
 
-    @Schema(name = "EstimateLine", description = "팀별 산정 명세 응답")
-    public record Line(String svnTemC, String ioeC, BigDecimal rqmBgAmt, String opnnCone) {}
+    @Schema(
+            name = "EstimateLine",
+            description = "팀별 산정 명세 응답",
+            requiredProperties = {"svnTemC", "ioeC", "rqmBgAmt", "opnnCone"})
+    public record Line(
+            String svnTemC,
+            String ioeC,
+            @Schema(nullable = true) BigDecimal rqmBgAmt,
+            @Schema(nullable = true) String opnnCone) {}
 
-    @Schema(name = "EstimateDetail", description = "소요예산 산정 상세")
+    @Schema(
+            name = "EstimateDetail",
+            description = "소요예산 산정 상세",
+            requiredProperties = {
+                "rqmBgReqDocNo",
+                "docVrsSno",
+                "ioeC",
+                "cncdRfrNo",
+                "abusNm",
+                "stsTc",
+                "reqCone",
+                "reqUsid",
+                "reqDtm",
+                "lines"
+            })
     public record Detail(
             String rqmBgReqDocNo,
             Integer docVrsSno,
             String ioeC,
             String cncdRfrNo,
-            String abusNm,
+            @Schema(nullable = true) String abusNm,
             String stsTc,
-            String reqCone,
-            String reqUsid,
-            LocalDateTime reqDtm,
+            @Schema(nullable = true) String reqCone,
+            @Schema(nullable = true) String reqUsid,
+            @Schema(nullable = true) LocalDateTime reqDtm,
             List<Line> lines) {
 
         /** 대상구분: 소요예산 산정은 정보화사업(100) 전용이므로 고정값을 사용합니다. */
