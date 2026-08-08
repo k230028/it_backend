@@ -118,7 +118,14 @@ public class ServiceRequestDocDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(name = "ServiceRequestDocResponse", description = "요구사항 정의서 조회 응답")
+    @Schema(
+            name = "ServiceRequestDocResponse",
+            description = "요구사항 정의서 조회 응답",
+            requiredProperties = {
+                "docMngNo", "docVrsSno", "reqTtl", "redtConeInf", "reqDttNo", "bzDttNm",
+                "rvwFsgTlmDt", "svnDpmNm", "svnTemNm", "delYn", "fstEnrDtm", "fstEnrUsid",
+                "fstEnrUsNm", "lstChgDtm", "lstChgUsid"
+            })
     public static class Response {
 
         /** 문서관리번호 */
@@ -150,15 +157,17 @@ public class ServiceRequestDocDto {
         private String rvwFsgTlmDt;
 
         /** 주관부서명 (저장 스냅샷, 구버전 데이터는 null) */
-        @Schema(description = "주관부서명")
+        @Schema(description = "주관부서명", nullable = true)
         private String svnDpmNm;
 
         /** 주관팀명 (저장 스냅샷, 구버전 데이터는 null) */
-        @Schema(description = "주관팀명")
+        @Schema(description = "주관팀명", nullable = true)
         private String svnTemNm;
 
         /** 삭제여부 */
-        @Schema(description = "삭제여부")
+        @Schema(
+                description = "삭제여부",
+                allowableValues = {"Y", "N"})
         private String delYn;
 
         /** 최초생성시간 */
@@ -170,7 +179,7 @@ public class ServiceRequestDocDto {
         private String fstEnrUsid;
 
         /** 최초생성자 이름 (TPRMPP_CUSERI JOIN) */
-        @Schema(description = "최초생성자 이름")
+        @Schema(description = "최초생성자 이름", nullable = true)
         private String fstEnrUsNm;
 
         /** 마지막수정시간 */
@@ -217,7 +226,10 @@ public class ServiceRequestDocDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(name = "ServiceRequestDocVersionResponse", description = "요구사항 정의서 버전 히스토리 응답")
+    @Schema(
+            name = "ServiceRequestDocVersionResponse",
+            description = "요구사항 정의서 버전 히스토리 응답",
+            requiredProperties = {"docMngNo", "docVrsSno", "fstEnrDtm", "lstChgDtm", "delYn"})
     public static class VersionResponse {
 
         /** 문서관리번호 */
@@ -237,7 +249,9 @@ public class ServiceRequestDocDto {
         private LocalDateTime lstChgDtm;
 
         /** 삭제여부 */
-        @Schema(description = "삭제여부")
+        @Schema(
+                description = "삭제여부",
+                allowableValues = {"Y", "N"})
         private String delYn;
 
         /**
@@ -286,7 +300,17 @@ public class ServiceRequestDocDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "DocumentDashboardResponse", description = "요구사항 정의서 대시보드 응답")
+    @Schema(
+            name = "DocumentDashboardResponse",
+            description = "요구사항 정의서 대시보드 응답",
+            requiredProperties = {
+                "totalCount",
+                "reviewingCount",
+                "completedCount",
+                "overdueCount",
+                "monthlyTrend",
+                "recentReviewing"
+            })
     public static class DashboardResponse {
         @Schema(description = "전체 문서 수")
         private int totalCount;
@@ -312,7 +336,10 @@ public class ServiceRequestDocDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "DocumentMonthlyCount", description = "월별 등록 건수")
+    @Schema(
+            name = "DocumentMonthlyCount",
+            description = "월별 등록 건수",
+            requiredProperties = {"month", "count"})
     public static class MonthlyCount {
         @Schema(description = "년월 (YYYY-MM)")
         private String month;
@@ -326,7 +353,10 @@ public class ServiceRequestDocDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "DocumentReviewingItem", description = "검토 중인 문서 항목")
+    @Schema(
+            name = "DocumentReviewingItem",
+            description = "검토 중인 문서 항목",
+            requiredProperties = {"docMngNo", "title", "authorName", "createdAt", "status"})
     public static class ReviewingItem {
         @Schema(description = "문서관리번호")
         private String docMngNo;
@@ -340,7 +370,9 @@ public class ServiceRequestDocDto {
         @Schema(description = "최초 등록 일시 (YYYY-MM-DD)")
         private String createdAt;
 
-        @Schema(description = "상태: reviewing(검토중) | delayed(지연)")
+        @Schema(
+                description = "상태: reviewing(검토중) | delayed(지연)",
+                allowableValues = {"reviewing", "delayed"})
         private String status;
     }
 
@@ -349,7 +381,10 @@ public class ServiceRequestDocDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "DocumentBadgeCountResponse", description = "사이드바 배지 건수 응답")
+    @Schema(
+            name = "DocumentBadgeCountResponse",
+            description = "사이드바 배지 건수 응답",
+            requiredProperties = "reviewingCount")
     public static class BadgeCountResponse {
         @Schema(description = "검토 진행 중 문서 수")
         private int reviewingCount;

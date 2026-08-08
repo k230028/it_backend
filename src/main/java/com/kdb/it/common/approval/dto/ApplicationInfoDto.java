@@ -34,7 +34,18 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(name = "ApplicationInfo", description = "신청서 상세 정보")
+@Schema(
+        name = "ApplicationInfo",
+        description = "신청서 상세 정보",
+        requiredProperties = {
+            "apfMngNo",
+            "apfSts",
+            "apfNm",
+            "rqsEno",
+            "rqsDt",
+            "rqsOpnn",
+            "approvers"
+        })
 public class ApplicationInfoDto {
 
     /** 신청서관리번호 (APF_MNG_NO) */
@@ -42,7 +53,7 @@ public class ApplicationInfoDto {
     private String apfMngNo;
 
     /** 신청서상태 (APF_STS, 예: "결재중", "결재완료", "반려") */
-    @Schema(description = "신청서상태")
+    @Schema(description = "신청서상태", nullable = true)
     private String apfSts;
 
     /** 신청서명 (APF_NM) */
@@ -58,7 +69,7 @@ public class ApplicationInfoDto {
     private LocalDate rqsDt;
 
     /** 신청의견 (RQS_OPNN) */
-    @Schema(description = "신청의견")
+    @Schema(description = "신청의견", nullable = true)
     private String rqsOpnn;
 
     /** 결재자 목록 (결재순서 오름차순) */
@@ -128,7 +139,10 @@ public class ApplicationInfoDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(name = "Approver", description = "결재자 정보")
+    @Schema(
+            name = "Approver",
+            description = "결재자 정보",
+            requiredProperties = {"dcdSqn", "dcdEno", "dcdTp", "dcdSts", "dcdDt", "dcdOpnn"})
     public static class ApproverDto {
 
         /** 결재순서 (DCD_SQN, 1부터 시작) */
@@ -140,19 +154,19 @@ public class ApplicationInfoDto {
         private String dcdEno;
 
         /** 결재유형 (DCD_TP, null=미결재, "결재"=결재 처리됨) */
-        @Schema(description = "결재유형")
+        @Schema(description = "결재유형", nullable = true)
         private String dcdTp;
 
         /** 결재상태 (IT_PTL_DCD_STS_C, null=미결재, "승인", "반려") */
-        @Schema(description = "결재상태")
+        @Schema(description = "결재상태", nullable = true)
         private String dcdSts;
 
         /** 결재일자 (DCD_DT, 미결재 시 null) */
-        @Schema(description = "결재일자")
+        @Schema(description = "결재일자", nullable = true)
         private LocalDate dcdDt;
 
         /** 결재의견 (DCD_OPNN) */
-        @Schema(description = "결재의견")
+        @Schema(description = "결재의견", nullable = true)
         private String dcdOpnn;
 
         /**

@@ -2,6 +2,8 @@ package com.kdb.it.architecture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.kdb.it.common.approval.dto.ApplicationDto;
+import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.board.dto.BoardCommentDto;
 import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.dto.BoardPostDto;
@@ -9,6 +11,7 @@ import com.kdb.it.common.notification.dto.NotificationDto;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto;
 import com.kdb.it.domain.bizplan.dto.BizplanDto;
+import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.it.dto.ItBudgetDto;
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
@@ -24,6 +27,47 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ApiResponseOpenApiContractTest {
+
+    @Test
+    void documentAndApprovalResponsesExposeRequiredAndNullableContracts() {
+        assertAllPropertiesRequired(
+                ServiceRequestDocDto.Response.class, "svnDpmNm", "svnTemNm", "fstEnrUsNm");
+        assertAllPropertiesRequired(ServiceRequestDocDto.VersionResponse.class);
+        assertAllPropertiesRequired(ServiceRequestDocDto.DashboardResponse.class);
+        assertAllPropertiesRequired(ServiceRequestDocDto.MonthlyCount.class);
+        assertAllPropertiesRequired(ServiceRequestDocDto.ReviewingItem.class);
+        assertAllPropertiesRequired(ServiceRequestDocDto.BadgeCountResponse.class);
+        assertEnum(ServiceRequestDocDto.Response.class, "delYn", "Y", "N");
+        assertEnum(ServiceRequestDocDto.VersionResponse.class, "delYn", "Y", "N");
+        assertEnum(ServiceRequestDocDto.ReviewingItem.class, "status", "reviewing", "delayed");
+
+        assertAllPropertiesRequired(
+                ApplicationDto.Response.class,
+                "apfDtlCone",
+                "apfSts",
+                "apfStsC",
+                "rqsNm",
+                "rqsBbrC",
+                "rqsBbrNm",
+                "rqsOpnn");
+        assertAllPropertiesRequired(
+                ApplicationDto.ApproverResponse.class,
+                "dcdTp",
+                "dcdDt",
+                "dcdOpnn",
+                "dcdSts",
+                "lstDcdYn");
+        assertAllPropertiesRequired(ApplicationDto.DashboardResponse.class);
+        assertAllPropertiesRequired(ApplicationDto.MonthlyCount.class);
+        assertAllPropertiesRequired(ApplicationDto.PendingItem.class);
+        assertAllPropertiesRequired(ApplicationDto.ApprovalBadgeCountResponse.class);
+        assertEnum(ApplicationDto.PendingItem.class, "urgency", "urgent", "normal");
+        assertEnum(ApplicationDto.ApproverResponse.class, "lstDcdYn", "Y", "N");
+
+        assertAllPropertiesRequired(ApplicationInfoDto.class, "apfSts", "rqsOpnn");
+        assertAllPropertiesRequired(
+                ApplicationInfoDto.ApproverDto.class, "dcdTp", "dcdSts", "dcdDt", "dcdOpnn");
+    }
 
     @Test
     void boardResponsesExposeRequiredNullableAndEnumContracts() {

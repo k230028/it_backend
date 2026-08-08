@@ -297,7 +297,22 @@ public class ApplicationDto {
      */
     @Getter
     @Builder
-    @Schema(name = "ApplicationResponse")
+    @Schema(
+            name = "ApplicationResponse",
+            requiredProperties = {
+                "apfMngNo",
+                "apfNm",
+                "apfDtlCone",
+                "apfSts",
+                "apfStsC",
+                "rqsEno",
+                "rqsNm",
+                "rqsBbrC",
+                "rqsBbrNm",
+                "rqsDt",
+                "rqsOpnn",
+                "approvers"
+            })
     public static class Response {
         /** 신청관리번호 (PK, 예: "APF_202600000001") */
         @Schema(description = "신청관리번호")
@@ -308,15 +323,15 @@ public class ApplicationDto {
         private String apfNm;
 
         /** 신청서 세부 내용 (JSON 형식, 결재선 정보 포함) */
-        @Schema(description = "신청서세부내용")
+        @Schema(description = "신청서세부내용", nullable = true)
         private String apfDtlCone;
 
         /** 신청상태 (예: "결재중", "결재완료", "반려") */
-        @Schema(description = "신청상태")
+        @Schema(description = "신청상태", nullable = true)
         private String apfSts;
 
         /** 신청상태코드 (Ccodem cId='APF_STS' 기반 코드값) */
-        @Schema(description = "신청상태코드")
+        @Schema(description = "신청상태코드", nullable = true)
         private String apfStsC;
 
         /** 신청자 사원번호 */
@@ -324,15 +339,15 @@ public class ApplicationDto {
         private String rqsEno;
 
         /** 신청자명 */
-        @Schema(description = "신청자명")
+        @Schema(description = "신청자명", nullable = true)
         private String rqsNm;
 
         /** 신청부서코드 */
-        @Schema(description = "신청부서코드")
+        @Schema(description = "신청부서코드", nullable = true)
         private String rqsBbrC;
 
         /** 신청부서명 */
-        @Schema(description = "신청부서명")
+        @Schema(description = "신청부서명", nullable = true)
         private String rqsBbrNm;
 
         /** 신청일자 */
@@ -340,7 +355,7 @@ public class ApplicationDto {
         private LocalDate rqsDt;
 
         /** 신청의견 */
-        @Schema(description = "신청의견")
+        @Schema(description = "신청의견", nullable = true)
         private String rqsOpnn;
 
         /** 결재자 목록 (순번 순서대로) */
@@ -527,7 +542,17 @@ public class ApplicationDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "ApprovalDashboardResponse", description = "전자결재 대시보드 응답")
+    @Schema(
+            name = "ApprovalDashboardResponse",
+            description = "전자결재 대시보드 응답",
+            requiredProperties = {
+                "pendingCount",
+                "inProgressCount",
+                "monthlyCompletedCount",
+                "rejectedCount",
+                "monthlyTrend",
+                "pendingList"
+            })
     public static class DashboardResponse {
         @Schema(description = "결재 대기 수 (본인)")
         private int pendingCount;
@@ -553,7 +578,10 @@ public class ApplicationDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "ApprovalMonthlyCount", description = "월별 결재 처리 건수")
+    @Schema(
+            name = "ApprovalMonthlyCount",
+            description = "월별 결재 처리 건수",
+            requiredProperties = {"month", "count"})
     public static class MonthlyCount {
         @Schema(description = "년월 (YYYY-MM)")
         private String month;
@@ -567,7 +595,10 @@ public class ApplicationDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "ApprovalPendingItem", description = "결재 대기 항목")
+    @Schema(
+            name = "ApprovalPendingItem",
+            description = "결재 대기 항목",
+            requiredProperties = {"apfMngNo", "title", "requesterName", "requestedAt", "urgency"})
     public static class PendingItem {
         @Schema(description = "신청서관리번호")
         private String apfMngNo;
@@ -581,7 +612,9 @@ public class ApplicationDto {
         @Schema(description = "신청일자 (YYYY-MM-DD)")
         private String requestedAt;
 
-        @Schema(description = "긴급여부: urgent(3일 초과) | normal")
+        @Schema(
+                description = "긴급여부: urgent(3일 초과) | normal",
+                allowableValues = {"urgent", "normal"})
         private String urgency;
     }
 
@@ -590,7 +623,10 @@ public class ApplicationDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "ApprovalBadgeCountResponse", description = "결재 사이드바 배지 건수 응답")
+    @Schema(
+            name = "ApprovalBadgeCountResponse",
+            description = "결재 사이드바 배지 건수 응답",
+            requiredProperties = {"pendingCount", "inProgressCount"})
     public static class ApprovalBadgeCountResponse {
         @Schema(description = "결재 대기 수")
         private int pendingCount;
@@ -606,7 +642,17 @@ public class ApplicationDto {
      */
     @Getter
     @Builder
-    @Schema(name = "ApplicationApproverResponse")
+    @Schema(
+            name = "ApplicationApproverResponse",
+            requiredProperties = {
+                "dcdSqn",
+                "dcdEno",
+                "dcdTp",
+                "dcdDt",
+                "dcdOpnn",
+                "dcdSts",
+                "lstDcdYn"
+            })
     public static class ApproverResponse {
         /** 결재순번 (1부터 시작, 순차 결재 순서) */
         @Schema(description = "결재순번")
@@ -617,23 +663,26 @@ public class ApplicationDto {
         private String dcdEno;
 
         /** 결재유형 (예: "결재", null이면 미결재) */
-        @Schema(description = "결재유형")
+        @Schema(description = "결재유형", nullable = true)
         private String dcdTp;
 
         /** 결재일자 (결재 처리된 날짜) */
-        @Schema(description = "결재일자")
+        @Schema(description = "결재일자", nullable = true)
         private LocalDate dcdDt;
 
         /** 결재의견 */
-        @Schema(description = "결재의견")
+        @Schema(description = "결재의견", nullable = true)
         private String dcdOpnn;
 
         /** 결재상태 (예: "승인", "반려", null이면 미결재) */
-        @Schema(description = "결재상태")
+        @Schema(description = "결재상태", nullable = true)
         private String dcdSts;
 
         /** 최종결재자여부 ("Y"/"N", 프론트엔드 회수(중간결재자 회수) 분기 판단에 사용) */
-        @Schema(description = "최종결재자여부 (Y/N)")
+        @Schema(
+                description = "최종결재자여부 (Y/N)",
+                nullable = true,
+                allowableValues = {"Y", "N"})
         private String lstDcdYn;
 
         /**
