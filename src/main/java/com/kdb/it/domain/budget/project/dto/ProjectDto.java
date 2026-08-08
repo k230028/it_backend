@@ -6,6 +6,7 @@ import com.kdb.it.domain.budget.project.entity.Bprojm;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -111,11 +112,9 @@ public class ProjectDto {
         @Schema(description = "IT부서")
         private String dvmDpmC;
 
-        /** 시작일자 */
         @Schema(description = "시작일자")
         private LocalDate sttDtm;
 
-        /** 종료일자 */
         @Schema(description = "종료일자")
         private LocalDate endDtm;
 
@@ -127,15 +126,12 @@ public class ProjectDto {
         @Schema(description = "IT부서담당자")
         private String dvmUsid;
 
-        /** 주관부서담당팀장 */
         @Schema(description = "주관부서담당팀장")
         private String tlrUsid;
 
-        /** IT부서담당팀장 */
         @Schema(description = "IT부서담당팀장")
         private String dvmTlrUsid;
 
-        /** 주관본부/부문 */
         @Schema(description = "주관본부/부문")
         private String prlmHrkOgzCCone;
 
@@ -215,8 +211,10 @@ public class ProjectDto {
         @Schema(description = "경상여부")
         private String odnYn;
 
-        /** 사업구분 ('신규', '계속') */
-        @Schema(description = "사업구분")
+        /** 사업구분 — 신규('10')·계속('20')만 허용. 공통코드의 '해당없음'('0')은 사업 유효값이 아니다 (BE-19). */
+        @Schema(description = "사업구분 (10=신규, 20=계속)")
+        @NotBlank(message = "사업구분은 필수입니다.")
+        @Pattern(regexp = "10|20", message = "사업구분은 신규(10) 또는 계속(20)만 가능합니다.")
         private String abusTc;
 
         /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */
@@ -413,8 +411,10 @@ public class ProjectDto {
         @Schema(description = "경상여부")
         private String odnYn;
 
-        /** 사업구분 ('신규', '계속') */
-        @Schema(description = "사업구분")
+        /** 사업구분 — 생성과 같은 규칙. 수정으로 값을 비우거나 '0'으로 되돌리는 구멍을 막는다 (BE-19). */
+        @Schema(description = "사업구분 (10=신규, 20=계속)")
+        @NotBlank(message = "사업구분은 필수입니다.")
+        @Pattern(regexp = "10|20", message = "사업구분은 신규(10) 또는 계속(20)만 가능합니다.")
         private String abusTc;
 
         /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */

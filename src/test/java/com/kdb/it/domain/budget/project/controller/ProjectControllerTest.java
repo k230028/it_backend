@@ -91,7 +91,7 @@ class ProjectControllerTest {
     void createProject_성공_201반환() throws Exception {
         // given
         ProjectDto.CreateRequest request =
-                ProjectDto.CreateRequest.builder().abusNm("신규 사업").build();
+                ProjectDto.CreateRequest.builder().abusNm("신규 사업").abusTc("10").build();
         given(projectService.createProject(any(ProjectDto.CreateRequest.class)))
                 .willReturn("PRJ-2026-0001");
 
@@ -103,6 +103,38 @@ class ProjectControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/projects/PRJ-2026-0001"))
                 .andExpect(content().string("PRJ-2026-0001"));
+    }
+
+    @Test
+    @DisplayName("POST /api/projects - 사업구분 누락 → 400 (BE-19)")
+    @WithMockUser(username = "10001")
+    void createProject_사업구분누락_400반환() throws Exception {
+        // 검증이 없던 시절에는 누락값이 서비스에서 '0'(해당없음)으로 조용히 보정돼
+        // "입력하지 않음"과 "해당없음 선택"이 구분되지 않았다.
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder().abusNm("검증 대상").build();
+
+        mockMvc.perform(
+                        post("/api/projects")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/projects - 사업구분 '0'(해당없음) → 400 (BE-19)")
+    @WithMockUser(username = "10001")
+    void createProject_사업구분해당없음_400반환() throws Exception {
+        // 공통코드 ABUS_TC에는 '0'이 있지만 사업 도메인의 유효값은 신규('10')·계속('20')뿐이다.
+        // @NotBlank만으로는 '0'이 통과하므로 값 집합도 함께 강제한다.
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder().abusNm("검증 대상").abusTc("0").build();
+
+        mockMvc.perform(
+                        post("/api/projects")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -123,7 +155,7 @@ class ProjectControllerTest {
     @WithMockUser(username = "10001")
     void updateProject_성공_200반환() throws Exception {
         ProjectDto.UpdateRequest request =
-                ProjectDto.UpdateRequest.builder().abusNm("수정 사업").build();
+                ProjectDto.UpdateRequest.builder().abusNm("수정 사업").abusTc("20").build();
         given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
                 .willReturn("PRJ-2026-0001");
 
