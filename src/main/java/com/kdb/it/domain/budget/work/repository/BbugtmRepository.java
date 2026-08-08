@@ -18,18 +18,18 @@ import org.springframework.data.repository.query.Param;
 public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, BbugtmRepositoryCustom {
 
     /**
-     * Oracle 시퀀스로 예산관리번호 채번
+     * 예산관리번호 채번용 Oracle 시퀀스 원값을 가져옵니다.
      *
-     * <p>형식: BG-{예산년도}-{4자리 시퀀스} (예: BG-2026-0001)
+     * <p>번호 조립은 호출자(서비스)가 {@code String.format("BG-%s-%04d", ...)}로 수행합니다. 종전에는 이 쿼리가 {@code
+     * LPAD(NEXTVAL, 4, '0')}으로 문자열까지 만들었으나, Oracle {@code LPAD}는 자릿수를 넘는 값을 **잘라내므로**({@code
+     * LPAD(10000,4,'0')='1000'}) 시퀀스가 9,999를 넘는 순간 이미 존재하는 번호와 조용히 충돌한다. Java {@code
+     * String.format}은 자르지 않고 자릿수가 늘어나 같은 사고가 나지 않으며, 다른 14개 채번과도 형태가 같아진다(BE-28, {@code CLAUDE.md}
+     * §2).
      *
-     * @param bgYy 예산년도
-     * @return 채번된 예산관리번호
+     * @return 다음 시퀀스 값
      */
-    @Query(
-            value =
-                    "SELECT 'BG-' || :bgYy || '-' || LPAD(SQ_TPRMPP_BBUGTM_1.NEXTVAL, 4, '0') FROM DUAL",
-            nativeQuery = true)
-    String generateBgMngNo(@Param("bgYy") String bgYy);
+    @Query(value = "SELECT SQ_TPRMPP_BBUGTM_1.NEXTVAL FROM DUAL", nativeQuery = true)
+    Long nextBgMngNoSeq();
 
     /**
      * 특정 연도의 편성 데이터 조회

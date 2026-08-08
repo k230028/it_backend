@@ -86,7 +86,7 @@ class BudgetRateApplicationServiceTest {
     void applyRates_빈rates목록_0건처리() {
         // given: rates 없는 요청
         BudgetWorkDto.ApplyRequest request = new BudgetWorkDto.ApplyRequest("2026", List.of());
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
         mockEmptyDetailCodes();
@@ -115,7 +115,7 @@ class BudgetRateApplicationServiceTest {
 
         Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of(cost));
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
@@ -161,7 +161,7 @@ class BudgetRateApplicationServiceTest {
 
         Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of(cost));
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
@@ -208,7 +208,7 @@ class BudgetRateApplicationServiceTest {
 
         Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of(cost));
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
@@ -250,7 +250,7 @@ class BudgetRateApplicationServiceTest {
         given(cost.getIoeC()).willReturn("IOE-237-0700");
         given(cost.getCostTotXpAmt()).willReturn(BigDecimal.valueOf(500_000));
 
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         // getSummary 내부 호출용 (선정리는 softDeleteByBseYy 벌크 UPDATE로 수행, findByBseYyAndDelYn 미사용)
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         // 자본예산 비목코드 없음 → 경상 처리
@@ -300,7 +300,7 @@ class BudgetRateApplicationServiceTest {
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of(item));
 
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         // 기존 BBUGTM 레코드 없음 → INSERT 경로 (테이블별 일괄 조회 빈 목록)
         given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(any(), eq("BCOSTM"), eq("N")))
                 .willReturn(List.of());
@@ -338,7 +338,7 @@ class BudgetRateApplicationServiceTest {
         given(bitemm.getAmt()).willReturn(BigDecimal.valueOf(1_000_000));
         given(bitemm.getXcr()).willReturn(null);
 
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         // getSummary 내부 호출용 (선정리는 softDeleteByBseYy 벌크 UPDATE로 수행, findByBseYyAndDelYn 미사용)
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         // 자본예산 비목코드 없음 → 경상 처리
@@ -371,7 +371,7 @@ class BudgetRateApplicationServiceTest {
         given(cost.getCostTotXpAmt()).willReturn(null);
         Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of(cost));
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
@@ -413,7 +413,7 @@ class BudgetRateApplicationServiceTest {
         given(cost.getBgSno()).willReturn(1);
         given(cost.getIoeC()).willReturn("IOE-999-0100");
         given(cost.getCostTotXpAmt()).willReturn(BigDecimal.valueOf(500));
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         // 실제 인증 사번 경로 검증: AuditorAware가 사번을 제공하면 그 값이 LST_CHG_USID로 전달되어야 한다.
         given(auditorAware.getCurrentAuditor()).willReturn(java.util.Optional.of("ADMINUSER"));
         given(
@@ -470,7 +470,7 @@ class BudgetRateApplicationServiceTest {
         given(item.getAmt()).willReturn(null);
         given(item.getGclMngNo()).willReturn("GCL-NULL");
         given(item.getSno()).willReturn(1);
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null))
                 .willReturn(List.of(capitalCodeWithoutDash));
@@ -517,7 +517,7 @@ class BudgetRateApplicationServiceTest {
 
         given(codeRepository.findByCIdWithValidDate("IOE_C", null))
                 .willReturn(List.of(capitalIoeCode));
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
                 .willReturn(List.of(bitemm));
@@ -563,7 +563,7 @@ class BudgetRateApplicationServiceTest {
         given(existingBugtm.getIoeC()).willReturn("001");
 
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findApprovedCostsByIoeCValues(any(), eq("2026")))
                 .willReturn(List.of());
         given(bbugtmRepository.findApprovedItemsByIoeCValues(any(), eq("2026")))
@@ -595,7 +595,7 @@ class BudgetRateApplicationServiceTest {
     void applyItemRates_선정리_벌크UPDATE단일호출() {
         BudgetWorkDto.ItemApplyRequest request =
                 new BudgetWorkDto.ItemApplyRequest("2026", List.of());
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.softDeleteByBseYy(eq("2026"), any(), any())).willReturn(3);
         // getSummary 내부 호출용 mock
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
@@ -630,7 +630,7 @@ class BudgetRateApplicationServiceTest {
                         .costTotXpAmt(BigDecimal.valueOf(1_000_000))
                         .build();
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N"))
                 .willReturn(List.of());
         given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BITEMM", "N"))
@@ -691,7 +691,7 @@ class BudgetRateApplicationServiceTest {
                         .ioeC("IOE-237-0700")
                         .costTotXpAmt(BigDecimal.valueOf(500_000))
                         .build();
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0002");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(2L);
         given(auditorAware.getCurrentAuditor()).willReturn(java.util.Optional.of("TESTER"));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());

@@ -71,7 +71,7 @@ class BudgetRateApplicationServiceXcrLookupTest {
     @DisplayName("BPROJM 편성: 저장된 KRW amt를 그대로 사용해 편성금액을 계산")
     void applyItemRates_외화품목_저장KrwAmt사용() {
         // given: applyItemRates 진입 mocks
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
@@ -114,7 +114,7 @@ class BudgetRateApplicationServiceXcrLookupTest {
     @DisplayName("BPROJM 편성: xcr이 있어도 저장된 KRW amt를 다시 환산하지 않는다")
     void applyItemRates_환율있어도_저장KrwAmt유지() {
         // given
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
@@ -151,7 +151,7 @@ class BudgetRateApplicationServiceXcrLookupTest {
     @DisplayName("KRW 항목: resolveXcr null 반환, BigDecimal.ONE으로 amountKrw 계산")
     void applyItemRates_KRW항목_BigDecimalONE으로계산() {
         // given
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
@@ -188,7 +188,7 @@ class BudgetRateApplicationServiceXcrLookupTest {
     @DisplayName("DUP_IOE 편성: 결재완료 BITEMM 집계도 저장된 KRW amt를 그대로 사용")
     void applyRates_외화품목_저장KrwAmt사용() {
         // given
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N"))
                 .willReturn(List.of());
         given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BITEMM", "N"))
@@ -237,7 +237,7 @@ class BudgetRateApplicationServiceXcrLookupTest {
     @DisplayName("편성 재집계는 fcAmt*xcr=140000이어도 저장된 amt 130000을 원화 기준으로 합산한다")
     void aggregate_foreignCurrency_usesStoredKrwAmt() {
         // given
-        given(bbugtmRepository.generateBgMngNo("2026")).willReturn("BG-2026-0001");
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BCOSTM", "N"))
                 .willReturn(List.of());
         given(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn("2026", "BITEMM", "N"))

@@ -22,8 +22,9 @@
 - 물리 구조의 SoT는 `../it_database/migrations`, ORM 매핑의 SoT는 엔티티, 사람이 보는 매핑 인덱스는 [data-model.md](docs/guides/persistence/data-model.md)입니다.
 - 엔티티·컬럼명은 `C:\it\meta\meta.txt`의 메타 용어와 [컬럼 명명 가이드](docs/guides/persistence/column-naming.md)를 따릅니다.
 - 시퀀스는 `SQ_{테이블명}_#`(예: `SQ_TPRMPP_CAUTHI_1`), PK 제약이 소유하지 않는 인덱스는 `IX_{테이블명}_##`(예: `IX_TPRMPP_CAUTHI_01`) 명명 규칙을 따릅니다. 감사로그 PK 채번(`AuditLogIdGenerator`)도 이 규칙으로 시퀀스명을 유도합니다.
-- 시퀀스는 `NOCACHE NOCYCLE`을 명시하고 MAXVALUE를 반드시 지정합니다. MAXVALUE 기준은 숫자 컬럼에 직접 저장하면 대상 컬럼 `NUMBER(p)`의 p자리, 문자열 식별번호를 만들면 채번 포맷의 zero-padding 폭입니다. 기준표의 SoT는 `../it_database/migrations/V20260730_003__NormalizeSequenceMaxValues.sql`입니다.
-- Oracle `LPAD(seq, n, '0')`는 자릿수를 넘는 값을 잘라내 번호가 조용히 충돌하므로, LPAD로 채번하는 시퀀스는 MAXVALUE를 LPAD 자릿수 이하로 유지합니다. Java `String.format("%0nd", ...)`는 자르지 않고 늘어납니다.
+- 시퀀스는 `NOCACHE`를 명시하고 MAXVALUE를 반드시 지정합니다. MAXVALUE 기준은 숫자 컬럼에 직접 저장하면 대상 컬럼 `NUMBER(p)`의 p자리, 문자열 식별번호를 만들면 채번 포맷의 zero-padding 폭입니다. 기준표의 SoT는 `../it_database/migrations/V20260730_003__NormalizeSequenceMaxValues.sql`입니다.
+- CYCLE 여부는 **식별번호에 연도를 결합하는지**로 정합니다. 시퀀스는 연도 경계에서 초기화되지 않으므로(운영 소스에 초기화 코드가 없습니다), 연 발급량이 zero-padding 폭보다 작으면 순환 주기가 1년보다 길어져 재사용되는 일련번호가 **항상 다른 연도와 결합**합니다 — `COST-{yyyy}-%04d`처럼 연도를 붙이는 채번은 `CYCLE`을 허용합니다. 연도를 붙이지 않는 채번(`BLBM-%04d`)은 순환 즉시 같은 번호가 재발급되므로 `NOCYCLE`로 두어 상한 도달을 `ORA-08004`로 드러냅니다. **CYCLE의 성립 조건은 "어느 한 해에 zero-padding 폭을 넘게 발급하지 않는다"**이며, 이를 넘기면 같은 해 안에서 `(연도, 일련번호)` 쌍이 반복됩니다.
+- Oracle `LPAD(seq, n, '0')`는 자릿수를 넘는 값을 잘라내 번호가 조용히 충돌하므로 채번에 쓰지 않습니다. 리포지토리는 시퀀스 원값만 반환하고 서비스가 Java `String.format("%0nd", ...)`로 조립합니다 — 자르지 않고 자릿수가 늘어납니다. 운영 소스의 SQL `LPAD` 채번은 2026-08-08 `BbugtmRepository`를 마지막으로 제거했습니다.
 - 문자열 식별번호 채번은 접두어와 일련번호 사이 구분자로 `_`를 쓰지 않습니다. 구분자를 두면 `-`를 사용합니다(`FL-%08d`, `PRJ-%s-%04d`, `NAC-%d-%04d` 등. 메뉴 `MNU%07d`처럼 구분자 없는 형식도 있습니다). 채번 형식을 바꿔도 기존 행은 구 형식으로 남아 두 형식이 공존하므로, 식별번호는 정확히 일치 조회로만 사용하고 접두어를 파싱해 의미를 꺼내지 않습니다.
 - 모든 업무 엔티티는 `BaseEntity`를 상속하고 물리 삭제 대신 `delete()`로 `DEL_YN='Y'`를 설정합니다.
 - 감사 대상 업무 엔티티는 `@LogTarget`, 대응 로그 엔티티는 `BaseLogEntity`를 사용합니다.

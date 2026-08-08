@@ -48,7 +48,7 @@ public class BudgetRateApplicationService {
     @Transactional
     public BudgetWorkDto.ApplyResponse applyRates(BudgetWorkDto.ApplyRequest request) {
         String bgYy = request.bgYy();
-        String bgMngNo = bbugtmRepository.generateBgMngNo(bgYy);
+        String bgMngNo = generateBgMngNo(bgYy);
         int nextSno = 0;
         int totalRecords = 0;
         Map<String, Set<String>> prefixToIoeCodes =
@@ -123,7 +123,7 @@ public class BudgetRateApplicationService {
     @Transactional
     public BudgetWorkDto.ApplyResponse applyItemRates(BudgetWorkDto.ItemApplyRequest request) {
         String bgYy = request.bgYy();
-        String bgMngNo = bbugtmRepository.generateBgMngNo(bgYy);
+        String bgMngNo = generateBgMngNo(bgYy);
         String changerUsid =
                 auditorAware
                         .getCurrentAuditor()
@@ -252,6 +252,21 @@ public class BudgetRateApplicationService {
     private boolean isCapitalIoeCode(String ioeC, Set<String> capitalPrefixes) {
         if (ioeC == null) return false;
         return capitalPrefixes.stream().anyMatch(ioeC::startsWith);
+    }
+
+    /**
+     * 예산관리번호를 채번합니다.
+     *
+     * <p>형식은 {@code BG-{예산년도}-{4자리 시퀀스}}(예: {@code BG-2026-0001})이며, 시퀀스가 9,999를 넘으면 잘리지 않고 자릿수가
+     * 늘어납니다({@code BG-2026-10000}). 종전에는 리포지토리의 네이티브 쿼리가 Oracle {@code LPAD(NEXTVAL, 4, '0')}으로
+     * 번호까지 만들었는데, {@code LPAD}는 초과분을 **잘라내** 기존 번호와 조용히 충돌한다(BE-28). 다른 14개 채번과 같이 Java {@code
+     * String.format}으로 옮겨 그 경로를 없앴다.
+     *
+     * @param bgYy 예산년도
+     * @return 채번된 예산관리번호
+     */
+    private String generateBgMngNo(String bgYy) {
+        return String.format("BG-%s-%04d", bgYy, bbugtmRepository.nextBgMngNoSeq());
     }
 
     private BigDecimal calculateDupBg(BigDecimal requestAmount, Integer rate) {
