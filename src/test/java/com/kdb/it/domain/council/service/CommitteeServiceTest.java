@@ -16,6 +16,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
+import com.kdb.it.domain.council.entity.BcmmtmId;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import jakarta.persistence.EntityManager;
 import java.util.Arrays;
@@ -320,6 +321,31 @@ class CommitteeServiceTest {
 
         verify(existing).delete();
         verify(entityManager).persist(any(Bcmmtm.class));
+    }
+
+    @Test
+    @DisplayName("saveCommittee: 위원 유형 변경은 복합 PK를 직접 변경하지 않고 기존 행 교체로 처리한다")
+    void saveCommittee_위원유형변경_기존행교체() {
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
+        Bcmmtm existing = mockMember("E10001", "01");
+        given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
+                .willReturn(List.of(existing));
+        given(committeeRepository.findById(new BcmmtmId(ASCT_ID, "02", "E10001")))
+                .willReturn(java.util.Optional.empty());
+
+        committeeService.saveCommittee(
+                ASCT_ID,
+                new CouncilDto.CommitteeRequest(
+                        "03", List.of(new CouncilDto.CommitteeMemberRequest("E10001", "02"))));
+
+        verify(existing).delete();
+        verify(entityManager)
+                .persist(
+                        org.mockito.ArgumentMatchers.argThat(
+                                (Bcmmtm member) ->
+                                        ASCT_ID.equals(member.getItPtlAsctId())
+                                                && "E10001".equals(member.getEno())
+                                                && "02".equals(member.getItPtlAsctMebTc())));
     }
 
     @Test

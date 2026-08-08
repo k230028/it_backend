@@ -35,7 +35,7 @@ import lombok.experimental.SuperBuilder;
  *   <li>ETC: 예산(12004), PMO(18010), 디지털기획(18501)
  * </ul>
  *
- * <p>복합키: ({@code ASCT_ID}, {@code ENO})
+ * <p>복합키: ({@code ASCT_ID}, {@code MEB_TC}, {@code ENO})
  */
 @LogTarget(entity = BcmmtmL.class)
 @Entity
@@ -52,12 +52,13 @@ public class Bcmmtm extends BaseEntity {
     @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String itPtlAsctId;
 
-    /** 사번: 복합키 두 번째 컬럼 (TPRMPP_CUSERI.ENO FK) */
+    /** 사번: 복합키 세 번째 컬럼 (TPRMPP_CUSERI.ENO FK) */
     @Id
     @Column(name = "ENO", length = 32, nullable = false, comment = "사번")
     private String eno;
 
-    /** 위원유형구분코드: MAND(당연위원) / CALL(소집위원) / SECR(간사), CCODEM VLR_TC 기준 */
+    /** 위원유형구분코드: 복합키 두 번째 컬럼. MAND(당연위원) / CALL(소집위원) / SECR(간사), CCODEM VLR_TC 기준 */
+    @Id
     @Column(name = "IT_PTL_ASCT_MEB_TC", length = 2, nullable = false, comment = "위원유형구분코드")
     private String itPtlAsctMebTc;
 
@@ -77,15 +78,6 @@ public class Bcmmtm extends BaseEntity {
      */
     @Column(name = "CSF_HP_YN", length = 1, comment = "대면희망여부")
     private String csfHpYn;
-
-    /**
-     * 위원유형 변경 (소집→당연 또는 간사 재지정 시)
-     *
-     * @param itPtlAsctMebTc 변경할 위원유형 코드
-     */
-    public void changeType(String itPtlAsctMebTc) {
-        this.itPtlAsctMebTc = itPtlAsctMebTc;
-    }
 
     /** 결과서 검토 확인 처리 평가위원이 결과서를 확인하면 호출됩니다. */
     public void confirmReview() {

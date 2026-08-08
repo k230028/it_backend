@@ -1,6 +1,7 @@
 package com.kdb.it.domain.council.repository;
 
 import com.kdb.it.domain.council.entity.Bmqnam;
+import com.kdb.it.domain.council.entity.BmqnamId;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -13,7 +14,7 @@ import org.springframework.data.repository.query.Param;
  *
  * <p>IT관리자가 본회의 동안 오간 질의응답을 정리·관리합니다. 사전질의응답({@link QnaRepository})과 동일 메서드 시그니처를 유지합니다.
  */
-public interface MainQnaRepository extends JpaRepository<Bmqnam, String> {
+public interface MainQnaRepository extends JpaRepository<Bmqnam, BmqnamId> {
 
     /**
      * 협의회별 본회의 질의응답 목록 조회 (삭제되지 않은 항목, 등록일시 오름차순)

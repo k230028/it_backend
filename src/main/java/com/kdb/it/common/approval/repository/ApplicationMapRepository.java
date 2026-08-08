@@ -1,6 +1,7 @@
 package com.kdb.it.common.approval.repository;
 
 import com.kdb.it.common.approval.entity.Cappla;
+import com.kdb.it.common.approval.entity.CapplaId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +12,7 @@ import org.springframework.data.repository.query.Param;
  * <p>Spring Data JPA의 {@link JpaRepository}를 상속하여 기본 CRUD 기능을 제공하며, 신청서와 원천 데이터 간의 연결 관계를 조회하는 특화
  * 메서드를 제공합니다.
  *
- * <p>기본키 타입: {@link Long} (apfSno: 신청서일련번호, SQ_TPRMPP_CAPPLA_1 자동 채번)
+ * <p>기본키 타입: {@link CapplaId} (신청서식별번호 + 신청서일련번호)
  *
  * <p>주요 활용:
  *
@@ -20,7 +21,7 @@ import org.springframework.data.repository.query.Param;
  *   <li>결재중/결재완료 상태의 신청서 존재 여부 확인 (수정/삭제 제약)
  * </ul>
  */
-public interface ApplicationMapRepository extends JpaRepository<Cappla, Long> {
+public interface ApplicationMapRepository extends JpaRepository<Cappla, CapplaId> {
 
     /** 결재 응답 조립에 필요한 신청서 연결 최소 필드입니다. */
     interface ApplicationMapView {

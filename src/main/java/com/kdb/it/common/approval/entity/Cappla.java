@@ -23,16 +23,14 @@ import lombok.experimental.SuperBuilder;
  */
 @Entity
 @Table(name = "TPRMPP_CAPPLA", comment = "프로젝트관리 공통신청서관계")
+@IdClass(CapplaId.class)
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class Cappla extends BaseEntity {
 
-    /**
-     * 신청서일련번호: Oracle 시퀀스(SQ_TPRMPP_CAPPLA_1) 자동 채번. (물리 PK는 (APF_DCM_NO, APF_SNO) 복합키이나, 본 엔티티는
-     * APF_SNO 단일 @Id로 매핑)
-     */
+    /** 신청서일련번호: Oracle 시퀀스(SQ_TPRMPP_CAPPLA_1) 자동 채번. APF_DCM_NO와 함께 물리 복합 PK를 구성합니다. */
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SQ_TPRMPP_CAPPLA_1")
     @SequenceGenerator(
@@ -43,6 +41,7 @@ public class Cappla extends BaseEntity {
     private Long apfSno;
 
     /** 신청서식별번호: 연결된 신청서의 식별번호 (Capplm.apfMngNo 참조) 형식: APF-{연도}-{8자리 시퀀스} (예: APF-2026-00000001) */
+    @Id
     @Column(name = "APF_DCM_NO", length = 64, nullable = false, comment = "신청서식별번호")
     private String apfDcmNo;
 

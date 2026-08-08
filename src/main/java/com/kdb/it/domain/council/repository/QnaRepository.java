@@ -1,6 +1,7 @@
 package com.kdb.it.domain.council.repository;
 
 import com.kdb.it.domain.council.entity.Bpqnam;
+import com.kdb.it.domain.council.entity.BpqnamId;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -13,7 +14,7 @@ import org.springframework.data.repository.query.Param;
  *
  * <p>평가위원 질의 등록 및 추진부서 담당자 답변 관리.
  */
-public interface QnaRepository extends JpaRepository<Bpqnam, String> {
+public interface QnaRepository extends JpaRepository<Bpqnam, BpqnamId> {
 
     /**
      * 협의회별 질의응답 목록 조회 (삭제되지 않은 항목, 등록일시 오름차순)

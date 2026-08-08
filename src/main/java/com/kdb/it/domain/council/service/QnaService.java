@@ -6,6 +6,7 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bpqnam;
+import com.kdb.it.domain.council.entity.BpqnamId;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.QnaRepository;
 import jakarta.persistence.EntityManager;
@@ -124,13 +125,9 @@ public class QnaService {
             CustomUserDetails userDetails) {
         Bpqnam qna =
                 qnaRepository
-                        .findById(qtnId)
+                        .findById(new BpqnamId(asctId, qtnId))
                         .orElseThrow(
                                 () -> new IllegalArgumentException("존재하지 않는 질의응답입니다: " + qtnId));
-
-        if (!qna.getItPtlAsctId().equals(asctId)) {
-            throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
-        }
 
         /* 본인 또는 관리자만 수정 가능 */
         OwnershipVerifier.verifyOwnerOrAdmin(qna.getQtnDwuUsid(), userDetails);
@@ -156,14 +153,9 @@ public class QnaService {
             CustomUserDetails userDetails) {
         Bpqnam qna =
                 qnaRepository
-                        .findById(qtnId)
+                        .findById(new BpqnamId(asctId, qtnId))
                         .orElseThrow(
                                 () -> new IllegalArgumentException("존재하지 않는 질의응답입니다: " + qtnId));
-
-        /* 해당 협의회 소속 여부 검증 */
-        if (!qna.getItPtlAsctId().equals(asctId)) {
-            throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
-        }
 
         /*
          * 답변 권한 검증 — IT관리자(ITPAD001)는 개최준비 단계에서 대리 답변을 허용하고,

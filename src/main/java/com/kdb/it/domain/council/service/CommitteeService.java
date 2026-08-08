@@ -4,6 +4,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.UserRepresentativeSelector;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Bcmmtm;
+import com.kdb.it.domain.council.entity.BcmmtmId;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -188,13 +189,13 @@ public class CommitteeService {
      * <p>요청 위원 목록과 기존 위원을 사번 기준으로 비교하여:
      *
      * <ul>
-     *   <li>이미 등록된 사번 → 영속 객체의 vlrTc만 변경 (JPA Dirty Checking)
+     *   <li>이미 등록된 사번의 유형 변경 → 기존 행 Soft Delete 후 새 복합키 행 활성화
      *   <li>신규 사번 → INSERT
      *   <li>요청에 없는 기존 사번 → Soft Delete
      * </ul>
      *
-     * <p>이전 구현(전체 Soft Delete 후 신규 INSERT)은 같은 PK(ASCT_ID, ENO)에 대해 영속성 컨텍스트의 delete 처리 객체와 신규
-     * build 객체가 merge되며 BaseEntity 컬럼이 비정상 덮어써져, 후속 조회에서 빈 목록이 반환되는 회귀가 있었습니다(PRD §14).
+     * <p>위원유형은 물리 복합 PK의 일부이므로 영속 엔티티에서 직접 변경하지 않습니다. 과거에 동일 복합키로 Soft Delete된 행이 있으면 복원하고, 없으면 새
+     * 행을 persist합니다.
      *
      * <p>위원 확정 시 협의회 상태를 PREPARING으로 전이합니다.
      *
@@ -213,27 +214,17 @@ public class CommitteeService {
 
         Set<String> requestedEnos = new HashSet<>();
 
-        // 요청 위원: 기존이면 vlrTc 갱신, 없으면 신규 INSERT
+        // 요청 위원: 유형이 같으면 유지하고, 유형이 바뀌면 물리 복합키 행을 교체한다.
         for (CouncilDto.CommitteeMemberRequest req : request.members()) {
             requestedEnos.add(req.eno());
             Bcmmtm existing = existingByEno.get(req.eno());
             if (existing != null) {
-                // 기존 영속 객체에 위원유형만 갱신 (Dirty Checking)
-                existing.changeType(req.vlrTc());
+                if (!existing.getItPtlAsctMebTc().equals(req.vlrTc())) {
+                    existing.delete();
+                    activateMember(asctId, req);
+                }
             } else {
-                /*
-                 * 신규 위원: ID가 채워져 있어도 새 엔티티이므로 persist()로 직접 INSERT.
-                 *   - JpaRepository.save()는 ID 보유 시 merge() 분기로 빠져 detached의 delYn=null이
-                 *     영속 객체에 복사돼 DEL_YN=null로 저장되는 회귀가 있었음 (PRD §15)
-                 *   - persist()는 새 entity로 처리되며 @PrePersist가 발화해 delYn='N'으로 자동 채움
-                 */
-                Bcmmtm member =
-                        Bcmmtm.builder()
-                                .itPtlAsctId(asctId)
-                                .eno(req.eno())
-                                .itPtlAsctMebTc(req.vlrTc())
-                                .build();
-                entityManager.persist(member);
+                activateMember(asctId, req);
             }
         }
 
@@ -250,6 +241,21 @@ public class CommitteeService {
     // =========================================================================
     // 내부 헬퍼
     // =========================================================================
+
+    private void activateMember(String asctId, CouncilDto.CommitteeMemberRequest request) {
+        BcmmtmId id = new BcmmtmId(asctId, request.vlrTc(), request.eno());
+        committeeRepository
+                .findById(id)
+                .ifPresentOrElse(
+                        Bcmmtm::restore,
+                        () ->
+                                entityManager.persist(
+                                        Bcmmtm.builder()
+                                                .itPtlAsctId(asctId)
+                                                .eno(request.eno())
+                                                .itPtlAsctMebTc(request.vlrTc())
+                                                .build()));
+    }
 
     /**
      * 팀코드 목록별 대표 후보(팀장 우선→사번 오름차순)를 해석합니다. (BE-10)

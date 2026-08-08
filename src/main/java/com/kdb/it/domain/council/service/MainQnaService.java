@@ -3,6 +3,7 @@ package com.kdb.it.domain.council.service;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Bmqnam;
+import com.kdb.it.domain.council.entity.BmqnamId;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.MainQnaRepository;
 import jakarta.persistence.EntityManager;
@@ -115,15 +116,11 @@ public class MainQnaService {
     public void updateMainQna(String asctId, String qtnId, CouncilDto.QnaUpdateRequest request) {
         Bmqnam qna =
                 mainQnaRepository
-                        .findById(qtnId)
+                        .findById(new BmqnamId(asctId, qtnId))
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
                                                 "존재하지 않는 본회의 질의응답입니다: " + qtnId));
-
-        if (!qna.getItPtlAsctId().equals(asctId)) {
-            throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
-        }
 
         qna.updateQuestion(request.qtnCone());
     }
@@ -146,15 +143,11 @@ public class MainQnaService {
             CustomUserDetails userDetails) {
         Bmqnam qna =
                 mainQnaRepository
-                        .findById(qtnId)
+                        .findById(new BmqnamId(asctId, qtnId))
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
                                                 "존재하지 않는 본회의 질의응답입니다: " + qtnId));
-
-        if (!qna.getItPtlAsctId().equals(asctId)) {
-            throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
-        }
 
         qna.reply(userDetails.getEno(), request.repCone());
     }
@@ -169,15 +162,11 @@ public class MainQnaService {
     public void deleteMainQna(String asctId, String qtnId) {
         Bmqnam qna =
                 mainQnaRepository
-                        .findById(qtnId)
+                        .findById(new BmqnamId(asctId, qtnId))
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
                                                 "존재하지 않는 본회의 질의응답입니다: " + qtnId));
-
-        if (!qna.getItPtlAsctId().equals(asctId)) {
-            throw new IllegalArgumentException("협의회ID가 일치하지 않습니다.");
-        }
 
         qna.delete();
     }

@@ -13,6 +13,7 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bpqnam;
+import com.kdb.it.domain.council.entity.BpqnamId;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.QnaRepository;
 import jakarta.persistence.EntityManager;
@@ -155,7 +156,7 @@ class QnaServiceTest {
     @DisplayName("updateQna: 존재하지 않는 질의ID이면 IllegalArgumentException을 던진다")
     void updateQna_존재하지않는질의_IllegalArgumentException발생() {
         // given
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.empty());
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.empty());
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
 
         // when & then
@@ -171,11 +172,10 @@ class QnaServiceTest {
     }
 
     @Test
-    @DisplayName("updateQna: 협의회ID가 일치하지 않으면 IllegalArgumentException을 던진다")
-    void updateQna_협의회ID불일치_IllegalArgumentException발생() {
-        // given — qna는 다른 협의회 소속
-        Bpqnam qna = mockQna(QTN_ID, "ASCT-2026-9999", "E10001");
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+    @DisplayName("updateQna: 다른 협의회의 동일 질의ID는 조회되지 않는다")
+    void updateQna_다른협의회동일질의_조회격리() {
+        // given — 복합 PK 조회 결과, 다른 협의회의 동일 질의ID는 선택되지 않는다.
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.empty());
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
 
         // when & then
@@ -187,7 +187,7 @@ class QnaServiceTest {
                                         new CouncilDto.QnaUpdateRequest("수정내용"),
                                         userDetails))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("협의회ID");
+                .hasMessageContaining(QTN_ID);
     }
 
     @Test
@@ -195,7 +195,7 @@ class QnaServiceTest {
     void updateQna_본인아님_관리자아님_AccessDenied발생() {
         // given
         Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E_OWNER");
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.of(qna));
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
         given(userDetails.getEno()).willReturn("E10001");
         given(userDetails.isAdmin()).willReturn(false);
@@ -216,7 +216,7 @@ class QnaServiceTest {
     void updateQna_본인질의_수정성공() {
         // given
         Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E10001");
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.of(qna));
 
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
         given(userDetails.getEno()).willReturn("E10001");
@@ -237,7 +237,7 @@ class QnaServiceTest {
     @DisplayName("replyQna: 존재하지 않는 질의ID이면 IllegalArgumentException을 던진다")
     void replyQna_존재하지않는질의_IllegalArgumentException발생() {
         // given
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.empty());
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.empty());
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
 
         // when & then
@@ -253,14 +253,13 @@ class QnaServiceTest {
     }
 
     @Test
-    @DisplayName("replyQna: 협의회ID가 일치하지 않으면 IllegalArgumentException을 던진다")
-    void replyQna_협의회ID불일치_IllegalArgumentException발생() {
-        // Arrange: qna는 다른 협의회 소속
-        Bpqnam qna = mockQna(QTN_ID, "ASCT-2026-9999", "E10001");
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+    @DisplayName("replyQna: 다른 협의회의 동일 질의ID는 조회되지 않는다")
+    void replyQna_다른협의회동일질의_조회격리() {
+        // Arrange: 복합 PK 조회 결과, 다른 협의회의 동일 질의ID는 선택되지 않는다.
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.empty());
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
 
-        // Act & Assert: 협의회ID 불일치 분기 진입
+        // Act & Assert
         assertThatThrownBy(
                         () ->
                                 qnaService.replyQna(
@@ -269,7 +268,7 @@ class QnaServiceTest {
                                         new CouncilDto.QnaReplyRequest("답변내용"),
                                         userDetails))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("협의회ID");
+                .hasMessageContaining(QTN_ID);
     }
 
     @Test
@@ -277,7 +276,7 @@ class QnaServiceTest {
     void replyQna_정상요청_답변등록() {
         // given
         Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E10001");
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.of(qna));
 
         CustomUserDetails userDetails = mock(CustomUserDetails.class);
         given(userDetails.getEno()).willReturn("E20001");
@@ -295,7 +294,7 @@ class QnaServiceTest {
         Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E10001");
         Basctm council = mock(Basctm.class);
         Bprojm project = mock(Bprojm.class);
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.of(qna));
         given(council.getAbusMngNo()).willReturn("PRJ-001");
         given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(council));
@@ -322,7 +321,7 @@ class QnaServiceTest {
         Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E10001");
         Basctm council = mock(Basctm.class);
         Bprojm project = mock(Bprojm.class);
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.of(qna));
         given(council.getAbusMngNo()).willReturn("PRJ-001");
         given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(council));
@@ -344,7 +343,7 @@ class QnaServiceTest {
         Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "E10001");
         Basctm council = mock(Basctm.class);
         Bprojm project = mock(Bprojm.class);
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.of(qna));
         given(council.getAbusMngNo()).willReturn("PRJ-001");
         given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(council));
@@ -364,7 +363,7 @@ class QnaServiceTest {
     void updateQna_관리자_타인질의수정가능() {
         // Arrange: qna 등록자는 OTHER_ENO, 로그인 사용자는 관리자
         Bpqnam qna = mockQna(QTN_ID, ASCT_ID, "OTHER_ENO");
-        given(qnaRepository.findById(QTN_ID)).willReturn(Optional.of(qna));
+        given(qnaRepository.findById(new BpqnamId(ASCT_ID, QTN_ID))).willReturn(Optional.of(qna));
 
         CustomUserDetails admin = mock(CustomUserDetails.class);
         given(admin.getEno()).willReturn("E_ADMIN");

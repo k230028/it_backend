@@ -6,6 +6,7 @@ import com.kdb.it.domain.log.entity.BmqnamL;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -28,18 +29,20 @@ import lombok.experimental.SuperBuilder;
 @LogTarget(entity = BmqnamL.class)
 @Entity
 @Table(name = "TPRMPP_BMQNAM", comment = "본회의질의응답")
+@IdClass(BmqnamId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @SuperBuilder
 public class Bmqnam extends BaseEntity {
 
-    /** 질의응답ID: PK (MQT-{협의회ID}-{순번} 형식) */
+    /** 질의응답ID: 협의회ID와 함께 복합 PK를 구성합니다. (MQT-{협의회ID}-{순번} 형식) */
     @Id
     @Column(name = "QTN_ID", length = 36, nullable = false, comment = "질의응답ID")
     private String qtnId;
 
-    /** 협의회ID: BASCTM.ASCT_ID FK */
+    /** 협의회ID: 질의응답ID와 함께 복합 PK를 구성합니다. BASCTM.ASCT_ID FK */
+    @Id
     @Column(name = "IT_PTL_ASCT_ID", length = 32, nullable = false, comment = "협의회ID")
     private String itPtlAsctId;
 

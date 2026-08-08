@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Bmqnam;
+import com.kdb.it.domain.council.entity.BmqnamId;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.MainQnaRepository;
 import jakarta.persistence.EntityManager;
@@ -126,7 +127,8 @@ class MainQnaServiceTest {
     @DisplayName("updateMainQna: 협의회ID가 일치하면 질의 내용을 수정한다")
     void updateMainQna_updatesQuestion() {
         Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId(ASCT_ID).qtnCone("기존").build();
-        given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
+        given(mainQnaRepository.findById(new BmqnamId(ASCT_ID, "MQT-1")))
+                .willReturn(Optional.of(qna));
 
         service.updateMainQna(ASCT_ID, "MQT-1", new CouncilDto.QnaUpdateRequest("수정"));
 
@@ -136,7 +138,8 @@ class MainQnaServiceTest {
     @Test
     @DisplayName("updateMainQna: 질의응답이 없으면 예외를 던진다")
     void updateMainQna_missingQna_throws() {
-        given(mainQnaRepository.findById("MQT-404")).willReturn(Optional.empty());
+        given(mainQnaRepository.findById(new BmqnamId(ASCT_ID, "MQT-404")))
+                .willReturn(Optional.empty());
 
         assertThatThrownBy(
                         () ->
@@ -150,7 +153,8 @@ class MainQnaServiceTest {
     @DisplayName("replyMainQna: 협의회ID가 일치하면 답변자와 답변 여부를 갱신한다")
     void replyMainQna_replies() {
         Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId(ASCT_ID).qtnRpdRltYn("N").build();
-        given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
+        given(mainQnaRepository.findById(new BmqnamId(ASCT_ID, "MQT-1")))
+                .willReturn(Optional.of(qna));
 
         service.replyMainQna(
                 ASCT_ID,
@@ -166,7 +170,8 @@ class MainQnaServiceTest {
     @Test
     @DisplayName("replyMainQna: 질의응답이 없으면 예외를 던진다")
     void replyMainQna_missingQna_throws() {
-        given(mainQnaRepository.findById("MQT-404")).willReturn(Optional.empty());
+        given(mainQnaRepository.findById(new BmqnamId(ASCT_ID, "MQT-404")))
+                .willReturn(Optional.empty());
 
         assertThatThrownBy(
                         () ->
@@ -186,7 +191,8 @@ class MainQnaServiceTest {
     @DisplayName("deleteMainQna: 협의회ID가 일치하면 Soft Delete 처리한다")
     void deleteMainQna_deletes() {
         Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId(ASCT_ID).build();
-        given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
+        given(mainQnaRepository.findById(new BmqnamId(ASCT_ID, "MQT-1")))
+                .willReturn(Optional.of(qna));
 
         service.deleteMainQna(ASCT_ID, "MQT-1");
 
@@ -196,7 +202,8 @@ class MainQnaServiceTest {
     @Test
     @DisplayName("deleteMainQna: 질의응답이 없으면 예외를 던진다")
     void deleteMainQna_missingQna_throws() {
-        given(mainQnaRepository.findById("MQT-404")).willReturn(Optional.empty());
+        given(mainQnaRepository.findById(new BmqnamId(ASCT_ID, "MQT-404")))
+                .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.deleteMainQna(ASCT_ID, "MQT-404"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -204,24 +211,24 @@ class MainQnaServiceTest {
     }
 
     @Test
-    @DisplayName("수정/답변/삭제: 협의회ID가 다르면 예외를 던진다")
-    void mutate_wrongCouncil_throws() {
-        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId("OTHER").build();
-        given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
+    @DisplayName("수정: 다른 협의회의 동일 질의ID는 조회되지 않는다")
+    void updateMainQna_wrongCouncil_isolatedByCompositeId() {
+        given(mainQnaRepository.findById(new BmqnamId(ASCT_ID, "MQT-1")))
+                .willReturn(Optional.empty());
 
         assertThatThrownBy(
                         () ->
                                 service.updateMainQna(
                                         ASCT_ID, "MQT-1", new CouncilDto.QnaUpdateRequest("수정")))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("협의회ID");
+                .hasMessageContaining("존재하지 않는 본회의 질의응답");
     }
 
     @Test
-    @DisplayName("replyMainQna/deleteMainQna: 협의회ID가 다르면 예외를 던진다")
-    void replyAndDelete_wrongCouncil_throws() {
-        Bmqnam qna = Bmqnam.builder().qtnId("MQT-1").itPtlAsctId("OTHER").build();
-        given(mainQnaRepository.findById("MQT-1")).willReturn(Optional.of(qna));
+    @DisplayName("답변/삭제: 다른 협의회의 동일 질의ID는 조회되지 않는다")
+    void replyAndDelete_wrongCouncil_isolatedByCompositeId() {
+        given(mainQnaRepository.findById(new BmqnamId(ASCT_ID, "MQT-1")))
+                .willReturn(Optional.empty());
 
         assertThatThrownBy(
                         () ->
@@ -234,10 +241,10 @@ class MainQnaServiceTest {
                                                 List.of(CustomUserDetails.ATH_ADMIN),
                                                 "D001")))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("협의회ID");
+                .hasMessageContaining("존재하지 않는 본회의 질의응답");
 
         assertThatThrownBy(() -> service.deleteMainQna(ASCT_ID, "MQT-1"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("협의회ID");
+                .hasMessageContaining("존재하지 않는 본회의 질의응답");
     }
 }
