@@ -341,8 +341,13 @@ class ProjectQueryAssemblerTest {
     @DisplayName("상세 조립: 대표상태·활성 품목·코드명과 예산 합계를 함께 반영한다")
     void assembleDetail_대표상태품목예산_반영() {
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-ITEM-001").sno(1).delYn("N").build();
+        // 자기 행(cncdRfrNo=사업관리번호)이 대표상태를 정한다 — STEP-2는 다른 단계 문서다 (BE-33).
         Bproja writing =
-                Bproja.builder().abusMngNo("PRJ-ITEM-001").cncdRfrNo("STEP-1").stsTc("01").build();
+                Bproja.builder()
+                        .abusMngNo("PRJ-ITEM-001")
+                        .cncdRfrNo("PRJ-ITEM-001")
+                        .stsTc("01")
+                        .build();
         Bproja approved =
                 Bproja.builder().abusMngNo("PRJ-ITEM-001").cncdRfrNo("STEP-2").stsTc("09").build();
         Bitemm item =
@@ -363,7 +368,7 @@ class ProjectQueryAssemblerTest {
 
         ProjectDto.Response result = assembler.assembleDetail(project);
 
-        assertThat(result.getStsTc()).isEqualTo("09");
+        assertThat(result.getStsTc()).isEqualTo("01");
         assertThat(result.getBprojaStsCodes()).containsExactly("01", "09");
         assertThat(result.getItems())
                 .singleElement()

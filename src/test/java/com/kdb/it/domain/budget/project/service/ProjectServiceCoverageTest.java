@@ -1010,9 +1010,10 @@ class ProjectServiceCoverageTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("representativeStatus: BPROJA 여러 행에서 MAX stsTc를 대표상태로 설정한다")
-    void representativeStatus_여러행_MAX대표상태() {
-        // Arrange: stsTc='01', '09' → MAX='09'
+    @DisplayName("representativeStatus: 다른 단계 문서의 상태가 더 앞서도 대표상태는 사업 자신의 행을 따른다 (BE-33)")
+    void representativeStatus_자기행우선_다른문서무시() {
+        // Arrange: 자기 행(cncdRfrNo=사업관리번호) '01', 심의 문서 행 '09'
+        //   종전에는 행 전체 MAX를 취해 '09'가 대표상태였다 — 사업 자신의 단계와 무관한 값이다.
         String prjMngNo = "PRJ-RS-001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
@@ -1034,15 +1035,17 @@ class ProjectServiceCoverageTest {
         // Act
         ProjectDto.Response result = projectService.getProject(prjMngNo);
 
-        // Assert: MAX('01','09') = '09'
-        assertThat(result.getStsTc()).isEqualTo("09");
+        // Assert: 자기 행의 '01'. 심의 문서의 '09'는 대표상태 후보가 아니다.
+        assertThat(result.getStsTc()).isEqualTo("01");
+        // bprojaStsCodes는 단계 문서 상태를 모두 나열하는 별개 필드라 그대로다.
         assertThat(result.getBprojaStsCodes()).containsExactlyInAnyOrder("01", "09");
     }
 
     @Test
-    @DisplayName("representativeStatus: stsTc=null인 행은 MAX 계산에서 제외된다")
-    void representativeStatus_null행_제외() {
-        // Arrange: stsTc=null, '02' → null 무시, MAX='02'
+    @DisplayName("representativeStatus: 사업 자신의 행이 없으면 다른 문서 상태가 있어도 대표상태는 null이다 (BE-33)")
+    void representativeStatus_자기행없음_null() {
+        // Arrange: 두 행 모두 다른 문서(cncdRfrNo ≠ 사업관리번호) → 대표상태 후보가 없다.
+        //   종전에는 MAX('02')='02'가 대표상태로 나왔다.
         String prjMngNo = "PRJ-RS-002";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
@@ -1064,8 +1067,9 @@ class ProjectServiceCoverageTest {
         // Act
         ProjectDto.Response result = projectService.getProject(prjMngNo);
 
-        // Assert: null 제외 후 MAX='02'
-        assertThat(result.getStsTc()).isEqualTo("02");
+        // Assert: 자기 행이 없으므로 null. '02'는 다른 문서의 상태다.
+        assertThat(result.getStsTc()).isNull();
+        // bprojaStsCodes는 단계 문서 상태를 모두 나열하는 별개 필드라 그대로다.
         assertThat(result.getBprojaStsCodes()).containsExactly("02");
     }
 
@@ -1076,8 +1080,9 @@ class ProjectServiceCoverageTest {
         String prjMngNo = "PRJ-RS-003";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
+        // 자기 행(cncdRfrNo=사업관리번호)이되 상태가 null — 자기행 필터가 아니라 null 필터로 걸러져야 한다.
         Bproja nullRow =
-                Bproja.builder().abusMngNo(prjMngNo).cncdRfrNo("REF-N1").stsTc(null).build();
+                Bproja.builder().abusMngNo(prjMngNo).cncdRfrNo(prjMngNo).stsTc(null).build();
 
         given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
                 .willReturn(Optional.of(project));

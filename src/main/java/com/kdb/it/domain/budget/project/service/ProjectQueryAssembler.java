@@ -106,7 +106,7 @@ public class ProjectQueryAssembler {
         }
         applyNames(response);
         List<Bproja> steps = bprojaRepository.findByAbusMngNoAndDelYn(project.getAbusMngNo(), "N");
-        response.setStsTc(representativeStatus(steps));
+        response.setStsTc(representativeStatus(steps, project.getAbusMngNo()));
         response.setBprojaStsCodes(
                 steps.stream().map(Bproja::getStsTc).filter(java.util.Objects::nonNull).toList());
         List<Bitemm> items =
@@ -213,8 +213,23 @@ public class ProjectQueryAssembler {
                 .ifPresent(code -> setter.accept(code.getCdvaNm()));
     }
 
-    static String representativeStatus(List<Bproja> rows) {
+    /**
+     * 사업의 대표상태를 계산합니다.
+     *
+     * <p>BPROJA는 {@code (ABUS_MNG_NO, CNCD_RFR_NO)} 단위의 <b>단계 문서별</b> 상태 테이블입니다. 사업 자신의 상태는 {@code
+     * CNCD_RFR_NO = ABUS_MNG_NO}인 행 하나뿐이고, 나머지는 상위 계획({@code PLN-...})·사업계획({@code BIZ-...}) 등 다른
+     * 문서의 상태입니다. 종전에는 행 전체에서 {@code IT_PTL_STS_TC} 최댓값을 취해, 사업 자신은 결재완료('09')인데 상위 계획 행이 '11'이면
+     * 대표상태가 '11'로 표시됐습니다(BE-33). 자신의 행만 보도록 좁혔습니다.
+     *
+     * <p>자신의 행은 사업당 하나지만, 방어적으로 최댓값을 취해 중복이 있어도 결과가 흔들리지 않게 합니다.
+     *
+     * @param rows 해당 사업의 미삭제 BPROJA 행 전체
+     * @param abusMngNo 사업관리번호 — 이 값과 {@code cncdRfrNo}가 같은 행만 대표상태 후보다
+     * @return 대표상태 코드. 자신의 행이 없거나 상태가 비어 있으면 null
+     */
+    static String representativeStatus(List<Bproja> rows, String abusMngNo) {
         return rows.stream()
+                .filter(row -> java.util.Objects.equals(row.getCncdRfrNo(), abusMngNo))
                 .map(Bproja::getStsTc)
                 .filter(ProjectQueryAssembler::hasText)
                 .max(java.util.Comparator.naturalOrder())

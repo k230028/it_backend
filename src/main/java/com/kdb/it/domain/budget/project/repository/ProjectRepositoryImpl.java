@@ -186,25 +186,22 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
         if (condition.getBseYy() != null && !condition.getBseYy().isBlank()) {
             builder.and(bprojm.bseYy.eq(condition.getBseYy()));
         }
-        // 프로젝트상태 필터: 대표상태(해당 프로젝트 BPROJA 중 MAX IT_PTL_STS_TC)가 조건과 일치하는 프로젝트만.
+        // 프로젝트상태 필터: 대표상태가 조건과 일치하는 프로젝트만.
+        // BPROJA는 (ABUS_MNG_NO, CNCD_RFR_NO) 단위의 단계 문서별 상태 테이블이고 사업 자신의 상태는
+        // CNCD_RFR_NO = ABUS_MNG_NO인 행 하나뿐이므로 그 행만 본다. 종전에는 행 전체의 MAX와 비교해
+        // 상위 계획·사업계획 등 다른 문서의 상태로 필터가 걸렸다(BE-33). 자신의 행은 하나라
+        // "이 행이 최댓값인가"를 확인하던 서브쿼리도 함께 사라졌다.
+        // 표시값(ProjectQueryAssembler.representativeStatus)과 같은 규칙을 쓴다.
         if (condition.getStsTc() != null && !condition.getStsTc().isBlank()) {
             QBproja bproja = new QBproja("bproja");
-            QBproja bprojaMax = new QBproja("bprojaMax");
             builder.and(
                     JPAExpressions.selectOne()
                             .from(bproja)
                             .where(
                                     bproja.abusMngNo.eq(bprojm.abusMngNo),
+                                    bproja.cncdRfrNo.eq(bprojm.abusMngNo),
                                     bproja.delYn.eq("N"),
-                                    bproja.stsTc.eq(condition.getStsTc()),
-                                    // 이 행의 상태가 해당 프로젝트의 최대 상태인지
-                                    bproja.stsTc.eq(
-                                            JPAExpressions.select(bprojaMax.stsTc.max())
-                                                    .from(bprojaMax)
-                                                    .where(
-                                                            bprojaMax.abusMngNo.eq(
-                                                                    bprojm.abusMngNo),
-                                                            bprojaMax.delYn.eq("N"))))
+                                    bproja.stsTc.eq(condition.getStsTc()))
                             .exists());
         }
         // 프로젝트유형 필터

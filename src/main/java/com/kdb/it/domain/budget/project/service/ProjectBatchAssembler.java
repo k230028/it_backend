@@ -284,7 +284,8 @@ final class ProjectBatchAssembler {
         response.setAbusTcNm(getOrNull(data.businessNames(), response.getAbusTc()));
         response.setEdrtTcNm(getOrNull(data.editorialNames(), response.getEdrtTc()));
         List<Bproja> steps = data.steps().getOrDefault(project.getAbusMngNo(), List.of());
-        response.setStsTc(ProjectQueryAssembler.representativeStatus(steps));
+        response.setStsTc(
+                ProjectQueryAssembler.representativeStatus(steps, project.getAbusMngNo()));
         if (keyBySequence) {
             response.setBprojaStsCodes(
                     steps.stream().map(Bproja::getStsTc).filter(Objects::nonNull).toList());
