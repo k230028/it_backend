@@ -111,8 +111,8 @@ public class CouncilService {
     /** 타당성검토 정실협 진행중 상태 (협의회 신청 시 전이) (45) */
     private static final String PRJ_STS_COUNCIL_IN_PROGRESS = "45";
 
-    /** 타당성검토 정실협 완료 상태 (통보·생략 시 전이) (39) */
-    private static final String PRJ_STS_COUNCIL_DONE = "39";
+    /** 타당성검토 정실협 완료 상태 (통보·생략 시 전이) (49) */
+    private static final String PRJ_STS_COUNCIL_DONE = "49";
 
     /**
      * 협의회 진행상태 '생략' 코드 (CCODEM IT_PTL_ASCT_PRG_STS_TC '99')
@@ -410,7 +410,7 @@ public class CouncilService {
     /**
      * 추진부서 통보 처리 (COMPLETED)
      *
-     * <p>협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다. 사업 상태(BPROJA.IT_PTL_STS_TC)를 '타당성검토 정실협 완료'(39)로
+     * <p>협의회가 완료된 후 IT관리자가 추진부서 담당자에게 결과를 통보합니다. 사업 상태(BPROJA.IT_PTL_STS_TC)를 '타당성검토 정실협 완료'(49)로
      * 변경하고, 수신자(협의회 최초 등록자) 정보를 반환합니다.
      *
      * @param asctId 협의회ID
@@ -427,7 +427,7 @@ public class CouncilService {
                     "통보는 완료(013) 상태에서만 가능합니다. 현재 상태: " + council.getItPtlAsctPrgStsTc());
         }
 
-        // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
+        // 사업 상태 전이: '타당성검토 정실협 진행중'(45) → '타당성검토 정실협 완료'(49)
         bprojaSyncService.upsert(
                 council.getAbusMngNo(), council.getAbusMngNo(), PRJ_STS_COUNCIL_DONE);
 
@@ -472,7 +472,7 @@ public class CouncilService {
      *
      * <ol>
      *   <li>협의회 상태: 결재완료(04) → 생략(99)
-     *   <li>사업 상태(IT_PTL_STS_TC): '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
+     *   <li>사업 상태(IT_PTL_STS_TC): '타당성검토 정실협 진행중'(45) → '타당성검토 정실협 완료'(49)
      * </ol>
      *
      * @param asctId 협의회ID
@@ -491,7 +491,7 @@ public class CouncilService {
         // 협의회 상태 전이: 결재완료(04) → 생략(99)
         council.changeStatus(STS_COUNCIL_SKIPPED);
 
-        // 사업 상태 전이: '타당성검토 정실협 진행중'(32) → '타당성검토 정실협 완료'(39)
+        // 사업 상태 전이: '타당성검토 정실협 진행중'(45) → '타당성검토 정실협 완료'(49)
         bprojaSyncService.upsert(
                 council.getAbusMngNo(), council.getAbusMngNo(), PRJ_STS_COUNCIL_DONE);
     }

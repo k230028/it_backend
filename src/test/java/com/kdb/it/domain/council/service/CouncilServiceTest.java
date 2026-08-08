@@ -218,7 +218,7 @@ class CouncilServiceTest {
         councilService.skipCouncil(ASCT_ID);
 
         verify(council).changeStatus("99");
-        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "39");
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "49");
     }
 
     // ───────────────────────────────────────────────────────
@@ -778,7 +778,7 @@ class CouncilServiceTest {
 
         CouncilDto.NotifyResponse result = councilService.notifyCouncil(ASCT_ID);
 
-        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "39");
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "49");
         assertThat(result).isNotNull();
     }
 
