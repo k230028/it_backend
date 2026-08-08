@@ -16,21 +16,27 @@ public final class RealtimeLogDto {
 
     @Schema(name = "RealtimeLogFeedRow", description = "통합 로그 한 행")
     public record FeedRow(
-            String logTbl,
-            String logKey,
-            Long logSno,
-            String chgTp,
-            LocalDateTime chgDtm,
-            String chgUsid,
-            String guid,
-            String delYn) {}
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String logTbl,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String logKey,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long logSno,
+            @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            allowableValues = {"C", "U", "D"})
+                    String chgTp,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime chgDtm,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String chgUsid,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String guid,
+            @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            allowableValues = {"Y", "N"})
+                    String delYn) {}
 
     @Schema(name = "RealtimeLogSnapshot", description = "실시간 로그 응답 스냅샷")
     public record Snapshot(
-            List<FeedRow> rows,
-            LocalDateTime serverTime,
-            Map<String, Long> tableCounts,
-            List<Long> perMinute) {}
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<FeedRow> rows,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime serverTime,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Map<String, Long> tableCounts,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Long> perMinute) {}
 
     /**
      * 서비스 내부 — Repository 조건 묶음.
