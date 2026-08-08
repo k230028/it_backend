@@ -11,6 +11,7 @@ import com.kdb.it.common.notification.dto.NotificationDto;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto;
 import com.kdb.it.domain.bizplan.dto.BizplanDto;
+import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.it.dto.ItBudgetDto;
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
@@ -27,6 +28,61 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ApiResponseOpenApiContractTest {
+
+    @Test
+    void costResponsesExposeRequiredNullableAndEnumContracts() {
+        assertPropertiesRequiredExcept(
+                CostDto.Response.class,
+                fields("applicationInfo"),
+                "costBgNo",
+                "bgSno",
+                "lstYn",
+                "xcr",
+                "fcAmt",
+                "xcrBseDt",
+                "bgUntAbusCNm",
+                "ioeCNm",
+                "dfrCleCNm",
+                "tmnYnNm",
+                "abusTcNm",
+                "bseYy",
+                "cncdRfrNo",
+                "terminals",
+                "costSvnDpmNm",
+                "svnTemNm",
+                "cgprNm",
+                "cgprPtCNm",
+                "assetBg",
+                "dvcBg",
+                "hwBg",
+                "swBg",
+                "costBg",
+                "dupBgAmt",
+                "assetDupBg",
+                "costDupBg",
+                "prevBgAmt",
+                "prevDupBg",
+                "delYn",
+                "apfMngNo",
+                "apfSts",
+                "lstChgDtm");
+        assertAllPropertiesRequired(
+                CostDto.TerminalDto.class,
+                "tmnMngNo",
+                "sno",
+                "fcAmt",
+                "xcr",
+                "xcrBseDt",
+                "cgprNm",
+                "tmnClsfCNm",
+                "tmnKdTcNm",
+                "dfrCleCNm");
+        assertAllPropertiesRequired(CostDto.BulkResponse.class);
+        assertEnum(CostDto.Response.class, "lstYn", "Y", "N");
+        assertEnum(CostDto.Response.class, "sectSysUtzYn", "Y", "N");
+        assertEnum(CostDto.Response.class, "tmnYn", "Y", "N");
+        assertEnum(CostDto.Response.class, "delYn", "Y", "N");
+    }
 
     @Test
     void documentAndApprovalResponsesExposeRequiredAndNullableContracts() {
@@ -438,6 +494,21 @@ class ApiResponseOpenApiContractTest {
         Schema<?> schema = resolve(type);
         Set<String> properties = schema.getProperties().keySet();
         assertContract(type, properties, Set.of(nullableProperties));
+    }
+
+    private static void assertPropertiesRequiredExcept(
+            Class<?> type, Set<String> optionalProperties, String... nullableProperties) {
+        Schema<?> schema = resolve(type);
+        Set<String> properties = schema.getProperties().keySet();
+        Set<String> required = new java.util.HashSet<>(properties);
+        required.removeAll(optionalProperties);
+        assertThat(schema.getRequired()).containsExactlyInAnyOrderElementsOf(required);
+        Set<String> nullable = Set.of(nullableProperties);
+        required.forEach(
+                name ->
+                        assertThat(Boolean.TRUE.equals(property(schema, name).getNullable()))
+                                .as("%s.%s nullable", type.getSimpleName(), name)
+                                .isEqualTo(nullable.contains(name)));
     }
 
     private static void assertEnum(Class<?> type, String property, String... values) {

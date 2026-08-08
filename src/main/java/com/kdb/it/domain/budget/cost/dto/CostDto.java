@@ -325,18 +325,73 @@ public class CostDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(name = "CostDto.Response", description = "전산업무비 응답")
+    @Schema(
+            name = "CostDto.Response",
+            description = "전산업무비 응답",
+            requiredProperties = {
+                "costBgNo",
+                "bgSno",
+                "lstYn",
+                "ioeC",
+                "cttNm",
+                "cttOppNm",
+                "costTotXpAmt",
+                "dfrCleC",
+                "fstDfrDt",
+                "curC",
+                "xcr",
+                "fcAmt",
+                "xcrBseDt",
+                "sectSysUtzYn",
+                "indRsn",
+                "cgprId",
+                "costSvnDpmC",
+                "svnTemC",
+                "bgUntAbusC",
+                "bgUntAbusCNm",
+                "ioeCNm",
+                "dfrCleCNm",
+                "tmnYnNm",
+                "abusTcNm",
+                "tmnYn",
+                "abusTc",
+                "bseYy",
+                "cncdRfrNo",
+                "terminals",
+                "costSvnDpmNm",
+                "svnTemNm",
+                "cgprNm",
+                "cgprPtCNm",
+                "assetBg",
+                "dvcBg",
+                "hwBg",
+                "swBg",
+                "costBg",
+                "dupBgAmt",
+                "assetDupBg",
+                "costDupBg",
+                "prevBgAmt",
+                "prevDupBg",
+                "delYn",
+                "apfMngNo",
+                "apfSts",
+                "lstChgDtm"
+            })
     public static class Response {
         /** 전산관리비관리번호 (BG_NO) */
-        @Schema(description = "전산업무비코드 (IT관리비관리번호)", example = "COST_2026_0001")
+        @Schema(description = "전산업무비코드 (IT관리비관리번호)", example = "COST_2026_0001", nullable = true)
         private String costBgNo;
 
         /** 전산관리비일련번호 (BG_SNO, 이력 순번) */
-        @Schema(description = "전산업무비일련번호 (IT관리비일련번호)", example = "1")
+        @Schema(description = "전산업무비일련번호 (IT관리비일련번호)", example = "1", nullable = true)
         private Integer bgSno;
 
         /** 최종여부 ("Y": 최신 이력, "N": 과거 이력) */
-        @Schema(description = "최종여부", example = "Y")
+        @Schema(
+                description = "최종여부",
+                example = "Y",
+                nullable = true,
+                allowableValues = {"Y", "N"})
         private String lstYn;
 
         /** 비목코드 */
@@ -368,19 +423,22 @@ public class CostDto {
         private String curC;
 
         /** 환율 */
-        @Schema(description = "환율", example = "1300")
+        @Schema(description = "환율", example = "1300", nullable = true)
         private BigDecimal xcr;
 
         /** 외화금액(외화 원금. 원화 행은 null. 프론트는 curC === 'KRW' ? costTotXpAmt : fcAmt 분기로 표시) */
-        @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000")
+        @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000", nullable = true)
         private BigDecimal fcAmt;
 
         /** 환율기준일자 */
-        @Schema(description = "환율기준일자", example = "2026-01-01")
+        @Schema(description = "환율기준일자", example = "2026-01-01", nullable = true)
         private String xcrBseDt;
 
         /** 정보보호여부 ("Y" 또는 "N") */
-        @Schema(description = "정보보호여부", example = "N")
+        @Schema(
+                description = "정보보호여부",
+                example = "N",
+                allowableValues = {"Y", "N"})
         private String sectSysUtzYn;
 
         /** 증감사유 */
@@ -404,116 +462,125 @@ public class CostDto {
         private String bgUntAbusC;
 
         /** 사업코드명: bgUntAbusC(사업코드) 기준 TPRMPP_CCODEM에서 C_NM 조회 */
-        @Schema(description = "사업코드명")
+        @Schema(description = "사업코드명", nullable = true)
         private String bgUntAbusCNm;
 
         /** 비목코드명: ioeC(비목코드) 기준 TPRMPP_CCODEM CDVA_DTL 마지막 항목 */
-        @Schema(description = "비목코드명")
+        @Schema(description = "비목코드명", nullable = true)
         private String ioeCNm;
 
         /** 지급주기명: dfrCleC(지급주기) 기준 TPRMPP_CCODEM C_NM */
-        @Schema(description = "지급주기명")
+        @Schema(description = "지급주기명", nullable = true)
         private String dfrCleCNm;
 
         /** 전산업무비유형명: tmnYn 기준 TPRMPP_CCODEM C_NM */
-        @Schema(description = "전산업무비유형명")
+        @Schema(description = "전산업무비유형명", nullable = true)
         private String tmnYnNm;
 
         /** 전산업무비구분명: abusTc 기준 TPRMPP_CCODEM C_NM */
-        @Schema(description = "전산업무비구분명")
+        @Schema(description = "전산업무비구분명", nullable = true)
         private String abusTcNm;
 
         /** 전산업무비유형 */
-        @Schema(description = "전산업무비유형", example = "TP01")
+        @Schema(
+                description = "전산업무비유형",
+                example = "Y",
+                allowableValues = {"Y", "N"})
         private String tmnYn;
 
         @Schema(description = "전산업무비구분", example = "DTT01")
         private String abusTc;
 
         /** 예산연도 */
-        @Schema(description = "예산연도", example = "2026")
+        @Schema(description = "예산연도", example = "2026", nullable = true)
         private String bseYy;
 
         /** 관련전산업무비번호 (계속항목인 경우 전년도 항목의 관리번호) */
-        @Schema(description = "관련전산업무비번호")
+        @Schema(description = "관련전산업무비번호", nullable = true)
         private String cncdRfrNo;
 
         /** 금융정보단말기 목록 (1:N) */
-        @Schema(description = "금융정보단말기 목록 (1:N)")
+        @Schema(description = "금융정보단말기 목록 (1:N)", nullable = true)
         private List<TerminalDto> terminals;
 
         /** 담당부서명: costSvnDpmC(부서코드) 기준 TPRMPP_CORGNI에서 BBR_NM 조회 */
-        @Schema(description = "담당부서명")
+        @Schema(description = "담당부서명", nullable = true)
         private String costSvnDpmNm;
 
         /** 담당팀명: svnTemC(팀코드) 기준 TPRMPP_CORGNI에서 BBR_NM 조회 */
-        @Schema(description = "담당팀명")
+        @Schema(description = "담당팀명", nullable = true)
         private String svnTemNm;
 
         /** 담당자명: cgprId(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 */
-        @Schema(description = "담당자명")
+        @Schema(description = "담당자명", nullable = true)
         private String cgprNm;
 
         /** 담당자 직위명: cgprId(사번) 기준 TPRMPP_CUSERI에서 PT_C_NM 조회 */
-        @Schema(description = "담당자 직위명")
+        @Schema(description = "담당자 직위명", nullable = true)
         private String cgprPtCNm;
 
         /** 자본예산: ioeC(비목코드)가 공통코드 코드값구분 IOE_CPIT에 해당하면 costTotXpAmt, 아니면 0 */
-        @Schema(description = "자본예산")
+        @Schema(description = "자본예산", nullable = true)
         private java.math.BigDecimal assetBg;
 
         /** 개발비: 자본예산 중 코드설명(cdDes)이 '개발비'인 경우 costTotXpAmt, 아니면 0 */
-        @Schema(description = "개발비")
+        @Schema(description = "개발비", nullable = true)
         private java.math.BigDecimal dvcBg;
 
         /** 기계장치: 자본예산 중 코드설명(cdDes)이 '기계장치'인 경우 costTotXpAmt, 아니면 0 */
-        @Schema(description = "기계장치")
+        @Schema(description = "기계장치", nullable = true)
         private java.math.BigDecimal hwBg;
 
         /** 기타무형자산: 자본예산 중 코드설명(cdDes)이 '기타무형자산'인 경우 costTotXpAmt, 아니면 0 */
-        @Schema(description = "기타무형자산")
+        @Schema(description = "기타무형자산", nullable = true)
         private java.math.BigDecimal swBg;
 
         /**
          * 일반관리비: ioeC(비목코드)가 공통코드 코드값구분 IOE_IDR, IOE_SEVS, IOE_XPN, IOE_LEAFE에 해당하면 costTotXpAmt,
          * 아니면 0
          */
-        @Schema(description = "일반관리비")
+        @Schema(description = "일반관리비", nullable = true)
         private java.math.BigDecimal costBg;
 
         /** TPRMPP_BBUGTM 기준 편성예산 합계 (요청금액 × 편성률/100, 서비스에서 일괄 조회 시 설정) */
-        @Schema(description = "편성예산 (BBUGTM 기준, 편성률 반영)")
+        @Schema(description = "편성예산 (BBUGTM 기준, 편성률 반영)", nullable = true)
         private java.math.BigDecimal dupBgAmt;
 
         /** BBUGTM 기준 자본예산 편성예산 (ioeC IOE_CPIT 계열인 경우 dupBgAmt, 아니면 0) */
-        @Schema(description = "자본예산 편성예산 (BBUGTM 기준)")
+        @Schema(description = "자본예산 편성예산 (BBUGTM 기준)", nullable = true)
         private java.math.BigDecimal assetDupBg;
 
         /** BBUGTM 기준 일반관리비 편성예산 (ioeC IOE_IDR/SEVS/XPN/LEAFE 계열인 경우 dupBgAmt, 아니면 0) */
-        @Schema(description = "일반관리비 편성예산 (BBUGTM 기준)")
+        @Schema(description = "일반관리비 편성예산 (BBUGTM 기준)", nullable = true)
         private java.math.BigDecimal costDupBg;
 
         /**
          * 전년도 예산: abusTc=02(계속)이면 bseYy-1 연도 예산 합계, 신규(abusTc=01)이면 0. 외화(curC≠'KRW') 행은
          * FC_AMT(외화금액), 원화 행은 AMT(전산업무비예산금액) 기준.
          */
-        @Schema(description = "전년도 예산 (계속 항목은 전년도 예산 합계 — 외화 행은 외화금액 기준, 신규는 0)")
+        @Schema(description = "전년도 예산 (계속 항목은 전년도 예산 합계 — 외화 행은 외화금액 기준, 신규는 0)", nullable = true)
         private BigDecimal prevBgAmt;
 
         /** 전년도 BBUGTM 편성예산: 계속 항목의 cncdRfrNo 기준 bseYy-1 DUP_BG 합계, 신규는 0 */
-        @Schema(description = "전년도 편성예산 (계속 항목은 cncdRfrNo 기준 전년도 BBUGTM DUP_BG 합계, 신규는 0)")
+        @Schema(
+                description = "전년도 편성예산 (계속 항목은 cncdRfrNo 기준 전년도 BBUGTM DUP_BG 합계, 신규는 0)",
+                nullable = true)
         private BigDecimal prevDupBg;
 
         /** 삭제여부 (Soft Delete 상태, "Y": 삭제됨, "N": 정상) */
-        @Schema(description = "삭제여부", example = "N")
+        @Schema(
+                description = "삭제여부",
+                example = "N",
+                nullable = true,
+                allowableValues = {"Y", "N"})
         private String delYn;
 
         /** 연결된 신청서관리번호 (서비스에서 설정) */
-        @Schema(description = "신청서관리번호", example = "APPL_2026_0001")
+        @Schema(description = "신청서관리번호", example = "APPL_2026_0001", nullable = true)
         private String apfMngNo;
 
         /** 연결된 신청서 결재상태 (서비스에서 설정) */
-        @Schema(description = "신청서상태", example = "결재중")
+        @Schema(description = "신청서상태", example = "결재중", nullable = true)
         private String apfSts;
 
         /** 신청서 상세 정보 (신청서명, 신청자, 결재자 목록 등) */
@@ -521,7 +588,7 @@ public class CostDto {
         private ApplicationInfoDto applicationInfo;
 
         /** 최종변경일시 (BaseEntity LST_CHG_DTM — 목록 기본 정렬(최근 수정순)에 사용) */
-        @Schema(description = "최종변경일시", example = "2026-07-01T10:30:00")
+        @Schema(description = "최종변경일시", example = "2026-07-01T10:30:00", nullable = true)
         private LocalDateTime lstChgDtm;
 
         /**
@@ -670,7 +737,10 @@ public class CostDto {
      * @param items 조회 성공 항목 목록
      * @param failedIds 조회 실패(미존재) 전산관리비관리번호 목록
      */
-    @Schema(name = "CostBulkResponse", description = "전산관리비 일괄 조회 결과 (부분 성공)")
+    @Schema(
+            name = "CostBulkResponse",
+            description = "전산관리비 일괄 조회 결과 (부분 성공)",
+            requiredProperties = {"items", "failedIds"})
     public record BulkResponse(
             @Schema(description = "조회 성공 항목") List<Response> items,
             @Schema(description = "조회 실패(미존재) 전산관리비관리번호 목록") List<String> failedIds) {}
@@ -681,12 +751,37 @@ public class CostDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(name = "CostDto.TerminalDto", description = "금융정보단말기 정보")
+    @Schema(
+            name = "CostDto.TerminalDto",
+            description = "금융정보단말기 정보",
+            requiredProperties = {
+                "tmnMngNo",
+                "sno",
+                "spfTmnNm",
+                "tmnKdTc",
+                "nsfUsgCone",
+                "tmnClsfC",
+                "termRqmBgAmt",
+                "fcAmt",
+                "curC",
+                "xcr",
+                "xcrBseDt",
+                "dfrCleC",
+                "indRsn",
+                "cgprId",
+                "cgprNm",
+                "tmnClsfCNm",
+                "tmnKdTcNm",
+                "dfrCleCNm",
+                "termSvnTemC",
+                "termSvnDpmC",
+                "rmk"
+            })
     public static class TerminalDto {
-        @Schema(description = "단말기관리번호", example = "TER_2026_0001")
+        @Schema(description = "단말기관리번호", example = "TER_2026_0001", nullable = true)
         private String tmnMngNo;
 
-        @Schema(description = "단말기일련번호", example = "1")
+        @Schema(description = "단말기일련번호", example = "1", nullable = true)
         private Integer sno;
 
         @Schema(description = "단말기명", example = "대면업무용 단말기")
@@ -705,16 +800,16 @@ public class CostDto {
         private BigDecimal termRqmBgAmt;
 
         /** 외화금액(단말기 외화 원금. 원화 행은 null) */
-        @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000")
+        @Schema(description = "외화금액 (외화 원금. 원화 행은 null)", example = "1000", nullable = true)
         private BigDecimal fcAmt;
 
         @Schema(description = "통화", example = "KRW")
         private String curC;
 
-        @Schema(description = "환율", example = "1")
+        @Schema(description = "환율", example = "1", nullable = true)
         private BigDecimal xcr;
 
-        @Schema(description = "환율기준일자", example = "2026-04-03")
+        @Schema(description = "환율기준일자", example = "2026-04-03", nullable = true)
         private String xcrBseDt;
 
         @Schema(description = "지급주기", example = "매월")
@@ -727,19 +822,19 @@ public class CostDto {
         private String cgprId;
 
         /** 담당자명: cgprId(사번) 기준 TPRMPP_CUSERI에서 USR_NM 조회 (응답 전용) */
-        @Schema(description = "담당자명")
+        @Schema(description = "담당자명", nullable = true)
         private String cgprNm;
 
         /** 단말기서비스명(단말기종류): tmnClsfC 기준 TPRMPP_CCODEM(IT_PTL_TMN_SVC_TC) CDVA_NM 조회 (응답 전용) */
-        @Schema(description = "단말기서비스명(단말기종류)")
+        @Schema(description = "단말기서비스명(단말기종류)", nullable = true)
         private String tmnClsfCNm;
 
         /** 단말기이용방법명: tmnKdTc 기준 TPRMPP_CCODEM(IT_PTL_TMN_KD_TC) CDVA_NM 조회 (응답 전용) */
-        @Schema(description = "단말기이용방법명")
+        @Schema(description = "단말기이용방법명", nullable = true)
         private String tmnKdTcNm;
 
         /** 지급주기명: dfrCleC 기준 TPRMPP_CCODEM(DFR_CLE_C) CDVA_NM 조회 (응답 전용) */
-        @Schema(description = "지급주기명")
+        @Schema(description = "지급주기명", nullable = true)
         private String dfrCleCNm;
 
         @Schema(description = "담당팀", example = "00101")
