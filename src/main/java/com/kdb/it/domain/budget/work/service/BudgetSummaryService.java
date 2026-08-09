@@ -161,9 +161,10 @@ public class BudgetSummaryService {
                     matchingIoeCodes(
                             prefix,
                             hierarchyByIoe,
-                            budgetsByIoe.keySet(),
-                            approvedCosts.keySet(),
-                            approvedItems.keySet());
+                            List.of(
+                                    budgetsByIoe.keySet(),
+                                    approvedCosts.keySet(),
+                                    approvedItems.keySet()));
             if (detailCodes.isEmpty()) {
                 responseItems.add(
                         new BudgetWorkDto.SummaryItem(
@@ -232,7 +233,7 @@ public class BudgetSummaryService {
     }
 
     private List<String> matchingIoeCodes(
-            String prefix, Map<String, String> hierarchyByIoe, Set<String>... candidateSets) {
+            String prefix, Map<String, String> hierarchyByIoe, List<Set<String>> candidateSets) {
         Set<String> result = new LinkedHashSet<>();
         for (Map.Entry<String, String> entry : hierarchyByIoe.entrySet()) {
             if (entry.getValue() != null && entry.getValue().startsWith(prefix)) {

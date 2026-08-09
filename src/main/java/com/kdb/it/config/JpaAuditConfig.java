@@ -58,12 +58,9 @@ public class JpaAuditConfig {
             // SecurityContextHolder에서 현재 요청의 인증 정보 조회
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-            boolean isNotAuthenticated =
-                    authentication == null
-                            || !authentication.isAuthenticated()
-                            || authentication instanceof AnonymousAuthenticationToken;
-
-            if (isNotAuthenticated) {
+            if (authentication == null
+                    || !authentication.isAuthenticated()
+                    || authentication instanceof AnonymousAuthenticationToken) {
                 // 비인증 요청(인증정보 없음/미인증/anonymous): Optional.empty() 반환
                 // → JPA Auditing이 FST_ENR_USID/LST_CHG_USID 필드를 기록하지 않음 (null 유지)
                 // anonymous 토큰은 isAuthenticated()가 true를 반환하므로 별도로 명시 검사한다.

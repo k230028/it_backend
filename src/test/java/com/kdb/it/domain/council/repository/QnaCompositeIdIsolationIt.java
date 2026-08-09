@@ -37,6 +37,7 @@ class QnaCompositeIdIsolationIt extends AbstractOracleRepositoryTest {
 
         Bpqnam rowA = qnaRepository.findById(new BpqnamId(councilA, questionId)).orElseThrow();
         Bpqnam rowB = qnaRepository.findById(new BpqnamId(councilB, questionId)).orElseThrow();
+        assertThat(rowB.getQtnCone()).isEqualTo("B 질문");
         rowA.updateQuestion("A 수정");
         qnaRepository.flush();
         entityManager.clear();

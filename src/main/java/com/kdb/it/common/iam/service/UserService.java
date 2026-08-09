@@ -119,7 +119,7 @@ public class UserService {
         }
 
         // 전체 조직 대상 LIKE 검색이므로 너무 짧은 검색어는 서버에서 차단한다.
-        String trimmedKeyword = keyword.trim();
+        String trimmedKeyword = Objects.requireNonNull(keyword).trim();
         if (trimmedKeyword.length() < MIN_KEYWORD_LENGTH) {
             throw new CustomGeneralException("검색어는 " + MIN_KEYWORD_LENGTH + "자 이상 입력하세요.");
         }

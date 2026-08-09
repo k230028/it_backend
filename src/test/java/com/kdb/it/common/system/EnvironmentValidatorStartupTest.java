@@ -83,7 +83,7 @@ class EnvironmentValidatorStartupTest {
 
         assertThatThrownBy(
                         () -> {
-                            try (ConfigurableApplicationContext ignored =
+                            try (ConfigurableApplicationContext _ =
                                     application.run(arguments(overrides))) {
                                 // 기동 성공 자체가 보안 경계 실패다.
                             }
@@ -95,7 +95,7 @@ class EnvironmentValidatorStartupTest {
 
     private void assertStartupSucceeds(Map<String, String> overrides) {
         SpringApplication application = application();
-        try (ConfigurableApplicationContext ignored = application.run(arguments(overrides))) {
+        try (ConfigurableApplicationContext _ = application.run(arguments(overrides))) {
             // 컨텍스트 refresh 완료가 active profile 우선순위 계약의 관찰 결과다.
         }
     }

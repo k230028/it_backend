@@ -51,15 +51,6 @@ class BudgetProjectSummaryServiceTest {
 
     private BudgetIoeCatalog ioeCatalog;
 
-    private static final List<String> DETAIL_CTT_TPS =
-            List.of("IOE_CPIT", "IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE");
-
-    private void mockEmptyDetailCodes() {
-        for (String cttTp : DETAIL_CTT_TPS) {
-            given(codeRepository.findByCIdWithValidDate(cttTp, null)).willReturn(List.of());
-        }
-    }
-
     private BudgetProjectSummaryService budgetWorkService;
 
     @BeforeEach

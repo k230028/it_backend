@@ -557,19 +557,6 @@ public class ProjectService {
     }
 
     /**
-     * 네이티브 쿼리 결과의 문자열 컬럼 안전 변환.
-     *
-     * <p>Oracle JDBC가 VARCHAR2 컬럼을 Character/String으로 혼용 반환할 수 있어 직접 캐스트 대신 {@code toString()}으로
-     * 변환합니다.
-     *
-     * @param value 네이티브 결과 컬럼값(null 허용)
-     * @return null이면 null, 아니면 문자열 표현
-     */
-    private static String toNativeStr(Object value) {
-        return value == null ? null : value.toString();
-    }
-
-    /**
      * 도입시기를 DB 컬럼 형식(YYYYMM, 6자)으로 변환. 프론트에서 "YYYY-MM-DD" 또는 "YYYY-MM" 형식이 올 수 있으므로 하이픈을 제거한 뒤 앞
      * 6자만 사용한다. 빈값/null은 그대로 반환.
      */
