@@ -1,5 +1,6 @@
 package com.kdb.it.domain.council.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -61,44 +62,78 @@ public class CouncilDto {
      * @param prjDes 사업설명
      * @param csfHeldYn 대면개최여부
      */
+    @Schema(
+            requiredProperties = {
+                "asctId",
+                "prjMngNo",
+                "prjSno",
+                "abusNm",
+                "asctStsC",
+                "dbrTc",
+                "cnrcDt",
+                "cnrcTm",
+                "applied",
+                "prjYy",
+                "prjTp",
+                "svnDpm",
+                "prjBg",
+                "sttDt",
+                "endDt",
+                "itDpm",
+                "prjDes",
+                "csfHeldYn",
+                "hasInfoSecResource"
+            })
     public record ListResponse(
             /** 협의회ID (ASCT-{연도}-{4자리}). 협의회 신청 전이면 null */
-            String asctId,
+            @Schema(nullable = true) String asctId,
             /** 프로젝트관리번호 */
             String prjMngNo,
             /** 프로젝트순번 */
             Integer prjSno,
             /** 사업명 (BPROJM.ABUS_NM 또는 BPOVWM.PRJ_NM) */
-            String abusNm,
+            @Schema(nullable = true) String abusNm,
             /** 협의회상태 코드 (DRAFT~COMPLETED). 협의회 신청 전이면 null */
-            String asctStsC,
+            @Schema(
+                            nullable = true,
+                            allowableValues = {
+                                "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11",
+                                "12", "13", "99"
+                            })
+                    String asctStsC,
             /** 심의유형 (INFO_SYS/INFO_SEC/ETC). 협의회 신청 전이면 null */
-            String dbrTc,
+            @Schema(
+                            nullable = true,
+                            allowableValues = {"01", "02", "03", "04", "05"})
+                    String dbrTc,
             /** 회의일자 (SCHEDULED 이후 설정). 협의회 신청 전이면 null */
-            LocalDate cnrcDt,
+            @Schema(nullable = true) LocalDate cnrcDt,
             /** 회의시간 (예: '10:00', SCHEDULED 이후 설정). 미확정이면 null (PRD §25) */
-            String cnrcTm,
+            @Schema(nullable = true) String cnrcTm,
             /** 협의회 신청 여부 (false = 결재완료 사업이지만 아직 신청 전) */
             boolean applied,
             // ── 사업 상세 정보 (BPROJM) ──────────────────────────────────────
             /** 사업연도 */
-            String prjYy,
+            @Schema(nullable = true) String prjYy,
             /** 프로젝트유형 (신규개발/고도화/유지보수 등) */
-            String prjTp,
+            @Schema(nullable = true) String prjTp,
             /** 주관부서 */
-            String svnDpm,
+            @Schema(nullable = true) String svnDpm,
             /** 사업예산 (원) */
-            java.math.BigDecimal prjBg,
+            @Schema(nullable = true) java.math.BigDecimal prjBg,
             /** 사업시작일자 */
-            LocalDate sttDt,
+            @Schema(nullable = true) LocalDate sttDt,
             /** 사업종료일자 */
-            LocalDate endDt,
+            @Schema(nullable = true) LocalDate endDt,
             /** IT담당부서 */
-            String itDpm,
+            @Schema(nullable = true) String itDpm,
             /** 사업설명 (최대 1000자) */
-            String prjDes,
+            @Schema(nullable = true) String prjDes,
             /** 대면개최여부 (Y=대면 / N=서면 / null=미확정) (PRD_c_20260620 #1) */
-            String csfHeldYn,
+            @Schema(
+                            nullable = true,
+                            allowableValues = {"Y", "N"})
+                    String csfHeldYn,
             /** 소요자원(BITEMM)에 정보보호(SECT_SYS_UTZ_YN='Y') 항목 존재 여부 — 참이면 심의유형 04(정보보호시스템) 신청 가능 */
             boolean hasInfoSecResource) {}
 
@@ -160,6 +195,27 @@ public class CouncilDto {
      * @param csfHeldYn 대면개최여부
      * @param svnDpm 주관부서코드 (추진부서 담당자 식별용)
      */
+    @Schema(
+            requiredProperties = {
+                "asctId",
+                "prjMngNo",
+                "prjSno",
+                "asctStsC",
+                "dbrTc",
+                "cnrcDt",
+                "cnrcTm",
+                "cnrcPlc",
+                "abusNm",
+                "edrt",
+                "sttDt",
+                "endDt",
+                "ncs",
+                "prjBg",
+                "prjDes",
+                "xptEff",
+                "csfHeldYn",
+                "svnDpm"
+            })
     public record DetailResponse(
             /** 협의회ID */
             String asctId,
@@ -168,35 +224,46 @@ public class CouncilDto {
             /** 프로젝트순번 */
             Integer prjSno,
             /** 협의회상태 코드 */
-            String asctStsC,
+            @Schema(
+                            allowableValues = {
+                                "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11",
+                                "12", "13", "99"
+                            })
+                    String asctStsC,
             /** 심의유형 */
-            String dbrTc,
+            @Schema(
+                            nullable = true,
+                            allowableValues = {"01", "02", "03", "04", "05"})
+                    String dbrTc,
             /** 회의일자 */
-            LocalDate cnrcDt,
+            @Schema(nullable = true) LocalDate cnrcDt,
             /** 회의시간 */
-            String cnrcTm,
+            @Schema(nullable = true) String cnrcTm,
             /** 회의장소 */
-            String cnrcPlc,
+            @Schema(nullable = true) String cnrcPlc,
             /** 사업명 (BPROJM.ABUS_NM) */
-            String abusNm,
+            @Schema(nullable = true) String abusNm,
             /** 전결권자 (BPROJM.EDRT) */
-            String edrt,
+            @Schema(nullable = true) String edrt,
             /** 사업기간 시작일 (BPROJM.STT_DT) */
-            java.time.LocalDate sttDt,
+            @Schema(nullable = true) java.time.LocalDate sttDt,
             /** 사업기간 종료일 (BPROJM.END_DT) */
-            java.time.LocalDate endDt,
+            @Schema(nullable = true) java.time.LocalDate endDt,
             /** 필요성 (BPROJM.NCS) */
-            String ncs,
+            @Schema(nullable = true) String ncs,
             /** 소요예산 (BPROJM.PRJ_BG) */
-            java.math.BigDecimal prjBg,
+            @Schema(nullable = true) java.math.BigDecimal prjBg,
             /** 사업내용 (BPROJM.PRJ_DES) */
-            String prjDes,
+            @Schema(nullable = true) String prjDes,
             /** 기대효과 (BPROJM.XPT_EFF) */
-            String xptEff,
+            @Schema(nullable = true) String xptEff,
             /** 대면개최여부 (Y=대면 / N=서면 / null=미확정) (PRD_c_20260620 #1) */
-            String csfHeldYn,
+            @Schema(
+                            nullable = true,
+                            allowableValues = {"Y", "N"})
+                    String csfHeldYn,
             /** 주관부서코드 (BPROJM.SVN_DPM_C) — 추진부서 담당자 식별용 (사전 Q&A 답변 권한) */
-            String svnDpm) {}
+            @Schema(nullable = true) String svnDpm) {}
 
     // =========================================================================
     // M4: 타당성검토표 관련
@@ -264,6 +331,22 @@ public class CouncilDto {
      * @param performances 성과지표 목록
      * @param flMngNo 첨부파일관리번호
      */
+    @Schema(
+            requiredProperties = {
+                "prjNm",
+                "prjTrm",
+                "ncs",
+                "prjBg",
+                "edrt",
+                "prjDes",
+                "lglRglYn",
+                "lglRglNm",
+                "xptEff",
+                "kpnTc",
+                "performances",
+                "flMngNo",
+                "selfChecks"
+            })
     public record FeasibilityResponse(
             /** 사업명 */
             String prjNm,
@@ -272,23 +355,23 @@ public class CouncilDto {
             /** 필요성 */
             String ncs,
             /** 소요예산금액 (BigDecimal) */
-            java.math.BigDecimal prjBg,
+            @Schema(nullable = true) java.math.BigDecimal prjBg,
             /** 전결권자명 */
             String edrt,
             /** 사업내용 */
             String prjDes,
             /** 법률규제대응여부 */
-            String lglRglYn,
+            @Schema(allowableValues = {"Y", "N"}) String lglRglYn,
             /** 관련법률규제명 */
-            String lglRglNm,
+            @Schema(nullable = true) String lglRglNm,
             /** 기대효과 */
             String xptEff,
             /** 저장유형 */
-            String kpnTc,
+            @Schema(allowableValues = {"10", "20"}) String kpnTc,
             /** 성과지표 목록 */
             List<PerformanceResponse> performances,
             /** 첨부파일관리번호 */
-            String flMngNo,
+            @Schema(nullable = true) String flMngNo,
             /** 타당성 자체점검 항목 목록 */
             List<SelfCheckItemResponse> selfChecks) {}
 
@@ -326,6 +409,7 @@ public class CouncilDto {
      * @param msmTpm 측정시점
      * @param msmCle 측정주기
      */
+    @Schema(requiredProperties = {"dtpSno", "dtpNm", "dtpCone", "clf", "msmTpm", "msmCle"})
     public record PerformanceResponse(
             Integer dtpSno,
             String dtpNm,
@@ -359,11 +443,12 @@ public class CouncilDto {
      * @param ckgRcrd 문항점수 (1~5)
      * @param ckgOpnn 점검의견
      */
+    @Schema(requiredProperties = {"ckgItmC", "ckgRcrd", "ckgOpnn"})
     public record SelfCheckItemResponse(
             /** 점검항목코드 (01~06) */
-            String ckgItmC,
+            @Schema(allowableValues = {"01", "02", "03", "04", "05", "06"}) String ckgItmC,
             /** 문항점수 (1~5) */
-            Integer ckgRcrd,
+            @Schema(nullable = true) Integer ckgRcrd,
             /** 점검의견 */
             String ckgOpnn) {}
 
@@ -498,19 +583,20 @@ public class CouncilDto {
      * @param vlrTc 위원유형
      * @param cnfmYn 결과서 검토 확인 여부
      */
+    @Schema(requiredProperties = {"eno", "usrNm", "bbrNm", "ptCNm", "vlrTc", "cnfmYn"})
     public record CommitteeMemberResponse(
             /** 사번 */
             String eno,
             /** 성명 */
-            String usrNm,
+            @Schema(nullable = true) String usrNm,
             /** 부서명 */
-            String bbrNm,
+            @Schema(nullable = true) String bbrNm,
             /** 직위명 (팀장, 차장, 과장 등) */
-            String ptCNm,
+            @Schema(nullable = true) String ptCNm,
             /** 위원유형 (MAND:당연/CALL:소집/SECR:간사) */
-            String vlrTc,
+            @Schema(allowableValues = {"01", "02", "03", "04"}) String vlrTc,
             /** 결과서 검토 확인 여부 (N: 미확인, Y: 확인완료) */
-            String cnfmYn) {}
+            @Schema(allowableValues = {"Y", "N"}) String cnfmYn) {}
 
     /**
      * 평가위원 목록 응답
@@ -519,6 +605,7 @@ public class CouncilDto {
      * @param call 소집위원 목록
      * @param secretary 간사 목록
      */
+    @Schema(requiredProperties = {"mandatory", "call", "secretary"})
     public record CommitteeListResponse(
             /** 당연위원 목록 */
             List<CommitteeMemberResponse> mandatory,
@@ -534,13 +621,14 @@ public class CouncilDto {
      * @param dsdTm 일정시간
      * @param psbYn 가능여부
      */
+    @Schema(requiredProperties = {"dsdDt", "dsdTm", "psbYn"})
     public record ScheduleSlotResponse(
             /** 일정일자 (DT 도메인 VARCHAR2(8) yyyyMMdd) */
             String dsdDt,
             /** 일정시간 (10:00/14:00/15:00/16:00) */
             String dsdTm,
             /** 가능여부 (Y/N) */
-            String psbYn) {}
+            @Schema(allowableValues = {"Y", "N"}) String psbYn) {}
 
     /**
      * 위원별 일정 응답 현황
@@ -554,21 +642,35 @@ public class CouncilDto {
      * @param csfHpYn 대면희망여부
      * @param slots 위원의 일정 응답 목록
      */
+    @Schema(
+            requiredProperties = {
+                "eno",
+                "usrNm",
+                "bbrNm",
+                "ptCNm",
+                "vlrTc",
+                "responded",
+                "csfHpYn",
+                "slots"
+            })
     public record MemberScheduleStatus(
             /** 사번 */
             String eno,
             /** 성명 */
-            String usrNm,
+            @Schema(nullable = true) String usrNm,
             /** 부서명 (화면 표출용) */
-            String bbrNm,
+            @Schema(nullable = true) String bbrNm,
             /** 직책명 (화면 표출용) */
-            String ptCNm,
+            @Schema(nullable = true) String ptCNm,
             /** 위원유형 */
-            String vlrTc,
+            @Schema(allowableValues = {"01", "02", "03", "04"}) String vlrTc,
             /** 응답 완료 여부 */
             boolean responded,
             /** 대면희망여부 (Y/N/null) (PRD_c_20260620 #1) */
-            String csfHpYn,
+            @Schema(
+                            nullable = true,
+                            allowableValues = {"Y", "N"})
+                    String csfHpYn,
             /** 위원의 일정 응답 목록 */
             List<ScheduleSlotResponse> slots) {}
 
@@ -582,6 +684,15 @@ public class CouncilDto {
      * @param allRequiredResponded 필수 응답자 응답 완료 여부
      * @param anyFaceToFaceHope 대면희망 위원 존재 여부
      */
+    @Schema(
+            requiredProperties = {
+                "totalCount",
+                "respondedCount",
+                "pendingCount",
+                "memberStatuses",
+                "allRequiredResponded",
+                "anyFaceToFaceHope"
+            })
     public record ScheduleStatusResponse(
             /** 전체 위원 수 */
             int totalCount,
@@ -616,19 +727,20 @@ public class CouncilDto {
      * @param ckgRcrd 점검점수
      * @param ckgOpnn 점검의견
      */
+    @Schema(requiredProperties = {"eno", "usrNm", "ckgItmC", "ckgItmNm", "ckgRcrd", "ckgOpnn"})
     public record EvaluationItemResponse(
             /** 사번 */
             String eno,
             /** 성명 */
-            String usrNm,
+            @Schema(nullable = true) String usrNm,
             /** 점검항목코드 */
-            String ckgItmC,
+            @Schema(allowableValues = {"01", "02", "03", "04", "05", "06"}) String ckgItmC,
             /** 점검항목명 */
             String ckgItmNm,
             /** 점검점수 (1~5) */
-            Integer ckgRcrd,
+            @Schema(nullable = true) Integer ckgRcrd,
             /** 점검의견 (1~2점 시 필수) */
-            String ckgOpnn) {}
+            @Schema(nullable = true) String ckgOpnn) {}
 
     /**
      * 점검항목별 평균점수
@@ -637,9 +749,10 @@ public class CouncilDto {
      * @param ckgItmNm 점검항목명
      * @param avgScore 평균점수
      */
+    @Schema(requiredProperties = {"ckgItmC", "ckgItmNm", "avgScore"})
     public record CheckItemAvgScore(
             /** 점검항목코드 */
-            String ckgItmC,
+            @Schema(allowableValues = {"01", "02", "03", "04", "05", "06"}) String ckgItmC,
             /** 점검항목명 */
             String ckgItmNm,
             /** 평균점수 */
@@ -653,6 +766,7 @@ public class CouncilDto {
      * @param evaluations 위원별 평가의견 목록
      * @param avgScores 점검항목별 평균점수 목록
      */
+    @Schema(requiredProperties = {"evaluations", "avgScores"})
     public record EvaluationSummaryResponse(
             /** 위원별 평가의견 목록 */
             List<EvaluationItemResponse> evaluations,
@@ -678,30 +792,33 @@ public class CouncilDto {
             String evalOpnn) {}
 
     /** 위원 개인 사업별 평가 응답 */
+    @Schema(requiredProperties = {"eno", "usrNm", "abusMngNo", "pprtYn", "evalOpnn"})
     public record PlanEvaluationItemResponse(
             /** 사번 */
             String eno,
             /** 성명 */
-            String usrNm,
+            @Schema(nullable = true) String usrNm,
             /** 사업관리번호 */
             String abusMngNo,
             /** 적정여부 (Y=적정 / N=유보) */
-            String pprtYn,
+            @Schema(allowableValues = {"Y", "N"}) String pprtYn,
             /** 평가의견(사유) */
-            String evalOpnn) {}
+            @Schema(nullable = true) String evalOpnn) {}
 
     /** 사업별 최종 판정 (위원 1명이라도 유보면 유보) */
+    @Schema(requiredProperties = {"abusMngNo", "finalPprtYn", "reserveCount", "evaluatorCount"})
     public record PlanBusinessVerdict(
             /** 사업관리번호 */
             String abusMngNo,
             /** 최종 적정여부 (Y=적정 / N=유보) */
-            String finalPprtYn,
+            @Schema(allowableValues = {"Y", "N"}) String finalPprtYn,
             /** 유보(N) 선택 위원 수 */
             long reserveCount,
             /** 평가한 위원 수 */
             long evaluatorCount) {}
 
     /** 계획협의회 평가 전체 현황 (IT관리자용): 위원별 평가 + 사업별 최종 판정 */
+    @Schema(requiredProperties = {"evaluations", "verdicts"})
     public record PlanEvaluationSummaryResponse(
             /** 위원별 사업 평가 목록 */
             List<PlanEvaluationItemResponse> evaluations,
@@ -709,6 +826,7 @@ public class CouncilDto {
             List<PlanBusinessVerdict> verdicts) {}
 
     /** 계획협의회 결과서 프리필 요약: 사업별 판정 표(HTML) + 구조화 판정 */
+    @Schema(requiredProperties = {"summaryHtml", "verdicts", "snapshotIncomplete"})
     public record PlanResultSummaryResponse(
             /** 사업별 판정 요약 표 (HTML, 결과서 본문 프리필용) */
             String summaryHtml,
@@ -718,6 +836,15 @@ public class CouncilDto {
             boolean snapshotIncomplete) {}
 
     /** 계획협의회 심의 대상: 계획 요약 + 사업별 기본정보(스냅샷 예산 + 사업상세 개요/기간 병합) */
+    @Schema(
+            requiredProperties = {
+                "reqDocNo",
+                "bseYy",
+                "itPtlPlnTpC",
+                "businesses",
+                "costCount",
+                "snapshotIncomplete"
+            })
     public record PlanTargetsResponse(
             /** 계획관리번호 */
             String reqDocNo,
@@ -733,35 +860,40 @@ public class CouncilDto {
             boolean snapshotIncomplete) {}
 
     /** 심의 대상 사업 1건 (계획 스냅샷 예산 + BPROJM 사업개요/기간) */
+    @Schema(
+            requiredProperties = {
+                "abusMngNo", "abusNm", "pulDtt", "svnHdq", "svnDpmNm", "prjDes", "sttDt",
+                "endDt", "prjBg", "assetBg", "costBg", "basePrjBg", "baseAssetBg", "baseCostBg"
+            })
     public record PlanTargetBusiness(
             /** 사업관리번호 */
             String abusMngNo,
             /** 사업명 */
-            String abusNm,
+            @Schema(nullable = true) String abusNm,
             /** 진행구분 (신규/계속) */
-            String pulDtt,
+            @Schema(nullable = true) String pulDtt,
             /** 주관본부/부문 */
-            String svnHdq,
+            @Schema(nullable = true) String svnHdq,
             /** 주관부서명 */
-            String svnDpmNm,
+            @Schema(nullable = true) String svnDpmNm,
             /** 사업개요 (BPROJM 사업설명) */
-            String prjDes,
+            @Schema(nullable = true) String prjDes,
             /** 시작일자 */
-            java.time.LocalDate sttDt,
+            @Schema(nullable = true) java.time.LocalDate sttDt,
             /** 종료일자 */
-            java.time.LocalDate endDt,
+            @Schema(nullable = true) java.time.LocalDate endDt,
             /** 총예산 */
-            java.math.BigDecimal prjBg,
+            @Schema(nullable = true) java.math.BigDecimal prjBg,
             /** 자본예산 */
-            java.math.BigDecimal assetBg,
+            @Schema(nullable = true) java.math.BigDecimal assetBg,
             /** 일반관리비 */
-            java.math.BigDecimal costBg,
+            @Schema(nullable = true) java.math.BigDecimal costBg,
             /** (조정 협의회) 직전 승인 수립계획의 총예산 — 최초. 비조정/미존재 시 null */
-            java.math.BigDecimal basePrjBg,
+            @Schema(nullable = true) java.math.BigDecimal basePrjBg,
             /** (조정 협의회) 최초 자본예산 */
-            java.math.BigDecimal baseAssetBg,
+            @Schema(nullable = true) java.math.BigDecimal baseAssetBg,
             /** (조정 협의회) 최초 일반관리비 */
-            java.math.BigDecimal baseCostBg) {}
+            @Schema(nullable = true) java.math.BigDecimal baseCostBg) {}
 
     /**
      * 결과서 조회 응답 (IT관리자용)
@@ -771,13 +903,14 @@ public class CouncilDto {
      * @param flMngNo 관련자료 첨부파일관리번호
      * @param avgScores 점검항목별 평균점수 목록
      */
+    @Schema(requiredProperties = {"synOpnn", "ckgOpnn", "flMngNo", "avgScores"})
     public record ResultResponse(
             /** 종합의견 */
-            String synOpnn,
+            @Schema(nullable = true) String synOpnn,
             /** 타당성검토의견 */
-            String ckgOpnn,
+            @Schema(nullable = true) String ckgOpnn,
             /** 관련자료 첨부파일관리번호 */
-            String flMngNo,
+            @Schema(nullable = true) String flMngNo,
             /** 점검항목별 평균점수 (결과서 작성 참고용) */
             List<CheckItemAvgScore> avgScores) {}
 
@@ -815,6 +948,7 @@ public class CouncilDto {
      *
      * @param apfMngNo 생성된 신청관리번호
      */
+    @Schema(requiredProperties = "apfMngNo")
     public record ApprovalResponse(
             /** 생성된 신청관리번호 (예: APF-2026-00000001) */
             String apfMngNo) {}
@@ -885,23 +1019,27 @@ public class CouncilDto {
      * @param repCone 답변내용
      * @param repYn 답변여부
      */
+    @Schema(
+            requiredProperties = {
+                "qtnId", "qtnEno", "qtnNm", "qtnCone", "repEno", "repNm", "repCone", "repYn"
+            })
     public record QnaResponse(
             /** 질의응답ID (QTN-{asctId}-{순번}) */
             String qtnId,
             /** 질의자사번 */
             String qtnEno,
             /** 질의자성명 (null 가능, 성능 이슈 시 별도 조회) */
-            String qtnNm,
+            @Schema(nullable = true) String qtnNm,
             /** 질의내용 */
             String qtnCone,
             /** 답변자사번 (미답변 시 null) */
-            String repEno,
+            @Schema(nullable = true) String repEno,
             /** 답변자성명 (null 가능) */
-            String repNm,
+            @Schema(nullable = true) String repNm,
             /** 답변내용 (미답변 시 null) */
-            String repCone,
+            @Schema(nullable = true) String repCone,
             /** 답변여부 (Y/N) */
-            String repYn) {}
+            @Schema(allowableValues = {"Y", "N"}) String repYn) {}
 
     /**
      * 추진부서 통보 응답
@@ -913,15 +1051,16 @@ public class CouncilDto {
      * @param bbrNm 수신자 부서명
      * @param temNm 수신자 팀명
      */
+    @Schema(requiredProperties = {"eno", "usrNm", "bbrNm", "temNm"})
     public record NotifyResponse(
             /** 수신자 사번 */
             String eno,
             /** 수신자 성명 */
-            String usrNm,
+            @Schema(nullable = true) String usrNm,
             /** 수신자 부서명 */
-            String bbrNm,
+            @Schema(nullable = true) String bbrNm,
             /** 수신자 팀명 */
-            String temNm) {}
+            @Schema(nullable = true) String temNm) {}
 
     // =========================================================================
     // §26: 본회의 질의응답 (BMQNAM)
@@ -975,6 +1114,20 @@ public class CouncilDto {
      * @param cnfmDtm 확인일시(미판정 시 null)
      * @param apfMngNo 전자결재 연동번호(미상신 시 null)
      */
+    @Schema(
+            requiredProperties = {
+                "asctId",
+                "rsn",
+                "flMpnId",
+                "rqsUsid",
+                "rqsDtm",
+                "decided",
+                "omtYn",
+                "cnfmCone",
+                "cnfmUsid",
+                "cnfmDtm",
+                "apfMngNo"
+            })
     public record SkipRequestResponse(
             String asctId,
             String rsn,
@@ -982,9 +1135,12 @@ public class CouncilDto {
             String rqsUsid,
             java.time.LocalDateTime rqsDtm,
             boolean decided,
-            String omtYn,
-            String cnfmCone,
-            String cnfmUsid,
-            java.time.LocalDateTime cnfmDtm,
-            String apfMngNo) {}
+            @Schema(
+                            nullable = true,
+                            allowableValues = {"Y", "N"})
+                    String omtYn,
+            @Schema(nullable = true) String cnfmCone,
+            @Schema(nullable = true) String cnfmUsid,
+            @Schema(nullable = true) java.time.LocalDateTime cnfmDtm,
+            @Schema(nullable = true) String apfMngNo) {}
 }

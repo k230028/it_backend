@@ -17,6 +17,7 @@ import com.kdb.it.domain.budget.it.dto.ItBudgetDto;
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.contract.dto.ContractDto;
+import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.deliberation.dto.DeliberationDto;
 import com.kdb.it.domain.estimate.dto.EstimateDto;
 import com.kdb.it.domain.payment.dto.PaymentDto;
@@ -28,6 +29,113 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ApiResponseOpenApiContractTest {
+
+    @Test
+    void councilResponsesExposeRequiredNullableAndEnumContracts() {
+        assertAllPropertiesRequired(
+                CouncilDto.ListResponse.class,
+                "asctId",
+                "abusNm",
+                "asctStsC",
+                "dbrTc",
+                "cnrcDt",
+                "cnrcTm",
+                "prjYy",
+                "prjTp",
+                "svnDpm",
+                "prjBg",
+                "sttDt",
+                "endDt",
+                "itDpm",
+                "prjDes",
+                "csfHeldYn");
+        assertAllPropertiesRequired(
+                CouncilDto.DetailResponse.class,
+                "dbrTc",
+                "cnrcDt",
+                "cnrcTm",
+                "cnrcPlc",
+                "abusNm",
+                "edrt",
+                "sttDt",
+                "endDt",
+                "ncs",
+                "prjBg",
+                "prjDes",
+                "xptEff",
+                "csfHeldYn",
+                "svnDpm");
+        assertAllPropertiesRequired(
+                CouncilDto.FeasibilityResponse.class, "prjBg", "lglRglNm", "flMngNo");
+        assertAllPropertiesRequired(CouncilDto.PerformanceResponse.class);
+        assertAllPropertiesRequired(CouncilDto.SelfCheckItemResponse.class, "ckgRcrd");
+        assertAllPropertiesRequired(
+                CouncilDto.CommitteeMemberResponse.class, "usrNm", "bbrNm", "ptCNm");
+        assertAllPropertiesRequired(CouncilDto.CommitteeListResponse.class);
+        assertAllPropertiesRequired(CouncilDto.ScheduleSlotResponse.class);
+        assertAllPropertiesRequired(
+                CouncilDto.MemberScheduleStatus.class, "usrNm", "bbrNm", "ptCNm", "csfHpYn");
+        assertAllPropertiesRequired(CouncilDto.ScheduleStatusResponse.class);
+        assertAllPropertiesRequired(
+                CouncilDto.EvaluationItemResponse.class, "usrNm", "ckgRcrd", "ckgOpnn");
+        assertAllPropertiesRequired(CouncilDto.CheckItemAvgScore.class);
+        assertAllPropertiesRequired(CouncilDto.EvaluationSummaryResponse.class);
+        assertAllPropertiesRequired(
+                CouncilDto.PlanEvaluationItemResponse.class, "usrNm", "evalOpnn");
+        assertAllPropertiesRequired(CouncilDto.PlanBusinessVerdict.class);
+        assertAllPropertiesRequired(CouncilDto.PlanEvaluationSummaryResponse.class);
+        assertAllPropertiesRequired(CouncilDto.PlanResultSummaryResponse.class);
+        assertAllPropertiesRequired(CouncilDto.PlanTargetsResponse.class);
+        assertAllPropertiesRequired(
+                CouncilDto.PlanTargetBusiness.class,
+                "abusNm",
+                "pulDtt",
+                "svnHdq",
+                "svnDpmNm",
+                "prjDes",
+                "sttDt",
+                "endDt",
+                "prjBg",
+                "assetBg",
+                "costBg",
+                "basePrjBg",
+                "baseAssetBg",
+                "baseCostBg");
+        assertAllPropertiesRequired(
+                CouncilDto.ResultResponse.class, "synOpnn", "ckgOpnn", "flMngNo");
+        assertAllPropertiesRequired(CouncilDto.ApprovalResponse.class);
+        assertAllPropertiesRequired(
+                CouncilDto.QnaResponse.class, "qtnNm", "repEno", "repNm", "repCone");
+        assertAllPropertiesRequired(CouncilDto.NotifyResponse.class, "usrNm", "bbrNm", "temNm");
+        assertAllPropertiesRequired(
+                CouncilDto.SkipRequestResponse.class,
+                "omtYn",
+                "cnfmCone",
+                "cnfmUsid",
+                "cnfmDtm",
+                "apfMngNo");
+
+        assertEnum(CouncilDto.ListResponse.class, "asctStsC", councilStatuses());
+        assertEnum(CouncilDto.DetailResponse.class, "asctStsC", councilStatuses());
+        assertEnum(CouncilDto.ListResponse.class, "dbrTc", hearingTypes());
+        assertEnum(CouncilDto.DetailResponse.class, "dbrTc", hearingTypes());
+        assertEnum(CouncilDto.ListResponse.class, "csfHeldYn", "Y", "N");
+        assertEnum(CouncilDto.DetailResponse.class, "csfHeldYn", "Y", "N");
+        assertEnum(CouncilDto.FeasibilityResponse.class, "lglRglYn", "Y", "N");
+        assertEnum(CouncilDto.FeasibilityResponse.class, "kpnTc", "10", "20");
+        assertEnum(CouncilDto.SelfCheckItemResponse.class, "ckgItmC", checkItemCodes());
+        assertEnum(CouncilDto.CommitteeMemberResponse.class, "vlrTc", committeeTypes());
+        assertEnum(CouncilDto.CommitteeMemberResponse.class, "cnfmYn", "Y", "N");
+        assertEnum(CouncilDto.ScheduleSlotResponse.class, "psbYn", "Y", "N");
+        assertEnum(CouncilDto.MemberScheduleStatus.class, "vlrTc", committeeTypes());
+        assertEnum(CouncilDto.MemberScheduleStatus.class, "csfHpYn", "Y", "N");
+        assertEnum(CouncilDto.EvaluationItemResponse.class, "ckgItmC", checkItemCodes());
+        assertEnum(CouncilDto.CheckItemAvgScore.class, "ckgItmC", checkItemCodes());
+        assertEnum(CouncilDto.PlanEvaluationItemResponse.class, "pprtYn", "Y", "N");
+        assertEnum(CouncilDto.PlanBusinessVerdict.class, "finalPprtYn", "Y", "N");
+        assertEnum(CouncilDto.QnaResponse.class, "repYn", "Y", "N");
+        assertEnum(CouncilDto.SkipRequestResponse.class, "omtYn", "Y", "N");
+    }
 
     @Test
     void costResponsesExposeRequiredNullableAndEnumContracts() {
@@ -532,5 +640,23 @@ class ApiResponseOpenApiContractTest {
 
     private static Set<String> fields(String... names) {
         return Set.of(names);
+    }
+
+    private static String[] councilStatuses() {
+        return new String[] {
+            "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "99"
+        };
+    }
+
+    private static String[] hearingTypes() {
+        return new String[] {"01", "02", "03", "04", "05"};
+    }
+
+    private static String[] committeeTypes() {
+        return new String[] {"01", "02", "03", "04"};
+    }
+
+    private static String[] checkItemCodes() {
+        return new String[] {"01", "02", "03", "04", "05", "06"};
     }
 }
