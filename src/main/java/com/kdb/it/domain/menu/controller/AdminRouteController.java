@@ -12,16 +12,16 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 관리자 라우트 카탈로그 REST 컨트롤러.
+ * 관리자 경로 카탈로그 REST 컨트롤러.
  *
- * <p>기본 URL: {@code /api/admin/routes}. 페이지 메뉴(PGE)가 참조하는 화면경로 카탈로그(Cmenud)의 CRUD를 제공한다. 클래스 레벨
+ * <p>기본 URL: {@code /api/admin/routes}. PGE·LNK 메뉴가 참조하는 경로 카탈로그(Cmenud)의 CRUD를 제공한다. 클래스 레벨
  * {@code @PreAuthorize("hasRole('ADMIN')")}로 관리자 전용이다.
  */
 @RestController
 @RequestMapping("/api/admin/routes")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "라우트 카탈로그(관리자)", description = "화면경로 CRUD")
+@Tag(name = "경로 관리(관리자)", description = "PGE·LNK 메뉴 참조 경로 카탈로그 CRUD")
 public class AdminRouteController {
 
     private final AdminRouteService adminRouteService;

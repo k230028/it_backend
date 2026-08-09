@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/** 라우트 카탈로그(Cmenud) 관리. dead link 방지를 위해 저장 시 경로 형식·중복 검증. */
+/** PGE·LNK 메뉴가 참조하는 경로 카탈로그(Cmenud) 관리. dead link 방지를 위해 저장 시 경로 형식·중복 검증. */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -21,7 +21,7 @@ public class AdminRouteService {
     private final CmenumRepository cmenumRepository;
 
     /**
-     * PGE 메뉴 생성 시 선택 가능한 사용 중 라우트 목록을 조회한다.
+     * PGE·LNK 메뉴 생성 시 선택 가능한 사용 중 경로 목록을 조회한다.
      *
      * @return useYn='Y'이고 삭제되지 않은 라우트 카탈로그
      */

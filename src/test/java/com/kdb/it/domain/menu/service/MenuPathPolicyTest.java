@@ -20,6 +20,8 @@ class MenuPathPolicyTest {
                 "/\\evil.example/path",
                 "budget/list",
                 "/budget list",
+                "/budget\u00A0list",
+                "/budget\u202Flist",
                 "https://example.com"
             })
     void nonInternalPaths_areRejected(String value) {
@@ -40,7 +42,8 @@ class MenuPathPolicyTest {
                 "//example.com/manual",
                 "https://user:pass@example.com/manual",
                 "https:///missing-host",
-                "https://example.com/a b"
+                "https://example.com/a b",
+                "https://example.com:70000/manual"
             })
     void unsafeExternalUrls_areRejected(String value) {
         assertThat(MenuPathPolicy.isExternalHttpUrl(value)).isFalse();

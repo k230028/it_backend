@@ -19,29 +19,39 @@ public final class MenuPathPolicy {
                 && value.startsWith("/")
                 && !value.startsWith("//")
                 && !value.contains("\\")
-                && value.chars().noneMatch(Character::isWhitespace);
+                && !containsSpace(value);
     }
 
     /**
      * 안전한 HTTP(S) 외부 URL인지 판정한다.
      *
      * @param value 판정할 URL
-     * @return 사용자 정보와 공백이 없고 호스트를 가진 HTTP(S) URL이면 {@code true}
+     * @return 사용자 정보와 공백이 없고 호스트와 유효한 포트를 가진 HTTP(S) URL이면 {@code true}
      */
     public static boolean isExternalHttpUrl(String value) {
-        if (value == null || value.chars().anyMatch(Character::isWhitespace)) {
+        if (value == null || containsSpace(value)) {
             return false;
         }
         try {
             URI uri = new URI(value);
             String scheme = uri.getScheme();
+            int port = uri.getPort();
             return uri.isAbsolute()
                     && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
                     && uri.getHost() != null
                     && !uri.getHost().isBlank()
-                    && uri.getUserInfo() == null;
+                    && uri.getUserInfo() == null
+                    && (port == -1 || (port >= 0 && port <= 65535));
         } catch (URISyntaxException ignored) {
             return false;
         }
+    }
+
+    private static boolean containsSpace(String value) {
+        return value.chars()
+                .anyMatch(
+                        character ->
+                                Character.isWhitespace(character)
+                                        || Character.isSpaceChar(character));
     }
 }
