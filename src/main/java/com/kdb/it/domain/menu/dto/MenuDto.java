@@ -32,7 +32,7 @@ public class MenuDto {
 
         @Schema(
                 requiredMode = Schema.RequiredMode.REQUIRED,
-                allowableValues = {"GRP", "LNK", "PGE", "BRD"})
+                allowableValues = {"GRP", "LNK", "PGE"})
         private String mnuTpC; // GRP / LNK / PGE
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
@@ -83,7 +83,7 @@ public class MenuDto {
         @Schema(description = "상위메뉴ID(루트면 null)")
         private String hrkMnuId;
 
-        @Schema(description = "화면경로(PGE 필수)")
+        @Schema(description = "PGE 내부화면경로 또는 LNK 외부 URL")
         private String srePth;
 
         @Schema(description = "숨김여부 Y/N")

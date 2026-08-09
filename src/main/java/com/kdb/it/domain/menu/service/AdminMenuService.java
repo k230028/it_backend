@@ -3,6 +3,7 @@ package com.kdb.it.domain.menu.service;
 import com.kdb.it.common.board.service.BoardMetaService;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.entity.Cmenua;
+import com.kdb.it.domain.menu.entity.Cmenud;
 import com.kdb.it.domain.menu.entity.Cmenum;
 import com.kdb.it.domain.menu.repository.CmenuaRepository;
 import com.kdb.it.domain.menu.repository.CmenudRepository;
@@ -35,7 +36,7 @@ public class AdminMenuService {
     private final CmenuaRepository cmenuaRepository;
     private final CmenudRepository cmenudRepository;
 
-    /** BRD 메뉴가 가리키는 게시판이 실제로 사용 중인지 확인하는 원천. */
+    /** 게시판 PGE 경로가 가리키는 게시판이 실제로 사용 중인지 확인하는 원천. */
     private final BoardMetaService boardMetaService;
 
     /**
@@ -187,28 +188,49 @@ public class AdminMenuService {
     /**
      * 메뉴유형코드와 화면경로의 조합을 검증한다.
      *
-     * <p>유효한 유형은 공통코드 MNU_TP_C가 정의한 GRP·LNK·PGE·BRD 넷뿐이다. PGE(페이지화면)는 내부 화면이므로 화면경로가 필수이고 라우트 카탈로그에
-     * 등록돼 있어야 한다. BRD(게시판)는 게시판마다 경로가 만들어져 라우트 카탈로그에 없으므로, 카탈로그 대신 활성 게시판 목록으로 검증한다. GRP(메뉴그룹)는
-     * 컨테이너라 화면경로를 가질 수 없다. LNK(링크메뉴)는 외부 링크 전용 값으로 신설했으나 아직 렌더링·URL 검증을 구현하지 않아 저장을 막는다.
+     * <p>유효한 유형은 GRP·LNK·PGE다. GRP는 경로를 가질 수 없고, LNK는 사용 중인 카탈로그의 외부 http(s) URL만 허용한다. PGE는 카탈로그의
+     * 내부 화면경로 또는 활성 게시판의 {@code /board/{게시판관리번호}} 경로를 허용한다.
      *
      * @param mnuTpC 메뉴유형코드
      * @param srePth 화면경로 (없으면 null)
-     * @throws ResponseStatusException 유형이 목록 밖이거나, LNK이거나, 유형·경로 조합이 규칙에 어긋나는 경우
+     * @throws ResponseStatusException 유형이 목록 밖이거나 유형·경로 조합이 규칙에 어긋나는 경우
      */
     private void validateTypePath(String mnuTpC, String srePth) {
-        if (!List.of("GRP", "LNK", "PGE", BoardMenuLink.MENU_TYPE).contains(mnuTpC))
+        if (!List.of("GRP", "LNK", "PGE").contains(mnuTpC)) {
             throw badRequest("잘못된 메뉴유형코드: " + mnuTpC);
-        if ("LNK".equals(mnuTpC)) throw badRequest("외부링크 메뉴는 아직 지원하지 않습니다.");
-        if ("PGE".equals(mnuTpC)) {
-            if (srePth == null || srePth.isBlank()) throw badRequest("PGE 메뉴는 화면경로가 필수입니다.");
-            cmenudRepository
-                    .findBySrePthAndDelYn(srePth, "N")
-                    .orElseThrow(() -> badRequest("라우트 카탈로그에 없는 경로: " + srePth));
-        } else if (BoardMenuLink.isBoardMenu(mnuTpC)) {
-            validateBoardPath(srePth);
-        } else if (srePth != null) {
-            throw badRequest(mnuTpC + " 메뉴는 화면경로를 가질 수 없습니다.");
         }
+        if ("GRP".equals(mnuTpC)) {
+            if (srePth != null) throw badRequest("GRP 메뉴는 경로를 가질 수 없습니다.");
+            return;
+        }
+        if ("LNK".equals(mnuTpC)) {
+            Cmenud route = requireUsableCatalogPath(srePth);
+            if (!MenuPathPolicy.isExternalHttpUrl(route.getSrePth())) {
+                throw badRequest("LNK 메뉴는 외부 http(s) URL이 필수입니다.");
+            }
+            return;
+        }
+        if (BoardScreenPath.isBoardPath(srePth)) {
+            validateBoardPath(srePth);
+            return;
+        }
+        Cmenud route = requireUsableCatalogPath(srePth);
+        if (!MenuPathPolicy.isInternal(route.getSrePth())) {
+            throw badRequest("PGE 메뉴는 내부 화면경로가 필수입니다.");
+        }
+    }
+
+    /** 사용 중인 라우트 카탈로그 경로를 조회한다. */
+    private Cmenud requireUsableCatalogPath(String srePth) {
+        if (srePth == null || srePth.isBlank()) throw badRequest("메뉴 경로가 필수입니다.");
+        Cmenud route =
+                cmenudRepository
+                        .findBySrePthAndDelYn(srePth, "N")
+                        .orElseThrow(() -> badRequest("사용 가능한 라우트 카탈로그 경로가 아닙니다: " + srePth));
+        if (!"N".equals(route.getDelYn()) || !"Y".equals(route.getUseYn())) {
+            throw badRequest("사용 가능한 라우트 카탈로그 경로가 아닙니다: " + srePth);
+        }
+        return route;
     }
 
     /**
@@ -238,7 +260,7 @@ public class AdminMenuService {
      */
     private void validateBoardPath(String srePth) {
         if (srePth == null || srePth.isBlank()) throw badRequest("게시판 메뉴는 게시판을 선택해야 합니다.");
-        String blbMngNo = BoardMenuLink.boardNoOf(srePth);
+        String blbMngNo = BoardScreenPath.boardNoOf(srePth);
         if (blbMngNo == null) throw badRequest("게시판 화면경로 형식이 아닙니다: " + srePth);
         boolean usable =
                 boardMetaService.getAllActive().stream()

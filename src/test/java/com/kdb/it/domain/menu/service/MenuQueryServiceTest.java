@@ -25,7 +25,7 @@ class MenuQueryServiceTest {
     @Mock CmenumRepository cmenumRepository;
     // 권한 매핑은 별도 캐시 빈(MenuAuthMapProvider)에서 제공받으므로 provider를 모킹한다(self-invocation 회피, T13-C).
     @Mock MenuAuthMapProvider menuAuthMapProvider;
-    // BRD 메뉴가 가리키는 게시판이 아직 살아 있는지 판정하는 원천.
+    // 게시판 PGE 경로가 가리키는 게시판이 아직 살아 있는지 판정하는 원천.
     @Mock BoardMetaService boardMetaService;
 
     MenuQueryService service;
@@ -122,12 +122,12 @@ class MenuQueryServiceTest {
     }
 
     // =========================================================================
-    // BRD(게시판) 메뉴 — 연결된 게시판 상태에 따른 노출
+    // 게시판 PGE 경로 — 연결된 게시판 상태에 따른 노출
     // =========================================================================
 
     /** 게시판 메뉴 노드. 화면경로가 게시판을 가리키는 유일한 연결 고리다. */
     private Cmenum boardNode(String id, String blbMngNo) {
-        Cmenum n = node(id, "MBRD0001", "BRD", 3, "/MHED0006/MBRD0001/" + id);
+        Cmenum n = node(id, "MBRD0001", "PGE", 3, "/MHED0006/MBRD0001/" + id);
         n.setSrePth("/board/" + blbMngNo);
         return n;
     }
@@ -180,19 +180,23 @@ class MenuQueryServiceTest {
     @Test
     void boardListIsNotQueried_whenTreeHasNoBoardMenu() {
         // 게시판 메뉴가 없는 트리에서까지 게시판을 조회하면 메뉴 조회마다 불필요한 쿼리가 는다.
+        Cmenum link = node("L", null, "LNK", 1, "/L");
+        link.setSrePth("https://docs.example.com/manual");
         given(cmenumRepository.findAllActive())
-                .willReturn(List.of(node("P", null, "PGE", 1, "/P")));
+                .willReturn(List.of(node("P", null, "PGE", 1, "/P"), link));
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
 
-        service.getMenuTree(List.of("ITPZZ001"));
+        List<MenuDto.Node> tree = service.getMenuTree(List.of("ITPZZ001"));
 
+        assertThat(tree).extracting(MenuDto.Node::getMnuId).containsExactly("P", "L");
         verifyNoInteractions(boardMetaService);
     }
 
     @Test
-    void boardMenu_withoutPath_isHiddenFromUserTree() {
-        // 경로가 없으면 열 화면이 없다 — 깨진 링크를 노출하지 않는다.
-        Cmenum broken = node("B0", "MBRD0001", "BRD", 3, "/MHED0006/MBRD0001/B0");
+    void malformedBoardPath_isHiddenFromUserTree() {
+        // /board/ 접두사로 시작한 값은 형식이 깨져도 게시판 후보이므로 사용자에게 노출하지 않는다.
+        Cmenum broken = node("B0", "MBRD0001", "PGE", 3, "/MHED0006/MBRD0001/B0");
+        broken.setSrePth("/board/BLBM-0001/posts");
         given(cmenumRepository.findAllActive())
                 .willReturn(List.of(node("MBRD0001", null, "GRP", 1, "/MBRD0001"), broken));
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());

@@ -27,14 +27,14 @@ public class MenuQueryService {
     /** 메뉴 권한 매핑(menuAuthMap) 캐시 제공자. self-invocation 회피를 위해 별도 빈으로 분리(§Task T13-C). */
     private final MenuAuthMapProvider menuAuthMapProvider;
 
-    /** BRD 메뉴가 가리키는 게시판이 아직 사용 중인지 판정하는 원천. */
+    /** 게시판 PGE 경로가 가리키는 게시판이 아직 사용 중인지 판정하는 원천. */
     private final BoardMetaService boardMetaService;
 
     /**
      * 사용자용 메뉴 트리를 조회한다.
      *
      * @param athIds JWT 클레임에서 복원한 자격등급 ID 목록. null이면 공개 메뉴만 반환한다.
-     * @return 숨김 메뉴, 권한 불일치 메뉴, 사용 중이 아닌 게시판을 가리키는 BRD 메뉴를 제거하고, 빈 GRP 노드를 가지치기한 트리. 각 노드의 {@code
+     * @return 숨김 메뉴, 권한 불일치 메뉴, 사용 중이 아닌 게시판을 가리키는 PGE 메뉴를 제거하고, 빈 GRP 노드를 가지치기한 트리. 각 노드의 {@code
      *     athIds}에는 왕관 아이콘 표시 판정용 권한ID 목록이 채워진다.
      */
     public List<MenuDto.Node> getMenuTree(List<String> athIds) {
@@ -90,14 +90,14 @@ public class MenuQueryService {
     /**
      * 사용 중인 게시판의 화면경로 집합.
      *
-     * <p>BRD 메뉴가 하나도 없으면 게시판을 조회하지 않는다 — 메뉴 조회는 모든 화면 진입마다 도는 경로라 쓰이지 않을 쿼리를 붙이지 않는다.
+     * <p>게시판 경로가 하나도 없으면 게시판을 조회하지 않는다 — 메뉴 조회는 모든 화면 진입마다 도는 경로라 쓰이지 않을 쿼리를 붙이지 않는다.
      */
     private Set<String> activeBoardPaths(List<Cmenum> rows) {
         boolean hasBoardMenu =
-                rows.stream().anyMatch(m -> BoardMenuLink.isBoardMenu(m.getMnuTpC()));
+                rows.stream().anyMatch(m -> BoardScreenPath.isBoardPath(m.getSrePth()));
         if (!hasBoardMenu) return Set.of();
         return boardMetaService.getAllActive().stream()
-                .map(b -> BoardMenuLink.pathOf(b.getBlbMngNo()))
+                .map(b -> BoardScreenPath.pathOf(b.getBlbMngNo()))
                 .collect(Collectors.toSet());
     }
 
@@ -108,8 +108,8 @@ public class MenuQueryService {
      * 않게 한다.
      */
     private boolean isLinkedBoardUsable(Cmenum m, Set<String> activeBoardPaths) {
-        if (!BoardMenuLink.isBoardMenu(m.getMnuTpC())) return true;
-        return m.getSrePth() != null && activeBoardPaths.contains(m.getSrePth());
+        if (!BoardScreenPath.isBoardPath(m.getSrePth())) return true;
+        return activeBoardPaths.contains(m.getSrePth());
     }
 
     private List<MenuDto.Node> buildTree(List<Cmenum> rows) {

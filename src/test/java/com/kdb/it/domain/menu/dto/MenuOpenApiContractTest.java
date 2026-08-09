@@ -20,7 +20,7 @@ class MenuOpenApiContractTest {
         assertThat(schema("hrkMnuId").nullable()).isTrue();
         assertThat(schema("srePth").nullable()).isTrue();
         assertThat(schema("imkNm").nullable()).isTrue();
-        assertThat(schema("mnuTpC").allowableValues()).containsExactly("GRP", "LNK", "PGE", "BRD");
+        assertThat(schema("mnuTpC").allowableValues()).containsExactly("GRP", "LNK", "PGE");
     }
 
     private static Schema schema(String fieldName) {

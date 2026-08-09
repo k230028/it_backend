@@ -3,6 +3,7 @@ package com.kdb.it.domain.menu.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -34,7 +35,7 @@ class AdminMenuServiceTest {
     @Mock CmenuaRepository cmenuaRepository;
     @Mock CmenudRepository cmenudRepository;
 
-    /** BRD(게시판) 메뉴는 라우트 카탈로그가 아니라 활성 게시판 목록으로 검증한다. */
+    /** 게시판 PGE 경로는 라우트 카탈로그가 아니라 활성 게시판 목록으로 검증한다. */
     @Mock BoardMetaService boardMetaService;
 
     @InjectMocks AdminMenuService service;
@@ -51,6 +52,15 @@ class AdminMenuServiceTest {
                 .whlMnuPth(path)
                 .delYn("N")
                 .build();
+    }
+
+    private Cmenud route(String path, String useYn) {
+        return Cmenud.builder().srePth(path).sreMnuNm("테스트 경로").useYn(useYn).delYn("N").build();
+    }
+
+    /** 활성 게시판 한 건을 돌려주는 목록 대역. */
+    private BoardMetaDto.Response board(String blbMngNo, String blbNm) {
+        return BoardMetaDto.Response.builder().blbMngNo(blbMngNo).blbNm(blbNm).useYn("Y").build();
     }
 
     @Test
@@ -235,7 +245,7 @@ class AdminMenuServiceTest {
         // when & then
         assertThatThrownBy(() -> service.create(req))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("화면경로를 가질 수 없습니다");
+                .hasMessageContaining("GRP 메뉴는 경로를 가질 수 없습니다");
     }
 
     @Test
@@ -248,25 +258,43 @@ class AdminMenuServiceTest {
         // when & then
         assertThatThrownBy(() -> service.create(req))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("PGE 메뉴는 화면경로가 필수입니다.");
+                .hasMessageContaining("메뉴 경로가 필수입니다.");
     }
 
     @Test
-    @DisplayName("create: LNK 메뉴는 아직 지원하지 않으므로 예외를 던진다")
-    void create_LNK유형_미지원_예외() {
-        // given
-        MenuDto.UpsertRequest req =
+    @DisplayName("create: LNK는 사용 중인 외부 URL 카탈로그를 참조하면 저장한다")
+    void create_LNK외부Url_저장() {
+        String url = "https://docs.example.com/manual";
+        given(cmenudRepository.findBySrePthAndDelYn(url, "N"))
+                .willReturn(Optional.of(route(url, "Y")));
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0000001");
+        given(cmenumRepository.findByMnuIdAndDelYn("PARENT", "N"))
+                .willReturn(Optional.of(node("PARENT", null, 1, "/PARENT")));
+        MenuDto.UpsertRequest request =
                 MenuDto.UpsertRequest.builder()
-                        .mnuNm("외부링크")
+                        .mnuNm("업무매뉴얼")
                         .mnuTpC("LNK")
-                        .srePth("https://example.com")
-                        .hrkMnuId("P1")
+                        .hrkMnuId("PARENT")
+                        .srePth(url)
                         .build();
 
-        // when & then
-        assertThatThrownBy(() -> service.create(req))
+        service.create(request);
+
+        verify(cmenumRepository).save(argThat(menu -> "LNK".equals(menu.getMnuTpC())));
+    }
+
+    @Test
+    @DisplayName("create: PGE에 외부 URL을 지정하면 거부한다")
+    void create_PGE외부Url_예외() {
+        String url = "https://docs.example.com/manual";
+        given(cmenudRepository.findBySrePthAndDelYn(url, "N"))
+                .willReturn(Optional.of(route(url, "Y")));
+        MenuDto.UpsertRequest request =
+                MenuDto.UpsertRequest.builder().mnuNm("잘못된 화면").mnuTpC("PGE").srePth(url).build();
+
+        assertThatThrownBy(() -> service.create(request))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("외부링크 메뉴는 아직 지원하지 않습니다.");
+                .hasMessageContaining("PGE 메뉴는 내부 화면경로");
     }
 
     @Test
@@ -381,18 +409,13 @@ class AdminMenuServiceTest {
     }
 
     // =========================================================================
-    // BRD(게시판) 메뉴 검증
+    // 게시판 PGE 경로 검증
     // =========================================================================
-
-    /** 활성 게시판 한 건을 돌려주는 목록 대역. */
-    private BoardMetaDto.Response board(String blbMngNo, String blbNm) {
-        return BoardMetaDto.Response.builder().blbMngNo(blbMngNo).blbNm(blbNm).useYn("Y").build();
-    }
 
     private MenuDto.UpsertRequest boardMenuRequest(String srePth) {
         return MenuDto.UpsertRequest.builder()
                 .mnuNm("공지사항")
-                .mnuTpC("BRD")
+                .mnuTpC("PGE")
                 .hrkMnuId("MBRD0001")
                 .srePth(srePth)
                 .hidYn("N")
@@ -401,45 +424,29 @@ class AdminMenuServiceTest {
     }
 
     @Test
-    @DisplayName("create: BRD 메뉴는 활성 게시판 경로면 저장한다 (라우트 카탈로그는 조회하지 않는다)")
-    void create_BRD유형_활성게시판_저장() {
-        given(boardMetaService.getAllActive())
-                .willReturn(List.of(board("BLBM-0001", "공지사항"), board("BLBM-0002", "자료실")));
-        given(cmenumRepository.findByMnuIdAndDelYn("MBRD0001", "N"))
-                .willReturn(Optional.of(node("MBRD0001", "MHED0006", 2, "/MHED0006/MBRD0001")));
-        given(cmenumRepository.nextMnuId()).willReturn("MNU0000010");
-        given(cmenuaRepository.findByMnuId("MNU0000010")).willReturn(List.of());
+    @DisplayName("create: PGE 게시판 경로는 활성 게시판이면 저장한다")
+    void create_PGE게시판_저장() {
+        given(boardMetaService.getAllActive()).willReturn(List.of(board("BLBM-0001", "공지사항")));
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0000002");
+        given(cmenumRepository.findByMnuIdAndDelYn("PARENT", "N"))
+                .willReturn(Optional.of(node("PARENT", null, 1, "/PARENT")));
+        MenuDto.UpsertRequest request =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("공지사항")
+                        .mnuTpC("PGE")
+                        .hrkMnuId("PARENT")
+                        .srePth("/board/BLBM-0001")
+                        .build();
 
-        String result = service.create(boardMenuRequest("/board/BLBM-0001"));
+        service.create(request);
 
-        assertThat(result).isEqualTo("MNU0000010");
-        ArgumentCaptor<Cmenum> captor = ArgumentCaptor.forClass(Cmenum.class);
-        verify(cmenumRepository).save(captor.capture());
-        assertThat(captor.getValue().getMnuTpC()).isEqualTo("BRD");
-        assertThat(captor.getValue().getSrePth()).isEqualTo("/board/BLBM-0001");
-        // 게시판 경로는 라우트 카탈로그에 없다 — 카탈로그로 검증하면 저장이 항상 실패한다.
+        verify(cmenumRepository).save(argThat(menu -> "PGE".equals(menu.getMnuTpC())));
         verifyNoInteractions(cmenudRepository);
     }
 
     @Test
-    @DisplayName("create: BRD 메뉴에 화면경로가 없으면 예외를 던진다")
-    void create_BRD유형_경로없음_예외() {
-        assertThatThrownBy(() -> service.create(boardMenuRequest(null)))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("게시판을 선택해야 합니다");
-    }
-
-    @Test
-    @DisplayName("create: BRD 메뉴의 화면경로가 게시판 경로 형식이 아니면 예외를 던진다")
-    void create_BRD유형_형식위반_예외() {
-        assertThatThrownBy(() -> service.create(boardMenuRequest("/budget/list")))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("게시판 화면경로 형식이 아닙니다");
-    }
-
-    @Test
     @DisplayName("create: 사용 중이 아닌 게시판을 가리키면 예외를 던진다")
-    void create_BRD유형_없는게시판_예외() {
+    void create_PGE게시판_없는게시판_예외() {
         given(boardMetaService.getAllActive()).willReturn(List.of(board("BLBM-0001", "공지사항")));
 
         assertThatThrownBy(() -> service.create(boardMenuRequest("/board/BLBM-9999")))
@@ -448,13 +455,13 @@ class AdminMenuServiceTest {
     }
 
     @Test
-    @DisplayName("create: BRD 메뉴를 루트로 생성하면 예외를 던진다")
-    void create_BRD유형_루트_예외() {
+    @DisplayName("create: 게시판 PGE 메뉴를 루트로 생성하면 예외를 던진다")
+    void create_PGE게시판_루트_예외() {
         given(boardMetaService.getAllActive()).willReturn(List.of(board("BLBM-0001", "공지사항")));
         MenuDto.UpsertRequest req =
                 MenuDto.UpsertRequest.builder()
                         .mnuNm("공지사항")
-                        .mnuTpC("BRD")
+                        .mnuTpC("PGE")
                         .hrkMnuId(null)
                         .srePth("/board/BLBM-0001")
                         .build();
@@ -465,8 +472,8 @@ class AdminMenuServiceTest {
     }
 
     @Test
-    @DisplayName("update: PGE 메뉴를 BRD로 바꾸면 게시판 경로로 검증한다")
-    void update_PGE를BRD로변경_게시판검증() {
+    @DisplayName("update: 일반 PGE를 게시판 PGE 경로로 바꾸면 게시판으로 검증한다")
+    void update_PGE게시판경로로변경_게시판검증() {
         Cmenum menu = node("M1", "MBRD0001", 3, "/MHED0006/MBRD0001/M1");
         menu.setMnuTpC("PGE");
         given(cmenumRepository.findByMnuIdAndDelYn("M1", "N")).willReturn(Optional.of(menu));
@@ -475,7 +482,7 @@ class AdminMenuServiceTest {
 
         service.update("M1", boardMenuRequest("/board/BLBM-0003"));
 
-        assertThat(menu.getMnuTpC()).isEqualTo("BRD");
+        assertThat(menu.getMnuTpC()).isEqualTo("PGE");
         assertThat(menu.getSrePth()).isEqualTo("/board/BLBM-0003");
     }
 
@@ -620,8 +627,7 @@ class AdminMenuServiceTest {
                         .srePth("/budget/list")
                         .build();
         given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
-                .willReturn(
-                        Optional.of(Cmenud.builder().srePth("/budget/list").delYn("N").build()));
+                .willReturn(Optional.of(route("/budget/list", "Y")));
 
         assertThatThrownBy(() -> service.create(req))
                 .isInstanceOf(ResponseStatusException.class)
@@ -634,8 +640,7 @@ class AdminMenuServiceTest {
         Cmenum root = node("MHED0009", null, 1, "/MHED0009");
         given(cmenumRepository.findByMnuIdAndDelYn("MHED0009", "N")).willReturn(Optional.of(root));
         given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
-                .willReturn(
-                        Optional.of(Cmenud.builder().srePth("/budget/list").delYn("N").build()));
+                .willReturn(Optional.of(route("/budget/list", "Y")));
         MenuDto.UpsertRequest req =
                 MenuDto.UpsertRequest.builder()
                         .mnuNm("루트")
