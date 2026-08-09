@@ -598,7 +598,7 @@ class BudgetRateApplicationServiceTest {
         given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
         given(bbugtmRepository.softDeleteByBseYy(eq("2026"), any(), any())).willReturn(3);
         // getSummary 내부 호출용 mock
-        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
+        given(bbugtmRepository.findReadViewsByBseYyAndDelYn("2026", "N")).willReturn(List.of());
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
         mockEmptyDetailCodes();
 
@@ -606,8 +606,9 @@ class BudgetRateApplicationServiceTest {
 
         // 선정리는 벌크 UPDATE 1회 — 루프 delete용 선정리 조회는 발생하지 않는다.
         verify(bbugtmRepository).softDeleteByBseYy(eq("2026"), any(), any());
-        // getSummary가 부르는 findByBseYyAndDelYn는 정확히 1회 (선정리용 추가 호출 없음)
-        Mockito.verify(bbugtmRepository, Mockito.times(1)).findByBseYyAndDelYn("2026", "N");
+        // getSummary가 부르는 projection 조회는 정확히 1회 (선정리용 엔티티 조회 없음)
+        Mockito.verify(bbugtmRepository, Mockito.times(1))
+                .findReadViewsByBseYyAndDelYn("2026", "N");
     }
 
     // =========================================================================
