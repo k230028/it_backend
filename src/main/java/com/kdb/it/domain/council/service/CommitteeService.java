@@ -167,9 +167,9 @@ public class CommitteeService {
             CouncilDto.CommitteeMemberResponse resp = toMemberResponseFromView(m, user);
 
             switch (m.getItPtlAsctMebTc()) {
-                case "01" -> mandatory.add(resp); // 당연위원(MAND)
-                case "02" -> call.add(resp); // 소집위원(CALL)
-                case "03" -> secretary.add(resp); // 간사(SECR)
+                case "01" -> mandatory.add(resp); // 당연위원
+                case "02" -> call.add(resp); // 소집위원
+                case "03" -> secretary.add(resp); // 간사
                 // '04' 당연위원 겸 간사(dbrTc='02'): 평가위원 목록(당연위원)에 노출하고,
                 // 간사 여부는 위원유형(mebTc='04')으로 프론트가 판별한다(중복 노출 방지).
                 case "04" -> mandatory.add(resp);

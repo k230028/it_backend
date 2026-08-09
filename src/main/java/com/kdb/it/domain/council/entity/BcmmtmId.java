@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode
 public class BcmmtmId implements Serializable {
 
-    /** 협의회ID: Bcmmtm.asctId와 이름/타입 일치 필수 */
+    /** 협의회ID: Bcmmtm.itPtlAsctId와 이름/타입 일치 필수 */
     private String itPtlAsctId;
 
     /** 위원유형구분코드: Bcmmtm.itPtlAsctMebTc와 이름/타입 일치 필수 */

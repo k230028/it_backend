@@ -28,7 +28,7 @@ public interface CommitteeRepository extends JpaRepository<Bcmmtm, BcmmtmId> {
      * 협의회별 특정 유형 위원 목록 조회
      *
      * @param itPtlAsctId 협의회ID
-     * @param itPtlAsctMebTc 위원유형 (MAND/CALL/SECR)
+     * @param itPtlAsctMebTc 위원유형 (01/02/03/04)
      * @param delYn 삭제여부 ('N')
      * @return 해당 유형의 위원 목록
      */

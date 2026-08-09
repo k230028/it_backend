@@ -477,7 +477,7 @@ public class CouncilDto extends CouncilWorkflowDto {
     public record CommitteeMemberRequest(
             /** 사번 */
             String eno,
-            /** 위원유형 (MAND:당연/CALL:소집/SECR:간사) */
+            /** 위원유형 (01:당연/02:소집/03:간사/04:당연 겸 간사) */
             String vlrTc) {}
 
     /**
@@ -593,7 +593,7 @@ public class CouncilDto extends CouncilWorkflowDto {
             @Schema(nullable = true) String bbrNm,
             /** 직위명 (팀장, 차장, 과장 등) */
             @Schema(nullable = true) String ptCNm,
-            /** 위원유형 (MAND:당연/CALL:소집/SECR:간사) */
+            /** 위원유형 (01:당연/02:소집/03:간사/04:당연 겸 간사) */
             @Schema(allowableValues = {"01", "02", "03", "04"}) String vlrTc,
             /** 결과서 검토 확인 여부 (N: 미확인, Y: 확인완료) */
             @Schema(allowableValues = {"Y", "N"}) String cnfmYn) {}

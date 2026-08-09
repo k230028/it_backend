@@ -19,12 +19,13 @@ import lombok.experimental.SuperBuilder;
  *
  * <p>DB 테이블: {@code TPRMPP_BCMMTM}
  *
- * <p>IT관리자(ITPAD001)가 심의유형에 따라 위원을 선정합니다. 위원유형(VLR_TC) 분류:
+ * <p>IT관리자(ITPAD001)가 심의유형에 따라 위원을 선정합니다. 위원유형(공통코드 {@code IT_PTL_ASCT_MEB_TC}) 분류:
  *
  * <ul>
- *   <li>MAND — 당연위원 (심의유형별 고정 부서 자동 매핑)
- *   <li>CALL — 소집위원 (IT관리자가 추가 지정)
- *   <li>SECR — 간사 (회의 진행 담당)
+ *   <li>{@code 01} — 당연위원 (심의유형별 고정 부서 자동 매핑)
+ *   <li>{@code 02} — 소집위원 (IT관리자가 추가 지정)
+ *   <li>{@code 03} — 간사 (회의 진행 담당)
+ *   <li>{@code 04} — 당연위원 겸 간사 (정보기술부문계획 {@code dbrTc='02'}의 IT기획팀장 겸직)
  * </ul>
  *
  * <p>당연위원 자동 매핑 규칙 (TEM_C 기준):
@@ -35,7 +36,7 @@ import lombok.experimental.SuperBuilder;
  *   <li>ETC: 예산(12004), PMO(18010), 디지털기획(18501)
  * </ul>
  *
- * <p>복합키: ({@code ASCT_ID}, {@code MEB_TC}, {@code ENO})
+ * <p>복합키: ({@code IT_PTL_ASCT_ID}, {@code IT_PTL_ASCT_MEB_TC}, {@code ENO})
  */
 @LogTarget(entity = BcmmtmL.class)
 @Entity
@@ -57,7 +58,10 @@ public class Bcmmtm extends BaseEntity {
     @Column(name = "ENO", length = 32, nullable = false, comment = "사번")
     private String eno;
 
-    /** 위원유형구분코드: 복합키 두 번째 컬럼. MAND(당연위원) / CALL(소집위원) / SECR(간사), CCODEM VLR_TC 기준 */
+    /**
+     * 위원유형구분코드: 복합키 두 번째 컬럼. 01(당연위원) / 02(소집위원) / 03(간사) / 04(당연위원 겸 간사), CCODEM
+     * IT_PTL_ASCT_MEB_TC 기준
+     */
     @Id
     @Column(name = "IT_PTL_ASCT_MEB_TC", length = 2, nullable = false, comment = "위원유형구분코드")
     private String itPtlAsctMebTc;

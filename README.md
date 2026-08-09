@@ -100,7 +100,7 @@ HTTP 요청
   → Oracle
 ```
 
-Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청은 `@Valid`로 검증합니다. 서비스는 JWT 인증 주체를 기준으로 역할·부서·소유권을 재검증하며, 조회와 쓰기 트랜잭션을 구분합니다. 처리 중 발생한 업무·검증 예외는 `GlobalExceptionHandler`가 `timestamp`, `status`, `message`를 가진 JSON 오류 응답으로 변환합니다.
+Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청은 `@Valid`로 검증합니다. 응답 DTO의 `@Schema`는 Swagger 문서용 장식이 아니라 프론트가 소비하는 계약입니다 — 프론트가 `/v3/api-docs`에서 TypeScript 타입을 생성하므로 여기의 `requiredMode`·`nullable`·`allowableValues`가 곧 프론트 타입이 되며, 그 계약은 `ApiResponseOpenApiContractTest`와 도메인별 `*OpenApiContractTest`가 고정합니다. 서비스는 JWT 인증 주체를 기준으로 역할·부서·소유권을 재검증하며, 조회와 쓰기 트랜잭션을 구분합니다. 처리 중 발생한 업무·검증 예외는 `GlobalExceptionHandler`가 `timestamp`, `status`, `message`를 가진 JSON 오류 응답으로 변환합니다.
 
 | 영역                                                                          | 주요 책임                                              | 연결되는 영역                                                        |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
@@ -139,7 +139,8 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 ## 데이터 설계 결정
 
 - 접속 계정 `ITPAPP`과 객체 소유 스키마 `ITPOWN`을 분리하고, 커넥션 생성 시 `CURRENT_SCHEMA`를 설정합니다. 엔티티와 쿼리에는 스키마 접두어를 하드코딩하지 않습니다.
-- 업무 엔티티는 `BaseEntity`의 논리삭제, GUID, 등록·변경 감사 필드를 공유합니다. 복합키 테이블은 `@IdClass`로 기존 Oracle 물리 모델을 매핑합니다.
+- 업무 엔티티는 `BaseEntity`의 논리삭제, GUID, 등록·변경 감사 필드를 공유합니다. 복합키 테이블은 `@IdClass`로 기존 Oracle 물리 모델을 매핑하며, 물리 PK의 모든 컬럼을 `@Id`로 매핑합니다. 일부만 매핑하면 서로 다른 행이 같은 JPA 식별자를 갖게 되므로, 이 정합은 `PhysicalCompositeIdMappingTest`와 `PhysicalCompositeIdIsolationIt`가 고정합니다.
+- 응답 직렬화에만 쓰이는 조회는 엔티티 대신 필요한 컬럼만 담는 프로젝션(`*Row` record 또는 `*View` 인터페이스)으로 읽습니다. 쓰기 엔티티와 DDL은 그대로 두고 읽기 경로만 좁히는 방식이며, 엔티티 조회와의 결과·정렬·null 동등성은 `*ProjectionIt` Oracle 통합 테스트가 확인합니다.
 - `@LogTarget` 엔티티는 대응하는 `BaseLogEntity` 하위 로그 엔티티에 생성·수정·논리삭제 스냅샷을 남깁니다.
 - 단순 CRUD는 `JpaRepository`를 사용하고 동적 검색·집계·다중 조인은 `*RepositoryCustom`과 `*RepositoryImpl`의 QueryDSL 구현으로 분리합니다.
 - 공통코드, 메뉴 권한, 알림 미읽음 수, Tiptap 메타데이터는 Caffeine 캐시를 사용합니다. 캐시 쓰기는 트랜잭션 완료와 연동하고, 원본 변경 서비스가 `@CacheEvict`로 즉시 무효화하며 TTL은 누락에 대한 안전망으로 사용합니다.

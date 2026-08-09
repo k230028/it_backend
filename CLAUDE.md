@@ -30,6 +30,7 @@
 - 감사 대상 업무 엔티티는 `@LogTarget`, 대응 로그 엔티티는 `BaseLogEntity`를 사용합니다.
 - `@LogTarget` 엔티티의 고유 NOT NULL 기본값은 `@PrePersist`에만 의존하지 말고 생성자·팩토리에서 설정합니다.
 - 복합키는 `@IdClass`, 모든 `@Column`에는 한글 `comment`를 지정합니다.
+- 엔티티의 `@Id` 집합은 물리 PK의 **모든** 컬럼과 일치해야 합니다. 물리 PK 일부만 `@Id`로 매핑하면 서로 다른 행이 같은 JPA 식별자를 갖게 되어 1차 캐시에서 섞이므로 컬럼을 빼고 매핑하지 않습니다. `@IdClass`의 필드명·타입은 엔티티 필드와 같아야 하고 `JpaRepository`의 ID 타입도 그 `@IdClass`를 사용합니다. 매핑 정합은 `PhysicalCompositeIdMappingTest`가, 부분키가 같은 행이 실제로 분리되는지는 `PhysicalCompositeIdIsolationIt`가 검증합니다.
 
 ## 3. 마이그레이션
 
@@ -46,6 +47,8 @@
 ## 4. DTO·Controller·Repository·Service
 
 - 관련 DTO는 정적 중첩 클래스로 묶고 Swagger `@Schema`를 작성합니다.
+- 응답 DTO의 `@Schema`는 프론트 생성 타입(`it_frontend/app/types/api.d.ts`)의 SoT입니다. 모든 응답 속성에 `requiredMode = REQUIRED`를 지정하고, null이 올 수 있는 속성만 `nullable = true`를, 값 집합이 정해진 속성은 `allowableValues`를 함께 명시합니다. 이를 빠뜨리면 프론트가 실제로는 항상 오는 값을 optional로 다루거나 없는 값을 non-null로 다루게 됩니다. 계약은 `ApiResponseOpenApiContractTest`(도메인 전반)와 도메인별 `*OpenApiContractTest`가 고정하므로 응답 속성을 추가·삭제하면 해당 테스트를 함께 갱신합니다.
+- 응답 직렬화에만 쓰는 조회는 엔티티 대신 필요한 컬럼만 담는 프로젝션(`record` 또는 인터페이스, 접미사 `*Row`·`*View`)으로 읽습니다. 쓰기 엔티티와 DDL은 그대로 두고 읽기 경로만 좁히며, 기존 엔티티 조회와 결과·정렬·null 계약이 같은지 `*ProjectionIt` Oracle 통합 테스트로 확인합니다.
 - POST·PUT·PATCH 등 요청 본문을 받는 변경 API는 `@Valid`를 적용합니다.
 - 모든 `@RequestParam`, `@PathVariable`, `@RequestHeader`에는 `name` 또는 `value`를 명시합니다.
 - 기본 CRUD는 `JpaRepository`, 동적·복잡 쿼리는 `*RepositoryCustom` + `*RepositoryImpl` QueryDSL 패턴을 사용합니다.

@@ -164,7 +164,7 @@ public class CouncilResultController {
     /**
      * 평가위원 결과서 검토 확인 (평가위원)
      *
-     * <p>RESULT_REVIEW 상태에서 평가위원(MAND/CALL)이 결과서 확인 완료를 처리합니다. 전원 확인 완료 시 협의회 상태가 FINAL_APPROVAL로
+     * <p>RESULT_REVIEW 상태에서 평가위원(위원유형 01·02)이 결과서 확인 완료를 처리합니다. 전원 확인 완료 시 협의회 상태가 FINAL_APPROVAL로
      * 자동 전이됩니다.
      *
      * @param asctId 협의회ID
