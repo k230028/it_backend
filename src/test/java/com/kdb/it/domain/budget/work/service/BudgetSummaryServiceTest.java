@@ -53,6 +53,29 @@ class BudgetSummaryServiceTest {
 
     @BeforeEach
     void setUp() {
+        given(bbugtmRepository.findReadViewsByBseYyAndDelYn(anyString(), anyString()))
+                .willAnswer(
+                        invocation ->
+                                bbugtmRepository
+                                        .findByBseYyAndDelYn(
+                                                invocation.getArgument(0),
+                                                invocation.getArgument(1))
+                                        .stream()
+                                        .map(ReadProjectionStubs::budget)
+                                        .toList());
+        given(
+                        projectRepository.findKeyViewsByAbusMngNoInAndLstYnAndDelYn(
+                                anyCollection(), anyString(), anyString()))
+                .willAnswer(
+                        invocation ->
+                                projectRepository
+                                        .findByAbusMngNoInAndDelYn(
+                                                invocation.getArgument(0),
+                                                invocation.getArgument(2))
+                                        .stream()
+                                        .filter(project -> !"N".equals(project.getLstYn()))
+                                        .map(ReadProjectionStubs::project)
+                                        .toList());
         ioeCatalog = new BudgetIoeCatalog(codeRepository);
         budgetWorkService =
                 new BudgetSummaryService(

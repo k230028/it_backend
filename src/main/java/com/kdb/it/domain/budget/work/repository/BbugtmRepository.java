@@ -40,6 +40,9 @@ public interface BbugtmRepository extends JpaRepository<Bbugtm, BbugtmId>, Bbugt
      */
     List<Bbugtm> findByBseYyAndDelYn(String bseYy, String delYn);
 
+    /** 예산 요약 읽기 경로에서 집계에 필요한 최소 필드만 조회합니다. */
+    List<BudgetReadView> findReadViewsByBseYyAndDelYn(String bseYy, String delYn);
+
     /**
      * 해당 예산년도의 미삭제(DEL_YN='N') 편성예산 전체를 벌크 Soft Delete 한다.
      *

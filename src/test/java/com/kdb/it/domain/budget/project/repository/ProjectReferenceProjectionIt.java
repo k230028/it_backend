@@ -6,6 +6,7 @@ import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +41,32 @@ class ProjectReferenceProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(ProjectRepository.ProjectNameView.class.getDeclaredMethods())
                 .extracting(method -> method.getName())
                 .containsExactlyInAnyOrder("getAbusMngNo", "getAbusNm");
+    }
+
+    @Test
+    void 사업키배치프로젝션은현재활성사업만반환한다() {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String projectNo = "BE03-PKB-" + suffix;
+        String oldOnlyNo = "BE03-PKO-" + suffix;
+        LocalDateTime now = LocalDateTime.of(2097, 12, 31, 23, 41);
+        entityManager.persist(project(projectNo, 1, "이전 사업", "N", "N", now));
+        entityManager.persist(project(projectNo, 2, "현재 사업", "Y", "N", now));
+        entityManager.persist(project(oldOnlyNo, 1, "최종 아님", "N", "N", now));
+        entityManager.flush();
+        entityManager.clear();
+
+        List<ProjectRepository.ProjectKeyView> views =
+                repository.findKeyViewsByAbusMngNoInAndLstYnAndDelYn(
+                        List.of(projectNo, oldOnlyNo), "Y", "N");
+
+        assertThat(views)
+                .singleElement()
+                .satisfies(
+                        view -> {
+                            assertThat(view.getAbusMngNo()).isEqualTo(projectNo);
+                            assertThat(view.getAbusNm()).isEqualTo("현재 사업");
+                        });
+        assertThat(ProjectRepository.ProjectKeyView.class.getDeclaredMethods()).hasSize(2);
     }
 
     private Bprojm project(

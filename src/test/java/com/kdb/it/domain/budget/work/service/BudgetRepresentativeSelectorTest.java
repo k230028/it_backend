@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
+import com.kdb.it.domain.budget.work.repository.BudgetReadView;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,22 @@ class BudgetRepresentativeSelectorTest {
     @DisplayName("pick - 빈 목록이면 IllegalArgumentException")
     void pick_빈목록_예외() {
         assertThatThrownBy(() -> BudgetRepresentativeSelector.pick(List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("pickView - 엔티티 선택기와 동일하게 bgNo, sno 내림차순 대표행을 고른다")
+    void pickView_엔티티규칙동일() {
+        BudgetReadView older =
+                ReadProjectionStubs.budget(
+                        Bbugtm.builder().bgNo("BG-2026-0001").sno(9).asgRt(80).build());
+        BudgetReadView newer =
+                ReadProjectionStubs.budget(
+                        Bbugtm.builder().bgNo("BG-2026-0002").sno(1).asgRt(50).build());
+
+        assertThat(BudgetRepresentativeSelector.pickView(List.of(newer, older)).getAsgRt())
+                .isEqualTo(50);
+        assertThatThrownBy(() -> BudgetRepresentativeSelector.pickView(List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

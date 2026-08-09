@@ -3,13 +3,12 @@ package com.kdb.it.domain.budget.work.service;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ItemRepresentativeSelector;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
-import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import com.kdb.it.domain.budget.work.repository.BudgetReadView;
 import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -44,7 +43,8 @@ public class BudgetSummaryService {
      */
     public List<BudgetWorkDto.IoeCategoryResponse> getIoeCategories(String bgYy) {
         List<Ccodem> duplicateCodes = ioeCatalog.findCodes("DUP_IOE");
-        List<Bbugtm> existingBudgets = bbugtmRepository.findByBseYyAndDelYn(bgYy, "N");
+        List<BudgetReadView> existingBudgets =
+                bbugtmRepository.findReadViewsByBseYyAndDelYn(bgYy, "N");
         Map<String, Set<String>> prefixToIoeCodes =
                 ioeCatalog.buildPrefixToIoeCValuesMap(ioeCatalog.findCodes(CommonCodeGroups.IOE));
         return duplicateCodes.stream()
@@ -54,7 +54,7 @@ public class BudgetSummaryService {
                             Set<String> ioeCodes = prefixToIoeCodes.getOrDefault(prefix, Set.of());
                             BigDecimal requestAmount =
                                     bbugtmRepository.sumApprovedAmountByIoeCValues(ioeCodes, bgYy);
-                            List<Bbugtm> candidates =
+                            List<BudgetReadView> candidates =
                                     existingBudgets.stream()
                                             .filter(
                                                     budget ->
@@ -65,7 +65,7 @@ public class BudgetSummaryService {
                             Integer rate =
                                     candidates.isEmpty()
                                             ? null
-                                            : BudgetRepresentativeSelector.pick(candidates)
+                                            : BudgetRepresentativeSelector.pickView(candidates)
                                                     .getAsgRt();
                             return new BudgetWorkDto.IoeCategoryResponse(
                                     code.getCdva(),
@@ -96,8 +96,9 @@ public class BudgetSummaryService {
      * @return 비목별 편성 요약
      */
     public BudgetWorkDto.SummaryResponse getSummary(String bgYy, List<String> srcPks) {
-        List<Bbugtm> budgets =
-                filterByApprovedSource(bbugtmRepository.findByBseYyAndDelYn(bgYy, "N"), bgYy);
+        List<BudgetReadView> budgets =
+                filterByApprovedSource(
+                        bbugtmRepository.findReadViewsByBseYyAndDelYn(bgYy, "N"), bgYy);
         if (srcPks != null && !srcPks.isEmpty()) {
             Set<String> selectedPks = new LinkedHashSet<>(srcPks);
             budgets =
@@ -134,8 +135,8 @@ public class BudgetSummaryService {
                     prefix, code.getCdvaDes() != null ? code.getCdvaDes() : code.getCNm());
             prefixOrder.add(prefix);
         }
-        Map<String, List<Bbugtm>> budgetsByIoe = new LinkedHashMap<>();
-        for (Bbugtm budget : budgets) {
+        Map<String, List<BudgetReadView>> budgetsByIoe = new LinkedHashMap<>();
+        for (BudgetReadView budget : budgets) {
             if (budget.getIoeC() != null) {
                 budgetsByIoe
                         .computeIfAbsent(budget.getIoeC(), ignored -> new ArrayList<>())
@@ -186,12 +187,12 @@ public class BudgetSummaryService {
             }
             for (Map.Entry<String, List<String>> nameEntry : codesByDisplayName.entrySet()) {
                 List<String> ioeCodes = nameEntry.getValue();
-                List<Bbugtm> records = new ArrayList<>();
+                List<BudgetReadView> records = new ArrayList<>();
                 for (String ioeC : ioeCodes) {
                     records.addAll(budgetsByIoe.getOrDefault(ioeC, List.of()));
                 }
-                Bbugtm representative =
-                        records.isEmpty() ? null : BudgetRepresentativeSelector.pick(records);
+                BudgetReadView representative =
+                        records.isEmpty() ? null : BudgetRepresentativeSelector.pickView(records);
                 String representativeIoe =
                         representative != null ? representative.getIoeC() : ioeCodes.get(0);
                 BigDecimal budgetAmount = sumBudgetAmount(records);
@@ -247,7 +248,7 @@ public class BudgetSummaryService {
         return new ArrayList<>(result);
     }
 
-    private List<Bbugtm> filterByApprovedSource(List<Bbugtm> budgets, String bgYy) {
+    private List<BudgetReadView> filterByApprovedSource(List<BudgetReadView> budgets, String bgYy) {
         Set<String> approvedSourcePks = budgetWorkQueryRepository.findApprovedSourcePks(bgYy);
         if (approvedSourcePks == null || approvedSourcePks.isEmpty()) return budgets;
         return budgets.stream()
@@ -259,12 +260,12 @@ public class BudgetSummaryService {
     }
 
     private void computeMplAdjustment(
-            List<Bbugtm> budgets,
+            List<BudgetReadView> budgets,
             Map<String, Boolean> capitalByIoe,
             Map<String, BigDecimal> requestAdjustments,
             Map<String, BigDecimal> budgetAdjustments) {
-        Map<String, List<Bbugtm>> budgetsByItem = new LinkedHashMap<>();
-        for (Bbugtm budget : budgets) {
+        Map<String, List<BudgetReadView>> budgetsByItem = new LinkedHashMap<>();
+        for (BudgetReadView budget : budgets) {
             if ("BITEMM".equals(budget.getFntTbNm())
                     && budget.getPkColNm() != null
                     && budget.getIoeC() != null) {
@@ -290,23 +291,23 @@ public class BudgetSummaryService {
                         .map(Bitemm::getAbusMngNo)
                         .filter(java.util.Objects::nonNull)
                         .collect(Collectors.toCollection(LinkedHashSet::new));
-        Map<String, Bprojm> projectsByNo = new LinkedHashMap<>();
+        Set<String> existingProjectNos = new LinkedHashSet<>();
         if (!projectNos.isEmpty()) {
-            for (Bprojm project : projectRepository.findByAbusMngNoInAndDelYn(projectNos, "N")) {
-                projectsByNo.putIfAbsent(project.getAbusMngNo(), project);
-            }
+            projectRepository
+                    .findKeyViewsByAbusMngNoInAndLstYnAndDelYn(projectNos, "Y", "N")
+                    .forEach(view -> existingProjectNos.add(view.getAbusMngNo()));
         }
 
         record ItemContribution(String ioeC, BigDecimal request, BigDecimal budget) {}
         Map<String, List<ItemContribution>> contributionsByGroup = new LinkedHashMap<>();
         Map<String, BigDecimal> requestByGroup = new LinkedHashMap<>();
         Map<String, BigDecimal> mplByGroup = new LinkedHashMap<>();
-        for (Map.Entry<String, List<Bbugtm>> entry : budgetsByItem.entrySet()) {
+        for (Map.Entry<String, List<BudgetReadView>> entry : budgetsByItem.entrySet()) {
             Bitemm item = itemsByNo.get(entry.getKey());
             if (item == null
                     || item.getAbusMngNo() == null
-                    || !projectsByNo.containsKey(item.getAbusMngNo())) continue;
-            String ioeC = BudgetRepresentativeSelector.pick(entry.getValue()).getIoeC();
+                    || !existingProjectNos.contains(item.getAbusMngNo())) continue;
+            String ioeC = BudgetRepresentativeSelector.pickView(entry.getValue()).getIoeC();
             String groupKey =
                     item.getAbusMngNo() + "|" + Boolean.TRUE.equals(capitalByIoe.get(ioeC));
             BigDecimal request = item.getAmt() != null ? item.getAmt() : BigDecimal.ZERO;
@@ -341,9 +342,9 @@ public class BudgetSummaryService {
         }
     }
 
-    private BigDecimal sumBudgetAmount(List<Bbugtm> budgets) {
+    private BigDecimal sumBudgetAmount(List<BudgetReadView> budgets) {
         return budgets.stream()
-                .map(Bbugtm::getBgDupAmt)
+                .map(BudgetReadView::getBgDupAmt)
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }

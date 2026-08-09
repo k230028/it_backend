@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.work.service;
 
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
+import com.kdb.it.domain.budget.work.repository.BudgetReadView;
 import java.util.Comparator;
 import java.util.List;
 
@@ -26,6 +27,19 @@ public final class BudgetRepresentativeSelector {
                                         Comparator.nullsFirst(Comparator.naturalOrder()))
                                 .thenComparing(
                                         budget -> budget.getSno(),
+                                        Comparator.nullsFirst(Comparator.naturalOrder())))
+                .orElseThrow(() -> new IllegalArgumentException("편성 행 목록이 비어 있습니다."));
+    }
+
+    /** 읽기 프로젝션 목록에 엔티티와 동일한 대표행 규칙을 적용합니다. */
+    public static BudgetReadView pickView(List<BudgetReadView> budgets) {
+        return budgets.stream()
+                .max(
+                        Comparator.comparing(
+                                        BudgetReadView::getBgNo,
+                                        Comparator.nullsFirst(Comparator.naturalOrder()))
+                                .thenComparing(
+                                        BudgetReadView::getSno,
                                         Comparator.nullsFirst(Comparator.naturalOrder())))
                 .orElseThrow(() -> new IllegalArgumentException("편성 행 목록이 비어 있습니다."));
     }

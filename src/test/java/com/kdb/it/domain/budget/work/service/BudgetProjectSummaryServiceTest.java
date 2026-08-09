@@ -64,6 +64,29 @@ class BudgetProjectSummaryServiceTest {
 
     @BeforeEach
     void setUp() {
+        given(bbugtmRepository.findReadViewsByBseYyAndDelYn(anyString(), anyString()))
+                .willAnswer(
+                        invocation ->
+                                bbugtmRepository
+                                        .findByBseYyAndDelYn(
+                                                invocation.getArgument(0),
+                                                invocation.getArgument(1))
+                                        .stream()
+                                        .map(ReadProjectionStubs::budget)
+                                        .toList());
+        given(
+                        projectRepository.findKeyViewsByAbusMngNoInAndLstYnAndDelYn(
+                                anyCollection(), anyString(), anyString()))
+                .willAnswer(
+                        invocation ->
+                                projectRepository
+                                        .findByAbusMngNoInAndDelYn(
+                                                invocation.getArgument(0),
+                                                invocation.getArgument(2))
+                                        .stream()
+                                        .filter(project -> !"N".equals(project.getLstYn()))
+                                        .map(ReadProjectionStubs::project)
+                                        .toList());
         ioeCatalog = new BudgetIoeCatalog(codeRepository);
         budgetWorkService =
                 new BudgetProjectSummaryService(
@@ -152,11 +175,7 @@ class BudgetProjectSummaryServiceTest {
         assertThat(result.totals().requestAmount()).isEqualByComparingTo("2000.00");
         assertThat(result.totals().dupAmount()).isEqualByComparingTo("1300");
         verify(bbugtmRepository, Mockito.times(1)).findByBseYyAndDelYn("2026", "N");
-        assertThat(
-                        java.util.Arrays.stream(BbugtmRepository.class.getDeclaredMethods())
-                                .map(method -> method.getName())
-                                .noneMatch(name -> name.toLowerCase().contains("view")))
-                .isTrue();
+        verify(bbugtmRepository, Mockito.times(1)).findReadViewsByBseYyAndDelYn("2026", "N");
     }
 
     @Test

@@ -5,14 +5,12 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.service.CostRepresentativeSelector;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ItemRepresentativeSelector;
-import com.kdb.it.domain.budget.project.service.ProjectRepresentativeSelector;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
-import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import com.kdb.it.domain.budget.work.repository.BudgetReadView;
 import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -50,8 +48,9 @@ public class BudgetProjectSummaryService {
      */
     public BudgetWorkDto.ProjectSummaryResponse getProjectSummary(String bgYy) {
         List<Ccodem> duplicateCodes = ioeCatalog.findCodes("DUP_IOE");
-        List<Bbugtm> budgets =
-                filterByApprovedSource(bbugtmRepository.findByBseYyAndDelYn(bgYy, "N"), bgYy);
+        List<BudgetReadView> budgets =
+                filterByApprovedSource(
+                        bbugtmRepository.findReadViewsByBseYyAndDelYn(bgYy, "N"), bgYy);
         List<Ccodem> detailCodes = ioeCatalog.findCodes(CommonCodeGroups.IOE);
         Map<String, String> hierarchyByIoe = new LinkedHashMap<>();
         Map<String, Boolean> capitalByIoe = new LinkedHashMap<>();
@@ -60,8 +59,8 @@ public class BudgetProjectSummaryService {
             capitalByIoe.put(code.getCdva(), ioeCatalog.isCapitalCTp(code.getCTp()));
         }
 
-        Map<String, List<Bbugtm>> budgetsByPrefix = new LinkedHashMap<>();
-        for (Bbugtm budget : budgets) {
+        Map<String, List<BudgetReadView>> budgetsByPrefix = new LinkedHashMap<>();
+        for (BudgetReadView budget : budgets) {
             if (budget.getIoeC() == null || budget.getAsgRt() == null) continue;
             String hierarchy = hierarchyByIoe.get(budget.getIoeC());
             if (hierarchy == null) continue;
@@ -79,7 +78,7 @@ public class BudgetProjectSummaryService {
         budgetsByPrefix.forEach(
                 (prefix, values) ->
                         rateByPrefix.put(
-                                prefix, BudgetRepresentativeSelector.pick(values).getAsgRt()));
+                                prefix, BudgetRepresentativeSelector.pickView(values).getAsgRt()));
         List<BudgetWorkDto.ProjectSummaryCategory> headers = new ArrayList<>();
         for (Ccodem code : duplicateCodes) {
             String prefix = ioeCatalog.extractPrefix(code.getCdva());
@@ -97,7 +96,7 @@ public class BudgetProjectSummaryService {
                                 budget ->
                                         "BITEMM".equals(budget.getFntTbNm())
                                                 && budget.getPkColNm() != null)
-                        .map(Bbugtm::getPkColNm)
+                        .map(BudgetReadView::getPkColNm)
                         .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<String, Bitemm> itemByPk = findRepresentativeItems(itemPks);
         Map<String, String> itemToProject = new LinkedHashMap<>();
@@ -106,7 +105,7 @@ public class BudgetProjectSummaryService {
         Map<String, BigDecimal> mplFactorByGroup =
                 computeMplFactors(budgets, itemByPk, capitalByIoe);
         Map<SourceKey, Map<String, BigDecimal[]>> amountsBySource = new LinkedHashMap<>();
-        for (Bbugtm budget : budgets) {
+        for (BudgetReadView budget : budgets) {
             if (budget.getPkColNm() == null) continue;
             Bitemm sourceItem = null;
             SourceKey sourceKey;
@@ -196,9 +195,11 @@ public class BudgetProjectSummaryService {
     }
 
     private Map<String, BigDecimal> computeMplFactors(
-            List<Bbugtm> budgets, Map<String, Bitemm> itemByPk, Map<String, Boolean> capitalByIoe) {
-        Map<String, List<Bbugtm>> budgetsByItem = new LinkedHashMap<>();
-        for (Bbugtm budget : budgets) {
+            List<BudgetReadView> budgets,
+            Map<String, Bitemm> itemByPk,
+            Map<String, Boolean> capitalByIoe) {
+        Map<String, List<BudgetReadView>> budgetsByItem = new LinkedHashMap<>();
+        for (BudgetReadView budget : budgets) {
             if ("BITEMM".equals(budget.getFntTbNm())
                     && budget.getPkColNm() != null
                     && budget.getIoeC() != null) {
@@ -209,10 +210,10 @@ public class BudgetProjectSummaryService {
         }
         Map<String, BigDecimal> requests = new LinkedHashMap<>();
         Map<String, BigDecimal> planned = new LinkedHashMap<>();
-        for (Map.Entry<String, List<Bbugtm>> entry : budgetsByItem.entrySet()) {
+        for (Map.Entry<String, List<BudgetReadView>> entry : budgetsByItem.entrySet()) {
             Bitemm item = itemByPk.get(entry.getKey());
             if (item == null || item.getAbusMngNo() == null) continue;
-            Bbugtm representative = BudgetRepresentativeSelector.pick(entry.getValue());
+            BudgetReadView representative = BudgetRepresentativeSelector.pickView(entry.getValue());
             String key =
                     item.getAbusMngNo()
                             + "|"
@@ -240,20 +241,12 @@ public class BudgetProjectSummaryService {
 
     private Map<String, String> findProjectNames(Set<SourceKey> sourceKeys) {
         Set<String> projectNos = sourceValues(sourceKeys, "BPROJM");
-        Map<String, List<Bprojm>> historiesByNo = new LinkedHashMap<>();
-        if (!projectNos.isEmpty()) {
-            for (Bprojm project : projectRepository.findByAbusMngNoInAndDelYn(projectNos, "N")) {
-                historiesByNo
-                        .computeIfAbsent(project.getAbusMngNo(), ignored -> new ArrayList<>())
-                        .add(project);
-            }
-        }
         Map<String, String> result = new LinkedHashMap<>();
-        historiesByNo.forEach(
-                (key, histories) ->
-                        ProjectRepresentativeSelector.pickLatest(histories)
-                                .map(Bprojm::getAbusNm)
-                                .ifPresent(name -> result.put(key, name)));
+        if (!projectNos.isEmpty()) {
+            projectRepository
+                    .findKeyViewsByAbusMngNoInAndLstYnAndDelYn(projectNos, "Y", "N")
+                    .forEach(view -> result.put(view.getAbusMngNo(), view.getAbusNm()));
+        }
         return result;
     }
 
@@ -308,7 +301,7 @@ public class BudgetProjectSummaryService {
         return null;
     }
 
-    private BigDecimal reverseRequestAmount(Bbugtm budget) {
+    private BigDecimal reverseRequestAmount(BudgetReadView budget) {
         if (budget.getBgDupAmt() == null || budget.getAsgRt() == null || budget.getAsgRt() <= 0)
             return BigDecimal.ZERO;
         return budget.getBgDupAmt()
@@ -316,7 +309,7 @@ public class BudgetProjectSummaryService {
                 .divide(BigDecimal.valueOf(budget.getAsgRt()), 2, RoundingMode.HALF_UP);
     }
 
-    private List<Bbugtm> filterByApprovedSource(List<Bbugtm> budgets, String bgYy) {
+    private List<BudgetReadView> filterByApprovedSource(List<BudgetReadView> budgets, String bgYy) {
         Set<String> approvedSourcePks = budgetWorkQueryRepository.findApprovedSourcePks(bgYy);
         if (approvedSourcePks == null || approvedSourcePks.isEmpty()) return budgets;
         return budgets.stream()

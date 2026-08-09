@@ -27,6 +27,13 @@ public interface ProjectRepository
         String getAbusNm();
     }
 
+    /** 사업명 배치 조회용 최소 필드. */
+    interface ProjectKeyView {
+        String getAbusMngNo();
+
+        String getAbusNm();
+    }
+
     /**
      * 프로젝트 관리번호와 삭제여부로 단건 조회
      *
@@ -73,6 +80,10 @@ public interface ProjectRepository
      */
     Optional<ProjectNameView> findNameViewByAbusMngNoAndLstYnAndDelYn(
             String abusMngNo, String lstYn, String delYn);
+
+    /** 현재 유효 사업의 관리번호와 사업명을 배치 조회합니다. */
+    List<ProjectKeyView> findKeyViewsByAbusMngNoInAndLstYnAndDelYn(
+            Collection<String> abusMngNos, String lstYn, String delYn);
 
     /**
      * 프로젝트 관리번호와 삭제여부로 존재 여부 확인
