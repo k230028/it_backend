@@ -111,12 +111,9 @@ public class AdminRouteService {
     }
 
     private void validatePath(String srePth) {
-        if (srePth == null
-                || !srePth.startsWith("/")
-                || srePth.contains(" ")
-                || srePth.startsWith("http")) {
+        if (!MenuPathPolicy.isInternal(srePth) && !MenuPathPolicy.isExternalHttpUrl(srePth)) {
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "화면경로는 '/'로 시작하고 공백/외부 URL을 포함할 수 없습니다: " + srePth);
+                    HttpStatus.BAD_REQUEST, "화면경로는 내부 경로 또는 안전한 http(s) URL이어야 합니다: " + srePth);
         }
     }
 }

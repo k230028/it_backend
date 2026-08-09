@@ -49,11 +49,31 @@ class AdminRouteServiceTest {
     }
 
     @Test
-    @DisplayName("create: http로 시작하는 경로이면 예외를 던진다")
-    void create_http경로_예외() {
-        MenuDto.Route r =
-                MenuDto.Route.builder().srePth("http://example.com").sreMnuNm("외부").build();
-        assertThatThrownBy(() -> service.create(r)).isInstanceOf(ResponseStatusException.class);
+    @DisplayName("create: 안전한 HTTPS 외부 URL을 경로로 저장한다")
+    void create_외부Url_저장() {
+        MenuDto.Route route =
+                MenuDto.Route.builder()
+                        .srePth("https://docs.example.com/manual")
+                        .sreMnuNm("업무매뉴얼")
+                        .useYn("Y")
+                        .build();
+        given(cmenudRepository.findBySrePthAndDelYn(route.getSrePth(), "N"))
+                .willReturn(Optional.empty());
+
+        service.create(route);
+
+        verify(cmenudRepository).save(any(Cmenud.class));
+    }
+
+    @Test
+    @DisplayName("create: javascript URL은 거부한다")
+    void create_javascriptUrl_예외() {
+        MenuDto.Route route =
+                MenuDto.Route.builder().srePth("javascript:alert(1)").sreMnuNm("위험").build();
+
+        assertThatThrownBy(() -> service.create(route))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("내부 경로 또는 안전한 http(s) URL");
     }
 
     @Test
