@@ -15,7 +15,13 @@ class MenuPathPolicyTest {
 
     @ParameterizedTest
     @ValueSource(
-            strings = {"//evil.example/x", "budget/list", "/budget list", "https://example.com"})
+            strings = {
+                "//evil.example/x",
+                "/\\evil.example/path",
+                "budget/list",
+                "/budget list",
+                "https://example.com"
+            })
     void nonInternalPaths_areRejected(String value) {
         assertThat(MenuPathPolicy.isInternal(value)).isFalse();
     }
