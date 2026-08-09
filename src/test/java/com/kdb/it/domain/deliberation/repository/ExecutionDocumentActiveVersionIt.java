@@ -22,13 +22,15 @@ import org.springframework.beans.factory.annotation.Autowired;
  * 없다. 그래서 물리 PK {@code (DOC_MNG_NO, DOC_VRS_SNO)}가 이미 "문서당 활성행 1건"을 강제한다 — 리포지토리의 {@code
  * fetchOne()}이 {@code NonUniqueResultException}을 낼 수 없는 이유가 이것이다.
  *
- * <p>이 테스트는 그 전제를 <b>실측으로 고정</b>한다. 동시에 {@code docVrsSno}만 다르면 같은 문서에 활성행이 둘 생길 수 있다는 것도 함께 남긴다 —
- * DB가 막아주는 것은 "같은 버전의 중복"이지 "활성행의 유일성"이 아니다. 버전 기능이 실제로 추가되는 날 이 구멍이 열리며, 그것이 BE-24가 함수 기반 UNIQUE
- * 인덱스를 남겨 둔 이유다.
+ * <p>이 테스트는 그 전제를 <b>실측으로 고정</b>한다. 나아가 {@code docVrsSno}만 다른 두 번째 활성행도 거부되는지 함께 확인한다 — PK가 막는 것은
+ * "같은 버전의 중복"뿐이라 버전 기능이 추가되면 활성행이 둘이 될 수 있었고, 그 구멍을 막으려고 {@code
+ * V20260809_001__AddExecutionDocumentActiveVersionUniqueIndex.sql}이 세 테이블에 함수 기반 UNIQUE 인덱스 ({@code
+ * CASE WHEN LST_YN='Y' AND DEL_YN='N' THEN DOC_MNG_NO END})를 추가했다.
  *
- * <p>영속성 컨텍스트를 비운 뒤 다시 persist하므로 JPA 레벨의 단축 경로가 아니라 실제 INSERT가 DB 제약에 걸린다.
+ * <p>영속성 컨텍스트를 비운 뒤 다시 persist하므로 JPA 레벨의 단축 경로가 아니라 실제 INSERT가 DB 제약에 걸린다. 단언은 예외 종류가 아니라 {@code
+ * ORA-00001}을 직접 확인한다 — 종류만 보면 NOT NULL 누락 같은 다른 이유로 실패해도 통과하기 때문이다.
  */
-@DisplayName("집행 문서 3종: PK가 문서당 활성행 1건을 강제한다 (BE-24)")
+@DisplayName("집행 문서 3종: 문서당 활성행 1건을 DB가 강제한다 (BE-24)")
 class ExecutionDocumentActiveVersionIt extends AbstractOracleRepositoryTest {
 
     private static final LocalDateTime CREATED_AT = LocalDateTime.of(2026, 8, 1, 14, 0);
@@ -58,12 +60,44 @@ class ExecutionDocumentActiveVersionIt extends AbstractOracleRepositoryTest {
     }
 
     @Test
-    @DisplayName("버전이 다르면 같은 문서에 활성행이 둘 생긴다 — PK는 활성행 유일성을 보장하지 않는다")
-    void 버전이다르면_활성행둘_가능하다() {
+    @DisplayName("버전이 달라도 같은 문서의 두 번째 활성행은 UNIQUE 인덱스가 거부한다")
+    void 버전이달라도_두번째활성행_거부() {
         fixedSuffix = suffix();
         String docMngNo = "EDA-GAP-" + fixedSuffix;
 
         entityManager.persist(deliberation(docMngNo, 1));
+        entityManager.flush();
+        entityManager.clear();
+
+        // PK는 (DOC_MNG_NO, DOC_VRS_SNO)라 버전이 다르면 통과한다. 여기서 막는 주체는
+        // IX_TPRMPP_BDELIM_03(활성행만 색인하는 함수 기반 UNIQUE 인덱스)이다.
+        assertThatThrownBy(
+                        () -> {
+                            entityManager.persist(deliberation(docMngNo, 2));
+                            entityManager.flush();
+                        })
+                .as("버전이 달라도 활성행은 문서당 1건만 허용해야 한다")
+                .hasStackTraceContaining("ORA-00001");
+    }
+
+    @Test
+    @DisplayName("이전 버전을 LST_YN='N'으로 내리면 새 활성 버전을 만들 수 있다")
+    void 이전버전을_내리면_새활성버전_허용() {
+        fixedSuffix = suffix();
+        String docMngNo = "EDA-ROLL-" + fixedSuffix;
+
+        entityManager.persist(deliberation(docMngNo, 1));
+        entityManager.flush();
+
+        // 활성 플래그를 내린 행은 인덱스 식이 NULL이 되어 색인 대상에서 빠진다.
+        entityManager
+                .createQuery(
+                        "UPDATE Bdelim d SET d.lstYn = 'N'"
+                                + " WHERE d.docMngNo = :no AND d.docVrsSno = 1")
+                .setParameter("no", docMngNo)
+                .executeUpdate();
+        entityManager.clear();
+
         entityManager.persist(deliberation(docMngNo, 2));
         entityManager.flush();
         entityManager.clear();
@@ -77,9 +111,8 @@ class ExecutionDocumentActiveVersionIt extends AbstractOracleRepositoryTest {
                         .setParameter("no", docMngNo)
                         .getSingleResult();
 
-        // 현재 코드는 docVrsSno를 1로 고정하므로 이 상태가 만들어지지 않는다. 다만 DB 스키마만으로는
-        // 막히지 않는다는 사실을 남겨, 버전 기능 도입 시 UNIQUE 인덱스가 필요함을 상기시킨다(BE-24).
-        assertThat(activeRows).isEqualTo(2);
+        // 인덱스가 버전 전환 자체를 막지는 않는다 — 막는 것은 "활성행이 둘인 상태"뿐이다.
+        assertThat(activeRows).isEqualTo(1);
     }
 
     /**
