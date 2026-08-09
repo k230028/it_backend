@@ -48,7 +48,7 @@ class AuthSecurityBoundaryTest {
     @Test
     @DisplayName("POST /api/auth/logout - 인증 없이도 필터 체인을 통과해 Refresh 쿠키로 패밀리를 폐기한다")
     void logout_익명요청_필터체인통과() throws Exception {
-        given();
+        givenLogoutCookies();
 
         mockMvc.perform(
                         post("/api/auth/logout")
@@ -61,7 +61,7 @@ class AuthSecurityBoundaryTest {
     @Test
     @DisplayName("POST /api/auth/logout - Refresh 쿠키가 없으면 아무것도 폐기하지 않고 쿠키만 정리한다")
     void logout_쿠키없는익명요청_폐기없음() throws Exception {
-        given();
+        givenLogoutCookies();
 
         mockMvc.perform(post("/api/auth/logout")).andExpect(status().isOk());
 
@@ -77,7 +77,7 @@ class AuthSecurityBoundaryTest {
     }
 
     /** 로그아웃 응답의 쿠키 삭제 헤더 생성을 위한 공통 스텁. */
-    private void given() {
+    private void givenLogoutCookies() {
         ResponseCookie deleteCookie = ResponseCookie.from("dummy", "").maxAge(0).build();
         org.mockito.BDDMockito.given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteCookie);
         org.mockito.BDDMockito.given(cookieUtil.deleteRefreshTokenCookie())
