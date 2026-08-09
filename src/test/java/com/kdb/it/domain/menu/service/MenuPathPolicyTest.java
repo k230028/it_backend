@@ -22,6 +22,7 @@ class MenuPathPolicyTest {
                 "/budget list",
                 "/budget\u00A0list",
                 "/budget\u202Flist",
+                "/budget\uFEFFlist",
                 "https://example.com"
             })
     void nonInternalPaths_areRejected(String value) {
@@ -43,6 +44,7 @@ class MenuPathPolicyTest {
                 "https://user:pass@example.com/manual",
                 "https:///missing-host",
                 "https://example.com/a b",
+                "https://example.com/a\uFEFFb",
                 "https://example.com:70000/manual"
             })
     void unsafeExternalUrls_areRejected(String value) {

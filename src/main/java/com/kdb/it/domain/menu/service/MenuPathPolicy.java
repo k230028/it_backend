@@ -52,6 +52,7 @@ public final class MenuPathPolicy {
                 .anyMatch(
                         character ->
                                 Character.isWhitespace(character)
-                                        || Character.isSpaceChar(character));
+                                        || Character.isSpaceChar(character)
+                                        || character == '\uFEFF');
     }
 }
