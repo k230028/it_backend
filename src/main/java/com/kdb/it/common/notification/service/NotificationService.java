@@ -1,5 +1,6 @@
 package com.kdb.it.common.notification.service;
 
+import com.kdb.it.common.notification.dto.NotificationDto;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,9 +33,11 @@ public class NotificationService {
      * @param pageable 페이지 번호·크기·정렬 조건
      * @return 삭제되지 않은 본인 알림 페이지
      */
-    public Page<Cinfmm> listForCurrentUser(
+    public Page<NotificationDto.Item> listForCurrentUser(
             String currentEno, Boolean unreadOnly, Pageable pageable) {
-        return cinfmmRepository.findInbox(currentEno, unreadOnly, pageable);
+        return cinfmmRepository
+                .findInboxRows(currentEno, unreadOnly, pageable)
+                .map(NotificationDto.Item::fromProjection);
     }
 
     /**

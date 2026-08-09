@@ -2,6 +2,7 @@ package com.kdb.it.common.notification.repository;
 
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.entity.QCinfmm;
+import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -46,6 +47,38 @@ public class CinfmmRepositoryImpl implements CinfmmRepositoryCustom {
 
         Long total = query.select(c.count()).from(c).where(where).fetchOne();
 
+        return new PageImpl<>(rows, pageable, total == null ? 0 : total);
+    }
+
+    /** {@link #findInbox}와 동일한 필터·정렬·페이지 계약으로 응답 필드만 조회합니다. */
+    @Override
+    public Page<NotificationInboxRow> findInboxRows(
+            String rmsEno, Boolean unreadOnly, Pageable pageable) {
+        var where = c.rmsEno.eq(rmsEno).and(c.delYn.eq("N"));
+        if (Boolean.TRUE.equals(unreadOnly)) {
+            where = where.and(c.inqYn.eq("N"));
+        }
+
+        List<NotificationInboxRow> rows =
+                query.select(
+                                Projections.constructor(
+                                        NotificationInboxRow.class,
+                                        c.infmMsgNo,
+                                        c.itPtlInfmSvcTc,
+                                        c.ttl,
+                                        c.infmMsgCone,
+                                        c.infmRcdUrl,
+                                        c.inqYn,
+                                        c.inqDtm,
+                                        c.fstEnrDtm))
+                        .from(c)
+                        .where(where)
+                        .orderBy(c.fstEnrDtm.desc())
+                        .offset(pageable.getOffset())
+                        .limit(pageable.getPageSize())
+                        .fetch();
+
+        Long total = query.select(c.count()).from(c).where(where).fetchOne();
         return new PageImpl<>(rows, pageable, total == null ? 0 : total);
     }
 

@@ -17,6 +17,9 @@ public interface CinfmmRepositoryCustom {
      */
     Page<Cinfmm> findInbox(String rmsEno, Boolean unreadOnly, Pageable pageable);
 
+    /** 수신자별 알림 목록을 응답 최소 필드로 페이지 조회합니다. */
+    Page<NotificationInboxRow> findInboxRows(String rmsEno, Boolean unreadOnly, Pageable pageable);
+
     /**
      * 수신자별 미조회(미읽음) 카운트.
      *

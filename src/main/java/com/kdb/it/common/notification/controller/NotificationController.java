@@ -55,10 +55,8 @@ public class NotificationController {
                     @RequestParam(value = "size", defaultValue = "20")
                     int size) {
         Page<NotificationDto.Item> result =
-                notificationService
-                        .listForCurrentUser(
-                                currentUser.getEno(), unreadOnly, PageRequest.of(page, size))
-                        .map(NotificationDto.Item::fromEntity);
+                notificationService.listForCurrentUser(
+                        currentUser.getEno(), unreadOnly, PageRequest.of(page, size));
         return ResponseEntity.ok(result);
     }
 

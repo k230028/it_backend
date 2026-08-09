@@ -1,6 +1,7 @@
 package com.kdb.it.common.notification.dto;
 
 import com.kdb.it.common.notification.entity.Cinfmm;
+import com.kdb.it.common.notification.repository.NotificationInboxRow;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -76,6 +77,20 @@ public final class NotificationDto {
                     .inqYn(e.getInqYn())
                     .inqDtm(e.getInqDtm())
                     .fstEnrDtm(e.getFstEnrDtm())
+                    .build();
+        }
+
+        /** 알림함 최소 필드 프로젝션을 API 응답으로 변환합니다. */
+        public static Item fromProjection(NotificationInboxRow row) {
+            return Item.builder()
+                    .infmMsgNo(row.infmMsgNo())
+                    .itPtlInfmSvcTc(row.itPtlInfmSvcTc())
+                    .ttl(row.ttl())
+                    .infmMsgCone(row.infmMsgCone())
+                    .infmRcdUrl(row.infmRcdUrl())
+                    .inqYn(row.inqYn())
+                    .inqDtm(row.inqDtm())
+                    .fstEnrDtm(row.fstEnrDtm())
                     .build();
         }
     }

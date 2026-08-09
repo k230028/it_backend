@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.kdb.it.common.notification.entity.Cinfmm;
+import com.kdb.it.common.notification.dto.NotificationDto;
 import com.kdb.it.common.notification.service.NotificationService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
@@ -55,8 +55,8 @@ class NotificationControllerTest {
     @Test
     @DisplayName("GET /api/notifications: 조회 결과를 알림 DTO 페이지로 반환한다")
     void list_인증사용자_페이지반환() throws Exception {
-        Cinfmm notification =
-                Cinfmm.builder()
+        NotificationDto.Item notification =
+                NotificationDto.Item.builder()
                         .infmMsgNo("INF-1")
                         .itPtlInfmSvcTc("01")
                         .ttl("공지")

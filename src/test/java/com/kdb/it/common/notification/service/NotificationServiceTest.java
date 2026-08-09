@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.notification.dto.NotificationDto;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
+import com.kdb.it.common.notification.repository.NotificationInboxRow;
 import java.lang.reflect.Method;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,14 +41,22 @@ class NotificationServiceTest {
     @DisplayName("listForCurrentUser: 조회 조건과 페이지 정보를 리포지토리에 전달한다")
     void listForCurrentUser_조건전달() {
         PageRequest pageable = PageRequest.of(1, 5);
-        Page<Cinfmm> page =
-                new PageImpl<>(java.util.List.of(Cinfmm.builder().infmMsgNo("INF-1").build()));
-        given(cinfmmRepository.findInbox("10001", true, pageable)).willReturn(page);
+        LocalDateTime createdAt = LocalDateTime.of(2026, 8, 9, 9, 10);
+        Page<NotificationInboxRow> page =
+                new PageImpl<>(
+                        java.util.List.of(
+                                new NotificationInboxRow(
+                                        "INF-1", "01", "제목", "내용", "/route", "N", null,
+                                        createdAt)));
+        given(cinfmmRepository.findInboxRows("10001", true, pageable)).willReturn(page);
 
-        Page<Cinfmm> result = notificationService.listForCurrentUser("10001", true, pageable);
+        Page<NotificationDto.Item> result =
+                notificationService.listForCurrentUser("10001", true, pageable);
 
-        assertThat(result).isSameAs(page);
-        verify(cinfmmRepository).findInbox("10001", true, pageable);
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent().getFirst().getInfmMsgNo()).isEqualTo("INF-1");
+        assertThat(result.getContent().getFirst().getFstEnrDtm()).isEqualTo(createdAt);
+        verify(cinfmmRepository).findInboxRows("10001", true, pageable);
     }
 
     @Test
