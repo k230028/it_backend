@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
@@ -106,8 +108,40 @@ class FileControllerTest {
                 new MockMultipartFile(
                         "pkColNm", "", MediaType.TEXT_PLAIN_VALUE, "요구사항정의서".getBytes());
 
-        mockMvc.perform(multipart("/api/files").file(file).file(flTpCone).file(pkColNm))
+        mockMvc.perform(
+                        multipart("/api/files")
+                                .file(file)
+                                .file(flTpCone)
+                                .file(pkColNm)
+                                .header(SimpleRequestCsrfFilter.REQUIRED_HEADER, "XMLHttpRequest"))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("POST /api/files (multipart) - 커스텀 헤더 없는 단순 요청은 403으로 차단")
+    @WithMockUser(username = "10001")
+    void uploadFile_단순요청_403() throws Exception {
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "test.pdf",
+                        MediaType.APPLICATION_PDF_VALUE,
+                        "pdf content".getBytes());
+
+        // 브라우저 HTML 폼이 보내는 형태 — 파트에 Content-Type이 없고 커스텀 헤더도 없다.
+        // SimpleRequestCsrfFilter가 preflight를 우회한 변경 요청으로 판정해 차단해야 한다.
+        mockMvc.perform(
+                        multipart("/api/files")
+                                .file(file)
+                                .file(
+                                        new MockMultipartFile(
+                                                "flTpCone", null, null, "첨부파일".getBytes()))
+                                .file(
+                                        new MockMultipartFile(
+                                                "pkColNm", null, null, "요구사항정의서".getBytes())))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(fileService);
     }
 
     @Test
@@ -126,7 +160,12 @@ class FileControllerTest {
                 new MockMultipartFile(
                         "pkColNm", "", MediaType.TEXT_PLAIN_VALUE, "요구사항정의서".getBytes());
 
-        mockMvc.perform(multipart("/api/files/bulk").file(file1).file(flTpCone).file(pkColNm))
+        mockMvc.perform(
+                        multipart("/api/files/bulk")
+                                .file(file1)
+                                .file(flTpCone)
+                                .file(pkColNm)
+                                .header(SimpleRequestCsrfFilter.REQUIRED_HEADER, "XMLHttpRequest"))
                 .andExpect(status().isOk());
     }
 
@@ -165,6 +204,9 @@ class FileControllerTest {
                                                 "",
                                                 MediaType.TEXT_PLAIN_VALUE,
                                                 "NAC-2026-0001".getBytes()))
+                                // 권한 검증 단계까지 도달했음을 보장하기 위해 CSRF 보완 헤더를 붙인다.
+                                // 없으면 SimpleRequestCsrfFilter가 먼저 403을 내어 검증 의도가 가려진다.
+                                .header(SimpleRequestCsrfFilter.REQUIRED_HEADER, "XMLHttpRequest")
                                 .with(user(userDetails)))
                 .andExpect(status().isForbidden());
 
@@ -206,6 +248,8 @@ class FileControllerTest {
                                                 "",
                                                 MediaType.TEXT_PLAIN_VALUE,
                                                 "101".getBytes()))
+                                // 권한 검증 단계까지 도달했음을 보장하기 위해 CSRF 보완 헤더를 붙인다.
+                                .header(SimpleRequestCsrfFilter.REQUIRED_HEADER, "XMLHttpRequest")
                                 .with(user(userDetails)))
                 .andExpect(status().isForbidden());
 

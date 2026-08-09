@@ -3,6 +3,7 @@ package com.kdb.it.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
+import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -16,7 +17,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 class SecurityConfigCorsTest {
 
     private CorsConfiguration corsFor(String origins) {
-        SecurityConfig config = new SecurityConfig(Mockito.mock(JwtAuthenticationFilter.class));
+        SecurityConfig config =
+                new SecurityConfig(
+                        Mockito.mock(JwtAuthenticationFilter.class),
+                        Mockito.mock(SimpleRequestCsrfFilter.class));
         ReflectionTestUtils.setField(config, "allowedOrigins", origins);
         UrlBasedCorsConfigurationSource source =
                 (UrlBasedCorsConfigurationSource) config.corsConfigurationSource();
@@ -62,7 +66,10 @@ class SecurityConfigCorsTest {
     private static final String EXTERNAL_ORIGIN = "http://intesso.kdb.co.kr:20080";
 
     private CorsConfiguration configFor(String uri) {
-        SecurityConfig config = new SecurityConfig(Mockito.mock(JwtAuthenticationFilter.class));
+        SecurityConfig config =
+                new SecurityConfig(
+                        Mockito.mock(JwtAuthenticationFilter.class),
+                        Mockito.mock(SimpleRequestCsrfFilter.class));
         ReflectionTestUtils.setField(
                 config, "allowedOrigins", "http://localhost:3000,http://localhost:3002");
         CorsConfigurationSource source = config.corsConfigurationSource();
@@ -103,7 +110,10 @@ class SecurityConfigCorsTest {
     @Test
     @DisplayName("API와 SSO CORS는 자격증명·허용 Origin·메서드 경계를 분리한다")
     void apiAndSsoCors_credentialAndOriginBoundaries() {
-        SecurityConfig config = new SecurityConfig(Mockito.mock(JwtAuthenticationFilter.class));
+        SecurityConfig config =
+                new SecurityConfig(
+                        Mockito.mock(JwtAuthenticationFilter.class),
+                        Mockito.mock(SimpleRequestCsrfFilter.class));
         ReflectionTestUtils.setField(config, "allowedOrigins", "http://localhost:3000");
         CorsConfigurationSource source = config.corsConfigurationSource();
 

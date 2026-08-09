@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
 import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
 import com.kdb.it.common.util.CookieUtil;
 import jakarta.servlet.http.Cookie;
 import java.util.List;
@@ -67,6 +68,7 @@ class OpenApiDisabledSecurityTest {
         SecurityConfig.class,
         SwaggerConfig.class,
         JwtAuthenticationFilter.class,
+        SimpleRequestCsrfFilter.class,
         JwtUtil.class
     })
     static class OpenApiDisabledSecurityTestApp {}

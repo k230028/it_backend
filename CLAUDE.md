@@ -73,6 +73,9 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 관리자 전용 컨트롤러는 클래스 수준 `@PreAuthorize("hasRole('ADMIN')")`를 적용합니다.
 - 관리자 전용이 아닌 업무 컨트롤러는 서비스 계층에서 소유자·역할·업무 범위를 검증합니다.
 - Cookie 기반 JWT는 Stateless여도 CSRF 검토 대상입니다. Access/Refresh/User/SSO 상태 쿠키 또는 `JSESSIONID`의 `SameSite=None` 전환, credentialed `/api/**`의 새 교차 사이트 Origin·와일드카드·패턴 허용, cross-site iframe/별도 사이트 SPA의 쿠키 API 호출, `/sso/**`의 `allowCredentials=true` 전환 중 하나라도 발생하면 같은 배포 단위에서 CSRF 토큰 또는 동등한 서버 검증 Origin/nonce 방어를 적용합니다. 모든 GET은 순수 조회로 유지하고 상태 변경 GET은 금지합니다.
+- `SameSite=Lax`는 **교차 사이트**만 막고 동일 등록가능도메인의 다른 호스트(형제 서브도메인)는 동일 사이트로 취급합니다. 그 구간은 JSON 본문이 유발하는 preflight와 CORS 허용 목록이 막으므로, **변경 API가 JSON 본문을 쓴다는 전제**가 방어의 일부입니다. CORS 안전 목록 Content-Type(`multipart/form-data`, `application/x-www-form-urlencoded`, `text/plain`)은 preflight가 발생하지 않아 이 전제를 벗어납니다.
+- 그래서 위 세 Content-Type의 변경 요청에는 `SimpleRequestCsrfFilter`가 `X-Requested-With` 헤더를 요구합니다. 단순 요청은 커스텀 헤더를 붙일 수 없어 헤더의 존재 자체가 preflight를 거쳤다는 증거이며, preflight가 발생하면 CORS 허용 목록이 다시 작동합니다. 파일 업로드처럼 multipart를 받는 엔드포인트를 추가할 때 별도 조치는 필요 없고, 호출하는 클라이언트가 이 헤더를 보내야 합니다(프론트는 `$apiFetch`가 자동 부착). `/sso/**`는 외부 ESSO의 전체 페이지 폼 콜백이라 제외 대상입니다.
+- 변경 API에 `consumes`를 지정해 본문 형식을 못박습니다. 형식이 맞지 않는 요청은 415로 거부되므로, Content-Type이 없는 요청까지 위 필터가 중복해 막지 않습니다.
 - 비밀값은 환경변수로 주입하고 운영 프로파일에서 개발용 폴백을 사용하지 않습니다.
 - 사용자 HTML은 저장 전에 `HtmlSanitizer.sanitize()`를 적용합니다.
 - 파일 쓰기·삭제는 업로더 또는 관리자만 허용합니다. 파일 읽기는 파일 종류(PK_COL_NM)별 authorizer가 부모 자원 권한을 재사용해 판정합니다(default-deny, 미등록 종류는 관리자만). 공통게시판=게시물 공개 여부, 요구사항정의서=관리자/작성자/주관부서, 협의회 연계(사업계획서·타당성검토표·협의회관련자료)=관리자/정보보안관리자/협의회 위원/관련부서, 가이드문서=인증 사용자 전체.

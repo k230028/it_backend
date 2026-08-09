@@ -2,6 +2,7 @@ package com.kdb.it.config;
 
 import com.kdb.it.common.sso.SsoController;
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
+import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
 import com.kdb.it.common.util.CustomPasswordEncoder;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
@@ -35,7 +36,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * <p>주요 보안 설정:
  *
  * <ul>
- *   <li>CSRF: 비활성화 (Stateless API + SameSite/CORS 운영 전제)
+ *   <li>CSRF 토큰: 비활성화 (Stateless API + SameSite/CORS 운영 전제)
+ *   <li>CSRF 보완: {@link SimpleRequestCsrfFilter} — preflight를 우회하는 단순 요청 Content-Type 변경 요청 차단
  *   <li>세션: STATELESS (JWT 토큰으로 인증 상태 유지)
  *   <li>CORS: {@code cors.allowed-origins}의 명시 Origin만 허용
  *   <li>인증 필터: {@link JwtAuthenticationFilter} → {@link UsernamePasswordAuthenticationFilter} 앞에 삽입
@@ -70,6 +72,9 @@ public class SecurityConfig {
 
     /** JWT 인증 처리 필터 (매 요청마다 JWT 토큰 검증) */
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    /** preflight를 우회하는 단순 요청 Content-Type의 변경 요청을 차단하는 CSRF 보완 필터 */
+    private final SimpleRequestCsrfFilter simpleRequestCsrfFilter;
 
     /**
      * 허용할 CORS Origin 목록 모든 환경에서 {@code application.properties}의 {@code cors.allowed-origins}에 명시한
@@ -129,7 +134,8 @@ public class SecurityConfig {
                                                                 contentSecurityPolicy())))
                 // CORS 설정 적용 (corsConfigurationSource 빈 사용)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                // CSRF 보호 비활성화: httpOnly 쿠키를 쓰므로 운영 SameSite/CORS 설정과 함께 관리
+                // CSRF 토큰 비활성화: httpOnly 쿠키를 쓰므로 운영 SameSite/CORS 설정과 함께 관리한다.
+                // 단 CORS 안전 목록 Content-Type은 preflight를 우회하므로 SimpleRequestCsrfFilter가 보완한다.
                 .csrf(value -> value.disable())
                 // Stateless 세션 설정 (JWT 사용): 서버가 세션을 생성/유지하지 않음
                 .sessionManagement(
@@ -217,7 +223,9 @@ public class SecurityConfig {
                 // JWT 필터를 UsernamePasswordAuthenticationFilter 앞에 삽입
                 // → 모든 요청에서 JWT 토큰 먼저 검증
                 .addFilterBefore(
-                        jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                        jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // CSRF 보완 필터는 인증보다 먼저 판정해 단순 요청 변경 시도를 즉시 403으로 끊는다.
+                .addFilterBefore(simpleRequestCsrfFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

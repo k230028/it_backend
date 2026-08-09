@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
 import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.domain.log.listener.AuditFailureRecorder;
 import jakarta.servlet.http.Cookie;
@@ -147,6 +148,7 @@ class SecurityConfigTest {
         SecurityConfig.class,
         SwaggerConfig.class,
         JwtAuthenticationFilter.class,
+        SimpleRequestCsrfFilter.class,
         JwtUtil.class,
         AuditFailureRecorder.class,
         SecurityProbeController.class
