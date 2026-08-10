@@ -18,7 +18,9 @@ class StubNotificationDispatcherTest {
 
     private final NotificationDispatcherRouter dispatcher =
             new NotificationDispatcherRouter(
-                    mock(EaiService.class), new GweProperties("TEST00000001"));
+                    mock(EaiService.class),
+                    new GweProperties("TEST00000001"),
+                    "https://itp.example");
 
     @Test
     @DisplayName("dispatch: 인앱 채널은 성공 결과만 반환하고 상태를 변경하지 않는다")

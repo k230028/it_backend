@@ -17,7 +17,7 @@ class EpamsGweReferenceBuilder {
 
     String build(GwePayload g) {
         String msgKey =
-                "mailt"
+                ("1".equals(g.msgGubun()) ? "alert" : "mailt")
                         + ctx.props().appC()
                         + ctx.props().appBzLv1C()
                         + ctx.date("yyyyMMddHHmmss")

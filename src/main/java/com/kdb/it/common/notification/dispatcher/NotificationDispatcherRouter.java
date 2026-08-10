@@ -6,10 +6,12 @@ import com.kdb.it.infra.eai.dto.EaiRequest;
 import com.kdb.it.infra.eai.dto.EaiResult;
 import com.kdb.it.infra.eai.dto.GwePayload;
 import com.kdb.it.infra.eai.service.EaiService;
-import lombok.RequiredArgsConstructor;
+import java.util.Locale;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * 알림 채널 라우터.
@@ -19,7 +21,6 @@ import org.springframework.util.StringUtils;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class NotificationDispatcherRouter implements NotificationDispatcher {
 
     /** 인앱 채널 코드 — 공통코드 {@code C_ID='SD'} / CDVA='01'. */
@@ -30,6 +31,16 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
 
     private final EaiService eaiService;
     private final GweProperties gweProperties;
+    private final String frontendUrl;
+
+    public NotificationDispatcherRouter(
+            EaiService eaiService,
+            GweProperties gweProperties,
+            @Value("${app.frontend-url}") String frontendUrl) {
+        this.eaiService = eaiService;
+        this.gweProperties = gweProperties;
+        this.frontendUrl = frontendUrl;
+    }
 
     @Override
     public NotificationDispatchResult dispatch(Cinfmm notification, String sdPayload) {
@@ -57,16 +68,18 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
                             EaiRequest.gwe(
                                     gweProperties.ifId(),
                                     GwePayload.builder()
-                                            .msgGubun("1")
-                                            .recvIds(notification.getRmsEno())
+                                            .msgGubun("3")
+                                            .recvIds(normalizeRecipient(notification.getRmsEno()))
                                             .subject(
                                                     defaultText(
                                                             notification.getTtl(), "IT Portal 알림"))
                                             .contents(
-                                                    defaultText(
-                                                            notification.getInfmMsgCone(),
-                                                            "새 알림이 도착했습니다."))
-                                            .url(notification.getInfmRcdUrl())
+                                                    mailContents(
+                                                            defaultText(
+                                                                    notification.getInfmMsgCone(),
+                                                                    "새 알림이 도착했습니다.")))
+                                            .url("")
+                                            .attFlag("0")
                                             .sendId("systemalert")
                                             .sendName("IT Portal")
                                             .build()));
@@ -82,5 +95,18 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
 
     private String defaultText(String value, String fallback) {
         return StringUtils.hasText(value) ? value : fallback;
+    }
+
+    private String normalizeRecipient(String recipientEno) {
+        return recipientEno == null ? "" : recipientEno.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String mailContents(String body) {
+        String approvalUrl = frontendUrl.replaceAll("/+$", "") + "/approval/list?tab=pending";
+        return "<p>"
+                + HtmlUtils.htmlEscape(body)
+                + "</p><p><a href=\""
+                + HtmlUtils.htmlEscape(approvalUrl)
+                + "\">결재 화면으로 이동</a></p>";
     }
 }

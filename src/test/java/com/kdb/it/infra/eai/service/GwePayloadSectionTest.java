@@ -76,4 +76,12 @@ class GwePayloadSectionTest {
                                         .build()))
                 .isFalse();
     }
+
+    @Test
+    @DisplayName("메신저 메시지 키는 alert 접두사를 사용한다")
+    void messengerMessageKey_usesAlertPrefix() {
+        GwePayload messenger = GwePayload.builder().msgGubun("1").recvIds("K0001").build();
+
+        assertThat(new GwePayloadSection().build(messenger, fixedCtx())).startsWith("alertPRMPP");
+    }
 }

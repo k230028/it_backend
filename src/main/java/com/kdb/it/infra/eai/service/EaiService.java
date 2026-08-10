@@ -29,6 +29,7 @@ public class EaiService {
     private final RestClient restClient;
     private final Charset charset;
     private final EaiMessageBuilder builder;
+    private final EaiErrorResponseParser errorResponseParser = new EaiErrorResponseParser();
 
     public EaiService(
             EaiProperties props,
@@ -75,21 +76,42 @@ public class EaiService {
         }
 
         try {
-            byte[] response =
+            EaiResult result =
                     restClient
                             .post()
                             .uri(props.url())
                             .contentType(MediaType.APPLICATION_OCTET_STREAM)
                             .body(message)
-                            .retrieve()
-                            .body(byte[].class);
-            String responseRaw = (response == null) ? "" : new String(response, charset);
-            log.info(
-                    "EAI 전송 성공: ifId={}, payload={}, reqLen={}바이트",
-                    request.ifId(),
-                    request.payload().getClass().getSimpleName(),
-                    message.length);
-            return EaiResult.success(responseRaw);
+                            .exchange(
+                                    (httpRequest, response) -> {
+                                        int status = response.getStatusCode().value();
+                                        byte[] responseBody = response.getBody().readAllBytes();
+                                        if (status == 204) {
+                                            return EaiResult.success("");
+                                        }
+                                        if (status == 200) {
+                                            String error =
+                                                    errorResponseParser
+                                                            .parse(responseBody, charset)
+                                                            .orElse("EAI 오류 응답 파싱 실패");
+                                            return EaiResult.failure(error);
+                                        }
+                                        return EaiResult.failure("EAI HTTP 오류: " + status);
+                                    });
+            if (result.success()) {
+                log.info(
+                        "EAI 전송 성공: ifId={}, payload={}, reqLen={}바이트",
+                        request.ifId(),
+                        request.payload().getClass().getSimpleName(),
+                        message.length);
+            } else {
+                log.warn(
+                        "EAI 응답 오류: ifId={}, payload={}, 사유={}",
+                        request.ifId(),
+                        request.payload().getClass().getSimpleName(),
+                        result.errorMessage());
+            }
+            return result;
         } catch (RuntimeException e) {
             log.warn(
                     "EAI 전송 실패: ifId={}, payload={}, 사유={}",

@@ -5,6 +5,7 @@ import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.kdb.it.infra.eai.config.EaiProperties;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -88,8 +90,7 @@ class EaiServiceTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         server.expect(requestTo("http://eai.test/eai"))
                 .andExpect(method(POST))
-                .andRespond(
-                        withSuccess("RES-OK".getBytes(MS949), MediaType.APPLICATION_OCTET_STREAM));
+                .andRespond(withStatus(HttpStatus.NO_CONTENT));
         RestClient client = builder.build();
 
         EaiProperties props =
@@ -108,7 +109,7 @@ class EaiServiceTest {
 
         server.verify();
         assertThat(r.success()).isTrue();
-        assertThat(r.responseRaw()).isEqualTo("RES-OK");
+        assertThat(r.responseRaw()).isEmpty();
     }
 
     @Test
@@ -277,8 +278,7 @@ class EaiServiceTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         server.expect(requestTo("http://eai.test/eai"))
                 .andExpect(method(POST))
-                .andRespond(
-                        withSuccess("RES-OK".getBytes(MS949), MediaType.APPLICATION_OCTET_STREAM));
+                .andRespond(withStatus(HttpStatus.NO_CONTENT));
         RestClient client = builder.build();
         EaiProperties props =
                 new EaiProperties(
@@ -307,8 +307,8 @@ class EaiServiceTest {
     }
 
     @Test
-    @DisplayName("서버 응답 body가 빈 배열이면 responseRaw 빈 문자열로 success 반환 (null-or-empty 분기)")
-    void emptyBody_responseRaw_empty() {
+    @DisplayName("HTTP 200 빈 응답은 EAI 오류 전문 파싱 실패로 처리한다")
+    void http200EmptyBody_returnsFailure() {
         // Arrange — 서버가 빈 응답 바디를 반환하는 시나리오 (body="" 는 null 분기 또는 빈 배열 분기)
         RestClient.Builder builder = RestClient.builder().baseUrl("http://eai.test");
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
@@ -332,9 +332,45 @@ class EaiServiceTest {
         EaiResult r = service(props, client).sendEai(req());
 
         server.verify();
-        assertThat(r.success()).isTrue();
-        // 빈 바이트 배열 → responseRaw = ""
-        assertThat(r.responseRaw()).isEqualTo("");
+        assertThat(r.success()).isFalse();
+        assertThat(r.errorMessage()).contains("파싱 실패");
+    }
+
+    @Test
+    @DisplayName("HTTP 200 EAI 오류 전문은 SEEAI 코드를 포함한 실패로 처리한다")
+    void http200ErrorMessage_returnsFailureWithErrorCode() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("http://eai.test");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        byte[] response = eaiErrorResponse("SEEAI00001");
+        server.expect(requestTo("http://eai.test/eai"))
+                .andRespond(withSuccess(response, MediaType.APPLICATION_OCTET_STREAM));
+
+        EaiProperties props =
+                new EaiProperties(
+                        true,
+                        "http://eai.test/eai",
+                        "MS949",
+                        3000,
+                        3000,
+                        "L",
+                        "IPP",
+                        "IPP",
+                        "PRM",
+                        "PP");
+
+        EaiResult result = service(props, builder.build()).sendEai(req());
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("SEEAI00001");
+    }
+
+    private byte[] eaiErrorResponse(String errorCode) {
+        byte[] response = " ".repeat(1100).getBytes(MS949);
+        response[241] = '2';
+        response[1013] = '1';
+        byte[] code = errorCode.getBytes(MS949);
+        System.arraycopy(code, 0, response, 1020, code.length);
+        return response;
     }
 
     @Test
