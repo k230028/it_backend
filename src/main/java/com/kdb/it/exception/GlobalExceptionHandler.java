@@ -1,5 +1,6 @@
 package com.kdb.it.exception;
 
+import com.kdb.it.common.mfa.exception.MfaException;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -60,6 +61,18 @@ public class GlobalExceptionHandler {
             CustomGeneralException e) {
         log.warn("비즈니스 예외 발생: {}", e.getMessage());
         return buildErrorResponse(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    /** MFA 표준 오류를 클라이언트가 분기할 수 있는 코드와 HTTP 상태로 변환한다. */
+    @ExceptionHandler(MfaException.class)
+    public ResponseEntity<Map<String, Object>> handleMfaException(MfaException e) {
+        log.warn("MFA 거래 거부: code={}", e.errorCode().name());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", e.errorCode().status().value());
+        body.put("code", e.errorCode().name());
+        body.put("message", e.errorCode().message());
+        return ResponseEntity.status(e.errorCode().status()).body(body);
     }
 
     /**

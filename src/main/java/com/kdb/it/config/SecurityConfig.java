@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -155,6 +156,9 @@ public class SecurityConfig {
                                             // 쿠키가 없으면 아무것도 폐기하지 않는다(무자격 폐기 불가).
                                             // 쿠키는 SameSite=Lax이므로 교차 사이트 POST에는 실리지 않는다.
                                             "/api/auth/logout",
+                                            // MFA 용도는 요청 본문과 서버 거래에서 판정한다. 로그인 거래만 JWT 없이
+                                            // 통과시키며, 결재 거래는 MfaService가 JWT 소유권 없이는 즉시 거부한다.
+                                            "/api/mfa/challenges",
                                             "/error",
                                             // 브라우저 기본 요청 — 인증 불필요(인증 실패 WARN 로그 노이즈 제거)
                                             "/favicon.ico",
@@ -163,6 +167,10 @@ public class SecurityConfig {
                                             "/sso/**",
                                             // SSO 브리지 — loginProc에서 리다이렉트되는 JWT 발급 엔드포인트
                                             "/api/auth/sso/complete")
+                                    .permitAll();
+                            auth.requestMatchers(HttpMethod.POST, "/api/mfa/challenges/*/verify")
+                                    .permitAll();
+                            auth.requestMatchers(HttpMethod.DELETE, "/api/mfa/challenges/*")
                                     .permitAll();
                             // API 문서는 활성 프로파일에서만 익명 접근을 허용한다.
                             if (apiDocsEnabled) {

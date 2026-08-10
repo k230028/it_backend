@@ -69,6 +69,21 @@ public class InMemoryMfaTransactionStore implements MfaTransactionStore {
     }
 
     @Override
+    public Optional<MfaTransaction> delete(String tokenHash, Instant now) {
+        AtomicReference<MfaTransaction> deleted = new AtomicReference<>();
+        transactions.computeIfPresent(
+                tokenHash,
+                (ignored, transaction) -> {
+                    if (transaction.isExpiredAt(now)) {
+                        return null;
+                    }
+                    deleted.set(transaction);
+                    return null;
+                });
+        return Optional.ofNullable(deleted.get());
+    }
+
+    @Override
     public Optional<MfaTransaction> consumeVerifiedOnce(
             String tokenHash, String eno, MfaPurpose purpose, Instant now) {
         AtomicReference<MfaTransaction> consumed = new AtomicReference<>();

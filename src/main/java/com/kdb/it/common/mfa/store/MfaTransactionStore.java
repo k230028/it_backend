@@ -16,6 +16,8 @@ public interface MfaTransactionStore {
 
     Optional<MfaTransaction> fail(String tokenHash, Instant now, int maxFailures);
 
+    Optional<MfaTransaction> delete(String tokenHash, Instant now);
+
     Optional<MfaTransaction> consumeVerifiedOnce(
             String tokenHash, String eno, MfaPurpose purpose, Instant now);
 }

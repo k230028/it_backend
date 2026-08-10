@@ -11,6 +11,7 @@ public final class MfaTransaction {
     private final MfaPurpose purpose;
     private final MfaMethod method;
     private final Instant expiresAt;
+    private final String providerChallengeHash;
     private final MfaTransactionStatus status;
     private final Instant verifiedAt;
     private final int failureCount;
@@ -21,6 +22,7 @@ public final class MfaTransaction {
             MfaPurpose purpose,
             MfaMethod method,
             Instant expiresAt,
+            String providerChallengeHash,
             MfaTransactionStatus status,
             Instant verifiedAt,
             int failureCount) {
@@ -45,6 +47,7 @@ public final class MfaTransaction {
         this.purpose = purpose;
         this.method = method;
         this.expiresAt = expiresAt;
+        this.providerChallengeHash = providerChallengeHash;
         this.status = status;
         this.verifiedAt = verifiedAt;
         this.failureCount = failureCount;
@@ -54,7 +57,36 @@ public final class MfaTransaction {
     public static MfaTransaction pending(
             String tokenHash, String eno, MfaPurpose purpose, MfaMethod method, Instant expiresAt) {
         return new MfaTransaction(
-                tokenHash, eno, purpose, method, expiresAt, MfaTransactionStatus.PENDING, null, 0);
+                tokenHash,
+                eno,
+                purpose,
+                method,
+                expiresAt,
+                null,
+                MfaTransactionStatus.PENDING,
+                null,
+                0);
+    }
+
+    /** 공급자 challenge 해시를 결속한 대기 상태 MFA 거래를 생성한다. */
+    public static MfaTransaction pending(
+            String tokenHash,
+            String eno,
+            MfaPurpose purpose,
+            MfaMethod method,
+            Instant expiresAt,
+            String providerChallengeHash) {
+        Objects.requireNonNull(providerChallengeHash, "공급자 challenge 해시는 필수입니다.");
+        return new MfaTransaction(
+                tokenHash,
+                eno,
+                purpose,
+                method,
+                expiresAt,
+                providerChallengeHash,
+                MfaTransactionStatus.PENDING,
+                null,
+                0);
     }
 
     /** 만료되지 않은 대기 거래를 검증 완료 상태로 전이한다. */
@@ -100,6 +132,7 @@ public final class MfaTransaction {
                 purpose,
                 method,
                 expiresAt,
+                providerChallengeHash,
                 nextStatus,
                 nextVerifiedAt,
                 nextFailureCount);
@@ -123,6 +156,11 @@ public final class MfaTransaction {
 
     public Instant expiresAt() {
         return expiresAt;
+    }
+
+    /** 공급자 challenge의 SHA-256 해시이며 원문은 저장하지 않는다. */
+    public String providerChallengeHash() {
+        return providerChallengeHash;
     }
 
     public MfaTransactionStatus status() {
