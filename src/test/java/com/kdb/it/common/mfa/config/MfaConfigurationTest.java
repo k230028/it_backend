@@ -54,10 +54,19 @@ class MfaConfigurationTest {
     @Test
     @DisplayName("prod에서 모의 MFA를 켜면 기동을 차단한다")
     void prod_withMockEnabled_failsStartup() {
-        assertThatThrownBy(() -> start("prod", Map.of("app.mfa.mock-enabled", "true")))
-                .rootCause()
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("app.mfa.mock-enabled");
+        assertMockOverrideFails("prod");
+    }
+
+    @Test
+    @DisplayName("local-int에서 모의 MFA를 켜면 기동을 차단한다")
+    void localInt_withMockEnabled_failsStartup() {
+        assertMockOverrideFails("local-int");
+    }
+
+    @Test
+    @DisplayName("dev에서 모의 MFA를 켜면 기동을 차단한다")
+    void dev_withMockEnabled_failsStartup() {
+        assertMockOverrideFails("dev");
     }
 
     @Test
@@ -89,6 +98,13 @@ class MfaConfigurationTest {
             assertDefaultLimits(properties);
             assertThat(context.getBeansOfType(MfaProviderRegistry.class)).hasSize(1);
         }
+    }
+
+    private void assertMockOverrideFails(String profile) {
+        assertThatThrownBy(() -> start(profile, Map.of("app.mfa.mock-enabled", "true")))
+                .rootCause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("app.mfa.mock-enabled");
     }
 
     private void assertDefaultLimits(MfaProperties properties) {

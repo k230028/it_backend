@@ -18,13 +18,13 @@ public class MfaConfig {
      * @param properties MFA 통신 및 거래 제한 설정
      * @param environment 활성 Spring 프로파일
      * @return 현재 프로파일에 사용할 MFA 공급자 레지스트리
-     * @throws IllegalStateException 운영 프로파일에서 mock MFA가 활성화되었거나 실제 연동 endpoint가 없을 때
+     * @throws IllegalStateException local-ext 외 프로파일에서 mock MFA가 활성화되었거나 실제 연동 endpoint가 없을 때
      */
     @Bean
     @Profile({"local-ext", "local-int", "dev", "prod"})
     public MfaProviderRegistry mfaProviderRegistry(MfaProperties properties, Environment environment) {
-        if (environment.matchesProfiles("prod") && properties.mockEnabled()) {
-            throw new IllegalStateException("운영 보안 위반: app.mfa.mock-enabled");
+        if (properties.mockEnabled() && !environment.matchesProfiles("local-ext")) {
+            throw new IllegalStateException("MFA 보안 위반: app.mfa.mock-enabled는 local-ext에서만 허용됩니다.");
         }
         if (!properties.mockEnabled() && properties.endpoint().isBlank()) {
             throw new IllegalStateException("app.mfa.endpoint is required when mock MFA is disabled");
