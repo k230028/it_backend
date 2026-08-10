@@ -4,17 +4,26 @@ import java.time.Instant;
 import java.util.Objects;
 
 /** 상태 전이를 새 인스턴스로 반환하는 불변 MFA 거래다. */
-public record MfaTransaction(
-        String tokenHash,
-        String eno,
-        MfaPurpose purpose,
-        MfaMethod method,
-        Instant expiresAt,
-        MfaTransactionStatus status,
-        Instant verifiedAt,
-        int failureCount) {
+public final class MfaTransaction {
 
-    public MfaTransaction {
+    private final String tokenHash;
+    private final String eno;
+    private final MfaPurpose purpose;
+    private final MfaMethod method;
+    private final Instant expiresAt;
+    private final MfaTransactionStatus status;
+    private final Instant verifiedAt;
+    private final int failureCount;
+
+    private MfaTransaction(
+            String tokenHash,
+            String eno,
+            MfaPurpose purpose,
+            MfaMethod method,
+            Instant expiresAt,
+            MfaTransactionStatus status,
+            Instant verifiedAt,
+            int failureCount) {
         Objects.requireNonNull(tokenHash, "토큰 해시는 필수입니다.");
         Objects.requireNonNull(eno, "사원번호는 필수입니다.");
         Objects.requireNonNull(purpose, "MFA 목적은 필수입니다.");
@@ -31,6 +40,14 @@ public record MfaTransaction(
                 && verifiedAt != null) {
             throw new IllegalArgumentException("대기 또는 잠금 거래에는 검증 시각이 있을 수 없습니다.");
         }
+        this.tokenHash = tokenHash;
+        this.eno = eno;
+        this.purpose = purpose;
+        this.method = method;
+        this.expiresAt = expiresAt;
+        this.status = status;
+        this.verifiedAt = verifiedAt;
+        this.failureCount = failureCount;
     }
 
     /** 대기 상태의 MFA 거래를 생성한다. */
@@ -86,5 +103,37 @@ public record MfaTransaction(
                 nextStatus,
                 nextVerifiedAt,
                 nextFailureCount);
+    }
+
+    public String tokenHash() {
+        return tokenHash;
+    }
+
+    public String eno() {
+        return eno;
+    }
+
+    public MfaPurpose purpose() {
+        return purpose;
+    }
+
+    public MfaMethod method() {
+        return method;
+    }
+
+    public Instant expiresAt() {
+        return expiresAt;
+    }
+
+    public MfaTransactionStatus status() {
+        return status;
+    }
+
+    public Instant verifiedAt() {
+        return verifiedAt;
+    }
+
+    public int failureCount() {
+        return failureCount;
     }
 }
