@@ -2,6 +2,8 @@ package com.kdb.it.common.approval.controller;
 
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
+import com.kdb.it.common.mfa.domain.MfaPurpose;
+import com.kdb.it.common.mfa.security.MfaRequired;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -150,6 +152,7 @@ public class ApplicationController {
      * @return HTTP 201 Created + 생성된 신청서 관리번호 (Location 헤더 포함)
      */
     @PostMapping
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
     @Operation(summary = "신규 신청서 생성", description = "신규 신청서를 생성합니다.")
     public ResponseEntity<String> submit(@Valid @RequestBody ApplicationDto.CreateRequest request) {
         // 신청서 생성 후 관리번호 반환
@@ -177,6 +180,7 @@ public class ApplicationController {
      * @return HTTP 200 (본문 없음)
      */
     @PostMapping("/{apfMngNo}/approve")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
     @Operation(summary = "신청서 승인", description = "신청서를 승인합니다.")
     public ResponseEntity<Void> approve(
             @PathVariable("apfMngNo") String apfMngNo,
@@ -195,6 +199,7 @@ public class ApplicationController {
      *     개별 결과)
      */
     @PostMapping("/bulk-approve")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
     @Operation(
             summary = "신청서 일괄 승인",
             description = "여러 개의 신청서를 한 번에 승인합니다. 전체를 하나의 트랜잭션으로 처리하며, 하나라도 실패하면 전체 롤백됩니다.")
@@ -214,6 +219,7 @@ public class ApplicationController {
      * @return HTTP 204 No Content
      */
     @PostMapping("/{apfMngNo}/recall")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
     @Operation(
             summary = "신청서 회수",
             description = "결재중 신청서를 회수합니다. 신청자/중간결재자/관리자만 가능, 최종 결재자 승인 전까지.")

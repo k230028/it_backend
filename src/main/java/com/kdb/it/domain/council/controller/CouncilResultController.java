@@ -1,5 +1,7 @@
 package com.kdb.it.domain.council.controller;
 
+import com.kdb.it.common.mfa.domain.MfaPurpose;
+import com.kdb.it.common.mfa.security.MfaRequired;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.service.CouncilApprovalService;
@@ -273,6 +275,7 @@ public class CouncilResultController {
                 @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
             })
     @PostMapping("/{asctId}/result/approval")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
     public ResponseEntity<CouncilDto.ApprovalResponse> requestResultApproval(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
                     @PathVariable("asctId")

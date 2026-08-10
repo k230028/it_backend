@@ -3,6 +3,7 @@ package com.kdb.it.domain.council.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,6 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.mfa.security.MfaGuardAspect;
+import com.kdb.it.common.mfa.service.MfaService;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
@@ -18,6 +22,7 @@ import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.service.CouncilApprovalService;
 import com.kdb.it.domain.council.service.CouncilService;
 import com.kdb.it.domain.council.service.CouncilSkipService;
+import jakarta.servlet.http.Cookie;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,7 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>HTTP 응답 구조와 인증 동작을 검증합니다.
  */
 @WebMvcTest(CouncilLifecycleController.class)
-@Import({TestSecurityConfig.class, JacksonConfig.class})
+@Import({TestSecurityConfig.class, JacksonConfig.class, MfaGuardAspect.class})
 class CouncilLifecycleControllerTest {
 
     @Autowired private MockMvc mockMvc;
@@ -46,8 +51,12 @@ class CouncilLifecycleControllerTest {
     @MockitoBean private CouncilSkipService councilSkipService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private MfaService mfaService;
 
     private static final String ASCT_ID = "ASCT-2026-0001";
+    private static final CustomUserDetails USER =
+            new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "D001");
+    private static final Cookie MFA_PROOF = new Cookie("mfa-proof", "valid-proof");
 
     // =========================================================================
     // M5: 전자결재
@@ -61,6 +70,8 @@ class CouncilLifecycleControllerTest {
                 .willReturn(new CouncilDto.ApprovalResponse("APF_20260001"));
         mockMvc.perform(
                         post("/api/council/" + ASCT_ID + "/approval")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(
@@ -159,6 +170,8 @@ class CouncilLifecycleControllerTest {
         // Act & Assert
         mockMvc.perform(
                         post("/api/council/" + ASCT_ID + "/skip-request/decision")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());

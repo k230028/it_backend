@@ -1,5 +1,7 @@
 package com.kdb.it.domain.council.controller;
 
+import com.kdb.it.common.mfa.domain.MfaPurpose;
+import com.kdb.it.common.mfa.security.MfaRequired;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.service.CouncilApprovalService;
@@ -80,6 +82,7 @@ public class CouncilLifecycleController {
                 @ApiResponse(responseCode = "404", description = "존재하지 않는 협의회", content = @Content)
             })
     @PostMapping("/{asctId}/approval")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
     public ResponseEntity<CouncilDto.ApprovalResponse> requestApproval(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
                     @PathVariable("asctId")
@@ -281,6 +284,7 @@ public class CouncilLifecycleController {
      */
     @Operation(summary = "생략 판정 + 결재 상신", description = "IT기획이 생략여부를 판정하고 팀장→부장 전자결재를 상신합니다.")
     @PostMapping("/{asctId}/skip-request/decision")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
     public ResponseEntity<Void> decideSkipRequest(
             @Parameter(description = "협의회ID", required = true, example = "ASCT-2026-0001")
                     @PathVariable("asctId")

@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -17,10 +18,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
+import com.kdb.it.common.mfa.security.MfaGuardAspect;
+import com.kdb.it.common.mfa.service.MfaService;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
+import jakarta.servlet.http.Cookie;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>전자결재 신청 HTTP 응답 구조와 인증 동작을 검증합니다.
  */
 @WebMvcTest(ApplicationController.class)
-@Import({TestSecurityConfig.class, JacksonConfig.class})
+@Import({TestSecurityConfig.class, JacksonConfig.class, MfaGuardAspect.class})
 class ApplicationControllerTest {
 
     @Autowired private MockMvc mockMvc;
@@ -48,6 +53,12 @@ class ApplicationControllerTest {
     @MockitoBean private ApplicationService applicationService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private MfaService mfaService;
+
+    private static final CustomUserDetails USER =
+            new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "D001");
+
+    private static final Cookie MFA_PROOF = new Cookie("mfa-proof", "valid-proof");
 
     @Test
     @DisplayName("GET /api/applications - 비인증 → 401")
@@ -106,6 +117,8 @@ class ApplicationControllerTest {
     void approve_인증_200() throws Exception {
         mockMvc.perform(
                         post("/api/applications/APF_20260001/approve")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(
@@ -121,6 +134,8 @@ class ApplicationControllerTest {
                 .willReturn(ApplicationDto.BulkApproveResponse.builder().build());
         mockMvc.perform(
                         post("/api/applications/bulk-approve")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(
@@ -184,12 +199,19 @@ class ApplicationControllerTest {
         // 실행 및 검증
         mockMvc.perform(
                         post("/api/applications")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(
                                                 new ApplicationDto.CreateRequest())))
                 .andExpect(status().isCreated())
-                .andExpect(header().exists("Location"));
+                .andExpect(header().exists("Location"))
+                .andExpect(
+                        header().string(
+                                        "Set-Cookie",
+                                        org.hamcrest.Matchers.containsString("Max-Age=0")));
+        verify(mfaService).consumeApprovalProof(USER, "valid-proof");
     }
 
     @Test
@@ -213,6 +235,8 @@ class ApplicationControllerTest {
         // 실행
         mockMvc.perform(
                         post("/api/applications/APF_202600000001/recall")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"recallOpnn\":\"결재선 오기재\"}"))
                 .andExpect(status().isNoContent());
@@ -233,8 +257,12 @@ class ApplicationControllerTest {
         String requestBody = "{\"recallOpnn\":\"관리자 직권 회수\"}";
 
         // 실행
+        CustomUserDetails admin =
+                new CustomUserDetails("90001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
         mockMvc.perform(
                         post("/api/applications/APF_202600000002/recall")
+                                .with(user(admin))
+                                .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(requestBody))
                 .andExpect(status().isNoContent());
@@ -253,6 +281,8 @@ class ApplicationControllerTest {
         // 실행
         mockMvc.perform(
                         post("/api/applications/APF_202600000001/recall")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(requestBody))
                 .andExpect(status().isBadRequest());
@@ -276,5 +306,25 @@ class ApplicationControllerTest {
 
         // 검증
         verify(applicationService, never()).recall(anyString(), any(), anyString(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("POST /api/applications - MFA proof 없음 → 401 + 서비스 미호출")
+    void submit_MFA증표없음_서비스미호출() throws Exception {
+        mockMvc.perform(
+                        post("/api/applications")
+                                .with(user(USER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new ApplicationDto.CreateRequest())))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("MFA_REQUIRED"))
+                .andExpect(
+                        header().string(
+                                        "Set-Cookie",
+                                        org.hamcrest.Matchers.containsString("Max-Age=0")));
+
+        verify(applicationService, never()).submit(any());
     }
 }
