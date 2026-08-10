@@ -1,8 +1,9 @@
 package com.kdb.it.common.mfa.provider;
 
 import java.time.Instant;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Locale;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 지정맥 BioAgent 결과 공급자이다.
@@ -13,29 +14,53 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class FingerVeinMfaProvider implements MfaProvider {
 
     private static final String SUCCESS_CODE = "FE00";
+    private static final int DEFAULT_MAX_PENDING_NONCES = 1_024;
 
-    private final ConcurrentHashMap<String, Instant> activeNonces = new ConcurrentHashMap<>();
+    private final int maxPendingNonces;
+    private final LinkedHashMap<String, Instant> activeNonces = new LinkedHashMap<>();
+
+    /** 기본 최대 대기 nonce 수를 사용하는 지정맥 공급자를 생성한다. */
+    public FingerVeinMfaProvider() {
+        this(DEFAULT_MAX_PENDING_NONCES);
+    }
+
+    FingerVeinMfaProvider(int maxPendingNonces) {
+        if (maxPendingNonces < 1) {
+            throw new IllegalArgumentException("대기 nonce 최대 수는 1 이상이어야 합니다.");
+        }
+        this.maxPendingNonces = maxPendingNonces;
+    }
 
     @Override
-    public MfaChallengeData start(MfaStartContext context) {
+    public synchronized MfaChallengeData start(MfaStartContext context) {
+        removeExpiredNonces();
+        if (!activeNonces.containsKey(context.transactionId())
+                && activeNonces.size() >= maxPendingNonces) {
+            Iterator<String> iterator = activeNonces.keySet().iterator();
+            iterator.next();
+            iterator.remove();
+        }
         activeNonces.put(context.transactionId(), context.expiresAt());
         return new MfaChallengeData(context.transactionId(), null, context.expiresAt());
     }
 
     @Override
-    public MfaVerificationResult verify(MfaVerifyContext context) {
+    public synchronized MfaVerificationResult verify(MfaVerifyContext context) {
+        removeExpiredNonces();
         String nonce = context.startContext().transactionId();
         Instant expiresAt = activeNonces.get(nonce);
         boolean matchingNonce = nonce.equals(context.challengeId()) && expiresAt != null;
         boolean successfulCode = SUCCESS_CODE.equals(normalize(context.verificationValue()));
-        if (expiresAt != null && !expiresAt.isAfter(Instant.now())) {
-            activeNonces.remove(nonce, expiresAt);
-            return MfaVerificationResult.failure();
-        }
-        if (matchingNonce && successfulCode && activeNonces.remove(nonce, expiresAt)) {
+        if (matchingNonce && successfulCode) {
+            activeNonces.remove(nonce);
             return MfaVerificationResult.success();
         }
         return MfaVerificationResult.failure();
+    }
+
+    private void removeExpiredNonces() {
+        Instant now = Instant.now();
+        activeNonces.entrySet().removeIf(entry -> !entry.getValue().isAfter(now));
     }
 
     private static String normalize(String value) {

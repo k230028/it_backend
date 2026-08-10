@@ -13,6 +13,7 @@ import org.springframework.web.client.RestClient;
 public final class OnePassClient {
 
     private static final String SUCCESS_CODE = "100000";
+    private static final String OTP_AUTH_TYPE = "OTP01";
     private static final int MAX_QR_LENGTH = 16_384;
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
             new ParameterizedTypeReference<>() {};
@@ -36,71 +37,81 @@ public final class OnePassClient {
 
     /** mOTP challenge를 시작한다. */
     public MfaChallengeData requestMotpChallenge(MfaStartContext context) {
-        return requestChallenge("requestServiceAuth", "MOTP", context);
+        String svcTrId = newServiceTransactionId();
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("command", "requestServiceAuth");
+        request.put("svcTrId", svcTrId);
+        request.put("siteId", properties.siteId());
+        request.put("svcId", properties.svcId());
+        request.put("loginId", context.eno());
+        request.put("crossDomain", true);
+        request.put("authType", OTP_AUTH_TYPE);
+        return challenge(request(request), context);
     }
 
     /** FIDO challenge를 시작한다. */
     public MfaChallengeData requestFidoChallenge(MfaStartContext context) {
-        return requestChallenge("requestServiceAuth", "FIDO", context);
+        return startFido(context).challenge();
     }
 
     /** 명시적으로 제출된 mOTP만 OnePass에 검증 요청한다. */
     public MfaVerificationResult verifyMotp(
             MfaStartContext context, String challengeId, String otp) {
-        Map<String, Object> response =
-                request("requestVerifyOtp", "MOTP", context, challengeId, otp);
-        return success(response)
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("command", "requestVerifyOtp");
+        request.put("trId", challengeId);
+        request.put("otpValue", otp);
+        request.put("crossDomain", true);
+        request.put("authType", OTP_AUTH_TYPE);
+        return success(request(request))
                 ? MfaVerificationResult.success()
                 : MfaVerificationResult.failure();
     }
 
-    /** FIDO challenge 결과를 OnePass에 확인한다. */
-    public MfaVerificationResult confirmFido(MfaStartContext context, String challengeId) {
-        Map<String, Object> response =
-                request("trResultConfirm", "FIDO", context, challengeId, null);
-        return success(response) && "1".equals(text(response, "trStatus"))
+    /** FIDO 시작 요청에 사용한 OnePass 서비스 거래 식별자를 보존한 내부 결과이다. */
+    FidoStart startFido(MfaStartContext context) {
+        String svcTrId = newServiceTransactionId();
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("command", "requestServiceAuth");
+        request.put("svcTrId", svcTrId);
+        request.put("siteId", properties.siteId());
+        request.put("svcId", properties.svcId());
+        request.put("loginId", context.eno());
+        request.put("bizAlarmType", "1");
+        request.put("crossDomain", true);
+        return new FidoStart(challenge(request(request), context), svcTrId);
+    }
+
+    /** FIDO 시작 시 발급한 동일 서비스 거래 식별자로 OnePass 결과를 확인한다. */
+    MfaVerificationResult confirmFido(String svcTrId) {
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("command", "trResultConfirm");
+        request.put("svcTrId", svcTrId);
+        request.put("crossDomain", true);
+        Map<String, Object> response = request(request);
+        return success(response) && "1".equals(text(resultData(response), "trStatus"))
                 ? MfaVerificationResult.success()
                 : MfaVerificationResult.failure();
     }
 
-    private MfaChallengeData requestChallenge(
-            String operation, String method, MfaStartContext context) {
-        Map<String, Object> response = request(operation, method, context, null, null);
+    private MfaChallengeData challenge(Map<String, Object> response, MfaStartContext context) {
         if (!success(response)) {
             throw new IllegalStateException("OnePass MFA 요청에 실패했습니다.");
         }
-        String challengeId = text(response, "challengeId");
+        Map<String, Object> resultData = resultData(response);
+        String challengeId = text(resultData, "trId");
         if (challengeId.isBlank()) {
             throw new IllegalStateException("OnePass MFA 응답에 challenge 식별자가 없습니다.");
         }
-        String qrData = optionalText(response, "qrData");
+        String qrData = optionalText(resultData, "qrImage");
         if (qrData != null && qrData.length() > MAX_QR_LENGTH) {
             throw new IllegalArgumentException("OnePass QR 데이터가 허용 길이를 초과했습니다.");
         }
         return new MfaChallengeData(challengeId, qrData, context.expiresAt());
     }
 
-    private Map<String, Object> request(
-            String operation,
-            String method,
-            MfaStartContext context,
-            String challengeId,
-            String otp) {
+    private Map<String, Object> request(Map<String, Object> request) {
         try {
-            Map<String, Object> request = new LinkedHashMap<>();
-            request.put("siteId", properties.siteId());
-            request.put("svcId", properties.svcId());
-            request.put("svcTrId", newServiceTransactionId());
-            request.put("operation", operation);
-            request.put("method", method);
-            request.put("eno", context.eno());
-            request.put("purpose", context.purpose().name());
-            if (challengeId != null) {
-                request.put("challengeId", challengeId);
-            }
-            if (otp != null) {
-                request.put("otp", otp);
-            }
             Map<String, Object> response =
                     restClient
                             .post()
@@ -130,6 +141,12 @@ public final class OnePassClient {
         return SUCCESS_CODE.equals(text(response, "resultCode"));
     }
 
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> resultData(Map<String, Object> response) {
+        Object value = response.get("resultData");
+        return value instanceof Map ? (Map<String, Object>) value : Map.of();
+    }
+
     private static String text(Map<String, Object> response, String key) {
         Object value = response.get(key);
         return value == null ? "" : value.toString();
@@ -139,4 +156,6 @@ public final class OnePassClient {
         Object value = response.get(key);
         return value == null ? null : value.toString();
     }
+
+    record FidoStart(MfaChallengeData challenge, String svcTrId) {}
 }

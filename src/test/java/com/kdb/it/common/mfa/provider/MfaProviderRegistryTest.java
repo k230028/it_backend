@@ -92,4 +92,41 @@ class MfaProviderRegistryTest {
                                 .verified())
                 .isFalse();
     }
+
+    @Test
+    void fingerVein_removesExpiredNoncesBeforeApplyingItsBoundedPendingLimit() {
+        FingerVeinMfaProvider provider = new FingerVeinMfaProvider(2);
+        MfaProviderRegistry registry =
+                new MfaProviderRegistry(Map.of(MfaMethod.FINGER_VEIN, provider));
+        MfaStartContext expired =
+                new MfaStartContext("expired", "10000001", MfaPurpose.LOGIN, Instant.EPOCH);
+        MfaStartContext firstActive =
+                new MfaStartContext(
+                        "first-active",
+                        "10000001",
+                        MfaPurpose.LOGIN,
+                        Instant.parse("2099-01-01T00:00:00Z"));
+        MfaStartContext secondActive =
+                new MfaStartContext(
+                        "second-active",
+                        "10000001",
+                        MfaPurpose.LOGIN,
+                        Instant.parse("2099-01-01T00:00:00Z"));
+        registry.start(MfaMethod.FINGER_VEIN, expired);
+        registry.start(MfaMethod.FINGER_VEIN, firstActive);
+        registry.start(MfaMethod.FINGER_VEIN, secondActive);
+
+        assertThat(
+                        registry.verify(
+                                        MfaMethod.FINGER_VEIN,
+                                        new MfaVerifyContext(firstActive, "first-active", "FE00"))
+                                .verified())
+                .isTrue();
+        assertThat(
+                        registry.verify(
+                                        MfaMethod.FINGER_VEIN,
+                                        new MfaVerifyContext(secondActive, "second-active", "FE00"))
+                                .verified())
+                .isTrue();
+    }
 }
