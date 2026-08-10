@@ -133,7 +133,8 @@ class MfaConfigurationTest {
     }
 
     private ConfigurableApplicationContext start(String profile, Map<String, String> overrides) {
-        SpringApplication application = new SpringApplication(MfaConfigurationTestApplication.class);
+        SpringApplication application =
+                new SpringApplication(MfaConfigurationTestApplication.class);
         application.setWebApplicationType(WebApplicationType.NONE);
         application.setLogStartupInfo(false);
         application.setRegisterShutdownHook(false);

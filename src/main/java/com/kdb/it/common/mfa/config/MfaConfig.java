@@ -1,6 +1,14 @@
 package com.kdb.it.common.mfa.config;
 
+import com.kdb.it.common.mfa.domain.MfaMethod;
+import com.kdb.it.common.mfa.provider.FidoMfaProvider;
+import com.kdb.it.common.mfa.provider.FingerVeinMfaProvider;
+import com.kdb.it.common.mfa.provider.MfaProvider;
 import com.kdb.it.common.mfa.provider.MfaProviderRegistry;
+import com.kdb.it.common.mfa.provider.MockMfaProvider;
+import com.kdb.it.common.mfa.provider.MotpMfaProvider;
+import com.kdb.it.common.mfa.provider.OnePassClient;
+import java.util.Map;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,14 +30,32 @@ public class MfaConfig {
      */
     @Bean
     @Profile({"local-ext", "local-int", "dev", "prod"})
-    public MfaProviderRegistry mfaProviderRegistry(MfaProperties properties, Environment environment) {
+    public MfaProviderRegistry mfaProviderRegistry(
+            MfaProperties properties, Environment environment) {
         if (properties.mockEnabled() && !isOnlyLocalExtProfile(environment)) {
             throw new IllegalStateException("MFA 보안 위반: app.mfa.mock-enabled는 local-ext에서만 허용됩니다.");
         }
         if (!properties.mockEnabled() && properties.endpoint().isBlank()) {
-            throw new IllegalStateException("app.mfa.endpoint is required when mock MFA is disabled");
+            throw new IllegalStateException(
+                    "app.mfa.endpoint is required when mock MFA is disabled");
         }
-        return new MfaProviderRegistry();
+        if (properties.mockEnabled()) {
+            MfaProvider mockProvider = new MockMfaProvider();
+            return new MfaProviderRegistry(
+                    Map.of(
+                            MfaMethod.FINGER_VEIN, mockProvider,
+                            MfaMethod.FIDO, mockProvider,
+                            MfaMethod.MOTP, mockProvider));
+        }
+        OnePassClient onePassClient = new OnePassClient(properties);
+        return new MfaProviderRegistry(
+                Map.of(
+                        MfaMethod.FINGER_VEIN,
+                        new FingerVeinMfaProvider(),
+                        MfaMethod.FIDO,
+                        new FidoMfaProvider(onePassClient),
+                        MfaMethod.MOTP,
+                        new MotpMfaProvider(onePassClient)));
     }
 
     private boolean isOnlyLocalExtProfile(Environment environment) {
