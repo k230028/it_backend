@@ -11,6 +11,7 @@ import com.kdb.it.common.mfa.domain.LoginPendingTransaction;
 import com.kdb.it.common.mfa.domain.MfaMethod;
 import com.kdb.it.common.mfa.domain.MfaPurpose;
 import com.kdb.it.common.mfa.domain.MfaTransaction;
+import com.kdb.it.common.mfa.domain.MfaTransactionStatus;
 import com.kdb.it.common.mfa.dto.MfaDto;
 import com.kdb.it.common.mfa.exception.MfaErrorCode;
 import com.kdb.it.common.mfa.exception.MfaException;
@@ -30,6 +31,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +42,9 @@ class MfaServiceTest {
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
     private static final String PENDING_PROOF = "pending-proof-value";
     private static final String OTP_SECRET = "otp-secret-must-not-be-logged";
+
+    /** 허용 실패 횟수(5)를 넘겨 폴링해도 잠기지 않는지 확인하기 위한 미결정 응답 횟수다. */
+    private static final int UNDECIDED_POLLS = 7;
 
     @Test
     void loginChallenge_대기쿠키소유자로거래를생성한다() {
@@ -435,6 +440,125 @@ class MfaServiceTest {
             logger.detachAppender(appender);
             appender.stop();
         }
+    }
+
+    @Test
+    void 미결정응답은실패횟수를소진하지않고증표도발급하지않는다() {
+        AtomicInteger calls = new AtomicInteger();
+        MfaProvider provider =
+                new MfaProvider() {
+                    @Override
+                    public MfaChallengeData start(
+                            com.kdb.it.common.mfa.provider.MfaStartContext context) {
+                        return new MfaChallengeData("provider-id", null, context.expiresAt());
+                    }
+
+                    @Override
+                    public MfaVerificationResult verify(
+                            com.kdb.it.common.mfa.provider.MfaVerifyContext context) {
+                        return calls.getAndIncrement() < UNDECIDED_POLLS
+                                ? MfaVerificationResult.undecided()
+                                : MfaVerificationResult.success();
+                    }
+                };
+        InMemoryMfaTransactionStore transactionStore = new InMemoryMfaTransactionStore();
+        MfaService service =
+                service(
+                        transactionStore,
+                        new InMemoryLoginPendingTransactionStore(),
+                        provider,
+                        CLOCK);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+        MfaDto.MfaChallengeResponse response =
+                service.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.FIDO),
+                        Optional.of(user),
+                        null);
+
+        // 허용 실패 횟수(5)보다 많이 폴링해도 거래가 잠기지 않아야 한다.
+        for (int poll = 0; poll < UNDECIDED_POLLS; poll++) {
+            MfaService.VerifiedChallenge polled =
+                    service.verifyChallenge(
+                            response.challengeId(),
+                            new MfaDto.MfaVerifyRequest("provider-id", ""),
+                            Optional.of(user),
+                            null);
+            assertThat(polled.response().verified()).isFalse();
+            assertThat(polled.proof()).isNull();
+        }
+        assertThat(transactionStore.findByTokenHash(hash(response.challengeId().toString()), NOW))
+                .get()
+                .extracting(MfaTransaction::status)
+                .isEqualTo(MfaTransactionStatus.PENDING);
+
+        MfaService.VerifiedChallenge completed =
+                service.verifyChallenge(
+                        response.challengeId(),
+                        new MfaDto.MfaVerifyRequest("provider-id", ""),
+                        Optional.of(user),
+                        null);
+
+        assertThat(completed.response().verified()).isTrue();
+        assertThat(completed.proof()).isNotNull();
+        service.consumeApprovalProof(user, completed.proof());
+    }
+
+    @Test
+    void 미결정응답뒤의실제실패는여전히실패로집계한다() {
+        AtomicInteger calls = new AtomicInteger();
+        MfaProvider provider =
+                new MfaProvider() {
+                    @Override
+                    public MfaChallengeData start(
+                            com.kdb.it.common.mfa.provider.MfaStartContext context) {
+                        return new MfaChallengeData("provider-id", null, context.expiresAt());
+                    }
+
+                    @Override
+                    public MfaVerificationResult verify(
+                            com.kdb.it.common.mfa.provider.MfaVerifyContext context) {
+                        return calls.getAndIncrement() == 0
+                                ? MfaVerificationResult.undecided()
+                                : MfaVerificationResult.failure();
+                    }
+                };
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        provider,
+                        CLOCK);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+        MfaDto.MfaChallengeResponse response =
+                service.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.FIDO),
+                        Optional.of(user),
+                        null);
+        service.verifyChallenge(
+                response.challengeId(),
+                new MfaDto.MfaVerifyRequest("provider-id", ""),
+                Optional.of(user),
+                null);
+
+        for (int attempt = 0; attempt < 4; attempt++) {
+            assertMfaError(
+                    () ->
+                            service.verifyChallenge(
+                                    response.challengeId(),
+                                    new MfaDto.MfaVerifyRequest("provider-id", ""),
+                                    Optional.of(user),
+                                    null),
+                    MfaErrorCode.MFA_FAILED);
+        }
+
+        assertMfaError(
+                () ->
+                        service.verifyChallenge(
+                                response.challengeId(),
+                                new MfaDto.MfaVerifyRequest("provider-id", ""),
+                                Optional.of(user),
+                                null),
+                MfaErrorCode.MFA_LOCKED);
     }
 
     private static MfaService service(

@@ -69,7 +69,7 @@ public class MfaController {
      * @param request 공급자 challenge 식별자와 검증 값
      * @param principal JWT 사용자 또는 익명 사용자
      * @param servletRequest 로그인 대기 쿠키를 읽을 현재 요청
-     * @return 성공 여부와 서버 기준 남은 시간
+     * @return 성공 여부와 서버 기준 남은 시간. FIDO 재조회처럼 결과가 아직 확정되지 않은 응답에는 증표 쿠키를 붙이지 않는다.
      */
     @PostMapping(
             value = "/challenges/{challengeId}/verify",
@@ -86,6 +86,9 @@ public class MfaController {
                         request,
                         user(principal),
                         cookie(servletRequest, LOGIN_PENDING_COOKIE));
+        if (completion.proof() == null) {
+            return ResponseEntity.ok(completion.response());
+        }
         return ResponseEntity.ok()
                 .header(
                         HttpHeaders.SET_COOKIE,

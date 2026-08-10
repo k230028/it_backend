@@ -130,7 +130,8 @@ public class MfaService {
      * @param request 공급자 challenge 식별자와 검증 값
      * @param currentUser JWT에서 복원한 현재 사용자
      * @param pendingCookie 로그인 대기 증표 원문
-     * @return 검증 성공 여부와 서버 기준 증표 남은 시간
+     * @return 검증 성공 여부와 서버 기준 증표 남은 시간. 외부 공급자가 아직 결과를 확정하지 않았으면 {@code verified=false}와 {@code
+     *     proof=null}을 반환하며 실패 횟수를 늘리지 않는다.
      * @throws MfaException 거래 만료, 소유권 위반, 인증 실패 또는 잠금 상태인 경우
      */
     public VerifiedChallenge verifyChallenge(
@@ -163,6 +164,13 @@ public class MfaService {
                                     request.verificationValue()));
         } catch (RuntimeException exception) {
             throw new MfaException(MfaErrorCode.MFA_UNAVAILABLE);
+        }
+        if (!verification.decided()) {
+            // FIDO처럼 사용자가 다른 기기에서 승인하는 수단의 재조회는 실패로 집계하지 않는다.
+            return new VerifiedChallenge(
+                    new MfaDto.MfaVerifyResponse(
+                            false, remainingSeconds(transaction.expiresAt(), now)),
+                    null);
         }
         if (!verification.verified()) {
             throwFailedVerification(tokenHash, now);
@@ -372,6 +380,11 @@ public class MfaService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    /** 검증 응답 본문과 분리되어 쿠키로만 전달할 1회용 증표다. */
+    /**
+     * 검증 응답 본문과 분리되어 쿠키로만 전달할 1회용 증표다.
+     *
+     * @param response 클라이언트에 반환할 검증 응답
+     * @param proof 검증 성공 시의 증표 원문. 아직 결과가 확정되지 않은 재조회 응답에서는 null이다.
+     */
     public record VerifiedChallenge(MfaDto.MfaVerifyResponse response, String proof) {}
 }

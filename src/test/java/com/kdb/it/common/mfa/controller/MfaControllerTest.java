@@ -110,6 +110,32 @@ class MfaControllerTest {
     }
 
     @Test
+    void verify_미결정응답에는증표쿠키를발급하지않는다() throws Exception {
+        UUID challengeId = UUID.randomUUID();
+        org.mockito.BDDMockito.given(
+                        mfaService.verifyChallenge(
+                                eq(challengeId), any(), any(), eq("pending-value")))
+                .willReturn(
+                        new MfaService.VerifiedChallenge(
+                                new MfaDto.MfaVerifyResponse(false, 85), null));
+
+        mockMvc.perform(
+                        post("/api/mfa/challenges/{id}/verify", challengeId)
+                                .cookie(
+                                        new Cookie(
+                                                MfaController.LOGIN_PENDING_COOKIE,
+                                                "pending-value"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new MfaDto.MfaVerifyRequest("provider-id", ""))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verified").value(false))
+                .andExpect(jsonPath("$.remainingSeconds").value(85))
+                .andExpect(header().doesNotExist("Set-Cookie"));
+    }
+
+    @Test
     void cancel_소유권확인은서비스에위임하고204를반환한다() throws Exception {
         UUID challengeId = UUID.randomUUID();
 

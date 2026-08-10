@@ -126,7 +126,7 @@ class OnePassClientTest {
     }
 
     @Test
-    void fidoProvider_rejectsNestedNonApprovedStatus() throws Exception {
+    void fidoProvider_treatsNestedNonApprovedStatusAsUndecided() throws Exception {
         AtomicInteger callCount = new AtomicInteger();
         startServer(
                 exchange -> {
@@ -149,7 +149,51 @@ class OnePassClientTest {
         MfaVerificationResult result =
                 provider.verify(new MfaVerifyContext(context(), challenge.challengeId(), ""));
 
+        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.UNDECIDED);
         assertThat(result.verified()).isFalse();
+    }
+
+    @Test
+    void fidoProvider_treatsNonSuccessResultCodeAsFailure() throws Exception {
+        AtomicInteger callCount = new AtomicInteger();
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    if (callCount.getAndIncrement() == 0) {
+                        respond(
+                                exchange,
+                                200,
+                                "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr\",\"qrImage\":\"qr\"}}");
+                    } else {
+                        respond(exchange, 200, "{\"resultCode\":\"900001\"}");
+                    }
+                });
+        FidoMfaProvider provider = new FidoMfaProvider(client());
+        MfaChallengeData challenge = provider.start(context());
+
+        MfaVerificationResult result =
+                provider.verify(new MfaVerifyContext(context(), challenge.challengeId(), ""));
+
+        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
+    }
+
+    @Test
+    void fidoProvider_treatsUnknownChallengeAsFailureNotUndecided() throws Exception {
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    respond(
+                            exchange,
+                            200,
+                            "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr\",\"qrImage\":\"qr\"}}");
+                });
+        FidoMfaProvider provider = new FidoMfaProvider(client());
+        provider.start(context());
+
+        MfaVerificationResult result =
+                provider.verify(new MfaVerifyContext(context(), "other-challenge", ""));
+
+        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
 
     @Test
