@@ -1,12 +1,14 @@
 package com.kdb.it.common.mfa.security;
 
 import com.kdb.it.common.mfa.service.MfaService;
-import org.springframework.beans.factory.annotation.Value;
+import com.kdb.it.common.util.CookieUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
 /** 운영 애플리케이션에 전자결재 MFA 공통 경계를 등록한다. */
 @Configuration(proxyBeanMethods = false)
+@EnableAspectJAutoProxy
 public class MfaGuardConfiguration {
 
     /**
@@ -17,8 +19,7 @@ public class MfaGuardConfiguration {
      * @return 전자결재 MFA 인터셉터
      */
     @Bean
-    MfaGuardAspect mfaGuardAspect(
-            MfaService mfaService, @Value("${app.cookie.secure:false}") boolean secureCookie) {
-        return new MfaGuardAspect(mfaService, secureCookie);
+    MfaGuardAspect mfaGuardAspect(MfaService mfaService, CookieUtil cookieUtil) {
+        return new MfaGuardAspect(mfaService, cookieUtil);
     }
 }

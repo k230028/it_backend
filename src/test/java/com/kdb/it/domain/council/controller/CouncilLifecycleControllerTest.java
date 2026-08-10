@@ -11,11 +11,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kdb.it.common.mfa.security.MfaGuardAspect;
+import com.kdb.it.common.mfa.security.MfaGuardConfiguration;
 import com.kdb.it.common.mfa.service.MfaService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.council.dto.CouncilDto;
@@ -40,7 +41,12 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>HTTP 응답 구조와 인증 동작을 검증합니다.
  */
 @WebMvcTest(CouncilLifecycleController.class)
-@Import({TestSecurityConfig.class, JacksonConfig.class, MfaGuardAspect.class})
+@Import({
+    TestSecurityConfig.class,
+    JacksonConfig.class,
+    MfaGuardConfiguration.class,
+    CookieUtil.class
+})
 class CouncilLifecycleControllerTest {
 
     @Autowired private MockMvc mockMvc;

@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -18,11 +19,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
-import com.kdb.it.common.mfa.security.MfaGuardAspect;
+import com.kdb.it.common.mfa.security.MfaGuardConfiguration;
 import com.kdb.it.common.mfa.service.MfaService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
+import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import jakarta.servlet.http.Cookie;
@@ -44,7 +46,12 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>전자결재 신청 HTTP 응답 구조와 인증 동작을 검증합니다.
  */
 @WebMvcTest(ApplicationController.class)
-@Import({TestSecurityConfig.class, JacksonConfig.class, MfaGuardAspect.class})
+@Import({
+    TestSecurityConfig.class,
+    JacksonConfig.class,
+    MfaGuardConfiguration.class,
+    CookieUtil.class
+})
 class ApplicationControllerTest {
 
     @Autowired private MockMvc mockMvc;
@@ -289,6 +296,29 @@ class ApplicationControllerTest {
 
         // 검증
         verify(applicationService, never()).recall(anyString(), any(), anyString(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("POST recall - 본문 검증 실패는 proof를 소비하지 않고 수정 후 동일 proof로 성공한다")
+    void recall_본문검증실패_동일Proof재시도성공() throws Exception {
+        mockMvc.perform(
+                        post("/api/applications/APF_202600000001/recall")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"recallOpnn\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(
+                        post("/api/applications/APF_202600000001/recall")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"recallOpnn\":\"결재 의견 수정\"}"))
+                .andExpect(status().isNoContent());
+
+        verify(mfaService, times(1)).consumeApprovalProof(USER, "valid-proof");
+        verify(applicationService).recall(eq("APF_202600000001"), any(), eq("10001"), eq(false));
     }
 
     @Test

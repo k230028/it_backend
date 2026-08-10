@@ -3,6 +3,7 @@ package com.kdb.it.config;
 import com.kdb.it.common.sso.SsoController;
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
 import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
+import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.common.util.CustomPasswordEncoder;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
@@ -77,6 +78,9 @@ public class SecurityConfig {
 
     /** preflight를 우회하는 단순 요청 Content-Type의 변경 요청을 차단하는 CSRF 보완 필터 */
     private final SimpleRequestCsrfFilter simpleRequestCsrfFilter;
+
+    /** 인증 실패 응답에서도 브라우저에 남은 MFA 증표를 정리하는 쿠키 유틸리티 */
+    private final CookieUtil cookieUtil;
 
     /**
      * 허용할 CORS Origin 목록 모든 환경에서 {@code application.properties}의 {@code cors.allowed-origins}에 명시한
@@ -211,6 +215,12 @@ public class SecurityConfig {
                                                             request.getMethod(),
                                                             request.getRemoteAddr(),
                                                             authException.getMessage());
+                                                    response.addHeader(
+                                                            org.springframework.http.HttpHeaders
+                                                                    .SET_COOKIE,
+                                                            cookieUtil
+                                                                    .deleteMfaProofCookie()
+                                                                    .toString());
                                                     // HTTP 401 응답 반환
                                                     response.sendError(
                                                             HttpServletResponse.SC_UNAUTHORIZED,

@@ -20,6 +20,14 @@ public interface MfaTransactionStore {
 
     Optional<MfaTransaction> delete(String tokenHash, Instant now);
 
-    Optional<MfaTransaction> consumeVerifiedOnce(
+    ProofConsumption consumeVerifiedOnce(
             String tokenHash, String eno, MfaPurpose purpose, Instant now);
+
+    /** 검증 증표의 원자적 소비 결과다. */
+    enum ProofConsumption {
+        CONSUMED,
+        EXPIRED,
+        REJECTED,
+        MISSING
+    }
 }

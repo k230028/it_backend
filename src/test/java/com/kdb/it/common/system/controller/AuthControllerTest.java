@@ -720,12 +720,20 @@ class AuthControllerTest {
                         .sameSite("Lax")
                         .build();
         given(cookieUtil.deleteUserInfoCookie()).willReturn(deleteUser);
+        ResponseCookie deleteProof =
+                ResponseCookie.from(CookieUtil.MFA_PROOF_COOKIE, "")
+                        .httpOnly(true)
+                        .path("/")
+                        .maxAge(0)
+                        .sameSite("Lax")
+                        .build();
+        given(cookieUtil.deleteMfaProofCookie()).willReturn(deleteProof);
     }
 
     /** 로그아웃의 세 로컬 인증 쿠키가 중복 없이 올바른 속성으로 삭제되는지 검증합니다. */
     private void assertLogoutDeleteCookies(MvcResult result) {
         List<String> setCookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
-        assertThat(setCookies).hasSize(3);
+        assertThat(setCookies).hasSize(4);
         assertThat(setCookies)
                 .anySatisfy(
                         cookie ->
@@ -753,6 +761,15 @@ class AuthControllerTest {
                                         .contains("Max-Age=0")
                                         .contains("SameSite=Lax")
                                         .doesNotContain("HttpOnly"));
+        assertThat(setCookies)
+                .anySatisfy(
+                        cookie ->
+                                assertThat(cookie)
+                                        .contains(CookieUtil.MFA_PROOF_COOKIE + "=")
+                                        .contains("Path=/;")
+                                        .contains("Max-Age=0")
+                                        .contains("HttpOnly")
+                                        .contains("SameSite=Lax"));
     }
 
     /**

@@ -2,6 +2,7 @@ package com.kdb.it.common.mfa.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -13,11 +14,13 @@ import com.kdb.it.common.mfa.exception.MfaErrorCode;
 import com.kdb.it.common.mfa.exception.MfaException;
 import com.kdb.it.common.mfa.service.MfaService;
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.domain.council.controller.CouncilLifecycleController;
 import com.kdb.it.domain.council.controller.CouncilResultController;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Stream;
+import org.aspectj.lang.ProceedingJoinPoint;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,11 +28,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.http.ResponseCookie;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /** 전자결재 MFA 공통 경계의 1회 소비와 엔드포인트 inventory를 검증한다. */
 class MfaGuardAspectTest {
@@ -39,40 +44,53 @@ class MfaGuardAspectTest {
             new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "D001");
 
     private MfaService mfaService;
+    private CookieUtil cookieUtil;
     private Runnable domainCommand;
-    private GuardedTarget target;
-    private HandlerMethod handler;
+    private ProceedingJoinPoint joinPoint;
     private MockHttpServletRequest request;
     private MockHttpServletResponse response;
     private MfaGuardAspect aspect;
+    private MfaRequired approvalRequirement;
 
     @BeforeEach
-    void setUp() throws NoSuchMethodException {
+    void setUp() throws Throwable {
         mfaService = mock(MfaService.class);
+        cookieUtil = mock(CookieUtil.class);
         domainCommand = mock(Runnable.class);
-        target = new GuardedTarget(domainCommand);
-        handler = new HandlerMethod(target, GuardedTarget.class.getDeclaredMethod("execute"));
+        joinPoint = mock(ProceedingJoinPoint.class);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
-        aspect = new MfaGuardAspect(mfaService, false);
-        SecurityContextHolder.getContext()
-                .setAuthentication(
-                        UsernamePasswordAuthenticationToken.authenticated(
-                                USER, null, USER.getAuthorities()));
+        aspect = new MfaGuardAspect(mfaService, cookieUtil);
+        approvalRequirement = requirement("execute");
+        given(cookieUtil.deleteMfaProofCookie())
+                .willReturn(
+                        ResponseCookie.from(PROOF_COOKIE, "")
+                                .httpOnly(true)
+                                .path("/")
+                                .maxAge(0)
+                                .sameSite("Lax")
+                                .build());
+        given(joinPoint.proceed())
+                .willAnswer(
+                        ignored -> {
+                            domainCommand.run();
+                            return null;
+                        });
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request, response));
+        authenticate(USER);
     }
 
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
+        RequestContextHolder.resetRequestAttributes();
     }
 
     @Test
-    @DisplayName("MFA proof 쿠키가 없으면 증표 소비나 결재 명령을 실행하지 않고 쿠키를 삭제한다")
-    void guard_증표없음_명령미호출() throws Exception {
-        assertThatThrownBy(() -> aspect.preHandle(request, response, handler))
-                .isInstanceOf(MfaException.class)
-                .extracting(exception -> ((MfaException) exception).errorCode())
-                .isEqualTo(MfaErrorCode.MFA_REQUIRED);
+    void guard_증표없음_명령미호출() {
+        assertMfaError(
+                () -> aspect.consumeProof(joinPoint, approvalRequirement),
+                MfaErrorCode.MFA_REQUIRED);
 
         verify(mfaService, never()).consumeApprovalProof(USER, null);
         verify(domainCommand, never()).run();
@@ -81,17 +99,13 @@ class MfaGuardAspectTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("rejectedProofs")
-    @DisplayName("거부된 MFA proof는 결재 명령을 실행하지 않는다")
-    void guard_거부된증표_명령미호출(String scenario, MfaErrorCode errorCode) throws Exception {
+    void guard_거부된증표_명령미호출(String scenario, MfaErrorCode errorCode) {
         request.setCookies(new jakarta.servlet.http.Cookie(PROOF_COOKIE, "rejected-proof"));
         doThrow(new MfaException(errorCode))
                 .when(mfaService)
                 .consumeApprovalProof(USER, "rejected-proof");
 
-        assertThatThrownBy(() -> aspect.preHandle(request, response, handler))
-                .isInstanceOf(MfaException.class)
-                .extracting(exception -> ((MfaException) exception).errorCode())
-                .isEqualTo(errorCode);
+        assertMfaError(() -> aspect.consumeProof(joinPoint, approvalRequirement), errorCode);
 
         verify(domainCommand, never()).run();
         assertProofCookieDeleted();
@@ -100,39 +114,71 @@ class MfaGuardAspectTest {
     static Stream<Arguments> rejectedProofs() {
         return Stream.of(
                 Arguments.of("만료된 증표", MfaErrorCode.MFA_EXPIRED),
-                Arguments.of("다른 사용자에게 귀속된 증표", MfaErrorCode.MFA_REQUIRED),
-                Arguments.of("이미 소비된 증표", MfaErrorCode.MFA_REQUIRED));
+                Arguments.of("사용자 불일치 또는 소비된 증표", MfaErrorCode.MFA_REQUIRED));
     }
 
     @Test
-    @DisplayName("유효한 MFA proof를 명령 전에 한 번 소비하고 성공 응답에서도 쿠키를 삭제한다")
-    void guard_유효한증표_1회소비후명령실행() throws Throwable {
+    void guard_유효증표_소비후명령실행() throws Throwable {
         request.setCookies(new jakarta.servlet.http.Cookie(PROOF_COOKIE, "valid-proof"));
 
-        assertThat(aspect.preHandle(request, response, handler)).isTrue();
-        assertProofCookieDeleted();
-        target.execute();
+        aspect.consumeProof(joinPoint, approvalRequirement);
 
         var ordered = org.mockito.Mockito.inOrder(mfaService, domainCommand);
         ordered.verify(mfaService).consumeApprovalProof(USER, "valid-proof");
         ordered.verify(domainCommand).run();
-        verify(domainCommand).run();
         assertProofCookieDeleted();
     }
 
     @Test
-    @DisplayName("유효한 증표 소비 뒤 도메인 명령이 실패해도 미리 설정된 삭제 쿠키를 유지한다")
-    void guard_도메인명령실패_쿠키삭제() throws Exception {
+    void guard_도메인명령실패에도삭제쿠키유지() {
         request.setCookies(new jakarta.servlet.http.Cookie(PROOF_COOKIE, "valid-proof"));
         RuntimeException domainFailure = new RuntimeException("domain failure");
         doThrow(domainFailure).when(domainCommand).run();
 
-        assertThat(aspect.preHandle(request, response, handler)).isTrue();
-        assertProofCookieDeleted();
-        assertThatThrownBy(target::execute).isSameAs(domainFailure);
+        assertThatThrownBy(() -> aspect.consumeProof(joinPoint, approvalRequirement))
+                .isSameAs(domainFailure);
 
         verify(mfaService).consumeApprovalProof(USER, "valid-proof");
         assertProofCookieDeleted();
+    }
+
+    @Test
+    void guard_서블릿요청경계없음_거부() {
+        RequestContextHolder.resetRequestAttributes();
+
+        assertMfaError(
+                () -> aspect.consumeProof(joinPoint, approvalRequirement),
+                MfaErrorCode.MFA_REQUIRED);
+        verify(mfaService, never()).consumeApprovalProof(USER, null);
+    }
+
+    @Test
+    void guard_CustomUserDetails인증없음_거부() {
+        SecurityContextHolder.clearContext();
+
+        assertMfaError(
+                () -> aspect.consumeProof(joinPoint, approvalRequirement),
+                MfaErrorCode.MFA_REQUIRED);
+        assertProofCookieDeleted();
+    }
+
+    @Test
+    void guard_승인외목적_거부() throws NoSuchMethodException {
+        assertMfaError(
+                () -> aspect.consumeProof(joinPoint, requirement("loginExecute")),
+                MfaErrorCode.MFA_REQUIRED);
+        verify(mfaService, never()).consumeApprovalProof(USER, null);
+    }
+
+    @Test
+    void guard_응답객체없어도증표소비후명령실행() throws Throwable {
+        request.setCookies(new jakarta.servlet.http.Cookie(PROOF_COOKIE, "valid-proof"));
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        aspect.consumeProof(joinPoint, approvalRequirement);
+
+        verify(mfaService).consumeApprovalProof(USER, "valid-proof");
+        verify(domainCommand).run();
     }
 
     @ParameterizedTest(name = "{0}#{1} protected={2}")
@@ -151,16 +197,13 @@ class MfaGuardAspectTest {
 
     static Stream<Arguments> endpointInventory() {
         return Stream.of(
-                // 보호: 공통 상신, 단건 승인·반려, 일괄 승인·반려, 회수
                 endpoint(ApplicationController.class, "submit", true),
                 endpoint(ApplicationController.class, "approve", true),
                 endpoint(ApplicationController.class, "bulkApprove", true),
                 endpoint(ApplicationController.class, "recall", true),
-                // 보호: 도메인별 전자결재 상신
                 endpoint(CouncilLifecycleController.class, "requestApproval", true),
                 endpoint(CouncilLifecycleController.class, "decideSkipRequest", true),
                 endpoint(CouncilResultController.class, "requestResultApproval", true),
-                // 제외: 공통 조회와 POST 형식의 일괄 조회
                 endpoint(ApplicationController.class, "getApplications", false),
                 endpoint(ApplicationController.class, "getPendingCount", false),
                 endpoint(ApplicationController.class, "getApplication", false),
@@ -168,7 +211,6 @@ class MfaGuardAspectTest {
                 endpoint(ApplicationController.class, "bulkGetApplications", false),
                 endpoint(ApplicationController.class, "getDashboard", false),
                 endpoint(ApplicationController.class, "getApprovalBadgeCount", false),
-                // 제외: 외부 전자결재 콜백과 전자결재 전 초안 저장
                 endpoint(CouncilLifecycleController.class, "processApprovalCallback", false),
                 endpoint(CouncilResultController.class, "saveResult", false),
                 endpoint(CouncilResultController.class, "updateResult", false));
@@ -186,6 +228,24 @@ class MfaGuardAspectTest {
                 .orElseThrow();
     }
 
+    private static MfaRequired requirement(String methodName) throws NoSuchMethodException {
+        return GuardedTarget.class.getDeclaredMethod(methodName).getAnnotation(MfaRequired.class);
+    }
+
+    private static void authenticate(CustomUserDetails user) {
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        UsernamePasswordAuthenticationToken.authenticated(
+                                user, null, user.getAuthorities()));
+    }
+
+    private static void assertMfaError(ThrowingCall call, MfaErrorCode expected) {
+        assertThatThrownBy(call::invoke)
+                .isInstanceOf(MfaException.class)
+                .extracting(exception -> ((MfaException) exception).errorCode())
+                .isEqualTo(expected);
+    }
+
     private void assertProofCookieDeleted() {
         assertThat(response.getHeader("Set-Cookie"))
                 .contains("mfa-proof=")
@@ -195,17 +255,17 @@ class MfaGuardAspectTest {
                 .contains("SameSite=Lax");
     }
 
+    @FunctionalInterface
+    private interface ThrowingCall {
+        void invoke() throws Throwable;
+    }
+
     private static final class GuardedTarget {
 
-        private final Runnable domainCommand;
-
-        private GuardedTarget(Runnable domainCommand) {
-            this.domainCommand = domainCommand;
-        }
-
         @MfaRequired(purpose = MfaPurpose.APPROVAL)
-        void execute() {
-            domainCommand.run();
-        }
+        void execute() {}
+
+        @MfaRequired(purpose = MfaPurpose.LOGIN)
+        void loginExecute() {}
     }
 }

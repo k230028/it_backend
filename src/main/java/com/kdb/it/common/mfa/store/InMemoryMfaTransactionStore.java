@@ -106,37 +106,41 @@ public class InMemoryMfaTransactionStore implements MfaTransactionStore {
     }
 
     @Override
-    public Optional<MfaTransaction> consumeVerifiedOnce(
+    public ProofConsumption consumeVerifiedOnce(
             String tokenHash, String eno, MfaPurpose purpose, Instant now) {
-        Optional<MfaTransaction> consumedProof =
-                consume(proofTransactions, tokenHash, eno, purpose, now);
-        if (consumedProof.isPresent()) {
+        ProofConsumption consumedProof = consume(proofTransactions, tokenHash, eno, purpose, now);
+        if (consumedProof != ProofConsumption.MISSING) {
             return consumedProof;
         }
         return consume(transactions, tokenHash, eno, purpose, now);
     }
 
-    private Optional<MfaTransaction> consume(
+    private ProofConsumption consume(
             ConcurrentHashMap<String, MfaTransaction> source,
             String tokenHash,
             String eno,
             MfaPurpose purpose,
             Instant now) {
-        AtomicReference<MfaTransaction> consumed = new AtomicReference<>();
+        AtomicReference<ProofConsumption> result = new AtomicReference<>(ProofConsumption.MISSING);
         source.compute(
                 tokenHash,
                 (ignored, transaction) -> {
-                    if (transaction == null || transaction.isExpiredAt(now)) {
+                    if (transaction == null) {
+                        return null;
+                    }
+                    if (transaction.isExpiredAt(now)) {
+                        result.set(ProofConsumption.EXPIRED);
                         return null;
                     }
                     if (!transaction.eno().equals(eno)
                             || transaction.purpose() != purpose
                             || transaction.status() != MfaTransactionStatus.VERIFIED) {
+                        result.set(ProofConsumption.REJECTED);
                         return transaction;
                     }
-                    consumed.set(transaction);
+                    result.set(ProofConsumption.CONSUMED);
                     return null;
                 });
-        return Optional.ofNullable(consumed.get());
+        return result.get();
     }
 }

@@ -15,6 +15,7 @@ import com.kdb.it.common.mfa.provider.MfaVerificationResult;
 import com.kdb.it.common.mfa.provider.MfaVerifyContext;
 import com.kdb.it.common.mfa.store.LoginPendingTransactionStore;
 import com.kdb.it.common.mfa.store.MfaTransactionStore;
+import com.kdb.it.common.mfa.store.MfaTransactionStore.ProofConsumption;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -342,9 +343,14 @@ public class MfaService {
             throw new MfaException(MfaErrorCode.MFA_REQUIRED);
         }
         String tokenHash = hash(proofCookie);
-        transactionStore
-                .consumeVerifiedOnce(tokenHash, eno, purpose, now)
-                .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_REQUIRED));
+        ProofConsumption consumption =
+                transactionStore.consumeVerifiedOnce(tokenHash, eno, purpose, now);
+        if (consumption == ProofConsumption.EXPIRED) {
+            throw new MfaException(MfaErrorCode.MFA_EXPIRED);
+        }
+        if (consumption != ProofConsumption.CONSUMED) {
+            throw new MfaException(MfaErrorCode.MFA_REQUIRED);
+        }
         knownExpiryByTokenHash.remove(tokenHash);
         cancelledExpiryByTokenHash.remove(tokenHash);
     }

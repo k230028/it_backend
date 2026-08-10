@@ -155,6 +155,17 @@ public class CookieUtil {
                 .build();
     }
 
+    /** MFA 검증 완료 증표를 모든 API 경로에서 즉시 만료시키는 삭제 쿠키를 만든다. */
+    public ResponseCookie deleteMfaProofCookie() {
+        return ResponseCookie.from(MFA_PROOF_COOKIE, "")
+                .httpOnly(true)
+                .secure(secureCookie)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+    }
+
     /**
      * SSO 복귀 경로(next) 쿠키를 생성합니다.
      *

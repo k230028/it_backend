@@ -239,6 +239,38 @@ class MfaServiceTest {
     }
 
     @Test
+    void approvalProof_만료된실제Proof는Expired로구분한다() {
+        MutableClock clock = new MutableClock(NOW);
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        successProvider(),
+                        clock);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+        MfaDto.MfaChallengeResponse response =
+                service.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.FIDO),
+                        Optional.of(user),
+                        null);
+        MfaService.VerifiedChallenge completion =
+                service.verifyChallenge(
+                        response.challengeId(),
+                        new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                        Optional.of(user),
+                        null);
+
+        clock.setInstant(NOW.plusSeconds(91));
+
+        assertMfaError(
+                () -> service.consumeApprovalProof(user, completion.proof()),
+                MfaErrorCode.MFA_EXPIRED);
+        assertMfaError(
+                () -> service.consumeApprovalProof(user, completion.proof()),
+                MfaErrorCode.MFA_REQUIRED);
+    }
+
+    @Test
     void approvalVerification_다른JWT사용자는거부한다() {
         MfaService service =
                 service(

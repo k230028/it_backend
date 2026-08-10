@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
 import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
+import com.kdb.it.common.util.CookieUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -20,7 +21,8 @@ class SecurityConfigCorsTest {
         SecurityConfig config =
                 new SecurityConfig(
                         Mockito.mock(JwtAuthenticationFilter.class),
-                        Mockito.mock(SimpleRequestCsrfFilter.class));
+                        Mockito.mock(SimpleRequestCsrfFilter.class),
+                        Mockito.mock(CookieUtil.class));
         ReflectionTestUtils.setField(config, "allowedOrigins", origins);
         UrlBasedCorsConfigurationSource source =
                 (UrlBasedCorsConfigurationSource) config.corsConfigurationSource();
@@ -69,7 +71,8 @@ class SecurityConfigCorsTest {
         SecurityConfig config =
                 new SecurityConfig(
                         Mockito.mock(JwtAuthenticationFilter.class),
-                        Mockito.mock(SimpleRequestCsrfFilter.class));
+                        Mockito.mock(SimpleRequestCsrfFilter.class),
+                        Mockito.mock(CookieUtil.class));
         ReflectionTestUtils.setField(
                 config, "allowedOrigins", "http://localhost:3000,http://localhost:3002");
         CorsConfigurationSource source = config.corsConfigurationSource();
@@ -113,7 +116,8 @@ class SecurityConfigCorsTest {
         SecurityConfig config =
                 new SecurityConfig(
                         Mockito.mock(JwtAuthenticationFilter.class),
-                        Mockito.mock(SimpleRequestCsrfFilter.class));
+                        Mockito.mock(SimpleRequestCsrfFilter.class),
+                        Mockito.mock(CookieUtil.class));
         ReflectionTestUtils.setField(config, "allowedOrigins", "http://localhost:3000");
         CorsConfigurationSource source = config.corsConfigurationSource();
 

@@ -21,9 +21,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * 인증 API의 실제 보안 필터 체인 경계 테스트.
@@ -50,12 +52,19 @@ class AuthSecurityBoundaryTest {
     void logout_익명요청_필터체인통과() throws Exception {
         givenLogoutCookies();
 
-        mockMvc.perform(
-                        post("/api/auth/logout")
-                                .cookie(new Cookie("refreshToken", "refresh-value")))
-                .andExpect(status().isOk());
+        MvcResult result =
+                mockMvc.perform(
+                                post("/api/auth/logout")
+                                        .cookie(
+                                                new Cookie("refreshToken", "refresh-value"),
+                                                new Cookie(
+                                                        CookieUtil.MFA_PROOF_COOKIE,
+                                                        "stale-proof")))
+                        .andExpect(status().isOk())
+                        .andReturn();
 
         verify(authService).logoutByRefreshToken(eq("refresh-value"), eq(null), any(), any());
+        assertProofCookieDeleted(result);
     }
 
     @Test
@@ -73,15 +82,47 @@ class AuthSecurityBoundaryTest {
     @Test
     @DisplayName("GET /api/auth/session - 로그아웃과 달리 익명 요청은 401로 막힌다")
     void session_익명요청_401() throws Exception {
-        mockMvc.perform(get("/api/auth/session")).andExpect(status().isUnauthorized());
+        givenLogoutCookies();
+        MvcResult result =
+                mockMvc.perform(
+                                get("/api/auth/session")
+                                        .cookie(
+                                                new Cookie(
+                                                        CookieUtil.MFA_PROOF_COOKIE,
+                                                        "stale-proof")))
+                        .andExpect(status().isUnauthorized())
+                        .andReturn();
+
+        assertProofCookieDeleted(result);
     }
 
     /** 로그아웃 응답의 쿠키 삭제 헤더 생성을 위한 공통 스텁. */
     private void givenLogoutCookies() {
         ResponseCookie deleteCookie = ResponseCookie.from("dummy", "").maxAge(0).build();
+        ResponseCookie deleteProof =
+                ResponseCookie.from(CookieUtil.MFA_PROOF_COOKIE, "")
+                        .httpOnly(true)
+                        .path("/")
+                        .maxAge(0)
+                        .sameSite("Lax")
+                        .build();
         org.mockito.BDDMockito.given(cookieUtil.deleteAccessTokenCookie()).willReturn(deleteCookie);
         org.mockito.BDDMockito.given(cookieUtil.deleteRefreshTokenCookie())
                 .willReturn(deleteCookie);
         org.mockito.BDDMockito.given(cookieUtil.deleteUserInfoCookie()).willReturn(deleteCookie);
+        org.mockito.BDDMockito.given(cookieUtil.deleteMfaProofCookie()).willReturn(deleteProof);
+    }
+
+    private static void assertProofCookieDeleted(MvcResult result) {
+        org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getHeaders(HttpHeaders.SET_COOKIE))
+                .anySatisfy(
+                        cookie ->
+                                org.assertj.core.api.Assertions.assertThat(cookie)
+                                        .contains(CookieUtil.MFA_PROOF_COOKIE + "=")
+                                        .contains("Path=/")
+                                        .contains("Max-Age=0")
+                                        .contains("HttpOnly")
+                                        .contains("SameSite=Lax"));
     }
 }

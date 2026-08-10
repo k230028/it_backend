@@ -63,9 +63,9 @@ class InMemoryMfaTransactionStoreTest {
         MfaTransactionStore store = verifiedStore("token-3");
 
         assertThat(store.consumeVerifiedOnce("token-3", "E0002", MfaPurpose.LOGIN, now()))
-                .isEmpty();
+                .isEqualTo(MfaTransactionStore.ProofConsumption.REJECTED);
         assertThat(store.consumeVerifiedOnce("token-3", "E0001", MfaPurpose.APPROVAL, now()))
-                .isEmpty();
+                .isEqualTo(MfaTransactionStore.ProofConsumption.REJECTED);
         assertThat(store.findByTokenHash("token-3", now())).isPresent();
     }
 
@@ -87,9 +87,9 @@ class InMemoryMfaTransactionStoreTest {
         MfaTransactionStore store = verifiedStore("token-5");
 
         assertThat(store.consumeVerifiedOnce("token-5", "E0001", MfaPurpose.LOGIN, now()))
-                .isPresent();
+                .isEqualTo(MfaTransactionStore.ProofConsumption.CONSUMED);
         assertThat(store.consumeVerifiedOnce("token-5", "E0001", MfaPurpose.LOGIN, now()))
-                .isEmpty();
+                .isEqualTo(MfaTransactionStore.ProofConsumption.MISSING);
         assertThat(store.findByTokenHash("token-5", now())).isEmpty();
     }
 
@@ -101,7 +101,7 @@ class InMemoryMfaTransactionStoreTest {
 
         assertThat(store.findByTokenHash("token-expired", now())).isEmpty();
         assertThat(store.consumeVerifiedOnce("token-expired", "E0001", MfaPurpose.LOGIN, now()))
-                .isEmpty();
+                .isEqualTo(MfaTransactionStore.ProofConsumption.MISSING);
     }
 
     @Test
@@ -111,7 +111,7 @@ class InMemoryMfaTransactionStoreTest {
         Callable<Boolean> consume =
                 () ->
                         store.consumeVerifiedOnce("token-6", "E0001", MfaPurpose.LOGIN, now())
-                                .isPresent();
+                                == MfaTransactionStore.ProofConsumption.CONSUMED;
 
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
             List<Future<Boolean>> results = executor.invokeAll(List.of(consume, consume));

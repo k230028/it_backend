@@ -289,6 +289,7 @@ public class AuthController {
         response.addHeader(
                 HttpHeaders.SET_COOKIE, cookieUtil.deleteRefreshTokenCookie().toString());
         response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteUserInfoCookie().toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteMfaProofCookie().toString());
     }
 
     /** 현재 요청에 연결된 서버 세션을 새로 만들지 않고 안전하게 무효화합니다. */
