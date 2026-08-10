@@ -214,9 +214,10 @@ public class MfaService {
      *
      * @param pendingCookie 로그인 대기 증표 원문
      * @param proofCookie MFA 증표 원문
+     * @return pending 거래와 동일한 사번
      * @throws MfaException 유효하지 않거나 이미 사용된 증표인 경우
      */
-    public synchronized void consumeLoginProof(String pendingCookie, String proofCookie) {
+    public synchronized String consumeLoginProof(String pendingCookie, String proofCookie) {
         Instant now = Instant.now(clock);
         if (pendingCookie == null || pendingCookie.isBlank()) {
             throw new MfaException(MfaErrorCode.MFA_REQUIRED);
@@ -229,6 +230,7 @@ public class MfaService {
         loginPendingTransactionStore
                 .consumeOnce(hash(pendingCookie), pending.eno(), now)
                 .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_REQUIRED));
+        return pending.eno();
     }
 
     private String resolveOwnerForStart(

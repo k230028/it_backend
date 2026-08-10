@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.mfa.controller.MfaController;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
@@ -27,7 +28,9 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.exception.InvalidRefreshTokenException;
 import com.kdb.it.exception.LoginRejectedException;
 import jakarta.servlet.http.Cookie;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +67,118 @@ class AuthControllerTest {
     @MockitoBean private CookieUtil cookieUtil;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+
+    @Test
+    @DisplayName("POST /api/auth/login/start - 유효한 자격증명은 pending 쿠키만 발급한다")
+    void startLogin_성공_pending쿠키만발급() throws Exception {
+        AuthDto.LoginRequest request = new AuthDto.LoginRequest();
+        request.setEno("10001");
+        request.setPassword("password123");
+        UUID pendingId = UUID.randomUUID();
+        AuthDto.LoginStartResponse response =
+                new AuthDto.LoginStartResponse(pendingId, Instant.parse("2026-08-11T00:05:00Z"));
+        ResponseCookie pendingCookie =
+                ResponseCookie.from(MfaController.LOGIN_PENDING_COOKIE, pendingId.toString())
+                        .httpOnly(true)
+                        .path("/")
+                        .build();
+        given(authService.startLogin("10001", "password123", "127.0.0.1", "TestAgent"))
+                .willReturn(response);
+        given(cookieUtil.createLoginPendingCookie(pendingId.toString(), response.getExpiresAt()))
+                .willReturn(pendingCookie);
+
+        mockMvc.perform(
+                        post("/api/auth/login/start")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header("User-Agent", "TestAgent")
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pendingId").value(pendingId.toString()))
+                .andExpect(jsonPath("$.expiresAt").value("2026-08-11T00:05:00Z"))
+                .andExpect(
+                        header().string(
+                                        HttpHeaders.SET_COOKIE,
+                                        org.hamcrest.Matchers.containsString(
+                                                MfaController.LOGIN_PENDING_COOKIE + "=")))
+                .andExpect(
+                        header().string(
+                                        HttpHeaders.SET_COOKIE,
+                                        org.hamcrest.Matchers.not(
+                                                org.hamcrest.Matchers.containsString(
+                                                        CookieUtil.ACCESS_TOKEN_COOKIE + "="))));
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/login/complete - pending과 MFA proof가 모두 있어야 JWT 쿠키를 한 번씩 발급한다")
+    void completeLogin_검증된MFA_JWT쿠키각1회발급() throws Exception {
+        AuthDto.LoginResponse response =
+                AuthDto.LoginResponse.builder()
+                        .eno("10001")
+                        .empNm("홍길동")
+                        .accessToken("access-token")
+                        .refreshToken("refresh-token")
+                        .build();
+        ResponseCookie accessCookie =
+                ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "access-token")
+                        .httpOnly(true)
+                        .path("/")
+                        .build();
+        ResponseCookie refreshCookie =
+                ResponseCookie.from(CookieUtil.REFRESH_TOKEN_COOKIE, "refresh-token")
+                        .httpOnly(true)
+                        .path("/api/auth")
+                        .build();
+        given(authService.completeLogin("pending", "proof", "127.0.0.1", "TestAgent"))
+                .willReturn(response);
+        given(cookieUtil.createAccessTokenCookie("access-token")).willReturn(accessCookie);
+        given(
+                        cookieUtil.createLoginPendingCookie(
+                                org.mockito.ArgumentMatchers.anyString(),
+                                org.mockito.ArgumentMatchers.any(Instant.class)))
+                .willReturn(
+                        ResponseCookie.from(
+                                        CookieUtil.LOGIN_PENDING_COOKIE,
+                                        "00000000-0000-0000-0000-000000000001")
+                                .httpOnly(true)
+                                .path("/")
+                                .build());
+        given(cookieUtil.createRefreshTokenCookie("refresh-token")).willReturn(refreshCookie);
+
+        MvcResult result =
+                mockMvc.perform(
+                                post("/api/auth/login/complete")
+                                        .cookie(
+                                                new Cookie(
+                                                        MfaController.LOGIN_PENDING_COOKIE,
+                                                        "pending"),
+                                                new Cookie(MfaController.MFA_PROOF_COOKIE, "proof"))
+                                        .header("User-Agent", "TestAgent"))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.eno").value("10001"))
+                        .andReturn();
+
+        List<String> cookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
+        assertThat(cookies)
+                .filteredOn(cookie -> cookie.contains(CookieUtil.ACCESS_TOKEN_COOKIE + "="))
+                .hasSize(1);
+        assertThat(cookies)
+                .filteredOn(cookie -> cookie.contains(CookieUtil.REFRESH_TOKEN_COOKIE + "="))
+                .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/login - MFA 이전 JWT 발급 우회 경로를 제공하지 않는다")
+    void login_기존직접발급경로_제공안함() throws Exception {
+        AuthDto.LoginRequest request = new AuthDto.LoginRequest();
+        request.setEno("10001");
+        request.setPassword("password123");
+
+        mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound());
+    }
 
     @Test
     @DisplayName("POST /api/auth/signup - 성공 시 200 + '회원가입 성공' 반환")
@@ -114,20 +229,31 @@ class AuthControllerTest {
                         .path("/api/auth")
                         .build();
 
-        given(authService.login(anyString(), anyString(), anyString(), anyString()))
-                .willReturn(loginResponse);
+        given(authService.startLogin(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(
+                        new AuthDto.LoginStartResponse(
+                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                                Instant.parse("2026-08-11T00:05:00Z")));
         given(cookieUtil.createAccessTokenCookie("access-token")).willReturn(accessCookie);
+        given(
+                        cookieUtil.createLoginPendingCookie(
+                                org.mockito.ArgumentMatchers.anyString(),
+                                org.mockito.ArgumentMatchers.any(Instant.class)))
+                .willReturn(
+                        ResponseCookie.from(CookieUtil.LOGIN_PENDING_COOKIE, "pending")
+                                .httpOnly(true)
+                                .path("/")
+                                .build());
         given(cookieUtil.createRefreshTokenCookie("refresh-token")).willReturn(refreshCookie);
 
         // when & then
         mockMvc.perform(
-                        post("/api/auth/login")
+                        post("/api/auth/login/start")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("User-Agent", "TestAgent")
                                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.eno").value("10001"))
-                .andExpect(jsonPath("$.empNm").value("홍길동"))
+                .andExpect(jsonPath("$.pendingId").value("00000000-0000-0000-0000-000000000001"))
                 // @JsonIgnore: 토큰이 응답 body에 없어야 함
                 .andExpect(jsonPath("$.accessToken").doesNotExist())
                 .andExpect(jsonPath("$.refreshToken").doesNotExist())
@@ -143,12 +269,12 @@ class AuthControllerTest {
         request.setEno("99999");
         request.setPassword("password");
 
-        given(authService.login(anyString(), anyString(), anyString(), anyString()))
+        given(authService.startLogin(anyString(), anyString(), anyString(), anyString()))
                 .willThrow(new RuntimeException("사용자를 찾을 수 없습니다."));
 
         // when & then
         mockMvc.perform(
-                        post("/api/auth/login")
+                        post("/api/auth/login/start")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("User-Agent", "TestAgent")
                                 .content(objectMapper.writeValueAsString(request)))
@@ -167,12 +293,12 @@ class AuthControllerTest {
         request.setEno("99999");
         request.setPassword("wrong-password");
 
-        given(authService.login(anyString(), anyString(), anyString(), anyString()))
+        given(authService.startLogin(anyString(), anyString(), anyString(), anyString()))
                 .willThrow(new LoginRejectedException("비밀번호가 일치하지 않습니다."));
 
         // when & then
         mockMvc.perform(
-                        post("/api/auth/login")
+                        post("/api/auth/login/start")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("User-Agent", "TestAgent")
                                 .content(objectMapper.writeValueAsString(request)))
@@ -264,7 +390,7 @@ class AuthControllerTest {
         stubLoginResponseAndCookies();
 
         mockMvc.perform(
-                        post("/api/auth/login")
+                        post("/api/auth/login/start")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("X-Forwarded-For", "203.0.113.10")
                                 .header("User-Agent", "TestAgent")
@@ -276,7 +402,7 @@ class AuthControllerTest {
                                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
 
-        verify(authService).login("10001", "password123", "198.51.100.5", "TestAgent");
+        verify(authService).startLogin("10001", "password123", "198.51.100.5", "TestAgent");
     }
 
     @Test
@@ -288,7 +414,7 @@ class AuthControllerTest {
         stubLoginResponseAndCookies();
 
         mockMvc.perform(
-                        post("/api/auth/login")
+                        post("/api/auth/login/start")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("User-Agent", "TestAgent")
                                 .with(
@@ -299,7 +425,7 @@ class AuthControllerTest {
                                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
 
-        verify(authService).login("10001", "password123", "198.51.100.20", "TestAgent");
+        verify(authService).startLogin("10001", "password123", "198.51.100.20", "TestAgent");
     }
 
     @Test
@@ -311,7 +437,7 @@ class AuthControllerTest {
         stubLoginResponseAndCookies();
 
         mockMvc.perform(
-                        post("/api/auth/login")
+                        post("/api/auth/login/start")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("X-Forwarded-For", "203.0.113.30, 10.0.0.9")
                                 .header("User-Agent", "TestAgent")
@@ -323,7 +449,7 @@ class AuthControllerTest {
                                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
 
-        verify(authService).login("10001", "password123", "198.51.100.30", "TestAgent");
+        verify(authService).startLogin("10001", "password123", "198.51.100.30", "TestAgent");
     }
 
     @Test
@@ -697,8 +823,20 @@ class AuthControllerTest {
                         .httpOnly(true)
                         .path("/api/auth")
                         .build();
-        given(authService.login(anyString(), anyString(), anyString(), anyString()))
-                .willReturn(loginResponse);
+        given(authService.startLogin(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(
+                        new AuthDto.LoginStartResponse(
+                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000002"),
+                                Instant.parse("2026-08-11T00:05:00Z")));
+        given(
+                        cookieUtil.createLoginPendingCookie(
+                                org.mockito.ArgumentMatchers.anyString(),
+                                org.mockito.ArgumentMatchers.any(Instant.class)))
+                .willReturn(
+                        ResponseCookie.from(CookieUtil.LOGIN_PENDING_COOKIE, "pending")
+                                .httpOnly(true)
+                                .path("/")
+                                .build());
         given(cookieUtil.createAccessTokenCookie("access-token")).willReturn(accessCookie);
         given(cookieUtil.createRefreshTokenCookie("refresh-token")).willReturn(refreshCookie);
     }

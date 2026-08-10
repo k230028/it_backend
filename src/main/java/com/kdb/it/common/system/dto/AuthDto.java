@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -50,6 +52,22 @@ public class AuthDto {
         @NotBlank(message = "비밀번호는 필수입니다.")
         @Schema(description = "비밀번호")
         private String password;
+    }
+
+    /**
+     * 수동 로그인 1단계 응답 DTO입니다.
+     *
+     * <p>자격증명 검증이 끝난 로그인 대기 거래만 식별하며 JWT나 MFA 증표는 포함하지 않습니다.
+     */
+    @Getter
+    @AllArgsConstructor
+    @Schema(name = "LoginStartResponse", description = "수동 로그인 MFA 대기 거래 등록 결과")
+    public static class LoginStartResponse {
+        @Schema(description = "로그인 대기 거래 식별자", requiredMode = Schema.RequiredMode.REQUIRED)
+        private final UUID pendingId;
+
+        @Schema(description = "로그인 대기 거래 만료 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+        private final Instant expiresAt;
     }
 
     /**

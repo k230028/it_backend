@@ -50,7 +50,8 @@ SSO 인증 성공 경계에서는 기존 HTTP 세션 ID를 교체하여 세션 �
 
 | 경로 | 자동 전송 자격증명 | 상태 변경 | 현재 방어 | 잔여 위험 |
 | --- | --- | --- | --- | --- |
-| `POST /api/auth/login` | 기존 JWT 불필요 | Access/Refresh 발급 | 명시 CORS, 로그인 검증·잠금 | 로그인 CSRF는 공격자 계정 세션 주입 관점에서 별도 관찰 |
+| `POST /api/auth/login/start` | 기존 JWT 불필요 | MFA 로그인 대기 쿠키 발급 | 명시 CORS, 로그인 검증·잠금 | JWT는 발급하지 않으며 MFA 완료 뒤에만 로그인 완료 API를 호출 |
+| `POST /api/auth/login/complete` | pending·MFA proof 쿠키 | Access/Refresh 발급 | 증표 소유자·용도·만료·재사용 검증 | 로그인 CSRF는 공격자 계정 세션 주입 관점에서 별도 관찰 |
 | `POST /api/auth/refresh` | Refresh 쿠키(`/api/auth`) | 토큰 회전 | SameSite=Lax, 명시 Origin, POST | SameSite 완화 시 최우선 CSRF 토큰 대상 |
 | `POST /api/auth/logout` 및 인증 변경 API | Access/Refresh/User 쿠키와 서버 세션 | 서버 세션 무효화/DB 변경 | SameSite=Lax, 명시 Origin, unsafe method, 서버 토큰 폐기 실패 시에도 로컬 세션과 세 쿠키 삭제 | CORS만 단독 방어로 간주하지 않음 |
 | `POST/PUT/PATCH/DELETE /api/**` | Access 쿠키(`/`) | 업무 데이터 변경 | SameSite=Lax, 명시 Origin, 인증·인가 | 교차 사이트 SPA/iframe 도입 시 보강 필요 |

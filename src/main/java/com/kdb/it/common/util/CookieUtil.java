@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.system.dto.AuthDto;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,12 @@ public class CookieUtil {
 
     /** Refresh Token 쿠키 이름 */
     public static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+
+    /** 수동 로그인 MFA 대기 거래 쿠키 이름 */
+    public static final String LOGIN_PENDING_COOKIE = "mfa-login-pending";
+
+    /** MFA 검증 완료 증표 쿠키 이름 */
+    public static final String MFA_PROOF_COOKIE = "mfa-proof";
 
     /** Access Token 쿠키 만료 시간 (15분, 초 단위) - jwt.access-token-validity와 동일하게 유지 */
     private static final long ACCESS_TOKEN_MAX_AGE = 15 * 60;
@@ -91,6 +99,25 @@ public class CookieUtil {
                 .path("/api/auth") // 인증 경로에서만 전송
                 .maxAge(REFRESH_TOKEN_MAX_AGE) // 7일
                 .sameSite("Lax") // CSRF 방어 + 네비게이션 허용
+                .build();
+    }
+
+    /**
+     * 수동 로그인 MFA 대기 거래를 브라우저에 보관할 httpOnly 쿠키를 생성합니다.
+     *
+     * @param pendingToken 서버가 발급한 로그인 대기 거래 원문
+     * @param expiresAt 서버 기준 대기 거래 만료 시각
+     * @return 만료 시각과 같은 수명으로 제한된 로그인 대기 쿠키
+     */
+    public ResponseCookie createLoginPendingCookie(String pendingToken, Instant expiresAt) {
+        long remainingSeconds =
+                Math.max(0L, Duration.between(Instant.now(), expiresAt).toSeconds());
+        return ResponseCookie.from(LOGIN_PENDING_COOKIE, pendingToken)
+                .httpOnly(true)
+                .secure(secureCookie)
+                .path("/")
+                .maxAge(Duration.ofSeconds(remainingSeconds))
+                .sameSite("Lax")
                 .build();
     }
 

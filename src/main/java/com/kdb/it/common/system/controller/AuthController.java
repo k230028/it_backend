@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 인증(Authentication) REST 컨트롤러
  *
- * <p>관리자 계정 생성, 로그인, 로그아웃, JWT 토큰 갱신 기능을 담당합니다.
+ * <p>관리자 계정 생성, MFA 수동 로그인, 로그아웃, JWT 토큰 갱신 기능을 담당합니다.
  *
  * <p>기본 URL: {@code /api/auth}
  *
@@ -38,7 +38,8 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>인증 불필요 공개 엔드포인트 (SecurityConfig에서 permitAll 설정):
  *
  * <ul>
- *   <li>{@code POST /api/auth/login}: 로그인
+ *   <li>{@code POST /api/auth/login/start}: 수동 로그인 시작
+ *   <li>{@code POST /api/auth/login/complete}: MFA 검증 뒤 수동 로그인 완료
  *   <li>{@code POST /api/auth/refresh}: 토큰 갱신
  * </ul>
  *
@@ -102,48 +103,52 @@ public class AuthController {
     }
 
     /**
-     * 로그인 및 JWT 토큰 발급
+     * 수동 로그인 자격증명을 검증하고 MFA 대기 쿠키만 발급합니다.
      *
-     * <p>사번과 비밀번호로 인증 후 Access Token과 Refresh Token을 httpOnly 쿠키로 발급합니다.
-     *
-     * <p>처리 흐름:
-     *
-     * <ol>
-     *   <li>클라이언트 IP 주소 및 User-Agent 추출
-     *   <li>AuthService에서 사용자 인증 수행
-     *   <li>Access Token → httpOnly 쿠키 (Set-Cookie 헤더)
-     *   <li>Refresh Token → httpOnly 쿠키 (Set-Cookie 헤더)
-     *   <li>응답 body에는 eno, empNm, athIds, bbrC, temC 포함 (accessToken/refreshToken은 @JsonIgnore로 제외)
-     * </ol>
-     *
-     * @param request 로그인 요청 (사번, 비밀번호)
-     * @param httpRequest HTTP 요청 객체 (IP, User-Agent 추출용)
-     * @return HTTP 200 + Set-Cookie(accessToken, refreshToken) + body(eno, empNm, athIds, bbrC,
-     *     temC)
+     * @param request 사번과 비밀번호
+     * @param httpRequest 클라이언트 IP와 User-Agent를 추출할 현재 요청
+     * @return MFA 로그인 대기 거래 식별자와 만료 시각
      */
-    @PostMapping("/login")
-    @Operation(summary = "로그인", description = "로그인하여 JWT 토큰을 httpOnly 쿠키로 발급받습니다.")
-    public ResponseEntity<AuthDto.LoginResponse> login(
+    @PostMapping("/login/start")
+    @Operation(summary = "수동 로그인 시작", description = "자격증명 검증 뒤 MFA 로그인 대기 거래만 등록합니다.")
+    public ResponseEntity<AuthDto.LoginStartResponse> startLogin(
             @Valid @RequestBody AuthDto.LoginRequest request, HttpServletRequest httpRequest) {
-        // 클라이언트의 실제 IP 주소 추출 (프록시 환경 고려)
-        String ipAddress = getClientIp(httpRequest);
-        // 클라이언트 브라우저/기기 정보
-        String userAgent = httpRequest.getHeader("User-Agent");
+        AuthDto.LoginStartResponse response =
+                authService.startLogin(
+                        request.getEno(),
+                        request.getPassword(),
+                        getClientIp(httpRequest),
+                        httpRequest.getHeader("User-Agent"));
+        ResponseCookie pendingCookie =
+                cookieUtil.createLoginPendingCookie(
+                        response.getPendingId().toString(), response.getExpiresAt());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, pendingCookie.toString())
+                .body(response);
+    }
 
-        // 인증 처리 및 토큰 발급 (LoginResponse에 토큰 포함, body 직렬화 시 @JsonIgnore)
+    /**
+     * MFA 검증을 마친 로그인 대기 거래를 완료하고 JWT 쿠키를 발급합니다.
+     *
+     * @param httpRequest 로그인 대기 및 MFA 증표 쿠키를 추출할 현재 요청
+     * @return 기존 로그인 응답과 Access·Refresh JWT 쿠키
+     */
+    @PostMapping("/login/complete")
+    @Operation(summary = "수동 로그인 완료", description = "검증된 LOGIN MFA 증표를 한 번 소비한 뒤 JWT를 발급합니다.")
+    public ResponseEntity<AuthDto.LoginResponse> completeLogin(HttpServletRequest httpRequest) {
         AuthDto.LoginResponse response =
-                authService.login(request.getEno(), request.getPassword(), ipAddress, userAgent);
-
-        // Access Token, Refresh Token을 httpOnly 쿠키로 설정
+                authService.completeLogin(
+                        extractCookieValue(httpRequest, CookieUtil.LOGIN_PENDING_COOKIE),
+                        extractCookieValue(httpRequest, CookieUtil.MFA_PROOF_COOKIE),
+                        getClientIp(httpRequest),
+                        httpRequest.getHeader("User-Agent"));
         ResponseCookie accessCookie = cookieUtil.createAccessTokenCookie(response.getAccessToken());
         ResponseCookie refreshCookie =
                 cookieUtil.createRefreshTokenCookie(response.getRefreshToken());
-
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
-                .body(response); // body에는 eno, empNm, athIds, bbrC, temC 포함
-        // (accessToken/refreshToken만 @JsonIgnore로 제외)
+                .body(response);
     }
 
     /**

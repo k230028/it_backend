@@ -39,8 +39,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * 공개 {@code POST /api/auth/login}의 로그인 거부 커밋·잠금·롤백 계약을 실제 로컬 Oracle과 실제 HTTP 디스패치로 검증하는 통합 테스트
- * (SEC-09 Task 3).
+ * 공개 {@code POST /api/auth/login/start}의 로그인 거부 커밋·잠금·롤백 계약을 실제 로컬 Oracle과 실제 HTTP 디스패치로 검증하는 통합
+ * 테스트 (SEC-09 Task 3).
  *
  * <p>Task 1(비인증 컨텍스트에서 {@code JpaAuditConfig.auditorProvider()}가 빈 값을 반환하고 {@code Clognh} 팩토리가
  * {@code "SYSTEM"} 감사자를 명시 기록), Task 2({@code AuthService#login}의
@@ -50,8 +50,8 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>검증 시나리오:
  *
  * <ul>
- *   <li>SecurityContext가 비어있는 상태에서 {@code POST /api/auth/login}을 잘못된 비밀번호로 5회 호출하면 각 응답은 현재 로그인 거부
- *       HTTP 계약(400 + {@link com.kdb.it.exception.GlobalExceptionHandler}의 일반 {@code
+ *   <li>SecurityContext가 비어있는 상태에서 {@code POST /api/auth/login/start}를 잘못된 비밀번호로 5회 호출하면 각 응답은 현재
+ *       로그인 거부 HTTP 계약(400 + {@link com.kdb.it.exception.GlobalExceptionHandler}의 일반 {@code
  *       RuntimeException} 처리기 메시지)을 반환하고, Oracle에는 정확히 5건의 {@code IT_PTL_LGN_TC='2'} 이력이 {@code
  *       FST_ENR_USID=LST_CHG_USID='SYSTEM'}으로 커밋된다.
  *   <li>6번째 호출은 {@link com.kdb.it.common.iam.service.LoginAttemptService}의 계정 잠금 계약(400 + 잠금 안내
@@ -78,7 +78,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @ExtendWith(OracleAvailableCondition.class)
 class AuthLoginFailureIsolationIT {
 
-    private static final String LOGIN_URL = "/api/auth/login";
+    private static final String LOGIN_URL = "/api/auth/login/start";
 
     /** 테스트 전용 고정 사번 — FST_ENR_USID/LST_CHG_USID 컬럼 길이(14자, 실 스키마 확인) 이내로 제한한 12자 값. */
     private static final String TEST_ENO = "ZZITLGNFAIL1";
@@ -150,7 +150,7 @@ class AuthLoginFailureIsolationIT {
     @DisplayName("공개 로그인 실패 5회는 SYSTEM 감사자로 커밋되고 6번째는 계정 잠금으로 거부되며 추가 이력을 남기지 않는다")
     void publicLogin_5회실패는SYSTEM감사자로커밋_6번째는잠금및추가이력없음() throws Exception {
         // Scenario 1 — anonymous 컨텍스트 재현: SecurityContext를 인위적으로 주입하지 않고
-        // 실제 운영 /api/auth/login 요청 경로를 그대로 탄다.
+        // 실제 운영 /api/auth/login/start 요청 경로를 그대로 탄다.
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
 
         // Scenario 2·3 — 실제 MockMvc 디스패치로 5회 연속 실패 호출, 매 응답이 현재 로그인 거부 계약을 유지하는지 고정 검증.

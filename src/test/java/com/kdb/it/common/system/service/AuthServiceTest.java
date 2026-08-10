@@ -14,6 +14,10 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.LoginAttemptService;
 import com.kdb.it.common.iam.service.UserRoleResolver;
+import com.kdb.it.common.mfa.dto.MfaDto;
+import com.kdb.it.common.mfa.exception.MfaErrorCode;
+import com.kdb.it.common.mfa.exception.MfaException;
+import com.kdb.it.common.mfa.service.MfaService;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.entity.Crtokm;
@@ -27,9 +31,11 @@ import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.exception.InvalidRefreshTokenException;
 import com.kdb.it.exception.LoginRejectedException;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,12 +65,108 @@ class AuthServiceTest {
     @Mock private RefreshTokenRevoker refreshTokenRevoker;
 
     @Mock private LoginAttemptService loginAttemptService;
+    @Mock private MfaService mfaService;
 
     @InjectMocks private AuthService authService;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(authService, "refreshTokenValidityMs", 604_800_000L);
+    }
+
+    @Test
+    @DisplayName("startLogin - 유효한 자격증명은 JWT 없이 MFA 로그인 대기 거래만 등록한다")
+    void startLogin_유효한자격증명_JWT없이대기거래등록() {
+        CuserI user = CuserI.builder().eno("10001").usrEcyPwd("encodedPwd").build();
+        UUID pendingId = UUID.randomUUID();
+        given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
+        given(mfaService.registerLoginPending("10001"))
+                .willReturn(new MfaDto.LoginPendingRegistration(pendingId, 300));
+
+        AuthDto.LoginStartResponse response =
+                authService.startLogin("10001", "password", "127.0.0.1", "TestAgent");
+
+        assertThat(response.getPendingId()).isEqualTo(pendingId);
+        assertThat(response.getExpiresAt()).isAfter(Instant.now().minusSeconds(1));
+        verify(mfaService).registerLoginPending("10001");
+        verifyNoInteractions(jwtUtil, refreshTokenRepository);
+    }
+
+    @Test
+    @DisplayName("completeLogin - 검증된 증표는 JWT를 한 번만 발급하고 재사용을 거부한다")
+    void completeLogin_검증된증표_한번만JWT발급() {
+        CuserI user = CuserI.builder().eno("10001").usrNm("홍길동").build();
+        List<String> athIds = List.of(CustomUserDetails.ATH_USER);
+        given(mfaService.consumeLoginProof("pending", "proof"))
+                .willReturn("10001")
+                .willThrow(new MfaException(MfaErrorCode.MFA_REQUIRED));
+        given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+        given(userRoleResolver.resolveAthIds("10001")).willReturn(athIds);
+        given(jwtUtil.generateAccessToken("10001", athIds, null)).willReturn("access-token");
+        given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
+
+        AuthDto.LoginResponse response =
+                authService.completeLogin("pending", "proof", "127.0.0.1", "TestAgent");
+
+        assertThat(response.getAccessToken()).isEqualTo("access-token");
+        assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
+        assertThatThrownBy(
+                        () ->
+                                authService.completeLogin(
+                                        "pending", "proof", "127.0.0.1", "TestAgent"))
+                .isInstanceOf(MfaException.class)
+                .extracting(exception -> ((MfaException) exception).errorCode())
+                .isEqualTo(MfaErrorCode.MFA_REQUIRED);
+        verify(jwtUtil, times(1)).generateAccessToken("10001", athIds, null);
+        verify(refreshTokenRepository, times(1)).save(any(Crtokm.class));
+    }
+
+    @Test
+    @DisplayName("completeLogin - MFA 증표가 없으면 JWT를 발급하지 않는다")
+    void completeLogin_MFA증표없음_JWT미발급() {
+        given(mfaService.consumeLoginProof("pending", null))
+                .willThrow(new MfaException(MfaErrorCode.MFA_REQUIRED));
+
+        assertThatThrownBy(
+                        () -> authService.completeLogin("pending", null, "127.0.0.1", "TestAgent"))
+                .isInstanceOf(MfaException.class)
+                .extracting(exception -> ((MfaException) exception).errorCode())
+                .isEqualTo(MfaErrorCode.MFA_REQUIRED);
+
+        verifyNoInteractions(jwtUtil, refreshTokenRepository);
+    }
+
+    @Test
+    @DisplayName("completeLogin - 다른 사용자에게 귀속된 증표는 JWT를 발급하지 않는다")
+    void completeLogin_다른사용자증표_JWT미발급() {
+        given(mfaService.consumeLoginProof("pending", "wrong-user-proof"))
+                .willThrow(new MfaException(MfaErrorCode.MFA_REQUIRED));
+
+        assertThatThrownBy(
+                        () ->
+                                authService.completeLogin(
+                                        "pending", "wrong-user-proof", "127.0.0.1", "TestAgent"))
+                .isInstanceOf(MfaException.class);
+
+        verifyNoInteractions(jwtUtil, refreshTokenRepository);
+    }
+
+    @Test
+    @DisplayName("completeLogin - 만료된 증표는 JWT를 발급하지 않는다")
+    void completeLogin_만료증표_JWT미발급() {
+        given(mfaService.consumeLoginProof("pending", "expired-proof"))
+                .willThrow(new MfaException(MfaErrorCode.MFA_EXPIRED));
+
+        assertThatThrownBy(
+                        () ->
+                                authService.completeLogin(
+                                        "pending", "expired-proof", "127.0.0.1", "TestAgent"))
+                .isInstanceOf(MfaException.class)
+                .extracting(exception -> ((MfaException) exception).errorCode())
+                .isEqualTo(MfaErrorCode.MFA_EXPIRED);
+
+        verifyNoInteractions(jwtUtil, refreshTokenRepository);
     }
 
     // ── 로그인 테스트 ──────────────────────────────────────────────────

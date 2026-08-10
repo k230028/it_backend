@@ -4,6 +4,8 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.LoginAttemptService;
 import com.kdb.it.common.iam.service.UserRoleResolver;
+import com.kdb.it.common.mfa.dto.MfaDto;
+import com.kdb.it.common.mfa.service.MfaService;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.entity.Crtokm;
@@ -19,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
@@ -69,6 +72,9 @@ public class AuthService {
     /** 로그인 Brute-force 감지 서비스 — SEC-03 */
     private final LoginAttemptService loginAttemptService;
 
+    /** 수동 로그인 MFA 거래를 관리하는 서비스 */
+    private final MfaService mfaService;
+
     /** JWT Access/Refresh Token 생성 및 검증 유틸리티 */
     private final JwtUtil jwtUtil;
 
@@ -115,12 +121,65 @@ public class AuthService {
     }
 
     /**
-     * 사용자 이름 조회
+     * 수동 로그인 자격증명을 검증하고 MFA 대기 거래를 등록합니다.
      *
-     * <p>사번으로 사용자 이름을 조회합니다. 사용자가 없으면 "Unknown"을 반환합니다.
+     * @param eno 로그인 사번
+     * @param password 평문 비밀번호
+     * @param ipAddress 로그인 실패 이력에 기록할 클라이언트 IP
+     * @param userAgent 로그인 실패 이력에 기록할 User-Agent
+     * @return MFA 검증에 사용할 로그인 대기 거래 식별자와 만료 시각
+     * @throws LoginRejectedException 사번이 없거나 비밀번호가 일치하지 않는 경우
+     */
+    @Transactional(noRollbackFor = LoginRejectedException.class)
+    public AuthDto.LoginStartResponse startLogin(
+            String eno, String password, String ipAddress, String userAgent) {
+        verifyCredentials(eno, password, ipAddress, userAgent);
+        MfaDto.LoginPendingRegistration pending = mfaService.registerLoginPending(eno);
+        return new AuthDto.LoginStartResponse(
+                pending.pendingId(), Instant.now().plusSeconds(pending.remainingSeconds()));
+    }
+
+    /**
+     * 검증된 로그인 MFA 증표를 한 번 소비하고 JWT를 발급합니다.
+     *
+     * @param pendingCookie 로그인 대기 거래 원문
+     * @param proofCookie LOGIN 용도 MFA 증표 원문
+     * @param ipAddress 로그인 성공 이력에 기록할 클라이언트 IP
+     * @param userAgent 로그인 성공 이력에 기록할 User-Agent
+     * @return MFA 소비 뒤 발급된 로그인 응답
+     */
+    @Transactional
+    public AuthDto.LoginResponse completeLogin(
+            String pendingCookie, String proofCookie, String ipAddress, String userAgent) {
+        String eno = mfaService.consumeLoginProof(pendingCookie, proofCookie);
+        CuserI user =
+                userRepository
+                        .findByEno(eno)
+                        .orElseThrow(() -> new LoginRejectedException("사용자를 찾을 수 없습니다."));
+        return issueLoginTokens(user, ipAddress, userAgent);
+    }
+
+    private CuserI verifyCredentials(
+            String eno, String password, String ipAddress, String userAgent) {
+        loginAttemptService.checkLocked(eno);
+        Optional<CuserI> userOpt = userRepository.findByEno(eno);
+        if (userOpt.isEmpty()) {
+            recordLoginFailure(eno, ipAddress, userAgent, "존재하지 않는 사번");
+            throw new LoginRejectedException("사용자를 찾을 수 없습니다.");
+        }
+        CuserI user = userOpt.get();
+        if (!passwordEncoder.matches(password, user.getUsrEcyPwd())) {
+            recordLoginFailure(eno, ipAddress, userAgent, "비밀번호 불일치");
+            throw new LoginRejectedException("비밀번호가 일치하지 않습니다.");
+        }
+        return user;
+    }
+
+    /**
+     * 사용자 이름을 조회합니다.
      *
      * @param eno 조회할 사번
-     * @return 사용자 이름 (없으면 "Unknown")
+     * @return 사용자 이름, 없으면 {@code Unknown}
      */
     @Transactional(readOnly = true)
     public String getUserName(String eno) {
@@ -161,6 +220,25 @@ public class AuthService {
      * @throws LoginRejectedException 사용자 미존재, 비밀번호 불일치 시 (실패 이력은 커밋됨)
      * @throws RuntimeException 실패 횟수 초과로 계정이 잠긴 경우({@code CustomGeneralException}), 그 외 예기치 못한 오류 시
      */
+    @Transactional(noRollbackFor = LoginRejectedException.class)
+    private AuthDto.LoginResponse issueLoginTokens(
+            CuserI user, String ipAddress, String userAgent) {
+        String eno = user.getEno();
+        List<String> athIds = userRoleResolver.resolveAthIds(eno);
+        String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
+        String refreshTokenValue = issueNewRefreshFamily(eno);
+        recordLoginSuccess(eno, ipAddress, userAgent);
+        return AuthDto.LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenValue)
+                .eno(eno)
+                .empNm(user.getUsrNm())
+                .athIds(athIds)
+                .bbrC(user.getBbrC())
+                .temC(user.getTemC())
+                .build();
+    }
+
     @Transactional(noRollbackFor = LoginRejectedException.class)
     public AuthDto.LoginResponse login(
             String eno, String password, String ipAddress, String userAgent) {

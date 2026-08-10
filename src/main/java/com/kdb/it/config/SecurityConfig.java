@@ -47,7 +47,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * <p>공개 엔드포인트 (인증 불필요):
  *
  * <ul>
- *   <li>{@code POST /api/auth/login}: 로그인
+ *   <li>{@code POST /api/auth/login/start}: 수동 로그인 시작
+ *   <li>{@code POST /api/auth/login/complete}: MFA 검증 뒤 수동 로그인 완료
  *   <li>{@code POST /api/auth/refresh}: 토큰 갱신
  *   <li>{@code POST /api/auth/logout}: 로그아웃 — Refresh 쿠키로 소유자를 확인하므로 Access 인증이 만료된 뒤에도 폐기가 가능해야 한다
  *   <li>OpenAPI가 활성화된 프로파일의 {@code /swagger-ui/**}, {@code /v3/api-docs/**}: API 문서
@@ -147,7 +148,8 @@ public class SecurityConfig {
                             auth
                                     // 인증 없이 접근 가능한 엔드포인트
                                     .requestMatchers(
-                                            "/api/auth/login",
+                                            "/api/auth/login/start",
+                                            "/api/auth/login/complete",
                                             "/api/auth/refresh",
                                             // 로그아웃 — Access Token이 이미 만료·삭제된 상태에서만 호출되는
                                             // 정리 API다. 인증을 요구하면 정작 필요한 순간에 401이 되어
