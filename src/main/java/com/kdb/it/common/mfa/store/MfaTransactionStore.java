@@ -14,6 +14,8 @@ public interface MfaTransactionStore {
 
     Optional<MfaTransaction> verify(String tokenHash, Instant now);
 
+    Optional<MfaTransaction> verifyAndBindProof(String tokenHash, String proofHash, Instant now);
+
     Optional<MfaTransaction> fail(String tokenHash, Instant now, int maxFailures);
 
     Optional<MfaTransaction> delete(String tokenHash, Instant now);

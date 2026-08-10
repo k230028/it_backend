@@ -15,6 +15,8 @@ public class InMemoryMfaTransactionStore implements MfaTransactionStore {
 
     private final ConcurrentHashMap<String, MfaTransaction> transactions =
             new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MfaTransaction> proofTransactions =
+            new ConcurrentHashMap<>();
 
     @Override
     public void save(MfaTransaction transaction) {
@@ -53,6 +55,26 @@ public class InMemoryMfaTransactionStore implements MfaTransactionStore {
     }
 
     @Override
+    public synchronized Optional<MfaTransaction> verifyAndBindProof(
+            String tokenHash, String proofHash, Instant now) {
+        MfaTransaction transaction = transactions.get(tokenHash);
+        if (transaction == null || transaction.isExpiredAt(now)) {
+            transactions.remove(tokenHash, transaction);
+            return Optional.empty();
+        }
+        MfaTransaction verified = transaction.verify(now);
+        MfaTransaction bound = verified.bindProofHash(proofHash);
+        if (bound.proofHash() == null || proofTransactions.putIfAbsent(proofHash, bound) != null) {
+            return Optional.empty();
+        }
+        if (!transactions.remove(tokenHash, transaction)) {
+            proofTransactions.remove(proofHash, bound);
+            return Optional.empty();
+        }
+        return Optional.of(bound);
+    }
+
+    @Override
     public Optional<MfaTransaction> fail(String tokenHash, Instant now, int maxFailures) {
         AtomicReference<MfaTransaction> failed = new AtomicReference<>();
         transactions.compute(
@@ -86,8 +108,22 @@ public class InMemoryMfaTransactionStore implements MfaTransactionStore {
     @Override
     public Optional<MfaTransaction> consumeVerifiedOnce(
             String tokenHash, String eno, MfaPurpose purpose, Instant now) {
+        Optional<MfaTransaction> consumedProof =
+                consume(proofTransactions, tokenHash, eno, purpose, now);
+        if (consumedProof.isPresent()) {
+            return consumedProof;
+        }
+        return consume(transactions, tokenHash, eno, purpose, now);
+    }
+
+    private Optional<MfaTransaction> consume(
+            ConcurrentHashMap<String, MfaTransaction> source,
+            String tokenHash,
+            String eno,
+            MfaPurpose purpose,
+            Instant now) {
         AtomicReference<MfaTransaction> consumed = new AtomicReference<>();
-        transactions.compute(
+        source.compute(
                 tokenHash,
                 (ignored, transaction) -> {
                     if (transaction == null || transaction.isExpiredAt(now)) {

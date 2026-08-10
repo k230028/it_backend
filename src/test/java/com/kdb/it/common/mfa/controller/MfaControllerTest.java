@@ -2,6 +2,7 @@ package com.kdb.it.common.mfa.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -73,7 +74,9 @@ class MfaControllerTest {
         org.mockito.BDDMockito.given(
                         mfaService.verifyChallenge(
                                 eq(challengeId), any(), any(), eq("pending-value")))
-                .willReturn(new MfaDto.MfaVerifyResponse(true, 85));
+                .willReturn(
+                        new MfaService.VerifiedChallenge(
+                                new MfaDto.MfaVerifyResponse(true, 85), "proof-value"));
 
         mockMvc.perform(
                         post("/api/mfa/challenges/{id}/verify", challengeId)
@@ -95,10 +98,15 @@ class MfaControllerTest {
                                                 org.hamcrest.Matchers.containsString(
                                                         MfaController.MFA_PROOF_COOKIE
                                                                 + "="
-                                                                + challengeId),
+                                                                + "proof-value"),
+                                                org.hamcrest.Matchers.not(
+                                                        org.hamcrest.Matchers.containsString(
+                                                                challengeId.toString())),
                                                 org.hamcrest.Matchers.containsString("HttpOnly"),
                                                 org.hamcrest.Matchers.containsString(
-                                                        "SameSite=Lax"))));
+                                                        "SameSite=Lax"))))
+                .andExpect(jsonPath("$.proof").doesNotExist())
+                .andExpect(jsonPath("$.challengeId").doesNotExist());
     }
 
     @Test
@@ -130,5 +138,38 @@ class MfaControllerTest {
                                                         MfaPurpose.APPROVAL, MfaMethod.FIDO))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("MFA_REQUIRED"));
+    }
+
+    @Test
+    void verify_너무긴공급자입력은외부호출전400으로거부한다() throws Exception {
+        String oversizedProviderId = "a".repeat(257);
+
+        mockMvc.perform(
+                        post("/api/mfa/challenges/{id}/verify", UUID.randomUUID())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new MfaDto.MfaVerifyRequest(
+                                                        oversizedProviderId, "123456"))))
+                .andExpect(status().isBadRequest());
+
+        verify(mfaService, never()).verifyChallenge(any(), any(), any(), any());
+    }
+
+    @Test
+    void verify_너무긴검증값은외부호출전400으로거부한다() throws Exception {
+        String oversizedVerificationValue = "1".repeat(513);
+
+        mockMvc.perform(
+                        post("/api/mfa/challenges/{id}/verify", UUID.randomUUID())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new MfaDto.MfaVerifyRequest(
+                                                        "provider-id",
+                                                        oversizedVerificationValue))))
+                .andExpect(status().isBadRequest());
+
+        verify(mfaService, never()).verifyChallenge(any(), any(), any(), any());
     }
 }

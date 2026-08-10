@@ -80,7 +80,7 @@ public class MfaController {
             @Valid @RequestBody MfaDto.MfaVerifyRequest request,
             @AuthenticationPrincipal Object principal,
             HttpServletRequest servletRequest) {
-        MfaDto.MfaVerifyResponse response =
+        MfaService.VerifiedChallenge completion =
                 mfaService.verifyChallenge(
                         challengeId,
                         request,
@@ -89,8 +89,9 @@ public class MfaController {
         return ResponseEntity.ok()
                 .header(
                         HttpHeaders.SET_COOKIE,
-                        proofCookie(challengeId, response.remainingSeconds()).toString())
-                .body(response);
+                        proofCookie(completion.proof(), completion.response().remainingSeconds())
+                                .toString())
+                .body(completion.response());
     }
 
     /**
@@ -112,8 +113,8 @@ public class MfaController {
         return ResponseEntity.noContent().build();
     }
 
-    private ResponseCookie proofCookie(UUID challengeId, long remainingSeconds) {
-        return ResponseCookie.from(MFA_PROOF_COOKIE, challengeId.toString())
+    private ResponseCookie proofCookie(String proof, long remainingSeconds) {
+        return ResponseCookie.from(MFA_PROOF_COOKIE, proof)
                 .httpOnly(true)
                 .secure(secureCookie)
                 .path("/")

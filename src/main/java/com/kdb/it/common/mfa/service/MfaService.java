@@ -19,9 +19,11 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,6 +32,9 @@ import org.springframework.stereotype.Service;
 /** MFA 거래 생성, 소유권 검증, 외부 인증 및 1회용 증표 소비를 조정한다. */
 @Service
 public class MfaService {
+
+    private static final SecureRandom PROOF_RANDOM = new SecureRandom();
+    private static final int PROOF_BYTES = 32;
 
     private final MfaTransactionStore transactionStore;
     private final LoginPendingTransactionStore loginPendingTransactionStore;
@@ -127,7 +132,7 @@ public class MfaService {
      * @return 검증 성공 여부와 서버 기준 증표 남은 시간
      * @throws MfaException 거래 만료, 소유권 위반, 인증 실패 또는 잠금 상태인 경우
      */
-    public MfaDto.MfaVerifyResponse verifyChallenge(
+    public VerifiedChallenge verifyChallenge(
             UUID challengeId,
             MfaDto.MfaVerifyRequest request,
             Optional<CustomUserDetails> currentUser,
@@ -162,14 +167,17 @@ public class MfaService {
             throwFailedVerification(tokenHash, now);
         }
 
+        String proof = newProof();
         MfaTransaction verified =
                 transactionStore
-                        .verify(tokenHash, now)
+                        .verifyAndBindProof(tokenHash, hash(proof), now)
                         .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_EXPIRED));
         if (verified.status() != MfaTransactionStatus.VERIFIED) {
             throw new MfaException(MfaErrorCode.MFA_REQUIRED);
         }
-        return new MfaDto.MfaVerifyResponse(true, remainingSeconds(verified.expiresAt(), now));
+        return new VerifiedChallenge(
+                new MfaDto.MfaVerifyResponse(true, remainingSeconds(verified.expiresAt(), now)),
+                proof);
     }
 
     /**
@@ -198,18 +206,29 @@ public class MfaService {
      * @throws MfaException 유효하지 않거나 이미 사용된 증표인 경우
      */
     public void consumeApprovalProof(CustomUserDetails currentUser, String proofCookie) {
-        consumeProof(currentUser.getEno(), proofCookie, MfaPurpose.APPROVAL);
+        consumeProof(currentUser.getEno(), proofCookie, MfaPurpose.APPROVAL, Instant.now(clock));
     }
 
     /**
      * 로그인 완료 직전에 로그인 대기 사용자에게 귀속된 MFA 증표를 원자적으로 한 번 소비한다.
      *
-     * @param eno 로그인 대기 거래가 소유한 사원번호
+     * @param pendingCookie 로그인 대기 증표 원문
      * @param proofCookie MFA 증표 원문
      * @throws MfaException 유효하지 않거나 이미 사용된 증표인 경우
      */
-    public void consumeLoginProof(String eno, String proofCookie) {
-        consumeProof(eno, proofCookie, MfaPurpose.LOGIN);
+    public synchronized void consumeLoginProof(String pendingCookie, String proofCookie) {
+        Instant now = Instant.now(clock);
+        if (pendingCookie == null || pendingCookie.isBlank()) {
+            throw new MfaException(MfaErrorCode.MFA_REQUIRED);
+        }
+        LoginPendingTransaction pending =
+                loginPendingTransactionStore
+                        .findByTokenHash(hash(pendingCookie), now)
+                        .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_REQUIRED));
+        consumeProof(pending.eno(), proofCookie, MfaPurpose.LOGIN, now);
+        loginPendingTransactionStore
+                .consumeOnce(hash(pendingCookie), pending.eno(), now)
+                .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_REQUIRED));
     }
 
     private String resolveOwnerForStart(
@@ -316,13 +335,13 @@ public class MfaService {
         throw new MfaException(MfaErrorCode.MFA_FAILED);
     }
 
-    private void consumeProof(String eno, String proofCookie, MfaPurpose purpose) {
+    private void consumeProof(String eno, String proofCookie, MfaPurpose purpose, Instant now) {
         if (proofCookie == null || proofCookie.isBlank()) {
             throw new MfaException(MfaErrorCode.MFA_REQUIRED);
         }
         String tokenHash = hash(proofCookie);
         transactionStore
-                .consumeVerifiedOnce(tokenHash, eno, purpose, Instant.now(clock))
+                .consumeVerifiedOnce(tokenHash, eno, purpose, now)
                 .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_REQUIRED));
         knownExpiryByTokenHash.remove(tokenHash);
         cancelledExpiryByTokenHash.remove(tokenHash);
@@ -338,4 +357,13 @@ public class MfaService {
             throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다.", exception);
         }
     }
+
+    private static String newProof() {
+        byte[] bytes = new byte[PROOF_BYTES];
+        PROOF_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    /** 검증 응답 본문과 분리되어 쿠키로만 전달할 1회용 증표다. */
+    public record VerifiedChallenge(MfaDto.MfaVerifyResponse response, String proof) {}
 }

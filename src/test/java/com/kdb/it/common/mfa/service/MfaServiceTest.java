@@ -223,16 +223,18 @@ class MfaServiceTest {
                         new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.FIDO),
                         Optional.of(user),
                         null);
-        service.verifyChallenge(
-                response.challengeId(),
-                new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
-                Optional.of(user),
-                null);
+        MfaService.VerifiedChallenge completion =
+                service.verifyChallenge(
+                        response.challengeId(),
+                        new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                        Optional.of(user),
+                        null);
 
-        service.consumeApprovalProof(user, response.challengeId().toString());
+        assertThat(completion.proof()).isNotEqualTo(response.challengeId().toString());
+        service.consumeApprovalProof(user, completion.proof());
 
         assertMfaError(
-                () -> service.consumeApprovalProof(user, response.challengeId().toString()),
+                () -> service.consumeApprovalProof(user, completion.proof()),
                 MfaErrorCode.MFA_REQUIRED);
     }
 
@@ -331,16 +333,20 @@ class MfaServiceTest {
                         new MfaDto.MfaStartRequest(MfaPurpose.LOGIN, MfaMethod.FIDO),
                         Optional.empty(),
                         PENDING_PROOF);
-        service.verifyChallenge(
-                response.challengeId(),
-                new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
-                Optional.empty(),
-                PENDING_PROOF);
+        MfaService.VerifiedChallenge completion =
+                service.verifyChallenge(
+                        response.challengeId(),
+                        new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                        Optional.empty(),
+                        PENDING_PROOF);
 
-        service.consumeLoginProof("E10001", response.challengeId().toString());
+        service.consumeLoginProof(PENDING_PROOF, completion.proof());
 
         assertMfaError(
-                () -> service.consumeLoginProof("E10001", response.challengeId().toString()),
+                () -> service.consumeLoginProof(PENDING_PROOF, completion.proof()),
+                MfaErrorCode.MFA_REQUIRED);
+        assertMfaError(
+                () -> service.consumeLoginProof(PENDING_PROOF, "other-proof"),
                 MfaErrorCode.MFA_REQUIRED);
     }
 

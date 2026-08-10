@@ -5,6 +5,8 @@ import com.kdb.it.common.mfa.domain.MfaPurpose;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 /** MFA challenge API 입출력 계약을 묶는다. */
@@ -29,8 +31,14 @@ public final class MfaDto {
     /** MFA challenge 검증 요청이다. */
     @Schema(name = "MfaVerifyRequest", description = "MFA challenge 검증 요청")
     public record MfaVerifyRequest(
-            @NotBlank @Schema(description = "공급자가 발급한 challenge 식별자") String providerChallengeId,
-            @Schema(description = "인증 수단별 검증값. FIDO에는 빈 문자열을 전송한다.", nullable = true)
+            @NotBlank
+                    @Size(max = 256)
+                    @Pattern(regexp = "[A-Za-z0-9._:-]+")
+                    @Schema(description = "공급자가 발급한 challenge 식별자")
+                    String providerChallengeId,
+            @Size(max = 512)
+                    @Pattern(regexp = "[A-Za-z0-9._:-]*")
+                    @Schema(description = "인증 수단별 검증값. FIDO에는 빈 문자열을 전송한다.", nullable = true)
                     String verificationValue) {}
 
     /** Task 5 로그인 시작 흐름이 httpOnly 쿠키로 보관할 로그인 대기 등록 결과다. */

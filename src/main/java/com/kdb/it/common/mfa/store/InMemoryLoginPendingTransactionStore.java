@@ -33,4 +33,23 @@ public class InMemoryLoginPendingTransactionStore implements LoginPendingTransac
                 });
         return Optional.ofNullable(found.get());
     }
+
+    @Override
+    public Optional<LoginPendingTransaction> consumeOnce(
+            String tokenHash, String eno, Instant now) {
+        AtomicReference<LoginPendingTransaction> consumed = new AtomicReference<>();
+        transactions.compute(
+                tokenHash,
+                (ignored, transaction) -> {
+                    if (transaction == null || transaction.isExpiredAt(now)) {
+                        return null;
+                    }
+                    if (!transaction.eno().equals(eno)) {
+                        return transaction;
+                    }
+                    consumed.set(transaction);
+                    return null;
+                });
+        return Optional.ofNullable(consumed.get());
+    }
 }

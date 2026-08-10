@@ -12,6 +12,7 @@ public final class MfaTransaction {
     private final MfaMethod method;
     private final Instant expiresAt;
     private final String providerChallengeHash;
+    private final String proofHash;
     private final MfaTransactionStatus status;
     private final Instant verifiedAt;
     private final int failureCount;
@@ -23,6 +24,7 @@ public final class MfaTransaction {
             MfaMethod method,
             Instant expiresAt,
             String providerChallengeHash,
+            String proofHash,
             MfaTransactionStatus status,
             Instant verifiedAt,
             int failureCount) {
@@ -48,6 +50,7 @@ public final class MfaTransaction {
         this.method = method;
         this.expiresAt = expiresAt;
         this.providerChallengeHash = providerChallengeHash;
+        this.proofHash = proofHash;
         this.status = status;
         this.verifiedAt = verifiedAt;
         this.failureCount = failureCount;
@@ -62,6 +65,7 @@ public final class MfaTransaction {
                 purpose,
                 method,
                 expiresAt,
+                null,
                 null,
                 MfaTransactionStatus.PENDING,
                 null,
@@ -84,6 +88,7 @@ public final class MfaTransaction {
                 method,
                 expiresAt,
                 providerChallengeHash,
+                null,
                 MfaTransactionStatus.PENDING,
                 null,
                 0);
@@ -133,6 +138,7 @@ public final class MfaTransaction {
                 method,
                 expiresAt,
                 providerChallengeHash,
+                proofHash,
                 nextStatus,
                 nextVerifiedAt,
                 nextFailureCount);
@@ -161,6 +167,30 @@ public final class MfaTransaction {
     /** 공급자 challenge의 SHA-256 해시이며 원문은 저장하지 않는다. */
     public String providerChallengeHash() {
         return providerChallengeHash;
+    }
+
+    /** 검증 후 발급한 1회용 증표의 SHA-256 해시이며 원문은 저장하지 않는다. */
+    public String proofHash() {
+        return proofHash;
+    }
+
+    /** 검증 완료 거래에만 1회용 증표 해시를 결속한다. */
+    public MfaTransaction bindProofHash(String nextProofHash) {
+        if (status != MfaTransactionStatus.VERIFIED || proofHash != null) {
+            return this;
+        }
+        Objects.requireNonNull(nextProofHash, "MFA 증표 해시는 필수입니다.");
+        return new MfaTransaction(
+                tokenHash,
+                eno,
+                purpose,
+                method,
+                expiresAt,
+                providerChallengeHash,
+                nextProofHash,
+                status,
+                verifiedAt,
+                failureCount);
     }
 
     public MfaTransactionStatus status() {

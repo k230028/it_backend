@@ -10,4 +10,6 @@ public interface LoginPendingTransactionStore {
     void save(LoginPendingTransaction transaction);
 
     Optional<LoginPendingTransaction> findByTokenHash(String tokenHash, Instant now);
+
+    Optional<LoginPendingTransaction> consumeOnce(String tokenHash, String eno, Instant now);
 }
