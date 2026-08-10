@@ -239,49 +239,6 @@ public class AuthService {
                 .build();
     }
 
-    @Transactional(noRollbackFor = LoginRejectedException.class)
-    public AuthDto.LoginResponse login(
-            String eno, String password, String ipAddress, String userAgent) {
-        // Brute-force 차단 — 10분 내 5회 이상 실패 시 계정 잠금 (SEC-03)
-        // 잠금 예외는 사용자 조회 이전에 발생하므로 실패 이력을 추가로 남기지 않으며, LoginRejectedException으로도
-        // 변환되지 않는다 (잠금 판정 자체를 재시도로 흐리지 않기 위해 트랜잭션은 그대로 롤백된다).
-        loginAttemptService.checkLocked(eno);
-
-        // 사용자 조회 — 없으면 실패 이력 기록 후 예외 (메시지 문자열 매칭 없이 타입으로 분기)
-        Optional<CuserI> userOpt = userRepository.findByEno(eno);
-        if (userOpt.isEmpty()) {
-            recordLoginFailure(eno, ipAddress, userAgent, "존재하지 않는 사번");
-            throw new LoginRejectedException("사용자를 찾을 수 없습니다.");
-        }
-        CuserI user = userOpt.get();
-
-        // 비밀번호 검증 (SHA-256 + Base64 방식)
-        if (!passwordEncoder.matches(password, user.getUsrEcyPwd())) {
-            recordLoginFailure(eno, ipAddress, userAgent, "비밀번호 불일치");
-            throw new LoginRejectedException("비밀번호가 일치하지 않습니다.");
-        }
-
-        // 사용자의 모든 활성 자격등급 조회 (다중 자격등급 지원)
-        List<String> athIds = userRoleResolver.resolveAthIds(eno);
-
-        String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
-
-        // 기존 Refresh Token 삭제 후 새 패밀리로 토큰 저장 (1인 1패밀리 정책)
-        String refreshTokenValue = issueNewRefreshFamily(eno);
-
-        recordLoginSuccess(eno, ipAddress, userAgent);
-
-        return AuthDto.LoginResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshTokenValue)
-                .eno(eno)
-                .empNm(user.getUsrNm())
-                .athIds(athIds)
-                .bbrC(user.getBbrC())
-                .temC(user.getTemC())
-                .build();
-    }
-
     /**
      * Access Token 갱신 — 비-트랜잭션 오케스트레이터 (SEC-08 Phase A Task 5).
      *

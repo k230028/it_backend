@@ -185,7 +185,7 @@ class AuthLoginFailureIsolationIT {
     @Test
     @DisplayName("실패 이력 저장 중 예기치 못한 DB 오류는 LoginRejectedException으로 변환되지 않고 트랜잭션 전체가 롤백된다")
     void 로그인_이력저장DB오류_원인예외전파및전체롤백() {
-        // Scenario 6 — MockMvc가 아닌 서비스 계층(authService.login)을 직접 호출한다.
+        // Scenario 6 — MockMvc가 아닌 서비스 계층(authService.startLogin)을 직접 호출한다.
         // GlobalExceptionHandler를 거치면 이 예외도 결국 500 응답으로 변환되어 HTTP 계약만으로는
         // "LoginRejectedException으로 변환되지 않았다"는 예외 타입 계약을 직접 확인할 수 없다.
         // 서비스 메서드를 직접 호출해 던져진 예외의 실제 타입을 assertThatThrownBy로 단언하는 편이
@@ -199,7 +199,7 @@ class AuthLoginFailureIsolationIT {
 
         assertThatThrownBy(
                         () ->
-                                authService.login(
+                                authService.startLogin(
                                         TEST_ENO, WRONG_PASSWORD, "127.0.0.1", "IT-Test-Agent"))
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .isNotInstanceOf(LoginRejectedException.class);

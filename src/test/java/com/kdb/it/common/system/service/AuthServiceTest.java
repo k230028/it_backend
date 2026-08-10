@@ -31,8 +31,10 @@ import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.exception.InvalidRefreshTokenException;
 import com.kdb.it.exception.LoginRejectedException;
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -72,6 +74,13 @@ class AuthServiceTest {
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(authService, "refreshTokenValidityMs", 604_800_000L);
+    }
+
+    @Test
+    @DisplayName("AuthService - MFA 없이 토큰을 발급하는 공개 login 메서드가 없다")
+    void authService_MFA우회공개로그인메서드없음() {
+        assertThat(Arrays.stream(AuthService.class.getMethods()).map(Method::getName))
+                .doesNotContain("login");
     }
 
     @Test
@@ -185,21 +194,17 @@ class AuthServiceTest {
 
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
         given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
-        given(userRoleResolver.resolveAthIds("10001"))
-                .willReturn(List.of(CustomUserDetails.ATH_USER));
-        given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), null))
-                .willReturn("access-token");
-        given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
+        given(mfaService.registerLoginPending("10001"))
+                .willReturn(new MfaDto.LoginPendingRegistration(UUID.randomUUID(), 60));
 
         // when
-        AuthDto.LoginResponse response =
-                authService.login("10001", "password", "127.0.0.1", "TestAgent");
+        AuthDto.LoginStartResponse response =
+                authService.startLogin("10001", "password", "127.0.0.1", "TestAgent");
 
         // then
         assertThat(response).isNotNull();
-        assertThat(response.getEno()).isEqualTo("10001");
-        assertThat(response.getEmpNm()).isEqualTo("홍길동");
-        assertThat(response.getAccessToken()).isEqualTo("access-token");
+        assertThat(response.getPendingId()).isNotNull();
+        verifyNoInteractions(jwtUtil, refreshTokenRepository);
     }
 
     @Test
@@ -209,7 +214,7 @@ class AuthServiceTest {
         given(userRepository.findByEno("99999")).willReturn(Optional.empty());
 
         // when & then: 커밋 대상 전용 예외(LoginRejectedException)로 통일 — SEC-09
-        assertThatThrownBy(() -> authService.login("99999", "pwd", "127.0.0.1", "Agent"))
+        assertThatThrownBy(() -> authService.startLogin("99999", "pwd", "127.0.0.1", "Agent"))
                 .isInstanceOf(LoginRejectedException.class)
                 .hasMessageContaining("사용자를 찾을 수 없습니다");
 
@@ -233,7 +238,7 @@ class AuthServiceTest {
         given(passwordEncoder.matches("wrongPwd", "encodedPwd")).willReturn(false);
 
         // when & then: 커밋 대상 전용 예외(LoginRejectedException)로 통일 — SEC-09
-        assertThatThrownBy(() -> authService.login("10001", "wrongPwd", "127.0.0.1", "Agent"))
+        assertThatThrownBy(() -> authService.startLogin("10001", "wrongPwd", "127.0.0.1", "Agent"))
                 .isInstanceOf(LoginRejectedException.class)
                 .hasMessageContaining("비밀번호가 일치하지 않습니다");
 
@@ -252,7 +257,7 @@ class AuthServiceTest {
                 .checkLocked("10001");
 
         // when & then: 잠금 예외는 LoginRejectedException으로 변환되지 않고 그대로 전파된다.
-        assertThatThrownBy(() -> authService.login("10001", "pwd", "127.0.0.1", "Agent"))
+        assertThatThrownBy(() -> authService.startLogin("10001", "pwd", "127.0.0.1", "Agent"))
                 .isSameAs(lockException)
                 .isNotInstanceOf(LoginRejectedException.class);
 
@@ -270,7 +275,7 @@ class AuthServiceTest {
 
         // when & then: DB 오류는 LoginRejectedException으로 삼켜지거나 변환되지 않고 그대로 전파되어야
         // 트랜잭션이 정상적으로 롤백된다.
-        assertThatThrownBy(() -> authService.login("99999", "pwd", "127.0.0.1", "Agent"))
+        assertThatThrownBy(() -> authService.startLogin("99999", "pwd", "127.0.0.1", "Agent"))
                 .isSameAs(dbError)
                 .isNotInstanceOf(LoginRejectedException.class);
     }
@@ -287,15 +292,16 @@ class AuthServiceTest {
                         .delYn("N")
                         .build();
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
-        given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
         given(userRoleResolver.resolveAthIds("10001"))
                 .willReturn(List.of(CustomUserDetails.ATH_USER));
         IllegalStateException tokenError = new IllegalStateException("토큰 발급 실패");
         given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), null))
                 .willThrow(tokenError);
+        given(mfaService.consumeLoginProof("pending", "proof")).willReturn("10001");
 
         // when & then: 성공 경로 이후의 예기치 못한 예외는 원래 타입 그대로 전파되어야 트랜잭션이 롤백된다.
-        assertThatThrownBy(() -> authService.login("10001", "password", "127.0.0.1", "Agent"))
+        assertThatThrownBy(
+                        () -> authService.completeLogin("pending", "proof", "127.0.0.1", "Agent"))
                 .isSameAs(tokenError)
                 .isNotInstanceOf(LoginRejectedException.class);
     }
@@ -317,7 +323,7 @@ class AuthServiceTest {
 
         // when: 예외 무시
         try {
-            authService.login("10001", "wrong", "127.0.0.1", "Agent");
+            authService.startLogin("10001", "wrong", "127.0.0.1", "Agent");
         } catch (Exception ignored) {
         }
 
@@ -338,7 +344,6 @@ class AuthServiceTest {
                         .build();
 
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
-        given(passwordEncoder.matches(anyString(), anyString())).willReturn(true);
         given(userRoleResolver.resolveAthIds("10001"))
                 .willReturn(List.of(CustomUserDetails.ATH_USER));
         given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), null))
@@ -346,7 +351,8 @@ class AuthServiceTest {
         given(jwtUtil.generateRefreshToken(anyString())).willReturn("refresh-token");
 
         // when
-        authService.login("10001", "password", "127.0.0.1", "Agent");
+        given(mfaService.consumeLoginProof("pending", "proof")).willReturn("10001");
+        authService.completeLogin("pending", "proof", "127.0.0.1", "Agent");
 
         // then
         verify(refreshTokenRepository, times(1)).deleteByEno("10001");
@@ -366,7 +372,6 @@ class AuthServiceTest {
                         .build();
 
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
-        given(passwordEncoder.matches(anyString(), anyString())).willReturn(true);
         given(userRoleResolver.resolveAthIds("10001"))
                 .willReturn(List.of(CustomUserDetails.ATH_USER));
         given(jwtUtil.generateAccessToken("10001", List.of(CustomUserDetails.ATH_USER), null))
@@ -374,7 +379,8 @@ class AuthServiceTest {
         given(jwtUtil.generateRefreshToken(anyString())).willReturn("refresh");
 
         // when
-        authService.login("10001", "password", "127.0.0.1", "Agent");
+        given(mfaService.consumeLoginProof("pending", "proof")).willReturn("10001");
+        authService.completeLogin("pending", "proof", "127.0.0.1", "Agent");
 
         // then
         verify(loginHistoryRepository, times(1)).save(any(Clognh.class));
@@ -689,14 +695,14 @@ class AuthServiceTest {
                         .build();
         List<String> loginAthIds = List.of("ITPAD001");
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
-        given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
         given(userRoleResolver.resolveAthIds("10001")).willReturn(loginAthIds);
         given(jwtUtil.generateAccessToken("10001", loginAthIds, "BBR001"))
                 .willReturn("access-token");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
 
+        given(mfaService.consumeLoginProof("pending", "proof")).willReturn("10001");
         AuthDto.LoginResponse response =
-                authService.login("10001", "password", "127.0.0.1", "Agent");
+                authService.completeLogin("pending", "proof", "127.0.0.1", "Agent");
 
         assertThat(response.getAthIds()).containsExactlyElementsOf(loginAthIds);
         assertThat(response.getBbrC()).isEqualTo("BBR001");
@@ -829,7 +835,6 @@ class AuthServiceTest {
                         .build();
 
         given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
-        given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
         // 역할 해석기가 활성 역할 없음을 기본 자격등급으로 보정해 반환한다
         given(userRoleResolver.resolveAthIds("10001"))
                 .willReturn(List.of(CustomUserDetails.ATH_USER));
@@ -838,8 +843,9 @@ class AuthServiceTest {
         given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
 
         // Act
+        given(mfaService.consumeLoginProof("pending", "proof")).willReturn("10001");
         AuthDto.LoginResponse response =
-                authService.login("10001", "password", "127.0.0.1", "Agent");
+                authService.completeLogin("pending", "proof", "127.0.0.1", "Agent");
 
         // Assert: 기본 자격등급 ITPZZ001이 응답과 토큰 발급에 그대로 반영되어야 한다
         assertThat(response.getAthIds()).containsExactly(CustomUserDetails.ATH_USER);

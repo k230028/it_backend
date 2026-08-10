@@ -93,11 +93,10 @@ class AuthServiceCrtokmAuditIT {
     @Test
     @DisplayName("익명 컨텍스트의 로그인·토큰 회전 모두 갱신토큰 감사자를 소유자 사번으로 채운다")
     void login그리고회전_갱신토큰감사자기록() {
-        // SecurityContext가 비어있는 상태(anonymous)에서 로그인 — 운영 /api/auth/login 흐름 재현.
+        // SecurityContext가 비어있는 상태(anonymous)에서 명시적 SSO 토큰 발급 경로를 호출한다.
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
 
-        AuthDto.LoginResponse loginResponse =
-                authService.login(TEST_ENO, RAW_PASSWORD, "127.0.0.1", "IT-Test-Agent");
+        AuthDto.LoginResponse loginResponse = authService.issueSsoTokens(TEST_ENO);
 
         List<TokenAuditRow> afterLogin = queryTokenAuditRows();
         assertThat(afterLogin).hasSize(1);
