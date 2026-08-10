@@ -9,6 +9,8 @@ import com.kdb.it.common.admin.service.AdminLogService;
 import com.kdb.it.common.admin.service.AdminService;
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
 import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.common.util.CookieUtil;
+import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.SecurityConfig;
 import jakarta.servlet.http.Cookie;
 import java.net.URLEncoder;
@@ -33,7 +35,13 @@ import org.springframework.test.web.servlet.MockMvc;
  * 가져와 운영과 동일한 인가 경계를 검증합니다. {@code JwtUtil}은 mock으로 대체하나, JWT 자체가 없으므로 토큰 추출 단계에서 인증이 설정되지 않습니다.
  */
 @WebMvcTest(AdminController.class)
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class})
+// SecurityConfig → CookieUtil → ObjectMapper 의존을 운영과 같은 빈으로 채웁니다.
+@Import({
+    SecurityConfig.class,
+    JwtAuthenticationFilter.class,
+    CookieUtil.class,
+    JacksonConfig.class
+})
 class AdminSecurityBoundaryTest {
 
     @Autowired private MockMvc mockMvc;

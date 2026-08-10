@@ -69,7 +69,10 @@ class OpenApiDisabledSecurityTest {
         SwaggerConfig.class,
         JwtAuthenticationFilter.class,
         SimpleRequestCsrfFilter.class,
-        JwtUtil.class
+        JwtUtil.class,
+        // SecurityConfig → CookieUtil → ObjectMapper 의존을 운영과 같은 빈으로 채웁니다.
+        CookieUtil.class,
+        JacksonConfig.class
     })
     static class OpenApiDisabledSecurityTestApp {}
 }

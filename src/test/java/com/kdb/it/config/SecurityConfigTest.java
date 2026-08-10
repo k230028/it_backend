@@ -150,6 +150,9 @@ class SecurityConfigTest {
         JwtAuthenticationFilter.class,
         SimpleRequestCsrfFilter.class,
         JwtUtil.class,
+        // SecurityConfig → CookieUtil → ObjectMapper 의존을 운영과 같은 빈으로 채웁니다.
+        CookieUtil.class,
+        JacksonConfig.class,
         AuditFailureRecorder.class,
         SecurityProbeController.class
     })
