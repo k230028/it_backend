@@ -1,6 +1,7 @@
 package com.kdb.it.common.mfa.store;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.kdb.it.common.mfa.domain.MfaMethod;
 import com.kdb.it.common.mfa.domain.MfaPurpose;
@@ -42,6 +43,24 @@ class InMemoryMfaTransactionStoreTest {
         MfaTransaction transaction = pending("token-2", now());
 
         assertThat(transaction.verify(now()).status()).isEqualTo(MfaTransactionStatus.EXPIRED);
+    }
+
+    @Test
+    @DisplayName("검증 시각이 없는 VERIFIED 거래는 생성되어 저장·소비될 수 없다")
+    void constructor_verifiedWithoutVerificationTime_isRejected() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(
+                        () ->
+                                new MfaTransaction(
+                                        "token-invalid",
+                                        "E0001",
+                                        MfaPurpose.LOGIN,
+                                        MfaMethod.FIDO,
+                                        now().plusSeconds(60),
+                                        MfaTransactionStatus.VERIFIED,
+                                        null,
+                                        0))
+                .withMessage("검증 완료 거래에는 검증 시각이 필요합니다.");
     }
 
     @Test

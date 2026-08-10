@@ -24,6 +24,13 @@ public record MfaTransaction(
         if (failureCount < 0) {
             throw new IllegalArgumentException("실패 횟수는 음수일 수 없습니다.");
         }
+        if (status == MfaTransactionStatus.VERIFIED && verifiedAt == null) {
+            throw new IllegalArgumentException("검증 완료 거래에는 검증 시각이 필요합니다.");
+        }
+        if ((status == MfaTransactionStatus.PENDING || status == MfaTransactionStatus.LOCKED)
+                && verifiedAt != null) {
+            throw new IllegalArgumentException("대기 또는 잠금 거래에는 검증 시각이 있을 수 없습니다.");
+        }
     }
 
     /** 대기 상태의 MFA 거래를 생성한다. */
