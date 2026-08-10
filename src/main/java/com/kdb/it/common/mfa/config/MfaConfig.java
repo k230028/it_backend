@@ -23,12 +23,17 @@ public class MfaConfig {
     @Bean
     @Profile({"local-ext", "local-int", "dev", "prod"})
     public MfaProviderRegistry mfaProviderRegistry(MfaProperties properties, Environment environment) {
-        if (properties.mockEnabled() && !environment.matchesProfiles("local-ext")) {
+        if (properties.mockEnabled() && !isOnlyLocalExtProfile(environment)) {
             throw new IllegalStateException("MFA 보안 위반: app.mfa.mock-enabled는 local-ext에서만 허용됩니다.");
         }
         if (!properties.mockEnabled() && properties.endpoint().isBlank()) {
             throw new IllegalStateException("app.mfa.endpoint is required when mock MFA is disabled");
         }
         return new MfaProviderRegistry();
+    }
+
+    private boolean isOnlyLocalExtProfile(Environment environment) {
+        String[] activeProfiles = environment.getActiveProfiles();
+        return activeProfiles.length == 1 && "local-ext".equalsIgnoreCase(activeProfiles[0]);
     }
 }

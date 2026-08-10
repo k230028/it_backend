@@ -70,6 +70,24 @@ class MfaConfigurationTest {
     }
 
     @Test
+    @DisplayName("local-ext와 local-int를 함께 활성화해도 모의 MFA 기동을 차단한다")
+    void localExtAndLocalInt_withMockEnabled_failsStartup() {
+        assertMockOverrideFails("local-ext,local-int");
+    }
+
+    @Test
+    @DisplayName("local-ext와 dev를 함께 활성화해도 모의 MFA 기동을 차단한다")
+    void localExtAndDev_withMockEnabled_failsStartup() {
+        assertMockOverrideFails("local-ext,dev");
+    }
+
+    @Test
+    @DisplayName("local-ext와 prod를 함께 활성화해도 모의 MFA 기동을 차단한다")
+    void localExtAndProd_withMockEnabled_failsStartup() {
+        assertMockOverrideFails("local-ext,prod");
+    }
+
+    @Test
     @DisplayName("MFA 설정은 challenge 만료 시간을 보관한다")
     void properties_keepsChallengeTtl() {
         MfaProperties properties =
