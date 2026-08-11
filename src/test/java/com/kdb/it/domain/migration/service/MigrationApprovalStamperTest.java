@@ -84,4 +84,27 @@ class MigrationApprovalStamperTest {
                 .contains("수기 엑셀 이관")
                 .doesNotContain("MIG-");
     }
+
+    @Test
+    @DisplayName("인증 컨텍스트 없이도 감사자 필드를 업로드 사용자 사번으로 직접 채운다")
+    void 감사자필드를_업로드사용자로_채운다() {
+        when(applicationRepository.getNextVal()).thenReturn(3L);
+        when(applicationRepository.save(any(Capplm.class))).thenAnswer(i -> i.getArgument(0));
+
+        stamper.stamp("BPROJM", "PRJ-2026-0002", 1, "이관", "999999", "2026");
+
+        org.mockito.Mockito.verify(applicationRepository).save(capplmCaptor.capture());
+        org.mockito.Mockito.verify(applicationMapRepository).save(capplaCaptor.capture());
+
+        // SecurityContext가 없는 배치 실행에서도 TPRMPP_CAPPLM/TPRMPP_CAPPLA의 물리 NOT NULL인
+        // 최초등록자·최종변경자가 비어 ORA-01400이 나지 않도록, JPA Auditing에 기대지 않고
+        // actorEno로 직접 채웠는지 고정한다.
+        Capplm savedApplication = capplmCaptor.getValue();
+        assertThat(savedApplication.getFstEnrUsid()).isEqualTo("999999");
+        assertThat(savedApplication.getLstChgUsid()).isEqualTo("999999");
+
+        Cappla savedApplicationMap = capplaCaptor.getValue();
+        assertThat(savedApplicationMap.getFstEnrUsid()).isEqualTo("999999");
+        assertThat(savedApplicationMap.getLstChgUsid()).isEqualTo("999999");
+    }
 }
