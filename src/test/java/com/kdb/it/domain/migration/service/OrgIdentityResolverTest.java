@@ -187,6 +187,48 @@ class OrgIdentityResolverTest {
         assertThat(index.teamOfUser("999999")).isNull();
     }
 
+    @Test
+    @DisplayName("확정 결과(of)는 미해석도 중의적도 아니다")
+    void 확정결과는_미해석도_중의적도_아니다() {
+        OrgIdentityResolver.Resolution result = OrgIdentityResolver.Resolution.of("0210", "IT기획부");
+
+        assertThat(result.code()).isEqualTo("0210");
+        assertThat(result.label()).isEqualTo("IT기획부");
+        assertThat(result.candidates()).isEmpty();
+        assertThat(result.isUnresolved()).isFalse();
+        assertThat(result.isAmbiguous()).isFalse();
+    }
+
+    @Test
+    @DisplayName("후보 없는 미해석 결과(unresolved)는 isUnresolved만 참이다")
+    void 미해석결과는_isUnresolved만_참이다() {
+        OrgIdentityResolver.Resolution result = OrgIdentityResolver.Resolution.unresolved("없는부서");
+
+        assertThat(result.code()).isNull();
+        assertThat(result.label()).isEqualTo("없는부서");
+        assertThat(result.candidates()).isEmpty();
+        assertThat(result.isUnresolved()).isTrue();
+        assertThat(result.isAmbiguous()).isFalse();
+    }
+
+    @Test
+    @DisplayName("후보 있는 중의적 결과(ambiguous)는 isAmbiguous만 참이다")
+    void 중의적결과는_isAmbiguous만_참이다() {
+        List<com.kdb.it.domain.migration.dto.MigrationDto.Candidate> candidates =
+                List.of(
+                        new com.kdb.it.domain.migration.dto.MigrationDto.Candidate(
+                                "0450", "금융공학실"));
+
+        OrgIdentityResolver.Resolution result =
+                OrgIdentityResolver.Resolution.ambiguous("금융공학", candidates);
+
+        assertThat(result.code()).isNull();
+        assertThat(result.label()).isEqualTo("금융공학");
+        assertThat(result.candidates()).hasSize(1);
+        assertThat(result.isUnresolved()).isFalse();
+        assertThat(result.isAmbiguous()).isTrue();
+    }
+
     private static CorgnI org(String code, String name) {
         return CorgnI.builder().prlmOgzCCone(code).bbrNm(name).build();
     }

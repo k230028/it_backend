@@ -16,6 +16,7 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.plan.service.PlanService;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectService;
@@ -24,7 +25,10 @@ import com.kdb.it.domain.budget.work.service.BudgetRateApplicationService;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import com.kdb.it.domain.migration.service.adapter.AdapterOutput;
+import com.kdb.it.domain.migration.service.adapter.PlanIntent;
+import com.kdb.it.domain.migration.service.adapter.RateIntent;
 import com.kdb.it.domain.migration.service.adapter.SheetAdapter;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -343,6 +347,242 @@ class MigrationImportServiceTest {
         order.verify(capitalAdapter).adapt(any(), any());
         order.verify(delegatedAdapter).adapt(any(), any());
         order.verify(planAdapter).adapt(any(), any());
+    }
+
+    /** requireSupported가 시트 목록이 비면 어댑터에 닿기 전에 거부한다. */
+    @Test
+    @DisplayName("시트 목록이 비어 있으면 IllegalArgumentException을 던진다")
+    void 시트목록이_비면_예외를_던진다() {
+        MigrationImportService service = service();
+
+        assertThatThrownBy(
+                        () ->
+                                service.commit(
+                                        new MigrationDto.CommitRequest(List.of(), List.of()),
+                                        "999999"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("올린 시트가 없습니다");
+    }
+
+    /** requireSupported가 등록된 어댑터가 없는 시트 종류를 거부한다. */
+    @Test
+    @DisplayName("지원하지 않는 시트 종류는 IllegalArgumentException을 던진다")
+    void 지원하지_않는_시트종류는_예외를_던진다() {
+        // service()는 COST 어댑터만 등록하므로 PLAN_ADJUSTMENT는 미등록 종류다.
+        MigrationImportService service = service();
+        MigrationDto.CommitRequest request =
+                new MigrationDto.CommitRequest(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.PLAN_ADJUSTMENT,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, Map.of())))),
+                        List.of());
+
+        assertThatThrownBy(() -> service.commit(request, "999999"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("지원하지 않는 시트 종류입니다");
+    }
+
+    /** 편성률 의도의 원천이 이번 요청·기존 스냅샷 어디에서도 PK를 찾지 못하면 예외 없이 건너뛴다. */
+    @Test
+    @DisplayName("편성률 의도의 PK를 찾지 못하면 건너뛰고 나머지는 그대로 적용한다")
+    void 편성률_PK_미매칭은_건너뛴다() {
+        SheetAdapter costAdapter = Mockito.mock(SheetAdapter.class);
+        when(costAdapter.supports()).thenReturn(SheetKind.COST);
+        when(costAdapter.adapt(any(), any()))
+                .thenReturn(
+                        new AdapterOutput(
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of(new RateIntent("BPROJM", "존재하지않는사업", 90))));
+
+        when(yearSnapshot.load(anyString())).thenReturn(TestSnapshots.empty("2026"));
+        when(orgIdentityResolver.snapshot())
+                .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
+        when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
+        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(budgetRateApplicationService.applyItemRates(any()))
+                .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
+
+        MigrationImportService service =
+                new MigrationImportService(
+                        List.of(costAdapter),
+                        validator,
+                        yearSnapshot,
+                        orgIdentityResolver,
+                        catalogReader,
+                        approvalStamper,
+                        costService,
+                        costRepository,
+                        projectService,
+                        projectRepository,
+                        budgetRateApplicationService,
+                        projectItemRepository,
+                        planService);
+
+        MigrationDto.CommitRequest request =
+                new MigrationDto.CommitRequest(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.COST,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, Map.of())))),
+                        List.of());
+
+        MigrationDto.CommitResponse response = service.commit(request, "999999");
+
+        assertThat(response).isNotNull();
+        ArgumentCaptor<BudgetWorkDto.ItemApplyRequest> captor =
+                ArgumentCaptor.forClass(BudgetWorkDto.ItemApplyRequest.class);
+        verify(budgetRateApplicationService).applyItemRates(captor.capture());
+        assertThat(captor.getValue().items())
+                .extracting(BudgetWorkDto.ItemRate::orcPkVl)
+                .doesNotContain("존재하지않는사업");
+    }
+
+    /** 부문계획 시트를 올리지 않으면 planReqDocNo는 null이다. */
+    @Test
+    @DisplayName("부문계획 시트가 없으면 planReqDocNo는 null이다")
+    void 부문계획시트가_없으면_planReqDocNo는_null이다() {
+        MigrationImportService service = service();
+        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
+
+        MigrationDto.CommitResponse response = service.commit(commitRequest(), "999999");
+
+        assertThat(response.planReqDocNo()).isNull();
+        verify(planService, never())
+                .createPlanForMigration(anyString(), anyString(), any(), any(), any());
+    }
+
+    /**
+     * 부문계획 조정 대상 사업이 이미 있으면(연도 스냅샷에 존재) 기존 활성 품목을 버전 교체하고 조정 계획을 만든다.
+     *
+     * <p>devAmount만 채우고 hw·swAmount는 null로 두어 {@code addAdjustedItem}의 null-스킵 분기와 실제-추가 분기를 함께
+     * 지나가게 한다.
+     */
+    @Test
+    @DisplayName("부문계획 대상 사업이 있으면 품목을 버전 교체하고 조정 계획을 만든다")
+    void 부문계획_대상사업이_있으면_품목을_교체하고_계획을_만든다() {
+        SheetAdapter planAdapter = Mockito.mock(SheetAdapter.class);
+        when(planAdapter.supports()).thenReturn(SheetKind.PLAN_ADJUSTMENT);
+        PlanIntent intent =
+                new PlanIntent(
+                        "문자메시지안심마크도입",
+                        new BigDecimal("1000000"),
+                        null,
+                        null,
+                        "202603",
+                        Map.of("사업진행", "진행(품의)"));
+        when(planAdapter.adapt(any(), any()))
+                .thenReturn(new AdapterOutput(List.of(), List.of(), List.of(intent), List.of()));
+
+        when(yearSnapshot.load(anyString()))
+                .thenReturn(
+                        TestSnapshots.snapshotWithProjectName(
+                                "2026", "문자메시지안심마크도입", "PRJ-2026-0005"));
+        when(orgIdentityResolver.snapshot())
+                .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
+        when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
+        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0005", "N", "Y"))
+                .thenReturn(List.of(Bitemm.builder().gclMngNo("GCL-2025-0001").sno(1).build()));
+        when(planService.createPlanForMigration(eq("2026"), eq("조정"), any(), any(), any()))
+                .thenReturn("PLN-2026-0009");
+        when(budgetRateApplicationService.applyItemRates(any()))
+                .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
+
+        MigrationImportService service =
+                new MigrationImportService(
+                        List.of(planAdapter),
+                        validator,
+                        yearSnapshot,
+                        orgIdentityResolver,
+                        catalogReader,
+                        approvalStamper,
+                        costService,
+                        costRepository,
+                        projectService,
+                        projectRepository,
+                        budgetRateApplicationService,
+                        projectItemRepository,
+                        planService);
+
+        MigrationDto.CommitRequest request =
+                new MigrationDto.CommitRequest(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.PLAN_ADJUSTMENT,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, Map.of())))),
+                        List.of());
+
+        MigrationDto.CommitResponse response = service.commit(request, "999999");
+
+        assertThat(response.planReqDocNo()).isEqualTo("PLN-2026-0009");
+        assertThat(response.itemCount()).isEqualTo(1);
+        verify(projectService).replaceItemsForMigration(eq("PRJ-2026-0005"), any());
+        verify(planService)
+                .createPlanForMigration(
+                        eq("2026"), eq("조정"), eq(List.of("PRJ-2026-0005")), any(), any());
+    }
+
+    /** 부문계획 대상 사업을 찾지 못하면 품목 교체도 계획 생성도 건너뛰고 예외를 던지지 않는다. */
+    @Test
+    @DisplayName("부문계획 대상 사업을 찾지 못하면 건너뛰고 planReqDocNo는 null이다")
+    void 부문계획_대상사업_미매칭은_건너뛴다() {
+        SheetAdapter planAdapter = Mockito.mock(SheetAdapter.class);
+        when(planAdapter.supports()).thenReturn(SheetKind.PLAN_ADJUSTMENT);
+        PlanIntent intent =
+                new PlanIntent("존재하지않는사업", new BigDecimal("1000000"), null, null, null, Map.of());
+        when(planAdapter.adapt(any(), any()))
+                .thenReturn(new AdapterOutput(List.of(), List.of(), List.of(intent), List.of()));
+
+        when(yearSnapshot.load(anyString())).thenReturn(TestSnapshots.empty("2026"));
+        when(orgIdentityResolver.snapshot())
+                .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
+        when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
+        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(budgetRateApplicationService.applyItemRates(any()))
+                .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
+
+        MigrationImportService service =
+                new MigrationImportService(
+                        List.of(planAdapter),
+                        validator,
+                        yearSnapshot,
+                        orgIdentityResolver,
+                        catalogReader,
+                        approvalStamper,
+                        costService,
+                        costRepository,
+                        projectService,
+                        projectRepository,
+                        budgetRateApplicationService,
+                        projectItemRepository,
+                        planService);
+
+        MigrationDto.CommitRequest request =
+                new MigrationDto.CommitRequest(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.PLAN_ADJUSTMENT,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, Map.of())))),
+                        List.of());
+
+        MigrationDto.CommitResponse response = service.commit(request, "999999");
+
+        assertThat(response.planReqDocNo()).isNull();
+        assertThat(response.itemCount()).isZero();
+        verify(projectService, never()).replaceItemsForMigration(anyString(), any());
+        verify(planService, never())
+                .createPlanForMigration(anyString(), anyString(), any(), any(), any());
     }
 
     private MigrationImportService service() {

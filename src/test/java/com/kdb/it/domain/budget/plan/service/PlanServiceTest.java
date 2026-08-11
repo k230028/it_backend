@@ -25,6 +25,7 @@ import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -511,6 +512,71 @@ class PlanServiceTest {
         assertThat(ordinarySummary.getPrjBg()).isEqualByComparingTo("300");
         assertThat(ordinarySummary.getAssetBg()).isEqualByComparingTo("200");
         assertThat(ordinarySummary.getCostBg()).isEqualByComparingTo("100");
+    }
+
+    @Test
+    @DisplayName("createPlanForMigration - 대상 사업 여럿의 조정액을 합산해 계획을 만든다")
+    void createPlanForMigration_대상사업_조정액을_합산한다() throws Exception {
+        ProjectDto.Response project1 =
+                ProjectDto.Response.builder()
+                        .abusMngNo("PRJ-2026-0001")
+                        .abusNm("문자메시지 안심마크 도입")
+                        .bzTpC("개발")
+                        .abusTc("20")
+                        .prlmHrkOgzCCone("IT·AI본부")
+                        .svnDpmC("180")
+                        .svnDpmCNm("IT기획부")
+                        .build();
+        ProjectDto.Response project2 =
+                ProjectDto.Response.builder()
+                        .abusMngNo("PRJ-2026-0002")
+                        .abusNm("정보기술부문계획 조정 대상")
+                        .bzTpC("운영")
+                        .abusTc("10")
+                        .prlmHrkOgzCCone("IT·AI본부")
+                        .svnDpmC("181")
+                        .svnDpmCNm("IT인프라부")
+                        .build();
+        given(projectService.getProject("PRJ-2026-0001")).willReturn(project1);
+        given(projectService.getProject("PRJ-2026-0002")).willReturn(project2);
+        given(bplanmRepository.getNextSequenceValue()).willReturn(9L);
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        String result =
+                planService.createPlanForMigration(
+                        "2026",
+                        "조정",
+                        List.of("PRJ-2026-0001", "PRJ-2026-0002"),
+                        // capitalAmounts는 null을 허용하므로(0으로 취급) List.of()가 아니라
+                        // 널 허용 리스트가 필요하다.
+                        java.util.Arrays.asList(new BigDecimal("1000000"), null),
+                        Map.of("PRJ-2026-0001", Map.of("사업진행", "진행(품의)")));
+
+        assertThat(result).isEqualTo("PLN-2026-0009");
+        ArgumentCaptor<Bplanm> planCaptor = ArgumentCaptor.forClass(Bplanm.class);
+        verify(bplanmRepository).save(planCaptor.capture());
+        assertThat(planCaptor.getValue().getItPtlPlnTpC()).isEqualTo("조정");
+        // null capitalAmount는 0으로 취급되므로 합계는 1,000,000만 반영된다.
+        assertThat(planCaptor.getValue().getCpitBgApvAmt()).isEqualByComparingTo("1000000");
+        assertThat(planCaptor.getValue().getAduTotAmt()).isEqualByComparingTo("1000000");
+        verify(bplanaRepository, times(2)).save(any(Bplana.class));
+        verify(bprojaSyncService).upsert("PRJ-2026-0001", "PLN-2026-0009", "11");
+        verify(bprojaSyncService).upsert("PRJ-2026-0002", "PLN-2026-0009", "11");
+    }
+
+    @Test
+    @DisplayName("createPlanForMigration - 사업 목록과 조정액 목록의 크기가 다르면 예외를 던진다")
+    void createPlanForMigration_크기가_다르면_예외를_던진다() {
+        assertThatThrownBy(
+                        () ->
+                                planService.createPlanForMigration(
+                                        "2026",
+                                        "조정",
+                                        List.of("PRJ-2026-0001", "PRJ-2026-0002"),
+                                        List.of(new BigDecimal("1000000")),
+                                        Map.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("크기가 다릅니다");
     }
 
     @Test

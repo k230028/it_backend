@@ -109,6 +109,42 @@ class DelegatedBudgetSheetAdapterTest {
                         });
     }
 
+    @Test
+    @DisplayName("부점명 셀이 이미 조직코드 형태로 오면(보정값) 그 코드를 그대로 주관부서로 쓴다")
+    void 부점명이_이미_코드형태면_그대로_쓴다() {
+        // "0910"은 이름으로는 매칭되지 않지만 org 카탈로그에 실재하는 코드다 — resolveOrg 1~3단계
+        // 실패 후 orgNameOf(branch) fallback으로 확정되어야 한다 (MIG-04와 같은 경로).
+        AdapterOutput out =
+                adapter.adapt(
+                        sheet(List.of(row(2, hwCells("0910", "데스크탑", "1", "100", "100000")))),
+                        context());
+
+        assertThat(out.projects()).hasSize(1);
+        assertThat(out.projects().get(0).getSvnDpmC()).isEqualTo("0910");
+    }
+
+    @Test
+    @DisplayName("부점명이 이름으로도 코드로도 해석되지 않으면 주관부서를 null로 둔다")
+    void 부점명이_전혀_해석되지_않으면_null이다() {
+        AdapterOutput out =
+                adapter.adapt(
+                        sheet(List.of(row(2, hwCells("없는부점", "데스크탑", "1", "100", "100000")))),
+                        context());
+
+        assertThat(out.projects()).hasSize(1);
+        assertThat(out.projects().get(0).getSvnDpmC()).isNull();
+    }
+
+    @Test
+    @DisplayName("HW·SW 금액 셀이 비어 있으면(파싱 불가) 품목을 만들지 않는다")
+    void 금액셀이_비어있으면_품목을_만들지_않는다() {
+        Map<String, String> cells = hwCells("런던", "빈 항목", "0", "0", "");
+
+        AdapterOutput out = adapter.adapt(sheet(List.of(row(2, cells))), context());
+
+        assertThat(out.projects().get(0).getItems()).isEmpty();
+    }
+
     private static List<MigrationDto.NormalizedRow> londonRows() {
         return List.of(
                 row(2, hwCells("런던", "데스크탑(고사양)", "12", "23346.84", "44919320.16")),
