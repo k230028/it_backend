@@ -27,6 +27,10 @@ public class MigrationValidator {
     /** 원화 금액 대조 허용 오차 (원). */
     private static final BigDecimal AMOUNT_TOLERANCE = BigDecimal.ONE;
 
+    /** 자본예산 계열 비목코드 — 개발비·기계장치·기타무형자산 (IoeCategories.CAPITAL_CTPS에 대응). */
+    private static final Set<String> CAPITAL_IOE_CODES =
+            Set.of("101", "102", "103", "104", "105", "106", "107");
+
     /**
      * 보정값 조회 키를 만듭니다. commit이 {@code CellOverride} 목록을 이 키의 맵으로 접어 넘깁니다.
      *
@@ -155,6 +159,7 @@ public class MigrationValidator {
         checkYm(sheet, row, "startYm", overrides, out);
         checkYm(sheet, row, "endYm", overrides, out);
         checkRate(sheet, row, "adjustRate", overrides, out);
+        checkCapitalIoeOverrides(sheet, row, overrides, out);
 
         String normalized =
                 MigrationYearSnapshot.normalizeName(cell(row, "projectName", overrides, sheet));
@@ -167,6 +172,31 @@ public class MigrationValidator {
                             "DUPLICATE_EXISTS",
                             "같은 예산연도에 같은 사업명의 사업이 이미 있습니다.",
                             List.of()));
+        }
+    }
+
+    /**
+     * 품목 비목 보정값(`devAmountIoeC`·`hwAmountIoeC`·`swAmountIoeC`)이 자본예산 계열 비목코드인지 확인합니다.
+     *
+     * <p>보정값이 없는 컬럼은 기본 비목(개발비 103·기계장치 101·기타무형 106)을 그대로 쓰므로 검사하지 않습니다.
+     */
+    private void checkCapitalIoeOverrides(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
+        for (String column : List.of("devAmountIoeC", "hwAmountIoeC", "swAmountIoeC")) {
+            String override = overrides.get(overrideKey(sheet.kind(), row.excelRow(), column));
+            if (override != null && !CAPITAL_IOE_CODES.contains(override)) {
+                out.add(
+                        blocker(
+                                sheet,
+                                row,
+                                column,
+                                "CODE_UNRESOLVED",
+                                "'" + override + "'는 자본예산 계열 비목이 아닙니다.",
+                                List.of()));
+            }
         }
     }
 
