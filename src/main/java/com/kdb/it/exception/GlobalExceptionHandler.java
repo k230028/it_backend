@@ -12,6 +12,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -201,6 +202,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
                 .allow(supportedMethods.toArray(HttpMethod[]::new))
                 .body(errorResponse.getBody());
+    }
+
+    /**
+     * {@code consumes}와 일치하지 않는 Content-Type 요청을 처리합니다.
+     *
+     * <p>본 핸들러가 없으면 하위 {@link jakarta.servlet.ServletException}이라 {@code RuntimeException} 핸들러에도
+     * 잡히지 않고 최하단 {@code Exception} 핸들러가 500으로 처리해, 클라이언트가 요청 형식을 고쳐도 재시도가 불가능한 오류로 보이게 됩니다.
+     *
+     * @param e 지원하지 않는 미디어 타입 예외
+     * @return 415 응답
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException e) {
+        log.debug("지원하지 않는 Content-Type: {}", e.getContentType());
+        return buildErrorResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 Content-Type입니다.");
     }
 
     /**
