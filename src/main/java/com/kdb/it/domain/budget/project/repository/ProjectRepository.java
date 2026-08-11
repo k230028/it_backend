@@ -221,4 +221,16 @@ public interface ProjectRepository
              ORDER BY p.abusNm ASC
             """)
     List<Bprojm.Ref> findActiveProjectRefsByDept(String svnDpmC);
+
+    /**
+     * 예산연도의 최종·미삭제 사업 전체를 조회합니다.
+     *
+     * <p>수기 엑셀 이관의 사업명 중복 판정과 편성률 재적용 대상 구성에 사용합니다.
+     *
+     * @param bseYy 예산연도 (4자리)
+     * @param lstYn 최종여부 ('Y')
+     * @param delYn 삭제여부 ('N')
+     * @return 해당 연도의 최종·미삭제 사업 목록
+     */
+    List<Bprojm> findByBseYyAndLstYnAndDelYn(String bseYy, String lstYn, String delYn);
 }

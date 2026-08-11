@@ -64,4 +64,16 @@ public interface BplanmRepository extends JpaRepository<Bplanm, String> {
      * @return 계획 엔티티 (Optional)
      */
     Optional<Bplanm> findByReqDocNoAndDelYn(String reqDocNo, String delYn);
+
+    /**
+     * 같은 연도·계획구분의 미삭제 계획이 있는지 확인합니다.
+     *
+     * <p>수기 엑셀 이관의 계획 중복 판정에 사용합니다.
+     *
+     * @param bseYy 대상연도 (4자리)
+     * @param itPtlPlnTpC 계획구분 ('신규' 또는 '조정')
+     * @param delYn 삭제여부 ('N')
+     * @return 존재하면 true
+     */
+    boolean existsByBseYyAndItPtlPlnTpCAndDelYn(String bseYy, String itPtlPlnTpC, String delYn);
 }

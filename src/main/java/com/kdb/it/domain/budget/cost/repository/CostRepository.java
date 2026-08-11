@@ -148,4 +148,16 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      * @return 조건에 맞는 전산관리비 (없으면 empty)
      */
     Optional<Bcostm> findByCostBgNoAndLstYnAndDelYn(String costBgNo, String lstYn, String delYn);
+
+    /**
+     * 예산연도의 최종·미삭제 전산업무비 전체를 조회합니다.
+     *
+     * <p>수기 엑셀 이관의 중복 판정과 편성률 재적용 대상 구성에 사용합니다. 연도 단위라 행 수가 제한적이므로 전량 로드가 타당합니다.
+     *
+     * @param bseYy 예산연도 (4자리)
+     * @param lstYn 최종여부 ('Y')
+     * @param delYn 삭제여부 ('N')
+     * @return 해당 연도의 최종·미삭제 전산업무비 목록
+     */
+    List<Bcostm> findByBseYyAndLstYnAndDelYn(String bseYy, String lstYn, String delYn);
 }
