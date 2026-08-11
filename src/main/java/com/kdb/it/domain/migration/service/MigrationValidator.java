@@ -61,6 +61,9 @@ public class MigrationValidator {
         Set<String> namesInThisImport = collectProjectNames(sheets);
 
         for (MigrationDto.SheetPayload sheet : sheets) {
+            if (sheet.kind() == SheetKind.DELEGATED_BUDGET) {
+                checkDelegatedFirstBranch(sheet, overrides, out);
+            }
             for (MigrationDto.NormalizedRow row : sheet.rows()) {
                 switch (sheet.kind()) {
                     case COST -> validateCostRow(sheet, row, index, snapshot, overrides, out);
@@ -200,6 +203,32 @@ public class MigrationValidator {
         }
     }
 
+    /**
+     * 위임예산 시트 첫 행의 부점명을 확인합니다.
+     *
+     * <p>부점명은 병합 셀이라 이어지는 행에서 비는 것이 정상입니다(forward-fill 대상). 그러나 첫 행부터 비어 있으면 이후 행 전부를 귀속시킬 사업이 없으므로
+     * 시트 단위 BLOCKER로 막습니다. 행별 검사({@link #validateDelegatedRow})는 이 전제를 알고 부점명을 필수값으로 요구하지 않습니다.
+     */
+    private void checkDelegatedFirstBranch(
+            MigrationDto.SheetPayload sheet,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
+        if (sheet.rows().isEmpty()) {
+            return;
+        }
+        MigrationDto.NormalizedRow first = sheet.rows().get(0);
+        if (cell(first, "branchName", overrides, sheet).isBlank()) {
+            out.add(
+                    blocker(
+                            sheet,
+                            first,
+                            "branchName",
+                            "REQUIRED_MISSING",
+                            "첫 행의 부점명이 비어 있어 이후 행을 귀속시킬 사업을 만들 수 없습니다.",
+                            List.of()));
+        }
+    }
+
     private void validateDelegatedRow(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
@@ -207,7 +236,8 @@ public class MigrationValidator {
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
         requireText(sheet, row, "itemName", 100, overrides, out);
-        resolveOrgCell(sheet, row, "branchName", index, overrides, out, true);
+        // 부점명은 병합 셀이라 이어지는 행에서 비는 것이 정상이다(forward-fill). 첫 행 검사는 시트 단위로 별도 수행한다.
+        resolveOrgCell(sheet, row, "branchName", index, overrides, out, false);
         checkAmount(sheet, row, index, out);
     }
 

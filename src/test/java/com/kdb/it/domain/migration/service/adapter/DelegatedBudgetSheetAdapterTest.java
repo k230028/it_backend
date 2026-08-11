@@ -1,0 +1,173 @@
+package com.kdb.it.domain.migration.service.adapter;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.migration.dto.MigrationDto;
+import com.kdb.it.domain.migration.dto.SheetKind;
+import com.kdb.it.domain.migration.service.MigrationLookupIndex;
+import com.kdb.it.domain.migration.service.OrgIdentityResolver;
+import com.kdb.it.domain.migration.service.TestSnapshots;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** 위임예산 시트 → 경상 사업·품목 변환 규칙을 고정합니다 (§5.5). */
+class DelegatedBudgetSheetAdapterTest {
+
+    private final DelegatedBudgetSheetAdapter adapter = new DelegatedBudgetSheetAdapter();
+
+    @Test
+    @DisplayName("부점별로 사업 1건을 만들고 사업명·경상여부·기간을 규칙대로 채운다")
+    void 부점별_경상사업을_만든다() {
+        AdapterOutput out = adapter.adapt(sheet(londonRows()), context());
+
+        assertThat(out.projects()).hasSize(2);
+        assertThat(out.projects())
+                .extracting(ProjectDto.CreateRequest::getAbusNm)
+                .containsExactly("2026년 런던 위임예산(경상)", "2026년 런던 PF 위임예산(경상)");
+        assertThat(out.projects())
+                .allSatisfy(
+                        p -> {
+                            assertThat(p.getOdnYn()).isEqualTo("Y");
+                            assertThat(p.getAbusTc()).isEqualTo("20");
+                            assertThat(p.getSttDtm()).isEqualTo(LocalDate.of(2026, 1, 1));
+                            assertThat(p.getEndDtm()).isEqualTo(LocalDate.of(2026, 12, 31));
+                            assertThat(p.getUsid()).isEqualTo("999999");
+                        });
+    }
+
+    @Test
+    @DisplayName("원화환산액은 이미 원 단위라 배수를 곱하지 않는다")
+    void 원화환산액을_그대로_쓴다() {
+        ProjectDto.BitemmDto item =
+                adapter.adapt(sheet(londonRows()), context()).projects().get(0).getItems().get(0);
+
+        assertThat(item.getAmt()).isEqualByComparingTo(new BigDecimal("44919320.16"));
+    }
+
+    @Test
+    @DisplayName("HW 행은 국외기계장치 102, SW 행은 국외기타무형자산 105로 만든다")
+    void 하드웨어와_소프트웨어_비목을_구분한다() {
+        List<ProjectDto.BitemmDto> items =
+                adapter.adapt(sheet(londonRows()), context()).projects().get(0).getItems();
+
+        assertThat(items).extracting(ProjectDto.BitemmDto::getIoeC).containsExactly("102", "105");
+    }
+
+    @Test
+    @DisplayName("수량·통화·외화금액을 품목에 옮긴다")
+    void 수량과_외화금액을_옮긴다() {
+        ProjectDto.BitemmDto item =
+                adapter.adapt(sheet(londonRows()), context()).projects().get(0).getItems().get(0);
+
+        assertThat(item.getQty()).isEqualByComparingTo(new BigDecimal("12"));
+        assertThat(item.getCurC()).isEqualTo("GBP");
+        assertThat(item.getFcAmt()).isEqualByComparingTo(new BigDecimal("23346.84"));
+    }
+
+    @Test
+    @DisplayName("부점명이 빈 행은 직전 행 부점을 이어 쓴다")
+    void 부점명_공백행은_직전값을_잇는다() {
+        List<MigrationDto.NormalizedRow> rows =
+                List.of(
+                        row(2, hwCells("런던", "데스크탑(고사양)", "12", "23346.84", "44919320.16")),
+                        row(3, hwCells("", "데스크탑(일반사양)", "82", "68569.22", "131927179.28")));
+
+        AdapterOutput out = adapter.adapt(sheet(rows), context());
+
+        assertThat(out.projects()).hasSize(1);
+        assertThat(out.projects().get(0).getItems()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("HW·SW 금액이 모두 0인 행은 품목을 만들지 않는다")
+    void 금액이_없는_행은_품목을_만들지_않는다() {
+        Map<String, String> cells = hwCells("런던", "빈 항목", "0", "0", "0");
+
+        AdapterOutput out = adapter.adapt(sheet(List.of(row(2, cells))), context());
+
+        assertThat(out.projects().get(0).getItems()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("부점별로 편성률 100의 RateIntent를 남긴다")
+    void 부점별_편성률의도를_남긴다() {
+        AdapterOutput out = adapter.adapt(sheet(londonRows()), context());
+
+        assertThat(out.rates())
+                .hasSize(2)
+                .allSatisfy(
+                        r -> {
+                            assertThat(r.orcTb()).isEqualTo("BPROJM");
+                            assertThat(r.percent()).isEqualTo(100);
+                        });
+    }
+
+    private static List<MigrationDto.NormalizedRow> londonRows() {
+        return List.of(
+                row(2, hwCells("런던", "데스크탑(고사양)", "12", "23346.84", "44919320.16")),
+                row(3, swCells("런던", "MS오피스", "99", "53174.88", "102308469.12")),
+                row(4, hwCells("런던 PF", "내부망 PC", "2", "1610.4", "3098409.6")));
+    }
+
+    private static MigrationDto.NormalizedRow row(int excelRow, Map<String, String> cells) {
+        return new MigrationDto.NormalizedRow(excelRow, cells);
+    }
+
+    private static MigrationDto.SheetPayload sheet(List<MigrationDto.NormalizedRow> rows) {
+        return new MigrationDto.SheetPayload(SheetKind.DELEGATED_BUDGET, "2026", rows);
+    }
+
+    private static AdapterContext context() {
+        return new AdapterContext(
+                "2026",
+                new MigrationLookupIndex(
+                        OrgIdentityResolver.Index.of(
+                                List.of(org("0910", "런던"), org("0911", "런던 PF")), List.of()),
+                        Map.of(),
+                        Map.of("GBP", new BigDecimal("1924"))),
+                TestSnapshots.empty("2026"),
+                Map.of(),
+                "999999");
+    }
+
+    private static CorgnI org(String code, String name) {
+        return CorgnI.builder().prlmOgzCCone(code).bbrNm(name).build();
+    }
+
+    private static Map<String, String> hwCells(
+            String branch, String item, String qty, String fc, String krw) {
+        Map<String, String> cells = baseCells(branch, item);
+        cells.put("hwQty", qty);
+        cells.put("hwFcAmount", fc);
+        cells.put("hwKrwAmount", krw);
+        return cells;
+    }
+
+    private static Map<String, String> swCells(
+            String branch, String item, String qty, String fc, String krw) {
+        Map<String, String> cells = baseCells(branch, item);
+        cells.put("swQty", qty);
+        cells.put("swFcAmount", fc);
+        cells.put("swKrwAmount", krw);
+        return cells;
+    }
+
+    private static Map<String, String> baseCells(String branch, String item) {
+        Map<String, String> cells = new LinkedHashMap<>();
+        for (String column :
+                com.kdb.it.domain.migration.dto.MigrationColumns.of(SheetKind.DELEGATED_BUDGET)) {
+            cells.put(column, "");
+        }
+        cells.put("branchName", branch);
+        cells.put("itemName", item);
+        cells.put("currency", "GBP");
+        return cells;
+    }
+}

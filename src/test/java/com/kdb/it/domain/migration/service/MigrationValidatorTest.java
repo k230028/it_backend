@@ -463,6 +463,58 @@ class MigrationValidatorTest {
         assertThat(result).noneMatch(d -> "hwKrwAmount".equals(d.column()));
     }
 
+    /** 위임예산 첫 행부터 부점명이 비면 이후 행을 귀속시킬 사업이 없으므로 시트 단위 BLOCKER. */
+    @Test
+    @DisplayName("위임예산 첫 행 부점명이 비면 REQUIRED_MISSING BLOCKER를 낸다")
+    void 위임예산_첫행_부점명공백은_블로커다() {
+        Map<String, String> first = delegatedCells(Map.of("branchName", ""));
+        Map<String, String> second = delegatedCells(Map.of("branchName", "런던"));
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.DELEGATED_BUDGET,
+                                        "2026",
+                                        List.of(row(2, first), row(3, second)))),
+                        TestSnapshots.indexWithOrgs("0910", "런던"),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .anySatisfy(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("REQUIRED_MISSING");
+                            assertThat(d.severity()).isEqualTo(MigrationDto.Severity.BLOCKER);
+                            assertThat(d.column()).isEqualTo("branchName");
+                            assertThat(d.excelRow()).isEqualTo(2);
+                        });
+    }
+
+    /** 위임예산 두 번째 이후 행의 부점명 공백은 forward-fill 대상이라 ORG_UNRESOLVED를 내지 않는다. */
+    @Test
+    @DisplayName("위임예산 연속행 부점명 공백은 ORG_UNRESOLVED를 내지 않는다")
+    void 위임예산_연속행_부점명공백은_미해석이_아니다() {
+        Map<String, String> first = delegatedCells(Map.of("branchName", "런던"));
+        Map<String, String> second = delegatedCells(Map.of("branchName", ""));
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.DELEGATED_BUDGET,
+                                        "2026",
+                                        List.of(row(2, first), row(3, second)))),
+                        TestSnapshots.indexWithOrgs("0910", "런던"),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .noneMatch(
+                        d -> "ORG_UNRESOLVED".equals(d.code()) && "branchName".equals(d.column()));
+        assertThat(result).noneMatch(d -> "REQUIRED_MISSING".equals(d.code()));
+    }
+
     /** 자본예산 계열이 아닌 비목코드(999)로 개발비 비목을 보정하면 CODE_UNRESOLVED. */
     @Test
     @DisplayName("존재하지 않는 비목코드로 보정하면 devAmountIoeC에 CODE_UNRESOLVED를 낸다")
@@ -608,6 +660,24 @@ class MigrationValidatorTest {
         cells.put("endYm", "'26.12");
         cells.put("devAmount", "1406");
         cells.put("adjustRate", "0.7");
+        return cells;
+    }
+
+    /**
+     * 전 컬럼을 채운 뒤 인자로 받은 것만 덮어씁니다. itemName·hwKrwAmount는 REQUIRED_MISSING·AMOUNT_MISMATCH를 피하는 값으로
+     * 둡니다.
+     */
+    private static Map<String, String> delegatedCells(Map<String, String> overrides) {
+        Map<String, String> cells = new HashMap<>();
+        for (String column :
+                com.kdb.it.domain.migration.dto.MigrationColumns.of(SheetKind.DELEGATED_BUDGET)) {
+            cells.put(column, "");
+        }
+        cells.put("itemName", "데스크탑");
+        cells.put("hwQty", "1");
+        cells.put("hwFcAmount", "");
+        cells.put("hwKrwAmount", "1000000");
+        cells.putAll(overrides);
         return cells;
     }
 
