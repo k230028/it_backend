@@ -1,0 +1,38 @@
+[
+  {
+    "excelRow": 2,
+    "cells": {
+      "abusCode": "571",
+      "ioeName": "유지보수료",
+      "abusTcLabel": "계속",
+      "vendorName": "테스트벤더",
+      "requestDetail": "테스트 유지보수",
+      "securityFlag": "",
+      "terminalFlag": "",
+      "deptName": "IT기획부",
+      "teamName": "",
+      "currency": "KRW",
+      "fcAmount": "",
+      "krwAmount": "15000",
+      "remark": "테스트"
+    }
+  },
+  {
+    "excelRow": 3,
+    "cells": {
+      "abusCode": "571",
+      "ioeName": "국외전산임차료",
+      "abusTcLabel": "계속",
+      "vendorName": "Test Vendor Ltd",
+      "requestDetail": "테스트 해외 임차",
+      "securityFlag": "",
+      "terminalFlag": "",
+      "deptName": "IT기획부",
+      "teamName": "",
+      "currency": "GBP",
+      "fcAmount": "1000",
+      "krwAmount": "1924",
+      "remark": ""
+    }
+  }
+]

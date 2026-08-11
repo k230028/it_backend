@@ -1,0 +1,25 @@
+[
+  {
+    "excelRow": 2,
+    "cells": {
+      "projectName": "테스트정보화사업A",
+      "projectType": "",
+      "progressLabel": "신규",
+      "projectOutline": "테스트 사업 개요",
+      "headquarters": "",
+      "deptName": "IT기획부",
+      "teamName": "",
+      "managerName": "박팀장 팀장",
+      "teamLeaderName": "김기획팀장 팀장",
+      "itTeamName": "",
+      "feasibility": "",
+      "startYm": "",
+      "endYm": "",
+      "devAmount": "5",
+      "hwAmount": "",
+      "swAmount": "",
+      "adjustRate": "",
+      "delegationLabel": ""
+    }
+  }
+]
