@@ -463,6 +463,111 @@ class MigrationValidatorTest {
         assertThat(result).noneMatch(d -> "hwKrwAmount".equals(d.column()));
     }
 
+    /** 자본예산 계열이 아닌 비목코드(999)로 개발비 비목을 보정하면 CODE_UNRESOLVED. */
+    @Test
+    @DisplayName("존재하지 않는 비목코드로 보정하면 devAmountIoeC에 CODE_UNRESOLVED를 낸다")
+    void 미등록_비목코드_보정은_코드미해석이다() {
+        Map<String, String> overrides =
+                Map.of(
+                        MigrationValidator.overrideKey(
+                                SheetKind.CAPITAL_PROJECT, 2, "devAmountIoeC"),
+                        "999");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.CAPITAL_PROJECT,
+                                        "2026",
+                                        List.of(row(2, capitalCells())))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        overrides);
+
+        assertThat(result)
+                .filteredOn(d -> "devAmountIoeC".equals(d.column()))
+                .filteredOn(d -> "CODE_UNRESOLVED".equals(d.code()))
+                .isNotEmpty();
+    }
+
+    /**
+     * 일반관리비 계열 비목코드(011=유지보수료)는 세 자리 숫자 형식은 맞지만 자본예산 계열이 아니므로 여전히 CODE_UNRESOLVED다. 사용자가 비목 목록에서
+     * 엉뚱한 구간(일반관리비)을 고르는 실수를 잡아야 한다 — "숫자 세 자리인가"만 보는 검사로 느슨해지면 이 케이스가 통과해 버린다.
+     */
+    @Test
+    @DisplayName("일반관리비 계열 비목코드(011)로 기타무형 비목을 보정해도 CODE_UNRESOLVED를 낸다")
+    void 일반관리비_비목코드_보정도_코드미해석이다() {
+        Map<String, String> overrides =
+                Map.of(
+                        MigrationValidator.overrideKey(
+                                SheetKind.CAPITAL_PROJECT, 2, "swAmountIoeC"),
+                        "011");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.CAPITAL_PROJECT,
+                                        "2026",
+                                        List.of(row(2, capitalCells())))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        overrides);
+
+        assertThat(result)
+                .filteredOn(d -> "swAmountIoeC".equals(d.column()))
+                .filteredOn(d -> "CODE_UNRESOLVED".equals(d.code()))
+                .isNotEmpty();
+    }
+
+    /** 기계장치 국외(102)처럼 실재하는 자본예산 계열 코드로 보정하면 그 컬럼에 진단이 없다. */
+    @Test
+    @DisplayName("자본예산 계열 비목코드로 기계장치 비목을 보정하면 진단을 내지 않는다")
+    void 자본예산_비목코드_보정은_진단이_없다() {
+        Map<String, String> overrides =
+                Map.of(
+                        MigrationValidator.overrideKey(
+                                SheetKind.CAPITAL_PROJECT, 2, "hwAmountIoeC"),
+                        "102");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.CAPITAL_PROJECT,
+                                        "2026",
+                                        List.of(row(2, capitalCells())))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        overrides);
+
+        assertThat(result).noneMatch(d -> "hwAmountIoeC".equals(d.column()));
+    }
+
+    /** 개발비 감리(104)로 보정하면 그 컬럼에 진단이 없다. 세 컬럼 중 devAmountIoeC 경로도 함께 고정한다. */
+    @Test
+    @DisplayName("개발비 감리 코드(104)로 보정하면 devAmountIoeC에 진단을 내지 않는다")
+    void 개발비_감리코드_보정은_진단이_없다() {
+        Map<String, String> overrides =
+                Map.of(
+                        MigrationValidator.overrideKey(
+                                SheetKind.CAPITAL_PROJECT, 2, "devAmountIoeC"),
+                        "104");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.CAPITAL_PROJECT,
+                                        "2026",
+                                        List.of(row(2, capitalCells())))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        overrides);
+
+        assertThat(result).noneMatch(d -> "devAmountIoeC".equals(d.column()));
+    }
+
     private static MigrationDto.SheetPayload costSheet(MigrationDto.NormalizedRow row) {
         return new MigrationDto.SheetPayload(SheetKind.COST, "2026", List.of(row));
     }

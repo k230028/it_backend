@@ -112,6 +112,7 @@ public class CapitalProjectSheetAdapter implements SheetAdapter {
         items.add(item);
     }
 
+    /** 보정값이 있으면 그 조직코드를, 없으면 이름으로 해석합니다. 미해석이면 null. */
     private String resolveOrg(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
@@ -125,6 +126,7 @@ public class CapitalProjectSheetAdapter implements SheetAdapter {
         return ctx.index().org().orgNameOf(raw) != null ? raw : null;
     }
 
+    /** 보정값이 있으면 그 사번을, 없으면 이름(+부서 힌트)으로 해석합니다. 미해석이면 null. */
     private String resolveUser(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
