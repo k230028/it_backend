@@ -97,4 +97,12 @@ public interface OrganizationRepository extends JpaRepository<CorgnI, String> {
      * @return 관리자 조직 목록 프로젝션
      */
     List<OrganizationAdminView> findAdminViewsByDelYn(String delYn);
+
+    /**
+     * 미삭제 조직 전체를 조회합니다. 이관 dry-run의 이름 → 코드 역방향 인덱스 구축에 사용합니다.
+     *
+     * @param delYn 삭제여부 ('N')
+     * @return 미삭제 조직 목록
+     */
+    List<CorgnI> findByDelYn(String delYn);
 }

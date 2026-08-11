@@ -246,4 +246,12 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
      * @return 해당 팀들의 활성 사용자 목록
      */
     java.util.List<CuserI> findByTemCInAndDelYn(Collection<String> temCs, String delYn);
+
+    /**
+     * 미삭제 사용자 전체를 조회합니다. 이관 dry-run의 이름 → 사번 역방향 인덱스 구축에 사용합니다.
+     *
+     * @param delYn 삭제여부 ('N')
+     * @return 미삭제 사용자 목록
+     */
+    List<CuserI> findByDelYn(String delYn);
 }
