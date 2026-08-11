@@ -66,13 +66,18 @@ public final class MigrationDto {
      * dry-run 요청입니다.
      *
      * @param sheets 올린 시트 목록 (1~4개)
+     * @param overrides 보정값 목록. 없으면 빈 목록 (최초 dry-run은 빈 목록으로 보낸다)
      */
     @Schema(name = "MigrationDryRunRequest", description = "이관 사전검증 요청")
     public record DryRunRequest(
             @Schema(description = "시트 목록", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotEmpty
                     @Valid
-                    List<SheetPayload> sheets) {}
+                    List<SheetPayload> sheets,
+            @Schema(description = "보정값 목록", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull
+                    @Valid
+                    List<CellOverride> overrides) {}
 
     /**
      * 해석 후보입니다.

@@ -141,7 +141,8 @@ class MigrationControllerTest {
                                 "2026",
                                 List.of(
                                         new MigrationDto.NormalizedRow(
-                                                2, Map.of("ioeName", "유지보수료"))))));
+                                                2, Map.of("ioeName", "유지보수료"))))),
+                List.of());
     }
 
     private static MigrationDto.CommitRequest commitRequest() {

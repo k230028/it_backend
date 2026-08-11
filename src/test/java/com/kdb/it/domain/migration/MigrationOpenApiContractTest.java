@@ -48,6 +48,16 @@ class MigrationOpenApiContractTest {
         assertAllPropertiesRequired(MigrationDto.CommitResponse.class, "planReqDocNo");
     }
 
+    /**
+     * dry-run 요청은 {@code overrides}를 {@code sheets}와 함께 필수(빈 목록 허용, 생략 불가)로 받습니다. 이 계약이 깨지면(예: 필드
+     * 삭제·optional 전환) 프론트가 보정값을 dry-run에 실어 보내도 서버가 조용히 무시하는 회귀(보정해도 BLOCKER가 그대로 남는 문제)가 재발할 수
+     * 있습니다.
+     */
+    @Test
+    void dryRunRequestExposesOverridesContract() {
+        assertAllPropertiesRequired(MigrationDto.DryRunRequest.class);
+    }
+
     private static void assertAllPropertiesRequired(Class<?> type, String... nullableProperties) {
         Schema<?> schema = resolve(type);
         Set<String> properties = schema.getProperties().keySet();

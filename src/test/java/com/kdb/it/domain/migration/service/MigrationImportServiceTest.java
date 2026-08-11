@@ -219,11 +219,50 @@ class MigrationImportServiceTest {
                                         List.of())));
 
         MigrationDto.DryRunResponse response =
-                service.dryRun(new MigrationDto.DryRunRequest(commitRequest().sheets()));
+                service.dryRun(new MigrationDto.DryRunRequest(commitRequest().sheets(), List.of()));
 
         assertThat(response.summary().blockerCount()).isEqualTo(1);
         assertThat(response.summary().totalRows()).isEqualTo(1);
         verify(costService, never()).createCost(any(), anyBoolean());
+    }
+
+    /**
+     * dry-run이 요청의 보정값을 실제로 검증기에 전달하는지 고정한다.
+     *
+     * <p>이전 구현은 {@code dryRun}이 항상 빈 맵({@code Map.of()})을 검증기에 넘겨 요청에 담긴 보정값을 통째로 무시했다 — 사용자가 진단
+     * 후보를 골라 {@code setOverride}로 다시 dry-run을 돌려도 같은 BLOCKER가 그대로 남아 {@code canCommit}이 영원히 false로
+     * 묶이는 회귀였다. 검증기 스텁을 넘어오는 보정값 맵 자체로 분기시켜, 서비스가 {@code MigrationValidator.overrideKey}와 같은 키 형식으로
+     * 접어 넘기는지까지 함께 확인한다.
+     */
+    @Test
+    @DisplayName("dry-run 보정값을 검증기에 그대로 전달해 BLOCKER를 해소한다")
+    void dryRun은_보정값을_검증기에_전달한다() {
+        MigrationImportService service = service();
+        MigrationDto.CellDiagnostic blocker =
+                new MigrationDto.CellDiagnostic(
+                        SheetKind.COST,
+                        2,
+                        "deptName",
+                        "ORG_UNRESOLVED",
+                        MigrationDto.Severity.BLOCKER,
+                        "해석 실패",
+                        List.of());
+        when(validator.validate(any(), any(), any(), eq(Map.of()))).thenReturn(List.of(blocker));
+        when(validator.validate(any(), any(), any(), eq(Map.of("COST|2|deptName", "0210"))))
+                .thenReturn(List.of());
+
+        MigrationDto.DryRunResponse withoutOverride =
+                service.dryRun(new MigrationDto.DryRunRequest(commitRequest().sheets(), List.of()));
+        MigrationDto.DryRunResponse withOverride =
+                service.dryRun(
+                        new MigrationDto.DryRunRequest(
+                                commitRequest().sheets(),
+                                List.of(
+                                        new MigrationDto.CellOverride(
+                                                SheetKind.COST, 2, "deptName", "0210"))));
+
+        assertThat(withoutOverride.summary().blockerCount()).isEqualTo(1);
+        assertThat(withOverride.summary().blockerCount()).isEqualTo(0);
     }
 
     /**

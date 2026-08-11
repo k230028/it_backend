@@ -101,7 +101,7 @@ public class MigrationImportService {
     /**
      * 올린 시트를 검증해 행별 진단을 돌려줍니다. 아무것도 저장하지 않습니다.
      *
-     * @param request 시트 목록
+     * @param request 시트 목록과 보정값
      * @return 진단 목록과 요약
      * @throws IllegalArgumentException 시트 목록이 비었거나 지원하지 않는 시트 종류가 온 경우
      */
@@ -109,9 +109,10 @@ public class MigrationImportService {
     public MigrationDto.DryRunResponse dryRun(MigrationDto.DryRunRequest request) {
         requireSupported(request.sheets());
         String bseYy = request.sheets().get(0).bseYy();
+        Map<String, String> overrides = foldOverrides(request.overrides());
         List<MigrationDto.CellDiagnostic> diagnostics =
                 validator.validate(
-                        request.sheets(), lookupIndex(), yearSnapshot.load(bseYy), Map.of());
+                        request.sheets(), lookupIndex(), yearSnapshot.load(bseYy), overrides);
 
         int totalRows = request.sheets().stream().mapToInt(s -> s.rows().size()).sum();
         int blockers =
