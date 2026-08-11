@@ -82,6 +82,11 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 클라이언트 IP는 신뢰 프록시에서 온 경우에만 `X-Forwarded-For`를 사용합니다.
 - `it-portal-user`의 사번·역할·부서 값은 변조 가능한 UX 상태로만 취급하고, API 권한과 데이터 범위는 JWT 기반 서버 검증으로 결정합니다.
 - SSO JWT 발급은 외부 토큰 검증 결과를 서버 세션에 저장한 뒤 1회 소비하는 흐름으로 수행합니다. 직접 사번 전달은 운영에서 금지하고, 복귀 Origin은 CORS 허용 목록, 복귀 경로는 같은 사이트 상대 경로로 제한합니다.
+- 수동 로그인과 사용자 전자결재 상태 변경은 MFA를 서버에서 강제합니다. 자격증명 검증(`/api/auth/login/start`)만으로는 JWT를 발급하지 않고, 결재 명령은 `@MfaRequired`가 붙은 메서드에서 `MfaGuardAspect`가 1회용 증표를 원자적으로 소비한 뒤에만 도메인 명령을 호출합니다. 조회·임시저장·외부 콜백은 대상이 아닙니다.
+- MFA 증표는 사용자·용도에 귀속하며 명령 한 건에만 씁니다. 거래는 서버 메모리에만 두고 원문 대신 해시를 키로 사용하며, DB 테이블·JPA 엔티티·Flyway 스크립트를 추가하지 않습니다.
+- `app.mfa.mock-enabled=true`는 `local-ext`에서만 허용하고 그 밖의 프로파일에서는 `MfaConfig`가 기동을 실패시킵니다. 운영에서 MFA를 우회하는 설정 경로를 만들지 않습니다.
+- OTP, QR 원문, 외부 응답 전문, 증표 원문은 로그와 영속 저장소에 남기지 않습니다. 오류 응답에는 표준 코드(`MFA_REQUIRED`·`MFA_EXPIRED`·`MFA_FAILED`·`MFA_UNAVAILABLE`·`MFA_LOCKED`)와 정제된 메시지만 포함합니다.
+- 외부 공급자 결과는 성공·실패 2값이 아니라 `MfaVerificationResult.Outcome`의 3값입니다. FIDO처럼 사용자가 다른 기기에서 승인하는 수단의 재조회는 `UNDECIDED`로 판정해 실패 횟수에 집계하지 않습니다. 이 구분이 없으면 정상 폴링이 허용 실패 횟수를 소진해 승인 전에 거래가 잠깁니다.
 - `/sso/**`는 외부 ESSO의 전체 페이지 콜백 전용으로 Origin 패턴과 GET·POST·OPTIONS를 열되 `allowCredentials=false`를 유지합니다. `Path=/` Access 쿠키가 같은 사이트 요청에 포함될 수 있어도 SSO 검증 상태는 Secure·HttpOnly·SameSite=Lax인 `JSESSIONID` 서버 세션으로 분리하며, 이 예외를 `/api/**` 또는 쿠키 자격증명을 사용하는 XHR 경로로 확대하지 않습니다.
 
 세부 정책은 [인증·인가 가이드](docs/guides/security/authentication-authorization.md), 데이터 범위는 [데이터 접근 범위 가이드](docs/guides/security/data-scope.md), 파일은 [파일 보안 가이드](docs/guides/security/file-security.md)를 따릅니다.

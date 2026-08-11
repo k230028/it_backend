@@ -126,6 +126,192 @@ class OnePassClientTest {
     }
 
     @Test
+    void fidoProvider_startTwiceForSameTransaction_reusesFirstChallenge() throws Exception {
+        AtomicInteger startCount = new AtomicInteger();
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    respond(
+                            exchange,
+                            200,
+                            "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr-"
+                                    + startCount.incrementAndGet()
+                                    + "\",\"qrImage\":\"qr\"}}");
+                });
+        FidoMfaProvider provider = new FidoMfaProvider(client());
+
+        MfaChallengeData first = provider.start(context());
+        MfaChallengeData second = provider.start(context());
+
+        // 같은 거래를 다시 시작해도 최초 challenge를 유지해야 확인 요청이 어긋나지 않는다.
+        assertThat(second).isEqualTo(first);
+    }
+
+    @Test
+    void fidoProvider_dropsOldestPendingTransactionAtCapacity() throws Exception {
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    respond(
+                            exchange,
+                            200,
+                            "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr\",\"qrImage\":\"qr\"}}");
+                });
+        FidoMfaProvider provider = new FidoMfaProvider(client(), 1);
+
+        MfaChallengeData first = provider.start(context("transaction-1"));
+        provider.start(context("transaction-2"));
+
+        // 용량을 넘기면 오래된 거래가 밀려나 확인할 수 없어야 한다.
+        MfaVerificationResult evicted =
+                provider.verify(
+                        new MfaVerifyContext(context("transaction-1"), first.challengeId(), ""));
+        assertThat(evicted.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
+    }
+
+    @Test
+    void fidoProvider_rejectsCapacityBelowOne() throws Exception {
+        startServer(exchange -> respond(exchange, 200, "{\"resultCode\":\"100000\"}"));
+
+        assertThatThrownBy(() -> new FidoMfaProvider(client(), 0))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void fidoProvider_removesExpiredPendingTransactionsBeforeConfirming() throws Exception {
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    respond(
+                            exchange,
+                            200,
+                            "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr\",\"qrImage\":\"qr\"}}");
+                });
+        FidoMfaProvider provider = new FidoMfaProvider(client());
+        MfaStartContext expiredContext =
+                new MfaStartContext(
+                        "transaction-expired",
+                        "10000001",
+                        MfaPurpose.LOGIN,
+                        Instant.parse("2000-01-01T00:00:00Z"));
+        MfaChallengeData challenge = provider.start(expiredContext);
+
+        MfaVerificationResult result =
+                provider.verify(new MfaVerifyContext(expiredContext, challenge.challengeId(), ""));
+
+        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
+    }
+
+    @Test
+    void motpProvider_delegatesStartAndVerifyToClient() throws Exception {
+        List<Map<String, Object>> requests = new java.util.ArrayList<>();
+        AtomicInteger callCount = new AtomicInteger();
+        startServer(
+                exchange -> {
+                    requests.add(requestBody(exchange));
+                    if (callCount.getAndIncrement() == 0) {
+                        respond(
+                                exchange,
+                                200,
+                                "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"motp-tr\",\"qrImage\":\"qr\"}}");
+                    } else {
+                        respond(exchange, 200, "{\"resultCode\":\"100000\"}");
+                    }
+                });
+        MotpMfaProvider provider = new MotpMfaProvider(client());
+
+        MfaChallengeData challenge = provider.start(context());
+        MfaVerificationResult result =
+                provider.verify(new MfaVerifyContext(context(), challenge.challengeId(), "123456"));
+
+        assertThat(challenge.challengeId()).isEqualTo("motp-tr");
+        assertThat(result.verified()).isTrue();
+        assertThat(requests.get(1)).containsEntry("otpValue", "123456");
+    }
+
+    @Test
+    void motpVerify_rejectsNonSuccessResultCode() throws Exception {
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    respond(exchange, 200, "{\"resultCode\":\"900001\"}");
+                });
+
+        MfaVerificationResult result = client().verifyMotp(context(), "motp-tr", "000000");
+
+        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
+    }
+
+    @Test
+    void motpStart_rejectsNonSuccessResultCode() throws Exception {
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    respond(exchange, 200, "{\"resultCode\":\"900001\"}");
+                });
+
+        assertThatThrownBy(() -> client().requestMotpChallenge(context()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void motpStart_rejectsResponseWithoutChallengeId() throws Exception {
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    respond(exchange, 200, "{\"resultCode\":\"100000\",\"resultData\":{}}");
+                });
+
+        assertThatThrownBy(() -> client().requestMotpChallenge(context()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void motpStart_treatsNonObjectResultDataAsMissingChallengeId() throws Exception {
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    respond(exchange, 200, "{\"resultCode\":\"100000\",\"resultData\":\"plain\"}");
+                });
+
+        assertThatThrownBy(() -> client().requestMotpChallenge(context()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void motpStart_allowsResponseWithoutQrImage() throws Exception {
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    respond(
+                            exchange,
+                            200,
+                            "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"motp-tr\"}}");
+                });
+
+        MfaChallengeData challenge = client().requestMotpChallenge(context());
+
+        assertThat(challenge.qrData()).isNull();
+    }
+
+    @Test
+    void fidoStart_exposesChallengeThroughClientFacade() throws Exception {
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    respond(
+                            exchange,
+                            200,
+                            "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr\",\"qrImage\":\"qr\"}}");
+                });
+
+        MfaChallengeData challenge = client().requestFidoChallenge(context());
+
+        assertThat(challenge)
+                .isEqualTo(new MfaChallengeData("fido-tr", "qr", context().expiresAt()));
+    }
+
+    @Test
     void fidoProvider_treatsNestedNonApprovedStatusAsUndecided() throws Exception {
         AtomicInteger callCount = new AtomicInteger();
         startServer(

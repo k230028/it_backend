@@ -28,6 +28,35 @@ class EaiErrorResponseParserTest {
         assertThat(new EaiErrorResponseParser().parse(response, MS949)).isEmpty();
     }
 
+    @Test
+    @DisplayName("null이거나 표준 헤더 길이에 못 미치는 응답은 오류로 해석하지 않는다")
+    void parse_nullOrShortResponse_returnsEmpty() {
+        EaiErrorResponseParser parser = new EaiErrorResponseParser();
+
+        assertThat(parser.parse(null, MS949)).isEmpty();
+        assertThat(parser.parse(new byte[0], MS949)).isEmpty();
+        assertThat(parser.parse(" ".repeat(1013).getBytes(MS949), MS949)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("메시지 구분 코드가 오류가 아니면 빈 값을 반환한다")
+    void parse_withoutMessageIndicator_returnsEmpty() {
+        byte[] response = errorResponse("SEEAI00006");
+        response[1013] = '0';
+
+        assertThat(new EaiErrorResponseParser().parse(response, MS949)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("오류 플래그만 있고 SEEAI 코드가 없으면 빈 값을 반환한다")
+    void parse_withoutErrorCode_returnsEmpty() {
+        byte[] response = " ".repeat(1100).getBytes(MS949);
+        response[241] = '2';
+        response[1013] = '1';
+
+        assertThat(new EaiErrorResponseParser().parse(response, MS949)).isEmpty();
+    }
+
     private byte[] errorResponse(String errorCode) {
         byte[] response = " ".repeat(1100).getBytes(MS949);
         response[241] = '2';

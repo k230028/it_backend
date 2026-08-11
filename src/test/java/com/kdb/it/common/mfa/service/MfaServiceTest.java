@@ -561,6 +561,348 @@ class MfaServiceTest {
                 MfaErrorCode.MFA_LOCKED);
     }
 
+    @Test
+    void 로그인대기_등록은_사원번호를_요구한다() {
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        successProvider(),
+                        CLOCK);
+
+        assertThatThrownBy(() -> service.registerLoginPending(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.registerLoginPending("  "))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void 로그인_challenge는_대기쿠키가_없으면_거부한다() {
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        successProvider(),
+                        CLOCK);
+
+        assertMfaError(
+                () ->
+                        service.startChallenge(
+                                new MfaDto.MfaStartRequest(MfaPurpose.LOGIN, MfaMethod.MOTP),
+                                Optional.empty(),
+                                null),
+                MfaErrorCode.MFA_REQUIRED);
+        assertMfaError(
+                () ->
+                        service.startChallenge(
+                                new MfaDto.MfaStartRequest(MfaPurpose.LOGIN, MfaMethod.MOTP),
+                                Optional.empty(),
+                                "  "),
+                MfaErrorCode.MFA_REQUIRED);
+    }
+
+    @Test
+    void 로그인_challenge는_모르는_대기쿠키를_만료로_처리한다() {
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        successProvider(),
+                        CLOCK);
+
+        assertMfaError(
+                () ->
+                        service.startChallenge(
+                                new MfaDto.MfaStartRequest(MfaPurpose.LOGIN, MfaMethod.MOTP),
+                                Optional.empty(),
+                                "unknown-pending"),
+                MfaErrorCode.MFA_EXPIRED);
+    }
+
+    @Test
+    void 로그인_검증은_대기쿠키가_없으면_거부한다() {
+        InMemoryLoginPendingTransactionStore pendingStore =
+                new InMemoryLoginPendingTransactionStore();
+        pendingStore.save(
+                new LoginPendingTransaction(hash(PENDING_PROOF), "E10001", NOW.plusSeconds(90)));
+        MfaService service =
+                service(new InMemoryMfaTransactionStore(), pendingStore, successProvider(), CLOCK);
+        MfaDto.MfaChallengeResponse response =
+                service.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.LOGIN, MfaMethod.MOTP),
+                        Optional.empty(),
+                        PENDING_PROOF);
+
+        assertMfaError(
+                () ->
+                        service.verifyChallenge(
+                                response.challengeId(),
+                                new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                                Optional.empty(),
+                                null),
+                MfaErrorCode.MFA_REQUIRED);
+    }
+
+    @Test
+    void 공급자_challenge_식별자가_다르면_실패로_집계한다() {
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        successProvider(),
+                        CLOCK);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+        MfaDto.MfaChallengeResponse response =
+                service.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.MOTP),
+                        Optional.of(user),
+                        null);
+
+        assertMfaError(
+                () ->
+                        service.verifyChallenge(
+                                response.challengeId(),
+                                new MfaDto.MfaVerifyRequest("other-provider-id", OTP_SECRET),
+                                Optional.of(user),
+                                null),
+                MfaErrorCode.MFA_FAILED);
+    }
+
+    @Test
+    void 잠긴_거래는_이후_검증도_잠금으로_거부한다() {
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        failureProvider(),
+                        CLOCK);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+        MfaDto.MfaChallengeResponse response =
+                service.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.MOTP),
+                        Optional.of(user),
+                        null);
+
+        for (int attempt = 0; attempt < 5; attempt++) {
+            assertThatThrownBy(
+                            () ->
+                                    service.verifyChallenge(
+                                            response.challengeId(),
+                                            new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                                            Optional.of(user),
+                                            null))
+                    .isInstanceOf(MfaException.class);
+        }
+
+        // 잠긴 뒤의 추가 검증은 실패 집계가 아니라 잠금 상태로 즉시 거부한다.
+        assertMfaError(
+                () ->
+                        service.verifyChallenge(
+                                response.challengeId(),
+                                new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                                Optional.of(user),
+                                null),
+                MfaErrorCode.MFA_LOCKED);
+    }
+
+    @Test
+    void 결재_증표가_없으면_소비를_거부한다() {
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        successProvider(),
+                        CLOCK);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+
+        assertMfaError(() -> service.consumeApprovalProof(user, null), MfaErrorCode.MFA_REQUIRED);
+        assertMfaError(() -> service.consumeApprovalProof(user, "  "), MfaErrorCode.MFA_REQUIRED);
+    }
+
+    @Test
+    void 로그인_증표_소비는_대기쿠키와_증표를_모두_요구한다() {
+        InMemoryLoginPendingTransactionStore pendingStore =
+                new InMemoryLoginPendingTransactionStore();
+        pendingStore.save(
+                new LoginPendingTransaction(hash(PENDING_PROOF), "E10001", NOW.plusSeconds(90)));
+        MfaService service =
+                service(new InMemoryMfaTransactionStore(), pendingStore, successProvider(), CLOCK);
+
+        assertMfaError(() -> service.consumeLoginProof(null, "proof"), MfaErrorCode.MFA_REQUIRED);
+        assertMfaError(
+                () -> service.consumeLoginProof("unknown-pending", "proof"),
+                MfaErrorCode.MFA_REQUIRED);
+        assertMfaError(
+                () -> service.consumeLoginProof(PENDING_PROOF, null), MfaErrorCode.MFA_REQUIRED);
+    }
+
+    @Test
+    void 만료된_거래의_검증은_만료로_구분한다() {
+        MutableClock clock = new MutableClock(NOW);
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        successProvider(),
+                        clock);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+        MfaDto.MfaChallengeResponse response =
+                service.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.MOTP),
+                        Optional.of(user),
+                        null);
+
+        clock.setInstant(NOW.plusSeconds(120));
+
+        assertMfaError(
+                () ->
+                        service.verifyChallenge(
+                                response.challengeId(),
+                                new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                                Optional.of(user),
+                                null),
+                MfaErrorCode.MFA_EXPIRED);
+
+        // 만료 추적 맵도 다음 challenge 시작 시 정리된다.
+        service.startChallenge(
+                new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.MOTP),
+                Optional.of(user),
+                null);
+    }
+
+    @Test
+    void 다른_사용자는_결재_거래를_검증할_수_없다() {
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        successProvider(),
+                        CLOCK);
+        CustomUserDetails owner = new CustomUserDetails("E10001", List.of(), "D001");
+        CustomUserDetails other = new CustomUserDetails("E99999", List.of(), "D001");
+        MfaDto.MfaChallengeResponse response =
+                service.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.MOTP),
+                        Optional.of(owner),
+                        null);
+
+        assertMfaError(
+                () ->
+                        service.verifyChallenge(
+                                response.challengeId(),
+                                new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                                Optional.of(other),
+                                null),
+                MfaErrorCode.MFA_REQUIRED);
+        assertMfaError(
+                () ->
+                        service.verifyChallenge(
+                                response.challengeId(),
+                                new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                                Optional.empty(),
+                                null),
+                MfaErrorCode.MFA_REQUIRED);
+    }
+
+    @Test
+    void 공급자_시작이_실패하면_서비스_이용불가로_바꾼다() {
+        MfaProvider provider =
+                new MfaProvider() {
+                    @Override
+                    public MfaChallengeData start(
+                            com.kdb.it.common.mfa.provider.MfaStartContext context) {
+                        throw new IllegalStateException("OnePass 통신 실패");
+                    }
+
+                    @Override
+                    public MfaVerificationResult verify(
+                            com.kdb.it.common.mfa.provider.MfaVerifyContext context) {
+                        return MfaVerificationResult.success();
+                    }
+                };
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        provider,
+                        CLOCK);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+
+        assertMfaError(
+                () ->
+                        service.startChallenge(
+                                new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.MOTP),
+                                Optional.of(user),
+                                null),
+                MfaErrorCode.MFA_UNAVAILABLE);
+    }
+
+    @Test
+    void 공급자_검증이_예외를_던지면_서비스_이용불가로_바꾼다() {
+        MfaProvider provider =
+                new MfaProvider() {
+                    @Override
+                    public MfaChallengeData start(
+                            com.kdb.it.common.mfa.provider.MfaStartContext context) {
+                        return new MfaChallengeData("provider-id", null, context.expiresAt());
+                    }
+
+                    @Override
+                    public MfaVerificationResult verify(
+                            com.kdb.it.common.mfa.provider.MfaVerifyContext context) {
+                        throw new IllegalStateException("OnePass 통신 실패");
+                    }
+                };
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        provider,
+                        CLOCK);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+        MfaDto.MfaChallengeResponse response =
+                service.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.MOTP),
+                        Optional.of(user),
+                        null);
+
+        assertMfaError(
+                () ->
+                        service.verifyChallenge(
+                                response.challengeId(),
+                                new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                                Optional.of(user),
+                                null),
+                MfaErrorCode.MFA_UNAVAILABLE);
+    }
+
+    @Test
+    void 취소한_거래의_검증은_증표_요구로_거부한다() {
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        successProvider(),
+                        CLOCK);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+        MfaDto.MfaChallengeResponse response =
+                service.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.MOTP),
+                        Optional.of(user),
+                        null);
+
+        service.cancelChallenge(response.challengeId(), Optional.of(user), null);
+
+        assertMfaError(
+                () ->
+                        service.verifyChallenge(
+                                response.challengeId(),
+                                new MfaDto.MfaVerifyRequest("provider-id", OTP_SECRET),
+                                Optional.of(user),
+                                null),
+                MfaErrorCode.MFA_REQUIRED);
+    }
+
     private static MfaService service(
             InMemoryMfaTransactionStore transactionStore,
             InMemoryLoginPendingTransactionStore pendingStore,

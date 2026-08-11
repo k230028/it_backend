@@ -140,6 +140,103 @@ class InMemoryMfaTransactionStoreTest {
                         });
     }
 
+    @Test
+    @DisplayName("verify는 없는 토큰과 만료 거래를 빈 값으로 돌려주고 정리한다")
+    void verify_missingOrExpiredTransaction_isEmpty() {
+        MfaTransactionStore store = new InMemoryMfaTransactionStore();
+        store.save(pending("token-expired", now()));
+
+        assertThat(store.verify("token-absent", now())).isEmpty();
+        assertThat(store.verify("token-expired", now())).isEmpty();
+        assertThat(store.findByTokenHash("token-expired", now())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("verify는 저장된 대기 거래를 VERIFIED로 바꿔 보관한다")
+    void verify_storedPendingTransaction_isPersistedAsVerified() {
+        MfaTransactionStore store = new InMemoryMfaTransactionStore();
+        store.save(pending("token-verify", now().plusSeconds(60)));
+
+        assertThat(store.verify("token-verify", now()))
+                .get()
+                .extracting(MfaTransaction::status)
+                .isEqualTo(MfaTransactionStatus.VERIFIED);
+        assertThat(store.findByTokenHash("token-verify", now()))
+                .get()
+                .extracting(MfaTransaction::status)
+                .isEqualTo(MfaTransactionStatus.VERIFIED);
+    }
+
+    @Test
+    @DisplayName("verifyAndBindProof는 없는 토큰과 만료 거래에 증표를 묶지 않는다")
+    void verifyAndBindProof_missingOrExpiredTransaction_isEmpty() {
+        MfaTransactionStore store = new InMemoryMfaTransactionStore();
+        store.save(pending("token-bind-expired", now()));
+
+        assertThat(store.verifyAndBindProof("token-absent", "proof-1", now())).isEmpty();
+        assertThat(store.verifyAndBindProof("token-bind-expired", "proof-2", now())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("verifyAndBindProof는 이미 사용된 증표 해시를 재사용하지 않는다")
+    void verifyAndBindProof_duplicateProofHash_isRejected() {
+        MfaTransactionStore store = new InMemoryMfaTransactionStore();
+        store.save(pending("token-bind-1", now().plusSeconds(60)));
+        store.save(pending("token-bind-2", now().plusSeconds(60)));
+
+        assertThat(store.verifyAndBindProof("token-bind-1", "same-proof", now())).isPresent();
+        assertThat(store.verifyAndBindProof("token-bind-2", "same-proof", now())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("증표로 묶인 거래는 원래 토큰이 아니라 증표 해시로만 소비된다")
+    void verifyAndBindProof_boundTransaction_isConsumedByProofHash() {
+        MfaTransactionStore store = new InMemoryMfaTransactionStore();
+        store.save(pending("token-bound", now().plusSeconds(60)));
+        store.verifyAndBindProof("token-bound", "proof-bound", now());
+
+        assertThat(store.findByTokenHash("token-bound", now())).isEmpty();
+        assertThat(store.consumeVerifiedOnce("proof-bound", "E0001", MfaPurpose.LOGIN, now()))
+                .isEqualTo(MfaTransactionStore.ProofConsumption.CONSUMED);
+    }
+
+    @Test
+    @DisplayName("fail과 delete는 만료된 거래를 정리하고 빈 값을 돌려준다")
+    void failAndDelete_expiredTransaction_isCleanedUp() {
+        MfaTransactionStore store = new InMemoryMfaTransactionStore();
+        store.save(pending("token-fail-expired", now()));
+        store.save(pending("token-delete-expired", now()));
+
+        assertThat(store.fail("token-fail-expired", now(), 5)).isEmpty();
+        assertThat(store.delete("token-delete-expired", now())).isEmpty();
+        assertThat(store.delete("token-absent", now())).isEmpty();
+        assertThat(store.fail("token-absent", now(), 5)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("만료된 검증 완료 거래의 소비는 EXPIRED로 구분한다")
+    void consumeVerifiedOnce_expiredTransaction_isExpired() {
+        MfaTransactionStore store = new InMemoryMfaTransactionStore();
+        store.save(pending("token-consume-expired", now().plusSeconds(60)).verify(now()));
+
+        assertThat(
+                        store.consumeVerifiedOnce(
+                                "token-consume-expired",
+                                "E0001",
+                                MfaPurpose.LOGIN,
+                                now().plusSeconds(120)))
+                .isEqualTo(MfaTransactionStore.ProofConsumption.EXPIRED);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 증표 소비는 REJECTED가 아니라 MISSING이다")
+    void consumeVerifiedOnce_missingTransaction_isMissing() {
+        MfaTransactionStore store = new InMemoryMfaTransactionStore();
+
+        assertThat(store.consumeVerifiedOnce("token-absent", "E0001", MfaPurpose.LOGIN, now()))
+                .isEqualTo(MfaTransactionStore.ProofConsumption.MISSING);
+    }
+
     private MfaTransactionStore verifiedStore(String tokenHash) {
         MfaTransactionStore store = new InMemoryMfaTransactionStore();
         store.save(pending(tokenHash, now().plus(Duration.ofMinutes(1))).verify(now()));

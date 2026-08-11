@@ -169,9 +169,44 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `EAI_ENABLED`           | EAI 전송 활성화 여부. 공통 기본값 `false`, `prod` 기본값 `true`     |
 | `EAI_URL`               | EAI 전송 URL. `prod`에서 EAI가 활성화되면 기동 시 필수 검증         |
 | `EAI_GWE_IF_ID`         | 그룹웨어 EAI 인터페이스 ID                                          |
+| `MFA_SITE_ID`           | OnePass 기관 식별자. 기본값 `SIT01KDBBANK00000000`                  |
+| `MFA_SVC_ID`            | OnePass 서비스 식별자. 기본값 `SVC12SIT01KDBBANK000`                |
 | `JAVA_HOME`             | JDK25 설치 경로(C:\Program Files\Java\jdk-25.0.2)                 |
 
 운영에서는 개발·로컬 프로파일의 기본값을 사용하지 않습니다. `EnvironmentValidator`는 모든 프로파일에서 DB 비밀번호와 JWT 시크릿의 빈값을 차단하고, `prod`에서는 Gemini 키, 활성 EAI URL, 프론트 URL, 명시적 CORS Origin과 운영 보안 토글을 추가로 검증합니다.
+
+### 내부망 MFA (지정맥·FIDO·mOTP)
+
+수동 로그인과 사용자 전자결재 명령은 MFA를 통과해야 진행됩니다. 설정은 `app.mfa.*` 구성 속성으로 묶여 있습니다.
+
+| 속성                     | 기본값   | 설명                                                             |
+| ------------------------ | -------- | ---------------------------------------------------------------- |
+| `app.mfa.endpoint`       | 프로파일별 | OnePass 연동 URL. 공통 기본값은 비어 있고 프로파일에서 지정합니다 |
+| `app.mfa.site-id`        | `SIT01KDBBANK00000000` | `MFA_SITE_ID`로 재정의                             |
+| `app.mfa.svc-id`         | `SVC12SIT01KDBBANK000` | `MFA_SVC_ID`로 재정의                              |
+| `app.mfa.connect-timeout`| `5s`     | OnePass 연결 타임아웃                                             |
+| `app.mfa.read-timeout`   | `5s`     | OnePass 응답 타임아웃                                             |
+| `app.mfa.challenge-ttl`  | `90s`    | MFA 거래 유효 시간                                                |
+| `app.mfa.max-failures`   | `5`      | 한 거래의 허용 실패 횟수. 초과 시 `MFA_LOCKED`                    |
+| `app.mfa.mock-enabled`   | `false`  | 모의 공급자 사용 여부. **`local-ext`에서만 `true`를 허용**        |
+
+프로파일별 동작:
+
+| 프로파일    | MFA 동작                  | OnePass URL                                                  |
+| ----------- | ------------------------- | ------------------------------------------------------------ |
+| `local-ext` | 대화상자 확인 시 모의 성공 | 호출하지 않음                                                |
+| `local-int` | 실제 연동                 | `https://dopsap.kdb.co.kr:20443/interfBiz/processRequest.do` |
+| `dev`       | 실제 연동                 | `https://dopsap.kdb.co.kr:20443/interfBiz/processRequest.do` |
+| `prod`      | 실제 연동                 | `https://opsap.kdb.co.kr:20443/interfBiz/processRequest.do`  |
+
+`MfaConfig`는 `local-ext` 외의 프로파일에서 `app.mfa.mock-enabled=true`이면 기동을 실패시키고, 모의 공급자를 끈 상태에서 endpoint가 비어 있어도 기동을 실패시킵니다. 운영에서 MFA를 우회하는 설정 경로는 없습니다.
+
+운영 전제와 한계:
+
+- **BioAgent 전제** — 지정맥은 사용자 PC에서 BioAgent가 실행 중이어야 합니다. 브라우저가 `ws://127.0.0.1:8089/bio`로 연결하며, 미실행 시 화면이 실행 안내를 표시합니다. 서버는 에이전트 설치 여부를 알 수 없습니다.
+- **지정맥 클라이언트 증명 한계** — 제공된 연동 자료에 BioAgent 결과의 서명이나 기기 증명 규격이 없어, 서버는 거래 nonce와 `FE00` 코드만 대조합니다. 따라서 지정맥 결과는 FIDO·mOTP보다 위변조 저항성이 낮습니다. 향후 서버 검증 규격이 제공되면 `FingerVeinMfaProvider`만 교체합니다.
+- **FIDO 재조회** — 사용자가 휴대폰에서 승인할 때까지 화면이 결과를 반복 조회합니다. `trResultConfirm`이 `resultCode=100000`이면서 `trStatus != 1`인 응답은 미결정(UNDECIDED)으로 보아 실패 횟수에 집계하지 않습니다. 연동 규격에 사용자 거부를 뜻하는 `trStatus` 값이 없어 거부와 대기를 구분하지 못하며, 거부한 거래도 만료 시각까지 미결정으로 남습니다.
+- **다중 인스턴스 미지원** — MFA 거래는 애플리케이션 메모리에만 있으므로 서버를 재시작하면 진행 중 거래가 모두 폐기되고 사용자는 MFA를 다시 수행합니다.
 
 ### 내부망 IP로 접속할 때 (CORS)
 
