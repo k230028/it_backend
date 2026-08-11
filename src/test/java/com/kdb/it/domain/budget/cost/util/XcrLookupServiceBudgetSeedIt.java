@@ -40,6 +40,18 @@ class XcrLookupServiceBudgetSeedIt extends AbstractOracleRepositoryTest {
                 .isEqualByComparingTo(new BigDecimal("9.7"));
     }
 
+    /**
+     * 유효기간이 2026년으로 좁혀지면 회귀다 — 조회부(ProjectService/CostService)가 전부
+     * LocalDate.now()로 호출하므로 END_DT를 2026년 한정으로 두면 2027년부터 전 통화 저장이
+     * IllegalStateException으로 롤백된다. END_DT는 무기한('99991231')을 유지해야 한다.
+     */
+    @Test
+    @DisplayName("2027년 기준일로도 GBP 환율이 조회된다 — 유효기간이 무기한임을 고정한다")
+    void 예산환율은_2026년_이후_기준일에도_조회된다() {
+        assertThat(xcrLookupService.resolveXcr("GBP", LocalDate.of(2027, 6, 1)))
+                .isEqualByComparingTo(new BigDecimal("1924"));
+    }
+
     /** KRW는 조회를 우회해 null을 반환한다 (BudgetAmountCalculator 결정 B의 전제). */
     @Test
     @DisplayName("KRW는 환율 조회를 우회한다")
