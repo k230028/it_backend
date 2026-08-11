@@ -2,14 +2,17 @@ package com.kdb.it.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -214,6 +217,29 @@ class GlobalExceptionHandlerTest {
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody()).containsEntry("status", 404);
+        assertThat(response.getBody()).containsKey("timestamp");
+    }
+
+    /**
+     * HttpMediaTypeNotSupportedException 은 ServletException 하위 타입이라 RuntimeException 핸들러를 거치지 않습니다.
+     * 전용 핸들러가 없으면 포괄 Exception 핸들러(500)로 떨어져, consumes를 지정한 API에 잘못된 Content-Type으로 요청해도 415가 아니라
+     * 500이 반환됩니다.
+     */
+    @Test
+    @DisplayName("handleMediaTypeNotSupported - consumes와 다른 Content-Type 요청 시 415 반환")
+    void handleMediaTypeNotSupported_컨텐츠타입불일치_415반환() {
+        // Arrange
+        HttpMediaTypeNotSupportedException ex =
+                new HttpMediaTypeNotSupportedException(
+                        MediaType.TEXT_PLAIN, List.of(MediaType.APPLICATION_JSON));
+
+        // Act
+        ResponseEntity<Map<String, Object>> response = handler.handleMediaTypeNotSupported(ex);
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+        assertThat(response.getBody()).containsEntry("status", 415);
+        assertThat(response.getBody()).containsEntry("message", "지원하지 않는 Content-Type입니다.");
         assertThat(response.getBody()).containsKey("timestamp");
     }
 
