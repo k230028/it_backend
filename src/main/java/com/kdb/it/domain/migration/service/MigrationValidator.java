@@ -109,19 +109,36 @@ public class MigrationValidator {
         resolveOrgCell(sheet, row, "teamName", index, overrides, out, false);
 
         String ioeName = cell(row, "ioeName", overrides, sheet);
-        String ioeCode = overrides.get(overrideKey(sheet.kind(), row.excelRow(), "ioeName"));
-        if (ioeCode == null) {
+        String ioeOverride = overrides.get(overrideKey(sheet.kind(), row.excelRow(), "ioeName"));
+        String ioeCode;
+        if (ioeOverride != null) {
+            // 보정값은 이미 코드값이므로 이름 맵이 아니라 값 집합(index.ioeCodeByName().values())에 실재하는지
+            // 확인한다 — resolveOrgCell의 override 경로(index.org().orgNameOf)·resolveUserCell의 override
+            // 경로(index.org().userExists)와 같은 이유다. 확인 없이 통과시키면 CostSheetAdapter.resolveIoe의
+            // "미해석이면 이미 코드값이라고 가정한다" 폴백이 검증되지 않은 값을 그대로 IOE_C에 써 버린다.
+            ioeCode = index.ioeCodeByName().containsValue(ioeOverride) ? ioeOverride : null;
+        } else {
             ioeCode = index.ioeCodeByName().get(ioeName);
         }
         if (ioeCode == null) {
             out.add(
-                    blocker(
-                            sheet,
-                            row,
-                            "ioeName",
-                            "CODE_UNRESOLVED",
-                            "비목 '" + ioeName + "'에 대응하는 비목코드를 찾지 못했습니다. 비목을 직접 선택해 주세요.",
-                            candidatesOfIoe(index)));
+                    ioeOverride != null
+                            ? blocker(
+                                    sheet,
+                                    row,
+                                    "ioeName",
+                                    "CODE_UNRESOLVED",
+                                    "보정값 '"
+                                            + ioeOverride
+                                            + "'에 해당하는 비목코드를 찾지 못했습니다. 비목을 다시 선택해 주세요.",
+                                    candidatesOfIoe(index))
+                            : blocker(
+                                    sheet,
+                                    row,
+                                    "ioeName",
+                                    "CODE_UNRESOLVED",
+                                    "비목 '" + ioeName + "'에 대응하는 비목코드를 찾지 못했습니다. 비목을 직접 선택해 주세요.",
+                                    candidatesOfIoe(index)));
         }
 
         checkAmount(sheet, row, index, out);

@@ -241,40 +241,8 @@ public class ProjectService {
                                 itemDto.getCurC(),
                                 itemDto.getXcr());
 
-                com.kdb.it.domain.budget.project.entity.Bitemm newItem =
-                        com.kdb.it.domain.budget.project.entity.Bitemm.builder()
-                                .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
-                                .sno(++gclSno) // 품목일련번호
-                                .abusMngNo(project.getAbusMngNo()) // 프로젝트관리번호
-                                .fntTbCrySno(project.getSno()) // 프로젝트순번
-                                .ioeC(itemDto.getIoeC()) // 품목구분
-                                .gclNm(itemDto.getGclNm()) // 품목명
-                                .qty(itemDto.getQty()) // 품목수량
-                                .curC(itemDto.getCurC()) // 통화
-                                .xcr(itemDto.getXcr()) // 환율
-                                .xcrBseDt(
-                                        DateFormatUtil.toYmd8(
-                                                itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
-                                .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
-                                .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
-                                .dfrCleC(CodeDefaults.orNotApplicable(itemDto.getDfrCleC())) // 지급주기
-                                .sectSysUtzYn(
-                                        itemDto.getSectSysUtzYn() == null
-                                                ? "N"
-                                                : itemDto.getSectSysUtzYn()) // 정보보호여부
-                                .itrInfrYn(
-                                        itemDto.getItrInfrYn() == null
-                                                ? "N"
-                                                : itemDto.getItrInfrYn()) // 통합인프라여부
-                                .lstYn("Y") // 최종여부
-                                .amt(reconciled[0]) // 품목금액 (서버 재계산)
-                                .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
-                                .mplAmt(
-                                        clampMpl(
-                                                itemDto.getMplAmt(),
-                                                reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
-                                .build();
-                bitemmRepository.save(newItem);
+                bitemmRepository.save(
+                        buildBitemm(itemDto, gclMngNo, ++gclSno, project, reconciled));
             }
         }
 
@@ -327,32 +295,53 @@ public class ProjectService {
                             itemDto.getCurC(),
                             itemDto.getXcr());
 
-            bitemmRepository.save(
-                    Bitemm.builder()
-                            .gclMngNo(gclMngNo)
-                            .sno(++gclSno)
-                            .abusMngNo(project.getAbusMngNo())
-                            .fntTbCrySno(project.getSno())
-                            .ioeC(itemDto.getIoeC())
-                            .gclNm(itemDto.getGclNm())
-                            .qty(itemDto.getQty())
-                            .curC(itemDto.getCurC())
-                            .xcr(itemDto.getXcr())
-                            .xcrBseDt(DateFormatUtil.toYmd8(itemDto.getXcrBseDt()))
-                            .bseYm(itemDto.getBseYm())
-                            .dfrCleC(CodeDefaults.orNotApplicable(itemDto.getDfrCleC()))
-                            .sectSysUtzYn(
-                                    itemDto.getSectSysUtzYn() == null
-                                            ? "N"
-                                            : itemDto.getSectSysUtzYn())
-                            .itrInfrYn(
-                                    itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn())
-                            .lstYn("Y")
-                            .amt(reconciled[0])
-                            .fcAmt(reconciled[1])
-                            .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0]))
-                            .build());
+            bitemmRepository.save(buildBitemm(itemDto, gclMngNo, ++gclSno, project, reconciled));
         }
+    }
+
+    /**
+     * 품목 엔티티를 조립합니다.
+     *
+     * <p>채번(gclMngNo)·순번(gclSno)·환율 표준 조회·외화 재계산은 호출자({@link #createProject}·{@link
+     * #replaceItemsForMigration})가 먼저 수행하고, 그 결과만 이 메서드가 엔티티 필드로 옮겨 담습니다. 두 경로가 별도로 필드를 나열하면 한쪽에서만
+     * 필드가 빠지거나 정규화가 생략되는 식으로 조용히 갈라질 수 있어, 조립 자체를 이 메서드 하나로 강제합니다.
+     *
+     * @param itemDto 품목 요청 DTO (xcr은 호출자가 이미 표준 조회로 덮어쓴 상태)
+     * @param gclMngNo 채번된 품목관리번호
+     * @param gclSno 품목일련번호
+     * @param project 소속 사업 (abusMngNo·sno 스냅샷용)
+     * @param reconciled {@link BudgetAmountCalculator#reconcileAmount}의 결과 [금액, 외화금액]
+     * @return 조립된 품목 엔티티 (아직 저장하지 않음)
+     */
+    private Bitemm buildBitemm(
+            ProjectDto.BitemmDto itemDto,
+            String gclMngNo,
+            int gclSno,
+            Bprojm project,
+            BigDecimal[] reconciled) {
+        return Bitemm.builder()
+                .gclMngNo(gclMngNo) // 품목관리번호
+                .sno(gclSno) // 품목일련번호
+                .abusMngNo(project.getAbusMngNo()) // 프로젝트관리번호
+                .fntTbCrySno(project.getSno()) // 프로젝트순번
+                .ioeC(itemDto.getIoeC()) // 품목구분
+                .gclNm(itemDto.getGclNm()) // 품목명
+                .qty(itemDto.getQty()) // 품목수량
+                .curC(itemDto.getCurC()) // 통화
+                .xcr(itemDto.getXcr()) // 환율
+                .xcrBseDt(DateFormatUtil.toYmd8(itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
+                .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
+                .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
+                .dfrCleC(CodeDefaults.orNotApplicable(itemDto.getDfrCleC())) // 지급주기
+                .sectSysUtzYn(itemDto.getSectSysUtzYn() == null ? "N" : itemDto.getSectSysUtzYn())
+                // 정보보호여부
+                .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn())
+                // 통합인프라여부
+                .lstYn("Y") // 최종여부
+                .amt(reconciled[0]) // 품목금액 (서버 재계산)
+                .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
+                .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
+                .build();
     }
 
     /**

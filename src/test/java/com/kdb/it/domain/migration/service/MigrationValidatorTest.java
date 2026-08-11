@@ -75,7 +75,7 @@ class MigrationValidatorTest {
                         });
     }
 
-    /** 보정값이 오면 해당 셀의 미해석 진단이 사라진다. */
+    /** 보정값이 코드표에 실재하는 코드값이면 해당 셀의 미해석 진단이 사라진다. */
     @Test
     @DisplayName("보정값이 있으면 그 셀의 미해석 진단을 내지 않는다")
     void 보정값이_있으면_진단을_내지_않는다() {
@@ -89,7 +89,32 @@ class MigrationValidatorTest {
                         TestSnapshots.empty("2026"),
                         overrides);
 
-        assertThat(result).noneMatch(d -> "CODE_UNRESOLVED".equals(d.code()));
+        assertThat(result)
+                .noneMatch(d -> "CODE_UNRESOLVED".equals(d.code()) && "ioeName".equals(d.column()));
+    }
+
+    /**
+     * ioeName 보정값은 이름이 아니라 이미 코드값이므로, resolveOrgCell·resolveUserCell의 override 경로와 같이 코드표에 실재하는지
+     * 확인해야 한다. 확인 없이 통과시키면 CostSheetAdapter.resolveIoe의 "미해석이면 이미 코드값이라고 가정한다" 폴백이 검증되지 않은 값을 그대로
+     * IOE_C에 써 버린다.
+     */
+    @Test
+    @DisplayName("코드표에 없는 비목코드로 ioeName을 보정하면 CODE_UNRESOLVED를 낸다")
+    void 존재하지_않는_비목코드로_보정하면_코드미해석이다() {
+        Map<String, String> overrides =
+                Map.of(MigrationValidator.overrideKey(SheetKind.COST, 2, "ioeName"), "999");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(costSheet(row(2, costCells(Map.of("ioeName", "외주용역비"))))),
+                        TestSnapshots.indexWithIoe("008", "외주용역(외주운영/관제 등)"),
+                        TestSnapshots.empty("2026"),
+                        overrides);
+
+        assertThat(result)
+                .filteredOn(d -> "CODE_UNRESOLVED".equals(d.code()) && "ioeName".equals(d.column()))
+                .singleElement()
+                .satisfies(d -> assertThat(d.severity()).isEqualTo(MigrationDto.Severity.BLOCKER));
     }
 
     /** 필수값(계약명)이 비면 REQUIRED_MISSING. */
