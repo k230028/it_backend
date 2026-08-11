@@ -89,6 +89,18 @@ class OrgIdentityResolverTest {
         assertThat(index.resolveOrg("").code()).isNull();
         assertThat(index.resolveOrg(null).code()).isNull();
         assertThat(index.resolveOrg("-").code()).isNull();
+        assertThat(index.resolveOrg("—").code()).isNull();
+        assertThat(index.resolveOrg("—").candidates()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("부분 일치가 하나뿐이면 후보 없이 바로 확정한다")
+    void 부분일치_하나뿐이면_후보없이_확정한다() {
+        OrgIdentityResolver.Resolution result = index.resolveOrg("PF2");
+
+        assertThat(result.code()).isEqualTo("0330");
+        assertThat(result.label()).isEqualTo("PF2실");
+        assertThat(result.candidates()).isEmpty();
     }
 
     @Test
@@ -123,6 +135,42 @@ class OrgIdentityResolverTest {
         assertThat(result.candidates())
                 .extracting(com.kdb.it.domain.migration.dto.MigrationDto.Candidate::code)
                 .containsExactlyInAnyOrder("100002", "100003");
+    }
+
+    @Test
+    @DisplayName("엑셀의 직위가 실제와 달라도(오탈자·이동) 무시하고 부서 힌트로 동명이인을 확정한다")
+    void 직위가_틀려도_부서힌트가_있으면_동명이인을_확정한다() {
+        // "이사"는 100002(차장)·100003(부장) 어느 쪽 실제 직위와도 일치하지 않는 낡은 직위 표기다.
+        // byTitle 좁히기가 공집합이 되어 이름 전체 목록으로 되돌아가야 하고, 그 다음 부서 힌트로 확정되어야 한다.
+        OrgIdentityResolver.Resolution result = index.resolveUser("장원섭 이사", "0450");
+
+        assertThat(result.code()).isEqualTo("100003");
+        assertThat(result.label()).isEqualTo("장원섭 부장");
+    }
+
+    @Test
+    @DisplayName("엑셀의 직위가 실제와 달라도 미해석으로 떨어지지 않고 동명이인 후보를 돌려준다")
+    void 직위가_틀리고_부서힌트도_없으면_동명이인_후보를_돌려준다() {
+        // 위와 같은 낡은 직위 표기이지만 부서 힌트가 없는 경우: USER_UNRESOLVED가 아니라
+        // byName 전체가 중의적 후보로 나와야 한다(직위 불일치로 결과가 사라지면 안 됨).
+        OrgIdentityResolver.Resolution result = index.resolveUser("장원섭 이사", null);
+
+        assertThat(result.code()).isNull();
+        assertThat(result.candidates())
+                .extracting(com.kdb.it.domain.migration.dto.MigrationDto.Candidate::code)
+                .containsExactlyInAnyOrder("100002", "100003");
+    }
+
+    @Test
+    @DisplayName("빈 담당자명은 후보 없이 미해석이며 예외를 던지지 않는다")
+    void 빈_담당자명은_미해석이다() {
+        assertThat(index.resolveUser("", null).code()).isNull();
+        assertThat(index.resolveUser("", null).candidates()).isEmpty();
+        assertThat(index.resolveUser(null, null).code()).isNull();
+        assertThat(index.resolveUser(null, null).candidates()).isEmpty();
+        assertThat(index.resolveUser("-", null).code()).isNull();
+        assertThat(index.resolveUser("－", null).code()).isNull();
+        assertThat(index.resolveUser("－", null).candidates()).isEmpty();
     }
 
     @Test

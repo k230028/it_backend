@@ -24,8 +24,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class OrgIdentityResolver {
 
-    /** 팀·부서 미지정을 뜻하는 엑셀 표기. 이 값들은 해석하지 않고 미해석으로 둡니다. */
-    private static final List<String> BLANK_TOKENS = List.of("", "-", "–", "없음", "해당없음");
+    /**
+     * 팀·부서 미지정을 뜻하는 엑셀 표기. 이 값들은 해석하지 않고 미해석으로 둡니다.
+     *
+     * <p>하이픈류는 반각 하이픈(-), en dash(–), em dash(—), 전각 하이픈(－) 네 글자를 모두 포함합니다. 누락되면 부분 일치 단계로 흘러 들어가
+     * 스푸리어스 후보를 만듭니다.
+     */
+    private static final List<String> BLANK_TOKENS = List.of("", "-", "–", "—", "－", "없음", "해당없음");
 
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
