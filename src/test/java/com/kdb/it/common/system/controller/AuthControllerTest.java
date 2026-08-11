@@ -210,14 +210,6 @@ class AuthControllerTest {
         request.setEno("10001");
         request.setPassword("password123");
 
-        AuthDto.LoginResponse loginResponse =
-                AuthDto.LoginResponse.builder()
-                        .eno("10001")
-                        .empNm("홍길동")
-                        .accessToken("access-token")
-                        .refreshToken("refresh-token")
-                        .build();
-
         ResponseCookie accessCookie =
                 ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "access-token")
                         .httpOnly(true)
@@ -823,13 +815,6 @@ class AuthControllerTest {
     }
 
     private void stubLoginResponseAndCookies() {
-        AuthDto.LoginResponse loginResponse =
-                AuthDto.LoginResponse.builder()
-                        .eno("10001")
-                        .empNm("홍길동")
-                        .accessToken("access-token")
-                        .refreshToken("refresh-token")
-                        .build();
         ResponseCookie accessCookie =
                 ResponseCookie.from(CookieUtil.ACCESS_TOKEN_COOKIE, "access-token")
                         .httpOnly(true)
