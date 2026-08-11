@@ -59,7 +59,7 @@ class OnePassClientTest {
 
         assertMotpStartRequest(requests.getFirst());
         assertThat(challenge)
-                .isEqualTo(new MfaChallengeData("motp-tr", "qr", context().expiresAt()));
+                .isEqualTo(new MfaChallengeData("motp-tr", "qr", null, context().expiresAt()));
     }
 
     @Test
@@ -121,7 +121,7 @@ class OnePassClientTest {
                                 "crossDomain",
                                 true));
         assertThat(challenge)
-                .isEqualTo(new MfaChallengeData("fido-tr", "qr", context().expiresAt()));
+                .isEqualTo(new MfaChallengeData("fido-tr", "qr", null, context().expiresAt()));
         assertThat(result.verified()).isTrue();
     }
 
@@ -308,7 +308,7 @@ class OnePassClientTest {
         MfaChallengeData challenge = client().requestFidoChallenge(context());
 
         assertThat(challenge)
-                .isEqualTo(new MfaChallengeData("fido-tr", "qr", context().expiresAt()));
+                .isEqualTo(new MfaChallengeData("fido-tr", "qr", null, context().expiresAt()));
     }
 
     @Test
@@ -537,7 +537,8 @@ class OnePassClientTest {
                         timeout,
                         false,
                         Duration.ofSeconds(90),
-                        5));
+                        5,
+                        "test-fixed-key"));
     }
 
     private MfaStartContext context() {

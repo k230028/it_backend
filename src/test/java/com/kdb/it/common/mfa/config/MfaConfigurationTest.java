@@ -52,6 +52,17 @@ class MfaConfigurationTest {
     }
 
     @Test
+    @DisplayName("실연동 프로파일에서 지정맥 고정키가 없으면 기동을 차단한다")
+    void realProfiles_withoutFingerVeinFixedKey_failStartup() {
+        for (String profile : new String[] {"local-int", "dev", "prod"}) {
+            assertThatThrownBy(() -> start(profile, Map.of()))
+                    .rootCause()
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("app.mfa.finger-vein-fixed-key");
+        }
+    }
+
+    @Test
     @DisplayName("prod에서 모의 MFA를 켜면 기동을 차단한다")
     void prod_withMockEnabled_failsStartup() {
         assertMockOverrideFails("prod");
@@ -99,14 +110,17 @@ class MfaConfigurationTest {
                         Duration.ofSeconds(5),
                         true,
                         Duration.ofSeconds(90),
-                        5);
+                        5,
+                        "test-fixed-key");
 
         assertThat(properties.challengeTtl()).isEqualTo(Duration.ofSeconds(90));
         assertThat(properties.maxFailures()).isEqualTo(5);
     }
 
     private void assertOnePassProfile(String profile, String endpoint) {
-        try (ConfigurableApplicationContext context = start(profile, Map.of())) {
+        // 실연동 프로파일은 지정맥 고정키가 있어야 기동한다(비밀값이라 기본값이 없다).
+        try (ConfigurableApplicationContext context =
+                start(profile, Map.of("app.mfa.finger-vein-fixed-key", "test-fixed-key"))) {
             MfaProperties properties = context.getBean(MfaProperties.class);
 
             assertThat(properties.mockEnabled()).isFalse();
@@ -160,6 +174,6 @@ class MfaConfigurationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @Import(MfaConfig.class)
+    @Import({MfaConfig.class, com.kdb.it.config.ClockConfig.class})
     static class MfaConfigurationTestApplication {}
 }

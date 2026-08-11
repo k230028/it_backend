@@ -120,6 +120,7 @@ public class MfaService {
                 challengeId,
                 challenge.challengeId(),
                 challenge.qrData(),
+                challenge.randomKey(),
                 remainingSeconds(expiresAt, now));
     }
 

@@ -395,7 +395,8 @@ class MfaServiceTest {
                     @Override
                     public MfaChallengeData start(
                             com.kdb.it.common.mfa.provider.MfaStartContext context) {
-                        return new MfaChallengeData("provider-id", qrSecret, context.expiresAt());
+                        return new MfaChallengeData(
+                                "provider-id", qrSecret, null, context.expiresAt());
                     }
 
                     @Override
@@ -450,7 +451,7 @@ class MfaServiceTest {
                     @Override
                     public MfaChallengeData start(
                             com.kdb.it.common.mfa.provider.MfaStartContext context) {
-                        return new MfaChallengeData("provider-id", null, context.expiresAt());
+                        return new MfaChallengeData("provider-id", null, null, context.expiresAt());
                     }
 
                     @Override
@@ -511,7 +512,7 @@ class MfaServiceTest {
                     @Override
                     public MfaChallengeData start(
                             com.kdb.it.common.mfa.provider.MfaStartContext context) {
-                        return new MfaChallengeData("provider-id", null, context.expiresAt());
+                        return new MfaChallengeData("provider-id", null, null, context.expiresAt());
                     }
 
                     @Override
@@ -844,7 +845,7 @@ class MfaServiceTest {
                     @Override
                     public MfaChallengeData start(
                             com.kdb.it.common.mfa.provider.MfaStartContext context) {
-                        return new MfaChallengeData("provider-id", null, context.expiresAt());
+                        return new MfaChallengeData("provider-id", null, null, context.expiresAt());
                     }
 
                     @Override
@@ -920,7 +921,8 @@ class MfaServiceTest {
                         Duration.ofSeconds(1),
                         true,
                         Duration.ofSeconds(90),
-                        5),
+                        5,
+                        "test-fixed-key"),
                 clock);
     }
 
@@ -928,7 +930,7 @@ class MfaServiceTest {
         return new MfaProvider() {
             @Override
             public MfaChallengeData start(com.kdb.it.common.mfa.provider.MfaStartContext context) {
-                return new MfaChallengeData("provider-id", null, context.expiresAt());
+                return new MfaChallengeData("provider-id", null, null, context.expiresAt());
             }
 
             @Override
@@ -943,7 +945,7 @@ class MfaServiceTest {
         return new MfaProvider() {
             @Override
             public MfaChallengeData start(com.kdb.it.common.mfa.provider.MfaStartContext context) {
-                return new MfaChallengeData("provider-id", null, context.expiresAt());
+                return new MfaChallengeData("provider-id", null, null, context.expiresAt());
             }
 
             @Override

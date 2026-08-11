@@ -59,17 +59,17 @@ class MfaValueObjectsTest {
 
     @Test
     void challengeData_식별자와_만료시각을_검증한다() {
-        assertThatThrownBy(() -> new MfaChallengeData(null, "qr", EXPIRES_AT))
+        assertThatThrownBy(() -> new MfaChallengeData(null, "qr", null, EXPIRES_AT))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new MfaChallengeData(" ", "qr", EXPIRES_AT))
+        assertThatThrownBy(() -> new MfaChallengeData(" ", "qr", null, EXPIRES_AT))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new MfaChallengeData("challenge-1", "qr", null))
+        assertThatThrownBy(() -> new MfaChallengeData("challenge-1", "qr", null, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void challengeData_QR이_없어도_생성된다() {
-        assertThat(new MfaChallengeData("challenge-1", null, EXPIRES_AT).qrData()).isNull();
+        assertThat(new MfaChallengeData("challenge-1", null, null, EXPIRES_AT).qrData()).isNull();
     }
 
     @Test

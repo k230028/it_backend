@@ -3,7 +3,11 @@ package com.kdb.it.common.mfa.config;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/** MFA 공급자 선택과 외부 OnePass 통신에 사용하는 설정이다. */
+/**
+ * MFA 공급자 선택과 외부 연동에 사용하는 설정이다.
+ *
+ * <p>{@code fingerVeinFixedKey}는 지정맥인증 서버와 공유하는 비밀값이므로 기본값을 두지 않고 환경변수로 주입한다.
+ */
 @ConfigurationProperties(prefix = "app.mfa")
 public record MfaProperties(
         String endpoint,
@@ -13,7 +17,8 @@ public record MfaProperties(
         Duration readTimeout,
         boolean mockEnabled,
         Duration challengeTtl,
-        int maxFailures) {
+        int maxFailures,
+        String fingerVeinFixedKey) {
 
     private static final String DEFAULT_SITE_ID = "SIT01KDBBANK00000000";
     private static final String DEFAULT_SVC_ID = "SVC12SIT01KDBBANK000";
@@ -31,6 +36,7 @@ public record MfaProperties(
         readTimeout = defaultIfNull(readTimeout, DEFAULT_READ_TIMEOUT);
         challengeTtl = defaultIfNull(challengeTtl, DEFAULT_CHALLENGE_TTL);
         maxFailures = maxFailures <= 0 ? DEFAULT_MAX_FAILURES : maxFailures;
+        fingerVeinFixedKey = fingerVeinFixedKey == null ? "" : fingerVeinFixedKey.trim();
 
         requirePositive(connectTimeout, "app.mfa.connect-timeout");
         requirePositive(readTimeout, "app.mfa.read-timeout");

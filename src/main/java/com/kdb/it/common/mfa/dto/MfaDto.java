@@ -56,6 +56,11 @@ public final class MfaDto {
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             nullable = true)
                     String qrData,
+            @Schema(
+                            description = "지정맥 BioAgent에 전달할 6자리 랜덤키. 다른 인증수단은 null",
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            nullable = true)
+                    String randomKey,
             @Schema(description = "서버 기준 남은 유효 시간(초)", requiredMode = Schema.RequiredMode.REQUIRED)
                     long remainingSeconds) {}
 

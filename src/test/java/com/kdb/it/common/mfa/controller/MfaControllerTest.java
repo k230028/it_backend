@@ -50,7 +50,7 @@ class MfaControllerTest {
         org.mockito.BDDMockito.given(mfaService.startChallenge(any(), any(), eq("pending-value")))
                 .willReturn(
                         new MfaDto.MfaChallengeResponse(
-                                challengeId, "provider-id", "display-data", 90));
+                                challengeId, "provider-id", "display-data", "123456", 90));
 
         mockMvc.perform(
                         post("/api/mfa/challenges")

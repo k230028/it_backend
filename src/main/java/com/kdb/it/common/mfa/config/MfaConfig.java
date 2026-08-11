@@ -25,19 +25,25 @@ public class MfaConfig {
      *
      * @param properties MFA 통신 및 거래 제한 설정
      * @param environment 활성 Spring 프로파일
+     * @param clock 지정맥 해시의 년월일을 만들 서버 시계
      * @return 현재 프로파일에 사용할 MFA 공급자 레지스트리
-     * @throws IllegalStateException local-ext 외 프로파일에서 mock MFA가 활성화되었거나 실제 연동 endpoint가 없을 때
+     * @throws IllegalStateException local-ext 외 프로파일에서 mock MFA가 활성화되었거나 실제 연동 endpoint 또는 지정맥 고정키가
+     *     없을 때
      */
     @Bean
     @Profile({"local-ext", "local-int", "dev", "prod"})
     public MfaProviderRegistry mfaProviderRegistry(
-            MfaProperties properties, Environment environment) {
+            MfaProperties properties, Environment environment, java.time.Clock clock) {
         if (properties.mockEnabled() && !isOnlyLocalExtProfile(environment)) {
             throw new IllegalStateException("MFA 보안 위반: app.mfa.mock-enabled는 local-ext에서만 허용됩니다.");
         }
         if (!properties.mockEnabled() && properties.endpoint().isBlank()) {
             throw new IllegalStateException(
                     "app.mfa.endpoint is required when mock MFA is disabled");
+        }
+        if (!properties.mockEnabled() && properties.fingerVeinFixedKey().isBlank()) {
+            throw new IllegalStateException(
+                    "app.mfa.finger-vein-fixed-key is required when mock MFA is disabled");
         }
         if (properties.mockEnabled()) {
             MfaProvider mockProvider = new MockMfaProvider();
@@ -51,7 +57,7 @@ public class MfaConfig {
         return new MfaProviderRegistry(
                 Map.of(
                         MfaMethod.FINGER_VEIN,
-                        new FingerVeinMfaProvider(),
+                        new FingerVeinMfaProvider(properties.fingerVeinFixedKey(), clock),
                         MfaMethod.FIDO,
                         new FidoMfaProvider(onePassClient),
                         MfaMethod.MOTP,

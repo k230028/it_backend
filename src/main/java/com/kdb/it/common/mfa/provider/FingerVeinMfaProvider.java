@@ -1,73 +1,137 @@
 package com.kdb.it.common.mfa.provider;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 
 /**
  * 지정맥 BioAgent 결과 공급자이다.
  *
- * <p>현재 구현은 브라우저가 전달한 결과를 거래 nonce와 {@code FE00} 코드로만 대조한다. 이 대조만으로는 기기 소유를 암호학적으로 보장하지 못한다.
+ * <p>{@code mfa.md}의 「지정맥인증 연계 보안방안」을 따른다. 서버가 거래마다 6자리 랜덤키를 발급하고, 지정맥인증 서버가 {@code 년월일 + 사번 + 랜덤키
+ * + 검증값 + 고정키}를 SHA-256으로 3회 해시한 값을 에이전트를 통해 돌려준다. 이 공급자는 같은 값을 직접 만들어 비교하므로, 클라이언트가 보낸 결과 코드를 그대로
+ * 믿지 않는다.
  *
- * <p><b>미구현 보강</b>: {@code mfa.md}의 「지정맥인증 연계 보안방안」은 서버가 독립 검증할 수 있는 해시 규격을 정의한다. 서버가 6자리 랜덤키를
- * 발급하고, 지정맥인증 서버가 {@code 년월일 + 사번 + 랜덤키 + 검증값(SUCC|FAIL) + 고정키}를 SHA-256으로 3회 해시해 돌려주면 업무 서버가 같은 값을
- * 만들어 비교하는 방식이다. 이를 도입하면 클라이언트 결과 코드에만 의존하지 않게 되므로, 적용 전까지만 위 한계가 유효하다. 상세와 미확정 사항은 {@code
- * ../TASK.md}의 SEC-11을 따른다.
+ * <p>검증값은 인증 성공이 {@code SUCC}, 실패가 {@code FAIL}이다. 성공 해시와 일치할 때만 통과시키므로 실패 해시나 결과 코드 문자열은 거부된다.
+ *
+ * <p>년월일은 서버 기준 날짜다. 랜덤키는 검증 성공·실패와 무관하게 1회 사용 후 폐기해 재전송을 막는다.
  */
 public final class FingerVeinMfaProvider implements MfaProvider {
 
-    private static final String SUCCESS_CODE = "FE00";
+    private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final String SUCCESS_VERDICT = "SUCC";
+    private static final int RANDOM_KEY_DIGITS = 6;
+    private static final int HASH_ROUNDS = 3;
     private static final int DEFAULT_MAX_PENDING_NONCES = 1_024;
 
+    private final String fixedKey;
+    private final Clock clock;
     private final int maxPendingNonces;
-    private final LinkedHashMap<String, Instant> activeNonces = new LinkedHashMap<>();
+    private final SecureRandom secureRandom = new SecureRandom();
+    private final LinkedHashMap<String, PendingScan> activeScans = new LinkedHashMap<>();
 
-    /** 기본 최대 대기 nonce 수를 사용하는 지정맥 공급자를 생성한다. */
-    public FingerVeinMfaProvider() {
-        this(DEFAULT_MAX_PENDING_NONCES);
+    /**
+     * 기본 최대 대기 거래 수를 사용하는 지정맥 공급자를 생성한다.
+     *
+     * @param fixedKey 지정맥인증 서버와 공유하는 고정키
+     * @param clock 년월일을 만들 서버 시계
+     */
+    public FingerVeinMfaProvider(String fixedKey, Clock clock) {
+        this(fixedKey, clock, DEFAULT_MAX_PENDING_NONCES);
     }
 
-    FingerVeinMfaProvider(int maxPendingNonces) {
-        if (maxPendingNonces < 1) {
-            throw new IllegalArgumentException("대기 nonce 최대 수는 1 이상이어야 합니다.");
+    FingerVeinMfaProvider(String fixedKey, Clock clock, int maxPendingNonces) {
+        if (fixedKey == null || fixedKey.isBlank()) {
+            throw new IllegalArgumentException("지정맥 고정키는 필수입니다.");
         }
+        if (maxPendingNonces < 1) {
+            throw new IllegalArgumentException("대기 거래 최대 수는 1 이상이어야 합니다.");
+        }
+        this.fixedKey = fixedKey;
+        this.clock = clock;
         this.maxPendingNonces = maxPendingNonces;
     }
 
     @Override
     public synchronized MfaChallengeData start(MfaStartContext context) {
-        removeExpiredNonces();
-        if (!activeNonces.containsKey(context.transactionId())
-                && activeNonces.size() >= maxPendingNonces) {
-            Iterator<String> iterator = activeNonces.keySet().iterator();
+        removeExpiredScans();
+        if (!activeScans.containsKey(context.transactionId())
+                && activeScans.size() >= maxPendingNonces) {
+            Iterator<String> iterator = activeScans.keySet().iterator();
             iterator.next();
             iterator.remove();
         }
-        activeNonces.put(context.transactionId(), context.expiresAt());
-        return new MfaChallengeData(context.transactionId(), null, context.expiresAt());
+        PendingScan scan = new PendingScan(newRandomKey(), context.eno(), context.expiresAt());
+        activeScans.put(context.transactionId(), scan);
+        return new MfaChallengeData(
+                context.transactionId(), null, scan.randomKey(), context.expiresAt());
     }
 
     @Override
     public synchronized MfaVerificationResult verify(MfaVerifyContext context) {
-        removeExpiredNonces();
-        String nonce = context.startContext().transactionId();
-        Instant expiresAt = activeNonces.get(nonce);
-        boolean matchingNonce = nonce.equals(context.challengeId()) && expiresAt != null;
-        boolean successfulCode = SUCCESS_CODE.equals(normalize(context.verificationValue()));
-        if (matchingNonce && successfulCode) {
-            activeNonces.remove(nonce);
-            return MfaVerificationResult.success();
+        removeExpiredScans();
+        String transactionId = context.startContext().transactionId();
+        PendingScan scan = activeScans.get(transactionId);
+        if (scan == null || !transactionId.equals(context.challengeId())) {
+            return MfaVerificationResult.failure();
         }
-        return MfaVerificationResult.failure();
+        // 성공·실패와 무관하게 랜덤키를 즉시 폐기해 같은 해시를 다시 쓸 수 없게 한다.
+        activeScans.remove(transactionId);
+
+        String expected = successHash(scan.eno(), scan.randomKey());
+        return MessageDigest.isEqual(
+                        expected.getBytes(StandardCharsets.US_ASCII),
+                        normalize(context.verificationValue()).getBytes(StandardCharsets.US_ASCII))
+                ? MfaVerificationResult.success()
+                : MfaVerificationResult.failure();
     }
 
-    private void removeExpiredNonces() {
-        Instant now = Instant.now();
-        activeNonces.entrySet().removeIf(entry -> !entry.getValue().isAfter(now));
+    /** 규격의 성공 검증값으로 기대 해시를 만든다. */
+    private String successHash(String eno, String randomKey) {
+        String value =
+                LocalDate.now(clock).format(DAY) + eno + randomKey + SUCCESS_VERDICT + fixedKey;
+        String hashed = value;
+        for (int round = 0; round < HASH_ROUNDS; round++) {
+            hashed = sha256(hashed);
+        }
+        return hashed;
+    }
+
+    private static String sha256(String value) {
+        try {
+            return HexFormat.of()
+                    .formatHex(
+                            MessageDigest.getInstance("SHA-256")
+                                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다.", exception);
+        }
+    }
+
+    private String newRandomKey() {
+        StringBuilder value = new StringBuilder(RANDOM_KEY_DIGITS);
+        for (int index = 0; index < RANDOM_KEY_DIGITS; index++) {
+            value.append(secureRandom.nextInt(10));
+        }
+        return value.toString();
+    }
+
+    private void removeExpiredScans() {
+        Instant now = Instant.now(clock);
+        activeScans.entrySet().removeIf(entry -> !entry.getValue().expiresAt().isAfter(now));
     }
 
     private static String normalize(String value) {
-        return value.trim().toUpperCase(Locale.ROOT);
+        return value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
     }
+
+    /** 거래별로 보관하는 지정맥 스캔 대기 정보다. */
+    private record PendingScan(String randomKey, String eno, Instant expiresAt) {}
 }
