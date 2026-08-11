@@ -42,4 +42,16 @@ public interface CodeRepository extends JpaRepository<Ccodem, CcodemId>, CodeRep
             "SELECT CASE WHEN COUNT(c) > 0 THEN TRUE ELSE FALSE END FROM Ccodem c WHERE c.cId = :cId AND c.cdva = :cdva AND c.sttDt = :sttDt")
     boolean existsByCIdAndCdvaAndSttDt(
             @Param("cId") String cId, @Param("cdva") String cdva, @Param("sttDt") String sttDt);
+
+    /**
+     * 코드ID에 속한 활성 공통코드 전체를 조회합니다.
+     *
+     * <p>이관 조회 인덱스({@code MigrationIoeCatalogReader})가 씁니다. 클래스 상단 참고와 같은 이유로 명시적 JPQL을 사용합니다.
+     *
+     * @param cId 코드ID
+     * @param delYn 삭제여부
+     * @return 코드ID에 속한 공통코드 목록
+     */
+    @Query("SELECT c FROM Ccodem c WHERE c.cId = :cId AND c.delYn = :delYn")
+    List<Ccodem> findByCIdAndDelYn(@Param("cId") String cId, @Param("delYn") String delYn);
 }

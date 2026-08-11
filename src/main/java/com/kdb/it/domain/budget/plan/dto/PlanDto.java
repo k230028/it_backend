@@ -419,6 +419,15 @@ public class PlanDto {
 
         /** 일반관리비 카드 — itMngcNo → 부모 사업명 맵 */
         private Map<String, String> costPrjNm;
+
+        /**
+         * 이관 전용 — 부문계획 조정의 원장 외 스냅샷 전용 필드.
+         *
+         * <p>사업관리번호 → (집행 실적·사업진행·비고 등 원장 컬럼에 대응하는 자리가 없는 값). {@code
+         * PlanService.createPlanForMigration}만 채우며 일반 계획 생성({@code PlanService.createPlan}) 경로에서는
+         * null입니다.
+         */
+        private Map<String, Map<String, String>> migrationAdjustments;
     }
 
     /** 스냅샷 내 개별 프로젝트 정보 */

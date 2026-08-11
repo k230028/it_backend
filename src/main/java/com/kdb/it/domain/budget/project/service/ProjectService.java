@@ -287,6 +287,75 @@ public class ProjectService {
     }
 
     /**
+     * 이관 전용 — 사업의 활성 품목을 새 버전으로 교체합니다.
+     *
+     * <p>호출자가 교체 대상 기존 활성 품목을 이미 논리삭제한 상태를 전제합니다({@code LST_YN='Y'}, {@code DEL_YN='N'} 조회 결과에
+     * {@link Bitemm#delete()}를 미리 호출). 채번({@code GCL-{연도}-{4자리}})과 환율 표준 조회, 외화 금액 재계산, 정보보호·통합인프라
+     * 여부 기본값("N"), 예정금액 클램프는 {@link #createProject(ProjectDto.CreateRequest, boolean)}와 같은 규칙을
+     * 따릅니다.
+     *
+     * <p>{@link #updateProject}를 재사용하지 않는 이유: 수기 엑셀 이관은 사업 생성 직후 같은 트랜잭션 안에서 결재완료 받이({@code
+     * MigrationApprovalStamper})를 그 사업에 이미 붙이므로, {@code updateProject}의 결재 상태 확인(결재중·결재완료 상태는 수정
+     * 불가)이 곧바로 이 호출을 막습니다. {@code updateProject}는 예산 신청 기간 검증과 로그인 사용자 소유권 검증도 요구하는데, 이관은 편성 시즌
+     * 밖·비로그인 배치 컨텍스트에서 실행되어야 하므로 두 요구 모두 충족할 수 없습니다. 부문계획 조정액이 편성률로 재현되지 않아 품목 금액 자체를 바꿔야 하는 경로에만
+     * 씁니다(§5.4).
+     *
+     * @param abusMngNo 사업관리번호
+     * @param items 새 품목 목록 (비어 있으면 아무것도 하지 않습니다)
+     * @throws IllegalArgumentException 사업이 없거나 최종 버전이 아닌 경우
+     */
+    @Transactional
+    public void replaceItemsForMigration(String abusMngNo, List<ProjectDto.BitemmDto> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        Bprojm project =
+                projectRepository
+                        .findByAbusMngNoAndLstYnAndDelYn(abusMngNo, "Y", "N")
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
+        int gclSno = 0;
+        for (ProjectDto.BitemmDto itemDto : items) {
+            Long gclSeq = bitemmRepository.getNextSequenceValue();
+            String gclMngNo = String.format("GCL-%s-%04d", LocalDate.now().getYear(), gclSeq);
+
+            itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
+            BigDecimal[] reconciled =
+                    BudgetAmountCalculator.reconcileAmount(
+                            itemDto.getFcAmt(),
+                            itemDto.getAmt(),
+                            itemDto.getCurC(),
+                            itemDto.getXcr());
+
+            bitemmRepository.save(
+                    Bitemm.builder()
+                            .gclMngNo(gclMngNo)
+                            .sno(++gclSno)
+                            .abusMngNo(project.getAbusMngNo())
+                            .fntTbCrySno(project.getSno())
+                            .ioeC(itemDto.getIoeC())
+                            .gclNm(itemDto.getGclNm())
+                            .qty(itemDto.getQty())
+                            .curC(itemDto.getCurC())
+                            .xcr(itemDto.getXcr())
+                            .xcrBseDt(DateFormatUtil.toYmd8(itemDto.getXcrBseDt()))
+                            .bseYm(itemDto.getBseYm())
+                            .dfrCleC(CodeDefaults.orNotApplicable(itemDto.getDfrCleC()))
+                            .sectSysUtzYn(
+                                    itemDto.getSectSysUtzYn() == null
+                                            ? "N"
+                                            : itemDto.getSectSysUtzYn())
+                            .itrInfrYn(
+                                    itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn())
+                            .lstYn("Y")
+                            .amt(reconciled[0])
+                            .fcAmt(reconciled[1])
+                            .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0]))
+                            .build());
+        }
+    }
+
+    /**
      * 정보화사업 수정
      *
      * <p>프로젝트 기본 정보를 수정하고, 품목(Bitemm) 목록을 동기화합니다.

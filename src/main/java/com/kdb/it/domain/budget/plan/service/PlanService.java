@@ -309,6 +309,106 @@ public class PlanService {
     }
 
     /**
+     * 이관 전용 — 부문계획 조정을 등록합니다.
+     *
+     * <p>{@link #createPlan}을 재사용하지 않는 이유 두 가지. 첫째, {@code createPlan}은 예산 합계를 대상 사업의 {@code
+     * BBUGTM} 편성행({@code DUP_BG})에서 집계하는데, 이관 반영은 편성행을 마지막 단계({@code applyItemRates} 단일 호출)에서 한 번에
+     * 만들므로 부문계획을 쓰는 시점에는 그 사업의 편성행이 아직 없거나 이전 값 그대로입니다 — 그대로 재사용하면 합계가 0이거나 stale 값으로 저장됩니다. 그래서 이
+     * 경로는 조정 금액(자본예산 세 비목 합)을 호출자가 직접 넘깁니다. 둘째, 조정 시트의 집행 실적·사업진행·비고(§5.4, 원장 컬럼에 대응하는 자리가 없음)를 담을
+     * 자리가 {@link PlanDto.ProjectSnapshot}에는 없어 {@link
+     * PlanDto.SnapshotDto#getMigrationAdjustments()}에 사업관리번호별로 별도로 남깁니다. 이관 오케스트레이션 서비스가 이미 {@code
+     * com.kdb.it.domain.migration.service.adapter.PlanIntent}를 알고 있으므로, 이 서비스가 그 타입을 몰라도 되도록(신규 도메인
+     * 역의존 방지) 원시 타입으로만 받습니다.
+     *
+     * @param bseYy 예산연도
+     * @param plnTp 계획구분 (이관은 "조정" 고정)
+     * @param projectNos 대상 사업관리번호 목록. capitalAmounts와 같은 순서로 대응합니다
+     * @param capitalAmounts 사업별 자본예산 조정 합계(개발비+기계장치+기타무형자산). projectNos와 같은 순서
+     * @param snapshotFieldsByProject 사업관리번호 → 원장 외 스냅샷 전용 필드(집행 실적·사업진행·비고)
+     * @return 생성된 계획관리번호
+     * @throws IllegalArgumentException projectNos와 capitalAmounts의 크기가 다른 경우
+     * @throws ResponseStatusException 스냅샷 직렬화에 실패한 경우 500
+     */
+    @Transactional
+    public String createPlanForMigration(
+            String bseYy,
+            String plnTp,
+            List<String> projectNos,
+            List<BigDecimal> capitalAmounts,
+            Map<String, Map<String, String>> snapshotFieldsByProject) {
+        if (projectNos.size() != capitalAmounts.size()) {
+            throw new IllegalArgumentException("projectNos와 capitalAmounts의 크기가 다릅니다.");
+        }
+
+        BigDecimal cpitBgApvAmt = BigDecimal.ZERO;
+        List<PlanDto.ProjectSnapshot> projectSnapshots = new ArrayList<>();
+        for (int i = 0; i < projectNos.size(); i++) {
+            String prjMngNo = projectNos.get(i);
+            BigDecimal amount =
+                    capitalAmounts.get(i) != null ? capitalAmounts.get(i) : BigDecimal.ZERO;
+            cpitBgApvAmt = cpitBgApvAmt.add(amount);
+
+            ProjectDto.Response project = projectService.getProject(prjMngNo);
+            projectSnapshots.add(
+                    PlanDto.ProjectSnapshot.builder()
+                            .prjMngNo(prjMngNo)
+                            .abusNm(project.getAbusNm())
+                            .prjTp(project.getBzTpC())
+                            .pulDtt(project.getAbusTc())
+                            .svnHdq(project.getPrlmHrkOgzCCone())
+                            .svnDpm(project.getSvnDpmC())
+                            .svnDpmNm(project.getSvnDpmCNm())
+                            .prjBg(amount)
+                            .assetBg(amount)
+                            .costBg(BigDecimal.ZERO)
+                            .build());
+        }
+        BigDecimal totXpAmt = BigDecimal.ZERO;
+        BigDecimal aduTotAmt = cpitBgApvAmt.add(totXpAmt);
+
+        PlanDto.SnapshotDto snapshot =
+                PlanDto.SnapshotDto.builder()
+                        .bseYy(bseYy)
+                        .itPtlPlnTpC(plnTp)
+                        .aduTotAmt(aduTotAmt)
+                        .cpitBgApvAmt(cpitBgApvAmt)
+                        .totXpAmt(totXpAmt)
+                        .projects(projectSnapshots)
+                        .migrationAdjustments(snapshotFieldsByProject)
+                        .build();
+        String snapshotJson;
+        try {
+            snapshotJson = objectMapper.writeValueAsString(snapshot);
+        } catch (JsonProcessingException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "계획 스냅샷 직렬화에 실패했습니다.", e);
+        }
+
+        Long seq = bplanmRepository.getNextSequenceValue();
+        String reqDocNo = String.format("PLN-%s-%04d", bseYy, seq);
+
+        Bplanm plan =
+                Bplanm.builder()
+                        .reqDocNo(reqDocNo)
+                        .itPtlPlnTpC(plnTp)
+                        .bseYy(bseYy)
+                        .aduTotAmt(aduTotAmt)
+                        .cpitBgApvAmt(cpitBgApvAmt)
+                        .totXpAmt(totXpAmt)
+                        .redtConeInf(snapshotJson)
+                        .build();
+        bplanmRepository.save(plan);
+
+        for (String prjMngNo : projectNos) {
+            Bplana relation = Bplana.builder().prjMngNo(prjMngNo).reqDocNo(reqDocNo).build();
+            bplanaRepository.save(relation);
+            bprojaSyncService.upsert(prjMngNo, reqDocNo, "11"); // 계획 진행중
+        }
+
+        return reqDocNo;
+    }
+
+    /**
      * 계획을 논리 삭제합니다.
      *
      * <p>계획 엔티티의 DEL_YN을 'Y'로 변경하며, 연결된 정보기술부문계획 관계(BPLANA) 레코드도 함께 논리 삭제합니다.
