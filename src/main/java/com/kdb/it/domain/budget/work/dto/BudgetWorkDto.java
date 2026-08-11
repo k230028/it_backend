@@ -62,7 +62,7 @@ public class BudgetWorkDto {
     /**
      * 개별 사업 편성률 DTO (자본예산/일반관리비 분리)
      *
-     * @param orcTb 원본 테이블 (TPRMPP_BPROJM / TPRMPP_BCOSTM)
+     * @param orcTb 원본 테이블 — 접두어 없는 {@code BPROJM} 또는 {@code BCOSTM}
      * @param orcPkVl 원본 PK (prjMngNo / itMngcNo)
      * @param assetDupRt 자본예산 편성률 (0~100, null=해당없음)
      * @param costDupRt 일반관리비 편성률 (0~100)

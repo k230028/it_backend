@@ -79,12 +79,33 @@ public class CostService {
     /**
      * 신규 전산업무비와 요청 단말기를 생성합니다.
      *
+     * <p>예산 신청 기간을 검증합니다. 기간 밖 호출은 실패합니다.
+     *
      * @param request 생성 요청
      * @return 생성된 전산업무비 관리번호
+     * @throws com.kdb.it.exception.CustomGeneralException 예산 신청 기간이 아닌 경우
      */
     @Transactional
     public String createCost(CostDto.CreateRequest request) {
-        codeService.validateBudgetPeriod();
+        return createCost(request, false);
+    }
+
+    /**
+     * 신규 전산업무비와 요청 단말기를 생성합니다.
+     *
+     * <p>{@code skipBudgetPeriodValidation}은 관리자 전용 수기 엑셀 이관 경로만 사용합니다. 이관 작업은 편성 시즌 밖에서도 실행되어야 하므로
+     * 기간 검증을 건너뛸 수 있어야 하지만, 일반 사용자 화면 경로는 반드시 검증을 거쳐야 하므로 기본값 false인 1-인자 시그니처를 남겨 둡니다.
+     *
+     * @param request 생성 요청
+     * @param skipBudgetPeriodValidation true면 예산 신청 기간 검증을 생략 (이관 전용)
+     * @return 생성된 전산업무비 관리번호
+     * @throws com.kdb.it.exception.CustomGeneralException 검증을 수행했고 예산 신청 기간이 아닌 경우
+     */
+    @Transactional
+    public String createCost(CostDto.CreateRequest request, boolean skipBudgetPeriodValidation) {
+        if (!skipBudgetPeriodValidation) {
+            codeService.validateBudgetPeriod();
+        }
         String costBgNo = request.getCostBgNo();
         if (costBgNo == null || costBgNo.isEmpty()) {
             Long sequence = costRepository.getNextSequenceValue();

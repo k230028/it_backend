@@ -6,17 +6,16 @@ import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 
 /**
  * 2026년 예산환율 시드가 XcrLookupService 조회 규약을 만족하는지 확인합니다.
  *
- * <p>{@code AbstractOracleRepositoryTest}는 {@code @DataJpaTest} 슬라이스라 리포지토리 빈만 자동
- * 등록한다. {@code XcrLookupService}는 일반 {@code @Service}라 슬라이스 컨텍스트에 포함되지 않으므로
- * 이 테스트 클래스에서 명시적으로 임포트한다.
+ * <p>{@code AbstractOracleRepositoryTest}는 {@code @DataJpaTest} 슬라이스라 리포지토리 빈만 자동 등록한다. {@code
+ * XcrLookupService}는 일반 {@code @Service}라 슬라이스 컨텍스트에 포함되지 않으므로 이 테스트 클래스에서 명시적으로 임포트한다.
  */
 @Tag("it")
 @Import(XcrLookupService.class)
@@ -41,9 +40,9 @@ class XcrLookupServiceBudgetSeedIt extends AbstractOracleRepositoryTest {
     }
 
     /**
-     * 유효기간이 2026년으로 좁혀지면 회귀다 — 조회부(ProjectService/CostService)가 전부
-     * LocalDate.now()로 호출하므로 END_DT를 2026년 한정으로 두면 2027년부터 전 통화 저장이
-     * IllegalStateException으로 롤백된다. END_DT는 무기한('99991231')을 유지해야 한다.
+     * 유효기간이 2026년으로 좁혀지면 회귀다 — 조회부(ProjectService/CostService)가 전부 LocalDate.now()로 호출하므로 END_DT를
+     * 2026년 한정으로 두면 2027년부터 전 통화 저장이 IllegalStateException으로 롤백된다. END_DT는 무기한('99991231')을 유지해야
+     * 한다.
      */
     @Test
     @DisplayName("2027년 기준일로도 GBP 환율이 조회된다 — 유효기간이 무기한임을 고정한다")

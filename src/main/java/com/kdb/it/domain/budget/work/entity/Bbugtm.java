@@ -54,11 +54,11 @@ public class Bbugtm extends BaseEntity {
     @Column(name = "BSE_YY", length = 4, comment = "예산년도 (물리컬럼 BSE_YY=기준연도)")
     private String bseYy;
 
-    /** 원본테이블: 집계 대상 테이블 (BPROJM 또는 BCOSTM) */
+    /** 원본테이블: 집계 대상 테이블 (BITEMM 또는 BCOSTM) */
     @Column(name = "FNT_TB_NM", length = 120, comment = "원본테이블 (물리컬럼 FNT_TB_NM=원천테이블명)")
     private String fntTbNm;
 
-    /** 원본PK값: 원본 레코드의 관리번호 */
+    /** 원본PK값: BITEMM이면 품목관리번호(GCL_MNG_NO), BCOSTM이면 전산업무비코드(BG_NO) */
     @Column(name = "PK_COL_NM", length = 4000, comment = "원본PK값 (물리컬럼 PK_COL_NM=주식별자컬럼명)")
     private String pkColNm;
 

@@ -127,14 +127,55 @@ public class ProjectService {
      * @param request 정보화사업 생성 요청 DTO (프로젝트명, 예산, 기간, 담당자 등)
      * @return 생성된 프로젝트관리번호
      * @throws IllegalArgumentException 제공된 관리번호가 이미 존재하는 경우
+     * @throws com.kdb.it.exception.CustomGeneralException 예산 신청 기간이 아닌 경우
      */
     // 프로젝트 생성 시 Tiptap 변수 카탈로그(활성 사업 목록 포함)가 stale → 전체 evict (P5/T13).
-    // 캐시 키가 'ALL'·부서코드별로 분산되어 단일 키로는 무효화 불가하므로 allEntries=true.
+    // 이 메서드가 2-인자 메서드를 같은 빈 내부에서 호출(this.createProject(request, false))하므로
+    // Spring 프록시를 우회한다. @CacheEvict는 실제 로직을 담은 2-인자 메서드뿐 아니라 외부에서
+    // 직접 호출되는 이 1-인자 진입점에도 함께 붙여야 두 진입점 모두에서 evict가 발화한다
+    // (allEntries=true라 중복 evict는 안전하다). ProjectServiceCacheEvictTest가 이 계약을 고정한다.
     @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
     @Transactional
     public String createProject(ProjectDto.CreateRequest request) {
-        // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
-        codeService.validateBudgetPeriod();
+        return createProject(request, false);
+    }
+
+    /**
+     * 신규 정보화사업 생성
+     *
+     * <p>{@code skipBudgetPeriodValidation}은 관리자 전용 수기 엑셀 이관 경로만 사용합니다. 이관 작업은 편성 시즌 밖에서도 실행되어야 하므로
+     * 기간 검증을 건너뛸 수 있어야 하지만, 일반 사용자 화면 경로는 반드시 검증을 거쳐야 하므로 기본값 false인 1-인자 시그니처를 남겨 둡니다.
+     *
+     * <p>프로젝트관리번호({@code PRJ_MNG_NO})가 없으면 Oracle 시퀀스로 자동 채번합니다. 제공된 경우 중복 여부를 확인합니다.
+     *
+     * <p>자동 채번 로직:
+     *
+     * <ul>
+     *   <li>요청 객체에 기준연도({@code bseYy})가 없으면 현재 연도를 사용합니다.
+     *   <li>데이터베이스 시퀀스({@code SQ_TPRMPP_BPROJM_1})에서 다음 값을 가져옵니다.
+     *   <li>관리번호 자동 생성 형식: {@code PRJ-{bseYy}-{seq:04d}} (예: {@code PRJ-2026-0001})
+     * </ul>
+     *
+     * <p>예: {@code PRJ-2026-0001}
+     *
+     * @param request 정보화사업 생성 요청 DTO (프로젝트명, 예산, 기간, 담당자 등)
+     * @param skipBudgetPeriodValidation true면 예산 신청 기간 검증을 생략 (이관 전용)
+     * @return 생성된 프로젝트관리번호
+     * @throws IllegalArgumentException 제공된 관리번호가 이미 존재하는 경우
+     * @throws com.kdb.it.exception.CustomGeneralException 검증을 수행했고 예산 신청 기간이 아닌 경우
+     */
+    // 프로젝트 생성 시 Tiptap 변수 카탈로그(활성 사업 목록 포함)가 stale → 전체 evict (P5/T13).
+    // 캐시 키가 'ALL'·부서코드별로 분산되어 단일 키로는 무효화 불가하므로 allEntries=true.
+    // 실제 로직은 이 2-인자 메서드에 있으므로 이관 전용 skip=true 호출(프록시를 통한 외부 호출) 시에도
+    // evict가 발화하도록 여기에도 @CacheEvict를 유지한다. 1-인자 진입점에도 같은 어노테이션이
+    // 별도로 붙어 있다(자기 자신 호출은 프록시를 우회하므로 위임만으로는 부족).
+    @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
+    @Transactional
+    public String createProject(
+            ProjectDto.CreateRequest request, boolean skipBudgetPeriodValidation) {
+        if (!skipBudgetPeriodValidation) {
+            codeService.validateBudgetPeriod();
+        }
 
         String prjMngNo = request.getAbusMngNo();
 

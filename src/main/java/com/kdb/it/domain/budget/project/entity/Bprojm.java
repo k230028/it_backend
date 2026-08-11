@@ -215,7 +215,7 @@ public class Bprojm extends BaseEntity {
     @Column(name = "ODN_YN", length = 1, comment = "경상여부")
     private String odnYn;
 
-    /** 사업구분: 사업의 신규/계속 여부 (예: '신규', '계속') */
+    /** 사업구분: 공통코드 ABUS_TC의 코드값 ('10'=신규, '20'=계속, '0'=해당없음) */
     @Column(name = "ABUS_TC", length = 2, nullable = false, comment = "사업구분 (물리컬럼 ABUS_TC=사업구분코드)")
     private String abusTc;
 
