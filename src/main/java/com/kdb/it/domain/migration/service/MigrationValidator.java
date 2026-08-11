@@ -219,30 +219,66 @@ public class MigrationValidator {
         }
     }
 
-    /** 외화 행의 서버 재계산값을 엑셀 원화열과 대조합니다 (§3.7). */
+    /**
+     * 외화 행의 서버 재계산값을 엑셀 원화열과 대조합니다 (§3.7).
+     *
+     * <p>위임예산 시트({@link SheetKind#DELEGATED_BUDGET})는 HW·SW 두 금액 쌍이 통화 컬럼 하나를 공유합니다. 한 행이 HW만 채우거나
+     * SW만 채우는 경우가 보통이지만 둘 다 채운 행도 있을 수 있어, 두 쌍을 각각 대조하지 않으면 채워진 쌍 중 나중 것(SW)은 한 번도 검사되지 않는다. 나머지 세
+     * 시트는 금액 쌍이 하나뿐이라 그 한 쌍만 대조한다.
+     */
     private void checkAmount(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
             MigrationLookupIndex index,
             List<MigrationDto.CellDiagnostic> out) {
+        if (sheet.kind() == SheetKind.DELEGATED_BUDGET) {
+            checkAmountPair(sheet, row, index, out, "hwFcAmount", "hwKrwAmount");
+            checkAmountPair(sheet, row, index, out, "swFcAmount", "swKrwAmount");
+            return;
+        }
+        checkAmountPair(sheet, row, index, out, "fcAmount", "krwAmount");
+    }
+
+    /**
+     * 금액 쌍 하나(외화·원화)를 대조합니다.
+     *
+     * @param fcColumn 외화금액 컬럼 id
+     * @param krwColumn 원화금액 컬럼 id. 진단의 {@code column}에 그대로 쓰여 UI가 어느 쌍이 어긋났는지 짚을 수 있게 합니다
+     */
+    private void checkAmountPair(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            MigrationLookupIndex index,
+            List<MigrationDto.CellDiagnostic> out,
+            String fcColumn,
+            String krwColumn) {
         String currency = cell(row, "currency", Map.of(), sheet);
-        String fcColumn = sheet.kind() == SheetKind.DELEGATED_BUDGET ? "hwFcAmount" : "fcAmount";
-        String krwColumn = sheet.kind() == SheetKind.DELEGATED_BUDGET ? "hwKrwAmount" : "krwAmount";
         BigDecimal fc = number(cell(row, fcColumn, Map.of(), sheet));
         BigDecimal krw = number(cell(row, krwColumn, Map.of(), sheet));
         if (currency.isBlank() || "KRW".equals(currency) || fc == null || krw == null) {
             return;
         }
+        // 위임예산의 두 쌍 중 이 행에서 쓰지 않은 쌍은 0으로 채워져 온다. 빈 쌍까지 환율 미등록으로 진단하지 않도록 건너뛴다.
+        if (fc.compareTo(BigDecimal.ZERO) == 0 && krw.compareTo(BigDecimal.ZERO) == 0) {
+            return;
+        }
         BigDecimal xcr = index.xcrByCurrency().get(currency);
         if (xcr == null) {
-            out.add(
-                    blocker(
-                            sheet,
-                            row,
-                            "currency",
-                            "CODE_UNRESOLVED",
-                            "통화 '" + currency + "'의 예산환율이 공통코드에 없습니다. 환율 시드를 먼저 적용해 주세요.",
-                            List.of()));
+            if (out.stream()
+                    .noneMatch(
+                            d ->
+                                    d.excelRow() == row.excelRow()
+                                            && "currency".equals(d.column())
+                                            && "CODE_UNRESOLVED".equals(d.code()))) {
+                out.add(
+                        blocker(
+                                sheet,
+                                row,
+                                "currency",
+                                "CODE_UNRESOLVED",
+                                "통화 '" + currency + "'의 예산환율이 공통코드에 없습니다. 환율 시드를 먼저 적용해 주세요.",
+                                List.of()));
+            }
             return;
         }
         // JPY는 엑셀 외화열이 천엔이므로 엔으로 올린다 (§5.1)
@@ -355,7 +391,18 @@ public class MigrationValidator {
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out,
             boolean required) {
-        if (overrides.containsKey(overrideKey(sheet.kind(), row.excelRow(), column))) {
+        String overrideValue = overrides.get(overrideKey(sheet.kind(), row.excelRow(), column));
+        if (overrideValue != null) {
+            if (index.org().orgNameOf(overrideValue) == null) {
+                out.add(
+                        blocker(
+                                sheet,
+                                row,
+                                column,
+                                "ORG_UNRESOLVED",
+                                "보정값 '" + overrideValue + "'에 해당하는 조직코드를 찾지 못했습니다. 조직을 다시 선택해 주세요.",
+                                List.of()));
+            }
             return;
         }
         String value = cell(row, column, overrides, sheet);
@@ -394,14 +441,25 @@ public class MigrationValidator {
             MigrationLookupIndex index,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        if (overrides.containsKey(overrideKey(sheet.kind(), row.excelRow(), column))) {
+        String overrideValue = overrides.get(overrideKey(sheet.kind(), row.excelRow(), column));
+        if (overrideValue != null) {
+            if (!index.org().userExists(overrideValue)) {
+                out.add(
+                        blocker(
+                                sheet,
+                                row,
+                                column,
+                                "USER_UNRESOLVED",
+                                "보정값 '" + overrideValue + "'에 해당하는 사번을 찾지 못했습니다. 담당자를 다시 선택해 주세요.",
+                                List.of()));
+            }
             return;
         }
         String value = cell(row, column, overrides, sheet);
         if (value.isBlank()) {
             return;
         }
-        String deptHint = index.org().resolveOrg(cell(row, deptColumn, overrides, sheet)).code();
+        String deptHint = effectiveOrgCode(sheet, row, deptColumn, index, overrides);
         OrgIdentityResolver.Resolution resolution = index.org().resolveUser(value, deptHint);
         if (resolution.code() != null) {
             return;
@@ -416,6 +474,36 @@ public class MigrationValidator {
                                 ? "'" + value + "'에 해당하는 직원이 여러 명입니다. 한 명을 선택해 주세요."
                                 : "'" + value + "'에 해당하는 직원을 찾지 못했습니다. 담당자를 선택해 주세요.",
                         resolution.candidates()));
+    }
+
+    /**
+     * 셀의 유효 조직코드를 판정합니다. 담당자 해석의 부서 힌트(deptHint)를 구할 때 씁니다.
+     *
+     * <p>같은 컬럼이라도 보정값이 있을 때와 없을 때 값의 의미가 다릅니다 — {@code CellOverride.value}는 사용자가 후보에서 고른 코드값
+     * ({@code @Schema} 예시 "008")이고, 원본 셀 값은 엑셀에 적힌 조직 이름입니다. 이 둘을 구분하지 않고 코드값을 이름 해석기({@link
+     * OrgIdentityResolver.Index#resolveOrg})에 그대로 넘기면 조용히 미해석 처리되어, 사용자가 중의적 부서명을 보정해도 담당자 힌트가 좁혀지지
+     * 않는 결함이 있었다. 보정값 경로는 {@link OrgIdentityResolver.Index#orgNameOf}로 실재를 확인하고, 원본 셀 경로만 이름 해석을
+     * 탄다.
+     *
+     * @param sheet 시트
+     * @param row 행
+     * @param column 정규 컬럼 id (부서·팀 컬럼)
+     * @param index 조회 인덱스
+     * @param overrides 보정값 맵
+     * @return 유효 조직코드. 보정값이 미등록 코드이거나 이름이 미해석이면 null
+     */
+    private static String effectiveOrgCode(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            String column,
+            MigrationLookupIndex index,
+            Map<String, String> overrides) {
+        String override = overrides.get(overrideKey(sheet.kind(), row.excelRow(), column));
+        if (override != null) {
+            return index.org().orgNameOf(override) != null ? override : null;
+        }
+        String value = row.cells().get(column);
+        return index.org().resolveOrg(value == null ? "" : value).code();
     }
 
     private static List<MigrationDto.Candidate> candidatesOfIoe(MigrationLookupIndex index) {

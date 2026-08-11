@@ -2,6 +2,8 @@ package com.kdb.it.domain.migration.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import java.util.HashMap;
@@ -163,7 +165,9 @@ class MigrationValidatorTest {
                         Map.of(
                                 "currency", "GBP",
                                 "fcAmount", "2890",
-                                "krwAmount", "9999")); // 2890 × 1924 / 1000 = 5560.36 이어야 한다
+                                // 서버 재계산 2890 × 1924 = 5,560,360원, 엑셀 원화열 9999 × 1,000(COST 배수) =
+                                // 9,999,000원 — 둘이 달라 AMOUNT_MISMATCH가 난다
+                                "krwAmount", "9999"));
 
         List<MigrationDto.CellDiagnostic> result =
                 validator.validate(
@@ -271,6 +275,194 @@ class MigrationValidatorTest {
         assertThat(result).noneMatch(d -> "PROJECT_NOT_FOUND".equals(d.code()));
     }
 
+    /** 담당자명이 인덱스에 전혀 없으면 USER_UNRESOLVED. */
+    @Test
+    @DisplayName("등록되지 않은 담당자명은 USER_UNRESOLVED를 낸다")
+    void 미등록_담당자명은_사용자미해석이다() {
+        Map<String, String> cells = new LinkedHashMap<>(capitalCells());
+        cells.put("managerName", "없는사람 과장");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.CAPITAL_PROJECT, "2026", List.of(row(2, cells)))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "managerName".equals(d.column()))
+                .filteredOn(d -> "USER_UNRESOLVED".equals(d.code()))
+                .isNotEmpty();
+    }
+
+    /** 동명이인이 있고 부서 힌트가 없으면 좁혀지지 않아 USER_AMBIGUOUS. */
+    @Test
+    @DisplayName("동명이인 담당자명은 힌트가 없으면 USER_AMBIGUOUS를 낸다")
+    void 동명이인_담당자명은_힌트없이_중의적이다() {
+        Map<String, String> cells = new LinkedHashMap<>(capitalCells());
+        cells.put("managerName", "김성원");
+        // deptName은 빈 값 그대로 두어 부서 힌트를 주지 않는다.
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.CAPITAL_PROJECT, "2026", List.of(row(2, cells)))),
+                        TestSnapshots.indexWithUsers(
+                                List.of(
+                                        user("E001", "김성원", null, "0450", "T1", "금융공학팀"),
+                                        user("E002", "김성원", null, "0451", "T2", "퀀트인프라팀"))),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "managerName".equals(d.column()))
+                .filteredOn(d -> "USER_AMBIGUOUS".equals(d.code()))
+                .singleElement()
+                .satisfies(d -> assertThat(d.candidates()).hasSize(2));
+    }
+
+    /**
+     * Finding 1 고정 테스트: 중의적 부서명을 보정값(코드)으로 확정하면, 그 코드가 담당자 해석의 부서 힌트로 그대로 쓰여 동명이인을 좁힐 수 있어야 한다. 회귀
+     * 전에는 보정값(코드)이 이름 해석기로 넘어가 힌트가 조용히 null이 되고 USER_AMBIGUOUS가 계속 발생했다.
+     */
+    @Test
+    @DisplayName("부서명 보정값이 있으면 담당자 힌트가 코드로 좁혀져 USER_AMBIGUOUS가 사라진다")
+    void 부서보정값이_담당자_힌트를_좁힌다() {
+        Map<String, String> overrides =
+                Map.of(
+                        MigrationValidator.overrideKey(SheetKind.CAPITAL_PROJECT, 2, "deptName"),
+                        "0450");
+        Map<String, String> cells = new LinkedHashMap<>(capitalCells());
+        cells.put("deptName", "금융공학");
+        cells.put("managerName", "김성원");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.CAPITAL_PROJECT, "2026", List.of(row(2, cells)))),
+                        TestSnapshots.indexWithOrgsAndUsers(
+                                List.of(org("0450", "금융공학실"), org("0451", "금융공학실 퀀트인프라팀")),
+                                List.of(
+                                        user("E001", "김성원", null, "0450", "T1", "금융공학팀"),
+                                        user("E002", "김성원", null, "0451", "T2", "퀀트인프라팀"))),
+                        TestSnapshots.empty("2026"),
+                        overrides);
+
+        assertThat(result).noneMatch(d -> "USER_AMBIGUOUS".equals(d.code()));
+    }
+
+    /** 인덱스에 없는 통화는(금액이 채워져 있으면) currency 컬럼에 CODE_UNRESOLVED. */
+    @Test
+    @DisplayName("환율표에 없는 통화는 CODE_UNRESOLVED를 낸다")
+    void 환율미등록_통화는_코드미해석이다() {
+        Map<String, String> cells = costCells(Map.of("currency", "GBP", "fcAmount", "100"));
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(costSheet(row(2, cells))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "currency".equals(d.column()))
+                .filteredOn(d -> "CODE_UNRESOLVED".equals(d.code()))
+                .isNotEmpty();
+    }
+
+    /** 같은 연도에 '조정' 계획이 이미 있으면 부문계획 행은 DUPLICATE_EXISTS. */
+    @Test
+    @DisplayName("조정 계획이 이미 있는 연도의 부문계획 행은 DUPLICATE_EXISTS를 낸다")
+    void 조정계획_중복은_블로커다() {
+        Map<String, String> cells = new LinkedHashMap<>();
+        for (String column :
+                com.kdb.it.domain.migration.dto.MigrationColumns.of(SheetKind.PLAN_ADJUSTMENT)) {
+            cells.put(column, "");
+        }
+        cells.put("projectName", "웹한글 기안기 도입");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.PLAN_ADJUSTMENT, "2026", List.of(row(2, cells)))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.snapshotWithPlanType("2026", "조정"),
+                        Map.of());
+
+        assertThat(result).filteredOn(d -> "DUPLICATE_EXISTS".equals(d.code())).isNotEmpty();
+    }
+
+    /** 같은 연도에 같은 정규화 사업명이 이미 있으면 자본예산 행은 DUPLICATE_EXISTS. */
+    @Test
+    @DisplayName("같은 사업명이 이미 있는 연도의 자본예산 행은 DUPLICATE_EXISTS를 낸다")
+    void 사업명_중복은_블로커다() {
+        Map<String, String> cells = new LinkedHashMap<>(capitalCells());
+        cells.put("projectName", "웹한글 기안기 도입");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.CAPITAL_PROJECT, "2026", List.of(row(2, cells)))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.snapshotWithProjectName(
+                                "2026",
+                                MigrationYearSnapshot.normalizeName("웹한글 기안기 도입"),
+                                "PRJ-2026-0001"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "projectName".equals(d.column()))
+                .filteredOn(d -> "DUPLICATE_EXISTS".equals(d.code()))
+                .isNotEmpty();
+    }
+
+    /**
+     * Finding 2 고정 테스트: 위임예산 시트는 HW·SW 두 금액 쌍이 통화 컬럼 하나를 공유한다. SW 쌍만 채워진 행에서 SW 쌍이 틀리면
+     * AMOUNT_MISMATCH가 나야 한다(회귀 전에는 HW 쌍만 대조해 SW 쌍은 절대 검사되지 않았다). 비어 있는(0으로 채워진) HW 쌍은 진단을 내지 않아야
+     * 한다.
+     */
+    @Test
+    @DisplayName("위임예산 SW 금액쌍의 불일치도 AMOUNT_MISMATCH를 낸다")
+    void 위임예산_SW쌍_불일치도_경고다() {
+        Map<String, String> cells = new LinkedHashMap<>();
+        for (String column :
+                com.kdb.it.domain.migration.dto.MigrationColumns.of(SheetKind.DELEGATED_BUDGET)) {
+            cells.put(column, "");
+        }
+        cells.put("branchName", "IT기획부");
+        cells.put("itemName", "백신 라이선스");
+        cells.put("currency", "USD");
+        cells.put("hwQty", "");
+        cells.put("hwFcAmount", "");
+        cells.put("hwKrwAmount", "");
+        cells.put("swQty", "10");
+        cells.put("swFcAmount", "1000");
+        cells.put("swKrwAmount", "999"); // 1000 × 1300 = 1,300,000 ≠ 999 × 1(위임예산 배수)
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.DELEGATED_BUDGET,
+                                        "2026",
+                                        List.of(row(2, cells)))),
+                        TestSnapshots.indexWithXcr("USD", "1300"),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "swKrwAmount".equals(d.column()))
+                .filteredOn(d -> "AMOUNT_MISMATCH".equals(d.code()))
+                .isNotEmpty();
+        assertThat(result).noneMatch(d -> "hwKrwAmount".equals(d.column()));
+    }
+
     private static MigrationDto.SheetPayload costSheet(MigrationDto.NormalizedRow row) {
         return new MigrationDto.SheetPayload(SheetKind.COST, "2026", List.of(row));
     }
@@ -312,5 +504,21 @@ class MigrationValidatorTest {
         cells.put("devAmount", "1406");
         cells.put("adjustRate", "0.7");
         return cells;
+    }
+
+    private static CorgnI org(String code, String name) {
+        return CorgnI.builder().prlmOgzCCone(code).bbrNm(name).build();
+    }
+
+    private static CuserI user(
+            String eno, String name, String title, String bbrC, String temC, String temNm) {
+        return CuserI.builder()
+                .eno(eno)
+                .usrNm(name)
+                .ptCNm(title)
+                .bbrC(bbrC)
+                .temC(temC)
+                .temNm(temNm)
+                .build();
     }
 }

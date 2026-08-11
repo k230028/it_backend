@@ -1,6 +1,7 @@
 package com.kdb.it.domain.migration.service;
 
 import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CuserI;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -53,6 +54,19 @@ public final class TestSnapshots {
                 Map.of(curC, new BigDecimal(xcr)));
     }
 
+    /** 사용자만 담긴 인덱스. USER_UNRESOLVED·USER_AMBIGUOUS 진단 픽스처용입니다. */
+    public static MigrationLookupIndex indexWithUsers(List<CuserI> users) {
+        return new MigrationLookupIndex(
+                OrgIdentityResolver.Index.of(List.of(), users), Map.of(), Map.of());
+    }
+
+    /** 조직과 사용자를 함께 담은 인덱스. 부서 힌트로 동명이인을 좁히는 시나리오 픽스처용입니다. */
+    public static MigrationLookupIndex indexWithOrgsAndUsers(
+            List<CorgnI> orgs, List<CuserI> users) {
+        return new MigrationLookupIndex(
+                OrgIdentityResolver.Index.of(orgs, users), Map.of(), Map.of());
+    }
+
     /** 기존 데이터가 없는 연도 스냅샷. */
     public static MigrationYearSnapshot.Data empty(String bseYy) {
         return new MigrationYearSnapshot.Data(
@@ -65,5 +79,22 @@ public final class TestSnapshots {
         keys.add(naturalKey);
         return new MigrationYearSnapshot.Data(
                 bseYy, keys, new LinkedHashMap<>(), Set.of(), new LinkedHashMap<>(), List.of());
+    }
+
+    /** 특정 계획구분이 이미 존재하는 연도 스냅샷. PLAN_ADJUSTMENT의 DUPLICATE_EXISTS 픽스처용입니다. */
+    public static MigrationYearSnapshot.Data snapshotWithPlanType(String bseYy, String planType) {
+        Set<String> types = new LinkedHashSet<>();
+        types.add(planType);
+        return new MigrationYearSnapshot.Data(
+                bseYy, Set.of(), new LinkedHashMap<>(), types, new LinkedHashMap<>(), List.of());
+    }
+
+    /** 정규화 사업명 하나가 이미 있는 연도 스냅샷. CAPITAL_PROJECT의 DUPLICATE_EXISTS 픽스처용입니다. */
+    public static MigrationYearSnapshot.Data snapshotWithProjectName(
+            String bseYy, String normalizedName, String projectNo) {
+        Map<String, String> byName = new LinkedHashMap<>();
+        byName.put(normalizedName, projectNo);
+        return new MigrationYearSnapshot.Data(
+                bseYy, Set.of(), byName, Set.of(), new LinkedHashMap<>(), List.of());
     }
 }

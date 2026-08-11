@@ -233,6 +233,19 @@ public class OrgIdentityResolver {
         }
 
         /**
+         * 사번이 스냅샷에 등록되어 있는지 확인합니다.
+         *
+         * <p>미리보기 보정값({@code CellOverride.value})은 사용자가 후보 목록에서 고른 사번을 그대로 담아 오므로, 이 값을 신뢰하기 전에 실재
+         * 여부를 확인해야 합니다. 검증기가 보정값을 검증 없이 통과시키면 잘못되거나 오래된 사번이 그대로 원장 반영 단계까지 흘러갑니다.
+         *
+         * @param eno 사번
+         * @return 등록되어 있으면 true
+         */
+        public boolean userExists(String eno) {
+            return eno != null && userByEno.containsKey(eno);
+        }
+
+        /**
          * 사번의 소속 팀코드를 반환합니다.
          *
          * @param eno 사번
