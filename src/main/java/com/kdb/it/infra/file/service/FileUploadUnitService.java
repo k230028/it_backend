@@ -50,7 +50,7 @@ public class FileUploadUnitService {
      * @param file 업로드할 파일
      * @param request 파일 메타데이터 요청
      * @return 저장 완료된 파일 메타데이터 엔티티
-     * @throws CustomGeneralException 빈 파일, 저장소 쓰기 실패, DB 저장 실패 시 발생
+     * @throws CustomGeneralException 빈 파일, 원본 파일명 없음, 저장소 쓰기 실패, DB 저장 실패 시 발생
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Cfilem uploadFileInNewTransaction(MultipartFile file, FileDto.UploadRequest request) {
@@ -58,10 +58,17 @@ public class FileUploadUnitService {
             throw new CustomGeneralException("업로드할 파일이 비어있습니다.");
         }
 
-        fileValidator.validateExtension(file.getOriginalFilename());
+        // MultipartFile.getOriginalFilename()은 계약상 null을 반환할 수 있다. 아래 검증·채번이
+        // 모두 파일명을 쓰므로 진입 시점에 한 번만 확정해 두고 업무 예외로 거부한다.
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null) {
+            throw new CustomGeneralException("업로드할 파일의 원본 파일명이 없습니다.");
+        }
+
+        fileValidator.validateExtension(originalFilename);
 
         Path storageDir = buildStorageDir(request.getPkColNm());
-        String flPysNm = generateFlPysNm(file.getOriginalFilename());
+        String flPysNm = generateFlPysNm(originalFilename);
         String flMpnId = generateFlMpnId();
         String flKpnPth = storageDir.toString();
 
@@ -75,14 +82,13 @@ public class FileUploadUnitService {
         try {
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
-            throw new CustomGeneralException(
-                    "파일 저장에 실패했습니다. 파일명: " + file.getOriginalFilename(), e);
+            throw new CustomGeneralException("파일 저장에 실패했습니다. 파일명: " + originalFilename, e);
         }
 
         Cfilem cfilem =
                 Cfilem.builder()
                         .flMpnId(flMpnId)
-                        .flNm(file.getOriginalFilename())
+                        .flNm(originalFilename)
                         .flPysNm(flPysNm)
                         .flKpnPth(flKpnPth)
                         .flTpCone(request.getFlTpCone())

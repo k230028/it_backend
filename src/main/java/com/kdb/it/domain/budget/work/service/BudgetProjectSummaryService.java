@@ -119,15 +119,14 @@ public class BudgetProjectSummaryService {
             } else {
                 sourceKey = new SourceKey(budget.getFntTbNm(), budget.getPkColNm());
             }
-            amountsBySource.computeIfAbsent(sourceKey, ignored -> new LinkedHashMap<>());
+            // computeIfAbsent 반환값을 그대로 사용해 같은 키를 다시 조회하지 않는다.
+            Map<String, BigDecimal[]> amountsByPrefix =
+                    amountsBySource.computeIfAbsent(sourceKey, ignored -> new LinkedHashMap<>());
             String prefix = matchPrefix(budget.getIoeC(), hierarchyByIoe, duplicateCodes);
             if (prefix == null) continue;
             BigDecimal[] amounts =
-                    amountsBySource
-                            .get(sourceKey)
-                            .computeIfAbsent(
-                                    prefix,
-                                    ignored -> new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ZERO});
+                    amountsByPrefix.computeIfAbsent(
+                            prefix, ignored -> new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ZERO});
             BigDecimal requestAmount = reverseRequestAmount(budget);
             BigDecimal budgetAmount =
                     budget.getBgDupAmt() != null ? budget.getBgDupAmt() : BigDecimal.ZERO;

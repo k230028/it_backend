@@ -22,6 +22,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 /**
  * Gemini API 연동 서비스
@@ -182,7 +183,9 @@ public class GeminiService {
                     .skippedFiles(skippedFiles)
                     .build();
 
-        } catch (Exception e) {
+        } catch (RestClientException e) {
+            // 통신 계층 오류만 래핑한다. extractText가 던지는 응답 파싱 오류는 이미 원인이
+            // 드러나는 메시지를 갖고 있으므로 이중 래핑하지 않고 그대로 전파시킨다.
             log.error("Gemini API 호출 실패 - 모델: {}, 오류: {}", model, e.getMessage(), e);
             throw new RuntimeException("Gemini API 호출 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
@@ -367,6 +370,11 @@ public class GeminiService {
             throw new RuntimeException("Gemini 응답 내용을 파싱할 수 없습니다.");
         }
 
-        return candidate.getContent().getParts().get(0).getText();
+        String text = candidate.getContent().getParts().get(0).getText();
+        if (text == null) {
+            // 호출자가 곧바로 length()를 부르므로 여기서 걸러 NPE 대신 원인이 드러나는 예외로 만든다.
+            throw new RuntimeException("Gemini 응답 텍스트가 비어있습니다.");
+        }
+        return text;
     }
 }

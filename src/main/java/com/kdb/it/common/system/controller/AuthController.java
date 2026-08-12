@@ -12,6 +12,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -54,6 +56,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth") // 기본 URL 경로 설정
 @Tag(name = "Auth", description = "인증 API") // Swagger UI 그룹 태그
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     /** 인증 비즈니스 로직 서비스 */
     private final AuthService authService;
@@ -302,8 +306,9 @@ public class AuthController {
             synchronized (session) {
                 session.invalidate();
             }
-        } catch (IllegalStateException ignored) {
+        } catch (IllegalStateException e) {
             // 이미 무효화된 세션은 추가 처리가 필요하지 않다.
+            log.trace("이미 무효화된 세션이라 로그아웃 세션 무효화를 건너뜁니다.", e);
         }
     }
 

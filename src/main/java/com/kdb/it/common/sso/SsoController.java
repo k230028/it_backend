@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -451,7 +452,11 @@ public class SsoController {
      * @return 리다이렉트 대상 프론트엔드 기준 URL
      */
     private String resolveFrontendBaseUrl(String origin) {
-        return getAllowedOrigin(origin).orElse(frontendUrl);
+        // 복귀 URL 조립(문자열 연결)이 전부 이 반환값에 의존하므로 널이 아님을 여기서 확정한다.
+        // @Value 기본값이 빈 문자열이라 frontendUrl은 실제로 널이 되지 않지만, 프로퍼티가
+        // 명시적으로 비워진 경우까지 포함해 계약을 한 지점에 못박는다.
+        return getAllowedOrigin(origin)
+                .orElseGet(() -> Objects.requireNonNullElse(frontendUrl, ""));
     }
 
     /**
@@ -632,8 +637,9 @@ public class SsoController {
                         return sessionEno.toString();
                     }
                 }
-            } catch (IllegalStateException ignored) {
+            } catch (IllegalStateException e) {
                 // 다른 요청이 먼저 세션을 무효화한 경우 직접 전달 허용 여부를 이어서 검사한다.
+                log.trace("SSO 검증 세션이 이미 무효화되어 직접 전달 경로로 넘어갑니다.", e);
             }
         }
 
@@ -675,8 +681,9 @@ public class SsoController {
             synchronized (session) {
                 session.invalidate();
             }
-        } catch (IllegalStateException ignored) {
+        } catch (IllegalStateException e) {
             // 이미 무효화된 세션은 추가 처리가 필요하지 않다.
+            log.trace("이미 무효화된 세션이라 SSO 세션 무효화를 건너뜁니다.", e);
         }
     }
 }

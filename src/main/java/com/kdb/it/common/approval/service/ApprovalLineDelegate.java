@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -70,7 +71,7 @@ public class ApprovalLineDelegate {
                 capplm.updateDetailContent(objectMapper.writeValueAsString(rootNode));
             }
 
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
             log.error("결재선 JSON 업데이트 실패 - 신청관리번호: {}", capplm.getApfMngNo(), e);
             throw new CustomGeneralException("결재선 JSON 업데이트 실패: " + capplm.getApfMngNo(), e);
         }
@@ -100,7 +101,8 @@ public class ApprovalLineDelegate {
             recallNode.put("recallOpnn", recallOpnn);
             root.set("recallInfo", recallNode);
             capplm.updateDetailContent(objectMapper.writeValueAsString(root));
-        } catch (Exception e) {
+        } catch (JsonProcessingException | ClassCastException e) {
+            // ClassCastException: 저장된 JSON이 객체가 아닌 배열·스칼라면 ObjectNode 캐스팅이 실패한다.
             throw new IllegalStateException("회수 정보 JSON 갱신 실패", e);
         }
     }

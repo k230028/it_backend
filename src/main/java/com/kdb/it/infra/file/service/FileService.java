@@ -519,8 +519,13 @@ public class FileService {
      */
     private String detectContentType(String originalFilename, Path filePath) {
         String ext = "";
-        String name =
-                (originalFilename != null) ? originalFilename : filePath.getFileName().toString();
+        String name = originalFilename;
+        if (name == null) {
+            // Path.getFileName()은 루트 경로에서 null을 반환한다. 저장 경로가 루트일 수는 없지만
+            // 표준 계약을 따라 방어하고, 이름을 못 얻으면 확장자 없는 것으로 보아 폴백한다.
+            Path fileName = filePath.getFileName();
+            name = (fileName != null) ? fileName.toString() : "";
+        }
         int dotIdx = name.lastIndexOf('.');
         if (dotIdx >= 0) {
             ext = name.substring(dotIdx + 1).toLowerCase();

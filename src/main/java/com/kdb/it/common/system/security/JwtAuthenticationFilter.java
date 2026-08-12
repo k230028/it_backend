@@ -155,7 +155,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 2. Authorization 헤더에서 Bearer 토큰 추출 (폴백) — 운영 비활성화 가능 (app.auth.allow-bearer-header)
         if (allowBearerHeader) {
             String bearerToken = request.getHeader("Authorization");
-            if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            // getHeader는 헤더가 없으면 null을 반환한다. hasText가 이미 걸러내지만 널 검사를
+            // 명시해 두어야 정적분석이 역참조 안전성을 인식한다.
+            if (bearerToken != null
+                    && StringUtils.hasText(bearerToken)
+                    && bearerToken.startsWith("Bearer ")) {
                 return bearerToken.substring(7); // "Bearer ".length() == 7
             }
         }

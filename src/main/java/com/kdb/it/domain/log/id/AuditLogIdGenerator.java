@@ -3,6 +3,7 @@ package com.kdb.it.domain.log.id;
 import jakarta.persistence.Table;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.id.IdentifierGenerator;
@@ -60,7 +61,9 @@ public class AuditLogIdGenerator implements IdentifierGenerator {
             } finally {
                 session.getJdbcConnectionAccess().releaseConnection(conn);
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
+            // JDBC 오류만 래핑한다. 위에서 던지는 IllegalStateException(NEXTVAL 결과 없음)은
+            // JavaDoc 계약대로 그대로 전파시킨다.
             throw new RuntimeException("시퀀스 조회 오류: " + seqName, e);
         }
     }

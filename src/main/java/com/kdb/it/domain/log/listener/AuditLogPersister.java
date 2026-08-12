@@ -113,7 +113,8 @@ public class AuditLogPersister {
             copyColumnFields(sourceEntity, logEntity);
 
             return logEntity;
-        } catch (Exception e) {
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            // 리플렉션 생성자 조회·인스턴스화 실패와 BaseLogEntity 캐스팅 실패만 래핑한다.
             throw new RuntimeException("변경 로그 스냅샷 생성 실패: " + logClass.getSimpleName(), e);
         }
     }
@@ -255,7 +256,13 @@ public class AuditLogPersister {
      * @return DB 컬럼명 (소문자/대문자 구분 없이 비교에 사용)
      */
     private String columnName(Field f) {
-        String name = f.getAnnotation(Column.class).name();
+        Column column = f.getAnnotation(Column.class);
+        // collectColumnFields가 @Column 보유 필드만 수집하므로 여기서 null이 될 수 없다.
+        // 다른 경로에서 호출되더라도 NPE 대신 JPA 기본값 규칙으로 떨어지도록 전제를 명시한다.
+        if (column == null) {
+            return f.getName();
+        }
+        String name = column.name();
         return name.isEmpty() ? f.getName() : name;
     }
 
@@ -290,9 +297,11 @@ public class AuditLogPersister {
      * @param target 값을 설정할 대상 객체
      * @param fieldName 설정할 필드명
      * @param value 설정할 값
-     * @throws Exception 필드를 찾지 못하거나 접근 권한이 없는 경우
+     * @throws NoSuchFieldException 클래스 계층 어디에서도 해당 필드를 찾지 못한 경우
+     * @throws IllegalAccessException 필드 접근 권한이 없는 경우
      */
-    private void setField(Object target, String fieldName, Object value) throws Exception {
+    private void setField(Object target, String fieldName, Object value)
+            throws ReflectiveOperationException {
         Class<?> c = target.getClass();
         while (c != null) {
             try {
